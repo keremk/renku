@@ -2,21 +2,6 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "client/src/*"
-      ],
-      "@/components/*": [
-        "client/src/components/*"
-      ],
-      "@/lib/*": [
-        "client/src/lib/*"
-      ],
-      "@/hooks/*": [
-        "client/src/hooks/*"
-      ],
-      "@/services/*": [
-        "client/src/services/*"
-      ],
       "@assets/*": [
         "attached_assets/*"
       ],

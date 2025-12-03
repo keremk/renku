@@ -3,19 +3,19 @@
   "extends": "./tsconfig.base.json",
   "references": [
     {
-      "path": "./client"
-    },
-    {
-      "path": "./client/tsconfig.vitest.json"
-    },
-    {
-      "path": "./server"
-    },
-    {
       "path": "./core"
     },
     {
       "path": "./cli"
+    },
+    {
+      "path": "./compositions"
+    },
+    {
+      "path": "./providers"
+    },
+    {
+      "path": "./viewer"
     }
   ]
 }

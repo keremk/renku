@@ -1,6 +1,4 @@
 packages:
-  - 'client'
-  - 'server'
   - 'core'
   - 'cli'
   - 'compositions'

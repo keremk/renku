@@ -19,36 +19,6 @@ tutopanda/
 │   ├── tsconfig.json
 │   └── vitest.config.ts
 │
-├── client/                       # tutopanda-client - Next.js 15 web application
-│   ├── .next/                    # Next.js build cache (gitignored)
-│   ├── docs/                     # Client documentation
-│   ├── local-storage/            # Local storage data
-│   ├── plans/                    # Planning documents
-│   ├── public/                   # Static assets
-│   ├── scripts/                  # Build and utility scripts
-│   ├── src/
-│   │   ├── app/                  # Next.js app router pages
-│   │   ├── components/           # React components
-│   │   ├── data/                 # Data utilities
-│   │   ├── db/                   # Database schemas and migrations
-│   │   ├── hooks/                # React hooks
-│   │   ├── inngest/              # Inngest workflows
-│   │   ├── lib/                  # Shared utilities
-│   │   ├── prompts/              # AI prompts
-│   │   ├── services/             # Business logic services
-│   │   ├── styles/               # CSS and styling
-│   │   ├── test-data/            # Test fixtures
-│   │   ├── types/                # TypeScript types
-│   │   └── middleware.ts         # Next.js middleware
-│   ├── tests/                    # Test suites
-│   ├── components.json           # shadcn/ui configuration
-│   ├── drizzle.config.ts         # Drizzle ORM configuration
-│   ├── next.config.js            # Next.js configuration
-│   ├── tailwind.config.ts        # Tailwind CSS configuration
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── vitest.config.ts
-│
 ├── core/                         # tutopanda-core - Shared orchestration library
 │   ├── dist/                     # Build output (gitignored)
 │   ├── docs/                     # Core architecture documentation
@@ -95,16 +65,6 @@ tutopanda/
 │   ├── vitest.config.ts
 │   └── vitest.integration.config.ts
 │
-├── server/                       # tutopanda-server - Nitro/h3 API server
-│   ├── .nitro/                   # Nitro cache (gitignored)
-│   ├── .output/                  # Build output (gitignored)
-│   ├── server/
-│   │   └── routes/               # API route handlers
-│   ├── nitro.config.ts           # Nitro configuration
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── vitest.config.ts
-│
 ├── tmp-root/                     # Temporary workspace files
 ├── .claude/                      # Claude AI configuration
 ├── .git/                         # Git repository
@@ -133,23 +93,15 @@ tutopanda/
 ### `cli` (tutopanda-cli)
 Command-line interface for generating movies using the core orchestration library. Built with Ink for interactive terminal UI.
 
-### `client` (tutopanda-client)
-Next.js 15 web application providing the user interface. Uses Tailwind CSS, shadcn/ui components, and Drizzle ORM for database access.
-
 ### `core` (tutopanda-core)
 Shared TypeScript library for orchestrating AI-based movie asset generation. Implements the manifest-centric, content-addressed storage architecture.
 
 ### `providers` (tutopanda-providers)
 AI provider implementations and registry. Handles integration with various AI services for content generation.
 
-### `server` (tutopanda-server)
-Nitro/h3 API server exposing the backend services. Coordinates with the core library for movie generation workflows.
-
 ## Build Artifacts (gitignored)
 - `cli/dist/` - CLI build output
 - `core/dist/` - Core library build output
 - `providers/dist/` - Providers build output
-- `client/.next/` - Next.js build cache
-- `server/.nitro/`, `server/.output/` - Nitro build output
 - All `node_modules/` directories
 - TypeScript build info files (`*.tsbuildinfo`)

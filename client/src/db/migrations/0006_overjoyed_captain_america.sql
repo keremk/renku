@@ -1,1 +1,0 @@
-ALTER TABLE "video_lectures" ADD COLUMN "videos" jsonb;

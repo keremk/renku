@@ -4,10 +4,11 @@
   "type": "module",
   "license": "MIT",
   "workspaces": [
-    "client",
-    "server",
     "core",
-    "cli"
+    "cli",
+    "compositions",
+    "providers",
+    "viewer"
   ],
   "scripts": {
     "dev:core": "pnpm --filter @tutopanda/core dev",
