@@ -23,7 +23,7 @@ describe('integration: provider config merging', () => {
       },
       {
         producerId: 'TimelineComposer',
-        provider: 'tutopanda',
+        provider: 'renku',
         model: 'OrderedTimeline',
         config: {
           audioClip: { volume: 0.9 },

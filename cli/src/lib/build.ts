@@ -12,7 +12,7 @@ import {
   type RunResult,
   type ProducerJobContext,
   type Logger,
-} from '@tutopanda/core';
+} from '@renku/core';
 import {
   createProviderRegistry,
   type ProviderContextPayload,
@@ -20,7 +20,7 @@ import {
   type ProducerHandler,
   type ResolvedProviderHandler,
   type ProviderDescriptor,
-} from '@tutopanda/providers';
+} from '@renku/providers';
 import type { CliConfig } from './cli-config.js';
 import { normalizeConcurrency } from './cli-config.js';
 import type { ProducerOptionsMap, LoadedProducerOption } from './producer-options.js';
@@ -37,7 +37,7 @@ export interface ExecuteBuildOptions {
   concurrency?: number;
   upToLayer?: number;
   logger?: Logger;
-  notifications?: import('@tutopanda/core').NotificationBus;
+  notifications?: import('@renku/core').NotificationBus;
 }
 
 export interface BuildSummary {
@@ -164,7 +164,7 @@ export function createProviderProduce(
   resolvedInputs: Record<string, unknown>,
   preResolved: ResolvedProviderHandler[] = [],
   logger: Logger = globalThis.console,
-  notifications?: import('@tutopanda/core').NotificationBus,
+  notifications?: import('@renku/core').NotificationBus,
 ): ProduceFn {
   const handlerCache = new Map<string, ProducerHandler>();
 

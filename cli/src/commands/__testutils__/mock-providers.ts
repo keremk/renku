@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 
-vi.mock('@tutopanda/providers', async () => {
-  const actual = await vi.importActual<typeof import('@tutopanda/providers')>('@tutopanda/providers');
+vi.mock('@renku/providers', async () => {
+  const actual = await vi.importActual<typeof import('@renku/providers')>('@renku/providers');
   return {
     ...actual,
     createProviderRegistry: (options?: Parameters<typeof actual.createProviderRegistry>[0]) =>

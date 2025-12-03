@@ -8,7 +8,7 @@ import {
   ManifestNotFoundError,
   type BlobRef,
   type Manifest,
-} from '@tutopanda/core';
+} from '@renku/core';
 import type { CliConfig } from './cli-config.js';
 import { mergeMovieMetadata, readMovieMetadata } from './movie-metadata.js';
 import { INPUT_FILE_NAME, WORKSPACE_INPUTS_RELATIVE_PATH } from './input-files.js';
@@ -88,7 +88,7 @@ export async function exportWorkspace(args: {
     manifestHash = result.hash;
   } catch (error) {
     if (error instanceof ManifestNotFoundError) {
-      throw new Error(`No manifest found for movie ${movieId}. Run "tutopanda query" first.`);
+      throw new Error(`No manifest found for movie ${movieId}. Run "renku query" first.`);
     }
     throw error;
   }

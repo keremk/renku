@@ -23,7 +23,7 @@
     "remotion": "4.0.375",
     "tailwind-merge": "^2.6.0",
     "tailwindcss": "^4.1.13",
-    "@tutopanda/compositions": "workspace:*"
+    "@renku/compositions": "workspace:*"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

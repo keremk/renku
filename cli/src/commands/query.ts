@@ -15,7 +15,7 @@ import { confirmPlanWithInk } from '../lib/plan-confirmation.js';
 import { cleanupPlanFiles } from '../lib/plan-cleanup.js';
 import { resolveBlueprintSpecifier } from '../lib/config-assets.js';
 import { resolveAndPersistConcurrency } from '../lib/concurrency.js';
-import type { Logger, NotificationBus } from '@tutopanda/core';
+import type { Logger, NotificationBus } from '@renku/core';
 import type { CliLoggerMode } from '../lib/logger.js';
 
 export interface QueryOptions {
@@ -57,7 +57,7 @@ export async function runQuery(options: QueryOptions): Promise<QueryResult> {
   const configPath = getDefaultCliConfigPath();
   const cliConfig = await readCliConfig(configPath);
   if (!cliConfig) {
-    throw new Error('Tutopanda CLI is not initialized. Run "tutopanda init" first.');
+    throw new Error('Renku CLI is not initialized. Run "renku init" first.');
   }
   const logger = options.logger;
   const { movieId, storageMovieId } = options;

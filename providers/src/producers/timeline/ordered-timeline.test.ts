@@ -47,7 +47,7 @@ vi.mock('mediabunny', () => {
 
 function createHandler() {
   return createTimelineProducerHandler()({
-    descriptor: { provider: 'tutopanda', model: 'OrderedTimeline', environment: 'local' },
+    descriptor: { provider: 'renku', model: 'OrderedTimeline', environment: 'local' },
     mode: 'live',
     secretResolver: { getSecret: async () => null },
   });
@@ -98,7 +98,7 @@ function makeRequest(options: { omitAudio?: boolean; audioDurations?: number[] }
   }
 
   return {
-    provider: 'tutopanda',
+    provider: 'renku',
     model: 'OrderedTimeline',
     jobId: 'job-1',
     revision: 'rev-0001',

@@ -322,7 +322,7 @@ describe('createRunner', () => {
         'Input:TimelineComposer.AudioSegments',
       ],
       produces: ['Artifact:TimelineComposer.Timeline'],
-      provider: 'tutopanda',
+      provider: 'renku',
       providerModel: 'OrderedTimeline',
       rateKey: 'timeline:ordered',
       context: {
@@ -424,7 +424,7 @@ describe('createRunner', () => {
             producer: 'TimelineProducer',
             inputs: ['Input:TimelineComposer.AudioSegments'],
             produces: ['Artifact:TimelineComposer.Timeline'],
-            provider: 'tutopanda',
+            provider: 'renku',
             providerModel: 'OrderedTimeline',
             rateKey: 'timeline:ordered',
             context: {

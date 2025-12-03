@@ -1,4 +1,4 @@
-import type { ProviderName } from '@tutopanda/core';
+import type { ProviderName } from '@renku/core';
 
 export interface SchemaRegistryEntry {
   provider: ProviderName;

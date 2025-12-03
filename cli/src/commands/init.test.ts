@@ -18,7 +18,7 @@ afterEach(async () => {
 });
 
 async function createTempRoot(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'tutopanda-init-'));
+  const dir = await mkdtemp(join(tmpdir(), 'renku-init-'));
   tmpRoots.push(dir);
   return dir;
 }

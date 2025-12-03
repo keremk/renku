@@ -3,7 +3,7 @@ meta:
   description: Generate music segments from a textual inquiry.
   id: Music
   version: 0.1.0
-  author: Tutopanda
+  author: Renku
   license: MIT
 
 inputs:

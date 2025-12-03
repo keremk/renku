@@ -32,7 +32,7 @@ models:
     provider: replicate
     producerId: MusicProducer
   - model: OrderedTimeline
-    provider: tutopanda
+    provider: renku
     producerId: TimelineComposer
     config:
       masterTrack:
@@ -41,5 +41,5 @@ models:
       musicClip:
         volume: 0.4
   - model: Mp4Exporter
-    provider: tutopanda
+    provider: renku
     producerId: VideoExporter

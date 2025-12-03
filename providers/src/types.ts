@@ -4,7 +4,7 @@ import type {
   ProviderName,
   RevisionId,
   Logger,
-} from '@tutopanda/core';
+} from '@renku/core';
 import type { SchemaRegistry } from './schema-registry.js';
 
 export type ProviderMode = 'mock' | 'live' | 'simulated';
@@ -79,7 +79,7 @@ export interface HandlerFactoryInit {
   secretResolver: SecretResolver;
   logger?: ProviderLogger;
   schemaRegistry?: SchemaRegistry;
-  notifications?: import('@tutopanda/core').NotificationBus;
+  notifications?: import('@renku/core').NotificationBus;
 }
 
 export type HandlerFactory = (init: HandlerFactoryInit) => ProducerHandler;
@@ -97,7 +97,7 @@ export interface ProviderRegistryOptions {
   logger?: ProviderLogger;
   secretResolver?: SecretResolver;
   schemaRegistry?: SchemaRegistry;
-  notifications?: import('@tutopanda/core').NotificationBus;
+  notifications?: import('@renku/core').NotificationBus;
 }
 
 export interface ResolvedProviderHandler {

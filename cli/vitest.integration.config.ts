@@ -10,11 +10,11 @@ export default defineConfig({
   resolve: {
     alias: [
       {
-        find: '@tutopanda/core',
+        find: '@renku/core',
         replacement: new URL('../core/src/index.ts', import.meta.url).pathname,
       },
       {
-        find: '@tutopanda/providers',
+        find: '@renku/providers',
         replacement: new URL('../providers/src/index.ts', import.meta.url).pathname,
       },
     ],

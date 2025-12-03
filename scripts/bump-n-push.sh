@@ -56,7 +56,7 @@ confirm() {
   done
 }
 
-echo -e "${BLUE}=== Tutopanda Version Bump & Push ===${NC}"
+echo -e "${BLUE}=== Renku Version Bump & Push ===${NC}"
 echo ""
 
 # Step 1: Bump versions

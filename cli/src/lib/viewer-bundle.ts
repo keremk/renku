@@ -9,7 +9,7 @@ export interface ViewerBundlePaths {
 }
 
 export function resolveViewerBundlePaths(): ViewerBundlePaths {
-  const envRoot = process.env.TUTOPANDA_VIEWER_BUNDLE_ROOT;
+  const envRoot = process.env.RENKU_VIEWER_BUNDLE_ROOT;
   if (envRoot) {
     const bundle = getBundleForRoot(envRoot);
     assertBundleExists(bundle, envRoot);
@@ -31,7 +31,7 @@ export function resolveViewerBundlePaths(): ViewerBundlePaths {
   }
 
   throw new Error(
-    'Viewer bundle not found. Build the viewer package (pnpm --filter viewer build) or set TUTOPANDA_VIEWER_BUNDLE_ROOT.',
+    'Viewer bundle not found. Build the viewer package (pnpm --filter viewer build) or set RENKU_VIEWER_BUNDLE_ROOT.',
   );
 }
 

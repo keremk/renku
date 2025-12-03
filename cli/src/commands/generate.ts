@@ -5,7 +5,7 @@ import { resolveAndPersistConcurrency } from '../lib/concurrency.js';
 import { buildFriendlyView, loadCurrentManifest, prepareFriendlyPreflight } from '../lib/friendly-view.js';
 import crypto from 'node:crypto';
 import { resolve } from 'node:path';
-import type { LogLevel, NotificationBus } from '@tutopanda/core';
+import type { LogLevel, NotificationBus } from '@renku/core';
 import type { CliLoggerMode } from '../lib/logger.js';
 import { createCliLogger } from '../lib/logger.js';
 
@@ -41,7 +41,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
   const configPath = getDefaultCliConfigPath();
   const cliConfig = await readCliConfig(configPath);
   if (!cliConfig) {
-    throw new Error('Tutopanda CLI is not initialized. Run "tutopanda init" first.');
+    throw new Error('Renku CLI is not initialized. Run "renku init" first.');
   }
 
   const { concurrency, cliConfig: resolvedCliConfig } = await resolveAndPersistConcurrency(cliConfig, {

@@ -117,7 +117,7 @@ describe('EventLog', () => {
   });
 
   it('handles concurrent appends on the local filesystem backend', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'tutopanda-event-log-'));
+    const root = await mkdtemp(join(tmpdir(), 'renku-event-log-'));
     try {
       const ctx = createStorageContext({
         kind: 'local',

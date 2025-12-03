@@ -15,7 +15,7 @@ export interface InspectResult {
 export async function runInspect(options: InspectOptions): Promise<InspectResult> {
   const cliConfig = await readCliConfig();
   if (!cliConfig) {
-    throw new Error('Tutopanda CLI is not initialized. Run "tutopanda init" first.');
+    throw new Error('Renku CLI is not initialized. Run "renku init" first.');
   }
   if (!options.movieId) {
     throw new Error('Movie ID is required for inspect.');

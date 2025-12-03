@@ -18,10 +18,10 @@ const VIDEO_AUDIO_MUSIC_BLUEPRINT_PATH = resolve(
 const LOG_DEFAULTS = { mode: 'log' as const, logLevel: 'info' as const };
 
 const tmpRoots: string[] = [];
-const originalEnvConfig = process.env.TUTOPANDA_CLI_CONFIG;
+const originalEnvConfig = process.env.RENKU_CLI_CONFIG;
 
 afterEach(async () => {
-  process.env.TUTOPANDA_CLI_CONFIG = originalEnvConfig;
+  process.env.RENKU_CLI_CONFIG = originalEnvConfig;
   while (tmpRoots.length) {
     const dir = tmpRoots.pop();
     if (dir) {
@@ -31,20 +31,20 @@ afterEach(async () => {
 });
 
 async function createTempRoot(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'tutopanda-inspect-'));
+  const dir = await mkdtemp(join(tmpdir(), 'renku-inspect-'));
   tmpRoots.push(dir);
   return dir;
 }
 
 describe('runInspect', () => {
   beforeEach(() => {
-    process.env.TUTOPANDA_CLI_CONFIG = undefined;
+    process.env.RENKU_CLI_CONFIG = undefined;
   });
 
   it('returns prompts in TOML format', async () => {
     const root = await createTempRoot();
     const cliConfigPath = join(root, 'cli-config.json');
-    process.env.TUTOPANDA_CLI_CONFIG = cliConfigPath;
+    process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
     await runInit({ rootFolder: root, configPath: cliConfigPath });
     const inputsPath = await createInputsFile({

@@ -1,4 +1,4 @@
-import { parseQualifiedProducerName, formatProducerScopedInputId } from '@tutopanda/core';
+import { parseQualifiedProducerName, formatProducerScopedInputId } from '@renku/core';
 import type { InputMap } from './input-loader.js';
 import type { ProducerOptionsMap } from './producer-options.js';
 

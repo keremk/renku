@@ -11,14 +11,14 @@ import { getCliBlueprintsRoot } from '../lib/config-assets.js';
 
 const tmpRoots: string[] = [];
 const originalEnv = { ...process.env };
-const originalConfigPath = process.env.TUTOPANDA_CLI_CONFIG;
+const originalConfigPath = process.env.RENKU_CLI_CONFIG;
 
 beforeEach(() => {
   process.env.OPENAI_API_KEY = 'test-key';
 });
 
 afterEach(async () => {
-  process.env.TUTOPANDA_CLI_CONFIG = originalConfigPath;
+  process.env.RENKU_CLI_CONFIG = originalConfigPath;
   for (const [key, value] of Object.entries(originalEnv)) {
     if (value === undefined) {
       delete process.env[key];
@@ -35,7 +35,7 @@ afterEach(async () => {
 });
 
 async function createTempRoot(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'tutopanda-providers-list-'));
+  const dir = await mkdtemp(join(tmpdir(), 'renku-providers-list-'));
   tmpRoots.push(dir);
   return dir;
 }
@@ -44,7 +44,7 @@ describe('runProvidersList', () => {
   it('reports configured providers and readiness status', async () => {
     const root = await createTempRoot();
     const cliConfigPath = join(root, 'cli-config.json');
-    process.env.TUTOPANDA_CLI_CONFIG = cliConfigPath;
+    process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
     await runInit({ rootFolder: root, configPath: cliConfigPath });
     const cliConfig = await readCliConfig(cliConfigPath);

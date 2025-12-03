@@ -3,7 +3,7 @@ meta:
   description: Generate narrated video segments with a looping music bed and compose them into a Remotion timeline.
   id: VideoAudioMusic
   version: 0.1.0
-  author: Tutopanda
+  author: Renku
   license: MIT
 
 inputs:

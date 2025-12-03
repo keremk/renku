@@ -31,7 +31,7 @@ export interface InputSource<T = unknown> {
 // --- producers (GEN) ---
 export type ProducerKind = string;
 
-export type ProviderName = "openai" | "replicate" | "elevenlabs" | "fal" | "custom" | "internal" | "tutopanda";
+export type ProviderName = "openai" | "replicate" | "elevenlabs" | "fal" | "custom" | "internal" | "renku";
 
 export interface Producer {
   id: Id;

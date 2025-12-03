@@ -4,10 +4,10 @@
 Renku is a pnpm workspace with 5 packages:
 
 ### Published Packages
-- `core/` (`@tutopanda/core`) is the foundation TypeScript library for orchestrating AI-based movie asset generation and planning. Source lives under `src/`, with published entry points in `src/index.ts`. Build artifacts go to `dist/`. All other packages depend on core.
-- `cli/` (`@tutopanda/cli`) provides a command-line workflow for generating movies, backed by the core package. Built with Ink (React for terminals) and MCP SDK. Keep the main entry point in `src/cli.tsx` and organise reusable UI under `src/`.
-- `compositions/` (`@tutopanda/compositions`) contains shared Remotion compositions and renderers for video output. Supports browser and Node.js execution. Source in `src/`, build artifacts in `dist/`.
-- `providers/` (`@tutopanda/providers`) integrates external AI services (OpenAI, Replicate, ElevenLabs). Implements producer interfaces backed by the core package. Source in `src/`, build artifacts in `dist/`.
+- `core/` (`@renku/core`) is the foundation TypeScript library for orchestrating AI-based movie asset generation and planning. Source lives under `src/`, with published entry points in `src/index.ts`. Build artifacts go to `dist/`. All other packages depend on core.
+- `cli/` (`@renku/cli`) provides a command-line workflow for generating movies, backed by the core package. Built with Ink (React for terminals) and MCP SDK. Keep the main entry point in `src/cli.tsx` and organise reusable UI under `src/`.
+- `compositions/` (`@renku/compositions`) contains shared Remotion compositions and renderers for video output. Supports browser and Node.js execution. Source in `src/`, build artifacts in `dist/`.
+- `providers/` (`@renku/providers`) integrates external AI services (OpenAI, Replicate, ElevenLabs). Implements producer interfaces backed by the core package. Source in `src/`, build artifacts in `dist/`.
 
 ### Private Packages
 - `viewer/` is a browser-based viewer application built with Vite + React. Uses Remotion Player, Tailwind CSS v4, and Shadcn UI. Source in `src/`, server middleware in `src/server/`.
@@ -15,7 +15,7 @@ Renku is a pnpm workspace with 5 packages:
 Consult `design_guidelines.md` before adjusting visuals in the client, and keep shared logic inside `core/` whenever possible to avoid duplication across the API and CLI surfaces.
 
 ## Build, Test, and Development Commands
-Run `pnpm install` once to hydrate the workspaces. Use `pnpm dev:core`, `pnpm dev:cli`, or `pnpm dev:viewer` for focused development. Build artifacts either via `pnpm build` or per-package scripts such as `pnpm build:core`. Linting and type checks run through the package names: e.g. `pnpm lint:core`, `pnpm type-check:cli`, `pnpm lint:providers`. Vitest is wired the same way: `pnpm test:core`, `pnpm test:cli`, `pnpm test:providers`, etc. Use the actual package names with `--filter` when invoking commands from the repo root (e.g., `pnpm --filter @tutopanda/core build`).
+Run `pnpm install` once to hydrate the workspaces. Use `pnpm dev:core`, `pnpm dev:cli`, or `pnpm dev:viewer` for focused development. Build artifacts either via `pnpm build` or per-package scripts such as `pnpm build:core`. Linting and type checks run through the package names: e.g. `pnpm lint:core`, `pnpm type-check:cli`, `pnpm lint:providers`. Vitest is wired the same way: `pnpm test:core`, `pnpm test:cli`, `pnpm test:providers`, etc. Use the actual package names with `--filter` when invoking commands from the repo root (e.g., `pnpm --filter @renku/core build`).
 
 > **EXTREMELY IMPORTANT** DO NOT JUST ADD default fallbacks just to make sure that you have something, especially for inputs that are expected. Than you are silently failing and making some random assumptions. Always throw, fail fast and so those can be fixed.
 
@@ -38,7 +38,7 @@ cd cli && pnpm vitest run --pool=threads --poolOptions.threads.singleThread
 
 > **Agent Rule**: When you see an /* eslint-disable no-unused-vars */ Do NOT delete it. It is there for a reason to turn off an overeager rule trying it on Interfaces.
 
-> **Agent Rule**: Providers Vitest runs must stay on the threads pool; run `pnpm --filter tutopanda-providers test` from the repo root (the config already pins `pool: 'threads'`). If you need to run it manually inside the package use:
+> **Agent Rule**: Providers Vitest runs must stay on the threads pool; run `pnpm --filter renku-providers test` from the repo root (the config already pins `pool: 'threads'`). If you need to run it manually inside the package use:
 ```bash
 cd providers && pnpm vitest run --config vitest.config.ts --pool=threads
 ```

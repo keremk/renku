@@ -1,4 +1,4 @@
-import { createProviderRegistry, type ProviderDescriptor } from '@tutopanda/providers';
+import { createProviderRegistry, type ProviderDescriptor } from '@renku/providers';
 import { loadBlueprintBundle } from '../lib/blueprint-loader/index.js';
 import { buildProducerOptionsFromBlueprint } from '../lib/producer-options.js';
 import { expandPath } from '../lib/path.js';

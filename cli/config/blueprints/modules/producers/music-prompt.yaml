@@ -3,7 +3,7 @@ meta:
   description: Generate music generation prompt using the summary of a movie script.
   id: MusicPromptProducer
   version: 0.1.0
-  author: Tutopanda
+  author: Renku
   license: MIT
 
 inputs:

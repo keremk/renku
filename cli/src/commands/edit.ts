@@ -30,7 +30,7 @@ import {
 import { readMovieMetadata } from '../lib/movie-metadata.js';
 import { resolveBlueprintSpecifier } from '../lib/config-assets.js';
 import { resolveAndPersistConcurrency } from '../lib/concurrency.js';
-import type { NotificationBus, Logger } from '@tutopanda/core';
+import type { NotificationBus, Logger } from '@renku/core';
 import type { CliLoggerMode } from '../lib/logger.js';
 
 export interface EditOptions {
@@ -62,7 +62,7 @@ export async function runEdit(options: EditOptions): Promise<EditResult> {
   const configPath = getDefaultCliConfigPath();
   const cliConfig = await readCliConfig(configPath);
   if (!cliConfig) {
-    throw new Error('Tutopanda CLI is not initialized. Run "tutopanda init" first.');
+    throw new Error('Renku CLI is not initialized. Run "renku init" first.');
   }
   if (!options.movieId) {
     throw new Error('Movie ID is required for edit.');
@@ -237,7 +237,7 @@ export interface InteractiveEditResult {
 export async function runInteractiveEditSetup(options: InteractiveEditOptions): Promise<InteractiveEditResult> {
   const cliConfig = await readCliConfig();
   if (!cliConfig) {
-    throw new Error('Tutopanda CLI is not initialized. Run "tutopanda init" first.');
+    throw new Error('Renku CLI is not initialized. Run "renku init" first.');
   }
   if (!options.movieId) {
     throw new Error('Movie ID is required for interactive edit.');
@@ -277,7 +277,7 @@ export interface WorkspaceSubmitResult {
 export async function runWorkspaceSubmit(options: WorkspaceSubmitOptions): Promise<WorkspaceSubmitResult> {
   const cliConfig = await readCliConfig();
   if (!cliConfig) {
-    throw new Error('Tutopanda CLI is not initialized. Run "tutopanda init" first.');
+    throw new Error('Renku CLI is not initialized. Run "renku init" first.');
   }
   if (!options.movieId) {
     throw new Error('Movie ID is required for submit.');
@@ -288,7 +288,7 @@ export async function runWorkspaceSubmit(options: WorkspaceSubmitOptions): Promi
   const workspaceDir = resolve(cliConfig.storage.root, 'workspaces', storageMovieId);
   const state = await readWorkspaceState(workspaceDir).catch((error) => {
     throw new Error(
-      `Workspace not found for ${storageMovieId}. Run "tutopanda edit --movieId ${storageMovieId} --interactive-edit" first.\n${error instanceof Error ? error.message : String(error)}`,
+      `Workspace not found for ${storageMovieId}. Run "renku edit --movieId ${storageMovieId} --interactive-edit" first.\n${error instanceof Error ? error.message : String(error)}`,
     );
   });
 

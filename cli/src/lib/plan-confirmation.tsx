@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import React, { useEffect, useState } from 'react';
 import { Box, Text, useInput, render } from 'ink';
-import type { ExecutionPlan } from '@tutopanda/core';
+import type { ExecutionPlan } from '@renku/core';
 import type { JSX } from 'react';
 
 interface PlanConfirmationProps {

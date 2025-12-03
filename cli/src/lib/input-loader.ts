@@ -1,9 +1,9 @@
-import type { BlueprintTreeNode } from '@tutopanda/core';
+import type { BlueprintTreeNode } from '@renku/core';
 import {
   loadInputsFromYaml as coreLoadInputsFromYaml,
   type InputMap,
   type ModelSelection,
-} from '@tutopanda/core';
+} from '@renku/core';
 import { buildProducerOptionsFromBlueprint, type ProducerOptionsMap } from './producer-options.js';
 
 export interface LoadedInputs {

@@ -14,7 +14,7 @@ vi.mock('node:child_process', () => ({
   },
 }));
 
-vi.mock('@tutopanda/compositions', () => {
+vi.mock('@renku/compositions', () => {
   return {
     renderDocumentaryMp4: vi.fn(async (options: { outputFile: string }) => {
       await writeFile(options.outputFile, Buffer.from('mock-mp4'));
@@ -114,7 +114,7 @@ describe('mp4-exporter', () => {
     await writeFile(expectedOutput, Buffer.from('mp4'));
 
     const handler = createMp4ExporterHandler()({
-      descriptor: { provider: 'tutopanda', model: 'Mp4Exporter', environment: 'local' },
+      descriptor: { provider: 'renku', model: 'Mp4Exporter', environment: 'local' },
       mode: 'live',
       secretResolver: { async getSecret() { return null; } },
     });
@@ -140,7 +140,7 @@ describe('mp4-exporter', () => {
 function createRequest(opts: { providerConfig: Record<string, unknown>; produces: string[]; resolvedInputs?: Record<string, unknown> }): ProviderJobContext {
   return {
     jobId: 'job-1',
-    provider: 'tutopanda',
+    provider: 'renku',
     model: 'Mp4Exporter',
     revision: 'rev-1',
     layerIndex: 0,

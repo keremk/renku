@@ -1,4 +1,4 @@
-import type { ArtefactEventStatus } from '@tutopanda/core';
+import type { ArtefactEventStatus } from '@renku/core';
 import type { HandlerFactory, ProviderJobContext } from '../../types.js';
 import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
 import type { ProducerInvokeArgs, ProducerRuntime } from '../../sdk/types.js';

@@ -3,7 +3,7 @@ meta:
   description: Generate music from a prompt and duration.
   id: MusicProducer
   version: 0.1.0
-  author: Tutopanda
+  author: Renku
   license: MIT
 
 inputs:

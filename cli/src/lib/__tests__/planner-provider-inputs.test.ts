@@ -14,7 +14,7 @@ const CLI_ROOT = resolve(REPO_ROOT, 'cli');
 
 describe('planner provider inputs', () => {
 	it('includes provider/model inputs for ImageProducer jobs', async () => {
-		const tempRoot = await mkdtemp(resolve(tmpdir(), 'tutopanda-plan-'));
+		const tempRoot = await mkdtemp(resolve(tmpdir(), 'renku-plan-'));
 		const cliConfig: CliConfig = {
 			storage: { root: tempRoot, basePath: 'builds' },
 		};

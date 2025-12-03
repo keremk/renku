@@ -8,15 +8,15 @@ import type {
   RunResult,
   RunnerExecutionContext,
   RunnerLogger,
-} from '@tutopanda/core';
-import { createRunner } from '@tutopanda/core';
+} from '@renku/core';
+import { createRunner } from '@renku/core';
 
 interface PlanExecutionContext extends RunnerExecutionContext {
   manifestService: ManifestService;
   produce: ProduceFn;
   logger?: RunnerLogger;
   clock?: Clock;
-  notifications?: import('@tutopanda/core').NotificationBus;
+  notifications?: import('@renku/core').NotificationBus;
 }
 
 export async function executePlanWithConcurrency(

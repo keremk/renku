@@ -28,10 +28,10 @@ const AUDIO_ONLY_OVERRIDES = {
 };
 
 const tmpRoots: string[] = [];
-const originalEnvConfig = process.env.TUTOPANDA_CLI_CONFIG;
+const originalEnvConfig = process.env.RENKU_CLI_CONFIG;
 
 afterEach(async () => {
-  process.env.TUTOPANDA_CLI_CONFIG = originalEnvConfig;
+  process.env.RENKU_CLI_CONFIG = originalEnvConfig;
   while (tmpRoots.length) {
     const dir = tmpRoots.pop();
     if (dir) {
@@ -41,7 +41,7 @@ afterEach(async () => {
 });
 
 async function createTempRoot(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'tutopanda-edit-'));
+  const dir = await mkdtemp(join(tmpdir(), 'renku-edit-'));
   tmpRoots.push(dir);
   return dir;
 }
@@ -62,13 +62,13 @@ async function createInputsFixture(root: string, prompt: string, fileName: strin
 
 describe('runEdit', () => {
   beforeEach(() => {
-    process.env.TUTOPANDA_CLI_CONFIG = undefined;
+    process.env.RENKU_CLI_CONFIG = undefined;
   });
 
   it('updates prompts and generates a new plan revision', async () => {
     const root = await createTempRoot();
     const cliConfigPath = join(root, 'cli-config.json');
-    process.env.TUTOPANDA_CLI_CONFIG = cliConfigPath;
+    process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
     await runInit({ rootFolder: root, configPath: cliConfigPath });
     const queryInputsPath = await createInputsFixture(root, 'Describe the planets', 'query-inputs.yaml');
@@ -116,7 +116,7 @@ describe('runEdit', () => {
   it('supports dry run mode', async () => {
     const root = await createTempRoot();
     const cliConfigPath = join(root, 'cli-config.json');
-    process.env.TUTOPANDA_CLI_CONFIG = cliConfigPath;
+    process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
     await runInit({ rootFolder: root, configPath: cliConfigPath });
     const queryInputsPath = await createInputsFixture(root, 'Describe oceans', 'query-inputs.yaml');

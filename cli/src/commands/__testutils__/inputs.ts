@@ -56,13 +56,13 @@ export async function createInputsFile(options: CreateInputsFileOptions): Promis
       { producerId: 'MusicProducer', provider: 'replicate', model: 'stability-ai/stable-audio-2.5' },
       {
         producerId: 'TimelineComposer',
-        provider: 'tutopanda',
+        provider: 'renku',
         model: 'OrderedTimeline',
         config: {
           tracks: ['Video', 'Audio', 'Music'],
         },
       },
-      { producerId: 'VideoExporter', provider: 'tutopanda', model: 'Mp4Exporter' },
+      { producerId: 'VideoExporter', provider: 'renku', model: 'Mp4Exporter' },
     ];
 
   const contents = stringifyYaml({

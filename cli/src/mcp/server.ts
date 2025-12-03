@@ -8,7 +8,7 @@ import type { Variables } from '@modelcontextprotocol/sdk/shared/uriTemplate.js'
 import type { ReadResourceResult, ListResourcesResult, Resource } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { stringify as stringifyYaml } from 'yaml';
-import type { Manifest } from '@tutopanda/core';
+import type { Manifest } from '@renku/core';
 import { runGenerate, type GenerateResult } from '../commands/generate.js';
 import { runViewerView } from '../commands/viewer.js';
 import { readCliConfig } from '../lib/cli-config.js';
@@ -34,7 +34,7 @@ const generateStorySchema = z.object({
   openViewer: z.boolean().optional(),
 });
 
-export interface CreateTutopandaMcpServerOptions {
+export interface CreateMcpServerOptions {
   storageRoot: string;
   storageBasePath: string;
   blueprintDir: string;
@@ -47,15 +47,15 @@ export interface CreateTutopandaMcpServerOptions {
   cliConfigPath: string;
 }
 
-export interface TutopandaMcpServerDeps {
+export interface McpServerDeps {
   runGenerate?: typeof runGenerate;
   runViewerView?: typeof runViewerView;
   readCliConfig?: typeof readCliConfig;
 }
 
-export function createTutopandaMcpServer(
-  options: CreateTutopandaMcpServerOptions,
-  deps: TutopandaMcpServerDeps = {},
+export function createMcpServer(
+  options: CreateMcpServerOptions,
+  deps: McpServerDeps = {},
 ): McpServer {
   const runGenerateImpl = deps.runGenerate ?? runGenerate;
   const runViewerImpl = deps.runViewerView ?? runViewerView;
@@ -90,7 +90,7 @@ export function createTutopandaMcpServer(
   ]
 
   const generateStoryDescription = `
-Creates a Tutopanda movie using the configured blueprint. Provide duration, segments, image style, and narration voice.
+Creates a Renku movie using the configured blueprint. Provide duration, segments, image style, and narration voice.
 Always default the duration to 30 seconds, and each segment is 10 seconds. Using 2 images per segment gives a more engaging experience, so use that as default.
 If the user says something along the lines of a detailed, extended narration, then the duration can be longer. 
 Using long duration will increase generation time and also the costs. For longer than 30 seconds, always ask the user if they are ok with the generation time and costs before proceeding.
@@ -167,7 +167,7 @@ Before you start the generation, always provide a summary for what you are gener
         `Movie ${result.movieId} created.`,
         viewerUrl
           ? `Open viewer: ${viewerUrl}`
-          : `Viewer not launched automatically. Run "tutopanda viewer:view --movieId=${result.storageMovieId}" or start the viewer and open /movies/${result.storageMovieId}.`,
+          : `Viewer not launched automatically. Run "renku viewer:view --movieId=${result.storageMovieId}" or start the viewer and open /movies/${result.storageMovieId}.`,
         `Timeline resource: ${timelineUri}`,
         `Inputs resource: ${inputsUri}`,
       ];
@@ -196,20 +196,20 @@ Before you start the generation, always provide a summary for what you are gener
   return server;
 }
 
-function buildInstructions(options: CreateTutopandaMcpServerOptions): string {
+function buildInstructions(options: CreateMcpServerOptions): string {
   return [
-    'Tutopanda MCP server exposes a single tool, `generate_story`, which orchestrates the Tutopanda CLI pipeline.',
+    'Renku MCP server exposes a single tool, `generate_story`, which orchestrates the Renku CLI pipeline.',
     `Default blueprint: ${pathLabel(options.defaultBlueprintPath, options.blueprintDir)}`,
     'Resources:',
-    '- tutopanda://blueprints/... for blueprint YAML files',
-    '- tutopanda://movies/{movieId}/inputs for the inputs.yaml captured per movie',
-    '- tutopanda://movies/{movieId}/timeline for the generated timeline JSON',
-    '- tutopanda://movies/{movieId}/artefacts/{canonicalId} for any artefact stored in the manifest',
+    '- renku://blueprints/... for blueprint YAML files',
+    '- renku://movies/{movieId}/inputs for the inputs.yaml captured per movie',
+    '- renku://movies/{movieId}/timeline for the generated timeline JSON',
+    '- renku://movies/{movieId}/artefacts/{canonicalId} for any artefact stored in the manifest',
   ].join('\n');
 }
 
 function registerBlueprintResources(server: McpServer, blueprintDir: string): void {
-  const template = new ResourceTemplate('tutopanda://blueprints/{+path}', {
+  const template = new ResourceTemplate('renku://blueprints/{+path}', {
     list: async (): Promise<ListResourcesResult> => {
       const files = await listBlueprintFiles(blueprintDir);
       return {
@@ -227,7 +227,7 @@ function registerBlueprintResources(server: McpServer, blueprintDir: string): vo
     'blueprints',
     template,
     {
-      title: 'Tutopanda Blueprints',
+      title: 'Renku Blueprints',
       description: 'YAML blueprints available under config/blueprints.',
       mimeType: 'text/yaml',
     },
@@ -240,7 +240,7 @@ function registerBlueprintResources(server: McpServer, blueprintDir: string): vo
 }
 
 function registerMovieResources(server: McpServer, movieStore: MovieStorage): void {
-  const inputsTemplate = new ResourceTemplate('tutopanda://movies/{movieId}/inputs', {
+  const inputsTemplate = new ResourceTemplate('renku://movies/{movieId}/inputs', {
     list: async (): Promise<ListResourcesResult> => movieStore.listInputs(),
   });
 
@@ -258,7 +258,7 @@ function registerMovieResources(server: McpServer, movieStore: MovieStorage): vo
     },
   );
 
-  const timelineTemplate = new ResourceTemplate('tutopanda://movies/{movieId}/timeline', {
+  const timelineTemplate = new ResourceTemplate('renku://movies/{movieId}/timeline', {
     list: async (): Promise<ListResourcesResult> => movieStore.listTimelines(),
   });
 
@@ -275,7 +275,7 @@ function registerMovieResources(server: McpServer, movieStore: MovieStorage): vo
     },
   );
 
-  const artefactTemplate = new ResourceTemplate('tutopanda://movies/{movieId}/artefacts/{+artefactId}', {
+  const artefactTemplate = new ResourceTemplate('renku://movies/{movieId}/artefacts/{+artefactId}', {
     list: async (): Promise<ListResourcesResult> => movieStore.listArtefacts(),
   });
 
@@ -317,7 +317,7 @@ async function resolveBlueprintPath(
 }
 
 async function writeInputsFile(args: z.infer<typeof generateStorySchema>): Promise<string> {
-  const tmpDir = await mkdtemp(join(tmpdir(), 'tutopanda-mcp-'));
+  const tmpDir = await mkdtemp(join(tmpdir(), 'renku-mcp-'));
   const target = join(tmpDir, INPUT_FILE_NAME);
   const doc: Record<string, unknown> = {
     InquiryPrompt: args.inquiryPrompt,
@@ -563,7 +563,7 @@ async function listBlueprintFiles(rootDir: string): Promise<{ slug: string; abso
 
 function buildBlueprintUri(slug: string): string {
   const normalized = slug.split('\\').join('/');
-  return `tutopanda://blueprints/${normalized}`;
+  return `renku://blueprints/${normalized}`;
 }
 
 function decodeBlueprintUri(uri: URL, blueprintDir: string): string {
@@ -575,15 +575,15 @@ function decodeBlueprintUri(uri: URL, blueprintDir: string): string {
 }
 
 function buildInputsUri(movieId: string): string {
-  return `tutopanda://movies/${encodeURIComponent(movieId)}/inputs`;
+  return `renku://movies/${encodeURIComponent(movieId)}/inputs`;
 }
 
 function buildTimelineUri(movieId: string): string {
-  return `tutopanda://movies/${encodeURIComponent(movieId)}/timeline`;
+  return `renku://movies/${encodeURIComponent(movieId)}/timeline`;
 }
 
 function buildArtefactUri(movieId: string, artefactId: string): string {
-  return `tutopanda://movies/${encodeURIComponent(movieId)}/artefacts/${encodeURIComponent(artefactId)}`;
+  return `renku://movies/${encodeURIComponent(movieId)}/artefacts/${encodeURIComponent(artefactId)}`;
 }
 
 function readTemplateVar(variables: Variables, key: string): string {

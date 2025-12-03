@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Text } from 'ink';
-import type { Notification, NotificationBus } from '@tutopanda/core';
+import type { Notification, NotificationBus } from '@renku/core';
 
 type Props = {
   bus: NotificationBus;
@@ -38,7 +38,7 @@ export default function NotificationApp({ bus }: Props) {
 
   return (
     <Box flexDirection="column">
-      <Text color="cyan">Tutopanda</Text>
+      <Text color="cyan">Renku</Text>
       {items.map((item) => (
         <Text key={item.id} color={colorFor(item.type)}>
           {item.message}

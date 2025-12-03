@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer';
-import type { ProducedArtefact } from '@tutopanda/core';
+import type { ProducedArtefact } from '@renku/core';
 
 type JsonObject = Record<string, unknown>;
 

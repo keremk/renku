@@ -3,7 +3,7 @@ meta:
   description: Convert narration text into voiced audio segments.
   id: AudioProducer
   version: 0.1.0
-  author: Tutopanda
+  author: Renku
   license: MIT
 
 inputs:

@@ -3,7 +3,7 @@ import { isAbsolute, resolve } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
 import process from 'node:process';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { createTutopandaMcpServer } from '../mcp/server.js';
+import { createMcpServer } from '../mcp/server.js';
 import {
   getBundledBlueprintsRoot,
   getCliBlueprintsRoot,
@@ -14,7 +14,7 @@ import {
   type CliConfig,
 } from '../lib/cli-config.js';
 import { expandPath } from '../lib/path.js';
-import type { Logger } from '@tutopanda/core';
+import type { Logger } from '@renku/core';
 type ShutdownSignal = 'SIGINT' | 'SIGTERM';
 
 export interface RunMcpServerOptions {
@@ -30,11 +30,11 @@ export async function runMcpServer(options: RunMcpServerOptions = {}): Promise<v
   const resolvedConfigPath = options.configPath ? expandPath(options.configPath) : getDefaultCliConfigPath();
   const cliConfig = await readCliConfig(resolvedConfigPath);
   if (!cliConfig) {
-    throw new Error('Tutopanda CLI is not initialized. Run "tutopanda init" before starting the MCP server.');
+    throw new Error('Renku CLI is not initialized. Run "renku init" before starting the MCP server.');
   }
 
   // Ensure downstream helpers (runGenerate, viewer commands) use the same config file.
-  process.env.TUTOPANDA_CLI_CONFIG = resolvedConfigPath;
+  process.env.RENKU_CLI_CONFIG = resolvedConfigPath;
 
   const blueprintDirectory = await resolveBlueprintDirectory({
     cliConfig,
@@ -48,7 +48,7 @@ export async function runMcpServer(options: RunMcpServerOptions = {}): Promise<v
   const openViewerDefault = options.openViewer ?? true;
 
   const restoreConsole = redirectConsoleOutput();
-  const server = createTutopandaMcpServer({
+  const server = createMcpServer({
     storageRoot: cliConfig.storage.root,
     storageBasePath: cliConfig.storage.basePath,
     blueprintDir: blueprintDirectory,
@@ -60,7 +60,7 @@ export async function runMcpServer(options: RunMcpServerOptions = {}): Promise<v
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  logger.info?.(`Tutopanda MCP server ready. Default blueprint: ${shortBlueprintLabel(defaultBlueprintPath, blueprintDirectory)}`);
+  logger.info?.(`Renku MCP server ready. Default blueprint: ${shortBlueprintLabel(defaultBlueprintPath, blueprintDirectory)}`);
 
   await new Promise<void>((resolvePromise, rejectPromise) => {
     let closed = false;
@@ -71,7 +71,7 @@ export async function runMcpServer(options: RunMcpServerOptions = {}): Promise<v
       }
       closed = true;
       if (signal) {
-        logger.info?.(`Received ${signal}. Shutting down Tutopanda MCP server...`);
+        logger.info?.(`Received ${signal}. Shutting down Renku MCP server...`);
       }
       try {
         await transport.close();
@@ -220,7 +220,7 @@ async function readPackageMetadata(): Promise<{ name: string; version: string }>
   const raw = await readFile(pkgPath, 'utf8');
   const parsed = JSON.parse(raw) as { name?: string; version?: string };
   return {
-    name: parsed.name ?? 'tutopanda-cli',
+    name: parsed.name ?? 'renku-cli',
     version: parsed.version ?? '0.0.0',
   };
 }

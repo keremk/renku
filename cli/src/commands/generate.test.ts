@@ -42,10 +42,10 @@ const AUDIO_ONLY_OVERRIDES = {
 const LOG_DEFAULTS = { mode: 'log' as const, logLevel: 'info' as const };
 
 const tmpRoots: string[] = [];
-const originalEnvConfig = process.env.TUTOPANDA_CLI_CONFIG;
+const originalEnvConfig = process.env.RENKU_CLI_CONFIG;
 
 afterEach(async () => {
-  process.env.TUTOPANDA_CLI_CONFIG = originalEnvConfig;
+  process.env.RENKU_CLI_CONFIG = originalEnvConfig;
   while (tmpRoots.length) {
     const dir = tmpRoots.pop();
     if (dir) {
@@ -55,20 +55,20 @@ afterEach(async () => {
 });
 
 async function createTempRoot(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'tutopanda-generate-'));
+  const dir = await mkdtemp(join(tmpdir(), 'renku-generate-'));
   tmpRoots.push(dir);
   return dir;
 }
 
 describe('runGenerate (new runs)', () => {
   beforeEach(() => {
-    process.env.TUTOPANDA_CLI_CONFIG = undefined;
+    process.env.RENKU_CLI_CONFIG = undefined;
   });
 
   it('generates a plan and writes prompt/config files', async () => {
     const root = await createTempRoot();
     const cliConfigPath = join(root, 'cli-config.json');
-    process.env.TUTOPANDA_CLI_CONFIG = cliConfigPath;
+    process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
     await runInit({ rootFolder: root, configPath: cliConfigPath });
 
@@ -124,7 +124,7 @@ describe('runGenerate (new runs)', () => {
   it('can perform a dry run and report summary', async () => {
     const root = await createTempRoot();
     const cliConfigPath = join(root, 'cli-config.json');
-    process.env.TUTOPANDA_CLI_CONFIG = cliConfigPath;
+    process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
     await runInit({ rootFolder: root, configPath: cliConfigPath });
 
@@ -153,7 +153,7 @@ describe('runGenerate (new runs)', () => {
   it('runs the video + audio + music blueprint with timeline stub', async () => {
     const root = await createTempRoot();
     const cliConfigPath = join(root, 'cli-config.json');
-    process.env.TUTOPANDA_CLI_CONFIG = cliConfigPath;
+    process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
     await runInit({ rootFolder: root, configPath: cliConfigPath });
 
@@ -180,7 +180,7 @@ describe('runGenerate (new runs)', () => {
   it('overrides InquiryPrompt when provided inline', async () => {
     const root = await createTempRoot();
     const cliConfigPath = join(root, 'cli-config.json');
-    process.env.TUTOPANDA_CLI_CONFIG = cliConfigPath;
+    process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
     await runInit({ rootFolder: root, configPath: cliConfigPath });
 
@@ -204,7 +204,7 @@ describe('runGenerate (new runs)', () => {
   it('persists concurrency overrides into the CLI config', async () => {
     const root = await createTempRoot();
     const cliConfigPath = join(root, 'cli-config.json');
-    process.env.TUTOPANDA_CLI_CONFIG = cliConfigPath;
+    process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
     await runInit({ rootFolder: root, configPath: cliConfigPath });
 
@@ -230,7 +230,7 @@ describe('runGenerate (new runs)', () => {
   it('reruns only image layer when ImageProducer model changes on edit', async () => {
     const root = await createTempRoot();
     const cliConfigPath = join(root, 'cli-config.json');
-    process.env.TUTOPANDA_CLI_CONFIG = cliConfigPath;
+    process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
     await runInit({ rootFolder: root, configPath: cliConfigPath });
 
@@ -283,7 +283,7 @@ describe('runGenerate (new runs)', () => {
   it('schedules TimelineProducer after upstream image/audio jobs', async () => {
     const root = await createTempRoot();
     const cliConfigPath = join(root, 'cli-config.json');
-    process.env.TUTOPANDA_CLI_CONFIG = cliConfigPath;
+    process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
     await runInit({ rootFolder: root, configPath: cliConfigPath });
 
@@ -322,7 +322,7 @@ describe('runGenerate (new runs)', () => {
   it('reuses the last movie when requested', async () => {
     const root = await createTempRoot();
     const cliConfigPath = join(root, 'cli-config.json');
-    process.env.TUTOPANDA_CLI_CONFIG = cliConfigPath;
+    process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
     await runInit({ rootFolder: root, configPath: cliConfigPath });
 
@@ -356,7 +356,7 @@ describe('runGenerate (new runs)', () => {
   it('fails when --last is used without a prior generation', async () => {
     const root = await createTempRoot();
     const cliConfigPath = join(root, 'cli-config.json');
-    process.env.TUTOPANDA_CLI_CONFIG = cliConfigPath;
+    process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
     await runInit({ rootFolder: root, configPath: cliConfigPath });
 
@@ -371,7 +371,7 @@ describe('runGenerate (new runs)', () => {
   it('fails when both last and movieId are provided', async () => {
     const root = await createTempRoot();
     const cliConfigPath = join(root, 'cli-config.json');
-    process.env.TUTOPANDA_CLI_CONFIG = cliConfigPath;
+    process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
     await runInit({ rootFolder: root, configPath: cliConfigPath });
 
@@ -402,7 +402,7 @@ describe('runGenerate (new runs)', () => {
   it('continues an existing movie when movie-id is provided explicitly', async () => {
     const root = await createTempRoot();
     const cliConfigPath = join(root, 'cli-config.json');
-    process.env.TUTOPANDA_CLI_CONFIG = cliConfigPath;
+    process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
     await runInit({ rootFolder: root, configPath: cliConfigPath });
 

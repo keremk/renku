@@ -24,7 +24,7 @@ models:
     provider: replicate
     producerId: AudioProducer
   - model: OrderedTimeline
-    provider: tutopanda
+    provider: renku
     producerId: TimelineComposer
     config:
       tracks: ["Image", "Audio"]

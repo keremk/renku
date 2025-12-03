@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Player, type PlayerRef, type CallbackListener } from "@remotion/player";
-import type { TimelineDocument, AssetMap } from "@tutopanda/compositions/browser";
-import { DocumentaryComposition } from "@tutopanda/compositions/browser";
+import type { TimelineDocument, AssetMap } from "@renku/compositions/browser";
+import { DocumentaryComposition } from "@renku/compositions/browser";
 import { buildAssetUrl } from "@/data/client";
 
 interface RemotionPreviewProps {

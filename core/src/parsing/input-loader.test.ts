@@ -11,7 +11,7 @@ const BLUEPRINT_ROOT = getBundledBlueprintsRoot();
 
 describe('parsing/input-loader', () => {
   it('canonicalizes inputs and derives model selections from producer-scoped keys', async () => {
-    const workdir = await mkdtemp(join(tmpdir(), 'tutopanda-inputs-'));
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-inputs-'));
     const blueprintPath = resolve(BLUEPRINT_ROOT, 'audio-only.yaml');
     const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath);
     const savedPath = join(workdir, 'inputs.yaml');
@@ -41,7 +41,7 @@ describe('parsing/input-loader', () => {
   it('rejects unknown inputs with a clear error', async () => {
     const blueprintPath = resolve(BLUEPRINT_ROOT, 'audio-only.yaml');
     const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath);
-    const invalidPath = join(await mkdtemp(join(tmpdir(), 'tutopanda-inputs-')), 'inputs.yaml');
+    const invalidPath = join(await mkdtemp(join(tmpdir(), 'renku-inputs-')), 'inputs.yaml');
     await writeFile(
       invalidPath,
       stringifyYaml({

@@ -14,7 +14,7 @@ const steps = [
   },
   {
     name: 'Build CLI',
-    command: ['pnpm', '--filter', 'tutopanda', 'build'],
+    command: ['pnpm', '--filter', 'renku', 'build'],
   },
 ];
 
@@ -30,10 +30,10 @@ function runStep(step) {
 }
 
 function packCli() {
-  console.log('\n[package-cli] Packing tutopanda workspace');
+  console.log('\n[package-cli] Packing renku workspace');
   const result = spawnSync(
     'pnpm',
-    ['--filter', 'tutopanda', 'pack', '--pack-destination', releaseDir],
+    ['--filter', 'renku', 'pack', '--pack-destination', releaseDir],
     { cwd: repoRoot, stdio: 'inherit' },
   );
   if (result.status !== 0) {

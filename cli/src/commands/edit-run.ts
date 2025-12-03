@@ -4,13 +4,13 @@ import { resolve } from 'node:path';
 import { rm } from 'node:fs/promises';
 import { readCliConfig } from '../lib/cli-config.js';
 import { formatMovieId } from './query.js';
-import type { Logger } from '@tutopanda/core';
+import type { Logger } from '@renku/core';
 
 export async function runClean(options: { movieId: string; logger?: Logger }): Promise<void> {
   const logger = options.logger ?? globalThis.console;
   const cliConfig = await readCliConfig();
   if (!cliConfig) {
-    throw new Error('Tutopanda CLI is not initialized. Run "tutopanda init" first.');
+    throw new Error('Renku CLI is not initialized. Run "renku init" first.');
   }
   if (!options.movieId) {
     throw new Error('Movie ID is required for edit:clean.');

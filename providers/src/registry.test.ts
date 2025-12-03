@@ -89,7 +89,7 @@ describe('createProviderRegistry', () => {
   it('uses the real timeline handler in mock mode', async () => {
     const registry = createProviderRegistry();
     const handler = registry.resolve({
-      provider: 'tutopanda',
+      provider: 'renku',
       model: 'OrderedTimeline',
       environment: 'local',
     });
@@ -97,7 +97,7 @@ describe('createProviderRegistry', () => {
     await expect(
       handler.invoke({
         jobId: 'job-timeline',
-        provider: 'tutopanda',
+        provider: 'renku',
         model: 'OrderedTimeline',
         revision: 'rev-0001',
         layerIndex: 0,

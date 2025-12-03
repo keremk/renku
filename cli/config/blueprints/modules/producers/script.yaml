@@ -3,7 +3,7 @@ meta:
   description: Generate documentary scripts tailored to the user inquiry.
   id: ScriptProducer
   version: 0.1.0
-  author: Tutopanda
+  author: Renku
   license: MIT
 
 inputs:

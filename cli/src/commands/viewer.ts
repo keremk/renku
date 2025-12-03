@@ -12,7 +12,7 @@ import {
   removeViewerState,
   writeViewerState,
 } from '../lib/viewer-state.js';
-import type { Logger } from '@tutopanda/core';
+import type { Logger } from '@renku/core';
 
 export interface ViewerStartOptions {
   host?: string;
@@ -42,7 +42,7 @@ export async function runViewerStart(options: ViewerStartOptions = {}): Promise<
     const alive = await isViewerServerRunning(existingState.host, existingState.port);
     if (alive) {
       logger.error?.(
-        `A background viewer server is already running on http://${existingState.host}:${existingState.port}. Stop it first with "tutopanda viewer:stop".`,
+        `A background viewer server is already running on http://${existingState.host}:${existingState.port}. Stop it first with "renku viewer:stop".`,
       );
       process.exitCode = 1;
       return;
@@ -112,7 +112,7 @@ export async function runViewerView(options: ViewerViewOptions = {}): Promise<vo
     const ready = await waitForViewerServer(activeHost, activePort);
     if (!ready) {
       await removeViewerState(statePath);
-      logger.error?.('Viewer server failed to start in time. Check logs with "tutopanda viewer:start".');
+      logger.error?.('Viewer server failed to start in time. Check logs with "renku viewer:start".');
       process.exitCode = 1;
       return;
     }
@@ -127,7 +127,7 @@ export async function runViewerStop(options: { logger?: Logger } = {}): Promise<
   const logger = options.logger ?? globalThis.console;
   const cliConfig = await readCliConfig();
   if (!cliConfig?.storage?.root) {
-    logger.error?.('Tutopanda viewer requires a configured root. Run "tutopanda init" first.');
+    logger.error?.('Renku viewer requires a configured root. Run "renku init" first.');
     process.exitCode = 1;
     return;
   }
@@ -169,7 +169,7 @@ export async function runViewerStop(options: { logger?: Logger } = {}): Promise<
 async function ensureInitializedConfig(logger: Logger): Promise<CliConfig | null> {
   const cliConfig = await readCliConfig();
   if (!cliConfig?.storage?.root) {
-    logger.error?.('Tutopanda viewer requires a configured root. Run "tutopanda init" first.');
+    logger.error?.('Renku viewer requires a configured root. Run "renku init" first.');
     process.exitCode = 1;
     return null;
   }
@@ -219,7 +219,7 @@ async function launchViewerServer({
     stdio: mode === 'foreground' ? 'inherit' : 'ignore',
     env: {
       ...process.env,
-      TUTOPANDA_VIEWER_ROOT: rootFolder,
+      RENKU_VIEWER_ROOT: rootFolder,
     },
     detached: mode === 'background',
   });
@@ -295,7 +295,7 @@ function resolveViewerBundleOrExit(logger: Logger): ReturnType<typeof resolveVie
     return resolveViewerBundlePaths();
   } catch (error) {
     logger.error?.(
-      `Unable to locate the bundled viewer. Build the viewer project or set TUTOPANDA_VIEWER_BUNDLE_ROOT. ${
+      `Unable to locate the bundled viewer. Build the viewer project or set RENKU_VIEWER_BUNDLE_ROOT. ${
         error instanceof Error ? error.message : error
       }`,
     );

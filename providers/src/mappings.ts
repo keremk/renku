@@ -13,7 +13,7 @@ const wildcard = '*' as const;
 export const providerImplementations: ProviderImplementationRegistry = [
   {
     match: {
-      provider: 'tutopanda',
+      provider: 'renku',
       model: 'OrderedTimeline',
       environment: wildcard,
     },
@@ -260,7 +260,7 @@ export const providerImplementations: ProviderImplementationRegistry = [
   },
   {
     match: {
-      provider: 'tutopanda',
+      provider: 'renku',
       model: 'OrderedTimeline',
       environment: wildcard,
     },
@@ -269,7 +269,7 @@ export const providerImplementations: ProviderImplementationRegistry = [
   },
   {
     match: {
-      provider: 'tutopanda',
+      provider: 'renku',
       model: 'OrderedTimeline',
       environment: wildcard,
     },
@@ -278,7 +278,7 @@ export const providerImplementations: ProviderImplementationRegistry = [
   },
   {
     match: {
-      provider: 'tutopanda',
+      provider: 'renku',
       model: 'Mp4Exporter',
       environment: wildcard,
     },
@@ -287,7 +287,7 @@ export const providerImplementations: ProviderImplementationRegistry = [
   },
   {
     match: {
-      provider: 'tutopanda',
+      provider: 'renku',
       model: 'Mp4Exporter',
       environment: wildcard,
     },

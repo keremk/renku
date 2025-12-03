@@ -14,8 +14,8 @@ import type {
   RuntimeSdkHelpers,
   ArtefactRegistry,
 } from './types.js';
-import type { BlueprintProducerSdkMappingField } from '@tutopanda/core';
-import type { NotificationBus } from '@tutopanda/core';
+import type { BlueprintProducerSdkMappingField } from '@renku/core';
+import type { NotificationBus } from '@renku/core';
 
 interface SerializedJobContext {
   inputBindings?: Record<string, string>;

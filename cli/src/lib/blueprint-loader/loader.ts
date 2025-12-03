@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
-import type { BlueprintTreeNode } from '@tutopanda/core';
-import { loadYamlBlueprintTree } from '@tutopanda/core';
+import type { BlueprintTreeNode } from '@renku/core';
+import { loadYamlBlueprintTree } from '@renku/core';
 
 export interface BlueprintBundle {
   root: BlueprintTreeNode;

@@ -1,5 +1,5 @@
 {
-  "name": "@tutopanda/core",
+  "name": "@renku/core",
   "version": "0.1.3",
   "description": "Core library for planning, managing and running the movie generation flows",
   "type": "module",

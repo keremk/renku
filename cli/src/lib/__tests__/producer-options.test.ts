@@ -5,7 +5,7 @@ import { loadBlueprintBundle } from '../blueprint-loader/index.js';
 import { buildProducerOptionsFromBlueprint } from '../producer-options.js';
 import { resolveBlueprintSpecifier } from '../config-assets.js';
 import type { ModelSelection } from '../producer-options.js';
-import type { BlueprintTreeNode } from '@tutopanda/core';
+import type { BlueprintTreeNode } from '@renku/core';
 
 const CLI_ROOT = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
 
@@ -24,8 +24,8 @@ describe('producer options', () => {
       { producerId: 'AudioProducer', provider: 'replicate', model: 'minimax/speech-2.6-hd' },
       { producerId: 'MusicPromptProducer', provider: 'openai', model: 'gpt-5-mini' },
       { producerId: 'MusicProducer', provider: 'replicate', model: 'stability-ai/stable-audio-2.5' },
-      { producerId: 'TimelineComposer', provider: 'tutopanda', model: 'OrderedTimeline' },
-      { producerId: 'VideoExporter', provider: 'tutopanda', model: 'Mp4Exporter' },
+      { producerId: 'TimelineComposer', provider: 'renku', model: 'OrderedTimeline' },
+      { producerId: 'VideoExporter', provider: 'renku', model: 'Mp4Exporter' },
     ];
 
     const options = buildProducerOptionsFromBlueprint(blueprint, selections);

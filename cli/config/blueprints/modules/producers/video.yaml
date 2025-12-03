@@ -3,7 +3,7 @@ meta:
   description: Generate a video that best reflects the given narrative script.
   id: VideoProducer
   version: 0.1.0
-  author: Tutopanda
+  author: Renku
   license: MIT
 
 inputs:

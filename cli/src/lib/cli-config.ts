@@ -18,9 +18,9 @@ export interface CliConfig {
   };
 }
 
-const DEFAULT_ROOT = resolve(os.homedir(), '.tutopanda');
+const DEFAULT_ROOT = resolve(os.homedir(), '.renku');
 export function getDefaultCliConfigPath(): string {
-  const envPath = process.env.TUTOPANDA_CLI_CONFIG;
+  const envPath = process.env.RENKU_CLI_CONFIG;
   if (envPath) {
     return resolve(envPath);
   }
@@ -75,7 +75,7 @@ export async function persistLastMovieId(movieId: string, configPath?: string): 
   const targetPath = resolve(configPath ?? getDefaultCliConfigPath());
   const existing = await readCliConfig(targetPath);
   if (!existing) {
-    throw new Error('Tutopanda CLI is not initialized. Run "tutopanda init" first.');
+    throw new Error('Renku CLI is not initialized. Run "renku init" first.');
   }
   const updated: CliConfig = {
     ...existing,

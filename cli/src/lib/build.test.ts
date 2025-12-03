@@ -5,8 +5,8 @@ import type {
 	ProviderRegistry,
 	ProducerHandler,
 	ProviderJobContext,
-} from '@tutopanda/providers';
-import type { ProduceRequest, JobDescriptor } from '@tutopanda/core';
+} from '@renku/providers';
+import type { ProduceRequest, JobDescriptor } from '@renku/core';
 import { createCliLogger } from './logger.js';
 
 describe('createProviderProduce', () => {

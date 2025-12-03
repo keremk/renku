@@ -3,7 +3,7 @@ meta:
   description: Generate image prompts that capture each narration segment.
   id: ImagePromptProducer
   version: 0.1.0
-  author: Tutopanda
+  author: Renku
   license: MIT
 
 inputs:

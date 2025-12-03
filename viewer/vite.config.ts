@@ -21,10 +21,10 @@ export default defineConfig(({ mode }) => {
     ...loadEnv(mode, __dirname, ""),
   }
   const candidate =
-    env.TUTOPANDA_VIEWER_ROOT ??
-    env.VITE_TUTOPANDA_ROOT ??
-    process.env.TUTOPANDA_VIEWER_ROOT ??
-    process.env.VITE_TUTOPANDA_ROOT ??
+    env.RENKU_VIEWER_ROOT ??
+    env.VITE_RENKU_ROOT ??
+    process.env.RENKU_VIEWER_ROOT ??
+    process.env.VITE_RENKU_ROOT ??
     resolveCliRootFromConfig()
   const viewerRoot = expandPath(candidate)
 
@@ -37,12 +37,12 @@ export default defineConfig(({ mode }) => {
       }),
       tailwindcss(),
       {
-        name: "tutopanda-viewer-api",
+        name: "renku-viewer-api",
         apply: "serve",
         configureServer(server) {
           if (!viewerRoot) {
             throw new Error(
-              '[viewer] TUTOPANDA_VIEWER_ROOT is not set. Set it in viewer/.env or run "tutopanda init" so the config exists.',
+              '[viewer] RENKU_VIEWER_ROOT is not set. Set it in viewer/.env or run "renku init" so the config exists.',
             )
           }
           console.log(`[viewer] Using builds root: ${viewerRoot}`)
@@ -65,8 +65,8 @@ export default defineConfig(({ mode }) => {
 
 function resolveCliRootFromConfig(): string | null {
   const configPath =
-    process.env.TUTOPANDA_CLI_CONFIG ??
-    path.join(os.homedir(), ".tutopanda", "cli-config.json")
+    process.env.RENKU_CLI_CONFIG ??
+    path.join(os.homedir(), ".renku", "cli-config.json")
   try {
     const data = JSON.parse(fs.readFileSync(configPath, "utf8")) as {
       storage?: { root?: string }

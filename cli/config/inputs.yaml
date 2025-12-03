@@ -31,7 +31,7 @@ models:
     provider: openai
     producerId: MusicPromptProducer
   - model: OrderedTimeline
-    provider: tutopanda
+    provider: renku
     producerId: TimelineComposer
     config:
       masterTrack: Audio

@@ -14,7 +14,7 @@ const CLI_ROOT = resolve(__dirname, '../../');
 
 describe('integration: canonical inputs persist across query/edit', () => {
 	it('saves canonical inputs and reuses them during edit without unknown-id errors', async () => {
-		const storageRoot = await mkdtemp(join(tmpdir(), 'tutopanda-builds-'));
+		const storageRoot = await mkdtemp(join(tmpdir(), 'renku-builds-'));
 		const movieId = 'movie-testcanon';
 		const configPath = join(storageRoot, 'cli-config.json');
 		const cliConfig = {
@@ -24,7 +24,7 @@ describe('integration: canonical inputs persist across query/edit', () => {
 			},
 			concurrency: 1,
 		};
-		process.env.TUTOPANDA_CLI_CONFIG = configPath;
+		process.env.RENKU_CLI_CONFIG = configPath;
 		await writeCliConfig(cliConfig, configPath);
 		const blueprintPath = await resolveBlueprintSpecifier(
 			'video-audio-music.yaml',

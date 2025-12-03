@@ -9,7 +9,7 @@ import {
   type Logger,
   type LogLevel,
   type LogWriter,
-} from '@tutopanda/core';
+} from '@renku/core';
 
 export type CliLoggerMode = 'tui' | 'log';
 

@@ -1,4 +1,4 @@
-name: Publish Tutopanda Packages
+name: Publish Renku Packages
 
 on:
   push:
@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   publish-packages:
-    name: Build and publish Tutopanda packages
+    name: Build and publish Renku packages
     runs-on: ubuntu-latest
     env:
       NODE_VERSION: "20"
@@ -87,33 +87,33 @@ jobs:
           PROVIDERS_VERSION=$(node -p "require('./providers/package.json').version")
 
           echo "Package versions:"
-          echo "  - @tutopanda/core: $CORE_VERSION"
-          echo "  - @tutopanda/compositions: $COMPOSITIONS_VERSION"
-          echo "  - @tutopanda/providers: $PROVIDERS_VERSION"
-          echo "  - @tutopanda/cli: $CLI_VERSION"
+          echo "  - @renku/core: $CORE_VERSION"
+          echo "  - @renku/compositions: $COMPOSITIONS_VERSION"
+          echo "  - @renku/providers: $PROVIDERS_VERSION"
+          echo "  - @renku/cli: $CLI_VERSION"
 
           echo "✅ Tag matches CLI version"
 
       - name: Build all publishable packages
         run: |
-          pnpm --filter @tutopanda/core build
-          pnpm --filter @tutopanda/compositions build
-          pnpm --filter @tutopanda/providers build
-          pnpm --filter @tutopanda/cli build
+          pnpm --filter @renku/core build
+          pnpm --filter @renku/compositions build
+          pnpm --filter @renku/providers build
+          pnpm --filter @renku/cli build
 
-      - name: Publish tutopanda-core
+      - name: Publish renku-core
         if: >
           (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) ||
           (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/cli-v'))
         run: npm publish ./core --provenance --access public
 
-      - name: Publish tutopanda-compositions
+      - name: Publish renku-compositions
         if: >
           (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) ||
           (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/cli-v'))
         run: npm publish ./compositions --provenance --access public
 
-      - name: Publish tutopanda-providers
+      - name: Publish renku-providers
         if: >
           (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) ||
           (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/cli-v'))
@@ -123,12 +123,12 @@ jobs:
         run: pnpm bundle:viewer
 
       - name: Pack CLI (includes bundled viewer)
-        run: pnpm --filter @tutopanda/cli pack --pack-destination release
+        run: pnpm --filter @renku/cli pack --pack-destination release
 
       - name: Locate packaged CLI tarball
         id: tarball
         run: |
-          TARBALL=$(ls release/tutopanda-cli-*.tgz | head -n 1)
+          TARBALL=$(ls release/renku-cli-*.tgz | head -n 1)
           if [ -z "$TARBALL" ]; then
             echo "No packaged tarball found in release/"; exit 1;
           fi
@@ -142,7 +142,7 @@ jobs:
       - name: Smoke test CLI
         run: node cli/dist/cli.js --help
 
-      - name: Publish tutopanda CLI
+      - name: Publish renku CLI
         if: >
           (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) ||
           (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/cli-v'))
@@ -151,7 +151,7 @@ jobs:
       - name: Upload CLI tarball artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tutopanda-cli-tarball
+          name: renku-cli-tarball
           path: ${{ steps.tarball.outputs.path }}
 
       - name: Create GitHub Release
@@ -167,7 +167,7 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            release/tutopanda-cli-*.tgz
+            release/renku-cli-*.tgz
 
       - name: Summary
         if: always()
@@ -178,10 +178,10 @@ jobs:
             echo "✅ Dry run completed - no packages were published" >> $GITHUB_STEP_SUMMARY
           else
             echo "📦 Published packages:" >> $GITHUB_STEP_SUMMARY
-            echo "- @tutopanda/core" >> $GITHUB_STEP_SUMMARY
-            echo "- @tutopanda/compositions" >> $GITHUB_STEP_SUMMARY
-            echo "- @tutopanda/providers" >> $GITHUB_STEP_SUMMARY
-            echo "- @tutopanda/cli (with bundled viewer)" >> $GITHUB_STEP_SUMMARY
+            echo "- @renku/core" >> $GITHUB_STEP_SUMMARY
+            echo "- @renku/compositions" >> $GITHUB_STEP_SUMMARY
+            echo "- @renku/providers" >> $GITHUB_STEP_SUMMARY
+            echo "- @renku/cli (with bundled viewer)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             if [ "${{ github.event_name }}" == "push" ]; then
               echo "🎉 GitHub Release created: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY

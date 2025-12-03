@@ -4,13 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Architecture
 
-Tutopanda is a pnpm workspace monorepo with 5 packages:
+Renku is a pnpm workspace monorepo with 5 packages:
 
 ### Published Packages
-- **@tutopanda/core** (`core/`): Core library for planning, managing, and running movie generation flows. Includes blueprint loading, planning engine, manifest management, and event logging.
-- **@tutopanda/cli** (`cli/`): Command-line interface for movie generation. Built with Ink (React for terminals) and MCP (Model Context Protocol) integration.
-- **@tutopanda/compositions** (`compositions/`): Shared Remotion compositions and renderers for video generation. Supports both browser and Node.js environments.
-- **@tutopanda/providers** (`providers/`): AI provider integrations (OpenAI, Replicate, ElevenLabs). Includes producer implementations and provider registry.
+- **@renku/core** (`core/`): Core library for planning, managing, and running movie generation flows. Includes blueprint loading, planning engine, manifest management, and event logging.
+- **@renku/cli** (`cli/`): Command-line interface for movie generation. Built with Ink (React for terminals) and MCP (Model Context Protocol) integration.
+- **@renku/compositions** (`compositions/`): Shared Remotion compositions and renderers for video generation. Supports both browser and Node.js environments.
+- **@renku/providers** (`providers/`): AI provider integrations (OpenAI, Replicate, ElevenLabs). Includes producer implementations and provider registry.
 
 ### Private Packages
 - **viewer** (`viewer/`): Browser-based viewer application built with Vite + React. Uses Remotion Player and Tailwind CSS with Shadcn UI components.

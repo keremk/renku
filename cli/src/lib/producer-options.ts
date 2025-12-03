@@ -6,11 +6,11 @@ import type {
   ProducerModelVariant,
   BlueprintProducerOutputDefinition,
   BlueprintProducerSdkMappingField,
-} from '@tutopanda/core';
+} from '@renku/core';
 import type {
   ProviderAttachment,
   ProviderEnvironment,
-} from '@tutopanda/providers';
+} from '@renku/providers';
 
 export interface LoadedProducerOption {
   priority: 'main';

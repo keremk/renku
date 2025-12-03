@@ -3,7 +3,7 @@ meta:
   description: Generate cinematic stills via Seedream-4.
   id: ImageProducer
   version: 0.1.0
-  author: Tutopanda
+  author: Renku
   license: MIT
 
 inputs:

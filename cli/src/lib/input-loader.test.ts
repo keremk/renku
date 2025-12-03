@@ -15,7 +15,7 @@ const CLI_ROOT = resolve(REPO_ROOT, 'cli');
 
 describe('input-loader', () => {
   it('loads saved canonical inputs with schema-backed config keys', async () => {
-    const workdir = await mkdtemp(join(tmpdir(), 'tutopanda-inputs-'));
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-inputs-'));
     const blueprintPath = await resolveBlueprintSpecifier('video-audio-music.yaml', { cliRoot: CLI_ROOT });
     const { root: blueprint } = await loadBlueprintBundle(blueprintPath);
     const initial = await loadInputsFromYaml(resolve(CLI_ROOT, 'config/inputs.yaml'), blueprint);
@@ -31,7 +31,7 @@ describe('input-loader', () => {
   it('rejects unknown inputs with a clear error', async () => {
     const blueprintPath = await resolveBlueprintSpecifier('audio-only.yaml', { cliRoot: CLI_ROOT });
     const { root: blueprint } = await loadBlueprintBundle(blueprintPath);
-    const invalidPath = join(await mkdtemp(join(tmpdir(), 'tutopanda-inputs-')), 'inputs.yaml');
+    const invalidPath = join(await mkdtemp(join(tmpdir(), 'renku-inputs-')), 'inputs.yaml');
     await writeFile(
       invalidPath,
       stringifyYaml({
@@ -46,7 +46,7 @@ describe('input-loader', () => {
   });
 
   it('derives model selection and config from producer-scoped canonical keys', async () => {
-    const workdir = await mkdtemp(join(tmpdir(), 'tutopanda-inputs-'));
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-inputs-'));
     const blueprintPath = await resolveBlueprintSpecifier('video-audio-music.yaml', { cliRoot: CLI_ROOT });
     const { root: blueprint } = await loadBlueprintBundle(blueprintPath);
     const savedPath = join(workdir, 'inputs.yaml');

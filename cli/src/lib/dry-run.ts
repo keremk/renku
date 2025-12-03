@@ -9,8 +9,8 @@ import {
   type RunResult,
   type ProviderName,
   type Logger,
-} from '@tutopanda/core';
-import { createProviderRegistry, SchemaRegistry } from '@tutopanda/providers';
+} from '@renku/core';
+import { createProviderRegistry, SchemaRegistry } from '@renku/providers';
 import { createProviderProduce, prepareProviderHandlers } from './build.js';
 import { executePlanWithConcurrency } from './plan-runner.js';
 import type { ProducerOptionsMap } from './producer-options.js';
@@ -51,7 +51,7 @@ interface ExecuteDryRunArgs {
     basePath: string;
   };
   logger?: Logger;
-  notifications?: import('@tutopanda/core').NotificationBus;
+  notifications?: import('@renku/core').NotificationBus;
 }
 
 export async function executeDryRun(args: ExecuteDryRunArgs): Promise<DryRunSummary> {

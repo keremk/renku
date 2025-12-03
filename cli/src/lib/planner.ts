@@ -12,8 +12,8 @@ import {
   type ExecutionPlan,
   type PendingArtefactDraft,
   type Logger,
-} from '@tutopanda/core';
-export type { PendingArtefactDraft } from '@tutopanda/core';
+} from '@renku/core';
+export type { PendingArtefactDraft } from '@renku/core';
 import type { CliConfig } from './cli-config.js';
 import { writePromptFile } from './prompts.js';
 import { loadBlueprintBundle } from './blueprint-loader/index.js';
@@ -25,7 +25,7 @@ import {
 import type {
   BlueprintProducerOutputDefinition,
   BlueprintProducerSdkMappingField,
-} from '@tutopanda/core';
+} from '@renku/core';
 import { expandPath } from './path.js';
 import { mergeMovieMetadata } from './movie-metadata.js';
 import { INPUT_FILE_NAME } from './input-files.js';
@@ -39,7 +39,7 @@ export interface GeneratePlanOptions {
   usingBlueprint: string; // Path to blueprint YAML file
   pendingArtefacts?: PendingArtefactDraft[];
   logger?: Logger;
-  notifications?: import('@tutopanda/core').NotificationBus;
+  notifications?: import('@renku/core').NotificationBus;
 }
 
 export interface GeneratePlanResult {

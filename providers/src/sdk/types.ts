@@ -7,7 +7,7 @@ import type {
   ProviderLogger,
   ProviderMode,
 } from '../types.js';
-import type { BlueprintProducerSdkMappingField } from '@tutopanda/core';
+import type { BlueprintProducerSdkMappingField } from '@renku/core';
 
 export type ProducerDomain = 'prompt' | 'media';
 
@@ -27,7 +27,7 @@ export type ProducerInvokeFn = (args: ProducerInvokeArgs) => Promise<ProviderRes
 export interface ProducerWarmStartArgs {
   handler: ProducerHandler;
   logger?: ProviderLogger;
-  notifications?: import('@tutopanda/core').NotificationBus;
+  notifications?: import('@renku/core').NotificationBus;
 }
 
 export type ProducerWarmStartFn = (args: ProducerWarmStartArgs) => Promise<void>;
@@ -69,5 +69,5 @@ export interface ProducerRuntime {
   sdk: RuntimeSdkHelpers;
   artefacts: ArtefactRegistry;
   logger?: ProviderLogger;
-  notifications?: import('@tutopanda/core').NotificationBus;
+  notifications?: import('@renku/core').NotificationBus;
 }

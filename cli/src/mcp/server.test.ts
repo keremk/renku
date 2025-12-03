@@ -13,7 +13,7 @@ describe('MovieStorage', () => {
   const movieId = 'movie-test123';
 
   beforeEach(async () => {
-    rootDir = await mkdtemp(join(tmpdir(), 'tutopanda-test-'));
+    rootDir = await mkdtemp(join(tmpdir(), 'renku-test-'));
     const buildsDir = join(rootDir, 'builds', movieId);
     await mkdir(join(buildsDir, 'blobs', 'ab'), { recursive: true });
     await mkdir(join(buildsDir, 'blobs', 'fe'), { recursive: true });
@@ -74,7 +74,7 @@ describe('MovieStorage', () => {
   it('lists movie inputs as resources', async () => {
     const result = await storage.listInputs();
     expect(result.resources).toHaveLength(1);
-    expect(result.resources[0]?.uri).toBe(`tutopanda://movies/${movieId}/inputs`);
+    expect(result.resources[0]?.uri).toBe(`renku://movies/${movieId}/inputs`);
   });
 
   it('reads timeline artefact as formatted JSON', async () => {

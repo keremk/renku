@@ -3,7 +3,7 @@ meta:
   description: A blueprint for generating narrated image segments and composing them into a timeline.
   id: ImageAudio
   version: 0.1.0
-  author: Tutopanda
+  author: Renku
   license: MIT
 
 inputs:

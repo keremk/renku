@@ -2,7 +2,7 @@ import { mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { stringify, parse } from 'yaml';
-import type { Logger } from '@tutopanda/core';
+import type { Logger } from '@renku/core';
 import { writeCliConfig, type CliConfig } from '../../src/lib/cli-config.js';
 
 export interface LoggerRecorder {
@@ -35,21 +35,21 @@ export function buildTempConfig(root: string): CliConfig {
 }
 
 export async function setupTempCliConfig(): Promise<TempCliConfig> {
-  const originalConfigEnv = process.env.TUTOPANDA_CLI_CONFIG;
-  const tempRoot = await mkdtemp(join(tmpdir(), 'tutopanda-e2e-'));
+  const originalConfigEnv = process.env.RENKU_CLI_CONFIG;
+  const tempRoot = await mkdtemp(join(tmpdir(), 'renku-e2e-'));
   const tempConfigPath = join(tempRoot, 'cli-config.json');
   await writeCliConfig(buildTempConfig(tempRoot), tempConfigPath);
-  process.env.TUTOPANDA_CLI_CONFIG = tempConfigPath;
+  process.env.RENKU_CLI_CONFIG = tempConfigPath;
 
   return {
     tempRoot,
     tempConfigPath,
     restoreEnv: () => {
       if (originalConfigEnv === undefined) {
-        delete process.env.TUTOPANDA_CLI_CONFIG;
+        delete process.env.RENKU_CLI_CONFIG;
         return;
       }
-      process.env.TUTOPANDA_CLI_CONFIG = originalConfigEnv;
+      process.env.RENKU_CLI_CONFIG = originalConfigEnv;
     },
   };
 }

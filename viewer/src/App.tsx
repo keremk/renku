@@ -19,7 +19,7 @@ function App() {
       <LandingLayout>
         <h1 className="text-3xl font-semibold">Select a Movie</h1>
         <p className="text-muted-foreground">
-          Navigate to <code>/movies/&lt;movie-id&gt;</code> to load a build from your Tutopanda workspace.
+          Navigate to <code>/movies/&lt;movie-id&gt;</code> to load a build from your Renku workspace.
         </p>
       </LandingLayout>
     );

@@ -1,4 +1,4 @@
-import type { ArtefactEventStatus, ProducedArtefact } from '@tutopanda/core';
+import type { ArtefactEventStatus, ProducedArtefact } from '@renku/core';
 
 export interface InlineArtefactOptions {
   artefactId: string;

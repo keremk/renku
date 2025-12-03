@@ -3,7 +3,7 @@ meta:
   description: Compose assets into a ReMotion timeline.
   id: TimelineComposer
   version: 0.1.0
-  author: Tutopanda
+  author: Renku
   license: MIT
 
 inputs:
@@ -42,7 +42,7 @@ artifacts:
 
 models:
   - model: OrderedTimeline
-    provider: Tutopanda
+    provider: Renku
     inputSchema: ../schemas/timeline-input.json
     config:
       imageClip:
