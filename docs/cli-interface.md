@@ -26,7 +26,7 @@ The system operates on three core components:
 
 All configuration is file-based. The CLI does not use runtime flags for overriding provider settings or workflow parameters—everything is declared in version-controlled YAML and TOML files.
 
-> **Note:** Commands have been consolidated. Use `tutopanda generate` for both new runs and continuations (`--movie-id`/`--last`). Flags are now kebab-case with aliases: `--movie-id`/`--id`, `--blueprint`/`--bp`, `--inputs`/`--in`, `--up-to-layer`/`--up`, and `--dry-run`.
+> **Note:** Commands have been consolidated. Use `renku generate` for both new runs and continuations (`--movie-id`/`--last`). Flags use kebab-case with aliases: `--movie-id`/`--id`, `--blueprint`/`--bp`, `--inputs`/`--in`, `--up-to-layer`/`--up`, `--root-folder`/`--root`, and `--dry-run`.
 
 ---
 
@@ -50,17 +50,17 @@ REPLICATE_API_TOKEN=r8_...
 Initialize the Renku storage configuration:
 
 ```bash
-renku init --rootFolder=/path/to/storage
+renku init --root-folder=/path/to/storage
+renku init --root=/path/to/storage  # Short form
 ```
 
 This creates:
-- `~/.renku/cli-config.toml` with storage settings
-- `~/.renku/builds/` directory for movie outputs
-- `~/.renku/blueprints/` with bundled YAML blueprint templates
+- `~/.config/renku/cli-config.json` with storage settings (fixed location)
+- `{rootFolder}/builds/` directory for movie outputs
+- `{rootFolder}/config/blueprints/` with bundled YAML blueprint templates
 
-Optional flags:
-- `--configPath`: Custom path for `cli-config.toml` (default: `~/.renku/`)
-- `--rootFolder`: Storage root directory (required)
+Required flags:
+- `--root-folder` / `--root`: Storage root directory (mandatory)
 
 ### Generate Your First Movie
 
@@ -80,7 +80,7 @@ inputs:
 ```bash
 renku generate \
   --inputs=my-inputs.yaml \
-  --blueprint=~/.renku/blueprints/image-audio.yaml
+  --blueprint={rootFolder}/config/blueprints/image-audio.yaml
 ```
 
 3. **View the result**:
@@ -225,20 +225,22 @@ Initialize Renku storage configuration.
 
 **Usage:**
 ```bash
-renku init --rootFolder=/path/to/storage [--configPath=/custom/path]
+renku init --root-folder=/path/to/storage
+renku init --root=/path/to/storage
 ```
 
 **Options:**
-- `--rootFolder` (required): Storage root directory
-- `--configPath` (optional): Path for `cli-config.toml` (default: `~/.renku/`)
+- `--root-folder` / `--root` (required): Storage root directory for builds and blueprints
 
 **Creates:**
-- `cli-config.toml` with storage settings
-- `builds/` directory for movie outputs
+- `~/.config/renku/cli-config.json` with storage settings
+- `{rootFolder}/builds/` directory for movie outputs
+- `{rootFolder}/config/blueprints/` with bundled blueprints
 
 **Example:**
 ```bash
-renku init --rootFolder=/Users/alice/renku-storage
+renku init --root-folder=/Users/alice/renku-storage
+renku init --root=/Users/alice/renku-storage
 ```
 
 ---
@@ -344,7 +346,7 @@ renku providers:list --blueprint=<path>
 
 **Example:**
 ```bash
-renku providers:list --blueprint=~/.renku/blueprints/image-audio.yaml
+renku providers:list --blueprint={rootFolder}/config/blueprints/image-audio.yaml
 ```
 
 **Output:**
@@ -415,7 +417,7 @@ Displays:
 
 **Example:**
 ```bash
-renku blueprints:describe ~/.renku/blueprints/image-audio.yaml
+renku blueprints:describe {rootFolder}/config/blueprints/image-audio.yaml
 ```
 
 ---
@@ -440,7 +442,7 @@ renku blueprints:validate <path-to-blueprint.yaml>
 
 **Example:**
 ```bash
-renku blueprints:validate ~/.renku/blueprints/image-audio.yaml
+renku blueprints:validate {rootFolder}/config/blueprints/image-audio.yaml
 ```
 
 ---
@@ -875,33 +877,45 @@ REPLICATE_API_TOKEN=r8_...
 
 ### Directory Layout
 
+Configuration (fixed location):
 ```
-~/.renku/
-├── cli-config.toml          # Storage configuration
-└── builds/
-    └── movie-{id}/
-        ├── inputs.yaml      # Original inputs
-        ├── plan.json        # Execution plan
-        ├── manifest.json    # Artifact metadata
-        ├── artifacts.log    # Execution log
-        ├── prompts/
-        │   └── inquiry.txt  # InquiryPrompt
-        └── artifacts/
-            ├── node-{id}-output.txt
-            ├── node-{id}-output.json
-            ├── node-{id}-output.png
-            └── node-{id}-output.mp3
+~/.config/renku/
+├── cli-config.json          # Storage configuration
+```
+
+Data and generated artifacts (user-specified location):
+```
+{rootFolder}/
+├── builds/
+│   └── movie-{id}/
+│       ├── inputs.yaml      # Original inputs
+│       ├── plan.json        # Execution plan
+│       ├── manifest.json    # Artifact metadata
+│       ├── artifacts.log    # Execution log
+│       ├── prompts/
+│       │   └── inquiry.txt  # InquiryPrompt
+│       └── artifacts/
+│           ├── node-{id}-output.txt
+│           ├── node-{id}-output.json
+│           ├── node-{id}-output.png
+│           └── node-{id}-output.mp3
+└── config/
+    └── blueprints/
+        └── *.yaml           # Blueprint files
 ```
 
 ### File Descriptions
 
-#### `cli-config.toml`
-Storage configuration created by `init`.
+#### `cli-config.json`
+Storage configuration created by `init`. Located at `~/.config/renku/cli-config.json`.
 
-```toml
-[storage]
-root = "/path/to/storage"
-basePath = "builds"
+```json
+{
+  "storage": {
+    "root": "/path/to/storage",
+    "basePath": "builds"
+  }
+}
 ```
 
 #### `inputs.yaml`
@@ -1093,7 +1107,7 @@ renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml 
 
 ### Example 1: Audio-Only Narration
 
-**Blueprint:** `~/.tutopanda/config/blueprints/audio-only.yaml`
+**Blueprint:** `{rootFolder}/config/blueprints/audio-only.yaml`
 
 **Inputs (`audio-inputs.yaml`):**
 ```yaml
@@ -1109,7 +1123,7 @@ inputs:
 ```bash
 renku generate \
   --inputs=audio-inputs.yaml \
-  --blueprint=~/.renku/blueprints/audio-only.yaml
+  --blueprint={rootFolder}/config/blueprints/audio-only.yaml
 ```
 
 **Outputs:**
@@ -1122,7 +1136,7 @@ renku generate \
 
 ### Example 2: Images with Audio
 
-**Blueprint:** `~/.tutopanda/config/blueprints/image-audio.yaml`
+**Blueprint:** `{rootFolder}/config/blueprints/image-audio.yaml`
 
 **Inputs (`image-audio-inputs.yaml`):**
 ```yaml
@@ -1142,7 +1156,7 @@ inputs:
 ```bash
 renku generate \
   --inputs=image-audio-inputs.yaml \
-  --blueprint=~/.renku/blueprints/image-audio.yaml
+  --blueprint={rootFolder}/config/blueprints/image-audio.yaml
 ```
 
 **Outputs:**
@@ -1164,7 +1178,7 @@ renku viewer:view --movie-id=movie-{id}
 
 **Step 1: Generate movie**
 ```bash
-renku generate --inputs=my-inputs.yaml --blueprint=~/.renku/blueprints/image-audio.yaml
+renku generate --inputs=my-inputs.yaml --blueprint={rootFolder}/config/blueprints/image-audio.yaml
 # Output: movie-a1b2c3d4
 ```
 
@@ -1308,10 +1322,10 @@ renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml 
 
 ### Configuration File Locations
 
-- **CLI Config:** `~/.renku/cli-config.toml` (or custom via `--configPath`)
+- **CLI Config:** `~/.config/renku/cli-config.json` (fixed location, created on first init)
 - **Environment:** `.env` in CLI directory or current working directory
-- **Blueprints:** `~/.renku/blueprints/*.yaml` (copied during `renku init`)
-- **Modules:** `~/.renku/blueprints/modules/*.yaml`
+- **Blueprints:** `{rootFolder}/config/blueprints/*.yaml` (copied during `renku init`)
+- **Modules:** `{rootFolder}/config/blueprints/modules/*.yaml`
 - **Prompts:** `cli/prompts/*.md`
 - **Settings:** `cli/settings.json`
 

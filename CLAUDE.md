@@ -91,6 +91,7 @@ Use Vitest for unit and integration tests:
 
 ## Important Notes
 
+- **NEVER commit changes on behalf of the user** - always let them handle commits
 - Always run `pnpm check` to validate TypeScript before committing
 - Each package is independently published - maintain semantic versioning
 - The core package is the foundation for all other packages

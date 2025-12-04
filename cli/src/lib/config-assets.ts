@@ -76,6 +76,10 @@ async function copyDirectory(source: string, target: string): Promise<void> {
   await mkdir(target, { recursive: true });
   const entries = await readdir(source, { withFileTypes: true });
   for (const entry of entries) {
+    // Skip viewer directory
+    if (entry.isDirectory() && entry.name === 'viewer') {
+      continue;
+    }
     const sourcePath = join(source, entry.name);
     const targetPath = join(target, entry.name);
     if (entry.isDirectory()) {

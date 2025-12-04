@@ -18,13 +18,12 @@ export interface CliConfig {
   };
 }
 
-const DEFAULT_ROOT = resolve(os.homedir(), '.renku');
 export function getDefaultCliConfigPath(): string {
   const envPath = process.env.RENKU_CLI_CONFIG;
   if (envPath) {
     return resolve(envPath);
   }
-  return resolve(DEFAULT_ROOT, 'cli-config.json');
+  return resolve(os.homedir(), '.config', 'renku', 'cli-config.json');
 }
 
 export async function readCliConfig(configPath?: string): Promise<CliConfig | null> {
@@ -65,9 +64,6 @@ export async function writeCliConfig(config: CliConfig, configPath?: string): Pr
   return targetPath;
 }
 
-export function getDefaultRoot(): string {
-  return DEFAULT_ROOT;
-}
 
 export const DEFAULT_CONCURRENCY = 1;
 
