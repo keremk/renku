@@ -26,7 +26,7 @@ import type {
   RevisionId,
 } from '../types.js';
 
-type ProviderOptionEntry = {
+export type ProviderOptionEntry = {
   sdkMapping?: Record<string, BlueprintProducerSdkMappingField>;
   outputs?: Record<string, BlueprintProducerOutputDefinition>;
   inputSchema?: string;

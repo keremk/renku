@@ -1,9 +1,5 @@
-import { Buffer } from 'node:buffer';
-import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { getDefaultCliConfigPath, readCliConfig } from '../lib/cli-config.js';
-import type { CliConfig } from '../lib/cli-config.js';
-import { WORKSPACE_INPUTS_RELATIVE_PATH } from '../lib/input-files.js';
 import { formatMovieId } from './query.js';
 import { generatePlan, type PendingArtefactDraft } from '../lib/planner.js';
 import {
@@ -18,15 +14,6 @@ import { expandPath } from '../lib/path.js';
 import { confirmPlanExecution } from '../lib/interactive-confirm.js';
 import { confirmPlanWithInk } from '../lib/plan-confirmation.js';
 import { cleanupPlanFiles } from '../lib/plan-cleanup.js';
-import {
-  diffWorkspace,
-  exportWorkspace,
-  persistWorkspaceBlob,
-  readWorkspaceState,
-  type WorkspaceArtefactChange,
-  type WorkspaceDiffResult,
-  type WorkspaceState,
-} from '../lib/workspace.js';
 import { readMovieMetadata } from '../lib/movie-metadata.js';
 import { resolveBlueprintSpecifier } from '../lib/config-assets.js';
 import { resolveAndPersistConcurrency } from '../lib/concurrency.js';
@@ -35,7 +22,7 @@ import type { CliLoggerMode } from '../lib/logger.js';
 
 export interface EditOptions {
   movieId: string;
-  inputsPath?: string; // optional override (workspace submissions or CLI --inputs during edits)
+  inputsPath?: string; // optional override for CLI --inputs during edits
   dryRun?: boolean;
   nonInteractive?: boolean;
   usingBlueprint?: string;
@@ -222,164 +209,4 @@ export async function runEdit(options: EditOptions): Promise<EditResult> {
     manifestPath: buildResult?.manifestPath,
     storagePath: movieDir,
   };
-}
-
-export interface InteractiveEditOptions {
-  movieId: string;
-  usingBlueprint?: string;
-}
-
-export interface InteractiveEditResult {
-  workspaceDir: string;
-  state: WorkspaceState;
-}
-
-export async function runInteractiveEditSetup(options: InteractiveEditOptions): Promise<InteractiveEditResult> {
-  const cliConfig = await readCliConfig();
-  if (!cliConfig) {
-    throw new Error('Renku CLI is not initialized. Run "renku init" first.');
-  }
-  if (!options.movieId) {
-    throw new Error('Movie ID is required for interactive edit.');
-  }
-
-  const storageMovieId = formatMovieId(options.movieId);
-  const blueprintOverride = options.usingBlueprint
-    ? await resolveBlueprintSpecifier(options.usingBlueprint, { cliRoot: cliConfig.storage.root })
-    : undefined;
-  const result = await exportWorkspace({
-    cliConfig,
-    movieId: storageMovieId,
-    blueprintOverride,
-  });
-  return result;
-}
-
-export interface WorkspaceSubmitOptions {
-  movieId: string;
-  dryRun?: boolean;
-  nonInteractive?: boolean;
-  usingBlueprint?: string;
-  concurrency?: number;
-  upToLayer?: number;
-  mode: CliLoggerMode;
-  notifications?: NotificationBus;
-  logger?: Logger;
-}
-
-export interface WorkspaceSubmitResult {
-  workspaceDir: string;
-  state: WorkspaceState;
-  edit?: EditResult;
-  changesApplied: boolean;
-}
-
-export async function runWorkspaceSubmit(options: WorkspaceSubmitOptions): Promise<WorkspaceSubmitResult> {
-  const cliConfig = await readCliConfig();
-  if (!cliConfig) {
-    throw new Error('Renku CLI is not initialized. Run "renku init" first.');
-  }
-  if (!options.movieId) {
-    throw new Error('Movie ID is required for submit.');
-  }
-
-  const storageMovieId = formatMovieId(options.movieId);
-  const logger = options.logger ?? globalThis.console;
-  const workspaceDir = resolve(cliConfig.storage.root, 'workspaces', storageMovieId);
-  const state = await readWorkspaceState(workspaceDir).catch((error) => {
-    throw new Error(
-      `Workspace not found for ${storageMovieId}. Run "renku edit --movieId ${storageMovieId} --interactive-edit" first.\n${error instanceof Error ? error.message : String(error)}`,
-    );
-  });
-
-  const diff = await diffWorkspace(state, workspaceDir);
-  if (!diff.inputsChanged && diff.artefacts.length === 0) {
-    logger.info('No edits detected in workspace. Nothing to submit.');
-    return { workspaceDir, state, changesApplied: false };
-  }
-
-  printWorkspaceSummary(diff, workspaceDir, logger);
-
-  const inputsPath = resolve(workspaceDir, state.inputs.file);
-  const pendingArtefacts = await buildPendingArtefactDrafts({
-    cliConfig,
-    movieId: storageMovieId,
-    changes: diff.artefacts,
-  });
-
-  const blueprintSource = options.usingBlueprint ?? state.blueprintPath;
-  if (!blueprintSource) {
-    throw new Error(
-      'No blueprint recorded in workspace. Provide --blueprint=/path/to/blueprint.yaml when submitting.',
-    );
-  }
-  const blueprintPath = await resolveBlueprintSpecifier(blueprintSource, {
-    cliRoot: cliConfig.storage.root,
-  });
-  const editResult = await runEdit({
-    movieId: storageMovieId,
-    inputsPath,
-    dryRun: options.dryRun,
-    nonInteractive: options.nonInteractive,
-    usingBlueprint: blueprintPath,
-    pendingArtefacts,
-    concurrency: options.concurrency,
-    upToLayer: options.upToLayer,
-    mode: options.mode,
-    notifications: options.notifications,
-    logger,
-  });
-
-  if (!options.dryRun) {
-    await exportWorkspace({
-      cliConfig,
-      movieId: storageMovieId,
-      blueprintOverride: blueprintPath,
-    });
-  }
-
-  return {
-    workspaceDir,
-    state,
-    edit: editResult,
-    changesApplied: true,
-  };
-}
-
-function printWorkspaceSummary(diff: WorkspaceDiffResult, workspaceDir: string, logger: Logger): void {
-  logger.info('Detected workspace edits:');
-  if (diff.inputsChanged) {
-    logger.info(`- Inputs updated (${workspaceDir}/${WORKSPACE_INPUTS_RELATIVE_PATH})`);
-  }
-  for (const change of diff.artefacts) {
-    logger.info(`- Artefact ${change.entry.id} (${resolve(workspaceDir, change.entry.file)})`);
-  }
-}
-
-async function buildPendingArtefactDrafts(args: {
-  cliConfig: CliConfig;
-  movieId: string;
-  changes: WorkspaceArtefactChange[];
-}): Promise<PendingArtefactDraft[]> {
-  const pending: PendingArtefactDraft[] = [];
-  for (const change of args.changes) {
-    const data = change.mimeType?.startsWith('text/')
-      ? Buffer.from(await readFile(change.absolutePath, 'utf8'), 'utf8')
-      : await readFile(change.absolutePath);
-    const blobRef = await persistWorkspaceBlob({
-      cliConfig: args.cliConfig,
-      movieId: args.movieId,
-      data,
-      mimeType: change.mimeType ?? 'application/octet-stream',
-    });
-    pending.push({
-      artefactId: change.entry.id,
-      producedBy: 'workspace-edit',
-      output: {
-        blob: blobRef,
-      },
-      diagnostics: { source: 'workspace' },
-    });
-  }
-  return pending;
 }

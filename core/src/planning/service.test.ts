@@ -113,7 +113,7 @@ describe('planning service', () => {
     const pending: PendingArtefactDraft[] = [
       {
         artefactId: 'Artifact:NarrationScript',
-        producedBy: 'workspace-edit',
+        producedBy: 'manual-edit',
         output: {
           blob: {
             hash: 'patched-value-hash',
@@ -146,7 +146,7 @@ describe('planning service', () => {
     }
     expect(artefactEvents).toHaveLength(1);
     expect(artefactEvents[0]?.artefactId).toBe('Artifact:NarrationScript');
-    expect(artefactEvents[0]?.producedBy).toBe('workspace-edit');
+    expect(artefactEvents[0]?.producedBy).toBe('manual-edit');
   });
 
   it('seeds defaulted sub-blueprint inputs into resolved inputs', async () => {

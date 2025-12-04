@@ -4,9 +4,6 @@ import { dirname, resolve } from 'node:path';
 export interface MovieMetadata {
   blueprintPath?: string;
   lastInputsPath?: string;
-  workspace?: {
-    lastExportedAt?: string;
-  };
 }
 
 const METADATA_FILE = 'movie-metadata.json';
@@ -35,10 +32,6 @@ export async function mergeMovieMetadata(
   const next: MovieMetadata = {
     ...current,
     ...updates,
-    workspace: {
-      ...(current.workspace ?? {}),
-      ...(updates.workspace ?? {}),
-    },
   };
   await writeMovieMetadata(movieDir, next);
   return next;

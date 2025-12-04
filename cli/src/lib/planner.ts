@@ -18,14 +18,8 @@ import type { CliConfig } from './cli-config.js';
 import { writePromptFile } from './prompts.js';
 import { loadBlueprintBundle } from './blueprint-loader/index.js';
 import { loadInputsFromYaml, type InputMap } from './input-loader.js';
-import {
-  buildProducerCatalog,
-  type ProducerOptionsMap,
-} from './producer-options.js';
-import type {
-  BlueprintProducerOutputDefinition,
-  BlueprintProducerSdkMappingField,
-} from '@renku/core';
+import { buildProducerCatalog, type ProducerOptionsMap } from './producer-options.js';
+import type { ProviderOptionEntry } from '@renku/core';
 import { expandPath } from './path.js';
 import { mergeMovieMetadata } from './movie-metadata.js';
 import { INPUT_FILE_NAME } from './input-files.js';
@@ -127,32 +121,16 @@ async function persistInputs(movieDir: string, values: InputMap): Promise<void> 
   }
 }
 
-function buildProviderMetadata(options: ProducerOptionsMap): Map<string, {
-  sdkMapping?: Record<string, BlueprintProducerSdkMappingField>;
-  outputs?: Record<string, BlueprintProducerOutputDefinition>;
-  inputSchema?: string;
-  outputSchema?: string;
-  config?: Record<string, unknown>;
-  selectionInputKeys?: string[];
-  configInputPaths?: string[];
-}> {
-  const map = new Map<string, {
-    sdkMapping?: Record<string, BlueprintProducerSdkMappingField>;
-    outputs?: Record<string, BlueprintProducerOutputDefinition>;
-    inputSchema?: string;
-    outputSchema?: string;
-    config?: Record<string, unknown>;
-    selectionInputKeys?: string[];
-    configInputPaths?: string[];
-  }>();
+function buildProviderMetadata(options: ProducerOptionsMap): Map<string, ProviderOptionEntry> {
+  const map = new Map<string, ProviderOptionEntry>();
   for (const [key, entries] of options) {
     const primary = entries[0];
     if (!primary) {
       continue;
     }
     map.set(key, {
-      sdkMapping: primary.sdkMapping as Record<string, BlueprintProducerSdkMappingField> | undefined,
-      outputs: primary.outputs as Record<string, BlueprintProducerOutputDefinition> | undefined,
+      sdkMapping: primary.sdkMapping,
+      outputs: primary.outputs,
       inputSchema: primary.inputSchema,
       outputSchema: primary.outputSchema,
       config: primary.config,
