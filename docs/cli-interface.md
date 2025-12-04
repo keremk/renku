@@ -1,8 +1,8 @@
-# Tutopanda CLI Reference
+# Renku CLI Reference
 
 ## Introduction
 
-Tutopanda CLI is a command-line SDK for generating AI-powered multimedia content through declarative workflow blueprints. The system orchestrates multiple AI providers (OpenAI, Replicate, and custom Tutopanda services) to create narrated video content from simple text prompts.
+Renku CLI is a command-line SDK for generating AI-powered multimedia content through declarative workflow blueprints. The system orchestrates multiple AI providers (OpenAI, Replicate, and ElevenLabs) to create narrated video content from simple text prompts.
 
 ### Scope
 
@@ -32,24 +32,6 @@ All configuration is file-based. The CLI does not use runtime flags for overridi
 
 ## Getting Started
 
-### Prerequisites
-
-- Node.js 18+ and pnpm
-- API credentials for providers (OpenAI, Replicate)
-- Environment variables configured in `.env` file
-
-### Installation
-
-```bash
-# From the Tutopanda monorepo
-cd cli
-pnpm install
-pnpm build
-
-# Make CLI available globally (optional)
-pnpm link --global
-```
-
 ### Environment Configuration
 
 Create a `.env` file in the CLI directory or current working directory:
@@ -61,25 +43,23 @@ OPENAI_API_KEY=sk-...
 # Replicate
 REPLICATE_API_TOKEN=r8_...
 
-# Tutopanda (if using cloud services)
-TUTOPANDA_API_KEY=...
 ```
 
 ### Initialization
 
-Initialize the Tutopanda storage configuration:
+Initialize the Renku storage configuration:
 
 ```bash
-tutopanda init --rootFolder=/path/to/storage
+renku init --rootFolder=/path/to/storage
 ```
 
 This creates:
-- `~/.tutopanda/cli-config.json` with storage settings
-- `~/.tutopanda/builds/` directory for movie outputs
-- `~/.tutopanda/config/blueprints/` populated with bundled YAML blueprints
+- `~/.renku/cli-config.toml` with storage settings
+- `~/.renku/builds/` directory for movie outputs
+- `~/.renku/blueprints/` with bundled YAML blueprint templates
 
 Optional flags:
-- `--configPath`: Custom path for `cli-config.json` (default: `~/.tutopanda/`)
+- `--configPath`: Custom path for `cli-config.toml` (default: `~/.renku/`)
 - `--rootFolder`: Storage root directory (required)
 
 ### Generate Your First Movie
@@ -98,15 +78,15 @@ inputs:
 2. **Run the generate command**:
 
 ```bash
-tutopanda generate \
+renku generate \
   --inputs=my-inputs.yaml \
-  --blueprint=~/.tutopanda/config/blueprints/image-audio.yaml
+  --blueprint=~/.renku/blueprints/image-audio.yaml
 ```
 
 3. **View the result**:
 
 ```bash
-tutopanda viewer:view --movie-id=movie-a1b2c3d4
+renku viewer:view --movie-id=movie-a1b2c3d4
 ```
 
 ---
@@ -122,25 +102,25 @@ Blueprints are YAML files that define complete generation workflows. They specif
 - **Loops**: Iteration dimensions for scaling operations
 - **Modules**: References to reusable sub-blueprints
 - **Connections**: Data flow between nodes
-- **Producers**: Provider configurations (OpenAI, Replicate, Tutopanda)
+- **Producers**: Provider configurations (OpenAI, Replicate, ElevenLabs, Renku)
 - **Collectors**: Optional fan-in operations for aggregating array outputs
 
-Blueprints are installed to `<root>/config/blueprints/` (default `~/.tutopanda/config/blueprints/`). When running from source, they also live under `cli/config/blueprints/`.
+Blueprints are installed to `<root>/blueprints/` (default `~/.renku/blueprints/`). When running from source, they also live under `cli/config/blueprints/`.
 
-#### Available Blueprints
+#### Example Blueprints
 
 1. **audio-only.yaml**: Generate script and audio narration (no images)
 2. **image-audio.yaml**: Full pipeline with images, audio, and timeline composition
 3. **image-only.yaml**: Generate script and images without audio
 
-### Modules
+### Producer Modules
 
-Modules are reusable blueprint components located in `<root>/config/blueprints/modules/` (the repo copy lives under `cli/config/blueprints/modules/`):
+Producer Modules are reusable blueprint components located in `<root>/blueprints/modules/` (the repo copy lives under `cli/config/blueprints/modules/`):
 
 1. **script-generator.yaml**: Uses OpenAI to generate movie title, summary, and narration segments
 2. **image-prompt-generator.yaml**: Creates detailed image prompts from narrative text
 3. **image-generator.yaml**: Generates images using Replicate (seedream-4 model)
-4. **audio-generator.yaml**: Generates audio using Replicate (minimax model)
+4. **audio-generator.yaml**: Generates audio using ElevenLabs (text-to-speech)
 5. **timeline-composer.yaml**: Composes images and audio into a timeline JSON manifest
 
 ### Inputs
@@ -175,6 +155,8 @@ Artifacts are typed outputs produced by the workflow:
 Artifacts are stored in `~/.tutopanda/builds/movie-{id}/artefacts/`.
 
 ### Loops
+
+Some producers generate multiple artifacts and in some blueprints connecting these to each other create nested dimensions. For example, ScriptProducer generates multiple NarrativeSegments (n of them), and when you connect this to a ImagePromptProducer it also creates multiple prompts for each of the segments (m of them). So you end up creating nxm Prompts (and once fed into ImageProducer, nxm Image Artifacts). To annotate this in the blueprints, we use `loops`. 
 
 Loops define iteration dimensions for scaling operations. They enable dynamic cardinality based on input values.
 
@@ -214,7 +196,7 @@ Producers are provider configurations that execute actual generation tasks. Thre
 
 1. **OpenAI**: LLM-based generation
 2. **Replicate**: Model invocation for images and audio
-3. **Tutopanda**: Built-in services (e.g., OrderedTimeline)
+3. **Renku**: Built-in services (e.g., OrderedTimeline)
 
 Producer configurations are embedded in blueprint modules under the `producers` section.
 
@@ -237,43 +219,43 @@ This collects all images grouped by segment and ordered by image index.
 
 ## CLI Commands Reference
 
-### `tutopanda init`
+### `renku init`
 
-Initialize Tutopanda storage configuration.
+Initialize Renku storage configuration.
 
 **Usage:**
 ```bash
-tutopanda init --rootFolder=/path/to/storage [--configPath=/custom/path]
+renku init --rootFolder=/path/to/storage [--configPath=/custom/path]
 ```
 
 **Options:**
 - `--rootFolder` (required): Storage root directory
-- `--configPath` (optional): Path for `cli-config.json` (default: `~/.tutopanda/`)
+- `--configPath` (optional): Path for `cli-config.toml` (default: `~/.renku/`)
 
 **Creates:**
-- `cli-config.json` with storage settings
+- `cli-config.toml` with storage settings
 - `builds/` directory for movie outputs
 
 **Example:**
 ```bash
-tutopanda init --rootFolder=/Users/alice/tutopanda-storage
+renku init --rootFolder=/Users/alice/renku-storage
 ```
 
 ---
 
-### `tutopanda generate`
+### `renku generate`
 
 Create a new movie or continue an existing one.
 
 **Usage (new run):**
 ```bash
-tutopanda generate [<inquiry-prompt>] --inputs=<path> --blueprint=<path> [--dry-run] [--nonInteractive] [--up-to-layer=<n>]
+renku generate [<inquiry-prompt>] --inputs=<path> --blueprint=<path> [--dry-run] [--nonInteractive] [--up-to-layer=<n>]
 ```
 
 **Usage (continue an existing movie):**
 ```bash
-tutopanda generate --movie-id=<movie-id> [--blueprint=<path>] [--dry-run] [--nonInteractive] [--up-to-layer=<n>]
-tutopanda generate --last [--dry-run] [--nonInteractive] [--up-to-layer=<n>]
+renku generate --movie-id=<movie-id> [--blueprint=<path>] [--dry-run] [--nonInteractive] [--up-to-layer=<n>]
+renku generate --last [--dry-run] [--nonInteractive] [--up-to-layer=<n>]
 ```
 
 **Options:**
@@ -294,35 +276,35 @@ tutopanda generate --last [--dry-run] [--nonInteractive] [--up-to-layer=<n>]
 **Examples:**
 ```bash
 # New run with inline prompt
-tutopanda generate "Explain black holes" --inputs=~/inputs.yaml --blueprint=~/config/blueprints/audio-only.yaml
+renku generate "Explain black holes" --inputs=~/inputs.yaml --blueprint=~/.renku/blueprints/audio-only.yaml
 
 # Continue a specific movie
-tutopanda generate --movie-id=movie-q123456 --up-to-layer=1
+renku generate --movie-id=movie-q123456 --up-to-layer=1
 
 # Continue the most recent movie
-tutopanda generate --last --dry-run
+renku generate --last --dry-run
 ```
 
 ---
 
-### `tutopanda clean`
+### `renku clean`
 
-Remove the friendly view and build artefacts for a movie.
+Remove the friendly view and build artifacts for a movie.
 
 **Usage:**
 ```bash
-tutopanda clean --movie-id=<movie-id>
+renku clean --movie-id=<movie-id>
 ```
 
 ---
 
-### `tutopanda inspect`
+### `renku inspect`
 
 Export movie data (prompts, artifacts, metadata) for inspection.
 
 **Usage:**
 ```bash
-tutopanda inspect --movie-id=<id>
+renku inspect --movie-id=<id>
 ```
 
 **Options:**
@@ -337,18 +319,18 @@ Displays:
 
 **Example:**
 ```bash
-tutopanda inspect --movie-id=movie-q123456
+renku inspect --movie-id=movie-q123456
 ```
 
 ---
 
-### `tutopanda providers:list`
+### `renku providers:list`
 
 Show configured providers and their readiness status.
 
 **Usage:**
 ```bash
-tutopanda providers:list --blueprint=<path>
+renku providers:list --blueprint=<path>
 ```
 
 **Options:**
@@ -362,7 +344,7 @@ tutopanda providers:list --blueprint=<path>
 
 **Example:**
 ```bash
-tutopanda providers:list --blueprint=~/.tutopanda/config/blueprints/image-audio.yaml
+renku providers:list --blueprint=~/.renku/blueprints/image-audio.yaml
 ```
 
 **Output:**
@@ -372,21 +354,24 @@ Status: Ready
 
 Provider: replicate (bytedance/sdxl-lightning-4step)
 Status: Ready
+
+Provider: elevenlabs (text-to-speech-1)
+Status: Ready
 ```
 
 ---
 
-### `tutopanda blueprints:list`
+### `renku blueprints:list`
 
 List all available blueprint YAML files.
 
 **Usage:**
 ```bash
-tutopanda blueprints:list
+renku blueprints:list
 ```
 
 **Behavior:**
-Scans `<root>/config/blueprints/` (default `~/.tutopanda/config/blueprints/`) and displays all `.yaml` files with their metadata.
+Scans `<root>/blueprints/` (default `~/.renku/blueprints/`) and displays all `.yaml` files with their metadata.
 
 **Example Output:**
 ```
@@ -407,13 +392,13 @@ Available Blueprints:
 
 ---
 
-### `tutopanda blueprints:describe`
+### `renku blueprints:describe`
 
 Show detailed information about a specific blueprint.
 
 **Usage:**
 ```bash
-tutopanda blueprints:describe <path-to-blueprint.yaml>
+renku blueprints:describe <path-to-blueprint.yaml>
 ```
 
 **Options:**
@@ -430,18 +415,18 @@ Displays:
 
 **Example:**
 ```bash
-tutopanda blueprints:describe ~/.tutopanda/config/blueprints/image-audio.yaml
+renku blueprints:describe ~/.renku/blueprints/image-audio.yaml
 ```
 
 ---
 
-### `tutopanda blueprints:validate`
+### `renku blueprints:validate`
 
 Validate blueprint structure and references.
 
 **Usage:**
 ```bash
-tutopanda blueprints:validate <path-to-blueprint.yaml>
+renku blueprints:validate <path-to-blueprint.yaml>
 ```
 
 **Options:**
@@ -455,18 +440,18 @@ tutopanda blueprints:validate <path-to-blueprint.yaml>
 
 **Example:**
 ```bash
-tutopanda blueprints:validate ~/.tutopanda/config/blueprints/image-audio.yaml
+renku blueprints:validate ~/.renku/blueprints/image-audio.yaml
 ```
 
 ---
 
-### `tutopanda viewer:view`
+### `renku viewer:view`
 
 Open the viewer for a movie (starts the server if needed).
 
 **Usage:**
 ```bash
-tutopanda viewer:view --movie-id=<id>
+renku viewer:view --movie-id=<id>
 ```
 
 **Options:**
@@ -478,8 +463,8 @@ tutopanda viewer:view --movie-id=<id>
 - Displays timeline with images, audio, and composition.
 
 **Related commands:**
-- `tutopanda viewer:start` — start the server in the foreground.
-- `tutopanda viewer:stop` — stop the background server.
+- `renku viewer:start` — start the server in the foreground.
+- `renku viewer:stop` — stop the background server.
 
 ---
 
@@ -526,7 +511,7 @@ connections:
 
 producers:
   - name: <string>
-    providerName: <openai|replicate|tutopanda>
+    providerName: <openai|replicate|elevenlabs|renku>
     modelName: <string>
     environment: <local|cloud>
     promptFile: <filename>  # OpenAI only
@@ -709,11 +694,11 @@ producers:
   - `type`: Data type (`string`, `number`, `boolean`)
   - `required`: Whether the parameter is mandatory
 
-**Tutopanda Producer:**
+**Renku Producer:**
 ```yaml
 producers:
   - name: TimelineComposer
-    providerName: tutopanda
+    providerName: renku
     modelName: OrderedTimeline
     environment: local
 ```
@@ -891,17 +876,17 @@ REPLICATE_API_TOKEN=r8_...
 ### Directory Layout
 
 ```
-~/.tutopanda/
-├── cli-config.json          # Storage configuration
+~/.renku/
+├── cli-config.toml          # Storage configuration
 └── builds/
     └── movie-{id}/
         ├── inputs.yaml      # Original inputs
         ├── plan.json        # Execution plan
         ├── manifest.json    # Artifact metadata
-        ├── artefacts.log    # Execution log
+        ├── artifacts.log    # Execution log
         ├── prompts/
         │   └── inquiry.txt  # InquiryPrompt
-        └── artefacts/
+        └── artifacts/
             ├── node-{id}-output.txt
             ├── node-{id}-output.json
             ├── node-{id}-output.png
@@ -910,16 +895,13 @@ REPLICATE_API_TOKEN=r8_...
 
 ### File Descriptions
 
-#### `cli-config.json`
+#### `cli-config.toml`
 Storage configuration created by `init`.
 
-```json
-{
-  "storage": {
-    "root": "/path/to/storage",
-    "basePath": "builds"
-  }
-}
+```toml
+[storage]
+root = "/path/to/storage"
+basePath = "builds"
 ```
 
 #### `inputs.yaml`
@@ -931,13 +913,13 @@ Execution plan with nodes, edges, and dependencies.
 #### `manifest.json`
 Artifact metadata with types, paths, and node IDs.
 
-#### `artefacts.log`
+#### `artifacts.log`
 Execution log with timestamps and status.
 
 #### `prompts/`
 Directory for prompt files referenced by producers.
 
-#### `artefacts/`
+#### `artifacts/`
 Directory for all generated artifacts. Files are named:
 - `node-{nodeId}-{outputName}.{ext}`
 
@@ -963,25 +945,25 @@ Continuing work on an existing movie uses the same `generate` command with a tar
 
 1. **Generate once to seed the movie:**
    ```bash
-   tutopanda generate --inputs=./inputs.yaml --blueprint=./config/blueprints/audio-only.yaml
+   renku generate --inputs=./inputs.yaml --blueprint=./blueprints/audio-only.yaml
    # Output: movie-q123456
    ```
 
 2. **Apply edits locally:**
-   - Update `builds/movie-q123456/inputs.yaml` (or edit artefacts in the friendly `movies/movie-q123456/` folder).
+   - Update `builds/movie-q123456/inputs.yaml` (or edit artifacts in the friendly `movies/movie-q123456/` folder).
 
 3. **Re-run generation against the same movie:**
    ```bash
-   tutopanda generate --movie-id=movie-q123456
+   renku generate --movie-id=movie-q123456
    ```
 
 4. **Review:**
    - Friendly view is refreshed under `movies/movie-q123456/`.
-   - Use `tutopanda viewer:view --movie-id=movie-q123456` to open the viewer.
+   - Use `renku viewer:view --movie-id=movie-q123456` to open the viewer.
 
 **Use Cases:**
 - Fix LLM-generated script errors by editing inputs and rerunning.
-- Replace unsatisfactory artefacts from friendly edits.
+- Replace unsatisfactory artifacts from friendly edits.
 - Regenerate partial workflows with `--up-to-layer` to limit execution.
 
 ### Blueprint Modules
@@ -1075,7 +1057,7 @@ Dry run mode executes a mocked workflow without calling providers.
 
 **Usage:**
 ```bash
-tutopanda generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml --dry-run
+renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml --dry-run
 ```
 
 **Behavior:**
@@ -1097,7 +1079,7 @@ Non-interactive mode skips confirmation prompts.
 
 **Usage:**
 ```bash
-tutopanda generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml --nonInteractive
+renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml --nonInteractive
 ```
 
 **Use Cases:**
@@ -1125,9 +1107,9 @@ inputs:
 
 **Command:**
 ```bash
-tutopanda generate \
+renku generate \
   --inputs=audio-inputs.yaml \
-  --blueprint=~/.tutopanda/config/blueprints/audio-only.yaml
+  --blueprint=~/.renku/blueprints/audio-only.yaml
 ```
 
 **Outputs:**
@@ -1158,9 +1140,9 @@ inputs:
 
 **Command:**
 ```bash
-tutopanda generate \
+renku generate \
   --inputs=image-audio-inputs.yaml \
-  --blueprint=~/.tutopanda/config/blueprints/image-audio.yaml
+  --blueprint=~/.renku/blueprints/image-audio.yaml
 ```
 
 **Outputs:**
@@ -1171,7 +1153,7 @@ tutopanda generate \
 
 **View Result:**
 ```bash
-tutopanda viewer:view --movie-id=movie-{id}
+renku viewer:view --movie-id=movie-{id}
 ```
 
 ---
@@ -1182,7 +1164,7 @@ tutopanda viewer:view --movie-id=movie-{id}
 
 **Step 1: Generate movie**
 ```bash
-tutopanda generate --inputs=my-inputs.yaml --blueprint=~/.tutopanda/config/blueprints/image-audio.yaml
+renku generate --inputs=my-inputs.yaml --blueprint=~/.renku/blueprints/image-audio.yaml
 # Output: movie-a1b2c3d4
 ```
 
@@ -1193,7 +1175,7 @@ tutopanda generate --inputs=my-inputs.yaml --blueprint=~/.tutopanda/config/bluep
 
 **Step 3: Re-run generation against the same movie**
 ```bash
-tutopanda generate --movie-id=movie-a1b2c3d4
+renku generate --movie-id=movie-a1b2c3d4
 ```
 
 **Result:**
@@ -1300,24 +1282,24 @@ Error: Invalid sdkMapping for Replicate producer
 
 Set environment variable for verbose logging:
 ```bash
-DEBUG=tutopanda:* tutopanda generate --inputs=my-inputs.yaml --blueprint=./config/blueprints/audio-only.yaml
+DEBUG=renku:* renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml
 ```
 
 ### Validation Commands
 
 **Validate blueprint:**
 ```bash
-tutopanda blueprints:validate my-blueprint.yaml
+renku blueprints:validate my-blueprint.yaml
 ```
 
 **Check providers:**
 ```bash
-tutopanda providers:list --blueprint=my-blueprint.yaml
+renku providers:list --blueprint=my-blueprint.yaml
 ```
 
 **Dry run:**
 ```bash
-tutopanda generate --inputs=my-inputs.yaml --blueprint=./config/blueprints/audio-only.yaml --dry-run
+renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml --dry-run
 ```
 
 ---
@@ -1326,12 +1308,12 @@ tutopanda generate --inputs=my-inputs.yaml --blueprint=./config/blueprints/audio
 
 ### Configuration File Locations
 
-- **CLI Config:** `~/.tutopanda/cli-config.json` (or custom via `--configPath`)
+- **CLI Config:** `~/.renku/cli-config.toml` (or custom via `--configPath`)
 - **Environment:** `.env` in CLI directory or current working directory
-- **Blueprints:** `~/.tutopanda/config/blueprints/*.yaml` (copied during `tutopanda init`)
-- **Modules:** `~/.tutopanda/config/blueprints/modules/*.yaml`
+- **Blueprints:** `~/.renku/blueprints/*.yaml` (copied during `renku init`)
+- **Modules:** `~/.renku/blueprints/modules/*.yaml`
 - **Prompts:** `cli/prompts/*.md`
-- **Settings:** `cli/tutosettings.json`
+- **Settings:** `cli/settings.json`
 
 ### Movie ID Format
 
@@ -1349,7 +1331,7 @@ Movie IDs are 8-character prefixes of UUIDs:
 ### Default Values
 
 - **Blueprint:** *(none – always pass `--blueprint`/`--bp`)*
-- **Config Path:** `~/.tutopanda/`
+- **Config Path:** `~/.renku/`
 - **Storage Base Path:** `builds/`
 - **Environment:** `local`
 
@@ -1357,9 +1339,9 @@ Movie IDs are 8-character prefixes of UUIDs:
 
 ## Additional Resources
 
-- **Source Code:** `/home/keremk/developer/tutopanda/cli`
-- **Example Blueprints:** `~/.tutopanda/config/blueprints/`
-- **Example Inputs:** `<root>/config/inputs.yaml`
-- **Default Settings:** `cli/tutosettings.json`
+- **Source Code:** `/home/keremk/developer/renku/cli`
+- **Example Blueprints:** `~/.renku/blueprints/`
+- **Example Inputs:** `<root>/inputs.yaml`
+- **Default Settings:** `cli/settings.json`
 
-For feature requests and bug reports, please open an issue in the Tutopanda repository.
+For feature requests and bug reports, please open an issue in the Renku repository.
