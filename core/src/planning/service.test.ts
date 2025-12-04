@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createPlanningService, type PendingArtefactDraft } from '../orchestration/planning-service.js';
+import {
+  createPlanningService,
+  type PendingArtefactDraft,
+  type ProviderOptionEntry,
+} from '../orchestration/planning-service.js';
 import { createStorageContext, initializeMovieStorage, planStore } from '../storage.js';
 import { createManifestService } from '../manifest.js';
 import { createEventLog } from '../event-log.js';
@@ -46,20 +50,22 @@ function buildCatalog(): ProducerCatalog {
   return catalog;
 }
 
-function buildProviderOptions(): Map<string, {
-  sdkMapping?: Record<string, unknown>;
-  outputs?: Record<string, unknown>;
-  inputSchema?: string;
-  outputSchema?: string;
-}> {
-  const map = new Map<string, {
-    sdkMapping?: Record<string, unknown>;
-    outputs?: Record<string, unknown>;
-    inputSchema?: string;
-    outputSchema?: string;
-  }>();
-  map.set('ScriptProducer', {});
-  return map;
+function buildProviderOptions(): Map<string, ProviderOptionEntry> {
+  const entry: ProviderOptionEntry = {
+    sdkMapping: {
+      InquiryPrompt: { field: 'prompt' },
+      NumOfSegments: { field: 'segments' },
+    },
+    outputs: {
+      NarrationScript: { type: 'text/plain', mimeType: 'text/plain' },
+    },
+    inputSchema: 'schema://inputs',
+    outputSchema: 'schema://outputs',
+    config: {},
+    selectionInputKeys: ['provider', 'model'],
+    configInputPaths: [],
+  };
+  return new Map([['ScriptProducer', entry]]);
 }
 
 describe('planning service', () => {
