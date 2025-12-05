@@ -10,6 +10,7 @@ import type {
   RunnerLogger,
 } from '@renku/core';
 import { createRunner } from '@renku/core';
+import chalk from 'chalk';
 
 interface PlanExecutionContext extends RunnerExecutionContext {
   manifestService: ManifestService;
@@ -39,7 +40,8 @@ export async function executePlanWithConcurrency(
   const jobs: JobResult[] = [];
 
   if (layerLimit !== undefined) {
-    logger.info?.('runner.layer.limit', {
+    logger.info?.(`\nThe run will be up to and including layer ${layerLimit}\n`)
+    logger.debug?.('runner.layer.limit', {
       movieId: context.movieId,
       revision: plan.revision,
       upToLayer: layerLimit,
@@ -55,7 +57,8 @@ export async function executePlanWithConcurrency(
       continue;
     }
 
-    logger.info?.('runner.layer.start', {
+    logger.info?.(`${chalk.blue(`--- Layer ${layerIndex}, will run ${layer.length} jobs. ---`)}\n`)
+    logger.debug?.('runner.layer.start', {
       movieId: context.movieId,
       revision: plan.revision,
       layerIndex,
@@ -76,7 +79,8 @@ export async function executePlanWithConcurrency(
     );
     jobs.push(...layerResults);
 
-    logger.info?.('runner.layer.end', {
+    logger.info?.(`\n${chalk.blue(`--- Layer ${layerIndex} finished running. ---`)}\n`)
+    logger.debug?.('runner.layer.end', {
       movieId: context.movieId,
       revision: plan.revision,
       layerIndex,

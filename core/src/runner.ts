@@ -240,7 +240,8 @@ async function executeJob(
     const completedAt = clock.now();
     const status = deriveJobStatus(normalizeStatus(result.status), artefacts);
 
-    logger.info?.('runner.job.completed', {
+    // logger.info?.(`The ${chalk.blue(job.producer)} successfully completed in ${attempt} attempt, produced ${artefacts.length} artifacts\n`)
+    logger.debug?.('runner.job.completed', {
       movieId,
       revision,
       jobId: job.jobId,

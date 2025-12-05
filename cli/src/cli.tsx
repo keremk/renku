@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import process from 'node:process';
 import meow from 'meow';
+import chalk from 'chalk';
 
 sanitizeDebugEnvVar('DEBUG');
 sanitizeDebugEnvVar('NODE_DEBUG');
@@ -238,9 +239,7 @@ async function main(): Promise<void> {
           printGenerateSummary(logger, result);
           if (result.dryRun) {
             printDryRunSummary(logger, result.dryRun, result.storagePath);
-          } else if (result.build) {
-            printBuildSummary(logger, result.build, result.manifestPath);
-          }
+          } 
         }
         notifications?.publish({
           type: 'success',
@@ -523,21 +522,40 @@ function resolveLogLevel(levelFlag: string | undefined): LogLevel {
 
 function printGenerateSummary(logger: CoreLogger, result: Awaited<ReturnType<typeof runGenerate>>): void {
   const modeLabel = result.isNew ? 'New movie' : 'Updated movie';
-  const statusLabel = result.dryRun
-    ? `Dry run: ${result.dryRun.status} (${result.dryRun.jobCount} jobs)`
+  const statusInfo = result.dryRun
+    ? { label: 'Dry run', status: result.dryRun.status, jobs: result.dryRun.jobCount }
     : result.build
-      ? `Build: ${result.build.status} (${result.build.jobCount} jobs)`
-      : 'No execution performed.';
+      ? { label: 'Build', status: result.build.status, jobs: result.build.jobCount }
+      : undefined;
+  const colorizeStatus =
+    statusInfo?.status === 'succeeded'
+      ? chalk.green
+      : statusInfo?.status === 'failed'
+        ? chalk.red
+        : (text: string) => text;
+  const jobsLabel =
+    statusInfo && typeof statusInfo.jobs === 'number'
+      ? ` • ${statusInfo.jobs} job${statusInfo.jobs === 1 ? '' : 's'}`
+      : '';
 
-  logger.info(`${modeLabel}: ${result.storageMovieId} (rev ${result.targetRevision})`);
-  logger.info(statusLabel);
-  logger.info(`Plan: ${result.planPath}`);
-  if (result.manifestPath) {
-    logger.info(`Manifest: ${result.manifestPath}`);
+  logger.info('');
+  logger.info(chalk.bold(`${modeLabel}: ${chalk.blue(result.storageMovieId)}`));
+  logger.info(chalk.dim(`Revision ${result.targetRevision}`));
+  if (statusInfo) {
+    logger.info(colorizeStatus(`${statusInfo.label}: ${statusInfo.status}${jobsLabel}\n`));
+  } else {
+    logger.info(chalk.yellow('No execution performed.\n'));
   }
-  logger.info(`Storage: ${result.storagePath}`);
-  if (result.friendlyRoot) {
-    logger.info(`Friendly view: ${result.friendlyRoot}`);
+
+  const detailLines: Array<[string, string]> = [
+    [`${chalk.bold('Plan')}`, result.planPath],
+    ...(result.manifestPath ? [[`${chalk.bold('Manifest')}`, result.manifestPath] as [string, string]] : []),
+    [`${chalk.bold('Builds')}`, result.storagePath],
+    ...(result.friendlyRoot ? [[`${chalk.bold('Workspace')}`, result.friendlyRoot] as [string, string]] : []),
+  ];
+  const bullet = chalk.dim('•');
+  for (const [label, value] of detailLines) {
+    logger.info(`${bullet} ${label}: ${value}`);
   }
 }
 
@@ -603,14 +621,4 @@ function buildLayerMap(jobs: DryRunJobSummary[]): Map<number, DryRunJobSummary[]
     }
   }
   return map;
-}
-
-function printBuildSummary(logger: CoreLogger, summary: BuildSummary, manifestPath?: string): void {
-  const counts = summary.counts;
-  logger.info(
-    `Build status: ${summary.status}. Jobs: ${summary.jobCount} (succeeded ${counts.succeeded}, failed ${counts.failed}, skipped ${counts.skipped}). Manifest revision: ${summary.manifestRevision}.`,
-  );
-  if (manifestPath) {
-    logger.info(`Manifest saved to ${manifestPath}`);
-  }
 }

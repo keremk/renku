@@ -48,7 +48,8 @@ export async function runReplicateWithRetries(args: RunArgs): Promise<unknown> {
       }
       if (shouldRetry) {
         sawThrottle = true;
-        logger?.warn?.('providers.replicate.retry', {
+        logger?.info?.(`Replicate provider will retry after ${retryMs}ms for the job ${jobId}. Attempt #${attempt}`);
+        logger?.debug?.('providers.replicate.retry', {
           producer: jobId,
           model,
           plannerContext,
@@ -60,11 +61,13 @@ export async function runReplicateWithRetries(args: RunArgs): Promise<unknown> {
         });
         const before = Date.now();
         await new Promise((resolve) => setTimeout(resolve, retryMs));
-        logger?.info?.('providers.replicate.retry.waited', {
+        const waitedMs = Date.now() - before;
+        logger?.info?.(`Replicate provider for job ${jobId} using model ${model} waited for ${waitedMs}ms`);
+        logger?.debug?.('providers.replicate.retry.waited', {
           producer: jobId,
           model,
           attempt,
-          waitedMs: Date.now() - before,
+          waitedMs: waitedMs,
         });
         continue;
       }

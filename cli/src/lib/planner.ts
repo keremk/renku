@@ -24,6 +24,7 @@ import { expandPath } from './path.js';
 import { mergeMovieMetadata } from './movie-metadata.js';
 import { INPUT_FILE_NAME } from './input-files.js';
 import { applyProviderDefaults } from './provider-defaults.js';
+import chalk from 'chalk';
 
 export interface GeneratePlanOptions {
   cliConfig: CliConfig;
@@ -80,7 +81,7 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
   applyProviderDefaults(inputValues, providerOptions);
   await persistInputs(movieDir, inputValues);
   const catalog = buildProducerCatalog(providerOptions);
-  logger.info(`Using blueprint: ${blueprintPath}`);
+  logger.info(`${chalk.bold('Using blueprint:')} ${blueprintPath}`);
 
   const planResult = await createPlanningService({
     logger,

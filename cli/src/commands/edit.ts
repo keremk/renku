@@ -125,7 +125,7 @@ export async function runEdit(options: EditOptions): Promise<EditResult> {
     if (!confirmed) {
       await cleanupPlanFiles(movieDir);
       logger.info('\nExecution cancelled.');
-      logger.info('Tip: Run with --dryrun to see what would happen without executing.');
+      logger.info('Tip: Run with --dry-run to see what would happen without executing.');
       options.notifications?.publish({
         type: 'warning',
         message: 'Execution cancelled.',

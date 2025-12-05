@@ -63,7 +63,8 @@ export function createSchemaFirstReplicateHandler(options: SchemaFirstHandlerOpt
         let predictionOutput: unknown;
         const modelIdentifier = request.model as `${string}/${string}` | `${string}/${string}:${string}`;
 
-        logger?.info?.(`providers.replicate.${options.logKey}.invoke.start`, {
+        // logger?.info?.(`${descriptor.provider} provider for ${request.model} is starting to generate ${request.jobId}`);
+        logger?.debug?.(`providers.replicate.${options.logKey}.invoke.start`, {
           provider: descriptor.provider,
           model: request.model,
           jobId: request.jobId,
@@ -121,8 +122,11 @@ export function createSchemaFirstReplicateHandler(options: SchemaFirstHandlerOpt
         });
 
         const status = artefacts.some((a) => a.status === 'failed') ? 'failed' : 'succeeded';
+        // const statusColor = status === 'failed' ? '\x1b[31m' : '\x1b[32m'; // red : green
+        // const reset = '\x1b[0m';
 
-        logger?.info?.(`providers.replicate.${options.logKey}.invoke.end`, {
+        // logger?.info?.(`${descriptor.provider} provider for ${request.model} is finished the call for ${request.jobId}`)
+        logger?.debug?.(`providers.replicate.${options.logKey}.invoke.end`, {
           provider: descriptor.provider,
           model: request.model,
           jobId: request.jobId,
