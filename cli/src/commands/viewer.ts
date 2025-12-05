@@ -1,10 +1,8 @@
 import { spawn } from 'node:child_process';
 import process from 'node:process';
-import { findAvailablePort } from '../lib/ports.js';
 import { openBrowser } from '../lib/open-browser.js';
-import { simpleGet } from '../lib/http-utils.js';
 import type { CliConfig } from '../lib/cli-config.js';
-import { readCliConfig, writeCliConfig } from '../lib/cli-config.js';
+import { readCliConfig } from '../lib/cli-config.js';
 import { resolveViewerBundlePaths } from '../lib/viewer-bundle.js';
 import {
   getViewerStatePath,
@@ -13,6 +11,10 @@ import {
   writeViewerState,
 } from '../lib/viewer-state.js';
 import type { Logger } from '@renku/core';
+import {
+  ensureViewerNetworkConfig,
+  isViewerServerRunning,
+} from '../lib/viewer-network.js';
 
 export interface ViewerStartOptions {
   host?: string;
@@ -176,22 +178,6 @@ async function ensureInitializedConfig(logger: Logger): Promise<CliConfig | null
   return cliConfig;
 }
 
-async function ensureViewerNetworkConfig(
-  config: CliConfig,
-  overrides: ViewerStartOptions,
-): Promise<{ host: string; port: number }> {
-  const host = overrides.host ?? config.viewer?.host ?? '127.0.0.1';
-  const desiredPort = overrides.port ?? config.viewer?.port;
-  const port = await findAvailablePort(desiredPort);
-
-  if (!config.viewer || config.viewer.host !== host || config.viewer.port !== port) {
-    config.viewer = { host, port };
-    await writeCliConfig(config);
-  }
-
-  return { host, port };
-}
-
 async function launchViewerServer({
   bundle,
   rootFolder,
@@ -249,15 +235,6 @@ async function launchViewerServer({
     host,
     startedAt: new Date().toISOString(),
   });
-}
-
-async function isViewerServerRunning(host: string, port: number): Promise<boolean> {
-  try {
-    const response = await simpleGet(`http://${host}:${port}/viewer-api/health`, 1500);
-    return response.statusCode === 200;
-  } catch {
-    return false;
-  }
 }
 
 async function waitForViewerServer(host: string, port: number): Promise<boolean> {

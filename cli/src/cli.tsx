@@ -64,6 +64,7 @@ import {
 import React from 'react';
 import { createNotificationBus, type LogLevel, type Logger as CoreLogger } from '@renku/core';
 import type { CliLoggerMode } from './lib/logger.js';
+import { detectViewerAddress } from './lib/viewer-network.js';
 
 
 type ProviderListOutputEntry = Awaited<ReturnType<typeof runProvidersList>>['entries'][number];
@@ -236,7 +237,11 @@ async function main(): Promise<void> {
           onExecutionStart: startTui,
         });
         if (mode === 'log') {
-          printGenerateSummary(logger, result);
+          const viewerUrl =
+            !result.dryRun && result.friendlyRoot
+              ? await resolveViewerUrl(result.storageMovieId)
+              : undefined;
+          printGenerateSummary(logger, result, viewerUrl);
           if (result.dryRun) {
             printDryRunSummary(logger, result.dryRun, result.storagePath);
           } 
@@ -520,7 +525,11 @@ function resolveLogLevel(levelFlag: string | undefined): LogLevel {
   throw new Error('Invalid log level. Use "info" or "debug".');
 }
 
-function printGenerateSummary(logger: CoreLogger, result: Awaited<ReturnType<typeof runGenerate>>): void {
+function printGenerateSummary(
+  logger: CoreLogger,
+  result: Awaited<ReturnType<typeof runGenerate>>,
+  viewerUrl?: string,
+): void {
   const modeLabel = result.isNew ? 'New movie' : 'Updated movie';
   const statusInfo = result.dryRun
     ? { label: 'Dry run', status: result.dryRun.status, jobs: result.dryRun.jobCount }
@@ -552,6 +561,11 @@ function printGenerateSummary(logger: CoreLogger, result: Awaited<ReturnType<typ
     ...(result.manifestPath ? [[`${chalk.bold('Manifest')}`, result.manifestPath] as [string, string]] : []),
     [`${chalk.bold('Builds')}`, result.storagePath],
     ...(result.friendlyRoot ? [[`${chalk.bold('Workspace')}`, result.friendlyRoot] as [string, string]] : []),
+    ...(viewerUrl
+      ? [[`${chalk.bold('Viewer')}`, viewerUrl] as [string, string]]
+      : result.friendlyRoot
+        ? [[`${chalk.bold('Viewer')}`, `renku viewer:view --movie-id=${result.storageMovieId}`] as [string, string]]
+        : []),
   ];
   const bullet = chalk.dim('•');
   for (const [label, value] of detailLines) {
@@ -621,4 +635,13 @@ function buildLayerMap(jobs: DryRunJobSummary[]): Map<number, DryRunJobSummary[]
     }
   }
   return map;
+}
+
+async function resolveViewerUrl(movieId: string): Promise<string | undefined> {
+  const detected = await detectViewerAddress({ requireRunning: true });
+  if (!detected) {
+    return undefined;
+  }
+  const path = `/movies/${encodeURIComponent(movieId)}`;
+  return `http://${detected.address.host}:${detected.address.port}${path}`;
 }
