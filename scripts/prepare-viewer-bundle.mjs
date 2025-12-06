@@ -8,7 +8,7 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, '..');
 const viewerDist = resolve(repoRoot, 'viewer', 'dist');
 const viewerServerDist = resolve(repoRoot, 'viewer', 'server-dist');
-const targetRoot = resolve(repoRoot, 'cli', 'config', 'viewer');
+const targetRoot = resolve(repoRoot, 'cli', 'viewer-bundle');
 const targetDist = resolve(targetRoot, 'dist');
 const targetServerDist = resolve(targetRoot, 'server-dist');
 

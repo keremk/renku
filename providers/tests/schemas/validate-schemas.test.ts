@@ -5,7 +5,7 @@ import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 
 const REPO_ROOT = resolve(__dirname, '../../..');
-const SCHEMAS_ROOT = resolve(REPO_ROOT, 'cli/config/blueprints/modules/schemas');
+const SCHEMAS_ROOT = resolve(REPO_ROOT, 'catalog/producers');
 
 async function listJsonSchemas(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true });

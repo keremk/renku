@@ -228,7 +228,7 @@ function registerBlueprintResources(server: McpServer, blueprintDir: string): vo
     template,
     {
       title: 'Renku Blueprints',
-      description: 'YAML blueprints available under config/blueprints.',
+      description: 'YAML blueprints available under catalog/blueprints.',
       mimeType: 'text/yaml',
     },
     async (uri: URL) => {

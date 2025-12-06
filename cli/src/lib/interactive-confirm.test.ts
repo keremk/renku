@@ -97,7 +97,7 @@ describe('confirmPlanExecution', () => {
     mockClose.mockClear();
   });
 
-  it('displays input summary before prompting for confirmation', async () => {
+  it('displays execution summary before prompting for confirmation', async () => {
     const infoSpy = vi.fn();
     const logger = {
       info: infoSpy,
@@ -107,11 +107,9 @@ describe('confirmPlanExecution', () => {
     };
     await confirmPlanExecution(createPlan(), { inputs: createInputs(), logger });
     const logs = infoSpy.mock.calls.map((call) => call[0]);
-    expect(logs.find((line) => typeof line === 'string' && line.includes('Input Summary'))).toBeDefined();
-    expect(
-      logs.find((line) => typeof line === 'string' && line.includes('InquiryPrompt: Tell me a story')),
-    ).toBeDefined();
-    expect(logs.find((line) => typeof line === 'string' && line.includes('NumOfSegments: 3'))).toBeDefined();
+    expect(logs.find((line) => typeof line === 'string' && line.includes('Execution Plan Summary'))).toBeDefined();
+    expect(logs.find((line) => typeof line === 'string' && line.includes('Jobs by Producer'))).toBeDefined();
+    expect(logs.find((line) => typeof line === 'string' && line.includes('ScriptProducer'))).toBeDefined();
   });
 
   it('logs which layers will run when upToLayer is provided', async () => {

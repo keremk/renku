@@ -13,7 +13,11 @@ import { createInputsFile } from './__testutils__/inputs.js';
 import { getBundledBlueprintsRoot } from '../lib/config-assets.js';
 import { createCliLogger } from '../lib/logger.js';
 
-const AUDIO_ONLY_BLUEPRINT_PATH = resolve(getBundledBlueprintsRoot(), 'audio-only.yaml');
+const AUDIO_ONLY_BLUEPRINT_PATH = resolve(
+  getBundledBlueprintsRoot(),
+  'audio-only',
+  'audio-only.yaml',
+);
 const AUDIO_ONLY_MODELS = [
   { producerId: 'ScriptProducer', provider: 'openai', model: 'gpt-5-mini' },
   { producerId: 'AudioProducer', provider: 'replicate', model: 'minimax/speech-2.6-hd' },

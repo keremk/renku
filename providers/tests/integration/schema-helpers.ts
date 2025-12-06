@@ -21,29 +21,29 @@ type MappingEntry = { field: string; required?: boolean };
 type ModelMapping = Record<string, MappingEntry>;
 
 const videoSchemaPaths: Record<VideoModel, string> = {
-  'bytedance/seedance-1-pro-fast': '../../../cli/config/blueprints/modules/schemas/bytedance-seedance-1-pro-fast.json',
-  'bytedance/seedance-1-lite': '../../../cli/config/blueprints/modules/schemas/bytedance-seedance-1-lite.json',
-  'google/veo-3.1-fast': '../../../cli/config/blueprints/modules/schemas/google-veo-3-1-fast.json',
+  'bytedance/seedance-1-pro-fast': '../../../catalog/producers/video/bytedance-seedance-1-pro-fast.json',
+  'bytedance/seedance-1-lite': '../../../catalog/producers/video/bytedance-seedance-1-lite.json',
+  'google/veo-3.1-fast': '../../../catalog/producers/video/google-veo-3-1-fast.json',
 };
 
 const audioSchemaPaths: Record<AudioModel, string> = {
-  'minimax/speech-2.6-hd': '../../../cli/config/blueprints/modules/schemas/minimax-speech.json',
-  'minimax/speech-02-hd': '../../../cli/config/blueprints/modules/schemas/minimax-speech.json',
-  'elevenlabs/v3': '../../../cli/config/blueprints/modules/schemas/elevenlabs-speech-v3.json',
+  'minimax/speech-2.6-hd': '../../../catalog/producers/audio/minimax-speech.json',
+  'minimax/speech-02-hd': '../../../catalog/producers/audio/minimax-speech.json',
+  'elevenlabs/v3': '../../../catalog/producers/audio/elevenlabs-speech-v3.json',
 };
 
 const musicSchemaPaths: Record<MusicModel, string> = {
-  'stability-ai/stable-audio-2.5': '../../../cli/config/blueprints/modules/schemas/stable-audio.json',
-  'elevenlabs/music': '../../../cli/config/blueprints/modules/schemas/elevenlabs-music.json',
+  'stability-ai/stable-audio-2.5': '../../../catalog/producers/music/stable-audio.json',
+  'elevenlabs/music': '../../../catalog/producers/music/elevenlabs-music.json',
 };
 
 const imageSchemaPaths: Record<ImageModel, string> = {
-  'bytedance/seedream-4': '../../../cli/config/blueprints/modules/schemas/bytedance-seedream-4.json',
-  'google/nano-banana': '../../../cli/config/blueprints/modules/schemas/google-nano-banana.json',
-  'qwen/qwen-image': '../../../cli/config/blueprints/modules/schemas/qwen-image.json',
+  'bytedance/seedream-4': '../../../catalog/producers/image/bytedance-seedream-4.json',
+  'google/nano-banana': '../../../catalog/producers/image/google-nano-banana.json',
+  'qwen/qwen-image': '../../../catalog/producers/image/qwen-image.json',
 };
 
-// Mirrors cli/config/blueprints/modules/producers/video.yaml input mappings
+// Mirrors catalog/producers/video/video.yaml input mappings
 const videoModelMappings: Record<VideoModel, ModelMapping> = {
   'bytedance/seedance-1-pro-fast': {
     Prompt: { field: 'prompt', required: true },
@@ -65,7 +65,7 @@ const videoModelMappings: Record<VideoModel, ModelMapping> = {
   },
 };
 
-// Mirrors cli/config/blueprints/modules/producers/audio.yaml input mappings
+// Mirrors catalog/producers/audio/audio.yaml input mappings
 const audioModelMappings: Record<AudioModel, ModelMapping> = {
   'minimax/speech-2.6-hd': {
     TextInput: { field: 'text', required: true },
@@ -83,7 +83,7 @@ const audioModelMappings: Record<AudioModel, ModelMapping> = {
   },
 };
 
-// Mirrors cli/config/blueprints/modules/producers/music.yaml input mappings
+// Mirrors catalog/producers/music/music.yaml input mappings
 const musicModelMappings: Record<MusicModel, ModelMapping> = {
   'stability-ai/stable-audio-2.5': {
     Prompt: { field: 'prompt', required: true },
@@ -95,7 +95,7 @@ const musicModelMappings: Record<MusicModel, ModelMapping> = {
   },
 };
 
-// Mirrors cli/config/blueprints/modules/producers/image.yaml input mappings
+// Mirrors catalog/producers/image/image.yaml input mappings
 const imageModelMappings: Record<ImageModel, ModelMapping> = {
   'bytedance/seedream-4': {
     Prompt: { field: 'prompt', required: true },

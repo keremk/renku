@@ -7,18 +7,22 @@ import { stringify as stringifyYaml } from 'yaml';
 import { loadInputsFromYaml } from './input-loader.js';
 import { applyProviderDefaults } from './provider-defaults.js';
 import { loadBlueprintBundle } from './blueprint-loader/index.js';
-import { resolveBlueprintSpecifier } from './config-assets.js';
+import { getBundledBlueprintsRoot, resolveBlueprintSpecifier } from './config-assets.js';
 
 const TEST_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(TEST_DIR, '../../..');
 const CLI_ROOT = resolve(REPO_ROOT, 'cli');
+const BLUEPRINTS_ROOT = getBundledBlueprintsRoot();
 
 describe('input-loader', () => {
   it('loads saved canonical inputs with schema-backed config keys', async () => {
     const workdir = await mkdtemp(join(tmpdir(), 'renku-inputs-'));
     const blueprintPath = await resolveBlueprintSpecifier('video-audio-music.yaml', { cliRoot: CLI_ROOT });
     const { root: blueprint } = await loadBlueprintBundle(blueprintPath);
-    const initial = await loadInputsFromYaml(resolve(CLI_ROOT, 'config/inputs.yaml'), blueprint);
+    const initial = await loadInputsFromYaml(
+      resolve(BLUEPRINTS_ROOT, 'cut-scene-video', 'input-template.yaml'),
+      blueprint,
+    );
     applyProviderDefaults(initial.values, initial.providerOptions);
 
     const savedPath = join(workdir, 'inputs.yaml');

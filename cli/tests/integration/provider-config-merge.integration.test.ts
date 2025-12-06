@@ -7,7 +7,7 @@ import { buildProducerOptionsFromBlueprint } from '../../src/lib/producer-option
 describe('integration: provider config merging', () => {
   it('retains default clip artifacts when overriding nested fields', async () => {
     const blueprintRoot = getBundledBlueprintsRoot();
-    const blueprintPath = resolve(blueprintRoot, 'image-audio.yaml');
+    const blueprintPath = resolve(blueprintRoot, 'kenn-burns', 'image-audio.yaml');
     const { root: blueprint } = await loadBlueprintBundle(blueprintPath);
 
     const options = buildProducerOptionsFromBlueprint(blueprint, [

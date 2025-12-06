@@ -2,7 +2,7 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { resolveBlueprintSpecifier } from '../../src/lib/config-assets.js';
+import { getBundledBlueprintsRoot, resolveBlueprintSpecifier } from '../../src/lib/config-assets.js';
 import { loadBlueprintBundle } from '../../src/lib/blueprint-loader/index.js';
 import { generatePlan } from '../../src/lib/planner.js';
 import { writeCliConfig } from '../../src/lib/cli-config.js';
@@ -11,6 +11,7 @@ import { loadInputsFromYaml } from '../../src/lib/input-loader.js';
 import { createCliLogger } from '../../src/lib/logger.js';
 
 const CLI_ROOT = resolve(__dirname, '../../');
+const BLUEPRINTS_ROOT = getBundledBlueprintsRoot();
 
 describe('integration: canonical inputs persist across query/edit', () => {
 	it('saves canonical inputs and reuses them during edit without unknown-id errors', async () => {
@@ -30,7 +31,7 @@ describe('integration: canonical inputs persist across query/edit', () => {
 			'video-audio-music.yaml',
 			{ cliRoot: CLI_ROOT }
 		);
-		const inputsPath = resolve(CLI_ROOT, 'config/inputs.yaml');
+		const inputsPath = resolve(BLUEPRINTS_ROOT, 'cut-scene-video', 'input-template.yaml');
 		const { root: blueprint } = await loadBlueprintBundle(blueprintPath);
 		const logger = createCliLogger({
 			mode: 'log',

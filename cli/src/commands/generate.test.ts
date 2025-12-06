@@ -17,14 +17,17 @@ const BUNDLED_BLUEPRINT_ROOT = getBundledBlueprintsRoot();
 const CLI_ROOT = resolve(BUNDLED_BLUEPRINT_ROOT, '..', '..');
 const VIDEO_AUDIO_MUSIC_BLUEPRINT_PATH = resolve(
   BUNDLED_BLUEPRINT_ROOT,
+  'cut-scene-video',
   'video-audio-music.yaml',
 );
 const AUDIO_ONLY_BLUEPRINT_PATH = resolve(
   BUNDLED_BLUEPRINT_ROOT,
+  'audio-only',
   'audio-only.yaml',
 );
 const IMAGE_AUDIO_BLUEPRINT_PATH = resolve(
   BUNDLED_BLUEPRINT_ROOT,
+  'kenn-burns',
   'image-audio.yaml',
 );
 const AUDIO_ONLY_MODELS = [
@@ -235,7 +238,10 @@ describe('runGenerate (new runs)', () => {
     await runInit({ rootFolder: root, configPath: cliConfigPath });
 
     const baselineInputsPath = join(root, 'inputs-image.yaml');
-    await copyFile(resolve(CLI_ROOT, 'config/inputs-image.yaml'), baselineInputsPath);
+    await copyFile(
+      resolve(BUNDLED_BLUEPRINT_ROOT, 'kenn-burns', 'input-template.yaml'),
+      baselineInputsPath,
+    );
 
     const initialDoc = parseYaml(await readFile(baselineInputsPath, 'utf8')) as { inputs?: Record<string, unknown>; models?: Array<Record<string, unknown>> };
     const initialImageModel = initialDoc.models?.find((entry) => entry.producerId === 'ImageProducer');

@@ -7,14 +7,14 @@ import {
   loadYamlBlueprintTree,
   parseYamlBlueprintFile,
 } from './yaml-parser.js';
-import { getBundledBlueprintsRoot, getBundledConfigRoot } from '../../../../cli/src/lib/config-assets.js';
+import { getBundledBlueprintsRoot, getBundledCatalogRoot } from '../../../../cli/src/lib/config-assets.js';
 
-const configRoot = getBundledConfigRoot();
+const catalogRoot = getBundledCatalogRoot();
 const yamlRoot = getBundledBlueprintsRoot();
 
 describe('parseYamlBlueprintFile', () => {
   it('parses module producers and loads prompt/schema files', async () => {
-    const modulePath = resolve(yamlRoot, 'modules/producers/script.yaml');
+    const modulePath = resolve(catalogRoot, 'producers/script/script.yaml');
     const document = await parseYamlBlueprintFile(modulePath);
     expect(document.meta.id).toBe('ScriptProducer');
     expect(document.producers).toHaveLength(1);
@@ -27,7 +27,7 @@ describe('parseYamlBlueprintFile', () => {
   });
 
   it('normalizes collector references into canonical edge notation', async () => {
-    const blueprintPath = resolve(yamlRoot, 'image-only.yaml');
+    const blueprintPath = resolve(yamlRoot, 'image-only', 'image-only.yaml');
     const document = await parseYamlBlueprintFile(blueprintPath);
     expect(document.edges).toEqual(
       expect.arrayContaining([
@@ -51,9 +51,9 @@ describe('parseYamlBlueprintFile', () => {
 
 describe('loadYamlBlueprintTree', () => {
   it('loads entire blueprint hierarchy using FlyStorage reader', async () => {
-    const storage = new FileStorage(new LocalStorageAdapter(configRoot));
-    const reader = createFlyStorageBlueprintReader(storage, configRoot);
-    const entry = resolve(yamlRoot, 'audio-only.yaml');
+    const storage = new FileStorage(new LocalStorageAdapter(catalogRoot));
+    const reader = createFlyStorageBlueprintReader(storage, catalogRoot);
+    const entry = resolve(yamlRoot, 'audio-only', 'audio-only.yaml');
     const { root } = await loadYamlBlueprintTree(entry, { reader });
     expect(root.id).toBe('audio');
     expect([...root.children.keys()]).toEqual(['ScriptProducer', 'AudioProducer']);

@@ -5,7 +5,7 @@ import { getBundledBlueprintsRoot } from '../config-assets.js';
 
 describe('loadBlueprintBundle', () => {
   it('loads root and nested sub-blueprints', async () => {
-    const bundlePath = resolve(getBundledBlueprintsRoot(), 'video-audio-music.yaml');
+    const bundlePath = resolve(getBundledBlueprintsRoot(), 'cut-scene-video', 'video-audio-music.yaml');
     const bundle = await loadBlueprintBundle(bundlePath);
     expect(bundle.root.id).toBe('VideoAudioMusic');
     expect(bundle.root.children.size).toBeGreaterThan(0);

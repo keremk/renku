@@ -9,10 +9,6 @@ const releaseDir = resolve(repoRoot, 'release');
 
 const steps = [
   {
-    name: 'Bundle viewer assets into CLI',
-    command: ['pnpm', 'bundle:viewer'],
-  },
-  {
     name: 'Build CLI',
     command: ['pnpm', '--filter', 'renku', 'build'],
   },

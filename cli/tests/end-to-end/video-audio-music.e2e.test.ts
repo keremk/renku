@@ -31,7 +31,7 @@ describe('end-to-end: video-audio-music dry runs', () => {
 
   it('runs query and edit dry-runs with canonical bindings and artefacts', async () => {
     const blueprintRoot = getBundledBlueprintsRoot();
-    const blueprintPath = resolve(blueprintRoot, 'video-audio-music.yaml');
+    const blueprintPath = resolve(blueprintRoot, 'cut-scene-video', 'video-audio-music.yaml');
     const inputsPath = resolve(__dirname, 'fixtures', 'video-audio-music-inputs.yaml');
     const { logger, warnings, errors } = createLoggerRecorder();
     const movieId = 'e2e-video';

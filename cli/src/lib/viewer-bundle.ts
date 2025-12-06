@@ -19,8 +19,8 @@ export function resolveViewerBundlePaths(): ViewerBundlePaths {
   const moduleDir = dirname(fileURLToPath(import.meta.url));
   const cliRoot = resolve(moduleDir, '..', '..');
   const searchRoots = [
+    resolve(cliRoot, 'viewer-bundle'),
     resolve(cliRoot, '..', '..', 'viewer'),
-    resolve(cliRoot, 'config', 'viewer'),
   ];
 
   for (const root of searchRoots) {

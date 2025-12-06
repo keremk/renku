@@ -5,11 +5,12 @@ import { describe, expect, it } from 'vitest';
 import { loadBlueprintBundle } from '../blueprint-loader/index.js';
 import { loadInputsFromYaml } from '../input-loader.js';
 import { applyProviderDefaults } from '../provider-defaults.js';
-import { resolveBlueprintSpecifier } from '../config-assets.js';
+import { getBundledBlueprintsRoot, resolveBlueprintSpecifier } from '../config-assets.js';
 
 const TEST_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(TEST_DIR, '../../../..');
 const CLI_ROOT = resolve(REPO_ROOT, 'cli');
+const BLUEPRINTS_ROOT = getBundledBlueprintsRoot();
 const FIXTURE_PATH = resolve(CLI_ROOT, 'src/lib/__fixtures__/video-audio-music-canonical-inputs.json');
 
 async function readFixture(): Promise<string[] | null> {
@@ -32,7 +33,7 @@ describe('canonical inputs snapshot', () => {
       'video-audio-music.yaml',
       { cliRoot: CLI_ROOT },
     );
-    const inputsPath = resolve(CLI_ROOT, 'config/inputs.yaml');
+    const inputsPath = resolve(BLUEPRINTS_ROOT, 'cut-scene-video', 'input-template.yaml');
     const { root: blueprint } = await loadBlueprintBundle(blueprintPath);
     const { values, providerOptions } = await loadInputsFromYaml(inputsPath, blueprint);
     applyProviderDefaults(values, providerOptions);

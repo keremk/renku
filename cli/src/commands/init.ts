@@ -6,7 +6,10 @@ import {
   type CliConfig,
 } from '../lib/cli-config.js';
 import { expandPath } from '../lib/path.js';
-import { copyBundledConfigAssets, getCliConfigRoot } from '../lib/config-assets.js';
+import {
+  copyBundledCatalogAssets,
+  getCliCatalogRoot,
+} from '../lib/config-assets.js';
 
 export interface InitOptions {
   rootFolder: string;
@@ -29,7 +32,7 @@ export async function runInit(options: InitOptions): Promise<InitResult> {
 
   await mkdir(rootFolder, { recursive: true });
   await mkdir(buildsFolder, { recursive: true });
-  await copyBundledConfigAssets(getCliConfigRoot(rootFolder));
+  await copyBundledCatalogAssets(getCliCatalogRoot(rootFolder));
 
   const cliConfig: CliConfig = {
     storage: {

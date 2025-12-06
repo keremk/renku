@@ -4,13 +4,14 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { generatePlan } from '../planner.js';
-import { resolveBlueprintSpecifier } from '../config-assets.js';
+import { getBundledBlueprintsRoot, resolveBlueprintSpecifier } from '../config-assets.js';
 import type { CliConfig } from '../cli-config.js';
 import { createCliLogger } from '../logger.js';
 
 const TEST_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(TEST_DIR, '../../../..');
 const CLI_ROOT = resolve(REPO_ROOT, 'cli');
+const BLUEPRINTS_ROOT = getBundledBlueprintsRoot();
 
 describe('planner provider inputs', () => {
 	it('includes provider/model inputs for ImageProducer jobs', async () => {
@@ -21,7 +22,7 @@ describe('planner provider inputs', () => {
 		const blueprintPath = await resolveBlueprintSpecifier('image-audio.yaml', {
 			cliRoot: CLI_ROOT,
 		});
-		const inputsPath = resolve(CLI_ROOT, 'config/inputs-image.yaml');
+		const inputsPath = resolve(BLUEPRINTS_ROOT, 'kenn-burns', 'input-template.yaml');
 
 		try {
 			const { plan } = await generatePlan({

@@ -29,7 +29,7 @@ describe('end-to-end: image-audio dry runs', () => {
 
   it('runs image/audio dry-run with three images per narration', async () => {
     const blueprintRoot = getBundledBlueprintsRoot();
-    const blueprintPath = resolve(blueprintRoot, 'image-audio.yaml');
+    const blueprintPath = resolve(blueprintRoot, 'kenn-burns', 'image-audio.yaml');
     const inputsPath = resolve(__dirname, 'fixtures', 'image-audio-inputs.yaml');
 
     const { logger, warnings, errors } = createLoggerRecorder();

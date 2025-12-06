@@ -27,11 +27,13 @@
     "test:typecheck:integration": "tsc --project tsconfig.vitest.integration.json --noEmit",
     "test:typecheck:e2e": "tsc --project tsconfig.vitest.e2e.json --noEmit",
     "test:ui": "vitest --ui",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "prepack": "pnpm --filter viewer build && node ../scripts/prepare-viewer-bundle.mjs && node ../scripts/prepare-catalog-bundle.mjs"
   },
   "files": [
     "dist",
-    "config"
+    "catalog",
+    "viewer-bundle"
   ],
   "packageManager": "pnpm@10.15.0",
   "dependencies": {

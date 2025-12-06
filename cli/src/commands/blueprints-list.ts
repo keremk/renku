@@ -19,14 +19,10 @@ export interface BlueprintsListResult {
 export async function runBlueprintsList(
   directory: string = DEFAULT_BLUEPRINT_DIR,
 ): Promise<BlueprintsListResult> {
-  const entries = await readdir(directory, { withFileTypes: true });
+  const entries = await collectBlueprintFiles(directory);
   const blueprints: BlueprintsListResult['blueprints'] = [];
 
-  for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith('.yaml')) {
-      continue;
-    }
-    const fullPath = resolve(directory, entry.name);
+  for (const fullPath of entries) {
     const blueprint = await parseBlueprintDocument(fullPath);
     blueprints.push({
       path: fullPath,
@@ -39,4 +35,23 @@ export async function runBlueprintsList(
   }
 
   return { blueprints };
+}
+
+async function collectBlueprintFiles(root: string): Promise<string[]> {
+  const entries = await readdir(root, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    if (entry.isFile()) {
+      if (!entry.name.endsWith('.yaml') || entry.name === 'input-template.yaml') {
+        continue;
+      }
+      files.push(resolve(root, entry.name));
+      continue;
+    }
+    if (entry.isDirectory()) {
+      const nestedRoot = resolve(root, entry.name);
+      files.push(...(await collectBlueprintFiles(nestedRoot)));
+    }
+  }
+  return files;
 }

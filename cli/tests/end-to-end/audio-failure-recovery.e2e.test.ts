@@ -41,7 +41,7 @@ describe('end-to-end: failed artifact recovery', () => {
 
   it('re-runs only the failed AudioProducer job in edit flow', async () => {
     const blueprintRoot = getBundledBlueprintsRoot();
-    const blueprintPath = resolve(blueprintRoot, 'audio-only.yaml');
+    const blueprintPath = resolve(blueprintRoot, 'audio-only', 'audio-only.yaml');
     const inputsPath = resolve(__dirname, 'fixtures', 'audio-only-inputs.yaml');
     const { logger, warnings, errors } = createLoggerRecorder();
     // Create separate logger for recovery phase to avoid seeing the intentional failure error

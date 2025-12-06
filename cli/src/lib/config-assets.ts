@@ -1,34 +1,45 @@
+import { existsSync } from 'node:fs';
 import { copyFile, mkdir, readdir, stat } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expandPath } from './path.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const CONFIG_ROOT = resolve(__dirname, '../../config');
-const CONFIG_BLUEPRINTS_ROOT = resolve(CONFIG_ROOT, 'blueprints');
+const CLI_PACKAGE_ROOT = resolve(__dirname, '..', '..');
+const CATALOG_SEARCH_ROOTS = [
+  resolve(CLI_PACKAGE_ROOT, 'catalog'),
+  resolve(CLI_PACKAGE_ROOT, '..', 'catalog'),
+];
 
-export function getBundledConfigRoot(): string {
-  return CONFIG_ROOT;
+const BUNDLED_CATALOG_ROOT = resolveBundledCatalogRoot();
+const BUNDLED_BLUEPRINTS_ROOT = resolve(BUNDLED_CATALOG_ROOT, 'blueprints');
+
+export function getBundledCatalogRoot(): string {
+  return BUNDLED_CATALOG_ROOT;
 }
 
 export function getBundledBlueprintsRoot(): string {
-  return CONFIG_BLUEPRINTS_ROOT;
+  return BUNDLED_BLUEPRINTS_ROOT;
 }
 
 export function getCliConfigRoot(cliRoot: string): string {
   return resolve(expandPath(cliRoot), 'config');
 }
 
+export function getCliCatalogRoot(cliRoot: string): string {
+  return resolve(expandPath(cliRoot), 'catalog');
+}
+
 export function getCliBlueprintsRoot(cliRoot: string): string {
-  return resolve(getCliConfigRoot(cliRoot), 'blueprints');
+  return resolve(getCliCatalogRoot(cliRoot), 'blueprints');
 }
 
 export interface ResolveBlueprintOptions {
   cliRoot?: string;
 }
 
-export async function copyBundledConfigAssets(targetRoot: string): Promise<void> {
-  await copyDirectory(CONFIG_ROOT, targetRoot);
+export async function copyBundledCatalogAssets(targetRoot: string): Promise<void> {
+  await copyDirectory(BUNDLED_CATALOG_ROOT, targetRoot);
 }
 
 export async function resolveBlueprintSpecifier(
@@ -53,18 +64,20 @@ export async function resolveBlueprintSpecifier(
     if (await fileExists(cliBlueprint)) {
       return cliBlueprint;
     }
-
-    const legacyBlueprint = resolve(expandPath(options.cliRoot), 'blueprints', specifier);
-    attempts.push(legacyBlueprint);
-    if (await fileExists(legacyBlueprint)) {
-      return legacyBlueprint;
+    const nestedCliPath = await findInBlueprintDirectories(getCliBlueprintsRoot(options.cliRoot), specifier, attempts);
+    if (nestedCliPath) {
+      return nestedCliPath;
     }
   }
 
-  const bundledPath = resolve(CONFIG_BLUEPRINTS_ROOT, specifier);
+  const bundledPath = resolve(BUNDLED_BLUEPRINTS_ROOT, specifier);
   attempts.push(bundledPath);
   if (await fileExists(bundledPath)) {
     return bundledPath;
+  }
+  const nestedBundledPath = await findInBlueprintDirectories(BUNDLED_BLUEPRINTS_ROOT, specifier, attempts);
+  if (nestedBundledPath) {
+    return nestedBundledPath;
   }
 
   throw new Error(
@@ -76,10 +89,6 @@ async function copyDirectory(source: string, target: string): Promise<void> {
   await mkdir(target, { recursive: true });
   const entries = await readdir(source, { withFileTypes: true });
   for (const entry of entries) {
-    // Skip viewer directory
-    if (entry.isDirectory() && entry.name === 'viewer') {
-      continue;
-    }
     const sourcePath = join(source, entry.name);
     const targetPath = join(target, entry.name);
     if (entry.isDirectory()) {
@@ -103,4 +112,40 @@ async function fileExists(path: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+async function findInBlueprintDirectories(
+  root: string,
+  specifier: string,
+  attempts: string[],
+): Promise<string | null> {
+  try {
+    const entries = await readdir(root, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+      const nestedPath = resolve(root, entry.name, specifier);
+      attempts.push(nestedPath);
+      if (await fileExists(nestedPath)) {
+        return nestedPath;
+      }
+    }
+  } catch {
+    // ignore missing directories
+  }
+  return null;
+}
+
+function resolveBundledCatalogRoot(): string {
+  const attempted: string[] = [];
+  for (const root of CATALOG_SEARCH_ROOTS) {
+    attempted.push(root);
+    if (existsSync(root)) {
+      return root;
+    }
+  }
+  throw new Error(
+    `Bundled catalog not found. Checked: ${attempted.map((entry) => `"${entry}"`).join(', ')}`,
+  );
 }

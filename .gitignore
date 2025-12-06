@@ -63,4 +63,5 @@ providers/tmp/
 tmp-root/
 
 release/
-cli/config/viewer/
+cli/viewer-bundle/
+cli/catalog/

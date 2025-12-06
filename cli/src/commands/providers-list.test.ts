@@ -50,7 +50,11 @@ describe('runProvidersList', () => {
     const cliConfig = await readCliConfig(cliConfigPath);
     expect(cliConfig).not.toBeNull();
 
-    const blueprintPath = join(getCliBlueprintsRoot(root), 'video-audio-music.yaml');
+    const blueprintPath = join(
+      getCliBlueprintsRoot(root),
+      'cut-scene-video',
+      'video-audio-music.yaml',
+    );
     const result = await runProvidersList({ blueprintPath });
     expect(result.entries.length).toBeGreaterThan(0);
 
