@@ -57,7 +57,7 @@ renku init --root=/path/to/storage  # Short form
 This creates:
 - `~/.config/renku/cli-config.json` with storage settings (fixed location)
 - `{rootFolder}/builds/` directory for movie outputs
-- `{rootFolder}/config/blueprints/` with bundled YAML blueprint templates
+- `{rootFolder}/catalog/blueprints/` with bundled YAML blueprint templates
 
 Required flags:
 - `--root-folder` / `--root`: Storage root directory (mandatory)
@@ -80,7 +80,7 @@ inputs:
 ```bash
 renku generate \
   --inputs=my-inputs.yaml \
-  --blueprint={rootFolder}/config/blueprints/image-audio.yaml
+  --blueprint={rootFolder}/catalog/blueprints/image-audio.yaml
 ```
 
 3. **View the result**:
@@ -105,7 +105,7 @@ Blueprints are YAML files that define complete generation workflows. They specif
 - **Producers**: Provider configurations (OpenAI, Replicate, ElevenLabs, Renku)
 - **Collectors**: Optional fan-in operations for aggregating array outputs
 
-Blueprints are installed to `<root>/blueprints/` (default `~/.renku/blueprints/`). When running from source, they also live under `cli/config/blueprints/`.
+Blueprints are installed to `<root>/blueprints/` (default `~/.renku/blueprints/`). When running from source, they also live under `cli/catalog/blueprints/`.
 
 #### Example Blueprints
 
@@ -115,7 +115,7 @@ Blueprints are installed to `<root>/blueprints/` (default `~/.renku/blueprints/`
 
 ### Producer Modules
 
-Producer Modules are reusable blueprint components located in `<root>/blueprints/modules/` (the repo copy lives under `cli/config/blueprints/modules/`):
+Producer Modules are reusable blueprint components located in `<root>/blueprints/modules/` (the repo copy lives under `cli/catalog/blueprints/modules/`):
 
 1. **script-generator.yaml**: Uses OpenAI to generate movie title, summary, and narration segments
 2. **image-prompt-generator.yaml**: Creates detailed image prompts from narrative text
@@ -235,7 +235,7 @@ renku init --root=/path/to/storage
 **Creates:**
 - `~/.config/renku/cli-config.json` with storage settings
 - `{rootFolder}/builds/` directory for movie outputs
-- `{rootFolder}/config/blueprints/` with bundled blueprints
+- `{rootFolder}/catalog/blueprints/` with bundled blueprints
 
 **Example:**
 ```bash
@@ -346,7 +346,7 @@ renku providers:list --blueprint=<path>
 
 **Example:**
 ```bash
-renku providers:list --blueprint={rootFolder}/config/blueprints/image-audio.yaml
+renku providers:list --blueprint={rootFolder}/catalog/blueprints/image-audio.yaml
 ```
 
 **Output:**
@@ -417,7 +417,7 @@ Displays:
 
 **Example:**
 ```bash
-renku blueprints:describe {rootFolder}/config/blueprints/image-audio.yaml
+renku blueprints:describe {rootFolder}/catalog/blueprints/image-audio.yaml
 ```
 
 ---
@@ -442,7 +442,7 @@ renku blueprints:validate <path-to-blueprint.yaml>
 
 **Example:**
 ```bash
-renku blueprints:validate {rootFolder}/config/blueprints/image-audio.yaml
+renku blueprints:validate {rootFolder}/catalog/blueprints/image-audio.yaml
 ```
 
 ---
@@ -1107,7 +1107,7 @@ renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml 
 
 ### Example 1: Audio-Only Narration
 
-**Blueprint:** `{rootFolder}/config/blueprints/audio-only.yaml`
+**Blueprint:** `{rootFolder}/catalog/blueprints/audio-only.yaml`
 
 **Inputs (`audio-inputs.yaml`):**
 ```yaml
@@ -1123,7 +1123,7 @@ inputs:
 ```bash
 renku generate \
   --inputs=audio-inputs.yaml \
-  --blueprint={rootFolder}/config/blueprints/audio-only.yaml
+  --blueprint={rootFolder}/catalog/blueprints/audio-only.yaml
 ```
 
 **Outputs:**
@@ -1136,7 +1136,7 @@ renku generate \
 
 ### Example 2: Images with Audio
 
-**Blueprint:** `{rootFolder}/config/blueprints/image-audio.yaml`
+**Blueprint:** `{rootFolder}/catalog/blueprints/image-audio.yaml`
 
 **Inputs (`image-audio-inputs.yaml`):**
 ```yaml
@@ -1156,7 +1156,7 @@ inputs:
 ```bash
 renku generate \
   --inputs=image-audio-inputs.yaml \
-  --blueprint={rootFolder}/config/blueprints/image-audio.yaml
+  --blueprint={rootFolder}/catalog/blueprints/image-audio.yaml
 ```
 
 **Outputs:**
@@ -1178,7 +1178,7 @@ renku viewer:view --movie-id=movie-{id}
 
 **Step 1: Generate movie**
 ```bash
-renku generate --inputs=my-inputs.yaml --blueprint={rootFolder}/config/blueprints/image-audio.yaml
+renku generate --inputs=my-inputs.yaml --blueprint={rootFolder}/catalog/blueprints/image-audio.yaml
 # Output: movie-a1b2c3d4
 ```
 
@@ -1202,7 +1202,7 @@ renku generate --movie-id=movie-a1b2c3d4
 
 **Create a custom sentiment analyzer module.**
 
-**File:** `<root>/config/blueprints/modules/sentiment-analyzer.yaml`
+**File:** `<root>/catalog/blueprints/modules/sentiment-analyzer.yaml`
 ```yaml
 meta:
   name: Sentiment Analyzer
@@ -1324,8 +1324,8 @@ renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml 
 
 - **CLI Config:** `~/.config/renku/cli-config.json` (fixed location, created on first init)
 - **Environment:** `.env` in CLI directory or current working directory
-- **Blueprints:** `{rootFolder}/config/blueprints/*.yaml` (copied during `renku init`)
-- **Modules:** `{rootFolder}/config/blueprints/modules/*.yaml`
+- **Blueprints:** `{rootFolder}/catalog/blueprints/*.yaml` (copied during `renku init`)
+- **Modules:** `{rootFolder}/catalog/blueprints/modules/*.yaml`
 - **Prompts:** `cli/prompts/*.md`
 - **Settings:** `cli/settings.json`
 

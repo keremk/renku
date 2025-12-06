@@ -4,7 +4,7 @@ This guide explains how to write Tutopanda blueprints: the YAML metadata, how mo
 
 ### Vocabulary
 - **Blueprint**: Top-level YAML that stitches inputs, artefacts, modules, connections, and collectors.
-- **Module**: A reusable sub-blueprint (in `config/blueprints/modules`) that declares its own inputs, artefacts, and producers.
+- **Module**: A reusable sub-blueprint (in `catalog/blueprints/<name>`) that declares its own inputs, artefacts, and producers.
 - **Input**: User-provided value. Mark `required: true` unless a sensible `default` exists. Optional inputs must declare a default—avoid speculative fallbacks.
 - **Artefact**: Output produced by a producer. Arrays declare `countInput` for sizing.
 - **Producer**: A job definition (provider + model) that maps inputs to outputs via `sdkMapping`/`outputs`.

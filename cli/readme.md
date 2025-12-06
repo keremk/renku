@@ -27,7 +27,7 @@ The MCP server lets an LLM client call `generate_story`, inspect blueprints, and
    ```bash
    tutopanda init --rootFolder=~/media/tutopanda
    ```
-   This seeds `~/media/tutopanda/config/blueprints` while still writing the config to the default path `~/.tutopanda/cli-config.json`. If you pass `--configPath`, remember to set `TUTOPANDA_CLI_CONFIG` in your shell profile so new terminals inherit it; otherwise every CLI command automatically reads the default config, so `init` is a one-time step.
+   This seeds `~/media/tutopanda/catalog/blueprints` while still writing the config to the default path `~/.tutopanda/cli-config.json`. If you pass `--configPath`, remember to set `TUTOPANDA_CLI_CONFIG` in your shell profile so new terminals inherit it; otherwise every CLI command automatically reads the default config, so `init` is a one-time step.
    > We recommend not specifying --configPath and using the default path, unless you think you have a good reason not to and also ready to modify your .zshrc etc. with the exported TUTOPANDA_CLI_CONFIG/
 
 2. **Register the MCP server with your client:**
@@ -42,7 +42,7 @@ The MCP server lets an LLM client call `generate_story`, inspect blueprints, and
      Environment:
        TUTOPANDA_CLI_CONFIG=/home/me/media/tutopanda/cli-config.json
      ```
-     The blueprint value may be an absolute path or a filename relative to `config/blueprints`. Add `--openViewer=false` if you don’t want the viewer to launch automatically. Claude Desktop launches this command via stdio whenever the assistant needs Tutopanda context.
+     The blueprint value may be an absolute path or a filename relative to `catalog/blueprints`. Add `--openViewer=false` if you don’t want the viewer to launch automatically. Claude Desktop launches this command via stdio whenever the assistant needs Tutopanda context.
 
    - **Claude Code (VS Code extension)**  
      Add an entry to your VS Code settings (`settings.json` or UI):
@@ -75,7 +75,7 @@ pnpm package:cli
 
 That script performs the full pipeline:
 
-1. Builds the viewer and copies `viewer/dist` + `viewer/server-dist` into `cli/config/viewer`.
+1. Builds the viewer and copies `viewer/dist` + `viewer/server-dist` into `cli/viewer-bundle`.
 2. Builds the CLI TypeScript sources into `cli/dist`.
 3. Runs `pnpm --filter @tutopanda/cli pack --pack-destination release` to produce `release/@tutopanda/cli-<version>.tgz`.
 

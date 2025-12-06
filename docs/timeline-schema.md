@@ -9,7 +9,7 @@
     - Captions - backed by text.
 
 ## Configuration
-TimelineProducer is configured using the YAML blueprint surface defined in `core/docs/yaml-blueprint-spec.md`. See `cli/config/blueprints/modules/timeline-composer.yaml` for the canonical module.
+TimelineProducer is configured using the YAML blueprint surface defined in `core/docs/yaml-blueprint-spec.md`. See `catalog/producers/timeline-composer/timeline-composer.yaml` for the canonical module.
 
 ## Composition
 - Timeline uses an *extensible* list of algorithms to automatically compose a timeline from tracks and clips using inputs (artifacts/assets, inputs). Currently the only composition algorithm is OrderedTimeline.

@@ -22,7 +22,7 @@ Here’s the detailed summary of what changed for the Replicate video provider a
 
   - Provides schema-aware extras for video tests:
       - Uses per-model schema paths (relative to providers/tests/integration) to load the actual JSON schema.
-      - Hardcoded mapping mirrors cli/config/blueprints/modules/producers/video.yaml (Prompt→prompt, AspectRatio→aspect_ratio,
+      - Hardcoded mapping mirrors catalog/blueprints/modules/producers/video.yaml (Prompt→prompt, AspectRatio→aspect_ratio,
         Resolution→resolution, SegmentDuration→duration), per model.
       - Validates that schema contains mapped fields; builds inputBindings/sdkMapping accordingly.
       - Exposes getVideoMapping for reuse.

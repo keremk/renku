@@ -2,7 +2,7 @@
 - There are 2 types of TOML files
     - Defines a sub blueprint with their inputs, outputs, producers and a graph with edge definition. 
     - Defines how the sub blueprints connect to each other for composition.
-- Refer to the `cli/docs/generation-diagram.png` file for a graphical representation of the `cli/config/blueprints/image-only.toml` sample blueprint and the sub blueprints it refers to: `image-generate.toml`, `image-prompt-generate.toml`, and `script-generate.toml` 
+- Refer to the `cli/docs/generation-diagram.png` file for a graphical representation of the `catalog/blueprints/image-only.toml` sample blueprint and the sub blueprints it refers to: `image-generate.toml`, `image-prompt-generate.toml`, and `script-generate.toml` 
 > Note the other TOML files still using the old format so only refer to the above mentioned ones
 
 ## Changes from the previous implementation

@@ -22,7 +22,7 @@ The viewer is a standalone React + Remotion UI served by Vite in development and
    pnpm bundle:viewer
    ```
 
-   That script (defined in `scripts/prepare-viewer-bundle.mjs`) builds the viewer, wipes `cli/config/viewer/`, and copies `viewer/dist` plus `viewer/server-dist`. Whenever you publish or package the CLI, run this so the assets ship alongside the binary.
+   That script (defined in `scripts/prepare-viewer-bundle.mjs`) builds the viewer, wipes `cli/viewer-bundle/`, and copies `viewer/dist` plus `viewer/server-dist`. Whenever you publish or package the CLI, run this so the assets ship alongside the binary.
 
 2. To produce a release tarball (with viewer + CLI), run:
 

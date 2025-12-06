@@ -55,7 +55,7 @@ cd providers && pnpm vitest run --config vitest.config.ts --pool=threads
 
 > **Agent Rule**: Canonical IDs must flow end-to-end. The planner emits a single canonical artefact/input ID (e.g. `Artifact:MusicPromptGenerator.MusicPrompt`). The runner copies those exact IDs into each job’s context (`job.context.inputs`, `inputBindings`, `fanIn`, and `resolvedInputs`). Providers must read only that canonical ID (via `runtime.sdk.buildPayload`, `runtime.inputs.getByNodeId`, or fan-in descriptors) and never look up aliases or “best guesses”. If a canonical ID is missing, fail immediately so the upstream blueprint/plan can be fixed instead of synthesizing a fallback. This applies to every artefact, prompt variable, and attachment across the CLI/core/provider boundary.
 
-> **Agent Rule**: When resolving blueprint/config paths (e.g., locating `config/blueprints`), use the shared helpers in `cli/src/lib/config-assets.ts` (`getBundledBlueprintsRoot`, `getCliConfigRoot`, `resolveBlueprintSpecifier`, etc.) instead of hardcoded paths.
+> **Agent Rule**: When resolving catalog paths (e.g., locating `catalog/blueprints`), use the shared helpers in `cli/src/lib/config-assets.ts` (`getBundledBlueprintsRoot`, `getCliCatalogRoot`, `resolveBlueprintSpecifier`, etc.) instead of hardcoded paths.
 
 ## Coding Style & Naming Conventions
 Write strict TypeScript and prefer functional components with kebab-case filenames. Use configured path aliases: `@core/*` for core package imports, `@cli/*` for CLI imports, and `@assets/*` for attached assets. Reuse existing helpers and patterns before adding new utilities. Keep new files two-space indented to match the existing style. For viewer (which uses Tailwind), use Tailwind utilities and design tokens instead of ad-hoc CSS.

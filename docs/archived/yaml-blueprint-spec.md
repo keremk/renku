@@ -5,10 +5,10 @@ This document defines the YAML surface that replaces the legacy TOML blueprints.
 ---
 
 ## 1. Repository layout
-- **Top-level blueprints** live in `cli/config/blueprints/*.yaml`. Each file describes a public workflow the CLI can execute (audio-only, image-only, image+audio, etc.).
-- **Modules** live under `cli/config/blueprints/modules/`. A module contains reusable node definitions (inputs, artefacts, producers) and can itself import other modules.
-- **Prompt definitions** for LLM producers live in `cli/config/blueprints/modules/prompts/*.toml`.
-- **JSON schemas** referenced by those prompts live in `cli/config/blueprints/modules/schemas/*.json`.
+- **Top-level blueprints** live in `catalog/blueprints/*.yaml`. Each file describes a public workflow the CLI can execute (audio-only, image-only, image+audio, etc.).
+- **Modules** live under `catalog/blueprints/modules/`. A module contains reusable node definitions (inputs, artefacts, producers) and can itself import other modules.
+- **Prompt definitions** for LLM producers live in `catalog/blueprints/modules/prompts/*.toml`.
+- **JSON schemas** referenced by those prompts live in `catalog/blueprints/modules/schemas/*.json`.
 
 Every YAML file is parsed by `core/src/blueprint-loader/yaml-parser.ts` and ultimately produces the same `BlueprintTreeNode` structure the old TOML parser emitted.
 

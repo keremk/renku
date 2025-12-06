@@ -63,7 +63,7 @@ tutopanda blueprints:validate ~/.tutopanda/blueprints/image-audio.yaml
 ## Creating / Editing Blueprints
 
 1. Copy one of the existing YAMLs into your CLI root (e.g., `~/.tutopanda/blueprints/custom.yaml`).
-2. Modify `inputs`, `artifacts`, `modules`, and `connections` as needed. Keep modules under `<root>/config/blueprints/modules/`.
+2. Modify `inputs`, `artifacts`, `modules`, and `connections` as needed. Keep supporting producer files under `<root>/catalog/producers/`.
 3. Validate changes before running:
 
    ```bash

@@ -8,7 +8,7 @@ I am proposing new changes to the format of the blueprints.
 - We don't have any formal declaration of the input schemas accepted by Media and LLM model providers. Therefore there is no discoverability of what can be changed other than reading some docs, nor there is any validation of what are acceptable values. This may cause unnecessary calling the model provider APIs and then getting error back. We should detect and validate them earlier. 
 
 ## New Producer YAML files
-- We are removing the adhoc blueprint YAML files (e.g. `audio-generator.yaml`) and introducing a better defined producer YAML files. (`cli/config/blueprints/modules/producers/audio.yaml`)
+- We are removing the adhoc blueprint YAML files (e.g. `audio-generator.yaml`) and introducing a better defined producer YAML files. (`catalog/blueprints/modules/producers/audio.yaml`)
 - In the current implementation, there is a lot of boilerplate that can be avoided and therefore we are removing them:
     - `connections` are not need for the producer configuration as they can easily be inferred. (i.e. connect all inputs to the producer and connect producer to all artifacts --- outputs)
     - `producers` is unnecessary as the full file is about describing one producer. `name` and `id` of the producer is declared in one place in the `meta` section.
@@ -21,18 +21,18 @@ I am proposing new changes to the format of the blueprints.
 ### Input JSON Schema Files
 - We are creating inputSchema file that are JSON schemas. Each producer refers to it.
 - These files define the schema model/provider accepts and are used for validating the inputs and also providing guidance on what values are available and valid for tools like agents.
-- These are located under `cli/config/blueprints/modules/schemas` together with the output schemas that were already in place.
+- These are located under `catalog/blueprints/modules/schemas` together with the output schemas that were already in place.
 
 ### Prompt TOML Files
 - Prompt TOML files are now only containing user and system prompts and the variables that can be inserted in those prompts. 
 - The variables array maps directly to the `inputs` declared in the producer files. There is no change in locating and substituting values.
-- The prior LLM configuration properties now moved to the producer YAML files and also added to the inputSchema JSON Schema files. See `cli/config/blueprints/modules/schemas/openai-input.json` which defines what OpenAI API accepts as configuration.
+- The prior LLM configuration properties now moved to the producer YAML files and also added to the inputSchema JSON Schema files. See `catalog/blueprints/modules/schemas/openai-input.json` which defines what OpenAI API accepts as configuration.
 > We access OpenAI API through Vercel AI SDK's OpenAI provider. We have not yet checked these are what the Vercel AI SDK also uses, which is crucial. If not we need to migrate to that.
 
 ### LLM Producers
 - For now we are only using the OpenAI provider through the Vercel AI SDK.
 - Like the media generating producer files, we also support multiple models for the LLM producers.
-- We moved `text_format` from the TOML file into the producer YAML. (See `cli/config/blueprints/modules/prompts/script.toml` as an example) It is also reflected in the JSON schema file. 
+- We moved `text_format` from the TOML file into the producer YAML. (See `catalog/blueprints/modules/prompts/script.toml` as an example) It is also reflected in the JSON schema file. 
   - This is one example of a config property that is mentioned in the producer YAML as it is not something the user controls through input properties and is critical to the functioning of the overall workflow.  
 
 ### Input Mapping
@@ -60,10 +60,10 @@ When producers are called, they should be provided with JSON input schema for va
 All of the above creates an internal JSON representation and gets validated against acceptable input types and values.
 
 ### User inputs - `inputs.yaml`
-The users provide `inputs.yaml` file as before. An example of this file is here: `cli/config/inputs.yaml`
+The users provide `inputs.yaml` file as before. An example of this file is here: `catalog/blueprints/cut-scene-video/input-template.yaml`
 - Here all the inputs that are necessary to run the workflow are provided, except for the InquiryPrompt. As before this is provided through the CLI. See below (unchanged) 
 ```bash
-tutopanda query "My inquiry prompt" --inputs=cli/config/inputs.yaml --usingBlueprint=cli/config/blueprints/video-audio-music.yaml --concurrency=2
+tutopanda query "My inquiry prompt" --inputs=catalog/blueprints/cut-scene-video/input-template.yaml --usingBlueprint=catalog/blueprints/video-audio-music.yaml --concurrency=2
 ```
 - The format of the inputs file has changed though. Now it includes, models to be used, their config properties. 
 - We also renamed and consolidated prior input node names `ImageStyle`, `MovieStyle`, `VideoStyle` to just `Style`
@@ -74,7 +74,7 @@ tutopanda query "My inquiry prompt" --inputs=cli/config/inputs.yaml --usingBluep
 ### Timeline Composer
 - We have changed the format of the configuration to match the other YAML files for models/providers.
 - It can accept multiple models like others, but currently there is only one `OrderedTimeline`. This is the same one as before. There should be no changes to how it composes the timeline. The only thing changing is how we input the values and configure it.
-- We created a JSON schema for this as well `cli/config/blueprints/modules/schemas/timeline-input.json`
+- We created a JSON schema for this as well `catalog/blueprints/modules/schemas/timeline-input.json`
 - The input mapping is as follows:
   - We are using a "." syntax to reach into a property of an object type. (e.g. imageClip.artifact) We did not have this supported before as the JSON schemas were all flat, this is the first schema that is not flat. So our parser should support this.
   - This is another example we are embedding configuration properties directly inside the YAML.
@@ -126,14 +126,14 @@ models:
 
 ## Findings
 
-  - The new producer YAMLs (e.g., cli/config/blueprints/modules/producers/audio.yaml, video.yaml, music.yaml, timeline-composer.yaml)
+  - The new producer YAMLs (e.g., catalog/blueprints/modules/producers/audio.yaml, video.yaml, music.yaml, timeline-composer.yaml)
     no longer declare producers/connections; models holds multiple provider options. The current loader (core/src/blueprint-loader/
     yaml-parser.ts) only understands the old schema, so these files currently parse as “no producers, no edges,” which will break the
     graph/plan.
   - Several producer files still use old keys or bad paths: jsonSchema/inputsMap instead of inputSchema/inputs; schema paths use ./
     schemas/... but the files live in ../schemas/...; timeline-composer references MusicSegments while the input is Music, and it has
     no outputs declared. These will fail even after parser changes.
-  - The new inputs.yaml format (cli/config/inputs.yaml) adds a models: array and per-model config, but cli/src/lib/input-loader.ts
+  - The new inputs.yaml format (catalog/blueprints/cut-scene-video/input-template.yaml) adds a models: array and per-model config, but cli/src/lib/input-loader.ts
     discards everything except inputs.* and hardcodes InquiryPrompt validation. Model selection/config changes will not affect
     planning/dirty detection today.
   - Provider selection is still static: buildProducerOptionsFromBlueprint/buildProducerCatalog pick the single provider/model from
@@ -218,7 +218,7 @@ models:
   9. Blueprint/content fixes
 
   - Fix schema paths in producer YAMLs (../schemas/...), align keys (inputSchema, inputs), and correct mismatches like MusicSegments
-    vs Music. Clean up cli/config/inputs.yaml (remove trailing commas/duplicate keys) and convert remaining blueprints to the new
+    vs Music. Clean up catalog/blueprints/cut-scene-video/input-template.yaml (remove trailing commas/duplicate keys) and convert remaining blueprints to the new
     format or clearly mark them unsupported until migrated.
 
   Once these steps are in place, config changes and model swaps will participate in dirty tracking, providers will see validated SDK
