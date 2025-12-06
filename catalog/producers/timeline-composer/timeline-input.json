@@ -1,0 +1,119 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "masterTrack": {
+      "type": "string",
+      "enum": [
+        "Image",
+        "Audio",
+        "Music",
+        "Video"
+      ],
+      "default": "Audio"
+    },
+    "tracks": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "Image",
+          "Audio",
+          "Music",
+          "Video"
+        ]
+      }
+    },
+    "imageClip": {
+      "type": "object",
+      "properties": {
+        "artifact": {
+          "type": "string"
+        },
+        "effect": {
+          "type": "string",
+          "enum": [
+            "KennBurns"
+          ],
+          "default": "KennBurns"
+        }
+      },
+      "required": [
+        "artifact"
+      ],
+      "additionalProperties": true
+    },
+    "videoClip": {
+      "type": "object",
+      "properties": {
+        "artifact": {
+          "type": "string"
+        },
+        "volume": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "default": 0.0
+        },
+        "fitStrategy": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "stretch",
+            "fade"
+          ],
+          "default": "auto"
+        }
+      },
+      "required": [
+        "artifact"
+      ],
+      "additionalProperties": true
+    },
+    "audioClip": {
+      "type": "object",
+      "properties": {
+        "artifact": {
+          "type": "string"
+        },
+        "volume": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "default": 0.0
+        }
+      },
+      "required": [
+        "artifact"
+      ],
+      "additionalProperties": true
+    },
+    "musicClip": {
+      "type": "object",
+      "properties": {
+        "artifact": {
+          "type": "string"
+        },
+        "volume": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "default": 0.0
+        },
+        "playStrategy": {
+          "type": "string",
+          "enum": [
+            "loop",
+            "stopWhenFinished"
+          ],
+          "default": "loop"
+        }
+      },
+      "required": [
+        "artifact"
+      ],
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

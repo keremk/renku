@@ -1,0 +1,209 @@
+meta:
+  name: Video, Narration, and Music Timeline
+  description: Generate narrated video segments with a looping music bed and compose them into a Remotion timeline.
+  id: VideoAudioMusic
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: InquiryPrompt
+    description: The prompt describing the movie script to be generated.
+    type: string
+    required: true
+  - name: Duration
+    description: The desired duration of the movie in seconds.
+    type: int
+    required: true
+  - name: NumOfSegments
+    description: Number of narration segments.
+    type: int
+    required: true
+  - name: SegmentDuration
+    description: Duration of each generated video segment in seconds.
+    type: int
+    required: false
+    default: 10
+  - name: Audience
+    description: Target audience for tone and vocabulary.
+    type: string
+    required: false
+    default: Adult
+  - name: Language
+    description: Narration language for the script.
+    type: string
+    required: false
+    default: en
+  - name: Style
+    description: Style hint fed into the video prompt generator.
+    type: string
+    required: true
+  - name: AspectRatio
+    description: Aspect ratio for generated video clips (e.g., 16:9).
+    type: string
+    required: true
+  - name: Resolution
+    description: Target resolution (480p, 720p, 1080p) for generated videos.
+    type: string
+    required: true
+  - name: VoiceId
+    description: Voice identifier used for narration.
+    type: string
+    required: true
+  - name: Emotion
+    description: Optional emotion hint for narration synthesis.
+    type: string
+    required: false
+    default: neutral
+  - name: MusicalStyle
+    description: Style guidance for the background music.
+    type: string
+    required: false
+    default: Cinematic orchestral score
+
+artifacts:
+  - name: SegmentVideo
+    description: Generated video segments for each narration chunk.
+    type: array
+    itemType: video
+    countInput: NumOfSegments
+  - name: SegmentAudio
+    description: Generated narration audio per segment.
+    type: array
+    itemType: audio
+    countInput: NumOfSegments
+  - name: Music
+    description: Background music tracks for the movie.
+    type: music
+  - name: Timeline
+    description: OrderedTimeline JSON manifest for Remotion playback.
+    type: json
+  - name: FinalVideo
+    description: Final rendered MP4 export.
+    type: video
+
+loops:
+  - name: segment
+    description: Iterates over narration segments.
+    countInput: NumOfSegments
+
+modules:
+  - name: ScriptProducer
+    path: ../../producers/script/script.yaml
+  - name: VideoPromptProducer
+    path: ../../producers/video-prompt/video-prompt.yaml
+    loop: segment
+  - name: VideoProducer
+    path: ../../producers/video/video.yaml  
+    loop: segment
+  - name: AudioProducer
+    path: ../../producers/audio/audio.yaml
+    loop: segment
+  - name: MusicPromptProducer
+    path: ../../producers/music-prompt/music-prompt.yaml
+  - name: MusicProducer
+    path: ../../producers/music/music.yaml
+  - name: TimelineComposer
+    path: ../../producers/timeline-composer/timeline-composer.yaml
+  - name: VideoExporter
+    path: ../../producers/video-exporter/video-exporter.yaml
+
+connections:
+  - from: InquiryPrompt
+    to: ScriptProducer.InquiryPrompt
+  - from: Audience
+    to: ScriptProducer.Audience
+  - from: Duration
+    to: ScriptProducer.Duration
+  - from: Language
+    to: ScriptProducer.Language
+  - from: NumOfSegments
+    to: ScriptProducer.NumOfSegments
+
+  - from: ScriptProducer.NarrationScript[segment]
+    to: VideoPromptProducer[segment].NarrativeText
+  - from: ScriptProducer.MovieSummary
+    to: VideoPromptProducer[segment].MovieSummary
+  - from: Style
+    to: VideoPromptProducer[segment].Style
+  - from: SegmentDuration
+    to: VideoPromptProducer[segment].SegmentDuration
+  - from: Audience
+    to: VideoPromptProducer[segment].Audience
+
+  - from: VideoPromptProducer.VideoPrompt[segment]
+    to: VideoProducer[segment].Prompt
+  - from: AspectRatio
+    to: VideoProducer[segment].AspectRatio
+  - from: Resolution
+    to: VideoProducer[segment].Resolution
+  - from: SegmentDuration
+    to: VideoProducer[segment].SegmentDuration
+  - from: VideoProducer[segment].SegmentVideo
+    to: SegmentVideo[segment]
+  - from: VideoProducer[segment].SegmentVideo
+    to: TimelineComposer.VideoSegments
+
+  - from: ScriptProducer.NarrationScript[segment]
+    to: AudioProducer[segment].TextInput
+  - from: VoiceId
+    to: AudioProducer[segment].VoiceId
+  - from: Emotion
+    to: AudioProducer[segment].Emotion
+  - from: AudioProducer[segment].SegmentAudio
+    to: SegmentAudio[segment]
+  - from: AudioProducer[segment].SegmentAudio
+    to: TimelineComposer.AudioSegments
+  
+  - from: ScriptProducer.MovieSummary
+    to: MusicPromptProducer.MovieSummary
+  - from: MusicalStyle
+    to: MusicPromptProducer.MusicalStyle
+  - from: NumOfSegments
+    to: MusicPromptProducer.NumOfSegments
+  - from: Duration
+    to: MusicPromptProducer.Duration
+  - from: Audience
+    to: MusicPromptProducer.Audience
+  - from: ScriptProducer.NarrationScript
+    to: MusicPromptProducer.NarrationScript
+
+  - from: MusicPromptProducer.MusicPrompt
+    to: MusicProducer.Prompt
+  - from: Duration
+    to: MusicProducer.Duration
+  - from: MusicProducer.Music
+    to: Music
+
+  - from: Duration
+    to: TimelineComposer.Duration
+  - from: MusicProducer.Music
+    to: TimelineComposer.Music
+  - from: TimelineComposer.Timeline
+    to: Timeline
+    
+  - from: TimelineComposer.Timeline
+    to: VideoExporter.Timeline
+  - from: VideoExporter.FinalVideo
+    to: FinalVideo
+
+
+collectors:
+  - name: TimelineVideo
+    from: VideoProducer[segment].SegmentVideo
+    into: TimelineComposer.VideoSegments
+    groupBy: segment
+  - name: TimelineAudio
+    from: AudioProducer[segment].SegmentAudio
+    into: TimelineComposer.AudioSegments
+    groupBy: segment
+
+  - name: NarrationScript 
+    from: ScriptProducer.NarrationScript
+    into: MusicPromptProducer.NarrationScript
+    groupBy: segment  
+
+  - name: MusicTrack
+    from: MusicProducer.Music
+    into: TimelineComposer.Music
+    groupBy: segment

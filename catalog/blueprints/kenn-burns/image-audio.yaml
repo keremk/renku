@@ -1,0 +1,152 @@
+meta:
+  name: Images with Audio Narration
+  description: A blueprint for generating narrated image segments and composing them into a timeline.
+  id: ImageAudio
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: InquiryPrompt
+    description: The prompt describing the movie script to be generated.
+    type: string
+    required: true
+  - name: Duration
+    description: The desired duration of the movie in seconds.
+    type: int
+    required: true
+  - name: NumOfSegments
+    description: The number of segments to divide the movie into.
+    type: int
+    required: true
+  - name: NumOfImagesPerNarrative
+    description: Number of images to generate per narrative text.
+    type: int
+    required: false
+    default: 1
+  - name: Style
+    description: Text describing the image style to be used.
+    type: string
+    required: true
+  - name: Size
+    description: Enumerated values such as 1K, 2K, 4K, or custom describing the image size to use.
+    type: string
+    required: false
+    default: 1K
+  - name: AspectRatio
+    description: Enumerated values (1:1, 4:3, 3:4, 16:9, 9:16, 3:2, 2:3, 21:9, match_input_image).
+    type: string
+    required: false
+    default: 16:9
+  - name: Audience
+    description: The target audience for the movie (e.g., children, adults, experts).
+    type: string
+    required: false
+    default: Adult
+  - name: VoiceId
+    description: The voice identifier to feed into audio generation.
+    type: string
+    required: true
+  - name: Emotion
+    description: Optional emotion hint for narration.
+    type: string
+    required: false
+    default: neutral
+
+artifacts:
+  - name: SegmentImage
+    description: The narrated image segments for the movie.
+    type: multiDimArray
+    itemType: image
+  - name: SegmentAudio
+    description: The narrated audio segments for the movie.
+    type: array
+    itemType: audio
+  - name: Timeline
+    description: The composed timeline JSON manifest.
+    type: json
+
+loops:
+  - name: segment
+    description: Iterates over narration segments.
+    countInput: NumOfSegments
+  - name: image
+    description: Iterates over images generated per segment.
+    parent: segment
+    countInput: NumOfImagesPerNarrative
+
+modules:
+  - name: ScriptProducer
+    path: ../../producers/script/script.yaml
+  - name: ImagePromptProducer
+    path: ../../producers/image-prompt/image-prompt.yaml
+    loop: segment
+  - name: ImageProducer
+    path: ../../producers/image/image.yaml
+    loop: segment.image
+  - name: AudioProducer
+    path: ../../producers/audio/audio.yaml
+    loop: segment
+  - name: TimelineComposer
+    path: ../../producers/timeline-composer/timeline-composer.yaml
+
+connections:
+  - from: InquiryPrompt
+    to: ScriptProducer.InquiryPrompt
+  - from: Audience
+    to: ScriptProducer.Audience
+  - from: Duration
+    to: ScriptProducer.Duration
+  - from: NumOfSegments
+    to: ScriptProducer.NumOfSegments
+  - from: Style
+    to: ScriptProducer.Style
+
+  - from: ScriptProducer.NarrationScript[segment]
+    to: ImagePromptProducer[segment].NarrativeText
+  - from: ScriptProducer.MovieSummary
+    to: ImagePromptProducer[segment].OverallSummary
+  - from: Style
+    to: ImagePromptProducer[segment].Style
+  - from: Audience
+    to: ImagePromptProducer[segment].Audience
+  - from: NumOfImagesPerNarrative
+    to: ImagePromptProducer[segment].NumOfImagesPerNarrative
+
+  - from: ImagePromptProducer.ImagePrompt[segment][image]
+    to: ImageProducer[segment][image].Prompt
+  - from: Size
+    to: ImageProducer[segment][image].Size
+  - from: AspectRatio
+    to: ImageProducer[segment][image].AspectRatio
+  - from: ImageProducer[segment][image].SegmentImage
+    to: SegmentImage[segment][image]
+  - from: ImageProducer[segment][image].SegmentImage
+    to: TimelineComposer.ImageSegments
+
+  - from: ScriptProducer.NarrationScript[segment]
+    to: AudioProducer[segment].TextInput
+  - from: VoiceId
+    to: AudioProducer[segment].VoiceId
+  - from: Emotion
+    to: AudioProducer[segment].Emotion
+  - from: AudioProducer[segment].SegmentAudio
+    to: SegmentAudio[segment]
+  - from: AudioProducer[segment].SegmentAudio
+    to: TimelineComposer.AudioSegments
+
+  - from: Duration
+    to: TimelineComposer.Duration
+  - from: TimelineComposer.Timeline
+    to: Timeline
+
+collectors:
+  - name: TimelineImages
+    from: ImageProducer[segment][image].SegmentImage
+    into: TimelineComposer.ImageSegments
+    groupBy: segment
+    orderBy: image
+  - name: TimelineAudio
+    from: AudioProducer[segment].SegmentAudio
+    into: TimelineComposer.AudioSegments
+    groupBy: segment

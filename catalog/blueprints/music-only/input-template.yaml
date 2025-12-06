@@ -1,0 +1,26 @@
+inputs:
+  InquiryPrompt: "Tell me about Darwin and Galapagos islands"
+  Duration: 30
+  NumOfSegments: 3
+  SegmentDuration: 10
+
+models:
+  - model: stability-ai/stable-audio-2.5
+    provider: replicate
+    producerId: MusicProducer
+    config:
+      force_instrumental: true
+  - model: gpt-5-mini
+    provider: openai
+    producerId: ScriptProducer
+  - model: gpt-5-mini
+    provider: openai
+    producerId: MusicPromptProducer
+  - model: OrderedTimeline
+    provider: renku
+    producerId: TimelineComposer
+    config:
+      masterTrack: Music
+      musicClip:
+        volume: 0.9
+      tracks: ["Music"]

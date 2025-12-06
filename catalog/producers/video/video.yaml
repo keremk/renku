@@ -1,0 +1,70 @@
+meta:
+  name: Video Generation
+  description: Generate a video that best reflects the given narrative script.
+  id: VideoProducer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: The prompt to generate the video.
+    type: string
+    required: true
+  - name: AspectRatio
+    description: Aspect ratio such as 16:9 or 3:2.
+    type: string
+    required: true
+  - name: Resolution
+    description: The video resolution in 480p, 720p, 1080p
+    type: string
+    required: false
+    default: 480p
+  - name: SegmentDuration
+    description: The video segment's duration in seconds - Note this is not the movie duration
+    type: int
+    required: false
+    default: 10
+
+artifacts:
+  - name: SegmentVideo
+    description: Video file for the segment.
+    type: video
+
+models:
+  - model: bytedance/seedance-1-pro-fast
+    provider: replicate
+    inputSchema: ./bytedance-seedance-1-pro-fast.json
+    inputs:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      SegmentDuration: duration
+    outputs:
+      SegmentVideo:
+        type: video
+        mimeType: video/mp4
+  - model: bytedance/seedance-1-lite
+    provider: replicate
+    inputSchema: ./bytedance-seedance-1-lite.json
+    inputs:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      SegmentDuration: duration
+    outputs:
+      SegmentVideo:
+        type: video
+        mimeType: video/mp4
+  - model: google/veo-3.1-fast
+    provider: replicate
+    inputSchema: ./google-veo-3-1-fast.json
+    inputs:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      SegmentDuration: duration
+    outputs:
+      SegmentVideo:
+        type: video
+        mimeType: video/mp4

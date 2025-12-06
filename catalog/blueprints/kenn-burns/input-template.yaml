@@ -1,0 +1,35 @@
+inputs:
+  InquiryPrompt: "Sketch an expedition to Europa's ice oceans"
+  Duration: 20
+  NumOfSegments: 1
+  NumOfImagesPerNarrative: 1
+  Style: "Ghibli"
+  Size: "1K"
+  AspectRatio: "16:9"
+  Audience: "Adult"
+  VoiceId: "Wise_Woman"
+  Emotion: neutral
+
+models:
+  - model: gpt-5-mini
+    provider: openai
+    producerId: ScriptProducer
+  - model: gpt-5-mini
+    provider: openai
+    producerId: ImagePromptProducer
+  - model: google/nano-banana
+    provider: replicate
+    producerId: ImageProducer
+  - model: minimax/speech-2.6-hd
+    provider: replicate
+    producerId: AudioProducer
+  - model: OrderedTimeline
+    provider: renku
+    producerId: TimelineComposer
+    config:
+      tracks: ["Image", "Audio"]
+      masterTrack:
+        kind: Audio
+      numTracks: 2
+      audioClip:
+        volume: 0.9

@@ -1,0 +1,190 @@
+{
+  "type": "object",
+  "title": "Input",
+  "required": [
+    "text"
+  ],
+  "properties": {
+    "text": {
+      "type": "string",
+      "title": "Text",
+      "description": "Text to convert to speech. Every character is 1 token. Maximum 10000 characters. Use <#x#> between words to control pause duration (0.01-99.99s)."
+    },
+    "pitch": {
+      "type": "integer",
+      "title": "Pitch",
+      "default": 0,
+      "maximum": 12,
+      "minimum": -12,
+      "description": "Speech pitch"
+    },
+    "speed": {
+      "type": "number",
+      "title": "Speed",
+      "default": 1,
+      "maximum": 2,
+      "minimum": 0.5,
+      "description": "Speech speed"
+    },
+    "volume": {
+      "type": "number",
+      "title": "Volume",
+      "default": 1,
+      "maximum": 10,
+      "minimum": 0,
+      "description": "Speech volume"
+    },
+    "bitrate": {
+      "enum": [
+        32000,
+        64000,
+        128000,
+        256000
+      ],
+      "type": "integer",
+      "title": "bitrate",
+      "description": "Bitrate for the generated speech",
+      "default": 128000,
+      "x-order": 8
+    },
+    "channel": {
+      "enum": [
+        "mono",
+        "stereo"
+      ],
+      "type": "string",
+      "title": "channel",
+      "description": "Number of audio channels",
+      "default": "mono",
+      "x-order": 10
+    },
+    "emotion": {
+      "enum": [
+        "auto",
+        "happy",
+        "sad",
+        "angry",
+        "fearful",
+        "disgusted",
+        "surprised",
+        "calm",
+        "fluent",
+        "neutral"
+      ],
+      "type": "string",
+      "title": "emotion",
+      "description": "Speech emotion",
+      "default": "auto",
+      "x-order": 5
+    },
+    "voice_id": {
+      "type": "string",
+      "title": "Voice Id",
+      "default": "Wise_Woman",
+      "description": "Desired voice ID. Use a voice ID you have trained (https://replicate.com/minimax/voice-cloning), or one of the following system voice IDs: Wise_Woman, Friendly_Person, Inspirational_girl, Deep_Voice_Man, Calm_Woman, Casual_Guy, Lively_Girl, Patient_Man, Young_Knight, Determined_Man, Lovely_Girl, Decent_Boy, Imposing_Manner, Elegant_Man, Abbess, Sweet_Girl_2, Exuberant_Girl"
+    },
+    "sample_rate": {
+      "enum": [
+        8000,
+        16000,
+        22050,
+        24000,
+        32000,
+        44100
+      ],
+      "type": "integer",
+      "title": "sample_rate",
+      "description": "Sample rate for the generated speech",
+      "default": 32000,
+      "x-order": 7
+    },
+    "audio_format": {
+      "enum": [
+        "mp3",
+        "wav",
+        "flac",
+        "pcm"
+      ],
+      "type": "string",
+      "title": "audio_format",
+      "description": "Audio format for the generated speech",
+      "default": "mp3",
+      "x-order": 9
+    },
+    "output_format": {
+      "enum": [
+        "hex",
+        "url"
+      ],
+      "type": "string",
+      "title": "output_format",
+      "description": "Transport format for the generated audio payload",
+      "default": "hex",
+      "x-order": 12
+    },
+    "language_boost": {
+      "enum": [
+        "None",
+        "Automatic",
+        "Chinese",
+        "Chinese,Yue",
+        "Cantonese",
+        "English",
+        "Arabic",
+        "Russian",
+        "Spanish",
+        "French",
+        "Portuguese",
+        "German",
+        "Turkish",
+        "Dutch",
+        "Ukrainian",
+        "Vietnamese",
+        "Indonesian",
+        "Japanese",
+        "Italian",
+        "Korean",
+        "Thai",
+        "Polish",
+        "Romanian",
+        "Greek",
+        "Czech",
+        "Finnish",
+        "Hindi",
+        "Bulgarian",
+        "Danish",
+        "Hebrew",
+        "Malay",
+        "Persian",
+        "Slovak",
+        "Swedish",
+        "Croatian",
+        "Filipino",
+        "Hungarian",
+        "Norwegian",
+        "Slovenian",
+        "Catalan",
+        "Nynorsk",
+        "Tamil",
+        "Afrikaans"
+      ],
+      "type": "string",
+      "title": "language_boost",
+      "description": "Enhance recognition of specific languages and dialects",
+      "default": "None",
+      "x-order": 13
+    },
+    "subtitle_enable": {
+      "type": "boolean",
+      "title": "Subtitle Enable",
+      "default": false,
+      "description": "Return subtitle metadata alongside audio (non-streaming only)"
+    },
+    "english_normalization": {
+      "type": "boolean",
+      "title": "English Normalization",
+      "default": false,
+      "description": "Enable English text normalization for better number reading (slightly increases latency)"
+    }
+  }
+}

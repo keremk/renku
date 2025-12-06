@@ -1,0 +1,27 @@
+inputs:
+  InquiryPrompt: "Sketch an expedition to Europa's ice oceans"
+  Duration: 20
+  NumOfSegments: 1
+  NumOfImagesPerNarrative: 1
+  Style: "Ghibli"
+  Audience: "Adult"
+  Size: "1K"
+
+models:
+  - model: gpt-5-mini
+    provider: openai
+    producerId: ScriptProducer
+  - model: gpt-5-mini
+    provider: openai
+    producerId: ImagePromptProducer
+  - model: google/nano-banana
+    provider: replicate
+    producerId: ImageProducer
+  - model: OrderedTimeline
+    provider: renku
+    producerId: TimelineComposer
+    config:
+      tracks: ["Image"]
+      masterTrack:
+        kind: Image
+      numTracks: 1

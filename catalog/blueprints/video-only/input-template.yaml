@@ -1,0 +1,40 @@
+inputs:
+  InquiryPrompt: "Tell me about Darwin and Galapagos islands"
+  Duration: 30
+  NumOfSegments: 3
+  VoiceId: Wise_Woman
+  Emotion: neutral
+  AspectRatio: "16:9"
+  Resolution: "480p"
+  SegmentDuration: 10
+  Style: "Ghibli"
+
+models:
+  - model: minimax/speech-2.6-hd
+    provider: replicate
+    producerId: AudioProducer
+  - model: stability-ai/stable-audio-2.5
+    provider: replicate
+    producerId: MusicProducer
+    config:
+      force_instrumental: true
+  - model: bytedance/seedance-1-pro-fast
+    provider: replicate
+    producerId: VideoProducer
+  - model: gpt-5-mini
+    provider: openai
+    producerId: ScriptProducer
+  - model: gpt-5-mini
+    provider: openai
+    producerId: VideoPromptProducer
+  - model: gpt-5-mini
+    provider: openai
+    producerId: MusicPromptProducer
+  - model: OrderedTimeline
+    provider: renku
+    producerId: TimelineComposer
+    config:
+      masterTrack: Audio
+      musicClip:
+        volume: 0.4
+      tracks: ["Video", "Audio", "Music"]
