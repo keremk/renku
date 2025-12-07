@@ -229,10 +229,21 @@ export interface BlueprintEdgeDefinition {
   note?: string;
 }
 
-export interface SubBlueprintDefinition {
+/**
+ * Definition for importing a producer blueprint.
+ *
+ * Producers are imported via the `producers:` section in blueprint YAML.
+ * They are inlined into the graph and do NOT create a namespace.
+ * The `name` field is the alias used to refer to the producer in connections.
+ */
+export interface ProducerImportDefinition {
+  /** Alias used to refer to this producer in connections (e.g., "ScriptProducer") */
   name: string;
+  /** Path to the producer blueprint file (relative to this blueprint) */
   path?: string;
+  /** Optional description */
   description?: string;
+  /** Loop variable if this producer runs in a loop context */
   loop?: string;
 }
 
@@ -249,7 +260,8 @@ export interface BlueprintDocument {
   inputs: BlueprintInputDefinition[];
   artefacts: BlueprintArtefactDefinition[];
   producers: ProducerConfig[];
-  subBlueprints: SubBlueprintDefinition[];
+  /** Producer imports from the `producers:` section. No namespace is created. */
+  producerImports: ProducerImportDefinition[];
   edges: BlueprintEdgeDefinition[];
   collectors?: BlueprintCollectorDefinition[];
 }

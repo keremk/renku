@@ -60,7 +60,7 @@ loops:
     parent: segment
     countInput: NumOfImagesPerNarrative
 
-modules:
+producers:
   - name: ScriptProducer
     path: ../../producers/script/script.yaml
   - name: ImagePromptProducer

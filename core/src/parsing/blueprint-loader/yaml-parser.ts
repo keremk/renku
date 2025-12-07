@@ -13,7 +13,7 @@ import type {
   BlueprintTreeNode,
   ProducerModelVariant,
   ProducerConfig,
-  SubBlueprintDefinition,
+  ProducerImportDefinition,
 } from '../../types.js';
 
 export interface BlueprintResourceReader {
@@ -80,14 +80,18 @@ export async function parseYamlBlueprintFile(
     throw new Error(`Blueprint YAML at ${filePath} must declare at least one artifact.`);
   }
   const artefacts = artefactSource.map((entry) => parseArtefact(entry));
-  const modules = Array.isArray(raw.modules)
-    ? raw.modules.map((entry) => parseModule(entry))
-    : [];
+  // Accept `producers:` section, with fallback to deprecated `modules:` for backwards compatibility
+  const rawProducerImports = Array.isArray(raw.producers)
+    ? raw.producers
+    : Array.isArray(raw.modules)
+      ? raw.modules
+      : [];
+  const producerImports = rawProducerImports.map((entry) => parseProducerImport(entry));
   let edges = Array.isArray(raw.connections)
     ? raw.connections.map((entry) => parseEdge(entry, loopSymbols))
     : [];
   const producers: ProducerConfig[] = [];
-  const isProducerBlueprint = modules.length === 0;
+  const isProducerBlueprint = producerImports.length === 0;
   if (isProducerBlueprint) {
     if (!Array.isArray(raw.models) || raw.models.length === 0) {
       throw new Error(`Blueprint YAML at ${filePath} must declare a models array with at least one entry for the producer.`);
@@ -112,7 +116,7 @@ export async function parseYamlBlueprintFile(
       edges = inferProducerEdges(inputs, artefacts, meta.id);
     }
   } else if (Array.isArray(raw.models) && raw.models.length > 0) {
-    throw new Error(`Blueprint YAML at ${filePath} defines modules and models. Only producer leaf blueprints should declare models.`);
+    throw new Error(`Blueprint YAML at ${filePath} defines producers and models. Only producer leaf blueprints should declare models.`);
   }
   const collectors = Array.isArray(raw.collectors)
     ? parseCollectors(raw.collectors, loopSymbols)
@@ -123,7 +127,7 @@ export async function parseYamlBlueprintFile(
     inputs,
     artefacts,
     producers,
-    subBlueprints: modules,
+    producerImports,
     edges,
     collectors,
   };
@@ -159,23 +163,26 @@ async function loadNode(
     children: new Map(),
   };
 
-  for (const sub of document.subBlueprints) {
-    const subNamespace = [...namespacePath, sub.name];
-    const childPath = resolveSubBlueprintPath(absolute, sub);
-    const child = await loadNode(childPath, subNamespace, reader, visiting);
-    node.children.set(sub.name, child);
+  // Producer imports use the alias as a scope for their internal nodes.
+  // This is NOT a hierarchical namespace - it's producer aliasing to avoid conflicts.
+  for (const producerImport of document.producerImports) {
+    const childPath = resolveProducerImportPath(absolute, producerImport);
+    // Use the producer alias as a scope for the producer's nodes
+    const aliasPath = [...namespacePath, producerImport.name];
+    const child = await loadNode(childPath, aliasPath, reader, visiting);
+    node.children.set(producerImport.name, child);
   }
 
   visiting.delete(absolute);
   return node;
 }
 
-function resolveSubBlueprintPath(parentFile: string, sub: SubBlueprintDefinition): string {
+function resolveProducerImportPath(parentFile: string, producerImport: ProducerImportDefinition): string {
   const directory = dirname(parentFile);
-  if (sub.path) {
-    return resolve(directory, sub.path);
+  if (producerImport.path) {
+    return resolve(directory, producerImport.path);
   }
-  return resolve(directory, `${sub.name}.yaml`);
+  return resolve(directory, `${producerImport.name}.yaml`);
 }
 
 interface RawBlueprint {
@@ -184,6 +191,9 @@ interface RawBlueprint {
   artifacts?: unknown[];
   artefacts?: unknown[];
   loops?: unknown[];
+  /** New: producer imports section */
+  producers?: unknown[];
+  /** @deprecated Use `producers:` instead. Kept for backwards compatibility. */
   modules?: unknown[];
   connections?: unknown[];
   collectors?: unknown[];
@@ -267,9 +277,9 @@ function parseArtefact(raw: unknown): BlueprintArtefactDefinition {
   };
 }
 
-function parseModule(raw: unknown): SubBlueprintDefinition {
+function parseProducerImport(raw: unknown): ProducerImportDefinition {
   if (!raw || typeof raw !== 'object') {
-    throw new Error(`Invalid module entry: ${JSON.stringify(raw)}`);
+    throw new Error(`Invalid producer import entry: ${JSON.stringify(raw)}`);
   }
   const entry = raw as Record<string, unknown>;
   const name = readString(entry, 'name');

@@ -41,7 +41,7 @@ describe('parseYamlBlueprintFile', () => {
         }),
       ]),
     );
-    expect(document.subBlueprints.map((entry) => entry.name)).toEqual([
+    expect(document.producerImports.map((entry) => entry.name)).toEqual([
       'ScriptProducer',
       'ImagePromptProducer',
       'ImageProducer',

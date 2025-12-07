@@ -59,7 +59,7 @@ loops:
     description: Iterates over narration segments.
     countInput: NumOfSegments
 
-modules:
+producers:
   - name: ScriptProducer
     path: ../../producers/script/script.yaml
   - name: VideoPromptProducer

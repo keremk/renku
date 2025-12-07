@@ -4,36 +4,271 @@ import type { BlueprintInputDefinition, BlueprintTreeNode } from '../types.js';
  * Canonical ID helpers live in parsing because parsing is the only stage
  * allowed to mint new canonical identifiers. Other stages should consume
  * IDs produced here rather than inventing their own.
+ *
+ * Canonical ID Format:
+ *   Type:path.to.name[index0][index1]...
+ *
+ * Where:
+ *   - Type is one of: Input, Artifact, Producer
+ *   - path.to.name is the producer alias path plus the item name
+ *   - [indexN] are optional dimension indices (only present after expansion)
+ *
+ * Examples:
+ *   - Input:Topic (root-level input named "Topic")
+ *   - Input:ScriptProducer.InquiryPrompt (input scoped to ScriptProducer)
+ *   - Producer:ScriptProducer (producer with alias ScriptProducer)
+ *   - Artifact:SegmentImage[0][1] (expanded artifact with dimension indices)
  */
-function formatCanonicalId(kind: 'Input' | 'Artifact' | 'Producer', segments: string[]): string {
+
+export type CanonicalIdType = 'Input' | 'Artifact' | 'Producer';
+
+// -----------------------------------------------------------------------------
+// Validators
+// -----------------------------------------------------------------------------
+
+/**
+ * Returns true if value is a canonical Input ID (starts with "Input:").
+ */
+export function isCanonicalInputId(value: string): boolean {
+  return typeof value === 'string' && value.startsWith('Input:');
+}
+
+/**
+ * Returns true if value is a canonical Artifact ID (starts with "Artifact:").
+ */
+export function isCanonicalArtifactId(value: string): boolean {
+  return typeof value === 'string' && value.startsWith('Artifact:');
+}
+
+/**
+ * Returns true if value is a canonical Producer ID (starts with "Producer:").
+ */
+export function isCanonicalProducerId(value: string): boolean {
+  return typeof value === 'string' && value.startsWith('Producer:');
+}
+
+/**
+ * Returns true if value is any canonical ID (Input, Artifact, or Producer).
+ */
+export function isCanonicalId(value: string): boolean {
+  return isCanonicalInputId(value) || isCanonicalArtifactId(value) || isCanonicalProducerId(value);
+}
+
+/**
+ * Returns the type of a canonical ID, or null if not a valid canonical ID.
+ */
+export function getCanonicalIdType(value: string): CanonicalIdType | null {
+  if (typeof value !== 'string') return null;
+  if (value.startsWith('Input:')) return 'Input';
+  if (value.startsWith('Artifact:')) return 'Artifact';
+  if (value.startsWith('Producer:')) return 'Producer';
+  return null;
+}
+
+// -----------------------------------------------------------------------------
+// Parsers
+// -----------------------------------------------------------------------------
+
+export interface ParsedCanonicalId {
+  type: CanonicalIdType;
+  path: string[];
+  name: string;
+}
+
+export interface ParsedCanonicalArtifactId extends ParsedCanonicalId {
+  type: 'Artifact';
+  indices: number[];
+}
+
+/**
+ * Parses a canonical Input ID into its components.
+ * Throws if the ID is not a valid canonical Input ID.
+ *
+ * @example
+ * parseCanonicalInputId('Input:Topic') // { type: 'Input', path: [], name: 'Topic' }
+ * parseCanonicalInputId('Input:ScriptProducer.Prompt') // { type: 'Input', path: ['ScriptProducer'], name: 'Prompt' }
+ */
+export function parseCanonicalInputId(id: string): ParsedCanonicalId {
+  assertCanonicalInputId(id);
+  const body = id.slice('Input:'.length);
+  return parseIdBody('Input', body);
+}
+
+/**
+ * Parses a canonical Producer ID into its components.
+ * Throws if the ID is not a valid canonical Producer ID.
+ *
+ * @example
+ * parseCanonicalProducerId('Producer:ScriptProducer') // { type: 'Producer', path: [], name: 'ScriptProducer' }
+ */
+export function parseCanonicalProducerId(id: string): ParsedCanonicalId {
+  assertCanonicalProducerId(id);
+  const body = id.slice('Producer:'.length);
+  return parseIdBody('Producer', body);
+}
+
+/**
+ * Parses a canonical Artifact ID into its components, including dimension indices.
+ * Throws if the ID is not a valid canonical Artifact ID.
+ *
+ * @example
+ * parseCanonicalArtifactId('Artifact:Image') // { type: 'Artifact', path: [], name: 'Image', indices: [] }
+ * parseCanonicalArtifactId('Artifact:SegmentImage[0][1]') // { type: 'Artifact', path: [], name: 'SegmentImage', indices: [0, 1] }
+ */
+export function parseCanonicalArtifactId(id: string): ParsedCanonicalArtifactId {
+  assertCanonicalArtifactId(id);
+  const body = id.slice('Artifact:'.length);
+
+  // Extract indices from the end: [0][1][2]...
+  const indices: number[] = [];
+  const indexMatches = body.match(/\[\d+\]/g);
+  if (indexMatches) {
+    for (const match of indexMatches) {
+      const num = parseInt(match.slice(1, -1), 10);
+      indices.push(num);
+    }
+  }
+
+  // Remove indices to get the path
+  const pathPart = body.replace(/\[\d+\]/g, '');
+  const parsed = parseIdBody('Artifact', pathPart);
+
+  return {
+    ...parsed,
+    type: 'Artifact',
+    indices,
+  };
+}
+
+function parseIdBody(type: CanonicalIdType, body: string): ParsedCanonicalId {
+  const segments = body.split('.').filter((s) => s.length > 0);
+  if (segments.length === 0) {
+    throw new Error(`Invalid canonical ${type} ID: empty body.`);
+  }
+  const name = segments[segments.length - 1]!;
+  const path = segments.slice(0, -1);
+  return { type, path, name };
+}
+
+// -----------------------------------------------------------------------------
+// Assertions
+// -----------------------------------------------------------------------------
+
+/**
+ * Throws if value is not a valid canonical Input ID.
+ */
+export function assertCanonicalInputId(value: string): void {
+  if (!isCanonicalInputId(value)) {
+    throw new Error(`Expected canonical Input ID (Input:...), got "${value}".`);
+  }
+  const body = value.slice('Input:'.length);
+  if (body.length === 0 || body === '.') {
+    throw new Error(`Invalid canonical Input ID: "${value}" has empty body.`);
+  }
+}
+
+/**
+ * Throws if value is not a valid canonical Artifact ID.
+ */
+export function assertCanonicalArtifactId(value: string): void {
+  if (!isCanonicalArtifactId(value)) {
+    throw new Error(`Expected canonical Artifact ID (Artifact:...), got "${value}".`);
+  }
+  const body = value.slice('Artifact:'.length);
+  // Remove indices for validation
+  const pathPart = body.replace(/\[\d+\]/g, '');
+  if (pathPart.length === 0 || pathPart === '.') {
+    throw new Error(`Invalid canonical Artifact ID: "${value}" has empty body.`);
+  }
+}
+
+/**
+ * Throws if value is not a valid canonical Producer ID.
+ */
+export function assertCanonicalProducerId(value: string): void {
+  if (!isCanonicalProducerId(value)) {
+    throw new Error(`Expected canonical Producer ID (Producer:...), got "${value}".`);
+  }
+  const body = value.slice('Producer:'.length);
+  if (body.length === 0 || body === '.') {
+    throw new Error(`Invalid canonical Producer ID: "${value}" has empty body.`);
+  }
+}
+
+/**
+ * Throws if value is not a valid canonical ID of any type.
+ */
+export function assertCanonicalId(value: string): void {
+  if (!isCanonicalId(value)) {
+    throw new Error(`Expected canonical ID (Input:..., Artifact:..., or Producer:...), got "${value}".`);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Formatters
+// -----------------------------------------------------------------------------
+
+function formatCanonicalId(kind: CanonicalIdType, segments: string[]): string {
   if (!Array.isArray(segments) || segments.length === 0) {
     throw new Error('Canonical id segments must be a non-empty array.');
   }
   return `${kind}:${segments.join('.')}`;
 }
 
-export function formatCanonicalProducerName(namespacePath: string[], producerAlias: string): string {
-  return namespacePath.length > 0 ? namespacePath.join('.') : producerAlias;
+/**
+ * Formats a producer path (alias path) as a dot-separated string.
+ * This is NOT a canonical ID - it's the path portion used within canonical IDs.
+ *
+ * For producer imports (current usage), the aliasPath contains the producer alias.
+ * The producerName is the producer's internal name (from meta.id).
+ *
+ * When aliasPath is non-empty, it IS the identifier (we use the alias).
+ * When aliasPath is empty, we use the producerName directly.
+ *
+ * @example
+ * formatProducerPath([], 'ScriptProducer') // 'ScriptProducer'
+ * formatProducerPath(['ScriptProducer'], 'InternalName') // 'ScriptProducer' (alias takes precedence)
+ */
+export function formatProducerPath(aliasPath: string[], producerName: string): string {
+  return aliasPath.length > 0 ? aliasPath.join('.') : producerName;
 }
 
-export function formatCanonicalProducerId(namespacePath: string[], producerAlias: string): string {
-  return formatCanonicalId('Producer', formatCanonicalProducerName(namespacePath, producerAlias).split('.'));
+/**
+ * @deprecated Use formatProducerPath instead. This alias exists for backwards compatibility.
+ */
+export const formatCanonicalProducerName = formatProducerPath;
+
+/**
+ * Formats a canonical Producer ID.
+ *
+ * @example
+ * formatCanonicalProducerId([], 'ScriptProducer') // 'Producer:ScriptProducer'
+ * formatCanonicalProducerId(['ScriptProducer'], 'InternalName') // 'Producer:ScriptProducer'
+ */
+export function formatCanonicalProducerId(aliasPath: string[], producerName: string): string {
+  return formatCanonicalId('Producer', formatProducerPath(aliasPath, producerName).split('.'));
 }
 
-export function formatCanonicalInputId(namespacePath: string[], name: string): string {
-  return formatCanonicalId('Input', joinSegments(namespacePath, name));
+/**
+ * Formats a canonical Input ID.
+ *
+ * @example
+ * formatCanonicalInputId([], 'Topic') // 'Input:Topic'
+ * formatCanonicalInputId(['ScriptProducer'], 'Prompt') // 'Input:ScriptProducer.Prompt'
+ */
+export function formatCanonicalInputId(aliasPath: string[], name: string): string {
+  return formatCanonicalId('Input', joinSegments(aliasPath, name));
 }
 
-export function formatCanonicalArtifactId(namespacePath: string[], name: string): string {
-  return formatCanonicalId('Artifact', joinSegments(namespacePath, name));
-}
-
-export function isCanonicalInputId(value: string): boolean {
-  return typeof value === 'string' && value.startsWith('Input:');
-}
-
-export function isCanonicalArtifactId(value: string): boolean {
-  return typeof value === 'string' && value.startsWith('Artifact:');
+/**
+ * Formats a canonical Artifact ID.
+ *
+ * @example
+ * formatCanonicalArtifactId([], 'Image') // 'Artifact:Image'
+ * formatCanonicalArtifactId(['ScriptProducer'], 'Script') // 'Artifact:ScriptProducer.Script'
+ */
+export function formatCanonicalArtifactId(aliasPath: string[], name: string): string {
+  return formatCanonicalId('Artifact', joinSegments(aliasPath, name));
 }
 
 export interface CanonicalInputEntry {
