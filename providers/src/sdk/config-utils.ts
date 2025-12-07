@@ -1,5 +1,7 @@
+import { isCanonicalInputId } from '@renku/core';
+
 export function canonicalizeAuthoredInputId(authoredId: string, availableInputs: string[]): string {
-  const canonicalInputs = availableInputs.filter((value) => value.startsWith('Input:'));
+  const canonicalInputs = availableInputs.filter((value) => isCanonicalInputId(value));
   if (canonicalInputs.length === 0) {
     throw new Error('No canonical inputs available to map authored IDs.');
   }
@@ -20,7 +22,7 @@ export function canonicalizeAuthoredInputId(authoredId: string, availableInputs:
 function extractBaseName(value: string): string {
   const bracketIndex = value.indexOf('[');
   const trimmed = bracketIndex >= 0 ? value.slice(0, bracketIndex) : value;
-  const cleaned = trimmed.startsWith('Input:') ? trimmed.slice('Input:'.length) : trimmed;
+  const cleaned = isCanonicalInputId(trimmed) ? trimmed.slice('Input:'.length) : trimmed;
   const separatorIndex = cleaned.lastIndexOf('.');
   return separatorIndex >= 0 ? cleaned.slice(separatorIndex + 1) : cleaned;
 }

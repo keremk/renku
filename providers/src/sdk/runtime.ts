@@ -14,8 +14,12 @@ import type {
   RuntimeSdkHelpers,
   ArtefactRegistry,
 } from './types.js';
-import type { BlueprintProducerSdkMappingField } from '@renku/core';
-import type { NotificationBus } from '@renku/core';
+import {
+  isCanonicalArtifactId,
+  isCanonicalInputId,
+  type BlueprintProducerSdkMappingField,
+  type NotificationBus,
+} from '@renku/core';
 
 interface SerializedJobContext {
   inputBindings?: Record<string, string>;
@@ -173,5 +177,5 @@ function createArtefactRegistry(produces: string[]): ArtefactRegistry {
 }
 
 function isCanonicalId(id: string): boolean {
-  return typeof id === 'string' && (id.startsWith('Input:') || id.startsWith('Artifact:'));
+  return isCanonicalInputId(id) || isCanonicalArtifactId(id);
 }

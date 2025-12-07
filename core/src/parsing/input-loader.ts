@@ -6,6 +6,8 @@ import {
   type CanonicalInputEntry,
   formatCanonicalProducerName,
   formatProducerScopedInputId,
+  isCanonicalInputId,
+  parseQualifiedProducerName,
 } from './canonical-ids.js';
 import type {
   BlueprintTreeNode,
@@ -95,7 +97,8 @@ function canonicalizeInputs(
 ): Record<string, unknown> {
   const resolved: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(raw)) {
-    const canonical = resolver.resolve(key);
+    // Convert to canonical form (accepts both canonical IDs and qualified names)
+    const canonical = resolver.toCanonical(key);
     if (resolved[canonical] !== undefined) {
       throw new Error(`Duplicate input value for "${canonical}".`);
     }
@@ -143,9 +146,7 @@ function resolveProducerName(
 function applyModelSelectionsToInputs(values: Record<string, unknown>, selections: ModelSelection[]): void {
   for (const selection of selections) {
     const namespacePath = selection.namespacePath ?? [];
-    const producerName = selection.producerId.includes('.')
-      ? selection.producerId.slice(selection.producerId.lastIndexOf('.') + 1)
-      : selection.producerId;
+    const { producerName } = parseQualifiedProducerName(selection.producerId);
     const providerId = formatProducerScopedInputId(namespacePath, producerName, 'provider');
     const modelId = formatProducerScopedInputId(namespacePath, producerName, 'model');
     values[providerId] = selection.provider;
@@ -304,7 +305,7 @@ function mergeSelectionsFromInputs(
   }>();
 
   for (const [rawKey, value] of Object.entries(rawInputs)) {
-    const body = rawKey.startsWith('Input:') ? rawKey.slice('Input:'.length) : rawKey;
+    const body = isCanonicalInputId(rawKey) ? rawKey.slice('Input:'.length) : rawKey;
     const match = matchProducerScopedKey(body, index);
     if (!match) {
       continue;
@@ -388,9 +389,7 @@ function collectSelectionEntries(selections: ModelSelection[]): CanonicalInputEn
   const entries: Map<string, CanonicalInputEntry> = new Map();
   for (const selection of selections) {
     const namespacePath = selection.namespacePath ?? [];
-    const producer = selection.producerId.includes('.')
-      ? selection.producerId.slice(selection.producerId.lastIndexOf('.') + 1)
-      : selection.producerId;
+    const { producerName: producer } = parseQualifiedProducerName(selection.producerId);
     const flattened = flattenConfig(selection.config ?? {});
     for (const key of Object.keys(flattened)) {
       const canonicalId = formatProducerScopedInputId(namespacePath, producer, key);

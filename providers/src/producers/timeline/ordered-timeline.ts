@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import { isCanonicalInputId } from '@renku/core';
 import { Input, ALL_FORMATS, BufferSource as MediaBufferSource } from 'mediabunny';
 import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
 import { createProviderError } from '../../sdk/errors.js';
@@ -209,7 +210,7 @@ export function createTimelineProducerHandler(): HandlerFactory {
           },
         );
       }
-      const canonicalInputs = request.inputs.filter((input) => input.startsWith('Input:'));
+      const canonicalInputs = request.inputs.filter((input) => isCanonicalInputId(input));
       const clips = canonicalizeClips(config, canonicalInputs, allowedKinds);
       if (clips.length === 0) {
         throw createProviderError('TimelineProducer config must define at least one clip.', {

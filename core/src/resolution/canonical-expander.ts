@@ -15,6 +15,7 @@ import {
   formatCanonicalProducerId,
   formatCanonicalInputId,
   formatCanonicalArtifactId,
+  isCanonicalInputId,
 } from '../parsing/canonical-ids.js';
 
 export interface CanonicalNodeInstance {
@@ -362,7 +363,7 @@ function buildFanInCollections(
   }
   const inbound = new Map<string, string[]>();
   for (const edge of edges) {
-    if (!edge.to.startsWith('Input:')) {
+    if (!isCanonicalInputId(edge.to)) {
       continue;
     }
     const list = inbound.get(edge.to) ?? [];

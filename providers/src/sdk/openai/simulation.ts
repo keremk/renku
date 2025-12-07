@@ -125,9 +125,7 @@ function deriveArrayLengthsFromProduces(request: ProviderJobContext): Record<str
     if (!parsed) {
       continue;
     }
-    const fieldName = parsed.kind.includes('.')
-      ? parsed.kind.slice(parsed.kind.lastIndexOf('.') + 1)
-      : parsed.kind;
+    const fieldName = parsed.baseName;
     const ordinals = normalizeOrdinals(parsed, namespaceOrdinalDepth);
     if (!ordinals || ordinals.length === 0) {
       continue;

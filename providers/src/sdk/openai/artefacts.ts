@@ -1,10 +1,13 @@
 import { Buffer } from 'node:buffer';
-import type { ProducedArtefact } from '@renku/core';
+import { isCanonicalArtifactId, type ProducedArtefact } from '@renku/core';
 
 type JsonObject = Record<string, unknown>;
 
 export interface ParsedArtefactIdentifier {
+  /** Full artifact kind path (e.g., "Producer.Image") */
   kind: string;
+  /** Base name without namespace path (e.g., "Image") */
+  baseName: string;
   index?: Record<string, number>;
   ordinal?: number[];
 }
@@ -81,10 +84,7 @@ function buildSingleArtefact(
   }
 
   // Field names must match the canonical kind (without namespace)
-  const kindBase = parsed.kind.includes('.')
-    ? parsed.kind.slice(parsed.kind.lastIndexOf('.') + 1)
-    : parsed.kind;
-  const fieldName = kindBase;
+  const fieldName = parsed.baseName;
   diagnostics.field = fieldName;
   diagnostics.kind = parsed.kind;
 
@@ -152,7 +152,7 @@ function buildSingleArtefact(
  * "Artifact:SegmentImage[segment=1&image=3]" → { kind: "SegmentImage", index: { segment: 1, image: 3 } }
  */
 export function parseArtefactIdentifier(identifier: string): ParsedArtefactIdentifier | null {
-  if (!identifier.startsWith('Artifact:')) {
+  if (!isCanonicalArtifactId(identifier)) {
     return null;
   }
 
@@ -163,6 +163,10 @@ export function parseArtefactIdentifier(identifier: string): ParsedArtefactIdent
   if (!kind) {
     return null;
   }
+
+  // Extract base name (last segment after any dots)
+  const dotIndex = kind.lastIndexOf('.');
+  const baseName = dotIndex >= 0 ? kind.slice(dotIndex + 1) : kind;
 
   const index: Record<string, number> = {};
   const ordinal: number[] = [];
@@ -188,6 +192,7 @@ export function parseArtefactIdentifier(identifier: string): ParsedArtefactIdent
 
   return {
     kind,
+    baseName,
     index: Object.keys(index).length > 0 ? index : undefined,
     ordinal: ordinal.length > 0 ? ordinal : undefined,
   };

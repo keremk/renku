@@ -65,4 +65,4 @@ tmp-root/
 release/
 cli/viewer-bundle/
 cli/catalog/
-cli/undefined/
+cli/undefined

@@ -296,8 +296,31 @@ export function collectCanonicalInputs(tree: BlueprintTreeNode): CanonicalInputE
 }
 
 export interface InputIdResolver {
+  /**
+   * Validates that a canonical input ID exists.
+   * ONLY accepts canonical IDs (Input:...). Throws if not canonical or unknown.
+   * Use `toCanonical()` first if you need to convert from a qualified name.
+   */
   // eslint-disable-next-line no-unused-vars
-  resolve(key: string): string;
+  resolve(canonicalId: string): string;
+
+  /**
+   * Converts a key to its canonical form.
+   * Accepts both canonical IDs (returns as-is after validation) and qualified names.
+   * Throws if the key doesn't match any known input.
+   */
+  // eslint-disable-next-line no-unused-vars
+  toCanonical(key: string): string;
+
+  /**
+   * Checks if a canonical ID exists in the resolver.
+   */
+  // eslint-disable-next-line no-unused-vars
+  has(canonicalId: string): boolean;
+
+  /**
+   * All canonical input entries known to this resolver.
+   */
   entries: CanonicalInputEntry[];
 }
 
@@ -314,25 +337,57 @@ export function createInputIdResolver(
     qualifiedToCanonical.set(qualifiedSegments, entry.canonicalId);
   }
 
-  const resolve = (key: string): string => {
+  /**
+   * Strict resolution - ONLY accepts canonical IDs.
+   */
+  const resolve = (canonicalId: string): string => {
+    if (typeof canonicalId !== 'string' || canonicalId.trim().length === 0) {
+      throw new Error('Input keys must be non-empty strings.');
+    }
+    const trimmed = canonicalId.trim();
+    if (!isCanonicalInputId(trimmed)) {
+      throw new Error(
+        `Expected canonical Input ID (Input:...), got "${trimmed}". ` +
+        `Use resolver.toCanonical() to convert qualified names.`
+      );
+    }
+    if (!canonicalIds.has(trimmed)) {
+      throw new Error(`Unknown canonical input id "${trimmed}".`);
+    }
+    return trimmed;
+  };
+
+  /**
+   * Converts a key (canonical or qualified) to canonical form.
+   */
+  const toCanonical = (key: string): string => {
     if (typeof key !== 'string' || key.trim().length === 0) {
       throw new Error('Input keys must be non-empty strings.');
     }
     const trimmed = key.trim();
+
+    // If already canonical, validate and return
     if (isCanonicalInputId(trimmed)) {
       if (!canonicalIds.has(trimmed)) {
         throw new Error(`Unknown canonical input id "${trimmed}".`);
       }
       return trimmed;
     }
+
+    // Try to convert from qualified name
     const qualified = qualifiedToCanonical.get(trimmed);
     if (qualified) {
       return qualified;
     }
-    throw new Error(`Unknown input "${trimmed}".`);
+
+    throw new Error(`Unknown input "${trimmed}". Expected a canonical ID (Input:...) or a known qualified name.`);
   };
 
-  return { resolve, entries };
+  const has = (canonicalId: string): boolean => {
+    return canonicalIds.has(canonicalId);
+  };
+
+  return { resolve, toCanonical, has, entries };
 }
 
 export function formatProducerScopedInputId(

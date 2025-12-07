@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { resolveArtifactsFromEventLog } from './artifact-resolver.js';
+import { isCanonicalArtifactId } from './canonical-ids.js';
 import type { EventLog } from './event-log.js';
 import { hashInputs } from './event-log.js';
 import { createManifestService, type ManifestService } from './manifest.js';
@@ -205,7 +206,7 @@ async function executeJob(
   const notifications = context.notifications;
   const startedAt = clock.now();
   const inputsHash = hashInputs(job.inputs);
-  const expectedArtefacts = job.produces.filter((id) => id.startsWith('Artifact:'));
+  const expectedArtefacts = job.produces.filter((id) => isCanonicalArtifactId(id));
 
   try {
     // Resolve artifacts from event log
@@ -580,7 +581,7 @@ function mergeResolvedArtifacts(
 function collectResolvedArtifactIds(job: JobDescriptor): string[] {
   const ids = new Set<string>();
   for (const inputId of job.inputs) {
-    if (typeof inputId === 'string' && inputId.startsWith('Artifact:')) {
+    if (typeof inputId === 'string' && isCanonicalArtifactId(inputId)) {
       ids.add(inputId);
     }
   }
@@ -588,7 +589,7 @@ function collectResolvedArtifactIds(job: JobDescriptor): string[] {
   if (fanIn) {
     for (const descriptor of Object.values(fanIn)) {
       for (const member of descriptor.members) {
-        if (member.id.startsWith('Artifact:')) {
+        if (isCanonicalArtifactId(member.id)) {
           ids.add(member.id);
         }
       }

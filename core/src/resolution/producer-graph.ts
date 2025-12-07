@@ -1,5 +1,5 @@
 import type { CanonicalBlueprint } from './canonical-expander.js';
-import { formatProducerScopedInputId, parseQualifiedProducerName } from '../parsing/canonical-ids.js';
+import { formatProducerScopedInputId, isCanonicalArtifactId, parseQualifiedProducerName } from '../parsing/canonical-ids.js';
 import type {
   BlueprintProducerOutputDefinition,
   BlueprintProducerSdkMappingField,
@@ -39,7 +39,7 @@ export function createProducerGraph(
     const producedArtefacts = canonical.edges
       .filter((edge) => edge.from === node.id)
       .map((edge) => edge.to)
-      .filter((id) => id.startsWith('Artifact:'));
+      .filter((id) => isCanonicalArtifactId(id));
 
     const qualifiedProducerName = node.qualifiedName;
     const canonicalProducerName = qualifiedProducerName;
@@ -72,7 +72,7 @@ export function createProducerGraph(
       }
     }
 
-    const dependencyKeys = new Set(allInputs.filter((key) => key.startsWith('Artifact:')));
+    const dependencyKeys = new Set(allInputs.filter((key) => isCanonicalArtifactId(key)));
     for (const spec of Object.values(fanInForJob)) {
       for (const member of spec.members) {
         dependencyKeys.add(member.id);

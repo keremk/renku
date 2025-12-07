@@ -1,3 +1,4 @@
+import { isCanonicalArtifactId, isCanonicalInputId } from '../canonical-ids.js';
 import type { EventLog } from '../event-log.js';
 import { hashPayload } from '../hashing.js';
 import {
@@ -91,7 +92,7 @@ export function createPlanner(options: PlannerOptions = {}) {
 function buildGraphMetadata(blueprint: ProducerGraph): Map<string, GraphMetadata> {
   const metadata = new Map<string, GraphMetadata>();
   for (const node of blueprint.nodes) {
-    const artefactInputs = node.inputs.filter((input) => input.startsWith('Artifact:'));
+    const artefactInputs = node.inputs.filter((input) => isCanonicalArtifactId(input));
     metadata.set(node.jobId, {
       node,
       inputBases: new Set(
@@ -120,7 +121,7 @@ function determineInitialDirtyJobs(
       continue;
     }
     const producesMissing = info.node.produces.some(
-      (id) => id.startsWith('Artifact:') && manifest.artefacts[id] === undefined,
+      (id) => isCanonicalArtifactId(id) && manifest.artefacts[id] === undefined,
     );
     const touchesDirtyInput = Array.from(info.inputBases).some((id) =>
       dirtyInputs.has(id),
@@ -336,7 +337,7 @@ function createEmptyManifest(): Manifest {
 }
 
 function extractInputBaseId(input: string): string | null {
-  if (!input.startsWith('Input:')) {
+  if (!isCanonicalInputId(input)) {
     return null;
   }
   return input.replace(/\[.*?\]/g, '');

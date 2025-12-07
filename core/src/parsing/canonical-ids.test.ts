@@ -23,7 +23,9 @@ import {
   formatProducerScopedInputId,
   // Utilities
   parseQualifiedProducerName,
+  createInputIdResolver,
 } from './canonical-ids.js';
+import type { BlueprintTreeNode } from '../types.js';
 
 describe('Validators', () => {
   describe('isCanonicalInputId', () => {
@@ -331,5 +333,120 @@ describe('Round-trip parsing', () => {
     const parsed = parseCanonicalProducerId(original);
     expect(parsed.path).toEqual([]);
     expect(parsed.name).toBe('ScriptProducer');
+  });
+});
+
+describe('InputIdResolver', () => {
+  // Helper to create a minimal blueprint tree for testing
+  function createTestTree(): BlueprintTreeNode {
+    return {
+      id: 'TestBlueprint',
+      namespacePath: [],
+      document: {
+        meta: { id: 'TestBlueprint', name: 'Test Blueprint' },
+        inputs: [
+          { name: 'Topic', type: 'string', required: true },
+          { name: 'Count', type: 'int', required: false, defaultValue: 5 },
+        ],
+        artefacts: [],
+        producers: [],
+        producerImports: [],
+        edges: [],
+      },
+      children: new Map([
+        ['ChildProducer', {
+          id: 'ChildProducer',
+          namespacePath: ['ChildProducer'],
+          document: {
+            meta: { id: 'ChildProducer', name: 'Child Producer' },
+            inputs: [
+              { name: 'Prompt', type: 'string', required: true },
+            ],
+            artefacts: [],
+            producers: [],
+            producerImports: [],
+            edges: [],
+          },
+          children: new Map(),
+        }],
+      ]),
+    };
+  }
+
+  describe('resolve() - strict mode', () => {
+    it('accepts valid canonical Input ID', () => {
+      const resolver = createInputIdResolver(createTestTree());
+      expect(resolver.resolve('Input:Topic')).toBe('Input:Topic');
+    });
+
+    it('throws for non-canonical ID (qualified name)', () => {
+      const resolver = createInputIdResolver(createTestTree());
+      expect(() => resolver.resolve('Topic')).toThrow('Expected canonical Input ID');
+    });
+
+    it('throws for unknown canonical ID', () => {
+      const resolver = createInputIdResolver(createTestTree());
+      expect(() => resolver.resolve('Input:Unknown')).toThrow('Unknown canonical input id');
+    });
+
+    it('provides helpful error message for qualified names', () => {
+      const resolver = createInputIdResolver(createTestTree());
+      expect(() => resolver.resolve('Topic')).toThrow('Use resolver.toCanonical()');
+    });
+  });
+
+  describe('toCanonical() - conversion mode', () => {
+    it('returns canonical ID as-is', () => {
+      const resolver = createInputIdResolver(createTestTree());
+      expect(resolver.toCanonical('Input:Topic')).toBe('Input:Topic');
+    });
+
+    it('converts qualified name to canonical ID', () => {
+      const resolver = createInputIdResolver(createTestTree());
+      expect(resolver.toCanonical('Topic')).toBe('Input:Topic');
+    });
+
+    it('converts nested qualified name to canonical ID', () => {
+      const resolver = createInputIdResolver(createTestTree());
+      expect(resolver.toCanonical('ChildProducer.Prompt')).toBe('Input:ChildProducer.Prompt');
+    });
+
+    it('throws for unknown qualified name', () => {
+      const resolver = createInputIdResolver(createTestTree());
+      expect(() => resolver.toCanonical('Unknown')).toThrow('Unknown input');
+    });
+
+    it('throws for unknown canonical ID', () => {
+      const resolver = createInputIdResolver(createTestTree());
+      expect(() => resolver.toCanonical('Input:Unknown')).toThrow('Unknown canonical input id');
+    });
+  });
+
+  describe('has()', () => {
+    it('returns true for existing canonical ID', () => {
+      const resolver = createInputIdResolver(createTestTree());
+      expect(resolver.has('Input:Topic')).toBe(true);
+      expect(resolver.has('Input:ChildProducer.Prompt')).toBe(true);
+    });
+
+    it('returns false for non-existing canonical ID', () => {
+      const resolver = createInputIdResolver(createTestTree());
+      expect(resolver.has('Input:Unknown')).toBe(false);
+    });
+
+    it('returns false for qualified names (not canonical)', () => {
+      const resolver = createInputIdResolver(createTestTree());
+      expect(resolver.has('Topic')).toBe(false);
+    });
+  });
+
+  describe('entries', () => {
+    it('contains all inputs from tree', () => {
+      const resolver = createInputIdResolver(createTestTree());
+      const ids = resolver.entries.map((e) => e.canonicalId);
+      expect(ids).toContain('Input:Topic');
+      expect(ids).toContain('Input:Count');
+      expect(ids).toContain('Input:ChildProducer.Prompt');
+    });
   });
 });

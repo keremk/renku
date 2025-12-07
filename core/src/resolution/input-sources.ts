@@ -1,4 +1,4 @@
-import { formatCanonicalInputId } from '../parsing/canonical-ids.js';
+import { formatCanonicalInputId, isCanonicalInputId } from '../parsing/canonical-ids.js';
 import type { BlueprintGraph } from './canonical-graph.js';
 
 export type InputSourceMap = Map<string, string>;
@@ -66,7 +66,7 @@ export function normalizeInputValues(
   const normalized: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(values)) {
-    if (!key.startsWith('Input:')) {
+    if (!isCanonicalInputId(key)) {
       normalized[key] = value;
       continue;
     }

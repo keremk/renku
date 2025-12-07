@@ -2,6 +2,8 @@ import { resolve as resolvePath } from 'node:path';
 import {
   createEventLog,
   createManifestService,
+  isCanonicalArtifactId,
+  isCanonicalInputId,
   prepareJobContext,
   createStorageContext,
   initializeMovieStorage,
@@ -440,7 +442,7 @@ function validateResolvedInputs(
   const config = option.config as Record<string, unknown> | undefined;
   const required = Array.isArray(config?.variables) ? (config?.variables as string[]) : [];
   const missing = required.filter((key) => {
-    if (key.startsWith('Input:') || key.startsWith('Artifact:')) {
+    if (isCanonicalInputId(key) || isCanonicalArtifactId(key)) {
       return inputs[key] === undefined;
     }
     return false;

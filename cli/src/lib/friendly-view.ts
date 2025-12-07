@@ -5,6 +5,8 @@ import { dirname, resolve } from 'node:path';
 import {
   createManifestService,
   createStorageContext,
+  isCanonicalArtifactId,
+  parseCanonicalArtifactId,
   type BlobRef,
   type Manifest,
 } from '@renku/core';
@@ -177,14 +179,24 @@ function normalizeProducer(producedBy: string | undefined): string {
 }
 
 function toFriendlyFileName(artefactId: string, mimeType?: string): string {
-  const trimmed = artefactId.replace(/^Artifact:/, '').trim();
-  const withoutNamespace = trimmed.includes('.')
-    ? trimmed.slice(trimmed.lastIndexOf('.') + 1)
-    : trimmed;
-  const sanitized = withoutNamespace
-    .replace(/\[/g, '-')
-    .replace(/\]/g, '')
-    .replace(/[:=]/g, '-')
+  let baseName: string;
+  let indices: number[] = [];
+
+  if (isCanonicalArtifactId(artefactId)) {
+    const parsed = parseCanonicalArtifactId(artefactId);
+    baseName = parsed.name;
+    indices = parsed.indices;
+  } else {
+    // Fallback for non-canonical IDs (shouldn't happen in normal usage)
+    baseName = artefactId.replace(/^Artifact:/, '').trim();
+  }
+
+  // Build name with indices
+  const nameWithIndices = indices.length > 0
+    ? `${baseName}-${indices.join('-')}`
+    : baseName;
+
+  const sanitized = nameWithIndices
     .replace(/[^a-zA-Z0-9-_]+/g, '-')
     .replace(/--+/g, '-')
     .toLowerCase();
