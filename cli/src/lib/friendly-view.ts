@@ -6,7 +6,9 @@ import {
   createManifestService,
   createStorageContext,
   isCanonicalArtifactId,
+  isCanonicalProducerId,
   parseCanonicalArtifactId,
+  parseCanonicalProducerId,
   type BlobRef,
   type Manifest,
 } from '@renku/core';
@@ -173,35 +175,46 @@ function normalizeProducer(producedBy: string | undefined): string {
   if (!producedBy) {
     throw new Error('Artifact missing producedBy information - this is a bug');
   }
-  const parts = producedBy.split(':');
-  const candidate = parts[parts.length - 1] ?? producedBy;
-  return candidate.replace(/[^a-zA-Z0-9-_]+/g, '-').replace(/--+/g, '-').toLowerCase();
+  if (!isCanonicalProducerId(producedBy)) {
+    throw new Error(`Expected canonical Producer ID (Producer:...), got "${producedBy}".`);
+  }
+  const parsed = parseCanonicalProducerId(producedBy);
+  const segments = [...parsed.path, parsed.name].map((segment) => stripDimensionTokens(segment));
+  const normalized = toKebabCase(segments.join('-'));
+  if (!normalized) {
+    throw new Error(`Unable to derive producer folder name from "${producedBy}".`);
+  }
+  return normalized;
 }
 
 function toFriendlyFileName(artefactId: string, mimeType?: string): string {
-  let baseName: string;
-  let indices: number[] = [];
-
   if (isCanonicalArtifactId(artefactId)) {
     const parsed = parseCanonicalArtifactId(artefactId);
-    baseName = parsed.name;
-    indices = parsed.indices;
-  } else {
-    // Fallback for non-canonical IDs (shouldn't happen in normal usage)
-    baseName = artefactId.replace(/^Artifact:/, '').trim();
+    const baseName = toKebabCase(parsed.name);
+    if (!baseName) {
+      throw new Error(`Unable to derive friendly name from artifact id "${artefactId}".`);
+    }
+    const nameWithIndices = parsed.indices.length > 0
+      ? `${baseName}-${parsed.indices.join('-')}`
+      : baseName;
+    const ext = inferExtension(mimeType);
+    return ext ? `${nameWithIndices}.${ext}` : nameWithIndices;
   }
+  throw new Error(`Expected canonical Artifact ID (Artifact:...), got "${artefactId}".`);
+}
 
-  // Build name with indices
-  const nameWithIndices = indices.length > 0
-    ? `${baseName}-${indices.join('-')}`
-    : baseName;
+function stripDimensionTokens(segment: string): string {
+  return segment.replace(/\[[^\]]+\]/g, '');
+}
 
-  const sanitized = nameWithIndices
-    .replace(/[^a-zA-Z0-9-_]+/g, '-')
+function toKebabCase(value: string): string {
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .replace(/[_\s]+/g, '-')
+    .replace(/[^a-zA-Z0-9-]+/g, '-')
     .replace(/--+/g, '-')
+    .replace(/^-+|-+$/g, '')
     .toLowerCase();
-  const ext = inferExtension(mimeType);
-  return ext ? `${sanitized}.${ext}` : sanitized;
 }
 
 function inferExtension(mimeType?: string): string | null {
