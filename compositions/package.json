@@ -29,17 +29,17 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@remotion/bundler": "4.0.375",
-    "@remotion/cli": "4.0.375",
-    "@remotion/renderer": "4.0.375",
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "remotion": "4.0.375",
-    "serve-handler": "^6.1.5"
+    "@remotion/bundler": "4.0.382",
+    "@remotion/cli": "4.0.382",
+    "@remotion/renderer": "4.0.382",
+    "react": "19.2.1",
+    "react-dom": "19.2.1",
+    "remotion": "4.0.382",
+    "serve-handler": "^6.1.6"
   },
   "devDependencies": {
-    "@types/react": "^19.2.2",
-    "@types/react-dom": "^19.2.2",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
     "typescript": "~5.9.3"
   }
 }
