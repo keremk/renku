@@ -44,9 +44,9 @@ describe('planner provider inputs', () => {
 			expect(imageJobs.length).toBeGreaterThan(0);
 			for (const job of imageJobs) {
 				expect(job.inputs).toContain(
-					'Input:ImageProducer.ImageProducer.provider'
+					'Input:ImageProducer.provider'
 				);
-				expect(job.inputs).toContain('Input:ImageProducer.ImageProducer.model');
+				expect(job.inputs).toContain('Input:ImageProducer.model');
 			}
 		} finally {
 			await rm(tempRoot, { recursive: true, force: true });

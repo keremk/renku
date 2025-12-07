@@ -7,6 +7,7 @@ import type {
   BlueprintProducerOutputDefinition,
   BlueprintProducerSdkMappingField,
 } from '@renku/core';
+import { formatCanonicalProducerName } from '@renku/core';
 import type {
   ProviderAttachment,
   ProviderEnvironment,
@@ -60,17 +61,12 @@ function collectProducers(
   allowAmbiguousDefault: boolean,
 ): void {
   for (const producer of node.document.producers) {
-    const namespacedName = formatProducerName(node.namespacePath, producer.name);
-    const selection =
-      selectionMap.get(namespacedName) ??
-      selectionMap.get(producer.name);
+    const namespacedName = formatCanonicalProducerName(node.namespacePath, producer.name);
+    const selection = selectionMap.get(namespacedName);
     const variants = collectVariants(producer);
     const chosen = chooseVariant(namespacedName, variants, selection, allowAmbiguousDefault);
     const option = toLoadedOption(namespacedName, chosen, selection);
     registerProducerOption(map, namespacedName, option);
-    if (namespacedName !== producer.name) {
-      registerProducerOption(map, producer.name, option);
-    }
   }
   for (const child of node.children.values()) {
     collectProducers(child, map, selectionMap, allowAmbiguousDefault);
@@ -127,13 +123,6 @@ function toLoadedOption(
     configInputPaths,
     configDefaults: variant.configDefaults,
   };
-}
-
-function formatProducerName(namespacePath: string[], name: string): string {
-  if (namespacePath.length === 0) {
-    return name;
-  }
-  return `${namespacePath.join('.')}.${name}`;
 }
 
 function buildVariantConfig(variant: ProducerModelVariant): Record<string, unknown> {

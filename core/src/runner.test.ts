@@ -226,7 +226,7 @@ describe('createRunner', () => {
       inputsHash: 'hash',
       output: { blob: aliasBlobRef },
       status: 'succeeded',
-      producedBy: 'Producer:ScriptGeneration.ScriptProducer[segment=0]',
+      producedBy: 'Producer:ScriptGeneration[segment=0]',
       createdAt: new Date().toISOString(),
     };
 

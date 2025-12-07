@@ -42,16 +42,12 @@ export function createProducerGraph(
       .filter((id) => id.startsWith('Artifact:'));
 
     const qualifiedProducerName = node.qualifiedName;
-    const baseProducerName = node.producer?.name ?? node.name;
-    const catalogEntry =
-      resolveCatalogEntry(qualifiedProducerName, catalog)
-      ?? resolveCatalogEntry(baseProducerName, catalog);
+    const canonicalProducerName = qualifiedProducerName;
+    const catalogEntry = resolveCatalogEntry(canonicalProducerName, catalog);
     if (!catalogEntry) {
       throw new Error(`Missing producer catalog entry for ${qualifiedProducerName}`);
     }
-    const option =
-      options.get(qualifiedProducerName) ??
-      options.get(baseProducerName);
+    const option = options.get(canonicalProducerName);
     if (!option) {
       throw new Error(`Missing producer option for ${qualifiedProducerName}`);
     }
@@ -118,7 +114,7 @@ export function createProducerGraph(
     };
     nodes.push({
       jobId: node.id,
-      producer: baseProducerName,
+      producer: canonicalProducerName,
       inputs: allInputs,
       produces: producedArtefacts,
       provider: catalogEntry.provider,
@@ -159,6 +155,5 @@ function resolveCatalogEntry(id: string, catalog: ProducerCatalog) {
   if (catalog[id as keyof ProducerCatalog]) {
     return catalog[id as keyof ProducerCatalog];
   }
-  const baseId = id.includes('.') ? id.split('.').pop() : id;
-  return baseId ? catalog[baseId as keyof ProducerCatalog] : undefined;
+  return undefined;
 }

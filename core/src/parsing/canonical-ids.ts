@@ -10,6 +10,10 @@ export function formatCanonicalInputId(namespacePath: string[], name: string): s
   return `Input:${qualified}`;
 }
 
+export function formatCanonicalProducerName(namespacePath: string[], producerName: string): string {
+  return namespacePath.length > 0 ? namespacePath.join('.') : producerName;
+}
+
 export function isCanonicalInputId(value: string): boolean {
   return typeof value === 'string' && value.startsWith('Input:');
 }
@@ -55,16 +59,12 @@ export function createInputIdResolver(
   const entries = [...collectCanonicalInputs(tree), ...extraEntries];
   const canonicalIds = new Set(entries.map((entry) => entry.canonicalId));
   const qualifiedToCanonical = new Map<string, string>();
-  const baseNameToCanonical = new Map<string, string[]>();
 
   for (const entry of entries) {
     const qualified = entry.namespacePath.length > 0
       ? `${entry.namespacePath.join('.')}.${entry.name}`
       : entry.name;
     qualifiedToCanonical.set(qualified, entry.canonicalId);
-    const list = baseNameToCanonical.get(entry.name) ?? [];
-    list.push(entry.canonicalId);
-    baseNameToCanonical.set(entry.name, list);
   }
 
   const resolve = (key: string): string => {
@@ -82,16 +82,7 @@ export function createInputIdResolver(
     if (qualified) {
       return qualified;
     }
-    const baseMatches = baseNameToCanonical.get(trimmed);
-    if (!baseMatches || baseMatches.length === 0) {
-      throw new Error(`Unknown input "${trimmed}".`);
-    }
-    if (baseMatches.length > 1) {
-      throw new Error(
-        `Input "${trimmed}" is ambiguous. Use a fully-qualified name (e.g., ${baseMatches[0]?.slice('Input:'.length)}).`,
-      );
-    }
-    return baseMatches[0]!;
+    throw new Error(`Unknown input "${trimmed}".`);
   };
 
   return { resolve, entries };
@@ -102,9 +93,7 @@ export function formatProducerScopedInputId(
   producerName: string,
   key: string,
 ): string {
-  const qualifiedProducer = namespacePath.length > 0
-    ? `${namespacePath.join('.')}.${producerName}`
-    : producerName;
+  const qualifiedProducer = formatCanonicalProducerName(namespacePath, producerName);
   return `Input:${qualifiedProducer}.${key}`;
 }
 

@@ -4,6 +4,7 @@ import { parse as parseYaml } from 'yaml';
 import {
   createInputIdResolver,
   type CanonicalInputEntry,
+  formatCanonicalProducerName,
   formatProducerScopedInputId,
 } from './canonical-ids.js';
 import type {
@@ -105,26 +106,19 @@ function canonicalizeInputs(
 
 interface ProducerIndex {
   byQualified: Map<string, { namespacePath: string[]; producerName: string; qualifiedName: string }>;
-  byBase: Map<string, string[]>;
 }
 
 function indexProducers(tree: BlueprintTreeNode): ProducerIndex {
   const byQualified = new Map<string, { namespacePath: string[]; producerName: string; qualifiedName: string }>();
-  const byBase = new Map<string, string[]>();
 
   const visit = (node: BlueprintTreeNode) => {
     for (const producer of node.document.producers) {
-      const qualifiedName = node.namespacePath.length > 0
-        ? `${node.namespacePath.join('.')}.${producer.name}`
-        : producer.name;
+      const qualifiedName = formatCanonicalProducerName(node.namespacePath, producer.name);
       byQualified.set(qualifiedName, {
         namespacePath: node.namespacePath,
         producerName: producer.name,
         qualifiedName,
       });
-      const list = byBase.get(producer.name) ?? [];
-      list.push(qualifiedName);
-      byBase.set(producer.name, list);
     }
     for (const child of node.children.values()) {
       visit(child);
@@ -132,7 +126,7 @@ function indexProducers(tree: BlueprintTreeNode): ProducerIndex {
   };
 
   visit(tree);
-  return { byQualified, byBase };
+  return { byQualified };
 }
 
 function resolveProducerName(
@@ -143,21 +137,7 @@ function resolveProducerName(
   if (direct) {
     return direct;
   }
-  const matches = index.byBase.get(authored) ?? [];
-  if (matches.length === 0) {
-    throw new Error(`Unknown producer "${authored}" in models selection.`);
-  }
-  if (matches.length > 1) {
-    throw new Error(
-      `Producer "${authored}" is ambiguous. Use a fully qualified name (${matches.join(', ')}) in inputs.yaml.`,
-    );
-  }
-  const qualifiedName = matches[0]!;
-  const namespacePath = qualifiedName.includes('.') ? qualifiedName.split('.').slice(0, -1) : [];
-  const producerName = qualifiedName.includes('.')
-    ? qualifiedName.slice(qualifiedName.lastIndexOf('.') + 1)
-    : qualifiedName;
-  return { namespacePath, qualifiedName, producerName };
+  throw new Error(`Unknown producer "${authored}" in models selection.`);
 }
 
 function applyModelSelectionsToInputs(values: Record<string, unknown>, selections: ModelSelection[]): void {

@@ -23,7 +23,7 @@ describe('prepareJobContext', () => {
 
 function createJobDescriptor(): JobDescriptor {
   return {
-    jobId: 'Producer:ImagePromptGenerator.ImagePromptProducer[segment=0]',
+    jobId: 'Producer:ImagePromptGenerator[segment=0]',
     producer: 'ImagePromptProducer',
     inputs: [],
     produces: [],
@@ -33,7 +33,7 @@ function createJobDescriptor(): JobDescriptor {
     context: {
       namespacePath: ['ImagePromptGenerator'],
       indices: {},
-      qualifiedName: 'ImagePromptGenerator.ImagePromptProducer',
+      qualifiedName: 'ImagePromptGenerator',
       inputs: [],
       produces: [],
       inputBindings: {

@@ -29,7 +29,7 @@ describe('input-loader', () => {
     await writeFile(savedPath, stringifyYaml({ inputs: initial.values }), 'utf8');
 
     const reloaded = await loadInputsFromYaml(savedPath, blueprint);
-    expect(reloaded.values['Input:MusicProducer.MusicProducer.force_instrumental']).toBe(true);
+    expect(reloaded.values['Input:MusicProducer.force_instrumental']).toBe(true);
   });
 
   it('rejects unknown inputs with a clear error', async () => {
@@ -68,13 +68,13 @@ describe('input-loader', () => {
           Resolution: '480p',
           SegmentDuration: 10,
           VoiceId: 'Wise_Woman',
-          'Input:AudioProducer.AudioProducer.provider': 'replicate',
-          'Input:AudioProducer.AudioProducer.model': 'elevenlabs/v3',
-          'Input:VideoProducer.VideoProducer.provider': 'replicate',
-          'Input:VideoProducer.VideoProducer.model': 'bytedance/seedance-1-pro-fast',
-          'Input:MusicProducer.MusicProducer.provider': 'replicate',
-          'Input:MusicProducer.MusicProducer.model': 'stability-ai/stable-audio-2.5',
-          'Input:MusicProducer.MusicProducer.force_instrumental': true,
+          'Input:AudioProducer.provider': 'replicate',
+          'Input:AudioProducer.model': 'elevenlabs/v3',
+          'Input:VideoProducer.provider': 'replicate',
+          'Input:VideoProducer.model': 'bytedance/seedance-1-pro-fast',
+          'Input:MusicProducer.provider': 'replicate',
+          'Input:MusicProducer.model': 'stability-ai/stable-audio-2.5',
+          'Input:MusicProducer.force_instrumental': true,
         },
       }),
       'utf8',
@@ -84,6 +84,6 @@ describe('input-loader', () => {
     expect(loaded.modelSelections.find((sel) => sel.producerId.endsWith('MusicProducer'))?.model).toBe(
       'stability-ai/stable-audio-2.5',
     );
-    expect(loaded.values['Input:MusicProducer.MusicProducer.force_instrumental']).toBe(true);
+    expect(loaded.values['Input:MusicProducer.force_instrumental']).toBe(true);
   });
 });

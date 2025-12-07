@@ -24,8 +24,8 @@ describe('parsing/input-loader', () => {
           NumOfSegments: 3,
           InquiryPrompt: 'Test story',
           VoiceId: 'Wise_Woman',
-          'Input:AudioProducer.AudioProducer.provider': 'replicate',
-          'Input:AudioProducer.AudioProducer.model': 'elevenlabs/v3',
+          'Input:AudioProducer.provider': 'replicate',
+          'Input:AudioProducer.model': 'elevenlabs/v3',
         },
       }),
       'utf8',
@@ -35,7 +35,7 @@ describe('parsing/input-loader', () => {
     expect(loaded.modelSelections.find((sel) => sel.producerId.endsWith('AudioProducer'))?.model).toBe(
       'elevenlabs/v3',
     );
-    expect(loaded.values['Input:AudioProducer.AudioProducer.provider']).toBe('replicate');
+    expect(loaded.values['Input:AudioProducer.provider']).toBe('replicate');
   });
 
   it('rejects unknown inputs with a clear error', async () => {

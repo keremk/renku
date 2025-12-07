@@ -50,7 +50,7 @@ describe('integration: canonical inputs persist across query/edit', () => {
 
 		expect(
 			planResult.resolvedInputs[
-				'Input:MusicProducer.MusicProducer.force_instrumental'
+				'Input:MusicProducer.force_instrumental'
 			]
 		).toBe(true);
 
@@ -63,7 +63,7 @@ describe('integration: canonical inputs persist across query/edit', () => {
 		);
 		const reloaded = await loadInputsFromYaml(savedInputsPath, blueprint);
 		expect(
-			reloaded.values['Input:MusicProducer.MusicProducer.force_instrumental']
+			reloaded.values['Input:MusicProducer.force_instrumental']
 		).toBe(true);
 
 		const trimmedPlan = {

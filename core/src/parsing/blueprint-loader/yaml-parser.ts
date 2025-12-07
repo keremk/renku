@@ -86,27 +86,33 @@ export async function parseYamlBlueprintFile(
   let edges = Array.isArray(raw.connections)
     ? raw.connections.map((entry) => parseEdge(entry, loopSymbols))
     : [];
-  let producers: ProducerConfig[] = [];
-  if (Array.isArray(raw.models) && (!Array.isArray(raw.producers) || raw.producers.length === 0)) {
+  const producers: ProducerConfig[] = [];
+  const isProducerBlueprint = modules.length === 0;
+  if (isProducerBlueprint) {
+    if (!Array.isArray(raw.models) || raw.models.length === 0) {
+      throw new Error(`Blueprint YAML at ${filePath} must declare a models array with at least one entry for the producer.`);
+    }
     const modelVariants = await parseModelVariants(raw.models, baseDir, reader);
     const primary = modelVariants[0];
-    producers = [
-      {
-        name: meta.id,
-        provider: primary?.provider,
-        model: primary?.model,
-        models: modelVariants,
-        sdkMapping: primary?.inputs,
-        outputs: primary?.outputs,
-      },
-    ];
+    producers.push({
+      name: meta.id,
+      provider: primary?.provider,
+      model: primary?.model,
+      models: modelVariants,
+      sdkMapping: primary?.inputs,
+      outputs: primary?.outputs,
+      settings: primary?.settings,
+      systemPrompt: primary?.systemPrompt,
+      userPrompt: primary?.userPrompt,
+      textFormat: primary?.textFormat,
+      variables: primary?.variables,
+      config: primary?.config,
+    });
     if (edges.length === 0) {
       edges = inferProducerEdges(inputs, artefacts, meta.id);
     }
-  } else {
-    producers = Array.isArray(raw.producers)
-      ? await parseProducers(raw.producers, baseDir, reader)
-      : [];
+  } else if (Array.isArray(raw.models) && raw.models.length > 0) {
+    throw new Error(`Blueprint YAML at ${filePath} defines modules and models. Only producer leaf blueprints should declare models.`);
   }
   const collectors = Array.isArray(raw.collectors)
     ? parseCollectors(raw.collectors, loopSymbols)
@@ -157,11 +163,6 @@ async function loadNode(
     const subNamespace = [...namespacePath, sub.name];
     const childPath = resolveSubBlueprintPath(absolute, sub);
     const child = await loadNode(childPath, subNamespace, reader, visiting);
-    if (child.id !== sub.name) {
-      throw new Error(
-        `Sub-blueprint id mismatch for ${sub.name}: expected "${sub.name}" but file declared "${child.id}".`,
-      );
-    }
     node.children.set(sub.name, child);
   }
 
@@ -186,7 +187,6 @@ interface RawBlueprint {
   modules?: unknown[];
   connections?: unknown[];
   collectors?: unknown[];
-  producers?: unknown[];
   models?: unknown[];
 }
 
@@ -337,41 +337,6 @@ function parseEdge(raw: unknown, allowedDimensions: Set<string>): BlueprintEdgeD
     to,
     note: typeof edge.note === 'string' ? edge.note : undefined,
   };
-}
-
-async function parseProducers(
-  rawProducers: unknown[],
-  baseDir: string,
-  reader: BlueprintResourceReader,
-): Promise<ProducerConfig[]> {
-  const producers: ProducerConfig[] = [];
-  for (const raw of rawProducers) {
-    if (!raw || typeof raw !== 'object') {
-      throw new Error(`Invalid producer entry: ${JSON.stringify(raw)}`);
-    }
-    const entry = raw as Record<string, unknown>;
-    const name = readString(entry, 'name');
-    const variants = Array.isArray(entry.models)
-      ? await parseModelVariants(entry.models, baseDir, reader)
-      : [await parseModelVariant(entry, baseDir, reader)];
-    const primary = variants[0];
-    const producer: ProducerConfig = {
-      name,
-      provider: primary?.provider,
-      model: primary?.model,
-      models: variants,
-      sdkMapping: primary?.inputs,
-      outputs: primary?.outputs,
-      settings: primary?.settings,
-      systemPrompt: primary?.systemPrompt,
-      userPrompt: primary?.userPrompt,
-      textFormat: primary?.textFormat,
-      variables: primary?.variables,
-      config: primary?.config,
-    };
-    producers.push(producer);
-  }
-  return producers;
 }
 
 async function parseModelVariants(

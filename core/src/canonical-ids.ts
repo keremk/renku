@@ -2,6 +2,7 @@ export {
   collectCanonicalInputs,
   createInputIdResolver,
   formatCanonicalInputId,
+  formatCanonicalProducerName,
   formatProducerScopedInputId,
   formatQualifiedName,
   isCanonicalInputId,

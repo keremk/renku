@@ -54,7 +54,6 @@ import { runViewerStart, runViewerStop, runViewerView } from './commands/viewer.
 import { runBlueprintsValidate } from './commands/blueprints-validate.js';
 import { runMcpServer } from './commands/mcp.js';
 import type { DryRunSummary, DryRunJobSummary } from './lib/dry-run.js';
-import type { BuildSummary } from './lib/build.js';
 import { readCliConfig } from './lib/cli-config.js';
 import {
   getBundledBlueprintsRoot,

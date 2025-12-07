@@ -10,7 +10,11 @@ import type {
   ProducerConfig,
   FanInDescriptor,
 } from '../types.js';
-import { formatCanonicalInputId, formatQualifiedName } from '../parsing/canonical-ids.js';
+import {
+  formatCanonicalInputId,
+  formatCanonicalProducerName,
+  formatQualifiedName,
+} from '../parsing/canonical-ids.js';
 
 export interface CanonicalNodeInstance {
   id: string;
@@ -606,7 +610,9 @@ function mapNodeType(kind: string): CanonicalNodeInstance['type'] {
 }
 
 function formatCanonicalId(node: BlueprintGraphNode, indices: Record<string, number>): string {
-  const baseName = formatQualifiedName(node.namespacePath, node.name);
+  const baseName = node.type === 'Producer'
+    ? formatCanonicalProducerName(node.namespacePath, node.name)
+    : formatQualifiedName(node.namespacePath, node.name);
   const prefix = node.type === 'InputSource'
     ? 'Input'
     : node.type === 'Artifact'
@@ -642,6 +648,9 @@ function getDimensionIndex(node: CanonicalNodeInstance, label: string): number |
 }
 
 function formatQualifiedNameForNode(node: BlueprintGraphNode): string {
+  if (node.type === 'Producer') {
+    return formatCanonicalProducerName(node.namespacePath, node.name);
+  }
   return node.type === 'InputSource'
     ? node.name
     : formatQualifiedName(node.namespacePath, node.name);

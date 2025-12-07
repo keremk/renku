@@ -67,7 +67,7 @@ describe('expandBlueprintGraph', () => {
 
     const producerNodes = canonical.nodes.filter((node) => node.type === 'Producer');
     expect(producerNodes).toHaveLength(1);
-    expect(producerNodes[0]?.id).toMatch(/Producer:ScriptGenerator\.ScriptProducer/);
+    expect(producerNodes[0]?.id).toBe('Producer:ScriptGenerator');
     const producerId = producerNodes[0]?.id ?? '';
     expect(canonical.inputBindings[producerId]?.InquiryPrompt).toBe('Input:InquiryPrompt');
     expect(canonical.inputBindings[producerId]?.NumOfSegments).toBe('Input:NumOfSegments');

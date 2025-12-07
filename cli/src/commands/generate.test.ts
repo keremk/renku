@@ -14,7 +14,6 @@ import { getBundledBlueprintsRoot } from '../lib/config-assets.js';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 const BUNDLED_BLUEPRINT_ROOT = getBundledBlueprintsRoot();
-const CLI_ROOT = resolve(BUNDLED_BLUEPRINT_ROOT, '..', '..');
 const VIDEO_AUDIO_MUSIC_BLUEPRINT_PATH = resolve(
   BUNDLED_BLUEPRINT_ROOT,
   'cut-scene-video',

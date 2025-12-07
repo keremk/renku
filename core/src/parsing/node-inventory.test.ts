@@ -68,7 +68,7 @@ describe('collectNodeInventory', () => {
     expect(inventory.producers).toEqual(
       expect.arrayContaining([
         'Producer:ScriptProducer',
-        'Producer:Video.VideoProducer',
+        'Producer:Video',
       ]),
     );
   });

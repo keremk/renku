@@ -603,3 +603,62 @@ If you encounter issues:
 2. Tag
 3. Push
 4. Done! 🎉
+
+
+# Summary Manual First Publish
+Step 2: Manual First Publish
+
+  # Login to npm
+  npm login
+
+  # Build all packages
+  pnpm install
+  pnpm --filter tutopanda-core build
+  pnpm --filter tutopanda-compositions build
+  pnpm --filter tutopanda-providers build
+  pnpm --filter tutopanda build
+
+  # Publish in order (you'll be prompted for OTP each time)
+  cd core && npm publish --access public && cd ..
+  cd compositions && npm publish --access public && cd ..
+  cd providers && npm publish --access public && cd ..
+  pnpm package:cli
+  npm publish release/tutopanda-*.tgz --access public
+
+  Step 3: Configure Trusted Publishing on npm
+
+  For each of the 4 packages, go to the package settings and add GitHub Actions as publisher:
+
+  1. https://www.npmjs.com/package/tutopanda-core/access
+  2. https://www.npmjs.com/package/tutopanda-compositions/access
+  3. https://www.npmjs.com/package/tutopanda-providers/access
+  4. https://www.npmjs.com/package/tutopanda/access
+
+  For each:
+  - Click "Add GitHub Actions"
+  - Repository: keremk/tutopanda (or your username)
+  - Workflow: .github/workflows/publish-packages.yml
+  - Environment: Leave blank
+
+  Step 4: Test the Workflow
+
+  # Go to GitHub → Actions → "Publish Tutopanda Packages"
+  # Click "Run workflow"
+  # Set dry_run = true
+  # This tests everything without actually publishing
+
+  Step 5: Future Releases (Automated!)
+
+  # Bump versions
+  cd core && npm version patch && cd ..
+  cd compositions && npm version patch && cd ..
+  cd providers && npm version patch && cd ..
+  cd cli && npm version patch && cd ..
+
+  # Commit and tag
+  git add */package.json
+  git commit -m "release: 1.0.1"
+  git tag cli-v1.0.1
+
+  # Push (GitHub Actions does the rest!)
+  git push origin main cli-v1.0.1

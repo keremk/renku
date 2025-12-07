@@ -28,7 +28,7 @@ function buildProducerGraph(): ProducerGraph {
       provider: 'openai',
       providerModel: 'openai/GPT-5',
       rateKey: 'llm:script',
-      context: { namespacePath: [], indices: {}, qualifiedName: 'Producer:ScriptProducer', inputs: [], produces: [] },
+      context: { namespacePath: [], indices: {}, qualifiedName: 'ScriptProducer', inputs: [], produces: [] },
     },
     {
       jobId: 'Producer:AudioProducer[0]',
@@ -38,7 +38,7 @@ function buildProducerGraph(): ProducerGraph {
       provider: 'replicate',
       providerModel: 'elevenlabs/turbo-v2.5',
       rateKey: 'audio:elevenlabs-turbo',
-      context: { namespacePath: [], indices: {}, qualifiedName: 'Producer:AudioProducer[0]', inputs: [], produces: [] },
+      context: { namespacePath: [], indices: {}, qualifiedName: 'AudioProducer', inputs: [], produces: [] },
     },
     {
       jobId: 'Producer:AudioProducer[1]',
@@ -48,7 +48,7 @@ function buildProducerGraph(): ProducerGraph {
       provider: 'replicate',
       providerModel: 'elevenlabs/turbo-v2.5',
       rateKey: 'audio:elevenlabs-turbo',
-      context: { namespacePath: [], indices: {}, qualifiedName: 'Producer:AudioProducer[1]', inputs: [], produces: [] },
+      context: { namespacePath: [], indices: {}, qualifiedName: 'AudioProducer', inputs: [], produces: [] },
     },
     {
       jobId: 'Producer:TimelineAssembler',
@@ -58,7 +58,7 @@ function buildProducerGraph(): ProducerGraph {
       provider: 'internal',
       providerModel: 'workflow/timeline-assembler',
       rateKey: 'internal:timeline',
-      context: { namespacePath: [], indices: {}, qualifiedName: 'Producer:TimelineAssembler', inputs: [], produces: [] },
+      context: { namespacePath: [], indices: {}, qualifiedName: 'TimelineAssembler', inputs: [], produces: [] },
     },
   ];
 
@@ -386,7 +386,7 @@ describe('planner', () => {
         {
           jobId: 'Producer:A',
           producer: 'ProducerA',
-          inputs: ['Input:Prompt', 'Input:ProducerA.ProducerA.model'],
+          inputs: ['Input:Prompt', 'Input:ProducerA.model'],
           produces: ['Artifact:A'],
           provider: 'provider-a',
           providerModel: 'model-a',
@@ -396,7 +396,7 @@ describe('planner', () => {
         {
           jobId: 'Producer:B',
           producer: 'ProducerB',
-          inputs: ['Artifact:A', 'Input:ProducerB.ProducerB.volume'],
+          inputs: ['Artifact:A', 'Input:ProducerB.volume'],
           produces: ['Artifact:B'],
           provider: 'provider-b',
           providerModel: 'model-b',
@@ -412,8 +412,8 @@ describe('planner', () => {
     const baselineInputs = createInputEvents(
       {
         'Input:Prompt': 'hello',
-        'Input:ProducerA.ProducerA.model': 'model-a',
-        'Input:ProducerB.ProducerB.volume': 0.5,
+        'Input:ProducerA.model': 'model-a',
+        'Input:ProducerB.volume': 0.5,
       },
       'rev-0001',
     );
@@ -472,7 +472,7 @@ describe('planner', () => {
     };
 
     const pending = createInputEvents(
-      { 'Input:ProducerA.ProducerA.model': 'model-a-v2' },
+      { 'Input:ProducerA.model': 'model-a-v2' },
       'rev-0002' as RevisionId,
     );
 
@@ -513,7 +513,7 @@ describe('planner', () => {
         {
           jobId: 'Producer:B',
           producer: 'ProducerB',
-          inputs: ['Artifact:A', 'Input:ProducerB.ProducerB.volume'],
+          inputs: ['Artifact:A', 'Input:ProducerB.volume'],
           produces: ['Artifact:B'],
           provider: 'provider-b',
           providerModel: 'model-b',
@@ -529,7 +529,7 @@ describe('planner', () => {
     const baselineInputs = createInputEvents(
       {
         'Input:Prompt': 'hello',
-        'Input:ProducerB.ProducerB.volume': 0.5,
+        'Input:ProducerB.volume': 0.5,
       },
       'rev-0001',
     );
@@ -588,7 +588,7 @@ describe('planner', () => {
     };
 
     const pending = createInputEvents(
-      { 'Input:ProducerB.ProducerB.volume': 0.7 },
+      { 'Input:ProducerB.volume': 0.7 },
       'rev-0002' as RevisionId,
     );
 
