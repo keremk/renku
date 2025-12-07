@@ -1,4 +1,4 @@
-import { formatCanonicalInputId, formatCanonicalProducerName, formatQualifiedName } from './canonical-ids.js';
+import { formatCanonicalInputId, formatCanonicalArtifactId, formatCanonicalProducerId } from './canonical-ids.js';
 import type { BlueprintTreeNode } from '../types.js';
 
 export interface ParsedNodeInventory {
@@ -21,10 +21,10 @@ export function collectNodeInventory(root: BlueprintTreeNode): ParsedNodeInvento
       inputs.push(formatCanonicalInputId(node.namespacePath, input.name));
     }
     for (const artefact of node.document.artefacts) {
-      artefacts.push(`Artifact:${formatQualifiedName(node.namespacePath, artefact.name)}`);
+      artefacts.push(formatCanonicalArtifactId(node.namespacePath, artefact.name));
     }
     for (const producer of node.document.producers) {
-      producers.push(`Producer:${formatCanonicalProducerName(node.namespacePath, producer.name)}`);
+      producers.push(formatCanonicalProducerId(node.namespacePath, producer.name));
     }
     for (const child of node.children.values()) {
       visit(child);

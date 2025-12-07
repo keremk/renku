@@ -11,9 +11,10 @@ import type {
   FanInDescriptor,
 } from '../types.js';
 import {
-  formatCanonicalInputId,
   formatCanonicalProducerName,
-  formatQualifiedName,
+  formatCanonicalProducerId,
+  formatCanonicalInputId,
+  formatCanonicalArtifactId,
 } from '../parsing/canonical-ids.js';
 
 export interface CanonicalNodeInstance {
@@ -104,7 +105,7 @@ function resolveDimensionSizes(
     }
     if (node.dimensions.length === 0) {
       throw new Error(
-        `Artefact "${formatQualifiedName(node.namespacePath, node.name)}" declares countInput but has no dimensions.`,
+        `Artefact "${[...node.namespacePath, node.name].join('.')}" declares countInput but has no dimensions.`,
       );
     }
     const symbol = node.dimensions[node.dimensions.length - 1];
@@ -257,7 +258,7 @@ function expandNodeInstances(
   const tuples = buildIndexTuples(dimensionSymbols, dimensionSizes);
 
   return tuples.map((indices) => ({
-    id: formatCanonicalId(node, indices),
+    id: formatCanonicalNodeId(node, indices),
     type: mapNodeType(node.type),
     qualifiedName: formatQualifiedNameForNode(node),
     namespacePath: node.namespacePath,
@@ -609,22 +610,19 @@ function mapNodeType(kind: string): CanonicalNodeInstance['type'] {
   }
 }
 
-function formatCanonicalId(node: BlueprintGraphNode, indices: Record<string, number>): string {
-  const baseName = node.type === 'Producer'
-    ? formatCanonicalProducerName(node.namespacePath, node.name)
-    : formatQualifiedName(node.namespacePath, node.name);
-  const prefix = node.type === 'InputSource'
-    ? 'Input'
+function formatCanonicalNodeId(node: BlueprintGraphNode, indices: Record<string, number>): string {
+  const baseId = node.type === 'InputSource'
+    ? formatCanonicalInputId(node.namespacePath, node.name)
     : node.type === 'Artifact'
-      ? 'Artifact'
-      : 'Producer';
+      ? formatCanonicalArtifactId(node.namespacePath, node.name)
+      : formatCanonicalProducerId(node.namespacePath, node.name);
   const suffix = node.dimensions.map((symbol) => {
     if (!(symbol in indices)) {
-      throw new Error(`Missing index value for dimension "${symbol}" on node ${baseName}`);
+      throw new Error(`Missing index value for dimension "${symbol}" on node ${baseId}`);
     }
     return `[${indices[symbol]}]`;
   }).join('');
-  return `${prefix}:${baseName}${suffix}`;
+  return `${baseId}${suffix}`;
 }
 
 
@@ -653,7 +651,7 @@ function formatQualifiedNameForNode(node: BlueprintGraphNode): string {
   }
   return node.type === 'InputSource'
     ? node.name
-    : formatQualifiedName(node.namespacePath, node.name);
+    : [...node.namespacePath, node.name].join('.');
 }
 
 function extractDimensionLabel(symbol: string): string {

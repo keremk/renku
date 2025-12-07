@@ -1,0 +1,7 @@
+{
+  "storage": {
+    "root": "/tmp/renku-init-fqvm8N",
+    "basePath": "builds"
+  },
+  "concurrency": 1
+}

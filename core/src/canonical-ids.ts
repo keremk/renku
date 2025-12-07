@@ -2,10 +2,12 @@ export {
   collectCanonicalInputs,
   createInputIdResolver,
   formatCanonicalInputId,
+  formatCanonicalArtifactId,
   formatCanonicalProducerName,
+  formatCanonicalProducerId,
   formatProducerScopedInputId,
-  formatQualifiedName,
   isCanonicalInputId,
+  isCanonicalArtifactId,
   parseQualifiedProducerName,
 } from './parsing/canonical-ids.js';
 export type {

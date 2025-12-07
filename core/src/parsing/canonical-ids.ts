@@ -5,17 +5,35 @@ import type { BlueprintInputDefinition, BlueprintTreeNode } from '../types.js';
  * allowed to mint new canonical identifiers. Other stages should consume
  * IDs produced here rather than inventing their own.
  */
-export function formatCanonicalInputId(namespacePath: string[], name: string): string {
-  const qualified = namespacePath.length > 0 ? `${namespacePath.join('.')}.${name}` : name;
-  return `Input:${qualified}`;
+function formatCanonicalId(kind: 'Input' | 'Artifact' | 'Producer', segments: string[]): string {
+  if (!Array.isArray(segments) || segments.length === 0) {
+    throw new Error('Canonical id segments must be a non-empty array.');
+  }
+  return `${kind}:${segments.join('.')}`;
 }
 
-export function formatCanonicalProducerName(namespacePath: string[], producerName: string): string {
-  return namespacePath.length > 0 ? namespacePath.join('.') : producerName;
+export function formatCanonicalProducerName(namespacePath: string[], producerAlias: string): string {
+  return namespacePath.length > 0 ? namespacePath.join('.') : producerAlias;
+}
+
+export function formatCanonicalProducerId(namespacePath: string[], producerAlias: string): string {
+  return formatCanonicalId('Producer', formatCanonicalProducerName(namespacePath, producerAlias).split('.'));
+}
+
+export function formatCanonicalInputId(namespacePath: string[], name: string): string {
+  return formatCanonicalId('Input', joinSegments(namespacePath, name));
+}
+
+export function formatCanonicalArtifactId(namespacePath: string[], name: string): string {
+  return formatCanonicalId('Artifact', joinSegments(namespacePath, name));
 }
 
 export function isCanonicalInputId(value: string): boolean {
   return typeof value === 'string' && value.startsWith('Input:');
+}
+
+export function isCanonicalArtifactId(value: string): boolean {
+  return typeof value === 'string' && value.startsWith('Artifact:');
 }
 
 export interface CanonicalInputEntry {
@@ -48,10 +66,6 @@ export interface InputIdResolver {
   entries: CanonicalInputEntry[];
 }
 
-export function formatQualifiedName(namespacePath: string[], name: string): string {
-  return namespacePath.length > 0 ? `${namespacePath.join('.')}.${name}` : name;
-}
-
 export function createInputIdResolver(
   tree: BlueprintTreeNode,
   extraEntries: CanonicalInputEntry[] = [],
@@ -61,10 +75,8 @@ export function createInputIdResolver(
   const qualifiedToCanonical = new Map<string, string>();
 
   for (const entry of entries) {
-    const qualified = entry.namespacePath.length > 0
-      ? `${entry.namespacePath.join('.')}.${entry.name}`
-      : entry.name;
-    qualifiedToCanonical.set(qualified, entry.canonicalId);
+    const qualifiedSegments = joinSegments(entry.namespacePath, entry.name).join('.');
+    qualifiedToCanonical.set(qualifiedSegments, entry.canonicalId);
   }
 
   const resolve = (key: string): string => {
@@ -93,8 +105,8 @@ export function formatProducerScopedInputId(
   producerName: string,
   key: string,
 ): string {
-  const qualifiedProducer = formatCanonicalProducerName(namespacePath, producerName);
-  return `Input:${qualifiedProducer}.${key}`;
+  const producerSegments = formatCanonicalProducerName(namespacePath, producerName).split('.');
+  return formatCanonicalId('Input', [...producerSegments, key]);
 }
 
 export function parseQualifiedProducerName(name: string): { namespacePath: string[]; producerName: string } {
@@ -105,4 +117,8 @@ export function parseQualifiedProducerName(name: string): { namespacePath: strin
   const producerName = segments[segments.length - 1]!;
   const namespacePath = segments.slice(0, -1);
   return { namespacePath, producerName };
+}
+
+function joinSegments(namespacePath: string[], ...rest: string[]): string[] {
+  return [...namespacePath, ...rest].filter((segment) => segment.length > 0);
 }
