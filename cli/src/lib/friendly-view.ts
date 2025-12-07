@@ -171,7 +171,7 @@ async function collectFriendlyContext(args: {
 
 function normalizeProducer(producedBy: string | undefined): string {
   if (!producedBy) {
-    return 'unknown-producer';
+    throw new Error('Artifact missing producedBy information - this is a bug');
   }
   const parts = producedBy.split(':');
   const candidate = parts[parts.length - 1] ?? producedBy;

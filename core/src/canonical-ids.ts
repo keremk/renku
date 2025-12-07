@@ -15,8 +15,9 @@ export {
   assertCanonicalProducerId,
   assertCanonicalId,
   // Formatters
-  formatProducerPath,
-  formatCanonicalProducerName, // deprecated, use formatProducerPath
+  formatProducerAlias,
+  formatProducerPath, // deprecated, use formatProducerAlias
+  formatCanonicalProducerName, // deprecated, use formatProducerAlias
   formatCanonicalInputId,
   formatCanonicalArtifactId,
   formatCanonicalProducerId,

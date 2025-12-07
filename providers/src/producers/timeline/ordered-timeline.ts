@@ -402,7 +402,7 @@ function buildClipsFromShorthand(source: Record<string, unknown>): TimelineClipC
 }
 
 function readConfigOverrides(inputs: ResolvedInputsAccessor, request: ProviderJobContext): Record<string, unknown> {
-  const qualifiedProducer = readQualifiedProducerName(request);
+  const qualifiedProducer = readProducerAlias(request);
   if (!qualifiedProducer) {
     return {};
   }
@@ -418,7 +418,7 @@ function readConfigOverrides(inputs: ResolvedInputsAccessor, request: ProviderJo
   return overrides;
 }
 
-function readQualifiedProducerName(request: ProviderJobContext): string | undefined {
+function readProducerAlias(request: ProviderJobContext): string | undefined {
   const extras = request.context.extras;
   if (!extras || typeof extras !== 'object') {
     return undefined;
@@ -427,8 +427,8 @@ function readQualifiedProducerName(request: ProviderJobContext): string | undefi
   if (!jobContext || typeof jobContext !== 'object') {
     return undefined;
   }
-  const qualifiedName = (jobContext as Record<string, unknown>).qualifiedName;
-  return typeof qualifiedName === 'string' ? qualifiedName : undefined;
+  const producerAlias = (jobContext as Record<string, unknown>).producerAlias;
+  return typeof producerAlias === 'string' ? producerAlias : undefined;
 }
 
 function assignPath(target: Record<string, unknown>, path: string, value: unknown): void {

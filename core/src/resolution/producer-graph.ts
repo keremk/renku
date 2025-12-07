@@ -41,18 +41,17 @@ export function createProducerGraph(
       .map((edge) => edge.to)
       .filter((id) => isCanonicalArtifactId(id));
 
-    const qualifiedProducerName = node.qualifiedName;
-    const canonicalProducerName = qualifiedProducerName;
-    const catalogEntry = resolveCatalogEntry(canonicalProducerName, catalog);
+    const producerAlias = node.producerAlias;
+    const catalogEntry = resolveCatalogEntry(producerAlias, catalog);
     if (!catalogEntry) {
-      throw new Error(`Missing producer catalog entry for ${qualifiedProducerName}`);
+      throw new Error(`Missing producer catalog entry for ${producerAlias}`);
     }
-    const option = options.get(canonicalProducerName);
+    const option = options.get(producerAlias);
     if (!option) {
-      throw new Error(`Missing producer option for ${qualifiedProducerName}`);
+      throw new Error(`Missing producer option for ${producerAlias}`);
     }
     const { namespacePath: producerNamespace, producerName: resolvedProducerName } = parseQualifiedProducerName(
-      qualifiedProducerName,
+      producerAlias,
     );
     const selectionInputs = option.selectionInputKeys ?? [];
     const configInputs = option.configInputPaths ?? [];
@@ -98,7 +97,7 @@ export function createProducerGraph(
     const nodeContext = {
       namespacePath: node.namespacePath,
       indices: node.indices,
-      qualifiedName: qualifiedProducerName,
+      producerAlias: producerAlias,
       inputs: allInputs,
       produces: producedArtefacts,
       inputBindings: inputBindings && Object.keys(inputBindings).length > 0 ? inputBindings : undefined,
@@ -114,7 +113,7 @@ export function createProducerGraph(
     };
     nodes.push({
       jobId: node.id,
-      producer: canonicalProducerName,
+      producer: producerAlias,
       inputs: allInputs,
       produces: producedArtefacts,
       provider: catalogEntry.provider,

@@ -28,7 +28,7 @@ function buildProducerGraph(): ProducerGraph {
       provider: 'openai',
       providerModel: 'openai/GPT-5',
       rateKey: 'llm:script',
-      context: { namespacePath: [], indices: {}, qualifiedName: 'ScriptProducer', inputs: [], produces: [] },
+      context: { namespacePath: [], indices: {}, producerAlias: 'ScriptProducer', inputs: [], produces: [] },
     },
     {
       jobId: 'Producer:AudioProducer[0]',
@@ -38,7 +38,7 @@ function buildProducerGraph(): ProducerGraph {
       provider: 'replicate',
       providerModel: 'elevenlabs/turbo-v2.5',
       rateKey: 'audio:elevenlabs-turbo',
-      context: { namespacePath: [], indices: {}, qualifiedName: 'AudioProducer', inputs: [], produces: [] },
+      context: { namespacePath: [], indices: {}, producerAlias: 'AudioProducer', inputs: [], produces: [] },
     },
     {
       jobId: 'Producer:AudioProducer[1]',
@@ -48,7 +48,7 @@ function buildProducerGraph(): ProducerGraph {
       provider: 'replicate',
       providerModel: 'elevenlabs/turbo-v2.5',
       rateKey: 'audio:elevenlabs-turbo',
-      context: { namespacePath: [], indices: {}, qualifiedName: 'AudioProducer', inputs: [], produces: [] },
+      context: { namespacePath: [], indices: {}, producerAlias: 'AudioProducer', inputs: [], produces: [] },
     },
     {
       jobId: 'Producer:TimelineAssembler',
@@ -58,7 +58,7 @@ function buildProducerGraph(): ProducerGraph {
       provider: 'internal',
       providerModel: 'workflow/timeline-assembler',
       rateKey: 'internal:timeline',
-      context: { namespacePath: [], indices: {}, qualifiedName: 'TimelineAssembler', inputs: [], produces: [] },
+      context: { namespacePath: [], indices: {}, producerAlias: 'TimelineAssembler', inputs: [], produces: [] },
     },
   ];
 
@@ -391,7 +391,7 @@ describe('planner', () => {
           provider: 'provider-a',
           providerModel: 'model-a',
           rateKey: 'rk:a',
-          context: { namespacePath: [], indices: {}, qualifiedName: 'ProducerA', inputs: [], produces: [] },
+          context: { namespacePath: [], indices: {}, producerAlias: 'ProducerA', inputs: [], produces: [] },
         },
         {
           jobId: 'Producer:B',
@@ -401,7 +401,7 @@ describe('planner', () => {
           provider: 'provider-b',
           providerModel: 'model-b',
           rateKey: 'rk:b',
-          context: { namespacePath: [], indices: {}, qualifiedName: 'ProducerB', inputs: [], produces: [] },
+          context: { namespacePath: [], indices: {}, producerAlias: 'ProducerB', inputs: [], produces: [] },
         },
       ],
       edges: [
@@ -508,7 +508,7 @@ describe('planner', () => {
           provider: 'provider-a',
           providerModel: 'model-a',
           rateKey: 'rk:a',
-          context: { namespacePath: [], indices: {}, qualifiedName: 'ProducerA', inputs: [], produces: [] },
+          context: { namespacePath: [], indices: {}, producerAlias: 'ProducerA', inputs: [], produces: [] },
         },
         {
           jobId: 'Producer:B',
@@ -518,7 +518,7 @@ describe('planner', () => {
           provider: 'provider-b',
           providerModel: 'model-b',
           rateKey: 'rk:b',
-          context: { namespacePath: [], indices: {}, qualifiedName: 'ProducerB', inputs: [], produces: [] },
+          context: { namespacePath: [], indices: {}, producerAlias: 'ProducerB', inputs: [], produces: [] },
         },
       ],
       edges: [
@@ -625,7 +625,7 @@ describe('planner', () => {
           provider: 'internal',
           providerModel: 'mock/ProducerA',
           rateKey: 'internal:a',
-          context: { namespacePath: [], indices: {}, qualifiedName: 'Producer:A', inputs: [], produces: [] },
+          context: { namespacePath: [], indices: {}, producerAlias: 'Producer:A', inputs: [], produces: [] },
         },
         {
           jobId: 'Producer:B',
@@ -635,7 +635,7 @@ describe('planner', () => {
           provider: 'internal',
           providerModel: 'mock/ProducerB',
           rateKey: 'internal:b',
-          context: { namespacePath: [], indices: {}, qualifiedName: 'Producer:B', inputs: [], produces: [] },
+          context: { namespacePath: [], indices: {}, producerAlias: 'Producer:B', inputs: [], produces: [] },
         },
       ],
       edges: [

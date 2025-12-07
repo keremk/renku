@@ -358,7 +358,7 @@ function buildContextExtras(
     ? {
         index: jobContext.indices,
         namespacePath: jobContext.namespacePath,
-        qualifiedName: jobContext.qualifiedName,
+        producerAlias: jobContext.producerAlias,
       }
     : undefined;
 

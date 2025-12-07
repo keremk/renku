@@ -12,7 +12,9 @@
       "Bash(find:*)",
       "Bash(grep:*)",
       "Bash(pnpm test:*)",
-      "Bash(pnpm build:core:*)"
+      "Bash(pnpm build:core:*)",
+      "Bash(pnpm --filter @renku/providers run type-check:*)",
+      "Bash(pnpm test:core:*)"
     ],
     "deny": [],
     "ask": []

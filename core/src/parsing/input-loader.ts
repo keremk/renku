@@ -4,7 +4,7 @@ import { parse as parseYaml } from 'yaml';
 import {
   createInputIdResolver,
   type CanonicalInputEntry,
-  formatCanonicalProducerName,
+  formatProducerAlias,
   formatProducerScopedInputId,
   isCanonicalInputId,
   parseQualifiedProducerName,
@@ -108,19 +108,19 @@ function canonicalizeInputs(
 }
 
 interface ProducerIndex {
-  byQualified: Map<string, { namespacePath: string[]; producerName: string; qualifiedName: string }>;
+  byAlias: Map<string, { namespacePath: string[]; producerName: string; producerAlias: string }>;
 }
 
 function indexProducers(tree: BlueprintTreeNode): ProducerIndex {
-  const byQualified = new Map<string, { namespacePath: string[]; producerName: string; qualifiedName: string }>();
+  const byAlias = new Map<string, { namespacePath: string[]; producerName: string; producerAlias: string }>();
 
   const visit = (node: BlueprintTreeNode) => {
     for (const producer of node.document.producers) {
-      const qualifiedName = formatCanonicalProducerName(node.namespacePath, producer.name);
-      byQualified.set(qualifiedName, {
+      const producerAlias = formatProducerAlias(node.namespacePath, producer.name);
+      byAlias.set(producerAlias, {
         namespacePath: node.namespacePath,
         producerName: producer.name,
-        qualifiedName,
+        producerAlias,
       });
     }
     for (const child of node.children.values()) {
@@ -129,14 +129,14 @@ function indexProducers(tree: BlueprintTreeNode): ProducerIndex {
   };
 
   visit(tree);
-  return { byQualified };
+  return { byAlias };
 }
 
 function resolveProducerName(
   authored: string,
   index: ProducerIndex,
-): { namespacePath: string[]; qualifiedName: string; producerName: string } {
-  const direct = index.byQualified.get(authored);
+): { namespacePath: string[]; producerAlias: string; producerName: string } {
+  const direct = index.byAlias.get(authored);
   if (direct) {
     return direct;
   }
@@ -274,8 +274,8 @@ function resolveModelSelections(
       const config =
         record.config && typeof record.config === 'object' ? (record.config as Record<string, unknown>) : undefined;
       const resolved = resolveProducerName(producerId, index);
-      selections.set(resolved.qualifiedName, {
-        producerId: resolved.qualifiedName,
+      selections.set(resolved.producerAlias, {
+        producerId: resolved.producerAlias,
         provider,
         model,
         config,
@@ -353,12 +353,12 @@ function matchProducerScopedKey(
   body: string,
   index: ProducerIndex,
 ): { producerId: string; namespacePath: string[]; keyPath: string } | null {
-  for (const [qualified, entry] of index.byQualified) {
-    if (body.startsWith(`${qualified}.`)) {
+  for (const [alias, entry] of index.byAlias) {
+    if (body.startsWith(`${alias}.`)) {
       return {
-        producerId: qualified,
+        producerId: alias,
         namespacePath: entry.namespacePath,
-        keyPath: body.slice(qualified.length + 1),
+        keyPath: body.slice(alias.length + 1),
       };
     }
   }

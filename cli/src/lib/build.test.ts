@@ -82,7 +82,7 @@ describe('createProviderProduce', () => {
 			context: {
 				namespacePath: ['ImagePromptGenerator'],
 				indices: {},
-				qualifiedName: 'ImagePromptGenerator.ImagePromptProducer',
+				producerAlias: 'ImagePromptGenerator.ImagePromptProducer',
 				inputs: ['Input:ImagePromptGenerator.NumOfImagesPerNarrative'],
 				produces: [
 					'Artifact:ImagePromptGenerator.ImagePrompt[segment=0][image=0]',

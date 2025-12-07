@@ -17,7 +17,7 @@ function createTree(): BlueprintTreeNode {
       producers: [
         { name: 'VideoProducer', provider: 'replicate', model: 'bytedance/seedance' },
       ],
-      subBlueprints: [],
+      producerImports: [],
       edges: [],
     },
     children: new Map(),
@@ -38,7 +38,7 @@ function createTree(): BlueprintTreeNode {
       producers: [
         { name: 'ScriptProducer', provider: 'openai', model: 'gpt-5-mini' },
       ],
-      subBlueprints: [{ name: 'Video' }],
+      producerImports: [{ name: 'Video' }],
       edges: [],
     },
     children: new Map([['Video', child]]),

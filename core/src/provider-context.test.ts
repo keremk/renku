@@ -33,7 +33,7 @@ function createJobDescriptor(): JobDescriptor {
     context: {
       namespacePath: ['ImagePromptGenerator'],
       indices: {},
-      qualifiedName: 'ImagePromptGenerator',
+      producerAlias: 'ImagePromptGenerator',
       inputs: [],
       produces: [],
       inputBindings: {

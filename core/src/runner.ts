@@ -528,7 +528,7 @@ function mergeResolvedArtifacts(
   const jobContext: ProducerJobContext = job.context ?? {
     namespacePath: [],
     indices: {},
-    qualifiedName: typeof job.producer === 'string' ? job.producer : job.jobId,
+    producerAlias: typeof job.producer === 'string' ? job.producer : job.jobId,
     inputs: job.inputs,
     produces: job.produces,
   };

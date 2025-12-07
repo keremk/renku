@@ -304,7 +304,8 @@ export interface FanInMember {
 export interface ProducerJobContext {
   namespacePath: string[];
   indices: Record<string, number>;
-  qualifiedName: string;
+  /** The producer alias - the reference name used in blueprint connections */
+  producerAlias: string;
   inputs: Id[];
   produces: Id[];
   inputBindings?: Record<string, Id>;

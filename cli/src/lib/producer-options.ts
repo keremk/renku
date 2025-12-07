@@ -7,7 +7,7 @@ import type {
   BlueprintProducerOutputDefinition,
   BlueprintProducerSdkMappingField,
 } from '@renku/core';
-import { formatCanonicalProducerName } from '@renku/core';
+import { formatProducerAlias } from '@renku/core';
 import type {
   ProviderAttachment,
   ProviderEnvironment,
@@ -61,7 +61,7 @@ function collectProducers(
   allowAmbiguousDefault: boolean,
 ): void {
   for (const producer of node.document.producers) {
-    const namespacedName = formatCanonicalProducerName(node.namespacePath, producer.name);
+    const namespacedName = formatProducerAlias(node.namespacePath, producer.name);
     const selection = selectionMap.get(namespacedName);
     const variants = collectVariants(producer);
     const chosen = chooseVariant(namespacedName, variants, selection, allowAmbiguousDefault);

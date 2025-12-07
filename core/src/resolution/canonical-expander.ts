@@ -11,7 +11,7 @@ import type {
   FanInDescriptor,
 } from '../types.js';
 import {
-  formatCanonicalProducerName,
+  formatProducerAlias,
   formatCanonicalProducerId,
   formatCanonicalInputId,
   formatCanonicalArtifactId,
@@ -21,7 +21,8 @@ import {
 export interface CanonicalNodeInstance {
   id: string;
   type: 'Input' | 'Artifact' | 'Producer';
-  qualifiedName: string;
+  /** The producer alias - the reference name used in blueprint connections */
+  producerAlias: string;
   namespacePath: string[];
   name: string;
   indices: Record<string, number>;
@@ -261,7 +262,7 @@ function expandNodeInstances(
   return tuples.map((indices) => ({
     id: formatCanonicalNodeId(node, indices),
     type: mapNodeType(node.type),
-    qualifiedName: formatQualifiedNameForNode(node),
+    producerAlias: formatProducerAliasForNode(node),
     namespacePath: node.namespacePath,
     name: node.name,
     indices,
@@ -646,9 +647,9 @@ function getDimensionIndex(node: CanonicalNodeInstance, label: string): number |
   return undefined;
 }
 
-function formatQualifiedNameForNode(node: BlueprintGraphNode): string {
+function formatProducerAliasForNode(node: BlueprintGraphNode): string {
   if (node.type === 'Producer') {
-    return formatCanonicalProducerName(node.namespacePath, node.name);
+    return formatProducerAlias(node.namespacePath, node.name);
   }
   return node.type === 'InputSource'
     ? node.name

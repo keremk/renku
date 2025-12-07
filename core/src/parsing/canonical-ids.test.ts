@@ -16,7 +16,7 @@ import {
   assertCanonicalProducerId,
   assertCanonicalId,
   // Formatters
-  formatProducerPath,
+  formatProducerAlias,
   formatCanonicalInputId,
   formatCanonicalArtifactId,
   formatCanonicalProducerId,
@@ -233,17 +233,17 @@ describe('Assertions', () => {
 });
 
 describe('Formatters', () => {
-  describe('formatProducerPath', () => {
+  describe('formatProducerAlias', () => {
     it('returns producerName when aliasPath is empty', () => {
-      expect(formatProducerPath([], 'ScriptProducer')).toBe('ScriptProducer');
+      expect(formatProducerAlias([], 'ScriptProducer')).toBe('ScriptProducer');
     });
 
     it('returns aliasPath when non-empty (alias takes precedence)', () => {
-      expect(formatProducerPath(['MyAlias'], 'InternalName')).toBe('MyAlias');
+      expect(formatProducerAlias(['MyAlias'], 'InternalName')).toBe('MyAlias');
     });
 
     it('joins multi-segment aliasPath', () => {
-      expect(formatProducerPath(['Level1', 'Level2'], 'Name')).toBe('Level1.Level2');
+      expect(formatProducerAlias(['Level1', 'Level2'], 'Name')).toBe('Level1.Level2');
     });
   });
 
@@ -447,6 +447,97 @@ describe('InputIdResolver', () => {
       expect(ids).toContain('Input:Topic');
       expect(ids).toContain('Input:Count');
       expect(ids).toContain('Input:ChildProducer.Prompt');
+    });
+  });
+});
+
+describe('Edge cases', () => {
+  describe('formatProducerAlias edge cases', () => {
+    it('handles empty aliasPath (uses producerName)', () => {
+      expect(formatProducerAlias([], 'MyProducer')).toBe('MyProducer');
+    });
+
+    it('handles single segment aliasPath', () => {
+      expect(formatProducerAlias(['SingleAlias'], 'InternalName')).toBe('SingleAlias');
+    });
+
+    it('handles maximum depth aliasPath', () => {
+      const deepPath = ['Level1', 'Level2', 'Level3', 'Level4', 'Level5'];
+      expect(formatProducerAlias(deepPath, 'DeepName')).toBe('Level1.Level2.Level3.Level4.Level5');
+    });
+  });
+
+  describe('Producer-scoped input ID round-trip', () => {
+    it('formats and parses producer-scoped input ID correctly', () => {
+      const formatted = formatProducerScopedInputId(['MyProducer'], 'InternalName', 'provider');
+      expect(formatted).toBe('Input:MyProducer.provider');
+      expect(isCanonicalInputId(formatted)).toBe(true);
+      const parsed = parseCanonicalInputId(formatted);
+      expect(parsed.path).toEqual(['MyProducer']);
+      expect(parsed.name).toBe('provider');
+    });
+
+    it('formats and parses nested producer-scoped input ID', () => {
+      const formatted = formatProducerScopedInputId(['Outer', 'Inner'], 'Producer', 'config.timeout');
+      expect(formatted).toBe('Input:Outer.Inner.config.timeout');
+      expect(isCanonicalInputId(formatted)).toBe(true);
+    });
+  });
+
+  describe('Invalid input handling', () => {
+    it('parseCanonicalInputId throws for non-canonical ID', () => {
+      expect(() => parseCanonicalInputId('NotCanonical')).toThrow();
+    });
+
+    it('parseCanonicalArtifactId throws for non-canonical ID', () => {
+      expect(() => parseCanonicalArtifactId('NotCanonical')).toThrow();
+    });
+
+    it('parseCanonicalProducerId throws for non-canonical ID', () => {
+      expect(() => parseCanonicalProducerId('NotCanonical')).toThrow();
+    });
+
+    it('assertCanonicalInputId throws with clear message', () => {
+      expect(() => assertCanonicalInputId('Topic')).toThrow('Expected canonical Input ID');
+    });
+
+    it('assertCanonicalArtifactId throws with clear message', () => {
+      expect(() => assertCanonicalArtifactId('Output')).toThrow('Expected canonical Artifact ID');
+    });
+
+    it('assertCanonicalProducerId throws with clear message', () => {
+      expect(() => assertCanonicalProducerId('Producer')).toThrow('Expected canonical Producer ID');
+    });
+  });
+
+  describe('Artifact ID with indices round-trip', () => {
+    it('parses artifact with single numeric index', () => {
+      const id = 'Artifact:Producer.Output[0]';
+      expect(isCanonicalArtifactId(id)).toBe(true);
+      const parsed = parseCanonicalArtifactId(id);
+      expect(parsed.path).toEqual(['Producer']);
+      expect(parsed.name).toBe('Output');
+      expect(parsed.indices).toEqual([0]);
+    });
+
+    it('parses artifact with multiple numeric indices', () => {
+      const id = 'Artifact:Producer.Output[0][2]';
+      expect(isCanonicalArtifactId(id)).toBe(true);
+      const parsed = parseCanonicalArtifactId(id);
+      expect(parsed.path).toEqual(['Producer']);
+      expect(parsed.name).toBe('Output');
+      expect(parsed.indices).toEqual([0, 2]);
+    });
+
+    it('handles named indices by preserving them in name', () => {
+      // Named indices like [segment=0] are preserved in the name field
+      // Only numeric indices [0] are extracted
+      const id = 'Artifact:Producer.Output[segment=0]';
+      expect(isCanonicalArtifactId(id)).toBe(true);
+      const parsed = parseCanonicalArtifactId(id);
+      expect(parsed.path).toEqual(['Producer']);
+      expect(parsed.name).toBe('Output[segment=0]');
+      expect(parsed.indices).toEqual([]);
     });
   });
 });

@@ -259,7 +259,7 @@ describe('createRunner', () => {
       context: {
         namespacePath: ['ImagePromptGeneration'],
         indices: { segment: 0 },
-        qualifiedName: 'ImagePromptGeneration.ImagePromptProducer',
+        producerAlias: 'ImagePromptGeneration.ImagePromptProducer',
         inputs: [
           'Artifact:ScriptGeneration.NarrationScript[segment=0]',
           'Input:ImagePromptGeneration.NarrativeText',
@@ -328,7 +328,7 @@ describe('createRunner', () => {
       context: {
         namespacePath: ['TimelineComposer'],
         indices: {},
-        qualifiedName: 'TimelineComposer.TimelineProducer',
+        producerAlias: 'TimelineComposer.TimelineProducer',
         inputs: [
           'Input:TimelineComposer.ImageSegments',
           'Input:TimelineComposer.AudioSegments',
@@ -430,7 +430,7 @@ describe('createRunner', () => {
             context: {
               namespacePath: ['TimelineComposer'],
               indices: {},
-              qualifiedName: 'TimelineComposer.TimelineProducer',
+              producerAlias: 'TimelineComposer.TimelineProducer',
               inputs: ['Input:TimelineComposer.AudioSegments'],
               produces: ['Artifact:TimelineComposer.Timeline'],
               fanIn: {
