@@ -18,20 +18,14 @@ export function resolveViewerBundlePaths(): ViewerBundlePaths {
 
   const moduleDir = dirname(fileURLToPath(import.meta.url));
   const cliRoot = resolve(moduleDir, '..', '..');
-  const searchRoots = [
-    resolve(cliRoot, 'viewer-bundle'),
-    resolve(cliRoot, '..', '..', 'viewer'),
-  ];
-
-  for (const root of searchRoots) {
-    const bundle = getBundleForRoot(root);
-    if (existsSync(bundle.assetsDir) && existsSync(bundle.serverEntry)) {
-      return bundle;
-    }
+  const bundledRoot = resolve(cliRoot, 'viewer-bundle');
+  const bundled = getBundleForRoot(bundledRoot);
+  if (existsSync(bundled.assetsDir) && existsSync(bundled.serverEntry)) {
+    return bundled;
   }
 
   throw new Error(
-    'Viewer bundle not found. Build the viewer package (pnpm --filter viewer build) or set RENKU_VIEWER_BUNDLE_ROOT.',
+    'Viewer bundle not found. Set RENKU_VIEWER_BUNDLE_ROOT to a built viewer (dist/ and server-dist/bin.js) or use a packaged CLI with cli/viewer-bundle present.',
   );
 }
 
