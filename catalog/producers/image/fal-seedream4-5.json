@@ -1,0 +1,90 @@
+{
+  "title": "SeedDream45T2IInput",
+  "type": "object",
+  "properties": {
+    "prompt": {
+      "examples": [
+        "A selfie of a cat, with the cat as the protagonist. The setting is twilight at the Eiffel Tower. The cat is happy, holding a piece of baklava in its paw. The photo has a slight motion blur and is slightly overexposed. From a selfie angle, with a bit of motion blur, the overall image presents a sense of calm madness. The text \"Seedream 4.5 is on fal\" should be written on the picture at the top in clearly visible font and crisp lettering. The image has a 4:3 aspect ratio"
+      ],
+      "title": "Prompt",
+      "type": "string",
+      "description": "The text prompt used to generate the image"
+    },
+    "num_images": {
+      "minimum": 1,
+      "title": "Num Images",
+      "type": "integer",
+      "maximum": 6,
+      "description": "Number of separate model generations to be run with the prompt.",
+      "default": 1
+    },
+    "image_size": {
+      "examples": ["auto_2K"],
+      "title": "Image Size",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "width": { "type": "integer", "minimum": 1920, "maximum": 4096 },
+            "height": { "type": "integer", "minimum": 1920, "maximum": 4096 }
+          },
+          "required": ["width", "height"]
+        },
+        {
+          "enum": [
+            "square_hd",
+            "square",
+            "portrait_4_3",
+            "portrait_16_9",
+            "landscape_4_3",
+            "landscape_16_9",
+            "auto_2K",
+            "auto_4K"
+          ],
+          "type": "string"
+        }
+      ],
+      "description": "The size of the generated image. Width and height must be between 1920 and 4096, or total number of pixels must be between 2560*1440 and 4096*4096.",
+      "default": {
+        "height": 2048,
+        "width": 2048
+      }
+    },
+    "max_images": {
+      "minimum": 1,
+      "title": "Max Images",
+      "type": "integer",
+      "maximum": 6,
+      "description": "If set to a number greater than one, enables multi-image generation. The model will potentially return up to `max_images` images every generation, and in total, `num_images` generations will be carried out. In total, the number of images generated will be between `num_images` and `max_images*num_images`.",
+      "default": 1
+    },
+    "sync_mode": {
+      "title": "Sync Mode",
+      "type": "boolean",
+      "description": "If `True`, the media will be returned as a data URI and the output data won't be available in the request history.",
+      "default": false
+    },
+    "enable_safety_checker": {
+      "examples": [true],
+      "title": "Enable Safety Checker",
+      "type": "boolean",
+      "description": "If set to true, the safety checker will be enabled.",
+      "default": true
+    },
+    "seed": {
+      "title": "Seed",
+      "type": "integer",
+      "description": "Random seed to control the stochasticity of image generation."
+    }
+  },
+  "x-fal-order-properties": [
+    "prompt",
+    "image_size",
+    "num_images",
+    "max_images",
+    "seed",
+    "sync_mode",
+    "enable_safety_checker"
+  ],
+  "required": ["prompt"]
+}

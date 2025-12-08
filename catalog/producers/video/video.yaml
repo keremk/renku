@@ -63,6 +63,18 @@ models:
       Prompt: prompt
       AspectRatio: aspect_ratio
       Resolution: resolution
+      SegmentDuration: duration 
+    outputs:
+      SegmentVideo:
+        type: video
+        mimeType: video/mp4
+  - model: veo3-1
+    provider: fal-ai
+    inputSchema: ./falai-veo3-1.json
+    inputs:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+      Resolution: resolution
       SegmentDuration: duration
     outputs:
       SegmentVideo:

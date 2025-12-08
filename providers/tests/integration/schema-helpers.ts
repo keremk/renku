@@ -16,6 +16,10 @@ export type MusicModel = 'stability-ai/stable-audio-2.5' | 'elevenlabs/music';
 
 export type ImageModel = 'bytedance/seedream-4' | 'google/nano-banana' | 'qwen/qwen-image';
 
+// Fal.ai model types
+export type FalImageModel = 'bytedance/seedream/v4.5/text-to-image';
+export type FalVideoModel = 'veo3.1';
+
 type MappingEntry = { field: string; required?: boolean };
 
 type ModelMapping = Record<string, MappingEntry>;
@@ -41,6 +45,15 @@ const imageSchemaPaths: Record<ImageModel, string> = {
   'bytedance/seedream-4': '../../../catalog/producers/image/bytedance-seedream-4.json',
   'google/nano-banana': '../../../catalog/producers/image/google-nano-banana.json',
   'qwen/qwen-image': '../../../catalog/producers/image/qwen-image.json',
+};
+
+// Fal.ai schema paths
+const falImageSchemaPaths: Record<FalImageModel, string> = {
+  'bytedance/seedream/v4.5/text-to-image': '../../../catalog/producers/image/fal-seedream4-5.json',
+};
+
+const falVideoSchemaPaths: Record<FalVideoModel, string> = {
+  'veo3.1': '../../../catalog/producers/video/falai-veo3-1.json',
 };
 
 // Mirrors catalog/producers/video/video.yaml input mappings
@@ -109,6 +122,24 @@ const imageModelMappings: Record<ImageModel, ModelMapping> = {
   'qwen/qwen-image': {
     Prompt: { field: 'prompt', required: true },
     AspectRatio: { field: 'aspect_ratio', required: false },
+  },
+};
+
+// Fal.ai model mappings
+const falImageModelMappings: Record<FalImageModel, ModelMapping> = {
+  'bytedance/seedream/v4.5/text-to-image': {
+    Prompt: { field: 'prompt', required: true },
+    Size: { field: 'image_size', required: false },
+    NumImages: { field: 'num_images', required: false },
+  },
+};
+
+const falVideoModelMappings: Record<FalVideoModel, ModelMapping> = {
+  'veo3.1': {
+    Prompt: { field: 'prompt', required: true },
+    AspectRatio: { field: 'aspect_ratio', required: false },
+    Resolution: { field: 'resolution', required: false },
+    SegmentDuration: { field: 'duration', required: false },
   },
 };
 
@@ -294,6 +325,63 @@ export function buildImageExtras(
     modelMappings: imageModelMappings,
     requiredAliases: ['Prompt'],
     plannerIndex: { segment: 0, image: 0 },
+    extraMapping,
+  });
+}
+
+// Fal.ai helper functions
+export function loadFalImageSchema(model: FalImageModel): string {
+  return loadSchemaForModel(falImageSchemaPaths, model);
+}
+
+export function getFalImageMapping(model: FalImageModel): ModelMapping {
+  const mapping = falImageModelMappings[model];
+  if (!mapping) {
+    throw new Error(`No mapping registered for fal.ai model: ${model}`);
+  }
+  return mapping;
+}
+
+export function buildFalImageExtras(
+  model: FalImageModel,
+  resolvedInputs: Record<string, unknown>,
+  extraMapping?: ModelMapping,
+): ProviderJobContext['context']['extras'] {
+  return buildExtras({
+    model,
+    resolvedInputs,
+    schemaPaths: falImageSchemaPaths,
+    modelMappings: falImageModelMappings,
+    requiredAliases: ['Prompt'],
+    plannerIndex: { segment: 0, image: 0 },
+    extraMapping,
+  });
+}
+
+export function loadFalVideoSchema(model: FalVideoModel): string {
+  return loadSchemaForModel(falVideoSchemaPaths, model);
+}
+
+export function getFalVideoMapping(model: FalVideoModel): ModelMapping {
+  const mapping = falVideoModelMappings[model];
+  if (!mapping) {
+    throw new Error(`No mapping registered for fal.ai model: ${model}`);
+  }
+  return mapping;
+}
+
+export function buildFalVideoExtras(
+  model: FalVideoModel,
+  resolvedInputs: Record<string, unknown>,
+  extraMapping?: ModelMapping,
+): ProviderJobContext['context']['extras'] {
+  return buildExtras({
+    model,
+    resolvedInputs,
+    schemaPaths: falVideoSchemaPaths,
+    modelMappings: falVideoModelMappings,
+    requiredAliases: ['Prompt'],
+    plannerIndex: { segment: 0 },
     extraMapping,
   });
 }

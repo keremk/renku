@@ -1,0 +1,75 @@
+{
+  "title": "TextToVideo31Input",
+  "type": "object",
+  "properties": {
+    "prompt": {
+      "examples": [
+        "Two person street interview in New York City.\nSample Dialogue:\nHost: \"Did you hear the news?\"\nPerson: \"Yes! Veo 3.1 is now available on fal. If you want to see it, go check their website.\""
+      ],
+      "title": "Prompt",
+      "type": "string",
+      "description": "The text prompt describing the video you want to generate"
+    },
+    "duration": {
+      "enum": ["4s", "6s", "8s"],
+      "title": "Duration",
+      "type": "string",
+      "description": "The duration of the generated video in seconds",
+      "default": "8s"
+    },
+    "resolution": {
+      "enum": ["720p", "1080p"],
+      "title": "Resolution",
+      "type": "string",
+      "description": "The resolution of the generated video",
+      "default": "720p"
+    },
+    "generate_audio": {
+      "title": "Generate Audio",
+      "type": "boolean",
+      "description": "Whether to generate audio for the video. If false, 50% less credits will be used.",
+      "default": true
+    },
+    "aspect_ratio": {
+      "enum": ["9:16", "16:9"],
+      "title": "Aspect Ratio",
+      "type": "string",
+      "description": "Aspect ratio of the generated video",
+      "default": "16:9"
+    },
+    "auto_fix": {
+      "title": "Auto Fix",
+      "type": "boolean",
+      "description": "Whether to automatically attempt to fix prompts that fail content policy or other validation checks by rewriting them",
+      "default": true
+    },
+    "seed": {
+      "title": "Seed",
+      "type": "integer",
+      "description": "A seed to use for the video generation"
+    },
+    "negative_prompt": {
+      "title": "Negative Prompt",
+      "type": "string",
+      "description": "A negative prompt to guide the video generation"
+    },
+    "enhance_prompt": {
+      "title": "Enhance Prompt",
+      "type": "boolean",
+      "description": "Whether to enhance the video generation",
+      "default": true
+    }
+  },
+  "x-fal-order-properties": [
+    "prompt",
+    "aspect_ratio",
+    "duration",
+    "negative_prompt",
+    "enhance_prompt",
+    "seed",
+    "auto_fix",
+    "resolution",
+    "generate_audio"
+  ],
+  "required": ["prompt"]
+}

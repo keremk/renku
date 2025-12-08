@@ -6,6 +6,10 @@ import { createReplicateVideoHandler } from './producers/video/replicate-video.j
 import { createMp4ExporterHandler } from './producers/export/mp4-exporter.js';
 import { createReplicateMusicHandler } from './producers/music/replicate-music.js';
 import { createTimelineProducerHandler } from './producers/timeline/ordered-timeline.js';
+import { createFalImageHandler } from './producers/image/fal-image.js';
+import { createFalVideoHandler } from './producers/video/fal-video.js';
+import { createFalAudioHandler } from './producers/audio/fal-audio.js';
+import { createFalMusicHandler } from './producers/music/fal-music.js';
 import type { ProviderImplementationRegistry } from './types.js';
 
 const wildcard = '*' as const;
@@ -257,6 +261,63 @@ export const providerImplementations: ProviderImplementationRegistry = [
     },
     mode: 'simulated',
     factory: createReplicateMusicHandler(),
+  },
+  // Fal.ai Image Models
+  {
+    match: {
+      provider: 'fal-ai',
+      model: 'bytedance/seedream/v4.5/text-to-image',
+      environment: wildcard,
+    },
+    mode: 'live',
+    factory: createFalImageHandler(),
+  },
+  {
+    match: {
+      provider: 'fal-ai',
+      model: 'bytedance/seedream/v4.5/text-to-image',
+      environment: wildcard,
+    },
+    mode: 'simulated',
+    factory: createFalImageHandler(),
+  },
+  // Fal.ai Video Models
+  {
+    match: {
+      provider: 'fal-ai',
+      model: 'veo3.1',
+      environment: wildcard,
+    },
+    mode: 'live',
+    factory: createFalVideoHandler(),
+  },
+  {
+    match: {
+      provider: 'fal-ai',
+      model: 'veo3.1',
+      environment: wildcard,
+    },
+    mode: 'simulated',
+    factory: createFalVideoHandler(),
+  },
+  // Fal.ai Audio Models (placeholder for future schemas)
+  {
+    match: {
+      provider: 'fal-ai',
+      model: wildcard,
+      environment: wildcard,
+    },
+    mode: 'live',
+    factory: createFalAudioHandler(),
+  },
+  {
+    match: {
+      provider: 'fal-ai',
+      model: wildcard,
+      environment: wildcard,
+    },
+    mode: 'simulated',
+    factory: createFalAudioHandler(),
   },
   {
     match: {

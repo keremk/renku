@@ -60,3 +60,13 @@ models:
       SegmentImage:
         type: image
         mimeType: image/jpeg
+  - model: bytedance/seedream/v4.5/text-to-image
+    provider: fal-ai
+    inputSchema: ./fal-seedream4-5.json
+    inputs:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+    outputs:
+      SegmentImage:
+        type: image
+        mimeType: image/jpeg
