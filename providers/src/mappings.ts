@@ -10,6 +10,7 @@ import { createFalImageHandler } from './producers/image/fal-image.js';
 import { createFalVideoHandler } from './producers/video/fal-video.js';
 import { createFalAudioHandler } from './producers/audio/fal-audio.js';
 import { createFalMusicHandler } from './producers/music/fal-music.js';
+import { createWavespeedImageHandler } from './producers/image/wavespeed-image.js';
 import type { ProviderImplementationRegistry } from './types.js';
 
 const wildcard = '*' as const;
@@ -318,6 +319,25 @@ export const providerImplementations: ProviderImplementationRegistry = [
     },
     mode: 'simulated',
     factory: createFalAudioHandler(),
+  },
+  // Wavespeed-ai Image Models
+  {
+    match: {
+      provider: 'wavespeed-ai',
+      model: 'bytedance/seedream-v4.5',
+      environment: wildcard,
+    },
+    mode: 'live',
+    factory: createWavespeedImageHandler(),
+  },
+  {
+    match: {
+      provider: 'wavespeed-ai',
+      model: 'bytedance/seedream-v4.5',
+      environment: wildcard,
+    },
+    mode: 'simulated',
+    factory: createWavespeedImageHandler(),
   },
   {
     match: {

@@ -1,0 +1,31 @@
+{
+  "properties": {
+    "enable_base64_output": {
+      "default": false,
+      "description": "If enabled, the output will be encoded into a BASE64 string instead of a URL. This property is only available through the API.",
+      "disabled": true,
+      "type": "boolean"
+    },
+    "enable_sync_mode": {
+      "default": false,
+      "description": "If set to true, the function will wait for the result to be generated and uploaded before returning the response. It allows you to get the result directly in the response. This property is only available through the API.",
+      "disabled": true,
+      "type": "boolean"
+    },
+    "prompt": {
+      "description": "The positive prompt for the generation.",
+      "type": "string",
+      "x-rows": 10,
+      "x-ui-component": "textarea"
+    },
+    "size": {
+      "default": "2048*2048",
+      "description": "Specify the width and height pixel values of the generated image.",
+      "maximum": 4096,
+      "minimum": 1024,
+      "type": "string"
+    }
+  },
+  "required": ["prompt"],
+  "type": "object"
+}

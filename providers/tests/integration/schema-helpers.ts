@@ -20,6 +20,9 @@ export type ImageModel = 'bytedance/seedream-4' | 'google/nano-banana' | 'qwen/q
 export type FalImageModel = 'bytedance/seedream/v4.5/text-to-image';
 export type FalVideoModel = 'veo3.1';
 
+// Wavespeed-ai model types
+export type WavespeedImageModel = 'bytedance/seedream-v4.5';
+
 type MappingEntry = { field: string; required?: boolean };
 
 type ModelMapping = Record<string, MappingEntry>;
@@ -54,6 +57,11 @@ const falImageSchemaPaths: Record<FalImageModel, string> = {
 
 const falVideoSchemaPaths: Record<FalVideoModel, string> = {
   'veo3.1': '../../../catalog/producers/video/falai-veo3-1.json',
+};
+
+// Wavespeed-ai schema paths
+const wavespeedImageSchemaPaths: Record<WavespeedImageModel, string> = {
+  'bytedance/seedream-v4.5': '../../../catalog/producers/image/wavespeed-seedream-4.5.json',
 };
 
 // Mirrors catalog/producers/video/video.yaml input mappings
@@ -140,6 +148,14 @@ const falVideoModelMappings: Record<FalVideoModel, ModelMapping> = {
     AspectRatio: { field: 'aspect_ratio', required: false },
     Resolution: { field: 'resolution', required: false },
     SegmentDuration: { field: 'duration', required: false },
+  },
+};
+
+// Wavespeed-ai model mappings
+const wavespeedImageModelMappings: Record<WavespeedImageModel, ModelMapping> = {
+  'bytedance/seedream-v4.5': {
+    Prompt: { field: 'prompt', required: true },
+    Size: { field: 'size', required: false },
   },
 };
 
@@ -382,6 +398,35 @@ export function buildFalVideoExtras(
     modelMappings: falVideoModelMappings,
     requiredAliases: ['Prompt'],
     plannerIndex: { segment: 0 },
+    extraMapping,
+  });
+}
+
+// Wavespeed-ai helper functions
+export function loadWavespeedImageSchema(model: WavespeedImageModel): string {
+  return loadSchemaForModel(wavespeedImageSchemaPaths, model);
+}
+
+export function getWavespeedImageMapping(model: WavespeedImageModel): ModelMapping {
+  const mapping = wavespeedImageModelMappings[model];
+  if (!mapping) {
+    throw new Error(`No mapping registered for wavespeed-ai model: ${model}`);
+  }
+  return mapping;
+}
+
+export function buildWavespeedImageExtras(
+  model: WavespeedImageModel,
+  resolvedInputs: Record<string, unknown>,
+  extraMapping?: ModelMapping,
+): ProviderJobContext['context']['extras'] {
+  return buildExtras({
+    model,
+    resolvedInputs,
+    schemaPaths: wavespeedImageSchemaPaths,
+    modelMappings: wavespeedImageModelMappings,
+    requiredAliases: ['Prompt'],
+    plannerIndex: { segment: 0, image: 0 },
     extraMapping,
   });
 }

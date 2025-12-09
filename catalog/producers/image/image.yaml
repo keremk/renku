@@ -65,7 +65,17 @@ models:
     inputSchema: ./fal-seedream4-5.json
     inputs:
       Prompt: prompt
-      AspectRatio: aspect_ratio
+      Size: size
+    outputs:
+      SegmentImage:
+        type: image
+        mimeType: image/jpeg
+  - model: bytedance/seedream-v4.5
+    provider: wavespeed-ai
+    inputSchema: ./wavespeed-seedream-4.5.json
+    inputs:
+      Prompt: prompt
+      Size: size
     outputs:
       SegmentImage:
         type: image
