@@ -22,7 +22,8 @@
     "test:typecheck": "tsc --project tsconfig.vitest.json --noEmit",
     "test:ui": "vitest --config vitest.config.ts --ui",
     "test:run": "vitest run --config vitest.config.ts",
-    "test:integration": "vitest --config vitest.integration.config.ts"
+    "test:integration": "vitest --config vitest.integration.config.ts",
+    "test:e2e": "vitest --config vitest.e2e.config.ts"
   },
   "keywords": [
     "ai",

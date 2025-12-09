@@ -130,3 +130,94 @@ function parseRetryAfterSeconds(error: unknown): number | undefined {
   }
   return undefined;
 }
+
+/**
+ * Creates a generic retry wrapper using Replicate's retry logic.
+ * This wraps any async function with rate limit handling.
+ */
+export interface ReplicateRetryOptions {
+  logger?: ProviderLogger;
+  jobId: string;
+  model: string;
+  plannerContext: Record<string, unknown>;
+  maxAttempts?: number;
+  defaultRetryMs?: number;
+}
+
+export function createReplicateRetryWrapper(options: ReplicateRetryOptions): {
+  execute: <T>(fn: () => Promise<T>) => Promise<T>;
+} {
+  const { logger, jobId, model, plannerContext, maxAttempts = 3, defaultRetryMs = 10_000 } = options;
+
+  return {
+    async execute<T>(fn: () => Promise<T>): Promise<T> {
+      let attempt = 0;
+      let lastError: unknown;
+      let sawThrottle = false;
+
+      while (attempt < maxAttempts) {
+        attempt += 1;
+        try {
+          return await fn();
+        } catch (error: unknown) {
+          lastError = error;
+          const status = parseStatus(error);
+          const retryAfterSec = parseRetryAfterSeconds(error);
+          const retryMs = retryAfterSec !== undefined ? (retryAfterSec + 1) * 1000 : defaultRetryMs;
+
+          const isThrottled = status === 429 || /429|Too Many Requests/i.test(String(error ?? ''));
+          const shouldRetry = isThrottled && attempt < maxAttempts;
+
+          if (!isThrottled) {
+            if (error instanceof Error) {
+              throw error;
+            }
+            throw new Error(String((error as any)?.message ?? error ?? 'Replicate prediction failed.'));
+          }
+
+          if (shouldRetry) {
+            sawThrottle = true;
+            logger?.info?.(
+              `Replicate provider will retry after ${retryMs}ms for the job ${jobId}. Attempt #${attempt}`,
+            );
+            logger?.debug?.('providers.replicate.retry', {
+              producer: jobId,
+              model,
+              plannerContext,
+              status,
+              attempt,
+              maxAttempts,
+              retryAfterMs: retryMs,
+              error: error instanceof Error ? error.message : String(error),
+            });
+
+            const before = Date.now();
+            await new Promise((resolve) => setTimeout(resolve, retryMs));
+            const waitedMs = Date.now() - before;
+
+            logger?.info?.(`Replicate provider for job ${jobId} using model ${model} waited for ${waitedMs}ms`);
+            logger?.debug?.('providers.replicate.retry.waited', {
+              producer: jobId,
+              model,
+              attempt,
+              waitedMs,
+            });
+            continue;
+          }
+
+          break;
+        }
+      }
+
+      const message =
+        'Replicate rate limit hit (429); retries exhausted. Lower concurrency, wait, or add credit.';
+      if (sawThrottle) {
+        throw createProviderRateLimitError(message, lastError);
+      }
+      if (lastError instanceof Error) {
+        throw lastError;
+      }
+      throw new Error(String((lastError as any)?.message ?? lastError ?? 'Replicate prediction failed.'));
+    },
+  };
+}

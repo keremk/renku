@@ -5,14 +5,14 @@ config();
 
 export default defineConfig({
   test: {
-    name: 'integration',
+    name: 'e2e',
     include: [
-      'tests/integration/**/*.test.ts',
+      'tests/e2e/**/*.e2e.test.ts',
     ],
     exclude: ['node_modules'],
     environment: 'node',
     globals: true,
-    testTimeout: 60_000,
+    testTimeout: 180_000,
     hookTimeout: 60_000,
   },
 });

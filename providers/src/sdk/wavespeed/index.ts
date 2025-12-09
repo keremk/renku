@@ -1,4 +1,4 @@
 export { createWavespeedClientManager, type WavespeedClientManager, type WavespeedResult } from './client.js';
 export { normalizeWavespeedOutput } from './output.js';
 export { pollForCompletion } from './polling.js';
-export { createSchemaFirstWavespeedHandler } from './schema-first-handler.js';
+export { wavespeedAdapter } from './adapter.js';
