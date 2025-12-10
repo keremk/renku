@@ -7,6 +7,8 @@ import {
   prepareJobContext,
   createStorageContext,
   initializeMovieStorage,
+  loadCloudStorageEnv,
+  createCloudStorageContext,
   type ExecutionPlan,
   type Manifest,
   type ProduceFn,
@@ -77,7 +79,11 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<Execut
 
   const eventLog = createEventLog(storage);
   const manifestService = createManifestService(storage);
-  const registry = createProviderRegistry({ mode: 'live', logger, notifications });
+  const cloudStorageEnv = loadCloudStorageEnv();
+  const cloudStorage = cloudStorageEnv.isConfigured
+    ? createCloudStorageContext(cloudStorageEnv.config!)
+    : undefined;
+  const registry = createProviderRegistry({ mode: 'live', logger, notifications, cloudStorage });
   const preResolved = prepareProviderHandlers(registry, options.plan, options.providerOptions);
   await registry.warmStart?.(preResolved);
   const resolvedInputsWithSystem = {

@@ -76,6 +76,16 @@ export const providerImplementations: ProviderImplementationRegistry = [
     mode: 'simulated',
     factory: replicateImage(),
   },
+  {
+    match: { provider: 'replicate', model: 'qwen/qwen-image', environment: wildcard },
+    mode: 'live',
+    factory: replicateImage(),
+  },
+  {
+    match: { provider: 'replicate', model: 'qwen/qwen-image', environment: wildcard },
+    mode: 'simulated',
+    factory: replicateImage(),
+  },
 
   // Replicate Audio Models
   {

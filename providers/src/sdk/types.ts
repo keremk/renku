@@ -7,7 +7,7 @@ import type {
   ProviderLogger,
   ProviderMode,
 } from '../types.js';
-import type { BlueprintProducerSdkMappingField } from '@renku/core';
+import type { BlueprintProducerSdkMappingField, StorageContext } from '@renku/core';
 
 export type ProducerDomain = 'prompt' | 'media';
 
@@ -52,7 +52,8 @@ export interface ResolvedInputsAccessor {
 export interface RuntimeSdkHelpers {
   buildPayload(
     sdkMapping?: Record<string, BlueprintProducerSdkMappingField>,
-  ): Record<string, unknown>;
+    inputSchema?: string,
+  ): Promise<Record<string, unknown>>;
 }
 
 export interface ArtefactRegistry {
@@ -70,4 +71,6 @@ export interface ProducerRuntime {
   artefacts: ArtefactRegistry;
   logger?: ProviderLogger;
   notifications?: import('@renku/core').NotificationBus;
+  /** Cloud storage context for uploading blob inputs (optional). */
+  cloudStorage?: StorageContext;
 }

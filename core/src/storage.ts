@@ -1,4 +1,6 @@
 import { FileStorage } from '@flystorage/file-storage';
+import { AwsS3StorageAdapter } from '@flystorage/aws-s3';
+import { S3Client } from '@aws-sdk/client-s3';
 import { InMemoryStorageAdapter } from '@flystorage/in-memory';
 import { LocalStorageAdapter } from '@flystorage/local-fs';
 import { promises as fs } from 'node:fs';
@@ -14,11 +16,30 @@ export type StorageConfig =
     })
   | (BaseStorageConfig & {
       kind: 'memory';
+    })
+  | (BaseStorageConfig & {
+      kind: 'cloud';
+      /** Configuration for S3-compatible cloud storage. */
+      cloudConfig: CloudStorageConfig;
     });
 
 interface BaseStorageConfig {
   /** Optional prefix inside the storage adapter (defaults to "builds"). */
   basePath?: string;
+}
+
+/** Configuration for S3-compatible cloud storage (e.g., CloudFlare R2). */
+export interface CloudStorageConfig {
+  /** S3-compatible endpoint URL (e.g., https://<account-id>.r2.cloudflarestorage.com) */
+  endpoint: string;
+  /** Bucket name */
+  bucket: string;
+  /** Access key ID */
+  accessKeyId: string;
+  /** Secret access key */
+  secretAccessKey: string;
+  /** Region (defaults to 'auto' for CloudFlare R2) */
+  region?: string;
 }
 
 /* eslint-disable no-unused-vars */
@@ -29,6 +50,8 @@ export interface StorageContext {
   resolve(movieId: string, ...segments: string[]): string;
   /** Append a UTF-8 string to a storage-relative file, creating it if needed. */
   append(relativePath: string, data: string, mimeType?: string): Promise<void>;
+  /** Get a time-limited signed URL for a file (only available for 'cloud' storage). */
+  temporaryUrl?(path: string, expiresInSecs?: number): Promise<string>;
 }
 
 const DEFAULT_BASE_PATH = 'builds';
@@ -56,7 +79,7 @@ export function createStorageContext(config: StorageConfig): StorageContext {
     }
   }
 
-  return {
+  const context: StorageContext = {
     storage,
     basePath,
     resolve(movieId, ...segments) {
@@ -84,6 +107,16 @@ export function createStorageContext(config: StorageConfig): StorageContext {
       });
     },
   };
+
+  // Add temporaryUrl method for cloud storage
+  if (config.kind === 'cloud') {
+    context.temporaryUrl = async (filePath: string, expiresInSecs = 3600) => {
+      const expiresAt = Date.now() + expiresInSecs * 1000;
+      return storage.temporaryUrl(filePath, { expiresAt });
+    };
+  }
+
+  return context;
 }
 
 function resolveAdapter(config: StorageConfig) {
@@ -92,6 +125,20 @@ function resolveAdapter(config: StorageConfig) {
       return new LocalStorageAdapter(config.rootDir);
     case 'memory':
       return new InMemoryStorageAdapter();
+    case 'cloud': {
+      const client = new S3Client({
+        endpoint: config.cloudConfig.endpoint,
+        region: config.cloudConfig.region ?? 'auto',
+        credentials: {
+          accessKeyId: config.cloudConfig.accessKeyId,
+          secretAccessKey: config.cloudConfig.secretAccessKey,
+        },
+        forcePathStyle: true, // Required for CloudFlare R2 compatibility
+      });
+      return new AwsS3StorageAdapter(client, {
+        bucket: config.cloudConfig.bucket,
+      });
+    }
     default: {
       const neverCase: never = config;
       throw new Error(

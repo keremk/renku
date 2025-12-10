@@ -71,7 +71,7 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
           });
         }
 
-        const sdkPayload = runtime.sdk.buildPayload();
+        const sdkPayload = await runtime.sdk.buildPayload(undefined, inputSchema);
         validatePayload(inputSchema, sdkPayload, 'input');
         const input = { ...sdkPayload };
 

@@ -4,6 +4,7 @@ import type {
   ProviderName,
   RevisionId,
   Logger,
+  StorageContext,
 } from '@renku/core';
 import type { SchemaRegistry } from './schema-registry.js';
 
@@ -80,6 +81,8 @@ export interface HandlerFactoryInit {
   logger?: ProviderLogger;
   schemaRegistry?: SchemaRegistry;
   notifications?: import('@renku/core').NotificationBus;
+  /** Cloud storage context for uploading blob inputs (optional). */
+  cloudStorage?: StorageContext;
 }
 
 export type HandlerFactory = (init: HandlerFactoryInit) => ProducerHandler;
@@ -98,6 +101,8 @@ export interface ProviderRegistryOptions {
   secretResolver?: SecretResolver;
   schemaRegistry?: SchemaRegistry;
   notifications?: import('@renku/core').NotificationBus;
+  /** Cloud storage context for uploading blob inputs to S3-compatible storage. */
+  cloudStorage?: StorageContext;
 }
 
 export interface ResolvedProviderHandler {

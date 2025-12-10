@@ -1,10 +1,9 @@
-import { config } from 'dotenv';
 import { writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Load environment variables
-config();
+// Note: Environment variables are loaded by vitest.e2e.config.ts
+// No need to call dotenv.config() here
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

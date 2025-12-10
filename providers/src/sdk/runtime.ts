@@ -17,9 +17,12 @@ import type {
 import {
   isCanonicalArtifactId,
   isCanonicalInputId,
+  inferBlobExtension,
   type BlueprintProducerSdkMappingField,
   type NotificationBus,
+  type StorageContext,
 } from '@renku/core';
+import { createHash } from 'node:crypto';
 
 interface SerializedJobContext {
   inputBindings?: Record<string, string>;
@@ -36,6 +39,8 @@ interface RuntimeInit {
   configValidator?: ConfigValidator;
   mode: ProviderMode;
   notifications?: NotificationBus;
+  /** Cloud storage context for uploading blob inputs (optional). */
+  cloudStorage?: StorageContext;
 }
 
 export function createProducerRuntime(init: RuntimeInit): ProducerRuntime {
@@ -45,7 +50,7 @@ export function createProducerRuntime(init: RuntimeInit): ProducerRuntime {
   const resolvedInputs = resolveInputs(request.context.extras);
   const jobContext = extractJobContext(request.context.extras);
   const inputs = createInputsAccessor(resolvedInputs);
-  const sdk = createSdkHelper(inputs, jobContext);
+  const sdk = createSdkHelper(inputs, jobContext, init.cloudStorage);
   const artefacts = createArtefactRegistry(request.produces);
 
   return {
@@ -59,6 +64,7 @@ export function createProducerRuntime(init: RuntimeInit): ProducerRuntime {
     artefacts,
     logger,
     notifications: init.notifications,
+    cloudStorage: init.cloudStorage,
   };
 }
 
@@ -132,9 +138,10 @@ function createInputsAccessor(
 function createSdkHelper(
   inputs: ResolvedInputsAccessor,
   jobContext?: SerializedJobContext,
+  cloudStorage?: StorageContext,
 ): RuntimeSdkHelpers {
   return {
-    buildPayload(mapping) {
+    async buildPayload(mapping, inputSchema) {
       const effectiveMapping = mapping ?? jobContext?.sdkMapping;
       if (!effectiveMapping) {
         return {};
@@ -156,9 +163,85 @@ function createSdkHelper(
         }
         payload[fieldDef.field] = value;
       }
+
+      // Process blob inputs for fields with format: "uri" in schema
+      if (cloudStorage && inputSchema) {
+        const parsedSchema = JSON.parse(inputSchema);
+        for (const [key, value] of Object.entries(payload)) {
+          const fieldSchema = parsedSchema?.properties?.[key];
+
+          // Check for direct format: "uri" field
+          const isUriField = fieldSchema?.format === 'uri';
+          if (isUriField && isBlobInput(value)) {
+            const url = await uploadBlobAndGetUrl(value, cloudStorage);
+            payload[key] = url;
+            continue;
+          }
+
+          // Check for array with items.format: "uri"
+          const isArrayOfUris = fieldSchema?.type === 'array' && fieldSchema?.items?.format === 'uri';
+          if (isArrayOfUris && Array.isArray(value)) {
+            const uploadedUrls: string[] = [];
+            for (const item of value) {
+              if (isBlobInput(item)) {
+                const url = await uploadBlobAndGetUrl(item, cloudStorage);
+                uploadedUrls.push(url);
+              } else if (typeof item === 'string') {
+                // Already a URL, keep as-is
+                uploadedUrls.push(item);
+              }
+            }
+            payload[key] = uploadedUrls;
+          }
+        }
+      }
+
       return payload;
     },
   };
+}
+
+/** Blob input can be Uint8Array or an object with data and mimeType. */
+interface BlobInput {
+  data: Uint8Array | Buffer;
+  mimeType: string;
+}
+
+function isBlobInput(value: unknown): value is Uint8Array | BlobInput {
+  // Check if value is Uint8Array/Buffer
+  if (value instanceof Uint8Array || Buffer.isBuffer(value)) {
+    return true;
+  }
+  // Check if value has blob-like structure { data, mimeType }
+  if (typeof value === 'object' && value !== null && 'data' in value && 'mimeType' in value) {
+    const obj = value as { data: unknown; mimeType: unknown };
+    return (obj.data instanceof Uint8Array || Buffer.isBuffer(obj.data)) && typeof obj.mimeType === 'string';
+  }
+  return false;
+}
+
+async function uploadBlobAndGetUrl(
+  blob: Uint8Array | BlobInput,
+  cloudStorage: StorageContext,
+): Promise<string> {
+  const data = blob instanceof Uint8Array || Buffer.isBuffer(blob) ? blob : blob.data;
+  const mimeType = blob instanceof Uint8Array || Buffer.isBuffer(blob) ? 'application/octet-stream' : blob.mimeType;
+
+  // Generate content-addressed key
+  const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
+  const hash = createHash('sha256').update(buffer).digest('hex');
+  const prefix = hash.slice(0, 2);
+  const ext = inferBlobExtension(mimeType);
+  const key = `blobs/${prefix}/${hash}${ext ? '.' + ext : ''}`;
+
+  // Upload to cloud storage (content-addressed, so overwriting is safe)
+  await cloudStorage.storage.write(key, buffer, { mimeType });
+
+  // Get signed URL (default 1 hour expiry)
+  if (!cloudStorage.temporaryUrl) {
+    throw new Error('Cloud storage does not support temporaryUrl - ensure you are using cloud storage kind.');
+  }
+  return cloudStorage.temporaryUrl(key, 3600);
 }
 
 function createArtefactRegistry(produces: string[]): ArtefactRegistry {

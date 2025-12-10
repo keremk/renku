@@ -130,6 +130,7 @@ const imageModelMappings: Record<ImageModel, ModelMapping> = {
   'qwen/qwen-image': {
     Prompt: { field: 'prompt', required: true },
     AspectRatio: { field: 'aspect_ratio', required: false },
+    ImageInput: { field: 'image_input', required: false },
   },
 };
 

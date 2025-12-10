@@ -53,6 +53,7 @@ export function createProducerHandlerFactory(
           configValidator: options.configValidator,
           mode: init.mode,
           notifications: init.notifications,
+          cloudStorage: init.cloudStorage,
         });
         return options.invoke({
           request,

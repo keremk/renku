@@ -40,6 +40,7 @@ export function createProviderRegistry(options: ProviderRegistryOptions = {}): P
       logger,
       schemaRegistry: options.schemaRegistry,
       notifications,
+      cloudStorage: options.cloudStorage,
     });
     handlerCache.set(cacheKey, handler);
     return handler;

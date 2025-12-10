@@ -43,6 +43,8 @@
   "author": "",
   "packageManager": "pnpm@10.15.0",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.948.0",
+    "@flystorage/aws-s3": "^1.2.0",
     "@flystorage/file-storage": "^1.2.0",
     "@flystorage/in-memory": "^1.1.0",
     "@flystorage/local-fs": "^1.2.0",

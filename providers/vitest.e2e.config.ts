@@ -1,7 +1,12 @@
 import { defineConfig } from 'vitest/config';
 import { config } from 'dotenv';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-config();
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Load .env from providers directory
+config({ path: resolve(__dirname, '.env') });
 
 export default defineConfig({
   test: {
