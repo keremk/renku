@@ -36,6 +36,7 @@ export interface GenerateResult {
   storagePath: string;
   friendlyRoot?: string;
   isNew: boolean;
+  cleanedUp?: boolean;
 }
 
 export async function runGenerate(options: GenerateOptions): Promise<GenerateResult> {
@@ -152,6 +153,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
       storagePath: editResult.storagePath,
       friendlyRoot,
       isNew: false,
+      cleanedUp: editResult.cleanedUp,
     };
   }
 
@@ -219,6 +221,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
     storagePath: queryResult.storagePath,
     friendlyRoot,
     isNew: true,
+    cleanedUp: queryResult.cleanedUp,
   };
 }
 

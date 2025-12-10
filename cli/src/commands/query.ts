@@ -13,9 +13,9 @@ import { expandPath } from '../lib/path.js';
 import { confirmPlanExecution } from '../lib/interactive-confirm.js';
 import { displayPlanAndCosts } from '../lib/plan-display.js';
 import { confirmPlanWithInk } from '../lib/plan-confirmation.js';
-import { cleanupPlanFiles } from '../lib/plan-cleanup.js';
 import { resolveBlueprintSpecifier } from '../lib/config-assets.js';
 import { resolveAndPersistConcurrency } from '../lib/concurrency.js';
+import { cleanupPartialRunDirectory } from '../lib/cleanup.js';
 import type { Logger, NotificationBus } from '@renku/core';
 import type { CliLoggerMode } from '../lib/logger.js';
 
@@ -44,6 +44,7 @@ export interface QueryResult {
   build?: BuildSummary;
   manifestPath?: string;
   storagePath: string;
+  cleanedUp?: boolean;
 }
 
 export async function runQuery(options: QueryOptions): Promise<QueryResult> {
@@ -102,6 +103,13 @@ export async function runQuery(options: QueryOptions): Promise<QueryResult> {
       costSummary: planResult.costSummary,
       logger,
     });
+    // Cleanup movie directory for new movies (removes logs)
+    const cleanedUp = await cleanupPartialRunDirectory({
+      storageRoot,
+      basePath: storageBasePath,
+      movieId: storageMovieId,
+      isNew: true,
+    });
     return {
       movieId: options.movieId,
       storageMovieId: options.storageMovieId,
@@ -111,7 +119,16 @@ export async function runQuery(options: QueryOptions): Promise<QueryResult> {
       build: undefined,
       manifestPath: undefined,
       storagePath: movieDir,
+      cleanedUp,
     };
+  }
+
+  // Determine if we should persist now (dry-run/non-interactive) or after confirmation
+  const shouldPersistBeforeConfirmation = options.dryRun || nonInteractive;
+
+  // For dry-run and non-interactive: persist immediately
+  if (shouldPersistBeforeConfirmation) {
+    await planResult.persist();
   }
 
   // Interactive confirmation (skip if dry-run or non-interactive)
@@ -131,13 +148,19 @@ export async function runQuery(options: QueryOptions): Promise<QueryResult> {
             costSummary: planResult.costSummary,
           });
     if (!confirmed) {
-      await cleanupPlanFiles(movieDir);
       logger.info('\nExecution cancelled.');
       logger.info('Tip: Run with --dry-run to see what would happen without executing.');
       options.notifications?.publish({
         type: 'warning',
         message: 'Execution cancelled.',
         timestamp: new Date().toISOString(),
+      });
+      // Cleanup movie directory for new movies (removes logs)
+      const cleanedUp = await cleanupPartialRunDirectory({
+        storageRoot,
+        basePath: storageBasePath,
+        movieId: storageMovieId,
+        isNew: true,
       });
       return {
         movieId: options.movieId,
@@ -148,8 +171,11 @@ export async function runQuery(options: QueryOptions): Promise<QueryResult> {
         build: undefined,
         manifestPath: undefined,
         storagePath: movieDir,
+        cleanedUp,
       };
     }
+    // User confirmed - persist now before execution
+    await planResult.persist();
   }
 
   if (options.dryRun) {

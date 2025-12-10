@@ -7,6 +7,7 @@ import {
   createManifestService,
   createEventLog,
   createPlanningService,
+  planStore,
   type InputEvent,
   type Manifest,
   type ExecutionPlan,
@@ -53,6 +54,8 @@ export interface GeneratePlanResult {
   providerOptions: ProducerOptionsMap;
   blueprintPath: string;
   costSummary: PlanCostSummary;
+  /** Persist the plan to local storage. Call after confirmation. */
+  persist: () => Promise<void>;
 }
 
 export async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanResult> {
@@ -63,32 +66,38 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
   const basePath = cliConfig.storage.basePath;
   const movieDir = resolve(storageRoot, basePath, movieId);
 
-  await mkdir(movieDir, { recursive: true });
+  // Use IN-MEMORY storage for planning (no disk writes yet)
+  const memoryStorageContext = createStorageContext({ kind: 'memory', basePath });
+  await initializeMovieStorage(memoryStorageContext, movieId);
 
-  const storageContext = createStorageContext({
-    kind: 'local',
-    rootDir: storageRoot,
-    basePath,
-  });
+  // For edits (isNew: false), we need to load existing manifest and events from disk
+  // For new movies, we use empty in-memory state
+  if (!options.isNew) {
+    // Load existing manifest and events from local storage into memory context
+    const localStorageContext = createStorageContext({
+      kind: 'local',
+      rootDir: storageRoot,
+      basePath,
+    });
+    await copyManifestToMemory(localStorageContext, memoryStorageContext, movieId);
+    await copyEventsToMemory(localStorageContext, memoryStorageContext, movieId);
+  }
 
-  await initializeMovieStorage(storageContext, movieId);
-
-  const manifestService = createManifestService(storageContext);
-  const eventLog = createEventLog(storageContext);
+  const manifestService = createManifestService(memoryStorageContext);
+  const eventLog = createEventLog(memoryStorageContext);
 
   const blueprintPath = expandPath(options.usingBlueprint);
   const { root: blueprintRoot } = await loadBlueprintBundle(blueprintPath);
-  await mergeMovieMetadata(movieDir, { blueprintPath });
 
   const { values: inputValues, providerOptions } = await loadInputsFromYaml(
     options.inputsPath,
     blueprintRoot,
   );
   applyProviderDefaults(inputValues, providerOptions);
-  await persistInputs(movieDir, inputValues);
   const catalog = buildProducerCatalog(providerOptions);
   logger.info(`${chalk.bold('Using blueprint:')} ${blueprintPath}`);
 
+  // Generate plan (writes go to in-memory storage)
   const planResult = await createPlanningService({
     logger,
     notifications,
@@ -98,13 +107,13 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
     inputValues,
     providerCatalog: catalog,
     providerOptions: buildProviderMetadata(providerOptions),
-    storage: storageContext,
+    storage: memoryStorageContext,
     manifestService,
     eventLog,
     pendingArtefacts: options.pendingArtefacts,
   });
   logger.debug('[planner] resolved inputs', { inputs: Object.keys(planResult.resolvedInputs) });
-  const absolutePlanPath = resolve(storageRoot, planResult.planPath);
+  const absolutePlanPath = resolve(storageRoot, basePath, movieId, 'runs', `${planResult.targetRevision}-plan.json`);
 
   // Load pricing catalog and estimate costs
   const catalogModelsDir = resolveCatalogModelsDir(cliConfig);
@@ -128,7 +137,75 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
     providerOptions,
     blueprintPath,
     costSummary,
+    persist: async () => {
+      // Create LOCAL storage and write everything
+      const localStorageContext = createStorageContext({
+        kind: 'local',
+        rootDir: storageRoot,
+        basePath,
+      });
+
+      await mkdir(movieDir, { recursive: true });
+      await initializeMovieStorage(localStorageContext, movieId);
+      await mergeMovieMetadata(movieDir, { blueprintPath });
+      await persistInputs(movieDir, inputValues);
+
+      // Write input events to local event log
+      const localEventLog = createEventLog(localStorageContext);
+      for (const event of planResult.inputEvents) {
+        await localEventLog.appendInput(movieId, event);
+      }
+
+      // Write plan to local storage
+      await planStore.save(planResult.plan, { movieId, storage: localStorageContext });
+    },
   };
+}
+
+/**
+ * Copy existing manifest from local storage to in-memory storage.
+ */
+async function copyManifestToMemory(
+  localCtx: ReturnType<typeof createStorageContext>,
+  memoryCtx: ReturnType<typeof createStorageContext>,
+  movieId: string,
+): Promise<void> {
+  const currentJsonPath = localCtx.resolve(movieId, 'current.json');
+  if (await localCtx.storage.fileExists(currentJsonPath)) {
+    const content = await localCtx.storage.readToString(currentJsonPath);
+    const memoryPath = memoryCtx.resolve(movieId, 'current.json');
+    await memoryCtx.storage.write(memoryPath, content, { mimeType: 'application/json' });
+
+    // Also copy the actual manifest file if it exists
+    const parsed = JSON.parse(content) as { manifestPath?: string | null };
+    if (parsed.manifestPath) {
+      const manifestFullPath = localCtx.resolve(movieId, parsed.manifestPath);
+      if (await localCtx.storage.fileExists(manifestFullPath)) {
+        const manifestContent = await localCtx.storage.readToString(manifestFullPath);
+        const memoryManifestPath = memoryCtx.resolve(movieId, parsed.manifestPath);
+        await memoryCtx.storage.write(memoryManifestPath, manifestContent, { mimeType: 'application/json' });
+      }
+    }
+  }
+}
+
+/**
+ * Copy existing event logs from local storage to in-memory storage.
+ */
+async function copyEventsToMemory(
+  localCtx: ReturnType<typeof createStorageContext>,
+  memoryCtx: ReturnType<typeof createStorageContext>,
+  movieId: string,
+): Promise<void> {
+  const eventFiles = ['events/inputs.log', 'events/artefacts.log'];
+  for (const eventFile of eventFiles) {
+    const localPath = localCtx.resolve(movieId, eventFile);
+    if (await localCtx.storage.fileExists(localPath)) {
+      const content = await localCtx.storage.readToString(localPath);
+      const memoryPath = memoryCtx.resolve(movieId, eventFile);
+      await memoryCtx.storage.write(memoryPath, content, { mimeType: 'text/plain' });
+    }
+  }
 }
 
 async function persistInputs(movieDir: string, values: InputMap): Promise<void> {

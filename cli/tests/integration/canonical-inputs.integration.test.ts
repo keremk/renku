@@ -48,6 +48,9 @@ describe('integration: canonical inputs persist across query/edit', () => {
 			logger,
 		});
 
+		// Persist the plan to disk (now required after in-memory planning)
+		await planResult.persist();
+
 		expect(
 			planResult.resolvedInputs[
 				'Input:MusicProducer.force_instrumental'

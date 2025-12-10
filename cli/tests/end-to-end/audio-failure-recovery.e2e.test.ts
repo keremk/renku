@@ -71,6 +71,9 @@ describe('end-to-end: failed artifact recovery', () => {
       notifications: undefined,
     });
 
+    // Persist the plan to disk (now required after in-memory planning)
+    await planResult.persist();
+
     // Verify initial plan structure
     const initialPlan = await readPlan(planResult.planPath);
     const initialJobs = initialPlan.layers.flat();

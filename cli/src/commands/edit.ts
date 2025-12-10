@@ -14,10 +14,10 @@ import { expandPath } from '../lib/path.js';
 import { confirmPlanExecution } from '../lib/interactive-confirm.js';
 import { displayPlanAndCosts } from '../lib/plan-display.js';
 import { confirmPlanWithInk } from '../lib/plan-confirmation.js';
-import { cleanupPlanFiles } from '../lib/plan-cleanup.js';
 import { readMovieMetadata } from '../lib/movie-metadata.js';
 import { resolveBlueprintSpecifier } from '../lib/config-assets.js';
 import { resolveAndPersistConcurrency } from '../lib/concurrency.js';
+import { cleanupPartialRunDirectory } from '../lib/cleanup.js';
 import type { NotificationBus, Logger } from '@renku/core';
 import type { CliLoggerMode } from '../lib/logger.js';
 
@@ -45,6 +45,7 @@ export interface EditResult {
   build?: BuildSummary;
   manifestPath?: string;
   storagePath: string;
+  cleanedUp?: boolean;
 }
 
 export async function runEdit(options: EditOptions): Promise<EditResult> {
@@ -117,6 +118,13 @@ export async function runEdit(options: EditOptions): Promise<EditResult> {
       costSummary: planResult.costSummary,
       logger,
     });
+    // For edits, isNew: false means no cleanup happens (preserve existing data)
+    const cleanedUp = await cleanupPartialRunDirectory({
+      storageRoot,
+      basePath,
+      movieId: storageMovieId,
+      isNew: false,
+    });
     return {
       storageMovieId,
       planPath: planResult.planPath,
@@ -125,7 +133,16 @@ export async function runEdit(options: EditOptions): Promise<EditResult> {
       build: undefined,
       manifestPath: undefined,
       storagePath: movieDir,
+      cleanedUp,
     };
+  }
+
+  // Determine if we should persist now (dry-run/non-interactive/no jobs) or after confirmation
+  const shouldPersistBeforeConfirmation = options.dryRun || nonInteractive || !hasJobs;
+
+  // For dry-run, non-interactive, or no jobs: persist immediately
+  if (shouldPersistBeforeConfirmation) {
+    await planResult.persist();
   }
 
   // Interactive confirmation (skip if dry-run, non-interactive, or no work to perform)
@@ -145,13 +162,19 @@ export async function runEdit(options: EditOptions): Promise<EditResult> {
             costSummary: planResult.costSummary,
           });
     if (!confirmed) {
-      await cleanupPlanFiles(movieDir);
       logger.info('\nExecution cancelled.');
       logger.info('Tip: Run with --dry-run to see what would happen without executing.');
       options.notifications?.publish({
         type: 'warning',
         message: 'Execution cancelled.',
         timestamp: new Date().toISOString(),
+      });
+      // For edits, isNew: false means no cleanup happens (preserve existing data)
+      const cleanedUp = await cleanupPartialRunDirectory({
+        storageRoot,
+        basePath,
+        movieId: storageMovieId,
+        isNew: false,
       });
       return {
         storageMovieId,
@@ -161,8 +184,11 @@ export async function runEdit(options: EditOptions): Promise<EditResult> {
         build: undefined,
         manifestPath: undefined,
         storagePath: movieDir,
+        cleanedUp,
       };
     }
+    // User confirmed - persist now before execution
+    await planResult.persist();
   }
 
   if (options.dryRun) {

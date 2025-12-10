@@ -558,6 +558,11 @@ function printGenerateSummary(
     logger.info(chalk.yellow('No execution performed.\n'));
   }
 
+  // Skip showing paths if the directory was cleaned up
+  if (result.cleanedUp) {
+    return;
+  }
+
   const detailLines: Array<[string, string]> = [
     [`${chalk.bold('Plan')}`, result.planPath],
     ...(result.manifestPath ? [[`${chalk.bold('Manifest')}`, result.manifestPath] as [string, string]] : []),
