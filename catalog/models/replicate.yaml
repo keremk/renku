@@ -1,0 +1,89 @@
+models:
+  - name: minimax/speech-2.6-hd
+    price:
+      function: costByInputTokens
+      inputs: [text]
+      pricePerToken: 0.0001
+  - name: minimax/speech-02-hd
+    price:
+      function: costByInputTokens
+      inputs: [text]
+      pricePerToken: 0.0001
+  - name: bytedance/seedream-4
+    price:
+      function: costByImage
+      pricePerImage: 0.03
+  - name: google/nano-banana
+    price:
+      function: costByImage
+      pricePerImage: 0.039
+  - name: google/nano-banana-pro
+    price:
+      function: costByImageAndResolution
+      inputs: [resolution]
+      prices:
+        - resolution: 1K
+          pricePerImage: 0.15
+        - resolution: 2K
+          pricePerImage: 0.15
+        - resolution: 4K
+          pricePerImage: 0.30
+  - name: qwen/qwen-image
+    price:
+      function: costByImage
+      pricePerImage: 0.025
+  - name: bytedance/seedream-4.5
+    price:
+      function: costByImage
+      pricePerImage: 0.04
+  - name: prunaai/z-image-turbo
+    price:
+      function: costByResolution
+      inputs: [width, height]
+      prices:
+        - resolution: 0.5K
+          pricePerImage: 0.0025
+        - resolution: 1K
+          pricePerImage: 0.005
+        - resolution: 2K
+          pricePerImage: 0.01
+  - name: stability-ai/stable-audio-2.5
+    price:
+      function: costByOutputFile
+      pricePerAudioFile: 0.20
+  - name: bytedance/seedance-1-lite
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 480p
+          pricePerSecond: 0.018
+        - resolution: 720p
+          pricePerSecond: 0.036
+        - resolution: 1080p
+          pricePerSecond: 0.072
+  - name: bytedance/seedance-1-pro-fast
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 480p
+          pricePerSecond: 0.015
+        - resolution: 720p
+          pricePerSecond: 0.025
+        - resolution: 1080p
+          pricePerSecond: 0.06
+  - name: google/veo-3.1-fast
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.15
+        - generate_audio: false
+          pricePerSecond: 0.10
+  - name: openai/sora-2
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.10

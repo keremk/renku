@@ -97,6 +97,7 @@ const cli = meow(
       upToLayer: { type: 'number' },
       up: { type: 'number' },
       all: { type: 'boolean' },
+      costsOnly: { type: 'boolean' },
     },
   },
 );
@@ -130,6 +131,7 @@ async function main(): Promise<void> {
     upToLayer?: number;
     up?: number;
     all?: boolean;
+    costsOnly?: boolean;
   };
   const logger = globalThis.console;
 
@@ -228,6 +230,7 @@ async function main(): Promise<void> {
           blueprint: blueprintFlag,
           dryRun: Boolean(flags.dryRun),
           nonInteractive: Boolean(flags.nonInteractive),
+          costsOnly: Boolean(flags.costsOnly),
           concurrency: flags.concurrency,
           upToLayer,
           mode,

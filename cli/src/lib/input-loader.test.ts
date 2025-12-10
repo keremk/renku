@@ -69,7 +69,7 @@ describe('input-loader', () => {
           SegmentDuration: 10,
           VoiceId: 'Wise_Woman',
           'Input:AudioProducer.provider': 'replicate',
-          'Input:AudioProducer.model': 'elevenlabs/v3',
+          'Input:AudioProducer.model': 'minimax/speech-2.6-hd',
           'Input:VideoProducer.provider': 'replicate',
           'Input:VideoProducer.model': 'bytedance/seedance-1-pro-fast',
           'Input:MusicProducer.provider': 'replicate',

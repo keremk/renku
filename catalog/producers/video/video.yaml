@@ -80,3 +80,14 @@ models:
       SegmentVideo:
         type: video
         mimeType: video/mp4
+  - model: openai-sora-2
+    provider: replicate
+    inputSchema: ./openai-sora-2.json
+    inputs:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+      SegmentDuration: duration
+    outputs:
+      SegmentVideo:
+        type: video
+        mimeType: video/mp4

@@ -1,0 +1,79 @@
+{
+  "type": "object",
+  "title": "Input",
+  "required": [
+    "prompt"
+  ],
+  "properties": {
+    "seed": {
+      "type": "integer",
+      "title": "Seed",
+      "x-order": 5,
+      "nullable": true,
+      "description": "Random seed. Set for reproducible generation"
+    },
+    "width": {
+      "type": "integer",
+      "title": "Width",
+      "default": 1024,
+      "maximum": 1440,
+      "minimum": 64,
+      "x-order": 2,
+      "description": "Width of the generated image"
+    },
+    "height": {
+      "type": "integer",
+      "title": "Height",
+      "default": 1024,
+      "maximum": 1440,
+      "minimum": 64,
+      "x-order": 1,
+      "description": "Height of the generated image"
+    },
+    "prompt": {
+      "type": "string",
+      "title": "Prompt",
+      "x-order": 0,
+      "description": "Text prompt for image generation"
+    },
+    "output_format": {
+      "enum": [
+        "png",
+        "jpg",
+        "webp"
+      ],
+      "type": "string",
+      "title": "output_format",
+      "description": "Format of the output images",
+      "default": "jpg",
+      "x-order": 6
+    },
+    "guidance_scale": {
+      "type": "number",
+      "title": "Guidance Scale",
+      "default": 0,
+      "maximum": 20,
+      "minimum": 0,
+      "x-order": 4,
+      "description": "Guidance scale. Should be 0 for Turbo models"
+    },
+    "output_quality": {
+      "type": "integer",
+      "title": "Output Quality",
+      "default": 80,
+      "maximum": 100,
+      "minimum": 0,
+      "x-order": 7,
+      "description": "Quality when saving the output images, from 0 to 100. 100 is best quality, 0 is lowest quality. Not relevant for .png outputs"
+    },
+    "num_inference_steps": {
+      "type": "integer",
+      "title": "Num Inference Steps",
+      "default": 8,
+      "maximum": 50,
+      "minimum": 1,
+      "x-order": 3,
+      "description": "Number of inference steps. This actually results in (num_inference_steps - 1) DiT forwards"
+    }
+  }
+}

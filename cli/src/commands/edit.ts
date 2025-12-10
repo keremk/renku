@@ -12,6 +12,7 @@ import {
 } from '../lib/build.js';
 import { expandPath } from '../lib/path.js';
 import { confirmPlanExecution } from '../lib/interactive-confirm.js';
+import { displayPlanAndCosts } from '../lib/plan-display.js';
 import { confirmPlanWithInk } from '../lib/plan-confirmation.js';
 import { cleanupPlanFiles } from '../lib/plan-cleanup.js';
 import { readMovieMetadata } from '../lib/movie-metadata.js';
@@ -25,6 +26,7 @@ export interface EditOptions {
   inputsPath?: string; // optional override for CLI --inputs during edits
   dryRun?: boolean;
   nonInteractive?: boolean;
+  costsOnly?: boolean;
   usingBlueprint?: string;
   pendingArtefacts?: PendingArtefactDraft[];
   concurrency?: number;
@@ -107,6 +109,25 @@ export async function runEdit(options: EditOptions): Promise<EditResult> {
     throw new Error('--non-interactive is only supported in log mode.');
   }
 
+  // Handle --costs-only: display plan summary and costs, then return early
+  if (options.costsOnly) {
+    displayPlanAndCosts({
+      plan: planResult.plan,
+      inputs: planResult.inputEvents,
+      costSummary: planResult.costSummary,
+      logger,
+    });
+    return {
+      storageMovieId,
+      planPath: planResult.planPath,
+      targetRevision: planResult.targetRevision,
+      dryRun: undefined,
+      build: undefined,
+      manifestPath: undefined,
+      storagePath: movieDir,
+    };
+  }
+
   // Interactive confirmation (skip if dry-run, non-interactive, or no work to perform)
   if (hasJobs && !options.dryRun && !nonInteractive) {
     const confirmed =
@@ -121,6 +142,7 @@ export async function runEdit(options: EditOptions): Promise<EditResult> {
             concurrency,
             upToLayer,
             logger,
+            costSummary: planResult.costSummary,
           });
     if (!confirmed) {
       await cleanupPlanFiles(movieDir);

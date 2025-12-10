@@ -9,6 +9,9 @@ export interface CliConfig {
     root: string;
     basePath: string;
   };
+  catalog?: {
+    root: string;
+  };
   concurrency?: number;
   lastMovieId?: string;
   lastGeneratedAt?: string;
@@ -36,6 +39,7 @@ export async function readCliConfig(configPath?: string): Promise<CliConfig | nu
     }
     return {
       storage: parsed.storage,
+      catalog: parsed.catalog,
       concurrency: normalizeConcurrency(parsed.concurrency),
       lastMovieId: parsed.lastMovieId,
       lastGeneratedAt: parsed.lastGeneratedAt,

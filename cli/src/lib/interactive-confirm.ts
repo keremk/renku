@@ -1,72 +1,23 @@
 import process from 'node:process';
 import * as readline from 'node:readline';
 import type { ExecutionPlan, InputEvent, Logger } from '@renku/core';
+import type { PlanCostSummary } from '@renku/providers';
 import chalk from 'chalk';
+import {
+	displayInputSummary,
+	displayPlanSummary,
+	displayCostSummary,
+} from './plan-display.js';
+
+// Re-export for backward compatibility
+export { displayCostSummary } from './plan-display.js';
 
 interface PlanConfirmationOptions {
 	inputs?: InputEvent[];
 	concurrency?: number;
 	logger?: Logger;
 	upToLayer?: number;
-}
-
-function displayInputSummary(
-	events: InputEvent[] | undefined,
-	logger: Logger
-): void {
-	if (!events || events.length === 0) {
-		return;
-	}
-	const sorted = [...events].sort((a, b) => a.id.localeCompare(b.id));
-	logger.info(`\n${chalk.bold('=== Input Summary ===')}`);
-	for (const event of sorted) {
-		logger.info(
-			`  • ${chalk.blue(event.id)}: ${formatInputValue(event.payload)}`
-		);
-	}
-	logger.info('');
-}
-
-function formatInputValue(value: unknown): string {
-	if (typeof value === 'string') {
-		const compact = value.replace(/\s+/g, ' ').trim();
-		return compact.length > 0 ? compact : '(empty string)';
-	}
-	if (value === null || value === undefined) {
-		return String(value);
-	}
-	try {
-		return JSON.stringify(value);
-	} catch {
-		return '[unserializable]';
-	}
-}
-
-/**
- * Display a summary of the execution plan grouped by producer.
- */
-function displayPlanSummary(plan: ExecutionPlan, logger: Logger): void {
-	// Flatten all jobs from all layers
-	const allJobs = plan.layers.flat();
-
-	// Count jobs by producer
-	const byProducer = new Map<string, number>();
-	for (const job of allJobs) {
-		byProducer.set(job.producer, (byProducer.get(job.producer) ?? 0) + 1);
-	}
-
-	logger.info(`\n${chalk.bold('=== Execution Plan Summary ===')}`);
-	logger.info(`${chalk.bold('Revision')}: ${plan.revision}`);
-	logger.info(`${chalk.bold('Total Jobs')}: ${allJobs.length}`);
-	logger.info(`${chalk.bold('Layers')}: ${plan.layers.length}`);
-	logger.info(`${chalk.bold('Jobs by Producer:')}`);
-
-	for (const [producer, count] of byProducer) {
-		const jobWord = count === 1 ? 'job' : 'jobs';
-		logger.info(`  • ${chalk.blue(producer)}: ${chalk.bold(count)} ${jobWord}`);
-	}
-
-	logger.info('');
+	costSummary?: PlanCostSummary;
 }
 
 /**
@@ -80,6 +31,7 @@ export async function confirmPlanExecution(
 	const logger = options.logger ?? globalThis.console;
 	displayInputSummary(options.inputs, logger);
 	displayPlanSummary(plan, logger);
+	displayCostSummary(options.costSummary, logger);
 	displayLayerBreakdown(
 		plan,
 		options.concurrency ?? 1,

@@ -16,6 +16,7 @@ export interface GenerateOptions {
   blueprint?: string;
   dryRun?: boolean;
   nonInteractive?: boolean;
+  costsOnly?: boolean;
   concurrency?: number;
   upToLayer?: number;
   mode: CliLoggerMode;
@@ -114,6 +115,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
       inputsPath: options.inputsPath,
       dryRun: options.dryRun,
       nonInteractive: options.nonInteractive,
+      costsOnly: options.costsOnly,
       usingBlueprint: options.blueprint,
       pendingArtefacts: preflight.pendingArtefacts,
       concurrency,
@@ -181,6 +183,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
     inputsPath: options.inputsPath,
     dryRun: options.dryRun,
     nonInteractive: options.nonInteractive,
+    costsOnly: options.costsOnly,
     usingBlueprint: options.blueprint,
     concurrency,
     upToLayer,

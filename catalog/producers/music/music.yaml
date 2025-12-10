@@ -32,13 +32,3 @@ models:
       Music:
         type: audio
         mimeType: audio/mp3
-  - model: elevenlabs/music
-    provider: replicate
-    inputSchema: ./elevenlabs-music.json
-    inputs:
-      Prompt: prompt
-      Duration: music_length_ms
-    outputs:
-      Music:
-        type: audio
-        mimeType: audio/mp3

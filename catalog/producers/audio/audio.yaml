@@ -49,9 +49,9 @@ models:
       SegmentAudio:
         type: audio
         mimeType: audio/mp3
-  - provider: replicate
-    model: elevenlabs/v3
-    inputSchema: ./elevenlabs-speech-v3.json
+  - provider: fal-ai
+    model: elevenlabs/tts/eleven-v3
+    inputSchema: ./fal-elevenlabs-v3.json
     inputs:
       TextInput: prompt
       VoiceId: voice

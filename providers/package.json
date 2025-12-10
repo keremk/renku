@@ -43,7 +43,8 @@
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "mediabunny": "^1.24.5",
-    "replicate": "^1.2.0"
+    "replicate": "^1.2.0",
+    "yaml": "^2.8.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",

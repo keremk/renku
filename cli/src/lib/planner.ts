@@ -14,6 +14,11 @@ import {
   type Logger,
 } from '@renku/core';
 export type { PendingArtefactDraft } from '@renku/core';
+import {
+  loadPricingCatalog,
+  estimatePlanCosts,
+  type PlanCostSummary,
+} from '@renku/providers';
 import type { CliConfig } from './cli-config.js';
 import { writePromptFile } from './prompts.js';
 import { loadBlueprintBundle } from './blueprint-loader/index.js';
@@ -47,6 +52,7 @@ export interface GeneratePlanResult {
   resolvedInputs: Record<string, unknown>;
   providerOptions: ProducerOptionsMap;
   blueprintPath: string;
+  costSummary: PlanCostSummary;
 }
 
 export async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanResult> {
@@ -100,6 +106,17 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
   logger.debug('[planner] resolved inputs', { inputs: Object.keys(planResult.resolvedInputs) });
   const absolutePlanPath = resolve(storageRoot, planResult.planPath);
 
+  // Load pricing catalog and estimate costs
+  const catalogModelsDir = resolveCatalogModelsDir(cliConfig);
+  const pricingCatalog = catalogModelsDir
+    ? await loadPricingCatalog(catalogModelsDir)
+    : { providers: new Map() };
+  const costSummary = estimatePlanCosts(
+    planResult.plan,
+    pricingCatalog,
+    planResult.resolvedInputs
+  );
+
   return {
     planPath: absolutePlanPath,
     targetRevision: planResult.targetRevision,
@@ -110,6 +127,7 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
     resolvedInputs: planResult.resolvedInputs,
     providerOptions,
     blueprintPath,
+    costSummary,
   };
 }
 
@@ -140,4 +158,14 @@ function buildProviderMetadata(options: ProducerOptionsMap): Map<string, Provide
     });
   }
   return map;
+}
+
+/**
+ * Resolve the catalog models directory path from CLI config.
+ */
+function resolveCatalogModelsDir(cliConfig: CliConfig): string | null {
+  if (cliConfig.catalog?.root) {
+    return resolve(cliConfig.catalog.root, 'models');
+  }
+  return null;
 }

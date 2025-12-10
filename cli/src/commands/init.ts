@@ -39,6 +39,9 @@ export async function runInit(options: InitOptions): Promise<InitResult> {
       root: rootFolder,
       basePath: 'builds',
     },
+    catalog: {
+      root: getCliCatalogRoot(rootFolder),
+    },
     concurrency: 1,
   };
   await writeCliConfig(cliConfig, cliConfigPath);

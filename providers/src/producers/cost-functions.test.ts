@@ -1,0 +1,620 @@
+import { describe, expect, it } from 'vitest';
+import {
+	calculateCost,
+	estimatePlanCosts,
+	extractCostInputs,
+	lookupModelPrice,
+	type ExtractedCostInputs,
+	type ModelPriceConfig,
+	type PricingCatalog,
+} from './cost-functions.js';
+import type { ExecutionPlan, JobDescriptor } from '@renku/core';
+
+describe('calculateCost', () => {
+	describe('flat pricing', () => {
+		it('returns flat price when config is a number', () => {
+			const result = calculateCost(0, { values: {}, artefactSourcedFields: [], missingFields: [] });
+			expect(result.cost).toBe(0);
+			expect(result.isPlaceholder).toBe(false);
+		});
+
+		it('returns flat price for non-zero values', () => {
+			const result = calculateCost(0.05, { values: {}, artefactSourcedFields: [], missingFields: [] });
+			expect(result.cost).toBe(0.05);
+			expect(result.isPlaceholder).toBe(false);
+		});
+	});
+
+	describe('costByInputTokens', () => {
+		it('calculates cost based on token count', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByInputTokens',
+				inputs: ['text'],
+				pricePerToken: 0.0001,
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { text: 'Hello world' }, // 11 chars = ~3 tokens
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBeCloseTo(0.0003, 4);
+			expect(result.isPlaceholder).toBe(false);
+		});
+
+		it('returns placeholder when no text value found', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByInputTokens',
+				inputs: ['text'],
+				pricePerToken: 0.0001,
+			};
+			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: ['text'] });
+			expect(result.cost).toBe(0);
+			expect(result.isPlaceholder).toBe(true);
+		});
+
+		it('returns range when text comes from artefact', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByInputTokens',
+				inputs: ['text'],
+				pricePerToken: 0.0001,
+			};
+			const extracted: ExtractedCostInputs = {
+				values: {},
+				artefactSourcedFields: ['text'],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.isPlaceholder).toBe(true);
+			expect(result.range).toBeDefined();
+			expect(result.range!.min).toBeCloseTo(0.0025, 4); // 25 tokens * 0.0001
+			expect(result.range!.max).toBeCloseTo(0.025, 4);  // 250 tokens * 0.0001
+			expect(result.range!.samples).toHaveLength(3);
+		});
+	});
+
+	describe('costByImage', () => {
+		it('returns flat price per image', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByImage',
+				pricePerImage: 0.04,
+			};
+			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: [] });
+			expect(result.cost).toBe(0.04);
+			expect(result.isPlaceholder).toBe(false);
+		});
+
+		it('returns placeholder when pricePerImage missing', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByImage',
+			};
+			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: [] });
+			expect(result.cost).toBe(0);
+			expect(result.isPlaceholder).toBe(true);
+		});
+	});
+
+	describe('costByImageAndResolution', () => {
+		it('returns price for matching resolution', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByImageAndResolution',
+				inputs: ['resolution'],
+				prices: [
+					{ resolution: '1K', pricePerImage: 0.15 },
+					{ resolution: '4K', pricePerImage: 0.30 },
+				],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { resolution: '4K' },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(0.30);
+			expect(result.isPlaceholder).toBe(false);
+		});
+
+		it('normalizes resolution strings', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByImageAndResolution',
+				inputs: ['resolution'],
+				prices: [
+					{ resolution: '1K', pricePerImage: 0.15 },
+					{ resolution: '4K', pricePerImage: 0.30 },
+				],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { resolution: '4k' },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(0.30);
+		});
+
+		it('uses fallback for unknown resolution', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByImageAndResolution',
+				inputs: ['resolution'],
+				prices: [
+					{ resolution: '1K', pricePerImage: 0.15 },
+				],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { resolution: '8K' },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(0.15);
+			expect(result.isPlaceholder).toBe(true);
+		});
+
+		it('returns range when resolution comes from artefact', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByImageAndResolution',
+				inputs: ['resolution'],
+				prices: [
+					{ resolution: '1K', pricePerImage: 0.15 },
+					{ resolution: '4K', pricePerImage: 0.30 },
+				],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: {},
+				artefactSourcedFields: ['resolution'],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.isPlaceholder).toBe(true);
+			expect(result.range).toBeDefined();
+			expect(result.range!.min).toBe(0.15);
+			expect(result.range!.max).toBe(0.30);
+		});
+	});
+
+	describe('costByResolution', () => {
+		it('categorizes by dimensions', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByResolution',
+				inputs: ['width', 'height'],
+				prices: [
+					{ resolution: '0.5K', pricePerImage: 0.0025 },
+					{ resolution: '1K', pricePerImage: 0.005 },
+					{ resolution: '2K', pricePerImage: 0.01 },
+				],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { width: 1024, height: 1024 },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(0.005);
+			expect(result.isPlaceholder).toBe(false);
+		});
+
+		it('uses default dimensions when not provided', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByResolution',
+				prices: [
+					{ resolution: '1K', pricePerImage: 0.005 },
+				],
+			};
+			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: [] });
+			expect(result.cost).toBe(0.005);
+		});
+	});
+
+	describe('costByVideoDuration', () => {
+		it('calculates cost based on duration', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoDuration',
+				inputs: ['duration'],
+				pricePerSecond: 0.10,
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { duration: 10 },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(1.0);
+			expect(result.isPlaceholder).toBe(false);
+		});
+
+		it('uses default duration when not provided', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoDuration',
+				pricePerSecond: 0.10,
+			};
+			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: [] });
+			expect(result.cost).toBe(0.5); // default 5 seconds
+		});
+
+		it('returns range when duration comes from artefact', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoDuration',
+				inputs: ['duration'],
+				pricePerSecond: 0.10,
+			};
+			const extracted: ExtractedCostInputs = {
+				values: {},
+				artefactSourcedFields: ['duration'],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.isPlaceholder).toBe(true);
+			expect(result.range).toBeDefined();
+			expect(result.range!.min).toBe(0.5);  // 5s * 0.10
+			expect(result.range!.max).toBe(3.0);  // 30s * 0.10
+		});
+	});
+
+	describe('costByVideoDurationAndResolution', () => {
+		it('calculates cost based on duration and resolution', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoDurationAndResolution',
+				inputs: ['duration', 'resolution'],
+				prices: [
+					{ resolution: '480p', pricePerSecond: 0.015 },
+					{ resolution: '720p', pricePerSecond: 0.025 },
+					{ resolution: '1080p', pricePerSecond: 0.06 },
+				],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { duration: 10, resolution: '720p' },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(0.25);
+			expect(result.isPlaceholder).toBe(false);
+		});
+
+		it('normalizes resolution with "p" suffix', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoDurationAndResolution',
+				inputs: ['duration', 'resolution'],
+				prices: [
+					{ resolution: '1080p', pricePerSecond: 0.06 },
+				],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { duration: 5, resolution: '1080' },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(0.30);
+		});
+	});
+
+	describe('costByVideoDurationAndWithAudio', () => {
+		it('uses higher price when audio is enabled', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoDurationAndWithAudio',
+				inputs: ['duration', 'generate_audio'],
+				prices: [
+					{ generate_audio: true, pricePerSecond: 0.15 },
+					{ generate_audio: false, pricePerSecond: 0.10 },
+				],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { duration: 10, generate_audio: true },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(1.5);
+			expect(result.isPlaceholder).toBe(false);
+		});
+
+		it('uses lower price when audio is disabled', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoDurationAndWithAudio',
+				inputs: ['duration', 'generate_audio'],
+				prices: [
+					{ generate_audio: true, pricePerSecond: 0.15 },
+					{ generate_audio: false, pricePerSecond: 0.10 },
+				],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { duration: 10, generate_audio: false },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(1.0);
+		});
+	});
+
+	describe('costByOutputFile', () => {
+		it('returns flat price per output file', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByOutputFile',
+				pricePerAudioFile: 0.20,
+			};
+			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: [] });
+			expect(result.cost).toBe(0.20);
+			expect(result.isPlaceholder).toBe(false);
+		});
+	});
+
+	describe('unknown function', () => {
+		it('returns placeholder for unknown function', () => {
+			const config = {
+				function: 'unknownFunction' as ModelPriceConfig['function'],
+			};
+			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: [] });
+			expect(result.cost).toBe(0);
+			expect(result.isPlaceholder).toBe(true);
+			expect(result.note).toContain('Unknown cost function');
+		});
+	});
+});
+
+describe('extractCostInputs', () => {
+	it('extracts values using sdkMapping and inputBindings', () => {
+		const job: JobDescriptor = {
+			jobId: 'job-1',
+			producer: 'AudioProducer',
+			inputs: [],
+			produces: [],
+			provider: 'replicate',
+			providerModel: 'minimax/speech-2.6-hd',
+			rateKey: 'audio',
+			context: {
+				namespacePath: [],
+				indices: {},
+				producerAlias: 'AudioProducer',
+				inputs: [],
+				produces: [],
+				sdkMapping: {
+					TextInput: { field: 'text' },
+					VoiceId: { field: 'voice_id' },
+				},
+				inputBindings: {
+					TextInput: 'Input:SegmentText',
+					VoiceId: 'Input:Voice',
+				},
+			},
+		};
+		const resolvedInputs = {
+			'Input:SegmentText': 'Hello world',
+			'Input:Voice': 'narrator',
+		};
+
+		const result = extractCostInputs(job, resolvedInputs, ['text', 'voice_id']);
+
+		expect(result.values).toEqual({ text: 'Hello world', voice_id: 'narrator' });
+		expect(result.artefactSourcedFields).toEqual([]);
+		expect(result.missingFields).toEqual([]);
+	});
+
+	it('detects artefact-sourced fields', () => {
+		const job: JobDescriptor = {
+			jobId: 'job-1',
+			producer: 'AudioProducer',
+			inputs: [],
+			produces: [],
+			provider: 'replicate',
+			providerModel: 'minimax/speech-2.6-hd',
+			rateKey: 'audio',
+			context: {
+				namespacePath: [],
+				indices: {},
+				producerAlias: 'AudioProducer',
+				inputs: [],
+				produces: [],
+				sdkMapping: {
+					TextInput: { field: 'text' },
+				},
+				inputBindings: {
+					TextInput: 'Artifact:NarrativeSegment.0.SegmentText',
+				},
+			},
+		};
+
+		const result = extractCostInputs(job, {}, ['text']);
+
+		expect(result.values).toEqual({});
+		expect(result.artefactSourcedFields).toEqual(['text']);
+		expect(result.missingFields).toEqual([]);
+	});
+
+	it('tracks missing fields when mapping not found', () => {
+		const job: JobDescriptor = {
+			jobId: 'job-1',
+			producer: 'SomeProducer',
+			inputs: [],
+			produces: [],
+			provider: 'provider',
+			providerModel: 'model',
+			rateKey: 'key',
+			context: {
+				namespacePath: [],
+				indices: {},
+				producerAlias: 'SomeProducer',
+				inputs: [],
+				produces: [],
+				sdkMapping: {},
+				inputBindings: {},
+			},
+		};
+
+		const result = extractCostInputs(job, {}, ['nonexistent_field']);
+
+		expect(result.values).toEqual({});
+		expect(result.artefactSourcedFields).toEqual([]);
+		expect(result.missingFields).toEqual(['nonexistent_field']);
+	});
+});
+
+describe('lookupModelPrice', () => {
+	it('returns price config for existing provider and model', () => {
+		const catalog: PricingCatalog = {
+			providers: new Map([
+				['replicate', new Map([
+					['bytedance/seedream-4', { function: 'costByImage' as const, pricePerImage: 0.03 }],
+				])],
+			]),
+		};
+		const result = lookupModelPrice(catalog, 'replicate', 'bytedance/seedream-4');
+		expect(result).toEqual({ function: 'costByImage', pricePerImage: 0.03 });
+	});
+
+	it('returns null for missing provider', () => {
+		const catalog: PricingCatalog = { providers: new Map() };
+		const result = lookupModelPrice(catalog, 'unknown', 'model');
+		expect(result).toBeNull();
+	});
+
+	it('returns null for missing model', () => {
+		const catalog: PricingCatalog = {
+			providers: new Map([
+				['replicate', new Map()],
+			]),
+		};
+		const result = lookupModelPrice(catalog, 'replicate', 'unknown-model');
+		expect(result).toBeNull();
+	});
+});
+
+describe('estimatePlanCosts', () => {
+	const createMockPlan = (jobs: Partial<JobDescriptor>[]): ExecutionPlan => ({
+		revision: 'rev-0001' as const,
+		manifestBaseHash: 'hash123',
+		layers: [jobs.map((j, i) => ({
+			jobId: j.jobId ?? `job-${i}`,
+			producer: j.producer ?? 'TestProducer',
+			inputs: j.inputs ?? [],
+			produces: j.produces ?? [],
+			provider: j.provider ?? 'replicate',
+			providerModel: j.providerModel ?? 'test-model',
+			rateKey: j.rateKey ?? 'test',
+			context: j.context,
+		}))],
+		createdAt: new Date().toISOString(),
+	});
+
+	it('calculates total cost for multiple jobs', () => {
+		const catalog: PricingCatalog = {
+			providers: new Map([
+				['replicate', new Map([
+					['image-model', { function: 'costByImage' as const, pricePerImage: 0.04 }],
+				])],
+			]),
+		};
+		const plan = createMockPlan([
+			{ provider: 'replicate', providerModel: 'image-model' },
+			{ provider: 'replicate', providerModel: 'image-model' },
+		]);
+		const summary = estimatePlanCosts(plan, catalog, {});
+		expect(summary.totalCost).toBe(0.08);
+		expect(summary.hasPlaceholders).toBe(false);
+	});
+
+	it('aggregates by producer', () => {
+		const catalog: PricingCatalog = {
+			providers: new Map([
+				['replicate', new Map([
+					['image-model', { function: 'costByImage' as const, pricePerImage: 0.04 }],
+					['video-model', { function: 'costByVideoDuration' as const, pricePerSecond: 0.10 }],
+				])],
+			]),
+		};
+		const plan = createMockPlan([
+			{ producer: 'ImageProducer', provider: 'replicate', providerModel: 'image-model' },
+			{ producer: 'ImageProducer', provider: 'replicate', providerModel: 'image-model' },
+			{ producer: 'VideoProducer', provider: 'replicate', providerModel: 'video-model' },
+		]);
+		const summary = estimatePlanCosts(plan, catalog, {});
+
+		const imageData = summary.byProducer.get('ImageProducer');
+		expect(imageData?.count).toBe(2);
+		expect(imageData?.totalCost).toBe(0.08);
+
+		const videoData = summary.byProducer.get('VideoProducer');
+		expect(videoData?.count).toBe(1);
+		expect(videoData?.totalCost).toBe(0.5); // default 5s duration
+	});
+
+	it('tracks missing providers', () => {
+		const catalog: PricingCatalog = { providers: new Map() };
+		const plan = createMockPlan([
+			{ provider: 'unknown-provider', providerModel: 'model' },
+		]);
+		const summary = estimatePlanCosts(plan, catalog, {});
+		expect(summary.missingProviders).toContain('unknown-provider');
+		expect(summary.hasPlaceholders).toBe(true);
+	});
+
+	it('tracks missing models within existing providers', () => {
+		const catalog: PricingCatalog = {
+			providers: new Map([
+				['replicate', new Map([
+					['known-model', { function: 'costByImage' as const, pricePerImage: 0.04 }],
+				])],
+			]),
+		};
+		const plan = createMockPlan([
+			{ provider: 'replicate', providerModel: 'unknown-model' },
+		]);
+		const summary = estimatePlanCosts(plan, catalog, {});
+		expect(summary.missingProviders).toContain('replicate:unknown-model');
+		expect(summary.hasPlaceholders).toBe(true);
+	});
+
+	it('handles internal producers with zero cost', () => {
+		const catalog: PricingCatalog = {
+			providers: new Map([
+				['renku', new Map([
+					['OrderedTimeline', 0],
+					['Mp4Exporter', 0],
+				])],
+			]),
+		};
+		const plan = createMockPlan([
+			{ producer: 'TimelineComposer', provider: 'renku', providerModel: 'OrderedTimeline' },
+			{ producer: 'VideoExporter', provider: 'renku', providerModel: 'Mp4Exporter' },
+		]);
+		const summary = estimatePlanCosts(plan, catalog, {});
+		expect(summary.totalCost).toBe(0);
+		expect(summary.hasPlaceholders).toBe(false);
+	});
+
+	it('calculates min/max totals when ranges are present', () => {
+		const catalog: PricingCatalog = {
+			providers: new Map([
+				['replicate', new Map([
+					['speech-model', {
+						function: 'costByInputTokens' as const,
+						inputs: ['text'],
+						pricePerToken: 0.0001,
+					}],
+				])],
+			]),
+		};
+		const plan = createMockPlan([
+			{
+				producer: 'AudioProducer',
+				provider: 'replicate',
+				providerModel: 'speech-model',
+				context: {
+					namespacePath: [],
+					indices: {},
+					producerAlias: 'AudioProducer',
+					inputs: [],
+					produces: [],
+					sdkMapping: { TextInput: { field: 'text' } },
+					inputBindings: { TextInput: 'Artifact:SomeText' },
+				},
+			},
+		]);
+		const summary = estimatePlanCosts(plan, catalog, {});
+
+		expect(summary.hasRanges).toBe(true);
+		expect(summary.minTotalCost).toBeCloseTo(0.0025, 4); // 25 tokens * 0.0001
+		expect(summary.maxTotalCost).toBeCloseTo(0.025, 4);  // 250 tokens * 0.0001
+	});
+});

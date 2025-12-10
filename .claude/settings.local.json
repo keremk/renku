@@ -15,7 +15,8 @@
       "Bash(pnpm build:core:*)",
       "Bash(pnpm --filter @renku/providers run type-check:*)",
       "Bash(pnpm test:core:*)",
-      "Bash(pnpm test:providers:*)"
+      "Bash(pnpm test:providers:*)",
+      "Bash(xargs:*)"
     ],
     "deny": [],
     "ask": []
