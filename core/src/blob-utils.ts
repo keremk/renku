@@ -1,3 +1,23 @@
+const MIME_TYPE_MAP: Record<string, string> = {
+  'mp3': 'audio/mpeg',
+  'wav': 'audio/wav',
+  'webm': 'video/webm',
+  'mp4': 'video/mp4',
+  'mov': 'video/quicktime',
+  'png': 'image/png',
+  'jpg': 'image/jpeg',
+  'jpeg': 'image/jpeg',
+  'webp': 'image/webp',
+  'gif': 'image/gif',
+  'json': 'application/json',
+  'txt': 'text/plain',
+};
+
+export function inferMimeType(extension: string): string {
+  const normalized = extension.toLowerCase().replace(/^\./, '');
+  return MIME_TYPE_MAP[normalized] ?? 'application/octet-stream';
+}
+
 const EXTENSION_MAP: Record<string, string> = {
   'audio/mpeg': 'mp3',
   'audio/mp3': 'mp3',

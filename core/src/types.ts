@@ -1,3 +1,5 @@
+import { Buffer } from 'buffer';
+
 type Id = string;
 type IsoDatetime = string;
 
@@ -484,4 +486,17 @@ export interface RunResult {
   startedAt: IsoDatetime;
   completedAt: IsoDatetime;
   buildManifest(): Promise<Manifest>;
+}
+
+/** Blob loaded from a local file. */
+export interface BlobInput {
+  data: Buffer;
+  mimeType: string;
+}
+
+export function isBlobInput(value: unknown): value is BlobInput {
+  return typeof value === 'object' && value !== null &&
+         'data' in value && 'mimeType' in value &&
+         (Buffer.isBuffer((value as BlobInput).data) ||
+          (value as BlobInput).data instanceof Uint8Array);
 }

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { stringify as stringifyYaml } from 'yaml';
@@ -13,6 +14,7 @@ import {
   type ExecutionPlan,
   type PendingArtefactDraft,
   type Logger,
+  type ArtifactOverride,
 } from '@renku/core';
 export type { PendingArtefactDraft } from '@renku/core';
 import {
@@ -31,6 +33,7 @@ import { mergeMovieMetadata } from './movie-metadata.js';
 import { INPUT_FILE_NAME } from './input-files.js';
 import { applyProviderDefaults } from './provider-defaults.js';
 import chalk from 'chalk';
+import { Buffer } from 'buffer';
 
 export interface GeneratePlanOptions {
   cliConfig: CliConfig;
@@ -89,13 +92,27 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
   const blueprintPath = expandPath(options.usingBlueprint);
   const { root: blueprintRoot } = await loadBlueprintBundle(blueprintPath);
 
-  const { values: inputValues, providerOptions } = await loadInputsFromYaml(
+  const { values: inputValues, providerOptions, artifactOverrides } = await loadInputsFromYaml(
     options.inputsPath,
     blueprintRoot,
   );
   applyProviderDefaults(inputValues, providerOptions);
   const catalog = buildProducerCatalog(providerOptions);
   logger.info(`${chalk.bold('Using blueprint:')} ${blueprintPath}`);
+
+  // Convert artifact overrides to PendingArtefactDraft objects
+  const overrideDrafts = convertArtifactOverridesToDrafts(artifactOverrides);
+  const allPendingArtefacts = [
+    ...(options.pendingArtefacts ?? []),
+    ...overrideDrafts,
+  ];
+
+  if (artifactOverrides.length > 0) {
+    logger.info(`${chalk.bold('Artifact overrides:')} ${artifactOverrides.length} artifact(s) will be replaced`);
+    for (const override of artifactOverrides) {
+      logger.debug(`  - ${override.artifactId} (${override.blob.mimeType})`);
+    }
+  }
 
   // Generate plan (writes go to in-memory storage)
   const planResult = await createPlanningService({
@@ -110,7 +127,7 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
     storage: memoryStorageContext,
     manifestService,
     eventLog,
-    pendingArtefacts: options.pendingArtefacts,
+    pendingArtefacts: allPendingArtefacts.length > 0 ? allPendingArtefacts : undefined,
   });
   logger.debug('[planner] resolved inputs', { inputs: Object.keys(planResult.resolvedInputs) });
   const absolutePlanPath = resolve(storageRoot, basePath, movieId, 'runs', `${planResult.targetRevision}-plan.json`);
@@ -245,4 +262,29 @@ function resolveCatalogModelsDir(cliConfig: CliConfig): string | null {
     return resolve(cliConfig.catalog.root, 'models');
   }
   return null;
+}
+
+/**
+ * Convert artifact overrides from inputs.yaml to PendingArtefactDraft objects.
+ * Computes blob hash from the data for dirty tracking.
+ */
+function convertArtifactOverridesToDrafts(overrides: ArtifactOverride[]): PendingArtefactDraft[] {
+  return overrides.map((override) => {
+    const buffer = Buffer.isBuffer(override.blob.data)
+      ? override.blob.data
+      : Buffer.from(override.blob.data);
+    const hash = createHash('sha256').update(buffer).digest('hex');
+
+    return {
+      artefactId: override.artifactId,
+      producedBy: 'user-override',
+      output: {
+        blob: {
+          hash,
+          size: buffer.byteLength,
+          mimeType: override.blob.mimeType,
+        },
+      },
+    };
+  });
 }

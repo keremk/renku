@@ -196,17 +196,49 @@ export const providerImplementations: ProviderImplementationRegistry = [
     mode: 'simulated',
     factory: falVideo(),
   },
-
-  // Fal.ai fallback (wildcard for future models)
   {
-    match: { provider: 'fal-ai', model: wildcard, environment: wildcard },
+    match: { provider: 'fal-ai', model: 'veo3.1/image-to-video', environment: wildcard },
+    mode: 'live',
+    factory: falVideo(),
+  },
+  {
+    match: { provider: 'fal-ai', model: 'veo3.1/image-to-video', environment: wildcard },
+    mode: 'simulated',
+    factory: falVideo(),
+  },
+  {
+    match: { provider: 'fal-ai', model: 'kling-video/o1/image-to-video', environment: wildcard },
+    mode: 'live',
+    factory: falVideo(),
+  },
+  {
+    match: { provider: 'fal-ai', model: 'kling-video/o1/image-to-video', environment: wildcard },
+    mode: 'simulated',
+    factory: falVideo(),
+  },
+
+  // Fal.ai Audio Models
+  {
+    match: { provider: 'fal-ai', model: 'playai/tts/v3', environment: wildcard },
     mode: 'live',
     factory: falAudio(),
   },
   {
-    match: { provider: 'fal-ai', model: wildcard, environment: wildcard },
+    match: { provider: 'fal-ai', model: 'playai/tts/v3', environment: wildcard },
     mode: 'simulated',
     factory: falAudio(),
+  },
+
+  // Fal.ai fallback - use image as default since it's the most common
+  {
+    match: { provider: 'fal-ai', model: wildcard, environment: wildcard },
+    mode: 'live',
+    factory: falImage(),
+  },
+  {
+    match: { provider: 'fal-ai', model: wildcard, environment: wildcard },
+    mode: 'simulated',
+    factory: falImage(),
   },
 
   // Wavespeed-ai Image Models

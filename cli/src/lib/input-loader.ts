@@ -3,6 +3,7 @@ import {
   loadInputsFromYaml as coreLoadInputsFromYaml,
   type InputMap,
   type ModelSelection,
+  type ArtifactOverride,
 } from '@renku/core';
 import { buildProducerOptionsFromBlueprint, type ProducerOptionsMap } from './producer-options.js';
 
@@ -10,9 +11,11 @@ export interface LoadedInputs {
   values: InputMap;
   modelSelections: ModelSelection[];
   providerOptions: ProducerOptionsMap;
+  /** Artifact overrides detected from inputs (keys like ProducerName.ArtifactName[index]: file:...) */
+  artifactOverrides: ArtifactOverride[];
 }
 
-export type { InputMap, ModelSelection };
+export type { InputMap, ModelSelection, ArtifactOverride };
 
 export async function loadInputsFromYaml(
   filePath: string,

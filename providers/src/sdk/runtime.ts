@@ -165,6 +165,20 @@ function createSdkHelper(
       }
 
       // Process blob inputs for fields with format: "uri" in schema
+      // First, check if any blob inputs exist in the payload
+      const hasBlobInputs = Object.values(payload).some(
+        (value) =>
+          isBlobInput(value) ||
+          (Array.isArray(value) && value.some((item) => isBlobInput(item))),
+      );
+
+      if (hasBlobInputs && !cloudStorage) {
+        throw new Error(
+          'Blob inputs (file: references) require cloud storage configuration. ' +
+            'Set S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, and S3_BUCKET_NAME environment variables.',
+        );
+      }
+
       if (cloudStorage && inputSchema) {
         const parsedSchema = JSON.parse(inputSchema);
         for (const [key, value] of Object.entries(payload)) {

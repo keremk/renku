@@ -9,6 +9,7 @@ import {
   initializeMovieStorage,
   loadCloudStorageEnv,
   createCloudStorageContext,
+  isBlobInput,
   type ExecutionPlan,
   type Manifest,
   type ProduceFn,
@@ -16,6 +17,7 @@ import {
   type RunResult,
   type ProducerJobContext,
   type Logger,
+  type BlobInput,
 } from '@renku/core';
 import {
   createProviderRegistry,
@@ -421,10 +423,20 @@ function summarizeValue(value: unknown): string {
     return JSON.stringify(value);
   }
   if (Array.isArray(value)) {
+    // Check if array contains blob inputs
+    const blobCount = value.filter((item) => isBlobInput(item)).length;
+    if (blobCount > 0) {
+      return `[array(${value.length}) with ${blobCount} blob(s)]`;
+    }
     return `[array(${value.length})]`;
   }
   if (value instanceof Uint8Array) {
     return `[uint8(${value.byteLength})]`;
+  }
+  // Check for BlobInput before generic object handling
+  if (isBlobInput(value)) {
+    const blob = value as BlobInput;
+    return `[blob: ${blob.mimeType}, ${blob.data.byteLength} bytes]`;
   }
   if (isRecord(value)) {
     const keys = Object.keys(value);

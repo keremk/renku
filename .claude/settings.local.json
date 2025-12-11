@@ -20,7 +20,9 @@
       "Bash(tree:*)",
       "Bash(pnpm type-check:core:*)",
       "Bash(pnpm type-check:cli:*)",
-      "Bash(pnpm build:providers:*)"
+      "Bash(pnpm build:providers:*)",
+      "Bash(pnpm test:cli:*)",
+      "Bash(pnpm --filter @renku/cli test:e2e:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
-import { extname } from 'node:path';
+import { dirname, extname } from 'node:path';
 import { parse as parseYaml } from 'yaml';
+import { resolveFileReferences } from './file-input-resolver.js';
 import {
   createInputIdResolver,
   type CanonicalInputEntry,
@@ -10,9 +11,11 @@ import {
   parseQualifiedProducerName,
 } from './canonical-ids.js';
 import type {
+  BlobInput,
   BlueprintTreeNode,
   ProducerModelVariant,
 } from '../types.js';
+import { isBlobInput } from '../types.js';
 
 export type InputMap = Record<string, unknown>;
 
@@ -29,9 +32,19 @@ export interface ModelSelection {
   namespacePath?: string[];
 }
 
+/** Artifact override from inputs.yaml with file: prefix */
+export interface ArtifactOverride {
+  /** Canonical artifact ID, e.g., "Artifact:ScriptProducer.NarrationScript[0]" */
+  artifactId: string;
+  /** The blob data loaded from the file */
+  blob: BlobInput;
+}
+
 export interface LoadedInputs {
   values: InputMap;
   modelSelections: ModelSelection[];
+  /** Artifact overrides detected from inputs (keys like ProducerName.ArtifactName[index]: file:...) */
+  artifactOverrides: ArtifactOverride[];
 }
 
 export async function loadInputsFromYaml(
@@ -42,15 +55,20 @@ export async function loadInputsFromYaml(
   const contents = await readFile(filePath, 'utf8');
   const parsed = parseYaml(contents) as RawInputsFile;
   const rawInputs = resolveInputSection(parsed);
+
+  // Extract potential artifact override keys BEFORE canonicalization
+  // (they would fail validation since they're not inputs)
+  const { regularInputs, potentialArtifactOverrides } = separateArtifactOverrideKeys(rawInputs);
+
   const producerIndex = indexProducers(blueprint);
-  const modelSelections = resolveModelSelections(parsed.models, producerIndex, rawInputs);
+  const modelSelections = resolveModelSelections(parsed.models, producerIndex, regularInputs);
   const selectionEntries = collectSelectionEntries(modelSelections);
   const syntheticInputs = [
     ...collectProducerScopedInputs(blueprint),
     ...selectionEntries,
   ];
   const resolver = createInputIdResolver(blueprint, syntheticInputs);
-  const values = canonicalizeInputs(rawInputs, resolver);
+  const values = canonicalizeInputs(regularInputs, resolver);
 
   const missingRequired = resolver.entries
     .filter((entry) => entry.namespacePath.length === 0 && entry.definition.required)
@@ -70,7 +88,14 @@ export async function loadInputsFromYaml(
 
   applyModelSelectionsToInputs(values, modelSelections);
 
-  return { values, modelSelections };
+  // Resolve file: references to BlobInput objects (for regular inputs)
+  const fileContext = { baseDir: dirname(filePath) };
+  const resolvedValues = await resolveAllFileReferences(values, fileContext);
+
+  // Resolve file: references in artifact override values and convert to ArtifactOverride[]
+  const artifactOverrides = await resolveArtifactOverrides(potentialArtifactOverrides, fileContext);
+
+  return { values: resolvedValues, modelSelections, artifactOverrides };
 }
 
 function validateYamlExtension(filePath: string): void {
@@ -416,4 +441,97 @@ function readString(source: Record<string, unknown>, key: string): string {
     return value.trim();
   }
   throw new Error(`Expected string for "${key}" in models entry`);
+}
+
+async function resolveAllFileReferences(
+  values: Record<string, unknown>,
+  context: { baseDir: string },
+): Promise<Record<string, unknown>> {
+  const resolved: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(values)) {
+    resolved[key] = await resolveFileReferences(value, context);
+  }
+  return resolved;
+}
+
+/**
+ * Pattern to detect artifact override keys.
+ * Matches: ProducerName.ArtifactName[index] or ProducerName.ArtifactName[i][j]
+ * Examples:
+ *   - ScriptProducer.NarrationScript[0]
+ *   - ImageProducer.SegmentImage[0][1]
+ *   - Artifact:ScriptProducer.NarrationScript[0] (canonical form)
+ */
+const ARTIFACT_OVERRIDE_PATTERN = /^(?:Artifact:)?([A-Za-z][A-Za-z0-9]*)\.([A-Za-z][A-Za-z0-9]*)(\[\d+\])+$/;
+
+/**
+ * Check if a key looks like an artifact override (ProducerName.ArtifactName[index]).
+ */
+function isArtifactOverrideKey(key: string): boolean {
+  return ARTIFACT_OVERRIDE_PATTERN.test(key);
+}
+
+/**
+ * Convert an artifact override key to canonical artifact ID format.
+ * E.g., "ScriptProducer.NarrationScript[0]" -> "Artifact:ScriptProducer.NarrationScript[0]"
+ */
+function toCanonicalArtifactId(key: string): string {
+  // If already prefixed with "Artifact:", return as-is
+  if (key.startsWith('Artifact:')) {
+    return key;
+  }
+  return `Artifact:${key}`;
+}
+
+/**
+ * Separate artifact override keys from regular input keys.
+ * Artifact overrides have the pattern ProducerName.ArtifactName[index].
+ */
+function separateArtifactOverrideKeys(
+  rawInputs: Record<string, unknown>,
+): { regularInputs: Record<string, unknown>; potentialArtifactOverrides: Record<string, unknown> } {
+  const regularInputs: Record<string, unknown> = {};
+  const potentialArtifactOverrides: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(rawInputs)) {
+    if (isArtifactOverrideKey(key)) {
+      potentialArtifactOverrides[key] = value;
+    } else {
+      regularInputs[key] = value;
+    }
+  }
+
+  return { regularInputs, potentialArtifactOverrides };
+}
+
+/**
+ * Resolve file references in artifact override values and convert to ArtifactOverride[].
+ * Only values that are file references (file:...) and resolve to BlobInput are included.
+ */
+async function resolveArtifactOverrides(
+  potentialOverrides: Record<string, unknown>,
+  fileContext: { baseDir: string },
+): Promise<ArtifactOverride[]> {
+  const overrides: ArtifactOverride[] = [];
+
+  for (const [key, value] of Object.entries(potentialOverrides)) {
+    // Resolve file reference if present
+    const resolved = await resolveFileReferences(value, fileContext);
+
+    // Only include if the resolved value is a BlobInput
+    if (isBlobInput(resolved)) {
+      overrides.push({
+        artifactId: toCanonicalArtifactId(key),
+        blob: resolved,
+      });
+    } else {
+      // Non-blob artifact overrides are currently not supported
+      throw new Error(
+        `Artifact override "${key}" must be a file reference (file:...). ` +
+        `Got: ${typeof resolved === 'string' ? resolved : typeof resolved}`
+      );
+    }
+  }
+
+  return overrides;
 }

@@ -16,3 +16,12 @@ models:
           pricePerSecond: 0.15
         - generate_audio: false
           pricePerSecond: 0.10
+  - name: veo3.1/image-to-video
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.40
+        - generate_audio: false
+          pricePerSecond: 0.20

@@ -1,4 +1,5 @@
-import type { ExecutionPlan, InputEvent, Logger } from '@renku/core';
+import type { ExecutionPlan, InputEvent, Logger, BlobInput } from '@renku/core';
+import { isBlobInput } from '@renku/core';
 import type { PlanCostSummary } from '@renku/providers';
 import chalk from 'chalk';
 
@@ -51,6 +52,18 @@ export function formatInputValue(value: unknown): string {
 	}
 	if (value === null || value === undefined) {
 		return String(value);
+	}
+	// Handle BlobInput - show summary instead of raw data
+	if (isBlobInput(value)) {
+		const blob = value as BlobInput;
+		return `[blob: ${blob.mimeType}, ${blob.data.byteLength} bytes]`;
+	}
+	// Handle arrays that may contain blob inputs
+	if (Array.isArray(value)) {
+		const blobCount = value.filter((item) => isBlobInput(item)).length;
+		if (blobCount > 0) {
+			return `[array of ${value.length} items, ${blobCount} blob(s)]`;
+		}
 	}
 	try {
 		return JSON.stringify(value);
