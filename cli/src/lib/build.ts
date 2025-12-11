@@ -26,6 +26,7 @@ import {
   type ProducerHandler,
   type ResolvedProviderHandler,
   type ProviderDescriptor,
+  type LoadedModelCatalog,
 } from '@renku/providers';
 import type { CliConfig } from './cli-config.js';
 import { normalizeConcurrency } from './cli-config.js';
@@ -41,6 +42,8 @@ export interface ExecuteBuildOptions {
   manifestHash: string | null;
   providerOptions: ProducerOptionsMap;
   resolvedInputs: Record<string, unknown>;
+  /** Pre-loaded model catalog for provider registry. */
+  catalog?: LoadedModelCatalog;
   concurrency?: number;
   upToLayer?: number;
   logger?: Logger;
@@ -85,7 +88,7 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<Execut
   const cloudStorage = cloudStorageEnv.isConfigured
     ? createCloudStorageContext(cloudStorageEnv.config!)
     : undefined;
-  const registry = createProviderRegistry({ mode: 'live', logger, notifications, cloudStorage });
+  const registry = createProviderRegistry({ mode: 'live', logger, notifications, cloudStorage, catalog: options.catalog });
   const preResolved = prepareProviderHandlers(registry, options.plan, options.providerOptions);
   await registry.warmStart?.(preResolved);
   const resolvedInputsWithSystem = {

@@ -1,7 +1,9 @@
-import { createProviderRegistry, type ProviderDescriptor } from '@renku/providers';
+import { resolve } from 'node:path';
+import { createProviderRegistry, loadModelCatalog, type ProviderDescriptor } from '@renku/providers';
 import { loadBlueprintBundle } from '../lib/blueprint-loader/index.js';
 import { buildProducerOptionsFromBlueprint } from '../lib/producer-options.js';
 import { expandPath } from '../lib/path.js';
+import { getDefaultCliConfigPath, readCliConfig } from '../lib/cli-config.js';
 
 export interface ProvidersListOptions {
   blueprintPath: string;
@@ -29,7 +31,16 @@ export async function runProvidersList(options: ProvidersListOptions): Promise<P
   const { root } = await loadBlueprintBundle(blueprintPath);
   const providerOptions = buildProducerOptionsFromBlueprint(root, [], true);
 
-  const registry = createProviderRegistry({ mode: 'live' });
+  // Load model catalog for handler generation
+  const cliConfig = await readCliConfig(getDefaultCliConfigPath());
+  const catalogModelsDir = cliConfig?.catalog?.root
+    ? resolve(cliConfig.catalog.root, 'models')
+    : undefined;
+  const catalog = catalogModelsDir
+    ? await loadModelCatalog(catalogModelsDir)
+    : undefined;
+
+  const registry = createProviderRegistry({ mode: 'live', catalog });
   const entries: ProviderListEntry[] = [];
 
   for (const [producer, variants] of providerOptions) {

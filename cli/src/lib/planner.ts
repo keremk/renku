@@ -20,7 +20,9 @@ export type { PendingArtefactDraft } from '@renku/core';
 import {
   loadPricingCatalog,
   estimatePlanCosts,
+  loadModelCatalog,
   type PlanCostSummary,
+  type LoadedModelCatalog,
 } from '@renku/providers';
 import type { CliConfig } from './cli-config.js';
 import { writePromptFile } from './prompts.js';
@@ -57,6 +59,8 @@ export interface GeneratePlanResult {
   providerOptions: ProducerOptionsMap;
   blueprintPath: string;
   costSummary: PlanCostSummary;
+  /** Pre-loaded model catalog for provider registry. */
+  modelCatalog?: LoadedModelCatalog;
   /** Persist the plan to local storage. Call after confirmation. */
   persist: () => Promise<void>;
 }
@@ -143,6 +147,11 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
     planResult.resolvedInputs
   );
 
+  // Load model catalog for handler generation
+  const modelCatalog = catalogModelsDir
+    ? await loadModelCatalog(catalogModelsDir)
+    : undefined;
+
   return {
     planPath: absolutePlanPath,
     targetRevision: planResult.targetRevision,
@@ -154,6 +163,7 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
     providerOptions,
     blueprintPath,
     costSummary,
+    modelCatalog,
     persist: async () => {
       // Create LOCAL storage and write everything
       const localStorageContext = createStorageContext({

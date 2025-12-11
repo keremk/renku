@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { stringify, parse } from 'yaml';
 import type { Logger } from '@renku/core';
 import { writeCliConfig, type CliConfig } from '../../src/lib/cli-config.js';
+import { getBundledCatalogRoot } from '../../src/lib/config-assets.js';
 
 export interface LoggerRecorder {
   logger: Logger;
@@ -29,6 +30,9 @@ export function buildTempConfig(root: string): CliConfig {
     storage: {
       root,
       basePath: 'builds',
+    },
+    catalog: {
+      root: getBundledCatalogRoot(),
     },
     concurrency: 1,
   };

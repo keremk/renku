@@ -1,23 +1,27 @@
 models:
-  - name: minimax/speech-2.6-hd
-    price:
-      function: costByInputTokens
-      inputs: [text]
-      pricePerToken: 0.0001
-  - name: minimax/speech-02-hd
-    price:
-      function: costByInputTokens
-      inputs: [text]
-      pricePerToken: 0.0001
+  # Image Models
   - name: bytedance/seedream-4
+    type: image
+    price:
+      function: costByImage
+      pricePerImage: 0.03
+  - name: bytedance/seedream-4.5
+    type: image
+    price:
+      function: costByImage
+      pricePerImage: 0.04
+  - name: google/imagen-4
+    type: image
     price:
       function: costByImage
       pricePerImage: 0.03
   - name: google/nano-banana
+    type: image
     price:
       function: costByImage
       pricePerImage: 0.039
   - name: google/nano-banana-pro
+    type: image
     price:
       function: costByImageAndResolution
       inputs: [resolution]
@@ -28,15 +32,18 @@ models:
           pricePerImage: 0.15
         - resolution: 4K
           pricePerImage: 0.30
+  - name: tencent/hunyuan-image-3
+    type: image
+    price:
+      function: costByImage
+      pricePerImage: 0.03
   - name: qwen/qwen-image
+    type: image
     price:
       function: costByImage
       pricePerImage: 0.025
-  - name: bytedance/seedream-4.5
-    price:
-      function: costByImage
-      pricePerImage: 0.04
   - name: prunaai/z-image-turbo
+    type: image
     price:
       function: costByResolution
       inputs: [width, height]
@@ -47,11 +54,42 @@ models:
           pricePerImage: 0.005
         - resolution: 2K
           pricePerImage: 0.01
+
+  # Audio Models (Speech)
+  - name: minimax/speech-2.6-hd
+    type: audio
+    price:
+      function: costByInputTokens
+      inputs: [text]
+      pricePerToken: 0.0001
+  - name: minimax/speech-02-hd
+    type: audio
+    price:
+      function: costByInputTokens
+      inputs: [text]
+      pricePerToken: 0.0001
+  - name: elevenlabs/v3
+    type: audio
+    price:
+      function: costByInputTokens
+      inputs: [text]
+      pricePerToken: 0.0001
+
+  # Music Models (also audio output)
   - name: stability-ai/stable-audio-2.5
+    type: audio
     price:
       function: costByOutputFile
       pricePerAudioFile: 0.20
+  - name: elevenlabs/music
+    type: audio
+    price:
+      function: costByOutputFile
+      pricePerAudioFile: 0.20
+
+  # Video Models
   - name: bytedance/seedance-1-lite
+    type: video
     price:
       function: costByVideoDurationAndResolution
       inputs: [duration, resolution]
@@ -63,6 +101,7 @@ models:
         - resolution: 1080p
           pricePerSecond: 0.072
   - name: bytedance/seedance-1-pro-fast
+    type: video
     price:
       function: costByVideoDurationAndResolution
       inputs: [duration, resolution]
@@ -74,6 +113,7 @@ models:
         - resolution: 1080p
           pricePerSecond: 0.06
   - name: google/veo-3.1-fast
+    type: video
     price:
       function: costByVideoDurationAndWithAudio
       inputs: [duration, generate_audio]
@@ -83,6 +123,7 @@ models:
         - generate_audio: false
           pricePerSecond: 0.10
   - name: openai/sora-2
+    type: video
     price:
       function: costByVideoDuration
       inputs: [duration]

@@ -128,9 +128,9 @@ connections:
   - from: ImageProducer[segment][image].SegmentImage
     to: SegmentImage[segment][image]
 
-  - from: ImageProducer[segment][0].SegmentImage
+  - from: ImageProducer[segment-1][1].SegmentImage
     to: VideoProducer[segment].InputImage1
-  - from: ImageProducer[segment][1].SegmentImage
+  - from: ImageProducer[segment][0].SegmentImage
     to: VideoProducer[segment].InputImage2
 
   - from: VideoProducer[segment].SegmentVideo

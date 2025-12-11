@@ -2,7 +2,7 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { getBundledBlueprintsRoot, resolveBlueprintSpecifier } from '../../src/lib/config-assets.js';
+import { getBundledBlueprintsRoot, getBundledCatalogRoot, resolveBlueprintSpecifier } from '../../src/lib/config-assets.js';
 import { loadBlueprintBundle } from '../../src/lib/blueprint-loader/index.js';
 import { generatePlan } from '../../src/lib/planner.js';
 import { writeCliConfig } from '../../src/lib/cli-config.js';
@@ -12,6 +12,7 @@ import { createCliLogger } from '../../src/lib/logger.js';
 
 const CLI_ROOT = resolve(__dirname, '../../');
 const BLUEPRINTS_ROOT = getBundledBlueprintsRoot();
+const CATALOG_ROOT = getBundledCatalogRoot();
 
 describe('integration: canonical inputs persist across query/edit', () => {
 	it('saves canonical inputs and reuses them during edit without unknown-id errors', async () => {
@@ -22,6 +23,9 @@ describe('integration: canonical inputs persist across query/edit', () => {
 			storage: {
 				root: storageRoot,
 				basePath: 'builds',
+			},
+			catalog: {
+				root: CATALOG_ROOT,
 			},
 			concurrency: 1,
 		};
@@ -81,6 +85,7 @@ describe('integration: canonical inputs persist across query/edit', () => {
 			manifestHash: planResult.manifestHash,
 			providerOptions: planResult.providerOptions,
 			resolvedInputs: planResult.resolvedInputs,
+			catalog: planResult.modelCatalog,
 			storage: { rootDir: storageRoot, basePath: 'builds' },
 			concurrency: 1,
 			logger,

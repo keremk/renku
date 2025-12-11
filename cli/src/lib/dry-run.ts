@@ -10,7 +10,7 @@ import {
   type ProviderName,
   type Logger,
 } from '@renku/core';
-import { createProviderRegistry, SchemaRegistry } from '@renku/providers';
+import { createProviderRegistry, SchemaRegistry, type LoadedModelCatalog } from '@renku/providers';
 import { createProviderProduce, prepareProviderHandlers } from './build.js';
 import { executePlanWithConcurrency } from './plan-runner.js';
 import type { ProducerOptionsMap } from './producer-options.js';
@@ -45,6 +45,8 @@ interface ExecuteDryRunArgs {
   manifestHash?: string | null;
   providerOptions: ProducerOptionsMap;
   resolvedInputs: Record<string, unknown>;
+  /** Pre-loaded model catalog for provider registry. */
+  catalog?: LoadedModelCatalog;
   concurrency?: number;
   storage?: {
     rootDir: string;
@@ -81,7 +83,7 @@ export async function executeDryRun(args: ExecuteDryRunArgs): Promise<DryRunSumm
     }
   }
 
-  const registry = createProviderRegistry({ mode: 'simulated', schemaRegistry, logger, notifications });
+  const registry = createProviderRegistry({ mode: 'simulated', schemaRegistry, logger, notifications, catalog: args.catalog });
   const preResolved = prepareProviderHandlers(registry, args.plan, args.providerOptions);
   await registry.warmStart?.(preResolved);
   const resolvedInputsWithSystem = {
