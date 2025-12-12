@@ -1,0 +1,60 @@
+meta:
+  name: Generate Long Form Video Prompt
+  description: Generate prompts for long form video content from segments with begin and end images
+  id: FlowVideoPromptProducer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: InquiryPrompt
+    description: The topic describing the desired movie script.
+    type: string
+    required: true
+  - name: Duration
+    description: Desired narration duration in seconds.
+    type: int
+    required: true
+  - name: NumOfSegments
+    description: Number of narration segments to produce.
+    type: int
+    required: true
+  - name: Style
+    description: Desired visual style to feed into prompt.
+    type: string
+    required: true
+  - name: Audience
+    description: Intended audience for tailoring details.
+    type: string
+    required: false
+    default: adult
+
+artifacts:
+  - name: MovieTitle
+    description: The generated title for the movie.
+    type: string
+  - name: NarrationScript
+    description: Array of narration paragraphs per segment.
+    type: array
+    itemType: string
+    countInput: NumOfSegments
+  - name: VideoPrompts
+    description: Array of video prompts per segment.
+    type: array
+    itemType: string
+    countInput: NumOfSegments
+  - name: ImagePrompts
+    description: Array of image prompts per segment.
+    type: array
+    itemType: string
+    countInput: NumOfSegments
+    countInputOffset: 1
+
+models:
+  - provider: openai
+    model: gpt-5-mini
+    promptFile: ./flow-video-prompt.toml
+    inputSchema: ../shared/openai-input.json
+    outputSchema: ./flow-video-prompt-output.json
+    config:
+      text_format: json_schema

@@ -196,6 +196,7 @@ export interface BlueprintArtefactDefinition {
   description?: string;
   itemType?: string;
   countInput?: string;
+  countInputOffset?: number;
 }
 
 export interface BlueprintProducerSdkMappingField {

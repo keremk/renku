@@ -26,6 +26,14 @@ describe('parseYamlBlueprintFile', () => {
     );
   });
 
+  it('parses countInputOffset for array artefacts', async () => {
+    const modulePath = resolve(catalogRoot, 'producers/flow-video-prompt/flow-video-prompt.yaml');
+    const document = await parseYamlBlueprintFile(modulePath);
+    const imagePrompts = document.artefacts.find((artefact) => artefact.name === 'ImagePrompts');
+    expect(imagePrompts?.countInput).toBe('NumOfSegments');
+    expect(imagePrompts?.countInputOffset).toBe(1);
+  });
+
   it('normalizes collector references into canonical edge notation', async () => {
     const blueprintPath = resolve(yamlRoot, 'image-only', 'image-only.yaml');
     const document = await parseYamlBlueprintFile(blueprintPath);
@@ -46,6 +54,19 @@ describe('parseYamlBlueprintFile', () => {
       'ImagePromptProducer',
       'ImageProducer',
     ]);
+  });
+
+  it('accepts dimension selectors with offsets', async () => {
+    const blueprintPath = resolve(yamlRoot, 'image-to-video', 'image-to-video.yaml');
+    const document = await parseYamlBlueprintFile(blueprintPath);
+    expect(document.edges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          from: 'ImageProducer[image+1].SegmentImage',
+          to: 'ImageToVideoProducer[segment].InputImage2',
+        }),
+      ]),
+    );
   });
 });
 

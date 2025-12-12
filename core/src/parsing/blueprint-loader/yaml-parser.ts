@@ -15,6 +15,7 @@ import type {
   ProducerConfig,
   ProducerImportDefinition,
 } from '../../types.js';
+import { parseDimensionSelector } from '../dimension-selectors.js';
 
 export interface BlueprintResourceReader {
   // eslint-disable-next-line no-unused-vars
@@ -217,8 +218,8 @@ function parseMeta(raw: unknown, filePath: string): BlueprintDocument['meta'] {
   };
 }
 
-function parseLoops(rawLoops: unknown[]): Array<{ name: string; parent?: string; countInput: string }> {
-  const loops: Array<{ name: string; parent?: string; countInput: string }> = [];
+function parseLoops(rawLoops: unknown[]): Array<{ name: string; parent?: string; countInput: string; countInputOffset?: number }> {
+  const loops: Array<{ name: string; parent?: string; countInput: string; countInputOffset?: number }> = [];
   const seen = new Set<string>();
   for (const raw of rawLoops) {
     if (!raw || typeof raw !== 'object') {
@@ -231,7 +232,8 @@ function parseLoops(rawLoops: unknown[]): Array<{ name: string; parent?: string;
     }
     const parent = loop.parent ? readString(loop, 'parent') : undefined;
     const countInput = readString(loop, 'countInput');
-    loops.push({ name, parent, countInput });
+    const countInputOffset = readOptionalNonNegativeInteger(loop, 'countInputOffset');
+    loops.push({ name, parent, countInput, countInputOffset });
     seen.add(name);
   }
   return loops;
@@ -267,12 +269,18 @@ function parseArtefact(raw: unknown): BlueprintArtefactDefinition {
   const artefact = raw as Record<string, unknown>;
   const name = readString(artefact, 'name');
   const type = readString(artefact, 'type');
+  const countInput = typeof artefact.countInput === 'string' ? artefact.countInput : undefined;
+  const countInputOffset = readOptionalNonNegativeInteger(artefact, 'countInputOffset');
+  if (countInputOffset !== undefined && !countInput) {
+    throw new Error(`Artifact "${name}" declares countInputOffset but is missing countInput.`);
+  }
   return {
     name,
     type,
     description: typeof artefact.description === 'string' ? artefact.description : undefined,
     itemType: typeof artefact.itemType === 'string' ? artefact.itemType : undefined,
-    countInput: typeof artefact.countInput === 'string' ? artefact.countInput : undefined,
+    countInput,
+    countInputOffset,
     required: artefact.required === false ? false : true,
   };
 }
@@ -582,9 +590,10 @@ function parseReference(reference: string, allowed: Set<string>, label: 'from' |
       if (!symbol) {
         throw new Error(`Empty dimension in ${label} reference "${reference}".`);
       }
-      if (!allowed.has(symbol)) {
+      const selector = parseDimensionSelector(symbol);
+      if (selector.kind === 'loop' && !allowed.has(selector.symbol)) {
         throw new Error(
-          `Unknown dimension "${symbol}" in ${label} reference "${reference}". Declare it under loops[].`,
+          `Unknown dimension "${selector.symbol}" in ${label} reference "${reference}". Declare it under loops[].`,
         );
       }
       remainder = remainder.slice(closeIndex + 1);
@@ -602,6 +611,27 @@ function readString(source: Record<string, unknown>, key: string): string {
     return value.trim();
   }
   throw new Error(`Expected string for "${key}"`);
+}
+
+function readOptionalNonNegativeInteger(source: Record<string, unknown>, key: string): number | undefined {
+  const raw = source[key];
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (typeof raw === 'number' && Number.isFinite(raw) && Number.isInteger(raw)) {
+    if (raw < 0) {
+      throw new Error(`Expected "${key}" to be a non-negative integer.`);
+    }
+    return raw;
+  }
+  if (typeof raw === 'string' && raw.trim().length > 0) {
+    const trimmed = raw.trim();
+    if (!/^[0-9]+$/.test(trimmed)) {
+      throw new Error(`Expected "${key}" to be a non-negative integer.`);
+    }
+    return parseInt(trimmed, 10);
+  }
+  throw new Error(`Expected "${key}" to be a non-negative integer.`);
 }
 
 function inferProducerEdges(

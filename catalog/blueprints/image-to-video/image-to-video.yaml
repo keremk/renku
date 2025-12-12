@@ -20,10 +20,10 @@ inputs:
     type: int
     required: true
   - name: SegmentDuration
-    description: Duration of each video segment in seconds.
-    type: int
+    description: Duration for each video segment (model-specific format, e.g. "5" or "10").
+    type: string
     required: false
-    default: 10
+    default: "10"
   - name: Audience
     description: Target audience for tone and vocabulary.
     type: string
@@ -46,6 +46,21 @@ inputs:
     description: Aspect ratio such as 16:9 or 3:2.
     type: string
     required: true
+  - name: Size
+    description: Enumerated values such as 1K, 2K, 4K, or custom describing the image size to use.
+    type: string
+    required: false
+    default: 1K
+  - name: VoiceId
+    description: The voice identifier to feed into audio generation.
+    type: string
+    required: true
+  - name: Emotion
+    description: Optional emotion hint for narration.
+    type: string
+    required: false
+    default: neutral
+    
 
 artifacts:
   - name: SegmentVideo
@@ -53,85 +68,98 @@ artifacts:
     type: array
     itemType: video
     countInput: NumOfSegments
+  - name: SegmentAudio
+    description: The narrated audio segments for the movie.
+    type: array
+    itemType: audio
+  - name: Timeline
+    description: The composed timeline JSON manifest.
+    type: json
 
 loops:
   - name: segment
     description: Iterates over narration segments.
     countInput: NumOfSegments
   - name: image
-    description: Iterates over images generated per segment.
-    parent: segment
-    countInput: NumOfImagesPerNarrative
+    description: Iterates over images for each segment, one more than the number of segments
+    countInput: NumOfSegments
+    countInputOffset: 1
 
 producers:
-  - name: ScriptProducer
-    path: ../../producers/script/script.yaml
-  - name: VideoPromptProducer
-    path: ../../producers/video-prompt/video-prompt.yaml
-  - name: ImagePromptProducer
-    path: ../../producers/image-prompt/image-prompt.yaml
+  - name: FlowVideoPromptProducer
+    path: ../../producers/flow-video-prompt/flow-video-prompt.yaml
   - name: ImageProducer
     path: ../../producers/image/image.yaml
+    loop: segment
   - name: ImageToVideoProducer
     path: ../../producers/image-to-video/image-to-video.yaml
     loop: segment
+  - name: AudioProducer
+    path: ../../producers/audio/audio.yaml
+    loop: segment
+  - name: TimelineComposer
+    path: ../../producers/timeline-composer/timeline-composer.yaml
 
 connections:
   - from: InquiryPrompt
-    to: ScriptProducer.InquiryPrompt
+    to: FlowVideoPromptProducer.InquiryPrompt
   - from: Audience
-    to: ScriptProducer.Audience
+    to: FlowVideoPromptProducer.Audience
   - from: Duration
-    to: ScriptProducer.Duration
+    to: FlowVideoPromptProducer.Duration
   - from: Language
-    to: ScriptProducer.Language
+    to: FlowVideoPromptProducer.Language
+  - from: Style
+    to: FlowVideoPromptProducer.Style
   - from: NumOfSegments
-    to: ScriptProducer.NumOfSegments
+    to: FlowVideoPromptProducer.NumOfSegments
 
-  - from: ScriptProducer.NarrationScript[segment]
-    to: VideoPromptProducer[segment].NarrativeText
-  - from: ScriptProducer.MovieSummary
-    to: VideoPromptProducer[segment].MovieSummary
-  - from: Style
-    to: VideoPromptProducer[segment].Style
-  - from: SegmentDuration
-    to: VideoPromptProducer[segment].SegmentDuration
-  - from: Audience
-    to: VideoPromptProducer[segment].Audience
-
-  - from: VideoPromptProducer.VideoPrompt[segment]
-    to: VideoProducer[segment].Prompt
-  - from: Resolution
-    to: VideoProducer[segment].Resolution
-  - from: AspectRatio
-    to: VideoProducer[segment].AspectRatio
-  - from: SegmentDuration
-    to: VideoProducer[segment].SegmentDuration
-
-  - from: ScriptProducer.NarrationScript[segment]
-    to: ImagePromptProducer[segment].NarrativeText
-  - from: ScriptProducer.MovieSummary
-    to: ImagePromptProducer[segment].OverallSummary
-  - from: Style
-    to: ImagePromptProducer[segment].Style
-  - from: Audience
-    to: ImagePromptProducer[segment].Audience
-  - from: NumOfImagesPerNarrative
-    to: ImagePromptProducer[segment].NumOfImagesPerNarrative
-
-  - from: ImagePromptProducer.ImagePrompt[segment][image]
-    to: ImageProducer[segment][image].Prompt
+  - from: FlowVideoPromptProducer.ImagePrompts[image]
+    to: ImageProducer[image].Prompt
   - from: Size
-    to: ImageProducer[segment][image].Size
+    to: ImageProducer[image].Size
   - from: AspectRatio
-    to: ImageProducer[segment][image].AspectRatio
-  - from: ImageProducer[segment][image].SegmentImage
-    to: SegmentImage[segment][image]
-
-  - from: ImageProducer[segment-1][1].SegmentImage
-    to: VideoProducer[segment].InputImage1
-  - from: ImageProducer[segment][0].SegmentImage
-    to: VideoProducer[segment].InputImage2
-
-  - from: VideoProducer[segment].SegmentVideo
+    to: ImageProducer[image].AspectRatio
+  
+  - from: FlowVideoPromptProducer.VideoPrompts[segment]
+    to: ImageToVideoProducer[segment].Prompt
+  - from: ImageProducer[image].SegmentImage
+    to: ImageToVideoProducer[segment].InputImage1
+  - from: ImageProducer[image+1].SegmentImage
+    to: ImageToVideoProducer[segment].InputImage2
+  - from: AspectRatio
+    to: ImageToVideoProducer[segment].AspectRatio
+  - from: Resolution
+    to: ImageToVideoProducer[segment].Resolution
+  - from: SegmentDuration
+    to: ImageToVideoProducer[segment].SegmentDuration
+  - from: ImageToVideoProducer[segment].SegmentVideo
     to: SegmentVideo[segment]
+  - from: ImageToVideoProducer[segment].SegmentVideo
+    to: TimelineComposer.VideoSegments
+
+  - from: FlowVideoPromptProducer.NarrationScript[segment]
+    to: AudioProducer[segment].TextInput
+  - from: VoiceId
+    to: AudioProducer[segment].VoiceId
+  - from: Emotion
+    to: AudioProducer[segment].Emotion
+  - from: AudioProducer[segment].SegmentAudio
+    to: SegmentAudio[segment]
+  - from: AudioProducer[segment].SegmentAudio
+    to: TimelineComposer.AudioSegments
+
+  - from: Duration
+    to: TimelineComposer.Duration
+  - from: TimelineComposer.Timeline
+    to: Timeline
+
+collectors:
+  - name: TimelineVideo
+    from: ImageToVideoProducer[segment].SegmentVideo
+    into: TimelineComposer.VideoSegments
+    groupBy: segment
+  - name: TimelineAudio
+    from: AudioProducer[segment].SegmentAudio
+    into: TimelineComposer.AudioSegments
+    groupBy: segment

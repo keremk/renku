@@ -111,10 +111,17 @@ function resolveDimensionSizes(
       );
     }
     const symbol = node.dimensions[node.dimensions.length - 1];
-    const size = readPositiveInteger(
+    const baseSize = readPositiveInteger(
       readInputValue(inputValues, node.namespacePath, definition.countInput, inputSources),
       definition.countInput,
     );
+    const offset = definition.countInputOffset ?? 0;
+    if (!Number.isInteger(offset) || offset < 0) {
+      throw new Error(
+        `Artefact "${[...node.namespacePath, node.name].join('.')}" declares an invalid countInputOffset (${offset}).`,
+      );
+    }
+    const size = baseSize + offset;
     assignDimensionSize(sizes, symbol, size);
     const targetLabel = extractDimensionLabel(symbol);
     for (let index = node.dimensions.length - 2; index >= 0; index -= 1) {
@@ -202,6 +209,23 @@ function deriveDimensionSize(
     const toIndex = edge.to.dimensions.findIndex((symbol) => symbol === targetSymbol);
     if (toIndex === -1) {
       continue;
+    }
+    const targetSelector = edge.to.selectors?.[toIndex];
+    const sourceSelector = edge.from.selectors?.[toIndex];
+    const hasExplicitSelector = targetSelector !== undefined || sourceSelector !== undefined;
+    if (hasExplicitSelector) {
+      if (!targetSelector || !sourceSelector) {
+        continue;
+      }
+      if (targetSelector.kind !== 'loop' || sourceSelector.kind !== 'loop') {
+        continue;
+      }
+      if (targetSelector.offset !== 0 || sourceSelector.offset !== 0) {
+        continue;
+      }
+      if (targetSelector.symbol !== sourceSelector.symbol) {
+        continue;
+      }
     }
     const fromSymbol = edge.from.dimensions[toIndex];
     if (!fromSymbol) {
@@ -311,18 +335,17 @@ function expandEdges(
     const toInstances = nodeInstances.get(edge.to.nodeId) ?? [];
     for (const fromNode of fromInstances) {
       for (const toNode of toInstances) {
-        if (dimensionsMatch(edge.from.dimensions, fromNode.indices, toNode.indices) &&
-            dimensionsMatch(edge.to.dimensions, toNode.indices, fromNode.indices) &&
-            dimensionPairsAlign(edge.from.dimensions, edge.to.dimensions, fromNode.indices, toNode.indices)) {
-          if (fromNode.id === toNode.id) {
-            continue;
-          }
-          results.push({
-            from: fromNode.id,
-            to: toNode.id,
-            note: edge.note,
-          });
+        if (!edgeInstancesAlign(edge, fromNode, toNode)) {
+          continue;
         }
+        if (fromNode.id === toNode.id) {
+          continue;
+        }
+        results.push({
+          from: fromNode.id,
+          to: toNode.id,
+          note: edge.note,
+        });
       }
     }
   }
@@ -401,44 +424,54 @@ function buildFanInCollections(
   return fanIn;
 }
 
-function dimensionsMatch(
-  required: string[],
-  source: Record<string, number>,
-  target: Record<string, number>,
+function edgeInstancesAlign(
+  edge: BlueprintGraphEdge,
+  fromNode: CanonicalNodeInstance,
+  toNode: CanonicalNodeInstance,
 ): boolean {
-  for (const symbol of required) {
-    if (!(symbol in source)) {
-      throw new Error(`Dimension "${symbol}" missing on node instance.`);
-    }
-    const sourceValue = source[symbol];
-    if (symbol in target && target[symbol] !== sourceValue) {
-      return false;
-    }
-  }
-  return true;
-}
+  const fromSymbols = edge.from.dimensions;
+  const toSymbols = edge.to.dimensions;
+  const fromSelectors = edge.from.selectors;
+  const toSelectors = edge.to.selectors;
+  const limit = Math.max(fromSymbols.length, toSymbols.length);
 
-function dimensionPairsAlign(
-  fromSymbols: string[],
-  toSymbols: string[],
-  fromIndices: Record<string, number>,
-  toIndices: Record<string, number>,
-): boolean {
-  const limit = Math.min(fromSymbols.length, toSymbols.length);
   for (let i = 0; i < limit; i += 1) {
     const fromSymbol = fromSymbols[i];
     const toSymbol = toSymbols[i];
-    if (!(fromSymbol in fromIndices)) {
-      throw new Error(`Dimension "${fromSymbol}" missing on source node instance.`);
+
+    const fromIndex = fromSymbol ? getDimensionValue(fromNode.indices, fromSymbol) : undefined;
+    const toIndex = toSymbol ? getDimensionValue(toNode.indices, toSymbol) : undefined;
+
+    const fromSelector = fromSymbol ? fromSelectors?.[i] : undefined;
+    const toSelector = toSymbol ? toSelectors?.[i] : undefined;
+
+    if (fromSelector?.kind === 'const' && fromIndex !== fromSelector.value) {
+      return false;
     }
-    if (!(toSymbol in toIndices)) {
-      throw new Error(`Dimension "${toSymbol}" missing on target node instance.`);
+    if (toSelector?.kind === 'const' && toIndex !== toSelector.value) {
+      return false;
     }
-    if (fromIndices[fromSymbol] !== toIndices[toSymbol]) {
+
+    if (fromIndex === undefined || toIndex === undefined) {
+      continue;
+    }
+
+    const fromOffset = fromSelector?.kind === 'loop' ? fromSelector.offset : 0;
+    const toOffset = toSelector?.kind === 'loop' ? toSelector.offset : 0;
+
+    if (fromIndex - fromOffset !== toIndex - toOffset) {
       return false;
     }
   }
+
   return true;
+}
+
+function getDimensionValue(indices: Record<string, number>, symbol: string): number {
+  if (!(symbol in indices)) {
+    throw new Error(`Dimension "${symbol}" missing on node instance.`);
+  }
+  return indices[symbol]!;
 }
 
 interface CollapseResult {

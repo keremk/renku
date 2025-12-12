@@ -6,6 +6,7 @@ import type {
   NodeKind,
   ProducerConfig,
 } from '../types.js';
+import { parseDimensionSelector, type DimensionSelector } from '../parsing/dimension-selectors.js';
 
 export interface BlueprintGraphNode {
   id: string;
@@ -21,6 +22,7 @@ export interface BlueprintGraphNode {
 export interface BlueprintGraphEdgeEndpoint {
   nodeId: string;
   dimensions: string[];
+  selectors?: Array<DimensionSelector | undefined>;
 }
 
 export interface BlueprintGraphEdge {
@@ -140,7 +142,7 @@ function registerNamespaceDims(
     const key = namespaceKey(path);
     const existing = namespaceDims.get(key);
     if (!existing) {
-      namespaceDims.set(key, createDimensionSymbols(segment.dimensions));
+      namespaceDims.set(key, createDimensionSymbols(segment.dimensions, `Namespace "${path.join('.')}"`));
       continue;
     }
     if (existing.length !== segment.dimensions.length) {
@@ -149,9 +151,14 @@ function registerNamespaceDims(
       );
     }
     for (let index = 0; index < existing.length; index += 1) {
-      if (existing[index]?.raw !== segment.dimensions[index]) {
+      const raw = segment.dimensions[index] ?? '';
+      const selector = parseDimensionSelector(raw);
+      if (selector.kind === 'loop' && existing[index]?.raw !== selector.symbol) {
         throw new Error(
-          `Namespace "${path.join('.')}" referenced with conflicting dimensions (${existing.map((entry) => entry.raw).join(', ')} vs ${segment.dimensions.join(', ')}).`,
+          `Namespace "${path.join('.')}" referenced with conflicting dimensions (${existing.map((entry) => entry.raw).join(', ')} vs ${segment.dimensions.map((entry) => {
+            const parsedSelector = parseDimensionSelector(entry);
+            return parsedSelector.kind === 'loop' ? parsedSelector.symbol : entry;
+          }).join(', ')}).`,
         );
       }
     }
@@ -173,7 +180,7 @@ function collectLocalNodeDimensions(
     }
     const existing = localDims.get(artefact.name);
     if (!existing || existing.length === 0) {
-      localDims.set(artefact.name, createDimensionSymbols([artefact.countInput]));
+      localDims.set(artefact.name, createDimensionSymbols([artefact.countInput], `Artefact "${artefact.name}"`));
     }
   }
   map.set(tree, localDims);
@@ -189,28 +196,41 @@ function registerLocalDims(reference: string, dimsMap: LocalNodeDims): void {
   const parsed = parseReference(reference);
   const identifier = parsed.node.name;
   const dims = parsed.node.dimensions;
-  const symbols = createDimensionSymbols(dims);
   const existing = dimsMap.get(identifier);
   if (!existing) {
-    dimsMap.set(identifier, symbols);
+    dimsMap.set(identifier, createDimensionSymbols(dims, `Node "${identifier}"`));
     return;
   }
-  if (existing.length !== symbols.length) {
+  if (existing.length !== dims.length) {
     throw new Error(
-      `Node "${identifier}" referenced with inconsistent dimension counts (${existing.length} vs ${symbols.length}).`,
+      `Node "${identifier}" referenced with inconsistent dimension counts (${existing.length} vs ${dims.length}).`,
     );
   }
   for (let index = 0; index < existing.length; index += 1) {
-    if (existing[index]?.raw !== symbols[index]?.raw) {
+    const raw = dims[index] ?? '';
+    const selector = parseDimensionSelector(raw);
+    if (selector.kind === 'loop' && existing[index]?.raw !== selector.symbol) {
       throw new Error(
-        `Node "${identifier}" referenced with inconsistent dimensions (${existing.map((entry) => entry.raw).join(', ')} vs ${symbols.map((entry) => entry.raw).join(', ')}).`,
+        `Node "${identifier}" referenced with inconsistent dimensions (${existing.map((entry) => entry.raw).join(', ')} vs ${dims.map((entry) => {
+          const parsedSelector = parseDimensionSelector(entry);
+          return parsedSelector.kind === 'loop' ? parsedSelector.symbol : entry;
+        }).join(', ')}).`,
       );
     }
   }
 }
 
-function createDimensionSymbols(dims: string[]): DimensionSymbol[] {
-  return dims.map((raw, ordinal) => ({ raw, ordinal }));
+function createDimensionSymbols(dims: string[], context: string): DimensionSymbol[] {
+  return dims.map((raw, ordinal) => {
+    const selector = parseDimensionSelector(raw);
+    if (selector.kind === 'const') {
+      throw new Error(
+        `${context} uses a numeric index selector "[${raw}]" to declare a dimension. ` +
+        'Declare the dimension using a loop symbol (for example: "[segment]") and use numeric indices only when selecting an existing dimension.',
+      );
+    }
+    return { raw: selector.symbol, ordinal };
+  });
 }
 
 function toLocalSlots(nodeId: string, symbols: DimensionSymbol[]): DimensionSlot[] {
@@ -385,6 +405,23 @@ function resolveNamespaceDimensionParents(
       if (!namespaceKey) {
         continue;
       }
+      const targetSelector = edge.to.selectors?.[index];
+      const sourceSelector = edge.from.selectors?.[index];
+      const hasExplicitSelector = targetSelector !== undefined || sourceSelector !== undefined;
+      if (hasExplicitSelector) {
+        if (!targetSelector || !sourceSelector) {
+          continue;
+        }
+        if (targetSelector.kind !== 'loop' || sourceSelector.kind !== 'loop') {
+          continue;
+        }
+        if (targetSelector.offset !== 0 || sourceSelector.offset !== 0) {
+          continue;
+        }
+        if (targetSelector.symbol !== sourceSelector.symbol) {
+          continue;
+        }
+      }
       const sourceSymbol = edge.from.dimensions[index];
       if (!sourceSymbol) {
         continue;
@@ -438,10 +475,75 @@ function resolveEdgeEndpoint(
   const ownerLocalDims = localDims.get(owner) ?? new Map();
   const targetNodeId = nodeId(targetPath, nodeName);
   const nodeDims = toLocalSlots(targetNodeId, ownerLocalDims.get(nodeName) ?? []);
+  const dimensions = qualifyDimensionSlots(targetNodeId, [...prefixDims, ...nodeDims]);
+  const selectors = parseEndpointSelectors(reference, parsed, prefixDims.length, nodeDims.length, targetNodeId);
   return {
     nodeId: targetNodeId,
-    dimensions: qualifyDimensionSlots(targetNodeId, [...prefixDims, ...nodeDims]),
+    dimensions,
+    selectors,
   };
+}
+
+function parseEndpointSelectors(
+  reference: string,
+  parsed: ParsedReference,
+  prefixCount: number,
+  localCount: number,
+  nodeId: string,
+): Array<DimensionSelector | undefined> | undefined {
+  const namespaceSelectors: string[] = [];
+  for (const segment of parsed.namespaceSegments) {
+    namespaceSelectors.push(...segment.dimensions);
+  }
+  const nodeSelectors = [...parsed.node.dimensions];
+  if (namespaceSelectors.length === 0 && nodeSelectors.length === 0) {
+    return undefined;
+  }
+
+  const total = prefixCount + localCount;
+  if (namespaceSelectors.length > prefixCount) {
+    throw new Error(
+      `Reference "${reference}" declares ${namespaceSelectors.length} namespace dimension selector(s), ` +
+      `but node "${nodeId}" has ${prefixCount} namespace dimension(s).`,
+    );
+  }
+
+  const selectors: Array<DimensionSelector | undefined> = new Array(total).fill(undefined);
+
+  const parseSelector = (raw: string): DimensionSelector => {
+    try {
+      return parseDimensionSelector(raw);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Invalid dimension selector in reference "${reference}": ${message}`);
+    }
+  };
+
+  for (let index = 0; index < namespaceSelectors.length; index += 1) {
+    selectors[index] = parseSelector(namespaceSelectors[index]!);
+  }
+
+  if (nodeSelectors.length === 0) {
+    return selectors;
+  }
+
+  const startIndex =
+    namespaceSelectors.length === 0 && prefixCount > 0 && nodeSelectors.length === localCount
+      ? prefixCount
+      : namespaceSelectors.length;
+
+  if (startIndex + nodeSelectors.length > total) {
+    throw new Error(
+      `Reference "${reference}" declares ${namespaceSelectors.length + nodeSelectors.length} dimension selector(s), ` +
+      `but node "${nodeId}" has ${total} dimension(s).`,
+    );
+  }
+
+  for (let index = 0; index < nodeSelectors.length; index += 1) {
+    selectors[startIndex + index] = parseSelector(nodeSelectors[index]!);
+  }
+
+  return selectors;
 }
 
 function findNodeByNamespace(tree: BlueprintTreeNode, namespacePath: string[]): BlueprintTreeNode {

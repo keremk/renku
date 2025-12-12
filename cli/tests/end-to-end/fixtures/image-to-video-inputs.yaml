@@ -1,14 +1,14 @@
 inputs:
-  InquiryPrompt: "A boy finds a wallet and embarks on a journey to find its owner."
+  InquiryPrompt: "Sketch an expedition to Europa's ice oceans"
   Duration: 20
   NumOfSegments: 2
   SegmentDuration: "10"
-  Style: "Ghibli"
-  Size: "1K"
-  AspectRatio: "16:9"
-  Resolution: "720p"
   Audience: "Adult"
   Language: "en"
+  Style: "Illustrated sci-fi field notes"
+  AspectRatio: "16:9"
+  Resolution: "720p"
+  Size: "1K"
   VoiceId: "Wise_Woman"
   Emotion: neutral
 

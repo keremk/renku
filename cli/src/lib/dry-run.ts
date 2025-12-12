@@ -83,7 +83,18 @@ export async function executeDryRun(args: ExecuteDryRunArgs): Promise<DryRunSumm
     }
   }
 
-  const registry = createProviderRegistry({ mode: 'simulated', schemaRegistry, logger, notifications, catalog: args.catalog });
+  const cloudStorage = {
+    ...storage,
+    temporaryUrl: async (path: string) => `https://example.invalid/${path}`,
+  };
+  const registry = createProviderRegistry({
+    mode: 'simulated',
+    schemaRegistry,
+    logger,
+    notifications,
+    cloudStorage,
+    catalog: args.catalog,
+  });
   const preResolved = prepareProviderHandlers(registry, args.plan, args.providerOptions);
   await registry.warmStart?.(preResolved);
   const resolvedInputsWithSystem = {
