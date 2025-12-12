@@ -1,14 +1,14 @@
-## Tutopanda Blueprint Authoring Guide
+## Renku Blueprint Authoring Guide
 
-This guide explains how to write Tutopanda blueprints: the YAML metadata, how modules compose, and the rules the planner and runner enforce (canonical IDs, fan-in, collectors, loops).
+This guide explains how to write Renku blueprints: the YAML metadata, how producer blueprints compose, and the rules the planner and runner enforce (canonical IDs, fan-in, collectors, loops/dimensions).
 
 ### Vocabulary
-- **Blueprint**: Top-level YAML that stitches inputs, artefacts, modules, connections, and collectors.
-- **Module**: A reusable sub-blueprint (in `catalog/blueprints/<name>`) that declares its own inputs, artefacts, and producers.
+- **Blueprint**: Top-level YAML that stitches inputs, artefacts, producer imports, connections, and collectors.
+- **Producer Import**: A reusable blueprint imported via `producers:` (legacy: `modules:`). Imports are aliased and referenced in connections.
 - **Input**: User-provided value. Mark `required: true` unless a sensible `default` exists. Optional inputs must declare a default—avoid speculative fallbacks.
-- **Artefact**: Output produced by a producer. Arrays declare `countInput` for sizing.
-- **Producer**: A job definition (provider + model) that maps inputs to outputs via `sdkMapping`/`outputs`.
-- **Loop**: Repeats modules across a dimension (`groupBy`). Dimensions align across modules and collectors.
+- **Artefact**: Output produced by a producer. Arrays declare `countInput` (and optional `countInputOffset`) for sizing.
+- **Producer**: A job definition (provider + model) that maps blueprint inputs to provider inputs (`inputs`) and declares output artefacts (`outputs`).
+- **Loop**: A named dimension used for wiring and collectors (`groupBy`). Dimensions align across producer imports and collectors.
 - **Collector**: Gathers artefacts into a `fanIn` collection for downstream aggregation.
 - **Canonical ID**: Fully qualified node name used end-to-end (e.g., `Input:TimelineComposer.Music`, `Artifact:AudioGenerator.SegmentAudio[0]`). Canonical IDs must flow without aliases or heuristics.
 
@@ -30,32 +30,40 @@ artifacts:
     type: array
     itemType: video
     countInput: NumOfSegments
+  - name: SegmentImages
+    type: array
+    itemType: image
+    countInput: NumOfSegments
+    countInputOffset: 1  # NumOfSegments + 1 (e.g., Image[0]..Image[n])
 
 loops:
   - name: segment
     countInput: NumOfSegments
+  - name: image
+    countInput: NumOfSegments
+    countInputOffset: 1
 
-modules:
+producers: # imports other blueprints (legacy: `modules:`)
   - name: VideoPromptGenerator
     path: ./modules/video-prompt-generator.yaml
     loop: segment
 
-connections: []   # edges wire inputs/artefacts into module inputs
+connections: []   # edges wire inputs/artefacts into producer inputs
 collectors: []    # define fan-in collections (see below)
 ```
 
 ### Inputs and Artefacts
-- Inputs/artefacts inside modules are scoped; external connections use `Namespace.Node` syntax (e.g., `ScriptGenerator.NarrationScript[segment]`).
-- Arrays and collections: use `countInput` to size artefacts; loops must align dimensions (segment/image/etc.).
+- Inputs/artefacts inside producer imports are scoped; external connections use `Namespace.Node` syntax (e.g., `ScriptGenerator.NarrationScript[segment]`).
+- Arrays: use `countInput` to size artefacts; use `countInputOffset` to add extra items (size = `countInput + countInputOffset`). `countInputOffset` must be a non-negative integer and requires `countInput`.
 - Do not add default fallbacks “just in case.” If an input is truly optional, supply a real default; otherwise fail fast.
 
 ### Loops and Dimensions
-- `loops[]` declare named dimensions (e.g., `segment`). Use `loop: segment` on a module to instantiate it per segment.
+- `loops[]` declare named dimensions (e.g., `segment`, `image`) that are valid in `[...]` selectors inside `connections`/`collectors`.
 - Edges automatically align dimensions by position. `VideoGenerator[segment]` connects to `VideoPromptGenerator[segment]` because they share the `segment` dimension.
 - When multiple dimensions exist (`segment.image`), align each positionally in connections and collectors.
 
 ### Connections (Edges)
-- `connections` wire values/artefacts to producer inputs across modules.
+- `connections` wire values/artefacts to producer inputs across producer imports.
 - Syntax: `from:` source, `to:` target input.
   - Sources/targets can be top-level inputs, module inputs, or artefacts (`Artifact:` prefix is implicit in YAML; planner adds it).
 - Example (per-segment video prompt):
@@ -65,6 +73,31 @@ connections:
     to: VideoPromptGenerator[segment].NarrativeText
   - from: VideoPromptGenerator.VideoPrompt[segment]
     to: VideoGenerator[segment].Prompt
+```
+
+#### Dimension selectors (loop, offset, ordinal)
+Dimension selectors inside `[...]` support:
+- Loop selectors: `[segment]`
+- Offset selectors: `[segment+1]`, `[segment-1]` (integer offsets)
+- Hardcoded ordinals: `[0]`, `[1]` (constant indices)
+
+Sliding window example (start/end images for each segment):
+```yaml
+connections:
+  - from: ImageProducer[image].SegmentImage
+    to: ImageToVideoProducer[segment].InputImage1
+  - from: ImageProducer[image+1].SegmentImage
+    to: ImageToVideoProducer[segment].InputImage2
+```
+This wires `segment=0` → `Image[0]`/`Image[1]`, `segment=1` → `Image[1]`/`Image[2]`, … so the upstream `image` dimension must be sized to `NumOfSegments + 1` (use `countInputOffset: 1` on the artefact that defines the `image` array size).
+
+Ordinal example (connect fixed elements of an array into distinct inputs on a non-looped node):
+```yaml
+connections:
+  - from: ImageProducer.SegmentImage[0]
+    to: IntroVideoProducer.StartImage
+  - from: ImageProducer.SegmentImage[1]
+    to: IntroVideoProducer.EndImage
 ```
 
 ### Collectors and Fan-In
@@ -99,7 +132,7 @@ What this produces:
   - Keep `groupBy` consistent with loop dimensions.
 - Single-asset tracks (e.g., one music bed) still need fan-in so the canonical input and `FanInValue` exist: `groups: [[Artifact:MusicGenerator.Music]]`.
 
-### Module Authoring Quick Reference
+### Producer Blueprint Quick Reference
 ```yaml
 meta: { name, id, version, author, license }
 
@@ -112,17 +145,10 @@ artifacts:
   - name: Music
     type: audio
 
-connections:
-  - from: Prompt
-    to: MusicProducer
-producers:
-  - name: MusicProducer
-    provider: replicate
+models:
+  - provider: replicate
     model: stability-ai/stable-audio-2.5
-    config:
-      steps: 8
-      cfg_scale: 1
-    sdkMapping:
+    inputs:
       Prompt: { field: prompt, type: string, required: true }
     outputs:
       Music: { type: audio, mimeType: audio/mp3 }
@@ -137,7 +163,7 @@ Key wiring steps:
 
 Skeleton:
 ```yaml
-modules:
+producers:
   - name: MusicGenerator
     path: ./modules/music-generator.yaml
   - name: TimelineComposer
@@ -177,10 +203,13 @@ collectors:
 - Missing `fanIn: true` on aggregator inputs → no canonical `Input:*` → TimelineProducer cannot resolve.
 - Forgetting `collectors` for a fan-in input → fan-in descriptor is empty → missing groups.
 - Mismatched dimensions (`segment` vs `image`) → planner errors about dimension counts.
+- `countInputOffset` without `countInput` → blueprint validation error.
+- Invalid selector syntax (e.g., `[segment+foo]`) or unknown loop symbol (e.g., `[segmnt]`) → blueprint validation error.
 - Optional input without a default → loader error.
 - Generated artefacts placed in `src` (don’t do this; use `dist/` per package builds).
 
 ### Testing Your Blueprint
-- Validate YAML: `pnpm --filter tutopanda-cli run blueprints:validate <path>`
-- Dry-run from repo root (honor sandbox root): `TUTOPANDA_CLI_CONFIG=/path/to/cli-config.json node cli/dist/cli.js generate --inputs=<inputs.yaml> --blueprint=<blueprint.yaml> --dry-run`
+- Validate YAML: `renku blueprints:validate <path-to-blueprint.yaml>`
+- Expect clear errors for invalid dimension selectors, unknown loops, or invalid `countInputOffset` usage.
+- Dry-run: `RENKU_CLI_CONFIG=/path/to/cli-config.json renku generate --inputs=<inputs.yaml> --blueprint=<blueprint.yaml> --dry-run`
 - Inspect the plan in `<builds>/<movie>/runs/rev-0001-plan.json` to confirm inputs/fan-in are present (`Input:TimelineComposer.*` with `fanIn` entries).
