@@ -25,7 +25,6 @@ import {
   type LoadedModelCatalog,
 } from '@renku/providers';
 import type { CliConfig } from './cli-config.js';
-import { writePromptFile } from './prompts.js';
 import { loadBlueprintBundle } from './blueprint-loader/index.js';
 import { loadInputsFromYaml, type InputMap } from './input-loader.js';
 import { buildProducerCatalog, type ProducerOptionsMap } from './producer-options.js';
@@ -238,10 +237,6 @@ async function copyEventsToMemory(
 async function persistInputs(movieDir: string, values: InputMap): Promise<void> {
   const contents = stringifyYaml({ inputs: values });
   await writeFile(join(movieDir, INPUT_FILE_NAME), contents, 'utf8');
-  const promptValue = values['Input:InquiryPrompt'];
-  if (typeof promptValue === 'string' && promptValue.trim().length > 0) {
-    await writePromptFile(movieDir, join('prompts', 'inquiry.txt'), promptValue);
-  }
 }
 
 function buildProviderMetadata(options: ProducerOptionsMap): Map<string, ProviderOptionEntry> {

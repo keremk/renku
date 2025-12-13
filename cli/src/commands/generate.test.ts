@@ -107,9 +107,6 @@ describe('runGenerate (new runs)', () => {
     expect(firstJob.context.inputs).toContain('Input:InquiryPrompt');
     expect(firstJob.context.produces.some((id: string) => id.startsWith('Artifact:ScriptProducer.NarrationScript'))).toBe(true);
 
-    const prompt = await readFile(join(movieDir, 'prompts', 'inquiry.txt'), 'utf8');
-    expect(prompt.trim()).toBe('Tell me a story about the sea');
-
     expect(result.build?.status).toBe('succeeded');
     expect(result.manifestPath).toBeDefined();
     const manifestStats = await stat(result.manifestPath!);

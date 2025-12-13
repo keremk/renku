@@ -1,7 +1,7 @@
 /* eslint-env node */
 import process from 'node:process';
 import './__testutils__/mock-providers.js';
-import { mkdtemp, readFile, rm, stat, copyFile } from 'node:fs/promises';
+import { mkdtemp, rm, stat, copyFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -103,14 +103,6 @@ describe('runExecute (edit flow)', () => {
     const manifestStats = await stat(editResult.manifestPath!);
     expect(manifestStats.isFile()).toBe(true);
 
-    const cliConfig = JSON.parse(await readFile(cliConfigPath, 'utf8')) as {
-      storage: { root: string; basePath: string };
-      defaultSettingsPath: string;
-    };
-    const storageMovieId = formatMovieId(queryResult.movieId);
-    const inquiryPath = resolve(cliConfig.storage.root, cliConfig.storage.basePath, storageMovieId, 'prompts', 'inquiry.txt');
-    const inquiryContents = await readFile(inquiryPath, 'utf8');
-    expect(inquiryContents.trim()).toBe('Tell me about stars');
   });
 
   it('supports dry run mode', async () => {

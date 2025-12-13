@@ -45,7 +45,6 @@ function silenceStdout(): () => void {
 }
 import { runInit } from './commands/init.js';
 import { runGenerate } from './commands/generate.js';
-import { runInspect } from './commands/inspect.js';
 import { runClean } from './commands/clean.js';
 import { runProvidersList } from './commands/providers-list.js';
 import { runBlueprintsList } from './commands/blueprints-list.js';
@@ -67,7 +66,7 @@ import { detectViewerAddress } from './lib/viewer-network.js';
 type ProviderListOutputEntry = Awaited<ReturnType<typeof runProvidersList>>['entries'][number];
 
 const cli = meow(
-  `\nUsage\n  $ renku <command> [options]\n\nCommands\n  install             Guided setup (alias for init)\n  init                Initialize Renku CLI configuration (requires --root-folder/--root)\n  generate            Create or continue a movie generation\n  clean               Remove friendly view and build artefacts for a movie\n  inspect             Export prompts or timeline data for a movie\n  viewer:start        Start the bundled viewer server in the foreground\n  viewer:view         Open the viewer for a movie id (starts server if needed)\n  viewer:stop         Stop the background viewer server\n  providers:list      Show providers defined in a blueprint\n  blueprints:list     List available blueprint YAML files\n  blueprints:describe <path>  Show details for a blueprint YAML file\n  blueprints:validate <path>  Validate a blueprint YAML file\n  mcp                 Run the Renku MCP server over stdio\n\nExamples\n  $ renku init --root-folder=~/media/renku\n  $ renku init --root=~/media/renku          # Short form of --root-folder\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml --concurrency=3\n  $ renku generate --last --up-to-layer=1\n  $ renku providers:list --blueprint=image-audio.yaml\n  $ renku blueprints:list\n  $ renku blueprints:describe audio-only.yaml\n  $ renku blueprints:validate image-audio.yaml\n  $ renku inspect --movie-id=movie-q123456 --prompts\n  $ renku clean --movie-id=movie-q123456\n  $ renku viewer:start\n  $ renku viewer:view --movie-id=movie-q123456\n  $ renku mcp --defaultBlueprint=image-audio.yaml\n`,
+  `\nUsage\n  $ renku <command> [options]\n\nCommands\n  install             Guided setup (alias for init)\n  init                Initialize Renku CLI configuration (requires --root-folder/--root)\n  generate            Create or continue a movie generation\n  clean               Remove friendly view and build artefacts for a movie\n  viewer:start        Start the bundled viewer server in the foreground\n  viewer:view         Open the viewer for a movie id (starts server if needed)\n  viewer:stop         Stop the background viewer server\n  providers:list      Show providers defined in a blueprint\n  blueprints:list     List available blueprint YAML files\n  blueprints:describe <path>  Show details for a blueprint YAML file\n  blueprints:validate <path>  Validate a blueprint YAML file\n  mcp                 Run the Renku MCP server over stdio\n\nExamples\n  $ renku init --root-folder=~/media/renku\n  $ renku init --root=~/media/renku          # Short form of --root-folder\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml --concurrency=3\n  $ renku generate --last --up-to-layer=1\n  $ renku providers:list --blueprint=image-audio.yaml\n  $ renku blueprints:list\n  $ renku blueprints:describe audio-only.yaml\n  $ renku blueprints:validate image-audio.yaml\n  $ renku clean --movie-id=movie-q123456\n  $ renku viewer:start\n  $ renku viewer:view --movie-id=movie-q123456\n  $ renku mcp --defaultBlueprint=image-audio.yaml\n`,
   {
     importMeta: import.meta,
     flags: {
@@ -75,7 +74,6 @@ const cli = meow(
       root: { type: 'string' },
       movieId: { type: 'string' },
       id: { type: 'string' },
-      prompts: { type: 'boolean', default: true },
       inputs: { type: 'string' },
       in: { type: 'string' },
       dryRun: { type: 'boolean' },
@@ -394,24 +392,6 @@ async function main(): Promise<void> {
         logger.error(`✗ Blueprint validation failed\n`);
         logger.error(`Error: ${result.error}`);
         process.exitCode = 1;
-      }
-      return;
-    }
-    case 'inspect': {
-      const movieIdFlag = flags.movieId ?? flags.id;
-      if (!movieIdFlag) {
-        logger.error('Error: --movie-id/--id is required for inspect.');
-        process.exitCode = 1;
-        return;
-      }
-      const result = await runInspect({
-        movieId: movieIdFlag,
-        prompts: flags.prompts,
-      });
-      if (result.promptsToml) {
-        logger.info(result.promptsToml);
-      } else {
-        logger.info('No prompts found for the specified movie.');
       }
       return;
     }
