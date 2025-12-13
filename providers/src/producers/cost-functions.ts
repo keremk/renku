@@ -363,15 +363,23 @@ function costByVideoDuration(
 		return { cost: 0, isPlaceholder: true, note: 'Missing pricePerSecond' };
 	}
 
+	// Get duration from first field in inputs array
+	const durationField = config.inputs?.[0];
+	const durationValue = durationField ? extracted.values[durationField] : undefined;
+	const duration = parseDurationValue(durationValue);
+
 	// Check for artefact-sourced duration
 	if (extracted.artefactSourcedFields.length > 0) {
+		if (duration === undefined) {
+			return { cost: 0, isPlaceholder: true, note: 'Missing duration, cannot calculate' };
+		}
 		const samples = [
 			{ label: '5s', cost: 5 * pricePerSecond },
 			{ label: '10s', cost: 10 * pricePerSecond },
 			{ label: '30s', cost: 30 * pricePerSecond },
 		];
 		return {
-			cost: samples[1].cost,
+			cost: duration * pricePerSecond,
 			isPlaceholder: true,
 			note: `Duration from artefact: ${extracted.artefactSourcedFields.join(', ')}`,
 			range: {
@@ -382,10 +390,9 @@ function costByVideoDuration(
 		};
 	}
 
-	// Get duration from first field in inputs array
-	const durationField = config.inputs?.[0];
-	const durationValue = durationField ? extracted.values[durationField] : undefined;
-	const duration = typeof durationValue === 'number' ? durationValue : 5;
+	if (duration === undefined) {
+		return { cost: 0, isPlaceholder: true, note: 'Missing duration, cannot calculate' };
+	}
 
 	return { cost: duration * pricePerSecond, isPlaceholder: false };
 }
@@ -403,10 +410,14 @@ function costByVideoDurationAndResolution(
 	const durationField = inputs[0];
 	const resolutionField = inputs[1];
 
+	const durationValue = durationField ? extracted.values[durationField] : undefined;
+	const duration = parseDurationValue(durationValue);
+
 	// Check for artefact-sourced inputs
 	if (extracted.artefactSourcedFields.length > 0) {
-		const durationValue = durationField ? extracted.values[durationField] : undefined;
-		const duration = typeof durationValue === 'number' ? durationValue : 10;
+		if (duration === undefined) {
+			return { cost: 0, isPlaceholder: true, note: 'Missing duration, cannot calculate' };
+		}
 		const minRate = Math.min(...prices.map(p => p.pricePerSecond ?? 0));
 		const maxRate = Math.max(...prices.map(p => p.pricePerSecond ?? 0));
 		return {
@@ -421,9 +432,11 @@ function costByVideoDurationAndResolution(
 		};
 	}
 
-	const durationValue = durationField ? extracted.values[durationField] : undefined;
+	if (duration === undefined) {
+		return { cost: 0, isPlaceholder: true, note: 'Missing duration, cannot calculate' };
+	}
+
 	const resolutionValue = resolutionField ? extracted.values[resolutionField] : undefined;
-	const duration = typeof durationValue === 'number' ? durationValue : 5;
 	const resolution = normalizeResolution(resolutionValue as string | undefined);
 
 	const match = prices.find((p) => p.resolution === resolution);
@@ -437,6 +450,19 @@ function costByVideoDurationAndResolution(
 		};
 	}
 	return { cost: duration * match.pricePerSecond, isPlaceholder: false };
+}
+
+function parseDurationValue(value: unknown): number | undefined {
+	if (typeof value === 'number') {
+		return value;
+	}
+	if (typeof value === 'string') {
+		const match = value.match(/^(\d+(?:\.\d+)?)s$/);
+		if (match) {
+			return parseFloat(match[1]);
+		}
+	}
+	return undefined;
 }
 
 function costByVideoDurationAndWithAudio(
@@ -455,7 +481,10 @@ function costByVideoDurationAndWithAudio(
 	// Check for artefact-sourced inputs
 	if (extracted.artefactSourcedFields.length > 0) {
 		const durationValue = durationField ? extracted.values[durationField] : undefined;
-		const duration = typeof durationValue === 'number' ? durationValue : 10;
+		const duration = parseDurationValue(durationValue);
+		if (duration === undefined) {
+			return { cost: 0, isPlaceholder: true, note: 'Missing duration, cannot calculate' };
+		}
 		const minRate = Math.min(...prices.map(p => p.pricePerSecond));
 		const maxRate = Math.max(...prices.map(p => p.pricePerSecond));
 		return {
@@ -475,7 +504,10 @@ function costByVideoDurationAndWithAudio(
 
 	const durationValue = durationField ? extracted.values[durationField] : undefined;
 	const audioValue = audioField ? extracted.values[audioField] : undefined;
-	const duration = typeof durationValue === 'number' ? durationValue : 5;
+	const duration = parseDurationValue(durationValue);
+	if (duration === undefined) {
+		return { cost: 0, isPlaceholder: true, note: 'Missing duration, cannot calculate' };
+	}
 	const generateAudio = audioValue === true;
 
 	const match = prices.find((p) => p.generate_audio === generateAudio);

@@ -222,16 +222,53 @@ describe('calculateCost', () => {
 			expect(result.isPlaceholder).toBe(false);
 		});
 
-		it('uses default duration when not provided', () => {
+		it('parses duration from string with "s" suffix', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoDuration',
+				inputs: ['duration'],
+				pricePerSecond: 0.10,
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { duration: '5s' },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(0.5);
+			expect(result.isPlaceholder).toBe(false);
+		});
+
+		it('returns placeholder when duration is missing', () => {
 			const config: ModelPriceConfig = {
 				function: 'costByVideoDuration',
 				pricePerSecond: 0.10,
 			};
 			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: [] });
-			expect(result.cost).toBe(0.5); // default 5 seconds
+			expect(result.cost).toBe(0);
+			expect(result.isPlaceholder).toBe(true);
+			expect(result.note).toBe('Missing duration, cannot calculate');
 		});
 
-		it('returns range when duration comes from artefact', () => {
+		it('returns range when duration is provided with artefact-sourced fields', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoDuration',
+				inputs: ['duration'],
+				pricePerSecond: 0.10,
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { duration: 10 },
+				artefactSourcedFields: ['other_field'],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(1.0);  // 10s * 0.10
+			expect(result.isPlaceholder).toBe(true);
+			expect(result.range).toBeDefined();
+			expect(result.range!.min).toBe(0.5);  // 5s * 0.10
+			expect(result.range!.max).toBe(3.0);  // 30s * 0.10
+		});
+
+		it('returns placeholder when duration comes from artefact without value', () => {
 			const config: ModelPriceConfig = {
 				function: 'costByVideoDuration',
 				inputs: ['duration'],
@@ -243,10 +280,9 @@ describe('calculateCost', () => {
 				missingFields: [],
 			};
 			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(0);
 			expect(result.isPlaceholder).toBe(true);
-			expect(result.range).toBeDefined();
-			expect(result.range!.min).toBe(0.5);  // 5s * 0.10
-			expect(result.range!.max).toBe(3.0);  // 30s * 0.10
+			expect(result.note).toBe('Missing duration, cannot calculate');
 		});
 	});
 
@@ -287,6 +323,43 @@ describe('calculateCost', () => {
 			const result = calculateCost(config, extracted);
 			expect(result.cost).toBe(0.30);
 		});
+
+		it('parses duration from string with "s" suffix', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoDurationAndResolution',
+				inputs: ['duration', 'resolution'],
+				prices: [
+					{ resolution: '720p', pricePerSecond: 0.025 },
+				],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { duration: '10s', resolution: '720p' },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(0.25);
+			expect(result.isPlaceholder).toBe(false);
+		});
+
+		it('returns placeholder when duration is missing', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoDurationAndResolution',
+				inputs: ['duration', 'resolution'],
+				prices: [
+					{ resolution: '720p', pricePerSecond: 0.025 },
+				],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { resolution: '720p' },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(0);
+			expect(result.isPlaceholder).toBe(true);
+			expect(result.note).toBe('Missing duration, cannot calculate');
+		});
 	});
 
 	describe('costByVideoDurationAndWithAudio', () => {
@@ -325,6 +398,86 @@ describe('calculateCost', () => {
 			};
 			const result = calculateCost(config, extracted);
 			expect(result.cost).toBe(1.0);
+		});
+
+		it('parses duration from string with "s" suffix', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoDurationAndWithAudio',
+				inputs: ['duration', 'generate_audio'],
+				prices: [
+					{ generate_audio: true, pricePerSecond: 0.15 },
+					{ generate_audio: false, pricePerSecond: 0.10 },
+				],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { duration: '5s', generate_audio: true },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(0.75);
+			expect(result.isPlaceholder).toBe(false);
+		});
+
+		it('returns placeholder when duration is missing', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoDurationAndWithAudio',
+				inputs: ['duration', 'generate_audio'],
+				prices: [
+					{ generate_audio: true, pricePerSecond: 0.15 },
+					{ generate_audio: false, pricePerSecond: 0.10 },
+				],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { generate_audio: true },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(0);
+			expect(result.isPlaceholder).toBe(true);
+			expect(result.note).toBe('Missing duration, cannot calculate');
+		});
+
+		it('returns placeholder when duration comes from artefact without value', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoDurationAndWithAudio',
+				inputs: ['duration', 'generate_audio'],
+				prices: [
+					{ generate_audio: true, pricePerSecond: 0.15 },
+					{ generate_audio: false, pricePerSecond: 0.10 },
+				],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: {},
+				artefactSourcedFields: ['duration'],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(0);
+			expect(result.isPlaceholder).toBe(true);
+			expect(result.note).toBe('Missing duration, cannot calculate');
+		});
+
+		it('calculates range when duration is provided and artefact-sourced fields exist', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoDurationAndWithAudio',
+				inputs: ['duration', 'generate_audio'],
+				prices: [
+					{ generate_audio: true, pricePerSecond: 0.15 },
+					{ generate_audio: false, pricePerSecond: 0.10 },
+				],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { duration: 10 },
+				artefactSourcedFields: ['generate_audio'],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.isPlaceholder).toBe(true);
+			expect(result.range).toBeDefined();
+			expect(result.range!.min).toBe(1.0);  // 10s * 0.10
+			expect(result.range!.max).toBe(1.5);  // 10s * 0.15
 		});
 	});
 
@@ -519,14 +672,13 @@ describe('estimatePlanCosts', () => {
 			providers: new Map([
 				['replicate', new Map([
 					['image-model', { function: 'costByImage' as const, pricePerImage: 0.04 }],
-					['video-model', { function: 'costByVideoDuration' as const, pricePerSecond: 0.10 }],
 				])],
 			]),
 		};
 		const plan = createMockPlan([
 			{ producer: 'ImageProducer', provider: 'replicate', providerModel: 'image-model' },
 			{ producer: 'ImageProducer', provider: 'replicate', providerModel: 'image-model' },
-			{ producer: 'VideoProducer', provider: 'replicate', providerModel: 'video-model' },
+			{ producer: 'OtherImageProducer', provider: 'replicate', providerModel: 'image-model' },
 		]);
 		const summary = estimatePlanCosts(plan, catalog, {});
 
@@ -534,9 +686,9 @@ describe('estimatePlanCosts', () => {
 		expect(imageData?.count).toBe(2);
 		expect(imageData?.totalCost).toBe(0.08);
 
-		const videoData = summary.byProducer.get('VideoProducer');
-		expect(videoData?.count).toBe(1);
-		expect(videoData?.totalCost).toBe(0.5); // default 5s duration
+		const otherData = summary.byProducer.get('OtherImageProducer');
+		expect(otherData?.count).toBe(1);
+		expect(otherData?.totalCost).toBe(0.04);
 	});
 
 	it('tracks missing providers', () => {

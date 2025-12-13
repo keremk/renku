@@ -1,0 +1,66 @@
+{
+  "x-fal-order-properties": [
+    "prompt",
+    "duration",
+    "resolution",
+    "generate_audio",
+    "auto_fix",
+    "image_urls"
+  ],
+  "type": "object",
+  "properties": {
+    "prompt": {
+      "examples": [
+        "A graceful ballerina dancing outside a circus tent on green grass, with colorful wildflowers swaying around her as she twirls and poses in the meadow."
+      ],
+      "maxLength": 20000,
+      "type": "string",
+      "title": "Prompt",
+      "description": "The text prompt describing the video you want to generate"
+    },
+    "duration": {
+      "enum": ["8s"],
+      "description": "The duration of the generated video.",
+      "type": "string",
+      "title": "Duration",
+      "default": "8s"
+    },
+    "auto_fix": {
+      "title": "Auto Fix",
+      "type": "boolean",
+      "description": "Whether to automatically attempt to fix prompts that fail content policy or other validation checks by rewriting them.",
+      "default": false
+    },
+    "generate_audio": {
+      "title": "Generate Audio",
+      "type": "boolean",
+      "description": "Whether to generate audio for the video.",
+      "default": true
+    },
+    "resolution": {
+      "enum": ["720p", "1080p"],
+      "description": "The resolution of the generated video.",
+      "type": "string",
+      "title": "Resolution",
+      "default": "720p"
+    },
+    "image_urls": {
+      "examples": [
+        [
+          "https://storage.googleapis.com/falserverless/example_inputs/veo31-r2v-input-1.png",
+          "https://storage.googleapis.com/falserverless/example_inputs/veo31-r2v-input-2.png",
+          "https://storage.googleapis.com/falserverless/example_inputs/veo31-r2v-input-3.png"
+        ]
+      ],
+      "title": "Image Urls",
+      "type": "array",
+      "description": "URLs of the reference images to use for consistent subject appearance",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      }
+    }
+  },
+  "title": "Veo31ReferenceToVideoInput",
+  "required": ["prompt", "image_urls"]
+}

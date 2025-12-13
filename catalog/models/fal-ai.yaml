@@ -60,3 +60,13 @@ models:
       function: costByVideoDuration
       inputs: [duration]
       pricePerSecond: 0.20
+  - name: veo3.1/reference-to-video
+    type: video
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.40
+        - generate_audio: false
+          pricePerSecond: 0.20

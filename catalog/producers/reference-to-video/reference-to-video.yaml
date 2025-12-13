@@ -1,0 +1,65 @@
+meta:
+  name: Video Generation with Reference Images
+  description: Generate a video that uses the reference images.
+  id: ReferenceToVideoProducer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: The prompt to generate the video.
+    type: string
+    required: true
+  - name: ReferenceImages
+    description: The reference images to use when creating a video.
+    type: collection
+    itemType: image
+    dimensions: image
+    fanIn: true
+  - name: AspectRatio
+    description: Aspect ratio such as 16:9 or 3:2.
+    type: string
+    required: false
+    default: 16:9
+  - name: Resolution
+    description: The video resolution in 720p, 1080p
+    type: string
+    required: false
+    default: 720p
+  - name: SegmentDuration
+    description: The video segment's duration in seconds - Note this is not the movie duration
+    type: int
+    required: false
+    default: "8s"
+  - name: GenerateAudio
+    description: Whether to generate audio for the video.
+    type: boolean
+    required: false
+    default: false
+  - name: AutoFixPrompt
+    description: Whether to automatically fix the prompt that fails content policy or other validation checks by rewriting them.
+    type: boolean
+    required: false
+    default: true
+
+artifacts:
+  - name: SegmentVideo
+    description: Video file for the segment.
+    type: video
+
+models:
+  - model: veo3.1/reference-to-video
+    provider: fal-ai
+    inputSchema: ./fal-veo3-reference-to-video.json
+    inputs:
+      Prompt: prompt
+      Resolution: resolution
+      SegmentDuration: duration
+      GenerateAudio: generate_audio
+      ReferenceImages: image_urls
+      AutoFixPrompt: auto_fix
+    outputs:
+      SegmentVideo:
+        type: video
+        mimeType: video/mp4
