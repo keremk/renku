@@ -5,8 +5,7 @@ import { resolveAndPersistConcurrency } from '../lib/concurrency.js';
 import { buildFriendlyView, loadCurrentManifest, prepareFriendlyPreflight } from '../lib/friendly-view.js';
 import crypto from 'node:crypto';
 import { resolve } from 'node:path';
-import type { LogLevel, NotificationBus } from '@renku/core';
-import type { CliLoggerMode } from '../lib/logger.js';
+import type { LogLevel } from '@renku/core';
 import { createCliLogger } from '../lib/logger.js';
 
 export interface GenerateOptions {
@@ -19,10 +18,7 @@ export interface GenerateOptions {
   costsOnly?: boolean;
   concurrency?: number;
   upToLayer?: number;
-  mode: CliLoggerMode;
   logLevel: LogLevel;
-  notifications?: NotificationBus;
-  onExecutionStart?: () => void;
 }
 
 export interface GenerateResult {
@@ -58,13 +54,6 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
   }
 
   const upToLayer = options.upToLayer;
-  if (options.dryRun && upToLayer !== undefined) {
-    options.notifications?.publish({
-      type: 'warning',
-      message: '--up-to-layer applies only to live runs; dry runs will simulate all layers.',
-      timestamp: new Date().toISOString(),
-    });
-  }
 
   if (options.movieId || usingLast) {
     const storageMovieId = await resolveTargetMovieId({
@@ -80,7 +69,6 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
       `${new Date().toISOString().replace(/[:.]/g, '-')}.jsonl`,
     );
     const logger = createCliLogger({
-      mode: options.mode,
       level: options.logLevel,
       logFilePath,
     });
@@ -97,20 +85,6 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
       allowShardedBlobs: true,
     });
 
-    if (!preflight.changed) {
-      options.notifications?.publish({
-        type: 'progress',
-        message: 'No artefact changes detected in friendly view. Proceeding to run in case of prior failures.',
-        timestamp: new Date().toISOString(),
-      });
-    } else {
-      options.notifications?.publish({
-        type: 'progress',
-        message: `Detected ${preflight.pendingArtefacts.length} artefact change(s) from friendly edits.`,
-        timestamp: new Date().toISOString(),
-      });
-    }
-
     const editResult = await runEdit({
       movieId: storageMovieId,
       inputsPath: options.inputsPath,
@@ -121,10 +95,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
       pendingArtefacts: preflight.pendingArtefacts,
       concurrency,
       upToLayer,
-      mode: options.mode,
       logger,
-      notifications: options.notifications,
-      onExecutionStart: options.onExecutionStart,
     });
 
     let friendlyRoot: string | undefined;
@@ -167,7 +138,6 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
     `${new Date().toISOString().replace(/[:.]/g, '-')}.jsonl`,
   );
   const logger = createCliLogger({
-    mode: options.mode,
     level: options.logLevel,
     logFilePath,
   });
@@ -189,10 +159,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
     usingBlueprint: options.blueprint,
     concurrency,
     upToLayer,
-    mode: options.mode,
     logger,
-    notifications: options.notifications,
-    onExecutionStart: options.onExecutionStart,
   });
 
   let friendlyRoot: string | undefined;

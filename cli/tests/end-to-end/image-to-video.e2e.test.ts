@@ -46,11 +46,9 @@ describe('end-to-end: image-to-video dry runs', () => {
       usingBlueprint: blueprintPath,
       dryRun: true,
       nonInteractive: true,
-      mode: 'log',
       movieId,
       storageMovieId,
       logger,
-      notifications: undefined,
     });
 
     if (queryResult.dryRun?.status !== 'succeeded') {

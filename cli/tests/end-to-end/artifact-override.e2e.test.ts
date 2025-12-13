@@ -177,14 +177,12 @@ describe('end-to-end: artifact override via inputs.yaml', () => {
     // ============================================================
 
     const editResult = await runEdit({
-      mode: 'log',
       movieId: storageMovieId,
       inputsPath: overrideInputsPath,
       dryRun: true,
       nonInteractive: true,
       usingBlueprint: blueprintPath,
       logger: editLogger,
-      notifications: undefined,
     });
 
     // Verify edit dry-run succeeded

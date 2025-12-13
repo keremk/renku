@@ -80,9 +80,7 @@ describe('runEdit', () => {
       inputsPath: queryInputsPath,
       nonInteractive: true,
       blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
-      mode: 'log',
       logLevel: 'info',
-      notifications: undefined,
     });
 
     const movieInputsPath = resolve(queryResult.storagePath, 'inputs.yaml');
@@ -93,9 +91,7 @@ describe('runEdit', () => {
       movieId: queryResult.movieId,
       nonInteractive: true,
       usingBlueprint: AUDIO_ONLY_BLUEPRINT_PATH,
-      mode: 'log',
       logger: createCliLogger({
-          mode: 'log',
           level: 'debug',
         })
     });
@@ -128,7 +124,6 @@ describe('runEdit', () => {
       inputsPath: queryInputsPath,
       nonInteractive: true,
       blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
-      mode: 'log',
       logLevel: 'info',
     });
 
@@ -142,9 +137,7 @@ describe('runEdit', () => {
       movieId: queryResult.movieId,
       dryRun: true,
       usingBlueprint: AUDIO_ONLY_BLUEPRINT_PATH,
-      mode: 'log',
       logger: createCliLogger({
-          mode: 'log',
           level: 'debug',
         })
     });

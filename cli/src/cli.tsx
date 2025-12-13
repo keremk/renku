@@ -60,9 +60,7 @@ import {
   getCliBlueprintsRoot,
   resolveBlueprintSpecifier,
 } from './lib/config-assets.js';
-import React from 'react';
-import { createNotificationBus, type LogLevel, type Logger as CoreLogger } from '@renku/core';
-import type { CliLoggerMode } from './lib/logger.js';
+import { type LogLevel, type Logger as CoreLogger } from '@renku/core';
 import { detectViewerAddress } from './lib/viewer-network.js';
 
 
@@ -92,7 +90,6 @@ const cli = meow(
       blueprintsDir: { type: 'string' },
       defaultBlueprint: { type: 'string' },
       openViewer: { type: 'boolean' },
-      mode: { type: 'string' },
       logLevel: { type: 'string' },
       upToLayer: { type: 'number' },
       up: { type: 'number' },
@@ -126,7 +123,6 @@ async function main(): Promise<void> {
     blueprintsDir?: string;
     defaultBlueprint?: string;
     openViewer?: boolean;
-    mode?: string;
     logLevel?: string;
     upToLayer?: number;
     up?: number;
@@ -160,18 +156,11 @@ async function main(): Promise<void> {
         process.exitCode = 1;
         return;
       }
-      let mode: CliLoggerMode;
       let logLevel: LogLevel;
       try {
-        mode = resolveMode(flags.mode, Boolean(flags.dryRun));
         logLevel = resolveLogLevel(flags.logLevel);
       } catch (error) {
         logger.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
-        process.exitCode = 1;
-        return;
-      }
-      if (mode === 'tui' && flags.nonInteractive) {
-        logger.error('Error: --non-interactive is only supported in log mode.');
         process.exitCode = 1;
         return;
       }
@@ -207,21 +196,6 @@ async function main(): Promise<void> {
         }
       }
 
-      const notifications = mode === 'tui' ? createNotificationBus() : undefined;
-      let inkApp: import('ink').Instance | undefined;
-      let startTui: (() => void) | undefined;
-
-      if (notifications) {
-        const { render } = await import('ink');
-        const NotificationApp = (await import('./app.js')).default;
-        startTui = () => {
-          if (inkApp) {
-            return;
-          }
-          inkApp = render(<NotificationApp bus={notifications} />);
-        };
-      }
-
       try {
         const result = await runGenerate({
           movieId: movieIdFlag,
@@ -233,39 +207,21 @@ async function main(): Promise<void> {
           costsOnly: Boolean(flags.costsOnly),
           concurrency: flags.concurrency,
           upToLayer,
-          mode,
           logLevel,
-          notifications,
-          onExecutionStart: startTui,
         });
-        if (mode === 'log') {
-          const viewerUrl =
-            !result.dryRun && result.friendlyRoot
-              ? await resolveViewerUrl(result.storageMovieId)
-              : undefined;
-          printGenerateSummary(logger, result, viewerUrl);
-          if (result.dryRun) {
-            printDryRunSummary(logger, result.dryRun, result.storagePath);
-          } 
+        const viewerUrl =
+          !result.dryRun && result.friendlyRoot
+            ? await resolveViewerUrl(result.storageMovieId)
+            : undefined;
+        printGenerateSummary(logger, result, viewerUrl);
+        if (result.dryRun) {
+          printDryRunSummary(logger, result.dryRun, result.storagePath);
         }
-        notifications?.publish({
-          type: 'success',
-          message: 'Run complete.',
-          timestamp: new Date().toISOString(),
-        });
         return;
       } catch (error) {
         logger.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
         process.exitCode = 1;
-        notifications?.publish({
-          type: 'error',
-          message: error instanceof Error ? error.message : String(error),
-          timestamp: new Date().toISOString(),
-        });
         return;
-      } finally {
-        notifications?.complete();
-        inkApp?.unmount();
       }
     }
     case 'providers:list': {
@@ -506,16 +462,6 @@ async function main(): Promise<void> {
 }
 
 void main();
-
-function resolveMode(modeFlag: string | undefined, dryRun: boolean): CliLoggerMode {
-  if (modeFlag === 'tui' || modeFlag === 'log') {
-    return modeFlag;
-  }
-  if (modeFlag !== undefined) {
-    throw new Error('Invalid mode. Use "tui" or "log".');
-  }
-  return dryRun ? 'log' : 'tui';
-}
 
 function resolveLogLevel(levelFlag: string | undefined): LogLevel {
   if (levelFlag === undefined || levelFlag === 'info') {

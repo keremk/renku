@@ -185,14 +185,12 @@ describe('end-to-end: failed artifact recovery', () => {
 
     // Run edit with identical inputs (no changes) using dry-run to verify planning
     const editResult = await runEdit({
-      mode: 'log',
       movieId: storageMovieId,
       inputsPath, // Same inputs as initial run
       dryRun: true, // Use dry-run to test planning without needing real providers
       nonInteractive: true,
       usingBlueprint: blueprintPath,
       logger: recoveryLogger,
-      notifications: undefined,
     });
 
     // Verify edit dry-run succeeded

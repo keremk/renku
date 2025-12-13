@@ -11,10 +11,7 @@ import {
   type LogWriter,
 } from '@renku/core';
 
-export type CliLoggerMode = 'tui' | 'log';
-
 export interface CliLoggerOptions {
-  mode: CliLoggerMode;
   level: LogLevel;
   prefix?: string;
   logFilePath?: string;
@@ -29,7 +26,7 @@ export function createCliLogger(options: CliLoggerOptions): CliLogger {
     process.env.VITEST_WORKER_ID !== undefined ||
     process.env.NODE_ENV === 'test';
   const isDebugOutputEnabled = process.env.TEST_DEBUG_OUTPUT === 'true';
-  const shouldSuppressOutput = options.mode !== 'log' || (isTest && !isDebugOutputEnabled);
+  const shouldSuppressOutput = isTest && !isDebugOutputEnabled;
   const writers: Partial<Record<keyof Logger, LogWriter>> =
     !shouldSuppressOutput
       ? {
@@ -39,7 +36,7 @@ export function createCliLogger(options: CliLoggerOptions): CliLogger {
           debug: globalThis.console.debug.bind(globalThis.console),
         }
       : {
-          // Suppress all stdout/stderr logging in TUI or tests; notifications handle user output.
+          // Suppress all stdout/stderr logging in tests unless debug output is enabled.
           info: () => {},
           warn: () => {},
           error: () => {},

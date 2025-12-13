@@ -39,7 +39,6 @@ describe('end-to-end: video-audio-music dry runs', () => {
 
     // Run query dry-run
     const queryResult = await runQuery({
-      mode: 'log',
       inputsPath,
       usingBlueprint: blueprintPath,
       dryRun: true,
@@ -47,7 +46,6 @@ describe('end-to-end: video-audio-music dry runs', () => {
       movieId,
       storageMovieId,
       logger,
-      notifications: undefined,
     });
 
     if (queryResult.dryRun?.status !== 'succeeded') {
@@ -145,14 +143,12 @@ describe('end-to-end: video-audio-music dry runs', () => {
     );
 
     const editResult = await runEdit({
-      mode: 'log',
       movieId: queryResult.storageMovieId,
       inputsPath: editedInputsPath,
       dryRun: true,
       nonInteractive: true,
       usingBlueprint: blueprintPath,
       logger,
-      notifications: undefined,
     });
 
     expect(editResult.dryRun?.status).toBe('succeeded');

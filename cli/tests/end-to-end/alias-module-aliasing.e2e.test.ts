@@ -36,11 +36,9 @@ describe('end-to-end: module alias drives canonical producer ids', () => {
       usingBlueprint: blueprintPath,
       dryRun: true,
       nonInteractive: true,
-      mode: 'log',
       movieId,
       storageMovieId,
       logger,
-      notifications: undefined,
     });
 
     if (queryResult.dryRun?.status !== 'succeeded') {
