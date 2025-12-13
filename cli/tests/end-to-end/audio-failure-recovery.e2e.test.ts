@@ -12,8 +12,7 @@ import {
   type ProduceFn,
 } from '@renku/core';
 import { getDefaultCliConfigPath, readCliConfig } from '../../src/lib/cli-config.js';
-import { formatMovieId } from '../../src/commands/query.js';
-import { runEdit } from '../../src/commands/edit.js';
+import { formatMovieId, runExecute } from '../../src/commands/execute.js';
 import { getBundledBlueprintsRoot } from '../../src/lib/config-assets.js';
 import { generatePlan } from '../../src/lib/planner.js';
 import {
@@ -184,12 +183,12 @@ describe('end-to-end: failed artifact recovery', () => {
     // ============================================================
 
     // Run edit with identical inputs (no changes) using dry-run to verify planning
-    const editResult = await runEdit({
-      movieId: storageMovieId,
+    const editResult = await runExecute({
+      storageMovieId,
+      isNew: false,
       inputsPath, // Same inputs as initial run
       dryRun: true, // Use dry-run to test planning without needing real providers
       nonInteractive: true,
-      usingBlueprint: blueprintPath,
       logger: recoveryLogger,
     });
 

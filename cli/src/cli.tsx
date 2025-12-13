@@ -46,7 +46,7 @@ function silenceStdout(): () => void {
 import { runInit } from './commands/init.js';
 import { runGenerate } from './commands/generate.js';
 import { runInspect } from './commands/inspect.js';
-import { runClean } from './commands/edit-run.js';
+import { runClean } from './commands/clean.js';
 import { runProvidersList } from './commands/providers-list.js';
 import { runBlueprintsList } from './commands/blueprints-list.js';
 import { runBlueprintsDescribe } from './commands/blueprints-describe.js';

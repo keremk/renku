@@ -14,8 +14,7 @@ import {
   type ProduceFn,
 } from '@renku/core';
 import { getDefaultCliConfigPath, readCliConfig } from '../../src/lib/cli-config.js';
-import { formatMovieId } from '../../src/commands/query.js';
-import { runEdit } from '../../src/commands/edit.js';
+import { formatMovieId, runExecute } from '../../src/commands/execute.js';
 import { getBundledBlueprintsRoot } from '../../src/lib/config-assets.js';
 import { generatePlan } from '../../src/lib/planner.js';
 import {
@@ -176,12 +175,12 @@ describe('end-to-end: artifact override via inputs.yaml', () => {
     // PHASE 3: Run edit with override inputs (dry-run to test planning)
     // ============================================================
 
-    const editResult = await runEdit({
-      movieId: storageMovieId,
+    const editResult = await runExecute({
+      storageMovieId,
+      isNew: false,
       inputsPath: overrideInputsPath,
       dryRun: true,
       nonInteractive: true,
-      usingBlueprint: blueprintPath,
       logger: editLogger,
     });
 

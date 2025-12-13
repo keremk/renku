@@ -38,7 +38,6 @@ describe('integration: canonical inputs persist across query/edit', () => {
 		const inputsPath = resolve(BLUEPRINTS_ROOT, 'cut-scene-video', 'input-template.yaml');
 		const { root: blueprint } = await loadBlueprintBundle(blueprintPath);
 		const logger = createCliLogger({
-			mode: 'log',
 			level: 'debug',
 		});
 

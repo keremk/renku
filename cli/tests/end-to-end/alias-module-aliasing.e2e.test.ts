@@ -1,7 +1,7 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
-import { runQuery, formatMovieId } from '../../src/commands/query.js';
+import { runExecute, formatMovieId } from '../../src/commands/execute.js';
 import {
   createLoggerRecorder,
   expectFileExists,
@@ -31,13 +31,14 @@ describe('end-to-end: module alias drives canonical producer ids', () => {
     const storageMovieId = formatMovieId(movieId);
     const { logger, warnings, errors } = createLoggerRecorder();
 
-    const queryResult = await runQuery({
+    const queryResult = await runExecute({
+      storageMovieId,
+      movieId,
+      isNew: true,
       inputsPath,
-      usingBlueprint: blueprintPath,
+      blueprintSpecifier: blueprintPath,
       dryRun: true,
       nonInteractive: true,
-      movieId,
-      storageMovieId,
       logger,
     });
 

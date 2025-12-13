@@ -32,7 +32,6 @@ describe('planner provider inputs', () => {
 				inputsPath,
 				usingBlueprint: blueprintPath,
 				logger: createCliLogger({
-					mode: 'log',
 					level: 'debug',
 				}),
 				notifications: undefined,

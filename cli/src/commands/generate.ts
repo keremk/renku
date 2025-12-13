@@ -1,6 +1,5 @@
 import { getDefaultCliConfigPath, persistLastMovieId, readCliConfig, type CliConfig } from '../lib/cli-config.js';
-import { runQuery, type QueryResult, formatMovieId } from './query.js';
-import { runEdit, type EditResult } from './edit.js';
+import { runExecute, formatMovieId, type ExecuteResult } from './execute.js';
 import { resolveAndPersistConcurrency } from '../lib/concurrency.js';
 import { buildFriendlyView, loadCurrentManifest, prepareFriendlyPreflight } from '../lib/friendly-view.js';
 import crypto from 'node:crypto';
@@ -26,8 +25,8 @@ export interface GenerateResult {
   storageMovieId: string;
   planPath: string;
   targetRevision: string;
-  dryRun?: QueryResult['dryRun'] | EditResult['dryRun'];
-  build?: QueryResult['build'] | EditResult['build'];
+  dryRun?: ExecuteResult['dryRun'];
+  build?: ExecuteResult['build'];
   manifestPath?: string;
   storagePath: string;
   friendlyRoot?: string;
@@ -51,6 +50,11 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
   const usingLast = Boolean(options.useLast);
   if (usingLast && options.movieId) {
     throw new Error('Use either --last or --movie-id/--id, not both.');
+  }
+
+  // Input validation - required for both new and edit (no fallback)
+  if (!options.inputsPath) {
+    throw new Error('Input YAML path is required. Provide --inputs=/path/to/inputs.yaml');
   }
 
   const upToLayer = options.upToLayer;
@@ -85,14 +89,15 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
       allowShardedBlobs: true,
     });
 
-    const editResult = await runEdit({
-      movieId: storageMovieId,
+    const editResult = await runExecute({
+      storageMovieId,
+      isNew: false,
       inputsPath: options.inputsPath,
+      blueprintSpecifier: options.blueprint, // Ignored for edits - uses metadata
+      pendingArtefacts: preflight.pendingArtefacts,
       dryRun: options.dryRun,
       nonInteractive: options.nonInteractive,
       costsOnly: options.costsOnly,
-      usingBlueprint: options.blueprint,
-      pendingArtefacts: preflight.pendingArtefacts,
       concurrency,
       upToLayer,
       logger,
@@ -128,6 +133,11 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
     };
   }
 
+  // Blueprint validation - required for new movies only
+  if (!options.blueprint) {
+    throw new Error('Blueprint path is required for a new generation. Provide --blueprint=/path/to/blueprint.yaml');
+  }
+
   const newMovieId = generateMovieId();
   const storageMovieId = formatMovieId(newMovieId);
   const logFilePath = resolve(
@@ -142,21 +152,15 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
     logFilePath,
   });
 
-  if (!options.inputsPath) {
-    throw new Error('Input YAML path is required for a new generation. Provide --inputs=/path/to/inputs.yaml');
-  }
-  if (!options.blueprint) {
-    throw new Error('Blueprint path is required for a new generation. Provide --blueprint=/path/to/blueprint.yaml');
-  }
-
-  const queryResult = await runQuery({
-    movieId: newMovieId,
+  const queryResult = await runExecute({
     storageMovieId,
+    movieId: newMovieId,
+    isNew: true,
     inputsPath: options.inputsPath,
+    blueprintSpecifier: options.blueprint,
     dryRun: options.dryRun,
     nonInteractive: options.nonInteractive,
     costsOnly: options.costsOnly,
-    usingBlueprint: options.blueprint,
     concurrency,
     upToLayer,
     logger,

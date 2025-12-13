@@ -26,6 +26,7 @@
     "test:typecheck:unit": "tsc --project tsconfig.vitest.unit.json --noEmit",
     "test:typecheck:integration": "tsc --project tsconfig.vitest.integration.json --noEmit",
     "test:typecheck:e2e": "tsc --project tsconfig.vitest.e2e.json --noEmit",
+    "check:all": "pnpm type-check && pnpm lint && pnpm test:typecheck",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "prepack": "pnpm --filter viewer build && node ../scripts/prepare-viewer-bundle.mjs && node ../scripts/prepare-catalog-bundle.mjs"

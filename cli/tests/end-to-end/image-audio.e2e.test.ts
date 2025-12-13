@@ -1,7 +1,7 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
-import { runQuery, formatMovieId } from '../../src/commands/query.js';
+import { runExecute, formatMovieId } from '../../src/commands/execute.js';
 import { getBundledBlueprintsRoot } from '../../src/lib/config-assets.js';
 import {
   createLoggerRecorder,
@@ -36,13 +36,14 @@ describe('end-to-end: image-audio dry runs', () => {
     const movieId = 'e2e-image';
     const storageMovieId = formatMovieId(movieId);
 
-    const queryResult = await runQuery({
+    const queryResult = await runExecute({
+      storageMovieId,
+      movieId,
+      isNew: true,
       inputsPath,
-      usingBlueprint: blueprintPath,
+      blueprintSpecifier: blueprintPath,
       dryRun: true,
       nonInteractive: true,
-      movieId,
-      storageMovieId,
       logger,
     });
 

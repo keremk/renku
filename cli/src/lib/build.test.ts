@@ -65,7 +65,6 @@ describe('createProviderProduce', () => {
 			resolvedInputs,
 			[],
 			createCliLogger({
-				mode: 'log',
 				level: 'debug',
 			})
 		);

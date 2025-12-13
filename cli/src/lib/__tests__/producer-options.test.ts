@@ -81,8 +81,8 @@ describe('producer options', () => {
         meta: { id: 'test-blueprint', name: 'Test', description: 'test blueprint' },
         inputs: [],
         artefacts: [],
-        subBlueprints: [],
         edges: [],
+        producerImports: [],
         producers: [
           {
             name: 'BrokenProducer',

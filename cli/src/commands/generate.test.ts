@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runInit } from './init.js';
 import { runGenerate } from './generate.js';
-import { formatMovieId } from './query.js';
+import { formatMovieId } from './execute.js';
 import { readCliConfig } from '../lib/cli-config.js';
 import { createInputsFile } from './__testutils__/inputs.js';
 import { getBundledBlueprintsRoot } from '../lib/config-assets.js';
@@ -350,6 +350,7 @@ describe('runGenerate (new runs)', () => {
 
     const second = await runGenerate({
       ...LOG_DEFAULTS,
+      inputsPath,
       useLast: true,
       dryRun: true,
     });
@@ -365,9 +366,18 @@ describe('runGenerate (new runs)', () => {
 
     await runInit({ rootFolder: root, configPath: cliConfigPath });
 
+    const inputsPath = await createInputsFile({
+      root,
+      prompt: 'Last without prior',
+      models: AUDIO_ONLY_MODELS,
+      includeDefaults: false,
+      overrides: AUDIO_ONLY_OVERRIDES,
+    });
+
     await expect(
       runGenerate({
         ...LOG_DEFAULTS,
+        inputsPath,
         useLast: true,
       }),
     ).rejects.toThrow(/No previous movie found/i);
@@ -427,6 +437,7 @@ describe('runGenerate (new runs)', () => {
 
     const next = await runGenerate({
       ...LOG_DEFAULTS,
+      inputsPath,
       movieId: first.storageMovieId,
       dryRun: true,
     });

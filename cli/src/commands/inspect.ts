@@ -1,5 +1,5 @@
 import { readCliConfig } from '../lib/cli-config.js';
-import { formatMovieId } from './query.js';
+import { formatMovieId } from './execute.js';
 import { readPromptFile, promptsToToml, type PromptMap } from '../lib/prompts.js';
 import { resolve } from 'node:path';
 

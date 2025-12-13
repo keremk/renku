@@ -3,7 +3,7 @@ import process from 'node:process';
 import { resolve } from 'node:path';
 import { rm } from 'node:fs/promises';
 import { readCliConfig } from '../lib/cli-config.js';
-import { formatMovieId } from './query.js';
+import { formatMovieId } from './execute.js';
 import type { Logger } from '@renku/core';
 
 export async function runClean(options: { movieId: string; logger?: Logger }): Promise<void> {
@@ -13,7 +13,7 @@ export async function runClean(options: { movieId: string; logger?: Logger }): P
     throw new Error('Renku CLI is not initialized. Run "renku init" first.');
   }
   if (!options.movieId) {
-    throw new Error('Movie ID is required for edit:clean.');
+    throw new Error('Movie ID is required for clean.');
   }
   const storageMovieId = formatMovieId(options.movieId);
   const friendlyRoot = resolve(cliConfig.storage.root, 'movies', storageMovieId);

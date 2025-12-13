@@ -14,7 +14,7 @@ import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { stringify as stringifyYaml } from 'yaml';
 import { isBlobInput } from '@renku/core';
 import { getDefaultCliConfigPath, readCliConfig } from '../../src/lib/cli-config.js';
-import { formatMovieId } from '../../src/commands/query.js';
+import { formatMovieId } from '../../src/commands/execute.js';
 import { generatePlan } from '../../src/lib/planner.js';
 import {
   createLoggerRecorder,

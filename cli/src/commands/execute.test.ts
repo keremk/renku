@@ -7,8 +7,7 @@ import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runInit } from './init.js';
 import { runGenerate } from './generate.js';
-import { formatMovieId } from './query.js';
-import { runEdit } from './edit.js';
+import { formatMovieId, runExecute } from './execute.js';
 import { createInputsFile } from './__testutils__/inputs.js';
 import { getBundledBlueprintsRoot } from '../lib/config-assets.js';
 import { createCliLogger } from '../lib/logger.js';
@@ -45,7 +44,7 @@ afterEach(async () => {
 });
 
 async function createTempRoot(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'renku-edit-'));
+  const dir = await mkdtemp(join(tmpdir(), 'renku-execute-'));
   tmpRoots.push(dir);
   return dir;
 }
@@ -64,7 +63,7 @@ async function createInputsFixture(root: string, prompt: string, fileName: strin
   });
 }
 
-describe('runEdit', () => {
+describe('runExecute (edit flow)', () => {
   beforeEach(() => {
     process.env.RENKU_CLI_CONFIG = undefined;
   });
@@ -87,10 +86,11 @@ describe('runEdit', () => {
     const editInputsPath = await createInputsFixture(root, 'Tell me about stars', 'edit-inputs.yaml');
     await copyFile(editInputsPath, movieInputsPath);
 
-    const editResult = await runEdit({
-      movieId: queryResult.movieId,
+    const editResult = await runExecute({
+      storageMovieId: formatMovieId(queryResult.movieId),
+      isNew: false,
+      inputsPath: movieInputsPath,
       nonInteractive: true,
-      usingBlueprint: AUDIO_ONLY_BLUEPRINT_PATH,
       logger: createCliLogger({
           level: 'debug',
         })
@@ -133,10 +133,11 @@ describe('runEdit', () => {
     });
     await copyFile(editInputsPath, movieInputsPath);
 
-    const editResult = await runEdit({
-      movieId: queryResult.movieId,
+    const editResult = await runExecute({
+      storageMovieId: formatMovieId(queryResult.movieId),
+      isNew: false,
+      inputsPath: movieInputsPath,
       dryRun: true,
-      usingBlueprint: AUDIO_ONLY_BLUEPRINT_PATH,
       logger: createCliLogger({
           level: 'debug',
         })

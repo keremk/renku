@@ -22,7 +22,11 @@
       "Bash(pnpm type-check:cli:*)",
       "Bash(pnpm build:providers:*)",
       "Bash(pnpm test:cli:*)",
-      "Bash(pnpm --filter @renku/cli test:e2e:*)"
+      "Bash(pnpm --filter @renku/cli test:e2e:*)",
+      "Bash(ls:*)",
+      "Bash(pnpm --filter @renku/cli run type-check)",
+      "Bash(pnpm lint:cli:*)",
+      "Bash(pnpm --filter @renku/cli check:all:*)"
     ],
     "deny": [],
     "ask": []

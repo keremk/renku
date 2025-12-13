@@ -13,6 +13,8 @@ import {
 
 export interface InitOptions {
   rootFolder: string;
+  /** Optional config path override (used in tests) */
+  configPath?: string;
 }
 
 export interface InitResult {
@@ -28,7 +30,7 @@ export async function runInit(options: InitOptions): Promise<InitResult> {
 
   const rootFolder = expandPath(options.rootFolder);
   const buildsFolder = resolve(rootFolder, 'builds');
-  const cliConfigPath = getDefaultCliConfigPath();
+  const cliConfigPath = options.configPath ?? getDefaultCliConfigPath();
 
   await mkdir(rootFolder, { recursive: true });
   await mkdir(buildsFolder, { recursive: true });
