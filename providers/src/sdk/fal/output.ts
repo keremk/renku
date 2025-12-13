@@ -27,33 +27,33 @@ export function normalizeFalOutput(output: unknown): string[] {
   // Handle video output: { video: { url: "..." } }
   if (obj.video && typeof obj.video === 'object') {
     const url = extractUrl(obj.video);
-    if (url) urls.push(url);
+    if (url) { urls.push(url); }
   }
 
   // Handle images array: { images: [{ url: "..." }] }
   if (Array.isArray(obj.images)) {
     for (const item of obj.images) {
       const url = extractUrl(item);
-      if (url) urls.push(url);
+      if (url) { urls.push(url); }
     }
   }
 
   // Handle single image: { image: { url: "..." } }
   if (obj.image && typeof obj.image === 'object') {
     const url = extractUrl(obj.image);
-    if (url) urls.push(url);
+    if (url) { urls.push(url); }
   }
 
   // Handle audio output: { audio: { url: "..." } }
   if (obj.audio && typeof obj.audio === 'object') {
     const url = extractUrl(obj.audio);
-    if (url) urls.push(url);
+    if (url) { urls.push(url); }
   }
 
   // Handle audio_file output: { audio_file: { url: "..." } }
   if (obj.audio_file && typeof obj.audio_file === 'object') {
     const url = extractUrl(obj.audio_file);
-    if (url) urls.push(url);
+    if (url) { urls.push(url); }
   }
 
   return urls;

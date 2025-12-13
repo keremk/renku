@@ -24,6 +24,23 @@ export interface ModelDefinition {
 }
 
 /**
+ * Entry representing a model available for a producer.
+ * Used for discovery/listing of all model options.
+ */
+export interface ProducerModelEntry {
+  /** Producer name from blueprint */
+  producer: string;
+  /** Provider name (e.g., 'replicate', 'fal-ai', 'openai') */
+  provider: string;
+  /** Model identifier (e.g., 'bytedance/seedance-1-pro-fast') */
+  model: string;
+  /** Model type from catalog (image, video, audio, llm, internal) */
+  modelType?: ModelType;
+  /** Pricing configuration from catalog */
+  price?: ModelPriceConfig | number;
+}
+
+/**
  * Raw YAML structure for a provider's model catalog.
  */
 export interface ProviderCatalogYaml {

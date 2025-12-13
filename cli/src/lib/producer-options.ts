@@ -162,7 +162,10 @@ function buildVariantConfig(variant: ProducerModelVariant): Record<string, unkno
   return base;
 }
 
-function collectVariants(producer: ProducerConfig): Array<{
+/**
+ * A model variant collected from a producer configuration.
+ */
+export interface CollectedVariant {
   provider: string;
   model: string;
   config?: Record<string, unknown>;
@@ -172,7 +175,13 @@ function collectVariants(producer: ProducerConfig): Array<{
   outputSchema?: string;
   configInputPaths: string[];
   configDefaults: Record<string, unknown>;
-}> {
+}
+
+/**
+ * Collect all model variants from a producer configuration.
+ * Returns all available variants without selecting one.
+ */
+export function collectVariants(producer: ProducerConfig): CollectedVariant[] {
   if (Array.isArray(producer.models) && producer.models.length > 0) {
     return producer.models.map((variant) => ({
       provider: variant.provider,
@@ -205,10 +214,10 @@ function collectVariants(producer: ProducerConfig): Array<{
 
 function chooseVariant(
   producerName: string,
-  variants: ReturnType<typeof collectVariants>,
+  variants: CollectedVariant[],
   selection: ModelSelection | undefined,
   allowAmbiguousDefault: boolean,
-) {
+): CollectedVariant {
   if (selection) {
     const match = variants.find(
       (variant) =>

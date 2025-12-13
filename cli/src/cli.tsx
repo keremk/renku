@@ -46,7 +46,8 @@ function silenceStdout(): () => void {
 import { runInit } from './commands/init.js';
 import { runGenerate } from './commands/generate.js';
 import { runClean } from './commands/clean.js';
-import { runProvidersList } from './commands/providers-list.js';
+import { runProducersList } from './commands/producers-list.js';
+import { formatPrice, type ProducerModelEntry } from '@renku/providers';
 import { runBlueprintsList } from './commands/blueprints-list.js';
 import { runBlueprintsDescribe } from './commands/blueprints-describe.js';
 import { runViewerStart, runViewerStop, runViewerView } from './commands/viewer.js';
@@ -63,10 +64,8 @@ import { type LogLevel, type Logger as CoreLogger } from '@renku/core';
 import { detectViewerAddress } from './lib/viewer-network.js';
 
 
-type ProviderListOutputEntry = Awaited<ReturnType<typeof runProvidersList>>['entries'][number];
-
 const cli = meow(
-  `\nUsage\n  $ renku <command> [options]\n\nCommands\n  install             Guided setup (alias for init)\n  init                Initialize Renku CLI configuration (requires --root-folder/--root)\n  generate            Create or continue a movie generation\n  clean               Remove friendly view and build artefacts for a movie\n  viewer:start        Start the bundled viewer server in the foreground\n  viewer:view         Open the viewer for a movie id (starts server if needed)\n  viewer:stop         Stop the background viewer server\n  providers:list      Show providers defined in a blueprint\n  blueprints:list     List available blueprint YAML files\n  blueprints:describe <path>  Show details for a blueprint YAML file\n  blueprints:validate <path>  Validate a blueprint YAML file\n  mcp                 Run the Renku MCP server over stdio\n\nExamples\n  $ renku init --root-folder=~/media/renku\n  $ renku init --root=~/media/renku          # Short form of --root-folder\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml --concurrency=3\n  $ renku generate --last --up-to-layer=1\n  $ renku providers:list --blueprint=image-audio.yaml\n  $ renku blueprints:list\n  $ renku blueprints:describe audio-only.yaml\n  $ renku blueprints:validate image-audio.yaml\n  $ renku clean --movie-id=movie-q123456\n  $ renku viewer:start\n  $ renku viewer:view --movie-id=movie-q123456\n  $ renku mcp --defaultBlueprint=image-audio.yaml\n`,
+  `\nUsage\n  $ renku <command> [options]\n\nCommands\n  install             Guided setup (alias for init)\n  init                Initialize Renku CLI configuration (requires --root-folder/--root)\n  generate            Create or continue a movie generation\n  clean               Remove friendly view and build artefacts for a movie\n  viewer:start        Start the bundled viewer server in the foreground\n  viewer:view         Open the viewer for a movie id (starts server if needed)\n  viewer:stop         Stop the background viewer server\n  producers:list      List all available models for producers in a blueprint\n  blueprints:list     List available blueprint YAML files\n  blueprints:describe <path>  Show details for a blueprint YAML file\n  blueprints:validate <path>  Validate a blueprint YAML file\n  mcp                 Run the Renku MCP server over stdio\n\nExamples\n  $ renku init --root-folder=~/media/renku\n  $ renku init --root=~/media/renku          # Short form of --root-folder\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml --concurrency=3\n  $ renku generate --last --up-to-layer=1\n  $ renku producers:list --blueprint=image-audio.yaml\n  $ renku blueprints:list\n  $ renku blueprints:describe audio-only.yaml\n  $ renku blueprints:validate image-audio.yaml\n  $ renku clean --movie-id=movie-q123456\n  $ renku viewer:start\n  $ renku viewer:view --movie-id=movie-q123456\n  $ renku mcp --defaultBlueprint=image-audio.yaml\n`,
   {
     importMeta: import.meta,
     flags: {
@@ -222,10 +221,10 @@ async function main(): Promise<void> {
         return;
       }
     }
-    case 'providers:list': {
+    case 'producers:list': {
       const blueprintFlag = flags.blueprint ?? flags.bp;
       if (!blueprintFlag) {
-        logger.error('Error: --blueprint/--bp is required for providers:list.');
+        logger.error('Error: --blueprint/--bp is required for producers:list.');
         process.exitCode = 1;
         return;
       }
@@ -238,7 +237,7 @@ async function main(): Promise<void> {
       const blueprintPath = await resolveBlueprintSpecifier(blueprintFlag, {
         cliRoot: cliConfig.storage.root,
       });
-      const result = await runProvidersList({
+      const result = await runProducersList({
         blueprintPath,
       });
 
@@ -247,21 +246,42 @@ async function main(): Promise<void> {
         return;
       }
 
-      const byProducer = new Map<string, ProviderListOutputEntry[]>();
+      // Group entries by producer
+      const byProducer = new Map<string, ProducerModelEntry[]>();
       for (const entry of result.entries) {
         const bucket = byProducer.get(entry.producer) ?? [];
         bucket.push(entry);
         byProducer.set(entry.producer, bucket);
       }
 
-      logger.info('Provider configurations:');
+      logger.info('Producer model configurations:\n');
       for (const [producer, entries] of byProducer) {
-        logger.info(`- ${producer}`);
+        // Determine model type for producer header (all should be same type)
+        const modelType = entries[0]?.modelType ?? 'unknown';
+        const modelCount = entries.length;
+        const modelWord = modelCount === 1 ? 'model' : 'models';
+        logger.info(`${producer} (${modelCount} ${modelType} ${modelWord})`);
+
+        // Calculate column widths for alignment
+        const maxProviderLen = Math.max(...entries.map((e) => e.provider.length), 8);
+        const maxModelLen = Math.max(...entries.map((e) => e.model.length), 5);
+
+        // Print header
+        logger.info(`  ${'Provider'.padEnd(maxProviderLen)}  ${'Model'.padEnd(maxModelLen)}  Price`);
+
+        // Print entries
         for (const entry of entries) {
-          const statusLabel = entry.status === 'ready' ? 'ready' : `error: ${entry.message ?? 'unavailable'}`;
-          logger.info(
-            `    ${entry.provider}/${entry.model} (${entry.environment}) -> ${statusLabel}`,
-          );
+          const priceStr = formatPrice(entry.price);
+          logger.info(`  ${entry.provider.padEnd(maxProviderLen)}  ${entry.model.padEnd(maxModelLen)}  ${priceStr}`);
+        }
+        logger.info('');
+      }
+
+      // Show warnings for missing API tokens
+      if (result.missingTokens.size > 0) {
+        logger.info(chalk.yellow('⚠️  Missing API tokens:'));
+        for (const [provider, message] of result.missingTokens) {
+          logger.info(chalk.yellow(`  - ${provider}: ${message}`));
         }
       }
       return;

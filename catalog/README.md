@@ -47,10 +47,10 @@ tutopanda query "Tell me about Waterloo" \
 - `--inputs`: path to your YAML inputs file (`inputs: { InquiryPrompt: ..., Duration: ... }`)
 - `--using-blueprint`: either a path or a file name. When you pass only the file name, the CLI resolves it relative to `<root>/catalog/blueprints/` first, then falls back to the bundled copy.
 
-You can list providers for a blueprint:
+You can list available models for producers in a blueprint:
 
 ```bash
-tutopanda providers:list --using-blueprint=image-audio.yaml
+tutopanda producers:list --blueprint=image-audio.yaml
 ```
 
 Or inspect/validate:

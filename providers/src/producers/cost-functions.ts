@@ -825,3 +825,86 @@ export function estimatePlanCosts(
 		missingProviders: Array.from(missingProviders),
 	};
 }
+
+// ============================================================================
+// Price Formatting
+// ============================================================================
+
+/**
+ * Format a price configuration for display.
+ * Returns a human-readable string representation of the pricing.
+ */
+export function formatPrice(price: ModelPriceConfig | number | undefined): string {
+	if (price === undefined) {
+		return '-';
+	}
+
+	if (typeof price === 'number') {
+		return price === 0 ? 'free' : `$${price.toFixed(2)}`;
+	}
+
+	switch (price.function) {
+		case 'costByImage':
+			return price.pricePerImage !== undefined
+				? `$${price.pricePerImage.toFixed(2)}/image`
+				: '-';
+
+		case 'costByImageAndResolution': {
+			const entries = price.prices as ResolutionPriceEntry[] | undefined;
+			if (!entries || entries.length === 0) {
+				return '-';
+			}
+			return entries
+				.map((e) => `${e.resolution}: $${(e.pricePerImage ?? 0).toFixed(2)}`)
+				.join(', ') + '/image';
+		}
+
+		case 'costByResolution': {
+			const entries = price.prices as ResolutionPriceEntry[] | undefined;
+			if (!entries || entries.length === 0) {
+				return '-';
+			}
+			return entries
+				.map((e) => `${e.resolution}: $${(e.pricePerImage ?? 0).toFixed(4)}`)
+				.join(', ') + '/image';
+		}
+
+		case 'costByInputTokens':
+			return price.pricePerToken !== undefined
+				? `$${price.pricePerToken.toFixed(4)}/token`
+				: '-';
+
+		case 'costByOutputFile':
+			return price.pricePerAudioFile !== undefined
+				? `$${price.pricePerAudioFile.toFixed(2)}/file`
+				: '-';
+
+		case 'costByVideoDuration':
+			return price.pricePerSecond !== undefined
+				? `$${price.pricePerSecond.toFixed(2)}/s`
+				: '-';
+
+		case 'costByVideoDurationAndResolution': {
+			const entries = price.prices as ResolutionPriceEntry[] | undefined;
+			if (!entries || entries.length === 0) {
+				return '-';
+			}
+			return entries
+				.map((e) => `${e.resolution}: $${(e.pricePerSecond ?? 0).toFixed(3)}/s`)
+				.join(', ');
+		}
+
+		case 'costByVideoDurationAndWithAudio': {
+			const entries = price.prices as AudioFlagPriceEntry[] | undefined;
+			if (!entries || entries.length === 0) {
+				return '-';
+			}
+			return entries
+				.map((e) => `${e.generate_audio ? 'audio' : 'no-audio'}: $${e.pricePerSecond.toFixed(2)}/s`)
+				.join(', ');
+		}
+
+		default:
+			return '-';
+	}
+}

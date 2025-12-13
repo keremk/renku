@@ -326,39 +326,48 @@ renku inspect --movie-id=movie-q123456
 
 ---
 
-### `renku providers:list`
+### `renku producers:list`
 
-Show configured providers and their readiness status.
+List all available models for producers defined in a blueprint. This is useful for discovering model options when configuring the inputs file.
 
 **Usage:**
 ```bash
-renku providers:list --blueprint=<path>
+renku producers:list --blueprint=<path>
 ```
 
 **Options:**
-- `--blueprint` / `--bp` (required): Path to the blueprint YAML file whose providers should be inspected
+- `--blueprint` / `--bp` (required): Path to the blueprint YAML file whose producers should be listed
 
 **Behavior:**
 1. Loads the blueprint
-2. Extracts all producer configurations
-3. Attempts to warm-start each provider
-4. Reports status (ready/failed)
+2. Extracts all producer configurations with their model variants
+3. Looks up pricing and type info from the model catalog
+4. Validates API token availability per provider
+5. Displays all available models grouped by producer
 
 **Example:**
 ```bash
-renku providers:list --blueprint={rootFolder}/catalog/blueprints/image-audio.yaml
+renku producers:list --blueprint=image-audio.yaml
 ```
 
 **Output:**
 ```
-Provider: openai (gpt-4o)
-Status: Ready
+Producer model configurations:
 
-Provider: replicate (bytedance/sdxl-lightning-4step)
-Status: Ready
+VideoProducer (5 video models)
+  Provider    Model                          Price
+  replicate   bytedance/seedance-1-pro-fast  480p: $0.015/s, 720p: $0.025/s, 1080p: $0.06/s
+  replicate   bytedance/seedance-1-lite      480p: $0.018/s, 720p: $0.036/s, 1080p: $0.072/s
+  replicate   google/veo-3.1-fast            audio: $0.15/s, no-audio: $0.10/s
+  fal-ai      veo3-1                         -
 
-Provider: elevenlabs (text-to-speech-1)
-Status: Ready
+AudioProducer (2 audio models)
+  Provider    Model                 Price
+  replicate   minimax/speech-2.6-hd $0.0001/token
+  replicate   elevenlabs/v3         $0.0001/token
+
+⚠️  Missing API tokens:
+  - replicate: REPLICATE_API_TOKEN not set
 ```
 
 ---

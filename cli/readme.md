@@ -17,7 +17,7 @@ npx tutopanda viewer:view --movieId movie-123
 - `viewer:view --movieId …` opens the browser at the correct `/movies/<id>` URL (starts the server in the background if needed).
 - `viewer:stop` stops the background server started by `viewer:view`.
 
-All other commands (`generate`, `inspect`, `clean`, `providers:list`, etc.) behave exactly like before.
+All other commands (`generate`, `clean`, `producers:list`, etc.) behave exactly like before.
 
 ## MCP install (Claude Desktop & Claude Code)
 
