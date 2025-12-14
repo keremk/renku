@@ -1,5 +1,6 @@
 import { getDefaultCliConfigPath, persistLastMovieId, readCliConfig, type CliConfig } from '../lib/cli-config.js';
 import { runExecute, formatMovieId, type ExecuteResult } from './execute.js';
+import { resolveTargetMovieId } from '../lib/movie-id-utils.js';
 import { resolveAndPersistConcurrency } from '../lib/concurrency.js';
 import { buildFriendlyView, loadCurrentManifest, prepareFriendlyPreflight } from '../lib/friendly-view.js';
 import crypto from 'node:crypto';
@@ -196,25 +197,6 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
   };
 }
 
-async function resolveTargetMovieId(args: {
-  explicitMovieId?: string;
-  useLast: boolean;
-  cliConfig: CliConfig;
-}): Promise<string> {
-  if (args.explicitMovieId) {
-    return formatMovieId(args.explicitMovieId);
-  }
-
-  if (!args.useLast) {
-    throw new Error('Movie ID resolution failed: neither explicit movie ID nor --last provided.');
-  }
-
-  if (!args.cliConfig.lastMovieId) {
-    throw new Error('No previous movie found. Run a new generation first or provide --movie-id.');
-  }
-
-  return formatMovieId(args.cliConfig.lastMovieId);
-}
 
 function normalizePublicId(storageMovieId: string): string {
   return storageMovieId.startsWith('movie-') ? storageMovieId.slice('movie-'.length) : storageMovieId;

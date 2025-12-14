@@ -2,7 +2,8 @@ import { spawn } from 'node:child_process';
 import process from 'node:process';
 import { openBrowser } from '../lib/open-browser.js';
 import type { CliConfig } from '../lib/cli-config.js';
-import { readCliConfig } from '../lib/cli-config.js';
+import { readCliConfig, getDefaultCliConfigPath } from '../lib/cli-config.js';
+import { resolveTargetMovieId } from '../lib/movie-id-utils.js';
 import { resolveViewerBundlePaths } from '../lib/viewer-bundle.js';
 import {
   getViewerStatePath,
@@ -24,6 +25,7 @@ export interface ViewerStartOptions {
 
 export interface ViewerViewOptions extends ViewerStartOptions {
   movieId?: string;
+  useLast?: boolean;
 }
 
 export async function runViewerStart(options: ViewerStartOptions = {}): Promise<void> {
@@ -69,14 +71,31 @@ export async function runViewerStart(options: ViewerStartOptions = {}): Promise<
 
 export async function runViewerView(options: ViewerViewOptions = {}): Promise<void> {
   const logger = options.logger ?? globalThis.console;
-  if (!options.movieId) {
-    logger.error?.('Error: --movieId is required for viewer:view.');
+
+  // Validate mutual exclusivity
+  const usingLast = Boolean(options.useLast);
+  if (usingLast && options.movieId) {
+    logger.error?.('Error: Use either --last or --movie-id/--id, not both.');
     process.exitCode = 1;
     return;
   }
 
   const cliConfig = await ensureInitializedConfig(logger);
   if (!cliConfig) {
+    return;
+  }
+
+  // Resolve movie ID using helper
+  let movieId: string;
+  try {
+    movieId = await resolveTargetMovieId({
+      explicitMovieId: options.movieId,
+      useLast: usingLast,
+      cliConfig,
+    });
+  } catch (error) {
+    logger.error?.(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
     return;
   }
   const bundle = resolveViewerBundleOrExit(logger);
@@ -120,7 +139,7 @@ export async function runViewerView(options: ViewerViewOptions = {}): Promise<vo
     }
   }
 
-  const targetUrl = `http://${activeHost}:${activePort}/movies/${encodeURIComponent(options.movieId)}`;
+  const targetUrl = `http://${activeHost}:${activePort}/movies/${encodeURIComponent(movieId)}`;
   logger.info?.(`Opening viewer at ${targetUrl}`);
   void openBrowser(targetUrl);
 }

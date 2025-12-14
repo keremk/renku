@@ -2,6 +2,7 @@ import { resolve, dirname } from 'node:path';
 import { mkdir, rm, symlink } from 'node:fs/promises';
 import { getDefaultCliConfigPath, readCliConfig, type CliConfig } from '../lib/cli-config.js';
 import { formatMovieId } from './execute.js';
+import { resolveTargetMovieId } from '../lib/movie-id-utils.js';
 import { loadCurrentManifest } from '../lib/friendly-view.js';
 import { readMovieMetadata } from '../lib/movie-metadata.js';
 import { loadBlueprintBundle } from '../lib/blueprint-loader/index.js';
@@ -136,25 +137,6 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
   };
 }
 
-async function resolveTargetMovieId(args: {
-  explicitMovieId?: string;
-  useLast: boolean;
-  cliConfig: CliConfig;
-}): Promise<string> {
-  if (args.explicitMovieId) {
-    return formatMovieId(args.explicitMovieId);
-  }
-
-  if (!args.useLast) {
-    throw new Error('Movie ID resolution failed: neither explicit movie ID nor --last provided.');
-  }
-
-  if (!args.cliConfig.lastMovieId) {
-    throw new Error('No previous movie found. Run a generation first or provide --movie-id.');
-  }
-
-  return formatMovieId(args.cliConfig.lastMovieId);
-}
 
 async function validateBlueprintHasTimelineComposer(blueprintPath: string): Promise<void> {
   let bundle;
