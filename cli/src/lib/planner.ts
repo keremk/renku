@@ -9,6 +9,10 @@ import {
   createEventLog,
   createPlanningService,
   planStore,
+  persistInputBlob,
+  isBlobRef,
+  isBlobInput,
+  inferMimeType,
   type InputEvent,
   type Manifest,
   type ExecutionPlan,
@@ -103,8 +107,15 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
   const catalog = buildProducerCatalog(providerOptions);
   logger.info(`${chalk.bold('Using blueprint:')} ${blueprintPath}`);
 
+  // Persist artifact override blobs to storage before converting to drafts
+  const persistedOverrides = await persistArtifactOverrideBlobs(
+    artifactOverrides,
+    memoryStorageContext,
+    movieId,
+  );
+
   // Convert artifact overrides to PendingArtefactDraft objects
-  const overrideDrafts = convertArtifactOverridesToDrafts(artifactOverrides);
+  const overrideDrafts = convertArtifactOverridesToDrafts(persistedOverrides);
   const allPendingArtefacts = [
     ...(options.pendingArtefacts ?? []),
     ...overrideDrafts,
@@ -176,6 +187,13 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
       await mergeMovieMetadata(movieDir, { blueprintPath });
       await persistInputs(movieDir, inputValues);
 
+      // Copy blobs from memory storage to local storage
+      await copyBlobsFromMemoryToLocal(
+        memoryStorageContext,
+        localStorageContext,
+        movieId,
+      );
+
       // Write input events to local event log
       const localEventLog = createEventLog(localStorageContext);
       for (const event of planResult.inputEvents) {
@@ -235,8 +253,42 @@ async function copyEventsToMemory(
 }
 
 async function persistInputs(movieDir: string, values: InputMap): Promise<void> {
-  const contents = stringifyYaml({ inputs: values });
+  // Filter out blobs - users should keep file:path references in source inputs.yaml
+  const serializable = filterSerializableInputs(values);
+  const contents = stringifyYaml({ inputs: serializable });
   await writeFile(join(movieDir, INPUT_FILE_NAME), contents, 'utf8');
+}
+
+function filterSerializableInputs(values: InputMap): InputMap {
+  const result: InputMap = {};
+  for (const [key, value] of Object.entries(values)) {
+    const cleaned = removeBlobs(value);
+    if (cleaned !== undefined) {
+      result[key] = cleaned;
+    }
+  }
+  return result;
+}
+
+function removeBlobs(value: unknown): unknown {
+  if (isBlobInput(value) || isBlobRef(value)) {
+    return undefined; // Omit blobs from YAML
+  }
+  if (Array.isArray(value)) {
+    const filtered = value.map(removeBlobs).filter(v => v !== undefined);
+    return filtered.length > 0 ? filtered : undefined;
+  }
+  if (typeof value === 'object' && value !== null) {
+    const result: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) {
+      const cleaned = removeBlobs(v);
+      if (cleaned !== undefined) {
+        result[k] = cleaned;
+      }
+    }
+    return Object.keys(result).length > 0 ? result : undefined;
+  }
+  return value;
 }
 
 function buildProviderMetadata(options: ProducerOptionsMap): Map<string, ProviderOptionEntry> {
@@ -292,4 +344,56 @@ function convertArtifactOverridesToDrafts(overrides: ArtifactOverride[]): Pendin
       },
     };
   });
+}
+
+/**
+ * Persist artifact override blobs to storage before converting to drafts.
+ */
+async function persistArtifactOverrideBlobs(
+  overrides: ArtifactOverride[],
+  storage: ReturnType<typeof createStorageContext>,
+  movieId: string,
+): Promise<ArtifactOverride[]> {
+  // Blob data is already in BlobInput format, persist it
+  for (const override of overrides) {
+    await persistInputBlob(storage, movieId, override.blob);
+  }
+  return overrides; // Return as-is, blobs are now persisted
+}
+
+/**
+ * Copy blobs from in-memory storage to local storage.
+ * Follows the same pattern as copyManifestToMemory and copyEventsToMemory.
+ */
+async function copyBlobsFromMemoryToLocal(
+  memoryCtx: ReturnType<typeof createStorageContext>,
+  localCtx: ReturnType<typeof createStorageContext>,
+  movieId: string,
+): Promise<void> {
+  const blobsDir = memoryCtx.resolve(movieId, 'blobs');
+
+  // Check if blobs directory exists before listing
+  if (!(await memoryCtx.storage.directoryExists(blobsDir))) {
+    return; // No blobs to copy
+  }
+
+  // List all files in blobs directory recursively
+  const listing = memoryCtx.storage.list(blobsDir, { deep: true });
+
+  for await (const item of listing) {
+    if (item.type === 'file') {
+      // Read from memory storage
+      const content = await memoryCtx.storage.readToUint8Array(item.path);
+
+      // Infer MIME type from file extension (reuse existing utility)
+      const ext = item.path.split('.').pop() || '';
+      const mimeType = inferMimeType(ext);
+
+      // Convert to Buffer for compatibility with FlyStorage local adapter
+      const buffer = Buffer.from(content);
+
+      // Write to local storage
+      await localCtx.storage.write(item.path, buffer, { mimeType });
+    }
+  }
 }

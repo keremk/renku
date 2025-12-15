@@ -11,6 +11,7 @@ import { ManifestNotFoundError, type ManifestService } from '../manifest.js';
 import { nextRevisionId } from '../revisions.js';
 import { planStore, type StorageContext } from '../storage.js';
 import type { Clock } from '../types.js';
+import { convertBlobInputToBlobRef } from '../input-blob-storage.js';
 import type {
   ArtefactEvent,
   ArtefactEventOutput,
@@ -101,8 +102,15 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
       const inputSources = buildInputSourceMapFromCanonical(blueprintGraph);
       const normalizedInputs = normalizeInputValues(args.inputValues, inputSources);
 
-      const inputEvents = createInputEvents(
+      // Transform BlobInput to BlobRef BEFORE creating events
+      const inputsWithBlobRefs = await transformInputBlobsToRefs(
         normalizedInputs,
+        args.storage,
+        args.movieId,
+      );
+
+      const inputEvents = createInputEvents(
+        inputsWithBlobRefs,
         targetRevision,
         args.inputSource ?? 'user',
         now(),
@@ -259,4 +267,16 @@ async function planExists(
 ): Promise<boolean> {
   const planPath = storage.resolve(movieId, 'runs', `${revision}-plan.json`);
   return storage.storage.fileExists(planPath);
+}
+
+async function transformInputBlobsToRefs(
+  inputs: Record<string, unknown>,
+  storage: StorageContext,
+  movieId: string,
+): Promise<Record<string, unknown>> {
+  const transformed: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(inputs)) {
+    transformed[key] = await convertBlobInputToBlobRef(storage, movieId, value);
+  }
+  return transformed;
 }

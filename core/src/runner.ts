@@ -1,12 +1,12 @@
 import { Buffer } from 'node:buffer';
-import { createHash } from 'node:crypto';
-import { resolveArtifactsFromEventLog } from './artifact-resolver.js';
+import { resolveArtifactsFromEventLog, readBlob } from './artifact-resolver.js';
 import { isCanonicalArtifactId } from './canonical-ids.js';
 import type { EventLog } from './event-log.js';
 import { hashInputs } from './event-log.js';
 import { createManifestService, type ManifestService } from './manifest.js';
 import type { StorageContext } from './storage.js';
-import { formatBlobFileName } from './blob-utils.js';
+import { persistBlobToStorage } from './blob-utils.js';
+import { isBlobRef } from './types.js';
 import {
   type ArtefactEvent,
   type ArtefactEventStatus,
@@ -220,9 +220,16 @@ async function executeJob(
     // Merge resolved artifacts into job context
     const enrichedJob = mergeResolvedArtifacts(job, resolvedArtifacts);
 
+    // Resolve BlobRef objects back to BlobInput for provider execution
+    const jobWithResolvedBlobs = await resolveBlobRefsInJobContext(
+      enrichedJob,
+      storage,
+      movieId,
+    );
+
     const result = await produce({
       movieId,
-      job: enrichedJob,
+      job: jobWithResolvedBlobs,
       layerIndex,
       attempt,
       revision,
@@ -352,7 +359,7 @@ async function materializeArtefacts(
       throw new Error(`Expected blob payload for artefact ${artefact.artefactId}.`);
     }
     if (blobPayload && status === 'succeeded') {
-      output.blob = await persistBlob(context.storage, context.movieId, blobPayload);
+      output.blob = await persistBlobToStorage(context.storage, context.movieId, blobPayload);
     }
 
     const event: ArtefactEvent = {
@@ -372,51 +379,6 @@ async function materializeArtefacts(
   return events;
 }
 
-async function persistBlob(
-  storage: StorageContext,
-  movieId: string,
-  blob: ProducedArtefact['blob'],
-): Promise<BlobRef> {
-  if (!blob) {
-    throw new Error('Expected blob payload to persist.');
-  }
-  const buffer = toBuffer(blob.data);
-  const hash = createHash('sha256').update(buffer).digest('hex');
-  const prefix = hash.slice(0, 2);
-  const fileName = formatBlobFileName(hash, blob.mimeType);
-  const relativePath = storage.resolve(movieId, 'blobs', prefix, fileName);
-
-  if (!(await storage.storage.fileExists(relativePath))) {
-    await ensureDirectories(storage, relativePath);
-    const tmpPath = `${relativePath}.tmp-${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}`;
-    await storage.storage.write(tmpPath, buffer, { mimeType: blob.mimeType });
-    await storage.storage.moveFile(tmpPath, relativePath);
-  }
-
-  return {
-    hash,
-    size: buffer.byteLength,
-    mimeType: blob.mimeType,
-  };
-}
-
-async function ensureDirectories(storage: StorageContext, fullPath: string): Promise<void> {
-  const segments = fullPath.split('/').slice(0, -1);
-  if (!segments.length) {
-    return;
-  }
-  let current = '';
-  for (const segment of segments) {
-    current = current ? `${current}/${segment}` : segment;
-    if (!(await storage.storage.directoryExists(current))) {
-      await storage.storage.createDirectory(current, {});
-    }
-  }
-}
-
-function toBuffer(data: Uint8Array | string): Buffer {
-  return typeof data === 'string' ? Buffer.from(data) : Buffer.from(data);
-}
 
 function normalizeStatus(status: ArtefactEventStatus | undefined): ArtefactEventStatus {
   if (status === 'succeeded' || status === 'failed' || status === 'skipped') {
@@ -596,4 +558,72 @@ function collectResolvedArtifactIds(job: JobDescriptor): string[] {
     }
   }
   return Array.from(ids);
+}
+
+/**
+ * Recursively resolve BlobRef objects to BlobInput format for provider execution.
+ * This allows the Provider SDK to access blob data and upload it to S3.
+ */
+async function resolveBlobRefsToInputs(
+  value: unknown,
+  storage: StorageContext,
+  movieId: string,
+): Promise<unknown> {
+  if (isBlobRef(value)) {
+    // Read blob from storage and return as BlobInput
+    const data = await readBlob(storage, movieId, value);
+    return {
+      data,
+      mimeType: value.mimeType,
+    };
+  }
+  if (Array.isArray(value)) {
+    return Promise.all(value.map(v => resolveBlobRefsToInputs(v, storage, movieId)));
+  }
+  // Skip binary data types - don't treat them as plain objects
+  if (value instanceof Uint8Array || value instanceof Buffer) {
+    return value;
+  }
+  if (typeof value === 'object' && value !== null) {
+    const result: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) {
+      result[k] = await resolveBlobRefsToInputs(v, storage, movieId);
+    }
+    return result;
+  }
+  return value;
+}
+
+/**
+ * Resolve BlobRef objects in a job's context for provider execution.
+ */
+async function resolveBlobRefsInJobContext(
+  job: JobDescriptor,
+  storage: StorageContext,
+  movieId: string,
+): Promise<JobDescriptor> {
+  if (!job.context || !job.context.extras || !job.context.extras.resolvedInputs) {
+    return job;
+  }
+
+  const resolvedInputs = job.context.extras.resolvedInputs as Record<string, unknown>;
+  const resolvedBlobs = await Promise.all(
+    Object.entries(resolvedInputs).map(async ([key, value]) => [
+      key,
+      await resolveBlobRefsToInputs(value, storage, movieId),
+    ]),
+  );
+
+  const newJob: JobDescriptor = {
+    ...job,
+    context: {
+      ...job.context,
+      extras: {
+        ...job.context.extras,
+        resolvedInputs: Object.fromEntries(resolvedBlobs),
+      },
+    },
+  };
+
+  return newJob;
 }

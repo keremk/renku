@@ -152,7 +152,7 @@ Artifacts are typed outputs produced by the workflow:
 - **array**: Single-dimensional array of items
 - **multiDimArray**: Multi-dimensional array (e.g., images[segment][image])
 
-Artifacts are stored in `~/.tutopanda/builds/movie-{id}/artefacts/`.
+Artifacts are stored in `~/.renku/builds/movie-{id}/artifacts/`.
 
 ### Loops
 
@@ -251,13 +251,13 @@ Create a new movie or continue an existing one.
 
 **Usage (new run):**
 ```bash
-renku generate [<inquiry-prompt>] --inputs=<path> --blueprint=<path> [--dry-run] [--nonInteractive] [--up-to-layer=<n>]
+renku generate [<inquiry-prompt>] --inputs=<path> --blueprint=<path> [--dry-run] [--non-interactive] [--up-to-layer=<n>]
 ```
 
 **Usage (continue an existing movie):**
 ```bash
-renku generate --movie-id=<movie-id> [--blueprint=<path>] [--dry-run] [--nonInteractive] [--up-to-layer=<n>]
-renku generate --last [--dry-run] [--nonInteractive] [--up-to-layer=<n>]
+renku generate --movie-id=<movie-id> [--blueprint=<path>] [--dry-run] [--non-interactive] [--up-to-layer=<n>]
+renku generate --last [--dry-run] [--non-interactive] [--up-to-layer=<n>]
 ```
 
 **Options:**
@@ -266,7 +266,7 @@ renku generate --last [--dry-run] [--nonInteractive] [--up-to-layer=<n>]
 - `--movie-id` / `--id` (mutually exclusive with `--last`): Continue a specific movie
 - `--last` (mutually exclusive with `--movie-id`): Continue the most recent movie (fails if none recorded)
 - `--dry-run`: Execute a mocked run without calling providers
-- `--nonInteractive`: Skip confirmation prompt
+- `--non-interactive`: Skip confirmation prompt
 - `--up-to-layer` / `--up`: Stop execution after the specified layer (live runs only)
 
 **Behavior:**
@@ -296,6 +296,64 @@ Remove the friendly view and build artifacts for a movie.
 **Usage:**
 ```bash
 renku clean --movie-id=<movie-id>
+```
+
+---
+
+### `renku export`
+
+Export a previously generated movie to MP4 video format.
+
+**Usage:**
+```bash
+renku export --movie-id=<movie-id> [--width=<px>] [--height=<px>] [--fps=<n>]
+renku export --last [--width=<px>] [--height=<px>] [--fps=<n>]
+```
+
+**Options:**
+- `--movie-id` / `--id` (mutually exclusive with `--last`): Export a specific movie by ID
+- `--last` (mutually exclusive with `--movie-id`): Export the most recently generated movie
+- `--width` (optional): Video width in pixels (default: 1920)
+- `--height` (optional): Video height in pixels (default: 1080)
+- `--fps` (optional): Frames per second (default: 30)
+
+**Requirements:**
+- The blueprint used to generate the movie must include a `TimelineComposer` producer
+- The movie must have a Timeline artifact (generated during the generation phase)
+
+**Behavior:**
+1. Validates the blueprint has a TimelineComposer producer
+2. Validates the manifest contains a Timeline artifact
+3. Invokes the Docker-based Remotion renderer with specified quality settings
+4. Saves the MP4 to `builds/{movieId}/FinalVideo.mp4`
+5. Creates a symlink in `movies/{movieId}/FinalVideo.mp4` for easy access
+
+**Error Messages:**
+- "A TimelineComposer producer is required in the blueprint to export video." — Blueprint missing TimelineComposer
+- "No timeline found. Please run the generation first to create a timeline." — No Timeline artifact in manifest
+- "Docker render failed: ..." — Rendering error during export
+
+**Examples:**
+```bash
+# Export a specific movie with default quality
+renku export --movie-id=movie-q123456
+
+# Export the most recent movie with custom resolution
+renku export --last --width=1920 --height=1080
+
+# Export with custom frame rate
+renku export --movie-id=movie-q123456 --fps=60
+
+# Export with 4K resolution
+renku export --last --width=3840 --height=2160 --fps=24
+```
+
+**Output:**
+```
+Export completed successfully.
+  Movie: movie-q123456
+  Output: /path/to/storage/movies/movie-q123456/FinalVideo.mp4
+  Resolution: 1920x1080 @ 30fps
 ```
 
 ---
@@ -467,7 +525,7 @@ renku viewer:view --movie-id=<id>
 
 **Options:**
 - `--movie-id` / `--id` (required): Movie ID to open
-- `--viewerHost`, `--viewerPort` (optional): Override host/port
+- `--viewer-host`, `--viewer-port` (optional): Override host/port
 
 **Behavior:**
 - Starts the bundled viewer server if not running, then opens the movie page.
@@ -848,14 +906,14 @@ producers:
 - Supports type conversion (string to number)
 - Enforces required/optional fields
 
-#### 3. Tutopanda
+#### 3. Renku
 Built-in providers for specialized tasks.
 
 **Configuration:**
 ```yaml
 producers:
   - name: TimelineComposer
-    providerName: tutopanda
+    providerName: renku
     modelName: OrderedTimeline
     environment: local
 ```
@@ -1102,7 +1160,7 @@ Non-interactive mode skips confirmation prompts.
 
 **Usage:**
 ```bash
-renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml --nonInteractive
+renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml --non-interactive
 ```
 
 **Use Cases:**

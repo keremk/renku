@@ -25,7 +25,7 @@ In the YAML module configuration, the `model` is set to OrderedTimeline. See exa
 ```yaml
 producers:
   - name: TimelineProducer
-    provider: Tutopanda
+    provider: Renku
     model: OrderedTimeline
 ```
 
@@ -87,7 +87,7 @@ Here is what the shape looks like
     "movieTitle": "Battle of Waterloo",
     "assetFolder": {
         "source": "local",
-        "rootPath": "~/tutopanda/"
+        "rootPath": "~/renku/"
     },
     "duration": 32.0399,
     "tracks": [
@@ -148,10 +148,10 @@ inputs:
 
 producers:
   - name: TimelineProducer
-    provider: Tutopanda
+    provider: Renku
     model: OrderedTimeline
     config:
-      rootFolder: ~/tutopanda
+      rootFolder: ~/renku
       source: local
       numTracks: 2
       masterTrack:
@@ -224,10 +224,10 @@ inputs:
 
 producers:
   - name: TimelineProducer
-    provider: Tutopanda
+    provider: Renku
     model: OrderedTimeline
     config:
-      rootFolder: ~/tutopanda
+      rootFolder: ~/renku
       source: local
       numTracks: 2
       masterTrack:
@@ -269,10 +269,10 @@ inputs:
 
 producers:
   - name: TimelineProducer
-    provider: Tutopanda
+    provider: Renku
     model: OrderedTimeline
     config:
-      rootFolder: ~/tutopanda
+      rootFolder: ~/renku
       source: local
       numTracks: 3
       masterTrack:
@@ -319,10 +319,10 @@ inputs:
 
 producers:
   - name: TimelineProducer
-    provider: Tutopanda
+    provider: Renku
     model: OrderedTimeline
     config:
-      rootFolder: ~/tutopanda
+      rootFolder: ~/renku
       source: local
       numTracks: 2
       masterTrack:
@@ -371,10 +371,10 @@ inputs:
 
 producers:
   - name: TimelineProducer
-    provider: Tutopanda
+    provider: Renku
     model: OrderedTimeline
     config:
-      rootFolder: ~/tutopanda
+      rootFolder: ~/renku
       source: local
       numTracks: 2
       masterTrack:

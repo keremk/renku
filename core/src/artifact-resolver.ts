@@ -98,7 +98,7 @@ export function extractArtifactKind(artifactId: string): string {
  * @param blobRef Blob reference with hash, size, and mimeType
  * @returns The blob data as Uint8Array
  */
-async function readBlob(
+export async function readBlob(
   storage: StorageContext,
   movieId: string,
   blobRef: BlobRef,
@@ -132,7 +132,8 @@ function decodePayload(payload: Uint8Array, mimeType?: string): unknown {
     }
     return text;
   }
-  return payload;
+  // Return proper Buffer for binary types to ensure compatibility with streams
+  return Buffer.from(payload);
 }
 
 function formatResolvedKey(artifactId: string): string {

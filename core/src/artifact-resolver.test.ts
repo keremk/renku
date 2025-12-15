@@ -39,7 +39,7 @@ describe('resolveArtifactsFromEventLog', () => {
   });
 
   it('resolves blob artifact from event log', async () => {
-    const blobData = new Uint8Array([1, 2, 3, 4]);
+    const blobData = Buffer.from([1, 2, 3, 4]);
     const blobRef: BlobRef = {
       hash: 'abc123def456',
       size: 4,
@@ -112,7 +112,7 @@ describe('resolveArtifactsFromEventLog', () => {
   });
 
   it('resolves multiple artifacts', async () => {
-    const blobData = new Uint8Array([5, 6, 7, 8]);
+    const blobData = Buffer.from([5, 6, 7, 8]);
     const audioBlobRef: BlobRef = {
       hash: 'def456abc789',
       size: 4,
@@ -169,8 +169,8 @@ describe('resolveArtifactsFromEventLog', () => {
   });
 
   it('uses latest event when multiple events exist for same artifact', async () => {
-    const oldBlobData = new Uint8Array([1, 2]);
-    const newBlobData = new Uint8Array([3, 4]);
+    const oldBlobData = Buffer.from([1, 2]);
+    const newBlobData = Buffer.from([3, 4]);
 
     const events: ArtefactEvent[] = [
       {

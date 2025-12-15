@@ -501,3 +501,11 @@ export function isBlobInput(value: unknown): value is BlobInput {
          (Buffer.isBuffer((value as BlobInput).data) ||
           (value as BlobInput).data instanceof Uint8Array);
 }
+
+export function isBlobRef(value: unknown): value is BlobRef {
+  return typeof value === 'object' && value !== null &&
+         'hash' in value && 'size' in value && 'mimeType' in value &&
+         typeof (value as BlobRef).hash === 'string' &&
+         typeof (value as BlobRef).size === 'number' &&
+         typeof (value as BlobRef).mimeType === 'string';
+}

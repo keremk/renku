@@ -21,4 +21,5 @@ export * from './parsing/blueprint-loader/index.js';
 export * from './parsing/input-defaults.js';
 export * from './blob-utils.js';
 export * from './parsing/file-input-resolver.js';
-export { isBlobInput } from './types.js';
+export { isBlobInput, isBlobRef } from './types.js';
+export * from './input-blob-storage.js';

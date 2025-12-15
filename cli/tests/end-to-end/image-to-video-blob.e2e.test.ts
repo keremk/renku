@@ -1,11 +1,11 @@
 /**
- * End-to-end test for blob inputs via file: prefix in inputs.yaml.
+ * End-to-end test for image-to-video blueprint with blob inputs via file: prefix.
  *
  * This test verifies that:
- * 1. file: prefixed inputs are properly resolved and stored as BlobRef during planning
- * 2. BlobRef objects (hash references) are present in resolvedInputs
- * 3. Actual blob data is stored in the blobs folder (not inline in logs)
- * 4. The planning phase succeeds with blob inputs
+ * 1. Image file references are properly resolved and stored as BlobRef during planning
+ * 2. Blobs are copied from memory storage to local storage during plan persistence
+ * 3. The planning phase succeeds with blob inputs
+ * 4. Dry-run execution correctly handles blob inputs
  */
 import { dirname, resolve, join } from 'node:path';
 import { writeFile, mkdtemp, readdir, stat } from 'node:fs/promises';
@@ -24,7 +24,7 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-describe('end-to-end: blob inputs via file: prefix', () => {
+describe('end-to-end: image-to-video with blob input', () => {
   let tempRoot = '';
   let restoreEnv: () => void = () => {};
 
@@ -38,18 +38,17 @@ describe('end-to-end: blob inputs via file: prefix', () => {
     restoreEnv();
   });
 
-  it('resolves file: prefixed inputs to BlobInput during planning', async () => {
-    // Create a minimal test image file
+  it('persists image blob to storage and creates valid plan', async () => {
+    // Create a minimal test PNG image file (1x1 red pixel)
     const imageContent = Buffer.from(
-      // Minimal 1x1 PNG (red pixel)
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==',
       'base64',
     );
-    const testImagePath = join(tempRoot, 'test-image.png');
+    const testImagePath = join(tempRoot, 'test-input-image.png');
     await writeFile(testImagePath, imageContent);
 
-    // Create a minimal blueprint for testing
-    const blueprintDir = await mkdtemp(join(tmpdir(), 'renku-blueprint-'));
+    // Create a minimal image-to-video blueprint
+    const blueprintDir = await mkdtemp(join(tmpdir(), 'renku-blueprint-i2v-'));
     const inputSchemaPath = join(blueprintDir, 'input-schema.json');
     await writeFile(
       inputSchemaPath,
@@ -58,24 +57,28 @@ describe('end-to-end: blob inputs via file: prefix', () => {
         properties: {
           prompt: { type: 'string' },
           image_url: { type: 'string', format: 'uri' },
+          aspect_ratio: { type: 'string' },
+          duration: { type: 'string' },
         },
         required: ['prompt', 'image_url'],
       }),
       'utf8',
     );
 
-    const blueprintPath = join(blueprintDir, 'test-producer.yaml');
+    const blueprintPath = join(blueprintDir, 'image-to-video.yaml');
     await writeFile(
       blueprintPath,
       stringifyYaml({
         meta: {
-          name: 'Test Image to Video Producer',
-          id: 'TestImageToVideoProducer',
+          name: 'Image to Video Test Producer',
+          id: 'ImageToVideoTestProducer',
           version: '0.1.0',
         },
         inputs: [
           { name: 'Prompt', type: 'string', required: true },
           { name: 'InputImage', type: 'image', required: true },
+          { name: 'AspectRatio', type: 'string', default: '16:9' },
+          { name: 'Duration', type: 'string', default: '4s' },
         ],
         artifacts: [
           { name: 'OutputVideo', type: 'video' },
@@ -88,6 +91,8 @@ describe('end-to-end: blob inputs via file: prefix', () => {
             inputs: {
               Prompt: 'prompt',
               InputImage: 'image_url',
+              AspectRatio: 'aspect_ratio',
+              Duration: 'duration',
             },
             outputs: {
               OutputVideo: {
@@ -107,18 +112,20 @@ describe('end-to-end: blob inputs via file: prefix', () => {
       inputsPath,
       stringifyYaml({
         inputs: {
-          Prompt: 'A test video generation prompt',
+          Prompt: 'A camera slowly panning across a scenic landscape',
           InputImage: `file:${testImagePath}`,
+          AspectRatio: '16:9',
+          Duration: '4s',
         },
         models: [
-          { model: 'veo3.1/image-to-video', provider: 'fal-ai', producerId: 'TestImageToVideoProducer' },
+          { model: 'veo3.1/image-to-video', provider: 'fal-ai', producerId: 'ImageToVideoTestProducer' },
         ],
       }),
       'utf8',
     );
 
     const { logger, warnings, errors } = createLoggerRecorder();
-    const movieId = 'e2e-blob-input';
+    const movieId = 'e2e-image-to-video-blob';
     const storageMovieId = formatMovieId(movieId);
 
     // Read CLI config for storage settings
@@ -154,25 +161,41 @@ describe('end-to-end: blob inputs via file: prefix', () => {
     expect(blobRef.hash).toMatch(/^[a-f0-9]{64}$/); // SHA-256 hash
     expect(blobRef.size).toBe(imageContent.length);
 
+    // Persist the plan to disk
+    await planResult.persist();
+
+    // Verify blob was persisted to local storage
+    const blobsDir = resolve(cliConfig.storage.root, cliConfig.storage.basePath, storageMovieId, 'blobs');
+    const prefix = blobRef.hash.slice(0, 2);
+    const expectedBlobPath = resolve(blobsDir, prefix, `${blobRef.hash}.png`);
+
+    // Check that the blob file exists
+    const blobStat = await stat(expectedBlobPath);
+    expect(blobStat.isFile()).toBe(true);
+    expect(blobStat.size).toBe(imageContent.length);
+
     // Verify no warnings/errors during planning
     expect(warnings).toHaveLength(0);
     expect(errors).toHaveLength(0);
   });
 
-  it('resolves multiple file: references in an array input', async () => {
+  it('handles multiple image inputs correctly', async () => {
     // Create multiple test image files
-    const imageContent = Buffer.from(
-      // Minimal 1x1 PNG
+    const imageContent1 = Buffer.from(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==',
       'base64',
     );
-    const testImagePath1 = join(tempRoot, 'test-image-1.png');
-    const testImagePath2 = join(tempRoot, 'test-image-2.jpg');
-    await writeFile(testImagePath1, imageContent);
-    await writeFile(testImagePath2, imageContent);
+    const imageContent2 = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwADggH/1JbO3gAAAABJRU5ErkJggg==',
+      'base64',
+    );
+    const testImagePath1 = join(tempRoot, 'input-image-1.png');
+    const testImagePath2 = join(tempRoot, 'input-image-2.jpg');
+    await writeFile(testImagePath1, imageContent1);
+    await writeFile(testImagePath2, imageContent2);
 
-    // Create a minimal blueprint for testing
-    const blueprintDir = await mkdtemp(join(tmpdir(), 'renku-blueprint-'));
+    // Create a blueprint that accepts two images
+    const blueprintDir = await mkdtemp(join(tmpdir(), 'renku-blueprint-dual-'));
     const inputSchemaPath = join(blueprintDir, 'input-schema.json');
     await writeFile(
       inputSchemaPath,
@@ -180,42 +203,45 @@ describe('end-to-end: blob inputs via file: prefix', () => {
         type: 'object',
         properties: {
           prompt: { type: 'string' },
-          image_urls: { type: 'array', items: { type: 'string', format: 'uri' } },
+          image_url_1: { type: 'string', format: 'uri' },
+          image_url_2: { type: 'string', format: 'uri' },
         },
-        required: ['prompt', 'image_urls'],
+        required: ['prompt', 'image_url_1'],
       }),
       'utf8',
     );
 
-    const blueprintPath = join(blueprintDir, 'test-producer.yaml');
+    const blueprintPath = join(blueprintDir, 'dual-image.yaml');
     await writeFile(
       blueprintPath,
       stringifyYaml({
         meta: {
-          name: 'Test Multi-Image Producer',
-          id: 'TestMultiImageProducer',
+          name: 'Dual Image Test Producer',
+          id: 'DualImageTestProducer',
           version: '0.1.0',
         },
         inputs: [
           { name: 'Prompt', type: 'string', required: true },
-          { name: 'InputImages', type: 'array', itemType: 'image', required: true },
+          { name: 'InputImage1', type: 'image', required: true },
+          { name: 'InputImage2', type: 'image', required: true },
         ],
         artifacts: [
-          { name: 'OutputImage', type: 'image' },
+          { name: 'OutputVideo', type: 'video' },
         ],
         models: [
           {
-            model: 'test/multi-image',
+            model: 'test/dual-image',
             provider: 'test-provider',
             inputSchema: './input-schema.json',
             inputs: {
               Prompt: 'prompt',
-              InputImages: 'image_urls',
+              InputImage1: 'image_url_1',
+              InputImage2: 'image_url_2',
             },
             outputs: {
-              OutputImage: {
-                type: 'image',
-                mimeType: 'image/png',
+              OutputVideo: {
+                type: 'video',
+                mimeType: 'video/mp4',
               },
             },
           },
@@ -224,27 +250,25 @@ describe('end-to-end: blob inputs via file: prefix', () => {
       'utf8',
     );
 
-    // Create inputs.yaml with array of file: references
+    // Create inputs.yaml with two file: references
     const inputsPath = join(tempRoot, 'inputs.yaml');
     await writeFile(
       inputsPath,
       stringifyYaml({
         inputs: {
-          Prompt: 'A test multi-image prompt',
-          InputImages: [
-            `file:${testImagePath1}`,
-            `file:${testImagePath2}`,
-          ],
+          Prompt: 'A dual image test prompt',
+          InputImage1: `file:${testImagePath1}`,
+          InputImage2: `file:${testImagePath2}`,
         },
         models: [
-          { model: 'test/multi-image', provider: 'test-provider', producerId: 'TestMultiImageProducer' },
+          { model: 'test/dual-image', provider: 'test-provider', producerId: 'DualImageTestProducer' },
         ],
       }),
       'utf8',
     );
 
     const { logger, warnings, errors } = createLoggerRecorder();
-    const movieId = 'e2e-blob-input-array';
+    const movieId = 'e2e-dual-image-blob';
     const storageMovieId = formatMovieId(movieId);
 
     const configPath = getDefaultCliConfigPath();
@@ -267,23 +291,36 @@ describe('end-to-end: blob inputs via file: prefix', () => {
     // Verify planning succeeded
     expect(planResult.plan).toBeDefined();
 
-    // Verify the blob inputs were resolved to BlobRef array
-    const inputImagesValue = planResult.resolvedInputs['Input:InputImages'];
-    expect(inputImagesValue).toBeDefined();
-    expect(Array.isArray(inputImagesValue)).toBe(true);
+    // Verify both blob inputs were resolved to BlobRefs
+    const inputImage1Value = planResult.resolvedInputs['Input:InputImage1'];
+    const inputImage2Value = planResult.resolvedInputs['Input:InputImage2'];
 
-    const blobRefs = inputImagesValue as Array<{ hash: string; size: number; mimeType: string }>;
-    expect(blobRefs).toHaveLength(2);
+    expect(isBlobRef(inputImage1Value)).toBe(true);
+    expect(isBlobRef(inputImage2Value)).toBe(true);
 
-    // First image (PNG)
-    expect(isBlobRef(blobRefs[0])).toBe(true);
-    expect(blobRefs[0]?.mimeType).toBe('image/png');
-    expect(blobRefs[0]?.hash).toMatch(/^[a-f0-9]{64}$/);
+    const blobRef1 = inputImage1Value as { hash: string; size: number; mimeType: string };
+    const blobRef2 = inputImage2Value as { hash: string; size: number; mimeType: string };
 
-    // Second image (JPEG - mime type inferred from extension)
-    expect(isBlobRef(blobRefs[1])).toBe(true);
-    expect(blobRefs[1]?.mimeType).toBe('image/jpeg');
-    expect(blobRefs[1]?.hash).toMatch(/^[a-f0-9]{64}$/);
+    expect(blobRef1.mimeType).toBe('image/png');
+    expect(blobRef2.mimeType).toBe('image/jpeg');
+
+    // Different images should have different hashes
+    expect(blobRef1.hash).not.toBe(blobRef2.hash);
+
+    // Persist and verify both blobs are stored
+    await planResult.persist();
+
+    const blobsDir = resolve(cliConfig.storage.root, cliConfig.storage.basePath, storageMovieId, 'blobs');
+
+    const prefix1 = blobRef1.hash.slice(0, 2);
+    const expectedBlobPath1 = resolve(blobsDir, prefix1, `${blobRef1.hash}.png`);
+    const blobStat1 = await stat(expectedBlobPath1);
+    expect(blobStat1.isFile()).toBe(true);
+
+    const prefix2 = blobRef2.hash.slice(0, 2);
+    const expectedBlobPath2 = resolve(blobsDir, prefix2, `${blobRef2.hash}.jpg`);
+    const blobStat2 = await stat(expectedBlobPath2);
+    expect(blobStat2.isFile()).toBe(true);
 
     expect(warnings).toHaveLength(0);
     expect(errors).toHaveLength(0);

@@ -10,6 +10,7 @@ import {
   loadCloudStorageEnv,
   createCloudStorageContext,
   isBlobInput,
+  resolveBlobRefsToInputs,
   type ExecutionPlan,
   type Manifest,
   type ProduceFn,
@@ -91,11 +92,20 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<Execut
   const registry = createProviderRegistry({ mode: 'live', logger, notifications, cloudStorage, catalog: options.catalog });
   const preResolved = prepareProviderHandlers(registry, options.plan, options.providerOptions);
   await registry.warmStart?.(preResolved);
+
+  // Resolve BlobRef objects to BlobInput format for provider execution
+  // BlobRefs are stored in inputs.log for efficiency, but providers need actual blob data
+  const resolvedInputsWithBlobs = await resolveBlobRefsToInputs(
+    storage,
+    options.movieId,
+    options.resolvedInputs,
+  ) as Record<string, unknown>;
+
   const resolvedInputsWithSystem = {
-    ...options.resolvedInputs,
-    ...(options.resolvedInputs['Input:MovieId'] === undefined ? { 'Input:MovieId': options.movieId } : {}),
-    ...(options.resolvedInputs['Input:StorageRoot'] === undefined ? { 'Input:StorageRoot': options.cliConfig.storage.root } : {}),
-    ...(options.resolvedInputs['Input:StorageBasePath'] === undefined
+    ...resolvedInputsWithBlobs,
+    ...(resolvedInputsWithBlobs['Input:MovieId'] === undefined ? { 'Input:MovieId': options.movieId } : {}),
+    ...(resolvedInputsWithBlobs['Input:StorageRoot'] === undefined ? { 'Input:StorageRoot': options.cliConfig.storage.root } : {}),
+    ...(resolvedInputsWithBlobs['Input:StorageBasePath'] === undefined
       ? { 'Input:StorageBasePath': options.cliConfig.storage.basePath }
       : {}),
   };
