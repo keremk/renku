@@ -62,7 +62,7 @@ describe('end-to-end: image-audio dry runs', () => {
     await expectFileExists(queryResult.planPath);
     await expectFileExists(queryResult.storagePath);
     await expectFileExists(resolve(queryResult.storagePath, 'runs', `${queryResult.targetRevision}-plan.json`));
-    await expectFileExists(resolve(queryResult.storagePath, 'inputs.yaml'));
+    await expectFileExists(resolve(queryResult.storagePath, 'events', 'inputs.log'));
 
     const plan = await readPlan(queryResult.planPath);
 

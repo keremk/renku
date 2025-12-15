@@ -1,13 +1,11 @@
-import { mkdtemp } from 'node:fs/promises';
+import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { getBundledBlueprintsRoot, getBundledCatalogRoot, resolveBlueprintSpecifier } from '../../src/lib/config-assets.js';
-import { loadBlueprintBundle } from '../../src/lib/blueprint-loader/index.js';
 import { generatePlan } from '../../src/lib/planner.js';
 import { writeCliConfig } from '../../src/lib/cli-config.js';
 import { executeDryRun } from '../../src/lib/dry-run.js';
-import { loadInputsFromYaml } from '../../src/lib/input-loader.js';
 import { createCliLogger } from '../../src/lib/logger.js';
 
 const CLI_ROOT = resolve(__dirname, '../../');
@@ -36,7 +34,6 @@ describe('integration: canonical inputs persist across query/edit', () => {
 			{ cliRoot: CLI_ROOT }
 		);
 		const inputsPath = resolve(BLUEPRINTS_ROOT, 'cut-scene-video', 'input-template.yaml');
-		const { root: blueprint } = await loadBlueprintBundle(blueprintPath);
 		const logger = createCliLogger({
 			level: 'debug',
 		});
@@ -60,17 +57,26 @@ describe('integration: canonical inputs persist across query/edit', () => {
 			]
 		).toBe(true);
 
-		// Edit flow: reload saved inputs and run dry-run using the stored plan artefacts
-		const savedInputsPath = resolve(
+		// Verify inputs were persisted to events/inputs.log
+		const inputsLogPath = resolve(
 			storageRoot,
 			'builds',
 			movieId,
-			'inputs.yaml'
+			'events',
+			'inputs.log'
 		);
-		const reloaded = await loadInputsFromYaml(savedInputsPath, blueprint);
-		expect(
-			reloaded.values['Input:MusicProducer.force_instrumental']
-		).toBe(true);
+		const inputsLogContent = await readFile(inputsLogPath, 'utf8');
+		const inputEvents = inputsLogContent
+			.split('\n')
+			.filter(Boolean)
+			.map(line => JSON.parse(line) as { id: string; payload: unknown });
+
+		// Find the force_instrumental input event
+		const forceInstrumentalEvent = inputEvents.find(
+			e => e.id === 'Input:MusicProducer.force_instrumental'
+		);
+		expect(forceInstrumentalEvent).toBeDefined();
+		expect(forceInstrumentalEvent?.payload).toBe(true);
 
 		const trimmedPlan = {
 			...planResult.plan,

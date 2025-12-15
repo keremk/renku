@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { resolve, join } from 'node:path';
-import { stringify as stringifyYaml } from 'yaml';
+import { mkdir } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import {
   createStorageContext,
   initializeMovieStorage,
@@ -10,8 +9,6 @@ import {
   createPlanningService,
   planStore,
   persistInputBlob,
-  isBlobRef,
-  isBlobInput,
   inferMimeType,
   type InputEvent,
   type Manifest,
@@ -30,12 +27,11 @@ import {
 } from '@renku/providers';
 import type { CliConfig } from './cli-config.js';
 import { loadBlueprintBundle } from './blueprint-loader/index.js';
-import { loadInputsFromYaml, type InputMap } from './input-loader.js';
+import { loadInputsFromYaml } from './input-loader.js';
 import { buildProducerCatalog, type ProducerOptionsMap } from './producer-options.js';
 import type { ProviderOptionEntry } from '@renku/core';
 import { expandPath } from './path.js';
 import { mergeMovieMetadata } from './movie-metadata.js';
-import { INPUT_FILE_NAME } from './input-files.js';
 import { applyProviderDefaults } from './provider-defaults.js';
 import chalk from 'chalk';
 import { Buffer } from 'buffer';
@@ -185,7 +181,6 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
       await mkdir(movieDir, { recursive: true });
       await initializeMovieStorage(localStorageContext, movieId);
       await mergeMovieMetadata(movieDir, { blueprintPath });
-      await persistInputs(movieDir, inputValues);
 
       // Copy blobs from memory storage to local storage
       await copyBlobsFromMemoryToLocal(
@@ -250,45 +245,6 @@ async function copyEventsToMemory(
       await memoryCtx.storage.write(memoryPath, content, { mimeType: 'text/plain' });
     }
   }
-}
-
-async function persistInputs(movieDir: string, values: InputMap): Promise<void> {
-  // Filter out blobs - users should keep file:path references in source inputs.yaml
-  const serializable = filterSerializableInputs(values);
-  const contents = stringifyYaml({ inputs: serializable });
-  await writeFile(join(movieDir, INPUT_FILE_NAME), contents, 'utf8');
-}
-
-function filterSerializableInputs(values: InputMap): InputMap {
-  const result: InputMap = {};
-  for (const [key, value] of Object.entries(values)) {
-    const cleaned = removeBlobs(value);
-    if (cleaned !== undefined) {
-      result[key] = cleaned;
-    }
-  }
-  return result;
-}
-
-function removeBlobs(value: unknown): unknown {
-  if (isBlobInput(value) || isBlobRef(value)) {
-    return undefined; // Omit blobs from YAML
-  }
-  if (Array.isArray(value)) {
-    const filtered = value.map(removeBlobs).filter(v => v !== undefined);
-    return filtered.length > 0 ? filtered : undefined;
-  }
-  if (typeof value === 'object' && value !== null) {
-    const result: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value)) {
-      const cleaned = removeBlobs(v);
-      if (cleaned !== undefined) {
-        result[k] = cleaned;
-      }
-    }
-    return Object.keys(result).length > 0 ? result : undefined;
-  }
-  return value;
 }
 
 function buildProviderMetadata(options: ProducerOptionsMap): Map<string, ProviderOptionEntry> {

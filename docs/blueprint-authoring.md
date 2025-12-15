@@ -437,11 +437,7 @@ inputs:
 ### Special Inputs
 
 #### `InquiryPrompt`
-Stored in two locations:
-- `builds/movie-{id}/inputs.yaml`
-- `builds/movie-{id}/prompts/inquiry.txt`
-
-This allows providers to reference it as both a config value and a prompt file.
+Stored in the input events log (`events/inputs.log`) and as a standalone prompt file (`prompts/inquiry.txt`). This allows providers to reference it as both a config value and a prompt file.
 
 ---
 
@@ -879,12 +875,12 @@ renku generate --inputs=my-inputs.yaml --blueprint=image-audio.yaml
 
 **Step 2: Update inputs**
 ```bash
-# Edit builds/movie-a1b2c3d4/inputs.yaml with new values
+# Edit your original inputs file (my-inputs.yaml) with new values
 ```
 
 **Step 3: Re-run generation against the same movie**
 ```bash
-renku generate --movie-id=movie-a1b2c3d4
+renku generate --movie-id=movie-a1b2c3d4 --inputs=my-inputs.yaml
 ```
 
 **Result:**

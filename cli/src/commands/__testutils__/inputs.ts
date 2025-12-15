@@ -1,7 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { stringify as stringifyYaml } from 'yaml';
-import { INPUT_FILE_NAME } from '../../lib/input-files.js';
 
 export interface CreateInputsFileOptions {
   root: string;
@@ -33,7 +32,7 @@ export async function createInputsFile(options: CreateInputsFileOptions): Promis
   const {
     root,
     prompt,
-    fileName = INPUT_FILE_NAME,
+    fileName = 'inputs.yaml',
     overrides,
     includeDefaults = true,
     models,

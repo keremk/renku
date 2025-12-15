@@ -18,8 +18,14 @@ describe('MovieStorage', () => {
     await mkdir(join(buildsDir, 'blobs', 'ab'), { recursive: true });
     await mkdir(join(buildsDir, 'blobs', 'fe'), { recursive: true });
     await mkdir(join(buildsDir, 'manifests'), { recursive: true });
+    await mkdir(join(buildsDir, 'events'), { recursive: true });
 
-    await writeFile(join(buildsDir, 'inputs.yaml'), 'inputs:\n  InquiryPrompt: "Hello"\n', 'utf8');
+    // Write inputs.log in JSONL format (InputEvent records)
+    const inputEvents = [
+      { id: 'Input:InquiryPrompt', revision: 'r001', hash: 'abc123', payload: 'Hello', editedBy: 'user', createdAt: new Date().toISOString() },
+    ];
+    const inputsLogContent = inputEvents.map(e => JSON.stringify(e)).join('\n') + '\n';
+    await writeFile(join(buildsDir, 'events', 'inputs.log'), inputsLogContent, 'utf8');
 
     const timelineBody = JSON.stringify({ duration: 30 });
     await writeFile(join(buildsDir, 'blobs', 'fe', 'feed1234'), timelineBody, 'utf8');
@@ -96,5 +102,17 @@ describe('MovieStorage', () => {
     }
     expect(first.blob).toBe(Buffer.from([1, 2, 3]).toString('base64'));
     expect(first.mimeType).toBe('audio/mpeg');
+  });
+
+  it('reads inputs from events/inputs.log and returns YAML', async () => {
+    const response = await storage.readInputs(movieId, `renku://movies/${movieId}/inputs`);
+    const first = response.contents[0];
+    if (!first || !('text' in first)) {
+      throw new Error('Expected text content for inputs response');
+    }
+    expect(first.mimeType).toBe('text/yaml');
+    // Verify the YAML contains our input
+    expect(first.text).toContain('Input:InquiryPrompt');
+    expect(first.text).toContain('Hello');
   });
 });

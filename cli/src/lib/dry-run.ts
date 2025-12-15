@@ -3,6 +3,7 @@ import {
   createManifestService,
   createStorageContext,
   initializeMovieStorage,
+  resolveBlobRefsToInputs,
   type ArtefactEventStatus,
   type ExecutionPlan,
   type Manifest,
@@ -97,13 +98,22 @@ export async function executeDryRun(args: ExecuteDryRunArgs): Promise<DryRunSumm
   });
   const preResolved = prepareProviderHandlers(registry, args.plan, args.providerOptions);
   await registry.warmStart?.(preResolved);
+
+  // Resolve BlobRef objects to BlobInput format for provider execution
+  // BlobRefs are stored in inputs.log for efficiency, but providers need actual blob data
+  const resolvedInputsWithBlobs = await resolveBlobRefsToInputs(
+    storage,
+    args.movieId,
+    args.resolvedInputs,
+  ) as Record<string, unknown>;
+
   const resolvedInputsWithSystem = {
-    ...args.resolvedInputs,
-    ...(args.resolvedInputs['Input:MovieId'] === undefined ? { 'Input:MovieId': args.movieId } : {}),
-    ...(args.storage?.rootDir && args.resolvedInputs['Input:StorageRoot'] === undefined
+    ...resolvedInputsWithBlobs,
+    ...(resolvedInputsWithBlobs['Input:MovieId'] === undefined ? { 'Input:MovieId': args.movieId } : {}),
+    ...(args.storage?.rootDir && resolvedInputsWithBlobs['Input:StorageRoot'] === undefined
       ? { 'Input:StorageRoot': args.storage.rootDir }
       : {}),
-    ...(args.storage?.basePath && args.resolvedInputs['Input:StorageBasePath'] === undefined
+    ...(args.storage?.basePath && resolvedInputsWithBlobs['Input:StorageBasePath'] === undefined
       ? { 'Input:StorageBasePath': args.storage.basePath }
       : {}),
   };

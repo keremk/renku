@@ -487,17 +487,16 @@ Data and generated artifacts (user-specified location):
 {rootFolder}/
 ├── builds/
 │   └── movie-{id}/
-│       ├── inputs.yaml      # Original inputs
-│       ├── plan.json        # Execution plan
-│       ├── manifest.json    # Artifact metadata
-│       ├── artifacts.log    # Execution log
-│       ├── prompts/
-│       │   └── inquiry.txt  # InquiryPrompt
-│       └── artifacts/
-│           ├── node-{id}-output.txt
-│           ├── node-{id}-output.json
-│           ├── node-{id}-output.png
-│           └── node-{id}-output.mp3
+│       ├── events/
+│       │   ├── inputs.log   # Input events log (JSONL)
+│       │   └── artefacts.log # Artifact events log (JSONL)
+│       ├── runs/
+│       │   └── {revision}-plan.json  # Execution plan
+│       ├── manifests/
+│       │   └── {revision}.json       # Manifest with artifact metadata
+│       ├── blobs/
+│       │   └── {hash-prefix}/        # Blob storage by hash prefix
+│       └── current.json              # Pointer to current manifest
 └── config/
     └── blueprints/
         └── *.yaml           # Blueprint files
@@ -517,34 +516,23 @@ Storage configuration created by `init`. Located at `~/.config/renku/cli-config.
 }
 ```
 
-#### `inputs.yaml`
-Original inputs provided to the workflow.
+#### `events/inputs.log`
+JSONL file containing input events. Each line is a JSON object with the input ID, value, and metadata.
 
-#### `plan.json`
-Execution plan with nodes, edges, and dependencies.
+#### `events/artefacts.log`
+JSONL file containing artifact production events with status, blob references, and metadata.
 
-#### `manifest.json`
-Artifact metadata with types, paths, and node IDs.
+#### `runs/{revision}-plan.json`
+Execution plan with nodes, edges, and dependencies for a specific revision.
 
-#### `artifacts.log`
-Execution log with timestamps and status.
+#### `manifests/{revision}.json`
+Artifact metadata with types, blob references, and node IDs for a specific revision.
 
-#### `prompts/`
-Directory for prompt files referenced by producers.
+#### `blobs/`
+Content-addressed blob storage. Files are stored under `{hash-prefix}/{hash}` paths.
 
-#### `artifacts/`
-Directory for all generated artifacts. Files are named:
-- `node-{nodeId}-{outputName}.{ext}`
-
-Node IDs are deterministic and derived from:
-- Module name
-- Loop indices (if looped)
-- Instance counter (for arrays)
-
-**Example:**
-- `node-ScriptGenerator-MovieTitle.txt`
-- `node-AudioGenerator-0-SegmentAudio.mp3`
-- `node-ImageGenerator-0-1-SegmentImage.png`
+#### `current.json`
+Pointer to the current manifest revision.
 
 ---
 
@@ -563,11 +551,11 @@ Continuing work on an existing movie uses the same `generate` command with a tar
    ```
 
 2. **Apply edits locally:**
-   - Update `builds/movie-q123456/inputs.yaml` (or edit artifacts in the friendly `movies/movie-q123456/` folder).
+   - Update your original inputs file or edit artifacts in the friendly `movies/movie-q123456/` folder.
 
 3. **Re-run generation against the same movie:**
    ```bash
-   renku generate --movie-id=movie-q123456
+   renku generate --movie-id=movie-q123456 --inputs=./inputs.yaml
    ```
 
 4. **Review:**

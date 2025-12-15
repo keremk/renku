@@ -12,8 +12,13 @@ import type { Manifest } from '@renku/core';
 import { runGenerate, type GenerateResult } from '../commands/generate.js';
 import { runViewerView } from '../commands/viewer.js';
 import { readCliConfig } from '../lib/cli-config.js';
-import { INPUT_FILE_NAME } from '../lib/input-files.js';
 import { expandPath } from '../lib/path.js';
+
+/** Minimal type for reading input events from inputs.log */
+interface InputEventRecord {
+  id: string;
+  payload: unknown;
+}
 
 const console = globalThis.console;
 
@@ -201,7 +206,7 @@ function buildInstructions(options: CreateMcpServerOptions): string {
     `Default blueprint: ${pathLabel(options.defaultBlueprintPath, options.blueprintDir)}`,
     'Resources:',
     '- renku://blueprints/... for blueprint YAML files',
-    '- renku://movies/{movieId}/inputs for the inputs.yaml captured per movie',
+    '- renku://movies/{movieId}/inputs for the inputs used in the movie generation',
     '- renku://movies/{movieId}/timeline for the generated timeline JSON',
     '- renku://movies/{movieId}/artefacts/{canonicalId} for any artefact stored in the manifest',
   ].join('\n');
@@ -317,7 +322,7 @@ async function resolveBlueprintPath(
 
 async function writeInputsFile(args: z.infer<typeof generateStorySchema>): Promise<string> {
   const tmpDir = await mkdtemp(join(tmpdir(), 'renku-mcp-'));
-  const target = join(tmpDir, INPUT_FILE_NAME);
+  const target = join(tmpDir, 'inputs.yaml');
   const doc: Record<string, unknown> = {
     InquiryPrompt: args.inquiryPrompt,
     Duration: args.durationSeconds,
@@ -413,9 +418,19 @@ export class MovieStorage {
 
   async readInputs(movieId: string, uri: string): Promise<ReadResourceResult> {
     const movieDir = this.resolveMovieDir(movieId);
-    const inputsPath = join(movieDir, INPUT_FILE_NAME);
-    const contents = await readFile(inputsPath, 'utf8');
-    return wrapTextResource(uri, contents, 'text/yaml');
+    const inputsLogPath = join(movieDir, 'events', 'inputs.log');
+    const content = await readFile(inputsLogPath, 'utf8');
+
+    // Parse JSONL and collect latest input values (last entry wins for each ID)
+    const inputs: Record<string, unknown> = {};
+    for (const line of content.split('\n').filter(Boolean)) {
+      const event = JSON.parse(line) as InputEventRecord;
+      inputs[event.id] = event.payload;
+    }
+
+    // Return as YAML for consistency with previous format
+    const yamlContent = stringifyYaml({ inputs });
+    return wrapTextResource(uri, yamlContent, 'text/yaml');
   }
 
   async readTimeline(movieId: string): Promise<ReadResourceResult> {
