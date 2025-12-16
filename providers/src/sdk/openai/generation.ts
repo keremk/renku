@@ -9,14 +9,21 @@ import {
 import type { OpenAiResponseFormat, OpenAiLlmConfig } from './config.js';
 import { normalizeJsonSchema } from './config.js';
 import type { RenderedPrompts } from './prompts.js';
+import type { ProviderJobContext, ProviderMode } from '../../types.js';
+import { simulateOpenAiGeneration } from './simulation.js';
 
 type JsonObject = Record<string, unknown>;
 
 export interface GenerationOptions {
+  /** AI SDK model (required for both live and simulated modes) */
   model: ReturnType<ReturnType<typeof import('@ai-sdk/openai').createOpenAI>>;
   prompts: RenderedPrompts;
   responseFormat: OpenAiResponseFormat;
   config: OpenAiLlmConfig;
+  /** Provider mode - 'simulated' for dry-run, 'live' for actual API calls */
+  mode?: ProviderMode;
+  /** Full request context for simulation (required when mode is 'simulated') */
+  request?: ProviderJobContext;
 }
 
 export interface GenerationResult {
@@ -28,9 +35,13 @@ export interface GenerationResult {
 
 /**
  * Calls OpenAI via AI SDK with either structured (JSON) or text output.
+ *
+ * In simulated mode, all validation and setup runs identically to live mode.
+ * The only difference is at the very end: instead of calling the AI SDK,
+ * it returns mock data based on the schema.
  */
 export async function callOpenAi(options: GenerationOptions): Promise<GenerationResult> {
-  const { model, prompts, responseFormat, config } = options;
+  const { model, prompts, responseFormat, config, mode, request } = options;
 
   // Build prompt string (required by AI SDK)
   const prompt = prompts.user?.trim() || prompts.system?.trim() || ' ';
@@ -68,6 +79,8 @@ export async function callOpenAi(options: GenerationOptions): Promise<Generation
       system: prompts.system,
       responseFormat,
       baseCallOptions,
+      mode,
+      request,
     });
   } else {
     return await generatePlainText({
@@ -75,6 +88,8 @@ export async function callOpenAi(options: GenerationOptions): Promise<Generation
       prompt,
       system: prompts.system,
       baseCallOptions,
+      mode,
+      request,
     });
   }
 }
@@ -85,10 +100,12 @@ interface StructuredOutputOptions {
   system?: string;
   responseFormat: OpenAiResponseFormat;
   baseCallOptions: CallSettings & { providerOptions?: Record<string, Record<string, JSONValue>> };
+  mode?: ProviderMode;
+  request?: ProviderJobContext;
 }
 
 async function generateStructuredOutput(options: StructuredOutputOptions): Promise<GenerationResult> {
-  const { model, prompt, system, responseFormat, baseCallOptions } = options;
+  const { model, prompt, system, responseFormat, baseCallOptions, mode, request } = options;
 
   if (!responseFormat.schema) {
     throw new Error('Schema is required for json_schema response format.');
@@ -100,6 +117,12 @@ async function generateStructuredOutput(options: StructuredOutputOptions): Promi
   });
 
   const schema = jsonSchema(normalizedSchema);
+
+  // In simulated mode, return mock data instead of calling the AI SDK
+  // All validation and setup has already run identically to live mode
+  if (mode === 'simulated' && request) {
+    return simulateOpenAiGeneration({ request, config: { responseFormat } as OpenAiLlmConfig });
+  }
 
   const generation = await generateObject({
     ...baseCallOptions,
@@ -125,10 +148,18 @@ interface PlainTextOptions {
   prompt: string;
   system?: string;
   baseCallOptions: CallSettings & { providerOptions?: Record<string, Record<string, JSONValue>> };
+  mode?: ProviderMode;
+  request?: ProviderJobContext;
 }
 
 async function generatePlainText(options: PlainTextOptions): Promise<GenerationResult> {
-  const { model, prompt, system, baseCallOptions } = options;
+  const { model, prompt, system, baseCallOptions, mode, request } = options;
+
+  // In simulated mode, return mock data instead of calling the AI SDK
+  // All validation and setup has already run identically to live mode
+  if (mode === 'simulated' && request) {
+    return simulateOpenAiGeneration({ request, config: { responseFormat: { type: 'text' } } as OpenAiLlmConfig });
+  }
 
   const generation = await generateText({
     ...baseCallOptions,

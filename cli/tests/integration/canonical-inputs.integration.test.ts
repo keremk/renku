@@ -1,7 +1,7 @@
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { getBundledBlueprintsRoot, getBundledCatalogRoot, resolveBlueprintSpecifier } from '../../src/lib/config-assets.js';
 import { generatePlan } from '../../src/lib/planner.js';
 import { writeCliConfig, type CliConfig } from '../../src/lib/cli-config.js';
@@ -13,6 +13,24 @@ const BLUEPRINTS_ROOT = getBundledBlueprintsRoot();
 const CATALOG_ROOT = getBundledCatalogRoot();
 
 describe('integration: canonical inputs persist across query/edit', () => {
+	let originalApiKey: string | undefined;
+
+	beforeEach(() => {
+		// Store original API key and set a test key
+		// Dry-run mode requires API key validation (same as live mode)
+		originalApiKey = process.env.OPENAI_API_KEY;
+		process.env.OPENAI_API_KEY = 'test-api-key-for-dry-run';
+	});
+
+	afterEach(() => {
+		// Restore original API key
+		if (originalApiKey === undefined) {
+			delete process.env.OPENAI_API_KEY;
+		} else {
+			process.env.OPENAI_API_KEY = originalApiKey;
+		}
+	});
+
 	it('saves canonical inputs and reuses them during edit without unknown-id errors', async () => {
 		const storageRoot = await mkdtemp(join(tmpdir(), 'renku-builds-'));
 		const movieId = 'movie-testcanon';

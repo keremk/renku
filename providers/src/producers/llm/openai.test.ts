@@ -475,7 +475,10 @@ describe('createOpenAiLlmHandler', () => {
     expect(args.system).toBe('System prompt');
   });
 
-  it('simulates responses in dry-run mode without contacting OpenAI', async () => {
+  it('simulates responses in dry-run mode without calling the AI provider', async () => {
+    // In simulated mode, all validation runs the same as live mode, but generateObject
+    // is NOT called - we use simulateOpenAiGeneration at the very end instead
+
     const factory = createOpenAiLlmHandler();
     const handler = factory({
       descriptor: {
@@ -486,11 +489,13 @@ describe('createOpenAiLlmHandler', () => {
       mode: 'simulated',
       secretResolver: {
         async getSecret() {
-          return 'unused';
+          return 'test-api-key'; // API key required even in simulated mode
         },
       },
       logger: undefined,
     });
+
+    await handler.warmStart?.({ logger: undefined });
 
     const request = createJobContext({
       jobId: 'job-sim',
@@ -524,10 +529,11 @@ describe('createOpenAiLlmHandler', () => {
 
     const result = await handler.invoke(request);
 
+    // In simulated mode, generateObject is NOT called (we use simulateOpenAiGeneration)
     expect(mocks.generateObject).not.toHaveBeenCalled();
-    expect(mocks.generateText).not.toHaveBeenCalled();
     expect(result.status).toBe('succeeded');
 
+    // The simulated data is generated based on the schema
     const title = result.artefacts.find(
       (artefact) => artefact.artefactId === 'Artifact:ScriptGenerator.MovieTitle',
     );
@@ -621,5 +627,255 @@ describe('createOpenAiLlmHandler', () => {
     });
 
     await expect(handler.warmStart?.({ logger: undefined })).rejects.toThrowError(/OPENAI_API_KEY/);
+  });
+
+  it('passes call settings (temperature, maxOutputTokens, penalties) to AI SDK', async () => {
+    mocks.generateText.mockResolvedValueOnce({
+      text: 'Response',
+      usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+      warnings: [],
+      response: { id: 'resp', model: 'gpt5', createdAt: '' },
+    });
+
+    const handler = buildHandler();
+    await handler.warmStart?.({ logger: undefined });
+
+    const request = createJobContext({
+      produces: ['Artifact:Output'],
+      context: {
+        providerConfig: {
+          systemPrompt: 'Test prompt',
+          responseFormat: { type: 'text' },
+          temperature: 0.7,
+          maxOutputTokens: 1000,
+          presencePenalty: 0.5,
+          frequencyPenalty: 0.3,
+        },
+      },
+    });
+
+    await handler.invoke(request);
+
+    expect(mocks.generateText).toHaveBeenCalledTimes(1);
+    const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(args.temperature).toBe(0.7);
+    expect(args.maxOutputTokens).toBe(1000);
+    expect(args.presencePenalty).toBe(0.5);
+    expect(args.frequencyPenalty).toBe(0.3);
+  });
+
+  it('passes reasoning effort to provider options for reasoning models', async () => {
+    mocks.generateObject.mockResolvedValueOnce({
+      object: { Result: 'analyzed' },
+      usage: { inputTokens: 50, outputTokens: 100, totalTokens: 150 },
+      warnings: [],
+      response: { id: 'resp-reason', model: 'o1', createdAt: '' },
+    });
+
+    const handler = buildHandler();
+    await handler.warmStart?.({ logger: undefined });
+
+    const request = createJobContext({
+      produces: ['Artifact:Result'],
+      context: {
+        providerConfig: {
+          systemPrompt: 'Analyze this',
+          responseFormat: {
+            type: 'json_schema',
+            schema: { type: 'object', properties: { Result: { type: 'string' } } },
+          },
+          reasoning: 'high',
+        },
+      },
+    });
+
+    await handler.invoke(request);
+
+    expect(mocks.generateObject).toHaveBeenCalledTimes(1);
+    const args = mocks.generateObject.mock.calls[0]?.[0] as Record<string, unknown>;
+    const providerOpts = args.providerOptions as Record<string, Record<string, unknown>> | undefined;
+    expect(providerOpts?.openai?.reasoningEffort).toBe('high');
+  });
+
+  it('propagates errors when generateObject fails', async () => {
+    mocks.generateObject.mockRejectedValueOnce(new Error('API rate limit exceeded'));
+
+    const handler = buildHandler();
+    await handler.warmStart?.({ logger: undefined });
+
+    const request = createJobContext({
+      produces: ['Artifact:Output'],
+      context: {
+        providerConfig: {
+          systemPrompt: 'Test',
+          responseFormat: {
+            type: 'json_schema',
+            schema: { type: 'object', properties: { Output: { type: 'string' } } },
+          },
+        },
+      },
+    });
+
+    await expect(handler.invoke(request)).rejects.toThrow('API rate limit exceeded');
+  });
+
+  it('propagates errors when generateText fails', async () => {
+    mocks.generateText.mockRejectedValueOnce(new Error('Network error'));
+
+    const handler = buildHandler();
+    await handler.warmStart?.({ logger: undefined });
+
+    const request = createJobContext({
+      produces: ['Artifact:Output'],
+      context: {
+        providerConfig: {
+          systemPrompt: 'Test',
+          responseFormat: { type: 'text' },
+        },
+      },
+    });
+
+    await expect(handler.invoke(request)).rejects.toThrow('Network error');
+  });
+
+  it('simulates text responses in dry-run mode', async () => {
+    const factory = createOpenAiLlmHandler();
+    const handler = factory({
+      descriptor: { provider: 'openai', model: 'openai/gpt5', environment: 'local' },
+      mode: 'simulated',
+      secretResolver: {
+        async getSecret() {
+          return 'test-api-key'; // API key required even in simulated mode
+        },
+      },
+      logger: undefined,
+    });
+
+    await handler.warmStart?.({ logger: undefined });
+
+    const request = createJobContext({
+      jobId: 'job-text-sim',
+      produces: ['Artifact:Summary'],
+      context: {
+        providerConfig: {
+          systemPrompt: 'Summarize the topic',
+          responseFormat: { type: 'text' },
+        },
+      },
+    });
+
+    const result = await handler.invoke(request);
+
+    expect(mocks.generateText).not.toHaveBeenCalled();
+    expect(result.status).toBe('succeeded');
+    expect(result.artefacts[0]?.blob?.data).toContain('Simulated');
+  });
+
+  it('throws when a required prompt variable is not resolved', async () => {
+    const handler = buildHandler();
+    await handler.warmStart?.({ logger: undefined });
+
+    const request = createJobContext({
+      produces: ['Artifact:Output'],
+      context: {
+        providerConfig: {
+          systemPrompt: 'Tell me about {{MissingVar}}',
+          variables: ['MissingVar'],
+          responseFormat: { type: 'text' },
+        },
+        extras: {
+          resolvedInputs: {}, // MissingVar not provided
+        },
+      },
+    });
+
+    await expect(handler.invoke(request)).rejects.toThrow(/MissingVar/);
+  });
+
+  it('passes schema name and description to generateObject', async () => {
+    mocks.generateObject.mockResolvedValueOnce({
+      object: { Title: 'Test Movie' },
+      usage: { inputTokens: 20, outputTokens: 10, totalTokens: 30 },
+      warnings: [],
+      response: { id: 'resp-schema', model: 'gpt5', createdAt: '' },
+    });
+
+    const handler = buildHandler();
+    await handler.warmStart?.({ logger: undefined });
+
+    const request = createJobContext({
+      produces: ['Artifact:Title'],
+      context: {
+        providerConfig: {
+          systemPrompt: 'Generate a movie title',
+          responseFormat: {
+            type: 'json_schema',
+            schema: { type: 'object', properties: { Title: { type: 'string' } } },
+            name: 'MovieSchema',
+            description: 'Schema for movie data',
+          },
+        },
+      },
+    });
+
+    await handler.invoke(request);
+
+    expect(mocks.generateObject).toHaveBeenCalledTimes(1);
+    const args = mocks.generateObject.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(args.schemaName).toBe('MovieSchema');
+    expect(args.schemaDescription).toBe('Schema for movie data');
+  });
+
+  it('requires API key during warmStart in simulated mode (same as live)', async () => {
+    const factory = createOpenAiLlmHandler();
+    const handler = factory({
+      descriptor: { provider: 'openai', model: 'openai/gpt5', environment: 'local' },
+      mode: 'simulated',
+      secretResolver: {
+        async getSecret() {
+          return null; // No API key
+        },
+      },
+      logger: undefined,
+    });
+
+    // Simulated mode requires API key just like live mode
+    // This ensures dry-run catches configuration errors
+    await expect(handler.warmStart?.({ logger: undefined })).rejects.toThrowError(/OPENAI_API_KEY/);
+  });
+
+  it('includes usage and response metadata in diagnostics', async () => {
+    mocks.generateObject.mockResolvedValueOnce({
+      object: { Title: 'Test' },
+      usage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 },
+      warnings: ['Some warning about token usage'],
+      response: { id: 'resp-123', model: 'gpt-4o', createdAt: '2025-01-01T00:00:00Z' },
+    });
+
+    const handler = buildHandler();
+    await handler.warmStart?.({ logger: undefined });
+
+    const request = createJobContext({
+      produces: ['Artifact:Title'],
+      context: {
+        providerConfig: {
+          systemPrompt: 'Generate',
+          responseFormat: {
+            type: 'json_schema',
+            schema: { type: 'object', properties: { Title: { type: 'string' } } },
+          },
+        },
+      },
+    });
+
+    const result = await handler.invoke(request);
+
+    expect(result.diagnostics?.usage).toEqual({
+      inputTokens: 100,
+      outputTokens: 50,
+      totalTokens: 150,
+    });
+    expect(result.diagnostics?.warnings).toEqual(['Some warning about token usage']);
+    expect(result.diagnostics?.response).toMatchObject({ id: 'resp-123' });
   });
 });

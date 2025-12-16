@@ -9,7 +9,6 @@ import {
   callOpenAi,
   buildArtefactsFromResponse,
   sanitizeResponseMetadata,
-  simulateOpenAiGeneration,
   type OpenAiLlmConfig,
   type GenerationResult,
 } from '../../sdk/openai/index.js';
@@ -17,8 +16,7 @@ import {
 export function createOpenAiLlmHandler(): HandlerFactory {
   return (init) => {
     const { descriptor, secretResolver, logger, schemaRegistry } = init;
-    const clientManager = createOpenAiClientManager(secretResolver, logger, init.mode, schemaRegistry);
-    const isSimulated = init.mode === 'simulated';
+    const clientManager = createOpenAiClientManager(secretResolver, logger, schemaRegistry);
     const notify = init.notifications;
     const notificationLabel = `${descriptor.provider}/${descriptor.model}`;
 
@@ -26,9 +24,8 @@ export function createOpenAiLlmHandler(): HandlerFactory {
       domain: 'prompt',
       configValidator: parseOpenAiConfig,
       warmStart: async () => {
-        if (isSimulated) {
-          return;
-        }
+        // Both live and simulated modes initialize the client to validate API key
+        // This ensures dry-run catches configuration errors just like live would
         try {
           await clientManager.ensure();
         } catch (error) {
@@ -86,20 +83,20 @@ export function createOpenAiLlmHandler(): HandlerFactory {
         };
         logger?.debug?.('providers.openai.prompts', promptLogPayload);
 
-        // 3. Call OpenAI via AI SDK or simulate the response
-        let generation: GenerationResult;
-        if (isSimulated) {
-          generation = simulateOpenAiGeneration({ request, config });
-        } else {
-          await clientManager.ensure();
-          const model = clientManager.getModel(request.model);
-          generation = await callOpenAi({
-            model,
-            prompts,
-            responseFormat: config.responseFormat,
-            config,
-          });
-        }
+        // 3. Call OpenAI via AI SDK
+        // Both live and simulated modes run the same code path - only the final
+        // API call is skipped in simulated mode
+        await clientManager.ensure();
+        const model = clientManager.getModel(request.model);
+
+        const generation: GenerationResult = await callOpenAi({
+          model,
+          prompts,
+          responseFormat: config.responseFormat,
+          config,
+          mode: init.mode,
+          request,
+        });
 
         // 5. Build artifacts using implicit mapping
         const artefacts = buildArtefactsFromResponse(generation.data, request.produces, {

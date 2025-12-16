@@ -28,8 +28,5 @@ export {
   type GenerationResult,
 } from './generation.js';
 
-// Simulation
-export {
-  simulateOpenAiGeneration,
-  type SimulationSizeHints,
-} from './simulation.js';
+// Simulation for dry-run (used internally by generation.ts)
+export { simulateOpenAiGeneration, type SimulationSizeHints } from './simulation.js';
