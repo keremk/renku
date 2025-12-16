@@ -52,10 +52,10 @@ describe('end-to-end: image-to-video dry runs', () => {
       logger,
     });
 
-    if (queryResult.dryRun?.status !== 'succeeded') {
-      throw new Error(`dryRun failed: ${JSON.stringify(queryResult.dryRun, null, 2)}`);
+    if (queryResult.build?.status !== 'succeeded') {
+      throw new Error(`dryRun failed: ${JSON.stringify(queryResult.build, null, 2)}`);
     }
-    expect(queryResult.dryRun?.statusCounts.failed).toBe(0);
+    expect(queryResult.build?.counts.failed).toBe(0);
     if (warnings.length > 0 || errors.length > 0) {
       // eslint-disable-next-line no-console
       console.error('warnings', warnings, 'errors', errors);

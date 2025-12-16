@@ -89,7 +89,7 @@ describe('runGenerate (new runs)', () => {
     });
 
     expect(result.movieId).toHaveLength(8);
-    expect(result.dryRun).toBeUndefined();
+    expect(result.isDryRun).toBeFalsy();
 
     const cliConfig = await readCliConfig(cliConfigPath);
     expect(cliConfig).not.toBeNull();
@@ -142,11 +142,10 @@ describe('runGenerate (new runs)', () => {
       blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
     });
 
-    expect(result.dryRun).toBeDefined();
-    expect(result.dryRun?.status).toBe('succeeded');
-    expect(result.dryRun?.jobCount).toBeGreaterThan(0);
-    expect(result.dryRun?.statusCounts.succeeded).toBeGreaterThan(0);
-    expect(result.build).toBeUndefined();
+    expect(result.isDryRun).toBe(true);
+    expect(result.build?.status).toBe('succeeded');
+    expect(result.build?.jobCount).toBeGreaterThan(0);
+    expect(result.build?.counts.succeeded).toBeGreaterThan(0);
   });
 
   it('runs the video + audio + music blueprint with timeline stub', async () => {
@@ -172,8 +171,8 @@ describe('runGenerate (new runs)', () => {
       blueprint: VIDEO_AUDIO_MUSIC_BLUEPRINT_PATH,
     });
 
-    expect(result.dryRun).toBeDefined();
-    expect(result.dryRun?.jobCount).toBeGreaterThan(0);
+    expect(result.isDryRun).toBe(true);
+    expect(result.build?.jobCount).toBeGreaterThan(0);
   });
 
   it('overrides InquiryPrompt when provided inline', async () => {
@@ -273,7 +272,7 @@ describe('runGenerate (new runs)', () => {
       blueprint: IMAGE_AUDIO_BLUEPRINT_PATH,
       dryRun: true,
     });
-    expect(second.dryRun?.status).toBe('succeeded');
+    expect(second.build?.status).toBe('succeeded');
 
     const plan = JSON.parse(await readFile(second.planPath, 'utf8')) as { layers: Array<unknown[]> };
     expect(plan.layers[0]?.length ?? 0).toBe(0);
@@ -305,8 +304,8 @@ describe('runGenerate (new runs)', () => {
       blueprint: VIDEO_AUDIO_MUSIC_BLUEPRINT_PATH,
     });
 
-    expect(result.dryRun).toBeDefined();
-    const jobs = result.dryRun?.jobs ?? [];
+    expect(result.isDryRun).toBe(true);
+    const jobs = result.build?.jobs ?? [];
     const timelineJob = jobs.find((job) => job.producer === 'TimelineComposer');
     const exporterJob = jobs.find((job) => job.producer === 'VideoExporter');
     expect(timelineJob).toBeDefined();
@@ -353,7 +352,7 @@ describe('runGenerate (new runs)', () => {
     });
 
     expect(second.storageMovieId).toBe(formatMovieId(first.movieId));
-    expect(second.dryRun?.jobCount ?? 0).toBeGreaterThanOrEqual(0);
+    expect(second.build?.jobCount ?? 0).toBeGreaterThanOrEqual(0);
   });
 
   it('fails when --last is used without a prior generation', async () => {
@@ -440,6 +439,6 @@ describe('runGenerate (new runs)', () => {
     });
 
     expect(next.storageMovieId).toBe(first.storageMovieId);
-    expect(next.dryRun?.jobCount ?? 0).toBeGreaterThanOrEqual(0);
+    expect(next.build?.jobCount ?? 0).toBeGreaterThanOrEqual(0);
   });
 });

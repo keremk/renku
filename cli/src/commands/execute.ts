@@ -1,8 +1,7 @@
 import { resolve } from 'node:path';
 import { getDefaultCliConfigPath, readCliConfig } from '../lib/cli-config.js';
 import { generatePlan, type PendingArtefactDraft } from '../lib/planner.js';
-import { executeDryRun, type DryRunSummary } from '../lib/dry-run.js';
-import { executeBuild, type BuildSummary } from '../lib/build.js';
+import { executeBuild, type BuildSummary, type ExecuteBuildResult } from '../lib/build.js';
 import { expandPath } from '../lib/path.js';
 import { confirmPlanExecution } from '../lib/interactive-confirm.js';
 import { displayPlanAndCosts } from '../lib/plan-display.js';
@@ -69,11 +68,11 @@ export interface ExecuteResult {
   /** Plan revision string */
   targetRevision: string;
 
-  /** Dry-run summary (if dryRun was true) */
-  dryRun?: DryRunSummary;
-
-  /** Build summary (if dryRun was false) */
+  /** Build summary (available for both dry-run and live execution) */
   build?: BuildSummary;
+
+  /** Whether this was a dry-run execution */
+  isDryRun?: boolean;
 
   /** Path to manifest file (if build succeeded) */
   manifestPath?: string;
@@ -194,47 +193,30 @@ export async function runExecute(options: ExecuteOptions): Promise<ExecuteResult
     await planResult.persist();
   }
 
-  // Execute dry-run or build
-  const dryRunResult = options.dryRun
-    ? await executeDryRun({
-        movieId: storageMovieId,
-        plan: planResult.plan,
-        manifest: planResult.manifest,
-        manifestHash: planResult.manifestHash,
-        providerOptions: planResult.providerOptions,
-        resolvedInputs: planResult.resolvedInputs,
-        catalog: planResult.modelCatalog,
-        concurrency,
-        storage: { rootDir: storageRoot, basePath },
-        logger,
-      })
-    : undefined;
-
-  let buildResult: Awaited<ReturnType<typeof executeBuild>> | undefined;
-  if (!options.dryRun) {
-    buildResult = await executeBuild({
-      cliConfig,
-      movieId: storageMovieId,
-      plan: planResult.plan,
-      manifest: planResult.manifest,
-      manifestHash: planResult.manifestHash,
-      providerOptions: planResult.providerOptions,
-      resolvedInputs: planResult.resolvedInputs,
-      catalog: planResult.modelCatalog,
-      logger,
-      concurrency,
-      upToLayer,
-    });
-  }
+  // Execute build (with dryRun parameter to control mode)
+  const buildResult = await executeBuild({
+    cliConfig,
+    movieId: storageMovieId,
+    plan: planResult.plan,
+    manifest: planResult.manifest,
+    manifestHash: planResult.manifestHash,
+    providerOptions: planResult.providerOptions,
+    resolvedInputs: planResult.resolvedInputs,
+    catalog: planResult.modelCatalog,
+    logger,
+    concurrency,
+    upToLayer: options.dryRun ? undefined : upToLayer,
+    dryRun: options.dryRun,
+  });
 
   return {
     movieId: options.movieId ?? normalizePublicId(storageMovieId),
     storageMovieId,
     planPath: planResult.planPath,
     targetRevision: planResult.targetRevision,
-    dryRun: dryRunResult,
-    build: buildResult?.summary,
-    manifestPath: buildResult?.manifestPath,
+    build: buildResult.summary,
+    isDryRun: buildResult.dryRun,
+    manifestPath: buildResult.manifestPath,
     storagePath: movieDir,
   };
 }
@@ -323,8 +305,8 @@ async function handleCostsOnly(args: {
     storageMovieId,
     planPath: planResult.planPath,
     targetRevision: planResult.targetRevision,
-    dryRun: undefined,
     build: undefined,
+    isDryRun: undefined,
     manifestPath: undefined,
     storagePath: movieDir,
     cleanedUp,
@@ -361,8 +343,8 @@ async function handleCancellation(args: {
     storageMovieId,
     planPath: planResult.planPath,
     targetRevision: planResult.targetRevision,
-    dryRun: undefined,
     build: undefined,
+    isDryRun: undefined,
     manifestPath: undefined,
     storagePath: movieDir,
     cleanedUp,

@@ -193,12 +193,12 @@ describe('end-to-end: failed artifact recovery', () => {
     });
 
     // Verify edit dry-run succeeded
-    expect(editResult.dryRun?.status).toBe('succeeded');
+    expect(editResult.build?.status).toBe('succeeded');
 
     // CRITICAL VERIFICATION: Only 1 job should be planned (AudioProducer[1])
-    expect(editResult.dryRun?.jobCount).toBe(1);
-    expect(editResult.dryRun?.statusCounts.succeeded).toBe(1);
-    expect(editResult.dryRun?.statusCounts.failed).toBe(0);
+    expect(editResult.build?.jobCount).toBe(1);
+    expect(editResult.build?.counts.succeeded).toBe(1);
+    expect(editResult.build?.counts.failed).toBe(0);
 
     // Verify the edit plan contains only the failed job
     const editPlan = await readPlan(editResult.planPath);

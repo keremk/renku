@@ -4,8 +4,8 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { getBundledBlueprintsRoot, getBundledCatalogRoot, resolveBlueprintSpecifier } from '../../src/lib/config-assets.js';
 import { generatePlan } from '../../src/lib/planner.js';
-import { writeCliConfig } from '../../src/lib/cli-config.js';
-import { executeDryRun } from '../../src/lib/dry-run.js';
+import { writeCliConfig, type CliConfig } from '../../src/lib/cli-config.js';
+import { executeBuild } from '../../src/lib/build.js';
 import { createCliLogger } from '../../src/lib/logger.js';
 
 const CLI_ROOT = resolve(__dirname, '../../');
@@ -17,7 +17,7 @@ describe('integration: canonical inputs persist across query/edit', () => {
 		const storageRoot = await mkdtemp(join(tmpdir(), 'renku-builds-'));
 		const movieId = 'movie-testcanon';
 		const configPath = join(storageRoot, 'cli-config.json');
-		const cliConfig = {
+		const cliConfig: CliConfig = {
 			storage: {
 				root: storageRoot,
 				basePath: 'builds',
@@ -83,7 +83,8 @@ describe('integration: canonical inputs persist across query/edit', () => {
 			layers: planResult.plan.layers.slice(0, 1),
 		};
 
-		const dryRun = await executeDryRun({
+		const result = await executeBuild({
+			cliConfig,
 			movieId,
 			plan: trimmedPlan,
 			manifest: planResult.manifest,
@@ -91,12 +92,12 @@ describe('integration: canonical inputs persist across query/edit', () => {
 			providerOptions: planResult.providerOptions,
 			resolvedInputs: planResult.resolvedInputs,
 			catalog: planResult.modelCatalog,
-			storage: { rootDir: storageRoot, basePath: 'builds' },
 			concurrency: 1,
+			dryRun: true,
 			logger,
 		});
 
-		expect(dryRun.jobCount).toBeGreaterThan(0);
-		expect(dryRun.statusCounts.failed).toBe(0);
+		expect(result.summary.jobCount).toBeGreaterThan(0);
+		expect(result.summary.counts.failed).toBe(0);
 	});
 });

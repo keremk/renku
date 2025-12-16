@@ -19,6 +19,7 @@ import {
   type ProducerJobContext,
   type Logger,
   type BlobInput,
+  type StorageContext,
 } from '@renku/core';
 import {
   createProviderRegistry,
@@ -46,9 +47,20 @@ export interface ExecuteBuildOptions {
   /** Pre-loaded model catalog for provider registry. */
   catalog?: LoadedModelCatalog;
   concurrency?: number;
+  /** Layer to stop at (only used when dryRun=false). */
   upToLayer?: number;
+  /** Enable dry-run mode: simulated providers, no S3 uploads. */
+  dryRun?: boolean;
   logger?: Logger;
   notifications?: import('@renku/core').NotificationBus;
+}
+
+export interface JobSummary {
+  jobId: string;
+  producer: string;
+  status: 'succeeded' | 'failed' | 'skipped';
+  layerIndex: number;
+  errorMessage?: string;
 }
 
 export interface BuildSummary {
@@ -59,6 +71,10 @@ export interface BuildSummary {
     failed: number;
     skipped: number;
   };
+  /** Number of layers in the execution plan */
+  layers: number;
+  /** Job-level details for display (optional) */
+  jobs?: JobSummary[];
   manifestRevision: string;
   manifestPath: string;
 }
@@ -69,9 +85,12 @@ export interface ExecuteBuildResult {
   manifestPath: string;
   manifestHash: string;
   summary: BuildSummary;
+  /** True if this was a dry-run (simulated execution). */
+  dryRun: boolean;
 }
 
 export async function executeBuild(options: ExecuteBuildOptions): Promise<ExecuteBuildResult> {
+  const { dryRun = false } = options;
   const logger = options.logger ?? globalThis.console;
   const notifications = options.notifications;
   const storage = createStorageContext({
@@ -85,11 +104,27 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<Execut
 
   const eventLog = createEventLog(storage);
   const manifestService = createManifestService(storage);
+
+  // Cloud storage: Real for live, stubbed for dry-run (no S3 uploads)
   const cloudStorageEnv = loadCloudStorageEnv();
-  const cloudStorage = cloudStorageEnv.isConfigured
-    ? createCloudStorageContext(cloudStorageEnv.config!)
-    : undefined;
-  const registry = createProviderRegistry({ mode: 'live', logger, notifications, cloudStorage, catalog: options.catalog });
+  const cloudStorage = dryRun
+    ? createDryRunCloudStorage(
+        options.cliConfig.storage.root,
+        options.cliConfig.storage.basePath,
+        options.movieId,
+      )
+    : cloudStorageEnv.isConfigured
+      ? createCloudStorageContext(cloudStorageEnv.config!)
+      : undefined;
+
+  // Provider registry: mode differs based on dryRun flag
+  const registry = createProviderRegistry({
+    mode: dryRun ? 'simulated' : 'live',
+    logger,
+    notifications,
+    cloudStorage,
+    catalog: options.catalog,
+  });
   const preResolved = prepareProviderHandlers(registry, options.plan, options.providerOptions);
   await registry.warmStart?.(preResolved);
 
@@ -152,16 +187,19 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<Execut
     manifest,
     manifestPath,
     manifestHash: hash,
-    summary: summarizeRun(run, manifestPath),
+    summary: summarizeRun(run, manifestPath, options.plan),
+    dryRun,
   };
 }
 
-function summarizeRun(run: RunResult, manifestPath: string): BuildSummary {
+function summarizeRun(run: RunResult, manifestPath: string, plan: ExecutionPlan): BuildSummary {
   const counts = {
     succeeded: 0,
     failed: 0,
     skipped: 0,
   };
+
+  const jobs: JobSummary[] = [];
 
   for (const job of run.jobs) {
     if (job.status === 'failed') {
@@ -171,12 +209,22 @@ function summarizeRun(run: RunResult, manifestPath: string): BuildSummary {
     } else {
       counts.succeeded += 1;
     }
+
+    jobs.push({
+      jobId: job.jobId,
+      producer: job.producer,
+      status: job.status,
+      layerIndex: job.layerIndex,
+      errorMessage: job.error?.message,
+    });
   }
 
   return {
     status: run.status,
     jobCount: run.jobs.length,
     counts,
+    layers: plan.layers.length,
+    jobs,
     manifestRevision: run.revision,
     manifestPath,
   };
@@ -483,4 +531,47 @@ function validateResolvedInputs(
       `[provider.invoke.inputs] ${producerName} missing resolved input(s): ${missing.join(', ')}.`,
     );
   }
+}
+
+/**
+ * Creates a stubbed cloud storage context for dry-run mode.
+ * Uses local storage for blob writes but returns fake URLs instead of uploading to S3.
+ * This validates the code path (blob key generation) without actual S3 uploads.
+ *
+ * IMPORTANT: The uploadBlobAndGetUrl() function in providers/src/sdk/runtime.ts
+ * writes directly to `cloudStorage.storage.write(key)` with a path like "blobs/ab/hash.ext".
+ * This bypasses the StorageContext.resolve() method entirely, writing relative to the
+ * storage adapter's rootDir. To ensure blobs land inside the movie directory, we must
+ * configure the storage adapter with rootDir pointing to the movie folder itself.
+ *
+ * @param rootDir - The root directory for storage (e.g., "/home/user/movies")
+ * @param basePath - The base path within root (e.g., "builds")
+ * @param movieId - The movie ID to scope blob writes to (e.g., "movie-abc123")
+ */
+function createDryRunCloudStorage(
+  rootDir: string,
+  basePath: string,
+  movieId: string,
+): StorageContext {
+  // Create storage with rootDir pointing directly to the movie folder.
+  // This is necessary because uploadBlobAndGetUrl() writes directly to storage.write()
+  // with paths like "blobs/ab/hash.ext", bypassing resolve().
+  // By setting rootDir to the movie folder, these writes land in the correct location.
+  const movieRootDir = `${rootDir}/${basePath}/${movieId}`;
+  const movieScopedStorage = createStorageContext({
+    kind: 'local',
+    rootDir: movieRootDir,
+    basePath: '', // No additional basePath needed since rootDir is already scoped
+  });
+
+  return {
+    ...movieScopedStorage,
+    temporaryUrl: async (path: string) => {
+      // Validate path format to catch bugs in blob key generation
+      if (!path.startsWith('blobs/')) {
+        throw new Error(`Invalid blob path for dry-run: ${path}`);
+      }
+      return `https://dry-run.invalid/${path}`;
+    },
+  };
 }

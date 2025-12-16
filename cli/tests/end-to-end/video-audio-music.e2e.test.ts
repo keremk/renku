@@ -48,12 +48,12 @@ describe('end-to-end: video-audio-music dry runs', () => {
       logger,
     });
 
-    if (queryResult.dryRun?.status !== 'succeeded') {
-      throw new Error(`dryRun failed: ${JSON.stringify(queryResult.dryRun, null, 2)}`);
+    if (queryResult.build?.status !== 'succeeded') {
+      throw new Error(`dryRun failed: ${JSON.stringify(queryResult.build, null, 2)}`);
     }
-    expect(queryResult.dryRun?.jobCount).toBe(11);
-    expect(queryResult.dryRun?.statusCounts.failed).toBe(0);
-    expect(queryResult.dryRun?.jobs.every((job) => job.status === 'succeeded')).toBe(true);
+    expect(queryResult.build?.jobCount).toBe(11);
+    expect(queryResult.build?.counts.failed).toBe(0);
+    expect(queryResult.build?.jobs?.every((job) => job.status === 'succeeded')).toBe(true);
     // Debug helpers if warnings/errors appear
     if (warnings.length > 0 || errors.length > 0) {
       // eslint-disable-next-line no-console
@@ -151,9 +151,9 @@ describe('end-to-end: video-audio-music dry runs', () => {
       logger,
     });
 
-    expect(editResult.dryRun?.status).toBe('succeeded');
-    expect(editResult.dryRun?.jobCount).toBe(11);
-    expect(editResult.dryRun?.statusCounts.failed).toBe(0);
+    expect(editResult.build?.status).toBe('succeeded');
+    expect(editResult.build?.jobCount).toBe(11);
+    expect(editResult.build?.counts.failed).toBe(0);
     expect(warnings).toHaveLength(0);
     expect(errors).toHaveLength(0);
     await expectFileExists(editResult.planPath);

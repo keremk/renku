@@ -97,7 +97,7 @@ describe('runExecute (edit flow)', () => {
     });
 
     expect(editResult.targetRevision).toBe('rev-0002');
-    expect(editResult.dryRun).toBeUndefined();
+    expect(editResult.isDryRun).toBeFalsy();
     expect(editResult.build?.status).toBe('succeeded');
     expect(editResult.manifestPath).toBeDefined();
     const manifestStats = await stat(editResult.manifestPath!);
@@ -135,9 +135,8 @@ describe('runExecute (edit flow)', () => {
         })
     });
 
-    expect(editResult.dryRun).toBeDefined();
-    expect(editResult.dryRun?.jobCount).toBeGreaterThan(0);
-    expect(editResult.dryRun?.statusCounts.succeeded).toBeGreaterThan(0);
-    expect(editResult.build).toBeUndefined();
+    expect(editResult.isDryRun).toBe(true);
+    expect(editResult.build?.jobCount).toBeGreaterThan(0);
+    expect(editResult.build?.counts.succeeded).toBeGreaterThan(0);
   });
 });

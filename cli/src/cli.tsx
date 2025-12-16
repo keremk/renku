@@ -54,7 +54,7 @@ import { runBlueprintsDescribe } from './commands/blueprints-describe.js';
 import { runViewerStart, runViewerStop, runViewerView } from './commands/viewer.js';
 import { runBlueprintsValidate } from './commands/blueprints-validate.js';
 import { runMcpServer } from './commands/mcp.js';
-import type { DryRunSummary, DryRunJobSummary } from './lib/dry-run.js';
+import type { BuildSummary, JobSummary } from './lib/build.js';
 import { readCliConfig } from './lib/cli-config.js';
 import {
   getBundledBlueprintsRoot,
@@ -214,12 +214,12 @@ async function main(): Promise<void> {
           logLevel,
         });
         const viewerUrl =
-          !result.dryRun && result.friendlyRoot
+          !result.isDryRun && result.friendlyRoot
             ? await resolveViewerUrl(result.storageMovieId)
             : undefined;
         printGenerateSummary(logger, result, viewerUrl);
-        if (result.dryRun) {
-          printDryRunSummary(logger, result.dryRun, result.storagePath);
+        if (result.isDryRun && result.build) {
+          printDryRunSummary(logger, result.build, result.storagePath);
         }
         return;
       } catch (error) {
@@ -520,11 +520,9 @@ function printGenerateSummary(
   viewerUrl?: string,
 ): void {
   const modeLabel = result.isNew ? 'New movie' : 'Updated movie';
-  const statusInfo = result.dryRun
-    ? { label: 'Dry run', status: result.dryRun.status, jobs: result.dryRun.jobCount }
-    : result.build
-      ? { label: 'Build', status: result.build.status, jobs: result.build.jobCount }
-      : undefined;
+  const statusInfo = result.build
+    ? { label: result.isDryRun ? 'Dry run' : 'Build', status: result.build.status, jobs: result.build.jobCount }
+    : undefined;
   const colorizeStatus =
     statusInfo?.status === 'succeeded'
       ? chalk.green
@@ -567,15 +565,16 @@ function printGenerateSummary(
   }
 }
 
-function printDryRunSummary(logger: CoreLogger, summary: DryRunSummary, storagePath: string): void {
-  const counts = summary.statusCounts;
+function printDryRunSummary(logger: CoreLogger, summary: BuildSummary, storagePath: string): void {
+  const counts = summary.counts;
   const layersLabel = summary.layers === 1 ? 'layer' : 'layers';
   const jobsLabel = summary.jobCount === 1 ? 'job' : 'jobs';
   logger.info(
     `Dry run status: ${summary.status}. ${summary.layers} ${layersLabel}, ${summary.jobCount} ${jobsLabel} (succeeded ${counts.succeeded}, failed ${counts.failed}, skipped ${counts.skipped}).`,
   );
 
-  const layerMap = buildLayerMap(summary.jobs);
+  const jobs = summary.jobs ?? [];
+  const layerMap = buildLayerMap(jobs);
   if (layerMap.size === 0) {
     logger.info('Layer breakdown: no jobs scheduled.');
     logger.info(`Mock artefacts and logs stored under: ${storagePath}`);
@@ -584,10 +583,10 @@ function printDryRunSummary(logger: CoreLogger, summary: DryRunSummary, storageP
 
   logger.info('Layer breakdown:');
   const sortedLayers = Array.from(layerMap.entries()).sort((a, b) => a[0] - b[0]);
-  for (const [layerIndex, jobs] of sortedLayers) {
+  for (const [layerIndex, layerJobs] of sortedLayers) {
     const layerCounts = { succeeded: 0, failed: 0, skipped: 0 };
     const producerCounts = new Map<string, number>();
-    for (const job of jobs) {
+    for (const job of layerJobs) {
       layerCounts[job.status] += 1;
       producerCounts.set(job.producer, (producerCounts.get(job.producer) ?? 0) + 1);
     }
@@ -597,7 +596,7 @@ function printDryRunSummary(logger: CoreLogger, summary: DryRunSummary, storageP
       layerCounts.skipped ? `skipped ${layerCounts.skipped}` : undefined,
     ].filter(Boolean);
     const statusText = statusParts.length > 0 ? ` (${statusParts.join(', ')})` : '';
-    logger.info(`  Layer ${layerIndex}: ${jobs.length} job(s)${statusText}`);
+    logger.info(`  Layer ${layerIndex}: ${layerJobs.length} job(s)${statusText}`);
     const producerParts = Array.from(producerCounts.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([producer, count]) => `${producer} ×${count}`);
@@ -606,7 +605,7 @@ function printDryRunSummary(logger: CoreLogger, summary: DryRunSummary, storageP
     }
   }
 
-  const failingJob = summary.jobs.find((job) => job.status === 'failed');
+  const failingJob = jobs.find((job) => job.status === 'failed');
   if (failingJob) {
     logger.info('First failure:');
     logger.info(`  Layer ${failingJob.layerIndex} – ${failingJob.producer} (${failingJob.jobId})`);
@@ -618,8 +617,8 @@ function printDryRunSummary(logger: CoreLogger, summary: DryRunSummary, storageP
   logger.info(`Mock artefacts and logs stored under: ${storagePath}`);
 }
 
-function buildLayerMap(jobs: DryRunJobSummary[]): Map<number, DryRunJobSummary[]> {
-  const map = new Map<number, DryRunJobSummary[]>();
+function buildLayerMap(jobs: JobSummary[]): Map<number, JobSummary[]> {
+  const map = new Map<number, JobSummary[]>();
   for (const job of jobs) {
     const bucket = map.get(job.layerIndex);
     if (bucket) {

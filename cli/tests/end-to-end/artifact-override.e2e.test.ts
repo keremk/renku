@@ -185,7 +185,7 @@ describe('end-to-end: artifact override via inputs.yaml', () => {
     });
 
     // Verify edit dry-run succeeded
-    expect(editResult.dryRun?.status).toBe('succeeded');
+    expect(editResult.build?.status).toBe('succeeded');
 
     // Read the edit plan
     const editPlan = await readPlan(editResult.planPath);
@@ -207,7 +207,7 @@ describe('end-to-end: artifact override via inputs.yaml', () => {
     expect(audioJob0.jobId).toContain('[0]');
 
     // Verify correct job count
-    expect(editResult.dryRun?.jobCount).toBe(1);
+    expect(editResult.build?.jobCount).toBe(1);
 
     // ============================================================
     // PHASE 4: Verify no warnings/errors during edit planning

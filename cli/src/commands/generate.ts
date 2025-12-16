@@ -1,4 +1,4 @@
-import { getDefaultCliConfigPath, persistLastMovieId, readCliConfig, type CliConfig } from '../lib/cli-config.js';
+import { getDefaultCliConfigPath, persistLastMovieId, readCliConfig } from '../lib/cli-config.js';
 import { runExecute, formatMovieId, type ExecuteResult } from './execute.js';
 import { resolveTargetMovieId } from '../lib/movie-id-utils.js';
 import { resolveAndPersistConcurrency } from '../lib/concurrency.js';
@@ -26,8 +26,10 @@ export interface GenerateResult {
   storageMovieId: string;
   planPath: string;
   targetRevision: string;
-  dryRun?: ExecuteResult['dryRun'];
+  /** Build summary (available for both dry-run and live execution) */
   build?: ExecuteResult['build'];
+  /** Whether this was a dry-run execution */
+  isDryRun?: boolean;
   manifestPath?: string;
   storagePath: string;
   friendlyRoot?: string;
@@ -115,7 +117,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
       friendlyRoot = friendly.friendlyRoot;
     }
 
-    if (editResult.build || editResult.dryRun) {
+    if (editResult.build) {
       await persistLastMovieId(storageMovieId, configPath);
     }
 
@@ -124,8 +126,8 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
       storageMovieId,
       planPath: editResult.planPath,
       targetRevision: editResult.targetRevision,
-      dryRun: editResult.dryRun,
       build: editResult.build,
+      isDryRun: editResult.isDryRun,
       manifestPath: editResult.manifestPath,
       storagePath: editResult.storagePath,
       friendlyRoot,
@@ -178,7 +180,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
     friendlyRoot = friendly.friendlyRoot;
   }
 
-  if (queryResult.build || queryResult.dryRun) {
+  if (queryResult.build) {
     await persistLastMovieId(queryResult.storageMovieId, configPath);
   }
 
@@ -187,8 +189,8 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
     storageMovieId: queryResult.storageMovieId,
     planPath: queryResult.planPath,
     targetRevision: queryResult.targetRevision,
-    dryRun: queryResult.dryRun,
     build: queryResult.build,
+    isDryRun: queryResult.isDryRun,
     manifestPath: queryResult.manifestPath,
     storagePath: queryResult.storagePath,
     friendlyRoot,

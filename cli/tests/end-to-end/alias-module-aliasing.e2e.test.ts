@@ -42,11 +42,11 @@ describe('end-to-end: module alias drives canonical producer ids', () => {
       logger,
     });
 
-    if (queryResult.dryRun?.status !== 'succeeded') {
-      throw new Error(`dryRun failed: ${JSON.stringify(queryResult.dryRun, null, 2)}`);
+    if (queryResult.build?.status !== 'succeeded') {
+      throw new Error(`dryRun failed: ${JSON.stringify(queryResult.build, null, 2)}`);
     }
-    expect(queryResult.dryRun?.jobCount).toBe(4); // 1 script + 3 audio
-    expect(queryResult.dryRun?.statusCounts.failed).toBe(0);
+    expect(queryResult.build?.jobCount).toBe(4); // 1 script + 3 audio
+    expect(queryResult.build?.counts.failed).toBe(0);
     expect(warnings).toHaveLength(0);
     expect(errors).toHaveLength(0);
 
