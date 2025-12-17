@@ -1,0 +1,49 @@
+{
+  "type": "object",
+  "title": "Input",
+  "required": [
+    "prompt",
+    "first_frame_image"
+  ],
+  "properties": {
+    "prompt": {
+      "type": "string",
+      "title": "Prompt",
+      "description": "Text prompt for generation"
+    },
+    "duration": {
+      "enum": [
+        6,
+        10
+      ],
+      "type": "integer",
+      "title": "duration",
+      "description": "Duration of the video in seconds. 10 seconds is only available for 768p resolution.",
+      "default": 6,
+      "x-order": 2
+    },
+    "resolution": {
+      "enum": [
+        "768p",
+        "1080p"
+      ],
+      "type": "string",
+      "title": "resolution",
+      "description": "Pick between 768p or 1080p resolution. 1080p supports only 6-second duration.",
+      "default": "768p",
+      "x-order": 3
+    },
+    "prompt_optimizer": {
+      "type": "boolean",
+      "title": "Prompt Optimizer",
+      "default": true,
+      "description": "Use prompt optimizer"
+    },
+    "first_frame_image": {
+      "type": "string",
+      "title": "First Frame Image",
+      "format": "uri",
+      "description": "First frame image for video generation. The output video will have the same aspect ratio as this image."
+    }
+  }
+}

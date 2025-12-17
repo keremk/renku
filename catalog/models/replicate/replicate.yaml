@@ -188,3 +188,51 @@ models:
       function: costByVideoDuration
       inputs: [duration]
       pricePerSecond: 0.10
+  - name: minimax/hailuo-02
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 512p
+          pricePerSecond: 0.0166
+        - resolution: 768p
+          pricePerSecond: 0.045
+        - resolution: 1080p
+          pricePerSecond: 0.08
+  - name: minimax/hailuo-02-fast
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 512p
+          pricePerSecond: 0.0166
+  - name: minimax/hailuo-2.3
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 768p
+          pricePerSecond: 0.0466
+        - resolution: 1080p
+          pricePerSecond: 0.0816
+  - name: minimax/hailuo-2.3-fast
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 768p
+          pricePerSecond: 0.0316
+        - resolution: 1080p
+          pricePerSecond: 0.055

@@ -1,0 +1,55 @@
+{
+  "type": "object",
+  "title": "Input",
+  "required": [
+    "prompt"
+  ],
+  "properties": {
+    "prompt": {
+      "type": "string",
+      "title": "Prompt",
+      "description": "Text prompt for generation"
+    },
+    "duration": {
+      "enum": [
+        6,
+        10
+      ],
+      "type": "integer",
+      "title": "duration",
+      "description": "Duration of the video in seconds. 10 seconds is only available for 768p resolution.",
+      "default": 6,
+      "x-order": 3
+    },
+    "resolution": {
+      "enum": [
+        "512p",
+        "768p",
+        "1080p"
+      ],
+      "type": "string",
+      "title": "resolution",
+      "description": "Pick between standard 512p, 768p, or pro 1080p resolution. The pro model is not just high resolution, it is also higher quality.",
+      "default": "1080p",
+      "x-order": 4
+    },
+    "last_frame_image": {
+      "type": "string",
+      "title": "Last Frame Image",
+      "format": "uri",
+      "description": "Last frame image for video generation. The final frame of the output video will match this image."
+    },
+    "prompt_optimizer": {
+      "type": "boolean",
+      "title": "Prompt Optimizer",
+      "default": true,
+      "description": "Use prompt optimizer"
+    },
+    "first_frame_image": {
+      "type": "string",
+      "title": "First Frame Image",
+      "format": "uri",
+      "description": "First frame image for video generation. The output video will have the same aspect ratio as this image."
+    }
+  }
+}

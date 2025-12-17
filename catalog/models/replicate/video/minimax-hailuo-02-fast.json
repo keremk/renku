@@ -1,0 +1,60 @@
+{
+  "type": "object",
+  "title": "Input",
+  "required": [
+    "prompt",
+    "first_frame_image"
+  ],
+  "properties": {
+    "prompt": {
+      "type": "string",
+      "title": "Prompt",
+      "description": "Text prompt for generation"
+    },
+    "go_fast": {
+      "type": "boolean",
+      "title": "Go Fast",
+      "default": false,
+      "description": "Generate videos faster with slightly lower quality"
+    },
+    "duration": {
+      "enum": [
+        6,
+        10
+      ],
+      "type": "integer",
+      "title": "duration",
+      "description": "Duration of the video in seconds.",
+      "default": 6,
+      "x-order": 3
+    },
+    "resolution": {
+      "enum": [
+        "512P"
+      ],
+      "type": "string",
+      "title": "resolution",
+      "description": "The resolution to render (should be 512P).",
+      "default": "512P",
+      "x-order": 4
+    },
+    "last_frame_image": {
+      "type": "string",
+      "title": "Last Frame Image",
+      "format": "uri",
+      "description": "Last frame image for video generation. The final frame of the output video will match this image."
+    },
+    "prompt_optimizer": {
+      "type": "boolean",
+      "title": "Prompt Optimizer",
+      "default": true,
+      "description": "Use prompt optimizer"
+    },
+    "first_frame_image": {
+      "type": "string",
+      "title": "First Frame Image",
+      "format": "uri",
+      "description": "First frame image for video generation. The output video will have the same aspect ratio as this image."
+    }
+  }
+}
