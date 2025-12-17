@@ -46,7 +46,6 @@ models:
   - provider: openai
     model: gpt-5-mini
     promptFile: ./image-prompt.toml
-    inputSchema: ../shared/openai-input.json
     outputSchema: ./image-prompt-output.json
     config:
       text_format: json_schema

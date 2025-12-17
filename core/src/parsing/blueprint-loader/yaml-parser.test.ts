@@ -20,7 +20,8 @@ describe('parseYamlBlueprintFile', () => {
     expect(document.producers).toHaveLength(1);
     const producer = document.producers[0];
     expect(producer.model).toBe('gpt-5-mini');
-    expect(producer.models?.[0]?.inputSchema).toContain('"properties"');
+    // LLM producers use outputSchema for structured output, not inputSchema
+    expect(producer.models?.[0]?.outputSchema).toContain('"properties"');
     expect(producer.models?.[0]?.variables).toEqual(
       expect.arrayContaining(['InquiryPrompt', 'Duration', 'NumOfSegments', 'Audience', 'Language']),
     );

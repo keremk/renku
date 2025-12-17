@@ -52,7 +52,7 @@ describeIf('Fal.ai provider integration', () => {
       produces: ['Artifact:Output[index=0]'],
       context: {
         providerConfig: {},
-        extras: buildFalImageExtras(model, resolvedInputs),
+        extras: await buildFalImageExtras(model, resolvedInputs),
       },
     };
 

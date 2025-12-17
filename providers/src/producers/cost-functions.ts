@@ -1,5 +1,5 @@
-import { readdir, readFile } from 'node:fs/promises';
-import { resolve, basename } from 'node:path';
+import { readdir, readFile, stat } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { ExecutionPlan, JobDescriptor, BlueprintProducerSdkMappingField } from '@renku/core';
 
@@ -47,13 +47,16 @@ export interface ExtractedCostInputs {
  */
 export type CostFunctionName =
 	| 'costByInputTokens'
-	| 'costByImage'
 	| 'costByImageAndResolution'
 	| 'costByResolution'
 	| 'costByVideoDuration'
 	| 'costByVideoDurationAndResolution'
 	| 'costByVideoDurationAndWithAudio'
-	| 'costByOutputFile';
+	| 'costByRun'
+	| 'costByCharacters'
+	| 'costByAudioSeconds'
+	| 'costByImageSizeAndQuality'
+	| 'costByVideoPerMillionTokens';
 
 /**
  * Price entry for resolution-based pricing.
@@ -73,16 +76,34 @@ export interface AudioFlagPriceEntry {
 }
 
 /**
+ * Price entry for image size and quality based pricing.
+ */
+export interface ImageSizeQualityPriceEntry {
+	quality: string;
+	image_size: string;
+	pricePerImage: number;
+}
+
+/**
+ * Price entry for video token-based pricing.
+ */
+export interface VideoTokenPriceEntry {
+	pricePerMillionTokens: number;
+}
+
+/**
  * Pricing configuration for a model.
  */
 export interface ModelPriceConfig {
 	function: CostFunctionName;
 	inputs?: string[];
+	price?: number;
 	pricePerToken?: number;
 	pricePerImage?: number;
 	pricePerSecond?: number;
-	pricePerAudioFile?: number;
-	prices?: Array<ResolutionPriceEntry | AudioFlagPriceEntry>;
+	pricePerCharacter?: number;
+	pricePerMillionTokens?: number;
+	prices?: Array<ResolutionPriceEntry | AudioFlagPriceEntry | ImageSizeQualityPriceEntry | VideoTokenPriceEntry>;
 }
 
 /**
@@ -247,21 +268,6 @@ function costByInputTokens(
 
 	const tokens = estimateTokenCount(text);
 	return { cost: tokens * pricePerToken, isPlaceholder: false };
-}
-
-function costByImage(
-	config: ModelPriceConfig,
-	_extracted: ExtractedCostInputs
-): CostEstimate {
-	const pricePerImage = config.pricePerImage;
-	if (pricePerImage === undefined) {
-		return {
-			cost: 0,
-			isPlaceholder: true,
-			note: 'Missing pricePerImage in config',
-		};
-	}
-	return { cost: pricePerImage, isPlaceholder: false };
 }
 
 function costByImageAndResolution(
@@ -522,19 +528,272 @@ function costByVideoDurationAndWithAudio(
 	return { cost: duration * match.pricePerSecond, isPlaceholder: false };
 }
 
-function costByOutputFile(
+function costByRun(
 	config: ModelPriceConfig,
 	_extracted: ExtractedCostInputs
 ): CostEstimate {
-	const pricePerAudioFile = config.pricePerAudioFile;
-	if (pricePerAudioFile === undefined) {
+	const price = config.price;
+	if (price === undefined) {
 		return {
 			cost: 0,
 			isPlaceholder: true,
-			note: 'Missing pricePerAudioFile',
+			note: 'Missing price in config',
 		};
 	}
-	return { cost: pricePerAudioFile, isPlaceholder: false };
+	return { cost: price, isPlaceholder: false };
+}
+
+function costByCharacters(
+	config: ModelPriceConfig,
+	extracted: ExtractedCostInputs
+): CostEstimate {
+	const pricePerCharacter = config.pricePerCharacter;
+	if (pricePerCharacter === undefined) {
+		return {
+			cost: 0,
+			isPlaceholder: true,
+			note: 'Missing pricePerCharacter in config',
+		};
+	}
+
+	// Check if any required field comes from artefact
+	if (extracted.artefactSourcedFields.length > 0) {
+		const samples = [
+			{ label: '100 chars', cost: 100 * pricePerCharacter },
+			{ label: '500 chars', cost: 500 * pricePerCharacter },
+			{ label: '1000 chars', cost: 1000 * pricePerCharacter },
+		];
+		return {
+			cost: samples[1].cost,
+			isPlaceholder: true,
+			note: `Input from artefact: ${extracted.artefactSourcedFields.join(', ')}`,
+			range: {
+				min: samples[0].cost,
+				max: samples[2].cost,
+				samples,
+			},
+		};
+	}
+
+	// Get the text value - first field from inputs array
+	const textField = config.inputs?.[0];
+	const text = textField ? extracted.values[textField] : undefined;
+
+	if (typeof text !== 'string' || text.length === 0) {
+		return {
+			cost: 0,
+			isPlaceholder: true,
+			note: 'No text value found',
+		};
+	}
+
+	return { cost: text.length * pricePerCharacter, isPlaceholder: false };
+}
+
+function costByAudioSeconds(
+	config: ModelPriceConfig,
+	extracted: ExtractedCostInputs
+): CostEstimate {
+	const pricePerSecond = config.pricePerSecond;
+	if (pricePerSecond === undefined) {
+		return { cost: 0, isPlaceholder: true, note: 'Missing pricePerSecond' };
+	}
+
+	// Get duration from first field in inputs array
+	const durationField = config.inputs?.[0];
+	const durationValue = durationField ? extracted.values[durationField] : undefined;
+	const duration = parseDurationValue(durationValue);
+
+	// Check for artefact-sourced duration
+	if (extracted.artefactSourcedFields.length > 0) {
+		const samples = [
+			{ label: '10s', cost: 10 * pricePerSecond },
+			{ label: '30s', cost: 30 * pricePerSecond },
+			{ label: '60s', cost: 60 * pricePerSecond },
+		];
+		return {
+			cost: samples[1].cost,
+			isPlaceholder: true,
+			note: `Duration from artefact: ${extracted.artefactSourcedFields.join(', ')}`,
+			range: {
+				min: samples[0].cost,
+				max: samples[2].cost,
+				samples,
+			},
+		};
+	}
+
+	if (duration === undefined) {
+		return { cost: 0, isPlaceholder: true, note: 'Missing duration, cannot calculate' };
+	}
+
+	return { cost: duration * pricePerSecond, isPlaceholder: false };
+}
+
+function costByImageSizeAndQuality(
+	config: ModelPriceConfig,
+	extracted: ExtractedCostInputs
+): CostEstimate {
+	const prices = config.prices as ImageSizeQualityPriceEntry[] | undefined;
+	if (!prices || prices.length === 0) {
+		return { cost: 0, isPlaceholder: true, note: 'Missing size/quality prices' };
+	}
+
+	// Check for artefact-sourced inputs
+	if (extracted.artefactSourcedFields.length > 0) {
+		const allPrices = prices.map(p => p.pricePerImage);
+		const minPrice = Math.min(...allPrices);
+		const maxPrice = Math.max(...allPrices);
+		return {
+			cost: (minPrice + maxPrice) / 2,
+			isPlaceholder: true,
+			note: `Input from artefact: ${extracted.artefactSourcedFields.join(', ')}`,
+			range: {
+				min: minPrice,
+				max: maxPrice,
+				samples: prices.map(p => ({ label: `${p.quality}/${p.image_size}`, cost: p.pricePerImage })),
+			},
+		};
+	}
+
+	// Get inputs: image_size, quality, num_images
+	const inputs = config.inputs ?? [];
+	const imageSizeField = inputs[0];
+	const qualityField = inputs[1];
+	const numImagesField = inputs[2];
+
+	const imageSize = imageSizeField ? extracted.values[imageSizeField] as string : undefined;
+	const quality = qualityField ? extracted.values[qualityField] as string : undefined;
+	const numImages = numImagesField ? Number(extracted.values[numImagesField]) : 1;
+	const count = Number.isFinite(numImages) && numImages > 0 ? numImages : 1;
+
+	// Find matching price
+	const match = prices.find(p => p.image_size === imageSize && p.quality === quality);
+	if (!match) {
+		// Try to find a fallback with just quality or first entry
+		const qualityMatch = prices.find(p => p.quality === quality);
+		const fallback = qualityMatch ?? prices[0];
+		return {
+			cost: (fallback?.pricePerImage ?? 0) * count,
+			isPlaceholder: true,
+			note: `No exact price for ${quality}/${imageSize}`,
+		};
+	}
+
+	return { cost: match.pricePerImage * count, isPlaceholder: false };
+}
+
+/**
+ * Parse resolution and aspect ratio to get width and height.
+ */
+function parseResolutionDimensions(
+	resolution: string | undefined,
+	aspectRatio: string | undefined
+): { width: number; height: number } {
+	// Default dimensions
+	let width = 1920;
+	let height = 1080;
+
+	// Parse resolution (e.g., "1080p", "720p", "4k")
+	if (resolution) {
+		const lower = resolution.toLowerCase();
+		if (lower.includes('480')) {
+			height = 480;
+		} else if (lower.includes('720')) {
+			height = 720;
+		} else if (lower.includes('1080')) {
+			height = 1080;
+		} else if (lower.includes('4k') || lower.includes('2160')) {
+			height = 2160;
+		}
+	}
+
+	// Parse aspect ratio (e.g., "16:9", "9:16", "1:1")
+	if (aspectRatio) {
+		const match = aspectRatio.match(/(\d+):(\d+)/);
+		if (match) {
+			const ratioW = parseInt(match[1], 10);
+			const ratioH = parseInt(match[2], 10);
+			if (ratioW > 0 && ratioH > 0) {
+				// Calculate width based on height and aspect ratio
+				width = Math.round(height * (ratioW / ratioH));
+			}
+		}
+	} else {
+		// Default to 16:9 if no aspect ratio
+		width = Math.round(height * (16 / 9));
+	}
+
+	return { width, height };
+}
+
+function costByVideoPerMillionTokens(
+	config: ModelPriceConfig,
+	extracted: ExtractedCostInputs
+): CostEstimate {
+	// Get price from config - check both direct field and prices array
+	let pricePerMillionTokens = config.pricePerMillionTokens;
+	if (pricePerMillionTokens === undefined) {
+		const priceEntries = config.prices as VideoTokenPriceEntry[] | undefined;
+		pricePerMillionTokens = priceEntries?.[0]?.pricePerMillionTokens;
+	}
+
+	if (pricePerMillionTokens === undefined) {
+		return { cost: 0, isPlaceholder: true, note: 'Missing pricePerMillionTokens' };
+	}
+
+	// Fixed fps for seedance models
+	const fps = 30;
+
+	// Check for artefact-sourced inputs
+	if (extracted.artefactSourcedFields.length > 0) {
+		// Use default 1080p 5s video for estimate
+		const defaultWidth = 1920;
+		const defaultHeight = 1080;
+		const defaultDuration = 5;
+		const defaultTokens = (defaultWidth * defaultHeight * defaultDuration * fps) / 1024;
+		const defaultCost = (defaultTokens / 1_000_000) * pricePerMillionTokens;
+
+		const samples = [
+			{ label: '720p 5s', cost: ((1280 * 720 * 5 * fps) / 1024 / 1_000_000) * pricePerMillionTokens },
+			{ label: '1080p 5s', cost: defaultCost },
+			{ label: '1080p 10s', cost: ((1920 * 1080 * 10 * fps) / 1024 / 1_000_000) * pricePerMillionTokens },
+		];
+		return {
+			cost: defaultCost,
+			isPlaceholder: true,
+			note: `Input from artefact: ${extracted.artefactSourcedFields.join(', ')}`,
+			range: {
+				min: samples[0].cost,
+				max: samples[2].cost,
+				samples,
+			},
+		};
+	}
+
+	// Get inputs: duration, resolution, aspect_ratio
+	const inputs = config.inputs ?? [];
+	const durationField = inputs[0];
+	const resolutionField = inputs[1];
+	const aspectRatioField = inputs[2];
+
+	const durationValue = durationField ? extracted.values[durationField] : undefined;
+	const duration = parseDurationValue(durationValue);
+
+	if (duration === undefined) {
+		return { cost: 0, isPlaceholder: true, note: 'Missing duration, cannot calculate' };
+	}
+
+	const resolution = resolutionField ? extracted.values[resolutionField] as string : undefined;
+	const aspectRatio = aspectRatioField ? extracted.values[aspectRatioField] as string : undefined;
+
+	const { width, height } = parseResolutionDimensions(resolution, aspectRatio);
+
+	// Calculate tokens: (height * width * duration * fps) / 1024
+	const tokens = (height * width * duration * fps) / 1024;
+	const cost = (tokens / 1_000_000) * pricePerMillionTokens;
+
+	return { cost, isPlaceholder: false };
 }
 
 /**
@@ -553,8 +812,6 @@ export function calculateCost(
 	switch (fn) {
 		case 'costByInputTokens':
 			return costByInputTokens(priceConfig, extracted);
-		case 'costByImage':
-			return costByImage(priceConfig, extracted);
 		case 'costByImageAndResolution':
 			return costByImageAndResolution(priceConfig, extracted);
 		case 'costByResolution':
@@ -565,8 +822,16 @@ export function calculateCost(
 			return costByVideoDurationAndResolution(priceConfig, extracted);
 		case 'costByVideoDurationAndWithAudio':
 			return costByVideoDurationAndWithAudio(priceConfig, extracted);
-		case 'costByOutputFile':
-			return costByOutputFile(priceConfig, extracted);
+		case 'costByRun':
+			return costByRun(priceConfig, extracted);
+		case 'costByCharacters':
+			return costByCharacters(priceConfig, extracted);
+		case 'costByAudioSeconds':
+			return costByAudioSeconds(priceConfig, extracted);
+		case 'costByImageSizeAndQuality':
+			return costByImageSizeAndQuality(priceConfig, extracted);
+		case 'costByVideoPerMillionTokens':
+			return costByVideoPerMillionTokens(priceConfig, extracted);
 		default:
 			return {
 				cost: 0,
@@ -581,8 +846,9 @@ export function calculateCost(
 // ============================================================================
 
 /**
- * Load pricing catalog from a directory containing provider YAML files.
- * Each YAML file should be named after the provider (e.g., replicate.yaml).
+ * Load pricing catalog from a directory containing provider subdirectories.
+ * Each provider has a subdirectory with a YAML file named after the provider.
+ * Structure: catalog/models/{provider}/{provider}.yaml
  */
 export async function loadPricingCatalog(
 	catalogModelsDir: string
@@ -591,19 +857,32 @@ export async function loadPricingCatalog(
 		providers: new Map(),
 	};
 
-	let files: string[];
+	let entries: string[];
 	try {
-		files = await readdir(catalogModelsDir);
+		entries = await readdir(catalogModelsDir);
 	} catch {
 		// Directory doesn't exist - return empty catalog
 		return catalog;
 	}
 
-	const yamlFiles = files.filter((f) => f.endsWith('.yaml'));
+	// Filter to only directories (provider subdirectories)
+	const providerDirs: string[] = [];
+	for (const entry of entries) {
+		const entryPath = resolve(catalogModelsDir, entry);
+		try {
+			const stats = await stat(entryPath);
+			if (stats.isDirectory()) {
+				providerDirs.push(entry);
+			}
+		} catch {
+			// Skip entries we can't stat
+			continue;
+		}
+	}
 
-	for (const file of yamlFiles) {
-		const providerName = basename(file, '.yaml');
-		const filePath = resolve(catalogModelsDir, file);
+	for (const providerName of providerDirs) {
+		// Look for {provider}/{provider}.yaml
+		const filePath = resolve(catalogModelsDir, providerName, `${providerName}.yaml`);
 
 		try {
 			const contents = await readFile(filePath, 'utf8');
@@ -619,8 +898,8 @@ export async function loadPricingCatalog(
 			}
 			catalog.providers.set(providerName, modelMap);
 		} catch (error) {
-			// Skip files that fail to parse
-			console.warn(`Failed to load pricing file ${file}: ${error}`);
+			// Skip providers that fail to load
+			console.warn(`Failed to load pricing for provider ${providerName}: ${error}`);
 		}
 	}
 
@@ -844,11 +1123,6 @@ export function formatPrice(price: ModelPriceConfig | number | undefined): strin
 	}
 
 	switch (price.function) {
-		case 'costByImage':
-			return price.pricePerImage !== undefined
-				? `$${price.pricePerImage.toFixed(2)}/image`
-				: '-';
-
 		case 'costByImageAndResolution': {
 			const entries = price.prices as ResolutionPriceEntry[] | undefined;
 			if (!entries || entries.length === 0) {
@@ -874,11 +1148,6 @@ export function formatPrice(price: ModelPriceConfig | number | undefined): strin
 				? `$${price.pricePerToken.toFixed(4)}/token`
 				: '-';
 
-		case 'costByOutputFile':
-			return price.pricePerAudioFile !== undefined
-				? `$${price.pricePerAudioFile.toFixed(2)}/file`
-				: '-';
-
 		case 'costByVideoDuration':
 			return price.pricePerSecond !== undefined
 				? `$${price.pricePerSecond.toFixed(2)}/s`
@@ -902,6 +1171,44 @@ export function formatPrice(price: ModelPriceConfig | number | undefined): strin
 			return entries
 				.map((e) => `${e.generate_audio ? 'audio' : 'no-audio'}: $${e.pricePerSecond.toFixed(2)}/s`)
 				.join(', ');
+		}
+
+		case 'costByRun':
+			return price.price !== undefined
+				? `$${price.price.toFixed(2)}/run`
+				: '-';
+
+		case 'costByCharacters':
+			return price.pricePerCharacter !== undefined
+				? `$${price.pricePerCharacter.toFixed(6)}/char`
+				: '-';
+
+		case 'costByAudioSeconds':
+			return price.pricePerSecond !== undefined
+				? `$${price.pricePerSecond.toFixed(3)}/s`
+				: '-';
+
+		case 'costByImageSizeAndQuality': {
+			const entries = price.prices as ImageSizeQualityPriceEntry[] | undefined;
+			if (!entries || entries.length === 0) {
+				return '-';
+			}
+			// Show a summary with range
+			const allPrices = entries.map(e => e.pricePerImage);
+			const minPrice = Math.min(...allPrices);
+			const maxPrice = Math.max(...allPrices);
+			return `$${minPrice.toFixed(2)}-$${maxPrice.toFixed(2)}/image`;
+		}
+
+		case 'costByVideoPerMillionTokens': {
+			let pricePerMillion = price.pricePerMillionTokens;
+			if (pricePerMillion === undefined) {
+				const entries = price.prices as VideoTokenPriceEntry[] | undefined;
+				pricePerMillion = entries?.[0]?.pricePerMillionTokens;
+			}
+			return pricePerMillion !== undefined
+				? `$${pricePerMillion.toFixed(2)}/M tokens`
+				: '-';
 		}
 
 		default:

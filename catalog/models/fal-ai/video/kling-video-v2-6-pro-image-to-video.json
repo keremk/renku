@@ -1,0 +1,67 @@
+{
+  "title": "ImageToVideoV26ProRequest",
+  "type": "object",
+  "properties": {
+    "prompt": {
+      "examples": [
+        "A king walks slowly and says \"My people, here I am! I am here to save you all\""
+      ],
+      "title": "Prompt",
+      "type": "string",
+      "maxLength": 2500
+    },
+    "voice_ids": {
+      "description": "List of voice IDs to use for voice control. Reference voices in the prompt using \u003C\u003C\u003Cvoice_1\u003E\u003E\u003E, \u003C\u003C\u003Cvoice_2\u003E\u003E\u003E. Maximum 2 voices allowed. When provided and referenced in prompt, enables voice control billing.",
+      "type": "array",
+      "title": "Voice Ids",
+      "items": {
+        "type": "string"
+      }
+    },
+    "duration": {
+      "enum": ["5", "10"],
+      "title": "Duration",
+      "type": "string",
+      "description": "The duration of the generated video in seconds",
+      "default": "5"
+    },
+    "generate_audio": {
+      "title": "Generate Audio",
+      "type": "boolean",
+      "description": "Whether to generate native audio for the video. Supports Chinese and English voice output. Other languages are automatically translated to English. For English speech, use lowercase letters; for acronyms or proper nouns, use uppercase.",
+      "default": true
+    },
+    "negative_prompt": {
+      "title": "Negative Prompt",
+      "type": "string",
+      "maxLength": 2500,
+      "default": "blur, distort, and low quality"
+    },
+    "image_url": {
+      "description": "URL of the image to be used for the video",
+      "type": "string",
+      "x-fal": {
+        "min_width": 300,
+        "min_height": 300,
+        "min_aspect_ratio": 0.4,
+        "timeout": 20,
+        "max_aspect_ratio": 2.5,
+        "max_file_size": 10485760
+      },
+      "title": "Image Url",
+      "examples": [
+        "https://v3b.fal.media/files/b/0a84ab29/BSJXz9Ht-jgRgMf4IGxLU_upscaled.png"
+      ],
+      "limit_description": "Max file size: 10.0MB, Min width: 300px, Min height: 300px, Min aspect ratio: 0.40, Max aspect ratio: 2.50, Timeout: 20.0s"
+    }
+  },
+  "x-fal-order-properties": [
+    "prompt",
+    "image_url",
+    "duration",
+    "negative_prompt",
+    "generate_audio",
+    "voice_ids"
+  ],
+  "required": ["prompt", "image_url"]
+}

@@ -44,7 +44,6 @@ models:
   - provider: openai
     model: gpt-5-mini
     promptFile: ./music-prompt.toml
-    inputSchema: ../shared/openai-input.json
     config:
       text_format: text
 

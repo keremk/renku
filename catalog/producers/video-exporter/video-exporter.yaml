@@ -19,8 +19,4 @@ artifacts:
 
 models:
   - provider: renku
-    model: Mp4Exporter
-    outputs:
-      FinalVideo:
-        type: video
-        mimeType: video/mp4
+    model: remotion/docker-render

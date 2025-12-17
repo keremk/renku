@@ -1,0 +1,60 @@
+{
+  "x-fal-order-properties": [
+    "prompt",
+    "resolution",
+    "aspect_ratio",
+    "duration",
+    "delete_video",
+    "image_url"
+  ],
+  "type": "object",
+  "properties": {
+    "prompt": {
+      "examples": [
+        "Front-facing 'invisible' action-cam on a skydiver in freefall above bright clouds; camera locked on his face. He speaks over the wind with clear lipsync: 'This is insanely fun! You've got to try it—book a tandem and go!' Natural wind roar, voice close-mic'd and slightly compressed so it's intelligible. Midday sun, goggles and jumpsuit flutter, altimeter visible, parachute rig on shoulders. Energetic but stable framing with subtle shake; brief horizon roll. End on first tug of canopy and wind noise dropping."
+      ],
+      "maxLength": 5000,
+      "minLength": 1,
+      "title": "Prompt",
+      "description": "The text prompt describing the video you want to generate",
+      "type": "string"
+    },
+    "aspect_ratio": {
+      "enum": ["auto", "9:16", "16:9"],
+      "description": "The aspect ratio of the generated video",
+      "type": "string",
+      "title": "Aspect Ratio",
+      "default": "auto"
+    },
+    "resolution": {
+      "enum": ["auto", "720p"],
+      "description": "The resolution of the generated video",
+      "type": "string",
+      "title": "Resolution",
+      "default": "auto"
+    },
+    "duration": {
+      "enum": [4, 8, 12],
+      "description": "Duration of the generated video in seconds",
+      "type": "integer",
+      "title": "Duration",
+      "default": 4
+    },
+    "delete_video": {
+      "description": "Whether to delete the video after generation for privacy reasons. If True, the video cannot be used for remixing and will be permanently deleted.",
+      "type": "boolean",
+      "title": "Delete Video",
+      "default": true
+    },
+    "image_url": {
+      "examples": [
+        "https://storage.googleapis.com/falserverless/example_inputs/sora-2-i2v-input.png"
+      ],
+      "description": "The URL of the image to use as the first frame",
+      "type": "string",
+      "title": "Image URL"
+    }
+  },
+  "title": "ImageToVideoInput",
+  "required": ["prompt", "image_url"]
+}

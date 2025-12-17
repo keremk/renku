@@ -1,0 +1,19 @@
+{
+  "properties": {
+    "target_resolution": {
+      "default": "1080p",
+      "description": "Target resolution to upscale to.",
+      "enum": ["720p", "1080p", "2k", "4k"],
+      "type": "string",
+      "x-ui-component": "select"
+    },
+    "video": {
+      "description": "The video to upscale.",
+      "type": "string",
+      "format": "uri"
+    }
+  },
+  "required": ["video"],
+  "type": "object",
+  "x-order-properties": ["video", "target_resolution"]
+}

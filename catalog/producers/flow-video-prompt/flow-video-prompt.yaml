@@ -54,7 +54,6 @@ models:
   - provider: openai
     model: gpt-5-mini
     promptFile: ./flow-video-prompt.toml
-    inputSchema: ../shared/openai-input.json
     outputSchema: ./flow-video-prompt-output.json
     config:
       text_format: json_schema

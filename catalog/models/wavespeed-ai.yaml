@@ -1,7 +1,0 @@
-models:
-  # Image Models
-  - name: bytedance/seedream-v4.5
-    type: image
-    price:
-      function: costByImage
-      pricePerImage: 0.04

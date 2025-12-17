@@ -1,0 +1,58 @@
+{
+  "type": "object",
+  "title": "Input",
+  "required": [
+    "prompt",
+    "lyrics"
+  ],
+  "properties": {
+    "lyrics": {
+      "type": "string",
+      "title": "Lyrics",
+      "description": "Lyrics. Use \n to separate lines. Supports [intro][verse][chorus][bridge][outro]. Valid input: 10-600 characters."
+    },
+    "prompt": {
+      "type": "string",
+      "title": "Prompt",
+      "description": "Control music generation with a text prompt. Valid input: 10-300 characters."
+    },
+    "bitrate": {
+      "enum": [
+        32000,
+        64000,
+        128000,
+        256000
+      ],
+      "type": "integer",
+      "title": "bitrate",
+      "description": "Bitrate for the generated music",
+      "default": 256000,
+      "x-order": 3
+    },
+    "sample_rate": {
+      "enum": [
+        16000,
+        24000,
+        32000,
+        44100
+      ],
+      "type": "integer",
+      "title": "sample_rate",
+      "description": "Sample rate for the generated music",
+      "default": 44100,
+      "x-order": 2
+    },
+    "audio_format": {
+      "enum": [
+        "mp3",
+        "wav",
+        "pcm"
+      ],
+      "type": "string",
+      "title": "audio_format",
+      "description": "Audio format",
+      "default": "mp3",
+      "x-order": 4
+    }
+  }
+}

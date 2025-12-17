@@ -26,7 +26,8 @@
       "Bash(ls:*)",
       "Bash(pnpm --filter @renku/cli run type-check)",
       "Bash(pnpm lint:cli:*)",
-      "Bash(pnpm --filter @renku/cli check:all:*)"
+      "Bash(pnpm --filter @renku/cli check:all:*)",
+      "Bash(pnpm vitest run:*)"
     ],
     "deny": [],
     "ask": []

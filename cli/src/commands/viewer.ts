@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import process from 'node:process';
 import { openBrowser } from '../lib/open-browser.js';
 import type { CliConfig } from '../lib/cli-config.js';
-import { readCliConfig, getDefaultCliConfigPath } from '../lib/cli-config.js';
+import { readCliConfig } from '../lib/cli-config.js';
 import { resolveTargetMovieId } from '../lib/movie-id-utils.js';
 import { resolveViewerBundlePaths } from '../lib/viewer-bundle.js';
 import {

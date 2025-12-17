@@ -41,9 +41,8 @@ artifacts:
     type: json
 
 models:
-  - model: OrderedTimeline
-    provider: Renku
-    inputSchema: ./timeline-input.json
+  - model: timeline/ordered
+    provider: renku
     config:
       imageClip:
         artifact: ImageSegments[Image]

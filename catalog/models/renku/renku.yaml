@@ -1,0 +1,14 @@
+models:
+  # Internal Handlers
+  - name: timeline/ordered
+    type: json
+    mime: 
+      - application/json
+    handler: timeline
+    price: 0
+  - name: remotion/docker-render
+    type: video
+    mime:
+      - video/mp4
+    handler: mp4-exporter
+    price: 0

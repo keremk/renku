@@ -73,22 +73,191 @@ describe('calculateCost', () => {
 		});
 	});
 
-	describe('costByImage', () => {
-		it('returns flat price per image', () => {
+	describe('costByRun', () => {
+		it('returns flat price per run', () => {
 			const config: ModelPriceConfig = {
-				function: 'costByImage',
-				pricePerImage: 0.04,
+				function: 'costByRun',
+				price: 0.05,
 			};
 			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: [] });
-			expect(result.cost).toBe(0.04);
+			expect(result.cost).toBe(0.05);
 			expect(result.isPlaceholder).toBe(false);
 		});
 
-		it('returns placeholder when pricePerImage missing', () => {
+		it('returns placeholder when price is missing', () => {
 			const config: ModelPriceConfig = {
-				function: 'costByImage',
+				function: 'costByRun',
 			};
 			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: [] });
+			expect(result.cost).toBe(0);
+			expect(result.isPlaceholder).toBe(true);
+		});
+	});
+
+	describe('costByCharacters', () => {
+		it('calculates cost based on character count', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByCharacters',
+				inputs: ['text'],
+				pricePerCharacter: 0.0001,
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { text: 'Hello world' }, // 11 characters
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBeCloseTo(0.0011, 4);
+			expect(result.isPlaceholder).toBe(false);
+		});
+
+		it('returns placeholder when no text value found', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByCharacters',
+				inputs: ['text'],
+				pricePerCharacter: 0.0001,
+			};
+			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: ['text'] });
+			expect(result.cost).toBe(0);
+			expect(result.isPlaceholder).toBe(true);
+		});
+
+		it('returns range when text comes from artefact', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByCharacters',
+				inputs: ['text'],
+				pricePerCharacter: 0.0001,
+			};
+			const extracted: ExtractedCostInputs = {
+				values: {},
+				artefactSourcedFields: ['text'],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.isPlaceholder).toBe(true);
+			expect(result.range).toBeDefined();
+			// 100-1000 character range
+			expect(result.range!.min).toBeCloseTo(0.01, 4);
+			expect(result.range!.max).toBeCloseTo(0.1, 4);
+		});
+	});
+
+	describe('costByAudioSeconds', () => {
+		it('calculates cost based on audio duration', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByAudioSeconds',
+				inputs: ['duration'],
+				pricePerSecond: 0.01,
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { duration: 30 },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(0.30);
+			expect(result.isPlaceholder).toBe(false);
+		});
+
+		it('returns placeholder when duration is missing', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByAudioSeconds',
+				inputs: ['duration'],
+				pricePerSecond: 0.01,
+			};
+			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: ['duration'] });
+			expect(result.cost).toBe(0);
+			expect(result.isPlaceholder).toBe(true);
+		});
+	});
+
+	describe('costByImageSizeAndQuality', () => {
+		it('returns price for matching size and quality', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByImageSizeAndQuality',
+				inputs: ['image_size', 'quality', 'num_images'],
+				prices: [
+					{ image_size: 'square_hd', quality: 'standard', pricePerImage: 0.04 },
+					{ image_size: 'square_hd', quality: 'hd', pricePerImage: 0.08 },
+					{ image_size: 'landscape_4_3', quality: 'standard', pricePerImage: 0.04 },
+				],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { image_size: 'square_hd', quality: 'hd', num_images: 2 },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(0.16); // 0.08 * 2
+			expect(result.isPlaceholder).toBe(false);
+		});
+
+		it('uses default num_images when not provided', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByImageSizeAndQuality',
+				inputs: ['image_size', 'quality'],
+				prices: [
+					{ image_size: 'square_hd', quality: 'standard', pricePerImage: 0.04 },
+				],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { image_size: 'square_hd', quality: 'standard' },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(0.04); // default num_images = 1
+		});
+
+		it('returns placeholder when size/quality not found', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByImageSizeAndQuality',
+				inputs: ['image_size', 'quality'],
+				prices: [
+					{ image_size: 'square_hd', quality: 'standard', pricePerImage: 0.04 },
+				],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { image_size: 'unknown_size', quality: 'unknown_quality' },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.isPlaceholder).toBe(true);
+		});
+	});
+
+	describe('costByVideoPerMillionTokens', () => {
+		it('calculates cost based on video tokens', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoPerMillionTokens',
+				inputs: ['duration', 'resolution', 'aspect_ratio'],
+				pricePerMillionTokens: 1.3,
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { duration: 5, resolution: '720p', aspect_ratio: '16:9' },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			// 1280x720 * 5s * 30fps / 1024 = ~135000 tokens
+			// 135000 / 1000000 * 1.3 ≈ 0.1755
+			expect(result.cost).toBeGreaterThan(0);
+			expect(result.isPlaceholder).toBe(false);
+		});
+
+		it('returns placeholder when duration is missing', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoPerMillionTokens',
+				inputs: ['duration', 'resolution', 'aspect_ratio'],
+				pricePerMillionTokens: 1.3,
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { resolution: '720p', aspect_ratio: '16:9' },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
 			expect(result.cost).toBe(0);
 			expect(result.isPlaceholder).toBe(true);
 		});
@@ -481,18 +650,6 @@ describe('calculateCost', () => {
 		});
 	});
 
-	describe('costByOutputFile', () => {
-		it('returns flat price per output file', () => {
-			const config: ModelPriceConfig = {
-				function: 'costByOutputFile',
-				pricePerAudioFile: 0.20,
-			};
-			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: [] });
-			expect(result.cost).toBe(0.20);
-			expect(result.isPlaceholder).toBe(false);
-		});
-	});
-
 	describe('unknown function', () => {
 		it('returns placeholder for unknown function', () => {
 			const config = {
@@ -608,12 +765,12 @@ describe('lookupModelPrice', () => {
 		const catalog: PricingCatalog = {
 			providers: new Map([
 				['replicate', new Map([
-					['bytedance/seedream-4', { function: 'costByImage' as const, pricePerImage: 0.03 }],
+					['bytedance/seedream-4', { function: 'costByRun' as const, price: 0.03 }],
 				])],
 			]),
 		};
 		const result = lookupModelPrice(catalog, 'replicate', 'bytedance/seedream-4');
-		expect(result).toEqual({ function: 'costByImage', pricePerImage: 0.03 });
+		expect(result).toEqual({ function: 'costByRun', price: 0.03 });
 	});
 
 	it('returns null for missing provider', () => {
@@ -654,7 +811,7 @@ describe('estimatePlanCosts', () => {
 		const catalog: PricingCatalog = {
 			providers: new Map([
 				['replicate', new Map([
-					['image-model', { function: 'costByImage' as const, pricePerImage: 0.04 }],
+					['image-model', { function: 'costByRun' as const, price: 0.04 }],
 				])],
 			]),
 		};
@@ -671,7 +828,7 @@ describe('estimatePlanCosts', () => {
 		const catalog: PricingCatalog = {
 			providers: new Map([
 				['replicate', new Map([
-					['image-model', { function: 'costByImage' as const, pricePerImage: 0.04 }],
+					['image-model', { function: 'costByRun' as const, price: 0.04 }],
 				])],
 			]),
 		};
@@ -705,7 +862,7 @@ describe('estimatePlanCosts', () => {
 		const catalog: PricingCatalog = {
 			providers: new Map([
 				['replicate', new Map([
-					['known-model', { function: 'costByImage' as const, pricePerImage: 0.04 }],
+					['known-model', { function: 'costByRun' as const, price: 0.04 }],
 				])],
 			]),
 		};

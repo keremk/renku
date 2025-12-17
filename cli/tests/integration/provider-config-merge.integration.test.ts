@@ -24,7 +24,7 @@ describe('integration: provider config merging', () => {
       {
         producerId: 'TimelineComposer',
         provider: 'renku',
-        model: 'OrderedTimeline',
+        model: 'timeline/ordered',
         config: {
           audioClip: { volume: 0.9 },
           tracks: ['Image', 'Audio'],

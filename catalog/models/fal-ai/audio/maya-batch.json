@@ -1,0 +1,86 @@
+{
+  "description": "Input schema for batch Maya-1-Voice TTS generation",
+  "type": "object",
+  "properties": {
+    "repetition_penalty": {
+      "minimum": 1,
+      "maximum": 2,
+      "type": "number",
+      "title": "Repetition Penalty",
+      "description": "Repetition penalty for all generations.",
+      "default": 1.1
+    },
+    "top_p": {
+      "minimum": 0,
+      "maximum": 1,
+      "type": "number",
+      "title": "Top P",
+      "description": "Nucleus sampling parameter for all generations.",
+      "default": 0.9
+    },
+    "output_format": {
+      "enum": ["wav", "mp3"],
+      "description": "Output audio format for all generated speech files",
+      "type": "string",
+      "examples": ["wav", "mp3"],
+      "title": "Output Format",
+      "default": "wav"
+    },
+    "texts": {
+      "description": "List of texts to synthesize into speech. You can embed emotion tags in each text using the format \u003Cemotion_name\u003E.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "title": "Texts",
+      "items": {
+        "type": "string"
+      }
+    },
+    "prompts": {
+      "description": "List of voice descriptions for each text. Must match the length of texts list. Each describes the voice/character attributes.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "title": "Prompts",
+      "items": {
+        "type": "string"
+      }
+    },
+    "max_tokens": {
+      "minimum": 28,
+      "maximum": 4000,
+      "type": "integer",
+      "title": "Max Tokens",
+      "description": "Maximum SNAC tokens per generation.",
+      "default": 2000
+    },
+    "temperature": {
+      "minimum": 0,
+      "maximum": 2,
+      "type": "number",
+      "title": "Temperature",
+      "description": "Sampling temperature for all generations.",
+      "default": 0.4
+    },
+    "sample_rate": {
+      "enum": ["48 kHz", "24 kHz"],
+      "description": "Output audio sample rate for all generations. 48 kHz provides higher quality, 24 kHz is faster.",
+      "type": "string",
+      "examples": ["48 kHz", "24 kHz"],
+      "title": "Sample Rate",
+      "default": "48 kHz"
+    }
+  },
+  "title": "MayaVoiceBatchInput",
+  "x-fal-order-properties": [
+    "texts",
+    "prompts",
+    "temperature",
+    "top_p",
+    "max_tokens",
+    "repetition_penalty",
+    "sample_rate",
+    "output_format"
+  ],
+  "required": ["texts", "prompts"]
+}

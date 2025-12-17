@@ -29,33 +29,18 @@ artifacts:
 models:
   - model: minimax/speech-2.6-hd
     provider: replicate
-    inputSchema: ./minimax-speech.json
     inputs:
       TextInput: text
       Emotion: emotion
       VoiceId: voice_id
-    outputs:
-      SegmentAudio:
-        type: audio
-        mimeType: audio/mp3
   - model: minimax/speech-02-hd
     provider: replicate
-    inputSchema: ./minimax-speech.json
     inputs:
       TextInput: text
       Emotion: emotion
       VoiceId: voice_id
-    outputs:
-      SegmentAudio:
-        type: audio
-        mimeType: audio/mp3
   - provider: fal-ai
     model: elevenlabs/tts/eleven-v3
-    inputSchema: ./fal-elevenlabs-v3.json
     inputs:
       TextInput: prompt
       VoiceId: voice
-    outputs:
-      SegmentAudio:
-        type: audio
-        mimeType: audio/mp3

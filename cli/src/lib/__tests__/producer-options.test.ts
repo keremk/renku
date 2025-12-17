@@ -24,8 +24,8 @@ describe('producer options', () => {
       { producerId: 'AudioProducer', provider: 'replicate', model: 'minimax/speech-2.6-hd' },
       { producerId: 'MusicPromptProducer', provider: 'openai', model: 'gpt-5-mini' },
       { producerId: 'MusicProducer', provider: 'replicate', model: 'stability-ai/stable-audio-2.5' },
-      { producerId: 'TimelineComposer', provider: 'renku', model: 'OrderedTimeline' },
-      { producerId: 'VideoExporter', provider: 'renku', model: 'Mp4Exporter' },
+      { producerId: 'TimelineComposer', provider: 'renku', model: 'timeline/ordered' },
+      { producerId: 'VideoExporter', provider: 'renku', model: 'remotion/docker-render' },
     ];
 
     const options = buildProducerOptionsFromBlueprint(blueprint, selections);

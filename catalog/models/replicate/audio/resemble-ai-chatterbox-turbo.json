@@ -1,0 +1,95 @@
+{
+  "type": "object",
+  "title": "Input",
+  "required": [
+    "text"
+  ],
+  "properties": {
+    "seed": {
+      "type": "integer",
+      "title": "Seed",
+      "x-order": 7,
+      "nullable": true,
+      "description": "Random seed for reproducible results. Leave blank for random generation."
+    },
+    "text": {
+      "type": "string",
+      "title": "Text",
+      "x-order": 0,
+      "description": "Text to synthesize into speech (maximum 500 characters).\n\nSupported paralinguistic tags you can include in your text:\n[clear throat], [sigh], [sush], [cough], [groan], [sniff], [gasp], [chuckle], [laugh]\n\nExample: \"Oh, that's hilarious! [chuckle] Let me tell you more.\""
+    },
+    "top_k": {
+      "type": "integer",
+      "title": "Top K",
+      "default": 1000,
+      "maximum": 2000,
+      "minimum": 1,
+      "x-order": 5,
+      "description": "Top-k sampling. Limits vocabulary to top k tokens at each step."
+    },
+    "top_p": {
+      "type": "number",
+      "title": "Top P",
+      "default": 0.95,
+      "maximum": 1,
+      "minimum": 0.5,
+      "x-order": 4,
+      "description": "Nucleus sampling threshold. Lower values make output more focused."
+    },
+    "voice": {
+      "enum": [
+        "Aaron",
+        "Abigail",
+        "Anaya",
+        "Andy",
+        "Archer",
+        "Brian",
+        "Chloe",
+        "Dylan",
+        "Emmanuel",
+        "Ethan",
+        "Evelyn",
+        "Gavin",
+        "Gordon",
+        "Ivan",
+        "Laura",
+        "Lucy",
+        "Madison",
+        "Marisol",
+        "Meera",
+        "Walter"
+      ],
+      "type": "string",
+      "title": "voice",
+      "description": "Pre-made voice to use for synthesis. Ignored if reference_audio is provided.",
+      "default": "Andy",
+      "x-order": 1
+    },
+    "temperature": {
+      "type": "number",
+      "title": "Temperature",
+      "default": 0.8,
+      "maximum": 2,
+      "minimum": 0.05,
+      "x-order": 3,
+      "description": "Controls randomness in generation. Higher values produce more varied speech."
+    },
+    "reference_audio": {
+      "type": "string",
+      "title": "Reference Audio",
+      "format": "uri",
+      "x-order": 2,
+      "nullable": true,
+      "description": "Reference audio file for voice cloning (optional). Must be longer than 5 seconds. If provided, overrides the voice selection."
+    },
+    "repetition_penalty": {
+      "type": "number",
+      "title": "Repetition Penalty",
+      "default": 1.2,
+      "maximum": 2,
+      "minimum": 1,
+      "x-order": 6,
+      "description": "Penalizes token repetition. Higher values reduce repetition."
+    }
+  }
+}

@@ -44,27 +44,17 @@ artifacts:
 models:
   - model: veo3.1/image-to-video
     provider: fal-ai
-    inputSchema: ./fal-veo3-1-image-to-video.json
     inputs:
       Prompt: prompt
       AspectRatio: aspect_ratio
       Resolution: resolution
       SegmentDuration: duration
       InputImage1: image_url
-    outputs:
-      SegmentVideo:
-        type: video
-        mimeType: video/mp4
   - model: kling-video/o1/image-to-video
     provider: fal-ai
-    inputSchema: ./fal-kling-o1-image-to-video.json
     inputs:
       Prompt: prompt
       AspectRatio: aspect_ratio
       SegmentDuration: duration
       InputImage1: start_image_url
       InputImage2: end_image_url
-    outputs:
-      SegmentVideo:
-        type: video
-        mimeType: video/mp4

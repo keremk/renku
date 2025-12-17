@@ -15,8 +15,14 @@
       ],
       "maxLength": 20000,
       "type": "string",
-      "title": "Prompt",
-      "description": "The text prompt describing the video you want to generate"
+      "description": "The text prompt describing the video you want to generate",
+      "title": "Prompt"
+    },
+    "auto_fix": {
+      "description": "Whether to automatically attempt to fix prompts that fail content policy or other validation checks by rewriting them.",
+      "type": "boolean",
+      "title": "Auto Fix",
+      "default": false
     },
     "duration": {
       "enum": ["8s"],
@@ -25,16 +31,10 @@
       "title": "Duration",
       "default": "8s"
     },
-    "auto_fix": {
-      "title": "Auto Fix",
-      "type": "boolean",
-      "description": "Whether to automatically attempt to fix prompts that fail content policy or other validation checks by rewriting them.",
-      "default": false
-    },
     "generate_audio": {
-      "title": "Generate Audio",
-      "type": "boolean",
       "description": "Whether to generate audio for the video.",
+      "type": "boolean",
+      "title": "Generate Audio",
       "default": true
     },
     "resolution": {
@@ -52,12 +52,11 @@
           "https://storage.googleapis.com/falserverless/example_inputs/veo31-r2v-input-3.png"
         ]
       ],
-      "title": "Image Urls",
-      "type": "array",
       "description": "URLs of the reference images to use for consistent subject appearance",
+      "type": "array",
+      "title": "Image Urls",
       "items": {
-        "type": "string",
-        "format": "uri"
+        "type": "string"
       }
     }
   },

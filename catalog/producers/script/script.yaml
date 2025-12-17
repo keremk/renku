@@ -52,7 +52,6 @@ models:
   - provider: openai
     model: gpt-5-mini
     promptFile: ./script.toml
-    inputSchema: ../shared/openai-input.json
     outputSchema: ./script-output.json
     config:
       text_format: json_schema

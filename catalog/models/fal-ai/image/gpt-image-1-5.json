@@ -1,0 +1,68 @@
+{
+  "x-fal-order-properties": [
+    "prompt",
+    "image_size",
+    "background",
+    "quality",
+    "num_images",
+    "output_format",
+    "sync_mode"
+  ],
+  "type": "object",
+  "properties": {
+    "prompt": {
+      "examples": [
+        "create a realistic image taken with iphone at these coordinates 41°43′32″N 49°56′49″W 15 April 1912"
+      ],
+      "title": "Prompt",
+      "minLength": 2,
+      "type": "string",
+      "description": "The prompt for image generation"
+    },
+    "num_images": {
+      "description": "Number of images to generate",
+      "type": "integer",
+      "examples": [1],
+      "maximum": 4,
+      "title": "Number of Images",
+      "minimum": 1,
+      "default": 1
+    },
+    "image_size": {
+      "enum": ["1024x1024", "1536x1024", "1024x1536"],
+      "title": "Image Size",
+      "type": "string",
+      "description": "Aspect ratio for the generated image",
+      "default": "1024x1024"
+    },
+    "background": {
+      "enum": ["auto", "transparent", "opaque"],
+      "title": "Background",
+      "type": "string",
+      "description": "Background for the generated image",
+      "default": "auto"
+    },
+    "quality": {
+      "enum": ["low", "medium", "high"],
+      "title": "Quality",
+      "type": "string",
+      "description": "Quality for the generated image",
+      "default": "high"
+    },
+    "output_format": {
+      "enum": ["jpeg", "png", "webp"],
+      "title": "Output Format",
+      "type": "string",
+      "description": "Output format for the images",
+      "default": "png"
+    },
+    "sync_mode": {
+      "title": "Sync Mode",
+      "type": "boolean",
+      "description": "If `True`, the media will be returned as a data URI and the output data won't be available in the request history.",
+      "default": false
+    }
+  },
+  "title": "TextToImageRequest",
+  "required": ["prompt"]
+}

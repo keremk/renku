@@ -34,60 +34,35 @@ artifacts:
 models:
   - model: bytedance/seedance-1-pro-fast
     provider: replicate
-    inputSchema: ./bytedance-seedance-1-pro-fast.json
     inputs:
       Prompt: prompt
       AspectRatio: aspect_ratio
       Resolution: resolution
       SegmentDuration: duration
-    outputs:
-      SegmentVideo:
-        type: video
-        mimeType: video/mp4
   - model: bytedance/seedance-1-lite
     provider: replicate
-    inputSchema: ./bytedance-seedance-1-lite.json
     inputs:
       Prompt: prompt
       AspectRatio: aspect_ratio
       Resolution: resolution
       SegmentDuration: duration
-    outputs:
-      SegmentVideo:
-        type: video
-        mimeType: video/mp4
   - model: google/veo-3.1-fast
     provider: replicate
-    inputSchema: ./google-veo-3-1-fast.json
     inputs:
       Prompt: prompt
       AspectRatio: aspect_ratio
       Resolution: resolution
       SegmentDuration: duration 
-    outputs:
-      SegmentVideo:
-        type: video
-        mimeType: video/mp4
   - model: veo3-1
     provider: fal-ai
-    inputSchema: ./falai-veo3-1.json
     inputs:
       Prompt: prompt
       AspectRatio: aspect_ratio
       Resolution: resolution
       SegmentDuration: duration
-    outputs:
-      SegmentVideo:
-        type: video
-        mimeType: video/mp4
   - model: openai-sora-2
     provider: replicate
-    inputSchema: ./openai-sora-2.json
     inputs:
       Prompt: prompt
       AspectRatio: aspect_ratio
       SegmentDuration: duration
-    outputs:
-      SegmentVideo:
-        type: video
-        mimeType: video/mp4

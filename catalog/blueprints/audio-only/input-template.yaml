@@ -16,7 +16,7 @@ models:
   - model: minimax/speech-2.6-hd
     provider: replicate
     producerId: AudioProducer
-  - model: OrderedTimeline
+  - model: timeline/ordered
     provider: renku
     producerId: TimelineComposer
     config:

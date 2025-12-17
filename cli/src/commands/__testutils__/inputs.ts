@@ -56,12 +56,12 @@ export async function createInputsFile(options: CreateInputsFileOptions): Promis
       {
         producerId: 'TimelineComposer',
         provider: 'renku',
-        model: 'OrderedTimeline',
+        model: 'timeline/ordered',
         config: {
           tracks: ['Video', 'Audio', 'Music'],
         },
       },
-      { producerId: 'VideoExporter', provider: 'renku', model: 'Mp4Exporter' },
+      { producerId: 'VideoExporter', provider: 'renku', model: 'remotion/docker-render' },
     ];
 
   const contents = stringifyYaml({

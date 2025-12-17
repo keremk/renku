@@ -2,24 +2,31 @@ models:
   # Image Models
   - name: bytedance/seedream-4
     type: image
+    mime:
+      - image/png
     price:
-      function: costByImage
-      pricePerImage: 0.03
+      function: costByRun
+      price: 0.03
   - name: bytedance/seedream-4.5
     type: image
+    mime:
+      - image/png
     price:
-      function: costByImage
-      pricePerImage: 0.04
+      function: costByRun
+      price: 0.04
   - name: google/imagen-4
     type: image
+    mime:
+      - image/png
+      - image/jpg
     price:
-      function: costByImage
-      pricePerImage: 0.03
+      function: costByRun
+      price: 0.04
   - name: google/nano-banana
     type: image
     price:
-      function: costByImage
-      pricePerImage: 0.039
+      function: costByRun
+      price: 0.039
   - name: google/nano-banana-pro
     type: image
     price:
@@ -32,18 +39,21 @@ models:
           pricePerImage: 0.15
         - resolution: 4K
           pricePerImage: 0.30
-  - name: tencent/hunyuan-image-3
-    type: image
-    price:
-      function: costByImage
-      pricePerImage: 0.03
   - name: qwen/qwen-image
     type: image
+    mime:
+      - image/png
+      - image/jpg
+      - image/webp
     price:
-      function: costByImage
-      pricePerImage: 0.025
+      function: costByRun
+      price: 0.025
   - name: prunaai/z-image-turbo
     type: image
+    mime:
+      - image/png
+      - image/jpg
+      - image/webp
     price:
       function: costByResolution
       inputs: [width, height]
@@ -58,38 +68,82 @@ models:
   # Audio Models (Speech)
   - name: minimax/speech-2.6-hd
     type: audio
+    mime:
+      - audio/mp3
+      - audio/wav
+      - audio/flac
+      - audio/pcm
     price:
-      function: costByInputTokens
+      function: costByCharacters
       inputs: [text]
-      pricePerToken: 0.0001
+      pricePerCharacter: 0.0001
+  - name: minimax/speech-2.6-turbo
+    type: audio
+    mime:
+      - audio/mp3
+      - audio/wav
+      - audio/flac
+      - audio/pcm
+    price:
+      function: costByCharacters
+      inputs: [text]
+      pricePerCharacter: 0.00006
   - name: minimax/speech-02-hd
     type: audio
+    mime:
+      - audio/mp3
+      - audio/wav
+      - audio/flac
+      - audio/pcm
     price:
-      function: costByInputTokens
+      function: costByCharacters
       inputs: [text]
-      pricePerToken: 0.0001
-  - name: elevenlabs/v3
+      pricePerCharacter: 0.0001
+  - name: minimax/speech-02-turbo
     type: audio
+    mime:
+      - audio/mp3
+      - audio/wav
+      - audio/flac
+      - audio/pcm
     price:
-      function: costByInputTokens
+      function: costByCharacters
       inputs: [text]
-      pricePerToken: 0.0001
+      pricePerCharacter: 0.00006
+  - name: resemble-ai/chatterbox-turbo
+    type: audio
+    mime:
+      - audio/mp3
+    price:
+      function: costByCharacters
+      inputs: [text]
+      pricePerCharacter: 0.000025
 
   # Music Models (also audio output)
   - name: stability-ai/stable-audio-2.5
     type: audio
+    mime:
+      - audio/mp3
+      - audio/wav
+      - audio/pcm
     price:
-      function: costByOutputFile
-      pricePerAudioFile: 0.20
-  - name: elevenlabs/music
+      function: costByRun
+      price: 0.20
+  - name: minimax/music-1.5
     type: audio
+    mime:
+      - audio/mp3
+      - audio/wav
+      - audio/pcm
     price:
-      function: costByOutputFile
-      pricePerAudioFile: 0.20
+      function: costByRun
+      price: 0.03
 
   # Video Models
   - name: bytedance/seedance-1-lite
     type: video
+    mime:
+      - video/mp4
     price:
       function: costByVideoDurationAndResolution
       inputs: [duration, resolution]
@@ -102,6 +156,8 @@ models:
           pricePerSecond: 0.072
   - name: bytedance/seedance-1-pro-fast
     type: video
+    mime:
+      - video/mp4
     price:
       function: costByVideoDurationAndResolution
       inputs: [duration, resolution]
@@ -114,6 +170,8 @@ models:
           pricePerSecond: 0.06
   - name: google/veo-3.1-fast
     type: video
+    mime:
+      - video/mp4
     price:
       function: costByVideoDurationAndWithAudio
       inputs: [duration, generate_audio]
@@ -124,6 +182,8 @@ models:
           pricePerSecond: 0.10
   - name: openai/sora-2
     type: video
+    mime:
+      - video/mp4
     price:
       function: costByVideoDuration
       inputs: [duration]

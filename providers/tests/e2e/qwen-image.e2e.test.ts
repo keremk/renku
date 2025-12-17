@@ -94,7 +94,7 @@ describeIf('Qwen Image provider integration (with cloud storage)', () => {
       produces: ['Artifact:Output[index=0]'],
       context: {
         providerConfig: {},
-        extras: buildImageExtras(model, resolvedInputs, {
+        extras: await buildImageExtras(model, resolvedInputs, {
           ImageInput: { field: 'image_input', required: false },
         }),
       },

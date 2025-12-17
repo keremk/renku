@@ -52,7 +52,7 @@ describeIf('Replicate provider integration', () => {
       produces: ['Artifact:Output[index=0]'],
       context: {
         providerConfig: {},
-        extras: buildImageExtras(model, resolvedInputs),
+        extras: await buildImageExtras(model, resolvedInputs),
       },
     };
 

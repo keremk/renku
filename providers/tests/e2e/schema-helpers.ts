@@ -1,7 +1,51 @@
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { ProviderJobContext } from '../../src/types.js';
+import {
+  loadModelCatalog,
+  lookupModel,
+  resolveSchemaPath as resolveSchemaPathFromCatalog,
+  type LoadedModelCatalog,
+} from '../../src/model-catalog.js';
 
+// Catalog directory - relative to this file
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const CATALOG_DIR = resolve(__dirname, '../../../catalog/models');
+
+// Cached catalog instance
+let catalogCache: LoadedModelCatalog | null = null;
+
+/**
+ * Get the model catalog (cached singleton).
+ */
+async function getCatalog(): Promise<LoadedModelCatalog> {
+  if (!catalogCache) {
+    catalogCache = await loadModelCatalog(CATALOG_DIR);
+  }
+  return catalogCache;
+}
+
+/**
+ * Load schema from the model catalog dynamically.
+ * Uses the same path resolution logic as production code.
+ */
+async function loadSchemaFromCatalog(
+  provider: string,
+  model: string,
+): Promise<string> {
+  const catalog = await getCatalog();
+  const modelDef = lookupModel(catalog, provider, model);
+
+  if (!modelDef) {
+    throw new Error(`Model not found in catalog: ${provider}/${model}`);
+  }
+
+  const schemaPath = resolveSchemaPathFromCatalog(CATALOG_DIR, provider, model, modelDef);
+  return readFileSync(schemaPath, 'utf-8');
+}
+
+// Model type definitions
 export type VideoModel =
   | 'bytedance/seedance-1-pro-fast'
   | 'bytedance/seedance-1-lite'
@@ -27,44 +71,31 @@ type MappingEntry = { field: string; required?: boolean };
 
 type ModelMapping = Record<string, MappingEntry>;
 
-const videoSchemaPaths: Record<VideoModel, string> = {
-  'bytedance/seedance-1-pro-fast': '../../../catalog/producers/video/bytedance-seedance-1-pro-fast.json',
-  'bytedance/seedance-1-lite': '../../../catalog/producers/video/bytedance-seedance-1-lite.json',
-  'google/veo-3.1-fast': '../../../catalog/producers/video/google-veo-3-1-fast.json',
+// Provider mapping for each model type
+const VIDEO_MODEL_PROVIDERS: Record<VideoModel, string> = {
+  'bytedance/seedance-1-pro-fast': 'replicate',
+  'bytedance/seedance-1-lite': 'replicate',
+  'google/veo-3.1-fast': 'replicate',
 };
 
-const audioSchemaPaths: Record<AudioModel, string> = {
-  'minimax/speech-2.6-hd': '../../../catalog/producers/audio/minimax-speech.json',
-  'minimax/speech-02-hd': '../../../catalog/producers/audio/minimax-speech.json',
-  'elevenlabs/v3': '../../../catalog/producers/audio/elevenlabs-speech-v3.json',
+const AUDIO_MODEL_PROVIDERS: Record<AudioModel, string> = {
+  'minimax/speech-2.6-hd': 'replicate',
+  'minimax/speech-02-hd': 'replicate',
+  'elevenlabs/v3': 'fal-ai',
 };
 
-const musicSchemaPaths: Record<MusicModel, string> = {
-  'stability-ai/stable-audio-2.5': '../../../catalog/producers/music/stable-audio.json',
-  'elevenlabs/music': '../../../catalog/producers/music/elevenlabs-music.json',
+const MUSIC_MODEL_PROVIDERS: Record<MusicModel, string> = {
+  'stability-ai/stable-audio-2.5': 'replicate',
+  'elevenlabs/music': 'fal-ai',
 };
 
-const imageSchemaPaths: Record<ImageModel, string> = {
-  'bytedance/seedream-4': '../../../catalog/producers/image/bytedance-seedream-4.json',
-  'google/nano-banana': '../../../catalog/producers/image/google-nano-banana.json',
-  'qwen/qwen-image': '../../../catalog/producers/image/qwen-image.json',
+const IMAGE_MODEL_PROVIDERS: Record<ImageModel, string> = {
+  'bytedance/seedream-4': 'replicate',
+  'google/nano-banana': 'replicate',
+  'qwen/qwen-image': 'replicate',
 };
 
-// Fal.ai schema paths
-const falImageSchemaPaths: Record<FalImageModel, string> = {
-  'bytedance/seedream/v4.5/text-to-image': '../../../catalog/producers/image/fal-seedream4-5.json',
-};
-
-const falVideoSchemaPaths: Record<FalVideoModel, string> = {
-  'veo3.1': '../../../catalog/producers/video/falai-veo3-1.json',
-};
-
-// Wavespeed-ai schema paths
-const wavespeedImageSchemaPaths: Record<WavespeedImageModel, string> = {
-  'bytedance/seedream-v4.5': '../../../catalog/producers/image/wavespeed-seedream-4.5.json',
-};
-
-// Mirrors catalog/producers/video/video.yaml input mappings
+// Input field mappings (test-specific configuration)
 const videoModelMappings: Record<VideoModel, ModelMapping> = {
   'bytedance/seedance-1-pro-fast': {
     Prompt: { field: 'prompt', required: true },
@@ -86,7 +117,6 @@ const videoModelMappings: Record<VideoModel, ModelMapping> = {
   },
 };
 
-// Mirrors catalog/producers/audio/audio.yaml input mappings
 const audioModelMappings: Record<AudioModel, ModelMapping> = {
   'minimax/speech-2.6-hd': {
     TextInput: { field: 'text', required: true },
@@ -104,7 +134,6 @@ const audioModelMappings: Record<AudioModel, ModelMapping> = {
   },
 };
 
-// Mirrors catalog/producers/music/music.yaml input mappings
 const musicModelMappings: Record<MusicModel, ModelMapping> = {
   'stability-ai/stable-audio-2.5': {
     Prompt: { field: 'prompt', required: true },
@@ -116,7 +145,6 @@ const musicModelMappings: Record<MusicModel, ModelMapping> = {
   },
 };
 
-// Mirrors catalog/producers/image/image.yaml input mappings
 const imageModelMappings: Record<ImageModel, ModelMapping> = {
   'bytedance/seedream-4': {
     Prompt: { field: 'prompt', required: true },
@@ -160,21 +188,6 @@ const wavespeedImageModelMappings: Record<WavespeedImageModel, ModelMapping> = {
   },
 };
 
-function resolveSchemaPath(relative: string): string {
-  return resolve(new URL('.', import.meta.url).pathname, relative);
-}
-
-function loadSchemaForModel<TModel extends string>(
-  schemaPaths: Record<TModel, string>,
-  model: TModel,
-): string {
-  const relative = schemaPaths[model];
-  if (!relative) {
-    throw new Error(`No schema path registered for model: ${model}`);
-  }
-  return readFileSync(resolveSchemaPath(relative), 'utf-8');
-}
-
 function mergeMappings(base: ModelMapping, extra?: ModelMapping): ModelMapping {
   return { ...base, ...(extra ?? {}) };
 }
@@ -204,19 +217,19 @@ function computeMappingFromSchema(
   return resolved;
 }
 
-function buildExtras<TModel extends string>(
+async function buildExtras(
   args: {
-    model: TModel;
+    provider: string;
+    model: string;
     resolvedInputs: Record<string, unknown>;
-    schemaPaths: Record<TModel, string>;
-    modelMappings: Record<TModel, ModelMapping>;
+    modelMappings: ModelMapping;
     requiredAliases: string[];
     plannerIndex?: { segment?: number; image?: number };
     extraMapping?: ModelMapping;
   },
-): ProviderJobContext['context']['extras'] {
-  const schemaText = loadSchemaForModel(args.schemaPaths, args.model);
-  const mapping = mergeMappings(args.modelMappings[args.model], args.extraMapping);
+): Promise<ProviderJobContext['context']['extras']> {
+  const schemaText = await loadSchemaFromCatalog(args.provider, args.model);
+  const mapping = mergeMappings(args.modelMappings, args.extraMapping);
   const sdkMapping = computeMappingFromSchema(schemaText, mapping, args.requiredAliases);
 
   const inputBindings: Record<string, string> = {};
@@ -235,8 +248,10 @@ function buildExtras<TModel extends string>(
   };
 }
 
-export function loadSchema(model: VideoModel): string {
-  return loadSchemaForModel(videoSchemaPaths, model);
+// Video helpers
+export async function loadSchema(model: VideoModel): Promise<string> {
+  const provider = VIDEO_MODEL_PROVIDERS[model];
+  return loadSchemaFromCatalog(provider, model);
 }
 
 export function getVideoMapping(model: VideoModel): ModelMapping {
@@ -247,23 +262,26 @@ export function getVideoMapping(model: VideoModel): ModelMapping {
   return mapping;
 }
 
-export function buildVideoExtras(
+export async function buildVideoExtras(
   model: VideoModel,
   resolvedInputs: Record<string, unknown>,
   extraMapping?: ModelMapping,
-): ProviderJobContext['context']['extras'] {
+): Promise<ProviderJobContext['context']['extras']> {
+  const provider = VIDEO_MODEL_PROVIDERS[model];
   return buildExtras({
+    provider,
     model,
     resolvedInputs,
-    schemaPaths: videoSchemaPaths,
-    modelMappings: videoModelMappings,
+    modelMappings: videoModelMappings[model],
     requiredAliases: ['Prompt'],
     extraMapping,
   });
 }
 
-export function loadAudioSchema(model: AudioModel): string {
-  return loadSchemaForModel(audioSchemaPaths, model);
+// Audio helpers
+export async function loadAudioSchema(model: AudioModel): Promise<string> {
+  const provider = AUDIO_MODEL_PROVIDERS[model];
+  return loadSchemaFromCatalog(provider, model);
 }
 
 export function getAudioMapping(model: AudioModel): ModelMapping {
@@ -274,24 +292,27 @@ export function getAudioMapping(model: AudioModel): ModelMapping {
   return mapping;
 }
 
-export function buildAudioExtras(
+export async function buildAudioExtras(
   model: AudioModel,
   resolvedInputs: Record<string, unknown>,
   extraMapping?: ModelMapping,
-): ProviderJobContext['context']['extras'] {
+): Promise<ProviderJobContext['context']['extras']> {
+  const provider = AUDIO_MODEL_PROVIDERS[model];
   return buildExtras({
+    provider,
     model,
     resolvedInputs,
-    schemaPaths: audioSchemaPaths,
-    modelMappings: audioModelMappings,
+    modelMappings: audioModelMappings[model],
     requiredAliases: ['TextInput', 'VoiceId'],
     plannerIndex: { segment: 0 },
     extraMapping,
   });
 }
 
-export function loadMusicSchema(model: MusicModel): string {
-  return loadSchemaForModel(musicSchemaPaths, model);
+// Music helpers
+export async function loadMusicSchema(model: MusicModel): Promise<string> {
+  const provider = MUSIC_MODEL_PROVIDERS[model];
+  return loadSchemaFromCatalog(provider, model);
 }
 
 export function getMusicMapping(model: MusicModel): ModelMapping {
@@ -302,24 +323,27 @@ export function getMusicMapping(model: MusicModel): ModelMapping {
   return mapping;
 }
 
-export function buildMusicExtras(
+export async function buildMusicExtras(
   model: MusicModel,
   resolvedInputs: Record<string, unknown>,
   extraMapping?: ModelMapping,
-): ProviderJobContext['context']['extras'] {
+): Promise<ProviderJobContext['context']['extras']> {
+  const provider = MUSIC_MODEL_PROVIDERS[model];
   return buildExtras({
+    provider,
     model,
     resolvedInputs,
-    schemaPaths: musicSchemaPaths,
-    modelMappings: musicModelMappings,
+    modelMappings: musicModelMappings[model],
     requiredAliases: ['Prompt', 'Duration'],
     plannerIndex: { segment: 0 },
     extraMapping,
   });
 }
 
-export function loadImageSchema(model: ImageModel): string {
-  return loadSchemaForModel(imageSchemaPaths, model);
+// Image helpers
+export async function loadImageSchema(model: ImageModel): Promise<string> {
+  const provider = IMAGE_MODEL_PROVIDERS[model];
+  return loadSchemaFromCatalog(provider, model);
 }
 
 export function getImageMapping(model: ImageModel): ModelMapping {
@@ -330,25 +354,26 @@ export function getImageMapping(model: ImageModel): ModelMapping {
   return mapping;
 }
 
-export function buildImageExtras(
+export async function buildImageExtras(
   model: ImageModel,
   resolvedInputs: Record<string, unknown>,
   extraMapping?: ModelMapping,
-): ProviderJobContext['context']['extras'] {
+): Promise<ProviderJobContext['context']['extras']> {
+  const provider = IMAGE_MODEL_PROVIDERS[model];
   return buildExtras({
+    provider,
     model,
     resolvedInputs,
-    schemaPaths: imageSchemaPaths,
-    modelMappings: imageModelMappings,
+    modelMappings: imageModelMappings[model],
     requiredAliases: ['Prompt'],
     plannerIndex: { segment: 0, image: 0 },
     extraMapping,
   });
 }
 
-// Fal.ai helper functions
-export function loadFalImageSchema(model: FalImageModel): string {
-  return loadSchemaForModel(falImageSchemaPaths, model);
+// Fal.ai image helpers
+export async function loadFalImageSchema(model: FalImageModel): Promise<string> {
+  return loadSchemaFromCatalog('fal-ai', model);
 }
 
 export function getFalImageMapping(model: FalImageModel): ModelMapping {
@@ -359,24 +384,25 @@ export function getFalImageMapping(model: FalImageModel): ModelMapping {
   return mapping;
 }
 
-export function buildFalImageExtras(
+export async function buildFalImageExtras(
   model: FalImageModel,
   resolvedInputs: Record<string, unknown>,
   extraMapping?: ModelMapping,
-): ProviderJobContext['context']['extras'] {
+): Promise<ProviderJobContext['context']['extras']> {
   return buildExtras({
+    provider: 'fal-ai',
     model,
     resolvedInputs,
-    schemaPaths: falImageSchemaPaths,
-    modelMappings: falImageModelMappings,
+    modelMappings: falImageModelMappings[model],
     requiredAliases: ['Prompt'],
     plannerIndex: { segment: 0, image: 0 },
     extraMapping,
   });
 }
 
-export function loadFalVideoSchema(model: FalVideoModel): string {
-  return loadSchemaForModel(falVideoSchemaPaths, model);
+// Fal.ai video helpers
+export async function loadFalVideoSchema(model: FalVideoModel): Promise<string> {
+  return loadSchemaFromCatalog('fal-ai', model);
 }
 
 export function getFalVideoMapping(model: FalVideoModel): ModelMapping {
@@ -387,25 +413,25 @@ export function getFalVideoMapping(model: FalVideoModel): ModelMapping {
   return mapping;
 }
 
-export function buildFalVideoExtras(
+export async function buildFalVideoExtras(
   model: FalVideoModel,
   resolvedInputs: Record<string, unknown>,
   extraMapping?: ModelMapping,
-): ProviderJobContext['context']['extras'] {
+): Promise<ProviderJobContext['context']['extras']> {
   return buildExtras({
+    provider: 'fal-ai',
     model,
     resolvedInputs,
-    schemaPaths: falVideoSchemaPaths,
-    modelMappings: falVideoModelMappings,
+    modelMappings: falVideoModelMappings[model],
     requiredAliases: ['Prompt'],
     plannerIndex: { segment: 0 },
     extraMapping,
   });
 }
 
-// Wavespeed-ai helper functions
-export function loadWavespeedImageSchema(model: WavespeedImageModel): string {
-  return loadSchemaForModel(wavespeedImageSchemaPaths, model);
+// Wavespeed-ai image helpers
+export async function loadWavespeedImageSchema(model: WavespeedImageModel): Promise<string> {
+  return loadSchemaFromCatalog('wavespeed-ai', model);
 }
 
 export function getWavespeedImageMapping(model: WavespeedImageModel): ModelMapping {
@@ -416,16 +442,16 @@ export function getWavespeedImageMapping(model: WavespeedImageModel): ModelMappi
   return mapping;
 }
 
-export function buildWavespeedImageExtras(
+export async function buildWavespeedImageExtras(
   model: WavespeedImageModel,
   resolvedInputs: Record<string, unknown>,
   extraMapping?: ModelMapping,
-): ProviderJobContext['context']['extras'] {
+): Promise<ProviderJobContext['context']['extras']> {
   return buildExtras({
+    provider: 'wavespeed-ai',
     model,
     resolvedInputs,
-    schemaPaths: wavespeedImageSchemaPaths,
-    modelMappings: wavespeedImageModelMappings,
+    modelMappings: wavespeedImageModelMappings[model],
     requiredAliases: ['Prompt'],
     plannerIndex: { segment: 0, image: 0 },
     extraMapping,

@@ -30,7 +30,7 @@ models:
   - model: gpt-5-mini
     provider: openai
     producerId: MusicPromptProducer
-  - model: OrderedTimeline
+  - model: timeline/ordered
     provider: renku
     producerId: TimelineComposer
     config:

@@ -17,7 +17,7 @@ models:
   - model: google/nano-banana
     provider: replicate
     producerId: ImageProducer
-  - model: OrderedTimeline
+  - model: timeline/ordered
     provider: renku
     producerId: TimelineComposer
     config:

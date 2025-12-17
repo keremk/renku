@@ -1,0 +1,69 @@
+{
+  "x-fal-order-properties": [
+    "prompt",
+    "aspect_ratio",
+    "duration",
+    "negative_prompt",
+    "resolution",
+    "generate_audio",
+    "seed",
+    "auto_fix"
+  ],
+  "type": "object",
+  "properties": {
+    "prompt": {
+      "examples": [
+        "Two person street interview in New York City.\nSample Dialogue:\nHost: \"Did you hear the news?\"\nPerson: \"Yes! Veo 3.1 is now available on fal. If you want to see it, go check their website.\""
+      ],
+      "maxLength": 20000,
+      "type": "string",
+      "description": "The text prompt describing the video you want to generate",
+      "title": "Prompt"
+    },
+    "aspect_ratio": {
+      "enum": ["16:9", "9:16"],
+      "description": "Aspect ratio of the generated video",
+      "type": "string",
+      "title": "Aspect Ratio",
+      "default": "16:9"
+    },
+    "duration": {
+      "enum": ["4s", "6s", "8s"],
+      "description": "The duration of the generated video.",
+      "type": "string",
+      "title": "Duration",
+      "default": "8s"
+    },
+    "generate_audio": {
+      "description": "Whether to generate audio for the video.",
+      "type": "boolean",
+      "title": "Generate Audio",
+      "default": true
+    },
+    "resolution": {
+      "enum": ["720p", "1080p"],
+      "description": "The resolution of the generated video.",
+      "type": "string",
+      "title": "Resolution",
+      "default": "720p"
+    },
+    "auto_fix": {
+      "description": "Whether to automatically attempt to fix prompts that fail content policy or other validation checks by rewriting them.",
+      "type": "boolean",
+      "title": "Auto Fix",
+      "default": true
+    },
+    "seed": {
+      "description": "The seed for the random number generator.",
+      "type": "integer",
+      "title": "Seed"
+    },
+    "negative_prompt": {
+      "description": "A negative prompt to guide the video generation.",
+      "type": "string",
+      "title": "Negative Prompt"
+    }
+  },
+  "title": "Veo31TextToVideoInput",
+  "required": ["prompt"]
+}

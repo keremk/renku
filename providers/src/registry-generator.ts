@@ -20,24 +20,17 @@ const PROVIDER_ADAPTERS: Record<string, ProviderAdapter> = {
 };
 
 /**
- * Output mime types for each model type.
- * Note: wavespeed-ai uses image/jpeg, but this is handled by creating specific handlers.
+ * Default output MIME types for each model type.
+ * These are used as fallbacks when the model definition doesn't specify a MIME type.
  */
 const TYPE_TO_MIME: Record<ModelType, string> = {
   'image': 'image/png',
   'video': 'video/mp4',
   'audio': 'audio/mpeg',
   'llm': 'text/plain',
+  'text': 'text/plain',
   'internal': 'application/json',
-};
-
-/**
- * Special mime types for specific providers.
- */
-const PROVIDER_MIME_OVERRIDES: Record<string, Partial<Record<ModelType, string>>> = {
-  'wavespeed-ai': {
-    'image': 'image/jpeg',
-  },
+  'json': 'application/json',
 };
 
 /**
@@ -66,7 +59,7 @@ export function generateProviderImplementations(
         implementations.push({ ...impl, mode: 'simulated' });
 
         // Internal handlers also need mock mode (used in tests)
-        if (definition.type === 'internal') {
+        if (definition.handler) {
           implementations.push({ ...impl, mode: 'mock' });
         }
       }
@@ -93,15 +86,12 @@ function createImplementation(
     environment: '*',
   };
 
-  // Handle internal handlers (renku-specific)
-  if (definition.type === 'internal') {
-    const handlerName = definition.handler;
-    if (!handlerName) {
-      throw new Error(`Internal model "${model}" must specify a handler`);
-    }
-    const handlerFactory = INTERNAL_HANDLERS[handlerName];
+  // Handle internal handlers (models with a handler field)
+  // This takes precedence over type-based routing
+  if (definition.handler) {
+    const handlerFactory = INTERNAL_HANDLERS[definition.handler];
     if (!handlerFactory) {
-      throw new Error(`Unknown internal handler: ${handlerName}`);
+      throw new Error(`Unknown internal handler: ${definition.handler}`);
     }
     return {
       match,
@@ -109,8 +99,8 @@ function createImplementation(
     };
   }
 
-  // Handle LLM models - skip here, they use wildcard matching via static entries
-  if (definition.type === 'llm') {
+  // Handle LLM/text models - skip here, they use wildcard matching via static entries
+  if (definition.type === 'llm' || definition.type === 'text') {
     return null;
   }
 
@@ -123,9 +113,8 @@ function createImplementation(
     );
   }
 
-  // Determine mime type with provider overrides
-  const providerOverrides = PROVIDER_MIME_OVERRIDES[provider];
-  const mimeType = providerOverrides?.[definition.type] ?? TYPE_TO_MIME[definition.type];
+  // Use MIME from model definition, falling back to type-based defaults
+  const mimeType = definition.mime?.[0] ?? TYPE_TO_MIME[definition.type];
 
   return {
     match,

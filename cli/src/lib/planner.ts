@@ -22,6 +22,7 @@ import {
   loadPricingCatalog,
   estimatePlanCosts,
   loadModelCatalog,
+  loadModelInputSchema,
   type PlanCostSummary,
   type LoadedModelCatalog,
 } from '@renku/providers';
@@ -103,6 +104,12 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
   const catalog = buildProducerCatalog(providerOptions);
   logger.info(`${chalk.bold('Using blueprint:')} ${blueprintPath}`);
 
+  // Load model catalog early - needed for schema loading in buildProviderMetadata
+  const catalogModelsDir = resolveCatalogModelsDir(cliConfig);
+  const modelCatalog = catalogModelsDir
+    ? await loadModelCatalog(catalogModelsDir)
+    : undefined;
+
   // Persist artifact override blobs to storage before converting to drafts
   const persistedOverrides = await persistArtifactOverrideBlobs(
     artifactOverrides,
@@ -125,6 +132,10 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
   }
 
   // Generate plan (writes go to in-memory storage)
+  const providerMetadata = await buildProviderMetadata(providerOptions, {
+    catalogModelsDir,
+    modelCatalog,
+  });
   const planResult = await createPlanningService({
     logger,
     notifications,
@@ -133,7 +144,7 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
     blueprintTree: blueprintRoot,
     inputValues,
     providerCatalog: catalog,
-    providerOptions: buildProviderMetadata(providerOptions),
+    providerOptions: providerMetadata,
     storage: memoryStorageContext,
     manifestService,
     eventLog,
@@ -143,7 +154,6 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
   const absolutePlanPath = resolve(storageRoot, basePath, movieId, 'runs', `${planResult.targetRevision}-plan.json`);
 
   // Load pricing catalog and estimate costs
-  const catalogModelsDir = resolveCatalogModelsDir(cliConfig);
   const pricingCatalog = catalogModelsDir
     ? await loadPricingCatalog(catalogModelsDir)
     : { providers: new Map() };
@@ -152,11 +162,6 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
     pricingCatalog,
     planResult.resolvedInputs
   );
-
-  // Load model catalog for handler generation
-  const modelCatalog = catalogModelsDir
-    ? await loadModelCatalog(catalogModelsDir)
-    : undefined;
 
   return {
     planPath: absolutePlanPath,
@@ -247,17 +252,39 @@ async function copyEventsToMemory(
   }
 }
 
-function buildProviderMetadata(options: ProducerOptionsMap): Map<string, ProviderOptionEntry> {
+interface CatalogSchemaOptions {
+  catalogModelsDir: string | null;
+  modelCatalog?: LoadedModelCatalog;
+}
+
+async function buildProviderMetadata(
+  options: ProducerOptionsMap,
+  catalogOptions: CatalogSchemaOptions
+): Promise<Map<string, ProviderOptionEntry>> {
+  const { catalogModelsDir, modelCatalog } = catalogOptions;
   const map = new Map<string, ProviderOptionEntry>();
+
   for (const [key, entries] of options) {
     const primary = entries[0];
     if (!primary) {
       continue;
     }
+
+    // Try to load input schema from model catalog if not already present
+    let inputSchema = primary.inputSchema;
+    if (!inputSchema && catalogModelsDir && modelCatalog && primary.provider && primary.model) {
+      inputSchema = await loadModelInputSchema(
+        catalogModelsDir,
+        modelCatalog,
+        primary.provider,
+        primary.model
+      ) ?? undefined;
+    }
+
     map.set(key, {
       sdkMapping: primary.sdkMapping,
       outputs: primary.outputs,
-      inputSchema: primary.inputSchema,
+      inputSchema,
       outputSchema: primary.outputSchema,
       config: primary.config,
       selectionInputKeys: primary.selectionInputKeys,

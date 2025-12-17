@@ -51,7 +51,6 @@ artifacts:
 models:
   - model: veo3.1/reference-to-video
     provider: fal-ai
-    inputSchema: ./fal-veo3-reference-to-video.json
     inputs:
       Prompt: prompt
       Resolution: resolution
@@ -59,7 +58,3 @@ models:
       GenerateAudio: generate_audio
       ReferenceImages: image_urls
       AutoFixPrompt: auto_fix
-    outputs:
-      SegmentVideo:
-        type: video
-        mimeType: video/mp4

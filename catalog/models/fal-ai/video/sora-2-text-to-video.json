@@ -1,0 +1,51 @@
+{
+  "x-fal-order-properties": [
+    "prompt",
+    "resolution",
+    "aspect_ratio",
+    "duration",
+    "delete_video"
+  ],
+  "type": "object",
+  "properties": {
+    "prompt": {
+      "examples": [
+        "A dramatic Hollywood breakup scene at dusk on a quiet suburban street. A man and a woman in their 30s face each other, speaking softly but emotionally, lips syncing to breakup dialogue. Cinematic lighting, warm sunset tones, shallow depth of field, gentle breeze moving autumn leaves, realistic natural sound, no background music"
+      ],
+      "maxLength": 5000,
+      "minLength": 1,
+      "title": "Prompt",
+      "description": "The text prompt describing the video you want to generate",
+      "type": "string"
+    },
+    "aspect_ratio": {
+      "enum": ["9:16", "16:9"],
+      "description": "The aspect ratio of the generated video",
+      "type": "string",
+      "title": "Aspect Ratio",
+      "default": "16:9"
+    },
+    "resolution": {
+      "enum": ["720p"],
+      "description": "The resolution of the generated video",
+      "type": "string",
+      "title": "Resolution",
+      "default": "720p"
+    },
+    "duration": {
+      "enum": [4, 8, 12],
+      "description": "Duration of the generated video in seconds",
+      "type": "integer",
+      "title": "Duration",
+      "default": 4
+    },
+    "delete_video": {
+      "description": "Whether to delete the video after generation for privacy reasons. If True, the video cannot be used for remixing and will be permanently deleted.",
+      "type": "boolean",
+      "title": "Delete Video",
+      "default": true
+    }
+  },
+  "title": "TextToVideoInput",
+  "required": ["prompt"]
+}

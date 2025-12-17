@@ -1,0 +1,75 @@
+{
+  "x-fal-order-properties": [
+    "prompt",
+    "aspect_ratio",
+    "duration",
+    "resolution",
+    "generate_audio",
+    "auto_fix",
+    "first_frame_url",
+    "last_frame_url"
+  ],
+  "type": "object",
+  "properties": {
+    "prompt": {
+      "examples": [
+        "A woman looks into the camera, breathes in, then exclaims energetically, \"have you guys checked out Veo3.1 First-Last-Frame-to-Video on Fal? It's incredible!\""
+      ],
+      "maxLength": 20000,
+      "type": "string",
+      "description": "The text prompt describing the video you want to generate",
+      "title": "Prompt"
+    },
+    "aspect_ratio": {
+      "enum": ["auto", "16:9", "9:16"],
+      "description": "The aspect ratio of the generated video.",
+      "type": "string",
+      "title": "Aspect Ratio",
+      "default": "auto"
+    },
+    "duration": {
+      "enum": ["4s", "6s", "8s"],
+      "description": "The duration of the generated video.",
+      "type": "string",
+      "title": "Duration",
+      "default": "8s"
+    },
+    "generate_audio": {
+      "description": "Whether to generate audio for the video.",
+      "type": "boolean",
+      "title": "Generate Audio",
+      "default": true
+    },
+    "resolution": {
+      "enum": ["720p", "1080p"],
+      "description": "The resolution of the generated video.",
+      "type": "string",
+      "title": "Resolution",
+      "default": "720p"
+    },
+    "auto_fix": {
+      "description": "Whether to automatically attempt to fix prompts that fail content policy or other validation checks by rewriting them.",
+      "type": "boolean",
+      "title": "Auto Fix",
+      "default": false
+    },
+    "first_frame_url": {
+      "examples": [
+        "https://storage.googleapis.com/falserverless/example_inputs/veo31-flf2v-input-1.jpeg"
+      ],
+      "description": "URL of the first frame of the video",
+      "type": "string",
+      "title": "First Frame URL"
+    },
+    "last_frame_url": {
+      "examples": [
+        "https://storage.googleapis.com/falserverless/example_inputs/veo31-flf2v-input-2.jpeg"
+      ],
+      "description": "URL of the last frame of the video",
+      "type": "string",
+      "title": "Last Frame URL"
+    }
+  },
+  "title": "Veo31FirstLastFrameToVideoInput",
+  "required": ["prompt", "first_frame_url", "last_frame_url"]
+}

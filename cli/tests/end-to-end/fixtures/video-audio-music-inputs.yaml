@@ -31,7 +31,7 @@ models:
   - model: stability-ai/stable-audio-2.5
     provider: replicate
     producerId: MusicProducer
-  - model: OrderedTimeline
+  - model: timeline/ordered
     provider: renku
     producerId: TimelineComposer
     config:
@@ -40,6 +40,6 @@ models:
       tracks: ["Video", "Audio", "Music"]
       musicClip:
         volume: 0.4
-  - model: Mp4Exporter
+  - model: remotion/docker-render
     provider: renku
     producerId: VideoExporter

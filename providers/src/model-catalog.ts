@@ -1,12 +1,12 @@
-import { readdir, readFile } from 'node:fs/promises';
-import { resolve, basename } from 'node:path';
+import { readdir, readFile, stat } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { ModelPriceConfig } from './producers/cost-functions.js';
 
 /**
  * Model output type - determines which handler factory and output mime type to use.
  */
-export type ModelType = 'image' | 'video' | 'audio' | 'llm' | 'internal';
+export type ModelType = 'image' | 'video' | 'audio' | 'llm' | 'text' | 'internal' | 'json';
 
 /**
  * Model definition from YAML catalog.
@@ -19,6 +19,10 @@ export interface ModelDefinition {
   type: ModelType;
   /** Custom handler identifier for 'internal' type */
   handler?: string;
+  /** Supported MIME types for output */
+  mime?: string[];
+  /** Optional override path for input schema (relative to provider directory) */
+  inputSchema?: string;
   /** Pricing configuration */
   price?: ModelPriceConfig | number;
 }
@@ -48,6 +52,8 @@ export interface ProviderCatalogYaml {
     name: string;
     type?: ModelType;
     handler?: string;
+    mime?: string[];
+    inputSchema?: string;
     price?: ModelPriceConfig | number;
   }>;
 }
@@ -61,8 +67,9 @@ export interface LoadedModelCatalog {
 }
 
 /**
- * Load model catalog from a directory containing provider YAML files.
- * Each YAML file should be named after the provider (e.g., replicate.yaml).
+ * Load model catalog from a directory containing provider subdirectories.
+ * Each provider has a subdirectory with a YAML file named after the provider.
+ * Structure: catalog/models/{provider}/{provider}.yaml
  */
 export async function loadModelCatalog(
   catalogModelsDir: string
@@ -71,19 +78,32 @@ export async function loadModelCatalog(
     providers: new Map(),
   };
 
-  let files: string[];
+  let entries: string[];
   try {
-    files = await readdir(catalogModelsDir);
+    entries = await readdir(catalogModelsDir);
   } catch {
     // Directory doesn't exist - return empty catalog
     return catalog;
   }
 
-  const yamlFiles = files.filter((f) => f.endsWith('.yaml'));
+  // Filter to only directories (provider subdirectories)
+  const providerDirs: string[] = [];
+  for (const entry of entries) {
+    const entryPath = resolve(catalogModelsDir, entry);
+    try {
+      const stats = await stat(entryPath);
+      if (stats.isDirectory()) {
+        providerDirs.push(entry);
+      }
+    } catch {
+      // Skip entries we can't stat
+      continue;
+    }
+  }
 
-  for (const file of yamlFiles) {
-    const providerName = basename(file, '.yaml');
-    const filePath = resolve(catalogModelsDir, file);
+  for (const providerName of providerDirs) {
+    // Look for {provider}/{provider}.yaml
+    const filePath = resolve(catalogModelsDir, providerName, `${providerName}.yaml`);
 
     try {
       const contents = await readFile(filePath, 'utf8');
@@ -104,13 +124,15 @@ export async function loadModelCatalog(
           name: model.name,
           type: model.type,
           handler: model.handler,
+          mime: model.mime,
+          inputSchema: model.inputSchema,
           price: model.price,
         });
       }
       catalog.providers.set(providerName, modelMap);
     } catch (error) {
-      // Skip files that fail to parse
-      console.warn(`Failed to load catalog file ${file}: ${error}`);
+      // Skip providers that fail to load
+      console.warn(`Failed to load catalog for provider ${providerName}: ${error}`);
     }
   }
 
@@ -130,4 +152,62 @@ export function lookupModel(
     return null;
   }
   return providerMap.get(model) ?? null;
+}
+
+/**
+ * Convert a model name to a filename by replacing slashes and dots with dashes.
+ * e.g., 'bytedance/seedance-1-pro-fast' -> 'bytedance-seedance-1-pro-fast'
+ * e.g., 'minimax/speech-2.6-hd' -> 'minimax-speech-2-6-hd'
+ */
+function modelNameToFilename(modelName: string): string {
+  return modelName.replace(/[/.]/g, '-');
+}
+
+/**
+ * Resolve the input schema path for a model.
+ * Returns the path to the schema file, or null if the model is not found or doesn't have a type.
+ */
+export function resolveSchemaPath(
+  catalogModelsDir: string,
+  provider: string,
+  model: string,
+  modelDef: ModelDefinition
+): string {
+  // If model has a custom inputSchema path, use it
+  if (modelDef.inputSchema) {
+    return resolve(catalogModelsDir, provider, modelDef.inputSchema);
+  }
+  // Otherwise, use the convention: {provider}/{type}/{model-name-converted}.json
+  const filename = `${modelNameToFilename(model)}.json`;
+  return resolve(catalogModelsDir, provider, modelDef.type, filename);
+}
+
+/**
+ * Load the input schema for a model from the catalog.
+ * Returns the schema JSON string, or null if not found.
+ */
+export async function loadModelInputSchema(
+  catalogModelsDir: string,
+  catalog: LoadedModelCatalog,
+  provider: string,
+  model: string
+): Promise<string | null> {
+  const modelDef = lookupModel(catalog, provider, model);
+  if (!modelDef) {
+    return null;
+  }
+
+  // Skip LLM and internal types - they don't have input schemas in the catalog
+  if (modelDef.type === 'llm' || modelDef.type === 'internal' || modelDef.type === 'text' || modelDef.type === 'json') {
+    return null;
+  }
+
+  const schemaPath = resolveSchemaPath(catalogModelsDir, provider, model, modelDef);
+
+  try {
+    return await readFile(schemaPath, 'utf8');
+  } catch {
+    // Schema file doesn't exist - this is not an error for some model types
+    return null;
+  }
 }

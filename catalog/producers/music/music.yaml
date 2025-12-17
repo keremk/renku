@@ -24,11 +24,6 @@ artifacts:
 models:    
   - model: stability-ai/stable-audio-2.5
     provider: replicate
-    inputSchema: ./stable-audio.json
     inputs:
       Prompt: prompt
       Duration: duration
-    outputs:
-      Music:
-        type: audio
-        mimeType: audio/mp3

@@ -1,0 +1,73 @@
+{
+  "properties": {
+    "similarity": {
+      "default": 1,
+      "description": "High enhancement boosts overall voice clarity and target speaker similarity. Very high values can cause artifacts, so adjusting this setting to find the optimal value is encouraged.",
+      "maximum": 1,
+      "minimum": 0,
+      "step": 0.01,
+      "type": "number",
+      "x-ui-component": "slider"
+    },
+    "stability": {
+      "default": 0.5,
+      "description": "Voice stability (0-1) Default value: 0.5",
+      "maximum": 1,
+      "minimum": 0,
+      "step": 0.01,
+      "type": "number",
+      "x-ui-component": "slider"
+    },
+    "text": {
+      "default": "Welcome to our advanced text-to-speech system! Experience high-quality voice synthesis with natural pronunciation and clear articulation.",
+      "description": "Text to convert to speech. Every character is 1 token. Maximum 10000 characters. Use \u003C#x#\u003E between words to control pause duration (0.01-99.99s).",
+      "maxLength": 10000,
+      "type": "string",
+      "x-rows": 5,
+      "x-ui-component": "textarea"
+    },
+    "use_speaker_boost": {
+      "default": true,
+      "description": "This parameter supports English text normalization, which improves performance in number-reading scenarios.",
+      "type": "boolean"
+    },
+    "voice_id": {
+      "default": "Alice",
+      "description": "The voice to use for speech generation",
+      "type": "string",
+      "x-enum": [
+        "Aria",
+        "Roger",
+        "Sarah",
+        "Laura",
+        "Charlie",
+        "George",
+        "Callum",
+        "River",
+        "Liam",
+        "Charlotte",
+        "Alice",
+        "Matilda",
+        "Will",
+        "Jessica",
+        "Eric",
+        "Chris",
+        "Brian",
+        "Daniel",
+        "Lily",
+        "Bill"
+      ],
+      "x-placeholder": "Please input your custom voice ID",
+      "x-ui-component": "command"
+    }
+  },
+  "required": ["text", "voice_id"],
+  "type": "object",
+  "x-order-properties": [
+    "text",
+    "voice_id",
+    "similarity",
+    "stability",
+    "use_speaker_boost"
+  ]
+}

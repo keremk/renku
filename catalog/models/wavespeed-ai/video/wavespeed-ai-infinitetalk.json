@@ -1,0 +1,45 @@
+{
+  "properties": {
+    "audio": {
+      "description": "The audio url to use for the speech.",
+      "type": "string",
+      "format": "uri"
+    },
+    "image": {
+      "description": "The image url for the initial starting image.",
+      "type": "string",
+      "format": "uri"
+    },
+    "mask_image": {
+      "description": "Optional mask image to specify the person in the image to animate.",
+      "type": "string",
+      "format": "uri"
+    },
+    "prompt": {
+      "description": "The positive prompt for the generation.",
+      "type": "string"
+    },
+    "resolution": {
+      "default": "480p",
+      "description": "The resolution of the output video.",
+      "enum": ["480p", "720p"],
+      "type": "string",
+      "x-ui-component": "select"
+    },
+    "seed": {
+      "default": -1,
+      "description": "The random seed to use for the generation. -1 means a random seed will be used.",
+      "type": "integer"
+    }
+  },
+  "required": ["audio", "image"],
+  "type": "object",
+  "x-order-properties": [
+    "audio",
+    "image",
+    "mask_image",
+    "prompt",
+    "resolution",
+    "seed"
+  ]
+}

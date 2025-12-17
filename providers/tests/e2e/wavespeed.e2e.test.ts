@@ -52,7 +52,7 @@ describeIf('Wavespeed.ai provider integration', () => {
       produces: ['Artifact:Output[index=0]'],
       context: {
         providerConfig: {},
-        extras: buildWavespeedImageExtras(model, resolvedInputs),
+        extras: await buildWavespeedImageExtras(model, resolvedInputs),
       },
     };
 

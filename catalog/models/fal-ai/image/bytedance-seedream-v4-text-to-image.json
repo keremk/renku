@@ -1,0 +1,99 @@
+{
+  "x-fal-order-properties": [
+    "prompt",
+    "image_size",
+    "num_images",
+    "max_images",
+    "seed",
+    "sync_mode",
+    "enable_safety_checker",
+    "enhance_prompt_mode"
+  ],
+  "type": "object",
+  "properties": {
+    "prompt": {
+      "examples": [
+        "A trendy restaurant with a digital menu board displaying \"Seedream 4.0 is available on fal\" in elegant script, with diners enjoying their meals."
+      ],
+      "title": "Prompt",
+      "type": "string",
+      "description": "The text prompt used to generate the image"
+    },
+    "num_images": {
+      "minimum": 1,
+      "title": "Num Images",
+      "type": "integer",
+      "maximum": 6,
+      "description": "Number of separate model generations to be run with the prompt.",
+      "default": 1
+    },
+    "image_size": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/ImageSize"
+        },
+        {
+          "enum": [
+            "square_hd",
+            "square",
+            "portrait_4_3",
+            "portrait_16_9",
+            "landscape_4_3",
+            "landscape_16_9",
+            "auto",
+            "auto_2K",
+            "auto_4K"
+          ],
+          "type": "string"
+        }
+      ],
+      "title": "Image Size",
+      "examples": [
+        {
+          "height": 4096,
+          "width": 4096
+        }
+      ],
+      "description": "The size of the generated image. Width and height must be between 1024 and 4096.",
+      "default": {
+        "height": 2048,
+        "width": 2048
+      }
+    },
+    "max_images": {
+      "minimum": 1,
+      "title": "Max Images",
+      "type": "integer",
+      "maximum": 6,
+      "description": "If set to a number greater than one, enables multi-image generation. The model will potentially return up to `max_images` images every generation, and in total, `num_images` generations will be carried out. In total, the number of images generated will be between `num_images` and `max_images*num_images`.",
+      "default": 1
+    },
+    "enhance_prompt_mode": {
+      "enum": ["standard", "fast"],
+      "title": "Enhance Prompt Mode",
+      "type": "string",
+      "description": "The mode to use for enhancing prompt enhancement. Standard mode provides higher quality results but takes longer to generate. Fast mode provides average quality results but takes less time to generate.",
+      "default": "standard"
+    },
+    "sync_mode": {
+      "title": "Sync Mode",
+      "type": "boolean",
+      "description": "If `True`, the media will be returned as a data URI and the output data won't be available in the request history.",
+      "default": false
+    },
+    "enable_safety_checker": {
+      "examples": [true],
+      "title": "Enable Safety Checker",
+      "type": "boolean",
+      "description": "If set to true, the safety checker will be enabled.",
+      "default": true
+    },
+    "seed": {
+      "title": "Seed",
+      "type": "integer",
+      "description": "Random seed to control the stochasticity of image generation."
+    }
+  },
+  "title": "SeedDream4T2IInput",
+  "required": ["prompt"]
+}
