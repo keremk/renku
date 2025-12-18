@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import {
   getDefaultCliConfigPath,
   writeCliConfig,
+  writeEnvTemplate,
   type CliConfig,
 } from '../lib/cli-config.js';
 import { expandPath } from '../lib/path.js';
@@ -15,12 +16,16 @@ export interface InitOptions {
   rootFolder: string;
   /** Optional config path override (used in tests) */
   configPath?: string;
+  /** Optional env file path override (used in tests) */
+  envPath?: string;
 }
 
 export interface InitResult {
   rootFolder: string;
   buildsFolder: string;
   cliConfigPath: string;
+  envFilePath: string;
+  envFileCreated: boolean;
 }
 
 export async function runInit(options: InitOptions): Promise<InitResult> {
@@ -48,9 +53,13 @@ export async function runInit(options: InitOptions): Promise<InitResult> {
   };
   await writeCliConfig(cliConfig, cliConfigPath);
 
+  const envResult = await writeEnvTemplate(options.envPath);
+
   return {
     rootFolder,
     buildsFolder,
     cliConfigPath,
+    envFilePath: envResult.path,
+    envFileCreated: envResult.created,
   };
 }

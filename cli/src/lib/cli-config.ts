@@ -1,6 +1,6 @@
 /* eslint-env node */
 import process from 'node:process';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import { dirname, resolve } from 'node:path';
 
@@ -94,4 +94,39 @@ export function normalizeConcurrency(value: number | undefined): number {
     throw new Error('Concurrency must be a positive integer.');
   }
   return value;
+}
+
+export function getDefaultEnvFilePath(): string {
+  return resolve(os.homedir(), '.config', 'renku', 'env.sh');
+}
+
+const ENV_TEMPLATE = `# Renku API Keys Configuration
+# Replace the placeholder values with your actual API keys
+# Then source this file: source ~/.config/renku/env.sh
+
+export REPLICATE_API_TOKEN="your-replicate-api-token-here"
+export FAL_KEY="your-fal-api-key-here"
+export WAVESPEED_API_KEY="your-wavespeed-api-key-here"
+export OPENAI_API_KEY="your-openai-api-key-here"
+`;
+
+export interface WriteEnvTemplateResult {
+  path: string;
+  created: boolean;
+}
+
+export async function writeEnvTemplate(envPath?: string): Promise<WriteEnvTemplateResult> {
+  const targetPath = resolve(envPath ?? getDefaultEnvFilePath());
+
+  // Check if file already exists to avoid overwriting user's real keys
+  try {
+    await access(targetPath);
+    return { path: targetPath, created: false };
+  } catch {
+    // File doesn't exist, create it
+  }
+
+  await mkdir(dirname(targetPath), { recursive: true });
+  await writeFile(targetPath, ENV_TEMPLATE, 'utf8');
+  return { path: targetPath, created: true };
 }

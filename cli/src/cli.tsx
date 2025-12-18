@@ -152,6 +152,12 @@ async function main(): Promise<void> {
       logger.info(`All set, successfully initialized Renku!`)
       logger.info(`Workspace root is at: ${result.rootFolder}`);
       logger.info(`Config stored at: ${result.cliConfigPath}`);
+      if (result.envFileCreated) {
+        logger.info(`API keys template created at: ${result.envFilePath}`);
+        logger.info(`Edit this file with your API keys, then run: source ${result.envFilePath}`);
+      } else {
+        logger.info(`API keys file exists at: ${result.envFilePath}`);
+      }
       return;
     }
     case 'generate': {
