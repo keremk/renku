@@ -138,7 +138,6 @@ export interface ProducerConfig {
   // Legacy single-model fields (kept for backward compatibility)
   provider?: ProviderName;
   model?: string;
-  settings?: Record<string, unknown>;
   systemPrompt?: string;
   userPrompt?: string;
   jsonSchema?: string;
@@ -219,7 +218,6 @@ export interface ProducerModelVariant {
   inputs?: Record<string, BlueprintProducerSdkMappingField>;
   outputs?: Record<string, BlueprintProducerOutputDefinition>;
   config?: Record<string, unknown>;
-  settings?: Record<string, unknown>;
   systemPrompt?: string;
   userPrompt?: string;
   textFormat?: string;

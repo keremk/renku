@@ -235,7 +235,6 @@ function collectProducerScopedInputs(
             provider: producer.provider,
             model: producer.model,
             config: producer.config,
-            settings: producer.settings,
             systemPrompt: producer.systemPrompt,
             userPrompt: producer.userPrompt,
             textFormat: producer.textFormat,

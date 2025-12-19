@@ -106,7 +106,6 @@ export async function parseYamlBlueprintFile(
       models: modelVariants,
       sdkMapping: primary?.inputs,
       outputs: primary?.outputs,
-      settings: primary?.settings,
       systemPrompt: primary?.systemPrompt,
       userPrompt: primary?.userPrompt,
       textFormat: primary?.textFormat,
@@ -387,7 +386,6 @@ async function parseModelVariant(
   if (!model) {
     throw new Error('Model entry must specify a model (directly or in promptFile).');
   }
-  const settings = mergeRecords(promptConfig.settings, entry.settings);
   const textFormat = typeof entry.textFormat === 'string' ? entry.textFormat : promptConfig.textFormat;
   const variables = Array.isArray(entry.variables)
     ? entry.variables.map(String)
@@ -416,7 +414,6 @@ async function parseModelVariant(
     inputs,
     outputs,
     config,
-    settings: settings ?? undefined,
     systemPrompt,
     userPrompt,
     textFormat,
@@ -496,28 +493,15 @@ async function loadPromptConfig(
   if (typeof parsed.textFormat === 'string') {
     prompt.textFormat = parsed.textFormat;
   }
-  if (parsed.settings && typeof parsed.settings === 'object') {
-    prompt.settings = { ...(parsed.settings as Record<string, unknown>) };
-  }
   if (Array.isArray(parsed.variables)) {
     prompt.variables = parsed.variables.map(String);
   }
-  const settings = prompt.settings ?? {};
-  const rootSystemPrompt = typeof parsed.systemPrompt === 'string' ? parsed.systemPrompt : undefined;
-  const settingsSystemPrompt =
-    typeof settings.systemPrompt === 'string' ? (settings.systemPrompt as string) : undefined;
-  if (rootSystemPrompt || settingsSystemPrompt) {
-    prompt.systemPrompt = rootSystemPrompt ?? settingsSystemPrompt;
-    delete settings.systemPrompt;
+  if (typeof parsed.systemPrompt === 'string') {
+    prompt.systemPrompt = parsed.systemPrompt;
   }
-  const rootUserPrompt = typeof parsed.userPrompt === 'string' ? parsed.userPrompt : undefined;
-  const settingsUserPrompt =
-    typeof settings.userPrompt === 'string' ? (settings.userPrompt as string) : undefined;
-  if (rootUserPrompt || settingsUserPrompt) {
-    prompt.userPrompt = rootUserPrompt ?? settingsUserPrompt;
-    delete settings.userPrompt;
+  if (typeof parsed.userPrompt === 'string') {
+    prompt.userPrompt = parsed.userPrompt;
   }
-  prompt.settings = Object.keys(settings).length ? settings : undefined;
   if (parsed.config && typeof parsed.config === 'object') {
     prompt.config = parsed.config as Record<string, unknown>;
   }
@@ -548,20 +532,6 @@ async function loadJsonSchema(
   const absolute = resolve(baseDir, raw);
   const contents = await reader.readFile(absolute);
   return JSON.stringify(JSON.parse(contents), null, 2);
-}
-
-function mergeRecords(
-  base: Record<string, unknown> | undefined,
-  override: unknown,
-): Record<string, unknown> | undefined {
-  if (!base && (!override || typeof override !== 'object')) {
-    return base;
-  }
-  const result: Record<string, unknown> = { ...(base ?? {}) };
-  if (override && typeof override === 'object') {
-    Object.assign(result, override as Record<string, unknown>);
-  }
-  return Object.keys(result).length ? result : undefined;
 }
 
 function validateDimensions(reference: string, allowed: Set<string>, label: 'from' | 'to'): void {
@@ -662,7 +632,6 @@ interface PromptConfig {
   textFormat?: string;
   jsonSchema?: string;
   variables?: string[];
-  settings?: Record<string, unknown>;
   systemPrompt?: string;
   userPrompt?: string;
   config?: Record<string, unknown>;
