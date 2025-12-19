@@ -1,0 +1,278 @@
+---
+const currentYear = new Date().getFullYear();
+
+const footerLinks = {
+  product: [
+    { label: 'Documentation', href: '/docs/' },
+    { label: 'Blog', href: '/blog/' },
+  ],
+  community: [
+    { label: 'GitHub', href: '#github' },
+    { label: 'Discord', href: '#discord' },
+  ],
+};
+---
+
+<footer class="site-footer">
+  <div class="footer-container">
+    <div class="footer-grid">
+      <!-- Logo & Description -->
+      <div class="footer-brand">
+        <a href="/" class="footer-logo">
+          <img src="/logo.svg" alt="Renku Logo" class="footer-logo-img" />
+          <span class="footer-logo-text">Renku</span>
+        </a>
+        <p class="footer-description">
+          AI-powered movie generation. Create stunning videos with the power of artificial intelligence.
+        </p>
+        <!-- Social icons in footer brand section -->
+        <div class="footer-social">
+          <a
+            href="#github"
+            class="footer-social-link"
+            aria-label="GitHub"
+          >
+            <svg class="social-icon" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+            </svg>
+          </a>
+          <a
+            href="#discord"
+            class="footer-social-link"
+            aria-label="Discord"
+          >
+            <svg class="social-icon" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+
+      <!-- Product Links -->
+      <div class="footer-links-section">
+        <h3 class="footer-heading">Product</h3>
+        <ul class="footer-links">
+          {footerLinks.product.map((link) => (
+            <li>
+              <a href={link.href} class="footer-link">
+                {link.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <!-- Community Links -->
+      <div class="footer-links-section">
+        <h3 class="footer-heading">Community</h3>
+        <ul class="footer-links">
+          {footerLinks.community.map((link) => (
+            <li>
+              <a href={link.href} class="footer-link">
+                {link.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+
+    <!-- Copyright & Bottom bar -->
+    <div class="footer-bottom">
+      <p class="footer-copyright">
+        &copy; {currentYear} Renku. All rights reserved.
+      </p>
+      <div class="footer-built-with">
+        <span>Built with</span>
+        <svg class="heart-icon" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"/>
+        </svg>
+        <span>and AI</span>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    border-top: 1px solid var(--color-border);
+    background: rgba(255, 252, 245, 0.5);
+  }
+
+  :global(.dark) .site-footer {
+    background: rgba(30, 25, 22, 0.5);
+  }
+
+  .footer-container {
+    max-width: 80rem;
+    margin: 0 auto;
+    padding: 4rem 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .footer-container {
+      padding: 4rem 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .footer-container {
+      padding: 4rem 2rem;
+    }
+  }
+
+  .footer-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+  }
+
+  @media (min-width: 768px) {
+    .footer-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  .footer-brand {
+    grid-column: span 2;
+  }
+
+  .footer-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    text-decoration: none;
+  }
+
+  .footer-logo:hover .footer-logo-img {
+    transform: scale(1.05);
+  }
+
+  .footer-logo-img {
+    height: 2.5rem;
+    width: 2.5rem;
+    transition: transform 0.2s ease;
+  }
+
+  .footer-logo-text {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-foreground);
+  }
+
+  .footer-description {
+    max-width: 20rem;
+    line-height: 1.6;
+    color: var(--color-muted-foreground);
+    margin-bottom: 1.5rem;
+  }
+
+  .footer-social {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .footer-social-link {
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    color: var(--color-muted-foreground);
+    text-decoration: none;
+    transition: color 0.2s ease, background-color 0.2s ease;
+  }
+
+  :global(.dark) .footer-social-link {
+    color: var(--color-gray-400);
+  }
+
+  .footer-social-link:hover {
+    color: var(--color-accent-500);
+    background: var(--color-accent-50);
+  }
+
+  :global(.dark) .footer-social-link:hover {
+    color: var(--color-accent-400);
+    background: rgba(180, 130, 50, 0.1);
+  }
+
+  .social-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .footer-links-section {
+    /* default styles */
+  }
+
+  .footer-heading {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-foreground);
+    margin-bottom: 1rem;
+  }
+
+  .footer-links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .footer-link {
+    font-size: 0.875rem;
+    color: var(--color-muted-foreground);
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+
+  :global(.dark) .footer-link {
+    color: var(--color-gray-400);
+  }
+
+  .footer-link:hover {
+    color: var(--color-accent-500);
+  }
+
+  :global(.dark) .footer-link:hover {
+    color: var(--color-accent-400);
+  }
+
+  .footer-bottom {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .footer-bottom {
+      flex-direction: row;
+    }
+  }
+
+  .footer-copyright {
+    font-size: 0.875rem;
+    color: var(--color-muted-foreground);
+  }
+
+  .footer-built-with {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--color-muted-foreground);
+  }
+
+  .heart-icon {
+    width: 1rem;
+    height: 1rem;
+    color: var(--color-accent-500);
+  }
+</style>

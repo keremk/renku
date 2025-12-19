@@ -1,0 +1,80 @@
+---
+import { getCollection, render } from 'astro:content';
+import LandingLayout from '../../layouts/LandingLayout.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog');
+  return posts.map((post) => ({
+    params: { slug: post.slug },
+    props: post,
+  }));
+}
+
+const post = Astro.props;
+const { Content } = await render(post);
+
+const formatDate = (date: Date) => {
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+};
+---
+
+<LandingLayout title={post.data.title} description={post.data.description}>
+  <article class="landing-section">
+    <div class="max-w-3xl mx-auto">
+      <!-- Back link -->
+      <a
+        href="/blog/"
+        class="inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-accent-500 mb-8"
+      >
+        <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+        Back to Blog
+      </a>
+
+      <!-- Header -->
+      <header class="mb-8">
+        <div class="flex flex-wrap items-center gap-2 mb-4">
+          <time
+            datetime={post.data.pubDate.toISOString()}
+            class="text-sm text-gray-500 dark:text-gray-400"
+          >
+            {formatDate(post.data.pubDate)}
+          </time>
+          {post.data.author && (
+            <>
+              <span class="text-gray-400">·</span>
+              <span class="text-sm text-gray-500 dark:text-gray-400">
+                {post.data.author}
+              </span>
+            </>
+          )}
+        </div>
+        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+          {post.data.title}
+        </h1>
+        <p class="text-lg text-gray-600 dark:text-gray-300">
+          {post.data.description}
+        </p>
+        {post.data.tags && (
+          <div class="flex flex-wrap gap-2 mt-4">
+            {post.data.tags.map((tag) => (
+              <span class="text-xs px-2 py-1 rounded-full bg-accent-100 dark:bg-accent-900/30 text-accent-700 dark:text-accent-300">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </header>
+
+      <!-- Content -->
+      <div class="prose prose-gray dark:prose-invert max-w-none">
+        <Content />
+      </div>
+    </div>
+  </article>
+</LandingLayout>

@@ -4,3 +4,4 @@ packages:
   - 'compositions'
   - 'providers'
   - 'viewer'
+  - 'web'

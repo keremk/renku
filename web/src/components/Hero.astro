@@ -1,0 +1,356 @@
+---
+interface Props {
+  title?: string;
+  tagline?: string;
+}
+
+const {
+  title = 'AI-Powered Movie Generation',
+  tagline = 'Create stunning videos with the power of artificial intelligence. From script to screen in minutes.',
+} = Astro.props;
+---
+
+<!-- BOLD & DRAMATIC HERO -->
+<section class="hero-section">
+  <!-- Animated gradient background -->
+  <div class="hero-bg"></div>
+
+  <!-- Geometric accent shapes -->
+  <div class="hero-shape hero-shape-1"></div>
+  <div class="hero-shape hero-shape-2"></div>
+  <div class="hero-shape hero-shape-3"></div>
+
+  <!-- Decorative grid lines -->
+  <div class="hero-grid"></div>
+
+  <div class="relative z-10 max-w-5xl mx-auto">
+    <!-- Badge -->
+    <div class="hero-badge animate-fade-in-up">
+      <span class="hero-badge-dot"></span>
+      <span class="hero-badge-text">Now in Beta</span>
+    </div>
+
+    <!-- Title with gradient text -->
+    <h1 class="hero-title animate-fade-in-up delay-100">
+      <span class="hero-title-gradient">{title.split(' ').slice(0, 2).join(' ')}</span>
+      <br />
+      <span class="hero-title-solid">{title.split(' ').slice(2).join(' ')}</span>
+    </h1>
+
+    <!-- Tagline -->
+    <p class="hero-tagline animate-fade-in-up delay-200">
+      {tagline}
+    </p>
+
+    <!-- CTA Buttons -->
+    <div class="hero-cta animate-fade-in-up delay-300">
+      <a href="/docs/" class="hero-btn-primary">
+        Get Started
+        <svg class="ml-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+        </svg>
+      </a>
+      <a href="#github" class="hero-btn-secondary">
+        <svg class="mr-2 h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+        </svg>
+        View on GitHub
+      </a>
+    </div>
+  </div>
+
+  <!-- Scroll indicator -->
+  <div class="hero-scroll-indicator">
+    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+    </svg>
+  </div>
+</section>
+
+<style>
+  .hero-section {
+    position: relative;
+    min-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 1rem;
+    overflow: hidden;
+  }
+
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg,
+      var(--color-accent-200) 0%,
+      var(--color-accent-100) 50%,
+      var(--color-accent-300) 100%
+    );
+    background-size: 200% 200%;
+    animation: gradient-shift 8s ease infinite;
+  }
+
+  :global(.dark) .hero-bg {
+    background: linear-gradient(135deg,
+      hsl(25 20% 10%) 0%,
+      hsl(20 15% 14%) 50%,
+      hsl(30 25% 12%) 100%
+    );
+  }
+
+  .hero-shape {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(60px);
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .hero-shape-1 {
+    top: 5rem;
+    left: 2.5rem;
+    width: 8rem;
+    height: 8rem;
+    background: var(--color-accent-400);
+    opacity: 0.3;
+  }
+
+  .hero-shape-2 {
+    bottom: 8rem;
+    right: 2.5rem;
+    width: 12rem;
+    height: 12rem;
+    background: var(--color-accent-500);
+    opacity: 0.2;
+    animation-delay: 1s;
+  }
+
+  .hero-shape-3 {
+    top: 33%;
+    right: 25%;
+    width: 6rem;
+    height: 6rem;
+    background: var(--color-accent-300);
+    opacity: 0.4;
+    animation-delay: 2s;
+  }
+
+  :global(.dark) .hero-shape-1 {
+    background: var(--color-accent-500);
+    opacity: 0.15;
+  }
+
+  :global(.dark) .hero-shape-2 {
+    background: var(--color-accent-400);
+    opacity: 0.1;
+  }
+
+  :global(.dark) .hero-shape-3 {
+    background: var(--color-accent-600);
+    opacity: 0.15;
+  }
+
+  .hero-grid {
+    position: absolute;
+    inset: 0;
+    opacity: 0.06;
+    background-image:
+      linear-gradient(to right, currentColor 1px, transparent 1px),
+      linear-gradient(to bottom, currentColor 1px, transparent 1px);
+    background-size: 80px 80px;
+  }
+
+  :global(.dark) .hero-grid {
+    opacity: 0.03;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    background: rgba(var(--color-accent-500), 0.2);
+    border: 1px solid var(--color-accent-500);
+    border-color: rgba(180, 130, 50, 0.3);
+    margin-bottom: 2rem;
+  }
+
+  :global(.dark) .hero-badge {
+    background: rgba(200, 150, 80, 0.15);
+    border-color: rgba(200, 150, 80, 0.3);
+  }
+
+  .hero-badge-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--color-accent-500);
+    animation: pulse 2s infinite;
+  }
+
+  :global(.dark) .hero-badge-dot {
+    background: var(--color-accent-400);
+  }
+
+  .hero-badge-text {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-accent-700);
+  }
+
+  :global(.dark) .hero-badge-text {
+    color: var(--color-accent-300);
+  }
+
+  .hero-title {
+    font-size: clamp(2.5rem, 8vw, 6rem);
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 2rem;
+    letter-spacing: -0.02em;
+  }
+
+  .hero-title-gradient {
+    background: linear-gradient(135deg,
+      var(--color-accent-700) 0%,
+      var(--color-accent-600) 50%,
+      var(--color-accent-500) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  :global(.dark) .hero-title-gradient {
+    background: linear-gradient(135deg,
+      var(--color-accent-300) 0%,
+      var(--color-accent-400) 50%,
+      var(--color-accent-500) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+
+  .hero-title-solid {
+    color: var(--color-foreground);
+  }
+
+  .hero-tagline {
+    font-size: clamp(1rem, 2.5vw, 1.5rem);
+    color: var(--color-gray-600);
+    max-width: 48rem;
+    margin: 0 auto 3rem;
+    line-height: 1.6;
+  }
+
+  :global(.dark) .hero-tagline {
+    color: var(--color-gray-300);
+  }
+
+  .hero-cta {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    justify-content: center;
+  }
+
+  @media (min-width: 640px) {
+    .hero-cta {
+      flex-direction: row;
+    }
+  }
+
+  .hero-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem 2rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+    border-radius: 0.75rem;
+    background: var(--color-accent-500);
+    color: white;
+    text-decoration: none;
+    box-shadow: 0 10px 25px -5px rgba(180, 130, 50, 0.3);
+    transition: all 0.3s ease;
+  }
+
+  .hero-btn-primary:hover {
+    background: var(--color-accent-600);
+    transform: translateY(-2px);
+    box-shadow: 0 15px 30px -5px rgba(180, 130, 50, 0.4);
+  }
+
+  :global(.dark) .hero-btn-primary {
+    box-shadow: 0 10px 25px -5px rgba(180, 130, 50, 0.2);
+  }
+
+  :global(.dark) .hero-btn-primary:hover {
+    background: var(--color-accent-400);
+  }
+
+  .hero-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem 2rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+    border-radius: 0.75rem;
+    border: 2px solid var(--color-accent-500);
+    color: var(--color-accent-700);
+    text-decoration: none;
+    background: transparent;
+    transition: all 0.3s ease;
+  }
+
+  .hero-btn-secondary:hover {
+    background: rgba(180, 130, 50, 0.1);
+    transform: translateY(-2px);
+  }
+
+  :global(.dark) .hero-btn-secondary {
+    border-color: var(--color-accent-400);
+    color: var(--color-accent-300);
+  }
+
+  :global(.dark) .hero-btn-secondary:hover {
+    background: rgba(200, 150, 80, 0.1);
+  }
+
+  .hero-scroll-indicator {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--color-accent-600);
+    animation: bounce 1.5s infinite;
+  }
+
+  :global(.dark) .hero-scroll-indicator {
+    color: var(--color-accent-400);
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(-10px); }
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  @keyframes gradient-shift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+</style>

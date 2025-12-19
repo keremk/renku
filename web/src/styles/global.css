@@ -1,0 +1,229 @@
+@layer base, starlight, theme, components, utilities;
+
+@import '@astrojs/starlight-tailwind';
+@import 'tailwindcss/theme' layer(theme);
+@import 'tailwindcss/utilities' layer(utilities);
+
+/* Configure Tailwind v4 dark mode to use .dark class selector */
+@variant dark (&:where(.dark, .dark *));
+
+/* Custom theme configuration - Warm Honey/Amber palette */
+@theme {
+  /* Accent colors - warm honey/amber */
+  --color-accent-50: hsl(50 100% 94%);
+  --color-accent-100: hsl(48 100% 88%);
+  --color-accent-200: hsl(46 95% 78%);
+  --color-accent-300: hsl(44 90% 68%);
+  --color-accent-400: hsl(43 80% 58%);
+  --color-accent-500: hsl(42 58% 50%);
+  --color-accent-600: hsl(38 65% 44%);
+  --color-accent-700: hsl(34 70% 38%);
+  --color-accent-800: hsl(30 75% 30%);
+  --color-accent-900: hsl(26 80% 22%);
+  --color-accent-950: hsl(22 85% 14%);
+
+  /* Gray scale - warm neutrals */
+  --color-gray-50: hsl(60 51% 96%);
+  --color-gray-100: hsl(60 40% 94%);
+  --color-gray-200: hsl(55 35% 88%);
+  --color-gray-300: hsl(50 25% 78%);
+  --color-gray-400: hsl(45 15% 55%);
+  --color-gray-500: hsl(40 12% 42%);
+  --color-gray-600: hsl(35 15% 32%);
+  --color-gray-700: hsl(30 18% 25%);
+  --color-gray-800: hsl(25 20% 20%);
+  --color-gray-900: hsl(20 22% 16%);
+  --color-gray-950: hsl(15 25% 10%);
+
+  /* Semantic colors - Light mode */
+  --color-background: hsl(60 51% 91%);
+  --color-foreground: hsl(45 62% 21%);
+  --color-card: hsl(50 100% 93%);
+  --color-card-foreground: hsl(0 0% 20%);
+  --color-muted: hsl(60 35% 87%);
+  --color-muted-foreground: hsl(0 0% 45%);
+  --color-border: hsl(40 36% 72%);
+  --color-input: hsl(0 0% 82%);
+  --color-ring: hsl(42 60% 48% / 0.4);
+  --color-surface-elevated: hsl(44 60% 90%);
+
+  /* Typography */
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
+  --font-serif: Georgia, Cambria, 'Times New Roman', Times, serif;
+}
+
+/* Dark mode overrides - using multiple selectors for compatibility */
+:root.dark,
+.dark,
+[data-theme="dark"] {
+  --color-background: hsl(20 15% 12%);
+  --color-foreground: hsl(45 30% 90%);
+  --color-card: hsl(20 12% 18%);
+  --color-card-foreground: hsl(45 30% 90%);
+  --color-muted: hsl(20 10% 25%);
+  --color-muted-foreground: hsl(40 10% 60%);
+  --color-border: hsl(25 15% 28%);
+  --color-input: hsl(20 10% 25%);
+  --color-ring: hsl(42 65% 45% / 0.5);
+  --color-surface-elevated: hsl(20 12% 15%);
+
+  --color-gray-50: hsl(20 10% 95%);
+  --color-gray-100: hsl(20 10% 85%);
+  --color-gray-200: hsl(20 10% 70%);
+  --color-gray-300: hsl(20 10% 55%);
+  --color-gray-400: hsl(20 8% 45%);
+  --color-gray-500: hsl(20 8% 38%);
+  --color-gray-600: hsl(20 10% 30%);
+  --color-gray-700: hsl(20 12% 22%);
+  --color-gray-800: hsl(20 15% 16%);
+  --color-gray-900: hsl(20 18% 12%);
+  --color-gray-950: hsl(20 20% 8%);
+}
+
+/* Base styles - reset link underlines */
+@layer base {
+  a {
+    text-decoration: none;
+  }
+
+  /* Ensure body uses theme colors */
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+  }
+}
+
+/* Animation keyframes */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px hsl(42 58% 50% / 0.3); }
+  50% { box-shadow: 0 0 40px hsl(42 58% 50% / 0.5); }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Custom styles for landing page */
+@layer components {
+  .landing-hero {
+    @apply min-h-[85vh] flex flex-col items-center justify-center text-center px-4;
+  }
+
+  .landing-section {
+    @apply py-20 px-4 max-w-6xl mx-auto;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-lg bg-accent-500 text-white font-semibold transition-all duration-200 hover:bg-accent-600 hover:shadow-lg hover:-translate-y-0.5 no-underline;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-lg border-2 border-accent-500 text-accent-700 bg-transparent font-semibold transition-all duration-200 hover:bg-accent-50 no-underline;
+  }
+
+  /* Animation utility classes */
+  .animate-fade-in-up {
+    animation: fade-in-up 0.6s ease-out forwards;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-out forwards;
+  }
+
+  .animate-slide-in-left {
+    animation: slide-in-left 0.5s ease-out forwards;
+  }
+
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  .animate-gradient {
+    background-size: 200% 200%;
+    animation: gradient-shift 8s ease infinite;
+  }
+
+  /* Staggered animation delays */
+  .delay-100 { animation-delay: 100ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .delay-500 { animation-delay: 500ms; }
+
+  /* Card styles */
+  .card {
+    @apply bg-card rounded-xl border border-border p-6 transition-all duration-200;
+  }
+
+  .card-hover {
+    @apply hover:shadow-lg hover:border-accent-300 hover:-translate-y-1;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-accent-600 via-accent-500 to-accent-400 bg-clip-text text-transparent;
+  }
+
+  /* Glass effect */
+  .glass {
+    @apply bg-white/80 backdrop-blur-md;
+  }
+
+  .dark .glass {
+    @apply bg-gray-900/80;
+  }
+
+  /* Navigation links - no underline */
+  nav a {
+    text-decoration: none !important;
+  }
+
+  header a {
+    text-decoration: none !important;
+  }
+
+  footer a {
+    text-decoration: none !important;
+  }
+}
