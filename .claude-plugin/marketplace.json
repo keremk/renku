@@ -1,0 +1,19 @@
+{
+  "name": "renku-marketplace",
+  "metadata": {
+    "description": "A collection of Claude Code plugins for the Renku users.",
+    "version": "0.0.1",
+    "pluginRoot": "./plugins"
+  },
+  "owner": {
+    "name": "Kerem Karatal",
+    "url": "https://gorenku.com"
+  },
+  "plugins": [
+    {
+      "name": "renku-plugin",
+      "source": "./renku-plugin",
+      "description": "A plugin that provides a set of skills for generating video compositions and all the related media files."
+    }
+  ]
+}
