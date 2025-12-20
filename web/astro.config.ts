@@ -23,14 +23,24 @@ export default defineConfig({
         },
       ],
       sidebar: [
+        { label: 'Welcome', slug: 'docs' },
+        { label: 'Introduction', slug: 'docs/introduction' },
+        { label: 'Quick Start', slug: 'docs/quick-start' },
+        { label: 'Usage Guide', slug: 'docs/usage-guide' },
+        { label: 'CLI Reference', slug: 'docs/cli-reference' },
         {
-          label: 'Getting Started',
-          items: [{ label: 'Welcome', slug: '' }],
+          label: 'Blueprint Authoring',
+          slug: 'docs/blueprint-authoring',
+          badge: { text: 'Advanced', variant: 'tip' },
         },
       ],
-      customCss: ['./src/styles/global.css'],
+      customCss: [
+        './src/styles/global.css',
+        './src/styles/starlight-theme.css',
+      ],
       components: {
         Header: './src/components/Header.astro',
+        PageTitle: './src/components/starlight/PageTitle.astro',
       },
     }),
   ],

@@ -1,0 +1,780 @@
+---
+title: Blueprint Authoring Guide
+description: Advanced guide for creating custom Renku blueprints and producers
+---
+
+This comprehensive guide explains how to author Renku blueprints: the YAML schema, how producers compose into workflows, and the rules the planner and runner enforce.
+
+## Overview
+
+Blueprints are YAML files that define complete video generation workflows. This guide is for advanced users who want to:
+
+- Create custom blueprints for specific use cases
+- Build reusable producers for new AI models
+- Understand the internal workings of the planner and runner
+
+If you're new to Renku, start with the [Quick Start](/docs/quick-start) guide first.
+
+## Core Concepts
+
+### Blueprint vs Producer
+
+**Blueprints** are workflow definitions that:
+- Define user-facing inputs and final artifacts
+- Import and connect multiple producers
+- Define loops for parallel execution
+- Specify collectors for fan-in aggregation
+
+**Producers** are execution units that:
+- Accept inputs and produce artifacts
+- Map inputs to specific AI model parameters
+- Support multiple model variants
+- Can be reused across multiple blueprints
+
+### Data Flow
+
+Data flows through the system via connections:
+
+```
+Blueprint Input → Producer Input → Producer → Artifact → Next Producer Input
+                                                   │
+                                                   └→ Blueprint Artifact
+```
+
+For looped producers:
+```
+ScriptProducer.NarrationScript[0] → AudioProducer[0].TextInput
+ScriptProducer.NarrationScript[1] → AudioProducer[1].TextInput
+ScriptProducer.NarrationScript[2] → AudioProducer[2].TextInput
+```
+
+---
+
+## Blueprint YAML Reference
+
+### Complete Schema
+
+```yaml
+meta:
+  name: <string>           # Human-readable name (required)
+  description: <string>    # Purpose and behavior
+  id: <string>             # Unique identifier in PascalCase (required)
+  version: <semver>        # Semantic version (e.g., 0.1.0)
+  author: <string>         # Creator name
+  license: <string>        # License type (e.g., MIT)
+
+inputs:
+  - name: <string>         # Input identifier in PascalCase (required)
+    description: <string>  # Purpose and usage
+    type: <string>         # Data type (required)
+    required: <boolean>    # Whether mandatory (default: true)
+    default: <any>         # Default value (required if not required)
+
+artifacts:
+  - name: <string>         # Artifact identifier in PascalCase (required)
+    description: <string>  # Purpose and content
+    type: <string>         # Output type (required)
+    itemType: <string>     # Element type for arrays
+    countInput: <string>   # Input that determines array size
+
+loops:
+  - name: <string>         # Loop identifier in lowercase (required)
+    description: <string>  # Purpose and behavior
+    countInput: <string>   # Input that determines iteration count (required)
+    countInputOffset: <int> # Offset added to count
+    parent: <string>       # Parent loop for nesting
+
+producers:
+  - name: <string>         # Producer instance name in PascalCase (required)
+    path: <string>         # Relative path to producer YAML (required)
+    loop: <string>         # Loop dimension(s) (e.g., "segment")
+
+connections:
+  - from: <string>         # Source reference (required)
+    to: <string>           # Target reference (required)
+
+collectors:
+  - name: <string>         # Collector identifier (required)
+    from: <string>         # Source artifact reference (required)
+    into: <string>         # Target input reference (required)
+    groupBy: <string>      # Loop dimension for grouping (required)
+    orderBy: <string>      # Loop dimension for ordering
+```
+
+### Input Types
+
+| Type | Description |
+|------|-------------|
+| `string` | Text value |
+| `int` | Integer number |
+| `image` | Image file reference |
+| `audio` | Audio file reference |
+| `video` | Video file reference |
+| `json` | Structured JSON data |
+| `collection` | Array of items (used with `fanIn: true`) |
+
+### Artifact Types
+
+| Type | Description |
+|------|-------------|
+| `string` | Text output |
+| `json` | Structured JSON |
+| `image` | Image file |
+| `audio` | Audio file |
+| `video` | Video file |
+| `array` | Array of items (requires `itemType`) |
+| `multiDimArray` | Multi-dimensional array |
+
+### Example Blueprint
+
+```yaml
+meta:
+  name: Video Only Narration
+  description: Generate video segments from a textual inquiry.
+  id: Video
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: InquiryPrompt
+    description: The prompt describing the movie script.
+    type: string
+    required: true
+  - name: Duration
+    description: Desired duration in seconds.
+    type: int
+    required: true
+  - name: NumOfSegments
+    description: Number of narration segments.
+    type: int
+    required: true
+  - name: Style
+    description: Visual style for the video.
+    type: string
+    required: true
+
+artifacts:
+  - name: SegmentVideo
+    description: Generated video for each segment.
+    type: array
+    itemType: video
+    countInput: NumOfSegments
+
+loops:
+  - name: segment
+    description: Iterates over narration segments.
+    countInput: NumOfSegments
+
+producers:
+  - name: ScriptProducer
+    path: ../../producers/script/script.yaml
+  - name: VideoPromptProducer
+    path: ../../producers/video-prompt/video-prompt.yaml
+  - name: VideoProducer
+    path: ../../producers/video/video.yaml
+    loop: segment
+
+connections:
+  # Wire inputs to ScriptProducer
+  - from: InquiryPrompt
+    to: ScriptProducer.InquiryPrompt
+  - from: Duration
+    to: ScriptProducer.Duration
+  - from: NumOfSegments
+    to: ScriptProducer.NumOfSegments
+
+  # Wire script to VideoPromptProducer (looped)
+  - from: ScriptProducer.NarrationScript[segment]
+    to: VideoPromptProducer[segment].NarrativeText
+  - from: Style
+    to: VideoPromptProducer[segment].Style
+
+  # Wire prompts to VideoProducer (looped)
+  - from: VideoPromptProducer.VideoPrompt[segment]
+    to: VideoProducer[segment].Prompt
+
+  # Wire output to blueprint artifact
+  - from: VideoProducer[segment].SegmentVideo
+    to: SegmentVideo[segment]
+```
+
+---
+
+## Producer YAML Reference
+
+### Complete Schema
+
+```yaml
+meta:
+  name: <string>           # Human-readable name (required)
+  description: <string>    # Purpose and behavior
+  id: <string>             # Unique identifier in PascalCase (required)
+  version: <semver>        # Semantic version
+  author: <string>         # Creator name
+  license: <string>        # License type
+
+inputs:
+  - name: <string>         # Input identifier (required)
+    description: <string>  # Purpose and usage
+    type: <string>         # Data type (required)
+    required: <boolean>    # Whether mandatory
+    default: <any>         # Default value
+    fanIn: <boolean>       # Is this a fan-in collection input
+    dimensions: <string>   # Dimension labels (e.g., "segment")
+
+artifacts:
+  - name: <string>         # Artifact identifier (required)
+    description: <string>  # Purpose and content
+    type: <string>         # Output type (required)
+    itemType: <string>     # Element type for arrays
+    countInput: <string>   # Input for array size
+
+models:
+  - provider: <string>     # Provider: openai, replicate, fal-ai, renku
+    model: <string>        # Model identifier (required)
+    inputs:                # Input field mappings
+      <ProducerInput>: <providerField>
+    promptFile: <string>   # Path to prompt config (OpenAI)
+    outputSchema: <string> # Path to JSON schema (OpenAI)
+    config: <object>       # Provider-specific config
+```
+
+### Example: Script Producer (OpenAI)
+
+```yaml
+meta:
+  name: Script Generation
+  description: Generate documentary scripts.
+  id: ScriptProducer
+  version: 0.1.0
+
+inputs:
+  - name: InquiryPrompt
+    type: string
+    required: true
+  - name: Duration
+    type: int
+    required: true
+  - name: NumOfSegments
+    type: int
+    required: true
+  - name: Audience
+    type: string
+    required: false
+    default: Adult
+
+artifacts:
+  - name: MovieTitle
+    type: string
+  - name: MovieSummary
+    type: string
+  - name: NarrationScript
+    type: array
+    itemType: string
+    countInput: NumOfSegments
+
+models:
+  - provider: openai
+    model: gpt-4o
+    promptFile: ./script.toml
+    outputSchema: ./script-output.json
+    config:
+      text_format: json_schema
+```
+
+### Example: Video Producer (Replicate)
+
+```yaml
+meta:
+  name: Video Generation
+  id: VideoProducer
+  version: 0.1.0
+
+inputs:
+  - name: Prompt
+    type: string
+    required: true
+  - name: AspectRatio
+    type: string
+    required: true
+  - name: Resolution
+    type: string
+    default: 480p
+
+artifacts:
+  - name: SegmentVideo
+    type: video
+
+models:
+  - model: bytedance/seedance-1-pro-fast
+    provider: replicate
+    inputs:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+  - model: google/veo-3.1-fast
+    provider: replicate
+    inputs:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+```
+
+### Example: Timeline Composer (Fan-In)
+
+```yaml
+meta:
+  name: Timeline Composer
+  id: TimelineComposer
+  version: 0.1.0
+
+inputs:
+  - name: VideoSegments
+    type: collection
+    itemType: video
+    dimensions: segment
+    fanIn: true
+  - name: AudioSegments
+    type: collection
+    itemType: audio
+    dimensions: segment
+    fanIn: true
+  - name: Duration
+    type: int
+    required: true
+
+artifacts:
+  - name: Timeline
+    type: json
+
+models:
+  - model: timeline/ordered
+    provider: renku
+```
+
+---
+
+## Connections
+
+Connections define data flow between nodes.
+
+### Direct Connections
+
+```yaml
+connections:
+  - from: InquiryPrompt
+    to: ScriptProducer.InquiryPrompt
+```
+
+### Array Indexing
+
+```yaml
+connections:
+  - from: ScriptProducer.NarrationScript[segment]
+    to: AudioProducer[segment].TextInput
+```
+
+Expands to:
+- `NarrationScript[0]` → `AudioProducer[0].TextInput`
+- `NarrationScript[1]` → `AudioProducer[1].TextInput`
+- etc.
+
+### Multi-Dimensional Indexing
+
+```yaml
+connections:
+  - from: ImageGenerator[segment][image].SegmentImage
+    to: SegmentImage[segment][image]
+```
+
+### Offset Selectors
+
+```yaml
+connections:
+  - from: ImageProducer[image].SegmentImage
+    to: ImageToVideoProducer[segment].InputImage1
+  - from: ImageProducer[image+1].SegmentImage
+    to: ImageToVideoProducer[segment].InputImage2
+```
+
+Creates sliding window patterns. For N segments, you need N+1 images.
+
+### Broadcast Connections
+
+A scalar input broadcasts to all loop instances:
+
+```yaml
+connections:
+  - from: Style
+    to: VideoPromptProducer[segment].Style
+```
+
+---
+
+## Loops and Dimensions
+
+### Basic Loop
+
+```yaml
+loops:
+  - name: segment
+    countInput: NumOfSegments
+```
+
+If `NumOfSegments = 3`, looped producers run 3 times.
+
+### Loop with Offset
+
+```yaml
+loops:
+  - name: image
+    countInput: NumOfSegments
+    countInputOffset: 1
+```
+
+Count is `NumOfSegments + 1`. Use for sliding window patterns.
+
+### Nested Loops
+
+```yaml
+loops:
+  - name: segment
+    countInput: NumOfSegments
+  - name: image
+    parent: segment
+    countInput: NumOfImagesPerSegment
+```
+
+Creates two-dimensional iteration. If `NumOfSegments = 3` and `NumOfImagesPerSegment = 2`, you get 6 instances.
+
+### Assigning Producers to Loops
+
+```yaml
+producers:
+  - name: ScriptProducer
+    path: ./script.yaml
+    # No loop - runs once
+
+  - name: AudioProducer
+    path: ./audio.yaml
+    loop: segment
+    # Runs per segment
+
+  - name: ImageProducer
+    path: ./image.yaml
+    loop: segment.image
+    # Runs per segment × image
+```
+
+---
+
+## Collectors and Fan-In
+
+Collectors aggregate multiple artifacts for downstream processing.
+
+### Basic Collector
+
+```yaml
+collectors:
+  - name: TimelineVideo
+    from: VideoProducer[segment].SegmentVideo
+    into: TimelineComposer.VideoSegments
+    groupBy: segment
+```
+
+### Collector with Ordering
+
+```yaml
+collectors:
+  - name: TimelineImages
+    from: ImageProducer[segment][image].SegmentImage
+    into: TimelineComposer.ImageSegments
+    groupBy: segment
+    orderBy: image
+```
+
+### Fan-In Inputs
+
+The target input must have `fanIn: true`:
+
+```yaml
+inputs:
+  - name: VideoSegments
+    type: collection
+    itemType: video
+    dimensions: segment
+    fanIn: true
+```
+
+---
+
+## Canonical IDs
+
+Canonical IDs are fully qualified node identifiers.
+
+### Format
+
+```
+Type:path.to.name[index0][index1]...
+```
+
+### Examples
+
+| ID | Description |
+|----|-------------|
+| `Input:InquiryPrompt` | Blueprint input |
+| `Input:ScriptProducer.Duration` | Producer input |
+| `Artifact:VideoProducer.SegmentVideo[0]` | First video |
+| `Artifact:ImageProducer.SegmentImage[2][1]` | Image at [2][1] |
+| `Producer:AudioProducer[0]` | First AudioProducer instance |
+
+---
+
+## Planner and Runner
+
+### Planner Process
+
+1. **Load blueprint tree** - Blueprint + all producer imports
+2. **Build graph** - Nodes for inputs, artifacts, producers
+3. **Resolve dimensions** - Calculate loop sizes
+4. **Expand instances** - Create concrete instances per dimension
+5. **Align edges** - Match dimension indices
+6. **Build execution layers** - Topological sort into parallel groups
+
+### Runner Process
+
+1. **Execute layer by layer** - Jobs in same layer can run in parallel
+2. **Resolve artifacts** - Load upstream data for each job
+3. **Materialize fan-in** - Group and order collection items
+4. **Invoke providers** - Call AI APIs
+5. **Store artifacts** - Persist to blob storage
+
+### Dirty Tracking
+
+For incremental runs:
+1. Compare input hashes against manifest
+2. Find changed or missing artifacts
+3. Mark affected jobs as dirty
+4. Propagate through dependency graph
+5. Only execute dirty jobs
+
+---
+
+## Input Files Reference
+
+### Structure
+
+```yaml
+inputs:
+  InquiryPrompt: "Your topic here"
+  Duration: 60
+  NumOfSegments: 3
+
+models:
+  - model: minimax/speech-2.6-hd
+    provider: replicate
+    producerId: AudioProducer
+  - model: bytedance/seedance-1-pro-fast
+    provider: replicate
+    producerId: VideoProducer
+```
+
+### Model Selection
+
+Override default models per producer:
+
+```yaml
+models:
+  - model: google/veo-3.1-fast
+    provider: replicate
+    producerId: VideoProducer
+  - model: timeline/ordered
+    provider: renku
+    producerId: TimelineComposer
+    config:
+      masterTrack: Audio
+      musicClip:
+        volume: 0.4
+```
+
+---
+
+## Validation Rules
+
+### Blueprint Validation
+
+| Rule | Error |
+|------|-------|
+| Meta section required | `Blueprint must have a meta section` |
+| Meta.id required | `Blueprint meta must have an id` |
+| At least one artifact | `Blueprint must declare at least one artifact` |
+| Cannot mix models and producers | `Cannot define both models and producer imports` |
+
+### Input Validation
+
+| Rule | Error |
+|------|-------|
+| Optional inputs need defaults | `Optional input must declare a default value` |
+| Input name required | `Input must have a name` |
+| Input type required | `Input must have a type` |
+
+### Connection Validation
+
+| Rule | Error |
+|------|-------|
+| Valid dimension syntax | `Invalid dimension selector` |
+| Known dimension | `Unknown loop symbol` |
+| Dimension count match | `Inconsistent dimension counts` |
+
+---
+
+## Common Patterns
+
+### Audio-Only Narration
+
+```yaml
+loops:
+  - name: segment
+    countInput: NumOfSegments
+
+producers:
+  - name: ScriptProducer
+    path: ./script.yaml
+  - name: AudioProducer
+    path: ./audio.yaml
+    loop: segment
+
+connections:
+  - from: ScriptProducer.NarrationScript[segment]
+    to: AudioProducer[segment].TextInput
+  - from: AudioProducer[segment].SegmentAudio
+    to: SegmentAudio[segment]
+```
+
+### Image-to-Video (Sliding Window)
+
+```yaml
+loops:
+  - name: segment
+    countInput: NumOfSegments
+  - name: image
+    countInput: NumOfSegments
+    countInputOffset: 1  # N+1 images
+
+producers:
+  - name: ImageProducer
+    path: ./image.yaml
+    loop: image
+  - name: ImageToVideoProducer
+    path: ./image-to-video.yaml
+    loop: segment
+
+connections:
+  - from: ImageProducer[image].SegmentImage
+    to: ImageToVideoProducer[segment].InputImage1
+  - from: ImageProducer[image+1].SegmentImage
+    to: ImageToVideoProducer[segment].InputImage2
+```
+
+### Full Timeline
+
+```yaml
+producers:
+  - name: VideoProducer
+    path: ./video.yaml
+    loop: segment
+  - name: AudioProducer
+    path: ./audio.yaml
+    loop: segment
+  - name: TimelineComposer
+    path: ./timeline-composer.yaml
+
+collectors:
+  - name: TimelineVideo
+    from: VideoProducer[segment].SegmentVideo
+    into: TimelineComposer.VideoSegments
+    groupBy: segment
+  - name: TimelineAudio
+    from: AudioProducer[segment].SegmentAudio
+    into: TimelineComposer.AudioSegments
+    groupBy: segment
+```
+
+---
+
+## Debugging
+
+### Validate Blueprint
+
+```bash
+renku blueprints:validate ./my-blueprint.yaml
+```
+
+### Dry Run
+
+```bash
+renku generate --inputs=./inputs.yaml --blueprint=./blueprint.yaml --dry-run
+```
+
+### Inspect Execution Plan
+
+```bash
+cat {builds}/{movie}/runs/rev-0001-plan.json
+```
+
+### Common Issues
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| Fan-in empty | Missing collector | Add collector from source to target |
+| Dimension error | Mismatched dimensions | Verify source/target dimensions match |
+| Optional input error | Missing default | Add `default:` to optional inputs |
+| Missing artifacts | Wrong build path | Check `dist/` per package |
+
+---
+
+## Directory Structure
+
+### Catalog Organization
+
+```
+catalog/
+├── blueprints/
+│   ├── audio-only/
+│   │   ├── audio-only.yaml
+│   │   └── input-template.yaml
+│   └── video-only/
+│       ├── video-only.yaml
+│       └── input-template.yaml
+├── producers/
+│   ├── script/
+│   │   ├── script.yaml
+│   │   └── script.toml
+│   ├── audio/
+│   │   └── audio.yaml
+│   └── video/
+│       └── video.yaml
+└── models/
+    └── *.yaml
+```
+
+### Naming Conventions
+
+| Item | Convention | Example |
+|------|------------|---------|
+| Blueprint files | kebab-case | `image-to-video.yaml` |
+| Producer files | kebab-case | `script.yaml` |
+| IDs | PascalCase | `id: ImageToVideo` |
+| Loop names | lowercase | `name: segment` |
+| Input/Artifact names | PascalCase | `name: InquiryPrompt` |
+
+### Relative Paths
+
+Producer paths are relative to the blueprint file:
+
+```yaml
+# In blueprints/video-only/video-only.yaml
+producers:
+  - name: ScriptProducer
+    path: ../../producers/script/script.yaml
+```

@@ -1,0 +1,404 @@
+---
+title: Usage Guide
+description: Master the common workflows for generating and editing AI video content
+---
+
+This guide covers the day-to-day workflows for using Renku: specifying inputs, discovering blueprints and models, testing with dry runs, generating content, and iterating on your creations.
+
+## Specifying Inputs
+
+Every blueprint requires an inputs file that provides the configuration for your video generation.
+
+### Input File Format
+
+Inputs are specified in YAML with two main sections:
+
+```yaml
+inputs:
+  InquiryPrompt: "Your topic or prompt here"
+  Duration: 60
+  NumOfSegments: 3
+  # ... other blueprint-specific inputs
+
+models:
+  # Optional: override default model selections
+  - model: minimax/speech-2.6-hd
+    provider: replicate
+    producerId: AudioProducer
+```
+
+### Input Types
+
+| Type | YAML Syntax | Example |
+|------|-------------|---------|
+| `string` | Quoted or unquoted text | `"Hello world"` or `Hello world` |
+| `int` | Number without quotes | `42` |
+| `array` | YAML list | `["item1", "item2"]` |
+
+### Using Input Templates
+
+Every blueprint includes an `input-template.yaml` with all available inputs and their defaults:
+
+```bash
+# Copy the template
+cp {blueprint-dir}/input-template.yaml ./my-inputs.yaml
+
+# Edit with your values
+nano ./my-inputs.yaml
+```
+
+### Model Selection
+
+Override the default AI model for any producer:
+
+```yaml
+models:
+  # Use a specific video model
+  - model: google/veo-3.1-fast
+    provider: replicate
+    producerId: VideoProducer
+
+  # Use a specific voice model
+  - model: elevenlabs/v3
+    provider: replicate
+    producerId: AudioProducer
+```
+
+## Discovering Content
+
+### Browsing Blueprints
+
+List all available blueprints:
+
+```bash
+renku blueprints:list
+```
+
+Output:
+```
+Available Blueprints:
+
+1. audio-only.yaml
+   - Audio-Only Narration
+   - Generates script and audio narration
+
+2. video-only.yaml
+   - Video-Only Generation
+   - Generates script and video clips
+
+3. image-to-video.yaml
+   - Image-to-Video Transitions
+   - Creates videos from image sequences
+```
+
+Get detailed information about a blueprint:
+
+```bash
+renku blueprints:describe {workspace}/catalog/blueprints/video-only/video-only.yaml
+```
+
+This shows:
+- Required and optional inputs
+- Artifacts produced
+- Producers used
+- Loops defined
+
+### Browsing Models
+
+See available models for a blueprint's producers:
+
+```bash
+renku producers:list --blueprint=video-only.yaml
+```
+
+Output:
+```
+Producer model configurations:
+
+VideoProducer (4 video models)
+  Provider    Model                          Price
+  replicate   bytedance/seedance-1-pro-fast  480p: $0.015/s
+  replicate   google/veo-3.1-fast            $0.10/s
+  fal-ai      veo3-1                         -
+
+AudioProducer (2 audio models)
+  Provider    Model                 Price
+  replicate   minimax/speech-2.6-hd $0.0001/token
+  replicate   elevenlabs/v3         $0.0001/token
+
+⚠️  Missing API tokens:
+  - fal-ai: FAL_KEY not set
+```
+
+## Testing with Dry Run
+
+Before spending API credits, validate your configuration with a dry run:
+
+```bash
+renku generate \
+  --inputs=./my-inputs.yaml \
+  --blueprint=./my-blueprint.yaml \
+  --dry-run
+```
+
+### What Dry Run Does
+
+- Validates blueprint YAML structure
+- Checks all required inputs are provided
+- Verifies producer paths exist
+- Creates the execution plan
+- Generates placeholder artifacts
+
+### What Dry Run Doesn't Do
+
+- Call any AI provider APIs
+- Consume API credits
+- Generate real content
+
+### Inspecting the Plan
+
+After a dry run, examine the execution plan:
+
+```bash
+cat {workspace}/builds/movie-{id}/runs/rev-0001-plan.json
+```
+
+The plan shows:
+- Execution layers (parallel groups)
+- Jobs in each layer
+- Input/output connections
+- Canonical IDs for all nodes
+
+## Running Generation
+
+### Full Generation
+
+Run the complete workflow:
+
+```bash
+renku generate \
+  --inputs=./my-inputs.yaml \
+  --blueprint=./my-blueprint.yaml
+```
+
+Renku will:
+1. Create a new movie directory
+2. Execute producers layer by layer
+3. Store artifacts in the blob store
+4. Create friendly symlinks in `movies/`
+5. Log all events for future reference
+
+### Continue an Existing Movie
+
+Resume or regenerate an existing movie:
+
+```bash
+# By movie ID
+renku generate --movie-id=movie-a1b2c3d4
+
+# The most recent movie
+renku generate --last
+```
+
+### Non-Interactive Mode
+
+Skip confirmation prompts for automation:
+
+```bash
+renku generate \
+  --inputs=./my-inputs.yaml \
+  --blueprint=./my-blueprint.yaml \
+  --non-interactive
+```
+
+### Finding Your Outputs
+
+Generated content is in two locations:
+
+**Build directory** (`builds/movie-{id}/`):
+- `blobs/` - Raw generated files
+- `manifests/` - Artifact metadata
+- `events/` - Execution logs
+
+**Friendly view** (`movies/movie-{id}/`):
+- Human-readable filenames
+- Symlinks to blob storage
+- Easy to browse and share
+
+## Editing Workflow
+
+Renku's incremental build system makes iteration efficient.
+
+### Changing Inputs
+
+1. Edit your inputs file
+2. Re-run generation on the same movie:
+
+```bash
+renku generate --movie-id=movie-a1b2c3d4 --inputs=./my-inputs.yaml
+```
+
+Renku detects which inputs changed and only regenerates affected artifacts.
+
+### Editing Generated Prompts
+
+You can manually edit generated text artifacts:
+
+1. Find the artifact in `movies/movie-{id}/`
+2. Edit the file directly (it's a symlink to the blob)
+3. Re-run generation:
+
+```bash
+renku generate --movie-id=movie-a1b2c3d4
+```
+
+Renku will:
+- Detect your manual edits
+- Keep your changes
+- Only regenerate downstream artifacts that depend on the edited file
+
+### Replacing Artifacts
+
+If an AI-generated image or video isn't satisfactory:
+
+1. Replace the file in `movies/movie-{id}/`
+2. Re-run generation
+
+Your replacement will be used for downstream processing (like timeline composition).
+
+## Layer-by-Layer Generation
+
+For cost control and quality review, generate content in stages.
+
+### What Are Layers?
+
+Renku groups independent jobs into execution layers:
+
+- **Layer 0**: Script generation (depends only on inputs)
+- **Layer 1**: Prompt generation, audio synthesis (depends on script)
+- **Layer 2**: Video/image generation (depends on prompts)
+- **Layer 3**: Timeline composition (depends on all media)
+
+### Generate Up to a Specific Layer
+
+```bash
+renku generate \
+  --inputs=./my-inputs.yaml \
+  --blueprint=./my-blueprint.yaml \
+  --up-to-layer=1
+```
+
+This stops after layer 1, so you can:
+- Review the generated script
+- Check audio quality
+- Make edits before generating expensive video content
+
+### Continue to Next Layers
+
+After reviewing, continue generation:
+
+```bash
+renku generate --movie-id=movie-a1b2c3d4 --up-to-layer=2
+```
+
+### Cost-Saving Strategies
+
+1. **Review scripts first** - Script generation is cheap; video generation is expensive
+2. **Use layer limits** - Generate expensive content only when you're happy with cheaper precursors
+3. **Iterate on prompts** - Edit video prompts before generating videos
+4. **Leverage caching** - Re-running generation only rebuilds changed artifacts
+
+## Viewing Content
+
+### Open in Viewer
+
+Start the viewer and open a movie:
+
+```bash
+# Specific movie
+renku viewer:view --movie-id=movie-a1b2c3d4
+
+# Most recent movie
+renku viewer:view --last
+```
+
+### Background Viewer Server
+
+Start the viewer server in the background:
+
+```bash
+renku viewer:start
+```
+
+Stop it when done:
+
+```bash
+renku viewer:stop
+```
+
+## Exporting Video
+
+Export the final video as MP4:
+
+```bash
+renku export --movie-id=movie-a1b2c3d4
+```
+
+With custom settings:
+
+```bash
+renku export --last \
+  --width=1920 \
+  --height=1080 \
+  --fps=30
+```
+
+The exported video is saved to:
+- `builds/movie-{id}/FinalVideo.mp4`
+- `movies/movie-{id}/FinalVideo.mp4` (symlink)
+
+## Cleaning Up
+
+Remove a movie and its artifacts:
+
+```bash
+renku clean --movie-id=movie-a1b2c3d4
+```
+
+This removes:
+- The build directory
+- The friendly view directory
+- All associated artifacts
+
+## Tips and Best Practices
+
+### Start Small
+
+For new blueprints, start with:
+- Fewer segments (2-3 instead of 10)
+- Dry run first
+- Layer-by-layer generation
+
+### Review at Each Stage
+
+Don't generate everything at once:
+1. Generate script → Review
+2. Generate prompts → Review and edit
+3. Generate media → Review
+4. Compose timeline → Export
+
+### Use Version Control
+
+Keep your inputs files in version control:
+- Track changes to prompts and settings
+- Reproduce past generations
+- Share configurations with team members
+
+### Monitor Costs
+
+Check provider dashboards regularly:
+- Video generation is most expensive
+- Audio generation is moderate
+- Script generation is cheap
+
+Use `renku producers:list` to see pricing information.

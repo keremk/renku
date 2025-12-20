@@ -1,0 +1,228 @@
+---
+title: Quick Start
+description: Install Renku and generate your first AI video in minutes
+---
+
+This guide will help you install Renku, set up your workspace, configure API keys, and generate your first AI-powered video.
+
+## Prerequisites
+
+Before installing Renku, ensure you have:
+
+- **Node.js 18+** - Download from [nodejs.org](https://nodejs.org)
+- **pnpm** - Install with `npm install -g pnpm`
+
+## Installation
+
+Install the Renku CLI globally:
+
+```bash
+npm install -g @renku/cli
+```
+
+Verify the installation:
+
+```bash
+renku --version
+```
+
+## Create a Workspace
+
+Initialize a new Renku workspace:
+
+```bash
+renku init --root-folder=/path/to/your/workspace
+```
+
+For example:
+
+```bash
+renku init --root-folder=~/renku-projects
+```
+
+This creates:
+- `~/.config/renku/cli-config.json` - Configuration file
+- `{workspace}/builds/` - Directory for generated movie outputs
+- `{workspace}/catalog/blueprints/` - Bundled blueprint templates
+
+## Configure API Keys
+
+Renku uses multiple AI providers. You'll need API keys for the providers used by your chosen blueprint.
+
+### Required Providers
+
+Most blueprints require:
+
+| Provider | Purpose | Get API Key |
+|----------|---------|-------------|
+| **OpenAI** | Script generation, prompt creation | [platform.openai.com](https://platform.openai.com) |
+| **Replicate** | Video, audio, image generation | [replicate.com](https://replicate.com) |
+
+Optional providers:
+- **fal.ai** - Alternative video/image models
+- **ElevenLabs** - High-quality voice synthesis
+
+### Set Environment Variables
+
+Create a `.env` file in your workspace or export variables directly:
+
+```bash
+# Required
+export OPENAI_API_KEY=sk-...
+export REPLICATE_API_TOKEN=r8_...
+
+# Optional
+export FAL_KEY=...
+export ELEVENLABS_API_KEY=...
+```
+
+## Run Your First Blueprint
+
+### 1. Choose a Blueprint
+
+List available blueprints:
+
+```bash
+renku blueprints:list
+```
+
+For this tutorial, we'll use the `audio-only` blueprint which generates narrated audio segments.
+
+### 2. Create an Inputs File
+
+Each blueprint has an input template. Copy it to create your inputs file:
+
+```bash
+cp {workspace}/catalog/blueprints/audio-only/input-template.yaml ./my-inputs.yaml
+```
+
+Edit `my-inputs.yaml` with your content:
+
+```yaml
+inputs:
+  InquiryPrompt: "Explain the water cycle for middle school students"
+  Duration: 60
+  NumOfSegments: 3
+  VoiceId: "Wise_Woman"
+  Emotion: "neutral"
+```
+
+### 3. Validate with Dry Run
+
+Before using real API credits, validate your setup with a dry run:
+
+```bash
+renku generate \
+  --inputs=./my-inputs.yaml \
+  --blueprint={workspace}/catalog/blueprints/audio-only/audio-only.yaml \
+  --dry-run
+```
+
+The dry run:
+- Validates your blueprint and inputs
+- Shows the execution plan
+- Creates mock artifacts (no API calls)
+
+### 4. Run Full Generation
+
+When you're ready, run the full generation:
+
+```bash
+renku generate \
+  --inputs=./my-inputs.yaml \
+  --blueprint={workspace}/catalog/blueprints/audio-only/audio-only.yaml
+```
+
+Watch as Renku:
+1. Generates a narration script using OpenAI
+2. Creates audio for each segment using your chosen voice
+3. Saves all artifacts to the build directory
+
+### 5. View the Results
+
+Open the generated content in the viewer:
+
+```bash
+renku viewer:view --last
+```
+
+This starts a local viewer server and opens your browser to preview the generated content.
+
+## Understanding the Output
+
+After generation, your workspace contains:
+
+```
+{workspace}/
+├── builds/
+│   └── movie-{id}/
+│       ├── blobs/           # Generated files (audio, images, etc.)
+│       ├── manifests/       # Artifact metadata
+│       ├── events/          # Execution logs
+│       └── runs/            # Execution plans
+└── movies/
+    └── movie-{id}/          # Friendly view with symlinks
+        ├── Script.txt       # Generated narration script
+        ├── Segment_0.mp3    # Audio for segment 0
+        ├── Segment_1.mp3    # Audio for segment 1
+        └── Segment_2.mp3    # Audio for segment 2
+```
+
+The `movies/` directory contains human-readable symlinks to your generated content.
+
+## Next Steps
+
+You've successfully generated your first AI video content with Renku!
+
+### Explore More Blueprints
+
+Try other bundled blueprints:
+
+```bash
+renku blueprints:list
+renku blueprints:describe {workspace}/catalog/blueprints/video-only/video-only.yaml
+```
+
+### Learn the Workflow
+
+Read the [Usage Guide](/docs/usage-guide) to learn:
+- How to edit and iterate on generated content
+- Using layer-by-layer generation for cost control
+- Browsing available models and producers
+
+### Deep Dive
+
+For advanced users:
+- [CLI Reference](/docs/cli-reference) - Complete command documentation
+- [Blueprint Authoring](/docs/blueprint-authoring) - Create custom workflows
+
+## Troubleshooting
+
+### Missing API Credentials
+
+```
+Error: OPENAI_API_KEY not found
+```
+
+**Solution:** Export your API key or add it to a `.env` file in your workspace.
+
+### Blueprint Not Found
+
+```
+Error: Blueprint file not found
+```
+
+**Solution:** Use the full path to the blueprint file. After `renku init`, blueprints are in `{workspace}/catalog/blueprints/`.
+
+### Provider Rate Limits
+
+If you hit rate limits, wait a few minutes and try again. Consider using `--up-to-layer` to generate in stages.
+
+### Dry Run Works, Real Run Fails
+
+Check that:
+1. All required API keys are set
+2. Your API accounts have sufficient credits
+3. The model names in the inputs file are valid
+
+Run `renku producers:list --blueprint=<path>` to see available models and check for missing tokens.

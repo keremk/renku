@@ -1,0 +1,178 @@
+---
+/**
+ * CopyPageButton - A floating button to copy page content as markdown for AI tools
+ * Positioned in top-right corner of the page content area
+ */
+interface Props {
+  slug: string;
+}
+
+const { slug } = Astro.props;
+---
+
+<div class="copy-page-wrapper">
+  <button
+    class="copy-page-btn"
+    data-slug={slug}
+    aria-label="Copy page content as markdown"
+    title="Copy page as markdown for AI"
+  >
+    <svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+    </svg>
+    <span class="btn-label">Copy for AI</span>
+    <span class="btn-feedback" aria-live="polite"></span>
+  </button>
+</div>
+
+<style>
+  .copy-page-wrapper {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 10;
+  }
+
+  .copy-page-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-accent-700);
+    background: var(--color-accent-50);
+    border: 1px solid var(--color-accent-200);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: var(--font-sans);
+  }
+
+  :global(.dark) .copy-page-btn {
+    color: var(--color-accent-300);
+    background: var(--color-accent-950);
+    border-color: var(--color-accent-800);
+  }
+
+  .copy-page-btn:hover {
+    background: var(--color-accent-100);
+    border-color: var(--color-accent-300);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(180, 130, 50, 0.15);
+  }
+
+  :global(.dark) .copy-page-btn:hover {
+    background: var(--color-accent-900);
+    border-color: var(--color-accent-700);
+  }
+
+  .copy-page-btn:active {
+    transform: translateY(0);
+  }
+
+  .copy-icon {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+  }
+
+  .btn-label {
+    white-space: nowrap;
+  }
+
+  .btn-feedback {
+    font-size: 0.75rem;
+    color: var(--color-accent-600);
+    margin-left: 0.25rem;
+  }
+
+  :global(.dark) .btn-feedback {
+    color: var(--color-accent-400);
+  }
+
+  /* Success state */
+  .copy-page-btn.copied {
+    background: var(--color-accent-200);
+    border-color: var(--color-accent-400);
+  }
+
+  :global(.dark) .copy-page-btn.copied {
+    background: var(--color-accent-800);
+    border-color: var(--color-accent-600);
+  }
+
+  /* Hide label on small screens */
+  @media (max-width: 640px) {
+    .btn-label {
+      display: none;
+    }
+
+    .copy-page-btn {
+      padding: 0.5rem;
+    }
+  }
+</style>
+
+<script>
+  function initCopyButtons() {
+    document.querySelectorAll('.copy-page-btn').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const btn = button as HTMLButtonElement;
+        const slug = btn.dataset.slug;
+        const feedback = btn.querySelector('.btn-feedback') as HTMLSpanElement;
+        const label = btn.querySelector('.btn-label') as HTMLSpanElement;
+
+        try {
+          // Try to fetch raw markdown from API
+          const response = await fetch(`/api/docs/${slug}.md`);
+
+          let markdown: string;
+          if (response.ok) {
+            markdown = await response.text();
+          } else {
+            // Fallback: extract text from rendered content
+            const content = document.querySelector('.sl-markdown-content');
+            if (content) {
+              // Get the page title
+              const title = document.querySelector('h1')?.textContent || '';
+              markdown = `# ${title}\n\n${content.textContent || ''}`;
+            } else {
+              throw new Error('No content found');
+            }
+          }
+
+          await navigator.clipboard.writeText(markdown);
+
+          // Show success feedback
+          btn.classList.add('copied');
+          if (label) label.style.display = 'none';
+          if (feedback) feedback.textContent = 'Copied!';
+
+          // Reset after delay
+          setTimeout(() => {
+            btn.classList.remove('copied');
+            if (label) label.style.display = '';
+            if (feedback) feedback.textContent = '';
+          }, 2000);
+
+        } catch (error) {
+          console.error('Failed to copy:', error);
+          if (feedback) {
+            feedback.textContent = 'Failed';
+            setTimeout(() => {
+              feedback.textContent = '';
+            }, 2000);
+          }
+        }
+      });
+    });
+  }
+
+  // Initialize on page load
+  initCopyButtons();
+
+  // Re-initialize on Astro page transitions (View Transitions)
+  document.addEventListener('astro:page-load', initCopyButtons);
+</script>

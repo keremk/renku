@@ -1,0 +1,56 @@
+---
+/**
+ * PageTitle Override for Starlight
+ * Adds the CopyPageButton component next to the page title
+ */
+import type { Props } from '@astrojs/starlight/props';
+import Default from '@astrojs/starlight/components/PageTitle.astro';
+import CopyPageButton from '../CopyPageButton.astro';
+
+// Get the current page slug from the URL
+const pathname = Astro.url.pathname;
+// Remove leading/trailing slashes to get the slug
+const slug = pathname.replace(/^\//, '').replace(/\/$/, '') || 'index';
+---
+
+<div class="page-title-wrapper">
+  <Default {...Astro.props} />
+  <CopyPageButton slug={slug} />
+</div>
+
+<style>
+  .page-title-wrapper {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .page-title-wrapper :global(h1) {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Position the copy button */
+  .page-title-wrapper :global(.copy-page-wrapper) {
+    position: relative;
+    top: auto;
+    right: auto;
+    flex-shrink: 0;
+    margin-top: 0.25rem;
+  }
+
+  /* On smaller screens, stack vertically */
+  @media (max-width: 480px) {
+    .page-title-wrapper {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .page-title-wrapper :global(.copy-page-wrapper) {
+      margin-top: 0.5rem;
+    }
+  }
+</style>

@@ -1,0 +1,528 @@
+---
+title: CLI Reference
+description: Complete reference for all Renku CLI commands, options, and configuration
+---
+
+Complete reference documentation for the Renku command-line interface.
+
+## Global Options
+
+These options apply to all commands:
+
+| Option | Description |
+|--------|-------------|
+| `--help`, `-h` | Show help for any command |
+| `--version`, `-v` | Show CLI version |
+
+## Commands
+
+### renku init
+
+Initialize a new Renku workspace and storage configuration.
+
+**Usage:**
+```bash
+renku init --root-folder=/path/to/storage
+renku init --root=/path/to/storage  # Short form
+```
+
+**Options:**
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--root-folder`, `--root` | Yes | Storage root directory for builds and blueprints |
+
+**Creates:**
+- `~/.config/renku/cli-config.json` - Storage configuration (fixed location)
+- `{rootFolder}/builds/` - Directory for movie outputs
+- `{rootFolder}/catalog/blueprints/` - Bundled blueprint templates
+
+**Example:**
+```bash
+renku init --root-folder=/Users/alice/renku-projects
+```
+
+---
+
+### renku generate
+
+Create a new movie or continue an existing one.
+
+**Usage (new movie):**
+```bash
+renku generate [<inquiry-prompt>] \
+  --inputs=<path> \
+  --blueprint=<path> \
+  [--dry-run] \
+  [--non-interactive] \
+  [--up-to-layer=<n>]
+```
+
+**Usage (continue existing):**
+```bash
+renku generate --movie-id=<id> [--inputs=<path>] [options]
+renku generate --last [options]
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--inputs`, `--in` | Path to inputs YAML file (required for new movies) |
+| `--blueprint`, `--bp` | Path to blueprint YAML file (required for new movies) |
+| `--movie-id`, `--id` | Continue a specific movie by ID |
+| `--last` | Continue the most recent movie |
+| `--dry-run` | Execute without calling providers (mock run) |
+| `--non-interactive` | Skip confirmation prompts |
+| `--up-to-layer`, `--up` | Stop after specified layer (live runs only) |
+
+**Behavior:**
+
+For new movies:
+1. Validates inputs and blueprint
+2. Generates a new movie ID
+3. Creates `builds/movie-{id}/` directory
+4. Executes the workflow
+
+For continuing movies:
+1. Loads existing manifest
+2. Detects changed inputs (dirty tracking)
+3. Regenerates only affected artifacts
+4. Updates the friendly view
+
+**Examples:**
+```bash
+# New movie with inputs file
+renku generate --inputs=./my-inputs.yaml --blueprint=./audio-only.yaml
+
+# New movie with inline prompt
+renku generate "Explain black holes" --inputs=./inputs.yaml --blueprint=./audio.yaml
+
+# Continue specific movie
+renku generate --movie-id=movie-a1b2c3d4 --inputs=./updated-inputs.yaml
+
+# Continue most recent movie
+renku generate --last
+
+# Dry run to validate
+renku generate --inputs=./inputs.yaml --blueprint=./blueprint.yaml --dry-run
+
+# Generate up to layer 1 only
+renku generate --inputs=./inputs.yaml --blueprint=./blueprint.yaml --up-to-layer=1
+```
+
+---
+
+### renku clean
+
+Remove the friendly view and build artifacts for a movie.
+
+**Usage:**
+```bash
+renku clean --movie-id=<id>
+```
+
+**Options:**
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--movie-id`, `--id` | Yes | Movie ID to clean |
+
+**Example:**
+```bash
+renku clean --movie-id=movie-a1b2c3d4
+```
+
+---
+
+### renku export
+
+Export a generated movie to MP4 video format.
+
+**Usage:**
+```bash
+renku export --movie-id=<id> [options]
+renku export --last [options]
+```
+
+**Options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--movie-id`, `--id` | - | Movie ID to export |
+| `--last` | - | Export the most recent movie |
+| `--width` | 1920 | Video width in pixels |
+| `--height` | 1080 | Video height in pixels |
+| `--fps` | 30 | Frames per second |
+
+**Requirements:**
+- Blueprint must include a `TimelineComposer` producer
+- Movie must have a Timeline artifact
+
+**Output:**
+- `builds/{movieId}/FinalVideo.mp4`
+- `movies/{movieId}/FinalVideo.mp4` (symlink)
+
+**Examples:**
+```bash
+# Export with defaults (1920x1080 @ 30fps)
+renku export --movie-id=movie-a1b2c3d4
+
+# Export most recent movie
+renku export --last
+
+# Export with custom resolution
+renku export --last --width=3840 --height=2160 --fps=24
+```
+
+---
+
+### renku producers:list
+
+List available models for producers in a blueprint.
+
+**Usage:**
+```bash
+renku producers:list --blueprint=<path>
+```
+
+**Options:**
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--blueprint`, `--bp` | Yes | Path to blueprint YAML file |
+
+**Output:**
+- Lists all producers with their available models
+- Shows pricing information where available
+- Warns about missing API tokens
+
+**Example:**
+```bash
+renku producers:list --blueprint=./video-only.yaml
+```
+
+Output:
+```
+Producer model configurations:
+
+VideoProducer (4 video models)
+  Provider    Model                          Price
+  replicate   bytedance/seedance-1-pro-fast  480p: $0.015/s
+  replicate   google/veo-3.1-fast            $0.10/s
+  fal-ai      veo3-1                         -
+
+AudioProducer (2 audio models)
+  Provider    Model                 Price
+  replicate   minimax/speech-2.6-hd $0.0001/token
+
+⚠️  Missing API tokens:
+  - fal-ai: FAL_KEY not set
+```
+
+---
+
+### renku blueprints:list
+
+List all available blueprint files.
+
+**Usage:**
+```bash
+renku blueprints:list
+```
+
+**Output:**
+- Scans `{root}/catalog/blueprints/`
+- Displays all `.yaml` files with metadata
+
+**Example output:**
+```
+Available Blueprints:
+
+1. audio-only.yaml
+   - Audio-Only Narration
+   - Generates script and audio narration
+
+2. video-only.yaml
+   - Video-Only Generation
+   - Generates script and video clips
+
+3. image-to-video.yaml
+   - Image-to-Video Transitions
+   - Creates videos from image sequences
+```
+
+---
+
+### renku blueprints:describe
+
+Show detailed information about a blueprint.
+
+**Usage:**
+```bash
+renku blueprints:describe <path-to-blueprint.yaml>
+```
+
+**Output:**
+- Blueprint metadata (name, description, version, author)
+- Required and optional inputs
+- Artifacts produced
+- Loops defined
+- Producers used
+
+**Example:**
+```bash
+renku blueprints:describe ./catalog/blueprints/video-only/video-only.yaml
+```
+
+---
+
+### renku blueprints:validate
+
+Validate blueprint structure and references.
+
+**Usage:**
+```bash
+renku blueprints:validate <path-to-blueprint.yaml>
+```
+
+**Validates:**
+- YAML syntax
+- Required fields
+- Module/producer references
+- Connection validity
+- Loop definitions
+
+**Example:**
+```bash
+renku blueprints:validate ./my-blueprint.yaml
+```
+
+---
+
+### renku viewer:view
+
+Open the viewer for a movie.
+
+**Usage:**
+```bash
+renku viewer:view --movie-id=<id>
+renku viewer:view --last
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--movie-id`, `--id` | Movie ID to view |
+| `--last` | View the most recent movie |
+| `--viewerHost` | Override viewer host (optional) |
+| `--viewerPort` | Override viewer port (optional) |
+
+**Behavior:**
+- Starts the viewer server if not running
+- Opens the movie page in your browser
+
+**Examples:**
+```bash
+renku viewer:view --movie-id=movie-a1b2c3d4
+renku viewer:view --last
+```
+
+---
+
+### renku viewer:start
+
+Start the viewer server in the foreground.
+
+**Usage:**
+```bash
+renku viewer:start
+```
+
+---
+
+### renku viewer:stop
+
+Stop the background viewer server.
+
+**Usage:**
+```bash
+renku viewer:stop
+```
+
+---
+
+## Provider Configuration
+
+### Environment Variables
+
+Renku reads credentials from environment variables or `.env` files:
+
+```bash
+# OpenAI (required for script generation)
+OPENAI_API_KEY=sk-...
+
+# Replicate (required for most media generation)
+REPLICATE_API_TOKEN=r8_...
+
+# Optional providers
+FAL_KEY=...
+ELEVENLABS_API_KEY=...
+```
+
+### .env File Locations
+
+The CLI checks for `.env` files in:
+1. Current working directory
+2. CLI installation directory
+
+### Provider-Specific Notes
+
+**OpenAI:**
+- Used for script generation and prompt creation
+- Requires `gpt-4o` or similar model access
+
+**Replicate:**
+- Used for video, audio, and image generation
+- Supports many model variants
+- Pay-per-use pricing
+
+**fal.ai:**
+- Alternative provider for video/image models
+- Some unique model offerings
+
+**Renku (built-in):**
+- `OrderedTimeline` - Timeline composition
+- No API key required
+
+---
+
+## Storage Structure
+
+### Configuration
+
+Fixed location for CLI configuration:
+```
+~/.config/renku/cli-config.json
+```
+
+Contents:
+```json
+{
+  "storage": {
+    "root": "/path/to/workspace",
+    "basePath": "builds"
+  }
+}
+```
+
+### Workspace Layout
+
+```
+{workspace}/
+├── builds/
+│   └── movie-{id}/
+│       ├── blobs/              # Content-addressed blob storage
+│       │   └── {hash-prefix}/  # Files stored by hash
+│       ├── events/
+│       │   ├── inputs.log      # Input events (JSONL)
+│       │   └── artefacts.log   # Artifact events (JSONL)
+│       ├── manifests/
+│       │   └── {revision}.json # Artifact metadata
+│       ├── runs/
+│       │   └── {rev}-plan.json # Execution plan
+│       └── current.json        # Pointer to current manifest
+├── catalog/
+│   └── blueprints/
+│       └── *.yaml              # Blueprint files
+└── movies/
+    └── movie-{id}/             # Friendly view (symlinks)
+        └── *.mp3, *.mp4, etc.
+```
+
+### Movie ID Format
+
+Movie IDs are 8-character prefixes of UUIDs:
+- Generated: `a1b2c3d4-5678-9abc-def0-123456789abc`
+- Stored as: `movie-a1b2c3d4`
+
+---
+
+## Troubleshooting
+
+### Common Errors
+
+**Missing API Credentials:**
+```
+Error: OPENAI_API_KEY not found
+```
+Solution: Export the environment variable or add to `.env` file.
+
+**Invalid Blueprint Path:**
+```
+Error: Blueprint file not found: /path/to/blueprint.yaml
+```
+Solution: Use absolute path or path relative to current directory.
+
+**Missing Required Input:**
+```
+Error: Required input 'InquiryPrompt' not found in inputs.yaml
+```
+Solution: Add all required inputs from the blueprint to your inputs file.
+
+**Module Reference Error:**
+```
+Error: Module not found: ./modules/missing-module.yaml
+```
+Solution: Check that module paths are relative to the blueprint file location.
+
+**Provider Configuration Error:**
+```
+Error: Invalid sdkMapping for Replicate producer
+```
+Solution: Ensure all required fields are mapped in the producer's `sdkMapping`.
+
+### Debug Mode
+
+Enable verbose logging:
+```bash
+DEBUG=renku:* renku generate --inputs=./inputs.yaml --blueprint=./blueprint.yaml
+```
+
+### Validation Commands
+
+```bash
+# Validate blueprint structure
+renku blueprints:validate ./my-blueprint.yaml
+
+# Check available models and missing tokens
+renku producers:list --blueprint=./my-blueprint.yaml
+
+# Test without API calls
+renku generate --inputs=./inputs.yaml --blueprint=./blueprint.yaml --dry-run
+```
+
+---
+
+## Appendix
+
+### Supported File Types
+
+| Category | Extensions |
+|----------|------------|
+| Blueprints | `.yaml` |
+| Inputs | `.yaml` |
+| Prompts | `.md`, `.txt` |
+| Artifacts | `.txt`, `.json`, `.png`, `.jpg`, `.mp3`, `.wav`, `.mp4` |
+
+### Default Values
+
+| Setting | Default |
+|---------|---------|
+| Config path | `~/.config/renku/` |
+| Storage base | `builds/` |
+| Environment | `local` |
+| Export width | `1920` |
+| Export height | `1080` |
+| Export FPS | `30` |

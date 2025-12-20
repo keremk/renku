@@ -27,9 +27,14 @@
       "Bash(pnpm --filter @renku/cli run type-check)",
       "Bash(pnpm lint:cli:*)",
       "Bash(pnpm --filter @renku/cli check:all:*)",
-      "Bash(pnpm vitest run:*)"
+      "Bash(pnpm vitest run:*)",
+      "WebFetch(domain:starlight.astro.build)",
+      "WebFetch(domain:docs.astro.build)"
     ],
     "deny": [],
     "ask": []
+  },
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true
   }
 }
