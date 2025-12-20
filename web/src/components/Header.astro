@@ -1,5 +1,5 @@
 ---
-import PillThemeToggle from './PillThemeToggle.astro';
+import ThemeSelect from './starlight/ThemeSelect.astro';
 
 const currentPath = Astro.url.pathname;
 
@@ -58,7 +58,7 @@ const socialLinks = [
           ))}
         </div>
 
-        <PillThemeToggle />
+        <ThemeSelect />
 
         <!-- Mobile menu button -->
         <button class="mobile-menu-btn" aria-label="Toggle menu" id="mobile-menu-button">

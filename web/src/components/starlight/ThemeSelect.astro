@@ -47,12 +47,15 @@ import type { Props } from '@astrojs/starlight/props';
   }
 
   .pill-track {
+    box-sizing: content-box;
     width: 3.5rem;
     height: 1.75rem;
     background: var(--color-gray-200);
     border-radius: 9999px;
     padding: 0.1875rem;
     transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
   }
 
   :global([data-theme="dark"]) .pill-track {
