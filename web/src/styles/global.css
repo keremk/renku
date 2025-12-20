@@ -7,9 +7,15 @@
 /* Configure Tailwind v4 dark mode to use .dark class selector */
 @variant dark (&:where(.dark, .dark *));
 
-/* Custom theme configuration - Warm Honey/Amber palette */
+/* ==========================================================================
+   Theme Configuration - Warm Honey/Amber Palette
+
+   These colors are picked up by @astrojs/starlight-tailwind and mapped to
+   Starlight's theming system. Starlight handles dark mode automatically.
+   ========================================================================== */
+
 @theme {
-  /* Accent colors - warm honey/amber */
+  /* Accent colors - warm honey/amber (11 shades required) */
   --color-accent-50: hsl(50 100% 94%);
   --color-accent-100: hsl(48 100% 88%);
   --color-accent-200: hsl(46 95% 78%);
@@ -22,81 +28,75 @@
   --color-accent-900: hsl(26 80% 22%);
   --color-accent-950: hsl(22 85% 14%);
 
-  /* Gray scale - warm neutrals */
-  --color-gray-50: hsl(60 51% 96%);
-  --color-gray-100: hsl(60 40% 94%);
-  --color-gray-200: hsl(55 35% 88%);
-  --color-gray-300: hsl(50 25% 78%);
-  --color-gray-400: hsl(45 15% 55%);
-  --color-gray-500: hsl(40 12% 42%);
-  --color-gray-600: hsl(35 15% 32%);
-  --color-gray-700: hsl(30 18% 25%);
-  --color-gray-800: hsl(25 20% 20%);
-  --color-gray-900: hsl(20 22% 16%);
-  --color-gray-950: hsl(15 25% 10%);
-
-  /* Semantic colors - Light mode */
-  --color-background: hsl(60 51% 91%);
-  --color-foreground: hsl(45 62% 21%);
-  --color-card: hsl(50 100% 93%);
-  --color-card-foreground: hsl(0 0% 20%);
-  --color-muted: hsl(60 35% 87%);
-  --color-muted-foreground: hsl(0 0% 45%);
-  --color-border: hsl(40 36% 72%);
-  --color-input: hsl(0 0% 82%);
-  --color-ring: hsl(42 60% 48% / 0.4);
-  --color-surface-elevated: hsl(44 60% 90%);
+  /* Gray scale - warm neutrals (11 shades required) */
+  --color-gray-50: hsl(60 30% 96%);
+  --color-gray-100: hsl(55 25% 92%);
+  --color-gray-200: hsl(50 20% 85%);
+  --color-gray-300: hsl(45 15% 75%);
+  --color-gray-400: hsl(40 12% 60%);
+  --color-gray-500: hsl(35 10% 45%);
+  --color-gray-600: hsl(30 12% 35%);
+  --color-gray-700: hsl(25 15% 25%);
+  --color-gray-800: hsl(22 18% 18%);
+  --color-gray-900: hsl(20 20% 12%);
+  --color-gray-950: hsl(18 22% 8%);
 
   /* Typography */
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     'Helvetica Neue', Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
     'Liberation Mono', monospace;
-  --font-serif: Georgia, Cambria, 'Times New Roman', Times, serif;
 }
 
-/* Dark mode overrides - using multiple selectors for compatibility */
+/* ==========================================================================
+   Semantic Colors for Landing Page
+   These are used by the landing page components (Header, Hero, etc.)
+   ========================================================================== */
+
+:root {
+  --color-background: hsl(60 30% 94%);
+  --color-foreground: hsl(20 20% 12%);
+  --color-card: hsl(50 40% 93%);
+  --color-card-foreground: hsl(20 20% 12%);
+  --color-muted: hsl(55 20% 88%);
+  --color-muted-foreground: hsl(30 12% 40%);
+  --color-border: hsl(45 20% 75%);
+  --color-surface-elevated: hsl(50 30% 92%);
+}
+
 :root.dark,
 .dark,
 [data-theme="dark"] {
-  --color-background: hsl(20 15% 12%);
-  --color-foreground: hsl(45 30% 90%);
-  --color-card: hsl(20 12% 18%);
-  --color-card-foreground: hsl(45 30% 90%);
-  --color-muted: hsl(20 10% 25%);
+  --color-background: hsl(20 18% 10%);
+  --color-foreground: hsl(50 20% 92%);
+  --color-card: hsl(22 15% 15%);
+  --color-card-foreground: hsl(50 20% 92%);
+  --color-muted: hsl(25 12% 22%);
   --color-muted-foreground: hsl(40 10% 60%);
-  --color-border: hsl(25 15% 28%);
-  --color-input: hsl(20 10% 25%);
-  --color-ring: hsl(42 65% 45% / 0.5);
-  --color-surface-elevated: hsl(20 12% 15%);
-
-  --color-gray-50: hsl(20 10% 95%);
-  --color-gray-100: hsl(20 10% 85%);
-  --color-gray-200: hsl(20 10% 70%);
-  --color-gray-300: hsl(20 10% 55%);
-  --color-gray-400: hsl(20 8% 45%);
-  --color-gray-500: hsl(20 8% 38%);
-  --color-gray-600: hsl(20 10% 30%);
-  --color-gray-700: hsl(20 12% 22%);
-  --color-gray-800: hsl(20 15% 16%);
-  --color-gray-900: hsl(20 18% 12%);
-  --color-gray-950: hsl(20 20% 8%);
+  --color-border: hsl(25 12% 25%);
+  --color-surface-elevated: hsl(22 14% 13%);
 }
 
-/* Base styles - reset link underlines */
+/* ==========================================================================
+   Base Styles
+   ========================================================================== */
+
 @layer base {
   a {
     text-decoration: none;
   }
 
-  /* Ensure body uses theme colors */
   body {
+    margin: 0;
     background-color: var(--color-background);
     color: var(--color-foreground);
   }
 }
 
-/* Animation keyframes */
+/* ==========================================================================
+   Animation Keyframes
+   ========================================================================== */
+
 @keyframes fade-in-up {
   from {
     opacity: 0;
@@ -140,7 +140,10 @@
   100% { background-position: 0% 50%; }
 }
 
-/* Custom styles for landing page */
+/* ==========================================================================
+   Landing Page Component Styles
+   ========================================================================== */
+
 @layer components {
   .landing-hero {
     @apply min-h-[85vh] flex flex-col items-center justify-center text-center px-4;
@@ -193,11 +196,17 @@
 
   /* Card styles */
   .card {
-    @apply bg-card rounded-xl border border-border p-6 transition-all duration-200;
+    background-color: var(--color-card);
+    border: 1px solid var(--color-border);
+    @apply rounded-xl p-6 transition-all duration-200;
   }
 
   .card-hover {
-    @apply hover:shadow-lg hover:border-accent-300 hover:-translate-y-1;
+    @apply hover:shadow-lg hover:-translate-y-1;
+  }
+
+  .card-hover:hover {
+    border-color: var(--color-accent-300);
   }
 
   /* Gradient text */
@@ -215,15 +224,91 @@
   }
 
   /* Navigation links - no underline */
-  nav a {
-    text-decoration: none !important;
-  }
-
-  header a {
-    text-decoration: none !important;
-  }
-
+  nav a,
+  header a,
   footer a {
     text-decoration: none !important;
   }
+}
+
+/* ==========================================================================
+   Starlight Theme Customization
+   Match the docs styling to the landing page
+   ========================================================================== */
+
+/* Ensure consistent font family across Starlight */
+:root {
+  --sl-font: var(--font-sans);
+  --sl-font-mono: var(--font-mono);
+
+  /* Override Starlight background colors to match landing page */
+  --sl-color-bg: hsl(60 30% 94%);
+  --sl-color-bg-nav: rgb(255 255 255 / 0.8);
+  --sl-color-bg-sidebar: hsl(60 30% 94%);
+}
+
+/* Dark mode overrides for Starlight */
+[data-theme="dark"] {
+  --sl-color-bg: hsl(20 18% 10%);
+  --sl-color-bg-nav: hsl(20 18% 10% / 0.85);
+  --sl-color-bg-sidebar: hsl(20 18% 10%);
+}
+
+/* Header height and styling to match landing page (4rem) */
+header.header {
+  --sl-nav-height: 4rem;
+  backdrop-filter: blur(12px);
+  padding: 0 !important;
+}
+
+/* Full-width header to match landing page */
+header.header > .header {
+  padding: 0 1rem;
+}
+
+@media (min-width: 640px) {
+  header.header > .header {
+    padding: 0 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  header.header > .header {
+    padding: 0 2rem;
+  }
+}
+
+/* Site title styling to match landing page */
+.site-title {
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+  font-family: var(--font-sans) !important;
+  color: var(--color-foreground) !important;
+  gap: 0.75rem !important;
+}
+
+/* Logo size to match landing page */
+.site-title img {
+  width: 3rem !important;
+  height: 3rem !important;
+}
+
+/* Social icons styling to match landing page */
+.social-icons a {
+  color: var(--color-gray-600) !important;
+  transition: color 0.2s ease !important;
+}
+
+.social-icons a:hover {
+  color: var(--color-accent-500) !important;
+}
+
+[data-theme="dark"] .social-icons a {
+  color: var(--color-gray-400) !important;
+}
+
+/* Social icon size to match landing page (1.25rem / 20px) */
+.social-icons svg {
+  width: 1.25rem !important;
+  height: 1.25rem !important;
 }

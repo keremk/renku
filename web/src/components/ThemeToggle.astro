@@ -90,27 +90,33 @@
 </style>
 
 <script>
-  // Theme toggle functionality
+  // Theme toggle functionality - syncs with Starlight's data-theme attribute
   const themeToggle = document.getElementById('theme-toggle');
 
   // Get initial theme from localStorage or system preference
+  // Check starlight-theme first (set by docs), then theme (set by landing page)
   function getThemePreference(): 'light' | 'dark' {
-    if (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) {
-      return localStorage.getItem('theme') as 'light' | 'dark';
+    if (typeof localStorage !== 'undefined') {
+      const theme = localStorage.getItem('starlight-theme') || localStorage.getItem('theme');
+      if (theme === 'dark' || theme === 'light') {
+        return theme;
+      }
     }
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
 
-  // Apply theme to document
+  // Apply theme to document - sync both class and data-theme for Starlight compatibility
   function applyTheme(theme: 'light' | 'dark') {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
+      document.documentElement.dataset.theme = 'dark';
     } else {
       document.documentElement.classList.remove('dark');
+      document.documentElement.dataset.theme = 'light';
     }
   }
 
-  // Initialize theme
+  // Initialize theme on page load
   const currentTheme = getThemePreference();
   applyTheme(currentTheme);
 
@@ -121,6 +127,8 @@
 
     applyTheme(newTheme);
     localStorage.setItem('theme', newTheme);
+    // Also set Starlight's key for consistency
+    localStorage.setItem('starlight-theme', newTheme);
   });
 
   // Listen for system theme changes
@@ -128,5 +136,11 @@
     if (!localStorage.getItem('theme')) {
       applyTheme(e.matches ? 'dark' : 'light');
     }
+  });
+
+  // Handle Astro view transitions - reapply theme after navigation
+  document.addEventListener('astro:after-swap', () => {
+    const theme = getThemePreference();
+    applyTheme(theme);
   });
 </script>

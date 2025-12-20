@@ -20,12 +20,16 @@ const { title, description = 'AI-powered movie generation' } = Astro.props;
     <title>{title} | Renku</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
-    <!-- Prevent flash of wrong theme -->
+    <!-- Prevent flash of wrong theme - check both theme keys for Starlight compatibility -->
     <script is:inline>
       (function() {
-        const theme = localStorage.getItem('theme');
+        // Check starlight-theme first (set by docs), then theme (set by landing page)
+        const theme = localStorage.getItem('starlight-theme') || localStorage.getItem('theme');
         if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
           document.documentElement.classList.add('dark');
+          document.documentElement.dataset.theme = 'dark';
+        } else {
+          document.documentElement.dataset.theme = 'light';
         }
       })();
     </script>

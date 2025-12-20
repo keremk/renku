@@ -1,8 +1,6 @@
 ---
-import type { Props } from '@astrojs/starlight/props';
-import ThemeToggle from './ThemeToggle.astro';
+import PillThemeToggle from './PillThemeToggle.astro';
 
-const { locale } = Astro.props;
 const currentPath = Astro.url.pathname;
 
 const navItems = [
@@ -41,10 +39,8 @@ const socialLinks = [
         ))}
       </div>
 
-      <!-- Right side: Theme toggle + Social Links -->
+      <!-- Right side: Social Links + Theme toggle (rightmost) -->
       <div class="header-actions">
-        <ThemeToggle />
-
         <div class="header-social">
           {socialLinks.map((link) => (
             <a href={link.href} class="header-social-link" aria-label={link.label}>
@@ -61,6 +57,8 @@ const socialLinks = [
             </a>
           ))}
         </div>
+
+        <PillThemeToggle />
 
         <!-- Mobile menu button -->
         <button class="mobile-menu-btn" aria-label="Toggle menu" id="mobile-menu-button">
@@ -114,8 +112,6 @@ const socialLinks = [
   }
 
   .header-container {
-    max-width: 80rem;
-    margin: 0 auto;
     padding: 0 1rem;
   }
 
@@ -135,7 +131,7 @@ const socialLinks = [
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 5rem;
+    height: 4rem;
   }
 
   .header-logo {
@@ -211,7 +207,6 @@ const socialLinks = [
     display: none;
     align-items: center;
     gap: 0.5rem;
-    margin-left: 0.5rem;
   }
 
   @media (min-width: 640px) {

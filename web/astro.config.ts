@@ -34,13 +34,10 @@ export default defineConfig({
           badge: { text: 'Advanced', variant: 'tip' },
         },
       ],
-      customCss: [
-        './src/styles/global.css',
-        './src/styles/starlight-theme.css',
-      ],
+      customCss: ['./src/styles/global.css'],
       components: {
-        Header: './src/components/Header.astro',
         PageTitle: './src/components/starlight/PageTitle.astro',
+        ThemeSelect: './src/components/starlight/ThemeSelect.astro',
       },
     }),
   ],
