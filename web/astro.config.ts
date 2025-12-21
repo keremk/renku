@@ -3,7 +3,7 @@ import starlight from '@astrojs/starlight';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
-  site: 'https://renku.dev',
+  site: 'https://gorenku.com',
   integrations: [
     starlight({
       title: 'Renku',

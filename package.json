@@ -23,6 +23,7 @@
     "build:cli": "pnpm --filter @renku/cli build",
     "build:viewer": "pnpm --filter viewer build",
     "build:web": "pnpm --filter @renku/web build",
+    "deploy:web": "pnpm --filter @renku/web cf-deploy",
     "lint": "pnpm --filter @renku/core lint && pnpm --filter @renku/providers lint && pnpm --filter @renku/cli lint",
     "lint:core": "pnpm --filter @renku/core lint",
     "lint:providers": "pnpm --filter @renku/providers lint",
