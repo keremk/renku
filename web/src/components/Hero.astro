@@ -1,12 +1,15 @@
 ---
+import heroImageLight from '../assets/hero-image-light.png';
+import heroImageDark from '../assets/hero-image-dark.png';
+
 interface Props {
   title?: string;
   tagline?: string;
 }
 
 const {
-  title = 'AI-Powered Movie Generation',
-  tagline = 'Create stunning videos with the power of artificial intelligence. From script to screen in minutes.',
+  title = 'Build Tool For AI-Generated Videos',
+  tagline = 'Go beyond the 10 seconds. Create videos using AI generative models, with automatic prompt generation, and cost effective incremental builds.',
 } = Astro.props;
 ---
 
@@ -24,17 +27,11 @@ const {
   <div class="hero-grid"></div>
 
   <div class="relative z-10 max-w-5xl mx-auto">
-    <!-- Badge -->
-    <div class="hero-badge animate-fade-in-up">
-      <span class="hero-badge-dot"></span>
-      <span class="hero-badge-text">Now in Beta</span>
-    </div>
-
     <!-- Title with gradient text -->
     <h1 class="hero-title animate-fade-in-up delay-100">
-      <span class="hero-title-gradient">{title.split(' ').slice(0, 2).join(' ')}</span>
+      <span class="hero-title-gradient">{title.split(' ').slice(0, 3).join(' ')}</span>
       <br />
-      <span class="hero-title-solid">{title.split(' ').slice(2).join(' ')}</span>
+      <span class="hero-title-solid">{title.split(' ').slice(3).join(' ')}</span>
     </h1>
 
     <!-- Tagline -->
@@ -56,6 +53,20 @@ const {
         </svg>
         View on GitHub
       </a>
+    </div>
+
+    <!-- Hero Image -->
+    <div class="hero-image-container animate-fade-in-up delay-400">
+      <img
+        src={heroImageLight.src}
+        alt="Renku AI Movie Generation"
+        class="hero-image hero-image-light"
+      />
+      <img
+        src={heroImageDark.src}
+        alt="Renku AI Movie Generation"
+        class="hero-image hero-image-dark"
+      />
     </div>
   </div>
 
@@ -163,45 +174,6 @@ const {
 
   :global(.dark) .hero-grid {
     opacity: 0.03;
-  }
-
-  .hero-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    border-radius: 9999px;
-    background: rgba(var(--color-accent-500), 0.2);
-    border: 1px solid var(--color-accent-500);
-    border-color: rgba(180, 130, 50, 0.3);
-    margin-bottom: 2rem;
-  }
-
-  :global(.dark) .hero-badge {
-    background: rgba(200, 150, 80, 0.15);
-    border-color: rgba(200, 150, 80, 0.3);
-  }
-
-  .hero-badge-dot {
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 50%;
-    background: var(--color-accent-500);
-    animation: pulse 2s infinite;
-  }
-
-  :global(.dark) .hero-badge-dot {
-    background: var(--color-accent-400);
-  }
-
-  .hero-badge-text {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--color-accent-700);
-  }
-
-  :global(.dark) .hero-badge-text {
-    color: var(--color-accent-300);
   }
 
   .hero-title {
@@ -333,9 +305,33 @@ const {
     color: var(--color-accent-400);
   }
 
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+  .hero-image-container {
+    margin-top: 3rem;
+    max-width: 100%;
+    position: relative;
+  }
+
+  .hero-image {
+    max-width: 100%;
+    height: auto;
+    border-radius: 1rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  }
+
+  .hero-image-light {
+    display: block;
+  }
+
+  .hero-image-dark {
+    display: none;
+  }
+
+  :global(.dark) .hero-image-light {
+    display: none;
+  }
+
+  :global(.dark) .hero-image-dark {
+    display: block;
   }
 
   @keyframes bounce {
