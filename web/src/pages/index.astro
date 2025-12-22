@@ -1,6 +1,12 @@
 ---
 import LandingLayout from '../layouts/LandingLayout.astro';
 import Hero from '../components/Hero.astro';
+import IconSparkles from '../components/icons/IconSparkles.astro';
+import IconTemplate from '../components/icons/IconTemplate.astro';
+import IconPlug from '../components/icons/IconPlug.astro';
+import IconTerminal from '../components/icons/IconTerminal.astro';
+import IconArrowRight from '../components/icons/IconArrowRight.astro';
+import IconGitHub from '../components/icons/IconGitHub.astro';
 
 const features = [
   {
@@ -31,9 +37,9 @@ const features = [
   <Hero />
 
   <!-- Features Section -->
-  <section class="features-section">
-    <div class="features-container">
-      <div class="features-header">
+  <section class="py-20 px-4 max-w-6xl mx-auto">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-16">
         <span class="section-badge">Features</span>
         <h2 class="section-title">
           Everything you need to create AI videos
@@ -43,33 +49,17 @@ const features = [
         </p>
       </div>
 
-      <div class="features-grid">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         {features.map((feature, index) => (
           <div class="feature-card" style={`animation-delay: ${index * 100}ms`}>
             <div class="feature-icon-wrapper">
-              {feature.icon === 'sparkles' && (
-                <svg class="feature-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
-                </svg>
-              )}
-              {feature.icon === 'template' && (
-                <svg class="feature-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
-                </svg>
-              )}
-              {feature.icon === 'plug' && (
-                <svg class="feature-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                </svg>
-              )}
-              {feature.icon === 'terminal' && (
-                <svg class="feature-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                </svg>
-              )}
+              {feature.icon === 'sparkles' && <IconSparkles class="feature-icon" />}
+              {feature.icon === 'template' && <IconTemplate class="feature-icon" />}
+              {feature.icon === 'plug' && <IconPlug class="feature-icon" />}
+              {feature.icon === 'terminal' && <IconTerminal class="feature-icon" />}
             </div>
-            <h3 class="feature-title">{feature.title}</h3>
-            <p class="feature-description">{feature.description}</p>
+            <h3 class="text-xl font-semibold mb-3" style="color: var(--color-foreground);">{feature.title}</h3>
+            <p class="leading-relaxed" style="color: var(--color-muted-foreground);">{feature.description}</p>
           </div>
         ))}
       </div>
@@ -77,34 +67,34 @@ const features = [
   </section>
 
   <!-- How It Works Section -->
-  <section class="how-it-works-section">
-    <div class="how-it-works-container">
-      <div class="features-header">
+  <section class="py-20 px-4 how-it-works-bg">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-16">
         <span class="section-badge">How It Works</span>
         <h2 class="section-title">
           From idea to video in three steps
         </h2>
       </div>
 
-      <div class="steps-grid">
-        <div class="step-card">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div class="text-center">
           <div class="step-number">1</div>
-          <h3 class="step-title">Create a Blueprint</h3>
-          <p class="step-description">
+          <h3 class="text-xl font-semibold mb-3" style="color: var(--color-foreground);">Create a Blueprint</h3>
+          <p style="color: var(--color-muted-foreground);">
             Define your video structure, scenes, and creative direction using our intuitive blueprint system.
           </p>
         </div>
-        <div class="step-card">
+        <div class="text-center">
           <div class="step-number">2</div>
-          <h3 class="step-title">Generate Content</h3>
-          <p class="step-description">
+          <h3 class="text-xl font-semibold mb-3" style="color: var(--color-foreground);">Generate Content</h3>
+          <p style="color: var(--color-muted-foreground);">
             Let AI providers create visuals, voiceovers, and music based on your specifications.
           </p>
         </div>
-        <div class="step-card">
+        <div class="text-center">
           <div class="step-number">3</div>
-          <h3 class="step-title">Render & Export</h3>
-          <p class="step-description">
+          <h3 class="text-xl font-semibold mb-3" style="color: var(--color-foreground);">Render & Export</h3>
+          <p style="color: var(--color-muted-foreground);">
             Preview your video in real-time and export it in various formats for any platform.
           </p>
         </div>
@@ -113,31 +103,27 @@ const features = [
   </section>
 
   <!-- CTA Section -->
-  <section class="cta-section">
-    <div class="cta-container">
+  <section class="py-20 px-4 max-w-6xl mx-auto">
+    <div class="max-w-6xl mx-auto">
       <div class="cta-card">
         <!-- Decorative elements -->
-        <div class="cta-decoration cta-decoration-1"></div>
-        <div class="cta-decoration cta-decoration-2"></div>
+        <div class="absolute rounded-full top-0 right-0 w-64 h-64 translate-x-1/2 -translate-y-1/2" style="background: rgba(255, 255, 255, 0.1); filter: blur(40px);"></div>
+        <div class="absolute rounded-full bottom-0 left-0 w-48 h-48 -translate-x-1/2 translate-y-1/2" style="background: rgba(255, 255, 255, 0.1); filter: blur(40px);"></div>
 
-        <div class="cta-content">
-          <h2 class="cta-title">
+        <div class="relative z-10">
+          <h2 class="font-bold text-white mb-4" style="font-size: clamp(1.5rem, 4vw, 2.5rem);">
             Ready to create amazing videos?
           </h2>
-          <p class="cta-description">
+          <p class="text-lg max-w-xl mx-auto mb-8" style="color: rgba(255, 255, 255, 0.8);">
             Start creating AI-powered videos today. Check out our documentation to learn more about what's possible.
           </p>
-          <div class="cta-buttons">
+          <div class="flex flex-col sm:flex-row gap-4 justify-center">
             <a href="/docs/" class="cta-btn-primary">
               Read the Docs
-              <svg class="cta-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
-              </svg>
+              <IconArrowRight class="ml-2 w-5 h-5" />
             </a>
             <a href="#github" class="cta-btn-secondary">
-              <svg class="cta-icon" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-              </svg>
+              <IconGitHub class="mr-2 w-5 h-5" />
               Star on GitHub
             </a>
           </div>
@@ -148,167 +134,11 @@ const features = [
 </LandingLayout>
 
 <style>
-  /* Features Section */
-  .features-section {
-    padding: 5rem 1rem;
-    max-width: 72rem;
-    margin: 0 auto;
-  }
-
-  .features-container {
-    max-width: 72rem;
-    margin: 0 auto;
-  }
-
-  .features-header {
-    text-align: center;
-    margin-bottom: 4rem;
-  }
-
-  .section-badge {
-    display: inline-block;
-    padding: 0.375rem 1rem;
-    border-radius: 9999px;
-    background: var(--color-accent-100);
-    color: var(--color-accent-700);
-    font-size: 0.875rem;
-    font-weight: 500;
-    margin-bottom: 1rem;
-  }
-
-  :global(.dark) .section-badge {
-    background: rgba(180, 130, 50, 0.2);
-    color: var(--color-accent-300);
-  }
-
-  .section-title {
-    font-size: clamp(1.75rem, 4vw, 2.5rem);
-    font-weight: 700;
-    color: var(--color-foreground);
-    margin-bottom: 1rem;
-  }
-
-  .section-description {
-    font-size: 1.125rem;
-    color: var(--color-muted-foreground);
-    max-width: 36rem;
-    margin: 0 auto;
-  }
-
-  .features-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-
-  @media (min-width: 768px) {
-    .features-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
-
-  .feature-card {
-    padding: 2rem;
-    border-radius: 1rem;
-    border: 1px solid var(--color-border);
-    background: var(--color-card);
-    transition: all 0.3s ease;
-  }
-
-  :global(.dark) .feature-card {
-    background: var(--color-card);
-    border-color: var(--color-border);
-  }
-
-  .feature-card:hover {
-    border-color: var(--color-accent-300);
-    box-shadow: 0 10px 40px -10px rgba(180, 130, 50, 0.15);
-    transform: translateY(-4px);
-  }
-
-  :global(.dark) .feature-card:hover {
-    border-color: var(--color-accent-700);
-    box-shadow: 0 10px 40px -10px rgba(180, 130, 50, 0.1);
-  }
-
-  .feature-icon-wrapper {
-    width: 3.5rem;
-    height: 3.5rem;
-    border-radius: 0.75rem;
-    background: linear-gradient(135deg, var(--color-accent-100) 0%, var(--color-accent-200) 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 1.5rem;
-    transition: transform 0.3s ease;
-  }
-
-  :global(.dark) .feature-icon-wrapper {
-    background: linear-gradient(135deg, rgba(180, 130, 50, 0.2) 0%, rgba(180, 130, 50, 0.3) 100%);
-  }
-
-  .feature-card:hover .feature-icon-wrapper {
-    transform: scale(1.1);
-  }
-
-  .feature-icon {
-    width: 1.75rem;
-    height: 1.75rem;
-    color: var(--color-accent-600);
-  }
-
-  :global(.dark) .feature-icon {
-    color: var(--color-accent-400);
-  }
-
-  .feature-title {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--color-foreground);
-    margin-bottom: 0.75rem;
-  }
-
-  .feature-description {
-    color: var(--color-muted-foreground);
-    line-height: 1.6;
-  }
-
-  /* How It Works Section */
-  .how-it-works-section {
-    padding: 5rem 1rem;
-    background: linear-gradient(180deg, transparent 0%, rgba(180, 130, 50, 0.05) 50%, transparent 100%);
-  }
-
-  :global(.dark) .how-it-works-section {
-    background: linear-gradient(180deg, transparent 0%, rgba(180, 130, 50, 0.03) 50%, transparent 100%);
-  }
-
-  .how-it-works-container {
-    max-width: 72rem;
-    margin: 0 auto;
-  }
-
-  .steps-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 2rem;
-  }
-
-  @media (min-width: 768px) {
-    .steps-grid {
-      grid-template-columns: repeat(3, 1fr);
-    }
-  }
-
-  .step-card {
-    text-align: center;
-  }
-
+  /* Step number - specific pattern not worth adding to global */
   .step-number {
     width: 4rem;
     height: 4rem;
     border-radius: 1rem;
-    background: var(--color-accent-500);
     color: white;
     font-size: 1.5rem;
     font-weight: 700;
@@ -316,6 +146,7 @@ const features = [
     align-items: center;
     justify-content: center;
     margin: 0 auto 1.5rem;
+    background: var(--color-accent-500);
     box-shadow: 0 10px 25px -5px rgba(180, 130, 50, 0.25);
   }
 
@@ -323,147 +154,12 @@ const features = [
     box-shadow: 0 10px 25px -5px rgba(180, 130, 50, 0.15);
   }
 
-  .step-title {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--color-foreground);
-    margin-bottom: 0.75rem;
+  /* How it works background gradient */
+  .how-it-works-bg {
+    background: linear-gradient(180deg, transparent 0%, rgba(180, 130, 50, 0.05) 50%, transparent 100%);
   }
 
-  .step-description {
-    color: var(--color-muted-foreground);
-  }
-
-  /* CTA Section */
-  .cta-section {
-    padding: 5rem 1rem;
-    max-width: 72rem;
-    margin: 0 auto;
-  }
-
-  .cta-container {
-    max-width: 72rem;
-    margin: 0 auto;
-  }
-
-  .cta-card {
-    position: relative;
-    overflow: hidden;
-    border-radius: 1.5rem;
-    background: linear-gradient(135deg, var(--color-accent-500) 0%, var(--color-accent-600) 50%, var(--color-accent-700) 100%);
-    padding: 3rem;
-    text-align: center;
-  }
-
-  @media (min-width: 768px) {
-    .cta-card {
-      padding: 4rem;
-    }
-  }
-
-  .cta-decoration {
-    position: absolute;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
-    filter: blur(40px);
-  }
-
-  .cta-decoration-1 {
-    top: 0;
-    right: 0;
-    width: 16rem;
-    height: 16rem;
-    transform: translate(50%, -50%);
-  }
-
-  .cta-decoration-2 {
-    bottom: 0;
-    left: 0;
-    width: 12rem;
-    height: 12rem;
-    transform: translate(-50%, 50%);
-  }
-
-  .cta-content {
-    position: relative;
-    z-index: 10;
-  }
-
-  .cta-title {
-    font-size: clamp(1.5rem, 4vw, 2.5rem);
-    font-weight: 700;
-    color: white;
-    margin-bottom: 1rem;
-  }
-
-  .cta-description {
-    font-size: 1.125rem;
-    color: rgba(255, 255, 255, 0.8);
-    max-width: 36rem;
-    margin: 0 auto 2rem;
-  }
-
-  .cta-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    justify-content: center;
-  }
-
-  @media (min-width: 640px) {
-    .cta-buttons {
-      flex-direction: row;
-    }
-  }
-
-  .cta-btn-primary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem 2rem;
-    border-radius: 0.75rem;
-    background: white;
-    color: var(--color-accent-600);
-    font-weight: 600;
-    text-decoration: none;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    transition: all 0.2s ease;
-  }
-
-  .cta-btn-primary:hover {
-    background: rgba(255, 255, 255, 0.9);
-    transform: translateY(-2px);
-  }
-
-  .cta-btn-secondary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem 2rem;
-    border-radius: 0.75rem;
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
-    font-weight: 600;
-    text-decoration: none;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    transition: all 0.2s ease;
-  }
-
-  .cta-btn-secondary:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: translateY(-2px);
-  }
-
-  .cta-icon {
-    width: 1.25rem;
-    height: 1.25rem;
-  }
-
-  .cta-btn-primary .cta-icon {
-    margin-left: 0.5rem;
-  }
-
-  .cta-btn-secondary .cta-icon {
-    margin-right: 0.5rem;
+  :global(.dark) .how-it-works-bg {
+    background: linear-gradient(180deg, transparent 0%, rgba(180, 130, 50, 0.03) 50%, transparent 100%);
   }
 </style>

@@ -1,15 +1,15 @@
 ---
 // Custom Starlight ThemeSelect override - uses pill-shaped toggle
 // This replaces the default Starlight dropdown theme selector
-import type { Props } from '@astrojs/starlight/props';
+// Note: Starlight Props are not needed since we handle theme state via localStorage/DOM
 ---
 
 <starlight-theme-select>
-  <div class="pill-toggle" role="switch" aria-checked="false" aria-label="Toggle dark mode" tabindex="0">
-    <div class="pill-track">
-      <div class="pill-thumb">
+  <div class="pill-toggle relative cursor-pointer select-none outline-none" role="switch" aria-checked="false" aria-label="Toggle dark mode" tabindex="0">
+    <div class="pill-track flex items-center rounded-full p-0.5 transition-colors duration-200" style="width: 3.5rem; height: 1.75rem; background: var(--color-gray-200);">
+      <div class="pill-thumb flex items-center justify-center rounded-full bg-white transition-all duration-200" style="width: 1.375rem; height: 1.375rem; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
         <!-- Sun icon -->
-        <svg class="pill-icon sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg class="pill-icon sun w-3.5 h-3.5" style="color: var(--color-accent-500);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="5" />
           <line x1="12" y1="1" x2="12" y2="3" />
           <line x1="12" y1="21" x2="12" y2="23" />
@@ -21,7 +21,7 @@ import type { Props } from '@astrojs/starlight/props';
           <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
         </svg>
         <!-- Moon icon -->
-        <svg class="pill-icon moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg class="pill-icon moon w-3.5 h-3.5 hidden" style="color: var(--color-accent-400);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
         </svg>
       </div>
@@ -35,66 +35,24 @@ import type { Props } from '@astrojs/starlight/props';
     align-items: center;
   }
 
-  .pill-toggle {
-    position: relative;
-    cursor: pointer;
-    user-select: none;
-    outline: none;
-  }
-
   .pill-toggle:focus-visible .pill-track {
     box-shadow: 0 0 0 2px var(--color-accent-500);
   }
 
-  .pill-track {
-    box-sizing: content-box;
-    width: 3.5rem;
-    height: 1.75rem;
-    background: var(--color-gray-200);
-    border-radius: 9999px;
-    padding: 0.1875rem;
-    transition: background-color 0.2s ease;
-    display: flex;
-    align-items: center;
-  }
-
+  /* Dark mode track */
   :global([data-theme="dark"]) .pill-track {
-    background: var(--color-gray-700);
+    background: var(--color-gray-700) !important;
   }
 
-  .pill-thumb {
-    width: 1.375rem;
-    height: 1.375rem;
-    background: white;
-    border-radius: 9999px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.2s ease, background-color 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  }
-
+  /* Dark mode thumb position and color */
   :global([data-theme="dark"]) .pill-thumb {
     transform: translateX(1.75rem);
-    background: var(--color-gray-800);
-  }
-
-  .pill-icon {
-    width: 0.875rem;
-    height: 0.875rem;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+    background: var(--color-gray-800) !important;
   }
 
   /* Light mode: show sun, hide moon */
-  .pill-icon.sun {
-    display: block;
-    color: var(--color-accent-500);
-  }
-
   .pill-icon.moon {
     display: none;
-    color: var(--color-accent-400);
   }
 
   /* Dark mode: show moon, hide sun */
@@ -108,11 +66,11 @@ import type { Props } from '@astrojs/starlight/props';
 
   /* Hover effect */
   .pill-toggle:hover .pill-track {
-    background: var(--color-gray-300);
+    background: var(--color-gray-300) !important;
   }
 
   :global([data-theme="dark"]) .pill-toggle:hover .pill-track {
-    background: var(--color-gray-600);
+    background: var(--color-gray-600) !important;
   }
 </style>
 

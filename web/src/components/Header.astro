@@ -1,5 +1,8 @@
 ---
 import ThemeSelect from './starlight/ThemeSelect.astro';
+import IconGitHub from './icons/IconGitHub.astro';
+import IconDiscord from './icons/IconDiscord.astro';
+import IconMenu from './icons/IconMenu.astro';
 
 const currentPath = Astro.url.pathname;
 
@@ -16,22 +19,26 @@ const socialLinks = [
 ---
 
 <header class="site-header">
-  <div class="header-container">
-    <nav class="header-nav">
+  <div class="px-4 sm:px-6 lg:px-8">
+    <nav class="flex items-center justify-between h-16">
       <!-- Logo -->
-      <a href="/" class="header-logo">
-        <img src="/logo.svg" alt="Renku Logo" class="header-logo-img" />
-        <span class="header-logo-text">Renku</span>
+      <a href="/" class="flex items-center gap-3 no-underline group">
+        <img
+          src="/logo.svg"
+          alt="Renku Logo"
+          class="h-12 w-12 transition-transform duration-200 group-hover:scale-105"
+        />
+        <span class="text-2xl font-bold" style="color: var(--color-foreground);">Renku</span>
       </a>
 
       <!-- Navigation Links -->
-      <div class="header-links">
+      <div class="hidden md:flex items-center gap-10">
         {navItems.map((item) => (
           <a
             href={item.href}
             class:list={[
-              'header-link',
-              currentPath.startsWith(item.href) && 'header-link-active',
+              'nav-link',
+              currentPath.startsWith(item.href) && 'nav-link-active',
             ]}
           >
             {item.label}
@@ -40,20 +47,12 @@ const socialLinks = [
       </div>
 
       <!-- Right side: Social Links + Theme toggle (rightmost) -->
-      <div class="header-actions">
-        <div class="header-social">
+      <div class="flex items-center gap-2">
+        <div class="hidden sm:flex items-center gap-2">
           {socialLinks.map((link) => (
-            <a href={link.href} class="header-social-link" aria-label={link.label}>
-              {link.icon === 'github' && (
-                <svg class="social-icon" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                </svg>
-              )}
-              {link.icon === 'discord' && (
-                <svg class="social-icon" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z"/>
-                </svg>
-              )}
+            <a href={link.href} class="social-link" aria-label={link.label}>
+              {link.icon === 'github' && <IconGitHub />}
+              {link.icon === 'discord' && <IconDiscord />}
             </a>
           ))}
         </div>
@@ -61,256 +60,38 @@ const socialLinks = [
         <ThemeSelect />
 
         <!-- Mobile menu button -->
-        <button class="mobile-menu-btn" aria-label="Toggle menu" id="mobile-menu-button">
-          <svg class="menu-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-          </svg>
+        <button
+          class="md:hidden p-2 transition-colors duration-200 hover:text-accent-500"
+          style="color: var(--color-gray-600); background: none; border: none; cursor: pointer;"
+          aria-label="Toggle menu"
+          id="mobile-menu-button"
+        >
+          <IconMenu />
         </button>
       </div>
     </nav>
 
     <!-- Mobile Navigation -->
-    <div id="mobile-menu" class="mobile-menu hidden">
+    <div id="mobile-menu" class="hidden md:hidden pb-4 pt-4 mt-2 border-t" style="border-color: var(--color-border);">
       {navItems.map((item) => (
-        <a href={item.href} class="mobile-link">
+        <a
+          href={item.href}
+          class="block py-3 font-medium transition-colors duration-200 nav-link"
+        >
           {item.label}
         </a>
       ))}
-      <div class="mobile-social">
+      <div class="flex items-center gap-4 mt-4 pt-4 border-t" style="border-color: var(--color-border);">
         {socialLinks.map((link) => (
-          <a href={link.href} class="header-social-link" aria-label={link.label}>
-            {link.icon === 'github' && (
-              <svg class="social-icon" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-              </svg>
-            )}
-            {link.icon === 'discord' && (
-              <svg class="social-icon" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z"/>
-              </svg>
-            )}
+          <a href={link.href} class="social-link" aria-label={link.label}>
+            {link.icon === 'github' && <IconGitHub />}
+            {link.icon === 'discord' && <IconDiscord />}
           </a>
         ))}
       </div>
     </div>
   </div>
 </header>
-
-<style>
-  .site-header {
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    width: 100%;
-    border-bottom: 1px solid var(--color-border);
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(12px);
-  }
-
-  :global(.dark) .site-header {
-    background: rgba(30, 25, 22, 0.85);
-  }
-
-  .header-container {
-    padding: 0 1rem;
-  }
-
-  @media (min-width: 640px) {
-    .header-container {
-      padding: 0 1.5rem;
-    }
-  }
-
-  @media (min-width: 1024px) {
-    .header-container {
-      padding: 0 2rem;
-    }
-  }
-
-  .header-nav {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 4rem;
-  }
-
-  .header-logo {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    text-decoration: none;
-  }
-
-  .header-logo:hover .header-logo-img {
-    transform: scale(1.05);
-  }
-
-  .header-logo-img {
-    height: 3rem;
-    width: 3rem;
-    transition: transform 0.2s ease;
-  }
-
-  .header-logo-text {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--color-foreground);
-  }
-
-  .header-links {
-    display: none;
-    align-items: center;
-    gap: 2.5rem;
-  }
-
-  @media (min-width: 768px) {
-    .header-links {
-      display: flex;
-    }
-  }
-
-  .header-link {
-    font-size: 1rem;
-    font-weight: 500;
-    color: var(--color-gray-600);
-    text-decoration: none;
-    transition: color 0.2s ease;
-  }
-
-  :global(.dark) .header-link {
-    color: var(--color-gray-300);
-  }
-
-  .header-link:hover {
-    color: var(--color-accent-600);
-  }
-
-  :global(.dark) .header-link:hover {
-    color: var(--color-accent-400);
-  }
-
-  .header-link-active {
-    color: var(--color-accent-600);
-  }
-
-  :global(.dark) .header-link-active {
-    color: var(--color-accent-400);
-  }
-
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .header-social {
-    display: none;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  @media (min-width: 640px) {
-    .header-social {
-      display: flex;
-    }
-  }
-
-  .header-social-link {
-    padding: 0.5rem;
-    color: var(--color-gray-600);
-    text-decoration: none;
-    transition: color 0.2s ease;
-  }
-
-  :global(.dark) .header-social-link {
-    color: var(--color-gray-400);
-  }
-
-  .header-social-link:hover {
-    color: var(--color-accent-500);
-  }
-
-  .social-icon {
-    width: 1.25rem;
-    height: 1.25rem;
-  }
-
-  .mobile-menu-btn {
-    display: block;
-    padding: 0.5rem;
-    color: var(--color-gray-600);
-    background: none;
-    border: none;
-    cursor: pointer;
-  }
-
-  :global(.dark) .mobile-menu-btn {
-    color: var(--color-gray-400);
-  }
-
-  @media (min-width: 768px) {
-    .mobile-menu-btn {
-      display: none;
-    }
-  }
-
-  .mobile-menu-btn:hover {
-    color: var(--color-accent-500);
-  }
-
-  .menu-icon {
-    width: 1.5rem;
-    height: 1.5rem;
-  }
-
-  .mobile-menu {
-    padding-bottom: 1rem;
-    border-top: 1px solid var(--color-border);
-    margin-top: 0.5rem;
-    padding-top: 1rem;
-  }
-
-  .mobile-menu.hidden {
-    display: none;
-  }
-
-  @media (min-width: 768px) {
-    .mobile-menu {
-      display: none !important;
-    }
-  }
-
-  .mobile-link {
-    display: block;
-    padding: 0.75rem 0;
-    font-size: 1rem;
-    font-weight: 500;
-    color: var(--color-gray-700);
-    text-decoration: none;
-    transition: color 0.2s ease;
-  }
-
-  :global(.dark) .mobile-link {
-    color: var(--color-gray-300);
-  }
-
-  .mobile-link:hover {
-    color: var(--color-accent-600);
-  }
-
-  :global(.dark) .mobile-link:hover {
-    color: var(--color-accent-400);
-  }
-
-  .mobile-social {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--color-border);
-  }
-</style>
 
 <script>
   const mobileMenuButton = document.getElementById('mobile-menu-button');
