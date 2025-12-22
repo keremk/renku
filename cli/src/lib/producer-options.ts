@@ -198,16 +198,17 @@ export function collectVariants(producer: ProducerConfig): CollectedVariant[] {
   if (!producer.provider || !producer.model) {
     throw new Error(`Producer "${producer.name}" is missing provider/model configuration.`);
   }
+  const producerConfig = producer.config as Record<string, unknown> | undefined;
   return [
     {
       provider: producer.provider,
       model: producer.model,
-      config: producer.config ?? producer.settings,
+      config: producerConfig,
       sdkMapping: producer.sdkMapping,
       outputs: producer.outputs,
       inputSchema: producer.jsonSchema,
-      configInputPaths: flattenConfigKeys(producer.config ?? producer.settings ?? {}),
-      configDefaults: flattenConfigValues(producer.config ?? producer.settings ?? {}),
+      configInputPaths: flattenConfigKeys(producerConfig ?? {}),
+      configDefaults: flattenConfigValues(producerConfig ?? {}),
     },
   ];
 }
