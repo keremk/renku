@@ -1,4 +1,4 @@
-import type { ArtefactEventStatus, ProducedArtefact } from '@renku/core';
+import type { ArtefactEventStatus, ProducedArtefact } from '@gorenku/core';
 
 export interface InlineArtefactOptions {
   artefactId: string;

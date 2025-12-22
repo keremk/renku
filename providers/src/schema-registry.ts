@@ -1,4 +1,4 @@
-import type { ProviderName } from '@renku/core';
+import type { ProviderName } from '@gorenku/core';
 
 export interface SchemaRegistryEntry {
   provider: ProviderName;

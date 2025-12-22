@@ -5,7 +5,7 @@ import { loadBlueprintBundle } from '../blueprint-loader/index.js';
 import { buildProducerOptionsFromBlueprint } from '../producer-options.js';
 import { resolveBlueprintSpecifier } from '../config-assets.js';
 import type { ModelSelection } from '../producer-options.js';
-import type { BlueprintTreeNode } from '@renku/core';
+import type { BlueprintTreeNode } from '@gorenku/core';
 
 const CLI_ROOT = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
 

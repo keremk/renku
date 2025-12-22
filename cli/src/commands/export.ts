@@ -6,7 +6,7 @@ import { resolveTargetMovieId } from '../lib/movie-id-utils.js';
 import { loadCurrentManifest } from '../lib/friendly-view.js';
 import { readMovieMetadata } from '../lib/movie-metadata.js';
 import { loadBlueprintBundle } from '../lib/blueprint-loader/index.js';
-import { createProviderRegistry, loadModelCatalog } from '@renku/providers';
+import { createProviderRegistry, loadModelCatalog } from '@gorenku/providers';
 
 const DEFAULT_WIDTH = 1920;
 const DEFAULT_HEIGHT = 1080;

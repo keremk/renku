@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer';
-import type { ArtifactKind, ProducedArtefact } from '@renku/core';
+import type { ArtifactKind, ProducedArtefact } from '@gorenku/core';
 import type { ProviderJobContext } from './types.js';
 
 const blobKinds = new Set<ArtifactKind>([

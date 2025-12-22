@@ -1,5 +1,5 @@
 {
-  "name": "@renku/compositions",
+  "name": "@gorenku/compositions",
   "version": "0.1.3",
   "description": "Shared Remotion compositions and renderers for Renku",
   "license": "MIT",

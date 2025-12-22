@@ -5,8 +5,8 @@ import {
   lookupModel,
   type ProviderDescriptor,
   type ProducerModelEntry,
-} from '@renku/providers';
-import { formatProducerAlias } from '@renku/core';
+} from '@gorenku/providers';
+import { formatProducerAlias } from '@gorenku/core';
 import { loadBlueprintBundle } from '../lib/blueprint-loader/index.js';
 import { collectVariants } from '../lib/producer-options.js';
 import { expandPath } from '../lib/path.js';

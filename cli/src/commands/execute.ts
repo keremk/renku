@@ -9,7 +9,7 @@ import { readMovieMetadata } from '../lib/movie-metadata.js';
 import { resolveBlueprintSpecifier } from '../lib/config-assets.js';
 import { resolveAndPersistConcurrency } from '../lib/concurrency.js';
 import { cleanupPartialRunDirectory } from '../lib/cleanup.js';
-import type { Logger } from '@renku/core';
+import type { Logger } from '@gorenku/core';
 
 /**
  * Unified execution options supporting both new and existing movies.

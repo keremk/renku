@@ -11,7 +11,7 @@ import {
   removeViewerState,
   writeViewerState,
 } from '../lib/viewer-state.js';
-import type { Logger } from '@renku/core';
+import type { Logger } from '@gorenku/core';
 import {
   ensureViewerNetworkConfig,
   isViewerServerRunning,

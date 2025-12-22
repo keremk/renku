@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
-import type { ExecutionPlan, InputEvent } from '@renku/core';
+import type { ExecutionPlan, InputEvent } from '@gorenku/core';
 import { confirmPlanExecution } from './interactive-confirm.js';
 
 const mockClose = vi.fn();

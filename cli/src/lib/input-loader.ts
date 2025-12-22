@@ -1,10 +1,10 @@
-import type { BlueprintTreeNode } from '@renku/core';
+import type { BlueprintTreeNode } from '@gorenku/core';
 import {
   loadInputsFromYaml as coreLoadInputsFromYaml,
   type InputMap,
   type ModelSelection,
   type ArtifactOverride,
-} from '@renku/core';
+} from '@gorenku/core';
 import { buildProducerOptionsFromBlueprint, type ProducerOptionsMap } from './producer-options.js';
 
 export interface LoadedInputs {

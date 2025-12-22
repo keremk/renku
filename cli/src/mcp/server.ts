@@ -8,7 +8,7 @@ import type { Variables } from '@modelcontextprotocol/sdk/shared/uriTemplate.js'
 import type { ReadResourceResult, ListResourcesResult, Resource } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { stringify as stringifyYaml } from 'yaml';
-import type { Manifest } from '@renku/core';
+import type { Manifest } from '@gorenku/core';
 import { runGenerate, type GenerateResult } from '../commands/generate.js';
 import { runViewerView } from '../commands/viewer.js';
 import { readCliConfig } from '../lib/cli-config.js';

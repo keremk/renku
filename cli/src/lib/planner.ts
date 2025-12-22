@@ -16,8 +16,8 @@ import {
   type PendingArtefactDraft,
   type Logger,
   type ArtifactOverride,
-} from '@renku/core';
-export type { PendingArtefactDraft } from '@renku/core';
+} from '@gorenku/core';
+export type { PendingArtefactDraft } from '@gorenku/core';
 import {
   loadPricingCatalog,
   estimatePlanCosts,
@@ -25,12 +25,12 @@ import {
   loadModelInputSchema,
   type PlanCostSummary,
   type LoadedModelCatalog,
-} from '@renku/providers';
+} from '@gorenku/providers';
 import type { CliConfig } from './cli-config.js';
 import { loadBlueprintBundle } from './blueprint-loader/index.js';
 import { loadInputsFromYaml } from './input-loader.js';
 import { buildProducerCatalog, type ProducerOptionsMap } from './producer-options.js';
-import type { ProviderOptionEntry } from '@renku/core';
+import type { ProviderOptionEntry } from '@gorenku/core';
 import { expandPath } from './path.js';
 import { mergeMovieMetadata } from './movie-metadata.js';
 import { applyProviderDefaults } from './provider-defaults.js';
@@ -45,7 +45,7 @@ export interface GeneratePlanOptions {
   usingBlueprint: string; // Path to blueprint YAML file
   pendingArtefacts?: PendingArtefactDraft[];
   logger?: Logger;
-  notifications?: import('@renku/core').NotificationBus;
+  notifications?: import('@gorenku/core').NotificationBus;
 }
 
 export interface GeneratePlanResult {

@@ -8,7 +8,7 @@ import {
 	type ModelPriceConfig,
 	type PricingCatalog,
 } from './cost-functions.js';
-import type { ExecutionPlan, JobDescriptor } from '@renku/core';
+import type { ExecutionPlan, JobDescriptor } from '@gorenku/core';
 
 describe('calculateCost', () => {
 	describe('flat pricing', () => {

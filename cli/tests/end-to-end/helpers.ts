@@ -2,7 +2,7 @@ import { mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { stringify, parse } from 'yaml';
-import type { Logger } from '@renku/core';
+import type { Logger } from '@gorenku/core';
 import { writeCliConfig, type CliConfig } from '../../src/lib/cli-config.js';
 import { getBundledCatalogRoot } from '../../src/lib/config-assets.js';
 

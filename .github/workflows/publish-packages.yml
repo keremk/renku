@@ -87,19 +87,19 @@ jobs:
           PROVIDERS_VERSION=$(node -p "require('./providers/package.json').version")
 
           echo "Package versions:"
-          echo "  - @renku/core: $CORE_VERSION"
-          echo "  - @renku/compositions: $COMPOSITIONS_VERSION"
-          echo "  - @renku/providers: $PROVIDERS_VERSION"
-          echo "  - @renku/cli: $CLI_VERSION"
+          echo "  - @gorenku/core: $CORE_VERSION"
+          echo "  - @gorenku/compositions: $COMPOSITIONS_VERSION"
+          echo "  - @gorenku/providers: $PROVIDERS_VERSION"
+          echo "  - @gorenku/cli: $CLI_VERSION"
 
           echo "✅ Tag matches CLI version"
 
       - name: Build all publishable packages
         run: |
-          pnpm --filter @renku/core build
-          pnpm --filter @renku/compositions build
-          pnpm --filter @renku/providers build
-          pnpm --filter @renku/cli build
+          pnpm --filter @gorenku/core build
+          pnpm --filter @gorenku/compositions build
+          pnpm --filter @gorenku/providers build
+          pnpm --filter @gorenku/cli build
 
       - name: Publish renku-core
         if: >
@@ -123,7 +123,7 @@ jobs:
         run: pnpm bundle:viewer
 
       - name: Pack CLI (includes bundled viewer)
-        run: pnpm --filter @renku/cli pack --pack-destination release
+        run: pnpm --filter @gorenku/cli pack --pack-destination release
 
       - name: Locate packaged CLI tarball
         id: tarball
@@ -178,10 +178,10 @@ jobs:
             echo "✅ Dry run completed - no packages were published" >> $GITHUB_STEP_SUMMARY
           else
             echo "📦 Published packages:" >> $GITHUB_STEP_SUMMARY
-            echo "- @renku/core" >> $GITHUB_STEP_SUMMARY
-            echo "- @renku/compositions" >> $GITHUB_STEP_SUMMARY
-            echo "- @renku/providers" >> $GITHUB_STEP_SUMMARY
-            echo "- @renku/cli (with bundled viewer)" >> $GITHUB_STEP_SUMMARY
+            echo "- @gorenku/core" >> $GITHUB_STEP_SUMMARY
+            echo "- @gorenku/compositions" >> $GITHUB_STEP_SUMMARY
+            echo "- @gorenku/providers" >> $GITHUB_STEP_SUMMARY
+            echo "- @gorenku/cli (with bundled viewer)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             if [ "${{ github.event_name }}" == "push" ]; then
               echo "🎉 GitHub Release created: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY

@@ -1,7 +1,7 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import type { ExecutionPlan, JobDescriptor, BlueprintProducerSdkMappingField } from '@renku/core';
+import type { ExecutionPlan, JobDescriptor, BlueprintProducerSdkMappingField } from '@gorenku/core';
 
 // ============================================================================
 // Types

@@ -11,7 +11,7 @@ import {
   parseCanonicalProducerId,
   type BlobRef,
   type Manifest,
-} from '@renku/core';
+} from '@gorenku/core';
 import type { PendingArtefactDraft } from './planner.js';
 import type { CliConfig } from './cli-config.js';
 

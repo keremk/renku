@@ -7,7 +7,7 @@ import type {
   ProviderLogger,
   ProviderMode,
 } from '../types.js';
-import type { BlueprintProducerSdkMappingField, StorageContext } from '@renku/core';
+import type { BlueprintProducerSdkMappingField, StorageContext } from '@gorenku/core';
 
 export type ProducerDomain = 'prompt' | 'media';
 
@@ -27,7 +27,7 @@ export type ProducerInvokeFn = (args: ProducerInvokeArgs) => Promise<ProviderRes
 export interface ProducerWarmStartArgs {
   handler: ProducerHandler;
   logger?: ProviderLogger;
-  notifications?: import('@renku/core').NotificationBus;
+  notifications?: import('@gorenku/core').NotificationBus;
 }
 
 export type ProducerWarmStartFn = (args: ProducerWarmStartArgs) => Promise<void>;
@@ -70,7 +70,7 @@ export interface ProducerRuntime {
   sdk: RuntimeSdkHelpers;
   artefacts: ArtefactRegistry;
   logger?: ProviderLogger;
-  notifications?: import('@renku/core').NotificationBus;
+  notifications?: import('@gorenku/core').NotificationBus;
   /** Cloud storage context for uploading blob inputs (optional). */
   cloudStorage?: StorageContext;
 }

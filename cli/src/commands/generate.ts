@@ -5,7 +5,7 @@ import { resolveAndPersistConcurrency } from '../lib/concurrency.js';
 import { buildFriendlyView, loadCurrentManifest, prepareFriendlyPreflight } from '../lib/friendly-view.js';
 import crypto from 'node:crypto';
 import { resolve } from 'node:path';
-import type { LogLevel } from '@renku/core';
+import type { LogLevel } from '@gorenku/core';
 import { createCliLogger } from '../lib/logger.js';
 
 export interface GenerateOptions {

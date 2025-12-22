@@ -14,7 +14,7 @@ import {
   type CliConfig,
 } from '../lib/cli-config.js';
 import { expandPath } from '../lib/path.js';
-import type { Logger } from '@renku/core';
+import type { Logger } from '@gorenku/core';
 type ShutdownSignal = 'SIGINT' | 'SIGTERM';
 
 export interface RunMcpServerOptions {

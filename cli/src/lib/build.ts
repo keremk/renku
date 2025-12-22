@@ -20,7 +20,7 @@ import {
   type Logger,
   type BlobInput,
   type StorageContext,
-} from '@renku/core';
+} from '@gorenku/core';
 import {
   createProviderRegistry,
   type ProviderContextPayload,
@@ -29,7 +29,7 @@ import {
   type ResolvedProviderHandler,
   type ProviderDescriptor,
   type LoadedModelCatalog,
-} from '@renku/providers';
+} from '@gorenku/providers';
 import type { CliConfig } from './cli-config.js';
 import { normalizeConcurrency } from './cli-config.js';
 import type { ProducerOptionsMap, LoadedProducerOption } from './producer-options.js';
@@ -52,7 +52,7 @@ export interface ExecuteBuildOptions {
   /** Enable dry-run mode: simulated providers, no S3 uploads. */
   dryRun?: boolean;
   logger?: Logger;
-  notifications?: import('@renku/core').NotificationBus;
+  notifications?: import('@gorenku/core').NotificationBus;
 }
 
 export interface JobSummary {
@@ -236,7 +236,7 @@ export function createProviderProduce(
   resolvedInputs: Record<string, unknown>,
   preResolved: ResolvedProviderHandler[] = [],
   logger: Logger = globalThis.console,
-  notifications?: import('@renku/core').NotificationBus,
+  notifications?: import('@gorenku/core').NotificationBus,
 ): ProduceFn {
   const handlerCache = new Map<string, ProducerHandler>();
 

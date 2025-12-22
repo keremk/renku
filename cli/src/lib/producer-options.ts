@@ -6,12 +6,12 @@ import type {
   ProducerModelVariant,
   BlueprintProducerOutputDefinition,
   BlueprintProducerSdkMappingField,
-} from '@renku/core';
-import { formatProducerAlias } from '@renku/core';
+} from '@gorenku/core';
+import { formatProducerAlias } from '@gorenku/core';
 import type {
   ProviderAttachment,
   ProviderEnvironment,
-} from '@renku/providers';
+} from '@gorenku/providers';
 
 export interface LoadedProducerOption {
   priority: 'main';

@@ -6,7 +6,7 @@ import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
 import { createProviderError } from '../../sdk/errors.js';
 import type { HandlerFactory } from '../../types.js';
 import type { ResolvedInputsAccessor } from '../../sdk/types.js';
-import { createStorageContext } from '@renku/core';
+import { createStorageContext } from '@gorenku/core';
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_DOCKER_IMAGE = process.env.REMOTION_DOCKER_IMAGE ?? 'renku-remotion-export:latest';

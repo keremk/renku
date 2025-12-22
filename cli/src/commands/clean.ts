@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { rm } from 'node:fs/promises';
 import { readCliConfig } from '../lib/cli-config.js';
 import { formatMovieId } from './execute.js';
-import type { Logger } from '@renku/core';
+import type { Logger } from '@gorenku/core';
 
 export async function runClean(options: { movieId: string; logger?: Logger }): Promise<void> {
   const logger = options.logger ?? globalThis.console;

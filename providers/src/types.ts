@@ -5,7 +5,7 @@ import type {
   RevisionId,
   Logger,
   StorageContext,
-} from '@renku/core';
+} from '@gorenku/core';
 import type { SchemaRegistry } from './schema-registry.js';
 
 export type ProviderMode = 'mock' | 'live' | 'simulated';
@@ -80,7 +80,7 @@ export interface HandlerFactoryInit {
   secretResolver: SecretResolver;
   logger?: ProviderLogger;
   schemaRegistry?: SchemaRegistry;
-  notifications?: import('@renku/core').NotificationBus;
+  notifications?: import('@gorenku/core').NotificationBus;
   /** Cloud storage context for uploading blob inputs (optional). */
   cloudStorage?: StorageContext;
 }
@@ -100,7 +100,7 @@ export interface ProviderRegistryOptions {
   logger?: ProviderLogger;
   secretResolver?: SecretResolver;
   schemaRegistry?: SchemaRegistry;
-  notifications?: import('@renku/core').NotificationBus;
+  notifications?: import('@gorenku/core').NotificationBus;
   /** Cloud storage context for uploading blob inputs to S3-compatible storage. */
   cloudStorage?: StorageContext;
 }

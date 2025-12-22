@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { stringify as stringifyYaml } from 'yaml';
-import { isBlobRef } from '@renku/core';
+import { isBlobRef } from '@gorenku/core';
 import { getDefaultCliConfigPath, readCliConfig } from '../../src/lib/cli-config.js';
 import { formatMovieId } from '../../src/commands/execute.js';
 import { generatePlan } from '../../src/lib/planner.js';

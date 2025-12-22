@@ -5,8 +5,8 @@ import type {
 	ProviderRegistry,
 	ProducerHandler,
 	ProviderJobContext,
-} from '@renku/providers';
-import type { ProduceRequest, JobDescriptor } from '@renku/core';
+} from '@gorenku/providers';
+import type { ProduceRequest, JobDescriptor } from '@gorenku/core';
 import { createCliLogger } from './logger.js';
 
 describe('createProviderProduce', () => {

@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { bundle } from "@remotion/bundler";
 import { renderMedia, selectComposition } from "@remotion/renderer";
 import handler from "serve-handler";
-import { DOCUMENTARY_COMPOSITION_ID } from "@renku/compositions";
+import { DOCUMENTARY_COMPOSITION_ID } from "@gorenku/compositions";
 
 function parseArgs() {
   const args = process.argv.slice(2);

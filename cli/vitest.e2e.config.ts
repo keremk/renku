@@ -11,11 +11,11 @@ export default defineConfig({
   resolve: {
     alias: [
       {
-        find: '@renku/core',
+        find: '@gorenku/core',
         replacement: new URL('../core/src/index.ts', import.meta.url).pathname,
       },
       {
-        find: '@renku/providers',
+        find: '@gorenku/providers',
         replacement: new URL('../providers/src/index.ts', import.meta.url).pathname,
       },
     ],

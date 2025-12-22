@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer';
-import { isCanonicalArtifactId, type ProducedArtefact } from '@renku/core';
+import { isCanonicalArtifactId, type ProducedArtefact } from '@gorenku/core';
 
 type JsonObject = Record<string, unknown>;
 

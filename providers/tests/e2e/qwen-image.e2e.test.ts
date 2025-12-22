@@ -16,7 +16,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createProviderRegistry } from '../../src/registry.js';
 import type { ProviderJobContext } from '../../src/types.js';
-import { loadCloudStorageEnv, createCloudStorageContext } from '@renku/core';
+import { loadCloudStorageEnv, createCloudStorageContext } from '@gorenku/core';
 import { buildImageExtras, type ImageModel } from './schema-helpers.js';
 import { saveTestArtifact } from './test-utils.js';
 

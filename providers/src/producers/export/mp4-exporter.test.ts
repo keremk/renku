@@ -14,7 +14,7 @@ vi.mock('node:child_process', () => ({
   },
 }));
 
-vi.mock('@renku/compositions', () => {
+vi.mock('@gorenku/compositions', () => {
   return {
     renderDocumentaryMp4: vi.fn(async (options: { outputFile: string }) => {
       await writeFile(options.outputFile, Buffer.from('mock-mp4'));

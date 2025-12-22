@@ -9,7 +9,7 @@ import {
   type Logger,
   type LogLevel,
   type LogWriter,
-} from '@renku/core';
+} from '@gorenku/core';
 
 export interface CliLoggerOptions {
   level: LogLevel;

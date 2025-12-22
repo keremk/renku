@@ -1,4 +1,4 @@
-import { isCanonicalInputId } from '@renku/core';
+import { isCanonicalInputId } from '@gorenku/core';
 
 export function canonicalizeAuthoredInputId(authoredId: string, availableInputs: string[]): string {
   const canonicalInputs = availableInputs.filter((value) => isCanonicalInputId(value));

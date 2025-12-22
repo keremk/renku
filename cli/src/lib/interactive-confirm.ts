@@ -1,7 +1,7 @@
 import process from 'node:process';
 import * as readline from 'node:readline';
-import type { ExecutionPlan, InputEvent, Logger } from '@renku/core';
-import type { PlanCostSummary } from '@renku/providers';
+import type { ExecutionPlan, InputEvent, Logger } from '@gorenku/core';
+import type { PlanCostSummary } from '@gorenku/providers';
 import chalk from 'chalk';
 import {
 	displayInputSummary,

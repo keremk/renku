@@ -21,7 +21,7 @@ import {
   type BlueprintProducerSdkMappingField,
   type NotificationBus,
   type StorageContext,
-} from '@renku/core';
+} from '@gorenku/core';
 import { createHash } from 'node:crypto';
 
 interface SerializedJobContext {

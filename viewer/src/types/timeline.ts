@@ -1,1 +1,1 @@
-export * from "@renku/compositions/browser";
+export * from "@gorenku/compositions/browser";

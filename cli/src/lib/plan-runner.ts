@@ -8,8 +8,8 @@ import type {
   RunResult,
   RunnerExecutionContext,
   RunnerLogger,
-} from '@renku/core';
-import { createRunner } from '@renku/core';
+} from '@gorenku/core';
+import { createRunner } from '@gorenku/core';
 import chalk from 'chalk';
 
 interface PlanExecutionContext extends RunnerExecutionContext {
@@ -17,7 +17,7 @@ interface PlanExecutionContext extends RunnerExecutionContext {
   produce: ProduceFn;
   logger?: RunnerLogger;
   clock?: Clock;
-  notifications?: import('@renku/core').NotificationBus;
+  notifications?: import('@gorenku/core').NotificationBus;
 }
 
 export async function executePlanWithConcurrency(

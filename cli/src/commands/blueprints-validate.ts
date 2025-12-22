@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { loadBlueprintBundle } from '../lib/blueprint-loader/index.js';
 import { expandPath } from '../lib/path.js';
-import { buildBlueprintGraph } from '@renku/core';
+import { buildBlueprintGraph } from '@gorenku/core';
 
 export interface BlueprintsValidateOptions {
   blueprintPath: string;

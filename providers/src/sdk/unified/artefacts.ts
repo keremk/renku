@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer';
-import type { ProducedArtefact } from '@renku/core';
+import type { ProducedArtefact } from '@gorenku/core';
 import type { ProviderMode } from '../../types.js';
 
 export interface BuildArtefactsOptions {

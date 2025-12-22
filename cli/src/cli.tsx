@@ -48,7 +48,7 @@ import { runGenerate } from './commands/generate.js';
 import { runClean } from './commands/clean.js';
 import { runExport } from './commands/export.js';
 import { runProducersList } from './commands/producers-list.js';
-import { formatPrice, type ProducerModelEntry } from '@renku/providers';
+import { formatPrice, type ProducerModelEntry } from '@gorenku/providers';
 import { runBlueprintsList } from './commands/blueprints-list.js';
 import { runBlueprintsDescribe } from './commands/blueprints-describe.js';
 import { runViewerStart, runViewerStop, runViewerView } from './commands/viewer.js';
@@ -61,7 +61,7 @@ import {
   getCliBlueprintsRoot,
   resolveBlueprintSpecifier,
 } from './lib/config-assets.js';
-import { type LogLevel, type Logger as CoreLogger } from '@renku/core';
+import { type LogLevel, type Logger as CoreLogger } from '@gorenku/core';
 import { detectViewerAddress } from './lib/viewer-network.js';
 
 

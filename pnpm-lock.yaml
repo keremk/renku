@@ -33,15 +33,15 @@ importers:
 
   cli:
     dependencies:
+      '@gorenku/core':
+        specifier: workspace:*
+        version: link:../core
+      '@gorenku/providers':
+        specifier: workspace:*
+        version: link:../providers
       '@modelcontextprotocol/sdk':
         specifier: ^1.22.0
         version: 1.22.0
-      '@renku/core':
-        specifier: workspace:*
-        version: link:../core
-      '@renku/providers':
-        specifier: workspace:*
-        version: link:../providers
       chalk:
         specifier: ^5.6.2
         version: 5.6.2
@@ -210,10 +210,10 @@ importers:
       '@fal-ai/client':
         specifier: ^1.7.2
         version: 1.7.2
-      '@renku/compositions':
+      '@gorenku/compositions':
         specifier: workspace:*
         version: link:../compositions
-      '@renku/core':
+      '@gorenku/core':
         specifier: workspace:*
         version: link:../core
       ai:
@@ -268,6 +268,9 @@ importers:
 
   viewer:
     dependencies:
+      '@gorenku/compositions':
+        specifier: workspace:*
+        version: link:../compositions
       '@remotion/cli':
         specifier: 4.0.382
         version: 4.0.382(bufferutil@4.0.9)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
@@ -277,9 +280,6 @@ importers:
       '@remotion/renderer':
         specifier: 4.0.382
         version: 4.0.382(bufferutil@4.0.9)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
-      '@renku/compositions':
-        specifier: workspace:*
-        version: link:../compositions
       '@tailwindcss/vite':
         specifier: ^4.1.17
         version: 4.1.17(vite@7.2.6(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.20.5)(yaml@2.8.1))
@@ -365,7 +365,7 @@ importers:
     devDependencies:
       '@tailwindcss/vite':
         specifier: ^4.1.17
-        version: 4.1.17(vite@7.2.6(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.20.5)(yaml@2.8.1))
+        version: 4.1.17(vite@6.4.1(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.20.5)(yaml@2.8.1))
       sharp:
         specifier: ^0.34.2
         version: 0.34.5
@@ -8432,6 +8432,13 @@ snapshots:
       '@tailwindcss/oxide-wasm32-wasi': 4.1.17
       '@tailwindcss/oxide-win32-arm64-msvc': 4.1.17
       '@tailwindcss/oxide-win32-x64-msvc': 4.1.17
+
+  '@tailwindcss/vite@4.1.17(vite@6.4.1(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.20.5)(yaml@2.8.1))':
+    dependencies:
+      '@tailwindcss/node': 4.1.17
+      '@tailwindcss/oxide': 4.1.17
+      tailwindcss: 4.1.17
+      vite: 6.4.1(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.20.5)(yaml@2.8.1)
 
   '@tailwindcss/vite@4.1.17(vite@7.2.6(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.20.5)(yaml@2.8.1))':
     dependencies:

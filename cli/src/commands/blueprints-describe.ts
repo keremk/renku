@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { parseBlueprintDocument } from '../lib/blueprint-loader/index.js';
-import type { BlueprintInputDefinition, BlueprintArtefactDefinition } from '@renku/core';
+import type { BlueprintInputDefinition, BlueprintArtefactDefinition } from '@gorenku/core';
 
 export interface BlueprintsDescribeOptions {
   blueprintPath: string;

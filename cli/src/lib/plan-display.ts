@@ -1,6 +1,6 @@
-import type { ExecutionPlan, InputEvent, Logger, BlobInput } from '@renku/core';
-import { isBlobInput } from '@renku/core';
-import type { PlanCostSummary } from '@renku/providers';
+import type { ExecutionPlan, InputEvent, Logger, BlobInput } from '@gorenku/core';
+import { isBlobInput } from '@gorenku/core';
+import type { PlanCostSummary } from '@gorenku/providers';
 import chalk from 'chalk';
 
 export interface DisplayPlanOptions {

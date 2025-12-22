@@ -10,7 +10,7 @@ import {
   type ProduceRequest,
   type ProduceResult,
   type ProduceFn,
-} from '@renku/core';
+} from '@gorenku/core';
 import { getDefaultCliConfigPath, readCliConfig } from '../../src/lib/cli-config.js';
 import { formatMovieId, runExecute } from '../../src/commands/execute.js';
 import { getBundledBlueprintsRoot } from '../../src/lib/config-assets.js';

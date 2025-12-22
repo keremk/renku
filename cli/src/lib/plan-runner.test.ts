@@ -10,7 +10,7 @@ import {
   type ProduceFn,
   type JobDescriptor,
   type ProviderName,
-} from '@renku/core';
+} from '@gorenku/core';
 import { executePlanWithConcurrency } from './plan-runner.js';
 
 async function createRunnerContext() {

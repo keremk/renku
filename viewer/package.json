@@ -14,7 +14,7 @@
     "@remotion/cli": "4.0.382",
     "@remotion/player": "4.0.382",
     "@remotion/renderer": "4.0.382",
-    "@renku/compositions": "workspace:*",
+    "@gorenku/compositions": "workspace:*",
     "@tailwindcss/vite": "^4.1.17",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer';
-import { isCanonicalInputId } from '@renku/core';
+import { isCanonicalInputId } from '@gorenku/core';
 import { Input, ALL_FORMATS, BufferSource as MediaBufferSource } from 'mediabunny';
 import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
 import { createProviderError } from '../../sdk/errors.js';
