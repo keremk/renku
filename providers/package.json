@@ -1,6 +1,6 @@
 {
   "name": "@gorenku/providers",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "AI provider integrations for Renku",
   "type": "module",
   "main": "./dist/index.js",
