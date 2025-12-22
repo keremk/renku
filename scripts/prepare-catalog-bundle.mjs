@@ -9,14 +9,14 @@ const repoRoot = resolve(scriptDir, '..');
 const sourceCatalog = resolve(repoRoot, 'catalog');
 const targetCatalog = resolve(repoRoot, 'cli', 'catalog');
 
-function assertSourceExists(): void {
+function assertSourceExists() {
   if (!existsSync(sourceCatalog)) {
     console.error(`[catalog] Missing source catalog at ${sourceCatalog}`);
     process.exit(1);
   }
 }
 
-async function main(): Promise<void> {
+async function main() {
   assertSourceExists();
   await rm(targetCatalog, { recursive: true, force: true });
   await mkdir(targetCatalog, { recursive: true });
