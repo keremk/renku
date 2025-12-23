@@ -2,6 +2,7 @@ import type { LoadedModelCatalog, ModelDefinition, ModelType } from './model-cat
 import type { HandlerFactory, ProviderImplementation, ProviderMode, ProviderVariantMatch } from './types.js';
 import { createMockProducerHandler } from './mock-producers.js';
 import { createOpenAiLlmHandler } from './producers/llm/openai.js';
+import { createVercelAiGatewayHandler } from './producers/llm/vercel-ai-gateway.js';
 import { createMp4ExporterHandler } from './producers/export/mp4-exporter.js';
 import { createTimelineProducerHandler } from './producers/timeline/ordered-timeline.js';
 import { createUnifiedHandler } from './sdk/unified/index.js';
@@ -139,6 +140,17 @@ function getStaticImplementations(): ProviderImplementation[] {
       match: { provider: 'openai', model: wildcard, environment: wildcard },
       mode: 'simulated' as ProviderMode,
       factory: createOpenAiLlmHandler(),
+    },
+    // Vercel AI Gateway wildcard (supports multiple providers via OpenAI-compatible API)
+    {
+      match: { provider: 'vercel', model: wildcard, environment: wildcard },
+      mode: 'live' as ProviderMode,
+      factory: createVercelAiGatewayHandler(),
+    },
+    {
+      match: { provider: 'vercel', model: wildcard, environment: wildcard },
+      mode: 'simulated' as ProviderMode,
+      factory: createVercelAiGatewayHandler(),
     },
     // Mock fallback for all unmatched providers (only for mock mode)
     {

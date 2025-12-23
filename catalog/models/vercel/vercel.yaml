@@ -1,0 +1,65 @@
+# Vercel AI Gateway Model Catalog
+# Uses the Vercel AI Gateway to connect to various AI providers.
+# See: https://vercel.com/docs/ai-gateway
+#
+# Required environment variables:
+#   AI_GATEWAY_API_KEY - API key for the Vercel AI Gateway
+#
+# Optional: Set apiKeyName on a model to use a different API key secret.
+
+models:
+  - name: anthropic/claude-sonnet-4.5
+    type: text
+    mime:
+      - text/plain
+      - application/json
+    price: 0
+
+  - name: anthropic/claude-haiku-4.5
+    type: text
+    mime:
+      - text/plain
+      - application/json
+    price: 0
+
+  - name: xai/grok-code-fast-1
+    type: text
+    mime:
+      - text/plain
+      - application/json
+    price: 0
+
+  - name: google/gemini-3-flash
+    type: text
+    mime:
+      - text/plain
+      - application/json
+    price: 0
+
+  - name: minimax/minimax-m2.1
+    type: text
+    mime:
+      - text/plain
+      - application/json
+    price: 0
+
+  - name: deepseek/deepseek-v3.2
+    type: text
+    mime:
+      - text/plain
+      - application/json
+    price: 0
+
+  - name: moonshotai/kimi-k2-thinking
+    type: text
+    mime:
+      - text/plain
+      - application/json
+    price: 0
+
+  - name: zai/glm-4.7
+    type: text
+    mime:
+      - text/plain
+      - application/json
+    price: 0

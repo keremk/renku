@@ -25,6 +25,8 @@ export interface ModelDefinition {
   inputSchema?: string;
   /** Pricing configuration */
   price?: ModelPriceConfig | number;
+  /** Secret name for BYOK (e.g., 'ANTHROPIC_API_KEY') - used by vercel gateway */
+  apiKeyName?: string;
 }
 
 /**
@@ -55,6 +57,7 @@ export interface ProviderCatalogYaml {
     mime?: string[];
     inputSchema?: string;
     price?: ModelPriceConfig | number;
+    apiKeyName?: string;
   }>;
 }
 
@@ -127,6 +130,7 @@ export async function loadModelCatalog(
           mime: model.mime,
           inputSchema: model.inputSchema,
           price: model.price,
+          apiKeyName: model.apiKeyName,
         });
       }
       catalog.providers.set(providerName, modelMap);

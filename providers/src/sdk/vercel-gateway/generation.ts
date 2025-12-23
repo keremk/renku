@@ -1,22 +1,28 @@
 import {
-  generateObject,
   generateText,
   jsonSchema,
+  Output,
   type CallSettings,
   type JSONSchema7,
-  type JSONValue,
+  type LanguageModel,
 } from 'ai';
-import type { OpenAiResponseFormat, OpenAiLlmConfig } from './config.js';
-import { normalizeJsonSchema } from './config.js';
-import type { RenderedPrompts } from './prompts.js';
+import type { OpenAiResponseFormat, OpenAiLlmConfig } from '../openai/config.js';
+import { normalizeJsonSchema } from '../openai/config.js';
+import type { RenderedPrompts } from '../openai/prompts.js';
 import type { ProviderJobContext, ProviderMode } from '../../types.js';
-import { simulateOpenAiGeneration } from './simulation.js';
+import { simulateOpenAiGeneration } from '../openai/simulation.js';
 
 type JsonObject = Record<string, unknown>;
 
-export interface GenerationOptions {
-  /** AI SDK model (required for both live and simulated modes) */
-  model: ReturnType<ReturnType<typeof import('@ai-sdk/openai').createOpenAI>>;
+/**
+ * Model type from OpenAI-compatible provider.
+ * Using LanguageModel for compatibility with AI SDK generateText/generateObject.
+ */
+type CompatibleModel = LanguageModel;
+
+export interface VercelGatewayGenerationOptions {
+  /** AI SDK model instance from the client manager */
+  model: CompatibleModel;
   prompts: RenderedPrompts;
   responseFormat: OpenAiResponseFormat;
   config: OpenAiLlmConfig;
@@ -26,7 +32,7 @@ export interface GenerationOptions {
   request?: ProviderJobContext;
 }
 
-export interface GenerationResult {
+export interface VercelGatewayGenerationResult {
   data: JsonObject | string;
   usage?: Record<string, unknown>;
   warnings?: unknown[];
@@ -34,13 +40,27 @@ export interface GenerationResult {
 }
 
 /**
- * Calls OpenAI via AI SDK with either structured (JSON) or text output.
+ * Extracts the provider prefix from a model name.
+ * @example extractProviderPrefix('anthropic/claude-sonnet-4') -> 'anthropic'
+ */
+function extractProviderPrefix(modelName: string): string | undefined {
+  const slashIndex = modelName.indexOf('/');
+  if (slashIndex === -1) {
+    return undefined;
+  }
+  return modelName.substring(0, slashIndex);
+}
+
+/**
+ * Calls a provider via the Vercel AI SDK with either structured (JSON) or text output.
  *
  * In simulated mode, all validation and setup runs identically to live mode.
  * The only difference is at the very end: instead of calling the AI SDK,
  * it returns mock data based on the schema.
  */
-export async function callOpenAi(options: GenerationOptions): Promise<GenerationResult> {
+export async function callVercelGateway(
+  options: VercelGatewayGenerationOptions
+): Promise<VercelGatewayGenerationResult> {
   const { model, prompts, responseFormat, config, mode, request } = options;
 
   // Build prompt string (required by AI SDK)
@@ -54,58 +74,52 @@ export async function callOpenAi(options: GenerationOptions): Promise<Generation
     frequencyPenalty: config.frequencyPenalty,
   };
 
-  // Build provider-specific options
-  const openAiOptions: Record<string, JSONValue> = {};
-  if (responseFormat.type === 'json_schema') {
-    openAiOptions.strictJsonSchema = true;
-  }
-  if (config.reasoning) {
-    openAiOptions.reasoningEffort = config.reasoning;
-  }
+  // Extract provider from model name to restrict gateway routing
+  // e.g., 'anthropic/claude-sonnet-4' -> only use 'anthropic' provider
+  const providerPrefix = request?.model ? extractProviderPrefix(request.model) : undefined;
 
-  const providerOptions =
-    Object.keys(openAiOptions).length > 0 ? { openai: openAiOptions } : undefined;
-
-  const baseCallOptions = {
-    ...callSettings,
-    ...(providerOptions ? { providerOptions } : {}),
-  } as CallSettings & { providerOptions?: Record<string, Record<string, JSONValue>> };
-
-  // Call OpenAI based on response format
+  // Call provider based on response format
   if (responseFormat.type === 'json_schema') {
     return await generateStructuredOutput({
       model,
       prompt,
       system: prompts.system,
       responseFormat,
-      baseCallOptions,
+      callSettings,
       mode,
       request,
+      config,
+      providerPrefix,
     });
   } else {
     return await generatePlainText({
       model,
       prompt,
       system: prompts.system,
-      baseCallOptions,
+      callSettings,
       mode,
       request,
+      providerPrefix,
     });
   }
 }
 
 interface StructuredOutputOptions {
-  model: ReturnType<ReturnType<typeof import('@ai-sdk/openai').createOpenAI>>;
+  model: CompatibleModel;
   prompt: string;
   system?: string;
   responseFormat: OpenAiResponseFormat;
-  baseCallOptions: CallSettings & { providerOptions?: Record<string, Record<string, JSONValue>> };
+  callSettings: CallSettings;
   mode?: ProviderMode;
   request?: ProviderJobContext;
+  config: OpenAiLlmConfig;
+  providerPrefix?: string;
 }
 
-async function generateStructuredOutput(options: StructuredOutputOptions): Promise<GenerationResult> {
-  const { model, prompt, system, responseFormat, baseCallOptions, mode, request } = options;
+async function generateStructuredOutput(
+  options: StructuredOutputOptions
+): Promise<VercelGatewayGenerationResult> {
+  const { model, prompt, system, responseFormat, callSettings, mode, request, providerPrefix } = options;
 
   if (!responseFormat.schema) {
     throw new Error('Schema is required for json_schema response format.');
@@ -124,18 +138,26 @@ async function generateStructuredOutput(options: StructuredOutputOptions): Promi
     return simulateOpenAiGeneration({ request, config: { responseFormat } as OpenAiLlmConfig });
   }
 
-  const generation = await generateObject({
-    ...baseCallOptions,
+  const generation = await generateText({
+    ...callSettings,
     model,
     prompt,
     system,
-    schema,
-    schemaName: responseFormat.name,
-    schemaDescription: responseFormat.description,
+    output: Output.object({
+      schema,
+      name: responseFormat.name,
+      description: responseFormat.description,
+    }),
+    // Restrict gateway to only use the specified provider
+    ...(providerPrefix && {
+      experimental_providerOptions: {
+        only: [providerPrefix],
+      },
+    }),
   });
 
   return {
-    data: generation.object as JsonObject,
+    data: generation.output as JsonObject,
     usage: generation.usage as Record<string, unknown> | undefined,
     warnings: generation.warnings,
     response: generation.response as Record<string, unknown> | undefined,
@@ -143,28 +165,38 @@ async function generateStructuredOutput(options: StructuredOutputOptions): Promi
 }
 
 interface PlainTextOptions {
-  model: ReturnType<ReturnType<typeof import('@ai-sdk/openai').createOpenAI>>;
+  model: CompatibleModel;
   prompt: string;
   system?: string;
-  baseCallOptions: CallSettings & { providerOptions?: Record<string, Record<string, JSONValue>> };
+  callSettings: CallSettings;
   mode?: ProviderMode;
   request?: ProviderJobContext;
+  providerPrefix?: string;
 }
 
-async function generatePlainText(options: PlainTextOptions): Promise<GenerationResult> {
-  const { model, prompt, system, baseCallOptions, mode, request } = options;
+async function generatePlainText(options: PlainTextOptions): Promise<VercelGatewayGenerationResult> {
+  const { model, prompt, system, callSettings, mode, request, providerPrefix } = options;
 
   // In simulated mode, return mock data instead of calling the AI SDK
   // All validation and setup has already run identically to live mode
   if (mode === 'simulated' && request) {
-    return simulateOpenAiGeneration({ request, config: { responseFormat: { type: 'text' } } as OpenAiLlmConfig });
+    return simulateOpenAiGeneration({
+      request,
+      config: { responseFormat: { type: 'text' } } as OpenAiLlmConfig,
+    });
   }
 
   const generation = await generateText({
-    ...baseCallOptions,
+    ...callSettings,
     model,
     prompt,
     system,
+    // Restrict gateway to only use the specified provider
+    ...(providerPrefix && {
+      experimental_providerOptions: {
+        only: [providerPrefix],
+      },
+    }),
   });
 
   return {

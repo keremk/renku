@@ -136,10 +136,7 @@ Full documentation is available at [gorenku.com](https://gorenku.com/):
 
 ## Contributing
 
-We welcome contributions! Please ensure your code:
-- Passes TypeScript type checking (`pnpm check`)
-- Includes tests for new functionality
-- Follows the conventions outlined in [CLAUDE.md](./CLAUDE.md)
+We are not yet open for contributions, but it will be coming very soon. 
 
 ## License
 

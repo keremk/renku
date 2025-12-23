@@ -31,7 +31,8 @@
       "WebFetch(domain:starlight.astro.build)",
       "WebFetch(domain:docs.astro.build)",
       "Skill(frontend-design)",
-      "WebFetch(domain:starlight-utils.pages.dev)"
+      "WebFetch(domain:starlight-utils.pages.dev)",
+      "WebFetch(domain:vercel.com)"
     ],
     "deny": [],
     "ask": []

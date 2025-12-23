@@ -217,7 +217,6 @@ describe('createOpenAiLlmHandler', () => {
     expect(callArgs.prompt).toContain('Topic: space travel');
     expect(callArgs.model).toBe('mock-model');
     expect(callArgs.system).toBe('Write for children');
-    expect(callArgs.mode).toBe('json');
 
     expect(result.status).toBe('succeeded');
     expect(result.artefacts).toHaveLength(2);
