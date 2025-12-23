@@ -1,88 +1,146 @@
-I want you to help me have a first version of the @README.md file. I have already written some things but they are incomplete. The
-  README should not be overly long though. Do not rely on the docs in the archived folder, they are outdated.
-
 # Renku
 
-**Renku is an incremental build system for AI-generated media assets.**
+> AI-powered build system for video content generation
 
-Today, building anything longer than a few seconds with AI usually means juggling multiple tools: one or more model APIs for each type of asset, a separate editor for the timeline or layout, and a lot of copy–paste.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node Version](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
 
-If you want a one-minute piece made of six 10-second segments, you typically have to:
+<div align="center">
+  <img src="./web/public/logo.svg" alt="Renku Logo" width="300">
+</div>
 
-* craft or tweak prompts for each segment,
-* generate images or video for each segment,
-* generate narration audio for each segment,
-* pick or generate music and effects,
-* import everything into a video editor and line it up by hand,
+**[Documentation](https://gorenku.com/)** • **[Quick Start](https://gorenku.com/docs/quick-start)** • **[Examples](./catalog)**
 
-You can handcraft a script but then, when you don't like the outcome and want to tweak that, then you end up regenerating all of the artifacts by re-running that script.
+## What is Renku?
 
-Renku replaces that manual, ad-hoc process or a handcrafted automation script with an incremental build system.
+Renku is a powerful build system for generating video content using AI models. It enables you to create narrated documentaries, educational videos, and multimedia presentations from simple text prompts by orchestrating multiple AI providers (OpenAI, Replicate, fal.ai, ElevenLabs) into cohesive production pipelines.
 
-You define a **blueprint** (a “workflow pipeline”) describing the flow using **producers** (prompt generators, asset generators, composition/export etc.). Then you can use this pipeline and initiate generation using a single **inquiry prompt**. Renku runs the pipeline, caches their artifacts, and only re-runs the parts of the graph that are affected when you change a prompt, a parameter, or upstream data.
+Unlike monolithic AI video tools, Renku gives you fine-grained control over every step of the generation process through **blueprints** - declarative YAML workflows that define how content flows from text prompts to final rendered videos. The system handles dependency resolution, parallel execution, state tracking, and artifact versioning automatically, letting you focus on creative direction rather than infrastructure.
 
+Key features include:
+- **Multi-provider orchestration**: Mix and match AI services (text, image, audio, video) in a single workflow
+- **Incremental generation**: Layer-by-layer execution with dirty checking - only regenerate what changed
+- **State management**: Built-in manifest system tracks all artifacts and their dependencies
+- **Parallel execution**: Automatic job parallelization within dependency layers
+- **Local-first**: All artifacts stored locally with optional S3 cloud storage support
+- **Video composition**: Uses [Remotion](https://www.remotion.dev/) to compose the final video with multiple tracks and segments per track from the AI generated artifacts.
+- **MP4 export**: Exports your generated final video to MP4, so you can upload to anywhere you want.  
 
-## What Renku is good for
+## Packages
 
-Renku is meant for any workload where you need **many generated assets that depend on each other**, for example:
+### User-Facing
 
-* sequences of clips for long- or short-form video,
-* narrated image sequences,
-* multi-part content for lessons or courses,
-* any other pipeline where prompts, assets, and composed outputs are linked.
+- **[@gorenku/cli](./cli/README.md)** - Command-line interface for video generation
 
-The system is extensible: today you might target videos, but you can add stages and plugins to target slide decks, print-style layouts, or other composed formats, using the same incremental build model.
+  The main user-facing tool. Install globally to start generating AI videos from your terminal. Includes workspace management, blueprint execution, and a built-in viewer for previewing results.
 
-## Agents and tools
+### Developer Packages
 
-Renku can also be used as a tool from agentic systems (for example, as a skill in Claude Code).
+- **[@gorenku/core](./core/README.md)** - Core workflow orchestration engine
 
-Instead of having an agent manually orchestrate dozens of individual generations and keep track of all the intermediate assets, you prompt it to use the Renku skill:
+  The foundation of Renku. Handles blueprint loading, execution planning, job orchestration, manifest management, and event logging. Use this package if you're building custom tooling on top of Renku.
 
-> “Run the video story blueprint and tell me about the Battle of Waterloo in 30 seconds”
+- **[@gorenku/providers](./providers/README.md)** - AI provider integrations
 
-The blueprint encodes the multi-step, multi-asset logic; Renku executes it incrementally.
+  Integrations with OpenAI, Replicate, fal.ai, Wavespeed AI, and other AI services. Includes producer implementations, model catalogs, and a unified provider registry system.
 
-## Table Of Contents
+- **[@gorenku/compositions](./compositions/README.md)** - Remotion video compositions
 
-> Insert a table of contents here
+  Remotion-based video rendering components and timeline document format. Supports both browser and Node.js environments for video playback and export.
 
-## Installation
+- **[viewer](./viewer/README.md)** - Browser-based content viewer
 
+  React + Remotion viewer application for inspecting generated content. Bundled with the CLI and served via `renku viewer:view` commands.
 
 ## Quick Start
 
+Install the Renku CLI globally:
 
-## High-level concepts (sketch)
+```bash
+npm install -g @gorenku/cli
+```
 
-> Adjust this to match the actual implementation.
+Initialize a workspace:
 
-* **Blueprint**
-  A declarative description of stages, their inputs/outputs, and dependencies.
+```bash
+renku init --root=~/my-videos
+```
 
-* **Layer**
-  A grouping of tasks that can run in parallel together
+Configure your API keys:
 
-* **Artifacts**
-  Files or structured data produced by stages (scripts, audio files, image sequences, JSON, etc.).
+```bash
+# Edit the generated env.sh file
+vim ~/.config/renku/env.sh
 
-* **Incremental builds**
-  Renku tracks which artifacts come from which stages and inputs. When you change something, it only rebuilds the affected stages.
+# Source the API keys
+source ~/.config/renku/env.sh
+```
 
+Run your first blueprint:
 
-## Usage Scenarios
+```bash
+cd ~/my-videos
 
+# Copy an input template
+cp ./catalog/blueprints/kenn-burns/input-template.yaml ./my-inputs.yaml
 
+# Edit inputs with your desired parameters
+vim ./my-inputs.yaml
 
-## CLI Reference
-Provide a link to cli_interface
+# Generate content
+renku generate \
+  --inputs=./my-inputs.yaml \
+  --blueprint=./catalog/blueprints/kenn-burns/image-audio.yaml
+```
 
-## Blueprint Development
-### Architecture & Concepts
+View the results:
 
-### How To Guide
-Provide a link ...(authoring blueprints)
+```bash
+renku viewer:view --last
+```
 
+For more detailed instructions, see the [full quick start guide](https://gorenku.com/docs/quick-start).
 
-## Building Custom Producers
-Currently this is not yet open for development, but you can take a look at the providers package on how the existing producers work.
+## Development
+
+This is a pnpm workspace monorepo. To contribute:
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/renku.git
+cd renku
+
+# Install dependencies
+pnpm install
+
+# Build all packages
+pnpm build
+
+# Run tests
+pnpm test
+
+# Type checking
+pnpm check
+```
+
+See [CLAUDE.md](./CLAUDE.md) for detailed development conventions, architecture notes, and coding standards.
+
+## Documentation
+
+Full documentation is available at [gorenku.com](https://gorenku.com/):
+
+- [Quick Start Guide](https://gorenku.com/docs/quick-start) - Get up and running in minutes
+- [CLI Reference](https://gorenku.com/docs/cli-reference) - Complete command documentation
+- [Blueprint Authoring](https://gorenku.com/docs/blueprint-authoring) - Create custom workflows
+- [Usage Guide](https://gorenku.com/docs/usage-guide) - Advanced features and tips
+
+## Contributing
+
+We welcome contributions! Please ensure your code:
+- Passes TypeScript type checking (`pnpm check`)
+- Includes tests for new functionality
+- Follows the conventions outlined in [CLAUDE.md](./CLAUDE.md)
+
+## License
+
+MIT

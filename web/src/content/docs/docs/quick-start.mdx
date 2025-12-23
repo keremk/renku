@@ -32,12 +32,16 @@ Initialize a new Renku workspace:
 
 ```bash
 renku init --root-folder=/path/to/your/workspace
+
+or 
+
+renku init --root=/path/to/your/workspace
 ```
 
 For example:
 
 ```bash
-renku init --root-folder=~/renku-projects
+renku init --root=~/my-creations
 ```
 
 This creates:
@@ -49,36 +53,40 @@ This creates:
 
 Renku uses multiple AI providers. You'll need API keys for the providers used by your chosen blueprint.
 
-### Required Providers
+### Providers
 
-Most blueprints require:
+Depending on the blueprint and the models you select, you may need keys for the following providers:
 
 | Provider | Purpose | Get API Key |
 |----------|---------|-------------|
 | **OpenAI** | Script generation, prompt creation | [platform.openai.com](https://platform.openai.com) |
 | **Replicate** | Video, audio, image generation | [replicate.com](https://replicate.com) |
-
-Optional providers:
-- **fal.ai** - Alternative video/image models
-- **ElevenLabs** - High-quality voice synthesis
+| **fal.ai** | Video, audio, image generation | [fal.ai](https://fal.ai) |
+| **Wavespeed AI** | Video, audio, image generation | [wavespeed.ai](https://wavespeed.ai) |
 
 ### Set Environment Variables
 
-Create a `.env` file in your workspace or export variables directly:
+When you run `renku init`, a placeholder script named `env.sh` is created in `~/.config/renku/`. Edit this file to add your API keys:
 
 ```bash
-# Required
-export OPENAI_API_KEY=sk-...
-export REPLICATE_API_TOKEN=r8_...
+# Renku API Keys Configuration
+# Replace the placeholder values with your actual API keys
+# Then source this file: source ~/.config/renku/env.sh
 
-# Optional
-export FAL_KEY=...
-export ELEVENLABS_API_KEY=...
+export REPLICATE_API_TOKEN="your-replicate-api-token-here"
+export FAL_KEY="your-fal-api-key-here"
+export WAVESPEED_API_KEY="your-wavespeed-api-key-here"
+export OPENAI_API_KEY="your-openai-api-key-here"
 ```
 
 ## Run Your First Blueprint
 
 ### 1. Choose a Blueprint
+First go to your workspace that you created earlier:
+
+```bash
+cd /path/to/your/workspace
+```
 
 List available blueprints:
 
@@ -86,25 +94,55 @@ List available blueprints:
 renku blueprints:list
 ```
 
-For this tutorial, we'll use the `audio-only` blueprint which generates narrated audio segments.
+For this tutorial, we'll use the `kenn-burns` blueprint which generates a video with a Ken Burns effect, audio and background music.
 
 ### 2. Create an Inputs File
 
 Each blueprint has an input template. Copy it to create your inputs file:
 
 ```bash
-cp {workspace}/catalog/blueprints/audio-only/input-template.yaml ./my-inputs.yaml
+cp ./catalog/blueprints/kenn-burns/input-template.yaml ./my-inputs.yaml
 ```
 
-Edit `my-inputs.yaml` with your content:
+Edit `my-inputs.yaml` with your desired parameters. Here's an example configuration which will generate a 20-second video about the Eiffel Tower in a Ghibli style, each segment will have 1 image and there will be 2 segments in total. We are using the Replicate and OpenAI as providers, so you would need to have their API keys set in your environment.
 
 ```yaml
 inputs:
-  InquiryPrompt: "Explain the water cycle for middle school students"
-  Duration: 60
-  NumOfSegments: 3
+  InquiryPrompt: "Tell me about the history of the Eiffel Tower."
+  Duration: 20
+  NumOfSegments: 2
+  NumOfImagesPerNarrative: 1
+  Style: "Ghibli"
+  Size: "1K"
+  AspectRatio: "16:9"
+  Audience: "Adult"
   VoiceId: "Wise_Woman"
-  Emotion: "neutral"
+  Emotion: neutral
+
+models:
+  - model: gpt-5-mini
+    provider: openai
+    producerId: ScriptProducer
+  - model: gpt-5-mini
+    provider: openai
+    producerId: ImagePromptProducer
+  - model: google/nano-banana
+    provider: replicate
+    producerId: ImageProducer
+  - model: minimax/speech-2.6-hd
+    provider: replicate
+    producerId: AudioProducer
+  - model: timeline/ordered
+    provider: renku
+    producerId: TimelineComposer
+    config:
+      tracks: ["Image", "Audio"]
+      masterTrack:
+        kind: Audio
+      numTracks: 2
+      audioClip:
+        volume: 0.9
+
 ```
 
 ### 3. Validate with Dry Run
@@ -114,7 +152,7 @@ Before using real API credits, validate your setup with a dry run:
 ```bash
 renku generate \
   --inputs=./my-inputs.yaml \
-  --blueprint={workspace}/catalog/blueprints/audio-only/audio-only.yaml \
+  --blueprint=./catalog/blueprints/kenn-burns/image-audio.yaml \
   --dry-run
 ```
 
@@ -130,13 +168,13 @@ When you're ready, run the full generation:
 ```bash
 renku generate \
   --inputs=./my-inputs.yaml \
-  --blueprint={workspace}/catalog/blueprints/audio-only/audio-only.yaml
+  --blueprint=./catalog/blueprints/kenn-burns/image-audio.yaml
 ```
 
 Watch as Renku:
 1. Generates a narration script using OpenAI
 2. Creates audio for each segment using your chosen voice
-3. Saves all artifacts to the build directory
+3. Saves all artifacts to the build director.
 
 ### 5. View the Results
 
@@ -216,13 +254,14 @@ Error: Blueprint file not found
 
 ### Provider Rate Limits
 
-If you hit rate limits, wait a few minutes and try again. Consider using `--up-to-layer` to generate in stages.
+The providers have rate limits that may depend on your tier or how much you loaded your account with. Setting --concurrency to a higher value than 1 will likely trigger these limits. Concurrency will allow you to parallelize requests, but if you hit rate limits, try lowering the concurrency or upgrading your plan with the provider.
 
 ### Dry Run Works, Real Run Fails
 
 Check that:
 1. All required API keys are set
-2. Your API accounts have sufficient credits
-3. The model names in the inputs file are valid
+2. Check your provider logs to diagnose issues. Sometimes you may be hitting rate limits or safety filters.
+3. Your API accounts have sufficient credits
+4. The model names in the inputs file are valid and currently available.
 
 Run `renku producers:list --blueprint=<path>` to see available models and check for missing tokens.
