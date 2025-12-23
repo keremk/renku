@@ -2,6 +2,38 @@ import type { JSONSchema7 } from 'ai';
 
 type JsonObject = Record<string, unknown>;
 
+/**
+ * Common AI SDK CallSettings that work across all providers.
+ * These are validated and passed directly to generateText/streamText.
+ */
+export const COMMON_CALL_SETTINGS = new Set([
+  'maxOutputTokens',
+  'temperature',
+  'topP',
+  'topK',
+  'presencePenalty',
+  'frequencyPenalty',
+  'stopSequences',
+  'seed',
+]);
+
+/**
+ * Producer config keys that are specific to our LLM producer.
+ * These are NOT passed to providerOptions.
+ */
+export const PRODUCER_CONFIG_KEYS = new Set([
+  'systemPrompt',
+  'userPrompt',
+  'variables',
+  'responseFormat',
+  'textFormat',
+  'jsonSchema',
+  'system_prompt',
+  'prompt_settings',
+  // Legacy keys
+  'reasoning', // Legacy OpenAI-specific, handled separately
+]);
+
 export interface OpenAiResponseFormat {
   type: 'json_schema' | 'text';
   schema?: JsonObject;
@@ -10,15 +42,53 @@ export interface OpenAiResponseFormat {
 }
 
 export interface OpenAiLlmConfig {
+  // Producer config (our stuff)
   systemPrompt: string;
   userPrompt?: string;
   variables?: string[];
   responseFormat: OpenAiResponseFormat;
+
+  // Common AI SDK settings
   temperature?: number;
   maxOutputTokens?: number;
+  topP?: number;
+  topK?: number;
   presencePenalty?: number;
   frequencyPenalty?: number;
+  stopSequences?: string[];
+  seed?: number;
+
+  // Legacy OpenAI-specific (backward compat)
   reasoning?: 'minimal' | 'low' | 'medium' | 'high';
+
+  // Provider-specific options (any remaining keys, passed through)
+  [key: string]: unknown;
+}
+
+/**
+ * Separates config into common call settings and provider-specific options.
+ * @param config The parsed LLM config
+ * @returns Separated call settings and provider-specific options
+ */
+export function separateConfigOptions(config: OpenAiLlmConfig): {
+  callSettings: Record<string, unknown>;
+  providerSpecific: Record<string, unknown>;
+} {
+  const callSettings: Record<string, unknown> = {};
+  const providerSpecific: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(config)) {
+    if (value === undefined) continue;
+
+    if (COMMON_CALL_SETTINGS.has(key)) {
+      callSettings[key] = value;
+    } else if (!PRODUCER_CONFIG_KEYS.has(key)) {
+      // Not common, not producer config → provider-specific
+      providerSpecific[key] = value;
+    }
+  }
+
+  return { callSettings, providerSpecific };
 }
 
 export function parseOpenAiConfig(raw: unknown): OpenAiLlmConfig {
@@ -32,17 +102,38 @@ export function parseOpenAiConfig(raw: unknown): OpenAiLlmConfig {
   const variables = readOptionalStringArray(normalized.variables);
   const responseFormat = parseResponseFormat(normalized.responseFormat);
 
-  return {
+  // Build base config with producer settings and common call settings
+  const config: OpenAiLlmConfig = {
     systemPrompt,
     userPrompt,
     variables,
     responseFormat,
+    // Common AI SDK settings
     temperature: readOptionalNumber(normalized.temperature),
     maxOutputTokens: readOptionalNumber(normalized.maxOutputTokens),
+    topP: readOptionalNumber(normalized.topP),
+    topK: readOptionalNumber(normalized.topK),
     presencePenalty: readOptionalNumber(normalized.presencePenalty),
     frequencyPenalty: readOptionalNumber(normalized.frequencyPenalty),
+    stopSequences: readOptionalStringArray(normalized.stopSequences),
+    seed: readOptionalInteger(normalized.seed),
+    // Legacy OpenAI-specific
     reasoning: readOptionalReasoning(normalized.reasoning),
   };
+
+  // Pass through any remaining keys as provider-specific options
+  for (const [key, value] of Object.entries(normalized)) {
+    if (
+      value !== undefined &&
+      !COMMON_CALL_SETTINGS.has(key) &&
+      !PRODUCER_CONFIG_KEYS.has(key) &&
+      !(key in config)
+    ) {
+      config[key] = value;
+    }
+  }
+
+  return config;
 }
 
 function parseResponseFormat(raw: unknown): OpenAiResponseFormat {
@@ -333,6 +424,17 @@ function readOptionalNumber(value: unknown): number | undefined {
   const num = Number(value);
   if (Number.isNaN(num)) {
     throw new Error(`Expected numeric value, received ${value}`);
+  }
+  return num;
+}
+
+function readOptionalInteger(value: unknown): number | undefined {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+  const num = Number(value);
+  if (Number.isNaN(num) || !Number.isInteger(num)) {
+    throw new Error(`Expected integer value, received ${value}`);
   }
   return num;
 }

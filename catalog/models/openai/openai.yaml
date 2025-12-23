@@ -1,7 +1,6 @@
 models:
   - name: gpt-5-mini
     type: text
-    inputSchema: ./llm/openai.json
     mime:
       - text/plain
       - application/json

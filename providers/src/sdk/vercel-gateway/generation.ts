@@ -4,10 +4,11 @@ import {
   Output,
   type CallSettings,
   type JSONSchema7,
+  type JSONValue,
   type LanguageModel,
 } from 'ai';
 import type { OpenAiResponseFormat, OpenAiLlmConfig } from '../openai/config.js';
-import { normalizeJsonSchema } from '../openai/config.js';
+import { normalizeJsonSchema, separateConfigOptions } from '../openai/config.js';
 import type { RenderedPrompts } from '../openai/prompts.js';
 import type { ProviderJobContext, ProviderMode } from '../../types.js';
 import { simulateOpenAiGeneration } from '../openai/simulation.js';
@@ -51,6 +52,41 @@ function extractProviderPrefix(modelName: string): string | undefined {
   return modelName.substring(0, slashIndex);
 }
 
+type JSONObject = Record<string, JSONValue>;
+
+/**
+ * Builds provider options for the AI SDK.
+ * Combines provider-specific settings with gateway routing configuration.
+ *
+ * @param providerPrefix - The provider name (e.g., 'anthropic', 'openai')
+ * @param providerSpecific - Provider-specific options from config
+ * @returns Provider options object or undefined if empty
+ */
+function buildProviderOptions(
+  providerPrefix: string | undefined,
+  providerSpecific: Record<string, unknown>
+): Record<string, JSONObject> | undefined {
+  const hasProviderSpecific = Object.keys(providerSpecific).length > 0;
+
+  if (!providerPrefix && !hasProviderSpecific) {
+    return undefined;
+  }
+
+  const options: Record<string, JSONObject> = {};
+
+  // Add provider-specific options under the provider key
+  if (providerPrefix && hasProviderSpecific) {
+    options[providerPrefix] = providerSpecific as JSONObject;
+  }
+
+  // Add gateway routing to restrict to the specified provider
+  if (providerPrefix) {
+    options.gateway = { only: [providerPrefix] } as JSONObject;
+  }
+
+  return Object.keys(options).length > 0 ? options : undefined;
+}
+
 /**
  * Calls a provider via the Vercel AI SDK with either structured (JSON) or text output.
  *
@@ -66,12 +102,19 @@ export async function callVercelGateway(
   // Build prompt string (required by AI SDK)
   const prompt = prompts.user?.trim() || prompts.system?.trim() || ' ';
 
-  // Build call settings
+  // Separate common call settings from provider-specific options
+  const { callSettings: separatedSettings, providerSpecific } = separateConfigOptions(config);
+
+  // Build call settings (AI SDK CallSettings)
   const callSettings: CallSettings = {
-    temperature: config.temperature,
-    maxOutputTokens: config.maxOutputTokens,
-    presencePenalty: config.presencePenalty,
-    frequencyPenalty: config.frequencyPenalty,
+    temperature: separatedSettings.temperature as number | undefined,
+    maxOutputTokens: separatedSettings.maxOutputTokens as number | undefined,
+    topP: separatedSettings.topP as number | undefined,
+    topK: separatedSettings.topK as number | undefined,
+    presencePenalty: separatedSettings.presencePenalty as number | undefined,
+    frequencyPenalty: separatedSettings.frequencyPenalty as number | undefined,
+    stopSequences: separatedSettings.stopSequences as string[] | undefined,
+    seed: separatedSettings.seed as number | undefined,
   };
 
   // Extract provider from model name to restrict gateway routing
@@ -90,6 +133,7 @@ export async function callVercelGateway(
       request,
       config,
       providerPrefix,
+      providerSpecific,
     });
   } else {
     return await generatePlainText({
@@ -100,6 +144,7 @@ export async function callVercelGateway(
       mode,
       request,
       providerPrefix,
+      providerSpecific,
     });
   }
 }
@@ -114,12 +159,14 @@ interface StructuredOutputOptions {
   request?: ProviderJobContext;
   config: OpenAiLlmConfig;
   providerPrefix?: string;
+  providerSpecific: Record<string, unknown>;
 }
 
 async function generateStructuredOutput(
   options: StructuredOutputOptions
 ): Promise<VercelGatewayGenerationResult> {
-  const { model, prompt, system, responseFormat, callSettings, mode, request, providerPrefix } = options;
+  const { model, prompt, system, responseFormat, callSettings, mode, request, providerPrefix, providerSpecific } =
+    options;
 
   if (!responseFormat.schema) {
     throw new Error('Schema is required for json_schema response format.');
@@ -138,6 +185,9 @@ async function generateStructuredOutput(
     return simulateOpenAiGeneration({ request, config: { responseFormat } as OpenAiLlmConfig });
   }
 
+  // Build provider options: provider-specific settings + gateway routing
+  const providerOptions = buildProviderOptions(providerPrefix, providerSpecific);
+
   const generation = await generateText({
     ...callSettings,
     model,
@@ -148,12 +198,7 @@ async function generateStructuredOutput(
       name: responseFormat.name,
       description: responseFormat.description,
     }),
-    // Restrict gateway to only use the specified provider
-    ...(providerPrefix && {
-      experimental_providerOptions: {
-        only: [providerPrefix],
-      },
-    }),
+    ...(providerOptions && { providerOptions }),
   });
 
   return {
@@ -172,10 +217,11 @@ interface PlainTextOptions {
   mode?: ProviderMode;
   request?: ProviderJobContext;
   providerPrefix?: string;
+  providerSpecific: Record<string, unknown>;
 }
 
 async function generatePlainText(options: PlainTextOptions): Promise<VercelGatewayGenerationResult> {
-  const { model, prompt, system, callSettings, mode, request, providerPrefix } = options;
+  const { model, prompt, system, callSettings, mode, request, providerPrefix, providerSpecific } = options;
 
   // In simulated mode, return mock data instead of calling the AI SDK
   // All validation and setup has already run identically to live mode
@@ -186,17 +232,15 @@ async function generatePlainText(options: PlainTextOptions): Promise<VercelGatew
     });
   }
 
+  // Build provider options: provider-specific settings + gateway routing
+  const providerOptions = buildProviderOptions(providerPrefix, providerSpecific);
+
   const generation = await generateText({
     ...callSettings,
     model,
     prompt,
     system,
-    // Restrict gateway to only use the specified provider
-    ...(providerPrefix && {
-      experimental_providerOptions: {
-        only: [providerPrefix],
-      },
-    }),
+    ...(providerOptions && { providerOptions }),
   });
 
   return {
