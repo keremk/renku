@@ -1,90 +1,203 @@
 {
-  "x-fal-order-properties": [
-    "prompt",
-    "audio_url",
-    "aspect_ratio",
-    "resolution",
-    "duration",
-    "negative_prompt",
-    "enable_prompt_expansion",
-    "multi_shots",
-    "seed",
-    "enable_safety_checker"
-  ],
-  "type": "object",
-  "properties": {
-    "prompt": {
-      "examples": [
-        "Humorous but premium mini-trailer: a tiny fox 3D director proves \"multi-scene\" by calling simple commands that instantly change the set. Extreme photoreal 4K, cinematic lighting, subtle film grain, smooth camera. No subtitles, no UI, no watermark.\n\nShot 1 [0-3s] Macro close-up on the fox snapping a clapboard labeled \"fal\". the fox says : \"Action.\"\nShot 2 [3-6s] Hard cut: Wild West street at sunset. Wide shot, dust in the air. The Fox (in frame) points forward: \"Make it wide.\"\nShot 3 [6-10s] Hard cut: jungle river. The fox stands on a small boat. The camera pushes forward through vines and mist. Fox saying: \"Now… adventure.\"\nShot 4 [10-15s] Hard cut: space station window. Slow orbit around the fox with stars outside. Fox nods: \"Done. Next movie.\"\n"
-      ],
-      "title": "Prompt",
-      "type": "string",
-      "minLength": 1,
-      "description": "The text prompt for video generation. Supports Chinese and English, max 800 characters. For multi-shot videos, use format: 'Overall description. First shot [0-3s] content. Second shot [3-5s] content.'"
+  "input_schema": {
+    "x-fal-order-properties": [
+      "prompt",
+      "audio_url",
+      "aspect_ratio",
+      "resolution",
+      "duration",
+      "negative_prompt",
+      "enable_prompt_expansion",
+      "multi_shots",
+      "seed",
+      "enable_safety_checker"
+    ],
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "Humorous but premium mini-trailer: a tiny fox 3D director proves \"multi-scene\" by calling simple commands that instantly change the set. Extreme photoreal 4K, cinematic lighting, subtle film grain, smooth camera. No subtitles, no UI, no watermark.\n\nShot 1 [0-3s] Macro close-up on the fox snapping a clapboard labeled \"fal\". the fox says : \"Action.\"\nShot 2 [3-6s] Hard cut: Wild West street at sunset. Wide shot, dust in the air. The Fox (in frame) points forward: \"Make it wide.\"\nShot 3 [6-10s] Hard cut: jungle river. The fox stands on a small boat. The camera pushes forward through vines and mist. Fox saying: \"Now… adventure.\"\nShot 4 [10-15s] Hard cut: space station window. Slow orbit around the fox with stars outside. Fox nods: \"Done. Next movie.\"\n"
+        ],
+        "title": "Prompt",
+        "type": "string",
+        "minLength": 1,
+        "description": "The text prompt for video generation. Supports Chinese and English, max 800 characters. For multi-shot videos, use format: 'Overall description. First shot [0-3s] content. Second shot [3-5s] content.'"
+      },
+      "resolution": {
+        "enum": ["720p", "1080p"],
+        "description": "Video resolution tier. Wan 2.6 T2V only supports 720p and 1080p (no 480p).",
+        "type": "string",
+        "title": "Resolution",
+        "default": "1080p"
+      },
+      "duration": {
+        "enum": ["5", "10", "15"],
+        "title": "Duration",
+        "type": "string",
+        "description": "Duration of the generated video in seconds. Choose between 5, 10, or 15 seconds.",
+        "examples": ["5", "10", "15"],
+        "default": "5"
+      },
+      "enable_safety_checker": {
+        "examples": [true],
+        "title": "Enable Safety Checker",
+        "type": "boolean",
+        "description": "If set to true, the safety checker will be enabled.",
+        "default": true
+      },
+      "aspect_ratio": {
+        "enum": ["16:9", "9:16", "1:1", "4:3", "3:4"],
+        "description": "The aspect ratio of the generated video. Wan 2.6 supports additional ratios.",
+        "type": "string",
+        "title": "Aspect Ratio",
+        "default": "16:9"
+      },
+      "enable_prompt_expansion": {
+        "description": "Whether to enable prompt rewriting using LLM. Improves results for short prompts but increases processing time.",
+        "type": "boolean",
+        "title": "Enable Prompt Expansion",
+        "default": true
+      },
+      "seed": {
+        "description": "Random seed for reproducibility. If None, a random seed is chosen.",
+        "type": "integer",
+        "title": "Seed"
+      },
+      "multi_shots": {
+        "description": "When true, enables intelligent multi-shot segmentation for coherent narrative videos. Only active when enable_prompt_expansion is True. Set to false for single-shot generation.",
+        "type": "boolean",
+        "title": "Multi Shots",
+        "default": true
+      },
+      "negative_prompt": {
+        "examples": [
+          "low resolution, error, worst quality, low quality, defects"
+        ],
+        "title": "Negative Prompt",
+        "type": "string",
+        "description": "Negative prompt to describe content to avoid. Max 500 characters.",
+        "default": ""
+      },
+      "audio_url": {
+        "description": "\nURL of the audio to use as the background music. Must be publicly accessible.\nLimit handling: If the audio duration exceeds the duration value (5, 10, or 15 seconds),\nthe audio is truncated to the first N seconds, and the rest is discarded. If\nthe audio is shorter than the video, the remaining part of the video will be silent.\nFor example, if the audio is 3 seconds long and the video duration is 5 seconds, the\nfirst 3 seconds of the output video will have sound, and the last 2 seconds will be silent.\n- Format: WAV, MP3.\n- Duration: 3 to 30 s.\n- File size: Up to 15 MB.\n",
+        "type": "string",
+        "title": "Audio Url",
+        "format": "uri"
+      }
     },
-    "resolution": {
-      "enum": ["720p", "1080p"],
-      "description": "Video resolution tier. Wan 2.6 T2V only supports 720p and 1080p (no 480p).",
-      "type": "string",
-      "title": "Resolution",
-      "default": "1080p"
-    },
-    "duration": {
-      "enum": ["5", "10", "15"],
-      "title": "Duration",
-      "type": "string",
-      "description": "Duration of the generated video in seconds. Choose between 5, 10, or 15 seconds.",
-      "examples": ["5", "10", "15"],
-      "default": "5"
-    },
-    "enable_safety_checker": {
-      "examples": [true],
-      "title": "Enable Safety Checker",
-      "type": "boolean",
-      "description": "If set to true, the safety checker will be enabled.",
-      "default": true
-    },
-    "aspect_ratio": {
-      "enum": ["16:9", "9:16", "1:1", "4:3", "3:4"],
-      "description": "The aspect ratio of the generated video. Wan 2.6 supports additional ratios.",
-      "type": "string",
-      "title": "Aspect Ratio",
-      "default": "16:9"
-    },
-    "enable_prompt_expansion": {
-      "description": "Whether to enable prompt rewriting using LLM. Improves results for short prompts but increases processing time.",
-      "type": "boolean",
-      "title": "Enable Prompt Expansion",
-      "default": true
-    },
-    "seed": {
-      "description": "Random seed for reproducibility. If None, a random seed is chosen.",
-      "type": "integer",
-      "title": "Seed"
-    },
-    "multi_shots": {
-      "description": "When true, enables intelligent multi-shot segmentation for coherent narrative videos. Only active when enable_prompt_expansion is True. Set to false for single-shot generation.",
-      "type": "boolean",
-      "title": "Multi Shots",
-      "default": true
-    },
-    "negative_prompt": {
-      "examples": [
-        "low resolution, error, worst quality, low quality, defects"
-      ],
-      "title": "Negative Prompt",
-      "type": "string",
-      "description": "Negative prompt to describe content to avoid. Max 500 characters.",
-      "default": ""
-    },
-    "audio_url": {
-      "description": "\nURL of the audio to use as the background music. Must be publicly accessible.\nLimit handling: If the audio duration exceeds the duration value (5, 10, or 15 seconds),\nthe audio is truncated to the first N seconds, and the rest is discarded. If\nthe audio is shorter than the video, the remaining part of the video will be silent.\nFor example, if the audio is 3 seconds long and the video duration is 5 seconds, the\nfirst 3 seconds of the output video will have sound, and the last 2 seconds will be silent.\n- Format: WAV, MP3.\n- Duration: 3 to 30 s.\n- File size: Up to 15 MB.\n",
-      "type": "string",
-      "title": "Audio Url",
-      "format": "uri"
-    }
+    "description": "Input for Wan 2.6 text-to-video generation",
+    "title": "TextToVideoInput",
+    "required": ["prompt"]
   },
-  "description": "Input for Wan 2.6 text-to-video generation",
-  "title": "TextToVideoInput",
-  "required": ["prompt"]
+    "output_schema": {
+    "x-fal-order-properties": ["video", "seed", "actual_prompt"],
+    "type": "object",
+    "properties": {
+      "actual_prompt": {
+        "examples": [
+          "Humorous but premium mini-trailer: a tiny fox 3D director proves \"multi-scene\" by calling simple commands that instantly change the set. Extreme photoreal 4K, cinematic lighting, subtle film grain, smooth camera. No subtitles, no UI, no watermark.\n\nShot 1 [0-3s] Macro close-up on the fox snapping a clapboard labeled \"fal\". the fox says : \"Action.\"\nShot 2 [3-6s] Hard cut: Wild West street at sunset. Wide shot, dust in the air. The Fox (in frame) points forward: \"Make it wide.\"\nShot 3 [6-10s] Hard cut: jungle river. The fox stands on a small boat. The camera pushes forward through vines and mist. Fox saying: \"Now… adventure.\"\nShot 4 [10-15s] Hard cut: space station window. Slow orbit around the fox with stars outside. Fox nods: \"Done. Next movie.\"\n"
+        ],
+        "description": "The actual prompt used if prompt rewriting was enabled",
+        "type": "string",
+        "title": "Actual Prompt"
+      },
+      "seed": {
+        "examples": [175932751],
+        "description": "The seed used for generation",
+        "type": "integer",
+        "title": "Seed"
+      },
+      "video": {
+        "examples": [
+          {
+            "content_type": "video/mp4",
+            "url": "https://v3b.fal.media/files/b/0a867564/PsHtrg623uJuI7DdRqXvb_etx4d0Un.mp4"
+          }
+        ],
+        "description": "The generated video file",
+        "title": "Video",
+        "allOf": [
+          {
+            "$ref": "#/VideoFile"
+          }
+        ]
+      }
+    },
+    "description": "Output for text-to-video generation",
+    "title": "TextToVideoOutput",
+    "required": ["video", "seed"]
+  },
+  "VideoFile": {
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data",
+      "width",
+      "height",
+      "fps",
+      "duration",
+      "num_frames"
+    ],
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [4404019],
+        "description": "The size of the file in bytes.",
+        "type": "integer",
+        "title": "File Size"
+      },
+      "duration": {
+        "description": "The duration of the video",
+        "type": "number",
+        "title": "Duration"
+      },
+      "height": {
+        "description": "The height of the video",
+        "type": "integer",
+        "title": "Height"
+      },
+      "url": {
+        "description": "The URL where the file can be downloaded from.",
+        "type": "string",
+        "title": "Url"
+      },
+      "width": {
+        "description": "The width of the video",
+        "type": "integer",
+        "title": "Width"
+      },
+      "fps": {
+        "description": "The FPS of the video",
+        "type": "number",
+        "title": "Fps"
+      },
+      "file_name": {
+        "examples": ["z9RV14K95DvU.png"],
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "type": "string",
+        "title": "File Name"
+      },
+      "content_type": {
+        "examples": ["image/png"],
+        "description": "The mime type of the file.",
+        "type": "string",
+        "title": "Content Type"
+      },
+      "num_frames": {
+        "description": "The number of frames in the video",
+        "type": "integer",
+        "title": "Num Frames"
+      },
+      "file_data": {
+        "format": "binary",
+        "description": "File data",
+        "type": "string",
+        "title": "File Data"
+      }
+    },
+    "title": "VideoFile",
+    "required": ["url"]
+  }
 }

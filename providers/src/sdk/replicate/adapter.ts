@@ -5,14 +5,19 @@ import { createReplicateRetryWrapper } from './retry.js';
 
 /**
  * Replicate provider adapter for the unified handler.
+ *
+ * Note: In simulated mode, the unified handler generates output from schema
+ * and doesn't call adapter.invoke(). This adapter is only used for live API calls.
  */
 export const replicateAdapter: ProviderAdapter = {
   name: 'replicate',
   secretKey: 'REPLICATE_API_TOKEN',
 
   async createClient(options: ClientOptions): Promise<ProviderClient> {
+    // In simulated mode, client is not used (handler generates output from schema)
+    // Return a stub that will throw if accidentally called
     if (options.mode === 'simulated') {
-      return createMockReplicateClient(options.schemaRegistry);
+      return createSimulatedStub();
     }
 
     const token = await options.secretResolver.getSecret('REPLICATE_API_TOKEN');
@@ -41,46 +46,17 @@ export const replicateAdapter: ProviderAdapter = {
   },
 };
 
-function createMockReplicateClient(schemaRegistry?: ClientOptions['schemaRegistry']) {
+/**
+ * Creates a stub client for simulated mode.
+ * This should never be called - the unified handler generates output from schema instead.
+ */
+function createSimulatedStub(): ProviderClient {
   return {
-    async run(identifier: string, options: { input: Record<string, unknown> }) {
-      const [owner, modelName] = identifier.split('/');
-      const cleanModelName = modelName ? modelName.split(':')[0] : '';
-      const fullModelName = `${owner}/${cleanModelName}`;
-
-      if (schemaRegistry) {
-        const entry = schemaRegistry.get('replicate', fullModelName);
-        if (entry && entry.sdkMapping) {
-          validateInput(options.input, entry.sdkMapping);
-        }
-      }
-
-      return ['https://mock.replicate.com/output.png'];
+    run() {
+      throw new Error(
+        'Replicate stub client was called in simulated mode. ' +
+        'This indicates a bug - the unified handler should generate output from schema.'
+      );
     },
-  };
-}
-
-function validateInput(
-  input: Record<string, unknown>,
-  mapping: Record<string, { field: string; required?: boolean; type?: string }>,
-) {
-  for (const [key, rule] of Object.entries(mapping)) {
-    const value = input[rule.field];
-
-    if (rule.required && (value === undefined || value === null || value === '')) {
-      throw new Error(`Missing required input field: ${rule.field} (mapped from ${key})`);
-    }
-
-    if (value !== undefined && value !== null && rule.type) {
-      if (rule.type === 'string' && typeof value !== 'string') {
-        throw new Error(`Invalid type for field ${rule.field}. Expected string, got ${typeof value}`);
-      }
-      if (rule.type === 'number' && typeof value !== 'number') {
-        throw new Error(`Invalid type for field ${rule.field}. Expected number, got ${typeof value}`);
-      }
-      if (rule.type === 'boolean' && typeof value !== 'boolean') {
-        throw new Error(`Invalid type for field ${rule.field}. Expected boolean, got ${typeof value}`);
-      }
-    }
-  }
+  } as unknown as ProviderClient;
 }

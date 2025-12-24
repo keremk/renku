@@ -143,7 +143,7 @@ describe('createUnifiedHandler', () => {
     expect(result.artefacts[0]?.artefactId).toBe('Artifact:Output[index=0]');
   });
 
-  it('handler invoke calls adapter methods in correct order', async () => {
+  it('handler invoke calls adapter methods in correct order (live mode)', async () => {
     const createClientSpy = vi.fn().mockResolvedValue({ configured: true });
     const invokeSpy = vi.fn().mockResolvedValue({});
     const normalizeOutputSpy = vi.fn().mockReturnValue(['https://example.com/out.png']);
@@ -158,13 +158,43 @@ describe('createUnifiedHandler', () => {
     };
 
     const factory = createUnifiedHandler({ adapter, outputMimeType: 'image/png' });
-    const handler = factory(createMockInitContext());
+    // Use live mode to test actual adapter invocation
+    const handler = factory(createMockInitContext({ mode: 'live' }));
 
     await handler.invoke(createMockRequest());
 
     expect(createClientSpy).toHaveBeenCalled();
     expect(invokeSpy).toHaveBeenCalled();
     expect(normalizeOutputSpy).toHaveBeenCalled();
+  });
+
+  it('handler invoke generates output from schema in simulated mode', async () => {
+    const createClientSpy = vi.fn().mockResolvedValue({ configured: true });
+    const invokeSpy = vi.fn().mockResolvedValue({});
+    const normalizeOutputSpy = vi.fn().mockReturnValue(['https://example.com/out.png']);
+
+    const adapter: ProviderAdapter = {
+      name: 'spy-provider',
+      secretKey: 'SPY_KEY',
+      createClient: createClientSpy,
+      formatModelIdentifier: (m) => `spy/${m}`,
+      invoke: invokeSpy,
+      normalizeOutput: normalizeOutputSpy,
+    };
+
+    const factory = createUnifiedHandler({ adapter, outputMimeType: 'image/png' });
+    // Use simulated mode - should NOT call adapter.invoke()
+    const handler = factory(createMockInitContext({ mode: 'simulated' }));
+
+    const result = await handler.invoke(createMockRequest());
+
+    // In simulated mode, client is not created and invoke is not called
+    expect(createClientSpy).not.toHaveBeenCalled();
+    expect(invokeSpy).not.toHaveBeenCalled();
+    // But normalizeOutput IS called on the generated output
+    expect(normalizeOutputSpy).toHaveBeenCalled();
+    expect(result.status).toBe('succeeded');
+    expect(result.diagnostics?.simulated).toBe(true);
   });
 
   it('throws error when input schema is missing', async () => {
@@ -190,10 +220,11 @@ describe('createUnifiedHandler', () => {
     await expect(handler.invoke(request)).rejects.toThrow(/Missing input schema/);
   });
 
-  it('throws error when adapter invoke fails', async () => {
+  it('throws error when adapter invoke fails (live mode)', async () => {
     const adapter = createMockAdapter({ shouldThrow: true });
     const factory = createUnifiedHandler({ adapter, outputMimeType: 'image/png' });
-    const handler = factory(createMockInitContext());
+    // Use live mode to test error propagation from adapter
+    const handler = factory(createMockInitContext({ mode: 'live' }));
 
     await expect(handler.invoke(createMockRequest())).rejects.toThrow(/Mock API error/);
   });

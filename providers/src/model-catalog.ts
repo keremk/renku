@@ -2,6 +2,7 @@ import { readdir, readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { ModelPriceConfig } from './producers/cost-functions.js';
+import { parseSchemaFile, type SchemaFile } from './sdk/unified/schema-file.js';
 
 /**
  * Model output type - determines which handler factory and output mime type to use.
@@ -215,3 +216,42 @@ export async function loadModelInputSchema(
     return null;
   }
 }
+
+/**
+ * Load and parse the full schema file for a model.
+ * Returns the parsed SchemaFile with input schema, optional output schema, and definitions.
+ *
+ * This is the preferred method for loading schemas as it provides access to:
+ * - Input schema for validation
+ * - Output schema for simulation and response validation
+ * - Type definitions for $ref resolution
+ */
+export async function loadModelSchemaFile(
+  catalogModelsDir: string,
+  catalog: LoadedModelCatalog,
+  provider: string,
+  model: string
+): Promise<SchemaFile | null> {
+  const modelDef = lookupModel(catalog, provider, model);
+  if (!modelDef) {
+    return null;
+  }
+
+  // Skip LLM and internal types - they don't have input schemas in the catalog
+  if (modelDef.type === 'llm' || modelDef.type === 'internal' || modelDef.type === 'text' || modelDef.type === 'json') {
+    return null;
+  }
+
+  const schemaPath = resolveSchemaPath(catalogModelsDir, provider, model, modelDef);
+
+  try {
+    const content = await readFile(schemaPath, 'utf8');
+    return parseSchemaFile(content);
+  } catch {
+    // Schema file doesn't exist - this is not an error for some model types
+    return null;
+  }
+}
+
+// Re-export SchemaFile type for convenience
+export type { SchemaFile };

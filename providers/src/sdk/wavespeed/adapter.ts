@@ -7,27 +7,25 @@ const BASE_URL = 'https://api.wavespeed.ai/api/v3';
 
 interface WavespeedClient {
   apiKey: string;
-  mode: ClientOptions['mode'];
-  schemaRegistry?: ClientOptions['schemaRegistry'];
   logger?: ClientOptions['logger'];
 }
 
 /**
  * Wavespeed-ai provider adapter for the unified handler.
  * Uses direct HTTP calls with polling (no SDK).
+ *
+ * Note: In simulated mode, the unified handler generates output from schema
+ * and doesn't call adapter.invoke(). This adapter is only used for live API calls.
  */
 export const wavespeedAdapter: ProviderAdapter = {
   name: 'wavespeed-ai',
   secretKey: 'WAVESPEED_API_KEY',
 
   async createClient(options: ClientOptions): Promise<ProviderClient> {
+    // In simulated mode, client is not used (handler generates output from schema)
+    // Return a stub that will throw if accidentally called
     if (options.mode === 'simulated') {
-      return {
-        apiKey: 'mock-api-key',
-        mode: options.mode,
-        schemaRegistry: options.schemaRegistry,
-        logger: options.logger,
-      } as WavespeedClient;
+      return createSimulatedStub();
     }
 
     const key = await options.secretResolver.getSecret('WAVESPEED_API_KEY');
@@ -36,8 +34,6 @@ export const wavespeedAdapter: ProviderAdapter = {
     }
     return {
       apiKey: key,
-      mode: options.mode,
-      schemaRegistry: options.schemaRegistry,
       logger: options.logger,
     } as WavespeedClient;
   },
@@ -49,10 +45,6 @@ export const wavespeedAdapter: ProviderAdapter = {
 
   async invoke(client: ProviderClient, model: string, input: Record<string, unknown>): Promise<unknown> {
     const wavespeedClient = client as WavespeedClient;
-
-    if (wavespeedClient.mode === 'simulated') {
-      return createMockResult(wavespeedClient.schemaRegistry, model, input);
-    }
 
     // Submit task
     const submitUrl = `${BASE_URL}/${model}`;
@@ -104,48 +96,18 @@ export const wavespeedAdapter: ProviderAdapter = {
   },
 };
 
-function createMockResult(
-  schemaRegistry: ClientOptions['schemaRegistry'],
-  model: string,
-  input: Record<string, unknown>,
-): WavespeedResult {
-  if (schemaRegistry) {
-    const entry = schemaRegistry.get('wavespeed-ai', model);
-    if (entry && entry.sdkMapping) {
-      validateInput(input, entry.sdkMapping);
-    }
-  }
-
+/**
+ * Creates a stub client for simulated mode.
+ * This should never be called - the unified handler generates output from schema instead.
+ */
+function createSimulatedStub(): ProviderClient {
   return {
-    data: {
-      id: 'mock-request-id',
-      status: 'completed',
-      outputs: ['https://mock.wavespeed.ai/output.png'],
+    apiKey: 'simulated-stub',
+    invoke() {
+      throw new Error(
+        'Wavespeed stub client was called in simulated mode. ' +
+        'This indicates a bug - the unified handler should generate output from schema.'
+      );
     },
-  };
-}
-
-function validateInput(
-  input: Record<string, unknown>,
-  mapping: Record<string, { field: string; required?: boolean; type?: string }>,
-) {
-  for (const [key, rule] of Object.entries(mapping)) {
-    const value = input[rule.field];
-
-    if (rule.required && (value === undefined || value === null || value === '')) {
-      throw new Error(`Missing required input field: ${rule.field} (mapped from ${key})`);
-    }
-
-    if (value !== undefined && value !== null && rule.type) {
-      if (rule.type === 'string' && typeof value !== 'string') {
-        throw new Error(`Invalid type for field ${rule.field}. Expected string, got ${typeof value}`);
-      }
-      if (rule.type === 'number' && typeof value !== 'number') {
-        throw new Error(`Invalid type for field ${rule.field}. Expected number, got ${typeof value}`);
-      }
-      if (rule.type === 'boolean' && typeof value !== 'boolean') {
-        throw new Error(`Invalid type for field ${rule.field}. Expected boolean, got ${typeof value}`);
-      }
-    }
-  }
+  } as unknown as ProviderClient;
 }

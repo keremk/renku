@@ -143,6 +143,14 @@ models:
       function: costByCharacters
       inputs: [text]
       pricePerCharacter: 0.000025
+  - name: minimax/speech-2.6-hd
+    type: audio
+    mime:
+      - audio/mp3
+    price:
+      function: costByCharacters
+      inputs: [text]
+      pricePerCharacter: 0.0001
   - name: minimax/speech-02-hd
     type: audio
     mime:

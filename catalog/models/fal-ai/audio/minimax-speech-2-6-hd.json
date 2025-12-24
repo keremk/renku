@@ -1,16 +1,16 @@
 {
   "input_schema": {
-    "title": "TextToSpeechHDRequest",
+    "title": "TextToSpeechHD26Request",
     "type": "object",
     "properties": {
-      "text": {
+      "prompt": {
         "examples": [
-          "Hello world! This is a test of the text-to-speech system."
+          "Hello world! Welcome MiniMax's new text to speech model \u003C#0.1#\u003E Speech 2.6, now available on Fal!"
         ],
-        "maxLength": 5000,
+        "maxLength": 10000,
         "type": "string",
-        "title": "Text",
-        "description": "Text to convert to speech (max 5000 characters, minimum 1 non-whitespace character)",
+        "title": "Prompt",
+        "description": "Text to convert to speech. Paragraph breaks should be marked with newline characters. **NOTE**: You can customize speech pauses by adding markers in the form `\u003C#x#\u003E`, where `x` is the pause duration in seconds. Valid range: `[0.01, 99.99]`, up to two decimal places. Pause markers must be placed between speakable text segments and cannot be used consecutively.",
         "minLength": 1
       },
       "language_boost": {
@@ -58,22 +58,6 @@
         "type": "string",
         "title": "Language Boost"
       },
-      "voice_setting": {
-        "default": {
-          "speed": 1,
-          "vol": 1,
-          "voice_id": "Wise_Woman",
-          "pitch": 0,
-          "english_normalization": false
-        },
-        "description": "Voice configuration settings",
-        "title": "Voice Setting",
-        "allOf": [
-          {
-            "$ref": "#/VoiceSetting"
-          }
-        ]
-      },
       "output_format": {
         "enum": ["url", "hex"],
         "description": "Format of the output content (non-streaming only)",
@@ -90,6 +74,31 @@
           }
         ]
       },
+      "voice_setting": {
+        "default": {
+          "speed": 1,
+          "vol": 1,
+          "voice_id": "Wise_Woman",
+          "pitch": 0,
+          "english_normalization": false
+        },
+        "description": "Voice configuration settings",
+        "title": "Voice Setting",
+        "allOf": [
+          {
+            "$ref": "#/VoiceSetting"
+          }
+        ]
+      },
+      "normalization_setting": {
+        "description": "Loudness normalization settings for the audio",
+        "title": "Normalization Setting",
+        "allOf": [
+          {
+            "$ref": "#/LoudnessNormalizationSetting"
+          }
+        ]
+      },
       "audio_setting": {
         "description": "Audio configuration settings",
         "title": "Audio Setting",
@@ -101,17 +110,18 @@
       }
     },
     "x-fal-order-properties": [
-      "text",
       "voice_setting",
       "audio_setting",
       "language_boost",
       "output_format",
-      "pronunciation_dict"
+      "pronunciation_dict",
+      "prompt",
+      "normalization_setting"
     ],
-    "required": ["text"]
+    "required": ["prompt"]
   },
   "output_schema": {
-    "title": "TextToSpeechOutput",
+    "title": "TextToSpeechHD26Output",
     "type": "object",
     "properties": {
       "duration_ms": {
@@ -122,7 +132,7 @@
       "audio": {
         "examples": [
           {
-            "url": "https://fal.media/files/kangaroo/kojPUCNZ9iUGFGMR-xb7h_speech.mp3"
+            "url": "https://storage.googleapis.com/falserverless/example_outputs/minimax-speech-26/speech_26_hd_out.mp3"
           }
         ],
         "description": "The generated audio file",
@@ -136,6 +146,21 @@
     },
     "x-fal-order-properties": ["audio", "duration_ms"],
     "required": ["audio", "duration_ms"]
+  },
+  "PronunciationDict": {
+    "title": "PronunciationDict",
+    "type": "object",
+    "properties": {
+      "tone_list": {
+        "description": "List of pronunciation replacements in format ['text/(pronunciation)', ...]. For Chinese, tones are 1-5. Example: ['燕少飞/(yan4)(shao3)(fei1)']",
+        "type": "array",
+        "title": "Tone List",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "x-fal-order-properties": ["tone_list"]
   },
   "VoiceSetting": {
     "title": "VoiceSetting",
@@ -220,20 +245,47 @@
       "english_normalization"
     ]
   },
-  "PronunciationDict": {
-    "title": "PronunciationDict",
+  "LoudnessNormalizationSetting": {
+    "title": "LoudnessNormalizationSetting",
     "type": "object",
     "properties": {
-      "tone_list": {
-        "description": "List of pronunciation replacements in format ['text/(pronunciation)', ...]. For Chinese, tones are 1-5. Example: ['燕少飞/(yan4)(shao3)(fei1)']",
-        "type": "array",
-        "title": "Tone List",
-        "items": {
-          "type": "string"
-        }
+      "enabled": {
+        "description": "Enable loudness normalization for the audio",
+        "type": "boolean",
+        "title": "Enabled",
+        "default": true
+      },
+      "target_loudness": {
+        "minimum": -70,
+        "description": "Target loudness in LUFS (default -18.0)",
+        "type": "number",
+        "maximum": -10,
+        "title": "Target Loudness",
+        "default": -18
+      },
+      "target_range": {
+        "minimum": 0,
+        "description": "Target loudness range in LU (default 8.0)",
+        "type": "number",
+        "maximum": 20,
+        "title": "Target Range",
+        "default": 8
+      },
+      "target_peak": {
+        "minimum": -3,
+        "description": "Target peak level in dBTP (default -0.5).",
+        "type": "number",
+        "maximum": 0,
+        "title": "Target Peak",
+        "default": -0.5
       }
     },
-    "x-fal-order-properties": ["tone_list"]
+    "x-fal-order-properties": [
+      "enabled",
+      "target_loudness",
+      "target_range",
+      "target_peak"
+    ]
   },
   "AudioSetting": {
     "title": "AudioSetting",

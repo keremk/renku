@@ -5,6 +5,9 @@ import { buildArtefactsFromUrls } from './artefacts.js';
 import { extractPlannerContext } from './utils.js';
 import { validatePayload } from '../schema-validator.js';
 import type { ProviderAdapter, ProviderClient } from './provider-adapter.js';
+import { parseSchemaFile, type SchemaFile } from './schema-file.js';
+import { validateOutputWithLogging } from './output-validator.js';
+import { generateOutputFromSchema } from './output-generator.js';
 
 export type UnifiedHandlerOptions = {
   adapter: ProviderAdapter;
@@ -52,8 +55,10 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
         }
       },
       invoke: async ({ request, runtime }) => {
-        // Ensure client is initialized
-        if (!client) {
+        const isSimulated = init.mode === 'simulated';
+
+        // In live mode, ensure client is initialized
+        if (!isSimulated && !client) {
           client = await adapter.createClient({
             secretResolver,
             logger,
@@ -63,16 +68,22 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
         }
 
         const plannerContext = extractPlannerContext(request);
-        const inputSchema = readInputSchema(request);
-        if (!inputSchema) {
+
+        // Read and parse the full schema file (input + output schemas)
+        const schemaFile = readSchemaFile(request);
+        const inputSchemaString = schemaFile
+          ? JSON.stringify(schemaFile.inputSchema)
+          : readInputSchema(request);
+
+        if (!inputSchemaString) {
           throw createProviderError(`Missing input schema for ${adapter.name} provider.`, {
             code: 'missing_input_schema',
             kind: 'unknown',
           });
         }
 
-        const sdkPayload = await runtime.sdk.buildPayload(undefined, inputSchema);
-        validatePayload(inputSchema, sdkPayload, 'input');
+        const sdkPayload = await runtime.sdk.buildPayload(undefined, inputSchemaString);
+        validatePayload(inputSchemaString, sdkPayload, 'input');
         const input = { ...sdkPayload };
 
         const modelIdentifier = adapter.formatModelIdentifier(request.model);
@@ -83,51 +94,79 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
           jobId: request.jobId,
           inputKeys: Object.keys(input),
           plannerContext,
+          simulated: isSimulated,
         });
         notify?.publish({
           type: 'progress',
-          message: `Invoking ${notificationLabel} for job ${request.jobId}`,
+          message: `${isSimulated ? '[Simulated] ' : ''}Invoking ${notificationLabel} for job ${request.jobId}`,
           timestamp: new Date().toISOString(),
         });
 
-        // Use adapter's retry wrapper if provided, otherwise call directly
-        const retryWrapper = adapter.createRetryWrapper?.({
-          logger,
-          jobId: request.jobId,
-          model: request.model,
-          plannerContext,
-        });
-
         let predictionOutput: unknown;
-        try {
-          if (retryWrapper) {
-            predictionOutput = await retryWrapper.execute(() =>
-              adapter.invoke(client!, modelIdentifier, input)
-            );
-          } else {
-            predictionOutput = await adapter.invoke(client!, modelIdentifier, input);
-          }
-        } catch (error) {
-          const rawMessage = error instanceof Error ? error.message : String(error);
-          logger?.error?.(`providers.${adapter.name}.${logKey}.invoke.error`, {
+
+        if (isSimulated) {
+          // SIMULATED MODE: Generate output from schema instead of calling provider
+          predictionOutput = generateOutputFromSchema(schemaFile, {
+            provider: adapter.name,
+            model: request.model,
+            producesCount: request.produces.length,
+          });
+
+          logger?.debug?.(`providers.${adapter.name}.${logKey}.simulate`, {
             provider: descriptor.provider,
             model: request.model,
             jobId: request.jobId,
-            error: rawMessage,
+            hasOutputSchema: !!schemaFile?.outputSchema,
           });
-          notify?.publish({
-            type: 'error',
-            message: `Provider ${notificationLabel} failed for job ${request.jobId}: ${rawMessage}`,
-            timestamp: new Date().toISOString(),
+        } else {
+          // LIVE MODE: Call the actual provider API
+          const retryWrapper = adapter.createRetryWrapper?.({
+            logger,
+            jobId: request.jobId,
+            model: request.model,
+            plannerContext,
           });
-          throw createProviderError(`${adapter.name} prediction failed: ${rawMessage}`, {
-            code: `${adapter.name}_prediction_failed`,
-            kind: 'transient',
-            retryable: true,
-            raw: error,
+
+          try {
+            if (retryWrapper) {
+              predictionOutput = await retryWrapper.execute(() =>
+                adapter.invoke(client!, modelIdentifier, input)
+              );
+            } else {
+              predictionOutput = await adapter.invoke(client!, modelIdentifier, input);
+            }
+          } catch (error) {
+            const rawMessage = error instanceof Error ? error.message : String(error);
+            logger?.error?.(`providers.${adapter.name}.${logKey}.invoke.error`, {
+              provider: descriptor.provider,
+              model: request.model,
+              jobId: request.jobId,
+              error: rawMessage,
+            });
+            notify?.publish({
+              type: 'error',
+              message: `Provider ${notificationLabel} failed for job ${request.jobId}: ${rawMessage}`,
+              timestamp: new Date().toISOString(),
+            });
+            throw createProviderError(`${adapter.name} prediction failed: ${rawMessage}`, {
+              code: `${adapter.name}_prediction_failed`,
+              kind: 'transient',
+              retryable: true,
+              raw: error,
+            });
+          }
+        }
+
+        // Validate output against schema (logs warning if invalid, doesn't throw)
+        if (schemaFile) {
+          validateOutputWithLogging(predictionOutput, schemaFile, logger, {
+            provider: adapter.name,
+            model: request.model,
+            jobId: request.jobId,
           });
         }
 
+        // Same path for both modes: normalize output and build artifacts
         const outputUrls = adapter.normalizeOutput(predictionOutput);
         const artefacts = await buildArtefactsFromUrls({
           produces: request.produces,
@@ -144,10 +183,11 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
           jobId: request.jobId,
           status,
           artefactCount: artefacts.length,
+          simulated: isSimulated,
         });
         notify?.publish({
           type: status === 'succeeded' ? 'success' : 'error',
-          message: `${notificationLabel} completed for job ${request.jobId} (${status}).`,
+          message: `${isSimulated ? '[Simulated] ' : ''}${notificationLabel} completed for job ${request.jobId} (${status}).`,
           timestamp: new Date().toISOString(),
         });
 
@@ -160,6 +200,7 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
             input,
             outputUrls,
             plannerContext,
+            simulated: isSimulated,
             ...(outputUrls.length === 0 && { rawOutput: predictionOutput }),
           },
         };
@@ -168,6 +209,10 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
   };
 }
 
+/**
+ * Read the raw input schema string from request context.
+ * This is the legacy method - prefer readSchemaFile for full schema access.
+ */
 function readInputSchema(request: ProviderJobContext): string | undefined {
   const extras = request.context.extras;
   if (!extras || typeof extras !== 'object') {
@@ -179,4 +224,42 @@ function readInputSchema(request: ProviderJobContext): string | undefined {
   }
   const input = (schema as Record<string, unknown>).input;
   return typeof input === 'string' ? input : undefined;
+}
+
+/**
+ * Read and parse the full schema file from request context.
+ * Returns the parsed SchemaFile with input schema, output schema, and definitions.
+ * Falls back to undefined if the raw schema string is not available.
+ */
+function readSchemaFile(request: ProviderJobContext): SchemaFile | undefined {
+  const extras = request.context.extras;
+  if (!extras || typeof extras !== 'object') {
+    return undefined;
+  }
+  const schema = (extras as Record<string, unknown>).schema;
+  if (!schema || typeof schema !== 'object') {
+    return undefined;
+  }
+
+  // Try to read the raw schema file content
+  const raw = (schema as Record<string, unknown>).raw;
+  if (typeof raw === 'string') {
+    try {
+      return parseSchemaFile(raw);
+    } catch {
+      // Fall back to input-only if parsing fails
+    }
+  }
+
+  // Fall back to constructing from input only (legacy format)
+  const input = (schema as Record<string, unknown>).input;
+  if (typeof input === 'string') {
+    try {
+      return parseSchemaFile(input);
+    } catch {
+      return undefined;
+    }
+  }
+
+  return undefined;
 }

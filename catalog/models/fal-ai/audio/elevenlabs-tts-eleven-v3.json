@@ -1,106 +1,191 @@
 {
-  "title": "TextToSpeechRequestV3",
-  "type": "object",
-  "properties": {
-    "stability": {
-      "minimum": 0,
-      "title": "Stability",
-      "type": "number",
-      "maximum": 1,
-      "description": "Voice stability (0-1)",
-      "default": 0.5
+  "input_schema": {
+    "title": "TextToSpeechRequestV3",
+    "type": "object",
+    "properties": {
+      "stability": {
+        "minimum": 0,
+        "title": "Stability",
+        "type": "number",
+        "maximum": 1,
+        "description": "Voice stability (0-1)",
+        "default": 0.5
+      },
+      "text": {
+        "examples": [
+          "Hello! This is a test of the text to speech system, powered by ElevenLabs. How does it sound?"
+        ],
+        "title": "Text",
+        "type": "string",
+        "maxLength": 5000,
+        "description": "The text to convert to speech",
+        "minLength": 1
+      },
+      "speed": {
+        "minimum": 0.7,
+        "title": "Speed",
+        "type": "number",
+        "maximum": 1.2,
+        "description": "Speech speed (0.7-1.2). Values below 1.0 slow down the speech, above 1.0 speed it up. Extreme values may affect quality.",
+        "default": 1
+      },
+      "style": {
+        "minimum": 0,
+        "title": "Style",
+        "type": "number",
+        "maximum": 1,
+        "description": "Style exaggeration (0-1)",
+        "default": 0
+      },
+      "timestamps": {
+        "title": "Timestamps",
+        "type": "boolean",
+        "description": "Whether to return timestamps for each word in the generated speech",
+        "default": false
+      },
+      "similarity_boost": {
+        "minimum": 0,
+        "title": "Similarity Boost",
+        "type": "number",
+        "maximum": 1,
+        "description": "Similarity boost (0-1)",
+        "default": 0.75
+      },
+      "voice": {
+        "examples": [
+          "Aria",
+          "Roger",
+          "Sarah",
+          "Laura",
+          "Charlie",
+          "George",
+          "Callum",
+          "River",
+          "Liam",
+          "Charlotte",
+          "Alice",
+          "Matilda",
+          "Will",
+          "Jessica",
+          "Eric",
+          "Chris",
+          "Brian",
+          "Daniel",
+          "Lily",
+          "Bill"
+        ],
+        "title": "Voice",
+        "type": "string",
+        "description": "The voice to use for speech generation",
+        "default": "Rachel"
+      },
+      "language_code": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Language Code",
+        "description": "Language code (ISO 639-1) used to enforce a language for the model."
+      }
     },
-    "text": {
-      "examples": [
-        "Hello! This is a test of the text to speech system, powered by ElevenLabs. How does it sound?"
-      ],
-      "title": "Text",
-      "type": "string",
-      "maxLength": 5000,
-      "description": "The text to convert to speech",
-      "minLength": 1
-    },
-    "speed": {
-      "minimum": 0.7,
-      "title": "Speed",
-      "type": "number",
-      "maximum": 1.2,
-      "description": "Speech speed (0.7-1.2). Values below 1.0 slow down the speech, above 1.0 speed it up. Extreme values may affect quality.",
-      "default": 1
-    },
-    "style": {
-      "minimum": 0,
-      "title": "Style",
-      "type": "number",
-      "maximum": 1,
-      "description": "Style exaggeration (0-1)",
-      "default": 0
-    },
-    "timestamps": {
-      "title": "Timestamps",
-      "type": "boolean",
-      "description": "Whether to return timestamps for each word in the generated speech",
-      "default": false
-    },
-    "similarity_boost": {
-      "minimum": 0,
-      "title": "Similarity Boost",
-      "type": "number",
-      "maximum": 1,
-      "description": "Similarity boost (0-1)",
-      "default": 0.75
-    },
-    "voice": {
-      "examples": [
-        "Aria",
-        "Roger",
-        "Sarah",
-        "Laura",
-        "Charlie",
-        "George",
-        "Callum",
-        "River",
-        "Liam",
-        "Charlotte",
-        "Alice",
-        "Matilda",
-        "Will",
-        "Jessica",
-        "Eric",
-        "Chris",
-        "Brian",
-        "Daniel",
-        "Lily",
-        "Bill"
-      ],
-      "title": "Voice",
-      "type": "string",
-      "description": "The voice to use for speech generation",
-      "default": "Rachel"
-    },
-    "language_code": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "title": "Language Code",
-      "description": "Language code (ISO 639-1) used to enforce a language for the model."
-    }
+    "description": "Request model for eleven_v3 which doesn't support previous_text/next_text",
+    "x-fal-order-properties": [
+      "text",
+      "voice",
+      "stability",
+      "similarity_boost",
+      "style",
+      "speed",
+      "timestamps",
+      "language_code"
+    ],
+    "required": ["text"]
   },
-  "description": "Request model for eleven_v3 which doesn't support previous_text/next_text",
-  "x-fal-order-properties": [
-    "text",
-    "voice",
-    "stability",
-    "similarity_boost",
-    "style",
-    "speed",
-    "timestamps",
-    "language_code"
-  ],
-  "required": ["text"]
+  "output_schema": {
+    "title": "TTSOutput",
+    "type": "object",
+    "properties": {
+      "audio": {
+        "examples": [
+          {
+            "url": "https://v3.fal.media/files/zebra/zJL_oRY8h5RWwjoK1w7tx_output.mp3"
+          }
+        ],
+        "description": "The generated audio file",
+        "$ref": "#/File"
+      },
+      "timestamps": {
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {}
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Timestamps",
+        "description": "Timestamps for each word in the generated speech. Only returned if `timestamps` is set to True in the request."
+      }
+    },
+    "x-fal-order-properties": ["audio", "timestamps"],
+    "required": ["audio"]
+  },
+  "File": {
+    "title": "File",
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "File Size",
+        "description": "The size of the file in bytes.",
+        "examples": [4404019]
+      },
+      "file_name": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "File Name",
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "examples": ["z9RV14K95DvU.png"]
+      },
+      "content_type": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Content Type",
+        "description": "The mime type of the file.",
+        "examples": ["image/png"]
+      },
+      "url": {
+        "title": "Url",
+        "type": "string",
+        "format": "uri",
+        "description": "The URL where the file can be downloaded from."
+      }
+    },
+    "x-fal-order-properties": ["url", "content_type", "file_name", "file_size"],
+    "required": ["url"]
+  }
 }
