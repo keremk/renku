@@ -80,7 +80,8 @@
     "audio_url": {
       "description": "\nURL of the audio to use as the background music. Must be publicly accessible.\nLimit handling: If the audio duration exceeds the duration value (5, 10, or 15 seconds),\nthe audio is truncated to the first N seconds, and the rest is discarded. If\nthe audio is shorter than the video, the remaining part of the video will be silent.\nFor example, if the audio is 3 seconds long and the video duration is 5 seconds, the\nfirst 3 seconds of the output video will have sound, and the last 2 seconds will be silent.\n- Format: WAV, MP3.\n- Duration: 3 to 30 s.\n- File size: Up to 15 MB.\n",
       "type": "string",
-      "title": "Audio Url"
+      "title": "Audio Url",
+      "format": "uri"
     }
   },
   "description": "Input for Wan 2.6 text-to-video generation",

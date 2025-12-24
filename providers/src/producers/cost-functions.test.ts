@@ -261,6 +261,123 @@ describe('calculateCost', () => {
 			expect(result.cost).toBe(0);
 			expect(result.isPlaceholder).toBe(true);
 		});
+
+		it('uses higher price when generate_audio is true', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoPerMillionTokens',
+				inputs: ['duration', 'resolution', 'aspect_ratio', 'generate_audio'],
+				prices: [
+					{ generate_audio: true, pricePerMillionTokens: 2.4 },
+					{ generate_audio: false, pricePerMillionTokens: 1.2 },
+				],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { duration: 5, resolution: '720p', aspect_ratio: '16:9', generate_audio: true },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.isPlaceholder).toBe(false);
+			// 1280*720*5*30/1024/1000000 * 2.4 ≈ 0.324
+			expect(result.cost).toBeGreaterThan(0.3);
+		});
+
+		it('uses lower price when generate_audio is false', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoPerMillionTokens',
+				inputs: ['duration', 'resolution', 'aspect_ratio', 'generate_audio'],
+				prices: [
+					{ generate_audio: true, pricePerMillionTokens: 2.4 },
+					{ generate_audio: false, pricePerMillionTokens: 1.2 },
+				],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { duration: 5, resolution: '720p', aspect_ratio: '16:9', generate_audio: false },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.isPlaceholder).toBe(false);
+			// 1280*720*5*30/1024/1000000 * 1.2 ≈ 0.162
+			expect(result.cost).toBeLessThan(0.2);
+			expect(result.cost).toBeGreaterThan(0.1);
+		});
+
+		it('returns range when generate_audio comes from artefact', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoPerMillionTokens',
+				inputs: ['duration', 'resolution', 'aspect_ratio', 'generate_audio'],
+				prices: [
+					{ generate_audio: true, pricePerMillionTokens: 2.4 },
+					{ generate_audio: false, pricePerMillionTokens: 1.2 },
+				],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { duration: 5, resolution: '720p', aspect_ratio: '16:9' },
+				artefactSourcedFields: ['generate_audio'],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.isPlaceholder).toBe(true);
+			expect(result.range).toBeDefined();
+			// Min uses 1.2, max uses 2.4
+			expect(result.range!.max).toBeGreaterThan(result.range!.min);
+			expect(result.range!.max).toBeCloseTo(result.range!.min * 2, 1);
+		});
+
+		it('still works with single pricePerMillionTokens (backward compat)', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoPerMillionTokens',
+				inputs: ['duration', 'resolution', 'aspect_ratio'],
+				pricePerMillionTokens: 1.0,
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { duration: 5, resolution: '720p', aspect_ratio: '16:9' },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.isPlaceholder).toBe(false);
+			expect(result.cost).toBeGreaterThan(0);
+		});
+
+		it('still works with prices array without generate_audio (backward compat)', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoPerMillionTokens',
+				inputs: ['duration', 'resolution', 'aspect_ratio'],
+				prices: [{ pricePerMillionTokens: 1.0 }],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { duration: 5, resolution: '720p', aspect_ratio: '16:9' },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.isPlaceholder).toBe(false);
+			expect(result.cost).toBeGreaterThan(0);
+		});
+
+		it('defaults to no-audio price when generate_audio not provided', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByVideoPerMillionTokens',
+				inputs: ['duration', 'resolution', 'aspect_ratio', 'generate_audio'],
+				prices: [
+					{ generate_audio: true, pricePerMillionTokens: 2.4 },
+					{ generate_audio: false, pricePerMillionTokens: 1.2 },
+				],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { duration: 5, resolution: '720p', aspect_ratio: '16:9' },
+				artefactSourcedFields: [],
+				missingFields: ['generate_audio'],
+			};
+			const result = calculateCost(config, extracted);
+			// Should default to false and use 1.2 price
+			expect(result.isPlaceholder).toBe(false);
+			// 1280*720*5*30/1024/1000000 * 1.2 ≈ 0.162
+			expect(result.cost).toBeLessThan(0.2);
+			expect(result.cost).toBeGreaterThan(0.1);
+		});
 	});
 
 	describe('costByImageAndResolution', () => {

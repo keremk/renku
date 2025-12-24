@@ -56,7 +56,8 @@
       "type": "array",
       "title": "Image Urls",
       "items": {
-        "type": "string"
+        "type": "string",
+        "format": "uri"
       }
     }
   },

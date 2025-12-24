@@ -92,6 +92,14 @@ export interface VideoTokenPriceEntry {
 }
 
 /**
+ * Price entry for video token-based pricing with audio flag.
+ */
+export interface VideoTokenAudioPriceEntry {
+	generate_audio: boolean;
+	pricePerMillionTokens: number;
+}
+
+/**
  * Pricing configuration for a model.
  */
 export interface ModelPriceConfig {
@@ -731,22 +739,88 @@ function costByVideoPerMillionTokens(
 	config: ModelPriceConfig,
 	extracted: ExtractedCostInputs
 ): CostEstimate {
-	// Get price from config - check both direct field and prices array
-	let pricePerMillionTokens = config.pricePerMillionTokens;
-	if (pricePerMillionTokens === undefined) {
-		const priceEntries = config.prices as VideoTokenPriceEntry[] | undefined;
-		pricePerMillionTokens = priceEntries?.[0]?.pricePerMillionTokens;
+	const prices = config.prices;
+
+	// Check if this is audio-based pricing (prices array has generate_audio entries)
+	const hasAudioPricing = prices?.some(p => 'generate_audio' in p);
+
+	let pricePerMillionTokens: number | undefined;
+
+	// Fixed fps for seedance models
+	const fps = 30;
+
+	if (hasAudioPricing) {
+		// Audio-based pricing
+		const audioEntries = prices as VideoTokenAudioPriceEntry[];
+
+		// Check if generate_audio is artefact-sourced - return range
+		if (extracted.artefactSourcedFields.includes('generate_audio')) {
+			// Get duration to calculate token cost range
+			const inputs = config.inputs ?? [];
+			const durationField = inputs[0];
+			const resolutionField = inputs[1];
+			const aspectRatioField = inputs[2];
+
+			const durationValue = durationField ? extracted.values[durationField] : undefined;
+			const duration = parseDurationValue(durationValue);
+
+			if (duration === undefined) {
+				return { cost: 0, isPlaceholder: true, note: 'Missing duration, cannot calculate' };
+			}
+
+			const resolution = resolutionField ? extracted.values[resolutionField] as string : undefined;
+			const aspectRatio = aspectRatioField ? extracted.values[aspectRatioField] as string : undefined;
+			const { width, height } = parseResolutionDimensions(resolution, aspectRatio);
+			const tokens = (height * width * duration * fps) / 1024;
+
+			const pricesArr = audioEntries.map(p => p.pricePerMillionTokens);
+			const minPrice = Math.min(...pricesArr);
+			const maxPrice = Math.max(...pricesArr);
+
+			const minCost = (tokens / 1_000_000) * minPrice;
+			const maxCost = (tokens / 1_000_000) * maxPrice;
+
+			return {
+				cost: (minCost + maxCost) / 2,
+				isPlaceholder: true,
+				note: `generate_audio from artefact`,
+				range: {
+					min: minCost,
+					max: maxCost,
+					samples: audioEntries.map(p => ({
+						label: p.generate_audio ? 'with audio' : 'without audio',
+						cost: (tokens / 1_000_000) * p.pricePerMillionTokens,
+					})),
+				},
+			};
+		}
+
+		// Look up price based on generate_audio value
+		const generateAudio = extracted.values['generate_audio'] === true;
+		const match = audioEntries.find(p => p.generate_audio === generateAudio);
+		pricePerMillionTokens = match?.pricePerMillionTokens;
+
+		// If no match found, try to find the false entry as default
+		if (pricePerMillionTokens === undefined) {
+			const defaultEntry = audioEntries.find(p => p.generate_audio === false);
+			pricePerMillionTokens = defaultEntry?.pricePerMillionTokens ?? audioEntries[0]?.pricePerMillionTokens;
+		}
+	} else {
+		// Legacy: single price (backward compatible)
+		pricePerMillionTokens = config.pricePerMillionTokens;
+		if (pricePerMillionTokens === undefined) {
+			const priceEntries = prices as VideoTokenPriceEntry[] | undefined;
+			pricePerMillionTokens = priceEntries?.[0]?.pricePerMillionTokens;
+		}
 	}
 
 	if (pricePerMillionTokens === undefined) {
 		return { cost: 0, isPlaceholder: true, note: 'Missing pricePerMillionTokens' };
 	}
 
-	// Fixed fps for seedance models
-	const fps = 30;
-
-	// Check for artefact-sourced inputs
-	if (extracted.artefactSourcedFields.length > 0) {
+	// Check for artefact-sourced inputs (other than generate_audio which is handled above)
+	const nonAudioArtefactFields = extracted.artefactSourcedFields.filter(f => f !== 'generate_audio');
+	if (nonAudioArtefactFields.length > 0) {
 		// Use default 1080p 5s video for estimate
 		const defaultWidth = 1920;
 		const defaultHeight = 1080;
@@ -762,7 +836,7 @@ function costByVideoPerMillionTokens(
 		return {
 			cost: defaultCost,
 			isPlaceholder: true,
-			note: `Input from artefact: ${extracted.artefactSourcedFields.join(', ')}`,
+			note: `Input from artefact: ${nonAudioArtefactFields.join(', ')}`,
 			range: {
 				min: samples[0].cost,
 				max: samples[2].cost,

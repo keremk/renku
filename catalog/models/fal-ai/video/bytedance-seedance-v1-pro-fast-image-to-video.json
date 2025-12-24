@@ -45,6 +45,7 @@
         "https://storage.googleapis.com/falserverless/example_inputs/seedance_fast_i2v_input.png"
       ],
       "title": "Image Url",
+      "format": "uri",
       "type": "string",
       "description": "The URL of the image used to generate video"
     },

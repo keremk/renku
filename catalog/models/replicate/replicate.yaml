@@ -64,6 +64,15 @@ models:
           pricePerImage: 0.005
         - resolution: 2K
           pricePerImage: 0.01
+  - name: qwen/qwen-image-edit-2511
+    type: image
+    mime:
+      - image/png
+      - image/jpg
+      - image/webp
+    price:
+      function: costByRun
+      price: 0.03
 
   # Audio Models (Speech)
   - name: minimax/speech-2.6-hd
@@ -236,3 +245,15 @@ models:
           pricePerSecond: 0.0316
         - resolution: 1080p
           pricePerSecond: 0.055
+  - name: bytedance/seedance-1.5-pro
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.052
+        - generate_audio: false
+          pricePerSecond: 0.026

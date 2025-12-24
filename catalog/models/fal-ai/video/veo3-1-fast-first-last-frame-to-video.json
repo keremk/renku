@@ -58,6 +58,7 @@
         "https://storage.googleapis.com/falserverless/example_inputs/veo31-flf2v-input-1.jpeg"
       ],
       "description": "URL of the first frame of the video",
+      "format": "uri",
       "type": "string",
       "title": "First Frame URL"
     },
@@ -66,6 +67,7 @@
         "https://storage.googleapis.com/falserverless/example_inputs/veo31-flf2v-input-2.jpeg"
       ],
       "description": "URL of the last frame of the video",
+      "format": "uri",
       "type": "string",
       "title": "Last Frame URL"
     }

@@ -1,0 +1,81 @@
+{
+  "x-fal-order-properties": [
+    "prompt",
+    "image_url",
+    "negative_prompt",
+    "image_size",
+    "max_images",
+    "seed",
+    "enable_safety_checker"
+  ],
+  "type": "object",
+  "properties": {
+    "prompt": {
+      "examples": [
+        "An ancient library floating among clouds, golden hour light streaming through massive windows, photorealistic"
+      ],
+      "title": "Prompt",
+      "minLength": 1,
+      "type": "string",
+      "description": "Text prompt describing the desired image. Supports Chinese and English. Max 2000 characters."
+    },
+    "image_size": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/ImageSize"
+        },
+        {
+          "enum": [
+            "square_hd",
+            "square",
+            "portrait_4_3",
+            "portrait_16_9",
+            "landscape_4_3",
+            "landscape_16_9"
+          ],
+          "type": "string"
+        }
+      ],
+      "title": "Image Size",
+      "examples": ["square_hd", "landscape_16_9"],
+      "description": "Output image size. If not set: matches input image size (up to 1280*1280). Use presets like 'square_hd', 'landscape_16_9', or specify exact dimensions."
+    },
+    "max_images": {
+      "minimum": 1,
+      "maximum": 5,
+      "type": "integer",
+      "title": "Max Images",
+      "description": "Maximum number of images to generate (1-5). Actual count may be less depending on model inference.",
+      "default": 1
+    },
+    "image_url": {
+      "title": "Image Url",
+      "type": "string",
+      "format": "uri",
+      "description": "Optional reference image (0 or 1). When provided, can be used for style guidance. Resolution: 384-5000px each dimension. Max size: 10MB. Formats: JPEG, JPG, PNG (no alpha), BMP, WEBP."
+    },
+    "enable_safety_checker": {
+      "title": "Enable Safety Checker",
+      "type": "boolean",
+      "description": "Enable content moderation for input and output.",
+      "default": true
+    },
+    "seed": {
+      "title": "Seed",
+      "type": "integer",
+      "description": "Random seed for reproducibility (0-2147483647)."
+    },
+    "negative_prompt": {
+      "examples": [
+        "low resolution, error, worst quality, low quality, deformed"
+      ],
+      "title": "Negative Prompt",
+      "type": "string",
+      "description": "Content to avoid in the generated image. Max 500 characters.",
+      "default": ""
+    }
+  },
+  "description": "Input for Wan 2.6 text-to-image or mixed text-and-image generation (enable_interleave=true)",
+  "title": "TextToImageWanInput",
+  "required": ["prompt"]
+}

@@ -51,6 +51,7 @@
         "https://storage.googleapis.com/falserverless/example_inputs/sora-2-i2v-input.png"
       ],
       "description": "The URL of the image to use as the first frame",
+      "format": "uri",
       "type": "string",
       "title": "Image URL"
     }

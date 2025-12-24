@@ -1,0 +1,91 @@
+{
+  "title": "ImageToVideoInput",
+  "type": "object",
+  "properties": {
+    "prompt": {
+      "examples": [
+        "A comedic cinematic demo where typed prompts physically transform reality. Photoreal, strong match cuts, coherent main character, no subtitles.\n\nShot 1 [0-4s] Continue from first frame. The creator presses \"PRINT\". The machine clunks like a spaceship. Creator whispers: \"Okay… I'm pressing enter.\"\nShot 2 [4-8s] Smash cut: the printed paper flies into the air and unfolds into a full desert canyon scene around the desk, like reality is being unrolled. Creator says: \"Wait—my prompt has physics?\"\nShot 3 [8-12s] Hard cut: the paper tears and reveals a tropical jungle behind it, perfectly lit, cinematic sun. Creator laughs: \"This is exactly why we do AI.\"\nShot 4 [12-15s] Hard cut back to studio. The printer prints a final line (not shown clearly). Creator looks to camera: \"Multi-scene. Single prompt.\""
+      ],
+      "title": "Prompt",
+      "minLength": 1,
+      "description": "The text prompt describing the desired video motion. Max 800 characters.",
+      "type": "string"
+    },
+    "resolution": {
+      "enum": ["720p", "1080p"],
+      "title": "Resolution",
+      "type": "string",
+      "description": "Video resolution. Valid values: 720p, 1080p",
+      "default": "1080p"
+    },
+    "duration": {
+      "examples": ["5", "10", "15"],
+      "title": "Duration",
+      "type": "string",
+      "description": "Duration of the generated video in seconds. Choose between 5, 10 or 15 seconds.",
+      "enum": ["5", "10", "15"],
+      "default": "5"
+    },
+    "enable_safety_checker": {
+      "examples": [true],
+      "title": "Enable Safety Checker",
+      "type": "boolean",
+      "description": "If set to true, the safety checker will be enabled.",
+      "default": true
+    },
+    "image_url": {
+      "examples": [
+        "https://v3b.fal.media/files/b/0a8673dd/m9EV5W9aSqg8J7rb-18TK.png"
+      ],
+      "title": "Image URL",
+      "type": "string",
+      "format": "uri",
+      "description": "URL of the image to use as the first frame. Must be publicly accessible or base64 data URI. Image dimensions must be between 240 and 7680."
+    },
+    "enable_prompt_expansion": {
+      "title": "Enable Prompt Expansion",
+      "type": "boolean",
+      "description": "Whether to enable prompt rewriting using LLM.",
+      "default": true
+    },
+    "seed": {
+      "title": "Seed",
+      "type": "integer",
+      "description": "Random seed for reproducibility. If None, a random seed is chosen."
+    },
+    "multi_shots": {
+      "title": "Multi Shots",
+      "type": "boolean",
+      "description": "When true, enables intelligent multi-shot segmentation. Only active when enable_prompt_expansion is True. Set to false for single-shot generation.",
+      "default": false
+    },
+    "negative_prompt": {
+      "examples": [
+        "low resolution, error, worst quality, low quality, defects"
+      ],
+      "title": "Negative Prompt",
+      "type": "string",
+      "description": "Negative prompt to describe content to avoid. Max 500 characters.",
+      "default": ""
+    },
+    "audio_url": {
+      "title": "Audio Url",
+      "type": "string",
+      "description": "\nURL of the audio to use as the background music. Must be publicly accessible.\nLimit handling: If the audio duration exceeds the duration value (5, 10, or 15 seconds),\nthe audio is truncated to the first N seconds, and the rest is discarded. If\nthe audio is shorter than the video, the remaining part of the video will be silent.\nFor example, if the audio is 3 seconds long and the video duration is 5 seconds, the\nfirst 3 seconds of the output video will have sound, and the last 2 seconds will be silent.\n- Format: WAV, MP3.\n- Duration: 3 to 30 s.\n- File size: Up to 15 MB.\n"
+    }
+  },
+  "description": "Input for Wan 2.6 image-to-video generation",
+  "x-fal-order-properties": [
+    "prompt",
+    "image_url",
+    "audio_url",
+    "resolution",
+    "duration",
+    "negative_prompt",
+    "enable_prompt_expansion",
+    "multi_shots",
+    "seed",
+    "enable_safety_checker"
+  ],
+  "required": ["prompt", "image_url"]
+}
