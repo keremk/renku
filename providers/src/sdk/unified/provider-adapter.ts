@@ -2,6 +2,14 @@ import type { SecretResolver, ProviderLogger, ProviderMode } from '../../types.j
 import type { SchemaRegistry } from '../../schema-registry.js';
 
 /**
+ * Context passed to formatModelIdentifier for provider-specific handling.
+ */
+export interface ModelContext {
+  /** Sub-provider for models hosted on a platform (e.g., 'wan' for wan models on fal-ai) */
+  subProvider?: string;
+}
+
+/**
  * Provider adapter interface for unified handler.
  * Each provider (replicate, fal-ai, wavespeed-ai) implements this interface
  * to handle provider-specific API invocation and output parsing.
@@ -17,7 +25,7 @@ export interface ProviderAdapter {
   createClient(options: ClientOptions): Promise<ProviderClient>;
 
   /** Format the model identifier for API calls (provider-specific) */
-  formatModelIdentifier(model: string): string;
+  formatModelIdentifier(model: string, context?: ModelContext): string;
 
   /** Execute the API call and return raw output */
   invoke(client: ProviderClient, model: string, input: Record<string, unknown>): Promise<unknown>;

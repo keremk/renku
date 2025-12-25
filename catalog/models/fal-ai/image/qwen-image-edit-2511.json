@@ -1,122 +1,261 @@
 {
-  "title": "EditImageInput",
-  "type": "object",
-  "properties": {
-    "prompt": {
-      "examples": ["Change angle to front view"],
-      "title": "Prompt",
-      "type": "string",
-      "description": "The prompt to edit the image with."
-    },
-    "num_images": {
-      "minimum": 1,
-      "title": "Num Images",
-      "type": "integer",
-      "description": "The number of images to generate.",
-      "maximum": 4,
-      "default": 1
-    },
-    "image_size": {
-      "anyOf": [
-        {
-          "$ref": "#/components/schemas/ImageSize"
-        },
-        {
-          "enum": [
-            "square_hd",
-            "square",
-            "portrait_4_3",
-            "portrait_16_9",
-            "landscape_4_3",
-            "landscape_16_9"
-          ],
-          "type": "string"
-        }
-      ],
-      "title": "Image Size",
-      "description": "The size of the generated image. If None, uses the input image dimensions."
-    },
-    "num_inference_steps": {
-      "minimum": 1,
-      "title": "Num Inference Steps",
-      "type": "integer",
-      "description": "The number of inference steps to perform.",
-      "maximum": 50,
-      "default": 28
-    },
-    "acceleration": {
-      "enum": ["none", "regular", "high"],
-      "description": "The acceleration level to use.",
-      "type": "string",
-      "title": "Acceleration",
-      "default": "regular"
-    },
-    "output_format": {
-      "enum": ["jpeg", "png", "webp"],
-      "description": "The format of the generated image.",
-      "type": "string",
-      "title": "Output Format",
-      "default": "png"
-    },
-    "sync_mode": {
-      "title": "Sync Mode",
-      "type": "boolean",
-      "description": "If `True`, the media will be returned as a data URI.",
-      "default": false
-    },
-    "enable_safety_checker": {
-      "title": "Enable Safety Checker",
-      "type": "boolean",
-      "description": "If set to true, the safety checker will be enabled.",
-      "default": true
-    },
-    "seed": {
-      "title": "Seed",
-      "type": "integer",
-      "description": "The same seed and the same prompt given to the same version of the model will output the same image every time."
-    },
-    "image_urls": {
-      "examples": [
-        [
-          "https://v3b.fal.media/files/b/0a877afe/karyVuQ62j0V6ErYzyW-w_image_6.png"
-        ]
-      ],
-      "title": "Image URLs",
-      "type": "array",
-      "description": "The URLs of the images to edit.",
-      "items": {
+  "input_schema": {
+    "title": "EditImageInput",
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "Change angle to front view"
+        ],
+        "title": "Prompt",
         "type": "string",
-        "format": "uri"
+        "description": "The prompt to edit the image with."
+      },
+      "num_images": {
+        "minimum": 1,
+        "title": "Num Images",
+        "type": "integer",
+        "description": "The number of images to generate.",
+        "maximum": 4,
+        "default": 1
+      },
+      "image_size": {
+        "anyOf": [
+          {
+            "$ref": "#/ImageSize"
+          },
+          {
+            "enum": [
+              "square_hd",
+              "square",
+              "portrait_4_3",
+              "portrait_16_9",
+              "landscape_4_3",
+              "landscape_16_9"
+            ],
+            "type": "string"
+          }
+        ],
+        "title": "Image Size",
+        "description": "The size of the generated image. If None, uses the input image dimensions."
+      },
+      "num_inference_steps": {
+        "minimum": 1,
+        "title": "Num Inference Steps",
+        "type": "integer",
+        "description": "The number of inference steps to perform.",
+        "maximum": 50,
+        "default": 28
+      },
+      "acceleration": {
+        "enum": [
+          "none",
+          "regular",
+          "high"
+        ],
+        "description": "The acceleration level to use.",
+        "type": "string",
+        "title": "Acceleration",
+        "default": "regular"
+      },
+      "output_format": {
+        "enum": [
+          "jpeg",
+          "png",
+          "webp"
+        ],
+        "description": "The format of the generated image.",
+        "type": "string",
+        "title": "Output Format",
+        "default": "png"
+      },
+      "sync_mode": {
+        "title": "Sync Mode",
+        "type": "boolean",
+        "description": "If `True`, the media will be returned as a data URI.",
+        "default": false
+      },
+      "enable_safety_checker": {
+        "title": "Enable Safety Checker",
+        "type": "boolean",
+        "description": "If set to true, the safety checker will be enabled.",
+        "default": true
+      },
+      "seed": {
+        "title": "Seed",
+        "type": "integer",
+        "description": "The same seed and the same prompt given to the same version of the model will output the same image every time."
+      },
+      "image_urls": {
+        "examples": [
+          [
+            "https://v3b.fal.media/files/b/0a877afe/karyVuQ62j0V6ErYzyW-w_image_6.png"
+          ]
+        ],
+        "title": "Image URLs",
+        "type": "array",
+        "description": "The URLs of the images to edit.",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        }
+      },
+      "negative_prompt": {
+        "title": "Negative Prompt",
+        "type": "string",
+        "description": "The negative prompt to generate an image from.",
+        "default": ""
+      },
+      "guidance_scale": {
+        "minimum": 1,
+        "title": "Guidance Scale",
+        "type": "number",
+        "description": "The guidance scale to use for the image generation.",
+        "maximum": 20,
+        "default": 4.5
       }
     },
-    "negative_prompt": {
-      "title": "Negative Prompt",
-      "type": "string",
-      "description": "The negative prompt to generate an image from.",
-      "default": ""
-    },
-    "guidance_scale": {
-      "minimum": 1,
-      "title": "Guidance Scale",
-      "type": "number",
-      "description": "The guidance scale to use for the image generation.",
-      "maximum": 20,
-      "default": 4.5
-    }
+    "x-fal-order-properties": [
+      "prompt",
+      "negative_prompt",
+      "image_size",
+      "image_urls",
+      "num_inference_steps",
+      "guidance_scale",
+      "seed",
+      "sync_mode",
+      "num_images",
+      "enable_safety_checker",
+      "output_format",
+      "acceleration"
+    ],
+    "required": [
+      "prompt",
+      "image_urls"
+    ]
   },
-  "x-fal-order-properties": [
-    "prompt",
-    "negative_prompt",
-    "image_size",
-    "image_urls",
-    "num_inference_steps",
-    "guidance_scale",
-    "seed",
-    "sync_mode",
-    "num_images",
-    "enable_safety_checker",
-    "output_format",
-    "acceleration"
-  ],
-  "required": ["prompt", "image_urls"]
+  "output_schema": {
+    "title": "ImageToImageOutput",
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "title": "Prompt",
+        "type": "string",
+        "description": "The prompt used for generating the image."
+      },
+      "images": {
+        "examples": [
+          [
+            {
+              "height": 768,
+              "content_type": "image/png",
+              "url": "https://v3b.fal.media/files/b/0a877afe/InJJA0Q1gtQnyK1N3wdg5.png",
+              "width": 1376
+            }
+          ]
+        ],
+        "title": "Images",
+        "type": "array",
+        "description": "The generated image files info.",
+        "items": {
+          "$ref": "#/Image"
+        }
+      },
+      "seed": {
+        "title": "Seed",
+        "type": "integer",
+        "description": "\n            Seed of the generated Image. It will be the same value of the one passed in the\n            input or the randomly generated that was used in case none was passed.\n        "
+      },
+      "has_nsfw_concepts": {
+        "title": "Has Nsfw Concepts",
+        "type": "array",
+        "description": "Whether the generated images contain NSFW concepts.",
+        "items": {
+          "type": "boolean"
+        }
+      },
+      "timings": {
+        "additionalProperties": {
+          "type": "number"
+        },
+        "type": "object",
+        "title": "Timings"
+      }
+    },
+    "x-fal-order-properties": [
+      "images",
+      "timings",
+      "seed",
+      "has_nsfw_concepts",
+      "prompt"
+    ],
+    "required": [
+      "images",
+      "timings",
+      "seed",
+      "has_nsfw_concepts",
+      "prompt"
+    ]
+  },
+  "ImageSize": {
+    "title": "ImageSize",
+    "type": "object",
+    "properties": {
+      "height": {
+        "description": "The height of the generated image.",
+        "type": "integer",
+        "maximum": 14142,
+        "title": "Height",
+        "exclusiveMinimum": 0,
+        "default": 512
+      },
+      "width": {
+        "description": "The width of the generated image.",
+        "type": "integer",
+        "maximum": 14142,
+        "title": "Width",
+        "exclusiveMinimum": 0,
+        "default": 512
+      }
+    },
+    "x-fal-order-properties": [
+      "width",
+      "height"
+    ]
+  },
+  "Image": {
+    "title": "Image",
+    "type": "object",
+    "properties": {
+      "height": {
+        "title": "Height",
+        "type": "integer"
+      },
+      "content_type": {
+        "title": "Content Type",
+        "type": "string",
+        "default": "image/jpeg"
+      },
+      "url": {
+        "title": "Url",
+        "type": "string",
+        "format": "uri"
+      },
+      "width": {
+        "title": "Width",
+        "type": "integer"
+      }
+    },
+    "x-fal-order-properties": [
+      "url",
+      "width",
+      "height",
+      "content_type"
+    ],
+    "required": [
+      "url",
+      "width",
+      "height"
+    ]
+  }
 }

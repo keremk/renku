@@ -1,5 +1,5 @@
 import Replicate from 'replicate';
-import type { ProviderAdapter, ClientOptions, ProviderClient } from '../unified/provider-adapter.js';
+import type { ProviderAdapter, ClientOptions, ProviderClient, ModelContext } from '../unified/provider-adapter.js';
 import { normalizeReplicateOutput } from './output.js';
 import { createReplicateRetryWrapper } from './retry.js';
 
@@ -27,7 +27,7 @@ export const replicateAdapter: ProviderAdapter = {
     return new Replicate({ auth: token });
   },
 
-  formatModelIdentifier(model: string): string {
+  formatModelIdentifier(model: string, _context?: ModelContext): string {
     // Replicate uses owner/model or owner/model:version format
     return model;
   },

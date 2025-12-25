@@ -1,68 +1,185 @@
 {
-  "x-fal-order-properties": [
-    "prompt",
-    "image_size",
-    "background",
-    "quality",
-    "num_images",
-    "output_format",
-    "sync_mode"
-  ],
-  "type": "object",
-  "properties": {
-    "prompt": {
-      "examples": [
-        "create a realistic image taken with iphone at these coordinates 41°43′32″N 49°56′49″W 15 April 1912"
-      ],
-      "title": "Prompt",
-      "minLength": 2,
-      "type": "string",
-      "description": "The prompt for image generation"
+  "input_schema": {
+    "x-fal-order-properties": [
+      "prompt",
+      "image_size",
+      "background",
+      "quality",
+      "num_images",
+      "output_format",
+      "sync_mode"
+    ],
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "create a realistic image taken with iphone at these coordinates 41°43′32″N 49°56′49″W 15 April 1912"
+        ],
+        "title": "Prompt",
+        "type": "string",
+        "description": "The prompt for image generation",
+        "minLength": 2
+      },
+      "num_images": {
+        "description": "Number of images to generate",
+        "type": "integer",
+        "examples": [
+          1
+        ],
+        "maximum": 4,
+        "minimum": 1,
+        "title": "Number of Images",
+        "default": 1
+      },
+      "image_size": {
+        "enum": [
+          "1024x1024",
+          "1536x1024",
+          "1024x1536"
+        ],
+        "title": "Image Size",
+        "type": "string",
+        "description": "Aspect ratio for the generated image",
+        "default": "1024x1024"
+      },
+      "background": {
+        "enum": [
+          "auto",
+          "transparent",
+          "opaque"
+        ],
+        "title": "Background",
+        "type": "string",
+        "description": "Background for the generated image",
+        "default": "auto"
+      },
+      "quality": {
+        "enum": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "title": "Quality",
+        "type": "string",
+        "description": "Quality for the generated image",
+        "default": "high"
+      },
+      "output_format": {
+        "enum": [
+          "jpeg",
+          "png",
+          "webp"
+        ],
+        "title": "Output Format",
+        "type": "string",
+        "description": "Output format for the images",
+        "default": "png"
+      },
+      "sync_mode": {
+        "title": "Sync Mode",
+        "type": "boolean",
+        "description": "If `True`, the media will be returned as a data URI and the output data won't be available in the request history.",
+        "default": false
+      }
     },
-    "num_images": {
-      "description": "Number of images to generate",
-      "type": "integer",
-      "examples": [1],
-      "maximum": 4,
-      "title": "Number of Images",
-      "minimum": 1,
-      "default": 1
-    },
-    "image_size": {
-      "enum": ["1024x1024", "1536x1024", "1024x1536"],
-      "title": "Image Size",
-      "type": "string",
-      "description": "Aspect ratio for the generated image",
-      "default": "1024x1024"
-    },
-    "background": {
-      "enum": ["auto", "transparent", "opaque"],
-      "title": "Background",
-      "type": "string",
-      "description": "Background for the generated image",
-      "default": "auto"
-    },
-    "quality": {
-      "enum": ["low", "medium", "high"],
-      "title": "Quality",
-      "type": "string",
-      "description": "Quality for the generated image",
-      "default": "high"
-    },
-    "output_format": {
-      "enum": ["jpeg", "png", "webp"],
-      "title": "Output Format",
-      "type": "string",
-      "description": "Output format for the images",
-      "default": "png"
-    },
-    "sync_mode": {
-      "title": "Sync Mode",
-      "type": "boolean",
-      "description": "If `True`, the media will be returned as a data URI and the output data won't be available in the request history.",
-      "default": false
-    }
+    "title": "TextToImageRequest",
+    "required": [
+      "prompt"
+    ]
   },
-  "title": "TextToImageRequest",
-  "required": ["prompt"]
+  "output_schema": {
+    "x-fal-order-properties": [
+      "images"
+    ],
+    "type": "object",
+    "properties": {
+      "images": {
+        "examples": [
+          [
+            {
+              "height": 1024,
+              "file_name": "EnWrO3XWjPE0nxBDpaQrj.png",
+              "content_type": "image/png",
+              "url": "https://v3b.fal.media/files/b/0a869129/EnWrO3XWjPE0nxBDpaQrj.png",
+              "width": 1024
+            }
+          ]
+        ],
+        "title": "Images",
+        "type": "array",
+        "description": "The generated images.",
+        "items": {
+          "$ref": "#/ImageFile"
+        }
+      }
+    },
+    "title": "ImageResponse",
+    "required": [
+      "images"
+    ]
+  },
+  "ImageFile": {
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data",
+      "width",
+      "height"
+    ],
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "title": "File Size",
+        "type": "integer",
+        "description": "The size of the file in bytes."
+      },
+      "height": {
+        "title": "Height",
+        "type": "integer",
+        "description": "The height of the image"
+      },
+      "url": {
+        "title": "Url",
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
+      },
+      "width": {
+        "title": "Width",
+        "type": "integer",
+        "description": "The width of the image"
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name",
+        "type": "string",
+        "description": "The name of the file. It will be auto-generated if not provided."
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type",
+        "type": "string",
+        "description": "The mime type of the file."
+      },
+      "file_data": {
+        "format": "binary",
+        "title": "File Data",
+        "type": "string",
+        "description": "File data"
+      }
+    },
+    "title": "ImageFile",
+    "required": [
+      "url"
+    ]
+  }
 }

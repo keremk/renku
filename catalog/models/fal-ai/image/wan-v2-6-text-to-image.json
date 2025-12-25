@@ -171,7 +171,8 @@
       "url": {
         "title": "Url",
         "type": "string",
-        "description": "The URL where the file can be downloaded from."
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
       },
       "file_data": {
         "format": "binary",

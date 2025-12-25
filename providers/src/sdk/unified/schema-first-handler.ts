@@ -4,7 +4,7 @@ import type { HandlerFactory, ProviderJobContext } from '../../types.js';
 import { buildArtefactsFromUrls } from './artefacts.js';
 import { extractPlannerContext } from './utils.js';
 import { validatePayload } from '../schema-validator.js';
-import type { ProviderAdapter, ProviderClient } from './provider-adapter.js';
+import type { ProviderAdapter, ProviderClient, ModelContext } from './provider-adapter.js';
 import { parseSchemaFile, type SchemaFile } from './schema-file.js';
 import { validateOutputWithLogging } from './output-validator.js';
 import { generateOutputFromSchema } from './output-generator.js';
@@ -13,6 +13,8 @@ export type UnifiedHandlerOptions = {
   adapter: ProviderAdapter;
   outputMimeType: string;
   logKey?: string;
+  /** Optional model context for provider-specific handling (e.g., subProvider) */
+  modelContext?: ModelContext;
 };
 
 /**
@@ -20,7 +22,7 @@ export type UnifiedHandlerOptions = {
  * This eliminates the need for separate handler implementations per provider/media-type.
  */
 export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFactory {
-  const { adapter, outputMimeType, logKey = 'media' } = options;
+  const { adapter, outputMimeType, logKey = 'media', modelContext } = options;
 
   return (init) => {
     const { descriptor, secretResolver, logger, schemaRegistry } = init;
@@ -86,7 +88,7 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
         validatePayload(inputSchemaString, sdkPayload, 'input');
         const input = { ...sdkPayload };
 
-        const modelIdentifier = adapter.formatModelIdentifier(request.model);
+        const modelIdentifier = adapter.formatModelIdentifier(request.model, modelContext);
 
         logger?.debug?.(`providers.${adapter.name}.${logKey}.invoke.start`, {
           provider: descriptor.provider,

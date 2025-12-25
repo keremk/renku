@@ -1,4 +1,4 @@
-import type { ProviderAdapter, ClientOptions, ProviderClient } from '../unified/provider-adapter.js';
+import type { ProviderAdapter, ClientOptions, ProviderClient, ModelContext } from '../unified/provider-adapter.js';
 import { normalizeWavespeedOutput } from './output.js';
 import { pollForCompletion } from './polling.js';
 import type { WavespeedResult } from './client.js';
@@ -38,7 +38,7 @@ export const wavespeedAdapter: ProviderAdapter = {
     } as WavespeedClient;
   },
 
-  formatModelIdentifier(model: string): string {
+  formatModelIdentifier(model: string, _context?: ModelContext): string {
     // Wavespeed uses the model name directly
     return model;
   },

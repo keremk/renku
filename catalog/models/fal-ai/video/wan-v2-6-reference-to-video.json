@@ -1,104 +1,257 @@
 {
-  "description": "Input for Wan 2.6 reference-to-video generation (R2V)",
-  "type": "object",
-  "properties": {
-    "prompt": {
-      "examples": ["Dance battle between @Video1 and @Video2."],
-      "description": "Use @Video1, @Video2, @Video3 to reference subjects from your videos. Works for people, animals, or objects. For multi-shot prompts: '[0-3s] Shot 1. [3-6s] Shot 2.' Max 800 characters.",
-      "type": "string",
-      "minLength": 1,
-      "title": "Prompt"
-    },
-    "resolution": {
-      "enum": ["720p", "1080p"],
-      "description": "Video resolution tier. R2V only supports 720p and 1080p (no 480p).",
-      "type": "string",
-      "title": "Resolution",
-      "default": "1080p"
-    },
-    "video_urls": {
-      "examples": [
-        [
-          "https://v3b.fal.media/files/b/0a86742f/9rVJtQ2ukp9cid8lheutF_output.mp4",
-          "https://v3b.fal.media/files/b/0a867424/30OqWXFgHWqOwcP2OUwRx_output.mp4"
-        ]
-      ],
-      "description": "Reference videos for subject consistency (1-3 videos). Videos' FPS must be at least 16 FPS.Reference in prompt as @Video1, @Video2, @Video3. Works for people, animals, or objects.",
-      "type": "array",
-      "title": "Video Urls",
-      "items": {
-        "x-fal": {
-          "max_file_size": 104857600,
-          "timeout": 30,
-          "max_duration": 30,
-          "min_duration": 2
-        },
+  "input_schema": {
+    "description": "Input for Wan 2.6 reference-to-video generation (R2V)",
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "Dance battle between @Video1 and @Video2."
+        ],
+        "description": "Use @Video1, @Video2, @Video3 to reference subjects from your videos. Works for people, animals, or objects. For multi-shot prompts: '[0-3s] Shot 1. [3-6s] Shot 2.' Max 800 characters.",
         "type": "string",
-        "format": "uri",
-        "limit_description": "Max file size: 100.0MB, Min duration: 2s, Max duration: 30s, Timeout: 30.0s"
+        "minLength": 1,
+        "title": "Prompt"
+      },
+      "resolution": {
+        "enum": [
+          "720p",
+          "1080p"
+        ],
+        "description": "Video resolution tier. R2V only supports 720p and 1080p (no 480p).",
+        "type": "string",
+        "title": "Resolution",
+        "default": "1080p"
+      },
+      "video_urls": {
+        "examples": [
+          [
+            "https://v3b.fal.media/files/b/0a86742f/9rVJtQ2ukp9cid8lheutF_output.mp4",
+            "https://v3b.fal.media/files/b/0a867424/30OqWXFgHWqOwcP2OUwRx_output.mp4"
+          ]
+        ],
+        "description": "Reference videos for subject consistency (1-3 videos). Videos' FPS must be at least 16 FPS.Reference in prompt as @Video1, @Video2, @Video3. Works for people, animals, or objects.",
+        "type": "array",
+        "title": "Video Urls",
+        "items": {
+          "x-fal": {
+            "max_file_size": 104857600,
+            "timeout": 30,
+            "max_duration": 30,
+            "min_duration": 2
+          },
+          "type": "string",
+          "limit_description": "Max file size: 100.0MB, Min duration: 2s, Max duration: 30s, Timeout: 30.0s",
+          "format": "uri"
+        }
+      },
+      "aspect_ratio": {
+        "enum": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4"
+        ],
+        "description": "The aspect ratio of the generated video.",
+        "type": "string",
+        "title": "Aspect Ratio",
+        "default": "16:9"
+      },
+      "duration": {
+        "examples": [
+          "5",
+          "10"
+        ],
+        "description": "Duration of the generated video in seconds. R2V supports only 5 or 10 seconds (no 15s).",
+        "type": "string",
+        "title": "Duration",
+        "enum": [
+          "5",
+          "10"
+        ],
+        "default": "5"
+      },
+      "enable_prompt_expansion": {
+        "description": "Whether to enable prompt rewriting using LLM.",
+        "type": "boolean",
+        "title": "Enable Prompt Expansion",
+        "default": true
+      },
+      "seed": {
+        "description": "Random seed for reproducibility. If None, a random seed is chosen.",
+        "type": "integer",
+        "title": "Seed"
+      },
+      "multi_shots": {
+        "description": "When true (default), enables intelligent multi-shot segmentation for coherent narrative videos with multiple shots. When false, generates single continuous shot. Only active when enable_prompt_expansion is True.",
+        "type": "boolean",
+        "title": "Multi Shots",
+        "default": true
+      },
+      "negative_prompt": {
+        "examples": [
+          "low resolution, error, worst quality, low quality, defects"
+        ],
+        "description": "Negative prompt to describe content to avoid. Max 500 characters.",
+        "type": "string",
+        "title": "Negative Prompt",
+        "default": ""
+      },
+      "enable_safety_checker": {
+        "examples": [
+          true
+        ],
+        "description": "If set to true, the safety checker will be enabled.",
+        "type": "boolean",
+        "title": "Enable Safety Checker",
+        "default": true
       }
     },
-    "aspect_ratio": {
-      "enum": ["16:9", "9:16", "1:1", "4:3", "3:4"],
-      "description": "The aspect ratio of the generated video.",
-      "type": "string",
-      "title": "Aspect Ratio",
-      "default": "16:9"
-    },
-    "duration": {
-      "examples": ["5", "10"],
-      "description": "Duration of the generated video in seconds. R2V supports only 5 or 10 seconds (no 15s).",
-      "type": "string",
-      "title": "Duration",
-      "enum": ["5", "10"],
-      "default": "5"
-    },
-    "enable_prompt_expansion": {
-      "description": "Whether to enable prompt rewriting using LLM.",
-      "type": "boolean",
-      "title": "Enable Prompt Expansion",
-      "default": true
-    },
-    "seed": {
-      "description": "Random seed for reproducibility. If None, a random seed is chosen.",
-      "type": "integer",
-      "title": "Seed"
-    },
-    "multi_shots": {
-      "description": "When true (default), enables intelligent multi-shot segmentation for coherent narrative videos with multiple shots. When false, generates single continuous shot. Only active when enable_prompt_expansion is True.",
-      "type": "boolean",
-      "title": "Multi Shots",
-      "default": true
-    },
-    "negative_prompt": {
-      "examples": [
-        "low resolution, error, worst quality, low quality, defects"
-      ],
-      "description": "Negative prompt to describe content to avoid. Max 500 characters.",
-      "type": "string",
-      "title": "Negative Prompt",
-      "default": ""
-    },
-    "enable_safety_checker": {
-      "examples": [true],
-      "description": "If set to true, the safety checker will be enabled.",
-      "type": "boolean",
-      "title": "Enable Safety Checker",
-      "default": true
-    }
+    "x-fal-order-properties": [
+      "prompt",
+      "video_urls",
+      "aspect_ratio",
+      "resolution",
+      "duration",
+      "negative_prompt",
+      "enable_prompt_expansion",
+      "multi_shots",
+      "seed",
+      "enable_safety_checker"
+    ],
+    "title": "ReferenceToVideoInput",
+    "required": [
+      "prompt",
+      "video_urls"
+    ]
   },
-  "x-fal-order-properties": [
-    "prompt",
-    "video_urls",
-    "aspect_ratio",
-    "resolution",
-    "duration",
-    "negative_prompt",
-    "enable_prompt_expansion",
-    "multi_shots",
-    "seed",
-    "enable_safety_checker"
-  ],
-  "title": "ReferenceToVideoInput",
-  "required": ["prompt", "video_urls"]
+  "output_schema": {
+    "description": "Output for reference-to-video generation",
+    "type": "object",
+    "properties": {
+      "actual_prompt": {
+        "examples": [
+          "Dance battle between Character1 and Character2, cinematic lighting, dynamic camera movement."
+        ],
+        "description": "The actual prompt used if prompt rewriting was enabled",
+        "type": "string",
+        "title": "Actual Prompt"
+      },
+      "seed": {
+        "examples": [
+          175932751
+        ],
+        "description": "The seed used for generation",
+        "type": "integer",
+        "title": "Seed"
+      },
+      "video": {
+        "examples": [
+          {
+            "content_type": "video/mp4",
+            "url": "https://v3b.fal.media/files/b/0a86762b/iDknfPkLFSFwWkyMgJi0U_QIzjwBDQ.mp4"
+          }
+        ],
+        "description": "The generated video file",
+        "title": "Video",
+        "allOf": [
+          {
+            "$ref": "#/VideoFile"
+          }
+        ]
+      }
+    },
+    "x-fal-order-properties": [
+      "video",
+      "seed",
+      "actual_prompt"
+    ],
+    "title": "ReferenceToVideoOutput",
+    "required": [
+      "video",
+      "seed"
+    ]
+  },
+  "VideoFile": {
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data",
+      "width",
+      "height",
+      "fps",
+      "duration",
+      "num_frames"
+    ],
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "description": "The size of the file in bytes.",
+        "type": "integer",
+        "title": "File Size"
+      },
+      "duration": {
+        "description": "The duration of the video",
+        "type": "number",
+        "title": "Duration"
+      },
+      "height": {
+        "description": "The height of the video",
+        "type": "integer",
+        "title": "Height"
+      },
+      "url": {
+        "description": "The URL where the file can be downloaded from.",
+        "type": "string",
+        "title": "Url",
+        "format": "uri"
+      },
+      "width": {
+        "description": "The width of the video",
+        "type": "integer",
+        "title": "Width"
+      },
+      "fps": {
+        "description": "The FPS of the video",
+        "type": "number",
+        "title": "Fps"
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "type": "string",
+        "title": "File Name"
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "description": "The mime type of the file.",
+        "type": "string",
+        "title": "Content Type"
+      },
+      "num_frames": {
+        "description": "The number of frames in the video",
+        "type": "integer",
+        "title": "Num Frames"
+      },
+      "file_data": {
+        "format": "binary",
+        "description": "File data",
+        "type": "string",
+        "title": "File Data"
+      }
+    },
+    "title": "VideoFile",
+    "required": [
+      "url"
+    ]
+  }
 }

@@ -74,7 +74,7 @@ async function main() {
   let failed = 0;
 
   for (const model of catalog.models) {
-    const { name, type } = model;
+    const { name, type, subProvider } = model;
 
     if (!name || !type) {
       console.warn(`[update-fal] Skipping model with missing name or type: ${JSON.stringify(model)}`);
@@ -97,10 +97,11 @@ async function main() {
     // Fetch and transform schema
     try {
       if (dryRun) {
-        console.log(`[update-fal] WOULD CONVERT: ${name} → ${outputPath}`);
+        const subProviderInfo = subProvider ? ` [subProvider: ${subProvider}]` : '';
+        console.log(`[update-fal] WOULD CONVERT: ${name}${subProviderInfo} → ${outputPath}`);
         converted++;
       } else {
-        const schema = await fetchAndTransformSchema(name);
+        const schema = await fetchAndTransformSchema(name, subProvider);
         await writeFile(outputPath, JSON.stringify(schema, null, 2) + '\n');
         console.log(`[update-fal] CONVERTED: ${name} → ${outputPath}`);
         converted++;

@@ -1,63 +1,153 @@
 {
-  "title": "OmniVideoImageToVideoInput",
-  "type": "object",
-  "properties": {
-    "prompt": {
-      "examples": [
-        "Create a magical timelapse transition. The snow melts rapidly to reveal green grass, and the tree branches burst into bloom with pink flowers in real-time. The lighting shifts from cold winter light to warm spring sunshine. The camera pushes in slowly towards the tree. Disney-style magical transformation, cinematic, 8k."
-      ],
-      "title": "Prompt",
-      "type": "string",
-      "description": "Use @Image1 to reference the start frame, @Image2 to reference the end frame.",
-      "maxLength": 2500
-    },
-    "duration": {
-      "enum": ["5", "10"],
-      "title": "Duration",
-      "type": "string",
-      "description": "Video duration in seconds.",
-      "default": "5"
-    },
-    "start_image_url": {
-      "examples": [
-        "https://v3b.fal.media/files/b/rabbit/NaslJIC7F2WodS6DFZRRJ.png"
-      ],
-      "title": "Start Image Url",
-      "type": "string",
-      "format": "uri",
-      "description": "Image to use as the first frame of the video.\n\nMax file size: 10.0MB, Min width: 300px, Min height: 300px, Min aspect ratio: 0.40, Max aspect ratio: 2.50, Timeout: 20.0s",
-      "x-fal": {
-        "max_aspect_ratio": 2.5,
-        "min_height": 300,
-        "min_width": 300,
-        "min_aspect_ratio": 0.4,
-        "timeout": 20,
-        "max_file_size": 10485760
+  "input_schema": {
+    "title": "OmniVideoImageToVideoInput",
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "Create a magical timelapse transition. The snow melts rapidly to reveal green grass, and the tree branches burst into bloom with pink flowers in real-time. The lighting shifts from cold winter light to warm spring sunshine. The camera pushes in slowly towards the tree. Disney-style magical transformation, cinematic, 8k."
+        ],
+        "maxLength": 2500,
+        "type": "string",
+        "description": "Use @Image1 to reference the start frame, @Image2 to reference the end frame.",
+        "title": "Prompt"
+      },
+      "duration": {
+        "enum": [
+          "5",
+          "10"
+        ],
+        "description": "Video duration in seconds.",
+        "type": "string",
+        "title": "Duration",
+        "default": "5"
+      },
+      "start_image_url": {
+        "examples": [
+          "https://v3b.fal.media/files/b/rabbit/NaslJIC7F2WodS6DFZRRJ.png"
+        ],
+        "description": "Image to use as the first frame of the video.\n\nMax file size: 10.0MB, Min width: 300px, Min height: 300px, Min aspect ratio: 0.40, Max aspect ratio: 2.50, Timeout: 20.0s",
+        "type": "string",
+        "title": "Start Image Url",
+        "x-fal": {
+          "max_aspect_ratio": 2.5,
+          "timeout": 20,
+          "min_width": 300,
+          "min_height": 300,
+          "min_aspect_ratio": 0.4,
+          "max_file_size": 10485760
+        },
+        "format": "uri"
+      },
+      "end_image_url": {
+        "examples": [
+          "https://v3b.fal.media/files/b/tiger/BwHi22qoQnqaTNMMhe533.png"
+        ],
+        "description": "Image to use as the last frame of the video.\n\nMax file size: 10.0MB, Min width: 300px, Min height: 300px, Min aspect ratio: 0.40, Max aspect ratio: 2.50, Timeout: 20.0s",
+        "type": "string",
+        "title": "End Image Url",
+        "x-fal": {
+          "max_aspect_ratio": 2.5,
+          "timeout": 20,
+          "min_width": 300,
+          "min_height": 300,
+          "min_aspect_ratio": 0.4,
+          "max_file_size": 10485760
+        },
+        "format": "uri"
       }
     },
-    "end_image_url": {
-      "examples": [
-        "https://v3b.fal.media/files/b/tiger/BwHi22qoQnqaTNMMhe533.png"
-      ],
-      "title": "End Image Url",
-      "type": "string",
-      "format": "uri",
-      "description": "Image to use as the last frame of the video.\n\nMax file size: 10.0MB, Min width: 300px, Min height: 300px, Min aspect ratio: 0.40, Max aspect ratio: 2.50, Timeout: 20.0s",
-      "x-fal": {
-        "max_aspect_ratio": 2.5,
-        "min_height": 300,
-        "min_width": 300,
-        "min_aspect_ratio": 0.4,
-        "timeout": 20,
-        "max_file_size": 10485760
-      }
-    }
+    "x-fal-order-properties": [
+      "prompt",
+      "start_image_url",
+      "end_image_url",
+      "duration"
+    ],
+    "required": [
+      "prompt",
+      "start_image_url"
+    ]
   },
-  "x-fal-order-properties": [
-    "prompt",
-    "start_image_url",
-    "end_image_url",
-    "duration"
-  ],
-  "required": ["prompt", "start_image_url"]
+  "output_schema": {
+    "description": "Output for Kling Omni Video generation.",
+    "type": "object",
+    "properties": {
+      "video": {
+        "examples": [
+          {
+            "file_size": 27588984,
+            "file_name": "output.mp4",
+            "content_type": "video/mp4",
+            "url": "https://v3b.fal.media/files/b/koala/knryyyGF3ZVyMMrGr77CL_output.mp4"
+          }
+        ],
+        "description": "The generated video.",
+        "title": "Video",
+        "allOf": [
+          {
+            "$ref": "#/File"
+          }
+        ]
+      }
+    },
+    "title": "OmniVideoImageToVideoOutput",
+    "x-fal-order-properties": [
+      "video"
+    ],
+    "required": [
+      "video"
+    ]
+  },
+  "File": {
+    "title": "File",
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "description": "The size of the file in bytes.",
+        "type": "integer",
+        "title": "File Size"
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "type": "string",
+        "title": "File Name"
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "description": "The mime type of the file.",
+        "type": "string",
+        "title": "Content Type"
+      },
+      "url": {
+        "description": "The URL where the file can be downloaded from.",
+        "type": "string",
+        "title": "Url",
+        "format": "uri"
+      },
+      "file_data": {
+        "format": "binary",
+        "description": "File data",
+        "type": "string",
+        "title": "File Data"
+      }
+    },
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data"
+    ],
+    "required": [
+      "url"
+    ]
+  }
 }

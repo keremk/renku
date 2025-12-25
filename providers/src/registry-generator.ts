@@ -117,9 +117,12 @@ function createImplementation(
   // Use MIME from model definition, falling back to type-based defaults
   const mimeType = definition.mime?.[0] ?? TYPE_TO_MIME[definition.type];
 
+  // Build model context for provider-specific handling (e.g., subProvider)
+  const modelContext = definition.subProvider ? { subProvider: definition.subProvider } : undefined;
+
   return {
     match,
-    factory: createUnifiedHandler({ adapter, outputMimeType: mimeType }),
+    factory: createUnifiedHandler({ adapter, outputMimeType: mimeType, modelContext }),
   };
 }
 

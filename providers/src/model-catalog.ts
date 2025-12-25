@@ -28,6 +28,8 @@ export interface ModelDefinition {
   price?: ModelPriceConfig | number;
   /** Secret name for BYOK (e.g., 'ANTHROPIC_API_KEY') - used by vercel gateway */
   apiKeyName?: string;
+  /** Optional sub-provider (e.g., 'wan' for wan models hosted on fal-ai). When specified, model name is fully qualified. */
+  subProvider?: string;
 }
 
 /**
@@ -59,6 +61,7 @@ export interface ProviderCatalogYaml {
     inputSchema?: string;
     price?: ModelPriceConfig | number;
     apiKeyName?: string;
+    subProvider?: string;
   }>;
 }
 
@@ -132,6 +135,7 @@ export async function loadModelCatalog(
           inputSchema: model.inputSchema,
           price: model.price,
           apiKeyName: model.apiKeyName,
+          subProvider: model.subProvider,
         });
       }
       catalog.providers.set(providerName, modelMap);

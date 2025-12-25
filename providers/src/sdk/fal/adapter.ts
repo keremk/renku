@@ -1,5 +1,5 @@
 import { fal } from '@fal-ai/client';
-import type { ProviderAdapter, ClientOptions, ProviderClient } from '../unified/provider-adapter.js';
+import type { ProviderAdapter, ClientOptions, ProviderClient, ModelContext } from '../unified/provider-adapter.js';
 import { normalizeFalOutput } from './output.js';
 
 type FalClient = typeof fal;
@@ -29,8 +29,12 @@ export const falAdapter: ProviderAdapter = {
     return fal;
   },
 
-  formatModelIdentifier(model: string): string {
-    // Fal.ai uses fal-ai/{model} format for API calls
+  formatModelIdentifier(model: string, context?: ModelContext): string {
+    // If subProvider is specified, model name is already fully qualified
+    if (context?.subProvider) {
+      return model;
+    }
+    // Default: Fal.ai uses fal-ai/{model} format for API calls
     return `fal-ai/${model}`;
   },
 

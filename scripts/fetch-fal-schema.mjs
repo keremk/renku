@@ -8,11 +8,12 @@ import { fileURLToPath } from 'node:url';
  *
  * Usage:
  *   node scripts/fetch-fal-schema.mjs <model-name> <output-path>
- *   node scripts/fetch-fal-schema.mjs <model-name> --type=audio|video|image
+ *   node scripts/fetch-fal-schema.mjs <model-name> --type=audio|video|image [--subprovider=<name>]
  *
  * Examples:
  *   node scripts/fetch-fal-schema.mjs minimax/speech-02-hd --type=audio
  *   node scripts/fetch-fal-schema.mjs fal-ai/veo3.1 --type=video
+ *   node scripts/fetch-fal-schema.mjs wan/v2.6/image-to-image --type=image --subprovider=wan
  */
 
 const FAL_OPENAPI_BASE = 'https://fal.ai/api/openapi/queue/openapi.json';
@@ -98,16 +99,35 @@ function addUriFormat(obj, propertyName = null) {
     result.format = 'uri';
   }
 
+  // Handle arrays of strings (e.g., image_urls: { type: "array", items: { type: "string" } })
+  if (
+    propertyName &&
+    propertyName.toLowerCase().includes('url') &&
+    result.type === 'array' &&
+    result.items &&
+    typeof result.items === 'object' &&
+    result.items.type === 'string' &&
+    !result.items.format
+  ) {
+    result.items.format = 'uri';
+  }
+
   return result;
 }
 
 /**
  * Fetch and transform schema for a model
+ * @param {string} modelName - The model name
+ * @param {string} [subProvider] - Optional sub-provider. If specified, use model name as-is for endpoint.
  */
-export async function fetchAndTransformSchema(modelName) {
-  // Normalize model name (strip fal-ai/ if present) and construct endpoint ID
+export async function fetchAndTransformSchema(modelName, subProvider) {
+  // Normalize model name (strip fal-ai/ if present)
   const normalizedName = normalizeModelName(modelName);
-  const endpointId = `fal-ai/${normalizedName}`;
+
+  // Construct endpoint ID based on subProvider
+  // If subProvider is specified, use model name as-is (already fully qualified)
+  // Otherwise, prepend fal-ai/
+  const endpointId = subProvider ? normalizedName : `fal-ai/${normalizedName}`;
 
   const url = `${FAL_OPENAPI_BASE}?endpoint_id=${encodeURIComponent(endpointId)}`;
 
@@ -160,19 +180,24 @@ export async function fetchAndTransformSchema(modelName) {
 async function main() {
   const args = process.argv.slice(2);
 
-  // Parse --type flag
+  // Parse flags
   const typeArg = args.find((arg) => arg.startsWith('--type='));
   const type = typeArg ? typeArg.split('=')[1] : null;
+
+  const subProviderArg = args.find((arg) => arg.startsWith('--subprovider='));
+  const subProvider = subProviderArg ? subProviderArg.split('=')[1] : null;
+
   const positionalArgs = args.filter((arg) => !arg.startsWith('--'));
 
   if (positionalArgs.length < 1) {
     console.error('Usage:');
     console.error('  node scripts/fetch-fal-schema.mjs <model-name> <output-path>');
-    console.error('  node scripts/fetch-fal-schema.mjs <model-name> --type=audio|video|image');
+    console.error('  node scripts/fetch-fal-schema.mjs <model-name> --type=audio|video|image [--subprovider=<name>]');
     console.error('');
     console.error('Examples:');
     console.error('  node scripts/fetch-fal-schema.mjs minimax/speech-02-hd --type=audio');
     console.error('  node scripts/fetch-fal-schema.mjs fal-ai/veo3.1 --type=video');
+    console.error('  node scripts/fetch-fal-schema.mjs wan/v2.6/image-to-image --type=image --subprovider=wan');
     process.exit(1);
   }
 
@@ -195,7 +220,7 @@ async function main() {
     process.exit(1);
   }
 
-  const schema = await fetchAndTransformSchema(normalizedName);
+  const schema = await fetchAndTransformSchema(normalizedName, subProvider);
 
   await writeFile(outputPath, JSON.stringify(schema, null, 2) + '\n');
   console.log(`[fetch-fal] Wrote schema to ${outputPath}`);

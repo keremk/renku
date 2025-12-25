@@ -1,77 +1,172 @@
 {
-  "x-fal-order-properties": [
-    "prompt",
-    "aspect_ratio",
-    "duration",
-    "resolution",
-    "generate_audio",
-    "auto_fix",
-    "first_frame_url",
-    "last_frame_url"
-  ],
-  "type": "object",
-  "properties": {
-    "prompt": {
-      "examples": [
-        "A woman looks into the camera, breathes in, then exclaims energetically, \"have you guys checked out Veo3.1 First-Last-Frame-to-Video on Fal? It's incredible!\""
-      ],
-      "maxLength": 20000,
-      "type": "string",
-      "description": "The text prompt describing the video you want to generate",
-      "title": "Prompt"
+  "input_schema": {
+    "x-fal-order-properties": [
+      "prompt",
+      "aspect_ratio",
+      "duration",
+      "resolution",
+      "generate_audio",
+      "auto_fix",
+      "first_frame_url",
+      "last_frame_url"
+    ],
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "A woman looks into the camera, breathes in, then exclaims energetically, \"have you guys checked out Veo3.1 First-Last-Frame-to-Video on Fal? It's incredible!\""
+        ],
+        "maxLength": 20000,
+        "type": "string",
+        "description": "The text prompt describing the video you want to generate",
+        "title": "Prompt"
+      },
+      "aspect_ratio": {
+        "enum": [
+          "auto",
+          "16:9",
+          "9:16"
+        ],
+        "description": "The aspect ratio of the generated video.",
+        "type": "string",
+        "title": "Aspect Ratio",
+        "default": "auto"
+      },
+      "duration": {
+        "enum": [
+          "4s",
+          "6s",
+          "8s"
+        ],
+        "description": "The duration of the generated video.",
+        "type": "string",
+        "title": "Duration",
+        "default": "8s"
+      },
+      "generate_audio": {
+        "description": "Whether to generate audio for the video.",
+        "type": "boolean",
+        "title": "Generate Audio",
+        "default": true
+      },
+      "resolution": {
+        "enum": [
+          "720p",
+          "1080p"
+        ],
+        "description": "The resolution of the generated video.",
+        "type": "string",
+        "title": "Resolution",
+        "default": "720p"
+      },
+      "auto_fix": {
+        "description": "Whether to automatically attempt to fix prompts that fail content policy or other validation checks by rewriting them.",
+        "type": "boolean",
+        "title": "Auto Fix",
+        "default": false
+      },
+      "first_frame_url": {
+        "examples": [
+          "https://storage.googleapis.com/falserverless/example_inputs/veo31-flf2v-input-1.jpeg"
+        ],
+        "description": "URL of the first frame of the video",
+        "type": "string",
+        "title": "First Frame URL",
+        "format": "uri"
+      },
+      "last_frame_url": {
+        "examples": [
+          "https://storage.googleapis.com/falserverless/example_inputs/veo31-flf2v-input-2.jpeg"
+        ],
+        "description": "URL of the last frame of the video",
+        "type": "string",
+        "title": "Last Frame URL",
+        "format": "uri"
+      }
     },
-    "aspect_ratio": {
-      "enum": ["auto", "16:9", "9:16"],
-      "description": "The aspect ratio of the generated video.",
-      "type": "string",
-      "title": "Aspect Ratio",
-      "default": "auto"
-    },
-    "duration": {
-      "enum": ["4s", "6s", "8s"],
-      "description": "The duration of the generated video.",
-      "type": "string",
-      "title": "Duration",
-      "default": "8s"
-    },
-    "generate_audio": {
-      "description": "Whether to generate audio for the video.",
-      "type": "boolean",
-      "title": "Generate Audio",
-      "default": true
-    },
-    "resolution": {
-      "enum": ["720p", "1080p"],
-      "description": "The resolution of the generated video.",
-      "type": "string",
-      "title": "Resolution",
-      "default": "720p"
-    },
-    "auto_fix": {
-      "description": "Whether to automatically attempt to fix prompts that fail content policy or other validation checks by rewriting them.",
-      "type": "boolean",
-      "title": "Auto Fix",
-      "default": false
-    },
-    "first_frame_url": {
-      "examples": [
-        "https://storage.googleapis.com/falserverless/example_inputs/veo31-flf2v-input-1.jpeg"
-      ],
-      "description": "URL of the first frame of the video",
-      "format": "uri",
-      "type": "string",
-      "title": "First Frame URL"
-    },
-    "last_frame_url": {
-      "examples": [
-        "https://storage.googleapis.com/falserverless/example_inputs/veo31-flf2v-input-2.jpeg"
-      ],
-      "description": "URL of the last frame of the video",
-      "format": "uri",
-      "type": "string",
-      "title": "Last Frame URL"
-    }
+    "title": "Veo31FirstLastFrameToVideoInput",
+    "required": [
+      "prompt",
+      "first_frame_url",
+      "last_frame_url"
+    ]
   },
-  "title": "Veo31FirstLastFrameToVideoInput",
-  "required": ["prompt", "first_frame_url", "last_frame_url"]
+  "output_schema": {
+    "x-fal-order-properties": [
+      "video"
+    ],
+    "type": "object",
+    "properties": {
+      "video": {
+        "examples": [
+          {
+            "url": "https://storage.googleapis.com/falserverless/example_outputs/veo31-flf2v-output.mp4"
+          }
+        ],
+        "description": "The generated video.",
+        "title": "Video",
+        "allOf": [
+          {
+            "$ref": "#/File"
+          }
+        ]
+      }
+    },
+    "title": "Veo31FirstLastFrameToVideoOutput",
+    "required": [
+      "video"
+    ]
+  },
+  "File": {
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data"
+    ],
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "description": "The size of the file in bytes.",
+        "type": "integer",
+        "title": "File Size"
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "type": "string",
+        "title": "File Name"
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "description": "The mime type of the file.",
+        "type": "string",
+        "title": "Content Type"
+      },
+      "url": {
+        "description": "The URL where the file can be downloaded from.",
+        "type": "string",
+        "title": "Url",
+        "format": "uri"
+      },
+      "file_data": {
+        "format": "binary",
+        "description": "File data",
+        "type": "string",
+        "title": "File Data"
+      }
+    },
+    "title": "File",
+    "required": [
+      "url"
+    ]
+  }
 }
