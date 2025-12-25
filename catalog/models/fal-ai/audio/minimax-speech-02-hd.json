@@ -75,7 +75,10 @@
         ]
       },
       "output_format": {
-        "enum": ["url", "hex"],
+        "enum": [
+          "url",
+          "hex"
+        ],
         "description": "Format of the output content (non-streaming only)",
         "type": "string",
         "title": "Output Format",
@@ -108,7 +111,9 @@
       "output_format",
       "pronunciation_dict"
     ],
-    "required": ["text"]
+    "required": [
+      "text"
+    ]
   },
   "output_schema": {
     "title": "TextToSpeechOutput",
@@ -134,8 +139,14 @@
         ]
       }
     },
-    "x-fal-order-properties": ["audio", "duration_ms"],
-    "required": ["audio", "duration_ms"]
+    "x-fal-order-properties": [
+      "audio",
+      "duration_ms"
+    ],
+    "required": [
+      "audio",
+      "duration_ms"
+    ]
   },
   "VoiceSetting": {
     "title": "VoiceSetting",
@@ -233,61 +244,93 @@
         }
       }
     },
-    "x-fal-order-properties": ["tone_list"]
+    "x-fal-order-properties": [
+      "tone_list"
+    ]
   },
   "AudioSetting": {
     "title": "AudioSetting",
     "type": "object",
     "properties": {
       "format": {
-        "enum": ["mp3", "pcm", "flac"],
+        "enum": [
+          "mp3",
+          "pcm",
+          "flac"
+        ],
         "description": "Audio format",
         "type": "string",
         "title": "Format",
         "default": "mp3"
       },
       "sample_rate": {
-        "enum": [8000, 16000, 22050, 24000, 32000, 44100],
+        "enum": [
+          8000,
+          16000,
+          22050,
+          24000,
+          32000,
+          44100
+        ],
         "description": "Sample rate of generated audio",
         "type": "integer",
         "title": "Sample Rate",
         "default": 32000
       },
       "channel": {
-        "enum": [1, 2],
+        "enum": [
+          1,
+          2
+        ],
         "description": "Number of audio channels (1=mono, 2=stereo)",
         "type": "integer",
         "title": "Channel",
         "default": 1
       },
       "bitrate": {
-        "enum": [32000, 64000, 128000, 256000],
+        "enum": [
+          32000,
+          64000,
+          128000,
+          256000
+        ],
         "description": "Bitrate of generated audio",
         "type": "integer",
         "title": "Bitrate",
         "default": 128000
       }
     },
-    "x-fal-order-properties": ["sample_rate", "bitrate", "format", "channel"]
+    "x-fal-order-properties": [
+      "sample_rate",
+      "bitrate",
+      "format",
+      "channel"
+    ]
   },
   "File": {
     "title": "File",
     "type": "object",
     "properties": {
       "file_size": {
-        "examples": [4404019],
+        "examples": [
+          4404019
+        ],
         "description": "The size of the file in bytes.",
         "type": "integer",
         "title": "File Size"
       },
       "file_name": {
-        "examples": ["z9RV14K95DvU.png"],
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
         "description": "The name of the file. It will be auto-generated if not provided.",
         "type": "string",
         "title": "File Name"
       },
       "content_type": {
-        "examples": ["image/png"],
+        "examples": [
+          "image/png"
+        ],
         "description": "The mime type of the file.",
         "type": "string",
         "title": "Content Type"
@@ -312,6 +355,8 @@
       "file_size",
       "file_data"
     ],
-    "required": ["url"]
+    "required": [
+      "url"
+    ]
   }
 }

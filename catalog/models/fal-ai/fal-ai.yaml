@@ -125,6 +125,23 @@ models:
     price:
       function: costByRun
       price: 0.03
+  - name: flux-pro/kontext/text-to-image
+    type: image
+    mime:
+      - image/jpeg
+      - image/png
+    price:
+      function: costByRun
+      price: 0.04
+  - name: flux-pro/kontext
+    type: image
+    mime:
+      - image/jpeg
+      - image/png
+    price:
+      function: costByRun
+      price: 0.04
+
 
   # Audio Models
   - name: elevenlabs/tts/eleven-v3

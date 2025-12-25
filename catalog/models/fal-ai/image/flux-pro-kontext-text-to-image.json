@@ -1,0 +1,192 @@
+{
+  "input_schema": {
+    "title": "FluxProTextToImageInputWithAR",
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "Extreme close-up of a single tiger eye, direct frontal view. Detailed iris and pupil. Sharp focus on eye texture and color. Natural lighting to capture authentic eye shine and depth. The word \"FLUX\" is painted over it in big, white brush strokes with visible texture."
+        ],
+        "title": "Prompt",
+        "type": "string",
+        "description": "The prompt to generate an image from."
+      },
+      "num_images": {
+        "minimum": 1,
+        "title": "Num Images",
+        "type": "integer",
+        "description": "The number of images to generate.",
+        "maximum": 4,
+        "default": 1
+      },
+      "aspect_ratio": {
+        "enum": [
+          "21:9",
+          "16:9",
+          "4:3",
+          "3:2",
+          "1:1",
+          "2:3",
+          "3:4",
+          "9:16",
+          "9:21"
+        ],
+        "title": "Aspect Ratio",
+        "type": "string",
+        "description": "The aspect ratio of the generated image.",
+        "default": "1:1"
+      },
+      "output_format": {
+        "enum": [
+          "jpeg",
+          "png"
+        ],
+        "title": "Output Format",
+        "type": "string",
+        "description": "The format of the generated image.",
+        "default": "jpeg"
+      },
+      "sync_mode": {
+        "title": "Sync Mode",
+        "type": "boolean",
+        "description": "If `True`, the media will be returned as a data URI and the output data won't be available in the request history.",
+        "default": false
+      },
+      "safety_tolerance": {
+        "enum": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6"
+        ],
+        "title": "Safety Tolerance",
+        "type": "string",
+        "description": "The safety tolerance level for the generated image. 1 being the most strict and 5 being the most permissive.",
+        "default": "2"
+      },
+      "guidance_scale": {
+        "minimum": 1,
+        "title": "Guidance scale (CFG)",
+        "type": "number",
+        "description": "\n            The CFG (Classifier Free Guidance) scale is a measure of how close you want\n            the model to stick to your prompt when looking for a related image to show you.\n        ",
+        "maximum": 20,
+        "default": 3.5
+      },
+      "seed": {
+        "title": "Seed",
+        "type": "integer",
+        "description": "\n            The same seed and the same prompt given to the same version of the model\n            will output the same image every time.\n        "
+      },
+      "enhance_prompt": {
+        "title": "Enhance Prompt",
+        "type": "boolean",
+        "description": "Whether to enhance the prompt for better results.",
+        "default": false
+      }
+    },
+    "x-fal-order-properties": [
+      "prompt",
+      "seed",
+      "guidance_scale",
+      "sync_mode",
+      "num_images",
+      "output_format",
+      "safety_tolerance",
+      "enhance_prompt",
+      "aspect_ratio"
+    ],
+    "required": [
+      "prompt"
+    ]
+  },
+  "output_schema": {
+    "title": "Output",
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "title": "Prompt",
+        "type": "string",
+        "description": "The prompt used for generating the image."
+      },
+      "images": {
+        "title": "Images",
+        "type": "array",
+        "description": "The generated image files info.",
+        "items": {
+          "$ref": "#/registry__image__fast_sdxl__models__Image"
+        }
+      },
+      "timings": {
+        "title": "Timings",
+        "type": "object",
+        "additionalProperties": {
+          "type": "number"
+        }
+      },
+      "has_nsfw_concepts": {
+        "title": "Has Nsfw Concepts",
+        "type": "array",
+        "description": "Whether the generated images contain NSFW concepts.",
+        "items": {
+          "type": "boolean"
+        }
+      },
+      "seed": {
+        "title": "Seed",
+        "type": "integer",
+        "description": "\n            Seed of the generated Image. It will be the same value of the one passed in the\n            input or the randomly generated that was used in case none was passed.\n        "
+      }
+    },
+    "x-fal-order-properties": [
+      "images",
+      "timings",
+      "seed",
+      "has_nsfw_concepts",
+      "prompt"
+    ],
+    "required": [
+      "images",
+      "timings",
+      "seed",
+      "has_nsfw_concepts",
+      "prompt"
+    ]
+  },
+  "registry__image__fast_sdxl__models__Image": {
+    "title": "Image",
+    "type": "object",
+    "properties": {
+      "height": {
+        "title": "Height",
+        "type": "integer"
+      },
+      "content_type": {
+        "title": "Content Type",
+        "type": "string",
+        "default": "image/jpeg"
+      },
+      "url": {
+        "title": "Url",
+        "type": "string",
+        "format": "uri"
+      },
+      "width": {
+        "title": "Width",
+        "type": "integer"
+      }
+    },
+    "x-fal-order-properties": [
+      "url",
+      "width",
+      "height",
+      "content_type"
+    ],
+    "required": [
+      "url",
+      "width",
+      "height"
+    ]
+  }
+}
