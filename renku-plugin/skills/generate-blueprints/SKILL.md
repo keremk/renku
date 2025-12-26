@@ -4,12 +4,27 @@ description: This skill can create the blueprints used by the Renku client to ge
 ---
 
 # Overview
-Renku uses blueprints to define the workflow to generate the media files. Blueprints define a dependency graph of various types of producers accepting inputs and generating outputs(artifacts), where the artifacts are fed into the next producer in the graph as inputs. The blueprints are defined in a YAML file and can be executed using the Renku CLI.
+Renku uses blueprints to define a workflow for a final video composition of intermediate media files and the prompts needed to generate those files. Blueprints define a dependency graph of various types of producers accepting inputs and generating outputs(artifacts), where the artifacts are fed into the next producer in the graph as inputs. The blueprints are defined in a YAML file and can be executed using the Renku CLI.
 
 # Blueprint YAML Documentation
 There is a comprehensive documentation on how Blueprints work and what the YAML file should look like. 
 
 # Create a Blueprint
+Creating a blueprint needs the following process:
+
+- Turning the user inquiry into a story narrative that can be told in a video composition
+- Decision on how to tell the story. Which type of segments need to be created, and how many with what kinds of media files?
+- Creating a workflow that identifies what types of media or prompt producers are needed and how they stitch together.
+- Identifying the prompt templates that will generate the prompts needed for media generation. 
+- Using the Blueprint documentation to create a YAML file that defines this dependency graph.
+
+## User Inquiry into Concrete Story Narrative
+User will briefly explain their inquiry as a prompt. Initially this will be handled by the generate-movie script which will search for an existing blueprint that fits the narrative and if not found, this skill will be invoked with the inquiry. There are some example inquiries here ./narrative-examples.md. This gives an idea of what the overall workflow should look like, what kind of prompt or media producers are needed. 
+
+## 
+
+
+
 Users may want to create a new blueprint. This could be a combination of creating a new producer or creating a new blueprint consisting of existing or new producers. Producers are also defined as blueprint YAML files but have a slightly simpler structure, as they only define one node (producer) with its inputs and outputs (artifacts).
 
 ## Create a Producer
