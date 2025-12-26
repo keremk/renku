@@ -418,6 +418,7 @@ export function createInputIdResolver(
 
   /**
    * Converts a key (canonical or qualified) to canonical form.
+   * Also accepts artifact paths for decomposed artifact overrides.
    */
   const toCanonical = (key: string): string => {
     if (typeof key !== 'string' || key.trim().length === 0) {
@@ -425,7 +426,7 @@ export function createInputIdResolver(
     }
     const trimmed = key.trim();
 
-    // If already canonical, validate and return
+    // If already canonical input, validate and return
     if (isCanonicalInputId(trimmed)) {
       if (!canonicalIds.has(trimmed)) {
         throw new Error(`Unknown canonical input id "${trimmed}".`);
@@ -433,10 +434,22 @@ export function createInputIdResolver(
       return trimmed;
     }
 
-    // Try to convert from qualified name
+    // If already canonical artifact, return as-is (for artifact overrides)
+    if (isCanonicalArtifactId(trimmed)) {
+      return trimmed;
+    }
+
+    // Try to convert from qualified name (inputs)
     const qualified = qualifiedToCanonical.get(trimmed);
     if (qualified) {
       return qualified;
+    }
+
+    // Check if it looks like a decomposed artifact path (contains dots and brackets with numbers)
+    // e.g., "DocProducer.VideoScript.Segments[0].ImagePrompts[0]"
+    if (looksLikeDecomposedArtifactPath(trimmed)) {
+      // Convert to canonical artifact ID format
+      return `Artifact:${trimmed}`;
     }
 
     throw new Error(
@@ -478,4 +491,18 @@ export function parseQualifiedProducerName(name: string): {
 
 function joinSegments(namespacePath: string[], ...rest: string[]): string[] {
   return [...namespacePath, ...rest].filter((segment) => segment.length > 0);
+}
+
+/**
+ * Returns true if the path looks like a decomposed artifact path.
+ * These paths contain dots (for namespace/field navigation) and numeric array indices.
+ * Examples:
+ *   - "DocProducer.VideoScript.Segments[0].ImagePrompts[0]" → true
+ *   - "Segments[0].Script" → true
+ *   - "SimpleInput" → false
+ *   - "Producer.Input" → false (no numeric indices)
+ */
+export function looksLikeDecomposedArtifactPath(path: string): boolean {
+  // Must contain at least one numeric array index like [0], [1], etc.
+  return /\[\d+\]/.test(path);
 }

@@ -78,4 +78,162 @@ describe('expandBlueprintGraph', () => {
     expect(edges).toHaveLength(2);
     expect(edges.every((edge) => edge.from.startsWith('Input:'))).toBe(true);
   });
+
+  it('expands array artifacts using countInput', () => {
+    // Test the countInput-based dimension expansion (traditional approach)
+    const doc: BlueprintDocument = {
+      meta: { id: 'Test', name: 'Test' },
+      inputs: [
+        { name: 'NumOfSegments', type: 'int', required: true },
+      ],
+      artefacts: [
+        { name: 'Script', type: 'array', countInput: 'NumOfSegments' },
+      ],
+      producers: [
+        { name: 'Producer', provider: 'openai', model: 'gpt-4' },
+      ],
+      producerImports: [],
+      edges: [
+        { from: 'NumOfSegments', to: 'Producer' },
+        { from: 'Producer', to: 'Script[i]' },
+      ],
+    };
+
+    const tree: BlueprintTreeNode = {
+      id: 'Test',
+      namespacePath: [],
+      document: doc,
+      children: new Map(),
+    };
+
+    const graph = buildBlueprintGraph(tree);
+    const inputSources = buildInputSourceMapFromCanonical(graph);
+    const canonicalInputs = normalizeInputValues({
+      'Input:NumOfSegments': 3,
+    }, inputSources);
+
+    const expanded = expandBlueprintGraph(graph, canonicalInputs, inputSources);
+
+    // Should have 3 artifacts (one per segment)
+    const scriptArtifacts = expanded.nodes.filter(
+      (n) => n.type === 'Artifact' && n.id.includes('Script')
+    );
+    expect(scriptArtifacts).toHaveLength(3);
+    expect(scriptArtifacts.map((a) => a.id)).toContain('Artifact:Script[0]');
+    expect(scriptArtifacts.map((a) => a.id)).toContain('Artifact:Script[1]');
+    expect(scriptArtifacts.map((a) => a.id)).toContain('Artifact:Script[2]');
+  });
+
+  it('handles countInputOffset for array artifacts', () => {
+    const doc: BlueprintDocument = {
+      meta: { id: 'Test', name: 'Test' },
+      inputs: [
+        { name: 'NumOfSegments', type: 'int', required: true },
+      ],
+      artefacts: [
+        { name: 'Script', type: 'array', countInput: 'NumOfSegments', countInputOffset: 1 },
+      ],
+      producers: [
+        { name: 'Producer', provider: 'openai', model: 'gpt-4' },
+      ],
+      producerImports: [],
+      edges: [
+        { from: 'NumOfSegments', to: 'Producer' },
+        { from: 'Producer', to: 'Script[i]' },
+      ],
+    };
+
+    const tree: BlueprintTreeNode = {
+      id: 'Test',
+      namespacePath: [],
+      document: doc,
+      children: new Map(),
+    };
+
+    const graph = buildBlueprintGraph(tree);
+    const inputSources = buildInputSourceMapFromCanonical(graph);
+    const canonicalInputs = normalizeInputValues({
+      'Input:NumOfSegments': 2,
+    }, inputSources);
+
+    const expanded = expandBlueprintGraph(graph, canonicalInputs, inputSources);
+
+    // With offset of 1, NumOfSegments=2 means 3 artifacts (2+1)
+    const scriptArtifacts = expanded.nodes.filter(
+      (n) => n.type === 'Artifact' && n.id.includes('Script')
+    );
+    expect(scriptArtifacts).toHaveLength(3);
+    expect(scriptArtifacts.map((a) => a.id)).toContain('Artifact:Script[0]');
+    expect(scriptArtifacts.map((a) => a.id)).toContain('Artifact:Script[1]');
+    expect(scriptArtifacts.map((a) => a.id)).toContain('Artifact:Script[2]');
+  });
+
+  it('expands nested dimensions using loops', () => {
+    // Test nested dimensions (2 segments × 3 images = 6 image artifacts)
+    // Uses loops to define dimension sizing for both dimensions
+    const doc: BlueprintDocument = {
+      meta: { id: 'Test', name: 'Test' },
+      inputs: [
+        { name: 'NumOfSegments', type: 'int', required: true },
+        { name: 'NumOfImages', type: 'int', required: true },
+      ],
+      artefacts: [
+        { name: 'Script', type: 'array', countInput: 'NumOfSegments' },
+        { name: 'Image', type: 'array', countInput: 'NumOfImages' },
+      ],
+      producers: [
+        { name: 'ScriptProducer', provider: 'openai', model: 'gpt-4' },
+        { name: 'ImageProducer', provider: 'replicate', model: 'flux' },
+      ],
+      producerImports: [],
+      loops: [
+        { name: 'i', countInput: 'NumOfSegments' },
+        { name: 'j', countInput: 'NumOfImages' },
+      ],
+      edges: [
+        { from: 'NumOfSegments', to: 'ScriptProducer' },
+        { from: 'ScriptProducer', to: 'Script[i]' },
+        { from: 'NumOfImages', to: 'ImageProducer' },
+        { from: 'Script[i]', to: 'ImageProducer' },
+        { from: 'ImageProducer', to: 'Image[i][j]' },
+      ],
+    };
+
+    const tree: BlueprintTreeNode = {
+      id: 'Test',
+      namespacePath: [],
+      document: doc,
+      children: new Map(),
+    };
+
+    const graph = buildBlueprintGraph(tree);
+    const inputSources = buildInputSourceMapFromCanonical(graph);
+    const canonicalInputs = normalizeInputValues({
+      'Input:NumOfSegments': 2,
+      'Input:NumOfImages': 3,
+    }, inputSources);
+
+    const expanded = expandBlueprintGraph(graph, canonicalInputs, inputSources);
+
+    // Should have 2 script artifacts (one per segment)
+    const scriptArtifacts = expanded.nodes.filter(
+      (n) => n.type === 'Artifact' && n.id.includes('Script')
+    );
+    expect(scriptArtifacts).toHaveLength(2);
+    expect(scriptArtifacts.map((a) => a.id)).toContain('Artifact:Script[0]');
+    expect(scriptArtifacts.map((a) => a.id)).toContain('Artifact:Script[1]');
+
+    // Should have 6 image artifacts (2 segments × 3 images)
+    const imageArtifacts = expanded.nodes.filter(
+      (n) => n.type === 'Artifact' && n.id.includes('Image')
+    );
+    expect(imageArtifacts).toHaveLength(6);
+    expect(imageArtifacts.map((a) => a.id)).toContain('Artifact:Image[0][0]');
+    expect(imageArtifacts.map((a) => a.id)).toContain('Artifact:Image[0][1]');
+    expect(imageArtifacts.map((a) => a.id)).toContain('Artifact:Image[0][2]');
+    expect(imageArtifacts.map((a) => a.id)).toContain('Artifact:Image[1][0]');
+    expect(imageArtifacts.map((a) => a.id)).toContain('Artifact:Image[1][1]');
+    expect(imageArtifacts.map((a) => a.id)).toContain('Artifact:Image[1][2]');
+  });
+
 });

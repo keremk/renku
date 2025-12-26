@@ -24,6 +24,7 @@ import {
   // Utilities
   parseQualifiedProducerName,
   createInputIdResolver,
+  looksLikeDecomposedArtifactPath,
 } from './canonical-ids.js';
 import type { BlueprintTreeNode } from '../types.js';
 
@@ -538,6 +539,88 @@ describe('Edge cases', () => {
       expect(parsed.path).toEqual(['Producer']);
       expect(parsed.name).toBe('Output[segment=0]');
       expect(parsed.indices).toEqual([]);
+    });
+  });
+});
+
+describe('looksLikeDecomposedArtifactPath', () => {
+  describe('returns true for decomposed artifact paths', () => {
+    it('detects simple producer.artifact[index] pattern', () => {
+      expect(looksLikeDecomposedArtifactPath('ScriptProducer.NarrationScript[0]')).toBe(true);
+    });
+
+    it('detects deeply nested paths with single index', () => {
+      expect(looksLikeDecomposedArtifactPath('DocProducer.VideoScript.Segments[0]')).toBe(true);
+    });
+
+    it('detects paths with multiple indices', () => {
+      expect(looksLikeDecomposedArtifactPath('DocProducer.VideoScript.Segments[0].ImagePrompts[0]')).toBe(true);
+    });
+
+    it('detects paths with large indices', () => {
+      expect(looksLikeDecomposedArtifactPath('Producer.Output[123]')).toBe(true);
+    });
+
+    it('detects paths with consecutive indices', () => {
+      expect(looksLikeDecomposedArtifactPath('ImageProducer.SegmentImage[0][1]')).toBe(true);
+    });
+
+    it('detects paths starting with just an artifact name', () => {
+      expect(looksLikeDecomposedArtifactPath('Segments[0].Script')).toBe(true);
+    });
+
+    it('detects paths with index at the end', () => {
+      expect(looksLikeDecomposedArtifactPath('VideoScript.Segments[0].ImagePrompts[2]')).toBe(true);
+    });
+  });
+
+  describe('returns false for non-decomposed paths', () => {
+    it('rejects simple input names', () => {
+      expect(looksLikeDecomposedArtifactPath('Topic')).toBe(false);
+    });
+
+    it('rejects qualified names without indices', () => {
+      expect(looksLikeDecomposedArtifactPath('Producer.Input')).toBe(false);
+    });
+
+    it('rejects deeply nested paths without indices', () => {
+      expect(looksLikeDecomposedArtifactPath('Level1.Level2.Level3.Name')).toBe(false);
+    });
+
+    it('rejects paths with named placeholders (not numeric)', () => {
+      expect(looksLikeDecomposedArtifactPath('VideoScript.Segments[segment]')).toBe(false);
+    });
+
+    it('rejects paths with dimension selectors', () => {
+      expect(looksLikeDecomposedArtifactPath('VideoScript.Segments[segment=0]')).toBe(false);
+    });
+
+    it('rejects empty strings', () => {
+      expect(looksLikeDecomposedArtifactPath('')).toBe(false);
+    });
+
+    it('rejects paths with empty brackets', () => {
+      expect(looksLikeDecomposedArtifactPath('Producer.Output[]')).toBe(false);
+    });
+  });
+
+  describe('edge cases', () => {
+    it('handles index zero correctly', () => {
+      expect(looksLikeDecomposedArtifactPath('Output[0]')).toBe(true);
+    });
+
+    it('handles multi-digit indices', () => {
+      expect(looksLikeDecomposedArtifactPath('Output[99]')).toBe(true);
+      expect(looksLikeDecomposedArtifactPath('Output[100]')).toBe(true);
+    });
+
+    it('rejects mixed placeholder and numeric', () => {
+      // This has a numeric index, so it should return true
+      expect(looksLikeDecomposedArtifactPath('Output[segment][0]')).toBe(true);
+    });
+
+    it('handles paths with numbers in names', () => {
+      expect(looksLikeDecomposedArtifactPath('Producer2.Output3[0]')).toBe(true);
     });
   });
 });

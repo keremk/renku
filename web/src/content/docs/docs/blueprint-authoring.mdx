@@ -118,7 +118,7 @@ collectors:
 | Type | Description |
 |------|-------------|
 | `string` | Text output |
-| `json` | Structured JSON |
+| `json` | Structured JSON with virtual property expansion (see [JSON Artifacts](#json-artifacts)) |
 | `image` | Image file |
 | `audio` | Audio file |
 | `video` | Video file |
@@ -408,6 +408,147 @@ connections:
   - from: Style
     to: VideoPromptProducer[segment].Style
 ```
+
+### Connecting to JSON Artifact Properties
+
+When a producer outputs a `type: json` artifact with a schema, you can connect to nested properties using dot-path syntax:
+
+```yaml
+connections:
+  # Connect to top-level property
+  - from: DocProducer.VideoScript.Title
+    to: TitleRenderer.Title
+
+  # Connect to array element property
+  - from: DocProducer.VideoScript.Segments[segment].Script
+    to: AudioProducer[segment].TextInput
+
+  # Connect to nested array property
+  - from: DocProducer.VideoScript.Segments[segment].ImagePrompts[image].Prompt
+    to: ImageProducer[segment][image].Prompt
+```
+
+See [JSON Artifacts](#json-artifacts) for full details on defining JSON artifacts with schemas.
+
+---
+
+## JSON Artifacts
+
+JSON artifacts store structured data as a single blob while exposing nested properties as virtual artifacts for granular connections. This enables:
+
+- **Granular connections**: Wire individual properties to downstream producers
+- **Efficient caching**: Only re-run downstream jobs when specific properties change
+- **Schema validation**: Structured output from LLMs with JSON schema enforcement
+
+### Defining JSON Artifacts in Producers
+
+```yaml
+meta:
+  id: DocumentaryPromptProducer
+  name: Documentary Script Generation
+
+inputs:
+  - name: InquiryPrompt
+    type: string
+    required: true
+  - name: NumOfSegments
+    type: int
+    required: true
+  - name: NumOfImagesPerSegment
+    type: int
+    required: false
+    default: 1
+
+artifacts:
+  - name: VideoScript
+    type: json
+    description: The generated video script
+    arrays:
+      - path: Segments
+        countInput: NumOfSegments
+      - path: Segments.ImagePrompts
+        countInput: NumOfImagesPerSegment
+
+models:
+  - provider: openai
+    model: gpt-4o
+    promptFile: ./documentary-prompt.toml
+    outputSchema: ./documentary-prompt-output.json
+    config:
+      text_format: json_schema
+```
+
+### The `arrays` Field
+
+The `arrays` field maps JSON array paths to input variables that determine their sizes:
+
+```yaml
+arrays:
+  - path: Segments                    # Top-level array
+    countInput: NumOfSegments         # Sized by NumOfSegments input
+  - path: Segments.ImagePrompts       # Nested array within each segment
+    countInput: NumOfImagesPerSegment # Sized by NumOfImagesPerSegment input
+```
+
+This enables the planner to:
+1. Create dimension placeholders for arrays (e.g., `[segment]`, `[image]`)
+2. Expand virtual artifacts for each array element
+3. Track granular changes for incremental re-runs
+
+### Schema Association
+
+The `outputSchema` from the producer's model configuration is automatically associated with `type: json` artifacts. The schema defines the structure of the JSON output:
+
+```json
+{
+  "name": "VideoScript",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "Title": { "type": "string" },
+      "Segments": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "Script": { "type": "string" },
+            "ImagePrompts": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "Prompt": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### Virtual Artifact Paths
+
+The planner expands JSON schemas into virtual artifacts that can be referenced in connections:
+
+| Virtual Artifact ID | Description |
+|---------------------|-------------|
+| `Producer.VideoScript.Title` | Top-level string property |
+| `Producer.VideoScript.Segments[segment].Script` | Script for each segment |
+| `Producer.VideoScript.Segments[segment].ImagePrompts[image].Prompt` | Image prompt for each segment/image |
+
+### Granular Dirty Tracking
+
+Each virtual artifact gets its own content hash. When you edit a JSON artifact:
+
+- Only virtual artifacts whose content actually changed are marked dirty
+- Only downstream jobs consuming those specific properties re-run
+- Other downstream jobs use cached results
+
+**Example**: If you edit only `Segments[1].Script`, only `AudioProducer[1]` re-runs. `AudioProducer[0]` and `AudioProducer[2]` use cached results.
 
 ---
 

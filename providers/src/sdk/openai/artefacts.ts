@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer';
-import { isCanonicalArtifactId, type ProducedArtefact } from '@gorenku/core';
+import { isCanonicalArtifactId, readJsonPath, type ProducedArtefact } from '@gorenku/core';
 
 type JsonObject = Record<string, unknown>;
 
@@ -8,6 +8,8 @@ export interface ParsedArtefactIdentifier {
   kind: string;
   /** Base name without namespace path (e.g., "Image") */
   baseName: string;
+  /** JSON path for decomposed artifacts (e.g., "Segments[0].Script") */
+  jsonPath?: string;
   index?: Record<string, number>;
   ordinal?: number[];
 }
@@ -32,6 +34,7 @@ export interface BuildArtefactOptions {
 
 interface ArtefactExtractionContext {
   skipNamespaceOrdinals: number;
+  parentArtifactName?: string;
 }
 
 export function buildArtefactsFromResponse(
@@ -43,6 +46,7 @@ export function buildArtefactsFromResponse(
   const jsonResponse = typeof response === 'string' ? response : response;
   const context: ArtefactExtractionContext = {
     skipNamespaceOrdinals: resolveNamespaceOrdinalDepth(options),
+    parentArtifactName: detectParentArtifactName(produces),
   };
 
   for (const artefactId of produces) {
@@ -51,6 +55,73 @@ export function buildArtefactsFromResponse(
   }
 
   return artefacts;
+}
+
+/**
+ * Detects if artifacts are decomposed from a parent JSON artifact.
+ * Returns the parent artifact name if all artifacts share a common parent pattern.
+ *
+ * For example, given:
+ * - "Artifact:DocProducer.VideoScript.Title"
+ * - "Artifact:DocProducer.VideoScript.Segments[0].Script"
+ *
+ * Returns "VideoScript" as the parent artifact name.
+ */
+function detectParentArtifactName(produces: string[]): string | undefined {
+  if (produces.length === 0) {
+    return undefined;
+  }
+
+  // Extract paths without "Artifact:" prefix and without bracket segments
+  const paths = produces.map((id) => {
+    if (!id.startsWith('Artifact:')) {
+      return '';
+    }
+    // Remove brackets and their contents, then split by dots
+    return id.slice('Artifact:'.length).replace(/\[[^\]]+\]/g, '');
+  });
+
+  // Find segments that are common to all paths
+  const firstPathSegments = paths[0]?.split('.') ?? [];
+  if (firstPathSegments.length < 2) {
+    // Need at least namespace.artifact for decomposition
+    return undefined;
+  }
+
+  // Check if all paths share the same first two segments (namespace.artifactName)
+  // and have additional segments (indicating decomposition)
+  const namespace = firstPathSegments[0];
+  const potentialParent = firstPathSegments[1];
+
+  if (!namespace || !potentialParent) {
+    return undefined;
+  }
+
+  const prefix = `${namespace}.${potentialParent}`;
+
+  // Check if all artifacts:
+  // 1. Share this prefix
+  // 2. Have additional path segments (indicating they're decomposed fields)
+  let allSharePrefix = true;
+  let anyHasAdditionalPath = false;
+
+  for (const path of paths) {
+    if (!path.startsWith(prefix)) {
+      allSharePrefix = false;
+      break;
+    }
+    // Check if there's more after the prefix
+    if (path.length > prefix.length && path[prefix.length] === '.') {
+      anyHasAdditionalPath = true;
+    }
+  }
+
+  // Only return parent name if all share the prefix AND at least one has additional path
+  if (allSharePrefix && anyHasAdditionalPath) {
+    return potentialParent;
+  }
+
+  return undefined;
 }
 
 function buildSingleArtefact(
@@ -74,7 +145,7 @@ function buildSingleArtefact(
   }
 
   // For JSON responses, use implicit mapping
-  const parsed = parseArtefactIdentifier(artefactId);
+  const parsed = parseArtefactIdentifier(artefactId, context.parentArtifactName);
   if (!parsed) {
     return {
       artefactId,
@@ -83,10 +154,43 @@ function buildSingleArtefact(
     };
   }
 
-  // Field names must match the canonical kind (without namespace)
+  diagnostics.kind = parsed.kind;
+
+  // For decomposed artifacts with JSON path, use readJsonPath
+  if (parsed.jsonPath) {
+    diagnostics.jsonPath = parsed.jsonPath;
+    const result = readJsonPath(response, parsed.jsonPath);
+    if (!result.exists) {
+      return {
+        artefactId,
+        status: 'failed',
+        diagnostics: { ...diagnostics, reason: 'json_path_not_found', jsonPath: parsed.jsonPath },
+      };
+    }
+
+    const materialized = materializeValue(result.value);
+    if (!materialized.success) {
+      return {
+        artefactId,
+        status: 'failed',
+        diagnostics: { ...diagnostics, reason: 'materialization_failed', error: materialized.error },
+      };
+    }
+
+    return {
+      artefactId,
+      status: 'succeeded',
+      blob: {
+        data: materialized.text ?? '',
+        mimeType: 'text/plain',
+      },
+      diagnostics,
+    };
+  }
+
+  // For simple artifacts, use field name lookup
   const fieldName = parsed.baseName;
   diagnostics.field = fieldName;
-  diagnostics.kind = parsed.kind;
 
   // Extract field value from JSON
   const fieldValue = response[fieldName];
@@ -147,32 +251,44 @@ function buildSingleArtefact(
  * Parses artifact identifier into kind and index components.
  *
  * @example
- * "Artifact:MovieTitle" → { kind: "MovieTitle", index: undefined }
- * "Artifact:NarrationScript[segment=2]" → { kind: "NarrationScript", index: { segment: 2 } }
- * "Artifact:SegmentImage[segment=1&image=3]" → { kind: "SegmentImage", index: { segment: 1, image: 3 } }
+ * "Artifact:MovieTitle" → { kind: "MovieTitle", baseName: "MovieTitle" }
+ * "Artifact:NarrationScript[segment=2]" → { kind: "NarrationScript", baseName: "NarrationScript", index: { segment: 2 } }
+ * "Artifact:DocProducer.VideoScript.Segments[0].Script" → { kind: "...", baseName: "Script", jsonPath: "Segments[0].Script" }
+ *
+ * @param identifier - The artifact identifier
+ * @param parentArtifactName - Optional parent artifact name for decomposed artifacts.
+ *                             When provided, the JSON path is extracted after this name.
  */
-export function parseArtefactIdentifier(identifier: string): ParsedArtefactIdentifier | null {
+export function parseArtefactIdentifier(
+  identifier: string,
+  parentArtifactName?: string,
+): ParsedArtefactIdentifier | null {
   if (!isCanonicalArtifactId(identifier)) {
     return null;
   }
 
   const remainder = identifier.slice('Artifact:'.length);
-  const [kindPart, ...dimensionParts] = remainder.split('[');
-  const kind = kindPart.trim();
 
-  if (!kind) {
-    return null;
+  // For decomposed artifacts, extract the JSON path after the parent artifact name
+  let jsonPath: string | undefined;
+  if (parentArtifactName) {
+    // Find the parent artifact name in the path and extract everything after it
+    const parentPattern = new RegExp(`\\.${escapeRegex(parentArtifactName)}\\.(.+)$`);
+    const match = remainder.match(parentPattern);
+    if (match?.[1]) {
+      jsonPath = match[1];
+    }
   }
 
-  // Extract base name (last segment after any dots)
-  const dotIndex = kind.lastIndexOf('.');
-  const baseName = dotIndex >= 0 ? kind.slice(dotIndex + 1) : kind;
-
+  // Parse dimension indices from brackets in the full identifier
   const index: Record<string, number> = {};
   const ordinal: number[] = [];
-  for (const part of dimensionParts) {
-    const cleaned = part.replace(/\]$/, '');
-    const pairs = cleaned.split('&');
+
+  // Extract all bracket segments for dimension parsing
+  const bracketMatches = remainder.match(/\[[^\]]+\]/g) ?? [];
+  for (const bracket of bracketMatches) {
+    const content = bracket.slice(1, -1);
+    const pairs = content.split('&');
 
     for (const pair of pairs) {
       const [key, value] = pair.split('=');
@@ -190,12 +306,23 @@ export function parseArtefactIdentifier(identifier: string): ParsedArtefactIdent
     }
   }
 
+  // Extract kind (path without brackets) and baseName (last segment)
+  const kindWithoutBrackets = remainder.replace(/\[[^\]]+\]/g, '');
+  const kind = kindWithoutBrackets;
+  const dotIndex = kindWithoutBrackets.lastIndexOf('.');
+  const baseName = dotIndex >= 0 ? kindWithoutBrackets.slice(dotIndex + 1) : kindWithoutBrackets;
+
   return {
     kind,
     baseName,
+    jsonPath,
     index: Object.keys(index).length > 0 ? index : undefined,
     ordinal: ordinal.length > 0 ? ordinal : undefined,
   };
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function trimNamespaceOrdinals(

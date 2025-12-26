@@ -454,20 +454,33 @@ async function resolveAllFileReferences(
 }
 
 /**
- * Pattern to detect artifact override keys.
- * Matches: ProducerName.ArtifactName[index] or ProducerName.ArtifactName[i][j]
- * Examples:
+ * Check if a key looks like an artifact override.
+ * Matches paths with numeric indices like:
  *   - ScriptProducer.NarrationScript[0]
  *   - ImageProducer.SegmentImage[0][1]
+ *   - DocProducer.VideoScript.Segments[0].ImagePrompts[0] (decomposed artifacts)
  *   - Artifact:ScriptProducer.NarrationScript[0] (canonical form)
  */
-const ARTIFACT_OVERRIDE_PATTERN = /^(?:Artifact:)?([A-Za-z][A-Za-z0-9]*)\.([A-Za-z][A-Za-z0-9]*)(\[\d+\])+$/;
-
-/**
- * Check if a key looks like an artifact override (ProducerName.ArtifactName[index]).
- */
 function isArtifactOverrideKey(key: string): boolean {
-  return ARTIFACT_OVERRIDE_PATTERN.test(key);
+  // Strip the "Artifact:" prefix if present
+  const body = key.startsWith('Artifact:') ? key.slice('Artifact:'.length) : key;
+
+  // Must have at least one numeric index like [0], [1], etc.
+  if (!/\[\d+\]/.test(body)) {
+    return false;
+  }
+
+  // Must have at least one dot (ProducerName.ArtifactName at minimum)
+  if (!body.includes('.')) {
+    return false;
+  }
+
+  // Must start with an identifier (letter followed by alphanumerics)
+  if (!/^[A-Za-z][A-Za-z0-9]*/.test(body)) {
+    return false;
+  }
+
+  return true;
 }
 
 /**

@@ -188,6 +188,41 @@ export interface BlueprintInputDefinition {
   fanIn?: boolean;
 }
 
+/**
+ * Mapping from a JSON array path to its dimension sizing input.
+ * Used for decomposing JSON artifacts into multiple separate artifacts.
+ */
+export interface ArrayDimensionMapping {
+  /** Path to the array property (e.g., "Segments" or "Segments.ImagePrompts") */
+  path: string;
+  /** Input name that determines the array size (e.g., "NumOfSegments") */
+  countInput: string;
+  /** Optional offset for the count */
+  countInputOffset?: number;
+}
+
+/**
+ * JSON schema definition for structured output validation.
+ */
+export interface JsonSchemaDefinition {
+  name: string;
+  strict?: boolean;
+  schema: JsonSchemaProperty;
+}
+
+/**
+ * JSON schema property definition (recursive).
+ */
+export interface JsonSchemaProperty {
+  type: 'object' | 'array' | 'string' | 'number' | 'integer' | 'boolean' | 'null';
+  description?: string;
+  properties?: Record<string, JsonSchemaProperty>;
+  items?: JsonSchemaProperty;
+  required?: string[];
+  enum?: string[];
+  additionalProperties?: boolean;
+}
+
 export interface BlueprintArtefactDefinition {
   name: string;
   type: string;
@@ -196,6 +231,10 @@ export interface BlueprintArtefactDefinition {
   itemType?: string;
   countInput?: string;
   countInputOffset?: number;
+  /** For type: json artifacts - array dimension mappings for decomposition */
+  arrays?: ArrayDimensionMapping[];
+  /** For type: json artifacts - the parsed JSON schema */
+  schema?: JsonSchemaDefinition;
 }
 
 export interface BlueprintProducerSdkMappingField {
@@ -215,6 +254,8 @@ export interface ProducerModelVariant {
   promptFile?: string;
   inputSchema?: string;
   outputSchema?: string;
+  /** Parsed JSON schema for structured output (if outputSchema is provided) */
+  outputSchemaParsed?: JsonSchemaDefinition;
   inputs?: Record<string, BlueprintProducerSdkMappingField>;
   outputs?: Record<string, BlueprintProducerOutputDefinition>;
   config?: Record<string, unknown>;
@@ -256,6 +297,21 @@ export interface BlueprintCollectorDefinition {
   orderBy?: string;
 }
 
+/**
+ * Loop dimension definition.
+ * Defines a dimension for looping over artifacts.
+ */
+export interface BlueprintLoopDefinition {
+  /** Dimension name used in edge references (e.g., "segment", "image") */
+  name: string;
+  /** Parent dimension name for nested loops */
+  parent?: string;
+  /** Input that provides the iteration count */
+  countInput: string;
+  /** Optional offset for the count */
+  countInputOffset?: number;
+}
+
 export interface BlueprintDocument {
   meta: BlueprintMeta;
   inputs: BlueprintInputDefinition[];
@@ -265,6 +321,8 @@ export interface BlueprintDocument {
   producerImports: ProducerImportDefinition[];
   edges: BlueprintEdgeDefinition[];
   collectors?: BlueprintCollectorDefinition[];
+  /** Loop dimension definitions for artifact iteration */
+  loops?: BlueprintLoopDefinition[];
 }
 
 export interface BlueprintTreeNode {

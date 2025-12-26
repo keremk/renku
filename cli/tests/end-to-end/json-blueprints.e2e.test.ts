@@ -1,0 +1,276 @@
+import { dirname, resolve, join } from 'node:path';
+import { writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
+import { stringify as stringifyYaml } from 'yaml';
+import {
+  createEventLog,
+  createManifestService,
+  createRunner,
+  createStorageContext,
+  initializeMovieStorage,
+  type ProduceRequest,
+  type ProduceResult,
+  type ProduceFn,
+} from '@gorenku/core';
+import { getDefaultCliConfigPath, readCliConfig } from '../../src/lib/cli-config.js';
+import { formatMovieId, runExecute } from '../../src/commands/execute.js';
+import { generatePlan } from '../../src/lib/planner.js';
+import {
+  createLoggerRecorder,
+  readPlan,
+  setupTempCliConfig,
+} from './helpers.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+// Path to the main catalog (not cli/catalog)
+const PROJECT_ROOT = resolve(__dirname, '..', '..', '..');
+const CATALOG_BLUEPRINTS_ROOT = resolve(PROJECT_ROOT, 'catalog', 'blueprints');
+
+describe('end-to-end: JSON virtual artifact blueprint', () => {
+  let tempRoot = '';
+  let restoreEnv: () => void = () => {};
+
+  beforeEach(async () => {
+    const config = await setupTempCliConfig();
+    tempRoot = config.tempRoot;
+    restoreEnv = config.restoreEnv;
+  });
+
+  afterEach(() => {
+    restoreEnv();
+  });
+
+  it('dry-run generates correct jobs with virtual artifact connections', async () => {
+    const blueprintPath = resolve(CATALOG_BLUEPRINTS_ROOT, 'json-blueprints', 'json-blueprints.yaml');
+    const inputsPath = resolve(__dirname, 'fixtures', 'json-blueprints-inputs.yaml');
+    const { logger, warnings, errors } = createLoggerRecorder();
+    const movieId = 'e2e-json-blueprints-dry';
+    const storageMovieId = formatMovieId(movieId);
+
+    // Run dry-run execution
+    const result = await runExecute({
+      storageMovieId,
+      isNew: true,
+      inputsPath,
+      blueprintSpecifier: blueprintPath,
+      dryRun: true,
+      nonInteractive: true,
+      logger,
+    });
+
+    // Debug: Log errors and warnings if build failed
+    if (result.build?.status !== 'succeeded') {
+      console.log('Build result:', JSON.stringify(result.build, null, 2));
+      console.log('Errors:', errors);
+      console.log('Warnings:', warnings);
+    }
+
+    // Verify dry-run succeeded
+    expect(result.build?.status).toBe('succeeded');
+
+    // Read the plan
+    const plan = await readPlan(result.planPath);
+    const allJobs = plan.layers.flat();
+
+    // Verify job counts: 1 DocProducer + 4 ImageProducers (2 segments × 2 images)
+    const docJobs = allJobs.filter((j: any) => j.producer === 'DocProducer');
+    const imageJobs = allJobs.filter((j: any) => j.producer === 'ImageProducer');
+
+    expect(docJobs).toHaveLength(1);
+    expect(imageJobs).toHaveLength(4);
+    expect(result.build?.jobCount).toBe(5);
+
+    // Verify ImageProducer jobs reference virtual artifacts in their input bindings
+    for (const job of imageJobs) {
+      const promptBinding = job.context?.inputBindings?.Prompt;
+      expect(promptBinding).toBeDefined();
+      expect(promptBinding).toMatch(/^Artifact:DocProducer\.VideoScript\.Segments\[\d+\]\.ImagePrompts\[\d+\]$/);
+    }
+
+    // Verify specific ImageProducer job indices
+    const jobIndices = imageJobs.map((j: any) => j.jobId);
+    expect(jobIndices.some((id: string) => id.includes('[0][0]'))).toBe(true);
+    expect(jobIndices.some((id: string) => id.includes('[0][1]'))).toBe(true);
+    expect(jobIndices.some((id: string) => id.includes('[1][0]'))).toBe(true);
+    expect(jobIndices.some((id: string) => id.includes('[1][1]'))).toBe(true);
+
+    // Verify errors is empty (warnings may include dimension propagation info)
+    expect(errors).toHaveLength(0);
+  });
+
+  it('re-runs only affected ImageProducer when virtual artifact is overridden', async () => {
+    const blueprintPath = resolve(CATALOG_BLUEPRINTS_ROOT, 'json-blueprints', 'json-blueprints.yaml');
+    const inputsPath = resolve(__dirname, 'fixtures', 'json-blueprints-inputs.yaml');
+    const { logger, warnings, errors } = createLoggerRecorder();
+    const { logger: editLogger, warnings: editWarnings, errors: editErrors } = createLoggerRecorder();
+    const movieId = 'e2e-json-blueprints-dirty';
+    const storageMovieId = formatMovieId(movieId);
+
+    // Read CLI config for storage settings
+    const configPath = getDefaultCliConfigPath();
+    const cliConfig = await readCliConfig(configPath);
+    if (!cliConfig) {
+      throw new Error('CLI config not initialized');
+    }
+
+    // ============================================================
+    // PHASE 1: Initial run to produce all artifacts (Core API)
+    // ============================================================
+
+    // Generate initial plan
+    const planResult = await generatePlan({
+      cliConfig,
+      movieId: storageMovieId,
+      isNew: true,
+      inputsPath,
+      usingBlueprint: blueprintPath,
+      logger,
+      notifications: undefined,
+    });
+
+    // Persist the plan to disk
+    await planResult.persist();
+
+    // Verify initial plan structure
+    const initialPlan = await readPlan(planResult.planPath);
+    const initialJobs = initialPlan.layers.flat();
+    expect(initialJobs).toHaveLength(5); // 1 DocProducer + 4 ImageProducers
+
+    const docJob = initialJobs.find((j: any) => j.producer === 'DocProducer');
+    const imageJobs = initialJobs.filter((j: any) => j.producer === 'ImageProducer');
+    expect(docJob).toBeDefined();
+    expect(imageJobs).toHaveLength(4);
+
+    // Create storage and services for core runner
+    const storage = createStorageContext({
+      kind: 'local',
+      rootDir: cliConfig.storage.root,
+      basePath: cliConfig.storage.basePath,
+    });
+    await initializeMovieStorage(storage, storageMovieId);
+    const eventLog = createEventLog(storage);
+    const manifestService = createManifestService(storage);
+
+    // Create custom produce function that returns stub data
+    const produce: ProduceFn = vi.fn(async (request: ProduceRequest): Promise<ProduceResult> => {
+      return {
+        jobId: request.job.jobId,
+        status: 'succeeded',
+        artefacts: request.job.produces
+          .filter((id: string) => id.startsWith('Artifact:'))
+          .map((artefactId: string) => ({
+            artefactId,
+            blob: {
+              data: `original-data-for-${artefactId}`,
+              mimeType: 'text/plain',
+            },
+          })),
+      };
+    });
+
+    // Execute initial run with core runner
+    const runner = createRunner();
+    const firstRunResult = await runner.execute(planResult.plan, {
+      movieId: storageMovieId,
+      manifest: planResult.manifest,
+      storage,
+      eventLog,
+      manifestService,
+      produce,
+      logger,
+    });
+
+    // Verify first run succeeded
+    expect(firstRunResult.status).toBe('succeeded');
+    expect(firstRunResult.jobs).toHaveLength(5); // 1 DocProducer + 4 ImageProducers
+
+    // Build and save manifest after first run
+    const manifest1 = await firstRunResult.buildManifest();
+    await manifestService.saveManifest(manifest1, {
+      movieId: storageMovieId,
+      previousHash: planResult.manifestHash,
+      clock: { now: () => new Date().toISOString() },
+    });
+
+    // Verify all artifacts are in manifest
+    expect(Object.keys(manifest1.artefacts).length).toBeGreaterThanOrEqual(5);
+
+    // ============================================================
+    // PHASE 2: Create override inputs.yaml with virtual artifact override
+    // ============================================================
+
+    // Create a test prompt override file
+    const overridePromptContent = 'A beautiful sunrise over the lunar landscape';
+    const overridePromptPath = join(tempRoot, 'override-prompt.txt');
+    await writeFile(overridePromptPath, overridePromptContent, 'utf8');
+
+    // Create inputs with virtual artifact override
+    // The key targets the virtual artifact: DocProducer.VideoScript.Segments[0].ImagePrompts[0]
+    const overrideInputsPath = join(tempRoot, 'override-inputs.yaml');
+    await writeFile(
+      overrideInputsPath,
+      stringifyYaml({
+        inputs: {
+          InquiryPrompt: 'The history of the moon landing',
+          Duration: 30,
+          NumOfSegments: 2,
+          NumOfImagesPerSegment: 2,
+          Style: 'Photorealistic documentary style',
+          AspectRatio: '16:9',
+          // Override virtual artifact: Segments[0].ImagePrompts[0]
+          'DocProducer.VideoScript.Segments[0].ImagePrompts[0]': `file:${overridePromptPath}`,
+        },
+        models: [
+          { model: 'gpt-5.2', provider: 'openai', producerId: 'DocProducer' },
+          { model: 'bytedance/seedream-4', provider: 'replicate', producerId: 'ImageProducer' },
+        ],
+      }),
+      'utf8',
+    );
+
+    // ============================================================
+    // PHASE 3: Run edit with override inputs (dry-run to test planning)
+    // ============================================================
+
+    const editResult = await runExecute({
+      storageMovieId,
+      isNew: false,
+      inputsPath: overrideInputsPath,
+      dryRun: true,
+      nonInteractive: true,
+      logger: editLogger,
+    });
+
+    // Verify edit dry-run succeeded
+    expect(editResult.build?.status).toBe('succeeded');
+
+    // Read the edit plan
+    const editPlan = await readPlan(editResult.planPath);
+    const editJobs = editPlan.layers.flat();
+
+    // CRITICAL VERIFICATION:
+    // - DocProducer should NOT be in the plan (artifact was overridden, not its inputs)
+    // - ImageProducer[0][0] should be in the plan (consumes overridden Segments[0].ImagePrompts[0])
+    // - ImageProducer[0][1], [1][0], [1][1] should NOT be in the plan (not affected)
+
+    const editDocJobs = editJobs.filter((j: any) => j.producer === 'DocProducer');
+    const editImageJobs = editJobs.filter((j: any) => j.producer === 'ImageProducer');
+
+    expect(editDocJobs).toHaveLength(0); // DocProducer should NOT re-run
+    expect(editImageJobs).toHaveLength(1); // Only ImageProducer[0][0] should re-run
+
+    // Verify the only image job is for segment 0, image 0
+    const imageJob00 = editImageJobs[0];
+    expect(imageJob00.jobId).toContain('[0][0]');
+
+    // Verify correct job count
+    expect(editResult.build?.jobCount).toBe(1);
+
+    // ============================================================
+    // PHASE 4: Verify no warnings/errors during edit planning
+    // ============================================================
+    expect(editWarnings).toHaveLength(0);
+    expect(editErrors).toHaveLength(0);
+  });
+});

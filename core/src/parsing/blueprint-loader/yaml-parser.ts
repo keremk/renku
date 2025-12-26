@@ -4,6 +4,7 @@ import { promises as fs } from 'node:fs';
 import { dirname, resolve, relative, sep } from 'node:path';
 import type { FileStorage } from '@flystorage/file-storage';
 import type {
+  ArrayDimensionMapping,
   BlueprintArtefactDefinition,
   BlueprintDocument,
   BlueprintEdgeDefinition,
@@ -11,6 +12,8 @@ import type {
   BlueprintProducerOutputDefinition,
   BlueprintProducerSdkMappingField,
   BlueprintTreeNode,
+  JsonSchemaDefinition,
+  JsonSchemaProperty,
   ProducerModelVariant,
   ProducerConfig,
   ProducerImportDefinition,
@@ -80,7 +83,7 @@ export async function parseYamlBlueprintFile(
   if (artefactSource.length === 0) {
     throw new Error(`Blueprint YAML at ${filePath} must declare at least one artifact.`);
   }
-  const artefacts = artefactSource.map((entry) => parseArtefact(entry));
+  let artefacts = artefactSource.map((entry) => parseArtefact(entry));
   // Accept `producers:` section, with fallback to deprecated `modules:` for backwards compatibility
   const rawProducerImports = Array.isArray(raw.producers)
     ? raw.producers
@@ -112,6 +115,16 @@ export async function parseYamlBlueprintFile(
       variables: primary?.variables,
       config: primary?.config,
     });
+    // Copy the output schema from the primary model variant to JSON artifacts with arrays
+    // This enables schema decomposition for these artifacts
+    if (primary?.outputSchemaParsed) {
+      artefacts = artefacts.map((art) => {
+        if (art.type === 'json' && art.arrays && art.arrays.length > 0) {
+          return { ...art, schema: primary.outputSchemaParsed };
+        }
+        return art;
+      });
+    }
     if (edges.length === 0) {
       edges = inferProducerEdges(inputs, artefacts, meta.id);
     }
@@ -130,6 +143,7 @@ export async function parseYamlBlueprintFile(
     producerImports,
     edges,
     collectors,
+    loops: loops.length > 0 ? loops : undefined,
   };
 }
 
@@ -273,6 +287,7 @@ function parseArtefact(raw: unknown): BlueprintArtefactDefinition {
   if (countInputOffset !== undefined && !countInput) {
     throw new Error(`Artifact "${name}" declares countInputOffset but is missing countInput.`);
   }
+  const arrays = parseArraysMetadata(artefact.arrays);
   return {
     name,
     type,
@@ -281,7 +296,24 @@ function parseArtefact(raw: unknown): BlueprintArtefactDefinition {
     countInput,
     countInputOffset,
     required: artefact.required === false ? false : true,
+    arrays,
   };
+}
+
+function parseArraysMetadata(raw: unknown): ArrayDimensionMapping[] | undefined {
+  if (!raw || !Array.isArray(raw)) {
+    return undefined;
+  }
+  return raw.map((entry) => {
+    if (!entry || typeof entry !== 'object') {
+      throw new Error(`Invalid arrays entry: ${JSON.stringify(entry)}`);
+    }
+    const obj = entry as Record<string, unknown>;
+    const path = readString(obj, 'path');
+    const countInput = readString(obj, 'countInput');
+    const countInputOffset = readOptionalNonNegativeInteger(obj, 'countInputOffset');
+    return { path, countInput, countInputOffset };
+  });
 }
 
 function parseProducerImport(raw: unknown): ProducerImportDefinition {
@@ -398,6 +430,7 @@ async function parseModelVariant(
   const outputSchemaSource = entry.outputSchema;
   const inputSchema = await loadJsonSchema(inputSchemaSource, baseDir, reader);
   const outputSchema = await loadJsonSchema(outputSchemaSource, baseDir, reader);
+  const outputSchemaParsed = outputSchema ? parseJsonSchemaDefinition(outputSchema) : undefined;
   const inputs = parseSdkMapping(entry.inputs);
   const outputs = parseOutputs(entry.outputs ?? promptConfig.outputs);
   const config =
@@ -411,6 +444,7 @@ async function parseModelVariant(
     promptFile,
     inputSchema,
     outputSchema,
+    outputSchemaParsed,
     inputs,
     outputs,
     config,
@@ -534,6 +568,20 @@ async function loadJsonSchema(
   return JSON.stringify(JSON.parse(contents), null, 2);
 }
 
+/**
+ * Parses a JSON schema string into a typed JsonSchemaDefinition.
+ */
+function parseJsonSchemaDefinition(schemaJson: string): JsonSchemaDefinition {
+  const parsed = JSON.parse(schemaJson);
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('Invalid JSON schema: expected an object');
+  }
+  const name = typeof parsed.name === 'string' ? parsed.name : 'Schema';
+  const strict = typeof parsed.strict === 'boolean' ? parsed.strict : undefined;
+  const schema = parsed.schema ?? parsed;
+  return { name, strict, schema };
+}
+
 function validateDimensions(reference: string, allowed: Set<string>, label: 'from' | 'to'): void {
   parseReference(reference, allowed, label);
 }
@@ -614,9 +662,107 @@ function inferProducerEdges(
     edges.push({ from: input.name, to: producerName });
   }
   for (const artefact of artefacts) {
-    edges.push({ from: producerName, to: artefact.name });
+    // For JSON artifacts with schema decomposition, create edges to all decomposed fields
+    if (artefact.type === 'json' && artefact.schema && artefact.arrays && artefact.arrays.length > 0) {
+      const decomposed = decomposeJsonSchemaForEdges(artefact.schema, artefact.name, artefact.arrays);
+      for (const field of decomposed) {
+        edges.push({ from: producerName, to: field.path });
+      }
+    } else {
+      edges.push({ from: producerName, to: artefact.name });
+    }
   }
   return edges;
+}
+
+/**
+ * Simplified schema decomposition for edge creation.
+ * Returns just the paths needed for creating edges.
+ */
+function decomposeJsonSchemaForEdges(
+  schema: JsonSchemaDefinition,
+  artifactName: string,
+  arrayMappings: ArrayDimensionMapping[],
+): Array<{ path: string }> {
+  const artifacts: Array<{ path: string }> = [];
+  const arrayMap = new Map(arrayMappings.map((m) => [m.path, m.countInput]));
+
+  function walk(
+    pathSegments: string[],
+    barePath: string[],
+    prop: JsonSchemaProperty,
+  ): void {
+    if (prop.type === 'object' && prop.properties) {
+      for (const [key, childProp] of Object.entries(prop.properties)) {
+        walk([...pathSegments, key], [...barePath, key], childProp);
+      }
+    } else if (prop.type === 'array' && prop.items) {
+      const currentBarePath = barePath.join('.');
+      const countInput = arrayMap.get(currentBarePath);
+
+      if (!countInput) {
+        return; // Not decomposed
+      }
+
+      const dimName = deriveDimensionNameForEdges(countInput);
+      const newPathSegments = pathSegments.length > 0
+        ? [...pathSegments.slice(0, -1), `${pathSegments[pathSegments.length - 1]}[${dimName}]`]
+        : [`[${dimName}]`];
+
+      if (prop.items.type === 'object' && prop.items.properties) {
+        for (const [key, childProp] of Object.entries(prop.items.properties)) {
+          walk([...newPathSegments, key], [...barePath, key], childProp);
+        }
+      } else if (isLeafTypeForEdges(prop.items.type)) {
+        const path = `${artifactName}.${newPathSegments.join('.')}`;
+        artifacts.push({ path });
+      }
+    } else if (isLeafTypeForEdges(prop.type)) {
+      const path = pathSegments.length > 0
+        ? `${artifactName}.${pathSegments.join('.')}`
+        : artifactName;
+      artifacts.push({ path });
+    }
+  }
+
+  if (schema.schema.type === 'object' && schema.schema.properties) {
+    for (const [key, prop] of Object.entries(schema.schema.properties)) {
+      walk([key], [key], prop);
+    }
+  }
+
+  return artifacts;
+}
+
+function isLeafTypeForEdges(type: string): boolean {
+  return type === 'string' || type === 'number' || type === 'integer' || type === 'boolean';
+}
+
+function deriveDimensionNameForEdges(countInput: string): string {
+  let name = countInput;
+  const prefixes = ['NumOf', 'NumberOf', 'CountOf', 'Num'];
+  for (const prefix of prefixes) {
+    if (name.startsWith(prefix)) {
+      name = name.slice(prefix.length);
+      break;
+    }
+  }
+  const suffixes = ['Count', 'Number', 'Num'];
+  for (const suffix of suffixes) {
+    if (name.endsWith(suffix)) {
+      name = name.slice(0, -suffix.length);
+      break;
+    }
+  }
+  const perMatch = name.match(/^(.+)Per\w+$/);
+  if (perMatch) {
+    name = perMatch[1]!;
+  }
+  name = name.toLowerCase();
+  if (name.endsWith('s') && name.length > 1) {
+    name = name.slice(0, -1);
+  }
+  return name || 'item';
 }
 
 function relativePosix(root: string, target: string): string {

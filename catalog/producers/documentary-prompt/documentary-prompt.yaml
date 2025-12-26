@@ -1,0 +1,53 @@
+meta:
+  name: Documentary Script Generation
+  description: Generate documentary scripts tailored to the user inquiry.
+  id: DocumentaryPromptProducer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: InquiryPrompt
+    description: The topic describing the desired movie script.
+    type: string
+    required: true
+  - name: Duration
+    description: Desired narration duration in seconds.
+    type: int
+    required: true
+  - name: NumOfSegments
+    description: Number of narration segments to produce.
+    type: int
+    required: true
+  - name: NumOfImagesPerSegment
+    description: Number of images to generate per narrative segment.
+    type: int
+    required: false
+    default: 1
+  - name: Style
+    description: Text describing the image style to be used.
+    type: string
+    required: true
+
+artifacts:
+  - name: VideoScript
+    description: The generated video script for the documentary.
+    type: json
+    arrays:
+      - path: Segments
+        countInput: NumOfSegments
+      - path: Segments.ImagePrompts
+        countInput: NumOfImagesPerSegment
+
+loops:
+  - name: segment
+    description: Iterates over narration segments.
+    countInput: NumOfSegments
+
+models: 
+  - provider: openai
+    model: gpt-5.2
+    promptFile: ./documentary-prompt.toml
+    outputSchema: ./documentary-prompt-output.json
+    config:
+      text_format: json_schema

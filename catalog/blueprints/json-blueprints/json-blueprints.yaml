@@ -1,0 +1,84 @@
+meta:
+  name: JSON Blueprint Test
+  description: Test blueprint using JSON virtual artifacts to generate images.
+  id: JsonBlueprint
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: InquiryPrompt
+    description: The topic describing the desired documentary.
+    type: string
+    required: true
+  - name: Duration
+    description: Desired narration duration in seconds.
+    type: int
+    required: true
+  - name: NumOfSegments
+    description: Number of narration segments.
+    type: int
+    required: true
+  - name: NumOfImagesPerSegment
+    description: Number of images per segment.
+    type: int
+    required: true
+  - name: Style
+    description: Image style description.
+    type: string
+    required: true
+  - name: AspectRatio
+    description: Image aspect ratio.
+    type: string
+    required: false
+    default: "16:9"
+  - name: ImageSize
+    description: Image resolution (1K, 2K, 4K).
+    type: string
+    required: false
+    default: "1K"
+
+artifacts:
+  - name: SegmentImage
+    description: Generated images for each segment.
+    type: multiDimArray
+    itemType: image
+
+loops:
+  - name: segment
+    countInput: NumOfSegments
+  - name: image
+    parent: segment
+    countInput: NumOfImagesPerSegment
+
+producers:
+  - name: DocProducer
+    path: ../../producers/documentary-prompt/documentary-prompt.yaml
+  - name: ImageProducer
+    path: ../../producers/image/image.yaml
+    loop: segment.image
+
+connections:
+  # Wire inputs to DocProducer
+  - from: InquiryPrompt
+    to: DocProducer.InquiryPrompt
+  - from: Duration
+    to: DocProducer.Duration
+  - from: NumOfSegments
+    to: DocProducer.NumOfSegments
+  - from: NumOfImagesPerSegment
+    to: DocProducer.NumOfImagesPerSegment
+  - from: Style
+    to: DocProducer.Style
+
+  # Wire JSON virtual artifacts to ImageProducer
+  - from: DocProducer.VideoScript.Segments[segment].ImagePrompts[image]
+    to: ImageProducer[segment][image].Prompt
+  - from: AspectRatio
+    to: ImageProducer[segment][image].AspectRatio
+  - from: ImageSize
+    to: ImageProducer[segment][image].Size
+
+  # Wire outputs to blueprint artifacts
+  - from: ImageProducer[segment][image].SegmentImage
+    to: SegmentImage[segment][image]

@@ -6,7 +6,15 @@ export type {
   RetryWrapper,
   RetryWrapperOptions,
 } from './provider-adapter.js';
-export { buildArtefactsFromUrls, downloadBinary, type BuildArtefactsOptions } from './artefacts.js';
+export {
+  buildArtefactsFromUrls,
+  buildArtefactsFromJsonResponse,
+  downloadBinary,
+  parseArtefactIdentifier,
+  type BuildArtefactsOptions,
+  type BuildArtefactFromJsonOptions,
+  type ParsedArtefactIdentifier,
+} from './artefacts.js';
 export { extractPlannerContext, type PlannerContext } from './utils.js';
 export {
   parseSchemaFile,

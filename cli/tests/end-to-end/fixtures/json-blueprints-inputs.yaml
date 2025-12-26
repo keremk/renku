@@ -1,0 +1,16 @@
+inputs:
+  InquiryPrompt: "The history of the moon landing"
+  Duration: 30
+  NumOfSegments: 2
+  NumOfImagesPerSegment: 2
+  Style: "Photorealistic documentary style"
+  AspectRatio: "16:9"
+  ImageSize: "1K"
+
+models:
+  - model: gpt-5.2
+    provider: openai
+    producerId: DocProducer
+  - model: bytedance/seedream-4
+    provider: replicate
+    producerId: ImageProducer

@@ -7,6 +7,7 @@ import type {
 import type {
   BlueprintArtefactDefinition,
   BlueprintInputDefinition,
+  BlueprintLoopDefinition,
   ProducerConfig,
   FanInDescriptor,
 } from '../types.js';
@@ -56,6 +57,7 @@ export function expandBlueprintGraph(
     graph.edges,
     graph.dimensionLineage,
     inputSources,
+    graph.loops,
   );
   const instancesByNodeId = new Map<string, CanonicalNodeInstance[]>();
   const allNodes: CanonicalNodeInstance[] = [];
@@ -93,6 +95,7 @@ function resolveDimensionSizes(
   edges: BlueprintGraphEdge[],
   lineage: Map<string, string | null>,
   inputSources: Map<string, string>,
+  loops: Map<string, BlueprintLoopDefinition[]>,
 ): Map<string, number> {
   const sizes = new Map<string, number>();
 
@@ -129,6 +132,32 @@ function resolveDimensionSizes(
       if (extractDimensionLabel(candidate) === targetLabel) {
         assignDimensionSize(sizes, candidate, size);
       }
+    }
+  }
+
+  // Phase 1b: assign sizes from loop definitions (for decomposed JSON artifacts and namespace dimensions).
+  for (const node of nodes) {
+    if (node.dimensions.length === 0) {
+      continue;
+    }
+    for (const symbol of node.dimensions) {
+      if (sizes.has(symbol)) {
+        continue;
+      }
+      const label = extractDimensionLabel(symbol);
+      const loopDef = findLoopDefinition(symbol, label, node.namespacePath, loops);
+      if (!loopDef) {
+        continue;
+      }
+      // Find the namespace path where the loop is defined to resolve the input
+      const loopNamespacePath = findLoopNamespacePath(label, node.namespacePath, loops);
+      const baseSize = readPositiveInteger(
+        readInputValue(inputValues, loopNamespacePath, loopDef.countInput, inputSources),
+        loopDef.countInput,
+      );
+      const offset = loopDef.countInputOffset ?? 0;
+      const size = baseSize + offset;
+      assignDimensionSize(sizes, symbol, size);
     }
   }
 
@@ -646,6 +675,28 @@ function mapNodeType(kind: string): CanonicalNodeInstance['type'] {
 }
 
 function formatCanonicalNodeId(node: BlueprintGraphNode, indices: Record<string, number>): string {
+  // Check if the node name contains dimension placeholders (e.g., "Segments[segment]")
+  // For decomposed artifacts, we need to replace placeholders with indices inline
+  const hasPlaceholders = /\[[a-zA-Z_][a-zA-Z0-9_]*\]/.test(node.name);
+
+  if (hasPlaceholders && node.type === 'Artifact') {
+    // Replace dimension placeholders with corresponding numeric indices
+    let resolvedName = node.name;
+    for (const symbol of node.dimensions) {
+      if (!(symbol in indices)) {
+        throw new Error(`Missing index value for dimension "${symbol}" on node ${node.name}`);
+      }
+      const label = extractDimensionLabel(symbol);
+      // Replace [label] with [index]
+      resolvedName = resolvedName.replace(
+        new RegExp(`\\[${escapeRegex(label)}\\]`, 'g'),
+        `[${indices[symbol]}]`,
+      );
+    }
+    return formatCanonicalArtifactId(node.namespacePath, resolvedName);
+  }
+
+  // Standard handling: append indices as suffix
   const baseId = node.type === 'InputSource'
     ? formatCanonicalInputId(node.namespacePath, node.name)
     : node.type === 'Artifact'
@@ -658,6 +709,10 @@ function formatCanonicalNodeId(node: BlueprintGraphNode, indices: Record<string,
     return `[${indices[symbol]}]`;
   }).join('');
   return `${baseId}${suffix}`;
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 
@@ -692,6 +747,58 @@ function formatProducerAliasForNode(node: BlueprintGraphNode): string {
 function extractDimensionLabel(symbol: string): string {
   const parts = symbol.split(':');
   return parts.length > 0 ? parts[parts.length - 1] ?? symbol : symbol;
+}
+
+/**
+ * Finds a loop definition for a given dimension symbol.
+ * Searches all parent namespaces (from current to root) to find the loop definition.
+ * This handles both namespace and local dimensions.
+ */
+function findLoopDefinition(
+  _symbol: string,
+  label: string,
+  namespacePath: string[],
+  loops: Map<string, BlueprintLoopDefinition[]>,
+): BlueprintLoopDefinition | undefined {
+  // Try progressively shorter namespace paths (from current to root)
+  // This handles loops defined in any ancestor namespace
+  for (let i = namespacePath.length; i >= 0; i--) {
+    const candidatePath = namespacePath.slice(0, i);
+    const key = candidatePath.join('.');
+    const candidateLoops = loops.get(key);
+    if (candidateLoops) {
+      const loopDef = candidateLoops.find((loop) => loop.name === label);
+      if (loopDef) {
+        return loopDef;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Finds the namespace path where a loop with the given label is defined.
+ * Returns the namespace path for input resolution.
+ */
+function findLoopNamespacePath(
+  label: string,
+  namespacePath: string[],
+  loops: Map<string, BlueprintLoopDefinition[]>,
+): string[] {
+  // Try progressively shorter namespace paths (from current to root)
+  for (let i = namespacePath.length; i >= 0; i--) {
+    const candidatePath = namespacePath.slice(0, i);
+    const key = candidatePath.join('.');
+    const candidateLoops = loops.get(key);
+    if (candidateLoops) {
+      const loopDef = candidateLoops.find((loop) => loop.name === label);
+      if (loopDef) {
+        return candidatePath;
+      }
+    }
+  }
+  return namespacePath;
 }
 
 function readInputValue(
