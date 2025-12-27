@@ -28,12 +28,10 @@ inputs:
   - name: Music
     description: Background music clips that score the movie (looped as needed).
     type: audio
-    required: true
     fanIn: true
   - name: Duration
     description: Total duration of the movie in seconds.
     type: int
-    required: true
 
 artifacts:
   - name: Timeline

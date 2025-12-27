@@ -73,13 +73,15 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
     const plan = await readPlan(result.planPath);
     const allJobs = plan.layers.flat();
 
-    // Verify job counts: 1 DocProducer + 4 ImageProducers (2 segments × 2 images)
+    // Verify job counts: 1 DocProducer + 4 ImageProducers (2 segments × 2 images) + 1 TimelineComposer
     const docJobs = allJobs.filter((j: any) => j.producer === 'DocProducer');
     const imageJobs = allJobs.filter((j: any) => j.producer === 'ImageProducer');
+    const timelineJobs = allJobs.filter((j: any) => j.producer === 'TimelineComposer');
 
     expect(docJobs).toHaveLength(1);
     expect(imageJobs).toHaveLength(4);
-    expect(result.build?.jobCount).toBe(5);
+    expect(timelineJobs).toHaveLength(1);
+    expect(result.build?.jobCount).toBe(6);
 
     // Verify ImageProducer jobs reference virtual artifacts in their input bindings
     for (const job of imageJobs) {
@@ -135,12 +137,14 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
     // Verify initial plan structure
     const initialPlan = await readPlan(planResult.planPath);
     const initialJobs = initialPlan.layers.flat();
-    expect(initialJobs).toHaveLength(5); // 1 DocProducer + 4 ImageProducers
+    expect(initialJobs).toHaveLength(6); // 1 DocProducer + 4 ImageProducers + 1 TimelineComposer
 
     const docJob = initialJobs.find((j: any) => j.producer === 'DocProducer');
     const imageJobs = initialJobs.filter((j: any) => j.producer === 'ImageProducer');
+    const timelineJob = initialJobs.find((j: any) => j.producer === 'TimelineComposer');
     expect(docJob).toBeDefined();
     expect(imageJobs).toHaveLength(4);
+    expect(timelineJob).toBeDefined();
 
     // Create storage and services for core runner
     const storage = createStorageContext({
@@ -183,7 +187,7 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 
     // Verify first run succeeded
     expect(firstRunResult.status).toBe('succeeded');
-    expect(firstRunResult.jobs).toHaveLength(5); // 1 DocProducer + 4 ImageProducers
+    expect(firstRunResult.jobs).toHaveLength(6); // 1 DocProducer + 4 ImageProducers + 1 TimelineComposer
 
     // Build and save manifest after first run
     const manifest1 = await firstRunResult.buildManifest();
@@ -218,12 +222,14 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
           NumOfImagesPerSegment: 2,
           Style: 'Photorealistic documentary style',
           AspectRatio: '16:9',
+          Size: '1K',
           // Override virtual artifact: Segments[0].ImagePrompts[0]
           'DocProducer.VideoScript.Segments[0].ImagePrompts[0]': `file:${overridePromptPath}`,
         },
         models: [
           { model: 'gpt-5.2', provider: 'openai', producerId: 'DocProducer' },
           { model: 'bytedance/seedream-4', provider: 'replicate', producerId: 'ImageProducer' },
+          { model: 'timeline/ordered', provider: 'renku', producerId: 'TimelineComposer', config: { tracks: ['Image'], masterTrack: { kind: 'Image' }, numTracks: 1 } },
         ],
       }),
       'utf8',
@@ -253,19 +259,22 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
     // - DocProducer should NOT be in the plan (artifact was overridden, not its inputs)
     // - ImageProducer[0][0] should be in the plan (consumes overridden Segments[0].ImagePrompts[0])
     // - ImageProducer[0][1], [1][0], [1][1] should NOT be in the plan (not affected)
+    // - TimelineComposer SHOULD re-run (depends on ImageProducer outputs)
 
     const editDocJobs = editJobs.filter((j: any) => j.producer === 'DocProducer');
     const editImageJobs = editJobs.filter((j: any) => j.producer === 'ImageProducer');
+    const editTimelineJobs = editJobs.filter((j: any) => j.producer === 'TimelineComposer');
 
     expect(editDocJobs).toHaveLength(0); // DocProducer should NOT re-run
     expect(editImageJobs).toHaveLength(1); // Only ImageProducer[0][0] should re-run
+    expect(editTimelineJobs).toHaveLength(1); // TimelineComposer re-runs (depends on changed image)
 
     // Verify the only image job is for segment 0, image 0
     const imageJob00 = editImageJobs[0];
     expect(imageJob00.jobId).toContain('[0][0]');
 
-    // Verify correct job count
-    expect(editResult.build?.jobCount).toBe(1);
+    // Verify correct job count: 1 ImageProducer + 1 TimelineComposer
+    expect(editResult.build?.jobCount).toBe(2);
 
     // ============================================================
     // PHASE 4: Verify no warnings/errors during edit planning

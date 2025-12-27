@@ -10,7 +10,6 @@ inputs:
   - name: Prompt
     description: The prompt to generate the video.
     type: string
-    required: true
   - name: ReferenceImages
     description: The reference images to use when creating a video.
     type: collection
@@ -18,30 +17,20 @@ inputs:
     dimensions: image
     fanIn: true
   - name: AspectRatio
-    description: Aspect ratio such as 16:9 or 3:2.
+    description: Aspect ratio such as 16:9 or 3:2. Model default varies.
     type: string
-    required: false
-    default: 16:9
   - name: Resolution
-    description: The video resolution in 720p, 1080p
+    description: The video resolution (720p, 1080p). Model default varies.
     type: string
-    required: false
-    default: 720p
   - name: SegmentDuration
-    description: The video segment's duration in seconds - Note this is not the movie duration
+    description: The video segment's duration in seconds. Model default varies.
     type: int
-    required: false
-    default: "8s"
   - name: GenerateAudio
-    description: Whether to generate audio for the video.
+    description: Whether to generate audio for the video. Model default varies.
     type: boolean
-    required: false
-    default: false
   - name: AutoFixPrompt
-    description: Whether to automatically fix the prompt that fails content policy or other validation checks by rewriting them.
+    description: Whether to automatically fix the prompt that fails content policy. Model default varies.
     type: boolean
-    required: false
-    default: true
 
 artifacts:
   - name: SegmentVideo

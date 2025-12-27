@@ -7,6 +7,7 @@ inputs:
   Size: "1K"
   AspectRatio: "16:9"
   Audience: "Adult"
+  Language: "en"
   VoiceId: "Wise_Woman"
   Emotion: neutral
 

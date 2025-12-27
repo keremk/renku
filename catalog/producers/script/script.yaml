@@ -10,25 +10,18 @@ inputs:
   - name: InquiryPrompt
     description: The topic describing the desired movie script.
     type: string
-    required: true
   - name: Duration
     description: Desired narration duration in seconds.
     type: int
-    required: true
   - name: NumOfSegments
     description: Number of narration segments to produce.
     type: int
-    required: true
   - name: Audience
-    description: Target audience for tone and vocabulary.
+    description: Target audience for tone and vocabulary. Model default varies.
     type: string
-    required: false
-    default: Adult
   - name: Language
-    description: Narration language.
+    description: Narration language. Model default varies.
     type: string
-    required: false
-    default: en
 
 artifacts:
   - name: MovieTitle

@@ -10,24 +10,18 @@ inputs:
   - name: InquiryPrompt
     description: The topic describing the desired movie script.
     type: string
-    required: true
   - name: Duration
     description: Desired narration duration in seconds.
     type: int
-    required: true
   - name: NumOfSegments
     description: Number of narration segments to produce.
     type: int
-    required: true
   - name: NumOfImagesPerSegment
-    description: Number of images to generate per narrative segment.
+    description: Number of images to generate per narrative segment. Model default varies.
     type: int
-    required: false
-    default: 1
   - name: Style
     description: Text describing the image style to be used.
     type: string
-    required: true
 
 artifacts:
   - name: VideoScript

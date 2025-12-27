@@ -10,11 +10,9 @@ inputs:
   - name: Prompt
     description: Prompt text for the music generator.
     type: string
-    required: true
   - name: Duration
-    description: Desired length of the music audio in seconds or miliseconds depending on model.
+    description: Desired length of the music audio in seconds or milliseconds depending on model.
     type: int
-    required: true
 
 artifacts:
   - name: Music

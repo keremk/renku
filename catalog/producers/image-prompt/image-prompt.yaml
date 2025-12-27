@@ -10,25 +10,18 @@ inputs:
   - name: NarrativeText
     description: The narrative text to generate prompts for.
     type: string
-    required: true
   - name: NumOfImagesPerNarrative
-    description: Number of prompts to produce per narrative.
+    description: Number of prompts to produce per narrative. Model default varies.
     type: int
-    required: false
-    default: 1
   - name: OverallSummary
     description: Overall story summary for additional context.
     type: string
-    required: true
   - name: Style
     description: Desired visual style to feed into prompt.
     type: string
-    required: true
   - name: Audience
-    description: Intended audience for tailoring details.
+    description: Intended audience for tailoring details. Model default varies.
     type: string
-    required: false
-    default: adult
 
 artifacts:
   - name: ImagePrompt

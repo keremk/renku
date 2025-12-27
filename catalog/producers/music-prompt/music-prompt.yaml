@@ -10,15 +10,12 @@ inputs:
   - name: MovieSummary
     description: The movie summary to generate prompts for a background music that matches the theme of the movie.
     type: string
-    required: true
   - name: MusicalStyle
     description: Desired musical style to feed into prompt.
     type: string
-    required: true
   - name: NumOfSegments
     description: Number of narration segments in the movie script.
     type: int
-    required: true
   - name: NarrationScript
     description: Array of narration paragraphs per segment.
     type: collection
@@ -28,12 +25,9 @@ inputs:
   - name: Duration
     description: The duration of the music piece in seconds.
     type: int
-    required: true
   - name: Audience
-    description: Intended audience for tailoring details.
+    description: Intended audience for tailoring details. Model default varies.
     type: string
-    required: false
-    default: adult
 
 artifacts:
   - name: MusicPrompt

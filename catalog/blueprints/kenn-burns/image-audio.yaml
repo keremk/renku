@@ -52,6 +52,11 @@ inputs:
     type: string
     required: false
     default: neutral
+  - name: Language
+    description: Narration language (e.g., en, es, fr).
+    type: string
+    required: false
+    default: en
 
 artifacts:
   - name: SegmentImage
@@ -101,6 +106,8 @@ connections:
     to: ScriptProducer.NumOfSegments
   - from: Style
     to: ScriptProducer.Style
+  - from: Language
+    to: ScriptProducer.Language
 
   - from: ScriptProducer.NarrationScript[segment]
     to: ImagePromptProducer[segment].NarrativeText

@@ -10,31 +10,21 @@ inputs:
   - name: Prompt
     description: The prompt to generate the video.
     type: string
-    required: true
   - name: InputImage1
     description: The first input image.
     type: image
-    required: true
   - name: InputImage2
-    description: The second input image.
+    description: The second input image (optional, for models that support end frame).
     type: image
-    required: false
-    default: 0
   - name: AspectRatio
-    description: Aspect ratio such as 16:9 or 3:2.
+    description: Aspect ratio such as 16:9 or 3:2. Model default varies.
     type: string
-    required: false
-    default: 16:9
   - name: Resolution
-    description: The video resolution in 480p, 720p, 1080p
+    description: The video resolution (480p, 720p, 1080p). Model default varies.
     type: string
-    required: false
-    default: 480p
   - name: SegmentDuration
-    description: The video segment's duration in seconds - Note this is not the movie duration
+    description: The video segment's duration in seconds. Model default varies.
     type: int
-    required: false
-    default: 5
 
 artifacts:
   - name: SegmentVideo
@@ -54,7 +44,6 @@ models:
     provider: fal-ai
     inputs:
       Prompt: prompt
-      AspectRatio: aspect_ratio
       SegmentDuration: duration
       InputImage1: start_image_url
       InputImage2: end_image_url

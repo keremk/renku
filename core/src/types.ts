@@ -240,7 +240,6 @@ export interface BlueprintArtefactDefinition {
 export interface BlueprintProducerSdkMappingField {
   field: string;
   type?: string;
-  required?: boolean;
   /**
    * Value transformation mapping. Maps input values to model-specific values.
    * Keys are the input values (as strings), values are what to send to the model.

@@ -10,7 +10,6 @@ inputs:
   - name: Timeline
     description: OrderedTimeline JSON manifest to render.
     type: json
-    required: true
 
 artifacts:
   - name: FinalVideo

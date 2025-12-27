@@ -377,4 +377,168 @@ describe('createProducerRuntime', () => {
       );
     });
   });
+
+  describe('sdk.buildPayload with schema-based required validation', () => {
+    it('throws error when missing a required field (per schema)', async () => {
+      const request = createTestJobContext(
+        { 'Input:Style': 'cinematic' }, // Missing required 'prompt'
+        { Prompt: 'Input:Prompt', Style: 'Input:Style' },
+        {
+          Prompt: { field: 'prompt' },
+          Style: { field: 'style' },
+        },
+      );
+
+      const runtime = createProducerRuntime({
+        descriptor: { provider: 'test', model: 'test', environment: 'local' },
+        domain: 'media',
+        request,
+        mode: 'live',
+      });
+
+      const schema = JSON.stringify({
+        type: 'object',
+        required: ['prompt'],
+        properties: {
+          prompt: { type: 'string' },
+          style: { type: 'string' },
+        },
+      });
+
+      await expect(runtime.sdk.buildPayload(undefined, schema)).rejects.toThrow(
+        'Missing required input "Input:Prompt" for field "prompt"',
+      );
+    });
+
+    it('skips optional fields (per schema) without error', async () => {
+      const request = createTestJobContext(
+        { 'Input:Prompt': 'test prompt' }, // Missing optional 'style'
+        { Prompt: 'Input:Prompt', Style: 'Input:Style' },
+        {
+          Prompt: { field: 'prompt' },
+          Style: { field: 'style' },
+        },
+      );
+
+      const runtime = createProducerRuntime({
+        descriptor: { provider: 'test', model: 'test', environment: 'local' },
+        domain: 'media',
+        request,
+        mode: 'live',
+      });
+
+      const schema = JSON.stringify({
+        type: 'object',
+        required: ['prompt'], // style is not required
+        properties: {
+          prompt: { type: 'string' },
+          style: { type: 'string' },
+        },
+      });
+
+      const payload = await runtime.sdk.buildPayload(undefined, schema);
+
+      expect(payload).toEqual({
+        prompt: 'test prompt',
+      });
+    });
+
+    it('works in permissive mode when no schema is provided', async () => {
+      const request = createTestJobContext(
+        { 'Input:Prompt': 'test prompt' }, // Missing 'style'
+        { Prompt: 'Input:Prompt', Style: 'Input:Style' },
+        {
+          Prompt: { field: 'prompt' },
+          Style: { field: 'style' },
+        },
+      );
+
+      const runtime = createProducerRuntime({
+        descriptor: { provider: 'test', model: 'test', environment: 'local' },
+        domain: 'media',
+        request,
+        mode: 'live',
+      });
+
+      // No schema provided - should be permissive
+      const payload = await runtime.sdk.buildPayload(undefined, undefined);
+
+      expect(payload).toEqual({
+        prompt: 'test prompt',
+      });
+    });
+
+    it('skips required check for expand fields', async () => {
+      const request = createTestJobContext(
+        { 'Input:Prompt': 'test prompt' }, // Missing 'Size' which has expand:true
+        { Prompt: 'Input:Prompt', Size: 'Input:Size' },
+        {
+          Prompt: { field: 'prompt' },
+          Size: {
+            field: '', // empty field for expand
+            expand: true,
+            transform: {
+              '1K': { width: 1024, height: 1024 },
+            },
+          },
+        },
+      );
+
+      const runtime = createProducerRuntime({
+        descriptor: { provider: 'test', model: 'test', environment: 'local' },
+        domain: 'media',
+        request,
+        mode: 'live',
+      });
+
+      // Even though width/height might be in schema.required, expand fields skip the check
+      const schema = JSON.stringify({
+        type: 'object',
+        required: ['prompt', 'width', 'height'],
+        properties: {
+          prompt: { type: 'string' },
+          width: { type: 'integer' },
+          height: { type: 'integer' },
+        },
+      });
+
+      // Should not throw - expand fields bypass required check
+      const payload = await runtime.sdk.buildPayload(undefined, schema);
+
+      expect(payload).toEqual({
+        prompt: 'test prompt',
+      });
+    });
+
+    it('handles schema with no required array (all fields optional)', async () => {
+      const request = createTestJobContext(
+        {}, // No inputs provided
+        { Prompt: 'Input:Prompt', Style: 'Input:Style' },
+        {
+          Prompt: { field: 'prompt' },
+          Style: { field: 'style' },
+        },
+      );
+
+      const runtime = createProducerRuntime({
+        descriptor: { provider: 'test', model: 'test', environment: 'local' },
+        domain: 'media',
+        request,
+        mode: 'live',
+      });
+
+      const schema = JSON.stringify({
+        type: 'object',
+        // No required array
+        properties: {
+          prompt: { type: 'string' },
+          style: { type: 'string' },
+        },
+      });
+
+      const payload = await runtime.sdk.buildPayload(undefined, schema);
+
+      expect(payload).toEqual({});
+    });
+  });
 });

@@ -5,7 +5,7 @@ inputs:
   NumOfImagesPerSegment: 2
   Style: "Photorealistic documentary style"
   AspectRatio: "16:9"
-  ImageSize: "1K"
+  Size: "1K"
 
 models:
   - model: gpt-5.2
@@ -14,3 +14,11 @@ models:
   - model: bytedance/seedream-4
     provider: replicate
     producerId: ImageProducer
+  - model: timeline/ordered
+    provider: renku
+    producerId: TimelineComposer
+    config:
+      tracks: ["Image"]
+      masterTrack:
+        kind: Image
+      numTracks: 1

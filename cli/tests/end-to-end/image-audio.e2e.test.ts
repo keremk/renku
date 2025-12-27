@@ -69,7 +69,7 @@ describe('end-to-end: image-audio dry runs', () => {
     const scriptJob = findJob(plan, 'ScriptProducer');
     expect(scriptJob?.context?.inputBindings?.NumOfSegments).toBe('Input:NumOfSegments');
     expect(scriptJob?.context?.inputBindings?.InquiryPrompt).toBe('Input:InquiryPrompt');
-    expect(scriptJob?.context?.inputBindings?.Language).toBe('Input:ScriptProducer.Language');
+    expect(scriptJob?.context?.inputBindings?.Language).toBe('Input:Language');
     expect(scriptJob?.produces?.length).toBeGreaterThanOrEqual(3);
 
     const imagePromptJobs = plan.layers.flat().filter((job: any) => job.producer === 'ImagePromptProducer');

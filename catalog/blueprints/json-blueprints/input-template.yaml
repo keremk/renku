@@ -4,6 +4,7 @@ inputs:
   NumOfSegments: 2
   NumOfImagesPerSegment: 2
   Style: "Ghibli"
+  AspectRatio: "16:9"
   Size: "1K"
 
 models:

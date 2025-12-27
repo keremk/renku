@@ -489,21 +489,23 @@ function parseSdkMapping(raw: unknown): Record<string, BlueprintProducerSdkMappi
       throw new Error(`Invalid sdkMapping field for ${key}.`);
     }
     const fieldConfig = value as Record<string, unknown>;
+    const isExpand = fieldConfig.expand === true;
     const field =
       typeof fieldConfig.field === 'string' && fieldConfig.field.trim().length > 0
         ? fieldConfig.field
         : typeof fieldConfig.name === 'string'
           ? fieldConfig.name
-          : undefined;
-    if (!field) {
+          : isExpand
+            ? '' // Allow empty field for expand mappings
+            : undefined;
+    if (field === undefined) {
       throw new Error(`Invalid sdkMapping field for ${key}.`);
     }
     mapping[key] = {
       field,
       type: typeof fieldConfig.type === 'string' ? fieldConfig.type : undefined,
-      required: fieldConfig.required === true ? true : fieldConfig.required === false ? false : undefined,
       transform: parseTransform(fieldConfig.transform),
-      expand: fieldConfig.expand === true ? true : undefined,
+      expand: isExpand ? true : undefined,
     };
   }
   return Object.keys(mapping).length ? mapping : undefined;

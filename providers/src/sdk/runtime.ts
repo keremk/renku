@@ -146,6 +146,20 @@ function createSdkHelper(
       if (!effectiveMapping) {
         return {};
       }
+
+      // Parse schema to get required fields (empty set = permissive mode)
+      const schemaRequired = new Set<string>();
+      if (inputSchema) {
+        try {
+          const parsed = JSON.parse(inputSchema);
+          if (Array.isArray(parsed.required)) {
+            parsed.required.forEach((f: string) => schemaRequired.add(f));
+          }
+        } catch {
+          // If schema parsing fails, continue in permissive mode
+        }
+      }
+
       const payload: Record<string, unknown> = {};
       for (const [alias, fieldDef] of Object.entries(effectiveMapping)) {
         const canonicalId = jobContext?.inputBindings?.[alias] ?? (isCanonicalId(alias) ? alias : undefined);
@@ -154,7 +168,11 @@ function createSdkHelper(
         }
         const rawValue = inputs.getByNodeId(canonicalId);
         if (rawValue === undefined) {
-          if (fieldDef.required !== false) {
+          // Only error if schema exists AND field is in required array
+          // Skip required check for expand fields (field is empty string)
+          const isExpandField = fieldDef.expand === true;
+          const isRequiredBySchema = inputSchema && !isExpandField && schemaRequired.has(fieldDef.field);
+          if (isRequiredBySchema) {
             throw new Error(
               `Missing required input "${canonicalId}" for field "${fieldDef.field}" (requested "${alias}").`,
             );

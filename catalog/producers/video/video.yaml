@@ -10,21 +10,15 @@ inputs:
   - name: Prompt
     description: The prompt to generate the video.
     type: string
-    required: true
   - name: AspectRatio
     description: Aspect ratio such as 16:9 or 3:2.
     type: string
-    required: true
   - name: Resolution
-    description: The video resolution in 480p, 720p, 1080p
+    description: The video resolution (480p, 720p, 1080p). Model default varies.
     type: string
-    required: false
-    default: 480p
   - name: SegmentDuration
-    description: The video segment's duration in seconds - Note this is not the movie duration
+    description: The video segment's duration in seconds. Model default varies.
     type: int
-    required: false
-    default: 10
 
 artifacts:
   - name: SegmentVideo

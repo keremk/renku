@@ -10,27 +10,18 @@ inputs:
   - name: Prompt
     description: The prompt describing the target image.
     type: string
-    required: true
   - name: Size
-    description: Image resolution (1K, 2K, 4K, or custom).
+    description: Image resolution (1K, 2K, 4K, or custom). Model default varies.
     type: string
-    required: false
-    default: 1K
   - name: AspectRatio
-    description: Aspect ratio such as 16:9 or 3:2.
+    description: Aspect ratio such as 16:9 or 3:2. Model default varies.
     type: string
-    required: false
-    default: "16:9"
   - name: Width
-    description: Width of the generated image.
+    description: Width of the generated image (for models that support explicit dimensions).
     type: integer
-    required: false
-    default: 1024
   - name: Height
-    description: Height of the generated image.
+    description: Height of the generated image (for models that support explicit dimensions).
     type: integer
-    required: false
-    default: 1024
   
 
 artifacts:
