@@ -455,6 +455,22 @@ async function parseModelVariant(
   };
 }
 
+/**
+ * Parses a transform mapping from YAML.
+ * Transform maps input values to model-specific values.
+ */
+function parseTransform(raw: unknown): Record<string, unknown> | undefined {
+  if (!raw) {
+    return undefined;
+  }
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new Error(`Invalid transform entry: expected object, got ${typeof raw}`);
+  }
+  // Transform is a simple key-value mapping where keys are input values
+  // and values are what to send to the model (can be any type)
+  return raw as Record<string, unknown>;
+}
+
 function parseSdkMapping(raw: unknown): Record<string, BlueprintProducerSdkMappingField> | undefined {
   if (!raw) {
     return undefined;
@@ -486,6 +502,8 @@ function parseSdkMapping(raw: unknown): Record<string, BlueprintProducerSdkMappi
       field,
       type: typeof fieldConfig.type === 'string' ? fieldConfig.type : undefined,
       required: fieldConfig.required === true ? true : fieldConfig.required === false ? false : undefined,
+      transform: parseTransform(fieldConfig.transform),
+      expand: fieldConfig.expand === true ? true : undefined,
     };
   }
   return Object.keys(mapping).length ? mapping : undefined;

@@ -241,6 +241,20 @@ export interface BlueprintProducerSdkMappingField {
   field: string;
   type?: string;
   required?: boolean;
+  /**
+   * Value transformation mapping. Maps input values to model-specific values.
+   * Keys are the input values (as strings), values are what to send to the model.
+   * Example: { "1K": { width: 1024, height: 1024 }, "2K": "auto_2K" }
+   */
+  transform?: Record<string, unknown>;
+  /**
+   * When true, the transformed value (which must be an object) is spread into
+   * the payload instead of being assigned to a single field. This enables
+   * one input to map to multiple output fields.
+   * Example: Size with expand:true and transform { "1K": { width: 1024, height: 1024 } }
+   * results in payload.width = 1024 and payload.height = 1024
+   */
+  expand?: boolean;
 }
 
 export interface BlueprintProducerOutputDefinition {

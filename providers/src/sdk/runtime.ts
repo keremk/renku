@@ -152,8 +152,8 @@ function createSdkHelper(
         if (!canonicalId) {
           throw new Error(`Missing canonical input mapping for "${alias}".`);
         }
-        const value = inputs.getByNodeId(canonicalId);
-        if (value === undefined) {
+        const rawValue = inputs.getByNodeId(canonicalId);
+        if (rawValue === undefined) {
           if (fieldDef.required !== false) {
             throw new Error(
               `Missing required input "${canonicalId}" for field "${fieldDef.field}" (requested "${alias}").`,
@@ -161,7 +161,22 @@ function createSdkHelper(
           }
           continue;
         }
-        payload[fieldDef.field] = value;
+        // Apply value transform if defined
+        const value = applyTransform(rawValue, fieldDef.transform);
+
+        // If expand is true, spread the object into payload instead of assigning to field
+        if (fieldDef.expand === true) {
+          if (value && typeof value === 'object' && !Array.isArray(value)) {
+            Object.assign(payload, value);
+          } else {
+            throw new Error(
+              `Cannot expand non-object value for "${alias}". ` +
+                `expand:true requires the transformed value to be an object, got ${typeof value}.`
+            );
+          }
+        } else {
+          payload[fieldDef.field] = value;
+        }
       }
 
       // Process blob inputs for fields with format: "uri" in schema
@@ -275,4 +290,22 @@ function createArtefactRegistry(produces: string[]): ArtefactRegistry {
 
 function isCanonicalId(id: string): boolean {
   return isCanonicalInputId(id) || isCanonicalArtifactId(id);
+}
+
+/**
+ * Applies a value transform if defined.
+ * Transform maps input values (as string keys) to model-specific values.
+ * If no transform is defined or the value doesn't match any key, returns the original value.
+ */
+function applyTransform(value: unknown, transform: Record<string, unknown> | undefined): unknown {
+  if (!transform) {
+    return value;
+  }
+  // Convert value to string for lookup (supports numbers, booleans, strings)
+  const key = String(value);
+  if (key in transform) {
+    return transform[key];
+  }
+  // No matching transform, return original value
+  return value;
 }

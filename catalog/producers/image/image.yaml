@@ -72,7 +72,14 @@ models:
     provider: fal-ai
     inputs:
       Prompt: prompt
-      Size: image_size
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": "landscape_16_9"
+          "9:16": "portrait_16_9"
+          "1:1": "square_hd"
+          "4:3": "landscape_4_3"
+          "3:4": "portrait_4_3"
   - model: bytedance/seedream-v4.5
     provider: wavespeed-ai
     inputs:
