@@ -155,44 +155,4 @@ describe('planning service', () => {
     expect(artefactEvents[0]?.producedBy).toBe('manual-edit');
   });
 
-  it('seeds defaulted sub-blueprint inputs into resolved inputs', async () => {
-    const manifestService = createManifestService(storage);
-    const eventLog = createEventLog(storage);
-    const planningService = createPlanningService();
-
-    const scriptChild: BlueprintTreeNode = {
-      id: 'ScriptGenerator',
-      namespacePath: ['ScriptGenerator'],
-      document: {
-        meta: { id: 'ScriptGenerator', name: 'ScriptGenerator' },
-        inputs: [
-          { name: 'Language', type: 'string', required: false, defaultValue: 'en' },
-        ],
-        artefacts: [],
-        subBlueprints: [],
-        edges: [],
-        producers: [],
-      },
-      children: new Map(),
-    };
-
-    blueprint.children.set('ScriptGenerator', scriptChild);
-    blueprint.document.subBlueprints = [{ name: 'ScriptGenerator' }];
-
-    const result = await planningService.generatePlan({
-      movieId,
-      blueprintTree: blueprint,
-      inputValues: {
-        'Input:InquiryPrompt': 'Tell me a story',
-        'Input:NumOfSegments': 1,
-      },
-      providerCatalog: catalog,
-      providerOptions: buildProviderOptions(),
-      storage,
-      manifestService,
-      eventLog,
-    });
-
-    expect(result.resolvedInputs['Input:ScriptGenerator.Language']).toBe('en');
-  });
 });

@@ -347,7 +347,7 @@ describe('InputIdResolver', () => {
         meta: { id: 'TestBlueprint', name: 'Test Blueprint' },
         inputs: [
           { name: 'Topic', type: 'string', required: true },
-          { name: 'Count', type: 'int', required: false, defaultValue: 5 },
+          { name: 'Count', type: 'int', required: false },
         ],
         artefacts: [],
         producers: [],

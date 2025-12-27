@@ -147,13 +147,23 @@ function createSdkHelper(
         return {};
       }
 
-      // Parse schema to get required fields (empty set = permissive mode)
+      // Parse schema to get required fields AND defaults (for validation only)
+      // We don't apply defaults ourselves - provider APIs use their own defaults
       const schemaRequired = new Set<string>();
+      const schemaDefaults = new Set<string>(); // Track which fields have defaults
       if (inputSchema) {
         try {
           const parsed = JSON.parse(inputSchema);
           if (Array.isArray(parsed.required)) {
             parsed.required.forEach((f: string) => schemaRequired.add(f));
+          }
+          // Check which properties have default values defined
+          if (parsed.properties && typeof parsed.properties === 'object') {
+            for (const [field, prop] of Object.entries(parsed.properties)) {
+              if (prop && typeof prop === 'object' && 'default' in prop) {
+                schemaDefaults.add(field);
+              }
+            }
           }
         } catch {
           // If schema parsing fails, continue in permissive mode
@@ -168,15 +178,19 @@ function createSdkHelper(
         }
         const rawValue = inputs.getByNodeId(canonicalId);
         if (rawValue === undefined) {
-          // Only error if schema exists AND field is in required array
-          // Skip required check for expand fields (field is empty string)
+          // Validation logic:
+          // - If field is required AND has NO schema default → ERROR
+          // - If field is required AND has schema default → SKIP (provider uses its default)
+          // - If field is not required → SKIP
           const isExpandField = fieldDef.expand === true;
           const isRequiredBySchema = inputSchema && !isExpandField && schemaRequired.has(fieldDef.field);
-          if (isRequiredBySchema) {
+          const hasSchemaDefault = schemaDefaults.has(fieldDef.field);
+          if (isRequiredBySchema && !hasSchemaDefault) {
             throw new Error(
-              `Missing required input "${canonicalId}" for field "${fieldDef.field}" (requested "${alias}").`,
+              `Missing required input "${canonicalId}" for field "${fieldDef.field}" (requested "${alias}"). No schema default available.`,
             );
           }
+          // Skip field - provider will use its default if one exists
           continue;
         }
         // Apply value transform if defined

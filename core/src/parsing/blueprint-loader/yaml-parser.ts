@@ -261,16 +261,12 @@ function parseInput(raw: unknown): BlueprintInputDefinition {
   const type = readString(input, 'type');
   const required = input.required === false ? false : true;
   const description = typeof input.description === 'string' ? input.description : undefined;
-  const defaultValue = input.default ?? input.defaultValue;
-  if (!required && defaultValue === undefined) {
-    throw new Error(`Optional input "${name}" must declare a default value.`);
-  }
+  // Note: default values are no longer parsed here - model JSON schemas are the source of truth
   return {
     name,
     type,
     required,
     description,
-    defaultValue,
     fanIn: input.fanIn === true,
   };
 }

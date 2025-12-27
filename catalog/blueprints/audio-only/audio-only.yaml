@@ -27,17 +27,14 @@ inputs:
     description: Target audience for tone and vocabulary.
     type: string
     required: false
-    default: Adult
   - name: Emotion
     description: Optional emotion hint for narration.
     type: string
     required: false
-    default: neutral
   - name: Language
     description: Narration language.
     type: string
     required: false
-    default: en
 
 artifacts:
   - name: SegmentAudio

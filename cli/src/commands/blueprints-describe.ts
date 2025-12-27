@@ -45,7 +45,6 @@ export async function runBlueprintsDescribe(
       type: input.type,
       required: input.required,
       description: input.description,
-      defaultValue: input.defaultValue,
     })),
     outputs: blueprint.artefacts.map((output: BlueprintArtefactDefinition) => ({
       name: output.name,

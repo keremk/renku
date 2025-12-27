@@ -23,17 +23,14 @@ inputs:
     description: Duration of each generated video segment in seconds.
     type: int
     required: false
-    default: 10
   - name: Audience
     description: Target audience for tone and vocabulary.
     type: string
     required: false
-    default: Adult
   - name: Language
     description: Narration language for the script.
     type: string
     required: false
-    default: en
   - name: Style
     description: Style hint fed into the video prompt generator.
     type: string
@@ -54,12 +51,10 @@ inputs:
     description: Optional emotion hint for narration synthesis.
     type: string
     required: false
-    default: neutral
   - name: MusicalStyle
     description: Style guidance for the background music.
     type: string
     required: false
-    default: Cinematic orchestral score
 
 artifacts:
   - name: SegmentVideo

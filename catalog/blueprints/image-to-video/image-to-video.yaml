@@ -23,17 +23,14 @@ inputs:
     description: Duration for each video segment (model-specific format, e.g. "5" or "10").
     type: string
     required: false
-    default: "10"
   - name: Audience
     description: Target audience for tone and vocabulary.
     type: string
     required: false
-    default: Adult
   - name: Language
     description: Narration language.
     type: string
     required: false
-    default: en
   - name: Style
     description: Desired movie style to feed into prompt.
     type: string
@@ -50,7 +47,6 @@ inputs:
     description: Enumerated values such as 1K, 2K, 4K, or custom describing the image size to use.
     type: string
     required: false
-    default: 1K
   - name: VoiceId
     description: The voice identifier to feed into audio generation.
     type: string
@@ -59,7 +55,6 @@ inputs:
     description: Optional emotion hint for narration.
     type: string
     required: false
-    default: neutral
     
 
 artifacts:

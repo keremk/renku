@@ -31,12 +31,10 @@ inputs:
     description: Image aspect ratio.
     type: string
     required: false
-    default: "16:9"
   - name: Size
     description: Image resolution (1K, 2K, 4K).
     type: string
     required: false
-    default: "1K"
 
 artifacts:
   - name: SegmentImage

@@ -83,3 +83,41 @@ describe('loadYamlBlueprintTree', () => {
     expect(scriptNode?.document.producers[0]?.models?.[0]?.model).toBe('gpt-5-mini');
   });
 });
+
+describe('optional inputs without defaults', () => {
+  it('accepts optional inputs without default values', async () => {
+    const blueprintPath = resolve(yamlRoot, 'audio-only', 'audio-only.yaml');
+    const document = await parseYamlBlueprintFile(blueprintPath);
+
+    // Find optional inputs (required: false)
+    const optionalInputs = document.inputs.filter((input) => !input.required);
+
+    // Verify we have optional inputs
+    expect(optionalInputs.length).toBeGreaterThan(0);
+
+    // Verify optional inputs have no defaultValue property
+    for (const input of optionalInputs) {
+      expect(input).not.toHaveProperty('defaultValue');
+    }
+  });
+
+  it('parses required flag correctly for both required and optional inputs', async () => {
+    const blueprintPath = resolve(yamlRoot, 'kenn-burns', 'image-audio.yaml');
+    const document = await parseYamlBlueprintFile(blueprintPath);
+
+    // Required inputs
+    const requiredInputs = document.inputs.filter((input) => input.required);
+    expect(requiredInputs.map((i) => i.name)).toContain('InquiryPrompt');
+    expect(requiredInputs.map((i) => i.name)).toContain('VoiceId');
+
+    // Optional inputs (no defaults expected)
+    const optionalInputs = document.inputs.filter((input) => !input.required);
+    expect(optionalInputs.map((i) => i.name)).toContain('Audience');
+    expect(optionalInputs.map((i) => i.name)).toContain('Language');
+
+    // None should have defaultValue
+    for (const input of document.inputs) {
+      expect(input).not.toHaveProperty('defaultValue');
+    }
+  });
+});

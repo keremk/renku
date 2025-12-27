@@ -18,7 +18,6 @@ export * from './canonical-ids.js';
 export * from './parsing/node-inventory.js';
 export * from './parsing/input-loader.js';
 export * from './parsing/blueprint-loader/index.js';
-export * from './parsing/input-defaults.js';
 export * from './blob-utils.js';
 export * from './parsing/file-input-resolver.js';
 export { isBlobInput, isBlobRef } from './types.js';

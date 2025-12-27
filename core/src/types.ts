@@ -106,7 +106,6 @@ export interface BlueprintInput {
   required: boolean;
   description?: string;
   itemType?: string;  // For array types
-  defaultValue?: unknown;
 }
 
 /**
@@ -184,7 +183,6 @@ export interface BlueprintInputDefinition {
   type: string;
   required: boolean;
   description?: string;
-  defaultValue?: unknown;
   fanIn?: boolean;
 }
 

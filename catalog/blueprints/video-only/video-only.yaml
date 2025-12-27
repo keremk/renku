@@ -23,17 +23,14 @@ inputs:
     description: Duration of each video segment in seconds.
     type: int
     required: false
-    default: 10
   - name: Audience
     description: Target audience for tone and vocabulary.
     type: string
     required: false
-    default: Adult
   - name: Language
     description: Narration language.
     type: string
     required: false
-    default: en
   - name: Style
     description: Desired movie style to feed into prompt.
     type: string

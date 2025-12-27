@@ -540,5 +540,109 @@ describe('createProducerRuntime', () => {
 
       expect(payload).toEqual({});
     });
+
+    it('skips required field with schema default (provider uses its default)', async () => {
+      const request = createTestJobContext(
+        { 'Input:Prompt': 'test prompt' }, // Missing 'style' which is required but has default
+        { Prompt: 'Input:Prompt', Style: 'Input:Style' },
+        {
+          Prompt: { field: 'prompt' },
+          Style: { field: 'style' },
+        },
+      );
+
+      const runtime = createProducerRuntime({
+        descriptor: { provider: 'test', model: 'test', environment: 'local' },
+        domain: 'media',
+        request,
+        mode: 'live',
+      });
+
+      const schema = JSON.stringify({
+        type: 'object',
+        required: ['prompt', 'style'], // style is required but has default
+        properties: {
+          prompt: { type: 'string' },
+          style: { type: 'string', default: 'cinematic' }, // schema provides default
+        },
+      });
+
+      // Should NOT throw - provider will use its default
+      const payload = await runtime.sdk.buildPayload(undefined, schema);
+
+      expect(payload).toEqual({
+        prompt: 'test prompt',
+        // style is NOT in payload - provider uses its own default
+      });
+    });
+
+    it('throws error for required field without schema default', async () => {
+      const request = createTestJobContext(
+        { 'Input:Style': 'cinematic' }, // Missing 'prompt' which is required and has NO default
+        { Prompt: 'Input:Prompt', Style: 'Input:Style' },
+        {
+          Prompt: { field: 'prompt' },
+          Style: { field: 'style' },
+        },
+      );
+
+      const runtime = createProducerRuntime({
+        descriptor: { provider: 'test', model: 'test', environment: 'local' },
+        domain: 'media',
+        request,
+        mode: 'live',
+      });
+
+      const schema = JSON.stringify({
+        type: 'object',
+        required: ['prompt', 'style'],
+        properties: {
+          prompt: { type: 'string' }, // NO default
+          style: { type: 'string', default: 'default-style' },
+        },
+      });
+
+      await expect(runtime.sdk.buildPayload(undefined, schema)).rejects.toThrow(
+        'No schema default available',
+      );
+    });
+
+    it('skips multiple required fields that all have schema defaults', async () => {
+      const request = createTestJobContext(
+        { 'Input:Prompt': 'test prompt' }, // Missing 'style', 'quality', 'format' - all required with defaults
+        { Prompt: 'Input:Prompt', Style: 'Input:Style', Quality: 'Input:Quality', Format: 'Input:Format' },
+        {
+          Prompt: { field: 'prompt' },
+          Style: { field: 'style' },
+          Quality: { field: 'quality' },
+          Format: { field: 'format' },
+        },
+      );
+
+      const runtime = createProducerRuntime({
+        descriptor: { provider: 'test', model: 'test', environment: 'local' },
+        domain: 'media',
+        request,
+        mode: 'live',
+      });
+
+      const schema = JSON.stringify({
+        type: 'object',
+        required: ['prompt', 'style', 'quality', 'format'],
+        properties: {
+          prompt: { type: 'string' },
+          style: { type: 'string', default: 'cinematic' },
+          quality: { type: 'integer', default: 80 },
+          format: { type: 'string', default: 'png' },
+        },
+      });
+
+      const payload = await runtime.sdk.buildPayload(undefined, schema);
+
+      // Only user-provided value in payload - provider uses defaults for rest
+      expect(payload).toEqual({
+        prompt: 'test prompt',
+      });
+    });
   });
 });

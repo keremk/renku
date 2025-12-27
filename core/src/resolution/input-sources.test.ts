@@ -8,7 +8,7 @@ function makeChildBlueprint(): BlueprintDocument {
   return {
     meta: { id: 'Child', name: 'Child' },
     inputs: [
-      { name: 'ImagesPer', type: 'int', required: false, defaultValue: 1 },
+      { name: 'ImagesPer', type: 'int', required: false },
     ],
     artefacts: [
       { name: 'Prompt', type: 'array', countInput: 'ImagesPer' },

@@ -79,12 +79,8 @@ export async function loadInputsFromYaml(
     throw new Error(`Input file missing required fields: ${missingRequired.join(', ')}`);
   }
 
-  for (const entry of resolver.entries) {
-    const { canonicalId, definition } = entry;
-    if (values[canonicalId] === undefined && definition.defaultValue !== undefined) {
-      values[canonicalId] = definition.defaultValue;
-    }
-  }
+  // Note: Blueprint defaults are no longer applied here - model JSON schemas are the source of truth
+  // Provider APIs will use their own defaults for optional fields not provided by the user
 
   applyModelSelectionsToInputs(values, modelSelections);
 

@@ -20,7 +20,7 @@ function createTestBlueprintTree(): BlueprintTreeNode {
       meta: { id: 'TestBlueprint', name: 'Test Blueprint' },
       inputs: [
         { name: 'Topic', type: 'string', required: true },
-        { name: 'NumOfSegments', type: 'int', required: false, defaultValue: 3 },
+        { name: 'NumOfSegments', type: 'int', required: false },
       ],
       artefacts: [
         { name: 'VideoScript', type: 'json' },

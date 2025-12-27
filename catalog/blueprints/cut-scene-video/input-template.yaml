@@ -8,6 +8,9 @@ inputs:
   Resolution: "480p"
   SegmentDuration: 10
   Style: "Ghibli"
+  Audience: Adult
+  Language: en
+  MusicalStyle: "Cinematic orchestral score"
 
 models:
   - model: minimax/speech-2.6-hd

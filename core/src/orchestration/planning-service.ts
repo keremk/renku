@@ -3,7 +3,6 @@ import { expandBlueprintGraph } from '../resolution/canonical-expander.js';
 import { buildInputSourceMapFromCanonical, normalizeInputValues } from '../resolution/input-sources.js';
 import { createProducerGraph } from '../resolution/producer-graph.js';
 import { createPlanAdapter, type PlanAdapterOptions } from '../planning/adapter.js';
-import { applyBlueprintInputDefaults } from '../parsing/input-defaults.js';
 import { isCanonicalInputId } from '../parsing/canonical-ids.js';
 import type { EventLog } from '../event-log.js';
 import { hashPayload } from '../hashing.js';
@@ -119,7 +118,7 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
         await args.eventLog.appendInput(args.movieId, event);
       }
       const resolvedInputs = buildResolvedInputMap(inputEvents);
-      applyBlueprintInputDefaults(args.blueprintTree, resolvedInputs, inputSources);
+      // Note: Blueprint defaults are no longer applied - model JSON schemas are the source of truth
 
       const artefactEvents = (args.pendingArtefacts ?? []).map((draft) =>
         makeArtefactEvent(draft, targetRevision, now()),

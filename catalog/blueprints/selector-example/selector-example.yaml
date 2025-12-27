@@ -23,7 +23,6 @@ inputs:
     description: Number of images to generate per narrative text.
     type: int
     required: false
-    default: 1
   - name: Style
     description: Text describing the image style to be used.
     type: string
@@ -32,12 +31,10 @@ inputs:
     description: Enumerated values such as 1K, 2K, 4K, or custom describing the image size to use.
     type: string
     required: false
-    default: 1K
   - name: AspectRatio
     description: Enumerated values (1:1, 4:3, 3:4, 16:9, 9:16, 3:2, 2:3, 21:9, match_input_image).
     type: string
     required: false
-    default: 16:9
   - name: VoiceId
     description: The voice identifier to feed into audio generation.
     type: string
@@ -46,7 +43,6 @@ inputs:
     description: Optional emotion hint for narration.
     type: string
     required: false
-    default: neutral
 
 artifacts:
   - name: SegmentImage
