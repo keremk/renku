@@ -72,7 +72,7 @@ models:
     provider: fal-ai
     inputs:
       Prompt: prompt
-      Size: size
+      Size: image_size
   - model: bytedance/seedream-v4.5
     provider: wavespeed-ai
     inputs:

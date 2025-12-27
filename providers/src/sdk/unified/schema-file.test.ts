@@ -4,6 +4,7 @@ import {
   extractInputSchemaString,
   extractOutputSchemaString,
   hasOutputSchema,
+  resolveSchemaRefs,
 } from './schema-file.js';
 
 describe('parseSchemaFile', () => {
@@ -244,5 +245,156 @@ describe('hasOutputSchema', () => {
     });
 
     expect(hasOutputSchema(content)).toBe(false);
+  });
+});
+
+describe('resolveSchemaRefs', () => {
+  it('returns schema unchanged when no definitions', () => {
+    const schema = {
+      type: 'object' as const,
+      properties: {
+        prompt: { type: 'string' as const },
+      },
+    };
+
+    const result = resolveSchemaRefs(schema, {});
+
+    expect(result).toEqual(schema);
+  });
+
+  it('adds definitions to $defs and rewrites refs', () => {
+    const schema = {
+      type: 'object' as const,
+      properties: {
+        image_size: {
+          anyOf: [
+            { $ref: '#/ImageSize' },
+            { type: 'string' as const, enum: ['small', 'medium', 'large'] },
+          ],
+        },
+      },
+    };
+    const definitions = {
+      ImageSize: {
+        type: 'object' as const,
+        properties: {
+          width: { type: 'integer' as const },
+          height: { type: 'integer' as const },
+        },
+      },
+    };
+
+    const result = resolveSchemaRefs(schema, definitions);
+
+    // Check that definitions were added to $defs
+    expect(result.$defs).toEqual({
+      ImageSize: {
+        type: 'object',
+        properties: {
+          width: { type: 'integer' },
+          height: { type: 'integer' },
+        },
+      },
+    });
+
+    // Check that $ref was rewritten
+    const imageSize = result.properties?.image_size as { anyOf: Array<{ $ref?: string }> };
+    expect(imageSize.anyOf[0].$ref).toBe('#/$defs/ImageSize');
+  });
+
+  it('handles nested refs in arrays', () => {
+    const schema = {
+      type: 'object' as const,
+      properties: {
+        images: {
+          type: 'array' as const,
+          items: { $ref: '#/Image' },
+        },
+      },
+    };
+    const definitions = {
+      Image: {
+        type: 'object' as const,
+        properties: { url: { type: 'string' as const } },
+      },
+    };
+
+    const result = resolveSchemaRefs(schema, definitions);
+
+    const images = result.properties?.images as { items: { $ref: string } };
+    expect(images.items.$ref).toBe('#/$defs/Image');
+  });
+
+  it('does not rewrite refs that are already in $defs format', () => {
+    const schema = {
+      type: 'object' as const,
+      properties: {
+        image: { $ref: '#/$defs/Image' },
+      },
+    };
+    const definitions = {
+      Image: { type: 'object' as const },
+    };
+
+    const result = resolveSchemaRefs(schema, definitions);
+
+    const image = result.properties?.image as { $ref: string };
+    expect(image.$ref).toBe('#/$defs/Image');
+  });
+
+  it('does not rewrite refs to undefined definitions', () => {
+    const schema = {
+      type: 'object' as const,
+      properties: {
+        unknown: { $ref: '#/Unknown' },
+      },
+    };
+    const definitions = {
+      Image: { type: 'object' as const },
+    };
+
+    const result = resolveSchemaRefs(schema, definitions);
+
+    const unknown = result.properties?.unknown as { $ref: string };
+    expect(unknown.$ref).toBe('#/Unknown');
+  });
+
+  it('handles multiple definitions', () => {
+    const schema = {
+      type: 'object' as const,
+      properties: {
+        size: { $ref: '#/ImageSize' },
+        file: { $ref: '#/File' },
+      },
+    };
+    const definitions = {
+      ImageSize: { type: 'object' as const },
+      File: { type: 'object' as const },
+    };
+
+    const result = resolveSchemaRefs(schema, definitions);
+
+    expect(Object.keys(result.$defs || {})).toHaveLength(2);
+    const size = result.properties?.size as { $ref: string };
+    const file = result.properties?.file as { $ref: string };
+    expect(size.$ref).toBe('#/$defs/ImageSize');
+    expect(file.$ref).toBe('#/$defs/File');
+  });
+
+  it('does not mutate the original schema', () => {
+    const schema = {
+      type: 'object' as const,
+      properties: {
+        size: { $ref: '#/ImageSize' },
+      },
+    };
+    const originalSchema = JSON.stringify(schema);
+    const definitions = {
+      ImageSize: { type: 'object' as const },
+    };
+
+    resolveSchemaRefs(schema, definitions);
+
+    expect(JSON.stringify(schema)).toBe(originalSchema);
   });
 });

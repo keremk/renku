@@ -288,4 +288,58 @@ describe('validatePayload', () => {
       validatePayload(enumSchema, { aspect_ratio: '4:3' }, 'input');
     });
   });
+
+  describe('unknown fields validation', () => {
+    it('rejects payload with unknown fields', () => {
+      expect(() => {
+        validatePayload(enumSchema, { aspect_ratio: '16:9', unknown_field: 'value' }, 'input');
+      }).toThrow(/unknown field.*unknown_field/i);
+    });
+
+    it('lists all unknown fields in error', () => {
+      expect(() => {
+        validatePayload(enumSchema, { aspect_ratio: '16:9', foo: 1, bar: 2 }, 'input');
+      }).toThrow(/foo.*bar|bar.*foo/);
+    });
+
+    it('includes valid field names in error message', () => {
+      expect(() => {
+        validatePayload(enumSchema, { bad_field: 'value' }, 'input');
+      }).toThrow(/Valid fields are:.*aspect_ratio/);
+    });
+
+    it('accepts payload with only known fields', () => {
+      expect(() => {
+        validatePayload(requiredFieldsSchema, { prompt: 'test', seed: 42 }, 'input');
+      }).not.toThrow();
+    });
+
+    it('catches field name typos', () => {
+      // Common typo: image_size vs size
+      expect(() => {
+        validatePayload(anyOfSchema, { size: 'square' }, 'input');
+      }).toThrow(/unknown field.*size.*Valid fields are:.*image_size/i);
+    });
+
+    it('catches producer mapping mismatches', () => {
+      // Simulates: producer maps Size -> size but schema expects image_size
+      const seedreamSchema = JSON.stringify({
+        type: 'object',
+        properties: {
+          prompt: { type: 'string' },
+          image_size: {
+            anyOf: [
+              { type: 'object', properties: { width: { type: 'integer' }, height: { type: 'integer' } } },
+              { type: 'string', enum: ['square_hd', 'auto_2K', 'auto_4K'] },
+            ],
+          },
+        },
+        required: ['prompt'],
+      });
+
+      expect(() => {
+        validatePayload(seedreamSchema, { prompt: 'test', size: '1K' }, 'input');
+      }).toThrow(/unknown field.*size.*Valid fields are:.*prompt.*image_size/i);
+    });
+  });
 });

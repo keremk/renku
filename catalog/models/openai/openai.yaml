@@ -5,3 +5,9 @@ models:
       - text/plain
       - application/json
     price: 0
+  - name: gpt-5.2
+    type: text
+    mime:
+      - text/plain
+      - application/json
+    price: 0

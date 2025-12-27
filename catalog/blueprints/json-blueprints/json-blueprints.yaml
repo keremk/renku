@@ -32,7 +32,7 @@ inputs:
     type: string
     required: false
     default: "16:9"
-  - name: ImageSize
+  - name: Size
     description: Image resolution (1K, 2K, 4K).
     type: string
     required: false
@@ -57,6 +57,8 @@ producers:
   - name: ImageProducer
     path: ../../producers/image/image.yaml
     loop: segment.image
+  - name: TimelineComposer
+    path: ../../producers/timeline-composer/timeline-composer.yaml
 
 connections:
   # Wire inputs to DocProducer
@@ -76,9 +78,25 @@ connections:
     to: ImageProducer[segment][image].Prompt
   - from: AspectRatio
     to: ImageProducer[segment][image].AspectRatio
-  - from: ImageSize
+  - from: Size
     to: ImageProducer[segment][image].Size
+
+  # Wire ImageProducer outputs to TimelineComposer
+  - from: ImageProducer[segment][image].SegmentImage
+    to: TimelineComposer.ImageSegments
 
   # Wire outputs to blueprint artifacts
   - from: ImageProducer[segment][image].SegmentImage
     to: SegmentImage[segment][image]
+
+  - from: Duration
+    to: TimelineComposer.Duration
+  - from: TimelineComposer.Timeline
+    to: Timeline
+
+collectors:
+  - name: TimelineImages
+    from: ImageProducer[segment][image].SegmentImage
+    into: TimelineComposer.ImageSegments
+    groupBy: segment
+    orderBy: image

@@ -5,7 +5,7 @@ import { buildArtefactsFromUrls } from './artefacts.js';
 import { extractPlannerContext } from './utils.js';
 import { validatePayload } from '../schema-validator.js';
 import type { ProviderAdapter, ProviderClient, ModelContext } from './provider-adapter.js';
-import { parseSchemaFile, type SchemaFile } from './schema-file.js';
+import { parseSchemaFile, resolveSchemaRefs, type SchemaFile } from './schema-file.js';
 import { validateOutputWithLogging } from './output-validator.js';
 import { generateOutputFromSchema } from './output-generator.js';
 
@@ -73,8 +73,9 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
 
         // Read and parse the full schema file (input + output schemas)
         const schemaFile = readSchemaFile(request);
+        // Resolve $ref by merging definitions into the schema for AJV validation
         const inputSchemaString = schemaFile
-          ? JSON.stringify(schemaFile.inputSchema)
+          ? JSON.stringify(resolveSchemaRefs(schemaFile.inputSchema, schemaFile.definitions))
           : readInputSchema(request);
 
         if (!inputSchemaString) {

@@ -138,3 +138,74 @@ export function hasOutputSchema(content: string): boolean {
   const schemaFile = parseSchemaFile(content);
   return schemaFile.outputSchema !== undefined;
 }
+
+/**
+ * Resolves $ref references by merging definitions into the schema's $defs property.
+ * This allows AJV to properly resolve references like "#/ImageSize" by converting them
+ * to standard JSON Schema $defs references.
+ *
+ * For example, a reference like "$ref": "#/ImageSize" will be rewritten to
+ * "$ref": "#/$defs/ImageSize" and the ImageSize definition will be added to $defs.
+ *
+ * @param schema - The schema that may contain $ref references
+ * @param definitions - The definitions to merge into the schema
+ * @returns A new schema with definitions merged into $defs and references updated
+ */
+export function resolveSchemaRefs(
+  schema: JSONSchema7,
+  definitions: Record<string, JSONSchema7>
+): JSONSchema7 {
+  if (Object.keys(definitions).length === 0) {
+    return schema;
+  }
+
+  // Deep clone the schema to avoid mutating the original
+  const resolved = JSON.parse(JSON.stringify(schema)) as JSONSchema7;
+
+  // Add definitions to $defs
+  resolved.$defs = {
+    ...(resolved.$defs as Record<string, JSONSchema7> | undefined),
+    ...definitions,
+  };
+
+  // Rewrite $ref from "#/Name" to "#/$defs/Name"
+  rewriteRefs(resolved, definitions);
+
+  return resolved;
+}
+
+/**
+ * Recursively rewrites $ref values from "#/Name" format to "#/$defs/Name" format.
+ */
+function rewriteRefs(obj: unknown, definitions: Record<string, JSONSchema7>): void {
+  if (!obj || typeof obj !== 'object') {
+    return;
+  }
+
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      rewriteRefs(item, definitions);
+    }
+    return;
+  }
+
+  const record = obj as Record<string, unknown>;
+
+  // Check if this object has a $ref that needs rewriting
+  if (typeof record.$ref === 'string') {
+    const ref = record.$ref;
+    // Match refs like "#/ImageSize" (not "#/$defs/ImageSize" or other paths)
+    const match = ref.match(/^#\/([A-Za-z_][A-Za-z0-9_]*)$/);
+    if (match) {
+      const defName = match[1];
+      if (defName in definitions) {
+        record.$ref = `#/$defs/${defName}`;
+      }
+    }
+  }
+
+  // Recurse into all properties
+  for (const value of Object.values(record)) {
+    rewriteRefs(value, definitions);
+  }
+}

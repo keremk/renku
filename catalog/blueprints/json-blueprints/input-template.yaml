@@ -1,0 +1,23 @@
+inputs:
+  InquiryPrompt: "Life of Napolean Bonaparte"
+  Duration: 20
+  NumOfSegments: 2
+  NumOfImagesPerSegment: 2
+  Style: "Ghibli"
+  Size: "1K"
+
+models:
+  - model: gpt-5.2
+    provider: openai
+    producerId: DocProducer
+  - model: bytedance/seedream/v4.5/text-to-image
+    provider: fal-ai
+    producerId: ImageProducer
+  - model: timeline/ordered
+    provider: renku
+    producerId: TimelineComposer
+    config:
+      tracks: ["Image"]
+      masterTrack:
+        kind: Image
+      numTracks: 1
