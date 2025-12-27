@@ -53,14 +53,17 @@
             }
           },
           "required": [
+            "Script",
             "NarrationType",
-            "UseNarrationAudio"
+            "UseNarrationAudio",
+            "ImagePrompts",
+            "VideoPrompt"
           ],
           "additionalProperties": false
         }
       }
     },
-    "required": ["Title", "Summary", "Segments"],
+    "required": ["Title", "Summary", "CharacterPrompt", "MusicPrompt", "Segments"],
     "additionalProperties": false
   }
 }
