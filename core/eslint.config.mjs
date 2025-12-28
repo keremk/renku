@@ -31,7 +31,7 @@ const eslintConfig = [
     },
   }),
   {
-    files: ['src/**/*.ts'],
+    files: ['src/**/*.ts', 'src/**/*.test.ts'],
     rules: {
       'prefer-const': 'error',
       'no-var': 'error',

@@ -4,7 +4,7 @@ import { falAdapter } from '../fal/adapter.js';
 import { replicateAdapter } from '../replicate/adapter.js';
 import { wavespeedAdapter } from '../wavespeed/adapter.js';
 import type { ProviderAdapter } from './provider-adapter.js';
-import type { HandlerInitContext, ProviderJobContext } from '../../types.js';
+import type { HandlerFactoryInit, ProviderJobContext } from '../../types.js';
 
 /**
  * Integration tests for the unified simulation flow.
@@ -12,7 +12,7 @@ import type { HandlerInitContext, ProviderJobContext } from '../../types.js';
  */
 
 // Test helper: Create init context with simulated mode
-function createSimulatedContext(overrides?: Partial<HandlerInitContext>): HandlerInitContext {
+function createSimulatedContext(overrides?: Partial<HandlerFactoryInit>): HandlerFactoryInit {
   return {
     descriptor: {
       provider: 'test-provider',

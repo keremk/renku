@@ -34,16 +34,16 @@ pnpm build:compositions      # Build compositions only
 pnpm build:providers         # Build providers only
 pnpm build:viewer            # Build viewer only
 
-# Type checking and linting
-pnpm check                           # TypeScript validation for all packages
-pnpm type-check                      # Type checking for all packages
-pnpm type-check:core                 # Type check core only
-pnpm type-check:cli                  # Type check CLI only
-pnpm type-check:compositions         # Type check compositions only
-pnpm lint                            # Lint core, providers, and CLI
-pnpm lint:core                       # Lint core only
-pnpm lint:cli                        # Lint CLI only
-pnpm lint:providers                  # Lint providers only
+# Type checking and linting (from root)
+pnpm check                           # Full validation: type-check + test:typecheck
+pnpm type-check                      # Type-check production code (all packages)
+pnpm test:typecheck                  # Type-check test files (all packages)
+pnpm lint                            # Lint all packages (includes test files)
+
+# Type checking and linting (per package)
+pnpm --filter @gorenku/core check:all       # Full check for core
+pnpm --filter @gorenku/providers check:all  # Full check for providers
+pnpm --filter @gorenku/cli check:all        # Full check for CLI
 
 # Testing
 pnpm test                            # Run tests for core, providers, and CLI
@@ -87,12 +87,36 @@ Use Vitest for unit and integration tests:
 - Core, providers, and CLI packages have Vitest configured
 - Test files use `.test.ts` or `.test.tsx` suffix
 - Run `pnpm test` to execute tests
-- Type checking is essential - run `pnpm check` before committing
+
+## Validation Workflow
+
+**IMPORTANT: Always run these checks after making changes:**
+
+1. **After modifying code in a specific package:**
+   ```bash
+   pnpm --filter @gorenku/<package> check:all
+   ```
+
+2. **Before finishing any task, run full validation:**
+   ```bash
+   pnpm check    # Type-checks both production and test files
+   pnpm lint     # Lints all files including tests
+   pnpm test     # Runs all tests
+   ```
+
+3. **What each check covers:**
+   - `type-check`: Production code only (excludes test files)
+   - `test:typecheck`: Test files only (uses separate tsconfig.vitest.json)
+   - `check`: Runs BOTH type-check and test:typecheck
+   - `lint`: Lints all files including test files
+   - `check:all` (per package): type-check + lint + test:typecheck
+
+**Note:** The main `tsconfig.json` excludes test files intentionally (for builds). Test files have separate `tsconfig.vitest.json` configs. Always run `pnpm check` (not just `pnpm type-check`) to validate everything.
 
 ## Important Notes
 
 - **NEVER commit changes on behalf of the user** - always let them handle commits
-- Always run `pnpm check` to validate TypeScript before committing
+- **Always run `pnpm check` AND `pnpm lint`** to validate all code before finishing
 - Each package is independently published - maintain semantic versioning
 - The core package is the foundation for all other packages
 - Use existing patterns from core/ as reference for new code

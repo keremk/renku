@@ -35,7 +35,9 @@
       "WebFetch(domain:vercel.com)",
       "Bash(pnpm lint:core:*)",
       "Bash(pnpm lint:*)",
-      "Bash(pnpm test:typecheck:*)"
+      "Bash(pnpm test:typecheck:*)",
+      "Bash(pnpm check:*)",
+      "Bash(pnpm check:all:*)"
     ],
     "deny": [],
     "ask": []

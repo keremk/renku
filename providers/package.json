@@ -20,6 +20,7 @@
     "type-check": "tsc --noEmit",
     "test": "vitest --config vitest.config.ts",
     "test:typecheck": "tsc --project tsconfig.vitest.json --noEmit",
+    "check:all": "pnpm type-check && pnpm lint && pnpm test:typecheck",
     "test:ui": "vitest --config vitest.config.ts --ui",
     "test:run": "vitest run --config vitest.config.ts",
     "test:integration": "vitest --config vitest.integration.config.ts",

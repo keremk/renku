@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createUnifiedHandler } from './schema-first-handler.js';
 import type { ProviderAdapter, ClientOptions, ProviderClient } from './provider-adapter.js';
-import type { HandlerInitContext, ProviderJobContext } from '../../types.js';
+import type { HandlerFactoryInit, ProviderJobContext } from '../../types.js';
 
 // Type for extras to avoid repetitive casting
 type TestExtras = {
@@ -61,7 +61,7 @@ function createMockAdapterWithSpy(invokeSpy: ReturnType<typeof vi.fn>): Provider
   };
 }
 
-function createMockInitContext(overrides?: Partial<HandlerInitContext>): HandlerInitContext {
+function createMockInitContext(overrides?: Partial<HandlerFactoryInit>): HandlerFactoryInit {
   return {
     descriptor: {
       provider: 'mock-provider',

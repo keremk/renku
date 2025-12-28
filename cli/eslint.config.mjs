@@ -39,7 +39,7 @@ const eslintConfig = [
 		},
 	}),
 	{
-		files: ['src/**/*.ts', 'src/**/*.tsx'],
+		files: ['src/**/*.ts', 'src/**/*.tsx', 'src/**/*.test.ts', 'src/**/*.test.tsx', 'tests/**/*.ts', 'tests/**/*.tsx'],
 		rules: {
 			'prefer-const': 'error',
 			'no-var': 'error',

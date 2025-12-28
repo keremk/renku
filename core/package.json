@@ -30,6 +30,7 @@
     "type-check": "tsc --noEmit",
     "test": "vitest",
     "test:typecheck": "tsc --project tsconfig.vitest.json --noEmit",
+    "check:all": "pnpm type-check && pnpm lint && pnpm test:typecheck",
     "test:ui": "vitest --ui",
     "test:run": "vitest run"
   },
