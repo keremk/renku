@@ -7,7 +7,6 @@ import type {
   BlueprintLoopDefinition,
   BlueprintTreeNode,
   ProducerConfig,
-  SubBlueprintDefinition,
 } from '../types.js';
 import { buildBlueprintGraph } from './canonical-graph.js';
 
@@ -44,7 +43,6 @@ describe('collectLoopDefinitions', () => {
       [{ name: 'Script', type: 'array', countInput: 'NumOfSegments' }],
       [],
       [],
-      [],
       [{ name: 'i', countInput: 'NumOfSegments' }],
     );
 
@@ -66,7 +64,6 @@ describe('collectLoopDefinitions', () => {
       [{ name: 'Item', type: 'array', countInput: 'Count' }],
       [],
       [],
-      [],
       [{ name: 'j', countInput: 'Count' }],
     );
 
@@ -76,7 +73,6 @@ describe('collectLoopDefinitions', () => {
       [],
       [],
       [],
-      [{ name: 'ChildBlueprint' }],
     );
 
     const tree = makeTreeNode(rootDoc, [], new Map([
@@ -100,7 +96,6 @@ describe('collectLoopDefinitions', () => {
       [],
       [],
       [],
-      [],
       [{ name: 'k', countInput: 'ImageCount' }],
     );
 
@@ -110,7 +105,6 @@ describe('collectLoopDefinitions', () => {
       [],
       [],
       [],
-      [{ name: 'Grandchild' }],
       [{ name: 'j', countInput: 'SegmentCount' }],
     );
 
@@ -120,7 +114,6 @@ describe('collectLoopDefinitions', () => {
       [],
       [],
       [],
-      [{ name: 'Child' }],
       [{ name: 'i', countInput: 'ChapterCount' }],
     );
 
@@ -176,7 +169,6 @@ describe('collectLoopDefinitions', () => {
       [],
       [],
       [],
-      [],
       [
         { name: 'i', countInput: 'SegmentCount' },
         { name: 'j', countInput: 'ImageCount' },
@@ -197,7 +189,6 @@ describe('collectLoopDefinitions', () => {
     const doc = makeBlueprintDocument(
       'WithOffset',
       [{ name: 'Count', type: 'int', required: true }],
-      [],
       [],
       [],
       [],
@@ -301,11 +292,6 @@ function createFixtureTree(): BlueprintTreeNode {
       { from: 'Size', to: 'ImageGenerator[i][j].Size' },
       { from: 'ImageGenerator[i][j].SegmentImage', to: 'SegmentImage[i][j]' },
     ],
-    [
-      { name: 'ScriptGenerator' },
-      { name: 'ImagePromptGenerator' },
-      { name: 'ImageGenerator' },
-    ],
   );
 
   return makeTreeNode(rootDocument, [], new Map<string, BlueprintTreeNode>([
@@ -321,7 +307,6 @@ function makeBlueprintDocument(
   artefacts: BlueprintArtefactDefinition[],
   producers: ProducerConfig[],
   edges: BlueprintEdgeDefinition[],
-  subBlueprints: SubBlueprintDefinition[] = [],
   loops?: BlueprintLoopDefinition[],
 ): BlueprintDocument {
   return {
@@ -329,8 +314,8 @@ function makeBlueprintDocument(
     inputs,
     artefacts,
     producers,
+    producerImports: [],
     edges,
-    subBlueprints,
     loops,
   };
 }

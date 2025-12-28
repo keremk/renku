@@ -33,7 +33,9 @@
       "Skill(frontend-design)",
       "WebFetch(domain:starlight-utils.pages.dev)",
       "WebFetch(domain:vercel.com)",
-      "Bash(pnpm lint:core:*)"
+      "Bash(pnpm lint:core:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm test:typecheck:*)"
     ],
     "deny": [],
     "ask": []

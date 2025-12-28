@@ -14,7 +14,7 @@ function makeChildBlueprint(): BlueprintDocument {
       { name: 'Prompt', type: 'array', countInput: 'ImagesPer' },
     ],
     producers: [],
-    subBlueprints: [],
+    producerImports: [],
     edges: [],
   };
 }
@@ -29,7 +29,7 @@ function makeRootBlueprint(extraEdges: Array<{ from: string; to: string }>): Blu
     ],
     artefacts: [],
     producers: [],
-    subBlueprints: [{ name: 'Child' }],
+    producerImports: [],
     edges: [
       ...extraEdges,
     ],

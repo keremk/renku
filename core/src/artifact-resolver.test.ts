@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { TextEncoder } from 'node:util';
 import { describe, expect, it } from 'vitest';
 import { extractArtifactKind, resolveArtifactsFromEventLog } from './artifact-resolver.js';

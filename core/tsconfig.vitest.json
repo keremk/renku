@@ -5,6 +5,7 @@
       "vitest/globals"
     ],
     "noEmit": true,
+    "rootDir": "..",
     "typeRoots": [
       "./node_modules/@types",
       "../node_modules/@types",
@@ -14,7 +15,9 @@
   },
   "include": [
     "src/**/*.ts",
-    "src/**/*.test.ts"
+    "src/**/*.test.ts",
+    "../cli/src/lib/config-assets.ts",
+    "../cli/src/lib/path.ts"
   ],
   "exclude": [
     "node_modules",

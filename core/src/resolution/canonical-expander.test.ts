@@ -18,7 +18,7 @@ describe('expandBlueprintGraph', () => {
       producers: [
         { name: 'ScriptProducer', provider: 'openai', model: 'gpt' },
       ],
-      subBlueprints: [],
+      producerImports: [],
       edges: [
         { from: 'InquiryPrompt', to: 'ScriptProducer' },
         { from: 'NumOfSegments', to: 'ScriptProducer' },
@@ -34,9 +34,7 @@ describe('expandBlueprintGraph', () => {
       ],
       artefacts: [],
       producers: [],
-      subBlueprints: [
-        { name: 'ScriptGenerator' },
-      ],
+      producerImports: [],
       edges: [
         { from: 'InquiryPrompt', to: 'ScriptGenerator.InquiryPrompt' },
         { from: 'NumOfSegments', to: 'ScriptGenerator.NumOfSegments' },

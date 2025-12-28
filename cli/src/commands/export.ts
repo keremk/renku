@@ -1,7 +1,6 @@
 import { resolve, dirname } from 'node:path';
 import { mkdir, rm, symlink } from 'node:fs/promises';
-import { getDefaultCliConfigPath, readCliConfig, type CliConfig } from '../lib/cli-config.js';
-import { formatMovieId } from './execute.js';
+import { getDefaultCliConfigPath, readCliConfig } from '../lib/cli-config.js';
 import { resolveTargetMovieId } from '../lib/movie-id-utils.js';
 import { loadCurrentManifest } from '../lib/friendly-view.js';
 import { readMovieMetadata } from '../lib/movie-metadata.js';

@@ -78,7 +78,9 @@ export function separateConfigOptions(config: OpenAiLlmConfig): {
   const providerSpecific: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(config)) {
-    if (value === undefined) continue;
+    if (value === undefined) {
+      continue;
+    }
 
     if (COMMON_CALL_SETTINGS.has(key)) {
       callSettings[key] = value;

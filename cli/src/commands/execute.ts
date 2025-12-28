@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { getDefaultCliConfigPath, readCliConfig } from '../lib/cli-config.js';
 import { generatePlan, type PendingArtefactDraft } from '../lib/planner.js';
-import { executeBuild, type BuildSummary, type ExecuteBuildResult } from '../lib/build.js';
+import { executeBuild, type BuildSummary } from '../lib/build.js';
 import { expandPath } from '../lib/path.js';
 import { confirmPlanExecution } from '../lib/interactive-confirm.js';
 import { displayPlanAndCosts } from '../lib/plan-display.js';

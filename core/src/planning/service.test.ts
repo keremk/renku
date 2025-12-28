@@ -25,7 +25,7 @@ function buildTestBlueprint(): BlueprintTreeNode {
       artefacts: [
         { name: 'NarrationScript', type: 'string', required: true },
       ],
-      subBlueprints: [],
+      producerImports: [],
       edges: [
         { from: 'InquiryPrompt', to: 'ScriptProducer' },
         { from: 'NumOfSegments', to: 'ScriptProducer' },
