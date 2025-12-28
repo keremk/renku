@@ -68,7 +68,6 @@ inputs:
     description: <string>  # Purpose and usage
     type: <string>         # Data type (required)
     required: <boolean>    # Whether mandatory (default: true)
-    default: <any>         # Default value (required if not required)
 
 artifacts:
   - name: <string>         # Artifact identifier in PascalCase (required)
@@ -218,8 +217,6 @@ inputs:
   - name: <string>         # Input identifier (required)
     description: <string>  # Purpose and usage
     type: <string>         # Data type (required)
-    required: <boolean>    # Whether mandatory
-    default: <any>         # Default value
     fanIn: <boolean>       # Is this a fan-in collection input
     dimensions: <string>   # Dimension labels (e.g., "segment")
 
@@ -252,17 +249,12 @@ meta:
 inputs:
   - name: InquiryPrompt
     type: string
-    required: true
   - name: Duration
     type: int
-    required: true
   - name: NumOfSegments
     type: int
-    required: true
   - name: Audience
     type: string
-    required: false
-    default: Adult
 
 artifacts:
   - name: MovieTitle
@@ -294,13 +286,10 @@ meta:
 inputs:
   - name: Prompt
     type: string
-    required: true
   - name: AspectRatio
     type: string
-    required: true
   - name: Resolution
     type: string
-    default: 480p
 
 artifacts:
   - name: SegmentVideo
@@ -341,7 +330,6 @@ inputs:
     fanIn: true
   - name: Duration
     type: int
-    required: true
 
 artifacts:
   - name: Timeline
@@ -450,13 +438,10 @@ meta:
 inputs:
   - name: InquiryPrompt
     type: string
-    required: true
   - name: NumOfSegments
     type: int
-    required: true
   - name: NumOfImagesPerSegment
     type: int
-    required: false
     default: 1
 
 artifacts:

@@ -84,7 +84,7 @@ Renku is a workflow orchestration system for generating long-form video content 
 |------|------------|
 | **Blueprint** | Top-level YAML that orchestrates a complete workflow. Defines inputs, artifacts, loops, producer imports, connections, and collectors. |
 | **Producer** | A reusable module that invokes one or more AI models. Producers are referenced by blueprints via the `producers:` section. |
-| **Input** | A user-provided value. Mark `required: true` unless a sensible `default` exists. Optional inputs **must** declare a default. |
+| **Input** | A user-provided value. Mark `required: true` unless a sensible `default` exists. For producers, required and defaults are read from the input JSON schemas. |
 | **Artifact** | An output produced by a producer. Can be scalar (single value) or array (indexed by loops). |
 | **Loop** | A named iteration dimension that defines how many times a producer executes. Loops enable parallel processing of segments. |
 | **Connection** | A data flow edge that wires outputs to inputs across the workflow graph. |
@@ -143,7 +143,6 @@ inputs:
     description: <string>  # Purpose and usage
     type: <string>         # Data type (required)
     required: <boolean>    # Whether mandatory (default: true)
-    default: <any>         # Default value (required if not required)
 
 artifacts:
   - name: <string>         # Artifact identifier in PascalCase (required)
@@ -187,7 +186,6 @@ collectors:
 | `name` | string | Yes | Identifier in PascalCase |
 | `type` | string | Yes | `string`, `int`, `image`, `audio`, `video`, `json`, `collection` |
 | `required` | boolean | No | Default: `true` |
-| `default` | any | Conditional | **Required** if `required: false` |
 | `description` | string | No | Documentation |
 
 **Types:**
@@ -342,8 +340,6 @@ inputs:
   - name: <string>         # Input identifier (required)
     description: <string>  # Purpose and usage
     type: <string>         # Data type (required)
-    required: <boolean>    # Whether mandatory
-    default: <any>         # Default value
     fanIn: <boolean>       # Whether this is a fan-in collection input
     dimensions: <string>   # Dimension labels for collections (e.g., "segment")
 
@@ -401,25 +397,19 @@ inputs:
   - name: InquiryPrompt
     description: The topic describing the desired movie script.
     type: string
-    required: true
   - name: Duration
     description: Desired narration duration in seconds.
     type: int
-    required: true
   - name: NumOfSegments
     description: Number of narration segments to produce.
     type: int
-    required: true
   - name: Audience
     description: Target audience for tone and vocabulary.
     type: string
-    required: false
     default: Adult
   - name: Language
     description: Narration language.
     type: string
-    required: false
-    default: en
 
 artifacts:
   - name: MovieTitle
@@ -463,21 +453,16 @@ inputs:
   - name: Prompt
     description: The prompt to generate the video.
     type: string
-    required: true
   - name: AspectRatio
     description: Aspect ratio such as 16:9 or 3:2.
     type: string
-    required: true
   - name: Resolution
     description: The video resolution in 480p, 720p, 1080p
     type: string
-    required: false
     default: 480p
   - name: SegmentDuration
     description: The video segment's duration in seconds.
     type: int
-    required: false
-    default: 10
 
 artifacts:
   - name: SegmentVideo
@@ -523,16 +508,12 @@ inputs:
   - name: TextInput
     description: Text to synthesize.
     type: string
-    required: true
   - name: VoiceId
     description: Voice preset identifier for the provider.
     type: string
-    required: true
   - name: Emotion
     description: Optional emotion hint.
     type: string
-    required: false
-    default: neutral
 
 artifacts:
   - name: SegmentAudio
@@ -586,12 +567,10 @@ inputs:
   - name: Music
     description: Background music clips that score the movie.
     type: audio
-    required: true
     fanIn: true
   - name: Duration
     description: Total duration of the movie in seconds.
     type: int
-    required: true
 
 artifacts:
   - name: Timeline
@@ -1422,7 +1401,6 @@ Confirm:
 | Planner dimension error | Mismatched dimensions in connection | Verify dimensions match between source/target |
 | Blueprint validation error | `countInputOffset` without `countInput` | Add `countInput` to loop/artifact |
 | Invalid selector syntax | Typo in loop name | Check loop names in `loops:` section |
-| Loader error | Optional input without default | Add `default:` to optional inputs |
 | Missing artifacts | Generated files in wrong location | Use `dist/` per package builds |
 
 ### Debugging Steps
