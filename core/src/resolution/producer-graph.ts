@@ -1,5 +1,5 @@
 import type { CanonicalBlueprint } from './canonical-expander.js';
-import { formatProducerScopedInputId, isCanonicalArtifactId, parseQualifiedProducerName } from '../parsing/canonical-ids.js';
+import { formatProducerScopedInputId, isCanonicalArtifactId, isCanonicalInputId, parseQualifiedProducerName } from '../parsing/canonical-ids.js';
 import type {
   BlueprintProducerOutputDefinition,
   BlueprintProducerSdkMappingField,
@@ -35,11 +35,16 @@ export function createProducerGraph(
   }
 
   // Build a map of edges by target producer for input-level conditions
+  // Edges may target Input nodes (e.g., Input:ImageProducer.Prompt[0][0])
+  // but we need to look up by Producer node ID (e.g., Producer:ImageProducer[0][0])
   const edgesByTargetProducer = new Map<string, CanonicalEdgeInstance[]>();
   for (const edge of canonical.edges) {
-    const list = edgesByTargetProducer.get(edge.to) ?? [];
-    list.push(edge);
-    edgesByTargetProducer.set(edge.to, list);
+    const producerId = extractProducerIdFromTarget(edge.to);
+    if (producerId) {
+      const list = edgesByTargetProducer.get(producerId) ?? [];
+      list.push(edge);
+      edgesByTargetProducer.set(producerId, list);
+    }
   }
 
   const nodes: ProducerGraphNode[] = [];
@@ -183,5 +188,71 @@ function resolveCatalogEntry(id: string, catalog: ProducerCatalog) {
   if (catalog[id as keyof ProducerCatalog]) {
     return catalog[id as keyof ProducerCatalog];
   }
+  return undefined;
+}
+
+/**
+ * Extracts the Producer node ID from an edge target.
+ * Handles both direct Producer targets and Input node targets.
+ *
+ * The canonical Input ID format is: "Input:<namespace>.<producerName>.<inputName>[indices]"
+ * We need to extract the producer name with proper indices.
+ *
+ * Examples:
+ * - "Producer:ImageProducer[0][0]" → "Producer:ImageProducer[0][0]"
+ * - "Input:ImageProducer.Prompt[0][0]" → "Producer:ImageProducer[0][0]"
+ * - "Input:Namespace.Producer.InputName[1][2]" → "Producer:Namespace.Producer[1][2]"
+ * - "Artifact:..." → undefined (not a producer target)
+ */
+function extractProducerIdFromTarget(target: string): string | undefined {
+  // If it's already a Producer ID, return as-is
+  if (target.startsWith('Producer:')) {
+    return target;
+  }
+
+  // If it's an Input ID, extract the producer portion
+  if (isCanonicalInputId(target)) {
+    const body = target.slice('Input:'.length);
+    // Body format: "<namespace>.<producerName>.<inputName>[indices]"
+    // The indices are at the END, after the input name
+    // Example: "ImageProducer.Prompt[0][0]"
+    //   - Producer name: "ImageProducer"
+    //   - Input name: "Prompt"
+    //   - Indices: "[0][0]"
+
+    // Extract indices from the end
+    let indicesStart = body.length;
+    let depth = 0;
+    for (let i = body.length - 1; i >= 0; i--) {
+      const char = body[i];
+      if (char === ']') {
+        depth++;
+        if (depth === 1) {
+          // Starting a new bracket group from the end
+          indicesStart = i + 1;
+        }
+      } else if (char === '[') {
+        depth--;
+        if (depth === 0) {
+          // Found the start of this bracket group
+          indicesStart = i;
+        }
+      } else if (depth === 0) {
+        // We've moved past all trailing brackets
+        break;
+      }
+    }
+
+    const indices = body.slice(indicesStart);
+    const bodyWithoutIndices = body.slice(0, indicesStart);
+
+    // Now find the last dot to separate producer from input name
+    const lastDotIndex = bodyWithoutIndices.lastIndexOf('.');
+    if (lastDotIndex > 0) {
+      const producerPart = bodyWithoutIndices.slice(0, lastDotIndex);
+      return `Producer:${producerPart}${indices}`;
+    }
+  }
+
   return undefined;
 }

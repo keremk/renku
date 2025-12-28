@@ -630,6 +630,19 @@ function collapseInputNodes(
     }
   };
 
+  // Build a map to propagate conditions from inbound edges to outbound edges
+  // when Input nodes are collapsed. Key = input node ID, Value = conditions from inbound edge
+  const conditionsFromInbound = new Map<string, { conditions: CanonicalEdgeInstance['conditions']; indices: CanonicalEdgeInstance['indices'] }>();
+  for (const edge of edges) {
+    if (edge.conditions) {
+      const targetNode = nodeById.get(edge.to);
+      if (targetNode?.type === 'Input') {
+        // Store conditions from the inbound edge to this Input node
+        conditionsFromInbound.set(edge.to, { conditions: edge.conditions, indices: edge.indices });
+      }
+    }
+  }
+
   const resolvedEdges: CanonicalEdgeInstance[] = [];
   for (const edge of edges) {
     const normalizedFrom = normalizeId(edge.from);
@@ -641,12 +654,31 @@ function collapseInputNodes(
     if (normalizedFrom === normalizedTo) {
       continue;
     }
+
+    // Propagate conditions from collapsed Input nodes
+    // When an edge goes FROM an Input node that was collapsed, check if that
+    // Input had inbound edges with conditions and propagate them
+    let edgeConditions = edge.conditions;
+    let edgeIndices = edge.indices;
+    if (!edgeConditions) {
+      const sourceNode = nodeById.get(edge.from);
+      if (sourceNode?.type === 'Input' && normalizedFrom !== edge.from) {
+        // The source Input node was collapsed (aliased to something else)
+        // Check if it had inbound conditions that should propagate
+        const inherited = conditionsFromInbound.get(edge.from);
+        if (inherited) {
+          edgeConditions = inherited.conditions;
+          edgeIndices = inherited.indices ?? edgeIndices;
+        }
+      }
+    }
+
     resolvedEdges.push({
       from: normalizedFrom,
       to: normalizedTo,
       note: edge.note,
-      conditions: edge.conditions,
-      indices: edge.indices,
+      conditions: edgeConditions,
+      indices: edgeIndices,
     });
   }
 

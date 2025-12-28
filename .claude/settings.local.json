@@ -37,7 +37,9 @@
       "Bash(pnpm lint:*)",
       "Bash(pnpm test:typecheck:*)",
       "Bash(pnpm check:*)",
-      "Bash(pnpm check:all:*)"
+      "Bash(pnpm check:all:*)",
+      "Bash(pnpm --filter @gorenku/core type-check:*)",
+      "Bash(pnpm --filter @gorenku/core test)"
     ],
     "deny": [],
     "ask": []

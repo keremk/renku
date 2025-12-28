@@ -1,12 +1,12 @@
 import { Buffer } from 'node:buffer';
 import { resolveArtifactsFromEventLog, readBlob } from './artifact-resolver.js';
-import { isCanonicalArtifactId } from './canonical-ids.js';
+import { formatCanonicalArtifactId, isCanonicalArtifactId } from './canonical-ids.js';
 import type { EventLog } from './event-log.js';
 import { hashInputs } from './event-log.js';
 import { createManifestService, type ManifestService } from './manifest.js';
 import type { StorageContext } from './storage.js';
 import { persistBlobToStorage } from './blob-utils.js';
-import { isBlobRef } from './types.js';
+import { isBlobRef, type EdgeConditionClause, type EdgeConditionDefinition, type EdgeConditionGroup } from './types.js';
 import { evaluateInputConditions, type ConditionEvaluationContext } from './condition-evaluator.js';
 import {
   type ArtefactEvent,
@@ -226,9 +226,8 @@ async function executeJob(
       };
       const conditionResults = evaluateInputConditions(inputConditions, conditionContext);
 
-      // Determine which inputs are conditional vs unconditional
+      // Determine which inputs are conditional
       const conditionalInputIds = new Set(Object.keys(inputConditions));
-      const unconditionalInputs = job.inputs.filter((id) => !conditionalInputIds.has(id));
 
       // Check if any conditional inputs are satisfied
       let anySatisfied = false;
@@ -239,8 +238,9 @@ async function executeJob(
         }
       }
 
-      // If all inputs are conditional and none are satisfied, skip the job
-      if (unconditionalInputs.length === 0 && !anySatisfied) {
+      // If there are conditional inputs but none are satisfied, skip the job
+      // Unconditional inputs (like provider, model) don't prevent skipping
+      if (!anySatisfied) {
         const completedAt = clock.now();
         logger.info?.('runner.job.skipped', {
           movieId,
@@ -626,7 +626,83 @@ function collectResolvedArtifactIds(job: JobDescriptor): string[] {
       }
     }
   }
+  // Also collect base artifacts needed for condition evaluation
+  const inputConditions = job.context?.inputConditions;
+  if (inputConditions) {
+    for (const conditionInfo of Object.values(inputConditions)) {
+      const artifactId = extractConditionArtifactId(conditionInfo.condition);
+      if (artifactId) {
+        ids.add(artifactId);
+      }
+    }
+  }
   return Array.from(ids);
+}
+
+/**
+ * Extracts the base artifact ID from a condition definition.
+ * The condition path format is "Producer.ArtifactName.FieldPath..."
+ * Returns "Artifact:Producer.ArtifactName"
+ */
+function extractConditionArtifactId(
+  condition: EdgeConditionDefinition,
+): string | null {
+  // Handle array of conditions
+  if (Array.isArray(condition)) {
+    for (const item of condition) {
+      const result = extractConditionArtifactIdFromItem(item);
+      if (result) {
+        return result;
+      }
+    }
+    return null;
+  }
+  return extractConditionArtifactIdFromItem(condition);
+}
+
+function extractConditionArtifactIdFromItem(
+  item: EdgeConditionClause | EdgeConditionGroup,
+): string | null {
+  // Handle groups (all/any)
+  if ('all' in item && item.all) {
+    for (const clause of item.all) {
+      const result = extractConditionArtifactIdFromClause(clause);
+      if (result) {
+        return result;
+      }
+    }
+  }
+  if ('any' in item && item.any) {
+    for (const clause of item.any) {
+      const result = extractConditionArtifactIdFromClause(clause);
+      if (result) {
+        return result;
+      }
+    }
+  }
+  // Handle single clause
+  if ('when' in item) {
+    return extractConditionArtifactIdFromClause(item as EdgeConditionClause);
+  }
+  return null;
+}
+
+function extractConditionArtifactIdFromClause(
+  clause: EdgeConditionClause,
+): string | null {
+  const whenPath = clause.when;
+  if (!whenPath) {
+    return null;
+  }
+
+  // Split by '.' and take first two segments (Producer.ArtifactName)
+  const segments = whenPath.split('.');
+  if (segments.length < 2) {
+    return null;
+  }
+
+  const artifactPath = segments.slice(0, 2).join('.');
+  return formatCanonicalArtifactId([], artifactPath);
 }
 
 /**

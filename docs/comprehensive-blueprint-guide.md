@@ -11,15 +11,16 @@ This comprehensive guide explains how to author Renku blueprints: the YAML schem
 3. [Blueprint YAML Reference](#blueprint-yaml-reference)
 4. [Producer YAML Reference](#producer-yaml-reference)
 5. [Connections](#connections)
-6. [Loops and Dimensions](#loops-and-dimensions)
-7. [Collectors and Fan-In](#collectors-and-fan-in)
-8. [Canonical IDs](#canonical-ids)
-9. [Planner and Runner Internals](#planner-and-runner-internals)
-10. [Input Files Reference](#input-files-reference)
-11. [Validation Rules & Error Messages](#validation-rules--error-messages)
-12. [Common Patterns](#common-patterns)
-13. [Debugging and Testing](#debugging-and-testing)
-14. [Directory Structure & File Naming](#directory-structure--file-naming)
+6. [Conditional Connections](#conditional-connections)
+7. [Loops and Dimensions](#loops-and-dimensions)
+8. [Collectors and Fan-In](#collectors-and-fan-in)
+9. [Canonical IDs](#canonical-ids)
+10. [Planner and Runner Internals](#planner-and-runner-internals)
+11. [Input Files Reference](#input-files-reference)
+12. [Validation Rules & Error Messages](#validation-rules--error-messages)
+13. [Common Patterns](#common-patterns)
+14. [Debugging and Testing](#debugging-and-testing)
+15. [Directory Structure & File Naming](#directory-structure--file-naming)
 
 ---
 
@@ -167,7 +168,21 @@ producers:
 connections:
   - from: <string>         # Source reference (required)
     to: <string>           # Target reference (required)
+    if: <string>           # Condition name for conditional execution
     note: <string>         # Optional documentation
+
+conditions:
+  <conditionName>:
+    when: <string>         # Path to artifact field (e.g., Producer.Artifact.Field[dim])
+    is: <any>              # Equals this value
+    isNot: <any>           # Does not equal this value
+    contains: <string>     # String contains value
+    greaterThan: <number>  # Greater than
+    lessThan: <number>     # Less than
+    exists: <boolean>      # Field exists and is truthy
+    matches: <string>      # Regex pattern
+    all: <array>           # AND: all sub-conditions must pass
+    any: <array>           # OR: at least one sub-condition must pass
 
 collectors:
   - name: <string>         # Collector identifier (required)
@@ -679,6 +694,155 @@ When the planner resolves connections:
 3. Extracts node name and dimension selectors
 4. Aligns dimensions between source and target
 5. Expands to concrete instances based on loop sizes
+
+### Conditional Connections
+
+Connections can be made conditional based on runtime values from upstream artifacts. This enables dynamic workflow branching where different producers execute depending on the data produced earlier in the pipeline.
+
+#### Defining Conditions
+
+Define named conditions in the `conditions:` section of your blueprint:
+
+```yaml
+conditions:
+  isImageNarration:
+    when: DocProducer.VideoScript.Segments[segment].NarrationType
+    is: "ImageNarration"
+  isAudioNeeded:
+    any:
+      - when: DocProducer.VideoScript.Segments[segment].NarrationType
+        is: "TalkingHead"
+      - when: DocProducer.VideoScript.Segments[segment].UseNarrationAudio
+        is: true
+  isTalkingHead:
+    when: DocProducer.VideoScript.Segments[segment].NarrationType
+    is: "TalkingHead"
+```
+
+#### Condition Path Format
+
+The `when` field references a path to a value in an upstream artifact:
+
+```
+<Producer>.<Artifact>.<FieldPath>[dimension]
+```
+
+**Components:**
+- **Producer**: The producer that creates the artifact (e.g., `DocProducer`)
+- **Artifact**: The artifact name (e.g., `VideoScript`)
+- **FieldPath**: Dot-separated path to the field (e.g., `Segments[segment].NarrationType`)
+- **Dimensions**: Use dimension placeholders like `[segment]` for per-instance evaluation
+
+The first two segments (`Producer.Artifact`) form the artifact ID. The remaining path navigates into the JSON structure of that artifact.
+
+#### Condition Operators
+
+| Operator | Description | Example |
+|----------|-------------|---------|
+| `is` | Equals the specified value | `is: "ImageNarration"` |
+| `isNot` | Does not equal the specified value | `isNot: "Draft"` |
+| `contains` | String contains the value | `contains: "narration"` |
+| `greaterThan` | Greater than (numeric) | `greaterThan: 10` |
+| `lessThan` | Less than (numeric) | `lessThan: 100` |
+| `greaterOrEqual` | Greater than or equal (numeric) | `greaterOrEqual: 5` |
+| `lessOrEqual` | Less than or equal (numeric) | `lessOrEqual: 30` |
+| `exists` | Field exists and is truthy | `exists: true` |
+| `matches` | Matches a regular expression | `matches: "^video.*"` |
+
+#### Condition Groups
+
+Combine multiple conditions with `all` (AND) or `any` (OR):
+
+```yaml
+conditions:
+  # OR: At least one condition must be true
+  needsAudio:
+    any:
+      - when: DocProducer.VideoScript.Segments[segment].NarrationType
+        is: "TalkingHead"
+      - when: DocProducer.VideoScript.Segments[segment].UseNarrationAudio
+        is: true
+
+  # AND: All conditions must be true
+  isHighQualityLongSegment:
+    all:
+      - when: DocProducer.VideoScript.Segments[segment].Quality
+        is: "high"
+      - when: DocProducer.VideoScript.Segments[segment].Duration
+        greaterThan: 10
+```
+
+#### Using Conditions on Connections
+
+Reference a named condition using the `if:` attribute on a connection:
+
+```yaml
+connections:
+  # ImageProducer only runs when NarrationType is "ImageNarration"
+  - from: DocProducer.VideoScript.Segments[segment].ImagePrompts[image]
+    to: ImageProducer[segment][image].Prompt
+    if: isImageNarration
+
+  - from: AspectRatio
+    to: ImageProducer[segment][image].AspectRatio
+    if: isImageNarration
+
+  # AudioProducer runs when TalkingHead OR UseNarrationAudio is true
+  - from: DocProducer.VideoScript.Segments[segment].Script
+    to: AudioProducer[segment].TextInput
+    if: isAudioNeeded
+```
+
+**Important:** Apply the same condition to ALL connections targeting a producer if you want to conditionally skip that producer entirely.
+
+#### Runtime Behavior
+
+When a condition is evaluated at runtime:
+
+1. **Condition Evaluation**: The runner resolves the artifact data and evaluates the condition for each dimension instance
+2. **Input Filtering**: If a condition is not satisfied, that input is filtered out for that instance
+3. **Job Skipping**: If ALL conditional inputs for a job instance are not satisfied, the job is **skipped**
+4. **Artifact Absence**: Skipped jobs produce no artifacts - those artifact IDs are absent from the manifest
+
+**Example Scenario:**
+
+Given 3 segments with `NarrationType` values: `["ImageNarration", "TalkingHead", "ImageNarration"]`
+
+| Producer | Index | Condition | Result |
+|----------|-------|-----------|--------|
+| `ImageProducer` | `[0][*]` | `isImageNarration` | ✅ Executes |
+| `ImageProducer` | `[1][*]` | `isImageNarration` | ❌ Skipped |
+| `ImageProducer` | `[2][*]` | `isImageNarration` | ✅ Executes |
+| `AudioProducer` | `[0]` | `isAudioNeeded` | Depends on `UseNarrationAudio` |
+| `AudioProducer` | `[1]` | `isAudioNeeded` | ✅ Executes (TalkingHead) |
+| `AudioProducer` | `[2]` | `isAudioNeeded` | Depends on `UseNarrationAudio` |
+| `VideoProducer` | `[0]` | `isTalkingHead` | ❌ Skipped |
+| `VideoProducer` | `[1]` | `isTalkingHead` | ✅ Executes |
+| `VideoProducer` | `[2]` | `isTalkingHead` | ❌ Skipped |
+
+#### Blueprint Schema Addition
+
+```yaml
+conditions:
+  <conditionName>:
+    when: <string>         # Path to artifact field
+    is: <any>              # Equals this value
+    isNot: <any>           # Does not equal this value
+    contains: <string>     # String contains value
+    greaterThan: <number>  # Greater than
+    lessThan: <number>     # Less than
+    greaterOrEqual: <number>  # Greater than or equal
+    lessOrEqual: <number>  # Less than or equal
+    exists: <boolean>      # Field exists and is truthy
+    matches: <string>      # Regex pattern
+    all: <array>           # AND: all sub-conditions must pass
+    any: <array>           # OR: at least one sub-condition must pass
+
+connections:
+  - from: <string>
+    to: <string>
+    if: <string>           # Optional: condition name
+```
 
 ---
 

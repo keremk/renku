@@ -15,10 +15,6 @@ inputs:
     description: Duration of each segment in seconds.
     type: int
     required: true
-  - name: SegmentDuration
-    description: Duration of each segment in seconds.
-    type: int
-    required: true
   - name: NumOfSegments
     description: Number of segments.
     type: int
@@ -54,6 +50,10 @@ artifacts:
     description: Generated audio (conditional).
     type: array
     itemType: audio
+  - name: SegmentVideo
+    description: Generated video (conditional).
+    type: array
+    itemType: video
 
 loops:
   - name: segment
@@ -71,7 +71,7 @@ conditions:
     any:
       - when: DocProducer.VideoScript.Segments[segment].NarrationType
         is: "TalkingHead"
-      - when: DocProducer.VideoScript.Segments[segment].UseNarrtionAudio
+      - when: DocProducer.VideoScript.Segments[segment].UseNarrationAudio
         is: true
   isTalkingHead:
     when: DocProducer.VideoScript.Segments[segment].NarrationType

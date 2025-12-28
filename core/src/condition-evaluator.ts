@@ -222,10 +222,17 @@ function evaluateConditionClause(
 /**
  * Resolves a condition path to an artifact ID and field path.
  *
- * Example: "Documentary.VideoScript.Segments[segment].NarrationType"
+ * The condition path format is: "Producer.ArtifactName.FieldPath"
+ * where Producer.ArtifactName identifies the artifact and FieldPath is
+ * the path within the artifact's JSON content.
+ *
+ * Example: "DocProducer.VideoScript.Segments[segment].NarrationType"
  * with indices { segment: 2 } becomes:
- * - artifactId: "Artifact:Documentary.VideoScript.Segments[2]"
- * - fieldPath: ["NarrationType"]
+ * - artifactId: "Artifact:DocProducer.VideoScript"
+ * - fieldPath: ["Segments", "[2]", "NarrationType"]
+ *
+ * The artifact ID is always the first two segments (Producer.ArtifactName).
+ * Everything after is the field path within that artifact.
  */
 function resolveConditionPath(
   whenPath: string,
@@ -243,30 +250,21 @@ function resolveConditionPath(
     );
   }
 
-  // Split the path into segments
-  const segments = resolvedPath.split('.');
+  // Split the path, keeping bracket indices as separate segments
+  // e.g., "DocProducer.VideoScript.Segments[1].NarrationType"
+  // becomes ["DocProducer", "VideoScript", "Segments", "[1]", "NarrationType"]
+  const segments = splitPathWithIndices(resolvedPath);
 
-  // Find the artifact portion (everything up to and including the last indexed segment)
-  // and the field portion (everything after)
-  let lastIndexedSegmentIdx = -1;
-  for (let i = 0; i < segments.length; i++) {
-    if (segments[i]?.includes('[')) {
-      lastIndexedSegmentIdx = i;
-    }
+  // The artifact ID is the first two segments (Producer.ArtifactName)
+  // Everything after is the field path
+  if (segments.length < 2) {
+    // Not enough segments - treat whole thing as artifact
+    const artifactId = formatCanonicalArtifactId([], segments.join('.'));
+    return { artifactId, fieldPath: [] };
   }
 
-  let artifactPath: string;
-  let fieldPath: string[];
-
-  if (lastIndexedSegmentIdx >= 0) {
-    // Artifact path includes everything up to and including the last indexed segment
-    artifactPath = segments.slice(0, lastIndexedSegmentIdx + 1).join('.');
-    fieldPath = segments.slice(lastIndexedSegmentIdx + 1);
-  } else {
-    // No indexed segments - first segment is the artifact, rest is field path
-    artifactPath = segments[0] ?? '';
-    fieldPath = segments.slice(1);
-  }
+  const artifactPath = segments.slice(0, 2).join('.');
+  const fieldPath = segments.slice(2);
 
   // Format as canonical artifact ID
   const artifactId = formatCanonicalArtifactId([], artifactPath);
@@ -275,7 +273,50 @@ function resolveConditionPath(
 }
 
 /**
+ * Splits a path into segments, extracting bracket indices as separate segments.
+ * e.g., "Foo.Bar[1].Baz" => ["Foo", "Bar", "[1]", "Baz"]
+ */
+function splitPathWithIndices(path: string): string[] {
+  const segments: string[] = [];
+  let current = '';
+
+  for (let i = 0; i < path.length; i++) {
+    const char = path[i];
+
+    if (char === '.') {
+      if (current) {
+        segments.push(current);
+        current = '';
+      }
+    } else if (char === '[') {
+      if (current) {
+        segments.push(current);
+        current = '';
+      }
+      // Find matching ]
+      let bracketContent = '[';
+      i++;
+      while (i < path.length && path[i] !== ']') {
+        bracketContent += path[i];
+        i++;
+      }
+      bracketContent += ']';
+      segments.push(bracketContent);
+    } else {
+      current += char;
+    }
+  }
+
+  if (current) {
+    segments.push(current);
+  }
+
+  return segments;
+}
+
+/**
  * Gets a value at a nested path within an object.
+ * Handles both property names and bracket indices (e.g., "[1]").
  */
 function getValueAtPath(obj: unknown, path: string[]): unknown {
   let current: unknown = obj;
@@ -289,7 +330,18 @@ function getValueAtPath(obj: unknown, path: string[]): unknown {
       return undefined;
     }
 
-    current = (current as Record<string, unknown>)[segment];
+    // Check if this is a bracket index like "[1]"
+    const bracketMatch = /^\[(\d+)\]$/.exec(segment);
+    if (bracketMatch) {
+      const index = parseInt(bracketMatch[1]!, 10);
+      if (Array.isArray(current)) {
+        current = current[index];
+      } else {
+        return undefined;
+      }
+    } else {
+      current = (current as Record<string, unknown>)[segment];
+    }
   }
 
   return current;

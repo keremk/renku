@@ -91,6 +91,20 @@ producers:
 connections:
   - from: <string>         # Source reference (required)
     to: <string>           # Target reference (required)
+    if: <string>           # Condition name for conditional execution
+
+conditions:
+  <conditionName>:
+    when: <string>         # Path to artifact field (e.g., Producer.Artifact.Field[dim])
+    is: <any>              # Equals this value
+    isNot: <any>           # Does not equal this value
+    contains: <string>     # String contains value
+    greaterThan: <number>  # Greater than
+    lessThan: <number>     # Less than
+    exists: <boolean>      # Field exists and is truthy
+    matches: <string>      # Regex pattern
+    all: <array>           # AND: all sub-conditions must pass
+    any: <array>           # OR: at least one sub-condition must pass
 
 collectors:
   - name: <string>         # Collector identifier (required)
@@ -417,6 +431,110 @@ connections:
 ```
 
 See [JSON Artifacts](#json-artifacts) for full details on defining JSON artifacts with schemas.
+
+### Conditional Connections
+
+Connections can be made conditional based on runtime values from upstream artifacts. This enables dynamic workflow branching where different producers execute depending on the data produced earlier in the pipeline.
+
+#### Defining Conditions
+
+Define named conditions in the `conditions:` section of your blueprint:
+
+```yaml
+conditions:
+  isImageNarration:
+    when: DocProducer.VideoScript.Segments[segment].NarrationType
+    is: "ImageNarration"
+  isAudioNeeded:
+    any:
+      - when: DocProducer.VideoScript.Segments[segment].NarrationType
+        is: "TalkingHead"
+      - when: DocProducer.VideoScript.Segments[segment].UseNarrationAudio
+        is: true
+  isTalkingHead:
+    when: DocProducer.VideoScript.Segments[segment].NarrationType
+    is: "TalkingHead"
+```
+
+#### Condition Path Format
+
+The `when` field references a path to a value in an upstream artifact:
+
+```
+<Producer>.<Artifact>.<FieldPath>[dimension]
+```
+
+- **Producer**: The producer that creates the artifact (e.g., `DocProducer`)
+- **Artifact**: The artifact name (e.g., `VideoScript`)
+- **FieldPath**: Dot-separated path to the field (e.g., `Segments[segment].NarrationType`)
+- **Dimensions**: Use dimension placeholders like `[segment]` for per-instance evaluation
+
+#### Condition Operators
+
+| Operator | Description |
+|----------|-------------|
+| `is` | Equals the specified value |
+| `isNot` | Does not equal the specified value |
+| `contains` | String contains the value |
+| `greaterThan` | Greater than (numeric) |
+| `lessThan` | Less than (numeric) |
+| `greaterOrEqual` | Greater than or equal (numeric) |
+| `lessOrEqual` | Less than or equal (numeric) |
+| `exists` | Field exists and is truthy |
+| `matches` | Matches a regular expression |
+
+#### Condition Groups
+
+Combine multiple conditions with `all` (AND) or `any` (OR):
+
+```yaml
+conditions:
+  needsAudio:
+    any:
+      - when: DocProducer.VideoScript.Segments[segment].NarrationType
+        is: "TalkingHead"
+      - when: DocProducer.VideoScript.Segments[segment].UseNarrationAudio
+        is: true
+
+  isHighQuality:
+    all:
+      - when: DocProducer.VideoScript.Segments[segment].Quality
+        is: "high"
+      - when: DocProducer.VideoScript.Segments[segment].Duration
+        greaterThan: 10
+```
+
+#### Using Conditions on Connections
+
+Reference a named condition using the `if:` attribute:
+
+```yaml
+connections:
+  # ImageProducer only runs when NarrationType is "ImageNarration"
+  - from: DocProducer.VideoScript.Segments[segment].ImagePrompts[image]
+    to: ImageProducer[segment][image].Prompt
+    if: isImageNarration
+
+  # AudioProducer runs when TalkingHead OR UseNarrationAudio is true
+  - from: DocProducer.VideoScript.Segments[segment].Script
+    to: AudioProducer[segment].TextInput
+    if: isAudioNeeded
+```
+
+#### Runtime Behavior
+
+When a condition is evaluated at runtime:
+
+1. **Condition Evaluation**: The runner resolves the artifact data and evaluates the condition for each dimension instance
+2. **Input Filtering**: If a condition is not satisfied, that input is filtered out
+3. **Job Skipping**: If ALL conditional inputs for a job are not satisfied, the job is **skipped**
+4. **Artifact Absence**: Skipped jobs produce no artifacts - those artifact IDs are absent from the manifest
+
+**Example**: With 3 segments where `NarrationType = ["ImageNarration", "TalkingHead", "ImageNarration"]`:
+- `ImageProducer[0]` and `ImageProducer[2]` execute (ImageNarration)
+- `ImageProducer[1]` is skipped (TalkingHead)
+- `AudioProducer[1]` executes (TalkingHead)
+- `AudioProducer[0]` and `AudioProducer[2]` may be skipped (unless UseNarrationAudio=true)
 
 ---
 
