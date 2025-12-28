@@ -280,6 +280,107 @@ export interface BlueprintEdgeDefinition {
   from: string;
   to: string;
   note?: string;
+  /** Reference to a named condition defined in the conditions block */
+  if?: string;
+  /** Inline condition definition */
+  conditions?: EdgeConditionDefinition;
+}
+
+// === Condition Types ===
+
+/**
+ * Operators for condition evaluation.
+ */
+export type ConditionOperator =
+  | 'is'
+  | 'isNot'
+  | 'contains'
+  | 'greaterThan'
+  | 'lessThan'
+  | 'greaterOrEqual'
+  | 'lessOrEqual'
+  | 'exists'
+  | 'matches';
+
+/**
+ * A single condition clause.
+ * Specifies a path to an artifact field and an operator/value to compare.
+ */
+export interface EdgeConditionClause {
+  /** Path to artifact field with dimensions (e.g., "Producer.Output.Field[segment]") */
+  when: string;
+  /** Equality check */
+  is?: unknown;
+  /** Inequality check */
+  isNot?: unknown;
+  /** String/array contains check */
+  contains?: unknown;
+  /** Greater than comparison */
+  greaterThan?: number;
+  /** Less than comparison */
+  lessThan?: number;
+  /** Greater than or equal comparison */
+  greaterOrEqual?: number;
+  /** Less than or equal comparison */
+  lessOrEqual?: number;
+  /** Check if value exists (non-null/undefined) */
+  exists?: boolean;
+  /** Regex pattern to match against */
+  matches?: string;
+}
+
+/**
+ * Condition group with AND/OR logic.
+ */
+export interface EdgeConditionGroup {
+  /** All conditions must be true (AND) */
+  all?: EdgeConditionClause[];
+  /** Any condition must be true (OR) */
+  any?: EdgeConditionClause[];
+}
+
+/**
+ * A named condition definition (can be a clause or group).
+ */
+export type NamedConditionDefinition = EdgeConditionClause | EdgeConditionGroup;
+
+/**
+ * Map of condition name to definition.
+ */
+export type BlueprintConditionDefinitions = Record<string, NamedConditionDefinition>;
+
+/**
+ * Inline condition on an edge.
+ */
+export type EdgeConditionDefinition =
+  | EdgeConditionClause
+  | EdgeConditionClause[]
+  | EdgeConditionGroup
+  | (EdgeConditionClause | EdgeConditionGroup)[];
+
+// === Resolved Condition Types (after dimension expansion) ===
+
+/**
+ * Resolved condition for runtime evaluation.
+ * Contains the canonical artifact ID and field path.
+ */
+export interface ResolvedEdgeCondition {
+  /** Canonical artifact ID (e.g., "Artifact:Producer.Output[0]") */
+  sourceArtifactId: string;
+  /** Path within the artifact to access (e.g., ["NarrationType"]) */
+  fieldPath: string[];
+  /** The operator to apply */
+  operator: ConditionOperator;
+  /** The value to compare against */
+  compareValue: unknown;
+}
+
+/**
+ * Resolved condition group with AND/OR logic.
+ */
+export interface ResolvedEdgeConditionGroup {
+  logic: 'and' | 'or';
+  conditions: (ResolvedEdgeCondition | ResolvedEdgeConditionGroup)[];
 }
 
 /**
@@ -334,6 +435,8 @@ export interface BlueprintDocument {
   collectors?: BlueprintCollectorDefinition[];
   /** Loop dimension definitions for artifact iteration */
   loops?: BlueprintLoopDefinition[];
+  /** Named condition definitions for reuse across edges */
+  conditions?: BlueprintConditionDefinitions;
 }
 
 export interface BlueprintTreeNode {
@@ -371,6 +474,16 @@ export interface FanInMember {
   order?: number;
 }
 
+/**
+ * Condition info for a specific input edge.
+ */
+export interface InputConditionInfo {
+  /** The condition definition */
+  condition: EdgeConditionDefinition;
+  /** Dimension indices for resolving condition paths at runtime */
+  indices: Record<string, number>;
+}
+
 export interface ProducerJobContext {
   namespacePath: string[];
   indices: Record<string, number>;
@@ -383,6 +496,8 @@ export interface ProducerJobContext {
   outputs?: Record<string, BlueprintProducerOutputDefinition>;
   extras?: ProducerJobContextExtras;
   fanIn?: Record<string, FanInDescriptor>;
+  /** Conditions for each input (keyed by input ID) */
+  inputConditions?: Record<Id, InputConditionInfo>;
 }
 
 export interface JobDescriptor {
@@ -460,6 +575,8 @@ export interface ProducerGraphNode {
 export interface ProducerGraphEdge {
   from: Id;
   to: Id;
+  /** Resolved conditions for runtime evaluation */
+  conditions?: ResolvedEdgeConditionGroup;
 }
 
 export interface ProducerGraph {

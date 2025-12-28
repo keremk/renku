@@ -7,6 +7,7 @@ import { createManifestService, type ManifestService } from './manifest.js';
 import type { StorageContext } from './storage.js';
 import { persistBlobToStorage } from './blob-utils.js';
 import { isBlobRef } from './types.js';
+import { evaluateInputConditions, type ConditionEvaluationContext } from './condition-evaluator.js';
 import {
   type ArtefactEvent,
   type ArtefactEventStatus,
@@ -216,6 +217,74 @@ async function executeJob(
       storage,
       movieId,
     });
+
+    // Evaluate input conditions if present
+    const inputConditions = job.context?.inputConditions;
+    if (inputConditions && Object.keys(inputConditions).length > 0) {
+      const conditionContext: ConditionEvaluationContext = {
+        resolvedArtifacts,
+      };
+      const conditionResults = evaluateInputConditions(inputConditions, conditionContext);
+
+      // Determine which inputs are conditional vs unconditional
+      const conditionalInputIds = new Set(Object.keys(inputConditions));
+      const unconditionalInputs = job.inputs.filter((id) => !conditionalInputIds.has(id));
+
+      // Check if any conditional inputs are satisfied
+      let anySatisfied = false;
+      for (const [, result] of conditionResults) {
+        if (result.satisfied) {
+          anySatisfied = true;
+          break;
+        }
+      }
+
+      // If all inputs are conditional and none are satisfied, skip the job
+      if (unconditionalInputs.length === 0 && !anySatisfied) {
+        const completedAt = clock.now();
+        logger.info?.('runner.job.skipped', {
+          movieId,
+          revision,
+          jobId: job.jobId,
+          producer: job.producer,
+          layerIndex,
+          reason: 'all conditional inputs unsatisfied',
+        });
+        notifications?.publish({
+          type: 'warning',
+          message: `Job ${job.jobId} [${job.producer}] skipped (conditions not met).`,
+          timestamp: completedAt,
+        });
+
+        // Return skipped result without producing artifacts
+        return {
+          jobId: job.jobId,
+          producer: job.producer,
+          status: 'skipped',
+          artefacts: [],
+          diagnostics: { reason: 'conditions_not_met' },
+          layerIndex,
+          attempt,
+          startedAt,
+          completedAt,
+        };
+      }
+
+      // Filter out unsatisfied conditional inputs from the job
+      const satisfiedInputs = job.inputs.filter((inputId) => {
+        if (!conditionalInputIds.has(inputId)) {
+          return true; // Unconditional inputs always included
+        }
+        const result = conditionResults.get(inputId);
+        return result?.satisfied ?? false;
+      });
+
+      // Update job with filtered inputs
+      job = {
+        ...job,
+        inputs: satisfiedInputs,
+      };
+    }
 
     // Merge resolved artifacts into job context
     const enrichedJob = mergeResolvedArtifacts(job, resolvedArtifacts);

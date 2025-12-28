@@ -4,11 +4,13 @@ import type {
   BlueprintProducerOutputDefinition,
   BlueprintProducerSdkMappingField,
   FanInDescriptor,
+  InputConditionInfo,
   ProducerCatalog,
   ProducerGraph,
   ProducerGraphEdge,
   ProducerGraphNode,
 } from '../types.js';
+import type { CanonicalEdgeInstance } from './canonical-expander.js';
 
 export function createProducerGraph(
   canonical: CanonicalBlueprint,
@@ -25,6 +27,20 @@ export function createProducerGraph(
 ): ProducerGraph {
   const nodeMap = new Map(canonical.nodes.map((node) => [node.id, node]));
   const artefactProducers = computeArtefactProducers(canonical, nodeMap);
+
+  // Build a map of (from, to) -> edge for looking up conditions
+  const edgesByKey = new Map<string, CanonicalEdgeInstance>();
+  for (const edge of canonical.edges) {
+    edgesByKey.set(`${edge.from}->${edge.to}`, edge);
+  }
+
+  // Build a map of edges by target producer for input-level conditions
+  const edgesByTargetProducer = new Map<string, CanonicalEdgeInstance[]>();
+  for (const edge of canonical.edges) {
+    const list = edgesByTargetProducer.get(edge.to) ?? [];
+    list.push(edge);
+    edgesByTargetProducer.set(edge.to, list);
+  }
 
   const nodes: ProducerGraphNode[] = [];
   const edges: ProducerGraphEdge[] = [];
@@ -94,6 +110,18 @@ export function createProducerGraph(
       option.sdkMapping ?? node.producer?.sdkMapping,
     );
 
+    // Collect input conditions from edges targeting this producer
+    const inputConditions: Record<string, InputConditionInfo> = {};
+    const incomingEdges = edgesByTargetProducer.get(node.id) ?? [];
+    for (const edge of incomingEdges) {
+      if (edge.conditions && edge.indices) {
+        inputConditions[edge.from] = {
+          condition: edge.conditions,
+          indices: edge.indices,
+        };
+      }
+    }
+
     const nodeContext = {
       namespacePath: node.namespacePath,
       indices: node.indices,
@@ -104,6 +132,7 @@ export function createProducerGraph(
       sdkMapping: canonicalSdkMapping,
       outputs: option.outputs ?? node.producer?.outputs,
       fanIn: Object.keys(fanInForJob).length > 0 ? fanInForJob : undefined,
+      inputConditions: Object.keys(inputConditions).length > 0 ? inputConditions : undefined,
       extras: {
         schema: {
           input: option.inputSchema,

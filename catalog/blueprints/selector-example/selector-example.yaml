@@ -19,7 +19,7 @@ inputs:
     description: The number of segments to divide the movie into.
     type: int
     required: true
-  - name: NumOfImagesPerNarrative
+  - name: NumOfImagesPerSegment
     description: Number of images to generate per narrative text.
     type: int
     required: false
@@ -71,8 +71,8 @@ loops:
     countInput: NumOfImagesPerNarrative
 
 producers:
-  - name: DocumentaryProducer
-    path: ../../producers/script/documentary-producer.yaml
+  - name: Documentary
+    path: ../../producers/documentary-prompt/documentary-prompt.yaml
   - name: ImageProducer
     path: ../../producers/image/image.yaml
     loop: segment.image
@@ -87,24 +87,23 @@ producers:
 
 connections:
   - from: InquiryPrompt
-    to: DocumentaryProducer.InquiryPrompt
+    to: Documentary.InquiryPrompt
   - from: Duration
-    to: DocumentaryProducer.Duration
+    to: Documentary.Duration
   - from: NumOfSegments
-    to: DocumentaryProducer.NumOfSegments
+    to: Documentary.NumOfSegments
+  - from: NumOfImagesPerSegment
+    to: Documentary.NumOfImagesPerSegment
   - from: Style
-    to: DocumentaryProducer.Style
+    to: Documentary.Style
 
-  - from: DocumentaryProducer.NarrationScript[segment]
-    to: ImagePromptProducer[segment].NarrativeText
-  - from: DocumentaryProducer.MovieSummary
-    to: ImagePromptProducer[segment].OverallSummary
-  - from: Style
-    to: ImagePromptProducer[segment].Style
-  - from: Audience
-    to: ImagePromptProducer[segment].Audience
-  - from: NumOfImagesPerNarrative
-    to: ImagePromptProducer[segment].NumOfImagesPerNarrative
+  - from: Documentary.VideoScript.Segments[segment].ImagePrompts[image]
+    to: ImageProducer[segment][image].Prompt
+    conditions:
+      - when: Documentary.VideoScript.Segments[segment].NarrationType
+        is: "ImageNarration"
+  
+
 
   - from: ImagePromptProducer.ImagePrompt[segment][image]
     to: ImageProducer[segment][image].Prompt
@@ -117,7 +116,7 @@ connections:
   - from: ImageProducer[segment][image].SegmentImage
     to: TimelineComposer.ImageSegments
 
-  - from: DocumentaryProducer.NarrationScript[segment]
+  - from: Documentary.NarrationScript[segment]
     to: AudioProducer[segment].TextInput
   - from: VoiceId
     to: AudioProducer[segment].VoiceId

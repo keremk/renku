@@ -88,6 +88,13 @@ Use Vitest for unit and integration tests:
 - Test files use `.test.ts` or `.test.tsx` suffix
 - Run `pnpm test` to execute tests
 
+## Testing Requirements
+
+- **Always write tests for new functionality** - Unit tests for new modules, integration tests for complex flows
+- New source files should have corresponding `.test.ts` files
+- Test all exported functions and edge cases
+- Run `pnpm test` to verify tests pass before finishing
+
 ## Validation Workflow
 
 **IMPORTANT: Always run these checks after making changes:**

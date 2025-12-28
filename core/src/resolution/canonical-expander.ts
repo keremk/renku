@@ -8,6 +8,7 @@ import type {
   BlueprintArtefactDefinition,
   BlueprintInputDefinition,
   BlueprintLoopDefinition,
+  EdgeConditionDefinition,
   ProducerConfig,
   FanInDescriptor,
 } from '../types.js';
@@ -37,6 +38,10 @@ export interface CanonicalEdgeInstance {
   from: string;
   to: string;
   note?: string;
+  /** Conditions that must be satisfied for this edge to be active (evaluated at runtime) */
+  conditions?: EdgeConditionDefinition;
+  /** The dimension indices for this edge instance (for resolving condition paths) */
+  indices?: Record<string, number>;
 }
 
 export interface CanonicalBlueprint {
@@ -370,10 +375,16 @@ function expandEdges(
         if (fromNode.id === toNode.id) {
           continue;
         }
+        // Merge indices from both nodes for condition resolution
+        const mergedIndices = edge.conditions
+          ? { ...fromNode.indices, ...toNode.indices }
+          : undefined;
         results.push({
           from: fromNode.id,
           to: toNode.id,
           note: edge.note,
+          conditions: edge.conditions,
+          indices: mergedIndices,
         });
       }
     }
@@ -630,7 +641,13 @@ function collapseInputNodes(
     if (normalizedFrom === normalizedTo) {
       continue;
     }
-    resolvedEdges.push({ from: normalizedFrom, to: normalizedTo, note: edge.note });
+    resolvedEdges.push({
+      from: normalizedFrom,
+      to: normalizedTo,
+      note: edge.note,
+      conditions: edge.conditions,
+      indices: edge.indices,
+    });
   }
 
   for (const node of nodes) {

@@ -4,6 +4,7 @@ import type {
   BlueprintInputDefinition,
   BlueprintLoopDefinition,
   BlueprintTreeNode,
+  EdgeConditionDefinition,
   NodeKind,
   ProducerConfig,
 } from '../types.js';
@@ -31,6 +32,8 @@ export interface BlueprintGraphEdge {
   from: BlueprintGraphEdgeEndpoint;
   to: BlueprintGraphEdgeEndpoint;
   note?: string;
+  /** Conditions that must be satisfied for this edge to be active */
+  conditions?: EdgeConditionDefinition;
 }
 
 export interface BlueprintGraphCollector {
@@ -413,6 +416,7 @@ function collectGraphEdges(
       from: resolveEdgeEndpoint(edge.from, tree, namespaceDims, localDims, root),
       to: resolveEdgeEndpoint(edge.to, tree, namespaceDims, localDims, root),
       note: edge.note,
+      conditions: edge.conditions,
     });
   }
   for (const child of tree.children.values()) {

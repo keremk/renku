@@ -6,14 +6,19 @@ import type { FileStorage } from '@flystorage/file-storage';
 import type {
   ArrayDimensionMapping,
   BlueprintArtefactDefinition,
+  BlueprintConditionDefinitions,
   BlueprintDocument,
   BlueprintEdgeDefinition,
   BlueprintInputDefinition,
   BlueprintProducerOutputDefinition,
   BlueprintProducerSdkMappingField,
   BlueprintTreeNode,
+  EdgeConditionClause,
+  EdgeConditionDefinition,
+  EdgeConditionGroup,
   JsonSchemaDefinition,
   JsonSchemaProperty,
+  NamedConditionDefinition,
   ProducerModelVariant,
   ProducerConfig,
   ProducerImportDefinition,
@@ -75,6 +80,7 @@ export async function parseYamlBlueprintFile(
   const inputs = Array.isArray(raw.inputs) ? raw.inputs.map((entry) => parseInput(entry)) : [];
   const loops = Array.isArray(raw.loops) ? parseLoops(raw.loops) : [];
   const loopSymbols = new Set(loops.map((loop) => loop.name));
+  const conditionDefs = parseConditionDefinitions(raw.conditions, loopSymbols);
   const artefactSource = Array.isArray(raw.artifacts)
     ? raw.artifacts
     : Array.isArray(raw.artefacts)
@@ -92,7 +98,7 @@ export async function parseYamlBlueprintFile(
       : [];
   const producerImports = rawProducerImports.map((entry) => parseProducerImport(entry));
   let edges = Array.isArray(raw.connections)
-    ? raw.connections.map((entry) => parseEdge(entry, loopSymbols))
+    ? raw.connections.map((entry) => parseEdge(entry, loopSymbols, conditionDefs))
     : [];
   const producers: ProducerConfig[] = [];
   const isProducerBlueprint = producerImports.length === 0;
@@ -144,6 +150,7 @@ export async function parseYamlBlueprintFile(
     edges,
     collectors,
     loops: loops.length > 0 ? loops : undefined,
+    conditions: Object.keys(conditionDefs).length > 0 ? conditionDefs : undefined,
   };
 }
 
@@ -212,6 +219,8 @@ interface RawBlueprint {
   connections?: unknown[];
   collectors?: unknown[];
   models?: unknown[];
+  /** Named condition definitions for reuse across edges */
+  conditions?: Record<string, unknown>;
 }
 
 function parseMeta(raw: unknown, filePath: string): BlueprintDocument['meta'] {
@@ -368,7 +377,11 @@ function parseCollectors(
   return collectors;
 }
 
-function parseEdge(raw: unknown, allowedDimensions: Set<string>): BlueprintEdgeDefinition {
+function parseEdge(
+  raw: unknown,
+  allowedDimensions: Set<string>,
+  conditionDefs: BlueprintConditionDefinitions,
+): BlueprintEdgeDefinition {
   if (!raw || typeof raw !== 'object') {
     throw new Error(`Invalid connection entry: ${JSON.stringify(raw)}`);
   }
@@ -377,11 +390,222 @@ function parseEdge(raw: unknown, allowedDimensions: Set<string>): BlueprintEdgeD
   const to = normalizeReference(readString(edge, 'to'));
   validateDimensions(from, allowedDimensions, 'from');
   validateDimensions(to, allowedDimensions, 'to');
+
+  // Handle `if:` reference to named condition
+  let conditions: EdgeConditionDefinition | undefined;
+  const ifRef = edge.if;
+  if (ifRef !== undefined) {
+    if (typeof ifRef !== 'string' || ifRef.trim().length === 0) {
+      throw new Error(`Invalid 'if' reference in connection: expected string, got ${typeof ifRef}`);
+    }
+    const conditionName = ifRef.trim();
+    const def = conditionDefs[conditionName];
+    if (!def) {
+      throw new Error(`Unknown condition "${conditionName}" in connection. Define it under conditions[].`);
+    }
+    // Convert named condition to inline condition
+    conditions = def;
+  }
+
+  // Handle inline `conditions:`
+  if (edge.conditions !== undefined) {
+    if (conditions !== undefined) {
+      throw new Error(`Connection cannot have both 'if' and 'conditions'. Use one or the other.`);
+    }
+    conditions = parseEdgeConditions(edge.conditions, allowedDimensions);
+  }
+
   return {
     from,
     to,
     note: typeof edge.note === 'string' ? edge.note : undefined,
+    if: typeof ifRef === 'string' ? ifRef.trim() : undefined,
+    conditions,
   };
+}
+
+/**
+ * Parses inline edge conditions from YAML.
+ */
+function parseEdgeConditions(raw: unknown, allowedDimensions: Set<string>): EdgeConditionDefinition {
+  if (Array.isArray(raw)) {
+    // Array of clauses or groups (implicit AND)
+    return raw.map((item) => parseConditionItem(item, allowedDimensions));
+  }
+  // Single clause or group
+  return parseConditionItem(raw, allowedDimensions);
+}
+
+/**
+ * Parses a single condition item (clause or group).
+ */
+function parseConditionItem(raw: unknown, allowedDimensions: Set<string>): EdgeConditionClause | EdgeConditionGroup {
+  if (!raw || typeof raw !== 'object') {
+    throw new Error(`Invalid condition entry: ${JSON.stringify(raw)}`);
+  }
+  const obj = raw as Record<string, unknown>;
+
+  // Check if it's a group (has 'all' or 'any')
+  if ('all' in obj || 'any' in obj) {
+    return parseConditionGroup(obj, allowedDimensions);
+  }
+
+  // It's a clause
+  return parseConditionClause(obj, allowedDimensions);
+}
+
+/**
+ * Parses a condition group (AND/OR).
+ */
+function parseConditionGroup(obj: Record<string, unknown>, allowedDimensions: Set<string>): EdgeConditionGroup {
+  const group: EdgeConditionGroup = {};
+
+  if ('all' in obj) {
+    if (!Array.isArray(obj.all)) {
+      throw new Error(`Condition 'all' must be an array.`);
+    }
+    group.all = obj.all.map((item) => parseConditionClause(item as Record<string, unknown>, allowedDimensions));
+  }
+
+  if ('any' in obj) {
+    if (!Array.isArray(obj.any)) {
+      throw new Error(`Condition 'any' must be an array.`);
+    }
+    group.any = obj.any.map((item) => parseConditionClause(item as Record<string, unknown>, allowedDimensions));
+  }
+
+  if (!group.all && !group.any) {
+    throw new Error(`Condition group must have 'all' or 'any'.`);
+  }
+
+  return group;
+}
+
+/**
+ * Parses a single condition clause.
+ */
+function parseConditionClause(obj: Record<string, unknown>, allowedDimensions: Set<string>): EdgeConditionClause {
+  if (!obj || typeof obj !== 'object') {
+    throw new Error(`Invalid condition clause: ${JSON.stringify(obj)}`);
+  }
+
+  const when = obj.when;
+  if (typeof when !== 'string' || when.trim().length === 0) {
+    throw new Error(`Condition clause must have a 'when' field with a path.`);
+  }
+
+  // Validate dimensions in the 'when' path
+  validateDimensions(when, allowedDimensions, 'when' as 'from');
+
+  const clause: EdgeConditionClause = { when: when.trim() };
+
+  // Parse operators
+  if ('is' in obj) {
+    clause.is = obj.is;
+  }
+  if ('isNot' in obj) {
+    clause.isNot = obj.isNot;
+  }
+  if ('contains' in obj) {
+    clause.contains = obj.contains;
+  }
+  if ('greaterThan' in obj) {
+    if (typeof obj.greaterThan !== 'number') {
+      throw new Error(`Condition 'greaterThan' must be a number.`);
+    }
+    clause.greaterThan = obj.greaterThan;
+  }
+  if ('lessThan' in obj) {
+    if (typeof obj.lessThan !== 'number') {
+      throw new Error(`Condition 'lessThan' must be a number.`);
+    }
+    clause.lessThan = obj.lessThan;
+  }
+  if ('greaterOrEqual' in obj) {
+    if (typeof obj.greaterOrEqual !== 'number') {
+      throw new Error(`Condition 'greaterOrEqual' must be a number.`);
+    }
+    clause.greaterOrEqual = obj.greaterOrEqual;
+  }
+  if ('lessOrEqual' in obj) {
+    if (typeof obj.lessOrEqual !== 'number') {
+      throw new Error(`Condition 'lessOrEqual' must be a number.`);
+    }
+    clause.lessOrEqual = obj.lessOrEqual;
+  }
+  if ('exists' in obj) {
+    if (typeof obj.exists !== 'boolean') {
+      throw new Error(`Condition 'exists' must be a boolean.`);
+    }
+    clause.exists = obj.exists;
+  }
+  if ('matches' in obj) {
+    if (typeof obj.matches !== 'string') {
+      throw new Error(`Condition 'matches' must be a string (regex pattern).`);
+    }
+    clause.matches = obj.matches;
+  }
+
+  // Validate that at least one operator is present
+  const hasOperator = clause.is !== undefined ||
+    clause.isNot !== undefined ||
+    clause.contains !== undefined ||
+    clause.greaterThan !== undefined ||
+    clause.lessThan !== undefined ||
+    clause.greaterOrEqual !== undefined ||
+    clause.lessOrEqual !== undefined ||
+    clause.exists !== undefined ||
+    clause.matches !== undefined;
+
+  if (!hasOperator) {
+    throw new Error(`Condition clause must have at least one operator (is, isNot, contains, etc.).`);
+  }
+
+  return clause;
+}
+
+/**
+ * Parses named condition definitions from the blueprint-level conditions block.
+ */
+function parseConditionDefinitions(
+  raw: Record<string, unknown> | undefined,
+  allowedDimensions: Set<string>,
+): BlueprintConditionDefinitions {
+  if (!raw) {
+    return {};
+  }
+
+  const definitions: BlueprintConditionDefinitions = {};
+
+  for (const [name, value] of Object.entries(raw)) {
+    if (!value || typeof value !== 'object') {
+      throw new Error(`Invalid condition definition "${name}": expected object.`);
+    }
+    definitions[name] = parseNamedConditionDefinition(value as Record<string, unknown>, allowedDimensions, name);
+  }
+
+  return definitions;
+}
+
+/**
+ * Parses a named condition definition (can be a clause or group).
+ */
+function parseNamedConditionDefinition(
+  obj: Record<string, unknown>,
+  allowedDimensions: Set<string>,
+  name: string,
+): NamedConditionDefinition {
+  // Check if it's a group (has 'all' or 'any')
+  if ('all' in obj || 'any' in obj) {
+    return parseConditionGroup(obj, allowedDimensions);
+  }
+
+  // It's a clause - must have 'when'
+  if (!('when' in obj)) {
+    throw new Error(`Condition definition "${name}" must have 'when', 'all', or 'any'.`);
+  }
+
+  return parseConditionClause(obj, allowedDimensions);
 }
 
 async function parseModelVariants(
