@@ -1,7 +1,7 @@
 meta:
-  name: Video Only Narration
-  description: Generate video segments from a textual inquiry.
-  id: Video
+  name: Flow Video Generation
+  description: Generate video from segments with first and last frame continuity.
+  id: FlowVideo
   version: 0.1.0
   author: Renku
   license: MIT

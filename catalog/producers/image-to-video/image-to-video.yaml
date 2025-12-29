@@ -11,10 +11,10 @@ inputs:
     description: The prompt to generate the video.
     type: string
   - name: InputImage1
-    description: The first input image.
+    description: The starting frame image to be used.
     type: image
   - name: InputImage2
-    description: The second input image (optional, for models that support end frame).
+    description: The end frame image to be used.
     type: image
   - name: AspectRatio
     description: Aspect ratio such as 16:9 or 3:2. Model default varies.
