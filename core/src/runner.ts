@@ -170,7 +170,7 @@ export function createRunner(options: RunnerOptions = {}) {
       const logger = ctx.logger ?? baseLogger;
       const produce = ctx.produce ?? baseProduce;
       const storage = ctx.storage;
-      const eventLog = ctx.eventLog;
+      const _eventLog = ctx.eventLog;
       const manifestService = ctx.manifestService ?? createManifestService(storage);
 
       return executeJob(job, {
@@ -489,7 +489,7 @@ function serializeError(error: unknown): SerializedError {
   };
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+function _isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
@@ -581,7 +581,7 @@ function mergeResolvedArtifacts(
   }
 
   if (hasResolvedArtifacts && jobContext.inputBindings) {
-    for (const [alias, canonicalId] of Object.entries(jobContext.inputBindings)) {
+    for (const [_alias, canonicalId] of Object.entries(jobContext.inputBindings)) {
       const resolvedValue = readResolvedValue(canonicalId, resolvedArtifacts);
       if (resolvedValue !== undefined) {
         mergedResolvedInputs[canonicalId] = resolvedValue;

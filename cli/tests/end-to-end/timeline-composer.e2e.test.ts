@@ -210,67 +210,63 @@ describe('end-to-end: TimelineComposer with conditional segments', () => {
 
       // REAL TimelineComposer execution
       if (producerName === 'TimelineComposer') {
-        try {
-          // Resolve the handler from registry
-          const handler = registry.resolve({
-            provider: 'renku',
-            model: 'timeline/ordered',
-            environment: 'local',
-          });
+        // Resolve the handler from registry
+        const handler = registry.resolve({
+          provider: 'renku',
+          model: 'timeline/ordered',
+          environment: 'local',
+        });
 
-          // Prepare job context with all resolved inputs
-          const prepared = prepareJobContext(request.job, resolvedInputs);
+        // Prepare job context with all resolved inputs
+        const prepared = prepareJobContext(request.job, resolvedInputs);
 
-          // Build config matching the condition-example input-template.yaml
-          // The config has tracks: ["Image", "Audio"], masterTracks: ["Audio", "Video"]
-          const timelineConfig = {
-            clips: [
-              { kind: 'Image', inputs: 'ImageSegments' },
-              { kind: 'Audio', inputs: 'AudioSegments', volume: 0.9 },
-              { kind: 'Video', inputs: 'VideoSegments' },
-            ],
-            tracks: ['Image', 'Audio', 'Video'],
-            masterTracks: ['Audio', 'Video'],
-            numTracks: 2,
-          };
+        // Build config matching the condition-example input-template.yaml
+        // The config has tracks: ["Image", "Audio"], masterTracks: ["Audio", "Video"]
+        const timelineConfig = {
+          clips: [
+            { kind: 'Image', inputs: 'ImageSegments' },
+            { kind: 'Audio', inputs: 'AudioSegments', volume: 0.9 },
+            { kind: 'Video', inputs: 'VideoSegments' },
+          ],
+          tracks: ['Image', 'Audio', 'Video'],
+          masterTracks: ['Audio', 'Video'],
+          numTracks: 2,
+        };
 
-          // Build provider context with the constructed config
-          const context = {
-            providerConfig: timelineConfig,
-            environment: 'local' as const,
-            extras: {
-              resolvedInputs: prepared.resolvedInputs,
-              plannerContext: request.job.context ? {
-                index: request.job.context.indices,
-                namespacePath: request.job.context.namespacePath,
-                producerAlias: request.job.context.producerAlias,
-              } : undefined,
-              jobContext: request.job.context,
-            },
-          };
+        // Build provider context with the constructed config
+        const context = {
+          providerConfig: timelineConfig,
+          environment: 'local' as const,
+          extras: {
+            resolvedInputs: prepared.resolvedInputs,
+            plannerContext: request.job.context ? {
+              index: request.job.context.indices,
+              namespacePath: request.job.context.namespacePath,
+              producerAlias: request.job.context.producerAlias,
+            } : undefined,
+            jobContext: request.job.context,
+          },
+        };
 
-          // Invoke the real handler
-          const response = await handler.invoke({
-            jobId: request.job.jobId,
-            provider: 'renku',
-            model: 'timeline/ordered',
-            revision: request.revision,
-            layerIndex: request.layerIndex,
-            attempt: request.attempt,
-            inputs: request.job.inputs,
-            produces: request.job.produces,
-            context,
-          });
+        // Invoke the real handler
+        const response = await handler.invoke({
+          jobId: request.job.jobId,
+          provider: 'renku',
+          model: 'timeline/ordered',
+          revision: request.revision,
+          layerIndex: request.layerIndex,
+          attempt: request.attempt,
+          inputs: request.job.inputs,
+          produces: request.job.produces,
+          context,
+        });
 
-          return {
-            jobId: request.job.jobId,
-            status: response.status ?? 'succeeded',
-            artefacts: response.artefacts,
-            diagnostics: response.diagnostics,
-          };
-        } catch (error) {
-          throw error;
-        }
+        return {
+          jobId: request.job.jobId,
+          status: response.status ?? 'succeeded',
+          artefacts: response.artefacts,
+          diagnostics: response.diagnostics,
+        };
       }
 
       // Fallback for any other producer

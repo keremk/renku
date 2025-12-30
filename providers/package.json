@@ -16,7 +16,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "lint": "eslint src",
+    "lint": "eslint src tests",
     "type-check": "tsc --noEmit",
     "test": "vitest --config vitest.config.ts",
     "test:typecheck": "tsc --project tsconfig.vitest.json --noEmit",

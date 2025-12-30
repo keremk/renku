@@ -1,5 +1,6 @@
 import { FlatCompat } from '@eslint/eslintrc';
 import js from '@eslint/js';
+import tseslint from '@typescript-eslint/eslint-plugin';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -29,9 +30,27 @@ const eslintConfig = [
       ecmaVersion: 'latest',
       sourceType: 'module',
     },
+    env: {
+      node: true,
+      es2022: true,
+    },
+    globals: {
+      process: 'readonly',
+      Buffer: 'readonly',
+      console: 'readonly',
+      __dirname: 'readonly',
+      __filename: 'readonly',
+      TextEncoder: 'readonly',
+      TextDecoder: 'readonly',
+      setTimeout: 'readonly',
+      clearTimeout: 'readonly',
+    },
   }),
   {
-    files: ['src/**/*.ts', 'src/**/*.test.ts'],
+    files: ['src/**/*.ts'],
+    plugins: {
+      '@typescript-eslint': tseslint,
+    },
     rules: {
       'prefer-const': 'error',
       'no-var': 'error',
@@ -41,6 +60,34 @@ const eslintConfig = [
       'no-eval': 'error',
       'no-implied-eval': 'error',
       'no-new-func': 'error',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', {
+        args: 'none',
+        varsIgnorePattern: '^_',
+        argsIgnorePattern: '^_',
+      }],
+    },
+  },
+  {
+    files: ['src/**/*.test.ts'],
+    plugins: {
+      '@typescript-eslint': tseslint,
+    },
+    rules: {
+      'prefer-const': 'error',
+      'no-var': 'error',
+      'no-console': 'off',
+      'eqeqeq': ['error', 'always'],
+      'curly': ['error', 'all'],
+      'no-eval': 'error',
+      'no-implied-eval': 'error',
+      'no-new-func': 'error',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['warn', {
+        args: 'none',
+        varsIgnorePattern: '^_',
+        argsIgnorePattern: '^_',
+      }],
     },
   },
 ];

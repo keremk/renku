@@ -40,10 +40,14 @@ const eslintConfig = [
       TextEncoder: 'readonly',
       Buffer: 'readonly',
       setTimeout: 'readonly',
+      process: 'readonly',
+      console: 'readonly',
+      __dirname: 'readonly',
+      __filename: 'readonly',
     },
   }),
   {
-    files: ['src/**/*.ts', 'src/**/*.test.ts', 'tests/**/*.ts'],
+    files: ['src/**/*.ts'],
     plugins: {
       '@typescript-eslint': tseslint,
     },
@@ -57,7 +61,33 @@ const eslintConfig = [
       'no-implied-eval': 'error',
       'no-new-func': 'error',
       'no-unused-vars': 'off',
-      '@typescript-eslint/no-unused-vars': ['error', { args: 'none' }],
+      '@typescript-eslint/no-unused-vars': ['error', {
+        args: 'none',
+        varsIgnorePattern: '^_',
+        argsIgnorePattern: '^_',
+      }],
+    },
+  },
+  {
+    files: ['src/**/*.test.ts', 'tests/**/*.ts'],
+    plugins: {
+      '@typescript-eslint': tseslint,
+    },
+    rules: {
+      'prefer-const': 'error',
+      'no-var': 'error',
+      'no-console': 'off',
+      'eqeqeq': ['error', 'always'],
+      'curly': ['error', 'all'],
+      'no-eval': 'error',
+      'no-implied-eval': 'error',
+      'no-new-func': 'error',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['warn', {
+        args: 'none',
+        varsIgnorePattern: '^_',
+        argsIgnorePattern: '^_',
+      }],
     },
   },
 ];

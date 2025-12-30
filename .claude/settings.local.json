@@ -40,7 +40,9 @@
       "Bash(pnpm check:all:*)",
       "Bash(pnpm --filter @gorenku/core type-check:*)",
       "Bash(pnpm --filter @gorenku/core test)",
-      "Bash(pnpm --filter @gorenku/cli test:*)"
+      "Bash(pnpm --filter @gorenku/cli test:*)",
+      "Bash(pnpm --filter @gorenku/cli lint:*)",
+      "Bash(pnpm --filter @gorenku/providers lint:*)"
     ],
     "deny": [],
     "ask": []
