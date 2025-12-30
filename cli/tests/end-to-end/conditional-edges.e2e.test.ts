@@ -117,15 +117,18 @@ describe('end-to-end: conditional edge execution', () => {
     // - 6 ImageProducer (3 segments × 2 images)
     // - 3 AudioProducer (3 segments)
     // - 3 VideoProducer (3 segments)
+    // - 1 TimelineComposer
     const docJobs = initialJobs.filter((j: any) => j.producer === 'DocProducer');
     const imageJobs = initialJobs.filter((j: any) => j.producer === 'ImageProducer');
     const audioJobs = initialJobs.filter((j: any) => j.producer === 'AudioProducer');
     const videoJobs = initialJobs.filter((j: any) => j.producer === 'VideoProducer');
+    const timelineJobs = initialJobs.filter((j: any) => j.producer === 'TimelineComposer');
 
     expect(docJobs).toHaveLength(1);
     expect(imageJobs).toHaveLength(6);
     expect(audioJobs).toHaveLength(3);
     expect(videoJobs).toHaveLength(3);
+    expect(timelineJobs).toHaveLength(1);
 
     // Verify inputConditions are attached to ImageProducer jobs
     const imageJob = imageJobs[0];
@@ -164,25 +167,46 @@ describe('end-to-end: conditional edge execution', () => {
         };
       }
 
+      // TimelineComposer returns stub data (tested separately in timeline-composer.e2e.test.ts)
+      if (request.job.producer === 'TimelineComposer') {
+        return {
+          jobId: request.job.jobId,
+          status: 'succeeded',
+          artefacts: [{
+            artefactId: 'Artifact:TimelineComposer.Timeline',
+            blob: { data: '{}', mimeType: 'application/json' },
+          }],
+        };
+      }
+
       // Other producers return stub data for their artifacts
+      // Audio/Video need duration bytes (first byte = duration in seconds) for mediabunny mock
       return {
         jobId: request.job.jobId,
         status: 'succeeded',
         artefacts: request.job.produces
           .filter((id: string) => id.startsWith('Artifact:'))
-          .map((artefactId: string) => ({
-            artefactId,
-            blob: {
-              data: `stub-data-for-${artefactId}`,
-              mimeType: artefactId.includes('Image')
-                ? 'image/png'
-                : artefactId.includes('Audio')
-                  ? 'audio/mp3'
-                  : artefactId.includes('Video')
-                    ? 'video/mp4'
-                    : 'text/plain',
-            },
-          })),
+          .map((artefactId: string) => {
+            const isAudio = artefactId.includes('Audio');
+            const isVideo = artefactId.includes('Video');
+            // Duration byte: 10 seconds for audio/video so mediabunny mock can read it
+            const data = isAudio || isVideo
+              ? new Uint8Array([10]) // 10 second duration
+              : `stub-data-for-${artefactId}`;
+            return {
+              artefactId,
+              blob: {
+                data,
+                mimeType: artefactId.includes('Image')
+                  ? 'image/png'
+                  : isAudio
+                    ? 'audio/mp3'
+                    : isVideo
+                      ? 'video/mp4'
+                      : 'text/plain',
+              },
+            };
+          }),
       };
     });
 
@@ -207,6 +231,9 @@ describe('end-to-end: conditional edge execution', () => {
 
     // DocProducer always runs
     expect(succeededJobs.filter((j) => j.producer === 'DocProducer')).toHaveLength(1);
+
+    // TimelineComposer always runs
+    expect(succeededJobs.filter((j) => j.producer === 'TimelineComposer')).toHaveLength(1);
 
     // ImageProducer: [0][0], [0][1], [2][0], [2][1] succeed (ImageNarration)
     // ImageProducer: [1][0], [1][1] skipped (TalkingHead, not ImageNarration)

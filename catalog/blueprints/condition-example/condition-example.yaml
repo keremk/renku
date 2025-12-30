@@ -40,6 +40,10 @@ inputs:
     description: Voice identifier.
     type: string
     required: true
+  - name: Duration
+    description: Total duration of the movie in seconds.
+    type: int
+    required: true
 
 artifacts:
   - name: SegmentImage
@@ -54,6 +58,9 @@ artifacts:
     description: Generated video (conditional).
     type: array
     itemType: video
+  - name: Timeline
+    description: Generated timeline JSON.
+    type: json
 
 loops:
   - name: segment
@@ -89,6 +96,8 @@ producers:
   - name: VideoProducer
     path: ../../producers/video/video.yaml
     loop: segment
+  - name: TimelineComposer  
+    path: ../../producers/timeline-composer/timeline-composer.yaml
 
 connections:
   # Wire inputs to DocProducer
@@ -142,3 +151,32 @@ connections:
   - from: VideoProducer[segment].SegmentVideo
     to: SegmentVideo[segment]
     if: isTalkingHead
+
+  - from: AudioProducer[segment].SegmentAudio
+    to: TimelineComposer.AudioSegments
+    if: isAudioNeeded
+  - from: VideoProducer[segment].SegmentVideo
+    to: TimelineComposer.VideoSegments
+    if: isTalkingHead
+  - from: ImageProducer[segment][image].SegmentImage
+    to: TimelineComposer.ImageSegments
+    if: isImageNarration
+  - from: Duration
+    to: TimelineComposer.Duration
+  - from: TimelineComposer.Timeline
+    to: Timeline
+  
+collectors:
+  - name: TimelineImages
+    from: ImageProducer[segment][image].SegmentImage
+    into: TimelineComposer.ImageSegments
+    groupBy: segment
+    orderBy: image
+  - name: TimelineAudio
+    from: AudioProducer[segment].SegmentAudio
+    into: TimelineComposer.AudioSegments
+    groupBy: segment
+  - name: TimelineVideo
+    from: VideoProducer[segment].SegmentVideo
+    into: TimelineComposer.VideoSegments
+    groupBy: segment

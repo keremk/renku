@@ -2,6 +2,7 @@ inputs:
   InquiryPrompt: 'I want to learn about the last days of Pompeii'
   NumOfSegments: 3
   NumOfImagesPerSegment: 2
+  Duration: 30
   VoiceId: Wise_Woman
   AspectRatio: '16:9'
   Resolution: '480p'
@@ -22,3 +23,12 @@ models:
   - model: gpt-5-mini
     provider: openai
     producerId: DocProducer
+  - model: timeline/ordered
+    provider: renku
+    producerId: TimelineComposer
+    config:
+      tracks: ["Image", "Audio"]
+      masterTracks: ["Audio", "Video"]
+      numTracks: 2
+      audioClip:
+        volume: 0.9

@@ -82,6 +82,16 @@ function makeRequest(options: { omitAudio?: boolean; audioDurations?: number[] }
     MovieTitle: 'Comet Tales',
   };
 
+  // Add image payloads (required for filterExistingAssets)
+  imageGroups.forEach((group) => {
+    group.forEach((assetId) => {
+      if (assetId) {
+        // Images don't need duration, just need to exist
+        resolvedInputs[assetId] = createAssetPayload(1);
+      }
+    });
+  });
+
   if (options.omitAudio) {
     delete resolvedInputs['Input:TimelineComposer.AudioSegments'];
     delete resolvedInputs['TimelineComposer.AudioSegments'];
@@ -117,7 +127,7 @@ function makeRequest(options: { omitAudio?: boolean; audioDurations?: number[] }
       providerConfig: {
         config: {
           numTracks: 2,
-          masterTrack: { kind: 'Audio' },
+          masterTracks: ['Audio'],
           tracks: ['Image', 'Audio'],
           clips: [
             { kind: 'Image', inputs: 'ImageSegments[segment]', effect: 'KenBurns' },
@@ -194,12 +204,12 @@ describe('TimelineProducer', () => {
     await expect(handler.invoke(request)).rejects.toThrow(/tracks/i);
   });
 
-  it('throws when masterTrack is missing', async () => {
+  it('throws when masterTracks is missing', async () => {
     const handler = createHandler();
     const request = makeRequest();
     const config = request.context.providerConfig as { config: Record<string, unknown> };
-    delete config.config.masterTrack;
-    await expect(handler.invoke(request)).rejects.toThrow(/masterTrack/i);
+    delete config.config.masterTracks;
+    await expect(handler.invoke(request)).rejects.toThrow(/masterTracks/i);
   });
 
   it('loops music clips to cover the entire timeline', async () => {
@@ -295,9 +305,9 @@ describe('TimelineProducer', () => {
   it('filters clips based on tracks configuration', async () => {
     const handler = createHandler();
     const request = makeRequest();
-    const config = request.context.providerConfig as { config: { clips: Array<Record<string, unknown>>; tracks?: string[]; masterTrack?: { kind: string } } };
+    const config = request.context.providerConfig as { config: { clips: Array<Record<string, unknown>>; tracks?: string[]; masterTracks?: string[] } };
     config.config.tracks = ['Audio'];
-    config.config.masterTrack = { kind: 'Audio' };
+    config.config.masterTracks = ['Audio'];
 
     const resolvedInputs = request.context.extras?.resolvedInputs as Record<string, unknown>;
     delete resolvedInputs['Input:TimelineComposer.ImageSegments'];
@@ -318,10 +328,148 @@ describe('TimelineProducer', () => {
   it('throws when master track is not included in configured tracks', async () => {
     const handler = createHandler();
     const request = makeRequest();
-    const config = request.context.providerConfig as { config: { tracks?: string[]; masterTrack?: { kind: string } } };
+    const config = request.context.providerConfig as { config: { tracks?: string[]; masterTracks?: string[] } };
     config.config.tracks = ['Audio'];
-    config.config.masterTrack = { kind: 'Video' };
+    config.config.masterTracks = ['Video'];
 
     await expect(handler.invoke(request)).rejects.toThrow(/Master track kind/);
+  });
+
+  it('uses fallback master track when primary is missing segment', async () => {
+    const handler = createHandler();
+    const request = makeRequest();
+    const resolvedInputs = request.context.extras?.resolvedInputs as Record<string, unknown>;
+    const config = request.context.providerConfig as { config: { clips: Array<Record<string, unknown>>; numTracks: number; tracks: string[]; masterTracks: string[] } };
+
+    // Configure Audio as primary, Video as fallback
+    config.config.masterTracks = ['Audio', 'Video'];
+    config.config.tracks = ['Image', 'Audio', 'Video'];
+    config.config.clips.push({ kind: 'Video', inputs: 'VideoSegments' });
+    // Add VideoSegments to the inputs array so canonicalization works
+    request.inputs.push('Input:TimelineComposer.VideoSegments');
+
+    // Sparse audio: only segment 1 has audio
+    const audioGroups = [
+      [], // segment 0 - no audio (skipped)
+      ['Artifact:Audio[1]'], // segment 1 - has audio
+    ];
+    resolvedInputs['Input:TimelineComposer.AudioSegments'] = { groupBy: 'segment', groups: audioGroups };
+    resolvedInputs['TimelineComposer.AudioSegments'] = { groupBy: 'segment', groups: audioGroups };
+    resolvedInputs['Artifact:Audio[1]'] = createAssetPayload(8);
+
+    // Video present for both segments
+    const videoGroups = [
+      ['Artifact:Video[0]'],
+      ['Artifact:Video[1]'],
+    ];
+    resolvedInputs['Input:TimelineComposer.VideoSegments'] = { groupBy: 'segment', groups: videoGroups };
+    resolvedInputs['TimelineComposer.VideoSegments'] = { groupBy: 'segment', groups: videoGroups };
+    resolvedInputs['Artifact:Video[0]'] = createAssetPayload(10);
+    resolvedInputs['Artifact:Video[1]'] = createAssetPayload(8);
+
+    const result = await handler.invoke(request);
+    expect(result.status).toBe('succeeded');
+
+    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timeline = JSON.parse(typeof timelinePayload === 'string' ? timelinePayload : '{}') as {
+      duration: number;
+      tracks: Array<{ kind: string; clips: Array<{ startTime: number; duration: number }> }>;
+    };
+
+    // Segment 0: duration from Video (10s) since Audio is missing
+    // Segment 1: duration from Audio (8s)
+    expect(timeline.duration).toBeCloseTo(18);
+
+    const audioTrack = timeline.tracks.find((track) => track.kind === 'Audio');
+    expect(audioTrack).toBeDefined();
+    // Only 1 audio clip (segment 1)
+    expect(audioTrack?.clips).toHaveLength(1);
+    expect(audioTrack?.clips[0]?.startTime).toBeCloseTo(10);
+    expect(audioTrack?.clips[0]?.duration).toBeCloseTo(8);
+
+    const videoTrack = timeline.tracks.find((track) => track.kind === 'Video');
+    expect(videoTrack).toBeDefined();
+    expect(videoTrack?.clips).toHaveLength(2);
+  });
+
+  it('uses SegmentDuration fallback when all master tracks missing for a segment', async () => {
+    const handler = createHandler();
+    const request = makeRequest();
+    const resolvedInputs = request.context.extras?.resolvedInputs as Record<string, unknown>;
+    const config = request.context.providerConfig as { config: { clips: Array<Record<string, unknown>>; numTracks: number; tracks: string[]; masterTracks: string[] } };
+
+    // Configure Audio as primary, Video as fallback
+    config.config.masterTracks = ['Audio', 'Video'];
+    config.config.tracks = ['Image', 'Audio', 'Video'];
+    config.config.clips.push({ kind: 'Video', inputs: 'VideoSegments' });
+    // Add VideoSegments to the inputs array so canonicalization works
+    request.inputs.push('Input:TimelineComposer.VideoSegments');
+
+    // Segment 0: no audio, no video - will use SegmentDuration fallback
+    // Segment 1: has audio
+    const audioGroups = [
+      [], // segment 0 - no audio
+      ['Artifact:Audio[1]'], // segment 1 - has audio
+    ];
+    resolvedInputs['Input:TimelineComposer.AudioSegments'] = { groupBy: 'segment', groups: audioGroups };
+    resolvedInputs['TimelineComposer.AudioSegments'] = { groupBy: 'segment', groups: audioGroups };
+    resolvedInputs['Artifact:Audio[1]'] = createAssetPayload(8);
+
+    const videoGroups = [
+      [], // segment 0 - no video
+      ['Artifact:Video[1]'],
+    ];
+    resolvedInputs['Input:TimelineComposer.VideoSegments'] = { groupBy: 'segment', groups: videoGroups };
+    resolvedInputs['TimelineComposer.VideoSegments'] = { groupBy: 'segment', groups: videoGroups };
+    resolvedInputs['Artifact:Video[1]'] = createAssetPayload(8);
+
+    // Set SegmentDuration as fallback
+    resolvedInputs['Input:SegmentDuration'] = 5;
+    resolvedInputs['SegmentDuration'] = 5;
+
+    const result = await handler.invoke(request);
+    expect(result.status).toBe('succeeded');
+
+    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timeline = JSON.parse(typeof timelinePayload === 'string' ? timelinePayload : '{}') as {
+      duration: number;
+      tracks: Array<{ kind: string; clips: Array<{ startTime: number; duration: number }> }>;
+    };
+
+    // Segment 0: duration from SegmentDuration (5s)
+    // Segment 1: duration from Audio (8s)
+    expect(timeline.duration).toBeCloseTo(13);
+  });
+
+  it('skips image clips for segments with no images', async () => {
+    const handler = createHandler();
+    const request = makeRequest();
+    const resolvedInputs = request.context.extras?.resolvedInputs as Record<string, unknown>;
+
+    // Sparse images: only segment 0 has images
+    const imageGroups = [
+      ['Artifact:Image[0][0]', 'Artifact:Image[0][1]'],
+      [], // segment 1 - no images (skipped)
+    ];
+    resolvedInputs['Input:TimelineComposer.ImageSegments'] = { groupBy: 'segment', orderBy: 'image', groups: imageGroups };
+    resolvedInputs['TimelineComposer.ImageSegments'] = { groupBy: 'segment', orderBy: 'image', groups: imageGroups };
+
+    // Add payloads for segment 0 images (required for filterExistingAssets)
+    resolvedInputs['Artifact:Image[0][0]'] = createAssetPayload(1);
+    resolvedInputs['Artifact:Image[0][1]'] = createAssetPayload(1);
+
+    const result = await handler.invoke(request);
+    expect(result.status).toBe('succeeded');
+
+    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timeline = JSON.parse(typeof timelinePayload === 'string' ? timelinePayload : '{}') as {
+      tracks: Array<{ kind: string; clips: Array<{ id: string }> }>;
+    };
+
+    const imageTrack = timeline.tracks.find((track) => track.kind === 'Image');
+    expect(imageTrack).toBeDefined();
+    // Only 1 image clip (segment 0), segment 1 is skipped
+    expect(imageTrack?.clips).toHaveLength(1);
+    expect(imageTrack?.clips[0]?.id).toBe('clip-0-0');
   });
 });

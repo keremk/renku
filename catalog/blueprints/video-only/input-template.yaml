@@ -34,7 +34,7 @@ models:
     provider: renku
     producerId: TimelineComposer
     config:
-      masterTrack: Audio
+      masterTracks: ["Audio", "Video"]
       musicClip:
         volume: 0.4
       tracks: ["Video", "Audio", "Music"]

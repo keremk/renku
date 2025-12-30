@@ -30,7 +30,7 @@
   "Input:Style",
   "Input:TimelineComposer.audioClip.artifact",
   "Input:TimelineComposer.imageClip.artifact",
-  "Input:TimelineComposer.masterTrack",
+  "Input:TimelineComposer.masterTracks",
   "Input:TimelineComposer.model",
   "Input:TimelineComposer.musicClip.artifact",
   "Input:TimelineComposer.musicClip.volume",

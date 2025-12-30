@@ -229,7 +229,7 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
         models: [
           { model: 'gpt-5.2', provider: 'openai', producerId: 'DocProducer' },
           { model: 'bytedance/seedream-4', provider: 'replicate', producerId: 'ImageProducer' },
-          { model: 'timeline/ordered', provider: 'renku', producerId: 'TimelineComposer', config: { tracks: ['Image'], masterTrack: { kind: 'Image' }, numTracks: 1 } },
+          { model: 'timeline/ordered', provider: 'renku', producerId: 'TimelineComposer', config: { tracks: ['Image'], masterTracks: ['Image'], numTracks: 1 } },
         ],
       }),
       'utf8',

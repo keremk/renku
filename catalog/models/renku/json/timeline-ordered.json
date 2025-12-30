@@ -2,15 +2,19 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
-    "masterTrack": {
-      "type": "string",
-      "enum": [
-        "Image",
-        "Audio",
-        "Music",
-        "Video"
-      ],
-      "default": "Audio"
+    "masterTracks": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "Image",
+          "Audio",
+          "Music",
+          "Video"
+        ]
+      },
+      "default": ["Audio"],
+      "description": "Priority-ordered list of track kinds for segment duration. If primary track is missing a segment, fallback to next."
     },
     "tracks": {
       "type": "array",

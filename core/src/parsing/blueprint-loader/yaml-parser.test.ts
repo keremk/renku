@@ -128,25 +128,24 @@ describe('optional inputs without defaults', () => {
 });
 
 describe('condition parsing', () => {
-  describe('inline conditions on edges', () => {
-    it('parses edge with inline condition using is operator', async () => {
-      // Use root catalog selector-example (has inline conditions), not CLI bundled version
-      const blueprintPath = resolve(rootCatalogBlueprints, 'selector-example', 'selector-example.yaml');
+  describe('if references on edges', () => {
+    it('parses edge with if reference to named condition', async () => {
+      // Use root catalog condition-example (has if: references to named conditions)
+      const blueprintPath = resolve(rootCatalogBlueprints, 'condition-example', 'condition-example.yaml');
       const document = await parseYamlBlueprintFile(blueprintPath);
 
-      // Find edge with conditions
-      const conditionalEdge = document.edges.find(
-        (edge) => edge.from.includes('ImagePrompts') && edge.conditions,
-      );
+      // Find any edge with conditions (populated from if: reference)
+      const conditionalEdge = document.edges.find((edge) => edge.conditions);
 
       expect(conditionalEdge).toBeDefined();
       expect(conditionalEdge?.conditions).toBeDefined();
 
-      // Conditions should be an array with a clause
-      const conditions = conditionalEdge?.conditions as EdgeConditionClause[];
-      expect(Array.isArray(conditions)).toBe(true);
-      expect(conditions[0]?.when).toContain('NarrationType');
-      expect(conditions[0]?.is).toBe('ImageNarration');
+      // Conditions from if: reference is a single condition object (not an array)
+      // Named conditions like isImageNarration: { when: ..., is: ... } become the conditions value directly
+      const conditions = conditionalEdge?.conditions as EdgeConditionClause;
+      expect(conditions).toHaveProperty('when');
+      expect(conditions).toHaveProperty('is');
+      expect(conditions.when).toContain('NarrationType');
     });
   });
 

@@ -28,7 +28,7 @@ describe('integration: provider config merging', () => {
         config: {
           audioClip: { volume: 0.9 },
           tracks: ['Image', 'Audio'],
-          masterTrack: { kind: 'Audio' },
+          masterTracks: ['Audio'],
           numTracks: 2,
         },
       },

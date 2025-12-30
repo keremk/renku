@@ -19,6 +19,5 @@ models:
     producerId: TimelineComposer
     config:
       tracks: ["Image"]
-      masterTrack:
-        kind: Image
+      masterTracks: ["Image"]
       numTracks: 1

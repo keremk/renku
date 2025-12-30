@@ -30,8 +30,7 @@ models:
     producerId: TimelineComposer
     config:
       tracks: ["Video", "Audio"]
-      masterTrack:
-        kind: Audio
+      masterTracks: ["Audio", "Video"]
       numTracks: 2
       audioClip:
         volume: 0.9

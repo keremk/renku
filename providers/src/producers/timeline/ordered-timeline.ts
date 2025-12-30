@@ -29,9 +29,7 @@ interface TimelineClipConfig {
 
 interface TimelineProducerConfig {
   numTracks?: number;
-  masterTrack?: {
-    kind: ClipKind;
-  };
+  masterTracks?: ClipKind[];
   clips: TimelineClipConfig[];
   tracks?: ClipKind[];
 }
@@ -160,20 +158,24 @@ function resolveAllowedTracks(config: TimelineProducerConfig): Set<ClipKind> {
   });
 }
 
-function resolveMasterClip(
+/**
+ * Resolves segment count by finding the first master track with fan-in data.
+ */
+function resolveSegmentCount(
   clips: TimelineClipConfig[],
-  masterKind: ClipKind,
+  masterKinds: ClipKind[],
   fanInByInput: Map<string, FanInValue>,
-): TimelineClipConfig | undefined {
-  const candidates = clips.filter((clip) => clip.kind === masterKind);
-  if (candidates.length === 0) {
-    return undefined;
+): number {
+  for (const masterKind of masterKinds) {
+    const candidates = clips.filter((clip) => clip.kind === masterKind);
+    for (const candidate of candidates) {
+      const fanIn = fanInByInput.get(candidate.inputs);
+      if (fanIn && fanIn.groups.length > 0) {
+        return fanIn.groups.length;
+      }
+    }
   }
-  const withFanIn = candidates.find((candidate) => {
-    const fanIn = fanInByInput.get(candidate.inputs);
-    return Boolean(fanIn && fanIn.groups.length > 0);
-  });
-  return withFanIn ?? candidates[0];
+  return 0;
 }
 
 export function createTimelineProducerHandler(): HandlerFactory {
@@ -193,22 +195,25 @@ export function createTimelineProducerHandler(): HandlerFactory {
       const overrides = readConfigOverrides(runtime.inputs, request);
       const config = mergeConfig(baseConfig, overrides);
       const allowedKinds = resolveAllowedTracks(config);
-      if (!config.masterTrack || typeof config.masterTrack.kind !== 'string' || config.masterTrack.kind.length === 0) {
-        throw createProviderError('TimelineProducer requires masterTrack.kind to be specified.', {
+      const masterTracks = config.masterTracks ?? [];
+      if (masterTracks.length === 0) {
+        throw createProviderError('TimelineProducer requires masterTracks to be specified.', {
           code: 'invalid_config',
           kind: 'user_input',
           causedByUser: true,
         });
       }
-      if (!allowedKinds.has(config.masterTrack.kind)) {
-        throw createProviderError(
-          `Master track kind "${config.masterTrack.kind}" is not included in configured tracks.`,
-          {
-            code: 'invalid_config',
-            kind: 'user_input',
-            causedByUser: true,
-          },
-        );
+      for (const masterKind of masterTracks) {
+        if (!allowedKinds.has(masterKind)) {
+          throw createProviderError(
+            `Master track kind "${masterKind}" is not included in configured tracks.`,
+            {
+              code: 'invalid_config',
+              kind: 'user_input',
+              causedByUser: true,
+            },
+          );
+        }
       }
       const canonicalInputs = request.inputs.filter((input) => isCanonicalInputId(input));
       const clips = canonicalizeClips(config, canonicalInputs, allowedKinds);
@@ -222,7 +227,6 @@ export function createTimelineProducerHandler(): HandlerFactory {
 
       const resolvedInputs = runtime.inputs.all();
       const assetDurationCache = new Map<string, number>();
-      const masterKind = config.masterTrack.kind;
       const fanInByInput = new Map<string, FanInValue>();
 
       for (const clip of clips) {
@@ -235,10 +239,9 @@ export function createTimelineProducerHandler(): HandlerFactory {
         }
       }
 
-      const masterClip = resolveMasterClip(clips, masterKind, fanInByInput);
-      const masterFanIn = masterClip ? fanInByInput.get(masterClip.inputs) : undefined;
-      const segmentCount = Math.max(masterFanIn?.groups.length ?? 0, 0);
-      if (!masterClip || !masterFanIn || segmentCount === 0) {
+      // Determine segment count from the first master track with fan-in data
+      const segmentCount = resolveSegmentCount(clips, masterTracks, fanInByInput);
+      if (segmentCount === 0) {
         throw createProviderError('TimelineProducer requires at least one master track with fan-in data.', {
           code: 'missing_segments',
           kind: 'user_input',
@@ -246,15 +249,15 @@ export function createTimelineProducerHandler(): HandlerFactory {
         });
       }
 
-      const masterSegmentDurations = await determineMasterSegmentDurations({
-        clip: masterClip,
-        fanIn: masterFanIn,
+      // Determine segment durations using fallback master tracks
+      const segmentDurations = await determineMasterSegmentDurationsWithFallback({
+        clips,
+        fanInByInput,
+        masterKinds: masterTracks,
         segmentCount,
         inputs: runtime.inputs,
         durationCache: assetDurationCache,
       });
-      const segmentDurations = masterSegmentDurations
-        ?? allocateSegmentDurations(readTimelineDuration(resolvedInputs), segmentCount);
       const segmentOffsets = buildSegmentOffsets(segmentDurations);
 
       const totalTimelineDuration = roundSeconds(segmentDurations.reduce((sum, value) => sum + value, 0));
@@ -275,7 +278,6 @@ export function createTimelineProducerHandler(): HandlerFactory {
             trackIndex: index,
             segmentDurations,
             segmentOffsets,
-            isMaster: clip === masterClip,
             totalDuration: totalTimelineDuration,
             inputs: runtime.inputs,
             durationCache: assetDurationCache,
@@ -349,13 +351,15 @@ function parseTimelineConfig(raw: unknown): TimelineProducerConfig {
   const derivedClips = buildClipsFromShorthand(source);
   const clips = explicitClips.length > 0 ? explicitClips : derivedClips;
 
+  const masterTracks = Array.isArray(source.masterTracks)
+    ? source.masterTracks
+      .map((entry) => (typeof entry === 'string' ? (entry as ClipKind) : undefined))
+      .filter((entry): entry is ClipKind => Boolean(entry))
+    : undefined;
+
   return {
     numTracks: typeof source.numTracks === 'number' ? source.numTracks : undefined,
-    masterTrack: isRecord(source.masterTrack) && typeof source.masterTrack.kind === 'string'
-      ? { kind: source.masterTrack.kind as ClipKind }
-      : typeof source.masterTrack === 'string'
-        ? { kind: source.masterTrack as ClipKind }
-      : undefined,
+    masterTracks,
     clips,
     tracks,
   };
@@ -464,9 +468,7 @@ function mergeConfig(base: TimelineProducerConfig, overrides: Record<string, unk
   return {
     clips: base.clips,
     numTracks: typeof result.numTracks === 'number' ? result.numTracks : base.numTracks,
-    masterTrack: isRecord(result.masterTrack) && typeof result.masterTrack.kind === 'string'
-      ? { kind: result.masterTrack.kind as ClipKind }
-      : base.masterTrack,
+    masterTracks: Array.isArray(result.masterTracks) ? (result.masterTracks as ClipKind[]) : base.masterTracks,
     tracks: Array.isArray(result.tracks) ? (result.tracks as ClipKind[]) : base.tracks,
   };
 }
@@ -496,12 +498,11 @@ async function buildTrack(args: {
   trackIndex: number;
   segmentDurations: number[];
   segmentOffsets: number[];
-  isMaster: boolean;
   totalDuration: number;
   inputs: ResolvedInputsAccessor;
   durationCache: Map<string, number>;
 }): Promise<TimelineTrack> {
-  const { clip, fanIn, trackIndex, segmentDurations, segmentOffsets, isMaster, totalDuration, inputs, durationCache } = args;
+  const { clip, fanIn, trackIndex, segmentDurations, segmentOffsets, totalDuration, inputs, durationCache } = args;
   if (!fanIn || fanIn.groups.length === 0) {
     return {
       id: `track-${trackIndex}`,
@@ -517,7 +518,7 @@ async function buildTrack(args: {
         trackIndex,
         segmentDurations,
         segmentOffsets,
-        isMaster,
+        inputs,
       });
     case 'Image':
       return buildImageTrack({
@@ -526,6 +527,7 @@ async function buildTrack(args: {
         trackIndex,
         segmentDurations,
         segmentOffsets,
+        inputs,
       });
     case 'Music':
       return buildMusicTrack({
@@ -561,23 +563,19 @@ function buildAudioTrack(args: {
   trackIndex: number;
   segmentDurations: number[];
   segmentOffsets: number[];
-  isMaster: boolean;
+  inputs: ResolvedInputsAccessor;
 }): TimelineTrack {
-  const { clip, fanIn, trackIndex, segmentDurations, segmentOffsets, isMaster } = args;
-  const groups = normalizeGroups(fanIn.groups, segmentDurations.length);
+  const { clip, fanIn, trackIndex, segmentDurations, segmentOffsets, inputs } = args;
+  const normalizedGroups = normalizeGroups(fanIn.groups, segmentDurations.length);
+  // Filter out assets that don't exist (were skipped due to conditional execution)
+  const groups = filterExistingAssets(normalizedGroups, inputs);
   const clips: TimelineClip[] = [];
 
   for (let index = 0; index < segmentDurations.length; index += 1) {
     const assets = groups[index] ?? [];
     const assetId = assets[0];
     if (!assetId) {
-      if (isMaster) {
-        throw createProviderError(`Master track is missing an asset for segment index ${index}.`, {
-          code: 'missing_asset',
-          kind: 'user_input',
-          causedByUser: true,
-        });
-      }
+      // Skip segments with no audio assets (conditionally skipped)
       continue;
     }
 
@@ -606,14 +604,21 @@ function buildImageTrack(args: {
   trackIndex: number;
   segmentDurations: number[];
   segmentOffsets: number[];
+  inputs: ResolvedInputsAccessor;
 }): TimelineTrack {
-  const { clip, fanIn, trackIndex, segmentDurations, segmentOffsets } = args;
+  const { clip, fanIn, trackIndex, segmentDurations, segmentOffsets, inputs } = args;
   const effectName = clip.effect ?? DEFAULT_EFFECT;
-  const groups = normalizeGroups(fanIn.groups, segmentDurations.length);
+  const normalizedGroups = normalizeGroups(fanIn.groups, segmentDurations.length);
+  // Filter out assets that don't exist (were skipped due to conditional execution)
+  const groups = filterExistingAssets(normalizedGroups, inputs);
   const clips: TimelineClip[] = [];
 
   for (let index = 0; index < segmentDurations.length; index += 1) {
     const images = groups[index] ?? [];
+    if (images.length === 0) {
+      // Skip segments with no image assets (conditionally skipped)
+      continue;
+    }
     const effects = images.map((assetId, imageIndex) => {
       const preset = pickKenBurnsPreset(index, imageIndex);
       return {
@@ -657,7 +662,9 @@ async function buildMusicTrack(args: {
   durationCache: Map<string, number>;
 }): Promise<TimelineTrack> {
   const { clip, fanIn, trackIndex, totalDuration, inputs, durationCache } = args;
-  const assets = flattenFanInAssets(fanIn);
+  const allAssets = flattenFanInAssets(fanIn);
+  // Filter out assets that don't exist (were skipped due to conditional execution)
+  const assets = allAssets.filter((assetId) => tryResolveAssetBinary(inputs, assetId) !== undefined);
   if (assets.length === 0) {
     throw createProviderError('TimelineProducer requires at least one asset for music tracks.', {
       code: 'missing_asset',
@@ -743,7 +750,9 @@ async function buildVideoTrack(args: {
   durationCache: Map<string, number>;
 }): Promise<TimelineTrack> {
   const { clip, fanIn, trackIndex, segmentDurations, segmentOffsets, inputs, durationCache } = args;
-  const groups = normalizeGroups(fanIn.groups, segmentDurations.length);
+  const normalizedGroups = normalizeGroups(fanIn.groups, segmentDurations.length);
+  // Filter out assets that don't exist (were skipped due to conditional execution)
+  const groups = filterExistingAssets(normalizedGroups, inputs);
   const clips: TimelineClip[] = [];
 
   for (let index = 0; index < segmentDurations.length; index += 1) {
@@ -752,6 +761,7 @@ async function buildVideoTrack(args: {
     if (!assetId) {
       continue;
     }
+    // Asset is guaranteed to exist since we filtered above
     const originalDuration = await loadAssetDuration({ assetId, inputs, cache: durationCache });
     const fitStrategy = resolveVideoFitStrategy(clip.fitStrategy, segmentDurations[index], originalDuration);
     const properties: Record<string, unknown> = {
@@ -832,73 +842,113 @@ function readTimelineDuration(inputs: Record<string, unknown>): number {
   });
 }
 
-function allocateSegmentDurations(total: number, count: number): number[] {
-  const base = total / count;
-  const durations = Array.from({ length: count }, () => roundSeconds(base));
-  const sum = durations.reduce((acc, value) => acc + value, 0);
-  const delta = roundSeconds(total - sum);
-  durations[count - 1] = roundSeconds(durations[count - 1] + delta);
-  return durations;
-}
-
-async function determineMasterSegmentDurations(args: {
-  clip: TimelineClipConfig;
-  fanIn: FanInValue;
-  segmentCount: number;
-  inputs: ResolvedInputsAccessor;
-  durationCache: Map<string, number>;
-}): Promise<number[] | undefined> {
-  if (!TRACK_KINDS_WITH_NATIVE_DURATION.has(args.clip.kind)) {
-    return undefined;
-  }
-  return readSegmentDurationsFromAssets({
-    fanIn: args.fanIn,
-    segmentCount: args.segmentCount,
-    inputs: args.inputs,
-    durationCache: args.durationCache,
-  });
-}
-
-async function readSegmentDurationsFromAssets(args: {
-  fanIn: FanInValue;
+/**
+ * Determines segment durations using a fallback chain of master tracks.
+ * For each segment, tries master tracks in priority order until one has an asset.
+ * Falls back to SegmentDuration input or equal division of Duration if no master track has an asset.
+ */
+async function determineMasterSegmentDurationsWithFallback(args: {
+  clips: TimelineClipConfig[];
+  fanInByInput: Map<string, FanInValue>;
+  masterKinds: ClipKind[];
   segmentCount: number;
   inputs: ResolvedInputsAccessor;
   durationCache: Map<string, number>;
 }): Promise<number[]> {
-  const groups = normalizeGroups(args.fanIn.groups, args.segmentCount);
+  const { clips, fanInByInput, masterKinds, segmentCount, inputs, durationCache } = args;
+  const resolvedInputs = inputs.all();
   const durations: number[] = [];
 
-  for (let index = 0; index < args.segmentCount; index += 1) {
-    const assetId = groups[index]?.[0];
-    if (!assetId) {
-      throw createProviderError(`Master track is missing an asset for segment index ${index}.`, {
-        code: 'missing_asset',
-        kind: 'user_input',
-        causedByUser: true,
-      });
+  // Pre-compute master clips and their fan-in data grouped by kind
+  const masterClipsByKind = new Map<ClipKind, { clip: TimelineClipConfig; fanIn: FanInValue }[]>();
+  for (const masterKind of masterKinds) {
+    const candidates = clips.filter((clip) => clip.kind === masterKind);
+    const clipsWithFanIn: { clip: TimelineClipConfig; fanIn: FanInValue }[] = [];
+    for (const candidate of candidates) {
+      const fanIn = fanInByInput.get(candidate.inputs);
+      if (fanIn) {
+        clipsWithFanIn.push({ clip: candidate, fanIn });
+      }
     }
-    const duration = await loadAssetDuration({
-      assetId,
-      inputs: args.inputs,
-      cache: args.durationCache,
-    });
+    if (clipsWithFanIn.length > 0) {
+      masterClipsByKind.set(masterKind, clipsWithFanIn);
+    }
+  }
+
+  for (let segmentIndex = 0; segmentIndex < segmentCount; segmentIndex += 1) {
+    let duration: number | undefined;
+
+    // Try each master track kind in priority order
+    for (const masterKind of masterKinds) {
+      if (duration !== undefined) {
+        break;
+      }
+      // Only tracks with native duration (Audio, Video, Music) can provide segment duration
+      if (!TRACK_KINDS_WITH_NATIVE_DURATION.has(masterKind)) {
+        continue;
+      }
+      const clipsForKind = masterClipsByKind.get(masterKind);
+      if (!clipsForKind) {
+        continue;
+      }
+      for (const { fanIn } of clipsForKind) {
+        const groups = normalizeGroups(fanIn.groups, segmentCount);
+        const assetId = groups[segmentIndex]?.[0];
+        if (assetId) {
+          // Use tryLoadAssetDuration to handle skipped assets gracefully
+          const assetDuration = await tryLoadAssetDuration({ assetId, inputs, cache: durationCache });
+          if (assetDuration !== undefined) {
+            duration = assetDuration;
+            break;
+          }
+          // Asset was skipped - continue to next candidate
+        }
+      }
+    }
+
+    // Fallback: use SegmentDuration input if no master track had an asset
+    if (duration === undefined) {
+      const segmentDuration = readOptionalPositiveNumber(resolvedInputs, [
+        'Input:SegmentDuration',
+        'SegmentDuration',
+      ]);
+      if (segmentDuration !== undefined) {
+        duration = segmentDuration;
+      }
+    }
+
+    // Final fallback: divide total Duration equally
+    if (duration === undefined) {
+      const totalDuration = readTimelineDuration(resolvedInputs);
+      duration = roundSeconds(totalDuration / segmentCount);
+    }
+
     durations.push(duration);
   }
 
   return durations;
 }
 
-async function loadAssetDuration(args: {
+/**
+ * Tries to load asset duration, returning undefined if the asset is missing.
+ * This is used for conditional execution where some assets may be skipped.
+ */
+async function tryLoadAssetDuration(args: {
   assetId: string;
   inputs: ResolvedInputsAccessor;
   cache: Map<string, number>;
-}): Promise<number> {
+}): Promise<number | undefined> {
   const cached = args.cache.get(args.assetId);
   if (cached !== undefined) {
     return cached;
   }
 
-  const payload = resolveAssetBinary(args.inputs, args.assetId);
+  const payload = tryResolveAssetBinary(args.inputs, args.assetId);
+  if (payload === undefined) {
+    // Asset is missing (was skipped) - return undefined so caller can fallback
+    return undefined;
+  }
+
   const synthetic = maybeResolveSyntheticDuration({
     assetId: args.assetId,
     payload,
@@ -938,7 +988,32 @@ async function loadAssetDuration(args: {
   }
 }
 
-function resolveAssetBinary(inputs: ResolvedInputsAccessor, assetId: string): ArrayBuffer | ArrayBufferView {
+async function loadAssetDuration(args: {
+  assetId: string;
+  inputs: ResolvedInputsAccessor;
+  cache: Map<string, number>;
+}): Promise<number> {
+  const result = await tryLoadAssetDuration(args);
+  if (result !== undefined) {
+    return result;
+  }
+
+  throw createProviderError(`TimelineProducer could not locate binary data for asset "${args.assetId}".`, {
+    code: 'missing_asset_payload',
+    kind: 'unknown',
+    causedByUser: false,
+    metadata: { assetId: args.assetId },
+  });
+}
+
+/**
+ * Tries to resolve asset binary data, returning undefined if the asset is missing.
+ * This is used for conditional execution where some assets may be skipped.
+ */
+function tryResolveAssetBinary(
+  inputs: ResolvedInputsAccessor,
+  assetId: string,
+): ArrayBuffer | ArrayBufferView | undefined {
   const value = inputs.getByNodeId(assetId);
   if (isBinaryPayload(value)) {
     return value;
@@ -946,21 +1021,8 @@ function resolveAssetBinary(inputs: ResolvedInputsAccessor, assetId: string): Ar
   if (typeof value === 'string') {
     return Buffer.from(value);
   }
-  if (value !== undefined) {
-    throw createProviderError(`TimelineProducer expected binary data for asset "${assetId}".`, {
-      code: 'invalid_asset_payload',
-      kind: 'unknown',
-      causedByUser: false,
-      metadata: { assetId, valueType: typeof value },
-    });
-  }
-
-  throw createProviderError(`TimelineProducer could not locate binary data for asset "${assetId}".`, {
-    code: 'missing_asset_payload',
-    kind: 'unknown',
-    causedByUser: false,
-    metadata: { assetId },
-  });
+  // Asset is missing or not binary - return undefined for graceful handling
+  return undefined;
 }
 
 function isBinaryPayload(value: unknown): value is ArrayBuffer | ArrayBufferView {
@@ -1070,6 +1132,20 @@ function normalizeGroups(groups: string[][], length: number): string[][] {
     }
     return group.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
   });
+}
+
+/**
+ * Filters groups to only include assets that actually exist in resolved inputs.
+ * This is necessary for conditional execution where some producers may be skipped.
+ */
+function filterExistingAssets(groups: string[][], inputs: ResolvedInputsAccessor): string[][] {
+  return groups.map((group) =>
+    group.filter((assetId) => {
+      // Check if the asset exists in resolved inputs
+      const payload = tryResolveAssetBinary(inputs, assetId);
+      return payload !== undefined;
+    }),
+  );
 }
 
 function flattenFanInAssets(fanIn: FanInValue): string[] {

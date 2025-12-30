@@ -107,9 +107,7 @@ describe('createProviderRegistry', () => {
         context: {
           providerConfig: {
             tracks: ['Audio'],
-            masterTrack: {
-              kind: 'Audio',
-            },
+            masterTracks: ['Audio'],
             clips: [],
           },
         },
