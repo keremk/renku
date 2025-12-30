@@ -2,13 +2,13 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { runExecute, formatMovieId } from '../../src/commands/execute.js';
-import { getBundledBlueprintsRoot } from '../../src/lib/config-assets.js';
 import {
   createLoggerRecorder,
   expectFileExists,
   readPlan,
   setupTempCliConfig,
 } from './helpers.js';
+import { CATALOG_BLUEPRINTS_ROOT } from '../test-catalog-paths.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -33,7 +33,7 @@ describe('end-to-end: image-to-video dry runs', () => {
   });
 
   it('wires sliding start/end images into ImageToVideoProducer', async () => {
-    const blueprintRoot = getBundledBlueprintsRoot();
+    const blueprintRoot = CATALOG_BLUEPRINTS_ROOT;
     const blueprintPath = resolve(blueprintRoot, 'image-to-video', 'image-to-video.yaml');
     const inputsPath = resolve(__dirname, 'fixtures', 'image-to-video-inputs.yaml');
 

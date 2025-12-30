@@ -3,9 +3,9 @@ import { resolve, extname } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
+import { CATALOG_PRODUCERS_ROOT } from '../test-catalog-paths.js';
 
-const REPO_ROOT = resolve(__dirname, '../../..');
-const SCHEMAS_ROOT = resolve(REPO_ROOT, 'catalog/producers');
+const SCHEMAS_ROOT = CATALOG_PRODUCERS_ROOT;
 
 async function listJsonSchemas(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true });

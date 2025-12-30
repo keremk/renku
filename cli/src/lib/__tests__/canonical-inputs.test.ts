@@ -1,16 +1,14 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { loadBlueprintBundle } from '../blueprint-loader/index.js';
 import { loadInputsFromYaml } from '../input-loader.js';
 import { applyProviderDefaults } from '../provider-defaults.js';
-import { getBundledBlueprintsRoot, resolveBlueprintSpecifier } from '../config-assets.js';
+import { resolveBlueprintSpecifier } from '../config-assets.js';
+import { REPO_ROOT, CATALOG_BLUEPRINTS_ROOT } from '../../../tests/test-catalog-paths.js';
 
-const TEST_DIR = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = resolve(TEST_DIR, '../../../..');
 const CLI_ROOT = resolve(REPO_ROOT, 'cli');
-const BLUEPRINTS_ROOT = getBundledBlueprintsRoot();
+const BLUEPRINTS_ROOT = CATALOG_BLUEPRINTS_ROOT;
 const FIXTURE_PATH = resolve(CLI_ROOT, 'src/lib/__fixtures__/video-audio-music-canonical-inputs.json');
 
 async function readFixture(): Promise<string[] | null> {

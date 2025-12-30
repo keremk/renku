@@ -15,13 +15,13 @@ import {
 } from '@gorenku/core';
 import { getDefaultCliConfigPath, readCliConfig } from '../../src/lib/cli-config.js';
 import { formatMovieId, runExecute } from '../../src/commands/execute.js';
-import { getBundledBlueprintsRoot } from '../../src/lib/config-assets.js';
 import { generatePlan } from '../../src/lib/planner.js';
 import {
   createLoggerRecorder,
   readPlan,
   setupTempCliConfig,
 } from './helpers.js';
+import { CATALOG_BLUEPRINTS_ROOT } from '../test-catalog-paths.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -40,10 +40,10 @@ describe('end-to-end: artifact override via inputs.yaml', () => {
   });
 
   it('re-runs downstream producers when artifact is overridden via file: prefix', async () => {
-    const blueprintRoot = getBundledBlueprintsRoot();
+    const blueprintRoot = CATALOG_BLUEPRINTS_ROOT;
     const blueprintPath = resolve(blueprintRoot, 'audio-only', 'audio-only.yaml');
     const inputsPath = resolve(__dirname, 'fixtures', 'audio-only-inputs.yaml');
-    const { logger, warnings, errors } = createLoggerRecorder();
+    const { logger } = createLoggerRecorder();
     const { logger: editLogger, warnings: editWarnings, errors: editErrors } = createLoggerRecorder();
     const movieId = 'e2e-artifact-override';
     const storageMovieId = formatMovieId(movieId);

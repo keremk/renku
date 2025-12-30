@@ -3,7 +3,6 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { runExecute, formatMovieId } from '../../src/commands/execute.js';
-import { getBundledBlueprintsRoot } from '../../src/lib/config-assets.js';
 import {
   createLoggerRecorder,
   expectFileExists,
@@ -11,6 +10,7 @@ import {
   readPlan,
   setupTempCliConfig,
 } from './helpers.js';
+import { CATALOG_BLUEPRINTS_ROOT } from '../test-catalog-paths.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -29,7 +29,7 @@ describe('end-to-end: video-audio-music dry runs', () => {
   });
 
   it('runs query and edit dry-runs with canonical bindings and artefacts', async () => {
-    const blueprintRoot = getBundledBlueprintsRoot();
+    const blueprintRoot = CATALOG_BLUEPRINTS_ROOT;
     const blueprintPath = resolve(blueprintRoot, 'cut-scene-video', 'video-audio-music.yaml');
     const inputsPath = resolve(__dirname, 'fixtures', 'video-audio-music-inputs.yaml');
     const { logger, warnings, errors } = createLoggerRecorder();

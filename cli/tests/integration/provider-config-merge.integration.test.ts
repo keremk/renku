@@ -1,12 +1,12 @@
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { loadBlueprintBundle } from '../../src/lib/blueprint-loader/index.js';
-import { getBundledBlueprintsRoot } from '../../src/lib/config-assets.js';
 import { buildProducerOptionsFromBlueprint } from '../../src/lib/producer-options.js';
+import { CATALOG_BLUEPRINTS_ROOT } from '../test-catalog-paths.js';
 
 describe('integration: provider config merging', () => {
   it('retains default clip artifacts when overriding nested fields', async () => {
-    const blueprintRoot = getBundledBlueprintsRoot();
+    const blueprintRoot = CATALOG_BLUEPRINTS_ROOT;
     const blueprintPath = resolve(blueprintRoot, 'kenn-burns', 'image-audio.yaml');
     const { root: blueprint } = await loadBlueprintBundle(blueprintPath);
 

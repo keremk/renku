@@ -1,17 +1,15 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { generatePlan } from '../planner.js';
-import { getBundledBlueprintsRoot, resolveBlueprintSpecifier } from '../config-assets.js';
+import { resolveBlueprintSpecifier } from '../config-assets.js';
 import type { CliConfig } from '../cli-config.js';
 import { createCliLogger } from '../logger.js';
+import { REPO_ROOT, CATALOG_BLUEPRINTS_ROOT } from '../../../tests/test-catalog-paths.js';
 
-const TEST_DIR = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = resolve(TEST_DIR, '../../../..');
 const CLI_ROOT = resolve(REPO_ROOT, 'cli');
-const BLUEPRINTS_ROOT = getBundledBlueprintsRoot();
+const BLUEPRINTS_ROOT = CATALOG_BLUEPRINTS_ROOT;
 
 describe('planner provider inputs', () => {
 	it('includes provider/model inputs for ImageProducer jobs', async () => {

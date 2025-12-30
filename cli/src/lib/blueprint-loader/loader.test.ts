@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { resolve } from 'node:path';
 import { loadBlueprintBundle } from './loader.js';
-import { getBundledBlueprintsRoot } from '../config-assets.js';
+import { CATALOG_BLUEPRINTS_ROOT } from '../../../tests/test-catalog-paths.js';
 
 describe('loadBlueprintBundle', () => {
   it('loads root and nested sub-blueprints', async () => {
-    const bundlePath = resolve(getBundledBlueprintsRoot(), 'cut-scene-video', 'video-audio-music.yaml');
+    const bundlePath = resolve(CATALOG_BLUEPRINTS_ROOT, 'cut-scene-video', 'video-audio-music.yaml');
     const bundle = await loadBlueprintBundle(bundlePath);
     expect(bundle.root.id).toBe('VideoAudioMusic');
     expect(bundle.root.children.size).toBeGreaterThan(0);

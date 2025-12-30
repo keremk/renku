@@ -15,7 +15,8 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     "tests/integration/**/*.test.ts",
-    "tests/integration/**/*.test.tsx"
+    "tests/integration/**/*.test.tsx",
+    "tests/test-catalog-paths.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

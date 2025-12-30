@@ -14,7 +14,7 @@
     "node": ">=16"
   },
   "scripts": {
-    "build": "node ../scripts/prepare-catalog-bundle.mjs && tsc",
+    "build": "tsc",
     "dev": "tsc --watch",
     "lint": "eslint src",
     "type-check": "tsc --noEmit",

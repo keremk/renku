@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { stringify, parse } from 'yaml';
 import type { Logger } from '@gorenku/core';
 import { writeCliConfig, type CliConfig } from '../../src/lib/cli-config.js';
-import { getBundledCatalogRoot } from '../../src/lib/config-assets.js';
+import { CATALOG_ROOT } from '../test-catalog-paths.js';
 
 export interface LoggerRecorder {
   logger: Logger;
@@ -32,7 +32,7 @@ export function buildTempConfig(root: string): CliConfig {
       basePath: 'builds',
     },
     catalog: {
-      root: getBundledCatalogRoot(),
+      root: CATALOG_ROOT,
     },
     concurrency: 1,
   };

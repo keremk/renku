@@ -15,7 +15,9 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     "tests/end-to-end/**/*.test.ts",
-    "tests/end-to-end/**/*.test.tsx"
+    "tests/end-to-end/**/*.test.tsx",
+    "tests/test-catalog-paths.ts",
+    "tests/end-to-end/helpers.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

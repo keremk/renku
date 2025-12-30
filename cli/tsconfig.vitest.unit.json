@@ -3,6 +3,7 @@
   "compilerOptions": {
     "types": ["vitest/globals"],
     "noEmit": true,
+    "rootDir": ".",
     "typeRoots": [
       "./node_modules/@types",
       "../node_modules/@types",
@@ -14,7 +15,8 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     "tests/unit/**/*.test.ts",
-    "tests/unit/**/*.test.tsx"
+    "tests/unit/**/*.test.tsx",
+    "tests/test-catalog-paths.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

@@ -9,11 +9,11 @@ import { runInit } from './init.js';
 import { runGenerate } from './generate.js';
 import { formatMovieId, runExecute } from './execute.js';
 import { createInputsFile } from './__testutils__/inputs.js';
-import { getBundledBlueprintsRoot } from '../lib/config-assets.js';
 import { createCliLogger } from '../lib/logger.js';
+import { CATALOG_BLUEPRINTS_ROOT } from '../../tests/test-catalog-paths.js';
 
 const AUDIO_ONLY_BLUEPRINT_PATH = resolve(
-  getBundledBlueprintsRoot(),
+  CATALOG_BLUEPRINTS_ROOT,
   'audio-only',
   'audio-only.yaml',
 );

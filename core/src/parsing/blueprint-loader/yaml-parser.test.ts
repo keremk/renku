@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { FileStorage } from '@flystorage/file-storage';
 import { LocalStorageAdapter } from '@flystorage/local-fs';
 import {
@@ -8,14 +7,13 @@ import {
   loadYamlBlueprintTree,
   parseYamlBlueprintFile,
 } from './yaml-parser.js';
-import { getBundledBlueprintsRoot, getBundledCatalogRoot } from '../../../../cli/src/lib/config-assets.js';
+import { CATALOG_ROOT, CATALOG_BLUEPRINTS_ROOT } from '../../testing/catalog-paths.js';
 import type { EdgeConditionClause, EdgeConditionGroup } from '../../types.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const catalogRoot = getBundledCatalogRoot();
-const yamlRoot = getBundledBlueprintsRoot();
-// Root catalog (not CLI bundled) for blueprints like condition-example
-const rootCatalogBlueprints = resolve(__dirname, '../../../../catalog/blueprints');
+const catalogRoot = CATALOG_ROOT;
+const yamlRoot = CATALOG_BLUEPRINTS_ROOT;
+// Root catalog for blueprints like condition-example
+const rootCatalogBlueprints = CATALOG_BLUEPRINTS_ROOT;
 
 describe('parseYamlBlueprintFile', () => {
   it('parses module producers and loads prompt/schema files', async () => {

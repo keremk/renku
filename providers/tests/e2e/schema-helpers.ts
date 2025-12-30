@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import type { ProviderJobContext } from '../../src/types.js';
 import {
   loadModelCatalog,
@@ -8,10 +7,10 @@ import {
   resolveSchemaPath as resolveSchemaPathFromCatalog,
   type LoadedModelCatalog,
 } from '../../src/model-catalog.js';
+import { CATALOG_MODELS_ROOT } from '../test-catalog-paths.js';
 
-// Catalog directory - relative to this file
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const CATALOG_DIR = resolve(__dirname, '../../../catalog/models');
+// Catalog directory - uses shared test utility
+const CATALOG_DIR = CATALOG_MODELS_ROOT;
 
 // Cached catalog instance
 let catalogCache: LoadedModelCatalog | null = null;

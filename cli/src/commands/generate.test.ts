@@ -10,22 +10,21 @@ import { runGenerate } from './generate.js';
 import { formatMovieId } from './execute.js';
 import { readCliConfig } from '../lib/cli-config.js';
 import { createInputsFile } from './__testutils__/inputs.js';
-import { getBundledBlueprintsRoot } from '../lib/config-assets.js';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { CATALOG_BLUEPRINTS_ROOT } from '../../tests/test-catalog-paths.js';
 
-const BUNDLED_BLUEPRINT_ROOT = getBundledBlueprintsRoot();
 const VIDEO_AUDIO_MUSIC_BLUEPRINT_PATH = resolve(
-  BUNDLED_BLUEPRINT_ROOT,
+  CATALOG_BLUEPRINTS_ROOT,
   'cut-scene-video',
   'video-audio-music.yaml',
 );
 const AUDIO_ONLY_BLUEPRINT_PATH = resolve(
-  BUNDLED_BLUEPRINT_ROOT,
+  CATALOG_BLUEPRINTS_ROOT,
   'audio-only',
   'audio-only.yaml',
 );
 const IMAGE_AUDIO_BLUEPRINT_PATH = resolve(
-  BUNDLED_BLUEPRINT_ROOT,
+  CATALOG_BLUEPRINTS_ROOT,
   'kenn-burns',
   'image-audio.yaml',
 );
@@ -234,7 +233,7 @@ describe('runGenerate (new runs)', () => {
 
     const baselineInputsPath = join(root, 'inputs-image.yaml');
     await copyFile(
-      resolve(BUNDLED_BLUEPRINT_ROOT, 'kenn-burns', 'input-template.yaml'),
+      resolve(CATALOG_BLUEPRINTS_ROOT, 'kenn-burns', 'input-template.yaml'),
       baselineInputsPath,
     );
 

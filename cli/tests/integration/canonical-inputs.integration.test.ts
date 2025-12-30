@@ -2,15 +2,15 @@ import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { getBundledBlueprintsRoot, getBundledCatalogRoot, resolveBlueprintSpecifier } from '../../src/lib/config-assets.js';
+import { resolveBlueprintSpecifier } from '../../src/lib/config-assets.js';
 import { generatePlan } from '../../src/lib/planner.js';
 import { writeCliConfig, type CliConfig } from '../../src/lib/cli-config.js';
 import { executeBuild } from '../../src/lib/build.js';
 import { createCliLogger } from '../../src/lib/logger.js';
+import { REPO_ROOT, CATALOG_ROOT, CATALOG_BLUEPRINTS_ROOT } from '../test-catalog-paths.js';
 
-const CLI_ROOT = resolve(__dirname, '../../');
-const BLUEPRINTS_ROOT = getBundledBlueprintsRoot();
-const CATALOG_ROOT = getBundledCatalogRoot();
+const CLI_ROOT = resolve(REPO_ROOT, 'cli');
+const BLUEPRINTS_ROOT = CATALOG_BLUEPRINTS_ROOT;
 
 describe('integration: canonical inputs persist across query/edit', () => {
 	let originalApiKey: string | undefined;

@@ -1,18 +1,16 @@
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { stringify as stringifyYaml } from 'yaml';
 import { loadInputsFromYaml } from './input-loader.js';
 import { applyProviderDefaults } from './provider-defaults.js';
 import { loadBlueprintBundle } from './blueprint-loader/index.js';
-import { getBundledBlueprintsRoot, resolveBlueprintSpecifier } from './config-assets.js';
+import { resolveBlueprintSpecifier } from './config-assets.js';
+import { REPO_ROOT, CATALOG_BLUEPRINTS_ROOT } from '../../tests/test-catalog-paths.js';
 
-const TEST_DIR = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = resolve(TEST_DIR, '../../..');
 const CLI_ROOT = resolve(REPO_ROOT, 'cli');
-const BLUEPRINTS_ROOT = getBundledBlueprintsRoot();
+const BLUEPRINTS_ROOT = CATALOG_BLUEPRINTS_ROOT;
 
 describe('input-loader', () => {
   it('loads saved canonical inputs with schema-backed config keys', async () => {

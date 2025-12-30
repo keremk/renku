@@ -6,10 +6,10 @@ import { describe, expect, it } from 'vitest';
 import { stringify as stringifyYaml } from 'yaml';
 import { loadInputsFromYaml } from './input-loader.js';
 import { loadYamlBlueprintTree } from './blueprint-loader/yaml-parser.js';
-import { getBundledBlueprintsRoot } from '../../../cli/src/lib/config-assets.js';
+import { CATALOG_BLUEPRINTS_ROOT } from '../testing/catalog-paths.js';
 import type { BlueprintTreeNode } from '../types.js';
 
-const BLUEPRINT_ROOT = getBundledBlueprintsRoot();
+const BLUEPRINT_ROOT = CATALOG_BLUEPRINTS_ROOT;
 
 // Helper to create a minimal blueprint tree for testing artifact override detection
 function createTestBlueprintTree(): BlueprintTreeNode {
