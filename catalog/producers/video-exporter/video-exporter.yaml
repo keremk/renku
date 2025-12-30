@@ -15,7 +15,3 @@ artifacts:
   - name: FinalVideo
     description: Final rendered MP4 video.
     type: video
-
-models:
-  - provider: renku
-    model: remotion/docker-render

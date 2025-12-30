@@ -275,3 +275,265 @@ describe('artifact override detection', () => {
     expect(loaded.artifactOverrides[0].blob.mimeType).toBe('image/png');
   });
 });
+
+// Helper blueprint for testing SDK mapping parsing
+function createMinimalBlueprintTree(): BlueprintTreeNode {
+  return {
+    id: 'MinimalBlueprint',
+    namespacePath: [],
+    document: {
+      meta: { id: 'MinimalBlueprint', name: 'Minimal Blueprint' },
+      inputs: [],
+      artefacts: [],
+      producers: [{ name: 'AudioProducer' }, { name: 'ImageProducer' }, { name: 'ScriptProducer' }, { name: 'ChatProducer' }, { name: 'ImageToVideoProducer' }],
+      producerImports: [],
+      edges: [],
+    },
+    children: new Map(),
+  };
+}
+
+describe('model selection SDK mapping parsing', () => {
+  it('parses simple string SDK mappings', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-sdk-mapping-'));
+    const savedPath = join(workdir, 'inputs.yaml');
+    const blueprint = createMinimalBlueprintTree();
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {},
+        models: [
+          {
+            producerId: 'AudioProducer',
+            provider: 'replicate',
+            model: 'minimax/speech-2.6-hd',
+            inputs: {
+              TextInput: 'text',
+              Emotion: 'emotion',
+              VoiceId: 'voice_id',
+            },
+          },
+        ],
+      }),
+      'utf8',
+    );
+
+    const loaded = await loadInputsFromYaml(savedPath, blueprint);
+    const selection = loaded.modelSelections.find((s) => s.producerId === 'AudioProducer');
+
+    expect(selection).toBeDefined();
+    expect(selection?.inputs).toEqual({
+      TextInput: { field: 'text' },
+      Emotion: { field: 'emotion' },
+      VoiceId: { field: 'voice_id' },
+    });
+  });
+
+  it('parses complex SDK mappings with field and transform', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-sdk-transform-'));
+    const savedPath = join(workdir, 'inputs.yaml');
+    const blueprint = createMinimalBlueprintTree();
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {},
+        models: [
+          {
+            producerId: 'ImageProducer',
+            provider: 'fal-ai',
+            model: 'bytedance/seedream',
+            inputs: {
+              Prompt: { field: 'prompt' },
+              AspectRatio: {
+                field: 'image_size',
+                transform: {
+                  '16:9': 'landscape_16_9',
+                  '9:16': 'portrait_16_9',
+                  '1:1': 'square',
+                },
+              },
+            },
+          },
+        ],
+      }),
+      'utf8',
+    );
+
+    const loaded = await loadInputsFromYaml(savedPath, blueprint);
+    const selection = loaded.modelSelections.find((s) => s.producerId === 'ImageProducer');
+
+    expect(selection).toBeDefined();
+    expect(selection?.inputs?.AspectRatio).toEqual({
+      field: 'image_size',
+      transform: {
+        '16:9': 'landscape_16_9',
+        '9:16': 'portrait_16_9',
+        '1:1': 'square',
+      },
+    });
+  });
+
+  it('parses SDK mappings with expand flag for object spreading', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-sdk-expand-'));
+    const savedPath = join(workdir, 'inputs.yaml');
+    const blueprint = createMinimalBlueprintTree();
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {},
+        models: [
+          {
+            producerId: 'ImageToVideoProducer',
+            provider: 'fal-ai',
+            model: 'kling/image-to-video',
+            inputs: {
+              ImageConfig: {
+                field: 'config',
+                expand: true,
+              },
+            },
+          },
+        ],
+      }),
+      'utf8',
+    );
+
+    const loaded = await loadInputsFromYaml(savedPath, blueprint);
+    const selection = loaded.modelSelections.find((s) => s.producerId === 'ImageToVideoProducer');
+
+    expect(selection).toBeDefined();
+    expect(selection?.inputs?.ImageConfig).toEqual({
+      field: 'config',
+      expand: true,
+    });
+  });
+
+  it('parses LLM config with promptFile and outputSchema', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-llm-config-'));
+    const savedPath = join(workdir, 'inputs.yaml');
+    const blueprint = createMinimalBlueprintTree();
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {},
+        models: [
+          {
+            producerId: 'ScriptProducer',
+            provider: 'openai',
+            model: 'gpt-5-mini',
+            promptFile: '../../producers/script/script.toml',
+            outputSchema: '../../producers/script/script-output.json',
+            config: {
+              text_format: 'json_schema',
+            },
+          },
+        ],
+      }),
+      'utf8',
+    );
+
+    const loaded = await loadInputsFromYaml(savedPath, blueprint);
+    const selection = loaded.modelSelections.find((s) => s.producerId === 'ScriptProducer');
+
+    expect(selection).toBeDefined();
+    expect(selection?.promptFile).toBe('../../producers/script/script.toml');
+    expect(selection?.outputSchema).toBe('../../producers/script/script-output.json');
+    expect(selection?.config).toEqual({ text_format: 'json_schema' });
+  });
+
+  it('parses inline LLM config with systemPrompt and userPrompt', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-inline-llm-'));
+    const savedPath = join(workdir, 'inputs.yaml');
+    const blueprint = createMinimalBlueprintTree();
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {},
+        models: [
+          {
+            producerId: 'ChatProducer',
+            provider: 'openai',
+            model: 'gpt-4o',
+            systemPrompt: 'You are a helpful assistant.',
+            userPrompt: 'Answer the following: {{question}}',
+            textFormat: 'text',
+            variables: ['question'],
+          },
+        ],
+      }),
+      'utf8',
+    );
+
+    const loaded = await loadInputsFromYaml(savedPath, blueprint);
+    const selection = loaded.modelSelections.find((s) => s.producerId === 'ChatProducer');
+
+    expect(selection).toBeDefined();
+    expect(selection?.systemPrompt).toBe('You are a helpful assistant.');
+    expect(selection?.userPrompt).toBe('Answer the following: {{question}}');
+    expect(selection?.textFormat).toBe('text');
+    expect(selection?.variables).toEqual(['question']);
+  });
+
+  it('loads full input template with SDK mappings from catalog', async () => {
+    const blueprintPath = resolve(BLUEPRINT_ROOT, 'audio-only', 'audio-only.yaml');
+    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath);
+    const inputPath = resolve(BLUEPRINT_ROOT, 'audio-only', 'input-template.yaml');
+
+    const loaded = await loadInputsFromYaml(inputPath, blueprint);
+
+    // AudioProducer selection should have SDK mappings
+    const audioSelection = loaded.modelSelections.find((s) => s.producerId.endsWith('AudioProducer'));
+    expect(audioSelection).toBeDefined();
+    expect(audioSelection?.inputs).toBeDefined();
+    expect(audioSelection?.inputs?.TextInput).toEqual({ field: 'text' });
+    expect(audioSelection?.inputs?.Emotion).toEqual({ field: 'emotion' });
+    expect(audioSelection?.inputs?.VoiceId).toEqual({ field: 'voice_id' });
+  });
+
+  it('loads input template with SDK mappings from catalog', async () => {
+    const blueprintPath = resolve(BLUEPRINT_ROOT, 'image-only', 'image-only.yaml');
+    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath);
+    const inputPath = resolve(BLUEPRINT_ROOT, 'image-only', 'input-template.yaml');
+
+    const loaded = await loadInputsFromYaml(inputPath, blueprint);
+
+    // ImageProducer selection should have SDK mappings
+    const imageSelection = loaded.modelSelections.find((s) => s.producerId.endsWith('ImageProducer'));
+    expect(imageSelection).toBeDefined();
+    expect(imageSelection?.inputs?.Prompt).toEqual({ field: 'prompt' });
+    expect(imageSelection?.inputs?.AspectRatio).toEqual({ field: 'aspect_ratio' });
+
+    // ImagePromptProducer should have LLM config
+    const imagePromptSelection = loaded.modelSelections.find((s) => s.producerId.endsWith('ImagePromptProducer'));
+    expect(imagePromptSelection).toBeDefined();
+    expect(imagePromptSelection?.promptFile).toBe('../../producers/image-prompt/image-prompt.toml');
+  });
+
+  it('loads input template with LLM config from catalog', async () => {
+    const blueprintPath = resolve(BLUEPRINT_ROOT, 'audio-only', 'audio-only.yaml');
+    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath);
+    const inputPath = resolve(BLUEPRINT_ROOT, 'audio-only', 'input-template.yaml');
+
+    const loaded = await loadInputsFromYaml(inputPath, blueprint);
+
+    // ScriptProducer selection should have LLM config (promptFile, outputSchema)
+    const scriptSelection = loaded.modelSelections.find((s) => s.producerId.endsWith('ScriptProducer'));
+    expect(scriptSelection).toBeDefined();
+    expect(scriptSelection?.provider).toBe('openai');
+    expect(scriptSelection?.model).toBe('gpt-5-mini');
+    expect(scriptSelection?.promptFile).toBe('../../producers/script/script.toml');
+    expect(scriptSelection?.outputSchema).toBe('../../producers/script/script-output.json');
+    expect(scriptSelection?.config).toEqual({ text_format: 'json_schema' });
+
+    // AudioProducer should have SDK mappings
+    const audioSelection = loaded.modelSelections.find((s) => s.producerId.endsWith('AudioProducer'));
+    expect(audioSelection).toBeDefined();
+    expect(audioSelection?.provider).toBe('replicate');
+    expect(audioSelection?.model).toBe('minimax/speech-2.6-hd');
+  });
+});

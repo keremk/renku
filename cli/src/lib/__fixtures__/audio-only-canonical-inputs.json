@@ -1,0 +1,17 @@
+[
+  "Input:Audience",
+  "Input:AudioProducer.model",
+  "Input:AudioProducer.provider",
+  "Input:Duration",
+  "Input:Emotion",
+  "Input:InquiryPrompt",
+  "Input:NumOfSegments",
+  "Input:ScriptProducer.model",
+  "Input:ScriptProducer.provider",
+  "Input:ScriptProducer.responseFormat",
+  "Input:ScriptProducer.systemPrompt",
+  "Input:ScriptProducer.text_format",
+  "Input:ScriptProducer.userPrompt",
+  "Input:ScriptProducer.variables",
+  "Input:VoiceId"
+]

@@ -16,18 +16,16 @@ const yamlRoot = CATALOG_BLUEPRINTS_ROOT;
 const rootCatalogBlueprints = CATALOG_BLUEPRINTS_ROOT;
 
 describe('parseYamlBlueprintFile', () => {
-  it('parses module producers and loads prompt/schema files', async () => {
+  it('parses interface-only producer with meta, inputs, and artifacts', async () => {
     const modulePath = resolve(catalogRoot, 'producers/script/script.yaml');
     const document = await parseYamlBlueprintFile(modulePath);
     expect(document.meta.id).toBe('ScriptProducer');
     expect(document.producers).toHaveLength(1);
     const producer = document.producers[0];
-    expect(producer.model).toBe('gpt-5-mini');
-    // LLM producers use outputSchema for structured output, not inputSchema
-    expect(producer.models?.[0]?.outputSchema).toContain('"properties"');
-    expect(producer.models?.[0]?.variables).toEqual(
-      expect.arrayContaining(['InquiryPrompt', 'Duration', 'NumOfSegments', 'Audience', 'Language']),
-    );
+    expect(producer.name).toBe('ScriptProducer');
+    // Interface-only producers have no model definitions - those come from input templates
+    expect(producer.model).toBeUndefined();
+    expect(producer.models).toBeUndefined();
   });
 
   it('parses countInputOffset for array artefacts', async () => {
@@ -83,7 +81,9 @@ describe('loadYamlBlueprintTree', () => {
     expect(root.id).toBe('audio');
     expect([...root.children.keys()]).toEqual(['ScriptProducer', 'AudioProducer']);
     const scriptNode = root.children.get('ScriptProducer');
-    expect(scriptNode?.document.producers[0]?.models?.[0]?.model).toBe('gpt-5-mini');
+    // Interface-only producers have no model definitions
+    expect(scriptNode?.document.producers[0]?.name).toBe('ScriptProducer');
+    expect(scriptNode?.document.producers[0]?.models).toBeUndefined();
   });
 });
 

@@ -1,4 +1,3 @@
-import { parse as parseToml } from 'smol-toml';
 import { parse as parseYaml } from 'yaml';
 import { promises as fs } from 'node:fs';
 import { dirname, resolve, relative, sep } from 'node:path';
@@ -19,7 +18,6 @@ import type {
   JsonSchemaDefinition,
   JsonSchemaProperty,
   NamedConditionDefinition,
-  ProducerModelVariant,
   ProducerConfig,
   ProducerImportDefinition,
 } from '../../types.js';
@@ -74,7 +72,6 @@ export async function parseYamlBlueprintFile(
   if (!raw || typeof raw !== 'object') {
     throw new Error(`Blueprint YAML at ${filePath} must be a YAML document.`);
   }
-  const baseDir = dirname(absolute);
   const meta = parseMeta(raw.meta, filePath);
 
   const inputs = Array.isArray(raw.inputs) ? raw.inputs.map((entry) => parseInput(entry)) : [];
@@ -89,7 +86,7 @@ export async function parseYamlBlueprintFile(
   if (artefactSource.length === 0) {
     throw new Error(`Blueprint YAML at ${filePath} must declare at least one artifact.`);
   }
-  let artefacts = artefactSource.map((entry) => parseArtefact(entry));
+  const artefacts = artefactSource.map((entry) => parseArtefact(entry));
   // Accept `producers:` section, with fallback to deprecated `modules:` for backwards compatibility
   const rawProducerImports = Array.isArray(raw.producers)
     ? raw.producers
@@ -103,34 +100,12 @@ export async function parseYamlBlueprintFile(
   const producers: ProducerConfig[] = [];
   const isProducerBlueprint = producerImports.length === 0;
   if (isProducerBlueprint) {
-    if (!Array.isArray(raw.models) || raw.models.length === 0) {
-      throw new Error(`Blueprint YAML at ${filePath} must declare a models array with at least one entry for the producer.`);
-    }
-    const modelVariants = await parseModelVariants(raw.models, baseDir, reader);
-    const primary = modelVariants[0];
+    // Interface-only producer - models will be provided in input template
+    // Just create a producer entry with the name from meta
     producers.push({
       name: meta.id,
-      provider: primary?.provider,
-      model: primary?.model,
-      models: modelVariants,
-      sdkMapping: primary?.inputs,
-      outputs: primary?.outputs,
-      systemPrompt: primary?.systemPrompt,
-      userPrompt: primary?.userPrompt,
-      textFormat: primary?.textFormat,
-      variables: primary?.variables,
-      config: primary?.config,
+      // No provider, model, or models - these come from input template's model selection
     });
-    // Copy the output schema from the primary model variant to JSON artifacts with arrays
-    // This enables schema decomposition for these artifacts
-    if (primary?.outputSchemaParsed) {
-      artefacts = artefacts.map((art) => {
-        if (art.type === 'json' && art.arrays && art.arrays.length > 0) {
-          return { ...art, schema: primary.outputSchemaParsed };
-        }
-        return art;
-      });
-    }
     if (edges.length === 0) {
       edges = inferProducerEdges(inputs, artefacts, meta.id);
     }
@@ -608,73 +583,6 @@ function parseNamedConditionDefinition(
   return parseConditionClause(obj, allowedDimensions);
 }
 
-async function parseModelVariants(
-  rawModels: unknown[],
-  baseDir: string,
-  reader: BlueprintResourceReader,
-): Promise<ProducerModelVariant[]> {
-  const variants: ProducerModelVariant[] = [];
-  for (const raw of rawModels) {
-    variants.push(await parseModelVariant(raw, baseDir, reader));
-  }
-  return variants;
-}
-
-async function parseModelVariant(
-  raw: unknown,
-  baseDir: string,
-  reader: BlueprintResourceReader,
-): Promise<ProducerModelVariant> {
-  if (!raw || typeof raw !== 'object') {
-    throw new Error(`Invalid model entry: ${JSON.stringify(raw)}`);
-  }
-  const entry = raw as Record<string, unknown>;
-  const provider = readString(entry, 'provider').toLowerCase();
-  const promptFile = typeof entry.promptFile === 'string' ? entry.promptFile : undefined;
-  const promptConfig = promptFile
-    ? await loadPromptConfig(resolve(baseDir, promptFile), reader)
-    : {};
-  const model = typeof entry.model === 'string' ? entry.model : promptConfig.model;
-  if (!model) {
-    throw new Error('Model entry must specify a model (directly or in promptFile).');
-  }
-  const textFormat = typeof entry.textFormat === 'string' ? entry.textFormat : promptConfig.textFormat;
-  const variables = Array.isArray(entry.variables)
-    ? entry.variables.map(String)
-    : promptConfig.variables;
-  const systemPrompt = typeof entry.systemPrompt === 'string'
-    ? entry.systemPrompt
-    : promptConfig.systemPrompt;
-  const userPrompt = typeof entry.userPrompt === 'string' ? entry.userPrompt : promptConfig.userPrompt;
-  const inputSchemaSource = entry.inputSchema;
-  const outputSchemaSource = entry.outputSchema;
-  const inputSchema = await loadJsonSchema(inputSchemaSource, baseDir, reader);
-  const outputSchema = await loadJsonSchema(outputSchemaSource, baseDir, reader);
-  const outputSchemaParsed = outputSchema ? parseJsonSchemaDefinition(outputSchema) : undefined;
-  const inputs = parseSdkMapping(entry.inputs);
-  const outputs = parseOutputs(entry.outputs ?? promptConfig.outputs);
-  const config =
-    entry.config && typeof entry.config === 'object'
-      ? (entry.config as Record<string, unknown>)
-      : promptConfig.config;
-
-  return {
-    provider: provider as ProducerModelVariant['provider'],
-    model,
-    promptFile,
-    inputSchema,
-    outputSchema,
-    outputSchemaParsed,
-    inputs,
-    outputs,
-    config,
-    systemPrompt,
-    userPrompt,
-    textFormat,
-    variables,
-  };
-}
-
 /**
  * Parses a transform mapping from YAML.
  * Transform maps input values to model-specific values.
@@ -691,7 +599,7 @@ function parseTransform(raw: unknown): Record<string, unknown> | undefined {
   return raw as Record<string, unknown>;
 }
 
-function parseSdkMapping(raw: unknown): Record<string, BlueprintProducerSdkMappingField> | undefined {
+export function parseSdkMapping(raw: unknown): Record<string, BlueprintProducerSdkMappingField> | undefined {
   if (!raw) {
     return undefined;
   }
@@ -731,7 +639,7 @@ function parseSdkMapping(raw: unknown): Record<string, BlueprintProducerSdkMappi
   return Object.keys(mapping).length ? mapping : undefined;
 }
 
-function parseOutputs(raw: unknown): Record<string, BlueprintProducerOutputDefinition> | undefined {
+export function parseOutputs(raw: unknown): Record<string, BlueprintProducerOutputDefinition> | undefined {
   if (!raw) {
     return undefined;
   }
@@ -751,75 +659,6 @@ function parseOutputs(raw: unknown): Record<string, BlueprintProducerOutputDefin
     };
   }
   return Object.keys(outputs).length ? outputs : undefined;
-}
-
-async function loadPromptConfig(
-  promptPath: string,
-  reader: BlueprintResourceReader,
-): Promise<PromptConfig> {
-  const contents = await reader.readFile(promptPath);
-  const parsed = parseToml(contents) as Record<string, unknown>;
-  const baseDir = dirname(promptPath);
-  const prompt: PromptConfig = {};
-  if (typeof parsed.model === 'string') {
-    prompt.model = parsed.model;
-  }
-  if (typeof parsed.textFormat === 'string') {
-    prompt.textFormat = parsed.textFormat;
-  }
-  if (Array.isArray(parsed.variables)) {
-    prompt.variables = parsed.variables.map(String);
-  }
-  if (typeof parsed.systemPrompt === 'string') {
-    prompt.systemPrompt = parsed.systemPrompt;
-  }
-  if (typeof parsed.userPrompt === 'string') {
-    prompt.userPrompt = parsed.userPrompt;
-  }
-  if (parsed.config && typeof parsed.config === 'object') {
-    prompt.config = parsed.config as Record<string, unknown>;
-  }
-  if (parsed.jsonSchema !== undefined) {
-    prompt.jsonSchema = await loadJsonSchema(parsed.jsonSchema, baseDir, reader);
-  }
-  return prompt;
-}
-
-async function loadJsonSchema(
-  source: unknown,
-  baseDir: string,
-  reader: BlueprintResourceReader,
-): Promise<string | undefined> {
-  if (source === undefined || source === null) {
-    return undefined;
-  }
-  if (typeof source === 'object') {
-    return JSON.stringify(source, null, 2);
-  }
-  const raw = String(source).trim();
-  if (!raw) {
-    return undefined;
-  }
-  if (raw.startsWith('{') || raw.startsWith('[')) {
-    return JSON.stringify(JSON.parse(raw), null, 2);
-  }
-  const absolute = resolve(baseDir, raw);
-  const contents = await reader.readFile(absolute);
-  return JSON.stringify(JSON.parse(contents), null, 2);
-}
-
-/**
- * Parses a JSON schema string into a typed JsonSchemaDefinition.
- */
-function parseJsonSchemaDefinition(schemaJson: string): JsonSchemaDefinition {
-  const parsed = JSON.parse(schemaJson);
-  if (!parsed || typeof parsed !== 'object') {
-    throw new Error('Invalid JSON schema: expected an object');
-  }
-  const name = typeof parsed.name === 'string' ? parsed.name : 'Schema';
-  const strict = typeof parsed.strict === 'boolean' ? parsed.strict : undefined;
-  const schema = parsed.schema ?? parsed;
-  return { name, strict, schema };
 }
 
 function validateDimensions(reference: string, allowed: Set<string>, label: 'from' | 'to'): void {
@@ -1013,14 +852,3 @@ function relativePosix(root: string, target: string): string {
   return rel.split(sep).join('/');
 }
 
-interface PromptConfig {
-  model?: string;
-  textFormat?: string;
-  jsonSchema?: string;
-  variables?: string[];
-  systemPrompt?: string;
-  userPrompt?: string;
-  config?: Record<string, unknown>;
-  sdkMapping?: Record<string, BlueprintProducerSdkMappingField>;
-  outputs?: Record<string, BlueprintProducerOutputDefinition>;
-}

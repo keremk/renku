@@ -11,16 +11,20 @@ models:
   - model: gpt-5-mini
     provider: openai
     producerId: ScriptProducer
+    promptFile: ../../producers/script/script.toml
+    outputSchema: ../../producers/script/script-output.json
+    config:
+      text_format: json_schema
   - model: gpt-5-mini
     provider: openai
     producerId: ImagePromptProducer
+    promptFile: ../../producers/image-prompt/image-prompt.toml
+    outputSchema: ../../producers/image-prompt/image-prompt-output.json
+    config:
+      text_format: json_schema
   - model: google/nano-banana
     provider: replicate
     producerId: ImageProducer
-  - model: timeline/ordered
-    provider: renku
-    producerId: TimelineComposer
-    config:
-      tracks: ["Image"]
-      masterTracks: ["Image"]
-      numTracks: 1
+    inputs:
+      Prompt: prompt
+      AspectRatio: aspect_ratio

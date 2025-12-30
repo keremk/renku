@@ -9,7 +9,7 @@ import { REPO_ROOT, CATALOG_BLUEPRINTS_ROOT } from '../../../tests/test-catalog-
 
 const CLI_ROOT = resolve(REPO_ROOT, 'cli');
 const BLUEPRINTS_ROOT = CATALOG_BLUEPRINTS_ROOT;
-const FIXTURE_PATH = resolve(CLI_ROOT, 'src/lib/__fixtures__/video-audio-music-canonical-inputs.json');
+const FIXTURE_PATH = resolve(CLI_ROOT, 'src/lib/__fixtures__/audio-only-canonical-inputs.json');
 
 async function readFixture(): Promise<string[] | null> {
   try {
@@ -26,12 +26,13 @@ async function writeFixture(values: string[]): Promise<void> {
 }
 
 describe('canonical inputs snapshot', () => {
-  it('captures all canonical input ids for video-audio-music blueprint', async () => {
+  it('captures all canonical input ids for audio-only blueprint', async () => {
+    // Use audio-only blueprint with matching input template
     const blueprintPath = await resolveBlueprintSpecifier(
-      'video-audio-music.yaml',
+      'audio-only.yaml',
       { cliRoot: CLI_ROOT },
     );
-    const inputsPath = resolve(BLUEPRINTS_ROOT, 'cut-scene-video', 'input-template.yaml');
+    const inputsPath = resolve(BLUEPRINTS_ROOT, 'audio-only', 'input-template.yaml');
     const { root: blueprint } = await loadBlueprintBundle(blueprintPath);
     const { values, providerOptions } = await loadInputsFromYaml(inputsPath, blueprint);
     applyProviderDefaults(values, providerOptions);

@@ -21,22 +21,3 @@ artifacts:
   - name: SegmentAudio
     description: Narrated audio file for the segment.
     type: audio
-
-models:
-  - model: minimax/speech-2.6-hd
-    provider: replicate
-    inputs:
-      TextInput: text
-      Emotion: emotion
-      VoiceId: voice_id
-  - model: minimax/speech-02-hd
-    provider: replicate
-    inputs:
-      TextInput: text
-      Emotion: emotion
-      VoiceId: voice_id
-  - provider: fal-ai
-    model: elevenlabs/tts/eleven-v3
-    inputs:
-      TextInput: prompt
-      VoiceId: voice

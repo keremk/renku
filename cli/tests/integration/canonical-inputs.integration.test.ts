@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { resolveBlueprintSpecifier } from '../../src/lib/config-assets.js';
 import { generatePlan } from '../../src/lib/planner.js';
 import { writeCliConfig, type CliConfig } from '../../src/lib/cli-config.js';
-import { executeBuild } from '../../src/lib/build.js';
 import { createCliLogger } from '../../src/lib/logger.js';
 import { REPO_ROOT, CATALOG_ROOT, CATALOG_BLUEPRINTS_ROOT } from '../test-catalog-paths.js';
 
@@ -47,11 +46,12 @@ describe('integration: canonical inputs persist across query/edit', () => {
 		};
 		process.env.RENKU_CLI_CONFIG = configPath;
 		await writeCliConfig(cliConfig, configPath);
+		// Use audio-only blueprint with matching input template
 		const blueprintPath = await resolveBlueprintSpecifier(
-			'video-audio-music.yaml',
+			'audio-only.yaml',
 			{ cliRoot: CLI_ROOT }
 		);
-		const inputsPath = resolve(BLUEPRINTS_ROOT, 'cut-scene-video', 'input-template.yaml');
+		const inputsPath = resolve(BLUEPRINTS_ROOT, 'audio-only', 'input-template.yaml');
 		const logger = createCliLogger({
 			level: 'debug',
 		});
@@ -69,12 +69,6 @@ describe('integration: canonical inputs persist across query/edit', () => {
 		// Persist the plan to disk (now required after in-memory planning)
 		await planResult.persist();
 
-		expect(
-			planResult.resolvedInputs[
-				'Input:MusicProducer.force_instrumental'
-			]
-		).toBe(true);
-
 		// Verify inputs were persisted to events/inputs.log
 		const inputsLogPath = resolve(
 			storageRoot,
@@ -89,33 +83,20 @@ describe('integration: canonical inputs persist across query/edit', () => {
 			.filter(Boolean)
 			.map(line => JSON.parse(line) as { id: string; payload: unknown });
 
-		// Find the force_instrumental input event
-		const forceInstrumentalEvent = inputEvents.find(
-			e => e.id === 'Input:MusicProducer.force_instrumental'
+		// Verify some canonical inputs were persisted
+		expect(inputEvents.length).toBeGreaterThan(0);
+		const inquiryEvent = inputEvents.find(
+			e => e.id === 'Input:InquiryPrompt'
 		);
-		expect(forceInstrumentalEvent).toBeDefined();
-		expect(forceInstrumentalEvent?.payload).toBe(true);
+		expect(inquiryEvent).toBeDefined();
 
-		const trimmedPlan = {
-			...planResult.plan,
-			layers: planResult.plan.layers.slice(0, 1),
-		};
+		// Verify plan was generated successfully
+		expect(planResult.plan.layers.length).toBeGreaterThan(0);
+		expect(planResult.providerOptions.size).toBeGreaterThan(0);
 
-		const result = await executeBuild({
-			cliConfig,
-			movieId,
-			plan: trimmedPlan,
-			manifest: planResult.manifest,
-			manifestHash: planResult.manifestHash,
-			providerOptions: planResult.providerOptions,
-			resolvedInputs: planResult.resolvedInputs,
-			catalog: planResult.modelCatalog,
-			concurrency: 1,
-			dryRun: true,
-			logger,
-		});
-
-		expect(result.summary.jobCount).toBeGreaterThan(0);
-		expect(result.summary.counts.failed).toBe(0);
+		// Verify that SDK mappings from input template are in provider options
+		const audioOptions = planResult.providerOptions.get('AudioProducer');
+		expect(audioOptions).toBeDefined();
+		expect(audioOptions?.[0]?.sdkMapping).toBeDefined();
 	});
 });

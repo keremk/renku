@@ -3,6 +3,10 @@ import { dirname, extname } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { resolveFileReferences } from './file-input-resolver.js';
 import {
+  parseOutputs,
+  parseSdkMapping,
+} from './blueprint-loader/yaml-parser.js';
+import {
   createInputIdResolver,
   type CanonicalInputEntry,
   formatProducerAlias,
@@ -12,6 +16,8 @@ import {
 } from './canonical-ids.js';
 import type {
   BlobInput,
+  BlueprintProducerOutputDefinition,
+  BlueprintProducerSdkMappingField,
   BlueprintTreeNode,
   ProducerModelVariant,
 } from '../types.js';
@@ -30,6 +36,24 @@ export interface ModelSelection {
   model: string;
   config?: Record<string, unknown>;
   namespacePath?: string[];
+  /** SDK mappings - maps producer input names to provider API field names */
+  inputs?: Record<string, BlueprintProducerSdkMappingField>;
+  /** Output definitions for the model */
+  outputs?: Record<string, BlueprintProducerOutputDefinition>;
+  /** Path to LLM prompt file (TOML format) */
+  promptFile?: string;
+  /** Path to output JSON schema for structured output */
+  outputSchema?: string;
+  /** Path to input JSON schema for validation */
+  inputSchema?: string;
+  /** Inline system prompt for LLM models */
+  systemPrompt?: string;
+  /** Inline user prompt for LLM models */
+  userPrompt?: string;
+  /** Text format for LLM output (e.g., 'json_schema') */
+  textFormat?: string;
+  /** Variables to extract from prompt template */
+  variables?: string[];
 }
 
 /** Artifact override from inputs.yaml with file: prefix */
@@ -293,6 +317,22 @@ function resolveModelSelections(
       const model = readString(record, 'model');
       const config =
         record.config && typeof record.config === 'object' ? (record.config as Record<string, unknown>) : undefined;
+
+      // Parse SDK mappings and outputs
+      const inputs = parseSdkMapping(record.inputs);
+      const outputs = parseOutputs(record.outputs);
+
+      // Parse LLM config paths
+      const promptFile = typeof record.promptFile === 'string' ? record.promptFile : undefined;
+      const outputSchema = typeof record.outputSchema === 'string' ? record.outputSchema : undefined;
+      const inputSchema = typeof record.inputSchema === 'string' ? record.inputSchema : undefined;
+
+      // Parse inline LLM config
+      const systemPrompt = typeof record.systemPrompt === 'string' ? record.systemPrompt : undefined;
+      const userPrompt = typeof record.userPrompt === 'string' ? record.userPrompt : undefined;
+      const textFormat = typeof record.textFormat === 'string' ? record.textFormat : undefined;
+      const variables = Array.isArray(record.variables) ? record.variables.map(String) : undefined;
+
       const resolved = resolveProducerName(producerId, index);
       selections.set(resolved.producerAlias, {
         producerId: resolved.producerAlias,
@@ -300,6 +340,15 @@ function resolveModelSelections(
         model,
         config,
         namespacePath: resolved.namespacePath,
+        inputs,
+        outputs,
+        promptFile,
+        outputSchema,
+        inputSchema,
+        systemPrompt,
+        userPrompt,
+        textFormat,
+        variables,
       });
     }
   }

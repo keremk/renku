@@ -1,0 +1,8 @@
+{
+  "name": "renku-plugin",
+  "description": "Skills for generating video compositions with Renku: create blueprints, generate media, and compose timelines.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Kerem Karatal"
+  }
+}

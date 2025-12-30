@@ -16,28 +16,57 @@ models:
   - model: gpt-5-mini
     provider: openai
     producerId: ScriptProducer
+    promptFile: ../../../../catalog/producers/script/script.toml
+    outputSchema: ../../../../catalog/producers/script/script-output.json
+    config:
+      text_format: json_schema
   - model: gpt-5-mini
     provider: openai
     producerId: VideoPromptProducer
+    promptFile: ../../../../catalog/producers/video-prompt/video-prompt.toml
+    config:
+      text_format: text
   - model: bytedance/seedance-1-pro-fast
     provider: replicate
     producerId: VideoProducer
+    inputs:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      SegmentDuration: duration
   - model: minimax/speech-2.6-hd
     provider: replicate
     producerId: AudioProducer
+    inputs:
+      TextInput: text
+      Emotion: emotion
+      VoiceId: voice_id
   - model: gpt-5-mini
     provider: openai
     producerId: MusicPromptProducer
+    promptFile: ../../../../catalog/producers/music-prompt/music-prompt.toml
+    config:
+      text_format: text
   - model: stability-ai/stable-audio-2.5
     provider: replicate
     producerId: MusicProducer
+    inputs:
+      Prompt: prompt
+      Duration: duration
+    config:
+      force_instrumental: true
   - model: timeline/ordered
     provider: renku
     producerId: TimelineComposer
     config:
       masterTracks: ["Audio"]
       tracks: ["Video", "Audio", "Music"]
+      videoClip:
+        artifact: VideoSegments
+      audioClip:
+        artifact: AudioSegments
       musicClip:
+        artifact: Music
         volume: 0.4
   - model: remotion/docker-render
     provider: renku

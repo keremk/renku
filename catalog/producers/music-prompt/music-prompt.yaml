@@ -33,11 +33,3 @@ artifacts:
   - name: MusicPrompt
     description: Generated music prompts for downstream music synthesis.
     type: string
-
-models:
-  - provider: openai
-    model: gpt-5-mini
-    promptFile: ./music-prompt.toml
-    config:
-      text_format: text
-

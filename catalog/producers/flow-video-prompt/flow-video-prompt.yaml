@@ -43,11 +43,3 @@ artifacts:
     itemType: string
     countInput: NumOfSegments
     countInputOffset: 1
-
-models:
-  - provider: openai
-    model: gpt-5-mini
-    promptFile: ./flow-video-prompt.toml
-    outputSchema: ./flow-video-prompt-output.json
-    config:
-      text_format: json_schema

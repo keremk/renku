@@ -41,7 +41,7 @@ async function createTempRoot(): Promise<string> {
 }
 
 describe('runProducersList', () => {
-  it('lists all available models for producers in a blueprint', async () => {
+  it('returns empty entries for interface-only producers', async () => {
     const root = await createTempRoot();
     const cliConfigPath = join(root, 'cli-config.json');
     process.env.RENKU_CLI_CONFIG = cliConfigPath;
@@ -50,26 +50,19 @@ describe('runProducersList', () => {
     const cliConfig = await readCliConfig(cliConfigPath);
     expect(cliConfig).not.toBeNull();
 
+    // Use audio-only which has simpler producers
     const blueprintPath = join(
       getCliBlueprintsRoot(root),
-      'cut-scene-video',
-      'video-audio-music.yaml',
+      'audio-only',
+      'audio-only.yaml',
     );
     const result = await runProducersList({ blueprintPath });
-    expect(result.entries.length).toBeGreaterThan(0);
 
-    // Should find OpenAI model(s) for script-related producers
-    const openAiEntry = result.entries.find((entry) => entry.provider === 'openai');
-    expect(openAiEntry).toBeDefined();
+    // Interface-only producers have no models defined, so entries are empty
+    // Models are now specified in input templates, not in producer definitions
+    expect(result.entries).toEqual([]);
 
-    // All entries should have producer and model info
-    for (const entry of result.entries) {
-      expect(entry.producer).toBeTruthy();
-      expect(entry.provider).toBeTruthy();
-      expect(entry.model).toBeTruthy();
-    }
-
-    // missingTokens should be a Map (may or may not have entries depending on env)
+    // missingTokens should still be a Map
     expect(result.missingTokens).toBeInstanceOf(Map);
   });
 });

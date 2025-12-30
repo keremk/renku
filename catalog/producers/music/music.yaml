@@ -18,10 +18,3 @@ artifacts:
   - name: Music
     description: Composed music for the movie.
     type: audio
-
-models:    
-  - model: stability-ai/stable-audio-2.5
-    provider: replicate
-    inputs:
-      Prompt: prompt
-      Duration: duration

@@ -13,28 +13,55 @@ models:
   - model: minimax/speech-2.6-hd
     provider: replicate
     producerId: AudioProducer
+    inputs:
+      TextInput: text
+      Emotion: emotion
+      VoiceId: voice_id
   - model: stability-ai/stable-audio-2.5
     provider: replicate
     producerId: MusicProducer
+    inputs:
+      Prompt: prompt
+      Duration: duration
     config:
       force_instrumental: true
   - model: bytedance/seedance-1-pro-fast
     provider: replicate
     producerId: VideoProducer
+    inputs:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      SegmentDuration: duration
   - model: gpt-5-mini
     provider: openai
     producerId: ScriptProducer
+    promptFile: ../../producers/script/script.toml
+    outputSchema: ../../producers/script/script-output.json
+    config:
+      text_format: json_schema
   - model: gpt-5-mini
     provider: openai
     producerId: VideoPromptProducer
+    promptFile: ../../producers/video-prompt/video-prompt.toml
+    config:
+      text_format: text
   - model: gpt-5-mini
     provider: openai
     producerId: MusicPromptProducer
+    promptFile: ../../producers/music-prompt/music-prompt.toml
+    config:
+      text_format: text
   - model: timeline/ordered
     provider: renku
     producerId: TimelineComposer
     config:
       masterTracks: ["Audio", "Video"]
+      videoClip:
+        artifact: VideoSegments
+      audioClip:
+        artifact: AudioSegments
       musicClip:
+        artifact: Music
         volume: 0.4
       tracks: ["Video", "Audio", "Music"]

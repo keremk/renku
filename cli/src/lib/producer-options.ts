@@ -1,3 +1,6 @@
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { parse as parseToml } from 'smol-toml';
 import type {
   BlueprintTreeNode,
   ProducerCatalog,
@@ -12,6 +15,20 @@ import type {
   ProviderAttachment,
   ProviderEnvironment,
 } from '@gorenku/providers';
+
+// Re-export ModelSelection from core for consumers
+export type { ModelSelection } from '@gorenku/core';
+import type { ModelSelection } from '@gorenku/core';
+
+interface PromptConfig {
+  model?: string;
+  textFormat?: string;
+  variables?: string[];
+  systemPrompt?: string;
+  userPrompt?: string;
+  config?: Record<string, unknown>;
+  outputs?: Record<string, unknown>;
+}
 
 export interface LoadedProducerOption {
   priority: 'main';
@@ -33,43 +50,43 @@ export interface LoadedProducerOption {
 
 export type ProducerOptionsMap = Map<string, LoadedProducerOption[]>;
 
-export interface ModelSelection {
-  producerId: string;
-  provider: string;
-  model: string;
-  config?: Record<string, unknown>;
+export interface BuildProducerOptionsContext {
+  /** Base directory for resolving relative paths (typically the input file directory) */
+  baseDir: string;
 }
 
-export function buildProducerOptionsFromBlueprint(
+export async function buildProducerOptionsFromBlueprint(
   blueprint: BlueprintTreeNode,
   selections: ModelSelection[] = [],
   allowAmbiguousDefault = false,
-): ProducerOptionsMap {
+  context?: BuildProducerOptionsContext,
+): Promise<ProducerOptionsMap> {
   const map: ProducerOptionsMap = new Map();
   const selectionMap = new Map<string, ModelSelection>();
   for (const selection of selections) {
     selectionMap.set(selection.producerId, selection);
   }
-  collectProducers(blueprint, map, selectionMap, allowAmbiguousDefault);
+  await collectProducers(blueprint, map, selectionMap, allowAmbiguousDefault, context?.baseDir);
   return map;
 }
 
-function collectProducers(
+async function collectProducers(
   node: BlueprintTreeNode,
   map: ProducerOptionsMap,
   selectionMap: Map<string, ModelSelection>,
   allowAmbiguousDefault: boolean,
-): void {
+  baseDir?: string,
+): Promise<void> {
   for (const producer of node.document.producers) {
     const namespacedName = formatProducerAlias(node.namespacePath, producer.name);
     const selection = selectionMap.get(namespacedName);
     const variants = collectVariants(producer);
-    const chosen = chooseVariant(namespacedName, variants, selection, allowAmbiguousDefault);
+    const chosen = await chooseVariant(namespacedName, variants, selection, allowAmbiguousDefault, baseDir);
     const option = toLoadedOption(namespacedName, chosen, selection);
     registerProducerOption(map, namespacedName, option);
   }
   for (const child of node.children.values()) {
-    collectProducers(child, map, selectionMap, allowAmbiguousDefault);
+    await collectProducers(child, map, selectionMap, allowAmbiguousDefault, baseDir);
   }
 }
 
@@ -180,6 +197,7 @@ export interface CollectedVariant {
 /**
  * Collect all model variants from a producer configuration.
  * Returns all available variants without selecting one.
+ * For interface-only producers (no models section), returns an empty array.
  */
 export function collectVariants(producer: ProducerConfig): CollectedVariant[] {
   if (Array.isArray(producer.models) && producer.models.length > 0) {
@@ -195,42 +213,176 @@ export function collectVariants(producer: ProducerConfig): CollectedVariant[] {
       configDefaults: flattenConfigValues(buildVariantConfig(variant)),
     }));
   }
-  if (!producer.provider || !producer.model) {
-    throw new Error(`Producer "${producer.name}" is missing provider/model configuration.`);
+  // If producer has inline provider/model (legacy support)
+  if (producer.provider && producer.model) {
+    const producerConfig = producer.config as Record<string, unknown> | undefined;
+    return [
+      {
+        provider: producer.provider,
+        model: producer.model,
+        config: producerConfig,
+        sdkMapping: producer.sdkMapping,
+        outputs: producer.outputs,
+        inputSchema: producer.jsonSchema,
+        configInputPaths: flattenConfigKeys(producerConfig ?? {}),
+        configDefaults: flattenConfigValues(producerConfig ?? {}),
+      },
+    ];
   }
-  const producerConfig = producer.config as Record<string, unknown> | undefined;
-  return [
-    {
-      provider: producer.provider,
-      model: producer.model,
-      config: producerConfig,
-      sdkMapping: producer.sdkMapping,
-      outputs: producer.outputs,
-      inputSchema: producer.jsonSchema,
-      configInputPaths: flattenConfigKeys(producerConfig ?? {}),
-      configDefaults: flattenConfigValues(producerConfig ?? {}),
-    },
-  ];
+  // Interface-only producer - no models defined, must come from selection
+  return [];
 }
 
-function chooseVariant(
+/**
+ * Load prompt configuration from a TOML file.
+ */
+async function loadPromptConfig(promptPath: string): Promise<PromptConfig> {
+  const contents = await readFile(promptPath, 'utf8');
+  const parsed = parseToml(contents) as Record<string, unknown>;
+  const prompt: PromptConfig = {};
+  if (typeof parsed.model === 'string') {
+    prompt.model = parsed.model;
+  }
+  if (typeof parsed.textFormat === 'string') {
+    prompt.textFormat = parsed.textFormat;
+  }
+  if (Array.isArray(parsed.variables)) {
+    prompt.variables = parsed.variables.map(String);
+  }
+  if (typeof parsed.systemPrompt === 'string') {
+    prompt.systemPrompt = parsed.systemPrompt;
+  }
+  if (typeof parsed.userPrompt === 'string') {
+    prompt.userPrompt = parsed.userPrompt;
+  }
+  if (parsed.config && typeof parsed.config === 'object') {
+    prompt.config = parsed.config as Record<string, unknown>;
+  }
+  if (parsed.outputs && typeof parsed.outputs === 'object') {
+    prompt.outputs = parsed.outputs as Record<string, unknown>;
+  }
+  return prompt;
+}
+
+/**
+ * Load JSON schema from a file path.
+ */
+async function loadJsonSchema(schemaPath: string): Promise<string> {
+  const contents = await readFile(schemaPath, 'utf8');
+  // Validate it's valid JSON and return as string
+  JSON.parse(contents);
+  return contents;
+}
+
+/**
+ * Convert a ModelSelection into a CollectedVariant.
+ * Used when the selection provides all the model configuration (interface-only producers).
+ * Loads promptFile and outputSchema if provided as paths.
+ */
+async function selectionToVariant(selection: ModelSelection, baseDir?: string): Promise<CollectedVariant> {
+  // Load prompt config from file if specified
+  let promptConfig: PromptConfig = {};
+  if (selection.promptFile && baseDir) {
+    const promptPath = resolve(baseDir, selection.promptFile);
+    promptConfig = await loadPromptConfig(promptPath);
+  }
+
+  // Load output schema from file if specified
+  let outputSchemaContent: string | undefined;
+  if (selection.outputSchema && baseDir) {
+    const schemaPath = resolve(baseDir, selection.outputSchema);
+    outputSchemaContent = await loadJsonSchema(schemaPath);
+  }
+
+  // Load input schema from file if specified
+  let inputSchemaContent: string | undefined;
+  if (selection.inputSchema && baseDir) {
+    const schemaPath = resolve(baseDir, selection.inputSchema);
+    inputSchemaContent = await loadJsonSchema(schemaPath);
+  }
+
+  // Build config from selection's LLM config fields (prefer selection over prompt file)
+  const config: Record<string, unknown> = { ...(promptConfig.config ?? {}), ...(selection.config ?? {}) };
+
+  // Use inline values if provided, otherwise use prompt file values
+  const systemPrompt = selection.systemPrompt ?? promptConfig.systemPrompt;
+  const userPrompt = selection.userPrompt ?? promptConfig.userPrompt;
+  const variables = selection.variables ?? promptConfig.variables;
+  const textFormat = selection.textFormat ?? (selection.config?.text_format as string | undefined) ?? promptConfig.textFormat;
+
+  if (systemPrompt) {
+    config.systemPrompt = systemPrompt;
+  }
+  if (userPrompt) {
+    config.userPrompt = userPrompt;
+  }
+  if (variables) {
+    config.variables = variables;
+  }
+
+  // Handle responseFormat for json_schema text format
+  if (textFormat) {
+    const type = textFormat === 'json_schema' ? 'json_schema' : 'text';
+    if (type === 'json_schema' && outputSchemaContent) {
+      try {
+        config.responseFormat = { type, schema: JSON.parse(outputSchemaContent) };
+      } catch {
+        throw new Error(`Failed to parse output schema for model ${selection.model}`);
+      }
+    }
+  }
+
+  return {
+    provider: selection.provider,
+    model: selection.model,
+    config: Object.keys(config).length > 0 ? config : undefined,
+    sdkMapping: selection.inputs,
+    outputs: selection.outputs ?? (promptConfig.outputs as Record<string, BlueprintProducerOutputDefinition> | undefined),
+    inputSchema: inputSchemaContent,
+    outputSchema: outputSchemaContent,
+    configInputPaths: flattenConfigKeys(config),
+    configDefaults: flattenConfigValues(config),
+  };
+}
+
+async function chooseVariant(
   producerName: string,
   variants: CollectedVariant[],
   selection: ModelSelection | undefined,
   allowAmbiguousDefault: boolean,
-): CollectedVariant {
+  baseDir?: string,
+): Promise<CollectedVariant> {
+  // If producer has no variants (interface-only), must have selection
+  if (variants.length === 0) {
+    if (!selection) {
+      throw new Error(
+        `Producer "${producerName}" has no model configuration. ` +
+        `Provide model selection in input template.`,
+      );
+    }
+    // Convert selection directly to a variant
+    return selectionToVariant(selection, baseDir);
+  }
+
+  // Producer has variants - try to match selection or use default
   if (selection) {
     const match = variants.find(
       (variant) =>
         variant.provider.toLowerCase() === selection.provider.toLowerCase() &&
         variant.model === selection.model,
     );
-    if (!match) {
-      throw new Error(
-        `No model variant matches selection for ${producerName}: ${selection.provider}/${selection.model}`,
-      );
+    if (match) {
+      // Merge selection's SDK mapping with variant's (selection takes precedence)
+      return {
+        ...match,
+        sdkMapping: selection.inputs ?? match.sdkMapping,
+        outputs: selection.outputs ?? match.outputs,
+        inputSchema: selection.inputSchema ?? match.inputSchema,
+        outputSchema: selection.outputSchema ?? match.outputSchema,
+      };
     }
-    return match;
+    // Selection specifies a model not in producer's variants - use selection directly
+    return selectionToVariant(selection, baseDir);
   }
   if (variants.length === 1) {
     return variants[0]!;

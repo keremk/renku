@@ -30,20 +30,3 @@ artifacts:
   - name: SegmentVideo
     description: Video file for the segment.
     type: video
-
-models:
-  - model: veo3.1/image-to-video
-    provider: fal-ai
-    inputs:
-      Prompt: prompt
-      AspectRatio: aspect_ratio
-      Resolution: resolution
-      SegmentDuration: duration
-      InputImage1: image_url
-  - model: kling-video/o1/image-to-video
-    provider: fal-ai
-    inputs:
-      Prompt: prompt
-      SegmentDuration: duration
-      InputImage1: start_image_url
-      InputImage2: end_image_url

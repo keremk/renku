@@ -83,6 +83,18 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
     expect(timelineJobs).toHaveLength(1);
     expect(result.build?.jobCount).toBe(6);
 
+    // CRITICAL: Verify DocProducer's produces list contains ALL decomposed virtual artifacts
+    // Each leaf value should be stored as a separate blob file
+    const docJob = docJobs[0];
+    expect(docJob.produces).toBeDefined();
+    expect(docJob.produces.length).toBeGreaterThanOrEqual(4); // At least 4 ImagePrompts (2 segments × 2 images)
+
+    // Verify specific virtual artifact IDs are in produces list
+    expect(docJob.produces.some((id: string) => id.includes('Segments[0].ImagePrompts[0]'))).toBe(true);
+    expect(docJob.produces.some((id: string) => id.includes('Segments[0].ImagePrompts[1]'))).toBe(true);
+    expect(docJob.produces.some((id: string) => id.includes('Segments[1].ImagePrompts[0]'))).toBe(true);
+    expect(docJob.produces.some((id: string) => id.includes('Segments[1].ImagePrompts[1]'))).toBe(true);
+
     // Verify ImageProducer jobs reference virtual artifacts in their input bindings
     for (const job of imageJobs) {
       const promptBinding = job.context?.inputBindings?.Prompt;
@@ -227,9 +239,32 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
           'DocProducer.VideoScript.Segments[0].ImagePrompts[0]': `file:${overridePromptPath}`,
         },
         models: [
-          { model: 'gpt-5.2', provider: 'openai', producerId: 'DocProducer' },
-          { model: 'bytedance/seedream-4', provider: 'replicate', producerId: 'ImageProducer' },
-          { model: 'timeline/ordered', provider: 'renku', producerId: 'TimelineComposer', config: { tracks: ['Image'], masterTracks: ['Image'], numTracks: 1 } },
+          {
+            model: 'gpt-5.2',
+            provider: 'openai',
+            producerId: 'DocProducer',
+            // Include outputSchema so virtual artifact edges are created
+            promptFile: resolve(CATALOG_BLUEPRINTS_ROOT, '..', 'producers', 'documentary-prompt', 'documentary-prompt.toml'),
+            outputSchema: resolve(CATALOG_BLUEPRINTS_ROOT, '..', 'producers', 'documentary-prompt', 'documentary-prompt-output.json'),
+            config: { text_format: 'json_schema' },
+          },
+          {
+            model: 'bytedance/seedream-4',
+            provider: 'replicate',
+            producerId: 'ImageProducer',
+            inputs: { Prompt: 'prompt', AspectRatio: 'aspect_ratio' },
+          },
+          {
+            model: 'timeline/ordered',
+            provider: 'renku',
+            producerId: 'TimelineComposer',
+            config: {
+              tracks: ['Image'],
+              masterTracks: ['Image'],
+              numTracks: 1,
+              imageClip: { artifact: 'ImageSegments[Image]' },
+            },
+          },
         ],
       }),
       'utf8',
@@ -273,12 +308,173 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
     const imageJob00 = editImageJobs[0];
     expect(imageJob00.jobId).toContain('[0][0]');
 
+    // CRITICAL: Verify unaffected ImageProducers are NOT in the plan
+    const allEditJobIds = editJobs.map((j: any) => j.jobId);
+    expect(allEditJobIds.some((id: string) => id.includes('ImageProducer') && id.includes('[0][1]'))).toBe(false);
+    expect(allEditJobIds.some((id: string) => id.includes('ImageProducer') && id.includes('[1][0]'))).toBe(false);
+    expect(allEditJobIds.some((id: string) => id.includes('ImageProducer') && id.includes('[1][1]'))).toBe(false);
+
     // Verify correct job count: 1 ImageProducer + 1 TimelineComposer
     expect(editResult.build?.jobCount).toBe(2);
 
     // ============================================================
     // PHASE 4: Verify no warnings/errors during edit planning
     // ============================================================
+    expect(editWarnings).toHaveLength(0);
+    expect(editErrors).toHaveLength(0);
+  });
+
+  it('re-runs different ImageProducer when different virtual artifact is overridden', async () => {
+    const blueprintPath = resolve(CATALOG_BLUEPRINTS_ROOT, 'json-blueprints', 'json-blueprints.yaml');
+    const inputsPath = resolve(__dirname, 'fixtures', 'json-blueprints-inputs.yaml');
+    const { logger } = createLoggerRecorder();
+    const { logger: editLogger, warnings: editWarnings, errors: editErrors } = createLoggerRecorder();
+    const movieId = 'e2e-json-blueprints-dirty2';
+    const storageMovieId = formatMovieId(movieId);
+
+    const configPath = getDefaultCliConfigPath();
+    const cliConfig = await readCliConfig(configPath);
+    if (!cliConfig) {
+      throw new Error('CLI config not initialized');
+    }
+
+    // PHASE 1: Initial run to produce all artifacts
+    const planResult = await generatePlan({
+      cliConfig,
+      movieId: storageMovieId,
+      isNew: true,
+      inputsPath,
+      usingBlueprint: blueprintPath,
+      logger,
+      notifications: undefined,
+    });
+    await planResult.persist();
+
+    const storage = createStorageContext({
+      kind: 'local',
+      rootDir: cliConfig.storage.root,
+      basePath: cliConfig.storage.basePath,
+    });
+    await initializeMovieStorage(storage, storageMovieId);
+    const eventLog = createEventLog(storage);
+    const manifestService = createManifestService(storage);
+
+    const produce: ProduceFn = vi.fn(async (request: ProduceRequest): Promise<ProduceResult> => {
+      return {
+        jobId: request.job.jobId,
+        status: 'succeeded',
+        artefacts: request.job.produces
+          .filter((id: string) => id.startsWith('Artifact:'))
+          .map((artefactId: string) => ({
+            artefactId,
+            blob: { data: `data-for-${artefactId}`, mimeType: 'text/plain' },
+          })),
+      };
+    });
+
+    const runner = createRunner();
+    const firstRunResult = await runner.execute(planResult.plan, {
+      movieId: storageMovieId,
+      manifest: planResult.manifest,
+      storage,
+      eventLog,
+      manifestService,
+      produce,
+      logger,
+    });
+    expect(firstRunResult.status).toBe('succeeded');
+
+    const manifest1 = await firstRunResult.buildManifest();
+    await manifestService.saveManifest(manifest1, {
+      movieId: storageMovieId,
+      previousHash: planResult.manifestHash,
+      clock: { now: () => new Date().toISOString() },
+    });
+
+    // PHASE 2: Override a DIFFERENT virtual artifact: Segments[1].ImagePrompts[1]
+    const overridePromptPath = join(tempRoot, 'override-prompt2.txt');
+    await writeFile(overridePromptPath, 'A dramatic shot of astronauts on the moon', 'utf8');
+
+    const overrideInputsPath = join(tempRoot, 'override-inputs2.yaml');
+    await writeFile(
+      overrideInputsPath,
+      stringifyYaml({
+        inputs: {
+          InquiryPrompt: 'The history of the moon landing',
+          Duration: 30,
+          NumOfSegments: 2,
+          NumOfImagesPerSegment: 2,
+          Style: 'Photorealistic documentary style',
+          AspectRatio: '16:9',
+          Size: '1K',
+          // Override DIFFERENT virtual artifact: Segments[1].ImagePrompts[1]
+          'DocProducer.VideoScript.Segments[1].ImagePrompts[1]': `file:${overridePromptPath}`,
+        },
+        models: [
+          {
+            model: 'gpt-5.2',
+            provider: 'openai',
+            producerId: 'DocProducer',
+            promptFile: resolve(CATALOG_BLUEPRINTS_ROOT, '..', 'producers', 'documentary-prompt', 'documentary-prompt.toml'),
+            outputSchema: resolve(CATALOG_BLUEPRINTS_ROOT, '..', 'producers', 'documentary-prompt', 'documentary-prompt-output.json'),
+            config: { text_format: 'json_schema' },
+          },
+          {
+            model: 'bytedance/seedream-4',
+            provider: 'replicate',
+            producerId: 'ImageProducer',
+            inputs: { Prompt: 'prompt', AspectRatio: 'aspect_ratio' },
+          },
+          {
+            model: 'timeline/ordered',
+            provider: 'renku',
+            producerId: 'TimelineComposer',
+            config: {
+              tracks: ['Image'],
+              masterTracks: ['Image'],
+              numTracks: 1,
+              imageClip: { artifact: 'ImageSegments[Image]' },
+            },
+          },
+        ],
+      }),
+      'utf8',
+    );
+
+    // PHASE 3: Run edit - should only re-run ImageProducer[1][1] + TimelineComposer
+    const editResult = await runExecute({
+      storageMovieId,
+      isNew: false,
+      inputsPath: overrideInputsPath,
+      dryRun: true,
+      nonInteractive: true,
+      logger: editLogger,
+    });
+
+    expect(editResult.build?.status).toBe('succeeded');
+
+    const editPlan = await readPlan(editResult.planPath);
+    const editJobs = editPlan.layers.flat();
+
+    const editDocJobs = editJobs.filter((j: any) => j.producer === 'DocProducer');
+    const editImageJobs = editJobs.filter((j: any) => j.producer === 'ImageProducer');
+    const editTimelineJobs = editJobs.filter((j: any) => j.producer === 'TimelineComposer');
+
+    // DocProducer should NOT re-run
+    expect(editDocJobs).toHaveLength(0);
+    // Only ImageProducer[1][1] should re-run (different from first test!)
+    expect(editImageJobs).toHaveLength(1);
+    expect(editImageJobs[0].jobId).toContain('[1][1]');
+    // TimelineComposer re-runs
+    expect(editTimelineJobs).toHaveLength(1);
+
+    // Verify OTHER ImageProducers are NOT in the plan
+    const allEditJobIds = editJobs.map((j: any) => j.jobId);
+    expect(allEditJobIds.some((id: string) => id.includes('ImageProducer') && id.includes('[0][0]'))).toBe(false);
+    expect(allEditJobIds.some((id: string) => id.includes('ImageProducer') && id.includes('[0][1]'))).toBe(false);
+    expect(allEditJobIds.some((id: string) => id.includes('ImageProducer') && id.includes('[1][0]'))).toBe(false);
+
+    expect(editResult.build?.jobCount).toBe(2);
     expect(editWarnings).toHaveLength(0);
     expect(editErrors).toHaveLength(0);
   });

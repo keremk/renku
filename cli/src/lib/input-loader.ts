@@ -1,3 +1,4 @@
+import { dirname } from 'node:path';
 import type { BlueprintTreeNode } from '@gorenku/core';
 import {
   loadInputsFromYaml as coreLoadInputsFromYaml,
@@ -23,7 +24,14 @@ export async function loadInputsFromYaml(
   allowAmbiguousDefault = false,
 ): Promise<LoadedInputs> {
   const base = await coreLoadInputsFromYaml(filePath, blueprint);
-  const providerOptions = buildProducerOptionsFromBlueprint(blueprint, base.modelSelections, allowAmbiguousDefault);
+  // Use the input file's directory as base for resolving relative paths (promptFile, outputSchema)
+  const baseDir = dirname(filePath);
+  const providerOptions = await buildProducerOptionsFromBlueprint(
+    blueprint,
+    base.modelSelections,
+    allowAmbiguousDefault,
+    { baseDir },
+  );
   return {
     ...base,
     providerOptions,

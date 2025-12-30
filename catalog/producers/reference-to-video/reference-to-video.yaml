@@ -36,14 +36,3 @@ artifacts:
   - name: SegmentVideo
     description: Video file for the segment.
     type: video
-
-models:
-  - model: veo3.1/reference-to-video
-    provider: fal-ai
-    inputs:
-      Prompt: prompt
-      Resolution: resolution
-      SegmentDuration: duration
-      GenerateAudio: generate_audio
-      ReferenceImages: image_urls
-      AutoFixPrompt: auto_fix

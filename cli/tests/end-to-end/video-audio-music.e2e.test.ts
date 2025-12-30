@@ -1,7 +1,8 @@
-import { copyFile, readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { runExecute, formatMovieId } from '../../src/commands/execute.js';
 import {
   createLoggerRecorder,
@@ -11,6 +12,8 @@ import {
   setupTempCliConfig,
 } from './helpers.js';
 import { CATALOG_BLUEPRINTS_ROOT } from '../test-catalog-paths.js';
+
+const CATALOG_PRODUCERS_ROOT = resolve(CATALOG_BLUEPRINTS_ROOT, '..', 'producers');
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -133,14 +136,22 @@ describe('end-to-end: video-audio-music dry runs', () => {
     await expectFileExists(resolve(queryResult.storagePath, 'events', 'inputs.log'));
 
     // Prepare edited inputs to force re-run
+    // When copying to temp directory, convert relative promptFile paths to absolute paths
     const editedInputsPath = join(tempRoot, 'edited-inputs.yaml');
-    await copyFile(inputsPath, editedInputsPath);
-    const edited = await readFile(editedInputsPath, 'utf8');
-    await writeFile(
-      editedInputsPath,
-      edited.replace('Chart the rise of reusable rockets', 'Chronicle deep-sea exploration technology'),
-      'utf8',
-    );
+    const originalContent = await readFile(inputsPath, 'utf8');
+    const doc = parseYaml(originalContent) as { inputs?: Record<string, unknown>; models?: Array<Record<string, unknown>> };
+    doc.inputs = doc.inputs ?? {};
+    doc.inputs.InquiryPrompt = 'Chronicle deep-sea exploration technology';
+    // Convert relative promptFile/outputSchema paths to absolute paths
+    for (const model of doc.models ?? []) {
+      if (typeof model.promptFile === 'string') {
+        model.promptFile = resolve(CATALOG_PRODUCERS_ROOT, model.promptFile.replace(/^(\.\.\/)*catalog\/producers\//, ''));
+      }
+      if (typeof model.outputSchema === 'string') {
+        model.outputSchema = resolve(CATALOG_PRODUCERS_ROOT, model.outputSchema.replace(/^(\.\.\/)*catalog\/producers\//, ''));
+      }
+    }
+    await writeFile(editedInputsPath, stringifyYaml(doc), 'utf8');
 
     const editResult = await runExecute({
       storageMovieId: queryResult.storageMovieId,

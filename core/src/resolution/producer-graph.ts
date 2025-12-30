@@ -92,10 +92,21 @@ export function createProducerGraph(
       }
     }
 
+    // Get input bindings early for dependency tracking
+    const inputBindings = canonical.inputBindings[node.id];
+
     const dependencyKeys = new Set(allInputs.filter((key) => isCanonicalArtifactId(key)));
     for (const spec of Object.values(fanInForJob)) {
       for (const member of spec.members) {
         dependencyKeys.add(member.id);
+      }
+    }
+    // Also track dependencies from inputBindings (for virtual artifact edges that target Input nodes)
+    if (inputBindings) {
+      for (const sourceId of Object.values(inputBindings)) {
+        if (typeof sourceId === 'string' && isCanonicalArtifactId(sourceId)) {
+          dependencyKeys.add(sourceId);
+        }
       }
     }
 
@@ -110,7 +121,6 @@ export function createProducerGraph(
       }
     }
 
-    const inputBindings = canonical.inputBindings[node.id];
     const canonicalSdkMapping = normalizeSdkMapping(
       option.sdkMapping ?? node.producer?.sdkMapping,
     );

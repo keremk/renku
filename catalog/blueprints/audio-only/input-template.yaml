@@ -10,18 +10,14 @@ models:
   - model: gpt-5-mini
     provider: openai
     producerId: ScriptProducer
-  - model: gpt-5-mini
-    provider: openai
-    producerId: ImagePromptProducer
+    promptFile: ../../producers/script/script.toml
+    outputSchema: ../../producers/script/script-output.json
+    config:
+      text_format: json_schema
   - model: minimax/speech-2.6-hd
     provider: replicate
     producerId: AudioProducer
-  - model: timeline/ordered
-    provider: renku
-    producerId: TimelineComposer
-    config:
-      tracks: ["Audio"]
-      masterTracks: ["Audio"]
-      numTracks: 1
-      audioClip:
-        volume: 0.9
+    inputs:
+      TextInput: text
+      Emotion: emotion
+      VoiceId: voice_id

@@ -8,19 +8,30 @@ models:
   - model: stability-ai/stable-audio-2.5
     provider: replicate
     producerId: MusicProducer
+    inputs:
+      Prompt: prompt
+      Duration: duration
     config:
       force_instrumental: true
   - model: gpt-5-mini
     provider: openai
     producerId: ScriptProducer
+    promptFile: ../../producers/script/script.toml
+    outputSchema: ../../producers/script/script-output.json
+    config:
+      text_format: json_schema
   - model: gpt-5-mini
     provider: openai
     producerId: MusicPromptProducer
+    promptFile: ../../producers/music-prompt/music-prompt.toml
+    config:
+      text_format: text
   - model: timeline/ordered
     provider: renku
     producerId: TimelineComposer
     config:
       masterTracks: ["Music"]
       musicClip:
+        artifact: Music
         volume: 0.9
       tracks: ["Music"]

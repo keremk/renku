@@ -13,21 +13,26 @@ const CLI_ROOT = resolve(REPO_ROOT, 'cli');
 const BLUEPRINTS_ROOT = CATALOG_BLUEPRINTS_ROOT;
 
 describe('input-loader', () => {
-  it('loads saved canonical inputs with schema-backed config keys', async () => {
-    const workdir = await mkdtemp(join(tmpdir(), 'renku-inputs-'));
-    const blueprintPath = await resolveBlueprintSpecifier('video-audio-music.yaml', { cliRoot: CLI_ROOT });
+  it('loads model selections with SDK mappings from input template', async () => {
+    const blueprintPath = await resolveBlueprintSpecifier('audio-only.yaml', { cliRoot: CLI_ROOT });
     const { root: blueprint } = await loadBlueprintBundle(blueprintPath);
-    const initial = await loadInputsFromYaml(
-      resolve(BLUEPRINTS_ROOT, 'cut-scene-video', 'input-template.yaml'),
+
+    // Use the matching input template for the blueprint
+    const loaded = await loadInputsFromYaml(
+      resolve(BLUEPRINTS_ROOT, 'audio-only', 'input-template.yaml'),
       blueprint,
     );
-    applyProviderDefaults(initial.values, initial.providerOptions);
 
-    const savedPath = join(workdir, 'inputs.yaml');
-    await writeFile(savedPath, stringifyYaml({ inputs: initial.values }), 'utf8');
-
-    const reloaded = await loadInputsFromYaml(savedPath, blueprint);
-    expect(reloaded.values['Input:MusicProducer.force_instrumental']).toBe(true);
+    // Verify SDK mappings are loaded from input template
+    const audioSelection = loaded.modelSelections.find((sel) => sel.producerId.endsWith('AudioProducer'));
+    expect(audioSelection).toBeDefined();
+    expect(audioSelection?.provider).toBe('replicate');
+    expect(audioSelection?.model).toBe('minimax/speech-2.6-hd');
+    expect(audioSelection?.inputs).toEqual({
+      TextInput: { field: 'text' },
+      Emotion: { field: 'emotion' },
+      VoiceId: { field: 'voice_id' },
+    });
   });
 
   it('rejects unknown inputs with a clear error', async () => {
@@ -39,6 +44,7 @@ describe('input-loader', () => {
       stringifyYaml({
         inputs: { UnknownKey: 'x' },
         models: [
+          { producerId: 'ScriptProducer', provider: 'openai', model: 'gpt-5-mini' },
           { producerId: 'AudioProducer', provider: 'replicate', model: 'elevenlabs/v3' },
         ],
       }),
@@ -49,7 +55,7 @@ describe('input-loader', () => {
 
   it('derives model selection and config from producer-scoped canonical keys', async () => {
     const workdir = await mkdtemp(join(tmpdir(), 'renku-inputs-'));
-    const blueprintPath = await resolveBlueprintSpecifier('video-audio-music.yaml', { cliRoot: CLI_ROOT });
+    const blueprintPath = await resolveBlueprintSpecifier('audio-only.yaml', { cliRoot: CLI_ROOT });
     const { root: blueprint } = await loadBlueprintBundle(blueprintPath);
     const savedPath = join(workdir, 'inputs.yaml');
 
@@ -60,28 +66,21 @@ describe('input-loader', () => {
           Duration: 30,
           NumOfSegments: 3,
           InquiryPrompt: 'Test story',
-          Audience: 'Adult',
-          Style: 'Ghibli',
-          AspectRatio: '16:9',
-          Resolution: '480p',
-          SegmentDuration: 10,
           VoiceId: 'Wise_Woman',
           'Input:AudioProducer.provider': 'replicate',
           'Input:AudioProducer.model': 'minimax/speech-2.6-hd',
-          'Input:VideoProducer.provider': 'replicate',
-          'Input:VideoProducer.model': 'bytedance/seedance-1-pro-fast',
-          'Input:MusicProducer.provider': 'replicate',
-          'Input:MusicProducer.model': 'stability-ai/stable-audio-2.5',
-          'Input:MusicProducer.force_instrumental': true,
         },
+        models: [
+          { producerId: 'ScriptProducer', provider: 'openai', model: 'gpt-5-mini' },
+        ],
       }),
       'utf8',
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
-    expect(loaded.modelSelections.find((sel) => sel.producerId.endsWith('MusicProducer'))?.model).toBe(
-      'stability-ai/stable-audio-2.5',
+    expect(loaded.modelSelections.find((sel) => sel.producerId.endsWith('AudioProducer'))?.model).toBe(
+      'minimax/speech-2.6-hd',
     );
-    expect(loaded.values['Input:MusicProducer.force_instrumental']).toBe(true);
+    expect(loaded.values['Input:AudioProducer.provider']).toBe('replicate');
   });
 });

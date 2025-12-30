@@ -37,17 +37,3 @@ loops:
   - name: segment
     description: Iterates over narration segments.
     countInput: NumOfSegments
-
-models: 
-  - provider: openai
-    model: gpt-5.2
-    promptFile: ./documentary-prompt.toml
-    outputSchema: ./documentary-prompt-output.json
-    config:
-      text_format: json_schema
-  - provider: openai
-    model: gpt-5-mini
-    promptFile: ./documentary-prompt.toml
-    outputSchema: ./documentary-prompt-output.json
-    config:
-      text_format: json_schema

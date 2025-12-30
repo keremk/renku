@@ -34,11 +34,3 @@ loops:
   - name: image
     description: Iterates over prompts per segment.
     countInput: NumOfImagesPerNarrative
-
-models:
-  - provider: openai
-    model: gpt-5-mini
-    promptFile: ./image-prompt.toml
-    outputSchema: ./image-prompt-output.json
-    config:
-      text_format: json_schema

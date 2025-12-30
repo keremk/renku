@@ -238,6 +238,23 @@ describe('runGenerate (new runs)', () => {
     );
 
     const initialDoc = parseYaml(await readFile(baselineInputsPath, 'utf8')) as { inputs?: Record<string, unknown>; models?: Array<Record<string, unknown>> };
+
+    // Convert promptFile paths to inline prompts since the relative paths won't work after copy
+    for (const model of initialDoc.models ?? []) {
+      if (model.promptFile) {
+        delete model.promptFile;
+        delete model.outputSchema;
+        // Add inline prompts for LLM producers
+        model.systemPrompt = 'You are a helpful assistant for testing.';
+        model.userPrompt = 'Process this: {{InquiryPrompt}}';
+        // If text_format was json_schema, change to text since we removed outputSchema
+        const config = model.config as Record<string, unknown> | undefined;
+        if (config?.text_format === 'json_schema') {
+          config.text_format = 'text';
+        }
+      }
+    }
+
     const initialImageModel = initialDoc.models?.find((entry) => entry.producerId === 'ImageProducer');
     expect(initialImageModel).toBeDefined();
     if (!initialImageModel) {

@@ -1,9 +1,10 @@
 import { buildBlueprintGraph } from '../resolution/canonical-graph.js';
+import { decomposeJsonSchema } from '../resolution/schema-decomposition.js';
 import { expandBlueprintGraph } from '../resolution/canonical-expander.js';
 import { buildInputSourceMapFromCanonical, normalizeInputValues } from '../resolution/input-sources.js';
 import { createProducerGraph } from '../resolution/producer-graph.js';
 import { createPlanAdapter, type PlanAdapterOptions } from '../planning/adapter.js';
-import { isCanonicalInputId } from '../parsing/canonical-ids.js';
+import { isCanonicalInputId, formatProducerAlias } from '../parsing/canonical-ids.js';
 import type { EventLog } from '../event-log.js';
 import { hashPayload } from '../hashing.js';
 import { ManifestNotFoundError, type ManifestService } from '../manifest.js';
@@ -21,6 +22,7 @@ import type {
   ExecutionPlan,
   InputEvent,
   InputEventSource,
+  JsonSchemaDefinition,
   Manifest,
   ProducerCatalog,
   RevisionId,
@@ -96,6 +98,10 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
 
       let targetRevision = nextRevisionId(manifest.revision ?? null);
       targetRevision = await ensureUniquePlanRevision(args.storage, args.movieId, targetRevision);
+
+      // Apply output schemas from provider options to JSON artifacts
+      // This enables virtual artifact decomposition for producers with outputSchema in input templates
+      applyOutputSchemasToBlueprintTree(args.blueprintTree, args.providerOptions);
 
       const blueprintGraph = buildBlueprintGraph(args.blueprintTree);
       const inputSources = buildInputSourceMapFromCanonical(blueprintGraph);
@@ -278,4 +284,74 @@ async function transformInputBlobsToRefs(
     transformed[key] = await convertBlobInputToBlobRef(storage, movieId, value);
   }
   return transformed;
+}
+
+/**
+ * Apply output schemas from provider options to JSON artifacts in the blueprint tree.
+ * This enables virtual artifact decomposition for producers with outputSchema defined
+ * in input templates (after the migration from inline models).
+ */
+export function applyOutputSchemasToBlueprintTree(
+  tree: BlueprintTreeNode,
+  providerOptions: Map<string, ProviderOptionEntry>,
+): void {
+  applyOutputSchemasToNode(tree, providerOptions);
+  for (const child of tree.children.values()) {
+    applyOutputSchemasToBlueprintTree(child, providerOptions);
+  }
+}
+
+function applyOutputSchemasToNode(
+  node: BlueprintTreeNode,
+  providerOptions: Map<string, ProviderOptionEntry>,
+): void {
+  for (const producer of node.document.producers) {
+    const producerAlias = formatProducerAlias(node.namespacePath, producer.name);
+    const options = providerOptions.get(producerAlias);
+    if (!options?.outputSchema) {
+      continue;
+    }
+
+    // Try to parse the output schema JSON - skip if not valid JSON
+    const parsedSchema = tryParseJsonSchemaDefinition(options.outputSchema);
+    if (!parsedSchema) {
+      continue;
+    }
+
+    // Apply to JSON artifacts with arrays that don't already have a schema
+    // and add edges from producer to decomposed virtual artifacts
+    node.document.artefacts = node.document.artefacts.map((art) => {
+      if (art.type === 'json' && art.arrays && art.arrays.length > 0 && !art.schema) {
+        // Decompose the schema and add edges for each virtual artifact
+        const decomposed = decomposeJsonSchema(parsedSchema, art.name, art.arrays);
+        for (const field of decomposed) {
+          // Only add edge if field has dimensions (virtual artifact)
+          if (field.dimensions.length > 0) {
+            // Check if edge already exists
+            const edgeExists = node.document.edges.some(
+              (e) => e.from === producer.name && e.to === field.path,
+            );
+            if (!edgeExists) {
+              node.document.edges.push({ from: producer.name, to: field.path });
+            }
+          }
+        }
+        return { ...art, schema: parsedSchema };
+      }
+      return art;
+    });
+  }
+}
+
+function tryParseJsonSchemaDefinition(schemaJson: string): JsonSchemaDefinition | null {
+  try {
+    const parsed = JSON.parse(schemaJson);
+    const name = typeof parsed.name === 'string' ? parsed.name : 'Schema';
+    const strict = typeof parsed.strict === 'boolean' ? parsed.strict : undefined;
+    const schema = parsed.schema ?? parsed;
+    return { name, strict, schema };
+  } catch {
+    // Not valid JSON - skip (could be a schema URL or other reference)
+    return null;
+  }
 }

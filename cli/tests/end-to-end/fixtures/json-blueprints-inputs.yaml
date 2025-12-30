@@ -11,9 +11,16 @@ models:
   - model: gpt-5.2
     provider: openai
     producerId: DocProducer
+    promptFile: ../../../../catalog/producers/documentary-prompt/documentary-prompt.toml
+    outputSchema: ../../../../catalog/producers/documentary-prompt/documentary-prompt-output.json
+    config:
+      text_format: json_schema
   - model: bytedance/seedream-4
     provider: replicate
     producerId: ImageProducer
+    inputs:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
   - model: timeline/ordered
     provider: renku
     producerId: TimelineComposer
@@ -21,3 +28,5 @@ models:
       tracks: ["Image"]
       masterTracks: ["Image"]
       numTracks: 1
+      imageClip:
+        artifact: ImageSegments[Image]

@@ -39,10 +39,18 @@
       "Bash(pnpm check:*)",
       "Bash(pnpm check:all:*)",
       "Bash(pnpm --filter @gorenku/core type-check:*)",
-      "Bash(pnpm --filter @gorenku/core test)",
+      "Bash(pnpm --filter @gorenku/core test:*)",
+      "Bash(pnpm --filter @gorenku/core lint:*)",
       "Bash(pnpm --filter @gorenku/cli test:*)",
       "Bash(pnpm --filter @gorenku/cli lint:*)",
-      "Bash(pnpm --filter @gorenku/providers lint:*)"
+      "Bash(pnpm --filter @gorenku/cli type-check:*)",
+      "Bash(pnpm --filter @gorenku/providers lint:*)",
+      "Bash(pnpm --filter @gorenku/providers test:*)",
+      "Bash(pnpm --filter @gorenku/providers type-check:*)",
+      "Bash(pnpm --filter @gorenku/cli test:unit)",
+      "Bash(pnpm --filter @gorenku/cli vitest run:*)",
+      "Bash(npm test:*)",
+      "Bash(pnpm test:e2e:*)"
     ],
     "deny": [],
     "ask": []

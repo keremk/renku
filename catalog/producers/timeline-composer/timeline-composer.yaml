@@ -37,16 +37,3 @@ artifacts:
   - name: Timeline
     description: OrderedTimeline JSON manifest.
     type: json
-
-models:
-  - model: timeline/ordered
-    provider: renku
-    config:
-      imageClip:
-        artifact: ImageSegments[Image]
-      videoClip:
-        artifact: VideoSegments
-      audioClip:
-        artifact: AudioSegments
-      musicClip:
-        artifact: Music

@@ -11,9 +11,24 @@ models:
   - model: gpt-5.2
     provider: openai
     producerId: DocProducer
+    promptFile: ../../producers/documentary-prompt/documentary-prompt.toml
+    outputSchema: ../../producers/documentary-prompt/documentary-prompt-output.json
+    config:
+      text_format: json_schema
   - model: bytedance/seedream/v4.5/text-to-image
     provider: fal-ai
     producerId: ImageProducer
+    inputs:
+      Prompt:
+        field: prompt
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": "landscape_16_9"
+          "9:16": "portrait_16_9"
+          "4:3": "landscape_4_3"
+          "3:4": "portrait_4_3"
+          "1:1": "square"
   - model: timeline/ordered
     provider: renku
     producerId: TimelineComposer
@@ -21,3 +36,5 @@ models:
       tracks: ["Image"]
       masterTracks: ["Image"]
       numTracks: 1
+      imageClip:
+        artifact: ImageSegments[Image]

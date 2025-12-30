@@ -14,15 +14,30 @@ models:
   - model: gpt-5-mini
     provider: openai
     producerId: ScriptProducer
+    promptFile: ../../producers/script/script.toml
+    outputSchema: ../../producers/script/script-output.json
+    config:
+      text_format: json_schema
   - model: gpt-5-mini
     provider: openai
     producerId: ImagePromptProducer
+    promptFile: ../../producers/image-prompt/image-prompt.toml
+    outputSchema: ../../producers/image-prompt/image-prompt-output.json
+    config:
+      text_format: json_schema
   - model: google/nano-banana
     provider: replicate
     producerId: ImageProducer
+    inputs:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
   - model: minimax/speech-2.6-hd
     provider: replicate
     producerId: AudioProducer
+    inputs:
+      TextInput: text
+      Emotion: emotion
+      VoiceId: voice_id
   - model: timeline/ordered
     provider: renku
     producerId: TimelineComposer
@@ -30,5 +45,8 @@ models:
       tracks: ["Image", "Audio"]
       masterTracks: ["Audio"]
       numTracks: 2
+      imageClip:
+        artifact: ImageSegments[Image]
       audioClip:
+        artifact: AudioSegments
         volume: 0.9

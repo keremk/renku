@@ -164,8 +164,20 @@ describe('end-to-end: artifact override via inputs.yaml', () => {
           'ScriptProducer.NarrationScript[0]': `file:${overrideScriptPath}`,
         },
         models: [
-          { model: 'gpt-5-mini', provider: 'openai', producerId: 'ScriptProducer' },
-          { model: 'minimax/speech-2.6-hd', provider: 'replicate', producerId: 'AudioProducer' },
+          {
+            model: 'gpt-5-mini',
+            provider: 'openai',
+            producerId: 'ScriptProducer',
+            promptFile: resolve(CATALOG_BLUEPRINTS_ROOT, '..', 'producers', 'script', 'script.toml'),
+            outputSchema: resolve(CATALOG_BLUEPRINTS_ROOT, '..', 'producers', 'script', 'script-output.json'),
+            config: { text_format: 'json_schema' },
+          },
+          {
+            model: 'minimax/speech-2.6-hd',
+            provider: 'replicate',
+            producerId: 'AudioProducer',
+            inputs: { TextInput: 'text', Emotion: 'emotion', VoiceId: 'voice_id' },
+          },
         ],
       }),
       'utf8',
