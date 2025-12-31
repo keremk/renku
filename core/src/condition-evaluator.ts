@@ -421,7 +421,10 @@ function evaluateOperator(
           ? { satisfied: true }
           : { satisfied: false, reason: `"${value}" does not match /${compareValue}/` };
       } catch {
-        return { satisfied: false, reason: `Invalid regex: ${compareValue}` };
+        throw new Error(
+          `Invalid regex pattern "${compareValue}" in condition. ` +
+            `Please fix the regex syntax in your blueprint.`,
+        );
       }
 
     default:

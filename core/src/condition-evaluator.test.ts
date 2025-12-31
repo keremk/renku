@@ -382,12 +382,10 @@ describe('evaluateCondition', () => {
       expect(result.reason).toContain('does not match');
     });
 
-    it('fails when regex is invalid', () => {
+    it('throws when regex is invalid', () => {
       const condition: EdgeConditionClause = { when: 'Producer.Data.Value', matches: '[invalid(' };
       const context = createContext({ 'Artifact:Producer.Data': { Value: 'test' } });
-      const result = evaluateCondition(condition, {}, context);
-      expect(result.satisfied).toBe(false);
-      expect(result.reason).toContain('Invalid regex');
+      expect(() => evaluateCondition(condition, {}, context)).toThrow('Invalid regex pattern');
     });
 
     it('fails when value is not a string', () => {

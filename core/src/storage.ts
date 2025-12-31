@@ -63,13 +63,10 @@ export function createStorageContext(config: StorageConfig): StorageContext {
 
   async function enqueueAppend(key: string, task: () => Promise<void>): Promise<void> {
     const previous = appendQueues.get(key) ?? Promise.resolve();
-    const next = previous.then(task);
-    appendQueues.set(
-      key,
-      next.catch(() => {
-        /* noop: errors handled by caller */
-      })
-    );
+    // Chain task after previous, ensuring sequential execution
+    // Errors will propagate to callers via the awaited promise
+    const next = previous.catch(() => {}).then(task);
+    appendQueues.set(key, next);
     try {
       await next;
     } finally {

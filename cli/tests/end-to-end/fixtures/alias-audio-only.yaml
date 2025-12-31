@@ -51,7 +51,7 @@ loops:
     description: Iterates over narration segments.
     countInput: NumOfSegments
 
-modules:
+producers:
   - name: DocScript
     path: ../../../../catalog/producers/script/script.yaml
   - name: NarrationAudio

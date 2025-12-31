@@ -1,6 +1,7 @@
 import { isCanonicalArtifactId, isCanonicalInputId } from '../canonical-ids.js';
 import type { EventLog } from '../event-log.js';
 import { hashPayload } from '../hashing.js';
+import { deriveArtefactHash } from '../manifest.js';
 import {
   type Clock,
   type ExecutionPlan,
@@ -14,13 +15,10 @@ import type { Logger } from '../logger.js';
 import type { NotificationBus } from '../notifications.js';
 
 interface PlannerOptions {
-  logger?: PlannerLogger;
+  logger?: Partial<Logger>;
   clock?: Clock;
   notifications?: NotificationBus;
 }
-
-/* eslint-disable no-unused-vars */
-export interface PlannerLogger extends Partial<Logger> {}
 
 interface ComputePlanArgs {
   movieId: string;
@@ -305,16 +303,6 @@ function determineDirtyArtefacts(manifest: Manifest, artefacts: ArtefactMap): Se
     }
   }
   return dirty;
-}
-
-function deriveArtefactHash(event: ArtefactEvent): string {
-  if (event.output.blob?.hash) {
-    return event.output.blob.hash;
-  }
-  return hashPayload({
-    artefactId: event.artefactId,
-    revision: event.revision,
-  }).hash;
 }
 
 function manifestBaseHash(manifest: Manifest): string {

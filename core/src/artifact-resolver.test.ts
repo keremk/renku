@@ -200,8 +200,8 @@ describe('resolveArtifactsFromEventLog', () => {
 
     const mockEventLog = createMockEventLog(events);
     const mockStorage = createMockStorage({
-      'test-movie/blobs/ol/old123': oldBlobData,
-      'test-movie/blobs/ne/new456': newBlobData,
+      'test-movie/blobs/ol/old123.png': oldBlobData,
+      'test-movie/blobs/ne/new456.png': newBlobData,
     });
 
     const result = await resolveArtifactsFromEventLog({

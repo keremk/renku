@@ -31,12 +31,9 @@ import {
 import type { Logger } from './logger.js';
 import type { NotificationBus } from './notifications.js';
 
-/* eslint-disable no-unused-vars */
-export interface RunnerLogger extends Partial<Logger> {}
-
 export interface RunnerOptions {
   clock?: Clock;
-  logger?: RunnerLogger;
+  logger?: Partial<Logger>;
   produce?: ProduceFn;
   notifications?: NotificationBus;
 }
@@ -48,7 +45,7 @@ export interface RunnerExecutionContext {
   eventLog: EventLog;
   manifestService?: ManifestService;
   produce?: ProduceFn;
-  logger?: RunnerLogger;
+  logger?: Partial<Logger>;
   clock?: Clock;
   notifications?: NotificationBus;
 }
@@ -64,7 +61,7 @@ interface RunnerJobContext extends RunnerExecutionContext {
   attempt: number;
   revision: RevisionId;
   produce: ProduceFn;
-  logger: RunnerLogger;
+  logger: Partial<Logger>;
   clock: Clock;
   manifestService: ManifestService;
   notifications?: NotificationBus;
@@ -74,7 +71,7 @@ const defaultClock: Clock = {
   now: () => new Date().toISOString(),
 };
 
-const noopLogger: RunnerLogger = {};
+const noopLogger: Partial<Logger> = {};
 
 export function createRunner(options: RunnerOptions = {}) {
   const baseClock = options.clock ?? defaultClock;
@@ -374,6 +371,9 @@ async function executeJob(
         attempt,
         error: serializeError(logError),
       });
+      throw new Error(
+        `Failed to record artifact failure for job ${job.jobId}: ${serializeError(logError)}`,
+      );
     }
 
     logger.error?.('runner.job.failed', {

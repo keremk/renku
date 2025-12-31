@@ -3,11 +3,11 @@ import type {
   Clock,
   ExecutionPlan,
   JobResult,
+  Logger,
   ManifestService,
   ProduceFn,
   RunResult,
   RunnerExecutionContext,
-  RunnerLogger,
 } from '@gorenku/core';
 import { createRunner } from '@gorenku/core';
 import chalk from 'chalk';
@@ -15,7 +15,7 @@ import chalk from 'chalk';
 interface PlanExecutionContext extends RunnerExecutionContext {
   manifestService: ManifestService;
   produce: ProduceFn;
-  logger?: RunnerLogger;
+  logger?: Partial<Logger>;
   clock?: Clock;
   notifications?: import('@gorenku/core').NotificationBus;
 }

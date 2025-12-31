@@ -22,6 +22,7 @@ import type {
   ProducerImportDefinition,
 } from '../../types.js';
 import { parseDimensionSelector } from '../dimension-selectors.js';
+import { deriveDimensionName } from '../../resolution/schema-decomposition.js';
 
 export interface BlueprintResourceReader {
   // eslint-disable-next-line no-unused-vars
@@ -78,21 +79,12 @@ export async function parseYamlBlueprintFile(
   const loops = Array.isArray(raw.loops) ? parseLoops(raw.loops) : [];
   const loopSymbols = new Set(loops.map((loop) => loop.name));
   const conditionDefs = parseConditionDefinitions(raw.conditions, loopSymbols);
-  const artefactSource = Array.isArray(raw.artifacts)
-    ? raw.artifacts
-    : Array.isArray(raw.artefacts)
-      ? raw.artefacts
-      : [];
+  const artefactSource = Array.isArray(raw.artifacts) ? raw.artifacts : [];
   if (artefactSource.length === 0) {
     throw new Error(`Blueprint YAML at ${filePath} must declare at least one artifact.`);
   }
   const artefacts = artefactSource.map((entry) => parseArtefact(entry));
-  // Accept `producers:` section, with fallback to deprecated `modules:` for backwards compatibility
-  const rawProducerImports = Array.isArray(raw.producers)
-    ? raw.producers
-    : Array.isArray(raw.modules)
-      ? raw.modules
-      : [];
+  const rawProducerImports = Array.isArray(raw.producers) ? raw.producers : [];
   const producerImports = rawProducerImports.map((entry) => parseProducerImport(entry));
   let edges = Array.isArray(raw.connections)
     ? raw.connections.map((entry) => parseEdge(entry, loopSymbols, conditionDefs))
@@ -185,12 +177,8 @@ interface RawBlueprint {
   meta?: unknown;
   inputs?: unknown[];
   artifacts?: unknown[];
-  artefacts?: unknown[];
   loops?: unknown[];
-  /** New: producer imports section */
   producers?: unknown[];
-  /** @deprecated Use `producers:` instead. Kept for backwards compatibility. */
-  modules?: unknown[];
   connections?: unknown[];
   collectors?: unknown[];
   models?: unknown[];
@@ -361,8 +349,8 @@ function parseEdge(
     throw new Error(`Invalid connection entry: ${JSON.stringify(raw)}`);
   }
   const edge = raw as Record<string, unknown>;
-  const from = normalizeReference(readString(edge, 'from'));
-  const to = normalizeReference(readString(edge, 'to'));
+  const from = readString(edge, 'from');
+  const to = readString(edge, 'to');
   validateDimensions(from, allowedDimensions, 'from');
   validateDimensions(to, allowedDimensions, 'to');
 
@@ -698,10 +686,6 @@ function parseReference(reference: string, allowed: Set<string>, label: 'from' |
   }
 }
 
-function normalizeReference(raw: string): string {
-  return raw;
-}
-
 function readString(source: Record<string, unknown>, key: string): string {
   const value = source[key];
   if (typeof value === 'string' && value.trim().length > 0) {
@@ -783,7 +767,7 @@ function decomposeJsonSchemaForEdges(
         return; // Not decomposed
       }
 
-      const dimName = deriveDimensionNameForEdges(countInput);
+      const dimName = deriveDimensionName(countInput);
       const newPathSegments = pathSegments.length > 0
         ? [...pathSegments.slice(0, -1), `${pathSegments[pathSegments.length - 1]}[${dimName}]`]
         : [`[${dimName}]`];
@@ -815,33 +799,6 @@ function decomposeJsonSchemaForEdges(
 
 function isLeafTypeForEdges(type: string): boolean {
   return type === 'string' || type === 'number' || type === 'integer' || type === 'boolean';
-}
-
-function deriveDimensionNameForEdges(countInput: string): string {
-  let name = countInput;
-  const prefixes = ['NumOf', 'NumberOf', 'CountOf', 'Num'];
-  for (const prefix of prefixes) {
-    if (name.startsWith(prefix)) {
-      name = name.slice(prefix.length);
-      break;
-    }
-  }
-  const suffixes = ['Count', 'Number', 'Num'];
-  for (const suffix of suffixes) {
-    if (name.endsWith(suffix)) {
-      name = name.slice(0, -suffix.length);
-      break;
-    }
-  }
-  const perMatch = name.match(/^(.+)Per\w+$/);
-  if (perMatch) {
-    name = perMatch[1]!;
-  }
-  name = name.toLowerCase();
-  if (name.endsWith('s') && name.length > 1) {
-    name = name.slice(0, -1);
-  }
-  return name || 'item';
 }
 
 function relativePosix(root: string, target: string): string {

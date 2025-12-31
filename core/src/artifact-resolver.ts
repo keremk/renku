@@ -109,13 +109,11 @@ export async function readBlob(
   try {
     const payload = await storage.storage.readToUint8Array(primaryPath);
     return decodePayload(payload, blobRef.mimeType);
-  } catch (error) {
-    if (fileName !== blobRef.hash) {
-      const legacyPath = storage.resolve(movieId, 'blobs', prefix, blobRef.hash);
-      const payload = await storage.storage.readToUint8Array(legacyPath);
-      return decodePayload(payload, blobRef.mimeType);
-    }
-    throw error;
+  } catch {
+    throw new Error(
+      `Blob not found at ${primaryPath}. ` +
+        `If this is a legacy project, blobs may need to be migrated.`,
+    );
   }
 }
 
@@ -127,7 +125,9 @@ function decodePayload(payload: Uint8Array, mimeType?: string): unknown {
       try {
         return JSON.parse(text);
       } catch {
-        return text;
+        throw new Error(
+          `Invalid JSON in artifact: expected valid JSON but got: ${text.slice(0, 100)}...`,
+        );
       }
     }
     return text;

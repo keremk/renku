@@ -1,5 +1,6 @@
-import { createPlanner, type PlannerLogger } from './planner.js';
+import { createPlanner } from './planner.js';
 import type { EventLog } from '../event-log.js';
+import type { Logger } from '../logger.js';
 import type {
   Clock,
   ExecutionPlan,
@@ -24,7 +25,7 @@ export type PlanAdapter = {
 };
 
 export interface PlanAdapterOptions {
-  logger?: PlannerLogger;
+  logger?: Partial<Logger>;
   clock?: Clock;
   notifications?: import('../notifications.js').NotificationBus;
 }

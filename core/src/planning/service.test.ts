@@ -60,7 +60,6 @@ function buildProviderOptions(): Map<string, ProviderOptionEntry> {
       NarrationScript: { type: 'text/plain', mimeType: 'text/plain' },
     },
     inputSchema: 'schema://inputs',
-    outputSchema: 'schema://outputs',
     config: {},
     selectionInputKeys: ['provider', 'model'],
     configInputPaths: [],

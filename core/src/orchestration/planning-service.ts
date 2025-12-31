@@ -312,11 +312,8 @@ function applyOutputSchemasToNode(
       continue;
     }
 
-    // Try to parse the output schema JSON - skip if not valid JSON
-    const parsedSchema = tryParseJsonSchemaDefinition(options.outputSchema);
-    if (!parsedSchema) {
-      continue;
-    }
+    // Parse the output schema JSON
+    const parsedSchema = parseJsonSchemaDefinition(options.outputSchema);
 
     // Apply to JSON artifacts with arrays that don't already have a schema
     // and add edges from producer to decomposed virtual artifacts
@@ -343,7 +340,7 @@ function applyOutputSchemasToNode(
   }
 }
 
-function tryParseJsonSchemaDefinition(schemaJson: string): JsonSchemaDefinition | null {
+function parseJsonSchemaDefinition(schemaJson: string): JsonSchemaDefinition {
   try {
     const parsed = JSON.parse(schemaJson);
     const name = typeof parsed.name === 'string' ? parsed.name : 'Schema';
@@ -351,7 +348,9 @@ function tryParseJsonSchemaDefinition(schemaJson: string): JsonSchemaDefinition 
     const schema = parsed.schema ?? parsed;
     return { name, strict, schema };
   } catch {
-    // Not valid JSON - skip (could be a schema URL or other reference)
-    return null;
+    throw new Error(
+      `Invalid schema JSON: ${schemaJson.slice(0, 100)}... ` +
+        `Please provide valid JSON schema.`,
+    );
   }
 }

@@ -138,7 +138,10 @@ async function readPointer(storage: StorageContext, movieId: string): Promise<Ma
       updatedAt: pointer.updatedAt ?? null,
     };
   } catch {
-    return emptyPointer();
+    throw new Error(
+      `Manifest pointer file is corrupted: ${pointerPath}. ` +
+        `Please delete this file to reset the manifest state.`,
+    );
   }
 }
 
@@ -223,11 +226,12 @@ async function collectLatestArtefacts(
   return Object.fromEntries(latest.entries());
 }
 
-function deriveArtefactHash(event: ArtefactEvent): string {
+export function deriveArtefactHash(event: ArtefactEvent): string {
   if (event.output.blob?.hash) {
     return event.output.blob.hash;
   }
-  return createHash('sha256')
-    .update(JSON.stringify({ artefactId: event.artefactId, revision: event.revision }))
-    .digest('hex');
+  return hashPayload({
+    artefactId: event.artefactId,
+    revision: event.revision,
+  }).hash;
 }
