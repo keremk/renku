@@ -50,7 +50,8 @@
       "Bash(pnpm --filter @gorenku/cli test:unit)",
       "Bash(pnpm --filter @gorenku/cli vitest run:*)",
       "Bash(npm test:*)",
-      "Bash(pnpm test:e2e:*)"
+      "Bash(pnpm test:e2e:*)",
+      "Bash(pnpm --filter @gorenku/core vitest run:*)"
     ],
     "deny": [],
     "ask": []

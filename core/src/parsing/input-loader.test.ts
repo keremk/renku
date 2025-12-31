@@ -537,3 +537,131 @@ describe('model selection SDK mapping parsing', () => {
     expect(audioSelection?.model).toBe('minimax/speech-2.6-hd');
   });
 });
+
+describe('input-loader edge cases', () => {
+  it('handles empty inputs section', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-empty-inputs-'));
+    const blueprint = createMinimalBlueprintTree();
+    const savedPath = join(workdir, 'inputs.yaml');
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {},
+      }),
+      'utf8',
+    );
+
+    const loaded = await loadInputsFromYaml(savedPath, blueprint);
+    expect(Object.keys(loaded.values).length).toBe(0);
+  });
+
+  it('handles inputs with various data types', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-types-'));
+    const blueprint: BlueprintTreeNode = {
+      id: 'TypedBlueprint',
+      namespacePath: [],
+      document: {
+        meta: { id: 'TypedBlueprint', name: 'Typed Blueprint' },
+        inputs: [
+          { name: 'StringInput', type: 'string', required: true },
+          { name: 'IntInput', type: 'int', required: true },
+          { name: 'BoolInput', type: 'boolean', required: true },
+          { name: 'FloatInput', type: 'float', required: true },
+        ],
+        artefacts: [],
+        producers: [],
+        producerImports: [],
+        edges: [],
+      },
+      children: new Map(),
+    };
+    const savedPath = join(workdir, 'inputs.yaml');
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {
+          StringInput: 'test string',
+          IntInput: 42,
+          BoolInput: true,
+          FloatInput: 3.14,
+        },
+      }),
+      'utf8',
+    );
+
+    const loaded = await loadInputsFromYaml(savedPath, blueprint);
+    expect(loaded.values['Input:StringInput']).toBe('test string');
+    expect(loaded.values['Input:IntInput']).toBe(42);
+    expect(loaded.values['Input:BoolInput']).toBe(true);
+    expect(loaded.values['Input:FloatInput']).toBe(3.14);
+  });
+
+  it('handles nested blueprint with producer-scoped inputs', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-nested-'));
+    const blueprintPath = resolve(BLUEPRINT_ROOT, 'audio-only', 'audio-only.yaml');
+    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath);
+    const savedPath = join(workdir, 'inputs.yaml');
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {
+          Duration: 60,
+          NumOfSegments: 5,
+          InquiryPrompt: 'Tell me about space',
+          VoiceId: 'Old_Man',
+          // Producer-scoped input
+          'ScriptProducer.provider': 'anthropic',
+          'ScriptProducer.model': 'claude-sonnet',
+        },
+      }),
+      'utf8',
+    );
+
+    const loaded = await loadInputsFromYaml(savedPath, blueprint);
+
+    // Verify regular inputs are canonicalized
+    expect(loaded.values['Input:Duration']).toBe(60);
+    expect(loaded.values['Input:NumOfSegments']).toBe(5);
+
+    // Verify producer-scoped inputs are handled
+    const scriptSelection = loaded.modelSelections.find((s) => s.producerId.endsWith('ScriptProducer'));
+    expect(scriptSelection?.provider).toBe('anthropic');
+    expect(scriptSelection?.model).toBe('claude-sonnet');
+  });
+
+  it('handles array values in inputs', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-array-input-'));
+    const blueprint: BlueprintTreeNode = {
+      id: 'ArrayBlueprint',
+      namespacePath: [],
+      document: {
+        meta: { id: 'ArrayBlueprint', name: 'Array Blueprint' },
+        inputs: [
+          { name: 'Tags', type: 'array', required: true },
+        ],
+        artefacts: [],
+        producers: [],
+        producerImports: [],
+        edges: [],
+      },
+      children: new Map(),
+    };
+    const savedPath = join(workdir, 'inputs.yaml');
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {
+          Tags: ['tag1', 'tag2', 'tag3'],
+        },
+      }),
+      'utf8',
+    );
+
+    const loaded = await loadInputsFromYaml(savedPath, blueprint);
+    expect(loaded.values['Input:Tags']).toEqual(['tag1', 'tag2', 'tag3']);
+  });
+});

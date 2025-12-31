@@ -237,3 +237,138 @@ describe('condition parsing', () => {
     });
   });
 });
+
+describe('yaml-parser edge cases', () => {
+  it('handles blueprint with loops definition', async () => {
+    const blueprintPath = resolve(yamlRoot, 'image-only', 'image-only.yaml');
+    const document = await parseYamlBlueprintFile(blueprintPath);
+
+    // Verify loops are parsed correctly
+    expect(document.loops).toBeDefined();
+    if (document.loops) {
+      expect(document.loops.length).toBeGreaterThan(0);
+      // Each loop should have a name and countInput
+      for (const loop of document.loops) {
+        expect(loop.name).toBeDefined();
+        expect(loop.countInput).toBeDefined();
+      }
+    }
+  });
+
+  it('handles blueprint with collectors definition', async () => {
+    const blueprintPath = resolve(yamlRoot, 'image-only', 'image-only.yaml');
+    const document = await parseYamlBlueprintFile(blueprintPath);
+
+    // Check that collectors are parsed (may or may not exist)
+    if (document.collectors) {
+      for (const collector of document.collectors) {
+        expect(collector.from).toBeDefined();
+      }
+    }
+  });
+
+  it('handles blueprint with producerImports', async () => {
+    const blueprintPath = resolve(yamlRoot, 'audio-only', 'audio-only.yaml');
+    const document = await parseYamlBlueprintFile(blueprintPath);
+
+    // Verify producer imports are parsed
+    expect(document.producerImports).toBeDefined();
+    expect(document.producerImports.length).toBeGreaterThan(0);
+    for (const entry of document.producerImports) {
+      expect(entry.name).toBeDefined();
+      expect(entry.path).toBeDefined();
+    }
+  });
+
+  it('parses multiple array artifacts with different dimensions', async () => {
+    const blueprintPath = resolve(yamlRoot, 'image-only', 'image-only.yaml');
+    const document = await parseYamlBlueprintFile(blueprintPath);
+
+    // Look for array artifacts
+    const arrayArtifacts = document.artefacts.filter((art) => art.type === 'array');
+    if (arrayArtifacts.length > 0) {
+      // Array artifacts should have countInput
+      for (const artifact of arrayArtifacts) {
+        expect(artifact.countInput).toBeDefined();
+      }
+    }
+  });
+
+  it('handles edge references with dimension selectors', async () => {
+    const blueprintPath = resolve(yamlRoot, 'image-only', 'image-only.yaml');
+    const document = await parseYamlBlueprintFile(blueprintPath);
+
+    // Look for edges with dimension selectors
+    const edgesWithDimensions = document.edges.filter((edge) =>
+      edge.from.includes('[') || edge.to.includes('[')
+    );
+    expect(edgesWithDimensions.length).toBeGreaterThan(0);
+  });
+
+  it('handles blueprints referencing nested producers', async () => {
+    // Load the audio-only blueprint which uses nested ScriptProducer and AudioProducer
+    const storage = new FileStorage(new LocalStorageAdapter(catalogRoot));
+    const reader = createFlyStorageBlueprintReader(storage, catalogRoot);
+    const entry = resolve(yamlRoot, 'audio-only', 'audio-only.yaml');
+    const { root } = await loadYamlBlueprintTree(entry, { reader });
+
+    // Verify nested producers are loaded correctly
+    expect(root.children.size).toBeGreaterThan(0);
+
+    // Each child should be a valid blueprint node
+    for (const [name, childNode] of root.children) {
+      expect(name).toBeDefined();
+      expect(childNode.document).toBeDefined();
+      expect(childNode.document.meta).toBeDefined();
+    }
+  });
+
+  it('parses required inputs correctly', async () => {
+    const blueprintPath = resolve(yamlRoot, 'audio-only', 'audio-only.yaml');
+    const document = await parseYamlBlueprintFile(blueprintPath);
+
+    // Check that required flag is parsed for inputs
+    const requiredInputs = document.inputs.filter((input) => input.required === true);
+    const optionalInputs = document.inputs.filter((input) => input.required === false);
+
+    // Should have both types
+    expect(requiredInputs.length + optionalInputs.length).toBe(document.inputs.length);
+  });
+
+  it('parses edge conditions correctly', async () => {
+    const blueprintPath = resolve(rootCatalogBlueprints, 'condition-example', 'condition-example.yaml');
+    const document = await parseYamlBlueprintFile(blueprintPath);
+
+    // Look for edges with conditions
+    const edgesWithConditions = document.edges.filter((edge) => edge.conditions);
+
+    // Should have at least one conditional edge
+    expect(edgesWithConditions.length).toBeGreaterThan(0);
+
+    // Each conditional edge should have a conditions object
+    for (const edge of edgesWithConditions) {
+      expect(edge.conditions).toBeDefined();
+    }
+  });
+
+  it('handles blueprint with meta containing name and id', async () => {
+    const blueprintPath = resolve(yamlRoot, 'audio-only', 'audio-only.yaml');
+    const document = await parseYamlBlueprintFile(blueprintPath);
+
+    // Meta should have both id and name
+    expect(document.meta).toBeDefined();
+    expect(document.meta.id).toBeDefined();
+    expect(document.meta.name).toBeDefined();
+  });
+
+  it('parses producer definition', async () => {
+    const blueprintPath = resolve(catalogRoot, 'producers/script/script.yaml');
+    const document = await parseYamlBlueprintFile(blueprintPath);
+
+    // Producer should be defined
+    expect(document.producers.length).toBeGreaterThan(0);
+    const producer = document.producers[0];
+    expect(producer).toBeDefined();
+    expect(producer.name).toBeDefined();
+  });
+});

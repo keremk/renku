@@ -1,12 +1,21 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, beforeEach } from 'vitest';
 import type {
   BlueprintArtefactDefinition,
   BlueprintDocument,
   BlueprintInputDefinition,
   BlueprintTreeNode,
+  ProducerCatalog,
   ProducerConfig,
 } from '../types.js';
-import { applyOutputSchemasToBlueprintTree, type ProviderOptionEntry } from './planning-service.js';
+import {
+  applyOutputSchemasToBlueprintTree,
+  createPlanningService,
+  type ProviderOptionEntry,
+  type PendingArtefactDraft,
+} from './planning-service.js';
+import { createStorageContext, initializeMovieStorage } from '../storage.js';
+import { createManifestService } from '../manifest.js';
+import { createEventLog } from '../event-log.js';
 
 describe('applyOutputSchemasToBlueprintTree', () => {
   it('applies outputSchema from providerOptions to JSON artifacts with arrays', () => {
@@ -348,3 +357,457 @@ function makeTreeNode(
     children,
   };
 }
+
+describe('createPlanningService', () => {
+  const movieId = 'test-movie';
+  let storage: ReturnType<typeof createStorageContext>;
+
+  beforeEach(async () => {
+    storage = createStorageContext({ kind: 'memory', basePath: 'test-builds' });
+    await initializeMovieStorage(storage, movieId);
+  });
+
+  const defaultCatalog: ProducerCatalog = {
+    'TestProducer': {
+      provider: 'openai',
+      providerModel: 'gpt-4',
+      rateKey: 'openai-gpt4',
+    },
+    'ScriptProducer': {
+      provider: 'openai',
+      providerModel: 'gpt-4o',
+      rateKey: 'openai-gpt4o',
+    },
+  };
+
+  function createDefaultOptions(aliases: string[]): Map<string, ProviderOptionEntry> {
+    const options = new Map<string, ProviderOptionEntry>();
+    for (const alias of aliases) {
+      options.set(alias, {});
+    }
+    return options;
+  }
+
+  function createSimpleBlueprint(): BlueprintTreeNode {
+    const doc = makeBlueprintDocument(
+      'SimpleBlueprint',
+      [
+        { name: 'Prompt', type: 'string', required: true },
+      ],
+      [
+        { name: 'Output', type: 'string' },
+      ],
+      [{ name: 'TestProducer' }],
+      [
+        { from: 'Prompt', to: 'TestProducer' },
+        { from: 'TestProducer', to: 'Output' },
+      ],
+    );
+    return makeTreeNode(doc, []);
+  }
+
+  describe('generatePlan', () => {
+    it('generates a plan for first run (new manifest)', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: { 'Input:Prompt': 'Hello world' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+      });
+
+      expect(result.plan).toBeDefined();
+      expect(result.plan.layers.length).toBeGreaterThan(0);
+      expect(result.targetRevision).toBe('rev-0001');
+      expect(result.manifest.revision).toBe('rev-0000');
+      expect(result.manifestHash).toBeNull();
+      expect(result.inputEvents).toHaveLength(1);
+      expect(result.inputEvents[0]?.id).toBe('Input:Prompt');
+      expect(result.inputEvents[0]?.payload).toBe('Hello world');
+    });
+
+    it('generates a plan with subsequent revision', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      // First plan
+      const firstResult = await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: { 'Input:Prompt': 'First prompt' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+      });
+
+      expect(firstResult.targetRevision).toBe('rev-0001');
+
+      // Second plan
+      const secondResult = await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: { 'Input:Prompt': 'Second prompt' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+      });
+
+      expect(secondResult.targetRevision).toBe('rev-0002');
+    });
+
+    it('appends input events to event log', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: { 'Input:Prompt': 'Test prompt' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+      });
+
+      const inputEvents: unknown[] = [];
+      for await (const event of eventLog.streamInputs(movieId)) {
+        inputEvents.push(event);
+      }
+
+      expect(inputEvents).toHaveLength(1);
+      expect((inputEvents[0] as { id: string }).id).toBe('Input:Prompt');
+    });
+
+    it('handles pending artifact drafts', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      const pendingArtefacts: PendingArtefactDraft[] = [
+        {
+          artefactId: 'Artifact:Output',
+          producedBy: 'Producer:TestProducer',
+          output: { blob: { hash: 'abc123', size: 100, mimeType: 'text/plain' } },
+        },
+      ];
+
+      await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: { 'Input:Prompt': 'Test prompt' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+        pendingArtefacts,
+      });
+
+      const artefactEvents: unknown[] = [];
+      for await (const event of eventLog.streamArtefacts(movieId)) {
+        artefactEvents.push(event);
+      }
+
+      expect(artefactEvents).toHaveLength(1);
+      expect((artefactEvents[0] as { artefactId: string }).artefactId).toBe('Artifact:Output');
+    });
+
+    it('skips undefined input values', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: {
+          'Input:Prompt': 'Valid prompt',
+          'Input:OptionalField': undefined,
+        },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+      });
+
+      // Only the non-undefined input should be included
+      expect(result.inputEvents).toHaveLength(1);
+      expect(result.inputEvents[0]?.id).toBe('Input:Prompt');
+    });
+
+    it('includes resolved inputs in result', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: { 'Input:Prompt': 'Test prompt' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+      });
+
+      expect(result.resolvedInputs).toEqual({ 'Input:Prompt': 'Test prompt' });
+    });
+
+    it('uses provided input source', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: { 'Input:Prompt': 'Test prompt' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+        inputSource: 'system',
+      });
+
+      expect(result.inputEvents[0]?.editedBy).toBe('system');
+    });
+
+    it('uses custom clock for timestamps', async () => {
+      const fixedTime = '2024-01-01T00:00:00.000Z';
+      const service = createPlanningService({
+        clock: { now: () => fixedTime },
+      });
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: { 'Input:Prompt': 'Test prompt' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+      });
+
+      expect(result.inputEvents[0]?.createdAt).toBe(fixedTime);
+    });
+
+    it('saves the plan to storage', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: { 'Input:Prompt': 'Test prompt' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+      });
+
+      // Verify plan file exists
+      const planExists = await storage.storage.fileExists(result.planPath);
+      expect(planExists).toBe(true);
+    });
+  });
+
+  describe('input event creation', () => {
+    it('throws for non-canonical input IDs', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      await expect(
+        service.generatePlan({
+          movieId,
+          blueprintTree: createSimpleBlueprint(),
+          inputValues: { 'InvalidId': 'test' }, // Missing Input: prefix
+          providerCatalog: defaultCatalog,
+          providerOptions: createDefaultOptions(['TestProducer']),
+          storage,
+          manifestService,
+          eventLog,
+        }),
+      ).rejects.toThrow('Input "InvalidId" is not a canonical input id');
+    });
+
+    it('hashes input payloads correctly', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: { 'Input:Prompt': 'Test prompt' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+      });
+
+      expect(result.inputEvents[0]?.hash).toBeDefined();
+      expect(typeof result.inputEvents[0]?.hash).toBe('string');
+      expect(result.inputEvents[0]?.hash.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('artifact events', () => {
+    it('creates artifact event with default status succeeded', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: { 'Input:Prompt': 'Test prompt' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+        pendingArtefacts: [
+          {
+            artefactId: 'Artifact:Output',
+            producedBy: 'Producer:TestProducer',
+            output: {},
+          },
+        ],
+      });
+
+      const artefactEvents: unknown[] = [];
+      for await (const event of eventLog.streamArtefacts(movieId)) {
+        artefactEvents.push(event);
+      }
+
+      expect((artefactEvents[0] as { status: string }).status).toBe('succeeded');
+    });
+
+    it('uses provided status in artifact draft', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: { 'Input:Prompt': 'Test prompt' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+        pendingArtefacts: [
+          {
+            artefactId: 'Artifact:Output',
+            producedBy: 'Producer:TestProducer',
+            output: {},
+            status: 'skipped',
+          },
+        ],
+      });
+
+      const artefactEvents: unknown[] = [];
+      for await (const event of eventLog.streamArtefacts(movieId)) {
+        artefactEvents.push(event);
+      }
+
+      expect((artefactEvents[0] as { status: string }).status).toBe('skipped');
+    });
+
+    it('uses manual-edit as default inputsHash for artifact drafts', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: { 'Input:Prompt': 'Test prompt' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+        pendingArtefacts: [
+          {
+            artefactId: 'Artifact:Output',
+            producedBy: 'Producer:TestProducer',
+            output: {},
+          },
+        ],
+      });
+
+      const artefactEvents: unknown[] = [];
+      for await (const event of eventLog.streamArtefacts(movieId)) {
+        artefactEvents.push(event);
+      }
+
+      expect((artefactEvents[0] as { inputsHash: string }).inputsHash).toBe('manual-edit');
+    });
+  });
+
+  describe('revision uniqueness', () => {
+    it('increments revision when plan file already exists', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      // Create first plan
+      const firstResult = await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: { 'Input:Prompt': 'First prompt' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+      });
+
+      expect(firstResult.targetRevision).toBe('rev-0001');
+
+      // Manually create a plan file for rev-0002 to simulate conflict
+      const rev2Path = storage.resolve(movieId, 'runs', 'rev-0002-plan.json');
+      await storage.storage.write(rev2Path, '{}', { mimeType: 'application/json' });
+
+      // Create second plan - should skip to rev-0003
+      const secondResult = await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: { 'Input:Prompt': 'Second prompt' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+      });
+
+      expect(secondResult.targetRevision).toBe('rev-0003');
+    });
+  });
+});

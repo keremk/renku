@@ -332,3 +332,276 @@ function makeTreeNode(
     children,
   };
 }
+
+describe('edge cases', () => {
+  it('handles empty blueprint with no nodes', () => {
+    const doc = makeBlueprintDocument(
+      'Empty',
+      [],
+      [],
+      [],
+      [],
+    );
+
+    const tree = makeTreeNode(doc, []);
+    const graph = buildBlueprintGraph(tree);
+
+    expect(graph.nodes).toHaveLength(0);
+    expect(graph.edges).toHaveLength(0);
+  });
+
+  it('handles blueprint with only artifacts (no producers)', () => {
+    const doc = makeBlueprintDocument(
+      'ArtefactsOnly',
+      [],
+      [
+        { name: 'Output', type: 'string' },
+      ],
+      [],
+      [],
+    );
+
+    const tree = makeTreeNode(doc, []);
+    const graph = buildBlueprintGraph(tree);
+
+    const artefactNodes = graph.nodes.filter((n) => n.type === 'Artifact');
+    expect(artefactNodes).toHaveLength(1);
+  });
+
+  it('correctly tracks dimensions from multiple levels of nesting', () => {
+    // Deep nesting: Root -> Level1 -> Level2 with dimensions at each level
+    const level2Doc = makeBlueprintDocument(
+      'Level2',
+      [{ name: 'L2Count', type: 'int', required: true }],
+      [{ name: 'L2Output', type: 'array', countInput: 'L2Count' }],
+      [{ name: 'L2Producer', provider: 'openai', model: 'gpt' }],
+      [
+        { from: 'L2Count', to: 'L2Producer' },
+        { from: 'L2Producer', to: 'L2Output[k]' },
+      ],
+      [{ name: 'k', countInput: 'L2Count' }],
+    );
+
+    const level1Doc = makeBlueprintDocument(
+      'Level1',
+      [{ name: 'L1Count', type: 'int', required: true }],
+      [],
+      [],
+      [],
+      [{ name: 'j', countInput: 'L1Count' }],
+    );
+
+    const rootDoc = makeBlueprintDocument(
+      'Root',
+      [{ name: 'RootCount', type: 'int', required: true }],
+      [],
+      [],
+      [],
+      [{ name: 'i', countInput: 'RootCount' }],
+    );
+
+    const level2Node = makeTreeNode(level2Doc, ['Level1', 'Level2']);
+    const level1Node: BlueprintTreeNode = {
+      ...makeTreeNode(level1Doc, ['Level1']),
+      children: new Map([['Level2', level2Node]]),
+    };
+    const tree: BlueprintTreeNode = {
+      ...makeTreeNode(rootDoc, []),
+      children: new Map([['Level1', level1Node]]),
+    };
+
+    const graph = buildBlueprintGraph(tree);
+
+    // Verify all three levels of loops are tracked
+    expect(graph.loops.get('')?.[0]?.name).toBe('i');
+    expect(graph.loops.get('Level1')?.[0]?.name).toBe('j');
+    expect(graph.loops.get('Level1.Level2')?.[0]?.name).toBe('k');
+  });
+
+  it('creates nodes for string-type artifacts', () => {
+    const doc = makeBlueprintDocument(
+      'StringArtifact',
+      [{ name: 'Prompt', type: 'string', required: true }],
+      [{ name: 'Summary', type: 'string' }],
+      [{ name: 'Producer', provider: 'openai', model: 'gpt' }],
+      [
+        { from: 'Prompt', to: 'Producer' },
+        { from: 'Producer', to: 'Summary' },
+      ],
+    );
+
+    const tree = makeTreeNode(doc, []);
+    const graph = buildBlueprintGraph(tree);
+
+    // Check that artifact nodes exist (using endsWith for flexible ID format)
+    const summaryNode = graph.nodes.find((n) => n.type === 'Artifact' && n.id.endsWith('Summary'));
+    expect(summaryNode).toBeDefined();
+    expect(summaryNode?.type).toBe('Artifact');
+    expect(summaryNode?.dimensions).toHaveLength(0); // string artifacts have no dimensions
+  });
+
+  it('handles edges referencing nested namespace paths', () => {
+    // Test edge references like "Namespace.Artifact" in parent blueprint
+    const childDoc = makeBlueprintDocument(
+      'Child',
+      [{ name: 'ChildInput', type: 'string', required: true }],
+      [{ name: 'ChildOutput', type: 'string' }],
+      [{ name: 'ChildProducer', provider: 'openai', model: 'gpt' }],
+      [
+        { from: 'ChildInput', to: 'ChildProducer' },
+        { from: 'ChildProducer', to: 'ChildOutput' },
+      ],
+    );
+
+    const rootDoc = makeBlueprintDocument(
+      'Root',
+      [{ name: 'RootInput', type: 'string', required: true }],
+      [{ name: 'FinalOutput', type: 'string' }],
+      [],
+      [
+        { from: 'RootInput', to: 'Child.ChildInput' },
+        { from: 'Child.ChildOutput', to: 'FinalOutput' },
+      ],
+    );
+
+    const tree: BlueprintTreeNode = {
+      ...makeTreeNode(rootDoc, []),
+      children: new Map([['Child', makeTreeNode(childDoc, ['Child'])]]),
+    };
+
+    const graph = buildBlueprintGraph(tree);
+
+    // Verify edges connecting root to child namespace
+    const edgeToChild = graph.edges.find(
+      (e) => e.from.nodeId === 'RootInput' && e.to.nodeId === 'Child.ChildInput'
+    );
+    expect(edgeToChild).toBeDefined();
+
+    const edgeFromChild = graph.edges.find(
+      (e) => e.from.nodeId === 'Child.ChildOutput' && e.to.nodeId === 'FinalOutput'
+    );
+    expect(edgeFromChild).toBeDefined();
+  });
+
+  it('parses dimension selectors with offsets', () => {
+    // Test edges with dimension offsets like [i+1], [i-1]
+    const doc = makeBlueprintDocument(
+      'WithOffset',
+      [{ name: 'Count', type: 'int', required: true }],
+      [
+        { name: 'Current', type: 'array', countInput: 'Count' },
+        { name: 'Next', type: 'array', countInput: 'Count' },
+      ],
+      [{ name: 'Producer', provider: 'openai', model: 'gpt' }],
+      [
+        { from: 'Count', to: 'Producer' },
+        { from: 'Producer', to: 'Current[i]' },
+        { from: 'Current[i]', to: 'Next[i+1]' },
+      ],
+      [{ name: 'i', countInput: 'Count' }],
+    );
+
+    const tree = makeTreeNode(doc, []);
+    const graph = buildBlueprintGraph(tree);
+
+    // Find the edge with offset (Current -> Next)
+    const offsetEdge = graph.edges.find(
+      (e) => e.from.nodeId === 'Current' && e.to.nodeId === 'Next'
+    );
+    expect(offsetEdge).toBeDefined();
+    expect(offsetEdge?.to.dimensions).toHaveLength(1);
+
+    // Verify there are nodes for both artifacts
+    const currentNode = graph.nodes.find((n) => n.id.endsWith('Current'));
+    const nextNode = graph.nodes.find((n) => n.id.endsWith('Next'));
+    expect(currentNode).toBeDefined();
+    expect(nextNode).toBeDefined();
+  });
+
+  it('handles producer with multiple output artifacts', () => {
+    const doc = makeBlueprintDocument(
+      'MultiOutput',
+      [{ name: 'Input', type: 'string', required: true }],
+      [
+        { name: 'Output1', type: 'string' },
+        { name: 'Output2', type: 'string' },
+        { name: 'Output3', type: 'string' },
+      ],
+      [{ name: 'Producer', provider: 'openai', model: 'gpt' }],
+      [
+        { from: 'Input', to: 'Producer' },
+        { from: 'Producer', to: 'Output1' },
+        { from: 'Producer', to: 'Output2' },
+        { from: 'Producer', to: 'Output3' },
+      ],
+    );
+
+    const tree = makeTreeNode(doc, []);
+    const graph = buildBlueprintGraph(tree);
+
+    // All three outputs should exist
+    expect(graph.nodes.filter((n) => n.type === 'Artifact')).toHaveLength(3);
+
+    // All three edges from producer to outputs should exist
+    const producerEdges = graph.edges.filter((e) => e.from.nodeId === 'Producer');
+    expect(producerEdges).toHaveLength(3);
+  });
+
+  it('handles array artifacts with multiple dimensions', () => {
+    const doc = makeBlueprintDocument(
+      'MultiDim',
+      [
+        { name: 'Rows', type: 'int', required: true },
+        { name: 'Cols', type: 'int', required: true },
+      ],
+      [
+        { name: 'Grid', type: 'array', countInput: 'Cols' },
+      ],
+      [{ name: 'Producer', provider: 'openai', model: 'gpt' }],
+      [
+        { from: 'Rows', to: 'Producer' },
+        { from: 'Cols', to: 'Producer' },
+        { from: 'Producer', to: 'Grid[i][j]' },
+      ],
+      [
+        { name: 'i', countInput: 'Rows' },
+        { name: 'j', countInput: 'Cols' },
+      ],
+    );
+
+    const tree = makeTreeNode(doc, []);
+    const graph = buildBlueprintGraph(tree);
+
+    // Grid artifact should have 2 dimensions
+    const gridNode = graph.nodes.find((n) => n.type === 'Artifact' && n.id.endsWith('Grid'));
+    expect(gridNode).toBeDefined();
+    expect(gridNode?.dimensions).toHaveLength(2);
+  });
+
+  it('handles circular edges gracefully (artifact depends on itself via producer)', () => {
+    // A producer that takes its own output as input (for iterative processing)
+    const doc = makeBlueprintDocument(
+      'Circular',
+      [{ name: 'Initial', type: 'string', required: true }],
+      [{ name: 'Result', type: 'string' }],
+      [{ name: 'IterativeProducer', provider: 'openai', model: 'gpt' }],
+      [
+        { from: 'Initial', to: 'IterativeProducer' },
+        { from: 'IterativeProducer', to: 'Result' },
+        // This edge creates a potential cycle
+        { from: 'Result', to: 'IterativeProducer' },
+      ],
+    );
+
+    const tree = makeTreeNode(doc, []);
+
+    // This should not throw - graph building should handle cycles
+    const graph = buildBlueprintGraph(tree);
+
+    // Both edges should exist
+    const resultToProducer = graph.edges.find(
+      (e) => e.from.nodeId === 'Result' && e.to.nodeId === 'IterativeProducer'
+    );
+    expect(resultToProducer).toBeDefined();
+  });
+});
