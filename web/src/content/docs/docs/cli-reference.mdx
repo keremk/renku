@@ -137,7 +137,7 @@ renku clean --movie-id=movie-a1b2c3d4
 
 ### renku export
 
-Export a generated movie to MP4 video format.
+Export a generated movie to MP4/MP3 format.
 
 **Usage:**
 ```bash
@@ -154,18 +154,30 @@ renku export --last [options]
 | `--width` | 1920 | Video width in pixels |
 | `--height` | 1080 | Video height in pixels |
 | `--fps` | 30 | Frames per second |
+| `--exporter` | remotion | Exporter backend: `remotion` or `ffmpeg` |
+
+**Exporter Options:**
+
+| Exporter | Description | Requirements |
+|----------|-------------|--------------|
+| `remotion` | Docker-based Remotion renderer (default) | Docker Desktop |
+| `ffmpeg` | Native FFmpeg renderer | FFmpeg installed |
+
+The FFmpeg exporter is faster and requires no Docker, while the Remotion exporter offers more advanced video effects. For audio-only timelines, the FFmpeg exporter produces MP3 files.
 
 **Requirements:**
 - Blueprint must include a `TimelineComposer` producer
 - Movie must have a Timeline artifact
+- For `remotion`: Docker Desktop running
+- For `ffmpeg`: FFmpeg installed and in PATH
 
 **Output:**
-- `builds/{movieId}/FinalVideo.mp4`
-- `movies/{movieId}/FinalVideo.mp4` (symlink)
+- Video: `builds/{movieId}/FinalVideo.mp4` and `movies/{movieId}/FinalVideo.mp4` (symlink)
+- Audio-only (FFmpeg): `builds/{movieId}/FinalAudio.mp3` and `movies/{movieId}/FinalAudio.mp3` (symlink)
 
 **Examples:**
 ```bash
-# Export with defaults (1920x1080 @ 30fps)
+# Export with defaults (1920x1080 @ 30fps, remotion exporter)
 renku export --movie-id=movie-a1b2c3d4
 
 # Export most recent movie
@@ -173,6 +185,12 @@ renku export --last
 
 # Export with custom resolution
 renku export --last --width=3840 --height=2160 --fps=24
+
+# Use FFmpeg exporter (faster, no Docker required)
+renku export --last --exporter=ffmpeg
+
+# Use FFmpeg with custom settings
+renku export --last --exporter=ffmpeg --width=1280 --height=720 --fps=24
 ```
 
 ---

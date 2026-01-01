@@ -64,6 +64,93 @@ models:
     producerId: AudioProducer
 ```
 
+### Input Field Mappings
+
+The `inputs` field in a model configuration maps producer input names to provider-specific parameter names. Different providers use different parameter names for the same concept.
+
+#### Simple Mapping
+
+Map a producer input directly to a provider field:
+
+```yaml
+models:
+  - model: minimax/speech-2.6-hd
+    provider: replicate
+    producerId: AudioProducer
+    inputs:
+      TextInput: text        # Maps "TextInput" to provider's "text" field
+      Emotion: emotion
+      VoiceId: voice_id
+```
+
+#### Object Form
+
+Use the object form for advanced mappings:
+
+```yaml
+inputs:
+  Prompt:
+    field: prompt            # Object form with explicit field name
+```
+
+#### Value Transforms
+
+Transform input values to provider-specific values:
+
+```yaml
+inputs:
+  AspectRatio:
+    field: image_size
+    transform:
+      "16:9": "landscape_16_9"
+      "9:16": "portrait_16_9"
+      "1:1": "square_hd"
+      "4:3": "landscape_4_3"
+      "3:4": "portrait_4_3"
+```
+
+With this mapping, when you specify `AspectRatio: "16:9"` in your inputs, the provider receives `image_size: "landscape_16_9"`.
+
+#### Expanding to Multiple Fields
+
+Use `expand: true` to spread one input value into multiple provider fields:
+
+```yaml
+inputs:
+  Size:
+    field: ""           # Field is empty when using expand
+    expand: true
+    transform:
+      "1K": { width: 1024, height: 1024 }
+      "2K": { width: 2048, height: 2048 }
+      "4K": { width: 4096, height: 4096 }
+```
+
+When you set `Size: "2K"` in your inputs, the provider receives both `width: 2048` and `height: 2048` as separate fields.
+
+#### Complete Model Configuration Example
+
+```yaml
+models:
+  - model: bytedance/seedream/v4.5/text-to-image
+    provider: fal-ai
+    producerId: ImageProducer
+    inputs:
+      Prompt: prompt
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": "landscape_16_9"
+          "9:16": "portrait_16_9"
+          "1:1": "square_hd"
+      Size:
+        field: ""
+        expand: true
+        transform:
+          "1K": { width: 1024, height: 1024 }
+          "2K": { width: 2048, height: 2048 }
+```
+
 ## Discovering Content
 
 ### Browsing Blueprints
@@ -352,6 +439,34 @@ renku export --last \
   --height=1080 \
   --fps=30
 ```
+
+### Choosing an Exporter
+
+Renku supports two exporter backends:
+
+| Exporter | Description | Requirements |
+|----------|-------------|--------------|
+| `remotion` | Docker-based Remotion renderer (default) | Docker Desktop |
+| `ffmpeg` | Native FFmpeg renderer | FFmpeg installed |
+
+Use the `--exporter` flag to choose:
+
+```bash
+# Use FFmpeg (faster, no Docker required)
+renku export --last --exporter=ffmpeg
+
+# Use Remotion (default, requires Docker)
+renku export --last --exporter=remotion
+```
+
+**FFmpeg exporter advantages:**
+- No Docker installation required
+- Faster rendering for simple timelines
+- Produces MP3 for audio-only timelines
+
+**Remotion exporter advantages:**
+- More advanced video effects
+- Better suited for complex compositions
 
 The exported video is saved to:
 - `builds/movie-{id}/FinalVideo.mp4`
