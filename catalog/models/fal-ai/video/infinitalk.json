@@ -1,0 +1,171 @@
+{
+  "input_schema": {
+    "title": "InfiniTalkSingleAudioRequest",
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "A woman with colorful hair talking on a podcast."
+        ],
+        "title": "Prompt",
+        "type": "string",
+        "description": "The text prompt to guide video generation."
+      },
+      "resolution": {
+        "enum": [
+          "480p",
+          "720p"
+        ],
+        "title": "Resolution",
+        "type": "string",
+        "description": "Resolution of the video to generate. Must be either 480p or 720p.",
+        "default": "480p"
+      },
+      "acceleration": {
+        "enum": [
+          "none",
+          "regular",
+          "high"
+        ],
+        "title": "Acceleration",
+        "type": "string",
+        "description": "The acceleration level to use for generation.",
+        "default": "regular"
+      },
+      "image_url": {
+        "examples": [
+          "https://v3.fal.media/files/koala/gmpc0QevDF9bBsL1EAYVF_1c637094161147559f0910a68275dc34.png"
+        ],
+        "title": "Image URL",
+        "type": "string",
+        "description": "URL of the input image. If the input image does not match the chosen aspect ratio, it is resized and center cropped.",
+        "format": "uri"
+      },
+      "audio_url": {
+        "examples": [
+          "https://v3.fal.media/files/penguin/PtiCYda53E9Dav25QmQYI_output.mp3"
+        ],
+        "title": "Audio URL",
+        "type": "string",
+        "description": "The URL of the audio file.",
+        "format": "uri"
+      },
+      "num_frames": {
+        "minimum": 41,
+        "maximum": 721,
+        "type": "integer",
+        "title": "Number of Frames",
+        "description": "Number of frames to generate. Must be between 41 to 721.",
+        "default": 145
+      },
+      "seed": {
+        "title": "Seed",
+        "type": "integer",
+        "description": "Random seed for reproducibility. If None, a random seed is chosen.",
+        "default": 42
+      }
+    },
+    "x-fal-order-properties": [
+      "image_url",
+      "audio_url",
+      "prompt",
+      "num_frames",
+      "resolution",
+      "seed",
+      "acceleration"
+    ],
+    "required": [
+      "image_url",
+      "audio_url",
+      "prompt"
+    ]
+  },
+  "output_schema": {
+    "title": "AvatarSingleAudioResponse",
+    "type": "object",
+    "properties": {
+      "seed": {
+        "title": "Seed",
+        "type": "integer",
+        "description": "The seed used for generation."
+      },
+      "video": {
+        "examples": [
+          {
+            "file_size": 515275,
+            "file_name": "74af6c0bdd6041c3b1130d54885e3eee.mp4",
+            "content_type": "application/octet-stream",
+            "url": "https://v3.fal.media/files/kangaroo/z6VqUwNTwzuWa6YE1g7In_74af6c0bdd6041c3b1130d54885e3eee.mp4"
+          }
+        ],
+        "title": "Video",
+        "description": "The generated video file.",
+        "allOf": [
+          {
+            "$ref": "#/File"
+          }
+        ]
+      }
+    },
+    "x-fal-order-properties": [
+      "video",
+      "seed"
+    ],
+    "required": [
+      "video",
+      "seed"
+    ]
+  },
+  "File": {
+    "title": "File",
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "title": "File Size",
+        "type": "integer",
+        "description": "The size of the file in bytes."
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name",
+        "type": "string",
+        "description": "The name of the file. It will be auto-generated if not provided."
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type",
+        "type": "string",
+        "description": "The mime type of the file."
+      },
+      "url": {
+        "title": "Url",
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
+      },
+      "file_data": {
+        "format": "binary",
+        "title": "File Data",
+        "type": "string",
+        "description": "File data"
+      }
+    },
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data"
+    ],
+    "required": [
+      "url"
+    ]
+  }
+}

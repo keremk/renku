@@ -1,0 +1,202 @@
+{
+  "input_schema": {
+    "title": "InfiniTalkSingleTextRequest",
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "An elderly man with a white beard and headphones records audio with a microphone. He appears engaged and expressive, suggesting a podcast or voiceover."
+        ],
+        "title": "Prompt",
+        "type": "string",
+        "description": "The text prompt to guide video generation."
+      },
+      "resolution": {
+        "enum": [
+          "480p",
+          "720p"
+        ],
+        "title": "Resolution",
+        "type": "string",
+        "description": "Resolution of the video to generate. Must be either 480p or 720p.",
+        "default": "480p"
+      },
+      "acceleration": {
+        "enum": [
+          "none",
+          "regular",
+          "high"
+        ],
+        "title": "Acceleration",
+        "type": "string",
+        "description": "The acceleration level to use for generation.",
+        "default": "regular"
+      },
+      "text_input": {
+        "examples": [
+          "Spend more time with people who make you feel alive, and less with things that drain your soul."
+        ],
+        "title": "Text Input",
+        "type": "string",
+        "description": "The text input to guide video generation."
+      },
+      "image_url": {
+        "examples": [
+          "https://v3.fal.media/files/panda/HuM21CXMf0q7OO2zbvwhV_c4533aada79a495b90e50e32dc9b83a8.png"
+        ],
+        "title": "Image URL",
+        "type": "string",
+        "description": "URL of the input image. If the input image does not match the chosen aspect ratio, it is resized and center cropped.",
+        "format": "uri"
+      },
+      "voice": {
+        "enum": [
+          "Aria",
+          "Roger",
+          "Sarah",
+          "Laura",
+          "Charlie",
+          "George",
+          "Callum",
+          "River",
+          "Liam",
+          "Charlotte",
+          "Alice",
+          "Matilda",
+          "Will",
+          "Jessica",
+          "Eric",
+          "Chris",
+          "Brian",
+          "Daniel",
+          "Lily",
+          "Bill"
+        ],
+        "title": "Voice",
+        "type": "string",
+        "examples": [
+          "Bill"
+        ],
+        "description": "The voice to use for speech generation"
+      },
+      "num_frames": {
+        "minimum": 41,
+        "maximum": 721,
+        "type": "integer",
+        "title": "Number of Frames",
+        "description": "Number of frames to generate. Must be between 41 to 721.",
+        "default": 145
+      },
+      "seed": {
+        "title": "Seed",
+        "type": "integer",
+        "description": "Random seed for reproducibility. If None, a random seed is chosen.",
+        "default": 42
+      }
+    },
+    "x-fal-order-properties": [
+      "image_url",
+      "text_input",
+      "voice",
+      "prompt",
+      "num_frames",
+      "resolution",
+      "seed",
+      "acceleration"
+    ],
+    "required": [
+      "image_url",
+      "text_input",
+      "voice",
+      "prompt"
+    ]
+  },
+  "output_schema": {
+    "title": "AvatarSingleTextResponse",
+    "type": "object",
+    "properties": {
+      "seed": {
+        "title": "Seed",
+        "type": "integer",
+        "description": "The seed used for generation."
+      },
+      "video": {
+        "examples": [
+          {
+            "file_size": 797478,
+            "file_name": "6c9dd31e1d9a4482877747a52a661a0a.mp4",
+            "content_type": "application/octet-stream",
+            "url": "https://v3.fal.media/files/elephant/-huMN0zTaXmBr2CqzCMps_6c9dd31e1d9a4482877747a52a661a0a.mp4"
+          }
+        ],
+        "title": "Video",
+        "description": "The generated video file.",
+        "allOf": [
+          {
+            "$ref": "#/File"
+          }
+        ]
+      }
+    },
+    "x-fal-order-properties": [
+      "video",
+      "seed"
+    ],
+    "required": [
+      "video",
+      "seed"
+    ]
+  },
+  "File": {
+    "title": "File",
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "title": "File Size",
+        "type": "integer",
+        "description": "The size of the file in bytes."
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name",
+        "type": "string",
+        "description": "The name of the file. It will be auto-generated if not provided."
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type",
+        "type": "string",
+        "description": "The mime type of the file."
+      },
+      "url": {
+        "title": "Url",
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
+      },
+      "file_data": {
+        "format": "binary",
+        "title": "File Data",
+        "type": "string",
+        "description": "File data"
+      }
+    },
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data"
+    ],
+    "required": [
+      "url"
+    ]
+  }
+}

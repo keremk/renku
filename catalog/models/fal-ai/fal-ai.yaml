@@ -127,6 +127,15 @@ models:
     price:
       function: costByRun
       price: 0.03
+  - name: qwen-image-2512
+    type: image
+    mime:
+      - image/png
+      - image/jpg
+      - image/webp
+    price:
+      function: costByRun
+      price: 0.02
   - name: flux-pro/kontext/text-to-image
     type: image
     mime:
@@ -366,3 +375,63 @@ models:
           pricePerMillionTokens: 2.4
         - generate_audio: false
           pricePerMillionTokens: 1.2
+  - name: veed/fabric-1.0/fast
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution  
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 480p
+          pricePerSecond: 0.10
+        - resolution: 720p
+          pricePerSecond: 0.20
+  - name: veed/fabric-1.0/text
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution  
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 480p
+          pricePerSecond: 0.08
+        - resolution: 720p
+          pricePerSecond: 0.15
+  - name: creatify/aurora
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 480p
+          pricePerSecond: 0.10
+        - resolution: 720p
+          pricePerSecond: 0.14
+  - name: infinitalk/single-text
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 480p
+          pricePerSecond: 0.20
+        - resolution: 720p
+          pricePerSecond: 0.40
+  - name: infinitalk
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 480p
+          pricePerSecond: 0.20
+        - resolution: 720p
+          pricePerSecond: 0.40

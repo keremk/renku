@@ -1,0 +1,249 @@
+meta:
+  name: Documentary Talking Head with Conditional Edges
+  description: A documentary with image and video narratives and optional talking heads.
+  id: Documentary 
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: InquiryPrompt
+    description: The topic describing the desired documentary.
+    type: string
+    required: true
+  - name: SegmentDuration
+    description: Duration of each segment in seconds.
+    type: int
+    required: true
+  - name: NumOfSegments
+    description: Number of segments.
+    type: int
+    required: true
+  - name: NumOfImagesPerSegment
+    description: Number of images per segment.
+    type: int
+    required: true
+  - name: Resolution
+    description: Video resolution such as 480p, 720p, or 1080p. Model default varies.
+    type: string
+  - name: Size
+    description: Image resolution (1K, 2K, 4K, or custom). Model default varies.
+    type: string
+  - name: AspectRatio
+    description: Aspect ratio such as 16:9 or 3:2. Model default varies.
+    type: string
+  - name: Style
+    description: Image style.
+    type: string
+    required: true
+  - name: VoiceId
+    description: Voice identifier.
+    type: string
+    required: true
+  - name: TalkingHeadVoiceId
+    description: Voice identifier for talking head narration.
+    type: string
+    required: false
+  - name: Duration
+    description: Total duration of the movie in seconds.
+    type: int
+    required: true
+
+artifacts:
+  - name: TalkingHeadCharacterImage
+    description: Generated talking head character image.
+    type: array
+    itemType: image
+  - name: SegmentImage
+    description: Generated images (conditional).
+    type: multiDimArray
+    itemType: image
+  - name: SegmentAudio
+    description: Generated audio (conditional).
+    type: array
+    itemType: audio
+  - name: SegmentVideo
+    description: Generated video (conditional).
+    type: array
+    itemType: video
+  - name: SegmentTalkingHeadVideo
+    description: Generated talking head videos (conditional).
+    type: array
+    itemType: video
+  - name: Timeline
+    description: Generated timeline JSON.
+    type: json
+
+loops:
+  - name: segment
+    countInput: NumOfSegments
+  - name: image
+    parent: segment
+    countInput: NumOfImagesPerSegment
+
+# Named condition definitions (referenced by 'if:' on edges)
+conditions:
+  isImageNarration:
+    any:
+      - when: DocProducer.VideoScript.Segments[segment].NarrationType
+        is: "MapNarration"
+      - when: DocProducer.VideoScript.Segments[segment].NarrationType
+        is: "ImageNarration"
+  isAudioNeeded:
+    any:
+      - when: DocProducer.VideoScript.Segments[segment].NarrationType
+        is: "TalkingHead"
+      - when: DocProducer.VideoScript.Segments[segment].UseNarrationAudio
+        is: true
+  isTalkingHead:
+    when: DocProducer.VideoScript.Segments[segment].NarrationType
+    is: "TalkingHead"
+  isVideoNarration:
+    when: DocProducer.VideoScript.Segments[segment].NarrationType
+    is: "VideoNarration"
+
+producers:
+  - name: DocProducer
+    path: ../../producers/documentary-talkinghead-prompt/documentary-prompt.yaml
+  - name: ImageProducer
+    path: ../../producers/image/image.yaml
+    loop: segment.image
+  - name: AudioProducer
+    path: ../../producers/audio/audio.yaml
+    loop: segment
+  - name: VideoProducer
+    path: ../../producers/video/video.yaml
+    loop: segment
+  - name: TalkingHeadImageProducer
+    path: ../../producers/image/image.yaml
+    loop: segment
+  - name: TalkingHeadVideoProducer
+    path: ../../producers/talking-head-video/talking-head-video.yaml
+    loop: segment
+  - name: TimelineComposer  
+    path: ../../producers/timeline-composer/timeline-composer.yaml
+
+connections:
+  # Wire inputs to DocProducer
+  - from: InquiryPrompt
+    to: DocProducer.InquiryPrompt
+  - from: NumOfSegments
+    to: DocProducer.NumOfSegments
+  - from: NumOfImagesPerSegment
+    to: DocProducer.NumOfImagesPerSegment
+  - from: Style
+    to: DocProducer.Style
+
+  # Conditional: ImageProducer only when NarrationType is ImageNarration
+  - from: DocProducer.VideoScript.Segments[segment].ImagePrompts[image]
+    to: ImageProducer[segment][image].Prompt
+    if: isImageNarration
+  - from: AspectRatio
+    to: ImageProducer[segment][image].AspectRatio
+    if: isImageNarration
+  - from: Size
+    to: ImageProducer[segment][image].Size
+    if: isImageNarration
+  - from: ImageProducer[segment][image].SegmentImage
+    to: SegmentImage[segment][image]  
+    if: isImageNarration
+
+  # Conditional: AudioProducer only when audio is needed.
+  - from: DocProducer.VideoScript.Segments[segment].Script
+    to: AudioProducer[segment].TextInput
+    if: isAudioNeeded
+  - from: VoiceId
+    to: AudioProducer[segment].VoiceId
+    if: isAudioNeeded
+  - from: AudioProducer[segment].SegmentAudio
+    to: SegmentAudio[segment]
+    if: isAudioNeeded
+
+  # Conditional: Create Talking Head Image only when NarrationType is TalkingHead
+  - from: DocProducer.VideoScript.Segments[segment].TalkingHeadCharacterPrompt
+    to: TalkingHeadImageProducer[segment].Prompt
+    if: isTalkingHead
+  - from: Size
+    to: TalkingHeadImageProducer[segment].Size
+    if: isTalkingHead
+  - from: AspectRatio
+    to: TalkingHeadImageProducer[segment].AspectRatio
+    if: isTalkingHead
+  - from: TalkingHeadImageProducer[segment].SegmentImage
+    to: TalkingHeadCharacterImage[segment]
+    if: isTalkingHead
+
+  # Conditional: TalkingHeadVideoProducer only when NarrationType is TalkingHead
+  - from: SegmentDuration
+    to: TalkingHeadVideoProducer[segment].SegmentDuration
+    if: isTalkingHead
+  - from: Resolution 
+    to: TalkingHeadVideoProducer[segment].Resolution
+    if: isTalkingHead
+  - from: AspectRatio
+    to: TalkingHeadVideoProducer[segment].AspectRatio
+    if: isTalkingHead
+  - from: DocProducer.VideoScript.Segments[segment].TalkingHeadText
+    to: TalkingHeadVideoProducer[segment].Text
+    if: isTalkingHead
+  - from: DocProducer.VideoScript.Segments[segment].TalkingHeadPrompt
+    to: TalkingHeadVideoProducer[segment].Prompt
+    if: isTalkingHead
+  - from: TalkingHeadCharacterImage[segment]
+    to: TalkingHeadVideoProducer[segment].CharacterImage
+    if: isTalkingHead
+  - from: TalkingHeadVoiceId
+    to: TalkingHeadVideoProducer[segment].TalkingHeadVoiceId
+    if: isTalkingHead
+  - from: TalkingHeadVideoProducer[segment].SegmentVideo
+    to: SegmentTalkingHeadVideo[segment]
+    if: isTalkingHead
+
+  # Conditional: VideoProducer only when NarrationType is VideoNarration
+  - from: DocProducer.VideoScript.Segments[segment].VideoPrompt
+    to: VideoProducer[segment].Prompt
+    if: isVideoNarration
+  - from: SegmentDuration
+    to: VideoProducer[segment].SegmentDuration
+    if: isVideoNarration
+  - from: Resolution 
+    to: VideoProducer[segment].Resolution
+    if: isVideoNarration
+  - from: AspectRatio
+    to: VideoProducer[segment].AspectRatio
+    if: isVideoNarration
+  - from: VideoProducer[segment].SegmentVideo
+    to: SegmentVideo[segment]
+    if: isVideoNarration
+
+  - from: AudioProducer[segment].SegmentAudio
+    to: TimelineComposer.AudioSegments
+    if: isAudioNeeded
+  - from: VideoProducer[segment].SegmentVideo
+    to: TimelineComposer.VideoSegments
+    if: isVideoNarration
+  - from: ImageProducer[segment][image].SegmentImage
+    to: TimelineComposer.ImageSegments
+    if: isImageNarration
+  - from: TalkingHeadVideoProducer[segment].SegmentVideo
+    to: TimelineComposer.VideoSegments
+    if: isTalkingHead
+  - from: Duration
+    to: TimelineComposer.Duration
+  - from: TimelineComposer.Timeline
+    to: Timeline
+  
+collectors:
+  - name: TimelineImages
+    from: ImageProducer[segment][image].SegmentImage
+    into: TimelineComposer.ImageSegments
+    groupBy: segment
+    orderBy: image
+  - name: TimelineAudio
+    from: AudioProducer[segment].SegmentAudio
+    into: TimelineComposer.AudioSegments
+    groupBy: segment
+  - name: TimelineVideo
+    from: VideoProducer[segment].SegmentVideo
+    into: TimelineComposer.VideoSegments
+    groupBy: segment

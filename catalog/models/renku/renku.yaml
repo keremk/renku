@@ -12,3 +12,10 @@ models:
       - video/mp4
     handler: mp4-exporter
     price: 0
+  - name: ffmpeg/native-render
+    type: video
+    mime:
+      - video/mp4
+      - audio/mpeg
+    handler: ffmpeg-exporter
+    price: 0

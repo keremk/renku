@@ -1,0 +1,182 @@
+{
+  "input_schema": {
+    "x-fal-order-properties": [
+      "image_url",
+      "audio_url",
+      "prompt",
+      "guidance_scale",
+      "audio_guidance_scale",
+      "resolution"
+    ],
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "4K studio interview, medium close-up (shoulders-up crop). Solid light-grey seamless backdrop, uniform soft key-light—no lighting change. Presenter faces lens, steady eye-contact. Hands remain below frame, body perfectly still. Ultra-sharp."
+        ],
+        "description": "A text prompt to guide the video generation process.",
+        "type": "string",
+        "title": "Prompt"
+      },
+      "resolution": {
+        "enum": [
+          "480p",
+          "720p"
+        ],
+        "title": "Resolution",
+        "type": "string",
+        "description": "The resolution of the generated video.",
+        "default": "720p"
+      },
+      "guidance_scale": {
+        "minimum": 0,
+        "description": "Guidance scale to be used for text prompt adherence.",
+        "type": "number",
+        "maximum": 5,
+        "title": "Guidance Scale",
+        "default": 1
+      },
+      "audio_guidance_scale": {
+        "minimum": 0,
+        "description": "Guidance scale to be used for audio adherence.",
+        "type": "number",
+        "maximum": 5,
+        "title": "Audio Guidance Scale",
+        "default": 2
+      },
+      "audio_url": {
+        "examples": [
+          "https://storage.googleapis.com/falserverless/example_inputs/creatify/aurora/input.wav"
+        ],
+        "description": "The URL of the audio file to be used for video generation.",
+        "type": "string",
+        "title": "Audio Url",
+        "format": "uri"
+      },
+      "image_url": {
+        "examples": [
+          "https://storage.googleapis.com/falserverless/example_inputs/creatify/aurora/input_.png"
+        ],
+        "description": "The URL of the image file to be used for video generation.",
+        "type": "string",
+        "title": "Image Url",
+        "format": "uri"
+      }
+    },
+    "title": "AuroraInputModel",
+    "required": [
+      "image_url",
+      "audio_url"
+    ]
+  },
+  "output_schema": {
+    "x-fal-order-properties": [
+      "video"
+    ],
+    "type": "object",
+    "properties": {
+      "video": {
+        "examples": [
+          {
+            "file_name": "output.mp4",
+            "content_type": "video/mp4",
+            "url": "https://storage.googleapis.com/falserverless/example_outputs/creatify/aurora/output.mp4"
+          }
+        ],
+        "description": "The generated video file.",
+        "title": "Video",
+        "allOf": [
+          {
+            "$ref": "#/VideoFile"
+          }
+        ]
+      }
+    },
+    "title": "AuroraOutputModel",
+    "required": [
+      "video"
+    ]
+  },
+  "VideoFile": {
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data",
+      "width",
+      "height",
+      "fps",
+      "duration",
+      "num_frames"
+    ],
+    "type": "object",
+    "properties": {
+      "height": {
+        "description": "The height of the video",
+        "type": "integer",
+        "title": "Height"
+      },
+      "duration": {
+        "description": "The duration of the video",
+        "type": "number",
+        "title": "Duration"
+      },
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "description": "The size of the file in bytes.",
+        "type": "integer",
+        "title": "File Size"
+      },
+      "url": {
+        "description": "The URL where the file can be downloaded from.",
+        "type": "string",
+        "title": "Url",
+        "format": "uri"
+      },
+      "fps": {
+        "description": "The FPS of the video",
+        "type": "number",
+        "title": "Fps"
+      },
+      "width": {
+        "description": "The width of the video",
+        "type": "integer",
+        "title": "Width"
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "type": "string",
+        "title": "File Name"
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "description": "The mime type of the file.",
+        "type": "string",
+        "title": "Content Type"
+      },
+      "num_frames": {
+        "description": "The number of frames in the video",
+        "type": "integer",
+        "title": "Num Frames"
+      },
+      "file_data": {
+        "format": "binary",
+        "title": "File Data",
+        "type": "string",
+        "description": "File data"
+      }
+    },
+    "title": "VideoFile",
+    "required": [
+      "url"
+    ]
+  }
+}

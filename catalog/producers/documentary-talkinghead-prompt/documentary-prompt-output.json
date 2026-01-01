@@ -1,0 +1,84 @@
+{
+  "name": "VideoScript",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "Title": {
+        "type": "string",
+        "description": "The title of the video script."
+      },
+      "Summary": {
+        "type": "string",
+        "description": "A summary of the video script."
+      },
+      "MusicPrompt": {
+        "type": "string",
+        "description": "A prompt to generate the background music for the video." 
+      },
+      "Segments": {
+        "type": "array",
+        "description": "An array of segments for the video script.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "Script": {
+              "type": "string",
+              "description": "The script to be read by the narrator for this segment."
+            },
+            "NarrationType": {
+              "type": "string",
+              "enum": [
+                "ImageNarration",
+                "TalkingHead",
+                "VideoNarration",
+                "MapNarration"
+              ],
+              "description": "Type of narration for this segment."
+            },
+            "UseNarrationAudio": {
+              "type": "boolean",
+              "description": "Whether to use narration audio for this segment."
+            },
+            "ImagePrompts": {
+              "type": "array",
+              "description": "Image prompts that will be used to generate images for this segment.",
+              "items": {
+                "type": "string",
+                "description": "Image prompt to instruct the AI image generator to generate an image depicting the scene described in the script."
+              }
+            },
+            "VideoPrompt": {
+              "type": "string",
+              "description": "Prompt or description for the video content for this segment."
+            },
+            "TalkingHeadCharacterPrompt": {
+              "type": "string",
+              "description": "A prompt to generate the image of the character that will appear throughout the video."
+            },
+            "TalkingHeadText": {
+              "type": "string",
+              "description": "The text that the talking head character will say in this segment."
+            }, 
+            "TalkingHeadPrompt": {
+              "type": "string",
+              "description": "A prompt that describes the character, their tone and the setting for the talking head video segment."
+            }
+          },
+          "required": [
+            "Script",
+            "NarrationType",
+            "UseNarrationAudio",
+            "ImagePrompts",
+            "VideoPrompt",
+            "TalkingHeadCharacterPrompt",
+            "TalkingHeadText"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": ["Title", "Summary", "MusicPrompt", "Segments"],
+    "additionalProperties": false
+  }
+}

@@ -4,6 +4,7 @@ import { createMockProducerHandler } from './mock-producers.js';
 import { createOpenAiLlmHandler } from './producers/llm/openai.js';
 import { createVercelAiGatewayHandler } from './producers/llm/vercel-ai-gateway.js';
 import { createMp4ExporterHandler } from './producers/export/mp4-exporter.js';
+import { createFfmpegExporterHandler } from './producers/export/ffmpeg-exporter.js';
 import { createTimelineProducerHandler } from './producers/timeline/ordered-timeline.js';
 import { createUnifiedHandler } from './sdk/unified/index.js';
 import { replicateAdapter } from './sdk/replicate/adapter.js';
@@ -40,6 +41,7 @@ const TYPE_TO_MIME: Record<ModelType, string> = {
 const INTERNAL_HANDLERS: Record<string, () => HandlerFactory> = {
   'timeline': createTimelineProducerHandler,
   'mp4-exporter': createMp4ExporterHandler,
+  'ffmpeg-exporter': createFfmpegExporterHandler,
 };
 
 /**
