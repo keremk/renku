@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { parse as parseToml } from 'smol-toml';
 import type {
+  BlueprintMeta,
   BlueprintTreeNode,
   ProducerCatalog,
   ProducerCatalogEntry,
@@ -59,14 +60,15 @@ export async function buildProducerOptionsFromBlueprint(
   blueprint: BlueprintTreeNode,
   selections: ModelSelection[] = [],
   allowAmbiguousDefault = false,
-  context?: BuildProducerOptionsContext,
+  _context?: BuildProducerOptionsContext,
 ): Promise<ProducerOptionsMap> {
   const map: ProducerOptionsMap = new Map();
   const selectionMap = new Map<string, ModelSelection>();
   for (const selection of selections) {
     selectionMap.set(selection.producerId, selection);
   }
-  await collectProducers(blueprint, map, selectionMap, allowAmbiguousDefault, context?.baseDir);
+  // Note: baseDir from context is no longer used - promptFile/outputSchema now come from producer meta
+  await collectProducers(blueprint, map, selectionMap, allowAmbiguousDefault);
   return map;
 }
 
@@ -75,18 +77,25 @@ async function collectProducers(
   map: ProducerOptionsMap,
   selectionMap: Map<string, ModelSelection>,
   allowAmbiguousDefault: boolean,
-  baseDir?: string,
 ): Promise<void> {
   for (const producer of node.document.producers) {
     const namespacedName = formatProducerAlias(node.namespacePath, producer.name);
     const selection = selectionMap.get(namespacedName);
     const variants = collectVariants(producer);
-    const chosen = await chooseVariant(namespacedName, variants, selection, allowAmbiguousDefault, baseDir);
+    // Pass the producer's meta and source path for loading promptFile/outputSchema
+    const chosen = await chooseVariant(
+      namespacedName,
+      variants,
+      selection,
+      allowAmbiguousDefault,
+      node.document.meta,
+      node.sourcePath,
+    );
     const option = toLoadedOption(namespacedName, chosen, selection);
     registerProducerOption(map, namespacedName, option);
   }
   for (const child of node.children.values()) {
-    await collectProducers(child, map, selectionMap, allowAmbiguousDefault, baseDir);
+    await collectProducers(child, map, selectionMap, allowAmbiguousDefault);
   }
 }
 
@@ -277,34 +286,33 @@ async function loadJsonSchema(schemaPath: string): Promise<string> {
 /**
  * Convert a ModelSelection into a CollectedVariant.
  * Used when the selection provides all the model configuration (interface-only producers).
- * Loads promptFile and outputSchema if provided as paths.
+ * Loads promptFile and outputSchema from the producer's meta section (not from ModelSelection).
  */
-async function selectionToVariant(selection: ModelSelection, baseDir?: string): Promise<CollectedVariant> {
-  // Load prompt config from file if specified
+async function selectionToVariant(
+  selection: ModelSelection,
+  producerMeta: BlueprintMeta,
+  producerSourcePath: string,
+): Promise<CollectedVariant> {
+  const producerDir = dirname(producerSourcePath);
+
+  // Load prompt config from producer meta's promptFile (relative to producer YAML)
   let promptConfig: PromptConfig = {};
-  if (selection.promptFile && baseDir) {
-    const promptPath = resolve(baseDir, selection.promptFile);
+  if (producerMeta.promptFile) {
+    const promptPath = resolve(producerDir, producerMeta.promptFile);
     promptConfig = await loadPromptConfig(promptPath);
   }
 
-  // Load output schema from file if specified
+  // Load output schema from producer meta's outputSchema (relative to producer YAML)
   let outputSchemaContent: string | undefined;
-  if (selection.outputSchema && baseDir) {
-    const schemaPath = resolve(baseDir, selection.outputSchema);
+  if (producerMeta.outputSchema) {
+    const schemaPath = resolve(producerDir, producerMeta.outputSchema);
     outputSchemaContent = await loadJsonSchema(schemaPath);
   }
 
-  // Load input schema from file if specified
-  let inputSchemaContent: string | undefined;
-  if (selection.inputSchema && baseDir) {
-    const schemaPath = resolve(baseDir, selection.inputSchema);
-    inputSchemaContent = await loadJsonSchema(schemaPath);
-  }
-
-  // Build config from selection's LLM config fields (prefer selection over prompt file)
+  // Build config from prompt file and selection's config (selection takes precedence)
   const config: Record<string, unknown> = { ...(promptConfig.config ?? {}), ...(selection.config ?? {}) };
 
-  // Use inline values if provided, otherwise use prompt file values
+  // Use inline values from selection if provided, otherwise use prompt file values
   const systemPrompt = selection.systemPrompt ?? promptConfig.systemPrompt;
   const userPrompt = selection.userPrompt ?? promptConfig.userPrompt;
   const variables = selection.variables ?? promptConfig.variables;
@@ -338,7 +346,7 @@ async function selectionToVariant(selection: ModelSelection, baseDir?: string): 
     config: Object.keys(config).length > 0 ? config : undefined,
     sdkMapping: selection.inputs,
     outputs: selection.outputs ?? (promptConfig.outputs as Record<string, BlueprintProducerOutputDefinition> | undefined),
-    inputSchema: inputSchemaContent,
+    inputSchema: undefined,
     outputSchema: outputSchemaContent,
     configInputPaths: flattenConfigKeys(config),
     configDefaults: flattenConfigValues(config),
@@ -350,7 +358,8 @@ async function chooseVariant(
   variants: CollectedVariant[],
   selection: ModelSelection | undefined,
   allowAmbiguousDefault: boolean,
-  baseDir?: string,
+  producerMeta: BlueprintMeta,
+  producerSourcePath: string,
 ): Promise<CollectedVariant> {
   // If producer has no variants (interface-only), must have selection
   if (variants.length === 0) {
@@ -360,8 +369,8 @@ async function chooseVariant(
         `Provide model selection in input template.`,
       );
     }
-    // Convert selection directly to a variant
-    return selectionToVariant(selection, baseDir);
+    // Convert selection directly to a variant, loading promptFile/outputSchema from producer meta
+    return selectionToVariant(selection, producerMeta, producerSourcePath);
   }
 
   // Producer has variants - try to match selection or use default
@@ -377,12 +386,12 @@ async function chooseVariant(
         ...match,
         sdkMapping: selection.inputs ?? match.sdkMapping,
         outputs: selection.outputs ?? match.outputs,
-        inputSchema: selection.inputSchema ?? match.inputSchema,
-        outputSchema: selection.outputSchema ?? match.outputSchema,
+        inputSchema: match.inputSchema,
+        outputSchema: match.outputSchema,
       };
     }
     // Selection specifies a model not in producer's variants - use selection directly
-    return selectionToVariant(selection, baseDir);
+    return selectionToVariant(selection, producerMeta, producerSourcePath);
   }
   if (variants.length === 1) {
     return variants[0]!;

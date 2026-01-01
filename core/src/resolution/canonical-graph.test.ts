@@ -330,6 +330,7 @@ function makeTreeNode(
     namespacePath,
     document,
     children,
+    sourcePath: '/test/mock-blueprint.yaml',
   };
 }
 

@@ -226,6 +226,8 @@ meta:
   version: <semver>        # Semantic version
   author: <string>         # Creator name
   license: <string>        # License type
+  promptFile: <string>     # Path to TOML prompt config (LLM producers only)
+  outputSchema: <string>   # Path to JSON schema for structured output (LLM producers only)
 
 inputs:
   - name: <string>         # Input identifier (required)
@@ -246,10 +248,10 @@ models:
     model: <string>        # Model identifier (required)
     inputs:                # Input field mappings
       <ProducerInput>: <providerField>
-    promptFile: <string>   # Path to prompt config (OpenAI)
-    outputSchema: <string> # Path to JSON schema (OpenAI)
     config: <object>       # Provider-specific config
 ```
+
+**Note on LLM Producers:** For producers that use LLMs (OpenAI, etc.), the `promptFile` and `outputSchema` fields are defined in the `meta:` section of the producer YAML file, not in the input template. These are intrinsic to the producer's functionality and cannot be overridden per-run.
 
 ### Example: Script Producer (OpenAI)
 
@@ -259,6 +261,8 @@ meta:
   description: Generate documentary scripts.
   id: ScriptProducer
   version: 0.1.0
+  promptFile: ./script.toml              # Prompt template for LLM
+  outputSchema: ./script-output.json     # JSON schema for structured output
 
 inputs:
   - name: InquiryPrompt
@@ -279,15 +283,9 @@ artifacts:
     type: array
     itemType: string
     countInput: NumOfSegments
-
-models:
-  - provider: openai
-    model: gpt-4o
-    promptFile: ./script.toml
-    outputSchema: ./script-output.json
-    config:
-      text_format: json_schema
 ```
+
+**Note:** LLM producers define `promptFile` and `outputSchema` in the `meta:` section. The model selection (e.g., `gpt-4o`) is specified in the input template file.
 
 ### Example: Video Producer (Replicate)
 
@@ -552,6 +550,8 @@ JSON artifacts store structured data as a single blob while exposing nested prop
 meta:
   id: DocumentaryPromptProducer
   name: Documentary Script Generation
+  promptFile: ./documentary-prompt.toml           # Prompt template
+  outputSchema: ./documentary-prompt-output.json  # JSON schema for validation
 
 inputs:
   - name: InquiryPrompt
@@ -571,15 +571,9 @@ artifacts:
         countInput: NumOfSegments
       - path: Segments.ImagePrompts
         countInput: NumOfImagesPerSegment
-
-models:
-  - provider: openai
-    model: gpt-4o
-    promptFile: ./documentary-prompt.toml
-    outputSchema: ./documentary-prompt-output.json
-    config:
-      text_format: json_schema
 ```
+
+**Note:** The model selection (e.g., `gpt-4o`) is specified in the input template file, not in the producer.
 
 ### The `arrays` Field
 
@@ -600,7 +594,7 @@ This enables the planner to:
 
 ### Schema Association
 
-The `outputSchema` from the producer's model configuration is automatically associated with `type: json` artifacts. The schema defines the structure of the JSON output:
+The `outputSchema` from the producer's `meta:` section is automatically associated with `type: json` artifacts. The schema defines the structure of the JSON output:
 
 ```json
 {

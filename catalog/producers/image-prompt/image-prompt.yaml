@@ -5,6 +5,8 @@ meta:
   version: 0.1.0
   author: Renku
   license: MIT
+  promptFile: ./image-prompt.toml
+  outputSchema: ./image-prompt-output.json
 
 inputs:
   - name: NarrativeText

@@ -39,20 +39,16 @@ models:
   - model: gpt-5-mini
     provider: openai
     producerId: ScriptProducer
-    promptFile: ../../producers/script/script.toml
-    outputSchema: ../../producers/script/script-output.json
     config:
       text_format: json_schema
   - model: gpt-5-mini
     provider: openai
     producerId: VideoPromptProducer
-    promptFile: ../../producers/video-prompt/video-prompt.toml
     config:
       text_format: text
   - model: gpt-5-mini
     provider: openai
     producerId: MusicPromptProducer
-    promptFile: ../../producers/music-prompt/music-prompt.toml
     config:
       text_format: text
   - model: timeline/ordered

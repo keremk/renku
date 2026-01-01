@@ -45,8 +45,10 @@ function makeRootBlueprint(extraEdges: Array<{ from: string; to: string }>): Blu
         namespacePath: ['Child'],
         document: childDoc,
         children: new Map(),
+        sourcePath: '/test/mock-blueprint.yaml',
       }],
     ]),
+    sourcePath: '/test/mock-blueprint.yaml',
   };
 }
 

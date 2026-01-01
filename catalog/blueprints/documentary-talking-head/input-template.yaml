@@ -54,8 +54,6 @@ models:
   - model: gpt-5.2
     provider: openai
     producerId: DocProducer
-    promptFile: ../../producers/documentary-talkinghead-prompt/documentary-prompt.toml
-    outputSchema: ../../producers/documentary-talkinghead-prompt/documentary-prompt-output.json
     config:
       text_format: json_schema
   - model: timeline/ordered

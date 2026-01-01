@@ -369,8 +369,10 @@ describe('InputIdResolver', () => {
             edges: [],
           },
           children: new Map(),
+          sourcePath: '/test/mock-blueprint.yaml',
         }],
       ]),
+      sourcePath: '/test/mock-blueprint.yaml',
     };
   }
 

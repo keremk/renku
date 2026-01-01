@@ -28,6 +28,21 @@ describe('parseYamlBlueprintFile', () => {
     expect(producer.models).toBeUndefined();
   });
 
+  it('parses promptFile and outputSchema from producer meta section', async () => {
+    const modulePath = resolve(catalogRoot, 'producers/script/script.yaml');
+    const document = await parseYamlBlueprintFile(modulePath);
+    expect(document.meta.promptFile).toBe('./script.toml');
+    expect(document.meta.outputSchema).toBe('./script-output.json');
+  });
+
+  it('leaves promptFile and outputSchema undefined when not specified', async () => {
+    // audio producer has no LLM config files
+    const modulePath = resolve(catalogRoot, 'producers/audio/audio.yaml');
+    const document = await parseYamlBlueprintFile(modulePath);
+    expect(document.meta.promptFile).toBeUndefined();
+    expect(document.meta.outputSchema).toBeUndefined();
+  });
+
   it('parses countInputOffset for array artefacts', async () => {
     const modulePath = resolve(catalogRoot, 'producers/flow-video-prompt/flow-video-prompt.yaml');
     const document = await parseYamlBlueprintFile(modulePath);
@@ -84,6 +99,24 @@ describe('loadYamlBlueprintTree', () => {
     // Interface-only producers have no model definitions
     expect(scriptNode?.document.producers[0]?.name).toBe('ScriptProducer');
     expect(scriptNode?.document.producers[0]?.models).toBeUndefined();
+  });
+
+  it('preserves promptFile and outputSchema in child node meta', async () => {
+    const entry = resolve(yamlRoot, 'audio-only', 'audio-only.yaml');
+    const { root } = await loadYamlBlueprintTree(entry);
+
+    // ScriptProducer is an LLM producer with promptFile and outputSchema
+    const scriptNode = root.children.get('ScriptProducer');
+    expect(scriptNode).toBeDefined();
+    expect(scriptNode!.document.meta.promptFile).toBe('./script.toml');
+    expect(scriptNode!.document.meta.outputSchema).toBe('./script-output.json');
+    expect(scriptNode!.sourcePath).toContain('script.yaml');
+
+    // AudioProducer is not an LLM producer - no promptFile/outputSchema
+    const audioNode = root.children.get('AudioProducer');
+    expect(audioNode).toBeDefined();
+    expect(audioNode!.document.meta.promptFile).toBeUndefined();
+    expect(audioNode!.document.meta.outputSchema).toBeUndefined();
   });
 });
 

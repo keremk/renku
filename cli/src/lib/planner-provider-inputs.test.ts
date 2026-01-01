@@ -2,11 +2,11 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { generatePlan } from '../planner.js';
-import { resolveBlueprintSpecifier } from '../config-assets.js';
-import type { CliConfig } from '../cli-config.js';
-import { createCliLogger } from '../logger.js';
-import { REPO_ROOT, CATALOG_BLUEPRINTS_ROOT } from '../../../tests/test-catalog-paths.js';
+import { generatePlan } from './planner.js';
+import { resolveBlueprintSpecifier } from './config-assets.js';
+import type { CliConfig } from './cli-config.js';
+import { createCliLogger } from './logger.js';
+import { REPO_ROOT, CATALOG_BLUEPRINTS_ROOT } from '../../tests/test-catalog-paths.js';
 
 const CLI_ROOT = resolve(REPO_ROOT, 'cli');
 const BLUEPRINTS_ROOT = CATALOG_BLUEPRINTS_ROOT;

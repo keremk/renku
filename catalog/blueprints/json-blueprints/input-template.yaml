@@ -11,8 +11,6 @@ models:
   - model: gpt-5.2
     provider: openai
     producerId: DocProducer
-    promptFile: ../../producers/documentary-prompt/documentary-prompt.toml
-    outputSchema: ../../producers/documentary-prompt/documentary-prompt-output.json
     config:
       text_format: json_schema
   - model: bytedance/seedream/v4.5/text-to-image

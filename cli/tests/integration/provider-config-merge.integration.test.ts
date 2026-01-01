@@ -19,16 +19,12 @@ describe('integration: provider config merging', () => {
         producerId: 'ScriptProducer',
         provider: 'openai',
         model: 'gpt-5-mini',
-        promptFile: '../../producers/script/script.toml',
-        outputSchema: '../../producers/script/script-output.json',
         config: { text_format: 'json_schema' },
       },
       {
         producerId: 'ImagePromptProducer',
         provider: 'openai',
         model: 'gpt-5-mini',
-        promptFile: '../../producers/image-prompt/image-prompt.toml',
-        outputSchema: '../../producers/image-prompt/image-prompt-output.json',
         config: { text_format: 'json_schema' },
       },
       {

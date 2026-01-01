@@ -1,25 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { resolve } from 'node:path';
-import { fileURLToPath, URL } from 'node:url';
-import { loadBlueprintBundle } from '../blueprint-loader/index.js';
-import { buildProducerOptionsFromBlueprint } from '../producer-options.js';
-import { resolveBlueprintSpecifier } from '../config-assets.js';
-import type { ModelSelection } from '../producer-options.js';
+import { loadBlueprintBundle } from './blueprint-loader/index.js';
+import { buildProducerOptionsFromBlueprint } from './producer-options.js';
+import type { ModelSelection } from './producer-options.js';
 import type { BlueprintTreeNode } from '@gorenku/core';
-import { CATALOG_BLUEPRINTS_ROOT } from '../../../tests/test-catalog-paths.js';
-
-const CLI_ROOT = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
+import { CATALOG_BLUEPRINTS_ROOT } from '../../tests/test-catalog-paths.js';
 
 describe('producer options', () => {
   it('builds options with SDK mappings from selection', async () => {
-    const blueprintPath = await resolveBlueprintSpecifier(
-      'audio-only.yaml',
-      { cliRoot: CLI_ROOT },
-    );
+    // Use root catalog (source of truth), not cli/catalog
+    const blueprintPath = resolve(CATALOG_BLUEPRINTS_ROOT, 'audio-only', 'audio-only.yaml');
     const { root: blueprint } = await loadBlueprintBundle(blueprintPath);
 
-    // Use the catalog input template's base directory for relative path resolution
-    const baseDir = resolve(CATALOG_BLUEPRINTS_ROOT, 'audio-only');
+    // Verify the ScriptProducer child node has the expected meta with promptFile/outputSchema
+    const scriptProducerNode = blueprint.children.get('ScriptProducer');
+    expect(scriptProducerNode).toBeDefined();
+    expect(scriptProducerNode!.document.meta.promptFile).toBe('./script.toml');
+    expect(scriptProducerNode!.document.meta.outputSchema).toBe('./script-output.json');
+    expect(scriptProducerNode!.sourcePath).toContain('script.yaml');
 
     // Selections provide model configuration since producers are interface-only
     const selections: ModelSelection[] = [
@@ -27,8 +25,6 @@ describe('producer options', () => {
         producerId: 'ScriptProducer',
         provider: 'openai',
         model: 'gpt-5-mini',
-        promptFile: '../../producers/script/script.toml',
-        outputSchema: '../../producers/script/script-output.json',
         config: { text_format: 'json_schema' },
       },
       {
@@ -43,7 +39,7 @@ describe('producer options', () => {
       },
     ];
 
-    const options = await buildProducerOptionsFromBlueprint(blueprint, selections, true, { baseDir });
+    const options = await buildProducerOptionsFromBlueprint(blueprint, selections, true);
 
     // AudioProducer should have SDK mappings from selection
     const audioOptions = options.get('AudioProducer');
@@ -56,11 +52,11 @@ describe('producer options', () => {
       VoiceId: { field: 'voice_id' },
     });
 
-    // ScriptProducer should have LLM config loaded from promptFile
+    // ScriptProducer should have LLM config loaded from promptFile (defined in producer meta)
     const scriptOptions = options.get('ScriptProducer');
     expect(scriptOptions).toBeDefined();
     expect(scriptOptions![0].provider).toBe('openai');
-    // outputSchema should be the loaded JSON content
+    // outputSchema should be the loaded JSON content from producer meta's outputSchema path
     expect(scriptOptions![0].outputSchema).toBeDefined();
     expect(scriptOptions![0].config).toMatchObject({
       text_format: 'json_schema',
@@ -92,6 +88,7 @@ describe('producer options', () => {
         ],
       },
       children: new Map(),
+      sourcePath: '/test/mock-blueprint.yaml',
     };
 
     await expect(buildProducerOptionsFromBlueprint(blueprint)).rejects.toThrow(/missing outputSchema/i);

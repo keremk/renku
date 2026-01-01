@@ -16,8 +16,6 @@ models:
   - model: gpt-5-mini
     provider: openai
     producerId: FlowVideoPromptProducer
-    promptFile: ../../producers/flow-video-prompt/flow-video-prompt.toml
-    outputSchema: ../../producers/flow-video-prompt/flow-video-prompt-output.json
     config:
       text_format: json_schema
   - model: google/nano-banana

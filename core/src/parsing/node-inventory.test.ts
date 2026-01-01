@@ -21,6 +21,7 @@ function createTree(): BlueprintTreeNode {
       edges: [],
     },
     children: new Map(),
+    sourcePath: '/test/mock-blueprint.yaml',
   };
 
   const root: BlueprintTreeNode = {
@@ -42,6 +43,7 @@ function createTree(): BlueprintTreeNode {
       edges: [],
     },
     children: new Map([['Video', child]]),
+    sourcePath: '/test/mock-blueprint.yaml',
   };
 
   return root;

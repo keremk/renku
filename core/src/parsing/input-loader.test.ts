@@ -32,6 +32,7 @@ function createTestBlueprintTree(): BlueprintTreeNode {
       edges: [],
     },
     children: new Map(),
+    sourcePath: '/test/blueprint.yaml',
   };
 }
 
@@ -290,6 +291,7 @@ function createMinimalBlueprintTree(): BlueprintTreeNode {
       edges: [],
     },
     children: new Map(),
+    sourcePath: '/test/minimal-blueprint.yaml',
   };
 }
 
@@ -411,7 +413,7 @@ describe('model selection SDK mapping parsing', () => {
     });
   });
 
-  it('parses LLM config with promptFile and outputSchema', async () => {
+  it('parses LLM config with text_format config', async () => {
     const workdir = await mkdtemp(join(tmpdir(), 'renku-llm-config-'));
     const savedPath = join(workdir, 'inputs.yaml');
     const blueprint = createMinimalBlueprintTree();
@@ -425,8 +427,6 @@ describe('model selection SDK mapping parsing', () => {
             producerId: 'ScriptProducer',
             provider: 'openai',
             model: 'gpt-5-mini',
-            promptFile: '../../producers/script/script.toml',
-            outputSchema: '../../producers/script/script-output.json',
             config: {
               text_format: 'json_schema',
             },
@@ -440,8 +440,7 @@ describe('model selection SDK mapping parsing', () => {
     const selection = loaded.modelSelections.find((s) => s.producerId === 'ScriptProducer');
 
     expect(selection).toBeDefined();
-    expect(selection?.promptFile).toBe('../../producers/script/script.toml');
-    expect(selection?.outputSchema).toBe('../../producers/script/script-output.json');
+    // Note: promptFile and outputSchema are now defined in producer YAML meta section, not input templates
     expect(selection?.config).toEqual({ text_format: 'json_schema' });
   });
 
@@ -509,9 +508,10 @@ describe('model selection SDK mapping parsing', () => {
     expect(imageSelection?.inputs?.AspectRatio).toEqual({ field: 'aspect_ratio' });
 
     // ImagePromptProducer should have LLM config
+    // Note: promptFile and outputSchema are now defined in producer YAML meta section
     const imagePromptSelection = loaded.modelSelections.find((s) => s.producerId.endsWith('ImagePromptProducer'));
     expect(imagePromptSelection).toBeDefined();
-    expect(imagePromptSelection?.promptFile).toBe('../../producers/image-prompt/image-prompt.toml');
+    expect(imagePromptSelection?.config).toEqual({ text_format: 'json_schema' });
   });
 
   it('loads input template with LLM config from catalog', async () => {
@@ -521,13 +521,12 @@ describe('model selection SDK mapping parsing', () => {
 
     const loaded = await loadInputsFromYaml(inputPath, blueprint);
 
-    // ScriptProducer selection should have LLM config (promptFile, outputSchema)
+    // ScriptProducer selection should have LLM config
+    // Note: promptFile and outputSchema are now defined in producer YAML meta section, not input template
     const scriptSelection = loaded.modelSelections.find((s) => s.producerId.endsWith('ScriptProducer'));
     expect(scriptSelection).toBeDefined();
     expect(scriptSelection?.provider).toBe('openai');
     expect(scriptSelection?.model).toBe('gpt-5-mini');
-    expect(scriptSelection?.promptFile).toBe('../../producers/script/script.toml');
-    expect(scriptSelection?.outputSchema).toBe('../../producers/script/script-output.json');
     expect(scriptSelection?.config).toEqual({ text_format: 'json_schema' });
 
     // AudioProducer should have SDK mappings
@@ -575,6 +574,7 @@ describe('input-loader edge cases', () => {
         edges: [],
       },
       children: new Map(),
+      sourcePath: '/test/typed-blueprint.yaml',
     };
     const savedPath = join(workdir, 'inputs.yaml');
 
@@ -648,6 +648,7 @@ describe('input-loader edge cases', () => {
         edges: [],
       },
       children: new Map(),
+      sourcePath: '/test/array-blueprint.yaml',
     };
     const savedPath = join(workdir, 'inputs.yaml');
 

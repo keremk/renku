@@ -36,6 +36,7 @@ function buildTestBlueprint(): BlueprintTreeNode {
       ],
     },
     children: new Map(),
+    sourcePath: '/test/mock-blueprint.yaml',
   };
 }
 

@@ -149,6 +149,7 @@ async function loadNode(
     namespacePath,
     document,
     children: new Map(),
+    sourcePath: absolute,
   };
 
   // Producer imports use the alias as a scope for their internal nodes.
@@ -200,6 +201,8 @@ function parseMeta(raw: unknown, filePath: string): BlueprintDocument['meta'] {
     description: meta.description ? String(meta.description) : undefined,
     author: meta.author ? String(meta.author) : undefined,
     license: meta.license ? String(meta.license) : undefined,
+    promptFile: typeof meta.promptFile === 'string' ? meta.promptFile : undefined,
+    outputSchema: typeof meta.outputSchema === 'string' ? meta.outputSchema : undefined,
   };
 }
 

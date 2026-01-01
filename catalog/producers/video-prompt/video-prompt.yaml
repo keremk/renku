@@ -5,6 +5,7 @@ meta:
   version: 0.1.0
   author: Renku
   license: MIT
+  promptFile: ./video-prompt.toml
 
 inputs:
   - name: NarrativeText

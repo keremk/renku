@@ -95,6 +95,10 @@ export interface BlueprintMeta {
   description?: string;
   author?: string;
   license?: string;
+  /** Path to TOML file with LLM prompts (relative to producer YAML file) */
+  promptFile?: string;
+  /** Path to JSON schema for structured output (relative to producer YAML file) */
+  outputSchema?: string;
 }
 
 /**
@@ -444,6 +448,8 @@ export interface BlueprintTreeNode {
   namespacePath: string[];
   document: BlueprintDocument;
   children: Map<string, BlueprintTreeNode>;
+  /** Absolute path to the source YAML file */
+  sourcePath: string;
 }
 
 /**

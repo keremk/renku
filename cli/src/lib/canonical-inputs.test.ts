@@ -1,11 +1,11 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { loadBlueprintBundle } from '../blueprint-loader/index.js';
-import { loadInputsFromYaml } from '../input-loader.js';
-import { applyProviderDefaults } from '../provider-defaults.js';
-import { resolveBlueprintSpecifier } from '../config-assets.js';
-import { REPO_ROOT, CATALOG_BLUEPRINTS_ROOT } from '../../../tests/test-catalog-paths.js';
+import { loadBlueprintBundle } from './blueprint-loader/index.js';
+import { loadInputsFromYaml } from './input-loader.js';
+import { applyProviderDefaults } from './provider-defaults.js';
+import { resolveBlueprintSpecifier } from './config-assets.js';
+import { REPO_ROOT, CATALOG_BLUEPRINTS_ROOT } from '../../tests/test-catalog-paths.js';
 
 const CLI_ROOT = resolve(REPO_ROOT, 'cli');
 const BLUEPRINTS_ROOT = CATALOG_BLUEPRINTS_ROOT;

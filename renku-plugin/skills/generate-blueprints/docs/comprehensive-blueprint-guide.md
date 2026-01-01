@@ -352,6 +352,8 @@ meta:
   version: <semver>        # Semantic version
   author: <string>         # Creator name
   license: <string>        # License type
+  promptFile: <string>     # Path to TOML prompt config (LLM producers only)
+  outputSchema: <string>   # Path to JSON schema for structured output (LLM producers only)
 
 inputs:
   - name: <string>         # Input identifier (required)
@@ -376,6 +378,8 @@ loops:
 
 **Note:** Producers no longer contain a `models:` section. Model selection and configuration is done in the input template file, allowing users to choose different models without modifying producer definitions.
 
+**Note on LLM Producers:** For producers that use LLMs (OpenAI, etc.), the `promptFile` and `outputSchema` fields are defined in the `meta:` section of the producer YAML file. These are intrinsic to the producer's functionality and cannot be overridden per-run. Paths are relative to the producer YAML file location.
+
 ### Real Example: Script Producer
 
 ```yaml
@@ -386,6 +390,8 @@ meta:
   version: 0.1.0
   author: Renku
   license: MIT
+  promptFile: ./script.toml              # Prompt template for LLM
+  outputSchema: ./script-output.json     # JSON schema for structured output
 
 inputs:
   - name: InquiryPrompt
@@ -422,6 +428,8 @@ loops:
     description: Iterates over narration segments.
     countInput: NumOfSegments
 ```
+
+**Note:** LLM producers define `promptFile` and `outputSchema` in the `meta:` section. The model selection (e.g., `gpt-4o`) is specified in the input template file.
 
 ### Real Example: Video Producer
 
@@ -1158,7 +1166,7 @@ The planner supports incremental execution:
 
 ### JSON Virtual Artifact Decomposition
 
-When a producer generates structured JSON output (using `outputSchema`), the system decomposes the JSON into individual "virtual artifacts" - one for each leaf value in arrays. This enables:
+When a producer generates structured JSON output (using `meta.outputSchema`), the system decomposes the JSON into individual "virtual artifacts" - one for each leaf value in arrays. This enables:
 
 1. **Fine-grained dirty tracking**: If you override one specific field in a JSON output, only the downstream jobs that depend on that specific field re-run
 2. **Efficient incremental updates**: Modify one image prompt without regenerating all images
@@ -1249,10 +1257,10 @@ models:
       <ProducerInput>:
         field: <providerField>
         transform: <object>    # Optional value transformations
-    promptFile: <string>       # Path to TOML prompt configuration (for LLM producers)
-    outputSchema: <string>     # Path to JSON schema for structured output (for LLM producers)
     config: <object>           # Provider-specific configuration
 ```
+
+**Note:** For LLM producers, `promptFile` and `outputSchema` are defined in the producer YAML's `meta:` section, not in the input template. This is because these files are intrinsic to the producer's functionality.
 
 ### Input Values
 
@@ -1312,16 +1320,14 @@ models:
   - model: gpt-5-mini
     provider: openai
     producerId: ScriptProducer
-    promptFile: ../../producers/script/script.toml
-    outputSchema: ../../producers/script/script-output.json
     config:
       text_format: json_schema
 ```
 
 **Key fields:**
-- `promptFile`: Path to TOML file containing the prompt template
-- `outputSchema`: Path to JSON schema defining the expected output structure
 - `config.text_format`: Use `json_schema` for structured output, `text` for plain text
+
+**Note:** The `promptFile` and `outputSchema` are defined in the producer YAML's `meta:` section, not here. This keeps prompt configuration co-located with the producer logic.
 
 #### Video/Image/Audio Producers
 
@@ -1372,8 +1378,6 @@ models:
   - model: gpt-5.2
     provider: openai
     producerId: DocProducer
-    promptFile: ../../producers/documentary-prompt/documentary-prompt.toml
-    outputSchema: ../../producers/documentary-prompt/documentary-prompt-output.json
     config:
       text_format: json_schema
   - model: bytedance/seedream/v4.5/text-to-image
@@ -1398,6 +1402,8 @@ models:
       imageClip:
         artifact: ImageSegments[Image]
 ```
+
+**Note:** The `promptFile` and `outputSchema` for the `DocProducer` are defined in the producer YAML file's `meta:` section, not in this input template.
 
 ### Data Types
 

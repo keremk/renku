@@ -40,12 +40,6 @@ export interface ModelSelection {
   inputs?: Record<string, BlueprintProducerSdkMappingField>;
   /** Output definitions for the model */
   outputs?: Record<string, BlueprintProducerOutputDefinition>;
-  /** Path to LLM prompt file (TOML format) */
-  promptFile?: string;
-  /** Path to output JSON schema for structured output */
-  outputSchema?: string;
-  /** Path to input JSON schema for validation */
-  inputSchema?: string;
   /** Inline system prompt for LLM models */
   systemPrompt?: string;
   /** Inline user prompt for LLM models */
@@ -322,12 +316,7 @@ function resolveModelSelections(
       const inputs = parseSdkMapping(record.inputs);
       const outputs = parseOutputs(record.outputs);
 
-      // Parse LLM config paths
-      const promptFile = typeof record.promptFile === 'string' ? record.promptFile : undefined;
-      const outputSchema = typeof record.outputSchema === 'string' ? record.outputSchema : undefined;
-      const inputSchema = typeof record.inputSchema === 'string' ? record.inputSchema : undefined;
-
-      // Parse inline LLM config
+      // Parse inline LLM config (promptFile/outputSchema are now in producer meta, not here)
       const systemPrompt = typeof record.systemPrompt === 'string' ? record.systemPrompt : undefined;
       const userPrompt = typeof record.userPrompt === 'string' ? record.userPrompt : undefined;
       const textFormat = typeof record.textFormat === 'string' ? record.textFormat : undefined;
@@ -342,9 +331,6 @@ function resolveModelSelections(
         namespacePath: resolved.namespacePath,
         inputs,
         outputs,
-        promptFile,
-        outputSchema,
-        inputSchema,
         systemPrompt,
         userPrompt,
         textFormat,

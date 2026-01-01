@@ -35,8 +35,6 @@ models:
   - model: gpt-5-mini
     provider: openai
     producerId: DocProducer
-    promptFile: ../../producers/documentary-prompt/documentary-prompt.toml
-    outputSchema: ../../producers/documentary-prompt/documentary-prompt-output.json
     config:
       text_format: json_schema
   - model: timeline/ordered
