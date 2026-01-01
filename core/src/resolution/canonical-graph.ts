@@ -269,10 +269,53 @@ function createDimensionSymbolsFromDerived(dims: string[]): DimensionSymbol[] {
   return dims.map((raw, ordinal) => ({ raw, ordinal }));
 }
 
+/**
+ * Normalize a node path to its "dimension source key" by extracting the path
+ * up to and including the last indexed segment (e.g., `[segment]`).
+ *
+ * This ensures that sibling fields from the same array element share the same
+ * dimension source, preventing false conflicts like:
+ * - `Segments[segment].TalkingHeadText` vs `Segments[segment].TalkingHeadPrompt`
+ *
+ * Examples:
+ * - `DocProducer.VideoScript.Segments[segment].TalkingHeadText` → `DocProducer.VideoScript.Segments[segment]`
+ * - `DocProducer.VideoScript.Segments[segment]` → `DocProducer.VideoScript.Segments[segment]`
+ * - `ImageProducer.SegmentImage` → `ImageProducer.SegmentImage` (no index, unchanged)
+ */
+function normalizeDimensionSourceKey(nodeId: string): string {
+  // Find the last occurrence of a bracket-enclosed index like [segment] or [0]
+  const lastIndexMatch = nodeId.match(/^(.*\[[^\]]+\])/);
+  if (lastIndexMatch) {
+    return lastIndexMatch[1];
+  }
+  // No indexed segment found, return as-is
+  return nodeId;
+}
+
+/**
+ * Extract the dimension source key from a fully qualified dimension symbol.
+ *
+ * Dimension symbols have the format: `<nodeId>::<scope>:<scopeKey>:<ordinal>:<raw>`
+ * This function extracts the `<scope>:<scopeKey>:<ordinal>:<raw>` portion,
+ * which represents the actual dimension source independent of the specific field.
+ *
+ * Example:
+ * - Input: `DocProducer.VideoScript.Segments[segment].TalkingHeadText::local:DocProducer.VideoScript.Segments[segment]:0:segment`
+ * - Output: `local:DocProducer.VideoScript.Segments[segment]:0:segment`
+ */
+function extractDimensionSourceKey(dimensionSymbol: string): string {
+  const separatorIndex = dimensionSymbol.indexOf('::');
+  if (separatorIndex === -1) {
+    return dimensionSymbol;
+  }
+  return dimensionSymbol.slice(separatorIndex + 2);
+}
+
 function toLocalSlots(nodeId: string, symbols: DimensionSymbol[]): DimensionSlot[] {
+  const normalizedKey = normalizeDimensionSourceKey(nodeId);
   return symbols.map((symbol) => ({
     scope: 'local',
-    scopeKey: nodeId,
+    scopeKey: normalizedKey,
     ordinal: symbol.ordinal,
     raw: symbol.raw,
   }));
@@ -498,13 +541,29 @@ function resolveNamespaceDimensionParents(
       if (sourceNamespace === namespaceKey) {
         continue;
       }
+      // Extract the dimension source key (scope:scopeKey:ordinal:raw) for comparison
+      // This allows sibling fields from the same array to share the same parent
+      const sourceDimKey = extractDimensionSourceKey(sourceSymbol);
       const existing = namespaceParents.get(namespaceKey);
-      if (existing && existing !== sourceSymbol) {
-        throw new Error(
-          `Namespace dimension "${namespaceKey}" derives from conflicting parents (${existing} vs ${sourceSymbol}).`,
-        );
+      if (!existing) {
+        // First parent - set it for lineage tracking
+        namespaceParents.set(namespaceKey, sourceSymbol);
+      } else {
+        // Check if this new source is compatible with the existing parent
+        const existingDimKey = extractDimensionSourceKey(existing);
+        // Extract loop symbol names (the "raw" part after the final colon)
+        // Format: scope:scopeKey:ordinal:raw
+        const sourceLoopSymbol = sourceDimKey.split(':').pop() ?? '';
+        const existingLoopSymbol = existingDimKey.split(':').pop() ?? '';
+        // If loop symbols match, they refer to the same conceptual loop and are compatible
+        // If they differ, we have a real conflict
+        if (sourceLoopSymbol !== existingLoopSymbol) {
+          throw new Error(
+            `Namespace dimension "${namespaceKey}" derives from conflicting parents (${existing} vs ${sourceSymbol}).`,
+          );
+        }
+        // Same loop symbol - compatible, keep the first parent for lineage
       }
-      namespaceParents.set(namespaceKey, sourceSymbol);
     }
   }
 }

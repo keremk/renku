@@ -53,7 +53,8 @@
       "Bash(pnpm test:e2e:*)",
       "Bash(pnpm --filter @gorenku/core vitest run:*)",
       "Bash(pnpm build:*)",
-      "WebFetch(domain:flystorage.dev)"
+      "WebFetch(domain:flystorage.dev)",
+      "Bash(pnpm build:cli:*)"
     ],
     "deny": [],
     "ask": []

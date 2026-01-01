@@ -175,6 +175,8 @@ function computeArtefactProducers(
   nodeMap: Map<string, CanonicalBlueprint['nodes'][number]>,
 ): Map<string, string> {
   const map = new Map<string, string>();
+
+  // First pass: capture direct Producer -> Artifact edges
   for (const edge of canonical.edges) {
     const fromNode = nodeMap.get(edge.from);
     const toNode = nodeMap.get(edge.to);
@@ -185,6 +187,39 @@ function computeArtefactProducers(
       map.set(edge.to, edge.from);
     }
   }
+
+  // Build artifact-to-artifact edge lookup for chain resolution
+  const artifactAliases = new Map<string, string>();
+  for (const edge of canonical.edges) {
+    const fromNode = nodeMap.get(edge.from);
+    const toNode = nodeMap.get(edge.to);
+    if (!fromNode || !toNode) {
+      continue;
+    }
+    // Track Artifact -> Artifact edges (e.g., producer output -> blueprint artifact)
+    if (fromNode.type === 'Artifact' && toNode.type === 'Artifact') {
+      artifactAliases.set(edge.to, edge.from);
+    }
+  }
+
+  // Second pass: resolve chains transitively
+  // If ArtifactB is written from ArtifactA, and ArtifactA is produced by ProducerX,
+  // then ArtifactB is also produced by ProducerX
+  for (const [artifactId, sourceArtifactId] of artifactAliases) {
+    let current = sourceArtifactId;
+    const visited = new Set<string>();
+    while (current && !visited.has(current)) {
+      visited.add(current);
+      const producer = map.get(current);
+      if (producer) {
+        map.set(artifactId, producer);
+        break;
+      }
+      // Follow the chain
+      current = artifactAliases.get(current) ?? '';
+    }
+  }
+
   return map;
 }
 
