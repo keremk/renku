@@ -60,7 +60,7 @@ models:
     provider: renku
     producerId: TimelineComposer
     config:
-      tracks: ["Image", "Audio"]
+      tracks: ["Image", "Video", "Audio"]
       masterTracks: ["Audio", "Video"]
       numTracks: 2
       imageClip:
