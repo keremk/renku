@@ -1,0 +1,24 @@
+meta:
+  name: Video Generator
+  description: Generates a video from multiple inputs.
+  id: VideoGenerator
+  version: 0.1.0
+
+inputs:
+  - name: Prompt
+    description: The prompt for video generation.
+    type: string
+    required: true
+  - name: Description
+    description: Additional description for the video.
+    type: string
+    required: true
+  - name: ThumbnailImage
+    description: Thumbnail image for the video.
+    type: image
+    required: true
+
+artifacts:
+  - name: GeneratedVideo
+    description: The generated video.
+    type: video

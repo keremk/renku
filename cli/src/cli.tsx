@@ -66,7 +66,7 @@ import { detectViewerAddress } from './lib/viewer-network.js';
 
 
 const cli = meow(
-  `\nUsage\n  $ renku <command> [options]\n\nCommands\n  install             Guided setup (alias for init)\n  init                Initialize Renku CLI configuration (requires --root-folder/--root)\n  generate            Create or continue a movie generation\n  export              Export a movie to MP4 video format\n  clean               Remove friendly view and build artefacts for a movie\n  viewer:start        Start the bundled viewer server in the foreground\n  viewer:view         Open the viewer for a movie id (starts server if needed)\n  viewer:stop         Stop the background viewer server\n  producers:list      List all available models for producers in a blueprint\n  blueprints:list     List available blueprint YAML files\n  blueprints:describe <path>  Show details for a blueprint YAML file\n  blueprints:validate <path>  Validate a blueprint YAML file\n  mcp                 Run the Renku MCP server over stdio\n\nExamples\n  $ renku init --root-folder=~/media/renku\n  $ renku init --root=~/media/renku          # Short form of --root-folder\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml --concurrency=3\n  $ renku generate --last --up-to-layer=1\n  $ renku export --movie-id=abc123\n  $ renku export --last --width=1920 --height=1080 --fps=30\n  $ renku producers:list --blueprint=image-audio.yaml\n  $ renku blueprints:list\n  $ renku blueprints:describe audio-only.yaml\n  $ renku blueprints:validate image-audio.yaml\n  $ renku clean --movie-id=movie-q123456\n  $ renku viewer:start\n  $ renku viewer:view --movie-id=movie-q123456\n  $ renku viewer:view --last\n  $ renku mcp --defaultBlueprint=image-audio.yaml\n`,
+  `\nUsage\n  $ renku <command> [options]\n\nCommands\n  install             Guided setup (alias for init)\n  init                Initialize Renku CLI configuration (requires --root-folder/--root)\n  generate            Create or continue a movie generation\n  export              Export a movie to MP4/MP3 (--exporter=remotion|ffmpeg)\n  clean               Remove friendly view and build artefacts for a movie\n  viewer:start        Start the bundled viewer server in the foreground\n  viewer:view         Open the viewer for a movie id (starts server if needed)\n  viewer:stop         Stop the background viewer server\n  producers:list      List all available models for producers in a blueprint\n  blueprints:list     List available blueprint YAML files\n  blueprints:describe <path>  Show details for a blueprint YAML file\n  blueprints:validate <path>  Validate a blueprint YAML file\n  mcp                 Run the Renku MCP server over stdio\n\nExamples\n  $ renku init --root-folder=~/media/renku\n  $ renku init --root=~/media/renku          # Short form of --root-folder\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml --concurrency=3\n  $ renku generate --last --up-to-layer=1\n  $ renku export --movie-id=abc123\n  $ renku export --last --width=1920 --height=1080 --fps=30\n  $ renku export --last --exporter=ffmpeg\n  $ renku producers:list --blueprint=image-audio.yaml\n  $ renku blueprints:list\n  $ renku blueprints:describe audio-only.yaml\n  $ renku blueprints:validate image-audio.yaml\n  $ renku clean --movie-id=movie-q123456\n  $ renku viewer:start\n  $ renku viewer:view --movie-id=movie-q123456\n  $ renku viewer:view --last\n  $ renku mcp --defaultBlueprint=image-audio.yaml\n`,
   {
     importMeta: import.meta,
     flags: {
@@ -96,6 +96,7 @@ const cli = meow(
       width: { type: 'number' },
       height: { type: 'number' },
       fps: { type: 'number' },
+      exporter: { type: 'string' },
     },
   },
 );
@@ -132,6 +133,7 @@ async function main(): Promise<void> {
     width?: number;
     height?: number;
     fps?: number;
+    exporter?: string;
   };
   const logger = globalThis.console;
 
@@ -452,18 +454,29 @@ async function main(): Promise<void> {
         return;
       }
 
+      // Validate exporter flag
+      const exporterFlag = flags.exporter;
+      if (exporterFlag && exporterFlag !== 'remotion' && exporterFlag !== 'ffmpeg') {
+        logger.error('Error: --exporter must be "remotion" or "ffmpeg".');
+        process.exitCode = 1;
+        return;
+      }
+
       try {
-        logger.info('Starting export...');
+        const exporterType = exporterFlag === 'ffmpeg' ? 'ffmpeg' : 'remotion';
+        logger.info(`Starting export with ${exporterType} exporter...`);
         const result = await runExport({
           movieId: movieIdFlag,
           useLast: Boolean(flags.last),
           width: flags.width,
           height: flags.height,
           fps: flags.fps,
+          exporter: exporterType,
         });
         logger.info('Export completed successfully.');
         logger.info(`  Movie: ${result.movieId}`);
         logger.info(`  Output: ${result.friendlyPath}`);
+        logger.info(`  Exporter: ${result.exporter}`);
         logger.info(`  Resolution: ${result.width}x${result.height} @ ${result.fps}fps`);
       } catch (error) {
         logger.error(`Error: ${error instanceof Error ? error.message : String(error)}`);

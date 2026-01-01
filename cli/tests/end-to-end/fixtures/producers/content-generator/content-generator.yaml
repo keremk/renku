@@ -1,0 +1,21 @@
+meta:
+  name: Content Generator
+  description: Generates content script with segments.
+  id: ContentGenerator
+  version: 0.1.0
+
+inputs:
+  - name: Topic
+    description: The topic for content generation.
+    type: string
+    required: true
+  - name: NumOfSegments
+    description: Number of segments to generate.
+    type: int
+    required: true
+
+artifacts:
+  - name: Script
+    description: Generated script with segments.
+    type: json
+    schema: content-generator-output.json

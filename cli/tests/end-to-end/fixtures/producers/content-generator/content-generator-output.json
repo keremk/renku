@@ -1,0 +1,38 @@
+{
+  "name": "Script",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "Title": {
+        "type": "string",
+        "description": "The title of the content."
+      },
+      "Segments": {
+        "type": "array",
+        "description": "Array of content segments.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "ImagePrompt": {
+              "type": "string",
+              "description": "Prompt for generating the segment image."
+            },
+            "VideoPrompt": {
+              "type": "string",
+              "description": "Prompt for generating the segment video."
+            },
+            "VideoDescription": {
+              "type": "string",
+              "description": "Description for the segment video."
+            }
+          },
+          "required": ["ImagePrompt", "VideoPrompt", "VideoDescription"],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": ["Title", "Segments"],
+    "additionalProperties": false
+  }
+}

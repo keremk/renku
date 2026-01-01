@@ -13,12 +13,15 @@ const DEFAULT_FPS = 30;
 const OUTPUT_FILENAME = 'FinalVideo.mp4';
 const TIMELINE_ARTEFACT_ID = 'Artifact:TimelineComposer.Timeline';
 
+export type ExporterType = 'remotion' | 'ffmpeg';
+
 export interface ExportOptions {
   movieId?: string;
   useLast?: boolean;
   width?: number;
   height?: number;
   fps?: number;
+  exporter?: ExporterType;
 }
 
 export interface ExportResult {
@@ -28,6 +31,7 @@ export interface ExportResult {
   width: number;
   height: number;
   fps: number;
+  exporter: ExporterType;
 }
 
 export async function runExport(options: ExportOptions): Promise<ExportResult> {
@@ -61,6 +65,7 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
   const width = options.width ?? DEFAULT_WIDTH;
   const height = options.height ?? DEFAULT_HEIGHT;
   const fps = options.fps ?? DEFAULT_FPS;
+  const exporter: ExporterType = options.exporter ?? 'remotion';
   const outputPath = resolve(
     cliConfig.storage.root,
     cliConfig.storage.basePath,
@@ -77,10 +82,11 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
     : undefined;
   const registry = createProviderRegistry({ mode: 'live', catalog });
 
-  // Resolve MP4 Exporter handler
+  // Resolve exporter handler based on type
+  const exporterModel = exporter === 'ffmpeg' ? 'ffmpeg/native-render' : 'remotion/docker-render';
   const handler = registry.resolve({
     provider: 'renku',
-    model: 'Mp4Exporter',
+    model: exporterModel,
     environment: 'local',
   });
 
@@ -91,7 +97,7 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
   const response = await handler.invoke({
     jobId: `export-${Date.now()}`,
     provider: 'renku',
-    model: 'Mp4Exporter',
+    model: exporterModel,
     revision: manifest.revision,
     layerIndex: 0,
     attempt: 1,
@@ -133,6 +139,7 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
     width,
     height,
     fps,
+    exporter,
   };
 }
 

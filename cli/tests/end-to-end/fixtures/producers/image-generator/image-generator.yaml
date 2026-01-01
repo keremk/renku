@@ -1,0 +1,16 @@
+meta:
+  name: Image Generator
+  description: Generates an image from a prompt.
+  id: ImageGenerator
+  version: 0.1.0
+
+inputs:
+  - name: Prompt
+    description: The prompt for image generation.
+    type: string
+    required: true
+
+artifacts:
+  - name: GeneratedImage
+    description: The generated image.
+    type: image

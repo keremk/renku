@@ -1,0 +1,22 @@
+inputs:
+  Topic: "Test topic for multi-looped inputs"
+  NumOfSegments: 3
+
+models:
+  - model: gpt-test
+    provider: openai
+    producerId: ContentGenerator
+    config:
+      text_format: json_schema
+  - model: test-image-model
+    provider: replicate
+    producerId: ImageGenerator
+    inputs:
+      Prompt: prompt
+  - model: test-video-model
+    provider: replicate
+    producerId: VideoGenerator
+    inputs:
+      Prompt: prompt
+      Description: description
+      ThumbnailImage: image

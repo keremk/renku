@@ -1,0 +1,70 @@
+meta:
+  name: Multi-Looped Inputs Test
+  description: Tests producers receiving looped inputs from multiple sources (sibling fields + artifacts).
+  id: MultiLoopedInputs
+  version: 0.1.0
+
+inputs:
+  - name: Topic
+    description: The topic for content generation.
+    type: string
+    required: true
+  - name: NumOfSegments
+    description: Number of segments.
+    type: int
+    required: true
+
+artifacts:
+  - name: GeneratedImage
+    description: Generated images per segment.
+    type: array
+    itemType: image
+  - name: FinalVideo
+    description: Final video per segment.
+    type: array
+    itemType: video
+
+loops:
+  - name: segment
+    countInput: NumOfSegments
+
+producers:
+  - name: ContentGenerator
+    path: ./producers/content-generator/content-generator.yaml
+  - name: ImageGenerator
+    path: ./producers/image-generator/image-generator.yaml
+    loop: segment
+  - name: VideoGenerator
+    path: ./producers/video-generator/video-generator.yaml
+    loop: segment
+
+connections:
+  # ContentGenerator receives the topic
+  - from: Topic
+    to: ContentGenerator.Topic
+  - from: NumOfSegments
+    to: ContentGenerator.NumOfSegments
+
+  # ImageGenerator receives prompt from ContentGenerator
+  - from: ContentGenerator.Script.Segments[segment].ImagePrompt
+    to: ImageGenerator[segment].Prompt
+
+  # Write ImageGenerator output to artifact
+  - from: ImageGenerator[segment].GeneratedImage
+    to: GeneratedImage[segment]
+
+  # VideoGenerator receives MULTIPLE looped inputs from the SAME array segment
+  # This tests the sibling field dimension unification
+  - from: ContentGenerator.Script.Segments[segment].VideoPrompt
+    to: VideoGenerator[segment].Prompt
+  - from: ContentGenerator.Script.Segments[segment].VideoDescription
+    to: VideoGenerator[segment].Description
+
+  # VideoGenerator also receives input from another producer's output (different dimension source)
+  # This tests cross-producer dimension alignment
+  - from: GeneratedImage[segment]
+    to: VideoGenerator[segment].ThumbnailImage
+
+  # Write VideoGenerator output to artifact
+  - from: VideoGenerator[segment].GeneratedVideo
+    to: FinalVideo[segment]
