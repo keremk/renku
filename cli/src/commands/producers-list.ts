@@ -6,9 +6,8 @@ import {
   type ProviderDescriptor,
   type ProducerModelEntry,
 } from '@gorenku/providers';
-import { formatProducerAlias } from '@gorenku/core';
+import { formatProducerAlias, collectVariants } from '@gorenku/core';
 import { loadBlueprintBundle } from '../lib/blueprint-loader/index.js';
-import { collectVariants } from '../lib/producer-options.js';
 import { expandPath } from '../lib/path.js';
 import { getDefaultCliConfigPath, readCliConfig } from '../lib/cli-config.js';
 

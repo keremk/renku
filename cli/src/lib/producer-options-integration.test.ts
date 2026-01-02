@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { resolve } from 'node:path';
 import { loadBlueprintBundle } from './blueprint-loader/index.js';
-import { buildProducerOptionsFromBlueprint } from './producer-options.js';
-import type { ModelSelection } from './producer-options.js';
-import type { BlueprintTreeNode } from '@gorenku/core';
+import {
+  buildProducerOptionsFromBlueprint,
+  type ModelSelection,
+  type BlueprintTreeNode,
+} from '@gorenku/core';
 import { CATALOG_BLUEPRINTS_ROOT } from '../../tests/test-catalog-paths.js';
 
 describe('producer options', () => {

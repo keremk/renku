@@ -1,6 +1,5 @@
-import { parseQualifiedProducerName, formatProducerScopedInputId } from '@gorenku/core';
+import { parseQualifiedProducerName, formatProducerScopedInputId, type ProducerOptionsMap } from '@gorenku/core';
 import type { InputMap } from './input-loader.js';
-import type { ProducerOptionsMap } from './producer-options.js';
 
 export function applyProviderDefaults(values: InputMap, options: ProducerOptionsMap): void {
   for (const [key, entries] of options) {

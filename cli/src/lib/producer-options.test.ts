@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   buildProducerOptionsFromBlueprint,
   collectVariants,
-} from './producer-options.js';
-import type { BlueprintTreeNode, ProducerConfig, ModelSelection } from '@gorenku/core';
+  type BlueprintTreeNode,
+  type ProducerConfig,
+  type ModelSelection,
+} from '@gorenku/core';
 
 // Helper to create a minimal blueprint tree node
 function createBlueprintNode(

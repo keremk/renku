@@ -2,6 +2,8 @@ import type {
   ArtefactEventStatus,
   ProducedArtefact,
   ProviderName,
+  ProviderEnvironment,
+  ProviderAttachment,
   RevisionId,
   Logger,
   StorageContext,
@@ -9,7 +11,9 @@ import type {
 import type { SchemaRegistry } from './schema-registry.js';
 
 export type ProviderMode = 'mock' | 'live' | 'simulated';
-export type ProviderEnvironment = 'local' | 'cloud';
+
+// Re-export from core for backward compatibility
+export type { ProviderEnvironment, ProviderAttachment } from '@gorenku/core';
 
 export interface ProviderDescriptor {
   provider: ProviderName;
@@ -21,12 +25,6 @@ export interface ProviderVariantMatch {
   provider: ProviderName | '*';
   model: string | '*';
   environment: ProviderEnvironment | '*';
-}
-
-export interface ProviderAttachment {
-  name: string;
-  contents: string;
-  format: 'json' | 'toml' | 'text';
 }
 
 export interface ProviderContextPayload {

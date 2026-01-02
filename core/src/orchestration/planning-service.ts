@@ -18,18 +18,18 @@ import type {
   ArtefactEventStatus,
   BlueprintTreeNode,
   BlueprintProducerOutputDefinition,
-  BlueprintProducerSdkMappingField,
   ExecutionPlan,
   InputEvent,
   InputEventSource,
   JsonSchemaDefinition,
+  MappingFieldDefinition,
   Manifest,
   ProducerCatalog,
   RevisionId,
 } from '../types.js';
 
 export type ProviderOptionEntry = {
-  sdkMapping?: Record<string, BlueprintProducerSdkMappingField>;
+  sdkMapping?: Record<string, MappingFieldDefinition>;
   outputs?: Record<string, BlueprintProducerOutputDefinition>;
   inputSchema?: string;
   outputSchema?: string;

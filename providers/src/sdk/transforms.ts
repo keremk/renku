@@ -157,6 +157,7 @@ export function setNestedValue(
 
 /**
  * Evaluates a condition against the transform context.
+ * @throws Error if condition has no valid operator (equals, notEmpty, empty)
  */
 function evaluateCondition(condition: MappingCondition, context: TransformContext): boolean {
   const canonicalId = context.inputBindings[condition.input];
@@ -177,8 +178,11 @@ function evaluateCondition(condition: MappingCondition, context: TransformContex
     return value === undefined || value === null || value === '';
   }
 
-  // No condition specified, default to true
-  return true;
+  // No valid condition operator - this is likely a configuration error
+  throw new Error(
+    `Invalid condition for input "${condition.input}": ` +
+    `must specify one of "equals", "notEmpty", or "empty".`
+  );
 }
 
 /**

@@ -941,6 +941,20 @@ function parseMappingValue(raw: unknown, context: string): MappingValue {
     result.durationToFrames = { fps: dtf.fps };
   }
 
+  // Validate: mapping must have at least one of: field, expand, combine, or conditional
+  // (combine and conditional implicitly provide output targets)
+  const hasOutputTarget =
+    result.field !== undefined ||
+    result.expand === true ||
+    result.combine !== undefined ||
+    result.conditional !== undefined;
+
+  if (!hasOutputTarget) {
+    throw new Error(
+      `Invalid mapping at "${context}": must specify "field", "expand", "combine", or "conditional".`
+    );
+  }
+
   return result;
 }
 

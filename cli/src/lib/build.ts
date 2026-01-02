@@ -32,7 +32,7 @@ import {
 } from '@gorenku/providers';
 import type { CliConfig } from './cli-config.js';
 import { normalizeConcurrency } from './cli-config.js';
-import type { ProducerOptionsMap, LoadedProducerOption } from './producer-options.js';
+import type { ProducerOptionsMap, LoadedProducerOption } from '@gorenku/core';
 import { executePlanWithConcurrency } from './plan-runner.js';
 import chalk from 'chalk';
 

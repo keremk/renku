@@ -29,8 +29,7 @@ import {
 import type { CliConfig } from './cli-config.js';
 import { loadBlueprintBundle } from './blueprint-loader/index.js';
 import { loadInputsFromYaml } from './input-loader.js';
-import { buildProducerCatalog, type ProducerOptionsMap } from './producer-options.js';
-import type { ProviderOptionEntry } from '@gorenku/core';
+import { buildProducerCatalog, type ProducerOptionsMap, type ProviderOptionEntry } from '@gorenku/core';
 import { expandPath } from './path.js';
 import { mergeMovieMetadata } from './movie-metadata.js';
 import { applyProviderDefaults } from './provider-defaults.js';

@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { loadBlueprintBundle } from '../../src/lib/blueprint-loader/index.js';
-import { buildProducerOptionsFromBlueprint } from '../../src/lib/producer-options.js';
+import { buildProducerOptionsFromBlueprint } from '@gorenku/core';
 import { CATALOG_BLUEPRINTS_ROOT } from '../test-catalog-paths.js';
 
 describe('integration: provider config merging', () => {

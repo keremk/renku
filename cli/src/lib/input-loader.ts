@@ -1,12 +1,13 @@
 import { dirname } from 'node:path';
-import type { BlueprintTreeNode } from '@gorenku/core';
 import {
   loadInputsFromYaml as coreLoadInputsFromYaml,
+  buildProducerOptionsFromBlueprint,
+  type BlueprintTreeNode,
   type InputMap,
   type ModelSelection,
   type ArtifactOverride,
+  type ProducerOptionsMap,
 } from '@gorenku/core';
-import { buildProducerOptionsFromBlueprint, type ProducerOptionsMap } from './producer-options.js';
 
 export interface LoadedInputs {
   values: InputMap;

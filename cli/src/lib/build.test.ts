@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createProviderProduce } from './build.js';
-import type { LoadedProducerOption } from './producer-options.js';
+import type { LoadedProducerOption } from '@gorenku/core';
 import type {
 	ProviderRegistry,
 	ProducerHandler,

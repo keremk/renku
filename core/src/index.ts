@@ -8,6 +8,7 @@ export * from './manifest.js';
 export * from './hashing.js';
 export * from './planning/planner.js';
 export * from './orchestration/planning-service.js';
+export * from './orchestration/producer-options.js';
 export * from './provider-context.js';
 export * from './revisions.js';
 export * from './runner.js';

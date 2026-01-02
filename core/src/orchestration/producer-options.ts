@@ -4,22 +4,18 @@ import { parse as parseToml } from 'smol-toml';
 import type {
   BlueprintMeta,
   BlueprintTreeNode,
+  MappingFieldDefinition,
   ProducerCatalog,
   ProducerCatalogEntry,
   ProducerConfig,
   ProducerModelVariant,
   BlueprintProducerOutputDefinition,
-  BlueprintProducerSdkMappingField,
-} from '@gorenku/core';
-import { formatProducerAlias, resolveMappingsForModel } from '@gorenku/core';
-import type {
   ProviderAttachment,
   ProviderEnvironment,
-} from '@gorenku/providers';
-
-// Re-export ModelSelection from core for consumers
-export type { ModelSelection } from '@gorenku/core';
-import type { ModelSelection } from '@gorenku/core';
+} from '../types.js';
+import { formatProducerAlias } from '../parsing/canonical-ids.js';
+import { resolveMappingsForModel } from '../resolution/mapping-resolver.js';
+import type { ModelSelection } from '../parsing/input-loader.js';
 
 interface PromptConfig {
   model?: string;
@@ -40,7 +36,7 @@ export interface LoadedProducerOption {
   attachments: ProviderAttachment[];
   sourcePath?: string;
   customAttributes?: Record<string, unknown>;
-  sdkMapping?: Record<string, BlueprintProducerSdkMappingField>;
+  sdkMapping?: Record<string, MappingFieldDefinition>;
   outputs?: Record<string, BlueprintProducerOutputDefinition>;
   inputSchema?: string;
   outputSchema?: string;
@@ -120,7 +116,7 @@ function toLoadedOption(
     provider: string;
     model: string;
     config?: Record<string, unknown>;
-    sdkMapping?: Record<string, unknown>;
+    sdkMapping?: Record<string, MappingFieldDefinition>;
     outputs?: Record<string, unknown>;
     inputSchema?: string;
     outputSchema?: string;
@@ -143,7 +139,7 @@ function toLoadedOption(
     attachments: [],
     sourcePath: namespacedName,
     customAttributes: undefined,
-    sdkMapping: variant.sdkMapping as Record<string, BlueprintProducerSdkMappingField> | undefined,
+    sdkMapping: variant.sdkMapping,
     outputs: variant.outputs as Record<string, BlueprintProducerOutputDefinition> | undefined,
     inputSchema: variant.inputSchema,
     outputSchema: variant.outputSchema,
@@ -197,7 +193,7 @@ export interface CollectedVariant {
   provider: string;
   model: string;
   config?: Record<string, unknown>;
-  sdkMapping?: Record<string, BlueprintProducerSdkMappingField>;
+  sdkMapping?: Record<string, MappingFieldDefinition>;
   outputs?: Record<string, BlueprintProducerOutputDefinition>;
   inputSchema?: string;
   outputSchema?: string;
@@ -216,7 +212,7 @@ export function collectVariants(producer: ProducerConfig): CollectedVariant[] {
       provider: variant.provider,
       model: variant.model,
       config: buildVariantConfig(variant),
-      sdkMapping: variant.inputs as Record<string, BlueprintProducerSdkMappingField> | undefined,
+      sdkMapping: variant.inputs as Record<string, MappingFieldDefinition> | undefined,
       outputs: variant.outputs as Record<string, BlueprintProducerOutputDefinition> | undefined,
       inputSchema: variant.inputSchema,
       outputSchema: variant.outputSchema,
@@ -232,7 +228,7 @@ export function collectVariants(producer: ProducerConfig): CollectedVariant[] {
         provider: producer.provider,
         model: producer.model,
         config: producerConfig,
-        sdkMapping: producer.sdkMapping,
+        sdkMapping: producer.sdkMapping as Record<string, MappingFieldDefinition> | undefined,
         outputs: producer.outputs,
         inputSchema: producer.jsonSchema,
         configInputPaths: flattenConfigKeys(producerConfig ?? {}),
@@ -465,18 +461,13 @@ function resolveSdkMappingFromProducer(
   producerId: string,
   provider: string,
   model: string,
-): Record<string, BlueprintProducerSdkMappingField> | undefined {
+): Record<string, MappingFieldDefinition> | undefined {
   const resolved = resolveMappingsForModel(rootBlueprint, {
     provider,
     model,
     producerId,
   });
-  if (!resolved) {
-    return undefined;
-  }
-  // Convert MappingFieldDefinition to BlueprintProducerSdkMappingField
-  // They are structurally compatible - MappingFieldDefinition is a superset
-  return resolved as unknown as Record<string, BlueprintProducerSdkMappingField>;
+  return resolved ?? undefined;
 }
 
 export function buildProducerCatalog(

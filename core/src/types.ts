@@ -35,6 +35,16 @@ export type ProducerKind = string;
 
 export type ProviderName = string;
 
+/** Environment where the provider runs */
+export type ProviderEnvironment = 'local' | 'cloud';
+
+/** An attachment to pass additional data to a provider */
+export interface ProviderAttachment {
+  name: string;
+  contents: string;
+  format: 'json' | 'toml' | 'text';
+}
+
 export interface Producer {
   id: Id;
   kind: ProducerKind;
@@ -240,7 +250,8 @@ export interface BlueprintArtefactDefinition {
 }
 
 export interface BlueprintProducerSdkMappingField {
-  field: string;
+  /** Target API field name. Optional when using expand:true */
+  field?: string;
   type?: string;
   /**
    * Value transformation mapping. Maps input values to model-specific values.
