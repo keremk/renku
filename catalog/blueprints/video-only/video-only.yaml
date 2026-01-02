@@ -62,7 +62,7 @@ producers:
   - name: VideoPromptProducer
     path: ../../producers/video-prompt/video-prompt.yaml
   - name: VideoProducer
-    path: ../../producers/video/video.yaml
+    path: ../../producers/text-to-video/text-to-video.yaml
     loop: segment
 
 connections:
@@ -95,7 +95,7 @@ connections:
   - from: AspectRatio
     to: VideoProducer[segment].AspectRatio
   - from: SegmentDuration
-    to: VideoProducer[segment].SegmentDuration
+    to: VideoProducer[segment].Duration
 
-  - from: VideoProducer[segment].SegmentVideo
+  - from: VideoProducer[segment].GeneratedVideo
     to: SegmentVideo[segment]

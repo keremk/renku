@@ -84,13 +84,13 @@ producers:
   - name: FlowVideoPromptProducer
     path: ../../producers/flow-video-prompt/flow-video-prompt.yaml
   - name: ImageProducer
-    path: ../../producers/image/image.yaml
+    path: ../../producers/text-to-image/text-to-image.yaml
     loop: segment
   - name: ImageToVideoProducer
     path: ../../producers/image-to-video/image-to-video.yaml
     loop: segment
   - name: AudioProducer
-    path: ../../producers/audio/audio.yaml
+    path: ../../producers/text-to-speech/text-to-speech.yaml
     loop: segment
   - name: TimelineComposer
     path: ../../producers/timeline-composer/timeline-composer.yaml
@@ -112,36 +112,36 @@ connections:
   - from: FlowVideoPromptProducer.ImagePrompts[image]
     to: ImageProducer[image].Prompt
   - from: Size
-    to: ImageProducer[image].Size
+    to: ImageProducer[image].Resolution
   - from: AspectRatio
     to: ImageProducer[image].AspectRatio
-  
+
   - from: FlowVideoPromptProducer.VideoPrompts[segment]
     to: ImageToVideoProducer[segment].Prompt
-  - from: ImageProducer[image].SegmentImage
-    to: ImageToVideoProducer[segment].InputImage1
-  - from: ImageProducer[image+1].SegmentImage
-    to: ImageToVideoProducer[segment].InputImage2
+  - from: ImageProducer[image].GeneratedImage
+    to: ImageToVideoProducer[segment].StartImage
+  - from: ImageProducer[image+1].GeneratedImage
+    to: ImageToVideoProducer[segment].EndImage
   - from: AspectRatio
     to: ImageToVideoProducer[segment].AspectRatio
   - from: Resolution
     to: ImageToVideoProducer[segment].Resolution
   - from: SegmentDuration
-    to: ImageToVideoProducer[segment].SegmentDuration
-  - from: ImageToVideoProducer[segment].SegmentVideo
+    to: ImageToVideoProducer[segment].Duration
+  - from: ImageToVideoProducer[segment].GeneratedVideo
     to: SegmentVideo[segment]
-  - from: ImageToVideoProducer[segment].SegmentVideo
+  - from: ImageToVideoProducer[segment].GeneratedVideo
     to: TimelineComposer.VideoSegments
 
   - from: FlowVideoPromptProducer.NarrationScript[segment]
-    to: AudioProducer[segment].TextInput
+    to: AudioProducer[segment].Text
   - from: VoiceId
     to: AudioProducer[segment].VoiceId
   - from: Emotion
     to: AudioProducer[segment].Emotion
-  - from: AudioProducer[segment].SegmentAudio
+  - from: AudioProducer[segment].GeneratedAudio
     to: SegmentAudio[segment]
-  - from: AudioProducer[segment].SegmentAudio
+  - from: AudioProducer[segment].GeneratedAudio
     to: TimelineComposer.AudioSegments
 
   - from: Duration
@@ -151,10 +151,10 @@ connections:
 
 collectors:
   - name: TimelineVideo
-    from: ImageToVideoProducer[segment].SegmentVideo
+    from: ImageToVideoProducer[segment].GeneratedVideo
     into: TimelineComposer.VideoSegments
     groupBy: segment
   - name: TimelineAudio
-    from: AudioProducer[segment].SegmentAudio
+    from: AudioProducer[segment].GeneratedAudio
     into: TimelineComposer.AudioSegments
     groupBy: segment

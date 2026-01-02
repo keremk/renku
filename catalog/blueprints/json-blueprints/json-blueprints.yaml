@@ -53,7 +53,7 @@ producers:
   - name: DocProducer
     path: ../../producers/documentary-prompt/documentary-prompt.yaml
   - name: ImageProducer
-    path: ../../producers/image/image.yaml
+    path: ../../producers/text-to-image/text-to-image.yaml
     loop: segment.image
   - name: TimelineComposer
     path: ../../producers/timeline-composer/timeline-composer.yaml
@@ -77,14 +77,14 @@ connections:
   - from: AspectRatio
     to: ImageProducer[segment][image].AspectRatio
   - from: Size
-    to: ImageProducer[segment][image].Size
+    to: ImageProducer[segment][image].Resolution
 
   # Wire ImageProducer outputs to TimelineComposer
-  - from: ImageProducer[segment][image].SegmentImage
+  - from: ImageProducer[segment][image].GeneratedImage
     to: TimelineComposer.ImageSegments
 
   # Wire outputs to blueprint artifacts
-  - from: ImageProducer[segment][image].SegmentImage
+  - from: ImageProducer[segment][image].GeneratedImage
     to: SegmentImage[segment][image]
 
   - from: Duration
@@ -94,7 +94,7 @@ connections:
 
 collectors:
   - name: TimelineImages
-    from: ImageProducer[segment][image].SegmentImage
+    from: ImageProducer[segment][image].GeneratedImage
     into: TimelineComposer.ImageSegments
     groupBy: segment
     orderBy: image

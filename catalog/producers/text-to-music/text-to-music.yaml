@@ -57,7 +57,7 @@ mappings:
       Bitrate: bitrate
 
     # Stability AI Stable Audio 2.5
-    stability-ai/stable-audio-2-5:
+    stability-ai/stable-audio-2.5:
       Prompt: prompt
       Duration: duration
       Steps: steps

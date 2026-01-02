@@ -89,15 +89,15 @@ producers:
     path: ../../producers/video-prompt/video-prompt.yaml
     loop: segment
   - name: VideoProducer
-    path: ../../producers/video/video.yaml  
+    path: ../../producers/text-to-video/text-to-video.yaml
     loop: segment
   - name: AudioProducer
-    path: ../../producers/audio/audio.yaml
+    path: ../../producers/text-to-speech/text-to-speech.yaml
     loop: segment
   - name: MusicPromptProducer
     path: ../../producers/music-prompt/music-prompt.yaml
   - name: MusicProducer
-    path: ../../producers/music/music.yaml
+    path: ../../producers/text-to-music/text-to-music.yaml
   - name: TimelineComposer
     path: ../../producers/timeline-composer/timeline-composer.yaml
   - name: VideoExporter
@@ -133,21 +133,21 @@ connections:
   - from: Resolution
     to: VideoProducer[segment].Resolution
   - from: SegmentDuration
-    to: VideoProducer[segment].SegmentDuration
-  - from: VideoProducer[segment].SegmentVideo
+    to: VideoProducer[segment].Duration
+  - from: VideoProducer[segment].GeneratedVideo
     to: SegmentVideo[segment]
-  - from: VideoProducer[segment].SegmentVideo
+  - from: VideoProducer[segment].GeneratedVideo
     to: TimelineComposer.VideoSegments
 
   - from: ScriptProducer.NarrationScript[segment]
-    to: AudioProducer[segment].TextInput
+    to: AudioProducer[segment].Text
   - from: VoiceId
     to: AudioProducer[segment].VoiceId
   - from: Emotion
     to: AudioProducer[segment].Emotion
-  - from: AudioProducer[segment].SegmentAudio
+  - from: AudioProducer[segment].GeneratedAudio
     to: SegmentAudio[segment]
-  - from: AudioProducer[segment].SegmentAudio
+  - from: AudioProducer[segment].GeneratedAudio
     to: TimelineComposer.AudioSegments
   
   - from: ScriptProducer.MovieSummary
@@ -167,12 +167,12 @@ connections:
     to: MusicProducer.Prompt
   - from: Duration
     to: MusicProducer.Duration
-  - from: MusicProducer.Music
+  - from: MusicProducer.GeneratedMusic
     to: Music
 
   - from: Duration
     to: TimelineComposer.Duration
-  - from: MusicProducer.Music
+  - from: MusicProducer.GeneratedMusic
     to: TimelineComposer.Music
   - from: TimelineComposer.Timeline
     to: Timeline
@@ -185,20 +185,20 @@ connections:
 
 collectors:
   - name: TimelineVideo
-    from: VideoProducer[segment].SegmentVideo
+    from: VideoProducer[segment].GeneratedVideo
     into: TimelineComposer.VideoSegments
     groupBy: segment
   - name: TimelineAudio
-    from: AudioProducer[segment].SegmentAudio
+    from: AudioProducer[segment].GeneratedAudio
     into: TimelineComposer.AudioSegments
     groupBy: segment
 
-  - name: NarrationScript 
+  - name: NarrationScript
     from: ScriptProducer.NarrationScript
     into: MusicPromptProducer.NarrationScript
-    groupBy: segment  
+    groupBy: segment
 
   - name: MusicTrack
-    from: MusicProducer.Music
+    from: MusicProducer.GeneratedMusic
     into: TimelineComposer.Music
     groupBy: segment

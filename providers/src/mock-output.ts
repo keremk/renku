@@ -3,22 +3,22 @@ import type { ArtifactKind, ProducedArtefact } from '@gorenku/core';
 import type { ProviderJobContext } from './types.js';
 
 const blobKinds = new Set<ArtifactKind>([
-  'SegmentAudio',
+  'GeneratedAudio',
   'MusicTrack',
-  'Music',
-  'SegmentImage',
+  'GeneratedMusic',
+  'GeneratedImage',
   'StartImage',
-  'SegmentVideo',
+  'GeneratedVideo',
   'FinalVideo',
 ]);
 
 const expectedMimeTypes: Partial<Record<ArtifactKind, string>> = {
-  SegmentAudio: 'audio/wav',
+  GeneratedAudio: 'audio/wav',
   MusicTrack: 'audio/mpeg',
-  Music: 'audio/mpeg',
-  SegmentImage: 'image/png',
+  GeneratedMusic: 'audio/mpeg',
+  GeneratedImage: 'image/png',
   StartImage: 'image/png',
-  SegmentVideo: 'video/mp4',
+  GeneratedVideo: 'video/mp4',
   FinalVideo: 'video/mp4',
 };
 

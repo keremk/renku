@@ -351,7 +351,7 @@ describe('end-to-end: TimelineComposer with conditional segments', () => {
     expect(audioClip1.kind).toBe('Audio');
     expect(audioClip1.startTime).toBe(10); // After segment 0 (10s)
     expect(audioClip1.duration).toBe(10);
-    expect(audioClip1.properties.assetId).toContain('SegmentAudio[1]');
+    expect(audioClip1.properties.assetId).toContain('AudioProducer.GeneratedAudio[1]');
 
     // Audio clip for segment 2 (ImageNarration with UseNarrationAudio=true)
     const audioClip2 = audioTrack!.clips[1];
@@ -359,7 +359,7 @@ describe('end-to-end: TimelineComposer with conditional segments', () => {
     expect(audioClip2.kind).toBe('Audio');
     expect(audioClip2.startTime).toBe(20); // After segments 0+1 (20s)
     expect(audioClip2.duration).toBe(10);
-    expect(audioClip2.properties.assetId).toContain('SegmentAudio[2]');
+    expect(audioClip2.properties.assetId).toContain('AudioProducer.GeneratedAudio[2]');
 
     // =====================================================
     // VIDEO TRACK - segment [1] only (segments [0] and [2] skipped)
@@ -375,7 +375,7 @@ describe('end-to-end: TimelineComposer with conditional segments', () => {
     expect(videoClip1.kind).toBe('Video');
     expect(videoClip1.startTime).toBe(10); // After segment 0 (10s)
     expect(videoClip1.duration).toBe(10);
-    expect(videoClip1.properties.assetId).toContain('SegmentVideo[1]');
+    expect(videoClip1.properties.assetId).toContain('VideoProducer.GeneratedVideo[1]');
 
     // =====================================================
     // IMAGE TRACK - segments [0] and [2] only (segment [1] skipped)
@@ -394,8 +394,8 @@ describe('end-to-end: TimelineComposer with conditional segments', () => {
     expect(imgClipSeg0.duration).toBe(10); // Full segment duration
     const effects0 = imgClipSeg0.properties.effects as Array<{ assetId: string }>;
     expect(effects0).toHaveLength(2);
-    expect(effects0[0].assetId).toContain('SegmentImage[0][0]');
-    expect(effects0[1].assetId).toContain('SegmentImage[0][1]');
+    expect(effects0[0].assetId).toContain('ImageProducer.GeneratedImage[0][0]');
+    expect(effects0[1].assetId).toContain('ImageProducer.GeneratedImage[0][1]');
 
     // Segment 2 clip (starting at 20s, duration: 10s, contains 2 images as effects)
     const imgClipSeg2 = imageTrack!.clips[1];
@@ -404,8 +404,8 @@ describe('end-to-end: TimelineComposer with conditional segments', () => {
     expect(imgClipSeg2.duration).toBe(10); // Full segment duration
     const effects2 = imgClipSeg2.properties.effects as Array<{ assetId: string }>;
     expect(effects2).toHaveLength(2);
-    expect(effects2[0].assetId).toContain('SegmentImage[2][0]');
-    expect(effects2[1].assetId).toContain('SegmentImage[2][1]');
+    expect(effects2[0].assetId).toContain('ImageProducer.GeneratedImage[2][0]');
+    expect(effects2[1].assetId).toContain('ImageProducer.GeneratedImage[2][1]');
 
     // =====================================================
     // Verify NO clips exist for skipped segments

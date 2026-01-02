@@ -4,7 +4,6 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { stringify as stringifyYaml } from 'yaml';
 import { loadInputsFromYaml } from './input-loader.js';
-import { applyProviderDefaults } from './provider-defaults.js';
 import { loadBlueprintBundle } from './blueprint-loader/index.js';
 import { resolveBlueprintSpecifier } from './config-assets.js';
 import { REPO_ROOT, CATALOG_BLUEPRINTS_ROOT } from '../../tests/test-catalog-paths.js';
@@ -13,7 +12,7 @@ const CLI_ROOT = resolve(REPO_ROOT, 'cli');
 const BLUEPRINTS_ROOT = CATALOG_BLUEPRINTS_ROOT;
 
 describe('input-loader', () => {
-  it('loads model selections with SDK mappings from input template', async () => {
+  it('loads model selections from input template (SDK mappings come from producer YAML)', async () => {
     const blueprintPath = await resolveBlueprintSpecifier('audio-only.yaml', { cliRoot: CLI_ROOT });
     const { root: blueprint } = await loadBlueprintBundle(blueprintPath);
 
@@ -23,16 +22,13 @@ describe('input-loader', () => {
       blueprint,
     );
 
-    // Verify SDK mappings are loaded from input template
+    // Verify model selection is loaded - SDK mappings now come from producer YAML, not input template
     const audioSelection = loaded.modelSelections.find((sel) => sel.producerId.endsWith('AudioProducer'));
     expect(audioSelection).toBeDefined();
     expect(audioSelection?.provider).toBe('replicate');
     expect(audioSelection?.model).toBe('minimax/speech-2.6-hd');
-    expect(audioSelection?.inputs).toEqual({
-      TextInput: { field: 'text' },
-      Emotion: { field: 'emotion' },
-      VoiceId: { field: 'voice_id' },
-    });
+    // inputs property was removed from ModelSelection - SDK mappings now come from producer YAML
+    expect('inputs' in (audioSelection ?? {})).toBe(false);
   });
 
   it('rejects unknown inputs with a clear error', async () => {

@@ -88,13 +88,13 @@ producers:
   - name: DocProducer
     path: ../../producers/documentary-prompt/documentary-prompt.yaml
   - name: ImageProducer
-    path: ../../producers/image/image.yaml
+    path: ../../producers/text-to-image/text-to-image.yaml
     loop: segment.image
   - name: AudioProducer
-    path: ../../producers/audio/audio.yaml
+    path: ../../producers/text-to-speech/text-to-speech.yaml
     loop: segment
   - name: VideoProducer
-    path: ../../producers/video/video.yaml
+    path: ../../producers/text-to-video/text-to-video.yaml
     loop: segment
   - name: TimelineComposer  
     path: ../../producers/timeline-composer/timeline-composer.yaml
@@ -118,20 +118,20 @@ connections:
     to: ImageProducer[segment][image].AspectRatio
     if: isImageNarration
   - from: Size
-    to: ImageProducer[segment][image].Size
+    to: ImageProducer[segment][image].Resolution
     if: isImageNarration
-  - from: ImageProducer[segment][image].SegmentImage
-    to: SegmentImage[segment][image]  
+  - from: ImageProducer[segment][image].GeneratedImage
+    to: SegmentImage[segment][image]
     if: isImageNarration
 
   # Conditional: AudioProducer only when NarrationType is TalkingHead
   - from: DocProducer.VideoScript.Segments[segment].Script
-    to: AudioProducer[segment].TextInput
+    to: AudioProducer[segment].Text
     if: isAudioNeeded
   - from: VoiceId
     to: AudioProducer[segment].VoiceId
     if: isAudioNeeded
-  - from: AudioProducer[segment].SegmentAudio
+  - from: AudioProducer[segment].GeneratedAudio
     to: SegmentAudio[segment]
     if: isAudioNeeded
 
@@ -140,25 +140,25 @@ connections:
     to: VideoProducer[segment].Prompt
     if: isTalkingHead
   - from: SegmentDuration
-    to: VideoProducer[segment].SegmentDuration
+    to: VideoProducer[segment].Duration
     if: isTalkingHead
-  - from: Resolution 
+  - from: Resolution
     to: VideoProducer[segment].Resolution
     if: isTalkingHead
   - from: AspectRatio
     to: VideoProducer[segment].AspectRatio
     if: isTalkingHead
-  - from: VideoProducer[segment].SegmentVideo
+  - from: VideoProducer[segment].GeneratedVideo
     to: SegmentVideo[segment]
     if: isTalkingHead
 
-  - from: AudioProducer[segment].SegmentAudio
+  - from: AudioProducer[segment].GeneratedAudio
     to: TimelineComposer.AudioSegments
     if: isAudioNeeded
-  - from: VideoProducer[segment].SegmentVideo
+  - from: VideoProducer[segment].GeneratedVideo
     to: TimelineComposer.VideoSegments
     if: isTalkingHead
-  - from: ImageProducer[segment][image].SegmentImage
+  - from: ImageProducer[segment][image].GeneratedImage
     to: TimelineComposer.ImageSegments
     if: isImageNarration
   - from: Duration
@@ -168,15 +168,15 @@ connections:
   
 collectors:
   - name: TimelineImages
-    from: ImageProducer[segment][image].SegmentImage
+    from: ImageProducer[segment][image].GeneratedImage
     into: TimelineComposer.ImageSegments
     groupBy: segment
     orderBy: image
   - name: TimelineAudio
-    from: AudioProducer[segment].SegmentAudio
+    from: AudioProducer[segment].GeneratedAudio
     into: TimelineComposer.AudioSegments
     groupBy: segment
   - name: TimelineVideo
-    from: VideoProducer[segment].SegmentVideo
+    from: VideoProducer[segment].GeneratedVideo
     into: TimelineComposer.VideoSegments
     groupBy: segment

@@ -63,7 +63,7 @@ producers:
     path: ../../producers/image-prompt/image-prompt.yaml
     loop: segment
   - name: ImageProducer
-    path: ../../producers/image/image.yaml
+    path: ../../producers/text-to-image/text-to-image.yaml
     loop: segment.image
 
 connections:
@@ -92,9 +92,9 @@ connections:
   - from: ImagePromptProducer.ImagePrompt[segment][image]
     to: ImageProducer[segment][image].Prompt
   - from: Size
-    to: ImageProducer[segment][image].Size
+    to: ImageProducer[segment][image].Resolution
   - from: AspectRatio
     to: ImageProducer[segment][image].AspectRatio
 
-  - from: ImageProducer[segment][image].SegmentImage
+  - from: ImageProducer[segment][image].GeneratedImage
     to: SegmentImage[segment][image]

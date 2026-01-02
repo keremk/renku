@@ -296,7 +296,7 @@ function createMinimalBlueprintTree(): BlueprintTreeNode {
 }
 
 describe('model selection SDK mapping parsing', () => {
-  it('parses simple string SDK mappings', async () => {
+  it('ignores inputs in model selection (SDK mappings come from producer YAML)', async () => {
     const workdir = await mkdtemp(join(tmpdir(), 'renku-sdk-mapping-'));
     const savedPath = join(workdir, 'inputs.yaml');
     const blueprint = createMinimalBlueprintTree();
@@ -310,6 +310,7 @@ describe('model selection SDK mapping parsing', () => {
             producerId: 'AudioProducer',
             provider: 'replicate',
             model: 'minimax/speech-2.6-hd',
+            // inputs in model selection are now ignored - SDK mappings come from producer YAML
             inputs: {
               TextInput: 'text',
               Emotion: 'emotion',
@@ -325,14 +326,14 @@ describe('model selection SDK mapping parsing', () => {
     const selection = loaded.modelSelections.find((s) => s.producerId === 'AudioProducer');
 
     expect(selection).toBeDefined();
-    expect(selection?.inputs).toEqual({
-      TextInput: { field: 'text' },
-      Emotion: { field: 'emotion' },
-      VoiceId: { field: 'voice_id' },
-    });
+    // SDK mappings no longer come from input YAML - ModelSelection.inputs was removed
+    expect(selection?.provider).toBe('replicate');
+    expect(selection?.model).toBe('minimax/speech-2.6-hd');
+    // Verify the selection doesn't have inputs property
+    expect('inputs' in (selection ?? {})).toBe(false);
   });
 
-  it('parses complex SDK mappings with field and transform', async () => {
+  it('ignores complex inputs in model selection (SDK mappings come from producer YAML)', async () => {
     const workdir = await mkdtemp(join(tmpdir(), 'renku-sdk-transform-'));
     const savedPath = join(workdir, 'inputs.yaml');
     const blueprint = createMinimalBlueprintTree();
@@ -346,6 +347,7 @@ describe('model selection SDK mapping parsing', () => {
             producerId: 'ImageProducer',
             provider: 'fal-ai',
             model: 'bytedance/seedream',
+            // inputs with transforms are now ignored - come from producer YAML
             inputs: {
               Prompt: { field: 'prompt' },
               AspectRatio: {
@@ -367,17 +369,13 @@ describe('model selection SDK mapping parsing', () => {
     const selection = loaded.modelSelections.find((s) => s.producerId === 'ImageProducer');
 
     expect(selection).toBeDefined();
-    expect(selection?.inputs?.AspectRatio).toEqual({
-      field: 'image_size',
-      transform: {
-        '16:9': 'landscape_16_9',
-        '9:16': 'portrait_16_9',
-        '1:1': 'square',
-      },
-    });
+    // SDK mappings no longer come from input YAML
+    expect(selection?.provider).toBe('fal-ai');
+    expect(selection?.model).toBe('bytedance/seedream');
+    expect('inputs' in (selection ?? {})).toBe(false);
   });
 
-  it('parses SDK mappings with expand flag for object spreading', async () => {
+  it('ignores inputs with expand flag in model selection (SDK mappings come from producer YAML)', async () => {
     const workdir = await mkdtemp(join(tmpdir(), 'renku-sdk-expand-'));
     const savedPath = join(workdir, 'inputs.yaml');
     const blueprint = createMinimalBlueprintTree();
@@ -391,6 +389,7 @@ describe('model selection SDK mapping parsing', () => {
             producerId: 'ImageToVideoProducer',
             provider: 'fal-ai',
             model: 'kling/image-to-video',
+            // inputs are now ignored - come from producer YAML
             inputs: {
               ImageConfig: {
                 field: 'config',
@@ -407,10 +406,10 @@ describe('model selection SDK mapping parsing', () => {
     const selection = loaded.modelSelections.find((s) => s.producerId === 'ImageToVideoProducer');
 
     expect(selection).toBeDefined();
-    expect(selection?.inputs?.ImageConfig).toEqual({
-      field: 'config',
-      expand: true,
-    });
+    // SDK mappings no longer come from input YAML
+    expect(selection?.provider).toBe('fal-ai');
+    expect(selection?.model).toBe('kling/image-to-video');
+    expect('inputs' in (selection ?? {})).toBe(false);
   });
 
   it('parses LLM config with text_format config', async () => {
@@ -478,34 +477,36 @@ describe('model selection SDK mapping parsing', () => {
     expect(selection?.variables).toEqual(['question']);
   });
 
-  it('loads full input template with SDK mappings from catalog', async () => {
+  it('loads input template from catalog (SDK mappings come from producer YAML)', async () => {
     const blueprintPath = resolve(BLUEPRINT_ROOT, 'audio-only', 'audio-only.yaml');
     const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath);
     const inputPath = resolve(BLUEPRINT_ROOT, 'audio-only', 'input-template.yaml');
 
     const loaded = await loadInputsFromYaml(inputPath, blueprint);
 
-    // AudioProducer selection should have SDK mappings
+    // AudioProducer selection - SDK mappings now come from producer YAML, not input template
     const audioSelection = loaded.modelSelections.find((s) => s.producerId.endsWith('AudioProducer'));
     expect(audioSelection).toBeDefined();
-    expect(audioSelection?.inputs).toBeDefined();
-    expect(audioSelection?.inputs?.TextInput).toEqual({ field: 'text' });
-    expect(audioSelection?.inputs?.Emotion).toEqual({ field: 'emotion' });
-    expect(audioSelection?.inputs?.VoiceId).toEqual({ field: 'voice_id' });
+    expect(audioSelection?.provider).toBe('replicate');
+    expect(audioSelection?.model).toBe('minimax/speech-2.6-hd');
+    // inputs property was removed from ModelSelection
+    expect('inputs' in (audioSelection ?? {})).toBe(false);
   });
 
-  it('loads input template with SDK mappings from catalog', async () => {
+  it('loads input template from catalog with provider/model selection', async () => {
     const blueprintPath = resolve(BLUEPRINT_ROOT, 'image-only', 'image-only.yaml');
     const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath);
     const inputPath = resolve(BLUEPRINT_ROOT, 'image-only', 'input-template.yaml');
 
     const loaded = await loadInputsFromYaml(inputPath, blueprint);
 
-    // ImageProducer selection should have SDK mappings
+    // ImageProducer selection - SDK mappings now come from producer YAML
     const imageSelection = loaded.modelSelections.find((s) => s.producerId.endsWith('ImageProducer'));
     expect(imageSelection).toBeDefined();
-    expect(imageSelection?.inputs?.Prompt).toEqual({ field: 'prompt' });
-    expect(imageSelection?.inputs?.AspectRatio).toEqual({ field: 'aspect_ratio' });
+    expect(imageSelection?.provider).toBeDefined();
+    expect(imageSelection?.model).toBeDefined();
+    // inputs property was removed from ModelSelection
+    expect('inputs' in (imageSelection ?? {})).toBe(false);
 
     // ImagePromptProducer should have LLM config
     // Note: promptFile and outputSchema are now defined in producer YAML meta section

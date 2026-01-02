@@ -3,6 +3,7 @@ export * from './runtime.js';
 export * from './artefacts.js';
 export * from './errors.js';
 export * from './handler-factory.js';
+export * from './transforms.js';
 
 // Vercel AI Gateway SDK exports
 export {

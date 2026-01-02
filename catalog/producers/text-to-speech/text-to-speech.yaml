@@ -93,7 +93,7 @@ mappings:
       LanguageCode: language_boost
 
     # MiniMax Speech 2.6 HD
-    minimax/speech-2-6-hd:
+    minimax/speech-2.6-hd:
       Text: prompt
       VoiceId: voice_setting.voice_id
       Speed: voice_setting.speed
@@ -147,7 +147,7 @@ mappings:
       LanguageCode: language_boost
 
     # MiniMax Speech 2.6 HD
-    minimax/speech-2-6-hd:
+    minimax/speech-2.6-hd:
       Text: text
       VoiceId: voice_id
       Speed: speed
@@ -161,7 +161,7 @@ mappings:
       LanguageCode: language_boost
 
     # MiniMax Speech 2.6 Turbo
-    minimax/speech-2-6-turbo:
+    minimax/speech-2.6-turbo:
       Text: text
       VoiceId: voice_id
       Speed: speed

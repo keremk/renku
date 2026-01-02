@@ -273,23 +273,23 @@ describe('end-to-end: conditional edge execution', () => {
     const manifest = await result.buildManifest();
     const artifactIds = Object.keys(manifest.artefacts);
 
-    // SegmentImage: [0][0], [0][1], [2][0], [2][1] EXIST; [1][*] DO NOT EXIST
-    expect(artifactIds.some((id) => id.includes('SegmentImage[0][0]'))).toBe(true);
-    expect(artifactIds.some((id) => id.includes('SegmentImage[0][1]'))).toBe(true);
-    expect(artifactIds.some((id) => id.includes('SegmentImage[2][0]'))).toBe(true);
-    expect(artifactIds.some((id) => id.includes('SegmentImage[2][1]'))).toBe(true);
-    expect(artifactIds.some((id) => id.includes('SegmentImage[1][0]'))).toBe(false); // SKIPPED
-    expect(artifactIds.some((id) => id.includes('SegmentImage[1][1]'))).toBe(false); // SKIPPED
+    // GeneratedImage: [0][0], [0][1], [2][0], [2][1] EXIST; [1][*] DO NOT EXIST
+    expect(artifactIds.some((id) => id.includes('ImageProducer.GeneratedImage[0][0]'))).toBe(true);
+    expect(artifactIds.some((id) => id.includes('ImageProducer.GeneratedImage[0][1]'))).toBe(true);
+    expect(artifactIds.some((id) => id.includes('ImageProducer.GeneratedImage[2][0]'))).toBe(true);
+    expect(artifactIds.some((id) => id.includes('ImageProducer.GeneratedImage[2][1]'))).toBe(true);
+    expect(artifactIds.some((id) => id.includes('ImageProducer.GeneratedImage[1][0]'))).toBe(false); // SKIPPED
+    expect(artifactIds.some((id) => id.includes('ImageProducer.GeneratedImage[1][1]'))).toBe(false); // SKIPPED
 
-    // SegmentAudio: [1], [2] EXIST; [0] DOES NOT EXIST
-    expect(artifactIds.some((id) => id.includes('SegmentAudio[1]'))).toBe(true);
-    expect(artifactIds.some((id) => id.includes('SegmentAudio[2]'))).toBe(true);
-    expect(artifactIds.some((id) => id.includes('SegmentAudio[0]'))).toBe(false); // SKIPPED
+    // GeneratedAudio: [1], [2] EXIST; [0] DOES NOT EXIST
+    expect(artifactIds.some((id) => id.includes('AudioProducer.GeneratedAudio[1]'))).toBe(true);
+    expect(artifactIds.some((id) => id.includes('AudioProducer.GeneratedAudio[2]'))).toBe(true);
+    expect(artifactIds.some((id) => id.includes('AudioProducer.GeneratedAudio[0]'))).toBe(false); // SKIPPED
 
-    // SegmentVideo: [1] EXISTS; [0], [2] DO NOT EXIST
-    expect(artifactIds.some((id) => id.includes('SegmentVideo[1]'))).toBe(true);
-    expect(artifactIds.some((id) => id.includes('SegmentVideo[0]'))).toBe(false); // SKIPPED
-    expect(artifactIds.some((id) => id.includes('SegmentVideo[2]'))).toBe(false); // SKIPPED
+    // GeneratedVideo: [1] EXISTS; [0], [2] DO NOT EXIST
+    expect(artifactIds.some((id) => id.includes('VideoProducer.GeneratedVideo[1]'))).toBe(true);
+    expect(artifactIds.some((id) => id.includes('VideoProducer.GeneratedVideo[0]'))).toBe(false); // SKIPPED
+    expect(artifactIds.some((id) => id.includes('VideoProducer.GeneratedVideo[2]'))).toBe(false); // SKIPPED
 
     // ============================================================
     // PHASE 5: Verify no unexpected errors

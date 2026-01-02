@@ -77,11 +77,11 @@ describe('end-to-end: image-to-video dry runs', () => {
     expect(job0).toBeDefined();
     expect(job1).toBeDefined();
 
-    expect(job0.context?.inputBindings?.InputImage1).toBe('Artifact:ImageProducer.SegmentImage[0]');
-    expect(job0.context?.inputBindings?.InputImage2).toBe('Artifact:ImageProducer.SegmentImage[1]');
+    expect(job0.context?.inputBindings?.StartImage).toBe('Artifact:ImageProducer.GeneratedImage[0]');
+    expect(job0.context?.inputBindings?.EndImage).toBe('Artifact:ImageProducer.GeneratedImage[1]');
 
-    expect(job1.context?.inputBindings?.InputImage1).toBe('Artifact:ImageProducer.SegmentImage[1]');
-    expect(job1.context?.inputBindings?.InputImage2).toBe('Artifact:ImageProducer.SegmentImage[2]');
+    expect(job1.context?.inputBindings?.StartImage).toBe('Artifact:ImageProducer.GeneratedImage[1]');
+    expect(job1.context?.inputBindings?.EndImage).toBe('Artifact:ImageProducer.GeneratedImage[2]');
   });
 });
 

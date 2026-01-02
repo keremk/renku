@@ -18,7 +18,4 @@ models:
   - model: minimax/speech-2.6-hd
     provider: replicate
     producerId: NarrationAudio
-    inputs:
-      TextInput: text
-      Emotion: emotion
-      VoiceId: voice_id
+    # SDK mappings now come from producer YAML mappings section

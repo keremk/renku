@@ -55,7 +55,7 @@ producers:
   - name: DocScript
     path: ../../../../catalog/producers/script/script.yaml
   - name: NarrationAudio
-    path: ../../../../catalog/producers/audio/audio.yaml
+    path: ../../../../catalog/producers/text-to-speech/text-to-speech.yaml
     loop: segment
 
 connections:
@@ -71,11 +71,11 @@ connections:
     to: DocScript.NumOfSegments
 
   - from: DocScript.NarrationScript[segment]
-    to: NarrationAudio[segment].TextInput
+    to: NarrationAudio[segment].Text
   - from: VoiceId
     to: NarrationAudio[segment].VoiceId
   - from: Emotion
     to: NarrationAudio[segment].Emotion
 
-  - from: NarrationAudio[segment].SegmentAudio
+  - from: NarrationAudio[segment].GeneratedAudio
     to: SegmentAudio[segment]

@@ -12,14 +12,21 @@ import type {
   BlueprintProducerOutputDefinition,
   BlueprintProducerSdkMappingField,
   BlueprintTreeNode,
+  CombineTransform,
+  ConditionalTransform,
   EdgeConditionClause,
   EdgeConditionDefinition,
   EdgeConditionGroup,
+  InputMappings,
   JsonSchemaDefinition,
   JsonSchemaProperty,
+  MappingCondition,
+  MappingFieldDefinition,
+  MappingValue,
   NamedConditionDefinition,
   ProducerConfig,
   ProducerImportDefinition,
+  ProducerMappings,
 } from '../../types.js';
 import { parseDimensionSelector } from '../dimension-selectors.js';
 import { deriveDimensionName } from '../../resolution/schema-decomposition.js';
@@ -107,6 +114,7 @@ export async function parseYamlBlueprintFile(
   const collectors = Array.isArray(raw.collectors)
     ? parseCollectors(raw.collectors, loopSymbols)
     : [];
+  const mappings = parseMappingsSection(raw.mappings);
 
   return {
     meta,
@@ -118,6 +126,7 @@ export async function parseYamlBlueprintFile(
     collectors,
     loops: loops.length > 0 ? loops : undefined,
     conditions: Object.keys(conditionDefs).length > 0 ? conditionDefs : undefined,
+    mappings,
   };
 }
 
@@ -185,6 +194,8 @@ interface RawBlueprint {
   models?: unknown[];
   /** Named condition definitions for reuse across edges */
   conditions?: Record<string, unknown>;
+  /** Provider/model-specific SDK mappings */
+  mappings?: unknown;
 }
 
 function parseMeta(raw: unknown, filePath: string): BlueprintDocument['meta'] {
@@ -810,5 +821,199 @@ function relativePosix(root: string, target: string): string {
     throw new Error(`Path "${target}" escapes root "${root}".`);
   }
   return rel.split(sep).join('/');
+}
+
+// === Producer Mapping Parsing ===
+
+/**
+ * Parses the mappings section from producer YAML.
+ * Structure: mappings: { [provider]: { [model]: { [input]: Mapping } } }
+ */
+export function parseMappingsSection(raw: unknown): ProducerMappings | undefined {
+  if (!raw || typeof raw !== 'object') {
+    return undefined;
+  }
+
+  const mappings: ProducerMappings = {};
+  const providers = raw as Record<string, unknown>;
+
+  for (const [provider, models] of Object.entries(providers)) {
+    if (!models || typeof models !== 'object') {
+      throw new Error(`Invalid mappings for provider "${provider}": expected object.`);
+    }
+
+    mappings[provider] = {};
+    const modelMap = models as Record<string, unknown>;
+
+    for (const [model, inputMappings] of Object.entries(modelMap)) {
+      if (!inputMappings || typeof inputMappings !== 'object') {
+        throw new Error(`Invalid mappings for model "${provider}/${model}": expected object.`);
+      }
+
+      mappings[provider][model] = parseMappingFields(
+        inputMappings as Record<string, unknown>,
+        `${provider}/${model}`,
+      );
+    }
+  }
+
+  return Object.keys(mappings).length > 0 ? mappings : undefined;
+}
+
+/**
+ * Parses individual mapping fields for a model.
+ */
+function parseMappingFields(
+  raw: Record<string, unknown>,
+  context: string,
+): InputMappings {
+  const result: InputMappings = {};
+
+  for (const [inputName, value] of Object.entries(raw)) {
+    result[inputName] = parseMappingValue(value, `${context}.${inputName}`);
+  }
+
+  return result;
+}
+
+/**
+ * Parses a single mapping value (string or object).
+ */
+function parseMappingValue(raw: unknown, context: string): MappingValue {
+  // Simple string mapping: "Prompt: prompt"
+  if (typeof raw === 'string') {
+    return raw;
+  }
+
+  if (!raw || typeof raw !== 'object') {
+    throw new Error(`Invalid mapping value at "${context}": expected string or object.`);
+  }
+
+  const obj = raw as Record<string, unknown>;
+  const result: MappingFieldDefinition = {};
+
+  // Parse field (supports dot notation)
+  if (typeof obj.field === 'string') {
+    result.field = obj.field;
+  }
+
+  // Parse transform (value lookup table)
+  if (obj.transform !== undefined) {
+    if (typeof obj.transform !== 'object' || obj.transform === null) {
+      throw new Error(`Invalid transform at "${context}": expected object.`);
+    }
+    result.transform = obj.transform as Record<string, unknown>;
+  }
+
+  // Parse combine
+  if (obj.combine !== undefined) {
+    result.combine = parseCombineTransform(obj.combine, context);
+  }
+
+  // Parse conditional
+  if (obj.conditional !== undefined) {
+    result.conditional = parseConditionalTransform(obj.conditional, context);
+  }
+
+  // Parse boolean flags
+  if (obj.firstOf === true) {
+    result.firstOf = true;
+  }
+  if (obj.invert === true) {
+    result.invert = true;
+  }
+  if (obj.intToString === true) {
+    result.intToString = true;
+  }
+  if (obj.expand === true) {
+    result.expand = true;
+  }
+
+  // Parse durationToFrames
+  if (obj.durationToFrames !== undefined) {
+    if (typeof obj.durationToFrames !== 'object' || obj.durationToFrames === null) {
+      throw new Error(`Invalid durationToFrames at "${context}": expected object with fps.`);
+    }
+    const dtf = obj.durationToFrames as Record<string, unknown>;
+    if (typeof dtf.fps !== 'number') {
+      throw new Error(`durationToFrames.fps must be a number at "${context}".`);
+    }
+    result.durationToFrames = { fps: dtf.fps };
+  }
+
+  return result;
+}
+
+/**
+ * Parses a combine transform definition.
+ */
+function parseCombineTransform(raw: unknown, context: string): CombineTransform {
+  if (!raw || typeof raw !== 'object') {
+    throw new Error(`Invalid combine transform at "${context}": expected object.`);
+  }
+
+  const obj = raw as Record<string, unknown>;
+
+  if (!Array.isArray(obj.inputs) || obj.inputs.length < 2) {
+    throw new Error(`combine.inputs must be array of 2+ inputs at "${context}".`);
+  }
+
+  if (!obj.table || typeof obj.table !== 'object') {
+    throw new Error(`combine.table is required at "${context}".`);
+  }
+
+  return {
+    inputs: obj.inputs.map(String),
+    table: obj.table as Record<string, unknown>,
+  };
+}
+
+/**
+ * Parses a conditional transform definition.
+ */
+function parseConditionalTransform(raw: unknown, context: string): ConditionalTransform {
+  if (!raw || typeof raw !== 'object') {
+    throw new Error(`Invalid conditional transform at "${context}": expected object.`);
+  }
+
+  const obj = raw as Record<string, unknown>;
+
+  if (!obj.when || typeof obj.when !== 'object') {
+    throw new Error(`conditional.when is required at "${context}".`);
+  }
+
+  if (obj.then === undefined) {
+    throw new Error(`conditional.then is required at "${context}".`);
+  }
+
+  const when = obj.when as Record<string, unknown>;
+  if (typeof when.input !== 'string') {
+    throw new Error(`conditional.when.input is required at "${context}".`);
+  }
+
+  const condition: MappingCondition = {
+    input: when.input,
+  };
+
+  if (when.equals !== undefined) {
+    condition.equals = when.equals;
+  }
+  if (when.notEmpty === true) {
+    condition.notEmpty = true;
+  }
+  if (when.empty === true) {
+    condition.empty = true;
+  }
+
+  // Parse the 'then' clause - can be a string (simple field) or object (complex mapping)
+  const thenValue = parseMappingValue(obj.then, `${context}.then`);
+  const thenDef: MappingFieldDefinition = typeof thenValue === 'string'
+    ? { field: thenValue }
+    : thenValue;
+
+  return {
+    when: condition,
+    then: thenDef,
+  };
 }
 

@@ -113,6 +113,15 @@ mappings:
         field: duration
         intToString: true
 
+    # Kling Omni (Video o1) Image-to-Video (alternate naming)
+    kling-video/o1/image-to-video:
+      Prompt: prompt
+      StartImage: start_image_url
+      EndImage: end_image_url
+      Duration:
+        field: duration
+        intToString: true
+
     # Kling v2.6 Pro Image-to-Video
     kling-video-v2-6-pro/image-to-video:
       Prompt: prompt

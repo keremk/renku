@@ -67,7 +67,7 @@ describe('end-to-end: module alias drives canonical producer ids', () => {
     expect(audioJobs).toHaveLength(3);
     for (const job of audioJobs) {
       expect(job.jobId.startsWith('Producer:NarrationAudio')).toBe(true);
-      expect(job.context?.inputBindings?.TextInput).toMatch(/^Artifact:DocScript\.NarrationScript\[\d+]/);
+      expect(job.context?.inputBindings?.Text).toMatch(/^Artifact:DocScript\.NarrationScript\[\d+]/);
       expect(job.inputs).toEqual(
         expect.arrayContaining(['Input:VoiceId', 'Input:Emotion', 'Input:NarrationAudio.provider', 'Input:NarrationAudio.model']),
       );

@@ -57,7 +57,7 @@ describe('parseYamlBlueprintFile', () => {
     expect(document.edges).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          from: 'ImageProducer[segment][image].SegmentImage',
+          from: 'ImageProducer[segment][image].GeneratedImage',
           to: 'SegmentImage[segment][image]',
         }),
         expect.objectContaining({
@@ -79,8 +79,8 @@ describe('parseYamlBlueprintFile', () => {
     expect(document.edges).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          from: 'ImageProducer[image+1].SegmentImage',
-          to: 'ImageToVideoProducer[segment].InputImage2',
+          from: 'ImageProducer[image+1].GeneratedImage',
+          to: 'ImageToVideoProducer[segment].EndImage',
         }),
       ]),
     );

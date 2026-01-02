@@ -11,7 +11,7 @@ import type {
   BlueprintProducerOutputDefinition,
   BlueprintProducerSdkMappingField,
 } from '@gorenku/core';
-import { formatProducerAlias } from '@gorenku/core';
+import { formatProducerAlias, resolveMappingsForModel } from '@gorenku/core';
 import type {
   ProviderAttachment,
   ProviderEnvironment,
@@ -68,12 +68,13 @@ export async function buildProducerOptionsFromBlueprint(
     selectionMap.set(selection.producerId, selection);
   }
   // Note: baseDir from context is no longer used - promptFile/outputSchema now come from producer meta
-  await collectProducers(blueprint, map, selectionMap, allowAmbiguousDefault);
+  await collectProducers(blueprint, blueprint, map, selectionMap, allowAmbiguousDefault);
   return map;
 }
 
 async function collectProducers(
   node: BlueprintTreeNode,
+  rootBlueprint: BlueprintTreeNode,
   map: ProducerOptionsMap,
   selectionMap: Map<string, ModelSelection>,
   allowAmbiguousDefault: boolean,
@@ -90,12 +91,13 @@ async function collectProducers(
       allowAmbiguousDefault,
       node.document.meta,
       node.sourcePath,
+      rootBlueprint,
     );
     const option = toLoadedOption(namespacedName, chosen, selection);
     registerProducerOption(map, namespacedName, option);
   }
   for (const child of node.children.values()) {
-    await collectProducers(child, map, selectionMap, allowAmbiguousDefault);
+    await collectProducers(child, rootBlueprint, map, selectionMap, allowAmbiguousDefault);
   }
 }
 
@@ -344,7 +346,7 @@ async function selectionToVariant(
     provider: selection.provider,
     model: selection.model,
     config: Object.keys(config).length > 0 ? config : undefined,
-    sdkMapping: selection.inputs,
+    sdkMapping: undefined, // SDK mappings now come from producer YAML, resolved in chooseVariant
     outputs: selection.outputs ?? (promptConfig.outputs as Record<string, BlueprintProducerOutputDefinition> | undefined),
     inputSchema: undefined,
     outputSchema: outputSchemaContent,
@@ -360,6 +362,7 @@ async function chooseVariant(
   allowAmbiguousDefault: boolean,
   producerMeta: BlueprintMeta,
   producerSourcePath: string,
+  rootBlueprint: BlueprintTreeNode,
 ): Promise<CollectedVariant> {
   // If producer has no variants (interface-only), must have selection
   if (variants.length === 0) {
@@ -370,7 +373,18 @@ async function chooseVariant(
       );
     }
     // Convert selection directly to a variant, loading promptFile/outputSchema from producer meta
-    return selectionToVariant(selection, producerMeta, producerSourcePath);
+    // Also resolve SDK mapping from producer YAML
+    const variant = await selectionToVariant(selection, producerMeta, producerSourcePath);
+    const resolvedMapping = resolveSdkMappingFromProducer(
+      rootBlueprint,
+      producerName,
+      selection.provider,
+      selection.model,
+    );
+    return {
+      ...variant,
+      sdkMapping: resolvedMapping ?? variant.sdkMapping,
+    };
   }
 
   // Producer has variants - try to match selection or use default
@@ -381,28 +395,88 @@ async function chooseVariant(
         variant.model === selection.model,
     );
     if (match) {
-      // Merge selection's SDK mapping with variant's (selection takes precedence)
+      // Resolve SDK mapping from producer YAML mappings section
+      const resolvedMapping = resolveSdkMappingFromProducer(
+        rootBlueprint,
+        producerName,
+        selection.provider,
+        selection.model,
+      );
       return {
         ...match,
-        sdkMapping: selection.inputs ?? match.sdkMapping,
+        sdkMapping: resolvedMapping ?? match.sdkMapping,
         outputs: selection.outputs ?? match.outputs,
         inputSchema: match.inputSchema,
         outputSchema: match.outputSchema,
       };
     }
     // Selection specifies a model not in producer's variants - use selection directly
-    return selectionToVariant(selection, producerMeta, producerSourcePath);
+    const variant = await selectionToVariant(selection, producerMeta, producerSourcePath);
+    const resolvedMapping = resolveSdkMappingFromProducer(
+      rootBlueprint,
+      producerName,
+      selection.provider,
+      selection.model,
+    );
+    return {
+      ...variant,
+      sdkMapping: resolvedMapping ?? variant.sdkMapping,
+    };
   }
   if (variants.length === 1) {
-    return variants[0]!;
+    const variant = variants[0]!;
+    // Resolve SDK mapping from producer YAML for the single variant
+    const resolvedMapping = resolveSdkMappingFromProducer(
+      rootBlueprint,
+      producerName,
+      variant.provider,
+      variant.model,
+    );
+    return {
+      ...variant,
+      sdkMapping: resolvedMapping ?? variant.sdkMapping,
+    };
   }
   if (allowAmbiguousDefault) {
-    return variants[0]!;
+    const variant = variants[0]!;
+    const resolvedMapping = resolveSdkMappingFromProducer(
+      rootBlueprint,
+      producerName,
+      variant.provider,
+      variant.model,
+    );
+    return {
+      ...variant,
+      sdkMapping: resolvedMapping ?? variant.sdkMapping,
+    };
   }
   const available = variants.map((variant) => `${variant.provider}/${variant.model}`).join(', ');
   throw new Error(
     `Multiple model variants defined for ${producerName}. Select one in inputs.yaml. Available: ${available}`,
   );
+}
+
+/**
+ * Resolve SDK mapping from producer YAML's mappings section.
+ * Returns undefined if no mapping is found (producer doesn't define mappings for this model).
+ */
+function resolveSdkMappingFromProducer(
+  rootBlueprint: BlueprintTreeNode,
+  producerId: string,
+  provider: string,
+  model: string,
+): Record<string, BlueprintProducerSdkMappingField> | undefined {
+  const resolved = resolveMappingsForModel(rootBlueprint, {
+    provider,
+    model,
+    producerId,
+  });
+  if (!resolved) {
+    return undefined;
+  }
+  // Convert MappingFieldDefinition to BlueprintProducerSdkMappingField
+  // They are structurally compatible - MappingFieldDefinition is a superset
+  return resolved as unknown as Record<string, BlueprintProducerSdkMappingField>;
 }
 
 export function buildProducerCatalog(

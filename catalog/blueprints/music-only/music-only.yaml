@@ -48,7 +48,7 @@ producers:
   - name: MusicPromptProducer
     path: ../../producers/music-prompt/music-prompt.yaml
   - name: MusicProducer
-    path: ../../producers/music/music.yaml
+    path: ../../producers/text-to-music/text-to-music.yaml
 
 connections:
   - from: InquiryPrompt
@@ -80,7 +80,7 @@ connections:
   - from: Duration
     to: MusicProducer.Duration
 
-  - from: MusicProducer.Music
+  - from: MusicProducer.GeneratedMusic
     to: Music
 
 collectors:

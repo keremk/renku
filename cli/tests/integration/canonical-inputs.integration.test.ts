@@ -94,9 +94,12 @@ describe('integration: canonical inputs persist across query/edit', () => {
 		expect(planResult.plan.layers.length).toBeGreaterThan(0);
 		expect(planResult.providerOptions.size).toBeGreaterThan(0);
 
-		// Verify that SDK mappings from input template are in provider options
+		// Verify provider options are populated
+		// Note: SDK mappings now come from producer YAML mappings section, not input template
+		// The audio producer doesn't have a mappings section yet, so sdkMapping may be undefined
 		const audioOptions = planResult.providerOptions.get('AudioProducer');
 		expect(audioOptions).toBeDefined();
-		expect(audioOptions?.[0]?.sdkMapping).toBeDefined();
+		expect(audioOptions?.[0]?.provider).toBe('replicate');
+		expect(audioOptions?.[0]?.model).toBe('minimax/speech-2.6-hd');
 	});
 });

@@ -441,6 +441,8 @@ export interface BlueprintDocument {
   loops?: BlueprintLoopDefinition[];
   /** Named condition definitions for reuse across edges */
   conditions?: BlueprintConditionDefinitions;
+  /** Provider/model-specific SDK mappings for media producers */
+  mappings?: ProducerMappings;
 }
 
 export interface BlueprintTreeNode {
@@ -678,6 +680,102 @@ export interface RunResult {
   completedAt: IsoDatetime;
   buildManifest(): Promise<Manifest>;
 }
+
+// === Producer Mapping Types ===
+
+/**
+ * Condition for conditional transforms.
+ * Evaluates whether a field should be included based on another input's value.
+ */
+export interface MappingCondition {
+  /** Input name to check */
+  input: string;
+  /** Value equality check */
+  equals?: unknown;
+  /** Check if value is provided (non-null/undefined/empty) */
+  notEmpty?: boolean;
+  /** Check if value is NOT provided */
+  empty?: boolean;
+}
+
+/**
+ * Combine transform: merge multiple inputs into one field.
+ * Uses a lookup table with composite keys in "{value1}+{value2}" format.
+ */
+export interface CombineTransform {
+  /** Input names to combine (order matters for key format) */
+  inputs: string[];
+  /** Lookup table where keys are "{value1}+{value2}" format */
+  table: Record<string, unknown>;
+}
+
+/**
+ * Conditional transform: include field only when condition is met.
+ */
+export interface ConditionalTransform {
+  when: MappingCondition;
+  then: MappingFieldDefinition;
+}
+
+/**
+ * Duration to frames transform configuration.
+ */
+export interface DurationToFramesConfig {
+  fps: number;
+}
+
+/**
+ * SDK mapping field definition with all transform types.
+ * Supports: simple (string), transform, combine, conditional, firstOf, invert, intToString, durationToFrames.
+ */
+export interface MappingFieldDefinition {
+  /** Target API field name (supports dot notation for nested: "voice_setting.voice_id") */
+  field?: string;
+  /** Type hint for the field */
+  type?: string;
+  /** Value lookup table (transform type) */
+  transform?: Record<string, unknown>;
+  /** Spread transformed object into payload (expand type) */
+  expand?: boolean;
+  /** Combine multiple inputs into one field */
+  combine?: CombineTransform;
+  /** Conditional field inclusion */
+  conditional?: ConditionalTransform;
+  /** Take first element from array input */
+  firstOf?: boolean;
+  /** Invert boolean value */
+  invert?: boolean;
+  /** Convert integer to string */
+  intToString?: boolean;
+  /** Convert duration (seconds) to frame count */
+  durationToFrames?: DurationToFramesConfig;
+}
+
+/**
+ * Mapping value can be either:
+ * - string: simple field rename (e.g., "Prompt: prompt")
+ * - MappingFieldDefinition: complex transform
+ */
+export type MappingValue = string | MappingFieldDefinition;
+
+/**
+ * Model-specific input mappings.
+ * Maps producer input names to provider API field definitions.
+ * Structure: { [producerInput]: MappingValue }
+ */
+export type InputMappings = Record<string, MappingValue>;
+
+/**
+ * Provider-specific model mappings.
+ * Structure: { [model]: { [producerInput]: MappingValue } }
+ */
+export type ModelMappings = Record<string, InputMappings>;
+
+/**
+ * Producer mappings section.
+ * Structure: { [provider]: { [model]: { [producerInput]: MappingValue } } }
+ */
+export type ProducerMappings = Record<string, ModelMappings>;
 
 /** Blob loaded from a local file. */
 export interface BlobInput {

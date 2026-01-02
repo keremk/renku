@@ -81,10 +81,10 @@ producers:
     path: ../../producers/image-prompt/image-prompt.yaml
     loop: segment
   - name: ImageProducer
-    path: ../../producers/image/image.yaml
+    path: ../../producers/text-to-image/text-to-image.yaml
     loop: segment.image
   - name: AudioProducer
-    path: ../../producers/audio/audio.yaml
+    path: ../../producers/text-to-speech/text-to-speech.yaml
     loop: segment
   - name: TimelineComposer
     path: ../../producers/timeline-composer/timeline-composer.yaml
@@ -117,23 +117,23 @@ connections:
   - from: ImagePromptProducer.ImagePrompt[segment][image]
     to: ImageProducer[segment][image].Prompt
   - from: Size
-    to: ImageProducer[segment][image].Size
+    to: ImageProducer[segment][image].Resolution
   - from: AspectRatio
     to: ImageProducer[segment][image].AspectRatio
-  - from: ImageProducer[segment][image].SegmentImage
+  - from: ImageProducer[segment][image].GeneratedImage
     to: SegmentImage[segment][image]
-  - from: ImageProducer[segment][image].SegmentImage
+  - from: ImageProducer[segment][image].GeneratedImage
     to: TimelineComposer.ImageSegments
 
   - from: ScriptProducer.NarrationScript[segment]
-    to: AudioProducer[segment].TextInput
+    to: AudioProducer[segment].Text
   - from: VoiceId
     to: AudioProducer[segment].VoiceId
   - from: Emotion
     to: AudioProducer[segment].Emotion
-  - from: AudioProducer[segment].SegmentAudio
+  - from: AudioProducer[segment].GeneratedAudio
     to: SegmentAudio[segment]
-  - from: AudioProducer[segment].SegmentAudio
+  - from: AudioProducer[segment].GeneratedAudio
     to: TimelineComposer.AudioSegments
 
   - from: Duration
@@ -143,11 +143,11 @@ connections:
 
 collectors:
   - name: TimelineImages
-    from: ImageProducer[segment][image].SegmentImage
+    from: ImageProducer[segment][image].GeneratedImage
     into: TimelineComposer.ImageSegments
     groupBy: segment
     orderBy: image
   - name: TimelineAudio
-    from: AudioProducer[segment].SegmentAudio
+    from: AudioProducer[segment].GeneratedAudio
     into: TimelineComposer.AudioSegments
     groupBy: segment

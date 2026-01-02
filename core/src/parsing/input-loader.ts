@@ -4,7 +4,6 @@ import { parse as parseYaml } from 'yaml';
 import { resolveFileReferences } from './file-input-resolver.js';
 import {
   parseOutputs,
-  parseSdkMapping,
 } from './blueprint-loader/yaml-parser.js';
 import {
   createInputIdResolver,
@@ -17,7 +16,6 @@ import {
 import type {
   BlobInput,
   BlueprintProducerOutputDefinition,
-  BlueprintProducerSdkMappingField,
   BlueprintTreeNode,
   ProducerModelVariant,
 } from '../types.js';
@@ -36,8 +34,6 @@ export interface ModelSelection {
   model: string;
   config?: Record<string, unknown>;
   namespacePath?: string[];
-  /** SDK mappings - maps producer input names to provider API field names */
-  inputs?: Record<string, BlueprintProducerSdkMappingField>;
   /** Output definitions for the model */
   outputs?: Record<string, BlueprintProducerOutputDefinition>;
   /** Inline system prompt for LLM models */
@@ -312,8 +308,7 @@ function resolveModelSelections(
       const config =
         record.config && typeof record.config === 'object' ? (record.config as Record<string, unknown>) : undefined;
 
-      // Parse SDK mappings and outputs
-      const inputs = parseSdkMapping(record.inputs);
+      // Parse outputs (SDK mappings now come from producer YAML, not input YAML)
       const outputs = parseOutputs(record.outputs);
 
       // Parse inline LLM config (promptFile/outputSchema are now in producer meta, not here)
@@ -329,7 +324,6 @@ function resolveModelSelections(
         model,
         config,
         namespacePath: resolved.namespacePath,
-        inputs,
         outputs,
         systemPrompt,
         userPrompt,

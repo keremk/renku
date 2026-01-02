@@ -52,7 +52,7 @@ producers:
   - name: ScriptProducer
     path: ../../producers/script/script.yaml
   - name: AudioProducer
-    path: ../../producers/audio/audio.yaml
+    path: ../../producers/text-to-speech/text-to-speech.yaml
     loop: segment
 
 connections:
@@ -68,11 +68,11 @@ connections:
     to: ScriptProducer.NumOfSegments
 
   - from: ScriptProducer.NarrationScript[segment]
-    to: AudioProducer[segment].TextInput
+    to: AudioProducer[segment].Text
   - from: VoiceId
     to: AudioProducer[segment].VoiceId
   - from: Emotion
     to: AudioProducer[segment].Emotion
 
-  - from: AudioProducer[segment].SegmentAudio
+  - from: AudioProducer[segment].GeneratedAudio
     to: SegmentAudio[segment]

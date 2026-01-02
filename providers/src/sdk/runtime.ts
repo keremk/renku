@@ -19,14 +19,16 @@ import {
   isCanonicalInputId,
   inferBlobExtension,
   type BlueprintProducerSdkMappingField,
+  type MappingFieldDefinition,
   type NotificationBus,
   type StorageContext,
 } from '@gorenku/core';
 import { createHash } from 'node:crypto';
+import { applyMapping, setNestedValue, type TransformContext } from './transforms.js';
 
 interface SerializedJobContext {
   inputBindings?: Record<string, string>;
-  sdkMapping?: Record<string, BlueprintProducerSdkMappingField>;
+  sdkMapping?: Record<string, BlueprintProducerSdkMappingField | MappingFieldDefinition>;
 }
 
 type ConfigValidator<T = unknown> = (value: unknown) => T;
@@ -170,44 +172,75 @@ function createSdkHelper(
         }
       }
 
+      // Build transform context for the new transform engine
+      const transformContext: TransformContext = {
+        inputs: inputs.all(),
+        inputBindings: jobContext?.inputBindings ?? {},
+      };
+
       const payload: Record<string, unknown> = {};
       for (const [alias, fieldDef] of Object.entries(effectiveMapping)) {
-        const canonicalId = jobContext?.inputBindings?.[alias] ?? (isCanonicalId(alias) ? alias : undefined);
-        if (!canonicalId) {
-          throw new Error(`Missing canonical input mapping for "${alias}".`);
-        }
-        const rawValue = inputs.getByNodeId(canonicalId);
-        if (rawValue === undefined) {
-          // Validation logic:
-          // - If field is required AND has NO schema default → ERROR
-          // - If field is required AND has schema default → SKIP (provider uses its default)
-          // - If field is not required → SKIP
-          const isExpandField = fieldDef.expand === true;
-          const isRequiredBySchema = inputSchema && !isExpandField && schemaRequired.has(fieldDef.field);
-          const hasSchemaDefault = schemaDefaults.has(fieldDef.field);
-          if (isRequiredBySchema && !hasSchemaDefault) {
-            throw new Error(
-              `Missing required input "${canonicalId}" for field "${fieldDef.field}" (requested "${alias}"). No schema default available.`,
-            );
-          }
-          // Skip field - provider will use its default if one exists
-          continue;
-        }
-        // Apply value transform if defined
-        const value = applyTransform(rawValue, fieldDef.transform);
+        // Normalize simple field mappings (legacy support)
+        const normalizedMapping = normalizeToMappingFieldDefinition(fieldDef);
 
-        // If expand is true, spread the object into payload instead of assigning to field
-        if (fieldDef.expand === true) {
-          if (value && typeof value === 'object' && !Array.isArray(value)) {
-            Object.assign(payload, value);
+        // Check if this uses the new rich transform system
+        const usesRichTransforms = hasRichTransforms(normalizedMapping);
+
+        if (usesRichTransforms) {
+          // Use the new transform engine
+          const result = applyMapping(alias, normalizedMapping, transformContext);
+          if (result === undefined) {
+            // Transform returned undefined (conditional skip or missing input)
+            continue;
+          }
+
+          if ('expand' in result) {
+            Object.assign(payload, result.expand);
           } else {
-            throw new Error(
-              `Cannot expand non-object value for "${alias}". ` +
-                `expand:true requires the transformed value to be an object, got ${typeof value}.`
-            );
+            // Use setNestedValue to handle dot notation paths
+            setNestedValue(payload, result.field, result.value);
           }
         } else {
-          payload[fieldDef.field] = value;
+          // Legacy path for simple field + transform mappings
+          const canonicalId = jobContext?.inputBindings?.[alias] ?? (isCanonicalId(alias) ? alias : undefined);
+          if (!canonicalId) {
+            throw new Error(`Missing canonical input mapping for "${alias}".`);
+          }
+          const rawValue = inputs.getByNodeId(canonicalId);
+          if (rawValue === undefined) {
+            // Validation logic:
+            // - If field is required AND has NO schema default → ERROR
+            // - If field is required AND has schema default → SKIP (provider uses its default)
+            // - If field is not required → SKIP
+            const isExpandField = normalizedMapping.expand === true;
+            const fieldName = normalizedMapping.field ?? '';
+            const isRequiredBySchema = inputSchema && !isExpandField && schemaRequired.has(fieldName);
+            const hasSchemaDefault = schemaDefaults.has(fieldName);
+            if (isRequiredBySchema && !hasSchemaDefault) {
+              throw new Error(
+                `Missing required input "${canonicalId}" for field "${fieldName}" (requested "${alias}"). No schema default available.`,
+              );
+            }
+            // Skip field - provider will use its default if one exists
+            continue;
+          }
+          // Apply value transform if defined
+          const value = applyLegacyTransform(rawValue, normalizedMapping.transform);
+
+          // If expand is true, spread the object into payload instead of assigning to field
+          if (normalizedMapping.expand === true) {
+            if (value && typeof value === 'object' && !Array.isArray(value)) {
+              Object.assign(payload, value);
+            } else {
+              throw new Error(
+                `Cannot expand non-object value for "${alias}". ` +
+                  `expand:true requires the transformed value to be an object, got ${typeof value}.`
+              );
+            }
+          } else if (normalizedMapping.field) {
+            // Use setNestedValue to handle dot notation paths
+            setNestedValue(payload, normalizedMapping.field, value);
+          }
         }
       }
 
@@ -260,6 +293,32 @@ function createSdkHelper(
       return payload;
     },
   };
+}
+
+/**
+ * Normalizes a field definition to MappingFieldDefinition.
+ * Handles both BlueprintProducerSdkMappingField (legacy) and MappingFieldDefinition (new).
+ */
+function normalizeToMappingFieldDefinition(
+  fieldDef: BlueprintProducerSdkMappingField | MappingFieldDefinition,
+): MappingFieldDefinition {
+  // Both interfaces are structurally similar, just return as MappingFieldDefinition
+  return fieldDef as MappingFieldDefinition;
+}
+
+/**
+ * Checks if a mapping uses any of the rich transform types.
+ * Rich transforms: combine, conditional, firstOf, invert, intToString, durationToFrames
+ */
+function hasRichTransforms(mapping: MappingFieldDefinition): boolean {
+  return !!(
+    mapping.combine ||
+    mapping.conditional ||
+    mapping.firstOf ||
+    mapping.invert ||
+    mapping.intToString ||
+    mapping.durationToFrames
+  );
 }
 
 /** Blob input can be Uint8Array or an object with data and mimeType. */
@@ -325,11 +384,11 @@ function isCanonicalId(id: string): boolean {
 }
 
 /**
- * Applies a value transform if defined.
+ * Applies a value transform if defined (legacy path).
  * Transform maps input values (as string keys) to model-specific values.
  * If no transform is defined or the value doesn't match any key, returns the original value.
  */
-function applyTransform(value: unknown, transform: Record<string, unknown> | undefined): unknown {
+function applyLegacyTransform(value: unknown, transform: Record<string, unknown> | undefined): unknown {
   if (!transform) {
     return value;
   }

@@ -82,26 +82,18 @@ describe('collectVariants', () => {
 });
 
 describe('buildProducerOptionsFromBlueprint', () => {
-  it('builds options for interface-only producer using selection', async () => {
+  it('builds options for interface-only producer using selection (SDK mappings from producer YAML)', async () => {
     const blueprint = createBlueprintNode('TestBlueprint', [
       { name: 'ImageProducer' },
     ]);
 
+    // Note: 'inputs' field was removed from ModelSelection - SDK mappings now come from producer YAML
     const selections: ModelSelection[] = [
       {
         producerId: 'ImageProducer',
         provider: 'fal-ai',
         model: 'bytedance/seedream',
-        inputs: {
-          Prompt: { field: 'prompt' },
-          AspectRatio: {
-            field: 'image_size',
-            transform: {
-              '16:9': 'landscape_16_9',
-              '1:1': 'square',
-            },
-          },
-        },
+        // SDK mappings now come from producer YAML mappings section, not from selection
       },
     ];
 
@@ -112,16 +104,9 @@ describe('buildProducerOptionsFromBlueprint', () => {
     expect(options).toHaveLength(1);
     expect(options![0].provider).toBe('fal-ai');
     expect(options![0].model).toBe('bytedance/seedream');
-    expect(options![0].sdkMapping).toEqual({
-      Prompt: { field: 'prompt' },
-      AspectRatio: {
-        field: 'image_size',
-        transform: {
-          '16:9': 'landscape_16_9',
-          '1:1': 'square',
-        },
-      },
-    });
+    // sdkMapping is undefined because the test blueprint doesn't have a mappings section
+    // In production, SDK mappings come from producer YAML's mappings section
+    expect(options![0].sdkMapping).toBeUndefined();
   });
 
   it('builds options for LLM producer with inline config (no file loading)', async () => {

@@ -106,19 +106,19 @@ producers:
   - name: DocProducer
     path: ../../producers/documentary-talkinghead-prompt/documentary-prompt.yaml
   - name: ImageProducer
-    path: ../../producers/image/image.yaml
+    path: ../../producers/text-to-image/text-to-image.yaml
     loop: segment.image
   - name: AudioProducer
-    path: ../../producers/audio/audio.yaml
+    path: ../../producers/text-to-speech/text-to-speech.yaml
     loop: segment
   - name: VideoProducer
-    path: ../../producers/video/video.yaml
+    path: ../../producers/text-to-video/text-to-video.yaml
     loop: segment
   - name: TalkingHeadImageProducer
-    path: ../../producers/image/image.yaml
+    path: ../../producers/text-to-image/text-to-image.yaml
     loop: segment
   - name: TalkingHeadVideoProducer
-    path: ../../producers/talking-head-video/talking-head-video.yaml
+    path: ../../producers/text-to-talking-head/text-to-talking-head.yaml
     loop: segment
   - name: TimelineComposer  
     path: ../../producers/timeline-composer/timeline-composer.yaml
@@ -144,20 +144,20 @@ connections:
     to: ImageProducer[segment][image].AspectRatio
     if: isImageNarration
   - from: Size
-    to: ImageProducer[segment][image].Size
+    to: ImageProducer[segment][image].Resolution
     if: isImageNarration
-  - from: ImageProducer[segment][image].SegmentImage
-    to: SegmentImage[segment][image]  
+  - from: ImageProducer[segment][image].GeneratedImage
+    to: SegmentImage[segment][image]
     if: isImageNarration
 
   # Conditional: AudioProducer only when audio is needed.
   - from: DocProducer.VideoScript.Segments[segment].Script
-    to: AudioProducer[segment].TextInput
+    to: AudioProducer[segment].Text
     if: isAudioNeeded
   - from: VoiceId
     to: AudioProducer[segment].VoiceId
     if: isAudioNeeded
-  - from: AudioProducer[segment].SegmentAudio
+  - from: AudioProducer[segment].GeneratedAudio
     to: SegmentAudio[segment]
     if: isAudioNeeded
 
@@ -166,27 +166,24 @@ connections:
     to: TalkingHeadImageProducer[segment].Prompt
     if: isTalkingHead
   - from: Size
-    to: TalkingHeadImageProducer[segment].Size
+    to: TalkingHeadImageProducer[segment].Resolution
     if: isTalkingHead
   - from: AspectRatio
     to: TalkingHeadImageProducer[segment].AspectRatio
     if: isTalkingHead
-  - from: TalkingHeadImageProducer[segment].SegmentImage
+  - from: TalkingHeadImageProducer[segment].GeneratedImage
     to: TalkingHeadCharacterImage[segment]
     if: isTalkingHead
 
   # Conditional: TalkingHeadVideoProducer only when NarrationType is TalkingHead
   - from: SegmentDuration
-    to: TalkingHeadVideoProducer[segment].SegmentDuration
+    to: TalkingHeadVideoProducer[segment].Duration
     if: isTalkingHead
-  - from: Resolution 
+  - from: Resolution
     to: TalkingHeadVideoProducer[segment].Resolution
     if: isTalkingHead
-  - from: AspectRatio
-    to: TalkingHeadVideoProducer[segment].AspectRatio
-    if: isTalkingHead
   - from: DocProducer.VideoScript.Segments[segment].TalkingHeadText
-    to: TalkingHeadVideoProducer[segment].Text
+    to: TalkingHeadVideoProducer[segment].NarrativeText
     if: isTalkingHead
   - from: DocProducer.VideoScript.Segments[segment].TalkingHeadPrompt
     to: TalkingHeadVideoProducer[segment].Prompt
@@ -195,9 +192,9 @@ connections:
     to: TalkingHeadVideoProducer[segment].CharacterImage
     if: isTalkingHead
   - from: TalkingHeadVoiceId
-    to: TalkingHeadVideoProducer[segment].TalkingHeadVoiceId
+    to: TalkingHeadVideoProducer[segment].VoiceId
     if: isTalkingHead
-  - from: TalkingHeadVideoProducer[segment].SegmentVideo
+  - from: TalkingHeadVideoProducer[segment].GeneratedVideo
     to: SegmentTalkingHeadVideo[segment]
     if: isTalkingHead
 
@@ -206,28 +203,28 @@ connections:
     to: VideoProducer[segment].Prompt
     if: isVideoNarration
   - from: SegmentDuration
-    to: VideoProducer[segment].SegmentDuration
+    to: VideoProducer[segment].Duration
     if: isVideoNarration
-  - from: Resolution 
+  - from: Resolution
     to: VideoProducer[segment].Resolution
     if: isVideoNarration
   - from: AspectRatio
     to: VideoProducer[segment].AspectRatio
     if: isVideoNarration
-  - from: VideoProducer[segment].SegmentVideo
+  - from: VideoProducer[segment].GeneratedVideo
     to: SegmentVideo[segment]
     if: isVideoNarration
 
-  - from: AudioProducer[segment].SegmentAudio
+  - from: AudioProducer[segment].GeneratedAudio
     to: TimelineComposer.AudioSegments
     if: isAudioNeeded
-  - from: VideoProducer[segment].SegmentVideo
+  - from: VideoProducer[segment].GeneratedVideo
     to: TimelineComposer.VideoSegments
     if: isVideoNarration
-  - from: ImageProducer[segment][image].SegmentImage
+  - from: ImageProducer[segment][image].GeneratedImage
     to: TimelineComposer.ImageSegments
     if: isImageNarration
-  - from: TalkingHeadVideoProducer[segment].SegmentVideo
+  - from: TalkingHeadVideoProducer[segment].GeneratedVideo
     to: TimelineComposer.VideoSegments
     if: isTalkingHead
   - from: Duration
@@ -237,15 +234,15 @@ connections:
   
 collectors:
   - name: TimelineImages
-    from: ImageProducer[segment][image].SegmentImage
+    from: ImageProducer[segment][image].GeneratedImage
     into: TimelineComposer.ImageSegments
     groupBy: segment
     orderBy: image
   - name: TimelineAudio
-    from: AudioProducer[segment].SegmentAudio
+    from: AudioProducer[segment].GeneratedAudio
     into: TimelineComposer.AudioSegments
     groupBy: segment
   - name: TimelineVideo
-    from: VideoProducer[segment].SegmentVideo
+    from: VideoProducer[segment].GeneratedVideo
     into: TimelineComposer.VideoSegments
     groupBy: segment

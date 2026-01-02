@@ -18,3 +18,10 @@ export {
 export {
   createProducerGraph,
 } from './producer-graph.js';
+export {
+  resolveMappingsForModel,
+  getProducerMappings,
+} from './mapping-resolver.js';
+export type {
+  ResolvedMappingContext,
+} from './mapping-resolver.js';

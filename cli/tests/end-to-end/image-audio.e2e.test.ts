@@ -108,7 +108,7 @@ describe('end-to-end: image-audio dry runs', () => {
     if (!firstAudioJob) {
       throw new Error('AudioProducer job missing from plan');
     }
-    expect(firstAudioJob.context?.inputBindings?.TextInput).toMatch(
+    expect(firstAudioJob.context?.inputBindings?.Text).toMatch(
       /^Artifact:ScriptProducer\.NarrationScript\[\d+]/,
     );
     expect(firstAudioJob.inputs).toEqual(expect.arrayContaining(['Input:VoiceId', 'Input:Emotion']));

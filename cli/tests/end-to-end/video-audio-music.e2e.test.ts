@@ -79,7 +79,7 @@ describe('end-to-end: video-audio-music dry runs', () => {
     const audioJobs = plan.layers.flat().filter((job: any) => job.producer === 'AudioProducer');
     expect(audioJobs).toHaveLength(2);
     const audioJob0 = audioJobs[0];
-    expect(audioJob0?.context?.inputBindings?.TextInput).toMatch(/^Artifact:ScriptProducer\.NarrationScript\[0]/);
+    expect(audioJob0?.context?.inputBindings?.Text).toMatch(/^Artifact:ScriptProducer\.NarrationScript\[0]/);
     expect(audioJob0?.inputs.some((id: string) => id.startsWith('Artifact:ScriptProducer.NarrationScript'))).toBe(
       true,
     );
@@ -170,7 +170,7 @@ describe('end-to-end: video-audio-music dry runs', () => {
     await expectFileExists(editResult.planPath);
     const editPlan = await readPlan(editResult.planPath);
     const editAudioJob0 = findJob(editPlan, 'AudioProducer');
-    expect(editAudioJob0?.context?.inputBindings?.TextInput).toMatch(
+    expect(editAudioJob0?.context?.inputBindings?.Text).toMatch(
       /^Artifact:ScriptProducer\.NarrationScript\[0]/,
     );
     const editTimelineJob = findJob(editPlan, 'TimelineComposer');

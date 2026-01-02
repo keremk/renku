@@ -56,7 +56,7 @@ describe('createProviderRegistry', () => {
       layerIndex: 1,
       attempt: 1,
       inputs: ['Artifact:StartImage'],
-      produces: ['Artifact:SegmentVideo[segment=0]'],
+      produces: ['Artifact:GeneratedVideo[segment=0]'],
       context: {
         environment: 'cloud',
       },

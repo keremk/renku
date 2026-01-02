@@ -14,24 +14,15 @@ models:
   - model: minimax/speech-2.6-hd
     provider: replicate
     producerId: AudioProducer
-    inputs:
-      TextInput: text
-      Emotion: emotion
-      VoiceId: voice_id
+    # SDK mappings now come from producer YAML mappings section
   - model: bytedance/seedance-1-pro-fast
     provider: replicate
     producerId: VideoProducer
-    inputs:
-      Prompt: prompt
-      AspectRatio: aspect_ratio
-      Resolution: resolution
-      SegmentDuration: duration
+    # SDK mappings now come from producer YAML mappings section
   - model: google/nano-banana
     provider: replicate
     producerId: ImageProducer
-    inputs:
-      Prompt: prompt
-      AspectRatio: aspect_ratio
+    # SDK mappings now come from producer YAML mappings section
   - model: gpt-5-mini
     provider: openai
     producerId: DocProducer

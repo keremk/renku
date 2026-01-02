@@ -200,6 +200,31 @@ mappings:
           "1:1": square_hd
 
   replicate:
+    # Bytedance Seedream 4
+    bytedance/seedream-4:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+      Resolution: size
+      Width: width
+      Height: height
+      NumImages: max_images
+      EnhancePrompt: enhance_prompt
+
+    # Bytedance Seedream 4.5
+    bytedance/seedream-4.5:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+      Resolution: size
+      Width: width
+      Height: height
+      NumImages: max_images
+      EnhancePrompt: enhance_prompt
+
+    # Google Nano Banana
+    google/nano-banana:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+
     # Pattern 1: aspect_ratio only
     google/imagen-4:
       Prompt: prompt

@@ -31,13 +31,13 @@ describe('integration: provider config merging', () => {
         producerId: 'ImageProducer',
         provider: 'replicate',
         model: 'bytedance/seedream-4',
-        inputs: { Prompt: { field: 'prompt' }, AspectRatio: { field: 'aspect_ratio' } },
+        // SDK mappings now come from producer YAML mappings section, not from selection
       },
       {
         producerId: 'AudioProducer',
         provider: 'replicate',
         model: 'minimax/speech-2.6-hd',
-        inputs: { TextInput: { field: 'text' }, Emotion: { field: 'emotion' }, VoiceId: { field: 'voice_id' } },
+        // SDK mappings now come from producer YAML mappings section, not from selection
       },
       {
         producerId: 'TimelineComposer',
