@@ -1,0 +1,75 @@
+meta:
+  name: Text-to-Talking-Head Generator
+  description: Generate talking head video from text with voice synthesis.
+  id: TextToTalkingHeadProducer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Visual generation prompt.
+    type: string
+
+  # Character
+  - name: CharacterImage
+    description: Character/avatar image for the talking head.
+    type: image
+
+  # Text & Voice
+  - name: NarrativeText
+    description: Text to be spoken by the talking head.
+    type: string
+  - name: VoiceId
+    description: Voice identifier for narration.
+    type: string
+  - name: VoiceDescription
+    description: Description of desired voice characteristics.
+    type: string
+
+  # Duration
+  - name: Duration
+    description: Video duration in seconds (converted to frames for some models).
+    type: integer
+
+  # Sizing
+  - name: Resolution
+    description: "Resolution preset (480p, 720p)."
+    type: string
+
+  # Generation control
+  - name: Seed
+    description: Random seed for reproducibility.
+    type: integer
+  - name: Acceleration
+    description: "Acceleration level (none, regular, high)."
+    type: string
+
+artifacts:
+  - name: GeneratedVideo
+    description: The generated talking head video.
+    type: video
+
+mappings:
+  fal-ai:
+    # VEED Fabric 1.0 Text
+    veed-fabric-1-0-text:
+      CharacterImage: image_url
+      NarrativeText: text
+      VoiceDescription: voice_description
+      Resolution: resolution
+
+    # InfiniTalk Single Text
+    infinitalk-single-text:
+      Prompt: prompt
+      CharacterImage: image_url
+      NarrativeText: text_input
+      VoiceId: voice
+      # Duration in seconds → num_frames (at 24fps)
+      Duration:
+        field: num_frames
+        durationToFrames:
+          fps: 24
+      Resolution: resolution
+      Seed: seed
+      Acceleration: acceleration

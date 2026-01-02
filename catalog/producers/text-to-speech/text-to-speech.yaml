@@ -1,0 +1,183 @@
+meta:
+  name: Text-to-Speech Generator
+  description: Convert text to speech using various AI voice models.
+  id: TextToSpeechProducer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Text
+    description: Text to convert to speech.
+    type: string
+
+  # Voice selection (model-specific - no transformation possible)
+  - name: VoiceId
+    description: Voice identifier (model-specific, see model docs for available voices).
+    type: string
+  - name: ReferenceAudioUrl
+    description: Reference audio URL for voice cloning (supported by some models).
+    type: string
+
+  # Voice modulation
+  - name: Speed
+    description: Speech speed multiplier (0.5-2.0).
+    type: number
+  - name: Pitch
+    description: Voice pitch adjustment in semitones (-12 to 12).
+    type: integer
+  - name: Volume
+    description: Volume level (0.01-10).
+    type: number
+  - name: Emotion
+    description: Emotional tone (happy, sad, angry, neutral, etc.).
+    type: string
+
+  # Audio output
+  - name: OutputFormat
+    description: "Audio format (mp3, wav, flac, pcm)."
+    type: string
+  - name: SampleRate
+    description: "Sample rate in Hz (8000, 16000, 22050, 24000, 32000, 44100)."
+    type: integer
+  - name: Bitrate
+    description: "Bitrate in bps (32000, 64000, 128000, 256000)."
+    type: integer
+  - name: Channel
+    description: "Audio channel (mono, stereo)."
+    type: string
+
+  # Language
+  - name: LanguageCode
+    description: ISO 639-1 language code or language name.
+    type: string
+
+  # Generation control
+  - name: Seed
+    description: Random seed for reproducibility.
+    type: integer
+  - name: Temperature
+    description: Generation temperature (higher = more varied).
+    type: number
+
+artifacts:
+  - name: GeneratedAudio
+    description: The generated speech audio.
+    type: audio
+
+mappings:
+  fal-ai:
+    # ElevenLabs TTS
+    elevenlabs/tts/eleven-v3:
+      Text: text
+      VoiceId: voice
+      Speed: speed
+      LanguageCode: language_code
+
+    # MiniMax Speech 02 HD
+    minimax/speech-02-hd:
+      Text: text
+      VoiceId: voice_setting.voice_id
+      Speed: voice_setting.speed
+      Pitch: voice_setting.pitch
+      Volume: voice_setting.vol
+      Emotion: voice_setting.emotion
+      OutputFormat: audio_setting.format
+      SampleRate: audio_setting.sample_rate
+      Bitrate: audio_setting.bitrate
+      Channel:
+        field: audio_setting.channel
+        transform:
+          "mono": 1
+          "stereo": 2
+      LanguageCode: language_boost
+
+    # MiniMax Speech 2.6 HD
+    minimax/speech-2-6-hd:
+      Text: prompt
+      VoiceId: voice_setting.voice_id
+      Speed: voice_setting.speed
+      Pitch: voice_setting.pitch
+      Volume: voice_setting.vol
+      Emotion: voice_setting.emotion
+      OutputFormat: audio_setting.format
+      SampleRate: audio_setting.sample_rate
+      Bitrate: audio_setting.bitrate
+      Channel:
+        field: audio_setting.channel
+        transform:
+          "mono": 1
+          "stereo": 2
+      LanguageCode: language_boost
+
+    # Chatterbox TTS
+    chatterbox/text-to-speech:
+      Text: text
+      ReferenceAudioUrl: audio_url
+      Temperature: temperature
+      Seed: seed
+
+  replicate:
+    # MiniMax Speech 02 HD
+    minimax/speech-02-hd:
+      Text: text
+      VoiceId: voice_id
+      Speed: speed
+      Pitch: pitch
+      Volume: volume
+      Emotion: emotion
+      OutputFormat: audio_format
+      SampleRate: sample_rate
+      Bitrate: bitrate
+      Channel: channel
+      LanguageCode: language_boost
+
+    # MiniMax Speech 02 Turbo
+    minimax/speech-02-turbo:
+      Text: text
+      VoiceId: voice_id
+      Speed: speed
+      Pitch: pitch
+      Volume: volume
+      Emotion: emotion
+      OutputFormat: audio_format
+      SampleRate: sample_rate
+      Bitrate: bitrate
+      Channel: channel
+      LanguageCode: language_boost
+
+    # MiniMax Speech 2.6 HD
+    minimax/speech-2-6-hd:
+      Text: text
+      VoiceId: voice_id
+      Speed: speed
+      Pitch: pitch
+      Volume: volume
+      Emotion: emotion
+      OutputFormat: audio_format
+      SampleRate: sample_rate
+      Bitrate: bitrate
+      Channel: channel
+      LanguageCode: language_boost
+
+    # MiniMax Speech 2.6 Turbo
+    minimax/speech-2-6-turbo:
+      Text: text
+      VoiceId: voice_id
+      Speed: speed
+      Pitch: pitch
+      Volume: volume
+      Emotion: emotion
+      OutputFormat: audio_format
+      SampleRate: sample_rate
+      Bitrate: bitrate
+      Channel: channel
+      LanguageCode: language_boost
+
+    # Resemble AI Chatterbox Turbo
+    resemble-ai/chatterbox-turbo:
+      Text: text
+      VoiceId: voice
+      ReferenceAudioUrl: reference_audio
+      Temperature: temperature
+      Seed: seed

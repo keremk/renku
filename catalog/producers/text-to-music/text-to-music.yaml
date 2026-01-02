@@ -1,0 +1,65 @@
+meta:
+  name: Text-to-Music Generator
+  description: Generate music from text prompts and lyrics.
+  id: TextToMusicProducer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Text prompt describing desired music style/mood.
+    type: string
+  - name: Lyrics
+    description: Song lyrics with section tags ([intro], [verse], [chorus], etc.).
+    type: string
+
+  # Duration
+  - name: Duration
+    description: Duration in seconds (for non-lyrics models).
+    type: integer
+
+  # Audio output
+  - name: OutputFormat
+    description: "Audio format (mp3, wav, pcm)."
+    type: string
+  - name: SampleRate
+    description: "Sample rate in Hz (16000, 24000, 32000, 44100)."
+    type: integer
+  - name: Bitrate
+    description: "Bitrate in bps (32000, 64000, 128000, 256000)."
+    type: integer
+
+  # Generation control
+  - name: Seed
+    description: Random seed for reproducibility.
+    type: integer
+  - name: Steps
+    description: Number of diffusion steps.
+    type: integer
+  - name: GuidanceScale
+    description: Classifier-free guidance scale.
+    type: number
+
+artifacts:
+  - name: GeneratedMusic
+    description: The generated music audio.
+    type: audio
+
+mappings:
+  replicate:
+    # MiniMax Music 1.5
+    minimax/music-1-5:
+      Prompt: prompt
+      Lyrics: lyrics
+      OutputFormat: audio_format
+      SampleRate: sample_rate
+      Bitrate: bitrate
+
+    # Stability AI Stable Audio 2.5
+    stability-ai/stable-audio-2-5:
+      Prompt: prompt
+      Duration: duration
+      Steps: steps
+      GuidanceScale: cfg_scale
+      Seed: seed

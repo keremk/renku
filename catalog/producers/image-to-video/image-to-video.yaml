@@ -1,6 +1,6 @@
 meta:
-  name: Image to Video Generation
-  description: Generate a video that best reflects the given narrative script.
+  name: Image-to-Video Generator
+  description: Generate video from start image and optionally end image.
   id: ImageToVideoProducer
   version: 0.1.0
   author: Renku
@@ -8,25 +8,187 @@ meta:
 
 inputs:
   - name: Prompt
-    description: The prompt to generate the video.
+    description: Text description guiding the video generation.
     type: string
-  - name: InputImage1
-    description: The starting frame image to be used.
+  - name: NegativePrompt
+    description: What to avoid in the video.
+    type: string
+
+  # Images
+  - name: StartImage
+    description: Starting frame image.
     type: image
-  - name: InputImage2
-    description: The end frame image to be used.
+  - name: EndImage
+    description: Ending frame image (for interpolation).
     type: image
+
+  # Duration
+  - name: Duration
+    description: Video duration in seconds.
+    type: integer
+
+  # Sizing
   - name: AspectRatio
-    description: Aspect ratio such as 16:9 or 3:2. Model default varies.
+    description: "Aspect ratio (auto, 16:9, 9:16, 1:1)."
     type: string
   - name: Resolution
-    description: The video resolution (480p, 720p, 1080p). Model default varies.
+    description: "Resolution preset (480p, 720p, 1080p)."
     type: string
-  - name: SegmentDuration
-    description: The video segment's duration in seconds. Model default varies.
-    type: int
+
+  # Audio
+  - name: GenerateAudio
+    description: Whether to generate audio.
+    type: boolean
+  - name: VoiceIds
+    description: Voice IDs for speech generation.
+    type: array
+
+  # Generation control
+  - name: Seed
+    description: Random seed for reproducibility.
+    type: integer
+  - name: EnhancePrompt
+    description: Enable prompt enhancement.
+    type: boolean
+  - name: CameraFixed
+    description: Keep camera position fixed.
+    type: boolean
 
 artifacts:
-  - name: SegmentVideo
-    description: Video file for the segment.
+  - name: GeneratedVideo
+    description: The generated video.
     type: video
+
+mappings:
+  fal-ai:
+    # Veo 3.1 Image-to-Video
+    veo3-1/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: generate_audio
+      EnhancePrompt: auto_fix
+
+    # Veo 3.1 Fast First-Last-Frame
+    veo3-1-fast/first-last-frame:
+      Prompt: prompt
+      StartImage: first_frame_url
+      EndImage: last_frame_url
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: generate_audio
+
+    # Sora 2 Image-to-Video
+    sora-2/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+
+    # Wan v2.6 Image-to-Video
+    wan-v2-6/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      Duration:
+        field: duration
+        intToString: true
+      Resolution: resolution
+      Seed: seed
+      EnhancePrompt: enable_prompt_expansion
+
+    # Kling Omni (Video o1) Image-to-Video
+    kling-video-o1/image-to-video:
+      Prompt: prompt
+      StartImage: start_image_url
+      EndImage: end_image_url
+      Duration:
+        field: duration
+        intToString: true
+
+    # Kling v2.6 Pro Image-to-Video
+    kling-video-v2-6-pro/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      Duration:
+        field: duration
+        intToString: true
+      NegativePrompt: negative_prompt
+      GenerateAudio: generate_audio
+      VoiceIds: voice_ids
+
+    # ByteDance Seedance v1-Pro-Fast Image-to-Video
+    bytedance/seedance/v1-pro-fast/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+
+    # ByteDance Seedance v1.5 Pro Image-to-Video
+    bytedance/seedance/v1.5-pro/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      EndImage: end_image_url
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: generate_audio
+      CameraFixed: camera_fixed
+
+  replicate:
+    # Google Veo 3.1 Fast
+    google/veo-3-1-fast:
+      Prompt: prompt
+      StartImage: image
+      EndImage: last_frame
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: generate_audio
+      NegativePrompt: negative_prompt
+      Seed: seed
+
+    # MiniMax Hailuo 2.3 Fast (image required)
+    minimax/hailuo-2-3-fast:
+      Prompt: prompt
+      StartImage: first_frame_image
+      Duration: duration
+      Resolution: resolution
+      EnhancePrompt: prompt_optimizer
+
+    # MiniMax Hailuo 0.2 Fast (with interpolation)
+    minimax/hailuo-02-fast:
+      Prompt: prompt
+      StartImage: first_frame_image
+      EndImage: last_frame_image
+      Duration: duration
+      Resolution: resolution
+      EnhancePrompt: prompt_optimizer
+
+    # MiniMax Hailuo 0.2 (flexible)
+    minimax/hailuo-02:
+      Prompt: prompt
+      StartImage: first_frame_image
+      EndImage: last_frame_image
+      Duration: duration
+      Resolution: resolution
+      EnhancePrompt: prompt_optimizer
+
+    # ByteDance Seedance (with image)
+    bytedance/seedance-1-5-pro:
+      Prompt: prompt
+      StartImage: image
+      EndImage: last_frame_image
+      Duration: duration
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
+      CameraFixed: camera_fixed
+      Seed: seed

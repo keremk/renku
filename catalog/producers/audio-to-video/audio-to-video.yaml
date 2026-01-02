@@ -1,0 +1,84 @@
+meta:
+  name: Audio-to-Video Generator
+  description: Generate lip-synced video from audio and character image.
+  id: AudioToVideoProducer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Optional text prompt for guidance.
+    type: string
+
+  # Character
+  - name: CharacterImage
+    description: Character/avatar image for the talking head.
+    type: image
+
+  # Audio
+  - name: AudioUrl
+    description: URL to audio file for lip-sync.
+    type: string
+
+  # Duration
+  - name: Duration
+    description: Video duration in seconds (converted to frames for some models).
+    type: integer
+
+  # Sizing
+  - name: Resolution
+    description: "Resolution preset (480p, 720p)."
+    type: string
+
+  # Generation control
+  - name: Seed
+    description: Random seed for reproducibility.
+    type: integer
+  - name: Acceleration
+    description: "Acceleration level (none, regular, high)."
+    type: string
+
+  # Guidance
+  - name: GuidanceScale
+    description: Text guidance strength.
+    type: number
+  - name: AudioGuidanceScale
+    description: Audio adherence strength.
+    type: number
+
+artifacts:
+  - name: GeneratedVideo
+    description: The generated lip-synced video.
+    type: video
+
+mappings:
+  fal-ai:
+    # Creatify Aurora
+    creatify-aurora:
+      Prompt: prompt
+      CharacterImage: image_url
+      AudioUrl: audio_url
+      Resolution: resolution
+      GuidanceScale: guidance_scale
+      AudioGuidanceScale: audio_guidance_scale
+
+    # VEED Fabric 1.0 Fast
+    veed-fabric-1-0-fast:
+      CharacterImage: image_url
+      AudioUrl: audio_url
+      Resolution: resolution
+
+    # InfiniTalk (Audio-driven)
+    infinitalk:
+      Prompt: prompt
+      CharacterImage: image_url
+      AudioUrl: audio_url
+      # Duration in seconds → num_frames (at 24fps)
+      Duration:
+        field: num_frames
+        durationToFrames:
+          fps: 24
+      Resolution: resolution
+      Seed: seed
+      Acceleration: acceleration
