@@ -340,7 +340,7 @@ connections:
 
 ## Producer YAML Reference
 
-Producers define the interface for execution units - they specify what inputs they accept and what artifacts they produce. **Model configurations are NOT defined in producers** - they are specified in the input template file (see [Input Files Reference](#input-files-reference)).
+Producers define the interface for execution units - they specify what inputs they accept, what artifacts they produce, and how inputs map to provider-specific fields for each supported model.
 
 ### Complete Schema
 
@@ -374,11 +374,35 @@ loops:
   - name: <string>         # Loop identifier
     description: <string>  # Purpose
     countInput: <string>   # Input for iteration count
+
+mappings:
+  <provider>:              # Provider name: replicate, fal-ai, openai, renku
+    <model>:               # Model identifier
+      <ProducerInput>: <providerField>           # Simple field mapping
+      <ProducerInput>:                           # Object form for advanced mappings
+        field: <providerField>                   # Target field name (supports dot notation)
+        transform:                               # Value transformation table
+          <inputValue>: <providerValue>
+        expand: <boolean>                        # Spread object into payload
+        firstOf: <boolean>                       # Extract first element from array
+        invert: <boolean>                        # Flip boolean value
+        intToString: <boolean>                   # Convert integer to string
+        durationToFrames:                        # Convert seconds to frame count
+          fps: <number>
+        combine:                                 # Combine multiple inputs
+          inputs: [<input1>, <input2>]
+          table:
+            "<val1>+<val2>": <result>
+        conditional:                             # Conditional mapping
+          when:
+            input: <inputName>
+            equals: <value>                      # or notEmpty: true, or empty: true
+          then: <mapping>
 ```
 
-**Note:** Producers no longer contain a `models:` section. Model selection and configuration is done in the input template file, allowing users to choose different models without modifying producer definitions.
+**Note on Mappings:** The `mappings:` section defines how producer inputs map to provider-specific API fields. Each provider/model combination can have different field names and transformations. This allows producers to work with multiple models while keeping input files simple.
 
-**Note on LLM Producers:** For producers that use LLMs (OpenAI, etc.), the `promptFile` and `outputSchema` fields are defined in the `meta:` section of the producer YAML file. These are intrinsic to the producer's functionality and cannot be overridden per-run. Paths are relative to the producer YAML file location.
+**Note on LLM Producers:** For producers that use LLMs (OpenAI, etc.), the `promptFile` and `outputSchema` fields are defined in the `meta:` section of the producer YAML file. These are intrinsic to the producer's functionality. Paths are relative to the producer YAML file location.
 
 ### Real Example: Script Producer
 
@@ -460,6 +484,30 @@ artifacts:
   - name: SegmentVideo
     description: Video file for the segment.
     type: video
+
+mappings:
+  replicate:
+    bytedance/seedance-1-pro-fast:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      SegmentDuration: duration
+    google/veo-3.1-fast:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+  fal-ai:
+    bytedance/seedream/v4.5/text-to-video:
+      Prompt: prompt
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "1:1": square_hd
+      SegmentDuration:
+        field: num_frames
+        durationToFrames:
+          fps: 24
 ```
 
 ### Real Example: Audio Producer
@@ -483,11 +531,32 @@ inputs:
   - name: Emotion
     description: Optional emotion hint.
     type: string
+  - name: Speed
+    description: Speech speed multiplier.
+    type: number
 
 artifacts:
   - name: SegmentAudio
     description: Narrated audio file for the segment.
     type: audio
+
+mappings:
+  replicate:
+    minimax/speech-2.6-hd:
+      TextInput: text
+      VoiceId: voice_id
+      Emotion: emotion
+      Speed: speed
+  fal-ai:
+    minimax/speech-2.6-hd:
+      TextInput: prompt
+      VoiceId: voice_setting.voice_id
+      Emotion: voice_setting.emotion
+      Speed: voice_setting.speed
+    elevenlabs/tts/eleven-v3:
+      TextInput: text
+      VoiceId: voice
+      Speed: speed
 ```
 
 ### Real Example: Timeline Composer (Fan-In Inputs)
@@ -1241,7 +1310,7 @@ Jobs that consume other prompts (`ImageProducer[0][1]`, `ImageProducer[1][0]`, e
 
 ## Input Files Reference
 
-Input files (also called input templates) are YAML files that provide runtime values and **model configurations** for blueprints. This is where you select which AI models to use for each producer.
+Input files (also called input templates) are YAML files that provide runtime values and **model selections** for blueprints. This is where you select which AI models to use for each producer.
 
 ### Structure
 
@@ -1253,14 +1322,12 @@ models:
   - model: <modelId>           # Model identifier (required)
     provider: <providerId>     # Provider name (required): openai, replicate, fal-ai, renku
     producerId: <ProducerName> # Which producer this model is for (required)
-    inputs:                    # Input field mappings (optional)
-      <ProducerInput>:
-        field: <providerField>
-        transform: <object>    # Optional value transformations
-    config: <object>           # Provider-specific configuration
+    config: <object>           # Provider-specific configuration (optional)
 ```
 
-**Note:** For LLM producers, `promptFile` and `outputSchema` are defined in the producer YAML's `meta:` section, not in the input template. This is because these files are intrinsic to the producer's functionality.
+**Note:** Input-to-provider field mappings are defined in the producer YAML's `mappings:` section, not in the input template. This keeps input files simple - you only specify which model to use, not how inputs map to provider fields.
+
+**Note:** For LLM producers, `promptFile` and `outputSchema` are defined in the producer YAML's `meta:` section. These are intrinsic to the producer's functionality.
 
 ### Input Values
 
@@ -1288,28 +1355,9 @@ models:
   - model: minimax/speech-2.6-hd
     provider: replicate
     producerId: AudioProducer
-    inputs:
-      TextInput: text
-      Emotion: emotion
-      VoiceId: voice_id
 ```
 
-#### Input Field Mappings
-
-The `inputs` field maps producer input names to provider-specific parameter names:
-
-```yaml
-inputs:
-  TextInput: text              # Simple mapping: "TextInput" → "text"
-  Prompt:
-    field: prompt              # Object form for advanced mappings
-  AspectRatio:
-    field: image_size
-    transform:                 # Value transformations
-      "16:9": "landscape_16_9"
-      "9:16": "portrait_16_9"
-      "1:1": "square"
-```
+The producer's `mappings:` section defines how inputs like `TextInput`, `Emotion`, and `VoiceId` map to provider fields - you don't need to specify that here.
 
 #### LLM Producers (OpenAI)
 
@@ -1327,7 +1375,7 @@ models:
 **Key fields:**
 - `config.text_format`: Use `json_schema` for structured output, `text` for plain text
 
-**Note:** The `promptFile` and `outputSchema` are defined in the producer YAML's `meta:` section, not here. This keeps prompt configuration co-located with the producer logic.
+**Note:** The `promptFile` and `outputSchema` are defined in the producer YAML's `meta:` section. This keeps prompt configuration co-located with the producer logic.
 
 #### Video/Image/Audio Producers
 
@@ -1336,12 +1384,15 @@ models:
   - model: bytedance/seedance-1-pro-fast
     provider: replicate
     producerId: VideoProducer
-    inputs:
-      Prompt: prompt
-      AspectRatio: aspect_ratio
-      Resolution: resolution
-      SegmentDuration: duration
+  - model: google/nano-banana
+    provider: replicate
+    producerId: ImageProducer
+  - model: minimax/speech-2.6-hd
+    provider: replicate
+    producerId: AudioProducer
 ```
+
+The producer YAML files define how inputs like `Prompt`, `AspectRatio`, `Resolution` map to each provider's API fields.
 
 #### Timeline Composer
 
@@ -1375,7 +1426,7 @@ inputs:
   Size: "1K"
 
 models:
-  - model: gpt-5.2
+  - model: gpt-5-mini
     provider: openai
     producerId: DocProducer
     config:
@@ -1383,15 +1434,6 @@ models:
   - model: bytedance/seedream/v4.5/text-to-image
     provider: fal-ai
     producerId: ImageProducer
-    inputs:
-      Prompt:
-        field: prompt
-      AspectRatio:
-        field: image_size
-        transform:
-          "16:9": "landscape_16_9"
-          "9:16": "portrait_16_9"
-          "1:1": "square"
   - model: timeline/ordered
     provider: renku
     producerId: TimelineComposer
@@ -1403,7 +1445,7 @@ models:
         artifact: ImageSegments[Image]
 ```
 
-**Note:** The `promptFile` and `outputSchema` for the `DocProducer` are defined in the producer YAML file's `meta:` section, not in this input template.
+**Note:** The `promptFile` and `outputSchema` for the `DocProducer` are defined in the producer YAML file's `meta:` section. Input-to-provider field mappings (like how `AspectRatio` maps to `image_size`) are defined in the producer's `mappings:` section.
 
 ### Data Types
 

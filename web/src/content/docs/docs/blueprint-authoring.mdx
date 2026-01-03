@@ -243,15 +243,27 @@ artifacts:
     itemType: <string>     # Element type for arrays
     countInput: <string>   # Input for array size
 
-models:
-  - provider: <string>     # Provider: openai, replicate, fal-ai, renku
-    model: <string>        # Model identifier (required)
-    inputs:                # Input field mappings
-      <ProducerInput>: <providerField>
-    config: <object>       # Provider-specific config
+mappings:
+  <provider>:              # Provider name: replicate, fal-ai, openai, renku
+    <model>:               # Model identifier
+      <ProducerInput>: <providerField>           # Simple mapping
+      <ProducerInput>:                           # Object form
+        field: <providerField>
+        transform:                               # Value transformation
+          <inputValue>: <providerValue>
+        expand: <boolean>                        # Spread object into payload
+        combine:                                 # Combine multiple inputs
+          inputs: [<input1>, <input2>]
+          table:
+            "<val1>+<val2>": <result>
+        conditional:                             # Conditional mapping
+          when:
+            input: <inputName>
+            notEmpty: <boolean>
+          then: <mapping>
 ```
 
-**Note on LLM Producers:** For producers that use LLMs (OpenAI, etc.), the `promptFile` and `outputSchema` fields are defined in the `meta:` section of the producer YAML file, not in the input template. These are intrinsic to the producer's functionality and cannot be overridden per-run.
+**Note on LLM Producers:** For producers that use LLMs (OpenAI, etc.), the `promptFile` and `outputSchema` fields are defined in the `meta:` section of the producer YAML file. These are intrinsic to the producer's functionality.
 
 ### Example: Script Producer (OpenAI)
 
@@ -287,7 +299,7 @@ artifacts:
 
 **Note:** LLM producers define `promptFile` and `outputSchema` in the `meta:` section. The model selection (e.g., `gpt-4o`) is specified in the input template file.
 
-### Example: Video Producer (Replicate)
+### Example: Video Producer (with Mappings)
 
 ```yaml
 meta:
@@ -307,18 +319,24 @@ artifacts:
   - name: SegmentVideo
     type: video
 
-models:
-  - model: bytedance/seedance-1-pro-fast
-    provider: replicate
-    inputs:
+mappings:
+  replicate:
+    bytedance/seedance-1-pro-fast:
       Prompt: prompt
       AspectRatio: aspect_ratio
       Resolution: resolution
-  - model: google/veo-3.1-fast
-    provider: replicate
-    inputs:
+    google/veo-3.1-fast:
       Prompt: prompt
       AspectRatio: aspect_ratio
+  fal-ai:
+    bytedance/seedream/v4.5/text-to-image:
+      Prompt: prompt
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "1:1": square_hd
 ```
 
 ### Example: Timeline Composer (Fan-In)
@@ -347,9 +365,8 @@ artifacts:
   - name: Timeline
     type: json
 
-models:
-  - model: timeline/ordered
-    provider: renku
+# Timeline composer uses renku provider - no field mappings needed
+# Model selection and config are specified in the input template
 ```
 
 ---
@@ -807,33 +824,59 @@ inputs:
   InquiryPrompt: "Your topic here"
   Duration: 60
   NumOfSegments: 3
+  Style: "Documentary"
+  AspectRatio: "16:9"
 
 models:
+  - model: gpt-5-mini
+    provider: openai
+    producerId: ScriptProducer
+    config:
+      text_format: json_schema
   - model: minimax/speech-2.6-hd
     provider: replicate
     producerId: AudioProducer
   - model: bytedance/seedance-1-pro-fast
     provider: replicate
     producerId: VideoProducer
-```
-
-### Model Selection
-
-Override default models per producer:
-
-```yaml
-models:
-  - model: google/veo-3.1-fast
-    provider: replicate
-    producerId: VideoProducer
   - model: timeline/ordered
     provider: renku
     producerId: TimelineComposer
     config:
-      masterTrack: Audio
+      tracks: ["Video", "Audio"]
+      masterTracks: ["Audio"]
+```
+
+### Model Selection
+
+Select which model to use for each producer. The `config` field passes provider-specific options:
+
+```yaml
+models:
+  # LLM with structured output
+  - model: gpt-5-mini
+    provider: openai
+    producerId: ScriptProducer
+    config:
+      text_format: json_schema
+
+  # Video generation
+  - model: google/veo-3.1-fast
+    provider: replicate
+    producerId: VideoProducer
+
+  # Timeline composition with custom config
+  - model: timeline/ordered
+    provider: renku
+    producerId: TimelineComposer
+    config:
+      tracks: ["Video", "Audio", "Music"]
+      masterTracks: ["Audio"]
       musicClip:
         volume: 0.4
 ```
+
+**Note:** Input-to-provider field mappings are defined in the producer YAML's `mappings:` section, not in the input template. This keeps input files simple.
 
 ---
 
