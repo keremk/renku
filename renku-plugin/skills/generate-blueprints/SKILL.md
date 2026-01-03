@@ -15,11 +15,17 @@ Before creating blueprints, ensure Renku is initialized:
 2. If not, run `renku init --root=~/renku-workspace` (or user's preferred path)
 3. The config file contains the `catalog` path where blueprints and producers are installed
 
-## Discovery Phase
+Read `~/.config/renku/cli-config.json` to find the catalog path:
+
+```bash
+cat ~/.config/renku/cli-config.json
+```
+
+## How to Create Blueprints
+
+### Step 1: Essential Questions for Requirements
 
 Before creating a blueprint, gather the following information from the user:
-
-### Essential Questions
 
 1. **What type of video?**
    - Documentary/educational
@@ -46,50 +52,32 @@ Before creating a blueprint, gather the following information from the user:
    - Aspect ratio (16:9, 9:16, 1:1)
    - Resolution (480p, 720p, 1080p)
 
-### Example Narratives
+5. **Media Generators and LLM providers**
+   - We have Replicate and Fal-ai as media generators. Users may only have accounts in one, so ask if they want to use one exclusively. 
+   - We have OpenAI or Vercel AI Gateway for LLM (prompt) generators. Ask which one user have accounts.
 
-See [narrative-examples.md](./narrative-examples.md) for example user inquiries and how they map to video workflows.
+### Step 2: Figure out a narrative
 
-See [story-arclines.md](./story-arclines.md) for narrative structure patterns.
+See [narrative-examples.md](./docs/narrative-examples.md) for example user inquiries and how they map to video workflows. Based on the information collected, first figure out the narrative you would need conceptually. 
 
-## Pattern Selection
+### Step 3: Figure out the Blueprint Components
 
-Based on user requirements, select the appropriate blueprint pattern:
+Once the type of narrative is understood, the example blueprints in [blueprint-patterns.md](./docs/blueprint-patterns.md) should be analyzed and determine if there is an existing blueprint that may fit the need or one that best resembles (where additional alterations can be made later). Based on this:
 
-| User Wants | Pattern | Producers |
-|------------|---------|-----------|
-| Audio narration only | `audio-only` | Script, Audio |
-| Image slideshow | `image-only` | Script, ImagePrompt, Image |
-| Documentary with images + audio | `kenn-burns` | Script, ImagePrompt, Image, Audio, Timeline |
-| Full production with export | `cut-scene-video` | All + VideoExporter |
-| Flowing video from images | `image-to-video` | FlowVideoPrompt, Image, ImageToVideo |
-| Background music only | `music-only` | Script, MusicPrompt, Music |
+- Figure out which asset (media) producers will be needed. The complete set of asset producers are located in the catalog root, under the producers folder.
+- For the prompt producers, you can use the `catalog/producers/prompt` as an example. If you find something that fully fits, then you can use that with small alterations but more likely you will need to create one from scratch: (Use the examples as a guidance)
+  - Decide on the output schema: This creates a JSON schema for a structured output. These can be prompts, narrative text, or potential decision values for the conditional branching. 
+  - Decide on the prompts that will produce output that fits that schema.
+  - Finally generate a YAML file that identifies the inputs (which will be used in the prompts) and ties all of this together.
 
-See [blueprint-patterns.md](./docs/blueprint-patterns.md) for detailed pattern information.
+### Step 4: Determine the Inputs and Artifacts
 
-## Blueprint Creation Workflow
+Based on the requirements gathering and the selected producers, determine what inputs will be needed from the user to do the full video generation.
+- Minimal set of required inputs, various producers and models have default values that are already good enough. Do not overwhelm the user to specify all of those inputs and rely on the defaults when they make sense.
 
-### Step 1: Find the Catalog
+### Step 5: Define the Blueprint Structure
 
-Read `~/.config/renku/cli-config.json` to find the catalog path:
-
-```bash
-cat ~/.config/renku/cli-config.json
-```
-
-The `catalog` field contains the path to blueprints and producers.
-
-### Step 2: Start from Template
-
-Copy the closest existing blueprint as a starting point:
-- `<catalog>/blueprints/audio-only/audio-only.yaml`
-- `<catalog>/blueprints/video-only/video-only.yaml`
-- `<catalog>/blueprints/kenn-burns/image-audio.yaml`
-- `<catalog>/blueprints/image-to-video/image-to-video.yaml`
-
-### Step 3: Define the Blueprint Structure
-
-A blueprint has these sections:
+A blueprint has these sections, you will need to be filling these as you go along the process.
 
 ```yaml
 meta:
@@ -139,9 +127,9 @@ collectors:
     orderBy: <optional ordering dimension>
 ```
 
-### Step 4: Wire Connections
+### Step 3: Wire Connections
 
-Connection patterns:
+Most commonly used connection patterns:
 
 **Direct (scalar to scalar)**:
 ```yaml
@@ -175,7 +163,9 @@ Connection patterns:
   to: ImageToVideoProducer[segment].InputImage2
 ```
 
-### Step 5: Add Collectors (for Fan-In)
+See `docs/comprehensive-blueprint-guide.md` for a comprehensive explanation 
+
+### Step 4: Add Collectors (for Fan-In)
 
 When multiple outputs need to be aggregated:
 

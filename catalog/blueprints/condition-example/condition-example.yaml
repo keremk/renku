@@ -86,18 +86,18 @@ conditions:
 
 producers:
   - name: DocProducer
-    path: ../../producers/documentary-prompt/documentary-prompt.yaml
+    path: ../../producers/prompt/documentary/documentary.yaml
   - name: ImageProducer
-    path: ../../producers/text-to-image/text-to-image.yaml
+    path: ../../producers/asset/text-to-image.yaml
     loop: segment.image
   - name: AudioProducer
-    path: ../../producers/text-to-speech/text-to-speech.yaml
+    path: ../../producers/asset/text-to-speech.yaml
     loop: segment
   - name: VideoProducer
-    path: ../../producers/text-to-video/text-to-video.yaml
+    path: ../../producers/asset/text-to-video.yaml
     loop: segment
   - name: TimelineComposer  
-    path: ../../producers/timeline-composer/timeline-composer.yaml
+    path: ../../producers/composition/timeline-composer.yaml
 
 connections:
   # Wire inputs to DocProducer

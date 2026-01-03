@@ -156,9 +156,9 @@ Narrative Producer → ImagePrompts[], VideoPrompts[]
 
 **Use when** : Best for creating documentaries which has a mixture of image/audio narrative segments and video segments with people (experts etc.) providing important information mostly as a talking head.
 
-**Key Feature**: Uses the conditional routing feature. The Narrative Generator creates (see `catalog/producers/documentary-prompt` as example) outputs that can be used as conditions on what producers to use depending on the condition
+**Key Feature**: Uses the conditional routing feature. The Narrative Generator creates (see `catalog/producers/documentary-talkinghead-prompt` as example) outputs that can be used as conditions on what producers to use depending on the condition
 
-**Blueprint location**: `catalog/blueprints/condition-example/condition-example.yaml
+**Blueprint location**: `catalog/blueprints/documentary-talking-head/documentary-talking-head.yaml`
 
 ## Choosing a Pattern
 The above examples demonstrates different types of movie generation based on needs. Those are just examples to demonstrate usage. You can create movies that are mix of those techniques or just adopt the technique most suitable for the user's desired output. The narrative producer and potential subsequent prompt generators need to be figured out based on the context of the movie to be produced, the examples are there just for illustrative purposes.

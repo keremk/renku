@@ -15,15 +15,15 @@ models:
   - model: gpt-5-mini
     provider: openai
     producerId: ScriptProducer
-    promptFile: ../../../../catalog/producers/script/script.toml
-    outputSchema: ../../../../catalog/producers/script/script-output.json
+    promptFile: ../../../../catalog/producers/prompt/script/script.toml
+    outputSchema: ../../../../catalog/producers/prompt/script/script-output.json
     config:
       text_format: json_schema
   - model: gpt-5-mini
     provider: openai
     producerId: ImagePromptProducer
-    promptFile: ../../../../catalog/producers/image-prompt/image-prompt.toml
-    outputSchema: ../../../../catalog/producers/image-prompt/image-prompt-output.json
+    promptFile: ../../../../catalog/producers/prompt/image/image.toml
+    outputSchema: ../../../../catalog/producers/prompt/image/image-output.json
     config:
       text_format: json_schema
   - model: bytedance/seedream-4

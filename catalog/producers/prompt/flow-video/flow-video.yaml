@@ -5,8 +5,8 @@ meta:
   version: 0.1.0
   author: Renku
   license: MIT
-  promptFile: ./flow-video-prompt.toml
-  outputSchema: ./flow-video-prompt-output.json
+  promptFile: ./flow-video.toml
+  outputSchema: ./flow-video-output.json
 
 inputs:
   - name: InquiryPrompt

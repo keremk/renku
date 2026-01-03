@@ -44,11 +44,11 @@ artifacts:
 
 producers:
   - name: ScriptProducer
-    path: ../../producers/script/script.yaml
+    path: ../../producers/prompt/script/script.yaml
   - name: MusicPromptProducer
-    path: ../../producers/music-prompt/music-prompt.yaml
+    path: ../../producers/prompt/music/music.yaml
   - name: MusicProducer
-    path: ../../producers/text-to-music/text-to-music.yaml
+    path: ../../producers/asset/text-to-music.yaml
 
 connections:
   - from: InquiryPrompt

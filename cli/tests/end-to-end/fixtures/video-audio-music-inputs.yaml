@@ -16,14 +16,14 @@ models:
   - model: gpt-5-mini
     provider: openai
     producerId: ScriptProducer
-    promptFile: ../../../../catalog/producers/script/script.toml
-    outputSchema: ../../../../catalog/producers/script/script-output.json
+    promptFile: ../../../../catalog/producers/prompt/script/script.toml
+    outputSchema: ../../../../catalog/producers/prompt/script/script-output.json
     config:
       text_format: json_schema
   - model: gpt-5-mini
     provider: openai
     producerId: VideoPromptProducer
-    promptFile: ../../../../catalog/producers/video-prompt/video-prompt.toml
+    promptFile: ../../../../catalog/producers/prompt/video/video.toml
     config:
       text_format: text
   - model: bytedance/seedance-1-pro-fast
@@ -37,7 +37,7 @@ models:
   - model: gpt-5-mini
     provider: openai
     producerId: MusicPromptProducer
-    promptFile: ../../../../catalog/producers/music-prompt/music-prompt.toml
+    promptFile: ../../../../catalog/producers/prompt/music/music.toml
     config:
       text_format: text
   - model: stability-ai/stable-audio-2.5

@@ -11,8 +11,8 @@ models:
   - model: gpt-5-mini
     provider: openai
     producerId: ScriptProducer
-    promptFile: ../../../../catalog/producers/script/script.toml
-    outputSchema: ../../../../catalog/producers/script/script-output.json
+    promptFile: ../../../../catalog/producers/prompt/script/script.toml
+    outputSchema: ../../../../catalog/producers/prompt/script/script-output.json
     config:
       text_format: json_schema
   - model: minimax/speech-2.6-hd

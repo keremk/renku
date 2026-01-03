@@ -53,9 +53,9 @@ loops:
 
 producers:
   - name: DocScript
-    path: ../../../../catalog/producers/script/script.yaml
+    path: ../../../../catalog/producers/prompt/script/script.yaml
   - name: NarrationAudio
-    path: ../../../../catalog/producers/text-to-speech/text-to-speech.yaml
+    path: ../../../../catalog/producers/asset/text-to-speech.yaml
     loop: segment
 
 connections:

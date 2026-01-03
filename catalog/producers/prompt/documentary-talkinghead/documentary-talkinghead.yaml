@@ -5,8 +5,8 @@ meta:
   version: 0.1.0
   author: Renku
   license: MIT
-  promptFile: ./documentary-prompt.toml
-  outputSchema: ./documentary-prompt-output.json
+  promptFile: ./documentary-talkinghead.toml
+  outputSchema: ./documentary-talkinghead-output.json
 
 inputs:
   - name: InquiryPrompt

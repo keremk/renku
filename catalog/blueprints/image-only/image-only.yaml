@@ -58,12 +58,12 @@ loops:
 
 producers:
   - name: ScriptProducer
-    path: ../../producers/script/script.yaml
+    path: ../../producers/prompt/script/script.yaml
   - name: ImagePromptProducer
-    path: ../../producers/image-prompt/image-prompt.yaml
+    path: ../../producers/prompt/image/image.yaml
     loop: segment
   - name: ImageProducer
-    path: ../../producers/text-to-image/text-to-image.yaml
+    path: ../../producers/asset/text-to-image.yaml
     loop: segment.image
 
 connections:

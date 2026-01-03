@@ -17,7 +17,7 @@ const rootCatalogBlueprints = CATALOG_BLUEPRINTS_ROOT;
 
 describe('parseYamlBlueprintFile', () => {
   it('parses interface-only producer with meta, inputs, and artifacts', async () => {
-    const modulePath = resolve(catalogRoot, 'producers/script/script.yaml');
+    const modulePath = resolve(catalogRoot, 'producers/prompt/script/script.yaml');
     const document = await parseYamlBlueprintFile(modulePath);
     expect(document.meta.id).toBe('ScriptProducer');
     expect(document.producers).toHaveLength(1);
@@ -29,22 +29,22 @@ describe('parseYamlBlueprintFile', () => {
   });
 
   it('parses promptFile and outputSchema from producer meta section', async () => {
-    const modulePath = resolve(catalogRoot, 'producers/script/script.yaml');
+    const modulePath = resolve(catalogRoot, 'producers/prompt/script/script.yaml');
     const document = await parseYamlBlueprintFile(modulePath);
     expect(document.meta.promptFile).toBe('./script.toml');
     expect(document.meta.outputSchema).toBe('./script-output.json');
   });
 
   it('leaves promptFile and outputSchema undefined when not specified', async () => {
-    // text-to-audio producer has no LLM config files
-    const modulePath = resolve(catalogRoot, 'producers/text-to-audio/text-to-audio.yaml');
+    // text-to-music producer has no LLM config files
+    const modulePath = resolve(catalogRoot, 'producers/asset/text-to-music.yaml');
     const document = await parseYamlBlueprintFile(modulePath);
     expect(document.meta.promptFile).toBeUndefined();
     expect(document.meta.outputSchema).toBeUndefined();
   });
 
   it('parses countInputOffset for array artefacts', async () => {
-    const modulePath = resolve(catalogRoot, 'producers/flow-video-prompt/flow-video-prompt.yaml');
+    const modulePath = resolve(catalogRoot, 'producers/prompt/flow-video/flow-video.yaml');
     const document = await parseYamlBlueprintFile(modulePath);
     const imagePrompts = document.artefacts.find((artefact) => artefact.name === 'ImagePrompts');
     expect(imagePrompts?.countInput).toBe('NumOfSegments');
@@ -395,7 +395,7 @@ describe('yaml-parser edge cases', () => {
   });
 
   it('parses producer definition', async () => {
-    const blueprintPath = resolve(catalogRoot, 'producers/script/script.yaml');
+    const blueprintPath = resolve(catalogRoot, 'producers/prompt/script/script.yaml');
     const document = await parseYamlBlueprintFile(blueprintPath);
 
     // Producer should be defined
