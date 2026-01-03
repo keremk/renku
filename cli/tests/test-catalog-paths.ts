@@ -1,7 +1,6 @@
 /**
  * Test utility for resolving catalog paths.
- * Tests should use this instead of getBundledBlueprintsRoot() to ensure
- * the root catalog is the single source of truth.
+ * Tests should use these paths to ensure the root catalog is the single source of truth.
  */
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

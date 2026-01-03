@@ -1,9 +1,6 @@
 import { readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parseBlueprintDocument } from '../lib/blueprint-loader/index.js';
-import { getBundledBlueprintsRoot } from '../lib/config-assets.js';
-
-const DEFAULT_BLUEPRINT_DIR = getBundledBlueprintsRoot();
 
 export interface BlueprintsListResult {
   blueprints: Array<{
@@ -16,9 +13,7 @@ export interface BlueprintsListResult {
   }>;
 }
 
-export async function runBlueprintsList(
-  directory: string = DEFAULT_BLUEPRINT_DIR,
-): Promise<BlueprintsListResult> {
+export async function runBlueprintsList(directory: string): Promise<BlueprintsListResult> {
   const entries = await collectBlueprintFiles(directory);
   const blueprints: BlueprintsListResult['blueprints'] = [];
 

@@ -4,10 +4,7 @@ import { fileURLToPath, URL } from 'node:url';
 import process from 'node:process';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { createMcpServer } from '../mcp/server.js';
-import {
-  getBundledBlueprintsRoot,
-  getCliBlueprintsRoot,
-} from '../lib/config-assets.js';
+import { getCliBlueprintsRoot } from '../lib/config-assets.js';
 import {
   getDefaultCliConfigPath,
   readCliConfig,
@@ -149,10 +146,6 @@ async function resolveBlueprintDirectory({
   const viaCliRoot = await checkPath(cliRootDir);
   if (viaCliRoot) {
     return viaCliRoot;
-  }
-  const bundled = await checkPath(getBundledBlueprintsRoot());
-  if (bundled) {
-    return bundled;
   }
   throw new Error(
     `No blueprint directory found. Tried: ${attemptPaths.join(', ')}. Initialize the CLI or provide --blueprintsDir.`,

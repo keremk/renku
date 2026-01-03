@@ -56,11 +56,7 @@ import { runBlueprintsValidate } from './commands/blueprints-validate.js';
 import { runMcpServer } from './commands/mcp.js';
 import type { BuildSummary, JobSummary } from './lib/build.js';
 import { readCliConfig } from './lib/cli-config.js';
-import {
-  getBundledBlueprintsRoot,
-  getCliBlueprintsRoot,
-  resolveBlueprintSpecifier,
-} from './lib/config-assets.js';
+import { getCliBlueprintsRoot, resolveBlueprintSpecifier } from './lib/config-assets.js';
 import { type LogLevel, type Logger as CoreLogger } from '@gorenku/core';
 import { detectViewerAddress } from './lib/viewer-network.js';
 
@@ -303,9 +299,12 @@ async function main(): Promise<void> {
     }
     case 'blueprints:list': {
       const cliConfig = await readCliConfig();
-      const directory = cliConfig
-        ? getCliBlueprintsRoot(cliConfig.storage.root)
-        : getBundledBlueprintsRoot();
+      if (!cliConfig) {
+        logger.error('Renku CLI is not initialized. Run "renku init" first.');
+        process.exitCode = 1;
+        return;
+      }
+      const directory = getCliBlueprintsRoot(cliConfig.storage.root);
       const result = await runBlueprintsList(directory);
 
       if (result.blueprints.length === 0) {

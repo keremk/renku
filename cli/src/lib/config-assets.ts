@@ -12,14 +12,9 @@ const CATALOG_SEARCH_ROOTS = [
 ];
 
 const BUNDLED_CATALOG_ROOT = resolveBundledCatalogRoot();
-const BUNDLED_BLUEPRINTS_ROOT = resolve(BUNDLED_CATALOG_ROOT, 'blueprints');
 
 export function getBundledCatalogRoot(): string {
   return BUNDLED_CATALOG_ROOT;
-}
-
-export function getBundledBlueprintsRoot(): string {
-  return BUNDLED_BLUEPRINTS_ROOT;
 }
 
 export function getCliConfigRoot(cliRoot: string): string {
@@ -68,16 +63,6 @@ export async function resolveBlueprintSpecifier(
     if (nestedCliPath) {
       return nestedCliPath;
     }
-  }
-
-  const bundledPath = resolve(BUNDLED_BLUEPRINTS_ROOT, specifier);
-  attempts.push(bundledPath);
-  if (await fileExists(bundledPath)) {
-    return bundledPath;
-  }
-  const nestedBundledPath = await findInBlueprintDirectories(BUNDLED_BLUEPRINTS_ROOT, specifier, attempts);
-  if (nestedBundledPath) {
-    return nestedBundledPath;
   }
 
   throw new Error(

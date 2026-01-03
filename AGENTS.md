@@ -56,7 +56,7 @@ cd providers && pnpm vitest run --config vitest.config.ts --pool=threads
 > **Agent Rule**: Canonical IDs must flow end-to-end. The planner emits a single canonical artefact/input ID (e.g. `Artifact:MusicPromptGenerator.MusicPrompt`). The runner copies those exact IDs into each job’s context (`job.context.inputs`, `inputBindings`, `fanIn`, and `resolvedInputs`). Providers must read only that canonical ID (via `runtime.sdk.buildPayload`, `runtime.inputs.getByNodeId`, or fan-in descriptors) and never look up aliases or “best guesses”. If a canonical ID is missing, fail immediately so the upstream blueprint/plan can be fixed instead of synthesizing a fallback. This applies to every artefact, prompt variable, and attachment across the CLI/core/provider boundary.
 
 > **Agent Rule**: When resolving catalog paths (e.g., locating `catalog/blueprints`):
-> - **Production CLI code**: Use the bundled helpers in `cli/src/lib/config-assets.ts` (`getBundledBlueprintsRoot`, `getCliCatalogRoot`, `resolveBlueprintSpecifier`, etc.) for runtime catalog resolution.
+> - **Production CLI code**: Use the helpers in `cli/src/lib/config-assets.ts` (`getCliCatalogRoot`, `getCliBlueprintsRoot`, `resolveBlueprintSpecifier`, etc.) for runtime catalog resolution. These require the CLI to be initialized via `renku init`.
 > - **Test code**: Use the per-package test helpers (`cli/tests/test-catalog-paths.ts`, `core/src/testing/catalog-paths.ts`, or `providers/tests/test-catalog-paths.ts`) that resolve directly to the root `/catalog` directory. This ensures tests always use the single source of truth and don't depend on the CLI's bundled catalog copy.
 
 ## Coding Style & Naming Conventions
