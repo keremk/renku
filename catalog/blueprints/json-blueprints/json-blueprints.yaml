@@ -51,12 +51,12 @@ loops:
 
 producers:
   - name: DocProducer
-    path: ../../producers/prompt/documentary/documentary.yaml
+    producer: prompt/documentary
   - name: ImageProducer
-    path: ../../producers/asset/text-to-image.yaml
+    producer: asset/text-to-image
     loop: segment.image
   - name: TimelineComposer
-    path: ../../producers/composition/timeline-composer.yaml
+    producer: composition/timeline-composer
 
 connections:
   # Wire inputs to DocProducer

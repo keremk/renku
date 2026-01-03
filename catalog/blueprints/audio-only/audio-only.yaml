@@ -50,9 +50,9 @@ loops:
 
 producers:
   - name: ScriptProducer
-    path: ../../producers/prompt/script/script.yaml
+    producer: prompt/script
   - name: AudioProducer
-    path: ../../producers/asset/text-to-speech.yaml
+    producer: asset/text-to-speech
     loop: segment
 
 connections:

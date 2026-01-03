@@ -76,18 +76,18 @@ loops:
 
 producers:
   - name: ScriptProducer
-    path: ../../producers/prompt/script/script.yaml
+    producer: prompt/script
   - name: ImagePromptProducer
-    path: ../../producers/prompt/image/image.yaml
+    producer: prompt/image
     loop: segment
   - name: ImageProducer
-    path: ../../producers/asset/text-to-image.yaml
+    producer: asset/text-to-image
     loop: segment.image
   - name: AudioProducer
-    path: ../../producers/asset/text-to-speech.yaml
+    producer: asset/text-to-speech
     loop: segment
   - name: TimelineComposer
-    path: ../../producers/composition/timeline-composer.yaml
+    producer: composition/timeline-composer
 
 connections:
   - from: InquiryPrompt

@@ -13,10 +13,6 @@ const CATALOG_SEARCH_ROOTS = [
 
 const BUNDLED_CATALOG_ROOT = resolveBundledCatalogRoot();
 
-export function getBundledCatalogRoot(): string {
-  return BUNDLED_CATALOG_ROOT;
-}
-
 export function getCliConfigRoot(cliRoot: string): string {
   return resolve(expandPath(cliRoot), 'config');
 }

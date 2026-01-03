@@ -1,5 +1,5 @@
 import { parse as parseYaml } from 'yaml';
-import { promises as fs } from 'node:fs';
+import { existsSync, promises as fs } from 'node:fs';
 import { dirname, resolve, relative, sep } from 'node:path';
 import type { FileStorage } from '@flystorage/file-storage';
 import type {
@@ -40,7 +40,10 @@ export interface BlueprintParseOptions {
   reader?: BlueprintResourceReader;
 }
 
-export interface BlueprintLoadOptions extends BlueprintParseOptions {}
+export interface BlueprintLoadOptions extends BlueprintParseOptions {
+  /** Root directory for producer resolution (e.g., {cliRoot}/catalog) */
+  catalogRoot?: string;
+}
 
 class NodeFilesystemReader implements BlueprintResourceReader {
   async readFile(filePath: string): Promise<string> {
@@ -137,7 +140,7 @@ export async function loadYamlBlueprintTree(
   const reader = options.reader ?? defaultReader;
   const absolute = resolve(entryPath);
   const visiting = new Set<string>();
-  const root = await loadNode(absolute, [], reader, visiting);
+  const root = await loadNode(absolute, [], reader, visiting, options);
   return { root };
 }
 
@@ -146,6 +149,7 @@ async function loadNode(
   namespacePath: string[],
   reader: BlueprintResourceReader,
   visiting: Set<string>,
+  options: BlueprintLoadOptions = {},
 ): Promise<BlueprintTreeNode> {
   const absolute = resolve(filePath);
   if (visiting.has(absolute)) {
@@ -164,10 +168,10 @@ async function loadNode(
   // Producer imports use the alias as a scope for their internal nodes.
   // This is NOT a hierarchical namespace - it's producer aliasing to avoid conflicts.
   for (const producerImport of document.producerImports) {
-    const childPath = resolveProducerImportPath(absolute, producerImport);
+    const childPath = resolveProducerImportPath(absolute, producerImport, options);
     // Use the producer alias as a scope for the producer's nodes
     const aliasPath = [...namespacePath, producerImport.name];
-    const child = await loadNode(childPath, aliasPath, reader, visiting);
+    const child = await loadNode(childPath, aliasPath, reader, visiting, options);
     node.children.set(producerImport.name, child);
   }
 
@@ -175,12 +179,64 @@ async function loadNode(
   return node;
 }
 
-function resolveProducerImportPath(parentFile: string, producerImport: ProducerImportDefinition): string {
-  const directory = dirname(parentFile);
+function resolveProducerImportPath(
+  parentFile: string,
+  producerImport: ProducerImportDefinition,
+  options: BlueprintLoadOptions = {},
+): string {
+  // Legacy path support - resolves relative to blueprint file
   if (producerImport.path) {
-    return resolve(directory, producerImport.path);
+    return resolve(dirname(parentFile), producerImport.path);
   }
-  return resolve(directory, `${producerImport.name}.yaml`);
+
+  // Qualified name resolution (e.g., "prompt/script", "asset/text-to-speech")
+  if (producerImport.producer && options.catalogRoot) {
+    const producersRoot = resolve(options.catalogRoot, 'producers');
+    const resolved = findProducerByQualifiedName(producersRoot, producerImport.producer);
+    if (resolved) {
+      return resolved;
+    }
+    throw new Error(
+      `Producer "${producerImport.producer}" not found in ${producersRoot}. ` +
+      `Tried: ${producersRoot}/${producerImport.producer}.yaml and ` +
+      `${producersRoot}/${producerImport.producer}/${producerImport.producer.split('/').pop()}.yaml`
+    );
+  }
+
+  // If producer is specified but no catalogRoot, give a helpful error
+  if (producerImport.producer && !options.catalogRoot) {
+    throw new Error(
+      `Producer "${producerImport.producer}" uses qualified name syntax but no catalogRoot was provided. ` +
+      `Either use path: for relative paths or ensure catalogRoot is configured.`
+    );
+  }
+
+  // Default: look in same directory as blueprint
+  return resolve(dirname(parentFile), `${producerImport.name}.yaml`);
+}
+
+/**
+ * Finds a producer by qualified name in the producers directory.
+ * Tries two patterns:
+ * 1. {producersRoot}/{qualifiedName}.yaml (e.g., producers/asset/text-to-speech.yaml)
+ * 2. {producersRoot}/{qualifiedName}/{name}.yaml (e.g., producers/prompt/script/script.yaml)
+ */
+function findProducerByQualifiedName(producersRoot: string, qualifiedName: string): string | null {
+  // Try: producers/asset/text-to-speech.yaml
+  const directPath = resolve(producersRoot, `${qualifiedName}.yaml`);
+  if (existsSync(directPath)) {
+    return directPath;
+  }
+
+  // Try: producers/prompt/script/script.yaml (nested with same name as last segment)
+  const parts = qualifiedName.split('/');
+  const name = parts[parts.length - 1];
+  const nestedPath = resolve(producersRoot, qualifiedName, `${name}.yaml`);
+  if (existsSync(nestedPath)) {
+    return nestedPath;
+  }
+
+  return null;
 }
 
 interface RawBlueprint {
@@ -304,9 +360,20 @@ function parseProducerImport(raw: unknown): ProducerImportDefinition {
   }
   const entry = raw as Record<string, unknown>;
   const name = readString(entry, 'name');
+  const path = typeof entry.path === 'string' ? entry.path : undefined;
+  const producer = typeof entry.producer === 'string' ? entry.producer : undefined;
+
+  // Validate: can't have both path and producer
+  if (path && producer) {
+    throw new Error(
+      `Producer import "${name}" cannot have both "path" and "producer" fields. Use one or the other.`
+    );
+  }
+
   return {
     name,
-    path: typeof entry.path === 'string' ? entry.path : undefined,
+    path,
+    producer,
     description: typeof entry.description === 'string' ? entry.description : undefined,
     loop: typeof entry.loop === 'string' ? entry.loop.trim() : undefined,
   };

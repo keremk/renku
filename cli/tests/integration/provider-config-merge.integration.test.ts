@@ -2,13 +2,13 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { loadBlueprintBundle } from '../../src/lib/blueprint-loader/index.js';
 import { buildProducerOptionsFromBlueprint } from '@gorenku/core';
-import { CATALOG_BLUEPRINTS_ROOT } from '../test-catalog-paths.js';
+import { CATALOG_BLUEPRINTS_ROOT, CATALOG_ROOT } from '../test-catalog-paths.js';
 
 describe('integration: provider config merging', () => {
   it('retains clip artifact configuration when overriding nested fields', async () => {
     const blueprintRoot = CATALOG_BLUEPRINTS_ROOT;
     const blueprintPath = resolve(blueprintRoot, 'kenn-burns', 'image-audio.yaml');
-    const { root: blueprint } = await loadBlueprintBundle(blueprintPath);
+    const { root: blueprint } = await loadBlueprintBundle(blueprintPath, { catalogRoot: CATALOG_ROOT });
 
     // Use the kenn-burns blueprint directory for resolving relative paths
     const baseDir = resolve(blueprintRoot, 'kenn-burns');

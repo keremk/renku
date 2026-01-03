@@ -82,18 +82,18 @@ loops:
 
 producers:
   - name: FlowVideoPromptProducer
-    path: ../../producers/prompt/flow-video/flow-video.yaml
+    producer: prompt/flow-video
   - name: ImageProducer
-    path: ../../producers/asset/text-to-image.yaml
+    producer: asset/text-to-image
     loop: segment
   - name: ImageToVideoProducer
-    path: ../../producers/asset/image-to-video.yaml
+    producer: asset/image-to-video
     loop: segment
   - name: AudioProducer
-    path: ../../producers/asset/text-to-speech.yaml
+    producer: asset/text-to-speech
     loop: segment
   - name: TimelineComposer
-    path: ../../producers/composition/timeline-composer.yaml
+    producer: composition/timeline-composer
 
 connections:
   - from: InquiryPrompt

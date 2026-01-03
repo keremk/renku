@@ -6,13 +6,13 @@ import {
   type ModelSelection,
   type BlueprintTreeNode,
 } from '@gorenku/core';
-import { CATALOG_BLUEPRINTS_ROOT } from '../../tests/test-catalog-paths.js';
+import { CATALOG_BLUEPRINTS_ROOT, CATALOG_ROOT } from '../../tests/test-catalog-paths.js';
 
 describe('producer options', () => {
   it('builds options with SDK mappings from producer YAML (not from selection)', async () => {
     // Use root catalog (source of truth), not cli/catalog
     const blueprintPath = resolve(CATALOG_BLUEPRINTS_ROOT, 'audio-only', 'audio-only.yaml');
-    const { root: blueprint } = await loadBlueprintBundle(blueprintPath);
+    const { root: blueprint } = await loadBlueprintBundle(blueprintPath, { catalogRoot: CATALOG_ROOT });
 
     // Verify the ScriptProducer child node has the expected meta with promptFile/outputSchema
     const scriptProducerNode = blueprint.children.get('ScriptProducer');

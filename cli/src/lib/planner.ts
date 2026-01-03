@@ -93,7 +93,8 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
   const eventLog = createEventLog(memoryStorageContext);
 
   const blueprintPath = expandPath(options.usingBlueprint);
-  const { root: blueprintRoot } = await loadBlueprintBundle(blueprintPath);
+  const catalogRoot = cliConfig.catalog?.root ?? undefined;
+  const { root: blueprintRoot } = await loadBlueprintBundle(blueprintPath, { catalogRoot });
 
   const { values: inputValues, providerOptions, artifactOverrides } = await loadInputsFromYaml(
     options.inputsPath,

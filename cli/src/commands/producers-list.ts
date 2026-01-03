@@ -26,10 +26,11 @@ export async function runProducersList(options: ProducersListOptions): Promise<P
     throw new Error('Blueprint path is required for producers:list. Provide --blueprint=/path/to/blueprint.yaml.');
   }
   const blueprintPath = expandPath(normalizedBlueprint);
-  const { root } = await loadBlueprintBundle(blueprintPath);
 
-  // Load model catalog for pricing and type info
+  // Load CLI config early for both blueprint loading and model catalog
   const cliConfig = await readCliConfig(getDefaultCliConfigPath());
+  const catalogRoot = cliConfig?.catalog?.root ?? undefined;
+  const { root } = await loadBlueprintBundle(blueprintPath, { catalogRoot });
   const catalogModelsDir = cliConfig?.catalog?.root
     ? resolve(cliConfig.catalog.root, 'models')
     : undefined;

@@ -145,9 +145,11 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
 
 
 async function validateBlueprintHasTimelineComposer(blueprintPath: string): Promise<void> {
+  const cliConfig = await readCliConfig(getDefaultCliConfigPath());
+  const catalogRoot = cliConfig?.catalog?.root ?? undefined;
   let bundle;
   try {
-    bundle = await loadBlueprintBundle(blueprintPath);
+    bundle = await loadBlueprintBundle(blueprintPath, { catalogRoot });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Blueprint not found: ${blueprintPath}. ${message}`);

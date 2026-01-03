@@ -410,6 +410,8 @@ export interface ProducerImportDefinition {
   name: string;
   /** Path to the producer blueprint file (relative to this blueprint) */
   path?: string;
+  /** Qualified producer name (e.g., "prompt/script", "asset/text-to-speech") */
+  producer?: string;
   /** Optional description */
   description?: string;
   /** Loop variable if this producer runs in a loop context */

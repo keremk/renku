@@ -6,10 +6,11 @@ import { describe, expect, it } from 'vitest';
 import { stringify as stringifyYaml } from 'yaml';
 import { loadInputsFromYaml } from './input-loader.js';
 import { loadYamlBlueprintTree } from './blueprint-loader/yaml-parser.js';
-import { CATALOG_BLUEPRINTS_ROOT } from '../testing/catalog-paths.js';
+import { CATALOG_BLUEPRINTS_ROOT, CATALOG_ROOT } from '../testing/catalog-paths.js';
 import type { BlueprintTreeNode } from '../types.js';
 
 const BLUEPRINT_ROOT = CATALOG_BLUEPRINTS_ROOT;
+const catalogRoot = CATALOG_ROOT;
 
 // Helper to create a minimal blueprint tree for testing artifact override detection
 function createTestBlueprintTree(): BlueprintTreeNode {
@@ -40,7 +41,7 @@ describe('parsing/input-loader', () => {
   it('canonicalizes inputs and derives model selections from producer-scoped keys', async () => {
     const workdir = await mkdtemp(join(tmpdir(), 'renku-inputs-'));
     const blueprintPath = resolve(BLUEPRINT_ROOT, 'audio-only', 'audio-only.yaml');
-    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath);
+    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
     const savedPath = join(workdir, 'inputs.yaml');
 
     await writeFile(
@@ -67,7 +68,7 @@ describe('parsing/input-loader', () => {
 
   it('rejects unknown inputs with a clear error', async () => {
     const blueprintPath = resolve(BLUEPRINT_ROOT, 'audio-only', 'audio-only.yaml');
-    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath);
+    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
     const invalidPath = join(await mkdtemp(join(tmpdir(), 'renku-inputs-')), 'inputs.yaml');
     await writeFile(
       invalidPath,
@@ -214,7 +215,7 @@ describe('artifact override detection', () => {
   it('does not treat qualified names without indices as artifact overrides', async () => {
     const workdir = await mkdtemp(join(tmpdir(), 'renku-qualified-input-'));
     const blueprintPath = resolve(BLUEPRINT_ROOT, 'audio-only', 'audio-only.yaml');
-    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath);
+    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
     const savedPath = join(workdir, 'inputs.yaml');
 
     await writeFile(
@@ -479,7 +480,7 @@ describe('model selection SDK mapping parsing', () => {
 
   it('loads input template from catalog (SDK mappings come from producer YAML)', async () => {
     const blueprintPath = resolve(BLUEPRINT_ROOT, 'audio-only', 'audio-only.yaml');
-    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath);
+    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
     const inputPath = resolve(BLUEPRINT_ROOT, 'audio-only', 'input-template.yaml');
 
     const loaded = await loadInputsFromYaml(inputPath, blueprint);
@@ -495,7 +496,7 @@ describe('model selection SDK mapping parsing', () => {
 
   it('loads input template from catalog with provider/model selection', async () => {
     const blueprintPath = resolve(BLUEPRINT_ROOT, 'image-only', 'image-only.yaml');
-    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath);
+    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
     const inputPath = resolve(BLUEPRINT_ROOT, 'image-only', 'input-template.yaml');
 
     const loaded = await loadInputsFromYaml(inputPath, blueprint);
@@ -517,7 +518,7 @@ describe('model selection SDK mapping parsing', () => {
 
   it('loads input template with LLM config from catalog', async () => {
     const blueprintPath = resolve(BLUEPRINT_ROOT, 'audio-only', 'audio-only.yaml');
-    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath);
+    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
     const inputPath = resolve(BLUEPRINT_ROOT, 'audio-only', 'input-template.yaml');
 
     const loaded = await loadInputsFromYaml(inputPath, blueprint);
@@ -602,7 +603,7 @@ describe('input-loader edge cases', () => {
   it('handles nested blueprint with producer-scoped inputs', async () => {
     const workdir = await mkdtemp(join(tmpdir(), 'renku-nested-'));
     const blueprintPath = resolve(BLUEPRINT_ROOT, 'audio-only', 'audio-only.yaml');
-    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath);
+    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
     const savedPath = join(workdir, 'inputs.yaml');
 
     await writeFile(

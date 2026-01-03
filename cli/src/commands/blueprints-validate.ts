@@ -2,6 +2,7 @@ import { resolve } from 'node:path';
 import { loadBlueprintBundle } from '../lib/blueprint-loader/index.js';
 import { expandPath } from '../lib/path.js';
 import { buildBlueprintGraph } from '@gorenku/core';
+import { getDefaultCliConfigPath, readCliConfig } from '../lib/cli-config.js';
 
 export interface BlueprintsValidateOptions {
   blueprintPath: string;
@@ -21,7 +22,9 @@ export async function runBlueprintsValidate(
 ): Promise<BlueprintsValidateResult> {
   try {
     const expandedPath = resolve(expandPath(options.blueprintPath));
-    const { root } = await loadBlueprintBundle(expandedPath);
+    const cliConfig = await readCliConfig(getDefaultCliConfigPath());
+    const catalogRoot = cliConfig?.catalog?.root ?? undefined;
+    const { root } = await loadBlueprintBundle(expandedPath, { catalogRoot });
     const graph = buildBlueprintGraph(root);
     return {
       valid: true,

@@ -2,13 +2,11 @@ import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { resolveBlueprintSpecifier } from '../../src/lib/config-assets.js';
 import { generatePlan } from '../../src/lib/planner.js';
 import { writeCliConfig, type CliConfig } from '../../src/lib/cli-config.js';
 import { createCliLogger } from '../../src/lib/logger.js';
-import { REPO_ROOT, CATALOG_ROOT, CATALOG_BLUEPRINTS_ROOT } from '../test-catalog-paths.js';
+import { CATALOG_ROOT, CATALOG_BLUEPRINTS_ROOT } from '../test-catalog-paths.js';
 
-const CLI_ROOT = resolve(REPO_ROOT, 'cli');
 const BLUEPRINTS_ROOT = CATALOG_BLUEPRINTS_ROOT;
 
 describe('integration: canonical inputs persist across query/edit', () => {
@@ -46,11 +44,8 @@ describe('integration: canonical inputs persist across query/edit', () => {
 		};
 		process.env.RENKU_CLI_CONFIG = configPath;
 		await writeCliConfig(cliConfig, configPath);
-		// Use audio-only blueprint with matching input template
-		const blueprintPath = await resolveBlueprintSpecifier(
-			'audio-only.yaml',
-			{ cliRoot: CLI_ROOT }
-		);
+		// Use audio-only blueprint from root catalog (source of truth)
+		const blueprintPath = resolve(BLUEPRINTS_ROOT, 'audio-only', 'audio-only.yaml');
 		const inputsPath = resolve(BLUEPRINTS_ROOT, 'audio-only', 'input-template.yaml');
 		const logger = createCliLogger({
 			level: 'debug',

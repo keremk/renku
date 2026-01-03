@@ -58,11 +58,11 @@ loops:
 
 producers:
   - name: ScriptProducer
-    path: ../../producers/prompt/script/script.yaml
+    producer: prompt/script
   - name: VideoPromptProducer
-    path: ../../producers/prompt/video/video.yaml
+    producer: prompt/video
   - name: VideoProducer
-    path: ../../producers/asset/text-to-video.yaml
+    producer: asset/text-to-video
     loop: segment
 
 connections:

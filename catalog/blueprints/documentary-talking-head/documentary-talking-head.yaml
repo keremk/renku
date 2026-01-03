@@ -104,24 +104,24 @@ conditions:
 
 producers:
   - name: DocProducer
-    path: ../../producers/prompt/documentary-talkinghead/documentary-talkinghead.yaml
+    producer: prompt/documentary-talkinghead
   - name: ImageProducer
-    path: ../../producers/asset/text-to-image.yaml
+    producer: asset/text-to-image
     loop: segment.image
   - name: AudioProducer
-    path: ../../producers/asset/text-to-speech.yaml
+    producer: asset/text-to-speech
     loop: segment
   - name: VideoProducer
-    path: ../../producers/asset/text-to-video.yaml
+    producer: asset/text-to-video
     loop: segment
   - name: TalkingHeadImageProducer
-    path: ../../producers/asset/text-to-image.yaml
+    producer: asset/text-to-image
     loop: segment
   - name: TalkingHeadVideoProducer
-    path: ../../producers/asset/text-to-talking-head.yaml
+    producer: asset/text-to-talking-head
     loop: segment
-  - name: TimelineComposer  
-    path: ../../producers/composition/timeline-composer.yaml
+  - name: TimelineComposer
+    producer: composition/timeline-composer
 
 connections:
   # Wire inputs to DocProducer

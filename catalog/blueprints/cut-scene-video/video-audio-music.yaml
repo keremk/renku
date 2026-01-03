@@ -84,24 +84,24 @@ loops:
 
 producers:
   - name: ScriptProducer
-    path: ../../producers/prompt/script/script.yaml
+    producer: prompt/script
   - name: VideoPromptProducer
-    path: ../../producers/prompt/video/video.yaml
+    producer: prompt/video
     loop: segment
   - name: VideoProducer
-    path: ../../producers/asset/text-to-video.yaml
+    producer: asset/text-to-video
     loop: segment
   - name: AudioProducer
-    path: ../../producers/asset/text-to-speech.yaml
+    producer: asset/text-to-speech
     loop: segment
   - name: MusicPromptProducer
-    path: ../../producers/prompt/music/music.yaml
+    producer: prompt/music
   - name: MusicProducer
-    path: ../../producers/asset/text-to-music.yaml
+    producer: asset/text-to-music
   - name: TimelineComposer
-    path: ../../producers/composition/timeline-composer.yaml
+    producer: composition/timeline-composer
   - name: VideoExporter
-    path: ../../producers/composition/video-exporter.yaml
+    producer: composition/video-exporter
 
 connections:
   - from: InquiryPrompt

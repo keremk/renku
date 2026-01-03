@@ -4,11 +4,11 @@ import { describe, expect, it } from 'vitest';
 import { loadBlueprintBundle } from './blueprint-loader/index.js';
 import { loadInputsFromYaml } from './input-loader.js';
 import { applyProviderDefaults } from './provider-defaults.js';
-import { resolveBlueprintSpecifier } from './config-assets.js';
-import { REPO_ROOT, CATALOG_BLUEPRINTS_ROOT } from '../../tests/test-catalog-paths.js';
+import { REPO_ROOT, CATALOG_BLUEPRINTS_ROOT, CATALOG_ROOT } from '../../tests/test-catalog-paths.js';
 
 const CLI_ROOT = resolve(REPO_ROOT, 'cli');
 const BLUEPRINTS_ROOT = CATALOG_BLUEPRINTS_ROOT;
+const catalogRoot = CATALOG_ROOT;
 const FIXTURE_PATH = resolve(CLI_ROOT, 'src/lib/__fixtures__/audio-only-canonical-inputs.json');
 
 async function readFixture(): Promise<string[] | null> {
@@ -27,13 +27,10 @@ async function writeFixture(values: string[]): Promise<void> {
 
 describe('canonical inputs snapshot', () => {
   it('captures all canonical input ids for audio-only blueprint', async () => {
-    // Use audio-only blueprint with matching input template
-    const blueprintPath = await resolveBlueprintSpecifier(
-      'audio-only.yaml',
-      { cliRoot: CLI_ROOT },
-    );
+    // Use audio-only blueprint from root catalog (source of truth)
+    const blueprintPath = resolve(BLUEPRINTS_ROOT, 'audio-only', 'audio-only.yaml');
     const inputsPath = resolve(BLUEPRINTS_ROOT, 'audio-only', 'input-template.yaml');
-    const { root: blueprint } = await loadBlueprintBundle(blueprintPath);
+    const { root: blueprint } = await loadBlueprintBundle(blueprintPath, { catalogRoot });
     const { values, providerOptions } = await loadInputsFromYaml(inputsPath, blueprint);
     applyProviderDefaults(values, providerOptions);
     const canonicalIds = Object.keys(values)

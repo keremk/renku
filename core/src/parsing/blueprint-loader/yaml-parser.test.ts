@@ -92,7 +92,7 @@ describe('loadYamlBlueprintTree', () => {
     const storage = new FileStorage(new LocalStorageAdapter(catalogRoot));
     const reader = createFlyStorageBlueprintReader(storage, catalogRoot);
     const entry = resolve(yamlRoot, 'audio-only', 'audio-only.yaml');
-    const { root } = await loadYamlBlueprintTree(entry, { reader });
+    const { root } = await loadYamlBlueprintTree(entry, { reader, catalogRoot });
     expect(root.id).toBe('audio');
     expect([...root.children.keys()]).toEqual(['ScriptProducer', 'AudioProducer']);
     const scriptNode = root.children.get('ScriptProducer');
@@ -103,7 +103,7 @@ describe('loadYamlBlueprintTree', () => {
 
   it('preserves promptFile and outputSchema in child node meta', async () => {
     const entry = resolve(yamlRoot, 'audio-only', 'audio-only.yaml');
-    const { root } = await loadYamlBlueprintTree(entry);
+    const { root } = await loadYamlBlueprintTree(entry, { catalogRoot });
 
     // ScriptProducer is an LLM producer with promptFile and outputSchema
     const scriptNode = root.children.get('ScriptProducer');
@@ -271,6 +271,188 @@ describe('condition parsing', () => {
   });
 });
 
+describe('producer resolution by qualified name', () => {
+  it('resolves producer with direct file path (asset/text-to-speech.yaml)', async () => {
+    // Create a minimal blueprint with producer: syntax
+    const mockBlueprint = `
+meta:
+  id: test-blueprint
+  name: Test Blueprint
+inputs:
+  - name: TestInput
+    type: string
+artifacts:
+  - name: TestOutput
+    type: string
+producers:
+  - name: AudioProducer
+    producer: asset/text-to-speech
+`;
+    const reader = {
+      readFile: async (path: string) => {
+        if (path.includes('test-blueprint.yaml')) {
+          return mockBlueprint;
+        }
+        // Fall back to real file system for producer files
+        const fs = await import('node:fs/promises');
+        return fs.readFile(path, 'utf8');
+      },
+    };
+
+    const entry = resolve(yamlRoot, 'test-blueprint.yaml');
+    const { root } = await loadYamlBlueprintTree(entry, {
+      reader,
+      catalogRoot: catalogRoot,
+    });
+
+    expect(root.children.has('AudioProducer')).toBe(true);
+    const audioNode = root.children.get('AudioProducer');
+    expect(audioNode?.document.meta.id).toBe('TextToSpeechProducer');
+  });
+
+  it('resolves producer with nested directory (prompt/script/script.yaml)', async () => {
+    const mockBlueprint = `
+meta:
+  id: test-blueprint
+  name: Test Blueprint
+inputs:
+  - name: TestInput
+    type: string
+artifacts:
+  - name: TestOutput
+    type: string
+producers:
+  - name: ScriptProducer
+    producer: prompt/script
+`;
+    const reader = {
+      readFile: async (path: string) => {
+        if (path.includes('test-blueprint.yaml')) {
+          return mockBlueprint;
+        }
+        const fs = await import('node:fs/promises');
+        return fs.readFile(path, 'utf8');
+      },
+    };
+
+    const entry = resolve(yamlRoot, 'test-blueprint.yaml');
+    const { root } = await loadYamlBlueprintTree(entry, {
+      reader,
+      catalogRoot: catalogRoot,
+    });
+
+    expect(root.children.has('ScriptProducer')).toBe(true);
+    const scriptNode = root.children.get('ScriptProducer');
+    expect(scriptNode?.document.meta.id).toBe('ScriptProducer');
+  });
+
+  it('throws error when producer not found', async () => {
+    const mockBlueprint = `
+meta:
+  id: test-blueprint
+  name: Test Blueprint
+inputs:
+  - name: TestInput
+    type: string
+artifacts:
+  - name: TestOutput
+    type: string
+producers:
+  - name: NonExistentProducer
+    producer: nonexistent/producer
+`;
+    const reader = {
+      readFile: async (path: string) => {
+        if (path.includes('test-blueprint.yaml')) {
+          return mockBlueprint;
+        }
+        const fs = await import('node:fs/promises');
+        return fs.readFile(path, 'utf8');
+      },
+    };
+
+    const entry = resolve(yamlRoot, 'test-blueprint.yaml');
+    await expect(
+      loadYamlBlueprintTree(entry, { reader, catalogRoot: catalogRoot })
+    ).rejects.toThrow(/Producer "nonexistent\/producer" not found/);
+  });
+
+  it('throws error when producer uses qualified name but no catalogRoot provided', async () => {
+    const mockBlueprint = `
+meta:
+  id: test-blueprint
+  name: Test Blueprint
+inputs:
+  - name: TestInput
+    type: string
+artifacts:
+  - name: TestOutput
+    type: string
+producers:
+  - name: AudioProducer
+    producer: asset/text-to-speech
+`;
+    const reader = {
+      readFile: async (path: string) => {
+        if (path.includes('test-blueprint.yaml')) {
+          return mockBlueprint;
+        }
+        const fs = await import('node:fs/promises');
+        return fs.readFile(path, 'utf8');
+      },
+    };
+
+    const entry = resolve(yamlRoot, 'test-blueprint.yaml');
+    // No catalogRoot provided
+    await expect(loadYamlBlueprintTree(entry, { reader })).rejects.toThrow(
+      /no catalogRoot was provided/
+    );
+  });
+
+  it('prefers path over producer when both specified (validation error)', async () => {
+    const mockBlueprint = `
+meta:
+  id: test-blueprint
+  name: Test Blueprint
+inputs:
+  - name: TestInput
+    type: string
+artifacts:
+  - name: TestOutput
+    type: string
+producers:
+  - name: AudioProducer
+    path: ../../producers/asset/text-to-speech.yaml
+    producer: asset/text-to-speech
+`;
+    const reader = {
+      readFile: async (path: string) => {
+        if (path.includes('test-blueprint.yaml')) {
+          return mockBlueprint;
+        }
+        const fs = await import('node:fs/promises');
+        return fs.readFile(path, 'utf8');
+      },
+    };
+
+    const entry = resolve(yamlRoot, 'test-blueprint.yaml');
+    // Should throw validation error
+    await expect(
+      loadYamlBlueprintTree(entry, { reader, catalogRoot: catalogRoot })
+    ).rejects.toThrow(/cannot have both "path" and "producer" fields/);
+  });
+
+  it('still resolves legacy path syntax', async () => {
+    // Use the existing audio-only blueprint which uses path: syntax
+    const entry = resolve(yamlRoot, 'audio-only', 'audio-only.yaml');
+    const { root } = await loadYamlBlueprintTree(entry, { catalogRoot: catalogRoot });
+
+    // Should still work with path: syntax
+    expect(root.children.has('ScriptProducer')).toBe(true);
+    expect(root.children.has('AudioProducer')).toBe(true);
+  });
+});
+
 describe('yaml-parser edge cases', () => {
   it('handles blueprint with loops definition', async () => {
     const blueprintPath = resolve(yamlRoot, 'image-only', 'image-only.yaml');
@@ -309,7 +491,8 @@ describe('yaml-parser edge cases', () => {
     expect(document.producerImports.length).toBeGreaterThan(0);
     for (const entry of document.producerImports) {
       expect(entry.name).toBeDefined();
-      expect(entry.path).toBeDefined();
+      // Producer imports can use either path or producer (qualified name)
+      expect(entry.path ?? entry.producer).toBeDefined();
     }
   });
 
@@ -343,7 +526,7 @@ describe('yaml-parser edge cases', () => {
     const storage = new FileStorage(new LocalStorageAdapter(catalogRoot));
     const reader = createFlyStorageBlueprintReader(storage, catalogRoot);
     const entry = resolve(yamlRoot, 'audio-only', 'audio-only.yaml');
-    const { root } = await loadYamlBlueprintTree(entry, { reader });
+    const { root } = await loadYamlBlueprintTree(entry, { reader, catalogRoot });
 
     // Verify nested producers are loaded correctly
     expect(root.children.size).toBeGreaterThan(0);

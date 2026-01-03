@@ -3,23 +3,22 @@ import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { generatePlan } from './planner.js';
-import { resolveBlueprintSpecifier } from './config-assets.js';
 import type { CliConfig } from './cli-config.js';
 import { createCliLogger } from './logger.js';
-import { REPO_ROOT, CATALOG_BLUEPRINTS_ROOT } from '../../tests/test-catalog-paths.js';
+import { CATALOG_BLUEPRINTS_ROOT, CATALOG_ROOT } from '../../tests/test-catalog-paths.js';
 
-const CLI_ROOT = resolve(REPO_ROOT, 'cli');
 const BLUEPRINTS_ROOT = CATALOG_BLUEPRINTS_ROOT;
+const catalogRoot = CATALOG_ROOT;
 
 describe('planner provider inputs', () => {
 	it('includes provider/model inputs for ImageProducer jobs', async () => {
 		const tempRoot = await mkdtemp(resolve(tmpdir(), 'renku-plan-'));
 		const cliConfig: CliConfig = {
 			storage: { root: tempRoot, basePath: 'builds' },
+			catalog: { root: catalogRoot },
 		};
-		const blueprintPath = await resolveBlueprintSpecifier('image-audio.yaml', {
-			cliRoot: CLI_ROOT,
-		});
+		// Use root catalog (source of truth)
+		const blueprintPath = resolve(BLUEPRINTS_ROOT, 'kenn-burns', 'image-audio.yaml');
 		const inputsPath = resolve(BLUEPRINTS_ROOT, 'kenn-burns', 'input-template.yaml');
 
 		try {

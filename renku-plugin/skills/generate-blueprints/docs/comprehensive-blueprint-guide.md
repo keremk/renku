@@ -162,7 +162,8 @@ loops:
 
 producers:
   - name: <string>         # Producer instance name in PascalCase (required)
-    path: <string>         # Relative path to producer YAML (required)
+    producer: <string>     # Qualified name: "category/name" (preferred)
+    path: <string>         # Relative path to producer YAML (legacy, for custom producers)
     loop: <string>         # Loop dimension(s) (e.g., "segment" or "segment.image")
 
 connections:
@@ -236,8 +237,16 @@ collectors:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `name` | string | Yes | Instance alias in PascalCase |
-| `path` | string | Yes | Relative path to producer YAML |
+| `producer` | string | Conditional | Qualified name `category/name` - resolves from catalog |
+| `path` | string | Conditional | Relative path to producer YAML - for custom/local producers |
 | `loop` | string | No | Loop assignment (e.g., `segment`, `segment.image`) |
+
+**Note:** Either `producer` or `path` must be provided. Use `producer` for catalog producers (preferred), `path` for custom local producers.
+
+**Producer Resolution:** When `producer: "category/name"` is specified:
+1. Tries: `{catalogRoot}/producers/{category}/{name}.yaml`
+2. Tries: `{catalogRoot}/producers/{category}/{name}/{name}.yaml`
+3. Error if not found
 
 ### Real Example: Video-Only Blueprint
 
@@ -295,11 +304,11 @@ loops:
 
 producers:
   - name: ScriptProducer
-    path: ../../producers/script/script.yaml
+    producer: prompt/script
   - name: VideoPromptProducer
-    path: ../../producers/video-prompt/video-prompt.yaml
+    producer: prompt/video
   - name: VideoProducer
-    path: ../../producers/video/video.yaml
+    producer: asset/text-to-video
     loop: segment
 
 connections:
@@ -999,16 +1008,16 @@ loops:
 
 producers:
   - name: ImageProducer
-    path: ../../producers/image/image.yaml
+    producer: asset/text-to-image
     loop: segment
   - name: ImageToVideoProducer
-    path: ../../producers/image-to-video/image-to-video.yaml
+    producer: asset/image-to-video
     loop: segment
   - name: AudioProducer
-    path: ../../producers/audio/audio.yaml
+    producer: asset/text-to-speech
     loop: segment
   - name: TimelineComposer
-    path: ../../producers/timeline-composer/timeline-composer.yaml
+    producer: composition/timeline-composer
 
 connections:
   # Sliding window for image-to-video transitions
@@ -1539,9 +1548,9 @@ loops:
 
 producers:
   - name: ScriptProducer
-    path: ./script.yaml
+    producer: prompt/script
   - name: AudioProducer
-    path: ./audio.yaml
+    producer: asset/text-to-speech
     loop: segment
 
 connections:
@@ -1568,11 +1577,11 @@ loops:
 
 producers:
   - name: ScriptProducer
-    path: ./script.yaml
+    producer: prompt/script
   - name: VideoPromptProducer
-    path: ./video-prompt.yaml
+    producer: prompt/video
   - name: VideoProducer
-    path: ./video.yaml
+    producer: asset/text-to-video
     loop: segment
 
 connections:
@@ -1600,10 +1609,10 @@ loops:
 
 producers:
   - name: ImageProducer
-    path: ./image.yaml
+    producer: asset/text-to-image
     loop: image
   - name: ImageToVideoProducer
-    path: ./image-to-video.yaml
+    producer: asset/image-to-video
     loop: segment
 
 connections:
@@ -1626,17 +1635,17 @@ Complete workflow with timeline composition:
 ```yaml
 producers:
   - name: ScriptProducer
-    path: ./script.yaml
+    producer: prompt/script
   - name: VideoProducer
-    path: ./video.yaml
+    producer: asset/text-to-video
     loop: segment
   - name: AudioProducer
-    path: ./audio.yaml
+    producer: asset/text-to-speech
     loop: segment
   - name: MusicProducer
-    path: ./music.yaml
+    producer: asset/text-to-music
   - name: TimelineComposer
-    path: ./timeline-composer.yaml
+    producer: composition/timeline-composer
 
 connections:
   # ... (script to video/audio connections)
@@ -1763,26 +1772,32 @@ catalog/
 │       ├── image-to-video.yaml
 │       └── input-template.yaml
 ├── producers/
-│   ├── script/
-│   │   ├── script.yaml
-│   │   ├── script.toml
-│   │   └── script-output.json
-│   ├── audio/
-│   │   └── audio.yaml
-│   ├── video/
-│   │   └── video.yaml
-│   ├── image/
-│   │   └── image.yaml
-│   └── timeline-composer/
-│       └── timeline-composer.yaml
+│   ├── asset/                              # Media generation producers
+│   │   ├── text-to-image.yaml
+│   │   ├── text-to-video.yaml
+│   │   ├── text-to-speech.yaml
+│   │   ├── text-to-music.yaml
+│   │   └── image-to-video.yaml
+│   ├── prompt/                             # LLM-based producers
+│   │   ├── script/
+│   │   │   ├── script.yaml
+│   │   │   ├── script.toml
+│   │   │   └── script-output.json
+│   │   ├── video/
+│   │   │   └── video.yaml
+│   │   └── image/
+│   │       └── image.yaml
+│   └── composition/                        # Composition producers
+│       ├── timeline-composer.yaml
+│       └── video-exporter.yaml
 └── models/
-    ├── openai/
-    │   └── openai.yaml
-    ├── replicate/
-    │   └── replicate.yaml
-    └── fal-ai/
-        └── fal-ai.yaml
+    └── *.yaml
 ```
+
+**Producer Categories:**
+- `asset/` - Media generation: images, video, audio, music
+- `prompt/` - LLM-based script and prompt generation
+- `composition/` - Timeline composition and video export
 
 ### File Naming Conventions
 
@@ -1794,15 +1809,26 @@ catalog/
 | Loop names | lowercase | `name: segment` |
 | Input/Artifact names | PascalCase | `name: InquiryPrompt` |
 
-### Relative Paths
+### Producer References
 
-Producer paths are relative to the blueprint file:
+**Preferred: Qualified names** resolve from the catalog:
 
 ```yaml
-# In blueprints/video-only/video-only.yaml
+# Works from any location - resolves from catalog
 producers:
   - name: ScriptProducer
-    path: ../../producers/script/script.yaml
+    producer: prompt/script        # → catalog/producers/prompt/script/script.yaml
+  - name: VideoProducer
+    producer: asset/text-to-video  # → catalog/producers/asset/text-to-video.yaml
+```
+
+**Legacy: Relative paths** for custom local producers:
+
+```yaml
+# For custom producers not in the catalog
+producers:
+  - name: MyCustomProducer
+    path: ./my-producers/custom.yaml  # Relative to blueprint file
 ```
 
 ---

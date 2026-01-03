@@ -85,7 +85,8 @@ loops:
 
 producers:
   - name: <string>         # Producer instance name in PascalCase (required)
-    path: <string>         # Relative path to producer YAML (required)
+    producer: <string>     # Qualified name: "category/name" (preferred)
+    path: <string>         # Relative path to producer YAML (for custom producers)
     loop: <string>         # Loop dimension(s) (e.g., "segment")
 
 connections:
@@ -181,11 +182,11 @@ loops:
 
 producers:
   - name: ScriptProducer
-    path: ../../producers/script/script.yaml
+    producer: prompt/script
   - name: VideoPromptProducer
-    path: ../../producers/video-prompt/video-prompt.yaml
+    producer: prompt/video
   - name: VideoProducer
-    path: ../../producers/video/video.yaml
+    producer: asset/text-to-video
     loop: segment
 
 connections:
@@ -707,16 +708,16 @@ Creates two-dimensional iteration. If `NumOfSegments = 3` and `NumOfImagesPerSeg
 ```yaml
 producers:
   - name: ScriptProducer
-    path: ./script.yaml
+    producer: prompt/script
     # No loop - runs once
 
   - name: AudioProducer
-    path: ./audio.yaml
+    producer: asset/text-to-speech
     loop: segment
     # Runs per segment
 
   - name: ImageProducer
-    path: ./image.yaml
+    producer: asset/text-to-image
     loop: segment.image
     # Runs per segment × image
 ```
@@ -920,9 +921,9 @@ loops:
 
 producers:
   - name: ScriptProducer
-    path: ./script.yaml
+    producer: prompt/script
   - name: AudioProducer
-    path: ./audio.yaml
+    producer: asset/text-to-speech
     loop: segment
 
 connections:
@@ -944,10 +945,10 @@ loops:
 
 producers:
   - name: ImageProducer
-    path: ./image.yaml
+    producer: asset/text-to-image
     loop: image
   - name: ImageToVideoProducer
-    path: ./image-to-video.yaml
+    producer: asset/image-to-video
     loop: segment
 
 connections:
@@ -962,13 +963,13 @@ connections:
 ```yaml
 producers:
   - name: VideoProducer
-    path: ./video.yaml
+    producer: asset/text-to-video
     loop: segment
   - name: AudioProducer
-    path: ./audio.yaml
+    producer: asset/text-to-speech
     loop: segment
   - name: TimelineComposer
-    path: ./timeline-composer.yaml
+    producer: composition/timeline-composer
 
 collectors:
   - name: TimelineVideo
@@ -1028,16 +1029,27 @@ catalog/
 │       ├── video-only.yaml
 │       └── input-template.yaml
 ├── producers/
-│   ├── script/
-│   │   ├── script.yaml
-│   │   └── script.toml
-│   ├── audio/
-│   │   └── audio.yaml
-│   └── video/
-│       └── video.yaml
+│   ├── asset/                        # Media generation producers
+│   │   ├── text-to-image.yaml
+│   │   ├── text-to-video.yaml
+│   │   ├── text-to-speech.yaml
+│   │   └── image-to-video.yaml
+│   ├── prompt/                       # LLM-based producers
+│   │   ├── script/
+│   │   │   ├── script.yaml
+│   │   │   └── script.toml
+│   │   └── video/
+│   │       └── video.yaml
+│   └── composition/                  # Composition producers
+│       └── timeline-composer.yaml
 └── models/
     └── *.yaml
 ```
+
+**Producer Categories:**
+- `asset/` - Media generation: images, video, audio, music
+- `prompt/` - LLM-based script and prompt generation
+- `composition/` - Timeline composition and video export
 
 ### Naming Conventions
 
@@ -1049,13 +1061,24 @@ catalog/
 | Loop names | lowercase | `name: segment` |
 | Input/Artifact names | PascalCase | `name: InquiryPrompt` |
 
-### Relative Paths
+### Producer References
 
-Producer paths are relative to the blueprint file:
+**Preferred: Qualified names** resolve from the catalog:
 
 ```yaml
-# In blueprints/video-only/video-only.yaml
+# Works from any location - resolves from catalog
 producers:
   - name: ScriptProducer
-    path: ../../producers/script/script.yaml
+    producer: prompt/script        # → catalog/producers/prompt/script/script.yaml
+  - name: VideoProducer
+    producer: asset/text-to-video  # → catalog/producers/asset/text-to-video.yaml
+```
+
+**Legacy: Relative paths** for custom local producers:
+
+```yaml
+# For custom producers not in the catalog
+producers:
+  - name: MyCustomProducer
+    path: ./my-producers/custom.yaml  # Relative to blueprint file
 ```

@@ -4,4 +4,5 @@
  */
 
 export { parseYamlBlueprintFile as parseBlueprintDocument } from '@gorenku/core';
+export type { BlueprintLoadOptions } from '@gorenku/core';
 export { loadBlueprintBundle } from './loader.js';
