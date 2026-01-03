@@ -36,8 +36,8 @@ describe('parseYamlBlueprintFile', () => {
   });
 
   it('leaves promptFile and outputSchema undefined when not specified', async () => {
-    // audio producer has no LLM config files
-    const modulePath = resolve(catalogRoot, 'producers/audio/audio.yaml');
+    // text-to-audio producer has no LLM config files
+    const modulePath = resolve(catalogRoot, 'producers/text-to-audio/text-to-audio.yaml');
     const document = await parseYamlBlueprintFile(modulePath);
     expect(document.meta.promptFile).toBeUndefined();
     expect(document.meta.outputSchema).toBeUndefined();
