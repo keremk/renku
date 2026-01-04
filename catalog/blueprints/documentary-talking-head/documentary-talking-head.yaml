@@ -43,7 +43,7 @@ inputs:
   - name: TalkingHeadVoiceId
     description: Voice identifier for talking head narration.
     type: string
-    required: false
+    required: true
   - name: Duration
     description: Total duration of the movie in seconds.
     type: int

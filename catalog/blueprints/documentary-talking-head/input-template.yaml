@@ -15,42 +15,18 @@ models:
   - model: minimax/speech-2.6-hd
     provider: replicate
     producerId: AudioProducer
-    inputs:
-      TextInput: text
-      Emotion: emotion
-      VoiceId: voice_id
   - model: bytedance/seedance-1-pro-fast
     provider: replicate
     producerId: VideoProducer
-    inputs:
-      Prompt: prompt
-      AspectRatio: aspect_ratio
-      Resolution: resolution
-      SegmentDuration: duration
   - model: infinitalk
     provider: fal-ai
     producerId: TalkingHeadVideoProducer
-    inputs:
-      Prompt: prompt
-      Resolution: resolution
-      Text: text_input
-      CharacterImage: image_url
-      TalkingHeadVoiceId: voice
   - model: bytedance/seedream/v4/text-to-image
     provider: fal-ai
     producerId: TalkingHeadImageProducer
-    inputs:
-      Prompt: prompt
-      AspectRatio:
-        field: image_size
-        transform:
-          "16:9": "landscape_16_9"
   - model: google/nano-banana
     provider: replicate
     producerId: ImageProducer
-    inputs:
-      Prompt: prompt
-      AspectRatio: aspect_ratio
   - model: gpt-5.2
     provider: openai
     producerId: DocProducer

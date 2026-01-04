@@ -48,6 +48,7 @@ import { runGenerate } from './commands/generate.js';
 import { runClean } from './commands/clean.js';
 import { runExport } from './commands/export.js';
 import { runProducersList } from './commands/producers-list.js';
+import { runCreateInputTemplate } from './commands/create-input-template.js';
 import { formatPrice, type ProducerModelEntry } from '@gorenku/providers';
 import { runBlueprintsList } from './commands/blueprints-list.js';
 import { runBlueprintsDescribe } from './commands/blueprints-describe.js';
@@ -62,7 +63,7 @@ import { detectViewerAddress } from './lib/viewer-network.js';
 
 
 const cli = meow(
-  `\nUsage\n  $ renku <command> [options]\n\nCommands\n  install             Guided setup (alias for init)\n  init                Initialize Renku CLI configuration (requires --root-folder/--root)\n  generate            Create or continue a movie generation\n  export              Export a movie to MP4/MP3 (--exporter=remotion|ffmpeg)\n  clean               Remove friendly view and build artefacts for a movie\n  viewer:start        Start the bundled viewer server in the foreground\n  viewer:view         Open the viewer for a movie id (starts server if needed)\n  viewer:stop         Stop the background viewer server\n  producers:list      List all available models for producers in a blueprint\n  blueprints:list     List available blueprint YAML files\n  blueprints:describe <path>  Show details for a blueprint YAML file\n  blueprints:validate <path>  Validate a blueprint YAML file\n  mcp                 Run the Renku MCP server over stdio\n\nExamples\n  $ renku init --root-folder=~/media/renku\n  $ renku init --root=~/media/renku          # Short form of --root-folder\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml --concurrency=3\n  $ renku generate --last --up-to-layer=1\n  $ renku export --movie-id=abc123\n  $ renku export --last --width=1920 --height=1080 --fps=30\n  $ renku export --last --exporter=ffmpeg\n  $ renku producers:list --blueprint=image-audio.yaml\n  $ renku blueprints:list\n  $ renku blueprints:describe audio-only.yaml\n  $ renku blueprints:validate image-audio.yaml\n  $ renku clean --movie-id=movie-q123456\n  $ renku viewer:start\n  $ renku viewer:view --movie-id=movie-q123456\n  $ renku viewer:view --last\n  $ renku mcp --defaultBlueprint=image-audio.yaml\n`,
+  `\nUsage\n  $ renku <command> [options]\n\nCommands\n  install             Guided setup (alias for init)\n  init                Initialize Renku CLI configuration (requires --root-folder/--root)\n  generate            Create or continue a movie generation\n  create:input-template  Create an inputs YAML template for a blueprint\n  export              Export a movie to MP4/MP3 (--exporter=remotion|ffmpeg)\n  clean               Remove friendly view and build artefacts for a movie\n  viewer:start        Start the bundled viewer server in the foreground\n  viewer:view         Open the viewer for a movie id (starts server if needed)\n  viewer:stop         Stop the background viewer server\n  producers:list      List all available models for producers in a blueprint\n  blueprints:list     List available blueprint YAML files\n  blueprints:describe <path>  Show details for a blueprint YAML file\n  blueprints:validate <path>  Validate a blueprint YAML file\n  mcp                 Run the Renku MCP server over stdio\n\nExamples\n  $ renku init --root-folder=~/media/renku\n  $ renku init --root=~/media/renku          # Short form of --root-folder\n  $ renku create:input-template --blueprint=documentary-talking-head.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml --concurrency=3\n  $ renku generate --last --up-to-layer=1\n  $ renku export --movie-id=abc123\n  $ renku export --last --width=1920 --height=1080 --fps=30\n  $ renku export --last --exporter=ffmpeg\n  $ renku producers:list --blueprint=image-audio.yaml\n  $ renku blueprints:list\n  $ renku blueprints:describe audio-only.yaml\n  $ renku blueprints:validate image-audio.yaml\n  $ renku clean --movie-id=movie-q123456\n  $ renku viewer:start\n  $ renku viewer:view --movie-id=movie-q123456\n  $ renku viewer:view --last\n  $ renku mcp --defaultBlueprint=image-audio.yaml\n`,
   {
     importMeta: import.meta,
     flags: {
@@ -93,6 +94,7 @@ const cli = meow(
       height: { type: 'number' },
       fps: { type: 'number' },
       exporter: { type: 'string' },
+      output: { type: 'string' },
     },
   },
 );
@@ -130,6 +132,7 @@ async function main(): Promise<void> {
     height?: number;
     fps?: number;
     exporter?: string;
+    output?: string;
   };
   const logger = globalThis.console;
 
@@ -191,14 +194,19 @@ async function main(): Promise<void> {
       }
 
       const targetingExisting = Boolean(flags.last || movieIdFlag);
+      const resolvedInputsPath = inputsFlag;
+
       if (!targetingExisting) {
-        if (!inputsFlag) {
-          logger.error('Error: --inputs/--in is required for a new generation.');
+        if (!blueprintFlag) {
+          logger.error('Error: --blueprint/--bp is required for a new generation.');
           process.exitCode = 1;
           return;
         }
-        if (!blueprintFlag) {
-          logger.error('Error: --blueprint/--bp is required for a new generation.');
+
+        // Inputs are required for new generation
+        if (!inputsFlag) {
+          logger.error('Error: --inputs/--in is required for a new generation.');
+          logger.error('Use "renku create:input-template --bp=<blueprint>" to create an inputs file.');
           process.exitCode = 1;
           return;
         }
@@ -208,7 +216,7 @@ async function main(): Promise<void> {
         const result = await runGenerate({
           movieId: movieIdFlag,
           useLast: Boolean(flags.last),
-          inputsPath: inputsFlag,
+          inputsPath: resolvedInputsPath,
           blueprint: blueprintFlag,
           dryRun: Boolean(flags.dryRun),
           nonInteractive: Boolean(flags.nonInteractive),
@@ -231,6 +239,37 @@ async function main(): Promise<void> {
         process.exitCode = 1;
         return;
       }
+    }
+    case 'create:input-template': {
+      const blueprintFlag = flags.blueprint ?? flags.bp;
+      if (!blueprintFlag) {
+        logger.error('Error: --blueprint/--bp is required for create:input-template.');
+        process.exitCode = 1;
+        return;
+      }
+      const cliConfig = await readCliConfig();
+      if (!cliConfig) {
+        logger.error('Renku CLI is not initialized. Run "renku init" first.');
+        process.exitCode = 1;
+        return;
+      }
+
+      const result = await runCreateInputTemplate({
+        blueprint: blueprintFlag,
+        cliConfig,
+        logger,
+        outputDir: flags.output,
+      });
+
+      if (result.success) {
+        logger.info(`Input template created: ${result.inputsPath}`);
+      } else if (result.cancelled) {
+        logger.info('Cancelled.');
+      } else {
+        logger.error(`Failed: ${result.error}`);
+        process.exitCode = 1;
+      }
+      return;
     }
     case 'producers:list': {
       const blueprintFlag = flags.blueprint ?? flags.bp;
