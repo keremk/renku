@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { extractProducers, ProducerExtractionError } from './producer-extractor.js';
+import {
+  extractProducers,
+  extractCompositionProducers,
+  ProducerExtractionError,
+} from './producer-extractor.js';
 import type { BlueprintTreeNode, BlueprintDocument } from '@gorenku/core';
 
 interface MockProducerImport {
@@ -215,5 +219,63 @@ describe('extractProducers', () => {
 
     expect(() => extractProducers(rootNode)).toThrow(ProducerExtractionError);
     expect(() => extractProducers(rootNode)).toThrow('BadChildProducer');
+  });
+});
+
+describe('extractCompositionProducers', () => {
+  it('extracts composition producers', () => {
+    const node = createMockNode('test', [
+      { name: 'TimelineComposer', producer: 'composition/timeline-composer' },
+    ]);
+
+    const producers = extractCompositionProducers(node);
+
+    expect(producers).toHaveLength(1);
+    expect(producers[0]).toEqual({
+      alias: 'TimelineComposer',
+      localName: 'TimelineComposer',
+      producerRef: 'composition/timeline-composer',
+    });
+  });
+
+  it('ignores non-composition producers', () => {
+    const node = createMockNode('test', [
+      { name: 'DocProducer', producer: 'prompt/documentary-talkinghead' },
+      { name: 'ImageProducer', producer: 'asset/text-to-image' },
+      { name: 'TimelineComposer', producer: 'composition/timeline-composer' },
+    ]);
+
+    const producers = extractCompositionProducers(node);
+
+    expect(producers).toHaveLength(1);
+    expect(producers[0]?.localName).toBe('TimelineComposer');
+  });
+
+  it('returns empty array when no composition producers', () => {
+    const node = createMockNode('test', [
+      { name: 'DocProducer', producer: 'prompt/documentary-talkinghead' },
+    ]);
+
+    const producers = extractCompositionProducers(node);
+
+    expect(producers).toHaveLength(0);
+  });
+
+  it('extracts composition producers from nested children', () => {
+    const childNode = createMockNode('child', [
+      { name: 'ChildComposer', producer: 'composition/video-composer' },
+    ]);
+
+    const rootNode = createMockNode(
+      'root',
+      [{ name: 'RootComposer', producer: 'composition/timeline-composer' }],
+      new Map([['ChildBlueprint', childNode]]),
+    );
+
+    const producers = extractCompositionProducers(rootNode);
+
+    expect(producers).toHaveLength(2);
+    expect(producers.find((p) => p.localName === 'RootComposer')?.alias).toBe('RootComposer');
+    expect(producers.find((p) => p.localName === 'ChildComposer')?.alias).toBe('ChildBlueprint');
   });
 });

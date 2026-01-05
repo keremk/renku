@@ -15,8 +15,10 @@ export {
 
 export {
   extractProducers,
+  extractCompositionProducers,
   ProducerExtractionError,
   type ExtractedProducer,
+  type ExtractedCompositionProducer,
   type ProducerCategory,
 } from './utils/producer-extractor.js';
 

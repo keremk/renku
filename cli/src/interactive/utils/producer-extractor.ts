@@ -6,6 +6,18 @@ import { formatProducerAlias, type BlueprintTreeNode } from '@gorenku/core';
 export type ProducerCategory = 'prompt' | 'asset';
 
 /**
+ * Information about a composition producer extracted from a blueprint.
+ */
+export interface ExtractedCompositionProducer {
+  /** Full alias including namespace path */
+  alias: string;
+  /** Local name of the producer */
+  localName: string;
+  /** Producer reference path (e.g., "composition/timeline-composer") */
+  producerRef: string;
+}
+
+/**
  * Information about a producer extracted from a blueprint.
  */
 export interface ExtractedProducer {
@@ -101,5 +113,43 @@ function collectFromNode(
   // Process child nodes recursively
   for (const [childName, childNode] of node.children) {
     collectFromNode(childNode, [...namespacePath, childName], producers);
+  }
+}
+
+/**
+ * Extract composition producers from a blueprint tree.
+ * These need special handling with timeline config templates.
+ */
+export function extractCompositionProducers(
+  root: BlueprintTreeNode,
+): ExtractedCompositionProducer[] {
+  const producers: ExtractedCompositionProducer[] = [];
+  collectCompositionFromNode(root, [], producers);
+  return producers;
+}
+
+function collectCompositionFromNode(
+  node: BlueprintTreeNode,
+  namespacePath: string[],
+  producers: ExtractedCompositionProducer[],
+): void {
+  for (const importDef of node.document.producerImports) {
+    const ref = importDef.producer;
+    if (!ref || !ref.startsWith('composition/')) {
+      continue;
+    }
+
+    const alias = formatProducerAlias(namespacePath, importDef.name);
+
+    producers.push({
+      alias,
+      localName: importDef.name,
+      producerRef: ref,
+    });
+  }
+
+  // Process child nodes recursively
+  for (const [childName, childNode] of node.children) {
+    collectCompositionFromNode(childNode, [...namespacePath, childName], producers);
   }
 }

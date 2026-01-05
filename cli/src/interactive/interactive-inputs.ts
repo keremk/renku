@@ -10,10 +10,19 @@ import type { BlueprintTreeNode, Logger } from '@gorenku/core';
 import { loadBlueprintBundle } from '../lib/blueprint-loader/index.js';
 import { resolveBlueprintSpecifier } from '../lib/config-assets.js';
 import type { CliConfig } from '../lib/cli-config.js';
-import { extractProducers } from './utils/producer-extractor.js';
+import {
+  extractProducers,
+  extractCompositionProducers,
+  type ExtractedCompositionProducer,
+} from './utils/producer-extractor.js';
 import { loadAllAssetModels, type AssetModelOption } from './utils/asset-model-loader.js';
 import { detectAvailableProviders } from './utils/api-key-detector.js';
-import { writeInputsYaml, type InputsYamlData } from './utils/yaml-writer.js';
+import {
+  writeInputsYaml,
+  generateTimelineConfigTemplate,
+  type InputsYamlData,
+  type CompositionModelInput,
+} from './utils/yaml-writer.js';
 import { blueprintInputsToFields } from './utils/schema-to-fields.js';
 import { InteractiveApp } from './components/interactive-app.js';
 
@@ -110,6 +119,7 @@ export async function runInteractiveInputs(
 
     // 4. Extract producers from blueprint
     const producers = extractProducers(blueprintRoot);
+    const compositionProducers = extractCompositionProducers(blueprintRoot);
 
     // 5. Load asset models for asset producers
     const catalogRoot = cliConfig.catalog?.root ?? '';
@@ -126,10 +136,12 @@ export async function runInteractiveInputs(
     return await runInteractiveApp({
       blueprint: blueprintRoot,
       producers,
+      compositionProducers,
       modelCatalog,
       availableProviders,
       assetModels,
       blueprintFields,
+      blueprintId: blueprintRoot.document.meta.id,
       blueprintName: blueprintRoot.document.meta.name ?? blueprintRoot.document.meta.id,
       logger,
       outputDir: options.outputDir,
@@ -150,10 +162,12 @@ export async function runInteractiveInputs(
 async function runInteractiveApp(options: {
   blueprint: BlueprintTreeNode;
   producers: ReturnType<typeof extractProducers>;
+  compositionProducers: ExtractedCompositionProducer[];
   modelCatalog?: LoadedModelCatalog;
   availableProviders: Set<string>;
   assetModels: Map<string, AssetModelOption[]>;
   blueprintFields: ReturnType<typeof blueprintInputsToFields>;
+  blueprintId: string;
   blueprintName: string;
   logger: Logger;
   outputDir?: string;
@@ -161,10 +175,12 @@ async function runInteractiveApp(options: {
   const {
     blueprint,
     producers,
+    compositionProducers,
     modelCatalog,
     availableProviders,
     assetModels,
     blueprintFields,
+    blueprintId,
     blueprintName,
     logger,
     outputDir,
@@ -176,11 +192,29 @@ async function runInteractiveApp(options: {
     const handleComplete = async (data: InputsYamlData) => {
       try {
         logger.info('Saving inputs file...');
-        const filePath = await writeInputsYaml(data, {
-          blueprintName,
-          outputDir,
-          blueprintFields, // Include all fields in template
-        });
+
+        // Create composition model entries with timeline config templates
+        const compositionModels: CompositionModelInput[] = compositionProducers.map(
+          (producer) => ({
+            producerId: producer.alias,
+            model: 'timeline/ordered',
+            provider: 'renku',
+            config: generateTimelineConfigTemplate(),
+          }),
+        );
+
+        const filePath = await writeInputsYaml(
+          {
+            ...data,
+            compositionModels,
+          },
+          {
+            blueprintId,
+            blueprintName,
+            outputDir,
+            blueprintFields, // Include all fields in template
+          },
+        );
         logger.info(`Inputs saved to: ${filePath}`);
         result = { success: true, inputsPath: filePath };
         instance.unmount();

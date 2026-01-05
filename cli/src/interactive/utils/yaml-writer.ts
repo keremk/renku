@@ -1,5 +1,5 @@
 import { writeFile } from 'node:fs/promises';
-import { resolve, basename } from 'node:path';
+import { resolve } from 'node:path';
 import { stringify } from 'yaml';
 import type { FormFieldConfig } from './schema-to-fields.js';
 
@@ -14,6 +14,16 @@ export interface ModelSelectionInput {
 }
 
 /**
+ * Composition producer model entry with timeline config template.
+ */
+export interface CompositionModelInput {
+  producerId: string;
+  model: string;
+  provider: string;
+  config: Record<string, unknown>;
+}
+
+/**
  * Complete inputs data structure for the YAML file.
  */
 export interface InputsYamlData {
@@ -21,13 +31,17 @@ export interface InputsYamlData {
   inputs: Record<string, unknown>;
   /** Model selections for producers */
   models: ModelSelectionInput[];
+  /** Composition producer entries with timeline config templates */
+  compositionModels?: CompositionModelInput[];
 }
 
 /**
  * Options for generating the inputs file name.
  */
 export interface InputsFileNameOptions {
-  /** Blueprint name or path to derive name from */
+  /** Blueprint ID used for filename (e.g., "Documentary" → "documentary-inputs.yaml") */
+  blueprintId: string;
+  /** Blueprint name used in header comment */
   blueprintName: string;
   /** Output directory (defaults to current working directory) */
   outputDir?: string;
@@ -36,20 +50,14 @@ export interface InputsFileNameOptions {
 }
 
 /**
- * Generate a filename for the inputs YAML based on the blueprint name.
+ * Generate a filename for the inputs YAML based on the blueprint ID.
  *
- * @param blueprintName - Name of the blueprint (or path to blueprint file)
- * @returns Sanitized filename like "my-blueprint-inputs.yaml"
+ * @param blueprintId - The blueprint's meta.id (e.g., "Documentary")
+ * @returns Sanitized filename like "documentary-inputs.yaml"
  */
-export function generateInputsFileName(blueprintName: string): string {
-  // Extract base name if it's a path
-  let name = basename(blueprintName);
-
-  // Remove file extension if present
-  name = name.replace(/\.(yaml|yml)$/i, '');
-
+export function generateInputsFileName(blueprintId: string): string {
   // Sanitize: lowercase, replace spaces/underscores with hyphens, remove special chars
-  name = name
+  let name = blueprintId
     .toLowerCase()
     .replace(/[\s_]+/g, '-')
     .replace(/[^a-z0-9-]/g, '');
@@ -74,7 +82,7 @@ export async function writeInputsYaml(
   options: InputsFileNameOptions,
 ): Promise<string> {
   const outputDir = options.outputDir ?? process.cwd();
-  const filename = generateInputsFileName(options.blueprintName);
+  const filename = generateInputsFileName(options.blueprintId);
   const filepath = resolve(outputDir, filename);
 
   // Build the YAML structure
@@ -101,18 +109,35 @@ export async function writeInputsYaml(
   }
 
   // Add models section
-  if (data.models.length > 0) {
-    yamlData.models = data.models.map((selection) => {
-      const entry: Record<string, unknown> = {
-        producerId: selection.producerId,
-        provider: selection.provider,
-        model: selection.model,
-      };
-      if (selection.config && Object.keys(selection.config).length > 0) {
-        entry.config = selection.config;
-      }
-      return entry;
-    });
+  const allModels: Record<string, unknown>[] = [];
+
+  // Add regular models
+  for (const selection of data.models) {
+    const entry: Record<string, unknown> = {
+      producerId: selection.producerId,
+      provider: selection.provider,
+      model: selection.model,
+    };
+    if (selection.config && Object.keys(selection.config).length > 0) {
+      entry.config = selection.config;
+    }
+    allModels.push(entry);
+  }
+
+  // Add composition models with timeline config templates
+  if (data.compositionModels) {
+    for (const composition of data.compositionModels) {
+      allModels.push({
+        model: composition.model,
+        provider: composition.provider,
+        producerId: composition.producerId,
+        config: composition.config,
+      });
+    }
+  }
+
+  if (allModels.length > 0) {
+    yamlData.models = allModels;
   }
 
   // Convert to YAML string with nice formatting
@@ -178,18 +203,33 @@ export function formatInputsPreview(
     yamlData.inputs = inputs;
   }
 
-  if (data.models.length > 0) {
-    yamlData.models = data.models.map((selection) => {
-      const entry: Record<string, unknown> = {
-        producerId: selection.producerId,
-        provider: selection.provider,
-        model: selection.model,
-      };
-      if (selection.config && Object.keys(selection.config).length > 0) {
-        entry.config = selection.config;
-      }
-      return entry;
-    });
+  const allModels: Record<string, unknown>[] = [];
+
+  for (const selection of data.models) {
+    const entry: Record<string, unknown> = {
+      producerId: selection.producerId,
+      provider: selection.provider,
+      model: selection.model,
+    };
+    if (selection.config && Object.keys(selection.config).length > 0) {
+      entry.config = selection.config;
+    }
+    allModels.push(entry);
+  }
+
+  if (data.compositionModels) {
+    for (const composition of data.compositionModels) {
+      allModels.push({
+        model: composition.model,
+        provider: composition.provider,
+        producerId: composition.producerId,
+        config: composition.config,
+      });
+    }
+  }
+
+  if (allModels.length > 0) {
+    yamlData.models = allModels;
   }
 
   return stringify(yamlData, {
