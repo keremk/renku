@@ -64,7 +64,7 @@ artifacts:
 mappings:
   fal-ai:
     # Wan v2.6 Reference-to-Video (uses video references)
-    wan-v2-6/reference-to-video:
+    wan/v2.6/reference-to-video:
       Prompt: prompt
       NegativePrompt: negative_prompt
       ReferenceVideos: video_urls
@@ -78,7 +78,7 @@ mappings:
       MultiShots: multi_shots
 
     # Veo 3.1 Reference-to-Video (uses image references)
-    veo3-1/reference-to-video:
+    veo3.1/reference-to-video:
       Prompt: prompt
       ReferenceImages: image_urls
       Duration:

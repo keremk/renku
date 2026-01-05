@@ -62,7 +62,7 @@ artifacts:
 mappings:
   fal-ai:
     # Veo 3.1 Image-to-Video
-    veo3-1/image-to-video:
+    veo3.1/image-to-video:
       Prompt: prompt
       StartImage: image_url
       Duration:
@@ -74,7 +74,7 @@ mappings:
       EnhancePrompt: auto_fix
 
     # Veo 3.1 Fast First-Last-Frame
-    veo3-1-fast/first-last-frame:
+    veo3.1/fast/first-last-frame-to-video:
       Prompt: prompt
       StartImage: first_frame_url
       EndImage: last_frame_url
@@ -94,7 +94,7 @@ mappings:
       Resolution: resolution
 
     # Wan v2.6 Image-to-Video
-    wan-v2-6/image-to-video:
+    wan/v2.6/image-to-video:
       Prompt: prompt
       StartImage: image_url
       Duration:
@@ -105,15 +105,6 @@ mappings:
       EnhancePrompt: enable_prompt_expansion
 
     # Kling Omni (Video o1) Image-to-Video
-    kling-video-o1/image-to-video:
-      Prompt: prompt
-      StartImage: start_image_url
-      EndImage: end_image_url
-      Duration:
-        field: duration
-        intToString: true
-
-    # Kling Omni (Video o1) Image-to-Video (alternate naming)
     kling-video/o1/image-to-video:
       Prompt: prompt
       StartImage: start_image_url
@@ -123,7 +114,7 @@ mappings:
         intToString: true
 
     # Kling v2.6 Pro Image-to-Video
-    kling-video-v2-6-pro/image-to-video:
+    kling-video/v2.6/pro/image-to-video:
       Prompt: prompt
       StartImage: image_url
       Duration:
@@ -134,7 +125,7 @@ mappings:
       VoiceIds: voice_ids
 
     # ByteDance Seedance v1-Pro-Fast Image-to-Video
-    bytedance/seedance/v1-pro-fast/image-to-video:
+    bytedance/seedance/v1/pro/fast/image-to-video:
       Prompt: prompt
       StartImage: image_url
       Duration: duration
@@ -142,7 +133,7 @@ mappings:
       Resolution: resolution
 
     # ByteDance Seedance v1.5 Pro Image-to-Video
-    bytedance/seedance/v1.5-pro/image-to-video:
+    bytedance/seedance/v1.5/pro/image-to-video:
       Prompt: prompt
       StartImage: image_url
       EndImage: end_image_url
@@ -154,7 +145,7 @@ mappings:
 
   replicate:
     # Google Veo 3.1 Fast
-    google/veo-3-1-fast:
+    google/veo-3.1-fast:
       Prompt: prompt
       StartImage: image
       EndImage: last_frame
@@ -166,7 +157,7 @@ mappings:
       Seed: seed
 
     # MiniMax Hailuo 2.3 Fast (image required)
-    minimax/hailuo-2-3-fast:
+    minimax/hailuo-2.3-fast:
       Prompt: prompt
       StartImage: first_frame_image
       Duration: duration
@@ -192,7 +183,7 @@ mappings:
       EnhancePrompt: prompt_optimizer
 
     # ByteDance Seedance (with image)
-    bytedance/seedance-1-5-pro:
+    bytedance/seedance-1.5-pro:
       Prompt: prompt
       StartImage: image
       EndImage: last_frame_image

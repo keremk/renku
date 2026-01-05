@@ -62,7 +62,7 @@ artifacts:
 mappings:
   fal-ai:
     # Wan v2.6 Text-to-Video
-    wan-v2-6/text-to-video:
+    wan/v2.6/text-to-video:
       Prompt: prompt
       NegativePrompt: negative_prompt
       Duration:
@@ -76,7 +76,7 @@ mappings:
       MultiShots: multi_shots
 
     # Veo 3.1 Text-to-Video
-    veo3-1:
+    veo3.1:
       Prompt: prompt
       NegativePrompt: negative_prompt
       Duration:
@@ -89,7 +89,7 @@ mappings:
       EnhancePrompt: auto_fix
 
     # Veo 3.1 Fast
-    veo3-1-fast:
+    veo3.1/fast:
       Prompt: prompt
       NegativePrompt: negative_prompt
       Duration:
@@ -108,7 +108,7 @@ mappings:
       Resolution: resolution
 
     # ByteDance Seedance v1.5 Pro
-    bytedance/seedance/v1.5-pro/text-to-video:
+    bytedance/seedance/v1.5/pro/text-to-video:
       Prompt: prompt
       Duration: duration
       AspectRatio: aspect_ratio
@@ -118,7 +118,7 @@ mappings:
       Seed: seed
 
     # ByteDance Seedance v1-Pro-Fast
-    bytedance/seedance/v1-pro-fast/text-to-video:
+    bytedance/seedance/v1/pro/fast/text-to-video:
       Prompt: prompt
       Duration: duration
       AspectRatio: aspect_ratio
@@ -128,7 +128,7 @@ mappings:
 
   replicate:
     # ByteDance Seedance 1.5 Pro
-    bytedance/seedance-1-5-pro:
+    bytedance/seedance-1.5-pro:
       Prompt: prompt
       Duration: duration
       AspectRatio: aspect_ratio
@@ -153,7 +153,7 @@ mappings:
       Seed: seed
 
     # Google Veo 3.1 Fast
-    google/veo-3-1-fast:
+    google/veo-3.1-fast:
       Prompt: prompt
       NegativePrompt: negative_prompt
       Duration: duration
@@ -163,7 +163,7 @@ mappings:
       Seed: seed
 
     # MiniMax Hailuo 2.3
-    minimax/hailuo-2-3:
+    minimax/hailuo-2.3:
       Prompt: prompt
       Duration: duration
       Resolution: resolution

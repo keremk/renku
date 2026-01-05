@@ -53,14 +53,14 @@ artifacts:
 mappings:
   fal-ai:
     # VEED Fabric 1.0 Text
-    veed-fabric-1-0-text:
+    veed/fabric-1.0/text:
       CharacterImage: image_url
       NarrativeText: text
       VoiceDescription: voice_description
       Resolution: resolution
 
     # InfiniTalk Single Text
-    infinitalk-single-text:
+    infinitalk/single-text:
       Prompt: prompt
       CharacterImage: image_url
       NarrativeText: text_input

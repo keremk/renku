@@ -70,7 +70,7 @@ mappings:
   # Hybrid models support text-to-image AND optional reference images
   replicate:
     # Pattern 3: size + aspect_ratio + optional width/height
-    bytedance/seedream-4-5:
+    bytedance/seedream-4.5:
       Prompt: prompt
       ReferenceImages: image_input
       NumImages: max_images

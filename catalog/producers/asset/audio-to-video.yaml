@@ -55,7 +55,7 @@ artifacts:
 mappings:
   fal-ai:
     # Creatify Aurora
-    creatify-aurora:
+    creatify/aurora:
       Prompt: prompt
       CharacterImage: image_url
       AudioUrl: audio_url
@@ -64,7 +64,7 @@ mappings:
       AudioGuidanceScale: audio_guidance_scale
 
     # VEED Fabric 1.0 Fast
-    veed-fabric-1-0-fast:
+    veed/fabric-1.0/fast:
       CharacterImage: image_url
       AudioUrl: audio_url
       Resolution: resolution

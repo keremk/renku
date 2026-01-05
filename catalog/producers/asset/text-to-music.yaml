@@ -49,7 +49,7 @@ artifacts:
 mappings:
   replicate:
     # MiniMax Music 1.5
-    minimax/music-1-5:
+    minimax/music-1.5:
       Prompt: prompt
       Lyrics: lyrics
       OutputFormat: audio_format

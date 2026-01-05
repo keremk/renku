@@ -126,7 +126,7 @@ mappings:
       # Resolution ignored - model doesn't support it
 
     # Pattern 5: Fixed dimension strings
-    gpt-image-1-5:
+    gpt-image-1.5:
       Prompt: prompt
       NumImages: num_images
       OutputFormat: output_format
@@ -184,7 +184,7 @@ mappings:
                 "1:1+1K": { width: 1024, height: 1024 }
                 "1:1+2K": { width: 2048, height: 2048 }
 
-    wan-v2-6/text-to-image:
+    wan/v2.6/text-to-image:
       Prompt: prompt
       Seed: seed
       NegativePrompt: negative_prompt
