@@ -1,0 +1,102 @@
+meta:
+  name: Indexed Collection Binding Test
+  description: Test blueprint for verifying constant-indexed collection input binding.
+  id: IndexedCollectionBindingTest
+  version: 0.1.0
+
+inputs:
+  - name: CharacterPrompt
+    description: Prompt for generating the character image.
+    type: string
+    required: true
+  - name: ProductPrompt
+    description: Prompt for generating the product image.
+    type: string
+    required: true
+  - name: VideoPrompt
+    description: Prompt for generating video clips.
+    type: string
+    required: true
+  - name: NumOfClips
+    description: Number of video clips to generate.
+    type: int
+    required: true
+  - name: AspectRatio
+    description: Aspect ratio for generated media.
+    type: string
+    required: true
+  - name: Resolution
+    description: Resolution for generated media.
+    type: string
+    required: true
+
+artifacts:
+  - name: CharacterImage
+    description: Generated character image.
+    type: image
+  - name: ProductImage
+    description: Generated product image.
+    type: image
+  - name: ClipVideos
+    description: Generated video clips.
+    type: array
+    itemType: video
+    countInput: NumOfClips
+
+loops:
+  - name: clip
+    description: Iterates over video clips.
+    countInput: NumOfClips
+
+producers:
+  - name: CharacterImageProducer
+    producer: asset/text-to-image
+  - name: ProductImageProducer
+    producer: asset/text-to-image
+  - name: VideoProducer
+    producer: asset/reference-to-video
+    loop: clip
+
+connections:
+  # === CharacterImageProducer inputs ===
+  - from: CharacterPrompt
+    to: CharacterImageProducer.Prompt
+  - from: AspectRatio
+    to: CharacterImageProducer.AspectRatio
+  - from: Resolution
+    to: CharacterImageProducer.Resolution
+
+  # === CharacterImageProducer outputs ===
+  - from: CharacterImageProducer.GeneratedImage
+    to: CharacterImage
+
+  # === ProductImageProducer inputs ===
+  - from: ProductPrompt
+    to: ProductImageProducer.Prompt
+  - from: AspectRatio
+    to: ProductImageProducer.AspectRatio
+  - from: Resolution
+    to: ProductImageProducer.Resolution
+
+  # === ProductImageProducer outputs ===
+  - from: ProductImageProducer.GeneratedImage
+    to: ProductImage
+
+  # === VideoProducer inputs (looped with constant-indexed collection binding) ===
+  # This is the key pattern being tested:
+  # - CharacterImage goes to ReferenceImages[0] for ALL clips
+  # - ProductImage goes to ReferenceImages[1] for ALL clips
+  - from: CharacterImageProducer.GeneratedImage
+    to: VideoProducer[clip].ReferenceImages[0]
+  - from: ProductImageProducer.GeneratedImage
+    to: VideoProducer[clip].ReferenceImages[1]
+  - from: VideoPrompt
+    to: VideoProducer[clip].Prompt
+  - from: AspectRatio
+    to: VideoProducer[clip].AspectRatio
+  - from: Resolution
+    to: VideoProducer[clip].Resolution
+
+  # === VideoProducer outputs ===
+  - from: VideoProducer[clip].GeneratedVideo
+    to: ClipVideos[clip]

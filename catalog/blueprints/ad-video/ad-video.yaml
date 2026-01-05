@@ -1,0 +1,245 @@
+meta:
+  name: Ad Video with Character and Product
+  description: Generate ad videos featuring a consistent character using a product, with optional narration and background music.
+  id: AdVideo
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: ProductDescription
+    description: Description of the product being advertised.
+    type: string
+    required: true
+  - name: CharacterDescription
+    description: Description of the character using the product.
+    type: string
+    required: true
+  - name: AdConcept
+    description: The overall concept or theme of the advertisement.
+    type: string
+    required: true
+  - name: NumOfClips
+    description: Number of video clips to generate.
+    type: int
+    required: true
+  - name: Duration
+    description: Total duration of the ad in seconds.
+    type: int
+    required: true
+  - name: Audience
+    description: Target audience for the ad.
+    type: string
+    required: false
+  - name: Style
+    description: Visual style for the ad (e.g., cinematic, modern, playful).
+    type: string
+    required: true
+  - name: AspectRatio
+    description: Aspect ratio for generated media (e.g., 16:9, 9:16).
+    type: string
+    required: true
+  - name: Resolution
+    description: Resolution for generated media (480p, 720p, 1080p).
+    type: string
+    required: true
+  - name: ClipDuration
+    description: Duration of each video clip in seconds.
+    type: int
+    required: false
+  - name: VoiceId
+    description: Voice identifier for narration.
+    type: string
+    required: true
+  - name: Emotion
+    description: Emotional tone for narration.
+    type: string
+    required: false
+  - name: MusicalStyle
+    description: Style for background music.
+    type: string
+    required: false
+
+artifacts:
+  - name: CharacterImage
+    description: Generated character image used as base for video clips.
+    type: image
+  - name: ProductImage
+    description: Generated product image.
+    type: image
+  - name: ClipVideos
+    description: Generated video clips.
+    type: array
+    itemType: video
+    countInput: NumOfClips
+  - name: ClipAudios
+    description: Generated narration audio for clips with narration.
+    type: array
+    itemType: audio
+    countInput: NumOfClips
+  - name: Music
+    description: Background music for the ad.
+    type: audio
+  - name: Timeline
+    description: Composed timeline JSON manifest.
+    type: json
+  - name: FinalVideo
+    description: Final rendered ad video.
+    type: video
+
+loops:
+  - name: clip
+    description: Iterates over video clips.
+    countInput: NumOfClips
+
+producers:
+  - name: AdScriptProducer
+    producer: prompt/ad-script
+  - name: CharacterImageProducer
+    producer: asset/text-to-image
+  - name: ProductImageProducer
+    producer: asset/text-to-image
+  - name: VideoProducer
+    producer: asset/reference-to-video
+    loop: clip
+  - name: AudioProducer
+    producer: asset/text-to-speech
+    loop: clip
+  - name: MusicProducer
+    producer: asset/text-to-music
+  - name: TimelineComposer
+    producer: composition/timeline-composer
+  - name: VideoExporter
+    producer: composition/video-exporter
+
+conditions:
+  hasNarration:
+    when: AdScriptProducer.AdScript.Scenes[clip].HasNarration
+    is: true
+
+connections:
+  # === AdScriptProducer inputs ===
+  - from: ProductDescription
+    to: AdScriptProducer.ProductDescription
+  - from: CharacterDescription
+    to: AdScriptProducer.CharacterDescription
+  - from: AdConcept
+    to: AdScriptProducer.AdConcept
+  - from: NumOfClips
+    to: AdScriptProducer.NumOfClips
+  - from: Duration
+    to: AdScriptProducer.Duration
+  - from: Audience
+    to: AdScriptProducer.Audience
+  - from: Style
+    to: AdScriptProducer.Style
+
+  # === CharacterImageProducer inputs ===
+  - from: AdScriptProducer.AdScript.CharacterImagePrompt
+    to: CharacterImageProducer.Prompt
+  - from: AspectRatio
+    to: CharacterImageProducer.AspectRatio
+  - from: Resolution
+    to: CharacterImageProducer.Resolution
+
+  # === CharacterImageProducer outputs ===
+  - from: CharacterImageProducer.GeneratedImage
+    to: CharacterImage
+
+  # === ProductImageProducer inputs ===
+  - from: AdScriptProducer.AdScript.ProductImagePrompt
+    to: ProductImageProducer.Prompt
+  - from: AspectRatio
+    to: ProductImageProducer.AspectRatio
+  - from: Resolution
+    to: ProductImageProducer.Resolution
+
+  # === ProductImageProducer outputs ===
+  - from: ProductImageProducer.GeneratedImage
+    to: ProductImage
+
+  # === VideoProducer inputs (looped) ===
+  - from: CharacterImageProducer.GeneratedImage
+    to: VideoProducer[clip].ReferenceImages[0]
+    note: Same character image broadcast to all video clips
+  - from: ProductImageProducer.GeneratedImage
+    to: VideoProducer[clip].ReferenceImages[1]
+    note: Same product image broadcast to all video clips
+  - from: AdScriptProducer.AdScript.Scenes[clip].VideoPrompt
+    to: VideoProducer[clip].Prompt
+  - from: AspectRatio
+    to: VideoProducer[clip].AspectRatio
+  - from: Resolution
+    to: VideoProducer[clip].Resolution
+  - from: ClipDuration
+    to: VideoProducer[clip].ClipDuration
+
+  # === VideoProducer outputs ===
+  - from: VideoProducer[clip].GeneratedVideo
+    to: ClipVideos[clip]
+
+  # === AudioProducer inputs (looped, conditional) ===
+  - from: AdScriptProducer.AdScript.Scenes[clip].NarrationScript
+    to: AudioProducer[clip].Text
+    if: hasNarration
+  - from: VoiceId
+    to: AudioProducer[clip].VoiceId
+    if: hasNarration
+  - from: Emotion
+    to: AudioProducer[clip].Emotion
+    if: hasNarration
+
+  # === AudioProducer outputs ===
+  - from: AudioProducer[clip].GeneratedAudio
+    to: ClipAudios[clip]
+    if: hasNarration
+
+  # === MusicProducer inputs ===
+  - from: MusicalStyle
+    to: MusicProducer.Prompt
+    note: Use musical style directly as the music prompt
+  - from: Duration
+    to: MusicProducer.Duration
+
+  # === MusicProducer outputs ===
+  - from: MusicProducer.GeneratedMusic
+    to: Music
+
+  # === TimelineComposer inputs ===
+  - from: Duration
+    to: TimelineComposer.Duration
+  - from: VideoProducer[clip].GeneratedVideo
+    to: TimelineComposer.VideoSegments
+  - from: AudioProducer[clip].GeneratedAudio
+    to: TimelineComposer.AudioSegments
+    if: hasNarration
+  - from: MusicProducer.GeneratedMusic
+    to: TimelineComposer.Music
+
+  # === TimelineComposer outputs ===
+  - from: TimelineComposer.Timeline
+    to: Timeline
+
+  # === VideoExporter inputs ===
+  - from: TimelineComposer.Timeline
+    to: VideoExporter.Timeline
+
+  # === VideoExporter outputs ===
+  - from: VideoExporter.FinalVideo
+    to: FinalVideo
+
+collectors:
+  - name: TimelineVideos
+    from: VideoProducer[clip].GeneratedVideo
+    into: TimelineComposer.VideoSegments
+    groupBy: clip
+
+  - name: TimelineAudios
+    from: AudioProducer[clip].GeneratedAudio
+    into: TimelineComposer.AudioSegments
+    groupBy: clip
+
+  - name: TimelineMusic
+    from: MusicProducer.GeneratedMusic
+    into: TimelineComposer.Music
+    groupBy: clip

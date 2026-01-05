@@ -605,4 +605,181 @@ describe('edge cases', () => {
     );
     expect(resultToProducer).toBeDefined();
   });
+
+  it('creates separate Input nodes for constant-indexed collection elements', () => {
+    // Test scenario: Video producer with collection input, different artifacts
+    // connected to different elements via constant indices
+    const videoProducerDoc = makeBlueprintDocument(
+      'VideoProducer',
+      [
+        { name: 'ReferenceImages', type: 'collection', required: false },
+        { name: 'Prompt', type: 'string', required: true },
+      ],
+      [{ name: 'GeneratedVideo', type: 'video' }],
+      [{ name: 'VideoGenerator', provider: 'fal-ai', model: 'video' }],
+      [
+        { from: 'Prompt', to: 'VideoGenerator' },
+        { from: 'ReferenceImages', to: 'VideoGenerator' },
+        { from: 'VideoGenerator', to: 'GeneratedVideo' },
+      ],
+    );
+
+    const imageProducerDoc = makeBlueprintDocument(
+      'ImageProducer',
+      [{ name: 'Prompt', type: 'string', required: true }],
+      [{ name: 'GeneratedImage', type: 'image' }],
+      [{ name: 'ImageGenerator', provider: 'fal-ai', model: 'image' }],
+      [
+        { from: 'Prompt', to: 'ImageGenerator' },
+        { from: 'ImageGenerator', to: 'GeneratedImage' },
+      ],
+    );
+
+    const rootDoc = makeBlueprintDocument(
+      'Root',
+      [
+        { name: 'CharacterPrompt', type: 'string', required: true },
+        { name: 'ProductPrompt', type: 'string', required: true },
+        { name: 'VideoPrompt', type: 'string', required: true },
+        { name: 'NumClips', type: 'int', required: true },
+      ],
+      [{ name: 'FinalVideo', type: 'video' }],
+      [],
+      [
+        // Image producers get prompts
+        { from: 'CharacterPrompt', to: 'CharacterImage.Prompt' },
+        { from: 'ProductPrompt', to: 'ProductImage.Prompt' },
+        // Video producer gets its prompts (for each clip)
+        { from: 'VideoPrompt', to: 'VideoProducer[clip].Prompt' },
+        // Constant-indexed connections: different artifacts to different collection elements
+        { from: 'CharacterImage.GeneratedImage', to: 'VideoProducer[clip].ReferenceImages[0]' },
+        { from: 'ProductImage.GeneratedImage', to: 'VideoProducer[clip].ReferenceImages[1]' },
+        // Output
+        { from: 'VideoProducer[clip].GeneratedVideo', to: 'FinalVideo[clip]' },
+      ],
+      [{ name: 'clip', countInput: 'NumClips' }],
+    );
+
+    const tree: BlueprintTreeNode = {
+      ...makeTreeNode(rootDoc, []),
+      children: new Map([
+        ['CharacterImage', makeTreeNode(imageProducerDoc, ['CharacterImage'])],
+        ['ProductImage', makeTreeNode(imageProducerDoc, ['ProductImage'])],
+        ['VideoProducer', makeTreeNode(videoProducerDoc, ['VideoProducer'])],
+      ]),
+    };
+
+    const graph = buildBlueprintGraph(tree);
+
+    // Verify that constant-indexed Input nodes are created
+    const refImagesNodes = graph.nodes.filter(
+      (n) => n.type === 'InputSource' && n.id.includes('ReferenceImages')
+    );
+
+    // Should have separate nodes for ReferenceImages[0] and ReferenceImages[1]
+    const node0 = refImagesNodes.find((n) => n.id.includes('ReferenceImages[0]'));
+    const node1 = refImagesNodes.find((n) => n.id.includes('ReferenceImages[1]'));
+    expect(node0).toBeDefined();
+    expect(node1).toBeDefined();
+
+    // Verify edges target the correct constant-indexed nodes
+    const edgeToRef0 = graph.edges.find(
+      (e) => e.from.nodeId.includes('CharacterImage.GeneratedImage') &&
+             e.to.nodeId.includes('ReferenceImages[0]')
+    );
+    const edgeToRef1 = graph.edges.find(
+      (e) => e.from.nodeId.includes('ProductImage.GeneratedImage') &&
+             e.to.nodeId.includes('ReferenceImages[1]')
+    );
+    expect(edgeToRef0).toBeDefined();
+    expect(edgeToRef1).toBeDefined();
+
+    // The constant indices should NOT be in the selectors (they're part of the node name)
+    // So the selectors should only contain the [clip] dimension selector
+    expect(edgeToRef0?.to.selectors?.filter((s) => s?.kind === 'const')).toHaveLength(0);
+    expect(edgeToRef1?.to.selectors?.filter((s) => s?.kind === 'const')).toHaveLength(0);
+  });
+
+  it('connects whole collection artifact to collection input (non-indexed binding)', () => {
+    // Test scenario: A collection artifact is connected directly to a collection input
+    // without using element indices. This is the "whole-collection binding" pattern.
+    const imageGeneratorDoc = makeBlueprintDocument(
+      'ImageGenerator',
+      [
+        { name: 'Prompts', type: 'collection', required: true },
+        { name: 'NumImages', type: 'int', required: true },
+      ],
+      [{ name: 'GeneratedImages', type: 'array', countInput: 'NumImages' }],
+      [{ name: 'ImageProducer', provider: 'fal-ai', model: 'image' }],
+      [
+        { from: 'Prompts', to: 'ImageProducer' },
+        { from: 'NumImages', to: 'ImageProducer' },
+        { from: 'ImageProducer', to: 'GeneratedImages[i]' },
+      ],
+      [{ name: 'i', countInput: 'NumImages' }],
+    );
+
+    const videoProducerDoc = makeBlueprintDocument(
+      'VideoProducer',
+      [
+        { name: 'ReferenceImages', type: 'collection', required: false },
+        { name: 'Prompt', type: 'string', required: true },
+      ],
+      [{ name: 'GeneratedVideo', type: 'video' }],
+      [{ name: 'VideoGenerator', provider: 'fal-ai', model: 'video' }],
+      [
+        { from: 'Prompt', to: 'VideoGenerator' },
+        { from: 'ReferenceImages', to: 'VideoGenerator' },
+        { from: 'VideoGenerator', to: 'GeneratedVideo' },
+      ],
+    );
+
+    const rootDoc = makeBlueprintDocument(
+      'Root',
+      [
+        { name: 'ImagePrompts', type: 'collection', required: true },
+        { name: 'NumImages', type: 'int', required: true },
+        { name: 'VideoPrompt', type: 'string', required: true },
+      ],
+      [{ name: 'FinalVideo', type: 'video' }],
+      [],
+      [
+        // Image generator inputs
+        { from: 'ImagePrompts', to: 'ImageGenerator.Prompts' },
+        { from: 'NumImages', to: 'ImageGenerator.NumImages' },
+        // Whole-collection binding: entire array artifact to collection input
+        { from: 'ImageGenerator.GeneratedImages', to: 'VideoProducer.ReferenceImages' },
+        // Video producer prompt
+        { from: 'VideoPrompt', to: 'VideoProducer.Prompt' },
+        // Output
+        { from: 'VideoProducer.GeneratedVideo', to: 'FinalVideo' },
+      ],
+    );
+
+    const tree: BlueprintTreeNode = {
+      ...makeTreeNode(rootDoc, []),
+      children: new Map([
+        ['ImageGenerator', makeTreeNode(imageGeneratorDoc, ['ImageGenerator'])],
+        ['VideoProducer', makeTreeNode(videoProducerDoc, ['VideoProducer'])],
+      ]),
+    };
+
+    const graph = buildBlueprintGraph(tree);
+
+    // Verify that the collection Input node exists (non-indexed)
+    const refImagesNode = graph.nodes.find(
+      (n) => n.type === 'InputSource' && n.id.includes('ReferenceImages') && !n.id.includes('[')
+    );
+    expect(refImagesNode).toBeDefined();
+
+    // Verify that an edge exists from the array artifact to the collection input
+    const edgeToRefImages = graph.edges.find(
+      (e) => e.from.nodeId.includes('ImageGenerator.GeneratedImages') &&
+             e.to.nodeId.includes('ReferenceImages')
+    );
+    expect(edgeToRefImages).toBeDefined();
+
+    // The target should NOT have constant indices - it's a whole-collection binding
+    expect(edgeToRefImages?.to.nodeId).not.toContain('[');
+  });
 });

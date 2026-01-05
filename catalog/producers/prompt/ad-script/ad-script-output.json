@@ -1,0 +1,50 @@
+{
+  "name": "AdScript",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "AdTitle": {
+        "type": "string",
+        "description": "A catchy title for the advertisement."
+      },
+      "CharacterImagePrompt": {
+        "type": "string",
+        "description": "Detailed prompt for generating the character image. Should describe appearance, clothing, expression, pose, and setting suitable for product demonstration."
+      },
+      "ProductImagePrompt": {
+        "type": "string",
+        "description": "Detailed prompt for generating the product image. Should describe the product in an appealing way with good lighting and composition."
+      },
+      "Scenes": {
+        "type": "array",
+        "description": "Array of scene descriptions for each video clip.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "SceneNumber": {
+              "type": "integer",
+              "description": "The sequence number of this scene (1-indexed)."
+            },
+            "VideoPrompt": {
+              "type": "string",
+              "description": "Detailed prompt for video generation describing the action, camera angles, lighting, and visual elements. The character from the base image should be shown interacting with the product."
+            },
+            "NarrationScript": {
+              "type": "string",
+              "description": "The narration text to be spoken during this scene. Empty string if no narration."
+            },
+            "HasNarration": {
+              "type": "boolean",
+              "description": "Whether this scene has voice-over narration."
+            }
+          },
+          "required": ["SceneNumber", "VideoPrompt", "NarrationScript", "HasNarration"],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": ["AdTitle", "CharacterImagePrompt", "ProductImagePrompt", "Scenes"],
+    "additionalProperties": false
+  }
+}

@@ -311,6 +311,122 @@ describe('createProducerGraph', () => {
         to: 'Producer:ImageProducer',
       });
     });
+
+    it('includes element-level bindings for collection inputs', () => {
+      // Test element-level binding pattern: ReferenceImages[0], ReferenceImages[1]
+      const canonical: CanonicalBlueprint = {
+        nodes: [
+          {
+            id: 'Producer:VideoProducer',
+            type: 'Producer',
+            producerAlias: 'VideoProducer',
+            namespacePath: [],
+            name: 'VideoProducer',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Artifact:CharacterImage.GeneratedImage',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: ['CharacterImage'],
+            name: 'GeneratedImage',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Artifact:ProductImage.GeneratedImage',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: ['ProductImage'],
+            name: 'GeneratedImage',
+            indices: {},
+            dimensions: [],
+          },
+        ],
+        edges: [],
+        inputBindings: {
+          'Producer:VideoProducer': {
+            'ReferenceImages[0]': 'Artifact:CharacterImage.GeneratedImage',
+            'ReferenceImages[1]': 'Artifact:ProductImage.GeneratedImage',
+          },
+        },
+        fanIn: {},
+      };
+
+      const videoCatalog: ProducerCatalog = {
+        'VideoProducer': {
+          provider: 'fal-ai',
+          providerModel: 'video',
+          rateKey: 'fal-video',
+        },
+      };
+      const options = createDefaultOptions(['VideoProducer']);
+      const result = createProducerGraph(canonical, videoCatalog, options);
+
+      expect(result.nodes).toHaveLength(1);
+      const node = result.nodes[0]!;
+      // Element-level bindings should be included in context
+      expect(node.context!.inputBindings).toEqual({
+        'ReferenceImages[0]': 'Artifact:CharacterImage.GeneratedImage',
+        'ReferenceImages[1]': 'Artifact:ProductImage.GeneratedImage',
+      });
+      // Artifact IDs from element-level bindings should be in inputs list
+      expect(node.inputs).toContain('Artifact:CharacterImage.GeneratedImage');
+      expect(node.inputs).toContain('Artifact:ProductImage.GeneratedImage');
+    });
+
+    it('includes whole-collection binding for collection inputs', () => {
+      // Test whole-collection binding pattern: ReferenceImages (no index)
+      const canonical: CanonicalBlueprint = {
+        nodes: [
+          {
+            id: 'Producer:VideoProducer',
+            type: 'Producer',
+            producerAlias: 'VideoProducer',
+            namespacePath: [],
+            name: 'VideoProducer',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Artifact:ImageGenerator.AllImages',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: ['ImageGenerator'],
+            name: 'AllImages',
+            indices: {},
+            dimensions: [],
+          },
+        ],
+        edges: [],
+        inputBindings: {
+          'Producer:VideoProducer': {
+            'ReferenceImages': 'Artifact:ImageGenerator.AllImages',
+          },
+        },
+        fanIn: {},
+      };
+
+      const videoCatalog: ProducerCatalog = {
+        'VideoProducer': {
+          provider: 'fal-ai',
+          providerModel: 'video',
+          rateKey: 'fal-video',
+        },
+      };
+      const options = createDefaultOptions(['VideoProducer']);
+      const result = createProducerGraph(canonical, videoCatalog, options);
+
+      expect(result.nodes).toHaveLength(1);
+      const node = result.nodes[0]!;
+      // Whole-collection binding should be included in context
+      expect(node.context!.inputBindings).toEqual({
+        'ReferenceImages': 'Artifact:ImageGenerator.AllImages',
+      });
+      // Artifact ID should be in inputs list
+      expect(node.inputs).toContain('Artifact:ImageGenerator.AllImages');
+    });
   });
 
   describe('SDK mapping', () => {

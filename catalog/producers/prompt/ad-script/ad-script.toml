@@ -1,0 +1,48 @@
+variables = ["ProductDescription", "CharacterDescription", "AdConcept", "NumOfClips", "Duration", "Audience", "Style"]
+
+systemPrompt = """
+You are an expert advertising creative director and scriptwriter. Your task is to create compelling ad video scripts that showcase products through engaging character-driven narratives.
+
+You will create:
+1. A detailed character image prompt for AI image generation
+2. A detailed product image prompt for AI image generation
+3. A series of scene descriptions for video clips
+
+Guidelines:
+- Character prompts should describe physical appearance, clothing, expression, and pose suitable for product demonstration
+- Product prompts should describe the product in an appealing, photogenic way with good lighting and composition
+- Scene descriptions should show the character naturally using/interacting with the product
+- Video prompts should be detailed and cinematic, describing camera angles, lighting, and action
+- Narration scripts should be concise, engaging, and highlight product benefits
+- Not all scenes need narration - some can be purely visual
+
+The output must follow the exact JSON schema provided.
+"""
+
+userPrompt = """
+Create an ad video script with the following specifications:
+
+**Product:** {{ProductDescription}}
+
+**Character:** {{CharacterDescription}}
+
+**Ad Concept:** {{AdConcept}}
+
+**Number of Clips:** {{NumOfClips}}
+
+**Total Duration:** {{Duration}} seconds
+
+**Target Audience:** {{Audience}}
+
+**Visual Style:** {{Style}}
+
+Generate:
+1. A character image prompt that will be used as the base for all video clips
+2. A product image prompt for standalone product shots
+3. {{NumOfClips}} scene descriptions, each with:
+   - A video prompt describing the action, camera work, and visual elements
+   - An optional narration script (set HasNarration to false for purely visual scenes)
+   - Make sure at least one scene has narration, but vary it for pacing
+
+Ensure the scenes flow naturally and tell a cohesive story about the product.
+"""

@@ -89,6 +89,11 @@ export function buildBlueprintGraph(root: BlueprintTreeNode): BlueprintGraph {
   collectNamespaceDimensions(root, namespaceDims);
   const localDimsMap = new Map<BlueprintTreeNode, LocalNodeDims>();
   collectLocalNodeDimensions(root, localDimsMap);
+
+  // Collect constant-indexed input references from edges
+  // This needs to be done AFTER localDims are collected but BEFORE nodes are created
+  collectConstantIndexedInputs(root, localDimsMap);
+
   const namespaceParents = initializeNamespaceParentMap(namespaceDims);
   const namespaceMembership = new Map<string, string>();
 
@@ -248,6 +253,94 @@ function registerLocalDims(reference: string, dimsMap: LocalNodeDims): void {
   }
 }
 
+/**
+ * Collects constant-indexed input references from edges across the tree.
+ * For example, if an edge targets "VideoProducer[clip].ReferenceImages[0]",
+ * this function will register "ReferenceImages[0]" in the VideoProducer's
+ * local dims so that an Input node is created for it.
+ *
+ * This must be called AFTER collectLocalNodeDimensions to ensure the
+ * localDimsMap is populated for all trees.
+ */
+function collectConstantIndexedInputs(
+  tree: BlueprintTreeNode,
+  localDimsMap: Map<BlueprintTreeNode, LocalNodeDims>,
+): void {
+  // Process edges in this tree
+  for (const edge of tree.document.edges) {
+    registerConstantIndexedInput(edge.to, tree, localDimsMap);
+  }
+
+  // Recursively process child trees
+  for (const child of tree.children.values()) {
+    collectConstantIndexedInputs(child, localDimsMap);
+  }
+}
+
+/**
+ * Registers a single constant-indexed input reference if applicable.
+ */
+function registerConstantIndexedInput(
+  reference: string,
+  currentTree: BlueprintTreeNode,
+  localDimsMap: Map<BlueprintTreeNode, LocalNodeDims>,
+): void {
+  // Only process cross-namespace references (those with dots)
+  if (!reference.includes('.')) {
+    return;
+  }
+
+  const parsed = parseReference(reference);
+  const finalSegment = parsed.node;
+
+  // Check if the final segment has any constant index selectors
+  const constIndices = finalSegment.dimensions.filter((d) => {
+    const selector = parseDimensionSelector(d);
+    return selector.kind === 'const';
+  });
+
+  if (constIndices.length === 0) {
+    return;
+  }
+
+  // Build the constant-indexed node name (e.g., "ReferenceImages[0]")
+  const constIndexSuffix = constIndices.map((d) => `[${d}]`).join('');
+  const constantIndexedName = `${finalSegment.name}${constIndexSuffix}`;
+
+  // Get the namespace path for the target (the namespace segments leading to the input)
+  const namespacePath = parsed.namespaceSegments.map((seg) => seg.name);
+
+  // Find the child tree that owns this input
+  let targetTree: BlueprintTreeNode | undefined = currentTree;
+  for (const segment of namespacePath) {
+    targetTree = targetTree?.children.get(segment);
+    if (!targetTree) {
+      return; // Namespace not found, skip
+    }
+  }
+
+  // Check if the base input exists in the target tree
+  const baseInputExists = targetTree.document.inputs.some(
+    (input) => input.name === finalSegment.name,
+  );
+
+  if (!baseInputExists) {
+    return; // Not an input reference, skip
+  }
+
+  // Get the target tree's local dims
+  const targetLocalDims = localDimsMap.get(targetTree);
+  if (!targetLocalDims) {
+    return; // Target tree's local dims not found (shouldn't happen)
+  }
+
+  // Only register if not already present
+  if (!targetLocalDims.has(constantIndexedName)) {
+    // Constant-indexed inputs have no loop dimensions (the [0] is a selector, not a dimension)
+    targetLocalDims.set(constantIndexedName, []);
+  }
+}
+
 function createDimensionSymbols(dims: string[], context: string): DimensionSymbol[] {
   return dims.map((raw, ordinal) => {
     const selector = parseDimensionSelector(raw);
@@ -360,6 +453,8 @@ function collectGraphNodes(
 ): void {
   const namespaceSlots = collectNamespacePrefixDims(tree.namespacePath, namespaceDims);
   const local = localDims.get(tree) ?? new Map();
+  // Create Input nodes from input definitions
+  const inputNames = new Set(tree.document.inputs.map((input) => input.name));
   for (const input of tree.document.inputs) {
     const nodeKey = nodeId(tree.namespacePath, input.name);
     const namespaceQualified = qualifyDimensionSlots(nodeKey, namespaceSlots);
@@ -375,6 +470,41 @@ function collectGraphNodes(
       name: input.name,
       dimensions: [...namespaceQualified, ...localQualified],
       input,
+    });
+  }
+
+  // Create Input nodes for constant-indexed input references (e.g., ReferenceImages[0])
+  // These are registered in local dims by collectConstantIndexedInputs
+  for (const [localName] of local) {
+    // Check if this is a constant-indexed input reference
+    const match = localName.match(/^([A-Za-z_][A-Za-z0-9_]*)(\[\d+\]+)$/);
+    if (!match) {
+      continue;
+    }
+    const baseName = match[1];
+    // Only create if the base input exists
+    if (!inputNames.has(baseName)) {
+      continue;
+    }
+    // Find the base input definition
+    const baseInput = tree.document.inputs.find((input) => input.name === baseName);
+    if (!baseInput) {
+      continue;
+    }
+    const nodeKey = nodeId(tree.namespacePath, localName);
+    const namespaceQualified = qualifyDimensionSlots(nodeKey, namespaceSlots);
+    namespaceQualified.forEach((symbol, index) => {
+      registerNamespaceSymbol(symbol, namespaceSlots[index]!, namespaceMembership);
+    });
+    const localSymbols = toLocalSlots(nodeKey, local.get(localName) ?? []);
+    const localQualified = qualifyDimensionSlots(nodeKey, localSymbols);
+    output.push({
+      id: nodeKey,
+      type: 'InputSource',
+      namespacePath: tree.namespacePath,
+      name: localName,
+      dimensions: [...namespaceQualified, ...localQualified],
+      input: baseInput, // Use the base input's definition
     });
   }
   for (const artefact of tree.document.artefacts) {
@@ -643,7 +773,13 @@ function resolveEdgeEndpoint(
         const dims = seg.dimensions.length > 0 ? `[${seg.dimensions.join('][')}]` : '';
         return `${seg.name}${dims}`;
       }
-      return seg.name;
+      // For the last segment, only strip loop dimensions - keep constant indices
+      // This ensures ReferenceImages[0] and ReferenceImages[1] remain distinct
+      const constDims = seg.dimensions
+        .filter((d) => parseDimensionSelector(d).kind === 'const')
+        .map((d) => `[${d}]`)
+        .join('');
+      return `${seg.name}${constDims}`;
     })
     .join('.');
 
@@ -662,9 +798,22 @@ function resolveEdgeEndpoint(
   const dimensions = qualifyDimensionSlots(targetNodeId, [...prefixDims, ...nodeDims]);
 
   // Collect all selectors from all segments
+  // For the final segment, exclude constant indices as they are part of the node name
   const allSelectors: string[] = [];
-  for (const seg of allSegments) {
-    allSelectors.push(...seg.dimensions);
+  for (let i = 0; i < allSegments.length; i++) {
+    const seg = allSegments[i];
+    if (i === allSegments.length - 1) {
+      // Final segment: only include loop dimension selectors, not constant indices
+      // Constant indices like [0] are part of the node name, not dimensions to expand
+      for (const dim of seg.dimensions) {
+        const selector = parseDimensionSelector(dim);
+        if (selector.kind === 'loop') {
+          allSelectors.push(dim);
+        }
+      }
+    } else {
+      allSelectors.push(...seg.dimensions);
+    }
   }
 
   const selectors = allSelectors.length > 0

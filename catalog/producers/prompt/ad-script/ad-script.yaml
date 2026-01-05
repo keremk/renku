@@ -1,0 +1,45 @@
+meta:
+  name: Ad Script Generation
+  description: Generate ad video scripts with character, product, and scene descriptions.
+  id: AdScriptProducer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+  promptFile: ./ad-script.toml
+  outputSchema: ./ad-script-output.json
+
+inputs:
+  - name: ProductDescription
+    description: Description of the product being advertised.
+    type: string
+  - name: CharacterDescription
+    description: Description of the character using the product (e.g., age, gender, style).
+    type: string
+  - name: AdConcept
+    description: The overall concept or theme of the advertisement.
+    type: string
+  - name: NumOfClips
+    description: Number of video clips to generate.
+    type: int
+  - name: Duration
+    description: Total duration of the ad in seconds.
+    type: int
+  - name: Audience
+    description: Target audience for the ad (e.g., young professionals, families).
+    type: string
+  - name: Style
+    description: Visual style for the ad (e.g., cinematic, modern, playful).
+    type: string
+
+artifacts:
+  - name: AdScript
+    description: Complete ad script with character, product, and scene details.
+    type: json
+    arrays:
+      - path: Scenes
+        countInput: NumOfClips
+
+loops:
+  - name: clip
+    description: Iterates over video clips/scenes.
+    countInput: NumOfClips

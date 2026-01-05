@@ -692,4 +692,135 @@ describe('expandBlueprintGraph', () => {
     expect(imageArtifacts.map((a) => a.id)).toContain('Artifact:Image[1][2]');
   });
 
+  it('aliases constant-indexed collection inputs to upstream artifacts', () => {
+    // Test scenario: VideoProducer with collection input ReferenceImages
+    // Two different artifacts connect to ReferenceImages[0] and ReferenceImages[1]
+    // The producer should receive bindings that resolve to the upstream artifacts
+
+    const videoProducerDoc: BlueprintDocument = {
+      meta: { id: 'VideoProducer', name: 'VideoProducer' },
+      inputs: [
+        { name: 'ReferenceImages', type: 'collection', required: false },
+        { name: 'Prompt', type: 'string', required: true },
+      ],
+      artefacts: [
+        { name: 'GeneratedVideo', type: 'video' },
+      ],
+      producers: [
+        { name: 'VideoGenerator', provider: 'fal-ai', model: 'video' },
+      ],
+      producerImports: [],
+      edges: [
+        { from: 'Prompt', to: 'VideoGenerator' },
+        { from: 'ReferenceImages', to: 'VideoGenerator' },
+        { from: 'VideoGenerator', to: 'GeneratedVideo' },
+      ],
+    };
+
+    const imageProducerDoc: BlueprintDocument = {
+      meta: { id: 'ImageProducer', name: 'ImageProducer' },
+      inputs: [
+        { name: 'Prompt', type: 'string', required: true },
+      ],
+      artefacts: [
+        { name: 'GeneratedImage', type: 'image' },
+      ],
+      producers: [
+        { name: 'ImageGenerator', provider: 'fal-ai', model: 'image' },
+      ],
+      producerImports: [],
+      edges: [
+        { from: 'Prompt', to: 'ImageGenerator' },
+        { from: 'ImageGenerator', to: 'GeneratedImage' },
+      ],
+    };
+
+    const rootDoc: BlueprintDocument = {
+      meta: { id: 'ROOT', name: 'ROOT' },
+      inputs: [
+        { name: 'CharacterPrompt', type: 'string', required: true },
+        { name: 'ProductPrompt', type: 'string', required: true },
+        { name: 'VideoPrompt', type: 'string', required: true },
+        { name: 'NumClips', type: 'int', required: true },
+      ],
+      artefacts: [
+        { name: 'FinalVideo', type: 'video' },
+      ],
+      producers: [],
+      producerImports: [],
+      edges: [
+        { from: 'CharacterPrompt', to: 'CharacterImage.Prompt' },
+        { from: 'ProductPrompt', to: 'ProductImage.Prompt' },
+        { from: 'VideoPrompt', to: 'VideoProducer[clip].Prompt' },
+        // Constant-indexed connections: different artifacts to different collection elements
+        { from: 'CharacterImage.GeneratedImage', to: 'VideoProducer[clip].ReferenceImages[0]' },
+        { from: 'ProductImage.GeneratedImage', to: 'VideoProducer[clip].ReferenceImages[1]' },
+        { from: 'VideoProducer[clip].GeneratedVideo', to: 'FinalVideo[clip]' },
+      ],
+      loops: [
+        { name: 'clip', countInput: 'NumClips' },
+      ],
+    };
+
+    const tree: BlueprintTreeNode = {
+      id: 'ROOT',
+      namespacePath: [],
+      document: rootDoc,
+      children: new Map([
+        ['CharacterImage', {
+          id: 'CharacterImage',
+          namespacePath: ['CharacterImage'],
+          document: imageProducerDoc,
+          children: new Map(),
+          sourcePath: '/test/mock-blueprint.yaml',
+        }],
+        ['ProductImage', {
+          id: 'ProductImage',
+          namespacePath: ['ProductImage'],
+          document: imageProducerDoc,
+          children: new Map(),
+          sourcePath: '/test/mock-blueprint.yaml',
+        }],
+        ['VideoProducer', {
+          id: 'VideoProducer',
+          namespacePath: ['VideoProducer'],
+          document: videoProducerDoc,
+          children: new Map(),
+          sourcePath: '/test/mock-blueprint.yaml',
+        }],
+      ]),
+      sourcePath: '/test/mock-blueprint.yaml',
+    };
+
+    const graph = buildBlueprintGraph(tree);
+    const inputSources = buildInputSourceMapFromCanonical(graph);
+    const canonicalInputs = normalizeInputValues({
+      'Input:CharacterPrompt': 'character prompt',
+      'Input:ProductPrompt': 'product prompt',
+      'Input:VideoPrompt': 'video prompt',
+      'Input:NumClips': 2,
+    }, inputSources);
+
+    const expanded = expandBlueprintGraph(graph, canonicalInputs, inputSources);
+
+    // Find the VideoProducer producer nodes (should be 2, one per clip)
+    const allProducers = expanded.nodes.filter((n) => n.type === 'Producer');
+    const videoProducerNodes = allProducers.filter(
+      (n) => n.id.includes('VideoProducer')
+    );
+    expect(videoProducerNodes).toHaveLength(2);
+
+    // Check bindings for the first VideoProducer (clip 0)
+    const firstVideoProducer = videoProducerNodes.find((n) => n.id.includes('[0]'));
+    expect(firstVideoProducer).toBeDefined();
+
+    const bindings = expanded.inputBindings[firstVideoProducer!.id];
+    expect(bindings).toBeDefined();
+
+    // The ReferenceImages[0] binding should resolve to CharacterImage artifact
+    // and ReferenceImages[1] should resolve to ProductImage artifact
+    expect(bindings!['ReferenceImages[0]']).toBe('Artifact:CharacterImage.GeneratedImage');
+    expect(bindings!['ReferenceImages[1]']).toBe('Artifact:ProductImage.GeneratedImage');
+  });
+
 });

@@ -682,6 +682,24 @@ function collapseInputNodes(
     });
   }
 
+  // Build a map to find element-level Input nodes for each base Input
+  // e.g., for base "ReferenceImages", find "ReferenceImages[0]", "ReferenceImages[1]"
+  const elementInputsByBase = new Map<string, CanonicalNodeInstance[]>();
+  for (const node of nodes) {
+    if (node.type !== 'Input') {
+      continue;
+    }
+    // Check if this is an element-level input (e.g., "ReferenceImages[0]")
+    const match = node.name.match(/^([A-Za-z_][A-Za-z0-9_]*)(\[\d+\]+)$/);
+    if (match) {
+      const baseName = match[1];
+      const baseKey = `${node.namespacePath.join('.')}:${baseName}`;
+      const list = elementInputsByBase.get(baseKey) ?? [];
+      list.push(node);
+      elementInputsByBase.set(baseKey, list);
+    }
+  }
+
   for (const node of nodes) {
     if (node.type !== 'Input') {
       continue;
@@ -693,6 +711,23 @@ function collapseInputNodes(
     const canonicalId = resolveInputAlias(node.id, new Set());
     const visited = new Set<string>();
     propagateAlias(node.id, aliasName, canonicalId, visited);
+
+    // If this is a base input with element-level inputs, also propagate those bindings
+    // through this node's outbound edges
+    // e.g., if "ReferenceImages" connects to Producer, also propagate "ReferenceImages[0]" binding
+    const baseKey = `${node.namespacePath.join('.')}:${aliasName}`;
+    const elementInputs = elementInputsByBase.get(baseKey);
+    if (elementInputs && elementInputs.length > 0) {
+      for (const elementNode of elementInputs) {
+        const elementAlias = elementNode.name;
+        const elementCanonicalId = resolveInputAlias(elementNode.id, new Set());
+        // Only propagate if the element was aliased to something different (i.e., resolved to an artifact)
+        if (elementCanonicalId !== elementNode.id) {
+          const elementVisited = new Set<string>();
+          propagateAlias(node.id, elementAlias, elementCanonicalId, elementVisited);
+        }
+      }
+    }
   }
 
   const filteredNodes = nodes.filter((node) => {

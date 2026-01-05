@@ -1,0 +1,20 @@
+inputs:
+  CharacterPrompt: "A young professional woman in stylish casual attire"
+  ProductPrompt: "Premium wireless headphones with leather cushions"
+  VideoPrompt: "Professional woman using headphones in a modern office"
+  NumOfClips: 2
+  AspectRatio: "16:9"
+  Resolution: "720p"
+
+models:
+  - model: bytedance/seedream/v4.5/text-to-image
+    provider: fal-ai
+    producerId: CharacterImageProducer
+
+  - model: bytedance/seedream/v4.5/text-to-image
+    provider: fal-ai
+    producerId: ProductImageProducer
+
+  - model: veo3.1/reference-to-video
+    provider: fal-ai
+    producerId: VideoProducer

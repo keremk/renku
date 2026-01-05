@@ -81,6 +81,21 @@ export function createProducerGraph(
     );
     const allInputs = Array.from(new Set([...inboundInputs, ...extraInputs]));
 
+    // Get input bindings early for building inputs list and dependency tracking
+    const inputBindings = canonical.inputBindings[node.id];
+
+    // Add artifact IDs from inputBindings to the inputs list
+    // This ensures element-level bindings (e.g., ReferenceImages[0] -> Artifact:...) are included
+    if (inputBindings) {
+      for (const sourceId of Object.values(inputBindings)) {
+        if (typeof sourceId === 'string' && isCanonicalArtifactId(sourceId)) {
+          if (!allInputs.includes(sourceId)) {
+            allInputs.push(sourceId);
+          }
+        }
+      }
+    }
+
     const fanInSpecs = canonical.fanIn;
     const fanInForJob: Record<string, FanInDescriptor> = {};
     if (fanInSpecs) {
@@ -91,9 +106,6 @@ export function createProducerGraph(
         }
       }
     }
-
-    // Get input bindings early for dependency tracking
-    const inputBindings = canonical.inputBindings[node.id];
 
     const dependencyKeys = new Set(allInputs.filter((key) => isCanonicalArtifactId(key)));
     for (const spec of Object.values(fanInForJob)) {

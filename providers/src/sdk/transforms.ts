@@ -73,10 +73,29 @@ export function applyMapping(
 
   // Get the raw input value
   const canonicalId = context.inputBindings[inputAlias];
-  if (!canonicalId) {
-    return undefined;
+  let value: unknown;
+
+  if (canonicalId) {
+    // Direct lookup succeeded - check if we have a resolved value
+    value = context.inputs[canonicalId];
   }
-  let value = context.inputs[canonicalId];
+
+  // If direct lookup didn't yield a value, check for element-level bindings
+  // This handles cases where:
+  // 1. Collection inputs are bound element-by-element (e.g., ReferenceImages[0], ReferenceImages[1])
+  // 2. Direct binding points to an unresolved Input node (e.g., "Input:VideoProducer.ReferenceImages[0]")
+  if (value === undefined) {
+    const elementBindings = collectElementBindings(inputAlias, context.inputBindings);
+    if (elementBindings.length > 0) {
+      // Reconstruct array from element bindings, filtering out undefined values
+      const elements = elementBindings.map(binding => context.inputs[binding.canonicalId]);
+      // Only return if we have at least one valid element
+      if (elements.some(e => e !== undefined)) {
+        value = elements;
+      }
+    }
+  }
+
   if (value === undefined) {
     return undefined;
   }
@@ -281,4 +300,40 @@ function applyValueTransform(
   }
   // No matching transform, return original value
   return value;
+}
+
+/**
+ * Collects element-level bindings for a collection input.
+ *
+ * When a collection input like "ReferenceImages" is bound element-by-element
+ * (e.g., ReferenceImages[0], ReferenceImages[1]), this function finds all
+ * matching element bindings and returns them sorted by index.
+ *
+ * @param baseAlias - The base input alias (e.g., "ReferenceImages")
+ * @param inputBindings - The input bindings map
+ * @returns Array of element bindings sorted by index
+ *
+ * @example
+ * // Given bindings: { "Foo[0]": "artifact1", "Foo[1]": "artifact2", "Bar": "artifact3" }
+ * collectElementBindings("Foo", bindings)
+ * // Returns: [{ index: 0, canonicalId: "artifact1" }, { index: 1, canonicalId: "artifact2" }]
+ */
+export function collectElementBindings(
+  baseAlias: string,
+  inputBindings: Record<string, string>,
+): Array<{ index: number; canonicalId: string }> {
+  // Escape special regex characters in the base alias
+  const escapedAlias = baseAlias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`^${escapedAlias}\\[(\\d+)\\]$`);
+  const elements: Array<{ index: number; canonicalId: string }> = [];
+
+  for (const [key, canonicalId] of Object.entries(inputBindings)) {
+    const match = key.match(pattern);
+    if (match) {
+      elements.push({ index: parseInt(match[1]!, 10), canonicalId });
+    }
+  }
+
+  // Sort by index to ensure correct array order
+  return elements.sort((a, b) => a.index - b.index);
 }

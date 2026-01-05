@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyMapping, setNestedValue, type TransformContext } from './transforms.js';
+import { applyMapping, setNestedValue, collectElementBindings, type TransformContext } from './transforms.js';
 import type { MappingFieldDefinition } from '@gorenku/core';
 
 describe('transforms', () => {
@@ -621,6 +621,188 @@ describe('transforms', () => {
       setNestedValue(obj, 'voice_setting.voice_id', 'en-US');
       expect(obj).toEqual({
         voice_setting: { voice_id: 'en-US' },
+      });
+    });
+  });
+
+  describe('collectElementBindings', () => {
+    it('finds matching element bindings', () => {
+      const bindings = {
+        'Foo[0]': 'artifact1',
+        'Foo[1]': 'artifact2',
+        'FooBar[0]': 'artifact3', // Should NOT match "Foo"
+        'Bar': 'artifact4',
+      };
+
+      const result = collectElementBindings('Foo', bindings);
+
+      expect(result).toEqual([
+        { index: 0, canonicalId: 'artifact1' },
+        { index: 1, canonicalId: 'artifact2' },
+      ]);
+    });
+
+    it('sorts by index', () => {
+      const bindings = {
+        'Items[2]': 'artifact3',
+        'Items[0]': 'artifact1',
+        'Items[1]': 'artifact2',
+      };
+
+      const result = collectElementBindings('Items', bindings);
+
+      expect(result).toEqual([
+        { index: 0, canonicalId: 'artifact1' },
+        { index: 1, canonicalId: 'artifact2' },
+        { index: 2, canonicalId: 'artifact3' },
+      ]);
+    });
+
+    it('returns empty array when no matches', () => {
+      const bindings = {
+        'Other[0]': 'artifact1',
+        'Different': 'artifact2',
+      };
+
+      const result = collectElementBindings('Foo', bindings);
+
+      expect(result).toEqual([]);
+    });
+
+    it('handles multi-digit indices', () => {
+      const bindings = {
+        'Foo[10]': 'artifact10',
+        'Foo[100]': 'artifact100',
+        'Foo[1]': 'artifact1',
+      };
+
+      const result = collectElementBindings('Foo', bindings);
+
+      expect(result).toEqual([
+        { index: 1, canonicalId: 'artifact1' },
+        { index: 10, canonicalId: 'artifact10' },
+        { index: 100, canonicalId: 'artifact100' },
+      ]);
+    });
+  });
+
+  describe('collection input mapping', () => {
+    it('reconstructs array from element-level bindings', () => {
+      const context: TransformContext = {
+        inputs: {
+          'Artifact:Image1': 'http://example.com/image1.jpg',
+          'Artifact:Image2': 'http://example.com/image2.jpg',
+        },
+        inputBindings: {
+          'ReferenceImages[0]': 'Artifact:Image1',
+          'ReferenceImages[1]': 'Artifact:Image2',
+        },
+      };
+
+      const mapping = { field: 'image_urls' };
+      const result = applyMapping('ReferenceImages', mapping, context);
+
+      expect(result).toEqual({
+        field: 'image_urls',
+        value: ['http://example.com/image1.jpg', 'http://example.com/image2.jpg'],
+      });
+    });
+
+    it('handles single element binding', () => {
+      const context: TransformContext = {
+        inputs: {
+          'Artifact:Image1': 'http://example.com/image1.jpg',
+        },
+        inputBindings: {
+          'ReferenceImages[0]': 'Artifact:Image1',
+        },
+      };
+
+      const mapping = { field: 'image_urls' };
+      const result = applyMapping('ReferenceImages', mapping, context);
+
+      expect(result).toEqual({
+        field: 'image_urls',
+        value: ['http://example.com/image1.jpg'],
+      });
+    });
+
+    it('returns undefined when no bindings exist', () => {
+      const context: TransformContext = {
+        inputs: {},
+        inputBindings: {},
+      };
+
+      const mapping = { field: 'image_urls' };
+      const result = applyMapping('ReferenceImages', mapping, context);
+
+      expect(result).toBeUndefined();
+    });
+
+    it('whole collection binding still works', () => {
+      const context: TransformContext = {
+        inputs: {
+          'Artifact:AllImages': ['http://example.com/1.jpg', 'http://example.com/2.jpg'],
+        },
+        inputBindings: {
+          'ReferenceImages': 'Artifact:AllImages',
+        },
+      };
+
+      const mapping = { field: 'image_urls' };
+      const result = applyMapping('ReferenceImages', mapping, context);
+
+      expect(result).toEqual({
+        field: 'image_urls',
+        value: ['http://example.com/1.jpg', 'http://example.com/2.jpg'],
+      });
+    });
+
+    it('prefers whole collection binding over element bindings when value exists', () => {
+      const context: TransformContext = {
+        inputs: {
+          'Artifact:AllImages': ['whole1.jpg', 'whole2.jpg'],
+          'Artifact:Image1': 'element1.jpg',
+          'Artifact:Image2': 'element2.jpg',
+        },
+        inputBindings: {
+          'ReferenceImages': 'Artifact:AllImages',
+          'ReferenceImages[0]': 'Artifact:Image1',
+          'ReferenceImages[1]': 'Artifact:Image2',
+        },
+      };
+
+      const mapping = { field: 'image_urls' };
+      const result = applyMapping('ReferenceImages', mapping, context);
+
+      // Direct binding takes precedence when value exists
+      expect(result).toEqual({
+        field: 'image_urls',
+        value: ['whole1.jpg', 'whole2.jpg'],
+      });
+    });
+
+    it('falls back to element bindings when direct binding has no value', () => {
+      const context: TransformContext = {
+        inputs: {
+          // No value for 'Input:Unresolved'
+          'Artifact:Image1': 'element1.jpg',
+          'Artifact:Image2': 'element2.jpg',
+        },
+        inputBindings: {
+          'ReferenceImages': 'Input:Unresolved', // Points to unresolved input
+          'ReferenceImages[0]': 'Artifact:Image1',
+          'ReferenceImages[1]': 'Artifact:Image2',
+        },
+      };
+
+      const mapping = { field: 'image_urls' };
+      const result = applyMapping('ReferenceImages', mapping, context);
+
+      // Falls back to element bindings
+      expect(result).toEqual({
+        field: 'image_urls',
+        value: ['element1.jpg', 'element2.jpg'],
       });
     });
   });
