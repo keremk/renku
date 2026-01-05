@@ -394,6 +394,211 @@ describe('createRunner', () => {
     ]);
   });
 
+  it('does not skip job when unconditional fanIn members exist even if conditional inputs unsatisfied', async () => {
+    const storage = createStorageContext({ kind: 'memory' });
+    await initializeMovieStorage(storage, 'movie-conditional-fanin');
+    const eventLog = createEventLog(storage);
+    const manifestService = createManifestService(storage);
+
+    // Store video artifacts that will be unconditional fanIn members
+    const videoData = new TextEncoder().encode('video-data');
+    const videoBlobHash = 'videohash123';
+    const videoBlobRef = { hash: videoBlobHash, size: videoData.length, mimeType: 'video/mp4' };
+    const videoDir = storage.resolve('movie-conditional-fanin', 'blobs', videoBlobHash.slice(0, 2));
+    await storage.storage.createDirectory(videoDir, {});
+    const videoPath = storage.resolve(
+      'movie-conditional-fanin',
+      'blobs',
+      videoBlobHash.slice(0, 2),
+      formatBlobFileName(videoBlobHash, videoBlobRef.mimeType),
+    );
+    await storage.storage.write(videoPath, Buffer.from(videoData), { mimeType: 'video/mp4' });
+
+    // Add video artifact to event log (unconditional)
+    await eventLog.appendArtefact('movie-conditional-fanin', {
+      artefactId: 'Artifact:VideoProducer.GeneratedVideo[0]',
+      revision: 'rev-0001',
+      inputsHash: 'hash',
+      output: { blob: videoBlobRef },
+      status: 'succeeded',
+      producedBy: 'Producer:VideoProducer[0]',
+      createdAt: new Date().toISOString(),
+    });
+
+    let jobWasExecuted = false;
+
+    const runner = createRunner({
+      produce: async (request) => {
+        jobWasExecuted = true;
+        return {
+          jobId: request.job.jobId,
+          status: 'succeeded',
+          artefacts: [],
+        };
+      },
+    });
+
+    // Job with:
+    // - VideoSegments fanIn: unconditional members
+    // - AudioSegments fanIn: conditional members (condition will be false)
+    const job: JobDescriptor = {
+      jobId: 'job-timeline',
+      producer: 'TimelineComposer',
+      inputs: [
+        'Input:TimelineComposer.VideoSegments',
+        'Input:TimelineComposer.AudioSegments',
+      ],
+      produces: ['Artifact:TimelineComposer.Timeline'],
+      provider: 'renku',
+      providerModel: 'timeline/ordered',
+      rateKey: 'timeline:ordered',
+      context: {
+        namespacePath: ['TimelineComposer'],
+        indices: {},
+        producerAlias: 'TimelineComposer',
+        inputs: [
+          'Input:TimelineComposer.VideoSegments',
+          'Input:TimelineComposer.AudioSegments',
+        ],
+        produces: ['Artifact:TimelineComposer.Timeline'],
+        fanIn: {
+          'Input:TimelineComposer.VideoSegments': {
+            groupBy: 'clip',
+            members: [
+              { id: 'Artifact:VideoProducer.GeneratedVideo[0]', group: 0 },
+            ],
+          },
+          'Input:TimelineComposer.AudioSegments': {
+            groupBy: 'clip',
+            members: [
+              { id: 'Artifact:AudioProducer.GeneratedAudio[0]', group: 0 },
+            ],
+          },
+        },
+        // Only AudioProducer artifacts have conditions - VideoProducer is unconditional
+        inputConditions: {
+          'Artifact:AudioProducer.GeneratedAudio[0]': {
+            condition: {
+              when: 'AdScriptProducer.AdScript.Scenes[clip].HasNarration',
+              is: true,
+            },
+            indices: { clip: 0 },
+          },
+        },
+      },
+    };
+
+    const manifest: Manifest = {
+      revision: 'rev-0001',
+      baseRevision: null,
+      createdAt: new Date().toISOString(),
+      inputs: {},
+      artefacts: {},
+    };
+
+    const result = await runner.executeJob(job, {
+      movieId: 'movie-conditional-fanin',
+      storage,
+      eventLog,
+      manifest,
+      manifestService,
+      layerIndex: 0,
+      attempt: 1,
+      revision: 'rev-0002',
+    });
+
+    // Job should NOT be skipped because VideoSegments has unconditional members
+    expect(jobWasExecuted).toBe(true);
+    expect(result.status).toBe('succeeded');
+  });
+
+  it('skips job when all conditional inputs unsatisfied and no unconditional artifact inputs', async () => {
+    const storage = createStorageContext({ kind: 'memory' });
+    await initializeMovieStorage(storage, 'movie-all-conditional');
+    const eventLog = createEventLog(storage);
+    const manifestService = createManifestService(storage);
+
+    let jobWasExecuted = false;
+
+    const runner = createRunner({
+      produce: async (request) => {
+        jobWasExecuted = true;
+        return {
+          jobId: request.job.jobId,
+          status: 'succeeded',
+          artefacts: [],
+        };
+      },
+    });
+
+    // Job where ALL fanIn members are conditional and none are satisfied
+    const job: JobDescriptor = {
+      jobId: 'job-all-conditional',
+      producer: 'AudioConsumer',
+      inputs: ['Input:AudioConsumer.AudioSegments'],
+      produces: ['Artifact:AudioConsumer.Output'],
+      provider: 'test',
+      providerModel: 'test/model',
+      rateKey: 'test:model',
+      context: {
+        namespacePath: ['AudioConsumer'],
+        indices: {},
+        producerAlias: 'AudioConsumer',
+        inputs: ['Input:AudioConsumer.AudioSegments'],
+        produces: ['Artifact:AudioConsumer.Output'],
+        fanIn: {
+          'Input:AudioConsumer.AudioSegments': {
+            groupBy: 'clip',
+            members: [
+              { id: 'Artifact:AudioProducer.GeneratedAudio[0]', group: 0 },
+              { id: 'Artifact:AudioProducer.GeneratedAudio[1]', group: 1 },
+            ],
+          },
+        },
+        // ALL members have conditions that evaluate to false
+        inputConditions: {
+          'Artifact:AudioProducer.GeneratedAudio[0]': {
+            condition: {
+              when: 'SomeProducer.Output.HasAudio',
+              is: true,
+            },
+            indices: { clip: 0 },
+          },
+          'Artifact:AudioProducer.GeneratedAudio[1]': {
+            condition: {
+              when: 'SomeProducer.Output.HasAudio',
+              is: true,
+            },
+            indices: { clip: 1 },
+          },
+        },
+      },
+    };
+
+    const manifest: Manifest = {
+      revision: 'rev-0001',
+      baseRevision: null,
+      createdAt: new Date().toISOString(),
+      inputs: {},
+      artefacts: {},
+    };
+
+    const result = await runner.executeJob(job, {
+      movieId: 'movie-all-conditional',
+      storage,
+      eventLog,
+      manifest,
+      manifestService,
+      layerIndex: 0,
+      attempt: 1,
+      revision: 'rev-0002',
+    });
+
+    // Job SHOULD be skipped because all fanIn members are conditional and unsatisfied
+    expect(jobWasExecuted).toBe(false);
+    expect(result.status).toBe('skipped');
+  });
+
   it('provides fan-in artefact blobs to downstream jobs', async () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-fanin-assets');

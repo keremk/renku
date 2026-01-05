@@ -235,9 +235,24 @@ async function executeJob(
         }
       }
 
+      // Check if there are unconditional artifact inputs that would provide data
+      // This includes direct artifact inputs and fanIn members without conditions
+      const hasUnconditionalArtifactInputs = job.inputs.some((inputId) => {
+        if (conditionalInputIds.has(inputId)) {
+          return false; // This input is conditional
+        }
+        return isCanonicalArtifactId(inputId);
+      });
+
+      // Check if any fanIn has unconditional members
+      const fanIn = job.context?.fanIn;
+      const hasUnconditionalFanInMembers = fanIn && Object.values(fanIn).some((spec) =>
+        spec.members.some((member) => !conditionalInputIds.has(member.id)),
+      );
+
       // If there are conditional inputs but none are satisfied, skip the job
-      // Unconditional inputs (like provider, model) don't prevent skipping
-      if (!anySatisfied) {
+      // UNLESS there are unconditional artifact inputs or fanIn members that provide data
+      if (!anySatisfied && !hasUnconditionalArtifactInputs && !hasUnconditionalFanInMembers) {
         const completedAt = clock.now();
         logger.info?.('runner.job.skipped', {
           movieId,

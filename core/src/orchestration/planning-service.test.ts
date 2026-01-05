@@ -326,6 +326,72 @@ describe('applyOutputSchemasToBlueprintTree', () => {
       properties: { Items: { type: 'array' } },
     });
   });
+
+  it('adds edges for both top-level scalar properties and array items', () => {
+    // This test ensures we don't regress on the fix for top-level scalar properties.
+    // Previously, only array items (with dimensions) got edges, causing top-level
+    // scalars like CharacterImagePrompt to not be connected to their producer.
+    const tree = makeTreeNode(
+      makeBlueprintDocument(
+        'AdVideoBlueprint',
+        [{ name: 'NumOfClips', type: 'int', required: true }],
+        [
+          {
+            name: 'AdScript',
+            type: 'json',
+            arrays: [{ path: 'Scenes', countInput: 'NumOfClips' }],
+          },
+        ],
+        [{ name: 'ScriptProducer' }],
+        [], // No edges initially
+      ),
+      [],
+    );
+
+    // Schema with both top-level scalars and an array
+    const outputSchema = {
+      name: 'AdScript',
+      schema: {
+        type: 'object',
+        properties: {
+          AdTitle: { type: 'string' },
+          CharacterImagePrompt: { type: 'string' },
+          ProductImagePrompt: { type: 'string' },
+          Scenes: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                SceneNumber: { type: 'integer' },
+                VideoPrompt: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+    };
+
+    const providerOptions = new Map<string, ProviderOptionEntry>([
+      ['ScriptProducer', { outputSchema: JSON.stringify(outputSchema) }],
+    ]);
+
+    applyOutputSchemasToBlueprintTree(tree, providerOptions);
+
+    // Verify edges were added for top-level scalar properties (dimensions: [])
+    const edgePaths = tree.document.edges.map((e) => e.to);
+    expect(edgePaths).toContain('AdScript.AdTitle');
+    expect(edgePaths).toContain('AdScript.CharacterImagePrompt');
+    expect(edgePaths).toContain('AdScript.ProductImagePrompt');
+
+    // Verify edges were also added for array item properties (dimensions: ['clip'])
+    expect(edgePaths).toContain('AdScript.Scenes[clip].SceneNumber');
+    expect(edgePaths).toContain('AdScript.Scenes[clip].VideoPrompt');
+
+    // Verify all edges come from the producer
+    for (const edge of tree.document.edges) {
+      expect(edge.from).toBe('ScriptProducer');
+    }
+  });
 });
 
 function makeBlueprintDocument(

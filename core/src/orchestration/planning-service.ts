@@ -322,15 +322,12 @@ function applyOutputSchemasToNode(
         // Decompose the schema and add edges for each virtual artifact
         const decomposed = decomposeJsonSchema(parsedSchema, art.name, art.arrays);
         for (const field of decomposed) {
-          // Only add edge if field has dimensions (virtual artifact)
-          if (field.dimensions.length > 0) {
-            // Check if edge already exists
-            const edgeExists = node.document.edges.some(
-              (e) => e.from === producer.name && e.to === field.path,
-            );
-            if (!edgeExists) {
-              node.document.edges.push({ from: producer.name, to: field.path });
-            }
+          // Add edge for all decomposed virtual artifacts (both scalar and array items)
+          const edgeExists = node.document.edges.some(
+            (e) => e.from === producer.name && e.to === field.path,
+          );
+          if (!edgeExists) {
+            node.document.edges.push({ from: producer.name, to: field.path });
           }
         }
         return { ...art, schema: parsedSchema };

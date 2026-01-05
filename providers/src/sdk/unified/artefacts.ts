@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer';
 import { isCanonicalArtifactId, readJsonPath, type ProducedArtefact } from '@gorenku/core';
 import type { ProviderMode } from '../../types.js';
+import { generateWavWithDuration } from './wav-generator.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -9,6 +10,7 @@ export interface BuildArtefactsOptions {
   urls: string[];
   mimeType: string;
   mode?: ProviderMode;
+  resolvedInputs?: Record<string, unknown>;
 }
 
 export interface BuildArtefactFromJsonOptions {
@@ -33,11 +35,35 @@ interface ArtefactExtractionContext {
 }
 
 /**
+ * Resolves duration for mock audio/video assets from resolved inputs.
+ * Looks for common duration field names in the resolved inputs.
+ */
+function resolveDurationForMock(resolvedInputs: Record<string, unknown> | undefined): number {
+  if (!resolvedInputs) {
+    return 5; // Default 5 seconds
+  }
+
+  const durationKeys = ['Duration', 'ClipDuration', 'SegmentDuration'];
+  for (const key of durationKeys) {
+    const value = resolvedInputs[key];
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+      return value;
+    }
+  }
+
+  return 5; // Default 5 seconds
+}
+
+/**
  * Downloads binary data from URLs and creates ProducedArtefact objects.
  * Handles missing URLs and download failures gracefully.
+ *
+ * In simulated mode, generates valid WAV files with the expected duration
+ * instead of downloading. This ensures mediabunny can extract duration
+ * using the same code path as live mode.
  */
 export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Promise<ProducedArtefact[]> {
-  const { produces, urls, mimeType, mode } = options;
+  const { produces, urls, mimeType, mode, resolvedInputs } = options;
   const artefacts: ProducedArtefact[] = [];
   const useMockDownloads = mode === 'simulated';
 
@@ -60,7 +86,7 @@ export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Pr
 
     try {
       const buffer = useMockDownloads
-        ? Buffer.from(`simulated-output:${artefactId}`)
+        ? generateWavWithDuration(resolveDurationForMock(resolvedInputs))
         : await downloadBinary(url);
       artefacts.push({
         artefactId,

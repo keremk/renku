@@ -57,7 +57,8 @@
       "Bash(pnpm build:cli:*)",
       "Bash(pnpm --filter @gorenku/core check:all:*)",
       "Bash(pnpm:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(node /Users/keremk/Projects/aitinkerbox/renku/cli/dist/cli.js run:*)"
     ],
     "deny": [],
     "ask": []

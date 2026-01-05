@@ -171,11 +171,13 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
 
         // Same path for both modes: normalize output and build artifacts
         const outputUrls = adapter.normalizeOutput(predictionOutput);
+        const extras = request.context?.extras as Record<string, unknown> | undefined;
         const artefacts = await buildArtefactsFromUrls({
           produces: request.produces,
           urls: outputUrls,
           mimeType: outputMimeType,
           mode: init.mode,
+          resolvedInputs: extras?.resolvedInputs as Record<string, unknown> | undefined,
         });
 
         const status = artefacts.some((a) => a.status === 'failed') ? 'failed' : 'succeeded';
