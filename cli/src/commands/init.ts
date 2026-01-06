@@ -8,6 +8,7 @@ import {
 } from '../lib/cli-config.js';
 import { expandPath } from '../lib/path.js';
 import {
+  catalogExists,
   copyBundledCatalogAssets,
   getCliCatalogRoot,
 } from '../lib/config-assets.js';
@@ -30,16 +31,25 @@ export interface InitResult {
 
 export async function runInit(options: InitOptions): Promise<InitResult> {
   if (!options.rootFolder || options.rootFolder.trim() === '') {
-    throw new Error('--root-folder is required. Please specify the root directory for Renku storage.');
+    throw new Error('--root is required. Please specify the root directory for Renku storage.');
   }
 
   const rootFolder = expandPath(options.rootFolder);
+  const catalogRoot = getCliCatalogRoot(rootFolder);
+
+  // Check if this folder is already initialized
+  if (await catalogExists(catalogRoot)) {
+    throw new Error(
+      `Workspace already initialized at "${rootFolder}". Use "renku update" to update the catalog.`,
+    );
+  }
+
   const buildsFolder = resolve(rootFolder, 'builds');
   const cliConfigPath = options.configPath ?? getDefaultCliConfigPath();
 
   await mkdir(rootFolder, { recursive: true });
   await mkdir(buildsFolder, { recursive: true });
-  await copyBundledCatalogAssets(getCliCatalogRoot(rootFolder));
+  await copyBundledCatalogAssets(catalogRoot);
 
   const cliConfig: CliConfig = {
     storage: {
@@ -47,7 +57,7 @@ export async function runInit(options: InitOptions): Promise<InitResult> {
       basePath: 'builds',
     },
     catalog: {
-      root: getCliCatalogRoot(rootFolder),
+      root: catalogRoot,
     },
     concurrency: 1,
   };

@@ -3,12 +3,12 @@ inputs:
   CharacterDescription: "A young professional woman in her late 20s, stylish casual attire, confident and relaxed demeanor"
   AdConcept: "Experience focus and freedom - premium headphones for the modern professional who values quality sound and style"
   NumOfClips: 3
-  Duration: 30
+  Duration: 24
   Audience: "Young professionals aged 25-35"
   Style: "Modern, cinematic, warm lighting"
   AspectRatio: "16:9"
   Resolution: "720p"
-  ClipDuration: 10
+  ClipDuration: 8
   VoiceId: "Wise_Woman"
   Emotion: "confident"
   MusicalStyle: "Modern ambient electronic with subtle beats, inspiring and uplifting mood"

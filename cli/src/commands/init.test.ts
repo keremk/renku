@@ -78,4 +78,18 @@ describe('runInit', () => {
     const envContent = await readFile(envPath, 'utf8');
     expect(envContent).toBe(existingContent);
   });
+
+  it('throws error when trying to init an already-initialized workspace', async () => {
+    const root = await createTempRoot();
+    const configPath = resolve(root, 'cli-config.json');
+    const envPath = resolve(root, 'env.sh');
+
+    // First init should succeed
+    await runInit({ rootFolder: root, configPath, envPath });
+
+    // Second init on the same folder should fail
+    await expect(runInit({ rootFolder: root, configPath, envPath })).rejects.toThrow(
+      /Workspace already initialized/,
+    );
+  });
 });

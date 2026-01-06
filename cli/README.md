@@ -138,6 +138,8 @@ This starts a local server and opens your browser to preview the generated conte
 ### Workspace Management
 
 - `renku init --root=<path>` - Initialize a new workspace
+- `renku update` - Update the catalog in the active workspace
+- `renku use --root=<path>` - Switch to an existing workspace
 
 ### Content Generation
 

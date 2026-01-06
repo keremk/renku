@@ -397,13 +397,34 @@ Expands to:
 - `NarrationScript[1]` → `AudioProducer[1].TextInput`
 - etc.
 
-### Multi-Dimensional Indexing
+### Multi-Dimensional Indexing (Nested Loops)
+
+When you have nested loops (a loop with a `parent`), use multiple indices:
 
 ```yaml
+# Define nested loops
+loops:
+  - name: segment
+    countInput: NumOfSegments
+  - name: image
+    parent: segment                    # image is nested inside segment
+    countInput: NumOfImagesPerNarrative
+
+# Producer runs for each segment × image combination
+producers:
+  - name: ImageProducer
+    producer: asset/text-to-image
+    loop: segment.image                # Dot notation for nested loops
+
+# Connections use multiple indices
 connections:
-  - from: ImageGenerator[segment][image].SegmentImage
+  - from: ImagePromptProducer.ImagePrompt[segment][image]
+    to: ImageProducer[segment][image].Prompt
+  - from: ImageProducer[segment][image].GeneratedImage
     to: SegmentImage[segment][image]
 ```
+
+If `NumOfSegments = 3` and `NumOfImagesPerNarrative = 2`, this creates 6 producer instances: `[0][0]`, `[0][1]`, `[1][0]`, `[1][1]`, `[2][0]`, `[2][1]`.
 
 ### Offset Selectors
 
@@ -416,6 +437,36 @@ connections:
 ```
 
 Creates sliding window patterns. For N segments, you need N+1 images.
+
+### Indexed Collection Binding
+
+When a producer has a collection input, you can connect different artifacts to specific indices:
+
+```yaml
+connections:
+  # Different artifacts bound to specific collection indices
+  - from: CharacterImageProducer.GeneratedImage
+    to: VideoProducer[clip].ReferenceImages[0]
+  - from: ProductImageProducer.GeneratedImage
+    to: VideoProducer[clip].ReferenceImages[1]
+```
+
+This pattern is useful when:
+- A producer accepts multiple reference images as a collection
+- Each reference image comes from a different upstream producer
+- The same images should be used for all loop instances
+
+**How it works:**
+1. The planner creates element-level input bindings: `ReferenceImages[0]` → artifact ID
+2. At runtime, the SDK reconstructs the array from these element-level bindings
+3. The producer receives `ReferenceImages: [CharacterImage, ProductImage]`
+
+**Comparison with whole-collection binding:**
+
+| Pattern | Syntax | Use Case |
+|---------|--------|----------|
+| Whole-collection | `AllImages → ReferenceImages` | Connect an entire array artifact |
+| Element-level | `Image1 → ReferenceImages[0]` | Connect individual artifacts to specific indices |
 
 ### Broadcast Connections
 
@@ -727,6 +778,33 @@ producers:
 ## Collectors and Fan-In
 
 Collectors aggregate multiple artifacts for downstream processing.
+
+:::caution[Critical: Fan-In Requires BOTH Connection AND Collector]
+A common mistake is defining only a collector. **Fan-in inputs require BOTH:**
+
+```yaml
+# ❌ WRONG - Only collector (fan-in input will be empty!)
+collectors:
+  - name: TimelineImages
+    from: ImageProducer[segment][image].GeneratedImage
+    into: TimelineComposer.ImageSegments
+    groupBy: segment
+
+# ✅ CORRECT - Both connection AND collector
+connections:
+  - from: ImageProducer[segment][image].GeneratedImage
+    to: TimelineComposer.ImageSegments  # ← REQUIRED!
+
+collectors:
+  - name: TimelineImages
+    from: ImageProducer[segment][image].GeneratedImage
+    into: TimelineComposer.ImageSegments
+    groupBy: segment
+    orderBy: image
+```
+
+**Why both?** The connection creates the data flow edge; the collector defines grouping/ordering.
+:::
 
 ### Basic Collector
 

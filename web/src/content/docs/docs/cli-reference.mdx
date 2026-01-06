@@ -22,15 +22,14 @@ Initialize a new Renku workspace and storage configuration.
 
 **Usage:**
 ```bash
-renku init --root-folder=/path/to/storage
-renku init --root=/path/to/storage  # Short form
+renku init --root=/path/to/storage
 ```
 
 **Options:**
 
 | Option | Required | Description |
 |--------|----------|-------------|
-| `--root-folder`, `--root` | Yes | Storage root directory for builds and blueprints |
+| `--root` | Yes | Storage root directory for builds and blueprints |
 
 **Creates:**
 - `~/.config/renku/cli-config.json` - Storage configuration (fixed location)
@@ -39,7 +38,55 @@ renku init --root=/path/to/storage  # Short form
 
 **Example:**
 ```bash
-renku init --root-folder=/Users/alice/renku-projects
+renku init --root=/Users/alice/renku-projects
+```
+
+---
+
+### renku update
+
+Update the catalog in the active workspace by copying the latest bundled blueprints.
+
+**Usage:**
+```bash
+renku update
+```
+
+**Behavior:**
+- Reads the active workspace from the CLI config
+- Copies bundled catalog files, overwriting existing ones
+- Users can revert changes using git if needed
+
+**Example:**
+```bash
+renku update
+```
+
+---
+
+### renku use
+
+Switch to an existing Renku workspace.
+
+**Usage:**
+```bash
+renku use --root=/path/to/workspace
+```
+
+**Options:**
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--root` | Yes | Path to an existing Renku workspace |
+
+**Behavior:**
+- Validates the folder is a valid Renku workspace (has catalog)
+- Updates the CLI config to point to the specified workspace
+- Does not copy any files
+
+**Example:**
+```bash
+renku use --root=~/other-workspace
 ```
 
 ---

@@ -33,6 +33,24 @@ export async function copyBundledCatalogAssets(targetRoot: string): Promise<void
   await copyDirectory(BUNDLED_CATALOG_ROOT, targetRoot);
 }
 
+export async function updateBundledCatalogAssets(targetRoot: string): Promise<void> {
+  await copyDirectory(BUNDLED_CATALOG_ROOT, targetRoot, { overwrite: true });
+}
+
+export async function catalogExists(catalogRoot: string): Promise<boolean> {
+  try {
+    const entries = await readdir(catalogRoot);
+    return entries.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+export async function isValidWorkspace(rootFolder: string): Promise<boolean> {
+  const catalogRoot = getCliCatalogRoot(rootFolder);
+  return catalogExists(catalogRoot);
+}
+
 export async function resolveBlueprintSpecifier(
   specifier: string,
   options: ResolveBlueprintOptions = {},
@@ -66,20 +84,29 @@ export async function resolveBlueprintSpecifier(
   );
 }
 
-async function copyDirectory(source: string, target: string): Promise<void> {
+interface CopyDirectoryOptions {
+  overwrite?: boolean;
+}
+
+async function copyDirectory(
+  source: string,
+  target: string,
+  options?: CopyDirectoryOptions,
+): Promise<void> {
+  const { overwrite = false } = options ?? {};
   await mkdir(target, { recursive: true });
   const entries = await readdir(source, { withFileTypes: true });
   for (const entry of entries) {
     const sourcePath = join(source, entry.name);
     const targetPath = join(target, entry.name);
     if (entry.isDirectory()) {
-      await copyDirectory(sourcePath, targetPath);
+      await copyDirectory(sourcePath, targetPath, options);
       continue;
     }
     if (!entry.isFile()) {
       continue;
     }
-    if (await fileExists(targetPath)) {
+    if (!overwrite && (await fileExists(targetPath))) {
       continue;
     }
     await copyFile(sourcePath, targetPath);

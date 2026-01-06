@@ -28,8 +28,7 @@ REPLICATE_API_TOKEN=r8_...
 Initialize the Renku storage configuration:
 
 ```bash
-renku init --root-folder=/path/to/storage
-renku init --root=/path/to/storage  # Short form
+renku init --root=/path/to/storage
 ```
 
 This creates:
@@ -38,7 +37,7 @@ This creates:
 - `{rootFolder}/catalog/blueprints/` with bundled YAML blueprint templates
 
 Required flags:
-- `--root-folder` / `--root`: Storage root directory (mandatory)
+- `--root`: Storage root directory (mandatory)
 
 ### Generate Your First Movie
 
@@ -77,12 +76,11 @@ Initialize Renku storage configuration.
 
 **Usage:**
 ```bash
-renku init --root-folder=/path/to/storage
 renku init --root=/path/to/storage
 ```
 
 **Options:**
-- `--root-folder` / `--root` (required): Storage root directory for builds and blueprints
+- `--root` (required): Storage root directory for builds and blueprints
 
 **Creates:**
 - `~/.config/renku/cli-config.json` with storage settings
@@ -91,8 +89,51 @@ renku init --root=/path/to/storage
 
 **Example:**
 ```bash
-renku init --root-folder=/Users/alice/renku-storage
 renku init --root=/Users/alice/renku-storage
+```
+
+---
+
+### `renku update`
+
+Update the catalog in the active workspace.
+
+**Usage:**
+```bash
+renku update
+```
+
+**Behavior:**
+- Reads the active workspace from CLI config
+- Copies bundled catalog files, overwriting existing ones
+- Users can revert changes using git
+
+**Example:**
+```bash
+renku update
+```
+
+---
+
+### `renku use`
+
+Switch to an existing Renku workspace.
+
+**Usage:**
+```bash
+renku use --root=/path/to/workspace
+```
+
+**Options:**
+- `--root` (required): Path to an existing Renku workspace
+
+**Behavior:**
+- Validates the folder is a valid Renku workspace
+- Updates CLI config to point to the specified workspace
+
+**Example:**
+```bash
+renku use --root=~/other-workspace
 ```
 
 ---
