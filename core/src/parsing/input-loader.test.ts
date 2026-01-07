@@ -528,7 +528,7 @@ describe('model selection SDK mapping parsing', () => {
     const scriptSelection = loaded.modelSelections.find((s) => s.producerId.endsWith('ScriptProducer'));
     expect(scriptSelection).toBeDefined();
     expect(scriptSelection?.provider).toBe('openai');
-    expect(scriptSelection?.model).toBe('gpt-5-mini');
+    expect(scriptSelection?.model).toBe('gpt-5.2');
     expect(scriptSelection?.config).toEqual({ text_format: 'json_schema' });
 
     // AudioProducer should have SDK mappings

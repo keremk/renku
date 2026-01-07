@@ -57,7 +57,7 @@ artifacts:
     countInput: NumOfSegments
   - name: Music
     description: Background music tracks for the movie.
-    type: music
+    type: audio
   - name: Timeline
     description: OrderedTimeline JSON manifest for Remotion playback.
     type: json

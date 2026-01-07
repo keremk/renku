@@ -33,6 +33,9 @@ artifacts:
     description: Generated images for each segment.
     type: multiDimArray
     itemType: image
+  - name: Timeline
+    description: The composed timeline JSON manifest.
+    type: json
 
 loops:
   - name: segment

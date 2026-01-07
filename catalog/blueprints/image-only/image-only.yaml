@@ -65,8 +65,6 @@ connections:
     to: ScriptProducer.Audience
   - from: Duration
     to: ScriptProducer.Duration
-  - from: Style
-    to: ScriptProducer.Style
   - from: NumOfSegments
     to: ScriptProducer.NumOfSegments
 

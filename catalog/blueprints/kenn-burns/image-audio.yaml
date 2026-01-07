@@ -90,8 +90,6 @@ connections:
     to: ScriptProducer.Duration
   - from: NumOfSegments
     to: ScriptProducer.NumOfSegments
-  - from: Style
-    to: ScriptProducer.Style
   - from: Language
     to: ScriptProducer.Language
 
