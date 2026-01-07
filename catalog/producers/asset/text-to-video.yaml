@@ -81,7 +81,7 @@ mappings:
       NegativePrompt: negative_prompt
       Duration:
         field: duration
-        intToString: true
+        intToSecondsString: true
       AspectRatio: aspect_ratio
       Resolution: resolution
       GenerateAudio: generate_audio
@@ -94,7 +94,7 @@ mappings:
       NegativePrompt: negative_prompt
       Duration:
         field: duration
-        intToString: true
+        intToSecondsString: true
       AspectRatio: aspect_ratio
       Resolution: resolution
       GenerateAudio: generate_audio

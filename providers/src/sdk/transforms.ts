@@ -118,6 +118,11 @@ export function applyMapping(
     value = applyIntToString(value);
   }
 
+  // 5b. Apply intToSecondsString - convert integer to string with "s" suffix
+  if (mapping.intToSecondsString) {
+    value = applyIntToSecondsString(value);
+  }
+
   // 6. Apply durationToFrames - convert seconds to frame count
   if (mapping.durationToFrames) {
     value = applyDurationToFrames(value, mapping.durationToFrames.fps);
@@ -272,6 +277,17 @@ function applyInvert(value: unknown): unknown {
 function applyIntToString(value: unknown): unknown {
   if (typeof value === 'number') {
     return String(value);
+  }
+  return value;
+}
+
+/**
+ * Applies intToSecondsString transform - converts integer to string with "s" suffix.
+ * Example: 8 → "8s"
+ */
+function applyIntToSecondsString(value: unknown): unknown {
+  if (typeof value === 'number') {
+    return `${value}s`;
   }
   return value;
 }

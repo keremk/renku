@@ -1,5 +1,23 @@
 import { Buffer } from 'buffer';
 
+/**
+ * Well-known system input names that are automatically recognized.
+ * These don't need to be declared in blueprint YAML.
+ */
+export const SYSTEM_INPUTS = {
+  // User-provided system inputs
+  DURATION: 'Duration',
+  NUM_OF_SEGMENTS: 'NumOfSegments',
+
+  // Auto-computed system inputs
+  SEGMENT_DURATION: 'SegmentDuration',
+
+  // Existing system inputs (for reference)
+  MOVIE_ID: 'MovieId',
+  STORAGE_ROOT: 'StorageRoot',
+  STORAGE_BASE_PATH: 'StorageBasePath',
+} as const;
+
 type Id = string;
 type IsoDatetime = string;
 
@@ -739,7 +757,7 @@ export interface DurationToFramesConfig {
 
 /**
  * SDK mapping field definition with all transform types.
- * Supports: simple (string), transform, combine, conditional, firstOf, invert, intToString, durationToFrames.
+ * Supports: simple (string), transform, combine, conditional, firstOf, invert, intToString, intToSecondsString, durationToFrames.
  */
 export interface MappingFieldDefinition {
   /** Target API field name (supports dot notation for nested: "voice_setting.voice_id") */
@@ -760,6 +778,8 @@ export interface MappingFieldDefinition {
   invert?: boolean;
   /** Convert integer to string */
   intToString?: boolean;
+  /** Convert integer to string with "s" suffix (e.g., 8 → "8s") */
+  intToSecondsString?: boolean;
   /** Convert duration (seconds) to frame count */
   durationToFrames?: DurationToFramesConfig;
 }

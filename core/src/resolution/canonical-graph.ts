@@ -8,8 +8,22 @@ import type {
   NodeKind,
   ProducerConfig,
 } from '../types.js';
+import { SYSTEM_INPUTS } from '../types.js';
 import { parseDimensionSelector, type DimensionSelector } from '../parsing/dimension-selectors.js';
 import { decomposeJsonSchema } from './schema-decomposition.js';
+
+/**
+ * Well-known system input names that are automatically recognized.
+ * These don't need to be declared in blueprint YAML.
+ */
+const SYSTEM_INPUT_NAMES = new Set<string>([
+  SYSTEM_INPUTS.DURATION,
+  SYSTEM_INPUTS.NUM_OF_SEGMENTS,
+  SYSTEM_INPUTS.SEGMENT_DURATION,
+  SYSTEM_INPUTS.MOVIE_ID,
+  SYSTEM_INPUTS.STORAGE_ROOT,
+  SYSTEM_INPUTS.STORAGE_BASE_PATH,
+]);
 
 export interface BlueprintGraphNode {
   id: string;
@@ -84,6 +98,9 @@ interface NamespaceDimensionEntry extends DimensionSymbol {
 type LocalNodeDims = Map<string, DimensionSymbol[]>;
 
 export function buildBlueprintGraph(root: BlueprintTreeNode): BlueprintGraph {
+  // Inject synthetic input declarations for system inputs referenced in edges
+  injectSystemInputsFromEdges(root);
+
   const namespaceDims = new Map<string, DimensionSymbol[]>();
   namespaceDims.set('', []);
   collectNamespaceDimensions(root, namespaceDims);
@@ -949,5 +966,77 @@ function collectLoopDefinitions(
   }
   for (const child of tree.children.values()) {
     collectLoopDefinitions(child, loops);
+  }
+}
+
+/**
+ * Injects synthetic input declarations for system inputs that are referenced
+ * in edges but not explicitly declared in the blueprint.
+ *
+ * This allows blueprints to use system inputs like SegmentDuration without
+ * having to declare them in the inputs section.
+ */
+function injectSystemInputsFromEdges(root: BlueprintTreeNode): void {
+  // Collect all system input references from edges in the root blueprint
+  const referencedSystemInputs = new Set<string>();
+
+  for (const edge of root.document.edges) {
+    // Check the 'from' field for system input references
+    const fromName = extractSimpleInputName(edge.from);
+    if (fromName && SYSTEM_INPUT_NAMES.has(fromName)) {
+      referencedSystemInputs.add(fromName);
+    }
+  }
+
+  // Get existing input names
+  const existingInputNames = new Set(root.document.inputs.map((input) => input.name));
+
+  // Add synthetic input declarations for system inputs not already declared
+  for (const systemInputName of referencedSystemInputs) {
+    if (!existingInputNames.has(systemInputName)) {
+      const syntheticInput: BlueprintInputDefinition = {
+        name: systemInputName,
+        type: getSystemInputType(systemInputName),
+        description: `System input: ${systemInputName}`,
+        required: false, // System inputs are optional (auto-computed or injected)
+      };
+      root.document.inputs.push(syntheticInput);
+    }
+  }
+}
+
+/**
+ * Extracts a simple input name from an edge reference.
+ * Returns the name only if it's a simple reference (no dots, no dimensions).
+ * For example:
+ * - "SegmentDuration" -> "SegmentDuration"
+ * - "Duration" -> "Duration"
+ * - "StoryProducer.Script" -> undefined (not a simple input reference)
+ */
+function extractSimpleInputName(reference: string): string | undefined {
+  // Simple references don't contain dots
+  if (reference.includes('.')) {
+    return undefined;
+  }
+  // Extract the name before any dimension brackets
+  const match = reference.match(/^([A-Za-z_][A-Za-z0-9_]*)/);
+  return match ? match[1] : undefined;
+}
+
+/**
+ * Returns the appropriate type for a system input.
+ */
+function getSystemInputType(name: string): string {
+  switch (name) {
+    case SYSTEM_INPUTS.DURATION:
+    case SYSTEM_INPUTS.NUM_OF_SEGMENTS:
+    case SYSTEM_INPUTS.SEGMENT_DURATION:
+      return 'number';
+    case SYSTEM_INPUTS.MOVIE_ID:
+    case SYSTEM_INPUTS.STORAGE_ROOT:
+    case SYSTEM_INPUTS.STORAGE_BASE_PATH:
+      return 'string';
+    default:
+      return 'any';
   }
 }

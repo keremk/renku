@@ -700,6 +700,230 @@ describe('edge cases', () => {
     expect(edgeToRef1?.to.selectors?.filter((s) => s?.kind === 'const')).toHaveLength(0);
   });
 
+  it('injects synthetic input declarations for system inputs referenced in edges', () => {
+    // Test scenario: Blueprint references SegmentDuration without declaring it
+    // The graph builder should inject a synthetic input declaration
+    const producerDoc = makeBlueprintDocument(
+      'VideoProducer',
+      [
+        { name: 'Prompt', type: 'string', required: true },
+        { name: 'Duration', type: 'int', required: true },
+      ],
+      [{ name: 'GeneratedVideo', type: 'video' }],
+      [{ name: 'VideoGenerator', provider: 'fal-ai', model: 'video' }],
+      [
+        { from: 'Prompt', to: 'VideoGenerator' },
+        { from: 'Duration', to: 'VideoGenerator' },
+        { from: 'VideoGenerator', to: 'GeneratedVideo' },
+      ],
+    );
+
+    const rootDoc = makeBlueprintDocument(
+      'Root',
+      [
+        // Note: SegmentDuration is NOT declared as an input
+        { name: 'Prompt', type: 'string', required: true },
+        { name: 'Duration', type: 'int', required: true },
+        { name: 'NumOfSegments', type: 'int', required: true },
+      ],
+      [{ name: 'FinalVideo', type: 'video' }],
+      [],
+      [
+        // Reference SegmentDuration without declaring it - this is a system input
+        { from: 'SegmentDuration', to: 'VideoProducer.Duration' },
+        { from: 'Prompt', to: 'VideoProducer.Prompt' },
+        { from: 'VideoProducer.GeneratedVideo', to: 'FinalVideo' },
+      ],
+    );
+
+    const tree: BlueprintTreeNode = {
+      ...makeTreeNode(rootDoc, []),
+      children: new Map([
+        ['VideoProducer', makeTreeNode(producerDoc, ['VideoProducer'])],
+      ]),
+    };
+
+    const graph = buildBlueprintGraph(tree);
+
+    // Verify that SegmentDuration was injected as a synthetic input
+    const segmentDurationNode = graph.nodes.find(
+      (n) => n.type === 'InputSource' && n.name === 'SegmentDuration'
+    );
+    expect(segmentDurationNode).toBeDefined();
+    expect(segmentDurationNode?.input?.required).toBe(false); // System inputs are optional
+
+    // Verify that the edge from SegmentDuration exists
+    const edgeFromSegmentDuration = graph.edges.find(
+      (e) => e.from.nodeId === 'SegmentDuration'
+    );
+    expect(edgeFromSegmentDuration).toBeDefined();
+  });
+
+  it('injects all system inputs when referenced in edges without declaration', () => {
+    // Test scenario: Blueprint references all system inputs without declaring them
+    // System inputs: Duration, NumOfSegments, SegmentDuration, MovieId, StorageRoot, StorageBasePath
+    const exporterDoc = makeBlueprintDocument(
+      'Exporter',
+      [
+        { name: 'Timeline', type: 'json', required: true },
+        { name: 'MovieId', type: 'string', required: true },
+        { name: 'StorageRoot', type: 'string', required: true },
+        { name: 'StorageBasePath', type: 'string', required: true },
+      ],
+      [{ name: 'FinalVideo', type: 'video' }],
+      [{ name: 'VideoExporter', provider: 'renku', model: 'export' }],
+      [
+        { from: 'Timeline', to: 'VideoExporter' },
+        { from: 'MovieId', to: 'VideoExporter' },
+        { from: 'StorageRoot', to: 'VideoExporter' },
+        { from: 'StorageBasePath', to: 'VideoExporter' },
+        { from: 'VideoExporter', to: 'FinalVideo' },
+      ],
+    );
+
+    const rootDoc = makeBlueprintDocument(
+      'Root',
+      [
+        // Only Timeline is declared - all system inputs should be auto-injected
+        { name: 'Timeline', type: 'json', required: true },
+      ],
+      [{ name: 'Output', type: 'video' }],
+      [],
+      [
+        { from: 'Timeline', to: 'Exporter.Timeline' },
+        // Reference system inputs without declaring them
+        { from: 'MovieId', to: 'Exporter.MovieId' },
+        { from: 'StorageRoot', to: 'Exporter.StorageRoot' },
+        { from: 'StorageBasePath', to: 'Exporter.StorageBasePath' },
+        { from: 'Exporter.FinalVideo', to: 'Output' },
+      ],
+    );
+
+    const tree: BlueprintTreeNode = {
+      ...makeTreeNode(rootDoc, []),
+      children: new Map([
+        ['Exporter', makeTreeNode(exporterDoc, ['Exporter'])],
+      ]),
+    };
+
+    const graph = buildBlueprintGraph(tree);
+
+    // Verify all system inputs were injected
+    const movieIdNode = graph.nodes.find(
+      (n) => n.type === 'InputSource' && n.name === 'MovieId'
+    );
+    const storageRootNode = graph.nodes.find(
+      (n) => n.type === 'InputSource' && n.name === 'StorageRoot'
+    );
+    const storageBasePathNode = graph.nodes.find(
+      (n) => n.type === 'InputSource' && n.name === 'StorageBasePath'
+    );
+
+    expect(movieIdNode).toBeDefined();
+    expect(storageRootNode).toBeDefined();
+    expect(storageBasePathNode).toBeDefined();
+
+    // All should be marked as optional (system inputs)
+    expect(movieIdNode?.input?.required).toBe(false);
+    expect(storageRootNode?.input?.required).toBe(false);
+    expect(storageBasePathNode?.input?.required).toBe(false);
+
+    // Verify edges exist from each system input
+    const edgeFromMovieId = graph.edges.find((e) => e.from.nodeId === 'MovieId');
+    const edgeFromStorageRoot = graph.edges.find((e) => e.from.nodeId === 'StorageRoot');
+    const edgeFromStorageBasePath = graph.edges.find((e) => e.from.nodeId === 'StorageBasePath');
+
+    expect(edgeFromMovieId).toBeDefined();
+    expect(edgeFromStorageRoot).toBeDefined();
+    expect(edgeFromStorageBasePath).toBeDefined();
+  });
+
+  it('does not inject system inputs when they are already declared', () => {
+    // Test scenario: Blueprint explicitly declares a system input
+    // The graph builder should NOT inject a duplicate
+    const rootDoc = makeBlueprintDocument(
+      'Root',
+      [
+        // Duration is explicitly declared with custom settings
+        { name: 'Duration', type: 'int', required: true, description: 'User-defined duration' },
+      ],
+      [{ name: 'Output', type: 'string' }],
+      [{ name: 'Producer', provider: 'openai', model: 'gpt' }],
+      [
+        { from: 'Duration', to: 'Producer' },
+        { from: 'Producer', to: 'Output' },
+      ],
+    );
+
+    const tree = makeTreeNode(rootDoc, []);
+    const graph = buildBlueprintGraph(tree);
+
+    // Find all Duration InputSource nodes
+    const durationNodes = graph.nodes.filter(
+      (n) => n.type === 'InputSource' && n.name === 'Duration'
+    );
+
+    // Should only have ONE Duration node (the explicitly declared one)
+    expect(durationNodes).toHaveLength(1);
+
+    // The declared one should maintain its original required=true setting
+    expect(durationNodes[0]?.input?.required).toBe(true);
+    expect(durationNodes[0]?.input?.description).toBe('User-defined duration');
+  });
+
+  it('injects system inputs with correct types', () => {
+    // Test scenario: Verify that injected system inputs have the correct type
+    const rootDoc = makeBlueprintDocument(
+      'Root',
+      [],
+      [{ name: 'Output', type: 'string' }],
+      [{ name: 'Producer', provider: 'openai', model: 'gpt' }],
+      [
+        // Reference various system inputs to trigger injection
+        { from: 'Duration', to: 'Producer' },
+        { from: 'NumOfSegments', to: 'Producer' },
+        { from: 'SegmentDuration', to: 'Producer' },
+        { from: 'MovieId', to: 'Producer' },
+        { from: 'StorageRoot', to: 'Producer' },
+        { from: 'StorageBasePath', to: 'Producer' },
+        { from: 'Producer', to: 'Output' },
+      ],
+    );
+
+    const tree = makeTreeNode(rootDoc, []);
+    const graph = buildBlueprintGraph(tree);
+
+    // Verify types for numeric system inputs
+    const durationNode = graph.nodes.find(
+      (n) => n.type === 'InputSource' && n.name === 'Duration'
+    );
+    const numOfSegmentsNode = graph.nodes.find(
+      (n) => n.type === 'InputSource' && n.name === 'NumOfSegments'
+    );
+    const segmentDurationNode = graph.nodes.find(
+      (n) => n.type === 'InputSource' && n.name === 'SegmentDuration'
+    );
+
+    expect(durationNode?.input?.type).toBe('number');
+    expect(numOfSegmentsNode?.input?.type).toBe('number');
+    expect(segmentDurationNode?.input?.type).toBe('number');
+
+    // Verify types for string system inputs
+    const movieIdNode = graph.nodes.find(
+      (n) => n.type === 'InputSource' && n.name === 'MovieId'
+    );
+    const storageRootNode = graph.nodes.find(
+      (n) => n.type === 'InputSource' && n.name === 'StorageRoot'
+    );
+    const storageBasePathNode = graph.nodes.find(
+      (n) => n.type === 'InputSource' && n.name === 'StorageBasePath'
+    );
+
+    expect(movieIdNode?.input?.type).toBe('string');
+    expect(storageRootNode?.input?.type).toBe('string');
+    expect(storageBasePathNode?.input?.type).toBe('string');
+  });
+
   it('connects whole collection artifact to collection input (non-indexed binding)', () => {
     // Test scenario: A collection artifact is connected directly to a collection input
     // without using element indices. This is the "whole-collection binding" pattern.

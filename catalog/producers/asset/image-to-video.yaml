@@ -67,7 +67,7 @@ mappings:
       StartImage: image_url
       Duration:
         field: duration
-        intToString: true
+        intToSecondsString: true
       AspectRatio: aspect_ratio
       Resolution: resolution
       GenerateAudio: generate_audio
@@ -80,7 +80,7 @@ mappings:
       EndImage: last_frame_url
       Duration:
         field: duration
-        intToString: true
+        intToSecondsString: true
       AspectRatio: aspect_ratio
       Resolution: resolution
       GenerateAudio: generate_audio

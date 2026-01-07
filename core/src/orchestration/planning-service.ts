@@ -114,8 +114,11 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
         args.movieId,
       );
 
+      // Inject derived system inputs (e.g., SegmentDuration from Duration/NumOfSegments)
+      const inputsWithDerived = injectDerivedInputs(inputsWithBlobRefs);
+
       const inputEvents = createInputEvents(
-        inputsWithBlobRefs,
+        inputsWithDerived,
         targetRevision,
         args.inputSource ?? 'user',
         now(),
@@ -350,4 +353,35 @@ function parseJsonSchemaDefinition(schemaJson: string): JsonSchemaDefinition {
         `Please provide valid JSON schema.`,
     );
   }
+}
+
+/**
+ * Injects derived system inputs into the normalized inputs map.
+ * Auto-computes SegmentDuration from Duration and NumOfSegments.
+ *
+ * This is called during planning to ensure cost estimation and plan preview
+ * see the correct derived values.
+ *
+ * @param inputs - The normalized inputs map with canonical IDs
+ * @returns A new inputs map with derived system inputs added
+ */
+export function injectDerivedInputs(
+  inputs: Record<string, unknown>,
+): Record<string, unknown> {
+  const result = { ...inputs };
+
+  // Auto-compute SegmentDuration if Duration and NumOfSegments are present
+  const duration = inputs['Input:Duration'];
+  const numSegments = inputs['Input:NumOfSegments'];
+
+  if (
+    typeof duration === 'number' &&
+    typeof numSegments === 'number' &&
+    numSegments > 0 &&
+    result['Input:SegmentDuration'] === undefined
+  ) {
+    result['Input:SegmentDuration'] = duration / numSegments;
+  }
+
+  return result;
 }

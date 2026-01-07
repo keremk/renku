@@ -447,6 +447,35 @@ describe('transforms', () => {
     });
   });
 
+  describe('intToSecondsString transform', () => {
+    it('converts integer to string with "s" suffix', () => {
+      const context = createContext({ Duration: 8 });
+      const mapping: MappingFieldDefinition = { field: 'duration', intToSecondsString: true };
+
+      const result = applyMapping('Duration', mapping, context);
+
+      expect(result).toEqual({ field: 'duration', value: '8s' });
+    });
+
+    it('converts float to string with "s" suffix', () => {
+      const context = createContext({ Duration: 10.5 });
+      const mapping: MappingFieldDefinition = { field: 'duration', intToSecondsString: true };
+
+      const result = applyMapping('Duration', mapping, context);
+
+      expect(result).toEqual({ field: 'duration', value: '10.5s' });
+    });
+
+    it('leaves string as-is', () => {
+      const context = createContext({ Duration: '8s' });
+      const mapping: MappingFieldDefinition = { field: 'duration', intToSecondsString: true };
+
+      const result = applyMapping('Duration', mapping, context);
+
+      expect(result).toEqual({ field: 'duration', value: '8s' });
+    });
+  });
+
   describe('durationToFrames transform', () => {
     it('converts seconds to frames at 24 fps', () => {
       const context = createContext({ Duration: 10 });

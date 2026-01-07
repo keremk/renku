@@ -144,10 +144,11 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<Execut
       ? { 'Input:StorageBasePath': options.cliConfig.storage.basePath }
       : {}),
   };
+  const resolvedInputsWithDerived = injectDerivedSystemInputs(resolvedInputsWithSystem);
   const produce = createProviderProduce(
     registry,
     options.providerOptions,
-    resolvedInputsWithSystem,
+    resolvedInputsWithDerived,
     preResolved,
     logger,
     notifications,
@@ -531,6 +532,34 @@ function validateResolvedInputs(
       `[provider.invoke.inputs] ${producerName} missing resolved input(s): ${missing.join(', ')}.`,
     );
   }
+}
+
+/**
+ * Injects derived system inputs into the resolved inputs map.
+ * Auto-computes SegmentDuration from Duration and NumOfSegments.
+ *
+ * @param inputs - The resolved inputs map with canonical IDs
+ * @returns A new inputs map with derived system inputs added
+ */
+export function injectDerivedSystemInputs(
+  inputs: Record<string, unknown>,
+): Record<string, unknown> {
+  const result = { ...inputs };
+
+  // Auto-compute SegmentDuration if Duration and NumOfSegments are present
+  const duration = inputs['Input:Duration'];
+  const numSegments = inputs['Input:NumOfSegments'];
+
+  if (
+    typeof duration === 'number' &&
+    typeof numSegments === 'number' &&
+    numSegments > 0 &&
+    result['Input:SegmentDuration'] === undefined
+  ) {
+    result['Input:SegmentDuration'] = duration / numSegments;
+  }
+
+  return result;
 }
 
 /**

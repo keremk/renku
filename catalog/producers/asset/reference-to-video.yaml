@@ -83,7 +83,7 @@ mappings:
       ReferenceImages: image_urls
       Duration:
         field: duration
-        intToString: true
+        intToSecondsString: true
       Resolution: resolution
       GenerateAudio: generate_audio
       AutoFixPrompt: auto_fix

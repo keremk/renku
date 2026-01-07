@@ -10,6 +10,7 @@ import type {
 import {
   applyOutputSchemasToBlueprintTree,
   createPlanningService,
+  injectDerivedInputs,
   type ProviderOptionEntry,
   type PendingArtefactDraft,
 } from './planning-service.js';
@@ -876,5 +877,72 @@ describe('createPlanningService', () => {
 
       expect(secondResult.targetRevision).toBe('rev-0003');
     });
+  });
+});
+
+describe('injectDerivedInputs', () => {
+  it('computes SegmentDuration from Duration and NumOfSegments', () => {
+    const inputs = {
+      'Input:Duration': 40,
+      'Input:NumOfSegments': 5,
+    };
+    const result = injectDerivedInputs(inputs);
+    expect(result['Input:SegmentDuration']).toBe(8);
+  });
+
+  it('does not overwrite existing SegmentDuration', () => {
+    const inputs = {
+      'Input:Duration': 40,
+      'Input:NumOfSegments': 5,
+      'Input:SegmentDuration': 10, // User override
+    };
+    const result = injectDerivedInputs(inputs);
+    expect(result['Input:SegmentDuration']).toBe(10);
+  });
+
+  it('handles missing Duration gracefully', () => {
+    const inputs = {
+      'Input:NumOfSegments': 5,
+    };
+    const result = injectDerivedInputs(inputs);
+    expect(result['Input:SegmentDuration']).toBeUndefined();
+  });
+
+  it('handles missing NumOfSegments gracefully', () => {
+    const inputs = {
+      'Input:Duration': 40,
+    };
+    const result = injectDerivedInputs(inputs);
+    expect(result['Input:SegmentDuration']).toBeUndefined();
+  });
+
+  it('handles zero NumOfSegments gracefully', () => {
+    const inputs = {
+      'Input:Duration': 40,
+      'Input:NumOfSegments': 0,
+    };
+    const result = injectDerivedInputs(inputs);
+    expect(result['Input:SegmentDuration']).toBeUndefined();
+  });
+
+  it('preserves other inputs', () => {
+    const inputs = {
+      'Input:Duration': 40,
+      'Input:NumOfSegments': 5,
+      'Input:SomeOther': 'value',
+    };
+    const result = injectDerivedInputs(inputs);
+    expect(result['Input:SomeOther']).toBe('value');
+    expect(result['Input:Duration']).toBe(40);
+    expect(result['Input:NumOfSegments']).toBe(5);
+  });
+
+  it('handles fractional segment durations', () => {
+    const inputs = {
+      'Input:Duration': 100,
+      'Input:NumOfSegments': 3,
+    };
+    const result = injectDerivedInputs(inputs);
+    expect(result['Input:SegmentDuration']).toBeCloseTo(33.333, 2);
   });
 });
