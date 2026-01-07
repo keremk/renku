@@ -11,18 +11,6 @@ inputs:
     description: The prompt describing the movie script to be generated.
     type: string
     required: true
-  - name: Duration
-    description: The desired duration of the movie in seconds.
-    type: int
-    required: true
-  - name: NumOfSegments
-    description: Number of narration segments.
-    type: int
-    required: true
-  - name: SegmentDuration
-    description: Duration of each generated video segment in seconds.
-    type: int
-    required: false
   - name: Audience
     description: Target audience for tone and vocabulary.
     type: string

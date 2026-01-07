@@ -91,6 +91,73 @@ Renku is a workflow orchestration system for generating long-form video content 
 | **Connection** | A data flow edge that wires outputs to inputs across the workflow graph. |
 | **Collector** | Gathers multiple artifacts into a single collection for downstream aggregation (fan-in). |
 | **Canonical ID** | Fully qualified node identifier used throughout the system. Format: `Type:path.to.name[index]` |
+| **System Input** | A well-known input that is automatically recognized by name without YAML declaration. Includes `Duration`, `NumOfSegments`, `SegmentDuration`, `MovieId`, `StorageRoot`, `StorageBasePath`. |
+
+### System Inputs
+
+System inputs are special inputs that Renku automatically recognizes by name. **You do not need to declare these in your blueprint's `inputs:` section** - they are automatically available when referenced in connections. You only need to provide their values in the input YAML file.
+
+#### Available System Inputs
+
+| System Input | Type | Description |
+|--------------|------|-------------|
+| `Duration` | `int` | Total duration of the movie in seconds. Provided in input YAML. |
+| `NumOfSegments` | `int` | Number of segments to generate. Provided in input YAML. |
+| `SegmentDuration` | `int` | Duration of each segment. **Auto-computed** as `Duration / NumOfSegments`. |
+| `MovieId` | `string` | Unique identifier for the movie. Auto-injected by the system. |
+| `StorageRoot` | `string` | Root directory for storage. Auto-injected from CLI config. |
+| `StorageBasePath` | `string` | Base path within storage root. Auto-injected from CLI config. |
+
+#### How System Inputs Work
+
+1. **No declaration needed**: System inputs are automatically injected when referenced in blueprint edges
+2. **Provide in input YAML**: User-provided system inputs (`Duration`, `NumOfSegments`) are specified in the input template file
+3. **Auto-computed values**: `SegmentDuration` is automatically calculated as `Duration / NumOfSegments`
+4. **User overrides**: If you explicitly provide `SegmentDuration` in your input YAML, it won't be auto-computed
+
+#### Example: Using System Inputs
+
+**Blueprint (no need to declare Duration, NumOfSegments, SegmentDuration):**
+```yaml
+inputs:
+  - name: InquiryPrompt
+    type: string
+    required: true
+  - name: Style
+    type: string
+    required: true
+  # Duration, NumOfSegments, SegmentDuration are system inputs - no declaration needed!
+
+loops:
+  - name: segment
+    countInput: NumOfSegments  # References system input
+
+connections:
+  # System inputs can be used directly in connections
+  - from: Duration
+    to: ScriptProducer.Duration
+  - from: NumOfSegments
+    to: ScriptProducer.NumOfSegments
+  - from: SegmentDuration
+    to: VideoProducer[segment].Duration  # Auto-computed value
+```
+
+**Input YAML:**
+```yaml
+inputs:
+  InquiryPrompt: "The history of space exploration"
+  Style: "Documentary"
+  Duration: 60        # System input - provided by user
+  NumOfSegments: 6    # System input - provided by user
+  # SegmentDuration is auto-computed as 60/6 = 10 seconds
+```
+
+#### Benefits of System Inputs
+
+- **Less boilerplate**: No need to declare common inputs in every blueprint
+- **Automatic computation**: `SegmentDuration` is computed automatically
+- **Consistent naming**: Standardized names across all blueprints
+- **Provider access**: Timeline composers and video exporters automatically receive `MovieId`, `StorageRoot`, `StorageBasePath`
 
 ### Blueprint vs Producer
 
@@ -260,23 +327,12 @@ meta:
   license: MIT
 
 inputs:
+  # Note: Duration, NumOfSegments, SegmentDuration are system inputs
+  # They don't need to be declared here - just provide values in input YAML
   - name: InquiryPrompt
     description: The prompt describing the movie script to be generated.
     type: string
     required: true
-  - name: Duration
-    description: The desired duration of the movie in seconds.
-    type: int
-    required: true
-  - name: NumOfSegments
-    description: Number of narration segments.
-    type: int
-    required: true
-  - name: SegmentDuration
-    description: Duration of each video segment in seconds.
-    type: int
-    required: false
-    default: 10
   - name: Style
     description: Desired movie style to feed into prompt.
     type: string
@@ -295,12 +351,12 @@ artifacts:
     description: Generated video for each narration segment.
     type: array
     itemType: video
-    countInput: NumOfSegments
+    countInput: NumOfSegments  # References system input
 
 loops:
   - name: segment
     description: Iterates over narration segments.
-    countInput: NumOfSegments
+    countInput: NumOfSegments  # References system input
 
 producers:
   - name: ScriptProducer
@@ -316,9 +372,9 @@ connections:
   - from: InquiryPrompt
     to: ScriptProducer.InquiryPrompt
   - from: Duration
-    to: ScriptProducer.Duration
+    to: ScriptProducer.Duration          # System input - no declaration needed
   - from: NumOfSegments
-    to: ScriptProducer.NumOfSegments
+    to: ScriptProducer.NumOfSegments     # System input - no declaration needed
 
   # Wire script outputs to VideoPromptProducer (looped)
   - from: ScriptProducer.NarrationScript[segment]
@@ -328,7 +384,7 @@ connections:
   - from: Style
     to: VideoPromptProducer[segment].Style
   - from: SegmentDuration
-    to: VideoPromptProducer[segment].SegmentDuration
+    to: VideoPromptProducer[segment].SegmentDuration  # Auto-computed system input
 
   # Wire prompts to VideoProducer (looped)
   - from: VideoPromptProducer.VideoPrompt[segment]
@@ -338,7 +394,7 @@ connections:
   - from: AspectRatio
     to: VideoProducer[segment].AspectRatio
   - from: SegmentDuration
-    to: VideoProducer[segment].SegmentDuration
+    to: VideoProducer[segment].SegmentDuration  # Auto-computed system input
 
   # Wire video output to blueprint artifact
   - from: VideoProducer[segment].SegmentVideo
@@ -1464,16 +1520,22 @@ models:
 
 ```yaml
 inputs:
+  # User-provided inputs (declared in blueprint)
   InquiryPrompt: "Tell me about Darwin and Galapagos islands"
-  Duration: 30
-  NumOfSegments: 3
   VoiceId: Wise_Woman
   Emotion: neutral
   AspectRatio: "16:9"
   Resolution: "480p"
-  SegmentDuration: 10
   Style: "Ghibli"
+
+  # System inputs - provide here, no blueprint declaration needed
+  Duration: 30          # Total movie duration in seconds
+  NumOfSegments: 3      # Number of segments to generate
+  # SegmentDuration is auto-computed as Duration/NumOfSegments (10 seconds)
+  # Override if needed: SegmentDuration: 15
 ```
+
+**System Inputs:** `Duration` and `NumOfSegments` are system inputs - you provide their values in the input YAML but don't need to declare them in the blueprint. `SegmentDuration` is automatically computed as `Duration / NumOfSegments` unless you explicitly provide a value.
 
 ### Model Configuration
 
@@ -1548,13 +1610,17 @@ models:
 
 ```yaml
 inputs:
+  # User-provided inputs
   InquiryPrompt: "Life of Napoleon Bonaparte"
-  Duration: 20
-  NumOfSegments: 2
   NumOfImagesPerSegment: 2
   Style: "Ghibli"
   AspectRatio: "16:9"
   Size: "1K"
+
+  # System inputs - provide here, no blueprint declaration needed
+  Duration: 20          # Total movie duration
+  NumOfSegments: 2      # Number of segments
+  # SegmentDuration auto-computed as 20/2 = 10 seconds
 
 models:
   - model: gpt-5-mini
@@ -1576,7 +1642,7 @@ models:
         artifact: ImageSegments[Image]
 ```
 
-**Note:** The `promptFile` and `outputSchema` for the `DocProducer` are defined in the producer YAML file's `meta:` section. Input-to-provider field mappings (like how `AspectRatio` maps to `image_size`) are defined in the producer's `mappings:` section.
+**Note:** `Duration` and `NumOfSegments` are system inputs - you provide values here but don't declare them in the blueprint. `SegmentDuration` is auto-computed as `Duration / NumOfSegments`. The `promptFile` and `outputSchema` for LLM producers are defined in the producer YAML file's `meta:` section.
 
 ### Data Types
 

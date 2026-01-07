@@ -11,14 +11,6 @@ inputs:
     description: The prompt describing the movie script to be generated.
     type: string
     required: true
-  - name: Duration
-    description: The desired duration of the movie in seconds.
-    type: int
-    required: true
-  - name: NumOfSegments
-    description: The number of segments to divide the movie into.
-    type: int
-    required: true
   - name: NumOfImagesPerNarrative
     description: Number of images to generate per narrative text.
     type: int

@@ -19,14 +19,6 @@ inputs:
     description: The overall concept or theme of the advertisement.
     type: string
     required: true
-  - name: NumOfClips
-    description: Number of video clips to generate.
-    type: int
-    required: true
-  - name: Duration
-    description: Total duration of the ad in seconds.
-    type: int
-    required: true
   - name: Audience
     description: Target audience for the ad.
     type: string
@@ -43,10 +35,6 @@ inputs:
     description: Resolution for generated media (480p, 720p, 1080p).
     type: string
     required: true
-  - name: ClipDuration
-    description: Duration of each video clip in seconds.
-    type: int
-    required: false
   - name: VoiceId
     description: Voice identifier for narration.
     type: string
@@ -71,12 +59,12 @@ artifacts:
     description: Generated video clips.
     type: array
     itemType: video
-    countInput: NumOfClips
+    countInput: NumOfSegments
   - name: ClipAudios
     description: Generated narration audio for clips with narration.
     type: array
     itemType: audio
-    countInput: NumOfClips
+    countInput: NumOfSegments
   - name: Music
     description: Background music for the ad.
     type: audio
@@ -90,7 +78,7 @@ artifacts:
 loops:
   - name: clip
     description: Iterates over video clips.
-    countInput: NumOfClips
+    countInput: NumOfSegments
 
 producers:
   - name: AdScriptProducer
@@ -125,7 +113,7 @@ connections:
     to: AdScriptProducer.CharacterDescription
   - from: AdConcept
     to: AdScriptProducer.AdConcept
-  - from: NumOfClips
+  - from: NumOfSegments
     to: AdScriptProducer.NumOfClips
   - from: Duration
     to: AdScriptProducer.Duration
@@ -171,8 +159,8 @@ connections:
     to: VideoProducer[clip].AspectRatio
   - from: Resolution
     to: VideoProducer[clip].Resolution
-  - from: ClipDuration
-    to: VideoProducer[clip].ClipDuration
+  - from: SegmentDuration
+    to: VideoProducer[clip].Duration
 
   # === VideoProducer outputs ===
   - from: VideoProducer[clip].GeneratedVideo

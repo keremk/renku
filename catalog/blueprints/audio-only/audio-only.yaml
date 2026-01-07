@@ -11,14 +11,6 @@ inputs:
     description: The prompt describing the movie script to be generated.
     type: string
     required: true
-  - name: Duration
-    description: The desired duration of the movie in seconds.
-    type: int
-    required: true
-  - name: NumOfSegments
-    description: Number of narration segments.
-    type: int
-    required: true
   - name: VoiceId
     description: Voice preset identifier.
     type: string

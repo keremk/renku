@@ -2,7 +2,6 @@ inputs:
   InquiryPrompt: "A boy finds a wallet and embarks on a journey to find its owner."
   Duration: 20
   NumOfSegments: 2
-  SegmentDuration: "10"
   Style: "Ghibli"
   Size: "1K"
   AspectRatio: "16:9"

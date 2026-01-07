@@ -11,14 +11,6 @@ inputs:
     description: The topic describing the desired documentary.
     type: string
     required: true
-  - name: SegmentDuration
-    description: Duration of each segment in seconds.
-    type: int
-    required: true
-  - name: NumOfSegments
-    description: Number of segments.
-    type: int
-    required: true
   - name: NumOfImagesPerSegment
     description: Number of images per segment.
     type: int
@@ -39,10 +31,6 @@ inputs:
   - name: VoiceId
     description: Voice identifier.
     type: string
-    required: true
-  - name: Duration
-    description: Total duration of the movie in seconds.
-    type: int
     required: true
 
 artifacts:

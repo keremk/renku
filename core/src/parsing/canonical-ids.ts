@@ -1,4 +1,5 @@
 import type { BlueprintInputDefinition, BlueprintTreeNode } from '../types.js';
+import { SYSTEM_INPUTS } from '../types.js';
 
 /**
  * Canonical ID helpers live in parsing because parsing is the only stage
@@ -351,6 +352,19 @@ export function collectCanonicalInputs(
   return entries;
 }
 
+/**
+ * Set of system input names that are automatically recognized.
+ * These don't need to be declared in blueprint YAML.
+ */
+const SYSTEM_INPUT_NAMES: Set<string> = new Set(Object.values(SYSTEM_INPUTS));
+
+/**
+ * Returns true if the given name is a recognized system input.
+ */
+export function isSystemInput(name: string): boolean {
+  return SYSTEM_INPUT_NAMES.has(name);
+}
+
 export interface InputIdResolver {
   /**
    * Validates that a canonical input ID exists.
@@ -450,6 +464,12 @@ export function createInputIdResolver(
     if (looksLikeDecomposedArtifactPath(trimmed)) {
       // Convert to canonical artifact ID format
       return `Artifact:${trimmed}`;
+    }
+
+    // Check if it's a system input (Duration, NumOfSegments, SegmentDuration, etc.)
+    // System inputs are automatically recognized without explicit declaration in blueprint YAML
+    if (isSystemInput(trimmed)) {
+      return `Input:${trimmed}`;
     }
 
     throw new Error(

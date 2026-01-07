@@ -17,6 +17,25 @@ If you're new to Renku, start with the [Quick Start](/docs/quick-start) guide fi
 
 ## Core Concepts
 
+### System Inputs
+
+System inputs are special inputs that Renku automatically recognizes by name. **You do not need to declare these in your blueprint's `inputs:` section** - they are automatically available when referenced in connections.
+
+| System Input | Type | Description |
+|--------------|------|-------------|
+| `Duration` | `int` | Total duration of the movie in seconds. Provided in input YAML. |
+| `NumOfSegments` | `int` | Number of segments to generate. Provided in input YAML. |
+| `SegmentDuration` | `int` | Duration of each segment. **Auto-computed** as `Duration / NumOfSegments`. |
+| `MovieId` | `string` | Unique identifier for the movie. Auto-injected by the system. |
+| `StorageRoot` | `string` | Root directory for storage. Auto-injected from CLI config. |
+| `StorageBasePath` | `string` | Base path within storage root. Auto-injected from CLI config. |
+
+**How it works:**
+- System inputs are automatically injected when referenced in blueprint connections
+- `Duration` and `NumOfSegments` values are provided in the input YAML file
+- `SegmentDuration` is auto-computed as `Duration / NumOfSegments` (unless you provide it explicitly)
+- Timeline composers and video exporters automatically receive `MovieId`, `StorageRoot`, `StorageBasePath`
+
 ### Blueprint vs Producer
 
 **Blueprints** are workflow definitions that:
@@ -151,17 +170,11 @@ meta:
   license: MIT
 
 inputs:
+  # Note: Duration, NumOfSegments, SegmentDuration are system inputs
+  # They don't need to be declared - just provide values in input YAML
   - name: InquiryPrompt
     description: The prompt describing the movie script.
     type: string
-    required: true
-  - name: Duration
-    description: Desired duration in seconds.
-    type: int
-    required: true
-  - name: NumOfSegments
-    description: Number of narration segments.
-    type: int
     required: true
   - name: Style
     description: Visual style for the video.
@@ -173,12 +186,12 @@ artifacts:
     description: Generated video for each segment.
     type: array
     itemType: video
-    countInput: NumOfSegments
+    countInput: NumOfSegments  # References system input
 
 loops:
   - name: segment
     description: Iterates over narration segments.
-    countInput: NumOfSegments
+    countInput: NumOfSegments  # References system input
 
 producers:
   - name: ScriptProducer
@@ -194,19 +207,23 @@ connections:
   - from: InquiryPrompt
     to: ScriptProducer.InquiryPrompt
   - from: Duration
-    to: ScriptProducer.Duration
+    to: ScriptProducer.Duration           # System input - no declaration needed
   - from: NumOfSegments
-    to: ScriptProducer.NumOfSegments
+    to: ScriptProducer.NumOfSegments      # System input - no declaration needed
 
   # Wire script to VideoPromptProducer (looped)
   - from: ScriptProducer.NarrationScript[segment]
     to: VideoPromptProducer[segment].NarrativeText
   - from: Style
     to: VideoPromptProducer[segment].Style
+  - from: SegmentDuration
+    to: VideoPromptProducer[segment].SegmentDuration  # Auto-computed
 
   # Wire prompts to VideoProducer (looped)
   - from: VideoPromptProducer.VideoPrompt[segment]
     to: VideoProducer[segment].Prompt
+  - from: SegmentDuration
+    to: VideoProducer[segment].Duration   # Auto-computed
 
   # Wire output to blueprint artifact
   - from: VideoProducer[segment].SegmentVideo
@@ -900,11 +917,16 @@ For incremental runs:
 
 ```yaml
 inputs:
+  # User-provided inputs
   InquiryPrompt: "Your topic here"
-  Duration: 60
-  NumOfSegments: 3
   Style: "Documentary"
   AspectRatio: "16:9"
+
+  # System inputs - provide values here, no blueprint declaration needed
+  Duration: 60          # Total movie duration in seconds
+  NumOfSegments: 3      # Number of segments to generate
+  # SegmentDuration is auto-computed as Duration/NumOfSegments (20 seconds)
+  # You can override it: SegmentDuration: 15
 
 models:
   - model: gpt-5-mini

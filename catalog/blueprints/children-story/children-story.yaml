@@ -11,14 +11,6 @@ inputs:
     description: The main description of what the children's story should be about.
     type: string
     required: true
-  - name: Duration
-    description: Total duration of the video in seconds.
-    type: int
-    required: true
-  - name: NumOfSegments
-    description: Number of scenes/segments in the story.
-    type: int
-    required: true
   - name: NumOfCharacters
     description: Number of main characters (1-4).
     type: int

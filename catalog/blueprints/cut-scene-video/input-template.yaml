@@ -6,7 +6,6 @@ inputs:
   Emotion: neutral
   AspectRatio: "16:9"
   Resolution: "480p"
-  SegmentDuration: 10
   Style: "Ghibli"
   Audience: Adult
   Language: en

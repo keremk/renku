@@ -924,6 +924,167 @@ describe('edge cases', () => {
     expect(storageBasePathNode?.input?.type).toBe('string');
   });
 
+  it('does not auto-inject system inputs into producer children - producers must declare their inputs', () => {
+    // Test scenario: A producer YAML declares "Duration" as an input (part of its interface).
+    // The blueprint routes "SegmentDuration" (a system input) to "Producer.Duration".
+    // The producer's "Duration" is NOT a system input - it's a regular input that must be declared.
+    // System input injection only happens at the ROOT blueprint level.
+
+    const producerDoc = makeBlueprintDocument(
+      'ScriptProducer',
+      [
+        // Producer MUST declare Duration as an input - it's part of its interface
+        { name: 'Duration', type: 'int', required: true },
+        { name: 'Prompt', type: 'string', required: true },
+      ],
+      [{ name: 'Script', type: 'string' }],
+      [{ name: 'LLM', provider: 'openai', model: 'gpt' }],
+      [
+        { from: 'Prompt', to: 'LLM' },
+        { from: 'Duration', to: 'LLM' },
+        { from: 'LLM', to: 'Script' },
+      ],
+    );
+
+    const rootDoc = makeBlueprintDocument(
+      'Root',
+      [
+        // Only Prompt is declared - SegmentDuration is a system input (auto-injected)
+        { name: 'Prompt', type: 'string', required: true },
+      ],
+      [{ name: 'Output', type: 'string' }],
+      [],
+      [
+        { from: 'Prompt', to: 'ScriptProducer.Prompt' },
+        // Route SegmentDuration (system input) to producer's Duration input
+        { from: 'SegmentDuration', to: 'ScriptProducer.Duration' },
+        { from: 'ScriptProducer.Script', to: 'Output' },
+      ],
+    );
+
+    const tree: BlueprintTreeNode = {
+      ...makeTreeNode(rootDoc, []),
+      children: new Map([
+        ['ScriptProducer', makeTreeNode(producerDoc, ['ScriptProducer'])],
+      ]),
+    };
+
+    const graph = buildBlueprintGraph(tree);
+
+    // Verify: SegmentDuration is auto-injected at ROOT level (system input)
+    const segmentDurationNode = graph.nodes.find(
+      (n) => n.type === 'InputSource' && n.name === 'SegmentDuration' && n.namespacePath.length === 0
+    );
+    expect(segmentDurationNode).toBeDefined();
+    expect(segmentDurationNode?.input?.required).toBe(false); // System inputs are optional
+
+    // Verify: Producer's Duration is a regular input (declared in producer YAML)
+    const producerDurationNode = graph.nodes.find(
+      (n) => n.type === 'InputSource' && n.name === 'Duration' && n.namespacePath.includes('ScriptProducer')
+    );
+    expect(producerDurationNode).toBeDefined();
+    expect(producerDurationNode?.input?.required).toBe(true); // As declared in producer YAML
+
+    // Verify: Edge connects root-level SegmentDuration to producer's Duration
+    const edgeFromSegmentDuration = graph.edges.find(
+      (e) => e.from.nodeId === 'SegmentDuration' && e.to.nodeId === 'ScriptProducer.Duration'
+    );
+    expect(edgeFromSegmentDuration).toBeDefined();
+
+    // Verify: There is NO root-level Duration node (it was not referenced in root edges)
+    const rootDurationNode = graph.nodes.find(
+      (n) => n.type === 'InputSource' && n.name === 'Duration' && n.namespacePath.length === 0
+    );
+    expect(rootDurationNode).toBeUndefined();
+  });
+
+  it('allows routing different system inputs to producer Duration input', () => {
+    // Test scenario: Blueprint can route EITHER Duration OR SegmentDuration to producer
+    // This demonstrates that producer's Duration input is just a regular input,
+    // not magically connected to any system input.
+
+    const producerDoc = makeBlueprintDocument(
+      'VideoProducer',
+      [
+        { name: 'Duration', type: 'int', required: true }, // Producer declares Duration input
+        { name: 'Prompt', type: 'string', required: true },
+      ],
+      [{ name: 'Video', type: 'video' }],
+      [{ name: 'Generator', provider: 'fal-ai', model: 'video' }],
+      [
+        { from: 'Prompt', to: 'Generator' },
+        { from: 'Duration', to: 'Generator' },
+        { from: 'Generator', to: 'Video' },
+      ],
+    );
+
+    // First: Blueprint routes Duration (full duration) to producer
+    const rootDocWithDuration = makeBlueprintDocument(
+      'Root',
+      [{ name: 'Prompt', type: 'string', required: true }],
+      [{ name: 'Output', type: 'video' }],
+      [],
+      [
+        { from: 'Prompt', to: 'VideoProducer.Prompt' },
+        { from: 'Duration', to: 'VideoProducer.Duration' }, // Route Duration system input
+        { from: 'VideoProducer.Video', to: 'Output' },
+      ],
+    );
+
+    const treeWithDuration: BlueprintTreeNode = {
+      ...makeTreeNode(rootDocWithDuration, []),
+      children: new Map([
+        ['VideoProducer', makeTreeNode(producerDoc, ['VideoProducer'])],
+      ]),
+    };
+
+    const graphWithDuration = buildBlueprintGraph(treeWithDuration);
+
+    // Verify: Duration system input is injected and routed to producer
+    const durationNode = graphWithDuration.nodes.find(
+      (n) => n.type === 'InputSource' && n.name === 'Duration' && n.namespacePath.length === 0
+    );
+    expect(durationNode).toBeDefined();
+
+    const edgeFromDuration = graphWithDuration.edges.find(
+      (e) => e.from.nodeId === 'Duration' && e.to.nodeId === 'VideoProducer.Duration'
+    );
+    expect(edgeFromDuration).toBeDefined();
+
+    // Second: Blueprint routes SegmentDuration to the same producer input
+    const rootDocWithSegmentDuration = makeBlueprintDocument(
+      'Root',
+      [{ name: 'Prompt', type: 'string', required: true }],
+      [{ name: 'Output', type: 'video' }],
+      [],
+      [
+        { from: 'Prompt', to: 'VideoProducer.Prompt' },
+        { from: 'SegmentDuration', to: 'VideoProducer.Duration' }, // Route SegmentDuration instead
+        { from: 'VideoProducer.Video', to: 'Output' },
+      ],
+    );
+
+    const treeWithSegmentDuration: BlueprintTreeNode = {
+      ...makeTreeNode(rootDocWithSegmentDuration, []),
+      children: new Map([
+        ['VideoProducer', makeTreeNode(producerDoc, ['VideoProducer'])],
+      ]),
+    };
+
+    const graphWithSegmentDuration = buildBlueprintGraph(treeWithSegmentDuration);
+
+    // Verify: SegmentDuration system input is injected and routed to producer
+    const segmentDurationNode = graphWithSegmentDuration.nodes.find(
+      (n) => n.type === 'InputSource' && n.name === 'SegmentDuration' && n.namespacePath.length === 0
+    );
+    expect(segmentDurationNode).toBeDefined();
+
+    const edgeFromSegmentDuration = graphWithSegmentDuration.edges.find(
+      (e) => e.from.nodeId === 'SegmentDuration' && e.to.nodeId === 'VideoProducer.Duration'
+    );
+    expect(edgeFromSegmentDuration).toBeDefined();
+  });
+
   it('connects whole collection artifact to collection input (non-indexed binding)', () => {
     // Test scenario: A collection artifact is connected directly to a collection input
     // without using element indices. This is the "whole-collection binding" pattern.

@@ -25,8 +25,10 @@ import {
   parseQualifiedProducerName,
   createInputIdResolver,
   looksLikeDecomposedArtifactPath,
+  isSystemInput,
 } from './canonical-ids.js';
 import type { BlueprintTreeNode } from '../types.js';
+import { SYSTEM_INPUTS } from '../types.js';
 
 describe('Validators', () => {
   describe('isCanonicalInputId', () => {
@@ -92,6 +94,50 @@ describe('Validators', () => {
       expect(getCanonicalIdType('Topic')).toBe(null);
       expect(getCanonicalIdType('Invalid:Something')).toBe(null);
       expect(getCanonicalIdType('')).toBe(null);
+    });
+  });
+
+  describe('isSystemInput', () => {
+    it('returns true for all system inputs', () => {
+      expect(isSystemInput(SYSTEM_INPUTS.DURATION)).toBe(true);
+      expect(isSystemInput(SYSTEM_INPUTS.NUM_OF_SEGMENTS)).toBe(true);
+      expect(isSystemInput(SYSTEM_INPUTS.SEGMENT_DURATION)).toBe(true);
+      expect(isSystemInput(SYSTEM_INPUTS.MOVIE_ID)).toBe(true);
+      expect(isSystemInput(SYSTEM_INPUTS.STORAGE_ROOT)).toBe(true);
+      expect(isSystemInput(SYSTEM_INPUTS.STORAGE_BASE_PATH)).toBe(true);
+    });
+
+    it('returns true for system input string values', () => {
+      expect(isSystemInput('Duration')).toBe(true);
+      expect(isSystemInput('NumOfSegments')).toBe(true);
+      expect(isSystemInput('SegmentDuration')).toBe(true);
+      expect(isSystemInput('MovieId')).toBe(true);
+      expect(isSystemInput('StorageRoot')).toBe(true);
+      expect(isSystemInput('StorageBasePath')).toBe(true);
+    });
+
+    it('returns false for non-system inputs', () => {
+      expect(isSystemInput('Topic')).toBe(false);
+      expect(isSystemInput('InquiryPrompt')).toBe(false);
+      expect(isSystemInput('VoiceId')).toBe(false);
+      expect(isSystemInput('CustomInput')).toBe(false);
+    });
+
+    it('returns false for empty string', () => {
+      expect(isSystemInput('')).toBe(false);
+    });
+
+    it('is case-sensitive', () => {
+      expect(isSystemInput('duration')).toBe(false);
+      expect(isSystemInput('DURATION')).toBe(false);
+      expect(isSystemInput('numOfSegments')).toBe(false);
+    });
+
+    it('returns false for system input with prefix/suffix', () => {
+      expect(isSystemInput('Input:Duration')).toBe(false);
+      expect(isSystemInput('Duration:')).toBe(false);
+      expect(isSystemInput('MyDuration')).toBe(false);
+      expect(isSystemInput('DurationValue')).toBe(false);
     });
   });
 });
@@ -422,6 +468,92 @@ describe('InputIdResolver', () => {
     it('throws for unknown canonical ID', () => {
       const resolver = createInputIdResolver(createTestTree());
       expect(() => resolver.toCanonical('Input:Unknown')).toThrow('Unknown canonical input id');
+    });
+  });
+
+  describe('toCanonical() - system input recognition', () => {
+    it('converts Duration system input to canonical ID', () => {
+      const resolver = createInputIdResolver(createTestTree());
+      expect(resolver.toCanonical('Duration')).toBe('Input:Duration');
+    });
+
+    it('converts NumOfSegments system input to canonical ID', () => {
+      const resolver = createInputIdResolver(createTestTree());
+      expect(resolver.toCanonical('NumOfSegments')).toBe('Input:NumOfSegments');
+    });
+
+    it('converts SegmentDuration system input to canonical ID', () => {
+      const resolver = createInputIdResolver(createTestTree());
+      expect(resolver.toCanonical('SegmentDuration')).toBe('Input:SegmentDuration');
+    });
+
+    it('converts MovieId system input to canonical ID', () => {
+      const resolver = createInputIdResolver(createTestTree());
+      expect(resolver.toCanonical('MovieId')).toBe('Input:MovieId');
+    });
+
+    it('converts StorageRoot system input to canonical ID', () => {
+      const resolver = createInputIdResolver(createTestTree());
+      expect(resolver.toCanonical('StorageRoot')).toBe('Input:StorageRoot');
+    });
+
+    it('converts StorageBasePath system input to canonical ID', () => {
+      const resolver = createInputIdResolver(createTestTree());
+      expect(resolver.toCanonical('StorageBasePath')).toBe('Input:StorageBasePath');
+    });
+
+    it('recognizes system inputs even when not declared in blueprint', () => {
+      // Create a minimal tree with no inputs declared
+      const emptyTree: BlueprintTreeNode = {
+        id: 'EmptyBlueprint',
+        namespacePath: [],
+        document: {
+          meta: { id: 'EmptyBlueprint', name: 'Empty Blueprint' },
+          inputs: [], // No declared inputs
+          artefacts: [],
+          producers: [],
+          producerImports: [],
+          edges: [],
+        },
+        children: new Map(),
+        sourcePath: '/test/empty-blueprint.yaml',
+      };
+      const resolver = createInputIdResolver(emptyTree);
+
+      // System inputs should still be recognized
+      expect(resolver.toCanonical('Duration')).toBe('Input:Duration');
+      expect(resolver.toCanonical('NumOfSegments')).toBe('Input:NumOfSegments');
+      expect(resolver.toCanonical('SegmentDuration')).toBe('Input:SegmentDuration');
+    });
+
+    it('prefers declared input over system input if names match', () => {
+      // Create a tree where "Duration" is explicitly declared
+      const treeWithDuration: BlueprintTreeNode = {
+        id: 'TestBlueprint',
+        namespacePath: [],
+        document: {
+          meta: { id: 'TestBlueprint', name: 'Test Blueprint' },
+          inputs: [
+            { name: 'Duration', type: 'number', required: true }, // Explicitly declared
+          ],
+          artefacts: [],
+          producers: [],
+          producerImports: [],
+          edges: [],
+        },
+        children: new Map(),
+        sourcePath: '/test/mock-blueprint.yaml',
+      };
+      const resolver = createInputIdResolver(treeWithDuration);
+
+      // Should resolve via the declared input path (qualified name), not system input
+      expect(resolver.toCanonical('Duration')).toBe('Input:Duration');
+    });
+
+    it('handles whitespace around system input names', () => {
+      const resolver = createInputIdResolver(createTestTree());
+      expect(resolver.toCanonical('  Duration  ')).toBe('Input:Duration');
+      expect(resolver.toCanonical('\tNumOfSegments\t')).toBe('Input:NumOfSegments');
     });
   });
 

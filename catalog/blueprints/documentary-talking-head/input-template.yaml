@@ -7,7 +7,6 @@ inputs:
   AspectRatio: '16:9'
   Resolution: '480p'
   Size: '1K'
-  SegmentDuration: 10
   Style: 'Ultra Realistic'
   TalkingHeadVoiceId: "Aria"
 

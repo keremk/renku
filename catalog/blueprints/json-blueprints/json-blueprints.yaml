@@ -11,14 +11,6 @@ inputs:
     description: The topic describing the desired documentary.
     type: string
     required: true
-  - name: Duration
-    description: Desired narration duration in seconds.
-    type: int
-    required: true
-  - name: NumOfSegments
-    description: Number of narration segments.
-    type: int
-    required: true
   - name: NumOfImagesPerSegment
     description: Number of images per segment.
     type: int
