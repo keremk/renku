@@ -10,6 +10,7 @@ import {
   planStore,
   persistInputBlob,
   inferMimeType,
+  validateBlueprintTree,
   type InputEvent,
   type Manifest,
   type ExecutionPlan,
@@ -95,6 +96,15 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
   const blueprintPath = expandPath(options.usingBlueprint);
   const catalogRoot = cliConfig.catalog?.root ?? undefined;
   const { root: blueprintRoot } = await loadBlueprintBundle(blueprintPath, { catalogRoot });
+
+  // Validate blueprint before proceeding
+  const validation = validateBlueprintTree(blueprintRoot, { errorsOnly: true });
+  if (!validation.valid) {
+    const errorMessages = validation.errors
+      .map((e) => `  ${e.code}: ${e.message}`)
+      .join('\n');
+    throw new Error(`Blueprint validation failed:\n${errorMessages}`);
+  }
 
   const { values: inputValues, providerOptions, artifactOverrides } = await loadInputsFromYaml(
     options.inputsPath,
