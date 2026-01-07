@@ -26,44 +26,53 @@ cat ~/.config/renku/cli-config.json
 
 ### Step 1: Essential Questions for Requirements
 
-Before creating a blueprint, ensure that this information is available in your context and if not ask the user for clarification using the **AskUserQuestion** tool.
-
-#### Description of the workflow in words
-The workflow is clearly stated in natural language. It includes a starting point (a prompt producer), how its outputs are used by downstream producers and how they are composed together to form the final workflow. Here is all the required information:
-- Folder containing starting point plan producer, with the YAML file that describes the inputs and outputs, JSON schema file for structured content output and a TOML file that describes the system and user prompts with variable substitutions. 
-- Verbal description of different types of media to be used in the video. 
+The workflow and type of video needs to be clearly stated in natural language. It includes what the expected type of output video is, the types of artifacts (different types of media) that will be used in creating it and how they are supposed to come together in the final video.
 
 Below are some examples and what you can deduce:
-**IMPORTANT** If you cannot deduce or have doubts, always use the **AskUserQuestion** tool to clarify.
+> **IMPORTANT** If you cannot deduce or have doubts, always use the **AskUserQuestion** tool to clarify.
 
 **Example 1**
-User Prompt: Use the @link/to/folder producer to plan the documentary video. The video will optionally contain KenBurns style image transitions, video clips for richer presentation, optional video clips where an expert talks about some facts, a background audio narrative for the images and videos and a background music.
+User Prompt: I want to build short documentary style videos. The video will optionally contain KenBurns style image transitions, video clips for richer presentation, optional video clips where an expert talks about some facts, a background audio narrative for the images and videos and a background music.
 
 With the above user provided summary, you know:
-- The exact producer to plan the overall video with the output schema that tells what artifacts (prompts, conditionals, text for audio narration etc.) it will generate.
-- The producers to use for media generation: text-to-audio for narrative audio, text-to-video for optional video segments, text-to-image for optional image segments, text-to-talking-head for optional video clips with audio narration by an expert, text-to-music for music generation.
+- The end video is a documentary style video, which will help in generating the necessary prompts.
+- What kind of artifacts you will need to be producing to put together the final video. This includes:
+  - Image generations (possibly multiple per segment),
+  - Video generations for richer video depiction where Ken Burns style images are not sufficient,
+  - Video generations with audio, where a person is talking and giving information,
+  - Background audio narrative, which means some text script and text-to-speech audio generation for segments,
+  - Background music to give a relevant ambience to the overall narrative 
 - Your final composition will be composed of 4 tracks and a user configurable number of segments. 
   - Track 1: Audio for narrative 
   - Track 2: Video for video clips and talking head videos
   - Track 3: Image for images to be used with KenBurns style effects.
   - Track 4: Music for background music
-- Each segment may or may not have assets for each track depending on how the plan producer lays out the flow with the conditionals it generate.
+- The initial prompt producer (director of the video), will determine the script, what type of segments to generate, what type of media to include for the best results in each segment and prompts for each of those generation and text for the narrative scripts.
 
 In catalog, we have an example of this blueprint: `catalog/blueprints/documentary-talking-head`
 
 **Example 2**
-User Prompt: Use the @link/to/folder producer to plan a commercial that depicts the use a product by a character. The character image should be generated and consistent throughout. There are various video clips that depicts the use of the product. Some video clips may use audio. There should be background music.
+User Prompt: I want to create Ad videos. We will have a character in various video clips using a product. The character and product shot should be generated. The ad should also
+have a background music. The video clips will have audio, so we want to be able to provide a written script to each one.
 
 With the above user provided summary, you know:
-- The exact producer to plan the overall video with the output schema that tells what artifacts 
-- The producers to use for media generation: text-to-image for character image, image-to-video for video clips and using audio (or text to be used as audio), text-to-music
-- Your final composition will be composed of 2 tracks and a user configurable number of segments. 
-  - Track 1: Video 
-  - Track 2: Music
+- The end video is a commercial that depicts a character using a product and a narrative that sells the product.
+- What kind of artifacts you will need to be producing to put together the final video. This includes:
+  - Image generation to generate a character image which will be used in the videos as the hero character using the product
+  - Image generation to generate the product image which will be advertised and the character will use it in different situations
+  - An audio narrative that sells the product, a text-to-speech generated audio
+  - Background music that fits the tone and style of the commercial
+- Your final composition will be composed of 3 tracks and a user configurable number of clips.
+  - Track 1: Video (the generated video clips)
+  - Track 2: Audio (narration)
+  - Track 3: Music (background music)
+- The initial prompt producer (director of the video), will determine the script, what type of segments to generate, what type of media to include for the best results in each segment and prompts for each of those generation and text for the narrative scripts.
+
+In catalog, we have an example of this blueprint: `catalog/blueprints/ad-video`
 
 ### Step 2: Implicit Requirements 
 
-These are requirements that the user does not specify everytime, but you should always include. The end users using the blueprint to generate videos will always want to configure these: 
+These are requirements that the user does not specify everytime, but you should always include as inputs to the blueprint. The end users using the blueprint to generate videos will always want to configure these: 
 
 **Duration and structure?**
   - Total video length in seconds
@@ -75,14 +84,9 @@ These are requirements that the user does not specify everytime, but you should 
   - Aspect ratio (16:9, 9:16, 1:1)
   - Resolution (480p, 720p, 1080p)
 
-### Step 3: Determine the Inputs and Artifacts
+### Step 3: Define the Blueprint Structure
 
-Based on the requirements gathering and the selected producers, determine what inputs will be needed from the user to do the full video generation.
-- Minimal set of required inputs, various producers and models have default values that are already good enough. Do not overwhelm the user to specify all of those inputs and rely on the defaults when they make sense.
-
-### Step 4: Define the Blueprint Structure
-
-A blueprint has these sections, you will need to be filling these as you go along the process.
+A blueprint has these sections, you will need to be filling these as you go along the process. This will serve as your planning to make sure you correctly created a blueprint that uses this structure
 
 ```yaml
 meta:
@@ -119,6 +123,20 @@ connections:
     to: <target>
     if: <optional condition name>
 
+# Connection patterns:
+# - Direct: InquiryPrompt → ScriptProducer.InquiryPrompt
+# - Looped: Script[segment] → AudioProducer[segment].TextInput
+# - Broadcast: Style → VideoProducer[segment].Style
+# - Offset: Image[i] → Video[segment].Start, Image[i+1] → Video[segment].End
+# - Indexed collection: CharacterImage → VideoProducer[clip].ReferenceImages[0]
+#                       ProductImage → VideoProducer[clip].ReferenceImages[1]
+# - Multi-index (nested loops): ImagePrompt[segment][image] → ImageProducer[segment][image].Prompt
+# - Fan-in (REQUIRES BOTH connection AND collector):
+#     Connection: ImageProducer[segment][image].GeneratedImage → TimelineComposer.ImageSegments
+#     Collector:  from: ImageProducer[segment][image].GeneratedImage
+#                 into: TimelineComposer.ImageSegments
+#                 groupBy: segment, orderBy: image
+
 conditions:
   <conditionName>:
     when: <artifact path>
@@ -132,13 +150,24 @@ collectors:
     orderBy: <optional ordering dimension>
 ```
 
-Use `docs/comprehensive-blueprint-guide.md` for a comprehensive explanation of the blueprints and how to connect nodes based on the requirements you gathered. You can also always use some examples from the catalog. 
+### Step 4: Determine the Inputs and Artifacts
 
-- Create the blueprint in the root folder of the workspace, which you can always find in: `~/.config/renku/cli-config.json`
+Based on the requirements gathering and the selected producers, determine what inputs will be needed from the user to do the full video generation.
+> **IMPORTANT** Minimal set of required inputs, various producers and models have default values that are already good enough. Do not overwhelm the user to specify all of those inputs and rely on the defaults when they make sense.
 
-## Validation & Testing
+### Step 5: Determine which Asset Producers to Use
 
-### Validate Blueprint Structure
+You can use the `docs\models-guide.md` document to decide which asset producers you will need to generate the types of assets. This document gives the necessary background to decide on what asset producers to pick for media generation. 
+
+### Step 6: Create the Initial Prompt Producer (aka the Director)
+
+You can use the `docs\prompt-producer-guide.md` to understand what files are needed and how to generate the prompt producers. The output of this file will be a JSON structured output, which you will be using to connect to various media producers in the blueprint.
+
+### Step 7: Create the Connection Graph
+
+Use `docs/comprehensive-blueprint-guide.md` for a comprehensive explanation of the blueprints and how to connect nodes based on the prompt producer you created and the asset producers you identified. You can also always use some examples from the catalog. 
+
+### Step 8: Validate Blueprint Structure
 This validates that the blueprint can be parsed and structurally connect, but it does not validate that it will be producing the intended video without errors.
 
 ```bash
@@ -150,9 +179,15 @@ Expected output:
 - Node and edge counts
 - Error messages if invalid
 
-### Test with Dry Run
+### Step 9: Test with Dry Run
 
-Create a minimal inputs file (based on the requirements and also what the producers expect)
+Create a minimal inputs file (based on the requirements and also what the producers expect). At this stage you will also need to pick some models for the dry-run. These models should be selected from each of the producer YAML file's mappings section (which identifies which models are compatible with that producer)
+
+For detailed model information:
+- [video-models.md](./docs/video-models.md) - Video model comparisons (Veo, Seedance, Kling, etc.)
+- [image-models.md](./docs/image-models.md) - Image model comparisons (SeedDream, Flux, Qwen, etc.)
+- [audio-models.md](./docs/audio-models.md) - Audio/speech/music model comparisons
+
 > **IMPORTANT** Producers specify a lot of possible inputs for completeness, but most of them have default values. DO NOT PROVIDE VALUES for those defaults. 
 > **IMPORTANT** Models will be picked by end user when generating a video, in the dry-run just pick one of the models in the list of supported models for that producer (in the YAML file). 
 
@@ -188,13 +223,45 @@ renku generate --blueprint=<path> --inputs=<path> --dry-run
 | `inconsistent dimension counts` | Mismatched indices | Ensure source/target dimensions align |
 | `Producer graph contains a cycle` | Circular dependency | Check connections for loops |
 | `Missing producer catalog entry` | Wrong producer path | Verify `path:` in producers section |
+| TimelineComposer has empty inputs | Missing connection to fan-in input | Add BOTH a connection AND a collector (see below) |
 
-## Reference Documentation
+## Critical: Fan-In Pattern for TimelineComposer
 
-For comprehensive information:
-- [comprehensive-blueprint-guide.md](./docs/comprehensive-blueprint-guide.md) - Full YAML schema and examples
+**Users frequently forget this:** TimelineComposer (and other fan-in consumers) require BOTH:
+1. A **connection** from the source to the fan-in input
+2. A **collector** that defines how to group and order the items
 
-For live examples, find the catalog path in `~/.config/renku/cli-config.json` and explore:
+```yaml
+# WRONG - Only collector, no connection (TimelineComposer won't receive data!)
+collectors:
+  - name: TimelineImages
+    from: ImageProducer[segment][image].GeneratedImage
+    into: TimelineComposer.ImageSegments
+    groupBy: segment
+    orderBy: image
+
+# CORRECT - Both connection AND collector
+connections:
+  - from: ImageProducer[segment][image].GeneratedImage
+    to: TimelineComposer.ImageSegments  # <-- THIS IS REQUIRED!
+
+collectors:
+  - name: TimelineImages
+    from: ImageProducer[segment][image].GeneratedImage
+    into: TimelineComposer.ImageSegments
+    groupBy: segment
+    orderBy: image
+```
+
+**Why both are needed:**
+- The **connection** creates the data flow edge in the graph
+- The **collector** tells the runtime HOW to group/order the data
+
+See `catalog/blueprints/kenn-burns/image-audio.yaml` for a complete example.
+
+## Examples
+
+For examples, find the catalog path in `~/.config/renku/cli-config.json` and explore:
 - `<catalog>/blueprints/` - Blueprint examples
 - `<catalog>/producers/` - Producer definitions
 - `<catalog>/models/` - Model definitions together with their input JSON schemas
