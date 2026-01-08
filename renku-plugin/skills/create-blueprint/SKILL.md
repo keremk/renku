@@ -22,6 +22,27 @@ Read `~/.config/renku/cli-config.json` to find the **catalog** path, you will be
 cat ~/.config/renku/cli-config.json
 ```
 
+## Where to Create Blueprints
+
+Each user create blueprint should be within a project folder. Project folders are under the root folder. 
+> **IMPORTANT** Do not create new blueprints or prompt producer files under the catalog
+
+Root
+├── catalog     (this is where example blueprints, producer asset YAML files, models, and example prompt producer files are located)
+| 
+├── <project-name>
+      | 
+      ├── <new-blueprint.yaml>
+      ├── <new-inputs.yaml>
+      ├── <new-prompt-producer>
+            ├── <new-output-schema.json>
+            ├── <new-producer.yaml>
+            ├── <new-prompts.toml>
+
+- Create a concise (2-3 words max) project name (based on the user prompt) in kebab case and make a folder
+- Inside the project you will be creating all the necessary files and folders as you proceed the task. 
+- **IMPORTANT** Do not use hardcoded paths but use the relative ones. In blueprint producer import declarations, you should be using "producer" keyword so that you don't need to provide a specific path. For the prompt producers, create a folder and use relative paths within that folder to import the JSON schema and TOML prompts file.
+
 ## How to Create Blueprints
 
 ### Step 1: Essential Questions for Requirements
