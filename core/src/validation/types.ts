@@ -69,20 +69,22 @@ export interface ValidatorOptions {
  * W-codes are soft warnings that don't invalidate the blueprint.
  */
 export const ValidationErrorCode = {
-  // Connection endpoint errors (E001-E006)
+  // Connection endpoint errors (E001-E007)
   INVALID_CONNECTION_SOURCE: 'E001',
   INVALID_CONNECTION_TARGET: 'E002',
   PRODUCER_NOT_FOUND: 'E003',
   INPUT_NOT_FOUND: 'E004',
   ARTIFACT_NOT_FOUND: 'E005',
   INVALID_NESTED_PATH: 'E006',
+  DIMENSION_MISMATCH: 'E007',
 
   // Producer input/output matching errors (E010-E011)
   PRODUCER_INPUT_MISMATCH: 'E010',
   PRODUCER_OUTPUT_MISMATCH: 'E011',
 
-  // Loop validation errors (E020)
+  // Loop validation errors (E020-E021)
   LOOP_COUNTINPUT_NOT_FOUND: 'E020',
+  PRODUCER_CYCLE: 'E021',
 
   // Artifact validation errors (E030)
   ARTIFACT_COUNTINPUT_NOT_FOUND: 'E030',

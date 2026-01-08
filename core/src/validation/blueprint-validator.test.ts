@@ -10,6 +10,8 @@ import {
   validateCollectorConnections,
   validateConditionPaths,
   validateTypes,
+  validateProducerCycles,
+  validateDimensionConsistency,
   findUnusedInputs,
   findUnusedArtifacts,
   findUnreachableProducers,
@@ -853,5 +855,283 @@ describe('recursive validation', () => {
         }),
       }),
     );
+  });
+});
+
+describe('validateProducerCycles', () => {
+  it('detects simple two-node cycle', () => {
+    const doc = createDocument({
+      producerImports: [
+        { name: 'ProducerA' },
+        { name: 'ProducerB' },
+      ],
+      edges: [
+        { from: 'ProducerA.Output', to: 'ProducerB.Input' },
+        { from: 'ProducerB.Output', to: 'ProducerA.Input' },
+      ],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateProducerCycles(tree);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.PRODUCER_CYCLE,
+        message: expect.stringMatching(/cycle.*ProducerA.*ProducerB.*ProducerA/i),
+      }),
+    );
+  });
+
+  it('detects multi-node cycle', () => {
+    const doc = createDocument({
+      producerImports: [
+        { name: 'ProducerA' },
+        { name: 'ProducerB' },
+        { name: 'ProducerC' },
+      ],
+      edges: [
+        { from: 'ProducerA.Output', to: 'ProducerB.Input' },
+        { from: 'ProducerB.Output', to: 'ProducerC.Input' },
+        { from: 'ProducerC.Output', to: 'ProducerA.Input' },
+      ],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateProducerCycles(tree);
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({
+      code: ValidationErrorCode.PRODUCER_CYCLE,
+    });
+  });
+
+  it('does not report false positives for valid DAG', () => {
+    const doc = createDocument({
+      producerImports: [
+        { name: 'ProducerA' },
+        { name: 'ProducerB' },
+        { name: 'ProducerC' },
+      ],
+      edges: [
+        { from: 'ProducerA.Output', to: 'ProducerB.Input' },
+        { from: 'ProducerA.Output', to: 'ProducerC.Input' },
+        { from: 'ProducerB.Output', to: 'ProducerC.OtherInput' },
+      ],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateProducerCycles(tree);
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it('handles self-referencing edges gracefully', () => {
+    // Self-reference (A -> A) is not a cycle in traditional graph sense
+    // since we filter fromProducer !== toProducer
+    const doc = createDocument({
+      producerImports: [{ name: 'ProducerA' }],
+      edges: [
+        { from: 'ProducerA.Output', to: 'ProducerA.Input' },
+      ],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateProducerCycles(tree);
+
+    // Self-references are filtered out (not considered cycles in this validator)
+    expect(issues).toHaveLength(0);
+  });
+
+  it('ignores edges from/to inputs and artifacts', () => {
+    const doc = createDocument({
+      inputs: [{ name: 'Input', type: 'string', required: true }],
+      artefacts: [{ name: 'Output', type: 'string', required: true }],
+      producerImports: [{ name: 'Producer' }],
+      edges: [
+        { from: 'Input', to: 'Producer.Input' },
+        { from: 'Producer.Output', to: 'Output' },
+      ],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateProducerCycles(tree);
+
+    expect(issues).toHaveLength(0);
+  });
+});
+
+describe('validateDimensionConsistency', () => {
+  it('detects dimension loss without collector', () => {
+    const doc = createDocument({
+      producerImports: [
+        { name: 'ProducerA' },
+        { name: 'ProducerB' },
+      ],
+      loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
+      edges: [
+        { from: 'ProducerA[segment].Output', to: 'ProducerB.Input' },
+      ],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateDimensionConsistency(tree);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.DIMENSION_MISMATCH,
+        message: expect.stringContaining('1 dimension'),
+      }),
+    );
+  });
+
+  it('allows cross-dimension patterns (different dimension names)', () => {
+    // Cross-dimension patterns like [image] -> [segment] are valid
+    // for sliding window and other intentional patterns
+    const doc = createDocument({
+      producerImports: [
+        { name: 'ProducerA' },
+        { name: 'ProducerB' },
+      ],
+      loops: [
+        { name: 'segment', countInput: 'NumOfSegments' },
+        { name: 'image', countInput: 'NumOfImages' },
+      ],
+      edges: [
+        { from: 'ProducerA[segment].Output', to: 'ProducerB[image].Input' },
+      ],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateDimensionConsistency(tree);
+
+    // Cross-dimension is allowed, not an error
+    expect(issues).toHaveLength(0);
+  });
+
+  it('allows matching dimensions', () => {
+    const doc = createDocument({
+      producerImports: [
+        { name: 'ProducerA' },
+        { name: 'ProducerB' },
+      ],
+      loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
+      edges: [
+        { from: 'ProducerA[segment].Output', to: 'ProducerB[segment].Input' },
+      ],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateDimensionConsistency(tree);
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it('allows dimension loss with matching collector', () => {
+    const doc = createDocument({
+      producerImports: [
+        { name: 'ProducerA' },
+        { name: 'ProducerB' },
+      ],
+      loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
+      edges: [
+        { from: 'ProducerA[segment].Output', to: 'ProducerB.Input' },
+      ],
+      collectors: [
+        { name: 'Collector', from: 'ProducerA[segment].Output', into: 'ProducerB.Input', groupBy: 'segment' },
+      ],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateDimensionConsistency(tree);
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it('reports error when edge has dimension loss but no matching collector', () => {
+    // Each producer needs its own collector - just having any collector
+    // for the target is not enough
+    const doc = createDocument({
+      producerImports: [
+        { name: 'ProducerA' },
+        { name: 'ProducerB' },
+        { name: 'ProducerC' },
+      ],
+      loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
+      edges: [
+        { from: 'ProducerA[segment].Output', to: 'ProducerC.Input' },
+        { from: 'ProducerB[segment].Output', to: 'ProducerC.Input' },
+      ],
+      collectors: [
+        // Only ProducerA has a collector, ProducerB is missing one
+        { name: 'CollectorA', from: 'ProducerA[segment].Output', into: 'ProducerC.Input', groupBy: 'segment' },
+      ],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateDimensionConsistency(tree);
+
+    // ProducerB's edge should be flagged as missing a collector
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({
+      code: ValidationErrorCode.DIMENSION_MISMATCH,
+      message: expect.stringContaining('ProducerB'),
+    });
+  });
+
+  it('ignores numeric indices in dimensions', () => {
+    const doc = createDocument({
+      producerImports: [
+        { name: 'ProducerA' },
+        { name: 'ProducerB' },
+      ],
+      edges: [
+        { from: 'ProducerA[0].Output', to: 'ProducerB.Input' },
+      ],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateDimensionConsistency(tree);
+
+    // Numeric indices are not loop dimensions
+    expect(issues).toHaveLength(0);
+  });
+
+  it('ignores offset expressions in dimensions', () => {
+    const doc = createDocument({
+      producerImports: [
+        { name: 'ProducerA' },
+        { name: 'ProducerB' },
+      ],
+      loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
+      edges: [
+        { from: 'ProducerA[segment+1].Output', to: 'ProducerB[segment].Input' },
+      ],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateDimensionConsistency(tree);
+
+    // segment+1 is treated as offset expression, not a loop dimension
+    // This edge has 0 extracted dimensions on both sides, so no mismatch
+    expect(issues).toHaveLength(0);
+  });
+
+  it('does not check input-to-producer or producer-to-artifact edges', () => {
+    const doc = createDocument({
+      inputs: [{ name: 'Input', type: 'string', required: true }],
+      artefacts: [{ name: 'Output', type: 'string', required: true }],
+      producerImports: [{ name: 'Producer' }],
+      loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
+      edges: [
+        { from: 'Input', to: 'Producer[segment].Input' },
+        { from: 'Producer[segment].Output', to: 'Output' },
+      ],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateDimensionConsistency(tree);
+
+    // Only producer-to-producer edges are checked
+    expect(issues).toHaveLength(0);
   });
 });

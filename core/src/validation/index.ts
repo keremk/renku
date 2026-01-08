@@ -35,6 +35,8 @@ export {
   validateCollectorConnections,
   validateConditionPaths,
   validateTypes,
+  validateProducerCycles,
+  validateDimensionConsistency,
   findUnusedInputs,
   findUnusedArtifacts,
   findUnreachableProducers,

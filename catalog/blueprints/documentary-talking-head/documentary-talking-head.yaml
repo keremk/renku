@@ -234,3 +234,7 @@ collectors:
     from: VideoProducer[segment].GeneratedVideo
     into: TimelineComposer.VideoSegments
     groupBy: segment
+  - name: TimelineTalkingHeadVideo
+    from: TalkingHeadVideoProducer[segment].GeneratedVideo
+    into: TimelineComposer.VideoSegments
+    groupBy: segment

@@ -48,6 +48,8 @@ export function validateBlueprintTree(
   issues.push(...validateCollectorConnections(tree));
   issues.push(...validateConditionPaths(tree));
   issues.push(...validateTypes(tree));
+  issues.push(...validateProducerCycles(tree));
+  issues.push(...validateDimensionConsistency(tree));
 
   // Run soft warning validators (unless errorsOnly)
   if (!options.errorsOnly) {
@@ -818,6 +820,212 @@ export function validateTypes(tree: BlueprintTreeNode): ValidationIssue[] {
 
   validateTree(tree);
   return issues;
+}
+
+// ============================================================================
+// Cycle Detection
+// ============================================================================
+
+/**
+ * Validates that the producer dependency graph has no cycles.
+ *
+ * A cycle occurs when producers form a circular dependency chain,
+ * e.g., A -> B -> C -> A. This makes execution impossible.
+ */
+export function validateProducerCycles(tree: BlueprintTreeNode): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  function validateTree(node: BlueprintTreeNode): void {
+    const producerNames = getProducerImportNames(node);
+    const inlineProducerNames = getInlineProducerNames(node);
+    const allProducerNames = new Set([...producerNames, ...inlineProducerNames]);
+
+    // Build adjacency list from edges (producer -> producer connections)
+    const adjacency = new Map<string, Set<string>>();
+    for (const name of allProducerNames) {
+      adjacency.set(name, new Set());
+    }
+
+    for (const edge of node.document.edges) {
+      const fromProducer = extractProducerFromReference(edge.from, allProducerNames);
+      const toProducer = extractProducerFromReference(edge.to, allProducerNames);
+
+      if (fromProducer && toProducer && fromProducer !== toProducer) {
+        adjacency.get(fromProducer)?.add(toProducer);
+      }
+    }
+
+    // DFS cycle detection with path tracking
+    const visited = new Set<string>();
+    const recursionStack = new Set<string>();
+
+    function findCycle(current: string, path: string[]): string[] | null {
+      visited.add(current);
+      recursionStack.add(current);
+      path.push(current);
+
+      for (const neighbor of adjacency.get(current) ?? []) {
+        if (!visited.has(neighbor)) {
+          const cycle = findCycle(neighbor, path);
+          if (cycle) {
+            return cycle;
+          }
+        } else if (recursionStack.has(neighbor)) {
+          // Found a cycle - extract just the cycle portion
+          const cycleStart = path.indexOf(neighbor);
+          return [...path.slice(cycleStart), neighbor];
+        }
+      }
+
+      recursionStack.delete(current);
+      path.pop();
+      return null;
+    }
+
+    for (const producer of allProducerNames) {
+      if (!visited.has(producer)) {
+        const cycle = findCycle(producer, []);
+        if (cycle) {
+          issues.push(
+            createError(
+              ValidationErrorCode.PRODUCER_CYCLE,
+              `Producer graph contains a cycle: ${cycle.join(' -> ')}`,
+              {
+                filePath: node.sourcePath,
+                namespacePath: node.namespacePath,
+                context: 'producer dependencies',
+              },
+              'Remove one of the connections to break the cycle',
+            ),
+          );
+          break; // Report first cycle found
+        }
+      }
+    }
+
+    // Recursively validate children
+    for (const child of node.children.values()) {
+      validateTree(child);
+    }
+  }
+
+  validateTree(tree);
+  return issues;
+}
+
+/**
+ * Extracts the producer name from a reference if it targets a producer.
+ */
+function extractProducerFromReference(
+  reference: string,
+  producerNames: Set<string>,
+): string | null {
+  const { baseName } = parseReference(reference);
+  return producerNames.has(baseName) ? baseName : null;
+}
+
+// ============================================================================
+// Dimension Consistency Validation
+// ============================================================================
+
+/**
+ * Validates that connection dimensions are consistent.
+ *
+ * Checks for:
+ * - Dimension loss: source has dimensions that target doesn't have
+ * - Dimension mismatch: source and target use different loop variables
+ */
+export function validateDimensionConsistency(tree: BlueprintTreeNode): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  function validateTree(node: BlueprintTreeNode): void {
+    const producerNames = getProducerImportNames(node);
+    const inlineProducerNames = getInlineProducerNames(node);
+    const allProducerNames = new Set([...producerNames, ...inlineProducerNames]);
+    const collectors = node.document.collectors ?? [];
+
+    for (const edge of node.document.edges) {
+      // Skip edges that have a matching collector (same source and target)
+      if (hasMatchingCollector(edge, collectors)) {
+        continue;
+      }
+
+      const fromDims = extractLoopDimensions(edge.from);
+      const toDims = extractLoopDimensions(edge.to);
+
+      // Check if source references a producer (has output with dimensions)
+      const fromIsProducer = !isLocalReference(edge.from) &&
+        extractProducerFromReference(edge.from, allProducerNames) !== null;
+      const toIsProducer = !isLocalReference(edge.to) &&
+        extractProducerFromReference(edge.to, allProducerNames) !== null;
+
+      // Only check producer-to-producer connections for dimension loss
+      // (more dimensions on source than target without a collector)
+      // Cross-dimension patterns (e.g., [image] -> [segment]) are intentionally allowed
+      // as they're used for sliding window and other valid patterns.
+      if (fromIsProducer && toIsProducer && fromDims.length > toDims.length) {
+        issues.push(
+          createError(
+            ValidationErrorCode.DIMENSION_MISMATCH,
+            `Dimension mismatch: "${edge.from}" has ${fromDims.length} dimension(s) [${fromDims.join(', ')}] but target "${edge.to}" has ${toDims.length}`,
+            {
+              filePath: node.sourcePath,
+              namespacePath: node.namespacePath,
+              context: `connection from "${edge.from}" to "${edge.to}"`,
+            },
+            toDims.length === 0
+              ? 'Use a collector for fan-in, or add matching dimensions to the target'
+              : 'Ensure source and target have consistent dimensions',
+          ),
+        );
+      }
+    }
+
+    // Recursively validate children
+    for (const child of node.children.values()) {
+      validateTree(child);
+    }
+  }
+
+  validateTree(tree);
+  return issues;
+}
+
+/**
+ * Extracts loop dimension names from a reference.
+ * Only includes symbolic loop references, not numeric indices or offset expressions.
+ */
+function extractLoopDimensions(reference: string): string[] {
+  const dims: string[] = [];
+  const matches = reference.matchAll(/\[([^\]]+)\]/g);
+  for (const match of matches) {
+    const content = match[1]!.trim();
+    // Only include simple loop references (no numbers, no +/- operators)
+    if (!/^\d+$/.test(content) && !/[+-]/.test(content)) {
+      dims.push(content);
+    }
+  }
+  return dims;
+}
+
+/**
+ * Checks if an edge has a matching collector that handles fan-in.
+ *
+ * Each producer that fans into a collector input needs its own collector
+ * definition with matching source and target.
+ */
+function hasMatchingCollector(
+  edge: { from: string; to: string },
+  collectors: Array<{ from: string; into: string }>,
+): boolean {
+  const edgeFrom = normalizeReference(edge.from);
+  const edgeTo = normalizeReference(edge.to);
+
+  return collectors.some((collector) => {
+    const collectorFrom = normalizeReference(collector.from);
+    const collectorInto = normalizeReference(collector.into);
+    return edgeFrom === collectorFrom && edgeTo === collectorInto;
+  });
 }
 
 // ============================================================================

@@ -405,11 +405,13 @@ function parseCollectors(
     if (orderBy && !loopSymbols.has(orderBy)) {
       throw new Error(`Collector "${name}" references unknown orderBy loop "${orderBy}".`);
     }
-    const targetKey = `${into}:${groupBy}`;
-    if (seenTargets.has(targetKey)) {
-      throw new Error(`Collector "${name}" duplicates collection for target "${into}" and group "${groupBy}".`);
+    // Check for truly duplicate collectors (same from, into, and groupBy)
+    // Different sources can fan-in to the same target with the same groupBy
+    const collectorKey = `${from}:${into}:${groupBy}`;
+    if (seenTargets.has(collectorKey)) {
+      throw new Error(`Collector "${name}" duplicates an existing collector with the same from, into, and groupBy.`);
     }
-    seenTargets.add(targetKey);
+    seenTargets.add(collectorKey);
     collectors.push({
       name,
       from,
