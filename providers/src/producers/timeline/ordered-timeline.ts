@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer';
 import { isCanonicalInputId } from '@gorenku/core';
 import { Input, ALL_FORMATS, BufferSource as MediaBufferSource } from 'mediabunny';
 import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
-import { createProviderError } from '../../sdk/errors.js';
+import { createProviderError, SdkErrorCode } from '../../sdk/errors.js';
 import { canonicalizeAuthoredInputId } from '../../sdk/config-utils.js';
 import type { HandlerFactory, ProviderJobContext } from '../../types.js';
 import type { ResolvedInputsAccessor } from '../../sdk/types.js';
@@ -151,11 +151,11 @@ function resolveAllowedTracks(config: TimelineProducerConfig): Set<ClipKind> {
   if (config.tracks && config.tracks.length > 0) {
     return new Set(config.tracks);
   }
-  throw createProviderError('TimelineProducer requires tracks to be specified.', {
-    code: 'invalid_config',
-    kind: 'user_input',
-    causedByUser: true,
-  });
+  throw createProviderError(
+    SdkErrorCode.INVALID_CONFIG,
+    'TimelineProducer requires tracks to be specified.',
+    { kind: 'user_input', causedByUser: true },
+  );
 }
 
 /**
@@ -197,32 +197,29 @@ export function createTimelineProducerHandler(): HandlerFactory {
       const allowedKinds = resolveAllowedTracks(config);
       const masterTracks = config.masterTracks ?? [];
       if (masterTracks.length === 0) {
-        throw createProviderError('TimelineProducer requires masterTracks to be specified.', {
-          code: 'invalid_config',
-          kind: 'user_input',
-          causedByUser: true,
-        });
+        throw createProviderError(
+          SdkErrorCode.INVALID_CONFIG,
+          'TimelineProducer requires masterTracks to be specified.',
+          { kind: 'user_input', causedByUser: true },
+        );
       }
       for (const masterKind of masterTracks) {
         if (!allowedKinds.has(masterKind)) {
           throw createProviderError(
+            SdkErrorCode.INVALID_CONFIG,
             `Master track kind "${masterKind}" is not included in configured tracks.`,
-            {
-              code: 'invalid_config',
-              kind: 'user_input',
-              causedByUser: true,
-            },
+            { kind: 'user_input', causedByUser: true },
           );
         }
       }
       const canonicalInputs = request.inputs.filter((input) => isCanonicalInputId(input));
       const clips = canonicalizeClips(config, canonicalInputs, allowedKinds);
       if (clips.length === 0) {
-        throw createProviderError('TimelineProducer config must define at least one clip.', {
-          code: 'invalid_config',
-          kind: 'user_input',
-          causedByUser: true,
-        });
+        throw createProviderError(
+          SdkErrorCode.INVALID_CONFIG,
+          'TimelineProducer config must define at least one clip.',
+          { kind: 'user_input', causedByUser: true },
+        );
       }
 
       const resolvedInputs = runtime.inputs.all();
@@ -242,11 +239,11 @@ export function createTimelineProducerHandler(): HandlerFactory {
       // Determine segment count from the first master track with fan-in data
       const segmentCount = resolveSegmentCount(clips, masterTracks, fanInByInput);
       if (segmentCount === 0) {
-        throw createProviderError('TimelineProducer requires at least one master track with fan-in data.', {
-          code: 'missing_segments',
-          kind: 'user_input',
-          causedByUser: true,
-        });
+        throw createProviderError(
+          SdkErrorCode.MISSING_SEGMENTS,
+          'TimelineProducer requires at least one master track with fan-in data.',
+          { kind: 'user_input', causedByUser: true },
+        );
       }
 
       // Determine segment durations using fallback master tracks
@@ -266,11 +263,11 @@ export function createTimelineProducerHandler(): HandlerFactory {
         clips.map(async (clip, index) => {
           const fanIn = fanInByInput.get(clip.inputs);
           if (!fanIn) {
-            throw createProviderError(`Missing fan-in data for "${clip.inputs}".`, {
-              code: 'missing_fanin',
-              kind: 'user_input',
-              causedByUser: true,
-            });
+            throw createProviderError(
+              SdkErrorCode.MISSING_FANIN_DATA,
+              `Missing fan-in data for "${clip.inputs}".`,
+              { kind: 'user_input', causedByUser: true },
+            );
           }
           return buildTrack({
             clip,
@@ -319,11 +316,11 @@ export const createTimelineStubHandler = createTimelineProducerHandler;
 
 function parseTimelineConfig(raw: unknown): TimelineProducerConfig {
   if (!isRecord(raw)) {
-    throw createProviderError('TimelineProducer provider configuration must include a config object.', {
-      code: 'invalid_config',
-      kind: 'user_input',
-      causedByUser: true,
-    });
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      'TimelineProducer provider configuration must include a config object.',
+      { kind: 'user_input', causedByUser: true },
+    );
   }
   const source = isRecord(raw.config) ? (raw.config as Record<string, unknown>) : (raw as Record<string, unknown>);
   const tracks = Array.isArray(source.tracks)
@@ -476,11 +473,11 @@ function mergeConfig(base: TimelineProducerConfig, overrides: Record<string, unk
 function buildAssetFolder(inputs: ResolvedInputsAccessor): TimelineDocument['assetFolder'] {
   const storageRoot = inputs.getByNodeId<string>('Input:StorageRoot') ?? inputs.get<string>('StorageRoot');
   if (!storageRoot || typeof storageRoot !== 'string' || storageRoot.trim().length === 0) {
-    throw createProviderError('TimelineProducer is missing storage root (Input:StorageRoot).', {
-      code: 'missing_storage_root',
-      kind: 'user_input',
-      causedByUser: true,
-    });
+    throw createProviderError(
+      SdkErrorCode.MISSING_STORAGE_ROOT,
+      'TimelineProducer is missing storage root (Input:StorageRoot).',
+      { kind: 'user_input', causedByUser: true },
+    );
   }
   const basePath = inputs.getByNodeId<string>('Input:StorageBasePath') ?? inputs.get<string>('StorageBasePath');
   const movieId = inputs.getByNodeId<string>('Input:MovieId') ?? inputs.get<string>('MovieId');
@@ -549,11 +546,11 @@ async function buildTrack(args: {
         durationCache,
       });
     default:
-      throw createProviderError(`TimelineProducer does not yet support clip kind "${clip.kind}".`, {
-        code: 'unsupported_clip',
-        kind: 'user_input',
-        causedByUser: true,
-      });
+      throw createProviderError(
+        SdkErrorCode.UNSUPPORTED_CLIP_KIND,
+        `TimelineProducer does not yet support clip kind "${clip.kind}".`,
+        { kind: 'user_input', causedByUser: true },
+      );
   }
 }
 
@@ -666,11 +663,11 @@ async function buildMusicTrack(args: {
   // Filter out assets that don't exist (were skipped due to conditional execution)
   const assets = allAssets.filter((assetId) => tryResolveAssetBinary(inputs, assetId) !== undefined);
   if (assets.length === 0) {
-    throw createProviderError('TimelineProducer requires at least one asset for music tracks.', {
-      code: 'missing_asset',
-      kind: 'user_input',
-      causedByUser: true,
-    });
+    throw createProviderError(
+      SdkErrorCode.MISSING_ASSET,
+      'TimelineProducer requires at least one asset for music tracks.',
+      { kind: 'user_input', causedByUser: true },
+    );
   }
 
   const durationMode = clip.duration === 'match' ? 'match' : 'full';
@@ -726,11 +723,11 @@ async function buildMusicTrack(args: {
   }
 
   if (clips.length === 0) {
-    throw createProviderError('TimelineProducer could not schedule any music clips.', {
-      code: 'missing_asset',
-      kind: 'user_input',
-      causedByUser: true,
-    });
+    throw createProviderError(
+      SdkErrorCode.MISSING_ASSET,
+      'TimelineProducer could not schedule any music clips.',
+      { kind: 'user_input', causedByUser: true },
+    );
   }
 
   return {
@@ -835,11 +832,11 @@ function readTimelineDuration(inputs: Record<string, unknown>): number {
       return value;
     }
   }
-  throw createProviderError('TimelineProducer requires a positive Duration input.', {
-    code: 'missing_duration',
-    kind: 'user_input',
-    causedByUser: true,
-  });
+  throw createProviderError(
+    SdkErrorCode.MISSING_DURATION,
+    'TimelineProducer requires a positive Duration input.',
+    { kind: 'user_input', causedByUser: true },
+  );
 }
 
 /**
@@ -976,13 +973,11 @@ async function tryLoadAssetDuration(args: {
     args.cache.set(args.assetId, rounded);
     return rounded;
   } catch (error) {
-    throw createProviderError(`TimelineProducer failed to read duration for asset "${args.assetId}".`, {
-      code: 'asset_duration_failed',
-      kind: 'unknown',
-      causedByUser: false,
-      metadata: { assetId: args.assetId },
-      raw: error,
-    });
+    throw createProviderError(
+      SdkErrorCode.MISSING_ASSET,
+      `TimelineProducer failed to read duration for asset "${args.assetId}".`,
+      { kind: 'unknown', causedByUser: false, metadata: { assetId: args.assetId }, raw: error },
+    );
   } finally {
     input?.dispose();
   }
@@ -998,12 +993,11 @@ async function loadAssetDuration(args: {
     return result;
   }
 
-  throw createProviderError(`TimelineProducer could not locate binary data for asset "${args.assetId}".`, {
-    code: 'missing_asset_payload',
-    kind: 'unknown',
-    causedByUser: false,
-    metadata: { assetId: args.assetId },
-  });
+  throw createProviderError(
+    SdkErrorCode.MISSING_ASSET,
+    `TimelineProducer could not locate binary data for asset "${args.assetId}".`,
+    { kind: 'unknown', causedByUser: false, metadata: { assetId: args.assetId } },
+  );
 }
 
 /**

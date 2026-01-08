@@ -13,6 +13,7 @@ import type {
   InputConditionInfo,
 } from './types.js';
 import { formatCanonicalArtifactId } from './parsing/canonical-ids.js';
+import { createRuntimeError, RuntimeErrorCode } from './errors/index.js';
 
 /**
  * Result of evaluating a condition.
@@ -421,7 +422,8 @@ function evaluateOperator(
           ? { satisfied: true }
           : { satisfied: false, reason: `"${value}" does not match /${compareValue}/` };
       } catch {
-        throw new Error(
+        throw createRuntimeError(
+          RuntimeErrorCode.CONDITION_EVALUATION_ERROR,
           `Invalid regex pattern "${compareValue}" in condition. ` +
             `Please fix the regex syntax in your blueprint.`,
         );

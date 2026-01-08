@@ -3,6 +3,7 @@ import type {
   MappingCondition,
   CombineTransform,
 } from '@gorenku/core';
+import { createProviderError, SdkErrorCode } from './errors.js';
 
 /**
  * Context for applying transforms.
@@ -66,7 +67,11 @@ export function applyMapping(
       return { expand: combinedValue as Record<string, unknown> };
     }
     if (!mapping.field) {
-      throw new Error(`Combine transform requires 'field' unless using 'expand'`);
+      throw createProviderError(
+        SdkErrorCode.COMBINE_REQUIRES_FIELD,
+        `Combine transform requires 'field' unless using 'expand'`,
+        { kind: 'user_input', causedByUser: true },
+      );
     }
     return { field: mapping.field, value: combinedValue };
   }
@@ -138,15 +143,21 @@ export function applyMapping(
     if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
       return { expand: value as Record<string, unknown> };
     }
-    throw new Error(
+    throw createProviderError(
+      SdkErrorCode.CANNOT_EXPAND_NON_OBJECT,
       `Cannot expand non-object value for "${inputAlias}". ` +
         `expand:true requires the value to be an object, got ${typeof value}.`,
+      { kind: 'user_input', causedByUser: true },
     );
   }
 
   // Regular field assignment
   if (!mapping.field) {
-    throw new Error(`Mapping for "${inputAlias}" requires 'field' property`);
+    throw createProviderError(
+      SdkErrorCode.MISSING_FIELD_PROPERTY,
+      `Mapping for "${inputAlias}" requires 'field' property`,
+      { kind: 'user_input', causedByUser: true },
+    );
   }
   return { field: mapping.field, value };
 }
@@ -203,9 +214,11 @@ function evaluateCondition(condition: MappingCondition, context: TransformContex
   }
 
   // No valid condition operator - this is likely a configuration error
-  throw new Error(
+  throw createProviderError(
+    SdkErrorCode.INVALID_CONDITION_CONFIG,
     `Invalid condition for input "${condition.input}": ` +
-    `must specify one of "equals", "notEmpty", or "empty".`
+      `must specify one of "equals", "notEmpty", or "empty".`,
+    { kind: 'user_input', causedByUser: true },
   );
 }
 

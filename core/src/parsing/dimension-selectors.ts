@@ -1,3 +1,5 @@
+import { createParserError, ParserErrorCode } from '../errors/index.js';
+
 export type DimensionSelector =
   | { kind: 'loop'; symbol: string; offset: number }
   | { kind: 'const'; value: number };
@@ -5,14 +7,18 @@ export type DimensionSelector =
 export function parseDimensionSelector(raw: string): DimensionSelector {
   const trimmed = raw.trim();
   if (trimmed.length === 0) {
-    throw new Error('Empty dimension selector.');
+    throw createParserError(
+      ParserErrorCode.INVALID_DIMENSION_SELECTOR,
+      'Empty dimension selector.',
+    );
   }
   if (/^[0-9]+$/.test(trimmed)) {
     return { kind: 'const', value: parseInt(trimmed, 10) };
   }
   const match = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)([+-][0-9]+)?$/);
   if (!match) {
-    throw new Error(
+    throw createParserError(
+      ParserErrorCode.INVALID_DIMENSION_SELECTOR,
       `Invalid dimension selector "${raw}". Expected "<loop>", "<loop>+<int>", "<loop>-<int>", or "<int>".`,
     );
   }

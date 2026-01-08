@@ -1,5 +1,6 @@
 import type { CanonicalBlueprint } from './canonical-expander.js';
 import { formatProducerScopedInputId, isCanonicalArtifactId, isCanonicalInputId, parseQualifiedProducerName } from '../parsing/canonical-ids.js';
+import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import type {
   BlueprintProducerOutputDefinition,
   BlueprintProducerSdkMappingField,
@@ -65,11 +66,19 @@ export function createProducerGraph(
     const producerAlias = node.producerAlias;
     const catalogEntry = resolveCatalogEntry(producerAlias, catalog);
     if (!catalogEntry) {
-      throw new Error(`Missing producer catalog entry for ${producerAlias}`);
+      throw createRuntimeError(
+        RuntimeErrorCode.MISSING_PRODUCER_CATALOG_ENTRY,
+        `Missing producer catalog entry for ${producerAlias}`,
+        { context: producerAlias },
+      );
     }
     const option = options.get(producerAlias);
     if (!option) {
-      throw new Error(`Missing producer option for ${producerAlias}`);
+      throw createRuntimeError(
+        RuntimeErrorCode.NO_PRODUCER_OPTIONS,
+        `Missing producer option for ${producerAlias}`,
+        { context: producerAlias },
+      );
     }
     const { namespacePath: producerNamespace, producerName: resolvedProducerName } = parseQualifiedProducerName(
       producerAlias,

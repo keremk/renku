@@ -6,6 +6,7 @@ import { LocalStorageAdapter } from '@flystorage/local-fs';
 import { promises as fs } from 'node:fs';
 import * as nodePath from 'node:path';
 import { posix as path } from 'node:path';
+import { createRuntimeError, RuntimeErrorCode } from './errors/index.js';
 import type { ExecutionPlan, ManifestPointer, RevisionId } from './types.js';
 
 export type StorageConfig =
@@ -138,8 +139,9 @@ function resolveAdapter(config: StorageConfig) {
     }
     default: {
       const neverCase: never = config;
-      throw new Error(
-        `Unsupported storage config: ${JSON.stringify(neverCase)}`
+      throw createRuntimeError(
+        RuntimeErrorCode.UNSUPPORTED_STORAGE_CONFIG,
+        `Unsupported storage config: ${JSON.stringify(neverCase)}`,
       );
     }
   }

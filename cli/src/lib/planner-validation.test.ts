@@ -180,7 +180,7 @@ connections:
           usingBlueprint: blueprintPath,
           logger: createCliLogger({ level: 'info' }),
         }),
-      ).rejects.toThrow(/E\d{3}:/); // Error codes like E001, E005, etc.
+      ).rejects.toThrow(/V\d{3}:/); // Validation error codes like V001, V005, etc.
     } finally {
       await rm(tempRoot, { recursive: true, force: true });
     }

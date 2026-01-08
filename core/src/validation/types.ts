@@ -26,7 +26,7 @@ export interface ValidationLocation {
  * A single validation issue (error or warning)
  */
 export interface ValidationIssue {
-  /** Unique error code for programmatic handling (e.g., "E001", "W001") */
+  /** Unique error code for programmatic handling (e.g., "V001", "W001") */
   code: string;
   /** Human-readable error message */
   message: string;
@@ -65,42 +65,42 @@ export interface ValidatorOptions {
 /**
  * Error codes for validation issues
  *
- * E-codes are hard errors that make the blueprint invalid.
+ * V-codes are hard errors that make the blueprint invalid.
  * W-codes are soft warnings that don't invalidate the blueprint.
  */
 export const ValidationErrorCode = {
-  // Connection endpoint errors (E001-E007)
-  INVALID_CONNECTION_SOURCE: 'E001',
-  INVALID_CONNECTION_TARGET: 'E002',
-  PRODUCER_NOT_FOUND: 'E003',
-  INPUT_NOT_FOUND: 'E004',
-  ARTIFACT_NOT_FOUND: 'E005',
-  INVALID_NESTED_PATH: 'E006',
-  DIMENSION_MISMATCH: 'E007',
+  // Connection endpoint errors (V001-V007)
+  INVALID_CONNECTION_SOURCE: 'V001',
+  INVALID_CONNECTION_TARGET: 'V002',
+  PRODUCER_NOT_FOUND: 'V003',
+  INPUT_NOT_FOUND: 'V004',
+  ARTIFACT_NOT_FOUND: 'V005',
+  INVALID_NESTED_PATH: 'V006',
+  DIMENSION_MISMATCH: 'V007',
 
-  // Producer input/output matching errors (E010-E011)
-  PRODUCER_INPUT_MISMATCH: 'E010',
-  PRODUCER_OUTPUT_MISMATCH: 'E011',
+  // Producer input/output matching errors (V010-V011)
+  PRODUCER_INPUT_MISMATCH: 'V010',
+  PRODUCER_OUTPUT_MISMATCH: 'V011',
 
-  // Loop validation errors (E020-E021)
-  LOOP_COUNTINPUT_NOT_FOUND: 'E020',
-  PRODUCER_CYCLE: 'E021',
+  // Loop validation errors (V020-V021)
+  LOOP_COUNTINPUT_NOT_FOUND: 'V020',
+  PRODUCER_CYCLE: 'V021',
 
-  // Artifact validation errors (E030)
-  ARTIFACT_COUNTINPUT_NOT_FOUND: 'E030',
+  // Artifact validation errors (V030)
+  ARTIFACT_COUNTINPUT_NOT_FOUND: 'V030',
 
-  // Collector validation errors (E040-E042)
-  COLLECTOR_SOURCE_INVALID: 'E040',
-  COLLECTOR_TARGET_INVALID: 'E041',
-  COLLECTOR_MISSING_CONNECTION: 'E042',
+  // Collector validation errors (V040-V042)
+  COLLECTOR_SOURCE_INVALID: 'V040',
+  COLLECTOR_TARGET_INVALID: 'V041',
+  COLLECTOR_MISSING_CONNECTION: 'V042',
 
-  // Condition validation errors (E050)
-  CONDITION_PATH_INVALID: 'E050',
+  // Condition validation errors (V050)
+  CONDITION_PATH_INVALID: 'V050',
 
-  // Type validation errors (E060-E062)
-  INVALID_INPUT_TYPE: 'E060',
-  INVALID_ARTIFACT_TYPE: 'E061',
-  INVALID_ITEM_TYPE: 'E062',
+  // Type validation errors (V060-V062)
+  INVALID_INPUT_TYPE: 'V060',
+  INVALID_ARTIFACT_TYPE: 'V061',
+  INVALID_ITEM_TYPE: 'V062',
 
   // Warnings (W001-W003)
   UNUSED_INPUT: 'W001',

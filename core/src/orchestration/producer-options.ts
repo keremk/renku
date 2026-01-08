@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { parse as parseToml } from 'smol-toml';
+import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import type {
   BlueprintMeta,
   BlueprintTreeNode,
@@ -169,7 +170,10 @@ function buildVariantConfig(variant: ProducerModelVariant): Record<string, unkno
     const type = textFormat === 'json_schema' ? 'json_schema' : 'text';
     if (type === 'json_schema') {
       if (!outputSchemaText) {
-        throw new Error(`Model "${variant.model}" declared text_format=json_schema but is missing outputSchema.`);
+        throw createRuntimeError(
+          RuntimeErrorCode.MISSING_OUTPUT_SCHEMA,
+          `Model "${variant.model}" declared text_format=json_schema but is missing outputSchema.`,
+        );
       }
       const responseFormat: Record<string, unknown> = { type };
       if (variant.outputSchema) {
@@ -177,7 +181,10 @@ function buildVariantConfig(variant: ProducerModelVariant): Record<string, unkno
           responseFormat.schema = JSON.parse(variant.outputSchema);
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
-          throw new Error(`Model "${variant.model}" has invalid outputSchema JSON: ${message}`);
+          throw createRuntimeError(
+            RuntimeErrorCode.INVALID_OUTPUT_SCHEMA_JSON,
+            `Model "${variant.model}" has invalid outputSchema JSON: ${message}`,
+          );
         }
       }
       base.responseFormat = responseFormat;
@@ -333,7 +340,10 @@ async function selectionToVariant(
       try {
         config.responseFormat = { type, schema: JSON.parse(outputSchemaContent) };
       } catch {
-        throw new Error(`Failed to parse output schema for model ${selection.model}`);
+        throw createRuntimeError(
+          RuntimeErrorCode.FAILED_SCHEMA_PARSING,
+          `Failed to parse output schema for model ${selection.model}`,
+        );
       }
     }
   }
@@ -363,7 +373,8 @@ async function chooseVariant(
   // If producer has no variants (interface-only), must have selection
   if (variants.length === 0) {
     if (!selection) {
-      throw new Error(
+      throw createRuntimeError(
+        RuntimeErrorCode.NO_PRODUCER_OPTIONS,
         `Producer "${producerName}" has no model configuration. ` +
         `Provide model selection in input template.`,
       );
@@ -447,8 +458,10 @@ async function chooseVariant(
     };
   }
   const available = variants.map((variant) => `${variant.provider}/${variant.model}`).join(', ');
-  throw new Error(
+  throw createRuntimeError(
+    RuntimeErrorCode.AMBIGUOUS_MODEL_SELECTION,
     `Multiple model variants defined for ${producerName}. Select one in inputs.yaml. Available: ${available}`,
+    { context: producerName },
   );
 }
 
@@ -476,7 +489,11 @@ export function buildProducerCatalog(
   const catalog: Record<string, ProducerCatalogEntry> = {};
   for (const [producer, entries] of options) {
     if (!entries || entries.length === 0) {
-      throw new Error(`No producer options defined for "${producer}".`);
+      throw createRuntimeError(
+        RuntimeErrorCode.NO_PRODUCER_OPTIONS,
+        `No producer options defined for "${producer}".`,
+        { context: producer },
+      );
     }
     const primary = entries[0]!;
     catalog[producer] = toCatalogEntry(primary);

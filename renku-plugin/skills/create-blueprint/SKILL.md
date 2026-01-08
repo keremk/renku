@@ -168,7 +168,7 @@ You can use the `docs\prompt-producer-guide.md` to understand what files are nee
 Use `docs/comprehensive-blueprint-guide.md` for a comprehensive explanation of the blueprints and how to connect nodes based on the prompt producer you created and the asset producers you identified. You can also always use some examples from the catalog. 
 
 ### Step 8: Validate Blueprint Structure
-This validates that the blueprint can be parsed and structurally connect, but it does not validate that it will be producing the intended video without errors.
+This validates that the blueprint can be parsed and structurally connect, but it does not validate that it will be sending the right inputs to the producers, the producer input routing is validated by doing a dry-run.
 
 ```bash
 renku blueprints:validate <path-to-blueprint.yaml>
@@ -178,6 +178,8 @@ Expected output:
 - `valid: true` - Blueprint structure is correct
 - Node and edge counts
 - Error messages if invalid
+
+If you receive errors, address them here before moving on by carefully reading the error and if necessary consulting the `./docs/comprehensive-blueprint-guide.md`
 
 ### Step 9: Test with Dry Run
 
@@ -216,34 +218,30 @@ renku generate --blueprint=<path> --inputs=<path> --dry-run
 
 ## Common Errors and Fixes
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `Missing size for dimension "X"` | Loop not sized | Add `countInput` to loop definition |
-| `Unknown loop symbol "X"` | Typo in connection | Check loop names in `loops:` section |
-| `inconsistent dimension counts` | Mismatched indices | Ensure source/target dimensions align |
-| `Producer graph contains a cycle` | Circular dependency | Check connections for loops |
-| `Missing producer catalog entry` | Wrong producer path | Verify `path:` in producers section |
-| TimelineComposer has empty inputs | Missing connection to fan-in input | Add BOTH a connection AND a collector (see below) |
+For a comprehensive guide to all validation errors, runtime errors, and their fixes, see:
+- **[Common Errors Guide](./docs/common-errors-guide.md)** - Full error reference with examples and solutions
 
-## Critical: Fan-In Pattern for TimelineComposer
+### Quick Reference
 
-**Users frequently forget this:** TimelineComposer (and other fan-in consumers) require BOTH:
-1. A **connection** from the source to the fan-in input
-2. A **collector** that defines how to group and order the items
+| Error Code | Description | Quick Fix |
+|------------|-------------|-----------|
+| E003 | Producer not found | Add producer to `producers[]` section |
+| E004 | Input not found | Declare in `inputs[]` or use system input |
+| E006 | Unknown loop dimension | Check loop names in `loops[]` section |
+| E007 | Dimension mismatch | Add collector for fan-in or match dimensions |
+| E010 | Producer input mismatch | Check producer's available inputs |
+| E021 | Producer cycle detected | Remove circular dependency |
+| E042 | Collector missing connection | Add BOTH connection AND collector |
+
+### Critical: Fan-In Pattern
+
+**Most common mistake:** TimelineComposer (and other fan-in consumers) require BOTH a connection AND a collector:
 
 ```yaml
-# WRONG - Only collector, no connection (TimelineComposer won't receive data!)
-collectors:
-  - name: TimelineImages
-    from: ImageProducer[segment][image].GeneratedImage
-    into: TimelineComposer.ImageSegments
-    groupBy: segment
-    orderBy: image
-
 # CORRECT - Both connection AND collector
 connections:
   - from: ImageProducer[segment][image].GeneratedImage
-    to: TimelineComposer.ImageSegments  # <-- THIS IS REQUIRED!
+    to: TimelineComposer.ImageSegments  # Creates data flow edge
 
 collectors:
   - name: TimelineImages
@@ -253,11 +251,7 @@ collectors:
     orderBy: image
 ```
 
-**Why both are needed:**
-- The **connection** creates the data flow edge in the graph
-- The **collector** tells the runtime HOW to group/order the data
-
-See `catalog/blueprints/kenn-burns/image-audio.yaml` for a complete example.
+See the [Common Errors Guide](./docs/common-errors-guide.md#e042-collector-missing-connection-critical) for details.
 
 ## Examples
 

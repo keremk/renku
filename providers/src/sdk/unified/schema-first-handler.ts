@@ -1,5 +1,5 @@
 import { createProducerHandlerFactory } from '../handler-factory.js';
-import { createProviderError } from '../errors.js';
+import { createProviderError, SdkErrorCode } from '../errors.js';
 import type { HandlerFactory, ProviderJobContext } from '../../types.js';
 import { buildArtefactsFromUrls } from './artefacts.js';
 import { extractPlannerContext } from './utils.js';
@@ -79,10 +79,11 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
           : readInputSchema(request);
 
         if (!inputSchemaString) {
-          throw createProviderError(`Missing input schema for ${adapter.name} provider.`, {
-            code: 'missing_input_schema',
-            kind: 'unknown',
-          });
+          throw createProviderError(
+            SdkErrorCode.MISSING_INPUT_SCHEMA,
+            `Missing input schema for ${adapter.name} provider.`,
+            { kind: 'unknown' },
+          );
         }
 
         const sdkPayload = await runtime.sdk.buildPayload(undefined, inputSchemaString);
@@ -151,12 +152,11 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
               message: `Provider ${notificationLabel} failed for job ${request.jobId}: ${rawMessage}`,
               timestamp: new Date().toISOString(),
             });
-            throw createProviderError(`${adapter.name} prediction failed: ${rawMessage}`, {
-              code: `${adapter.name}_prediction_failed`,
-              kind: 'transient',
-              retryable: true,
-              raw: error,
-            });
+            throw createProviderError(
+              SdkErrorCode.PROVIDER_PREDICTION_FAILED,
+              `${adapter.name} prediction failed: ${rawMessage}`,
+              { kind: 'transient', retryable: true, raw: error },
+            );
           }
         }
 

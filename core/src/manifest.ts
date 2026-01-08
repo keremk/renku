@@ -13,15 +13,24 @@ import type {
   RevisionId,
 } from './types.js';
 import { hashPayload } from './hashing.js';
+import { RuntimeErrorCode, createRuntimeError, type RenkuError, type ErrorCategory, type ErrorSeverity } from './errors/index.js';
 
-export class ManifestNotFoundError extends Error {
+export class ManifestNotFoundError extends Error implements RenkuError {
+  code = RuntimeErrorCode.MANIFEST_NOT_FOUND;
+  category: ErrorCategory = 'runtime';
+  severity: ErrorSeverity = 'error';
+
   constructor(movieId: string) {
     super(`No manifest found for movie "${movieId}"`);
     this.name = 'ManifestNotFoundError';
   }
 }
 
-export class ManifestConflictError extends Error {
+export class ManifestConflictError extends Error implements RenkuError {
+  code = RuntimeErrorCode.MANIFEST_HASH_CONFLICT;
+  category: ErrorCategory = 'runtime';
+  severity: ErrorSeverity = 'error';
+
   constructor(expected: string | null, actual: string | null) {
     super(
       `Manifest pointer hash mismatch (expected ${expected ?? 'null'}, found ${actual ?? 'null'})`,
@@ -138,9 +147,11 @@ async function readPointer(storage: StorageContext, movieId: string): Promise<Ma
       updatedAt: pointer.updatedAt ?? null,
     };
   } catch {
-    throw new Error(
+    throw createRuntimeError(
+      RuntimeErrorCode.CORRUPTED_POINTER_FILE,
       `Manifest pointer file is corrupted: ${pointerPath}. ` +
         `Please delete this file to reset the manifest state.`,
+      { filePath: pointerPath },
     );
   }
 }

@@ -23,6 +23,7 @@ import {
 } from '@gorenku/core';
 import { createHash } from 'node:crypto';
 import { applyMapping, setNestedValue, type TransformContext } from './transforms.js';
+import { createProviderError, SdkErrorCode } from './errors.js';
 
 interface SerializedJobContext {
   inputBindings?: Record<string, string>;
@@ -192,8 +193,10 @@ function createSdkHelper(
 
           if (isRequiredBySchema && !hasSchemaDefault) {
             const canonicalId = jobContext?.inputBindings?.[alias] ?? alias;
-            throw new Error(
+            throw createProviderError(
+              SdkErrorCode.MISSING_REQUIRED_INPUT,
               `Missing required input "${canonicalId}" for field "${fieldName}" (requested "${alias}"). No schema default available.`,
+              { kind: 'user_input', causedByUser: true },
             );
           }
           // Skip field - provider will use its default if one exists
@@ -217,9 +220,11 @@ function createSdkHelper(
       );
 
       if (hasBlobInputs && !cloudStorage) {
-        throw new Error(
+        throw createProviderError(
+          SdkErrorCode.BLOB_INPUT_NO_STORAGE,
           'Blob inputs (file: references) require cloud storage configuration. ' +
             'Set S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, and S3_BUCKET_NAME environment variables.',
+          { kind: 'user_input', causedByUser: true },
         );
       }
 
@@ -297,7 +302,11 @@ async function uploadBlobAndGetUrl(
 
   // Get signed URL (default 1 hour expiry)
   if (!cloudStorage.temporaryUrl) {
-    throw new Error('Cloud storage does not support temporaryUrl - ensure you are using cloud storage kind.');
+    throw createProviderError(
+      SdkErrorCode.CLOUD_STORAGE_URL_FAILED,
+      'Cloud storage does not support temporaryUrl - ensure you are using cloud storage kind.',
+      { kind: 'user_input', causedByUser: true },
+    );
   }
   return cloudStorage.temporaryUrl(key, 3600);
 }
@@ -306,7 +315,11 @@ function createArtefactRegistry(produces: string[]): ArtefactRegistry {
   const set = new Set(produces);
   function ensure(id: string): string {
     if (!set.has(id)) {
-      throw new Error(`Unknown artefact "${id}" for producer invoke.`);
+      throw createProviderError(
+        SdkErrorCode.UNKNOWN_ARTEFACT,
+        `Unknown artefact "${id}" for producer invoke.`,
+        { kind: 'user_input', causedByUser: true },
+      );
     }
     return id;
   }

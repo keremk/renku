@@ -1,4 +1,5 @@
 import { formatCanonicalInputId, isCanonicalInputId } from '../parsing/canonical-ids.js';
+import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import type { BlueprintGraph } from './canonical-graph.js';
 
 export type InputSourceMap = Map<string, string>;
@@ -46,11 +47,17 @@ export function buildInputSourceMapFromCanonical(graph: BlueprintGraph): InputSo
             : id;
         })
         .join(', ');
-      throw new Error(`Input "${canonicalId}" has multiple upstream inputs: ${upstreamNames}.`);
+      throw createRuntimeError(
+        RuntimeErrorCode.MULTIPLE_UPSTREAM_INPUTS,
+        `Input "${canonicalId}" has multiple upstream inputs: ${upstreamNames}.`,
+      );
     }
     const upstreamNode = nodesById.get(upstream[0]!);
     if (!upstreamNode || upstreamNode.type !== 'InputSource') {
-      throw new Error(`Input "${canonicalId}" has a non-input upstream dependency.`);
+      throw createRuntimeError(
+        RuntimeErrorCode.NON_INPUT_UPSTREAM,
+        `Input "${canonicalId}" has a non-input upstream dependency.`,
+      );
     }
     const upstreamCanonical = formatCanonicalInputId(upstreamNode.namespacePath, upstreamNode.name);
     sources.set(canonicalId, upstreamCanonical);

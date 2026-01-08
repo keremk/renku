@@ -8,6 +8,7 @@ import type { StorageContext } from './storage.js';
 import { persistBlobToStorage } from './blob-utils.js';
 import { isBlobRef, type EdgeConditionClause, type EdgeConditionDefinition, type EdgeConditionGroup } from './types.js';
 import { evaluateInputConditions, type ConditionEvaluationContext } from './condition-evaluator.js';
+import { createRuntimeError, RuntimeErrorCode } from './errors/index.js';
 import {
   type ArtefactEvent,
   type ArtefactEventStatus,
@@ -386,8 +387,10 @@ async function executeJob(
         attempt,
         error: serializeError(logError),
       });
-      throw new Error(
-        `Failed to record artifact failure for job ${job.jobId}: ${serializeError(logError)}`,
+      throw createRuntimeError(
+        RuntimeErrorCode.ARTIFACT_RESOLUTION_FAILED,
+        `Failed to record artifact failure for job ${job.jobId}: ${serializeError(logError).message}`,
+        { context: `job ${job.jobId}` },
       );
     }
 
@@ -440,7 +443,11 @@ async function materializeArtefacts(
     const blobPayload = artefact.blob;
 
     if (status === 'succeeded' && !blobPayload) {
-      throw new Error(`Expected blob payload for artefact ${artefact.artefactId}.`);
+      throw createRuntimeError(
+        RuntimeErrorCode.MISSING_BLOB_PAYLOAD,
+        `Expected blob payload for artefact ${artefact.artefactId}.`,
+        { context: `artefact ${artefact.artefactId}` },
+      );
     }
     if (blobPayload && status === 'succeeded') {
       output.blob = await persistBlobToStorage(context.storage, context.movieId, blobPayload);

@@ -5,6 +5,7 @@ import { buildInputSourceMapFromCanonical, normalizeInputValues } from '../resol
 import { createProducerGraph } from '../resolution/producer-graph.js';
 import { createPlanAdapter, type PlanAdapterOptions } from '../planning/adapter.js';
 import { isCanonicalInputId, formatProducerAlias } from '../parsing/canonical-ids.js';
+import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import type { EventLog } from '../event-log.js';
 import { hashPayload } from '../hashing.js';
 import { ManifestNotFoundError, type ManifestService } from '../manifest.js';
@@ -206,7 +207,11 @@ function createInputEvents(
       continue;
     }
     if (!isCanonicalInputId(id)) {
-      throw new Error(`Input "${id}" is not a canonical input id. Expected to start with "Input:".`);
+      throw createRuntimeError(
+        RuntimeErrorCode.NON_CANONICAL_INPUT_ID,
+        `Input "${id}" is not a canonical input id. Expected to start with "Input:".`,
+        { context: id },
+      );
     }
     events.push(makeInputEvent(id, payload, revision, editedBy, createdAt));
   }
@@ -348,7 +353,8 @@ function parseJsonSchemaDefinition(schemaJson: string): JsonSchemaDefinition {
     const schema = parsed.schema ?? parsed;
     return { name, strict, schema };
   } catch {
-    throw new Error(
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_OUTPUT_SCHEMA_JSON,
       `Invalid schema JSON: ${schemaJson.slice(0, 100)}... ` +
         `Please provide valid JSON schema.`,
     );

@@ -1,3 +1,5 @@
+import { createRuntimeError, RuntimeErrorCode } from './errors/index.js';
+
 type PathToken = string | number;
 
 interface ResolveResult<T = unknown> {
@@ -44,11 +46,17 @@ function tokenize(path: string): PathToken[] {
     if (inBracket) {
       if (char === ']') {
         if (indexBuffer.trim().length === 0) {
-          throw new Error(`Invalid JSON path "${path}" – empty index`);
+          throw createRuntimeError(
+            RuntimeErrorCode.INVALID_JSON_PATH,
+            `Invalid JSON path "${path}" – empty index`,
+          );
         }
         const index = Number.parseInt(indexBuffer, 10);
         if (Number.isNaN(index)) {
-          throw new Error(`Invalid JSON path "${path}" – non-numeric index "${indexBuffer}"`);
+          throw createRuntimeError(
+            RuntimeErrorCode.INVALID_JSON_PATH,
+            `Invalid JSON path "${path}" – non-numeric index "${indexBuffer}"`,
+          );
         }
         tokens.push(index);
         indexBuffer = '';
@@ -77,7 +85,10 @@ function tokenize(path: string): PathToken[] {
   }
 
   if (inBracket) {
-    throw new Error(`Invalid JSON path "${path}" – missing closing bracket`);
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_JSON_PATH,
+      `Invalid JSON path "${path}" – missing closing bracket`,
+    );
   }
   if (buffer.length > 0) {
     tokens.push(buffer);

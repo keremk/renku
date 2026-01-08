@@ -1,5 +1,6 @@
 import type { BlueprintInputDefinition, BlueprintTreeNode } from '../types.js';
 import { SYSTEM_INPUTS } from '../types.js';
+import { createParserError, ParserErrorCode } from '../errors/index.js';
 
 /**
  * Canonical ID helpers live in parsing because parsing is the only stage
@@ -158,7 +159,10 @@ export function parseCanonicalArtifactId(
 function parseIdBody(type: CanonicalIdType, body: string): ParsedCanonicalId {
   const segments = body.split('.').filter((s) => s.length > 0);
   if (segments.length === 0) {
-    throw new Error(`Invalid canonical ${type} ID: empty body.`);
+    throw createParserError(
+      ParserErrorCode.EMPTY_CANONICAL_ID_BODY,
+      `Invalid canonical ${type} ID: empty body.`,
+    );
   }
   const name = segments[segments.length - 1]!;
   const path = segments.slice(0, -1);
@@ -174,11 +178,17 @@ function parseIdBody(type: CanonicalIdType, body: string): ParsedCanonicalId {
  */
 export function assertCanonicalInputId(value: string): void {
   if (!isCanonicalInputId(value)) {
-    throw new Error(`Expected canonical Input ID (Input:...), got "${value}".`);
+    throw createParserError(
+      ParserErrorCode.INVALID_CANONICAL_ID,
+      `Expected canonical Input ID (Input:...), got "${value}".`,
+    );
   }
   const body = value.slice('Input:'.length);
   if (body.length === 0 || body === '.') {
-    throw new Error(`Invalid canonical Input ID: "${value}" has empty body.`);
+    throw createParserError(
+      ParserErrorCode.EMPTY_CANONICAL_ID_BODY,
+      `Invalid canonical Input ID: "${value}" has empty body.`,
+    );
   }
 }
 
@@ -187,16 +197,18 @@ export function assertCanonicalInputId(value: string): void {
  */
 export function assertCanonicalArtifactId(value: string): void {
   if (!isCanonicalArtifactId(value)) {
-    throw new Error(
-      `Expected canonical Artifact ID (Artifact:...), got "${value}".`
+    throw createParserError(
+      ParserErrorCode.INVALID_CANONICAL_ID,
+      `Expected canonical Artifact ID (Artifact:...), got "${value}".`,
     );
   }
   const body = value.slice('Artifact:'.length);
   // Remove indices for validation
   const pathPart = body.replace(/\[\d+\]/g, '');
   if (pathPart.length === 0 || pathPart === '.') {
-    throw new Error(
-      `Invalid canonical Artifact ID: "${value}" has empty body.`
+    throw createParserError(
+      ParserErrorCode.EMPTY_CANONICAL_ID_BODY,
+      `Invalid canonical Artifact ID: "${value}" has empty body.`,
     );
   }
 }
@@ -206,14 +218,16 @@ export function assertCanonicalArtifactId(value: string): void {
  */
 export function assertCanonicalProducerId(value: string): void {
   if (!isCanonicalProducerId(value)) {
-    throw new Error(
-      `Expected canonical Producer ID (Producer:...), got "${value}".`
+    throw createParserError(
+      ParserErrorCode.INVALID_CANONICAL_ID,
+      `Expected canonical Producer ID (Producer:...), got "${value}".`,
     );
   }
   const body = value.slice('Producer:'.length);
   if (body.length === 0 || body === '.') {
-    throw new Error(
-      `Invalid canonical Producer ID: "${value}" has empty body.`
+    throw createParserError(
+      ParserErrorCode.EMPTY_CANONICAL_ID_BODY,
+      `Invalid canonical Producer ID: "${value}" has empty body.`,
     );
   }
 }
@@ -223,8 +237,9 @@ export function assertCanonicalProducerId(value: string): void {
  */
 export function assertCanonicalId(value: string): void {
   if (!isCanonicalId(value)) {
-    throw new Error(
-      `Expected canonical ID (Input:..., Artifact:..., or Producer:...), got "${value}".`
+    throw createParserError(
+      ParserErrorCode.INVALID_CANONICAL_ID,
+      `Expected canonical ID (Input:..., Artifact:..., or Producer:...), got "${value}".`,
     );
   }
 }
@@ -235,7 +250,10 @@ export function assertCanonicalId(value: string): void {
 
 function formatCanonicalId(kind: CanonicalIdType, segments: string[]): string {
   if (!Array.isArray(segments) || segments.length === 0) {
-    throw new Error('Canonical id segments must be a non-empty array.');
+    throw createParserError(
+      ParserErrorCode.INVALID_CANONICAL_ID,
+      'Canonical id segments must be a non-empty array.',
+    );
   }
   return `${kind}:${segments.join('.')}`;
 }
@@ -415,17 +433,24 @@ export function createInputIdResolver(
    */
   const resolve = (canonicalId: string): string => {
     if (typeof canonicalId !== 'string' || canonicalId.trim().length === 0) {
-      throw new Error('Input keys must be non-empty strings.');
+      throw createParserError(
+        ParserErrorCode.INVALID_INPUT_KEY,
+        'Input keys must be non-empty strings.',
+      );
     }
     const trimmed = canonicalId.trim();
     if (!isCanonicalInputId(trimmed)) {
-      throw new Error(
+      throw createParserError(
+        ParserErrorCode.INVALID_CANONICAL_ID,
         `Expected canonical Input ID (Input:...), got "${trimmed}". ` +
-          `Use resolver.toCanonical() to convert qualified names.`
+          `Use resolver.toCanonical() to convert qualified names.`,
       );
     }
     if (!canonicalIds.has(trimmed)) {
-      throw new Error(`Unknown canonical input id "${trimmed}".`);
+      throw createParserError(
+        ParserErrorCode.UNKNOWN_CANONICAL_ID,
+        `Unknown canonical input id "${trimmed}".`,
+      );
     }
     return trimmed;
   };
@@ -436,14 +461,20 @@ export function createInputIdResolver(
    */
   const toCanonical = (key: string): string => {
     if (typeof key !== 'string' || key.trim().length === 0) {
-      throw new Error('Input keys must be non-empty strings.');
+      throw createParserError(
+        ParserErrorCode.INVALID_INPUT_KEY,
+        'Input keys must be non-empty strings.',
+      );
     }
     const trimmed = key.trim();
 
     // If already canonical input, validate and return
     if (isCanonicalInputId(trimmed)) {
       if (!canonicalIds.has(trimmed)) {
-        throw new Error(`Unknown canonical input id "${trimmed}".`);
+        throw createParserError(
+          ParserErrorCode.UNKNOWN_CANONICAL_ID,
+          `Unknown canonical input id "${trimmed}".`,
+        );
       }
       return trimmed;
     }
@@ -472,8 +503,9 @@ export function createInputIdResolver(
       return `Input:${trimmed}`;
     }
 
-    throw new Error(
-      `Unknown input "${trimmed}". Expected a canonical ID (Input:...) or a known qualified name.`
+    throw createParserError(
+      ParserErrorCode.UNKNOWN_CANONICAL_ID,
+      `Unknown input "${trimmed}". Expected a canonical ID (Input:...) or a known qualified name.`,
     );
   };
 
@@ -502,7 +534,10 @@ export function parseQualifiedProducerName(name: string): {
 } {
   const segments = name.split('.').filter((segment) => segment.length > 0);
   if (segments.length === 0) {
-    throw new Error('Producer name must be non-empty.');
+    throw createParserError(
+      ParserErrorCode.INVALID_PRODUCER_NAME,
+      'Producer name must be non-empty.',
+    );
   }
   const producerName = segments[segments.length - 1]!;
   const namespacePath = segments.slice(0, -1);

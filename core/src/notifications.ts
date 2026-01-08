@@ -1,4 +1,6 @@
 /* eslint-disable no-unused-vars */
+import { createRuntimeError, RuntimeErrorCode } from './errors/index.js';
+
 export type NotificationType = 'progress' | 'success' | 'warning' | 'error';
 
 export interface Notification {
@@ -23,13 +25,19 @@ export function createNotificationBus(): NotificationBus {
   return {
     publish(notification) {
       if (completed) {
-        throw new Error('NotificationBus is completed and cannot publish new notifications.');
+        throw createRuntimeError(
+          RuntimeErrorCode.NOTIFICATION_BUS_COMPLETED,
+          'NotificationBus is completed and cannot publish new notifications.',
+        );
       }
       subscribers.forEach((handler) => handler(notification));
     },
     subscribe(handler) {
       if (completed) {
-        throw new Error('NotificationBus is completed and cannot accept subscribers.');
+        throw createRuntimeError(
+          RuntimeErrorCode.NOTIFICATION_BUS_COMPLETED,
+          'NotificationBus is completed and cannot accept subscribers.',
+        );
       }
       subscribers.add(handler);
       return () => subscribers.delete(handler);

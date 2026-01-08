@@ -1,5 +1,6 @@
 import { Buffer } from 'node:buffer';
 import type { EventLog } from './event-log.js';
+import { createRuntimeError, RuntimeErrorCode } from './errors/index.js';
 import type { StorageContext } from './storage.js';
 import type { BlobRef, ArtefactEvent } from './types.js';
 import { formatBlobFileName } from './blob-utils.js';
@@ -110,9 +111,11 @@ export async function readBlob(
     const payload = await storage.storage.readToUint8Array(primaryPath);
     return decodePayload(payload, blobRef.mimeType);
   } catch {
-    throw new Error(
+    throw createRuntimeError(
+      RuntimeErrorCode.ARTIFACT_RESOLUTION_FAILED,
       `Blob not found at ${primaryPath}. ` +
         `If this is a legacy project, blobs may need to be migrated.`,
+      { filePath: primaryPath },
     );
   }
 }
@@ -125,7 +128,8 @@ function decodePayload(payload: Uint8Array, mimeType?: string): unknown {
       try {
         return JSON.parse(text);
       } catch {
-        throw new Error(
+        throw createRuntimeError(
+          RuntimeErrorCode.INVALID_JSON_ARTIFACT,
           `Invalid JSON in artifact: expected valid JSON but got: ${text.slice(0, 100)}...`,
         );
       }

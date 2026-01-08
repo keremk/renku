@@ -11,6 +11,7 @@ import type {
 import { SYSTEM_INPUTS } from '../types.js';
 import { parseDimensionSelector, type DimensionSelector } from '../parsing/dimension-selectors.js';
 import { decomposeJsonSchema } from './schema-decomposition.js';
+import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 
 /**
  * Well-known system input names that are automatically recognized.
@@ -180,7 +181,8 @@ function registerNamespaceDims(
       continue;
     }
     if (existing.length !== segment.dimensions.length) {
-      throw new Error(
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_BUILD_ERROR,
         `Namespace "${path.join('.')}" referenced with conflicting dimension counts (${existing.length} vs ${segment.dimensions.length}).`,
       );
     }
@@ -188,7 +190,8 @@ function registerNamespaceDims(
       const raw = segment.dimensions[index] ?? '';
       const selector = parseDimensionSelector(raw);
       if (selector.kind === 'loop' && existing[index]?.raw !== selector.symbol) {
-        throw new Error(
+        throw createRuntimeError(
+          RuntimeErrorCode.GRAPH_BUILD_ERROR,
           `Namespace "${path.join('.')}" referenced with conflicting dimensions (${existing.map((entry) => entry.raw).join(', ')} vs ${segment.dimensions.map((entry) => {
             const parsedSelector = parseDimensionSelector(entry);
             return parsedSelector.kind === 'loop' ? parsedSelector.symbol : entry;
@@ -252,7 +255,8 @@ function registerLocalDims(reference: string, dimsMap: LocalNodeDims): void {
     return;
   }
   if (existing.length !== dims.length) {
-    throw new Error(
+    throw createRuntimeError(
+      RuntimeErrorCode.GRAPH_BUILD_ERROR,
       `Node "${identifier}" referenced with inconsistent dimension counts (${existing.length} vs ${dims.length}).`,
     );
   }
@@ -260,7 +264,8 @@ function registerLocalDims(reference: string, dimsMap: LocalNodeDims): void {
     const raw = dims[index] ?? '';
     const selector = parseDimensionSelector(raw);
     if (selector.kind === 'loop' && existing[index]?.raw !== selector.symbol) {
-      throw new Error(
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_BUILD_ERROR,
         `Node "${identifier}" referenced with inconsistent dimensions (${existing.map((entry) => entry.raw).join(', ')} vs ${dims.map((entry) => {
           const parsedSelector = parseDimensionSelector(entry);
           return parsedSelector.kind === 'loop' ? parsedSelector.symbol : entry;
@@ -362,7 +367,8 @@ function createDimensionSymbols(dims: string[], context: string): DimensionSymbo
   return dims.map((raw, ordinal) => {
     const selector = parseDimensionSelector(raw);
     if (selector.kind === 'const') {
-      throw new Error(
+      throw createRuntimeError(
+        RuntimeErrorCode.INVALID_DIMENSION_SELECTOR,
         `${context} uses a numeric index selector "[${raw}]" to declare a dimension. ` +
         'Declare the dimension using a loop symbol (for example: "[segment]") and use numeric indices only when selecting an existing dimension.',
       );
@@ -705,7 +711,8 @@ function resolveNamespaceDimensionParents(
         // If loop symbols match, they refer to the same conceptual loop and are compatible
         // If they differ, we have a real conflict
         if (sourceLoopSymbol !== existingLoopSymbol) {
-          throw new Error(
+          throw createRuntimeError(
+            RuntimeErrorCode.GRAPH_BUILD_ERROR,
             `Namespace dimension "${namespaceKey}" derives from conflicting parents (${existing} vs ${sourceSymbol}).`,
           );
         }
@@ -862,7 +869,10 @@ function parseAllSelectors(
         selectors[index] = parseDimensionSelector(raw);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        throw new Error(`Invalid dimension selector in reference "${reference}": ${message}`);
+        throw createRuntimeError(
+          RuntimeErrorCode.INVALID_DIMENSION_SELECTOR,
+          `Invalid dimension selector in reference "${reference}": ${message}`,
+        );
       }
     }
   }
@@ -878,7 +888,10 @@ function findNodeByNamespace(tree: BlueprintTreeNode, namespacePath: string[]): 
   for (const segment of namespacePath) {
     current = current?.children.get(segment);
     if (!current) {
-      throw new Error(`Unknown sub-blueprint namespace "${namespacePath.join('.')}".`);
+      throw createRuntimeError(
+        RuntimeErrorCode.UNKNOWN_NAMESPACE,
+        `Unknown sub-blueprint namespace "${namespacePath.join('.')}".`,
+      );
     }
   }
   return current;
@@ -886,13 +899,19 @@ function findNodeByNamespace(tree: BlueprintTreeNode, namespacePath: string[]): 
 
 function parseReference(reference: string): ParsedReference {
   if (typeof reference !== 'string' || reference.trim().length === 0) {
-    throw new Error(`Invalid reference: "${reference}"`);
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_REFERENCE,
+      `Invalid reference: "${reference}"`,
+    );
   }
   const parts = reference.split('.');
   const segments = parts.map(parseSegment);
   const node = segments.pop();
   if (!node) {
-    throw new Error(`Malformed reference: "${reference}"`);
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_REFERENCE,
+      `Malformed reference: "${reference}"`,
+    );
   }
   return {
     namespaceSegments: segments,
@@ -905,13 +924,19 @@ function parseSegment(segment: string): ParsedSegment {
   const nameMatch = segment.match(/^[^[]+/);
   const name = nameMatch ? nameMatch[0] : '';
   if (!name) {
-    throw new Error(`Invalid segment "${segment}"`);
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_REFERENCE,
+      `Invalid segment "${segment}"`,
+    );
   }
   const dimMatches = segment.slice(name.length).match(/\[[^\]]*]/g) ?? [];
   for (const match of dimMatches) {
     const symbol = match.slice(1, -1).trim();
     if (!symbol) {
-      throw new Error(`Invalid dimension in "${segment}"`);
+      throw createRuntimeError(
+        RuntimeErrorCode.INVALID_DIMENSION_SELECTOR,
+        `Invalid dimension in "${segment}"`,
+      );
     }
     dims.push(symbol);
   }

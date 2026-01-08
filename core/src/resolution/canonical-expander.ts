@@ -19,6 +19,7 @@ import {
   formatCanonicalArtifactId,
   isCanonicalInputId,
 } from '../parsing/canonical-ids.js';
+import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 
 export interface CanonicalNodeInstance {
   id: string;
@@ -114,7 +115,8 @@ function resolveDimensionSizes(
       continue;
     }
     if (node.dimensions.length === 0) {
-      throw new Error(
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
         `Artefact "${[...node.namespacePath, node.name].join('.')}" declares countInput but has no dimensions.`,
       );
     }
@@ -125,7 +127,8 @@ function resolveDimensionSizes(
     );
     const offset = definition.countInputOffset ?? 0;
     if (!Number.isInteger(offset) || offset < 0) {
-      throw new Error(
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
         `Artefact "${[...node.namespacePath, node.name].join('.')}" declares an invalid countInputOffset (${offset}).`,
       );
     }
@@ -200,7 +203,8 @@ function resolveDimensionSizes(
     for (const symbol of node.dimensions) {
       if (!sizes.has(symbol)) {
         const { nodeId, label } = parseDimensionSymbol(symbol);
-        throw new Error(
+        throw createRuntimeError(
+          RuntimeErrorCode.MISSING_DIMENSION_SIZE,
           `Missing size for dimension "${label}" on node "${nodeId}". ` +
           `Ensure the upstream artefact declares countInput or can derive this dimension from a loop.`,
         );
@@ -218,7 +222,8 @@ function assignDimensionSize(
 ): void {
   const existing = sizes.get(symbol);
   if (existing !== undefined && existing !== size) {
-    throw new Error(
+    throw createRuntimeError(
+      RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
       `Dimension "${symbol}" has conflicting sizes (${existing} vs ${size}).`,
     );
   }
@@ -299,7 +304,10 @@ interface DimensionInfo {
 function parseDimensionSymbol(symbol: string): DimensionInfo {
   const delimiterIndex = symbol.indexOf('::');
   if (delimiterIndex === -1) {
-    throw new Error(`Dimension symbol "${symbol}" is missing a node qualifier.`);
+    throw createRuntimeError(
+      RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
+      `Dimension symbol "${symbol}" is missing a node qualifier.`,
+    );
   }
   const nodeId = symbol.slice(0, delimiterIndex);
   const label = symbol.slice(delimiterIndex + 2);
@@ -347,7 +355,10 @@ function buildIndexTuples(
     const symbol = symbols[index];
     const size = sizes.get(symbol);
     if (size === undefined) {
-      throw new Error(`Missing size for dimension "${symbol}".`);
+      throw createRuntimeError(
+        RuntimeErrorCode.MISSING_DIMENSION_SIZE,
+        `Missing size for dimension "${symbol}".`,
+      );
     }
     for (let value = 0; value < size; value += 1) {
       current[symbol] = value;
@@ -509,7 +520,10 @@ function edgeInstancesAlign(
 
 function getDimensionValue(indices: Record<string, number>, symbol: string): number {
   if (!(symbol in indices)) {
-    throw new Error(`Dimension "${symbol}" missing on node instance.`);
+    throw createRuntimeError(
+      RuntimeErrorCode.MISSING_DIMENSION_INDEX,
+      `Dimension "${symbol}" missing on node instance.`,
+    );
   }
   return indices[symbol]!;
 }
@@ -560,11 +574,17 @@ function collapseInputNodes(
     }
     if (inboundEdges.length > 1) {
       const parents = inboundEdges.map((edge) => edge.from).join(', ');
-      throw new Error(`Input node ${id} has multiple upstream dependencies (${parents}).`);
+      throw createRuntimeError(
+        RuntimeErrorCode.MULTIPLE_UPSTREAM_INPUTS,
+        `Input node ${id} has multiple upstream dependencies (${parents}).`,
+      );
     }
     const upstreamId = inboundEdges[0].from;
     if (stack.has(upstreamId)) {
-      throw new Error(`Alias cycle detected for ${id}`);
+      throw createRuntimeError(
+        RuntimeErrorCode.ALIAS_CYCLE_DETECTED,
+        `Alias cycle detected for ${id}`,
+      );
     }
     stack.add(upstreamId);
     const upstreamNode = nodeById.get(upstreamId);
@@ -754,7 +774,10 @@ function mapNodeType(kind: string): CanonicalNodeInstance['type'] {
     case 'Producer':
       return 'Producer';
     default:
-      throw new Error(`Unknown node kind ${kind}`);
+      throw createRuntimeError(
+        RuntimeErrorCode.UNKNOWN_NODE_KIND,
+        `Unknown node kind ${kind}`,
+      );
   }
 }
 
@@ -768,7 +791,10 @@ function formatCanonicalNodeId(node: BlueprintGraphNode, indices: Record<string,
     let resolvedName = node.name;
     for (const symbol of node.dimensions) {
       if (!(symbol in indices)) {
-        throw new Error(`Missing index value for dimension "${symbol}" on node ${node.name}`);
+        throw createRuntimeError(
+          RuntimeErrorCode.MISSING_DIMENSION_INDEX,
+          `Missing index value for dimension "${symbol}" on node ${node.name}`,
+        );
       }
       const label = extractDimensionLabel(symbol);
       // Replace [label] with [index]
@@ -788,7 +814,10 @@ function formatCanonicalNodeId(node: BlueprintGraphNode, indices: Record<string,
       : formatCanonicalProducerId(node.namespacePath, node.name);
   const suffix = node.dimensions.map((symbol) => {
     if (!(symbol in indices)) {
-      throw new Error(`Missing index value for dimension "${symbol}" on node ${baseId}`);
+      throw createRuntimeError(
+        RuntimeErrorCode.MISSING_DIMENSION_INDEX,
+        `Missing index value for dimension "${symbol}" on node ${baseId}`,
+      );
     }
     return `[${indices[symbol]}]`;
   }).join('');
@@ -894,21 +923,33 @@ function readInputValue(
   const canonicalId = formatCanonicalInputId(namespacePath, name);
   const sourceId = inputSources.get(canonicalId);
   if (!sourceId) {
-    throw new Error(`Missing input source mapping for "${canonicalId}".`);
+    throw createRuntimeError(
+      RuntimeErrorCode.MISSING_INPUT_SOURCE,
+      `Missing input source mapping for "${canonicalId}".`,
+    );
   }
   if (!(sourceId in values)) {
-    throw new Error(`Input "${sourceId}" is required but missing a value.`);
+    throw createRuntimeError(
+      RuntimeErrorCode.MISSING_REQUIRED_INPUT,
+      `Input "${sourceId}" is required but missing a value.`,
+    );
   }
   return values[sourceId];
 }
 
 function readPositiveInteger(value: unknown, field: string): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
-    throw new Error(`Input "${field}" must be a finite number.`);
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_INPUT_VALUE,
+      `Input "${field}" must be a finite number.`,
+    );
   }
   const normalized = Math.trunc(value);
   if (normalized <= 0) {
-    throw new Error(`Input "${field}" must be greater than zero.`);
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_INPUT_VALUE,
+      `Input "${field}" must be greater than zero.`,
+    );
   }
   return normalized;
 }

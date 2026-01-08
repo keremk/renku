@@ -1,4 +1,5 @@
 import { isCanonicalArtifactId, isCanonicalInputId } from './canonical-ids.js';
+import { createRuntimeError, RuntimeErrorCode } from './errors/index.js';
 import type { JobDescriptor, ProducerJobContext } from './types.js';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -28,7 +29,11 @@ export function prepareJobContext(
   const resolvedInputs: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(baseInputs)) {
     if (!isCanonicalInputId(key) && !isCanonicalArtifactId(key)) {
-      throw new Error(`Resolved inputs must use canonical ids. Found "${key}".`);
+      throw createRuntimeError(
+        RuntimeErrorCode.NON_CANONICAL_INPUT_ID,
+        `Resolved inputs must use canonical ids. Found "${key}".`,
+        { context: key },
+      );
     }
     resolvedInputs[key] = value;
   }
@@ -43,7 +48,11 @@ export function prepareJobContext(
   if (bindings) {
     for (const [alias, canonicalId] of Object.entries(bindings)) {
       if (!isCanonicalInputId(canonicalId) && !isCanonicalArtifactId(canonicalId)) {
-        throw new Error(`Input binding target must be canonical. Found "${canonicalId}" for alias "${alias}".`);
+        throw createRuntimeError(
+          RuntimeErrorCode.INVALID_INPUT_BINDING,
+          `Input binding target must be canonical. Found "${canonicalId}" for alias "${alias}".`,
+          { context: `${alias}: ${canonicalId}` },
+        );
       }
     }
   }

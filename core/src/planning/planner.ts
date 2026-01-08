@@ -1,5 +1,6 @@
 import { isCanonicalArtifactId, isCanonicalInputId } from '../canonical-ids.js';
 import type { EventLog } from '../event-log.js';
+import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import { hashPayload } from '../hashing.js';
 import { deriveArtefactHash } from '../manifest.js';
 import {
@@ -237,7 +238,10 @@ function buildExecutionLayers(
 function ensureNoCycles(indegree: Map<string, number>): void {
   const remaining = Array.from(indegree.values()).filter((value) => value > 0);
   if (remaining.length > 0) {
-    throw new Error('Producer graph contains a cycle. Unable to create execution plan.');
+    throw createRuntimeError(
+      RuntimeErrorCode.CYCLIC_DEPENDENCY,
+      'Producer graph contains a cycle. Unable to create execution plan.',
+    );
   }
 }
 

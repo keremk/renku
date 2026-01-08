@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { resolve, extname, isAbsolute } from 'node:path';
 import { inferMimeType } from '../blob-utils.js';
+import { createParserError, ParserErrorCode } from '../errors/index.js';
 import type { BlobInput } from '../types.js';
 
 const FILE_PREFIX = 'file:';
@@ -29,7 +30,11 @@ export async function resolveFileReference(
     return { data, mimeType };
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to load file "${filePath}": ${msg}`);
+    throw createParserError(
+      ParserErrorCode.FILE_LOAD_FAILED,
+      `Failed to load file "${filePath}": ${msg}`,
+      { filePath: absolutePath },
+    );
   }
 }
 

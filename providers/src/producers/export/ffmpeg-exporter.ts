@@ -3,7 +3,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
-import { createProviderError } from '../../sdk/errors.js';
+import { createProviderError, SdkErrorCode } from '../../sdk/errors.js';
 import type { HandlerFactory } from '../../types.js';
 import type { ResolvedInputsAccessor } from '../../sdk/types.js';
 import { createStorageContext } from '@gorenku/core';
@@ -53,11 +53,11 @@ export function createFfmpegExporterHandler(): HandlerFactory {
       const produceId = request.produces[0];
 
       if (!produceId) {
-        throw createProviderError('FFmpeg exporter requires at least one declared artefact output.', {
-          code: 'invalid_config',
-          kind: 'user_input',
-          causedByUser: true,
-        });
+        throw createProviderError(
+          SdkErrorCode.INVALID_CONFIG,
+          'FFmpeg exporter requires at least one declared artefact output.',
+          { kind: 'user_input', causedByUser: true },
+        );
       }
 
       const movieId = resolveMovieId(runtime.inputs);
@@ -172,11 +172,11 @@ function resolveMovieId(inputs: ResolvedInputsAccessor): string {
   if (typeof movieId === 'string' && movieId.trim()) {
     return movieId;
   }
-  throw createProviderError('FFmpeg exporter is missing movieId (Input:MovieId).', {
-    code: 'invalid_config',
-    kind: 'user_input',
-    causedByUser: true,
-  });
+  throw createProviderError(
+    SdkErrorCode.INVALID_CONFIG,
+    'FFmpeg exporter is missing movieId (Input:MovieId).',
+    { kind: 'user_input', causedByUser: true },
+  );
 }
 
 function resolveStoragePaths(config: FfmpegExporterConfig, inputs: ResolvedInputsAccessor): {
@@ -186,18 +186,18 @@ function resolveStoragePaths(config: FfmpegExporterConfig, inputs: ResolvedInput
   const root = config.rootFolder ?? inputs.getByNodeId<string>('Input:StorageRoot');
   const basePath = inputs.getByNodeId<string>('Input:StorageBasePath');
   if (!root || typeof root !== 'string') {
-    throw createProviderError('FFmpeg exporter is missing storage root (Input:StorageRoot).', {
-      code: 'invalid_config',
-      kind: 'user_input',
-      causedByUser: true,
-    });
+    throw createProviderError(
+      SdkErrorCode.MISSING_STORAGE_ROOT,
+      'FFmpeg exporter is missing storage root (Input:StorageRoot).',
+      { kind: 'user_input', causedByUser: true },
+    );
   }
   if (!basePath || typeof basePath !== 'string' || !basePath.trim()) {
-    throw createProviderError('FFmpeg exporter is missing storage base path (Input:StorageBasePath).', {
-      code: 'invalid_config',
-      kind: 'user_input',
-      causedByUser: true,
-    });
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      'FFmpeg exporter is missing storage base path (Input:StorageBasePath).',
+      { kind: 'user_input', causedByUser: true },
+    );
   }
   return { storageRoot: root, storageBasePath: basePath };
 }
@@ -211,11 +211,11 @@ async function loadTimeline(
   const pointer = JSON.parse(pointerRaw) as ManifestPointer;
 
   if (!pointer.manifestPath) {
-    throw createProviderError(`Manifest pointer missing path for movie ${movieId}.`, {
-      code: 'missing_manifest',
-      kind: 'user_input',
-      causedByUser: true,
-    });
+    throw createProviderError(
+      SdkErrorCode.MISSING_MANIFEST,
+      `Manifest pointer missing path for movie ${movieId}.`,
+      { kind: 'user_input', causedByUser: true },
+    );
   }
 
   const manifestPath = storage.resolve(movieId, pointer.manifestPath);
@@ -224,11 +224,11 @@ async function loadTimeline(
 
   const timelineArtefact = manifest.artefacts?.[TIMELINE_ARTEFACT_ID];
   if (!timelineArtefact) {
-    throw createProviderError(`Timeline artefact not found for movie ${movieId}.`, {
-      code: 'missing_timeline',
-      kind: 'user_input',
-      causedByUser: true,
-    });
+    throw createProviderError(
+      SdkErrorCode.MISSING_TIMELINE,
+      `Timeline artefact not found for movie ${movieId}.`,
+      { kind: 'user_input', causedByUser: true },
+    );
   }
 
   // Load the actual timeline blob
@@ -370,32 +370,26 @@ async function runFfmpeg(ffmpegPath: string, args: string[]): Promise<void> {
 
     // Check for common FFmpeg errors
     if (stderr.includes('No such file or directory') || message.includes('No such file')) {
-      throw createProviderError(`FFmpeg input file not found: ${message}`, {
-        code: 'missing_asset',
-        kind: 'user_input',
-        causedByUser: true,
-        raw: error,
-      });
+      throw createProviderError(
+        SdkErrorCode.MISSING_ASSET,
+        `FFmpeg input file not found: ${message}`,
+        { kind: 'user_input', causedByUser: true, raw: error },
+      );
     }
 
     if (message.includes('ENOENT')) {
       throw createProviderError(
+        SdkErrorCode.FFMPEG_NOT_FOUND,
         `FFmpeg not found at '${ffmpegPath}'. Ensure FFmpeg is installed and in your PATH.`,
-        {
-          code: 'ffmpeg_not_found',
-          kind: 'user_input',
-          causedByUser: true,
-          raw: error,
-        }
+        { kind: 'user_input', causedByUser: true, raw: error },
       );
     }
 
-    throw createProviderError(`FFmpeg render failed: ${message}`, {
-      code: 'render_failed',
-      kind: 'unknown',
-      causedByUser: false,
-      raw: error,
-    });
+    throw createProviderError(
+      SdkErrorCode.RENDER_FAILED,
+      `FFmpeg render failed: ${message}`,
+      { kind: 'unknown', causedByUser: false, raw: error },
+    );
   }
 }
 

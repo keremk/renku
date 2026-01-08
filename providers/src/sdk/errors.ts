@@ -1,3 +1,7 @@
+import { SdkErrorCode, type SdkErrorCodeValue } from '@gorenku/core';
+
+export { SdkErrorCode };
+
 export type ProviderErrorKind = 'rate_limited' | 'transient' | 'user_input' | 'unknown';
 
 export interface ProviderError extends Error {
@@ -10,9 +14,9 @@ export interface ProviderError extends Error {
 }
 
 export function createProviderError(
+  code: SdkErrorCodeValue | string,
   message: string,
   options: {
-    code?: string;
     kind?: ProviderErrorKind;
     retryable?: boolean;
     causedByUser?: boolean;
@@ -21,7 +25,7 @@ export function createProviderError(
   } = {},
 ): ProviderError {
   const error = new Error(message) as ProviderError;
-  error.code = options.code ?? 'unknown_error';
+  error.code = code;
   error.kind = options.kind ?? 'unknown';
   error.retryable = options.retryable ?? false;
   error.causedByUser = options.causedByUser;

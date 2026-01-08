@@ -13,6 +13,7 @@ import {
   isCanonicalInputId,
   parseQualifiedProducerName,
 } from './canonical-ids.js';
+import { createParserError, ParserErrorCode } from '../errors/index.js';
 import type {
   BlobInput,
   BlueprintProducerOutputDefinition,
@@ -90,7 +91,11 @@ export async function loadInputsFromYaml(
     .map((entry) => entry.canonicalId);
 
   if (missingRequired.length > 0) {
-    throw new Error(`Input file missing required fields: ${missingRequired.join(', ')}`);
+    throw createParserError(
+      ParserErrorCode.MISSING_INPUTS_MAPPING,
+      `Input file missing required fields: ${missingRequired.join(', ')}`,
+      { filePath },
+    );
   }
 
   // Note: Blueprint defaults are no longer applied here - model JSON schemas are the source of truth
@@ -113,7 +118,11 @@ function validateYamlExtension(filePath: string): void {
   if (extension === '.yaml' || extension === '.yml') {
     return;
   }
-  throw new Error(`Input files must be YAML (*.yaml or *.yml). Received: ${filePath}`);
+  throw createParserError(
+    ParserErrorCode.INVALID_INPUT_FILE_EXTENSION,
+    `Input files must be YAML (*.yaml or *.yml). Received: ${filePath}`,
+    { filePath },
+  );
 }
 
 function resolveInputSection(raw: RawInputsFile): Record<string, unknown> {
@@ -123,7 +132,10 @@ function resolveInputSection(raw: RawInputsFile): Record<string, unknown> {
   if (raw && typeof raw === 'object') {
     return { ...(raw as Record<string, unknown>) };
   }
-  throw new Error('Input file must define an inputs mapping with key/value pairs.');
+  throw createParserError(
+    ParserErrorCode.MISSING_INPUTS_MAPPING,
+    'Input file must define an inputs mapping with key/value pairs.',
+  );
 }
 
 function canonicalizeInputs(
@@ -135,7 +147,10 @@ function canonicalizeInputs(
     // Convert to canonical form (accepts both canonical IDs and qualified names)
     const canonical = resolver.toCanonical(key);
     if (resolved[canonical] !== undefined) {
-      throw new Error(`Duplicate input value for "${canonical}".`);
+      throw createParserError(
+        ParserErrorCode.DUPLICATE_INPUT_KEY,
+        `Duplicate input value for "${canonical}".`,
+      );
     }
     resolved[canonical] = value;
   }
@@ -175,7 +190,10 @@ function resolveProducerName(
   if (direct) {
     return direct;
   }
-  throw new Error(`Unknown producer "${authored}" in models selection.`);
+  throw createParserError(
+    ParserErrorCode.UNKNOWN_PRODUCER_IN_MODELS,
+    `Unknown producer "${authored}" in models selection.`,
+  );
 }
 
 function applyModelSelectionsToInputs(values: Record<string, unknown>, selections: ModelSelection[]): void {
@@ -299,7 +317,10 @@ function resolveModelSelections(
   if (Array.isArray(raw)) {
     for (const entry of raw) {
       if (!entry || typeof entry !== 'object') {
-        throw new Error(`Invalid model entry in inputs file: ${JSON.stringify(entry)}`);
+        throw createParserError(
+          ParserErrorCode.INVALID_MODEL_ENTRY,
+          `Invalid model entry in inputs file: ${JSON.stringify(entry)}`,
+        );
       }
       const record = entry as Record<string, unknown>;
       const producerId = readString(record, 'producerId');
@@ -464,7 +485,10 @@ function readString(source: Record<string, unknown>, key: string): string {
   if (typeof value === 'string' && value.trim().length > 0) {
     return value.trim();
   }
-  throw new Error(`Expected string for "${key}" in models entry`);
+  throw createParserError(
+    ParserErrorCode.MISSING_REQUIRED_FIELD,
+    `Expected string for "${key}" in models entry`,
+  );
 }
 
 async function resolveAllFileReferences(
@@ -563,9 +587,10 @@ async function resolveArtifactOverrides(
       });
     } else {
       // Non-blob artifact overrides are currently not supported
-      throw new Error(
+      throw createParserError(
+        ParserErrorCode.INVALID_ARTIFACT_OVERRIDE,
         `Artifact override "${key}" must be a file reference (file:...). ` +
-        `Got: ${typeof resolved === 'string' ? resolved : typeof resolved}`
+        `Got: ${typeof resolved === 'string' ? resolved : typeof resolved}`,
       );
     }
   }

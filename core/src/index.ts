@@ -1,4 +1,5 @@
 export * from './types.js';
+export * from './errors/index.js';
 export * from './resolution/index.js';
 export * from './schema/index.js';
 export * from './storage.js';
