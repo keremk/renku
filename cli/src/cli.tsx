@@ -48,6 +48,7 @@ import { runUpdate } from './commands/update.js';
 import { runUse } from './commands/use.js';
 import { runGenerate } from './commands/generate.js';
 import { runClean } from './commands/clean.js';
+import { runList } from './commands/list.js';
 import { runExport } from './commands/export.js';
 import { runProducersList } from './commands/producers-list.js';
 import { runCreateInputTemplate } from './commands/create-input-template.js';
@@ -65,7 +66,11 @@ import { detectViewerAddress } from './lib/viewer-network.js';
 
 
 const cli = meow(
-  `\nUsage\n  $ renku <command> [options]\n\nCommands\n  install             Guided setup (alias for init)\n  init                Initialize a new Renku workspace (requires --root)\n  update              Update the catalog in the active workspace\n  use                 Switch to an existing workspace (requires --root)\n  generate            Create or continue a movie generation\n  create:input-template  Create an inputs YAML template for a blueprint\n  export              Export a movie to MP4/MP3 (--exporter=remotion|ffmpeg)\n  clean               Remove friendly view and build artefacts for a movie\n  viewer:start        Start the bundled viewer server in the foreground\n  viewer:view         Open the viewer for a movie id (starts server if needed)\n  viewer:stop         Stop the background viewer server\n  producers:list      List all available models for producers in a blueprint\n  blueprints:list     List available blueprint YAML files\n  blueprints:describe <path>  Show details for a blueprint YAML file\n  blueprints:validate <path>  Validate a blueprint YAML file\n  mcp                 Run the Renku MCP server over stdio\n\nExamples\n  $ renku init --root=~/media/renku\n  $ renku update                             # Update catalog in active workspace\n  $ renku use --root=~/media/other-workspace # Switch to another workspace\n  $ renku create:input-template --blueprint=documentary-talking-head.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml --concurrency=3\n  $ renku generate --last --up-to-layer=1\n  $ renku export --movie-id=abc123\n  $ renku export --last --width=1920 --height=1080 --fps=30\n  $ renku export --last --exporter=ffmpeg\n  $ renku producers:list --blueprint=image-audio.yaml\n  $ renku blueprints:list\n  $ renku blueprints:describe audio-only.yaml\n  $ renku blueprints:validate image-audio.yaml\n  $ renku clean --movie-id=movie-q123456\n  $ renku viewer:start\n  $ renku viewer:view --movie-id=movie-q123456\n  $ renku viewer:view --last\n  $ renku mcp --defaultBlueprint=image-audio.yaml\n`,
+  `\nUsage\n  $ renku <command> [options]\n\nCommands\n  install             Guided setup (alias for init)\n  init                Initialize a new Renku workspace (requires --root)\n  update              Update the catalog in the active workspace\n  use                 Switch to an existing workspace (requires --root)\n  generate            Create or continue a movie generation\n  create:input-template  Create an inputs YAML template for a blueprint\n  export              Export a movie to MP4/MP3 (--exporter=remotion|ffmpeg)\n  clean               Remove dry-run builds (--all to include completed builds)
+  list                List builds in current project (shows dry-run vs completed)\n  viewer:start        Start the bundled viewer server in the foreground\n  viewer:view         Open the viewer for a movie id (starts server if needed)\n  viewer:stop         Stop the background viewer server\n  producers:list      List all available models for producers in a blueprint\n  blueprints:list     List available blueprint YAML files\n  blueprints:describe <path>  Show details for a blueprint YAML file\n  blueprints:validate <path>  Validate a blueprint YAML file\n  mcp                 Run the Renku MCP server over stdio\n\nExamples\n  $ renku init --root=~/media/renku\n  $ renku update                             # Update catalog in active workspace\n  $ renku use --root=~/media/other-workspace # Switch to another workspace\n  $ renku create:input-template --blueprint=documentary-talking-head.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml --concurrency=3\n  $ renku generate --last --up-to-layer=1\n  $ renku export --movie-id=abc123\n  $ renku export --last --width=1920 --height=1080 --fps=30\n  $ renku export --last --exporter=ffmpeg\n  $ renku producers:list --blueprint=image-audio.yaml\n  $ renku blueprints:list\n  $ renku blueprints:describe audio-only.yaml\n  $ renku blueprints:validate image-audio.yaml\n  $ renku list                           # List builds in current project
+  $ renku clean                          # Clean dry-run builds only
+  $ renku clean --all                    # Clean all builds including completed
+  $ renku clean --movie-id=movie-q123456 # Clean specific movie\n  $ renku viewer:start\n  $ renku viewer:view --movie-id=movie-q123456\n  $ renku viewer:view --last\n  $ renku mcp --defaultBlueprint=image-audio.yaml\n`,
   {
     importMeta: import.meta,
     flags: {
@@ -255,7 +260,7 @@ async function main(): Promise<void> {
           logLevel,
         });
         const viewerUrl =
-          !result.isDryRun && result.friendlyRoot
+          !result.isDryRun && result.artifactsRoot
             ? await resolveViewerUrl(result.storageMovieId)
             : undefined;
         printGenerateSummary(logger, result, viewerUrl);
@@ -497,14 +502,19 @@ async function main(): Promise<void> {
       }
       return;
     }
+    case 'list': {
+      await runList({ logger });
+      return;
+    }
     case 'clean': {
       const movieId = rest[0] ?? flags.movieId ?? flags.id;
-      if (!movieId) {
-        logger.error('Error: --movie-id/--id is required for clean (pass as first argument).');
-        process.exitCode = 1;
-        return;
-      }
-      await runClean({ movieId, logger });
+      await runClean({
+        movieId: movieId || undefined,
+        all: flags.all,
+        dryRun: flags.dryRun,
+        nonInteractive: flags.nonInteractive,
+        logger,
+      });
       return;
     }
     case 'export': {
@@ -542,7 +552,7 @@ async function main(): Promise<void> {
         });
         logger.info('Export completed successfully.');
         logger.info(`  Movie: ${result.movieId}`);
-        logger.info(`  Output: ${result.friendlyPath}`);
+        logger.info(`  Output: ${result.artifactsPath}`);
         logger.info(`  Exporter: ${result.exporter}`);
         logger.info(`  Resolution: ${result.width}x${result.height} @ ${result.fps}fps`);
       } catch (error) {
@@ -638,10 +648,10 @@ function printGenerateSummary(
     [`${chalk.bold('Plan')}`, result.planPath],
     ...(result.manifestPath ? [[`${chalk.bold('Manifest')}`, result.manifestPath] as [string, string]] : []),
     [`${chalk.bold('Builds')}`, result.storagePath],
-    ...(result.friendlyRoot ? [[`${chalk.bold('Workspace')}`, result.friendlyRoot] as [string, string]] : []),
+    ...(result.artifactsRoot ? [[`${chalk.bold('Artifacts')}`, result.artifactsRoot] as [string, string]] : []),
     ...(viewerUrl
       ? [[`${chalk.bold('Viewer')}`, viewerUrl] as [string, string]]
-      : result.friendlyRoot
+      : result.artifactsRoot
         ? [[`${chalk.bold('Viewer')}`, `renku viewer:view --movie-id=${result.storageMovieId}`] as [string, string]]
         : []),
   ];

@@ -1,8 +1,8 @@
 import { resolve, dirname } from 'node:path';
 import { mkdir, rm, symlink } from 'node:fs/promises';
-import { getDefaultCliConfigPath, readCliConfig } from '../lib/cli-config.js';
+import { getDefaultCliConfigPath, getProjectLocalStorage, readCliConfig } from '../lib/cli-config.js';
 import { resolveTargetMovieId } from '../lib/movie-id-utils.js';
-import { loadCurrentManifest } from '../lib/friendly-view.js';
+import { loadCurrentManifest } from '../lib/artifacts-view.js';
 import { readMovieMetadata } from '../lib/movie-metadata.js';
 import { loadBlueprintBundle } from '../lib/blueprint-loader/index.js';
 import { createProviderRegistry, loadModelCatalog } from '@gorenku/providers';
@@ -27,7 +27,7 @@ export interface ExportOptions {
 export interface ExportResult {
   movieId: string;
   outputPath: string;
-  friendlyPath: string;
+  artifactsPath: string;
   width: number;
   height: number;
   fps: number;
@@ -36,19 +36,23 @@ export interface ExportResult {
 
 export async function runExport(options: ExportOptions): Promise<ExportResult> {
   const configPath = getDefaultCliConfigPath();
-  const cliConfig = await readCliConfig(configPath);
-  if (!cliConfig) {
+  const globalConfig = await readCliConfig(configPath);
+  if (!globalConfig) {
     throw new Error('Renku CLI is not initialized. Run "renku init" first.');
   }
+
+  // Use project-local storage (cwd)
+  const projectStorage = getProjectLocalStorage();
+  const effectiveConfig = { ...globalConfig, storage: projectStorage };
 
   const storageMovieId = await resolveTargetMovieId({
     explicitMovieId: options.movieId,
     useLast: Boolean(options.useLast),
-    cliConfig,
+    cliConfig: effectiveConfig,
   });
 
   // Load movie metadata to get the blueprint path
-  const movieDir = resolve(cliConfig.storage.root, cliConfig.storage.basePath, storageMovieId);
+  const movieDir = resolve(projectStorage.root, projectStorage.basePath, storageMovieId);
   const metadata = await readMovieMetadata(movieDir);
   if (!metadata?.blueprintPath) {
     throw new Error(`Unable to find movie metadata for ${storageMovieId}.`);
@@ -58,7 +62,7 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
   await validateBlueprintHasTimelineComposer(metadata.blueprintPath);
 
   // Load manifest and validate Timeline artifact exists
-  const { manifest } = await loadCurrentManifest(cliConfig, storageMovieId);
+  const { manifest } = await loadCurrentManifest(effectiveConfig, storageMovieId);
   validateTimelineArtifactExists(manifest);
 
   // Determine output path and quality settings
@@ -67,15 +71,15 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
   const fps = options.fps ?? DEFAULT_FPS;
   const exporter: ExporterType = options.exporter ?? 'remotion';
   const outputPath = resolve(
-    cliConfig.storage.root,
-    cliConfig.storage.basePath,
+    projectStorage.root,
+    projectStorage.basePath,
     storageMovieId,
     OUTPUT_FILENAME,
   );
 
   // Load model catalog and create provider registry
-  const catalogModelsDir = cliConfig.catalog?.root
-    ? resolve(cliConfig.catalog.root, 'models')
+  const catalogModelsDir = globalConfig.catalog?.root
+    ? resolve(globalConfig.catalog.root, 'models')
     : undefined;
   const catalog = catalogModelsDir
     ? await loadModelCatalog(catalogModelsDir)
@@ -109,8 +113,8 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
       extras: {
         resolvedInputs: {
           'Input:MovieId': storageMovieId,
-          'Input:StorageRoot': cliConfig.storage.root,
-          'Input:StorageBasePath': cliConfig.storage.basePath,
+          'Input:StorageRoot': projectStorage.root,
+          'Input:StorageBasePath': projectStorage.basePath,
           [TIMELINE_ARTEFACT_ID]: timelineEntry,
         },
       },
@@ -121,21 +125,21 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
     throw new Error('Export failed: ' + JSON.stringify(response.diagnostics));
   }
 
-  // Create symlink in the movies/ folder
-  const friendlyRoot = resolve(cliConfig.storage.root, 'movies', storageMovieId);
-  const friendlyPath = resolve(friendlyRoot, OUTPUT_FILENAME);
-  await mkdir(dirname(friendlyPath), { recursive: true });
+  // Create symlink in the artifacts/ folder
+  const artifactsRoot = resolve(projectStorage.root, 'artifacts', storageMovieId);
+  const artifactsPath = resolve(artifactsRoot, OUTPUT_FILENAME);
+  await mkdir(dirname(artifactsPath), { recursive: true });
   try {
-    await rm(friendlyPath, { force: true });
+    await rm(artifactsPath, { force: true });
   } catch {
     // noop - file may not exist
   }
-  await symlink(outputPath, friendlyPath);
+  await symlink(outputPath, artifactsPath);
 
   return {
     movieId: storageMovieId,
     outputPath,
-    friendlyPath,
+    artifactsPath,
     width,
     height,
     fps,

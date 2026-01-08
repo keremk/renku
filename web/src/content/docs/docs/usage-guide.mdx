@@ -196,7 +196,7 @@ Renku will:
 1. Create a new movie directory
 2. Execute producers layer by layer
 3. Store artifacts in the blob store
-4. Create friendly symlinks in `movies/`
+4. Create symlinks in `artifacts/`
 5. Log all events for future reference
 
 ### Continue an Existing Movie
@@ -224,17 +224,19 @@ renku generate \
 
 ### Finding Your Outputs
 
-Generated content is in two locations:
+Generated content is in two locations within your **current working directory**:
 
 **Build directory** (`builds/movie-{id}/`):
 - `blobs/` - Raw generated files
 - `manifests/` - Artifact metadata
 - `events/` - Execution logs
 
-**Friendly view** (`movies/movie-{id}/`):
+**Artifacts view** (`artifacts/movie-{id}/`):
 - Human-readable filenames
 - Symlinks to blob storage
 - Easy to browse and share
+
+Use `renku list` to see all builds in the current project.
 
 ## Editing Workflow
 
@@ -255,7 +257,7 @@ Renku detects which inputs changed and only regenerates affected artifacts.
 
 You can manually edit generated text artifacts:
 
-1. Find the artifact in `movies/movie-{id}/`
+1. Find the artifact in `artifacts/movie-{id}/`
 2. Edit the file directly (it's a symlink to the blob)
 3. Re-run generation:
 
@@ -272,7 +274,7 @@ Renku will:
 
 If an AI-generated image or video isn't satisfactory:
 
-1. Replace the file in `movies/movie-{id}/`
+1. Replace the file in `artifacts/movie-{id}/`
 2. Re-run generation
 
 Your replacement will be used for downstream processing (like timeline composition).
@@ -394,20 +396,35 @@ renku export --last --exporter=remotion
 
 The exported video is saved to:
 - `builds/movie-{id}/FinalVideo.mp4`
-- `movies/movie-{id}/FinalVideo.mp4` (symlink)
+- `artifacts/movie-{id}/FinalVideo.mp4` (symlink)
 
 ## Cleaning Up
 
-Remove a movie and its artifacts:
+List builds in the current project:
+
+```bash
+renku list
+```
+
+This shows which builds have artifacts (completed runs) vs. dry-run only builds.
+
+Remove dry-run builds (safe default):
+
+```bash
+renku clean
+```
+
+Remove a specific movie:
 
 ```bash
 renku clean --movie-id=movie-a1b2c3d4
 ```
 
-This removes:
-- The build directory
-- The friendly view directory
-- All associated artifacts
+Remove all builds including completed ones:
+
+```bash
+renku clean --all
+```
 
 ## Tips and Best Practices
 

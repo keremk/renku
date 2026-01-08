@@ -33,11 +33,16 @@ renku init --root=/path/to/storage
 
 This creates:
 - `~/.config/renku/cli-config.json` with storage settings (fixed location)
-- `{rootFolder}/builds/` directory for movie outputs
-- `{rootFolder}/catalog/blueprints/` with bundled YAML blueprint templates
+- `{rootFolder}/.gitignore` with patterns for `**/builds/` and `**/artifacts/`
+- `{rootFolder}/catalog/` containing:
+  - `models/` - Supported model configurations
+  - `producers/` - Supported producer definitions
+  - `blueprints/` - Example blueprints to get started
 
 Required flags:
 - `--root`: Storage root directory (mandatory)
+
+**Note:** Builds and artifacts are created in the **current working directory** when you run `renku generate`, not in the root folder. This allows project-based organization where each project has its own builds.
 
 ### Generate Your First Movie
 
@@ -84,8 +89,13 @@ renku init --root=/path/to/storage
 
 **Creates:**
 - `~/.config/renku/cli-config.json` with storage settings
-- `{rootFolder}/builds/` directory for movie outputs
-- `{rootFolder}/catalog/blueprints/` with bundled blueprints
+- `{rootFolder}/.gitignore` with patterns for `**/builds/` and `**/artifacts/`
+- `{rootFolder}/catalog/` containing:
+  - `models/` - Supported model configurations
+  - `producers/` - Supported producer definitions
+  - `blueprints/` - Example blueprints to get started
+
+**Note:** Builds and artifacts are created in your **current working directory** when running `renku generate`. This supports project-based workflows where each project folder has its own `builds/` and `artifacts/` directories.
 
 **Example:**
 ```bash
@@ -164,8 +174,8 @@ renku generate --last [--dry-run] [--non-interactive] [--up-to-layer=<n>]
 
 **Behavior:**
 1. New runs: validate inputs/blueprint, generate a new movie id, create `builds/movie-{id}/`, and execute the workflow.
-2. Continuing runs: load the existing manifest and friendly workspace, apply any friendly edits, regenerate the plan, and execute with the stored blueprint (or an explicit override).
-3. Friendly view under `movies/<id>` stays in sync after successful runs.
+2. Continuing runs: load the existing manifest, apply any artifact edits, regenerate the plan, and execute with the stored blueprint (or an explicit override).
+3. Artifacts view under `artifacts/<id>` stays in sync after successful runs.
 4. The CLI records the latest movie id so `--last` can target it explicitly; if missing, the command fails with an error.
 
 **Examples:**
@@ -182,13 +192,66 @@ renku generate --last --dry-run
 
 ---
 
-### `renku clean`
+### `renku list`
 
-Remove the friendly view and build artifacts for a movie.
+List all builds in the current project directory.
 
 **Usage:**
 ```bash
-renku clean --movie-id=<movie-id>
+renku list
+```
+
+**Behavior:**
+- Scans `builds/` in the current working directory
+- Shows which builds have artifacts (completed runs) vs. dry-run only builds
+- Suggests running `renku clean` to remove dry-run builds
+
+**Example Output:**
+```
+Builds in current project:
+
+  ✓ movie-abc123 (has artifacts)
+  ○ movie-def456 (dry-run, no artifacts)
+  ○ movie-ghi789 (dry-run, no artifacts)
+
+Run `renku clean` to remove 2 dry-run build(s).
+```
+
+---
+
+### `renku clean`
+
+Remove build artifacts from the current project. By default, only removes dry-run builds (builds without artifacts).
+
+**Usage:**
+```bash
+renku clean [--movie-id=<id>] [--all] [--dry-run]
+```
+
+**Options:**
+- `--movie-id`, `--id`: Clean a specific movie by ID
+- `--all`: Clean all builds including those with artifacts (requires confirmation)
+- `--dry-run`: Show what would be cleaned without actually deleting
+- `--non-interactive`: Skip confirmation prompts
+
+**Behavior:**
+- Without options: Removes all dry-run builds (builds without corresponding `artifacts/` folder)
+- With `--movie-id`: Removes only the specified build (protected if it has artifacts unless `--all` is used)
+- With `--all`: Removes all builds including those with artifacts
+
+**Examples:**
+```bash
+# Clean only dry-run builds (safe default)
+renku clean
+
+# Preview what would be cleaned
+renku clean --dry-run
+
+# Clean a specific movie
+renku clean --movie-id=movie-abc123
+
+# Clean everything including completed builds
+renku clean --all
 ```
 
 ---
@@ -219,7 +282,7 @@ renku export --last [--width=<px>] [--height=<px>] [--fps=<n>]
 2. Validates the manifest contains a Timeline artifact
 3. Invokes the Docker-based Remotion renderer with specified quality settings
 4. Saves the MP4 to `builds/{movieId}/FinalVideo.mp4`
-5. Creates a symlink in `movies/{movieId}/FinalVideo.mp4` for easy access
+5. Creates a symlink in `artifacts/{movieId}/FinalVideo.mp4` for easy access
 
 **Error Messages:**
 - "A TimelineComposer producer is required in the blueprint to export video." — Blueprint missing TimelineComposer
@@ -245,7 +308,7 @@ renku export --last --width=3840 --height=2160 --fps=24
 ```
 Export completed successfully.
   Movie: movie-q123456
-  Output: /path/to/storage/movies/movie-q123456/FinalVideo.mp4
+  Output: /path/to/project/artifacts/movie-q123456/FinalVideo.mp4
   Resolution: 1920x1080 @ 30fps
 ```
 
@@ -523,10 +586,19 @@ Configuration (fixed location):
 ├── cli-config.json          # Storage configuration
 ```
 
-Data and generated artifacts (user-specified location):
+Workspace root (initialized with `renku init`):
 ```
 {rootFolder}/
-├── builds/
+├── .gitignore               # Auto-generated: ignores **/builds/ and **/artifacts/
+└── catalog/
+    └── blueprints/
+        └── *.yaml           # Blueprint files
+```
+
+Project directory (current working directory when running `renku generate`):
+```
+{project}/
+├── builds/                  # GITIGNORED - build data
 │   └── movie-{id}/
 │       ├── events/
 │       │   ├── inputs.log   # Input events log (JSONL)
@@ -538,10 +610,17 @@ Data and generated artifacts (user-specified location):
 │       ├── blobs/
 │       │   └── {hash-prefix}/        # Blob storage by hash prefix
 │       └── current.json              # Pointer to current manifest
-└── config/
-    └── blueprints/
-        └── *.yaml           # Blueprint files
+└── artifacts/               # GITIGNORED - symlinks to build outputs
+    └── movie-{id}/
+        ├── Script.txt       # Symlink to blobs/
+        ├── Segment_0.mp3    # Symlink to blobs/
+        └── ...
 ```
+
+**Key Concepts:**
+- **Workspace root**: Contains catalog/blueprints (tracked in git)
+- **Project directory**: Where you run `renku generate` - contains builds/ and artifacts/ (gitignored)
+- **artifacts/**: Human-friendly symlinks to generated content - presence indicates a "real" build (not dry-run)
 
 ### File Descriptions
 
@@ -592,7 +671,7 @@ Continuing work on an existing movie uses the same `generate` command with a tar
    ```
 
 2. **Apply edits locally:**
-   - Update your original inputs file or edit artifacts in the friendly `movies/movie-q123456/` folder.
+   - Update your original inputs file or edit artifacts in the `artifacts/movie-q123456/` folder.
 
 3. **Re-run generation against the same movie:**
    ```bash
@@ -600,12 +679,12 @@ Continuing work on an existing movie uses the same `generate` command with a tar
    ```
 
 4. **Review:**
-   - Friendly view is refreshed under `movies/movie-q123456/`.
+   - Artifacts are refreshed under `artifacts/movie-q123456/`.
    - Use `renku viewer:view --movie-id=movie-q123456` to open the viewer.
 
 **Use Cases:**
 - Fix LLM-generated script errors by editing inputs and rerunning.
-- Replace unsatisfactory artifacts from friendly edits.
+- Replace unsatisfactory artifacts by editing files in `artifacts/`.
 - Regenerate partial workflows with `--up-to-layer` to limit execution.
 
 ### Dry Run Mode

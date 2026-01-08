@@ -85,6 +85,7 @@ describe('runGenerate (new runs)', () => {
       inputsPath,
       nonInteractive: true,
       blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
+      storageOverride: { root, basePath: 'builds' },
     });
 
     expect(result.movieId).toHaveLength(8);
@@ -94,7 +95,7 @@ describe('runGenerate (new runs)', () => {
     expect(cliConfig).not.toBeNull();
 
     const storageMovieId = formatMovieId(result.movieId);
-    const movieDir = resolve(cliConfig!.storage.root, cliConfig!.storage.basePath, storageMovieId);
+    const movieDir = resolve(root, 'builds', storageMovieId);
 
     const planStats = await stat(join(movieDir, 'runs', `${result.targetRevision}-plan.json`));
     expect(planStats.isFile()).toBe(true);
@@ -115,8 +116,8 @@ describe('runGenerate (new runs)', () => {
       await readFile(join(movieDir, 'current.json'), 'utf8'),
     ) as { revision?: string };
     expect(current.revision).toBe(result.targetRevision);
-    const friendlyStats = await stat(result.friendlyRoot ?? '');
-    expect(friendlyStats.isDirectory()).toBe(true);
+    const artifactsStats = await stat(result.artifactsRoot ?? '');
+    expect(artifactsStats.isDirectory()).toBe(true);
   });
 
   it('can perform a dry run and report summary', async () => {
@@ -139,6 +140,7 @@ describe('runGenerate (new runs)', () => {
       dryRun: true,
       nonInteractive: true,
       blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
+      storageOverride: { root, basePath: 'builds' },
     });
 
     expect(result.isDryRun).toBe(true);
@@ -168,6 +170,7 @@ describe('runGenerate (new runs)', () => {
       dryRun: true,
       nonInteractive: true,
       blueprint: VIDEO_AUDIO_MUSIC_BLUEPRINT_PATH,
+      storageOverride: { root, basePath: 'builds' },
     });
 
     expect(result.isDryRun).toBe(true);
@@ -193,6 +196,7 @@ describe('runGenerate (new runs)', () => {
       inputsPath,
       nonInteractive: true,
       blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
+      storageOverride: { root, basePath: 'builds' },
     });
 
     expect(result.build?.status).toBe('succeeded');
@@ -218,6 +222,7 @@ describe('runGenerate (new runs)', () => {
       nonInteractive: true,
       blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
       concurrency: 3,
+      storageOverride: { root, basePath: 'builds' },
     });
 
     const cliConfig = await readCliConfig(cliConfigPath);
@@ -268,6 +273,7 @@ describe('runGenerate (new runs)', () => {
       inputsPath: baselineInputsPath,
       nonInteractive: true,
       blueprint: IMAGE_AUDIO_BLUEPRINT_PATH,
+      storageOverride: { root, basePath: 'builds' },
     });
     expect(first.build?.status).toBe('succeeded');
 
@@ -287,6 +293,7 @@ describe('runGenerate (new runs)', () => {
       nonInteractive: true,
       blueprint: IMAGE_AUDIO_BLUEPRINT_PATH,
       dryRun: true,
+      storageOverride: { root, basePath: 'builds' },
     });
     expect(second.build?.status).toBe('succeeded');
 
@@ -318,6 +325,7 @@ describe('runGenerate (new runs)', () => {
       dryRun: true,
       nonInteractive: true,
       blueprint: VIDEO_AUDIO_MUSIC_BLUEPRINT_PATH,
+      storageOverride: { root, basePath: 'builds' },
     });
 
     expect(result.isDryRun).toBe(true);
@@ -355,6 +363,7 @@ describe('runGenerate (new runs)', () => {
       inputsPath,
       nonInteractive: true,
       blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
+      storageOverride: { root, basePath: 'builds' },
     });
 
     const cliConfig = await readCliConfig(cliConfigPath);
@@ -365,6 +374,7 @@ describe('runGenerate (new runs)', () => {
       inputsPath,
       useLast: true,
       dryRun: true,
+      storageOverride: { root, basePath: 'builds' },
     });
 
     expect(second.storageMovieId).toBe(formatMovieId(first.movieId));
@@ -391,6 +401,7 @@ describe('runGenerate (new runs)', () => {
         ...LOG_DEFAULTS,
         inputsPath,
         useLast: true,
+        storageOverride: { root, basePath: 'builds' },
       }),
     ).rejects.toThrow(/No previous movie found/i);
   });
@@ -414,6 +425,7 @@ describe('runGenerate (new runs)', () => {
       inputsPath,
       nonInteractive: true,
       blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
+      storageOverride: { root, basePath: 'builds' },
     });
 
     await expect(
@@ -422,6 +434,7 @@ describe('runGenerate (new runs)', () => {
         movieId: first.storageMovieId,
         useLast: true,
         dryRun: true,
+        storageOverride: { root, basePath: 'builds' },
       }),
     ).rejects.toThrow(/either --last or --movie-id/i);
   });
@@ -445,6 +458,7 @@ describe('runGenerate (new runs)', () => {
       inputsPath,
       nonInteractive: true,
       blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
+      storageOverride: { root, basePath: 'builds' },
     });
 
     const next = await runGenerate({
@@ -452,6 +466,7 @@ describe('runGenerate (new runs)', () => {
       inputsPath,
       movieId: first.storageMovieId,
       dryRun: true,
+      storageOverride: { root, basePath: 'builds' },
     });
 
     expect(next.storageMovieId).toBe(first.storageMovieId);

@@ -80,6 +80,7 @@ describe('runExecute (edit flow)', () => {
       nonInteractive: true,
       blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
       logLevel: 'info',
+      storageOverride: { root, basePath: 'builds' },
     });
 
     const movieInputsPath = resolve(queryResult.storagePath, 'inputs.yaml');
@@ -117,6 +118,7 @@ describe('runExecute (edit flow)', () => {
       nonInteractive: true,
       blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
       logLevel: 'info',
+      storageOverride: { root, basePath: 'builds' },
     });
 
     const movieInputsPath = resolve(queryResult.storagePath, 'inputs.yaml');

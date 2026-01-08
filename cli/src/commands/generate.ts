@@ -1,12 +1,29 @@
-import { getDefaultCliConfigPath, persistLastMovieId, readCliConfig } from '../lib/cli-config.js';
+import { getDefaultCliConfigPath, getProjectLocalStorage, persistLastMovieId, readCliConfig, type CliConfig } from '../lib/cli-config.js';
 import { runExecute, formatMovieId, type ExecuteResult } from './execute.js';
 import { resolveTargetMovieId } from '../lib/movie-id-utils.js';
 import { resolveAndPersistConcurrency } from '../lib/concurrency.js';
-import { buildFriendlyView, loadCurrentManifest, prepareFriendlyPreflight } from '../lib/friendly-view.js';
+import { buildArtifactsView, loadCurrentManifest, prepareArtifactsPreflight } from '../lib/artifacts-view.js';
 import crypto from 'node:crypto';
 import { resolve } from 'node:path';
 import type { LogLevel } from '@gorenku/core';
 import { createCliLogger } from '../lib/logger.js';
+
+/**
+ * Creates an effective config for generation that uses project-local storage (cwd)
+ * while preserving catalog configuration from the global config.
+ * @param globalConfig - The global CLI config
+ * @param storageOverride - Optional storage override (used in tests)
+ */
+function createEffectiveConfig(
+  globalConfig: CliConfig,
+  storageOverride?: { root: string; basePath: string },
+): CliConfig {
+  const projectStorage = storageOverride ?? getProjectLocalStorage();
+  return {
+    ...globalConfig,
+    storage: projectStorage,
+  };
+}
 
 export interface GenerateOptions {
   movieId?: string;
@@ -19,6 +36,8 @@ export interface GenerateOptions {
   concurrency?: number;
   upToLayer?: number;
   logLevel: LogLevel;
+  /** Override storage root (used in tests). If not provided, uses cwd. */
+  storageOverride?: { root: string; basePath: string };
 }
 
 export interface GenerateResult {
@@ -32,23 +51,26 @@ export interface GenerateResult {
   isDryRun?: boolean;
   manifestPath?: string;
   storagePath: string;
-  friendlyRoot?: string;
+  /** Path to artifacts folder (symlinks to build outputs) */
+  artifactsRoot?: string;
   isNew: boolean;
   cleanedUp?: boolean;
 }
 
 export async function runGenerate(options: GenerateOptions): Promise<GenerateResult> {
   const configPath = getDefaultCliConfigPath();
-  const cliConfig = await readCliConfig(configPath);
-  if (!cliConfig) {
+  const globalConfig = await readCliConfig(configPath);
+  if (!globalConfig) {
     throw new Error('Renku CLI is not initialized. Run "renku init" first.');
   }
 
-  const { concurrency, cliConfig: resolvedCliConfig } = await resolveAndPersistConcurrency(cliConfig, {
+  const { concurrency, cliConfig: resolvedCliConfig } = await resolveAndPersistConcurrency(globalConfig, {
     override: options.concurrency,
     configPath,
   });
-  const activeConfig = resolvedCliConfig;
+  // Use project-local storage (cwd) while preserving catalog from global config
+  // Allow override for testing purposes
+  const activeConfig = createEffectiveConfig(resolvedCliConfig, options.storageOverride);
 
   const usingLast = Boolean(options.useLast);
   if (usingLast && options.movieId) {
@@ -85,7 +107,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
       throw new Error(`Unable to load manifest for ${storageMovieId}. ${message}`);
     });
 
-    const preflight = await prepareFriendlyPreflight({
+    const preflight = await prepareArtifactsPreflight({
       cliConfig: activeConfig,
       movieId: storageMovieId,
       manifest,
@@ -106,15 +128,15 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
       logger,
     });
 
-    let friendlyRoot: string | undefined;
+    let artifactsRoot: string | undefined;
     if (!options.dryRun && editResult.build) {
       const { manifest: nextManifest } = await loadCurrentManifest(activeConfig, storageMovieId);
-      const friendly = await buildFriendlyView({
+      const artifacts = await buildArtifactsView({
         cliConfig: activeConfig,
         movieId: storageMovieId,
         manifest: nextManifest,
       });
-      friendlyRoot = friendly.friendlyRoot;
+      artifactsRoot = artifacts.artifactsRoot;
     }
 
     if (editResult.build) {
@@ -130,7 +152,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
       isDryRun: editResult.isDryRun,
       manifestPath: editResult.manifestPath,
       storagePath: editResult.storagePath,
-      friendlyRoot,
+      artifactsRoot,
       isNew: false,
       cleanedUp: editResult.cleanedUp,
     };
@@ -169,15 +191,15 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
     logger,
   });
 
-  let friendlyRoot: string | undefined;
+  let artifactsRoot: string | undefined;
   if (!options.dryRun && queryResult.build) {
     const { manifest } = await loadCurrentManifest(activeConfig, queryResult.storageMovieId);
-    const friendly = await buildFriendlyView({
+    const artifacts = await buildArtifactsView({
       cliConfig: activeConfig,
       movieId: queryResult.storageMovieId,
       manifest,
     });
-    friendlyRoot = friendly.friendlyRoot;
+    artifactsRoot = artifacts.artifactsRoot;
   }
 
   if (queryResult.build) {
@@ -193,7 +215,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
     isDryRun: queryResult.isDryRun,
     manifestPath: queryResult.manifestPath,
     storagePath: queryResult.storagePath,
-    friendlyRoot,
+    artifactsRoot,
     isNew: true,
     cleanedUp: queryResult.cleanedUp,
   };

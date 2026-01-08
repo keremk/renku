@@ -17,9 +17,9 @@ import type { CliConfig } from './cli-config.js';
 
 const log = globalThis.console;
 
-interface FriendlyArtefactInfo {
+interface ArtifactInfo {
   artefactId: string;
-  friendlyPath: string;
+  artifactPath: string;
   sourcePath: string;
   hash: string;
   producedBy: string;
@@ -27,16 +27,16 @@ interface FriendlyArtefactInfo {
   kind: 'blob';
 }
 
-export interface FriendlyViewContext {
-  friendlyRoot: string;
-  artefacts: FriendlyArtefactInfo[];
+export interface ArtifactsViewContext {
+  artifactsRoot: string;
+  artefacts: ArtifactInfo[];
   inputsPath: string;
 }
 
-export interface FriendlyPreflightResult {
+export interface ArtifactsPreflightResult {
   pendingArtefacts: PendingArtefactDraft[];
   changed: boolean;
-  friendly: FriendlyViewContext;
+  artifacts: ArtifactsViewContext;
 }
 
 export async function loadCurrentManifest(cliConfig: CliConfig, movieId: string): Promise<{ manifest: Manifest; hash: string | null }>
@@ -46,24 +46,24 @@ export async function loadCurrentManifest(cliConfig: CliConfig, movieId: string)
   return manifestService.loadCurrent(movieId);
 }
 
-export async function buildFriendlyView(args: {
+export async function buildArtifactsView(args: {
   cliConfig: CliConfig;
   movieId: string;
   manifest: Manifest;
-}): Promise<FriendlyViewContext> {
+}): Promise<ArtifactsViewContext> {
   const { cliConfig, movieId, manifest } = args;
-  const friendlyRoot = resolve(cliConfig.storage.root, 'movies', movieId);
-  await rm(friendlyRoot, { recursive: true, force: true });
-  await mkdir(friendlyRoot, { recursive: true });
+  const artifactsRoot = resolve(cliConfig.storage.root, 'artifacts', movieId);
+  await rm(artifactsRoot, { recursive: true, force: true });
+  await mkdir(artifactsRoot, { recursive: true });
 
   const inputsPath = resolve(cliConfig.storage.root, cliConfig.storage.basePath, movieId, 'inputs.yaml');
 
-  const artefacts: FriendlyArtefactInfo[] = [];
+  const artefacts: ArtifactInfo[] = [];
   for (const [artefactId, entry] of Object.entries(manifest.artefacts)) {
-    const friendlyName = toFriendlyFileName(artefactId, entry.blob?.mimeType);
+    const artifactName = toArtifactFileName(artefactId, entry.blob?.mimeType);
     const producer = normalizeProducer(entry.producedBy);
-    const friendlyPath = resolve(friendlyRoot, producer, friendlyName);
-    await mkdir(dirname(friendlyPath), { recursive: true });
+    const artifactPath = resolve(artifactsRoot, producer, artifactName);
+    await mkdir(dirname(artifactPath), { recursive: true });
 
     if (!entry.blob) {
       continue;
@@ -72,14 +72,14 @@ export async function buildFriendlyView(args: {
     const shardedPath = shardedBlobPath(cliConfig, movieId, entry.blob.hash, entry.blob.mimeType);
     if (!(await pathExists(shardedPath))) {
       log.warn(
-        `Warning: blob missing for ${artefactId} at ${shardedPath}. Friendly link not created.`,
+        `Warning: blob missing for ${artefactId} at ${shardedPath}. Artifact link not created.`,
       );
       continue;
     }
-    await ensureSymlink(shardedPath, friendlyPath, { overwrite: true });
+    await ensureSymlink(shardedPath, artifactPath, { overwrite: true });
     artefacts.push({
       artefactId,
-      friendlyPath,
+      artifactPath,
       sourcePath: shardedPath,
       hash: entry.hash,
       producedBy: entry.producedBy,
@@ -88,62 +88,62 @@ export async function buildFriendlyView(args: {
     });
   }
 
-  return { friendlyRoot, artefacts, inputsPath };
+  return { artifactsRoot, artefacts, inputsPath };
 }
 
-export async function prepareFriendlyPreflight(args: {
+export async function prepareArtifactsPreflight(args: {
   cliConfig: CliConfig;
   movieId: string;
   manifest: Manifest;
   allowShardedBlobs?: boolean;
-}): Promise<FriendlyPreflightResult> {
-  const friendly = await collectFriendlyContext(args);
+}): Promise<ArtifactsPreflightResult> {
+  const artifacts = await collectArtifactsContext(args);
   const pending: PendingArtefactDraft[] = [];
   let changed = false;
 
-  for (const entry of friendly.artefacts) {
-    const nextHash = await hashFile(entry.friendlyPath);
+  for (const entry of artifacts.artefacts) {
+    const nextHash = await hashFile(entry.artifactPath);
     if (nextHash === entry.hash) {
       continue;
     }
     changed = true;
 
-    const buffer = await readFile(entry.friendlyPath);
+    const buffer = await readFile(entry.artifactPath);
     const blobRef = await persistBlobSharded(buffer, entry.mimeType, args.cliConfig, args.movieId);
 
     const shardedPath = shardedBlobPath(args.cliConfig, args.movieId, blobRef.hash, blobRef.mimeType);
-    await ensureSymlink(shardedPath, entry.friendlyPath, { overwrite: true });
+    await ensureSymlink(shardedPath, entry.artifactPath, { overwrite: true });
 
     pending.push({
       artefactId: entry.artefactId,
       producedBy: entry.producedBy,
       output: { blob: blobRef },
-      diagnostics: { source: 'friendly-edit' },
+      diagnostics: { source: 'artifact-edit' },
     });
   }
 
-  return { pendingArtefacts: pending, changed, friendly };
+  return { pendingArtefacts: pending, changed, artifacts };
 }
 
-async function collectFriendlyContext(args: {
+async function collectArtifactsContext(args: {
   cliConfig: CliConfig;
   movieId: string;
   manifest: Manifest;
   allowShardedBlobs?: boolean;
-}): Promise<FriendlyViewContext> {
+}): Promise<ArtifactsViewContext> {
   const { cliConfig, movieId, manifest } = args;
-  const friendlyRoot = resolve(cliConfig.storage.root, 'movies', movieId);
-  await mkdir(friendlyRoot, { recursive: true });
+  const artifactsRoot = resolve(cliConfig.storage.root, 'artifacts', movieId);
+  await mkdir(artifactsRoot, { recursive: true });
 
   const inputsPath = resolve(cliConfig.storage.root, cliConfig.storage.basePath, movieId, 'inputs.yaml');
 
-  const artefacts: FriendlyArtefactInfo[] = [];
+  const artefacts: ArtifactInfo[] = [];
   for (const [artefactId, entry] of Object.entries(manifest.artefacts)) {
-    const friendlyName = toFriendlyFileName(artefactId, entry.blob?.mimeType);
+    const artifactName = toArtifactFileName(artefactId, entry.blob?.mimeType);
     const producer = normalizeProducer(entry.producedBy);
-    const friendlyPath = resolve(friendlyRoot, producer, friendlyName);
+    const artifactPath = resolve(artifactsRoot, producer, artifactName);
 
-    await mkdir(dirname(friendlyPath), { recursive: true });
+    await mkdir(dirname(artifactPath), { recursive: true });
 
     if (!entry.blob) {
       continue;
@@ -152,14 +152,14 @@ async function collectFriendlyContext(args: {
     const shardedPath = shardedBlobPath(cliConfig, movieId, entry.blob.hash, entry.blob.mimeType);
     if (!(await pathExists(shardedPath))) {
       log.warn(
-        `Warning: blob missing for ${artefactId} at ${shardedPath}. Friendly link not created.`,
+        `Warning: blob missing for ${artefactId} at ${shardedPath}. Artifact link not created.`,
       );
       continue;
     }
-    await ensureSymlink(shardedPath, friendlyPath, { overwrite: true });
+    await ensureSymlink(shardedPath, artifactPath, { overwrite: true });
     artefacts.push({
       artefactId,
-      friendlyPath,
+      artifactPath,
       sourcePath: shardedPath,
       hash: entry.hash,
       producedBy: entry.producedBy,
@@ -168,7 +168,7 @@ async function collectFriendlyContext(args: {
     });
   }
 
-  return { friendlyRoot, artefacts, inputsPath };
+  return { artifactsRoot, artefacts, inputsPath };
 }
 
 function normalizeProducer(producedBy: string | undefined): string {
@@ -187,12 +187,12 @@ function normalizeProducer(producedBy: string | undefined): string {
   return normalized;
 }
 
-function toFriendlyFileName(artefactId: string, mimeType?: string): string {
+function toArtifactFileName(artefactId: string, mimeType?: string): string {
   if (isCanonicalArtifactId(artefactId)) {
     const parsed = parseCanonicalArtifactId(artefactId);
     const baseName = toKebabCase(parsed.name);
     if (!baseName) {
-      throw new Error(`Unable to derive friendly name from artifact id "${artefactId}".`);
+      throw new Error(`Unable to derive artifact name from artifact id "${artefactId}".`);
     }
     const nameWithIndices = parsed.indices.length > 0
       ? `${baseName}-${parsed.indices.join('-')}`

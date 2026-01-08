@@ -38,9 +38,14 @@ renku init --root=~/my-videos
 
 This creates:
 - `~/.config/renku/cli-config.json` - Configuration file
-- `~/my-videos/builds/` - Directory for generated content
-- `~/my-videos/catalog/blueprints/` - Bundled blueprint templates
+- `~/my-videos/.gitignore` - Ignores `**/builds/` and `**/artifacts/`
+- `~/my-videos/catalog/` - Catalog containing:
+  - `models/` - Supported model configurations
+  - `producers/` - Supported producer definitions
+  - `blueprints/` - Example blueprints to get started
 - `~/.config/renku/env.sh` - Placeholder for API keys
+
+**Note:** Builds and artifacts are created in your **current working directory** when running `renku generate`, not in the workspace root.
 
 ### 2. Configure API Keys
 
@@ -121,7 +126,7 @@ The CLI will:
 2. Create images for each segment
 3. Generate audio narration
 4. Compose the timeline
-5. Save all artifacts to `builds/movie-{id}/`
+5. Save all artifacts to `builds/movie-{id}/` (in current directory)
 
 ### 5. View the Results
 
@@ -169,7 +174,8 @@ This starts a local server and opens your browser to preview the generated conte
 
 ### Utilities
 
-- `renku clean` - Remove build artifacts
+- `renku list` - List builds in current project (shows dry-run vs completed)
+- `renku clean` - Remove build artifacts (dry-runs only by default, `--all` for everything)
 - `renku export` - Export movie to MP4 format
 
 For complete command documentation, see the [CLI Reference](https://gorenku.com/docs/cli-reference).
@@ -178,24 +184,34 @@ For complete command documentation, see the [CLI Reference](https://gorenku.com/
 
 ### Workspace Structure
 
-After initialization and generation, your workspace contains:
+After initialization, your workspace contains:
 
 ```
-~/my-videos/
-├── builds/
+~/my-videos/                 # Workspace root (initialized with `renku init`)
+├── .gitignore               # Auto-generated: ignores **/builds/ and **/artifacts/
+└── catalog/
+    └── blueprints/          # Blueprint templates
+```
+
+When you run `renku generate` from a project folder:
+
+```
+~/my-videos/my-project/      # Project folder (current working directory)
+├── my-inputs.yaml           # Your inputs file (tracked in git)
+├── builds/                  # GITIGNORED - build data
 │   └── movie-{id}/
 │       ├── blobs/           # Generated files (audio, images, etc.)
 │       ├── manifests/       # Artifact metadata
 │       ├── events/          # Execution logs
 │       └── runs/            # Execution plans
-├── movies/
-│   └── movie-{id}/          # Friendly view with symlinks
-│       ├── Script.txt       # Generated script
-│       ├── Segment_0.mp3    # Audio segments
-│       └── ...
-└── catalog/
-    └── blueprints/          # Blueprint templates
+└── artifacts/               # GITIGNORED - symlinks to build outputs
+    └── movie-{id}/
+        ├── Script.txt       # Symlink to generated script
+        ├── Segment_0.mp3    # Symlink to audio segments
+        └── ...
 ```
+
+Use `renku list` to see builds in the current project and `renku clean` to remove dry-run builds.
 
 ### Config File
 

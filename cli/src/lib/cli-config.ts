@@ -96,6 +96,17 @@ export function normalizeConcurrency(value: number | undefined): number {
   return value;
 }
 
+/**
+ * Creates a project-local storage configuration using the current working directory.
+ * Both builds/ and artifacts/ folders will be created in cwd.
+ */
+export function getProjectLocalStorage(): { root: string; basePath: string } {
+  return {
+    root: process.cwd(),
+    basePath: 'builds',
+  };
+}
+
 export function getDefaultEnvFilePath(): string {
   return resolve(os.homedir(), '.config', 'renku', 'env.sh');
 }

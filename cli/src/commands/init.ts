@@ -1,4 +1,4 @@
-import { mkdir } from 'node:fs/promises';
+import { access, mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
   getDefaultCliConfigPath,
@@ -13,6 +13,13 @@ import {
   getCliCatalogRoot,
 } from '../lib/config-assets.js';
 
+const GITIGNORE_CONTENT = `# Renku build data (large binary files)
+**/builds/
+
+# Artifact symlinks (only work locally, useless without builds)
+**/artifacts/
+`;
+
 export interface InitOptions {
   rootFolder: string;
   /** Optional config path override (used in tests) */
@@ -23,10 +30,10 @@ export interface InitOptions {
 
 export interface InitResult {
   rootFolder: string;
-  buildsFolder: string;
   cliConfigPath: string;
   envFilePath: string;
   envFileCreated: boolean;
+  gitignoreCreated: boolean;
 }
 
 export async function runInit(options: InitOptions): Promise<InitResult> {
@@ -44,12 +51,14 @@ export async function runInit(options: InitOptions): Promise<InitResult> {
     );
   }
 
-  const buildsFolder = resolve(rootFolder, 'builds');
   const cliConfigPath = options.configPath ?? getDefaultCliConfigPath();
 
   await mkdir(rootFolder, { recursive: true });
-  await mkdir(buildsFolder, { recursive: true });
   await copyBundledCatalogAssets(catalogRoot);
+
+  // Generate .gitignore (only if it doesn't exist)
+  const gitignorePath = resolve(rootFolder, '.gitignore');
+  const gitignoreCreated = await writeGitignore(gitignorePath);
 
   const cliConfig: CliConfig = {
     storage: {
@@ -67,9 +76,21 @@ export async function runInit(options: InitOptions): Promise<InitResult> {
 
   return {
     rootFolder,
-    buildsFolder,
     cliConfigPath,
     envFilePath: envResult.path,
     envFileCreated: envResult.created,
+    gitignoreCreated,
   };
+}
+
+async function writeGitignore(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    // File exists, don't overwrite
+    return false;
+  } catch {
+    // File doesn't exist, create it
+    await writeFile(path, GITIGNORE_CONTENT, 'utf8');
+    return true;
+  }
 }

@@ -24,13 +24,15 @@ async function createTempRoot(): Promise<string> {
 }
 
 describe('runInit', () => {
-  it('creates builds folder, default settings file, config files, and CLI config', async () => {
+  it('creates catalog, gitignore, config files, and CLI config', async () => {
     const root = await createTempRoot();
     const configPath = resolve(root, 'cli-config.json');
     const result = await runInit({ rootFolder: root, configPath });
 
-    const buildsStats = await stat(result.buildsFolder);
-    expect(buildsStats.isDirectory()).toBe(true);
+    // Check that .gitignore was created
+    const gitignoreStats = await stat(join(result.rootFolder, '.gitignore'));
+    expect(gitignoreStats.isFile()).toBe(true);
+    expect(result.gitignoreCreated).toBe(true);
 
     const blueprintStats = await stat(
       join(getCliBlueprintsRoot(result.rootFolder), 'audio-only', 'audio-only.yaml'),

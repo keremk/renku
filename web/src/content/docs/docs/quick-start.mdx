@@ -43,8 +43,13 @@ renku init --root=~/my-creations
 
 This creates:
 - `~/.config/renku/cli-config.json` - Configuration file
-- `{workspace}/builds/` - Directory for generated movie outputs
-- `{workspace}/catalog/blueprints/` - Bundled blueprint templates
+- `{workspace}/.gitignore` - Ignores `**/builds/` and `**/artifacts/`
+- `{workspace}/catalog/` containing:
+  - `models/` - Supported model configurations
+  - `producers/` - Supported producer definitions
+  - `blueprints/` - Example blueprints to get started
+
+**Note:** Builds and artifacts are created in your **current working directory** when running `renku generate`, not in the workspace root. This supports project-based workflows.
 
 ## Configure API Keys
 
@@ -190,25 +195,25 @@ This starts a local viewer server and opens your browser to preview the generate
 
 ## Understanding the Output
 
-After generation, your workspace contains:
+After generation, your **current working directory** contains:
 
 ```
-{workspace}/
-├── builds/
+{project}/                       # Current working directory
+├── builds/                      # GITIGNORED - build data
 │   └── movie-{id}/
-│       ├── blobs/           # Generated files (audio, images, etc.)
-│       ├── manifests/       # Artifact metadata
-│       ├── events/          # Execution logs
-│       └── runs/            # Execution plans
-└── movies/
-    └── movie-{id}/          # Friendly view with symlinks
-        ├── Script.txt       # Generated narration script
-        ├── Segment_0.mp3    # Audio for segment 0
-        ├── Segment_1.mp3    # Audio for segment 1
-        └── Segment_2.mp3    # Audio for segment 2
+│       ├── blobs/               # Generated files (audio, images, etc.)
+│       ├── manifests/           # Artifact metadata
+│       ├── events/              # Execution logs
+│       └── runs/                # Execution plans
+└── artifacts/                   # GITIGNORED - symlinks to build outputs
+    └── movie-{id}/
+        ├── Script.txt           # Generated narration script
+        ├── Segment_0.mp3        # Audio for segment 0
+        ├── Segment_1.mp3        # Audio for segment 1
+        └── Segment_2.mp3        # Audio for segment 2
 ```
 
-The `movies/` directory contains human-readable symlinks to your generated content.
+The `artifacts/` directory contains human-readable symlinks to your generated content. Use `renku list` to see all builds in the current project.
 
 ## Next Steps
 
@@ -216,7 +221,7 @@ You've successfully generated your first AI video content with Renku!
 
 ### Explore More Blueprints
 
-Try other bundled blueprints:
+Try other example blueprints:
 
 ```bash
 renku blueprints:list

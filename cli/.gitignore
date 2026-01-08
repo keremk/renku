@@ -1,2 +1,6 @@
 node_modules
 dist
+
+# Prevent accidental commits if tests create builds in wrong location
+builds/
+artifacts/

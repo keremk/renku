@@ -33,8 +33,13 @@ renku init --root=/path/to/storage
 
 **Creates:**
 - `~/.config/renku/cli-config.json` - Storage configuration (fixed location)
-- `{rootFolder}/builds/` - Directory for movie outputs
-- `{rootFolder}/catalog/blueprints/` - Bundled blueprint templates
+- `{rootFolder}/.gitignore` - Ignores `**/builds/` and `**/artifacts/`
+- `{rootFolder}/catalog/` containing:
+  - `models/` - Supported model configurations
+  - `producers/` - Supported producer definitions
+  - `blueprints/` - Example blueprints to get started
+
+**Note:** Builds and artifacts are created in your **current working directory** when running `renku generate`, not in the root folder. This supports project-based workflows.
 
 **Example:**
 ```bash
@@ -45,7 +50,7 @@ renku init --root=/Users/alice/renku-projects
 
 ### renku update
 
-Update the catalog in the active workspace by copying the latest bundled blueprints.
+Update the catalog in the active workspace by copying the latest bundled catalog files (models, producers, and example blueprints).
 
 **Usage:**
 ```bash
@@ -54,7 +59,7 @@ renku update
 
 **Behavior:**
 - Reads the active workspace from the CLI config
-- Copies bundled catalog files, overwriting existing ones
+- Copies bundled catalog files (models, producers, example blueprints), overwriting existing ones
 - Users can revert changes using git if needed
 
 **Example:**
@@ -135,7 +140,7 @@ For continuing movies:
 1. Loads existing manifest
 2. Detects changed inputs (dirty tracking)
 3. Regenerates only affected artifacts
-4. Updates the friendly view
+4. Updates the artifacts view
 
 **Examples:**
 ```bash
@@ -160,24 +165,69 @@ renku generate --inputs=./inputs.yaml --blueprint=./blueprint.yaml --up-to-layer
 
 ---
 
-### renku clean
+### renku list
 
-Remove the friendly view and build artifacts for a movie.
+List all builds in the current project directory.
 
 **Usage:**
 ```bash
-renku clean --movie-id=<id>
+renku list
+```
+
+**Behavior:**
+- Scans `builds/` in the current working directory
+- Shows which builds have artifacts (completed runs) vs. dry-run only builds
+- Suggests running `renku clean` to remove dry-run builds
+
+**Example output:**
+```
+Builds in current project:
+
+  ✓ movie-abc123 (has artifacts)
+  ○ movie-def456 (dry-run, no artifacts)
+  ○ movie-ghi789 (dry-run, no artifacts)
+
+Run `renku clean` to remove 2 dry-run build(s).
+```
+
+---
+
+### renku clean
+
+Remove build artifacts from the current project. By default, only removes dry-run builds (builds without artifacts).
+
+**Usage:**
+```bash
+renku clean [--movie-id=<id>] [--all] [--dry-run]
 ```
 
 **Options:**
 
 | Option | Required | Description |
 |--------|----------|-------------|
-| `--movie-id`, `--id` | Yes | Movie ID to clean |
+| `--movie-id`, `--id` | No | Clean a specific movie by ID |
+| `--all` | No | Clean all builds including those with artifacts |
+| `--dry-run` | No | Show what would be cleaned without deleting |
+| `--non-interactive` | No | Skip confirmation prompts |
 
-**Example:**
+**Behavior:**
+- Without options: Removes all dry-run builds (builds without corresponding `artifacts/` folder)
+- With `--movie-id`: Removes only the specified build
+- With `--all`: Removes all builds including those with artifacts
+
+**Examples:**
 ```bash
+# Clean only dry-run builds (safe default)
+renku clean
+
+# Preview what would be cleaned
+renku clean --dry-run
+
+# Clean a specific movie
 renku clean --movie-id=movie-a1b2c3d4
+
+# Clean everything including completed builds
+renku clean --all
 ```
 
 ---
@@ -219,8 +269,8 @@ The FFmpeg exporter is faster and requires no Docker, while the Remotion exporte
 - For `ffmpeg`: FFmpeg installed and in PATH
 
 **Output:**
-- Video: `builds/{movieId}/FinalVideo.mp4` and `movies/{movieId}/FinalVideo.mp4` (symlink)
-- Audio-only (FFmpeg): `builds/{movieId}/FinalAudio.mp3` and `movies/{movieId}/FinalAudio.mp3` (symlink)
+- Video: `builds/{movieId}/FinalVideo.mp4` and `artifacts/{movieId}/FinalVideo.mp4` (symlink)
+- Audio-only (FFmpeg): `builds/{movieId}/FinalAudio.mp3` and `artifacts/{movieId}/FinalAudio.mp3` (symlink)
 
 **Examples:**
 ```bash
@@ -484,27 +534,39 @@ Contents:
 
 ### Workspace Layout
 
+Workspace root (initialized with `renku init`):
 ```
 {workspace}/
-├── builds/
+├── .gitignore               # Auto-generated: ignores **/builds/ and **/artifacts/
+└── catalog/
+    └── blueprints/
+        └── *.yaml           # Blueprint files
+```
+
+Project directory (current working directory when running `renku generate`):
+```
+{project}/
+├── builds/                  # GITIGNORED - build data
 │   └── movie-{id}/
-│       ├── blobs/              # Content-addressed blob storage
-│       │   └── {hash-prefix}/  # Files stored by hash
+│       ├── blobs/           # Content-addressed blob storage
+│       │   └── {hash-prefix}/
 │       ├── events/
-│       │   ├── inputs.log      # Input events (JSONL)
-│       │   └── artefacts.log   # Artifact events (JSONL)
+│       │   ├── inputs.log   # Input events (JSONL)
+│       │   └── artefacts.log # Artifact events (JSONL)
 │       ├── manifests/
-│       │   └── {revision}.json # Artifact metadata
+│       │   └── {revision}.json
 │       ├── runs/
-│       │   └── {rev}-plan.json # Execution plan
-│       └── current.json        # Pointer to current manifest
-├── catalog/
-│   └── blueprints/
-│       └── *.yaml              # Blueprint files
-└── movies/
-    └── movie-{id}/             # Friendly view (symlinks)
+│       │   └── {rev}-plan.json
+│       └── current.json
+└── artifacts/               # GITIGNORED - symlinks to build outputs
+    └── movie-{id}/
         └── *.mp3, *.mp4, etc.
 ```
+
+**Key Concepts:**
+- **Workspace root**: Contains catalog/blueprints (tracked in git)
+- **Project directory**: Where you run `renku generate` - contains builds/ and artifacts/ (gitignored)
+- **artifacts/**: Human-friendly symlinks - presence indicates a completed build (not dry-run)
 
 ### Movie ID Format
 
