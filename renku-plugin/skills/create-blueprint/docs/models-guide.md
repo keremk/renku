@@ -112,6 +112,8 @@ What type of audio do you need?
 | **audio-to-video.yaml** | `AudioToVideoProducer` | Lip-sync talking head from audio | `CharacterImage`, `AudioUrl` |
 | **text-to-talking-head.yaml** | `TextToTalkingHeadProducer` | Talking head with TTS | `CharacterImage`, `NarrativeText`, `VoiceId` |
 
+**Derived Artifacts:** All video producers also output `FirstFrame`, `LastFrame`, and `AudioTrack` artifacts that can be connected to downstream producers. See [Video Models Guide - Derived Video Artifacts](./video-models.md#derived-video-artifacts) for details.
+
 ### Image Producers
 
 | Producer | ID | Best For | Key Inputs |

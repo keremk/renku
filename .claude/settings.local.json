@@ -61,13 +61,16 @@
       "Bash(node /Users/keremk/Projects/aitinkerbox/renku/cli/dist/cli.js run:*)",
       "Bash(jq:*)",
       "Bash(node /Users/keremk/Projects/aitinkerbox/renku/cli/dist/cli.js generate:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(ffprobe:*)"
     ],
     "deny": [],
     "ask": []
   },
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true,
-    "frontend-design@claude-code-plugins": true
+    "plugin-dev@claude-code-plugins": true,
+    "context7@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true
   }
 }

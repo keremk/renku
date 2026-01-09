@@ -549,6 +549,15 @@ artifacts:
   - name: SegmentVideo
     description: Video file for the segment.
     type: video
+  - name: FirstFrame
+    description: The first frame of the generated video.
+    type: image
+  - name: LastFrame
+    description: The last frame of the generated video.
+    type: image
+  - name: AudioTrack
+    description: The audio track of the generated video.
+    type: audio
 
 mappings:
   replicate:
@@ -574,6 +583,44 @@ mappings:
         durationToFrames:
           fps: 24
 ```
+
+### Derived Video Artifacts
+
+Video-generating producers (text-to-video, image-to-video, etc.) automatically support **derived artifacts** that are extracted from the generated video using ffmpeg:
+
+| Artifact | Type | Description |
+|----------|------|-------------|
+| `FirstFrame` | image | The first frame of the video as PNG |
+| `LastFrame` | image | The last frame of the video as PNG |
+| `AudioTrack` | audio | The audio track extracted as WAV |
+
+**How derived artifacts work:**
+
+1. **Declaration**: Declare derived artifacts in your producer YAML alongside the primary video artifact
+2. **Connection**: Connect derived artifacts to downstream producers in your blueprint
+3. **Automatic extraction**: When the video is downloaded, ffmpeg extracts the requested artifacts
+4. **Efficiency**: Only artifacts that are actually connected to downstream producers are extracted
+
+**Example: Using FirstFrame for image-to-video transitions**
+
+```yaml
+# In your blueprint
+connections:
+  # Generate video from text
+  - from: VideoPromptProducer.Prompt[segment]
+    to: VideoProducer[segment].Prompt
+
+  # Use the last frame of segment N as the start image for segment N+1
+  - from: VideoProducer[segment].LastFrame
+    to: ImageToVideoProducer[segment+1].StartImage
+```
+
+**ffmpeg requirement:**
+
+- If ffmpeg is not installed, a warning is logged but the blueprint continues
+- Derived artifacts will have status "skipped" if ffmpeg is unavailable
+- The primary video artifact is always produced regardless of ffmpeg availability
+- Install ffmpeg to enable derived artifact extraction: https://ffmpeg.org/download.html
 
 ### Real Example: Audio Producer
 

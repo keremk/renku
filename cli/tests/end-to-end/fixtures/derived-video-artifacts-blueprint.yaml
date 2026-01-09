@@ -1,0 +1,71 @@
+meta:
+  name: Derived Video Artifacts Test
+  description: Test blueprint for verifying video artifact extraction (FirstFrame, LastFrame, AudioTrack).
+  id: DerivedVideoArtifactsTest
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: InitialPrompt
+    description: Prompt for the first video segment.
+    type: string
+    required: true
+  - name: ContinuationPrompt
+    description: Prompt for the continuation video segment.
+    type: string
+    required: true
+  - name: Duration
+    description: Duration of each video segment in seconds.
+    type: integer
+    default: 4
+
+artifacts:
+  - name: FirstVideo
+    description: The first generated video.
+    type: video
+  - name: SecondVideo
+    description: The continuation video using LastFrame from first video.
+    type: video
+  - name: FirstVideoFirstFrame
+    description: First frame extracted from the first video.
+    type: image
+  - name: FirstVideoLastFrame
+    description: Last frame extracted from the first video (also used as input to second video).
+    type: image
+  - name: FirstVideoAudioTrack
+    description: Audio track extracted from the first video.
+    type: audio
+
+producers:
+  - name: FirstVideoProducer
+    producer: asset/text-to-video
+  - name: SecondVideoProducer
+    producer: asset/image-to-video
+
+connections:
+  # First video generation
+  - from: InitialPrompt
+    to: FirstVideoProducer.Prompt
+  - from: Duration
+    to: FirstVideoProducer.Duration
+
+  # Second video uses LastFrame from first video as StartImage
+  - from: ContinuationPrompt
+    to: SecondVideoProducer.Prompt
+  - from: FirstVideoProducer.LastFrame
+    to: SecondVideoProducer.StartImage
+  - from: Duration
+    to: SecondVideoProducer.Duration
+
+  # Output artifacts
+  - from: FirstVideoProducer.GeneratedVideo
+    to: FirstVideo
+  - from: SecondVideoProducer.GeneratedVideo
+    to: SecondVideo
+  - from: FirstVideoProducer.FirstFrame
+    to: FirstVideoFirstFrame
+  - from: FirstVideoProducer.LastFrame
+    to: FirstVideoLastFrame
+  - from: FirstVideoProducer.AudioTrack
+    to: FirstVideoAudioTrack

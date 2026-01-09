@@ -1,0 +1,12 @@
+inputs:
+  InitialPrompt: "A serene forest landscape with morning mist"
+  ContinuationPrompt: "The mist slowly lifts revealing sunlight through the trees"
+  Duration: 4
+
+models:
+  - model: bytedance/seedance-1-pro-fast
+    provider: replicate
+    producerId: FirstVideoProducer
+  - model: bytedance/seedance-1.5-pro
+    provider: replicate
+    producerId: SecondVideoProducer

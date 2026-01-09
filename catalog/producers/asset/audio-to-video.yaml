@@ -51,7 +51,17 @@ artifacts:
   - name: GeneratedVideo
     description: The generated lip-synced video.
     type: video
+  - name: FirstFrame
+    description: The first frame of the generated video.
+    type: image
+  - name: LastFrame
+    description: The last frame of the generated video.
+    type: image
+  - name: AudioTrack
+    description: The audio track of the generated video.
+    type: audio
 
+  
 mappings:
   fal-ai:
     # Creatify Aurora

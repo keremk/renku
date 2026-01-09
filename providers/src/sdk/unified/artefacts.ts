@@ -1,6 +1,12 @@
 import { Buffer } from 'node:buffer';
 import { isCanonicalArtifactId, readJsonPath, type ProducedArtefact } from '@gorenku/core';
 import type { ProviderMode } from '../../types.js';
+import {
+  detectRequiredExtractions,
+  extractDerivedArtefacts,
+  needsExtraction,
+  type RequiredExtractions,
+} from './ffmpeg-extractor.js';
 import { generateWavWithDuration } from './wav-generator.js';
 
 type JsonObject = Record<string, unknown>;
@@ -61,14 +67,31 @@ function resolveDurationForMock(resolvedInputs: Record<string, unknown> | undefi
  * In simulated mode, generates valid WAV files with the expected duration
  * instead of downloading. This ensures mediabunny can extract duration
  * using the same code path as live mode.
+ *
+ * For video artifacts, this function also extracts derived artifacts
+ * (FirstFrame, LastFrame, AudioTrack) using ffmpeg when they are
+ * included in the produces array.
  */
 export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Promise<ProducedArtefact[]> {
   const { produces, urls, mimeType, mode, resolvedInputs } = options;
   const artefacts: ProducedArtefact[] = [];
   const useMockDownloads = mode === 'simulated';
 
-  for (let index = 0; index < produces.length; index += 1) {
-    const providedId = produces[index];
+  // Detect which extractions are needed from video
+  const requiredExtractions = detectRequiredExtractions(produces);
+  const extractionNeeded = needsExtraction(requiredExtractions);
+  const isVideo = isVideoMimeType(mimeType);
+
+  // Filter out derived artifact IDs from primary processing
+  // (they will be handled by extraction, not URL download)
+  const primaryProduces = extractionNeeded ? filterPrimaryArtifacts(produces, requiredExtractions) : produces;
+
+  // Track video buffer for extraction
+  let videoBuffer: Buffer | null = null;
+  let primaryVideoArtifactId: string | null = null;
+
+  for (let index = 0; index < primaryProduces.length; index += 1) {
+    const providedId = primaryProduces[index];
     const artefactId = providedId && providedId.length > 0 ? providedId : `Artifact:Output#${index}`;
     const url = urls[index];
 
@@ -88,6 +111,7 @@ export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Pr
       const buffer = useMockDownloads
         ? generateWavWithDuration(resolveDurationForMock(resolvedInputs))
         : await downloadBinary(url);
+
       artefacts.push({
         artefactId,
         status: 'succeeded',
@@ -99,6 +123,12 @@ export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Pr
           sourceUrl: url,
         },
       });
+
+      // Store video buffer for extraction
+      if (isVideo && extractionNeeded && !videoBuffer) {
+        videoBuffer = buffer;
+        primaryVideoArtifactId = artefactId;
+      }
     } catch (error) {
       artefacts.push({
         artefactId,
@@ -112,7 +142,56 @@ export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Pr
     }
   }
 
+  // Extract derived artifacts from video if needed
+  if (isVideo && extractionNeeded && videoBuffer && primaryVideoArtifactId) {
+    const mockDuration = resolveDurationForMock(resolvedInputs);
+    const extracted = await extractDerivedArtefacts({
+      videoBuffer,
+      primaryArtifactId: primaryVideoArtifactId,
+      produces,
+      mode,
+      mockDurationSeconds: mockDuration,
+    });
+
+    // Add extracted artifacts to results
+    if (extracted.firstFrame) {
+      artefacts.push(extracted.firstFrame);
+    }
+    if (extracted.lastFrame) {
+      artefacts.push(extracted.lastFrame);
+    }
+    if (extracted.audioTrack) {
+      artefacts.push(extracted.audioTrack);
+    }
+  }
+
   return artefacts;
+}
+
+/**
+ * Check if a MIME type represents a video format.
+ */
+function isVideoMimeType(mimeType: string): boolean {
+  return mimeType.startsWith('video/');
+}
+
+/**
+ * Filter out derived artifact IDs from the produces array.
+ * Returns only the primary artifacts that have URLs from the provider.
+ */
+function filterPrimaryArtifacts(produces: string[], extractions: RequiredExtractions): string[] {
+  const derivedIds = new Set<string>();
+  if (extractions.firstFrameId) {
+    derivedIds.add(extractions.firstFrameId);
+  }
+  if (extractions.lastFrameId) {
+    derivedIds.add(extractions.lastFrameId);
+  }
+  if (extractions.audioTrackId) {
+    derivedIds.add(extractions.audioTrackId);
+  }
+
+  return produces.filter((id) => !derivedIds.has(id));
 }
 
 /**

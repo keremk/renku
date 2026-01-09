@@ -229,6 +229,11 @@ export const SdkErrorCode = {
   INVALID_CONDITION_CONFIG: 'S042',
   BLOB_INPUT_NO_STORAGE: 'S043',
   COMBINE_REQUIRES_FIELD: 'S044',
+
+  // S050-S059: FFmpeg Video Extraction
+  FFMPEG_EXTRACTION_FAILED: 'S050',
+  FFMPEG_NO_AUDIO_STREAM: 'S051',
+  FFMPEG_TEMP_FILE_ERROR: 'S052',
 } as const;
 
 export type SdkErrorCodeValue = (typeof SdkErrorCode)[keyof typeof SdkErrorCode];

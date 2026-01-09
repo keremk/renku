@@ -5,6 +5,7 @@ This guide helps you choose the right video generation model based on your speci
 ## Table of Contents
 
 - [Quick Comparison Table](#quick-comparison-table)
+- [Derived Video Artifacts](#derived-video-artifacts)
 - [Model Deep Dives](#model-deep-dives)
 - [Model by Producer](#model-by-producer)
 
@@ -23,6 +24,64 @@ This guide helps you choose the right video generation model based on your speci
 | **Kling v2.6 Pro** | fal-ai | Yes | Variable | No | Variable | Quality with voice |
 | **Hailuo 02/2.3** | replicate | No | Variable | Yes | Variable | Smooth interpolation |
 | **WAN v2.6** | fal-ai | No | Variable | No | Variable | Multi-shot, references |
+
+---
+
+## Derived Video Artifacts
+
+All video-generating producers automatically support **derived artifacts** that are extracted from the generated video using ffmpeg. These artifacts enable powerful workflows like video-to-video chaining.
+
+### Available Derived Artifacts
+
+| Artifact | Type | Description | Use Cases |
+|----------|------|-------------|-----------|
+| `FirstFrame` | image (PNG) | First frame of the video | Visual preview, thumbnails |
+| `LastFrame` | image (PNG) | Last frame of the video | Seamless video transitions, end-frame matching |
+| `AudioTrack` | audio (WAV) | Audio track from video | Audio post-processing, mixing |
+
+### How It Works
+
+1. **Declare** derived artifacts in your producer YAML (already included in catalog producers)
+2. **Connect** them to downstream producers in your blueprint
+3. **Automatic extraction** happens when the video is downloaded - only connected artifacts are extracted
+4. **Graceful fallback** if ffmpeg is not installed, a warning is shown but the blueprint runs
+
+### Example: Seamless Video Transitions
+
+Chain videos together using the last frame of one video as the start image for the next:
+
+```yaml
+loops:
+  - name: segment
+    countInput: NumOfSegments
+
+producers:
+  - name: TextToVideoProducer
+    producer: asset/text-to-video
+  - name: ImageToVideoProducer
+    producer: asset/image-to-video
+    loop: segment
+
+connections:
+  # First segment: text-to-video
+  - from: Prompt
+    to: TextToVideoProducer.Prompt
+
+  # Use LastFrame from first video as StartImage for transitions
+  - from: TextToVideoProducer.LastFrame
+    to: ImageToVideoProducer[0].StartImage
+
+  # Chain subsequent segments using previous segment's LastFrame
+  - from: ImageToVideoProducer[segment].LastFrame
+    to: ImageToVideoProducer[segment+1].StartImage
+```
+
+### Requirements
+
+- **ffmpeg** must be installed on the system for extraction to work
+- If ffmpeg is missing, derived artifacts will be skipped (status: "skipped")
+- The primary video artifact is always produced regardless of ffmpeg availability
+- Install ffmpeg: https://ffmpeg.org/download.html
 
 ---
 

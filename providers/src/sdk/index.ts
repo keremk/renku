@@ -5,6 +5,18 @@ export * from './errors.js';
 export * from './handler-factory.js';
 export * from './transforms.js';
 
+// FFmpeg extraction exports
+export {
+  extractDerivedArtefacts,
+  detectRequiredExtractions,
+  needsExtraction,
+  checkFfmpegAvailability,
+  resetFfmpegCache,
+  type FfmpegExtractionOptions,
+  type RequiredExtractions,
+  type ExtractionResult,
+} from './unified/ffmpeg-extractor.js';
+
 // Vercel AI Gateway SDK exports
 export {
   createVercelGatewayClientManager,
