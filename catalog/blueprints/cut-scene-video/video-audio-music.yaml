@@ -88,6 +88,8 @@ producers:
     producer: asset/text-to-music
   - name: TimelineComposer
     producer: composition/timeline-composer
+  - name: TranscriptionProducer
+    producer: asset/transcription
   - name: VideoExporter
     producer: composition/video-exporter
 
@@ -167,6 +169,12 @@ connections:
     
   - from: TimelineComposer.Timeline
     to: VideoExporter.Timeline
+  - from: TimelineComposer.Timeline
+    to: TranscriptionProducer.Timeline
+  - from: AudioProducer[segment].GeneratedAudio
+    to: TranscriptionProducer.AudioSegments
+  - from: TranscriptionProducer.Transcription
+    to: VideoExporter.Transcription
   - from: VideoExporter.FinalVideo
     to: FinalVideo
 
@@ -189,4 +197,8 @@ collectors:
   - name: MusicTrack
     from: MusicProducer.GeneratedMusic
     into: TimelineComposer.Music
+    groupBy: segment
+  - name: TranscriptionAudio
+    from: AudioProducer[segment].GeneratedAudio
+    into: TranscriptionProducer.AudioSegments
     groupBy: segment

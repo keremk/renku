@@ -265,6 +265,14 @@ models:
       function: costByVideoDuration
       inputs: [duration]
       pricePerSecond: 0.20
+  - name: kling-video/v2.5-turbo/pro/image-to-video 
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.07
   - name: kling-video/v2.6/pro/image-to-video
     type: video
     mime:
@@ -435,3 +443,13 @@ models:
           pricePerSecond: 0.20
         - resolution: 720p
           pricePerSecond: 0.40
+
+  # JSON Models
+  - name: elevenlabs/speech-to-text
+    type: json
+    mime:
+      - application/json
+    price:
+      function: costByAudioSeconds
+      inputs: [duration]
+      pricePerSecond: 0.0005

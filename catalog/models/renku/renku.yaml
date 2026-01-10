@@ -19,3 +19,9 @@ models:
       - audio/mpeg
     handler: ffmpeg-exporter
     price: 0
+  - name: speech/transcription
+    type: json
+    mime:
+      - application/json
+    handler: transcription
+    price: 0

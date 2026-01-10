@@ -1,0 +1,145 @@
+{
+  "input_schema": {
+    "title": "ImageToVideoV25ProRequest",
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "A stark starting line divides two powerful cars, engines revving for the challenge ahead. They surge forward in the heat of competition, a blur of speed and chrome. The finish line looms as they vie for victory."
+        ],
+        "title": "Prompt",
+        "type": "string",
+        "maxLength": 2500
+      },
+      "duration": {
+        "enum": [
+          "5",
+          "10"
+        ],
+        "title": "Duration",
+        "type": "string",
+        "description": "The duration of the generated video in seconds",
+        "default": "5"
+      },
+      "image_url": {
+        "examples": [
+          "https://v3.fal.media/files/panda/HnY2yf-BbzlrVQxR-qP6m_9912d0932988453aadf3912fc1901f52.jpg"
+        ],
+        "title": "Image Url",
+        "type": "string",
+        "description": "URL of the image to be used for the video",
+        "format": "uri"
+      },
+      "negative_prompt": {
+        "title": "Negative Prompt",
+        "type": "string",
+        "maxLength": 2500,
+        "default": "blur, distort, and low quality"
+      },
+      "tail_image_url": {
+        "title": "Tail Image Url",
+        "type": "string",
+        "description": "URL of the image to be used for the end of the video",
+        "format": "uri"
+      },
+      "cfg_scale": {
+        "minimum": 0,
+        "title": "Cfg Scale",
+        "type": "number",
+        "maximum": 1,
+        "description": "\n            The CFG (Classifier Free Guidance) scale is a measure of how close you want\n            the model to stick to your prompt.\n        ",
+        "default": 0.5
+      }
+    },
+    "x-fal-order-properties": [
+      "prompt",
+      "image_url",
+      "duration",
+      "negative_prompt",
+      "cfg_scale",
+      "tail_image_url"
+    ],
+    "required": [
+      "prompt",
+      "image_url"
+    ]
+  },
+  "output_schema": {
+    "title": "ImageToVideoV25ProOutput",
+    "type": "object",
+    "properties": {
+      "video": {
+        "examples": [
+          {
+            "url": "https://storage.googleapis.com/falserverless/model_tests/kling/kling-v2.5-turbo-pro-image-to-video-output.mp4"
+          }
+        ],
+        "title": "Video",
+        "description": "The generated video",
+        "allOf": [
+          {
+            "$ref": "#/File"
+          }
+        ]
+      }
+    },
+    "x-fal-order-properties": [
+      "video"
+    ],
+    "required": [
+      "video"
+    ]
+  },
+  "File": {
+    "title": "File",
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "title": "File Size",
+        "type": "integer",
+        "description": "The size of the file in bytes."
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name",
+        "type": "string",
+        "description": "The name of the file. It will be auto-generated if not provided."
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type",
+        "type": "string",
+        "description": "The mime type of the file."
+      },
+      "url": {
+        "title": "Url",
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
+      },
+      "file_data": {
+        "format": "binary",
+        "title": "File Data",
+        "type": "string",
+        "description": "File data"
+      }
+    },
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data"
+    ],
+    "required": [
+      "url"
+    ]
+  }
+}
