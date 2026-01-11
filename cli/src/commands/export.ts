@@ -6,7 +6,7 @@ import { resolveTargetMovieId } from '../lib/movie-id-utils.js';
 import { loadCurrentManifest } from '../lib/artifacts-view.js';
 import { readMovieMetadata } from '../lib/movie-metadata.js';
 import { loadBlueprintBundle } from '../lib/blueprint-loader/index.js';
-import { createProviderRegistry, loadModelCatalog } from '@gorenku/providers';
+import { createProviderRegistry, loadModelCatalog, createProviderError, SdkErrorCode } from '@gorenku/providers';
 
 const DEFAULT_WIDTH = 1920;
 const DEFAULT_HEIGHT = 1080;
@@ -181,22 +181,27 @@ const KNOWN_SUBTITLE_KEYS = new Set([
 
 /**
  * Loads and validates export configuration from a YAML file.
- * Warns on unknown keys but continues (forward-compatible).
+ * Throws on unknown keys to catch configuration errors early.
  */
-export async function loadExportConfig(
-  filePath: string,
-  logger?: { warn: (msg: string) => void },
-): Promise<ExportConfigFile> {
+export async function loadExportConfig(filePath: string): Promise<ExportConfigFile> {
   const extension = extname(filePath).toLowerCase();
   if (extension !== '.yaml' && extension !== '.yml') {
-    throw new Error(`Export config file must be YAML (*.yaml or *.yml). Received: ${filePath}`);
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      `Export config file must be YAML (*.yaml or *.yml). Received: ${filePath}`,
+      { kind: 'user_input', causedByUser: true }
+    );
   }
 
   const contents = await readFile(filePath, 'utf8');
   const parsed = parseYaml(contents) as Record<string, unknown>;
 
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error(`Export config file must contain a YAML object. File: ${filePath}`);
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      `Export config file must contain a YAML object. File: ${filePath}`,
+      { kind: 'user_input', causedByUser: true }
+    );
   }
 
   // Check for unknown keys at top level
@@ -217,8 +222,14 @@ export async function loadExportConfig(
     }
   }
 
-  if (unknownKeys.length > 0 && logger) {
-    logger.warn(`Unknown keys in export config (will be ignored): ${unknownKeys.join(', ')}`);
+  if (unknownKeys.length > 0) {
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      `Unknown keys in export config: [${unknownKeys.join(', ')}]\n` +
+      `Valid keys are: ${[...KNOWN_EXPORT_CONFIG_KEYS].join(', ')}\n` +
+      `Valid subtitles keys are: ${[...KNOWN_SUBTITLE_KEYS].join(', ')}`,
+      { kind: 'user_input', causedByUser: true }
+    );
   }
 
   // Validate and extract known fields
@@ -226,56 +237,88 @@ export async function loadExportConfig(
 
   if (parsed.width !== undefined) {
     if (typeof parsed.width !== 'number') {
-      throw new Error(`Export config: 'width' must be a number, got ${typeof parsed.width}`);
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Export config: 'width' must be a number, got ${typeof parsed.width}`,
+        { kind: 'user_input', causedByUser: true }
+      );
     }
     config.width = parsed.width;
   }
 
   if (parsed.height !== undefined) {
     if (typeof parsed.height !== 'number') {
-      throw new Error(`Export config: 'height' must be a number, got ${typeof parsed.height}`);
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Export config: 'height' must be a number, got ${typeof parsed.height}`,
+        { kind: 'user_input', causedByUser: true }
+      );
     }
     config.height = parsed.height;
   }
 
   if (parsed.fps !== undefined) {
     if (typeof parsed.fps !== 'number') {
-      throw new Error(`Export config: 'fps' must be a number, got ${typeof parsed.fps}`);
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Export config: 'fps' must be a number, got ${typeof parsed.fps}`,
+        { kind: 'user_input', causedByUser: true }
+      );
     }
     config.fps = parsed.fps;
   }
 
   if (parsed.exporter !== undefined) {
     if (parsed.exporter !== 'remotion' && parsed.exporter !== 'ffmpeg') {
-      throw new Error(`Export config: 'exporter' must be "remotion" or "ffmpeg", got "${parsed.exporter}"`);
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Export config: 'exporter' must be "remotion" or "ffmpeg", got "${parsed.exporter}"`,
+        { kind: 'user_input', causedByUser: true }
+      );
     }
     config.exporter = parsed.exporter;
   }
 
   if (parsed.preset !== undefined) {
     if (typeof parsed.preset !== 'string') {
-      throw new Error(`Export config: 'preset' must be a string, got ${typeof parsed.preset}`);
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Export config: 'preset' must be a string, got ${typeof parsed.preset}`,
+        { kind: 'user_input', causedByUser: true }
+      );
     }
     config.preset = parsed.preset;
   }
 
   if (parsed.crf !== undefined) {
     if (typeof parsed.crf !== 'number') {
-      throw new Error(`Export config: 'crf' must be a number, got ${typeof parsed.crf}`);
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Export config: 'crf' must be a number, got ${typeof parsed.crf}`,
+        { kind: 'user_input', causedByUser: true }
+      );
     }
     config.crf = parsed.crf;
   }
 
   if (parsed.audioBitrate !== undefined) {
     if (typeof parsed.audioBitrate !== 'string') {
-      throw new Error(`Export config: 'audioBitrate' must be a string, got ${typeof parsed.audioBitrate}`);
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Export config: 'audioBitrate' must be a string, got ${typeof parsed.audioBitrate}`,
+        { kind: 'user_input', causedByUser: true }
+      );
     }
     config.audioBitrate = parsed.audioBitrate;
   }
 
   if (parsed.subtitles !== undefined) {
     if (typeof parsed.subtitles !== 'object' || parsed.subtitles === null) {
-      throw new Error(`Export config: 'subtitles' must be an object, got ${typeof parsed.subtitles}`);
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Export config: 'subtitles' must be an object, got ${typeof parsed.subtitles}`,
+        { kind: 'user_input', causedByUser: true }
+      );
     }
     config.subtitles = validateSubtitleConfig(parsed.subtitles as Record<string, unknown>);
   }
@@ -288,63 +331,99 @@ function validateSubtitleConfig(raw: Record<string, unknown>): SubtitleConfig {
 
   if (raw.font !== undefined) {
     if (typeof raw.font !== 'string') {
-      throw new Error(`Export config: 'subtitles.font' must be a string, got ${typeof raw.font}`);
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Export config: 'subtitles.font' must be a string, got ${typeof raw.font}`,
+        { kind: 'user_input', causedByUser: true }
+      );
     }
     config.font = raw.font;
   }
 
   if (raw.fontSize !== undefined) {
     if (typeof raw.fontSize !== 'number') {
-      throw new Error(`Export config: 'subtitles.fontSize' must be a number, got ${typeof raw.fontSize}`);
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Export config: 'subtitles.fontSize' must be a number, got ${typeof raw.fontSize}`,
+        { kind: 'user_input', causedByUser: true }
+      );
     }
     config.fontSize = raw.fontSize;
   }
 
   if (raw.fontBaseColor !== undefined) {
     if (typeof raw.fontBaseColor !== 'string') {
-      throw new Error(`Export config: 'subtitles.fontBaseColor' must be a string, got ${typeof raw.fontBaseColor}`);
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Export config: 'subtitles.fontBaseColor' must be a string, got ${typeof raw.fontBaseColor}`,
+        { kind: 'user_input', causedByUser: true }
+      );
     }
     config.fontBaseColor = raw.fontBaseColor;
   }
 
   if (raw.fontHighlightColor !== undefined) {
     if (typeof raw.fontHighlightColor !== 'string') {
-      throw new Error(`Export config: 'subtitles.fontHighlightColor' must be a string, got ${typeof raw.fontHighlightColor}`);
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Export config: 'subtitles.fontHighlightColor' must be a string, got ${typeof raw.fontHighlightColor}`,
+        { kind: 'user_input', causedByUser: true }
+      );
     }
     config.fontHighlightColor = raw.fontHighlightColor;
   }
 
   if (raw.backgroundColor !== undefined) {
     if (typeof raw.backgroundColor !== 'string') {
-      throw new Error(`Export config: 'subtitles.backgroundColor' must be a string, got ${typeof raw.backgroundColor}`);
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Export config: 'subtitles.backgroundColor' must be a string, got ${typeof raw.backgroundColor}`,
+        { kind: 'user_input', causedByUser: true }
+      );
     }
     config.backgroundColor = raw.backgroundColor;
   }
 
   if (raw.backgroundOpacity !== undefined) {
     if (typeof raw.backgroundOpacity !== 'number') {
-      throw new Error(`Export config: 'subtitles.backgroundOpacity' must be a number, got ${typeof raw.backgroundOpacity}`);
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Export config: 'subtitles.backgroundOpacity' must be a number, got ${typeof raw.backgroundOpacity}`,
+        { kind: 'user_input', causedByUser: true }
+      );
     }
     config.backgroundOpacity = raw.backgroundOpacity;
   }
 
   if (raw.bottomMarginPercent !== undefined) {
     if (typeof raw.bottomMarginPercent !== 'number') {
-      throw new Error(`Export config: 'subtitles.bottomMarginPercent' must be a number, got ${typeof raw.bottomMarginPercent}`);
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Export config: 'subtitles.bottomMarginPercent' must be a number, got ${typeof raw.bottomMarginPercent}`,
+        { kind: 'user_input', causedByUser: true }
+      );
     }
     config.bottomMarginPercent = raw.bottomMarginPercent;
   }
 
   if (raw.maxWordsPerLine !== undefined) {
     if (typeof raw.maxWordsPerLine !== 'number') {
-      throw new Error(`Export config: 'subtitles.maxWordsPerLine' must be a number, got ${typeof raw.maxWordsPerLine}`);
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Export config: 'subtitles.maxWordsPerLine' must be a number, got ${typeof raw.maxWordsPerLine}`,
+        { kind: 'user_input', causedByUser: true }
+      );
     }
     config.maxWordsPerLine = raw.maxWordsPerLine;
   }
 
   if (raw.highlightEffect !== undefined) {
     if (typeof raw.highlightEffect !== 'boolean') {
-      throw new Error(`Export config: 'subtitles.highlightEffect' must be a boolean, got ${typeof raw.highlightEffect}`);
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Export config: 'subtitles.highlightEffect' must be a boolean, got ${typeof raw.highlightEffect}`,
+        { kind: 'user_input', causedByUser: true }
+      );
     }
     config.highlightEffect = raw.highlightEffect;
   }
@@ -404,7 +483,7 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
 
   // Load export config from file if provided
   const fileConfig = options.inputsPath
-    ? await loadExportConfig(options.inputsPath, globalThis.console)
+    ? await loadExportConfig(options.inputsPath)
     : undefined;
 
   // Determine output settings with priority: CLI flags > config file > manifest > defaults
@@ -427,7 +506,11 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
   const catalog = catalogModelsDir
     ? await loadModelCatalog(catalogModelsDir)
     : undefined;
-  const registry = createProviderRegistry({ mode: 'live', catalog });
+  const registry = createProviderRegistry({
+    mode: 'live',
+    catalog,
+    catalogModelsDir, // Required for getModelSchema to enable config validation
+  });
 
   // Resolve exporter handler based on type
   const exporterModel = exporter === 'ffmpeg' ? 'ffmpeg/native-render' : 'remotion/docker-render';

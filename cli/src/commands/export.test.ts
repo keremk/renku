@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { stringify as stringifyYaml } from 'yaml';
 import { loadExportConfig } from './export.js';
 
@@ -164,7 +164,7 @@ describe('loadExportConfig', () => {
     );
   });
 
-  it('warns on unknown top-level keys', async () => {
+  it('throws on unknown top-level keys', async () => {
     const dir = await createTempDir();
     const filePath = await writeConfigFile(dir, {
       fps: 30,
@@ -172,18 +172,12 @@ describe('loadExportConfig', () => {
       anotherUnknown: 123,
     });
 
-    const mockLogger = { warn: vi.fn() };
-    await loadExportConfig(filePath, mockLogger);
-
-    expect(mockLogger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('unknownKey')
-    );
-    expect(mockLogger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('anotherUnknown')
+    await expect(loadExportConfig(filePath)).rejects.toThrow(
+      /Unknown keys in export config.*unknownKey.*anotherUnknown/s
     );
   });
 
-  it('warns on unknown subtitle keys', async () => {
+  it('throws on unknown subtitle keys', async () => {
     const dir = await createTempDir();
     const filePath = await writeConfigFile(dir, {
       subtitles: {
@@ -192,25 +186,9 @@ describe('loadExportConfig', () => {
       },
     });
 
-    const mockLogger = { warn: vi.fn() };
-    await loadExportConfig(filePath, mockLogger);
-
-    expect(mockLogger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('subtitles.unknownSubtitleKey')
+    await expect(loadExportConfig(filePath)).rejects.toThrow(
+      /Unknown keys in export config.*subtitles\.unknownSubtitleKey/s
     );
-  });
-
-  it('continues without logger when unknown keys exist', async () => {
-    const dir = await createTempDir();
-    const filePath = await writeConfigFile(dir, {
-      fps: 30,
-      unknownKey: 'value',
-    });
-
-    // Should not throw when logger is not provided
-    const loaded = await loadExportConfig(filePath);
-
-    expect(loaded.fps).toBe(30);
   });
 
   it('accepts .yml extension', async () => {

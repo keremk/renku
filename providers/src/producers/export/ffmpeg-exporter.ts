@@ -4,7 +4,9 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
 import { createProviderError, SdkErrorCode } from '../../sdk/errors.js';
-import type { HandlerFactory } from '../../types.js';
+import { validatePayload } from '../../sdk/schema-validator.js';
+import { parseSchemaFile, resolveSchemaRefs } from '../../sdk/unified/schema-file.js';
+import type { HandlerFactory, HandlerFactoryInit } from '../../types.js';
 import type { ResolvedInputsAccessor } from '../../sdk/types.js';
 import { createStorageContext } from '@gorenku/core';
 import type { TimelineDocument } from '@gorenku/compositions';
@@ -38,22 +40,40 @@ interface ManifestFile {
 }
 
 export function createFfmpegExporterHandler(): HandlerFactory {
-  return createProducerHandlerFactory({
-    domain: 'media',
-    configValidator: parseFfmpegExporterConfig,
-    invoke: async ({ request, runtime }) => {
-      const notify = (type: 'progress' | 'success' | 'error', message: string) => {
-        runtime.notifications?.publish({
-          type,
-          message,
-          timestamp: new Date().toISOString(),
-        });
-      };
+  // Return outer function that captures init (following transcription handler pattern)
+  return (init: HandlerFactoryInit) => {
+    const { getModelSchema } = init; // Capture schema loader from init
 
-      notify('progress', `Exporting via FFmpeg for job ${request.jobId}`);
+    return createProducerHandlerFactory({
+      domain: 'media',
+      // No configValidator - we validate inside invoke with loaded schema
+      invoke: async ({ request, runtime }) => {
+        const notify = (type: 'progress' | 'success' | 'error', message: string) => {
+          runtime.notifications?.publish({
+            type,
+            message,
+            timestamp: new Date().toISOString(),
+          });
+        };
 
-      const config = runtime.config.parse<FfmpegExporterConfig>(parseFfmpegExporterConfig);
-      const produceId = request.produces[0];
+        notify('progress', `Exporting via FFmpeg for job ${request.jobId}`);
+
+        // Load schema via catalog infrastructure (async, cached by registry)
+        const schemaRaw = await getModelSchema?.('renku', 'ffmpeg/native-render');
+
+        // Validate config before any processing (fail-fast)
+        // Treat undefined/null config as empty object (all fields are optional)
+        const rawConfig = runtime.config.raw ?? {};
+        if (schemaRaw) {
+          const schemaFile = parseSchemaFile(schemaRaw);
+          const resolvedSchema = resolveSchemaRefs(schemaFile.inputSchema, schemaFile.definitions);
+          const schemaString = JSON.stringify(resolvedSchema);
+          validatePayload(schemaString, rawConfig, 'FFmpeg exporter config');
+        }
+
+        // Config is now validated, safe to use
+        const config = rawConfig as FfmpegExporterConfig;
+        const produceId = request.produces[0];
 
       if (!produceId) {
         throw createProviderError(
@@ -181,42 +201,9 @@ export function createFfmpegExporterHandler(): HandlerFactory {
       notify('success', `FFmpeg export completed for job ${request.jobId}`);
       return result;
     },
-  });
-}
-
-function parseFfmpegExporterConfig(raw: unknown): FfmpegExporterConfig {
-  const config = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
-  return {
-    rootFolder: typeof config.rootFolder === 'string' ? config.rootFolder : undefined,
-    width: typeof config.width === 'number' ? config.width : undefined,
-    height: typeof config.height === 'number' ? config.height : undefined,
-    fps: typeof config.fps === 'number' ? config.fps : undefined,
-    preset: typeof config.preset === 'string' ? config.preset : undefined,
-    crf: typeof config.crf === 'number' ? config.crf : undefined,
-    audioBitrate: typeof config.audioBitrate === 'string' ? config.audioBitrate : undefined,
-    ffmpegPath: typeof config.ffmpegPath === 'string' ? config.ffmpegPath : undefined,
-    subtitles: parseSubtitleConfig(config.subtitles),
+  })(init); // Pass init to inner factory
   };
 }
-
-function parseSubtitleConfig(raw: unknown): FfmpegExporterConfig['subtitles'] {
-  if (typeof raw !== 'object' || raw === null) {
-    return undefined;
-  }
-  const config = raw as Record<string, unknown>;
-  return {
-    font: typeof config.font === 'string' ? config.font : undefined,
-    fontSize: typeof config.fontSize === 'number' ? config.fontSize : undefined,
-    fontBaseColor: typeof config.fontBaseColor === 'string' ? config.fontBaseColor : undefined,
-    fontHighlightColor: typeof config.fontHighlightColor === 'string' ? config.fontHighlightColor : undefined,
-    backgroundColor: typeof config.backgroundColor === 'string' ? config.backgroundColor : undefined,
-    backgroundOpacity: typeof config.backgroundOpacity === 'number' ? config.backgroundOpacity : undefined,
-    bottomMarginPercent: typeof config.bottomMarginPercent === 'number' ? config.bottomMarginPercent : undefined,
-    maxWordsPerLine: typeof config.maxWordsPerLine === 'number' ? config.maxWordsPerLine : undefined,
-    highlightEffect: typeof config.highlightEffect === 'boolean' ? config.highlightEffect : undefined,
-  };
-}
-
 
 function resolveMovieId(inputs: ResolvedInputsAccessor): string {
   const movieId = inputs.getByNodeId<string>('Input:MovieId');
@@ -487,8 +474,6 @@ async function runFfmpeg(ffmpegPath: string, args: string[]): Promise<void> {
 }
 
 export const __test__ = {
-  parseFfmpegExporterConfig,
-  parseSubtitleConfig,
   resolveMovieId,
   resolveStoragePaths,
   mimeToExtension,

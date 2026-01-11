@@ -1,11 +1,26 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createFfmpegExporterHandler, __test__ } from './ffmpeg-exporter.js';
 import type { TimelineDocument } from '@gorenku/compositions';
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const { parseFfmpegExporterConfig, parseSubtitleConfig, mimeToExtension, collectAssetIds, detectOutputFormat } = __test__;
+const { mimeToExtension, collectAssetIds, detectOutputFormat } = __test__;
+
+// Helper to load schema from catalog for tests
+const catalogRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../../../../catalog/models'
+);
+
+async function mockGetModelSchema(provider: string, model: string): Promise<string | null> {
+  if (provider === 'renku' && model === 'ffmpeg/native-render') {
+    const schemaPath = path.join(catalogRoot, 'renku', 'video', 'ffmpeg-native-render.json');
+    return readFile(schemaPath, 'utf8');
+  }
+  return null;
+}
 
 // Mock child_process for testing
 vi.mock('node:child_process', () => ({
@@ -26,146 +41,6 @@ vi.mock('node:child_process', () => ({
 }));
 
 describe('ffmpeg-exporter', () => {
-  describe('parseFfmpegExporterConfig', () => {
-    it('should parse valid config', () => {
-      const config = parseFfmpegExporterConfig({
-        rootFolder: '/path/to/storage',
-        width: 1280,
-        height: 720,
-        fps: 24,
-        preset: 'fast',
-        crf: 18,
-        audioBitrate: '256k',
-        ffmpegPath: '/usr/local/bin/ffmpeg',
-      });
-
-      expect(config.rootFolder).toBe('/path/to/storage');
-      expect(config.width).toBe(1280);
-      expect(config.height).toBe(720);
-      expect(config.fps).toBe(24);
-      expect(config.preset).toBe('fast');
-      expect(config.crf).toBe(18);
-      expect(config.audioBitrate).toBe('256k');
-      expect(config.ffmpegPath).toBe('/usr/local/bin/ffmpeg');
-    });
-
-    it('should handle empty config', () => {
-      const config = parseFfmpegExporterConfig({});
-
-      expect(config.rootFolder).toBeUndefined();
-      expect(config.width).toBeUndefined();
-      expect(config.height).toBeUndefined();
-    });
-
-    it('should handle null config', () => {
-      const config = parseFfmpegExporterConfig(null);
-
-      expect(config.rootFolder).toBeUndefined();
-    });
-
-    it('should ignore invalid types', () => {
-      const config = parseFfmpegExporterConfig({
-        width: 'not a number',
-        fps: 'also not a number',
-        preset: 123,
-      });
-
-      expect(config.width).toBeUndefined();
-      expect(config.fps).toBeUndefined();
-      expect(config.preset).toBeUndefined();
-    });
-
-    it('should parse subtitles config', () => {
-      const config = parseFfmpegExporterConfig({
-        subtitles: {
-          font: 'Helvetica',
-          fontSize: 64,
-          fontBaseColor: '#FFFFFF',
-          fontHighlightColor: '#FFD700',
-          backgroundColor: '#000000',
-          backgroundOpacity: 0.5,
-          bottomMarginPercent: 15,
-          maxWordsPerLine: 6,
-          highlightEffect: false,
-        },
-      });
-
-      expect(config.subtitles).toBeDefined();
-      expect(config.subtitles?.font).toBe('Helvetica');
-      expect(config.subtitles?.fontSize).toBe(64);
-      expect(config.subtitles?.fontBaseColor).toBe('#FFFFFF');
-      expect(config.subtitles?.fontHighlightColor).toBe('#FFD700');
-      expect(config.subtitles?.backgroundColor).toBe('#000000');
-      expect(config.subtitles?.backgroundOpacity).toBe(0.5);
-      expect(config.subtitles?.bottomMarginPercent).toBe(15);
-      expect(config.subtitles?.maxWordsPerLine).toBe(6);
-      expect(config.subtitles?.highlightEffect).toBe(false);
-    });
-  });
-
-  describe('parseSubtitleConfig', () => {
-    it('should return undefined for null input', () => {
-      expect(parseSubtitleConfig(null)).toBeUndefined();
-    });
-
-    it('should return undefined for undefined input', () => {
-      expect(parseSubtitleConfig(undefined)).toBeUndefined();
-    });
-
-    it('should return undefined for non-object input', () => {
-      expect(parseSubtitleConfig('string')).toBeUndefined();
-      expect(parseSubtitleConfig(123)).toBeUndefined();
-    });
-
-    it('should parse all subtitle config fields', () => {
-      const config = parseSubtitleConfig({
-        font: 'Arial',
-        fontSize: 48,
-        fontBaseColor: '#FFFFFF',
-        fontHighlightColor: '#FFD700',
-        backgroundColor: '#000000',
-        backgroundOpacity: 0.5,
-        bottomMarginPercent: 10,
-        maxWordsPerLine: 4,
-        highlightEffect: true,
-      });
-
-      expect(config?.font).toBe('Arial');
-      expect(config?.fontSize).toBe(48);
-      expect(config?.fontBaseColor).toBe('#FFFFFF');
-      expect(config?.fontHighlightColor).toBe('#FFD700');
-      expect(config?.backgroundColor).toBe('#000000');
-      expect(config?.backgroundOpacity).toBe(0.5);
-      expect(config?.bottomMarginPercent).toBe(10);
-      expect(config?.maxWordsPerLine).toBe(4);
-      expect(config?.highlightEffect).toBe(true);
-    });
-
-    it('should handle partial config', () => {
-      const config = parseSubtitleConfig({
-        fontSize: 64,
-        highlightEffect: false,
-      });
-
-      expect(config?.fontSize).toBe(64);
-      expect(config?.highlightEffect).toBe(false);
-      expect(config?.font).toBeUndefined();
-      expect(config?.fontBaseColor).toBeUndefined();
-    });
-
-    it('should ignore invalid field types', () => {
-      const config = parseSubtitleConfig({
-        font: 123, // should be string
-        fontSize: 'large', // should be number
-        highlightEffect: 'yes', // should be boolean
-      });
-
-      expect(config?.font).toBeUndefined();
-      expect(config?.fontSize).toBeUndefined();
-      expect(config?.highlightEffect).toBeUndefined();
-    });
-  });
-
   describe('mimeToExtension', () => {
     it('should convert image MIME types', () => {
       expect(mimeToExtension('image/jpeg')).toBe('jpg');
@@ -401,6 +276,7 @@ describe('ffmpeg-exporter', () => {
         descriptor: { provider: 'renku', model: 'FfmpegExporter', environment: 'local' },
         mode: 'live',
         secretResolver: { async getSecret() { return null; } },
+        getModelSchema: mockGetModelSchema,
       });
 
       expect(handler.provider).toBe('renku');
@@ -414,6 +290,7 @@ describe('ffmpeg-exporter', () => {
         descriptor: { provider: 'renku', model: 'FfmpegExporter', environment: 'local' },
         mode: 'simulated',
         secretResolver: { async getSecret() { return null; } },
+        getModelSchema: mockGetModelSchema,
       });
 
       const response = await handler.invoke({
@@ -440,6 +317,221 @@ describe('ffmpeg-exporter', () => {
       expect(response.status).toBe('succeeded');
       expect(response.artefacts[0]?.status).toBe('succeeded');
       expect(response.artefacts[0]?.blob?.mimeType).toBe('video/mp4');
+    });
+
+    it('should accept valid config with subtitles', async () => {
+      const factory = createFfmpegExporterHandler();
+      const handler = factory({
+        descriptor: { provider: 'renku', model: 'FfmpegExporter', environment: 'local' },
+        mode: 'simulated',
+        secretResolver: { async getSecret() { return null; } },
+        getModelSchema: mockGetModelSchema,
+      });
+
+      const response = await handler.invoke({
+        jobId: 'test-job',
+        provider: 'renku',
+        model: 'FfmpegExporter',
+        revision: 'rev-1',
+        layerIndex: 0,
+        attempt: 1,
+        inputs: [],
+        produces: ['Artifact:FinalVideo'],
+        context: {
+          environment: 'local',
+          providerConfig: {
+            subtitles: {
+              font: 'Arial',
+              fontSize: 48,
+              fontBaseColor: '#FFFFFF',
+              fontHighlightColor: '#FFD700',
+            },
+          },
+          extras: {
+            resolvedInputs: {
+              'Input:MovieId': movieId,
+              'Input:StorageRoot': tempRoot,
+              'Input:StorageBasePath': 'builds',
+            },
+          },
+        },
+      });
+
+      expect(response.status).toBe('succeeded');
+    });
+
+    it('should reject unknown fields like karaoke', async () => {
+      const factory = createFfmpegExporterHandler();
+      const handler = factory({
+        descriptor: { provider: 'renku', model: 'FfmpegExporter', environment: 'local' },
+        mode: 'simulated',
+        secretResolver: { async getSecret() { return null; } },
+        getModelSchema: mockGetModelSchema,
+      });
+
+      await expect(handler.invoke({
+        jobId: 'test-job',
+        provider: 'renku',
+        model: 'FfmpegExporter',
+        revision: 'rev-1',
+        layerIndex: 0,
+        attempt: 1,
+        inputs: [],
+        produces: ['Artifact:FinalVideo'],
+        context: {
+          environment: 'local',
+          providerConfig: {
+            karaoke: { fontSize: 48 }, // Invalid field - should be 'subtitles'
+          },
+          extras: {
+            resolvedInputs: {
+              'Input:MovieId': movieId,
+              'Input:StorageRoot': tempRoot,
+              'Input:StorageBasePath': 'builds',
+            },
+          },
+        },
+      })).rejects.toThrow(/unknown field.*karaoke/i);
+    });
+
+    it('should reject invalid nested field names in subtitles', async () => {
+      const factory = createFfmpegExporterHandler();
+      const handler = factory({
+        descriptor: { provider: 'renku', model: 'FfmpegExporter', environment: 'local' },
+        mode: 'simulated',
+        secretResolver: { async getSecret() { return null; } },
+        getModelSchema: mockGetModelSchema,
+      });
+
+      await expect(handler.invoke({
+        jobId: 'test-job',
+        provider: 'renku',
+        model: 'FfmpegExporter',
+        revision: 'rev-1',
+        layerIndex: 0,
+        attempt: 1,
+        inputs: [],
+        produces: ['Artifact:FinalVideo'],
+        context: {
+          environment: 'local',
+          providerConfig: {
+            subtitles: {
+              fontColor: '#FFFFFF', // Invalid - should be 'fontBaseColor'
+            },
+          },
+          extras: {
+            resolvedInputs: {
+              'Input:MovieId': movieId,
+              'Input:StorageRoot': tempRoot,
+              'Input:StorageBasePath': 'builds',
+            },
+          },
+        },
+      })).rejects.toThrow(/must NOT have additional properties/);
+    });
+
+    it('should reject invalid crf value out of range', async () => {
+      const factory = createFfmpegExporterHandler();
+      const handler = factory({
+        descriptor: { provider: 'renku', model: 'FfmpegExporter', environment: 'local' },
+        mode: 'simulated',
+        secretResolver: { async getSecret() { return null; } },
+        getModelSchema: mockGetModelSchema,
+      });
+
+      await expect(handler.invoke({
+        jobId: 'test-job',
+        provider: 'renku',
+        model: 'FfmpegExporter',
+        revision: 'rev-1',
+        layerIndex: 0,
+        attempt: 1,
+        inputs: [],
+        produces: ['Artifact:FinalVideo'],
+        context: {
+          environment: 'local',
+          providerConfig: {
+            crf: 100, // Invalid - should be 0-51
+          },
+          extras: {
+            resolvedInputs: {
+              'Input:MovieId': movieId,
+              'Input:StorageRoot': tempRoot,
+              'Input:StorageBasePath': 'builds',
+            },
+          },
+        },
+      })).rejects.toThrow(/must be <= 51/);
+    });
+
+    it('should reject invalid preset enum value', async () => {
+      const factory = createFfmpegExporterHandler();
+      const handler = factory({
+        descriptor: { provider: 'renku', model: 'FfmpegExporter', environment: 'local' },
+        mode: 'simulated',
+        secretResolver: { async getSecret() { return null; } },
+        getModelSchema: mockGetModelSchema,
+      });
+
+      await expect(handler.invoke({
+        jobId: 'test-job',
+        provider: 'renku',
+        model: 'FfmpegExporter',
+        revision: 'rev-1',
+        layerIndex: 0,
+        attempt: 1,
+        inputs: [],
+        produces: ['Artifact:FinalVideo'],
+        context: {
+          environment: 'local',
+          providerConfig: {
+            preset: 'invalid-preset', // Invalid - should be ultrafast, fast, medium, etc.
+          },
+          extras: {
+            resolvedInputs: {
+              'Input:MovieId': movieId,
+              'Input:StorageRoot': tempRoot,
+              'Input:StorageBasePath': 'builds',
+            },
+          },
+        },
+      })).rejects.toThrow(/must be equal to one of the allowed values/);
+    });
+
+    it('should reject invalid hex color format', async () => {
+      const factory = createFfmpegExporterHandler();
+      const handler = factory({
+        descriptor: { provider: 'renku', model: 'FfmpegExporter', environment: 'local' },
+        mode: 'simulated',
+        secretResolver: { async getSecret() { return null; } },
+        getModelSchema: mockGetModelSchema,
+      });
+
+      await expect(handler.invoke({
+        jobId: 'test-job',
+        provider: 'renku',
+        model: 'FfmpegExporter',
+        revision: 'rev-1',
+        layerIndex: 0,
+        attempt: 1,
+        inputs: [],
+        produces: ['Artifact:FinalVideo'],
+        context: {
+          environment: 'local',
+          providerConfig: {
+            subtitles: {
+              fontBaseColor: 'not-a-color', // Invalid - should be #XXXXXX
+            },
+          },
+          extras: {
+            resolvedInputs: {
+              'Input:MovieId': movieId,
+              'Input:StorageRoot': tempRoot,
+              'Input:StorageBasePath': 'builds',
+            },
+          },
+        },
+      })).rejects.toThrow(/must match pattern/);
     });
   });
 });
