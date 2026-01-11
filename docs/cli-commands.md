@@ -154,23 +154,24 @@ Create a new movie or continue an existing one.
 
 **Usage (new run):**
 ```bash
-renku generate [<inquiry-prompt>] --inputs=<path> --blueprint=<path> [--dry-run] [--non-interactive] [--up-to-layer=<n>]
+renku generate [<inquiry-prompt>] --inputs=<path> --blueprint=<path> [--dry-run] [--non-interactive] [--up-to-layer=<n>] [--re-run-from=<n>]
 ```
 
 **Usage (continue an existing movie):**
 ```bash
-renku generate --movie-id=<movie-id> [--blueprint=<path>] [--dry-run] [--non-interactive] [--up-to-layer=<n>]
-renku generate --last [--dry-run] [--non-interactive] [--up-to-layer=<n>]
+renku generate --movie-id=<movie-id> --inputs=<path> [--dry-run] [--non-interactive] [--up-to-layer=<n>] [--re-run-from=<n>]
+renku generate --last --inputs=<path> [--dry-run] [--non-interactive] [--up-to-layer=<n>] [--re-run-from=<n>]
 ```
 
 **Options:**
-- `--inputs` / `--in` (required for new runs): Path to inputs YAML file
+- `--inputs` / `--in` (required): Path to inputs YAML file (contains model selections)
 - `--blueprint` / `--bp` (required for new runs): Path to blueprint YAML file
 - `--movie-id` / `--id` (mutually exclusive with `--last`): Continue a specific movie
 - `--last` (mutually exclusive with `--movie-id`): Continue the most recent movie (fails if none recorded)
 - `--dry-run`: Execute a mocked run without calling providers
 - `--non-interactive`: Skip confirmation prompt
 - `--up-to-layer` / `--up`: Stop execution after the specified layer (live runs only)
+- `--re-run-from` / `--from`: Re-run from specified layer (0-indexed), skipping earlier layers
 
 **Behavior:**
 1. New runs: validate inputs/blueprint, generate a new movie id, create `builds/movie-{id}/`, and execute the workflow.
@@ -184,10 +185,16 @@ renku generate --last [--dry-run] [--non-interactive] [--up-to-layer=<n>]
 renku generate "Explain black holes" --inputs=~/inputs.yaml --blueprint=~/.renku/blueprints/audio-only.yaml
 
 # Continue a specific movie
-renku generate --movie-id=movie-q123456 --up-to-layer=1
+renku generate --movie-id=movie-q123456 --inputs=./inputs.yaml --up-to-layer=1
 
 # Continue the most recent movie
-renku generate --last --dry-run
+renku generate --last --inputs=./inputs.yaml --dry-run
+
+# Re-run from layer 2 (skips layers 0-1, uses existing artifacts)
+renku generate --last --inputs=./inputs.yaml --from=2
+
+# Re-run layers 2-3 only
+renku generate --movie-id=movie-q123456 --inputs=./inputs.yaml --from=2 --up-to-layer=3
 ```
 
 ---
@@ -258,50 +265,98 @@ renku clean --all
 
 ### `renku export`
 
-Export a previously generated movie to MP4 video format.
+Export a previously generated movie to MP4/MP3 format.
 
 **Usage:**
 ```bash
-renku export --movie-id=<movie-id> [--width=<px>] [--height=<px>] [--fps=<n>]
-renku export --last [--width=<px>] [--height=<px>] [--fps=<n>]
+renku export --movie-id=<movie-id> [options]
+renku export --last [options]
+renku export --last --inputs=<config.yaml>
 ```
 
-**Options:**
+**CLI Options:**
 - `--movie-id` / `--id` (mutually exclusive with `--last`): Export a specific movie by ID
 - `--last` (mutually exclusive with `--movie-id`): Export the most recently generated movie
+- `--inputs` / `--in` (optional): Path to export config YAML file (for advanced settings)
+- `--exporter` (optional): Exporter backend - `remotion` (default) or `ffmpeg`
 - `--width` (optional): Video width in pixels (default: 1920)
 - `--height` (optional): Video height in pixels (default: 1080)
 - `--fps` (optional): Frames per second (default: 30)
 
+**Exporter Backends:**
+
+| Exporter | Description | Requirements |
+|----------|-------------|--------------|
+| `remotion` | Docker-based Remotion renderer (default) | Docker Desktop |
+| `ffmpeg` | Native FFmpeg renderer | FFmpeg installed |
+
+The FFmpeg exporter is faster and requires no Docker. It also supports karaoke-style subtitles and produces MP3 for audio-only timelines.
+
+**Export Config File:**
+
+For advanced settings (FFmpeg encoding options, subtitles), use a YAML config file:
+
+```yaml
+# Basic settings (can also be set via CLI flags)
+width: 1920
+height: 1080
+fps: 30
+exporter: ffmpeg
+
+# FFmpeg-specific encoding settings
+preset: medium      # x264 preset: ultrafast, fast, medium, slow
+crf: 23             # Quality (0-51, lower = better quality)
+audioBitrate: 192k  # Audio bitrate
+
+# Subtitle settings (requires TranscriptionProducer in blueprint)
+subtitles:
+  font: Arial                    # Font name (system fonts)
+  fontSize: 48                   # Font size in pixels
+  fontBaseColor: "#FFFFFF"       # Default text color (hex)
+  fontHighlightColor: "#FFD700"  # Karaoke highlight color (hex)
+  backgroundColor: "#000000"     # Background box color (hex)
+  backgroundOpacity: 0.5         # Background opacity (0-1, 0 = no box)
+  bottomMarginPercent: 10        # Position from bottom (% of height)
+  maxWordsPerLine: 4             # Words displayed at once
+  highlightEffect: true          # Enable karaoke-style highlighting
+```
+
 **Requirements:**
-- The blueprint used to generate the movie must include a `TimelineComposer` producer
-- The movie must have a Timeline artifact (generated during the generation phase)
+- The blueprint must include a `TimelineComposer` producer
+- The movie must have a Timeline artifact
+- For `remotion`: Docker Desktop running
+- For `ffmpeg`: FFmpeg installed and in PATH
+- For subtitles: Blueprint must include a `TranscriptionProducer`
 
 **Behavior:**
 1. Validates the blueprint has a TimelineComposer producer
 2. Validates the manifest contains a Timeline artifact
-3. Invokes the Docker-based Remotion renderer with specified quality settings
-4. Saves the MP4 to `builds/{movieId}/FinalVideo.mp4`
-5. Creates a symlink in `artifacts/{movieId}/FinalVideo.mp4` for easy access
+3. Invokes the selected exporter with specified settings
+4. Saves output to `builds/{movieId}/FinalVideo.mp4` (or `FinalAudio.mp3` for audio-only)
+5. Creates a symlink in `artifacts/{movieId}/` for easy access
 
 **Error Messages:**
 - "A TimelineComposer producer is required in the blueprint to export video." — Blueprint missing TimelineComposer
 - "No timeline found. Please run the generation first to create a timeline." — No Timeline artifact in manifest
-- "Docker render failed: ..." — Rendering error during export
+- "Docker render failed: ..." — Remotion rendering error
+- "FFmpeg render failed: ..." — FFmpeg rendering error
 
 **Examples:**
 ```bash
-# Export a specific movie with default quality
+# Export with defaults (1920x1080 @ 30fps, remotion exporter)
 renku export --movie-id=movie-q123456
 
-# Export the most recent movie with custom resolution
-renku export --last --width=1920 --height=1080
+# Export the most recent movie
+renku export --last
 
-# Export with custom frame rate
-renku export --movie-id=movie-q123456 --fps=60
-
-# Export with 4K resolution
+# Export with custom resolution
 renku export --last --width=3840 --height=2160 --fps=24
+
+# Use FFmpeg exporter (faster, no Docker required)
+renku export --last --exporter=ffmpeg
+
+# Use config file for advanced settings (subtitles, encoding)
+renku export --last --inputs=./export-config.yaml
 ```
 
 **Output:**
@@ -310,6 +365,7 @@ Export completed successfully.
   Movie: movie-q123456
   Output: /path/to/project/artifacts/movie-q123456/FinalVideo.mp4
   Resolution: 1920x1080 @ 30fps
+  Exporter: ffmpeg
 ```
 
 ---
@@ -686,6 +742,29 @@ Continuing work on an existing movie uses the same `generate` command with a tar
 - Fix LLM-generated script errors by editing inputs and rerunning.
 - Replace unsatisfactory artifacts by editing files in `artifacts/`.
 - Regenerate partial workflows with `--up-to-layer` to limit execution.
+- Re-run from a specific layer with `--from` to retry failed layers without regenerating earlier content.
+
+### Re-Running from a Specific Layer
+
+When you need to regenerate content from a specific layer onwards (e.g., after changing model settings or fixing an issue), use `--re-run-from`:
+
+```bash
+# Re-run from layer 2 (skips layers 0-1, uses existing artifacts)
+renku generate --last --inputs=./inputs.yaml --from=2
+```
+
+The `--from` flag:
+- Takes a 0-indexed layer number
+- Skips all layers before the specified layer (uses existing artifacts)
+- Forces all jobs at the specified layer and above to re-run
+- Requires `--inputs` to be specified (for model selections)
+
+Combine with `--up-to-layer` to re-run a specific range:
+
+```bash
+# Re-run only layers 2 and 3
+renku generate --last --inputs=./inputs.yaml --from=2 --up-to-layer=3
+```
 
 ### Dry Run Mode
 

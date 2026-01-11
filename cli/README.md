@@ -149,10 +149,12 @@ This starts a local server and opens your browser to preview the generated conte
 ### Content Generation
 
 - `renku generate` - Generate video content from a blueprint
-  - `--inputs=<file>` - Input parameters YAML file
+  - `--inputs=<file>` - Input parameters YAML file (required)
   - `--blueprint=<file>` - Blueprint definition file
   - `--dry-run` - Validate without making API calls
   - `--concurrency=<n>` - Number of parallel jobs (default: 1)
+  - `--up-to-layer=<n>` - Stop after specified layer
+  - `--re-run-from=<n>` / `--from=<n>` - Re-run from specified layer (skips earlier layers)
 
 ### Viewing Content
 
@@ -176,7 +178,11 @@ This starts a local server and opens your browser to preview the generated conte
 
 - `renku list` - List builds in current project (shows dry-run vs completed)
 - `renku clean` - Remove build artifacts (dry-runs only by default, `--all` for everything)
-- `renku export` - Export movie to MP4 format
+- `renku export` - Export movie to MP4/MP3 format
+  - `--movie-id=<id>` / `--last` - Movie to export
+  - `--inputs=<file>` - Export config YAML file (for advanced settings)
+  - `--exporter=<type>` - Exporter backend: `remotion` or `ffmpeg`
+  - `--width`, `--height`, `--fps` - Video dimensions and frame rate
 
 For complete command documentation, see the [CLI Reference](https://gorenku.com/docs/cli-reference).
 
