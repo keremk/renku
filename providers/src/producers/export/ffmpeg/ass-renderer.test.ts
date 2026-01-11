@@ -479,12 +479,13 @@ describe('ass-renderer', () => {
       expect(result).toMatch(/Style: Default,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,0,0,0,0,100,100,0,0,1,/);
     });
 
-    it('uses BorderStyle 3 (box) when backgroundOpacity is greater than 0', () => {
+    it('uses BorderStyle 4 (semi-transparent box, libass extension) when backgroundOpacity is greater than 0', () => {
       const result = buildAssSubtitles(transcription, {
         ...options,
         backgroundOpacity: 0.5,
       });
-      expect(result).toMatch(/Style: Default,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,0,0,0,0,100,100,0,0,3,/);
+      // BorderStyle=4 is a libass extension that supports semi-transparent boxes with proper alpha
+      expect(result).toMatch(/Style: Default,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,0,0,0,0,100,100,0,0,4,/);
     });
 
     it('respects custom font size', () => {

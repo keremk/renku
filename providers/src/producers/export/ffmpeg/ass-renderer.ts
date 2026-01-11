@@ -348,8 +348,12 @@ export function buildAssSubtitles(
     ? hexToAssColor(backgroundColor, 1 - backgroundOpacity) // ASS alpha is inverted: 0=opaque, 1=transparent
     : hexToAssColor('#000000', 1); // Fully transparent if no box
 
-  // BorderStyle: 1 = outline + drop shadow (no box), 3 = outline + opaque box
-  const borderStyle = showBackground ? 3 : 1;
+  // BorderStyle options:
+  // - 1 = outline + drop shadow (no box)
+  // - 3 = outline + opaque box (ignores alpha - libass limitation)
+  // - 4 = outline + semi-transparent box (libass extension, supports alpha!)
+  // Use BorderStyle=4 for any background (works for both opaque and semi-transparent)
+  const borderStyle = showBackground ? 4 : 1;
 
   // Build style definition
   // Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour,
