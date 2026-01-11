@@ -61,6 +61,8 @@ export interface GeneratePlanResult {
   costSummary: PlanCostSummary;
   /** Pre-loaded model catalog for provider registry. */
   modelCatalog?: LoadedModelCatalog;
+  /** Path to the catalog models directory. Required for schema loading in delegation. */
+  catalogModelsDir?: string;
   /** Persist the plan to local storage. Call after confirmation. */
   persist: () => Promise<void>;
 }
@@ -185,6 +187,7 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
     blueprintPath,
     costSummary,
     modelCatalog,
+    catalogModelsDir: catalogModelsDir ?? undefined,
     persist: async () => {
       // Create LOCAL storage and write everything
       const localStorageContext = createStorageContext({

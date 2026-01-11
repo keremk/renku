@@ -81,6 +81,19 @@ export interface HandlerFactoryInit {
   notifications?: import('@gorenku/core').NotificationBus;
   /** Cloud storage context for uploading blob inputs (optional). */
   cloudStorage?: StorageContext;
+  /**
+   * Handler resolver function allowing internal handlers to resolve and invoke
+   * other handlers from the registry. Used for delegation patterns where one
+   * handler needs to call another provider's handler (e.g., TranscriptionProducer
+   * delegating to fal-ai STT handler).
+   */
+  handlerResolver?: (descriptor: ProviderDescriptor) => ProducerHandler;
+  /**
+   * Schema loader function for retrieving model schemas from the catalog.
+   * Used by internal handlers that delegate to other providers and need
+   * to pass the schema in the job context.
+   */
+  getModelSchema?: (provider: string, model: string) => Promise<string | null>;
 }
 
 export type HandlerFactory = (init: HandlerFactoryInit) => ProducerHandler;

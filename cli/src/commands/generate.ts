@@ -126,6 +126,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
       concurrency,
       upToLayer,
       logger,
+      cliConfig: activeConfig,
     });
 
     let artifactsRoot: string | undefined;
@@ -177,6 +178,10 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
     logFilePath,
   });
 
+  // Persist lastMovieId immediately so --last works even if build fails
+  // This allows users to retry failed builds with --last or --movie-id
+  await persistLastMovieId(storageMovieId, configPath);
+
   const queryResult = await runExecute({
     storageMovieId,
     movieId: newMovieId,
@@ -189,21 +194,25 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
     concurrency,
     upToLayer,
     logger,
+    cliConfig: activeConfig,
   });
 
   let artifactsRoot: string | undefined;
   if (!options.dryRun && queryResult.build) {
-    const { manifest } = await loadCurrentManifest(activeConfig, queryResult.storageMovieId);
-    const artifacts = await buildArtifactsView({
-      cliConfig: activeConfig,
-      movieId: queryResult.storageMovieId,
-      manifest,
-    });
-    artifactsRoot = artifacts.artifactsRoot;
-  }
-
-  if (queryResult.build) {
-    await persistLastMovieId(queryResult.storageMovieId, configPath);
+    // Try to load manifest and build artifacts view, but don't fail if manifest doesn't exist
+    // (can happen if build failed before manifest was saved)
+    try {
+      const { manifest } = await loadCurrentManifest(activeConfig, queryResult.storageMovieId);
+      const artifacts = await buildArtifactsView({
+        cliConfig: activeConfig,
+        movieId: queryResult.storageMovieId,
+        manifest,
+      });
+      artifactsRoot = artifacts.artifactsRoot;
+    } catch {
+      // Manifest may not exist if build failed - continue without artifacts view
+      logger.debug?.('Could not load manifest for artifacts view - build may have failed');
+    }
   }
 
   return {

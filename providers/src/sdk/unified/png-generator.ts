@@ -1,3 +1,5 @@
+import { deflateSync } from 'node:zlib';
+
 /**
  * Generates a minimal valid PNG file for simulated mode.
  * PNG format: 8-byte signature + IHDR chunk + IDAT chunk + IEND chunk
@@ -43,8 +45,7 @@ export function generateMockPng(
   }
 
   // Compress with zlib (minimal compression for simplicity)
-  const zlib = require('node:zlib');
-  const compressedData = zlib.deflateSync(rawData, { level: 0 });
+  const compressedData = deflateSync(rawData, { level: 0 });
   const idatChunk = createPngChunk('IDAT', compressedData);
 
   // IEND chunk (image end)

@@ -46,6 +46,8 @@ export interface ExecuteBuildOptions {
   resolvedInputs: Record<string, unknown>;
   /** Pre-loaded model catalog for provider registry. */
   catalog?: LoadedModelCatalog;
+  /** Path to the catalog models directory. Required for schema loading in delegation. */
+  catalogModelsDir?: string;
   concurrency?: number;
   /** Layer to stop at (only used when dryRun=false). */
   upToLayer?: number;
@@ -124,6 +126,7 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<Execut
     notifications,
     cloudStorage,
     catalog: options.catalog,
+    catalogModelsDir: options.catalogModelsDir,
   });
   const preResolved = prepareProviderHandlers(registry, options.plan, options.providerOptions);
   await registry.warmStart?.(preResolved);
@@ -169,6 +172,9 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<Execut
     { concurrency, upToLayer: options.upToLayer },
   );
 
+  // Always save the manifest after execution completes, even if some jobs failed.
+  // This enables retry functionality via --movie-id or --last.
+  // The manifest will contain all successfully produced artifacts up to the point of failure.
   const manifest = await run.buildManifest();
   const { hash } = await manifestService.saveManifest(manifest, {
     movieId: options.movieId,
@@ -182,6 +188,15 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<Execut
     `${manifest.revision}.json`,
   );
   const manifestPath = resolvePath(options.cliConfig.storage.root, relativeManifestPath);
+
+  // Log warning if build had failures
+  if (run.status === 'failed') {
+    const failedJobs = run.jobs.filter((j) => j.status === 'failed');
+    logger.warn?.(
+      `Build completed with ${failedJobs.length} failed job(s). ` +
+        `Manifest saved - you can retry with: renku generate --movie-id=${options.movieId.replace('movie-', '')} --in=<inputs.yaml>`,
+    );
+  }
 
   return {
     run,

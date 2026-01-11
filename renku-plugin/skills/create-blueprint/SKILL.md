@@ -186,9 +186,22 @@ You can use the `docs\prompt-producer-guide.md` to understand what files are nee
 
 ### Step 7: Create the Connection Graph
 
-Use `docs/comprehensive-blueprint-guide.md` for a comprehensive explanation of the blueprints and how to connect nodes based on the prompt producer you created and the asset producers you identified. You can also always use some examples from the catalog. 
+Use `docs/comprehensive-blueprint-guide.md` for a comprehensive explanation of the blueprints and how to connect nodes based on the prompt producer you created and the asset producers you identified. You can also always use some examples from the catalog.
 
-### Step 8: Validate Blueprint Structure
+### Step 8: Add Transcription and Karaoke Subtitles (Optional)
+
+If the video includes narration or speech that should be displayed as subtitles, add transcription support using the TranscriptionProducer. This enables karaoke-style animated subtitles similar to Instagram and TikTok.
+
+For detailed guidance on:
+- TranscriptionProducer setup and configuration
+- VideoExporter integration for karaoke rendering
+- Blueprint wiring patterns for transcription
+- Karaoke configuration options (fonts, colors, animations)
+- Animation effects (pop, spring, pulse)
+
+See: **[Transcription and Karaoke Subtitles Guide](./docs/transcription-karaoke-guide.md)**
+
+### Step 9: Validate Blueprint Structure
 This validates that the blueprint can be parsed and structurally connect, but it does not validate that it will be sending the right inputs to the producers, the producer input routing is validated by doing a dry-run.
 
 ```bash
@@ -202,7 +215,7 @@ Expected output:
 
 If you receive errors, address them here before moving on by carefully reading the error and if necessary consulting the `./docs/comprehensive-blueprint-guide.md`
 
-### Step 9: Test with Dry Run
+### Step 10: Test with Dry Run
 
 Create a minimal inputs file (based on the requirements and also what the producers expect). At this stage you will also need to pick some models for the dry-run. These models should be selected from each of the producer YAML file's mappings section (which identifies which models are compatible with that producer)
 

@@ -1,5 +1,5 @@
 import { resolve } from 'node:path';
-import { getDefaultCliConfigPath, readCliConfig } from '../lib/cli-config.js';
+import { getDefaultCliConfigPath, readCliConfig, type CliConfig } from '../lib/cli-config.js';
 import { generatePlan, type PendingArtefactDraft } from '../lib/planner.js';
 import { executeBuild, type BuildSummary } from '../lib/build.js';
 import { expandPath } from '../lib/path.js';
@@ -50,6 +50,13 @@ export interface ExecuteOptions {
 
   /** Logger instance */
   logger: Logger;
+
+  /**
+   * CLI config to use for storage paths.
+   * If provided, uses this config instead of reading from global config file.
+   * This allows generate.ts to pass project-local storage configuration.
+   */
+  cliConfig?: CliConfig;
 }
 
 /**
@@ -92,15 +99,28 @@ export interface ExecuteResult {
  */
 export async function runExecute(options: ExecuteOptions): Promise<ExecuteResult> {
   const configPath = getDefaultCliConfigPath();
-  const cliConfig = await readCliConfig(configPath);
-  if (!cliConfig) {
-    throw new Error('Renku CLI is not initialized. Run "renku init" first.');
-  }
 
-  const { concurrency } = await resolveAndPersistConcurrency(cliConfig, {
-    override: options.concurrency,
-    configPath,
-  });
+  // Use provided config if available, otherwise read from global config file
+  let cliConfig: CliConfig;
+  let concurrency: number;
+
+  if (options.cliConfig) {
+    // Config was provided by caller (e.g., generate.ts), which already resolved concurrency
+    // Don't call resolveAndPersistConcurrency again to avoid overwriting lastMovieId
+    cliConfig = options.cliConfig;
+    concurrency = options.concurrency ?? cliConfig.concurrency ?? 1;
+  } else {
+    const globalConfig = await readCliConfig(configPath);
+    if (!globalConfig) {
+      throw new Error('Renku CLI is not initialized. Run "renku init" first.');
+    }
+    const resolved = await resolveAndPersistConcurrency(globalConfig, {
+      override: options.concurrency,
+      configPath,
+    });
+    cliConfig = resolved.cliConfig;
+    concurrency = resolved.concurrency;
+  }
 
   const { storageMovieId, isNew, logger } = options;
   const storageRoot = cliConfig.storage.root;
@@ -203,6 +223,7 @@ export async function runExecute(options: ExecuteOptions): Promise<ExecuteResult
     providerOptions: planResult.providerOptions,
     resolvedInputs: planResult.resolvedInputs,
     catalog: planResult.modelCatalog,
+    catalogModelsDir: planResult.catalogModelsDir,
     logger,
     concurrency,
     upToLayer: options.dryRun ? undefined : upToLayer,

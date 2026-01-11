@@ -6,6 +6,7 @@ import { createVercelAiGatewayHandler } from './producers/llm/vercel-ai-gateway.
 import { createMp4ExporterHandler } from './producers/export/mp4-exporter.js';
 import { createFfmpegExporterHandler } from './producers/export/ffmpeg-exporter.js';
 import { createTimelineProducerHandler } from './producers/timeline/ordered-timeline.js';
+import { createTranscriptionHandler } from './producers/transcription/index.js';
 import { createUnifiedHandler } from './sdk/unified/index.js';
 import { replicateAdapter } from './sdk/replicate/adapter.js';
 import { falAdapter } from './sdk/fal/adapter.js';
@@ -42,6 +43,7 @@ const INTERNAL_HANDLERS: Record<string, () => HandlerFactory> = {
   'timeline': createTimelineProducerHandler,
   'mp4-exporter': createMp4ExporterHandler,
   'ffmpeg-exporter': createFfmpegExporterHandler,
+  'transcription': createTranscriptionHandler,
 };
 
 /**

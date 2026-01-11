@@ -61,6 +61,15 @@ export async function createInputsFile(options: CreateInputsFileOptions): Promis
           tracks: ['Video', 'Audio', 'Music'],
         },
       },
+      {
+        producerId: 'TranscriptionProducer',
+        provider: 'renku',
+        model: 'speech/transcription',
+        config: {
+          sttProvider: 'fal-ai',
+          sttModel: 'elevenlabs/speech-to-text',
+        },
+      },
       { producerId: 'VideoExporter', provider: 'renku', model: 'remotion/docker-render' },
     ];
 

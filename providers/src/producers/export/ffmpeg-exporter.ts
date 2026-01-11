@@ -11,10 +11,12 @@ import type { TimelineDocument } from '@gorenku/compositions';
 import { buildFfmpegCommand } from './ffmpeg/command-builder.js';
 import type { FfmpegExporterConfig, AssetPathMap } from './ffmpeg/types.js';
 import { FFMPEG_DEFAULTS } from './ffmpeg/types.js';
+import type { TranscriptionArtifact } from '../transcription/types.js';
 
 const execFileAsync = promisify(execFile);
 
 const TIMELINE_ARTEFACT_ID = 'Artifact:TimelineComposer.Timeline';
+const TRANSCRIPTION_ARTEFACT_ID = 'Artifact:TranscriptionProducer.Transcription';
 
 interface ManifestPointer {
   revision: string | null;
@@ -106,6 +108,9 @@ export function createFfmpegExporterHandler(): HandlerFactory {
       const moviePath = storage.resolve(movieId, '');
       const assetPaths = await buildAssetPaths(storage, movieId, timeline);
 
+      // Try to load transcription for karaoke subtitles (optional)
+      const transcription = runtime.inputs.getByNodeId<TranscriptionArtifact>(TRANSCRIPTION_ARTEFACT_ID);
+
       // Determine output path
       const outputName = detectOutputFormat(timeline) === 'video' ? 'FinalVideo.mp4' : 'FinalAudio.mp3';
       const outputPath = path.join(moviePath, outputName);
@@ -121,10 +126,15 @@ export function createFfmpegExporterHandler(): HandlerFactory {
         audioBitrate: config.audioBitrate ?? FFMPEG_DEFAULTS.audioBitrate,
         outputPath: path.resolve(storageRoot, outputPath),
         ffmpegPath: config.ffmpegPath ?? FFMPEG_DEFAULTS.ffmpegPath,
-      });
+        karaoke: config.karaoke,
+      }, transcription);
 
       // Ensure output directory exists
       await mkdir(path.dirname(ffmpegCommand.outputPath), { recursive: true });
+
+      // Log the FFmpeg command for debugging
+      const debugCommand = [ffmpegCommand.ffmpegPath, ...ffmpegCommand.args].join(' ');
+      notify('progress', `FFmpeg command: ${debugCommand}`);
 
       // Run FFmpeg
       notify('progress', 'Running FFmpeg...');
@@ -164,7 +174,30 @@ function parseFfmpegExporterConfig(raw: unknown): FfmpegExporterConfig {
     crf: typeof config.crf === 'number' ? config.crf : undefined,
     audioBitrate: typeof config.audioBitrate === 'string' ? config.audioBitrate : undefined,
     ffmpegPath: typeof config.ffmpegPath === 'string' ? config.ffmpegPath : undefined,
+    karaoke: parseKaraokeConfig(config.karaoke),
   };
+}
+
+function parseKaraokeConfig(raw: unknown): FfmpegExporterConfig['karaoke'] {
+  if (typeof raw !== 'object' || raw === null) {
+    return undefined;
+  }
+  const config = raw as Record<string, unknown>;
+  return {
+    fontSize: typeof config.fontSize === 'number' ? config.fontSize : undefined,
+    fontColor: typeof config.fontColor === 'string' ? config.fontColor : undefined,
+    highlightColor: typeof config.highlightColor === 'string' ? config.highlightColor : undefined,
+    boxColor: typeof config.boxColor === 'string' ? config.boxColor : undefined,
+    fontFile: typeof config.fontFile === 'string' ? config.fontFile : undefined,
+    bottomMarginPercent: typeof config.bottomMarginPercent === 'number' ? config.bottomMarginPercent : undefined,
+    maxWordsPerLine: typeof config.maxWordsPerLine === 'number' ? config.maxWordsPerLine : undefined,
+    highlightAnimation: isValidHighlightAnimation(config.highlightAnimation) ? config.highlightAnimation : undefined,
+    animationScale: typeof config.animationScale === 'number' ? config.animationScale : undefined,
+  };
+}
+
+function isValidHighlightAnimation(value: unknown): value is 'none' | 'pop' | 'spring' | 'pulse' {
+  return value === 'none' || value === 'pop' || value === 'spring' || value === 'pulse';
 }
 
 function resolveMovieId(inputs: ResolvedInputsAccessor): string {
@@ -244,12 +277,11 @@ async function buildAssetPaths(
 ): Promise<AssetPathMap> {
   const assetPaths: AssetPathMap = {};
 
-  // If timeline has assetFolder info, use it as the base path
-  if (timeline.assetFolder?.rootPath) {
-    return buildAssetPathsFromFolder(timeline);
-  }
+  // Note: assetFolder.rootPath indicates where assets are stored, but we still
+  // need to load the actual file paths from the manifest's content-addressed storage.
+  // The buildAssetPathsFromFolder function is not implemented, so we always use manifest.
 
-  // Otherwise, load from manifest
+  // Load from manifest
   const pointerPath = storage.resolve(movieId, 'current.json');
   const pointerRaw = await storage.storage.readToString(pointerPath);
   const pointer = JSON.parse(pointerRaw) as ManifestPointer;
@@ -282,12 +314,6 @@ async function buildAssetPaths(
   return assetPaths;
 }
 
-function buildAssetPathsFromFolder(_timeline: TimelineDocument): AssetPathMap {
-  // This would be used when assets are stored in a folder structure
-  // rather than content-addressed storage
-  // For now, we just return the empty map and let the command builder skip missing assets
-  return {};
-}
 
 function collectAssetIds(timeline: TimelineDocument): Set<string> {
   const assetIds = new Set<string>();
@@ -367,12 +393,14 @@ async function runFfmpeg(ffmpegPath: string, args: string[]): Promise<void> {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const stderr = (error as { stderr?: string }).stderr ?? '';
+    const exitCode = (error as { code?: number }).code;
+    const signal = (error as { signal?: string }).signal;
 
     // Check for common FFmpeg errors
     if (stderr.includes('No such file or directory') || message.includes('No such file')) {
       throw createProviderError(
         SdkErrorCode.MISSING_ASSET,
-        `FFmpeg input file not found: ${message}`,
+        `FFmpeg input file not found: ${message}${stderr ? `\nFFmpeg stderr: ${stderr}` : ''}`,
         { kind: 'user_input', causedByUser: true, raw: error },
       );
     }
@@ -385,9 +413,20 @@ async function runFfmpeg(ffmpegPath: string, args: string[]): Promise<void> {
       );
     }
 
+    // Build detailed error message
+    const exitInfo = signal
+      ? `Process killed by signal: ${signal}`
+      : exitCode !== undefined
+        ? `Exit code: ${exitCode}`
+        : 'Unknown exit reason';
+
+    const errorDetails = stderr
+      ? `FFmpeg render failed. ${exitInfo}\nFFmpeg stderr:\n${stderr}`
+      : `FFmpeg render failed. ${exitInfo}\n${message}`;
+
     throw createProviderError(
       SdkErrorCode.RENDER_FAILED,
-      `FFmpeg render failed: ${message}`,
+      errorDetails,
       { kind: 'unknown', causedByUser: false, raw: error },
     );
   }
@@ -395,6 +434,8 @@ async function runFfmpeg(ffmpegPath: string, args: string[]): Promise<void> {
 
 export const __test__ = {
   parseFfmpegExporterConfig,
+  parseKaraokeConfig,
+  isValidHighlightAnimation,
   resolveMovieId,
   resolveStoragePaths,
   mimeToExtension,

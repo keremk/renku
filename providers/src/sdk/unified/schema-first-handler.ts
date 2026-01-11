@@ -1,7 +1,7 @@
 import { createProducerHandlerFactory } from '../handler-factory.js';
 import { createProviderError, SdkErrorCode } from '../errors.js';
 import type { HandlerFactory, ProviderJobContext } from '../../types.js';
-import { buildArtefactsFromUrls } from './artefacts.js';
+import { buildArtefactsFromUrls, buildArtefactsFromJson } from './artefacts.js';
 import { extractPlannerContext } from './utils.js';
 import { validatePayload } from '../schema-validator.js';
 import type { ProviderAdapter, ProviderClient, ModelContext } from './provider-adapter.js';
@@ -169,16 +169,32 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
           });
         }
 
-        // Same path for both modes: normalize output and build artifacts
-        const outputUrls = adapter.normalizeOutput(predictionOutput);
+        // Branch based on output type:
+        // - JSON outputs: the response IS the artifact data
+        // - Media outputs: extract URLs and download content
+        const isJsonOutput = outputMimeType === 'application/json';
         const extras = request.context?.extras as Record<string, unknown> | undefined;
-        const artefacts = await buildArtefactsFromUrls({
-          produces: request.produces,
-          urls: outputUrls,
-          mimeType: outputMimeType,
-          mode: init.mode,
-          resolvedInputs: extras?.resolvedInputs as Record<string, unknown> | undefined,
-        });
+
+        let artefacts: import('@gorenku/core').ProducedArtefact[];
+
+        if (isJsonOutput) {
+          // JSON outputs: serialize the response directly as artifact data
+          artefacts = buildArtefactsFromJson({
+            produces: request.produces,
+            jsonOutput: predictionOutput,
+            mimeType: outputMimeType,
+          });
+        } else {
+          // Media outputs: extract URLs and download/mock content
+          const outputUrls = adapter.normalizeOutput(predictionOutput);
+          artefacts = await buildArtefactsFromUrls({
+            produces: request.produces,
+            urls: outputUrls,
+            mimeType: outputMimeType,
+            mode: init.mode,
+            resolvedInputs: extras?.resolvedInputs as Record<string, unknown> | undefined,
+          });
+        }
 
         const status = artefacts.some((a) => a.status === 'failed') ? 'failed' : 'succeeded';
 
@@ -203,10 +219,10 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
             provider: adapter.name,
             model: request.model,
             input,
-            outputUrls,
             plannerContext,
             simulated: isSimulated,
-            ...(outputUrls.length === 0 && { rawOutput: predictionOutput }),
+            outputType: isJsonOutput ? 'json' : 'media',
+            ...(isJsonOutput && { rawOutput: predictionOutput }),
           },
         };
       },

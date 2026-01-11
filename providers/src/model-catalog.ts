@@ -207,7 +207,8 @@ export async function loadModelInputSchema(
   }
 
   // Skip LLM and internal types - they don't have input schemas in the catalog
-  if (modelDef.type === 'llm' || modelDef.type === 'internal' || modelDef.type === 'text' || modelDef.type === 'json') {
+  // Note: json type models (like transcription) DO need input schemas
+  if (modelDef.type === 'llm' || modelDef.type === 'internal' || modelDef.type === 'text') {
     return null;
   }
 
@@ -242,7 +243,8 @@ export async function loadModelSchemaFile(
   }
 
   // Skip LLM and internal types - they don't have input schemas in the catalog
-  if (modelDef.type === 'llm' || modelDef.type === 'internal' || modelDef.type === 'text' || modelDef.type === 'json') {
+  // Note: json type models (like transcription) DO need input schemas
+  if (modelDef.type === 'llm' || modelDef.type === 'internal' || modelDef.type === 'text') {
     return null;
   }
 

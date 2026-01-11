@@ -29,6 +29,10 @@ export function createProducerGraph(
   const nodeMap = new Map(canonical.nodes.map((node) => [node.id, node]));
   const artefactProducers = computeArtefactProducers(canonical, nodeMap);
 
+  // Build set of artifacts that are actually connected downstream
+  // (used as input to another node or chained to another artifact)
+  const connectedArtifacts = computeConnectedArtifacts(canonical);
+
   // Build a map of (from, to) -> edge for looking up conditions
   const edgesByKey = new Map<string, CanonicalEdgeInstance>();
   for (const edge of canonical.edges) {
@@ -61,7 +65,9 @@ export function createProducerGraph(
     const producedArtefacts = canonical.edges
       .filter((edge) => edge.from === node.id)
       .map((edge) => edge.to)
-      .filter((id) => isCanonicalArtifactId(id));
+      .filter((id) => isCanonicalArtifactId(id))
+      // Only include artifacts that are actually connected downstream
+      .filter((id) => connectedArtifacts.has(id));
 
     const producerAlias = node.producerAlias;
     const catalogEntry = resolveCatalogEntry(producerAlias, catalog);
@@ -270,6 +276,35 @@ function resolveCatalogEntry(id: string, catalog: ProducerCatalog) {
  * - "Input:Namespace.Producer.InputName[1][2]" → "Producer:Namespace.Producer[1][2]"
  * - "Artifact:..." → undefined (not a producer target)
  */
+/**
+ * Computes the set of artifact IDs that are actually connected downstream.
+ * An artifact is "connected" if:
+ * 1. It has an outgoing edge to another node (used as input or chains to another artifact), OR
+ * 2. It's a root-level blueprint artifact (empty namespace path) - these are final outputs
+ *
+ * Producer-specific artifacts (with non-empty namespace path) that have no downstream
+ * connections are excluded - they're declared by the producer but not used in the blueprint.
+ */
+function computeConnectedArtifacts(canonical: CanonicalBlueprint): Set<string> {
+  const connected = new Set<string>();
+
+  // Mark artifacts that have outgoing edges as connected
+  for (const edge of canonical.edges) {
+    if (isCanonicalArtifactId(edge.from)) {
+      connected.add(edge.from);
+    }
+  }
+
+  // Also include root-level artifacts (empty namespace path) as they're blueprint outputs
+  for (const node of canonical.nodes) {
+    if (node.type === 'Artifact' && node.namespacePath.length === 0) {
+      connected.add(node.id);
+    }
+  }
+
+  return connected;
+}
+
 function extractProducerIdFromTarget(target: string): string | undefined {
   // If it's already a Producer ID, return as-is
   if (target.startsWith('Producer:')) {

@@ -410,6 +410,129 @@ connections:
 **ffmpeg** must be installed on the system for extraction to work. If ffmpeg is missing, derived artifacts will be skipped (status: "skipped") but the primary video artifact is always produced. Install ffmpeg: https://ffmpeg.org/download.html
 :::
 
+### Transcription and Karaoke Subtitles
+
+Add speech transcription and karaoke-style animated subtitles to your videos. This creates engaging effects similar to Instagram and TikTok, with word-level highlighting synchronized to the audio.
+
+#### Components
+
+| Component | Description |
+|-----------|-------------|
+| **TranscriptionProducer** | Converts audio segments to word-level transcripts with precise timestamps |
+| **VideoExporter** | Renders the transcript as animated karaoke subtitles on the final video |
+
+#### TranscriptionProducer
+
+```yaml
+meta:
+  name: Speech Transcription
+  id: TranscriptionProducer
+  version: 0.1.0
+
+inputs:
+  - name: Timeline
+    description: Timeline document with audio clip timing information.
+    type: json
+  - name: AudioSegments
+    description: Audio clips to transcribe (from Audio track).
+    type: collection
+    itemType: audio
+    dimensions: segment
+    fanIn: true
+  - name: LanguageCode
+    description: ISO 639-3 language code (e.g., eng, spa, fra).
+    type: string
+
+artifacts:
+  - name: Transcription
+    description: Word-level transcription aligned to video timeline.
+    type: json
+```
+
+#### Blueprint Wiring
+
+Add transcription to an existing video + audio blueprint:
+
+```yaml
+producers:
+  # ... existing producers ...
+  - name: TranscriptionProducer
+    producer: asset/transcription
+  - name: VideoExporter
+    producer: composition/video-exporter
+
+connections:
+  # ... existing connections ...
+
+  # Wire timeline to transcription producer
+  - from: TimelineComposer.Timeline
+    to: TranscriptionProducer.Timeline
+
+  # Wire audio segments to transcription producer
+  - from: AudioProducer[segment].GeneratedAudio
+    to: TranscriptionProducer.AudioSegments
+
+  # Wire transcription to exporter
+  - from: TranscriptionProducer.Transcription
+    to: VideoExporter.Transcription
+
+  # Wire timeline to exporter (required)
+  - from: TimelineComposer.Timeline
+    to: VideoExporter.Timeline
+
+collectors:
+  # ... existing collectors ...
+
+  # CRITICAL: Fan-in requires BOTH connection AND collector
+  - name: TranscriptionAudio
+    from: AudioProducer[segment].GeneratedAudio
+    into: TranscriptionProducer.AudioSegments
+    groupBy: segment
+```
+
+#### Karaoke Configuration
+
+Configure appearance in your input template:
+
+```yaml
+models:
+  - model: speech/transcription
+    provider: renku
+    producerId: TranscriptionProducer
+    config:
+      sttProvider: fal-ai
+      sttModel: elevenlabs/speech-to-text
+
+  - model: ffmpeg/native-render
+    provider: renku
+    producerId: VideoExporter
+    config:
+      karaoke:
+        fontSize: 48              # Font size in pixels
+        fontColor: white          # Default text color
+        highlightColor: "#FFD700" # Highlighted word color (gold)
+        boxColor: "black@0.5"     # Background with opacity
+        bottomMarginPercent: 10   # Position from bottom
+        maxWordsPerLine: 8        # Words per line
+        highlightAnimation: pop   # Animation: none, pop, spring, pulse
+        animationScale: 1.15      # Animation peak scale
+```
+
+#### Animation Types
+
+| Animation | Description | Best For |
+|-----------|-------------|----------|
+| `none` | Static highlight, no animation | Professional, minimal style |
+| `pop` | Quick scale up then settle | Subtle, professional feel (default) |
+| `spring` | Bouncy scale with oscillation | Dynamic, playful content |
+| `pulse` | Gentle continuous sine wave | Rhythmic, musical content |
+
+#### Track Type Handling
+
+- **Audio track** (`kind: Audio`): Always transcribed - contains speech/narration
+- **Music track** (`kind: Music`): Never transcribed - background music only
+- **Video track** with audio: Audio track extracted and transcribed
+
 ### Example: Timeline Composer (Fan-In)
 
 ```yaml

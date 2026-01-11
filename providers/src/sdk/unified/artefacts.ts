@@ -24,6 +24,44 @@ export interface BuildArtefactFromJsonOptions {
   namespaceOrdinalDepth?: number;
 }
 
+export interface BuildJsonArtefactsOptions {
+  produces: string[];
+  jsonOutput: unknown;
+  mimeType: string;
+}
+
+/**
+ * Creates ProducedArtefact objects from a JSON response.
+ * Used for models that return structured data (like STT) rather than media URLs.
+ *
+ * The entire JSON response becomes the artifact blob data.
+ */
+export function buildArtefactsFromJson(options: BuildJsonArtefactsOptions): ProducedArtefact[] {
+  const { produces, jsonOutput, mimeType } = options;
+
+  // Serialize the JSON output
+  const jsonData = JSON.stringify(jsonOutput, null, 2);
+  const buffer = Buffer.from(jsonData, 'utf-8');
+
+  // For JSON outputs, all produces share the same data
+  // (typically there's only one artifact for JSON responses)
+  return produces.map((providedId, index) => {
+    const artefactId = providedId && providedId.length > 0 ? providedId : `Artifact:Output#${index}`;
+
+    return {
+      artefactId,
+      status: 'succeeded' as const,
+      blob: {
+        data: buffer,
+        mimeType,
+      },
+      diagnostics: {
+        outputType: 'json',
+      },
+    };
+  });
+}
+
 export interface ParsedArtefactIdentifier {
   /** Full artifact kind path (e.g., "Producer.Image") */
   kind: string;

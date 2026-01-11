@@ -1,0 +1,252 @@
+{
+	"text": "Hello. This is a test of the text to speech system powered by ElevenLabs. How does it sound?",
+	"language_code": "eng",
+	"language_probability": 1,
+	"words": [
+		{
+			"text": "Hello.",
+			"start": 0.079,
+			"end": 1.059,
+			"type": "word",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": " ",
+			"start": 1.059,
+			"end": 1.099,
+			"type": "spacing",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": "This",
+			"start": 1.1,
+			"end": 1.279,
+			"type": "word",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": " ",
+			"start": 1.279,
+			"end": 1.299,
+			"type": "spacing",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": "is",
+			"start": 1.299,
+			"end": 1.419,
+			"type": "word",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": " ",
+			"start": 1.419,
+			"end": 1.579,
+			"type": "spacing",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": "a",
+			"start": 1.579,
+			"end": 1.579,
+			"type": "word",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": " ",
+			"start": 1.579,
+			"end": 1.599,
+			"type": "spacing",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": "test",
+			"start": 1.599,
+			"end": 1.919,
+			"type": "word",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": " ",
+			"start": 1.919,
+			"end": 1.919,
+			"type": "spacing",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": "of",
+			"start": 1.919,
+			"end": 2.019,
+			"type": "word",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": " ",
+			"start": 2.019,
+			"end": 2.039,
+			"type": "spacing",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": "the",
+			"start": 2.039,
+			"end": 2.18,
+			"type": "word",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": " ",
+			"start": 2.18,
+			"end": 2.179,
+			"type": "spacing",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": "text",
+			"start": 2.18,
+			"end": 2.519,
+			"type": "word",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": " ",
+			"start": 2.519,
+			"end": 2.539,
+			"type": "spacing",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": "to",
+			"start": 2.539,
+			"end": 2.599,
+			"type": "word",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": " ",
+			"start": 2.599,
+			"end": 2.72,
+			"type": "spacing",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": "speech",
+			"start": 2.72,
+			"end": 3.019,
+			"type": "word",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": " ",
+			"start": 3.019,
+			"end": 3.039,
+			"type": "spacing",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": "system",
+			"start": 3.039,
+			"end": 3.859,
+			"type": "word",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": " ",
+			"start": 3.859,
+			"end": 3.899,
+			"type": "spacing",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": "powered",
+			"start": 3.899,
+			"end": 4.279,
+			"type": "word",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": " ",
+			"start": 4.279,
+			"end": 4.299,
+			"type": "spacing",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": "by",
+			"start": 4.299,
+			"end": 4.44,
+			"type": "word",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": " ",
+			"start": 4.44,
+			"end": 4.559,
+			"type": "spacing",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": "ElevenLabs.",
+			"start": 4.559,
+			"end": 6,
+			"type": "word",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": " ",
+			"start": 6,
+			"end": 6.019,
+			"type": "spacing",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": "How",
+			"start": 6.019,
+			"end": 6.179,
+			"type": "word",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": " ",
+			"start": 6.179,
+			"end": 6.179,
+			"type": "spacing",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": "does",
+			"start": 6.179,
+			"end": 6.299,
+			"type": "word",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": " ",
+			"start": 6.299,
+			"end": 6.319,
+			"type": "spacing",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": "it",
+			"start": 6.319,
+			"end": 6.46,
+			"type": "word",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": " ",
+			"start": 6.46,
+			"end": 6.48,
+			"type": "spacing",
+			"speaker_id": "speaker_0"
+		},
+		{
+			"text": "sound?",
+			"start": 6.48,
+			"end": 6.98,
+			"type": "word",
+			"speaker_id": "speaker_0"
+		}
+	]
+}

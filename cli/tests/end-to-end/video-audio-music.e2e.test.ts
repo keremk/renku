@@ -54,7 +54,7 @@ describe('end-to-end: video-audio-music dry runs', () => {
     if (queryResult.build?.status !== 'succeeded') {
       throw new Error(`dryRun failed: ${JSON.stringify(queryResult.build, null, 2)}`);
     }
-    expect(queryResult.build?.jobCount).toBe(11);
+    expect(queryResult.build?.jobCount).toBe(12);
     expect(queryResult.build?.counts.failed).toBe(0);
     expect(queryResult.build?.jobs?.every((job) => job.status === 'succeeded')).toBe(true);
     // Debug helpers if warnings/errors appear
@@ -163,7 +163,7 @@ describe('end-to-end: video-audio-music dry runs', () => {
     });
 
     expect(editResult.build?.status).toBe('succeeded');
-    expect(editResult.build?.jobCount).toBe(11);
+    expect(editResult.build?.jobCount).toBe(12);
     expect(editResult.build?.counts.failed).toBe(0);
     expect(warnings).toHaveLength(0);
     expect(errors).toHaveLength(0);

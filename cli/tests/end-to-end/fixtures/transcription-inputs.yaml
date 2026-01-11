@@ -1,8 +1,8 @@
 inputs:
-  InquiryPrompt: "Chart the rise of reusable rockets"
-  Duration: 24
+  InquiryPrompt: "Test transcription pipeline"
+  Duration: 10
   NumOfSegments: 2
-  SegmentDuration: 12
+  SegmentDuration: 5
   Audience: "Adult"
   Language: "en"
   Style: "Documentary realism"
@@ -29,11 +29,9 @@ models:
   - model: bytedance/seedance-1-pro-fast
     provider: replicate
     producerId: VideoProducer
-    # SDK mappings now come from producer YAML mappings section
   - model: minimax/speech-2.6-hd
     provider: replicate
     producerId: AudioProducer
-    # SDK mappings now come from producer YAML mappings section
   - model: gpt-5-mini
     provider: openai
     producerId: MusicPromptProducer
@@ -43,7 +41,6 @@ models:
   - model: stability-ai/stable-audio-2.5
     provider: replicate
     producerId: MusicProducer
-    # SDK mappings now come from producer YAML mappings section
     config:
       force_instrumental: true
   - model: timeline/ordered
@@ -65,6 +62,6 @@ models:
     config:
       sttProvider: fal-ai
       sttModel: elevenlabs/speech-to-text
-  - model: remotion/docker-render
+  - model: ffmpeg/native-render
     provider: renku
     producerId: VideoExporter

@@ -62,7 +62,8 @@
       "Bash(jq:*)",
       "Bash(node /Users/keremk/Projects/aitinkerbox/renku/cli/dist/cli.js generate:*)",
       "Bash(node:*)",
-      "Bash(ffprobe:*)"
+      "Bash(ffprobe:*)",
+      "Bash(ffmpeg:*)"
     ],
     "deny": [],
     "ask": []

@@ -10,7 +10,7 @@ import type {
   ResolvedProviderHandler,
   SecretResolver,
 } from './types.js';
-import type { LoadedModelCatalog } from './model-catalog.js';
+import { loadModelInputSchema, type LoadedModelCatalog } from './model-catalog.js';
 import { generateProviderImplementations } from './registry-generator.js';
 import { createMockProducerHandler } from './mock-producers.js';
 import { createTimelineProducerHandler } from './producers/timeline/ordered-timeline.js';
@@ -21,6 +21,8 @@ import { createTimelineProducerHandler } from './producers/timeline/ordered-time
 export interface CreateProviderRegistryOptions extends ProviderRegistryOptions {
   /** Pre-loaded model catalog. If provided, implementations are generated from it. */
   catalog?: LoadedModelCatalog;
+  /** Path to the catalog models directory. Required for schema loading in delegation. */
+  catalogModelsDir?: string;
 }
 
 /**
@@ -69,6 +71,12 @@ export function createProviderRegistry(options: CreateProviderRegistryOptions = 
       throw new Error(errorMessage);
     }
 
+    // Create schema loader function if catalog is available
+    const getModelSchema = options.catalog && options.catalogModelsDir
+      ? async (provider: string, model: string) =>
+          loadModelInputSchema(options.catalogModelsDir!, options.catalog!, provider, model)
+      : undefined;
+
     const handler = implementation.factory({
       descriptor,
       mode,
@@ -77,6 +85,10 @@ export function createProviderRegistry(options: CreateProviderRegistryOptions = 
       schemaRegistry: options.schemaRegistry,
       notifications,
       cloudStorage: options.cloudStorage,
+      // Allow internal handlers to resolve and invoke other handlers
+      handlerResolver: (subDescriptor) => resolve(subDescriptor),
+      // Allow internal handlers to load schemas for delegation
+      getModelSchema,
     });
     handlerCache.set(cacheKey, handler);
     return handler;

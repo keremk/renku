@@ -16,3 +16,33 @@ export type {
   ProviderAttachment,
   ResolvedProviderHandler,
 } from './types.js';
+
+// Transcription exports for E2E testing
+export {
+  concatenateWithSilence,
+  buildMixCommand,
+  findClipForTimestamp,
+  extractTextForClip,
+  alignTranscriptionToTimeline,
+  type AudioSegment,
+  type STTOutput,
+  type STTWord,
+  type TranscriptionArtifact,
+  type TranscriptionSegment,
+  type TranscriptionWord,
+} from './producers/transcription/index.js';
+
+// Karaoke renderer exports for E2E testing
+export {
+  buildKaraokeFilter,
+  buildKaraokeFilterChain,
+  escapeDrawtext,
+  type KaraokeRenderOptions,
+} from './producers/export/ffmpeg/karaoke-renderer.js';
+
+// FFmpeg exporter config types
+export type {
+  FfmpegExporterConfig,
+  KaraokeSubtitleConfig,
+  HighlightAnimation,
+} from './producers/export/ffmpeg/types.js';

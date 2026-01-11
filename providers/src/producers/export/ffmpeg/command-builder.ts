@@ -26,6 +26,8 @@ import { buildImageFilterChain, buildImageInputArgs } from './kenburns-filter.js
 import { buildAudioMixFilter, buildAudioInputArgs, buildLoopedAudioInputArgs } from './audio-mixer.js';
 import { buildVideoFilter, buildVideoInputArgs, determineFitStrategy } from './video-track.js';
 import { buildCaptionFilterChain, parseCaptionsFromArray } from './caption-renderer.js';
+import { buildKaraokeFilterChain } from './karaoke-renderer.js';
+import type { TranscriptionArtifact } from '../../transcription/types.js';
 
 // Type guards for timeline tracks
 function isImageTrack(track: TimelineTrack): track is ImageTrack {
@@ -62,12 +64,14 @@ interface InputTracker {
  * @param timeline - The timeline document to render
  * @param assetPaths - Mapping of asset IDs to file paths
  * @param options - Build options
+ * @param transcription - Optional word-level transcription for karaoke subtitles
  * @returns Complete FFmpeg command ready for execution
  */
 export function buildFfmpegCommand(
   timeline: TimelineDocument,
   assetPaths: AssetPathMap,
-  options: Partial<FfmpegBuildOptions>
+  options: Partial<FfmpegBuildOptions>,
+  transcription?: TranscriptionArtifact
 ): FfmpegCommand {
   const fullOptions = resolveOptions(options);
   const outputFormat = detectOutputFormat(timeline);
@@ -116,6 +120,32 @@ export function buildFfmpegCommand(
         videoOutputLabel = captionResult.outputLabel;
       }
     }
+
+    // Process karaoke subtitles if transcription is provided
+    // TEMPORARY: Force highlightAnimation to 'none' to debug SIGSEGV crash
+    if (transcription && transcription.words.length > 0) {
+      const karaokeOutputLabel = 'vkaraoke';
+      const karaokeFilter = buildKaraokeFilterChain(
+        `[${videoOutputLabel}]`,
+        transcription,
+        {
+          width: fullOptions.width,
+          height: fullOptions.height,
+          fontSize: fullOptions.karaoke?.fontSize,
+          fontColor: fullOptions.karaoke?.fontColor,
+          highlightColor: fullOptions.karaoke?.highlightColor,
+          boxColor: fullOptions.karaoke?.boxColor,
+          fontFile: fullOptions.karaoke?.fontFile,
+          bottomMarginPercent: fullOptions.karaoke?.bottomMarginPercent,
+          maxWordsPerLine: fullOptions.karaoke?.maxWordsPerLine,
+          highlightAnimation: 'none', // TEMPORARY: Disabled animation to debug crash
+          animationScale: fullOptions.karaoke?.animationScale,
+        },
+        karaokeOutputLabel
+      );
+      filterParts.push(karaokeFilter);
+      videoOutputLabel = karaokeOutputLabel;
+    }
   }
 
   // Build audio mix
@@ -158,6 +188,7 @@ function resolveOptions(options: Partial<FfmpegBuildOptions>): FfmpegBuildOption
     audioBitrate: options.audioBitrate ?? FFMPEG_DEFAULTS.audioBitrate,
     outputPath: options.outputPath ?? 'output.mp4',
     ffmpegPath: options.ffmpegPath ?? FFMPEG_DEFAULTS.ffmpegPath,
+    karaoke: options.karaoke,
   };
 }
 
@@ -390,11 +421,13 @@ function processVideoClip(
   filterParts.push(videoFilter);
   videoLabels.push(`[${videoLabel}]`);
 
-  // Handle video audio if volume > 0
-  if (clipInfo.volume !== 0) {
+  // Handle video audio if volume is explicitly set and > 0
+  // Note: Many video files (especially AI-generated) don't have audio tracks,
+  // so we only extract audio when volume is explicitly specified.
+  if (clipInfo.volume !== undefined && clipInfo.volume > 0) {
     audioInfos.push({
       inputIndex,
-      volume: clipInfo.volume ?? 1,
+      volume: clipInfo.volume,
       startTime: clip.startTime,
       duration: clip.duration,
     });
@@ -487,7 +520,8 @@ function buildCommand(
   outputFormat: OutputFormat,
   options: FfmpegBuildOptions
 ): FfmpegCommand {
-  const args: string[] = ['-y']; // Overwrite output
+  // -y: Overwrite output, -nostdin: Don't read stdin (prevents issues in non-interactive mode)
+  const args: string[] = ['-y', '-nostdin'];
 
   // Add all inputs
   args.push(...inputArgs);

@@ -335,7 +335,12 @@ describe('runGenerate (new runs)', () => {
     expect(timelineJob).toBeDefined();
     const upstreamMax = Math.max(
       ...jobs
-        .filter((job) => job.producer !== 'TimelineComposer' && job.producer !== 'VideoExporter')
+        .filter(
+          (job) =>
+            job.producer !== 'TimelineComposer' &&
+            job.producer !== 'VideoExporter' &&
+            job.producer !== 'TranscriptionProducer',
+        )
         .map((job) => job.layerIndex),
     );
     expect(timelineJob?.layerIndex).toBeGreaterThan(upstreamMax);

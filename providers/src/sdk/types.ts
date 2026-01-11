@@ -9,7 +9,7 @@ import type {
 } from '../types.js';
 import type { BlueprintProducerSdkMappingField, StorageContext } from '@gorenku/core';
 
-export type ProducerDomain = 'prompt' | 'media';
+export type ProducerDomain = 'prompt' | 'media' | 'transcription';
 
 export interface ProducerExtras {
   plannerContext?: Record<string, unknown>;

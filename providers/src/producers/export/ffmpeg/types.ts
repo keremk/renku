@@ -20,6 +20,41 @@ export interface FfmpegExporterConfig {
   audioBitrate?: string;
   /** Custom FFmpeg binary path (default: "ffmpeg" from PATH) */
   ffmpegPath?: string;
+  /** Karaoke subtitle options */
+  karaoke?: KaraokeSubtitleConfig;
+}
+
+/**
+ * Animation style for the highlighted word.
+ * - 'none': No animation, static highlight
+ * - 'pop': Quick pop-in effect (scale up then settle) - subtle and professional
+ * - 'spring': Spring/bounce effect (scale up, overshoot, settle) - more dynamic
+ * - 'pulse': Gentle continuous pulse during the word - rhythmic feel
+ */
+export type HighlightAnimation = 'none' | 'pop' | 'spring' | 'pulse';
+
+/**
+ * Configuration for karaoke-style subtitles.
+ */
+export interface KaraokeSubtitleConfig {
+  /** Font size in pixels (default: 48) */
+  fontSize?: number;
+  /** Default text color in FFmpeg format, e.g., "white", "#FFFFFF" (default: white) */
+  fontColor?: string;
+  /** Highlight color for the currently spoken word (default: #FFD700 - gold) */
+  highlightColor?: string;
+  /** Background box color with opacity, e.g., "black@0.5" (default: black@0.5) */
+  boxColor?: string;
+  /** Path to a .ttf font file (optional, uses system default if not provided) */
+  fontFile?: string;
+  /** Position from bottom as percentage of height (default: 10) */
+  bottomMarginPercent?: number;
+  /** Maximum words to display at once per line (default: 8) */
+  maxWordsPerLine?: number;
+  /** Animation style for highlighted word (default: 'pop') */
+  highlightAnimation?: HighlightAnimation;
+  /** Scale factor for animation peak, e.g., 1.2 = 20% larger (default: 1.15) */
+  animationScale?: number;
 }
 
 /**
@@ -63,6 +98,8 @@ export interface FfmpegBuildOptions {
   outputPath: string;
   /** FFmpeg binary path */
   ffmpegPath: string;
+  /** Karaoke subtitle options */
+  karaoke?: KaraokeSubtitleConfig;
 }
 
 /**

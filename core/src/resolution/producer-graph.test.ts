@@ -792,6 +792,296 @@ describe('createProducerGraph', () => {
     });
   });
 
+  describe('artifact filtering', () => {
+    it('excludes producer artifacts that have no downstream connections', () => {
+      // Producer declares 3 artifacts but only 1 is connected downstream
+      // Producer artifacts have non-empty namespace paths (e.g., ['VideoProducer'])
+      const canonical: CanonicalBlueprint = {
+        nodes: [
+          {
+            id: 'Producer:VideoProducer',
+            type: 'Producer',
+            producerAlias: 'VideoProducer',
+            namespacePath: [],
+            name: 'VideoProducer',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Artifact:VideoProducer.GeneratedVideo',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: ['VideoProducer'],
+            name: 'GeneratedVideo',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Artifact:VideoProducer.FirstFrame',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: ['VideoProducer'],
+            name: 'FirstFrame',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Artifact:VideoProducer.LastFrame',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: ['VideoProducer'],
+            name: 'LastFrame',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Producer:TimelineComposer',
+            type: 'Producer',
+            producerAlias: 'TimelineComposer',
+            namespacePath: [],
+            name: 'TimelineComposer',
+            indices: {},
+            dimensions: [],
+          },
+        ],
+        edges: [
+          // Producer produces all 3 artifacts
+          { from: 'Producer:VideoProducer', to: 'Artifact:VideoProducer.GeneratedVideo' },
+          { from: 'Producer:VideoProducer', to: 'Artifact:VideoProducer.FirstFrame' },
+          { from: 'Producer:VideoProducer', to: 'Artifact:VideoProducer.LastFrame' },
+          // But only GeneratedVideo is connected downstream
+          { from: 'Artifact:VideoProducer.GeneratedVideo', to: 'Producer:TimelineComposer' },
+        ],
+        inputBindings: {},
+        fanIn: {},
+      };
+
+      const videoCatalog: ProducerCatalog = {
+        'VideoProducer': {
+          provider: 'fal-ai',
+          providerModel: 'video',
+          rateKey: 'fal-video',
+        },
+        'TimelineComposer': {
+          provider: 'local',
+          providerModel: 'timeline',
+          rateKey: 'local-timeline',
+        },
+      };
+
+      const options = createDefaultOptions(['VideoProducer', 'TimelineComposer']);
+      const result = createProducerGraph(canonical, videoCatalog, options);
+
+      const videoProducer = result.nodes.find((n) => n.jobId === 'Producer:VideoProducer')!;
+      // Only GeneratedVideo should be in produces (connected downstream)
+      expect(videoProducer.produces).toContain('Artifact:VideoProducer.GeneratedVideo');
+      // FirstFrame and LastFrame are NOT connected downstream, so excluded
+      expect(videoProducer.produces).not.toContain('Artifact:VideoProducer.FirstFrame');
+      expect(videoProducer.produces).not.toContain('Artifact:VideoProducer.LastFrame');
+    });
+
+    it('includes artifacts connected via chain to another producer', () => {
+      // VideoProducer[0] -> LastFrame[0] -> VideoProducer[1]
+      // Producer artifacts have non-empty namespace paths
+      const canonical: CanonicalBlueprint = {
+        nodes: [
+          {
+            id: 'Producer:VideoProducer[0]',
+            type: 'Producer',
+            producerAlias: 'VideoProducer',
+            namespacePath: [],
+            name: 'VideoProducer',
+            indices: { segment: 0 },
+            dimensions: ['segment'],
+          },
+          {
+            id: 'Producer:VideoProducer[1]',
+            type: 'Producer',
+            producerAlias: 'VideoProducer',
+            namespacePath: [],
+            name: 'VideoProducer',
+            indices: { segment: 1 },
+            dimensions: ['segment'],
+          },
+          {
+            id: 'Artifact:VideoProducer.GeneratedVideo[0]',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: ['VideoProducer'],
+            name: 'GeneratedVideo',
+            indices: { segment: 0 },
+            dimensions: ['segment'],
+          },
+          {
+            id: 'Artifact:VideoProducer.LastFrame[0]',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: ['VideoProducer'],
+            name: 'LastFrame',
+            indices: { segment: 0 },
+            dimensions: ['segment'],
+          },
+          {
+            id: 'Artifact:VideoProducer.AudioTrack[0]',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: ['VideoProducer'],
+            name: 'AudioTrack',
+            indices: { segment: 0 },
+            dimensions: ['segment'],
+          },
+        ],
+        edges: [
+          // VideoProducer[0] produces 3 artifacts
+          { from: 'Producer:VideoProducer[0]', to: 'Artifact:VideoProducer.GeneratedVideo[0]' },
+          { from: 'Producer:VideoProducer[0]', to: 'Artifact:VideoProducer.LastFrame[0]' },
+          { from: 'Producer:VideoProducer[0]', to: 'Artifact:VideoProducer.AudioTrack[0]' },
+          // LastFrame[0] is used by VideoProducer[1]
+          { from: 'Artifact:VideoProducer.LastFrame[0]', to: 'Producer:VideoProducer[1]' },
+        ],
+        inputBindings: {},
+        fanIn: {},
+      };
+
+      const videoCatalog: ProducerCatalog = {
+        'VideoProducer': {
+          provider: 'fal-ai',
+          providerModel: 'video',
+          rateKey: 'fal-video',
+        },
+      };
+
+      const options = createDefaultOptions(['VideoProducer']);
+      const result = createProducerGraph(canonical, videoCatalog, options);
+
+      const videoProducer0 = result.nodes.find((n) => n.jobId === 'Producer:VideoProducer[0]')!;
+      // LastFrame[0] IS connected downstream (to VideoProducer[1])
+      expect(videoProducer0.produces).toContain('Artifact:VideoProducer.LastFrame[0]');
+      // GeneratedVideo[0] and AudioTrack[0] are NOT connected downstream
+      expect(videoProducer0.produces).not.toContain('Artifact:VideoProducer.GeneratedVideo[0]');
+      expect(videoProducer0.produces).not.toContain('Artifact:VideoProducer.AudioTrack[0]');
+    });
+
+    it('includes artifacts that chain to blueprint-level artifacts', () => {
+      // VideoProducer -> GeneratedVideo -> SegmentVideo (blueprint artifact)
+      // Producer artifacts have non-empty namespace, blueprint artifacts have empty namespace
+      const canonical: CanonicalBlueprint = {
+        nodes: [
+          {
+            id: 'Producer:VideoProducer',
+            type: 'Producer',
+            producerAlias: 'VideoProducer',
+            namespacePath: [],
+            name: 'VideoProducer',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Artifact:VideoProducer.GeneratedVideo',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: ['VideoProducer'],
+            name: 'GeneratedVideo',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Artifact:VideoProducer.FirstFrame',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: ['VideoProducer'],
+            name: 'FirstFrame',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Artifact:SegmentVideo',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: [],
+            name: 'SegmentVideo',
+            indices: {},
+            dimensions: [],
+          },
+        ],
+        edges: [
+          // Producer produces 2 artifacts (namespaced under VideoProducer)
+          { from: 'Producer:VideoProducer', to: 'Artifact:VideoProducer.GeneratedVideo' },
+          { from: 'Producer:VideoProducer', to: 'Artifact:VideoProducer.FirstFrame' },
+          // GeneratedVideo chains to blueprint artifact SegmentVideo
+          { from: 'Artifact:VideoProducer.GeneratedVideo', to: 'Artifact:SegmentVideo' },
+        ],
+        inputBindings: {},
+        fanIn: {},
+      };
+
+      const videoCatalog: ProducerCatalog = {
+        'VideoProducer': {
+          provider: 'fal-ai',
+          providerModel: 'video',
+          rateKey: 'fal-video',
+        },
+      };
+
+      const options = createDefaultOptions(['VideoProducer']);
+      const result = createProducerGraph(canonical, videoCatalog, options);
+
+      const videoProducer = result.nodes.find((n) => n.jobId === 'Producer:VideoProducer')!;
+      // GeneratedVideo is connected (chains to SegmentVideo)
+      expect(videoProducer.produces).toContain('Artifact:VideoProducer.GeneratedVideo');
+      // FirstFrame has no downstream connection
+      expect(videoProducer.produces).not.toContain('Artifact:VideoProducer.FirstFrame');
+    });
+
+    it('includes root-level artifacts even without downstream connections', () => {
+      // Simple case: producer output IS the blueprint artifact (no chaining needed)
+      // Root-level artifacts (empty namespace) are always included as they're final outputs
+      const canonical: CanonicalBlueprint = {
+        nodes: [
+          {
+            id: 'Producer:SimpleProducer',
+            type: 'Producer',
+            producerAlias: 'SimpleProducer',
+            namespacePath: [],
+            name: 'SimpleProducer',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Artifact:Output',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: [],
+            name: 'Output',
+            indices: {},
+            dimensions: [],
+          },
+        ],
+        edges: [
+          // Producer outputs directly to blueprint artifact
+          { from: 'Producer:SimpleProducer', to: 'Artifact:Output' },
+        ],
+        inputBindings: {},
+        fanIn: {},
+      };
+
+      const simpleCatalog: ProducerCatalog = {
+        'SimpleProducer': {
+          provider: 'openai',
+          providerModel: 'gpt-4',
+          rateKey: 'openai-gpt4',
+        },
+      };
+
+      const options = createDefaultOptions(['SimpleProducer']);
+      const result = createProducerGraph(canonical, simpleCatalog, options);
+
+      const producer = result.nodes.find((n) => n.jobId === 'Producer:SimpleProducer')!;
+      // Root-level artifact is always included (it's a final blueprint output)
+      expect(producer.produces).toContain('Artifact:Output');
+    });
+  });
+
   describe('edge deduplication', () => {
     it('does not create duplicate edges between the same producers', () => {
       const canonical: CanonicalBlueprint = {
