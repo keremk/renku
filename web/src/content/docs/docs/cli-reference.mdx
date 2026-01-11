@@ -107,26 +107,28 @@ renku generate [<inquiry-prompt>] \
   --blueprint=<path> \
   [--dry-run] \
   [--non-interactive] \
-  [--up-to-layer=<n>]
+  [--up-to-layer=<n>] \
+  [--re-run-from=<n>]
 ```
 
 **Usage (continue existing):**
 ```bash
-renku generate --movie-id=<id> [--inputs=<path>] [options]
-renku generate --last [options]
+renku generate --movie-id=<id> --inputs=<path> [options]
+renku generate --last --inputs=<path> [options]
 ```
 
 **Options:**
 
 | Option | Description |
 |--------|-------------|
-| `--inputs`, `--in` | Path to inputs YAML file (required for new movies) |
+| `--inputs`, `--in` | Path to inputs YAML file (required) |
 | `--blueprint`, `--bp` | Path to blueprint YAML file (required for new movies) |
 | `--movie-id`, `--id` | Continue a specific movie by ID |
 | `--last` | Continue the most recent movie |
 | `--dry-run` | Execute without calling providers (mock run) |
 | `--non-interactive` | Skip confirmation prompts |
 | `--up-to-layer`, `--up` | Stop after specified layer (live runs only) |
+| `--re-run-from`, `--from` | Re-run from specified layer (0-indexed), skipping earlier layers |
 
 **Behavior:**
 
@@ -154,13 +156,19 @@ renku generate "Explain black holes" --inputs=./inputs.yaml --blueprint=./audio.
 renku generate --movie-id=movie-a1b2c3d4 --inputs=./updated-inputs.yaml
 
 # Continue most recent movie
-renku generate --last
+renku generate --last --inputs=./inputs.yaml
 
 # Dry run to validate
 renku generate --inputs=./inputs.yaml --blueprint=./blueprint.yaml --dry-run
 
 # Generate up to layer 1 only
 renku generate --inputs=./inputs.yaml --blueprint=./blueprint.yaml --up-to-layer=1
+
+# Re-run from layer 2 (skips layers 0-1, uses existing artifacts)
+renku generate --last --inputs=./inputs.yaml --from=2
+
+# Re-run from layer 3 with layer limit
+renku generate --movie-id=movie-a1b2c3d4 --inputs=./inputs.yaml --from=3 --up-to-layer=4
 ```
 
 ---
@@ -240,20 +248,22 @@ Export a generated movie to MP4/MP3 format.
 ```bash
 renku export --movie-id=<id> [options]
 renku export --last [options]
+renku export --last --inputs=<config.yaml>
 ```
 
-**Options:**
+**CLI Options:**
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--movie-id`, `--id` | - | Movie ID to export |
 | `--last` | - | Export the most recent movie |
+| `--inputs`, `--in` | - | Path to export config YAML file |
 | `--width` | 1920 | Video width in pixels |
 | `--height` | 1080 | Video height in pixels |
 | `--fps` | 30 | Frames per second |
 | `--exporter` | remotion | Exporter backend: `remotion` or `ffmpeg` |
 
-**Exporter Options:**
+**Exporter Backends:**
 
 | Exporter | Description | Requirements |
 |----------|-------------|--------------|
@@ -262,11 +272,41 @@ renku export --last [options]
 
 The FFmpeg exporter is faster and requires no Docker, while the Remotion exporter offers more advanced video effects. For audio-only timelines, the FFmpeg exporter produces MP3 files.
 
+**Export Config File:**
+
+For advanced settings (especially FFmpeg-specific options and subtitles), use a YAML config file:
+
+```yaml
+# Basic settings (can also be set via CLI flags)
+width: 1920
+height: 1080
+fps: 30
+exporter: ffmpeg
+
+# FFmpeg-specific encoding settings
+preset: medium      # x264 preset: ultrafast, fast, medium, slow
+crf: 23             # Quality (0-51, lower = better quality)
+audioBitrate: 192k  # Audio bitrate
+
+# Subtitle settings (requires TranscriptionProducer in blueprint)
+subtitles:
+  font: Arial                    # Font name (system fonts)
+  fontSize: 48                   # Font size in pixels
+  fontBaseColor: "#FFFFFF"       # Default text color (hex)
+  fontHighlightColor: "#FFD700"  # Karaoke highlight color (hex)
+  backgroundColor: "#000000"     # Background box color (hex)
+  backgroundOpacity: 0           # Background opacity (0-1, 0 = no box)
+  bottomMarginPercent: 10        # Position from bottom (% of height)
+  maxWordsPerLine: 4             # Words displayed at once
+  highlightEffect: true          # Enable karaoke-style highlighting
+```
+
 **Requirements:**
 - Blueprint must include a `TimelineComposer` producer
 - Movie must have a Timeline artifact
 - For `remotion`: Docker Desktop running
 - For `ffmpeg`: FFmpeg installed and in PATH
+- For subtitles: Blueprint must include a `TranscriptionProducer`
 
 **Output:**
 - Video: `builds/{movieId}/FinalVideo.mp4` and `artifacts/{movieId}/FinalVideo.mp4` (symlink)
@@ -286,8 +326,11 @@ renku export --last --width=3840 --height=2160 --fps=24
 # Use FFmpeg exporter (faster, no Docker required)
 renku export --last --exporter=ffmpeg
 
-# Use FFmpeg with custom settings
+# Use FFmpeg with custom settings via CLI
 renku export --last --exporter=ffmpeg --width=1280 --height=720 --fps=24
+
+# Use config file for advanced settings (subtitles, encoding)
+renku export --last --inputs=./export-config.yaml
 ```
 
 ---

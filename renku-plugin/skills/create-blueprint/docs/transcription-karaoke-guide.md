@@ -233,89 +233,89 @@ The transcription system enforces this execution order:
 
 ## Karaoke Configuration Options
 
-Configure karaoke appearance through the VideoExporter model config in your input template:
+Configure karaoke subtitle appearance through an export configuration file when running `renku export`.
 
-### Input Template Configuration
+### Export Configuration File
+
+Create a YAML file (e.g., `export-config.yaml`) with subtitle settings:
 
 ```yaml
-models:
-  - model: ffmpeg/native-render
-    provider: renku
-    producerId: VideoExporter
-    config:
-      karaoke:
-        fontSize: 48              # Font size in pixels (default: 48)
-        fontColor: white          # Default text color (default: white)
-        highlightColor: "#FFD700" # Highlighted word color (default: gold)
-        boxColor: "black@0.5"     # Background box with opacity (default: black@0.5)
-        fontFile: "/path/to/font.ttf"  # Custom font file (optional)
-        bottomMarginPercent: 10   # Position from bottom (default: 10%)
-        maxWordsPerLine: 8        # Words per line (default: 8)
-        highlightAnimation: pop   # Animation style (default: pop)
-        animationScale: 1.15      # Animation peak scale (default: 1.15)
+# Video settings
+width: 1920
+height: 1080
+fps: 30
+exporter: ffmpeg
+
+# FFmpeg encoding settings
+preset: medium
+crf: 23
+audioBitrate: 192k
+
+# Karaoke subtitle settings
+subtitles:
+  font: Arial                    # Font name (system fonts)
+  fontSize: 48                   # Font size in pixels (default: 48)
+  fontBaseColor: "#FFFFFF"       # Default text color in hex (default: white)
+  fontHighlightColor: "#FFD700"  # Highlighted word color in hex (default: gold)
+  backgroundColor: "#000000"     # Background box color in hex (default: black)
+  backgroundOpacity: 0.5         # Background opacity 0-1 (default: 0, no box)
+  bottomMarginPercent: 10        # Position from bottom (default: 10%)
+  maxWordsPerLine: 4             # Words per line (default: 4)
+  highlightEffect: true          # Enable karaoke highlighting (default: true)
+```
+
+Then export with:
+
+```bash
+renku export --last --inputs=./export-config.yaml
 ```
 
 ### Configuration Options Reference
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
+| `font` | string | Arial | Font name (uses system fonts) |
 | `fontSize` | number | 48 | Font size in pixels |
-| `fontColor` | string | white | Default text color (FFmpeg format) |
-| `highlightColor` | string | #FFD700 | Color for the currently spoken word |
-| `boxColor` | string | black@0.5 | Background box color with opacity |
-| `fontFile` | string | (system) | Path to a .ttf font file |
+| `fontBaseColor` | string | #FFFFFF | Default text color (hex format) |
+| `fontHighlightColor` | string | #FFD700 | Color for the currently spoken word (hex) |
+| `backgroundColor` | string | #000000 | Background box color (hex format) |
+| `backgroundOpacity` | number | 0 | Background opacity (0-1, 0 = no box) |
 | `bottomMarginPercent` | number | 10 | Position from bottom as percentage of height |
-| `maxWordsPerLine` | number | 8 | Maximum words to display at once |
-| `highlightAnimation` | string | pop | Animation style: none, pop, spring, pulse |
-| `animationScale` | number | 1.15 | Scale factor for animation peak (1.2 = 20% larger) |
+| `maxWordsPerLine` | number | 4 | Maximum words to display at once |
+| `highlightEffect` | boolean | true | Enable karaoke-style word highlighting |
 
-### Color Formats
+### Color Format
 
-Colors can be specified in FFmpeg format:
-- Named colors: `white`, `black`, `red`, `gold`, etc.
-- Hex colors: `#FFD700`, `#FF5733`
-- With opacity: `black@0.5` (50% opacity), `white@0.8` (80% opacity)
+Colors must be specified in hex format:
+- `#FFFFFF` - white
+- `#000000` - black
+- `#FFD700` - gold
+- `#FF5733` - orange-red
 
 ---
 
-## Animation Effects
+## Highlight Effect
 
-The karaoke renderer supports animated highlighting for a lively, engaging feel similar to Instagram and TikTok subtitles.
+The karaoke renderer highlights the currently spoken word by changing its color. This creates an engaging visual effect similar to those seen on Instagram and TikTok.
 
-### Animation Types
+### Enabling/Disabling Highlights
 
-| Type | Description | Best For |
-|------|-------------|----------|
-| `none` | Static highlight, no animation | Professional, minimal style |
-| `pop` | Quick scale up then settle | Subtle, professional feel (default) |
-| `spring` | Bouncy scale with oscillation | Dynamic, playful content |
-| `pulse` | Gentle continuous sine wave | Rhythmic, musical content |
-
-### Animation Behavior
-
-**Pop Animation:**
-- Word starts at `fontSize * animationScale` (e.g., 15% larger)
-- Quickly settles to normal size with exponential decay
-- Settle time: ~0.3 seconds
-
-**Spring Animation:**
-- Word starts larger, overshoots slightly, bounces back
-- Creates a bouncy, spring-like effect
-- Good for energetic content
-
-**Pulse Animation:**
-- Word gently pulses throughout its duration
-- Creates a rhythmic, breathing effect
-- Completes 1-2 cycles during word duration
-
-### Setting Animation in Config
+The `highlightEffect` option controls whether word highlighting is enabled:
 
 ```yaml
-config:
-  karaoke:
-    highlightAnimation: spring  # Choose: none, pop, spring, pulse
-    animationScale: 1.2         # 20% larger at peak
+subtitles:
+  highlightEffect: true   # Enable karaoke-style highlighting (default)
+  # highlightEffect: false  # Disable to show static subtitles
 ```
+
+When enabled:
+- Words change from `fontBaseColor` to `fontHighlightColor` as they're spoken
+- Each word is highlighted based on its timestamp from the transcription
+- Creates a reading-along effect synchronized with the audio
+
+When disabled:
+- All words display in `fontBaseColor`
+- Subtitles appear as standard static captions
 
 ---
 
@@ -479,19 +479,39 @@ models:
     config:
       sttProvider: fal-ai
       sttModel: elevenlabs/speech-to-text
+```
 
-  - model: ffmpeg/native-render
-    provider: renku
-    producerId: VideoExporter
-    config:
-      karaoke:
-        fontSize: 52
-        fontColor: white
-        highlightColor: "#FF6B35"
-        boxColor: "black@0.6"
-        highlightAnimation: pop
-        animationScale: 1.2
-        maxWordsPerLine: 6
+### Export Configuration: `export-config.yaml`
+
+Create a separate export configuration file for subtitle settings:
+
+```yaml
+exporter: ffmpeg
+width: 1920
+height: 1080
+fps: 30
+preset: medium
+crf: 23
+
+subtitles:
+  font: Arial
+  fontSize: 52
+  fontBaseColor: "#FFFFFF"
+  fontHighlightColor: "#FF6B35"
+  backgroundColor: "#000000"
+  backgroundOpacity: 0.6
+  maxWordsPerLine: 6
+  highlightEffect: true
+```
+
+### Running the Workflow
+
+```bash
+# Generate the video with transcription
+renku generate --inputs=./karaoke-inputs.yaml --blueprint=./video-audio-music-karaoke.yaml
+
+# Export with karaoke subtitles
+renku export --last --inputs=./export-config.yaml
 ```
 
 ---
@@ -523,10 +543,11 @@ Common language codes:
 
 ### 3. Font Selection
 
-For best results with custom fonts:
-- Use TrueType fonts (.ttf)
+The `font` option uses system fonts by name:
+- Use font names installed on your system (e.g., "Arial", "Helvetica", "Times New Roman")
 - Ensure the font supports your language's characters
 - Test with your target text before full generation
+- Common cross-platform fonts: Arial, Helvetica, Verdana, Georgia
 
 ### 4. Words Per Line
 
@@ -536,25 +557,24 @@ Adjust `maxWordsPerLine` based on:
 - Font size (smaller fonts can fit more words)
 
 Recommendations:
-- 16:9 desktop video: 8-10 words
-- 9:16 mobile/TikTok: 4-6 words
-- 1:1 square video: 6-8 words
+- 16:9 desktop video: 6-8 words
+- 9:16 mobile/TikTok: 3-4 words
+- 1:1 square video: 4-6 words
 
-### 5. Animation for Different Content Types
+### 5. Background Opacity Settings
 
-| Content Type | Recommended Animation | Scale |
-|--------------|----------------------|-------|
-| Documentary | `none` or `pop` | 1.1 |
-| Educational | `pop` | 1.15 |
-| Social media | `spring` or `pulse` | 1.2-1.3 |
-| Music video | `pulse` | 1.2 |
-| Children's content | `spring` | 1.25 |
+| Content Type | Recommended Opacity |
+|--------------|---------------------|
+| Light/bright video backgrounds | 0.6-0.8 |
+| Dark video backgrounds | 0.3-0.5 |
+| Mixed/varied backgrounds | 0.5 |
+| No background (text only) | 0 |
 
 ### 6. Performance Considerations
 
 - Transcription adds processing time proportional to audio duration
-- Animation complexity doesn't significantly impact render time
-- More words per line = fewer drawtext filters = slightly faster rendering
+- More words per line = fewer subtitle events = slightly faster rendering
+- Subtitle rendering has minimal impact on overall export time
 
 ---
 
@@ -562,9 +582,11 @@ Recommendations:
 
 ### No Subtitles Appearing
 
-1. Verify the Transcription connection to VideoExporter exists
+1. Verify the Transcription connection to VideoExporter exists in the blueprint
 2. Check that TranscriptionProducer has the correct Timeline input
 3. Ensure AudioSegments collector is defined
+4. Verify you're using `--exporter=ffmpeg` (Remotion exporter doesn't support subtitles)
+5. Check that the export config file has `subtitles` section
 
 ### Subtitles Out of Sync
 
@@ -574,12 +596,12 @@ Recommendations:
 
 ### Garbled or Wrong Text
 
-1. Verify correct LanguageCode is set
+1. Verify correct LanguageCode is set in TranscriptionProducer config
 2. Check audio quality - clear speech transcribes better
 3. Ensure audio doesn't overlap between segments
 
-### Animation Not Working
+### Highlighting Not Working
 
-1. Verify `highlightAnimation` is set to a valid value
-2. Check that `animationScale` is > 1.0
-3. Ensure using a supported animation type: `none`, `pop`, `spring`, `pulse`
+1. Verify `highlightEffect: true` in export config subtitles section
+2. Check that `fontHighlightColor` is different from `fontBaseColor`
+3. Ensure transcription has word-level timestamps (check Transcription artifact)

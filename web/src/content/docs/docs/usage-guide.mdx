@@ -205,11 +205,13 @@ Resume or regenerate an existing movie:
 
 ```bash
 # By movie ID
-renku generate --movie-id=movie-a1b2c3d4
+renku generate --movie-id=movie-a1b2c3d4 --inputs=./inputs.yaml
 
 # The most recent movie
-renku generate --last
+renku generate --last --inputs=./inputs.yaml
 ```
+
+**Note:** The `--inputs` flag is always required, even when continuing an existing movie. This ensures model selections are available for any jobs that need to run.
 
 ### Non-Interactive Mode
 
@@ -262,7 +264,7 @@ You can manually edit generated text artifacts:
 3. Re-run generation:
 
 ```bash
-renku generate --movie-id=movie-a1b2c3d4
+renku generate --movie-id=movie-a1b2c3d4 --inputs=./inputs.yaml
 ```
 
 Renku will:
@@ -311,7 +313,34 @@ This stops after layer 1, so you can:
 After reviewing, continue generation:
 
 ```bash
-renku generate --movie-id=movie-a1b2c3d4 --up-to-layer=2
+renku generate --movie-id=movie-a1b2c3d4 --inputs=./inputs.yaml --up-to-layer=2
+```
+
+### Re-Run From a Specific Layer
+
+If you need to regenerate content from a specific layer onwards (e.g., after changing model settings or fixing an issue), use `--re-run-from`:
+
+```bash
+# Re-run from layer 2 (skips layers 0-1, uses existing artifacts)
+renku generate --last --inputs=./inputs.yaml --from=2
+```
+
+This is useful when:
+- You want to try a different video model without regenerating scripts
+- A later layer failed and you want to retry from that point
+- You've manually edited artifacts at a specific layer
+
+The `--from` flag:
+- Takes a 0-indexed layer number
+- Skips all layers before the specified layer (uses existing artifacts)
+- Forces all jobs at the specified layer and above to re-run
+- Requires `--inputs` to be specified (for model selections)
+
+You can combine `--from` with `--up-to-layer` to re-run a specific range:
+
+```bash
+# Re-run only layers 2 and 3
+renku generate --last --inputs=./inputs.yaml --from=2 --up-to-layer=3
 ```
 
 ### Cost-Saving Strategies
@@ -320,6 +349,7 @@ renku generate --movie-id=movie-a1b2c3d4 --up-to-layer=2
 2. **Use layer limits** - Generate expensive content only when you're happy with cheaper precursors
 3. **Iterate on prompts** - Edit video prompts before generating videos
 4. **Leverage caching** - Re-running generation only rebuilds changed artifacts
+5. **Use `--from` for retries** - If a later layer fails, use `--from=N` to retry from that layer without regenerating earlier content
 
 ## Viewing Content
 
@@ -389,10 +419,54 @@ renku export --last --exporter=remotion
 - No Docker installation required
 - Faster rendering for simple timelines
 - Produces MP3 for audio-only timelines
+- Supports karaoke-style subtitles
 
 **Remotion exporter advantages:**
 - More advanced video effects
 - Better suited for complex compositions
+
+### Advanced Export Configuration
+
+For fine-grained control over export settings, use a YAML config file:
+
+```bash
+renku export --last --inputs=./export-config.yaml
+```
+
+Example config file with all available options:
+
+```yaml
+# Video settings
+width: 1920
+height: 1080
+fps: 30
+exporter: ffmpeg
+
+# FFmpeg encoding settings
+preset: medium      # ultrafast, fast, medium, slow
+crf: 23             # Quality: 0-51 (lower = better)
+audioBitrate: 192k  # Audio quality
+
+# Karaoke-style subtitles (requires TranscriptionProducer)
+subtitles:
+  font: Arial
+  fontSize: 48
+  fontBaseColor: "#FFFFFF"
+  fontHighlightColor: "#FFD700"
+  backgroundColor: "#000000"
+  backgroundOpacity: 0.5
+  bottomMarginPercent: 10
+  maxWordsPerLine: 4
+  highlightEffect: true
+```
+
+### Subtitles
+
+If your blueprint includes a `TranscriptionProducer`, the FFmpeg exporter can add karaoke-style subtitles that highlight words as they're spoken:
+
+1. Ensure your blueprint has a `TranscriptionProducer` that generates word-level timestamps
+2. Create an export config with subtitle settings
+3. Run export with the config file
 
 The exported video is saved to:
 - `builds/movie-{id}/FinalVideo.mp4`
