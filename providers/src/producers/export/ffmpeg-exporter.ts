@@ -109,7 +109,7 @@ export function createFfmpegExporterHandler(): HandlerFactory {
       const assetPaths = await buildAssetPaths(storage, movieId, timeline);
 
       // Try to load transcription for karaoke subtitles (optional)
-      const transcription = runtime.inputs.getByNodeId<TranscriptionArtifact>(TRANSCRIPTION_ARTEFACT_ID);
+      const transcription = await loadTranscription(storage, movieId);
 
       // Determine output path
       const outputName = detectOutputFormat(timeline) === 'video' ? 'FinalVideo.mp4' : 'FinalAudio.mp3';
@@ -268,6 +268,42 @@ async function loadTimeline(
   const blobPath = buildBlobPath(storage, movieId, timelineArtefact.blob.hash, 'json');
   const timelineRaw = await storage.storage.readToString(blobPath);
   return JSON.parse(timelineRaw) as TimelineDocument;
+}
+
+/**
+ * Load transcription artifact from storage (optional, for karaoke subtitles).
+ * Returns undefined if transcription doesn't exist.
+ */
+async function loadTranscription(
+  storage: ReturnType<typeof createStorageContext>,
+  movieId: string
+): Promise<TranscriptionArtifact | undefined> {
+  try {
+    const pointerPath = storage.resolve(movieId, 'current.json');
+    const pointerRaw = await storage.storage.readToString(pointerPath);
+    const pointer = JSON.parse(pointerRaw) as ManifestPointer;
+
+    if (!pointer.manifestPath) {
+      return undefined;
+    }
+
+    const manifestPath = storage.resolve(movieId, pointer.manifestPath);
+    const manifestRaw = await storage.storage.readToString(manifestPath);
+    const manifest = JSON.parse(manifestRaw) as ManifestFile;
+
+    const transcriptionArtefact = manifest.artefacts?.[TRANSCRIPTION_ARTEFACT_ID];
+    if (!transcriptionArtefact?.blob?.hash) {
+      return undefined;
+    }
+
+    // Load the actual transcription blob
+    const blobPath = buildBlobPath(storage, movieId, transcriptionArtefact.blob.hash, 'json');
+    const transcriptionRaw = await storage.storage.readToString(blobPath);
+    return JSON.parse(transcriptionRaw) as TranscriptionArtifact;
+  } catch {
+    // Transcription is optional, return undefined if loading fails
+    return undefined;
+  }
 }
 
 async function buildAssetPaths(

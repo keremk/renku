@@ -12,6 +12,7 @@ const DEFAULT_HEIGHT = 1080;
 const DEFAULT_FPS = 30;
 const OUTPUT_FILENAME = 'FinalVideo.mp4';
 const TIMELINE_ARTEFACT_ID = 'Artifact:TimelineComposer.Timeline';
+const TRANSCRIPTION_ARTEFACT_ID = 'Artifact:TranscriptionProducer.Transcription';
 
 export type ExporterType = 'remotion' | 'ffmpeg';
 
@@ -32,6 +33,101 @@ export interface ExportResult {
   height: number;
   fps: number;
   exporter: ExporterType;
+}
+
+interface KaraokeConfig {
+  fontSize?: number;
+  fontColor?: string;
+  highlightColor?: string;
+  boxColor?: string;
+  fontFile?: string;
+  bottomMarginPercent?: number;
+  maxWordsPerLine?: number;
+  highlightAnimation?: 'none' | 'pop' | 'spring' | 'pulse';
+  animationScale?: number;
+}
+
+/**
+ * Extracts karaoke configuration from manifest inputs.
+ * The manifest stores VideoExporter config as flattened inputs like:
+ * - Input:VideoExporter.karaoke.fontSize
+ * - Input:VideoExporter.karaoke.fontColor
+ * etc.
+ */
+function extractKaraokeConfig(
+  manifest: { inputs: Record<string, { payloadDigest: string }> }
+): KaraokeConfig | undefined {
+  const prefix = 'Input:VideoExporter.karaoke.';
+  const karaokeInputs = Object.entries(manifest.inputs).filter(([key]) =>
+    key.startsWith(prefix)
+  );
+
+  if (karaokeInputs.length === 0) {
+    return undefined;
+  }
+
+  const config: KaraokeConfig = {};
+
+  for (const [key, entry] of karaokeInputs) {
+    const fieldName = key.slice(prefix.length);
+    // payloadDigest is JSON-stringified, so we parse it to get the actual value
+    const value = JSON.parse(entry.payloadDigest);
+
+    switch (fieldName) {
+      case 'fontSize':
+        if (typeof value === 'number') {
+          config.fontSize = value;
+        }
+        break;
+      case 'fontColor':
+        if (typeof value === 'string') {
+          config.fontColor = value;
+        }
+        break;
+      case 'highlightColor':
+        if (typeof value === 'string') {
+          config.highlightColor = value;
+        }
+        break;
+      case 'boxColor':
+        if (typeof value === 'string') {
+          config.boxColor = value;
+        }
+        break;
+      case 'fontFile':
+        if (typeof value === 'string') {
+          config.fontFile = value;
+        }
+        break;
+      case 'bottomMarginPercent':
+        if (typeof value === 'number') {
+          config.bottomMarginPercent = value;
+        }
+        break;
+      case 'maxWordsPerLine':
+        if (typeof value === 'number') {
+          config.maxWordsPerLine = value;
+        }
+        break;
+      case 'highlightAnimation':
+        if (
+          value === 'none' ||
+          value === 'pop' ||
+          value === 'spring' ||
+          value === 'pulse'
+        ) {
+          config.highlightAnimation = value;
+        }
+        break;
+      case 'animationScale':
+        if (typeof value === 'number') {
+          config.animationScale = value;
+        }
+        break;
+    }
+  }
+
+  return Object.keys(config).length > 0 ? config : undefined;
 }
 
 export async function runExport(options: ExportOptions): Promise<ExportResult> {
@@ -97,6 +193,31 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
   // Get the timeline artifact entry for the job context
   const timelineEntry = manifest.artefacts[TIMELINE_ARTEFACT_ID];
 
+  // Get the transcription artifact entry if it exists (optional, for karaoke subtitles)
+  const transcriptionEntry = manifest.artefacts[TRANSCRIPTION_ARTEFACT_ID];
+
+  // Extract karaoke configuration from manifest inputs (if present in blueprint)
+  const karaokeConfig = extractKaraokeConfig(manifest);
+
+  // Build provider config with optional karaoke settings
+  const providerConfig: Record<string, unknown> = { width, height, fps };
+  if (karaokeConfig) {
+    providerConfig.karaoke = karaokeConfig;
+  }
+
+  // Build resolved inputs with timeline and optional transcription
+  const resolvedInputs: Record<string, unknown> = {
+    'Input:MovieId': storageMovieId,
+    'Input:StorageRoot': projectStorage.root,
+    'Input:StorageBasePath': projectStorage.basePath,
+    [TIMELINE_ARTEFACT_ID]: timelineEntry,
+  };
+
+  // Add transcription artifact if it exists (enables karaoke subtitles)
+  if (transcriptionEntry) {
+    resolvedInputs[TRANSCRIPTION_ARTEFACT_ID] = transcriptionEntry;
+  }
+
   // Invoke the handler through the proper interface
   const response = await handler.invoke({
     jobId: `export-${Date.now()}`,
@@ -108,15 +229,10 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
     inputs: [],
     produces: ['Artifact:VideoExporter.FinalVideo'],
     context: {
-      providerConfig: { width, height, fps },
+      providerConfig,
       environment: 'local',
       extras: {
-        resolvedInputs: {
-          'Input:MovieId': storageMovieId,
-          'Input:StorageRoot': projectStorage.root,
-          'Input:StorageBasePath': projectStorage.basePath,
-          [TIMELINE_ARTEFACT_ID]: timelineEntry,
-        },
+        resolvedInputs,
       },
     },
   });
