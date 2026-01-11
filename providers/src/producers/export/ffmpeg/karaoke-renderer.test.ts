@@ -227,22 +227,6 @@ describe('karaoke-renderer', () => {
       expect(result).toContain('t-1.500'); // time offset
     });
 
-    it('returns FFmpeg expression for spring animation', () => {
-      const result = buildAnimatedFontsize(48, 0, 0.5, 'spring', 1.2);
-      // Should contain damped oscillation with cos and clamped elapsed time using gte()
-      expect(result).toMatch(/exp.*\(t-.*gte.*cos.*\(t-.*gte/);
-      expect(result).toContain('48+'); // base size
-      expect(result).toContain('10'); // extra size (48 * 0.2 ≈ 10)
-    });
-
-    it('returns FFmpeg expression for pulse animation', () => {
-      const result = buildAnimatedFontsize(48, 2.0, 3.0, 'pulse', 1.15);
-      // Should contain sine wave expression with clamped elapsed time using gte()
-      expect(result).toMatch(/sin.*\(t-.*gte/);
-      expect(result).toContain('48+');
-      expect(result).toContain('t-2.000'); // time offset
-    });
-
     it('calculates correct extra size from scale factor', () => {
       // With scale 1.25 and fontSize 100, extra should be 25
       const result = buildAnimatedFontsize(100, 0, 1, 'pop', 1.25);
@@ -288,24 +272,6 @@ describe('karaoke-renderer', () => {
       // Count occurrences - background has fontsize=48, highlights should too
       const matches = filter.match(/fontsize=48/g);
       expect(matches?.length).toBeGreaterThanOrEqual(2); // background + highlights
-    });
-
-    it('uses spring animation when configured', () => {
-      const filter = buildKaraokeFilter(transcription, {
-        ...options,
-        highlightAnimation: 'spring',
-      });
-      // Should have cos() for spring effect with clamped elapsed time using gte()
-      expect(filter).toMatch(/cos\(\d+\*\(t-/);
-    });
-
-    it('uses pulse animation when configured', () => {
-      const filter = buildKaraokeFilter(transcription, {
-        ...options,
-        highlightAnimation: 'pulse',
-      });
-      // Should have sin() for pulse effect with clamped elapsed time using gte()
-      expect(filter).toMatch(/sin\([\d.]+\*\(t-/);
     });
 
     it('respects custom animation scale', () => {

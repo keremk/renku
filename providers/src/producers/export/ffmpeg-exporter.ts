@@ -9,6 +9,7 @@ import type { ResolvedInputsAccessor } from '../../sdk/types.js';
 import { createStorageContext } from '@gorenku/core';
 import type { TimelineDocument } from '@gorenku/compositions';
 import { buildFfmpegCommand } from './ffmpeg/command-builder.js';
+import { generateAssFile } from './ffmpeg/ass-renderer.js';
 import type { FfmpegExporterConfig, AssetPathMap } from './ffmpeg/types.js';
 import { FFMPEG_DEFAULTS } from './ffmpeg/types.js';
 import type { TranscriptionArtifact } from '../transcription/types.js';
@@ -115,6 +116,25 @@ export function createFfmpegExporterHandler(): HandlerFactory {
       const outputName = detectOutputFormat(timeline) === 'video' ? 'FinalVideo.mp4' : 'FinalAudio.mp3';
       const outputPath = path.join(moviePath, outputName);
 
+      // Generate ASS file for karaoke subtitles if transcription is available
+      let assFilePath: string | undefined;
+      if (transcription && transcription.words.length > 0) {
+        notify('progress', 'Generating karaoke subtitles...');
+        assFilePath = path.join(moviePath, 'karaoke.ass');
+        await generateAssFile(transcription, {
+          width: config.width ?? FFMPEG_DEFAULTS.width,
+          height: config.height ?? FFMPEG_DEFAULTS.height,
+          fontSize: config.karaoke?.fontSize,
+          fontColor: config.karaoke?.fontColor,
+          highlightColor: config.karaoke?.highlightColor,
+          bottomMarginPercent: config.karaoke?.bottomMarginPercent,
+          maxWordsPerLine: config.karaoke?.maxWordsPerLine,
+          boxBackground: config.karaoke?.boxBackground,
+          backgroundColor: config.karaoke?.backgroundColor,
+          backgroundOpacity: config.karaoke?.backgroundOpacity,
+        }, path.resolve(storageRoot, assFilePath));
+      }
+
       // Build FFmpeg command
       notify('progress', 'Building FFmpeg command...');
       const ffmpegCommand = buildFfmpegCommand(timeline, assetPaths, {
@@ -127,7 +147,7 @@ export function createFfmpegExporterHandler(): HandlerFactory {
         outputPath: path.resolve(storageRoot, outputPath),
         ffmpegPath: config.ffmpegPath ?? FFMPEG_DEFAULTS.ffmpegPath,
         karaoke: config.karaoke,
-      }, transcription);
+      }, transcription, assFilePath ? path.resolve(storageRoot, assFilePath) : undefined);
 
       // Ensure output directory exists
       await mkdir(path.dirname(ffmpegCommand.outputPath), { recursive: true });
@@ -187,18 +207,14 @@ function parseKaraokeConfig(raw: unknown): FfmpegExporterConfig['karaoke'] {
     fontSize: typeof config.fontSize === 'number' ? config.fontSize : undefined,
     fontColor: typeof config.fontColor === 'string' ? config.fontColor : undefined,
     highlightColor: typeof config.highlightColor === 'string' ? config.highlightColor : undefined,
-    boxColor: typeof config.boxColor === 'string' ? config.boxColor : undefined,
-    fontFile: typeof config.fontFile === 'string' ? config.fontFile : undefined,
     bottomMarginPercent: typeof config.bottomMarginPercent === 'number' ? config.bottomMarginPercent : undefined,
     maxWordsPerLine: typeof config.maxWordsPerLine === 'number' ? config.maxWordsPerLine : undefined,
-    highlightAnimation: isValidHighlightAnimation(config.highlightAnimation) ? config.highlightAnimation : undefined,
-    animationScale: typeof config.animationScale === 'number' ? config.animationScale : undefined,
+    boxBackground: typeof config.boxBackground === 'boolean' ? config.boxBackground : undefined,
+    backgroundColor: typeof config.backgroundColor === 'string' ? config.backgroundColor : undefined,
+    backgroundOpacity: typeof config.backgroundOpacity === 'number' ? config.backgroundOpacity : undefined,
   };
 }
 
-function isValidHighlightAnimation(value: unknown): value is 'none' | 'pop' | 'spring' | 'pulse' {
-  return value === 'none' || value === 'pop' || value === 'spring' || value === 'pulse';
-}
 
 function resolveMovieId(inputs: ResolvedInputsAccessor): string {
   const movieId = inputs.getByNodeId<string>('Input:MovieId');
@@ -471,7 +487,6 @@ async function runFfmpeg(ffmpegPath: string, args: string[]): Promise<void> {
 export const __test__ = {
   parseFfmpegExporterConfig,
   parseKaraokeConfig,
-  isValidHighlightAnimation,
   resolveMovieId,
   resolveStoragePaths,
   mimeToExtension,

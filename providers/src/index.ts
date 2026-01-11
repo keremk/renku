@@ -38,11 +38,11 @@ export {
   buildKaraokeFilterChain,
   escapeDrawtext,
   type KaraokeRenderOptions,
+  type HighlightAnimation,
 } from './producers/export/ffmpeg/karaoke-renderer.js';
 
 // FFmpeg exporter config types
 export type {
   FfmpegExporterConfig,
   KaraokeSubtitleConfig,
-  HighlightAnimation,
 } from './producers/export/ffmpeg/types.js';

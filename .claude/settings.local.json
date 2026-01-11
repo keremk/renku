@@ -63,7 +63,9 @@
       "Bash(node /Users/keremk/Projects/aitinkerbox/renku/cli/dist/cli.js generate:*)",
       "Bash(node:*)",
       "Bash(ffprobe:*)",
-      "Bash(ffmpeg:*)"
+      "Bash(ffmpeg:*)",
+      "WebFetch(domain:aegisub.org)",
+      "WebFetch(domain:docs.karaokes.moe)"
     ],
     "deny": [],
     "ask": []

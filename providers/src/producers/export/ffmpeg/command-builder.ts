@@ -26,7 +26,6 @@ import { buildImageFilterChain, buildImageInputArgs } from './kenburns-filter.js
 import { buildAudioMixFilter, buildAudioInputArgs, buildLoopedAudioInputArgs } from './audio-mixer.js';
 import { buildVideoFilter, buildVideoInputArgs, determineFitStrategy } from './video-track.js';
 import { buildCaptionFilterChain, parseCaptionsFromArray } from './caption-renderer.js';
-import { buildKaraokeFilterChain } from './karaoke-renderer.js';
 import type { TranscriptionArtifact } from '../../transcription/types.js';
 
 // Type guards for timeline tracks
@@ -65,13 +64,15 @@ interface InputTracker {
  * @param assetPaths - Mapping of asset IDs to file paths
  * @param options - Build options
  * @param transcription - Optional word-level transcription for karaoke subtitles
+ * @param assFilePath - Optional path to ASS subtitle file for karaoke rendering
  * @returns Complete FFmpeg command ready for execution
  */
 export function buildFfmpegCommand(
   timeline: TimelineDocument,
   assetPaths: AssetPathMap,
   options: Partial<FfmpegBuildOptions>,
-  transcription?: TranscriptionArtifact
+  transcription?: TranscriptionArtifact,
+  assFilePath?: string
 ): FfmpegCommand {
   const fullOptions = resolveOptions(options);
   const outputFormat = detectOutputFormat(timeline);
@@ -121,29 +122,13 @@ export function buildFfmpegCommand(
       }
     }
 
-    // Process karaoke subtitles if transcription is provided
-    // TEMPORARY: Force highlightAnimation to 'none' to debug SIGSEGV crash
-    if (transcription && transcription.words.length > 0) {
+    // Process karaoke subtitles using ASS file if provided
+    if (assFilePath && transcription && transcription.words.length > 0) {
       const karaokeOutputLabel = 'vkaraoke';
-      const karaokeFilter = buildKaraokeFilterChain(
-        `[${videoOutputLabel}]`,
-        transcription,
-        {
-          width: fullOptions.width,
-          height: fullOptions.height,
-          fontSize: fullOptions.karaoke?.fontSize,
-          fontColor: fullOptions.karaoke?.fontColor,
-          highlightColor: fullOptions.karaoke?.highlightColor,
-          boxColor: fullOptions.karaoke?.boxColor,
-          fontFile: fullOptions.karaoke?.fontFile,
-          bottomMarginPercent: fullOptions.karaoke?.bottomMarginPercent,
-          maxWordsPerLine: fullOptions.karaoke?.maxWordsPerLine,
-          highlightAnimation: 'none', // TEMPORARY: Disabled animation to debug crash
-          animationScale: fullOptions.karaoke?.animationScale,
-        },
-        karaokeOutputLabel
-      );
-      filterParts.push(karaokeFilter);
+      // Use ASS subtitles filter - escape path for filter_complex
+      const escapedPath = escapeFilterPath(assFilePath);
+      const assFilter = `[${videoOutputLabel}]subtitles='${escapedPath}'[${karaokeOutputLabel}]`;
+      filterParts.push(assFilter);
       videoOutputLabel = karaokeOutputLabel;
     }
   }
@@ -570,6 +555,20 @@ function buildCommand(
     outputPath,
     mimeType: outputFormat === 'video' ? 'video/mp4' : 'audio/mpeg',
   };
+}
+
+/**
+ * Escape a file path for use in FFmpeg filter_complex.
+ * Handles special characters that need escaping in filter strings.
+ */
+function escapeFilterPath(filePath: string): string {
+  return filePath
+    // Escape backslashes first
+    .replace(/\\/g, '\\\\\\\\')
+    // Escape single quotes
+    .replace(/'/g, "'\\''")
+    // Escape colons (common in Windows paths)
+    .replace(/:/g, '\\:');
 }
 
 /**

@@ -1,7 +1,10 @@
 import type { TranscriptionArtifact, TranscriptionWord } from '../../transcription/types.js';
-import type { HighlightAnimation } from './types.js';
 
-export type { HighlightAnimation } from './types.js';
+/**
+ * Animation style for highlighted word (deprecated - use ASS renderer instead).
+ * @deprecated Use ass-renderer.ts for karaoke subtitles
+ */
+export type HighlightAnimation = 'none' | 'pop';
 
 /**
  * Options for rendering karaoke-style subtitles.
@@ -144,9 +147,9 @@ function groupWordsIntoLines(words: TranscriptionWord[], maxWordsPerLine: number
 /**
  * Build drawtext filters for a word group.
  *
- * Creates two layers:
- * 1. Background text (all words in default color)
- * 2. Highlighted word overlay (one at a time, optionally animated)
+ * Each word is rendered individually at a calculated position.
+ * Words are shown in default color, switching to highlight color when spoken.
+ * This avoids alignment issues from trying to overlay highlight text on background.
  */
 function buildWordGroupFilters(
   group: WordGroup,
@@ -165,40 +168,57 @@ function buildWordGroupFilters(
   const filters: string[] = [];
   const { fontSize, fontColor, highlightColor, boxColor, yPosition, fontFile, highlightAnimation, animationScale } = options;
 
-  // Build the full text for this group
+  // Calculate positioning for all words using consistent width estimation
+  const charWidth = fontSize * 0.6;
+  const spaceWidth = charWidth;
   const fullText = group.words.map(w => w.text).join(' ');
-  const escapedFullText = escapeDrawtext(fullText);
+  const totalWidth = fullText.length * charWidth;
+  const baseX = `(w-${Math.round(totalWidth)})/2`;
 
-  // Background layer: show all words in default color during the group's time window
-  const backgroundParts: string[] = [
+  // First, render the background box using a transparent/invisible text
+  // This ensures the box is rendered once for the whole group
+  const escapedFullText = escapeDrawtext(fullText);
+  const boxParts: string[] = [
     `text='${escapedFullText}'`,
     `fontsize=${fontSize}`,
-    `fontcolor=${fontColor}`,
-    `x=(w-text_w)/2`, // Center horizontally
+    `fontcolor=${boxColor.split('@')[0] || 'black'}@0`, // Invisible text (0 alpha)
+    `x=${baseX}`,
     `y=${yPosition}-text_h`,
     `box=1`,
     `boxcolor=${boxColor}`,
     `boxborderw=8`,
     `enable='between(t,${group.startTime.toFixed(3)},${group.endTime.toFixed(3)})'`,
   ];
-
   if (fontFile) {
-    backgroundParts.push(`fontfile='${fontFile}'`);
+    boxParts.push(`fontfile='${fontFile}'`);
   }
+  filters.push(`drawtext=${boxParts.join(':')}`);
 
-  filters.push(`drawtext=${backgroundParts.join(':')}`);
+  // Render each word individually
+  let cumulativeOffset = 0;
 
-  // Highlight layer: overlay each word with highlight color at its specific time
   for (let i = 0; i < group.words.length; i++) {
     const word = group.words[i]!;
     const escapedWord = escapeDrawtext(word.text);
 
-    // Calculate X offset for this word
-    // This is an approximation - FFmpeg doesn't give us exact text width
-    // We center the whole line and then offset based on character count
-    const wordXOffset = calculateWordXOffset(group.words, i, fontSize, options.width);
+    // Calculate X position for this word
+    const wordX = cumulativeOffset === 0 ? baseX : `${baseX}+${Math.round(cumulativeOffset)}`;
 
-    // Generate fontsize - either static or animated expression
+    // Word in default color (when not being spoken but group is visible)
+    const defaultParts: string[] = [
+      `text='${escapedWord}'`,
+      `fontsize=${fontSize}`,
+      `fontcolor=${fontColor}`,
+      `x=${wordX}`,
+      `y=${yPosition}-text_h`,
+      `enable='between(t,${group.startTime.toFixed(3)},${group.endTime.toFixed(3)})*not(between(t,${word.startTime.toFixed(3)},${word.endTime.toFixed(3)}))'`,
+    ];
+    if (fontFile) {
+      defaultParts.push(`fontfile='${fontFile}'`);
+    }
+    filters.push(`drawtext=${defaultParts.join(':')}`);
+
+    // Word in highlight color (when being spoken)
     const fontsizeExpr = buildAnimatedFontsize(
       fontSize,
       word.startTime,
@@ -211,16 +231,17 @@ function buildWordGroupFilters(
       `text='${escapedWord}'`,
       `fontsize=${fontsizeExpr}`,
       `fontcolor=${highlightColor}`,
-      `x=${wordXOffset}`,
+      `x=${wordX}`,
       `y=${yPosition}-text_h`,
       `enable='between(t,${word.startTime.toFixed(3)},${word.endTime.toFixed(3)})'`,
     ];
-
     if (fontFile) {
       highlightParts.push(`fontfile='${fontFile}'`);
     }
-
     filters.push(`drawtext=${highlightParts.join(':')}`);
+
+    // Update cumulative offset for next word (word width + space)
+    cumulativeOffset += word.text.length * charWidth + spaceWidth;
   }
 
   return filters;
@@ -229,26 +250,20 @@ function buildWordGroupFilters(
 /**
  * Build an FFmpeg expression for animated font size.
  *
- * The animations create subtle, lively effects like those seen on Instagram/TikTok:
- * - 'none': Static size
- * - 'pop': Quick scale up then exponential decay to normal (snappy, professional)
- * - 'spring': Damped oscillation (bouncy, playful)
- * - 'pulse': Gentle continuous sine wave (rhythmic, musical)
- *
- * IMPORTANT: All expressions use max(0, t-startT) to clamp elapsed time to non-negative.
- * This prevents exp() overflow when FFmpeg evaluates the expression at t < startTime.
+ * NOTE: This function is deprecated in favor of ASS-based karaoke rendering.
+ * The ASS renderer (ass-renderer.ts) provides more reliable karaoke effects.
  *
  * @param baseFontSize - Base font size in pixels
  * @param startTime - Word start time in seconds
- * @param endTime - Word end time in seconds
- * @param animation - Animation type
+ * @param _endTime - Word end time in seconds (unused, kept for API compatibility)
+ * @param animation - Animation type ('none' or 'pop')
  * @param scale - Peak scale factor (e.g., 1.15 = 15% larger)
  * @returns FFmpeg expression string or static number
  */
 function buildAnimatedFontsize(
   baseFontSize: number,
   startTime: number,
-  endTime: number,
+  _endTime: number,
   animation: HighlightAnimation,
   scale: number
 ): string {
@@ -256,89 +271,18 @@ function buildAnimatedFontsize(
     return String(baseFontSize);
   }
 
-  // Calculate the time offset from word start (normalized for expression)
+  // Calculate the time offset from word start
   const startT = startTime.toFixed(3);
-  const duration = endTime - startTime;
 
   // Amount to add at peak: baseFontSize * (scale - 1)
   const extraSize = Math.round(baseFontSize * (scale - 1));
 
   // Clamp elapsed time to non-negative using multiplication by gte() result.
-  // gte(t,startT) returns 1 when t >= startT, else 0.
-  // This avoids exp() overflow when t < startT (which would cause large positive exponent).
-  // Using multiplication instead of max() for better FFmpeg compatibility.
   const elapsed = `(t-${startT})*gte(t,${startT})`;
 
-  switch (animation) {
-    case 'pop': {
-      // Quick pop then exponential decay: size * (1 + extra * exp(-decay * elapsed))
-      // decay=8 gives a quick ~0.3s settle time
-      const decay = 8;
-      return `'${baseFontSize}+${extraSize}*exp(-${decay}*${elapsed})'`;
-    }
-
-    case 'spring': {
-      // Damped oscillation: size * (1 + extra * exp(-decay * elapsed) * cos(freq * elapsed))
-      // decay=6 for visible oscillation, freq=15 for ~2-3 bounces
-      const decay = 6;
-      const freq = 15;
-      return `'${baseFontSize}+${extraSize}*exp(-${decay}*${elapsed})*cos(${freq}*${elapsed})'`;
-    }
-
-    case 'pulse': {
-      // Gentle continuous pulse: size * (1 + extra * 0.5 * (1 + sin(freq * elapsed)))
-      // Frequency based on word duration to complete ~1-2 cycles
-      const cycles = Math.max(1, Math.min(2, duration * 3)); // 1-2 cycles
-      const freq = (cycles * 2 * Math.PI / duration).toFixed(2);
-      return `'${baseFontSize}+${extraSize}*0.5*(1+sin(${freq}*${elapsed}))'`;
-    }
-
-    default:
-      return String(baseFontSize);
-  }
-}
-
-/**
- * Estimate word widths based on character count.
- * This is an approximation since FFmpeg doesn't provide exact metrics.
- * Note: Currently unused but kept for potential future precision improvements.
- */
-function _calculateWordWidths(words: TranscriptionWord[], fontSize: number): number[] {
-  // Approximate character width is about 0.6 * fontSize for most fonts
-  const charWidth = fontSize * 0.6;
-  return words.map(w => w.text.length * charWidth);
-}
-
-/**
- * Calculate X position for a word within a centered line.
- */
-function calculateWordXOffset(
-  words: TranscriptionWord[],
-  wordIndex: number,
-  fontSize: number,
-  screenWidth: number
-): string {
-  // Build full text to calculate total width
-  const fullText = words.map(w => w.text).join(' ');
-  const charWidth = fontSize * 0.6;
-  const spaceWidth = charWidth; // Space is roughly same width as a character
-  const totalWidth = fullText.length * charWidth;
-
-  // Calculate starting X for centered text
-  // Use FFmpeg expression for dynamic centering
-  const startX = `(w-${Math.round(totalWidth)})/2`;
-
-  // Calculate offset to this specific word
-  let offset = 0;
-  for (let i = 0; i < wordIndex; i++) {
-    offset += words[i]!.text.length * charWidth + spaceWidth;
-  }
-
-  if (offset === 0) {
-    return startX;
-  }
-
-  return `${startX}+${Math.round(offset)}`;
+  // 'pop': Quick pop then exponential decay
+  const decay = 8;
+  return `'${baseFontSize}+${extraSize}*exp(-${decay}*${elapsed})'`;
 }
 
 /**
@@ -384,7 +328,6 @@ export function buildKaraokeFilterChain(
 export const __test__ = {
   groupWordsIntoLines,
   buildWordGroupFilters,
-  calculateWordXOffset,
   escapeDrawtext,
   buildAnimatedFontsize,
 };
