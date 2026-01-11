@@ -54,6 +54,8 @@ export interface GenerateResult {
   storagePath: string;
   /** Path to artifacts folder (symlinks to build outputs) */
   artifactsRoot?: string;
+  /** Path to final video/audio output (if available) */
+  finalOutputPath?: string;
   isNew: boolean;
   cleanedUp?: boolean;
 }
@@ -137,6 +139,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
     });
 
     let artifactsRoot: string | undefined;
+    let finalOutputPath: string | undefined;
     if (!options.dryRun && editResult.build) {
       const { manifest: nextManifest } = await loadCurrentManifest(activeConfig, storageMovieId);
       const artifacts = await buildArtifactsView({
@@ -145,6 +148,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
         manifest: nextManifest,
       });
       artifactsRoot = artifacts.artifactsRoot;
+      finalOutputPath = findFinalOutput(artifacts.artefacts);
     }
 
     if (editResult.build) {
@@ -161,6 +165,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
       manifestPath: editResult.manifestPath,
       storagePath: editResult.storagePath,
       artifactsRoot,
+      finalOutputPath,
       isNew: false,
       cleanedUp: editResult.cleanedUp,
     };
@@ -205,6 +210,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
   });
 
   let artifactsRoot: string | undefined;
+  let finalOutputPath: string | undefined;
   if (!options.dryRun && queryResult.build) {
     // Try to load manifest and build artifacts view, but don't fail if manifest doesn't exist
     // (can happen if build failed before manifest was saved)
@@ -216,6 +222,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
         manifest,
       });
       artifactsRoot = artifacts.artifactsRoot;
+      finalOutputPath = findFinalOutput(artifacts.artefacts);
     } catch {
       // Manifest may not exist if build failed - continue without artifacts view
       logger.debug?.('Could not load manifest for artifacts view - build may have failed');
@@ -232,6 +239,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
     manifestPath: queryResult.manifestPath,
     storagePath: queryResult.storagePath,
     artifactsRoot,
+    finalOutputPath,
     isNew: true,
     cleanedUp: queryResult.cleanedUp,
   };
@@ -244,4 +252,34 @@ function normalizePublicId(storageMovieId: string): string {
 
 function generateMovieId(): string {
   return crypto.randomUUID().slice(0, 8);
+}
+
+interface ArtifactInfo {
+  artefactId: string;
+  artifactPath: string;
+  mimeType?: string;
+}
+
+/**
+ * Find the final video or audio output from the artifacts list.
+ * Returns the path to the final output, or undefined if not found.
+ */
+function findFinalOutput(artefacts: ArtifactInfo[]): string | undefined {
+  // Look for video output first (FinalVideo)
+  const videoArtifact = artefacts.find(
+    (a) => a.mimeType?.startsWith('video/') && a.artefactId.includes('FinalVideo')
+  );
+  if (videoArtifact) {
+    return videoArtifact.artifactPath;
+  }
+
+  // Fall back to audio output (FinalAudio)
+  const audioArtifact = artefacts.find(
+    (a) => a.mimeType?.startsWith('audio/') && a.artefactId.includes('FinalAudio')
+  );
+  if (audioArtifact) {
+    return audioArtifact.artifactPath;
+  }
+
+  return undefined;
 }

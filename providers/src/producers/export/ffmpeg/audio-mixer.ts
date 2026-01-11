@@ -71,11 +71,15 @@ function buildSingleAudioFilter(
   const filters: string[] = [];
   const inputRef = `[${track.inputIndex}:a]`;
 
-  // Handle looping for music tracks
+  // Trim audio to scheduled duration
   if (track.loop) {
-    // aloop: loop audio indefinitely, then trim to duration
-    // Using -1 for infinite loops, then trimming to the required duration
+    // Looped tracks: loop infinitely then trim to duration
     filters.push(`aloop=loop=-1:size=2e+09`);
+    filters.push(`atrim=0:${track.duration}`);
+  } else {
+    // Non-looped tracks: trim to scheduled duration
+    // This ensures clips play for exactly their scheduled time, even if the
+    // source file is longer (e.g., music clips reusing the same file to fill timeline)
     filters.push(`atrim=0:${track.duration}`);
   }
 
@@ -101,13 +105,6 @@ function buildSingleAudioFilter(
     const fadeOutStart = track.startTime + track.duration - track.fadeOutDuration;
     filters.push(`afade=t=out:st=${fadeOutStart}:d=${track.fadeOutDuration}`);
   }
-
-  // NOTE: We intentionally do NOT apply atrim for non-looped audio tracks.
-  // For looped music, atrim is applied BEFORE adelay (see above).
-  // For non-looped audio (e.g., narration), the audio file duration matches
-  // the segment duration since audio is the master track. Applying atrim
-  // AFTER adelay would incorrectly trim the delayed stream, cutting off
-  // most of the actual audio content.
 
   // Reset timestamps
   filters.push('asetpts=PTS-STARTPTS');

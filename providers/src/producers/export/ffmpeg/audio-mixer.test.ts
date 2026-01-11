@@ -32,6 +32,7 @@ describe('audio-mixer', () => {
       expect(result.filterExpr).toContain('[0:a]');
       expect(result.filterExpr).toContain('[aud0]');
       expect(result.filterExpr).toContain('amix=inputs=1');
+      expect(result.filterExpr).toContain('atrim=0:5');
       expect(result.outputLabel).toBe('aout');
     });
 
@@ -204,10 +205,10 @@ describe('audio-mixer', () => {
       expect(result.filterExpr).toContain('amix=inputs=3');
     });
 
-    it('should NOT apply atrim for non-looped audio with startTime > 0', () => {
-      // This is critical: applying atrim AFTER adelay would cut off most of the audio
-      // because atrim=0:duration would trim the delayed stream, keeping mostly silence.
-      // The audio file duration already matches the segment duration since audio is master.
+    it('should apply atrim BEFORE adelay for non-looped audio to trim to scheduled duration', () => {
+      // All clips are trimmed to their scheduled duration BEFORE being delayed.
+      // This ensures clips play for exactly their scheduled time, even if the
+      // source file is longer (e.g., music clips reusing the same file to fill timeline)
       const tracks: AudioTrackInfo[] = [
         {
           inputIndex: 0,
@@ -228,15 +229,44 @@ describe('audio-mixer', () => {
       // Parse the filter expression to check each track's filter chain
       const filterParts = result.filterExpr.split(';');
 
-      // The second track (aud1) should have adelay but NOT atrim
-      const secondTrackFilter = filterParts.find(f => f.includes('[aud1]'));
-      expect(secondTrackFilter).toContain('adelay=12000|12000');
-      // Ensure no atrim is present for the second track
-      expect(secondTrackFilter).not.toContain('atrim');
-
-      // The first track should also NOT have atrim since it's not looped
+      // The first track should have atrim with its duration
       const firstTrackFilter = filterParts.find(f => f.includes('[aud0]'));
-      expect(firstTrackFilter).not.toContain('atrim');
+      expect(firstTrackFilter).toContain('atrim=0:12');
+
+      // The second track should have atrim BEFORE adelay
+      const secondTrackFilter = filterParts.find(f => f.includes('[aud1]'));
+      expect(secondTrackFilter).toContain('atrim=0:13');
+      expect(secondTrackFilter).toContain('adelay=12000|12000');
+
+      // Verify atrim comes before adelay (important for correct trimming)
+      const atrimIndex = secondTrackFilter!.indexOf('atrim');
+      const adelayIndex = secondTrackFilter!.indexOf('adelay');
+      expect(atrimIndex).toBeLessThan(adelayIndex);
+    });
+
+    it('should trim non-looped music clips to their scheduled duration', () => {
+      // This test verifies the fix for music clips that reuse the same file
+      // (e.g., 20s music file used twice, with second clip only needing 5s)
+      const tracks: AudioTrackInfo[] = [
+        {
+          inputIndex: 0,
+          volume: 0.3,
+          startTime: 0,
+          duration: 20, // First play of full music file
+        },
+        {
+          inputIndex: 1,
+          volume: 0.3,
+          startTime: 20,
+          duration: 5, // Second instance, only needs 5 seconds
+        },
+      ];
+
+      const result = buildAudioMixFilter(tracks, { totalDuration: 25 });
+
+      // Both tracks should be trimmed to their scheduled duration
+      expect(result.filterExpr).toContain('atrim=0:20');
+      expect(result.filterExpr).toContain('atrim=0:5');
     });
   });
 

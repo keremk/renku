@@ -688,6 +688,12 @@ function printGenerateSummary(
   for (const [label, value] of detailLines) {
     logger.info(`${bullet} ${label}: ${value}`);
   }
+
+  // Show final output path prominently at the end
+  if (result.finalOutputPath) {
+    logger.info('');
+    logger.info(chalk.green.bold(`Output: ${result.finalOutputPath}`));
+  }
 }
 
 function printDryRunSummary(logger: CoreLogger, summary: BuildSummary, storagePath: string): void {
