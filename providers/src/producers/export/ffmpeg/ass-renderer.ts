@@ -2,44 +2,44 @@ import { writeFile } from 'node:fs/promises';
 import type { TranscriptionArtifact, TranscriptionWord } from '../../transcription/types.js';
 
 /**
- * Options for rendering ASS karaoke subtitles.
+ * Options for rendering ASS subtitles with optional karaoke-style highlighting.
  */
 export interface AssRenderOptions {
   /** Output width in pixels */
   width: number;
   /** Output height in pixels */
   height: number;
+  /** Font name - uses system fonts (default: Arial) */
+  font?: string;
   /** Font size in pixels (default: 48) */
   fontSize?: number;
-  /** Font name (default: Arial) */
-  fontName?: string;
   /** Default text color in hex format, e.g., "#FFFFFF" (default: white) */
-  fontColor?: string;
+  fontBaseColor?: string;
   /** Highlight color for currently spoken word (default: #FFD700 - gold) */
-  highlightColor?: string;
+  fontHighlightColor?: string;
   /** Outline color (default: black) */
   outlineColor?: string;
-  /** Position from bottom as percentage of height (default: 10) */
-  bottomMarginPercent?: number;
-  /** Maximum words to display at once per line (default: 8) */
-  maxWordsPerLine?: number;
-  /** Use background box instead of outline only (default: false) */
-  boxBackground?: boolean;
   /** Background box color in hex format (default: #000000) */
   backgroundColor?: string;
-  /** Background box opacity 0-1 (default: 0.5) */
+  /** Background box opacity 0-1, 0 = no box (default: 0) */
   backgroundOpacity?: number;
+  /** Position from bottom as percentage of height (default: 10) */
+  bottomMarginPercent?: number;
+  /** Maximum words to display at once per line (default: 4) */
+  maxWordsPerLine?: number;
+  /** Enable karaoke-style word highlighting (default: true) */
+  highlightEffect?: boolean;
 }
 
-const DEFAULT_FONT_SIZE = 48;
 const DEFAULT_FONT_NAME = 'Arial';
-const DEFAULT_FONT_COLOR = '#FFFFFF';
-const DEFAULT_HIGHLIGHT_COLOR = '#FFD700';
+const DEFAULT_FONT_SIZE = 48;
+const DEFAULT_FONT_BASE_COLOR = '#FFFFFF';
+const DEFAULT_FONT_HIGHLIGHT_COLOR = '#FFD700';
 const DEFAULT_OUTLINE_COLOR = '#000000';
 const DEFAULT_BACKGROUND_COLOR = '#000000';
-const DEFAULT_BACKGROUND_OPACITY = 0.5;
+const DEFAULT_BACKGROUND_OPACITY = 0; // 0 = no box by default
 const DEFAULT_BOTTOM_MARGIN_PERCENT = 10;
-const DEFAULT_MAX_WORDS_PER_LINE = 8;
+const DEFAULT_MAX_WORDS_PER_LINE = 4;
 const DEFAULT_OUTLINE_SIZE = 3; // Thick outline for readability
 const DEFAULT_SHADOW_SIZE = 0; // Shadow off by default
 
@@ -191,6 +191,14 @@ export function groupWordsIntoLines(
 }
 
 /**
+ * Options for building dialogue lines.
+ */
+interface DialogueOptions {
+  /** Background alpha override (for BorderStyle=3 compatibility) */
+  backgroundAlphaOverride?: string;
+}
+
+/**
  * Build a single karaoke dialogue line for a word group.
  * Uses \k tags for timing - words progressively highlight as they're spoken.
  * This creates ONE dialogue line per group, eliminating flashing.
@@ -202,9 +210,14 @@ export function groupWordsIntoLines(
  *
  * @param group - Word group to render
  * @param styleName - Style name to use
+ * @param dialogueOptions - Optional dialogue options including alpha overrides
  * @returns ASS dialogue line with karaoke timing
  */
-function buildKaraokeDialogueLine(group: WordGroup, styleName: string): string {
+function buildKaraokeDialogueLine(
+  group: WordGroup,
+  styleName: string,
+  dialogueOptions?: DialogueOptions
+): string {
   // Build text with \k timing tags for each word
   // \k duration is in centiseconds (1/100th of a second)
   const textParts = group.words.map((word) => {
@@ -217,8 +230,15 @@ function buildKaraokeDialogueLine(group: WordGroup, styleName: string): string {
   const formattedStart = formatAssTime(group.startTime);
   const formattedEnd = formatAssTime(group.endTime);
 
+  // Build text content with optional alpha override
+  // The \4a tag overrides shadow/background alpha (needed for BorderStyle=3 transparency)
+  let textContent = textParts.join(' ');
+  if (dialogueOptions?.backgroundAlphaOverride) {
+    textContent = `{\\4a${dialogueOptions.backgroundAlphaOverride}}${textContent}`;
+  }
+
   // Dialogue format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-  return `Dialogue: 0,${formattedStart},${formattedEnd},${styleName},,0,0,0,,${textParts.join(' ')}`;
+  return `Dialogue: 0,${formattedStart},${formattedEnd},${styleName},,0,0,0,,${textContent}`;
 }
 
 /**
@@ -227,20 +247,61 @@ function buildKaraokeDialogueLine(group: WordGroup, styleName: string): string {
  */
 function buildKaraokeDialogueLines(
   groups: WordGroup[],
-  styleName: string
+  styleName: string,
+  dialogueOptions?: DialogueOptions
 ): string[] {
-  return groups.map((group) => buildKaraokeDialogueLine(group, styleName));
+  return groups.map((group) => buildKaraokeDialogueLine(group, styleName, dialogueOptions));
 }
 
 /**
- * Build complete ASS subtitle content with word-by-word highlighting.
+ * Build a simple dialogue line for a word group (no karaoke highlighting).
+ * All words display in the same color for the duration of the group.
  *
- * Uses traditional karaoke \k tags for timing. Words progressively highlight
- * as they're spoken and STAY highlighted (no flashing).
+ * @param group - Word group to render
+ * @param styleName - Style name to use
+ * @param dialogueOptions - Optional dialogue options including alpha overrides
+ * @returns ASS dialogue line without karaoke timing
+ */
+function buildSimpleDialogueLine(
+  group: WordGroup,
+  styleName: string,
+  dialogueOptions?: DialogueOptions
+): string {
+  const text = group.words.map((w) => escapeAssText(w.text)).join(' ');
+  const formattedStart = formatAssTime(group.startTime);
+  const formattedEnd = formatAssTime(group.endTime);
+
+  // Build text content with optional alpha override
+  let textContent = text;
+  if (dialogueOptions?.backgroundAlphaOverride) {
+    textContent = `{\\4a${dialogueOptions.backgroundAlphaOverride}}${text}`;
+  }
+
+  return `Dialogue: 0,${formattedStart},${formattedEnd},${styleName},,0,0,0,,${textContent}`;
+}
+
+/**
+ * Build simple dialogue lines for all word groups (no highlighting).
+ */
+function buildSimpleDialogueLines(
+  groups: WordGroup[],
+  styleName: string,
+  dialogueOptions?: DialogueOptions
+): string[] {
+  return groups.map((group) => buildSimpleDialogueLine(group, styleName, dialogueOptions));
+}
+
+/**
+ * Build complete ASS subtitle content with optional word-by-word highlighting.
  *
- * Color behavior with \k tags:
- * - SecondaryColour = "before" color (default, not yet spoken)
- * - PrimaryColour = "after" color (highlighted, already spoken)
+ * When highlightEffect is true (default):
+ * - Uses traditional karaoke \k tags for timing
+ * - Words progressively highlight as they're spoken and STAY highlighted
+ * - Color behavior: SecondaryColour = "before", PrimaryColour = "after"
+ *
+ * When highlightEffect is false:
+ * - Simple subtitles without karaoke timing
+ * - All text displays in fontBaseColor
  *
  * @param transcription - Word-level transcription data
  * @param options - Rendering options
@@ -256,32 +317,39 @@ export function buildAssSubtitles(
 
   const width = options.width;
   const height = options.height;
+  const fontName = options.font ?? DEFAULT_FONT_NAME;
   const fontSize = options.fontSize ?? DEFAULT_FONT_SIZE;
-  const fontName = options.fontName ?? DEFAULT_FONT_NAME;
-  const fontColor = options.fontColor ?? DEFAULT_FONT_COLOR;
-  const highlightColor = options.highlightColor ?? DEFAULT_HIGHLIGHT_COLOR;
+  const fontBaseColor = options.fontBaseColor ?? DEFAULT_FONT_BASE_COLOR;
+  const fontHighlightColor = options.fontHighlightColor ?? DEFAULT_FONT_HIGHLIGHT_COLOR;
   const outlineColor = options.outlineColor ?? DEFAULT_OUTLINE_COLOR;
-  const bottomMarginPercent = options.bottomMarginPercent ?? DEFAULT_BOTTOM_MARGIN_PERCENT;
-  const maxWordsPerLine = options.maxWordsPerLine ?? DEFAULT_MAX_WORDS_PER_LINE;
-  const boxBackground = options.boxBackground ?? false;
   const backgroundColor = options.backgroundColor ?? DEFAULT_BACKGROUND_COLOR;
   const backgroundOpacity = options.backgroundOpacity ?? DEFAULT_BACKGROUND_OPACITY;
+  const bottomMarginPercent = options.bottomMarginPercent ?? DEFAULT_BOTTOM_MARGIN_PERCENT;
+  const maxWordsPerLine = options.maxWordsPerLine ?? DEFAULT_MAX_WORDS_PER_LINE;
+  const highlightEffect = options.highlightEffect ?? true;
 
   // Calculate margin from bottom (in pixels)
   const marginV = Math.round(height * (bottomMarginPercent / 100));
 
+  // Determine if background box should be rendered (only when opacity > 0)
+  const showBackground = backgroundOpacity > 0;
+
   // For karaoke mode with \k tags:
   // - PrimaryColour = highlighted/after color (gold) - shown AFTER word timing
   // - SecondaryColour = default/before color (white) - shown BEFORE word timing
-  const primaryColor = hexToAssColor(highlightColor, 0); // Highlight = after
-  const secondaryColor = hexToAssColor(fontColor, 0); // Default = before
+  // For simple mode (no highlighting):
+  // - PrimaryColour = fontBaseColor (same as secondary)
+  const primaryColor = highlightEffect
+    ? hexToAssColor(fontHighlightColor, 0) // Highlight = after
+    : hexToAssColor(fontBaseColor, 0); // No highlight, use base color
+  const secondaryColor = hexToAssColor(fontBaseColor, 0); // Default = before
   const outlineColorAss = hexToAssColor(outlineColor, 0);
-  const backColorAss = boxBackground
-    ? hexToAssColor(backgroundColor, backgroundOpacity)
+  const backColorAss = showBackground
+    ? hexToAssColor(backgroundColor, 1 - backgroundOpacity) // ASS alpha is inverted: 0=opaque, 1=transparent
     : hexToAssColor('#000000', 1); // Fully transparent if no box
 
   // BorderStyle: 1 = outline + drop shadow (no box), 3 = outline + opaque box
-  const borderStyle = boxBackground ? 3 : 1;
+  const borderStyle = showBackground ? 3 : 1;
 
   // Build style definition
   // Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour,
@@ -293,13 +361,26 @@ export function buildAssSubtitles(
   // Group words into lines
   const wordGroups = groupWordsIntoLines(transcription.words, maxWordsPerLine);
 
-  // Build karaoke dialogue lines (one per group - no flashing!)
-  const dialogueLines = buildKaraokeDialogueLines(wordGroups, styleName);
+  // Calculate background alpha override for dialogue lines
+  // This is needed because BorderStyle=3 ignores BackColour alpha in many renderers
+  // The \4a inline tag forces the alpha override at the dialogue level
+  const dialogueOptions: DialogueOptions | undefined = showBackground && backgroundOpacity < 1
+    ? {
+      // Convert opacity (0=transparent, 1=opaque) to ASS alpha (00=opaque, FF=transparent)
+      // Format: &HXX& where XX is the hex alpha
+      backgroundAlphaOverride: `&H${Math.round((1 - backgroundOpacity) * 255).toString(16).padStart(2, '0').toUpperCase()}&`,
+    }
+    : undefined;
+
+  // Build dialogue lines based on highlight mode
+  const dialogueLines = highlightEffect
+    ? buildKaraokeDialogueLines(wordGroups, styleName, dialogueOptions)
+    : buildSimpleDialogueLines(wordGroups, styleName, dialogueOptions);
 
   // Assemble complete ASS content
   const lines = [
     '[Script Info]',
-    'Title: Karaoke Subtitles',
+    'Title: Subtitles',
     'ScriptType: v4.00+',
     `PlayResX: ${width}`,
     `PlayResY: ${height}`,
@@ -340,4 +421,6 @@ export const __test__ = {
   groupWordsIntoLines,
   buildKaraokeDialogueLine,
   buildKaraokeDialogueLines,
+  buildSimpleDialogueLine,
+  buildSimpleDialogueLines,
 };

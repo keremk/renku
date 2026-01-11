@@ -125,9 +125,10 @@ export function buildFfmpegCommand(
     // Process karaoke subtitles using ASS file if provided
     if (assFilePath && transcription && transcription.words.length > 0) {
       const karaokeOutputLabel = 'vkaraoke';
-      // Use ASS subtitles filter - escape path for filter_complex
+      // Use ASS filter with alpha support for semi-transparent backgrounds
+      // The 'ass' filter is specifically designed for ASS/SSA subtitles
       const escapedPath = escapeFilterPath(assFilePath);
-      const assFilter = `[${videoOutputLabel}]subtitles='${escapedPath}'[${karaokeOutputLabel}]`;
+      const assFilter = `[${videoOutputLabel}]ass='${escapedPath}':alpha=1[${karaokeOutputLabel}]`;
       filterParts.push(assFilter);
       videoOutputLabel = karaokeOutputLabel;
     }
@@ -173,7 +174,7 @@ function resolveOptions(options: Partial<FfmpegBuildOptions>): FfmpegBuildOption
     audioBitrate: options.audioBitrate ?? FFMPEG_DEFAULTS.audioBitrate,
     outputPath: options.outputPath ?? 'output.mp4',
     ffmpegPath: options.ffmpegPath ?? FFMPEG_DEFAULTS.ffmpegPath,
-    karaoke: options.karaoke,
+    subtitles: options.subtitles,
   };
 }
 

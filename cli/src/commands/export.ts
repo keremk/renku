@@ -1,5 +1,6 @@
-import { resolve, dirname } from 'node:path';
-import { mkdir, rm, symlink } from 'node:fs/promises';
+import { resolve, dirname, extname } from 'node:path';
+import { mkdir, rm, symlink, readFile } from 'node:fs/promises';
+import { parse as parseYaml } from 'yaml';
 import { getDefaultCliConfigPath, getProjectLocalStorage, readCliConfig } from '../lib/cli-config.js';
 import { resolveTargetMovieId } from '../lib/movie-id-utils.js';
 import { loadCurrentManifest } from '../lib/artifacts-view.js';
@@ -23,6 +24,34 @@ export interface ExportOptions {
   height?: number;
   fps?: number;
   exporter?: ExporterType;
+  inputsPath?: string;
+}
+
+/**
+ * Configuration file schema for export settings.
+ * Loaded from YAML file specified via --in/--inputs flag.
+ */
+export interface ExportConfigFile {
+  width?: number;
+  height?: number;
+  fps?: number;
+  exporter?: ExporterType;
+  // FFmpeg-specific settings
+  preset?: string;
+  crf?: number;
+  audioBitrate?: string;
+  // Subtitle settings (nested)
+  subtitles?: {
+    font?: string;
+    fontSize?: number;
+    fontBaseColor?: string;
+    fontHighlightColor?: string;
+    backgroundColor?: string;
+    backgroundOpacity?: number;
+    bottomMarginPercent?: number;
+    maxWordsPerLine?: number;
+    highlightEffect?: boolean;
+  };
 }
 
 export interface ExportResult {
@@ -35,68 +64,73 @@ export interface ExportResult {
   exporter: ExporterType;
 }
 
-interface KaraokeConfig {
+interface SubtitleConfig {
+  font?: string;
   fontSize?: number;
-  fontColor?: string;
-  highlightColor?: string;
-  boxColor?: string;
-  fontFile?: string;
+  fontBaseColor?: string;
+  fontHighlightColor?: string;
+  backgroundColor?: string;
+  backgroundOpacity?: number;
   bottomMarginPercent?: number;
   maxWordsPerLine?: number;
-  highlightAnimation?: 'none' | 'pop' | 'spring' | 'pulse';
-  animationScale?: number;
+  highlightEffect?: boolean;
 }
 
 /**
- * Extracts karaoke configuration from manifest inputs.
+ * Extracts subtitle configuration from manifest inputs.
  * The manifest stores VideoExporter config as flattened inputs like:
- * - Input:VideoExporter.karaoke.fontSize
- * - Input:VideoExporter.karaoke.fontColor
+ * - Input:VideoExporter.subtitles.font
+ * - Input:VideoExporter.subtitles.fontSize
  * etc.
  */
-function extractKaraokeConfig(
+function extractSubtitleConfig(
   manifest: { inputs: Record<string, { payloadDigest: string }> }
-): KaraokeConfig | undefined {
-  const prefix = 'Input:VideoExporter.karaoke.';
-  const karaokeInputs = Object.entries(manifest.inputs).filter(([key]) =>
+): SubtitleConfig | undefined {
+  const prefix = 'Input:VideoExporter.subtitles.';
+  const subtitleInputs = Object.entries(manifest.inputs).filter(([key]) =>
     key.startsWith(prefix)
   );
 
-  if (karaokeInputs.length === 0) {
+  if (subtitleInputs.length === 0) {
     return undefined;
   }
 
-  const config: KaraokeConfig = {};
+  const config: SubtitleConfig = {};
 
-  for (const [key, entry] of karaokeInputs) {
+  for (const [key, entry] of subtitleInputs) {
     const fieldName = key.slice(prefix.length);
     // payloadDigest is JSON-stringified, so we parse it to get the actual value
     const value = JSON.parse(entry.payloadDigest);
 
     switch (fieldName) {
+      case 'font':
+        if (typeof value === 'string') {
+          config.font = value;
+        }
+        break;
       case 'fontSize':
         if (typeof value === 'number') {
           config.fontSize = value;
         }
         break;
-      case 'fontColor':
+      case 'fontBaseColor':
         if (typeof value === 'string') {
-          config.fontColor = value;
+          config.fontBaseColor = value;
         }
         break;
-      case 'highlightColor':
+      case 'fontHighlightColor':
         if (typeof value === 'string') {
-          config.highlightColor = value;
+          config.fontHighlightColor = value;
         }
         break;
-      case 'boxColor':
+      case 'backgroundColor':
         if (typeof value === 'string') {
-          config.boxColor = value;
+          config.backgroundColor = value;
         }
         break;
-      case 'fontFile':
-        if (typeof value === 'string') {
-          config.fontFile = value;
+      case 'backgroundOpacity':
+        if (typeof value === 'number') {
+          config.backgroundOpacity = value;
         }
         break;
       case 'bottomMarginPercent':
@@ -109,25 +143,232 @@ function extractKaraokeConfig(
           config.maxWordsPerLine = value;
         }
         break;
-      case 'highlightAnimation':
-        if (
-          value === 'none' ||
-          value === 'pop' ||
-          value === 'spring' ||
-          value === 'pulse'
-        ) {
-          config.highlightAnimation = value;
-        }
-        break;
-      case 'animationScale':
-        if (typeof value === 'number') {
-          config.animationScale = value;
+      case 'highlightEffect':
+        if (typeof value === 'boolean') {
+          config.highlightEffect = value;
         }
         break;
     }
   }
 
   return Object.keys(config).length > 0 ? config : undefined;
+}
+
+/** Known keys in the export config file */
+const KNOWN_EXPORT_CONFIG_KEYS = new Set([
+  'width',
+  'height',
+  'fps',
+  'exporter',
+  'preset',
+  'crf',
+  'audioBitrate',
+  'subtitles',
+]);
+
+/** Known keys within the subtitles object */
+const KNOWN_SUBTITLE_KEYS = new Set([
+  'font',
+  'fontSize',
+  'fontBaseColor',
+  'fontHighlightColor',
+  'backgroundColor',
+  'backgroundOpacity',
+  'bottomMarginPercent',
+  'maxWordsPerLine',
+  'highlightEffect',
+]);
+
+/**
+ * Loads and validates export configuration from a YAML file.
+ * Warns on unknown keys but continues (forward-compatible).
+ */
+export async function loadExportConfig(
+  filePath: string,
+  logger?: { warn: (msg: string) => void },
+): Promise<ExportConfigFile> {
+  const extension = extname(filePath).toLowerCase();
+  if (extension !== '.yaml' && extension !== '.yml') {
+    throw new Error(`Export config file must be YAML (*.yaml or *.yml). Received: ${filePath}`);
+  }
+
+  const contents = await readFile(filePath, 'utf8');
+  const parsed = parseYaml(contents) as Record<string, unknown>;
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error(`Export config file must contain a YAML object. File: ${filePath}`);
+  }
+
+  // Check for unknown keys at top level
+  const unknownKeys: string[] = [];
+  for (const key of Object.keys(parsed)) {
+    if (!KNOWN_EXPORT_CONFIG_KEYS.has(key)) {
+      unknownKeys.push(key);
+    }
+  }
+
+  // Check for unknown keys in subtitles
+  if (parsed.subtitles && typeof parsed.subtitles === 'object') {
+    const subtitles = parsed.subtitles as Record<string, unknown>;
+    for (const key of Object.keys(subtitles)) {
+      if (!KNOWN_SUBTITLE_KEYS.has(key)) {
+        unknownKeys.push(`subtitles.${key}`);
+      }
+    }
+  }
+
+  if (unknownKeys.length > 0 && logger) {
+    logger.warn(`Unknown keys in export config (will be ignored): ${unknownKeys.join(', ')}`);
+  }
+
+  // Validate and extract known fields
+  const config: ExportConfigFile = {};
+
+  if (parsed.width !== undefined) {
+    if (typeof parsed.width !== 'number') {
+      throw new Error(`Export config: 'width' must be a number, got ${typeof parsed.width}`);
+    }
+    config.width = parsed.width;
+  }
+
+  if (parsed.height !== undefined) {
+    if (typeof parsed.height !== 'number') {
+      throw new Error(`Export config: 'height' must be a number, got ${typeof parsed.height}`);
+    }
+    config.height = parsed.height;
+  }
+
+  if (parsed.fps !== undefined) {
+    if (typeof parsed.fps !== 'number') {
+      throw new Error(`Export config: 'fps' must be a number, got ${typeof parsed.fps}`);
+    }
+    config.fps = parsed.fps;
+  }
+
+  if (parsed.exporter !== undefined) {
+    if (parsed.exporter !== 'remotion' && parsed.exporter !== 'ffmpeg') {
+      throw new Error(`Export config: 'exporter' must be "remotion" or "ffmpeg", got "${parsed.exporter}"`);
+    }
+    config.exporter = parsed.exporter;
+  }
+
+  if (parsed.preset !== undefined) {
+    if (typeof parsed.preset !== 'string') {
+      throw new Error(`Export config: 'preset' must be a string, got ${typeof parsed.preset}`);
+    }
+    config.preset = parsed.preset;
+  }
+
+  if (parsed.crf !== undefined) {
+    if (typeof parsed.crf !== 'number') {
+      throw new Error(`Export config: 'crf' must be a number, got ${typeof parsed.crf}`);
+    }
+    config.crf = parsed.crf;
+  }
+
+  if (parsed.audioBitrate !== undefined) {
+    if (typeof parsed.audioBitrate !== 'string') {
+      throw new Error(`Export config: 'audioBitrate' must be a string, got ${typeof parsed.audioBitrate}`);
+    }
+    config.audioBitrate = parsed.audioBitrate;
+  }
+
+  if (parsed.subtitles !== undefined) {
+    if (typeof parsed.subtitles !== 'object' || parsed.subtitles === null) {
+      throw new Error(`Export config: 'subtitles' must be an object, got ${typeof parsed.subtitles}`);
+    }
+    config.subtitles = validateSubtitleConfig(parsed.subtitles as Record<string, unknown>);
+  }
+
+  return config;
+}
+
+function validateSubtitleConfig(raw: Record<string, unknown>): SubtitleConfig {
+  const config: SubtitleConfig = {};
+
+  if (raw.font !== undefined) {
+    if (typeof raw.font !== 'string') {
+      throw new Error(`Export config: 'subtitles.font' must be a string, got ${typeof raw.font}`);
+    }
+    config.font = raw.font;
+  }
+
+  if (raw.fontSize !== undefined) {
+    if (typeof raw.fontSize !== 'number') {
+      throw new Error(`Export config: 'subtitles.fontSize' must be a number, got ${typeof raw.fontSize}`);
+    }
+    config.fontSize = raw.fontSize;
+  }
+
+  if (raw.fontBaseColor !== undefined) {
+    if (typeof raw.fontBaseColor !== 'string') {
+      throw new Error(`Export config: 'subtitles.fontBaseColor' must be a string, got ${typeof raw.fontBaseColor}`);
+    }
+    config.fontBaseColor = raw.fontBaseColor;
+  }
+
+  if (raw.fontHighlightColor !== undefined) {
+    if (typeof raw.fontHighlightColor !== 'string') {
+      throw new Error(`Export config: 'subtitles.fontHighlightColor' must be a string, got ${typeof raw.fontHighlightColor}`);
+    }
+    config.fontHighlightColor = raw.fontHighlightColor;
+  }
+
+  if (raw.backgroundColor !== undefined) {
+    if (typeof raw.backgroundColor !== 'string') {
+      throw new Error(`Export config: 'subtitles.backgroundColor' must be a string, got ${typeof raw.backgroundColor}`);
+    }
+    config.backgroundColor = raw.backgroundColor;
+  }
+
+  if (raw.backgroundOpacity !== undefined) {
+    if (typeof raw.backgroundOpacity !== 'number') {
+      throw new Error(`Export config: 'subtitles.backgroundOpacity' must be a number, got ${typeof raw.backgroundOpacity}`);
+    }
+    config.backgroundOpacity = raw.backgroundOpacity;
+  }
+
+  if (raw.bottomMarginPercent !== undefined) {
+    if (typeof raw.bottomMarginPercent !== 'number') {
+      throw new Error(`Export config: 'subtitles.bottomMarginPercent' must be a number, got ${typeof raw.bottomMarginPercent}`);
+    }
+    config.bottomMarginPercent = raw.bottomMarginPercent;
+  }
+
+  if (raw.maxWordsPerLine !== undefined) {
+    if (typeof raw.maxWordsPerLine !== 'number') {
+      throw new Error(`Export config: 'subtitles.maxWordsPerLine' must be a number, got ${typeof raw.maxWordsPerLine}`);
+    }
+    config.maxWordsPerLine = raw.maxWordsPerLine;
+  }
+
+  if (raw.highlightEffect !== undefined) {
+    if (typeof raw.highlightEffect !== 'boolean') {
+      throw new Error(`Export config: 'subtitles.highlightEffect' must be a boolean, got ${typeof raw.highlightEffect}`);
+    }
+    config.highlightEffect = raw.highlightEffect;
+  }
+
+  return config;
+}
+
+/**
+ * Merges subtitle configs with config file taking priority over manifest.
+ * Returns undefined if both are undefined.
+ */
+function mergeSubtitleConfigs(
+  manifestConfig: SubtitleConfig | undefined,
+  fileConfig: SubtitleConfig | undefined,
+): SubtitleConfig | undefined {
+  if (!manifestConfig && !fileConfig) {
+    return undefined;
+  }
+
+  // Config file values take priority over manifest values
+  return {
+    ...manifestConfig,
+    ...fileConfig,
+  };
 }
 
 export async function runExport(options: ExportOptions): Promise<ExportResult> {
@@ -161,11 +402,17 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
   const { manifest } = await loadCurrentManifest(effectiveConfig, storageMovieId);
   validateTimelineArtifactExists(manifest);
 
-  // Determine output path and quality settings
-  const width = options.width ?? DEFAULT_WIDTH;
-  const height = options.height ?? DEFAULT_HEIGHT;
-  const fps = options.fps ?? DEFAULT_FPS;
-  const exporter: ExporterType = options.exporter ?? 'remotion';
+  // Load export config from file if provided
+  const fileConfig = options.inputsPath
+    ? await loadExportConfig(options.inputsPath, globalThis.console)
+    : undefined;
+
+  // Determine output settings with priority: CLI flags > config file > manifest > defaults
+  // CLI flags take highest priority (explicit user override)
+  const width = options.width ?? fileConfig?.width ?? DEFAULT_WIDTH;
+  const height = options.height ?? fileConfig?.height ?? DEFAULT_HEIGHT;
+  const fps = options.fps ?? fileConfig?.fps ?? DEFAULT_FPS;
+  const exporter: ExporterType = options.exporter ?? fileConfig?.exporter ?? 'remotion';
   const outputPath = resolve(
     projectStorage.root,
     projectStorage.basePath,
@@ -193,16 +440,32 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
   // Get the timeline artifact entry for the job context
   const timelineEntry = manifest.artefacts[TIMELINE_ARTEFACT_ID];
 
-  // Get the transcription artifact entry if it exists (optional, for karaoke subtitles)
+  // Get the transcription artifact entry if it exists (optional, for subtitles)
   const transcriptionEntry = manifest.artefacts[TRANSCRIPTION_ARTEFACT_ID];
 
-  // Extract karaoke configuration from manifest inputs (if present in blueprint)
-  const karaokeConfig = extractKaraokeConfig(manifest);
+  // Extract subtitle configuration from manifest inputs (if present in blueprint)
+  const manifestSubtitleConfig = extractSubtitleConfig(manifest);
 
-  // Build provider config with optional karaoke settings
+  // Merge subtitle configs: config file > manifest (for each field)
+  const subtitleConfig = mergeSubtitleConfigs(manifestSubtitleConfig, fileConfig?.subtitles);
+
+  // Build provider config with all settings
   const providerConfig: Record<string, unknown> = { width, height, fps };
-  if (karaokeConfig) {
-    providerConfig.karaoke = karaokeConfig;
+
+  // Add FFmpeg-specific settings from config file
+  if (fileConfig?.preset !== undefined) {
+    providerConfig.preset = fileConfig.preset;
+  }
+  if (fileConfig?.crf !== undefined) {
+    providerConfig.crf = fileConfig.crf;
+  }
+  if (fileConfig?.audioBitrate !== undefined) {
+    providerConfig.audioBitrate = fileConfig.audioBitrate;
+  }
+
+  // Add merged subtitle config
+  if (subtitleConfig) {
+    providerConfig.subtitles = subtitleConfig;
   }
 
   // Build resolved inputs with timeline and optional transcription
@@ -213,7 +476,7 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
     [TIMELINE_ARTEFACT_ID]: timelineEntry,
   };
 
-  // Add transcription artifact if it exists (enables karaoke subtitles)
+  // Add transcription artifact if it exists (enables subtitles)
   if (transcriptionEntry) {
     resolvedInputs[TRANSCRIPTION_ARTEFACT_ID] = transcriptionEntry;
   }

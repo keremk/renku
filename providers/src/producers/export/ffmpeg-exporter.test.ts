@@ -5,7 +5,7 @@ import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-const { parseFfmpegExporterConfig, mimeToExtension, collectAssetIds, detectOutputFormat } = __test__;
+const { parseFfmpegExporterConfig, parseSubtitleConfig, mimeToExtension, collectAssetIds, detectOutputFormat } = __test__;
 
 // Mock child_process for testing
 vi.mock('node:child_process', () => ({
@@ -73,6 +73,96 @@ describe('ffmpeg-exporter', () => {
       expect(config.width).toBeUndefined();
       expect(config.fps).toBeUndefined();
       expect(config.preset).toBeUndefined();
+    });
+
+    it('should parse subtitles config', () => {
+      const config = parseFfmpegExporterConfig({
+        subtitles: {
+          font: 'Helvetica',
+          fontSize: 64,
+          fontBaseColor: '#FFFFFF',
+          fontHighlightColor: '#FFD700',
+          backgroundColor: '#000000',
+          backgroundOpacity: 0.5,
+          bottomMarginPercent: 15,
+          maxWordsPerLine: 6,
+          highlightEffect: false,
+        },
+      });
+
+      expect(config.subtitles).toBeDefined();
+      expect(config.subtitles?.font).toBe('Helvetica');
+      expect(config.subtitles?.fontSize).toBe(64);
+      expect(config.subtitles?.fontBaseColor).toBe('#FFFFFF');
+      expect(config.subtitles?.fontHighlightColor).toBe('#FFD700');
+      expect(config.subtitles?.backgroundColor).toBe('#000000');
+      expect(config.subtitles?.backgroundOpacity).toBe(0.5);
+      expect(config.subtitles?.bottomMarginPercent).toBe(15);
+      expect(config.subtitles?.maxWordsPerLine).toBe(6);
+      expect(config.subtitles?.highlightEffect).toBe(false);
+    });
+  });
+
+  describe('parseSubtitleConfig', () => {
+    it('should return undefined for null input', () => {
+      expect(parseSubtitleConfig(null)).toBeUndefined();
+    });
+
+    it('should return undefined for undefined input', () => {
+      expect(parseSubtitleConfig(undefined)).toBeUndefined();
+    });
+
+    it('should return undefined for non-object input', () => {
+      expect(parseSubtitleConfig('string')).toBeUndefined();
+      expect(parseSubtitleConfig(123)).toBeUndefined();
+    });
+
+    it('should parse all subtitle config fields', () => {
+      const config = parseSubtitleConfig({
+        font: 'Arial',
+        fontSize: 48,
+        fontBaseColor: '#FFFFFF',
+        fontHighlightColor: '#FFD700',
+        backgroundColor: '#000000',
+        backgroundOpacity: 0.5,
+        bottomMarginPercent: 10,
+        maxWordsPerLine: 4,
+        highlightEffect: true,
+      });
+
+      expect(config?.font).toBe('Arial');
+      expect(config?.fontSize).toBe(48);
+      expect(config?.fontBaseColor).toBe('#FFFFFF');
+      expect(config?.fontHighlightColor).toBe('#FFD700');
+      expect(config?.backgroundColor).toBe('#000000');
+      expect(config?.backgroundOpacity).toBe(0.5);
+      expect(config?.bottomMarginPercent).toBe(10);
+      expect(config?.maxWordsPerLine).toBe(4);
+      expect(config?.highlightEffect).toBe(true);
+    });
+
+    it('should handle partial config', () => {
+      const config = parseSubtitleConfig({
+        fontSize: 64,
+        highlightEffect: false,
+      });
+
+      expect(config?.fontSize).toBe(64);
+      expect(config?.highlightEffect).toBe(false);
+      expect(config?.font).toBeUndefined();
+      expect(config?.fontBaseColor).toBeUndefined();
+    });
+
+    it('should ignore invalid field types', () => {
+      const config = parseSubtitleConfig({
+        font: 123, // should be string
+        fontSize: 'large', // should be number
+        highlightEffect: 'yes', // should be boolean
+      });
+
+      expect(config?.font).toBeUndefined();
+      expect(config?.fontSize).toBeUndefined();
+      expect(config?.highlightEffect).toBeUndefined();
     });
   });
 

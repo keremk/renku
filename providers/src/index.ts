@@ -44,5 +44,5 @@ export {
 // FFmpeg exporter config types
 export type {
   FfmpegExporterConfig,
-  KaraokeSubtitleConfig,
+  SubtitleConfig,
 } from './producers/export/ffmpeg/types.js';

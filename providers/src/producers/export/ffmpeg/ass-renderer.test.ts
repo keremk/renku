@@ -10,7 +10,12 @@ import {
 } from './ass-renderer.js';
 import type { TranscriptionArtifact } from '../../transcription/types.js';
 
-const { buildKaraokeDialogueLine, buildKaraokeDialogueLines } = __test__;
+const {
+  buildKaraokeDialogueLine,
+  buildKaraokeDialogueLines,
+  buildSimpleDialogueLine,
+  buildSimpleDialogueLines,
+} = __test__;
 
 describe('ass-renderer', () => {
   describe('hexToAssColor', () => {
@@ -317,6 +322,98 @@ describe('ass-renderer', () => {
     });
   });
 
+  describe('buildSimpleDialogueLine', () => {
+    const group = {
+      words: [
+        { text: 'Hello', startTime: 0, endTime: 0.5, clipId: 'clip-1' },
+        { text: 'world', startTime: 0.5, endTime: 1, clipId: 'clip-1' },
+      ],
+      startTime: 0,
+      endTime: 1,
+    };
+
+    it('generates dialogue line with Layer 0', () => {
+      const result = buildSimpleDialogueLine(group, 'Default');
+      expect(result).toMatch(/^Dialogue: 0,/);
+    });
+
+    it('uses group timing for start/end', () => {
+      const result = buildSimpleDialogueLine(group, 'Default');
+      expect(result).toContain('0:00:00.00,0:00:01.00');
+    });
+
+    it('does NOT include \\k tags (simple mode)', () => {
+      const result = buildSimpleDialogueLine(group, 'Default');
+      expect(result).not.toContain('{\\k');
+    });
+
+    it('includes all words joined by space', () => {
+      const result = buildSimpleDialogueLine(group, 'Default');
+      expect(result).toContain('Hello world');
+    });
+
+    it('uses specified style', () => {
+      const result = buildSimpleDialogueLine(group, 'MyStyle');
+      expect(result).toContain(',MyStyle,');
+    });
+
+    it('escapes special characters in words', () => {
+      const groupWithSpecial = {
+        words: [
+          { text: 'Hello{world}', startTime: 0, endTime: 0.5, clipId: 'clip-1' },
+        ],
+        startTime: 0,
+        endTime: 0.5,
+      };
+      const result = buildSimpleDialogueLine(groupWithSpecial, 'Default');
+      expect(result).toContain('Hello\\{world\\}');
+    });
+  });
+
+  describe('buildSimpleDialogueLines', () => {
+    const groups = [
+      {
+        words: [
+          { text: 'Hello', startTime: 0, endTime: 0.5, clipId: 'clip-1' },
+          { text: 'world', startTime: 0.5, endTime: 1, clipId: 'clip-1' },
+        ],
+        startTime: 0,
+        endTime: 1,
+      },
+      {
+        words: [
+          { text: 'Good', startTime: 1.5, endTime: 2, clipId: 'clip-1' },
+          { text: 'day', startTime: 2, endTime: 2.5, clipId: 'clip-1' },
+        ],
+        startTime: 1.5,
+        endTime: 2.5,
+      },
+    ];
+
+    it('generates one dialogue line per group', () => {
+      const lines = buildSimpleDialogueLines(groups, 'Default');
+      expect(lines.length).toBe(2);
+    });
+
+    it('lines do NOT have \\k tags (simple mode)', () => {
+      const lines = buildSimpleDialogueLines(groups, 'Default');
+      expect(lines[0]).not.toContain('{\\k');
+      expect(lines[1]).not.toContain('{\\k');
+    });
+
+    it('each line has words joined by space', () => {
+      const lines = buildSimpleDialogueLines(groups, 'Default');
+      expect(lines[0]).toContain('Hello world');
+      expect(lines[1]).toContain('Good day');
+    });
+
+    it('each line has correct group timing', () => {
+      const lines = buildSimpleDialogueLines(groups, 'Default');
+      expect(lines[0]).toContain('0:00:00.00,0:00:01.00');
+      expect(lines[1]).toContain('0:00:01.50,0:00:02.50');
+    });
+  });
+
   describe('buildAssSubtitles', () => {
     const transcription: TranscriptionArtifact = {
       text: 'Hello world',
@@ -375,17 +472,17 @@ describe('ass-renderer', () => {
       expect(result).toContain('{\\k');
     });
 
-    it('uses BorderStyle 1 (no box) by default', () => {
+    it('uses BorderStyle 1 (no box) by default when backgroundOpacity is 0', () => {
       const result = buildAssSubtitles(transcription, options);
       // BorderStyle is field 16 in the style definition
       // Format: ...0,0,<BorderStyle>,<Outline>,<Shadow>,...
       expect(result).toMatch(/Style: Default,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,0,0,0,0,100,100,0,0,1,/);
     });
 
-    it('uses BorderStyle 3 (box) when boxBackground is true', () => {
+    it('uses BorderStyle 3 (box) when backgroundOpacity is greater than 0', () => {
       const result = buildAssSubtitles(transcription, {
         ...options,
-        boxBackground: true,
+        backgroundOpacity: 0.5,
       });
       expect(result).toMatch(/Style: Default,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,0,0,0,0,100,100,0,0,3,/);
     });
@@ -395,19 +492,34 @@ describe('ass-renderer', () => {
       expect(result).toContain(',64,'); // Font size in style
     });
 
-    it('uses highlight as Primary and default as Secondary in style', () => {
+    it('uses highlight as Primary and base as Secondary in style when highlightEffect is true', () => {
       const result = buildAssSubtitles(transcription, {
         ...options,
-        fontColor: '#FFFFFF',
-        highlightColor: '#FFD700',
+        fontBaseColor: '#FFFFFF',
+        fontHighlightColor: '#FFD700',
+        highlightEffect: true,
       });
-      // In karaoke mode:
+      // In karaoke mode (highlightEffect: true):
       // - PrimaryColour = highlight (gold) - shown AFTER word timing
-      // - SecondaryColour = default (white) - shown BEFORE word timing
+      // - SecondaryColour = base (white) - shown BEFORE word timing
       // Style format: Name,Font,Size,Primary,Secondary,...
       // Gold (#FFD700) in BGR with alpha = &H0000D7FF
       // White (#FFFFFF) in BGR with alpha = &H00FFFFFF
       expect(result).toMatch(/Style: Default,[^,]+,[^,]+,&H0000D7FF,&H00FFFFFF,/);
+    });
+
+    it('uses base color for both Primary and Secondary when highlightEffect is false', () => {
+      const result = buildAssSubtitles(transcription, {
+        ...options,
+        fontBaseColor: '#FFFFFF',
+        fontHighlightColor: '#FFD700', // Should be ignored
+        highlightEffect: false,
+      });
+      // In simple mode (highlightEffect: false):
+      // - PrimaryColour = base (white)
+      // - SecondaryColour = base (white)
+      // Both should be white (#FFFFFF in BGR = &H00FFFFFF)
+      expect(result).toMatch(/Style: Default,[^,]+,[^,]+,&H00FFFFFF,&H00FFFFFF,/);
     });
 
     it('calculates bottom margin from percent', () => {
@@ -496,6 +608,58 @@ describe('ass-renderer', () => {
       // Each word is 0.5s = 50 centiseconds
       expect(dialogueLines[0]).toContain('{\\k50}Hello');
       expect(dialogueLines[0]).toContain('{\\k50}world');
+    });
+
+    it('generates simple subtitles without \\k tags when highlightEffect is false', () => {
+      const result = buildAssSubtitles(transcription, {
+        ...options,
+        highlightEffect: false,
+      });
+
+      const lines = result.split('\n');
+      const dialogueLines = lines.filter((line) => line.startsWith('Dialogue:'));
+
+      // Should have dialogue lines
+      expect(dialogueLines.length).toBeGreaterThan(0);
+
+      // Should NOT have karaoke timing tags
+      expect(dialogueLines[0]).not.toContain('{\\k');
+
+      // Should have words as plain text
+      expect(dialogueLines[0]).toContain('Hello world');
+    });
+
+    it('respects custom font name', () => {
+      const result = buildAssSubtitles(transcription, {
+        ...options,
+        font: 'Helvetica',
+      });
+      // Style format: Name,Fontname,Fontsize,...
+      expect(result).toContain('Style: Default,Helvetica,');
+    });
+
+    it('uses default maxWordsPerLine of 4', () => {
+      const longTranscription: TranscriptionArtifact = {
+        text: 'one two three four five',
+        words: [
+          { text: 'one', startTime: 0, endTime: 0.5, clipId: 'clip-1' },
+          { text: 'two', startTime: 0.5, endTime: 1, clipId: 'clip-1' },
+          { text: 'three', startTime: 1, endTime: 1.5, clipId: 'clip-1' },
+          { text: 'four', startTime: 1.5, endTime: 2, clipId: 'clip-1' },
+          { text: 'five', startTime: 2, endTime: 2.5, clipId: 'clip-1' },
+        ],
+        segments: [],
+        language: 'eng',
+        totalDuration: 2.5,
+      };
+
+      // With default maxWordsPerLine of 4, 5 words should create 2 groups
+      const result = buildAssSubtitles(longTranscription, options);
+      const lines = result.split('\n');
+      const dialogueLines = lines.filter((line) => line.startsWith('Dialogue:'));
+
+      // 5 words with max 4 per line = 2 groups
+      expect(dialogueLines.length).toBe(2);
     });
   });
 });

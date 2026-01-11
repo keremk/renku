@@ -519,6 +519,7 @@ async function main(): Promise<void> {
     }
     case 'export': {
       const movieIdFlag = flags.movieId ?? flags.id;
+      const inputsFlag = flags.inputs ?? flags.in;
 
       if (!flags.last && !movieIdFlag) {
         logger.error('Error: --movie-id/--id or --last is required for export.');
@@ -549,6 +550,7 @@ async function main(): Promise<void> {
           height: flags.height,
           fps: flags.fps,
           exporter: exporterType,
+          inputsPath: inputsFlag,
         });
         logger.info('Export completed successfully.');
         logger.info(`  Movie: ${result.movieId}`);

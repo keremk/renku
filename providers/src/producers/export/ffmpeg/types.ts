@@ -20,31 +20,33 @@ export interface FfmpegExporterConfig {
   audioBitrate?: string;
   /** Custom FFmpeg binary path (default: "ffmpeg" from PATH) */
   ffmpegPath?: string;
-  /** Karaoke subtitle options */
-  karaoke?: KaraokeSubtitleConfig;
+  /** Subtitle options */
+  subtitles?: SubtitleConfig;
 }
 
 /**
- * Configuration for karaoke-style subtitles.
- * Uses ASS format with word-by-word highlighting.
+ * Configuration for subtitles with optional karaoke-style word highlighting.
+ * Uses ASS format.
  */
-export interface KaraokeSubtitleConfig {
+export interface SubtitleConfig {
+  /** Font name - uses system fonts (default: Arial) */
+  font?: string;
   /** Font size in pixels (default: 48) */
   fontSize?: number;
   /** Default text color in hex format, e.g., "#FFFFFF" (default: white) */
-  fontColor?: string;
+  fontBaseColor?: string;
   /** Highlight color for the currently spoken word (default: #FFD700 - gold) */
-  highlightColor?: string;
-  /** Position from bottom as percentage of height (default: 10) */
-  bottomMarginPercent?: number;
-  /** Maximum words to display at once per line (default: 8) */
-  maxWordsPerLine?: number;
-  /** Use background box instead of outline only (default: false) */
-  boxBackground?: boolean;
+  fontHighlightColor?: string;
   /** Background box color in hex format (default: #000000) */
   backgroundColor?: string;
-  /** Background box opacity 0-1 (default: 0.5) */
+  /** Background box opacity 0-1, 0 = no box (default: 0) */
   backgroundOpacity?: number;
+  /** Position from bottom as percentage of height (default: 10) */
+  bottomMarginPercent?: number;
+  /** Maximum words to display at once per line (default: 4) */
+  maxWordsPerLine?: number;
+  /** Enable karaoke-style word highlighting (default: true) */
+  highlightEffect?: boolean;
 }
 
 /**
@@ -88,8 +90,8 @@ export interface FfmpegBuildOptions {
   outputPath: string;
   /** FFmpeg binary path */
   ffmpegPath: string;
-  /** Karaoke subtitle options */
-  karaoke?: KaraokeSubtitleConfig;
+  /** Subtitle options */
+  subtitles?: SubtitleConfig;
 }
 
 /**

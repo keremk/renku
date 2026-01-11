@@ -109,29 +109,30 @@ export function createFfmpegExporterHandler(): HandlerFactory {
       const moviePath = storage.resolve(movieId, '');
       const assetPaths = await buildAssetPaths(storage, movieId, timeline);
 
-      // Try to load transcription for karaoke subtitles (optional)
+      // Try to load transcription for subtitles (optional)
       const transcription = await loadTranscription(storage, movieId);
 
       // Determine output path
       const outputName = detectOutputFormat(timeline) === 'video' ? 'FinalVideo.mp4' : 'FinalAudio.mp3';
       const outputPath = path.join(moviePath, outputName);
 
-      // Generate ASS file for karaoke subtitles if transcription is available
+      // Generate ASS file for subtitles if transcription is available
       let assFilePath: string | undefined;
       if (transcription && transcription.words.length > 0) {
-        notify('progress', 'Generating karaoke subtitles...');
-        assFilePath = path.join(moviePath, 'karaoke.ass');
+        notify('progress', 'Generating subtitles...');
+        assFilePath = path.join(moviePath, 'subtitles.ass');
         await generateAssFile(transcription, {
           width: config.width ?? FFMPEG_DEFAULTS.width,
           height: config.height ?? FFMPEG_DEFAULTS.height,
-          fontSize: config.karaoke?.fontSize,
-          fontColor: config.karaoke?.fontColor,
-          highlightColor: config.karaoke?.highlightColor,
-          bottomMarginPercent: config.karaoke?.bottomMarginPercent,
-          maxWordsPerLine: config.karaoke?.maxWordsPerLine,
-          boxBackground: config.karaoke?.boxBackground,
-          backgroundColor: config.karaoke?.backgroundColor,
-          backgroundOpacity: config.karaoke?.backgroundOpacity,
+          font: config.subtitles?.font,
+          fontSize: config.subtitles?.fontSize,
+          fontBaseColor: config.subtitles?.fontBaseColor,
+          fontHighlightColor: config.subtitles?.fontHighlightColor,
+          backgroundColor: config.subtitles?.backgroundColor,
+          backgroundOpacity: config.subtitles?.backgroundOpacity,
+          bottomMarginPercent: config.subtitles?.bottomMarginPercent,
+          maxWordsPerLine: config.subtitles?.maxWordsPerLine,
+          highlightEffect: config.subtitles?.highlightEffect,
         }, path.resolve(storageRoot, assFilePath));
       }
 
@@ -146,7 +147,7 @@ export function createFfmpegExporterHandler(): HandlerFactory {
         audioBitrate: config.audioBitrate ?? FFMPEG_DEFAULTS.audioBitrate,
         outputPath: path.resolve(storageRoot, outputPath),
         ffmpegPath: config.ffmpegPath ?? FFMPEG_DEFAULTS.ffmpegPath,
-        karaoke: config.karaoke,
+        subtitles: config.subtitles,
       }, transcription, assFilePath ? path.resolve(storageRoot, assFilePath) : undefined);
 
       // Ensure output directory exists
@@ -194,24 +195,25 @@ function parseFfmpegExporterConfig(raw: unknown): FfmpegExporterConfig {
     crf: typeof config.crf === 'number' ? config.crf : undefined,
     audioBitrate: typeof config.audioBitrate === 'string' ? config.audioBitrate : undefined,
     ffmpegPath: typeof config.ffmpegPath === 'string' ? config.ffmpegPath : undefined,
-    karaoke: parseKaraokeConfig(config.karaoke),
+    subtitles: parseSubtitleConfig(config.subtitles),
   };
 }
 
-function parseKaraokeConfig(raw: unknown): FfmpegExporterConfig['karaoke'] {
+function parseSubtitleConfig(raw: unknown): FfmpegExporterConfig['subtitles'] {
   if (typeof raw !== 'object' || raw === null) {
     return undefined;
   }
   const config = raw as Record<string, unknown>;
   return {
+    font: typeof config.font === 'string' ? config.font : undefined,
     fontSize: typeof config.fontSize === 'number' ? config.fontSize : undefined,
-    fontColor: typeof config.fontColor === 'string' ? config.fontColor : undefined,
-    highlightColor: typeof config.highlightColor === 'string' ? config.highlightColor : undefined,
-    bottomMarginPercent: typeof config.bottomMarginPercent === 'number' ? config.bottomMarginPercent : undefined,
-    maxWordsPerLine: typeof config.maxWordsPerLine === 'number' ? config.maxWordsPerLine : undefined,
-    boxBackground: typeof config.boxBackground === 'boolean' ? config.boxBackground : undefined,
+    fontBaseColor: typeof config.fontBaseColor === 'string' ? config.fontBaseColor : undefined,
+    fontHighlightColor: typeof config.fontHighlightColor === 'string' ? config.fontHighlightColor : undefined,
     backgroundColor: typeof config.backgroundColor === 'string' ? config.backgroundColor : undefined,
     backgroundOpacity: typeof config.backgroundOpacity === 'number' ? config.backgroundOpacity : undefined,
+    bottomMarginPercent: typeof config.bottomMarginPercent === 'number' ? config.bottomMarginPercent : undefined,
+    maxWordsPerLine: typeof config.maxWordsPerLine === 'number' ? config.maxWordsPerLine : undefined,
+    highlightEffect: typeof config.highlightEffect === 'boolean' ? config.highlightEffect : undefined,
   };
 }
 
@@ -486,7 +488,7 @@ async function runFfmpeg(ffmpegPath: string, args: string[]): Promise<void> {
 
 export const __test__ = {
   parseFfmpegExporterConfig,
-  parseKaraokeConfig,
+  parseSubtitleConfig,
   resolveMovieId,
   resolveStoragePaths,
   mimeToExtension,
