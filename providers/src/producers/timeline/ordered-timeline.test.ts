@@ -265,7 +265,7 @@ describe('TimelineProducer', () => {
     expect(musicTrack?.clips[0]?.startTime).toBe(0);
   });
 
-  it('emits video clips with original durations and auto fit strategies', async () => {
+  it('emits video clips with original durations and always uses stretch strategy', async () => {
     const handler = createHandler();
     const request = makeRequest();
     const resolvedInputs = request.context.extras?.resolvedInputs as Record<string, unknown>;
@@ -297,7 +297,8 @@ describe('TimelineProducer', () => {
     expect(videoTrack).toBeDefined();
     expect(videoTrack?.clips).toHaveLength(2);
     expect(videoTrack?.clips[0]?.properties.originalDuration).toBeCloseTo(9);
-    expect(videoTrack?.clips[0]?.properties.fitStrategy).toBe('freeze-fade');
+    // Always uses stretch strategy regardless of duration difference
+    expect(videoTrack?.clips[0]?.properties.fitStrategy).toBe('stretch');
     expect(videoTrack?.clips[1]?.properties.originalDuration).toBeCloseTo(8);
     expect(videoTrack?.clips[1]?.properties.fitStrategy).toBe('stretch');
   });

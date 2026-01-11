@@ -102,10 +102,12 @@ function buildSingleAudioFilter(
     filters.push(`afade=t=out:st=${fadeOutStart}:d=${track.fadeOutDuration}`);
   }
 
-  // Trim to exact duration (after all effects)
-  if (!track.loop) {
-    filters.push(`atrim=0:${track.duration}`);
-  }
+  // NOTE: We intentionally do NOT apply atrim for non-looped audio tracks.
+  // For looped music, atrim is applied BEFORE adelay (see above).
+  // For non-looped audio (e.g., narration), the audio file duration matches
+  // the segment duration since audio is the master track. Applying atrim
+  // AFTER adelay would incorrectly trim the delayed stream, cutting off
+  // most of the actual audio content.
 
   // Reset timestamps
   filters.push('asetpts=PTS-STARTPTS');

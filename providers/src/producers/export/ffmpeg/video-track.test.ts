@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildVideoFilterChain,
-  buildFreezeFadeFilterChain,
   buildVideoFilter,
   buildVideoInputArgs,
   calculateSpeedFactor,
@@ -82,72 +81,8 @@ describe('video-track', () => {
     });
   });
 
-  describe('buildFreezeFadeFilterChain', () => {
-    it('should build freeze-fade filter when video is shorter', () => {
-      const clip: VideoClipInfo = {
-        inputIndex: 0,
-        startTime: 0,
-        targetDuration: 10,
-        originalDuration: 6, // Video is 6s, needs 4s of freeze
-        fitStrategy: 'freeze-fade',
-      };
-
-      const result = buildFreezeFadeFilterChain(clip, defaultOptions, 'vid0');
-
-      expect(result).toContain('trim=0:6');
-      expect(result).toContain('tpad=stop_mode=clone:stop_duration=4');
-      expect(result).toContain('fade=t=out');
-    });
-
-    it('should apply fade at the end of freeze period', () => {
-      const clip: VideoClipInfo = {
-        inputIndex: 0,
-        startTime: 0,
-        targetDuration: 10,
-        originalDuration: 6, // 4s freeze, 1s fade
-        fitStrategy: 'freeze-fade',
-      };
-
-      const result = buildFreezeFadeFilterChain(clip, defaultOptions, 'vid0');
-
-      // Fade starts at 10 - 1 = 9
-      expect(result).toContain('fade=t=out:st=9:d=1');
-    });
-
-    it('should use half of freeze duration for fade if freeze is short', () => {
-      const clip: VideoClipInfo = {
-        inputIndex: 0,
-        startTime: 0,
-        targetDuration: 10,
-        originalDuration: 9, // Only 1s freeze, so 0.5s fade
-        fitStrategy: 'freeze-fade',
-      };
-
-      const result = buildFreezeFadeFilterChain(clip, defaultOptions, 'vid0');
-
-      expect(result).toContain('tpad=stop_mode=clone:stop_duration=1');
-      expect(result).toContain('d=0.5');
-    });
-
-    it('should fall back to stretch filter if no freeze needed', () => {
-      const clip: VideoClipInfo = {
-        inputIndex: 0,
-        startTime: 0,
-        targetDuration: 10,
-        originalDuration: 12, // Video is longer than target
-        fitStrategy: 'freeze-fade',
-      };
-
-      const result = buildFreezeFadeFilterChain(clip, defaultOptions, 'vid0');
-
-      // Should not have freeze/fade filters
-      expect(result).not.toContain('tpad');
-      expect(result).not.toContain('fade');
-    });
-  });
-
   describe('buildVideoFilter', () => {
-    it('should use stretch filter for stretch strategy', () => {
+    it('should always use stretch filter', () => {
       const clip: VideoClipInfo = {
         inputIndex: 0,
         startTime: 0,
@@ -162,19 +97,22 @@ describe('video-track', () => {
       expect(result).not.toContain('tpad');
     });
 
-    it('should use freeze-fade filter for freeze-fade strategy', () => {
+    it('should stretch video regardless of duration difference', () => {
+      // Even with large duration difference, stretch is always used
       const clip: VideoClipInfo = {
         inputIndex: 0,
         startTime: 0,
-        targetDuration: 10,
-        originalDuration: 6,
-        fitStrategy: 'freeze-fade',
+        targetDuration: 20,
+        originalDuration: 10, // 50% difference
+        fitStrategy: 'stretch',
       };
 
       const result = buildVideoFilter(clip, defaultOptions, 'vid0');
 
-      expect(result).toContain('tpad');
-      expect(result).toContain('fade');
+      // Speed factor = 10/20 = 0.5, so setpts=PTS/0.5
+      expect(result).toContain('setpts=PTS/0.5');
+      expect(result).not.toContain('tpad');
+      expect(result).not.toContain('fade');
     });
   });
 
@@ -208,29 +146,20 @@ describe('video-track', () => {
   });
 
   describe('determineFitStrategy', () => {
-    it('should use stretch for small differences', () => {
-      // 10s video to 11s target = 10% difference
+    it('should always return stretch regardless of duration difference', () => {
+      // Small difference
       expect(determineFitStrategy(10, 11)).toBe('stretch');
-    });
-
-    it('should use stretch at exactly 20% difference', () => {
-      // 10s video to 12.5s target = 20% difference (ratio = 0.8)
+      // Medium difference
       expect(determineFitStrategy(10, 12.5)).toBe('stretch');
+      // Large difference (50%)
+      expect(determineFitStrategy(10, 20)).toBe('stretch');
+      // Very large difference
+      expect(determineFitStrategy(5, 15)).toBe('stretch');
     });
 
-    it('should use freeze-fade for large differences', () => {
-      // 10s video to 20s target = 50% difference
-      expect(determineFitStrategy(10, 20)).toBe('freeze-fade');
-    });
-
-    it('should use stretch for invalid durations', () => {
+    it('should return stretch for invalid durations', () => {
       expect(determineFitStrategy(0, 10)).toBe('stretch');
       expect(determineFitStrategy(10, 0)).toBe('stretch');
-    });
-
-    it('should use freeze-fade when video is much shorter', () => {
-      // 5s video to 15s target = very large difference
-      expect(determineFitStrategy(5, 15)).toBe('freeze-fade');
     });
   });
 

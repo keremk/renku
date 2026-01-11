@@ -1163,15 +1163,13 @@ function parseInputReference(reference: string): string {
   return base.trim();
 }
 
-function resolveVideoFitStrategy(fitStrategy: string | undefined, segmentDuration: number, originalDuration: number): string {
+function resolveVideoFitStrategy(fitStrategy: string | undefined, _segmentDuration: number, _originalDuration: number): string {
+  // Always use stretch to slow down video to match audio master track duration.
+  // freeze-fade (freezing last frame and fading to black) is not a good visual effect.
   if (typeof fitStrategy === 'string' && fitStrategy !== 'auto') {
     return fitStrategy;
   }
-  if (!Number.isFinite(originalDuration) || originalDuration <= 0) {
-    return fitStrategy ?? 'stretch';
-  }
-  const ratio = Math.abs(segmentDuration - originalDuration) / originalDuration;
-  return ratio <= 0.2 ? 'stretch' : 'freeze-fade';
+  return 'stretch';
 }
 
 function roundSeconds(value: number): number {

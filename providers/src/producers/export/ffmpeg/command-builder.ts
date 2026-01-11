@@ -134,11 +134,9 @@ export function buildFfmpegCommand(
     }
   }
 
-  // Build audio mix
+  // Build audio mix (always add - generates silence if no audio tracks)
   const audioResult = buildAudioMixFilter(audioInfos, { totalDuration: timeline.duration });
-  if (audioInfos.length > 0) {
-    filterParts.push(audioResult.filterExpr);
-  }
+  filterParts.push(audioResult.filterExpr);
 
   // Build the complete command
   return buildCommand(

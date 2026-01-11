@@ -15,9 +15,8 @@ export interface VideoProcessingOptions {
 /**
  * Build an FFmpeg filter chain for a video clip.
  *
- * Handles two fit strategies:
- * - stretch: Adjust playback speed to match target duration
- * - freeze-fade: Play at original speed, freeze last frame, fade to black
+ * Uses stretch strategy to adjust playback speed to match target duration.
+ * The video is slowed down or sped up to fit the audio master track duration.
  *
  * @param clip - Video clip information
  * @param options - Processing options
@@ -34,8 +33,8 @@ export function buildVideoFilterChain(
 
   const filters: string[] = [];
 
-  // Calculate speed factor if using stretch strategy
-  if (clip.fitStrategy === 'stretch' && clip.originalDuration) {
+  // Always calculate speed factor to stretch video to match target duration
+  if (clip.originalDuration) {
     const speedFactor = clip.originalDuration / clip.targetDuration;
 
     // setpts changes video speed (lower = faster, higher = slower)
@@ -64,61 +63,9 @@ export function buildVideoFilterChain(
 }
 
 /**
- * Build a freeze-fade filter chain for a video clip.
+ * Build the video filter chain for a clip.
  *
- * This is used when the video is shorter than the target duration.
- * It plays the video at original speed, then freezes the last frame
- * and fades to black.
- *
- * @param clip - Video clip information
- * @param options - Processing options
- * @param outputLabel - Label for the output stream
- * @returns FFmpeg filter expression string
- */
-export function buildFreezeFadeFilterChain(
-  clip: VideoClipInfo,
-  options: VideoProcessingOptions,
-  outputLabel: string
-): string {
-  const { width, height, fps } = options;
-  const inputRef = `[${clip.inputIndex}:v]`;
-
-  // Calculate durations
-  const originalDuration = clip.originalDuration ?? clip.targetDuration;
-  const freezeDuration = Math.max(0, clip.targetDuration - originalDuration);
-
-  if (freezeDuration <= 0) {
-    // Video is long enough, no freeze needed
-    return buildVideoFilterChain(clip, options, outputLabel);
-  }
-
-  // Calculate fade duration (last 1 second of freeze or half of freeze if shorter)
-  const fadeDuration = Math.min(1, freezeDuration / 2);
-  const fadeStart = clip.targetDuration - fadeDuration;
-
-  const filters: string[] = [];
-
-  // Scale and pad first
-  filters.push(buildScaleFilter(width, height));
-  filters.push(buildPadFilter(width, height));
-  filters.push(`fps=${fps}`);
-
-  // Trim to original duration, then use tpad to extend with last frame
-  filters.push(`trim=0:${originalDuration}`);
-  filters.push(`tpad=stop_mode=clone:stop_duration=${freezeDuration}`);
-
-  // Apply fade to black at the end
-  filters.push(`fade=t=out:st=${fadeStart}:d=${fadeDuration}:color=black`);
-
-  // Reset timestamps and format
-  filters.push('setpts=PTS-STARTPTS');
-  filters.push('format=yuv420p');
-
-  return `${inputRef}${filters.join(',')}[${outputLabel}]`;
-}
-
-/**
- * Build the appropriate filter chain based on the fit strategy.
+ * Always uses stretch strategy to adjust playback speed to match target duration.
  *
  * @param clip - Video clip information
  * @param options - Processing options
@@ -130,9 +77,6 @@ export function buildVideoFilter(
   options: VideoProcessingOptions,
   outputLabel: string
 ): string {
-  if (clip.fitStrategy === 'freeze-fade') {
-    return buildFreezeFadeFilterChain(clip, options, outputLabel);
-  }
   return buildVideoFilterChain(clip, options, outputLabel);
 }
 
@@ -191,33 +135,21 @@ export function calculateSpeedFactor(
 }
 
 /**
- * Determine the best fit strategy based on duration difference.
+ * Determine the fit strategy for video.
  *
- * Uses the same logic as the timeline composer:
- * - If the difference is within 20%, use stretch
- * - Otherwise, use freeze-fade
+ * Always returns 'stretch' to slow down video to match audio master track duration.
+ * The freeze-fade effect (freezing last frame and fading to black) has been removed
+ * as it's not a good visual effect.
  *
- * @param originalDuration - Original video duration in seconds
- * @param targetDuration - Target duration in seconds
- * @returns Recommended fit strategy
+ * @param _originalDuration - Original video duration in seconds (unused)
+ * @param _targetDuration - Target duration in seconds (unused)
+ * @returns Always returns 'stretch'
  */
 export function determineFitStrategy(
-  originalDuration: number,
-  targetDuration: number
-): 'stretch' | 'freeze-fade' {
-  if (originalDuration <= 0 || targetDuration <= 0) {
-    return 'stretch';
-  }
-
-  const ratio = originalDuration / targetDuration;
-  const difference = Math.abs(ratio - 1);
-
-  // If within 20% of target, stretching is acceptable
-  if (difference <= 0.2) {
-    return 'stretch';
-  }
-
-  return 'freeze-fade';
+  _originalDuration: number,
+  _targetDuration: number
+): 'stretch' {
+  return 'stretch';
 }
 
 /**
@@ -240,8 +172,8 @@ export function buildVideoAudioFilter(
   const inputRef = `[${clip.inputIndex}:a]`;
   const filters: string[] = [];
 
-  // Apply speed change if using stretch strategy
-  if (clip.fitStrategy === 'stretch' && clip.originalDuration) {
+  // Always apply speed change to match video stretching
+  if (clip.originalDuration) {
     const speedFactor = clip.originalDuration / clip.targetDuration;
 
     if (Math.abs(speedFactor - 1) > 0.01) {

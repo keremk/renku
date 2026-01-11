@@ -203,6 +203,41 @@ describe('audio-mixer', () => {
       // All three tracks mixed
       expect(result.filterExpr).toContain('amix=inputs=3');
     });
+
+    it('should NOT apply atrim for non-looped audio with startTime > 0', () => {
+      // This is critical: applying atrim AFTER adelay would cut off most of the audio
+      // because atrim=0:duration would trim the delayed stream, keeping mostly silence.
+      // The audio file duration already matches the segment duration since audio is master.
+      const tracks: AudioTrackInfo[] = [
+        {
+          inputIndex: 0,
+          volume: 1,
+          startTime: 0,
+          duration: 12,
+        },
+        {
+          inputIndex: 1,
+          volume: 1,
+          startTime: 12,
+          duration: 13,
+        },
+      ];
+
+      const result = buildAudioMixFilter(tracks, { totalDuration: 25 });
+
+      // Parse the filter expression to check each track's filter chain
+      const filterParts = result.filterExpr.split(';');
+
+      // The second track (aud1) should have adelay but NOT atrim
+      const secondTrackFilter = filterParts.find(f => f.includes('[aud1]'));
+      expect(secondTrackFilter).toContain('adelay=12000|12000');
+      // Ensure no atrim is present for the second track
+      expect(secondTrackFilter).not.toContain('atrim');
+
+      // The first track should also NOT have atrim since it's not looped
+      const firstTrackFilter = filterParts.find(f => f.includes('[aud0]'));
+      expect(firstTrackFilter).not.toContain('atrim');
+    });
   });
 
   describe('buildAudioInputArgs', () => {
