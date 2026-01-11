@@ -35,6 +35,7 @@ export interface GenerateOptions {
   costsOnly?: boolean;
   concurrency?: number;
   upToLayer?: number;
+  reRunFrom?: number;
   logLevel: LogLevel;
   /** Override storage root (used in tests). If not provided, uses cwd. */
   storageOverride?: { root: string; basePath: string };
@@ -77,9 +78,14 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
     throw new Error('Use either --last or --movie-id/--id, not both.');
   }
 
-  // Input validation - required for both new and edit (no fallback)
+  // Input validation - always required (contains model selections)
   if (!options.inputsPath) {
-    throw new Error('Input YAML path is required. Provide --inputs=/path/to/inputs.yaml');
+    const { createRuntimeError, RuntimeErrorCode } = await import('@gorenku/core');
+    throw createRuntimeError(
+      RuntimeErrorCode.MISSING_REQUIRED_INPUT,
+      'Input YAML path is required.',
+      { suggestion: 'Provide --inputs=/path/to/inputs.yaml. Inputs are needed for model selections, even when using --re-run-from.' }
+    );
   }
 
   const upToLayer = options.upToLayer;
@@ -125,6 +131,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
       costsOnly: options.costsOnly,
       concurrency,
       upToLayer,
+      reRunFrom: options.reRunFrom,
       logger,
       cliConfig: activeConfig,
     });

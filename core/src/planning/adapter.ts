@@ -17,6 +17,8 @@ export interface PlanAdapterArgs {
   blueprint: ProducerGraph;
   targetRevision: RevisionId;
   pendingEdits?: InputEvent[];
+  /** Force re-run from this layer index onwards (0-indexed). Jobs at this layer and above will be included in the plan. */
+  reRunFrom?: number;
 }
 
 export type PlanAdapter = {

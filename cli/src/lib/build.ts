@@ -51,6 +51,8 @@ export interface ExecuteBuildOptions {
   concurrency?: number;
   /** Layer to stop at (only used when dryRun=false). */
   upToLayer?: number;
+  /** Re-run from specific layer (skips earlier layers). */
+  reRunFrom?: number;
   /** Enable dry-run mode: simulated providers, no S3 uploads. */
   dryRun?: boolean;
   logger?: Logger;
@@ -169,7 +171,7 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<Execut
       logger,
       notifications,
     },
-    { concurrency, upToLayer: options.upToLayer },
+    { concurrency, upToLayer: options.upToLayer, reRunFrom: options.reRunFrom },
   );
 
   // Always save the manifest after execution completes, even if some jobs failed.

@@ -67,7 +67,9 @@ import { detectViewerAddress } from './lib/viewer-network.js';
 
 const cli = meow(
   `\nUsage\n  $ renku <command> [options]\n\nCommands\n  install             Guided setup (alias for init)\n  init                Initialize a new Renku workspace (requires --root)\n  update              Update the catalog in the active workspace\n  use                 Switch to an existing workspace (requires --root)\n  generate            Create or continue a movie generation\n  create:input-template  Create an inputs YAML template for a blueprint\n  export              Export a movie to MP4/MP3 (--exporter=remotion|ffmpeg)\n  clean               Remove dry-run builds (--all to include completed builds)
-  list                List builds in current project (shows dry-run vs completed)\n  viewer:start        Start the bundled viewer server in the foreground\n  viewer:view         Open the viewer for a movie id (starts server if needed)\n  viewer:stop         Stop the background viewer server\n  producers:list      List all available models for producers in a blueprint\n  blueprints:list     List available blueprint YAML files\n  blueprints:describe <path>  Show details for a blueprint YAML file\n  blueprints:validate <path>  Validate a blueprint YAML file\n  mcp                 Run the Renku MCP server over stdio\n\nExamples\n  $ renku init --root=~/media/renku\n  $ renku update                             # Update catalog in active workspace\n  $ renku use --root=~/media/other-workspace # Switch to another workspace\n  $ renku create:input-template --blueprint=documentary-talking-head.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml --concurrency=3\n  $ renku generate --last --up-to-layer=1\n  $ renku export --movie-id=abc123\n  $ renku export --last --width=1920 --height=1080 --fps=30\n  $ renku export --last --exporter=ffmpeg\n  $ renku producers:list --blueprint=image-audio.yaml\n  $ renku blueprints:list\n  $ renku blueprints:describe audio-only.yaml\n  $ renku blueprints:validate image-audio.yaml\n  $ renku list                           # List builds in current project
+  list                List builds in current project (shows dry-run vs completed)\n  viewer:start        Start the bundled viewer server in the foreground\n  viewer:view         Open the viewer for a movie id (starts server if needed)\n  viewer:stop         Stop the background viewer server\n  producers:list      List all available models for producers in a blueprint\n  blueprints:list     List available blueprint YAML files\n  blueprints:describe <path>  Show details for a blueprint YAML file\n  blueprints:validate <path>  Validate a blueprint YAML file\n  mcp                 Run the Renku MCP server over stdio\n\nExamples\n  $ renku init --root=~/media/renku\n  $ renku update                             # Update catalog in active workspace\n  $ renku use --root=~/media/other-workspace # Switch to another workspace\n  $ renku create:input-template --blueprint=documentary-talking-head.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml --concurrency=3\n  $ renku generate --last --up-to-layer=1
+  $ renku generate --last --re-run-from=2
+  $ renku generate --movie-id=abc123 --from=1\n  $ renku export --movie-id=abc123\n  $ renku export --last --width=1920 --height=1080 --fps=30\n  $ renku export --last --exporter=ffmpeg\n  $ renku producers:list --blueprint=image-audio.yaml\n  $ renku blueprints:list\n  $ renku blueprints:describe audio-only.yaml\n  $ renku blueprints:validate image-audio.yaml\n  $ renku list                           # List builds in current project
   $ renku clean                          # Clean dry-run builds only
   $ renku clean --all                    # Clean all builds including completed
   $ renku clean --movie-id=movie-q123456 # Clean specific movie\n  $ renku viewer:start\n  $ renku viewer:view --movie-id=movie-q123456\n  $ renku viewer:view --last\n  $ renku mcp --defaultBlueprint=image-audio.yaml\n`,
@@ -94,6 +96,8 @@ const cli = meow(
       logLevel: { type: 'string' },
       upToLayer: { type: 'number' },
       up: { type: 'number' },
+      reRunFrom: { type: 'number' },
+      from: { type: 'number' },
       all: { type: 'boolean' },
       costsOnly: { type: 'boolean' },
       width: { type: 'number' },
@@ -131,6 +135,8 @@ async function main(): Promise<void> {
     logLevel?: string;
     upToLayer?: number;
     up?: number;
+    reRunFrom?: number;
+    from?: number;
     all?: boolean;
     costsOnly?: boolean;
     width?: number;
@@ -214,6 +220,7 @@ async function main(): Promise<void> {
       const blueprintFlag = flags.blueprint ?? flags.bp;
       const inputsFlag = flags.inputs ?? flags.in;
       const upToLayer = flags.upToLayer ?? flags.up;
+      const reRunFrom = flags.reRunFrom ?? flags.from;
 
       if (positionalInquiry !== undefined) {
         logger.error('Error: inline inquiry prompt is no longer supported. Provide it in your inputs.yaml.');
@@ -228,6 +235,25 @@ async function main(): Promise<void> {
       }
 
       const targetingExisting = Boolean(flags.last || movieIdFlag);
+
+      if (reRunFrom !== undefined && !targetingExisting) {
+        logger.error('Error: --re-run-from/--from requires --last or --movie-id/--id.');
+        process.exitCode = 1;
+        return;
+      }
+
+      if (reRunFrom !== undefined && reRunFrom < 0) {
+        logger.error('Error: --re-run-from/--from must be a non-negative integer.');
+        process.exitCode = 1;
+        return;
+      }
+
+      if (reRunFrom !== undefined && upToLayer !== undefined && reRunFrom > upToLayer) {
+        logger.error('Error: --re-run-from/--from cannot be greater than --up-to-layer/--up.');
+        process.exitCode = 1;
+        return;
+      }
+
       const resolvedInputsPath = inputsFlag;
 
       if (!targetingExisting) {
@@ -257,6 +283,7 @@ async function main(): Promise<void> {
           costsOnly: Boolean(flags.costsOnly),
           concurrency: flags.concurrency,
           upToLayer,
+          reRunFrom,
           logLevel,
         });
         const viewerUrl =

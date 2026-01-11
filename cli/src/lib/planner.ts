@@ -41,11 +41,14 @@ export interface GeneratePlanOptions {
   cliConfig: CliConfig;
   movieId: string; // storage movie id (e.g., movie-q123)
   isNew: boolean;
+  /** Path to inputs YAML file. Required for model selections. */
   inputsPath: string;
   usingBlueprint: string; // Path to blueprint YAML file
   pendingArtefacts?: PendingArtefactDraft[];
   logger?: Logger;
   notifications?: import('@gorenku/core').NotificationBus;
+  /** Force re-run from this layer index onwards (0-indexed). Jobs at this layer and above will be included in the plan. */
+  reRunFrom?: number;
 }
 
 export interface GeneratePlanResult {
@@ -108,6 +111,16 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
     throw new Error(`Blueprint validation failed:\n${errorMessages}`);
   }
 
+  // Load inputs from YAML - always required (contains model selections)
+  if (!options.inputsPath) {
+    const { createRuntimeError, RuntimeErrorCode } = await import('@gorenku/core');
+    throw createRuntimeError(
+      RuntimeErrorCode.MISSING_REQUIRED_INPUT,
+      'Input YAML path is required.',
+      { suggestion: 'Provide --inputs=/path/to/inputs.yaml. Inputs are needed for model selections, even when using --re-run-from.' }
+    );
+  }
+
   const { values: inputValues, providerOptions, artifactOverrides } = await loadInputsFromYaml(
     options.inputsPath,
     blueprintRoot,
@@ -161,6 +174,7 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
     manifestService,
     eventLog,
     pendingArtefacts: allPendingArtefacts.length > 0 ? allPendingArtefacts : undefined,
+    reRunFrom: options.reRunFrom,
   });
   logger.debug('[planner] resolved inputs', { inputs: Object.keys(planResult.resolvedInputs) });
   const absolutePlanPath = resolve(storageRoot, basePath, movieId, 'runs', `${planResult.targetRevision}-plan.json`);

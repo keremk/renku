@@ -120,9 +120,79 @@ Use Vitest for unit and integration tests:
 
 **Note:** The main `tsconfig.json` excludes test files intentionally (for builds). Test files have separate `tsconfig.vitest.json` configs. Always run `pnpm check` (not just `pnpm type-check`) to validate everything.
 
+## Error Handling Architecture
+
+**IMPORTANT: Never use `throw new Error()` directly. Use the structured Renku error system.**
+
+### Error Code Categories
+Located in `core/src/errors/codes.ts`:
+- **P (P001-P099)**: Parser errors - YAML/document parsing issues
+- **V (V001-V099)**: Validation errors - Blueprint validation
+- **R (R001-R099)**: Runtime errors - Execution and planning
+- **S (S001-S099)**: SDK/Provider errors - Provider-level issues
+- **W (W001-W099)**: Warnings - Soft warnings
+
+### Creating Errors
+Import from `@gorenku/core`:
+```typescript
+import { createRuntimeError, RuntimeErrorCode } from '@gorenku/core';
+
+// For runtime errors (most common in CLI/execution)
+throw createRuntimeError(
+  RuntimeErrorCode.MISSING_REQUIRED_INPUT,  // Use existing code or add new one
+  'Input YAML path is required.',
+  { suggestion: 'Provide --inputs=/path/to/inputs.yaml' }
+);
+
+// For parser errors
+import { createParserError, ParserErrorCode } from '@gorenku/core';
+throw createParserError(
+  ParserErrorCode.INVALID_YAML_DOCUMENT,
+  'Failed to parse YAML',
+  { filePath: '/path/to/file.yaml', suggestion: 'Check YAML syntax' }
+);
+
+// For validation errors
+import { createValidationError, ValidationErrorCode } from '@gorenku/core';
+throw createValidationError(
+  ValidationErrorCode.PRODUCER_NOT_FOUND,
+  'Producer "Foo" not found',
+  { namespacePath: ['Root', 'Child'], suggestion: 'Check producer name' }
+);
+```
+
+### Adding New Error Codes
+When adding new errors, add codes to `core/src/errors/codes.ts` in the appropriate section:
+```typescript
+// Example: Adding a new runtime error code
+export const RuntimeErrorCode = {
+  // ... existing codes ...
+  MY_NEW_ERROR: 'R0XX',  // Pick next available number in range
+} as const;
+```
+
+### Checking Error Types
+```typescript
+import { isRenkuError, RuntimeErrorCode } from '@gorenku/core';
+
+try {
+  // ... code that might throw
+} catch (error) {
+  if (isRenkuError(error) && error.code === RuntimeErrorCode.MISSING_REQUIRED_INPUT) {
+    // Handle specific error
+  }
+}
+```
+
+### Key Files
+- `core/src/errors/codes.ts` - All error code constants
+- `core/src/errors/helpers.ts` - Factory functions (createRuntimeError, etc.)
+- `core/src/errors/types.ts` - RenkuError interface, isRenkuError type guard
+
 ## Important Notes
 
 - **NEVER commit changes on behalf of the user** - always let them handle commits
+- **NEVER use `throw new Error()` directly** - use createRuntimeError, createParserError, etc.
 - **Always run `pnpm check` AND `pnpm lint`** to validate all code before finishing
 - Each package is independently published - maintain semantic versioning
 - The core package is the foundation for all other packages

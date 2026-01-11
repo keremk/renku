@@ -5,6 +5,8 @@ import {
   createManifestService,
   createStorageContext,
   initializeMovieStorage,
+  isRenkuError,
+  RuntimeErrorCode,
   type ExecutionPlan,
   type Manifest,
   type ProduceFn,
@@ -150,5 +152,187 @@ describe('executePlanWithConcurrency', () => {
         { concurrency: 1, upToLayer: -1 },
       ),
     ).rejects.toThrow(/upToLayer/);
+  });
+
+  it('skips layers before reRunFrom and executes layers from that point', async () => {
+    const { movieId, storage, eventLog, manifestService, manifest } = await createRunnerContext();
+    const layers: ExecutionPlan['layers'] = [
+      [makeJob('layer-0-job')],
+      [makeJob('layer-1-job')],
+      [makeJob('layer-2-job')],
+      [makeJob('layer-3-job')],
+    ];
+    const plan: ExecutionPlan = {
+      revision: 'rev-0004',
+      manifestBaseHash: 'hash',
+      layers,
+      createdAt: new Date().toISOString(),
+    };
+    const executed: string[] = [];
+    const produce: ProduceFn = async ({ job }) => {
+      executed.push(job.jobId);
+      return { jobId: job.jobId, status: 'succeeded', artefacts: [] };
+    };
+
+    const result = await executePlanWithConcurrency(
+      plan,
+      { movieId, manifest, storage, eventLog, manifestService, produce },
+      { concurrency: 2, reRunFrom: 2 },
+    );
+
+    // Only layers 2 and 3 should have been executed
+    expect(executed).toEqual(['layer-2-job', 'layer-3-job']);
+    // All jobs should be in results (skipped + executed)
+    expect(result.jobs).toHaveLength(4);
+    // Layers 0 and 1 should be marked as skipped
+    expect(result.jobs[0]?.status).toBe('skipped');
+    expect(result.jobs[1]?.status).toBe('skipped');
+    expect(result.jobs[2]?.status).toBe('succeeded');
+    expect(result.jobs[3]?.status).toBe('succeeded');
+  });
+
+  it('combines reRunFrom with upToLayer correctly', async () => {
+    const { movieId, storage, eventLog, manifestService, manifest } = await createRunnerContext();
+    const layers: ExecutionPlan['layers'] = [
+      [makeJob('layer-0-job')],
+      [makeJob('layer-1-job')],
+      [makeJob('layer-2-job')],
+      [makeJob('layer-3-job')],
+      [makeJob('layer-4-job')],
+    ];
+    const plan: ExecutionPlan = {
+      revision: 'rev-0005',
+      manifestBaseHash: 'hash',
+      layers,
+      createdAt: new Date().toISOString(),
+    };
+    const executed: string[] = [];
+    const produce: ProduceFn = async ({ job }) => {
+      executed.push(job.jobId);
+      return { jobId: job.jobId, status: 'succeeded', artefacts: [] };
+    };
+
+    const result = await executePlanWithConcurrency(
+      plan,
+      { movieId, manifest, storage, eventLog, manifestService, produce },
+      { concurrency: 2, reRunFrom: 1, upToLayer: 3 },
+    );
+
+    // Only layers 1, 2, and 3 should have been executed
+    expect(executed).toEqual(['layer-1-job', 'layer-2-job', 'layer-3-job']);
+    // Layers 0 is skipped, 1-3 executed, 4 not included
+    expect(result.jobs).toHaveLength(4);
+    expect(result.jobs[0]?.status).toBe('skipped');
+    expect(result.jobs[1]?.status).toBe('succeeded');
+    expect(result.jobs[2]?.status).toBe('succeeded');
+    expect(result.jobs[3]?.status).toBe('succeeded');
+  });
+
+  it('rejects reRunFrom greater than total layers', async () => {
+    const { movieId, storage, eventLog, manifestService, manifest } = await createRunnerContext();
+    const plan: ExecutionPlan = {
+      revision: 'rev-0006',
+      manifestBaseHash: 'hash',
+      layers: [[makeJob('job-a')], [makeJob('job-b')]],
+      createdAt: new Date().toISOString(),
+    };
+    const produce: ProduceFn = async ({ job }) => ({
+      jobId: job.jobId,
+      status: 'succeeded',
+      artefacts: [],
+    });
+
+    await expect(
+      executePlanWithConcurrency(
+        plan,
+        { movieId, manifest, storage, eventLog, manifestService, produce },
+        { concurrency: 1, reRunFrom: 5 },
+      ),
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        isRenkuError(error) && error.code === RuntimeErrorCode.RERUN_FROM_EXCEEDS_LAYERS,
+    );
+  });
+
+  it('rejects reRunFrom greater than upToLayer', async () => {
+    const { movieId, storage, eventLog, manifestService, manifest } = await createRunnerContext();
+    const plan: ExecutionPlan = {
+      revision: 'rev-0007',
+      manifestBaseHash: 'hash',
+      layers: [[makeJob('job-a')], [makeJob('job-b')], [makeJob('job-c')]],
+      createdAt: new Date().toISOString(),
+    };
+    const produce: ProduceFn = async ({ job }) => ({
+      jobId: job.jobId,
+      status: 'succeeded',
+      artefacts: [],
+    });
+
+    await expect(
+      executePlanWithConcurrency(
+        plan,
+        { movieId, manifest, storage, eventLog, manifestService, produce },
+        { concurrency: 1, reRunFrom: 2, upToLayer: 1 },
+      ),
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        isRenkuError(error) && error.code === RuntimeErrorCode.RERUN_FROM_GREATER_THAN_UPTO,
+    );
+  });
+
+  it('rejects negative reRunFrom values', async () => {
+    const { movieId, storage, eventLog, manifestService, manifest } = await createRunnerContext();
+    const plan: ExecutionPlan = {
+      revision: 'rev-0008',
+      manifestBaseHash: 'hash',
+      layers: [[makeJob('job-a')]],
+      createdAt: new Date().toISOString(),
+    };
+    const produce: ProduceFn = async ({ job }) => ({
+      jobId: job.jobId,
+      status: 'succeeded',
+      artefacts: [],
+    });
+
+    await expect(
+      executePlanWithConcurrency(
+        plan,
+        { movieId, manifest, storage, eventLog, manifestService, produce },
+        { concurrency: 1, reRunFrom: -1 },
+      ),
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        isRenkuError(error) && error.code === RuntimeErrorCode.INVALID_RERUN_FROM_VALUE,
+    );
+  });
+
+  it('executes all layers when reRunFrom is 0', async () => {
+    const { movieId, storage, eventLog, manifestService, manifest } = await createRunnerContext();
+    const layers: ExecutionPlan['layers'] = [
+      [makeJob('layer-0-job')],
+      [makeJob('layer-1-job')],
+    ];
+    const plan: ExecutionPlan = {
+      revision: 'rev-0009',
+      manifestBaseHash: 'hash',
+      layers,
+      createdAt: new Date().toISOString(),
+    };
+    const executed: string[] = [];
+    const produce: ProduceFn = async ({ job }) => {
+      executed.push(job.jobId);
+      return { jobId: job.jobId, status: 'succeeded', artefacts: [] };
+    };
+
+    const result = await executePlanWithConcurrency(
+      plan,
+      { movieId, manifest, storage, eventLog, manifestService, produce },
+      { concurrency: 2, reRunFrom: 0 },
+    );
+
+    // All layers should be executed (reRunFrom: 0 means start from beginning)
+    expect(executed).toEqual(['layer-0-job', 'layer-1-job']);
+    expect(result.jobs).toHaveLength(2);
+    expect(result.jobs.every((j) => j.status === 'succeeded')).toBe(true);
   });
 });

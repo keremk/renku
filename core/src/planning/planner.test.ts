@@ -655,4 +655,209 @@ describe('planner', () => {
       }),
     ).rejects.toThrow(/cycle/i);
   });
+
+  describe('reRunFrom', () => {
+    it('forces jobs at reRunFrom layer and above into plan even when artifacts exist', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      // Set up baseline with all artifacts existing (nothing dirty)
+      const baseRevision = 'rev-0001';
+      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+
+      const artefactCreatedAt = new Date().toISOString();
+      const manifest: Manifest = {
+        revision: baseRevision,
+        baseRevision: null,
+        createdAt: artefactCreatedAt,
+        inputs: Object.fromEntries(
+          baseline.map((event) => [
+            event.id,
+            {
+              hash: event.hash,
+              payloadDigest: hashPayload(event.payload).canonical,
+              createdAt: event.createdAt,
+            },
+          ]),
+        ),
+        artefacts: {
+          'Artifact:NarrationScript[0]': {
+            hash: 'hash-script-0',
+            producedBy: 'Producer:ScriptProducer',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+          },
+          'Artifact:NarrationScript[1]': {
+            hash: 'hash-script-1',
+            producedBy: 'Producer:ScriptProducer',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+          },
+          'Artifact:SegmentAudio[0]': {
+            hash: 'hash-audio-0',
+            producedBy: 'Producer:AudioProducer[0]',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+          },
+          'Artifact:SegmentAudio[1]': {
+            hash: 'hash-audio-1',
+            producedBy: 'Producer:AudioProducer[1]',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+          },
+          'Artifact:FinalVideo': {
+            hash: 'hash-final-video',
+            producedBy: 'Producer:TimelineAssembler',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+          },
+        },
+        timeline: {},
+      };
+
+      // Without reRunFrom, plan should be empty (nothing dirty)
+      const planWithoutRerun = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: [],
+      });
+      expect(planWithoutRerun.layers.flat()).toHaveLength(0);
+
+      // With reRunFrom=1, should include AudioProducer jobs (layer 1) and TimelineAssembler (layer 2)
+      const planWithRerun = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0003',
+        pendingEdits: [],
+        reRunFrom: 1,
+      });
+
+      const jobsInPlan = planWithRerun.layers.flat();
+      // Layer 0 is ScriptProducer - should NOT be included
+      expect(jobsInPlan.some((job) => job.jobId === 'Producer:ScriptProducer')).toBe(false);
+      // Layer 1 is AudioProducer[0] and AudioProducer[1] - SHOULD be included
+      expect(jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[0]')).toBe(true);
+      expect(jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[1]')).toBe(true);
+      // Layer 2 is TimelineAssembler - SHOULD be included
+      expect(jobsInPlan.some((job) => job.jobId === 'Producer:TimelineAssembler')).toBe(true);
+
+      // Verify layer structure
+      expect(planWithRerun.layers[0]).toHaveLength(0); // Layer 0 empty
+      expect(planWithRerun.layers[1]).toHaveLength(2); // Layer 1 has 2 audio jobs
+      expect(planWithRerun.layers[2]).toHaveLength(1); // Layer 2 has timeline assembler
+    });
+
+    it('reRunFrom=0 includes all jobs', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseRevision = 'rev-0001';
+      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+
+      const artefactCreatedAt = new Date().toISOString();
+      const manifest: Manifest = {
+        revision: baseRevision,
+        baseRevision: null,
+        createdAt: artefactCreatedAt,
+        inputs: Object.fromEntries(
+          baseline.map((event) => [
+            event.id,
+            { hash: event.hash, payloadDigest: hashPayload(event.payload).canonical, createdAt: event.createdAt },
+          ]),
+        ),
+        artefacts: {
+          'Artifact:NarrationScript[0]': { hash: 'h0', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
+          'Artifact:NarrationScript[1]': { hash: 'h1', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
+          'Artifact:SegmentAudio[0]': { hash: 'h2', producedBy: 'Producer:AudioProducer[0]', status: 'succeeded', createdAt: artefactCreatedAt },
+          'Artifact:SegmentAudio[1]': { hash: 'h3', producedBy: 'Producer:AudioProducer[1]', status: 'succeeded', createdAt: artefactCreatedAt },
+          'Artifact:FinalVideo': { hash: 'h4', producedBy: 'Producer:TimelineAssembler', status: 'succeeded', createdAt: artefactCreatedAt },
+        },
+        timeline: {},
+      };
+
+      const plan = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: [],
+        reRunFrom: 0,
+      });
+
+      const jobsInPlan = plan.layers.flat();
+      expect(jobsInPlan).toHaveLength(4); // All 4 jobs
+      expect(jobsInPlan.some((job) => job.jobId === 'Producer:ScriptProducer')).toBe(true);
+      expect(jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[0]')).toBe(true);
+      expect(jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[1]')).toBe(true);
+      expect(jobsInPlan.some((job) => job.jobId === 'Producer:TimelineAssembler')).toBe(true);
+    });
+
+    it('reRunFrom at last layer includes only that layer', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseRevision = 'rev-0001';
+      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+
+      const artefactCreatedAt = new Date().toISOString();
+      const manifest: Manifest = {
+        revision: baseRevision,
+        baseRevision: null,
+        createdAt: artefactCreatedAt,
+        inputs: Object.fromEntries(
+          baseline.map((event) => [
+            event.id,
+            { hash: event.hash, payloadDigest: hashPayload(event.payload).canonical, createdAt: event.createdAt },
+          ]),
+        ),
+        artefacts: {
+          'Artifact:NarrationScript[0]': { hash: 'h0', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
+          'Artifact:NarrationScript[1]': { hash: 'h1', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
+          'Artifact:SegmentAudio[0]': { hash: 'h2', producedBy: 'Producer:AudioProducer[0]', status: 'succeeded', createdAt: artefactCreatedAt },
+          'Artifact:SegmentAudio[1]': { hash: 'h3', producedBy: 'Producer:AudioProducer[1]', status: 'succeeded', createdAt: artefactCreatedAt },
+          'Artifact:FinalVideo': { hash: 'h4', producedBy: 'Producer:TimelineAssembler', status: 'succeeded', createdAt: artefactCreatedAt },
+        },
+        timeline: {},
+      };
+
+      // Layer 2 is the last layer (TimelineAssembler)
+      const plan = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: [],
+        reRunFrom: 2,
+      });
+
+      const jobsInPlan = plan.layers.flat();
+      expect(jobsInPlan).toHaveLength(1);
+      expect(jobsInPlan[0]?.jobId).toBe('Producer:TimelineAssembler');
+    });
+  });
 });

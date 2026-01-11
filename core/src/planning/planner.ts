@@ -28,6 +28,8 @@ interface ComputePlanArgs {
   blueprint: ProducerGraph;
   targetRevision: RevisionId;
   pendingEdits?: InputEvent[];
+  /** Force re-run from this layer index onwards (0-indexed). Jobs at this layer and above are marked dirty. */
+  reRunFrom?: number;
 }
 
 interface GraphMetadata {
@@ -65,7 +67,7 @@ export function createPlanner(options: PlannerOptions = {}) {
         dirtyArtefacts,
       );
       const dirtyJobs = propagateDirtyJobs(initialDirty, blueprint);
-      const layers = buildExecutionLayers(dirtyJobs, metadata, blueprint);
+      const layers = buildExecutionLayers(dirtyJobs, metadata, blueprint, args.reRunFrom);
 
       logger.debug?.('planner.plan.generated', {
         movieId: args.movieId,
@@ -162,6 +164,7 @@ function buildExecutionLayers(
   dirtyJobs: Set<string>,
   metadata: Map<string, GraphMetadata>,
   blueprint: ProducerGraph,
+  reRunFrom?: number,
 ): ExecutionPlan['layers'] {
   // Determine stable layer indices for all producer jobs, then place dirty jobs into their original layer slots.
   const indegree = new Map<string, number>();
@@ -214,7 +217,19 @@ function buildExecutionLayers(
   const maxLevel = levelMap.size === 0 ? 0 : Math.max(...levelMap.values());
   const layers: ExecutionPlan['layers'] = Array.from({ length: maxLevel + 1 }, () => []);
 
-  for (const jobId of dirtyJobs) {
+  // Combine dirty jobs with jobs forced by reRunFrom
+  const jobsToInclude = new Set(dirtyJobs);
+  if (reRunFrom !== undefined) {
+    // Force all jobs at layer >= reRunFrom to be included
+    for (const [jobId] of metadata) {
+      const level = levelMap.get(jobId);
+      if (level !== undefined && level >= reRunFrom) {
+        jobsToInclude.add(jobId);
+      }
+    }
+  }
+
+  for (const jobId of jobsToInclude) {
     const info = metadata.get(jobId);
     const level = levelMap.get(jobId);
     if (!info || level === undefined) {

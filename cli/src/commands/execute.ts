@@ -48,6 +48,9 @@ export interface ExecuteOptions {
   /** Limit execution to specific layer */
   upToLayer?: number;
 
+  /** Re-run from specific layer (skips earlier layers) */
+  reRunFrom?: number;
+
   /** Logger instance */
   logger: Logger;
 
@@ -132,7 +135,7 @@ export async function runExecute(options: ExecuteOptions): Promise<ExecuteResult
     logger.info('--upToLayer applies only to live runs; dry runs will simulate all layers.');
   }
 
-  // Resolve inputs path - required for both new and edit (no fallback)
+  // Resolve inputs path - always required (contains model selections)
   const inputsPath = resolveInputsPath(options.inputsPath);
 
   // Resolve blueprint path
@@ -152,6 +155,7 @@ export async function runExecute(options: ExecuteOptions): Promise<ExecuteResult
     usingBlueprint: blueprintPath,
     pendingArtefacts: options.pendingArtefacts,
     logger,
+    reRunFrom: options.reRunFrom,
   });
 
   if (options.dryRun) {
@@ -227,6 +231,7 @@ export async function runExecute(options: ExecuteOptions): Promise<ExecuteResult
     logger,
     concurrency,
     upToLayer: options.dryRun ? undefined : upToLayer,
+    reRunFrom: options.dryRun ? undefined : options.reRunFrom,
     dryRun: options.dryRun,
   });
 
@@ -247,10 +252,13 @@ export async function runExecute(options: ExecuteOptions): Promise<ExecuteResult
 // ============================================================================
 
 /**
- * Resolve inputs path - no fallback, always required.
+ * Resolve inputs path - always required (contains model selections).
+ * @param explicitPath - The explicit path provided by the user
  */
 function resolveInputsPath(explicitPath: string | undefined): string {
   if (!explicitPath) {
+    // Note: This should be caught earlier in generate.ts validation,
+    // but we keep this check as a safety net
     throw new Error('Input YAML path is required. Provide --inputs=/path/to/inputs.yaml');
   }
   return expandPath(explicitPath);

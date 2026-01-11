@@ -59,6 +59,8 @@ export interface GeneratePlanArgs {
   eventLog: EventLog;
   pendingArtefacts?: PendingArtefactDraft[];
   inputSource?: InputEventSource;
+  /** Force re-run from this layer index onwards (0-indexed). Jobs at this layer and above will be included in the plan. */
+  reRunFrom?: number;
 }
 
 export interface GeneratePlanResult {
@@ -151,6 +153,7 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
         blueprint: producerGraph,
         targetRevision,
         pendingEdits: inputEvents,
+        reRunFrom: args.reRunFrom,
       });
 
       await planStore.save(plan, { movieId: args.movieId, storage: args.storage });
