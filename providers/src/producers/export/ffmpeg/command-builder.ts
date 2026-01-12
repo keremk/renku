@@ -24,7 +24,7 @@ import type {
 import { FFMPEG_DEFAULTS } from './types.js';
 import { buildImageFilterChain, buildImageInputArgs } from './kenburns-filter.js';
 import { buildAudioMixFilter, buildAudioInputArgs, buildLoopedAudioInputArgs } from './audio-mixer.js';
-import { buildVideoFilter, buildVideoInputArgs, determineFitStrategy } from './video-track.js';
+import { buildVideoFilter, buildVideoInputArgs } from './video-track.js';
 import { buildCaptionFilterChain, parseCaptionsFromArray } from './caption-renderer.js';
 import type { TranscriptionArtifact } from '../../transcription/types.js';
 
@@ -377,9 +377,8 @@ function processVideoClip(
   tracker.assetToIndex.set(clip.properties.assetId, inputIndex);
 
   // Determine fit strategy
-  const fitStrategy = clip.properties.fitStrategy === 'stretch' || clip.properties.fitStrategy === 'freeze-fade'
-    ? clip.properties.fitStrategy
-    : determineFitStrategy(clip.properties.originalDuration ?? clip.duration, clip.duration);
+  // Always use stretch to match master track (audio) duration
+  const fitStrategy = 'stretch' as const;
 
   const clipInfo: VideoClipInfo = {
     inputIndex,

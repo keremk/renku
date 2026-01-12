@@ -65,7 +65,8 @@
       "Bash(ffprobe:*)",
       "Bash(ffmpeg:*)",
       "WebFetch(domain:aegisub.org)",
-      "WebFetch(domain:docs.karaokes.moe)"
+      "WebFetch(domain:docs.karaokes.moe)",
+      "Bash(shasum:*)"
     ],
     "deny": [],
     "ask": []

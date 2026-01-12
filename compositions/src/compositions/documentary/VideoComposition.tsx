@@ -139,7 +139,6 @@ function renderVideoTrack(track: VideoTrack, assets: AssetMap, fps: number) {
         key={clip.id}
         clip={clip}
         assets={assets}
-        fps={fps}
         from={from}
         durationInFrames={durationInFrames}
         premountFor={premountFor}

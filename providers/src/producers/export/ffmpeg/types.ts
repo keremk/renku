@@ -133,8 +133,8 @@ export interface VideoClipInfo {
   targetDuration: number;
   /** Original duration of the video */
   originalDuration?: number;
-  /** Fit strategy: stretch or freeze-fade */
-  fitStrategy: 'stretch' | 'freeze-fade';
+  /** Fit strategy: always stretch to match master track duration */
+  fitStrategy: 'stretch';
   /** Volume level for video audio (0.0 to 1.0) */
   volume?: number;
 }

@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import process from 'node:process';
 import { openBrowser } from '../lib/open-browser.js';
 import type { CliConfig } from '../lib/cli-config.js';
-import { readCliConfig } from '../lib/cli-config.js';
+import { getProjectLocalStorage, readCliConfig } from '../lib/cli-config.js';
 import { resolveTargetMovieId } from '../lib/movie-id-utils.js';
 import { resolveViewerBundlePaths } from '../lib/viewer-bundle.js';
 import {
@@ -60,9 +60,11 @@ export async function runViewerStart(options: ViewerStartOptions = {}): Promise<
   }
 
   logger.info?.(`Starting viewer server at http://${network.host}:${network.port} (Ctrl+C to stop)`);
+  // Use project-local storage (cwd) to match generate behavior
+  const projectStorage = getProjectLocalStorage();
   await launchViewerServer({
     bundle,
-    rootFolder: cliConfig.storage.root,
+    rootFolder: projectStorage.root,
     host: network.host,
     port: network.port,
     mode: 'foreground',
@@ -120,9 +122,11 @@ export async function runViewerView(options: ViewerViewOptions = {}): Promise<vo
 
   if (!(await isViewerServerRunning(activeHost, activePort))) {
     logger.info?.('Viewer server is not running. Launching background instance...');
+    // Use project-local storage (cwd) to match generate behavior
+    const projectStorage = getProjectLocalStorage();
     await launchViewerServer({
       bundle,
-      rootFolder: cliConfig.storage.root,
+      rootFolder: projectStorage.root,
       host: network.host,
       port: network.port,
       mode: 'background',

@@ -760,7 +760,7 @@ async function buildVideoTrack(args: {
     }
     // Asset is guaranteed to exist since we filtered above
     const originalDuration = await loadAssetDuration({ assetId, inputs, cache: durationCache });
-    const fitStrategy = resolveVideoFitStrategy(clip.fitStrategy, segmentDurations[index], originalDuration);
+    const fitStrategy = resolveVideoFitStrategy();
     const properties: Record<string, unknown> = {
       assetId,
       originalDuration,
@@ -1163,12 +1163,9 @@ function parseInputReference(reference: string): string {
   return base.trim();
 }
 
-function resolveVideoFitStrategy(fitStrategy: string | undefined, _segmentDuration: number, _originalDuration: number): string {
+function resolveVideoFitStrategy(): string {
   // Always use stretch to slow down video to match audio master track duration.
-  // freeze-fade (freezing last frame and fading to black) is not a good visual effect.
-  if (typeof fitStrategy === 'string' && fitStrategy !== 'auto') {
-    return fitStrategy;
-  }
+  // freeze-fade (freezing last frame and fading to black) has been removed.
   return 'stretch';
 }
 
