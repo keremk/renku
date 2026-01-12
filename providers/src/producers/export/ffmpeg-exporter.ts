@@ -125,9 +125,11 @@ export function createFfmpegExporterHandler(): HandlerFactory {
         };
       }
 
-      // Build asset path map from manifest
+      // Build asset path map - prefer paths from event log (via context.extras.assetBlobPaths)
+      // over manifest-based resolution to ensure fresh paths during execution.
       const moviePath = storage.resolve(movieId, '');
-      const assetPaths = await buildAssetPaths(storage, movieId, timeline);
+      const eventLogPaths = request.context.extras?.assetBlobPaths as Record<string, string> | undefined;
+      const assetPaths = await buildAssetPaths(storage, movieId, timeline, eventLogPaths);
 
       // Try to load transcription for subtitles (optional)
       const transcription = await loadTranscription(storage, movieId);
@@ -311,45 +313,74 @@ async function loadTranscription(
   }
 }
 
+/**
+ * Build asset path map for FFmpeg rendering.
+ *
+ * @param storage - Storage context for resolving paths
+ * @param movieId - Movie identifier
+ * @param timeline - Timeline document containing asset references
+ * @param eventLogPaths - Optional pre-resolved paths from event log (preferred source)
+ *
+ * If eventLogPaths is provided, uses those paths for assets (resolved from event log).
+ * Falls back to manifest-based resolution for any assets not in eventLogPaths.
+ * This ensures fresh paths are used during execution when manifest may be stale.
+ */
 async function buildAssetPaths(
   storage: ReturnType<typeof createStorageContext>,
   movieId: string,
-  timeline: TimelineDocument
+  timeline: TimelineDocument,
+  eventLogPaths?: Record<string, string>
 ): Promise<AssetPathMap> {
   const assetPaths: AssetPathMap = {};
-
-  // Note: assetFolder.rootPath indicates where assets are stored, but we still
-  // need to load the actual file paths from the manifest's content-addressed storage.
-  // The buildAssetPathsFromFolder function is not implemented, so we always use manifest.
-
-  // Load from manifest
-  const pointerPath = storage.resolve(movieId, 'current.json');
-  const pointerRaw = await storage.storage.readToString(pointerPath);
-  const pointer = JSON.parse(pointerRaw) as ManifestPointer;
-
-  if (!pointer.manifestPath) {
-    return assetPaths;
-  }
-
-  const manifestPath = storage.resolve(movieId, pointer.manifestPath);
-  const manifestRaw = await storage.storage.readToString(manifestPath);
-  const manifest = JSON.parse(manifestRaw) as ManifestFile;
-
-  if (!manifest.artefacts) {
-    return assetPaths;
-  }
 
   // Collect all asset IDs from timeline
   const assetIds = collectAssetIds(timeline);
 
-  // Build paths for each asset
-  for (const assetId of assetIds) {
-    const artefact = manifest.artefacts[assetId];
-    if (artefact?.blob) {
-      const ext = mimeToExtension(artefact.blob.mimeType);
-      const blobPath = buildBlobPath(storage, movieId, artefact.blob.hash, ext);
-      assetPaths[assetId] = blobPath;
+  // First, use event log paths if available (these are always fresh)
+  if (eventLogPaths) {
+    for (const assetId of assetIds) {
+      if (eventLogPaths[assetId]) {
+        assetPaths[assetId] = eventLogPaths[assetId];
+      }
     }
+  }
+
+  // Check if we have all assets resolved from event log
+  const missingAssets = Array.from(assetIds).filter(id => !assetPaths[id]);
+  if (missingAssets.length === 0) {
+    return assetPaths;
+  }
+
+  // Fall back to manifest for any missing assets (backward compatibility)
+  try {
+    const pointerPath = storage.resolve(movieId, 'current.json');
+    const pointerRaw = await storage.storage.readToString(pointerPath);
+    const pointer = JSON.parse(pointerRaw) as ManifestPointer;
+
+    if (!pointer.manifestPath) {
+      return assetPaths;
+    }
+
+    const manifestPath = storage.resolve(movieId, pointer.manifestPath);
+    const manifestRaw = await storage.storage.readToString(manifestPath);
+    const manifest = JSON.parse(manifestRaw) as ManifestFile;
+
+    if (!manifest.artefacts) {
+      return assetPaths;
+    }
+
+    // Build paths for missing assets from manifest
+    for (const assetId of missingAssets) {
+      const artefact = manifest.artefacts[assetId];
+      if (artefact?.blob) {
+        const ext = mimeToExtension(artefact.blob.mimeType);
+        const blobPath = buildBlobPath(storage, movieId, artefact.blob.hash, ext);
+        assetPaths[assetId] = blobPath;
+      }
+    }
+  } catch {
+    // If manifest reading fails and we have no event log paths, this will cause issues
+    // downstream when FFmpeg tries to access missing assets
   }
 
   return assetPaths;

@@ -1,4 +1,17 @@
 {
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && pnpm build",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  },
   "permissions": {
     "allow": [
       "Bash(pnpm type-check:*)",
@@ -66,7 +79,9 @@
       "Bash(ffmpeg:*)",
       "WebFetch(domain:aegisub.org)",
       "WebFetch(domain:docs.karaokes.moe)",
-      "Bash(shasum:*)"
+      "Bash(shasum:*)",
+      "Bash(python3:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

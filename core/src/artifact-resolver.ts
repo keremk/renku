@@ -143,3 +143,62 @@ function decodePayload(payload: Uint8Array, mimeType?: string): unknown {
 function formatResolvedKey(artifactId: string): string {
   return artifactId.replace(/^Artifact:/, '');
 }
+
+/**
+ * Resolves artifact IDs to their blob file paths by streaming the event log.
+ *
+ * Unlike resolveArtifactsFromEventLog which returns blob content, this function
+ * returns the file system paths to the blobs. This is needed by exporters
+ * like ffmpeg which require file paths rather than in-memory content.
+ *
+ * This function reads from the event log (not the manifest) to ensure it always
+ * gets the latest artifact paths, even during execution when the manifest
+ * hasn't been updated yet.
+ *
+ * @param args Configuration with artifact IDs to resolve, event log, storage, and movie ID
+ * @returns Map of artifact IDs to their blob file paths
+ *
+ * @example
+ * const paths = await resolveArtifactBlobPaths({
+ *   artifactIds: ['Artifact:VideoProducer.GeneratedVideo[0]', 'Artifact:AudioProducer.GeneratedAudio[0]'],
+ *   eventLog,
+ *   storage,
+ *   movieId: 'movie-123',
+ * });
+ * // Returns: { 'Artifact:VideoProducer.GeneratedVideo[0]': '/path/to/blobs/b8/b855...mp4' }
+ */
+export async function resolveArtifactBlobPaths(args: {
+  artifactIds: string[];
+  eventLog: EventLog;
+  storage: StorageContext;
+  movieId: string;
+}): Promise<Record<string, string>> {
+  if (args.artifactIds.length === 0) {
+    return {};
+  }
+
+  // Map to store latest event for each artifact ID
+  // We keep the latest in case there are multiple events for the same artifact
+  const latestEvents = new Map<string, ArtefactEvent>();
+
+  // Stream events and collect latest succeeded events for requested artifacts
+  for await (const event of args.eventLog.streamArtefacts(args.movieId)) {
+    if (event.status === 'succeeded' && args.artifactIds.includes(event.artefactId)) {
+      latestEvents.set(event.artefactId, event);
+    }
+  }
+
+  const paths: Record<string, string> = {};
+
+  for (const [artifactId, event] of latestEvents) {
+    if (event.output.blob) {
+      const blobRef = event.output.blob;
+      const prefix = blobRef.hash.slice(0, 2);
+      const fileName = formatBlobFileName(blobRef.hash, blobRef.mimeType);
+      const blobPath = args.storage.resolve(args.movieId, 'blobs', prefix, fileName);
+      paths[artifactId] = blobPath;
+    }
+  }
+
+  return paths;
+}

@@ -498,6 +498,13 @@ export type RevisionId = `rev-${string}`;
 
 export interface ProducerJobContextExtras {
   resolvedInputs?: Record<string, unknown>;
+  /**
+   * Blob file paths for assets referenced in Timeline, resolved from event log.
+   * Keys are artifact IDs (e.g., "Artifact:VideoProducer.GeneratedVideo[0]"),
+   * values are absolute file paths to the blob files.
+   * This ensures exporters use fresh paths even when manifest is stale.
+   */
+  assetBlobPaths?: Record<string, string>;
   [key: string]: unknown;
 }
 

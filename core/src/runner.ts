@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer';
-import { resolveArtifactsFromEventLog, readBlob } from './artifact-resolver.js';
+import { resolveArtifactsFromEventLog, readBlob, resolveArtifactBlobPaths } from './artifact-resolver.js';
 import { formatCanonicalArtifactId, isCanonicalArtifactId } from './canonical-ids.js';
 import type { EventLog } from './event-log.js';
 import { hashInputs } from './event-log.js';
@@ -302,9 +302,25 @@ async function executeJob(
     // Merge resolved artifacts into job context
     const enrichedJob = mergeResolvedArtifacts(job, resolvedArtifacts);
 
+    // Extract asset IDs from resolved artifacts (e.g., from Timeline)
+    // and resolve their blob paths from the event log.
+    // This ensures exporters get fresh paths even when manifest is stale.
+    const assetIds = extractAssetIdsFromResolved(resolvedArtifacts);
+    const assetBlobPaths = assetIds.length > 0
+      ? await resolveArtifactBlobPaths({
+          artifactIds: assetIds,
+          eventLog,
+          storage,
+          movieId,
+        })
+      : {};
+
+    // Merge asset blob paths into job context
+    const jobWithAssetPaths = mergeAssetBlobPaths(enrichedJob, assetBlobPaths);
+
     // Resolve BlobRef objects back to BlobInput for provider execution
     const jobWithResolvedBlobs = await resolveBlobRefsInJobContext(
-      enrichedJob,
+      jobWithAssetPaths,
       storage,
       movieId,
     );
@@ -631,6 +647,40 @@ function mergeResolvedArtifacts(
   };
 }
 
+/**
+ * Merges asset blob paths into the job context.
+ * These paths allow handlers (like ffmpeg-exporter) to resolve asset references
+ * from the event log instead of the manifest, ensuring fresh paths during execution.
+ */
+function mergeAssetBlobPaths(
+  job: JobDescriptor,
+  assetBlobPaths: Record<string, string>,
+): JobDescriptor {
+  if (Object.keys(assetBlobPaths).length === 0) {
+    return job;
+  }
+
+  const jobContext: ProducerJobContext = job.context ?? {
+    namespacePath: [],
+    indices: {},
+    producerAlias: typeof job.producer === 'string' ? job.producer : job.jobId,
+    inputs: job.inputs,
+    produces: job.produces,
+  };
+  const existingExtras: ProducerJobContextExtras = jobContext.extras ?? {};
+
+  return {
+    ...job,
+    context: {
+      ...jobContext,
+      extras: {
+        ...existingExtras,
+        assetBlobPaths,
+      },
+    },
+  };
+}
+
 function collectResolvedArtifactIds(job: JobDescriptor): string[] {
   const ids = new Set<string>();
   for (const inputId of job.inputs) {
@@ -793,4 +843,51 @@ async function resolveBlobRefsInJobContext(
   };
 
   return newJob;
+}
+
+/**
+ * Extracts asset IDs from resolved artifacts.
+ * Looks for Timeline-like structures that contain asset references in clips.
+ */
+function extractAssetIdsFromResolved(resolved: Record<string, unknown>): string[] {
+  const assetIds = new Set<string>();
+
+  for (const value of Object.values(resolved)) {
+    extractAssetIdsFromValue(value, assetIds);
+  }
+
+  return Array.from(assetIds);
+}
+
+/**
+ * Recursively extracts asset IDs from a value that might be a Timeline or contain Timelines.
+ * Timeline structure: { tracks: [{ clips: [{ properties: { assetId: "Artifact:..." } }] }] }
+ */
+function extractAssetIdsFromValue(value: unknown, assetIds: Set<string>): void {
+  if (value === null || value === undefined) {
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      extractAssetIdsFromValue(item, assetIds);
+    }
+    return;
+  }
+
+  if (typeof value !== 'object') {
+    return;
+  }
+
+  const obj = value as Record<string, unknown>;
+
+  // Check if this is an assetId field
+  if (typeof obj.assetId === 'string' && obj.assetId.startsWith('Artifact:')) {
+    assetIds.add(obj.assetId);
+  }
+
+  // Recurse into object properties
+  for (const prop of Object.values(obj)) {
+    extractAssetIdsFromValue(prop, assetIds);
+  }
 }
