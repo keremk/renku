@@ -68,9 +68,9 @@ loops:
 
 producers:
   - name: ScriptProducer
-    producer: prompt/script
+    path: ./script/script.yaml
   - name: ImagePromptProducer
-    producer: prompt/image
+    path: ./image/image.yaml
     loop: segment
   - name: ImageProducer
     producer: asset/text-to-image
