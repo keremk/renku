@@ -1,0 +1,48 @@
+meta:
+  name: Scenario Prompt Producer
+  description: Generate video prompts for continuous multi-segment videos using LastFrame continuity
+  id: ScenarioPromptProducer
+  version: 0.1.0
+  promptFile: ./scenario-prompt.toml
+  outputSchema: ./scenario-prompt-output.json
+
+inputs:
+  - name: InquiryPrompt
+    description: The scenario describing the desired video (e.g., cyclist cycling through gorgeous landscape).
+    type: string
+  - name: Duration
+    description: Desired video duration in seconds.
+    type: int
+  - name: NumOfSegments
+    description: Number of video segments to produce.
+    type: int
+  - name: SegmentDuration
+    description: Duration of each video segment in seconds.
+    type: int
+  - name: CameraStyle
+    description: Camera movement style and instructions (e.g., tracking shot, aerial, handheld).
+    type: string
+  - name: VisualStyle
+    description: Visual/artistic style for the video (e.g., cinematic, anime, photorealistic).
+    type: string
+
+artifacts:
+  - name: MovieTitle
+    description: The generated title for the video.
+    type: string
+  - name: InitialImagePrompt
+    description: Prompt for generating the starting frame image.
+    type: string
+  - name: VideoPrompts
+    description: Array of video prompts per segment.
+    type: array
+    itemType: string
+    countInput: NumOfSegments
+  - name: NarrationScript
+    description: Array of narration text per segment to be spoken by voice actor.
+    type: array
+    itemType: string
+    countInput: NumOfSegments
+  - name: MusicPrompt
+    description: Prompt for generating background music.
+    type: string

@@ -1,0 +1,33 @@
+{
+  "name": "ScenarioPromptOutput",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "MovieTitle": {
+        "type": "string",
+        "description": "A catchy, concise title for the video (3-6 words)."
+      },
+      "InitialImagePrompt": {
+        "type": "string",
+        "description": "Prompt for generating the opening frame image that starts the video sequence."
+      },
+      "VideoPrompts": {
+        "type": "array",
+        "description": "Video prompts for each segment, describing the action and camera movement.",
+        "items": { "type": "string" }
+      },
+      "NarrationScript": {
+        "type": "array",
+        "description": "Narration text for each segment to be spoken by a voice actor.",
+        "items": { "type": "string" }
+      },
+      "MusicPrompt": {
+        "type": "string",
+        "description": "Prompt describing the background music for the entire video."
+      }
+    },
+    "required": ["MovieTitle", "InitialImagePrompt", "VideoPrompts", "NarrationScript", "MusicPrompt"],
+    "additionalProperties": false
+  }
+}

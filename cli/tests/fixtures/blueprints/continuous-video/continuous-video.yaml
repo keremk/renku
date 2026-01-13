@@ -43,7 +43,7 @@ inputs:
     description: Optional emotion hint for narration.
     type: string
     required: false
-    
+
 
 artifacts:
   - name: SegmentVideo

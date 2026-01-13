@@ -1,0 +1,191 @@
+meta:
+  name: Continuous Multi-Segment Video
+  description: Generate continuous video with narration and music, where each segment starts with the last frame of the previous segment.
+  id: ContinuousVideo
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: InquiryPrompt
+    description: The scenario describing the desired video (e.g., cyclist cycling through gorgeous landscape).
+    type: string
+    required: true
+  - name: CameraStyle
+    description: Camera movement style (e.g., tracking shot, aerial, handheld, dolly).
+    type: string
+    required: true
+  - name: VisualStyle
+    description: Visual/artistic style (e.g., cinematic, anime, photorealistic, Ghibli).
+    type: string
+    required: true
+  - name: AspectRatio
+    description: Aspect ratio for the video (e.g., 16:9, 9:16, 1:1).
+    type: string
+    required: true
+  - name: Resolution
+    description: Video resolution (480p, 720p, 1080p).
+    type: string
+    required: true
+  - name: VoiceId
+    description: Voice identifier for narration.
+    type: string
+    required: true
+  - name: Emotion
+    description: Emotional tone for narration (happy, sad, neutral, etc.).
+    type: string
+    required: false
+
+artifacts:
+  - name: SegmentVideo
+    description: Generated video segments with frame continuity.
+    type: array
+    itemType: video
+    countInput: NumOfSegments
+  - name: SegmentAudio
+    description: Generated narration audio per segment.
+    type: array
+    itemType: audio
+    countInput: NumOfSegments
+  - name: InitialImage
+    description: The generated starting frame image.
+    type: image
+  - name: Music
+    description: Background music for the video.
+    type: audio
+  - name: Timeline
+    description: Composed timeline JSON manifest.
+    type: json
+  - name: FinalVideo
+    description: Final rendered MP4 video.
+    type: video
+
+loops:
+  - name: segment
+    description: Iterates over video segments.
+    countInput: NumOfSegments
+
+producers:
+  - name: ScenarioPromptProducer
+    path: ./scenario-prompt/scenario-prompt.yaml
+  - name: InitialImageProducer
+    producer: asset/text-to-image
+  - name: VideoProducer
+    producer: asset/image-to-video
+    loop: segment
+  - name: AudioProducer
+    producer: asset/text-to-speech
+    loop: segment
+  - name: MusicProducer
+    producer: asset/text-to-music
+  - name: TimelineComposer
+    producer: composition/timeline-composer
+  - name: TranscriptionProducer
+    producer: asset/transcription
+  - name: VideoExporter
+    producer: composition/video-exporter
+
+connections:
+  # Wire inputs to ScenarioPromptProducer
+  - from: InquiryPrompt
+    to: ScenarioPromptProducer.InquiryPrompt
+  - from: Duration
+    to: ScenarioPromptProducer.Duration
+  - from: NumOfSegments
+    to: ScenarioPromptProducer.NumOfSegments
+  - from: SegmentDuration
+    to: ScenarioPromptProducer.SegmentDuration
+  - from: CameraStyle
+    to: ScenarioPromptProducer.CameraStyle
+  - from: VisualStyle
+    to: ScenarioPromptProducer.VisualStyle
+
+  # Generate the initial starting image
+  - from: ScenarioPromptProducer.InitialImagePrompt
+    to: InitialImageProducer.Prompt
+  - from: AspectRatio
+    to: InitialImageProducer.AspectRatio
+  - from: InitialImageProducer.GeneratedImage
+    to: InitialImage
+
+  # Wire prompts to VideoProducer (all segments)
+  - from: ScenarioPromptProducer.VideoPrompts[segment]
+    to: VideoProducer[segment].Prompt
+  - from: AspectRatio
+    to: VideoProducer[segment].AspectRatio
+  - from: Resolution
+    to: VideoProducer[segment].Resolution
+  - from: SegmentDuration
+    to: VideoProducer[segment].Duration
+
+  # First segment gets the initial generated image as StartImage
+  - from: InitialImageProducer.GeneratedImage
+    to: VideoProducer[0].StartImage
+
+  # Subsequent segments get LastFrame from previous segment (sliding window)
+  - from: VideoProducer[segment-1].LastFrame
+    to: VideoProducer[segment].StartImage
+
+  # Output segment videos
+  - from: VideoProducer[segment].GeneratedVideo
+    to: SegmentVideo[segment]
+
+  # Wire narration to AudioProducer
+  - from: ScenarioPromptProducer.NarrationScript[segment]
+    to: AudioProducer[segment].Text
+  - from: VoiceId
+    to: AudioProducer[segment].VoiceId
+  - from: Emotion
+    to: AudioProducer[segment].Emotion
+  - from: AudioProducer[segment].GeneratedAudio
+    to: SegmentAudio[segment]
+
+  # Wire music prompt to MusicProducer
+  - from: ScenarioPromptProducer.MusicPrompt
+    to: MusicProducer.Prompt
+  - from: Duration
+    to: MusicProducer.Duration
+  - from: MusicProducer.GeneratedMusic
+    to: Music
+
+  # Wire to TimelineComposer
+  - from: VideoProducer[segment].GeneratedVideo
+    to: TimelineComposer.VideoSegments
+  - from: AudioProducer[segment].GeneratedAudio
+    to: TimelineComposer.AudioSegments
+  - from: MusicProducer.GeneratedMusic
+    to: TimelineComposer.Music
+  - from: Duration
+    to: TimelineComposer.Duration
+  - from: TimelineComposer.Timeline
+    to: Timeline
+
+  # Wire to VideoExporter
+  - from: TimelineComposer.Timeline
+    to: VideoExporter.Timeline
+  - from: TimelineComposer.Timeline
+    to: TranscriptionProducer.Timeline
+  - from: AudioProducer[segment].GeneratedAudio
+    to: TranscriptionProducer.AudioSegments
+  - from: TranscriptionProducer.Transcription
+    to: VideoExporter.Transcription
+  - from: VideoExporter.FinalVideo
+    to: FinalVideo
+
+collectors:
+  - name: TimelineVideo
+    from: VideoProducer[segment].GeneratedVideo
+    into: TimelineComposer.VideoSegments
+    groupBy: segment
+  - name: TimelineAudio
+    from: AudioProducer[segment].GeneratedAudio
+    into: TimelineComposer.AudioSegments
+    groupBy: segment
+  - name: MusicTrack
+    from: MusicProducer.GeneratedMusic
+    into: TimelineComposer.Music
+    groupBy: segment
+  - name: TranscriptionAudio
+    from: AudioProducer[segment].GeneratedAudio
+    into: TranscriptionProducer.AudioSegments
+    groupBy: segment

@@ -16,22 +16,19 @@ models:
   - model: gpt-5-mini
     provider: openai
     producerId: FlowVideoPromptProducer
-    promptFile: ../../../../catalog/producers/prompt/flow-video/flow-video.toml
-    outputSchema: ../../../../catalog/producers/prompt/flow-video/flow-video-output.json
+    promptFile: ../blueprints/continuous-video/flow-video/flow-video.toml
+    outputSchema: ../blueprints/continuous-video/flow-video/flow-video-output.json
     config:
       text_format: json_schema
   - model: google/nano-banana
     provider: replicate
     producerId: ImageProducer
-    # SDK mappings now come from producer YAML mappings section
   - model: kling-video/o1/image-to-video
     provider: fal-ai
     producerId: ImageToVideoProducer
-    # SDK mappings now come from producer YAML mappings section
   - model: minimax/speech-2.6-hd
     provider: replicate
     producerId: AudioProducer
-    # SDK mappings now come from producer YAML mappings section
   - model: timeline/ordered
     provider: renku
     producerId: TimelineComposer

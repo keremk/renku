@@ -92,7 +92,7 @@ describe('catalog blueprint validation', () => {
     it.each([
       'ad-video',
       'children-story',
-      'continuous-video',
+      'flow-video',
       'documentary-talking-head',
       'kenn-burns',
     ])('%s blueprint is valid', async (blueprintName) => {

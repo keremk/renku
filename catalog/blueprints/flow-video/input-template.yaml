@@ -1,0 +1,82 @@
+inputs:
+  # Scenario and style
+  InquiryPrompt: "A person in a canoe paddling through a serene lake at sunset, an exciting narrative audio describing the adventure."
+  CameraStyle: "Tracking shot following the canoe"
+  VisualStyle: "Cinematic, photorealistic"
+
+  # Video settings
+  AspectRatio: "16:9"
+  Resolution: "720p"
+
+  # Voice settings for narration
+  VoiceId: "Wise_Woman"
+  Emotion: "neutral"
+
+  # System inputs
+  Duration: 20
+  NumOfSegments: 2
+
+models:
+  # LLM for generating prompts
+  - model: gpt-5.2
+    provider: openai
+    producerId: ScenarioPromptProducer
+    config:
+      text_format: json_schema
+
+  # Image generation for initial frame
+  - model: bytedance/seedream-4.5
+    provider: replicate
+    producerId: InitialImageProducer
+
+  # Video generation with image-to-video (supports variable duration)
+  - model: kling-video/v2.5-turbo/pro/image-to-video 
+    provider: fal-ai
+    producerId: VideoProducer
+
+  # Text-to-speech for narration
+  - model: minimax/speech-2.6-hd
+    provider: replicate
+    producerId: AudioProducer
+
+  # Music generation
+  - model: stability-ai/stable-audio-2.5
+    provider: replicate
+    producerId: MusicProducer
+
+  # Timeline composition
+  - model: timeline/ordered
+    provider: renku
+    producerId: TimelineComposer
+    config:
+      masterTracks: ["Audio", "Video"]
+      videoClip:
+        artifact: VideoSegments
+      audioClip:
+        artifact: AudioSegments
+      musicClip:
+        artifact: Music
+        volume: 0.3
+      tracks: ["Video", "Audio", "Music"]
+
+  # Speech transcription for karaoke subtitles
+  - model: speech/transcription
+    provider: renku
+    producerId: TranscriptionProducer
+    config:
+      sttProvider: fal-ai
+      sttModel: elevenlabs/speech-to-text
+
+  - model: ffmpeg/native-render
+    provider: renku
+    producerId: VideoExporter
+    config:
+      subtitles:
+        font: "Arial"
+        fontSize: 72
+        fontBaseColor: "#FFFFFF"
+        fontHighlightColor: "#ED1EE0"
+        backgroundColor: "#000000"
+        backgroundOpacity: 0.5
+        maxWordsPerLine: 4
+        highlightEffect: true

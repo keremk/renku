@@ -7,7 +7,7 @@ import {
   readPlan,
   setupTempCliConfig,
 } from './helpers.js';
-import { CATALOG_BLUEPRINTS_ROOT, CLI_FIXTURES_INPUTS } from '../test-catalog-paths.js';
+import { CLI_FIXTURES_BLUEPRINTS, CLI_FIXTURES_INPUTS } from '../test-catalog-paths.js';
 
 function parseFirstIndex(jobId: string): number {
   const match = jobId.match(/\[(\d+)]/);
@@ -30,9 +30,8 @@ describe('end-to-end: image-to-video dry runs', () => {
   });
 
   it('wires sliding start/end images into ImageToVideoProducer', async () => {
-    const blueprintRoot = CATALOG_BLUEPRINTS_ROOT;
-    const blueprintPath = resolve(blueprintRoot, 'continuous-video', 'image-to-video.yaml');
-    const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'image-to-video-inputs.yaml');
+    const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'continuous-video', 'continuous-video.yaml');
+    const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'continuous-video-inputs.yaml');
 
     const { logger, warnings, errors } = createLoggerRecorder();
     const movieId = 'e2e-image-to-video';
