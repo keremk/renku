@@ -5,9 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { generatePlan } from './planner.js';
 import type { CliConfig } from './cli-config.js';
 import { createCliLogger } from './logger.js';
-import { CATALOG_BLUEPRINTS_ROOT, CATALOG_ROOT } from '../../tests/test-catalog-paths.js';
+import { CATALOG_ROOT, CLI_FIXTURES_BLUEPRINTS } from '../../tests/test-catalog-paths.js';
 
-const BLUEPRINTS_ROOT = CATALOG_BLUEPRINTS_ROOT;
 const catalogRoot = CATALOG_ROOT;
 
 describe('planner provider inputs', () => {
@@ -17,9 +16,9 @@ describe('planner provider inputs', () => {
 			storage: { root: tempRoot, basePath: 'builds' },
 			catalog: { root: catalogRoot },
 		};
-		// Use root catalog (source of truth)
-		const blueprintPath = resolve(BLUEPRINTS_ROOT, 'kenn-burns', 'image-audio.yaml');
-		const inputsPath = resolve(BLUEPRINTS_ROOT, 'kenn-burns', 'input-template.yaml');
+		// Use CLI fixtures (condition-example has ImageProducer)
+		const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'condition-example', 'condition-example.yaml');
+		const inputsPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'condition-example', 'input-template.yaml');
 
 		try {
 			const { plan } = await generatePlan({

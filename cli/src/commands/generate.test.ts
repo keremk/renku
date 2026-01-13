@@ -11,7 +11,7 @@ import { formatMovieId } from './execute.js';
 import { readCliConfig } from '../lib/cli-config.js';
 import { createInputsFile } from './__testutils__/inputs.js';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
-import { CATALOG_BLUEPRINTS_ROOT, CLI_FIXTURES_BLUEPRINTS } from '../../tests/test-catalog-paths.js';
+import { CLI_FIXTURES_BLUEPRINTS } from '../../tests/test-catalog-paths.js';
 
 // Use CLI fixtures for blueprints
 const VIDEO_AUDIO_MUSIC_BLUEPRINT_PATH = resolve(
@@ -25,8 +25,8 @@ const AUDIO_ONLY_BLUEPRINT_PATH = resolve(
   'audio-only.yaml',
 );
 const IMAGE_AUDIO_BLUEPRINT_PATH = resolve(
-  CATALOG_BLUEPRINTS_ROOT,
-  'kenn-burns',
+  CLI_FIXTURES_BLUEPRINTS,
+  'ken-burns',
   'image-audio.yaml',
 );
 const AUDIO_ONLY_MODELS = [
@@ -239,7 +239,7 @@ describe('runGenerate (new runs)', () => {
 
     const baselineInputsPath = join(root, 'inputs-image.yaml');
     await copyFile(
-      resolve(CATALOG_BLUEPRINTS_ROOT, 'kenn-burns', 'input-template.yaml'),
+      resolve(CLI_FIXTURES_BLUEPRINTS, 'ken-burns', 'input-template.yaml'),
       baselineInputsPath,
     );
 

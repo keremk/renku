@@ -94,7 +94,7 @@ describe('catalog blueprint validation', () => {
       'children-story',
       'flow-video',
       'documentary-talking-head',
-      'kenn-burns',
+      'ken-burns',
     ])('%s blueprint is valid', async (blueprintName) => {
       const dirPath = resolve(CATALOG_BLUEPRINTS_ROOT, blueprintName);
       const files = await readdir(dirPath);

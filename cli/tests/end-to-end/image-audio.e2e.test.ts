@@ -8,7 +8,7 @@ import {
   readPlan,
   setupTempCliConfig,
 } from './helpers.js';
-import { CATALOG_BLUEPRINTS_ROOT, CLI_FIXTURES_INPUTS } from '../test-catalog-paths.js';
+import { CLI_FIXTURES_BLUEPRINTS, CLI_FIXTURES_INPUTS } from '../test-catalog-paths.js';
 
 describe('end-to-end: image-audio dry runs', () => {
   let tempRoot = '';
@@ -25,8 +25,7 @@ describe('end-to-end: image-audio dry runs', () => {
   });
 
   it('runs image/audio dry-run with three images per narration', async () => {
-    const blueprintRoot = CATALOG_BLUEPRINTS_ROOT;
-    const blueprintPath = resolve(blueprintRoot, 'kenn-burns', 'image-audio.yaml');
+    const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'ken-burns', 'image-audio.yaml');
     const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'image-audio-inputs.yaml');
 
     const { logger, warnings, errors } = createLoggerRecorder();

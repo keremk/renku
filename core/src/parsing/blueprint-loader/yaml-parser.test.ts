@@ -136,7 +136,7 @@ describe('optional inputs without defaults', () => {
   });
 
   it('parses required flag correctly for both required and optional inputs', async () => {
-    const blueprintPath = resolve(yamlRoot, 'kenn-burns', 'image-audio.yaml');
+    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
     const document = await parseYamlBlueprintFile(blueprintPath);
 
     // Required inputs
