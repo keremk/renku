@@ -36,7 +36,7 @@ artifacts:
 
 producers:
   - name: ScriptProducer
-    producer: prompt/script
+    path: ./script/script.yaml
   - name: MusicPromptProducer
     producer: prompt/music
   - name: MusicProducer

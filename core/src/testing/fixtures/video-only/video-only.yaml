@@ -46,7 +46,7 @@ loops:
 
 producers:
   - name: ScriptProducer
-    producer: prompt/script
+    path: ./script/script.yaml
   - name: VideoPromptProducer
     producer: prompt/video
   - name: VideoProducer

@@ -1,0 +1,44 @@
+meta:
+  name: Script Generation
+  description: Generate documentary scripts tailored to the user inquiry.
+  id: ScriptProducer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+  promptFile: ./script.toml
+  outputSchema: ./script-output.json
+
+inputs:
+  - name: InquiryPrompt
+    description: The topic describing the desired movie script.
+    type: string
+  - name: Duration
+    description: Desired narration duration in seconds.
+    type: int
+  - name: NumOfSegments
+    description: Number of narration segments to produce.
+    type: int
+  - name: Audience
+    description: Target audience for tone and vocabulary. Model default varies.
+    type: string
+  - name: Language
+    description: Narration language. Model default varies.
+    type: string
+
+artifacts:
+  - name: MovieTitle
+    description: The generated title for the documentary.
+    type: string
+  - name: MovieSummary
+    description: Narrative summary for supplemental reading.
+    type: string
+  - name: NarrationScript
+    description: Array of narration paragraphs per segment.
+    type: array
+    itemType: string
+    countInput: NumOfSegments
+
+loops:
+  - name: segment
+    description: Iterates over narration segments.
+    countInput: NumOfSegments

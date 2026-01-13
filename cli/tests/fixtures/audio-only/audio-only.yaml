@@ -42,7 +42,7 @@ loops:
 
 producers:
   - name: ScriptProducer
-    producer: prompt/script
+    path: ./script/script.yaml
   - name: AudioProducer
     producer: asset/text-to-speech
     loop: segment

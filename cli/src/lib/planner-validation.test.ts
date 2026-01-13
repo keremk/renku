@@ -32,7 +32,7 @@ artifacts:
 
 producers:
   - name: TestProducer
-    producer: prompt/script
+    producer: asset/text-to-speech
 
 connections:
   - from: TestInput
@@ -91,7 +91,7 @@ artifacts:
 
 producers:
   - name: TestProducer
-    producer: prompt/script
+    producer: asset/text-to-speech
 
 connections:
   - from: TestInput
@@ -150,7 +150,7 @@ artifacts:
 
 producers:
   - name: TestProducer
-    producer: prompt/script
+    producer: asset/text-to-speech
 
 connections:
   - from: TestInput
