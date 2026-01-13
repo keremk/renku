@@ -52,7 +52,7 @@ producers:
   - name: ScriptProducer
     producer: prompt/script
   - name: ImagePromptProducer
-    producer: prompt/image
+    path: ./image/image.yaml
     loop: segment
   - name: ImageProducer
     producer: asset/text-to-image
