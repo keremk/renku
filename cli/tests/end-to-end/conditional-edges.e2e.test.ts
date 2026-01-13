@@ -78,7 +78,7 @@ describe('end-to-end: conditional edge execution', () => {
   it('executes only matching conditional branches based on NarrationType', async () => {
     const blueprintPath = resolve(CLI_TEST_FIXTURES_ROOT, 'blueprints', 'condition-example', 'condition-example.yaml');
     const inputsPath = resolve(CLI_TEST_FIXTURES_ROOT, 'blueprints', 'condition-example', 'input-template.yaml');
-    const { logger, warnings, errors } = createLoggerRecorder();
+    const { logger, errors } = createLoggerRecorder();
     const movieId = 'e2e-conditional-edges';
     const storageMovieId = formatMovieId(movieId);
 
