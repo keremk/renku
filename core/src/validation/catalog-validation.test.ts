@@ -83,7 +83,7 @@ describe('catalog blueprint validation', () => {
 
     // Verify we're finding the expected blueprints
     expect(names).toContain('children-story');
-    expect(names).toContain('documentary-talking-head');
+    expect(names).toContain('documentary-talkinghead');
     expect(blueprints.length).toBeGreaterThanOrEqual(5);
   });
 
@@ -93,7 +93,7 @@ describe('catalog blueprint validation', () => {
       'ad-video',
       'children-story',
       'flow-video',
-      'documentary-talking-head',
+      'documentary-talkinghead',
       'ken-burns',
     ])('%s blueprint is valid', async (blueprintName) => {
       const dirPath = resolve(CATALOG_BLUEPRINTS_ROOT, blueprintName);
