@@ -72,13 +72,13 @@ describe('parseYamlBlueprintFile', () => {
   });
 
   it('accepts dimension selectors with offsets', async () => {
-    const blueprintPath = resolve(yamlRoot, 'image-to-video', 'image-to-video.yaml');
+    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'offset-selector', 'offset-selector.yaml');
     const document = await parseYamlBlueprintFile(blueprintPath);
     expect(document.edges).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           from: 'ImageProducer[image+1].GeneratedImage',
-          to: 'ImageToVideoProducer[segment].EndImage',
+          to: 'VideoProducer[segment].EndImage',
         }),
       ]),
     );

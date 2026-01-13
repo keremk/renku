@@ -1,0 +1,52 @@
+meta:
+  name: Offset Selector Test
+  description: Minimal fixture to test dimension selectors with offsets.
+  id: OffsetSelectorTest
+  version: 0.1.0
+
+inputs:
+  - name: NumOfSegments
+    description: Number of segments.
+    type: int
+    required: true
+  - name: Prompt
+    description: Input prompt.
+    type: string
+    required: true
+
+artifacts:
+  - name: OutputVideo
+    description: Generated video per segment.
+    type: array
+    itemType: video
+    countInput: NumOfSegments
+
+loops:
+  - name: segment
+    description: Iterates over segments.
+    countInput: NumOfSegments
+  - name: image
+    description: Iterates over images (NumOfSegments + 1).
+    countInput: NumOfSegments
+    countInputOffset: 1
+
+producers:
+  - name: ImageProducer
+    producer: asset/text-to-image
+    loop: image
+  - name: VideoProducer
+    producer: asset/image-to-video
+    loop: segment
+
+connections:
+  - from: Prompt
+    to: ImageProducer[image].Prompt
+
+  - from: ImageProducer[image].GeneratedImage
+    to: VideoProducer[segment].StartImage
+
+  - from: ImageProducer[image+1].GeneratedImage
+    to: VideoProducer[segment].EndImage
+
+  - from: VideoProducer[segment].GeneratedVideo
+    to: OutputVideo[segment]

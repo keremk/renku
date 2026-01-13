@@ -92,8 +92,8 @@ describe('catalog blueprint validation', () => {
     it.each([
       'ad-video',
       'children-story',
+      'continuous-video',
       'documentary-talking-head',
-      'image-to-video',
       'kenn-burns',
     ])('%s blueprint is valid', async (blueprintName) => {
       const dirPath = resolve(CATALOG_BLUEPRINTS_ROOT, blueprintName);

@@ -31,7 +31,7 @@ describe('end-to-end: image-to-video dry runs', () => {
 
   it('wires sliding start/end images into ImageToVideoProducer', async () => {
     const blueprintRoot = CATALOG_BLUEPRINTS_ROOT;
-    const blueprintPath = resolve(blueprintRoot, 'image-to-video', 'image-to-video.yaml');
+    const blueprintPath = resolve(blueprintRoot, 'continuous-video', 'image-to-video.yaml');
     const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'image-to-video-inputs.yaml');
 
     const { logger, warnings, errors } = createLoggerRecorder();
