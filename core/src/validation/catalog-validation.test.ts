@@ -84,7 +84,7 @@ describe('catalog blueprint validation', () => {
     // Verify we're finding the expected blueprints
     expect(names).toContain('children-story');
     expect(names).toContain('documentary-talking-head');
-    expect(blueprints.length).toBeGreaterThanOrEqual(6);
+    expect(blueprints.length).toBeGreaterThanOrEqual(5);
   });
 
   // Individual test for each blueprint to see detailed results
@@ -92,7 +92,6 @@ describe('catalog blueprint validation', () => {
     it.each([
       'ad-video',
       'children-story',
-      'condition-example',
       'documentary-talking-head',
       'image-to-video',
       'kenn-burns',

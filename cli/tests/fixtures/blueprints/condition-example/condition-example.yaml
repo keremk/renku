@@ -1,0 +1,170 @@
+meta:
+  name: Conditional Test Blueprint
+  description: Test blueprint for conditional edge evaluation.
+  id: ConditionalTest
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: InquiryPrompt
+    description: The topic describing the desired documentary.
+    type: string
+    required: true
+  - name: NumOfImagesPerSegment
+    description: Number of images per segment.
+    type: int
+    required: true
+  - name: Resolution
+    description: Video resolution such as 480p, 720p, or 1080p. Model default varies.
+    type: string
+  - name: Size
+    description: Image resolution (1K, 2K, 4K, or custom). Model default varies.
+    type: string
+  - name: AspectRatio
+    description: Aspect ratio such as 16:9 or 3:2. Model default varies.
+    type: string
+  - name: Style
+    description: Image style.
+    type: string
+    required: true
+  - name: VoiceId
+    description: Voice identifier.
+    type: string
+    required: true
+
+artifacts:
+  - name: SegmentImage
+    description: Generated images (conditional).
+    type: multiDimArray
+    itemType: image
+  - name: SegmentAudio
+    description: Generated audio (conditional).
+    type: array
+    itemType: audio
+  - name: SegmentVideo
+    description: Generated video (conditional).
+    type: array
+    itemType: video
+  - name: Timeline
+    description: Generated timeline JSON.
+    type: json
+
+loops:
+  - name: segment
+    countInput: NumOfSegments
+  - name: image
+    parent: segment
+    countInput: NumOfImagesPerSegment
+
+# Named condition definitions (referenced by 'if:' on edges)
+conditions:
+  isImageNarration:
+    when: DocProducer.VideoScript.Segments[segment].NarrationType
+    is: "ImageNarration"
+  isAudioNeeded:
+    any:
+      - when: DocProducer.VideoScript.Segments[segment].NarrationType
+        is: "TalkingHead"
+      - when: DocProducer.VideoScript.Segments[segment].UseNarrationAudio
+        is: true
+  isTalkingHead:
+    when: DocProducer.VideoScript.Segments[segment].NarrationType
+    is: "TalkingHead"
+
+producers:
+  - name: DocProducer
+    path: ./documentary/documentary.yaml
+  - name: ImageProducer
+    producer: asset/text-to-image
+    loop: segment.image
+  - name: AudioProducer
+    producer: asset/text-to-speech
+    loop: segment
+  - name: VideoProducer
+    producer: asset/text-to-video
+    loop: segment
+  - name: TimelineComposer
+    producer: composition/timeline-composer
+
+connections:
+  # Wire inputs to DocProducer
+  - from: InquiryPrompt
+    to: DocProducer.InquiryPrompt
+  - from: NumOfSegments
+    to: DocProducer.NumOfSegments
+  - from: NumOfImagesPerSegment
+    to: DocProducer.NumOfImagesPerSegment
+  - from: Style
+    to: DocProducer.Style
+
+  # Conditional: ImageProducer only when NarrationType is ImageNarration
+  - from: DocProducer.VideoScript.Segments[segment].ImagePrompts[image]
+    to: ImageProducer[segment][image].Prompt
+    if: isImageNarration
+  - from: AspectRatio
+    to: ImageProducer[segment][image].AspectRatio
+    if: isImageNarration
+  - from: Size
+    to: ImageProducer[segment][image].Resolution
+    if: isImageNarration
+  - from: ImageProducer[segment][image].GeneratedImage
+    to: SegmentImage[segment][image]
+    if: isImageNarration
+
+  # Conditional: AudioProducer only when NarrationType is TalkingHead
+  - from: DocProducer.VideoScript.Segments[segment].Script
+    to: AudioProducer[segment].Text
+    if: isAudioNeeded
+  - from: VoiceId
+    to: AudioProducer[segment].VoiceId
+    if: isAudioNeeded
+  - from: AudioProducer[segment].GeneratedAudio
+    to: SegmentAudio[segment]
+    if: isAudioNeeded
+
+  # Conditional: VideoProducer only when NarrationType is TalkingHead
+  - from: DocProducer.VideoScript.Segments[segment].VideoPrompt
+    to: VideoProducer[segment].Prompt
+    if: isTalkingHead
+  - from: SegmentDuration
+    to: VideoProducer[segment].Duration
+    if: isTalkingHead
+  - from: Resolution
+    to: VideoProducer[segment].Resolution
+    if: isTalkingHead
+  - from: AspectRatio
+    to: VideoProducer[segment].AspectRatio
+    if: isTalkingHead
+  - from: VideoProducer[segment].GeneratedVideo
+    to: SegmentVideo[segment]
+    if: isTalkingHead
+
+  - from: AudioProducer[segment].GeneratedAudio
+    to: TimelineComposer.AudioSegments
+    if: isAudioNeeded
+  - from: VideoProducer[segment].GeneratedVideo
+    to: TimelineComposer.VideoSegments
+    if: isTalkingHead
+  - from: ImageProducer[segment][image].GeneratedImage
+    to: TimelineComposer.ImageSegments
+    if: isImageNarration
+  - from: Duration
+    to: TimelineComposer.Duration
+  - from: TimelineComposer.Timeline
+    to: Timeline
+  
+collectors:
+  - name: TimelineImages
+    from: ImageProducer[segment][image].GeneratedImage
+    into: TimelineComposer.ImageSegments
+    groupBy: segment
+    orderBy: image
+  - name: TimelineAudio
+    from: AudioProducer[segment].GeneratedAudio
+    into: TimelineComposer.AudioSegments
+    groupBy: segment
+  - name: TimelineVideo
+    from: VideoProducer[segment].GeneratedVideo
+    into: TimelineComposer.VideoSegments
+    groupBy: segment

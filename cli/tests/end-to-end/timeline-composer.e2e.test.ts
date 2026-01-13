@@ -24,7 +24,7 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(__dirname, '..', '..', '..');
-const CATALOG_BLUEPRINTS_ROOT = resolve(PROJECT_ROOT, 'catalog', 'blueprints');
+const CLI_TEST_FIXTURES_ROOT = resolve(__dirname, '..', 'fixtures');
 const CATALOG_MODELS_ROOT = resolve(PROJECT_ROOT, 'catalog', 'models');
 
 /**
@@ -80,8 +80,8 @@ describe('end-to-end: TimelineComposer with conditional segments', () => {
   });
 
   it('generates correct timeline with sparse fan-in data from skipped segments', async () => {
-    const blueprintPath = resolve(CATALOG_BLUEPRINTS_ROOT, 'condition-example', 'condition-example.yaml');
-    const inputsPath = resolve(CATALOG_BLUEPRINTS_ROOT, 'condition-example', 'input-template.yaml');
+    const blueprintPath = resolve(CLI_TEST_FIXTURES_ROOT, 'blueprints', 'condition-example', 'condition-example.yaml');
+    const inputsPath = resolve(CLI_TEST_FIXTURES_ROOT, 'blueprints', 'condition-example', 'input-template.yaml');
     const { logger, errors } = createLoggerRecorder();
     const movieId = 'e2e-timeline-composer';
     const storageMovieId = formatMovieId(movieId);

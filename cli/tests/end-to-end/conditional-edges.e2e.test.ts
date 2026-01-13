@@ -21,9 +21,7 @@ import {
 } from './helpers.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-// Path to the main catalog (not cli/catalog)
-const PROJECT_ROOT = resolve(__dirname, '..', '..', '..');
-const CATALOG_BLUEPRINTS_ROOT = resolve(PROJECT_ROOT, 'catalog', 'blueprints');
+const CLI_TEST_FIXTURES_ROOT = resolve(__dirname, '..', 'fixtures');
 
 /**
  * Mock VideoScript data with controlled NarrationType values per segment.
@@ -78,8 +76,8 @@ describe('end-to-end: conditional edge execution', () => {
   });
 
   it('executes only matching conditional branches based on NarrationType', async () => {
-    const blueprintPath = resolve(CATALOG_BLUEPRINTS_ROOT, 'condition-example', 'condition-example.yaml');
-    const inputsPath = resolve(CATALOG_BLUEPRINTS_ROOT, 'condition-example', 'input-template.yaml');
+    const blueprintPath = resolve(CLI_TEST_FIXTURES_ROOT, 'blueprints', 'condition-example', 'condition-example.yaml');
+    const inputsPath = resolve(CLI_TEST_FIXTURES_ROOT, 'blueprints', 'condition-example', 'input-template.yaml');
     const { logger, warnings, errors } = createLoggerRecorder();
     const movieId = 'e2e-conditional-edges';
     const storageMovieId = formatMovieId(movieId);

@@ -12,8 +12,6 @@ import type { EdgeConditionClause, EdgeConditionGroup } from '../../types.js';
 
 const catalogRoot = CATALOG_ROOT;
 const yamlRoot = CATALOG_BLUEPRINTS_ROOT;
-// Root catalog for blueprints like condition-example
-const rootCatalogBlueprints = CATALOG_BLUEPRINTS_ROOT;
 
 describe('parseYamlBlueprintFile', () => {
   it('parses interface-only producer with meta, inputs, and artifacts', async () => {
@@ -162,7 +160,7 @@ describe('condition parsing', () => {
   describe('if references on edges', () => {
     it('parses edge with if reference to named condition', async () => {
       // Use root catalog condition-example (has if: references to named conditions)
-      const blueprintPath = resolve(rootCatalogBlueprints, 'condition-example', 'condition-example.yaml');
+      const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'condition-example', 'condition-example.yaml');
       const document = await parseYamlBlueprintFile(blueprintPath);
 
       // Find any edge with conditions (populated from if: reference)
@@ -182,7 +180,7 @@ describe('condition parsing', () => {
 
   describe('named conditions block', () => {
     it('parses conditions block with named condition definitions', async () => {
-      const blueprintPath = resolve(rootCatalogBlueprints, 'condition-example', 'condition-example.yaml');
+      const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'condition-example', 'condition-example.yaml');
       const document = await parseYamlBlueprintFile(blueprintPath);
 
       // Check that conditions are defined
@@ -191,7 +189,7 @@ describe('condition parsing', () => {
     });
 
     it('parses named condition with is operator', async () => {
-      const blueprintPath = resolve(rootCatalogBlueprints, 'condition-example', 'condition-example.yaml');
+      const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'condition-example', 'condition-example.yaml');
       const document = await parseYamlBlueprintFile(blueprintPath);
 
       const conditions = document.conditions ?? {};
@@ -206,7 +204,7 @@ describe('condition parsing', () => {
     });
 
     it('parses named condition group with all (AND)', async () => {
-      const blueprintPath = resolve(rootCatalogBlueprints, 'condition-example', 'condition-example.yaml');
+      const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'condition-example', 'condition-example.yaml');
       const document = await parseYamlBlueprintFile(blueprintPath);
 
       const conditions = document.conditions ?? {};
@@ -223,7 +221,7 @@ describe('condition parsing', () => {
     });
 
     it('parses named condition group with any (OR)', async () => {
-      const blueprintPath = resolve(rootCatalogBlueprints, 'condition-example', 'condition-example.yaml');
+      const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'condition-example', 'condition-example.yaml');
       const document = await parseYamlBlueprintFile(blueprintPath);
 
       const conditions = document.conditions ?? {};
@@ -242,7 +240,7 @@ describe('condition parsing', () => {
 
   describe('if references', () => {
     it('resolves if reference to named condition on edge', async () => {
-      const blueprintPath = resolve(rootCatalogBlueprints, 'condition-example', 'condition-example.yaml');
+      const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'condition-example', 'condition-example.yaml');
       const document = await parseYamlBlueprintFile(blueprintPath);
 
       // Find an edge that uses 'if:' reference (conditions will be populated from the named condition)
@@ -255,7 +253,7 @@ describe('condition parsing', () => {
 
   describe('condition operators', () => {
     it('parses conditions with is operator from named conditions', async () => {
-      const blueprintPath = resolve(rootCatalogBlueprints, 'condition-example', 'condition-example.yaml');
+      const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'condition-example', 'condition-example.yaml');
       const document = await parseYamlBlueprintFile(blueprintPath);
 
       const conditions = document.conditions ?? {};
@@ -516,7 +514,7 @@ describe('yaml-parser edge cases', () => {
   });
 
   it('parses edge conditions correctly', async () => {
-    const blueprintPath = resolve(rootCatalogBlueprints, 'condition-example', 'condition-example.yaml');
+    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'condition-example', 'condition-example.yaml');
     const document = await parseYamlBlueprintFile(blueprintPath);
 
     // Look for edges with conditions
