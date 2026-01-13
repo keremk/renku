@@ -6,12 +6,12 @@ import {
   type ModelSelection,
   type BlueprintTreeNode,
 } from '@gorenku/core';
-import { CATALOG_ROOT, CLI_TEST_FIXTURES_ROOT } from '../../tests/test-catalog-paths.js';
+import { CATALOG_ROOT, CLI_FIXTURES_BLUEPRINTS } from '../../tests/test-catalog-paths.js';
 
 describe('producer options', () => {
   it('builds options with SDK mappings from producer YAML (not from selection)', async () => {
     // Use CLI fixtures for audio-only blueprint
-    const blueprintPath = resolve(CLI_TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
+    const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'audio-only', 'audio-only.yaml');
     const { root: blueprint } = await loadBlueprintBundle(blueprintPath, { catalogRoot: CATALOG_ROOT });
 
     // Verify the ScriptProducer child node has the expected meta with promptFile/outputSchema

@@ -9,8 +9,7 @@
  * 5. Real ffmpeg extraction works with actual video files
  */
 import { readFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { runExecute, formatMovieId } from '../../src/commands/execute.js';
 import {
@@ -25,8 +24,7 @@ import {
   readPlan,
   setupTempCliConfig,
 } from './helpers.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { CLI_FIXTURES_BLUEPRINTS, CLI_FIXTURES_INPUTS, CLI_FIXTURES_MEDIA } from '../test-catalog-paths.js';
 
 describe('end-to-end: derived video artifacts', () => {
   let restoreEnv: () => void = () => {};
@@ -41,8 +39,8 @@ describe('end-to-end: derived video artifacts', () => {
   });
 
   it('plans derived artifacts (FirstFrame, LastFrame, AudioTrack) and wires LastFrame to downstream producer', async () => {
-    const blueprintPath = resolve(__dirname, 'fixtures', 'derived-video-artifacts-blueprint.yaml');
-    const inputsPath = resolve(__dirname, 'fixtures', 'derived-video-artifacts-inputs.yaml');
+    const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'derived-video-artifacts.yaml');
+    const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'derived-video-artifacts-inputs.yaml');
 
     const { logger, warnings, errors } = createLoggerRecorder();
     const movieId = 'e2e-derived-video-artifacts';
@@ -114,8 +112,8 @@ describe('end-to-end: derived video artifacts', () => {
   });
 
   it('correctly tracks all derived artifacts in the plan', async () => {
-    const blueprintPath = resolve(__dirname, 'fixtures', 'derived-video-artifacts-blueprint.yaml');
-    const inputsPath = resolve(__dirname, 'fixtures', 'derived-video-artifacts-inputs.yaml');
+    const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'derived-video-artifacts.yaml');
+    const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'derived-video-artifacts-inputs.yaml');
 
     const { logger } = createLoggerRecorder();
     const movieId = 'e2e-derived-artifacts-tracking';
@@ -159,7 +157,7 @@ describe('end-to-end: derived video artifacts', () => {
 });
 
 describe('end-to-end: real ffmpeg extraction', () => {
-  const VIDEO_FIXTURE_PATH = resolve(__dirname, 'fixtures', 'video-fixture.mp4');
+  const VIDEO_FIXTURE_PATH = resolve(CLI_FIXTURES_MEDIA, 'video-fixture.mp4');
 
   beforeEach(() => {
     resetFfmpegCache();

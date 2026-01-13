@@ -8,8 +8,7 @@
  * 4. Full pipeline integration from TranscriptionProducer to VideoExporter
  */
 import { readFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { runExecute, formatMovieId } from '../../src/commands/execute.js';
 import {
@@ -29,14 +28,18 @@ import {
   readPlan,
   setupTempCliConfig,
 } from './helpers.js';
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const FIXTURES_DIR = resolve(__dirname, 'fixtures');
+import {
+  CLI_FIXTURES_BLUEPRINTS,
+  CLI_FIXTURES_INPUTS,
+  CLI_FIXTURES_MEDIA,
+  CLI_FIXTURES_SCHEMAS,
+} from '../test-catalog-paths.js';
 
 /**
  * Load the transcription.json fixture and parse it as STT output.
  */
 async function loadTranscriptionFixture(): Promise<STTOutput> {
-  const content = await readFile(resolve(FIXTURES_DIR, 'transcription.json'), 'utf8');
+  const content = await readFile(resolve(CLI_FIXTURES_SCHEMAS, 'transcription.json'), 'utf8');
   return JSON.parse(content) as STTOutput;
 }
 
@@ -44,7 +47,7 @@ async function loadTranscriptionFixture(): Promise<STTOutput> {
  * Load the audio-fixture.mp3 as a buffer.
  */
 async function loadAudioFixture(): Promise<Buffer> {
-  return readFile(resolve(FIXTURES_DIR, 'audio-fixture.mp3'));
+  return readFile(resolve(CLI_FIXTURES_MEDIA, 'audio-fixture.mp3'));
 }
 
 describe('end-to-end: transcription producer plan validation', () => {
@@ -60,8 +63,8 @@ describe('end-to-end: transcription producer plan validation', () => {
   });
 
   it('includes TranscriptionProducer in plan with correct bindings', async () => {
-    const blueprintPath = resolve(FIXTURES_DIR, 'cut-scene-video', 'video-audio-music.yaml');
-    const inputsPath = resolve(FIXTURES_DIR, 'transcription-inputs.yaml');
+    const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'cut-scene-video', 'video-audio-music.yaml');
+    const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'transcription-inputs.yaml');
     const { logger, warnings, errors } = createLoggerRecorder();
     const movieId = 'e2e-transcription';
     const storageMovieId = formatMovieId(movieId);
@@ -108,8 +111,8 @@ describe('end-to-end: transcription producer plan validation', () => {
   });
 
   it('schedules TranscriptionProducer after TimelineComposer and before VideoExporter', async () => {
-    const blueprintPath = resolve(FIXTURES_DIR, 'cut-scene-video', 'video-audio-music.yaml');
-    const inputsPath = resolve(FIXTURES_DIR, 'transcription-inputs.yaml');
+    const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'cut-scene-video', 'video-audio-music.yaml');
+    const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'transcription-inputs.yaml');
     const { logger } = createLoggerRecorder();
     const movieId = 'e2e-transcription-scheduling';
     const storageMovieId = formatMovieId(movieId);

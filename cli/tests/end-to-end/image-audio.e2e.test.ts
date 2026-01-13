@@ -1,5 +1,4 @@
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { runExecute, formatMovieId } from '../../src/commands/execute.js';
 import {
@@ -9,9 +8,7 @@ import {
   readPlan,
   setupTempCliConfig,
 } from './helpers.js';
-import { CATALOG_BLUEPRINTS_ROOT } from '../test-catalog-paths.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { CATALOG_BLUEPRINTS_ROOT, CLI_FIXTURES_INPUTS } from '../test-catalog-paths.js';
 
 describe('end-to-end: image-audio dry runs', () => {
   let tempRoot = '';
@@ -30,7 +27,7 @@ describe('end-to-end: image-audio dry runs', () => {
   it('runs image/audio dry-run with three images per narration', async () => {
     const blueprintRoot = CATALOG_BLUEPRINTS_ROOT;
     const blueprintPath = resolve(blueprintRoot, 'kenn-burns', 'image-audio.yaml');
-    const inputsPath = resolve(__dirname, 'fixtures', 'image-audio-inputs.yaml');
+    const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'image-audio-inputs.yaml');
 
     const { logger, warnings, errors } = createLoggerRecorder();
     const movieId = 'e2e-image';

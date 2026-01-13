@@ -1,6 +1,5 @@
-import { dirname, resolve, join } from 'node:path';
+import { resolve, join } from 'node:path';
 import { writeFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { stringify as stringifyYaml } from 'yaml';
 import {
@@ -21,10 +20,7 @@ import {
   readPlan,
   setupTempCliConfig,
 } from './helpers.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-// Local test fixtures directory
-const E2E_FIXTURES_ROOT = resolve(__dirname, 'fixtures');
+import { CLI_FIXTURES_BLUEPRINTS, CLI_FIXTURES_INPUTS } from '../test-catalog-paths.js';
 
 describe('end-to-end: JSON virtual artifact blueprint', () => {
   let tempRoot = '';
@@ -41,8 +37,8 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
   });
 
   it('dry-run generates correct jobs with virtual artifact connections', async () => {
-    const blueprintPath = resolve(E2E_FIXTURES_ROOT, 'json-blueprints', 'json-blueprints.yaml');
-    const inputsPath = resolve(__dirname, 'fixtures', 'json-blueprints-inputs.yaml');
+    const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'json-blueprints', 'json-blueprints.yaml');
+    const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'json-blueprints-inputs.yaml');
     const { logger, warnings, errors } = createLoggerRecorder();
     const movieId = 'e2e-json-blueprints-dry';
     const storageMovieId = formatMovieId(movieId);
@@ -113,8 +109,8 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
   });
 
   it('re-runs only affected ImageProducer when virtual artifact is overridden', async () => {
-    const blueprintPath = resolve(E2E_FIXTURES_ROOT, 'json-blueprints', 'json-blueprints.yaml');
-    const inputsPath = resolve(__dirname, 'fixtures', 'json-blueprints-inputs.yaml');
+    const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'json-blueprints', 'json-blueprints.yaml');
+    const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'json-blueprints-inputs.yaml');
     const { logger, warnings, errors } = createLoggerRecorder();
     const { logger: editLogger, warnings: editWarnings, errors: editErrors } = createLoggerRecorder();
     const movieId = 'e2e-json-blueprints-dirty';
@@ -243,8 +239,8 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
             provider: 'openai',
             producerId: 'DocProducer',
             // Include outputSchema so virtual artifact edges are created
-            promptFile: resolve(E2E_FIXTURES_ROOT, 'json-blueprints', 'documentary', 'documentary.toml'),
-            outputSchema: resolve(E2E_FIXTURES_ROOT, 'json-blueprints', 'documentary', 'documentary-output.json'),
+            promptFile: resolve(CLI_FIXTURES_BLUEPRINTS, 'json-blueprints', 'documentary', 'documentary.toml'),
+            outputSchema: resolve(CLI_FIXTURES_BLUEPRINTS, 'json-blueprints', 'documentary', 'documentary-output.json'),
             config: { text_format: 'json_schema' },
           },
           {
@@ -324,8 +320,8 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
   });
 
   it('re-runs different ImageProducer when different virtual artifact is overridden', async () => {
-    const blueprintPath = resolve(E2E_FIXTURES_ROOT, 'json-blueprints', 'json-blueprints.yaml');
-    const inputsPath = resolve(__dirname, 'fixtures', 'json-blueprints-inputs.yaml');
+    const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'json-blueprints', 'json-blueprints.yaml');
+    const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'json-blueprints-inputs.yaml');
     const { logger } = createLoggerRecorder();
     const { logger: editLogger, warnings: editWarnings, errors: editErrors } = createLoggerRecorder();
     const movieId = 'e2e-json-blueprints-dirty2';
@@ -414,8 +410,8 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
             model: 'gpt-5.2',
             provider: 'openai',
             producerId: 'DocProducer',
-            promptFile: resolve(E2E_FIXTURES_ROOT, 'json-blueprints', 'documentary', 'documentary.toml'),
-            outputSchema: resolve(E2E_FIXTURES_ROOT, 'json-blueprints', 'documentary', 'documentary-output.json'),
+            promptFile: resolve(CLI_FIXTURES_BLUEPRINTS, 'json-blueprints', 'documentary', 'documentary.toml'),
+            outputSchema: resolve(CLI_FIXTURES_BLUEPRINTS, 'json-blueprints', 'documentary', 'documentary-output.json'),
             config: { text_format: 'json_schema' },
           },
           {

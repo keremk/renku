@@ -1,6 +1,5 @@
-import { dirname, resolve, join } from 'node:path';
+import { resolve, join } from 'node:path';
 import { writeFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { stringify as stringifyYaml } from 'yaml';
 import {
@@ -21,9 +20,7 @@ import {
   readPlan,
   setupTempCliConfig,
 } from './helpers.js';
-import { CATALOG_ROOT, CLI_TEST_FIXTURES_ROOT } from '../test-catalog-paths.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { CATALOG_ROOT, CLI_FIXTURES_BLUEPRINTS, CLI_FIXTURES_INPUTS } from '../test-catalog-paths.js';
 
 describe('end-to-end: artifact override via inputs.yaml', () => {
   let tempRoot = '';
@@ -40,8 +37,8 @@ describe('end-to-end: artifact override via inputs.yaml', () => {
   });
 
   it('re-runs downstream producers when artifact is overridden via file: prefix', async () => {
-    const blueprintPath = resolve(CLI_TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
-    const inputsPath = resolve(__dirname, 'fixtures', 'audio-only-inputs.yaml');
+    const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'audio-only', 'audio-only.yaml');
+    const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'audio-only-inputs.yaml');
     const { logger } = createLoggerRecorder();
     const { logger: editLogger, warnings: editWarnings, errors: editErrors } = createLoggerRecorder();
     const movieId = 'e2e-artifact-override';

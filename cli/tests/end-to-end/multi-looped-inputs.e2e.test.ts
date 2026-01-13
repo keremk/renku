@@ -1,5 +1,4 @@
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import {
   createEventLog,
@@ -19,9 +18,7 @@ import {
   readPlan,
   setupTempCliConfig,
 } from './helpers.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const FIXTURES_ROOT = resolve(__dirname, 'fixtures');
+import { CLI_FIXTURES_BLUEPRINTS, CLI_FIXTURES_INPUTS } from '../test-catalog-paths.js';
 
 /**
  * Mock Script data for the ContentGenerator.
@@ -62,8 +59,8 @@ describe('end-to-end: multi-looped inputs dimension unification', () => {
   });
 
   it('generates plan for blueprint with multi-looped inputs from sibling fields', async () => {
-    const blueprintPath = resolve(FIXTURES_ROOT, 'multi-looped-inputs-blueprint.yaml');
-    const inputsPath = resolve(FIXTURES_ROOT, 'multi-looped-inputs-inputs.yaml');
+    const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'multi-looped-inputs.yaml');
+    const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'multi-looped-inputs-inputs.yaml');
     const { logger, warnings, errors } = createLoggerRecorder();
     const movieId = 'e2e-multi-looped-inputs';
     const storageMovieId = formatMovieId(movieId);
@@ -149,8 +146,8 @@ describe('end-to-end: multi-looped inputs dimension unification', () => {
   });
 
   it('executes plan with multi-looped inputs successfully', async () => {
-    const blueprintPath = resolve(FIXTURES_ROOT, 'multi-looped-inputs-blueprint.yaml');
-    const inputsPath = resolve(FIXTURES_ROOT, 'multi-looped-inputs-inputs.yaml');
+    const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'multi-looped-inputs.yaml');
+    const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'multi-looped-inputs-inputs.yaml');
     const { logger, warnings, errors } = createLoggerRecorder();
     const movieId = 'e2e-multi-looped-inputs-exec';
     const storageMovieId = formatMovieId(movieId);

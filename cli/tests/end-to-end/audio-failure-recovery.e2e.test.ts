@@ -1,5 +1,4 @@
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import {
   createEventLog,
@@ -20,9 +19,7 @@ import {
   readPlan,
   setupTempCliConfig,
 } from './helpers.js';
-import { CLI_TEST_FIXTURES_ROOT } from '../test-catalog-paths.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { CLI_FIXTURES_BLUEPRINTS, CLI_FIXTURES_INPUTS } from '../test-catalog-paths.js';
 
 describe('end-to-end: failed artifact recovery', () => {
   let tempRoot = '';
@@ -39,8 +36,8 @@ describe('end-to-end: failed artifact recovery', () => {
   });
 
   it('re-runs only the failed AudioProducer job in edit flow', async () => {
-    const blueprintPath = resolve(CLI_TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
-    const inputsPath = resolve(__dirname, 'fixtures', 'audio-only-inputs.yaml');
+    const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'audio-only', 'audio-only.yaml');
+    const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'audio-only-inputs.yaml');
     const { logger, warnings, errors } = createLoggerRecorder();
     // Create separate logger for recovery phase to avoid seeing the intentional failure error
     const { logger: recoveryLogger, warnings: recoveryWarnings, errors: recoveryErrors } = createLoggerRecorder();

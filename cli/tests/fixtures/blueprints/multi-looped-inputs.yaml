@@ -30,12 +30,12 @@ loops:
 
 producers:
   - name: ContentGenerator
-    path: ./producers/content-generator/content-generator.yaml
+    path: ../producers/content-generator/content-generator.yaml
   - name: ImageGenerator
-    path: ./producers/image-generator/image-generator.yaml
+    path: ../producers/image-generator/image-generator.yaml
     loop: segment
   - name: VideoGenerator
-    path: ./producers/video-generator/video-generator.yaml
+    path: ../producers/video-generator/video-generator.yaml
     loop: segment
 
 connections:

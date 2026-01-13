@@ -1,5 +1,4 @@
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { runExecute, formatMovieId } from '../../src/commands/execute.js';
 import {
@@ -8,9 +7,7 @@ import {
   readPlan,
   setupTempCliConfig,
 } from './helpers.js';
-import { CATALOG_BLUEPRINTS_ROOT } from '../test-catalog-paths.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { CATALOG_BLUEPRINTS_ROOT, CLI_FIXTURES_INPUTS } from '../test-catalog-paths.js';
 
 function parseFirstIndex(jobId: string): number {
   const match = jobId.match(/\[(\d+)]/);
@@ -35,7 +32,7 @@ describe('end-to-end: image-to-video dry runs', () => {
   it('wires sliding start/end images into ImageToVideoProducer', async () => {
     const blueprintRoot = CATALOG_BLUEPRINTS_ROOT;
     const blueprintPath = resolve(blueprintRoot, 'image-to-video', 'image-to-video.yaml');
-    const inputsPath = resolve(__dirname, 'fixtures', 'image-to-video-inputs.yaml');
+    const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'image-to-video-inputs.yaml');
 
     const { logger, warnings, errors } = createLoggerRecorder();
     const movieId = 'e2e-image-to-video';

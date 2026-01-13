@@ -1,5 +1,4 @@
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import {
   createEventLog,
@@ -19,9 +18,7 @@ import {
   readPlan,
   setupTempCliConfig,
 } from './helpers.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const CLI_TEST_FIXTURES_ROOT = resolve(__dirname, '..', 'fixtures');
+import { CLI_FIXTURES_BLUEPRINTS } from '../test-catalog-paths.js';
 
 /**
  * Mock VideoScript data with controlled NarrationType values per segment.
@@ -76,8 +73,8 @@ describe('end-to-end: conditional edge execution', () => {
   });
 
   it('executes only matching conditional branches based on NarrationType', async () => {
-    const blueprintPath = resolve(CLI_TEST_FIXTURES_ROOT, 'blueprints', 'condition-example', 'condition-example.yaml');
-    const inputsPath = resolve(CLI_TEST_FIXTURES_ROOT, 'blueprints', 'condition-example', 'input-template.yaml');
+    const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'condition-example', 'condition-example.yaml');
+    const inputsPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'condition-example', 'input-template.yaml');
     const { logger, errors } = createLoggerRecorder();
     const movieId = 'e2e-conditional-edges';
     const storageMovieId = formatMovieId(movieId);

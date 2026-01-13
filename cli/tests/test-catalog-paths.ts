@@ -24,3 +24,10 @@ export const CATALOG_PRODUCERS_ROOT = resolve(CATALOG_ROOT, 'producers');
 
 /** CLI test fixtures directory */
 export const CLI_TEST_FIXTURES_ROOT = resolve(__dirname, 'fixtures');
+
+/** CLI fixtures subdirectories */
+export const CLI_FIXTURES_BLUEPRINTS = resolve(CLI_TEST_FIXTURES_ROOT, 'blueprints');
+export const CLI_FIXTURES_INPUTS = resolve(CLI_TEST_FIXTURES_ROOT, 'inputs');
+export const CLI_FIXTURES_MEDIA = resolve(CLI_TEST_FIXTURES_ROOT, 'media');
+export const CLI_FIXTURES_PRODUCERS = resolve(CLI_TEST_FIXTURES_ROOT, 'producers');
+export const CLI_FIXTURES_SCHEMAS = resolve(CLI_TEST_FIXTURES_ROOT, 'schemas');

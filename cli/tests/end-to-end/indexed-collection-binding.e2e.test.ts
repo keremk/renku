@@ -1,5 +1,4 @@
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { runExecute, formatMovieId } from '../../src/commands/execute.js';
 import {
@@ -8,8 +7,7 @@ import {
   readPlan,
   setupTempCliConfig,
 } from './helpers.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { CLI_FIXTURES_BLUEPRINTS, CLI_FIXTURES_INPUTS } from '../test-catalog-paths.js';
 
 function parseFirstIndex(jobId: string): number {
   const match = jobId.match(/\[(\d+)]/);
@@ -40,8 +38,8 @@ describe('end-to-end: indexed collection binding', () => {
     // Each VideoProducer job should have element-level bindings that allow the SDK
     // to reconstruct the ReferenceImages array from the two individual artifacts.
 
-    const blueprintPath = resolve(__dirname, 'fixtures', 'indexed-collection-binding-blueprint.yaml');
-    const inputsPath = resolve(__dirname, 'fixtures', 'indexed-collection-binding-inputs.yaml');
+    const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'indexed-collection-binding.yaml');
+    const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'indexed-collection-binding-inputs.yaml');
 
     const { logger, warnings, errors } = createLoggerRecorder();
     const movieId = 'e2e-indexed-collection';

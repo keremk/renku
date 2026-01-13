@@ -11,17 +11,16 @@ import { formatMovieId } from './execute.js';
 import { readCliConfig } from '../lib/cli-config.js';
 import { createInputsFile } from './__testutils__/inputs.js';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
-import { CATALOG_BLUEPRINTS_ROOT, CLI_TEST_FIXTURES_ROOT } from '../../tests/test-catalog-paths.js';
+import { CATALOG_BLUEPRINTS_ROOT, CLI_FIXTURES_BLUEPRINTS } from '../../tests/test-catalog-paths.js';
 
-// Use fixture for cut-scene-video blueprint (no longer in catalog)
-const E2E_FIXTURES_ROOT = resolve(__dirname, '..', '..', 'tests', 'end-to-end', 'fixtures');
+// Use CLI fixtures for blueprints
 const VIDEO_AUDIO_MUSIC_BLUEPRINT_PATH = resolve(
-  E2E_FIXTURES_ROOT,
+  CLI_FIXTURES_BLUEPRINTS,
   'cut-scene-video',
   'video-audio-music.yaml',
 );
 const AUDIO_ONLY_BLUEPRINT_PATH = resolve(
-  CLI_TEST_FIXTURES_ROOT,
+  CLI_FIXTURES_BLUEPRINTS,
   'audio-only',
   'audio-only.yaml',
 );

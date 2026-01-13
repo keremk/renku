@@ -10,10 +10,10 @@ import { runGenerate } from './generate.js';
 import { formatMovieId, runExecute } from './execute.js';
 import { createInputsFile } from './__testutils__/inputs.js';
 import { createCliLogger } from '../lib/logger.js';
-import { CLI_TEST_FIXTURES_ROOT } from '../../tests/test-catalog-paths.js';
+import { CLI_FIXTURES_BLUEPRINTS } from '../../tests/test-catalog-paths.js';
 
 const AUDIO_ONLY_BLUEPRINT_PATH = resolve(
-  CLI_TEST_FIXTURES_ROOT,
+  CLI_FIXTURES_BLUEPRINTS,
   'audio-only',
   'audio-only.yaml',
 );
