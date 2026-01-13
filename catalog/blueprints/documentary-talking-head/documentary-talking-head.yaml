@@ -92,7 +92,7 @@ conditions:
 
 producers:
   - name: DocProducer
-    producer: prompt/documentary-talkinghead
+    path: ./documentary-talkinghead/documentary-talkinghead.yaml
   - name: ImageProducer
     producer: asset/text-to-image
     loop: segment.image

@@ -72,9 +72,9 @@ loops:
 
 producers:
   - name: ScriptProducer
-    producer: prompt/script
+    path: ./script/script.yaml
   - name: VideoPromptProducer
-    producer: prompt/video
+    path: ./video/video.yaml
     loop: segment
   - name: VideoProducer
     producer: asset/text-to-video
@@ -83,7 +83,7 @@ producers:
     producer: asset/text-to-speech
     loop: segment
   - name: MusicPromptProducer
-    producer: prompt/music
+    path: ./music/music.yaml
   - name: MusicProducer
     producer: asset/text-to-music
   - name: TimelineComposer

@@ -5,9 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { generatePlan } from '../../src/lib/planner.js';
 import { writeCliConfig, type CliConfig } from '../../src/lib/cli-config.js';
 import { createCliLogger } from '../../src/lib/logger.js';
-import { CATALOG_ROOT, CATALOG_BLUEPRINTS_ROOT } from '../test-catalog-paths.js';
-
-const BLUEPRINTS_ROOT = CATALOG_BLUEPRINTS_ROOT;
+import { CATALOG_ROOT, CLI_TEST_FIXTURES_ROOT } from '../test-catalog-paths.js';
 
 describe('integration: canonical inputs persist across query/edit', () => {
 	let originalApiKey: string | undefined;
@@ -44,9 +42,9 @@ describe('integration: canonical inputs persist across query/edit', () => {
 		};
 		process.env.RENKU_CLI_CONFIG = configPath;
 		await writeCliConfig(cliConfig, configPath);
-		// Use audio-only blueprint from root catalog (source of truth)
-		const blueprintPath = resolve(BLUEPRINTS_ROOT, 'audio-only', 'audio-only.yaml');
-		const inputsPath = resolve(BLUEPRINTS_ROOT, 'audio-only', 'input-template.yaml');
+		// Use audio-only blueprint from CLI fixtures
+		const blueprintPath = resolve(CLI_TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
+		const inputsPath = resolve(CLI_TEST_FIXTURES_ROOT, 'audio-only', 'input-template.yaml');
 		const logger = createCliLogger({
 			level: 'debug',
 		});

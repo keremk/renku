@@ -70,7 +70,7 @@ loops:
 
 producers:
   - name: FlowVideoPromptProducer
-    producer: prompt/flow-video
+    path: ./flow-video/flow-video.yaml
   - name: ImageProducer
     producer: asset/text-to-image
     loop: segment

@@ -21,7 +21,7 @@ import {
   readPlan,
   setupTempCliConfig,
 } from './helpers.js';
-import { CATALOG_BLUEPRINTS_ROOT } from '../test-catalog-paths.js';
+import { CATALOG_ROOT, CLI_TEST_FIXTURES_ROOT } from '../test-catalog-paths.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -40,8 +40,7 @@ describe('end-to-end: artifact override via inputs.yaml', () => {
   });
 
   it('re-runs downstream producers when artifact is overridden via file: prefix', async () => {
-    const blueprintRoot = CATALOG_BLUEPRINTS_ROOT;
-    const blueprintPath = resolve(blueprintRoot, 'audio-only', 'audio-only.yaml');
+    const blueprintPath = resolve(CLI_TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
     const inputsPath = resolve(__dirname, 'fixtures', 'audio-only-inputs.yaml');
     const { logger } = createLoggerRecorder();
     const { logger: editLogger, warnings: editWarnings, errors: editErrors } = createLoggerRecorder();
@@ -168,8 +167,8 @@ describe('end-to-end: artifact override via inputs.yaml', () => {
             model: 'gpt-5-mini',
             provider: 'openai',
             producerId: 'ScriptProducer',
-            promptFile: resolve(CATALOG_BLUEPRINTS_ROOT, '..', 'producers', 'script', 'script.toml'),
-            outputSchema: resolve(CATALOG_BLUEPRINTS_ROOT, '..', 'producers', 'script', 'script-output.json'),
+            promptFile: resolve(CATALOG_ROOT, 'producers', 'prompt', 'script', 'script.toml'),
+            outputSchema: resolve(CATALOG_ROOT, 'producers', 'prompt', 'script', 'script-output.json'),
             config: { text_format: 'json_schema' },
           },
           {

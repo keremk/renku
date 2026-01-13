@@ -1,0 +1,36 @@
+meta:
+  name: Music Prompt Generation
+  description: Generate music generation prompt using the summary of a movie script.
+  id: MusicPromptProducer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+  promptFile: ./music.toml
+
+inputs:
+  - name: MovieSummary
+    description: The movie summary to generate prompts for a background music that matches the theme of the movie.
+    type: string
+  - name: MusicalStyle
+    description: Desired musical style to feed into prompt.
+    type: string
+  - name: NumOfSegments
+    description: Number of narration segments in the movie script.
+    type: int
+  - name: NarrationScript
+    description: Array of narration paragraphs per segment.
+    type: collection
+    itemType: string
+    dimensions: segment
+    fanIn: true
+  - name: Duration
+    description: The duration of the music piece in seconds.
+    type: int
+  - name: Audience
+    description: Intended audience for tailoring details. Model default varies.
+    type: string
+
+artifacts:
+  - name: MusicPrompt
+    description: Generated music prompts for downstream music synthesis.
+    type: string

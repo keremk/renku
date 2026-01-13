@@ -74,7 +74,7 @@ conditions:
 
 producers:
   - name: DocProducer
-    producer: prompt/documentary
+    path: ./documentary/documentary.yaml
   - name: ImageProducer
     producer: asset/text-to-image
     loop: segment.image

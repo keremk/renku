@@ -82,27 +82,20 @@ describe('catalog blueprint validation', () => {
     const names = blueprints.map((b) => b.name);
 
     // Verify we're finding the expected blueprints
-    expect(names).toContain('audio-only');
     expect(names).toContain('children-story');
     expect(names).toContain('documentary-talking-head');
-    expect(blueprints.length).toBeGreaterThanOrEqual(10);
+    expect(blueprints.length).toBeGreaterThanOrEqual(6);
   });
 
   // Individual test for each blueprint to see detailed results
   describe('individual blueprints', () => {
     it.each([
       'ad-video',
-      'audio-only',
       'children-story',
       'condition-example',
-      'cut-scene-video',
       'documentary-talking-head',
-      'image-only',
       'image-to-video',
-      'json-blueprints',
       'kenn-burns',
-      'music-only',
-      'video-only',
     ])('%s blueprint is valid', async (blueprintName) => {
       const dirPath = resolve(CATALOG_BLUEPRINTS_ROOT, blueprintName);
       const files = await readdir(dirPath);

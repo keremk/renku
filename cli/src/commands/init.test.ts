@@ -35,7 +35,7 @@ describe('runInit', () => {
     expect(result.gitignoreCreated).toBe(true);
 
     const blueprintStats = await stat(
-      join(getCliBlueprintsRoot(result.rootFolder), 'audio-only', 'audio-only.yaml'),
+      join(getCliBlueprintsRoot(result.rootFolder), 'children-story', 'children-story.yaml'),
     );
     expect(blueprintStats.isFile()).toBe(true);
     await expect(async () => {

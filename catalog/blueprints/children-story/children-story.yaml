@@ -68,7 +68,7 @@ loops:
 
 producers:
   - name: StoryProducer
-    producer: prompt/children-story
+    path: ./children-story/children-story.yaml
   # Always generate all 4 character images
   - name: Character1ImageProducer
     producer: asset/text-to-image

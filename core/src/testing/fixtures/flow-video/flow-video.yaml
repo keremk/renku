@@ -1,0 +1,47 @@
+meta:
+  name: Generate Long Form Video Prompt
+  description: Generate prompts for long form video content from segments with begin and end images
+  id: FlowVideoPromptProducer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+  promptFile: ./flow-video.toml
+  outputSchema: ./flow-video-output.json
+
+inputs:
+  - name: InquiryPrompt
+    description: The topic describing the desired movie script.
+    type: string
+  - name: Duration
+    description: Desired narration duration in seconds.
+    type: int
+  - name: NumOfSegments
+    description: Number of narration segments to produce.
+    type: int
+  - name: Style
+    description: Desired visual style to feed into prompt.
+    type: string
+  - name: Audience
+    description: Intended audience for tailoring details. Model default varies.
+    type: string
+
+artifacts:
+  - name: MovieTitle
+    description: The generated title for the movie.
+    type: string
+  - name: NarrationScript
+    description: Array of narration paragraphs per segment.
+    type: array
+    itemType: string
+    countInput: NumOfSegments
+  - name: VideoPrompts
+    description: Array of video prompts per segment.
+    type: array
+    itemType: string
+    countInput: NumOfSegments
+  - name: ImagePrompts
+    description: Array of image prompts per segment.
+    type: array
+    itemType: string
+    countInput: NumOfSegments
+    countInputOffset: 1

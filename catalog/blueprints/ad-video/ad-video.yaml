@@ -82,7 +82,7 @@ loops:
 
 producers:
   - name: AdScriptProducer
-    producer: prompt/ad-script
+    path: ./ad-script/ad-script.yaml
   - name: CharacterImageProducer
     producer: asset/text-to-image
   - name: ProductImageProducer

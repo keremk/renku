@@ -29,8 +29,6 @@ import {
   readPlan,
   setupTempCliConfig,
 } from './helpers.js';
-import { CATALOG_BLUEPRINTS_ROOT } from '../test-catalog-paths.js';
-
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = resolve(__dirname, 'fixtures');
 
@@ -62,7 +60,7 @@ describe('end-to-end: transcription producer plan validation', () => {
   });
 
   it('includes TranscriptionProducer in plan with correct bindings', async () => {
-    const blueprintPath = resolve(CATALOG_BLUEPRINTS_ROOT, 'cut-scene-video', 'video-audio-music.yaml');
+    const blueprintPath = resolve(FIXTURES_DIR, 'cut-scene-video', 'video-audio-music.yaml');
     const inputsPath = resolve(FIXTURES_DIR, 'transcription-inputs.yaml');
     const { logger, warnings, errors } = createLoggerRecorder();
     const movieId = 'e2e-transcription';
@@ -110,7 +108,7 @@ describe('end-to-end: transcription producer plan validation', () => {
   });
 
   it('schedules TranscriptionProducer after TimelineComposer and before VideoExporter', async () => {
-    const blueprintPath = resolve(CATALOG_BLUEPRINTS_ROOT, 'cut-scene-video', 'video-audio-music.yaml');
+    const blueprintPath = resolve(FIXTURES_DIR, 'cut-scene-video', 'video-audio-music.yaml');
     const inputsPath = resolve(FIXTURES_DIR, 'transcription-inputs.yaml');
     const { logger } = createLoggerRecorder();
     const movieId = 'e2e-transcription-scheduling';

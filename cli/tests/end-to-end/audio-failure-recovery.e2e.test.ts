@@ -20,7 +20,7 @@ import {
   readPlan,
   setupTempCliConfig,
 } from './helpers.js';
-import { CATALOG_BLUEPRINTS_ROOT } from '../test-catalog-paths.js';
+import { CLI_TEST_FIXTURES_ROOT } from '../test-catalog-paths.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -39,8 +39,7 @@ describe('end-to-end: failed artifact recovery', () => {
   });
 
   it('re-runs only the failed AudioProducer job in edit flow', async () => {
-    const blueprintRoot = CATALOG_BLUEPRINTS_ROOT;
-    const blueprintPath = resolve(blueprintRoot, 'audio-only', 'audio-only.yaml');
+    const blueprintPath = resolve(CLI_TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
     const inputsPath = resolve(__dirname, 'fixtures', 'audio-only-inputs.yaml');
     const { logger, warnings, errors } = createLoggerRecorder();
     // Create separate logger for recovery phase to avoid seeing the intentional failure error

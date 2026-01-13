@@ -1,0 +1,30 @@
+meta:
+  name: Video Prompt Generation
+  description: Generate video generation prompt.
+  id: VideoPromptProducer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+  promptFile: ./video.toml
+
+inputs:
+  - name: NarrativeText
+    description: The narrative text to generate prompts for.
+    type: string
+  - name: MovieSummary
+    description: The movie summary to help generate prompt for a video that best reflects the given segment.
+    type: string
+  - name: Style
+    description: Desired visual style to feed into prompt.
+    type: string
+  - name: SegmentDuration
+    description: The per-segment video duration in seconds. Model default varies.
+    type: int
+  - name: Audience
+    description: Intended audience for tailoring details. Model default varies.
+    type: string
+
+artifacts:
+  - name: VideoPrompt
+    description: Generated video prompts for the downstream video generation.
+    type: string

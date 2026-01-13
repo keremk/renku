@@ -5,19 +5,18 @@ import { describe, expect, it } from 'vitest';
 import { stringify as stringifyYaml } from 'yaml';
 import { loadInputsFromYaml } from './input-loader.js';
 import { loadBlueprintBundle } from './blueprint-loader/index.js';
-import { CATALOG_BLUEPRINTS_ROOT, CATALOG_ROOT } from '../../tests/test-catalog-paths.js';
+import { CATALOG_ROOT, CLI_TEST_FIXTURES_ROOT } from '../../tests/test-catalog-paths.js';
 
-const BLUEPRINTS_ROOT = CATALOG_BLUEPRINTS_ROOT;
 const catalogRoot = CATALOG_ROOT;
 
 describe('input-loader', () => {
   it('loads model selections from input template (SDK mappings come from producer YAML)', async () => {
-    const blueprintPath = resolve(BLUEPRINTS_ROOT, 'audio-only', 'audio-only.yaml');
+    const blueprintPath = resolve(CLI_TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
     const { root: blueprint } = await loadBlueprintBundle(blueprintPath, { catalogRoot });
 
     // Use the matching input template for the blueprint
     const loaded = await loadInputsFromYaml(
-      resolve(BLUEPRINTS_ROOT, 'audio-only', 'input-template.yaml'),
+      resolve(CLI_TEST_FIXTURES_ROOT, 'audio-only', 'input-template.yaml'),
       blueprint,
     );
 
@@ -31,7 +30,7 @@ describe('input-loader', () => {
   });
 
   it('rejects unknown inputs with a clear error', async () => {
-    const blueprintPath = resolve(BLUEPRINTS_ROOT, 'audio-only', 'audio-only.yaml');
+    const blueprintPath = resolve(CLI_TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
     const { root: blueprint } = await loadBlueprintBundle(blueprintPath, { catalogRoot });
     const invalidPath = join(await mkdtemp(join(tmpdir(), 'renku-inputs-')), 'inputs.yaml');
     await writeFile(
@@ -50,7 +49,7 @@ describe('input-loader', () => {
 
   it('derives model selection and config from producer-scoped canonical keys', async () => {
     const workdir = await mkdtemp(join(tmpdir(), 'renku-inputs-'));
-    const blueprintPath = resolve(BLUEPRINTS_ROOT, 'audio-only', 'audio-only.yaml');
+    const blueprintPath = resolve(CLI_TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
     const { root: blueprint } = await loadBlueprintBundle(blueprintPath, { catalogRoot });
     const savedPath = join(workdir, 'inputs.yaml');
 

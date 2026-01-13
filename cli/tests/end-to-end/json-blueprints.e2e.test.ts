@@ -23,9 +23,8 @@ import {
 } from './helpers.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-// Path to the main catalog (not cli/catalog)
-const PROJECT_ROOT = resolve(__dirname, '..', '..', '..');
-const CATALOG_BLUEPRINTS_ROOT = resolve(PROJECT_ROOT, 'catalog', 'blueprints');
+// Local test fixtures directory
+const E2E_FIXTURES_ROOT = resolve(__dirname, 'fixtures');
 
 describe('end-to-end: JSON virtual artifact blueprint', () => {
   let tempRoot = '';
@@ -42,7 +41,7 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
   });
 
   it('dry-run generates correct jobs with virtual artifact connections', async () => {
-    const blueprintPath = resolve(CATALOG_BLUEPRINTS_ROOT, 'json-blueprints', 'json-blueprints.yaml');
+    const blueprintPath = resolve(E2E_FIXTURES_ROOT, 'json-blueprints', 'json-blueprints.yaml');
     const inputsPath = resolve(__dirname, 'fixtures', 'json-blueprints-inputs.yaml');
     const { logger, warnings, errors } = createLoggerRecorder();
     const movieId = 'e2e-json-blueprints-dry';
@@ -114,7 +113,7 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
   });
 
   it('re-runs only affected ImageProducer when virtual artifact is overridden', async () => {
-    const blueprintPath = resolve(CATALOG_BLUEPRINTS_ROOT, 'json-blueprints', 'json-blueprints.yaml');
+    const blueprintPath = resolve(E2E_FIXTURES_ROOT, 'json-blueprints', 'json-blueprints.yaml');
     const inputsPath = resolve(__dirname, 'fixtures', 'json-blueprints-inputs.yaml');
     const { logger, warnings, errors } = createLoggerRecorder();
     const { logger: editLogger, warnings: editWarnings, errors: editErrors } = createLoggerRecorder();
@@ -244,8 +243,8 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
             provider: 'openai',
             producerId: 'DocProducer',
             // Include outputSchema so virtual artifact edges are created
-            promptFile: resolve(CATALOG_BLUEPRINTS_ROOT, '..', 'producers', 'documentary-prompt', 'documentary-prompt.toml'),
-            outputSchema: resolve(CATALOG_BLUEPRINTS_ROOT, '..', 'producers', 'documentary-prompt', 'documentary-prompt-output.json'),
+            promptFile: resolve(E2E_FIXTURES_ROOT, 'json-blueprints', 'documentary', 'documentary.toml'),
+            outputSchema: resolve(E2E_FIXTURES_ROOT, 'json-blueprints', 'documentary', 'documentary-output.json'),
             config: { text_format: 'json_schema' },
           },
           {
@@ -325,7 +324,7 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
   });
 
   it('re-runs different ImageProducer when different virtual artifact is overridden', async () => {
-    const blueprintPath = resolve(CATALOG_BLUEPRINTS_ROOT, 'json-blueprints', 'json-blueprints.yaml');
+    const blueprintPath = resolve(E2E_FIXTURES_ROOT, 'json-blueprints', 'json-blueprints.yaml');
     const inputsPath = resolve(__dirname, 'fixtures', 'json-blueprints-inputs.yaml');
     const { logger } = createLoggerRecorder();
     const { logger: editLogger, warnings: editWarnings, errors: editErrors } = createLoggerRecorder();
@@ -415,8 +414,8 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
             model: 'gpt-5.2',
             provider: 'openai',
             producerId: 'DocProducer',
-            promptFile: resolve(CATALOG_BLUEPRINTS_ROOT, '..', 'producers', 'documentary-prompt', 'documentary-prompt.toml'),
-            outputSchema: resolve(CATALOG_BLUEPRINTS_ROOT, '..', 'producers', 'documentary-prompt', 'documentary-prompt-output.json'),
+            promptFile: resolve(E2E_FIXTURES_ROOT, 'json-blueprints', 'documentary', 'documentary.toml'),
+            outputSchema: resolve(E2E_FIXTURES_ROOT, 'json-blueprints', 'documentary', 'documentary-output.json'),
             config: { text_format: 'json_schema' },
           },
           {

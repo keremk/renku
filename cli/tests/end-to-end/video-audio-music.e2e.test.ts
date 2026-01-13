@@ -11,11 +11,10 @@ import {
   readPlan,
   setupTempCliConfig,
 } from './helpers.js';
-import { CATALOG_BLUEPRINTS_ROOT } from '../test-catalog-paths.js';
-
-const CATALOG_PRODUCERS_ROOT = resolve(CATALOG_BLUEPRINTS_ROOT, '..', 'producers');
+import { CATALOG_PRODUCERS_ROOT } from '../test-catalog-paths.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const E2E_FIXTURES_ROOT = resolve(__dirname, 'fixtures');
 
 describe('end-to-end: video-audio-music dry runs', () => {
   let tempRoot = '';
@@ -32,8 +31,7 @@ describe('end-to-end: video-audio-music dry runs', () => {
   });
 
   it('runs query and edit dry-runs with canonical bindings and artefacts', async () => {
-    const blueprintRoot = CATALOG_BLUEPRINTS_ROOT;
-    const blueprintPath = resolve(blueprintRoot, 'cut-scene-video', 'video-audio-music.yaml');
+    const blueprintPath = resolve(E2E_FIXTURES_ROOT, 'cut-scene-video', 'video-audio-music.yaml');
     const inputsPath = resolve(__dirname, 'fixtures', 'video-audio-music-inputs.yaml');
     const { logger, warnings, errors } = createLoggerRecorder();
     const movieId = 'e2e-video';

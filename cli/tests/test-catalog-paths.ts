@@ -21,3 +21,6 @@ export const CATALOG_MODELS_ROOT = resolve(CATALOG_ROOT, 'models');
 
 /** Producers directory within the catalog */
 export const CATALOG_PRODUCERS_ROOT = resolve(CATALOG_ROOT, 'producers');
+
+/** CLI test fixtures directory */
+export const CLI_TEST_FIXTURES_ROOT = resolve(__dirname, 'fixtures');

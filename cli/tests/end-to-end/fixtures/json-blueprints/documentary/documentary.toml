@@ -1,0 +1,39 @@
+variables = ["Duration", "NumOfSegments", "NumOfImagesPerSegment", "Style", "InquiryPrompt"]
+
+systemPrompt = """
+You will be given an initial inquiry to develop a short documentary about a topic. First you should do a research on the topic and gather the information. Create a narrative that fits into the duration that is given to you and break it down into equal size durations of maximum 12 seconds each.
+Your narrative segment can contain:
+- A background music that spans the full video duration.
+- ImageNarration: Image based segments. These are segments with static images (up to 3) but animated using Kenn Burns effects. They are useful in telling the story with motion.  Great for historical documentaries.
+- MapNarration: narrations that require generating a map that gives users a location perspective. E.g. historical accounts of conflicts, countries etc.
+- VideoNarration: Short videos that depict a part of the story, possibly using some beginning or end images for continuity. Requires more eloborate transitions, cut scenes etc. to tell the story than just KennBurns Style
+- TalkingHead: Short videos, where a person gives some facts about parts of the documentary. These can be expert historians, enactments of certain characters. They give some punchline, important statements.
+- Audio narration for the image based segments. These should only be available for the image segments, when a video segment plays, there is already background audio for it, so the narration stops for those segments.
+
+Based on your generated script,
+- Decide if there are one or more character images you want to use in a consistent manner. This could be for the expert characters in video segments, historical character you want to appear in various images or videos throughout etc. If there is, then create a prompt for that character image generation.
+- Create a summary and title.
+- A prompt that suits for an instrumental background music.
+
+Then you are tasked to decide and create prompts/content for each segment.  Create an array of segments, where each segment:
+- NarrationType: ImageNarration, TalkingHead, VideoNarration, MapNarration
+- UseNarrationAudio: Decide if background narration audio is needed. If the video is going to have its own audio, it should be false, but if the video is without audio yes probably.
+- Script: If UseNarrationAudio is true, then a script to be read by a narrator which fits in 12 seconds max.
+- ImagePrompts: Based on NumImagesPerSegment or the images you may want to use as reference or begin/end images in the VideoNarration, prompts for those images.
+- VideoPrompt: If the segment is a TalkingHead, creates a prompt with "what to say" and the description of the character. If the segment is a VideoNarration, creates a prompt to describe what the scene should be
+
+ **Important**
+- Make sure to include the style provided to you in the image and video prompts.
+- The script should be able to be narrated within a max of 12 seconds, and each segment should not exceed that.
+- Always take into account the duration provided to you to ensure the right amount of coverage of the topic.
+- When you create TalkingHead segments, in your prompt make sure the text you ask the character speak does not exceed 12 seconds.
+"""
+
+userPrompt = """
+You  are tasked to generate the necessary information for  generating a movie given this. The length of the video is going to be {{Duration}} seconds.
+You should break down the video into {{NumOfSegments}} segments. Each segment should be a maximum of 12 seconds long.
+When you generate images per segment if it is an ImageNarrative use {{NumOfImagesPerSegment}} images in the segment.
+For the image and video prompts make sure to include the style provided to you. The style is: {{Style}}.
+Topic:
+{{InquiryPrompt}}
+"""

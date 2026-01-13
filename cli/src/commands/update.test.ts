@@ -33,7 +33,7 @@ describe('runUpdate', () => {
     await runInit({ rootFolder: root, configPath, envPath });
 
     // Modify a catalog file to verify it gets overwritten
-    const blueprintPath = join(getCliBlueprintsRoot(root), 'audio-only', 'audio-only.yaml');
+    const blueprintPath = join(getCliBlueprintsRoot(root), 'children-story', 'children-story.yaml');
     const originalContent = await readFile(blueprintPath, 'utf8');
     await writeFile(blueprintPath, '# Modified content', 'utf8');
 

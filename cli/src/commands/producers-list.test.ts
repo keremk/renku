@@ -50,11 +50,11 @@ describe('runProducersList', () => {
     const cliConfig = await readCliConfig(cliConfigPath);
     expect(cliConfig).not.toBeNull();
 
-    // Use audio-only which has simpler producers
+    // Use children-story which has simpler asset producers
     const blueprintPath = join(
       getCliBlueprintsRoot(root),
-      'audio-only',
-      'audio-only.yaml',
+      'children-story',
+      'children-story.yaml',
     );
     const result = await runProducersList({ blueprintPath });
 
