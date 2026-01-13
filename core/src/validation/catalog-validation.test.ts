@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import {
   CATALOG_BLUEPRINTS_ROOT,
   CATALOG_ROOT,
-} from '../testing/catalog-paths.js';
+} from '../../tests/catalog-paths.js';
 import { loadYamlBlueprintTree } from '../parsing/blueprint-loader/yaml-parser.js';
 import { validateBlueprintTree } from './blueprint-validator.js';
 

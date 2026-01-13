@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { stringify as stringifyYaml } from 'yaml';
 import { loadInputsFromYaml } from './input-loader.js';
 import { loadYamlBlueprintTree } from './blueprint-loader/yaml-parser.js';
-import { CATALOG_BLUEPRINTS_ROOT, CATALOG_ROOT, TEST_FIXTURES_ROOT } from '../testing/catalog-paths.js';
+import { CATALOG_BLUEPRINTS_ROOT, CATALOG_ROOT, TEST_FIXTURES_ROOT } from '../../tests/catalog-paths.js';
 import type { BlueprintTreeNode } from '../types.js';
 
 const BLUEPRINT_ROOT = CATALOG_BLUEPRINTS_ROOT;

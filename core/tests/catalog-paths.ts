@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /** Repository root directory */
-export const REPO_ROOT = resolve(__dirname, '..', '..', '..');
+export const REPO_ROOT = resolve(__dirname, '..', '..');
 
 /** Root catalog directory - single source of truth */
 export const CATALOG_ROOT = resolve(REPO_ROOT, 'catalog');
