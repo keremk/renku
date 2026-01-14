@@ -1,0 +1,10 @@
+inputs:
+  ImagePrompt: "A 3x3 storyboard grid showing a character walking through a forest, each panel showing progressive movement."
+  GridStyle: "3x3"
+  PanelCount: 9
+  AspectRatio: "16:9"
+
+models:
+  - producerId: ImageGenerator
+    provider: fal-ai
+    model: nano-banana-pro

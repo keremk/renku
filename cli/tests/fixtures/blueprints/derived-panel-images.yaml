@@ -1,0 +1,63 @@
+meta:
+  name: Derived Panel Images Test
+  description: Test blueprint for verifying image grid panel extraction (PanelImages).
+  id: DerivedPanelImagesTest
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: ImagePrompt
+    description: Prompt for generating the storyboard grid image.
+    type: string
+    required: true
+  - name: GridStyle
+    description: Grid style (e.g., "3x3", "2x2").
+    type: string
+    required: true
+  - name: PanelCount
+    description: Number of panels in the grid.
+    type: integer
+    required: true
+  - name: AspectRatio
+    description: Aspect ratio for the image.
+    type: string
+    default: "16:9"
+
+artifacts:
+  - name: StoryboardImage
+    description: The generated storyboard grid image.
+    type: image
+  - name: ExtractedPanels
+    description: Panel images extracted from the storyboard.
+    type: array
+    itemType: image
+    countInput: PanelCount
+
+loops:
+  - name: panel
+    description: Iterates over panel images.
+    countInput: PanelCount
+
+producers:
+  - name: ImageGenerator
+    producer: asset/text-to-storyboard-image
+
+connections:
+  # Generate storyboard image
+  - from: ImagePrompt
+    to: ImageGenerator.Prompt
+  - from: GridStyle
+    to: ImageGenerator.GridStyle
+  - from: PanelCount
+    to: ImageGenerator.PanelCount
+  - from: AspectRatio
+    to: ImageGenerator.AspectRatio
+
+  # Output the primary image
+  - from: ImageGenerator.GeneratedImage
+    to: StoryboardImage
+
+  # Output extracted panel images
+  - from: ImageGenerator.PanelImages[panel]
+    to: ExtractedPanels[panel]

@@ -7,6 +7,13 @@ import {
   needsExtraction,
   type RequiredExtractions,
 } from './ffmpeg-extractor.js';
+import {
+  detectPanelExtractions,
+  extractPanelImages,
+  needsPanelExtraction,
+  type RequiredPanelExtractions,
+} from './ffmpeg-image-splitter.js';
+import { generateMockPng } from './png-generator.js';
 import { generateWavWithDuration } from './wav-generator.js';
 
 type JsonObject = Record<string, unknown>;
@@ -109,6 +116,9 @@ function resolveDurationForMock(resolvedInputs: Record<string, unknown> | undefi
  * For video artifacts, this function also extracts derived artifacts
  * (FirstFrame, LastFrame, AudioTrack) using ffmpeg when they are
  * included in the produces array.
+ *
+ * For image artifacts, this function can extract panel images from a grid
+ * when PanelImages[N] artifacts are included in the produces array.
  */
 export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Promise<ProducedArtefact[]> {
   const { produces, urls, mimeType, mode, resolvedInputs } = options;
@@ -120,13 +130,29 @@ export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Pr
   const extractionNeeded = needsExtraction(requiredExtractions);
   const isVideo = isVideoMimeType(mimeType);
 
+  // Detect which panel extractions are needed from image
+  const panelExtractions = detectPanelExtractions(produces);
+  const panelExtractionNeeded = needsPanelExtraction(panelExtractions);
+  const isImage = isImageMimeType(mimeType);
+  const gridStyle = resolveGridStyle(resolvedInputs);
+
   // Filter out derived artifact IDs from primary processing
   // (they will be handled by extraction, not URL download)
-  const primaryProduces = extractionNeeded ? filterPrimaryArtifacts(produces, requiredExtractions) : produces;
+  let primaryProduces = produces;
+  if (extractionNeeded) {
+    primaryProduces = filterPrimaryArtifacts(primaryProduces, requiredExtractions);
+  }
+  if (panelExtractionNeeded) {
+    primaryProduces = filterPanelArtifacts(primaryProduces, panelExtractions);
+  }
 
   // Track video buffer for extraction
   let videoBuffer: Buffer | null = null;
   let primaryVideoArtifactId: string | null = null;
+
+  // Track image buffer for panel extraction
+  let imageBuffer: Buffer | null = null;
+  let primaryImageArtifactId: string | null = null;
 
   for (let index = 0; index < primaryProduces.length; index += 1) {
     const providedId = primaryProduces[index];
@@ -147,7 +173,7 @@ export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Pr
 
     try {
       const buffer = useMockDownloads
-        ? generateWavWithDuration(resolveDurationForMock(resolvedInputs))
+        ? generateMockDataForMimeType(mimeType, resolveDurationForMock(resolvedInputs))
         : await downloadBinary(url);
 
       artefacts.push({
@@ -166,6 +192,12 @@ export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Pr
       if (isVideo && extractionNeeded && !videoBuffer) {
         videoBuffer = buffer;
         primaryVideoArtifactId = artefactId;
+      }
+
+      // Store image buffer for panel extraction
+      if (isImage && panelExtractionNeeded && !imageBuffer) {
+        imageBuffer = buffer;
+        primaryImageArtifactId = artefactId;
       }
     } catch (error) {
       artefacts.push({
@@ -203,6 +235,20 @@ export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Pr
     }
   }
 
+  // Extract panel images from image grid if needed
+  if (isImage && panelExtractionNeeded && imageBuffer && primaryImageArtifactId && gridStyle) {
+    const extracted = await extractPanelImages({
+      imageBuffer,
+      primaryArtifactId: primaryImageArtifactId,
+      produces,
+      gridStyle,
+      mode,
+    });
+
+    // Add extracted panel artifacts to results
+    artefacts.push(...extracted.panels);
+  }
+
   return artefacts;
 }
 
@@ -211,6 +257,47 @@ export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Pr
  */
 function isVideoMimeType(mimeType: string): boolean {
   return mimeType.startsWith('video/');
+}
+
+/**
+ * Check if a MIME type represents an image format.
+ */
+function isImageMimeType(mimeType: string): boolean {
+  return mimeType.startsWith('image/');
+}
+
+/**
+ * Generate mock data appropriate for the given MIME type.
+ * - Images: generate a small PNG
+ * - Audio/Video: generate a WAV with the specified duration
+ */
+function generateMockDataForMimeType(mimeType: string, durationSeconds: number): Buffer {
+  if (mimeType.startsWith('image/')) {
+    // Generate a 100x100 mock PNG for images
+    return generateMockPng(100, 100);
+  }
+  // Default to WAV for audio/video
+  return generateWavWithDuration(durationSeconds);
+}
+
+/**
+ * Resolve the GridStyle from resolved inputs.
+ * Returns the grid style string (e.g., "3x3", "2x3") or undefined if not present.
+ * Searches for canonical input IDs ending with "GridStyle" (e.g., "Input:GridStyle",
+ * "Input:StoryboardImageProducer.GridStyle").
+ */
+function resolveGridStyle(resolvedInputs: Record<string, unknown> | undefined): string | undefined {
+  if (!resolvedInputs) {
+    return undefined;
+  }
+  // Look for any key ending with "GridStyle" (canonical input IDs like Input:GridStyle
+  // or Input:Producer.GridStyle)
+  for (const [key, value] of Object.entries(resolvedInputs)) {
+    if (key.endsWith('GridStyle') && typeof value === 'string' && value.length > 0) {
+      return value;
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -230,6 +317,15 @@ function filterPrimaryArtifacts(produces: string[], extractions: RequiredExtract
   }
 
   return produces.filter((id) => !derivedIds.has(id));
+}
+
+/**
+ * Filter out panel artifact IDs from the produces array.
+ * Returns only the primary artifacts that have URLs from the provider.
+ */
+function filterPanelArtifacts(produces: string[], extractions: RequiredPanelExtractions): string[] {
+  const panelIds = new Set(extractions.panels.values());
+  return produces.filter((id) => !panelIds.has(id));
 }
 
 /**

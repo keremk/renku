@@ -17,6 +17,18 @@ export {
   type ExtractionResult,
 } from './unified/ffmpeg-extractor.js';
 
+// FFmpeg image panel extraction exports
+export {
+  extractPanelImages,
+  detectPanelExtractions,
+  needsPanelExtraction,
+  parseGridStyle,
+  type PanelExtractionOptions,
+  type PanelExtractionResult,
+  type RequiredPanelExtractions,
+  type GridDimensions,
+} from './unified/ffmpeg-image-splitter.js';
+
 // Vercel AI Gateway SDK exports
 export {
   createVercelGatewayClientManager,

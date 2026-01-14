@@ -70,7 +70,7 @@ With the above user provided summary, you know:
   - Track 4: Music for background music
 - The initial prompt producer (director of the video), will determine the script, what type of segments to generate, what type of media to include for the best results in each segment and prompts for each of those generation and text for the narrative scripts.
 
-In catalog, we have an example of this blueprint: `catalog/blueprints/documentary-talking-head`
+In catalog, we have an example of this blueprint: `catalog/blueprints/documentary-talkinghead`
 
 **Example 2**
 User Prompt: I want to create Ad videos. We will have a character in various video clips using a product. The character and product shot should be generated. The ad should also
@@ -89,7 +89,7 @@ With the above user provided summary, you know:
   - Track 3: Music (background music)
 - The initial prompt producer (director of the video), will determine the script, what type of segments to generate, what type of media to include for the best results in each segment and prompts for each of those generation and text for the narrative scripts.
 
-In catalog, we have an example of this blueprint: `catalog/blueprints/ad-video`
+In catalog, we have an example of this blueprint: `catalog/blueprints/ads`
 
 ### Step 2: Implicit Requirements 
 
