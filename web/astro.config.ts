@@ -28,11 +28,8 @@ export default defineConfig({
         { label: 'Quick Start', slug: 'docs/quick-start' },
         { label: 'Usage Guide', slug: 'docs/usage-guide' },
         { label: 'CLI Reference', slug: 'docs/cli-reference' },
-        {
-          label: 'Blueprint Authoring',
-          slug: 'docs/blueprint-authoring',
-          badge: { text: 'Advanced', variant: 'tip' },
-        },
+        { label: 'Blueprint Authoring', slug: 'docs/blueprint-authoring' },
+        { label: 'Asset Producers', slug: 'docs/asset-producers' },
       ],
       customCss: ['./src/styles/global.css'],
       components: {
