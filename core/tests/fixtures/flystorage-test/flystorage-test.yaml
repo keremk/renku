@@ -1,0 +1,30 @@
+meta:
+  name: FlyStorage Test Blueprint
+  description: Minimal fixture for testing FlyStorage hierarchy loading.
+  id: FlyStorageTest
+  version: 0.1.0
+
+inputs:
+  - name: TestInput
+    description: A test input.
+    type: string
+    required: true
+
+artifacts:
+  - name: TestOutput
+    description: A test output.
+    type: string
+
+producers:
+  - name: ChildA
+    path: ./child-a/child-a.yaml
+  - name: ChildB
+    path: ./child-b/child-b.yaml
+
+connections:
+  - from: TestInput
+    to: ChildA.InputText
+  - from: ChildA.OutputText
+    to: ChildB.InputText
+  - from: ChildB.OutputText
+    to: TestOutput

@@ -90,7 +90,7 @@ describe('catalog blueprint validation', () => {
   // Individual test for each blueprint to see detailed results
   describe('individual blueprints', () => {
     it.each([
-      'ad-video',
+      'ads',
       'children-story',
       'flow-video',
       'documentary-talkinghead',

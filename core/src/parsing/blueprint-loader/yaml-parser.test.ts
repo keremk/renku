@@ -87,12 +87,12 @@ describe('parseYamlBlueprintFile', () => {
 
 describe('loadYamlBlueprintTree', () => {
   it('loads entire blueprint hierarchy using FlyStorage reader', async () => {
-    const storage = new FileStorage(new LocalStorageAdapter(catalogRoot));
-    const reader = createFlyStorageBlueprintReader(storage, catalogRoot);
-    // Use a catalog blueprint for FlyStorage tests (needs access to catalog/producers/)
-    const entry = resolve(yamlRoot, 'ad-video', 'ad-video.yaml');
-    const { root } = await loadYamlBlueprintTree(entry, { reader, catalogRoot });
-    expect(root.id).toBe('AdVideo');
+    const storage = new FileStorage(new LocalStorageAdapter(TEST_FIXTURES_ROOT));
+    const reader = createFlyStorageBlueprintReader(storage, TEST_FIXTURES_ROOT);
+    // Use a self-contained fixture for FlyStorage tests (no catalog dependencies)
+    const entry = resolve(TEST_FIXTURES_ROOT, 'flystorage-test', 'flystorage-test.yaml');
+    const { root } = await loadYamlBlueprintTree(entry, { reader });
+    expect(root.id).toBe('FlyStorageTest');
     expect(root.children.size).toBeGreaterThan(0);
     // Verify we loaded child producers
     const childNames = [...root.children.keys()];
@@ -484,11 +484,11 @@ describe('yaml-parser edge cases', () => {
   });
 
   it('handles blueprints referencing nested producers', async () => {
-    // Use a catalog blueprint for FlyStorage tests (needs access to catalog/producers/)
-    const storage = new FileStorage(new LocalStorageAdapter(catalogRoot));
-    const reader = createFlyStorageBlueprintReader(storage, catalogRoot);
-    const entry = resolve(yamlRoot, 'ad-video', 'ad-video.yaml');
-    const { root } = await loadYamlBlueprintTree(entry, { reader, catalogRoot });
+    // Use a self-contained fixture for FlyStorage tests (no catalog dependencies)
+    const storage = new FileStorage(new LocalStorageAdapter(TEST_FIXTURES_ROOT));
+    const reader = createFlyStorageBlueprintReader(storage, TEST_FIXTURES_ROOT);
+    const entry = resolve(TEST_FIXTURES_ROOT, 'flystorage-test', 'flystorage-test.yaml');
+    const { root } = await loadYamlBlueprintTree(entry, { reader });
 
     // Verify nested producers are loaded correctly
     expect(root.children.size).toBeGreaterThan(0);

@@ -1,0 +1,15 @@
+meta:
+  name: Child Producer A
+  description: First child producer for testing.
+  id: ChildProducerA
+  version: 0.1.0
+
+inputs:
+  - name: InputText
+    description: Input text.
+    type: string
+
+artifacts:
+  - name: OutputText
+    description: Output text.
+    type: string
