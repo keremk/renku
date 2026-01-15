@@ -166,8 +166,6 @@ This starts a local server and opens your browser to preview the generated conte
 
 ### Blueprints
 
-- `renku blueprints:list` - List available blueprints
-- `renku blueprints:describe <file>` - Show blueprint details
 - `renku blueprints:validate <file>` - Validate a blueprint
 
 ### Producers & Models

@@ -90,10 +90,10 @@ First go to your workspace that you created earlier:
 cd /path/to/your/workspace
 ```
 
-List available blueprints:
+Browse available blueprints in the catalog directory:
 
 ```bash
-renku blueprints:list
+ls ./catalog/blueprints/
 ```
 
 For this tutorial, we'll use the `kenn-burns` blueprint which generates a video with a Ken Burns effect, audio and background music.
@@ -221,12 +221,13 @@ You've successfully generated your first AI video content with Renku!
 
 ### Explore More Blueprints
 
-Try other example blueprints:
+Try other example blueprints by browsing the catalog:
 
 ```bash
-renku blueprints:list
-renku blueprints:describe {workspace}/catalog/blueprints/video-only/video-only.yaml
+ls ./catalog/blueprints/
 ```
+
+Each blueprint directory contains a `input-template.yaml` that documents the required inputs.
 
 ### Learn the Workflow
 

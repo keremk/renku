@@ -303,11 +303,8 @@ renku init --root=<path>
 # Validate blueprint structure
 renku blueprints:validate <blueprint.yaml>
 
-# Describe blueprint details
-renku blueprints:describe <blueprint.yaml>
-
-# List available blueprints
-renku blueprints:list
+# Browse available blueprints in catalog
+ls ./catalog/blueprints/
 
 # List available models for producers
 renku producers:list --blueprint=<path>

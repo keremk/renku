@@ -79,40 +79,15 @@ The `config` field allows you to pass provider-specific configuration options.
 
 ### Browsing Blueprints
 
-List all available blueprints:
+Browse available blueprints in your workspace catalog:
 
 ```bash
-renku blueprints:list
+ls ./catalog/blueprints/
 ```
 
-Output:
-```
-Available Blueprints:
-
-1. audio-only.yaml
-   - Audio-Only Narration
-   - Generates script and audio narration
-
-2. video-only.yaml
-   - Video-Only Generation
-   - Generates script and video clips
-
-3. image-to-video.yaml
-   - Image-to-Video Transitions
-   - Creates videos from image sequences
-```
-
-Get detailed information about a blueprint:
-
-```bash
-renku blueprints:describe {workspace}/catalog/blueprints/video-only/video-only.yaml
-```
-
-This shows:
-- Required and optional inputs
-- Artifacts produced
-- Producers used
-- Loops defined
+Each blueprint directory contains:
+- The blueprint YAML file with the workflow definition
+- An `input-template.yaml` documenting required inputs and their types
 
 ### Browsing Models
 

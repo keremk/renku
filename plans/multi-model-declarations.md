@@ -210,7 +210,7 @@ models:
 
   8. CLI surface & validation tools
 
-  - Update blueprints:list/describe/validate to surface models[], inputSchema/outputSchema, and inferred connections for producer
+  - Update blueprints:validate to surface models[], inputSchema/outputSchema, and inferred connections for producer
     modules. Add validation that schema paths resolve and inputs mappings match declared inputs.
   - Refresh docs/tests (core/src/blueprint-loader/*.test.ts, cli/src/commands/*.test.ts, provider tests) to use the new YAML and
     inputs format; migrate or replace old fixture blueprints.

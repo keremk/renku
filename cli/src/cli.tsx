@@ -53,23 +53,21 @@ import { runExport } from './commands/export.js';
 import { runProducersList } from './commands/producers-list.js';
 import { runCreateInputTemplate } from './commands/create-input-template.js';
 import { formatPrice, type ProducerModelEntry } from '@gorenku/providers';
-import { runBlueprintsList } from './commands/blueprints-list.js';
-import { runBlueprintsDescribe } from './commands/blueprints-describe.js';
 import { runViewerStart, runViewerStop, runViewerView } from './commands/viewer.js';
 import { runBlueprintsValidate } from './commands/blueprints-validate.js';
 import { runMcpServer } from './commands/mcp.js';
 import type { BuildSummary, JobSummary } from './lib/build.js';
 import { readCliConfig } from './lib/cli-config.js';
-import { getCliBlueprintsRoot, resolveBlueprintSpecifier } from './lib/config-assets.js';
+import { resolveBlueprintSpecifier } from './lib/config-assets.js';
 import { type LogLevel, type Logger as CoreLogger } from '@gorenku/core';
 import { detectViewerAddress } from './lib/viewer-network.js';
 
 
 const cli = meow(
   `\nUsage\n  $ renku <command> [options]\n\nCommands\n  install             Guided setup (alias for init)\n  init                Initialize a new Renku workspace (requires --root)\n  update              Update the catalog in the active workspace\n  use                 Switch to an existing workspace (requires --root)\n  generate            Create or continue a movie generation\n  create:input-template  Create an inputs YAML template for a blueprint\n  export              Export a movie to MP4/MP3 (--exporter=remotion|ffmpeg)\n  clean               Remove dry-run builds (--all to include completed builds)
-  list                List builds in current project (shows dry-run vs completed)\n  viewer:start        Start the bundled viewer server in the foreground\n  viewer:view         Open the viewer for a movie id (starts server if needed)\n  viewer:stop         Stop the background viewer server\n  producers:list      List all available models for producers in a blueprint\n  blueprints:list     List available blueprint YAML files\n  blueprints:describe <path>  Show details for a blueprint YAML file\n  blueprints:validate <path>  Validate a blueprint YAML file\n  mcp                 Run the Renku MCP server over stdio\n\nExamples\n  $ renku init --root=~/media/renku\n  $ renku update                             # Update catalog in active workspace\n  $ renku use --root=~/media/other-workspace # Switch to another workspace\n  $ renku create:input-template --blueprint=documentary-talking-head.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml --concurrency=3\n  $ renku generate --last --up-to-layer=1
+  list                List builds in current project (shows dry-run vs completed)\n  viewer:start        Start the bundled viewer server in the foreground\n  viewer:view         Open the viewer for a movie id (starts server if needed)\n  viewer:stop         Stop the background viewer server\n  producers:list      List all available models for producers in a blueprint\n  blueprints:validate <path>  Validate a blueprint YAML file\n  mcp                 Run the Renku MCP server over stdio\n\nExamples\n  $ renku init --root=~/media/renku\n  $ renku update                             # Update catalog in active workspace\n  $ renku use --root=~/media/other-workspace # Switch to another workspace\n  $ renku create:input-template --blueprint=documentary-talking-head.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml --concurrency=3\n  $ renku generate --last --up-to-layer=1
   $ renku generate --last --re-run-from=2
-  $ renku generate --movie-id=abc123 --from=1\n  $ renku export --movie-id=abc123\n  $ renku export --last --width=1920 --height=1080 --fps=30\n  $ renku export --last --exporter=ffmpeg\n  $ renku producers:list --blueprint=image-audio.yaml\n  $ renku blueprints:list\n  $ renku blueprints:describe audio-only.yaml\n  $ renku blueprints:validate image-audio.yaml\n  $ renku list                           # List builds in current project
+  $ renku generate --movie-id=abc123 --from=1\n  $ renku export --movie-id=abc123\n  $ renku export --last --width=1920 --height=1080 --fps=30\n  $ renku export --last --exporter=ffmpeg\n  $ renku producers:list --blueprint=image-audio.yaml\n  $ renku blueprints:validate image-audio.yaml\n  $ renku list                           # List builds in current project
   $ renku clean                          # Clean dry-run builds only
   $ renku clean --all                    # Clean all builds including completed
   $ renku clean --movie-id=movie-q123456 # Clean specific movie\n  $ renku viewer:start\n  $ renku viewer:view --movie-id=movie-q123456\n  $ renku viewer:view --last\n  $ renku mcp --defaultBlueprint=image-audio.yaml\n`,
@@ -394,110 +392,6 @@ async function main(): Promise<void> {
         for (const [provider, message] of result.missingTokens) {
           logger.info(chalk.yellow(`  - ${provider}: ${message}`));
         }
-      }
-      return;
-    }
-    case 'blueprints:list': {
-      const cliConfig = await readCliConfig();
-      if (!cliConfig) {
-        logger.error('Renku CLI is not initialized. Run "renku init" first.');
-        process.exitCode = 1;
-        return;
-      }
-      const directory = getCliBlueprintsRoot(cliConfig.storage.root);
-      const result = await runBlueprintsList(directory);
-
-      if (result.blueprints.length === 0) {
-        logger.info('No blueprint YAML files found.');
-        return;
-      }
-
-      logger.info('Available Blueprints:\n');
-      for (const blueprint of result.blueprints) {
-        logger.info(`  ${blueprint.name}`);
-        if (blueprint.description) {
-          logger.info(`    ${blueprint.description}`);
-        }
-        if (blueprint.version) {
-          logger.info(`    Version: ${blueprint.version}`);
-        }
-        logger.info(`    Path: ${blueprint.path}`);
-        logger.info(`    Inputs: ${blueprint.inputCount}, Outputs: ${blueprint.outputCount}`);
-        logger.info('');
-      }
-      return;
-    }
-    case 'blueprints:describe': {
-      const blueprintPath = rest[0];
-      if (!blueprintPath) {
-        logger.error('Error: blueprint path is required for blueprints:describe.');
-        logger.error('Usage: renku blueprints:describe <path-to-blueprint.yaml>');
-        process.exitCode = 1;
-        return;
-      }
-
-      try {
-        const cliConfig = await readCliConfig();
-        const resolvedPath = await resolveBlueprintSpecifier(blueprintPath, {
-          cliRoot: cliConfig?.storage.root,
-        });
-        const result = await runBlueprintsDescribe({ blueprintPath: resolvedPath });
-
-        logger.info(`Blueprint: ${result.name}`);
-        if (result.description) {
-          logger.info(result.description);
-        }
-        if (result.version) {
-          logger.info(`Version: ${result.version}`);
-        }
-        logger.info(`Path: ${result.path}\n`);
-
-        logger.info('Inputs:');
-        if (result.inputs.length === 0) {
-          logger.info('  (none)');
-        } else {
-          for (const input of result.inputs) {
-            const details = [
-              `type: ${input.type}`,
-              input.required ? 'required' : 'optional',
-            ];
-            if (input.defaultValue !== undefined) {
-              details.push(`default=${JSON.stringify(input.defaultValue)}`);
-            }
-            logger.info(
-              `  • ${input.name} (${details.join(', ')})`,
-            );
-            if (input.description) {
-              logger.info(`    ${input.description}`);
-            }
-            logger.info('');
-          }
-        }
-
-        logger.info('Outputs:');
-        if (result.outputs.length === 0) {
-          logger.info('  (none)');
-        } else {
-          for (const output of result.outputs) {
-            const details = [
-              `type: ${output.type}`,
-              output.required ? 'required' : 'optional',
-            ];
-            if (output.countInput) {
-              details.push(`countInput=${output.countInput}`);
-            }
-            logger.info(
-              `  • ${output.name} (${details.join(', ')})`,
-            );
-            if (output.description) {
-              logger.info(`    ${output.description}`);
-            }
-            logger.info('');
-          }
-        }
-      } catch (error) {
-        logger.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
-        process.exitCode = 1;
       }
       return;
     }
