@@ -105,9 +105,11 @@ These are requirements that the user does not specify everytime, but you should 
   - Aspect ratio (16:9, 9:16, 1:1)
   - Resolution (480p, 720p, 1080p)
 
-### Step 3: Define the Blueprint Structure
+### Step 3: Understand the Blueprint Structure
 
 A blueprint has these sections, you will need to be filling these as you go along the process. This will serve as your planning to make sure you correctly created a blueprint that uses this structure
+
+> **IMPORTANT** Do not immediately fill in the blueprint, you need to understand your inputs and what producers (with what models) you will be using first. The graph structure will be dependent on that understanding.
 
 ```yaml
 meta:
@@ -179,6 +181,9 @@ Based on the requirements gathering and the selected producers, determine what i
 ### Step 5: Determine which Asset Producers to Use
 
 You can use the `docs\models-guide.md` document to decide which asset producers you will need to generate the types of assets. This document gives the necessary background to decide on what asset producers to pick for media generation. 
+
+**IMPORTANT** 
+- When asked to create cut-scene videos, you should not be creating a nested group of video producers that is a lot of videos and cost a lot and be slow as hell. So instead you should be using one video producer per segment, prompt the video producer to create 2 or 3 cutscenes. (Usually models have total length of 10-12 seconds so based on that 3 to 5 second long cut scenes can be created per video segment) The video producers when prompted with [cut] followed by the scene description can create cut scenes.
 
 ### Step 6: Create the Initial Prompt Producer (aka the Director)
 
