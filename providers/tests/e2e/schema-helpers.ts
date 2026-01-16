@@ -1,9 +1,7 @@
-import { readFileSync } from 'node:fs';
 import type { ProviderJobContext } from '../../src/types.js';
 import {
   loadModelCatalog,
-  lookupModel,
-  resolveSchemaPath as resolveSchemaPathFromCatalog,
+  loadModelSchemaFile,
   type LoadedModelCatalog,
 } from '../../src/model-catalog.js';
 import { CATALOG_MODELS_ROOT } from '../test-catalog-paths.js';
@@ -26,21 +24,22 @@ async function getCatalog(): Promise<LoadedModelCatalog> {
 
 /**
  * Load schema from the model catalog dynamically.
- * Uses the same path resolution logic as production code.
+ * Uses production loadModelSchemaFile to ensure consistent format handling.
+ * Returns the input schema as a JSON string for computeMappingFromSchema.
  */
 async function loadSchemaFromCatalog(
   provider: string,
   model: string,
 ): Promise<string> {
   const catalog = await getCatalog();
-  const modelDef = lookupModel(catalog, provider, model);
+  const schemaFile = await loadModelSchemaFile(CATALOG_DIR, catalog, provider, model);
 
-  if (!modelDef) {
-    throw new Error(`Model not found in catalog: ${provider}/${model}`);
+  if (!schemaFile) {
+    throw new Error(`Schema not found for model: ${provider}/${model}`);
   }
 
-  const schemaPath = resolveSchemaPathFromCatalog(CATALOG_DIR, provider, model, modelDef);
-  return readFileSync(schemaPath, 'utf-8');
+  // Return input schema as JSON string (what computeMappingFromSchema expects)
+  return JSON.stringify(schemaFile.inputSchema);
 }
 
 // Model type definitions
@@ -452,6 +451,91 @@ export async function buildWavespeedImageExtras(
     modelMappings: wavespeedImageModelMappings[model],
     requiredAliases: ['Prompt'],
     plannerIndex: { segment: 0, image: 0 },
+    extraMapping,
+  });
+}
+
+// ElevenLabs model types
+export type ElevenlabsTTSModel = 'eleven_v3' | 'eleven_multilingual_v2' | 'eleven_turbo_v2_5';
+export type ElevenlabsMusicModel = 'music_v1';
+
+// ElevenLabs model mappings
+const elevenlabsTTSModelMappings: Record<ElevenlabsTTSModel, ModelMapping> = {
+  'eleven_v3': {
+    TextInput: { field: 'text', required: true },
+    VoiceId: { field: 'voice', required: true },
+  },
+  'eleven_multilingual_v2': {
+    TextInput: { field: 'text', required: true },
+    VoiceId: { field: 'voice', required: true },
+  },
+  'eleven_turbo_v2_5': {
+    TextInput: { field: 'text', required: true },
+    VoiceId: { field: 'voice', required: true },
+  },
+};
+
+const elevenlabsMusicModelMappings: Record<ElevenlabsMusicModel, ModelMapping> = {
+  'music_v1': {
+    Prompt: { field: 'prompt', required: true },
+    Duration: { field: 'music_length_ms', required: false },
+  },
+};
+
+// ElevenLabs TTS helpers
+export async function loadElevenlabsTTSSchema(model: ElevenlabsTTSModel): Promise<string> {
+  return loadSchemaFromCatalog('elevenlabs', model);
+}
+
+export function getElevenlabsTTSMapping(model: ElevenlabsTTSModel): ModelMapping {
+  const mapping = elevenlabsTTSModelMappings[model];
+  if (!mapping) {
+    throw new Error(`No mapping registered for ElevenLabs TTS model: ${model}`);
+  }
+  return mapping;
+}
+
+export async function buildElevenlabsTTSExtras(
+  model: ElevenlabsTTSModel,
+  resolvedInputs: Record<string, unknown>,
+  extraMapping?: ModelMapping,
+): Promise<ProviderJobContext['context']['extras']> {
+  return buildExtras({
+    provider: 'elevenlabs',
+    model,
+    resolvedInputs,
+    modelMappings: elevenlabsTTSModelMappings[model],
+    requiredAliases: ['TextInput', 'VoiceId'],
+    plannerIndex: { segment: 0 },
+    extraMapping,
+  });
+}
+
+// ElevenLabs Music helpers
+export async function loadElevenlabsMusicSchema(model: ElevenlabsMusicModel): Promise<string> {
+  return loadSchemaFromCatalog('elevenlabs', model);
+}
+
+export function getElevenlabsMusicMapping(model: ElevenlabsMusicModel): ModelMapping {
+  const mapping = elevenlabsMusicModelMappings[model];
+  if (!mapping) {
+    throw new Error(`No mapping registered for ElevenLabs Music model: ${model}`);
+  }
+  return mapping;
+}
+
+export async function buildElevenlabsMusicExtras(
+  model: ElevenlabsMusicModel,
+  resolvedInputs: Record<string, unknown>,
+  extraMapping?: ModelMapping,
+): Promise<ProviderJobContext['context']['extras']> {
+  return buildExtras({
+    provider: 'elevenlabs',
+    model,
+    resolvedInputs,
+    modelMappings: elevenlabsMusicModelMappings[model],
+    requiredAliases: ['Prompt'],
+    plannerIndex: { segment: 0 },
     extraMapping,
   });
 }

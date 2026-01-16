@@ -11,6 +11,7 @@ import { createUnifiedHandler } from './sdk/unified/index.js';
 import { replicateAdapter } from './sdk/replicate/adapter.js';
 import { falAdapter } from './sdk/fal/adapter.js';
 import { wavespeedAdapter } from './sdk/wavespeed/adapter.js';
+import { createElevenlabsHandler } from './sdk/elevenlabs/index.js';
 import type { ProviderAdapter } from './sdk/unified/index.js';
 
 /**
@@ -109,7 +110,18 @@ function createImplementation(
     return null;
   }
 
-  // Get the adapter for this provider
+  // Use MIME from model definition, falling back to type-based defaults
+  const mimeType = definition.mime?.[0] ?? TYPE_TO_MIME[definition.type];
+
+  // Handle ElevenLabs provider specially - it returns binary streams, not URLs
+  if (provider === 'elevenlabs') {
+    return {
+      match,
+      factory: createElevenlabsHandler({ outputMimeType: mimeType }),
+    };
+  }
+
+  // Get the adapter for this provider (for unified handler)
   const adapter = PROVIDER_ADAPTERS[provider];
   if (!adapter) {
     throw new Error(
@@ -117,9 +129,6 @@ function createImplementation(
       `Add an adapter to PROVIDER_ADAPTERS in registry-generator.ts.`
     );
   }
-
-  // Use MIME from model definition, falling back to type-based defaults
-  const mimeType = definition.mime?.[0] ?? TYPE_TO_MIME[definition.type];
 
   // Build model context for provider-specific handling (e.g., subProvider)
   const modelContext = definition.subProvider ? { subProvider: definition.subProvider } : undefined;

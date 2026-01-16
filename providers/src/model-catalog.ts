@@ -24,6 +24,8 @@ export interface ModelDefinition {
   mime?: string[];
   /** Optional override path for input schema (relative to provider directory) */
   inputSchema?: string;
+  /** Optional schema name (resolved to {type}/{schema}.json) - allows multiple models to share a schema */
+  schema?: string;
   /** Pricing configuration */
   price?: ModelPriceConfig | number;
   /** Secret name for BYOK (e.g., 'ANTHROPIC_API_KEY') - used by vercel gateway */
@@ -59,6 +61,7 @@ export interface ProviderCatalogYaml {
     handler?: string;
     mime?: string[];
     inputSchema?: string;
+    schema?: string;
     price?: ModelPriceConfig | number;
     apiKeyName?: string;
     subProvider?: string;
@@ -133,6 +136,7 @@ export async function loadModelCatalog(
           handler: model.handler,
           mime: model.mime,
           inputSchema: model.inputSchema,
+          schema: model.schema,
           price: model.price,
           apiKeyName: model.apiKeyName,
           subProvider: model.subProvider,
@@ -174,7 +178,12 @@ function modelNameToFilename(modelName: string): string {
 
 /**
  * Resolve the input schema path for a model.
- * Returns the path to the schema file, or null if the model is not found or doesn't have a type.
+ * Returns the path to the schema file.
+ *
+ * Resolution priority:
+ * 1. inputSchema - custom path override (e.g., "custom/path.json")
+ * 2. schema - schema name within type folder (e.g., "tts_schema" -> "audio/tts_schema.json")
+ * 3. Default - model name converted to filename (e.g., "eleven_v3" -> "audio/eleven_v3.json")
  */
 export function resolveSchemaPath(
   catalogModelsDir: string,
@@ -182,11 +191,15 @@ export function resolveSchemaPath(
   model: string,
   modelDef: ModelDefinition
 ): string {
-  // If model has a custom inputSchema path, use it
+  // Priority 1: Custom inputSchema path
   if (modelDef.inputSchema) {
     return resolve(catalogModelsDir, provider, modelDef.inputSchema);
   }
-  // Otherwise, use the convention: {provider}/{type}/{model-name-converted}.json
+  // Priority 2: Schema name (resolves to {type}/{schema}.json)
+  if (modelDef.schema) {
+    return resolve(catalogModelsDir, provider, modelDef.type, `${modelDef.schema}.json`);
+  }
+  // Priority 3: Default convention {type}/{model-name-converted}.json
   const filename = `${modelNameToFilename(model)}.json`;
   return resolve(catalogModelsDir, provider, modelDef.type, filename);
 }

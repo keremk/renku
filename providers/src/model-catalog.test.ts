@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { resolve } from 'node:path';
 import { readdir, readFile } from 'node:fs/promises';
 import { parse as parseYaml } from 'yaml';
-import { loadModelCatalog, lookupModel } from './model-catalog.js';
+import { loadModelCatalog, lookupModel, resolveSchemaPath, type ModelDefinition } from './model-catalog.js';
 
 const CATALOG_ROOT = resolve(import.meta.dirname, '../../catalog');
 const MODELS_DIR = resolve(CATALOG_ROOT, 'models');
@@ -133,6 +133,82 @@ describe('model-catalog', () => {
           `Found ${mismatches.length} model name mismatches:\n${report}`
         );
       }
+    });
+  });
+
+  describe('resolveSchemaPath', () => {
+    it('resolves schema property to {type}/{schema}.json', () => {
+      const modelDef: ModelDefinition = {
+        name: 'eleven_v3',
+        type: 'audio',
+        schema: 'tts_schema',
+      };
+      const path = resolveSchemaPath('/catalog/models', 'elevenlabs', 'eleven_v3', modelDef);
+      expect(path).toBe('/catalog/models/elevenlabs/audio/tts_schema.json');
+    });
+
+    it('prioritizes inputSchema over schema', () => {
+      const modelDef: ModelDefinition = {
+        name: 'test',
+        type: 'audio',
+        schema: 'shared_schema',
+        inputSchema: 'custom/path.json',
+      };
+      const path = resolveSchemaPath('/catalog/models', 'test-provider', 'test', modelDef);
+      expect(path).toBe('/catalog/models/test-provider/custom/path.json');
+    });
+
+    it('falls back to model name when no schema specified', () => {
+      const modelDef: ModelDefinition = {
+        name: 'my-model',
+        type: 'video',
+      };
+      const path = resolveSchemaPath('/catalog/models', 'provider', 'my-model', modelDef);
+      expect(path).toBe('/catalog/models/provider/video/my-model.json');
+    });
+
+    it('converts model name with slashes to filename', () => {
+      const modelDef: ModelDefinition = {
+        name: 'bytedance/seedream-4',
+        type: 'image',
+      };
+      const path = resolveSchemaPath('/catalog/models', 'replicate', 'bytedance/seedream-4', modelDef);
+      expect(path).toBe('/catalog/models/replicate/image/bytedance-seedream-4.json');
+    });
+
+    it('converts model name with dots to filename', () => {
+      const modelDef: ModelDefinition = {
+        name: 'minimax/speech-2.6-hd',
+        type: 'audio',
+      };
+      const path = resolveSchemaPath('/catalog/models', 'fal-ai', 'minimax/speech-2.6-hd', modelDef);
+      expect(path).toBe('/catalog/models/fal-ai/audio/minimax-speech-2-6-hd.json');
+    });
+  });
+
+  describe('loadModelCatalog with schema property', () => {
+    it('loads schema property from elevenlabs YAML', async () => {
+      const catalog = await loadModelCatalog(MODELS_DIR);
+
+      const eleven_v3 = lookupModel(catalog, 'elevenlabs', 'eleven_v3');
+      expect(eleven_v3).not.toBeNull();
+      expect(eleven_v3!.schema).toBe('tts_schema');
+
+      const eleven_multilingual = lookupModel(catalog, 'elevenlabs', 'eleven_multilingual_v2');
+      expect(eleven_multilingual).not.toBeNull();
+      expect(eleven_multilingual!.schema).toBe('tts_schema');
+
+      const music_v1 = lookupModel(catalog, 'elevenlabs', 'music_v1');
+      expect(music_v1).not.toBeNull();
+      expect(music_v1!.schema).toBe('music_v1');
+    });
+
+    it('models without schema property have undefined schema', async () => {
+      const catalog = await loadModelCatalog(MODELS_DIR);
+
+      const falModel = lookupModel(catalog, 'fal-ai', 'veo3.1');
+      expect(falModel).not.toBeNull();
+      expect(falModel!.schema).toBeUndefined();
     });
   });
 });
