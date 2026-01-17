@@ -63,3 +63,12 @@ mappings:
       Steps: steps
       GuidanceScale: cfg_scale
       Seed: seed
+
+  elevenlabs:
+    # ElevenLabs Music V1
+    music_v1:
+      Prompt: prompt
+      Duration:
+        field: music_length_ms
+        durationToFrames:
+          fps: 1000

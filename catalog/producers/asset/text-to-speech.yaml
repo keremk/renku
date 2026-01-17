@@ -181,3 +181,28 @@ mappings:
       ReferenceAudioUrl: reference_audio
       Temperature: temperature
       Seed: seed
+
+  elevenlabs:
+    # ElevenLabs Eleven V3 (latest, most expressive)
+    eleven_v3:
+      Text: text
+      VoiceId: voice
+      Speed:
+        field: voice_settings.speed
+      LanguageCode: language_code
+
+    # ElevenLabs Eleven Multilingual V2 (29 languages)
+    eleven_multilingual_v2:
+      Text: text
+      VoiceId: voice
+      Speed:
+        field: voice_settings.speed
+      LanguageCode: language_code
+
+    # ElevenLabs Eleven Turbo V2.5 (low latency)
+    eleven_turbo_v2_5:
+      Text: text
+      VoiceId: voice
+      Speed:
+        field: voice_settings.speed
+      LanguageCode: language_code
