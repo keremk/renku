@@ -132,7 +132,14 @@ export function createFfmpegExporterHandler(): HandlerFactory {
       const assetPaths = await buildAssetPaths(storage, movieId, timeline, eventLogPaths);
 
       // Try to load transcription for subtitles (optional)
-      const transcription = await loadTranscription(storage, movieId);
+      // First try to get it from runtime inputs (during execution), then fall back to manifest
+      let transcription: TranscriptionArtifact | undefined;
+      const inlineTranscription = runtime.inputs.getByNodeId<unknown>(TRANSCRIPTION_ARTEFACT_ID);
+      if (inlineTranscription && typeof inlineTranscription === 'object' && 'words' in inlineTranscription) {
+        transcription = inlineTranscription as TranscriptionArtifact;
+      } else {
+        transcription = await loadTranscription(storage, movieId);
+      }
 
       // Determine output path
       const outputName = detectOutputFormat(timeline) === 'video' ? 'FinalVideo.mp4' : 'FinalAudio.mp3';
