@@ -56,7 +56,8 @@ export type CostFunctionName =
 	| 'costByCharacters'
 	| 'costByAudioSeconds'
 	| 'costByImageSizeAndQuality'
-	| 'costByVideoPerMillionTokens';
+	| 'costByVideoPerMillionTokens'
+	| 'costByVideoMegapixels';
 
 /**
  * Price entry for resolution-based pricing.
@@ -111,6 +112,7 @@ export interface ModelPriceConfig {
 	pricePerSecond?: number;
 	pricePerCharacter?: number;
 	pricePerMillionTokens?: number;
+	pricePerMegapixel?: number;
 	prices?: Array<ResolutionPriceEntry | AudioFlagPriceEntry | ImageSizeQualityPriceEntry | VideoTokenPriceEntry>;
 }
 
@@ -871,6 +873,122 @@ function costByVideoPerMillionTokens(
 }
 
 /**
+ * Video size presets for LTX models mapped to dimensions.
+ */
+const VIDEO_SIZE_PRESETS: Record<string, { width: number; height: number }> = {
+	landscape_4_3: { width: 1248, height: 704 },
+	landscape_16_9: { width: 1280, height: 720 },
+	portrait_4_3: { width: 704, height: 1248 },
+	portrait_16_9: { width: 720, height: 1280 },
+	square: { width: 704, height: 704 },
+	square_hd: { width: 1024, height: 1024 },
+};
+
+/**
+ * Parse video_size value to width and height.
+ * Supports string presets (e.g., "landscape_16_9") and object {width, height}.
+ */
+function parseVideoSize(
+	videoSize: unknown
+): { width: number; height: number } | null {
+	if (!videoSize) {
+		return null;
+	}
+
+	// Handle string preset
+	if (typeof videoSize === 'string') {
+		const preset = VIDEO_SIZE_PRESETS[videoSize];
+		if (preset) {
+			return preset;
+		}
+		// "auto" means dimensions come from artefact
+		if (videoSize === 'auto') {
+			return null;
+		}
+		return null;
+	}
+
+	// Handle object {width, height}
+	if (typeof videoSize === 'object') {
+		const obj = videoSize as Record<string, unknown>;
+		const width = Number(obj.width);
+		const height = Number(obj.height);
+		if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+			return { width, height };
+		}
+	}
+
+	return null;
+}
+
+function costByVideoMegapixels(
+	config: ModelPriceConfig,
+	extracted: ExtractedCostInputs
+): CostEstimate {
+	const pricePerMegapixel = config.pricePerMegapixel;
+	if (pricePerMegapixel === undefined) {
+		return { cost: 0, isPlaceholder: true, note: 'Missing pricePerMegapixel' };
+	}
+
+	// Get inputs: num_frames, video_size
+	const inputs = config.inputs ?? [];
+	const numFramesField = inputs[0];
+	const videoSizeField = inputs[1];
+
+	const numFramesValue = numFramesField ? extracted.values[numFramesField] : undefined;
+	const videoSizeValue = videoSizeField ? extracted.values[videoSizeField] : undefined;
+
+	const numFrames = typeof numFramesValue === 'number' ? numFramesValue : undefined;
+	const dimensions = parseVideoSize(videoSizeValue);
+
+	// Check for artefact-sourced or missing inputs
+	const hasArtefactSources = extracted.artefactSourcedFields.length > 0;
+	const hasMissingDimensions = !dimensions || videoSizeValue === 'auto';
+
+	if (hasArtefactSources || hasMissingDimensions) {
+		// Return range for common video sizes
+		const commonSamples = [
+			{ label: '720p 81f', dims: { width: 1280, height: 720 }, frames: 81 },
+			{ label: '720p 121f', dims: { width: 1280, height: 720 }, frames: 121 },
+			{ label: '1024p 121f', dims: { width: 1024, height: 1024 }, frames: 121 },
+		];
+
+		const samples = commonSamples.map(s => {
+			const mp = (s.dims.width * s.dims.height * s.frames) / 1_000_000;
+			return { label: s.label, cost: mp * pricePerMegapixel };
+		});
+
+		const usedFrames = numFrames ?? 121;
+		const defaultDims = dimensions ?? VIDEO_SIZE_PRESETS.landscape_16_9;
+		const defaultMp = (defaultDims.width * defaultDims.height * usedFrames) / 1_000_000;
+		const defaultCost = defaultMp * pricePerMegapixel;
+
+		return {
+			cost: defaultCost,
+			isPlaceholder: true,
+			note: hasArtefactSources
+				? `Input from artefact: ${extracted.artefactSourcedFields.join(', ')}`
+				: 'video_size is auto or missing',
+			range: {
+				min: samples[0].cost,
+				max: samples[2].cost,
+				samples,
+			},
+		};
+	}
+
+	if (numFrames === undefined) {
+		return { cost: 0, isPlaceholder: true, note: 'Missing num_frames, cannot calculate' };
+	}
+
+	// Calculate megapixels and cost
+	const megapixels = (dimensions.width * dimensions.height * numFrames) / 1_000_000;
+	const cost = megapixels * pricePerMegapixel;
+
+	return { cost, isPlaceholder: false };
+}
+
+/**
  * Calculate cost for a model using its pricing configuration.
  */
 export function calculateCost(
@@ -906,6 +1024,8 @@ export function calculateCost(
 			return costByImageSizeAndQuality(priceConfig, extracted);
 		case 'costByVideoPerMillionTokens':
 			return costByVideoPerMillionTokens(priceConfig, extracted);
+		case 'costByVideoMegapixels':
+			return costByVideoMegapixels(priceConfig, extracted);
 		default:
 			return {
 				cost: 0,
@@ -1284,6 +1404,11 @@ export function formatPrice(price: ModelPriceConfig | number | undefined): strin
 				? `$${pricePerMillion.toFixed(2)}/M tokens`
 				: '-';
 		}
+
+		case 'costByVideoMegapixels':
+			return price.pricePerMegapixel !== undefined
+				? `$${price.pricePerMegapixel.toFixed(4)}/MP`
+				: '-';
 
 		default:
 			return '-';

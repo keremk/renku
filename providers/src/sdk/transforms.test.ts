@@ -835,4 +835,117 @@ describe('transforms', () => {
       });
     });
   });
+
+  describe('LTX video_size pattern (combine with object into field)', () => {
+    it('combine produces object value into field (not expanded)', () => {
+      const context = createContext({
+        AspectRatio: '16:9',
+        Resolution: '720p',
+      });
+      const mapping: MappingFieldDefinition = {
+        field: 'video_size',
+        combine: {
+          inputs: ['AspectRatio', 'Resolution'],
+          table: {
+            '16:9+720p': { width: 1280, height: 720 },
+            '16:9+480p': { width: 848, height: 480 },
+            '9:16+720p': { width: 720, height: 1280 },
+          },
+        },
+      };
+
+      const result = applyMapping('VideoSize', mapping, context);
+
+      // Object goes INTO field, not expanded
+      expect(result).toEqual({
+        field: 'video_size',
+        value: { width: 1280, height: 720 },
+      });
+    });
+
+    it('combine produces string preset when resolution not specified', () => {
+      const context = createContext({
+        AspectRatio: '16:9',
+        // No Resolution
+      });
+      const mapping: MappingFieldDefinition = {
+        field: 'video_size',
+        combine: {
+          inputs: ['AspectRatio', 'Resolution'],
+          table: {
+            '16:9+720p': { width: 1280, height: 720 },
+            '16:9+': 'landscape_16_9',
+            '9:16+': 'portrait_16_9',
+          },
+        },
+      };
+
+      const result = applyMapping('VideoSize', mapping, context);
+
+      expect(result).toEqual({
+        field: 'video_size',
+        value: 'landscape_16_9',
+      });
+    });
+
+    it('combine with durationToFrames for num_frames', () => {
+      const context = createContext({
+        Duration: 5,
+      });
+      const mapping: MappingFieldDefinition = {
+        field: 'num_frames',
+        durationToFrames: { fps: 25 },
+      };
+
+      const result = applyMapping('Duration', mapping, context);
+
+      expect(result).toEqual({
+        field: 'num_frames',
+        value: 125, // 5 seconds * 25 fps
+      });
+    });
+
+    it('throws error when combine has no field and no expand', () => {
+      const context = createContext({
+        AspectRatio: '16:9',
+        Resolution: '720p',
+      });
+      const mapping: MappingFieldDefinition = {
+        // Missing field: and expand:
+        combine: {
+          inputs: ['AspectRatio', 'Resolution'],
+          table: {
+            '16:9+720p': { width: 1280, height: 720 },
+          },
+        },
+      };
+
+      expect(() => applyMapping('VideoSize', mapping, context)).toThrow(
+        /Combine transform requires 'field' unless using 'expand'/,
+      );
+    });
+
+    it('combine with expand spreads object into payload', () => {
+      const context = createContext({
+        AspectRatio: '16:9',
+        Resolution: '720p',
+      });
+      const mapping: MappingFieldDefinition = {
+        expand: true,
+        combine: {
+          inputs: ['AspectRatio', 'Resolution'],
+          table: {
+            '16:9+720p': { width: 1280, height: 720 },
+          },
+        },
+      };
+
+      const result = applyMapping('ImageSize', mapping, context);
+
+      // With expand: true, object is returned for spreading
+      expect(result).toEqual({
+        expand: { width: 1280, height: 720 },
+      });
+    });
+  });
 });

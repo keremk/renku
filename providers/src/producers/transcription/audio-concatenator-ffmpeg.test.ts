@@ -8,11 +8,11 @@ import {
   buildMixCommand,
   generateSilence,
   convertToWav,
-} from '../../src/producers/transcription/audio-concatenator.js';
-import type { AudioSegment } from '../../src/producers/transcription/types.js';
+} from './audio-concatenator.js';
+import type { AudioSegment } from './types.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const FIXTURES_DIR = join(__dirname, '../fixtures');
+const FIXTURES_DIR = join(__dirname, '../../../tests/fixtures');
 
 /**
  * These tests require ffmpeg to be installed on the system.
