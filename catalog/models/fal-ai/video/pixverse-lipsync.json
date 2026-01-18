@@ -1,0 +1,147 @@
+{
+  "input_schema": {
+    "title": "LipsyncRequest",
+    "type": "object",
+    "properties": {
+      "text": {
+        "examples": [
+          "Hello, this is a test message."
+        ],
+        "title": "Text",
+        "type": "string",
+        "description": "Text content for TTS when audio_url is not provided"
+      },
+      "video_url": {
+        "examples": [
+          "https://v3.fal.media/files/penguin/T-ONORYMYLoEOB9lXryA2_IKEy3yAyi1evJGBAkXGZx_output.mp4"
+        ],
+        "title": "Video Url",
+        "type": "string",
+        "description": "URL of the input video",
+        "format": "uri"
+      },
+      "audio_url": {
+        "examples": [
+          "https://v3.fal.media/files/monkey/k4iyN8bJZWwJXMKH-pO9r_speech.mp3"
+        ],
+        "title": "Audio Url",
+        "type": "string",
+        "description": "URL of the input audio. If not provided, TTS will be used.",
+        "format": "uri"
+      },
+      "voice_id": {
+        "enum": [
+          "Emily",
+          "James",
+          "Isabella",
+          "Liam",
+          "Chloe",
+          "Adrian",
+          "Harper",
+          "Ava",
+          "Sophia",
+          "Julia",
+          "Mason",
+          "Jack",
+          "Oliver",
+          "Ethan",
+          "Auto"
+        ],
+        "title": "Voice Id",
+        "type": "string",
+        "description": "Voice to use for TTS when audio_url is not provided",
+        "default": "Auto"
+      }
+    },
+    "x-fal-order-properties": [
+      "video_url",
+      "audio_url",
+      "voice_id",
+      "text"
+    ],
+    "required": [
+      "video_url"
+    ]
+  },
+  "output_schema": {
+    "title": "LipsyncOutput",
+    "type": "object",
+    "properties": {
+      "video": {
+        "examples": [
+          {
+            "file_size": 1732359,
+            "file_name": "output.mp4",
+            "content_type": "video/mp4",
+            "url": "https://v3.fal.media/files/penguin/hsR_KXBJjuF3IIVYIIDA2_output.mp4"
+          }
+        ],
+        "title": "Video",
+        "description": "The generated video",
+        "allOf": [
+          {
+            "$ref": "#/File"
+          }
+        ]
+      }
+    },
+    "x-fal-order-properties": [
+      "video"
+    ],
+    "required": [
+      "video"
+    ]
+  },
+  "File": {
+    "title": "File",
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "title": "File Size",
+        "type": "integer",
+        "description": "The size of the file in bytes."
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name",
+        "type": "string",
+        "description": "The name of the file. It will be auto-generated if not provided."
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type",
+        "type": "string",
+        "description": "The mime type of the file."
+      },
+      "url": {
+        "title": "Url",
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
+      },
+      "file_data": {
+        "format": "binary",
+        "title": "File Data",
+        "type": "string",
+        "description": "File data"
+      }
+    },
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data"
+    ],
+    "required": [
+      "url"
+    ]
+  }
+}

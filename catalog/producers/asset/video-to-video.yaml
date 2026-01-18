@@ -1,0 +1,128 @@
+meta:
+  name: Video-to-Video Generator
+  description: Transform or extend existing video using AI models.
+  id: VideoToVideoProducer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Text description guiding the transformation.
+    type: string
+  - name: NegativePrompt
+    description: What to avoid in the video.
+    type: string
+  - name: SourceVideo
+    description: URL of the source video to transform or extend.
+    type: string
+  - name: Duration
+    description: Video duration in seconds.
+    type: integer
+  - name: AspectRatio
+    description: "Aspect ratio (16:9, 9:16, 1:1, 4:3, 3:4, auto)."
+    type: string
+  - name: Resolution
+    description: "Resolution preset (480p, 720p)."
+    type: string
+  - name: GenerateAudio
+    description: Whether to generate audio.
+    type: boolean
+  - name: Seed
+    description: Random seed for reproducibility.
+    type: integer
+  - name: EnhancePrompt
+    description: Enable prompt expansion.
+    type: boolean
+  - name: VideoStrength
+    description: Strength of conditioning from source video (0-1).
+    type: number
+
+artifacts:
+  - name: GeneratedVideo
+    description: The generated/transformed video.
+    type: video
+  - name: FirstFrame
+    description: The first frame of the generated video.
+    type: image
+  - name: LastFrame
+    description: The last frame of the generated video.
+    type: image
+  - name: AudioTrack
+    description: The audio track of the generated video.
+    type: audio
+
+mappings:
+  fal-ai:
+    # LTX-2-19b Distilled Extend-Video
+    ltx-2-19b/distilled/extend-video:
+      Prompt: prompt
+      NegativePrompt: negative_prompt
+      SourceVideo: video_url
+      VideoSize:
+        field: video_size
+        combine:
+          inputs: [AspectRatio, Resolution]
+          table:
+            # With Resolution specified -> explicit dimensions
+            "16:9+480p": { width: 848, height: 480 }
+            "16:9+720p": { width: 1280, height: 720 }
+            "9:16+480p": { width: 480, height: 848 }
+            "9:16+720p": { width: 720, height: 1280 }
+            "4:3+480p": { width: 640, height: 480 }
+            "4:3+720p": { width: 960, height: 720 }
+            "3:4+480p": { width: 480, height: 640 }
+            "3:4+720p": { width: 720, height: 960 }
+            "1:1+480p": { width: 512, height: 512 }
+            "1:1+720p": { width: 720, height: 720 }
+            # With only AspectRatio -> "auto" to match input video
+            "16:9+": auto
+            "9:16+": auto
+            "4:3+": auto
+            "3:4+": auto
+            "1:1+": auto
+            "auto+": auto
+      Duration:
+        field: num_frames
+        durationToFrames:
+          fps: 25
+      GenerateAudio: generate_audio
+      Seed: seed
+      EnhancePrompt: enable_prompt_expansion
+
+    # LTX-2-19b Distilled Video-to-Video
+    ltx-2-19b/distilled/video-to-video:
+      Prompt: prompt
+      NegativePrompt: negative_prompt
+      SourceVideo: video_url
+      VideoSize:
+        field: video_size
+        combine:
+          inputs: [AspectRatio, Resolution]
+          table:
+            # With Resolution specified -> explicit dimensions
+            "16:9+480p": { width: 848, height: 480 }
+            "16:9+720p": { width: 1280, height: 720 }
+            "9:16+480p": { width: 480, height: 848 }
+            "9:16+720p": { width: 720, height: 1280 }
+            "4:3+480p": { width: 640, height: 480 }
+            "4:3+720p": { width: 960, height: 720 }
+            "3:4+480p": { width: 480, height: 640 }
+            "3:4+720p": { width: 720, height: 960 }
+            "1:1+480p": { width: 512, height: 512 }
+            "1:1+720p": { width: 720, height: 720 }
+            # With only AspectRatio -> "auto" to match input video
+            "16:9+": auto
+            "9:16+": auto
+            "4:3+": auto
+            "3:4+": auto
+            "1:1+": auto
+            "auto+": auto
+      Duration:
+        field: num_frames
+        durationToFrames:
+          fps: 25
+      GenerateAudio: generate_audio
+      Seed: seed
+      EnhancePrompt: enable_prompt_expansion
+      VideoStrength: video_strength

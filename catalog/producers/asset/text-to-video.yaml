@@ -135,6 +135,40 @@ mappings:
       CameraFixed: camera_fixed
       Seed: seed
 
+    # LTX-2-19b Distilled Text-to-Video
+    ltx-2-19b/distilled/text-to-video:
+      Prompt: prompt
+      NegativePrompt: negative_prompt
+      VideoSize:
+        field: video_size
+        combine:
+          inputs: [AspectRatio, Resolution]
+          table:
+            # With Resolution specified -> explicit dimensions
+            "16:9+480p": { width: 848, height: 480 }
+            "16:9+720p": { width: 1280, height: 720 }
+            "9:16+480p": { width: 480, height: 848 }
+            "9:16+720p": { width: 720, height: 1280 }
+            "4:3+480p": { width: 640, height: 480 }
+            "4:3+720p": { width: 960, height: 720 }
+            "3:4+480p": { width: 480, height: 640 }
+            "3:4+720p": { width: 720, height: 960 }
+            "1:1+480p": { width: 512, height: 512 }
+            "1:1+720p": { width: 720, height: 720 }
+            # With only AspectRatio -> preset strings (default ~720p resolution)
+            "16:9+": landscape_16_9
+            "9:16+": portrait_16_9
+            "4:3+": landscape_4_3
+            "3:4+": portrait_4_3
+            "1:1+": square_hd
+      Duration:
+        field: num_frames
+        durationToFrames:
+          fps: 25
+      GenerateAudio: generate_audio
+      Seed: seed
+      EnhancePrompt: enable_prompt_expansion
+
   replicate:
     # ByteDance Seedance 1.5 Pro
     bytedance/seedance-1.5-pro:

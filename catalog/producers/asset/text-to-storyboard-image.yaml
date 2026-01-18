@@ -87,6 +87,7 @@ mappings:
       EnableSafetyChecker: enable_safety_checker
       # AspectRatio + Resolution combine into image_size
       ImageSize:
+        field: image_size
         combine:
           inputs: [AspectRatio, Resolution]
           table:
@@ -181,13 +182,14 @@ mappings:
           "1:1": square_hd
           "3:2": landscape_4_3
           "2:3": portrait_4_3
-      # Resolution: use image_size object form
+      # Resolution: use image_size object form (expands width/height into payload)
       ImageSize:
         conditional:
           when:
             input: Resolution
             notEmpty: true
           then:
+            expand: true
             combine:
               inputs: [AspectRatio, Resolution]
               table:
@@ -253,13 +255,14 @@ mappings:
       OutputFormat: output_format
       Width: width
       Height: height
-      # For users who specify AspectRatio + Resolution:
+      # For users who specify AspectRatio + Resolution (expands width/height into payload)
       ImageSize:
         conditional:
           when:
             input: Width
             empty: true
           then:
+            expand: true
             combine:
               inputs: [AspectRatio, Resolution]
               table:

@@ -92,3 +92,9 @@ mappings:
       Resolution: resolution
       Seed: seed
       Acceleration: acceleration
+
+    bytedance/omnihuman/v1.5:
+      Prompt: prompt
+      CharacterImage: image_url
+      AudioUrl: audio_url
+      Resolution: resolution

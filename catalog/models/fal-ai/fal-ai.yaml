@@ -1,5 +1,5 @@
 models:
-  # Image Models
+# Image Models
   - name: bytedance/seedream/v4/text-to-image
     type: image
     mime: 
@@ -153,8 +153,7 @@ models:
       function: costByRun
       price: 0.04
 
-
-  # Audio Models
+# Audio Models
   - name: elevenlabs/tts/eleven-v3
     type: audio
     mime: 
@@ -196,7 +195,7 @@ models:
       inputs: [duration]
       pricePerSecond: 0.002
 
-  # Video Models
+# Video Models
   - name: veo3.1
     type: video
     mime:
@@ -383,6 +382,15 @@ models:
           pricePerMillionTokens: 2.4
         - generate_audio: false
           pricePerMillionTokens: 1.2
+  - name: bytedance/omnihuman/v1.5
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.16
+
   - name: veed/fabric-1.0/fast
     type: video
     mime:
@@ -443,6 +451,53 @@ models:
           pricePerSecond: 0.20
         - resolution: 720p
           pricePerSecond: 0.40
+
+  - name: pixverse/lipsync
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.04
+
+  # LTX-2-19b Distilled Video Models
+  - name: ltx-2-19b/distilled/text-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoMegapixels
+      inputs: [num_frames, video_size]
+      pricePerMegapixel: 0.0008
+
+  - name: ltx-2-19b/distilled/image-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoMegapixels
+      inputs: [num_frames, video_size]
+      pricePerMegapixel: 0.0008
+
+  - name: ltx-2-19b/distilled/extend-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoMegapixels
+      inputs: [num_frames, video_size]
+      pricePerMegapixel: 0.0008
+
+  - name: ltx-2-19b/distilled/video-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoMegapixels
+      inputs: [num_frames, video_size]
+      pricePerMegapixel: 0.0008
+
 
   # JSON Models
   - name: elevenlabs/speech-to-text

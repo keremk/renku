@@ -1,0 +1,143 @@
+{
+  "input_schema": {
+    "x-fal-order-properties": [
+      "prompt",
+      "image_url",
+      "audio_url",
+      "turbo_mode",
+      "resolution"
+    ],
+    "type": "object",
+    "properties": {
+      "turbo_mode": {
+        "title": "Turbo Mode",
+        "type": "boolean",
+        "description": "Generate a video at a faster rate with a slight quality trade-off.",
+        "default": false
+      },
+      "resolution": {
+        "enum": [
+          "720p",
+          "1080p"
+        ],
+        "title": "Resolution",
+        "type": "string",
+        "description": "The resolution of the generated video. Defaults to 1080p. 720p generation is faster and higher in quality. 1080p generation is limited to 30s audio and 720p generation is limited to 60s audio.",
+        "default": "1080p"
+      },
+      "prompt": {
+        "title": "Prompt",
+        "type": "string",
+        "description": "The text prompt used to guide the video generation."
+      },
+      "audio_url": {
+        "examples": [
+          "https://storage.googleapis.com/falserverless/example_inputs/omnihuman_v15_input_audio.mp3"
+        ],
+        "title": "Audio Url",
+        "type": "string",
+        "description": "The URL of the audio file to generate the video. Audio must be under 30s long for 1080p generation and under 60s long for 720p generation.",
+        "format": "uri"
+      },
+      "image_url": {
+        "examples": [
+          "https://storage.googleapis.com/falserverless/example_inputs/omnihuman_v15_input_image.png"
+        ],
+        "title": "Image Url",
+        "type": "string",
+        "description": "The URL of the image used to generate the video",
+        "format": "uri"
+      }
+    },
+    "title": "OmniHumanv15Input",
+    "required": [
+      "image_url",
+      "audio_url"
+    ]
+  },
+  "output_schema": {
+    "x-fal-order-properties": [
+      "video",
+      "duration"
+    ],
+    "type": "object",
+    "properties": {
+      "duration": {
+        "title": "Duration",
+        "type": "number",
+        "description": "Duration of audio input/video output as used for billing."
+      },
+      "video": {
+        "examples": [
+          {
+            "url": "https://storage.googleapis.com/falserverless/example_outputs/omnihuman_v15_output.mp4"
+          }
+        ],
+        "title": "Video",
+        "description": "Generated video file",
+        "allOf": [
+          {
+            "$ref": "#/File"
+          }
+        ]
+      }
+    },
+    "title": "OmniHumanv15Output",
+    "required": [
+      "video",
+      "duration"
+    ]
+  },
+  "File": {
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data"
+    ],
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "title": "File Size",
+        "type": "integer",
+        "description": "The size of the file in bytes."
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name",
+        "type": "string",
+        "description": "The name of the file. It will be auto-generated if not provided."
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type",
+        "type": "string",
+        "description": "The mime type of the file."
+      },
+      "url": {
+        "title": "Url",
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
+      },
+      "file_data": {
+        "format": "binary",
+        "title": "File Data",
+        "type": "string",
+        "description": "File data"
+      }
+    },
+    "title": "File",
+    "required": [
+      "url"
+    ]
+  }
+}
