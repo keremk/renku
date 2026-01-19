@@ -269,6 +269,63 @@ export interface ProducerInputsFileOptions {
   producerName: string;
   /** Output directory (defaults to current working directory) */
   outputDir?: string;
+  /** Field configurations for identifying file fields */
+  inputFields?: FormFieldConfig[];
+}
+
+/**
+ * Format a file value with the file: prefix.
+ */
+export function formatFileValue(value: string): string {
+  // Don't add prefix if already has it
+  if (value.startsWith('file:')) {
+    return value;
+  }
+  return `file:${value}`;
+}
+
+/**
+ * Format input values, adding file: prefix to file field values.
+ *
+ * @param inputs - Input values from the form
+ * @param fields - Field configurations to identify file types
+ * @returns Formatted input values with file: prefix for file fields
+ */
+export function formatInputsWithFilePrefix(
+  inputs: Record<string, unknown>,
+  fields?: FormFieldConfig[]
+): Record<string, unknown> {
+  if (!fields || fields.length === 0) {
+    return inputs;
+  }
+
+  // Create a set of file field names
+  const fileFieldNames = new Set(
+    fields
+      .filter((f) => f.type === 'file' || f.type === 'file-collection')
+      .map((f) => f.name)
+  );
+
+  const formatted: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(inputs)) {
+    if (fileFieldNames.has(key) && value !== undefined && value !== '') {
+      // Format file values with file: prefix
+      if (Array.isArray(value)) {
+        formatted[key] = value.map((v) =>
+          typeof v === 'string' ? formatFileValue(v) : v
+        );
+      } else if (typeof value === 'string') {
+        formatted[key] = formatFileValue(value);
+      } else {
+        formatted[key] = value;
+      }
+    } else {
+      formatted[key] = value;
+    }
+  }
+
+  return formatted;
 }
 
 /**
@@ -313,9 +370,12 @@ export async function writeProducerInputsYaml(
   // Build the YAML structure matching blueprint input format
   const yamlData: Record<string, unknown> = {};
 
+  // Format inputs, adding file: prefix for file fields
+  const formattedInputs = formatInputsWithFilePrefix(data.inputs, options.inputFields);
+
   // Add inputs section at top level (if any)
-  if (Object.keys(data.inputs).length > 0) {
-    yamlData.inputs = data.inputs;
+  if (Object.keys(formattedInputs).length > 0) {
+    yamlData.inputs = formattedInputs;
   }
 
   // Add models array with the selected model
@@ -360,11 +420,15 @@ export async function writeProducerInputsYaml(
 export function formatProducerInputsPreview(
   data: ProducerInputsYamlData,
   producerId: string,
+  inputFields?: FormFieldConfig[],
 ): string {
   const yamlData: Record<string, unknown> = {};
 
-  if (Object.keys(data.inputs).length > 0) {
-    yamlData.inputs = data.inputs;
+  // Format inputs, adding file: prefix for file fields
+  const formattedInputs = formatInputsWithFilePrefix(data.inputs, inputFields);
+
+  if (Object.keys(formattedInputs).length > 0) {
+    yamlData.inputs = formattedInputs;
   }
 
   const modelEntry: Record<string, unknown> = {

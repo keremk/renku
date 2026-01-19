@@ -59,6 +59,8 @@ export interface ProducerInputDefinition {
   name: string;
   description?: string;
   type?: string;
+  /** For collection types: the item type (image, audio, video) */
+  itemType?: string;
 }
 
 /**

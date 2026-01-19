@@ -26,7 +26,19 @@ export interface JSONSchema {
 /**
  * Field types that can be rendered in the interactive form.
  */
-export type FieldType = 'text' | 'number' | 'boolean' | 'select' | 'multiline';
+export type FieldType =
+  | 'text'
+  | 'number'
+  | 'boolean'
+  | 'select'
+  | 'multiline'
+  | 'file'            // Single file selection
+  | 'file-collection'; // Multiple file selection
+
+/**
+ * Blob types supported for file inputs.
+ */
+export type BlobType = 'image' | 'audio' | 'video';
 
 /**
  * A form field configuration derived from JSON schema.
@@ -52,6 +64,10 @@ export interface FormFieldConfig {
   max?: number;
   /** Order for display (from x-order if available) */
   order?: number;
+  /** For file fields: allowed file extensions */
+  fileExtensions?: string[];
+  /** For file fields: the blob type (image, audio, video) */
+  blobType?: BlobType;
 }
 
 /**
@@ -389,11 +405,73 @@ export function getMappedSchemaFieldNames(
 }
 
 /**
+ * Producer input definition for blob type detection.
+ * Matches the type from producer-mode.ts but avoids circular imports.
+ */
+export interface ProducerInputDef {
+  name: string;
+  type?: string;
+  itemType?: string;
+  description?: string;
+}
+
+/**
+ * Check if a producer input is a blob type (image, audio, video).
+ */
+export function isBlobInput(input: ProducerInputDef): boolean {
+  const blobTypes = ['image', 'audio', 'video'];
+  return (
+    blobTypes.includes(input.type ?? '') ||
+    (input.type === 'collection' && blobTypes.includes(input.itemType ?? ''))
+  );
+}
+
+/**
+ * Get file extensions for a blob type.
+ */
+export function getExtensionsForBlobType(blobType: string): string[] {
+  switch (blobType) {
+    case 'image':
+      return ['png', 'jpg', 'jpeg', 'webp', 'gif'];
+    case 'audio':
+      return ['mp3', 'wav', 'webm', 'ogg', 'flac', 'aac'];
+    case 'video':
+      return ['mp4', 'webm', 'mov', 'mkv'];
+    default:
+      return [];
+  }
+}
+
+/**
+ * Create a form field config for a blob input.
+ */
+export function createBlobFieldConfig(input: ProducerInputDef): FormFieldConfig | null {
+  if (!isBlobInput(input)) {
+    return null;
+  }
+
+  const isCollection = input.type === 'collection';
+  const blobType = (isCollection ? input.itemType : input.type) as BlobType;
+  const extensions = getExtensionsForBlobType(blobType);
+
+  return {
+    name: input.name,
+    label: formatLabel(input.name),
+    type: isCollection ? 'file-collection' : 'file',
+    required: false, // Producer inputs don't have required field
+    description: input.description,
+    fileExtensions: extensions,
+    blobType,
+  };
+}
+
+/**
  * Categorize schema fields into producer inputs vs config.
  *
  * For producer inputs:
  * - Uses producer input names (Prompt, NumImages) as the field names
  * - Gets field configuration (type, options, etc.) from the mapped schema field
+ * - For blob inputs (image, audio, video), creates file picker fields
  *
  * For config:
  * - Uses schema field names directly (acceleration, enable_safety_checker)
@@ -401,21 +479,40 @@ export function getMappedSchemaFieldNames(
  *
  * @param schemaFile - The loaded schema file for a model
  * @param inputMappings - Mappings from producer inputs to schema fields
+ * @param producerInputs - Optional producer input definitions for blob type detection
  * @returns Categorized fields with inputFields (using producer names) and configFields (using schema names)
  */
 export function categorizeSchemaFields(
   schemaFile: SchemaFile,
   inputMappings: ProducerInputMapping[],
+  producerInputs?: ProducerInputDef[],
 ): { inputFields: FormFieldConfig[]; configFields: FormFieldConfig[] } {
   const allSchemaFields = schemaFileToFields(schemaFile);
   const schemaFieldMap = new Map(allSchemaFields.map((f) => [f.name, f]));
   const mappedSchemaFieldNames = getMappedSchemaFieldNames(inputMappings);
+
+  // Create a map of producer input definitions by name for quick lookup
+  const producerInputMap = new Map(
+    (producerInputs ?? []).map((input) => [input.name, input])
+  );
 
   const inputFields: FormFieldConfig[] = [];
   const configFields: FormFieldConfig[] = [];
 
   // Build input fields using producer input names but schema field config
   for (const mapping of inputMappings) {
+    const producerInput = producerInputMap.get(mapping.producerInput);
+
+    // Check if this is a blob input (image, audio, video, or collection of these)
+    if (producerInput && isBlobInput(producerInput)) {
+      const blobField = createBlobFieldConfig(producerInput);
+      if (blobField) {
+        inputFields.push(blobField);
+        continue;
+      }
+    }
+
+    // For non-blob inputs, use schema field config
     const schemaField = schemaFieldMap.get(mapping.schemaField);
     if (schemaField) {
       // Create field with producer input name but schema field configuration

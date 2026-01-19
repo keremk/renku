@@ -40,9 +40,14 @@ export {
   categorizeSchemaFields,
   extractProducerInputMappings,
   getMappedSchemaFieldNames,
+  isBlobInput,
+  getExtensionsForBlobType,
+  createBlobFieldConfig,
   type FormFieldConfig,
   type FieldType,
+  type BlobType,
   type ProducerInputMapping,
+  type ProducerInputDef,
 } from './utils/schema-to-fields.js';
 
 export {
@@ -53,6 +58,8 @@ export {
   generateInputsFileName,
   generateProducerInputsFileName,
   generateTimelineConfigTemplate,
+  formatFileValue,
+  formatInputsWithFilePrefix,
   type InputsYamlData,
   type ModelSelectionInput,
   type InputsFileNameOptions,
@@ -87,6 +94,7 @@ export { InteractiveApp, InteractiveAppWrapper } from './components/interactive-
 export { ModelSelector, MultiProducerSelector, type ModelOption } from './components/model-selector.js';
 export { InputGatherer, SimpleInputGatherer, InputSummary } from './components/input-gatherer.js';
 export { FormField, TextField, NumberField, BooleanField, SelectField, useFormState } from './components/form-fields.js';
+export { FilePicker, type FilePickerProps } from './components/file-picker.js';
 export {
   ProgressHeader,
   StepIndicator,

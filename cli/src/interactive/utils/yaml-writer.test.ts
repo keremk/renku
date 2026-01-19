@@ -6,8 +6,11 @@ import { parse as parseYaml } from 'yaml';
 import {
   writeProducerInputsYaml,
   generateProducerInputsFileName,
+  formatFileValue,
+  formatInputsWithFilePrefix,
   type ProducerInputsYamlData,
 } from './yaml-writer.js';
+import type { FormFieldConfig } from './schema-to-fields.js';
 
 describe('writeProducerInputsYaml', () => {
   let testDir: string;
@@ -179,5 +182,125 @@ describe('writeProducerInputsYaml', () => {
     expect(parsed).not.toHaveProperty('inputs');
     const models = parsed.models as Array<Record<string, unknown>>;
     expect(models[0].config).toEqual({ setting: 'value' });
+  });
+
+  it('formats file values with file: prefix when inputFields are provided', async () => {
+    const data: ProducerInputsYamlData = {
+      provider: 'fal-ai',
+      model: 'qwen-image-edit-2511',
+      producerId: 'ImageToImageProducer',
+      inputs: {
+        Prompt: 'Edit this image',
+        SourceImages: ['images/photo1.png', 'images/photo2.jpg'],
+        MaskImage: 'masks/mask.png',
+      },
+      config: {},
+    };
+
+    const inputFields: FormFieldConfig[] = [
+      { name: 'Prompt', label: 'Prompt', type: 'text', required: true },
+      { name: 'SourceImages', label: 'Source Images', type: 'file-collection', required: false, blobType: 'image' },
+      { name: 'MaskImage', label: 'Mask Image', type: 'file', required: false, blobType: 'image' },
+    ];
+
+    const filePath = await writeProducerInputsYaml(data, {
+      producerId: 'ImageToImageProducer',
+      producerName: 'Image-to-Image Transformer',
+      outputDir: testDir,
+      inputFields,
+    });
+
+    const content = await readFile(filePath, 'utf8');
+    const parsed = parseYaml(content) as Record<string, unknown>;
+
+    const inputs = parsed.inputs as Record<string, unknown>;
+
+    // Text field should not have file: prefix
+    expect(inputs.Prompt).toBe('Edit this image');
+
+    // File collection should have file: prefix on each element
+    const sourceImages = inputs.SourceImages as string[];
+    expect(sourceImages).toHaveLength(2);
+    expect(sourceImages[0]).toBe('file:images/photo1.png');
+    expect(sourceImages[1]).toBe('file:images/photo2.jpg');
+
+    // Single file field should have file: prefix
+    expect(inputs.MaskImage).toBe('file:masks/mask.png');
+  });
+});
+
+describe('formatFileValue', () => {
+  it('adds file: prefix to path', () => {
+    expect(formatFileValue('images/photo.png')).toBe('file:images/photo.png');
+  });
+
+  it('handles relative paths', () => {
+    expect(formatFileValue('./images/photo.png')).toBe('file:./images/photo.png');
+  });
+
+  it('does not double prefix if already has file:', () => {
+    expect(formatFileValue('file:images/photo.png')).toBe('file:images/photo.png');
+  });
+});
+
+describe('formatInputsWithFilePrefix', () => {
+  it('adds file: prefix to file field values', () => {
+    const inputs = {
+      Prompt: 'A test prompt',
+      Image: 'photo.png',
+    };
+
+    const fields: FormFieldConfig[] = [
+      { name: 'Prompt', label: 'Prompt', type: 'text', required: true },
+      { name: 'Image', label: 'Image', type: 'file', required: false },
+    ];
+
+    const result = formatInputsWithFilePrefix(inputs, fields);
+
+    expect(result.Prompt).toBe('A test prompt');
+    expect(result.Image).toBe('file:photo.png');
+  });
+
+  it('adds file: prefix to each element in file-collection', () => {
+    const inputs = {
+      Images: ['photo1.png', 'photo2.jpg', 'photo3.webp'],
+    };
+
+    const fields: FormFieldConfig[] = [
+      { name: 'Images', label: 'Images', type: 'file-collection', required: false },
+    ];
+
+    const result = formatInputsWithFilePrefix(inputs, fields);
+
+    const images = result.Images as string[];
+    expect(images).toEqual([
+      'file:photo1.png',
+      'file:photo2.jpg',
+      'file:photo3.webp',
+    ]);
+  });
+
+  it('returns inputs unchanged if no fields provided', () => {
+    const inputs = { Image: 'photo.png' };
+
+    expect(formatInputsWithFilePrefix(inputs)).toEqual(inputs);
+    expect(formatInputsWithFilePrefix(inputs, [])).toEqual(inputs);
+  });
+
+  it('skips empty values', () => {
+    const inputs = {
+      Image: '',
+      OtherImage: undefined,
+    };
+
+    const fields: FormFieldConfig[] = [
+      { name: 'Image', label: 'Image', type: 'file', required: false },
+      { name: 'OtherImage', label: 'Other', type: 'file', required: false },
+    ];
+
+    const result = formatInputsWithFilePrefix(inputs, fields);
+
+    expect(result.Image).toBe('');
+    expect(result.OtherImage).toBeUndefined();
   });
 });

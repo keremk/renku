@@ -90,12 +90,13 @@ export const ProducerApp: React.FC<ProducerAppProps> = ({
   // Categorize schema fields when schema is loaded
   // Input fields will use producer input names (Prompt, NumImages)
   // Config fields will use schema field names (acceleration, enable_safety_checker)
+  // Pass producer inputs for blob type detection (image, audio, video)
   const { inputFields, configFields } = useMemo(() => {
     if (!schemaFile) {
       return { inputFields: [], configFields: [] };
     }
-    return categorizeSchemaFields(schemaFile, inputMappings);
-  }, [schemaFile, inputMappings]);
+    return categorizeSchemaFields(schemaFile, inputMappings, producer.inputs);
+  }, [schemaFile, inputMappings, producer.inputs]);
 
   // Handle model selection
   const handleModelSelect = useCallback(

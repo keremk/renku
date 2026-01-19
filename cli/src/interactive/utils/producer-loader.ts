@@ -27,6 +27,7 @@ interface RawProducerYaml {
     name?: string;
     description?: string;
     type?: string;
+    itemType?: string;
   }>;
   artifacts?: Array<{
     name?: string;
@@ -72,13 +73,14 @@ export async function loadProducerDocument(filePath: string): Promise<ProducerDo
 
   // Parse inputs
   const inputs: ProducerInputDefinition[] = (parsed.inputs ?? [])
-    .filter((input): input is { name: string; description?: string; type?: string } =>
+    .filter((input): input is { name: string; description?: string; type?: string; itemType?: string } =>
       typeof input?.name === 'string'
     )
     .map((input) => ({
       name: input.name,
       description: input.description,
       type: input.type,
+      itemType: input.itemType,
     }));
 
   // Parse artifacts

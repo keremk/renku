@@ -2,9 +2,12 @@ import { describe, it, expect } from 'vitest';
 import {
   extractProducerInputMappings,
   categorizeSchemaFields,
+  isBlobInput,
+  getExtensionsForBlobType,
+  createBlobFieldConfig,
 } from './schema-to-fields.js';
 import type { SchemaFile } from '@gorenku/providers';
-import type { ProducerInputMapping } from './schema-to-fields.js';
+import type { ProducerInputMapping, ProducerInputDef } from './schema-to-fields.js';
 
 describe('extractProducerInputMappings', () => {
   it('extracts simple string mappings with producer and schema field names', () => {
@@ -227,5 +230,161 @@ describe('categorizeSchemaFields', () => {
     expect(result.configFields[0].required).toBe(true);
     expect(result.configFields[1].name).toBe('optional_config');
     expect(result.configFields[1].required).toBe(false);
+  });
+
+  it('creates file picker fields for blob inputs when producer inputs are provided', () => {
+    const schemaFile = createMockSchemaFile({
+      prompt: { type: 'string' },
+      image_urls: { type: 'array' },
+      mask_image_url: { type: 'string' },
+    });
+
+    const inputMappings: ProducerInputMapping[] = [
+      { producerInput: 'Prompt', schemaField: 'prompt' },
+      { producerInput: 'SourceImages', schemaField: 'image_urls' },
+      { producerInput: 'MaskImage', schemaField: 'mask_image_url' },
+    ];
+
+    const producerInputs: ProducerInputDef[] = [
+      { name: 'Prompt', type: 'string' },
+      { name: 'SourceImages', type: 'collection', itemType: 'image' },
+      { name: 'MaskImage', type: 'image' },
+    ];
+
+    const result = categorizeSchemaFields(schemaFile, inputMappings, producerInputs);
+
+    // Prompt should be a text field
+    const promptField = result.inputFields.find((f) => f.name === 'Prompt');
+    expect(promptField?.type).toBe('text');
+
+    // SourceImages should be a file-collection field
+    const sourceImagesField = result.inputFields.find((f) => f.name === 'SourceImages');
+    expect(sourceImagesField?.type).toBe('file-collection');
+    expect(sourceImagesField?.blobType).toBe('image');
+    expect(sourceImagesField?.fileExtensions).toContain('png');
+    expect(sourceImagesField?.fileExtensions).toContain('jpg');
+
+    // MaskImage should be a file field (single)
+    const maskImageField = result.inputFields.find((f) => f.name === 'MaskImage');
+    expect(maskImageField?.type).toBe('file');
+    expect(maskImageField?.blobType).toBe('image');
+  });
+});
+
+describe('isBlobInput', () => {
+  it('returns true for single image type', () => {
+    expect(isBlobInput({ name: 'Image', type: 'image' })).toBe(true);
+  });
+
+  it('returns true for single audio type', () => {
+    expect(isBlobInput({ name: 'Audio', type: 'audio' })).toBe(true);
+  });
+
+  it('returns true for single video type', () => {
+    expect(isBlobInput({ name: 'Video', type: 'video' })).toBe(true);
+  });
+
+  it('returns true for collection of images', () => {
+    expect(isBlobInput({ name: 'Images', type: 'collection', itemType: 'image' })).toBe(true);
+  });
+
+  it('returns true for collection of audio', () => {
+    expect(isBlobInput({ name: 'AudioFiles', type: 'collection', itemType: 'audio' })).toBe(true);
+  });
+
+  it('returns true for collection of video', () => {
+    expect(isBlobInput({ name: 'Videos', type: 'collection', itemType: 'video' })).toBe(true);
+  });
+
+  it('returns false for string type', () => {
+    expect(isBlobInput({ name: 'Prompt', type: 'string' })).toBe(false);
+  });
+
+  it('returns false for integer type', () => {
+    expect(isBlobInput({ name: 'Count', type: 'integer' })).toBe(false);
+  });
+
+  it('returns false for collection without blob itemType', () => {
+    expect(isBlobInput({ name: 'Items', type: 'collection', itemType: 'string' })).toBe(false);
+  });
+
+  it('returns false for undefined type', () => {
+    expect(isBlobInput({ name: 'Unknown' })).toBe(false);
+  });
+});
+
+describe('getExtensionsForBlobType', () => {
+  it('returns image extensions for image type', () => {
+    const extensions = getExtensionsForBlobType('image');
+    expect(extensions).toContain('png');
+    expect(extensions).toContain('jpg');
+    expect(extensions).toContain('jpeg');
+    expect(extensions).toContain('webp');
+    expect(extensions).toContain('gif');
+  });
+
+  it('returns audio extensions for audio type', () => {
+    const extensions = getExtensionsForBlobType('audio');
+    expect(extensions).toContain('mp3');
+    expect(extensions).toContain('wav');
+    expect(extensions).toContain('ogg');
+    expect(extensions).toContain('flac');
+  });
+
+  it('returns video extensions for video type', () => {
+    const extensions = getExtensionsForBlobType('video');
+    expect(extensions).toContain('mp4');
+    expect(extensions).toContain('webm');
+    expect(extensions).toContain('mov');
+    expect(extensions).toContain('mkv');
+  });
+
+  it('returns empty array for unknown type', () => {
+    expect(getExtensionsForBlobType('unknown')).toEqual([]);
+  });
+});
+
+describe('createBlobFieldConfig', () => {
+  it('creates file field config for single image input', () => {
+    const input: ProducerInputDef = {
+      name: 'MaskImage',
+      type: 'image',
+      description: 'Mask for editing',
+    };
+
+    const field = createBlobFieldConfig(input);
+
+    expect(field).not.toBeNull();
+    expect(field?.name).toBe('MaskImage');
+    expect(field?.type).toBe('file');
+    expect(field?.blobType).toBe('image');
+    expect(field?.description).toBe('Mask for editing');
+    expect(field?.fileExtensions).toContain('png');
+  });
+
+  it('creates file-collection field config for image collection', () => {
+    const input: ProducerInputDef = {
+      name: 'SourceImages',
+      type: 'collection',
+      itemType: 'image',
+      description: 'Images to process',
+    };
+
+    const field = createBlobFieldConfig(input);
+
+    expect(field).not.toBeNull();
+    expect(field?.name).toBe('SourceImages');
+    expect(field?.type).toBe('file-collection');
+    expect(field?.blobType).toBe('image');
+    expect(field?.description).toBe('Images to process');
+  });
+
+  it('returns null for non-blob input', () => {
+    const input: ProducerInputDef = {
+      name: 'Prompt',
+      type: 'string',
+    };
+
+    expect(createBlobFieldConfig(input)).toBeNull();
   });
 });

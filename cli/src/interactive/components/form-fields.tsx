@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Box, Text, useInput } from 'ink';
 import type { FormFieldConfig } from '../utils/schema-to-fields.js';
+import { FilePicker } from './file-picker.js';
 
 /**
  * Props for all form field components.
@@ -246,6 +247,16 @@ export const FormField: React.FC<FieldProps> = (props) => {
       return <NumberField {...props} />;
     case 'select':
       return <SelectField {...props} />;
+    case 'file':
+    case 'file-collection':
+      return (
+        <FilePicker
+          field={props.field}
+          value={props.value as string | string[] | undefined}
+          onChange={props.onChange}
+          isFocused={props.isFocused}
+        />
+      );
     case 'multiline':
     case 'text':
     default:
