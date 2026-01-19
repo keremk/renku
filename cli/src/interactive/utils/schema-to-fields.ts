@@ -329,3 +329,131 @@ function mapBlueprintType(type?: string): FieldType {
       return 'text';
   }
 }
+
+/**
+ * Mapping from producer input name to schema field name.
+ */
+export interface ProducerInputMapping {
+  /** Producer input name (e.g., "Prompt", "NumImages") */
+  producerInput: string;
+  /** Schema field name (e.g., "prompt", "num_images") */
+  schemaField: string;
+}
+
+/**
+ * Extract mappings between producer inputs and schema fields.
+ *
+ * Mappings in producer YAML look like:
+ * ```yaml
+ * mappings:
+ *   provider:
+ *     model:
+ *       Prompt: prompt           # Simple: producer input "Prompt" -> schema field "prompt"
+ *       NumImages: num_images
+ *       AspectRatio:
+ *         field: image_size      # Complex: producer input -> schema field "image_size"
+ *         transform: ...
+ * ```
+ *
+ * @param modelMappings - The mappings for a specific model
+ * @returns Array of producer input to schema field mappings
+ */
+export function extractProducerInputMappings(
+  modelMappings: Record<string, unknown>,
+): ProducerInputMapping[] {
+  const mappings: ProducerInputMapping[] = [];
+
+  for (const [producerInput, mapping] of Object.entries(modelMappings)) {
+    if (typeof mapping === 'string') {
+      // Simple mapping: Prompt: prompt
+      mappings.push({ producerInput, schemaField: mapping });
+    } else if (typeof mapping === 'object' && mapping !== null) {
+      // Complex mapping with field property
+      const mappingObj = mapping as Record<string, unknown>;
+      if (typeof mappingObj.field === 'string') {
+        mappings.push({ producerInput, schemaField: mappingObj.field });
+      }
+    }
+  }
+
+  return mappings;
+}
+
+/**
+ * Get set of schema field names that are mapped from producer inputs.
+ */
+export function getMappedSchemaFieldNames(
+  mappings: ProducerInputMapping[],
+): Set<string> {
+  return new Set(mappings.map((m) => m.schemaField));
+}
+
+/**
+ * Categorize schema fields into producer inputs vs config.
+ *
+ * For producer inputs:
+ * - Uses producer input names (Prompt, NumImages) as the field names
+ * - Gets field configuration (type, options, etc.) from the mapped schema field
+ *
+ * For config:
+ * - Uses schema field names directly (acceleration, enable_safety_checker)
+ * - Only includes schema fields NOT mapped from any producer input
+ *
+ * @param schemaFile - The loaded schema file for a model
+ * @param inputMappings - Mappings from producer inputs to schema fields
+ * @returns Categorized fields with inputFields (using producer names) and configFields (using schema names)
+ */
+export function categorizeSchemaFields(
+  schemaFile: SchemaFile,
+  inputMappings: ProducerInputMapping[],
+): { inputFields: FormFieldConfig[]; configFields: FormFieldConfig[] } {
+  const allSchemaFields = schemaFileToFields(schemaFile);
+  const schemaFieldMap = new Map(allSchemaFields.map((f) => [f.name, f]));
+  const mappedSchemaFieldNames = getMappedSchemaFieldNames(inputMappings);
+
+  const inputFields: FormFieldConfig[] = [];
+  const configFields: FormFieldConfig[] = [];
+
+  // Build input fields using producer input names but schema field config
+  for (const mapping of inputMappings) {
+    const schemaField = schemaFieldMap.get(mapping.schemaField);
+    if (schemaField) {
+      // Create field with producer input name but schema field configuration
+      inputFields.push({
+        ...schemaField,
+        name: mapping.producerInput, // Use producer input name
+        label: formatLabel(mapping.producerInput), // Format producer input name as label
+      });
+    }
+  }
+
+  // Config fields are schema fields NOT mapped from producer inputs
+  for (const field of allSchemaFields) {
+    if (!mappedSchemaFieldNames.has(field.name)) {
+      configFields.push(field);
+    }
+  }
+
+  // Sort: required fields first, then by order/name
+  const sortFields = (fields: FormFieldConfig[]) => {
+    return fields.sort((a, b) => {
+      // Required fields first
+      if (a.required !== b.required) {
+        return a.required ? -1 : 1;
+      }
+      // Then by order if available
+      const orderA = a.order ?? 1000;
+      const orderB = b.order ?? 1000;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      // Then alphabetically
+      return a.name.localeCompare(b.name);
+    });
+  };
+
+  return {
+    inputFields: sortFields(inputFields),
+    configFields: sortFields(configFields),
+  };
+}

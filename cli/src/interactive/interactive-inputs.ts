@@ -3,6 +3,7 @@ import { render } from 'ink';
 import { resolve } from 'node:path';
 import {
   loadModelCatalog,
+  loadModelSchemaFile,
   createProviderRegistry,
   type LoadedModelCatalog,
 } from '@gorenku/providers';
@@ -19,12 +20,16 @@ import { loadAllAssetModels, type AssetModelOption } from './utils/asset-model-l
 import { detectAvailableProviders } from './utils/api-key-detector.js';
 import {
   writeInputsYaml,
+  writeProducerInputsYaml,
   generateTimelineConfigTemplate,
   type InputsYamlData,
   type CompositionModelInput,
+  type ProducerInputsYamlData,
 } from './utils/yaml-writer.js';
 import { blueprintInputsToFields } from './utils/schema-to-fields.js';
 import { InteractiveApp } from './components/interactive-app.js';
+import { ProducerApp } from './components/producer-app.js';
+import { loadProducerDocument, type ProducerDocument } from './utils/producer-loader.js';
 
 /**
  * Options for running interactive input gathering.
@@ -239,6 +244,169 @@ async function runInteractiveApp(options: {
         availableProviders,
         assetModels,
         blueprintFields,
+        onComplete: handleComplete,
+        onCancel: handleCancel,
+      }),
+    );
+
+    instance.waitUntilExit().then(() => {
+      resolvePromise(result);
+    });
+  });
+}
+
+// --- Producer mode ---
+
+/**
+ * Options for running producer interactive input gathering.
+ */
+export interface ProducerInteractiveInputsOptions {
+  /** Path to the producer YAML file */
+  producerPath: string;
+  /** CLI configuration */
+  cliConfig: CliConfig;
+  /** Logger instance */
+  logger: Logger;
+  /** Output directory for the generated file (defaults to cwd) */
+  outputDir?: string;
+}
+
+/**
+ * Run the producer interactive input gathering flow.
+ *
+ * This function is for producer YAML files (meta.kind === 'producer'):
+ * 1. Presents model selection from producer's mappings section
+ * 2. Loads JSON schema for the selected model
+ * 3. Shows required inputs first, then optional ones
+ * 4. Presents "config" section for schema properties not in producer inputs
+ * 5. Saves the collected inputs to a YAML file
+ *
+ * @param options - Configuration options
+ * @returns Result with success status and file path
+ */
+export async function runProducerInteractiveInputs(
+  options: ProducerInteractiveInputsOptions,
+): Promise<InteractiveInputsResult> {
+  const { producerPath, cliConfig, logger } = options;
+
+  try {
+    // 1. Load producer document
+    logger.info('Loading producer...');
+    const producer = await loadProducerDocument(producerPath);
+
+    // 2. Load model catalog
+    logger.info('Loading model catalog...');
+    const catalogModelsDir = cliConfig.catalog?.root
+      ? resolve(cliConfig.catalog.root, 'models')
+      : undefined;
+
+    if (!catalogModelsDir) {
+      return {
+        success: false,
+        error: 'No catalog models directory configured. Check your CLI configuration.',
+      };
+    }
+
+    const modelCatalog = await loadModelCatalog(catalogModelsDir);
+
+    // 3. Create provider registry and detect available providers
+    logger.info('Checking available providers...');
+    const registry = createProviderRegistry({ mode: 'live', catalog: modelCatalog });
+    const availability = await detectAvailableProviders(modelCatalog, registry);
+    const availableProviders = availability.availableProviders;
+
+    // Log info about available providers
+    if (availableProviders.size > 0) {
+      logger.info(`Available providers: ${[...availableProviders].join(', ')}`);
+    } else {
+      logger.warn('No providers available. Check your API keys in .env file.');
+    }
+
+    // Log warnings for unavailable providers
+    for (const [provider, reason] of availability.unavailableReasons) {
+      logger.warn(`Provider ${provider} not available: ${reason}`);
+    }
+
+    // 4. Run the producer interactive application
+    return await runProducerInteractiveApp({
+      producer,
+      modelCatalog,
+      catalogModelsDir,
+      availableProviders,
+      logger,
+      outputDir: options.outputDir,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error(`Failed to start producer interactive mode: ${message}`);
+    return {
+      success: false,
+      error: message,
+    };
+  }
+}
+
+/**
+ * Internal function to render and manage the producer Ink application.
+ */
+async function runProducerInteractiveApp(options: {
+  producer: ProducerDocument;
+  modelCatalog: LoadedModelCatalog;
+  catalogModelsDir: string;
+  availableProviders: Set<string>;
+  logger: Logger;
+  outputDir?: string;
+}): Promise<InteractiveInputsResult> {
+  const {
+    producer,
+    modelCatalog,
+    catalogModelsDir,
+    availableProviders,
+    logger,
+    outputDir,
+  } = options;
+
+  return new Promise((resolvePromise) => {
+    let result: InteractiveInputsResult = { success: false, cancelled: true };
+
+    // Schema loader function
+    const loadSchemaFile = async (provider: string, model: string) => {
+      return loadModelSchemaFile(catalogModelsDir, modelCatalog, provider, model);
+    };
+
+    const handleComplete = async (data: ProducerInputsYamlData) => {
+      try {
+        logger.info('Saving producer inputs file...');
+
+        const filePath = await writeProducerInputsYaml(data, {
+          producerId: producer.meta.id,
+          producerName: producer.meta.name,
+          outputDir,
+        });
+
+        logger.info(`Producer inputs saved to: ${filePath}`);
+        result = { success: true, inputsPath: filePath };
+        instance.unmount();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.error(`Failed to save producer inputs: ${message}`);
+        result = { success: false, error: message };
+        instance.unmount();
+      }
+    };
+
+    const handleCancel = () => {
+      result = { success: false, cancelled: true };
+      instance.unmount();
+    };
+
+    const instance = render(
+      React.createElement(ProducerApp, {
+        producer,
+        modelCatalog,
+        catalogModelsDir,
+        availableProviders,
+        loadSchemaFile,
         onComplete: handleComplete,
         onCancel: handleCancel,
       }),

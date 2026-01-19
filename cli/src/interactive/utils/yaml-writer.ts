@@ -239,3 +239,150 @@ export function formatInputsPreview(
     defaultStringType: 'QUOTE_DOUBLE',
   });
 }
+
+// --- Producer mode YAML writing ---
+
+/**
+ * Data structure for producer input YAML file.
+ * Uses the same format as blueprint input files for consistency.
+ */
+export interface ProducerInputsYamlData {
+  /** Selected provider */
+  provider: string;
+  /** Selected model */
+  model: string;
+  /** Producer ID (alias) */
+  producerId: string;
+  /** Producer input values (go into top-level inputs section) */
+  inputs: Record<string, unknown>;
+  /** Config values (schema fields not in producer inputs, go into models[].config) */
+  config: Record<string, unknown>;
+}
+
+/**
+ * Options for generating the producer inputs file.
+ */
+export interface ProducerInputsFileOptions {
+  /** Producer ID (used for filename and producerId in models array) */
+  producerId: string;
+  /** Producer name (used in header) */
+  producerName: string;
+  /** Output directory (defaults to current working directory) */
+  outputDir?: string;
+}
+
+/**
+ * Generate a filename for the producer inputs YAML.
+ *
+ * @param producerId - The producer's meta.id
+ * @returns Sanitized filename like "text-to-video-producer-inputs.yaml"
+ */
+export function generateProducerInputsFileName(producerId: string): string {
+  // Sanitize: lowercase, replace spaces/underscores with hyphens, remove special chars
+  let name = producerId
+    .toLowerCase()
+    .replace(/[\s_]+/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
+
+  // Ensure non-empty
+  if (!name) {
+    name = 'producer';
+  }
+
+  return `${name}-inputs.yaml`;
+}
+
+/**
+ * Write the producer inputs YAML file to disk.
+ * Uses the same format as blueprint input files:
+ * - inputs: at top level with field values
+ * - models: array with model selection and config
+ *
+ * @param data - The producer inputs data
+ * @param options - File options
+ * @returns The full path to the written file
+ */
+export async function writeProducerInputsYaml(
+  data: ProducerInputsYamlData,
+  options: ProducerInputsFileOptions,
+): Promise<string> {
+  const outputDir = options.outputDir ?? process.cwd();
+  const filename = generateProducerInputsFileName(options.producerId);
+  const filepath = resolve(outputDir, filename);
+
+  // Build the YAML structure matching blueprint input format
+  const yamlData: Record<string, unknown> = {};
+
+  // Add inputs section at top level (if any)
+  if (Object.keys(data.inputs).length > 0) {
+    yamlData.inputs = data.inputs;
+  }
+
+  // Add models array with the selected model
+  const modelEntry: Record<string, unknown> = {
+    model: data.model,
+    provider: data.provider,
+    producerId: options.producerId,
+  };
+
+  // Add config only if there are config values
+  if (Object.keys(data.config).length > 0) {
+    modelEntry.config = data.config;
+  }
+
+  yamlData.models = [modelEntry];
+
+  // Convert to YAML string with nice formatting
+  const content = stringify(yamlData, {
+    indent: 2,
+    lineWidth: 0, // Don't wrap lines
+    defaultKeyType: 'PLAIN',
+    defaultStringType: 'QUOTE_DOUBLE',
+  });
+
+  // Add header comment
+  const header = [
+    `# Producer input template for: ${options.producerName}`,
+    `# Model: ${data.provider}/${data.model}`,
+    `# Generated at: ${new Date().toISOString()}`,
+    '',
+    '',
+  ].join('\n');
+
+  await writeFile(filepath, header + content, 'utf8');
+
+  return filepath;
+}
+
+/**
+ * Format a preview of the producer inputs YAML content.
+ */
+export function formatProducerInputsPreview(
+  data: ProducerInputsYamlData,
+  producerId: string,
+): string {
+  const yamlData: Record<string, unknown> = {};
+
+  if (Object.keys(data.inputs).length > 0) {
+    yamlData.inputs = data.inputs;
+  }
+
+  const modelEntry: Record<string, unknown> = {
+    model: data.model,
+    provider: data.provider,
+    producerId,
+  };
+
+  if (Object.keys(data.config).length > 0) {
+    modelEntry.config = data.config;
+  }
+
+  yamlData.models = [modelEntry];
+
+  return stringify(yamlData, {
+    indent: 2,
+    lineWidth: 0,
+    defaultKeyType: 'PLAIN',
+    defaultStringType: 'QUOTE_DOUBLE',
+  });
+}
