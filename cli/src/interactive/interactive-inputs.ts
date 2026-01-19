@@ -24,8 +24,8 @@ import {
   generateTimelineConfigTemplate,
   type InputsYamlData,
   type CompositionModelInput,
-  type ProducerInputsYamlData,
 } from './utils/yaml-writer.js';
+import type { ProducerInputsYamlData } from './types/producer-mode.js';
 import { blueprintInputsToFields } from './utils/schema-to-fields.js';
 import { InteractiveApp } from './components/interactive-app.js';
 import { ProducerApp } from './components/producer-app.js';
@@ -382,6 +382,7 @@ async function runProducerInteractiveApp(options: {
           producerId: producer.meta.id,
           producerName: producer.meta.name,
           outputDir,
+          inputFields: data.inputFields,
         });
 
         logger.info(`Producer inputs saved to: ${filePath}`);

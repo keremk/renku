@@ -212,9 +212,10 @@ export const ProducerApp: React.FC<ProducerAppProps> = ({
       producerId: producer.meta.id,
       inputs: state.inputValues,
       config: state.configValues,
+      inputFields, // Include field configs for type-aware formatting (file: prefix)
     };
     onComplete(data);
-  }, [state.selectedProvider, state.selectedModel, state.inputValues, state.configValues, producer.meta.id, onComplete]);
+  }, [state.selectedProvider, state.selectedModel, state.inputValues, state.configValues, producer.meta.id, inputFields, onComplete]);
 
   // Handle cancel
   const handleCancel = useCallback(() => {

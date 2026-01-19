@@ -8,9 +8,9 @@ import {
   generateProducerInputsFileName,
   formatFileValue,
   formatInputsWithFilePrefix,
-  type ProducerInputsYamlData,
 } from './yaml-writer.js';
 import type { FormFieldConfig } from './schema-to-fields.js';
+import type { ProducerInputsYamlData } from '../types/producer-mode.js';
 
 describe('writeProducerInputsYaml', () => {
   let testDir: string;

@@ -2,6 +2,7 @@ import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { stringify } from 'yaml';
 import type { FormFieldConfig } from './schema-to-fields.js';
+import type { ProducerInputsYamlData } from '../types/producer-mode.js';
 
 /**
  * Model selection to be written to the inputs YAML.
@@ -241,23 +242,6 @@ export function formatInputsPreview(
 }
 
 // --- Producer mode YAML writing ---
-
-/**
- * Data structure for producer input YAML file.
- * Uses the same format as blueprint input files for consistency.
- */
-export interface ProducerInputsYamlData {
-  /** Selected provider */
-  provider: string;
-  /** Selected model */
-  model: string;
-  /** Producer ID (alias) */
-  producerId: string;
-  /** Producer input values (go into top-level inputs section) */
-  inputs: Record<string, unknown>;
-  /** Config values (schema fields not in producer inputs, go into models[].config) */
-  config: Record<string, unknown>;
-}
 
 /**
  * Options for generating the producer inputs file.

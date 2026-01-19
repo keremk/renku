@@ -37,6 +37,8 @@ export interface ProducerInputsYamlData {
   inputs: Record<string, unknown>;
   /** Config values (schema fields not in producer inputs, go into models[].config) */
   config: Record<string, unknown>;
+  /** Input field configurations for type-aware formatting (e.g., file: prefix) */
+  inputFields?: FormFieldConfig[];
 }
 
 /**

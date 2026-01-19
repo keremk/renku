@@ -63,7 +63,6 @@ export {
   type InputsYamlData,
   type ModelSelectionInput,
   type InputsFileNameOptions,
-  type ProducerInputsYamlData,
   type ProducerInputsFileOptions,
 } from './utils/yaml-writer.js';
 
@@ -87,6 +86,7 @@ export type {
   ProducerArtifactDefinition,
   ProducerInteractiveStep,
   ProducerAppState,
+  ProducerInputsYamlData,
 } from './types/producer-mode.js';
 
 // Components (for testing and customization)
