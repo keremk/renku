@@ -182,29 +182,34 @@ Based on the requirements gathering and the selected producers, determine what i
 
 You can use the `docs\models-guide.md` document to decide which asset producers you will need to generate the types of assets. This document gives the necessary background to decide on what asset producers to pick for media generation. 
 
-**IMPORTANT** 
-- When asked to create cut-scene videos, you should not be creating a nested group of video producers that is a lot of videos and cost a lot and be slow as hell. So instead you should be using one video producer per segment, prompt the video producer to create 2 or 3 cutscenes. (Usually models have total length of 10-12 seconds so based on that 3 to 5 second long cut scenes can be created per video segment) The video producers when prompted with [cut] followed by the scene description can create cut scenes.
+> **IMPORTANT** When asked to create cut-scene videos, you should not be creating a nested group of video producers that is a lot of videos and cost a lot and be slow as hell. So instead you should be using one video producer per segment, prompt the video producer to create cutscenes. The video producers when prompted with [cut] followed by the scene description can create cut scenes.
 
 ### Step 6: Create the Initial Prompt Producer (aka the Director)
 
 You can use the `docs\prompt-producer-guide.md` to understand what files are needed and how to generate the prompt producers. The output of this file will be a JSON structured output, which you will be using to connect to various media producers in the blueprint.
 
+> **IMPORTANT** Do not forget to include SegmentDuration auto calculated property in the prompt producer inputs and also make sure to wire it in the blueprints. This is critical part of the prompt variables that should be used and prompted. 
+
+> **IMPORTANT** If you are creating a cut scenes video with an initial frame image, the initial frame is your first cut and the cut you define is the second cut the video will transition into. If the user specified 2 cut-scenes per segment, then there should only be one [cut] description as the first frame defined the first cut. Video prompt should add additional camera instructions for this scene:
+  Use smooth camera transitions between the cuts. For example from the end of first cut scene, you can dolly the camera across by morphing the image as it transitions. Feel free to adopt other similar smooth transition styles.
+  Start the scene with the initial image with slow dolly forward moving camera. 
+  [cut] Medium close shot of Chinese sampan crews and British sailors unloading heavy wooden chests stamped with foreign seals, camera panning across faces and weathered hands, dramatic side lighting emphasizing texture and worn cloth garments.
+> **IMPORTANT** For video prompts, make sure you instruct the prompt producer to specify the camera movements and/or transition effects by giving examples to it. You can give an example such as below: 
+  Use smooth camera transitions between the cuts. For example from the end of first cut scene, you can dolly the camera across by morphing the image as it transitions. Feel free to adopt other similar smooth transition styles.
+  [cut] Wide establishing shot of Canton waterfront in the 1830s at first light: bustling wharves of timber and tiled roofs, junks with battened sails, a hulking British frigate beyond, slow dolly forward, painterly historical aesthetic with low golden rim light.
+  [cut] Medium close shot of Chinese sampan crews and British sailors unloading heavy wooden chests stamped with foreign seals, camera panning across faces and weathered hands, dramatic side lighting emphasizing texture and worn cloth garments.
+
 ### Step 7: Create the Connection Graph
 
 Use `docs/comprehensive-blueprint-guide.md` for a comprehensive explanation of the blueprints and how to connect nodes based on the prompt producer you created and the asset producers you identified. You can also always use some examples from the catalog.
+
+>**IMPORTANT** If you are generating audio but only using it as an input to a video (for lipsync etc.), then you should not be routing the audio as an audio track to the timeline composer, it will create an unnecessary secondary audio track to what is available in the video track.
 
 ### Step 8: Add Transcription and Karaoke Subtitles (Optional)
 
 If the video includes narration or speech that should be displayed as subtitles, add transcription support using the TranscriptionProducer. This enables karaoke-style animated subtitles similar to Instagram and TikTok.
 
-For detailed guidance on:
-- TranscriptionProducer setup and configuration
-- VideoExporter integration for karaoke rendering
-- Blueprint wiring patterns for transcription
-- Karaoke configuration options (fonts, colors, animations)
-- Animation effects (pop, spring, pulse)
-
-See: **[Transcription and Karaoke Subtitles Guide](./docs/transcription-karaoke-guide.md)**
+For detailed guidance, see: **[Transcription and Karaoke Subtitles Guide](./docs/transcription-karaoke-guide.md)**
 
 ### Step 9: Validate Blueprint Structure
 This validates that the blueprint can be parsed and structurally connect, but it does not validate that it will be sending the right inputs to the producers, the producer input routing is validated by doing a dry-run.

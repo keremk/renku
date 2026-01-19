@@ -2,6 +2,7 @@ meta:
   name: Children's Story Script Generation
   description: Generate children's story scripts with consistent characters and story arcs.
   id: ChildrenStoryProducer
+  kind: blueprint
   version: 0.1.0
   author: Renku
   license: MIT

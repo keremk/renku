@@ -85,17 +85,23 @@ export async function loadInputsFromYaml(
   const resolver = createInputIdResolver(blueprint, syntheticInputs);
   const values = canonicalizeInputs(regularInputs, resolver);
 
-  const missingRequired = resolver.entries
-    .filter((entry) => entry.namespacePath.length === 0 && entry.definition.required)
-    .filter((entry) => values[entry.canonicalId] === undefined)
-    .map((entry) => entry.canonicalId);
+  // Skip YAML-based required validation for producers
+  // (JSON schema from model is the source of truth for producers)
+  const isProducer = blueprint.document.meta?.kind === 'producer';
 
-  if (missingRequired.length > 0) {
-    throw createParserError(
-      ParserErrorCode.MISSING_INPUTS_MAPPING,
-      `Input file missing required fields: ${missingRequired.join(', ')}`,
-      { filePath },
-    );
+  if (!isProducer) {
+    const missingRequired = resolver.entries
+      .filter((entry) => entry.namespacePath.length === 0 && entry.definition.required)
+      .filter((entry) => values[entry.canonicalId] === undefined)
+      .map((entry) => entry.canonicalId);
+
+    if (missingRequired.length > 0) {
+      throw createParserError(
+        ParserErrorCode.MISSING_INPUTS_MAPPING,
+        `Input file missing required fields: ${missingRequired.join(', ')}`,
+        { filePath },
+      );
+    }
   }
 
   // Note: Blueprint defaults are no longer applied here - model JSON schemas are the source of truth

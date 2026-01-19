@@ -2,6 +2,7 @@ meta:
   name: Video Exporter
   description: Render the composed timeline into a final MP4.
   id: VideoExporter
+  kind: producer
   version: 0.1.0
   author: Renku
   license: MIT

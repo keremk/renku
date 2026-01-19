@@ -2,6 +2,7 @@ meta:
   name: Images with Audio Narration
   description: A blueprint for generating narrated image segments and composing them into a timeline.
   id: ImageAudio
+  kind: blueprint
   version: 0.1.0
   author: Renku
   license: MIT

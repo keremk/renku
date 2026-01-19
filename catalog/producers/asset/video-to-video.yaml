@@ -2,6 +2,7 @@ meta:
   name: Video-to-Video Generator
   description: Transform or extend existing video using AI models.
   id: VideoToVideoProducer
+  kind: producer
   version: 0.1.0
   author: Renku
   license: MIT

@@ -2,6 +2,7 @@ meta:
   name: Image-to-Video Generator
   description: Generate video from start image and optionally end image.
   id: ImageToVideoProducer
+  kind: producer
   version: 0.1.0
   author: Renku
   license: MIT

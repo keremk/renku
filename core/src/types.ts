@@ -119,6 +119,8 @@ export interface BlueprintEdge {
 export interface BlueprintMeta {
   id: string;
   name: string;
+  /** Distinguishes producer YAML from blueprint YAML. Defaults to 'blueprint'. */
+  kind?: 'producer' | 'blueprint';
   version?: string;
   description?: string;
   author?: string;

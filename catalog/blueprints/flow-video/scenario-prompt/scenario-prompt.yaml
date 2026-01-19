@@ -2,6 +2,7 @@ meta:
   name: Scenario Prompt Producer
   description: Generate video prompts for continuous multi-segment videos using LastFrame continuity
   id: ScenarioPromptProducer
+  kind: blueprint
   version: 0.1.0
   promptFile: ./scenario-prompt.toml
   outputSchema: ./scenario-prompt-output.json

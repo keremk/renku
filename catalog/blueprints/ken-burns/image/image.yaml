@@ -2,6 +2,7 @@ meta:
   name: Image Prompt Generation
   description: Generate image prompts that capture each narration segment.
   id: ImagePromptProducer
+  kind: blueprint
   version: 0.1.0
   author: Renku
   license: MIT

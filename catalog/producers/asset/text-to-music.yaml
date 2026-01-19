@@ -2,6 +2,7 @@ meta:
   name: Text-to-Music Generator
   description: Generate music from text prompts and lyrics.
   id: TextToMusicProducer
+  kind: producer
   version: 0.1.0
   author: Renku
   license: MIT

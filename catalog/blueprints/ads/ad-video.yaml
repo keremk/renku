@@ -2,6 +2,7 @@ meta:
   name: Ad Video with Character and Product
   description: Generate ad videos featuring a consistent character using a product, with optional narration and background music.
   id: AdVideo
+  kind: blueprint
   version: 0.1.0
   author: Renku
   license: MIT

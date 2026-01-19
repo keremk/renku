@@ -2,6 +2,7 @@ meta:
   name: Image-to-Image Transformer
   description: Edit, transform, or generate variations of existing images.
   id: ImageToImageProducer
+  kind: producer
   version: 0.1.0
   author: Renku
   license: MIT

@@ -2,6 +2,7 @@ meta:
   name: Audio-to-Video Generator
   description: Generate lip-synced video from audio and character image.
   id: AudioToVideoProducer
+  kind: producer
   version: 0.1.0
   author: Renku
   license: MIT

@@ -2,6 +2,7 @@ meta:
   name: Text-to-Image Generator
   description: Generate images from text prompts using various AI models.
   id: TextToImageProducer
+  kind: producer
   version: 0.1.0
   author: Renku
   license: MIT

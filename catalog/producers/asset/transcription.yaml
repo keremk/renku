@@ -2,6 +2,7 @@ meta:
   name: Speech Transcription
   description: Transcribe audio from timeline with word-level timestamps for karaoke subtitles.
   id: TranscriptionProducer
+  kind: producer
   version: 0.1.0
   author: Renku
   license: MIT

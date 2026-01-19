@@ -9,7 +9,6 @@ This guide explains how to add speech transcription and karaoke-style subtitles 
 - [VideoExporter Integration](#videoexporter-integration)
 - [Blueprint Wiring](#blueprint-wiring)
 - [Karaoke Configuration Options](#karaoke-configuration-options)
-- [Animation Effects](#animation-effects)
 - [Complete Example](#complete-example)
 - [Best Practices](#best-practices)
 

@@ -2,6 +2,7 @@ meta:
   name: Documentary Script Generation
   description: Generate documentary scripts tailored to the user inquiry.
   id: DocumentaryPromptProducer
+  kind: blueprint
   version: 0.1.0
   author: Renku
   license: MIT

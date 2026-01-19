@@ -2,6 +2,7 @@ meta:
   name: Text-to-Video Generator
   description: Generate video from text prompts using various AI models.
   id: TextToVideoProducer
+  kind: producer
   version: 0.1.0
   author: Renku
   license: MIT

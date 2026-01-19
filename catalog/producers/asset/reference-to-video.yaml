@@ -2,6 +2,7 @@ meta:
   name: Reference-to-Video Generator
   description: Generate video using reference images/videos for subject consistency.
   id: ReferenceToVideoProducer
+  kind: producer
   version: 0.1.0
   author: Renku
   license: MIT

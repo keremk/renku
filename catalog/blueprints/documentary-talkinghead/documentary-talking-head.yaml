@@ -1,7 +1,8 @@
 meta:
   name: Documentary Talking Head with Conditional Edges
   description: A documentary with image and video narratives and optional talking heads.
-  id: Documentary 
+  id: Documentary
+  kind: blueprint
   version: 0.1.0
   author: Renku
   license: MIT

@@ -2,6 +2,7 @@ meta:
   name: Hybrid Image Generator
   description: Generate images from text, optionally using reference images for guidance.
   id: ImageHybridProducer
+  kind: producer
   version: 0.1.0
   author: Renku
   license: MIT

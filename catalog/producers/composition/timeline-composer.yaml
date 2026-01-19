@@ -2,6 +2,7 @@ meta:
   name: Timeline Composer
   description: Compose assets into a ReMotion timeline.
   id: TimelineComposer
+  kind: producer
   version: 0.1.0
   author: Renku
   license: MIT

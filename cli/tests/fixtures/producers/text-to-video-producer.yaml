@@ -1,0 +1,80 @@
+meta:
+  name: Text-to-Video Generator
+  description: Generate video from text prompts using various AI models.
+  id: TextToVideoProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Text description of the video to generate.
+    type: string
+  - name: NegativePrompt
+    description: What to avoid in the video.
+    type: string
+
+  # Duration
+  - name: Duration
+    description: Video duration in seconds.
+    type: integer
+  - name: NumFrames
+    description: Number of frames (for frame-based models).
+    type: integer
+
+  # Sizing
+  - name: AspectRatio
+    description: "Aspect ratio (16:9, 9:16, 1:1, 4:3, 3:4, 21:9)."
+    type: string
+  - name: Resolution
+    description: "Resolution preset (480p, 720p, 1080p)."
+    type: string
+
+  # Audio
+  - name: GenerateAudio
+    description: Whether to generate audio for the video.
+    type: boolean
+  - name: AudioUrl
+    description: URL to background audio file.
+    type: string
+
+  # Generation control
+  - name: Seed
+    description: Random seed for reproducibility.
+    type: integer
+  - name: EnhancePrompt
+    description: Enable LLM prompt enhancement.
+    type: boolean
+  - name: CameraFixed
+    description: Keep camera position fixed.
+    type: boolean
+
+  # Multi-shot
+  - name: MultiShots
+    description: Enable multi-shot segmentation.
+    type: boolean
+
+artifacts:
+  - name: GeneratedVideo
+    description: The generated video.
+    type: video
+  - name: FirstFrame
+    description: The first frame of the generated video.
+    type: image
+  - name: LastFrame
+    description: The last frame of the generated video.
+    type: image
+  - name: AudioTrack
+    description: The audio track of the generated video.
+    type: audio
+
+mappings:
+  replicate:
+    # ByteDance Seedance 1-Pro-Fast
+    bytedance/seedance-1-pro-fast:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+      CameraFixed: camera_fixed
+      Seed: seed

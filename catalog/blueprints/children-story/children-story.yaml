@@ -2,6 +2,7 @@ meta:
   name: Children's Story Video
   description: Generate animated children's story videos with consistent characters, narration, and music.
   id: ChildrenStory
+  kind: blueprint
   version: 0.1.0
   author: Renku
   license: MIT

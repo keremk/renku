@@ -291,6 +291,7 @@ function parseMeta(raw: unknown, filePath: string): BlueprintDocument['meta'] {
   return {
     id,
     name,
+    kind: meta.kind === 'producer' ? 'producer' : 'blueprint',
     version: meta.version ? String(meta.version) : undefined,
     description: meta.description ? String(meta.description) : undefined,
     author: meta.author ? String(meta.author) : undefined,

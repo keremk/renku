@@ -2,6 +2,7 @@ meta:
   name: Ad Script Generation
   description: Generate ad video scripts with character, product, and scene descriptions.
   id: AdScriptProducer
+  kind: blueprint
   version: 0.1.0
   author: Renku
   license: MIT

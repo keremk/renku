@@ -1,0 +1,11 @@
+# Minimal inputs for producer dry-run test
+# Only Prompt is required by model JSON schema - all other inputs
+# (NegativePrompt, Duration, NumFrames, etc.) are optional
+
+inputs:
+  Prompt: "A sunset over mountains with birds flying"
+
+models:
+  - model: bytedance/seedance-1-pro-fast
+    provider: replicate
+    producerId: TextToVideoProducer
