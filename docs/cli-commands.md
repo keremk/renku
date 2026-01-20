@@ -148,6 +148,65 @@ renku use --root=~/other-workspace
 
 ---
 
+### `renku new:blueprint`
+
+Create a new blueprint project, either from scratch or by copying an existing blueprint from the catalog.
+
+**Usage:**
+```bash
+# Create from scratch (scaffold)
+renku new:blueprint <name>
+
+# Copy from catalog blueprint
+renku new:blueprint <name> --using=<catalog-blueprint>
+```
+
+**Arguments:**
+- `<name>` (required): Name for the new blueprint (kebab-case, e.g., `my-video-project`)
+
+**Options:**
+- `--using` (optional): Name of an existing blueprint in the catalog to copy from
+
+**Behavior:**
+
+Without `--using` (scaffold mode):
+- Creates a new folder with the blueprint name
+- Generates a skeleton blueprint YAML with all required sections
+- Generates an input-template.yaml with example structure
+- The blueprint ID is auto-generated as PascalCase from the name
+
+With `--using` (copy mode):
+- Copies the entire blueprint folder from the catalog
+- Renames the blueprint YAML file to match the new name
+- Preserves all files including prompt producers, schemas, etc.
+
+**Examples:**
+```bash
+# Create a new blueprint from scratch
+renku new:blueprint my-video-project
+
+# Create a project based on an existing blueprint
+renku new:blueprint my-ken-burns --using=ken-burns
+
+# Create a documentary-style project
+renku new:blueprint history-series --using=documentary-talkinghead
+```
+
+**Output Structure:**
+```
+my-video-project/
+├── my-video-project.yaml    # Blueprint definition
+├── input-template.yaml      # Input template
+└── (additional files if copied from catalog)
+```
+
+**Notes:**
+- Always use this command instead of directly referencing catalog blueprints
+- Blueprint names must be kebab-case (lowercase with hyphens)
+- The blueprint ID in the YAML is automatically converted to PascalCase
+
+---
+
 ### `renku generate`
 
 Create a new movie or continue an existing one.

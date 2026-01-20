@@ -187,6 +187,9 @@ export const RuntimeErrorCode = {
 
   // R090-R099: Condition Evaluation
   CONDITION_EVALUATION_ERROR: 'R090',
+
+  // R100-R109: Blueprint Scaffolding
+  CATALOG_BLUEPRINT_NOT_FOUND: 'R100',
 } as const;
 
 export type RuntimeErrorCodeValue = (typeof RuntimeErrorCode)[keyof typeof RuntimeErrorCode];

@@ -83,7 +83,8 @@ export OPENAI_API_KEY="your-openai-api-key-here"
 
 ## Run Your First Blueprint
 
-### 1. Choose a Blueprint
+### 1. Create a Project from a Blueprint
+
 First go to your workspace that you created earlier:
 
 ```bash
@@ -96,17 +97,28 @@ Browse available blueprints in the catalog directory:
 ls ./catalog/blueprints/
 ```
 
-For this tutorial, we'll use the `kenn-burns` blueprint which generates a video with a Ken Burns effect, audio and background music.
-
-### 2. Create an Inputs File
-
-Each blueprint has an input template. Copy it to create your inputs file:
+For this tutorial, we'll use the `ken-burns` blueprint which generates a video with a Ken Burns effect, audio and background music. Create a new project based on this blueprint:
 
 ```bash
-cp ./catalog/blueprints/kenn-burns/input-template.yaml ./my-inputs.yaml
+renku new:blueprint my-first-video --using=ken-burns
 ```
 
-Edit `my-inputs.yaml` with your desired parameters. Here's an example configuration which will generate a 20-second video about the Eiffel Tower in a Ghibli style, each segment will have 1 image and there will be 2 segments in total. We are using the Replicate and OpenAI as providers, so you would need to have their API keys set in your environment.
+This creates a `my-first-video/` folder with:
+- `my-first-video.yaml` - Your blueprint file (copied and renamed from the catalog)
+- `input-template.yaml` - Template for inputs configuration
+- Any additional files (prompt producers, schemas, etc.)
+
+**Note:** Always use `new:blueprint` to create your own copy of a blueprint. Never reference blueprints directly from the catalog - this ensures you can customize them and keeps your projects self-contained.
+
+### 2. Configure Your Inputs
+
+The `input-template.yaml` file is already included in your project. Edit it with your desired parameters:
+
+```bash
+cd my-first-video
+```
+
+Here's an example configuration which will generate a 20-second video about the Eiffel Tower in a Ghibli style, each segment will have 1 image and there will be 2 segments in total. We are using the Replicate and OpenAI as providers, so you would need to have their API keys set in your environment.
 
 ```yaml
 inputs:
@@ -154,12 +166,12 @@ models:
 
 ### 3. Validate with Dry Run
 
-Before using real API credits, validate your setup with a dry run:
+Before using real API credits, validate your setup with a dry run (from within your project directory):
 
 ```bash
 renku generate \
-  --inputs=./my-inputs.yaml \
-  --blueprint=./catalog/blueprints/kenn-burns/image-audio.yaml \
+  --inputs=./input-template.yaml \
+  --blueprint=./my-first-video.yaml \
   --dry-run
 ```
 
@@ -174,8 +186,8 @@ When you're ready, run the full generation:
 
 ```bash
 renku generate \
-  --inputs=./my-inputs.yaml \
-  --blueprint=./catalog/blueprints/kenn-burns/image-audio.yaml
+  --inputs=./input-template.yaml \
+  --blueprint=./my-first-video.yaml
 ```
 
 Watch as Renku:
@@ -221,13 +233,52 @@ You've successfully generated your first AI video content with Renku!
 
 ### Explore More Blueprints
 
-Try other example blueprints by browsing the catalog:
+Try other example blueprints by browsing the catalog and creating your own copies:
 
 ```bash
+# See available blueprints
 ls ./catalog/blueprints/
+
+# Create a new project from any blueprint
+renku new:blueprint my-documentary --using=documentary-talkinghead
 ```
 
-Each blueprint directory contains a `input-template.yaml` that documents the required inputs.
+Each blueprint you create contains an `input-template.yaml` that documents the required inputs.
+
+### Create a Blueprint from Scratch
+
+You can also create a completely new blueprint without copying from the catalog:
+
+```bash
+renku new:blueprint my-custom-workflow
+```
+
+This creates a scaffold blueprint with all required sections that you can customize.
+
+### Using Claude Code for Blueprint Creation
+
+If you're using [Claude Code](https://docs.anthropic.com/en/docs/claude-code) or other AI coding agents that support skills, you can install the Renku plugin to get AI-assisted blueprint creation.
+
+**Install the Renku plugin:**
+
+```bash
+/install-plugin https://github.com/keremk/renku/tree/main/renku-plugin
+```
+
+Once installed, you can use the `create-blueprint` skill to have Claude help you design and create blueprints through natural conversation:
+
+```
+/renku-plugin:create-blueprint
+```
+
+The skill guides you through:
+- Understanding your video requirements
+- Selecting appropriate producers and models
+- Creating the blueprint YAML structure
+- Setting up prompt producers for AI-driven content
+- Validating and testing with dry runs
+
+This is especially useful for complex blueprints with multiple producers and custom prompt logic.
 
 ### Learn the Workflow
 

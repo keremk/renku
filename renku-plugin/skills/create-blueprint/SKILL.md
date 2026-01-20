@@ -24,26 +24,69 @@ cat ~/.config/renku/cli-config.json
 
 ## Where to Create Blueprints
 
-Each user create blueprint should be within a project folder. Project folders are under the root folder. 
-> **IMPORTANT** Do not create new blueprints or prompt producer files under the catalog
+Each user blueprint should be within a project folder. Project folders are under the root folder.
+> **IMPORTANT** Do not create new blueprints or prompt producer files under the catalog. Always use `renku new:blueprint` to create blueprints.
 
+### Creating a New Blueprint Project
+
+**Always use the `new:blueprint` command** to create blueprint projects:
+
+```bash
+renku new:blueprint <project-name>
+```
+
+**Naming Requirements:**
+- Project names **must be in kebab-case** (lowercase letters, numbers, and hyphens only)
+- Must start with a lowercase letter
+- Examples: `history-video`, `my-documentary`, `ad-campaign-v2`
+- Invalid: `HistoryVideo`, `my_documentary`, `123-video`
+
+**Examples:**
+```bash
+renku new:blueprint history-video
+renku new:blueprint my-documentary
+renku new:blueprint product-ad
+```
+
+This creates the following structure:
+
+```
 Root
-├── catalog     (this is where example blueprints, producer asset YAML files, models, and example prompt producer files are located)
-| 
+├── catalog     (reference only - do NOT modify)
+|
 ├── <project-name>
-      | 
-      ├── <new-blueprint.yaml>
-      ├── <new-inputs.yaml>
-      ├── <new-prompt-producer>
-            ├── <new-output-schema.json>
-            ├── <new-producer.yaml>
-            ├── <new-prompts.toml>
+      ├── <project-name>.yaml          # Blueprint file (scaffold)
+      └── input-template.yaml          # Input template
+```
 
-- Create a concise (2-3 words max) project name (based on the user prompt) in kebab case and make a folder
-- Inside the project you will be creating all the necessary files and folders as you proceed the task. 
-- **IMPORTANT** Do not use hardcoded paths but use the relative ones. In blueprint producer import declarations, you should be using "producer" keyword so that you don't need to provide a specific path. For the prompt producers, create a folder and use relative paths within that folder to import the JSON schema and TOML prompts file.
+When you need to add custom prompt producers, create subfolders within your project:
+
+```
+<project-name>
+├── <project-name>.yaml
+├── input-template.yaml
+└── <prompt-producer-name>
+      ├── output-schema.json
+      ├── producer.yaml
+      └── prompts.toml
+```
+
+- **IMPORTANT** Do not use hardcoded paths but use relative ones. In blueprint producer import declarations, use the "producer" keyword so you don't need to provide a specific path. For prompt producers, use relative paths within the project folder to import the JSON schema and TOML prompts file.
 
 ## How to Create Blueprints
+
+### Step 0: Create the Blueprint Project
+
+Before starting the planning process, create the blueprint project using the CLI:
+
+```bash
+renku new:blueprint <project-name>
+```
+
+**Remember:**
+- Use kebab-case for the project name (e.g., `history-video`, `my-documentary`)
+- This creates a scaffold blueprint that you will customize based on the user's requirements
+- You can reference catalog blueprints as examples, but always create a new project for the user
 
 ### Step 1: Essential Questions for Requirements
 
@@ -300,9 +343,11 @@ See the [Common Errors Guide](./docs/common-errors-guide.md#e042-collector-missi
 ## Examples
 
 For examples, find the catalog path in `~/.config/renku/cli-config.json` and explore:
-- `<catalog>/blueprints/` - Blueprint examples
+- `<catalog>/blueprints/` - Blueprint examples (use as reference when building new blueprints)
 - `<catalog>/producers/` - Producer definitions
 - `<catalog>/models/` - Model definitions together with their input JSON schemas
+
+**Remember:** Never directly use or modify blueprints in the catalog. Always create a new blueprint project with `renku new:blueprint <project-name>` and use catalog blueprints only as reference.
 
 ## CLI Commands Reference
 
@@ -310,10 +355,13 @@ For examples, find the catalog path in `~/.config/renku/cli-config.json` and exp
 # Initialize Renku workspace
 renku init --root=<path>
 
+# Create a new blueprint project (use kebab-case name)
+renku new:blueprint <project-name>
+
 # Validate blueprint structure
 renku blueprints:validate <blueprint.yaml>
 
-# Browse available blueprints in catalog
+# Browse available blueprints in catalog (for reference only)
 ls ./catalog/blueprints/
 
 # List available models for producers
