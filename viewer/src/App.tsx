@@ -1,8 +1,11 @@
 import { useMemo, useState } from "react";
 import { RemotionPreview } from "@/components/player/RemotionPreview";
 import { TimelineEditor } from "@/components/timeline/TimelineEditor";
+import { BlueprintViewer } from "@/components/blueprint/BlueprintViewer";
 import { useMovieRoute } from "@/hooks/use-movie-route";
+import { useBlueprintRoute, isBlueprintRoute } from "@/hooks/use-blueprint-route";
 import { useMovieTimeline } from "@/services/use-movie-timeline";
+import { useBlueprintData } from "@/services/use-blueprint-data";
 import type { TimelineDocument } from "@/types/timeline";
 
 const clampTime = (time: number, duration: number) => {
@@ -11,6 +14,63 @@ const clampTime = (time: number, duration: number) => {
 };
 
 function App() {
+  // Check if we're on a blueprint route
+  if (isBlueprintRoute()) {
+    return <BlueprintApp />;
+  }
+
+  return <MovieApp />;
+}
+
+function BlueprintApp() {
+  const blueprintRoute = useBlueprintRoute();
+  const { graph, inputs, status, error } = useBlueprintData(
+    blueprintRoute?.blueprintPath ?? null,
+    blueprintRoute?.inputsPath ?? null,
+    blueprintRoute?.catalogRoot
+  );
+
+  if (!blueprintRoute?.blueprintPath) {
+    return (
+      <LandingLayout>
+        <h1 className="text-3xl font-semibold">Blueprint Viewer</h1>
+        <p className="text-muted-foreground">
+          No blueprint path provided. Use the CLI:
+        </p>
+        <code className="text-sm bg-muted/50 p-2 rounded">
+          renku viewer:blueprint --bp=&lt;blueprint.yaml&gt;
+        </code>
+      </LandingLayout>
+    );
+  }
+
+  if (status === "loading" || status === "idle") {
+    return (
+      <LandingLayout>
+        <p className="text-lg text-muted-foreground">Loading blueprint...</p>
+      </LandingLayout>
+    );
+  }
+
+  if (error || !graph) {
+    return (
+      <LandingLayout>
+        <h1 className="text-2xl font-semibold">Unable to load blueprint</h1>
+        <p className="text-muted-foreground">{error?.message ?? "Blueprint data unavailable."}</p>
+      </LandingLayout>
+    );
+  }
+
+  return (
+    <BlueprintViewer
+      graphData={graph}
+      inputData={inputs}
+      movieId={blueprintRoute.movieId}
+    />
+  );
+}
+
+function MovieApp() {
   const movieId = useMovieRoute();
   const { timeline, status, error } = useMovieTimeline(movieId);
 

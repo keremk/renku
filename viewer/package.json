@@ -11,11 +11,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@gorenku/compositions": "workspace:*",
+    "@gorenku/core": "workspace:*",
     "@remotion/cli": "4.0.382",
     "@remotion/player": "4.0.382",
     "@remotion/renderer": "4.0.382",
-    "@gorenku/compositions": "workspace:*",
     "@tailwindcss/vite": "^4.1.17",
+    "@xyflow/react": "^12.10.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.556.0",

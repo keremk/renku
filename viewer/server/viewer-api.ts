@@ -3,6 +3,63 @@ import { promises as fs } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import type { Connect } from "vite";
+import {
+  loadYamlBlueprintTree,
+  type BlueprintTreeNode,
+  type BlueprintInputDefinition,
+  type BlueprintArtefactDefinition,
+} from "@gorenku/core";
+
+interface BlueprintGraphData {
+  meta: {
+    id: string;
+    name: string;
+    description?: string;
+    version?: string;
+  };
+  nodes: BlueprintGraphNode[];
+  edges: BlueprintGraphEdge[];
+  inputs: BlueprintInputDef[];
+  outputs: BlueprintOutputDef[];
+  conditions?: ConditionDef[];
+}
+
+interface BlueprintGraphNode {
+  id: string;
+  type: "input" | "producer" | "output";
+  label: string;
+  loop?: string;
+  producerType?: string;
+  description?: string;
+}
+
+interface BlueprintGraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  conditionName?: string;
+  isConditional?: boolean;
+}
+
+interface BlueprintInputDef {
+  name: string;
+  type: string;
+  required: boolean;
+  description?: string;
+  itemType?: string;
+}
+
+interface BlueprintOutputDef {
+  name: string;
+  type: string;
+  description?: string;
+  itemType?: string;
+}
+
+interface ConditionDef {
+  name: string;
+  definition: unknown;
+}
 
 interface ManifestPointer {
   revision: string | null;
@@ -51,6 +108,11 @@ export function createViewerApiHandler(rootFolder: string): ViewerApiHandler {
         res.setHeader("Content-Type", "application/json");
         res.end(JSON.stringify({ ok: true }));
         return true;
+      }
+
+      // Handle blueprint endpoints
+      if (segments[0] === "blueprints") {
+        return handleBlueprintRequest(req, res, url, segments.slice(1));
       }
 
       if (segments[0] !== "movies" || segments.length < 3) {
@@ -315,4 +377,353 @@ async function streamFileWithRange(
   res.setHeader("Content-Length", size.toString());
   res.setHeader("Content-Type", mimeType);
   createReadStream(filePath).pipe(res);
+}
+
+// --- Blueprint API handlers ---
+
+async function handleBlueprintRequest(
+  req: IncomingMessage,
+  res: ServerResponse,
+  url: URL,
+  segments: string[],
+): Promise<boolean> {
+  if (req.method !== "GET") {
+    res.statusCode = 405;
+    res.end("Method Not Allowed");
+    return true;
+  }
+
+  const action = segments[0];
+
+  const catalogRoot = url.searchParams.get("catalog") ?? undefined;
+
+  switch (action) {
+    case "parse": {
+      const blueprintPath = url.searchParams.get("path");
+      if (!blueprintPath) {
+        res.statusCode = 400;
+        res.end("Missing path parameter");
+        return true;
+      }
+      const graphData = await parseBlueprintToGraph(blueprintPath, catalogRoot);
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify(graphData));
+      return true;
+    }
+    case "inputs": {
+      const inputsPath = url.searchParams.get("path");
+      if (!inputsPath) {
+        res.statusCode = 400;
+        res.end("Missing path parameter");
+        return true;
+      }
+      const inputData = await parseInputsFile(inputsPath);
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify(inputData));
+      return true;
+    }
+    default:
+      return respondNotFound(res);
+  }
+}
+
+async function parseBlueprintToGraph(blueprintPath: string, catalogRoot?: string): Promise<BlueprintGraphData> {
+  const { root } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
+  return convertTreeToGraph(root);
+}
+
+function convertTreeToGraph(root: BlueprintTreeNode): BlueprintGraphData {
+  const nodes: BlueprintGraphNode[] = [];
+  const edges: BlueprintGraphEdge[] = [];
+  const conditions: ConditionDef[] = [];
+
+  // Collect all nodes and edges from the tree
+  collectNodesAndEdges(root, nodes, edges, conditions);
+
+  // Convert inputs
+  const inputs: BlueprintInputDef[] = root.document.inputs.map((inp: BlueprintInputDefinition) => ({
+    name: inp.name,
+    type: inp.type,
+    required: inp.required,
+    description: inp.description,
+  }));
+
+  // Convert outputs (artefacts)
+  const outputs: BlueprintOutputDef[] = root.document.artefacts.map((art: BlueprintArtefactDefinition) => ({
+    name: art.name,
+    type: art.type,
+    description: art.description,
+    itemType: art.itemType,
+  }));
+
+  return {
+    meta: {
+      id: root.document.meta.id,
+      name: root.document.meta.name,
+      description: root.document.meta.description,
+      version: root.document.meta.version,
+    },
+    nodes,
+    edges,
+    inputs,
+    outputs,
+    conditions: conditions.length > 0 ? conditions : undefined,
+  };
+}
+
+function collectNodesAndEdges(
+  node: BlueprintTreeNode,
+  nodes: BlueprintGraphNode[],
+  edges: BlueprintGraphEdge[],
+  conditions: ConditionDef[],
+): void {
+  const doc = node.document;
+
+  // Collect names for reference resolution
+  const inputNames = new Set(doc.inputs.map((inp) => inp.name));
+  const producerNames = new Set(doc.producerImports.map((p) => p.name));
+  const artifactNames = new Set(doc.artefacts.map((a) => a.name));
+
+  // Add single "Inputs" node representing all blueprint inputs
+  nodes.push({
+    id: "Inputs",
+    type: "input",
+    label: "Inputs",
+    description: `${doc.inputs.length} input${doc.inputs.length !== 1 ? "s" : ""}`,
+  });
+
+  // Add producer nodes from producer imports
+  for (const producerImport of doc.producerImports) {
+    nodes.push({
+      id: `Producer:${producerImport.name}`,
+      type: "producer",
+      label: producerImport.name,
+      loop: producerImport.loop,
+      producerType: producerImport.producer,
+      description: producerImport.description,
+    });
+  }
+
+  // Add single "Outputs" node representing all blueprint outputs
+  nodes.push({
+    id: "Outputs",
+    type: "output",
+    label: "Outputs",
+    description: `${doc.artefacts.length} artifact${doc.artefacts.length !== 1 ? "s" : ""}`,
+  });
+
+  // Track which producers have input dependencies and which produce outputs
+  const producersWithInputDeps = new Set<string>();
+  const producersWithOutputs = new Set<string>();
+  const addedEdges = new Set<string>();
+
+  // Process edges to create producer-to-producer connections
+  for (const edge of doc.edges) {
+    const isConditional = Boolean(edge.if || edge.conditions);
+    const { sourceType, sourceProducer, targetType, targetProducer } = resolveEdgeEndpoints(
+      edge.from,
+      edge.to,
+      inputNames,
+      producerNames,
+      artifactNames
+    );
+
+    // Input -> Producer: track that this producer has input dependencies
+    if (sourceType === "input" && targetType === "producer" && targetProducer) {
+      producersWithInputDeps.add(targetProducer);
+    }
+
+    // Producer -> Output: track that this producer produces outputs
+    if (sourceType === "producer" && targetType === "output" && sourceProducer) {
+      producersWithOutputs.add(sourceProducer);
+    }
+
+    // Producer -> Producer: create edge between producers
+    if (sourceType === "producer" && targetType === "producer" && sourceProducer && targetProducer) {
+      // Normalize loop references like "VideoProducer[segment-1]" to "VideoProducer"
+      const normalizedSource = normalizeProducerName(sourceProducer);
+      const normalizedTarget = normalizeProducerName(targetProducer);
+
+      // Skip edges where source or target is not an actual producer (e.g., derived values like "Duration")
+      if (!producerNames.has(normalizedSource) || !producerNames.has(normalizedTarget)) {
+        continue;
+      }
+
+      // Skip self-loops from loop iteration references (e.g., VideoProducer[segment-1] -> VideoProducer[segment])
+      // Instead, we'll show a self-loop indicator on the node
+      if (normalizedSource === normalizedTarget) {
+        // Mark the producer as having a loop (self-reference)
+        const producerNode = nodes.find((n) => n.id === `Producer:${normalizedSource}`);
+        if (producerNode && !producerNode.loop) {
+          producerNode.loop = "self";
+        }
+        continue;
+      }
+
+      const edgeId = `Producer:${normalizedSource}->Producer:${normalizedTarget}`;
+      if (!addedEdges.has(edgeId)) {
+        addedEdges.add(edgeId);
+        edges.push({
+          id: edgeId,
+          source: `Producer:${normalizedSource}`,
+          target: `Producer:${normalizedTarget}`,
+          conditionName: edge.if,
+          isConditional,
+        });
+      }
+    }
+  }
+
+  // Add edges from Inputs to producers with input dependencies
+  for (const producer of producersWithInputDeps) {
+    const normalizedProducer = normalizeProducerName(producer);
+    const edgeId = `Inputs->Producer:${normalizedProducer}`;
+    if (!addedEdges.has(edgeId)) {
+      addedEdges.add(edgeId);
+      edges.push({
+        id: edgeId,
+        source: "Inputs",
+        target: `Producer:${normalizedProducer}`,
+        isConditional: false,
+      });
+    }
+  }
+
+  // Add edges from producers to Outputs for those that produce artifacts
+  for (const producer of producersWithOutputs) {
+    const normalizedProducer = normalizeProducerName(producer);
+    const edgeId = `Producer:${normalizedProducer}->Outputs`;
+    if (!addedEdges.has(edgeId)) {
+      addedEdges.add(edgeId);
+      edges.push({
+        id: edgeId,
+        source: `Producer:${normalizedProducer}`,
+        target: "Outputs",
+        isConditional: false,
+      });
+    }
+  }
+
+  // Collect named conditions
+  if (doc.conditions) {
+    for (const [name, def] of Object.entries(doc.conditions)) {
+      conditions.push({ name, definition: def });
+    }
+  }
+}
+
+function normalizeProducerName(name: string): string {
+  // Remove loop index suffixes like "[segment]", "[segment-1]", "[0]"
+  return name.replace(/\[[^\]]+\]$/, "");
+}
+
+interface EdgeEndpoints {
+  sourceType: "input" | "producer" | "output" | "unknown";
+  sourceProducer?: string;
+  targetType: "input" | "producer" | "output" | "unknown";
+  targetProducer?: string;
+}
+
+function resolveEdgeEndpoints(
+  from: string,
+  to: string,
+  inputNames: Set<string>,
+  producerNames: Set<string>,
+  artifactNames: Set<string>
+): EdgeEndpoints {
+  const source = resolveEndpoint(from, inputNames, producerNames, artifactNames);
+  const target = resolveEndpoint(to, inputNames, producerNames, artifactNames);
+  return {
+    sourceType: source.type,
+    sourceProducer: source.producer,
+    targetType: target.type,
+    targetProducer: target.producer,
+  };
+}
+
+interface EndpointInfo {
+  type: "input" | "producer" | "output" | "unknown";
+  producer?: string;
+}
+
+function resolveEndpoint(
+  ref: string,
+  inputNames: Set<string>,
+  producerNames: Set<string>,
+  artifactNames: Set<string>
+): EndpointInfo {
+  const parts = ref.split(".");
+
+  if (parts.length === 1) {
+    const name = normalizeProducerName(parts[0]);
+    if (inputNames.has(name)) {
+      return { type: "input" };
+    }
+    if (producerNames.has(name)) {
+      return { type: "producer", producer: parts[0] };
+    }
+    if (artifactNames.has(name)) {
+      return { type: "output" };
+    }
+    // Unknown single reference - might be a derived value, treat as producer
+    return { type: "producer", producer: parts[0] };
+  }
+
+  const first = parts[0];
+  const rest = parts.slice(1).join(".");
+
+  if (first === "Input") {
+    return { type: "input" };
+  }
+  if (first === "Output") {
+    return { type: "output" };
+  }
+
+  // Producer.Output reference - the source/target is the producer
+  const normalizedFirst = normalizeProducerName(first);
+  if (producerNames.has(normalizedFirst)) {
+    return { type: "producer", producer: first };
+  }
+
+  // Artifact reference (e.g., "SegmentVideos[segment]")
+  const normalizedRest = normalizeProducerName(rest);
+  if (artifactNames.has(normalizedRest) || artifactNames.has(rest)) {
+    return { type: "output" };
+  }
+
+  return { type: "unknown" };
+}
+
+async function parseInputsFile(inputsPath: string): Promise<{ inputs: Array<{ name: string; value: unknown }> }> {
+  try {
+    if (!existsSync(inputsPath)) {
+      return { inputs: [] };
+    }
+    const content = await fs.readFile(inputsPath, "utf8");
+    // Parse YAML - simple key-value extraction
+    const lines = content.split("\n");
+    const inputs: Array<{ name: string; value: unknown }> = [];
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+
+      const colonIndex = trimmed.indexOf(":");
+      if (colonIndex > 0) {
+        const name = trimmed.slice(0, colonIndex).trim();
+        let value: unknown = trimmed.slice(colonIndex + 1).trim();
+
+        // Try to parse as JSON or leave as string
+        if (value === "true") value = true;
+        else if (value === "false") value = false;
+        else if (value !== "" && !isNaN(Number(value))) value = Number(value);
+
+        inputs.push({ name, value });
+      }
+    }
+
+    return { inputs };
+  } catch {
+    return { inputs: [] };
+  }
 }

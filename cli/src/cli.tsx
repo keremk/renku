@@ -53,7 +53,7 @@ import { runExport } from './commands/export.js';
 import { runProducersList } from './commands/producers-list.js';
 import { runCreateInputTemplate } from './commands/create-input-template.js';
 import { formatPrice, type ProducerModelEntry } from '@gorenku/providers';
-import { runViewerStart, runViewerStop, runViewerView } from './commands/viewer.js';
+import { runViewerStart, runViewerStop, runViewerView, runViewerBlueprint } from './commands/viewer.js';
 import { runBlueprintsValidate } from './commands/blueprints-validate.js';
 import { runMcpServer } from './commands/mcp.js';
 import type { BuildSummary, JobSummary } from './lib/build.js';
@@ -65,12 +65,12 @@ import { detectViewerAddress } from './lib/viewer-network.js';
 
 const cli = meow(
   `\nUsage\n  $ renku <command> [options]\n\nCommands\n  install             Guided setup (alias for init)\n  init                Initialize a new Renku workspace (requires --root)\n  update              Update the catalog in the active workspace\n  use                 Switch to an existing workspace (requires --root)\n  generate            Create or continue a movie generation\n  create:input-template  Create an inputs YAML template for a blueprint\n  export              Export a movie to MP4/MP3 (--exporter=remotion|ffmpeg)\n  clean               Remove dry-run builds (--all to include completed builds)
-  list                List builds in current project (shows dry-run vs completed)\n  viewer:start        Start the bundled viewer server in the foreground\n  viewer:view         Open the viewer for a movie id (starts server if needed)\n  viewer:stop         Stop the background viewer server\n  producers:list      List all available models for producers in a blueprint\n  blueprints:validate <path>  Validate a blueprint YAML file\n  mcp                 Run the Renku MCP server over stdio\n\nExamples\n  $ renku init --root=~/media/renku\n  $ renku update                             # Update catalog in active workspace\n  $ renku use --root=~/media/other-workspace # Switch to another workspace\n  $ renku create:input-template --blueprint=documentary-talking-head.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml --concurrency=3\n  $ renku generate --last --up-to-layer=1
+  list                List builds in current project (shows dry-run vs completed)\n  viewer:start        Start the bundled viewer server in the foreground\n  viewer:view         Open the viewer for a movie id (starts server if needed)\n  viewer:blueprint    Open the blueprint graph viewer for a blueprint\n  viewer:stop         Stop the background viewer server\n  producers:list      List all available models for producers in a blueprint\n  blueprints:validate <path>  Validate a blueprint YAML file\n  mcp                 Run the Renku MCP server over stdio\n\nExamples\n  $ renku init --root=~/media/renku\n  $ renku update                             # Update catalog in active workspace\n  $ renku use --root=~/media/other-workspace # Switch to another workspace\n  $ renku create:input-template --blueprint=documentary-talking-head.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml --concurrency=3\n  $ renku generate --last --up-to-layer=1
   $ renku generate --last --re-run-from=2
   $ renku generate --movie-id=abc123 --from=1\n  $ renku export --movie-id=abc123\n  $ renku export --last --width=1920 --height=1080 --fps=30\n  $ renku export --last --exporter=ffmpeg\n  $ renku producers:list --blueprint=image-audio.yaml\n  $ renku blueprints:validate image-audio.yaml\n  $ renku list                           # List builds in current project
   $ renku clean                          # Clean dry-run builds only
   $ renku clean --all                    # Clean all builds including completed
-  $ renku clean --movie-id=movie-q123456 # Clean specific movie\n  $ renku viewer:start\n  $ renku viewer:view --movie-id=movie-q123456\n  $ renku viewer:view --last\n  $ renku mcp --defaultBlueprint=image-audio.yaml\n`,
+  $ renku clean --movie-id=movie-q123456 # Clean specific movie\n  $ renku viewer:start\n  $ renku viewer:view --movie-id=movie-q123456\n  $ renku viewer:view --last\n  $ renku viewer:blueprint --bp=image-audio.yaml\n  $ renku viewer:blueprint --bp=image-audio.yaml --in=./inputs.yaml --last\n  $ renku mcp --defaultBlueprint=image-audio.yaml\n`,
   {
     importMeta: import.meta,
     flags: {
@@ -494,6 +494,34 @@ async function main(): Promise<void> {
     }
     case 'viewer:view': {
       await runViewerView({
+        movieId: flags.movieId ?? flags.id ?? flags.movie,
+        useLast: flags.last,
+        host: flags.viewerHost,
+        port: flags.viewerPort,
+        logger,
+      });
+      return;
+    }
+    case 'viewer:blueprint': {
+      const blueprintFlag = flags.blueprint ?? flags.bp;
+      if (!blueprintFlag) {
+        logger.error('Error: --blueprint/--bp is required for viewer:blueprint.');
+        process.exitCode = 1;
+        return;
+      }
+      const cliConfig = await readCliConfig();
+      if (!cliConfig) {
+        logger.error('Renku CLI is not initialized. Run "renku init" first.');
+        process.exitCode = 1;
+        return;
+      }
+      const blueprintPath = await resolveBlueprintSpecifier(blueprintFlag, {
+        cliRoot: cliConfig.storage.root,
+      });
+      const inputsFlag = flags.inputs ?? flags.in;
+      await runViewerBlueprint({
+        blueprintPath,
+        inputsPath: inputsFlag,
         movieId: flags.movieId ?? flags.id ?? flags.movie,
         useLast: flags.last,
         host: flags.viewerHost,

@@ -28,6 +28,13 @@ export interface ViewerViewOptions extends ViewerStartOptions {
   useLast?: boolean;
 }
 
+export interface ViewerBlueprintOptions extends ViewerStartOptions {
+  blueprintPath: string;
+  inputsPath?: string;
+  movieId?: string;
+  useLast?: boolean;
+}
+
 export async function runViewerStart(options: ViewerStartOptions = {}): Promise<void> {
   const logger = options.logger ?? globalThis.console;
   const cliConfig = await ensureInitializedConfig(logger);
@@ -146,6 +153,85 @@ export async function runViewerView(options: ViewerViewOptions = {}): Promise<vo
   const targetUrl = `http://${activeHost}:${activePort}/movies/${encodeURIComponent(movieId)}`;
   logger.info?.(`Opening viewer at ${targetUrl}`);
   void openBrowser(targetUrl);
+}
+
+export async function runViewerBlueprint(options: ViewerBlueprintOptions): Promise<void> {
+  const logger = options.logger ?? globalThis.console;
+
+  // Validate mutual exclusivity
+  const usingLast = Boolean(options.useLast);
+  if (usingLast && options.movieId) {
+    logger.error?.('Error: Use either --last or --movie-id/--id, not both.');
+    process.exitCode = 1;
+    return;
+  }
+
+  const cliConfig = await ensureInitializedConfig(logger);
+  if (!cliConfig) {
+    return;
+  }
+
+  const bundle = resolveViewerBundleOrExit(logger);
+  if (!bundle) {
+    return;
+  }
+  const network = await ensureViewerNetworkConfig(cliConfig, options);
+  const statePath = getViewerStatePath(cliConfig);
+  let activeHost = network.host;
+  let activePort = network.port;
+
+  const recordedState = await readViewerState(statePath);
+  if (recordedState) {
+    const alive = await isViewerServerRunning(recordedState.host, recordedState.port);
+    if (alive) {
+      activeHost = recordedState.host;
+      activePort = recordedState.port;
+    } else {
+      await removeViewerState(statePath);
+    }
+  }
+
+  if (!(await isViewerServerRunning(activeHost, activePort))) {
+    logger.info?.('Viewer server is not running. Launching background instance...');
+    const projectStorage = getProjectLocalStorage();
+    await launchViewerServer({
+      bundle,
+      rootFolder: projectStorage.root,
+      host: network.host,
+      port: network.port,
+      mode: 'background',
+      statePath,
+    });
+    activeHost = network.host;
+    activePort = network.port;
+    const ready = await waitForViewerServer(activeHost, activePort);
+    if (!ready) {
+      await removeViewerState(statePath);
+      logger.error?.('Viewer server failed to start in time. Check logs with "renku viewer:start".');
+      process.exitCode = 1;
+      return;
+    }
+  }
+
+  // Build the URL with query parameters
+  const url = new URL(`http://${activeHost}:${activePort}/blueprints`);
+  url.searchParams.set('bp', options.blueprintPath);
+  if (options.inputsPath) {
+    url.searchParams.set('in', options.inputsPath);
+  }
+  if (options.movieId) {
+    url.searchParams.set('movie', options.movieId);
+  }
+  // Include catalog root for resolving qualified producer names
+  if (cliConfig.catalog?.root) {
+    url.searchParams.set('catalog', cliConfig.catalog.root);
+  }
+  if (usingLast) {
+    url.searchParams.set('last', '1');
+  }
+
+  logger.info?.(`Opening blueprint viewer at ${url.toString()}`);
+  void openBrowser(url.toString());
 }
 
 export async function runViewerStop(options: { logger?: Logger } = {}): Promise<void> {
