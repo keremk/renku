@@ -36,7 +36,7 @@ export function InputsPanel({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 max-w-2xl mx-auto">
       {inputs.map((input) => {
         const value = valueMap.get(input.name);
         const isSelected = selectedInputName === input.name;
@@ -76,31 +76,37 @@ function InputCard({
         }
       `}
     >
-      <div className="flex items-center gap-2 mb-1">
-        <span className="font-medium text-sm text-foreground">{input.name}</span>
-        <span className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
-          {input.type}
-        </span>
-        {input.required && (
-          <span className="text-xs text-amber-400">required</span>
-        )}
-      </div>
+      <div className="grid grid-cols-2 gap-4">
+        {/* Left column: name, type, required badge, description */}
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-medium text-sm text-foreground">
+              {input.name}
+            </span>
+            <span className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
+              {input.type}
+            </span>
+            {input.required && (
+              <span className="text-xs text-amber-400">required</span>
+            )}
+          </div>
+          {input.description && (
+            <p className="text-xs text-muted-foreground">{input.description}</p>
+          )}
+        </div>
 
-      {input.description && (
-        <p className="text-xs text-muted-foreground mb-2">{input.description}</p>
-      )}
-
-      <div className="flex items-start gap-2">
-        <span className="text-xs text-muted-foreground shrink-0">Value:</span>
-        {hasValue ? (
-          <span className="text-xs text-foreground font-mono bg-muted/70 px-2 py-1 rounded border border-border/50 break-all">
-            {formatValue(value)}
-          </span>
-        ) : (
-          <span className="text-xs text-muted-foreground/60 italic">
-            not provided
-          </span>
-        )}
+        {/* Right column: value */}
+        <div className="min-w-0">
+          {hasValue ? (
+            <div className="text-xs text-foreground font-mono bg-muted/70 px-2 py-1 rounded border border-border/50 break-all whitespace-pre-wrap max-h-48 overflow-y-auto">
+              {formatValue(value)}
+            </div>
+          ) : (
+            <span className="text-xs text-muted-foreground/60 italic">
+              not provided
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -108,17 +114,16 @@ function InputCard({
 
 function formatValue(value: unknown): string {
   if (typeof value === "string") {
-    return value.length > 100 ? `${value.slice(0, 100)}...` : value;
+    return value;
   }
   if (typeof value === "boolean" || typeof value === "number") {
     return String(value);
   }
   if (Array.isArray(value)) {
-    return `[${value.length} items]`;
+    return JSON.stringify(value, null, 2);
   }
   if (typeof value === "object" && value !== null) {
-    const str = JSON.stringify(value, null, 2);
-    return str.length > 100 ? str.slice(0, 100) + "..." : str;
+    return JSON.stringify(value, null, 2);
   }
   return String(value);
 }
