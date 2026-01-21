@@ -17,6 +17,7 @@ import type {
   ArtefactEvent,
   ArtefactEventOutput,
   ArtefactEventStatus,
+  ArtifactRegenerationConfig,
   BlueprintTreeNode,
   BlueprintProducerOutputDefinition,
   ExecutionPlan,
@@ -61,6 +62,8 @@ export interface GeneratePlanArgs {
   inputSource?: InputEventSource;
   /** Force re-run from this layer index onwards (0-indexed). Jobs at this layer and above will be included in the plan. */
   reRunFrom?: number;
+  /** Target artifact ID for surgical regeneration. When provided, only this artifact and its downstream dependencies will be regenerated. */
+  targetArtifactId?: string;
 }
 
 export interface GeneratePlanResult {
@@ -146,6 +149,16 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
         args.providerOptions,
       );
 
+      // Resolve artifact regeneration config if targetArtifactId is provided
+      let artifactRegeneration: ArtifactRegenerationConfig | undefined;
+      if (args.targetArtifactId) {
+        artifactRegeneration = resolveArtifactToJob(
+          args.targetArtifactId,
+          manifest,
+          producerGraph,
+        );
+      }
+
       const plan = await adapter.compute({
         movieId: args.movieId,
         manifest,
@@ -154,6 +167,7 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
         targetRevision,
         pendingEdits: inputEvents,
         reRunFrom: args.reRunFrom,
+        artifactRegeneration,
       });
 
       await planStore.save(plan, { movieId: args.movieId, storage: args.storage });
@@ -393,4 +407,49 @@ export function injectDerivedInputs(
   }
 
   return result;
+}
+
+/**
+ * Resolve an artifact ID to the job that produces it.
+ * Used for surgical artifact regeneration.
+ *
+ * @param artifactId - The canonical artifact ID (e.g., "Artifact:AudioProducer.GeneratedAudio[0]")
+ * @param manifest - The current manifest containing artifact entries
+ * @param producerGraph - The producer graph with all job nodes
+ * @returns ArtifactRegenerationConfig with target artifact and source job
+ * @throws ARTIFACT_NOT_IN_MANIFEST if artifact not found in manifest
+ * @throws ARTIFACT_JOB_NOT_FOUND if producing job not found in graph
+ */
+export function resolveArtifactToJob(
+  artifactId: string,
+  manifest: Manifest,
+  producerGraph: { nodes: Array<{ jobId: string }> },
+): ArtifactRegenerationConfig {
+  const entry = manifest.artefacts[artifactId];
+  if (!entry) {
+    throw createRuntimeError(
+      RuntimeErrorCode.ARTIFACT_NOT_IN_MANIFEST,
+      `Artifact "${artifactId}" not found in manifest. ` +
+        `The artifact may not have been generated yet, or the ID may be incorrect.`,
+      { context: `artifactId=${artifactId}` },
+    );
+  }
+
+  const sourceJobId = entry.producedBy;
+
+  // Verify the job exists in the producer graph
+  const jobExists = producerGraph.nodes.some((node) => node.jobId === sourceJobId);
+  if (!jobExists) {
+    throw createRuntimeError(
+      RuntimeErrorCode.ARTIFACT_JOB_NOT_FOUND,
+      `Job "${sourceJobId}" that produced artifact "${artifactId}" not found in producer graph. ` +
+        `The blueprint structure may have changed since the artifact was generated.`,
+      { context: `artifactId=${artifactId}, sourceJobId=${sourceJobId}` },
+    );
+  }
+
+  return {
+    targetArtifactId: artifactId,
+    sourceJobId,
+  };
 }

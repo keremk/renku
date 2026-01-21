@@ -16,6 +16,7 @@ import {
   type ProduceFn,
   type ProduceResult,
   type RunResult,
+  type RunConfig,
   type ProducerJobContext,
   type Logger,
   type BlobInput,
@@ -53,6 +54,8 @@ export interface ExecuteBuildOptions {
   upToLayer?: number;
   /** Re-run from specific layer (skips earlier layers). */
   reRunFrom?: number;
+  /** Target artifact ID for surgical regeneration (canonical format). */
+  targetArtifactId?: string;
   /** Enable dry-run mode: simulated providers, no S3 uploads. */
   dryRun?: boolean;
   logger?: Logger;
@@ -178,6 +181,28 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<Execut
   // This enables retry functionality via --movie-id or --last.
   // The manifest will contain all successfully produced artifacts up to the point of failure.
   const manifest = await run.buildManifest();
+
+  // Record run configuration in the manifest for observability
+  const runConfig: RunConfig = {};
+  if (options.upToLayer !== undefined) {
+    runConfig.upToLayer = options.upToLayer;
+  }
+  if (options.reRunFrom !== undefined) {
+    runConfig.reRunFrom = options.reRunFrom;
+  }
+  if (options.targetArtifactId) {
+    runConfig.targetArtifactId = options.targetArtifactId;
+  }
+  if (dryRun) {
+    runConfig.dryRun = true;
+  }
+  if (concurrency !== undefined) {
+    runConfig.concurrency = concurrency;
+  }
+  if (Object.keys(runConfig).length > 0) {
+    manifest.runConfig = runConfig;
+  }
+
   const { hash } = await manifestService.saveManifest(manifest, {
     movieId: options.movieId,
     previousHash: options.manifestHash,

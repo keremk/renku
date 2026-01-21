@@ -39,6 +39,8 @@ export interface GenerateOptions {
   logLevel: LogLevel;
   /** Override storage root (used in tests). If not provided, uses cwd. */
   storageOverride?: { root: string; basePath: string };
+  /** Target artifact ID for surgical regeneration (short format, e.g., "AudioProducer.GeneratedAudio[0]") */
+  artifactId?: string;
 }
 
 export interface GenerateResult {
@@ -80,6 +82,18 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
     throw new Error('Use either --last or --movie-id/--id, not both.');
   }
 
+  // Validate --artifact-id requirements
+  const targetingExisting = Boolean(usingLast || options.movieId);
+  if (options.artifactId) {
+    if (!targetingExisting) {
+      throw new Error('--artifact-id requires --last or --movie-id/--id to target an existing movie.');
+    }
+    if (options.reRunFrom !== undefined) {
+      throw new Error('--artifact-id and --re-run-from/--from are mutually exclusive.');
+    }
+    // Note: --up-to-layer IS allowed with --artifact-id to limit downstream regeneration
+  }
+
   // Input validation - always required (contains model selections)
   if (!options.inputsPath) {
     const { createRuntimeError, RuntimeErrorCode } = await import('@gorenku/core');
@@ -89,6 +103,11 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
       { suggestion: 'Provide --inputs=/path/to/inputs.yaml. Inputs are needed for model selections, even when using --re-run-from.' }
     );
   }
+
+  // Convert short artifact ID format to canonical format
+  const targetArtifactId = options.artifactId
+    ? `Artifact:${options.artifactId}`
+    : undefined;
 
   const upToLayer = options.upToLayer;
 
@@ -134,6 +153,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
       concurrency,
       upToLayer,
       reRunFrom: options.reRunFrom,
+      targetArtifactId,
       logger,
       cliConfig: activeConfig,
     });

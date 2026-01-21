@@ -119,6 +119,47 @@ export function formatCostRange(minCost: number, maxCost: number): string {
 	return `${formatCost(minCost)} - ${formatCost(maxCost)}`;
 }
 
+export interface SurgicalPlanDisplayOptions {
+	plan: ExecutionPlan;
+	targetArtifactId: string;
+	sourceJobId: string;
+	logger?: Logger;
+}
+
+/**
+ * Display a surgical regeneration plan summary.
+ * Shows the target artifact, source job, and downstream dependencies.
+ */
+export function displaySurgicalPlanSummary(options: SurgicalPlanDisplayOptions): void {
+	const logger = options.logger ?? globalThis.console;
+	const allJobs = options.plan.layers.flat();
+
+	logger.info(`\n${chalk.bold('=== Surgical Regeneration Plan ===')}`);
+	logger.info(`${chalk.bold('Target Artifact')}: ${chalk.cyan(options.targetArtifactId)}`);
+	logger.info(`${chalk.bold('Source Job')}: ${chalk.blue(options.sourceJobId)}`);
+	logger.info(`${chalk.bold('Revision')}: ${options.plan.revision}`);
+	logger.info(`${chalk.bold('Total Jobs')}: ${allJobs.length}`);
+
+	// List all jobs that will be run
+	if (allJobs.length > 0) {
+		logger.info(`\n${chalk.bold('Jobs to Execute:')}`);
+
+		// Find the source job first
+		const sourceJob = allJobs.find((j) => j.jobId === options.sourceJobId);
+		if (sourceJob) {
+			logger.info(`  ${chalk.green('→')} ${chalk.bold(sourceJob.jobId)} [${sourceJob.producer}] ${chalk.yellow('(source)')}`);
+		}
+
+		// Show downstream jobs
+		const downstreamJobs = allJobs.filter((j) => j.jobId !== options.sourceJobId);
+		for (const job of downstreamJobs) {
+			logger.info(`    ${chalk.dim('•')} ${job.jobId} [${job.producer}]`);
+		}
+	}
+
+	logger.info('');
+}
+
 /**
  * Display cost summary for the execution plan.
  */

@@ -2,6 +2,7 @@ import { createPlanner } from './planner.js';
 import type { EventLog } from '../event-log.js';
 import type { Logger } from '../logger.js';
 import type {
+  ArtifactRegenerationConfig,
   Clock,
   ExecutionPlan,
   InputEvent,
@@ -19,6 +20,8 @@ export interface PlanAdapterArgs {
   pendingEdits?: InputEvent[];
   /** Force re-run from this layer index onwards (0-indexed). Jobs at this layer and above will be included in the plan. */
   reRunFrom?: number;
+  /** Surgical artifact regeneration config - regenerate only the target artifact and downstream dependencies. */
+  artifactRegeneration?: ArtifactRegenerationConfig;
 }
 
 export type PlanAdapter = {

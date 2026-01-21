@@ -49,6 +49,8 @@ export interface GeneratePlanOptions {
   notifications?: import('@gorenku/core').NotificationBus;
   /** Force re-run from this layer index onwards (0-indexed). Jobs at this layer and above will be included in the plan. */
   reRunFrom?: number;
+  /** Target artifact ID for surgical regeneration (canonical format, e.g., "Artifact:AudioProducer.GeneratedAudio[0]") */
+  targetArtifactId?: string;
 }
 
 export interface GeneratePlanResult {
@@ -68,6 +70,11 @@ export interface GeneratePlanResult {
   catalogModelsDir?: string;
   /** Persist the plan to local storage. Call after confirmation. */
   persist: () => Promise<void>;
+  /** Surgical regeneration info when targetArtifactId is provided. */
+  surgicalInfo?: {
+    targetArtifactId: string;
+    sourceJobId: string;
+  };
 }
 
 export async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanResult> {
@@ -175,6 +182,7 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
     eventLog,
     pendingArtefacts: allPendingArtefacts.length > 0 ? allPendingArtefacts : undefined,
     reRunFrom: options.reRunFrom,
+    targetArtifactId: options.targetArtifactId,
   });
   logger.debug('[planner] resolved inputs', { inputs: Object.keys(planResult.resolvedInputs) });
   const absolutePlanPath = resolve(storageRoot, basePath, movieId, 'runs', `${planResult.targetRevision}-plan.json`);
@@ -189,6 +197,11 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
     planResult.resolvedInputs
   );
 
+  // Derive surgical info if targetArtifactId was provided
+  const surgicalInfo = options.targetArtifactId
+    ? deriveSurgicalInfo(options.targetArtifactId, planResult.manifest)
+    : undefined;
+
   return {
     planPath: absolutePlanPath,
     targetRevision: planResult.targetRevision,
@@ -202,6 +215,7 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
     costSummary,
     modelCatalog,
     catalogModelsDir: catalogModelsDir ?? undefined,
+    surgicalInfo,
     persist: async () => {
       // Create LOCAL storage and write everything
       const localStorageContext = createStorageContext({
@@ -406,4 +420,23 @@ async function copyBlobsFromMemoryToLocal(
       await localCtx.storage.write(item.path, buffer, { mimeType });
     }
   }
+}
+
+/**
+ * Derive surgical regeneration info from the manifest.
+ */
+function deriveSurgicalInfo(
+  targetArtifactId: string,
+  manifest: Manifest,
+): { targetArtifactId: string; sourceJobId: string } | undefined {
+  const entry = manifest.artefacts[targetArtifactId];
+  if (!entry) {
+    // If artifact not in manifest, we can't derive the source job
+    // This will be handled by the core's resolveArtifactToJob which will throw
+    return undefined;
+  }
+  return {
+    targetArtifactId,
+    sourceJobId: entry.producedBy,
+  };
 }

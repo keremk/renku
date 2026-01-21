@@ -51,6 +51,9 @@ export interface ExecuteOptions {
   /** Re-run from specific layer (skips earlier layers) */
   reRunFrom?: number;
 
+  /** Target artifact ID for surgical regeneration (canonical format, e.g., "Artifact:AudioProducer.GeneratedAudio[0]") */
+  targetArtifactId?: string;
+
   /** Logger instance */
   logger: Logger;
 
@@ -156,6 +159,7 @@ export async function runExecute(options: ExecuteOptions): Promise<ExecuteResult
     pendingArtefacts: options.pendingArtefacts,
     logger,
     reRunFrom: options.reRunFrom,
+    targetArtifactId: options.targetArtifactId,
   });
 
   if (options.dryRun) {
@@ -198,6 +202,7 @@ export async function runExecute(options: ExecuteOptions): Promise<ExecuteResult
       upToLayer,
       logger,
       costSummary: planResult.costSummary,
+      surgicalMode: planResult.surgicalInfo,
     });
 
     if (!confirmed) {
@@ -232,6 +237,7 @@ export async function runExecute(options: ExecuteOptions): Promise<ExecuteResult
     concurrency,
     upToLayer: options.dryRun ? undefined : upToLayer,
     reRunFrom: options.dryRun ? undefined : options.reRunFrom,
+    targetArtifactId: options.targetArtifactId,
     dryRun: options.dryRun,
   });
 

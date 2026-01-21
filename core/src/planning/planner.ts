@@ -4,6 +4,7 @@ import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import { hashPayload } from '../hashing.js';
 import { deriveArtefactHash } from '../manifest.js';
 import {
+  type ArtifactRegenerationConfig,
   type Clock,
   type ExecutionPlan,
   type InputEvent,
@@ -30,6 +31,8 @@ interface ComputePlanArgs {
   pendingEdits?: InputEvent[];
   /** Force re-run from this layer index onwards (0-indexed). Jobs at this layer and above are marked dirty. */
   reRunFrom?: number;
+  /** Surgical artifact regeneration - regenerate only the target artifact and downstream dependencies. */
+  artifactRegeneration?: ArtifactRegenerationConfig;
 }
 
 interface GraphMetadata {
@@ -60,23 +63,49 @@ export function createPlanner(options: PlannerOptions = {}) {
       const dirtyArtefacts = determineDirtyArtefacts(manifest, latestArtefacts);
 
       const metadata = buildGraphMetadata(blueprint);
-      const initialDirty = determineInitialDirtyJobs(
-        manifest,
+
+      // Determine which jobs to include in the plan
+      let jobsToInclude: Set<string>;
+
+      if (args.artifactRegeneration) {
+        // Surgical mode: only include source job + downstream dependencies
+        jobsToInclude = computeArtifactRegenerationJobs(
+          args.artifactRegeneration.sourceJobId,
+          blueprint,
+        );
+        logger.debug?.('planner.surgical.jobs', {
+          movieId: args.movieId,
+          sourceJobId: args.artifactRegeneration.sourceJobId,
+          targetArtifactId: args.artifactRegeneration.targetArtifactId,
+          jobs: Array.from(jobsToInclude),
+        });
+      } else {
+        // Normal mode: use dirty detection
+        const initialDirty = determineInitialDirtyJobs(
+          manifest,
+          metadata,
+          dirtyInputs,
+          dirtyArtefacts,
+        );
+        jobsToInclude = propagateDirtyJobs(initialDirty, blueprint);
+      }
+
+      const layers = buildExecutionLayers(
+        jobsToInclude,
         metadata,
-        dirtyInputs,
-        dirtyArtefacts,
+        blueprint,
+        args.reRunFrom,
+        args.artifactRegeneration,
       );
-      const dirtyJobs = propagateDirtyJobs(initialDirty, blueprint);
-      const layers = buildExecutionLayers(dirtyJobs, metadata, blueprint, args.reRunFrom);
 
       logger.debug?.('planner.plan.generated', {
         movieId: args.movieId,
         layers: layers.length,
-        jobs: dirtyJobs.size,
+        jobs: jobsToInclude.size,
       });
       notifications?.publish({
         type: 'progress',
-        message: `Plan ready: ${dirtyJobs.size} job${dirtyJobs.size === 1 ? '' : 's'} across ${layers.length} layer${layers.length === 1 ? '' : 's'}.`,
+        message: `Plan ready: ${jobsToInclude.size} job${jobsToInclude.size === 1 ? '' : 's'} across ${layers.length} layer${layers.length === 1 ? '' : 's'}.`,
         timestamp: nowIso(clock),
       });
 
@@ -160,11 +189,42 @@ function propagateDirtyJobs(initialDirty: Set<string>, blueprint: ProducerGraph)
   return dirty;
 }
 
+/**
+ * Compute which jobs to include for surgical artifact regeneration.
+ * Starts from the source job and BFS propagates to downstream dependencies.
+ * This ensures sibling jobs (jobs at the same layer but not downstream) are NOT included.
+ */
+export function computeArtifactRegenerationJobs(
+  sourceJobId: string,
+  blueprint: ProducerGraph,
+): Set<string> {
+  const jobs = new Set<string>([sourceJobId]);
+  const queue = [sourceJobId];
+  const adjacency = buildAdjacencyMap(blueprint);
+
+  while (queue.length > 0) {
+    const jobId = queue.shift()!;
+    const downstream = adjacency.get(jobId);
+    if (!downstream) {
+      continue;
+    }
+    for (const next of downstream) {
+      if (!jobs.has(next)) {
+        jobs.add(next);
+        queue.push(next);
+      }
+    }
+  }
+
+  return jobs;
+}
+
 function buildExecutionLayers(
   dirtyJobs: Set<string>,
   metadata: Map<string, GraphMetadata>,
   blueprint: ProducerGraph,
   reRunFrom?: number,
+  artifactRegeneration?: ArtifactRegenerationConfig,
 ): ExecutionPlan['layers'] {
   // Determine stable layer indices for all producer jobs, then place dirty jobs into their original layer slots.
   const indegree = new Map<string, number>();
@@ -218,9 +278,10 @@ function buildExecutionLayers(
   const layers: ExecutionPlan['layers'] = Array.from({ length: maxLevel + 1 }, () => []);
 
   // Combine dirty jobs with jobs forced by reRunFrom
+  // Note: reRunFrom is NOT applied for surgical regeneration - it would defeat the purpose
   const jobsToInclude = new Set(dirtyJobs);
-  if (reRunFrom !== undefined) {
-    // Force all jobs at layer >= reRunFrom to be included
+  if (reRunFrom !== undefined && !artifactRegeneration) {
+    // Force all jobs at layer >= reRunFrom to be included (normal mode only)
     for (const [jobId] of metadata) {
       const level = levelMap.get(jobId);
       if (level !== undefined && level >= reRunFrom) {

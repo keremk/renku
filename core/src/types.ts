@@ -566,6 +566,34 @@ export interface ExecutionPlan {
   createdAt: IsoDatetime;
 }
 
+/**
+ * Configuration for surgical artifact regeneration.
+ * Used to regenerate a specific artifact and only its downstream dependencies.
+ */
+export interface ArtifactRegenerationConfig {
+  /** The canonical artifact ID to regenerate (e.g., "Artifact:AudioProducer.GeneratedAudio[0]") */
+  targetArtifactId: string;
+  /** The job ID that produces the target artifact (e.g., "Producer:AudioProducer[0]") */
+  sourceJobId: string;
+}
+
+/**
+ * Configuration options used when running a generation.
+ * Stored in the manifest to record how a run was invoked.
+ */
+export interface RunConfig {
+  /** Limit execution to layers 0 through this index (inclusive) */
+  upToLayer?: number;
+  /** Re-run from this layer index onwards (0-indexed) */
+  reRunFrom?: number;
+  /** Target artifact ID for surgical regeneration (canonical format) */
+  targetArtifactId?: string;
+  /** Whether this was a dry-run execution */
+  dryRun?: boolean;
+  /** Number of concurrent jobs used */
+  concurrency?: number;
+}
+
 export interface BlobRef {
   hash: string;
   size: number;
@@ -594,6 +622,8 @@ export interface Manifest {
   inputs: Record<string, ManifestInputEntry>;
   artefacts: Record<string, ManifestArtefactEntry>;
   timeline?: TimelineDocument;
+  /** Configuration options used when this revision was generated */
+  runConfig?: RunConfig;
 }
 
 export type TimelineDocument = Record<string, unknown>;

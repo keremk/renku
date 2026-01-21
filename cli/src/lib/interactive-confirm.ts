@@ -7,6 +7,7 @@ import {
 	displayInputSummary,
 	displayPlanSummary,
 	displayCostSummary,
+	displaySurgicalPlanSummary,
 } from './plan-display.js';
 
 // Re-export for backward compatibility
@@ -18,6 +19,11 @@ interface PlanConfirmationOptions {
 	logger?: Logger;
 	upToLayer?: number;
 	costSummary?: PlanCostSummary;
+	/** Surgical regeneration info. When provided, uses surgical plan display. */
+	surgicalMode?: {
+		targetArtifactId: string;
+		sourceJobId: string;
+	};
 }
 
 /**
@@ -30,17 +36,33 @@ export async function confirmPlanExecution(
 ): Promise<boolean> {
 	const logger = options.logger ?? globalThis.console;
 	displayInputSummary(options.inputs, logger);
-	displayPlanSummary(plan, logger);
-	displayCostSummary(options.costSummary, logger);
-	displayLayerBreakdown(
-		plan,
-		options.concurrency ?? 1,
-		logger,
-		options.upToLayer
-	);
 
-	if (typeof options.upToLayer === 'number') {
-		logLayerLimit(plan, options.upToLayer, logger);
+	// Use surgical display mode if surgicalMode is provided
+	if (options.surgicalMode) {
+		displaySurgicalPlanSummary({
+			plan,
+			targetArtifactId: options.surgicalMode.targetArtifactId,
+			sourceJobId: options.surgicalMode.sourceJobId,
+			logger,
+		});
+	} else {
+		displayPlanSummary(plan, logger);
+	}
+
+	displayCostSummary(options.costSummary, logger);
+
+	// Skip layer breakdown for surgical mode (not layer-based)
+	if (!options.surgicalMode) {
+		displayLayerBreakdown(
+			plan,
+			options.concurrency ?? 1,
+			logger,
+			options.upToLayer
+		);
+
+		if (typeof options.upToLayer === 'number') {
+			logLayerLimit(plan, options.upToLayer, logger);
+		}
 	}
 
 	const rl = readline.createInterface({
