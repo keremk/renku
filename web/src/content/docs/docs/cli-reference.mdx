@@ -182,6 +182,11 @@ renku generate --movie-id=<id> --inputs=<path> [options]
 renku generate --last --inputs=<path> [options]
 ```
 
+**Usage (surgical regeneration):**
+```bash
+renku generate --last --artifact-id=<id> --inputs=<path> [--up-to-layer=<n>]
+```
+
 **Options:**
 
 | Option | Description |
@@ -194,6 +199,7 @@ renku generate --last --inputs=<path> [options]
 | `--non-interactive` | Skip confirmation prompts |
 | `--up-to-layer`, `--up` | Stop after specified layer (live runs only) |
 | `--re-run-from`, `--from` | Re-run from specified layer (0-indexed), skipping earlier layers |
+| `--artifact-id`, `--artifact` | Regenerate only a specific artifact and its downstream dependencies (requires `--last` or `--movie-id`) |
 
 **Behavior:**
 
@@ -234,7 +240,15 @@ renku generate --last --inputs=./inputs.yaml --from=2
 
 # Re-run from layer 3 with layer limit
 renku generate --movie-id=movie-a1b2c3d4 --inputs=./inputs.yaml --from=3 --up-to-layer=4
+
+# Surgical regeneration: regenerate only one artifact and its downstream dependencies
+renku generate --last --artifact-id="AudioProducer.GeneratedAudio[0]" --inputs=./inputs.yaml
+
+# Surgical regeneration with layer limit
+renku generate --last --artifact-id="ImageProducer.GeneratedImage[2]" --inputs=./inputs.yaml --up-to-layer=1
 ```
+
+**Note:** When using `--artifact-id` with zsh, quote the artifact ID to prevent bracket expansion.
 
 ---
 
