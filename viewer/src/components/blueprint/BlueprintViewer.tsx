@@ -1,13 +1,25 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { BlueprintFlow } from "./BlueprintFlow";
 import { DetailPanel } from "./DetailPanel";
+import { BuildsListSidebar } from "./BuildsListSidebar";
 import type { BlueprintGraphData, InputTemplateData } from "@/types/blueprint-graph";
+import type { BuildInfo, BuildManifestResponse } from "@/types/builds";
 
 interface BlueprintViewerProps {
   graphData: BlueprintGraphData;
   inputData: InputTemplateData | null;
   movieId: string | null;
+  /** Blueprint folder for builds listing */
+  blueprintFolder: string | null;
+  /** List of builds in the folder */
+  builds: BuildInfo[];
+  /** Whether builds are loading */
+  buildsLoading: boolean;
+  /** Currently selected build ID */
+  selectedBuildId: string | null;
+  /** Manifest data for the selected build */
+  selectedBuildManifest: BuildManifestResponse | null;
 }
 
 // Blueprint flow panel sizing (the graph at the bottom)
@@ -19,6 +31,11 @@ export function BlueprintViewer({
   graphData,
   inputData,
   movieId,
+  blueprintFolder,
+  builds,
+  buildsLoading,
+  selectedBuildId,
+  selectedBuildManifest,
 }: BlueprintViewerProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [blueprintFlowPercent, setBlueprintFlowPercent] = useState(DEFAULT_BLUEPRINT_FLOW_PERCENT);
@@ -27,6 +44,27 @@ export function BlueprintViewer({
 
   // Inputs panel is the inverse of blueprint flow
   const inputsPanelPercent = 100 - blueprintFlowPercent;
+
+  // Determine if we should show the sidebar (only when blueprintFolder is available)
+  const showSidebar = Boolean(blueprintFolder);
+
+  // Merge input data from manifest if a build is selected
+  const effectiveInputData = useMemo<InputTemplateData | null>(() => {
+    // If we have a selected build manifest with inputs, use those
+    if (selectedBuildManifest?.inputs && Object.keys(selectedBuildManifest.inputs).length > 0) {
+      const manifestInputs = Object.entries(selectedBuildManifest.inputs).map(([name, value]) => ({
+        name,
+        value,
+        type: typeof value === 'string' ? 'string' :
+              typeof value === 'number' ? 'number' :
+              typeof value === 'boolean' ? 'boolean' : 'unknown',
+        required: true,
+      }));
+      return { inputs: manifestInputs };
+    }
+    // Fall back to the input data from file
+    return inputData;
+  }, [inputData, selectedBuildManifest]);
 
   const handleNodeSelect = useCallback((nodeId: string | null) => {
     setSelectedNodeId(nodeId);
@@ -65,6 +103,9 @@ export function BlueprintViewer({
     };
   }, [isDragging]);
 
+  // Determine effective movie ID - use selected build or passed movieId
+  const effectiveMovieId = selectedBuildId ?? movieId;
+
   return (
     <div
       className="h-screen w-screen bg-background text-foreground p-4 flex flex-col"
@@ -72,17 +113,33 @@ export function BlueprintViewer({
     >
       {/* Resizable panels wrapper */}
       <div ref={containerRef} className="flex-1 min-h-0 flex flex-col">
-        {/* Inputs/Outputs Panel (top) */}
+        {/* Top Panel: Sidebar + Detail Panel */}
         <div
-          className="shrink-0 min-h-0 overflow-hidden"
+          className="shrink-0 min-h-0 overflow-hidden flex gap-4"
           style={{ flexBasis: `${inputsPanelPercent}%`, maxHeight: `${inputsPanelPercent}%` }}
         >
-          <DetailPanel
-            graphData={graphData}
-            inputData={inputData}
-            selectedNodeId={selectedNodeId}
-            movieId={movieId}
-          />
+          {/* Builds Sidebar (fixed width) */}
+          {showSidebar && (
+            <div className="w-64 shrink-0">
+              <BuildsListSidebar
+                builds={builds}
+                selectedBuildId={selectedBuildId}
+                isLoading={buildsLoading}
+              />
+            </div>
+          )}
+
+          {/* Detail Panel (flexible width) */}
+          <div className="flex-1 min-w-0">
+            <DetailPanel
+              graphData={graphData}
+              inputData={effectiveInputData}
+              selectedNodeId={selectedNodeId}
+              movieId={effectiveMovieId}
+              blueprintFolder={blueprintFolder}
+              artifacts={selectedBuildManifest?.artefacts ?? []}
+            />
+          </div>
         </div>
 
         {/* Resize Handle */}
@@ -97,7 +154,7 @@ export function BlueprintViewer({
           }`} />
         </div>
 
-        {/* Blueprint Flow Panel (bottom) */}
+        {/* Blueprint Flow Panel (bottom - full width) */}
         <div
           className="shrink-0 min-h-0 rounded-xl border border-border/40 overflow-hidden relative"
           style={{ flexBasis: `${blueprintFlowPercent}%`, maxHeight: `${blueprintFlowPercent}%` }}

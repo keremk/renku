@@ -2,6 +2,7 @@ import { useState } from "react";
 import { InputsPanel } from "./InputsPanel";
 import { OutputsPanel } from "./OutputsPanel";
 import type { BlueprintGraphData, InputTemplateData } from "@/types/blueprint-graph";
+import type { ArtifactInfo } from "@/types/builds";
 
 type Tab = "inputs" | "outputs";
 
@@ -10,6 +11,8 @@ interface DetailPanelProps {
   inputData: InputTemplateData | null;
   selectedNodeId: string | null;
   movieId: string | null;
+  blueprintFolder: string | null;
+  artifacts: ArtifactInfo[];
 }
 
 export function DetailPanel({
@@ -17,6 +20,8 @@ export function DetailPanel({
   inputData,
   selectedNodeId,
   movieId,
+  blueprintFolder,
+  artifacts,
 }: DetailPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>("inputs");
 
@@ -49,6 +54,8 @@ export function DetailPanel({
             outputs={graphData.outputs}
             selectedNodeId={selectedNodeId}
             movieId={movieId}
+            blueprintFolder={blueprintFolder}
+            artifacts={artifacts}
           />
         )}
       </div>

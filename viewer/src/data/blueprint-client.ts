@@ -1,4 +1,5 @@
 import type { BlueprintGraphData, InputTemplateData } from "@/types/blueprint-graph";
+import type { BuildsListResponse, BuildManifestResponse } from "@/types/builds";
 
 const API_BASE = "/viewer-api";
 
@@ -26,4 +27,20 @@ export function fetchInputTemplate(inputsPath: string): Promise<InputTemplateDat
   return fetchJson<InputTemplateData>(
     `${API_BASE}/blueprints/inputs?path=${encodeURIComponent(inputsPath)}`
   );
+}
+
+export function fetchBuildsList(blueprintFolder: string): Promise<BuildsListResponse> {
+  const url = new URL(`${API_BASE}/blueprints/builds`, window.location.origin);
+  url.searchParams.set("folder", blueprintFolder);
+  return fetchJson<BuildsListResponse>(url.toString());
+}
+
+export function fetchBuildManifest(
+  blueprintFolder: string,
+  movieId: string
+): Promise<BuildManifestResponse> {
+  const url = new URL(`${API_BASE}/blueprints/manifest`, window.location.origin);
+  url.searchParams.set("folder", blueprintFolder);
+  url.searchParams.set("movieId", movieId);
+  return fetchJson<BuildManifestResponse>(url.toString());
 }

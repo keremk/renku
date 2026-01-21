@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { dirname } from 'node:path';
 import process from 'node:process';
 import { openBrowser } from '../lib/open-browser.js';
 import type { CliConfig } from '../lib/cli-config.js';
@@ -11,6 +12,7 @@ import {
   removeViewerState,
   writeViewerState,
 } from '../lib/viewer-state.js';
+import { detectBlueprintInDirectory } from '../lib/blueprint-detection.js';
 import type { Logger } from '@gorenku/core';
 import {
   ensureViewerNetworkConfig,
@@ -29,7 +31,8 @@ export interface ViewerViewOptions extends ViewerStartOptions {
 }
 
 export interface ViewerBlueprintOptions extends ViewerStartOptions {
-  blueprintPath: string;
+  blueprintPath?: string;
+  blueprintFolder?: string;
   inputsPath?: string;
   movieId?: string;
   useLast?: boolean;
@@ -171,6 +174,27 @@ export async function runViewerBlueprint(options: ViewerBlueprintOptions): Promi
     return;
   }
 
+  // Resolve blueprint path - auto-detect if not provided
+  let blueprintPath = options.blueprintPath;
+  let blueprintFolder = options.blueprintFolder;
+
+  if (!blueprintPath) {
+    const detected = await detectBlueprintInDirectory();
+    if (!detected) {
+      logger.error?.(
+        'No blueprint found in the current directory. Use --blueprint/--bp to specify a blueprint file.',
+      );
+      process.exitCode = 1;
+      return;
+    }
+    blueprintPath = detected.blueprintPath;
+    blueprintFolder = detected.blueprintFolder;
+    logger.info?.(`Auto-detected blueprint: ${blueprintPath}`);
+  } else if (!blueprintFolder) {
+    // Derive folder from blueprint path
+    blueprintFolder = dirname(blueprintPath);
+  }
+
   const bundle = resolveViewerBundleOrExit(logger);
   if (!bundle) {
     return;
@@ -215,7 +239,10 @@ export async function runViewerBlueprint(options: ViewerBlueprintOptions): Promi
 
   // Build the URL with query parameters
   const url = new URL(`http://${activeHost}:${activePort}/blueprints`);
-  url.searchParams.set('bp', options.blueprintPath);
+  url.searchParams.set('bp', blueprintPath);
+  if (blueprintFolder) {
+    url.searchParams.set('folder', blueprintFolder);
+  }
   if (options.inputsPath) {
     url.searchParams.set('in', options.inputsPath);
   }

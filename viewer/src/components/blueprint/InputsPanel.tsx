@@ -90,10 +90,10 @@ function InputCard({
         <p className="text-xs text-muted-foreground mb-2">{input.description}</p>
       )}
 
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">Value:</span>
+      <div className="flex items-start gap-2">
+        <span className="text-xs text-muted-foreground shrink-0">Value:</span>
         {hasValue ? (
-          <span className="text-xs text-green-400 font-mono bg-green-500/10 px-1.5 py-0.5 rounded">
+          <span className="text-xs text-foreground font-mono bg-muted/70 px-2 py-1 rounded border border-border/50 break-all">
             {formatValue(value)}
           </span>
         ) : (
@@ -108,7 +108,7 @@ function InputCard({
 
 function formatValue(value: unknown): string {
   if (typeof value === "string") {
-    return value.length > 50 ? `${value.slice(0, 50)}...` : value;
+    return value.length > 100 ? `${value.slice(0, 100)}...` : value;
   }
   if (typeof value === "boolean" || typeof value === "number") {
     return String(value);
@@ -117,7 +117,8 @@ function formatValue(value: unknown): string {
     return `[${value.length} items]`;
   }
   if (typeof value === "object" && value !== null) {
-    return JSON.stringify(value).slice(0, 50) + "...";
+    const str = JSON.stringify(value, null, 2);
+    return str.length > 100 ? str.slice(0, 100) + "..." : str;
   }
   return String(value);
 }

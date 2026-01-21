@@ -422,6 +422,43 @@ async function handleBlueprintRequest(
       res.end(JSON.stringify(inputData));
       return true;
     }
+    case "builds": {
+      const folder = url.searchParams.get("folder");
+      if (!folder) {
+        res.statusCode = 400;
+        res.end("Missing folder parameter");
+        return true;
+      }
+      const buildsData = await listBuilds(folder);
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify(buildsData));
+      return true;
+    }
+    case "manifest": {
+      const folder = url.searchParams.get("folder");
+      const movieId = url.searchParams.get("movieId");
+      if (!folder || !movieId) {
+        res.statusCode = 400;
+        res.end("Missing folder or movieId parameter");
+        return true;
+      }
+      const manifestData = await getBuildManifest(folder, movieId);
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify(manifestData));
+      return true;
+    }
+    case "blob": {
+      const folder = url.searchParams.get("folder");
+      const movieId = url.searchParams.get("movieId");
+      const hash = url.searchParams.get("hash");
+      if (!folder || !movieId || !hash) {
+        res.statusCode = 400;
+        res.end("Missing folder, movieId, or hash parameter");
+        return true;
+      }
+      await streamBuildBlob(req, res, folder, movieId, hash);
+      return true;
+    }
     default:
       return respondNotFound(res);
   }
@@ -726,4 +763,259 @@ async function parseInputsFile(inputsPath: string): Promise<{ inputs: Array<{ na
   } catch {
     return { inputs: [] };
   }
+}
+
+interface BuildInfo {
+  movieId: string;
+  updatedAt: string;
+  revision: string | null;
+  hasManifest: boolean;
+}
+
+interface BuildsListResponse {
+  builds: BuildInfo[];
+  blueprintFolder: string;
+}
+
+interface ArtifactInfo {
+  id: string;
+  name: string;
+  hash: string;
+  size: number;
+  mimeType: string;
+  status: string;
+  createdAt: string | null;
+}
+
+interface BuildManifestResponse {
+  movieId: string;
+  revision: string | null;
+  inputs: Record<string, unknown>;
+  artefacts: ArtifactInfo[];
+  createdAt: string | null;
+}
+
+/**
+ * Lists all builds in the builds/ subfolder of the blueprint folder.
+ * Sorted by updatedAt (most recent first).
+ */
+async function listBuilds(blueprintFolder: string): Promise<BuildsListResponse> {
+  const buildsDir = path.join(blueprintFolder, "builds");
+  const builds: BuildInfo[] = [];
+
+  try {
+    if (!existsSync(buildsDir)) {
+      return { builds: [], blueprintFolder };
+    }
+
+    const entries = await fs.readdir(buildsDir, { withFileTypes: true });
+    const movieDirs = entries.filter(
+      (entry) => entry.isDirectory() && entry.name.startsWith("movie-"),
+    );
+
+    for (const dir of movieDirs) {
+      const movieId = dir.name;
+      const movieDir = path.join(buildsDir, movieId);
+      const currentPath = path.join(movieDir, "current.json");
+
+      try {
+        const stat = await fs.stat(movieDir);
+        const updatedAt = stat.mtime.toISOString();
+
+        let revision: string | null = null;
+        let hasManifest = false;
+
+        if (existsSync(currentPath)) {
+          const currentContent = await fs.readFile(currentPath, "utf8");
+          const current = JSON.parse(currentContent) as { revision?: string; manifestPath?: string | null };
+          revision = current.revision ?? null;
+          hasManifest = !!current.manifestPath;
+        }
+
+        builds.push({
+          movieId,
+          updatedAt,
+          revision,
+          hasManifest,
+        });
+      } catch {
+        // Skip builds that can't be read
+        continue;
+      }
+    }
+
+    // Sort by updatedAt descending (most recent first)
+    builds.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+    return { builds, blueprintFolder };
+  } catch {
+    return { builds: [], blueprintFolder };
+  }
+}
+
+/**
+ * Gets the manifest data for a specific build.
+ */
+async function getBuildManifest(blueprintFolder: string, movieId: string): Promise<BuildManifestResponse> {
+  const movieDir = path.join(blueprintFolder, "builds", movieId);
+  const currentPath = path.join(movieDir, "current.json");
+
+  const emptyResponse: BuildManifestResponse = {
+    movieId,
+    revision: null,
+    inputs: {},
+    artefacts: [],
+    createdAt: null,
+  };
+
+  try {
+    if (!existsSync(currentPath)) {
+      return emptyResponse;
+    }
+
+    const currentContent = await fs.readFile(currentPath, "utf8");
+    const current = JSON.parse(currentContent) as {
+      revision?: string;
+      manifestPath?: string | null;
+    };
+
+    const revision = current.revision ?? null;
+
+    if (!current.manifestPath) {
+      return { ...emptyResponse, revision };
+    }
+
+    const manifestPath = path.join(movieDir, current.manifestPath);
+    if (!existsSync(manifestPath)) {
+      return { ...emptyResponse, revision };
+    }
+
+    const manifestContent = await fs.readFile(manifestPath, "utf8");
+    const manifest = JSON.parse(manifestContent) as {
+      inputs?: Record<string, { payloadDigest?: unknown }>;
+      artefacts?: Record<string, {
+        hash?: string;
+        blob?: { hash: string; size: number; mimeType?: string };
+        status?: string;
+        createdAt?: string;
+      }>;
+      createdAt?: string;
+    };
+
+    const stat = await fs.stat(manifestPath);
+
+    // Parse inputs - extract values from payloadDigest and clean up names
+    const parsedInputs: Record<string, unknown> = {};
+    if (manifest.inputs) {
+      for (const [key, entry] of Object.entries(manifest.inputs)) {
+        // Remove "Input:" prefix if present
+        const cleanName = key.startsWith("Input:") ? key.slice(6) : key;
+        // Extract value from payloadDigest
+        if (entry && typeof entry === "object" && "payloadDigest" in entry) {
+          let value = entry.payloadDigest;
+          // payloadDigest may contain JSON-encoded strings (e.g., "\"actual string\"")
+          // Try to parse it if it's a string that looks like JSON
+          if (typeof value === "string") {
+            try {
+              value = JSON.parse(value);
+            } catch {
+              // If parsing fails, use the raw string
+            }
+          }
+          parsedInputs[cleanName] = value;
+        }
+      }
+    }
+
+    // Parse artifacts - extract blob info and clean up names
+    const parsedArtifacts: ArtifactInfo[] = [];
+    if (manifest.artefacts) {
+      for (const [key, entry] of Object.entries(manifest.artefacts)) {
+        if (!entry || !entry.blob) continue;
+
+        // Extract name from artifact ID (e.g., "Artifact:Producer.Output" -> "Producer.Output")
+        const cleanName = key.startsWith("Artifact:") ? key.slice(9) : key;
+
+        parsedArtifacts.push({
+          id: key,
+          name: cleanName,
+          hash: entry.blob.hash,
+          size: entry.blob.size,
+          mimeType: entry.blob.mimeType ?? "application/octet-stream",
+          status: entry.status ?? "unknown",
+          createdAt: entry.createdAt ?? null,
+        });
+      }
+    }
+
+    return {
+      movieId,
+      revision,
+      inputs: parsedInputs,
+      artefacts: parsedArtifacts,
+      createdAt: manifest.createdAt ?? stat.mtime.toISOString(),
+    };
+  } catch {
+    return emptyResponse;
+  }
+}
+
+/**
+ * Streams a blob file from a blueprint build.
+ */
+async function streamBuildBlob(
+  req: IncomingMessage,
+  res: ServerResponse,
+  blueprintFolder: string,
+  movieId: string,
+  hash: string
+): Promise<void> {
+  const blobsDir = path.join(blueprintFolder, "builds", movieId, "blobs");
+  const prefix = hash.slice(0, 2);
+
+  // Try different possible file paths (with and without extension)
+  const possiblePaths = [
+    path.join(blobsDir, prefix, hash),
+  ];
+
+  // Also try common extensions
+  const extensions = ["png", "jpg", "jpeg", "mp4", "mp3", "wav", "webm", "json", "txt"];
+  for (const ext of extensions) {
+    possiblePaths.push(path.join(blobsDir, prefix, `${hash}.${ext}`));
+  }
+
+  let filePath: string | null = null;
+  for (const p of possiblePaths) {
+    if (existsSync(p)) {
+      filePath = p;
+      break;
+    }
+  }
+
+  if (!filePath) {
+    res.statusCode = 404;
+    res.end("Blob not found");
+    return;
+  }
+
+  // Infer MIME type from file extension or use octet-stream
+  const ext = path.extname(filePath).slice(1).toLowerCase();
+  const mimeTypes: Record<string, string> = {
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    webp: "image/webp",
+    gif: "image/gif",
+    mp4: "video/mp4",
+    webm: "video/webm",
+    mov: "video/quicktime",
+    mp3: "audio/mpeg",
+    wav: "audio/wav",
+    ogg: "audio/ogg",
+    json: "application/json",
+    txt: "text/plain",
+  };
+  const mimeType = mimeTypes[ext] ?? "application/octet-stream";
+
+  await streamFileWithRange(req, res, filePath, mimeType);
 }

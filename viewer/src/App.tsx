@@ -6,6 +6,8 @@ import { useMovieRoute } from "@/hooks/use-movie-route";
 import { useBlueprintRoute, isBlueprintRoute } from "@/hooks/use-blueprint-route";
 import { useMovieTimeline } from "@/services/use-movie-timeline";
 import { useBlueprintData } from "@/services/use-blueprint-data";
+import { useBuildsList } from "@/services/use-builds-list";
+import { useBuildManifest } from "@/services/use-build-manifest";
 import type { TimelineDocument } from "@/types/timeline";
 
 const clampTime = (time: number, duration: number) => {
@@ -28,6 +30,17 @@ function BlueprintApp() {
     blueprintRoute?.blueprintPath ?? null,
     blueprintRoute?.inputsPath ?? null,
     blueprintRoute?.catalogRoot
+  );
+
+  // Load builds list when blueprint folder is available
+  const { builds, status: buildsStatus } = useBuildsList(
+    blueprintRoute?.blueprintFolder ?? null
+  );
+
+  // Load manifest for selected build
+  const { manifest: selectedBuildManifest } = useBuildManifest(
+    blueprintRoute?.blueprintFolder ?? null,
+    blueprintRoute?.selectedBuildId ?? null
   );
 
   if (!blueprintRoute?.blueprintPath) {
@@ -66,6 +79,11 @@ function BlueprintApp() {
       graphData={graph}
       inputData={inputs}
       movieId={blueprintRoute.movieId}
+      blueprintFolder={blueprintRoute.blueprintFolder}
+      builds={builds}
+      buildsLoading={buildsStatus === "loading"}
+      selectedBuildId={blueprintRoute.selectedBuildId}
+      selectedBuildManifest={selectedBuildManifest}
     />
   );
 }
