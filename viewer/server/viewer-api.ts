@@ -9,6 +9,15 @@ import {
   type BlueprintInputDefinition,
   type BlueprintArtefactDefinition,
 } from "@gorenku/core";
+import {
+  handlePlanRequest,
+  handleExecuteRequest,
+  handleJobsListRequest,
+  handleJobStatusRequest,
+  handleStreamRequest,
+  handleCancelRequest,
+  sendMethodNotAllowed,
+} from "./generation/index.js";
 
 interface BlueprintGraphData {
   meta: {
@@ -113,6 +122,11 @@ export function createViewerApiHandler(rootFolder: string): ViewerApiHandler {
       // Handle blueprint endpoints
       if (segments[0] === "blueprints") {
         return handleBlueprintRequest(req, res, url, segments.slice(1));
+      }
+
+      // Handle generation endpoints
+      if (segments[0] === "generate") {
+        return handleGenerateRequest(req, res, segments.slice(1));
       }
 
       if (segments[0] !== "movies" || segments.length < 3) {
@@ -957,6 +971,90 @@ async function getBuildManifest(blueprintFolder: string, movieId: string): Promi
     };
   } catch {
     return emptyResponse;
+  }
+}
+
+// --- Generation API handlers ---
+
+/**
+ * Routes generation API requests to appropriate handlers.
+ * Routes:
+ *   POST /viewer-api/generate/plan
+ *   POST /viewer-api/generate/execute
+ *   GET  /viewer-api/generate/jobs
+ *   GET  /viewer-api/generate/jobs/:jobId
+ *   GET  /viewer-api/generate/jobs/:jobId/stream
+ *   POST /viewer-api/generate/jobs/:jobId/cancel
+ */
+async function handleGenerateRequest(
+  req: IncomingMessage,
+  res: ServerResponse,
+  segments: string[]
+): Promise<boolean> {
+  const action = segments[0];
+
+  switch (action) {
+    case "plan": {
+      if (req.method !== "POST") {
+        sendMethodNotAllowed(res);
+        return true;
+      }
+      return handlePlanRequest(req, res);
+    }
+
+    case "execute": {
+      if (req.method !== "POST") {
+        sendMethodNotAllowed(res);
+        return true;
+      }
+      return handleExecuteRequest(req, res);
+    }
+
+    case "jobs": {
+      // /viewer-api/generate/jobs
+      if (segments.length === 1) {
+        if (req.method !== "GET") {
+          sendMethodNotAllowed(res);
+          return true;
+        }
+        return handleJobsListRequest(req, res);
+      }
+
+      // /viewer-api/generate/jobs/:jobId
+      const jobId = decodeURIComponent(segments[1]);
+
+      // /viewer-api/generate/jobs/:jobId/stream
+      if (segments.length === 3 && segments[2] === "stream") {
+        if (req.method !== "GET") {
+          sendMethodNotAllowed(res);
+          return true;
+        }
+        return handleStreamRequest(req, res, jobId);
+      }
+
+      // /viewer-api/generate/jobs/:jobId/cancel
+      if (segments.length === 3 && segments[2] === "cancel") {
+        if (req.method !== "POST") {
+          sendMethodNotAllowed(res);
+          return true;
+        }
+        return handleCancelRequest(req, res, jobId);
+      }
+
+      // /viewer-api/generate/jobs/:jobId
+      if (segments.length === 2) {
+        if (req.method !== "GET") {
+          sendMethodNotAllowed(res);
+          return true;
+        }
+        return handleJobStatusRequest(req, res, jobId);
+      }
+
+      return respondNotFound(res);
+    }
+
+    default:
+      return respondNotFound(res);
   }
 }
 

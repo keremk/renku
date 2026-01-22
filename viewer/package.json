@@ -8,11 +8,16 @@
     "build": "tsc -b && pnpm run build:server && vite build",
     "build:server": "tsc --project tsconfig.server.json",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:typecheck": "tsc --project tsconfig.vitest.json --noEmit",
+    "check:all": "pnpm lint && pnpm test:typecheck && pnpm test"
   },
   "dependencies": {
     "@gorenku/compositions": "workspace:*",
     "@gorenku/core": "workspace:*",
+    "@gorenku/providers": "workspace:*",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
@@ -31,6 +36,8 @@
     "tailwindcss": "^4.1.17"
   },
   "devDependencies": {
+    "@vitest/ui": "^3.2.4",
+    "vitest": "^3.2.4",
     "@eslint/js": "^9.39.1",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
