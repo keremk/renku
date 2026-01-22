@@ -222,10 +222,10 @@ renku generate --movie-id=<movie-id> --inputs=<path> [--dry-run] [--non-interact
 renku generate --last --inputs=<path> [--dry-run] [--non-interactive] [--up-to-layer=<n>] [--re-run-from=<n>]
 ```
 
-**Usage (surgical regeneration of a specific artifact):**
+**Usage (surgical regeneration of specific artifacts):**
 ```bash
 renku generate --last --artifact-id=<artifact-id> --inputs=<path> [--up-to-layer=<n>]
-renku generate --movie-id=<movie-id> --artifact-id=<artifact-id> --inputs=<path> [--up-to-layer=<n>]
+renku generate --movie-id=<movie-id> --aid=<artifact-id> --aid=<artifact-id> --inputs=<path> [--up-to-layer=<n>]
 ```
 
 **Options:**
@@ -237,7 +237,7 @@ renku generate --movie-id=<movie-id> --artifact-id=<artifact-id> --inputs=<path>
 - `--non-interactive`: Skip confirmation prompt
 - `--up-to-layer` / `--up`: Stop execution after the specified layer (live runs only)
 - `--re-run-from` / `--from`: Re-run from specified layer (0-indexed), skipping earlier layers
-- `--artifact-id` / `--artifact`: Regenerate a specific artifact and its downstream dependencies only (requires `--last` or `--movie-id`)
+- `--artifact-id` / `--artifact` / `--aid`: Regenerate specific artifact(s) and their downstream dependencies only (requires `--last` or `--movie-id`). Can be specified multiple times to target multiple artifacts.
 
 **Behavior:**
 1. New runs: validate inputs/blueprint, generate a new movie id, create `builds/movie-{id}/`, and execute the workflow.
@@ -267,6 +267,12 @@ renku generate --last --artifact-id="AudioProducer.GeneratedAudio[0]" --inputs=.
 
 # Surgical regeneration with layer limit
 renku generate --movie-id=movie-q123456 --artifact-id="ImageProducer.GeneratedImage[2]" --inputs=./inputs.yaml --up-to-layer=1
+
+# Multiple artifact regeneration using --aid alias
+renku generate --last --aid="AudioProducer.GeneratedAudio[0]" --aid="AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+
+# Multiple artifacts with layer limit
+renku generate --last --aid="ImageProducer.GeneratedImage[1]" --aid="ImageProducer.GeneratedImage[3]" --inputs=./inputs.yaml --up-to-layer=2
 ```
 
 ---
@@ -781,22 +787,26 @@ renku generate --last --inputs=./inputs.yaml --from=2 --up-to-layer=3
 
 ### Surgical Artifact Regeneration
 
-When you need to regenerate only a specific artifact (and its downstream dependencies) without affecting sibling artifacts in the same layer, use `--artifact-id`:
+When you need to regenerate only specific artifacts (and their downstream dependencies) without affecting sibling artifacts in the same layer, use `--artifact-id` or the shorter `--aid` alias:
 
 ```bash
 # Regenerate only AudioProducer[0] and anything that depends on it
 renku generate --last --artifact-id="AudioProducer.GeneratedAudio[0]" --inputs=./inputs.yaml
+
+# Regenerate multiple artifacts using the --aid alias
+renku generate --last --aid="AudioProducer.GeneratedAudio[0]" --aid="AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
 ```
 
-**Note:** When using `--artifact-id` with shell interpreters like zsh, quote the artifact ID to prevent bracket expansion:
+**Note:** When using `--artifact-id` or `--aid` with shell interpreters like zsh, quote the artifact ID to prevent bracket expansion:
 ```bash
-renku generate --last --artifact-id="AudioProducer.GeneratedAudio[0]" --inputs=./inputs.yaml
+renku generate --last --aid="AudioProducer.GeneratedAudio[0]" --inputs=./inputs.yaml
 ```
 
-The `--artifact-id` flag:
+The `--artifact-id` / `--aid` flag:
 - Takes an artifact ID in short format (e.g., `AudioProducer.GeneratedAudio[0]`)
 - Requires `--last` or `--movie-id` to target an existing movie
-- Regenerates only the specified artifact and its downstream dependencies
+- Regenerates only the specified artifact(s) and their downstream dependencies
+- Can be specified multiple times to target multiple artifacts (union of all downstream jobs)
 - Does NOT regenerate sibling artifacts in the same layer
 - Is mutually exclusive with `--re-run-from`
 - Can be combined with `--up-to-layer` to limit downstream propagation
@@ -829,6 +839,14 @@ renku generate --last --artifact-id="AudioProducer.GeneratedAudio[2]" --inputs=.
 
 # This would regenerate ALL audio segments (not what you want)
 renku generate --last --from=1 --inputs=./inputs.yaml
+```
+
+**Example: Regenerating multiple segments**
+
+If segments 0 and 2 need work but segment 1 is fine:
+```bash
+# This regenerates Audio[0], Audio[2], and their downstream dependencies
+renku generate --last --aid="AudioProducer.GeneratedAudio[0]" --aid="AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
 ```
 
 ### Dry Run Mode

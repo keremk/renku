@@ -185,6 +185,7 @@ renku generate --last --inputs=<path> [options]
 **Usage (surgical regeneration):**
 ```bash
 renku generate --last --artifact-id=<id> --inputs=<path> [--up-to-layer=<n>]
+renku generate --last --aid=<id> --aid=<id> --inputs=<path> [--up-to-layer=<n>]
 ```
 
 **Options:**
@@ -199,7 +200,7 @@ renku generate --last --artifact-id=<id> --inputs=<path> [--up-to-layer=<n>]
 | `--non-interactive` | Skip confirmation prompts |
 | `--up-to-layer`, `--up` | Stop after specified layer (live runs only) |
 | `--re-run-from`, `--from` | Re-run from specified layer (0-indexed), skipping earlier layers |
-| `--artifact-id`, `--artifact` | Regenerate only a specific artifact and its downstream dependencies (requires `--last` or `--movie-id`) |
+| `--artifact-id`, `--artifact`, `--aid` | Regenerate specific artifact(s) and their downstream dependencies (requires `--last` or `--movie-id`). Can be specified multiple times. |
 
 **Behavior:**
 
@@ -246,6 +247,12 @@ renku generate --last --artifact-id="AudioProducer.GeneratedAudio[0]" --inputs=.
 
 # Surgical regeneration with layer limit
 renku generate --last --artifact-id="ImageProducer.GeneratedImage[2]" --inputs=./inputs.yaml --up-to-layer=1
+
+# Multiple artifact regeneration using --aid alias
+renku generate --last --aid="AudioProducer.GeneratedAudio[0]" --aid="AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+
+# Multiple artifacts with layer limit
+renku generate --last --aid="ImageProducer.GeneratedImage[1]" --aid="ImageProducer.GeneratedImage[3]" --inputs=./inputs.yaml --up-to-layer=2
 ```
 
 **Note:** When using `--artifact-id` with zsh, quote the artifact ID to prevent bracket expansion.

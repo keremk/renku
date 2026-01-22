@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createPlanner, computeArtifactRegenerationJobs } from './planner.js';
+import { createPlanner, computeArtifactRegenerationJobs, computeMultipleArtifactRegenerationJobs } from './planner.js';
 import { createEventLog } from '../event-log.js';
 import { createStorageContext, initializeMovieStorage } from '../storage.js';
 import { createManifestService, ManifestNotFoundError } from '../manifest.js';
@@ -1037,8 +1037,8 @@ describe('planner', () => {
     });
   });
 
-  describe('artifactRegeneration in computePlan', () => {
-    it('includes only source job and downstream when artifactRegeneration is provided', async () => {
+  describe('artifactRegenerations in computePlan', () => {
+    it('includes only source job and downstream when artifactRegenerations is provided (single artifact)', async () => {
       const ctx = memoryContext();
       await initializeMovieStorage(ctx, 'demo');
       const eventLog = createEventLog(ctx);
@@ -1080,10 +1080,10 @@ describe('planner', () => {
         blueprint: graph,
         targetRevision: 'rev-0002',
         pendingEdits: [],
-        artifactRegeneration: {
+        artifactRegenerations: [{
           targetArtifactId: 'Artifact:SegmentAudio[0]',
           sourceJobId: 'Producer:AudioProducer[0]',
-        },
+        }],
       });
 
       const jobsInPlan = plan.layers.flat();
@@ -1097,6 +1097,74 @@ describe('planner', () => {
       expect(jobsInPlan.some((job) => job.jobId === 'Producer:ScriptProducer')).toBe(false);
 
       expect(jobsInPlan.length).toBe(2);
+    });
+
+    it('includes union of jobs when multiple artifacts are targeted', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseRevision = 'rev-0001';
+      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+
+      const artefactCreatedAt = new Date().toISOString();
+      const manifest: Manifest = {
+        revision: baseRevision,
+        baseRevision: null,
+        createdAt: artefactCreatedAt,
+        inputs: Object.fromEntries(
+          baseline.map((event) => [
+            event.id,
+            { hash: event.hash, payloadDigest: hashPayload(event.payload).canonical, createdAt: event.createdAt },
+          ]),
+        ),
+        artefacts: {
+          'Artifact:NarrationScript[0]': { hash: 'h0', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
+          'Artifact:NarrationScript[1]': { hash: 'h1', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
+          'Artifact:SegmentAudio[0]': { hash: 'h2', producedBy: 'Producer:AudioProducer[0]', status: 'succeeded', createdAt: artefactCreatedAt },
+          'Artifact:SegmentAudio[1]': { hash: 'h3', producedBy: 'Producer:AudioProducer[1]', status: 'succeeded', createdAt: artefactCreatedAt },
+          'Artifact:FinalVideo': { hash: 'h4', producedBy: 'Producer:TimelineAssembler', status: 'succeeded', createdAt: artefactCreatedAt },
+        },
+        timeline: {},
+      };
+
+      // Surgical regeneration of BOTH AudioProducer[0] and AudioProducer[1]
+      const plan = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: [],
+        artifactRegenerations: [
+          {
+            targetArtifactId: 'Artifact:SegmentAudio[0]',
+            sourceJobId: 'Producer:AudioProducer[0]',
+          },
+          {
+            targetArtifactId: 'Artifact:SegmentAudio[1]',
+            sourceJobId: 'Producer:AudioProducer[1]',
+          },
+        ],
+      });
+
+      const jobsInPlan = plan.layers.flat();
+
+      // Should include BOTH AudioProducers and TimelineAssembler
+      expect(jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[0]')).toBe(true);
+      expect(jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[1]')).toBe(true);
+      expect(jobsInPlan.some((job) => job.jobId === 'Producer:TimelineAssembler')).toBe(true);
+
+      // Should NOT include upstream ScriptProducer
+      expect(jobsInPlan.some((job) => job.jobId === 'Producer:ScriptProducer')).toBe(false);
+
+      // Total: 3 jobs (2 audio + 1 timeline)
+      expect(jobsInPlan.length).toBe(3);
     });
 
     it('surgical regeneration ignores reRunFrom parameter', async () => {
@@ -1142,10 +1210,10 @@ describe('planner', () => {
         targetRevision: 'rev-0002',
         pendingEdits: [],
         reRunFrom: 0, // This would normally include ALL jobs
-        artifactRegeneration: {
+        artifactRegenerations: [{
           targetArtifactId: 'Artifact:FinalVideo',
           sourceJobId: 'Producer:TimelineAssembler',
-        },
+        }],
       });
 
       const jobsInPlan = plan.layers.flat();
@@ -1153,6 +1221,144 @@ describe('planner', () => {
       // Should only include TimelineAssembler (no downstream)
       expect(jobsInPlan.length).toBe(1);
       expect(jobsInPlan[0]?.jobId).toBe('Producer:TimelineAssembler');
+    });
+  });
+
+  describe('computeMultipleArtifactRegenerationJobs', () => {
+    it('returns single source job set when given one source', () => {
+      const graph = buildProducerGraph();
+
+      // Single source - should behave same as computeArtifactRegenerationJobs
+      const jobs = computeMultipleArtifactRegenerationJobs(['Producer:AudioProducer[0]'], graph);
+
+      expect(jobs.size).toBe(2);
+      expect(jobs.has('Producer:AudioProducer[0]')).toBe(true);
+      expect(jobs.has('Producer:TimelineAssembler')).toBe(true);
+    });
+
+    it('returns union of non-overlapping source job sets', () => {
+      // Two separate branches that don't share downstream
+      const graph: ProducerGraph = {
+        nodes: [
+          {
+            jobId: 'Producer:A',
+            producer: 'ProducerA',
+            inputs: [],
+            produces: ['Artifact:A'],
+            provider: 'p-a',
+            providerModel: 'm-a',
+            rateKey: 'rk:a',
+            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerA', inputs: [], produces: [] },
+          },
+          {
+            jobId: 'Producer:B',
+            producer: 'ProducerB',
+            inputs: [],
+            produces: ['Artifact:B'],
+            provider: 'p-b',
+            providerModel: 'm-b',
+            rateKey: 'rk:b',
+            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerB', inputs: [], produces: [] },
+          },
+        ],
+        edges: [],
+      };
+
+      const jobs = computeMultipleArtifactRegenerationJobs(['Producer:A', 'Producer:B'], graph);
+
+      expect(jobs.size).toBe(2);
+      expect(jobs.has('Producer:A')).toBe(true);
+      expect(jobs.has('Producer:B')).toBe(true);
+    });
+
+    it('deduplicates jobs when sources share downstream dependencies', () => {
+      const graph = buildProducerGraph();
+
+      // Both AudioProducers share TimelineAssembler as downstream
+      const jobs = computeMultipleArtifactRegenerationJobs(
+        ['Producer:AudioProducer[0]', 'Producer:AudioProducer[1]'],
+        graph
+      );
+
+      // Should include both audio producers + TimelineAssembler (deduplicated)
+      expect(jobs.size).toBe(3);
+      expect(jobs.has('Producer:AudioProducer[0]')).toBe(true);
+      expect(jobs.has('Producer:AudioProducer[1]')).toBe(true);
+      expect(jobs.has('Producer:TimelineAssembler')).toBe(true);
+
+      // Should NOT include upstream ScriptProducer
+      expect(jobs.has('Producer:ScriptProducer')).toBe(false);
+    });
+
+    it('returns empty set for empty input', () => {
+      const graph = buildProducerGraph();
+
+      const jobs = computeMultipleArtifactRegenerationJobs([], graph);
+
+      expect(jobs.size).toBe(0);
+    });
+
+    it('handles diamond dependencies correctly with multiple sources', () => {
+      // Diamond: A -> B, A -> C, B -> D, C -> D
+      const graph: ProducerGraph = {
+        nodes: [
+          {
+            jobId: 'Producer:A',
+            producer: 'ProducerA',
+            inputs: [],
+            produces: ['Artifact:A'],
+            provider: 'p-a',
+            providerModel: 'm-a',
+            rateKey: 'rk:a',
+            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerA', inputs: [], produces: [] },
+          },
+          {
+            jobId: 'Producer:B',
+            producer: 'ProducerB',
+            inputs: ['Artifact:A'],
+            produces: ['Artifact:B'],
+            provider: 'p-b',
+            providerModel: 'm-b',
+            rateKey: 'rk:b',
+            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerB', inputs: [], produces: [] },
+          },
+          {
+            jobId: 'Producer:C',
+            producer: 'ProducerC',
+            inputs: ['Artifact:A'],
+            produces: ['Artifact:C'],
+            provider: 'p-c',
+            providerModel: 'm-c',
+            rateKey: 'rk:c',
+            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerC', inputs: [], produces: [] },
+          },
+          {
+            jobId: 'Producer:D',
+            producer: 'ProducerD',
+            inputs: ['Artifact:B', 'Artifact:C'],
+            produces: ['Artifact:D'],
+            provider: 'p-d',
+            providerModel: 'm-d',
+            rateKey: 'rk:d',
+            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerD', inputs: [], produces: [] },
+          },
+        ],
+        edges: [
+          { from: 'Producer:A', to: 'Producer:B' },
+          { from: 'Producer:A', to: 'Producer:C' },
+          { from: 'Producer:B', to: 'Producer:D' },
+          { from: 'Producer:C', to: 'Producer:D' },
+        ],
+      };
+
+      // Target both B and C - should include B, C, D (deduplicated) but not A
+      const jobs = computeMultipleArtifactRegenerationJobs(['Producer:B', 'Producer:C'], graph);
+
+      expect(jobs.size).toBe(3);
+      expect(jobs.has('Producer:B')).toBe(true);
+      expect(jobs.has('Producer:C')).toBe(true);
+      expect(jobs.has('Producer:D')).toBe(true);
+      expect(jobs.has('Producer:A')).toBe(false);
     });
   });
 });

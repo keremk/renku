@@ -54,8 +54,8 @@ export interface ExecuteBuildOptions {
   upToLayer?: number;
   /** Re-run from specific layer (skips earlier layers). */
   reRunFrom?: number;
-  /** Target artifact ID for surgical regeneration (canonical format). */
-  targetArtifactId?: string;
+  /** Target artifact IDs for surgical regeneration (canonical format). */
+  targetArtifactIds?: string[];
   /** Enable dry-run mode: simulated providers, no S3 uploads. */
   dryRun?: boolean;
   logger?: Logger;
@@ -190,8 +190,8 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<Execut
   if (options.reRunFrom !== undefined) {
     runConfig.reRunFrom = options.reRunFrom;
   }
-  if (options.targetArtifactId) {
-    runConfig.targetArtifactId = options.targetArtifactId;
+  if (options.targetArtifactIds && options.targetArtifactIds.length > 0) {
+    runConfig.targetArtifactIds = options.targetArtifactIds;
   }
   if (dryRun) {
     runConfig.dryRun = true;

@@ -586,8 +586,8 @@ export interface RunConfig {
   upToLayer?: number;
   /** Re-run from this layer index onwards (0-indexed) */
   reRunFrom?: number;
-  /** Target artifact ID for surgical regeneration (canonical format) */
-  targetArtifactId?: string;
+  /** Target artifact IDs for surgical regeneration (canonical format) */
+  targetArtifactIds?: string[];
   /** Whether this was a dry-run execution */
   dryRun?: boolean;
   /** Number of concurrent jobs used */

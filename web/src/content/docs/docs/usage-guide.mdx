@@ -320,23 +320,28 @@ renku generate --last --inputs=./inputs.yaml --from=2 --up-to-layer=3
 
 ### Surgical Artifact Regeneration
 
-When you need to regenerate just one specific artifact without affecting siblings, use `--artifact-id`:
+When you need to regenerate just one or a few specific artifacts without affecting siblings, use `--artifact-id` or the shorter `--aid` alias:
 
 ```bash
 # Regenerate only segment 2's audio (not segments 0, 1, 3, 4)
 renku generate --last --artifact-id="AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+
+# Regenerate multiple specific segments using --aid alias
+renku generate --last --aid="AudioProducer.GeneratedAudio[0]" --aid="AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
 ```
 
-This is different from `--from` which regenerates **all** jobs at a layer. With `--artifact-id`:
-- Only the specified artifact and its downstream dependencies are regenerated
+This is different from `--from` which regenerates **all** jobs at a layer. With `--artifact-id` / `--aid`:
+- Only the specified artifact(s) and their downstream dependencies are regenerated
 - Sibling artifacts in the same layer are untouched
+- Can be specified multiple times to target multiple artifacts
 - You can combine with `--up-to-layer` to limit how far downstream propagation goes
 
 **When to use each:**
 
 | Scenario | Use |
 |----------|-----|
-| One segment sounds wrong, others are fine | `--artifact-id` |
+| One segment sounds wrong, others are fine | `--artifact-id` or `--aid` |
+| Multiple specific segments need work | `--aid=X --aid=Y` |
 | Changed model settings, need to redo a layer | `--from` |
 | Generated up to layer 1, now want to fix one image | `--artifact-id` + `--up-to-layer` |
 | Need to retry all video generation | `--from=N` where N is the video layer |
@@ -350,7 +355,7 @@ cat builds/movie-{id}/manifests/rev-XXXX.json | jq '.artefacts | keys'
 
 **Note:** Quote the artifact ID when using zsh to prevent bracket expansion:
 ```bash
-renku generate --last --artifact-id="AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+renku generate --last --aid="AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
 ```
 
 ### Cost-Saving Strategies
@@ -360,7 +365,7 @@ renku generate --last --artifact-id="AudioProducer.GeneratedAudio[2]" --inputs=.
 3. **Iterate on prompts** - Edit video prompts before generating videos
 4. **Leverage caching** - Re-running generation only rebuilds changed artifacts
 5. **Use `--from` for retries** - If a later layer fails, use `--from=N` to retry from that layer without regenerating earlier content
-6. **Use `--artifact-id` for surgical fixes** - If only one segment needs work, regenerate just that artifact instead of the whole layer
+6. **Use `--aid` for surgical fixes** - If specific segments need work, regenerate just those artifacts instead of the whole layer (e.g., `--aid=Audio[0] --aid=Audio[2]`)
 
 ## Viewing Content
 

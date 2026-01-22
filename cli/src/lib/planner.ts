@@ -49,8 +49,8 @@ export interface GeneratePlanOptions {
   notifications?: import('@gorenku/core').NotificationBus;
   /** Force re-run from this layer index onwards (0-indexed). Jobs at this layer and above will be included in the plan. */
   reRunFrom?: number;
-  /** Target artifact ID for surgical regeneration (canonical format, e.g., "Artifact:AudioProducer.GeneratedAudio[0]") */
-  targetArtifactId?: string;
+  /** Target artifact IDs for surgical regeneration (canonical format, e.g., ["Artifact:AudioProducer.GeneratedAudio[0]"]) */
+  targetArtifactIds?: string[];
 }
 
 export interface GeneratePlanResult {
@@ -70,11 +70,11 @@ export interface GeneratePlanResult {
   catalogModelsDir?: string;
   /** Persist the plan to local storage. Call after confirmation. */
   persist: () => Promise<void>;
-  /** Surgical regeneration info when targetArtifactId is provided. */
-  surgicalInfo?: {
+  /** Surgical regeneration info when targetArtifactIds is provided. */
+  surgicalInfo?: Array<{
     targetArtifactId: string;
     sourceJobId: string;
-  };
+  }>;
 }
 
 export async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanResult> {
@@ -182,7 +182,7 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
     eventLog,
     pendingArtefacts: allPendingArtefacts.length > 0 ? allPendingArtefacts : undefined,
     reRunFrom: options.reRunFrom,
-    targetArtifactId: options.targetArtifactId,
+    targetArtifactIds: options.targetArtifactIds,
   });
   logger.debug('[planner] resolved inputs', { inputs: Object.keys(planResult.resolvedInputs) });
   const absolutePlanPath = resolve(storageRoot, basePath, movieId, 'runs', `${planResult.targetRevision}-plan.json`);
@@ -197,9 +197,9 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
     planResult.resolvedInputs
   );
 
-  // Derive surgical info if targetArtifactId was provided
-  const surgicalInfo = options.targetArtifactId
-    ? deriveSurgicalInfo(options.targetArtifactId, planResult.manifest)
+  // Derive surgical info if targetArtifactIds was provided
+  const surgicalInfo = options.targetArtifactIds?.length
+    ? deriveSurgicalInfoArray(options.targetArtifactIds, planResult.manifest)
     : undefined;
 
   return {
@@ -423,20 +423,24 @@ async function copyBlobsFromMemoryToLocal(
 }
 
 /**
- * Derive surgical regeneration info from the manifest.
+ * Derive surgical regeneration info from the manifest for multiple artifacts.
  */
-function deriveSurgicalInfo(
-  targetArtifactId: string,
+function deriveSurgicalInfoArray(
+  targetArtifactIds: string[],
   manifest: Manifest,
-): { targetArtifactId: string; sourceJobId: string } | undefined {
-  const entry = manifest.artefacts[targetArtifactId];
-  if (!entry) {
-    // If artifact not in manifest, we can't derive the source job
-    // This will be handled by the core's resolveArtifactToJob which will throw
-    return undefined;
+): Array<{ targetArtifactId: string; sourceJobId: string }> | undefined {
+  const results: Array<{ targetArtifactId: string; sourceJobId: string }> = [];
+  for (const targetArtifactId of targetArtifactIds) {
+    const entry = manifest.artefacts[targetArtifactId];
+    if (!entry) {
+      // If artifact not in manifest, we can't derive the source job
+      // This will be handled by the core's resolveArtifactsToJobs which will throw
+      continue;
+    }
+    results.push({
+      targetArtifactId,
+      sourceJobId: entry.producedBy,
+    });
   }
-  return {
-    targetArtifactId,
-    sourceJobId: entry.producedBy,
-  };
+  return results.length > 0 ? results : undefined;
 }

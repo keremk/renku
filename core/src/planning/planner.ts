@@ -31,8 +31,8 @@ interface ComputePlanArgs {
   pendingEdits?: InputEvent[];
   /** Force re-run from this layer index onwards (0-indexed). Jobs at this layer and above are marked dirty. */
   reRunFrom?: number;
-  /** Surgical artifact regeneration - regenerate only the target artifact and downstream dependencies. */
-  artifactRegeneration?: ArtifactRegenerationConfig;
+  /** Surgical artifact regeneration - regenerate only the target artifacts and downstream dependencies. */
+  artifactRegenerations?: ArtifactRegenerationConfig[];
 }
 
 interface GraphMetadata {
@@ -67,16 +67,17 @@ export function createPlanner(options: PlannerOptions = {}) {
       // Determine which jobs to include in the plan
       let jobsToInclude: Set<string>;
 
-      if (args.artifactRegeneration) {
-        // Surgical mode: only include source job + downstream dependencies
-        jobsToInclude = computeArtifactRegenerationJobs(
-          args.artifactRegeneration.sourceJobId,
+      if (args.artifactRegenerations && args.artifactRegenerations.length > 0) {
+        // Surgical mode: only include source jobs + downstream dependencies
+        const sourceJobIds = args.artifactRegenerations.map((r) => r.sourceJobId);
+        jobsToInclude = computeMultipleArtifactRegenerationJobs(
+          sourceJobIds,
           blueprint,
         );
         logger.debug?.('planner.surgical.jobs', {
           movieId: args.movieId,
-          sourceJobId: args.artifactRegeneration.sourceJobId,
-          targetArtifactId: args.artifactRegeneration.targetArtifactId,
+          sourceJobIds,
+          targetArtifactIds: args.artifactRegenerations.map((r) => r.targetArtifactId),
           jobs: Array.from(jobsToInclude),
         });
       } else {
@@ -95,7 +96,7 @@ export function createPlanner(options: PlannerOptions = {}) {
         metadata,
         blueprint,
         args.reRunFrom,
-        args.artifactRegeneration,
+        args.artifactRegenerations,
       );
 
       logger.debug?.('planner.plan.generated', {
@@ -219,12 +220,35 @@ export function computeArtifactRegenerationJobs(
   return jobs;
 }
 
+/**
+ * Compute which jobs to include for multiple artifact regeneration.
+ * Returns the union of all downstream jobs from all source jobs.
+ * This enables regenerating multiple specific artifacts in a single operation.
+ *
+ * @param sourceJobIds - Array of source job IDs to regenerate
+ * @param blueprint - The producer graph containing all job nodes and edges
+ * @returns Set of all job IDs to include (source jobs + all downstream dependencies)
+ */
+export function computeMultipleArtifactRegenerationJobs(
+  sourceJobIds: string[],
+  blueprint: ProducerGraph,
+): Set<string> {
+  const allJobs = new Set<string>();
+  for (const sourceJobId of sourceJobIds) {
+    const jobs = computeArtifactRegenerationJobs(sourceJobId, blueprint);
+    for (const job of jobs) {
+      allJobs.add(job);
+    }
+  }
+  return allJobs;
+}
+
 function buildExecutionLayers(
   dirtyJobs: Set<string>,
   metadata: Map<string, GraphMetadata>,
   blueprint: ProducerGraph,
   reRunFrom?: number,
-  artifactRegeneration?: ArtifactRegenerationConfig,
+  artifactRegenerations?: ArtifactRegenerationConfig[],
 ): ExecutionPlan['layers'] {
   // Determine stable layer indices for all producer jobs, then place dirty jobs into their original layer slots.
   const indegree = new Map<string, number>();
@@ -280,7 +304,8 @@ function buildExecutionLayers(
   // Combine dirty jobs with jobs forced by reRunFrom
   // Note: reRunFrom is NOT applied for surgical regeneration - it would defeat the purpose
   const jobsToInclude = new Set(dirtyJobs);
-  if (reRunFrom !== undefined && !artifactRegeneration) {
+  const inSurgicalMode = artifactRegenerations && artifactRegenerations.length > 0;
+  if (reRunFrom !== undefined && !inSurgicalMode) {
     // Force all jobs at layer >= reRunFrom to be included (normal mode only)
     for (const [jobId] of metadata) {
       const level = levelMap.get(jobId);

@@ -20,8 +20,8 @@ export interface PlanAdapterArgs {
   pendingEdits?: InputEvent[];
   /** Force re-run from this layer index onwards (0-indexed). Jobs at this layer and above will be included in the plan. */
   reRunFrom?: number;
-  /** Surgical artifact regeneration config - regenerate only the target artifact and downstream dependencies. */
-  artifactRegeneration?: ArtifactRegenerationConfig;
+  /** Surgical artifact regeneration configs - regenerate only the target artifacts and downstream dependencies. */
+  artifactRegenerations?: ArtifactRegenerationConfig[];
 }
 
 export type PlanAdapter = {

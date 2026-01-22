@@ -8,6 +8,7 @@ import {
 	displayPlanSummary,
 	displayCostSummary,
 	displaySurgicalPlanSummary,
+	type SurgicalTargetInfo,
 } from './plan-display.js';
 
 // Re-export for backward compatibility
@@ -20,10 +21,7 @@ interface PlanConfirmationOptions {
 	upToLayer?: number;
 	costSummary?: PlanCostSummary;
 	/** Surgical regeneration info. When provided, uses surgical plan display. */
-	surgicalMode?: {
-		targetArtifactId: string;
-		sourceJobId: string;
-	};
+	surgicalMode?: SurgicalTargetInfo[];
 }
 
 /**
@@ -38,11 +36,10 @@ export async function confirmPlanExecution(
 	displayInputSummary(options.inputs, logger);
 
 	// Use surgical display mode if surgicalMode is provided
-	if (options.surgicalMode) {
+	if (options.surgicalMode && options.surgicalMode.length > 0) {
 		displaySurgicalPlanSummary({
 			plan,
-			targetArtifactId: options.surgicalMode.targetArtifactId,
-			sourceJobId: options.surgicalMode.sourceJobId,
+			targets: options.surgicalMode,
 			logger,
 		});
 	} else {
@@ -52,7 +49,7 @@ export async function confirmPlanExecution(
 	displayCostSummary(options.costSummary, logger);
 
 	// Skip layer breakdown for surgical mode (not layer-based)
-	if (!options.surgicalMode) {
+	if (!options.surgicalMode || options.surgicalMode.length === 0) {
 		displayLayerBreakdown(
 			plan,
 			options.concurrency ?? 1,

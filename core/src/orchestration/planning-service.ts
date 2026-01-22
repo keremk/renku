@@ -62,8 +62,8 @@ export interface GeneratePlanArgs {
   inputSource?: InputEventSource;
   /** Force re-run from this layer index onwards (0-indexed). Jobs at this layer and above will be included in the plan. */
   reRunFrom?: number;
-  /** Target artifact ID for surgical regeneration. When provided, only this artifact and its downstream dependencies will be regenerated. */
-  targetArtifactId?: string;
+  /** Target artifact IDs for surgical regeneration. When provided, only these artifacts and their downstream dependencies will be regenerated. */
+  targetArtifactIds?: string[];
 }
 
 export interface GeneratePlanResult {
@@ -149,11 +149,11 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
         args.providerOptions,
       );
 
-      // Resolve artifact regeneration config if targetArtifactId is provided
-      let artifactRegeneration: ArtifactRegenerationConfig | undefined;
-      if (args.targetArtifactId) {
-        artifactRegeneration = resolveArtifactToJob(
-          args.targetArtifactId,
+      // Resolve artifact regeneration configs if targetArtifactIds is provided
+      let artifactRegenerations: ArtifactRegenerationConfig[] | undefined;
+      if (args.targetArtifactIds && args.targetArtifactIds.length > 0) {
+        artifactRegenerations = resolveArtifactsToJobs(
+          args.targetArtifactIds,
           manifest,
           producerGraph,
         );
@@ -167,7 +167,7 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
         targetRevision,
         pendingEdits: inputEvents,
         reRunFrom: args.reRunFrom,
-        artifactRegeneration,
+        artifactRegenerations,
       });
 
       await planStore.save(plan, { movieId: args.movieId, storage: args.storage });
@@ -407,6 +407,25 @@ export function injectDerivedInputs(
   }
 
   return result;
+}
+
+/**
+ * Resolve multiple artifact IDs to their producing jobs.
+ * Used for surgical regeneration of multiple artifacts.
+ *
+ * @param artifactIds - Array of canonical artifact IDs (e.g., ["Artifact:AudioProducer.GeneratedAudio[0]"])
+ * @param manifest - The current manifest containing artifact entries
+ * @param producerGraph - The producer graph with all job nodes
+ * @returns Array of ArtifactRegenerationConfig with target artifacts and source jobs
+ * @throws ARTIFACT_NOT_IN_MANIFEST if any artifact not found in manifest
+ * @throws ARTIFACT_JOB_NOT_FOUND if any producing job not found in graph
+ */
+export function resolveArtifactsToJobs(
+  artifactIds: string[],
+  manifest: Manifest,
+  producerGraph: { nodes: Array<{ jobId: string }> },
+): ArtifactRegenerationConfig[] {
+  return artifactIds.map((id) => resolveArtifactToJob(id, manifest, producerGraph));
 }
 
 /**

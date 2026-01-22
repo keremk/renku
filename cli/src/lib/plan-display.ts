@@ -119,24 +119,40 @@ export function formatCostRange(minCost: number, maxCost: number): string {
 	return `${formatCost(minCost)} - ${formatCost(maxCost)}`;
 }
 
-export interface SurgicalPlanDisplayOptions {
-	plan: ExecutionPlan;
+export interface SurgicalTargetInfo {
 	targetArtifactId: string;
 	sourceJobId: string;
+}
+
+export interface SurgicalPlanDisplayOptions {
+	plan: ExecutionPlan;
+	targets: SurgicalTargetInfo[];
 	logger?: Logger;
 }
 
 /**
  * Display a surgical regeneration plan summary.
- * Shows the target artifact, source job, and downstream dependencies.
+ * Shows the target artifacts, source jobs, and downstream dependencies.
  */
 export function displaySurgicalPlanSummary(options: SurgicalPlanDisplayOptions): void {
 	const logger = options.logger ?? globalThis.console;
 	const allJobs = options.plan.layers.flat();
+	const sourceJobIds = new Set(options.targets.map((t) => t.sourceJobId));
 
 	logger.info(`\n${chalk.bold('=== Surgical Regeneration Plan ===')}`);
-	logger.info(`${chalk.bold('Target Artifact')}: ${chalk.cyan(options.targetArtifactId)}`);
-	logger.info(`${chalk.bold('Source Job')}: ${chalk.blue(options.sourceJobId)}`);
+
+	// Show target artifacts
+	if (options.targets.length === 1) {
+		const target = options.targets[0];
+		logger.info(`${chalk.bold('Target Artifact')}: ${chalk.cyan(target.targetArtifactId)}`);
+		logger.info(`${chalk.bold('Source Job')}: ${chalk.blue(target.sourceJobId)}`);
+	} else {
+		logger.info(`${chalk.bold('Target Artifacts')}: ${options.targets.length}`);
+		for (const target of options.targets) {
+			logger.info(`  ${chalk.dim('•')} ${chalk.cyan(target.targetArtifactId)} (from ${chalk.blue(target.sourceJobId)})`);
+		}
+	}
+
 	logger.info(`${chalk.bold('Revision')}: ${options.plan.revision}`);
 	logger.info(`${chalk.bold('Total Jobs')}: ${allJobs.length}`);
 
@@ -144,14 +160,14 @@ export function displaySurgicalPlanSummary(options: SurgicalPlanDisplayOptions):
 	if (allJobs.length > 0) {
 		logger.info(`\n${chalk.bold('Jobs to Execute:')}`);
 
-		// Find the source job first
-		const sourceJob = allJobs.find((j) => j.jobId === options.sourceJobId);
-		if (sourceJob) {
-			logger.info(`  ${chalk.green('→')} ${chalk.bold(sourceJob.jobId)} [${sourceJob.producer}] ${chalk.yellow('(source)')}`);
+		// Find source jobs first
+		const sourceJobs = allJobs.filter((j) => sourceJobIds.has(j.jobId));
+		for (const job of sourceJobs) {
+			logger.info(`  ${chalk.green('→')} ${chalk.bold(job.jobId)} [${job.producer}] ${chalk.yellow('(source)')}`);
 		}
 
 		// Show downstream jobs
-		const downstreamJobs = allJobs.filter((j) => j.jobId !== options.sourceJobId);
+		const downstreamJobs = allJobs.filter((j) => !sourceJobIds.has(j.jobId));
 		for (const job of downstreamJobs) {
 			logger.info(`    ${chalk.dim('•')} ${job.jobId} [${job.producer}]`);
 		}
