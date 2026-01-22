@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createProviderProduce, injectDerivedSystemInputs } from './build.js';
+import { createProviderProduce } from '@gorenku/providers';
+import { injectDerivedSystemInputs } from '@gorenku/core';
 import type { LoadedProducerOption } from '@gorenku/core';
 import type {
 	ProviderRegistry,

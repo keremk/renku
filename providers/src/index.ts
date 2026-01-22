@@ -3,6 +3,7 @@ export { SchemaRegistry } from './schema-registry.js';
 export * from './sdk/index.js';
 export * from './producers/cost-functions.js';
 export { loadModelCatalog, lookupModel, loadModelInputSchema, loadModelSchemaFile, type LoadedModelCatalog, type ModelDefinition, type ModelType, type ProducerModelEntry, type SchemaFile } from './model-catalog.js';
+export * from './produce/provider-produce.js';
 export type {
   ProviderRegistry,
   ProviderRegistryOptions,

@@ -7,13 +7,13 @@ import {
   initializeMovieStorage,
   isRenkuError,
   RuntimeErrorCode,
+  executePlanWithConcurrency,
   type ExecutionPlan,
   type Manifest,
   type ProduceFn,
   type JobDescriptor,
   type ProviderName,
-} from '@gorenku/core';
-import { executePlanWithConcurrency } from './plan-runner.js';
+} from '../../src/index.js';
 
 async function createRunnerContext() {
   const movieId = 'movie-test';
@@ -334,5 +334,81 @@ describe('executePlanWithConcurrency', () => {
     expect(executed).toEqual(['layer-0-job', 'layer-1-job']);
     expect(result.jobs).toHaveLength(2);
     expect(result.jobs.every((j) => j.status === 'succeeded')).toBe(true);
+  });
+
+  it('emits progress events during execution', async () => {
+    const { movieId, storage, eventLog, manifestService, manifest } = await createRunnerContext();
+    const layers: ExecutionPlan['layers'] = [
+      [makeJob('layer-0-job')],
+      [makeJob('layer-1-job')],
+    ];
+    const plan: ExecutionPlan = {
+      revision: 'rev-0010',
+      manifestBaseHash: 'hash',
+      layers,
+      createdAt: new Date().toISOString(),
+    };
+    const produce: ProduceFn = async ({ job }) => ({
+      jobId: job.jobId,
+      status: 'succeeded',
+      artefacts: [],
+    });
+
+    const events: Array<{ type: string; layerIndex?: number }> = [];
+
+    await executePlanWithConcurrency(
+      plan,
+      { movieId, manifest, storage, eventLog, manifestService, produce },
+      {
+        concurrency: 1,
+        onProgress: (event) => {
+          events.push({ type: event.type, layerIndex: event.layerIndex });
+        },
+      },
+    );
+
+    // Should have layer-start, job-start, job-complete, layer-complete for each layer
+    expect(events.filter((e) => e.type === 'layer-start')).toHaveLength(2);
+    expect(events.filter((e) => e.type === 'job-start')).toHaveLength(2);
+    expect(events.filter((e) => e.type === 'job-complete')).toHaveLength(2);
+    expect(events.filter((e) => e.type === 'layer-complete')).toHaveLength(2);
+    expect(events.filter((e) => e.type === 'execution-complete')).toHaveLength(1);
+  });
+
+  it('supports cancellation via AbortSignal', async () => {
+    const { movieId, storage, eventLog, manifestService, manifest } = await createRunnerContext();
+    const layers: ExecutionPlan['layers'] = [
+      [makeJob('layer-0-job')],
+      [makeJob('layer-1-job')],
+      [makeJob('layer-2-job')],
+    ];
+    const plan: ExecutionPlan = {
+      revision: 'rev-0011',
+      manifestBaseHash: 'hash',
+      layers,
+      createdAt: new Date().toISOString(),
+    };
+
+    const abortController = new AbortController();
+    const executed: string[] = [];
+
+    const produce: ProduceFn = async ({ job }) => {
+      executed.push(job.jobId);
+      // Cancel after layer 0
+      if (job.jobId === 'layer-0-job') {
+        abortController.abort();
+      }
+      return { jobId: job.jobId, status: 'succeeded', artefacts: [] };
+    };
+
+    const result = await executePlanWithConcurrency(
+      plan,
+      { movieId, manifest, storage, eventLog, manifestService, produce },
+      { concurrency: 1, signal: abortController.signal },
+    );
+
+    // Only layer 0 should have been executed before cancellation
+    expect(executed).toEqual(['layer-0-job']);
+    expect(result.status).toBe('failed');
   });
 });
