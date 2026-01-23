@@ -17,6 +17,8 @@ import {
   handleStreamRequest,
   handleCancelRequest,
   sendMethodNotAllowed,
+  resolveBlueprintPaths,
+  readCliConfig,
 } from "./generation/index.js";
 
 interface BlueprintGraphData {
@@ -473,9 +475,52 @@ async function handleBlueprintRequest(
       await streamBuildBlob(req, res, folder, movieId, hash);
       return true;
     }
+    case "resolve": {
+      // Resolve blueprint name to full paths using CLI config
+      const name = url.searchParams.get("name");
+      if (!name) {
+        res.statusCode = 400;
+        res.end("Missing name parameter");
+        return true;
+      }
+      try {
+        const paths = await resolveBlueprintName(name);
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify(paths));
+        return true;
+      } catch (error) {
+        res.statusCode = 400;
+        const message = error instanceof Error ? error.message : "Failed to resolve blueprint";
+        res.end(JSON.stringify({ error: message }));
+        return true;
+      }
+    }
     default:
       return respondNotFound(res);
   }
+}
+
+interface ResolvedBlueprintInfo {
+  blueprintPath: string;
+  blueprintFolder: string;
+  inputsPath: string;
+  buildsFolder: string;
+  catalogRoot?: string;
+}
+
+async function resolveBlueprintName(name: string): Promise<ResolvedBlueprintInfo> {
+  const cliConfig = await readCliConfig();
+  if (!cliConfig) {
+    throw new Error('Renku CLI is not initialized. Run "renku init" first.');
+  }
+  const paths = await resolveBlueprintPaths(name, undefined, cliConfig);
+  return {
+    blueprintPath: paths.blueprintPath,
+    blueprintFolder: paths.blueprintFolder,
+    inputsPath: paths.inputsPath,
+    buildsFolder: paths.buildsFolder,
+    catalogRoot: cliConfig.catalog?.root,
+  };
 }
 
 async function parseBlueprintToGraph(blueprintPath: string, catalogRoot?: string): Promise<BlueprintGraphData> {

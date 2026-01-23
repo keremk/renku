@@ -1,5 +1,6 @@
 import type { Node, Edge } from "@xyflow/react";
 import type { BlueprintGraphData, BlueprintGraphNode, BlueprintGraphEdge } from "@/types/blueprint-graph";
+import type { ProducerStatusMap } from "@/types/generation";
 
 export interface LayoutConfig {
   nodeWidth: number;
@@ -22,7 +23,8 @@ export interface LayoutResult {
 
 export function layoutBlueprintGraph(
   data: BlueprintGraphData,
-  config: LayoutConfig = defaultConfig
+  config: LayoutConfig = defaultConfig,
+  producerStatuses?: ProducerStatusMap
 ): LayoutResult {
   const { nodes: graphNodes, edges: graphEdges } = data;
 
@@ -75,6 +77,7 @@ export function layoutBlueprintGraph(
         loop: node.loop,
         producerType: node.producerType,
         description: node.description,
+        status: producerStatuses?.[node.label] ?? 'not-run-yet',
       },
     });
   });

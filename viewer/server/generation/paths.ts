@@ -9,19 +9,14 @@ import { createRuntimeError, RuntimeErrorCode } from '@gorenku/core';
 import type { CliConfig } from './config.js';
 
 /**
- * Default inputs filename.
+ * Default inputs filename options (tried in order).
  */
-const DEFAULT_INPUTS_FILENAME = 'inputs.yaml';
+const DEFAULT_INPUTS_FILENAMES = ['inputs.yaml', 'input-template.yaml', 'input.yaml'];
 
 /**
- * Default blueprint filename within blueprint directory.
+ * Blueprint file extension.
  */
-const DEFAULT_BLUEPRINT_FILENAME = 'blueprint.yaml';
-
-/**
- * Blueprints subdirectory within storage root.
- */
-const BLUEPRINTS_DIR = 'blueprints';
+const BLUEPRINT_EXTENSION = '.yaml';
 
 /**
  * Builds subdirectory within blueprint folder.
@@ -46,9 +41,9 @@ export interface ResolvedPaths {
  * Resolves blueprint name and inputs to full paths.
  *
  * Blueprint naming convention:
- * - Blueprint: `storage.root/blueprints/<name>/blueprint.yaml`
- * - Inputs: `storage.root/blueprints/<name>/<inputs>` (default: inputs.yaml)
- * - Builds: `storage.root/blueprints/<name>/builds/`
+ * - Blueprint: `storage.root/<name>/blueprint.yaml`
+ * - Inputs: `storage.root/<name>/<inputs>` (default: inputs.yaml)
+ * - Builds: `storage.root/<name>/builds/`
  *
  * @param blueprintName - Blueprint name (e.g., "my-blueprint")
  * @param inputsFilename - Optional inputs filename (default: "inputs.yaml")
@@ -61,9 +56,9 @@ export async function resolveBlueprintPaths(
   config: CliConfig
 ): Promise<ResolvedPaths> {
   const storageRoot = config.storage.root;
-  const blueprintFolder = resolve(storageRoot, BLUEPRINTS_DIR, blueprintName);
-  const blueprintPath = join(blueprintFolder, DEFAULT_BLUEPRINT_FILENAME);
-  const inputsPath = join(blueprintFolder, inputsFilename ?? DEFAULT_INPUTS_FILENAME);
+  const blueprintFolder = resolve(storageRoot, blueprintName);
+  // Blueprint file is <name>/<name>.yaml
+  const blueprintPath = join(blueprintFolder, `${blueprintName}${BLUEPRINT_EXTENSION}`);
   const buildsFolder = join(blueprintFolder, BUILDS_DIR);
 
   // Validate blueprint path exists
@@ -74,22 +69,48 @@ export async function resolveBlueprintPaths(
       RuntimeErrorCode.CATALOG_BLUEPRINT_NOT_FOUND,
       `Blueprint not found: ${blueprintName}`,
       {
-        suggestion: `Expected blueprint at: ${blueprintPath}. Check that the blueprint exists in ${resolve(storageRoot, BLUEPRINTS_DIR)}`,
+        suggestion: `Expected blueprint at: ${blueprintPath}. Check that the blueprint folder exists in ${storageRoot}`,
       }
     );
   }
 
-  // Validate inputs path exists
-  try {
-    await access(inputsPath);
-  } catch {
-    throw createRuntimeError(
-      RuntimeErrorCode.MISSING_REQUIRED_INPUT,
-      `Inputs file not found: ${inputsFilename ?? DEFAULT_INPUTS_FILENAME}`,
-      {
-        suggestion: `Expected inputs at: ${inputsPath}`,
+  // Find inputs file - try explicit filename first, then defaults
+  let inputsPath: string | null = null;
+  if (inputsFilename) {
+    const explicitPath = join(blueprintFolder, inputsFilename);
+    try {
+      await access(explicitPath);
+      inputsPath = explicitPath;
+    } catch {
+      throw createRuntimeError(
+        RuntimeErrorCode.MISSING_REQUIRED_INPUT,
+        `Inputs file not found: ${inputsFilename}`,
+        {
+          suggestion: `Expected inputs at: ${explicitPath}`,
+        }
+      );
+    }
+  } else {
+    // Try default filenames in order
+    for (const defaultName of DEFAULT_INPUTS_FILENAMES) {
+      const candidatePath = join(blueprintFolder, defaultName);
+      try {
+        await access(candidatePath);
+        inputsPath = candidatePath;
+        break;
+      } catch {
+        // Continue to next candidate
       }
-    );
+    }
+    if (!inputsPath) {
+      throw createRuntimeError(
+        RuntimeErrorCode.MISSING_REQUIRED_INPUT,
+        `Inputs file not found. Tried: ${DEFAULT_INPUTS_FILENAMES.join(', ')}`,
+        {
+          suggestion: `Create an inputs file in ${blueprintFolder}`,
+        }
+      );
+    }
   }
 
   return {

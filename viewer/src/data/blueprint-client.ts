@@ -6,9 +6,30 @@ const API_BASE = "/viewer-api";
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Request failed (${response.status})`);
+    const errorText = await response.text().catch(() => "Unknown error");
+    throw new Error(`Request failed (${response.status}): ${errorText}`);
   }
   return response.json() as Promise<T>;
+}
+
+/**
+ * Resolved blueprint paths from the server.
+ */
+export interface ResolvedBlueprintPaths {
+  blueprintPath: string;
+  blueprintFolder: string;
+  inputsPath: string;
+  buildsFolder: string;
+  catalogRoot?: string;
+}
+
+/**
+ * Resolves a blueprint name to full paths using CLI config on the server.
+ */
+export function resolveBlueprintName(name: string): Promise<ResolvedBlueprintPaths> {
+  const url = new URL(`${API_BASE}/blueprints/resolve`, window.location.origin);
+  url.searchParams.set("name", name);
+  return fetchJson<ResolvedBlueprintPaths>(url.toString());
 }
 
 export function fetchBlueprintGraph(

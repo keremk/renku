@@ -3,6 +3,10 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { BlueprintFlow } from "./BlueprintFlow";
 import { DetailPanel } from "./DetailPanel";
 import { BuildsListSidebar } from "./BuildsListSidebar";
+import { RunButton } from "./run-button";
+import { LayerRangeSlider } from "./layer-range-slider";
+import { PlanDialog } from "./plan-dialog";
+import { ExecutionProvider, useExecution } from "@/contexts/execution-context";
 import type { BlueprintGraphData, InputTemplateData } from "@/types/blueprint-graph";
 import type { BuildInfo, BuildManifestResponse } from "@/types/builds";
 
@@ -12,6 +16,8 @@ interface BlueprintViewerProps {
   movieId: string | null;
   /** Blueprint folder for builds listing */
   blueprintFolder: string | null;
+  /** Blueprint name (folder name, e.g., "my-blueprint") for API calls */
+  blueprintName: string;
   /** List of builds in the folder */
   builds: BuildInfo[];
   /** Whether builds are loading */
@@ -27,11 +33,15 @@ const MIN_BLUEPRINT_FLOW_PERCENT = 30;
 const MAX_BLUEPRINT_FLOW_PERCENT = 70;
 const DEFAULT_BLUEPRINT_FLOW_PERCENT = 30;
 
-export function BlueprintViewer({
+/**
+ * Inner component that uses the execution context.
+ */
+function BlueprintViewerInner({
   graphData,
   inputData,
   movieId,
   blueprintFolder,
+  blueprintName,
   builds,
   buildsLoading,
   selectedBuildId,
@@ -41,6 +51,8 @@ export function BlueprintViewer({
   const [blueprintFlowPercent, setBlueprintFlowPercent] = useState(DEFAULT_BLUEPRINT_FLOW_PERCENT);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const { state, setLayerRange, setTotalLayers, initializeFromManifest } = useExecution();
 
   // Inputs panel is the inverse of blueprint flow
   const inputsPanelPercent = 100 - blueprintFlowPercent;
@@ -65,6 +77,24 @@ export function BlueprintViewer({
     // Fall back to the input data from file
     return inputData;
   }, [inputData, selectedBuildManifest]);
+
+  // Initialize producer statuses from manifest when build changes
+  useEffect(() => {
+    if (selectedBuildManifest?.artefacts) {
+      initializeFromManifest(selectedBuildManifest.artefacts);
+    }
+  }, [selectedBuildManifest, initializeFromManifest]);
+
+  // Calculate total layers from graph data for the layer slider
+  useEffect(() => {
+    // Count unique layers from producers
+    const producers = graphData.nodes.filter(n => n.type === 'producer');
+    // A simple heuristic: producers on a path define layers
+    // For now, we'll use the number of producers as a rough estimate
+    // This will be refined when the plan is created
+    const estimatedLayers = Math.max(1, Math.ceil(producers.length / 2));
+    setTotalLayers(estimatedLayers);
+  }, [graphData, setTotalLayers]);
 
   const handleNodeSelect = useCallback((nodeId: string | null) => {
     setSelectedNodeId(nodeId);
@@ -106,6 +136,11 @@ export function BlueprintViewer({
   // Determine effective movie ID - use selected build or passed movieId
   const effectiveMovieId = selectedBuildId ?? movieId;
 
+  // Create the Run button to pass to DetailPanel
+  const runButton = (
+    <RunButton blueprintName={blueprintName} movieId={effectiveMovieId ?? undefined} />
+  );
+
   return (
     <div
       className="h-screen w-screen bg-background text-foreground p-4 flex flex-col"
@@ -138,6 +173,7 @@ export function BlueprintViewer({
               movieId={effectiveMovieId}
               blueprintFolder={blueprintFolder}
               artifacts={selectedBuildManifest?.artefacts ?? []}
+              actionButton={runButton}
             />
           </div>
         </div>
@@ -163,34 +199,62 @@ export function BlueprintViewer({
             <BlueprintFlow
               graphData={graphData}
               onNodeSelect={handleNodeSelect}
+              producerStatuses={state.producerStatuses}
             />
           </ReactFlowProvider>
         </div>
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-6 text-xs text-muted-foreground pt-3 mt-3 border-t border-border/30 shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-full bg-blue-500/30 border border-blue-500/50" />
-          <span>Input</span>
+      <div className="flex items-center justify-between text-xs text-muted-foreground pt-3 mt-3 border-t border-border/30 shrink-0">
+        {/* Node types legend (left side) */}
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded-full bg-blue-500/30 border border-blue-500/50" />
+            <span>Input</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-3 rounded bg-card border border-border/60" />
+            <span>Producer</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded-full bg-purple-500/30 border border-purple-500/50" />
+            <span>Output</span>
+          </div>
+          <div className="flex items-center gap-2 ml-4">
+            <div className="w-8 h-0 border-t border-gray-400" />
+            <span>Connection</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-0 border-t border-dashed border-amber-400" />
+            <span>Conditional</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-3 rounded bg-card border border-border/60" />
-          <span>Producer</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-full bg-purple-500/30 border border-purple-500/50" />
-          <span>Output</span>
-        </div>
-        <div className="flex items-center gap-2 ml-4">
-          <div className="w-8 h-0 border-t border-gray-400" />
-          <span>Connection</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-0 border-t border-dashed border-amber-400" />
-          <span>Conditional</span>
-        </div>
+
+        {/* Layer slider (right side) */}
+        {state.totalLayers > 1 && (
+          <LayerRangeSlider
+            totalLayers={state.totalLayers}
+            value={state.layerRange}
+            onChange={setLayerRange}
+            disabled={state.status === 'executing' || state.status === 'planning'}
+          />
+        )}
       </div>
+
+      {/* Plan Dialog */}
+      <PlanDialog />
     </div>
+  );
+}
+
+/**
+ * BlueprintViewer wrapped with ExecutionProvider.
+ */
+export function BlueprintViewer(props: BlueprintViewerProps) {
+  return (
+    <ExecutionProvider>
+      <BlueprintViewerInner {...props} />
+    </ExecutionProvider>
   );
 }

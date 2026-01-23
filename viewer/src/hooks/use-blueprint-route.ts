@@ -12,13 +12,16 @@ function getSnapshot() {
 }
 
 export interface BlueprintRouteParams {
-  blueprintPath: string | null;
-  blueprintFolder: string | null;
-  inputsPath: string | null;
+  /** Blueprint name (folder name, e.g., "my-blueprint") */
+  blueprintName: string | null;
+  /** Optional inputs filename (just filename, not path) */
+  inputsFilename: string | null;
+  /** Movie ID for viewing existing build */
   movieId: string | null;
+  /** Selected build ID for the builds list */
   selectedBuildId: string | null;
+  /** Whether to use the last build */
   useLast: boolean;
-  catalogRoot: string | null;
 }
 
 function parseBlueprintRoute(href: string): BlueprintRouteParams | null {
@@ -28,26 +31,22 @@ function parseBlueprintRoute(href: string): BlueprintRouteParams | null {
       return null;
     }
 
-    const blueprintPath = url.searchParams.get("bp");
-    const blueprintFolder = url.searchParams.get("folder");
-    const inputsPath = url.searchParams.get("in");
+    const blueprintName = url.searchParams.get("bp");
+    const inputsFilename = url.searchParams.get("in");
     const movieId = url.searchParams.get("movie");
     const selectedBuildId = url.searchParams.get("build");
     const useLast = url.searchParams.get("last") === "1";
-    const catalogRoot = url.searchParams.get("catalog");
 
-    if (!blueprintPath) {
+    if (!blueprintName) {
       return null;
     }
 
     return {
-      blueprintPath,
-      blueprintFolder,
-      inputsPath,
+      blueprintName,
+      inputsFilename,
       movieId,
       selectedBuildId,
       useLast,
-      catalogRoot,
     };
   } catch {
     return null;

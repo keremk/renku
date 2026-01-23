@@ -3,6 +3,7 @@ import { InputsPanel } from "./InputsPanel";
 import { OutputsPanel } from "./OutputsPanel";
 import type { BlueprintGraphData, InputTemplateData } from "@/types/blueprint-graph";
 import type { ArtifactInfo } from "@/types/builds";
+import type { ReactNode } from "react";
 
 type Tab = "inputs" | "outputs";
 
@@ -13,6 +14,8 @@ interface DetailPanelProps {
   movieId: string | null;
   blueprintFolder: string | null;
   artifacts: ArtifactInfo[];
+  /** Optional action button to render in the tab bar (e.g., Run button) */
+  actionButton?: ReactNode;
 }
 
 export function DetailPanel({
@@ -22,23 +25,32 @@ export function DetailPanel({
   movieId,
   blueprintFolder,
   artifacts,
+  actionButton,
 }: DetailPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>("inputs");
 
   return (
     <div className="flex flex-col h-full bg-card rounded-xl border border-border/60 overflow-hidden">
       {/* Tab buttons */}
-      <div className="flex border-b border-border/40">
-        <TabButton
-          label="Inputs"
-          active={activeTab === "inputs"}
-          onClick={() => setActiveTab("inputs")}
-        />
-        <TabButton
-          label="Outputs"
-          active={activeTab === "outputs"}
-          onClick={() => setActiveTab("outputs")}
-        />
+      <div className="flex items-center border-b border-border/40">
+        <div className="flex">
+          <TabButton
+            label="Inputs"
+            active={activeTab === "inputs"}
+            onClick={() => setActiveTab("inputs")}
+          />
+          <TabButton
+            label="Outputs"
+            active={activeTab === "outputs"}
+            onClick={() => setActiveTab("outputs")}
+          />
+        </div>
+        {/* Action button area (right side of tabs) */}
+        {actionButton && (
+          <div className="ml-auto pr-3">
+            {actionButton}
+          </div>
+        )}
       </div>
 
       {/* Tab content */}

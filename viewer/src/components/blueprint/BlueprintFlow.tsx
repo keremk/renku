@@ -1,13 +1,13 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useEffect } from "react";
 import {
   ReactFlow,
   Background,
   Controls,
-  MiniMap,
+  // MiniMap,
   useNodesState,
   useEdgesState,
   type OnNodesChange,
-  type Node,
+  // type Node,
   type NodeTypes,
   type EdgeTypes,
 } from "@xyflow/react";
@@ -19,6 +19,7 @@ import { OutputNode } from "./nodes/OutputNode";
 import { ConditionalEdge } from "./edges/ConditionalEdge";
 import { layoutBlueprintGraph } from "@/lib/blueprint-layout";
 import type { BlueprintGraphData } from "@/types/blueprint-graph";
+import type { ProducerStatusMap } from "@/types/generation";
 
 const nodeTypes: NodeTypes = {
   inputNode: InputNode,
@@ -33,16 +34,45 @@ const edgeTypes: EdgeTypes = {
 interface BlueprintFlowProps {
   graphData: BlueprintGraphData;
   onNodeSelect?: (nodeId: string | null) => void;
+  producerStatuses?: ProducerStatusMap;
 }
 
-export function BlueprintFlow({ graphData, onNodeSelect }: BlueprintFlowProps) {
+export function BlueprintFlow({
+  graphData,
+  onNodeSelect,
+  producerStatuses,
+}: BlueprintFlowProps) {
   const { nodes: initialNodes, edges: initialEdges } = useMemo(
-    () => layoutBlueprintGraph(graphData),
-    [graphData]
+    () => layoutBlueprintGraph(graphData, undefined, producerStatuses),
+    [graphData, producerStatuses]
   );
 
-  const [nodes, , onNodesChange] = useNodesState(initialNodes);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+
+  // Update nodes when producer statuses change
+  useEffect(() => {
+    if (!producerStatuses) return;
+
+    setNodes((currentNodes) =>
+      currentNodes.map((node) => {
+        if (node.type === "producerNode") {
+          const nodeData = node.data as { label?: string };
+          const label = nodeData?.label;
+          if (label && producerStatuses[label]) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                status: producerStatuses[label],
+              },
+            };
+          }
+        }
+        return node;
+      })
+    );
+  }, [producerStatuses, setNodes]);
 
   const handleNodesChange: OnNodesChange = useCallback(
     (changes) => {
@@ -89,7 +119,7 @@ export function BlueprintFlow({ graphData, onNodeSelect }: BlueprintFlowProps) {
           className="!bg-card !border-border/60 !shadow-lg"
           showInteractive={false}
         />
-        <MiniMap
+        {/* <MiniMap
           className="!bg-card !border-border/60"
           nodeColor={(node: Node) => {
             switch (node.type) {
@@ -104,7 +134,7 @@ export function BlueprintFlow({ graphData, onNodeSelect }: BlueprintFlowProps) {
             }
           }}
           maskColor="rgba(0,0,0,0.8)"
-        />
+        /> */}
       </ReactFlow>
     </div>
   );

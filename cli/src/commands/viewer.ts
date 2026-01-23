@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { dirname } from 'node:path';
+import { basename, dirname } from 'node:path';
 import process from 'node:process';
 import { openBrowser } from '../lib/open-browser.js';
 import type { CliConfig } from '../lib/cli-config.js';
@@ -237,21 +237,21 @@ export async function runViewerBlueprint(options: ViewerBlueprintOptions): Promi
     }
   }
 
-  // Build the URL with query parameters
+  // Extract blueprint name from folder path (last segment)
+  // e.g., "/path/to/blueprints/my-blueprint" -> "my-blueprint"
+  const blueprintName = blueprintFolder
+    ? basename(blueprintFolder)
+    : basename(dirname(blueprintPath));
+
+  // Build the URL with query parameters - use blueprint name, not full path
   const url = new URL(`http://${activeHost}:${activePort}/blueprints`);
-  url.searchParams.set('bp', blueprintPath);
-  if (blueprintFolder) {
-    url.searchParams.set('folder', blueprintFolder);
-  }
+  url.searchParams.set('bp', blueprintName);
   if (options.inputsPath) {
-    url.searchParams.set('in', options.inputsPath);
+    // Extract just the filename for inputs (relative to blueprint folder)
+    url.searchParams.set('in', basename(options.inputsPath));
   }
   if (options.movieId) {
     url.searchParams.set('movie', options.movieId);
-  }
-  // Include catalog root for resolving qualified producer names
-  if (cliConfig.catalog?.root) {
-    url.searchParams.set('catalog', cliConfig.catalog.root);
   }
   if (usingLast) {
     url.searchParams.set('last', '1');

@@ -26,32 +26,33 @@ function App() {
 
 function BlueprintApp() {
   const blueprintRoute = useBlueprintRoute();
-  const { graph, inputs, status, error } = useBlueprintData(
-    blueprintRoute?.blueprintPath ?? null,
-    blueprintRoute?.inputsPath ?? null,
-    blueprintRoute?.catalogRoot
+
+  // Load blueprint data by name - this resolves the name to paths and fetches data
+  const { graph, inputs, resolvedPaths, status, error } = useBlueprintData(
+    blueprintRoute?.blueprintName ?? null,
+    blueprintRoute?.inputsFilename
   );
 
-  // Load builds list when blueprint folder is available
+  // Load builds list when blueprint folder is available (from resolved paths)
   const { builds, status: buildsStatus } = useBuildsList(
-    blueprintRoute?.blueprintFolder ?? null
+    resolvedPaths?.blueprintFolder ?? null
   );
 
   // Load manifest for selected build
   const { manifest: selectedBuildManifest } = useBuildManifest(
-    blueprintRoute?.blueprintFolder ?? null,
+    resolvedPaths?.blueprintFolder ?? null,
     blueprintRoute?.selectedBuildId ?? null
   );
 
-  if (!blueprintRoute?.blueprintPath) {
+  if (!blueprintRoute?.blueprintName) {
     return (
       <LandingLayout>
         <h1 className="text-3xl font-semibold">Blueprint Viewer</h1>
         <p className="text-muted-foreground">
-          No blueprint path provided. Use the CLI:
+          No blueprint provided. Use the CLI:
         </p>
         <code className="text-sm bg-muted/50 p-2 rounded">
-          renku viewer:blueprint --bp=&lt;blueprint.yaml&gt;
+          renku viewer:blueprint --bp=&lt;blueprint-name&gt;
         </code>
       </LandingLayout>
     );
@@ -79,7 +80,8 @@ function BlueprintApp() {
       graphData={graph}
       inputData={inputs}
       movieId={blueprintRoute.movieId}
-      blueprintFolder={blueprintRoute.blueprintFolder}
+      blueprintFolder={resolvedPaths?.blueprintFolder ?? null}
+      blueprintName={blueprintRoute.blueprintName}
       builds={builds}
       buildsLoading={buildsStatus === "loading"}
       selectedBuildId={blueprintRoute.selectedBuildId}
