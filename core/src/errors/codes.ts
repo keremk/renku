@@ -201,6 +201,9 @@ export const RuntimeErrorCode = {
   JOB_NOT_FOUND: 'R112',
   JOB_ALREADY_RUNNING: 'R113',
   VIEWER_CONFIG_MISSING: 'R114',
+
+  // R120-R129: Stage Range Validation
+  STAGE_START_REQUIRES_PREDECESSOR: 'R120',
 } as const;
 
 export type RuntimeErrorCodeValue = (typeof RuntimeErrorCode)[keyof typeof RuntimeErrorCode];

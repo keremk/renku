@@ -13,6 +13,10 @@
     "./blueprint-loader": {
       "types": "./dist/blueprint-loader/index.d.ts",
       "import": "./dist/blueprint-loader/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js"
     }
   },
   "license": "MIT",

@@ -4,7 +4,6 @@ import { BlueprintFlow } from "./BlueprintFlow";
 import { DetailPanel } from "./DetailPanel";
 import { BuildsListSidebar } from "./BuildsListSidebar";
 import { RunButton } from "./run-button";
-import { LayerRangeSlider } from "./layer-range-slider";
 import { PlanDialog } from "./plan-dialog";
 import { ExecutionProvider, useExecution } from "@/contexts/execution-context";
 import type { BlueprintGraphData, InputTemplateData } from "@/types/blueprint-graph";
@@ -52,7 +51,7 @@ function BlueprintViewerInner({
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { state, setLayerRange, setTotalLayers, initializeFromManifest } = useExecution();
+  const { state, setTotalLayers, initializeFromManifest } = useExecution();
 
   // Inputs panel is the inverse of blueprint flow
   const inputsPanelPercent = 100 - blueprintFlowPercent;
@@ -206,8 +205,8 @@ function BlueprintViewerInner({
       </div>
 
       {/* Legend */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground pt-3 mt-3 border-t border-border/30 shrink-0">
-        {/* Node types legend (left side) */}
+      <div className="flex items-center text-xs text-muted-foreground pt-3 mt-3 border-t border-border/30 shrink-0">
+        {/* Node types legend */}
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded-full bg-blue-500/30 border border-blue-500/50" />
@@ -230,16 +229,6 @@ function BlueprintViewerInner({
             <span>Conditional</span>
           </div>
         </div>
-
-        {/* Layer slider (right side) */}
-        {state.totalLayers > 1 && (
-          <LayerRangeSlider
-            totalLayers={state.totalLayers}
-            value={state.layerRange}
-            onChange={setLayerRange}
-            disabled={state.status === 'executing' || state.status === 'planning'}
-          />
-        )}
       </div>
 
       {/* Plan Dialog */}

@@ -3,6 +3,7 @@
  * Shows cost breakdown and allows user to confirm or cancel execution.
  */
 
+import { useMemo } from "react";
 import { AlertTriangle } from "lucide-react";
 import {
   Dialog,
@@ -12,8 +13,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { LayerRangeSlider } from "./layer-range-slider";
+import { StageRangePicker } from "./stage-range-picker";
+import type { StageStatus } from "@gorenku/core/browser";
 import { useExecution } from "@/contexts/execution-context";
+import type { ProducerStatusMap, LayerRange, PlanDisplayInfo } from "@/types/generation";
 
 /**
  * Format currency value for display.
@@ -24,6 +27,95 @@ function formatCurrency(value: number): string {
   return `$${value.toFixed(2)}`;
 }
 
+/**
+ * Convert LayerRange to StageRange format.
+ */
+function layerRangeToStageRange(
+  layerRange: LayerRange,
+  totalLayers: number,
+): { startStage: number; endStage: number } {
+  return {
+    startStage: layerRange.reRunFrom ?? 0,
+    endStage: layerRange.upToLayer ?? totalLayers - 1,
+  };
+}
+
+/**
+ * Convert StageRange back to LayerRange format.
+ */
+function stageRangeToLayerRange(
+  stageRange: { startStage: number; endStage: number },
+  totalLayers: number,
+): LayerRange {
+  return {
+    reRunFrom: stageRange.startStage === 0 ? null : stageRange.startStage,
+    upToLayer: stageRange.endStage === totalLayers - 1 ? null : stageRange.endStage,
+  };
+}
+
+/**
+ * Derive stage statuses from producer statuses and plan layer breakdown.
+ *
+ * A stage is:
+ * - 'succeeded' if all producers in that layer have status 'success'
+ * - 'failed' if any producer has status 'error'
+ * - 'not-run' otherwise
+ */
+function deriveStageStatusesFromProducerStatuses(
+  planInfo: PlanDisplayInfo,
+  producerStatuses: ProducerStatusMap,
+): StageStatus[] | null {
+  // If no producer statuses exist, this is a clean run
+  if (Object.keys(producerStatuses).length === 0) {
+    return null;
+  }
+
+  return planInfo.layerBreakdown.map((layer) => {
+    const producers = layer.jobs.map((job) => job.producer);
+
+    if (producers.length === 0) {
+      return 'succeeded'; // Empty layers are considered succeeded
+    }
+
+    let hasAnyRun = false;
+    let hasAnyFailed = false;
+    let allSucceeded = true;
+
+    for (const producer of producers) {
+      const status = producerStatuses[producer];
+
+      if (status === 'success') {
+        hasAnyRun = true;
+      } else if (status === 'error') {
+        hasAnyRun = true;
+        hasAnyFailed = true;
+        allSucceeded = false;
+      } else if (status === 'running' || status === 'pending') {
+        // Currently running or pending - treat as not yet complete
+        allSucceeded = false;
+      } else {
+        // 'not-run-yet' or undefined
+        allSucceeded = false;
+      }
+    }
+
+    if (!hasAnyRun) {
+      return 'not-run';
+    }
+
+    if (hasAnyFailed) {
+      return 'failed';
+    }
+
+    if (allSucceeded) {
+      return 'succeeded';
+    }
+
+    // Partial run - treat as not-run for safety
+    return 'not-run';
+  });
+}
+
 export function PlanDialog() {
   const {
     state,
@@ -32,10 +124,28 @@ export function PlanDialog() {
     dismissDialog,
   } = useExecution();
 
-  const { planInfo, status, layerRange, error } = state;
+  const { planInfo, status, layerRange, error, producerStatuses } = state;
 
   // Only show when in confirming state or when there's an error to display
   const isOpen = status === 'confirming' || (status === 'failed' && error !== null);
+
+  // Derive stage statuses from producer statuses
+  const stageStatuses = useMemo(() => {
+    if (!planInfo) return null;
+    return deriveStageStatusesFromProducerStatuses(planInfo, producerStatuses);
+  }, [planInfo, producerStatuses]);
+
+  // Convert layer range to stage range
+  const stageRange = useMemo(() => {
+    if (!planInfo) return { startStage: 0, endStage: 0 };
+    return layerRangeToStageRange(layerRange, planInfo.layers);
+  }, [layerRange, planInfo]);
+
+  // Handle stage range changes
+  const handleStageRangeChange = (newRange: { startStage: number; endStage: number }) => {
+    if (!planInfo) return;
+    setLayerRange(stageRangeToLayerRange(newRange, planInfo.layers));
+  };
 
   if (!isOpen) return null;
 
@@ -99,14 +209,15 @@ export function PlanDialog() {
             </div>
           </div>
 
-          {/* Layer Range Slider */}
+          {/* Stage Range Picker */}
           {planInfo.layers > 1 && (
-            <div className="flex items-center justify-between py-2 border-t border-border/40">
-              <span className="text-sm text-muted-foreground">Layer Range:</span>
-              <LayerRangeSlider
-                totalLayers={planInfo.layers}
-                value={layerRange}
-                onChange={setLayerRange}
+            <div className="py-3 border-t border-border/40">
+              <div className="text-sm text-muted-foreground mb-2">Select Stage Range:</div>
+              <StageRangePicker
+                totalStages={planInfo.layers}
+                value={stageRange}
+                onChange={handleStageRangeChange}
+                stageStatuses={stageStatuses}
               />
             </div>
           )}

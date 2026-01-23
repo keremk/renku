@@ -90,17 +90,20 @@ describe('resolveBlueprintPaths', () => {
 
     const result = await resolveBlueprintPaths('my-blueprint', undefined, mockConfig);
 
-    expect(result.blueprintPath).toBe(
-      resolve('/test/storage', 'blueprints', 'my-blueprint', 'blueprint.yaml')
-    );
-    expect(result.inputsPath).toBe(
-      resolve('/test/storage', 'blueprints', 'my-blueprint', 'inputs.yaml')
-    );
+    // Blueprint folder is directly under storage.root/<name>
     expect(result.blueprintFolder).toBe(
-      resolve('/test/storage', 'blueprints', 'my-blueprint')
+      resolve('/test/storage', 'my-blueprint')
+    );
+    // Blueprint file is <name>/<name>.yaml
+    expect(result.blueprintPath).toBe(
+      join(resolve('/test/storage', 'my-blueprint'), 'my-blueprint.yaml')
+    );
+    // First default inputs filename is inputs.yaml
+    expect(result.inputsPath).toBe(
+      join(resolve('/test/storage', 'my-blueprint'), 'inputs.yaml')
     );
     expect(result.buildsFolder).toBe(
-      join(resolve('/test/storage', 'blueprints', 'my-blueprint'), 'builds')
+      join(resolve('/test/storage', 'my-blueprint'), 'builds')
     );
   });
 
@@ -110,7 +113,7 @@ describe('resolveBlueprintPaths', () => {
     const result = await resolveBlueprintPaths('my-blueprint', 'custom-inputs.yaml', mockConfig);
 
     expect(result.inputsPath).toBe(
-      resolve('/test/storage', 'blueprints', 'my-blueprint', 'custom-inputs.yaml')
+      join(resolve('/test/storage', 'my-blueprint'), 'custom-inputs.yaml')
     );
   });
 
@@ -127,16 +130,18 @@ describe('resolveBlueprintPaths', () => {
 
   it('throws MISSING_REQUIRED_INPUT when inputs missing', async () => {
     // First call succeeds (blueprint exists)
+    // Then all default inputs filenames fail (inputs.yaml, input-template.yaml, input.yaml)
     vi.mocked(fs.access)
-      .mockResolvedValueOnce(undefined)
-      // Second call fails (inputs missing)
-      .mockRejectedValueOnce(new Error('ENOENT'));
+      .mockResolvedValueOnce(undefined) // blueprint exists
+      .mockRejectedValueOnce(new Error('ENOENT')) // inputs.yaml missing
+      .mockRejectedValueOnce(new Error('ENOENT')) // input-template.yaml missing
+      .mockRejectedValueOnce(new Error('ENOENT')); // input.yaml missing
 
     await expect(
       resolveBlueprintPaths('my-blueprint', undefined, mockConfig)
     ).rejects.toMatchObject({
       code: 'R042',
-      message: 'Inputs file not found: inputs.yaml',
+      message: 'Inputs file not found. Tried: inputs.yaml, input-template.yaml, input.yaml',
     });
   });
 

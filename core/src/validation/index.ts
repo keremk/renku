@@ -41,3 +41,17 @@ export {
   findUnusedArtifacts,
   findUnreachableProducers,
 } from './blueprint-validator.js';
+
+// Stage range validation
+export {
+  type StageStatus,
+  type StageRange,
+  type StageValidationContext,
+  type StageValidationIssue,
+  type StageValidationResult,
+  validateStageRange,
+  isValidStartStage,
+  getValidStartStages,
+  deriveStageStatuses,
+  deriveStageStatusesFromDisplayInfo,
+} from './stage-range-validator.js';

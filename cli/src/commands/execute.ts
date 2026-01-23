@@ -9,7 +9,16 @@ import { readMovieMetadata } from '../lib/movie-metadata.js';
 import { resolveBlueprintSpecifier } from '../lib/config-assets.js';
 import { resolveAndPersistConcurrency } from '../lib/concurrency.js';
 import { cleanupPartialRunDirectory } from '../lib/cleanup.js';
-import type { Logger } from '@gorenku/core';
+import {
+  createRuntimeError,
+  RuntimeErrorCode,
+  validateStageRange,
+  deriveStageStatuses,
+  type Logger,
+  type ExecutionPlan,
+  type Manifest,
+  type StageStatus,
+} from '@gorenku/core';
 
 /**
  * Unified execution options supporting both new and existing movies.
@@ -161,6 +170,16 @@ export async function runExecute(options: ExecuteOptions): Promise<ExecuteResult
     reRunFrom: options.reRunFrom,
     targetArtifactIds: options.targetArtifactIds,
   });
+
+  // Validate reRunFrom against previous stage statuses
+  if (options.reRunFrom !== undefined && options.reRunFrom > 0) {
+    validateReRunFromStage(
+      options.reRunFrom,
+      planResult.plan,
+      planResult.manifest,
+      isNew,
+    );
+  }
 
   if (options.dryRun) {
     logger.debug?.('execute.dryrun.plan.debug', {
@@ -391,4 +410,67 @@ async function handleCancellation(args: {
  */
 export function formatMovieId(publicId: string): string {
   return publicId.startsWith('movie-') ? publicId : `movie-${publicId}`;
+}
+
+/**
+ * Validate that reRunFrom is allowed based on previous stage statuses.
+ * Throws an error if the previous stage didn't succeed.
+ */
+function validateReRunFromStage(
+  reRunFrom: number,
+  plan: ExecutionPlan,
+  manifest: Manifest,
+  isNew: boolean,
+): void {
+  const totalLayers = plan.layers.length;
+
+  // For new movies (no manifest), only starting from 0 is valid
+  if (isNew || Object.keys(manifest.artefacts).length === 0) {
+    throw createRuntimeError(
+      RuntimeErrorCode.STAGE_START_REQUIRES_PREDECESSOR,
+      `Cannot re-run from layer ${reRunFrom}: this is a clean run with no previous execution history.`,
+      { suggestion: 'Remove --re-run-from to start from the beginning, or use an existing movie with --movie-id.' },
+    );
+  }
+
+  // Build producers by layer from the plan
+  const producersByLayer = plan.layers.map((layer) =>
+    layer.map((job) => job.producer),
+  );
+
+  // Build artifact statuses from manifest
+  // Artifact ID format: "Artifact:ProducerName.OutputName[index]"
+  const artifactStatuses = new Map<string, 'succeeded' | 'failed'>();
+
+  for (const [artifactId, entry] of Object.entries(manifest.artefacts)) {
+    const match = artifactId.match(/^Artifact:([^.]+)\./);
+    if (match) {
+      const producer = match[1];
+      const status = entry.status === 'succeeded' ? 'succeeded' : 'failed';
+
+      // Keep worst status for producer (failed > succeeded)
+      const existing = artifactStatuses.get(producer);
+      if (!existing || status === 'failed') {
+        artifactStatuses.set(producer, status);
+      }
+    }
+  }
+
+  // Derive stage statuses
+  const stageStatuses: StageStatus[] = deriveStageStatuses(producersByLayer, artifactStatuses);
+
+  // Validate the range
+  const validationResult = validateStageRange(
+    { startStage: reRunFrom, endStage: totalLayers - 1 },
+    { totalStages: totalLayers, stageStatuses },
+  );
+
+  if (!validationResult.valid) {
+    const issue = validationResult.issues[0];
+    throw createRuntimeError(
+      RuntimeErrorCode.STAGE_START_REQUIRES_PREDECESSOR,
+      `Cannot re-run from layer ${reRunFrom}: ${issue?.message ?? 'previous stage did not succeed'}`,
+      { suggestion: 'Run from an earlier layer or re-run the failed stage first.' },
+    );
+  }
 }
