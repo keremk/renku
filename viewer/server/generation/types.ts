@@ -4,7 +4,7 @@
  */
 
 import type { ExecutionPlan, Manifest } from '@gorenku/core';
-import type { PlanCostSummary } from '@gorenku/providers';
+import type { PlanCostSummary, ProducerCostData } from '@gorenku/providers';
 
 // =============================================================================
 // Request Types
@@ -54,6 +54,21 @@ export interface CancelRequest {
 // =============================================================================
 
 /**
+ * Serializable version of PlanCostSummary for JSON transport.
+ * Converts byProducer from Map to plain object.
+ */
+export interface SerializablePlanCostSummary {
+  jobs: PlanCostSummary['jobs'];
+  byProducer: Record<string, ProducerCostData>;
+  totalCost: number;
+  hasPlaceholders: boolean;
+  hasRanges: boolean;
+  minTotalCost: number;
+  maxTotalCost: number;
+  missingProviders: string[];
+}
+
+/**
  * Response from POST /viewer-api/generate/plan
  */
 export interface PlanResponse {
@@ -65,14 +80,12 @@ export interface PlanResponse {
   layers: number;
   /** Total number of jobs across all layers */
   totalJobs: number;
-  /** Cost estimation summary */
-  costSummary: PlanCostSummary;
+  /** Cost estimation summary (serializable version with byProducer as object) */
+  costSummary: SerializablePlanCostSummary;
   /** Layer breakdown for display */
   layerBreakdown: LayerInfo[];
   /** Surgical regeneration info if artifactIds was provided */
   surgicalInfo?: SurgicalInfo[];
-  /** Timestamp when this plan expires from cache */
-  expiresAt: string;
 }
 
 /**
@@ -82,6 +95,14 @@ export interface LayerInfo {
   index: number;
   jobCount: number;
   jobs: LayerJobInfo[];
+  /** Total estimated cost for this layer */
+  layerCost: number;
+  /** Minimum cost for this layer (when ranges present) */
+  layerMinCost: number;
+  /** Maximum cost for this layer (when ranges present) */
+  layerMaxCost: number;
+  /** Whether any job in this layer has placeholder estimates */
+  hasPlaceholders: boolean;
 }
 
 /**
@@ -304,8 +325,6 @@ export interface CachedPlan {
   surgicalInfo?: SurgicalInfo[];
   /** When this plan was created */
   createdAt: Date;
-  /** When this plan expires */
-  expiresAt: Date;
   /** Async persist function from planner */
   persist: () => Promise<void>;
 }

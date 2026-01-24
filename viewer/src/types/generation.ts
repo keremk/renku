@@ -56,6 +56,16 @@ export interface ProducerCostEntry {
   count: number;
   cost: number;
   hasPlaceholders: boolean;
+  /** Whether this producer has cost data (false means show "N/A") */
+  hasCostData: boolean;
+}
+
+/**
+ * Surgical regeneration display info.
+ */
+export interface SurgicalDisplayInfo {
+  targetArtifactId: string;
+  sourceJobId: string;
 }
 
 /**
@@ -73,6 +83,8 @@ export interface PlanDisplayInfo {
   hasRanges: boolean;
   costByProducer: ProducerCostEntry[];
   layerBreakdown: LayerDisplayInfo[];
+  /** Surgical regeneration info if present */
+  surgicalInfo?: SurgicalDisplayInfo[];
 }
 
 /**
@@ -82,6 +94,14 @@ export interface LayerDisplayInfo {
   index: number;
   jobCount: number;
   jobs: LayerJobDisplayInfo[];
+  /** Total estimated cost for this layer */
+  layerCost: number;
+  /** Minimum cost for this layer (when ranges present) */
+  layerMinCost: number;
+  /** Maximum cost for this layer (when ranges present) */
+  layerMaxCost: number;
+  /** Whether any job in this layer has placeholder estimates */
+  hasPlaceholders: boolean;
 }
 
 /**

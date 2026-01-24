@@ -11,7 +11,7 @@ import { createMockRequestEmpty, createMockResponse, parseResponseJson } from '.
 import type { JobStatusResponse, CachedPlan } from './types.js';
 
 // Helper to create a mock cached plan
-function createMockPlanData(): Omit<CachedPlan, 'planId' | 'createdAt' | 'expiresAt'> {
+function createMockPlanData(): Omit<CachedPlan, 'planId' | 'createdAt'> {
   return {
     movieId: 'movie-test',
     plan: { layers: [] } as unknown as ExecutionPlan,

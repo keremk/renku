@@ -102,7 +102,7 @@ function getVariantClasses(variant: string): string {
     case 'retry':
       return "bg-secondary hover:bg-secondary/90 text-secondary-foreground";
     default:
-      return "bg-primary hover:bg-primary/90 text-primary-foreground";
+      return "bg-primary hover:bg-primary/90 text-secondary-foreground";
   }
 }
 

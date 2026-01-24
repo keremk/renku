@@ -37,7 +37,8 @@ import {
 import { createHash } from 'node:crypto';
 import { Buffer } from 'node:buffer';
 
-import type { PlanRequest, PlanResponse, LayerInfo, SurgicalInfo, CachedPlan } from './types.js';
+import type { PlanRequest, PlanResponse, LayerInfo, SurgicalInfo, CachedPlan, SerializablePlanCostSummary } from './types.js';
+import type { ProducerCostData } from '@gorenku/providers';
 import { requireCliConfig, getCatalogModelsDir, type CliConfig } from './config.js';
 import { resolveBlueprintPaths, generateMovieId, normalizeMovieId } from './paths.js';
 import { getJobManager } from './job-manager.js';
@@ -283,24 +284,72 @@ async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanR
  * Builds the PlanResponse from cached plan and execution plan.
  */
 function buildPlanResponse(cachedPlan: CachedPlan, plan: ExecutionPlan): PlanResponse {
-  // Build job cost lookup map
-  const jobCostMap = new Map<string, number>();
+  // Build job cost lookup map for quick access
+  const jobCostMap = new Map<string, { cost: number; min: number; max: number; isPlaceholder: boolean }>();
   for (const jobCost of cachedPlan.costSummary.jobs) {
-    jobCostMap.set(jobCost.jobId, jobCost.estimate.cost);
+    const cost = jobCost.estimate.cost;
+    const min = jobCost.estimate.range?.min ?? cost;
+    const max = jobCost.estimate.range?.max ?? cost;
+    jobCostMap.set(jobCost.jobId, { cost, min, max, isPlaceholder: jobCost.estimate.isPlaceholder });
   }
 
-  // layers is JobDescriptor[][] - each layer is an array of jobs
-  const layerBreakdown: LayerInfo[] = plan.layers.map((layerJobs, index) => ({
-    index,
-    jobCount: layerJobs.length,
-    jobs: layerJobs.map((job) => ({
-      jobId: job.jobId,
-      producer: typeof job.producer === 'string' ? job.producer : 'unknown',
-      estimatedCost: jobCostMap.get(job.jobId),
-    })),
-  }));
+  // Build layerBreakdown with per-layer costs
+  const layerBreakdown: LayerInfo[] = plan.layers.map((layerJobs, index) => {
+    let layerCost = 0;
+    let layerMinCost = 0;
+    let layerMaxCost = 0;
+    let hasPlaceholders = false;
+
+    const jobs = layerJobs.map((job) => {
+      const costEntry = jobCostMap.get(job.jobId);
+      const estimatedCost = costEntry?.cost;
+
+      if (costEntry) {
+        layerCost += costEntry.cost;
+        layerMinCost += costEntry.min;
+        layerMaxCost += costEntry.max;
+        if (costEntry.isPlaceholder) {
+          hasPlaceholders = true;
+        }
+      }
+
+      return {
+        jobId: job.jobId,
+        producer: typeof job.producer === 'string' ? job.producer : 'unknown',
+        estimatedCost,
+      };
+    });
+
+    return {
+      index,
+      jobCount: layerJobs.length,
+      jobs,
+      layerCost,
+      layerMinCost,
+      layerMaxCost,
+      hasPlaceholders,
+    };
+  });
 
   const totalJobs = plan.layers.reduce((sum, layerJobs) => sum + layerJobs.length, 0);
+
+  // Convert byProducer Map to plain object for JSON serialization
+  const byProducerObj: Record<string, ProducerCostData> = {};
+  for (const [name, data] of cachedPlan.costSummary.byProducer) {
+    byProducerObj[name] = data;
+  }
+
+  // Build serializable cost summary
+  const costSummary: SerializablePlanCostSummary = {
+    jobs: cachedPlan.costSummary.jobs,
+    byProducer: byProducerObj,
+    totalCost: cachedPlan.costSummary.totalCost,
+    hasPlaceholders: cachedPlan.costSummary.hasPlaceholders,
+    hasRanges: cachedPlan.costSummary.hasRanges,
+    minTotalCost: cachedPlan.costSummary.minTotalCost,
+    maxTotalCost: cachedPlan.costSummary.maxTotalCost,
+    missingProviders: cachedPlan.costSummary.missingProviders,
+  };
 
   return {
     planId: cachedPlan.planId,
@@ -309,10 +358,9 @@ function buildPlanResponse(cachedPlan: CachedPlan, plan: ExecutionPlan): PlanRes
     blueprintPath: cachedPlan.blueprintPath,
     layers: plan.layers.length,
     totalJobs,
-    costSummary: cachedPlan.costSummary,
+    costSummary,
     layerBreakdown,
     surgicalInfo: cachedPlan.surgicalInfo,
-    expiresAt: cachedPlan.expiresAt.toISOString(),
   };
 }
 

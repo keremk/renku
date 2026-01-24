@@ -14,17 +14,14 @@ import type {
 } from './types.js';
 
 /**
- * Plan cache expiration time in milliseconds (10 minutes).
- */
-const PLAN_CACHE_TTL_MS = 10 * 60 * 1000;
-
-/**
  * Completed job retention time in milliseconds (1 hour).
+ * Jobs are kept for debugging/review purposes.
  */
 const JOB_RETENTION_MS = 60 * 60 * 1000;
 
 /**
  * Pruning interval in milliseconds (5 minutes).
+ * Only prunes old completed jobs, not plans.
  */
 const PRUNE_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -75,17 +72,11 @@ class JobManager {
   }
 
   /**
-   * Prunes expired plans and old completed jobs.
+   * Prunes old completed jobs.
+   * Plans are not pruned - they remain until explicitly removed or replaced.
    */
   private prune(): void {
     const now = Date.now();
-
-    // Remove expired plans
-    for (const [planId, plan] of this.plans) {
-      if (plan.expiresAt.getTime() < now) {
-        this.plans.delete(planId);
-      }
-    }
 
     // Remove old completed/failed/cancelled jobs
     for (const [jobId, job] of this.jobs) {
@@ -104,15 +95,14 @@ class JobManager {
 
   /**
    * Caches a plan and returns its ID.
+   * Plans remain cached until explicitly removed or the server restarts.
    */
-  cachePlan(plan: Omit<CachedPlan, 'planId' | 'createdAt' | 'expiresAt'>): CachedPlan {
+  cachePlan(plan: Omit<CachedPlan, 'planId' | 'createdAt'>): CachedPlan {
     const planId = generateId('plan');
-    const now = new Date();
     const cachedPlan: CachedPlan = {
       ...plan,
       planId,
-      createdAt: now,
-      expiresAt: new Date(now.getTime() + PLAN_CACHE_TTL_MS),
+      createdAt: new Date(),
     };
     this.plans.set(planId, cachedPlan);
     return cachedPlan;
@@ -120,7 +110,7 @@ class JobManager {
 
   /**
    * Retrieves a cached plan by ID.
-   * Throws if not found or expired.
+   * Throws if not found.
    */
   getPlan(planId: string): CachedPlan {
     const plan = this.plans.get(planId);
@@ -128,20 +118,9 @@ class JobManager {
       throw createRuntimeError(
         RuntimeErrorCode.PLAN_NOT_FOUND,
         `Plan not found: ${planId}`,
-        { suggestion: 'The plan may have expired. Create a new plan using POST /viewer-api/generate/plan' }
+        { suggestion: 'Create a new plan using POST /viewer-api/generate/plan' }
       );
     }
-
-    // Check if expired
-    if (plan.expiresAt.getTime() < Date.now()) {
-      this.plans.delete(planId);
-      throw createRuntimeError(
-        RuntimeErrorCode.PLAN_EXPIRED,
-        `Plan expired: ${planId}`,
-        { suggestion: 'Plans expire after 10 minutes. Create a new plan using POST /viewer-api/generate/plan' }
-      );
-    }
-
     return plan;
   }
 

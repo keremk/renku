@@ -4,7 +4,6 @@
  */
 
 import { useMemo } from "react";
-import { AlertTriangle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +24,33 @@ function formatCurrency(value: number): string {
   if (value === 0) return "$0.00";
   if (value < 0.01) return `$${value.toFixed(4)}`;
   return `$${value.toFixed(2)}`;
+}
+
+/**
+ * Format currency value or show "N/A" if no cost data available.
+ */
+function formatCurrencyOrNA(value: number, hasCostData: boolean): string {
+  if (!hasCostData) return "N/A";
+  return formatCurrency(value);
+}
+
+/**
+ * Calculate dynamic totals based on the selected stage range.
+ */
+function calculateRangeTotals(
+  planInfo: PlanDisplayInfo,
+  stageRange: { startStage: number; endStage: number }
+): { layers: number; jobs: number; cost: number; minCost: number; maxCost: number } {
+  const filtered = planInfo.layerBreakdown.filter(
+    (l) => l.index >= stageRange.startStage && l.index <= stageRange.endStage
+  );
+  return {
+    layers: filtered.length,
+    jobs: filtered.reduce((sum, l) => sum + l.jobCount, 0),
+    cost: filtered.reduce((sum, l) => sum + l.layerCost, 0),
+    minCost: filtered.reduce((sum, l) => sum + l.layerMinCost, 0),
+    maxCost: filtered.reduce((sum, l) => sum + l.layerMaxCost, 0),
+  };
 }
 
 /**
@@ -141,6 +167,13 @@ export function PlanDialog() {
     return layerRangeToStageRange(layerRange, planInfo.layers);
   }, [layerRange, planInfo]);
 
+  // Calculate dynamic totals based on selected stage range
+  // Must be called before any early returns to satisfy React Hooks rules
+  const rangeTotals = useMemo(() => {
+    if (!planInfo) return { layers: 0, jobs: 0, cost: 0, minCost: 0, maxCost: 0 };
+    return calculateRangeTotals(planInfo, stageRange);
+  }, [planInfo, stageRange]);
+
   // Handle stage range changes
   const handleStageRangeChange = (newRange: { startStage: number; endStage: number }) => {
     if (!planInfo) return;
@@ -174,45 +207,75 @@ export function PlanDialog() {
   // Plan confirmation state
   if (!planInfo) return null;
 
-  const showCostRange = planInfo.hasRanges && planInfo.minCost !== planInfo.maxCost;
+  // Check if this is a surgical run
+  const isSurgicalMode = planInfo.surgicalInfo && planInfo.surgicalInfo.length > 0;
+
+  // Determine if we should show a cost range
+  const showCostRange = planInfo.hasRanges && rangeTotals.minCost !== rangeTotals.maxCost;
 
   return (
     <Dialog open={true} onOpenChange={() => dismissDialog()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Confirm Execution Plan</DialogTitle>
+          <DialogTitle>
+            {isSurgicalMode ? "Confirm Surgical Regeneration" : "Confirm Execution Plan"}
+          </DialogTitle>
           <DialogDescription>
-            Review the execution plan before running.
+            {isSurgicalMode
+              ? "Review the surgical regeneration targets before running."
+              : "Review the execution plan before running."
+            }
           </DialogDescription>
         </DialogHeader>
 
         {/* Plan Summary */}
         <div className="space-y-4">
-          {/* Stats */}
+          {/* Stats - using dynamic range totals */}
           <div className="grid grid-cols-3 gap-4">
             <div className="text-center p-3 bg-muted rounded-lg">
-              <div className="text-2xl font-bold">{planInfo.layers}</div>
+              <div className="text-2xl font-bold">{rangeTotals.layers}</div>
               <div className="text-xs text-muted-foreground">Layers</div>
             </div>
             <div className="text-center p-3 bg-muted rounded-lg">
-              <div className="text-2xl font-bold">{planInfo.totalJobs}</div>
+              <div className="text-2xl font-bold">{rangeTotals.jobs}</div>
               <div className="text-xs text-muted-foreground">Jobs</div>
             </div>
             <div className="text-center p-3 bg-muted rounded-lg">
               <div className="text-2xl font-bold">
                 {showCostRange
-                  ? `${formatCurrency(planInfo.minCost)}-${formatCurrency(planInfo.maxCost)}`
-                  : formatCurrency(planInfo.totalCost)
+                  ? `${formatCurrency(rangeTotals.minCost)}-${formatCurrency(rangeTotals.maxCost)}`
+                  : formatCurrency(rangeTotals.cost)
                 }
               </div>
               <div className="text-xs text-muted-foreground">Est. Cost</div>
             </div>
           </div>
 
-          {/* Stage Range Picker */}
-          {planInfo.layers > 1 && (
+          {/* Surgical Mode Info */}
+          {isSurgicalMode && (
             <div className="py-3 border-t border-border/40">
-              <div className="text-sm text-muted-foreground mb-2">Select Stage Range:</div>
+              <div className="text-sm font-medium mb-2">Surgical Regeneration Targets</div>
+              <div className="space-y-2">
+                {planInfo.surgicalInfo!.map((info, idx) => (
+                  <div key={idx} className="p-2 bg-muted/50 rounded-lg text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Target: </span>
+                      <code className="text-xs bg-muted px-1 py-0.5 rounded">{info.targetArtifactId}</code>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Source Job: </span>
+                      <code className="text-xs bg-muted px-1 py-0.5 rounded">{info.sourceJobId}</code>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Stage Range Picker - only show for non-surgical runs with multiple layers */}
+          {!isSurgicalMode && planInfo.layers > 1 && (
+            <div className="py-3 border-t border-border/40">
+              <div className="text-sm text-muted-foreground mb-2">Execution Stages:</div>
               <StageRangePicker
                 totalStages={planInfo.layers}
                 value={stageRange}
@@ -229,8 +292,8 @@ export function PlanDialog() {
             </div>
             <div className="max-h-40 overflow-y-auto">
               <table className="w-full text-sm">
-                <thead className="bg-muted/30 sticky top-0">
-                  <tr>
+                <thead className="bg-background sticky top-0 z-10">
+                  <tr className="bg-muted/50">
                     <th className="text-left px-3 py-1.5 font-medium">Producer</th>
                     <th className="text-right px-3 py-1.5 font-medium">Count</th>
                     <th className="text-right px-3 py-1.5 font-medium">Cost</th>
@@ -242,7 +305,7 @@ export function PlanDialog() {
                       <td className="px-3 py-1.5">
                         <span className="flex items-center gap-1">
                           {entry.name}
-                          {entry.hasPlaceholders && (
+                          {entry.hasPlaceholders && entry.hasCostData && (
                             <span className="text-amber-500 text-xs">*</span>
                           )}
                         </span>
@@ -251,7 +314,7 @@ export function PlanDialog() {
                         {entry.count}
                       </td>
                       <td className="text-right px-3 py-1.5">
-                        {formatCurrency(entry.cost)}
+                        {formatCurrencyOrNA(entry.cost, entry.hasCostData)}
                       </td>
                     </tr>
                   ))}
@@ -259,19 +322,6 @@ export function PlanDialog() {
               </table>
             </div>
           </div>
-
-          {/* Placeholder Warning */}
-          {planInfo.hasPlaceholders && (
-            <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-sm">
-              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-medium text-amber-500">Estimated costs</span>
-                <p className="text-muted-foreground text-xs mt-0.5">
-                  Some costs are estimates (*) because they depend on outputs from previous steps.
-                </p>
-              </div>
-            </div>
-          )}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
@@ -280,12 +330,6 @@ export function PlanDialog() {
             className="px-4 py-2 text-sm font-medium rounded-lg bg-muted hover:bg-muted/80 transition-colors"
           >
             Cancel
-          </button>
-          <button
-            onClick={() => confirmExecution(true)}
-            className="px-4 py-2 text-sm font-medium rounded-lg border border-border hover:bg-muted transition-colors"
-          >
-            Dry Run
           </button>
           <button
             onClick={() => confirmExecution(false)}

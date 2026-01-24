@@ -250,21 +250,24 @@ function mapArtifactsToProducerStatuses(artifacts: ArtifactInfo[]): ProducerStat
 function planResponseToDisplayInfo(response: PlanResponse): PlanDisplayInfo {
   const costByProducer: ProducerCostEntry[] = [];
 
-  // Convert Map to array (the response serializes Map as object)
-  const byProducerObj = response.costSummary.byProducer as unknown;
-  if (byProducerObj && typeof byProducerObj === 'object') {
-    // Handle both Map and plain object
-    const entries = byProducerObj instanceof Map
-      ? Array.from(byProducerObj.entries())
-      : Object.entries(byProducerObj);
+  // Build a set of missing providers for checking hasCostData
+  const missingProviders = new Set(response.costSummary.missingProviders);
 
-    for (const [name, data] of entries) {
+  // byProducer is now always a plain object (Map serialized to object on server)
+  const byProducerObj = response.costSummary.byProducer;
+  if (byProducerObj && typeof byProducerObj === 'object') {
+    for (const [name, data] of Object.entries(byProducerObj)) {
       const producerData = data as { count: number; totalCost: number; hasPlaceholders: boolean };
+      // Check if this producer's cost data is valid (not from missing provider)
+      // A producer has cost data if its cost is > 0 or it doesn't have placeholders from missing providers
+      const hasCostData = producerData.totalCost > 0 || !producerData.hasPlaceholders ||
+        !Array.from(missingProviders).some(mp => mp.includes(name) || name.includes(mp.split(':')[0]));
       costByProducer.push({
         name,
         count: producerData.count,
         cost: producerData.totalCost,
         hasPlaceholders: producerData.hasPlaceholders,
+        hasCostData,
       });
     }
   }
@@ -277,6 +280,16 @@ function planResponseToDisplayInfo(response: PlanResponse): PlanDisplayInfo {
       producer: job.producer,
       estimatedCost: job.estimatedCost,
     })),
+    layerCost: layer.layerCost,
+    layerMinCost: layer.layerMinCost,
+    layerMaxCost: layer.layerMaxCost,
+    hasPlaceholders: layer.hasPlaceholders,
+  }));
+
+  // Map surgical info if present
+  const surgicalInfo = response.surgicalInfo?.map((info) => ({
+    targetArtifactId: info.targetArtifactId,
+    sourceJobId: info.sourceJobId,
   }));
 
   return {
@@ -291,6 +304,7 @@ function planResponseToDisplayInfo(response: PlanResponse): PlanDisplayInfo {
     hasRanges: response.costSummary.hasRanges,
     costByProducer,
     layerBreakdown,
+    surgicalInfo,
   };
 }
 

@@ -15,6 +15,61 @@ import {
 
 export type { StageStatus };
 
+/**
+ * Generates the range message with skip/stop annotations.
+ */
+interface RangeMessageProps {
+  startStage: number;
+  endStage: number;
+  totalStages: number;
+  stageStatuses: StageStatus[] | null;
+}
+
+function RangeMessage({ startStage, endStage, totalStages, stageStatuses }: RangeMessageProps) {
+  const lastStage = totalStages - 1;
+
+  // Count skipped layers (succeeded layers before startStage)
+  const skippedLayers: number[] = [];
+  for (let i = 0; i < startStage; i++) {
+    if (stageStatuses?.[i] === 'succeeded') {
+      skippedLayers.push(i);
+    }
+  }
+
+  const hasSkipped = skippedLayers.length > 0;
+  const hasStopped = endStage < lastStage;
+
+  // Build main run message
+  let runPart: string;
+  if (startStage === endStage) {
+    runPart = `Running stage ${startStage} only`;
+  } else if (startStage === 0 && endStage === lastStage && hasSkipped) {
+    runPart = `Re-running all stages (0-${lastStage})`;
+  } else if (startStage === 0 && endStage === lastStage) {
+    runPart = `Running all stages (0-${lastStage})`;
+  } else {
+    runPart = `Running stages ${startStage}-${endStage}`;
+  }
+
+  // Build annotations for skip/stop
+  const annotations: string[] = [];
+  if (hasSkipped) {
+    const skippedStr =
+      skippedLayers.length === 1
+        ? `skipping ${skippedLayers[0]}`
+        : `skipping ${skippedLayers[0]}-${skippedLayers[skippedLayers.length - 1]}`;
+    annotations.push(skippedStr);
+  }
+  if (hasStopped) {
+    annotations.push(`stopping before ${endStage + 1}`);
+  }
+
+  if (annotations.length > 0) {
+    return <span>{runPart} ({annotations.join('; ')})</span>;
+  }
+  return <span>{runPart}</span>;
+}
+
 interface StageRangePickerProps {
   /** Total number of stages in the plan */
   totalStages: number;
@@ -30,8 +85,12 @@ interface StageRangePickerProps {
 
 /**
  * Status display for a stage in the picker.
+ * - 'selected': Within the run range [startStage, endStage]
+ * - 'skipped': Succeeded stage before startStage (light green)
+ * - 'stopped': Stage after endStage (gray - won't run this time)
+ * - 'disabled': Not a valid start option (muted)
  */
-type StageDisplayStatus = 'selected' | 'valid' | 'disabled' | 'succeeded' | 'failed' | 'not-run';
+type StageDisplayStatus = 'selected' | 'skipped' | 'stopped' | 'disabled';
 
 export function StageRangePicker({
   totalStages,
@@ -62,130 +121,137 @@ export function StageRangePicker({
 
   /**
    * Get the display status for a stage box.
+   *
+   * Visual states:
+   * - 'selected': Within run range [startStage, endStage] - will run
+   * - 'skipped': Succeeded stage before startStage - will be skipped (green)
+   * - 'stopped': Stage after endStage - won't run this time (gray)
+   * - 'disabled': Not clickable (e.g., stage before a failed stage)
    */
   const getStageDisplayStatus = useCallback(
     (stageIndex: number): StageDisplayStatus => {
       const { startStage, endStage } = value;
 
-      // Selected: within the current range
+      // Layers within run range are selected
       if (stageIndex >= startStage && stageIndex <= endStage) {
         return 'selected';
       }
 
-      // Check if this is a valid start stage
-      const canStartHere = validStartStages.has(stageIndex);
-
-      // If not a valid start and before the current start, it's disabled
-      if (!canStartHere && stageIndex < startStage) {
-        // Show the historical status if available
-        if (stageStatuses) {
-          const status = stageStatuses[stageIndex];
-          if (status === 'succeeded') return 'succeeded';
-          if (status === 'failed') return 'failed';
-          return 'not-run';
+      // Layers before startStage
+      if (stageIndex < startStage) {
+        // If it's a valid start stage (succeeded), show as "skipped" (green)
+        if (validStartStages.has(stageIndex)) {
+          return 'skipped';
         }
+        // Otherwise disabled (can't start from here)
         return 'disabled';
       }
 
-      // If valid start or within extendable range
-      if (canStartHere || stageIndex > endStage) {
-        return 'valid';
-      }
-
-      // Show status from previous run
-      if (stageStatuses) {
-        const status = stageStatuses[stageIndex];
-        if (status === 'succeeded') return 'succeeded';
-        if (status === 'failed') return 'failed';
-      }
-
-      return 'valid';
+      // Layers after endStage are "stopped" (gray - won't run this time)
+      return 'stopped';
     },
-    [value, validStartStages, stageStatuses],
+    [value, validStartStages],
   );
 
   /**
    * Handle clicking a stage box.
+   *
+   * Click behavior:
+   * - Click GREEN (skipped) layer → expand run range to include it (move startStage there)
+   * - Click GRAY (stopped) layer → expand run range to include it (move endStage there)
+   * - Click first SELECTED (at startStage, if succeeded) → skip it (move startStage forward)
+   * - Click last SELECTED (at endStage) → stop earlier (move endStage backward)
+   * - Click middle SELECTED → no action (no gaps allowed)
    */
   const handleStageClick = useCallback(
     (stageIndex: number) => {
       if (disabled) return;
 
       const { startStage, endStage } = value;
-      const isMultiStageRange = endStage > startStage;
+      const status = getStageDisplayStatus(stageIndex);
 
-      // If clicking before current start
-      if (stageIndex < startStage) {
-        // Only move start if it's a valid start stage
-        if (validStartStages.has(stageIndex)) {
-          onChange({ startStage: stageIndex, endStage });
-        }
+      // Click on GREEN (skipped) layer → move startStage there (expand run to include it)
+      if (status === 'skipped') {
+        onChange({ startStage: stageIndex, endStage });
         return;
       }
 
-      // If clicking after current end
-      if (stageIndex > endStage) {
+      // Click on GRAY (stopped) layer → move endStage there (run more)
+      if (status === 'stopped') {
         onChange({ startStage, endStage: stageIndex });
         return;
       }
 
-      // Clicking within range
-
-      // Special case: clicking on start stage when range has multiple stages
-      // → collapse to just the start stage
-      if (stageIndex === startStage && isMultiStageRange) {
-        onChange({ startStage, endStage: startStage });
-        return;
-      }
-
-      // Special case: clicking on end stage when range has multiple stages
-      // → collapse to just the end stage (if it's a valid start)
-      if (stageIndex === endStage && isMultiStageRange) {
-        if (validStartStages.has(endStage)) {
-          onChange({ startStage: endStage, endStage });
+      // Click on selected layer
+      if (status === 'selected') {
+        // First selected (at startStage) - can skip if it succeeded and not the only stage
+        if (stageIndex === startStage) {
+          const canSkip = stageStatuses?.[stageIndex] === 'succeeded';
+          if (canSkip && startStage < endStage) {
+            onChange({ startStage: stageIndex + 1, endStage });
+          }
+          return;
         }
-        return;
-      }
 
-      // Clicking somewhere in the middle - determine which handle is closer
-      const distToStart = stageIndex - startStage;
-      const distToEnd = endStage - stageIndex;
-
-      if (distToStart <= distToEnd) {
-        // Closer to start - move start (if valid)
-        if (validStartStages.has(stageIndex)) {
-          onChange({ startStage: stageIndex, endStage });
+        // Last selected (at endStage) - can shrink if not at startStage
+        if (stageIndex === endStage && endStage > startStage) {
+          onChange({ startStage, endStage: stageIndex - 1 });
+          return;
         }
-      } else {
-        // Closer to end - move end
-        onChange({ startStage, endStage: stageIndex });
+
+        // Middle selected - no action (no gaps allowed in range)
       }
     },
-    [disabled, value, validStartStages, onChange],
+    [disabled, value, getStageDisplayStatus, stageStatuses, onChange],
   );
 
   /**
-   * Get CSS classes for a stage box based on its status.
+   * Get CSS classes for a stage button based on its status and position.
+   * Uses ShadCN button group styling - connected buttons with shared border.
+   *
+   * Visual states:
+   * - selected: Primary color (will run)
+   * - skipped: Light green (succeeded, will be skipped)
+   * - stopped: Muted gray (won't run this time)
+   * - disabled: Very muted, not clickable
    */
-  const getStageClasses = useCallback((status: StageDisplayStatus): string => {
-    const base = 'w-8 h-8 rounded-md flex items-center justify-center text-xs font-medium transition-all cursor-pointer';
+  const getStageClasses = useCallback(
+    (status: StageDisplayStatus, index: number): string => {
+      const isFirst = index === 0;
+      const isLast = index === totalStages - 1;
 
-    switch (status) {
-      case 'selected':
-        return `${base} bg-primary text-primary-foreground ring-2 ring-primary ring-offset-1 ring-offset-background`;
-      case 'valid':
-        return `${base} bg-muted hover:bg-muted/80 text-foreground border border-border/60 hover:border-primary/50`;
-      case 'succeeded':
-        return `${base} bg-green-500/20 text-green-600 border border-green-500/40 opacity-60 cursor-default`;
-      case 'failed':
-        return `${base} bg-red-500/20 text-red-600 border border-red-500/40 opacity-60 cursor-not-allowed`;
-      case 'not-run':
-        return `${base} bg-muted/50 text-muted-foreground border border-border/30 opacity-60 cursor-not-allowed`;
-      case 'disabled':
-      default:
-        return `${base} bg-muted/30 text-muted-foreground/60 border border-border/20 opacity-40 cursor-not-allowed`;
-    }
-  }, []);
+      // Base classes for button group items
+      const base = [
+        'h-9 px-3 min-w-[2.25rem]',
+        'inline-flex items-center justify-center',
+        'text-sm font-medium',
+        'transition-colors',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        'border-y border-r border-input',
+        // First button gets left border and rounded left corners
+        isFirst ? 'border-l rounded-l-md' : '',
+        // Last button gets rounded right corners
+        isLast ? 'rounded-r-md' : '',
+      ].join(' ');
+
+      switch (status) {
+        case 'selected':
+          // Will run - primary color
+          return `${base} bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer`;
+        case 'skipped':
+          // Succeeded, will be skipped - light green, clickable to re-include
+          return `${base} bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900 cursor-pointer`;
+        case 'stopped':
+          // After endStage - gray, clickable to extend run
+          return `${base} bg-muted text-muted-foreground hover:bg-muted/80 cursor-pointer`;
+        case 'disabled':
+        default:
+          // Not a valid option - very muted, not clickable
+          return `${base} bg-muted/30 text-muted-foreground/60 opacity-50 cursor-not-allowed`;
+      }
+    },
+    [totalStages],
+  );
 
   // Don't show if only 1 stage or less (after all hooks)
   if (totalStages <= 1) {
@@ -194,10 +260,12 @@ export function StageRangePicker({
 
   return (
     <div className={`flex flex-col gap-2 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
-      <div className="flex items-center gap-1.5">
+      {/* Button Group */}
+      <div className="inline-flex" role="group">
         {Array.from({ length: totalStages }, (_, i) => {
           const status = getStageDisplayStatus(i);
-          const isClickable = status === 'selected' || status === 'valid';
+          // All states except 'disabled' are clickable
+          const isClickable = status !== 'disabled';
 
           return (
             <button
@@ -205,7 +273,7 @@ export function StageRangePicker({
               type="button"
               onClick={() => handleStageClick(i)}
               disabled={disabled || !isClickable}
-              className={getStageClasses(status)}
+              className={getStageClasses(status, i)}
               title={getStageTooltip(i, status, stageStatuses?.[i])}
             >
               {i}
@@ -214,15 +282,14 @@ export function StageRangePicker({
         })}
       </div>
 
-      {/* Range display */}
+      {/* Range display with skip/stop annotations */}
       <div className="text-xs text-muted-foreground">
-        {value.startStage === 0 && value.endStage === totalStages - 1 ? (
-          <span>Running all stages (0-{totalStages - 1})</span>
-        ) : value.startStage === value.endStage ? (
-          <span>Running stage {value.startStage} only</span>
-        ) : (
-          <span>Running stages {value.startStage} to {value.endStage}</span>
-        )}
+        <RangeMessage
+          startStage={value.startStage}
+          endStage={value.endStage}
+          totalStages={totalStages}
+          stageStatuses={stageStatuses}
+        />
       </div>
     </div>
   );
@@ -238,15 +305,11 @@ function getStageTooltip(
 ): string {
   switch (displayStatus) {
     case 'selected':
-      return `Stage ${index} (selected)`;
-    case 'valid':
-      return `Click to select stage ${index}`;
-    case 'succeeded':
-      return `Stage ${index}: Completed successfully`;
-    case 'failed':
-      return `Stage ${index}: Failed - cannot start from stage ${index + 1}`;
-    case 'not-run':
-      return `Stage ${index}: Not run yet`;
+      return `Stage ${index}: Will run (click to adjust range)`;
+    case 'skipped':
+      return `Stage ${index}: Will be skipped (click to re-include)`;
+    case 'stopped':
+      return `Stage ${index}: Won't run (click to include)`;
     case 'disabled':
       return stageStatus === 'failed'
         ? `Stage ${index}: Failed - cannot start after this stage`

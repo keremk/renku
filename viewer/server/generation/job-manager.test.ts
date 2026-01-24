@@ -9,7 +9,7 @@ import { getJobManager, resetJobManager } from './job-manager.js';
 import type { SSEEvent, CachedPlan, BuildSummaryInfo, JobDetailInfo } from './types.js';
 
 // Helper to create a mock cached plan
-function createMockPlanData(): Omit<CachedPlan, 'planId' | 'createdAt' | 'expiresAt'> {
+function createMockPlanData(): Omit<CachedPlan, 'planId' | 'createdAt'> {
   return {
     movieId: 'movie-test',
     plan: { layers: [] } as unknown as ExecutionPlan,
@@ -38,8 +38,6 @@ describe('JobManager', () => {
       expect(cachedPlan.planId).toMatch(/^plan-/);
       expect(cachedPlan.movieId).toBe('movie-test');
       expect(cachedPlan.createdAt).toBeInstanceOf(Date);
-      expect(cachedPlan.expiresAt).toBeInstanceOf(Date);
-      expect(cachedPlan.expiresAt.getTime()).toBeGreaterThan(cachedPlan.createdAt.getTime());
     });
 
     it('retrieves cached plan by planId', () => {
@@ -67,18 +65,6 @@ describe('JobManager', () => {
       const manager = getJobManager();
 
       expect(() => manager.getPlan('plan-unknown')).toThrowError(/Plan not found/);
-    });
-
-    it('throws PLAN_EXPIRED for expired plan', () => {
-      const manager = getJobManager();
-      const planData = createMockPlanData();
-
-      const cachedPlan = manager.cachePlan(planData);
-
-      // Manually expire the plan
-      cachedPlan.expiresAt = new Date(Date.now() - 1000);
-
-      expect(() => manager.getPlan(cachedPlan.planId)).toThrowError(/Plan expired/);
     });
   });
 

@@ -197,7 +197,6 @@ export const RuntimeErrorCode = {
 
   // R110-R119: Viewer/API Errors
   PLAN_NOT_FOUND: 'R110',
-  PLAN_EXPIRED: 'R111',
   JOB_NOT_FOUND: 'R112',
   JOB_ALREADY_RUNNING: 'R113',
   VIEWER_CONFIG_MISSING: 'R114',
