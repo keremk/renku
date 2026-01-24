@@ -76,8 +76,28 @@ export async function cancelJob(jobId: string): Promise<void> {
 // =============================================================================
 
 /**
+ * SSE event types sent by the server.
+ * The server sends named events, so we need to listen for each type.
+ */
+const SSE_EVENT_TYPES = [
+  'status',
+  'plan-ready',
+  'layer-start',
+  'layer-skipped',
+  'layer-complete',
+  'job-start',
+  'job-complete',
+  'execution-complete',
+  'error',
+] as const;
+
+/**
  * Subscribe to SSE stream for job progress events.
  * Returns an unsubscribe function.
+ *
+ * Note: The server sends named SSE events (e.g., "event: job-start\ndata: {...}").
+ * We use addEventListener for each event type instead of onmessage,
+ * which only handles unnamed "message" events.
  */
 export function subscribeToJobStream(
   jobId: string,
@@ -87,14 +107,20 @@ export function subscribeToJobStream(
   const url = `${API_BASE}/jobs/${encodeURIComponent(jobId)}/stream`;
   const eventSource = new EventSource(url);
 
-  eventSource.onmessage = (event) => {
+  // Create handler for named SSE events
+  const handleSSEEvent = (messageEvent: MessageEvent) => {
     try {
-      const sseEvent = JSON.parse(event.data) as SSEEvent;
+      const sseEvent = JSON.parse(messageEvent.data) as SSEEvent;
       onEvent(sseEvent);
     } catch {
       onError(new Error('Failed to parse SSE event'));
     }
   };
+
+  // Listen for each named event type
+  for (const eventType of SSE_EVENT_TYPES) {
+    eventSource.addEventListener(eventType, handleSSEEvent);
+  }
 
   eventSource.onerror = () => {
     // EventSource automatically reconnects, but we should notify the caller
@@ -104,6 +130,10 @@ export function subscribeToJobStream(
 
   // Return unsubscribe function
   return () => {
+    // Clean up all event listeners
+    for (const eventType of SSE_EVENT_TYPES) {
+      eventSource.removeEventListener(eventType, handleSSEEvent);
+    }
     eventSource.close();
   };
 }

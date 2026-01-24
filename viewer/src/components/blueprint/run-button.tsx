@@ -3,7 +3,7 @@
  * Shows different states based on execution status.
  */
 
-import { Play, Loader2, Square, Check, AlertCircle, RotateCcw } from "lucide-react";
+import { Play, Loader2, Square } from "lucide-react";
 import { useExecution } from "@/contexts/execution-context";
 import type { ExecutionStatus } from "@/types/generation";
 
@@ -15,15 +15,30 @@ interface RunButtonProps {
 /**
  * Get button configuration based on execution status.
  */
-function getButtonConfig(status: ExecutionStatus): {
+function getButtonConfig(status: ExecutionStatus, isStopping: boolean): {
   icon: typeof Play;
   label: string;
-  variant: "default" | "destructive" | "success" | "retry";
+  variant: "default" | "destructive";
   spinning: boolean;
   disabled: boolean;
 } {
+  // Show "Stopping..." state when cancellation is in progress
+  if (isStopping) {
+    return {
+      icon: Loader2,
+      label: "Stopping...",
+      variant: "destructive",
+      spinning: true,
+      disabled: true,
+    };
+  }
+
   switch (status) {
     case 'idle':
+    case 'completed':
+    case 'failed':
+    case 'cancelled':
+      // All "done" states show "Run" and open the dialog
       return {
         icon: Play,
         label: "Run",
@@ -55,30 +70,6 @@ function getButtonConfig(status: ExecutionStatus): {
         spinning: false,
         disabled: false,
       };
-    case 'completed':
-      return {
-        icon: Check,
-        label: "Run Again",
-        variant: "success",
-        spinning: false,
-        disabled: false,
-      };
-    case 'failed':
-      return {
-        icon: AlertCircle,
-        label: "Retry",
-        variant: "retry",
-        spinning: false,
-        disabled: false,
-      };
-    case 'cancelled':
-      return {
-        icon: RotateCcw,
-        label: "Run Again",
-        variant: "default",
-        spinning: false,
-        disabled: false,
-      };
     default:
       return {
         icon: Play,
@@ -97,10 +88,6 @@ function getVariantClasses(variant: string): string {
   switch (variant) {
     case 'destructive':
       return "bg-destructive hover:bg-destructive/90 text-white";
-    case 'success':
-      return "bg-emerald-600 hover:bg-emerald-500 text-white";
-    case 'retry':
-      return "bg-secondary hover:bg-secondary/90 text-secondary-foreground";
     default:
       return "bg-primary hover:bg-primary/90 text-secondary-foreground";
   }
@@ -108,7 +95,7 @@ function getVariantClasses(variant: string): string {
 
 export function RunButton({ blueprintName, movieId }: RunButtonProps) {
   const { state, requestPlan, cancelExecution, reset } = useExecution();
-  const config = getButtonConfig(state.status);
+  const config = getButtonConfig(state.status, state.isStopping);
   const Icon = config.icon;
 
   const handleClick = async () => {

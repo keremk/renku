@@ -29,6 +29,7 @@ import type {
   LayerDisplayInfo,
   PlanResponse,
   SSEEvent,
+  ExecutionLogEntry,
 } from '@/types/generation';
 import type { ArtifactInfo } from '@/types/builds';
 
@@ -45,6 +46,12 @@ interface ExecutionState {
   producerStatuses: ProducerStatusMap;
   error: string | null;
   totalLayers: number;
+  /** Terminal-like log entries for execution progress */
+  executionLogs: ExecutionLogEntry[];
+  /** Whether the execution is in the process of stopping */
+  isStopping: boolean;
+  /** Whether the bottom progress panel is visible */
+  bottomPanelVisible: boolean;
 }
 
 // =============================================================================
@@ -64,7 +71,12 @@ type ExecutionAction =
   | { type: 'CANCEL' }
   | { type: 'DISMISS_DIALOG' }
   | { type: 'RESET' }
-  | { type: 'INIT_FROM_MANIFEST'; artifacts: ArtifactInfo[] };
+  | { type: 'INIT_FROM_MANIFEST'; artifacts: ArtifactInfo[] }
+  | { type: 'ADD_LOG_ENTRY'; entry: ExecutionLogEntry }
+  | { type: 'SET_STOPPING'; isStopping: boolean }
+  | { type: 'SHOW_BOTTOM_PANEL' }
+  | { type: 'HIDE_BOTTOM_PANEL' }
+  | { type: 'CLEAR_LOGS' };
 
 // =============================================================================
 // Initial State
@@ -79,6 +91,9 @@ const initialState: ExecutionState = {
   producerStatuses: {},
   error: null,
   totalLayers: 0,
+  executionLogs: [],
+  isStopping: false,
+  bottomPanelVisible: false,
 };
 
 // =============================================================================
@@ -147,6 +162,7 @@ function executionReducer(
         status: action.status,
         currentJobId: null,
         progress: null,
+        isStopping: false,
       };
 
     case 'CANCEL':
@@ -155,6 +171,7 @@ function executionReducer(
         status: 'cancelled',
         currentJobId: null,
         progress: null,
+        isStopping: false,
       };
 
     case 'DISMISS_DIALOG':
@@ -170,6 +187,7 @@ function executionReducer(
         ...initialState,
         producerStatuses: state.producerStatuses,
         totalLayers: state.totalLayers,
+        bottomPanelVisible: state.bottomPanelVisible,
       };
 
     case 'INIT_FROM_MANIFEST': {
@@ -179,6 +197,36 @@ function executionReducer(
         producerStatuses: statuses,
       };
     }
+
+    case 'ADD_LOG_ENTRY':
+      return {
+        ...state,
+        executionLogs: [...state.executionLogs, action.entry],
+      };
+
+    case 'SET_STOPPING':
+      return {
+        ...state,
+        isStopping: action.isStopping,
+      };
+
+    case 'SHOW_BOTTOM_PANEL':
+      return {
+        ...state,
+        bottomPanelVisible: true,
+      };
+
+    case 'HIDE_BOTTOM_PANEL':
+      return {
+        ...state,
+        bottomPanelVisible: false,
+      };
+
+    case 'CLEAR_LOGS':
+      return {
+        ...state,
+        executionLogs: [],
+      };
 
     default:
       return state;
@@ -322,6 +370,9 @@ interface ExecutionContextValue {
   dismissDialog: () => void;
   initializeFromManifest: (artifacts: ArtifactInfo[]) => void;
   reset: () => void;
+  showBottomPanel: () => void;
+  hideBottomPanel: () => void;
+  clearLogs: () => void;
 }
 
 // =============================================================================
@@ -372,8 +423,10 @@ export function ExecutionProvider({ children }: ExecutionProviderProps) {
     if (!state.planInfo) return;
 
     try {
+      console.log('[execution-context] Confirming execution with layerRange:', state.layerRange);
       const response = await executePlan({
         planId: state.planInfo.planId,
+        reRunFrom: state.layerRange.reRunFrom ?? undefined,
         upToLayer: state.layerRange.upToLayer ?? undefined,
         dryRun,
       });
@@ -385,6 +438,13 @@ export function ExecutionProvider({ children }: ExecutionProviderProps) {
         response.jobId,
         (event: SSEEvent) => {
           handleSSEEvent(event, dispatch);
+          // Close SSE connection when execution completes or errors
+          if (event.type === 'execution-complete' || event.type === 'error') {
+            if (unsubscribeRef.current) {
+              unsubscribeRef.current();
+              unsubscribeRef.current = null;
+            }
+          }
         },
         (error) => {
           console.error('SSE error:', error);
@@ -394,10 +454,12 @@ export function ExecutionProvider({ children }: ExecutionProviderProps) {
       const message = error instanceof Error ? error.message : 'Failed to start execution';
       dispatch({ type: 'PLAN_FAILED', error: message });
     }
-  }, [state.planInfo, state.layerRange.upToLayer]);
+  }, [state.planInfo, state.layerRange]);
 
   const cancelExecution = useCallback(async () => {
     if (state.currentJobId) {
+      // Set stopping state before cancelling
+      dispatch({ type: 'SET_STOPPING', isStopping: true });
       try {
         await cancelJob(state.currentJobId);
       } catch (error) {
@@ -431,6 +493,18 @@ export function ExecutionProvider({ children }: ExecutionProviderProps) {
     dispatch({ type: 'RESET' });
   }, []);
 
+  const showBottomPanel = useCallback(() => {
+    dispatch({ type: 'SHOW_BOTTOM_PANEL' });
+  }, []);
+
+  const hideBottomPanel = useCallback(() => {
+    dispatch({ type: 'HIDE_BOTTOM_PANEL' });
+  }, []);
+
+  const clearLogs = useCallback(() => {
+    dispatch({ type: 'CLEAR_LOGS' });
+  }, []);
+
   const value: ExecutionContextValue = {
     state,
     setLayerRange,
@@ -441,6 +515,9 @@ export function ExecutionProvider({ children }: ExecutionProviderProps) {
     dismissDialog,
     initializeFromManifest,
     reset,
+    showBottomPanel,
+    hideBottomPanel,
+    clearLogs,
   };
 
   return (
@@ -454,38 +531,135 @@ export function ExecutionProvider({ children }: ExecutionProviderProps) {
 // SSE Event Handler
 // =============================================================================
 
+/**
+ * Generate a unique ID for log entries.
+ */
+function generateLogId(): string {
+  return `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
+ * Create a log entry from an SSE event.
+ */
+function createLogEntry(
+  type: ExecutionLogEntry['type'],
+  message: string,
+  options?: Partial<ExecutionLogEntry>
+): ExecutionLogEntry {
+  return {
+    id: generateLogId(),
+    timestamp: new Date().toISOString(),
+    type,
+    message,
+    ...options,
+  };
+}
+
 function handleSSEEvent(event: SSEEvent, dispatch: React.Dispatch<ExecutionAction>) {
   switch (event.type) {
-    case 'job-start':
+    case 'layer-start': {
+      const logEntry = createLogEntry(
+        'layer-start',
+        `--- Layer ${event.layerIndex}, will run ${event.jobCount} job${event.jobCount === 1 ? '' : 's'} ---`,
+        { layerIndex: event.layerIndex }
+      );
+      dispatch({ type: 'ADD_LOG_ENTRY', entry: logEntry });
+      // Update progress
+      dispatch({
+        type: 'UPDATE_PROGRESS',
+        progress: {
+          currentLayer: event.layerIndex,
+          totalLayers: 0, // Will be set from plan info
+          progress: 0,
+        },
+      });
+      break;
+    }
+
+    case 'layer-skipped': {
+      const logEntry = createLogEntry(
+        'layer-skipped',
+        `Layer ${event.layerIndex} skipped (using existing artifacts)`,
+        { layerIndex: event.layerIndex, status: 'skipped' }
+      );
+      dispatch({ type: 'ADD_LOG_ENTRY', entry: logEntry });
+      break;
+    }
+
+    case 'job-start': {
       dispatch({
         type: 'UPDATE_PRODUCER_STATUS',
         producer: event.producer,
         status: 'running',
       });
+      const logEntry = createLogEntry(
+        'job-start',
+        `Starting ${event.producer}...`,
+        { jobId: event.jobId, producer: event.producer, layerIndex: event.layerIndex, status: 'running' }
+      );
+      dispatch({ type: 'ADD_LOG_ENTRY', entry: logEntry });
       break;
+    }
 
-    case 'job-complete':
+    case 'job-complete': {
+      const producerStatus = event.status === 'succeeded' ? 'success' : event.status === 'failed' ? 'error' : 'not-run-yet';
       dispatch({
         type: 'UPDATE_PRODUCER_STATUS',
         producer: event.producer,
-        status: event.status === 'succeeded' ? 'success' : event.status === 'failed' ? 'error' : 'not-run-yet',
+        status: producerStatus,
       });
+      const statusIcon = event.status === 'succeeded' ? '✓' : event.status === 'failed' ? '✗' : '○';
+      const statusLabel = event.status === 'succeeded' ? 'completed successfully' : event.status === 'failed' ? 'failed' : 'skipped';
+      const logEntry = createLogEntry(
+        'job-complete',
+        `${event.producer} ${statusLabel} ${statusIcon}`,
+        {
+          jobId: event.jobId,
+          producer: event.producer,
+          status: event.status as ExecutionLogEntry['status'],
+          errorDetails: event.errorMessage,
+        }
+      );
+      dispatch({ type: 'ADD_LOG_ENTRY', entry: logEntry });
       break;
+    }
 
-    case 'layer-complete':
-      // Layer complete events are handled for progress updates
+    case 'layer-complete': {
+      const logEntry = createLogEntry(
+        'layer-complete',
+        `Layer ${event.layerIndex} complete: ${event.succeeded} succeeded, ${event.failed} failed, ${event.skipped} skipped`,
+        { layerIndex: event.layerIndex }
+      );
+      dispatch({ type: 'ADD_LOG_ENTRY', entry: logEntry });
       break;
+    }
 
-    case 'execution-complete':
+    case 'execution-complete': {
+      const statusLabel = event.status === 'succeeded' ? 'Execution completed successfully' :
+                          event.status === 'partial' ? 'Execution completed with some failures' :
+                          'Execution failed';
+      const logEntry = createLogEntry(
+        'info',
+        `${statusLabel} (${event.summary.counts.succeeded} succeeded, ${event.summary.counts.failed} failed, ${event.summary.counts.skipped} skipped)`
+      );
+      dispatch({ type: 'ADD_LOG_ENTRY', entry: logEntry });
       dispatch({
         type: 'EXECUTION_COMPLETE',
         status: event.status === 'succeeded' ? 'completed' : 'failed',
       });
       break;
+    }
 
-    case 'error':
+    case 'error': {
+      const logEntry = createLogEntry(
+        'error',
+        event.message,
+        { errorDetails: event.code }
+      );
+      dispatch({ type: 'ADD_LOG_ENTRY', entry: logEntry });
       dispatch({ type: 'PLAN_FAILED', error: event.message });
       break;
+    }
   }
 }
 

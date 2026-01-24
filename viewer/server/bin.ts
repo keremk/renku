@@ -1,6 +1,15 @@
 #!/usr/bin/env node
 import process from "node:process";
+import { resolve } from "node:path";
+import { config as dotenvConfig } from "dotenv";
 import { startViewerServer } from "./runtime.js";
+
+// Load .env files - first from cwd, then from parent directories
+// This mimics the CLI's behavior for loading API keys
+dotenvConfig({ path: resolve(process.cwd(), ".env") });
+dotenvConfig({ path: resolve(process.cwd(), "..", ".env"), override: false });
+// Also try the CLI's .env location
+dotenvConfig({ path: resolve(process.cwd(), "cli", ".env"), override: false });
 
 interface CliOptions {
   root: string;

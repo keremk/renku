@@ -5,6 +5,7 @@ import { DetailPanel } from "./DetailPanel";
 import { BuildsListSidebar } from "./BuildsListSidebar";
 import { RunButton } from "./run-button";
 import { PlanDialog } from "./plan-dialog";
+import { ExecutionProgressPanel } from "./execution-progress-panel";
 import { ExecutionProvider, useExecution } from "@/contexts/execution-context";
 import type { BlueprintGraphData, InputTemplateData } from "@/types/blueprint-graph";
 import type { BuildInfo, BuildManifestResponse } from "@/types/builds";
@@ -32,6 +33,8 @@ const MIN_BLUEPRINT_FLOW_PERCENT = 30;
 const MAX_BLUEPRINT_FLOW_PERCENT = 70;
 const DEFAULT_BLUEPRINT_FLOW_PERCENT = 30;
 
+type BottomPanelTab = 'blueprint' | 'execution';
+
 /**
  * Inner component that uses the execution context.
  */
@@ -49,9 +52,11 @@ function BlueprintViewerInner({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [blueprintFlowPercent, setBlueprintFlowPercent] = useState(DEFAULT_BLUEPRINT_FLOW_PERCENT);
   const [isDragging, setIsDragging] = useState(false);
+  const [activeTab, setActiveTab] = useState<BottomPanelTab>('blueprint');
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { state, setTotalLayers, initializeFromManifest } = useExecution();
+  const isExecuting = state.status === 'executing';
 
   // Inputs panel is the inverse of blueprint flow
   const inputsPanelPercent = 100 - blueprintFlowPercent;
@@ -94,6 +99,26 @@ function BlueprintViewerInner({
     const estimatedLayers = Math.max(1, Math.ceil(producers.length / 2));
     setTotalLayers(estimatedLayers);
   }, [graphData, setTotalLayers]);
+
+  // Track previous execution state to detect transitions
+  const prevIsExecutingRef = useRef(isExecuting);
+  const prevBottomPanelVisibleRef = useRef(state.bottomPanelVisible);
+
+  // Auto-switch to Execution tab when execution starts or panel becomes visible
+  // Only switch on transitions, use queueMicrotask to avoid synchronous setState in effect
+  useEffect(() => {
+    const shouldSwitch =
+      (isExecuting && !prevIsExecutingRef.current) ||
+      (state.bottomPanelVisible && !prevBottomPanelVisibleRef.current);
+
+    prevIsExecutingRef.current = isExecuting;
+    prevBottomPanelVisibleRef.current = state.bottomPanelVisible;
+
+    if (shouldSwitch) {
+      // Use queueMicrotask to defer the state update, avoiding synchronous setState warning
+      queueMicrotask(() => setActiveTab('execution'));
+    }
+  }, [isExecuting, state.bottomPanelVisible]);
 
   const handleNodeSelect = useCallback((nodeId: string | null) => {
     setSelectedNodeId(nodeId);
@@ -139,6 +164,9 @@ function BlueprintViewerInner({
   const runButton = (
     <RunButton blueprintName={blueprintName} movieId={effectiveMovieId ?? undefined} />
   );
+
+  // Check if we have execution logs to show
+  const hasExecutionLogs = state.executionLogs.length > 0;
 
   return (
     <div
@@ -189,47 +217,100 @@ function BlueprintViewerInner({
           }`} />
         </div>
 
-        {/* Blueprint Flow Panel (bottom - full width) */}
+        {/* Bottom Panel with Tabs (Blueprint Flow or Execution) */}
         <div
-          className="shrink-0 min-h-0 rounded-xl border border-border/40 overflow-hidden relative"
+          className="shrink-0 min-h-0 rounded-xl border border-border/40 overflow-hidden relative flex flex-col"
           style={{ flexBasis: `${blueprintFlowPercent}%`, maxHeight: `${blueprintFlowPercent}%` }}
         >
-          <ReactFlowProvider>
-            <BlueprintFlow
-              graphData={graphData}
-              onNodeSelect={handleNodeSelect}
-              producerStatuses={state.producerStatuses}
-            />
-          </ReactFlowProvider>
+          {/* Tab Header */}
+          <div className="flex items-center border-b border-border/40 bg-card/30 shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('blueprint')}
+              className={`px-4 py-2 text-sm font-medium transition-colors relative ${
+                activeTab === 'blueprint'
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Blueprint
+              {activeTab === 'blueprint' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('execution')}
+              className={`px-4 py-2 text-sm font-medium transition-colors relative flex items-center gap-2 ${
+                activeTab === 'execution'
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Execution
+              {isExecuting && (
+                <span className="flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-blue-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                </span>
+              )}
+              {!isExecuting && hasExecutionLogs && (
+                <span className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+              )}
+              {activeTab === 'execution' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+              )}
+            </button>
+          </div>
+
+          {/* Tab Content */}
+          <div className="flex-1 min-h-0">
+            {activeTab === 'blueprint' ? (
+              <ReactFlowProvider>
+                <BlueprintFlow
+                  graphData={graphData}
+                  onNodeSelect={handleNodeSelect}
+                  producerStatuses={state.producerStatuses}
+                />
+              </ReactFlowProvider>
+            ) : (
+              <ExecutionProgressPanel
+                logs={state.executionLogs}
+                isExecuting={isExecuting}
+              />
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex items-center text-xs text-muted-foreground pt-3 mt-3 border-t border-border/30 shrink-0">
-        {/* Node types legend */}
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-blue-500/30 border border-blue-500/50" />
-            <span>Input</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-3 rounded bg-card border border-border/60" />
-            <span>Producer</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-purple-500/30 border border-purple-500/50" />
-            <span>Output</span>
-          </div>
-          <div className="flex items-center gap-2 ml-4">
-            <div className="w-8 h-0 border-t border-gray-400" />
-            <span>Connection</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-0 border-t border-dashed border-amber-400" />
-            <span>Conditional</span>
+      {/* Legend (only visible when Blueprint tab is active) */}
+      {activeTab === 'blueprint' && (
+        <div className="flex items-center text-xs text-muted-foreground pt-3 mt-3 border-t border-border/30 shrink-0">
+          {/* Node types legend */}
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full bg-blue-500/30 border border-blue-500/50" />
+              <span>Input</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-3 rounded bg-card border border-border/60" />
+              <span>Producer</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full bg-purple-500/30 border border-purple-500/50" />
+              <span>Output</span>
+            </div>
+            <div className="flex items-center gap-2 ml-4">
+              <div className="w-8 h-0 border-t border-gray-400" />
+              <span>Connection</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-0 border-t border-dashed border-amber-400" />
+              <span>Conditional</span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Plan Dialog */}
       <PlanDialog />

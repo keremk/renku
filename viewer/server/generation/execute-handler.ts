@@ -79,8 +79,10 @@ export async function handleExecuteRequest(
     );
 
     // Start execution asynchronously
+    console.log(`[execute-handler] Starting execution with reRunFrom=${body.reRunFrom}, upToLayer=${body.upToLayer}`);
     executeJobAsync(job.jobId, cachedPlan, cliConfig, {
       concurrency: body.concurrency,
+      reRunFrom: body.reRunFrom,
       upToLayer: body.upToLayer,
       dryRun: body.dryRun,
     }).catch((error) => {
@@ -115,6 +117,7 @@ export async function handleExecuteRequest(
  */
 interface ExecuteOptions {
   concurrency?: number;
+  reRunFrom?: number;
   upToLayer?: number;
   dryRun?: boolean;
 }
@@ -241,6 +244,7 @@ async function executeJobAsync(
       },
       {
         concurrency,
+        reRunFrom: options.reRunFrom,
         upToLayer: options.upToLayer,
         onProgress: (event) => {
           // Check if cancelled
@@ -273,6 +277,14 @@ async function executeJobAsync(
               succeeded: stats.succeeded,
               failed: stats.failed,
               skipped: stats.skipped,
+            });
+          } else if (event.type === 'layer-skipped') {
+            // Layer skipped due to reRunFrom - broadcast to UI
+            broadcastEvent(jobId, {
+              type: 'layer-skipped',
+              timestamp: new Date().toISOString(),
+              layerIndex,
+              reason: event.message ?? 'Re-running from a later layer',
             });
           } else if (event.type === 'job-start') {
             const detail: JobDetailInfo = {

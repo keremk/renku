@@ -45,6 +45,42 @@ export interface ExecutionProgress {
 }
 
 // =============================================================================
+// Execution Log Types
+// =============================================================================
+
+/**
+ * Type of log entry for the execution progress panel.
+ */
+export type ExecutionLogType =
+  | 'layer-start'
+  | 'layer-complete'
+  | 'layer-skipped'
+  | 'job-start'
+  | 'job-complete'
+  | 'error'
+  | 'info';
+
+/**
+ * Status of a log entry.
+ */
+export type ExecutionLogStatus = 'running' | 'succeeded' | 'failed' | 'skipped';
+
+/**
+ * A single entry in the execution log displayed in the progress panel.
+ */
+export interface ExecutionLogEntry {
+  id: string;
+  timestamp: string;
+  type: ExecutionLogType;
+  layerIndex?: number;
+  jobId?: string;
+  producer?: string;
+  status?: ExecutionLogStatus;
+  message: string;
+  errorDetails?: string;
+}
+
+// =============================================================================
 // Plan Display Types
 // =============================================================================
 
@@ -130,6 +166,7 @@ export type {
   JobStartEvent,
   JobCompleteEvent,
   LayerStartEvent,
+  LayerSkippedEvent,
   LayerCompleteEvent,
   ExecutionCompleteEvent,
   ErrorEvent,

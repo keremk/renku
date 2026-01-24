@@ -148,6 +148,7 @@ export function PlanDialog() {
     setLayerRange,
     confirmExecution,
     dismissDialog,
+    clearLogs,
   } = useExecution();
 
   const { planInfo, status, layerRange, error, producerStatuses } = state;
@@ -177,7 +178,9 @@ export function PlanDialog() {
   // Handle stage range changes
   const handleStageRangeChange = (newRange: { startStage: number; endStage: number }) => {
     if (!planInfo) return;
-    setLayerRange(stageRangeToLayerRange(newRange, planInfo.layers));
+    const newLayerRange = stageRangeToLayerRange(newRange, planInfo.layers);
+    console.log('[plan-dialog] Stage range changed:', newRange, '-> layerRange:', newLayerRange);
+    setLayerRange(newLayerRange);
   };
 
   if (!isOpen) return null;
@@ -332,7 +335,10 @@ export function PlanDialog() {
             Cancel
           </button>
           <button
-            onClick={() => confirmExecution(false)}
+            onClick={() => {
+              clearLogs();
+              confirmExecution(false);
+            }}
             className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             Execute

@@ -1,5 +1,7 @@
+import { Loader2 } from "lucide-react";
 import type { BuildInfo } from "@/types/builds";
 import { updateBlueprintRoute } from "@/hooks/use-blueprint-route";
+import { useExecution } from "@/contexts/execution-context";
 
 interface BuildsListSidebarProps {
   builds: BuildInfo[];
@@ -12,6 +14,9 @@ export function BuildsListSidebar({
   selectedBuildId,
   isLoading,
 }: BuildsListSidebarProps) {
+  const { state } = useExecution();
+  const isExecuting = state.status === 'executing';
+
   const handleBuildSelect = (movieId: string) => {
     if (movieId === selectedBuildId) {
       // Deselect if clicking the same build
@@ -51,6 +56,7 @@ export function BuildsListSidebar({
                 key={build.movieId}
                 build={build}
                 isSelected={build.movieId === selectedBuildId}
+                isExecuting={isExecuting && build.movieId === selectedBuildId}
                 onSelect={() => handleBuildSelect(build.movieId)}
               />
             ))}
@@ -64,10 +70,11 @@ export function BuildsListSidebar({
 interface BuildCardProps {
   build: BuildInfo;
   isSelected: boolean;
+  isExecuting: boolean;
   onSelect: () => void;
 }
 
-function BuildCard({ build, isSelected, onSelect }: BuildCardProps) {
+function BuildCard({ build, isSelected, isExecuting, onSelect }: BuildCardProps) {
   const relativeTime = getRelativeTime(build.updatedAt);
 
   return (
@@ -96,9 +103,13 @@ function BuildCard({ build, isSelected, onSelect }: BuildCardProps) {
               {build.revision}
             </span>
           )}
-          {build.hasManifest && (
+          {isExecuting ? (
+            <span title="Executing">
+              <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
+            </span>
+          ) : build.hasManifest ? (
             <span className="w-2 h-2 rounded-full bg-green-500" title="Has manifest" />
-          )}
+          ) : null}
         </div>
       </div>
     </button>
