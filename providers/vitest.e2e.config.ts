@@ -1,12 +1,8 @@
 import { defineConfig } from 'vitest/config';
-import { config } from 'dotenv';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { loadEnv } from '@gorenku/core';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-// Load .env from providers directory
-config({ path: resolve(__dirname, '.env') });
+// Load .env from monorepo root
+loadEnv(import.meta.url);
 
 export default defineConfig({
   test: {

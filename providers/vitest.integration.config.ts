@@ -1,7 +1,8 @@
 import { defineConfig } from 'vitest/config';
-import { config } from 'dotenv';
+import { loadEnv } from '@gorenku/core';
 
-config();
+// Load .env from monorepo root
+loadEnv(import.meta.url);
 
 export default defineConfig({
   test: {

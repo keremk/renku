@@ -2,28 +2,14 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "path"
 import { fileURLToPath } from "node:url"
-import { config as dotenvConfig } from "dotenv"
 import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig, loadEnv } from "vite"
+import { loadEnv as loadEnvFromCore } from "@gorenku/core"
 import { createViewerApiMiddleware } from "./server/viewer-api"
 
-// Load .env files for the API middleware (providers need API keys)
-// These need to be loaded into process.env for the server-side code
-const __dirnameForEnv = path.dirname(fileURLToPath(import.meta.url))
-const envPaths = [
-  path.resolve(process.cwd(), ".env"),
-  path.resolve(process.cwd(), "..", ".env"),
-  path.resolve(process.cwd(), "cli", ".env"),
-  path.resolve(__dirnameForEnv, "..", "cli", ".env"),
-  path.resolve(__dirnameForEnv, "..", ".env"),
-]
-for (const envPath of envPaths) {
-  const result = dotenvConfig({ path: envPath, override: false })
-  if (result.parsed) {
-    console.log(`[viewer] Loaded env from: ${envPath}`)
-  }
-}
+// Load .env from monorepo root for the API middleware (providers need API keys)
+loadEnvFromCore(import.meta.url, { verbose: true })
 
 const expandPath = (input: string | null | undefined) => {
   if (!input) return null

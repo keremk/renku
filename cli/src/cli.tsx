@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 /* eslint-env node */
-import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
 import process from 'node:process';
 import meow from 'meow';
 import chalk from 'chalk';
@@ -10,12 +8,10 @@ sanitizeDebugEnvVar('DEBUG');
 sanitizeDebugEnvVar('NODE_DEBUG');
 delete process.env.DOTENV_CONFIG_DEBUG;
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
 const restoreStdout = silenceStdout();
 try {
-  const { config: dotenvConfig } = await import('dotenv');
-  dotenvConfig({ path: resolve(__dirname, '..', '.env') });
-  dotenvConfig({ path: resolve(process.cwd(), '.env'), override: false });
+  const { loadEnv } = await import('@gorenku/core');
+  loadEnv(import.meta.url);
 } finally {
   restoreStdout();
 }
