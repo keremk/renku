@@ -25,6 +25,7 @@ function createMockPlanData(): Omit<CachedPlan, 'planId' | 'createdAt'> {
     resolvedInputs: { input1: 'value1' },
     providerOptions: new Map(),
     blueprintPath: '/test/blueprint.yaml',
+    basePath: 'test-project/builds',
     costSummary: { totalCost: 10 } as PlanCostSummary,
     persist: vi.fn().mockResolvedValue(undefined),
   };

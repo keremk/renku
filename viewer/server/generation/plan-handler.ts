@@ -4,7 +4,7 @@
  */
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { resolve, dirname } from 'node:path';
+import { resolve, dirname, relative } from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import {
   createStorageContext,
@@ -65,6 +65,9 @@ export async function handlePlanRequest(
     // Resolve blueprint and inputs paths
     const paths = await resolveBlueprintPaths(body.blueprint, body.inputs, cliConfig);
 
+    // Compute basePath relative to storage root (e.g., "animated-edu-characters/builds")
+    const basePath = relative(cliConfig.storage.root, paths.buildsFolder);
+
     // Determine movie ID (new or existing)
     const isNew = !body.movieId;
     const movieId = body.movieId ? normalizeMovieId(body.movieId) : generateMovieId();
@@ -76,6 +79,8 @@ export async function handlePlanRequest(
       isNew,
       blueprintPath: paths.blueprintPath,
       inputsPath: paths.inputsPath,
+      buildsFolder: paths.buildsFolder,
+      basePath,
       reRunFrom: body.reRunFrom,
       targetArtifactIds: body.artifactIds,
     });
@@ -90,6 +95,7 @@ export async function handlePlanRequest(
       resolvedInputs: planResult.resolvedInputs,
       providerOptions: planResult.providerOptions as Map<string, unknown>,
       blueprintPath: planResult.blueprintPath,
+      basePath,
       costSummary: planResult.costSummary,
       catalogModelsDir: planResult.catalogModelsDir,
       surgicalInfo: planResult.surgicalInfo,
@@ -121,6 +127,10 @@ interface GeneratePlanOptions {
   isNew: boolean;
   blueprintPath: string;
   inputsPath: string;
+  /** Full path to builds folder (e.g., /Users/.../animated-edu-characters/builds) */
+  buildsFolder: string;
+  /** Relative basePath from storage root (e.g., "animated-edu-characters/builds") */
+  basePath: string;
   reRunFrom?: number;
   targetArtifactIds?: string[];
 }
@@ -146,10 +156,9 @@ interface GeneratePlanResult {
  * Based on cli/src/lib/planner.ts but adapted for viewer use.
  */
 async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanResult> {
-  const { cliConfig, movieId, isNew, blueprintPath, inputsPath, reRunFrom, targetArtifactIds } = options;
+  const { cliConfig, movieId, isNew, blueprintPath, inputsPath, buildsFolder, basePath, reRunFrom, targetArtifactIds } = options;
   const storageRoot = cliConfig.storage.root;
-  const basePath = cliConfig.storage.basePath;
-  const movieDir = resolve(storageRoot, basePath, movieId);
+  const movieDir = resolve(buildsFolder, movieId);
 
   // Use IN-MEMORY storage for planning (no disk writes yet)
   const memoryStorageContext = createStorageContext({ kind: 'memory', basePath });

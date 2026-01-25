@@ -52,6 +52,10 @@ interface ExecutionState {
   isStopping: boolean;
   /** Whether the bottom progress panel is visible */
   bottomPanelVisible: boolean;
+  /** Blueprint name used for the current plan (for re-planning) */
+  blueprintName: string | null;
+  /** Movie ID used for the current plan (for re-planning) */
+  movieId: string | null;
 }
 
 // =============================================================================
@@ -61,7 +65,7 @@ interface ExecutionState {
 type ExecutionAction =
   | { type: 'SET_LAYER_RANGE'; range: LayerRange }
   | { type: 'SET_TOTAL_LAYERS'; totalLayers: number }
-  | { type: 'START_PLANNING' }
+  | { type: 'START_PLANNING'; blueprintName: string; movieId: string | null }
   | { type: 'PLAN_READY'; planInfo: PlanDisplayInfo }
   | { type: 'PLAN_FAILED'; error: string }
   | { type: 'START_EXECUTION'; jobId: string }
@@ -94,6 +98,8 @@ const initialState: ExecutionState = {
   executionLogs: [],
   isStopping: false,
   bottomPanelVisible: false,
+  blueprintName: null,
+  movieId: null,
 };
 
 // =============================================================================
@@ -112,7 +118,13 @@ function executionReducer(
       return { ...state, totalLayers: action.totalLayers };
 
     case 'START_PLANNING':
-      return { ...state, status: 'planning', error: null };
+      return {
+        ...state,
+        status: 'planning',
+        error: null,
+        blueprintName: action.blueprintName,
+        movieId: action.movieId,
+      };
 
     case 'PLAN_READY':
       return {
@@ -365,6 +377,8 @@ interface ExecutionContextValue {
   setLayerRange: (range: LayerRange) => void;
   setTotalLayers: (totalLayers: number) => void;
   requestPlan: (blueprintName: string, movieId?: string) => Promise<void>;
+  /** Re-request the plan with a new reRunFrom value. Used when user adjusts the stage range slider. */
+  replanWithRange: (reRunFrom: number | null) => Promise<void>;
   confirmExecution: (dryRun?: boolean) => Promise<void>;
   cancelExecution: () => Promise<void>;
   dismissDialog: () => void;
@@ -402,7 +416,7 @@ export function ExecutionProvider({ children }: ExecutionProviderProps) {
   }, []);
 
   const requestPlan = useCallback(async (blueprintName: string, movieId?: string) => {
-    dispatch({ type: 'START_PLANNING' });
+    dispatch({ type: 'START_PLANNING', blueprintName, movieId: movieId ?? null });
 
     try {
       const response = await createPlan({
@@ -419,11 +433,35 @@ export function ExecutionProvider({ children }: ExecutionProviderProps) {
     }
   }, [state.layerRange.reRunFrom]);
 
+  const replanWithRange = useCallback(async (reRunFrom: number | null) => {
+    if (!state.blueprintName) {
+      console.error('[execution-context] Cannot replan: no blueprint name stored');
+      return;
+    }
+
+    // Update the layer range first
+    dispatch({ type: 'SET_LAYER_RANGE', range: { ...state.layerRange, reRunFrom } });
+    dispatch({ type: 'START_PLANNING', blueprintName: state.blueprintName, movieId: state.movieId });
+
+    try {
+      const response = await createPlan({
+        blueprint: state.blueprintName,
+        movieId: state.movieId ?? undefined,
+        reRunFrom: reRunFrom ?? undefined,
+      });
+
+      const planInfo = planResponseToDisplayInfo(response);
+      dispatch({ type: 'PLAN_READY', planInfo });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to create plan';
+      dispatch({ type: 'PLAN_FAILED', error: message });
+    }
+  }, [state.blueprintName, state.movieId, state.layerRange]);
+
   const confirmExecution = useCallback(async (dryRun = false) => {
     if (!state.planInfo) return;
 
     try {
-      console.log('[execution-context] Confirming execution with layerRange:', state.layerRange);
       const response = await executePlan({
         planId: state.planInfo.planId,
         reRunFrom: state.layerRange.reRunFrom ?? undefined,
@@ -510,6 +548,7 @@ export function ExecutionProvider({ children }: ExecutionProviderProps) {
     setLayerRange,
     setTotalLayers,
     requestPlan,
+    replanWithRange,
     confirmExecution,
     cancelExecution,
     dismissDialog,

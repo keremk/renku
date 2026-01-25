@@ -214,6 +214,7 @@ export async function executePlanWithConcurrency(
             jobId: job.jobId,
             producer: job.producer,
             status: result.status,
+            error: result.error ? { message: result.error.message, code: undefined } : undefined,
           });
 
           return result;

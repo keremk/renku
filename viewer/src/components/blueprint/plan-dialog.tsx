@@ -146,6 +146,7 @@ export function PlanDialog() {
   const {
     state,
     setLayerRange,
+    replanWithRange,
     confirmExecution,
     dismissDialog,
     clearLogs,
@@ -154,7 +155,9 @@ export function PlanDialog() {
   const { planInfo, status, layerRange, error, producerStatuses } = state;
 
   // Only show when in confirming state or when there's an error to display
-  const isOpen = status === 'confirming' || (status === 'failed' && error !== null);
+  // Also keep dialog open during re-planning (planning status with existing planInfo)
+  const isReplanning = status === 'planning' && planInfo !== null;
+  const isOpen = status === 'confirming' || (status === 'failed' && error !== null) || isReplanning;
 
   // Derive stage statuses from producer statuses
   const stageStatuses = useMemo(() => {
@@ -179,8 +182,19 @@ export function PlanDialog() {
   const handleStageRangeChange = (newRange: { startStage: number; endStage: number }) => {
     if (!planInfo) return;
     const newLayerRange = stageRangeToLayerRange(newRange, planInfo.layers);
-    console.log('[plan-dialog] Stage range changed:', newRange, '-> layerRange:', newLayerRange);
-    setLayerRange(newLayerRange);
+
+    // Check if reRunFrom changed - if so, we need to re-request the plan
+    // because the planner optimizes out jobs based on existing artifacts
+    const currentReRunFrom = layerRange.reRunFrom;
+    const newReRunFrom = newLayerRange.reRunFrom;
+
+    if (currentReRunFrom !== newReRunFrom) {
+      // Re-request the plan with new reRunFrom (this also updates layerRange)
+      replanWithRange(newReRunFrom);
+    } else {
+      // Only upToLayer changed - no need to re-request plan, just update state
+      setLayerRange(newLayerRange);
+    }
   };
 
   if (!isOpen) return null;
@@ -232,7 +246,14 @@ export function PlanDialog() {
         </DialogHeader>
 
         {/* Plan Summary */}
-        <div className="space-y-4">
+        <div className="space-y-4 relative">
+          {/* Re-planning overlay */}
+          {isReplanning && (
+            <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10 rounded-lg">
+              <div className="text-sm text-muted-foreground">Updating plan...</div>
+            </div>
+          )}
+
           {/* Stats - using dynamic range totals */}
           <div className="grid grid-cols-3 gap-4">
             <div className="text-center p-3 bg-muted rounded-lg">
@@ -339,9 +360,10 @@ export function PlanDialog() {
               clearLogs();
               confirmExecution(false);
             }}
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            disabled={isReplanning}
+            className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Execute
+            {isReplanning ? 'Updating...' : 'Execute'}
           </button>
         </DialogFooter>
       </DialogContent>

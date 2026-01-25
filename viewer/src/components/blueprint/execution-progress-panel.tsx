@@ -87,13 +87,22 @@ export function ExecutionProgressPanel({ logs, isExecuting }: ExecutionProgressP
           </div>
         ) : (
           logs.map((entry) => (
-            <div key={entry.id} className="flex gap-2">
-              <span className="text-muted-foreground/50 shrink-0">
-                [{formatTimestamp(entry.timestamp)}]
-              </span>
-              <span className={getLogEntryClass(entry)}>
-                {entry.message}
-              </span>
+            <div key={entry.id} className="flex flex-col gap-0.5">
+              <div className="flex gap-2">
+                <span className="text-muted-foreground/50 shrink-0">
+                  [{formatTimestamp(entry.timestamp)}]
+                </span>
+                <span className={getLogEntryClass(entry)}>
+                  {entry.message}
+                </span>
+              </div>
+              {entry.errorDetails && (
+                <div className="ml-[88px]">
+                  <span className="text-red-400/80 text-[10px]">
+                    Error: {entry.errorDetails}
+                  </span>
+                </div>
+              )}
             </div>
           ))
         )}

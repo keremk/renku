@@ -332,6 +332,8 @@ export interface CachedPlan {
   resolvedInputs: Record<string, unknown>;
   providerOptions: Map<string, unknown>;
   blueprintPath: string;
+  /** Storage basePath relative to storage root (e.g., "animated-edu-characters/builds") */
+  basePath: string;
   costSummary: PlanCostSummary;
   catalogModelsDir?: string;
   surgicalInfo?: SurgicalInfo[];

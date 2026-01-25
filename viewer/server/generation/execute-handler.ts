@@ -16,10 +16,14 @@ import {
   injectAllSystemInputs,
   executePlanWithConcurrency,
   isRenkuError,
+  createLogger,
+  createNotificationBus,
   type StorageContext,
   type ExecutionPlan,
   type Manifest,
   type RunConfig,
+  type Logger,
+  type NotificationBus,
 } from '@gorenku/core';
 import {
   createProviderRegistry,
@@ -79,7 +83,6 @@ export async function handleExecuteRequest(
     );
 
     // Start execution asynchronously
-    console.log(`[execute-handler] Starting execution with reRunFrom=${body.reRunFrom}, upToLayer=${body.upToLayer}`);
     executeJobAsync(job.jobId, cachedPlan, cliConfig, {
       concurrency: body.concurrency,
       reRunFrom: body.reRunFrom,
@@ -137,6 +140,7 @@ async function executeJobAsync(
     resolvedInputs: Record<string, unknown>;
     providerOptions: Map<string, unknown>;
     blueprintPath: string;
+    basePath: string;
     catalogModelsDir?: string;
     persist: () => Promise<void>;
   },
@@ -145,6 +149,14 @@ async function executeJobAsync(
 ): Promise<void> {
   const jobManager = getJobManager();
   const { dryRun = false } = options;
+
+  // Create logger and notifications for provider execution
+  const logger: Logger = createLogger({
+    level: 'info',
+    prefix: '[viewer-execution]',
+  });
+
+  const notifications: NotificationBus = createNotificationBus();
 
   try {
     // Update status to planning
@@ -171,11 +183,11 @@ async function executeJobAsync(
     // Update status to running
     jobManager.updateJobStatus(jobId, 'running');
 
-    // Create storage context
+    // Create storage context using the blueprint-relative basePath
     const storage = createStorageContext({
       kind: 'local',
       rootDir: cliConfig.storage.root,
-      basePath: cliConfig.storage.basePath,
+      basePath: cachedPlan.basePath,
     });
 
     await initializeMovieStorage(storage, cachedPlan.movieId);
@@ -186,7 +198,7 @@ async function executeJobAsync(
     // Cloud storage: Real for live, stubbed for dry-run
     const cloudStorageEnv = loadCloudStorageEnv();
     const cloudStorage = dryRun
-      ? createDryRunCloudStorage(cliConfig.storage.root, cliConfig.storage.basePath, cachedPlan.movieId)
+      ? createDryRunCloudStorage(cliConfig.storage.root, cachedPlan.basePath, cachedPlan.movieId)
       : cloudStorageEnv.isConfigured
         ? createCloudStorageContext(cloudStorageEnv.config!)
         : undefined;
@@ -199,6 +211,8 @@ async function executeJobAsync(
     // Provider registry
     const registry = createProviderRegistry({
       mode: dryRun ? 'simulated' : 'live',
+      logger,
+      notifications,
       cloudStorage,
       catalog: modelCatalog,
       catalogModelsDir: cachedPlan.catalogModelsDir,
@@ -221,10 +235,17 @@ async function executeJobAsync(
       resolvedInputsWithBlobs,
       cachedPlan.movieId,
       cliConfig.storage.root,
-      cliConfig.storage.basePath
+      cachedPlan.basePath
     );
 
-    const produce = createProviderProduce(registry, providerOpts, resolvedInputsWithSystem, preResolved);
+    const produce = createProviderProduce(
+      registry,
+      providerOpts,
+      resolvedInputsWithSystem,
+      preResolved,
+      logger,
+      notifications,
+    );
 
     const concurrency = normalizeConcurrency(options.concurrency ?? cliConfig.concurrency);
 
