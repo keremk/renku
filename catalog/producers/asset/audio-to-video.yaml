@@ -70,6 +70,7 @@ mappings:
       Prompt: prompt
       CharacterImage: image_url
       AudioUrl: audio_url
+      Duration: duration
       Resolution: resolution
       GuidanceScale: guidance_scale
       AudioGuidanceScale: audio_guidance_scale
@@ -78,6 +79,7 @@ mappings:
     veed/fabric-1.0/fast:
       CharacterImage: image_url
       AudioUrl: audio_url
+      Duration: duration
       Resolution: resolution
 
     # InfiniTalk (Audio-driven)
@@ -98,4 +100,5 @@ mappings:
       Prompt: prompt
       CharacterImage: image_url
       AudioUrl: audio_url
+      Duration: duration
       Resolution: resolution

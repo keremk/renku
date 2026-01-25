@@ -54,6 +54,7 @@ export type CostFunctionName =
 	| 'costByVideoDurationAndWithAudio'
 	| 'costByRun'
 	| 'costByCharacters'
+	| 'costByCharactersAndPlan'
 	| 'costByAudioSeconds'
 	| 'costByImageSizeAndQuality'
 	| 'costByVideoPerMillionTokens'
@@ -114,6 +115,9 @@ export interface ModelPriceConfig {
 	pricePerMillionTokens?: number;
 	pricePerMegapixel?: number;
 	prices?: Array<ResolutionPriceEntry | AudioFlagPriceEntry | ImageSizeQualityPriceEntry | VideoTokenPriceEntry>;
+	// Plan-based pricing for ElevenLabs
+	pricePerCharByPlan?: Record<string, number>;
+	defaultPlan?: string;
 }
 
 /**
@@ -600,6 +604,73 @@ function costByCharacters(
 	return { cost: text.length * pricePerCharacter, isPlaceholder: false };
 }
 
+/**
+ * Calculate cost based on character count with plan-based pricing.
+ * Used for providers like ElevenLabs that have different pricing tiers.
+ */
+function costByCharactersAndPlan(
+	config: ModelPriceConfig,
+	extracted: ExtractedCostInputs
+): CostEstimate {
+	const prices = config.pricePerCharByPlan;
+	if (!prices || Object.keys(prices).length === 0) {
+		return {
+			cost: 0,
+			isPlaceholder: true,
+			note: 'Missing pricePerCharByPlan in config',
+		};
+	}
+
+	// Get plan from environment, fall back to defaultPlan or first available
+	const plan = process.env.ELEVEN_LABS_PLAN ?? config.defaultPlan;
+	const pricePerCharacter = plan ? prices[plan] : Object.values(prices)[0];
+
+	if (pricePerCharacter === undefined) {
+		return {
+			cost: 0,
+			isPlaceholder: true,
+			note: `Unknown plan: ${plan}`,
+		};
+	}
+
+	// Check if text comes from artefact
+	if (extracted.artefactSourcedFields.length > 0) {
+		const samples = [
+			{ label: '100 chars', cost: 100 * pricePerCharacter },
+			{ label: '500 chars', cost: 500 * pricePerCharacter },
+			{ label: '1000 chars', cost: 1000 * pricePerCharacter },
+		];
+		return {
+			cost: samples[1].cost,
+			isPlaceholder: true,
+			note: `Input from artefact: ${extracted.artefactSourcedFields.join(', ')} (Plan: ${plan ?? 'default'})`,
+			range: {
+				min: samples[0].cost,
+				max: samples[2].cost,
+				samples,
+			},
+		};
+	}
+
+	// Get the text value
+	const textField = config.inputs?.[0];
+	const text = textField ? extracted.values[textField] : undefined;
+
+	if (typeof text !== 'string' || text.length === 0) {
+		return {
+			cost: 0,
+			isPlaceholder: true,
+			note: 'No text value found',
+		};
+	}
+
+	return {
+		cost: text.length * pricePerCharacter,
+		isPlaceholder: false,
+		note: `Plan: ${plan ?? 'default'}`,
+	};
+}
+
 function costByAudioSeconds(
 	config: ModelPriceConfig,
 	extracted: ExtractedCostInputs
@@ -1018,6 +1089,8 @@ export function calculateCost(
 			return costByRun(priceConfig, extracted);
 		case 'costByCharacters':
 			return costByCharacters(priceConfig, extracted);
+		case 'costByCharactersAndPlan':
+			return costByCharactersAndPlan(priceConfig, extracted);
 		case 'costByAudioSeconds':
 			return costByAudioSeconds(priceConfig, extracted);
 		case 'costByImageSizeAndQuality':
@@ -1376,6 +1449,18 @@ export function formatPrice(price: ModelPriceConfig | number | undefined): strin
 			return price.pricePerCharacter !== undefined
 				? `$${price.pricePerCharacter.toFixed(6)}/char`
 				: '-';
+
+		case 'costByCharactersAndPlan': {
+			const planPrices = price.pricePerCharByPlan;
+			if (!planPrices || Object.keys(planPrices).length === 0) {
+				return '-';
+			}
+			const defaultPlan = price.defaultPlan ?? Object.keys(planPrices)[0];
+			const defaultPrice = planPrices[defaultPlan];
+			return defaultPrice !== undefined
+				? `$${defaultPrice.toFixed(6)}/char (${defaultPlan})`
+				: '-';
+		}
 
 		case 'costByAudioSeconds':
 			return price.pricePerSecond !== undefined

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
 	calculateCost,
 	estimatePlanCosts,
@@ -139,6 +139,167 @@ describe('calculateCost', () => {
 			// 100-1000 character range
 			expect(result.range!.min).toBeCloseTo(0.01, 4);
 			expect(result.range!.max).toBeCloseTo(0.1, 4);
+		});
+	});
+
+	describe('costByCharactersAndPlan', () => {
+		const originalEnv = process.env.ELEVEN_LABS_PLAN;
+
+		afterEach(() => {
+			if (originalEnv !== undefined) {
+				process.env.ELEVEN_LABS_PLAN = originalEnv;
+			} else {
+				delete process.env.ELEVEN_LABS_PLAN;
+			}
+		});
+
+		it('calculates cost using plan from environment variable', () => {
+			process.env.ELEVEN_LABS_PLAN = 'Pro';
+			const config: ModelPriceConfig = {
+				function: 'costByCharactersAndPlan',
+				inputs: ['text'],
+				pricePerCharByPlan: {
+					Creator: 0.0003,
+					Pro: 0.00024,
+					Scale: 0.00018,
+					Business: 0.00012,
+				},
+				defaultPlan: 'Scale',
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { text: 'Hello world' }, // 11 characters
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBeCloseTo(11 * 0.00024, 6);
+			expect(result.isPlaceholder).toBe(false);
+			expect(result.note).toBe('Plan: Pro');
+		});
+
+		it('falls back to defaultPlan when env var not set', () => {
+			delete process.env.ELEVEN_LABS_PLAN;
+			const config: ModelPriceConfig = {
+				function: 'costByCharactersAndPlan',
+				inputs: ['text'],
+				pricePerCharByPlan: {
+					Creator: 0.0003,
+					Pro: 0.00024,
+					Scale: 0.00018,
+					Business: 0.00012,
+				},
+				defaultPlan: 'Scale',
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { text: 'Hello world' }, // 11 characters
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBeCloseTo(11 * 0.00018, 6);
+			expect(result.isPlaceholder).toBe(false);
+			expect(result.note).toBe('Plan: Scale');
+		});
+
+		it('returns range when text comes from artefact', () => {
+			delete process.env.ELEVEN_LABS_PLAN;
+			const config: ModelPriceConfig = {
+				function: 'costByCharactersAndPlan',
+				inputs: ['text'],
+				pricePerCharByPlan: {
+					Creator: 0.0003,
+					Pro: 0.00024,
+					Scale: 0.00018,
+					Business: 0.00012,
+				},
+				defaultPlan: 'Scale',
+			};
+			const extracted: ExtractedCostInputs = {
+				values: {},
+				artefactSourcedFields: ['text'],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.isPlaceholder).toBe(true);
+			expect(result.range).toBeDefined();
+			// 100-1000 character range with Scale pricing (0.00018/char)
+			expect(result.range!.min).toBeCloseTo(0.018, 4);  // 100 * 0.00018
+			expect(result.range!.max).toBeCloseTo(0.18, 4);   // 1000 * 0.00018
+			expect(result.note).toContain('artefact');
+			expect(result.note).toContain('Plan: Scale');
+		});
+
+		it('returns placeholder for unknown plan', () => {
+			process.env.ELEVEN_LABS_PLAN = 'UnknownPlan';
+			const config: ModelPriceConfig = {
+				function: 'costByCharactersAndPlan',
+				inputs: ['text'],
+				pricePerCharByPlan: {
+					Creator: 0.0003,
+					Pro: 0.00024,
+				},
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { text: 'Hello' },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(0);
+			expect(result.isPlaceholder).toBe(true);
+			expect(result.note).toContain('Unknown plan');
+		});
+
+		it('returns placeholder when no text value found', () => {
+			delete process.env.ELEVEN_LABS_PLAN;
+			const config: ModelPriceConfig = {
+				function: 'costByCharactersAndPlan',
+				inputs: ['text'],
+				pricePerCharByPlan: {
+					Scale: 0.00018,
+				},
+				defaultPlan: 'Scale',
+			};
+			const result = calculateCost(config, { values: {}, artefactSourcedFields: [], missingFields: ['text'] });
+			expect(result.cost).toBe(0);
+			expect(result.isPlaceholder).toBe(true);
+			expect(result.note).toBe('No text value found');
+		});
+
+		it('returns placeholder when pricePerCharByPlan is missing', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByCharactersAndPlan',
+				inputs: ['text'],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { text: 'Hello' },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(0);
+			expect(result.isPlaceholder).toBe(true);
+			expect(result.note).toBe('Missing pricePerCharByPlan in config');
+		});
+
+		it('uses first available price when no defaultPlan and no env var', () => {
+			delete process.env.ELEVEN_LABS_PLAN;
+			const config: ModelPriceConfig = {
+				function: 'costByCharactersAndPlan',
+				inputs: ['text'],
+				pricePerCharByPlan: {
+					Creator: 0.0003,
+				},
+				// no defaultPlan
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { text: 'Hello world' }, // 11 characters
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBeCloseTo(11 * 0.0003, 6);
+			expect(result.isPlaceholder).toBe(false);
 		});
 	});
 
