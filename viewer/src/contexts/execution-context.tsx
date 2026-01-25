@@ -56,6 +56,8 @@ interface ExecutionState {
   blueprintName: string | null;
   /** Movie ID used for the current plan (for re-planning) */
   movieId: string | null;
+  /** Set of artifact IDs selected for regeneration */
+  selectedForRegeneration: Set<string>;
 }
 
 // =============================================================================
@@ -80,7 +82,11 @@ type ExecutionAction =
   | { type: 'SET_STOPPING'; isStopping: boolean }
   | { type: 'SHOW_BOTTOM_PANEL' }
   | { type: 'HIDE_BOTTOM_PANEL' }
-  | { type: 'CLEAR_LOGS' };
+  | { type: 'CLEAR_LOGS' }
+  | { type: 'TOGGLE_ARTIFACT_SELECTION'; artifactId: string }
+  | { type: 'SELECT_PRODUCER_ARTIFACTS'; artifactIds: string[] }
+  | { type: 'DESELECT_PRODUCER_ARTIFACTS'; artifactIds: string[] }
+  | { type: 'CLEAR_REGENERATION_SELECTION' };
 
 // =============================================================================
 // Initial State
@@ -100,6 +106,7 @@ const initialState: ExecutionState = {
   bottomPanelVisible: false,
   blueprintName: null,
   movieId: null,
+  selectedForRegeneration: new Set(),
 };
 
 // =============================================================================
@@ -200,6 +207,7 @@ function executionReducer(
         producerStatuses: state.producerStatuses,
         totalLayers: state.totalLayers,
         bottomPanelVisible: state.bottomPanelVisible,
+        selectedForRegeneration: state.selectedForRegeneration,
       };
 
     case 'INIT_FROM_MANIFEST': {
@@ -239,6 +247,35 @@ function executionReducer(
         ...state,
         executionLogs: [],
       };
+
+    case 'TOGGLE_ARTIFACT_SELECTION': {
+      const newSet = new Set(state.selectedForRegeneration);
+      if (newSet.has(action.artifactId)) {
+        newSet.delete(action.artifactId);
+      } else {
+        newSet.add(action.artifactId);
+      }
+      return { ...state, selectedForRegeneration: newSet };
+    }
+
+    case 'SELECT_PRODUCER_ARTIFACTS': {
+      const newSet = new Set(state.selectedForRegeneration);
+      for (const id of action.artifactIds) {
+        newSet.add(id);
+      }
+      return { ...state, selectedForRegeneration: newSet };
+    }
+
+    case 'DESELECT_PRODUCER_ARTIFACTS': {
+      const newSet = new Set(state.selectedForRegeneration);
+      for (const id of action.artifactIds) {
+        newSet.delete(id);
+      }
+      return { ...state, selectedForRegeneration: newSet };
+    }
+
+    case 'CLEAR_REGENERATION_SELECTION':
+      return { ...state, selectedForRegeneration: new Set() };
 
     default:
       return state;
@@ -387,6 +424,18 @@ interface ExecutionContextValue {
   showBottomPanel: () => void;
   hideBottomPanel: () => void;
   clearLogs: () => void;
+  /** Toggle selection of an artifact for regeneration */
+  toggleArtifactSelection: (artifactId: string) => void;
+  /** Select all artifacts from a producer */
+  selectProducerArtifacts: (artifactIds: string[]) => void;
+  /** Deselect all artifacts from a producer */
+  deselectProducerArtifacts: (artifactIds: string[]) => void;
+  /** Clear all regeneration selections */
+  clearRegenerationSelection: () => void;
+  /** Check if an artifact is selected for regeneration */
+  isArtifactSelected: (artifactId: string) => boolean;
+  /** Get all selected artifact IDs */
+  getSelectedArtifacts: () => string[];
 }
 
 // =============================================================================
@@ -543,6 +592,30 @@ export function ExecutionProvider({ children }: ExecutionProviderProps) {
     dispatch({ type: 'CLEAR_LOGS' });
   }, []);
 
+  const toggleArtifactSelection = useCallback((artifactId: string) => {
+    dispatch({ type: 'TOGGLE_ARTIFACT_SELECTION', artifactId });
+  }, []);
+
+  const selectProducerArtifacts = useCallback((artifactIds: string[]) => {
+    dispatch({ type: 'SELECT_PRODUCER_ARTIFACTS', artifactIds });
+  }, []);
+
+  const deselectProducerArtifacts = useCallback((artifactIds: string[]) => {
+    dispatch({ type: 'DESELECT_PRODUCER_ARTIFACTS', artifactIds });
+  }, []);
+
+  const clearRegenerationSelection = useCallback(() => {
+    dispatch({ type: 'CLEAR_REGENERATION_SELECTION' });
+  }, []);
+
+  const isArtifactSelected = useCallback((artifactId: string) => {
+    return state.selectedForRegeneration.has(artifactId);
+  }, [state.selectedForRegeneration]);
+
+  const getSelectedArtifacts = useCallback(() => {
+    return Array.from(state.selectedForRegeneration);
+  }, [state.selectedForRegeneration]);
+
   const value: ExecutionContextValue = {
     state,
     setLayerRange,
@@ -557,6 +630,12 @@ export function ExecutionProvider({ children }: ExecutionProviderProps) {
     showBottomPanel,
     hideBottomPanel,
     clearLogs,
+    toggleArtifactSelection,
+    selectProducerArtifacts,
+    deselectProducerArtifacts,
+    clearRegenerationSelection,
+    isArtifactSelected,
+    getSelectedArtifacts,
   };
 
   return (
@@ -574,7 +653,7 @@ export function ExecutionProvider({ children }: ExecutionProviderProps) {
  * Generate a unique ID for log entries.
  */
 function generateLogId(): string {
-  return `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return `log-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
 /**

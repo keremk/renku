@@ -68,6 +68,7 @@ export function DetailPanel({
             movieId={movieId}
             blueprintFolder={blueprintFolder}
             artifacts={artifacts}
+            graphData={graphData}
           />
         )}
       </div>

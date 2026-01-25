@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -6,13 +6,14 @@ import {
   Download,
   ExternalLink,
   Copy,
-  Video,
   Music,
-  Image as ImageIcon,
-  FileText,
   File,
   Maximize2,
   X,
+  RefreshCw,
+  Square,
+  CheckSquare,
+  Check,
 } from "lucide-react";
 import {
   Collapsible,
@@ -24,6 +25,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
   Dialog,
@@ -32,7 +34,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import type { BlueprintOutputDef } from "@/types/blueprint-graph";
+import {
+  shortenArtifactDisplayName,
+  groupArtifactsByProducer,
+  sortProducersByTopology,
+} from "@/lib/artifact-utils";
+import { useExecution } from "@/contexts/execution-context";
+import type { BlueprintOutputDef, BlueprintGraphData } from "@/types/blueprint-graph";
 import type { ArtifactInfo } from "@/types/builds";
 
 interface OutputsPanelProps {
@@ -41,6 +49,7 @@ interface OutputsPanelProps {
   movieId: string | null;
   blueprintFolder: string | null;
   artifacts: ArtifactInfo[];
+  graphData?: BlueprintGraphData;
 }
 
 export function OutputsPanel({
@@ -49,6 +58,7 @@ export function OutputsPanel({
   movieId,
   blueprintFolder,
   artifacts,
+  graphData,
 }: OutputsPanelProps) {
   const selectedOutputName = selectedNodeId?.startsWith("Output:")
     ? selectedNodeId.replace("Output:", "").split(".").pop()
@@ -68,6 +78,7 @@ export function OutputsPanel({
         artifacts={artifacts}
         blueprintFolder={blueprintFolder}
         movieId={movieId}
+        graphData={graphData}
       />
     );
   }
@@ -131,168 +142,198 @@ function OutputDefinitionCard({
 }
 
 // ============================================================================
-// Artifact Gallery
+// Artifact Gallery (Producer-based grouping)
 // ============================================================================
 
 function ArtifactGallery({
   artifacts,
   blueprintFolder,
   movieId,
+  graphData,
 }: {
   artifacts: ArtifactInfo[];
   blueprintFolder: string;
   movieId: string;
+  graphData?: BlueprintGraphData;
 }) {
-  const videos = artifacts.filter((a) => a.mimeType.startsWith("video/"));
-  const audio = artifacts.filter((a) => a.mimeType.startsWith("audio/"));
-  const images = artifacts.filter((a) => a.mimeType.startsWith("image/"));
-  const text = artifacts.filter(
-    (a) => a.mimeType.startsWith("text/") || a.mimeType === "application/json"
-  );
-  const other = artifacts.filter(
-    (a) =>
-      !a.mimeType.startsWith("image/") &&
-      !a.mimeType.startsWith("video/") &&
-      !a.mimeType.startsWith("audio/") &&
-      !a.mimeType.startsWith("text/") &&
-      a.mimeType !== "application/json"
-  );
+  const { isArtifactSelected, selectProducerArtifacts, deselectProducerArtifacts } = useExecution();
+
+  // Group artifacts by producer and sort by topological order
+  const { groupedByProducer, orderedProducers } = useMemo(() => {
+    const grouped = groupArtifactsByProducer(artifacts);
+    const ordered = sortProducersByTopology(Array.from(grouped.keys()), graphData);
+    return { groupedByProducer: grouped, orderedProducers: ordered };
+  }, [artifacts, graphData]);
 
   return (
     <div className="space-y-4">
-      {videos.length > 0 && (
-        <ArtifactSection
-          title="Videos"
-          count={videos.length}
-          icon={<Video className="size-4" />}
-          defaultOpen
-        >
-          <ArtifactGrid>
-            {videos.map((artifact) => (
-              <VideoCard
-                key={artifact.id}
-                artifact={artifact}
-                blueprintFolder={blueprintFolder}
-                movieId={movieId}
-              />
-            ))}
-          </ArtifactGrid>
-        </ArtifactSection>
-      )}
+      {orderedProducers.map((producerName) => {
+        const producerArtifacts = groupedByProducer.get(producerName) ?? [];
+        const artifactIds = producerArtifacts.map((a) => a.id);
+        const selectedCount = artifactIds.filter((id) => isArtifactSelected(id)).length;
+        const allSelected = selectedCount === artifactIds.length && artifactIds.length > 0;
+        const someSelected = selectedCount > 0 && selectedCount < artifactIds.length;
 
-      {audio.length > 0 && (
-        <ArtifactSection
-          title="Audio"
-          count={audio.length}
-          icon={<Music className="size-4" />}
-          defaultOpen
-        >
-          <ArtifactGrid>
-            {audio.map((artifact) => (
-              <AudioCard
-                key={artifact.id}
-                artifact={artifact}
-                blueprintFolder={blueprintFolder}
-                movieId={movieId}
-              />
-            ))}
-          </ArtifactGrid>
-        </ArtifactSection>
-      )}
+        const handleSelectAll = () => {
+          if (allSelected) {
+            deselectProducerArtifacts(artifactIds);
+          } else {
+            selectProducerArtifacts(artifactIds);
+          }
+        };
 
-      {images.length > 0 && (
-        <ArtifactSection
-          title="Images"
-          count={images.length}
-          icon={<ImageIcon className="size-4" />}
-          defaultOpen
-        >
-          <ArtifactGrid>
-            {images.map((artifact) => (
-              <ImageCard
-                key={artifact.id}
-                artifact={artifact}
-                blueprintFolder={blueprintFolder}
-                movieId={movieId}
-              />
-            ))}
-          </ArtifactGrid>
-        </ArtifactSection>
-      )}
-
-      {text.length > 0 && (
-        <ArtifactSection
-          title="Text & JSON"
-          count={text.length}
-          icon={<FileText className="size-4" />}
-          defaultOpen
-        >
-          <ArtifactGrid>
-            {text.map((artifact) => (
-              <TextCard
-                key={artifact.id}
-                artifact={artifact}
-                blueprintFolder={blueprintFolder}
-                movieId={movieId}
-              />
-            ))}
-          </ArtifactGrid>
-        </ArtifactSection>
-      )}
-
-      {other.length > 0 && (
-        <ArtifactSection
-          title="Other"
-          count={other.length}
-          icon={<File className="size-4" />}
-          defaultOpen={false}
-        >
-          <ArtifactGrid>
-            {other.map((artifact) => (
-              <GenericCard key={artifact.id} artifact={artifact} />
-            ))}
-          </ArtifactGrid>
-        </ArtifactSection>
-      )}
+        return (
+          <ProducerArtifactSection
+            key={producerName}
+            producerName={producerName}
+            count={producerArtifacts.length}
+            allSelected={allSelected}
+            someSelected={someSelected}
+            onSelectAll={handleSelectAll}
+            defaultOpen
+          >
+            <ArtifactGrid>
+              {producerArtifacts.map((artifact) => {
+                const isSelected = isArtifactSelected(artifact.id);
+                return (
+                  <ArtifactCardRenderer
+                    key={artifact.id}
+                    artifact={artifact}
+                    blueprintFolder={blueprintFolder}
+                    movieId={movieId}
+                    isSelected={isSelected}
+                  />
+                );
+              })}
+            </ArtifactGrid>
+          </ProducerArtifactSection>
+        );
+      })}
     </div>
   );
 }
 
 // ============================================================================
-// Collapsible Section
+// Artifact Card Renderer (dispatches to correct card type)
 // ============================================================================
 
-function ArtifactSection({
-  title,
+function ArtifactCardRenderer({
+  artifact,
+  blueprintFolder,
+  movieId,
+  isSelected,
+}: {
+  artifact: ArtifactInfo;
+  blueprintFolder: string;
+  movieId: string;
+  isSelected: boolean;
+}) {
+  if (artifact.mimeType.startsWith("video/")) {
+    return (
+      <VideoCard
+        artifact={artifact}
+        blueprintFolder={blueprintFolder}
+        movieId={movieId}
+        isSelected={isSelected}
+      />
+    );
+  }
+  if (artifact.mimeType.startsWith("audio/")) {
+    return (
+      <AudioCard
+        artifact={artifact}
+        blueprintFolder={blueprintFolder}
+        movieId={movieId}
+        isSelected={isSelected}
+      />
+    );
+  }
+  if (artifact.mimeType.startsWith("image/")) {
+    return (
+      <ImageCard
+        artifact={artifact}
+        blueprintFolder={blueprintFolder}
+        movieId={movieId}
+        isSelected={isSelected}
+      />
+    );
+  }
+  if (artifact.mimeType.startsWith("text/") || artifact.mimeType === "application/json") {
+    return (
+      <TextCard
+        artifact={artifact}
+        blueprintFolder={blueprintFolder}
+        movieId={movieId}
+        isSelected={isSelected}
+      />
+    );
+  }
+  return <GenericCard artifact={artifact} isSelected={isSelected} />;
+}
+
+// ============================================================================
+// Producer Artifact Section (with selection support)
+// ============================================================================
+
+function ProducerArtifactSection({
+  producerName,
   count,
-  icon,
+  allSelected,
+  someSelected,
+  onSelectAll,
   defaultOpen = true,
   children,
 }: {
-  title: string;
+  producerName: string;
   count: number;
-  icon: React.ReactNode;
+  allSelected: boolean;
+  someSelected: boolean;
+  onSelectAll: () => void;
   defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
+  const handleCheckboxClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onSelectAll();
+  };
+
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <CollapsibleTrigger className="flex items-center gap-2 w-full group hover:bg-muted/50 rounded-lg px-2 py-1.5 transition-colors">
-        <span className="text-muted-foreground">
-          {isOpen ? (
-            <ChevronDown className="size-4" />
-          ) : (
-            <ChevronRight className="size-4" />
+      <div className="flex items-center gap-2 w-full group hover:bg-muted/50 rounded-lg px-2 py-1.5 transition-colors">
+        <CollapsibleTrigger className="flex items-center gap-2 flex-1">
+          <span className="text-muted-foreground">
+            {isOpen ? (
+              <ChevronDown className="size-4" />
+            ) : (
+              <ChevronRight className="size-4" />
+            )}
+          </span>
+          <span className="text-sm font-medium text-foreground">{producerName}</span>
+          <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+            {count}
+          </span>
+        </CollapsibleTrigger>
+        <button
+          type="button"
+          onClick={handleCheckboxClick}
+          className={cn(
+            "flex items-center gap-1.5 px-2 py-1 rounded hover:bg-muted transition-colors text-xs",
+            allSelected || someSelected ? "text-primary" : "text-muted-foreground"
           )}
-        </span>
-        <span className="text-muted-foreground">{icon}</span>
-        <span className="text-sm font-medium text-foreground">{title}</span>
-        <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
-          {count}
-        </span>
-      </CollapsibleTrigger>
+          title={allSelected ? "Deselect all" : "Select all for regeneration"}
+        >
+          <span>Generate Again</span>
+          {allSelected ? (
+            <CheckSquare className="size-4" />
+          ) : someSelected ? (
+            <Square className="size-4 fill-primary/30" />
+          ) : (
+            <Square className="size-4" />
+          )}
+        </button>
+      </div>
       <CollapsibleContent className="pt-3">
         {children}
       </CollapsibleContent>
@@ -320,15 +361,20 @@ function ArtifactCard({
   children,
   footer,
   className,
+  isSelected = false,
 }: {
   children: React.ReactNode;
   footer: React.ReactNode;
   className?: string;
+  isSelected?: boolean;
 }) {
   return (
     <div
       className={cn(
-        "rounded-xl border border-border bg-card overflow-hidden flex flex-col",
+        "rounded-xl border bg-card overflow-hidden flex flex-col transition-all",
+        isSelected
+          ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+          : "border-border",
         className
       )}
     >
@@ -341,18 +387,25 @@ function ArtifactCard({
 }
 
 function CardFooter({
-  name,
+  artifactId,
+  displayName,
+  downloadName,
   url,
   onExpand,
 }: {
-  name: string;
+  artifactId: string;
+  displayName: string;
+  downloadName: string;
   url: string;
   onExpand?: () => void;
 }) {
+  const { isArtifactSelected, toggleArtifactSelection } = useExecution();
+  const isSelected = isArtifactSelected(artifactId);
+
   const handleDownload = () => {
     const a = document.createElement("a");
     a.href = url;
-    a.download = name;
+    a.download = downloadName;
     a.click();
   };
 
@@ -364,10 +417,14 @@ function CardFooter({
     window.open(url, "_blank");
   };
 
+  const handleToggleRegeneration = () => {
+    toggleArtifactSelection(artifactId);
+  };
+
   return (
     <>
-      <span className="text-xs text-foreground truncate flex-1" title={name}>
-        {name}
+      <span className="text-xs text-foreground truncate flex-1" title={displayName}>
+        {displayName}
       </span>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -379,6 +436,12 @@ function CardFooter({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={handleToggleRegeneration}>
+            <RefreshCw className="size-4" />
+            <span className="flex-1">Generate Again</span>
+            <Check className={`size-4 ${isSelected ? "text-primary" : "invisible"}`} />
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           {onExpand && (
             <DropdownMenuItem onClick={onExpand}>
               <Maximize2 className="size-4" />
@@ -411,20 +474,26 @@ function VideoCard({
   artifact,
   blueprintFolder,
   movieId,
+  isSelected,
 }: {
   artifact: ArtifactInfo;
   blueprintFolder: string;
   movieId: string;
+  isSelected: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const url = getBlobUrl(blueprintFolder, movieId, artifact.hash);
+  const displayName = shortenArtifactDisplayName(artifact.id);
 
   return (
     <>
       <ArtifactCard
+        isSelected={isSelected}
         footer={
           <CardFooter
-            name={artifact.name}
+            artifactId={artifact.id}
+            displayName={displayName}
+            downloadName={artifact.name}
             url={url}
             onExpand={() => setIsExpanded(true)}
           />
@@ -445,7 +514,7 @@ function VideoCard({
       <MediaDialog
         open={isExpanded}
         onOpenChange={setIsExpanded}
-        title={artifact.name}
+        title={displayName}
       >
         <video
           src={url}
@@ -468,18 +537,29 @@ function AudioCard({
   artifact,
   blueprintFolder,
   movieId,
+  isSelected,
 }: {
   artifact: ArtifactInfo;
   blueprintFolder: string;
   movieId: string;
+  isSelected: boolean;
 }) {
   const url = getBlobUrl(blueprintFolder, movieId, artifact.hash);
+  const displayName = shortenArtifactDisplayName(artifact.id);
 
   return (
     <ArtifactCard
-      footer={<CardFooter name={artifact.name} url={url} />}
+      isSelected={isSelected}
+      footer={
+        <CardFooter
+          artifactId={artifact.id}
+          displayName={displayName}
+          downloadName={artifact.name}
+          url={url}
+        />
+      }
     >
-      <div className="aspect-video bg-gradient-to-br from-muted to-muted/50 flex flex-col items-center justify-center gap-4 p-4">
+      <div className="aspect-video bg-linear-to-br from-muted to-muted/50 flex flex-col items-center justify-center gap-4 p-4">
         <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
           <Music className="size-8 text-primary" />
         </div>
@@ -499,20 +579,26 @@ function ImageCard({
   artifact,
   blueprintFolder,
   movieId,
+  isSelected,
 }: {
   artifact: ArtifactInfo;
   blueprintFolder: string;
   movieId: string;
+  isSelected: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const url = getBlobUrl(blueprintFolder, movieId, artifact.hash);
+  const displayName = shortenArtifactDisplayName(artifact.id);
 
   return (
     <>
       <ArtifactCard
+        isSelected={isSelected}
         footer={
           <CardFooter
-            name={artifact.name}
+            artifactId={artifact.id}
+            displayName={displayName}
+            downloadName={artifact.name}
             url={url}
             onExpand={() => setIsExpanded(true)}
           />
@@ -525,7 +611,7 @@ function ImageCard({
         >
           <img
             src={url}
-            alt={artifact.name}
+            alt={displayName}
             className="w-full h-full object-contain"
             loading="lazy"
           />
@@ -538,11 +624,11 @@ function ImageCard({
       <MediaDialog
         open={isExpanded}
         onOpenChange={setIsExpanded}
-        title={artifact.name}
+        title={displayName}
       >
         <img
           src={url}
-          alt={artifact.name}
+          alt={displayName}
           className="w-full max-h-[70vh] object-contain rounded-lg"
         />
       </MediaDialog>
@@ -558,15 +644,18 @@ function TextCard({
   artifact,
   blueprintFolder,
   movieId,
+  isSelected,
 }: {
   artifact: ArtifactInfo;
   blueprintFolder: string;
   movieId: string;
+  isSelected: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [content, setContent] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const url = getBlobUrl(blueprintFolder, movieId, artifact.hash);
+  const displayName = shortenArtifactDisplayName(artifact.id);
 
   useEffect(() => {
     let cancelled = false;
@@ -604,9 +693,12 @@ function TextCard({
   return (
     <>
       <ArtifactCard
+        isSelected={isSelected}
         footer={
           <CardFooter
-            name={artifact.name}
+            artifactId={artifact.id}
+            displayName={displayName}
+            downloadName={artifact.name}
             url={url}
             onExpand={() => setIsExpanded(true)}
           />
@@ -626,7 +718,7 @@ function TextCard({
               <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap overflow-hidden h-full">
                 {displayContent}
               </pre>
-              <div className="absolute inset-0 bg-gradient-to-t from-muted/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <div className="absolute inset-0 bg-linear-to-t from-muted/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <Maximize2 className="size-8 text-foreground" />
               </div>
             </>
@@ -637,7 +729,7 @@ function TextCard({
       <Dialog open={isExpanded} onOpenChange={setIsExpanded}>
         <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle className="truncate pr-8">{artifact.name}</DialogTitle>
+            <DialogTitle className="truncate pr-8">{displayName}</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-auto bg-muted/30 rounded-lg p-4">
             <pre className="text-sm font-mono whitespace-pre-wrap text-foreground">
@@ -654,14 +746,36 @@ function TextCard({
 // Generic Card
 // ============================================================================
 
-function GenericCard({ artifact }: { artifact: ArtifactInfo }) {
+function GenericCard({
+  artifact,
+  isSelected,
+}: {
+  artifact: ArtifactInfo;
+  isSelected: boolean;
+}) {
+  const { isArtifactSelected, toggleArtifactSelection } = useExecution();
+  const displayName = shortenArtifactDisplayName(artifact.id);
+  const selected = isArtifactSelected(artifact.id);
+
   return (
     <ArtifactCard
+      isSelected={isSelected}
       footer={
         <>
-          <span className="text-xs text-foreground truncate flex-1" title={artifact.name}>
-            {artifact.name}
+          <span className="text-xs text-foreground truncate flex-1" title={displayName}>
+            {displayName}
           </span>
+          <button
+            type="button"
+            onClick={() => toggleArtifactSelection(artifact.id)}
+            className={cn(
+              "p-1 rounded hover:bg-muted transition-colors",
+              selected ? "text-primary" : "text-muted-foreground"
+            )}
+            title={selected ? "Deselect" : "Select for regeneration"}
+          >
+            <RefreshCw className="size-3" />
+          </button>
           <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
             {artifact.mimeType}
           </span>

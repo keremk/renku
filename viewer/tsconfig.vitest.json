@@ -1,6 +1,13 @@
 {
-  "extends": "./tsconfig.server.json",
   "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
     "types": ["vitest/globals", "node"],
     "noEmit": true,
     "rootDir": "..",
@@ -9,11 +16,16 @@
       "../node_modules/@types",
       "./node_modules",
       "../node_modules"
-    ]
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": [
     "server/**/*.ts",
-    "server/**/*.test.ts"
+    "server/**/*.test.ts",
+    "src/**/*.test.ts"
   ],
   "exclude": [
     "node_modules",
