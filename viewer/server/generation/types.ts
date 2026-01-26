@@ -25,6 +25,8 @@ export interface PlanRequest {
   reRunFrom?: number;
   /** Surgical regeneration targets (canonical format, e.g., ["Artifact:AudioProducer.GeneratedAudio[0]"]) */
   artifactIds?: string[];
+  /** Limit plan to layers 0 through upToLayer (0-indexed). Jobs in later layers are excluded. */
+  upToLayer?: number;
 }
 
 /**
@@ -78,8 +80,10 @@ export interface PlanResponse {
   movieId: string;
   revision: string;
   blueprintPath: string;
-  /** Number of layers in the execution plan */
+  /** Number of layers in the execution plan (scheduled work only) */
   layers: number;
+  /** Total layers in the full blueprint (for dropdown options). Never changes regardless of filtering. */
+  blueprintLayers: number;
   /** Total number of jobs across all layers */
   totalJobs: number;
   /** Cost estimation summary (serializable version with byProducer as object) */

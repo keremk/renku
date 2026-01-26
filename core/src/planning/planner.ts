@@ -33,6 +33,8 @@ interface ComputePlanArgs {
   reRunFrom?: number;
   /** Surgical artifact regeneration - regenerate only the target artifacts and downstream dependencies. */
   artifactRegenerations?: ArtifactRegenerationConfig[];
+  /** Limit plan to layers 0 through upToLayer (0-indexed). Jobs in later layers are excluded from the plan. */
+  upToLayer?: number;
 }
 
 interface GraphMetadata {
@@ -91,18 +93,20 @@ export function createPlanner(options: PlannerOptions = {}) {
         jobsToInclude = propagateDirtyJobs(initialDirty, blueprint);
       }
 
-      const layers = buildExecutionLayers(
+      const { layers, blueprintLayerCount } = buildExecutionLayers(
         jobsToInclude,
         metadata,
         blueprint,
         args.reRunFrom,
         args.artifactRegenerations,
+        args.upToLayer,
       );
 
       logger.debug?.('planner.plan.generated', {
         movieId: args.movieId,
         layers: layers.length,
         jobs: jobsToInclude.size,
+        blueprintLayerCount,
       });
       notifications?.publish({
         type: 'progress',
@@ -115,6 +119,7 @@ export function createPlanner(options: PlannerOptions = {}) {
         manifestBaseHash: manifestBaseHash(manifest),
         layers,
         createdAt: nowIso(clock),
+        blueprintLayerCount,
       };
     },
   };
@@ -243,13 +248,19 @@ export function computeMultipleArtifactRegenerationJobs(
   return allJobs;
 }
 
+interface BuildExecutionLayersResult {
+  layers: ExecutionPlan['layers'];
+  blueprintLayerCount: number;
+}
+
 function buildExecutionLayers(
   dirtyJobs: Set<string>,
   metadata: Map<string, GraphMetadata>,
   blueprint: ProducerGraph,
   reRunFrom?: number,
   artifactRegenerations?: ArtifactRegenerationConfig[],
-): ExecutionPlan['layers'] {
+  upToLayer?: number,
+): BuildExecutionLayersResult {
   // Determine stable layer indices for all producer jobs, then place dirty jobs into their original layer slots.
   const indegree = new Map<string, number>();
   const adjacency = new Map<string, Set<string>>();
@@ -299,6 +310,8 @@ function buildExecutionLayers(
   ensureNoCycles(indegree);
 
   const maxLevel = levelMap.size === 0 ? 0 : Math.max(...levelMap.values());
+  // Store blueprint layer count BEFORE any filtering - this is the full topology depth
+  const blueprintLayerCount = maxLevel + 1;
   const layers: ExecutionPlan['layers'] = Array.from({ length: maxLevel + 1 }, () => []);
 
   // Combine dirty jobs with jobs forced by reRunFrom
@@ -311,6 +324,16 @@ function buildExecutionLayers(
       const level = levelMap.get(jobId);
       if (level !== undefined && level >= reRunFrom) {
         jobsToInclude.add(jobId);
+      }
+    }
+  }
+
+  // Filter by upToLayer: exclude jobs at layers beyond upToLayer
+  if (upToLayer !== undefined) {
+    for (const jobId of [...jobsToInclude]) {
+      const level = levelMap.get(jobId);
+      if (level !== undefined && level > upToLayer) {
+        jobsToInclude.delete(jobId);
       }
     }
   }
@@ -333,7 +356,12 @@ function buildExecutionLayers(
     });
   }
 
-  return layers;
+  // Trim empty trailing layers AFTER placing jobs
+  while (layers.length > 0 && layers[layers.length - 1].length === 0) {
+    layers.pop();
+  }
+
+  return { layers, blueprintLayerCount };
 }
 
 function ensureNoCycles(indegree: Map<string, number>): void {

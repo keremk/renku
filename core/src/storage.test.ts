@@ -58,6 +58,7 @@ describe('planStore', () => {
       manifestBaseHash: 'sha:123',
       layers: [],
       createdAt: new Date().toISOString(),
+      blueprintLayerCount: 0,
     };
 
     await planStore.save(plan, { movieId: 'demo', storage: ctx });

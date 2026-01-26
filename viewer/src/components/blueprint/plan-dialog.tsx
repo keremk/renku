@@ -1,21 +1,17 @@
 /**
  * Plan confirmation dialog.
- * Shows cost breakdown and allows user to confirm or cancel execution.
+ * Shows a non-interactive overview of the execution plan with cost breakdown.
+ * User selects artifacts in Outputs panel and layer limit via Run button dropdown.
  */
 
 import { useMemo } from "react";
+import { CheckCircle2, AlertCircle, Layers, Briefcase, DollarSign, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
-import { StageRangePicker } from "./stage-range-picker";
-import type { StageStatus } from "@gorenku/core/browser";
 import { useExecution } from "@/contexts/execution-context";
-import type { ProducerStatusMap, LayerRange, PlanDisplayInfo } from "@/types/generation";
+import type { PlanDisplayInfo } from "@/types/generation";
 
 /**
  * Format currency value for display.
@@ -35,337 +31,320 @@ function formatCurrencyOrNA(value: number, hasCostData: boolean): string {
 }
 
 /**
- * Calculate dynamic totals based on the selected stage range.
+ * Sort cost by producer entries by layer (producers in earlier layers first).
  */
-function calculateRangeTotals(
-  planInfo: PlanDisplayInfo,
-  stageRange: { startStage: number; endStage: number }
-): { layers: number; jobs: number; cost: number; minCost: number; maxCost: number } {
-  const filtered = planInfo.layerBreakdown.filter(
-    (l) => l.index >= stageRange.startStage && l.index <= stageRange.endStage
-  );
-  return {
-    layers: filtered.length,
-    jobs: filtered.reduce((sum, l) => sum + l.jobCount, 0),
-    cost: filtered.reduce((sum, l) => sum + l.layerCost, 0),
-    minCost: filtered.reduce((sum, l) => sum + l.layerMinCost, 0),
-    maxCost: filtered.reduce((sum, l) => sum + l.layerMaxCost, 0),
-  };
-}
-
-/**
- * Convert LayerRange to StageRange format.
- */
-function layerRangeToStageRange(
-  layerRange: LayerRange,
-  totalLayers: number,
-): { startStage: number; endStage: number } {
-  return {
-    startStage: layerRange.reRunFrom ?? 0,
-    endStage: layerRange.upToLayer ?? totalLayers - 1,
-  };
-}
-
-/**
- * Convert StageRange back to LayerRange format.
- */
-function stageRangeToLayerRange(
-  stageRange: { startStage: number; endStage: number },
-  totalLayers: number,
-): LayerRange {
-  return {
-    reRunFrom: stageRange.startStage === 0 ? null : stageRange.startStage,
-    upToLayer: stageRange.endStage === totalLayers - 1 ? null : stageRange.endStage,
-  };
-}
-
-/**
- * Derive stage statuses from producer statuses and plan layer breakdown.
- *
- * A stage is:
- * - 'succeeded' if all producers in that layer have status 'success'
- * - 'failed' if any producer has status 'error'
- * - 'not-run' otherwise
- */
-function deriveStageStatusesFromProducerStatuses(
-  planInfo: PlanDisplayInfo,
-  producerStatuses: ProducerStatusMap,
-): StageStatus[] | null {
-  // If no producer statuses exist, this is a clean run
-  if (Object.keys(producerStatuses).length === 0) {
-    return null;
-  }
-
-  return planInfo.layerBreakdown.map((layer) => {
-    const producers = layer.jobs.map((job) => job.producer);
-
-    if (producers.length === 0) {
-      return 'succeeded'; // Empty layers are considered succeeded
-    }
-
-    let hasAnyRun = false;
-    let hasAnyFailed = false;
-    let allSucceeded = true;
-
-    for (const producer of producers) {
-      const status = producerStatuses[producer];
-
-      if (status === 'success') {
-        hasAnyRun = true;
-      } else if (status === 'error') {
-        hasAnyRun = true;
-        hasAnyFailed = true;
-        allSucceeded = false;
-      } else if (status === 'running' || status === 'pending') {
-        // Currently running or pending - treat as not yet complete
-        allSucceeded = false;
-      } else {
-        // 'not-run-yet' or undefined
-        allSucceeded = false;
+function sortCostByLayer(planInfo: PlanDisplayInfo): PlanDisplayInfo['costByProducer'] {
+  const producerLayerMap = new Map<string, number>();
+  for (const layer of planInfo.layerBreakdown) {
+    for (const job of layer.jobs) {
+      if (!producerLayerMap.has(job.producer)) {
+        producerLayerMap.set(job.producer, layer.index);
       }
     }
+  }
 
-    if (!hasAnyRun) {
-      return 'not-run';
-    }
-
-    if (hasAnyFailed) {
-      return 'failed';
-    }
-
-    if (allSucceeded) {
-      return 'succeeded';
-    }
-
-    // Partial run - treat as not-run for safety
-    return 'not-run';
+  return [...planInfo.costByProducer].sort((a, b) => {
+    const layerA = producerLayerMap.get(a.name) ?? Infinity;
+    const layerB = producerLayerMap.get(b.name) ?? Infinity;
+    return layerA - layerB;
   });
+}
+
+/**
+ * Stat card component for consistent styling.
+ */
+function StatCard({
+  icon: Icon,
+  value,
+  label,
+  iconColor = "text-primary"
+}: {
+  icon: typeof Layers;
+  value: string | number;
+  label: string;
+  iconColor?: string;
+}) {
+  return (
+    <div className="flex flex-col items-center p-4 rounded-xl bg-gradient-to-b from-muted/80 to-muted/40 border border-border/30">
+      <Icon className={`w-5 h-5 ${iconColor} mb-2 opacity-80`} />
+      <div className="text-2xl font-semibold tracking-tight">{value}</div>
+      <div className="text-xs text-muted-foreground mt-1">{label}</div>
+    </div>
+  );
+}
+
+/**
+ * NOOP dialog content - shown when there's nothing to execute.
+ */
+function NoopContent({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="flex flex-col items-center py-8 px-6">
+      {/* Success icon with gradient ring */}
+      <div className="relative mb-6">
+        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 blur-xl" />
+        <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 flex items-center justify-center ring-1 ring-emerald-500/20">
+          <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+        </div>
+      </div>
+
+      {/* Title */}
+      <h2 className="text-xl font-semibold text-foreground mb-2">
+        All Caught Up
+      </h2>
+
+      {/* Description */}
+      <p className="text-sm text-muted-foreground text-center max-w-xs mb-6">
+        The selected layers have already completed successfully. No work needed.
+      </p>
+
+      {/* Tip box */}
+      <div className="w-full max-w-sm bg-muted/50 rounded-lg p-4 border border-border/30 mb-6">
+        <p className="text-xs text-muted-foreground text-center leading-relaxed">
+          <span className="font-medium text-foreground/80">Tip:</span> To re-run completed work,
+          select specific artifacts in the Outputs tab or choose a different layer range.
+        </p>
+      </div>
+
+      {/* Close button */}
+      <button
+        onClick={onClose}
+        className="w-full max-w-[200px] py-2.5 px-6 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-all duration-150 shadow-sm"
+      >
+        Got it
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Error dialog content.
+ */
+function ErrorContent({ error, onClose }: { error: string; onClose: () => void }) {
+  return (
+    <div className="flex flex-col items-center py-8 px-6">
+      {/* Error icon */}
+      <div className="relative mb-6">
+        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-red-500/20 to-red-600/10 blur-xl" />
+        <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-red-500/20 to-red-600/10 flex items-center justify-center ring-1 ring-red-500/20">
+          <AlertCircle className="w-8 h-8 text-red-500" />
+        </div>
+      </div>
+
+      {/* Title */}
+      <h2 className="text-xl font-semibold text-foreground mb-2">
+        Planning Failed
+      </h2>
+
+      {/* Error message */}
+      <div className="w-full max-w-sm bg-red-500/5 border border-red-500/20 rounded-lg p-4 mb-6">
+        <p className="text-sm text-red-400 text-center">
+          {error}
+        </p>
+      </div>
+
+      {/* Close button */}
+      <button
+        onClick={onClose}
+        className="w-full max-w-[200px] py-2.5 px-6 text-sm font-medium rounded-lg bg-muted hover:bg-muted/80 active:scale-[0.98] transition-all duration-150"
+      >
+        Close
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Execution plan dialog content.
+ */
+function PlanContent({
+  planInfo,
+  sortedCostByProducer,
+  showCostRange,
+  isSurgicalMode,
+  isReplanning,
+  onCancel,
+  onExecute,
+}: {
+  planInfo: PlanDisplayInfo;
+  sortedCostByProducer: PlanDisplayInfo['costByProducer'];
+  showCostRange: boolean;
+  isSurgicalMode: boolean;
+  isReplanning: boolean;
+  onCancel: () => void;
+  onExecute: () => void;
+}) {
+  return (
+    <div className="relative">
+      {/* Re-planning overlay */}
+      {isReplanning && (
+        <div className="absolute inset-0 bg-background/90 backdrop-blur-sm flex items-center justify-center z-10 rounded-lg">
+          <div className="flex items-center gap-3">
+            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm text-muted-foreground">Updating plan...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="px-6 pt-6 pb-4 border-b border-border/30">
+        <h2 className="text-lg font-semibold text-foreground">
+          {isSurgicalMode ? "Confirm Regeneration" : "Confirm Execution"}
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          {isSurgicalMode
+            ? `Regenerating ${planInfo.surgicalInfo!.length} artifact(s) and dependencies`
+            : "Review the plan before running"
+          }
+        </p>
+      </div>
+
+      {/* Stats */}
+      <div className="px-6 py-5">
+        <div className="grid grid-cols-3 gap-3">
+          <StatCard
+            icon={Layers}
+            value={planInfo.layers}
+            label="Layers"
+            iconColor="text-blue-500"
+          />
+          <StatCard
+            icon={Briefcase}
+            value={planInfo.totalJobs}
+            label="Jobs"
+            iconColor="text-purple-500"
+          />
+          <StatCard
+            icon={DollarSign}
+            value={showCostRange
+              ? `${formatCurrency(planInfo.minCost)}–${formatCurrency(planInfo.maxCost)}`
+              : formatCurrency(planInfo.totalCost)
+            }
+            label="Est. Cost"
+            iconColor="text-emerald-500"
+          />
+        </div>
+      </div>
+
+      {/* Cost Breakdown */}
+      <div className="px-6 pb-5">
+        <div className="rounded-xl border border-border/40 overflow-hidden">
+          <div className="bg-muted/30 px-4 py-2.5 border-b border-border/30">
+            <span className="text-sm font-medium text-foreground/90">Cost by Producer</span>
+          </div>
+          <div className="max-h-44 overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/20 bg-muted/20">
+                  <th className="text-left px-4 py-2 font-medium text-muted-foreground text-xs uppercase tracking-wider">Producer</th>
+                  <th className="text-right px-4 py-2 font-medium text-muted-foreground text-xs uppercase tracking-wider">Count</th>
+                  <th className="text-right px-4 py-2 font-medium text-muted-foreground text-xs uppercase tracking-wider">Cost</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/10">
+                {sortedCostByProducer.map((entry) => (
+                  <tr key={entry.name} className="hover:bg-muted/20 transition-colors">
+                    <td className="px-4 py-2.5">
+                      <span className="flex items-center gap-1.5 text-foreground/90">
+                        {entry.name}
+                        {entry.hasPlaceholders && entry.hasCostData && (
+                          <span className="text-amber-500 text-xs" title="Estimated">*</span>
+                        )}
+                      </span>
+                    </td>
+                    <td className="text-right px-4 py-2.5 text-muted-foreground tabular-nums">
+                      {entry.count}
+                    </td>
+                    <td className="text-right px-4 py-2.5 font-medium tabular-nums">
+                      {formatCurrencyOrNA(entry.cost, entry.hasCostData)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="px-6 py-4 border-t border-border/30 bg-muted/20 flex justify-end gap-3">
+        <button
+          onClick={onCancel}
+          className="py-2 px-4 text-sm font-medium rounded-lg bg-transparent hover:bg-muted border border-border/50 text-foreground/80 hover:text-foreground transition-all duration-150"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={onExecute}
+          disabled={isReplanning}
+          className="py-2 px-5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-all duration-150 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+        >
+          {isReplanning ? 'Updating...' : 'Execute'}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export function PlanDialog() {
   const {
     state,
-    setLayerRange,
-    replanWithRange,
     confirmExecution,
     dismissDialog,
     clearLogs,
   } = useExecution();
 
-  const { planInfo, status, layerRange, error, producerStatuses } = state;
+  const { planInfo, status, error } = state;
 
-  // Only show when in confirming state or when there's an error to display
-  // Also keep dialog open during re-planning (planning status with existing planInfo)
   const isReplanning = status === 'planning' && planInfo !== null;
   const isOpen = status === 'confirming' || (status === 'failed' && error !== null) || isReplanning;
 
-  // Derive stage statuses from producer statuses
-  const stageStatuses = useMemo(() => {
-    if (!planInfo) return null;
-    return deriveStageStatusesFromProducerStatuses(planInfo, producerStatuses);
-  }, [planInfo, producerStatuses]);
-
-  // Convert layer range to stage range
-  const stageRange = useMemo(() => {
-    if (!planInfo) return { startStage: 0, endStage: 0 };
-    return layerRangeToStageRange(layerRange, planInfo.layers);
-  }, [layerRange, planInfo]);
-
-  // Calculate dynamic totals based on selected stage range
-  // Must be called before any early returns to satisfy React Hooks rules
-  const rangeTotals = useMemo(() => {
-    if (!planInfo) return { layers: 0, jobs: 0, cost: 0, minCost: 0, maxCost: 0 };
-    return calculateRangeTotals(planInfo, stageRange);
-  }, [planInfo, stageRange]);
-
-  // Handle stage range changes
-  const handleStageRangeChange = (newRange: { startStage: number; endStage: number }) => {
-    if (!planInfo) return;
-    const newLayerRange = stageRangeToLayerRange(newRange, planInfo.layers);
-
-    // Check if reRunFrom changed - if so, we need to re-request the plan
-    // because the planner optimizes out jobs based on existing artifacts
-    const currentReRunFrom = layerRange.reRunFrom;
-    const newReRunFrom = newLayerRange.reRunFrom;
-
-    if (currentReRunFrom !== newReRunFrom) {
-      // Re-request the plan with new reRunFrom (this also updates layerRange)
-      replanWithRange(newReRunFrom);
-    } else {
-      // Only upToLayer changed - no need to re-request plan, just update state
-      setLayerRange(newLayerRange);
-    }
-  };
+  const sortedCostByProducer = useMemo(() => {
+    if (!planInfo) return [];
+    return sortCostByLayer(planInfo);
+  }, [planInfo]);
 
   if (!isOpen) return null;
 
-  // Error state
-  if (status === 'failed' && error) {
-    return (
-      <Dialog open={true} onOpenChange={() => dismissDialog()}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-red-500">Planning Failed</DialogTitle>
-            <DialogDescription>{error}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <button
-              onClick={dismissDialog}
-              className="px-4 py-2 text-sm font-medium rounded-lg bg-muted hover:bg-muted/80 transition-colors"
-            >
-              Close
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    );
-  }
+  const isSurgicalMode = planInfo?.surgicalInfo && planInfo.surgicalInfo.length > 0;
+  const isNoop = planInfo?.totalJobs === 0;
+  const showCostRange = planInfo?.hasRanges && planInfo.minCost !== planInfo.maxCost;
 
-  // Plan confirmation state
-  if (!planInfo) return null;
-
-  // Check if this is a surgical run
-  const isSurgicalMode = planInfo.surgicalInfo && planInfo.surgicalInfo.length > 0;
-
-  // Determine if we should show a cost range
-  const showCostRange = planInfo.hasRanges && rangeTotals.minCost !== rangeTotals.maxCost;
+  const handleExecute = () => {
+    clearLogs();
+    confirmExecution(false);
+  };
 
   return (
     <Dialog open={true} onOpenChange={() => dismissDialog()}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>
-            {isSurgicalMode ? "Confirm Surgical Regeneration" : "Confirm Execution Plan"}
-          </DialogTitle>
-          <DialogDescription>
-            {isSurgicalMode
-              ? "Review the surgical regeneration targets before running."
-              : "Review the execution plan before running."
-            }
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent
+        className="sm:max-w-md p-0 gap-0 overflow-hidden"
+        showCloseButton={false}
+      >
+        {/* Custom close button */}
+        <button
+          onClick={dismissDialog}
+          className="absolute right-4 top-4 p-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted/80 transition-colors z-20"
+        >
+          <X className="w-4 h-4" />
+          <span className="sr-only">Close</span>
+        </button>
 
-        {/* Plan Summary */}
-        <div className="space-y-4 relative">
-          {/* Re-planning overlay */}
-          {isReplanning && (
-            <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10 rounded-lg">
-              <div className="text-sm text-muted-foreground">Updating plan...</div>
-            </div>
-          )}
-
-          {/* Stats - using dynamic range totals */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="text-center p-3 bg-muted rounded-lg">
-              <div className="text-2xl font-bold">{rangeTotals.layers}</div>
-              <div className="text-xs text-muted-foreground">Layers</div>
-            </div>
-            <div className="text-center p-3 bg-muted rounded-lg">
-              <div className="text-2xl font-bold">{rangeTotals.jobs}</div>
-              <div className="text-xs text-muted-foreground">Jobs</div>
-            </div>
-            <div className="text-center p-3 bg-muted rounded-lg">
-              <div className="text-2xl font-bold">
-                {showCostRange
-                  ? `${formatCurrency(rangeTotals.minCost)}-${formatCurrency(rangeTotals.maxCost)}`
-                  : formatCurrency(rangeTotals.cost)
-                }
-              </div>
-              <div className="text-xs text-muted-foreground">Est. Cost</div>
-            </div>
-          </div>
-
-          {/* Surgical Mode Info */}
-          {isSurgicalMode && (
-            <div className="py-3 border-t border-border/40">
-              <div className="text-sm font-medium mb-2">Surgical Regeneration Targets</div>
-              <div className="space-y-2">
-                {planInfo.surgicalInfo!.map((info, idx) => (
-                  <div key={idx} className="p-2 bg-muted/50 rounded-lg text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Target: </span>
-                      <code className="text-xs bg-muted px-1 py-0.5 rounded">{info.targetArtifactId}</code>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Source Job: </span>
-                      <code className="text-xs bg-muted px-1 py-0.5 rounded">{info.sourceJobId}</code>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Stage Range Picker - only show for non-surgical runs with multiple layers */}
-          {!isSurgicalMode && planInfo.layers > 1 && (
-            <div className="py-3 border-t border-border/40">
-              <div className="text-sm text-muted-foreground mb-2">Execution Stages:</div>
-              <StageRangePicker
-                totalStages={planInfo.layers}
-                value={stageRange}
-                onChange={handleStageRangeChange}
-                stageStatuses={stageStatuses}
-              />
-            </div>
-          )}
-
-          {/* Cost Breakdown */}
-          <div className="border border-border/40 rounded-lg overflow-hidden">
-            <div className="bg-muted/50 px-3 py-2 text-sm font-medium border-b border-border/40">
-              Cost by Producer
-            </div>
-            <div className="max-h-40 overflow-y-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-background sticky top-0 z-10">
-                  <tr className="bg-muted/50">
-                    <th className="text-left px-3 py-1.5 font-medium">Producer</th>
-                    <th className="text-right px-3 py-1.5 font-medium">Count</th>
-                    <th className="text-right px-3 py-1.5 font-medium">Cost</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {planInfo.costByProducer.map((entry) => (
-                    <tr key={entry.name} className="border-t border-border/20">
-                      <td className="px-3 py-1.5">
-                        <span className="flex items-center gap-1">
-                          {entry.name}
-                          {entry.hasPlaceholders && entry.hasCostData && (
-                            <span className="text-amber-500 text-xs">*</span>
-                          )}
-                        </span>
-                      </td>
-                      <td className="text-right px-3 py-1.5 text-muted-foreground">
-                        {entry.count}
-                      </td>
-                      <td className="text-right px-3 py-1.5">
-                        {formatCurrencyOrNA(entry.cost, entry.hasCostData)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <DialogFooter className="gap-2 sm:gap-0">
-          <button
-            onClick={dismissDialog}
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-muted hover:bg-muted/80 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => {
-              clearLogs();
-              confirmExecution(false);
-            }}
-            disabled={isReplanning}
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isReplanning ? 'Updating...' : 'Execute'}
-          </button>
-        </DialogFooter>
+        {/* Content */}
+        {status === 'failed' && error ? (
+          <ErrorContent error={error} onClose={dismissDialog} />
+        ) : isNoop ? (
+          <NoopContent onClose={dismissDialog} />
+        ) : planInfo ? (
+          <PlanContent
+            planInfo={planInfo}
+            sortedCostByProducer={sortedCostByProducer}
+            showCostRange={showCostRange ?? false}
+            isSurgicalMode={isSurgicalMode ?? false}
+            isReplanning={isReplanning}
+            onCancel={dismissDialog}
+            onExecute={handleExecute}
+          />
+        ) : null}
       </DialogContent>
     </Dialog>
   );

@@ -67,7 +67,7 @@ interface ExecutionState {
 type ExecutionAction =
   | { type: 'SET_LAYER_RANGE'; range: LayerRange }
   | { type: 'SET_TOTAL_LAYERS'; totalLayers: number }
-  | { type: 'START_PLANNING'; blueprintName: string; movieId: string | null }
+  | { type: 'START_PLANNING'; blueprintName: string; movieId: string | null; upToLayer: number | null }
   | { type: 'PLAN_READY'; planInfo: PlanDisplayInfo }
   | { type: 'PLAN_FAILED'; error: string }
   | { type: 'START_EXECUTION'; jobId: string }
@@ -131,6 +131,10 @@ function executionReducer(
         error: null,
         blueprintName: action.blueprintName,
         movieId: action.movieId,
+        layerRange: {
+          ...state.layerRange,
+          upToLayer: action.upToLayer,
+        },
       };
 
     case 'PLAN_READY':
@@ -138,7 +142,8 @@ function executionReducer(
         ...state,
         status: 'confirming',
         planInfo: action.planInfo,
-        totalLayers: action.planInfo.layers,
+        // Use blueprintLayers for dropdown (total blueprint layers, not filtered plan layers)
+        totalLayers: action.planInfo.blueprintLayers,
       };
 
     case 'PLAN_FAILED':
@@ -393,6 +398,7 @@ function planResponseToDisplayInfo(response: PlanResponse): PlanDisplayInfo {
     planId: response.planId,
     movieId: response.movieId,
     layers: response.layers,
+    blueprintLayers: response.blueprintLayers,
     totalJobs: response.totalJobs,
     totalCost: response.costSummary.totalCost,
     minCost: response.costSummary.minTotalCost,
@@ -413,7 +419,8 @@ interface ExecutionContextValue {
   state: ExecutionState;
   setLayerRange: (range: LayerRange) => void;
   setTotalLayers: (totalLayers: number) => void;
-  requestPlan: (blueprintName: string, movieId?: string) => Promise<void>;
+  /** Request a new plan. If upToLayer is provided, plan will only include jobs up to that layer. */
+  requestPlan: (blueprintName: string, movieId?: string, upToLayer?: number) => Promise<void>;
   /** Re-request the plan with a new reRunFrom value. Used when user adjusts the stage range slider. */
   replanWithRange: (reRunFrom: number | null) => Promise<void>;
   confirmExecution: (dryRun?: boolean) => Promise<void>;
@@ -464,14 +471,19 @@ export function ExecutionProvider({ children }: ExecutionProviderProps) {
     dispatch({ type: 'SET_TOTAL_LAYERS', totalLayers });
   }, []);
 
-  const requestPlan = useCallback(async (blueprintName: string, movieId?: string) => {
-    dispatch({ type: 'START_PLANNING', blueprintName, movieId: movieId ?? null });
+  const requestPlan = useCallback(async (blueprintName: string, movieId?: string, upToLayer?: number) => {
+    dispatch({ type: 'START_PLANNING', blueprintName, movieId: movieId ?? null, upToLayer: upToLayer ?? null });
 
     try {
+      // Get selected artifacts for surgical regeneration
+      const selectedArtifacts = Array.from(state.selectedForRegeneration);
+
       const response = await createPlan({
         blueprint: blueprintName,
         movieId: movieId ?? undefined,
         reRunFrom: state.layerRange.reRunFrom ?? undefined,
+        artifactIds: selectedArtifacts.length > 0 ? selectedArtifacts : undefined,
+        upToLayer: upToLayer,
       });
 
       const planInfo = planResponseToDisplayInfo(response);
@@ -480,7 +492,7 @@ export function ExecutionProvider({ children }: ExecutionProviderProps) {
       const message = error instanceof Error ? error.message : 'Failed to create plan';
       dispatch({ type: 'PLAN_FAILED', error: message });
     }
-  }, [state.layerRange.reRunFrom]);
+  }, [state.layerRange.reRunFrom, state.selectedForRegeneration]);
 
   const replanWithRange = useCallback(async (reRunFrom: number | null) => {
     if (!state.blueprintName) {
@@ -490,7 +502,7 @@ export function ExecutionProvider({ children }: ExecutionProviderProps) {
 
     // Update the layer range first
     dispatch({ type: 'SET_LAYER_RANGE', range: { ...state.layerRange, reRunFrom } });
-    dispatch({ type: 'START_PLANNING', blueprintName: state.blueprintName, movieId: state.movieId });
+    dispatch({ type: 'START_PLANNING', blueprintName: state.blueprintName, movieId: state.movieId, upToLayer: state.layerRange.upToLayer ?? null });
 
     try {
       const response = await createPlan({

@@ -110,7 +110,10 @@ export interface SurgicalDisplayInfo {
 export interface PlanDisplayInfo {
   planId: string;
   movieId: string;
+  /** Number of layers with scheduled work (after filtering) */
   layers: number;
+  /** Total layers in the full blueprint (for dropdown options) */
+  blueprintLayers: number;
   totalJobs: number;
   totalCost: number;
   minCost: number;

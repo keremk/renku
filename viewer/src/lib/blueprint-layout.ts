@@ -227,3 +227,29 @@ function computeProducerLayers(
 
   return layers;
 }
+
+/**
+ * Compute the total number of layers in a blueprint from its graph topology.
+ * Layers are based on the longest path from inputs through producers.
+ */
+export function computeBlueprintLayerCount(data: BlueprintGraphData): number {
+  const { nodes: graphNodes, edges: graphEdges } = data;
+
+  const producerNodes = graphNodes.filter((n) => n.type === "producer");
+
+  // Handle empty case
+  if (producerNodes.length === 0) {
+    return 0;
+  }
+
+  // Build adjacency and sort
+  const adjacency = buildAdjacency(graphNodes, graphEdges);
+  const orderedProducers = topologicalSort(producerNodes, adjacency, graphEdges);
+
+  // Compute layers
+  const producerLayers = computeProducerLayers(orderedProducers, graphEdges);
+
+  // Return total layer count (max layer + 1, since layers are 0-indexed)
+  const maxLayer = Math.max(0, ...Array.from(producerLayers.values()));
+  return maxLayer + 1;
+}

@@ -83,6 +83,7 @@ export async function handlePlanRequest(
       basePath,
       reRunFrom: body.reRunFrom,
       targetArtifactIds: body.artifactIds,
+      upToLayer: body.upToLayer,
     });
 
     // Cache the plan
@@ -133,6 +134,8 @@ interface GeneratePlanOptions {
   basePath: string;
   reRunFrom?: number;
   targetArtifactIds?: string[];
+  /** Limit plan to layers 0 through upToLayer (0-indexed). */
+  upToLayer?: number;
 }
 
 /**
@@ -156,7 +159,7 @@ interface GeneratePlanResult {
  * Based on cli/src/lib/planner.ts but adapted for viewer use.
  */
 async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanResult> {
-  const { cliConfig, movieId, isNew, blueprintPath, inputsPath, buildsFolder, basePath, reRunFrom, targetArtifactIds } = options;
+  const { cliConfig, movieId, isNew, blueprintPath, inputsPath, buildsFolder, basePath, reRunFrom, targetArtifactIds, upToLayer } = options;
   const storageRoot = cliConfig.storage.root;
   const movieDir = resolve(buildsFolder, movieId);
 
@@ -239,6 +242,7 @@ async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanR
     pendingArtefacts: allPendingArtefacts.length > 0 ? allPendingArtefacts : undefined,
     reRunFrom,
     targetArtifactIds,
+    upToLayer,
   });
 
   // Load pricing catalog and estimate costs
@@ -291,8 +295,9 @@ async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanR
 
 /**
  * Builds the PlanResponse from cached plan and execution plan.
+ * @internal Exported for testing
  */
-function buildPlanResponse(cachedPlan: CachedPlan, plan: ExecutionPlan): PlanResponse {
+export function buildPlanResponse(cachedPlan: CachedPlan, plan: ExecutionPlan): PlanResponse {
   // Build job cost lookup map for quick access
   const jobCostMap = new Map<string, { cost: number; min: number; max: number; isPlaceholder: boolean }>();
   for (const jobCost of cachedPlan.costSummary.jobs) {
@@ -302,43 +307,46 @@ function buildPlanResponse(cachedPlan: CachedPlan, plan: ExecutionPlan): PlanRes
     jobCostMap.set(jobCost.jobId, { cost, min, max, isPlaceholder: jobCost.estimate.isPlaceholder });
   }
 
-  // Build layerBreakdown with per-layer costs
-  const layerBreakdown: LayerInfo[] = plan.layers.map((layerJobs, index) => {
-    let layerCost = 0;
-    let layerMinCost = 0;
-    let layerMaxCost = 0;
-    let hasPlaceholders = false;
+  // Build layerBreakdown with per-layer costs (only include layers with jobs)
+  const layerBreakdown: LayerInfo[] = plan.layers
+    .map((layerJobs, index) => {
+      let layerCost = 0;
+      let layerMinCost = 0;
+      let layerMaxCost = 0;
+      let hasPlaceholders = false;
 
-    const jobs = layerJobs.map((job) => {
-      const costEntry = jobCostMap.get(job.jobId);
-      const estimatedCost = costEntry?.cost;
+      const jobs = layerJobs.map((job) => {
+        const costEntry = jobCostMap.get(job.jobId);
+        const estimatedCost = costEntry?.cost;
 
-      if (costEntry) {
-        layerCost += costEntry.cost;
-        layerMinCost += costEntry.min;
-        layerMaxCost += costEntry.max;
-        if (costEntry.isPlaceholder) {
-          hasPlaceholders = true;
+        if (costEntry) {
+          layerCost += costEntry.cost;
+          layerMinCost += costEntry.min;
+          layerMaxCost += costEntry.max;
+          if (costEntry.isPlaceholder) {
+            hasPlaceholders = true;
+          }
         }
-      }
+
+        return {
+          jobId: job.jobId,
+          producer: typeof job.producer === 'string' ? job.producer : 'unknown',
+          estimatedCost,
+        };
+      });
 
       return {
-        jobId: job.jobId,
-        producer: typeof job.producer === 'string' ? job.producer : 'unknown',
-        estimatedCost,
+        index,
+        jobCount: layerJobs.length,
+        jobs,
+        layerCost,
+        layerMinCost,
+        layerMaxCost,
+        hasPlaceholders,
       };
-    });
-
-    return {
-      index,
-      jobCount: layerJobs.length,
-      jobs,
-      layerCost,
-      layerMinCost,
-      layerMaxCost,
-      hasPlaceholders,
-    };
-  });
+    })
+    // Filter out layers with no jobs (skipped layers)
+    .filter((layer) => layer.jobCount > 0);
 
   const totalJobs = plan.layers.reduce((sum, layerJobs) => sum + layerJobs.length, 0);
 
@@ -365,7 +373,9 @@ function buildPlanResponse(cachedPlan: CachedPlan, plan: ExecutionPlan): PlanRes
     movieId: cachedPlan.movieId,
     revision: plan.revision,
     blueprintPath: cachedPlan.blueprintPath,
-    layers: plan.layers.length,
+    // Only count layers that have jobs to execute (layerBreakdown already filtered)
+    layers: layerBreakdown.length,
+    blueprintLayers: plan.blueprintLayerCount,
     totalJobs,
     costSummary,
     layerBreakdown,

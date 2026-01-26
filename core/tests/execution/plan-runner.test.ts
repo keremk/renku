@@ -52,6 +52,7 @@ describe('executePlanWithConcurrency', () => {
       manifestBaseHash: 'hash',
       layers: [layerOne, layerTwo],
       createdAt: new Date().toISOString(),
+      blueprintLayerCount: 2,
     };
 
     const durations = new Map<string, number>([
@@ -114,6 +115,7 @@ describe('executePlanWithConcurrency', () => {
       manifestBaseHash: 'hash',
       layers,
       createdAt: new Date().toISOString(),
+      blueprintLayerCount: 3,
     };
     const executed: string[] = [];
     const produce: ProduceFn = async ({ job }) => {
@@ -138,6 +140,7 @@ describe('executePlanWithConcurrency', () => {
       manifestBaseHash: 'hash',
       layers: [[makeJob('job-a')]],
       createdAt: new Date().toISOString(),
+      blueprintLayerCount: 1,
     };
     const produce: ProduceFn = async ({ job }) => ({
       jobId: job.jobId,
@@ -167,6 +170,7 @@ describe('executePlanWithConcurrency', () => {
       manifestBaseHash: 'hash',
       layers,
       createdAt: new Date().toISOString(),
+      blueprintLayerCount: 4,
     };
     const executed: string[] = [];
     const produce: ProduceFn = async ({ job }) => {
@@ -205,6 +209,7 @@ describe('executePlanWithConcurrency', () => {
       manifestBaseHash: 'hash',
       layers,
       createdAt: new Date().toISOString(),
+      blueprintLayerCount: 5,
     };
     const executed: string[] = [];
     const produce: ProduceFn = async ({ job }) => {
@@ -235,6 +240,7 @@ describe('executePlanWithConcurrency', () => {
       manifestBaseHash: 'hash',
       layers: [[makeJob('job-a')], [makeJob('job-b')]],
       createdAt: new Date().toISOString(),
+      blueprintLayerCount: 2,
     };
     const produce: ProduceFn = async ({ job }) => ({
       jobId: job.jobId,
@@ -261,6 +267,7 @@ describe('executePlanWithConcurrency', () => {
       manifestBaseHash: 'hash',
       layers: [[makeJob('job-a')], [makeJob('job-b')], [makeJob('job-c')]],
       createdAt: new Date().toISOString(),
+      blueprintLayerCount: 3,
     };
     const produce: ProduceFn = async ({ job }) => ({
       jobId: job.jobId,
@@ -287,6 +294,7 @@ describe('executePlanWithConcurrency', () => {
       manifestBaseHash: 'hash',
       layers: [[makeJob('job-a')]],
       createdAt: new Date().toISOString(),
+      blueprintLayerCount: 1,
     };
     const produce: ProduceFn = async ({ job }) => ({
       jobId: job.jobId,
@@ -317,6 +325,7 @@ describe('executePlanWithConcurrency', () => {
       manifestBaseHash: 'hash',
       layers,
       createdAt: new Date().toISOString(),
+      blueprintLayerCount: 2,
     };
     const executed: string[] = [];
     const produce: ProduceFn = async ({ job }) => {
@@ -347,6 +356,7 @@ describe('executePlanWithConcurrency', () => {
       manifestBaseHash: 'hash',
       layers,
       createdAt: new Date().toISOString(),
+      blueprintLayerCount: 2,
     };
     const produce: ProduceFn = async ({ job }) => ({
       jobId: job.jobId,
@@ -387,6 +397,7 @@ describe('executePlanWithConcurrency', () => {
       manifestBaseHash: 'hash',
       layers,
       createdAt: new Date().toISOString(),
+      blueprintLayerCount: 3,
     };
 
     const abortController = new AbortController();

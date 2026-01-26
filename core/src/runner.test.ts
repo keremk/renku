@@ -51,6 +51,7 @@ const plan: ExecutionPlan = {
     ],
   ],
   createdAt: '2024-01-02T00:00:00.000Z',
+  blueprintLayerCount: 2,
 };
 
 describe('createRunner', () => {
@@ -651,6 +652,7 @@ describe('createRunner', () => {
         ],
       ],
       createdAt: new Date().toISOString(),
+      blueprintLayerCount: 2,
     };
 
     const runner = createRunner({

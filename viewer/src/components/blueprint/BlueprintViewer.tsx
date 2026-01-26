@@ -7,6 +7,7 @@ import { RunButton } from "./run-button";
 import { PlanDialog } from "./plan-dialog";
 import { ExecutionProgressPanel } from "./execution-progress-panel";
 import { ExecutionProvider, useExecution } from "@/contexts/execution-context";
+import { computeBlueprintLayerCount } from "@/lib/blueprint-layout";
 import type { BlueprintGraphData, InputTemplateData } from "@/types/blueprint-graph";
 import type { BuildInfo, BuildManifestResponse } from "@/types/builds";
 
@@ -55,8 +56,14 @@ function BlueprintViewerInner({
   const [activeTab, setActiveTab] = useState<BottomPanelTab>('blueprint');
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { state, setTotalLayers, initializeFromManifest } = useExecution();
+  const { state, initializeFromManifest, setTotalLayers } = useExecution();
   const isExecuting = state.status === 'executing';
+
+  // Compute and set total layers from graph topology on load
+  useEffect(() => {
+    const layerCount = computeBlueprintLayerCount(graphData);
+    setTotalLayers(layerCount);
+  }, [graphData, setTotalLayers]);
 
   // Inputs panel is the inverse of blueprint flow
   const inputsPanelPercent = 100 - blueprintFlowPercent;
@@ -88,17 +95,6 @@ function BlueprintViewerInner({
       initializeFromManifest(selectedBuildManifest.artefacts);
     }
   }, [selectedBuildManifest, initializeFromManifest]);
-
-  // Calculate total layers from graph data for the layer slider
-  useEffect(() => {
-    // Count unique layers from producers
-    const producers = graphData.nodes.filter(n => n.type === 'producer');
-    // A simple heuristic: producers on a path define layers
-    // For now, we'll use the number of producers as a rough estimate
-    // This will be refined when the plan is created
-    const estimatedLayers = Math.max(1, Math.ceil(producers.length / 2));
-    setTotalLayers(estimatedLayers);
-  }, [graphData, setTotalLayers]);
 
   // Track previous execution state to detect transitions
   const prevIsExecutingRef = useRef(isExecuting);

@@ -257,6 +257,7 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
           },
         ],
       ],
+      blueprintLayerCount: 1,
     };
 
     // Execute the plan
@@ -430,6 +431,7 @@ describe('end-to-end: ffmpeg exporter uses fresh artifact paths from event log',
           produces: ['Artifact:VideoExporter.FinalVideo'],
         },
       }]],
+      blueprintLayerCount: 1,
     };
 
     const runner = createRunner();

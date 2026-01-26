@@ -1083,6 +1083,7 @@ describe('estimatePlanCosts', () => {
 			context: j.context,
 		}))],
 		createdAt: new Date().toISOString(),
+		blueprintLayerCount: 1,
 	});
 
 	it('calculates total cost for multiple jobs', () => {

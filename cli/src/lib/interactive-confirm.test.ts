@@ -34,6 +34,7 @@ function createPlan(): ExecutionPlan {
       ],
     ],
     createdAt: new Date().toISOString(),
+    blueprintLayerCount: 1,
   };
 }
 
@@ -67,6 +68,7 @@ function createMultiLayerPlan(): ExecutionPlan {
       ],
     ],
     createdAt: new Date().toISOString(),
+    blueprintLayerCount: 3,
   };
 }
 

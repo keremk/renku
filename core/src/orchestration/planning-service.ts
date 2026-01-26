@@ -64,6 +64,8 @@ export interface GeneratePlanArgs {
   reRunFrom?: number;
   /** Target artifact IDs for surgical regeneration. When provided, only these artifacts and their downstream dependencies will be regenerated. */
   targetArtifactIds?: string[];
+  /** Limit plan to layers 0 through upToLayer (0-indexed). Jobs in later layers are excluded from the plan. */
+  upToLayer?: number;
 }
 
 export interface GeneratePlanResult {
@@ -168,6 +170,7 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
         pendingEdits: inputEvents,
         reRunFrom: args.reRunFrom,
         artifactRegenerations,
+        upToLayer: args.upToLayer,
       });
 
       await planStore.save(plan, { movieId: args.movieId, storage: args.storage });

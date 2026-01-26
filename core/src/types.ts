@@ -564,6 +564,8 @@ export interface ExecutionPlan {
   manifestBaseHash: string;
   layers: JobDescriptor[][];
   createdAt: IsoDatetime;
+  /** Total layers in the full blueprint (before upToLayer filtering). Used for UI dropdown. */
+  blueprintLayerCount: number;
 }
 
 /**
