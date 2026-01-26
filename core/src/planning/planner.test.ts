@@ -5,6 +5,7 @@ import { createStorageContext, initializeMovieStorage } from '../storage.js';
 import { createManifestService, ManifestNotFoundError } from '../manifest.js';
 import { hashArtefactOutput, hashPayload } from '../hashing.js';
 import { nextRevisionId } from '../revisions.js';
+import { computeTopologyLayers } from '../topology/index.js';
 import type {
   InputEvent,
   Manifest,
@@ -1611,6 +1612,65 @@ describe('planner', () => {
       // layers array should be completely empty (no empty arrays inside)
       expect(plan.layers.length).toBe(0);
       expect(plan.layers.flat().length).toBe(0);
+    });
+  });
+
+  describe('topology service consistency', () => {
+    it('blueprintLayerCount matches topology service computation', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+      const manifest = await loadManifest(ctx);
+
+      // Compute topology directly using the service
+      const nodes = graph.nodes.map((n) => ({ id: n.jobId }));
+      const topologyResult = computeTopologyLayers(nodes, graph.edges);
+
+      // Compute plan
+      const plan = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0001',
+        pendingEdits: [],
+      });
+
+      // Verify consistency
+      expect(plan.blueprintLayerCount).toBe(topologyResult.layerCount);
+    });
+
+    it('layer assignments match topology service for all jobs', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+      const manifest = await loadManifest(ctx);
+
+      // Compute topology directly
+      const nodes = graph.nodes.map((n) => ({ id: n.jobId }));
+      const topologyResult = computeTopologyLayers(nodes, graph.edges);
+
+      // Compute plan with all jobs (initial run)
+      const plan = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0001',
+        pendingEdits: [],
+      });
+
+      // Verify each job is placed in its correct layer
+      for (let layerIndex = 0; layerIndex < plan.layers.length; layerIndex++) {
+        for (const job of plan.layers[layerIndex]) {
+          const expectedLayer = topologyResult.layerAssignments.get(job.jobId);
+          expect(expectedLayer).toBe(layerIndex);
+        }
+      }
     });
   });
 });

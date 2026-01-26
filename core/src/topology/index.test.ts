@@ -7,6 +7,7 @@ describe('topology', () => {
       const result = computeTopologyLayers([], []);
       expect(result.layerCount).toBe(0);
       expect(result.layerAssignments.size).toBe(0);
+      expect(result.hasCycle).toBe(false);
     });
 
     it('assigns single node to layer 0', () => {
@@ -123,6 +124,52 @@ describe('topology', () => {
       expect(result.layerAssignments.get('A')).toBe(0);
       expect(result.layerAssignments.get('B')).toBe(1);
       expect(result.layerAssignments.get('C')).toBe(0); // Isolated nodes go to layer 0
+      expect(result.hasCycle).toBe(false);
+    });
+
+    it('detects simple two-node cycle', () => {
+      const nodes = [{ id: 'A' }, { id: 'B' }];
+      const edges = [
+        { from: 'A', to: 'B' },
+        { from: 'B', to: 'A' },
+      ];
+      const result = computeTopologyLayers(nodes, edges);
+      expect(result.hasCycle).toBe(true);
+      // Cycle nodes are assigned to layer 0 for visualization
+      expect(result.layerAssignments.has('A')).toBe(true);
+      expect(result.layerAssignments.has('B')).toBe(true);
+    });
+
+    it('detects self-loop cycle', () => {
+      const nodes = [{ id: 'A' }];
+      const edges = [{ from: 'A', to: 'A' }];
+      const result = computeTopologyLayers(nodes, edges);
+      expect(result.hasCycle).toBe(true);
+    });
+
+    it('detects cycle in larger graph', () => {
+      // A -> B -> C -> D -> B (cycle at B-C-D)
+      const nodes = [{ id: 'A' }, { id: 'B' }, { id: 'C' }, { id: 'D' }];
+      const edges = [
+        { from: 'A', to: 'B' },
+        { from: 'B', to: 'C' },
+        { from: 'C', to: 'D' },
+        { from: 'D', to: 'B' }, // Creates cycle
+      ];
+      const result = computeTopologyLayers(nodes, edges);
+      expect(result.hasCycle).toBe(true);
+    });
+
+    it('reports no cycle for valid DAG', () => {
+      const nodes = [{ id: 'A' }, { id: 'B' }, { id: 'C' }, { id: 'D' }];
+      const edges = [
+        { from: 'A', to: 'B' },
+        { from: 'A', to: 'C' },
+        { from: 'B', to: 'D' },
+        { from: 'C', to: 'D' },
+      ];
+      const result = computeTopologyLayers(nodes, edges);
+      expect(result.hasCycle).toBe(false);
     });
   });
 

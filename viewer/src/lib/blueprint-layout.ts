@@ -1,5 +1,5 @@
 import type { Node, Edge } from "@xyflow/react";
-import type { BlueprintGraphData, BlueprintGraphNode, BlueprintGraphEdge } from "@/types/blueprint-graph";
+import type { BlueprintGraphData } from "@/types/blueprint-graph";
 import type { ProducerStatusMap } from "@/types/generation";
 
 export interface LayoutConfig {
@@ -33,17 +33,10 @@ export function layoutBlueprintGraph(
   const producerNodes = graphNodes.filter((n) => n.type === "producer");
   const outputNodes = graphNodes.filter((n) => n.type === "output");
 
-  // Use pre-computed layer assignments if available, otherwise compute locally
-  let producerLayers: Map<string, number>;
-  if (data.layerAssignments && Object.keys(data.layerAssignments).length > 0) {
-    // Convert Record to Map
-    producerLayers = new Map(Object.entries(data.layerAssignments));
-  } else {
-    // Fallback: compute locally (for backward compatibility)
-    const adjacency = buildAdjacency(graphNodes, graphEdges);
-    const orderedProducers = topologicalSort(producerNodes, adjacency, graphEdges);
-    producerLayers = computeProducerLayers(orderedProducers, graphEdges);
-  }
+  // Use pre-computed layer assignments from server
+  const producerLayers: Map<string, number> = new Map(
+    Object.entries(data.layerAssignments ?? {})
+  );
 
   // Position nodes in columns: inputs (left) -> producers (center) -> outputs (right)
   const nodes: Node[] = [];
@@ -134,143 +127,10 @@ export function layoutBlueprintGraph(
   return { nodes, edges };
 }
 
-function buildAdjacency(
-  nodes: BlueprintGraphNode[],
-  edges: BlueprintGraphEdge[]
-): Map<string, Set<string>> {
-  const adjacency = new Map<string, Set<string>>();
-
-  for (const node of nodes) {
-    adjacency.set(node.id, new Set());
-  }
-
-  for (const edge of edges) {
-    const deps = adjacency.get(edge.target);
-    if (deps) {
-      deps.add(edge.source);
-    }
-  }
-
-  return adjacency;
-}
-
-function topologicalSort(
-  producerNodes: BlueprintGraphNode[],
-  _adjacency: Map<string, Set<string>>,
-  edges: BlueprintGraphEdge[]
-): BlueprintGraphNode[] {
-  const producerIds = new Set(producerNodes.map((n) => n.id));
-  const inDegree = new Map<string, number>();
-  const outgoing = new Map<string, string[]>();
-
-  // Initialize
-  for (const node of producerNodes) {
-    inDegree.set(node.id, 0);
-    outgoing.set(node.id, []);
-  }
-
-  // Count edges between producers
-  for (const edge of edges) {
-    if (producerIds.has(edge.source) && producerIds.has(edge.target)) {
-      inDegree.set(edge.target, (inDegree.get(edge.target) ?? 0) + 1);
-      outgoing.get(edge.source)?.push(edge.target);
-    }
-  }
-
-  // Kahn's algorithm
-  const queue = producerNodes.filter((n) => (inDegree.get(n.id) ?? 0) === 0);
-  const result: BlueprintGraphNode[] = [];
-
-  while (queue.length > 0) {
-    const node = queue.shift()!;
-    result.push(node);
-
-    for (const neighbor of outgoing.get(node.id) ?? []) {
-      const newDegree = (inDegree.get(neighbor) ?? 1) - 1;
-      inDegree.set(neighbor, newDegree);
-      if (newDegree === 0) {
-        const neighborNode = producerNodes.find((n) => n.id === neighbor);
-        if (neighborNode) {
-          queue.push(neighborNode);
-        }
-      }
-    }
-  }
-
-  // Add any remaining nodes (in case of cycles or disconnected nodes)
-  for (const node of producerNodes) {
-    if (!result.includes(node)) {
-      result.push(node);
-    }
-  }
-
-  return result;
-}
-
-function computeProducerLayers(
-  orderedProducers: BlueprintGraphNode[],
-  edges: BlueprintGraphEdge[]
-): Map<string, number> {
-  const layers = new Map<string, number>();
-  const producerIds = new Set(orderedProducers.map((n) => n.id));
-
-  // Build reverse adjacency (predecessors)
-  const predecessors = new Map<string, string[]>();
-  for (const node of orderedProducers) {
-    predecessors.set(node.id, []);
-  }
-
-  for (const edge of edges) {
-    if (producerIds.has(edge.source) && producerIds.has(edge.target)) {
-      predecessors.get(edge.target)?.push(edge.source);
-    }
-  }
-
-  // Compute layers based on longest path from inputs
-  for (const node of orderedProducers) {
-    const preds = predecessors.get(node.id) ?? [];
-    if (preds.length === 0) {
-      layers.set(node.id, 0);
-    } else {
-      const maxPredLayer = Math.max(
-        ...preds.map((pred) => layers.get(pred) ?? 0)
-      );
-      layers.set(node.id, maxPredLayer + 1);
-    }
-  }
-
-  return layers;
-}
-
 /**
- * Compute the total number of layers in a blueprint from its graph topology.
- * Uses pre-computed layerCount if available from server, otherwise computes locally.
+ * Get the total number of layers in a blueprint from server-provided data.
  * Layers are based on the longest path from inputs through producers.
  */
 export function computeBlueprintLayerCount(data: BlueprintGraphData): number {
-  // Use pre-computed layer count if available
-  if (data.layerCount !== undefined) {
-    return data.layerCount;
-  }
-
-  // Fallback: compute locally (for backward compatibility)
-  const { nodes: graphNodes, edges: graphEdges } = data;
-
-  const producerNodes = graphNodes.filter((n) => n.type === "producer");
-
-  // Handle empty case
-  if (producerNodes.length === 0) {
-    return 0;
-  }
-
-  // Build adjacency and sort
-  const adjacency = buildAdjacency(graphNodes, graphEdges);
-  const orderedProducers = topologicalSort(producerNodes, adjacency, graphEdges);
-
-  // Compute layers
-  const producerLayers = computeProducerLayers(orderedProducers, graphEdges);
-
-  // Return total layer count (max layer + 1, since layers are 0-indexed)
-  const maxLayer = Math.max(0, ...Array.from(producerLayers.values()));
-  return maxLayer + 1;
+  return data.layerCount ?? 0;
 }

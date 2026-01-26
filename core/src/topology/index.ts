@@ -19,6 +19,8 @@ export interface TopologyResult {
   layerAssignments: Map<string, number>;
   /** Total number of layers in the graph (max layer + 1) */
   layerCount: number;
+  /** True if the graph contains a cycle (some nodes couldn't be ordered) */
+  hasCycle: boolean;
 }
 
 /**
@@ -39,6 +41,7 @@ export function computeTopologyLayers<N extends GraphNode>(
     return {
       layerAssignments: new Map(),
       layerCount: 0,
+      hasCycle: false,
     };
   }
 
@@ -96,9 +99,11 @@ export function computeTopologyLayers<N extends GraphNode>(
   const unvisited = nodes.filter(
     (n) => !levelMap.has(n.id) || (indegree.get(n.id) ?? 0) > 0
   );
-  if (unvisited.length > 0) {
+  const hasCycle = unvisited.length > 0;
+  if (hasCycle) {
     // Handle cycles by assigning unvisited nodes to layer 0
-    // The planner will detect and throw on cycles separately
+    // This allows visualization to work even with cycles
+    // Callers can check hasCycle to throw an error if needed
     for (const node of unvisited) {
       if (!levelMap.has(node.id)) {
         levelMap.set(node.id, 0);
@@ -111,6 +116,7 @@ export function computeTopologyLayers<N extends GraphNode>(
   return {
     layerAssignments: levelMap,
     layerCount: maxLevel + 1,
+    hasCycle,
   };
 }
 

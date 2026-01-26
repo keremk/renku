@@ -3,6 +3,7 @@ import type { EventLog } from '../event-log.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import { hashPayload } from '../hashing.js';
 import { deriveArtefactHash } from '../manifest.js';
+import { computeTopologyLayers } from '../topology/index.js';
 import {
   type ArtifactRegenerationConfig,
   type Clock,
@@ -261,57 +262,26 @@ function buildExecutionLayers(
   artifactRegenerations?: ArtifactRegenerationConfig[],
   upToLayer?: number,
 ): BuildExecutionLayersResult {
-  // Determine stable layer indices for all producer jobs, then place dirty jobs into their original layer slots.
-  const indegree = new Map<string, number>();
-  const adjacency = new Map<string, Set<string>>();
+  // Use shared topology service to compute stable layer indices for all producer jobs
+  const nodes = Array.from(metadata.keys()).map((id) => ({ id }));
+  const edges = blueprint.edges.filter(
+    (e) => metadata.has(e.from) && metadata.has(e.to),
+  );
 
-  for (const [jobId] of metadata) {
-    indegree.set(jobId, 0);
-    adjacency.set(jobId, new Set());
+  const {
+    layerAssignments: levelMap,
+    layerCount: blueprintLayerCount,
+    hasCycle,
+  } = computeTopologyLayers(nodes, edges);
+
+  if (hasCycle) {
+    throw createRuntimeError(
+      RuntimeErrorCode.CYCLIC_DEPENDENCY,
+      'Producer graph contains a cycle. Unable to create execution plan.',
+    );
   }
 
-  for (const edge of blueprint.edges) {
-    if (!metadata.has(edge.from) || !metadata.has(edge.to)) {
-      continue;
-    }
-    adjacency.get(edge.from)!.add(edge.to);
-    indegree.set(edge.to, (indegree.get(edge.to) ?? 0) + 1);
-  }
-
-  const queue: Array<{ node: string; level: number }> = [];
-  for (const [jobId, degree] of indegree) {
-    if (degree === 0) {
-      queue.push({ node: jobId, level: 0 });
-    }
-  }
-
-  const levelMap = new Map<string, number>();
-
-  while (queue.length > 0) {
-    const { node, level } = queue.shift()!;
-    const current = levelMap.get(node);
-    if (current !== undefined && current <= level) {
-      continue;
-    }
-    levelMap.set(node, level);
-    const neighbours = adjacency.get(node);
-    if (!neighbours) {
-      continue;
-    }
-    for (const neighbour of neighbours) {
-      const remaining = (indegree.get(neighbour) ?? 0) - 1;
-      indegree.set(neighbour, remaining);
-      if (remaining === 0) {
-        queue.push({ node: neighbour, level: level + 1 });
-      }
-    }
-  }
-
-  ensureNoCycles(indegree);
-
-  const maxLevel = levelMap.size === 0 ? 0 : Math.max(...levelMap.values());
-  // Store blueprint layer count BEFORE any filtering - this is the full topology depth
-  const blueprintLayerCount = maxLevel + 1;
+  const maxLevel = blueprintLayerCount > 0 ? blueprintLayerCount - 1 : 0;
   const layers: ExecutionPlan['layers'] = Array.from({ length: maxLevel + 1 }, () => []);
 
   // Combine dirty jobs with jobs forced by reRunFrom
@@ -362,16 +332,6 @@ function buildExecutionLayers(
   }
 
   return { layers, blueprintLayerCount };
-}
-
-function ensureNoCycles(indegree: Map<string, number>): void {
-  const remaining = Array.from(indegree.values()).filter((value) => value > 0);
-  if (remaining.length > 0) {
-    throw createRuntimeError(
-      RuntimeErrorCode.CYCLIC_DEPENDENCY,
-      'Producer graph contains a cycle. Unable to create execution plan.',
-    );
-  }
 }
 
 function buildAdjacencyMap(blueprint: ProducerGraph): Map<string, Set<string>> {

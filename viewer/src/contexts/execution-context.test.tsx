@@ -639,7 +639,7 @@ describe('ExecutionContext', () => {
     beforeEach(async () => {
       mockCreatePlan.mockResolvedValue(createMockPlanResponse());
       mockExecutePlan.mockResolvedValue(createMockExecuteResponse());
-      mockSubscribeToJobStream.mockImplementation((jobId, onEvent) => {
+      mockSubscribeToJobStream.mockImplementation((_jobId, onEvent) => {
         sseCallback = onEvent;
         return () => {};
       });
@@ -1272,7 +1272,7 @@ describe('ExecutionContext', () => {
       mockExecutePlan.mockResolvedValue(createMockExecuteResponse());
 
       let sseCallback: (event: any) => void;
-      mockSubscribeToJobStream.mockImplementation((jobId, onEvent) => {
+      mockSubscribeToJobStream.mockImplementation((_jobId, onEvent) => {
         sseCallback = onEvent;
         return () => {};
       });
@@ -1308,7 +1308,7 @@ describe('ExecutionContext', () => {
       mockExecutePlan.mockResolvedValue(createMockExecuteResponse());
 
       let sseCallback: (event: any) => void;
-      mockSubscribeToJobStream.mockImplementation((jobId, onEvent) => {
+      mockSubscribeToJobStream.mockImplementation((_jobId, onEvent) => {
         sseCallback = onEvent;
         return () => {};
       });
