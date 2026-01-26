@@ -126,6 +126,59 @@ function createInputEvents(values: Record<string, unknown>, revision: RevisionId
   });
 }
 
+/**
+ * Creates a manifest with all artifacts in succeeded status.
+ * Useful for testing scenarios where a full run has completed.
+ */
+function createSucceededManifest(
+  baseline: InputEvent[],
+  options?: {
+    revision?: RevisionId;
+    artefacts?: Record<string, { hash: string; producedBy: string }>;
+  }
+): Manifest {
+  const revision = options?.revision ?? 'rev-0001';
+  const artefactCreatedAt = new Date().toISOString();
+
+  // Default artifacts for the standard test graph
+  const defaultArtefacts: Record<string, { hash: string; producedBy: string }> = {
+    'Artifact:NarrationScript[0]': { hash: 'h0', producedBy: 'Producer:ScriptProducer' },
+    'Artifact:NarrationScript[1]': { hash: 'h1', producedBy: 'Producer:ScriptProducer' },
+    'Artifact:SegmentAudio[0]': { hash: 'h2', producedBy: 'Producer:AudioProducer[0]' },
+    'Artifact:SegmentAudio[1]': { hash: 'h3', producedBy: 'Producer:AudioProducer[1]' },
+    'Artifact:FinalVideo': { hash: 'h4', producedBy: 'Producer:TimelineAssembler' },
+  };
+
+  const artefactDefs = options?.artefacts ?? defaultArtefacts;
+  const artefacts: Manifest['artefacts'] = {};
+  for (const [id, def] of Object.entries(artefactDefs)) {
+    artefacts[id] = {
+      hash: def.hash,
+      producedBy: def.producedBy,
+      status: 'succeeded',
+      createdAt: artefactCreatedAt,
+    };
+  }
+
+  return {
+    revision,
+    baseRevision: null,
+    createdAt: artefactCreatedAt,
+    inputs: Object.fromEntries(
+      baseline.map((event) => [
+        event.id,
+        {
+          hash: event.hash,
+          payloadDigest: hashPayload(event.payload).canonical,
+          createdAt: event.createdAt,
+        },
+      ]),
+    ),
+    artefacts,
+    timeline: {},
+  };
+}
+
 describe('planner', () => {
   it('produces layered plan for initial run', async () => {
     const ctx = memoryContext();
@@ -771,26 +824,7 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const artefactCreatedAt = new Date().toISOString();
-      const manifest: Manifest = {
-        revision: baseRevision,
-        baseRevision: null,
-        createdAt: artefactCreatedAt,
-        inputs: Object.fromEntries(
-          baseline.map((event) => [
-            event.id,
-            { hash: event.hash, payloadDigest: hashPayload(event.payload).canonical, createdAt: event.createdAt },
-          ]),
-        ),
-        artefacts: {
-          'Artifact:NarrationScript[0]': { hash: 'h0', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:NarrationScript[1]': { hash: 'h1', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:SegmentAudio[0]': { hash: 'h2', producedBy: 'Producer:AudioProducer[0]', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:SegmentAudio[1]': { hash: 'h3', producedBy: 'Producer:AudioProducer[1]', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:FinalVideo': { hash: 'h4', producedBy: 'Producer:TimelineAssembler', status: 'succeeded', createdAt: artefactCreatedAt },
-        },
-        timeline: {},
-      };
+      const manifest = createSucceededManifest(baseline, { revision: baseRevision });
 
       const plan = await planner.computePlan({
         movieId: 'demo',
@@ -823,26 +857,7 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const artefactCreatedAt = new Date().toISOString();
-      const manifest: Manifest = {
-        revision: baseRevision,
-        baseRevision: null,
-        createdAt: artefactCreatedAt,
-        inputs: Object.fromEntries(
-          baseline.map((event) => [
-            event.id,
-            { hash: event.hash, payloadDigest: hashPayload(event.payload).canonical, createdAt: event.createdAt },
-          ]),
-        ),
-        artefacts: {
-          'Artifact:NarrationScript[0]': { hash: 'h0', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:NarrationScript[1]': { hash: 'h1', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:SegmentAudio[0]': { hash: 'h2', producedBy: 'Producer:AudioProducer[0]', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:SegmentAudio[1]': { hash: 'h3', producedBy: 'Producer:AudioProducer[1]', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:FinalVideo': { hash: 'h4', producedBy: 'Producer:TimelineAssembler', status: 'succeeded', createdAt: artefactCreatedAt },
-        },
-        timeline: {},
-      };
+      const manifest = createSucceededManifest(baseline, { revision: baseRevision });
 
       // Layer 2 is the last layer (TimelineAssembler)
       const plan = await planner.computePlan({
@@ -1051,26 +1066,7 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const artefactCreatedAt = new Date().toISOString();
-      const manifest: Manifest = {
-        revision: baseRevision,
-        baseRevision: null,
-        createdAt: artefactCreatedAt,
-        inputs: Object.fromEntries(
-          baseline.map((event) => [
-            event.id,
-            { hash: event.hash, payloadDigest: hashPayload(event.payload).canonical, createdAt: event.createdAt },
-          ]),
-        ),
-        artefacts: {
-          'Artifact:NarrationScript[0]': { hash: 'h0', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:NarrationScript[1]': { hash: 'h1', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:SegmentAudio[0]': { hash: 'h2', producedBy: 'Producer:AudioProducer[0]', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:SegmentAudio[1]': { hash: 'h3', producedBy: 'Producer:AudioProducer[1]', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:FinalVideo': { hash: 'h4', producedBy: 'Producer:TimelineAssembler', status: 'succeeded', createdAt: artefactCreatedAt },
-        },
-        timeline: {},
-      };
+      const manifest = createSucceededManifest(baseline, { revision: baseRevision });
 
       // Surgical regeneration of AudioProducer[0]
       const plan = await planner.computePlan({
@@ -1112,26 +1108,7 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const artefactCreatedAt = new Date().toISOString();
-      const manifest: Manifest = {
-        revision: baseRevision,
-        baseRevision: null,
-        createdAt: artefactCreatedAt,
-        inputs: Object.fromEntries(
-          baseline.map((event) => [
-            event.id,
-            { hash: event.hash, payloadDigest: hashPayload(event.payload).canonical, createdAt: event.createdAt },
-          ]),
-        ),
-        artefacts: {
-          'Artifact:NarrationScript[0]': { hash: 'h0', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:NarrationScript[1]': { hash: 'h1', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:SegmentAudio[0]': { hash: 'h2', producedBy: 'Producer:AudioProducer[0]', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:SegmentAudio[1]': { hash: 'h3', producedBy: 'Producer:AudioProducer[1]', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:FinalVideo': { hash: 'h4', producedBy: 'Producer:TimelineAssembler', status: 'succeeded', createdAt: artefactCreatedAt },
-        },
-        timeline: {},
-      };
+      const manifest = createSucceededManifest(baseline, { revision: baseRevision });
 
       // Surgical regeneration of BOTH AudioProducer[0] and AudioProducer[1]
       const plan = await planner.computePlan({
@@ -1180,26 +1157,7 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const artefactCreatedAt = new Date().toISOString();
-      const manifest: Manifest = {
-        revision: baseRevision,
-        baseRevision: null,
-        createdAt: artefactCreatedAt,
-        inputs: Object.fromEntries(
-          baseline.map((event) => [
-            event.id,
-            { hash: event.hash, payloadDigest: hashPayload(event.payload).canonical, createdAt: event.createdAt },
-          ]),
-        ),
-        artefacts: {
-          'Artifact:NarrationScript[0]': { hash: 'h0', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:NarrationScript[1]': { hash: 'h1', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:SegmentAudio[0]': { hash: 'h2', producedBy: 'Producer:AudioProducer[0]', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:SegmentAudio[1]': { hash: 'h3', producedBy: 'Producer:AudioProducer[1]', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:FinalVideo': { hash: 'h4', producedBy: 'Producer:TimelineAssembler', status: 'succeeded', createdAt: artefactCreatedAt },
-        },
-        timeline: {},
-      };
+      const manifest = createSucceededManifest(baseline, { revision: baseRevision });
 
       // Surgical regeneration of TimelineAssembler with reRunFrom=0 (should be ignored)
       const plan = await planner.computePlan({
@@ -1238,26 +1196,7 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const artefactCreatedAt = new Date().toISOString();
-      const manifest: Manifest = {
-        revision: baseRevision,
-        baseRevision: null,
-        createdAt: artefactCreatedAt,
-        inputs: Object.fromEntries(
-          baseline.map((event) => [
-            event.id,
-            { hash: event.hash, payloadDigest: hashPayload(event.payload).canonical, createdAt: event.createdAt },
-          ]),
-        ),
-        artefacts: {
-          'Artifact:NarrationScript[0]': { hash: 'h0', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:NarrationScript[1]': { hash: 'h1', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:SegmentAudio[0]': { hash: 'h2', producedBy: 'Producer:AudioProducer[0]', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:SegmentAudio[1]': { hash: 'h3', producedBy: 'Producer:AudioProducer[1]', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:FinalVideo': { hash: 'h4', producedBy: 'Producer:TimelineAssembler', status: 'succeeded', createdAt: artefactCreatedAt },
-        },
-        timeline: {},
-      };
+      const manifest = createSucceededManifest(baseline, { revision: baseRevision });
 
       // reRunFrom=0 would normally include all jobs, but upToLayer=1 should exclude layer 2
       const plan = await planner.computePlan({
@@ -1297,26 +1236,7 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const artefactCreatedAt = new Date().toISOString();
-      const manifest: Manifest = {
-        revision: baseRevision,
-        baseRevision: null,
-        createdAt: artefactCreatedAt,
-        inputs: Object.fromEntries(
-          baseline.map((event) => [
-            event.id,
-            { hash: event.hash, payloadDigest: hashPayload(event.payload).canonical, createdAt: event.createdAt },
-          ]),
-        ),
-        artefacts: {
-          'Artifact:NarrationScript[0]': { hash: 'h0', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:NarrationScript[1]': { hash: 'h1', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:SegmentAudio[0]': { hash: 'h2', producedBy: 'Producer:AudioProducer[0]', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:SegmentAudio[1]': { hash: 'h3', producedBy: 'Producer:AudioProducer[1]', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:FinalVideo': { hash: 'h4', producedBy: 'Producer:TimelineAssembler', status: 'succeeded', createdAt: artefactCreatedAt },
-        },
-        timeline: {},
-      };
+      const manifest = createSucceededManifest(baseline, { revision: baseRevision });
 
       const plan = await planner.computePlan({
         movieId: 'demo',
@@ -1349,26 +1269,7 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const artefactCreatedAt = new Date().toISOString();
-      const manifest: Manifest = {
-        revision: baseRevision,
-        baseRevision: null,
-        createdAt: artefactCreatedAt,
-        inputs: Object.fromEntries(
-          baseline.map((event) => [
-            event.id,
-            { hash: event.hash, payloadDigest: hashPayload(event.payload).canonical, createdAt: event.createdAt },
-          ]),
-        ),
-        artefacts: {
-          'Artifact:NarrationScript[0]': { hash: 'h0', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:NarrationScript[1]': { hash: 'h1', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:SegmentAudio[0]': { hash: 'h2', producedBy: 'Producer:AudioProducer[0]', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:SegmentAudio[1]': { hash: 'h3', producedBy: 'Producer:AudioProducer[1]', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:FinalVideo': { hash: 'h4', producedBy: 'Producer:TimelineAssembler', status: 'succeeded', createdAt: artefactCreatedAt },
-        },
-        timeline: {},
-      };
+      const manifest = createSucceededManifest(baseline, { revision: baseRevision });
 
       // Surgical regeneration of ScriptProducer would normally include all downstream
       // But upToLayer=0 should limit to only layer 0
@@ -1412,26 +1313,7 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const artefactCreatedAt = new Date().toISOString();
-      const manifest: Manifest = {
-        revision: baseRevision,
-        baseRevision: null,
-        createdAt: artefactCreatedAt,
-        inputs: Object.fromEntries(
-          baseline.map((event) => [
-            event.id,
-            { hash: event.hash, payloadDigest: hashPayload(event.payload).canonical, createdAt: event.createdAt },
-          ]),
-        ),
-        artefacts: {
-          'Artifact:NarrationScript[0]': { hash: 'h0', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:NarrationScript[1]': { hash: 'h1', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:SegmentAudio[0]': { hash: 'h2', producedBy: 'Producer:AudioProducer[0]', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:SegmentAudio[1]': { hash: 'h3', producedBy: 'Producer:AudioProducer[1]', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:FinalVideo': { hash: 'h4', producedBy: 'Producer:TimelineAssembler', status: 'succeeded', createdAt: artefactCreatedAt },
-        },
-        timeline: {},
-      };
+      const manifest = createSucceededManifest(baseline, { revision: baseRevision });
 
       // upToLayer=10 is beyond max layer (2), so all jobs should be included
       const plan = await planner.computePlan({
@@ -1646,55 +1528,7 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const artefactCreatedAt = new Date().toISOString();
-      const manifest: Manifest = {
-        revision: 'rev-0001',
-        baseRevision: null,
-        createdAt: artefactCreatedAt,
-        inputs: Object.fromEntries(
-          baseline.map((event) => [
-            event.id,
-            {
-              hash: event.hash,
-              payloadDigest: hashPayload(event.payload).canonical,
-              createdAt: event.createdAt,
-            },
-          ]),
-        ),
-        artefacts: {
-          'Artifact:NarrationScript[0]': {
-            hash: 'hash-script-0',
-            producedBy: 'Producer:ScriptProducer',
-            status: 'succeeded',
-            createdAt: artefactCreatedAt,
-          },
-          'Artifact:NarrationScript[1]': {
-            hash: 'hash-script-1',
-            producedBy: 'Producer:ScriptProducer',
-            status: 'succeeded',
-            createdAt: artefactCreatedAt,
-          },
-          'Artifact:SegmentAudio[0]': {
-            hash: 'hash-audio-0',
-            producedBy: 'Producer:AudioProducer[0]',
-            status: 'succeeded',
-            createdAt: artefactCreatedAt,
-          },
-          'Artifact:SegmentAudio[1]': {
-            hash: 'hash-audio-1',
-            producedBy: 'Producer:AudioProducer[1]',
-            status: 'succeeded',
-            createdAt: artefactCreatedAt,
-          },
-          'Artifact:FinalVideo': {
-            hash: 'hash-final-video',
-            producedBy: 'Producer:TimelineAssembler',
-            status: 'succeeded',
-            createdAt: artefactCreatedAt,
-          },
-        },
-        timeline: {},
-      };
+      const manifest = createSucceededManifest(baseline);
 
       // All artifacts succeeded, nothing dirty -> NOOP plan
       const plan = await planner.computePlan({
@@ -1728,26 +1562,7 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const artefactCreatedAt = new Date().toISOString();
-      const manifest: Manifest = {
-        revision: baseRevision,
-        baseRevision: null,
-        createdAt: artefactCreatedAt,
-        inputs: Object.fromEntries(
-          baseline.map((event) => [
-            event.id,
-            { hash: event.hash, payloadDigest: hashPayload(event.payload).canonical, createdAt: event.createdAt },
-          ]),
-        ),
-        artefacts: {
-          'Artifact:NarrationScript[0]': { hash: 'h0', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:NarrationScript[1]': { hash: 'h1', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:SegmentAudio[0]': { hash: 'h2', producedBy: 'Producer:AudioProducer[0]', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:SegmentAudio[1]': { hash: 'h3', producedBy: 'Producer:AudioProducer[1]', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:FinalVideo': { hash: 'h4', producedBy: 'Producer:TimelineAssembler', status: 'succeeded', createdAt: artefactCreatedAt },
-        },
-        timeline: {},
-      };
+      const manifest = createSucceededManifest(baseline, { revision: baseRevision });
 
       // reRunFrom=0 forces all jobs, but upToLayer=0 limits to only layer 0
       const plan = await planner.computePlan({
@@ -1781,26 +1596,7 @@ describe('planner', () => {
         await eventLog.appendInput('demo', event);
       }
 
-      const artefactCreatedAt = new Date().toISOString();
-      const manifest: Manifest = {
-        revision: 'rev-0001',
-        baseRevision: null,
-        createdAt: artefactCreatedAt,
-        inputs: Object.fromEntries(
-          baseline.map((event) => [
-            event.id,
-            { hash: event.hash, payloadDigest: hashPayload(event.payload).canonical, createdAt: event.createdAt },
-          ]),
-        ),
-        artefacts: {
-          'Artifact:NarrationScript[0]': { hash: 'h0', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:NarrationScript[1]': { hash: 'h1', producedBy: 'Producer:ScriptProducer', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:SegmentAudio[0]': { hash: 'h2', producedBy: 'Producer:AudioProducer[0]', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:SegmentAudio[1]': { hash: 'h3', producedBy: 'Producer:AudioProducer[1]', status: 'succeeded', createdAt: artefactCreatedAt },
-          'Artifact:FinalVideo': { hash: 'h4', producedBy: 'Producer:TimelineAssembler', status: 'succeeded', createdAt: artefactCreatedAt },
-        },
-        timeline: {},
-      };
+      const manifest = createSucceededManifest(baseline);
 
       // Nothing dirty, no reRunFrom, no surgical -> empty plan
       const plan = await planner.computePlan({

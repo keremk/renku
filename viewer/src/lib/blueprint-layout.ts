@@ -33,9 +33,17 @@ export function layoutBlueprintGraph(
   const producerNodes = graphNodes.filter((n) => n.type === "producer");
   const outputNodes = graphNodes.filter((n) => n.type === "output");
 
-  // Build adjacency for topological ordering of producers
-  const adjacency = buildAdjacency(graphNodes, graphEdges);
-  const orderedProducers = topologicalSort(producerNodes, adjacency, graphEdges);
+  // Use pre-computed layer assignments if available, otherwise compute locally
+  let producerLayers: Map<string, number>;
+  if (data.layerAssignments && Object.keys(data.layerAssignments).length > 0) {
+    // Convert Record to Map
+    producerLayers = new Map(Object.entries(data.layerAssignments));
+  } else {
+    // Fallback: compute locally (for backward compatibility)
+    const adjacency = buildAdjacency(graphNodes, graphEdges);
+    const orderedProducers = topologicalSort(producerNodes, adjacency, graphEdges);
+    producerLayers = computeProducerLayers(orderedProducers, graphEdges);
+  }
 
   // Position nodes in columns: inputs (left) -> producers (center) -> outputs (right)
   const nodes: Node[] = [];
@@ -57,10 +65,16 @@ export function layoutBlueprintGraph(
   });
 
   // Position producers in the middle columns based on their layer
-  const producerLayers = computeProducerLayers(orderedProducers, graphEdges);
+  // Sort by layer for consistent ordering within each layer
+  const sortedProducers = [...producerNodes].sort((a, b) => {
+    const layerA = producerLayers.get(a.id) ?? 0;
+    const layerB = producerLayers.get(b.id) ?? 0;
+    return layerA - layerB;
+  });
+
   const layerCounts: Map<number, number> = new Map();
 
-  orderedProducers.forEach((node) => {
+  sortedProducers.forEach((node) => {
     const layer = producerLayers.get(node.id) ?? 0;
     const layerIndex = layerCounts.get(layer) ?? 0;
     layerCounts.set(layer, layerIndex + 1);
@@ -230,9 +244,16 @@ function computeProducerLayers(
 
 /**
  * Compute the total number of layers in a blueprint from its graph topology.
+ * Uses pre-computed layerCount if available from server, otherwise computes locally.
  * Layers are based on the longest path from inputs through producers.
  */
 export function computeBlueprintLayerCount(data: BlueprintGraphData): number {
+  // Use pre-computed layer count if available
+  if (data.layerCount !== undefined) {
+    return data.layerCount;
+  }
+
+  // Fallback: compute locally (for backward compatibility)
   const { nodes: graphNodes, edges: graphEdges } = data;
 
   const producerNodes = graphNodes.filter((n) => n.type === "producer");

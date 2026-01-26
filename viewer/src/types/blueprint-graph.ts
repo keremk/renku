@@ -58,6 +58,10 @@ export interface BlueprintGraphData {
   inputs: BlueprintInputDef[];
   outputs: BlueprintOutputDef[];
   conditions?: ConditionDef[];
+  /** Pre-computed layer assignments for producer nodes (nodeId -> layer index) */
+  layerAssignments?: Record<string, number>;
+  /** Total number of layers in the blueprint topology */
+  layerCount?: number;
 }
 
 export interface InputTemplateData {

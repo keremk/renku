@@ -9,7 +9,7 @@ export default defineConfig({
     fileParallelism: false,
     minWorkers: 1,
     maxWorkers: 1,
-    include: ['server/**/*.test.ts', 'src/**/*.test.ts'],
+    include: ['server/**/*.test.ts', 'src/**/*.test.ts', 'src/**/*.test.tsx'],
     exclude: ['node_modules', 'dist', 'server-dist'],
   },
   resolve: {

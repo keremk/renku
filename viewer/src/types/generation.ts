@@ -28,10 +28,9 @@ export interface ProducerStatusMap {
 export type ExecutionStatus = 'idle' | 'planning' | 'confirming' | 'executing' | 'completed' | 'failed' | 'cancelled';
 
 /**
- * Layer range for controlling re-run behavior.
+ * Layer range for controlling execution scope.
  */
 export interface LayerRange {
-  reRunFrom: number | null;
   upToLayer: number | null;
 }
 

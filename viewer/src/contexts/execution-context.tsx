@@ -94,7 +94,7 @@ type ExecutionAction =
 
 const initialState: ExecutionState = {
   status: 'idle',
-  layerRange: { reRunFrom: null, upToLayer: null },
+  layerRange: { upToLayer: null },
   planInfo: null,
   currentJobId: null,
   progress: null,
@@ -421,8 +421,6 @@ interface ExecutionContextValue {
   setTotalLayers: (totalLayers: number) => void;
   /** Request a new plan. If upToLayer is provided, plan will only include jobs up to that layer. */
   requestPlan: (blueprintName: string, movieId?: string, upToLayer?: number) => Promise<void>;
-  /** Re-request the plan with a new reRunFrom value. Used when user adjusts the stage range slider. */
-  replanWithRange: (reRunFrom: number | null) => Promise<void>;
   confirmExecution: (dryRun?: boolean) => Promise<void>;
   cancelExecution: () => Promise<void>;
   dismissDialog: () => void;
@@ -481,7 +479,6 @@ export function ExecutionProvider({ children }: ExecutionProviderProps) {
       const response = await createPlan({
         blueprint: blueprintName,
         movieId: movieId ?? undefined,
-        reRunFrom: state.layerRange.reRunFrom ?? undefined,
         artifactIds: selectedArtifacts.length > 0 ? selectedArtifacts : undefined,
         upToLayer: upToLayer,
       });
@@ -492,32 +489,7 @@ export function ExecutionProvider({ children }: ExecutionProviderProps) {
       const message = error instanceof Error ? error.message : 'Failed to create plan';
       dispatch({ type: 'PLAN_FAILED', error: message });
     }
-  }, [state.layerRange.reRunFrom, state.selectedForRegeneration]);
-
-  const replanWithRange = useCallback(async (reRunFrom: number | null) => {
-    if (!state.blueprintName) {
-      console.error('[execution-context] Cannot replan: no blueprint name stored');
-      return;
-    }
-
-    // Update the layer range first
-    dispatch({ type: 'SET_LAYER_RANGE', range: { ...state.layerRange, reRunFrom } });
-    dispatch({ type: 'START_PLANNING', blueprintName: state.blueprintName, movieId: state.movieId, upToLayer: state.layerRange.upToLayer ?? null });
-
-    try {
-      const response = await createPlan({
-        blueprint: state.blueprintName,
-        movieId: state.movieId ?? undefined,
-        reRunFrom: reRunFrom ?? undefined,
-      });
-
-      const planInfo = planResponseToDisplayInfo(response);
-      dispatch({ type: 'PLAN_READY', planInfo });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to create plan';
-      dispatch({ type: 'PLAN_FAILED', error: message });
-    }
-  }, [state.blueprintName, state.movieId, state.layerRange]);
+  }, [state.selectedForRegeneration]);
 
   const confirmExecution = useCallback(async (dryRun = false) => {
     if (!state.planInfo) return;
@@ -525,7 +497,6 @@ export function ExecutionProvider({ children }: ExecutionProviderProps) {
     try {
       const response = await executePlan({
         planId: state.planInfo.planId,
-        reRunFrom: state.layerRange.reRunFrom ?? undefined,
         upToLayer: state.layerRange.upToLayer ?? undefined,
         dryRun,
       });
@@ -633,7 +604,6 @@ export function ExecutionProvider({ children }: ExecutionProviderProps) {
     setLayerRange,
     setTotalLayers,
     requestPlan,
-    replanWithRange,
     confirmExecution,
     cancelExecution,
     dismissDialog,

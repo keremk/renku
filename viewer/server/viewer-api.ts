@@ -5,6 +5,7 @@ import path from "node:path";
 import type { Connect } from "vite";
 import {
   loadYamlBlueprintTree,
+  computeTopologyLayers,
   type BlueprintTreeNode,
   type BlueprintInputDefinition,
   type BlueprintArtefactDefinition,
@@ -33,6 +34,10 @@ interface BlueprintGraphData {
   inputs: BlueprintInputDef[];
   outputs: BlueprintOutputDef[];
   conditions?: ConditionDef[];
+  /** Pre-computed layer assignments for producer nodes (nodeId -> layer index) */
+  layerAssignments?: Record<string, number>;
+  /** Total number of layers in the blueprint topology */
+  layerCount?: number;
 }
 
 interface BlueprintGraphNode {
@@ -552,6 +557,26 @@ function convertTreeToGraph(root: BlueprintTreeNode): BlueprintGraphData {
     itemType: art.itemType,
   }));
 
+  // Compute layer assignments for producer nodes using the core topology service
+  const producerNodes = nodes.filter((n) => n.type === "producer");
+  const producerEdges = edges
+    .filter(
+      (e) =>
+        e.source.startsWith("Producer:") && e.target.startsWith("Producer:")
+    )
+    .map((e) => ({
+      from: e.source,
+      to: e.target,
+    }));
+
+  const topologyResult = computeTopologyLayers(producerNodes, producerEdges);
+
+  // Convert Map to Record for JSON serialization
+  const layerAssignments: Record<string, number> = {};
+  for (const [nodeId, layer] of topologyResult.layerAssignments) {
+    layerAssignments[nodeId] = layer;
+  }
+
   return {
     meta: {
       id: root.document.meta.id,
@@ -564,6 +589,8 @@ function convertTreeToGraph(root: BlueprintTreeNode): BlueprintGraphData {
     inputs,
     outputs,
     conditions: conditions.length > 0 ? conditions : undefined,
+    layerAssignments,
+    layerCount: topologyResult.layerCount,
   };
 }
 
