@@ -48,31 +48,16 @@ export function BlueprintFlow({
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  // Update nodes when producer statuses change
+  // Synchronize nodes and edges when layout changes (new build selected, graph changes, etc.)
   useEffect(() => {
-    if (!producerStatuses) return;
+    setNodes(initialNodes);
+  }, [initialNodes, setNodes]);
 
-    setNodes((currentNodes) =>
-      currentNodes.map((node) => {
-        if (node.type === "producerNode") {
-          const nodeData = node.data as { label?: string };
-          const label = nodeData?.label;
-          if (label && producerStatuses[label]) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                status: producerStatuses[label],
-              },
-            };
-          }
-        }
-        return node;
-      })
-    );
-  }, [producerStatuses, setNodes]);
+  useEffect(() => {
+    setEdges(initialEdges);
+  }, [initialEdges, setEdges]);
 
   const handleNodesChange: OnNodesChange = useCallback(
     (changes) => {
