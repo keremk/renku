@@ -8,6 +8,7 @@ import { PlanDialog } from "./plan-dialog";
 import { ExecutionProgressPanel } from "./execution-progress-panel";
 import { ExecutionProvider, useExecution } from "@/contexts/execution-context";
 import { computeBlueprintLayerCount } from "@/lib/blueprint-layout";
+import { fetchBuildInputs, saveBuildInputs, enableBuildEditing } from "@/data/blueprint-client";
 import type { BlueprintGraphData, InputTemplateData } from "@/types/blueprint-graph";
 import type { BuildInfo, BuildManifestResponse } from "@/types/builds";
 
@@ -27,6 +28,8 @@ interface BlueprintViewerProps {
   selectedBuildId: string | null;
   /** Manifest data for the selected build */
   selectedBuildManifest: BuildManifestResponse | null;
+  /** Callback to refresh builds list */
+  onBuildsRefresh?: () => Promise<void>;
 }
 
 // Blueprint flow panel sizing (the graph at the bottom)
@@ -35,6 +38,49 @@ const MAX_BLUEPRINT_FLOW_PERCENT = 70;
 const DEFAULT_BLUEPRINT_FLOW_PERCENT = 30;
 
 type BottomPanelTab = 'blueprint' | 'execution';
+
+/**
+ * Serializes a value to YAML format.
+ * Avoids adding quotes unless absolutely necessary for YAML syntax.
+ */
+function serializeYamlValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  if (typeof value === "string") {
+    // Only quote if the value contains characters that would break YAML parsing
+    // or if it looks like a YAML special value (true, false, null, numbers)
+    const needsQuoting =
+      value === "" ||
+      value.includes("\n") ||
+      value.startsWith(" ") ||
+      value.endsWith(" ") ||
+      /^[#&*!|>'\"]/.test(value) ||  // YAML special start chars
+      /[:{}[\]]/.test(value) ||       // YAML structure chars
+      value === "true" || value === "false" || value === "null" ||
+      (!isNaN(Number(value)) && value !== "");  // Looks like a number
+
+    if (needsQuoting) {
+      // Use single quotes for simple cases, double quotes for complex
+      if (!value.includes("'") && !value.includes("\n")) {
+        return `'${value}'`;
+      }
+      // Fall back to double quotes with escaping
+      return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`;
+    }
+    return value;
+  }
+  if (typeof value === "boolean") {
+    return value ? "true" : "false";
+  }
+  if (typeof value === "number") {
+    return String(value);
+  }
+  if (Array.isArray(value) || typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
 
 /**
  * Inner component that uses the execution context.
@@ -49,6 +95,7 @@ function BlueprintViewerInner({
   buildsLoading,
   selectedBuildId,
   selectedBuildManifest,
+  onBuildsRefresh,
 }: BlueprintViewerProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [blueprintFlowPercent, setBlueprintFlowPercent] = useState(DEFAULT_BLUEPRINT_FLOW_PERCENT);
@@ -56,8 +103,57 @@ function BlueprintViewerInner({
   const [activeTab, setActiveTab] = useState<BottomPanelTab>('blueprint');
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Build inputs state
+  const [buildInputsContent, setBuildInputsContent] = useState<string | null>(null);
+  const [buildInputsLoading, setBuildInputsLoading] = useState(false);
+
   const { state, initializeFromManifest, setTotalLayers } = useExecution();
   const isExecuting = state.status === 'executing';
+
+  // Find the selected build to check if it has inputs
+  const selectedBuild = useMemo(
+    () => builds.find((b) => b.movieId === selectedBuildId),
+    [builds, selectedBuildId]
+  );
+
+  // Fetch build inputs when a build with inputs is selected
+  useEffect(() => {
+    // If conditions not met, reset state and return
+    const shouldFetch = blueprintFolder && selectedBuildId && selectedBuild?.hasInputsFile;
+    if (!shouldFetch) {
+      // Reset content via a microtask to avoid synchronous setState warning
+      queueMicrotask(() => setBuildInputsContent(null));
+      return;
+    }
+
+    let cancelled = false;
+
+    // Use async IIFE to handle the fetch and state updates
+    const loadInputs = async () => {
+      setBuildInputsLoading(true);
+      try {
+        const response = await fetchBuildInputs(blueprintFolder, selectedBuildId);
+        if (!cancelled) {
+          setBuildInputsContent(response.content);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to fetch build inputs:", error);
+          setBuildInputsContent(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setBuildInputsLoading(false);
+        }
+      }
+    };
+
+    void loadInputs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [blueprintFolder, selectedBuildId, selectedBuild?.hasInputsFile]);
 
   // Compute and set total layers from graph topology on load
   useEffect(() => {
@@ -71,8 +167,89 @@ function BlueprintViewerInner({
   // Determine if we should show the sidebar (only when blueprintFolder is available)
   const showSidebar = Boolean(blueprintFolder);
 
-  // Merge input data from manifest if a build is selected
+  // Parse build inputs from YAML content
+  const parsedBuildInputs = useMemo<InputTemplateData | null>(() => {
+    if (!buildInputsContent) return null;
+
+    // Create a map of input definitions from graph for type/required info
+    const inputDefMap = new Map<string, { type: string; required: boolean; description?: string }>();
+    for (const inputDef of graphData.inputs) {
+      inputDefMap.set(inputDef.name, {
+        type: inputDef.type,
+        required: inputDef.required,
+        description: inputDef.description,
+      });
+    }
+
+    // Simple YAML parsing for key-value pairs in the "inputs:" section
+    const inputs: InputTemplateData["inputs"] = [];
+    const lines = buildInputsContent.split("\n");
+    let inInputsSection = false;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+
+      // Check for section markers
+      if (trimmed === "inputs:") {
+        inInputsSection = true;
+        continue;
+      }
+      if (trimmed.endsWith(":") && !trimmed.includes(" ")) {
+        inInputsSection = false;
+        continue;
+      }
+
+      // Parse key-value pairs in inputs section
+      if (inInputsSection) {
+        const colonIndex = trimmed.indexOf(":");
+        if (colonIndex > 0) {
+          const name = trimmed.slice(0, colonIndex).trim();
+          let value: unknown = trimmed.slice(colonIndex + 1).trim();
+
+          // Remove surrounding quotes and handle escapes
+          if (typeof value === "string") {
+            if (value.startsWith('"') && value.endsWith('"')) {
+              // Double-quoted: handle escape sequences
+              const inner = value.slice(1, -1);
+              value = inner
+                .replace(/\\n/g, "\n")
+                .replace(/\\"/g, '"')
+                .replace(/\\\\/g, "\\");
+            } else if (value.startsWith("'") && value.endsWith("'")) {
+              // Single-quoted: no escape handling needed in YAML
+              value = value.slice(1, -1);
+            } else if (value === "true") {
+              value = true;
+            } else if (value === "false") {
+              value = false;
+            } else if (value !== "" && !isNaN(Number(value))) {
+              value = Number(value);
+            }
+          }
+
+          // Get type info from input definitions, with fallback
+          const def = inputDefMap.get(name);
+          inputs.push({
+            name,
+            value,
+            type: def?.type ?? "string",
+            required: def?.required ?? false,
+            description: def?.description,
+          });
+        }
+      }
+    }
+
+    return inputs.length > 0 ? { inputs } : null;
+  }, [buildInputsContent, graphData.inputs]);
+
+  // Merge input data from build inputs or manifest
   const effectiveInputData = useMemo<InputTemplateData | null>(() => {
+    // Priority: build inputs file > manifest inputs > template inputs
+    if (parsedBuildInputs) {
+      return parsedBuildInputs;
+    }
     // If we have a selected build manifest with inputs, use those
     if (selectedBuildManifest?.inputs && Object.keys(selectedBuildManifest.inputs).length > 0) {
       const manifestInputs = Object.entries(selectedBuildManifest.inputs).map(([name, value]) => ({
@@ -87,7 +264,103 @@ function BlueprintViewerInner({
     }
     // Fall back to the input data from file
     return inputData;
-  }, [inputData, selectedBuildManifest]);
+  }, [inputData, selectedBuildManifest, parsedBuildInputs]);
+
+  // Check if inputs are editable (has build with inputs file selected)
+  const isInputsEditable = Boolean(
+    blueprintFolder && selectedBuildId && selectedBuild?.hasInputsFile
+  );
+
+  // Check if editing can be enabled (build selected but no inputs file)
+  const canEnableEditing = Boolean(
+    blueprintFolder && selectedBuildId && selectedBuild && !selectedBuild.hasInputsFile
+  );
+
+  // Handle enabling editing for a build
+  const handleEnableEditing = useCallback(async () => {
+    if (!blueprintFolder || !selectedBuildId) return;
+
+    await enableBuildEditing(blueprintFolder, selectedBuildId);
+    // Refresh builds list to update hasInputsFile flag
+    if (onBuildsRefresh) {
+      await onBuildsRefresh();
+    }
+  }, [blueprintFolder, selectedBuildId, onBuildsRefresh]);
+
+  // Handle saving inputs
+  const handleSaveInputs = useCallback(
+    async (values: Record<string, unknown>) => {
+      if (!blueprintFolder || !selectedBuildId) return;
+
+      // Build YAML content from values
+      // We need to preserve the structure of the original file
+      const baseContent = buildInputsContent ?? "";
+
+      // Simple approach: update/add values in the inputs section
+      const lines = baseContent.split("\n");
+      const newLines: string[] = [];
+      let inInputsSection = false;
+      const updatedKeys = new Set<string>();
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+
+        if (trimmed === "inputs:") {
+          inInputsSection = true;
+          newLines.push(line);
+          continue;
+        }
+
+        if (inInputsSection && trimmed.endsWith(":") && !trimmed.includes(" ")) {
+          // Entering a new section, first add any missing input values
+          for (const [key, value] of Object.entries(values)) {
+            if (!updatedKeys.has(key)) {
+              newLines.push(`  ${key}: ${serializeYamlValue(value)}`);
+              updatedKeys.add(key);
+            }
+          }
+          inInputsSection = false;
+        }
+
+        if (inInputsSection) {
+          const colonIndex = trimmed.indexOf(":");
+          if (colonIndex > 0) {
+            const key = trimmed.slice(0, colonIndex).trim();
+            if (key in values) {
+              const indent = line.match(/^(\s*)/)?.[1] ?? "  ";
+              newLines.push(`${indent}${key}: ${serializeYamlValue(values[key])}`);
+              updatedKeys.add(key);
+              continue;
+            }
+          }
+        }
+
+        newLines.push(line);
+      }
+
+      // If still in inputs section at end, add any missing values
+      if (inInputsSection) {
+        for (const [key, value] of Object.entries(values)) {
+          if (!updatedKeys.has(key)) {
+            newLines.push(`  ${key}: ${serializeYamlValue(value)}`);
+          }
+        }
+      }
+
+      // If no inputs section existed, create one
+      if (!buildInputsContent?.includes("inputs:")) {
+        newLines.unshift("inputs:");
+        for (const [key, value] of Object.entries(values)) {
+          newLines.splice(1, 0, `  ${key}: ${serializeYamlValue(value)}`);
+        }
+      }
+
+      const finalContent = newLines.join("\n");
+      await saveBuildInputs(blueprintFolder, selectedBuildId, finalContent);
+      setBuildInputsContent(finalContent);
+    },
+    [blueprintFolder, selectedBuildId, buildInputsContent]
+  );
 
   // Initialize producer statuses from manifest when build changes
   useEffect(() => {
@@ -182,7 +455,9 @@ function BlueprintViewerInner({
               <BuildsListSidebar
                 builds={builds}
                 selectedBuildId={selectedBuildId}
-                isLoading={buildsLoading}
+                isLoading={buildsLoading || buildInputsLoading}
+                blueprintFolder={blueprintFolder}
+                onRefresh={onBuildsRefresh}
               />
             </div>
           )}
@@ -197,6 +472,10 @@ function BlueprintViewerInner({
               blueprintFolder={blueprintFolder}
               artifacts={selectedBuildManifest?.artefacts ?? []}
               actionButton={runButton}
+              isInputsEditable={isInputsEditable}
+              onSaveInputs={handleSaveInputs}
+              canEnableEditing={canEnableEditing}
+              onEnableEditing={handleEnableEditing}
             />
           </div>
         </div>

@@ -24,6 +24,7 @@ export {
   resolveBlueprintMovieDir,
   generateMovieId,
   normalizeMovieId,
+  resolveBuildInputsPath,
 } from './paths.js';
 
 // Job management

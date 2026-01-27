@@ -34,7 +34,7 @@ function BlueprintApp() {
   );
 
   // Load builds list when blueprint folder is available (from resolved paths)
-  const { builds, status: buildsStatus } = useBuildsList(
+  const { builds, status: buildsStatus, refetch: refetchBuilds } = useBuildsList(
     resolvedPaths?.blueprintFolder ?? null
   );
 
@@ -86,6 +86,7 @@ function BlueprintApp() {
       buildsLoading={buildsStatus === "loading"}
       selectedBuildId={blueprintRoute.selectedBuildId}
       selectedBuildManifest={selectedBuildManifest}
+      onBuildsRefresh={refetchBuilds}
     />
   );
 }

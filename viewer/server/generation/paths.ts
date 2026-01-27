@@ -172,3 +172,24 @@ export function normalizeMovieId(movieId: string): string {
   }
   return `movie-${movieId}`;
 }
+
+/**
+ * Resolves build-specific inputs path if it exists.
+ * Returns null if the build doesn't have a custom inputs.yaml.
+ *
+ * @param blueprintFolder - Blueprint folder path
+ * @param movieId - Movie ID (e.g., "movie-abc123")
+ * @returns Full path to build inputs.yaml if exists, null otherwise
+ */
+export async function resolveBuildInputsPath(
+  blueprintFolder: string,
+  movieId: string
+): Promise<string | null> {
+  const buildInputsPath = join(blueprintFolder, 'builds', movieId, 'inputs.yaml');
+  try {
+    await access(buildInputsPath);
+    return buildInputsPath;
+  } catch {
+    return null;
+  }
+}

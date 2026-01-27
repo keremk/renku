@@ -7,6 +7,8 @@ export interface BuildInfo {
   updatedAt: string;
   revision: string | null;
   hasManifest: boolean;
+  hasInputsFile: boolean;     // Has builds/{movieId}/inputs.yaml
+  displayName: string | null; // User-friendly name from movie-metadata.json
 }
 
 export interface BuildsListResponse {

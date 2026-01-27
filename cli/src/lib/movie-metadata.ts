@@ -4,6 +4,8 @@ import { dirname, resolve } from 'node:path';
 export interface MovieMetadata {
   blueprintPath?: string;
   lastInputsPath?: string;
+  displayName?: string;       // User-friendly name for the build
+  createdAt?: string;         // ISO timestamp when the build was created
 }
 
 const METADATA_FILE = 'movie-metadata.json';

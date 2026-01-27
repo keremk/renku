@@ -16,6 +16,14 @@ interface DetailPanelProps {
   artifacts: ArtifactInfo[];
   /** Optional action button to render in the tab bar (e.g., Run button) */
   actionButton?: ReactNode;
+  /** Whether inputs are editable (requires a selected build with inputs file) */
+  isInputsEditable?: boolean;
+  /** Callback when inputs are saved */
+  onSaveInputs?: (values: Record<string, unknown>) => Promise<void>;
+  /** Whether editing can be enabled for this build */
+  canEnableEditing?: boolean;
+  /** Callback to enable editing for this build */
+  onEnableEditing?: () => Promise<void>;
 }
 
 export function DetailPanel({
@@ -26,6 +34,10 @@ export function DetailPanel({
   blueprintFolder,
   artifacts,
   actionButton,
+  isInputsEditable = false,
+  onSaveInputs,
+  canEnableEditing = false,
+  onEnableEditing,
 }: DetailPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>("inputs");
 
@@ -60,6 +72,10 @@ export function DetailPanel({
             inputs={graphData.inputs}
             inputValues={inputData?.inputs ?? []}
             selectedNodeId={selectedNodeId}
+            isEditable={isInputsEditable}
+            onSave={onSaveInputs}
+            canEnableEditing={canEnableEditing}
+            onEnableEditing={onEnableEditing}
           />
         ) : (
           <OutputsPanel

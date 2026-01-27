@@ -1,21 +1,39 @@
-import { Loader2 } from "lucide-react";
+import { useState, useCallback } from "react";
+import { Loader2, Plus, Pencil, Check, X } from "lucide-react";
 import type { BuildInfo } from "@/types/builds";
 import { updateBlueprintRoute } from "@/hooks/use-blueprint-route";
 import { useExecution } from "@/contexts/execution-context";
+import { createBuild, updateBuildMetadata } from "@/data/blueprint-client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface BuildsListSidebarProps {
   builds: BuildInfo[];
   selectedBuildId: string | null;
   isLoading: boolean;
+  blueprintFolder: string | null;
+  onRefresh?: () => Promise<void>;
 }
 
 export function BuildsListSidebar({
   builds,
   selectedBuildId,
   isLoading,
+  blueprintFolder,
+  onRefresh,
 }: BuildsListSidebarProps) {
   const { state } = useExecution();
   const isExecuting = state.status === 'executing';
+  const [isCreating, setIsCreating] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newBuildName, setNewBuildName] = useState("");
 
   const handleBuildSelect = (movieId: string) => {
     if (movieId === selectedBuildId) {
@@ -26,14 +44,62 @@ export function BuildsListSidebar({
     }
   };
 
+  const handleCreateBuild = useCallback(async () => {
+    if (!blueprintFolder) return;
+
+    setIsCreating(true);
+    try {
+      const result = await createBuild(blueprintFolder, newBuildName || undefined);
+      // Refresh the builds list
+      await onRefresh?.();
+      // Select the new build
+      updateBlueprintRoute(result.movieId);
+      // Close dialog
+      setShowCreateDialog(false);
+      setNewBuildName("");
+    } catch (error) {
+      console.error("Failed to create build:", error);
+    } finally {
+      setIsCreating(false);
+    }
+  }, [blueprintFolder, newBuildName, onRefresh]);
+
+  const handleDisplayNameUpdate = useCallback(
+    async (movieId: string, displayName: string) => {
+      if (!blueprintFolder) return;
+
+      try {
+        await updateBuildMetadata(blueprintFolder, movieId, displayName);
+        // Refresh the builds list to show the updated name
+        await onRefresh?.();
+      } catch (error) {
+        console.error("Failed to update build name:", error);
+      }
+    },
+    [blueprintFolder, onRefresh]
+  );
+
   return (
     <div className="flex flex-col h-full bg-card/50 rounded-xl border border-border/40 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
         <h2 className="text-sm font-semibold text-foreground">Builds</h2>
-        <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full">
-          {builds.length}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full">
+            {builds.length}
+          </span>
+          {blueprintFolder && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-6 w-6"
+              onClick={() => setShowCreateDialog(true)}
+              title="Create new build"
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Build list */}
@@ -46,7 +112,9 @@ export function BuildsListSidebar({
           <div className="flex flex-col items-center justify-center h-20 text-center px-4">
             <p className="text-sm text-muted-foreground">No builds yet</p>
             <p className="text-xs text-muted-foreground/70 mt-1">
-              Run a generation to create builds
+              {blueprintFolder
+                ? "Click + to create a build"
+                : "Run a generation to create builds"}
             </p>
           </div>
         ) : (
@@ -58,11 +126,62 @@ export function BuildsListSidebar({
                 isSelected={build.movieId === selectedBuildId}
                 isExecuting={isExecuting && build.movieId === selectedBuildId}
                 onSelect={() => handleBuildSelect(build.movieId)}
+                onUpdateDisplayName={(name) =>
+                  handleDisplayNameUpdate(build.movieId, name)
+                }
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* Create Build Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Create New Build</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium text-foreground">
+              Display Name (optional)
+            </label>
+            <Input
+              value={newBuildName}
+              onChange={(e) => setNewBuildName(e.target.value)}
+              placeholder="e.g., Test Run, Final Version"
+              className="mt-2"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !isCreating) {
+                  handleCreateBuild();
+                }
+              }}
+            />
+            <p className="text-xs text-muted-foreground mt-2">
+              A friendly name to identify this build. You can change it later.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowCreateDialog(false)}
+              disabled={isCreating}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleCreateBuild} disabled={isCreating}>
+              {isCreating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Build"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -72,15 +191,60 @@ interface BuildCardProps {
   isSelected: boolean;
   isExecuting: boolean;
   onSelect: () => void;
+  onUpdateDisplayName: (name: string) => Promise<void>;
 }
 
-function BuildCard({ build, isSelected, isExecuting, onSelect }: BuildCardProps) {
+function BuildCard({
+  build,
+  isSelected,
+  isExecuting,
+  onSelect,
+  onUpdateDisplayName,
+}: BuildCardProps) {
   const relativeTime = getRelativeTime(build.updatedAt);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(build.displayName ?? "");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditName(build.displayName ?? "");
+    setIsEditing(true);
+  };
+
+  const handleSave = async (e: React.MouseEvent | React.FormEvent) => {
+    e.stopPropagation();
+    if (isSaving || !editName.trim()) return;
+
+    setIsSaving(true);
+    try {
+      await onUpdateDisplayName(editName.trim());
+      setIsEditing(false);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancel = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditing(false);
+    setEditName(build.displayName ?? "");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSave(e);
+    } else if (e.key === "Escape") {
+      setIsEditing(false);
+      setEditName(build.displayName ?? "");
+    }
+  };
 
   return (
     <button
       type="button"
-      onClick={onSelect}
+      onClick={isEditing ? undefined : onSelect}
       className={`
         w-full text-left p-3 rounded-lg transition-colors
         ${
@@ -92,9 +256,56 @@ function BuildCard({ build, isSelected, isExecuting, onSelect }: BuildCardProps)
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground truncate">
-            {build.movieId}
-          </p>
+          {isEditing ? (
+            <div
+              className="flex items-center gap-1"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="h-6 text-sm px-2 py-0"
+                autoFocus
+                placeholder="Enter name..."
+              />
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={isSaving || !editName.trim()}
+                className="p-1 hover:bg-muted rounded disabled:opacity-50"
+              >
+                <Check className="w-3 h-3 text-green-500" />
+              </button>
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="p-1 hover:bg-muted rounded"
+              >
+                <X className="w-3 h-3 text-muted-foreground" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 group">
+              <p className="text-sm font-medium text-foreground truncate">
+                {build.displayName || build.movieId}
+              </p>
+              <button
+                type="button"
+                onClick={handleEditClick}
+                className="p-0.5 hover:bg-muted rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Edit name"
+              >
+                <Pencil className="w-3 h-3 text-muted-foreground" />
+              </button>
+            </div>
+          )}
+          {/* Show movieId below if there's a display name */}
+          {build.displayName && !isEditing && (
+            <p className="text-xs text-muted-foreground/70 truncate">
+              {build.movieId}
+            </p>
+          )}
           <p className="text-xs text-muted-foreground mt-0.5">{relativeTime}</p>
         </div>
         <div className="flex flex-col items-end gap-1">
@@ -103,13 +314,24 @@ function BuildCard({ build, isSelected, isExecuting, onSelect }: BuildCardProps)
               {build.revision}
             </span>
           )}
-          {isExecuting ? (
-            <span title="Executing">
-              <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
-            </span>
-          ) : build.hasManifest ? (
-            <span className="w-2 h-2 rounded-full bg-green-500" title="Has manifest" />
-          ) : null}
+          <div className="flex items-center gap-1">
+            {isExecuting ? (
+              <span title="Executing">
+                <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
+              </span>
+            ) : build.hasManifest ? (
+              <span
+                className="w-2 h-2 rounded-full bg-green-500"
+                title="Has manifest"
+              />
+            ) : null}
+            {build.hasInputsFile && !build.hasManifest && (
+              <span
+                className="w-2 h-2 rounded-full bg-amber-500"
+                title="Has inputs (not run yet)"
+              />
+            )}
+          </div>
         </div>
       </div>
     </button>

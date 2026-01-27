@@ -40,7 +40,7 @@ import { Buffer } from 'node:buffer';
 import type { PlanRequest, PlanResponse, LayerInfo, SurgicalInfo, CachedPlan, SerializablePlanCostSummary } from './types.js';
 import type { ProducerCostData } from '@gorenku/providers';
 import { requireCliConfig, getCatalogModelsDir, type CliConfig } from './config.js';
-import { resolveBlueprintPaths, generateMovieId, normalizeMovieId } from './paths.js';
+import { resolveBlueprintPaths, generateMovieId, normalizeMovieId, resolveBuildInputsPath } from './paths.js';
 import { getJobManager } from './job-manager.js';
 import { parseJsonBody, sendJson, sendError } from './http-utils.js';
 
@@ -72,13 +72,22 @@ export async function handlePlanRequest(
     const isNew = !body.movieId;
     const movieId = body.movieId ? normalizeMovieId(body.movieId) : generateMovieId();
 
+    // Check for build-specific inputs.yaml if movieId is provided and no explicit inputs override
+    let inputsPath = paths.inputsPath;
+    if (body.movieId && !body.inputs) {
+      const buildInputsPath = await resolveBuildInputsPath(paths.blueprintFolder, movieId);
+      if (buildInputsPath) {
+        inputsPath = buildInputsPath;
+      }
+    }
+
     // Generate plan
     const planResult = await generatePlan({
       cliConfig,
       movieId,
       isNew,
       blueprintPath: paths.blueprintPath,
-      inputsPath: paths.inputsPath,
+      inputsPath,
       buildsFolder: paths.buildsFolder,
       basePath,
       reRunFrom: body.reRunFrom,

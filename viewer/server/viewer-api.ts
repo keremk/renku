@@ -408,15 +408,22 @@ async function handleBlueprintRequest(
   url: URL,
   segments: string[],
 ): Promise<boolean> {
+  const action = segments[0];
+  const subAction = segments[1];
+
+  const catalogRoot = url.searchParams.get("catalog") ?? undefined;
+
+  // Handle builds sub-routes that support POST/PUT
+  if (action === "builds" && subAction) {
+    return handleBuildsSubRoute(req, res, url, subAction);
+  }
+
+  // All other routes require GET
   if (req.method !== "GET") {
     res.statusCode = 405;
     res.end("Method Not Allowed");
     return true;
   }
-
-  const action = segments[0];
-
-  const catalogRoot = url.searchParams.get("catalog") ?? undefined;
 
   switch (action) {
     case "parse": {
@@ -526,6 +533,268 @@ async function resolveBlueprintName(name: string): Promise<ResolvedBlueprintInfo
     buildsFolder: paths.buildsFolder,
     catalogRoot: cliConfig.catalog?.root,
   };
+}
+
+// --- Build management sub-routes ---
+
+interface CreateBuildRequest {
+  blueprintFolder: string;
+  displayName?: string;
+}
+
+interface CreateBuildResponse {
+  movieId: string;
+  inputsPath: string;
+}
+
+interface BuildInputsRequest {
+  blueprintFolder: string;
+  movieId: string;
+  content: string;
+}
+
+interface BuildMetadataRequest {
+  blueprintFolder: string;
+  movieId: string;
+  displayName: string;
+}
+
+interface EnableEditingRequest {
+  blueprintFolder: string;
+  movieId: string;
+}
+
+interface MovieMetadata {
+  blueprintPath?: string;
+  lastInputsPath?: string;
+  displayName?: string;
+  createdAt?: string;
+}
+
+/**
+ * Handles builds sub-routes: create, inputs (GET/PUT), metadata (PUT)
+ */
+async function handleBuildsSubRoute(
+  req: IncomingMessage,
+  res: ServerResponse,
+  url: URL,
+  subAction: string
+): Promise<boolean> {
+  switch (subAction) {
+    case "create": {
+      if (req.method !== "POST") {
+        res.statusCode = 405;
+        res.end("Method Not Allowed");
+        return true;
+      }
+      const body = await readJsonBody<CreateBuildRequest>(req);
+      if (!body.blueprintFolder) {
+        res.statusCode = 400;
+        res.end("Missing blueprintFolder");
+        return true;
+      }
+      const result = await createBuild(body.blueprintFolder, body.displayName);
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify(result));
+      return true;
+    }
+
+    case "inputs": {
+      if (req.method === "GET") {
+        const folder = url.searchParams.get("folder");
+        const movieId = url.searchParams.get("movieId");
+        if (!folder || !movieId) {
+          res.statusCode = 400;
+          res.end("Missing folder or movieId parameter");
+          return true;
+        }
+        const result = await getBuildInputs(folder, movieId);
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify(result));
+        return true;
+      }
+      if (req.method === "PUT") {
+        const body = await readJsonBody<BuildInputsRequest>(req);
+        if (!body.blueprintFolder || !body.movieId || body.content === undefined) {
+          res.statusCode = 400;
+          res.end("Missing blueprintFolder, movieId, or content");
+          return true;
+        }
+        await saveBuildInputs(body.blueprintFolder, body.movieId, body.content);
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ success: true }));
+        return true;
+      }
+      res.statusCode = 405;
+      res.end("Method Not Allowed");
+      return true;
+    }
+
+    case "metadata": {
+      if (req.method !== "PUT") {
+        res.statusCode = 405;
+        res.end("Method Not Allowed");
+        return true;
+      }
+      const body = await readJsonBody<BuildMetadataRequest>(req);
+      if (!body.blueprintFolder || !body.movieId || !body.displayName) {
+        res.statusCode = 400;
+        res.end("Missing blueprintFolder, movieId, or displayName");
+        return true;
+      }
+      await updateBuildMetadata(body.blueprintFolder, body.movieId, body.displayName);
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ success: true }));
+      return true;
+    }
+
+    case "enable-editing": {
+      if (req.method !== "POST") {
+        res.statusCode = 405;
+        res.end("Method Not Allowed");
+        return true;
+      }
+      const body = await readJsonBody<EnableEditingRequest>(req);
+      if (!body.blueprintFolder || !body.movieId) {
+        res.statusCode = 400;
+        res.end("Missing blueprintFolder or movieId");
+        return true;
+      }
+      await enableBuildEditing(body.blueprintFolder, body.movieId);
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ success: true }));
+      return true;
+    }
+
+    default:
+      return respondNotFound(res);
+  }
+}
+
+/**
+ * Reads JSON body from request.
+ */
+async function readJsonBody<T>(req: IncomingMessage): Promise<T> {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk.toString();
+    });
+    req.on("end", () => {
+      try {
+        resolve(JSON.parse(body) as T);
+      } catch {
+        reject(new Error("Invalid JSON body"));
+      }
+    });
+    req.on("error", reject);
+  });
+}
+
+/**
+ * Generates a unique movie ID.
+ */
+function generateMovieId(): string {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let suffix = "";
+  for (let i = 0; i < 6; i++) {
+    suffix += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `movie-${suffix}`;
+}
+
+/**
+ * Creates a new build with inputs.yaml copied from input-template.yaml.
+ */
+async function createBuild(blueprintFolder: string, displayName?: string): Promise<CreateBuildResponse> {
+  const movieId = generateMovieId();
+  const buildDir = path.join(blueprintFolder, "builds", movieId);
+
+  // Create the build directory
+  await fs.mkdir(buildDir, { recursive: true });
+
+  // Copy input-template.yaml to inputs.yaml
+  const templatePath = path.join(blueprintFolder, "input-template.yaml");
+  const inputsPath = path.join(buildDir, "inputs.yaml");
+
+  let templateContent = "";
+  if (existsSync(templatePath)) {
+    templateContent = await fs.readFile(templatePath, "utf8");
+  }
+  await fs.writeFile(inputsPath, templateContent, "utf8");
+
+  // Create movie-metadata.json with displayName and createdAt
+  const metadata: MovieMetadata = {
+    displayName: displayName || undefined,
+    createdAt: new Date().toISOString(),
+  };
+  const metadataPath = path.join(buildDir, "movie-metadata.json");
+  await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), "utf8");
+
+  return { movieId, inputsPath };
+}
+
+/**
+ * Gets the inputs.yaml content for a build.
+ */
+async function getBuildInputs(blueprintFolder: string, movieId: string): Promise<{ content: string; inputsPath: string }> {
+  const inputsPath = path.join(blueprintFolder, "builds", movieId, "inputs.yaml");
+  let content = "";
+  if (existsSync(inputsPath)) {
+    content = await fs.readFile(inputsPath, "utf8");
+  }
+  return { content, inputsPath };
+}
+
+/**
+ * Saves inputs.yaml content for a build.
+ */
+async function saveBuildInputs(blueprintFolder: string, movieId: string, content: string): Promise<void> {
+  const buildDir = path.join(blueprintFolder, "builds", movieId);
+  await fs.mkdir(buildDir, { recursive: true });
+  const inputsPath = path.join(buildDir, "inputs.yaml");
+  await fs.writeFile(inputsPath, content, "utf8");
+}
+
+/**
+ * Updates build metadata (displayName).
+ */
+async function updateBuildMetadata(blueprintFolder: string, movieId: string, displayName: string): Promise<void> {
+  const metadataPath = path.join(blueprintFolder, "builds", movieId, "movie-metadata.json");
+
+  let metadata: MovieMetadata = {};
+  if (existsSync(metadataPath)) {
+    const content = await fs.readFile(metadataPath, "utf8");
+    try {
+      metadata = JSON.parse(content) as MovieMetadata;
+    } catch {
+      // Ignore parse errors, start fresh
+    }
+  }
+
+  metadata.displayName = displayName;
+  await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), "utf8");
+}
+
+/**
+ * Enables editing for an existing build by copying input-template.yaml to the build folder.
+ */
+async function enableBuildEditing(blueprintFolder: string, movieId: string): Promise<void> {
+  const buildDir = path.join(blueprintFolder, "builds", movieId);
+  const inputsPath = path.join(buildDir, "inputs.yaml");
+
+  // Don't overwrite if inputs.yaml already exists
+  if (existsSync(inputsPath)) {
+    return;
+  }
+
+  // Copy input-template.yaml to inputs.yaml
+  const templatePath = path.join(blueprintFolder, "input-template.yaml");
+  let templateContent = "";
+  if (existsSync(templatePath)) {
+    templateContent = await fs.readFile(templatePath, "utf8");
+  }
+  await fs.writeFile(inputsPath, templateContent, "utf8");
 }
 
 async function parseBlueprintToGraph(blueprintPath: string, catalogRoot?: string): Promise<BlueprintGraphData> {
@@ -836,10 +1105,26 @@ async function parseInputsFile(inputsPath: string): Promise<{ inputs: Array<{ na
         const name = trimmed.slice(0, colonIndex).trim();
         let value: unknown = trimmed.slice(colonIndex + 1).trim();
 
-        // Try to parse as JSON or leave as string
-        if (value === "true") value = true;
-        else if (value === "false") value = false;
-        else if (value !== "" && !isNaN(Number(value))) value = Number(value);
+        // Strip YAML quotes and handle escapes
+        if (typeof value === "string") {
+          if (value.startsWith('"') && value.endsWith('"')) {
+            // Double-quoted: handle escape sequences
+            const inner = value.slice(1, -1);
+            value = inner
+              .replace(/\\n/g, "\n")
+              .replace(/\\"/g, '"')
+              .replace(/\\\\/g, "\\");
+          } else if (value.startsWith("'") && value.endsWith("'")) {
+            // Single-quoted: no escape handling in YAML
+            value = value.slice(1, -1);
+          } else if (value === "true") {
+            value = true;
+          } else if (value === "false") {
+            value = false;
+          } else if (value !== "" && !isNaN(Number(value))) {
+            value = Number(value);
+          }
+        }
 
         inputs.push({ name, value });
       }
@@ -856,6 +1141,8 @@ interface BuildInfo {
   updatedAt: string;
   revision: string | null;
   hasManifest: boolean;
+  hasInputsFile: boolean;     // Has builds/{movieId}/inputs.yaml
+  displayName: string | null; // User-friendly name from movie-metadata.json
 }
 
 interface BuildsListResponse {
@@ -884,6 +1171,7 @@ interface BuildManifestResponse {
 /**
  * Lists all builds in the builds/ subfolder of the blueprint folder.
  * Sorted by updatedAt (most recent first).
+ * Filters out builds that have neither a manifest nor an inputs file.
  */
 async function listBuilds(blueprintFolder: string): Promise<BuildsListResponse> {
   const buildsDir = path.join(blueprintFolder, "builds");
@@ -903,6 +1191,8 @@ async function listBuilds(blueprintFolder: string): Promise<BuildsListResponse> 
       const movieId = dir.name;
       const movieDir = path.join(buildsDir, movieId);
       const currentPath = path.join(movieDir, "current.json");
+      const inputsPath = path.join(movieDir, "inputs.yaml");
+      const metadataPath = path.join(movieDir, "movie-metadata.json");
 
       try {
         const stat = await fs.stat(movieDir);
@@ -918,11 +1208,33 @@ async function listBuilds(blueprintFolder: string): Promise<BuildsListResponse> 
           hasManifest = !!current.manifestPath;
         }
 
+        // Check for inputs.yaml
+        const hasInputsFile = existsSync(inputsPath);
+
+        // Read displayName from movie-metadata.json
+        let displayName: string | null = null;
+        if (existsSync(metadataPath)) {
+          try {
+            const metaContent = await fs.readFile(metadataPath, "utf8");
+            const metadata = JSON.parse(metaContent) as MovieMetadata;
+            displayName = metadata.displayName ?? null;
+          } catch {
+            // Ignore parse errors
+          }
+        }
+
+        // Filter out builds that have neither manifest nor inputs file
+        if (!hasManifest && !hasInputsFile) {
+          continue;
+        }
+
         builds.push({
           movieId,
           updatedAt,
           revision,
           hasManifest,
+          hasInputsFile,
+          displayName,
         });
       } catch {
         // Skip builds that can't be read
