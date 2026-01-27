@@ -1,11 +1,17 @@
 import { useState } from "react";
 import { InputsPanel } from "./InputsPanel";
+import { ModelsPanel } from "./ModelsPanel";
 import { OutputsPanel } from "./OutputsPanel";
-import type { BlueprintGraphData, InputTemplateData } from "@/types/blueprint-graph";
+import type {
+  BlueprintGraphData,
+  InputTemplateData,
+  ModelSelectionValue,
+  ProducerModelInfo,
+} from "@/types/blueprint-graph";
 import type { ArtifactInfo } from "@/types/builds";
 import type { ReactNode } from "react";
 
-type Tab = "inputs" | "outputs";
+type Tab = "inputs" | "models" | "outputs";
 
 interface DetailPanelProps {
   graphData: BlueprintGraphData;
@@ -24,6 +30,12 @@ interface DetailPanelProps {
   canEnableEditing?: boolean;
   /** Callback to enable editing for this build */
   onEnableEditing?: () => Promise<void>;
+  /** Available models per producer from API */
+  producerModels?: Record<string, ProducerModelInfo>;
+  /** Current model selections from inputs.yaml */
+  modelSelections?: ModelSelectionValue[];
+  /** Callback when models are saved */
+  onSaveModels?: (models: ModelSelectionValue[]) => Promise<void>;
 }
 
 export function DetailPanel({
@@ -38,6 +50,9 @@ export function DetailPanel({
   onSaveInputs,
   canEnableEditing = false,
   onEnableEditing,
+  producerModels = {},
+  modelSelections = [],
+  onSaveModels,
 }: DetailPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>("inputs");
 
@@ -50,6 +65,11 @@ export function DetailPanel({
             label="Inputs"
             active={activeTab === "inputs"}
             onClick={() => setActiveTab("inputs")}
+          />
+          <TabButton
+            label="Models"
+            active={activeTab === "models"}
+            onClick={() => setActiveTab("models")}
           />
           <TabButton
             label="Outputs"
@@ -67,7 +87,7 @@ export function DetailPanel({
 
       {/* Tab content */}
       <div className="flex-1 overflow-auto p-4">
-        {activeTab === "inputs" ? (
+        {activeTab === "inputs" && (
           <InputsPanel
             inputs={graphData.inputs}
             inputValues={inputData?.inputs ?? []}
@@ -77,7 +97,19 @@ export function DetailPanel({
             canEnableEditing={canEnableEditing}
             onEnableEditing={onEnableEditing}
           />
-        ) : (
+        )}
+        {activeTab === "models" && (
+          <ModelsPanel
+            producerModels={producerModels}
+            modelSelections={modelSelections}
+            selectedNodeId={selectedNodeId}
+            isEditable={isInputsEditable}
+            onSave={onSaveModels}
+            canEnableEditing={canEnableEditing}
+            onEnableEditing={onEnableEditing}
+          />
+        )}
+        {activeTab === "outputs" && (
           <OutputsPanel
             outputs={graphData.outputs}
             selectedNodeId={selectedNodeId}

@@ -1,4 +1,4 @@
-import type { BlueprintGraphData, InputTemplateData } from "@/types/blueprint-graph";
+import type { BlueprintGraphData, InputTemplateData, ProducerModelsResponse } from "@/types/blueprint-graph";
 import type { BuildsListResponse, BuildManifestResponse } from "@/types/builds";
 
 const API_BASE = "/viewer-api";
@@ -48,6 +48,22 @@ export function fetchInputTemplate(inputsPath: string): Promise<InputTemplateDat
   return fetchJson<InputTemplateData>(
     `${API_BASE}/blueprints/inputs?path=${encodeURIComponent(inputsPath)}`
   );
+}
+
+/**
+ * Fetches available models for each producer in a blueprint.
+ * Models are extracted from the producer's mappings section.
+ */
+export function fetchProducerModels(
+  blueprintPath: string,
+  catalogRoot?: string | null
+): Promise<ProducerModelsResponse> {
+  const url = new URL(`${API_BASE}/blueprints/producer-models`, window.location.origin);
+  url.searchParams.set("path", blueprintPath);
+  if (catalogRoot) {
+    url.searchParams.set("catalog", catalogRoot);
+  }
+  return fetchJson<ProducerModelsResponse>(url.toString());
 }
 
 export function fetchBuildsList(blueprintFolder: string): Promise<BuildsListResponse> {

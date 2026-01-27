@@ -82,6 +82,8 @@ function BlueprintApp() {
       movieId={blueprintRoute.movieId}
       blueprintFolder={resolvedPaths?.blueprintFolder ?? null}
       blueprintName={blueprintRoute.blueprintName}
+      blueprintPath={resolvedPaths?.blueprintPath ?? ""}
+      catalogRoot={resolvedPaths?.catalogRoot}
       builds={builds}
       buildsLoading={buildsStatus === "loading"}
       selectedBuildId={blueprintRoute.selectedBuildId}

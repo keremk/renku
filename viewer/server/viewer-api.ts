@@ -6,10 +6,14 @@ import type { Connect } from "vite";
 import {
   loadYamlBlueprintTree,
   computeTopologyLayers,
+  getProducerMappings,
   type BlueprintTreeNode,
   type BlueprintInputDefinition,
   type BlueprintArtefactDefinition,
+  type ProducerMappings,
+  type ProducerImportDefinition,
 } from "@gorenku/core";
+import { loadModelCatalog, type LoadedModelCatalog } from "@gorenku/providers";
 import {
   handlePlanRequest,
   handleExecuteRequest,
@@ -507,6 +511,18 @@ async function handleBlueprintRequest(
         return true;
       }
     }
+    case "producer-models": {
+      const blueprintPath = url.searchParams.get("path");
+      if (!blueprintPath) {
+        res.statusCode = 400;
+        res.end("Missing path parameter");
+        return true;
+      }
+      const producerModels = await getProducerModelsFromBlueprint(blueprintPath, catalogRoot);
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify(producerModels));
+      return true;
+    }
     default:
       return respondNotFound(res);
   }
@@ -800,6 +816,141 @@ async function enableBuildEditing(blueprintFolder: string, movieId: string): Pro
 async function parseBlueprintToGraph(blueprintPath: string, catalogRoot?: string): Promise<BlueprintGraphData> {
   const { root } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
   return convertTreeToGraph(root);
+}
+
+// --- Producer Models API ---
+
+interface AvailableModelOption {
+  provider: string;
+  model: string;
+}
+
+type ProducerCategory = 'asset' | 'prompt' | 'composition';
+
+interface ProducerModelInfo {
+  description?: string;
+  producerType?: string;
+  category: ProducerCategory;
+  availableModels: AvailableModelOption[];
+}
+
+interface ProducerModelsResponse {
+  producers: Record<string, ProducerModelInfo>;
+}
+
+/**
+ * Detects the producer category based on producer import data.
+ * - 'composition': Producer name starts with 'composition/'
+ * - 'asset': Producer name starts with 'asset/'
+ * - 'prompt': Custom blueprints with path or promptFile
+ */
+function detectProducerCategory(
+  producerImport: ProducerImportDefinition,
+  childNode: BlueprintTreeNode | undefined
+): ProducerCategory {
+  // Check for composition producers (e.g., composition/timeline, composition/video-exporter)
+  if (producerImport.producer?.startsWith('composition/')) {
+    return 'composition';
+  }
+  // Check for asset producers (e.g., asset/text-to-image, asset/text-to-speech)
+  if (producerImport.producer?.startsWith('asset/')) {
+    return 'asset';
+  }
+  // Custom blueprints with path or promptFile are prompt producers
+  if (producerImport.path || childNode?.document.meta.promptFile) {
+    return 'prompt';
+  }
+  // Default fallback to asset
+  return 'asset';
+}
+
+/**
+ * Extracts LLM models (type: 'text' or 'llm') from the model catalog.
+ */
+function getLlmModelsFromCatalog(
+  catalog: LoadedModelCatalog
+): AvailableModelOption[] {
+  const llmModels: AvailableModelOption[] = [];
+  for (const [provider, models] of catalog.providers) {
+    for (const [modelName, modelDef] of models) {
+      if (modelDef.type === 'text' || modelDef.type === 'llm') {
+        llmModels.push({ provider, model: modelName });
+      }
+    }
+  }
+  return llmModels;
+}
+
+/**
+ * Extracts available models from each producer in the blueprint tree.
+ * Models are extracted based on producer category:
+ * - Asset producers: Models from producer mappings
+ * - Prompt producers: LLM models from catalog
+ * - Composition producers: No models (empty array)
+ */
+async function getProducerModelsFromBlueprint(
+  blueprintPath: string,
+  catalogRoot?: string,
+): Promise<ProducerModelsResponse> {
+  const { root } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
+  const producers: Record<string, ProducerModelInfo> = {};
+
+  // Load model catalog for prompt producers
+  let llmModels: AvailableModelOption[] = [];
+  if (catalogRoot) {
+    const catalogModelsDir = path.join(catalogRoot, "models");
+    const catalog = await loadModelCatalog(catalogModelsDir);
+    llmModels = getLlmModelsFromCatalog(catalog);
+  }
+
+  // Visit all producer imports in the blueprint
+  const visitNode = (node: BlueprintTreeNode) => {
+    for (const producerImport of node.document.producerImports) {
+      const producerId = producerImport.name;
+
+      // Find child node if this is a path-based import
+      const childNode = producerImport.path
+        ? node.children.get(producerId)
+        : undefined;
+
+      // Detect producer category
+      const category = detectProducerCategory(producerImport, childNode);
+
+      // Get available models based on category
+      let availableModels: AvailableModelOption[] = [];
+
+      if (category === 'asset') {
+        // Asset producers: Extract models from mappings
+        const mappings: ProducerMappings | undefined = getProducerMappings(root, producerId);
+        if (mappings) {
+          for (const [provider, modelMappings] of Object.entries(mappings)) {
+            for (const model of Object.keys(modelMappings)) {
+              availableModels.push({ provider, model });
+            }
+          }
+        }
+      } else if (category === 'prompt') {
+        // Prompt producers: Use LLM models from catalog
+        availableModels = llmModels;
+      }
+      // Composition producers: Leave availableModels empty
+
+      producers[producerId] = {
+        description: producerImport.description,
+        producerType: producerImport.producer,
+        category,
+        availableModels,
+      };
+    }
+
+    // Visit children
+    for (const child of node.children.values()) {
+      visitNode(child);
+    }
+  };
+
+  visitNode(root);
+  return { producers };
 }
 
 function convertTreeToGraph(root: BlueprintTreeNode): BlueprintGraphData {

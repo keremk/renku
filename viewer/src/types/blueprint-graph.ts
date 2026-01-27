@@ -72,4 +72,48 @@ export interface InputTemplateData {
     description?: string;
     value?: unknown;
   }>;
+  models?: ModelSelectionValue[];
+}
+
+/**
+ * Model selection for a producer as stored in inputs.yaml
+ */
+export interface ModelSelectionValue {
+  producerId: string;
+  provider: string;
+  model: string;
+  config?: Record<string, unknown>;
+}
+
+/**
+ * Available model option from producer mappings
+ */
+export interface AvailableModelOption {
+  provider: string;
+  model: string;
+}
+
+/**
+ * Producer category determines how models are sourced and displayed.
+ * - 'asset': Models from producer mappings (e.g., asset/text-to-image)
+ * - 'prompt': LLM models from catalog (custom blueprints with promptFile)
+ * - 'composition': No model selection required (e.g., composition/*)
+ */
+export type ProducerCategory = 'asset' | 'prompt' | 'composition';
+
+/**
+ * Producer model info from API endpoint
+ */
+export interface ProducerModelInfo {
+  description?: string;
+  producerType?: string;
+  category: ProducerCategory;
+  availableModels: AvailableModelOption[];
+}
+
+/**
+ * Response from producer-models endpoint
+ */
+export interface ProducerModelsResponse {
+  producers: Record<string, ProducerModelInfo>;
 }

@@ -8,8 +8,13 @@ import { PlanDialog } from "./plan-dialog";
 import { ExecutionProgressPanel } from "./execution-progress-panel";
 import { ExecutionProvider, useExecution } from "@/contexts/execution-context";
 import { computeBlueprintLayerCount } from "@/lib/blueprint-layout";
-import { fetchBuildInputs, saveBuildInputs, enableBuildEditing } from "@/data/blueprint-client";
-import type { BlueprintGraphData, InputTemplateData } from "@/types/blueprint-graph";
+import { fetchBuildInputs, saveBuildInputs, enableBuildEditing, fetchProducerModels } from "@/data/blueprint-client";
+import type {
+  BlueprintGraphData,
+  InputTemplateData,
+  ModelSelectionValue,
+  ProducerModelInfo,
+} from "@/types/blueprint-graph";
 import type { BuildInfo, BuildManifestResponse } from "@/types/builds";
 
 interface BlueprintViewerProps {
@@ -20,6 +25,10 @@ interface BlueprintViewerProps {
   blueprintFolder: string | null;
   /** Blueprint name (folder name, e.g., "my-blueprint") for API calls */
   blueprintName: string;
+  /** Full path to the blueprint YAML file */
+  blueprintPath: string;
+  /** Catalog root path (if using a catalog) */
+  catalogRoot?: string | null;
   /** List of builds in the folder */
   builds: BuildInfo[];
   /** Whether builds are loading */
@@ -55,7 +64,7 @@ function serializeYamlValue(value: unknown): string {
       value.includes("\n") ||
       value.startsWith(" ") ||
       value.endsWith(" ") ||
-      /^[#&*!|>'\"]/.test(value) ||  // YAML special start chars
+      /^[#&*!|>'"]/.test(value) ||  // YAML special start chars
       /[:{}[\]]/.test(value) ||       // YAML structure chars
       value === "true" || value === "false" || value === "null" ||
       (!isNaN(Number(value)) && value !== "");  // Looks like a number
@@ -91,6 +100,8 @@ function BlueprintViewerInner({
   movieId,
   blueprintFolder,
   blueprintName,
+  blueprintPath,
+  catalogRoot,
   builds,
   buildsLoading,
   selectedBuildId,
@@ -107,6 +118,9 @@ function BlueprintViewerInner({
   const [buildInputsContent, setBuildInputsContent] = useState<string | null>(null);
   const [buildInputsLoading, setBuildInputsLoading] = useState(false);
 
+  // Producer models state
+  const [producerModels, setProducerModels] = useState<Record<string, ProducerModelInfo>>({});
+
   const { state, initializeFromManifest, setTotalLayers } = useExecution();
   const isExecuting = state.status === 'executing';
 
@@ -115,6 +129,32 @@ function BlueprintViewerInner({
     () => builds.find((b) => b.movieId === selectedBuildId),
     [builds, selectedBuildId]
   );
+
+  // Fetch producer models on initial load
+  useEffect(() => {
+    if (!blueprintPath) return;
+
+    let cancelled = false;
+
+    const loadProducerModels = async () => {
+      try {
+        const response = await fetchProducerModels(blueprintPath, catalogRoot);
+        if (!cancelled) {
+          setProducerModels(response.producers);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to fetch producer models:", error);
+        }
+      }
+    };
+
+    void loadProducerModels();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [blueprintPath, catalogRoot]);
 
   // Fetch build inputs when a build with inputs is selected
   useEffect(() => {
@@ -244,6 +284,180 @@ function BlueprintViewerInner({
     return inputs.length > 0 ? { inputs } : null;
   }, [buildInputsContent, graphData.inputs]);
 
+  // Parse model selections from YAML content or manifest
+  const parsedModelSelections = useMemo<ModelSelectionValue[]>(() => {
+    // First try to parse from inputs.yaml content
+    if (buildInputsContent) {
+      const models: ModelSelectionValue[] = [];
+      const lines = buildInputsContent.split("\n");
+      let inModelsSection = false;
+      let inConfigSection = false;
+      let currentModel: Partial<ModelSelectionValue> & { config?: Record<string, unknown> } = {};
+      let configIndent = 0;
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) continue;
+
+        // Calculate indentation level
+        const leadingSpaces = line.length - line.trimStart().length;
+
+        // Check for section markers
+        if (trimmed === "models:") {
+          inModelsSection = true;
+          inConfigSection = false;
+          continue;
+        }
+        // Check for end of models section (another top-level key)
+        if (inModelsSection && !line.startsWith(" ") && !line.startsWith("\t") && trimmed.endsWith(":")) {
+          // Save the last model before exiting
+          if (currentModel.producerId && currentModel.provider && currentModel.model) {
+            models.push(currentModel as ModelSelectionValue);
+          }
+          inModelsSection = false;
+          inConfigSection = false;
+          continue;
+        }
+
+        // Parse items in models section (YAML array format)
+        if (inModelsSection) {
+          // Start of new array item
+          if (trimmed.startsWith("- ")) {
+            // Save previous model if complete
+            if (currentModel.producerId && currentModel.provider && currentModel.model) {
+              models.push(currentModel as ModelSelectionValue);
+            }
+            currentModel = {};
+            inConfigSection = false;
+
+            // Parse the first key-value on the same line as "-"
+            const rest = trimmed.slice(2).trim();
+            const colonIndex = rest.indexOf(":");
+            if (colonIndex > 0) {
+              const key = rest.slice(0, colonIndex).trim();
+              const value = rest.slice(colonIndex + 1).trim();
+              if (key === "producerId" || key === "provider" || key === "model") {
+                currentModel[key] = value;
+              } else if (key === "config" && value === "") {
+                // Start of config section
+                inConfigSection = true;
+                currentModel.config = {};
+                configIndent = leadingSpaces + 2; // Expect config items to be indented more
+              }
+            }
+          } else {
+            // Continuation of current item
+            const colonIndex = trimmed.indexOf(":");
+            if (colonIndex > 0) {
+              const key = trimmed.slice(0, colonIndex).trim();
+              const value = trimmed.slice(colonIndex + 1).trim();
+
+              // Check if we're entering config section
+              if (key === "config" && value === "") {
+                inConfigSection = true;
+                currentModel.config = {};
+                configIndent = leadingSpaces + 2;
+              } else if (inConfigSection && leadingSpaces >= configIndent) {
+                // We're inside config section - parse config key-value
+                if (currentModel.config) {
+                  currentModel.config[key] = value;
+                }
+              } else if (inConfigSection && leadingSpaces < configIndent) {
+                // We've exited config section
+                inConfigSection = false;
+                if (key === "producerId" || key === "provider" || key === "model") {
+                  currentModel[key] = value;
+                }
+              } else if (key === "producerId" || key === "provider" || key === "model") {
+                currentModel[key] = value;
+              }
+            }
+          }
+        }
+      }
+
+      // Don't forget the last model
+      if (currentModel.producerId && currentModel.provider && currentModel.model) {
+        models.push(currentModel as ModelSelectionValue);
+      }
+
+      if (models.length > 0) {
+        return models;
+      }
+    }
+
+    // Fall back to extracting from manifest inputs (for read-only builds)
+    // Manifest inputs contain keys like "ProducerName.provider" and "ProducerName.model"
+    // Also handles nested STT config: "ProducerName.sttProvider" and "ProducerName.sttModel"
+    if (selectedBuildManifest?.inputs && Object.keys(selectedBuildManifest.inputs).length > 0) {
+      const models: ModelSelectionValue[] = [];
+      const inputs = selectedBuildManifest.inputs;
+
+      // Group inputs by producer name to find provider/model pairs and config
+      const producerData = new Map<string, {
+        provider?: string;
+        model?: string;
+        sttProvider?: string;
+        sttModel?: string;
+      }>();
+
+      for (const [key, value] of Object.entries(inputs)) {
+        // Match patterns like "ProducerName.provider", "ProducerName.model",
+        // "ProducerName.sttProvider", "ProducerName.sttModel"
+        const providerMatch = key.match(/^(.+)\.provider$/);
+        const modelMatch = key.match(/^(.+)\.model$/);
+        const sttProviderMatch = key.match(/^(.+)\.sttProvider$/);
+        const sttModelMatch = key.match(/^(.+)\.sttModel$/);
+
+        if (providerMatch && typeof value === "string") {
+          const producerId = providerMatch[1];
+          const existing = producerData.get(producerId) ?? {};
+          existing.provider = value;
+          producerData.set(producerId, existing);
+        } else if (modelMatch && typeof value === "string") {
+          const producerId = modelMatch[1];
+          const existing = producerData.get(producerId) ?? {};
+          existing.model = value;
+          producerData.set(producerId, existing);
+        } else if (sttProviderMatch && typeof value === "string") {
+          const producerId = sttProviderMatch[1];
+          const existing = producerData.get(producerId) ?? {};
+          existing.sttProvider = value;
+          producerData.set(producerId, existing);
+        } else if (sttModelMatch && typeof value === "string") {
+          const producerId = sttModelMatch[1];
+          const existing = producerData.get(producerId) ?? {};
+          existing.sttModel = value;
+          producerData.set(producerId, existing);
+        }
+      }
+
+      // Convert to ModelSelectionValue array
+      for (const [producerId, data] of producerData) {
+        if (data.provider && data.model) {
+          const selection: ModelSelectionValue = {
+            producerId,
+            provider: data.provider,
+            model: data.model,
+          };
+          // Add nested STT config if present
+          if (data.sttProvider && data.sttModel) {
+            selection.config = {
+              sttProvider: data.sttProvider,
+              sttModel: data.sttModel,
+            };
+          }
+          models.push(selection);
+        }
+      }
+
+      return models;
+    }
+
+    return [];
+  }, [buildInputsContent, selectedBuildManifest]);
+
   // Merge input data from build inputs or manifest
   const effectiveInputData = useMemo<InputTemplateData | null>(() => {
     // Priority: build inputs file > manifest inputs > template inputs
@@ -356,6 +570,65 @@ function BlueprintViewerInner({
       }
 
       const finalContent = newLines.join("\n");
+      await saveBuildInputs(blueprintFolder, selectedBuildId, finalContent);
+      setBuildInputsContent(finalContent);
+    },
+    [blueprintFolder, selectedBuildId, buildInputsContent]
+  );
+
+  // Handle saving models
+  const handleSaveModels = useCallback(
+    async (models: ModelSelectionValue[]) => {
+      if (!blueprintFolder || !selectedBuildId) return;
+
+      const baseContent = buildInputsContent ?? "";
+
+      // Remove existing models section from content
+      const lines = baseContent.split("\n");
+      const newLines: string[] = [];
+      let inModelsSection = false;
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+
+        // Check for models section start
+        if (trimmed === "models:") {
+          inModelsSection = true;
+          continue; // Skip the models: line
+        }
+
+        // Check for end of models section (another top-level key)
+        if (inModelsSection) {
+          if (!line.startsWith(" ") && !line.startsWith("\t") && trimmed.endsWith(":") && trimmed !== "models:") {
+            inModelsSection = false;
+            newLines.push(line);
+            continue;
+          }
+          // Skip lines in models section
+          continue;
+        }
+
+        newLines.push(line);
+      }
+
+      // Build new models section (including config if present)
+      const modelsYaml = models.map(m => {
+        let yaml = `  - producerId: ${m.producerId}\n    provider: ${m.provider}\n    model: ${m.model}`;
+        if (m.config && Object.keys(m.config).length > 0) {
+          yaml += "\n    config:";
+          for (const [key, value] of Object.entries(m.config)) {
+            yaml += `\n      ${key}: ${value}`;
+          }
+        }
+        return yaml;
+      }).join("\n");
+
+      // Append models section to content if we have any models
+      let finalContent = newLines.join("\n").trimEnd();
+      if (models.length > 0) {
+        finalContent = finalContent + "\nmodels:\n" + modelsYaml + "\n";
+      }
+
       await saveBuildInputs(blueprintFolder, selectedBuildId, finalContent);
       setBuildInputsContent(finalContent);
     },
@@ -476,6 +749,9 @@ function BlueprintViewerInner({
               onSaveInputs={handleSaveInputs}
               canEnableEditing={canEnableEditing}
               onEnableEditing={handleEnableEditing}
+              producerModels={producerModels}
+              modelSelections={parsedModelSelections}
+              onSaveModels={handleSaveModels}
             />
           </div>
         </div>

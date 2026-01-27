@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import type { BlueprintInputDef } from "@/types/blueprint-graph";
-import { Button } from "@/components/ui/button";
+import { PanelHeader, EnableEditingBanner } from "./shared";
 import { formatValueAsString } from "./inputs/input-registry";
 import { DefaultTextEditor } from "./inputs/default-text-editor";
 import type { InputEditorProps } from "./inputs/input-registry";
@@ -135,44 +135,20 @@ export function InputsPanel({
     <div className="space-y-3 max-w-2xl mx-auto">
       {/* Enable Editing banner for read-only builds */}
       {canEnableEditing && !isEditable && (
-        <div className="flex items-center justify-between p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 mb-4">
-          <div>
-            <p className="text-sm font-medium text-foreground">
-              Read-only inputs
-            </p>
-            <p className="text-xs text-muted-foreground">
-              This build was created via CLI. Enable editing to modify inputs.
-            </p>
-          </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleEnableEditing}
-            disabled={isEnabling}
-            className="h-8 px-3 text-xs border-amber-500/50 hover:bg-amber-500/20"
-          >
-            {isEnabling ? "Enabling..." : "Enable Editing"}
-          </Button>
-        </div>
+        <EnableEditingBanner
+          isEnabling={isEnabling}
+          onEnableEditing={handleEnableEditing}
+        />
       )}
 
       {/* Header with save button */}
       {isEditable && (
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-muted-foreground">
-            Edit Inputs
-          </h3>
-          {isDirty && (
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={isSaving}
-              className="h-7 px-3 text-xs"
-            >
-              {isSaving ? "Saving..." : "Save Changes"}
-            </Button>
-          )}
-        </div>
+        <PanelHeader
+          title="Edit Inputs"
+          isDirty={isDirty}
+          isSaving={isSaving}
+          onSave={handleSave}
+        />
       )}
 
       {inputs.map((input) => {
