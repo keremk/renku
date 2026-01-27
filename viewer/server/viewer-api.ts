@@ -5,13 +5,17 @@ import path from "node:path";
 import type { Connect } from "vite";
 import {
   loadYamlBlueprintTree,
+  loadInputsFromYaml,
   computeTopologyLayers,
   getProducerMappings,
+  serializeInputsToYaml,
+  toSerializableModelSelection,
   type BlueprintTreeNode,
   type BlueprintInputDefinition,
   type BlueprintArtefactDefinition,
   type ProducerMappings,
   type ProducerImportDefinition,
+  type SerializableModelSelection,
 } from "@gorenku/core";
 import { loadModelCatalog, type LoadedModelCatalog } from "@gorenku/providers";
 import {
@@ -565,8 +569,10 @@ interface CreateBuildResponse {
 
 interface BuildInputsRequest {
   blueprintFolder: string;
+  blueprintPath: string;
   movieId: string;
-  content: string;
+  inputs: Record<string, unknown>;
+  models: SerializableModelSelection[];
 }
 
 interface BuildMetadataRequest {
@@ -619,24 +625,26 @@ async function handleBuildsSubRoute(
       if (req.method === "GET") {
         const folder = url.searchParams.get("folder");
         const movieId = url.searchParams.get("movieId");
-        if (!folder || !movieId) {
+        const blueprintPath = url.searchParams.get("blueprintPath");
+        const catalogRoot = url.searchParams.get("catalog") ?? undefined;
+        if (!folder || !movieId || !blueprintPath) {
           res.statusCode = 400;
-          res.end("Missing folder or movieId parameter");
+          res.end("Missing folder, movieId, or blueprintPath parameter");
           return true;
         }
-        const result = await getBuildInputs(folder, movieId);
+        const result = await getBuildInputs(folder, movieId, blueprintPath, catalogRoot);
         res.setHeader("Content-Type", "application/json");
         res.end(JSON.stringify(result));
         return true;
       }
       if (req.method === "PUT") {
         const body = await readJsonBody<BuildInputsRequest>(req);
-        if (!body.blueprintFolder || !body.movieId || body.content === undefined) {
+        if (!body.blueprintFolder || !body.movieId || !body.inputs || !body.models) {
           res.statusCode = 400;
-          res.end("Missing blueprintFolder, movieId, or content");
+          res.end("Missing blueprintFolder, movieId, inputs, or models");
           return true;
         }
-        await saveBuildInputs(body.blueprintFolder, body.movieId, body.content);
+        await saveBuildInputs(body.blueprintFolder, body.movieId, body.inputs, body.models);
         res.setHeader("Content-Type", "application/json");
         res.end(JSON.stringify({ success: true }));
         return true;
@@ -751,24 +759,70 @@ async function createBuild(blueprintFolder: string, displayName?: string): Promi
 }
 
 /**
- * Gets the inputs.yaml content for a build.
+ * Response type for GET /blueprints/builds/inputs.
+ * Returns parsed inputs and model selections as structured JSON.
  */
-async function getBuildInputs(blueprintFolder: string, movieId: string): Promise<{ content: string; inputsPath: string }> {
-  const inputsPath = path.join(blueprintFolder, "builds", movieId, "inputs.yaml");
-  let content = "";
-  if (existsSync(inputsPath)) {
-    content = await fs.readFile(inputsPath, "utf8");
-  }
-  return { content, inputsPath };
+interface BuildInputsResponse {
+  inputs: Record<string, unknown>;
+  models: SerializableModelSelection[];
+  inputsPath: string;
 }
 
 /**
- * Saves inputs.yaml content for a build.
+ * Gets the inputs.yaml content for a build, parsed using core's loadInputsFromYaml.
+ * Returns structured JSON instead of raw YAML content.
  */
-async function saveBuildInputs(blueprintFolder: string, movieId: string, content: string): Promise<void> {
+async function getBuildInputs(
+  blueprintFolder: string,
+  movieId: string,
+  blueprintPath: string,
+  catalogRoot?: string,
+): Promise<BuildInputsResponse> {
+  const inputsPath = path.join(blueprintFolder, "builds", movieId, "inputs.yaml");
+
+  // Return empty response if no inputs file exists
+  if (!existsSync(inputsPath)) {
+    return { inputs: {}, models: [], inputsPath };
+  }
+
+  try {
+    // Load blueprint tree for validation context
+    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
+
+    // Parse inputs using core's loader
+    const loaded = await loadInputsFromYaml(inputsPath, blueprint);
+
+    // Convert model selections to serializable form (strip runtime fields)
+    const models = loaded.modelSelections.map(toSerializableModelSelection);
+
+    return {
+      inputs: loaded.values,
+      models,
+      inputsPath,
+    };
+  } catch (error) {
+    // If parsing fails, return empty data
+    console.error("[viewer-api] Failed to parse build inputs:", error);
+    return { inputs: {}, models: [], inputsPath };
+  }
+}
+
+/**
+ * Saves inputs.yaml content for a build using core's serialization.
+ * Accepts structured JSON and serializes to YAML.
+ */
+async function saveBuildInputs(
+  blueprintFolder: string,
+  movieId: string,
+  inputs: Record<string, unknown>,
+  models: SerializableModelSelection[],
+): Promise<void> {
   const buildDir = path.join(blueprintFolder, "builds", movieId);
   await fs.mkdir(buildDir, { recursive: true });
   const inputsPath = path.join(buildDir, "inputs.yaml");
+
+  // Serialize to YAML using core's serializer
+  const content = serializeInputsToYaml({ inputs, models });
   await fs.writeFile(inputsPath, content, "utf8");
 }
 

@@ -19,6 +19,7 @@ export * from './notifications.js';
 export * from './canonical-ids.js';
 export * from './parsing/node-inventory.js';
 export * from './parsing/input-loader.js';
+export * from './parsing/input-serializer.js';
 export * from './parsing/blueprint-loader/index.js';
 export * from './blob-utils.js';
 export * from './artifact-resolver.js';

@@ -8,12 +8,12 @@ import { PlanDialog } from "./plan-dialog";
 import { ExecutionProgressPanel } from "./execution-progress-panel";
 import { ExecutionProvider, useExecution } from "@/contexts/execution-context";
 import { computeBlueprintLayerCount } from "@/lib/blueprint-layout";
-import { fetchBuildInputs, saveBuildInputs, enableBuildEditing, fetchProducerModels } from "@/data/blueprint-client";
+import { enableBuildEditing } from "@/data/blueprint-client";
+import { useBuildInputs, useProducerModels, usePanelResizer } from "@/hooks";
 import type {
   BlueprintGraphData,
   InputTemplateData,
   ModelSelectionValue,
-  ProducerModelInfo,
 } from "@/types/blueprint-graph";
 import type { BuildInfo, BuildManifestResponse } from "@/types/builds";
 
@@ -49,49 +49,6 @@ const DEFAULT_BLUEPRINT_FLOW_PERCENT = 30;
 type BottomPanelTab = 'blueprint' | 'execution';
 
 /**
- * Serializes a value to YAML format.
- * Avoids adding quotes unless absolutely necessary for YAML syntax.
- */
-function serializeYamlValue(value: unknown): string {
-  if (value === null || value === undefined) {
-    return "";
-  }
-  if (typeof value === "string") {
-    // Only quote if the value contains characters that would break YAML parsing
-    // or if it looks like a YAML special value (true, false, null, numbers)
-    const needsQuoting =
-      value === "" ||
-      value.includes("\n") ||
-      value.startsWith(" ") ||
-      value.endsWith(" ") ||
-      /^[#&*!|>'"]/.test(value) ||  // YAML special start chars
-      /[:{}[\]]/.test(value) ||       // YAML structure chars
-      value === "true" || value === "false" || value === "null" ||
-      (!isNaN(Number(value)) && value !== "");  // Looks like a number
-
-    if (needsQuoting) {
-      // Use single quotes for simple cases, double quotes for complex
-      if (!value.includes("'") && !value.includes("\n")) {
-        return `'${value}'`;
-      }
-      // Fall back to double quotes with escaping
-      return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`;
-    }
-    return value;
-  }
-  if (typeof value === "boolean") {
-    return value ? "true" : "false";
-  }
-  if (typeof value === "number") {
-    return String(value);
-  }
-  if (Array.isArray(value) || typeof value === "object") {
-    return JSON.stringify(value);
-  }
-  return String(value);
-}
-
-/**
  * Inner component that uses the execution context.
  */
 function BlueprintViewerInner({
@@ -109,17 +66,8 @@ function BlueprintViewerInner({
   onBuildsRefresh,
 }: BlueprintViewerProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [blueprintFlowPercent, setBlueprintFlowPercent] = useState(DEFAULT_BLUEPRINT_FLOW_PERCENT);
-  const [isDragging, setIsDragging] = useState(false);
   const [activeTab, setActiveTab] = useState<BottomPanelTab>('blueprint');
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Build inputs state
-  const [buildInputsContent, setBuildInputsContent] = useState<string | null>(null);
-  const [buildInputsLoading, setBuildInputsLoading] = useState(false);
-
-  // Producer models state
-  const [producerModels, setProducerModels] = useState<Record<string, ProducerModelInfo>>({});
 
   const { state, initializeFromManifest, setTotalLayers } = useExecution();
   const isExecuting = state.status === 'executing';
@@ -130,70 +78,36 @@ function BlueprintViewerInner({
     [builds, selectedBuildId]
   );
 
-  // Fetch producer models on initial load
-  useEffect(() => {
-    if (!blueprintPath) return;
+  // Custom hooks for data fetching and panel resizing
+  const { producerModels } = useProducerModels({
+    blueprintPath,
+    catalogRoot,
+  });
 
-    let cancelled = false;
+  const {
+    inputs: buildInputs,
+    models: buildModels,
+    isLoading: buildInputsLoading,
+    saveInputs: handleSaveInputs,
+    saveModels: handleSaveModels,
+  } = useBuildInputs({
+    blueprintFolder,
+    blueprintPath,
+    selectedBuildId,
+    hasInputsFile: selectedBuild?.hasInputsFile ?? false,
+    catalogRoot,
+  });
 
-    const loadProducerModels = async () => {
-      try {
-        const response = await fetchProducerModels(blueprintPath, catalogRoot);
-        if (!cancelled) {
-          setProducerModels(response.producers);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.error("Failed to fetch producer models:", error);
-        }
-      }
-    };
-
-    void loadProducerModels();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [blueprintPath, catalogRoot]);
-
-  // Fetch build inputs when a build with inputs is selected
-  useEffect(() => {
-    // If conditions not met, reset state and return
-    const shouldFetch = blueprintFolder && selectedBuildId && selectedBuild?.hasInputsFile;
-    if (!shouldFetch) {
-      // Reset content via a microtask to avoid synchronous setState warning
-      queueMicrotask(() => setBuildInputsContent(null));
-      return;
-    }
-
-    let cancelled = false;
-
-    // Use async IIFE to handle the fetch and state updates
-    const loadInputs = async () => {
-      setBuildInputsLoading(true);
-      try {
-        const response = await fetchBuildInputs(blueprintFolder, selectedBuildId);
-        if (!cancelled) {
-          setBuildInputsContent(response.content);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.error("Failed to fetch build inputs:", error);
-          setBuildInputsContent(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setBuildInputsLoading(false);
-        }
-      }
-    };
-
-    void loadInputs();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [blueprintFolder, selectedBuildId, selectedBuild?.hasInputsFile]);
+  const {
+    percent: blueprintFlowPercent,
+    isDragging,
+    handleMouseDown,
+  } = usePanelResizer({
+    containerRef,
+    minPercent: MIN_BLUEPRINT_FLOW_PERCENT,
+    maxPercent: MAX_BLUEPRINT_FLOW_PERCENT,
+    defaultPercent: DEFAULT_BLUEPRINT_FLOW_PERCENT,
+  });
 
   // Compute and set total layers from graph topology on load
   useEffect(() => {
@@ -207,9 +121,9 @@ function BlueprintViewerInner({
   // Determine if we should show the sidebar (only when blueprintFolder is available)
   const showSidebar = Boolean(blueprintFolder);
 
-  // Parse build inputs from YAML content
+  // Convert parsed build inputs to InputTemplateData format
   const parsedBuildInputs = useMemo<InputTemplateData | null>(() => {
-    if (!buildInputsContent) return null;
+    if (!buildInputs || Object.keys(buildInputs).length === 0) return null;
 
     // Create a map of input definitions from graph for type/required info
     const inputDefMap = new Map<string, { type: string; required: boolean; description?: string }>();
@@ -221,175 +135,35 @@ function BlueprintViewerInner({
       });
     }
 
-    // Simple YAML parsing for key-value pairs in the "inputs:" section
+    // Convert server response to InputTemplateData format
     const inputs: InputTemplateData["inputs"] = [];
-    const lines = buildInputsContent.split("\n");
-    let inInputsSection = false;
+    for (const [key, value] of Object.entries(buildInputs)) {
+      // Strip canonical "Input:" prefix if present
+      const name = key.startsWith('Input:') ? key.slice('Input:'.length) : key;
 
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) continue;
-
-      // Check for section markers
-      if (trimmed === "inputs:") {
-        inInputsSection = true;
-        continue;
-      }
-      if (trimmed.endsWith(":") && !trimmed.includes(" ")) {
-        inInputsSection = false;
-        continue;
-      }
-
-      // Parse key-value pairs in inputs section
-      if (inInputsSection) {
-        const colonIndex = trimmed.indexOf(":");
-        if (colonIndex > 0) {
-          const name = trimmed.slice(0, colonIndex).trim();
-          let value: unknown = trimmed.slice(colonIndex + 1).trim();
-
-          // Remove surrounding quotes and handle escapes
-          if (typeof value === "string") {
-            if (value.startsWith('"') && value.endsWith('"')) {
-              // Double-quoted: handle escape sequences
-              const inner = value.slice(1, -1);
-              value = inner
-                .replace(/\\n/g, "\n")
-                .replace(/\\"/g, '"')
-                .replace(/\\\\/g, "\\");
-            } else if (value.startsWith("'") && value.endsWith("'")) {
-              // Single-quoted: no escape handling needed in YAML
-              value = value.slice(1, -1);
-            } else if (value === "true") {
-              value = true;
-            } else if (value === "false") {
-              value = false;
-            } else if (value !== "" && !isNaN(Number(value))) {
-              value = Number(value);
-            }
-          }
-
-          // Get type info from input definitions, with fallback
-          const def = inputDefMap.get(name);
-          inputs.push({
-            name,
-            value,
-            type: def?.type ?? "string",
-            required: def?.required ?? false,
-            description: def?.description,
-          });
-        }
-      }
+      // Get type info from input definitions, with fallback
+      const def = inputDefMap.get(name);
+      inputs.push({
+        name,
+        value,
+        type: def?.type ?? "string",
+        required: def?.required ?? false,
+        description: def?.description,
+      });
     }
 
     return inputs.length > 0 ? { inputs } : null;
-  }, [buildInputsContent, graphData.inputs]);
+  }, [buildInputs, graphData.inputs]);
 
-  // Parse model selections from YAML content or manifest
+  // Model selections come directly from server now
   const parsedModelSelections = useMemo<ModelSelectionValue[]>(() => {
-    // First try to parse from inputs.yaml content
-    if (buildInputsContent) {
-      const models: ModelSelectionValue[] = [];
-      const lines = buildInputsContent.split("\n");
-      let inModelsSection = false;
-      let inConfigSection = false;
-      let currentModel: Partial<ModelSelectionValue> & { config?: Record<string, unknown> } = {};
-      let configIndent = 0;
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith("#")) continue;
-
-        // Calculate indentation level
-        const leadingSpaces = line.length - line.trimStart().length;
-
-        // Check for section markers
-        if (trimmed === "models:") {
-          inModelsSection = true;
-          inConfigSection = false;
-          continue;
-        }
-        // Check for end of models section (another top-level key)
-        if (inModelsSection && !line.startsWith(" ") && !line.startsWith("\t") && trimmed.endsWith(":")) {
-          // Save the last model before exiting
-          if (currentModel.producerId && currentModel.provider && currentModel.model) {
-            models.push(currentModel as ModelSelectionValue);
-          }
-          inModelsSection = false;
-          inConfigSection = false;
-          continue;
-        }
-
-        // Parse items in models section (YAML array format)
-        if (inModelsSection) {
-          // Start of new array item
-          if (trimmed.startsWith("- ")) {
-            // Save previous model if complete
-            if (currentModel.producerId && currentModel.provider && currentModel.model) {
-              models.push(currentModel as ModelSelectionValue);
-            }
-            currentModel = {};
-            inConfigSection = false;
-
-            // Parse the first key-value on the same line as "-"
-            const rest = trimmed.slice(2).trim();
-            const colonIndex = rest.indexOf(":");
-            if (colonIndex > 0) {
-              const key = rest.slice(0, colonIndex).trim();
-              const value = rest.slice(colonIndex + 1).trim();
-              if (key === "producerId" || key === "provider" || key === "model") {
-                currentModel[key] = value;
-              } else if (key === "config" && value === "") {
-                // Start of config section
-                inConfigSection = true;
-                currentModel.config = {};
-                configIndent = leadingSpaces + 2; // Expect config items to be indented more
-              }
-            }
-          } else {
-            // Continuation of current item
-            const colonIndex = trimmed.indexOf(":");
-            if (colonIndex > 0) {
-              const key = trimmed.slice(0, colonIndex).trim();
-              const value = trimmed.slice(colonIndex + 1).trim();
-
-              // Check if we're entering config section
-              if (key === "config" && value === "") {
-                inConfigSection = true;
-                currentModel.config = {};
-                configIndent = leadingSpaces + 2;
-              } else if (inConfigSection && leadingSpaces >= configIndent) {
-                // We're inside config section - parse config key-value
-                if (currentModel.config) {
-                  currentModel.config[key] = value;
-                }
-              } else if (inConfigSection && leadingSpaces < configIndent) {
-                // We've exited config section
-                inConfigSection = false;
-                if (key === "producerId" || key === "provider" || key === "model") {
-                  currentModel[key] = value;
-                }
-              } else if (key === "producerId" || key === "provider" || key === "model") {
-                currentModel[key] = value;
-              }
-            }
-          }
-        }
-      }
-
-      // Don't forget the last model
-      if (currentModel.producerId && currentModel.provider && currentModel.model) {
-        models.push(currentModel as ModelSelectionValue);
-      }
-
-      if (models.length > 0) {
-        return models;
-      }
+    // Use models from build inputs if available
+    if (buildModels.length > 0) {
+      return buildModels;
     }
 
     // Fall back to extracting from manifest inputs (for read-only builds)
     // Manifest inputs contain keys like "ProducerName.provider" and "ProducerName.model"
-    // Also handles nested STT config: "ProducerName.sttProvider" and "ProducerName.sttModel"
     if (selectedBuildManifest?.inputs && Object.keys(selectedBuildManifest.inputs).length > 0) {
       const models: ModelSelectionValue[] = [];
       const inputs = selectedBuildManifest.inputs;
@@ -403,8 +177,7 @@ function BlueprintViewerInner({
       }>();
 
       for (const [key, value] of Object.entries(inputs)) {
-        // Match patterns like "ProducerName.provider", "ProducerName.model",
-        // "ProducerName.sttProvider", "ProducerName.sttModel"
+        // Match patterns like "ProducerName.provider", "ProducerName.model"
         const providerMatch = key.match(/^(.+)\.provider$/);
         const modelMatch = key.match(/^(.+)\.model$/);
         const sttProviderMatch = key.match(/^(.+)\.sttProvider$/);
@@ -456,7 +229,7 @@ function BlueprintViewerInner({
     }
 
     return [];
-  }, [buildInputsContent, selectedBuildManifest]);
+  }, [buildModels, selectedBuildManifest]);
 
   // Merge input data from build inputs or manifest
   const effectiveInputData = useMemo<InputTemplateData | null>(() => {
@@ -501,140 +274,6 @@ function BlueprintViewerInner({
     }
   }, [blueprintFolder, selectedBuildId, onBuildsRefresh]);
 
-  // Handle saving inputs
-  const handleSaveInputs = useCallback(
-    async (values: Record<string, unknown>) => {
-      if (!blueprintFolder || !selectedBuildId) return;
-
-      // Build YAML content from values
-      // We need to preserve the structure of the original file
-      const baseContent = buildInputsContent ?? "";
-
-      // Simple approach: update/add values in the inputs section
-      const lines = baseContent.split("\n");
-      const newLines: string[] = [];
-      let inInputsSection = false;
-      const updatedKeys = new Set<string>();
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-
-        if (trimmed === "inputs:") {
-          inInputsSection = true;
-          newLines.push(line);
-          continue;
-        }
-
-        if (inInputsSection && trimmed.endsWith(":") && !trimmed.includes(" ")) {
-          // Entering a new section, first add any missing input values
-          for (const [key, value] of Object.entries(values)) {
-            if (!updatedKeys.has(key)) {
-              newLines.push(`  ${key}: ${serializeYamlValue(value)}`);
-              updatedKeys.add(key);
-            }
-          }
-          inInputsSection = false;
-        }
-
-        if (inInputsSection) {
-          const colonIndex = trimmed.indexOf(":");
-          if (colonIndex > 0) {
-            const key = trimmed.slice(0, colonIndex).trim();
-            if (key in values) {
-              const indent = line.match(/^(\s*)/)?.[1] ?? "  ";
-              newLines.push(`${indent}${key}: ${serializeYamlValue(values[key])}`);
-              updatedKeys.add(key);
-              continue;
-            }
-          }
-        }
-
-        newLines.push(line);
-      }
-
-      // If still in inputs section at end, add any missing values
-      if (inInputsSection) {
-        for (const [key, value] of Object.entries(values)) {
-          if (!updatedKeys.has(key)) {
-            newLines.push(`  ${key}: ${serializeYamlValue(value)}`);
-          }
-        }
-      }
-
-      // If no inputs section existed, create one
-      if (!buildInputsContent?.includes("inputs:")) {
-        newLines.unshift("inputs:");
-        for (const [key, value] of Object.entries(values)) {
-          newLines.splice(1, 0, `  ${key}: ${serializeYamlValue(value)}`);
-        }
-      }
-
-      const finalContent = newLines.join("\n");
-      await saveBuildInputs(blueprintFolder, selectedBuildId, finalContent);
-      setBuildInputsContent(finalContent);
-    },
-    [blueprintFolder, selectedBuildId, buildInputsContent]
-  );
-
-  // Handle saving models
-  const handleSaveModels = useCallback(
-    async (models: ModelSelectionValue[]) => {
-      if (!blueprintFolder || !selectedBuildId) return;
-
-      const baseContent = buildInputsContent ?? "";
-
-      // Remove existing models section from content
-      const lines = baseContent.split("\n");
-      const newLines: string[] = [];
-      let inModelsSection = false;
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-
-        // Check for models section start
-        if (trimmed === "models:") {
-          inModelsSection = true;
-          continue; // Skip the models: line
-        }
-
-        // Check for end of models section (another top-level key)
-        if (inModelsSection) {
-          if (!line.startsWith(" ") && !line.startsWith("\t") && trimmed.endsWith(":") && trimmed !== "models:") {
-            inModelsSection = false;
-            newLines.push(line);
-            continue;
-          }
-          // Skip lines in models section
-          continue;
-        }
-
-        newLines.push(line);
-      }
-
-      // Build new models section (including config if present)
-      const modelsYaml = models.map(m => {
-        let yaml = `  - producerId: ${m.producerId}\n    provider: ${m.provider}\n    model: ${m.model}`;
-        if (m.config && Object.keys(m.config).length > 0) {
-          yaml += "\n    config:";
-          for (const [key, value] of Object.entries(m.config)) {
-            yaml += `\n      ${key}: ${value}`;
-          }
-        }
-        return yaml;
-      }).join("\n");
-
-      // Append models section to content if we have any models
-      let finalContent = newLines.join("\n").trimEnd();
-      if (models.length > 0) {
-        finalContent = finalContent + "\nmodels:\n" + modelsYaml + "\n";
-      }
-
-      await saveBuildInputs(blueprintFolder, selectedBuildId, finalContent);
-      setBuildInputsContent(finalContent);
-    },
-    [blueprintFolder, selectedBuildId, buildInputsContent]
-  );
-
   // Initialize producer statuses from manifest when build changes
   useEffect(() => {
     if (selectedBuildManifest?.artefacts) {
@@ -647,7 +286,6 @@ function BlueprintViewerInner({
   const prevBottomPanelVisibleRef = useRef(state.bottomPanelVisible);
 
   // Auto-switch to Execution tab when execution starts or panel becomes visible
-  // Only switch on transitions, use queueMicrotask to avoid synchronous setState in effect
   useEffect(() => {
     const shouldSwitch =
       (isExecuting && !prevIsExecutingRef.current) ||
@@ -657,7 +295,6 @@ function BlueprintViewerInner({
     prevBottomPanelVisibleRef.current = state.bottomPanelVisible;
 
     if (shouldSwitch) {
-      // Use queueMicrotask to defer the state update, avoiding synchronous setState warning
       queueMicrotask(() => setActiveTab('execution'));
     }
   }, [isExecuting, state.bottomPanelVisible]);
@@ -665,39 +302,6 @@ function BlueprintViewerInner({
   const handleNodeSelect = useCallback((nodeId: string | null) => {
     setSelectedNodeId(nodeId);
   }, []);
-
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  useEffect(() => {
-    if (!isDragging) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!containerRef.current) return;
-
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const relativeY = e.clientY - containerRect.top;
-      // Calculate inputs panel percent from top, then derive blueprint flow percent
-      const inputsPercent = (relativeY / containerRect.height) * 100;
-      const flowPercent = 100 - inputsPercent;
-      const clampedFlowPercent = Math.max(MIN_BLUEPRINT_FLOW_PERCENT, Math.min(MAX_BLUEPRINT_FLOW_PERCENT, flowPercent));
-      setBlueprintFlowPercent(clampedFlowPercent);
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [isDragging]);
 
   // Determine effective movie ID - use selected build or passed movieId
   const effectiveMovieId = selectedBuildId ?? movieId;

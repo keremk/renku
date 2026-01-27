@@ -1,4 +1,9 @@
-import type { BlueprintGraphData, InputTemplateData, ProducerModelsResponse } from "@/types/blueprint-graph";
+import type {
+  BlueprintGraphData,
+  InputTemplateData,
+  ProducerModelsResponse,
+  ModelSelectionValue,
+} from "@/types/blueprint-graph";
 import type { BuildsListResponse, BuildManifestResponse } from "@/types/builds";
 
 const API_BASE = "/viewer-api";
@@ -89,8 +94,13 @@ export interface CreateBuildResponse {
   inputsPath: string;
 }
 
+/**
+ * Response from GET /blueprints/builds/inputs.
+ * Returns parsed inputs and model selections as structured JSON.
+ */
 export interface BuildInputsResponse {
-  content: string;
+  inputs: Record<string, unknown>;
+  models: ModelSelectionValue[];
   inputsPath: string;
 }
 
@@ -114,30 +124,40 @@ export async function createBuild(
 }
 
 /**
- * Fetches the inputs.yaml content for a specific build.
+ * Fetches the parsed inputs for a specific build.
+ * Returns structured JSON (inputs + models) instead of raw YAML.
  */
 export function fetchBuildInputs(
   blueprintFolder: string,
-  movieId: string
+  movieId: string,
+  blueprintPath: string,
+  catalogRoot?: string | null,
 ): Promise<BuildInputsResponse> {
   const url = new URL(`${API_BASE}/blueprints/builds/inputs`, window.location.origin);
   url.searchParams.set("folder", blueprintFolder);
   url.searchParams.set("movieId", movieId);
+  url.searchParams.set("blueprintPath", blueprintPath);
+  if (catalogRoot) {
+    url.searchParams.set("catalog", catalogRoot);
+  }
   return fetchJson<BuildInputsResponse>(url.toString());
 }
 
 /**
- * Saves the inputs.yaml content for a specific build.
+ * Saves the inputs for a specific build.
+ * Accepts structured JSON (inputs + models) which server serializes to YAML.
  */
 export async function saveBuildInputs(
   blueprintFolder: string,
+  blueprintPath: string,
   movieId: string,
-  content: string
+  inputs: Record<string, unknown>,
+  models: ModelSelectionValue[],
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/blueprints/builds/inputs`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ blueprintFolder, movieId, content }),
+    body: JSON.stringify({ blueprintFolder, blueprintPath, movieId, inputs, models }),
   });
   if (!response.ok) {
     const errorText = await response.text().catch(() => "Unknown error");
