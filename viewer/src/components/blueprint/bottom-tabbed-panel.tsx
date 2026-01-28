@@ -1,5 +1,5 @@
 /**
- * Bottom tabbed panel containing Blueprint flow and Execution progress views.
+ * Bottom tabbed panel containing Blueprint flow, Execution progress, and Timeline views.
  * Handles tab switching and renders the appropriate content.
  */
 
@@ -7,9 +7,13 @@ import { ReactFlowProvider } from '@xyflow/react';
 import { BlueprintViewer } from './blueprint-viewer';
 import { ExecutionProgressPanel } from './execution-progress-panel';
 import { BlueprintLegend } from './blueprint-legend';
+import { TimelinePanel } from './timeline-panel';
 import type { BottomPanelTab } from '@/hooks';
 import type { BlueprintGraphData } from '@/types/blueprint-graph';
 import type { ExecutionLogEntry, ProducerStatus } from '@/types/generation';
+import type { TimelineDocument } from '@/types/timeline';
+
+type TimelineStatus = "idle" | "loading" | "success" | "error";
 
 interface BottomTabbedPanelProps {
   activeTab: BottomPanelTab;
@@ -22,6 +26,17 @@ interface BottomTabbedPanelProps {
   producerStatuses: Record<string, ProducerStatus>;
   // Execution panel props
   executionLogs: ExecutionLogEntry[];
+  // Timeline panel props
+  timeline: TimelineDocument | null;
+  timelineStatus: TimelineStatus;
+  timelineError: Error | null;
+  currentTime: number;
+  isPlaying: boolean;
+  onPlay: () => void;
+  onPause: () => void;
+  onSeek: (time: number) => void;
+  hasTimeline: boolean;
+  movieId: string | null;
 }
 
 interface TabButtonProps {
@@ -62,9 +77,10 @@ interface TabHeaderProps {
   onTabChange: (tab: BottomPanelTab) => void;
   isExecuting: boolean;
   hasLogs: boolean;
+  hasTimeline: boolean;
 }
 
-function TabHeader({ activeTab, onTabChange, isExecuting, hasLogs }: TabHeaderProps) {
+function TabHeader({ activeTab, onTabChange, isExecuting, hasLogs, hasTimeline }: TabHeaderProps) {
   return (
     <div className="flex items-center border-b border-border/40 bg-card/30 shrink-0">
       <TabButton
@@ -77,6 +93,12 @@ function TabHeader({ activeTab, onTabChange, isExecuting, hasLogs }: TabHeaderPr
         isActive={activeTab === 'execution'}
         onClick={() => onTabChange('execution')}
         indicator={isExecuting ? 'executing' : hasLogs ? 'has-logs' : undefined}
+      />
+      <TabButton
+        label="Timeline"
+        isActive={activeTab === 'timeline'}
+        onClick={() => onTabChange('timeline')}
+        indicator={hasTimeline ? 'has-logs' : undefined}
       />
     </div>
   );
@@ -91,6 +113,16 @@ export function BottomTabbedPanel({
   onNodeSelect,
   producerStatuses,
   executionLogs,
+  timeline,
+  timelineStatus,
+  timelineError,
+  currentTime,
+  isPlaying,
+  onPlay,
+  onPause,
+  onSeek,
+  hasTimeline,
+  movieId,
 }: BottomTabbedPanelProps) {
   return (
     <div className="flex-1 min-h-0 flex flex-col">
@@ -100,11 +132,12 @@ export function BottomTabbedPanel({
         onTabChange={onTabChange}
         isExecuting={isExecuting}
         hasLogs={hasLogs}
+        hasTimeline={hasTimeline}
       />
 
       {/* Tab Content */}
       <div className="flex-1 min-h-0 relative">
-        {activeTab === 'blueprint' ? (
+        {activeTab === 'blueprint' && (
           <ReactFlowProvider>
             <BlueprintViewer
               graphData={graphData}
@@ -112,10 +145,25 @@ export function BottomTabbedPanel({
               producerStatuses={producerStatuses}
             />
           </ReactFlowProvider>
-        ) : (
+        )}
+        {activeTab === 'execution' && (
           <ExecutionProgressPanel
             logs={executionLogs}
             isExecuting={isExecuting}
+          />
+        )}
+        {activeTab === 'timeline' && (
+          <TimelinePanel
+            timeline={timeline}
+            status={timelineStatus}
+            error={timelineError}
+            currentTime={currentTime}
+            isPlaying={isPlaying}
+            onPlay={onPlay}
+            onPause={onPause}
+            onSeek={onSeek}
+            hasTimeline={hasTimeline}
+            movieId={movieId}
           />
         )}
       </div>

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 
-export type BottomPanelTab = 'blueprint' | 'execution';
+export type BottomPanelTab = 'blueprint' | 'execution' | 'timeline';
 
 interface UseBottomPanelTabsOptions {
   isExecuting: boolean;

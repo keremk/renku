@@ -44,8 +44,8 @@ export const TimelineEditor = ({
   );
 
   return (
-    <div className="h-full flex flex-col pb-4" ref={containerRef}>
-      <div className="bg-muted rounded-lg overflow-hidden flex flex-1 min-h-0">
+    <div className="min-h-full flex flex-col pb-4" ref={containerRef}>
+      <div className="bg-muted rounded-lg overflow-hidden flex flex-1">
         <TrackHeaders
           isPlaying={isPlaying}
           onPlay={onPlay}

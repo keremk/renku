@@ -2,19 +2,60 @@ import { Play, Pause, RotateCcw, Film } from "lucide-react";
 import { RemotionPreview } from "@/components/player/remotion-preview";
 import { useMovieTimeline } from "@/services/use-movie-timeline";
 import { usePreviewPlayback } from "@/hooks";
+import type { TimelineDocument } from "@/types/timeline";
+
+type TimelineStatus = "idle" | "loading" | "success" | "error";
 
 interface PreviewPanelProps {
   movieId: string | null;
   blueprintFolder: string | null;
   hasTimeline: boolean;
+  // Optional external state for controlled mode
+  timeline?: TimelineDocument | null;
+  timelineStatus?: TimelineStatus;
+  timelineError?: Error | null;
+  currentTime?: number;
+  isPlaying?: boolean;
+  onPlay?: () => void;
+  onPause?: () => void;
+  onSeek?: (time: number) => void;
+  onReset?: () => void;
 }
 
-export function PreviewPanel({ movieId, blueprintFolder, hasTimeline }: PreviewPanelProps) {
-  const { timeline, status, error } = useMovieTimeline(
-    hasTimeline ? blueprintFolder : null,
-    hasTimeline ? movieId : null
+export function PreviewPanel({
+  movieId,
+  blueprintFolder,
+  hasTimeline,
+  timeline: externalTimeline,
+  timelineStatus: externalStatus,
+  timelineError: externalError,
+  currentTime: externalCurrentTime,
+  isPlaying: externalIsPlaying,
+  onPlay: externalOnPlay,
+  onPause: externalOnPause,
+  onSeek: externalOnSeek,
+  onReset: externalOnReset,
+}: PreviewPanelProps) {
+  // Determine if we're in controlled mode (external state provided)
+  const isControlled = externalTimeline !== undefined;
+
+  // Internal hooks (only used when not controlled)
+  const internalTimelineState = useMovieTimeline(
+    !isControlled && hasTimeline ? blueprintFolder : null,
+    !isControlled && hasTimeline ? movieId : null
   );
-  const { currentTime, isPlaying, play, pause, seek, reset } = usePreviewPlayback(movieId);
+  const internalPlayback = usePreviewPlayback(!isControlled ? movieId : null);
+
+  // Use external or internal state
+  const timeline = isControlled ? externalTimeline : internalTimelineState.timeline;
+  const status = isControlled ? (externalStatus ?? "idle") : internalTimelineState.status;
+  const error = isControlled ? (externalError ?? null) : internalTimelineState.error;
+  const currentTime = externalCurrentTime ?? internalPlayback.currentTime;
+  const isPlaying = externalIsPlaying ?? internalPlayback.isPlaying;
+  const play = externalOnPlay ?? internalPlayback.play;
+  const pause = externalOnPause ?? internalPlayback.pause;
+  const seek = externalOnSeek ?? internalPlayback.seek;
+  const reset = externalOnReset ?? internalPlayback.reset;
 
   // No build selected
   if (!movieId) {

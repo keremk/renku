@@ -7,13 +7,16 @@ import { BottomTabbedPanel } from "./bottom-tabbed-panel";
 import { ExecutionProvider, useExecution } from "@/contexts/execution-context";
 import { computeBlueprintLayerCount } from "@/lib/blueprint-layout";
 import { enableBuildEditing } from "@/data/blueprint-client";
-import { useBuildInputs, useProducerModels, usePanelResizer, useBottomPanelTabs } from "@/hooks";
+import { useBuildInputs, useProducerModels, usePanelResizer, useBottomPanelTabs, usePreviewPlayback } from "@/hooks";
+import { useMovieTimeline } from "@/services/use-movie-timeline";
 import type {
   BlueprintGraphData,
   InputTemplateData,
   ModelSelectionValue,
 } from "@/types/blueprint-graph";
 import type { BuildInfo, BuildManifestResponse } from "@/types/builds";
+
+type DetailPanelTab = "inputs" | "models" | "outputs" | "preview";
 
 interface WorkspaceLayoutProps {
   graphData: BlueprintGraphData;
@@ -62,13 +65,14 @@ function WorkspaceLayoutInner({
   onBuildsRefresh,
 }: WorkspaceLayoutProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [detailPanelTab, setDetailPanelTab] = useState<DetailPanelTab>("inputs");
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { state, initializeFromManifest, setTotalLayers } = useExecution();
   const isExecuting = state.status === 'executing';
 
   // Tab state management with auto-switching
-  const { activeTab, setActiveTab } = useBottomPanelTabs({
+  const { activeTab: bottomActiveTab, setActiveTab: setBottomActiveTab } = useBottomPanelTabs({
     isExecuting,
     bottomPanelVisible: state.bottomPanelVisible,
   });
@@ -238,6 +242,22 @@ function WorkspaceLayoutInner({
     return artefacts.some((a) => a.id.includes("Timeline"));
   }, [selectedBuildManifest?.artefacts]);
 
+  // Lift timeline and playback state for syncing between Preview and Timeline panels
+  const { timeline, status: timelineStatus, error: timelineError } = useMovieTimeline(
+    hasTimeline ? blueprintFolder : null,
+    hasTimeline ? effectiveMovieId : null
+  );
+  const { currentTime, isPlaying, play, pause, seek, reset } = usePreviewPlayback(effectiveMovieId);
+
+  // Handle bottom panel tab changes with coordination to detail panel
+  const handleBottomTabChange = useCallback((tab: typeof bottomActiveTab) => {
+    setBottomActiveTab(tab);
+    // When switching to Timeline tab, also switch detail panel to Preview
+    if (tab === 'timeline') {
+      setDetailPanelTab('preview');
+    }
+  }, [setBottomActiveTab]);
+
   return (
     <div
       className="h-screen w-screen bg-background text-foreground p-4 flex flex-col"
@@ -281,6 +301,17 @@ function WorkspaceLayoutInner({
               modelSelections={parsedModelSelections}
               onSaveModels={handleSaveModels}
               hasTimeline={hasTimeline}
+              activeTab={detailPanelTab}
+              onTabChange={setDetailPanelTab}
+              timeline={timeline}
+              timelineStatus={timelineStatus}
+              timelineError={timelineError}
+              currentTime={currentTime}
+              isPlaying={isPlaying}
+              onPlay={play}
+              onPause={pause}
+              onSeek={seek}
+              onReset={reset}
             />
           </div>
         </div>
@@ -297,20 +328,30 @@ function WorkspaceLayoutInner({
           }`} />
         </div>
 
-        {/* Bottom Panel with Tabs (Blueprint Flow or Execution) */}
+        {/* Bottom Panel with Tabs (Blueprint Flow, Execution, or Timeline) */}
         <div
           className="shrink-0 min-h-0 rounded-xl border border-border/40 overflow-hidden relative flex flex-col"
           style={{ flexBasis: `${blueprintFlowPercent}%`, maxHeight: `${blueprintFlowPercent}%` }}
         >
           <BottomTabbedPanel
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
+            activeTab={bottomActiveTab}
+            onTabChange={handleBottomTabChange}
             isExecuting={isExecuting}
             hasLogs={hasExecutionLogs}
             graphData={graphData}
             onNodeSelect={handleNodeSelect}
             producerStatuses={state.producerStatuses}
             executionLogs={state.executionLogs}
+            timeline={timeline}
+            timelineStatus={timelineStatus}
+            timelineError={timelineError}
+            currentTime={currentTime}
+            isPlaying={isPlaying}
+            onPlay={play}
+            onPause={pause}
+            onSeek={seek}
+            hasTimeline={hasTimeline}
+            movieId={effectiveMovieId}
           />
         </div>
       </div>

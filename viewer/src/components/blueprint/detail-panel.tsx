@@ -10,9 +10,11 @@ import type {
   ProducerModelInfo,
 } from "@/types/blueprint-graph";
 import type { ArtifactInfo } from "@/types/builds";
+import type { TimelineDocument } from "@/types/timeline";
 import type { ReactNode } from "react";
 
 type Tab = "inputs" | "models" | "outputs" | "preview";
+type TimelineStatus = "idle" | "loading" | "success" | "error";
 
 interface DetailPanelProps {
   graphData: BlueprintGraphData;
@@ -39,6 +41,19 @@ interface DetailPanelProps {
   onSaveModels?: (models: ModelSelectionValue[]) => Promise<void>;
   /** Whether a timeline artifact exists for the selected build */
   hasTimeline?: boolean;
+  // Controlled tab state (optional)
+  activeTab?: Tab;
+  onTabChange?: (tab: Tab) => void;
+  // Playback state for preview (optional, for controlled mode)
+  timeline?: TimelineDocument | null;
+  timelineStatus?: TimelineStatus;
+  timelineError?: Error | null;
+  currentTime?: number;
+  isPlaying?: boolean;
+  onPlay?: () => void;
+  onPause?: () => void;
+  onSeek?: (time: number) => void;
+  onReset?: () => void;
 }
 
 export function DetailPanel({
@@ -57,8 +72,22 @@ export function DetailPanel({
   modelSelections = [],
   onSaveModels,
   hasTimeline = false,
+  activeTab: controlledActiveTab,
+  onTabChange,
+  timeline,
+  timelineStatus,
+  timelineError,
+  currentTime,
+  isPlaying,
+  onPlay,
+  onPause,
+  onSeek,
+  onReset,
 }: DetailPanelProps) {
-  const [activeTab, setActiveTab] = useState<Tab>("inputs");
+  // Support both controlled and uncontrolled tab state
+  const [internalActiveTab, setInternalActiveTab] = useState<Tab>("inputs");
+  const activeTab = controlledActiveTab ?? internalActiveTab;
+  const setActiveTab = onTabChange ?? setInternalActiveTab;
 
   return (
     <div className="flex flex-col h-full bg-card rounded-xl border border-border/60 overflow-hidden">
@@ -133,6 +162,15 @@ export function DetailPanel({
             movieId={movieId}
             blueprintFolder={blueprintFolder}
             hasTimeline={hasTimeline}
+            timeline={timeline}
+            timelineStatus={timelineStatus}
+            timelineError={timelineError}
+            currentTime={currentTime}
+            isPlaying={isPlaying}
+            onPlay={onPlay}
+            onPause={onPause}
+            onSeek={onSeek}
+            onReset={onReset}
           />
         )}
       </div>
