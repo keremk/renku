@@ -10,12 +10,14 @@ import {
   getProducerMappings,
   serializeInputsToYaml,
   toSerializableModelSelection,
+  extractModelSelectionsFromInputs,
   type BlueprintTreeNode,
   type BlueprintInputDefinition,
   type BlueprintArtefactDefinition,
   type ProducerMappings,
   type ProducerImportDefinition,
   type SerializableModelSelection,
+  type ExtractedModelSelection,
 } from "@gorenku/core";
 import { loadModelCatalog, type LoadedModelCatalog } from "@gorenku/providers";
 import {
@@ -795,8 +797,15 @@ async function getBuildInputs(
     // Convert model selections to serializable form (strip runtime fields)
     const models = loaded.modelSelections.map(toSerializableModelSelection);
 
+    // Strip "Input:" prefix from keys for client consumption
+    const inputs: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(loaded.values)) {
+      const cleanKey = key.startsWith("Input:") ? key.slice(6) : key;
+      inputs[cleanKey] = value;
+    }
+
     return {
-      inputs: loaded.values,
+      inputs,
       models,
       inputsPath,
     };
@@ -1369,6 +1378,7 @@ interface BuildManifestResponse {
   movieId: string;
   revision: string | null;
   inputs: Record<string, unknown>;
+  models?: ExtractedModelSelection[];
   artefacts: ArtifactInfo[];
   createdAt: string | null;
 }
@@ -1530,6 +1540,9 @@ async function getBuildManifest(blueprintFolder: string, movieId: string): Promi
       }
     }
 
+    // Extract model selections from inputs
+    const { modelSelections } = extractModelSelectionsFromInputs(parsedInputs);
+
     // Parse artifacts - extract blob info and clean up names
     const parsedArtifacts: ArtifactInfo[] = [];
     if (manifest.artefacts) {
@@ -1555,6 +1568,7 @@ async function getBuildManifest(blueprintFolder: string, movieId: string): Promi
       movieId,
       revision,
       inputs: parsedInputs,
+      models: modelSelections.length > 0 ? modelSelections : undefined,
       artefacts: parsedArtifacts,
       createdAt: manifest.createdAt ?? stat.mtime.toISOString(),
     };

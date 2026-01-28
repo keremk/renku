@@ -30,3 +30,4 @@ export * from './validation/index.js';
 export * from './execution/index.js';
 export * from './topology/index.js';
 export { loadEnv, type EnvLoaderOptions, type EnvLoaderResult } from './env-loader.js';
+export * from './model-selection-extractor.js';

@@ -9,7 +9,7 @@ import { ExecutionProgressPanel } from "./execution-progress-panel";
 import { ExecutionProvider, useExecution } from "@/contexts/execution-context";
 import { computeBlueprintLayerCount } from "@/lib/blueprint-layout";
 import { enableBuildEditing } from "@/data/blueprint-client";
-import { useBuildInputs, useProducerModels, usePanelResizer } from "@/hooks";
+import { useBuildInputs, useProducerModels, usePanelResizer, useBottomPanelTabs } from "@/hooks";
 import type {
   BlueprintGraphData,
   InputTemplateData,
@@ -46,8 +46,6 @@ const MIN_BLUEPRINT_FLOW_PERCENT = 30;
 const MAX_BLUEPRINT_FLOW_PERCENT = 70;
 const DEFAULT_BLUEPRINT_FLOW_PERCENT = 30;
 
-type BottomPanelTab = 'blueprint' | 'execution';
-
 /**
  * Inner component that uses the execution context.
  */
@@ -66,11 +64,16 @@ function BlueprintViewerInner({
   onBuildsRefresh,
 }: BlueprintViewerProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<BottomPanelTab>('blueprint');
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { state, initializeFromManifest, setTotalLayers } = useExecution();
   const isExecuting = state.status === 'executing';
+
+  // Tab state management with auto-switching
+  const { activeTab, setActiveTab } = useBottomPanelTabs({
+    isExecuting,
+    bottomPanelVisible: state.bottomPanelVisible,
+  });
 
   // Find the selected build to check if it has inputs
   const selectedBuild = useMemo(
@@ -137,10 +140,7 @@ function BlueprintViewerInner({
 
     // Convert server response to InputTemplateData format
     const inputs: InputTemplateData["inputs"] = [];
-    for (const [key, value] of Object.entries(buildInputs)) {
-      // Strip canonical "Input:" prefix if present
-      const name = key.startsWith('Input:') ? key.slice('Input:'.length) : key;
-
+    for (const [name, value] of Object.entries(buildInputs)) {
       // Get type info from input definitions, with fallback
       const def = inputDefMap.get(name);
       inputs.push({
@@ -155,81 +155,17 @@ function BlueprintViewerInner({
     return inputs.length > 0 ? { inputs } : null;
   }, [buildInputs, graphData.inputs]);
 
-  // Model selections come directly from server now
+  // Model selections: prioritize build inputs, fall back to manifest models
   const parsedModelSelections = useMemo<ModelSelectionValue[]>(() => {
-    // Use models from build inputs if available
+    // Use models from build inputs if available (editable builds)
     if (buildModels.length > 0) {
       return buildModels;
     }
 
-    // Fall back to extracting from manifest inputs (for read-only builds)
-    // Manifest inputs contain keys like "ProducerName.provider" and "ProducerName.model"
-    if (selectedBuildManifest?.inputs && Object.keys(selectedBuildManifest.inputs).length > 0) {
-      const models: ModelSelectionValue[] = [];
-      const inputs = selectedBuildManifest.inputs;
-
-      // Group inputs by producer name to find provider/model pairs and config
-      const producerData = new Map<string, {
-        provider?: string;
-        model?: string;
-        sttProvider?: string;
-        sttModel?: string;
-      }>();
-
-      for (const [key, value] of Object.entries(inputs)) {
-        // Match patterns like "ProducerName.provider", "ProducerName.model"
-        const providerMatch = key.match(/^(.+)\.provider$/);
-        const modelMatch = key.match(/^(.+)\.model$/);
-        const sttProviderMatch = key.match(/^(.+)\.sttProvider$/);
-        const sttModelMatch = key.match(/^(.+)\.sttModel$/);
-
-        if (providerMatch && typeof value === "string") {
-          const producerId = providerMatch[1];
-          const existing = producerData.get(producerId) ?? {};
-          existing.provider = value;
-          producerData.set(producerId, existing);
-        } else if (modelMatch && typeof value === "string") {
-          const producerId = modelMatch[1];
-          const existing = producerData.get(producerId) ?? {};
-          existing.model = value;
-          producerData.set(producerId, existing);
-        } else if (sttProviderMatch && typeof value === "string") {
-          const producerId = sttProviderMatch[1];
-          const existing = producerData.get(producerId) ?? {};
-          existing.sttProvider = value;
-          producerData.set(producerId, existing);
-        } else if (sttModelMatch && typeof value === "string") {
-          const producerId = sttModelMatch[1];
-          const existing = producerData.get(producerId) ?? {};
-          existing.sttModel = value;
-          producerData.set(producerId, existing);
-        }
-      }
-
-      // Convert to ModelSelectionValue array
-      for (const [producerId, data] of producerData) {
-        if (data.provider && data.model) {
-          const selection: ModelSelectionValue = {
-            producerId,
-            provider: data.provider,
-            model: data.model,
-          };
-          // Add nested STT config if present
-          if (data.sttProvider && data.sttModel) {
-            selection.config = {
-              sttProvider: data.sttProvider,
-              sttModel: data.sttModel,
-            };
-          }
-          models.push(selection);
-        }
-      }
-
-      return models;
-    }
-
-    return [];
-  }, [buildModels, selectedBuildManifest]);
+    // Fall back to models from manifest (read-only builds)
+    // API now extracts these into a separate field
+    return selectedBuildManifest?.models ?? [];
+  }, [buildModels, selectedBuildManifest?.models]);
 
   // Merge input data from build inputs or manifest
   const effectiveInputData = useMemo<InputTemplateData | null>(() => {
@@ -280,24 +216,6 @@ function BlueprintViewerInner({
       initializeFromManifest(selectedBuildManifest.artefacts);
     }
   }, [selectedBuildManifest, initializeFromManifest]);
-
-  // Track previous execution state to detect transitions
-  const prevIsExecutingRef = useRef(isExecuting);
-  const prevBottomPanelVisibleRef = useRef(state.bottomPanelVisible);
-
-  // Auto-switch to Execution tab when execution starts or panel becomes visible
-  useEffect(() => {
-    const shouldSwitch =
-      (isExecuting && !prevIsExecutingRef.current) ||
-      (state.bottomPanelVisible && !prevBottomPanelVisibleRef.current);
-
-    prevIsExecutingRef.current = isExecuting;
-    prevBottomPanelVisibleRef.current = state.bottomPanelVisible;
-
-    if (shouldSwitch) {
-      queueMicrotask(() => setActiveTab('execution'));
-    }
-  }, [isExecuting, state.bottomPanelVisible]);
 
   const handleNodeSelect = useCallback((nodeId: string | null) => {
     setSelectedNodeId(nodeId);

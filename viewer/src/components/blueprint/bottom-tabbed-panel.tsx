@@ -1,0 +1,127 @@
+/**
+ * Bottom tabbed panel containing Blueprint flow and Execution progress views.
+ * Handles tab switching and renders the appropriate content.
+ */
+
+import { ReactFlowProvider } from '@xyflow/react';
+import { BlueprintFlow } from './BlueprintFlow';
+import { ExecutionProgressPanel } from './execution-progress-panel';
+import { BlueprintLegend } from './blueprint-legend';
+import type { BottomPanelTab } from '@/hooks';
+import type { BlueprintGraphData } from '@/types/blueprint-graph';
+import type { ExecutionLogEntry, ProducerStatus } from '@/types/generation';
+
+interface BottomTabbedPanelProps {
+  activeTab: BottomPanelTab;
+  onTabChange: (tab: BottomPanelTab) => void;
+  isExecuting: boolean;
+  hasLogs: boolean;
+  // Blueprint panel props
+  graphData: BlueprintGraphData;
+  onNodeSelect: (nodeId: string | null) => void;
+  producerStatuses: Record<string, ProducerStatus>;
+  // Execution panel props
+  executionLogs: ExecutionLogEntry[];
+}
+
+interface TabButtonProps {
+  label: string;
+  isActive: boolean;
+  onClick: () => void;
+  indicator?: 'executing' | 'has-logs';
+}
+
+function TabButton({ label, isActive, onClick, indicator }: TabButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-4 py-2 text-sm font-medium transition-colors relative flex items-center gap-2 ${
+        isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+      }`}
+    >
+      {label}
+      {indicator === 'executing' && (
+        <span className="flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-blue-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+        </span>
+      )}
+      {indicator === 'has-logs' && (
+        <span className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+      )}
+      {isActive && (
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+      )}
+    </button>
+  );
+}
+
+interface TabHeaderProps {
+  activeTab: BottomPanelTab;
+  onTabChange: (tab: BottomPanelTab) => void;
+  isExecuting: boolean;
+  hasLogs: boolean;
+}
+
+function TabHeader({ activeTab, onTabChange, isExecuting, hasLogs }: TabHeaderProps) {
+  return (
+    <div className="flex items-center border-b border-border/40 bg-card/30 shrink-0">
+      <TabButton
+        label="Blueprint"
+        isActive={activeTab === 'blueprint'}
+        onClick={() => onTabChange('blueprint')}
+      />
+      <TabButton
+        label="Execution"
+        isActive={activeTab === 'execution'}
+        onClick={() => onTabChange('execution')}
+        indicator={isExecuting ? 'executing' : hasLogs ? 'has-logs' : undefined}
+      />
+    </div>
+  );
+}
+
+export function BottomTabbedPanel({
+  activeTab,
+  onTabChange,
+  isExecuting,
+  hasLogs,
+  graphData,
+  onNodeSelect,
+  producerStatuses,
+  executionLogs,
+}: BottomTabbedPanelProps) {
+  return (
+    <div className="flex-1 min-h-0 flex flex-col">
+      {/* Tab Header */}
+      <TabHeader
+        activeTab={activeTab}
+        onTabChange={onTabChange}
+        isExecuting={isExecuting}
+        hasLogs={hasLogs}
+      />
+
+      {/* Tab Content */}
+      <div className="flex-1 min-h-0 relative">
+        {activeTab === 'blueprint' ? (
+          <ReactFlowProvider>
+            <BlueprintFlow
+              graphData={graphData}
+              onNodeSelect={onNodeSelect}
+              producerStatuses={producerStatuses}
+            />
+          </ReactFlowProvider>
+        ) : (
+          <ExecutionProgressPanel
+            logs={executionLogs}
+            isExecuting={isExecuting}
+          />
+        )}
+      </div>
+
+      {/* Legend (only for blueprint tab) */}
+      {activeTab === 'blueprint' && <BlueprintLegend />}
+    </div>
+  );
+}
