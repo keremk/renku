@@ -50,7 +50,7 @@ Key features include:
 
 - **[viewer](./viewer/README.md)** - Browser-based content viewer
 
-  React + Remotion viewer application for inspecting generated content. Bundled with the CLI and served via `renku viewer:view` commands.
+  React + Remotion viewer application for inspecting generated content. Bundled with the CLI and served via `renku viewer` commands.
 
 ## Quick Start
 
@@ -96,7 +96,7 @@ renku generate \
 View the results:
 
 ```bash
-renku viewer:view --last
+renku viewer
 ```
 
 For more detailed instructions, see the [full quick start guide](https://gorenku.com/docs/quick-start).

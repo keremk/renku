@@ -97,6 +97,16 @@ export function PreviewPanel({
   }
 
   // Success state - show player with controls
+  // Guard against null blueprintFolder (shouldn't happen if hasTimeline is true)
+  if (!blueprintFolder) {
+    return (
+      <EmptyState
+        title="Configuration Error"
+        description="Blueprint folder is not available. Please try selecting the build again."
+      />
+    );
+  }
+
   const duration = timeline.duration ?? 0;
 
   return (

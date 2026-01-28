@@ -6,7 +6,7 @@ import { existsSync } from "node:fs";
 import { promises as fs } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
-import { streamFileWithRange } from "../movies/stream-utils.js";
+import { streamFileWithRange } from "../shared/stream-utils.js";
 
 /**
  * Streams a blob file from a blueprint build.

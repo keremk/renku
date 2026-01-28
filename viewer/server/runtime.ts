@@ -29,7 +29,7 @@ export async function startViewerServer(options: ViewerServerOptions): Promise<V
     throw new Error(`Viewer assets not found at ${distDir}`);
   }
 
-  const apiHandler = createViewerApiHandler(options.rootFolder);
+  const apiHandler = createViewerApiHandler();
 
   const server = createServer(async (req, res) => {
     if (!req.url) {

@@ -371,25 +371,21 @@ renku generate --last --aid="AudioProducer.GeneratedAudio[2]" --inputs=./inputs.
 
 ### Open in Viewer
 
-Start the viewer and open a movie:
+Open the blueprint viewer:
 
 ```bash
-# Specific movie
-renku viewer:view --movie-id=movie-a1b2c3d4
+# Auto-detect blueprint in current directory
+renku viewer
 
-# Most recent movie
-renku viewer:view --last
+# Open a specific blueprint
+renku viewer ./path/to/blueprint.yaml
 ```
 
-### Background Viewer Server
+This starts the viewer server in the background if not already running, and opens the blueprint viewer in your browser where you can see the workflow graph, browse builds, and preview timelines.
 
-Start the viewer server in the background:
+### Stop the Viewer Server
 
-```bash
-renku viewer:start
-```
-
-Stop it when done:
+Stop the background viewer server when done:
 
 ```bash
 renku viewer:stop

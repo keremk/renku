@@ -4,7 +4,6 @@ import process from 'node:process';
 import { openBrowser } from '../lib/open-browser.js';
 import type { CliConfig } from '../lib/cli-config.js';
 import { getProjectLocalStorage, readCliConfig } from '../lib/cli-config.js';
-import { resolveTargetMovieId } from '../lib/movie-id-utils.js';
 import { resolveViewerBundlePaths } from '../lib/viewer-bundle.js';
 import {
   getViewerStatePath,
@@ -19,155 +18,22 @@ import {
   isViewerServerRunning,
 } from '../lib/viewer-network.js';
 
-export interface ViewerStartOptions {
+export interface ViewerOptions {
   host?: string;
   port?: number;
   logger?: Logger;
 }
 
-export interface ViewerViewOptions extends ViewerStartOptions {
-  movieId?: string;
-  useLast?: boolean;
-}
-
-export interface ViewerBlueprintOptions extends ViewerStartOptions {
-  blueprintPath?: string;
-  blueprintFolder?: string;
-  inputsPath?: string;
-  movieId?: string;
-  useLast?: boolean;
-}
-
-export async function runViewerStart(options: ViewerStartOptions = {}): Promise<void> {
+/**
+ * Unified viewer command that opens the blueprint viewer.
+ * Auto-detects blueprints in the current directory if no path is provided.
+ * Auto-starts the viewer server if not already running.
+ */
+export async function runViewer(
+  blueprintPath?: string,
+  options: ViewerOptions = {},
+): Promise<void> {
   const logger = options.logger ?? globalThis.console;
-  const cliConfig = await ensureInitializedConfig(logger);
-  if (!cliConfig) {
-    return;
-  }
-  const bundle = resolveViewerBundleOrExit(logger);
-  if (!bundle) {
-    return;
-  }
-  const network = await ensureViewerNetworkConfig(cliConfig, options);
-  const statePath = getViewerStatePath(cliConfig);
-
-  const existingState = await readViewerState(statePath);
-  if (existingState) {
-    const alive = await isViewerServerRunning(existingState.host, existingState.port);
-    if (alive) {
-      logger.error?.(
-        `A background viewer server is already running on http://${existingState.host}:${existingState.port}. Stop it first with "renku viewer:stop".`,
-      );
-      process.exitCode = 1;
-      return;
-    }
-    await removeViewerState(statePath);
-  }
-
-  if (await isViewerServerRunning(network.host, network.port)) {
-    logger.info?.(`Viewer server already running on http://${network.host}:${network.port}`);
-    return;
-  }
-
-  logger.info?.(`Starting viewer server at http://${network.host}:${network.port} (Ctrl+C to stop)`);
-  // Use project-local storage (cwd) to match generate behavior
-  const projectStorage = getProjectLocalStorage();
-  await launchViewerServer({
-    bundle,
-    rootFolder: projectStorage.root,
-    host: network.host,
-    port: network.port,
-    mode: 'foreground',
-  });
-}
-
-export async function runViewerView(options: ViewerViewOptions = {}): Promise<void> {
-  const logger = options.logger ?? globalThis.console;
-
-  // Validate mutual exclusivity
-  const usingLast = Boolean(options.useLast);
-  if (usingLast && options.movieId) {
-    logger.error?.('Error: Use either --last or --movie-id/--id, not both.');
-    process.exitCode = 1;
-    return;
-  }
-
-  const cliConfig = await ensureInitializedConfig(logger);
-  if (!cliConfig) {
-    return;
-  }
-
-  // Resolve movie ID using helper
-  let movieId: string;
-  try {
-    movieId = await resolveTargetMovieId({
-      explicitMovieId: options.movieId,
-      useLast: usingLast,
-      cliConfig,
-    });
-  } catch (error) {
-    logger.error?.(error instanceof Error ? error.message : String(error));
-    process.exitCode = 1;
-    return;
-  }
-  const bundle = resolveViewerBundleOrExit(logger);
-  if (!bundle) {
-    return;
-  }
-  const network = await ensureViewerNetworkConfig(cliConfig, options);
-  const statePath = getViewerStatePath(cliConfig);
-  let activeHost = network.host;
-  let activePort = network.port;
-
-  const recordedState = await readViewerState(statePath);
-  if (recordedState) {
-    const alive = await isViewerServerRunning(recordedState.host, recordedState.port);
-    if (alive) {
-      activeHost = recordedState.host;
-      activePort = recordedState.port;
-    } else {
-      await removeViewerState(statePath);
-    }
-  }
-
-  if (!(await isViewerServerRunning(activeHost, activePort))) {
-    logger.info?.('Viewer server is not running. Launching background instance...');
-    // Use project-local storage (cwd) to match generate behavior
-    const projectStorage = getProjectLocalStorage();
-    await launchViewerServer({
-      bundle,
-      rootFolder: projectStorage.root,
-      host: network.host,
-      port: network.port,
-      mode: 'background',
-      statePath,
-    });
-    activeHost = network.host;
-    activePort = network.port;
-    const ready = await waitForViewerServer(activeHost, activePort);
-    if (!ready) {
-      await removeViewerState(statePath);
-      logger.error?.('Viewer server failed to start in time. Check logs with "renku viewer:start".');
-      process.exitCode = 1;
-      return;
-    }
-  }
-
-  const targetUrl = `http://${activeHost}:${activePort}/movies/${encodeURIComponent(movieId)}`;
-  logger.info?.(`Opening viewer at ${targetUrl}`);
-  void openBrowser(targetUrl);
-}
-
-export async function runViewerBlueprint(options: ViewerBlueprintOptions): Promise<void> {
-  const logger = options.logger ?? globalThis.console;
-
-  // Validate mutual exclusivity
-  const usingLast = Boolean(options.useLast);
-  if (usingLast && options.movieId) {
-    logger.error?.('Error: Use either --last or --movie-id/--id, not both.');
-    process.exitCode = 1;
-    return;
-  }
 
   const cliConfig = await ensureInitializedConfig(logger);
   if (!cliConfig) {
@@ -175,24 +41,24 @@ export async function runViewerBlueprint(options: ViewerBlueprintOptions): Promi
   }
 
   // Resolve blueprint path - auto-detect if not provided
-  let blueprintPath = options.blueprintPath;
-  let blueprintFolder = options.blueprintFolder;
+  let resolvedBlueprintPath = blueprintPath;
+  let blueprintFolder: string | undefined;
 
-  if (!blueprintPath) {
+  if (!resolvedBlueprintPath) {
     const detected = await detectBlueprintInDirectory();
     if (!detected) {
       logger.error?.(
-        'No blueprint found in the current directory. Use --blueprint/--bp to specify a blueprint file.',
+        'No blueprint found in the current directory. Provide a blueprint path: renku viewer ./path/to/blueprint.yaml',
       );
       process.exitCode = 1;
       return;
     }
-    blueprintPath = detected.blueprintPath;
+    resolvedBlueprintPath = detected.blueprintPath;
     blueprintFolder = detected.blueprintFolder;
-    logger.info?.(`Auto-detected blueprint: ${blueprintPath}`);
-  } else if (!blueprintFolder) {
+    logger.info?.(`Auto-detected blueprint: ${resolvedBlueprintPath}`);
+  } else {
     // Derive folder from blueprint path
-    blueprintFolder = dirname(blueprintPath);
+    blueprintFolder = dirname(resolvedBlueprintPath);
   }
 
   const bundle = resolveViewerBundleOrExit(logger);
@@ -231,7 +97,7 @@ export async function runViewerBlueprint(options: ViewerBlueprintOptions): Promi
     const ready = await waitForViewerServer(activeHost, activePort);
     if (!ready) {
       await removeViewerState(statePath);
-      logger.error?.('Viewer server failed to start in time. Check logs with "renku viewer:start".');
+      logger.error?.('Viewer server failed to start in time.');
       process.exitCode = 1;
       return;
     }
@@ -241,21 +107,11 @@ export async function runViewerBlueprint(options: ViewerBlueprintOptions): Promi
   // e.g., "/path/to/blueprints/my-blueprint" -> "my-blueprint"
   const blueprintName = blueprintFolder
     ? basename(blueprintFolder)
-    : basename(dirname(blueprintPath));
+    : basename(dirname(resolvedBlueprintPath));
 
   // Build the URL with query parameters - use blueprint name, not full path
   const url = new URL(`http://${activeHost}:${activePort}/blueprints`);
   url.searchParams.set('bp', blueprintName);
-  if (options.inputsPath) {
-    // Extract just the filename for inputs (relative to blueprint folder)
-    url.searchParams.set('in', basename(options.inputsPath));
-  }
-  if (options.movieId) {
-    url.searchParams.set('movie', options.movieId);
-  }
-  if (usingLast) {
-    url.searchParams.set('last', '1');
-  }
 
   logger.info?.(`Opening blueprint viewer at ${url.toString()}`);
   void openBrowser(url.toString());

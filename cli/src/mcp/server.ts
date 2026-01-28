@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { stringify as stringifyYaml } from 'yaml';
 import type { Manifest } from '@gorenku/core';
 import { runGenerate, type GenerateResult } from '../commands/generate.js';
-import { runViewerView } from '../commands/viewer.js';
+import { runViewer } from '../commands/viewer.js';
 import { readCliConfig } from '../lib/cli-config.js';
 import { expandPath } from '../lib/path.js';
 
@@ -54,7 +54,7 @@ export interface CreateMcpServerOptions {
 
 export interface McpServerDeps {
   runGenerate?: typeof runGenerate;
-  runViewerView?: typeof runViewerView;
+  runViewer?: typeof runViewer;
   readCliConfig?: typeof readCliConfig;
 }
 
@@ -63,7 +63,7 @@ export function createMcpServer(
   deps: McpServerDeps = {},
 ): McpServer {
   const runGenerateImpl = deps.runGenerate ?? runGenerate;
-  const runViewerImpl = deps.runViewerView ?? runViewerView;
+  const runViewerImpl = deps.runViewer ?? runViewer;
   const readCliConfigImpl = deps.readCliConfig ?? readCliConfig;
 
   const movieStore = new MovieStorage(options.storageRoot, options.storageBasePath);
@@ -147,10 +147,14 @@ Before you start the generation, always provide a summary for what you are gener
       let viewerUrl: string | undefined;
       if (shouldOpenViewer) {
         try {
-          await runViewerImpl({ movieId: result.storageMovieId });
+          // Run the viewer with the resolved blueprint path
+          await runViewerImpl(resolvedBlueprint);
           const cfg = await readCliConfigImpl(options.cliConfigPath);
           if (cfg?.viewer?.host && cfg.viewer?.port) {
-            viewerUrl = `http://${cfg.viewer.host}:${cfg.viewer.port}/movies/${encodeURIComponent(result.storageMovieId)}`;
+            // Use blueprints route with movie parameter
+            const url = new URL(`http://${cfg.viewer.host}:${cfg.viewer.port}/blueprints`);
+            url.searchParams.set('movie', result.storageMovieId);
+            viewerUrl = url.toString();
           }
         } catch (error) {
           console.warn('Viewer launch failed:', error instanceof Error ? error.message : String(error));
@@ -171,7 +175,7 @@ Before you start the generation, always provide a summary for what you are gener
         `Movie ${result.movieId} created.`,
         viewerUrl
           ? `Open viewer: ${viewerUrl}`
-          : `Viewer not launched automatically. Run "renku viewer:view --movieId=${result.storageMovieId}" or start the viewer and open /movies/${result.storageMovieId}.`,
+          : `Viewer not launched automatically. Run "renku viewer" to open the blueprint viewer.`,
         `Timeline resource: ${timelineUri}`,
         `Inputs resource: ${inputsUri}`,
       ];

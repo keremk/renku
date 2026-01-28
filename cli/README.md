@@ -133,10 +133,10 @@ The CLI will:
 Open the viewer to preview your content:
 
 ```bash
-renku viewer:view --last
+renku viewer
 ```
 
-This starts a local server and opens your browser to preview the generated content.
+This auto-detects your blueprint, starts a local server if needed, and opens your browser to preview the generated content.
 
 ## Key Commands
 
@@ -158,11 +158,8 @@ This starts a local server and opens your browser to preview the generated conte
 
 ### Viewing Content
 
-- `renku viewer:start` - Start the viewer server
-- `renku viewer:view` - View generated content
-  - `--last` - View the most recent generation
-  - `--movieId=<id>` - View a specific movie
-- `renku viewer:stop` - Stop the viewer server
+- `renku viewer [path]` - Open the blueprint viewer (auto-detects in current directory if no path provided)
+- `renku viewer:stop` - Stop the background viewer server
 
 ### Blueprints
 

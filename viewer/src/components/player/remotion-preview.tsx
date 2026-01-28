@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef } from "react";
 import { Player, type PlayerRef, type CallbackListener } from "@remotion/player";
 import type { TimelineDocument, AssetMap } from "@gorenku/compositions/browser";
 import { DocumentaryComposition } from "@gorenku/compositions/browser";
-import { buildAssetUrl } from "@/data/client";
 import { buildBlueprintAssetUrl } from "@/data/blueprint-client";
 
 interface RemotionPreviewProps {
@@ -14,8 +13,8 @@ interface RemotionPreviewProps {
   onPlay?: () => void;
   onPause?: () => void;
   aspectRatio?: string;
-  /** Blueprint folder for asset fetching. If provided, uses the blueprints API. */
-  blueprintFolder?: string | null;
+  /** Blueprint folder for asset fetching (required). */
+  blueprintFolder: string;
 }
 
 const DEFAULT_ASPECT_RATIO = "16:9";
@@ -81,13 +80,10 @@ export const RemotionPreview = ({
     return Array.from(ids);
   }, [timeline.tracks]);
 
-  // Helper to build asset URL based on whether we have a blueprint folder
+  // Build asset URL using the blueprints API
   const getAssetUrl = useMemo(() => {
     return (assetId: string) => {
-      if (blueprintFolder) {
-        return buildBlueprintAssetUrl(blueprintFolder, movieId, assetId);
-      }
-      return buildAssetUrl(movieId, assetId);
+      return buildBlueprintAssetUrl(blueprintFolder, movieId, assetId);
     };
   }, [blueprintFolder, movieId]);
 

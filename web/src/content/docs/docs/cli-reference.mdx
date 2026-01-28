@@ -489,44 +489,40 @@ renku blueprints:validate ./my-blueprint.yaml
 
 ---
 
-### renku viewer:view
+### renku viewer
 
-Open the viewer for a movie.
+Open the blueprint viewer.
 
 **Usage:**
 ```bash
-renku viewer:view --movie-id=<id>
-renku viewer:view --last
+renku viewer [path/to/blueprint.yaml]
 ```
+
+**Arguments:**
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `[path]` | No | Path to blueprint YAML file. If not provided, auto-detects in current directory. |
 
 **Options:**
 
 | Option | Description |
 |--------|-------------|
-| `--movie-id`, `--id` | Movie ID to view |
-| `--last` | View the most recent movie |
 | `--viewerHost` | Override viewer host (optional) |
 | `--viewerPort` | Override viewer port (optional) |
 
 **Behavior:**
-- Starts the viewer server if not running
-- Opens the movie page in your browser
+- Auto-detects blueprints in the current directory if no path is provided
+- Starts the viewer server in background if not running
+- Opens the blueprint viewer in your browser
 
 **Examples:**
 ```bash
-renku viewer:view --movie-id=movie-a1b2c3d4
-renku viewer:view --last
-```
+# Auto-detect blueprint in current directory
+renku viewer
 
----
-
-### renku viewer:start
-
-Start the viewer server in the foreground.
-
-**Usage:**
-```bash
-renku viewer:start
+# Open a specific blueprint
+renku viewer ./my-blueprint.yaml
 ```
 
 ---

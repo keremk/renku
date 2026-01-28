@@ -2,16 +2,13 @@
  * Viewer API main router.
  *
  * This module provides the HTTP API for the viewer application.
- * It routes requests to appropriate handlers in the blueprints, builds,
- * movies, and generation modules.
+ * It routes requests to appropriate handlers in the blueprints and generation modules.
  */
 
 import type { IncomingMessage, ServerResponse } from "node:http";
-import path from "node:path";
 import type { Connect } from "vite";
 import { respondNotFound, respondMethodNotAllowed } from "./http-utils.js";
 import { handleBlueprintRequest } from "./blueprints/index.js";
-import { handleMoviesRequest } from "./movies/index.js";
 import {
   handlePlanRequest,
   handleExecuteRequest,
@@ -37,9 +34,7 @@ export type ViewerApiHandler = (req: IncomingMessage, res: ServerResponse) => Pr
 /**
  * Creates the main viewer API handler.
  */
-export function createViewerApiHandler(rootFolder: string): ViewerApiHandler {
-  const buildsRoot = path.resolve(rootFolder, "builds");
-
+export function createViewerApiHandler(): ViewerApiHandler {
   return async (req, res) => {
     if (!req.url) {
       return false;
@@ -63,9 +58,6 @@ export function createViewerApiHandler(rootFolder: string): ViewerApiHandler {
         case "generate":
           return handleGenerateRequest(req, res, segments.slice(1));
 
-        case "movies":
-          return handleMoviesRequest(req, res, buildsRoot, segments.slice(1));
-
         default:
           return respondNotFound(res);
       }
@@ -85,8 +77,8 @@ export function createViewerApiHandler(rootFolder: string): ViewerApiHandler {
 /**
  * Creates a Vite middleware adapter for the viewer API.
  */
-export function createViewerApiMiddleware(rootFolder: string): Connect.NextHandleFunction {
-  const handler = createViewerApiHandler(rootFolder);
+export function createViewerApiMiddleware(): Connect.NextHandleFunction {
+  const handler = createViewerApiHandler();
   return async (req, res, next) => {
     if (!req || !req.url || !req.url.startsWith("/viewer-api")) {
       next();

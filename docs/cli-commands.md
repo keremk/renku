@@ -68,7 +68,7 @@ renku generate \
 3. **View the result**:
 
 ```bash
-renku viewer:view --movie-id=movie-a1b2c3d4
+renku viewer
 ```
 
 ---
@@ -519,37 +519,37 @@ renku blueprints:validate {rootFolder}/catalog/blueprints/image-audio.yaml
 
 ---
 
-### `renku viewer:view`
+### `renku viewer`
 
-Open the viewer for a movie (starts the server if needed).
+Open the blueprint viewer (starts the server if needed).
 
 **Usage:**
 ```bash
-renku viewer:view --movie-id=<id>
-renku viewer:view --last
+renku viewer [path/to/blueprint.yaml]
 ```
 
+**Arguments:**
+- `[path]` (optional): Path to a blueprint YAML file. If not provided, auto-detects blueprints in the current directory.
+
 **Options:**
-- `--movie-id` / `--id` (mutually exclusive with `--last`): Movie ID to open
-- `--last` (mutually exclusive with `--movie-id`): Open the most recently generated movie
 - `--viewerHost`, `--viewerPort` (optional): Override host/port
 
 **Behavior:**
-- Starts the bundled viewer server if not running, then opens the movie page.
-- Displays timeline with images, audio, and composition.
-- If neither `--movie-id` nor `--last` is provided, displays an error.
+- Auto-detects blueprints in the current directory if no path is provided.
+- Starts the bundled viewer server in background if not running.
+- Opens the blueprint viewer in your browser.
+- Displays the blueprint graph, builds, and timeline preview.
 
 **Examples:**
 ```bash
-# View a specific movie
-renku viewer:view --movie-id=movie-q123456
+# Auto-detect blueprint in current directory
+renku viewer
 
-# View the most recent movie
-renku viewer:view --last
+# Open a specific blueprint
+renku viewer ./path/to/my-blueprint.yaml
 ```
 
 **Related commands:**
-- `renku viewer:start` — start the server in the foreground.
 - `renku viewer:stop` — stop the background server.
 
 ---
@@ -755,7 +755,7 @@ Continuing work on an existing movie uses the same `generate` command with a tar
 
 4. **Review:**
    - Artifacts are refreshed under `artifacts/movie-q123456/`.
-   - Use `renku viewer:view --movie-id=movie-q123456` to open the viewer.
+   - Use `renku viewer` to open the blueprint viewer.
 
 **Use Cases:**
 - Fix LLM-generated script errors by editing inputs and rerunning.

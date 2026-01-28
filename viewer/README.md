@@ -15,7 +15,7 @@ The Renku Viewer is a browser-based application for inspecting and playing back 
 - **Asset inspection** - Browse generated images, audio, video, and other artifacts
 - **Real-time preview** - See changes as you iterate on your content
 
-The viewer is automatically bundled with `@gorenku/cli` and served via `renku viewer:view` commands.
+The viewer is automatically bundled with `@gorenku/cli` and served via `renku viewer` commands.
 
 ## Technology Stack
 
@@ -101,34 +101,24 @@ The CLI expects `dist/` and `server-dist/bin.js` inside that folder.
 
 ## Production Usage (via CLI)
 
-### Start Viewer Server
+### Open Blueprint Viewer
 
 ```bash
-renku viewer:start
-```
-
-Starts the bundled server in the foreground using the stored host/port (defaults to `127.0.0.1:<available port>`). Press `Ctrl+C` to stop it.
-
-### View Specific Movie
-
-```bash
-renku viewer:view --movieId movie-123
+renku viewer
 ```
 
 This command:
-- Pings the viewer server
-- Launches it in the background if needed
-- Opens the browser at the correct `/movies/<id>` URL
+- Auto-detects blueprints in the current directory
+- Launches the viewer server in the background if needed
+- Opens the browser to the blueprint viewer
 
-Background servers are tracked in `<root>/config/viewer-server.json`.
-
-### View Last Generated Movie
+You can also specify a blueprint path:
 
 ```bash
-renku viewer:view --last
+renku viewer ./path/to/blueprint.yaml
 ```
 
-Automatically opens the most recently generated movie.
+Background servers are tracked in `<root>/config/viewer-server.json`.
 
 ### Stop Background Server
 
@@ -136,7 +126,7 @@ Automatically opens the most recently generated movie.
 renku viewer:stop
 ```
 
-Stops the background server spawned by `viewer:view`.
+Stops the background server spawned by `renku viewer`.
 
 ## Configuration
 
@@ -153,7 +143,7 @@ The CLI caches the chosen host/port inside `~/.config/renku/cli-config.json`:
 Override temporarily via CLI flags:
 
 ```bash
-renku viewer:start --viewerHost=localhost --viewerPort=8080
+renku viewer --viewerHost=localhost --viewerPort=8080
 ```
 
 ## Architecture
@@ -241,7 +231,7 @@ pnpm --filter viewer preview
 **Solution:** Change the port in `~/.config/renku/cli-config.json` or use the `--viewerPort` flag:
 
 ```bash
-renku viewer:start --viewerPort=8080
+renku viewer --viewerPort=8080
 ```
 
 ## Contributing

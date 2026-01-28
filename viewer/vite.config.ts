@@ -44,13 +44,7 @@ export default defineConfig(({ mode }) => {
         name: "renku-viewer-api",
         apply: "serve",
         configureServer(server) {
-          if (!viewerRoot) {
-            throw new Error(
-              '[viewer] RENKU_VIEWER_ROOT is not set. Set it in viewer/.env or run "renku init" so the config exists.',
-            )
-          }
-          console.log(`[viewer] Using builds root: ${viewerRoot}`)
-          server.middlewares.use(createViewerApiMiddleware(viewerRoot))
+          server.middlewares.use(createViewerApiMiddleware())
         },
       },
     ],

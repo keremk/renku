@@ -1,6 +1,5 @@
 import { startTransition, useEffect, useState } from "react";
 import { fetchBuildTimeline } from "@/data/blueprint-client";
-import { fetchTimeline } from "@/data/client";
 import type { TimelineDocument } from "@/types/timeline";
 
 type Status = "idle" | "loading" | "success" | "error";
@@ -18,35 +17,19 @@ const idleState: TimelineState = {
 };
 
 /**
- * Hook to fetch timeline data for a movie.
+ * Hook to fetch timeline data for a movie build.
  *
- * @param blueprintFolderOrMovieId - Either the blueprint folder (when using with movieId)
- *                                    or the movie ID alone (for backward compatibility with movies route)
- * @param movieId - The movie ID (optional, only needed when first param is blueprintFolder)
- *
- * Usage:
- * - useMovieTimeline(blueprintFolder, movieId) - Uses blueprints API with folder context
- * - useMovieTimeline(movieId) - Uses movies API with global viewer root (backward compat)
+ * @param blueprintFolder - The blueprint folder containing the build
+ * @param movieId - The movie/build ID
  */
 export function useMovieTimeline(
-  blueprintFolderOrMovieId: string | null,
-  movieId?: string | null
+  blueprintFolder: string | null,
+  movieId: string | null
 ): TimelineState {
   const [state, setState] = useState<TimelineState>(idleState);
 
-  // Determine which mode we're in based on argument count
-  const isLegacyMode = movieId === undefined;
-  const effectiveMovieId = isLegacyMode ? blueprintFolderOrMovieId : movieId;
-  const blueprintFolder = isLegacyMode ? null : blueprintFolderOrMovieId;
-
   useEffect(() => {
-    if (!effectiveMovieId) {
-      return;
-    }
-
-    // For legacy mode, we don't need blueprintFolder
-    // For new mode, we need both
-    if (!isLegacyMode && !blueprintFolder) {
+    if (!blueprintFolder || !movieId) {
       return;
     }
 
@@ -60,11 +43,7 @@ export function useMovieTimeline(
       }));
     });
 
-    const fetchPromise = isLegacyMode
-      ? fetchTimeline(effectiveMovieId)
-      : fetchBuildTimeline(blueprintFolder!, effectiveMovieId);
-
-    fetchPromise
+    fetchBuildTimeline(blueprintFolder, movieId)
       .then((data) => {
         if (cancelled) return;
         startTransition(() => {
@@ -89,11 +68,7 @@ export function useMovieTimeline(
     return () => {
       cancelled = true;
     };
-  }, [blueprintFolder, effectiveMovieId, isLegacyMode]);
+  }, [blueprintFolder, movieId]);
 
-  const shouldReturnIdle = isLegacyMode
-    ? !effectiveMovieId
-    : !blueprintFolder || !effectiveMovieId;
-
-  return shouldReturnIdle ? idleState : state;
+  return !blueprintFolder || !movieId ? idleState : state;
 }
