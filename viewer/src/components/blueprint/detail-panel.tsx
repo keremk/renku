@@ -2,6 +2,7 @@ import { useState } from "react";
 import { InputsPanel } from "./inputs-panel";
 import { ModelsPanel } from "./models-panel";
 import { OutputsPanel } from "./outputs-panel";
+import { PreviewPanel } from "./preview-panel";
 import type {
   BlueprintGraphData,
   InputTemplateData,
@@ -11,7 +12,7 @@ import type {
 import type { ArtifactInfo } from "@/types/builds";
 import type { ReactNode } from "react";
 
-type Tab = "inputs" | "models" | "outputs";
+type Tab = "inputs" | "models" | "outputs" | "preview";
 
 interface DetailPanelProps {
   graphData: BlueprintGraphData;
@@ -36,6 +37,8 @@ interface DetailPanelProps {
   modelSelections?: ModelSelectionValue[];
   /** Callback when models are saved */
   onSaveModels?: (models: ModelSelectionValue[]) => Promise<void>;
+  /** Whether a timeline artifact exists for the selected build */
+  hasTimeline?: boolean;
 }
 
 export function DetailPanel({
@@ -53,6 +56,7 @@ export function DetailPanel({
   producerModels = {},
   modelSelections = [],
   onSaveModels,
+  hasTimeline = false,
 }: DetailPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>("inputs");
 
@@ -76,6 +80,11 @@ export function DetailPanel({
             active={activeTab === "outputs"}
             onClick={() => setActiveTab("outputs")}
           />
+          <TabButton
+            label="Preview"
+            active={activeTab === "preview"}
+            onClick={() => setActiveTab("preview")}
+          />
         </div>
         {/* Action button area (right side of tabs) */}
         {actionButton && (
@@ -86,7 +95,7 @@ export function DetailPanel({
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-auto p-4">
+      <div className={`flex-1 overflow-auto ${activeTab === "preview" ? "" : "p-4"}`}>
         {activeTab === "inputs" && (
           <InputsPanel
             inputs={graphData.inputs}
@@ -117,6 +126,13 @@ export function DetailPanel({
             blueprintFolder={blueprintFolder}
             artifacts={artifacts}
             graphData={graphData}
+          />
+        )}
+        {activeTab === "preview" && (
+          <PreviewPanel
+            movieId={movieId}
+            blueprintFolder={blueprintFolder}
+            hasTimeline={hasTimeline}
           />
         )}
       </div>

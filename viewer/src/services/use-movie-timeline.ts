@@ -1,4 +1,5 @@
 import { startTransition, useEffect, useState } from "react";
+import { fetchBuildTimeline } from "@/data/blueprint-client";
 import { fetchTimeline } from "@/data/client";
 import type { TimelineDocument } from "@/types/timeline";
 
@@ -16,11 +17,36 @@ const idleState: TimelineState = {
   error: null,
 };
 
-export function useMovieTimeline(movieId: string | null): TimelineState {
+/**
+ * Hook to fetch timeline data for a movie.
+ *
+ * @param blueprintFolderOrMovieId - Either the blueprint folder (when using with movieId)
+ *                                    or the movie ID alone (for backward compatibility with movies route)
+ * @param movieId - The movie ID (optional, only needed when first param is blueprintFolder)
+ *
+ * Usage:
+ * - useMovieTimeline(blueprintFolder, movieId) - Uses blueprints API with folder context
+ * - useMovieTimeline(movieId) - Uses movies API with global viewer root (backward compat)
+ */
+export function useMovieTimeline(
+  blueprintFolderOrMovieId: string | null,
+  movieId?: string | null
+): TimelineState {
   const [state, setState] = useState<TimelineState>(idleState);
 
+  // Determine which mode we're in based on argument count
+  const isLegacyMode = movieId === undefined;
+  const effectiveMovieId = isLegacyMode ? blueprintFolderOrMovieId : movieId;
+  const blueprintFolder = isLegacyMode ? null : blueprintFolderOrMovieId;
+
   useEffect(() => {
-    if (!movieId) {
+    if (!effectiveMovieId) {
+      return;
+    }
+
+    // For legacy mode, we don't need blueprintFolder
+    // For new mode, we need both
+    if (!isLegacyMode && !blueprintFolder) {
       return;
     }
 
@@ -34,7 +60,11 @@ export function useMovieTimeline(movieId: string | null): TimelineState {
       }));
     });
 
-    fetchTimeline(movieId)
+    const fetchPromise = isLegacyMode
+      ? fetchTimeline(effectiveMovieId)
+      : fetchBuildTimeline(blueprintFolder!, effectiveMovieId);
+
+    fetchPromise
       .then((data) => {
         if (cancelled) return;
         startTransition(() => {
@@ -59,7 +89,11 @@ export function useMovieTimeline(movieId: string | null): TimelineState {
     return () => {
       cancelled = true;
     };
-  }, [movieId]);
+  }, [blueprintFolder, effectiveMovieId, isLegacyMode]);
 
-  return movieId ? state : idleState;
+  const shouldReturnIdle = isLegacyMode
+    ? !effectiveMovieId
+    : !blueprintFolder || !effectiveMovieId;
+
+  return shouldReturnIdle ? idleState : state;
 }

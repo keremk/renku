@@ -8,6 +8,8 @@ import path from "node:path";
 import { extractModelSelectionsFromInputs } from "@gorenku/core";
 import type { ArtifactInfo, BuildManifestResponse } from "./types.js";
 
+const TIMELINE_ARTEFACT_ID = "Artifact:TimelineComposer.Timeline";
+
 /**
  * Gets the manifest data for a specific build.
  */
@@ -123,4 +125,73 @@ export async function getBuildManifest(
   } catch {
     return emptyResponse;
   }
+}
+
+/**
+ * Gets the timeline data for a specific build.
+ */
+export async function getBuildTimeline(
+  blueprintFolder: string,
+  movieId: string,
+): Promise<unknown> {
+  const movieDir = path.join(blueprintFolder, "builds", movieId);
+  const currentPath = path.join(movieDir, "current.json");
+
+  if (!existsSync(currentPath)) {
+    throw new Error(`Build not found: ${movieId}`);
+  }
+
+  const currentContent = await fs.readFile(currentPath, "utf8");
+  const current = JSON.parse(currentContent) as {
+    manifestPath?: string | null;
+  };
+
+  if (!current.manifestPath) {
+    throw new Error(`Manifest not found for build: ${movieId}`);
+  }
+
+  const manifestPath = path.join(movieDir, current.manifestPath);
+  if (!existsSync(manifestPath)) {
+    throw new Error(`Manifest file not found for build: ${movieId}`);
+  }
+
+  const manifestContent = await fs.readFile(manifestPath, "utf8");
+  const manifest = JSON.parse(manifestContent) as {
+    artefacts?: Record<
+      string,
+      {
+        blob?: { hash: string; mimeType?: string };
+      }
+    >;
+  };
+
+  const artefact = manifest.artefacts?.[TIMELINE_ARTEFACT_ID];
+  if (!artefact?.blob?.hash) {
+    throw new Error(`Timeline artefact not found for build: ${movieId}`);
+  }
+
+  // Resolve the blob path
+  const hash = artefact.blob.hash;
+  const prefix = hash.slice(0, 2);
+  const blobsDir = path.join(movieDir, "blobs");
+
+  // Try different file extensions
+  const extensions = ["json", ""];
+  let timelinePath: string | null = null;
+
+  for (const ext of extensions) {
+    const fileName = ext ? `${hash}.${ext}` : hash;
+    const candidatePath = path.join(blobsDir, prefix, fileName);
+    if (existsSync(candidatePath)) {
+      timelinePath = candidatePath;
+      break;
+    }
+  }
+
+  if (!timelinePath) {
+    throw new Error(`Timeline blob not found for build: ${movieId}`);
+  }
+
+  const contents = await fs.readFile(timelinePath, "utf8");
+  return JSON.parse(contents);
 }

@@ -230,6 +230,14 @@ function WorkspaceLayoutInner({
   // Check if we have execution logs to show
   const hasExecutionLogs = state.executionLogs.length > 0;
 
+  // Check if the selected build has a timeline artifact
+  const hasTimeline = useMemo(() => {
+    const artefacts = selectedBuildManifest?.artefacts;
+    if (!artefacts) return false;
+    // Check for timeline artifact (id contains "Timeline")
+    return artefacts.some((a) => a.id.includes("Timeline"));
+  }, [selectedBuildManifest?.artefacts]);
+
   return (
     <div
       className="h-screen w-screen bg-background text-foreground p-4 flex flex-col"
@@ -272,6 +280,7 @@ function WorkspaceLayoutInner({
               producerModels={producerModels}
               modelSelections={parsedModelSelections}
               onSaveModels={handleSaveModels}
+              hasTimeline={hasTimeline}
             />
           </div>
         </div>

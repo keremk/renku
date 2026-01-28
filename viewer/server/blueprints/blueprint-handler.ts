@@ -4,12 +4,12 @@
 
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { respondNotFound, respondBadRequest, respondMethodNotAllowed } from "../http-utils.js";
-import { handleBuildsSubRoute, listBuilds, getBuildManifest } from "../builds/index.js";
+import { handleBuildsSubRoute, listBuilds, getBuildManifest, getBuildTimeline } from "../builds/index.js";
 import { parseBlueprintToGraph } from "./parse-handler.js";
 import { resolveBlueprintName } from "./resolve-handler.js";
 import { getProducerModelsFromBlueprint } from "./producer-models.js";
 import { parseInputsFile } from "./inputs-handler.js";
-import { streamBuildBlob } from "./blob-handler.js";
+import { streamBuildBlob, streamBuildAsset } from "./blob-handler.js";
 
 /**
  * Handles blueprint API requests.
@@ -19,6 +19,8 @@ import { streamBuildBlob } from "./blob-handler.js";
  *   GET  /blueprints/inputs?path=...
  *   GET  /blueprints/builds?folder=...
  *   GET  /blueprints/manifest?folder=...&movieId=...
+ *   GET  /blueprints/timeline?folder=...&movieId=...
+ *   GET  /blueprints/asset?folder=...&movieId=...&assetId=...
  *   GET  /blueprints/blob?folder=...&movieId=...&hash=...
  *   GET  /blueprints/resolve?name=...
  *   GET  /blueprints/producer-models?path=...&catalog=...
@@ -92,6 +94,29 @@ export async function handleBlueprintRequest(
       const manifestData = await getBuildManifest(folder, movieId);
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify(manifestData));
+      return true;
+    }
+
+    case "timeline": {
+      const folder = url.searchParams.get("folder");
+      const movieId = url.searchParams.get("movieId");
+      if (!folder || !movieId) {
+        return respondBadRequest(res, "Missing folder or movieId parameter");
+      }
+      const timelineData = await getBuildTimeline(folder, movieId);
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify(timelineData));
+      return true;
+    }
+
+    case "asset": {
+      const folder = url.searchParams.get("folder");
+      const movieId = url.searchParams.get("movieId");
+      const assetId = url.searchParams.get("assetId");
+      if (!folder || !movieId || !assetId) {
+        return respondBadRequest(res, "Missing folder, movieId, or assetId parameter");
+      }
+      await streamBuildAsset(req, res, folder, movieId, assetId);
       return true;
     }
 

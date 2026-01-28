@@ -3,6 +3,7 @@ import { Player, type PlayerRef, type CallbackListener } from "@remotion/player"
 import type { TimelineDocument, AssetMap } from "@gorenku/compositions/browser";
 import { DocumentaryComposition } from "@gorenku/compositions/browser";
 import { buildAssetUrl } from "@/data/client";
+import { buildBlueprintAssetUrl } from "@/data/blueprint-client";
 
 interface RemotionPreviewProps {
   movieId: string;
@@ -13,6 +14,8 @@ interface RemotionPreviewProps {
   onPlay?: () => void;
   onPause?: () => void;
   aspectRatio?: string;
+  /** Blueprint folder for asset fetching. If provided, uses the blueprints API. */
+  blueprintFolder?: string | null;
 }
 
 const DEFAULT_ASPECT_RATIO = "16:9";
@@ -27,6 +30,7 @@ export const RemotionPreview = ({
   onPlay,
   onPause,
   aspectRatio = DEFAULT_ASPECT_RATIO,
+  blueprintFolder,
 }: RemotionPreviewProps) => {
   const playerRef = useRef<PlayerRef>(null);
   const lastTimeRef = useRef<number>(currentTime);
@@ -77,13 +81,23 @@ export const RemotionPreview = ({
     return Array.from(ids);
   }, [timeline.tracks]);
 
+  // Helper to build asset URL based on whether we have a blueprint folder
+  const getAssetUrl = useMemo(() => {
+    return (assetId: string) => {
+      if (blueprintFolder) {
+        return buildBlueprintAssetUrl(blueprintFolder, movieId, assetId);
+      }
+      return buildAssetUrl(movieId, assetId);
+    };
+  }, [blueprintFolder, movieId]);
+
   const assetMap = useMemo<AssetMap>(() => {
     const map: AssetMap = {};
     for (const assetId of assetIds) {
-      map[assetId] = buildAssetUrl(movieId, assetId);
+      map[assetId] = getAssetUrl(assetId);
     }
     return map;
-  }, [assetIds, movieId]);
+  }, [assetIds, getAssetUrl]);
 
   // Prefetch media aggressively to reduce clip boundary stalls
   useEffect(() => {
@@ -92,7 +106,7 @@ export const RemotionPreview = ({
       await Promise.all(
         assetIds.map(async (assetId) => {
           try {
-            const resp = await fetch(buildAssetUrl(movieId, assetId), {
+            const resp = await fetch(getAssetUrl(assetId), {
               method: "GET",
               signal: controller.signal,
             });
@@ -106,7 +120,7 @@ export const RemotionPreview = ({
     };
     void prefetch();
     return () => controller.abort();
-  }, [assetIds, movieId]);
+  }, [assetIds, getAssetUrl]);
 
   useEffect(() => {
     if (!playerRef.current) {

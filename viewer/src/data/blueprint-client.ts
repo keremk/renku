@@ -5,6 +5,7 @@ import type {
   ModelSelectionValue,
 } from "@/types/blueprint-graph";
 import type { BuildsListResponse, BuildManifestResponse } from "@/types/builds";
+import type { TimelineDocument } from "@/types/timeline";
 
 const API_BASE = "/viewer-api";
 
@@ -200,4 +201,32 @@ export async function enableBuildEditing(
     const errorText = await response.text().catch(() => "Unknown error");
     throw new Error(`Failed to enable editing: ${errorText}`);
   }
+}
+
+/**
+ * Fetches the timeline for a specific build.
+ */
+export function fetchBuildTimeline(
+  blueprintFolder: string,
+  movieId: string
+): Promise<TimelineDocument> {
+  const url = new URL(`${API_BASE}/blueprints/timeline`, window.location.origin);
+  url.searchParams.set("folder", blueprintFolder);
+  url.searchParams.set("movieId", movieId);
+  return fetchJson<TimelineDocument>(url.toString());
+}
+
+/**
+ * Builds the URL for fetching an asset from a blueprint build.
+ */
+export function buildBlueprintAssetUrl(
+  blueprintFolder: string,
+  movieId: string,
+  assetId: string
+): string {
+  const url = new URL(`${API_BASE}/blueprints/asset`, window.location.origin);
+  url.searchParams.set("folder", blueprintFolder);
+  url.searchParams.set("movieId", movieId);
+  url.searchParams.set("assetId", assetId);
+  return url.toString();
 }
