@@ -4,7 +4,7 @@
  */
 
 import { ReactFlowProvider } from '@xyflow/react';
-import { BlueprintFlow } from './BlueprintFlow';
+import { BlueprintViewer } from './blueprint-viewer';
 import { ExecutionProgressPanel } from './execution-progress-panel';
 import { BlueprintLegend } from './blueprint-legend';
 import type { BottomPanelTab } from '@/hooks';
@@ -106,7 +106,7 @@ export function BottomTabbedPanel({
       <div className="flex-1 min-h-0 relative">
         {activeTab === 'blueprint' ? (
           <ReactFlowProvider>
-            <BlueprintFlow
+            <BlueprintViewer
               graphData={graphData}
               onNodeSelect={onNodeSelect}
               producerStatuses={producerStatuses}

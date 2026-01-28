@@ -3,7 +3,7 @@
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ModelsPanel } from './ModelsPanel';
+import { ModelsPanel } from './models-panel';
 import { isNestedSttSelection, isSpeechModelSelection } from './models/stt-helpers';
 import type {
   ModelSelectionValue,

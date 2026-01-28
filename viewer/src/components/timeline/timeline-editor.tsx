@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { TimelineDocument } from "@/types/timeline";
 import { calculateTimelineMetrics } from "@/lib/timeline-metrics";
-import { TrackHeaders } from "./TrackHeaders";
-import { TimelineContent } from "./TimelineContent";
+import { TrackHeaders } from "./track-headers";
+import { TimelineContent } from "./timeline-content";
 
 interface TimelineEditorProps {
   timeline: TimelineDocument;

@@ -13,10 +13,10 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import { InputNode } from "./nodes/InputNode";
-import { ProducerNode } from "./nodes/ProducerNode";
-import { OutputNode } from "./nodes/OutputNode";
-import { ConditionalEdge } from "./edges/ConditionalEdge";
+import { InputNode } from "./nodes/input-node";
+import { ProducerNode } from "./nodes/producer-node";
+import { OutputNode } from "./nodes/output-node";
+import { ConditionalEdge } from "./edges/conditional-edge";
 import { layoutBlueprintGraph } from "@/lib/blueprint-layout";
 import type { BlueprintGraphData } from "@/types/blueprint-graph";
 import type { ProducerStatusMap } from "@/types/generation";
@@ -31,17 +31,17 @@ const edgeTypes: EdgeTypes = {
   conditionalEdge: ConditionalEdge,
 };
 
-interface BlueprintFlowProps {
+interface BlueprintViewerProps {
   graphData: BlueprintGraphData;
   onNodeSelect?: (nodeId: string | null) => void;
   producerStatuses?: ProducerStatusMap;
 }
 
-export function BlueprintFlow({
+export function BlueprintViewer({
   graphData,
   onNodeSelect,
   producerStatuses,
-}: BlueprintFlowProps) {
+}: BlueprintViewerProps) {
   const { nodes: initialNodes, edges: initialEdges } = useMemo(
     () => layoutBlueprintGraph(graphData, undefined, producerStatuses),
     [graphData, producerStatuses]

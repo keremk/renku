@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { DetailPanel } from "./DetailPanel";
-import { BuildsListSidebar } from "./BuildsListSidebar";
+import { DetailPanel } from "./detail-panel";
+import { BuildsListSidebar } from "./builds-list-sidebar";
 import { RunButton } from "./run-button";
 import { PlanDialog } from "./plan-dialog";
 import { BottomTabbedPanel } from "./bottom-tabbed-panel";
@@ -15,7 +15,7 @@ import type {
 } from "@/types/blueprint-graph";
 import type { BuildInfo, BuildManifestResponse } from "@/types/builds";
 
-interface BlueprintViewerProps {
+interface WorkspaceLayoutProps {
   graphData: BlueprintGraphData;
   inputData: InputTemplateData | null;
   movieId: string | null;
@@ -47,7 +47,7 @@ const DEFAULT_BLUEPRINT_FLOW_PERCENT = 30;
 /**
  * Inner component that uses the execution context.
  */
-function BlueprintViewerInner({
+function WorkspaceLayoutInner({
   graphData,
   inputData,
   movieId,
@@ -60,7 +60,7 @@ function BlueprintViewerInner({
   selectedBuildId,
   selectedBuildManifest,
   onBuildsRefresh,
-}: BlueprintViewerProps) {
+}: WorkspaceLayoutProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -313,12 +313,12 @@ function BlueprintViewerInner({
 }
 
 /**
- * BlueprintViewer wrapped with ExecutionProvider.
+ * WorkspaceLayout wrapped with ExecutionProvider.
  */
-export function BlueprintViewer(props: BlueprintViewerProps) {
+export function WorkspaceLayout(props: WorkspaceLayoutProps) {
   return (
     <ExecutionProvider>
-      <BlueprintViewerInner {...props} />
+      <WorkspaceLayoutInner {...props} />
     </ExecutionProvider>
   );
 }

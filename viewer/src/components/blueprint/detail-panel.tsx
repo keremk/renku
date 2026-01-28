@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { InputsPanel } from "./InputsPanel";
-import { ModelsPanel } from "./ModelsPanel";
-import { OutputsPanel } from "./OutputsPanel";
+import { InputsPanel } from "./inputs-panel";
+import { ModelsPanel } from "./models-panel";
+import { OutputsPanel } from "./outputs-panel";
 import type {
   BlueprintGraphData,
   InputTemplateData,

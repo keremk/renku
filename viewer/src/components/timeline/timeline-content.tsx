@@ -1,5 +1,5 @@
-import { TimelineSlider } from "./TimelineSlider";
-import { TimelineTracks } from "./TimelineTracks";
+import { TimelineSlider } from "./timeline-slider";
+import { TimelineTracks } from "./timeline-tracks";
 import type { TimelineDocument } from "@/types/timeline";
 
 interface TimelineContentProps {

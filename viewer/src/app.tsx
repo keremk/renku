@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { RemotionPreview } from "@/components/player/RemotionPreview";
-import { TimelineEditor } from "@/components/timeline/TimelineEditor";
-import { BlueprintViewer } from "@/components/blueprint/BlueprintViewer";
+import { RemotionPreview } from "@/components/player/remotion-preview";
+import { TimelineEditor } from "@/components/timeline/timeline-editor";
+import { WorkspaceLayout } from "@/components/blueprint/workspace-layout";
 import { useMovieRoute } from "@/hooks/use-movie-route";
 import { useBlueprintRoute, isBlueprintRoute } from "@/hooks/use-blueprint-route";
 import { useMovieTimeline } from "@/services/use-movie-timeline";
@@ -76,7 +76,7 @@ function BlueprintApp() {
   }
 
   return (
-    <BlueprintViewer
+    <WorkspaceLayout
       graphData={graph}
       inputData={inputs}
       movieId={blueprintRoute.movieId}
