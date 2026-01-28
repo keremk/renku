@@ -74,7 +74,7 @@ export function ExecutionProgressPanel({ logs, isExecuting }: ExecutionProgressP
   };
 
   return (
-    <div className="h-full flex flex-col bg-card/30 font-mono text-xs">
+    <div className="absolute inset-0 flex flex-col bg-card/30 font-mono text-xs">
       {/* Log entries */}
       <div
         ref={scrollContainerRef}
