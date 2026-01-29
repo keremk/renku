@@ -33,6 +33,7 @@ export function convertTreeToGraph(root: BlueprintTreeNode): BlueprintGraphData 
     type: inp.type,
     required: inp.required,
     description: inp.description,
+    itemType: inp.itemType,
   }));
 
   // Convert outputs (artefacts)

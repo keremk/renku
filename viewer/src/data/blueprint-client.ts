@@ -230,3 +230,98 @@ export function buildBlueprintAssetUrl(
   url.searchParams.set("assetId", assetId);
   return url.toString();
 }
+
+// --- File upload API functions ---
+
+/**
+ * Information about an uploaded input file.
+ */
+export interface UploadedFileInfo {
+  filename: string;
+  originalName: string;
+  size: number;
+  mimeType: string;
+  fileRef: string;
+}
+
+/**
+ * Response from file upload endpoint.
+ */
+export interface UploadFilesResponse {
+  files: UploadedFileInfo[];
+  errors?: string[];
+}
+
+/**
+ * Supported media types for file inputs.
+ */
+export type MediaInputType = "image" | "video" | "audio";
+
+/**
+ * Uploads input files for a specific build.
+ * Returns file references that can be used in inputs.yaml.
+ */
+export async function uploadInputFiles(
+  blueprintFolder: string,
+  movieId: string,
+  files: File[],
+  inputType?: MediaInputType,
+): Promise<UploadFilesResponse> {
+  const url = new URL(`${API_BASE}/blueprints/builds/upload`, window.location.origin);
+  url.searchParams.set("folder", blueprintFolder);
+  url.searchParams.set("movieId", movieId);
+  if (inputType) {
+    url.searchParams.set("inputType", inputType);
+  }
+
+  const formData = new FormData();
+  for (const file of files) {
+    formData.append("files", file);
+  }
+
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    let errorMessage = `Upload failed (${response.status})`;
+    try {
+      const errorJson = JSON.parse(errorText);
+      if (errorJson.error) {
+        errorMessage = errorJson.error;
+      }
+    } catch {
+      errorMessage = errorText || errorMessage;
+    }
+    throw new Error(errorMessage);
+  }
+
+  return response.json() as Promise<UploadFilesResponse>;
+}
+
+/**
+ * Builds the URL for fetching an input file from a blueprint build.
+ */
+export function buildInputFileUrl(
+  blueprintFolder: string,
+  movieId: string,
+  filename: string,
+): string {
+  const url = new URL(`${API_BASE}/blueprints/input-file`, window.location.origin);
+  url.searchParams.set("folder", blueprintFolder);
+  url.searchParams.set("movieId", movieId);
+  url.searchParams.set("filename", filename);
+  return url.toString();
+}
+
+/**
+ * Extracts filename from a file reference (file:./input-files/filename).
+ * Returns null if the value is not a valid file reference.
+ */
+export function parseFileRef(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const match = value.match(/^file:\.\/input-files\/(.+)$/);
+  return match ? match[1] : null;
+}

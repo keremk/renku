@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { stringify as stringifyYaml } from 'yaml';
-import { loadInputsFromYaml } from './input-loader.js';
+import { loadInputsFromYaml, parseInputsForDisplay } from './input-loader.js';
 import { loadYamlBlueprintTree } from './blueprint-loader/yaml-parser.js';
 import { CATALOG_BLUEPRINTS_ROOT, CATALOG_ROOT, TEST_FIXTURES_ROOT } from '../../tests/catalog-paths.js';
 import type { BlueprintTreeNode } from '../types.js';
@@ -666,5 +666,137 @@ describe('input-loader edge cases', () => {
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
     expect(loaded.values['Input:Tags']).toEqual(['tag1', 'tag2', 'tag3']);
+  });
+});
+
+describe('parseInputsForDisplay', () => {
+  it('parses inputs without resolving file references', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-display-'));
+    const savedPath = join(workdir, 'inputs.yaml');
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {
+          Topic: 'Test topic',
+          Image: 'file:./input-files/image.png',
+        },
+      }),
+      'utf8',
+    );
+
+    const result = await parseInputsForDisplay(savedPath);
+
+    // File reference should remain as string, not resolved to BlobInput
+    expect(result.inputs.Topic).toBe('Test topic');
+    expect(result.inputs.Image).toBe('file:./input-files/image.png');
+    expect(typeof result.inputs.Image).toBe('string');
+  });
+
+  it('parses model selections', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-display-models-'));
+    const savedPath = join(workdir, 'inputs.yaml');
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: { Topic: 'Test' },
+        models: [
+          {
+            producerId: 'ScriptProducer',
+            provider: 'openai',
+            model: 'gpt-4o',
+            config: { temperature: 0.7 },
+          },
+        ],
+      }),
+      'utf8',
+    );
+
+    const result = await parseInputsForDisplay(savedPath);
+
+    expect(result.models).toHaveLength(1);
+    expect(result.models[0].producerId).toBe('ScriptProducer');
+    expect(result.models[0].provider).toBe('openai');
+    expect(result.models[0].model).toBe('gpt-4o');
+    expect(result.models[0].config).toEqual({ temperature: 0.7 });
+  });
+
+  it('handles empty inputs file', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-display-empty-'));
+    const savedPath = join(workdir, 'inputs.yaml');
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({}),
+      'utf8',
+    );
+
+    const result = await parseInputsForDisplay(savedPath);
+
+    expect(result.inputs).toEqual({});
+    expect(result.models).toEqual([]);
+  });
+
+  it('handles array inputs without modification', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-display-array-'));
+    const savedPath = join(workdir, 'inputs.yaml');
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {
+          Images: [
+            'file:./input-files/image1.png',
+            'file:./input-files/image2.png',
+          ],
+          Tags: ['tag1', 'tag2'],
+        },
+      }),
+      'utf8',
+    );
+
+    const result = await parseInputsForDisplay(savedPath);
+
+    // Array values should be preserved as-is
+    expect(result.inputs.Images).toEqual([
+      'file:./input-files/image1.png',
+      'file:./input-files/image2.png',
+    ]);
+    expect(result.inputs.Tags).toEqual(['tag1', 'tag2']);
+  });
+
+  it('handles nested objects in inputs', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-display-nested-'));
+    const savedPath = join(workdir, 'inputs.yaml');
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {
+          Config: {
+            width: 1920,
+            height: 1080,
+            format: 'mp4',
+          },
+        },
+      }),
+      'utf8',
+    );
+
+    const result = await parseInputsForDisplay(savedPath);
+
+    expect(result.inputs.Config).toEqual({
+      width: 1920,
+      height: 1080,
+      format: 'mp4',
+    });
+  });
+
+  it('rejects non-YAML files', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-display-invalid-'));
+    const invalidPath = join(workdir, 'inputs.json');
+
+    await expect(parseInputsForDisplay(invalidPath)).rejects.toThrow(/must be YAML/);
   });
 });

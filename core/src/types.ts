@@ -218,6 +218,8 @@ export interface BlueprintInputDefinition {
   required: boolean;
   description?: string;
   fanIn?: boolean;
+  /** For array types, the type of items in the array */
+  itemType?: string;
 }
 
 /**

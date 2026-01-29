@@ -4,7 +4,7 @@
 
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { respondNotFound, respondBadRequest, respondMethodNotAllowed } from "../http-utils.js";
-import { handleBuildsSubRoute, listBuilds, getBuildManifest, getBuildTimeline } from "../builds/index.js";
+import { handleBuildsSubRoute, listBuilds, getBuildManifest, getBuildTimeline, streamInputFile } from "../builds/index.js";
 import { parseBlueprintToGraph } from "./parse-handler.js";
 import { resolveBlueprintName } from "./resolve-handler.js";
 import { getProducerModelsFromBlueprint } from "./producer-models.js";
@@ -24,6 +24,7 @@ import { streamBuildBlob, streamBuildAsset } from "./blob-handler.js";
  *   GET  /blueprints/blob?folder=...&movieId=...&hash=...
  *   GET  /blueprints/resolve?name=...
  *   GET  /blueprints/producer-models?path=...&catalog=...
+ *   GET  /blueprints/input-file?folder=...&movieId=...&filename=...
  *   POST /blueprints/builds/create
  *   GET  /blueprints/builds/inputs?folder=...&movieId=...&blueprintPath=...
  *   PUT  /blueprints/builds/inputs
@@ -157,6 +158,17 @@ export async function handleBlueprintRequest(
       const producerModels = await getProducerModelsFromBlueprint(blueprintPath, catalogRoot);
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify(producerModels));
+      return true;
+    }
+
+    case "input-file": {
+      const folder = url.searchParams.get("folder");
+      const movieId = url.searchParams.get("movieId");
+      const filename = url.searchParams.get("filename");
+      if (!folder || !movieId || !filename) {
+        return respondBadRequest(res, "Missing folder, movieId, or filename parameter");
+      }
+      await streamInputFile(req, res, folder, movieId, filename);
       return true;
     }
 

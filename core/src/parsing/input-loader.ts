@@ -21,6 +21,7 @@ import type {
   ProducerModelVariant,
 } from '../types.js';
 import { isBlobInput } from '../types.js';
+import type { SerializableModelSelection } from './input-serializer.js';
 
 export type InputMap = Record<string, unknown>;
 
@@ -129,6 +130,45 @@ function validateYamlExtension(filePath: string): void {
     `Input files must be YAML (*.yaml or *.yml). Received: ${filePath}`,
     { filePath },
   );
+}
+
+/**
+ * Result from parseInputsForDisplay - for UI display without file resolution.
+ */
+export interface DisplayInputs {
+  inputs: Record<string, unknown>;
+  models: SerializableModelSelection[];
+}
+
+/**
+ * Parses inputs.yaml for display purposes without resolving file references.
+ * File references like "file:./input-files/..." are preserved as strings.
+ *
+ * Use this for UI display where:
+ * - The frontend extracts filenames from file references
+ * - The frontend builds streaming URLs for actual file content
+ * - File content is served separately via streamInputFile() endpoint
+ *
+ * This is different from loadInputsFromYaml() which resolves file references
+ * to BlobInput objects for execution purposes.
+ */
+export async function parseInputsForDisplay(filePath: string): Promise<DisplayInputs> {
+  validateYamlExtension(filePath);
+  const content = await readFile(filePath, 'utf8');
+  const parsed = parseYaml(content) as {
+    inputs?: Record<string, unknown>;
+    models?: Array<{ producerId: string; provider: string; model: string; config?: Record<string, unknown> }>;
+  };
+
+  const inputs = parsed.inputs ?? {};
+  const models: SerializableModelSelection[] = (parsed.models ?? []).map((m) => ({
+    producerId: m.producerId,
+    provider: m.provider,
+    model: m.model,
+    config: m.config,
+  }));
+
+  return { inputs, models };
 }
 
 function resolveInputSection(raw: RawInputsFile): Record<string, unknown> {

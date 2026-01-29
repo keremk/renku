@@ -9,11 +9,13 @@ import { createBuild } from "./create-handler.js";
 import { getBuildInputs, saveBuildInputs } from "./inputs-handler.js";
 import { updateBuildMetadata } from "./metadata-handler.js";
 import { enableBuildEditing } from "./enable-editing-handler.js";
+import { handleFileUpload } from "./upload-handler.js";
 import type {
   CreateBuildRequest,
   BuildInputsRequest,
   BuildMetadataRequest,
   EnableEditingRequest,
+  MediaInputType,
 } from "./types.js";
 
 /**
@@ -25,6 +27,7 @@ import type {
  *   PUT  /blueprints/builds/inputs
  *   PUT  /blueprints/builds/metadata
  *   POST /blueprints/builds/enable-editing
+ *   POST /blueprints/builds/upload?folder=...&movieId=...&inputType=...
  */
 export async function handleBuildsSubRoute(
   req: IncomingMessage,
@@ -99,6 +102,20 @@ export async function handleBuildsSubRoute(
       await enableBuildEditing(body.blueprintFolder, body.movieId);
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify({ success: true }));
+      return true;
+    }
+
+    case "upload": {
+      if (req.method !== "POST") {
+        return respondMethodNotAllowed(res);
+      }
+      const folder = url.searchParams.get("folder");
+      const movieId = url.searchParams.get("movieId");
+      const inputType = url.searchParams.get("inputType") as MediaInputType | null;
+      if (!folder || !movieId) {
+        return respondBadRequest(res, "Missing folder or movieId parameter");
+      }
+      await handleFileUpload(req, res, folder, movieId, inputType ?? undefined);
       return true;
     }
 

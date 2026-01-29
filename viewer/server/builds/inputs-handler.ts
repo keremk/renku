@@ -6,23 +6,25 @@ import { existsSync } from "node:fs";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import {
-  loadYamlBlueprintTree,
-  loadInputsFromYaml,
+  parseInputsForDisplay,
   serializeInputsToYaml,
-  toSerializableModelSelection,
   type SerializableModelSelection,
 } from "@gorenku/core";
 import type { BuildInputsResponse } from "./types.js";
 
 /**
- * Gets the inputs.yaml content for a build, parsed using core's loadInputsFromYaml.
- * Returns structured JSON instead of raw YAML content.
+ * Gets the inputs.yaml content for a build using core's parseInputsForDisplay.
+ * Returns structured JSON with file references preserved as strings for UI display.
+ * The frontend uses these strings to build streaming URLs for actual file content.
+ *
+ * Note: _blueprintPath and _catalogRoot are kept for API compatibility but no longer
+ * used since parseInputsForDisplay doesn't require blueprint validation context.
  */
 export async function getBuildInputs(
   blueprintFolder: string,
   movieId: string,
-  blueprintPath: string,
-  catalogRoot?: string,
+  _blueprintPath: string,
+  _catalogRoot?: string,
 ): Promise<BuildInputsResponse> {
   const inputsPath = path.join(blueprintFolder, "builds", movieId, "inputs.yaml");
 
@@ -32,21 +34,8 @@ export async function getBuildInputs(
   }
 
   try {
-    // Load blueprint tree for validation context
-    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
-
-    // Parse inputs using core's loader
-    const loaded = await loadInputsFromYaml(inputsPath, blueprint);
-
-    // Convert model selections to serializable form (strip runtime fields)
-    const models = loaded.modelSelections.map(toSerializableModelSelection);
-
-    // Strip "Input:" prefix from keys for client consumption
-    const inputs: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(loaded.values)) {
-      const cleanKey = key.startsWith("Input:") ? key.slice(6) : key;
-      inputs[cleanKey] = value;
-    }
+    // Parse inputs using core's display parser (preserves file references as strings)
+    const { inputs, models } = await parseInputsForDisplay(inputsPath);
 
     return {
       inputs,
@@ -54,7 +43,6 @@ export async function getBuildInputs(
       inputsPath,
     };
   } catch (error) {
-    // If parsing fails, return empty data
     console.error("[builds] Failed to parse build inputs:", error);
     return { inputs: {}, models: [], inputsPath };
   }

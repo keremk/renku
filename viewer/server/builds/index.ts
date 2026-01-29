@@ -15,6 +15,9 @@ export type {
   BuildsListResponse,
   ArtifactInfo,
   BuildManifestResponse,
+  UploadedFileInfo,
+  UploadFilesResponse,
+  MediaInputType,
 } from "./types.js";
 
 // Handlers
@@ -25,3 +28,4 @@ export { enableBuildEditing } from "./enable-editing-handler.js";
 export { listBuilds } from "./list-handler.js";
 export { getBuildManifest, getBuildTimeline } from "./manifest-handler.js";
 export { handleBuildsSubRoute } from "./builds-handler.js";
+export { handleFileUpload, streamInputFile } from "./upload-handler.js";

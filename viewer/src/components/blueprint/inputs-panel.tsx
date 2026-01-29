@@ -3,6 +3,7 @@ import type { BlueprintInputDef } from "@/types/blueprint-graph";
 import { PanelHeader, EnableEditingBanner } from "./shared";
 import { formatValueAsString } from "./inputs/input-registry";
 import { DefaultTextEditor } from "./inputs/default-text-editor";
+import { FileInputEditor, isFileInputType } from "./inputs/file-input-editor";
 import type { InputEditorProps } from "./inputs/input-registry";
 
 interface InputValue {
@@ -22,6 +23,10 @@ interface InputsPanelProps {
   canEnableEditing?: boolean;
   /** Callback to enable editing for this build */
   onEnableEditing?: () => Promise<void>;
+  /** Blueprint folder path for file uploads */
+  blueprintFolder?: string | null;
+  /** Movie ID for the current build */
+  movieId?: string | null;
 }
 
 export function InputsPanel({
@@ -32,6 +37,8 @@ export function InputsPanel({
   onSave,
   canEnableEditing = false,
   onEnableEditing,
+  blueprintFolder = null,
+  movieId = null,
 }: InputsPanelProps) {
   const [isEnabling, setIsEnabling] = useState(false);
 
@@ -163,6 +170,8 @@ export function InputsPanel({
             isSelected={isSelected}
             isEditable={isEditable}
             onChange={(newValue) => handleValueChange(input.name, newValue)}
+            blueprintFolder={blueprintFolder}
+            movieId={movieId}
           />
         );
       })}
@@ -176,6 +185,8 @@ interface InputCardProps {
   isSelected: boolean;
   isEditable: boolean;
   onChange: (value: unknown) => void;
+  blueprintFolder: string | null;
+  movieId: string | null;
 }
 
 function InputCard({
@@ -184,6 +195,8 @@ function InputCard({
   isSelected,
   isEditable,
   onChange,
+  blueprintFolder,
+  movieId,
 }: InputCardProps) {
   const editorProps: InputEditorProps = {
     input,
@@ -191,6 +204,9 @@ function InputCard({
     onChange,
     isEditable,
   };
+
+  // Check if this is a file input type
+  const isFileType = isFileInputType(input.type, input.itemType);
 
   return (
     <div
@@ -224,7 +240,15 @@ function InputCard({
 
         {/* Right column: editor component */}
         <div className="min-w-0">
-          <InputEditor inputName={input.name} editorProps={editorProps} />
+          {isFileType ? (
+            <FileInputEditor
+              {...editorProps}
+              blueprintFolder={blueprintFolder}
+              movieId={movieId}
+            />
+          ) : (
+            <InputEditor inputName={input.name} editorProps={editorProps} />
+          )}
         </div>
       </div>
     </div>

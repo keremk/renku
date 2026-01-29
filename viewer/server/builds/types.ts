@@ -111,3 +111,31 @@ export interface BuildManifestResponse {
   artefacts: ArtifactInfo[];
   createdAt: string | null;
 }
+
+/**
+ * Information about an uploaded input file.
+ */
+export interface UploadedFileInfo {
+  /** Generated filename stored on disk */
+  filename: string;
+  /** Original filename from upload */
+  originalName: string;
+  /** File size in bytes */
+  size: number;
+  /** MIME type of the file */
+  mimeType: string;
+  /** File reference for use in inputs.yaml (file:./input-files/filename) */
+  fileRef: string;
+}
+
+/**
+ * Response from POST /blueprints/builds/upload
+ */
+export interface UploadFilesResponse {
+  files: UploadedFileInfo[];
+}
+
+/**
+ * Supported media types for file inputs.
+ */
+export type MediaInputType = "image" | "video" | "audio";

@@ -134,6 +134,8 @@ export function DetailPanel({
             onSave={onSaveInputs}
             canEnableEditing={canEnableEditing}
             onEnableEditing={onEnableEditing}
+            blueprintFolder={blueprintFolder}
+            movieId={movieId}
           />
         )}
         {activeTab === "models" && (

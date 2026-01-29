@@ -340,6 +340,7 @@ function parseInput(raw: unknown): BlueprintInputDefinition {
   const type = readString(input, 'type');
   const required = input.required === false ? false : true;
   const description = typeof input.description === 'string' ? input.description : undefined;
+  const itemType = typeof input.itemType === 'string' ? input.itemType : undefined;
   // Note: default values are no longer parsed here - model JSON schemas are the source of truth
   return {
     name,
@@ -347,6 +348,7 @@ function parseInput(raw: unknown): BlueprintInputDefinition {
     required,
     description,
     fanIn: input.fanIn === true,
+    itemType,
   };
 }
 
