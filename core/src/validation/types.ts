@@ -119,6 +119,7 @@ export type ValidationErrorCodeValue =
  */
 export const VALID_INPUT_TYPES = new Set([
   'string',
+  'text', // Long-form text content (prompts, descriptions)
   'int',
   'integer',
   'number',

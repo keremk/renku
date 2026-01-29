@@ -40,6 +40,7 @@ import {
   sortProducersByTopology,
 } from "@/lib/artifact-utils";
 import { useExecution } from "@/contexts/execution-context";
+import { MediaCard, MediaGrid } from "./shared";
 import type { BlueprintOutputDef, BlueprintGraphData } from "@/types/blueprint-graph";
 import type { ArtifactInfo } from "@/types/builds";
 
@@ -192,7 +193,7 @@ function ArtifactGallery({
             onSelectAll={handleSelectAll}
             defaultOpen
           >
-            <ArtifactGrid>
+            <MediaGrid>
               {producerArtifacts.map((artifact) => {
                 const isSelected = isArtifactSelected(artifact.id);
                 return (
@@ -205,7 +206,7 @@ function ArtifactGallery({
                   />
                 );
               })}
-            </ArtifactGrid>
+            </MediaGrid>
           </ProducerArtifactSection>
         );
       })}
@@ -342,49 +343,8 @@ function ProducerArtifactSection({
 }
 
 // ============================================================================
-// Responsive Grid
+// Card Footer (for artifacts)
 // ============================================================================
-
-function ArtifactGrid({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      {children}
-    </div>
-  );
-}
-
-// ============================================================================
-// Card Components
-// ============================================================================
-
-function ArtifactCard({
-  children,
-  footer,
-  className,
-  isSelected = false,
-}: {
-  children: React.ReactNode;
-  footer: React.ReactNode;
-  className?: string;
-  isSelected?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "rounded-xl border bg-card overflow-hidden flex flex-col transition-all",
-        isSelected
-          ? "border-primary bg-primary/5 ring-1 ring-primary/30"
-          : "border-border",
-        className
-      )}
-    >
-      <div className="flex-1 min-h-0">{children}</div>
-      <div className="border-t border-border bg-muted/50 px-3 py-2 flex items-center justify-between gap-2">
-        {footer}
-      </div>
-    </div>
-  );
-}
 
 function CardFooter({
   artifactId,
@@ -487,7 +447,7 @@ function VideoCard({
 
   return (
     <>
-      <ArtifactCard
+      <MediaCard
         isSelected={isSelected}
         footer={
           <CardFooter
@@ -509,7 +469,7 @@ function VideoCard({
             Your browser does not support the video tag.
           </video>
         </div>
-      </ArtifactCard>
+      </MediaCard>
 
       <MediaDialog
         open={isExpanded}
@@ -548,7 +508,7 @@ function AudioCard({
   const displayName = shortenArtifactDisplayName(artifact.id);
 
   return (
-    <ArtifactCard
+    <MediaCard
       isSelected={isSelected}
       footer={
         <CardFooter
@@ -567,7 +527,7 @@ function AudioCard({
           Your browser does not support the audio element.
         </audio>
       </div>
-    </ArtifactCard>
+    </MediaCard>
   );
 }
 
@@ -592,7 +552,7 @@ function ImageCard({
 
   return (
     <>
-      <ArtifactCard
+      <MediaCard
         isSelected={isSelected}
         footer={
           <CardFooter
@@ -619,7 +579,7 @@ function ImageCard({
             <Maximize2 className="size-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         </button>
-      </ArtifactCard>
+      </MediaCard>
 
       <MediaDialog
         open={isExpanded}
@@ -692,7 +652,7 @@ function TextCard({
 
   return (
     <>
-      <ArtifactCard
+      <MediaCard
         isSelected={isSelected}
         footer={
           <CardFooter
@@ -724,7 +684,7 @@ function TextCard({
             </>
           )}
         </button>
-      </ArtifactCard>
+      </MediaCard>
 
       <Dialog open={isExpanded} onOpenChange={setIsExpanded}>
         <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
@@ -758,7 +718,7 @@ function GenericCard({
   const selected = isArtifactSelected(artifact.id);
 
   return (
-    <ArtifactCard
+    <MediaCard
       isSelected={isSelected}
       footer={
         <>
@@ -788,7 +748,7 @@ function GenericCard({
           {formatFileSize(artifact.size)}
         </span>
       </div>
-    </ArtifactCard>
+    </MediaCard>
   );
 }
 

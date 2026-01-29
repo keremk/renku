@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { InputsPanel } from "./inputs-panel";
 import { ModelsPanel } from "./models-panel";
 import { OutputsPanel } from "./outputs-panel";
 import { PreviewPanel } from "./preview-panel";
+import { ReadOnlyIndicator } from "./shared";
 import type {
   BlueprintGraphData,
   InputTemplateData,
@@ -89,6 +90,22 @@ export function DetailPanel({
   const activeTab = controlledActiveTab ?? internalActiveTab;
   const setActiveTab = onTabChange ?? setInternalActiveTab;
 
+  // Handle enable editing state
+  const [isEnabling, setIsEnabling] = useState(false);
+
+  const handleEnableEditing = useCallback(async () => {
+    if (!onEnableEditing) return;
+    setIsEnabling(true);
+    try {
+      await onEnableEditing();
+    } finally {
+      setIsEnabling(false);
+    }
+  }, [onEnableEditing]);
+
+  // Show read-only indicator when not editable but can enable editing
+  const showReadOnlyIndicator = !isInputsEditable && canEnableEditing;
+
   return (
     <div className="flex flex-col h-full bg-card rounded-xl border border-border/60 overflow-hidden">
       {/* Tab buttons */}
@@ -115,12 +132,17 @@ export function DetailPanel({
             onClick={() => setActiveTab("preview")}
           />
         </div>
-        {/* Action button area (right side of tabs) */}
-        {actionButton && (
-          <div className="ml-auto pr-3">
-            {actionButton}
-          </div>
-        )}
+
+        {/* Right side: read-only indicator and action button */}
+        <div className="ml-auto flex items-center gap-2 pr-3">
+          {showReadOnlyIndicator && (
+            <ReadOnlyIndicator
+              onEnableEditing={handleEnableEditing}
+              isEnabling={isEnabling}
+            />
+          )}
+          {actionButton}
+        </div>
       </div>
 
       {/* Tab content */}
@@ -132,8 +154,6 @@ export function DetailPanel({
             selectedNodeId={selectedNodeId}
             isEditable={isInputsEditable}
             onSave={onSaveInputs}
-            canEnableEditing={canEnableEditing}
-            onEnableEditing={onEnableEditing}
             blueprintFolder={blueprintFolder}
             movieId={movieId}
           />

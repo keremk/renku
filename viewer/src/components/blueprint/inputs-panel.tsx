@@ -1,10 +1,23 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { Loader2 } from "lucide-react";
 import type { BlueprintInputDef } from "@/types/blueprint-graph";
-import { PanelHeader, EnableEditingBanner } from "./shared";
-import { formatValueAsString } from "./inputs/input-registry";
+import { CollapsibleSection, MediaGrid } from "./shared";
 import { DefaultTextEditor } from "./inputs/default-text-editor";
-import { FileInputEditor, isFileInputType } from "./inputs/file-input-editor";
+import { MediaInputCard, AddMediaCard } from "./inputs/media-input-card";
+import { TextInputCard } from "./inputs/text-input-card";
+import { FileUploadDialog } from "./inputs/file-upload-dialog";
 import type { InputEditorProps } from "./inputs/input-registry";
+import { useAutoSave } from "@/hooks/use-auto-save";
+import {
+  categorizeInputs,
+  getMediaTypeFromInput,
+  type MediaType,
+} from "@/lib/input-utils";
+import {
+  uploadInputFiles,
+  parseFileRef,
+  type MediaInputType,
+} from "@/data/blueprint-client";
 
 interface InputValue {
   name: string;
@@ -19,10 +32,6 @@ interface InputsPanelProps {
   isEditable?: boolean;
   /** Callback when inputs are saved */
   onSave?: (values: Record<string, unknown>) => Promise<void>;
-  /** Whether editing can be enabled for this build (build exists but no inputs.yaml) */
-  canEnableEditing?: boolean;
-  /** Callback to enable editing for this build */
-  onEnableEditing?: () => Promise<void>;
   /** Blueprint folder path for file uploads */
   blueprintFolder?: string | null;
   /** Movie ID for the current build */
@@ -35,95 +44,63 @@ export function InputsPanel({
   selectedNodeId,
   isEditable = false,
   onSave,
-  canEnableEditing = false,
-  onEnableEditing,
   blueprintFolder = null,
   movieId = null,
 }: InputsPanelProps) {
-  const [isEnabling, setIsEnabling] = useState(false);
-
-  // Handle enable editing
-  const handleEnableEditing = useCallback(async () => {
-    if (!onEnableEditing) return;
-    setIsEnabling(true);
-    try {
-      await onEnableEditing();
-    } finally {
-      setIsEnabling(false);
-    }
-  }, [onEnableEditing]);
   // Create a map of input values by name
   const initialValueMap = useMemo(() => {
-    const map = new Map<string, unknown>();
+    const map: Record<string, unknown> = {};
     for (const iv of inputValues) {
-      map.set(iv.name, iv.value);
+      map[iv.name] = iv.value;
     }
     return map;
   }, [inputValues]);
 
-  // Track edit values locally
-  const [editValues, setEditValues] = useState<Record<string, unknown>>({});
-  const [isSaving, setIsSaving] = useState(false);
+  // Track all input values locally
+  const [allValues, setAllValues] = useState<Record<string, unknown>>(initialValueMap);
 
-  // Reset edit values when input values change (e.g., build selection change)
+  // Reset values when input values change (e.g., build selection change)
   useEffect(() => {
-    setEditValues({});
-  }, [inputValues]);
+    setAllValues(initialValueMap);
+  }, [initialValueMap]);
 
-  // Compute if there are unsaved changes
-  const isDirty = useMemo(() => {
-    for (const [name, value] of Object.entries(editValues)) {
-      const originalValue = initialValueMap.get(name);
-      if (formatValueAsString(value) !== formatValueAsString(originalValue)) {
-        return true;
+  // Handle save with auto-save
+  const handleSave = useCallback(
+    async (values: Record<string, unknown>) => {
+      if (onSave) {
+        await onSave(values);
       }
-    }
-    return false;
-  }, [editValues, initialValueMap]);
+    },
+    [onSave]
+  );
 
-  // Get the current value for an input (edited or original)
+  // Auto-save hook
+  const { isSaving } = useAutoSave({
+    data: allValues,
+    onSave: handleSave,
+    debounceMs: 1000,
+    enabled: isEditable && !!onSave,
+    initialData: initialValueMap,
+  });
+
+  // Get the current value for an input
   const getValue = useCallback(
     (name: string): unknown => {
-      if (name in editValues) {
-        return editValues[name];
-      }
-      return initialValueMap.get(name);
+      return allValues[name];
     },
-    [editValues, initialValueMap]
+    [allValues]
   );
 
   // Handle value change
   const handleValueChange = useCallback((name: string, value: unknown) => {
-    setEditValues((prev) => ({
+    setAllValues((prev) => ({
       ...prev,
       [name]: value,
     }));
   }, []);
 
-  // Handle save
-  const handleSave = useCallback(async () => {
-    if (!onSave || !isDirty) return;
-
-    setIsSaving(true);
-    try {
-      // Merge original values with edited values
-      const allValues: Record<string, unknown> = {};
-      for (const [name, value] of initialValueMap) {
-        allValues[name] = name in editValues ? editValues[name] : value;
-      }
-      // Also include any new values from edits that weren't in original
-      for (const [name, value] of Object.entries(editValues)) {
-        if (!(name in allValues)) {
-          allValues[name] = value;
-        }
-      }
-      await onSave(allValues);
-      // Clear edit state after successful save
-      setEditValues({});
-    } finally {
-      setIsSaving(false);
-    }
-  }, [onSave, isDirty, initialValueMap, editValues]);
+  // Categorize inputs
+  const categorized = useMemo(() => categorizeInputs(inputs), [inputs]);
 
   // Determine which input is selected based on node ID
   const selectedInputName = selectedNodeId?.startsWith("Input:")
@@ -139,74 +116,264 @@ export function InputsPanel({
   }
 
   return (
-    <div className="space-y-3 max-w-2xl mx-auto">
-      {/* Enable Editing banner for read-only builds */}
-      {canEnableEditing && !isEditable && (
-        <EnableEditingBanner
-          isEnabling={isEnabling}
-          onEnableEditing={handleEnableEditing}
-        />
+    <div className="space-y-6">
+      {/* Saving indicator */}
+      {isSaving && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="size-3 animate-spin" />
+          <span>Saving...</span>
+        </div>
       )}
 
-      {/* Header with save button */}
-      {isEditable && (
-        <PanelHeader
-          title="Edit Inputs"
-          isDirty={isDirty}
-          isSaving={isSaving}
-          onSave={handleSave}
-        />
+      {/* Media inputs - one section per input */}
+      {categorized.media.length > 0 && (
+        <div className="space-y-4">
+          {categorized.media.map((input) => (
+            <MediaInputSection
+              key={input.name}
+              input={input}
+              value={getValue(input.name)}
+              onChange={(value) => handleValueChange(input.name, value)}
+              isEditable={isEditable}
+              isSelected={selectedInputName === input.name}
+              blueprintFolder={blueprintFolder}
+              movieId={movieId}
+            />
+          ))}
+        </div>
       )}
 
-      {inputs.map((input) => {
-        const value = getValue(input.name);
-        const isSelected = selectedInputName === input.name;
+      {/* Text inputs - single section for all */}
+      {categorized.text.length > 0 && (
+        <CollapsibleSection
+          title="Text Inputs"
+          count={categorized.text.length}
+          defaultOpen
+        >
+          <MediaGrid>
+            {categorized.text.map((input) => (
+              <TextInputCard
+                key={input.name}
+                input={input}
+                value={getValue(input.name)}
+                onChange={(value) => handleValueChange(input.name, value)}
+                isEditable={isEditable}
+              />
+            ))}
+          </MediaGrid>
+        </CollapsibleSection>
+      )}
 
-        return (
-          <InputCard
-            key={input.name}
-            input={input}
-            value={value}
-            isSelected={isSelected}
-            isEditable={isEditable}
-            onChange={(newValue) => handleValueChange(input.name, newValue)}
-            blueprintFolder={blueprintFolder}
-            movieId={movieId}
-          />
-        );
-      })}
+      {/* Other inputs - single section for all */}
+      {categorized.other.length > 0 && (
+        <CollapsibleSection
+          title="Other Inputs"
+          count={categorized.other.length}
+          defaultOpen
+        >
+          <div className="space-y-3">
+            {categorized.other.map((input) => {
+              const value = getValue(input.name);
+              const isSelected = selectedInputName === input.name;
+
+              return (
+                <OtherInputCard
+                  key={input.name}
+                  input={input}
+                  value={value}
+                  isSelected={isSelected}
+                  isEditable={isEditable}
+                  onChange={(newValue) => handleValueChange(input.name, newValue)}
+                />
+              );
+            })}
+          </div>
+        </CollapsibleSection>
+      )}
     </div>
   );
 }
 
-interface InputCardProps {
+// ============================================================================
+// Media Input Section
+// ============================================================================
+
+interface MediaInputSectionProps {
+  input: BlueprintInputDef;
+  value: unknown;
+  onChange: (value: unknown) => void;
+  isEditable: boolean;
+  isSelected: boolean;
+  blueprintFolder: string | null;
+  movieId: string | null;
+}
+
+function MediaInputSection({
+  input,
+  value,
+  onChange,
+  isEditable,
+  isSelected,
+  blueprintFolder,
+  movieId,
+}: MediaInputSectionProps) {
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+
+  const isArray = input.type === "array";
+  const mediaType = getMediaTypeFromInput(input.type, input.itemType) ?? "image";
+
+  // Get array items or single item
+  const items = useMemo(() => {
+    if (isArray && Array.isArray(value)) {
+      return value.filter((v) => parseFileRef(v) !== null);
+    }
+    if (!isArray && parseFileRef(value) !== null) {
+      return [value];
+    }
+    return [];
+  }, [value, isArray]);
+
+  const itemCount = items.length;
+  const canAddMore = isArray; // Can always add more to arrays
+  const showAddButton = isEditable && canAddMore;
+
+  // Handle adding new files to array
+  const handleAddFiles = useCallback(
+    async (files: File[]) => {
+      if (!blueprintFolder || !movieId) {
+        throw new Error("Missing required context for upload");
+      }
+
+      const result = await uploadInputFiles(
+        blueprintFolder,
+        movieId,
+        files,
+        mediaType as MediaInputType
+      );
+
+      if (result.files.length === 0) {
+        throw new Error(result.errors?.join("; ") ?? "No files were uploaded");
+      }
+
+      const newRefs = result.files.map((f) => f.fileRef);
+      const existingRefs = Array.isArray(value)
+        ? value.filter((v) => typeof v === "string" && v.startsWith("file:"))
+        : [];
+
+      onChange([...existingRefs, ...newRefs]);
+    },
+    [blueprintFolder, movieId, mediaType, value, onChange]
+  );
+
+  // Handle removing item from array
+  const handleRemoveArrayItem = useCallback(
+    (index: number) => {
+      if (Array.isArray(value)) {
+        const newArray = [...value];
+        newArray.splice(index, 1);
+        onChange(newArray);
+      }
+    },
+    [value, onChange]
+  );
+
+  return (
+    <CollapsibleSection
+      title={input.name}
+      count={itemCount}
+      description={input.description}
+      defaultOpen
+      className={
+        isSelected
+          ? "ring-1 ring-blue-400/30 bg-blue-500/5 rounded-lg"
+          : undefined
+      }
+    >
+      <MediaGrid>
+        {/* Render existing items */}
+        {isArray
+          ? items.map((_, index) => (
+              <MediaInputCard
+                key={`${input.name}-${index}`}
+                input={input}
+                value={value}
+                onChange={onChange}
+                isEditable={isEditable}
+                blueprintFolder={blueprintFolder}
+                movieId={movieId}
+                arrayIndex={index}
+                onRemoveArrayItem={handleRemoveArrayItem}
+              />
+            ))
+          : items.length > 0 && (
+              <MediaInputCard
+                input={input}
+                value={value}
+                onChange={onChange}
+                isEditable={isEditable}
+                blueprintFolder={blueprintFolder}
+                movieId={movieId}
+              />
+            )}
+
+        {/* Empty state for single items */}
+        {!isArray && items.length === 0 && (
+          <MediaInputCard
+            input={input}
+            value={value}
+            onChange={onChange}
+            isEditable={isEditable}
+            blueprintFolder={blueprintFolder}
+            movieId={movieId}
+          />
+        )}
+
+        {/* Add button for arrays */}
+        {showAddButton && (
+          <AddMediaCard
+            mediaType={mediaType as MediaType}
+            onAdd={() => setAddDialogOpen(true)}
+            disabled={!blueprintFolder || !movieId}
+          />
+        )}
+      </MediaGrid>
+
+      <FileUploadDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        mediaType={mediaType}
+        multiple={true}
+        onConfirm={handleAddFiles}
+      />
+    </CollapsibleSection>
+  );
+}
+
+// ============================================================================
+// Other Input Card (form-based)
+// ============================================================================
+
+interface OtherInputCardProps {
   input: BlueprintInputDef;
   value: unknown;
   isSelected: boolean;
   isEditable: boolean;
   onChange: (value: unknown) => void;
-  blueprintFolder: string | null;
-  movieId: string | null;
 }
 
-function InputCard({
+function OtherInputCard({
   input,
   value,
   isSelected,
   isEditable,
   onChange,
-  blueprintFolder,
-  movieId,
-}: InputCardProps) {
+}: OtherInputCardProps) {
   const editorProps: InputEditorProps = {
     input,
     value,
     onChange,
     isEditable,
   };
-
-  // Check if this is a file input type
-  const isFileType = isFileInputType(input.type, input.itemType);
 
   return (
     <div
@@ -240,33 +407,9 @@ function InputCard({
 
         {/* Right column: editor component */}
         <div className="min-w-0">
-          {isFileType ? (
-            <FileInputEditor
-              {...editorProps}
-              blueprintFolder={blueprintFolder}
-              movieId={movieId}
-            />
-          ) : (
-            <InputEditor inputName={input.name} editorProps={editorProps} />
-          )}
+          <DefaultTextEditor {...editorProps} />
         </div>
       </div>
     </div>
   );
-}
-
-/**
- * Wrapper component to render the appropriate input editor.
- * Currently uses DefaultTextEditor for all inputs.
- * Future: add custom editors via the input registry pattern.
- */
-function InputEditor({
-  editorProps,
-}: {
-  inputName: string;
-  editorProps: InputEditorProps;
-}) {
-  // For now, use the default text editor for all inputs
-  // Custom editors can be added via the registry pattern when needed
-  return <DefaultTextEditor {...editorProps} />;
 }
