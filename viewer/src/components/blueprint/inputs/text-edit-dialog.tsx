@@ -25,7 +25,7 @@ interface TextEditDialogProps {
 
 /**
  * Full-screen dialog for editing text inputs.
- * Auto-saves on close.
+ * Saves on explicit save, discards on cancel.
  */
 export function TextEditDialog({
   open,
@@ -35,89 +35,59 @@ export function TextEditDialog({
   value,
   onSave,
 }: TextEditDialogProps) {
-  // Use a key to force remount when dialog opens, resetting internal state
-  const [dialogKey, setDialogKey] = useState(0);
+  // Track the edit value locally
+  const [editValue, setEditValue] = useState(value);
 
+  // Handle dialog open state changes
+  // Reset to prop value when opening, preserve state when closing
   const handleOpenChange = useCallback(
     (isOpen: boolean) => {
       if (isOpen) {
-        // Increment key to force remount of dialog content
-        setDialogKey((k) => k + 1);
+        // Reset to current prop value when dialog opens
+        setEditValue(value);
       }
       onOpenChange(isOpen);
     },
-    [onOpenChange]
+    [value, onOpenChange]
   );
+
+  const handleSaveAndClose = useCallback(() => {
+    onSave(editValue);
+    onOpenChange(false);
+  }, [editValue, onSave, onOpenChange]);
+
+  const handleCancel = useCallback(() => {
+    onOpenChange(false);
+  }, [onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
-        <TextEditDialogContent
-          key={dialogKey}
-          label={label}
-          description={description}
-          value={value}
-          onSave={onSave}
-          onClose={() => onOpenChange(false)}
-        />
+        <DialogHeader>
+          <DialogTitle className="flex flex-col gap-1">
+            <span>{label}</span>
+            {description && (
+              <span className="text-sm font-normal text-muted-foreground">
+                {description}
+              </span>
+            )}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="flex-1 min-h-0 flex flex-col gap-4">
+          <Textarea
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            className="flex-1 min-h-[300px] resize-none font-mono text-sm"
+            placeholder={`Enter ${label}...`}
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={handleCancel}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveAndClose}>Save</Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
-  );
-}
-
-interface TextEditDialogContentProps {
-  label: string;
-  description?: string;
-  value: string;
-  onSave: (value: string) => void;
-  onClose: () => void;
-}
-
-function TextEditDialogContent({
-  label,
-  description,
-  value,
-  onSave,
-  onClose,
-}: TextEditDialogContentProps) {
-  // Initialize with the current value
-  const [editValue, setEditValue] = useState(value);
-
-  const handleSaveAndClose = useCallback(() => {
-    onSave(editValue);
-    onClose();
-  }, [editValue, onSave, onClose]);
-
-  const handleCancel = useCallback(() => {
-    onClose();
-  }, [onClose]);
-
-  return (
-    <>
-      <DialogHeader>
-        <DialogTitle className="flex flex-col gap-1">
-          <span>{label}</span>
-          {description && (
-            <span className="text-sm font-normal text-muted-foreground">
-              {description}
-            </span>
-          )}
-        </DialogTitle>
-      </DialogHeader>
-      <div className="flex-1 min-h-0 flex flex-col gap-4">
-        <Textarea
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          className="flex-1 min-h-[300px] resize-none font-mono text-sm"
-          placeholder={`Enter ${label}...`}
-        />
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={handleCancel}>
-            Cancel
-          </Button>
-          <Button onClick={handleSaveAndClose}>Save</Button>
-        </div>
-      </div>
-    </>
   );
 }

@@ -1,7 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
 import {
-  ChevronDown,
-  ChevronRight,
   MoreHorizontal,
   Download,
   ExternalLink,
@@ -15,11 +13,6 @@ import {
   CheckSquare,
   Check,
 } from "lucide-react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,8 +32,12 @@ import {
   groupArtifactsByProducer,
   sortProducersByTopology,
 } from "@/lib/artifact-utils";
+import {
+  getOutputNameFromNodeId,
+  getSelectionStyles,
+} from "@/lib/panel-utils";
 import { useExecution } from "@/contexts/execution-context";
-import { MediaCard, MediaGrid } from "./shared";
+import { MediaCard, MediaGrid, CollapsibleSection } from "./shared";
 import type { BlueprintOutputDef, BlueprintGraphData } from "@/types/blueprint-graph";
 import type { ArtifactInfo } from "@/types/builds";
 
@@ -61,9 +58,7 @@ export function OutputsPanel({
   artifacts,
   graphData,
 }: OutputsPanelProps) {
-  const selectedOutputName = selectedNodeId?.startsWith("Output:")
-    ? selectedNodeId.replace("Output:", "").split(".").pop()
-    : null;
+  const selectedOutputName = getOutputNameFromNodeId(selectedNodeId);
 
   if (outputs.length === 0 && artifacts.length === 0) {
     return (
@@ -118,9 +113,7 @@ function OutputDefinitionCard({
     <div
       className={cn(
         "p-3 rounded-lg border transition-all",
-        isSelected
-          ? "border-purple-400 bg-purple-500/10 ring-1 ring-purple-400/30"
-          : "border-border/40 bg-muted/30"
+        getSelectionStyles(isSelected, "purple")
       )}
     >
       <div className="flex items-center gap-2 mb-1">
@@ -293,52 +286,41 @@ function ProducerArtifactSection({
   defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-
   const handleCheckboxClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onSelectAll();
   };
 
+  const regenerateAction = (
+    <button
+      type="button"
+      onClick={handleCheckboxClick}
+      className={cn(
+        "flex items-center gap-1.5 px-2 py-1 rounded hover:bg-muted transition-colors text-xs",
+        allSelected || someSelected ? "text-primary" : "text-muted-foreground"
+      )}
+      title={allSelected ? "Deselect all" : "Select all for regeneration"}
+    >
+      <span>Generate Again</span>
+      {allSelected ? (
+        <CheckSquare className="size-4" />
+      ) : someSelected ? (
+        <Square className="size-4 fill-primary/30" />
+      ) : (
+        <Square className="size-4" />
+      )}
+    </button>
+  );
+
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <div className="flex items-center gap-2 w-full group hover:bg-muted/50 rounded-lg px-2 py-1.5 transition-colors">
-        <CollapsibleTrigger className="flex items-center gap-2 flex-1">
-          <span className="text-muted-foreground">
-            {isOpen ? (
-              <ChevronDown className="size-4" />
-            ) : (
-              <ChevronRight className="size-4" />
-            )}
-          </span>
-          <span className="text-sm font-medium text-foreground">{producerName}</span>
-          <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
-            {count}
-          </span>
-        </CollapsibleTrigger>
-        <button
-          type="button"
-          onClick={handleCheckboxClick}
-          className={cn(
-            "flex items-center gap-1.5 px-2 py-1 rounded hover:bg-muted transition-colors text-xs",
-            allSelected || someSelected ? "text-primary" : "text-muted-foreground"
-          )}
-          title={allSelected ? "Deselect all" : "Select all for regeneration"}
-        >
-          <span>Generate Again</span>
-          {allSelected ? (
-            <CheckSquare className="size-4" />
-          ) : someSelected ? (
-            <Square className="size-4 fill-primary/30" />
-          ) : (
-            <Square className="size-4" />
-          )}
-        </button>
-      </div>
-      <CollapsibleContent className="pt-3">
-        {children}
-      </CollapsibleContent>
-    </Collapsible>
+    <CollapsibleSection
+      title={producerName}
+      count={count}
+      defaultOpen={defaultOpen}
+      actions={regenerateAction}
+    >
+      {children}
+    </CollapsibleSection>
   );
 }
 

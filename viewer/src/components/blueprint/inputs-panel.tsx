@@ -13,11 +13,13 @@ import {
   getMediaTypeFromInput,
   type MediaType,
 } from "@/lib/input-utils";
+import { parseFileRef, type MediaInputType } from "@/data/blueprint-client";
 import {
-  uploadInputFiles,
-  parseFileRef,
-  type MediaInputType,
-} from "@/data/blueprint-client";
+  uploadAndValidate,
+  getInputNameFromNodeId,
+  getSelectionStyles,
+  getSectionHighlightStyles,
+} from "@/lib/panel-utils";
 
 interface InputValue {
   name: string;
@@ -103,9 +105,7 @@ export function InputsPanel({
   const categorized = useMemo(() => categorizeInputs(inputs), [inputs]);
 
   // Determine which input is selected based on node ID
-  const selectedInputName = selectedNodeId?.startsWith("Input:")
-    ? selectedNodeId.replace("Input:", "").split(".").pop()
-    : null;
+  const selectedInputName = getInputNameFromNodeId(selectedNodeId);
 
   if (inputs.length === 0) {
     return (
@@ -240,20 +240,11 @@ function MediaInputSection({
   // Handle adding new files to array
   const handleAddFiles = useCallback(
     async (files: File[]) => {
-      if (!blueprintFolder || !movieId) {
-        throw new Error("Missing required context for upload");
-      }
-
-      const result = await uploadInputFiles(
-        blueprintFolder,
-        movieId,
+      const result = await uploadAndValidate(
+        { blueprintFolder, movieId },
         files,
         mediaType as MediaInputType
       );
-
-      if (result.files.length === 0) {
-        throw new Error(result.errors?.join("; ") ?? "No files were uploaded");
-      }
 
       const newRefs = result.files.map((f) => f.fileRef);
       const existingRefs = Array.isArray(value)
@@ -283,11 +274,7 @@ function MediaInputSection({
       count={itemCount}
       description={input.description}
       defaultOpen
-      className={
-        isSelected
-          ? "ring-1 ring-blue-400/30 bg-blue-500/5 rounded-lg"
-          : undefined
-      }
+      className={getSectionHighlightStyles(isSelected, "blue")}
     >
       <MediaGrid>
         {/* Render existing items */}
@@ -377,14 +364,7 @@ function OtherInputCard({
 
   return (
     <div
-      className={`
-        p-3 rounded-lg border transition-all
-        ${
-          isSelected
-            ? "border-blue-400 bg-blue-500/10 ring-1 ring-blue-400/30"
-            : "border-border/40 bg-muted/30"
-        }
-      `}
+      className={`p-3 rounded-lg border transition-all ${getSelectionStyles(isSelected, "blue")}`}
     >
       <div className="grid grid-cols-2 gap-4">
         {/* Left column: name, type, required badge, description */}

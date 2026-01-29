@@ -12,11 +12,11 @@ import { FileUploadDialog } from "./file-upload-dialog";
 import type { BlueprintInputDef } from "@/types/blueprint-graph";
 import type { MediaType } from "@/lib/input-utils";
 import {
-  uploadInputFiles,
   buildInputFileUrl,
   parseFileRef,
   type MediaInputType,
 } from "@/data/blueprint-client";
+import { uploadAndValidate } from "@/lib/panel-utils";
 
 interface MediaInputCardProps {
   /** Input definition */
@@ -79,20 +79,11 @@ export function MediaInputCard({
   // Handle file upload
   const handleUpload = useCallback(
     async (files: File[]) => {
-      if (!blueprintFolder || !movieId) {
-        throw new Error("Missing required context for upload");
-      }
-
-      const result = await uploadInputFiles(
-        blueprintFolder,
-        movieId,
+      const result = await uploadAndValidate(
+        { blueprintFolder, movieId },
         files,
         mediaType as MediaInputType
       );
-
-      if (result.files.length === 0) {
-        throw new Error(result.errors?.join("; ") ?? "No files were uploaded");
-      }
 
       const newRef = result.files[0].fileRef;
 

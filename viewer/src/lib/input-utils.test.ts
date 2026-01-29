@@ -5,6 +5,7 @@ import {
   getMediaTypeFromInput,
   getInputCategory,
   groupMediaInputsByName,
+  groupInputsByName,
 } from "./input-utils";
 import type { BlueprintInputDef } from "@/types/blueprint-graph";
 
@@ -215,5 +216,97 @@ describe("groupMediaInputsByName", () => {
   it("handles empty array", () => {
     const result = groupMediaInputsByName([]);
     expect(result.size).toBe(0);
+  });
+});
+
+describe("groupInputsByName", () => {
+  it("creates a map with input name as key", () => {
+    const inputs = [
+      makeInput("input1", "string"),
+      makeInput("input2", "int"),
+    ];
+
+    const result = groupInputsByName(inputs);
+
+    expect(result.size).toBe(2);
+    expect(result.get("input1")).toBeDefined();
+    expect(result.get("input2")).toBeDefined();
+  });
+
+  it("handles empty array", () => {
+    const result = groupInputsByName([]);
+    expect(result.size).toBe(0);
+  });
+
+  it("groups all input types, not just media", () => {
+    const inputs = [
+      makeInput("text1", "text"),
+      makeInput("string1", "string"),
+      makeInput("image1", "image"),
+    ];
+
+    const result = groupInputsByName(inputs);
+
+    expect(result.size).toBe(3);
+    expect(result.get("text1")?.type).toBe("text");
+    expect(result.get("string1")?.type).toBe("string");
+    expect(result.get("image1")?.type).toBe("image");
+  });
+
+  it("later duplicates overwrite earlier ones", () => {
+    const input1 = makeInput("duplicate", "string");
+    const input2 = makeInput("duplicate", "int");
+    const inputs = [input1, input2];
+
+    const result = groupInputsByName(inputs);
+
+    expect(result.size).toBe(1);
+    expect(result.get("duplicate")).toBe(input2);
+  });
+});
+
+describe("getInputCategory edge cases", () => {
+  it("returns other for unknown types", () => {
+    expect(getInputCategory(makeInput("test", "unknown"))).toBe("other");
+    expect(getInputCategory(makeInput("test", "custom"))).toBe("other");
+  });
+
+  it("returns other for array with non-media itemType", () => {
+    expect(getInputCategory(makeInput("test", "array", "string"))).toBe("other");
+    expect(getInputCategory(makeInput("test", "array", "int"))).toBe("other");
+  });
+});
+
+describe("isMediaType edge cases", () => {
+  it("returns false for empty string", () => {
+    expect(isMediaType("")).toBe(false);
+  });
+
+  it("returns false for unknown types", () => {
+    expect(isMediaType("movie")).toBe(false);
+    expect(isMediaType("picture")).toBe(false);
+    expect(isMediaType("sound")).toBe(false);
+  });
+
+  it("is case-sensitive", () => {
+    expect(isMediaType("Image")).toBe(false);
+    expect(isMediaType("VIDEO")).toBe(false);
+    expect(isMediaType("Audio")).toBe(false);
+  });
+});
+
+describe("getMediaTypeFromInput edge cases", () => {
+  it("returns null for empty string", () => {
+    expect(getMediaTypeFromInput("")).toBeNull();
+  });
+
+  it("returns null for unknown types", () => {
+    expect(getMediaTypeFromInput("movie")).toBeNull();
+    expect(getMediaTypeFromInput("picture")).toBeNull();
+  });
+
+  it("is case-sensitive", () => {
+    expect(getMediaTypeFromInput("Image")).toBeNull();
+    expect(getMediaTypeFromInput("VIDEO")).toBeNull();
   });
 });

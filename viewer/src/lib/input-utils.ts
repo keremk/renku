@@ -42,14 +42,12 @@ export function getMediaTypeFromInput(
   itemType?: string
 ): MediaType | null {
   const effectiveType = itemType ?? type;
-  if (
-    effectiveType === "image" ||
-    effectiveType === "video" ||
-    effectiveType === "audio"
-  ) {
-    return effectiveType;
+  // Reuse isMediaType check to avoid duplicating the media type list
+  if (!isMediaType(type, itemType)) {
+    return null;
   }
-  return null;
+  // Type assertion is safe here since isMediaType verified it
+  return effectiveType as MediaType;
 }
 
 /**
@@ -89,9 +87,19 @@ export function categorizeInputs(inputs: BlueprintInputDef[]): CategorizedInputs
 }
 
 /**
- * Groups media inputs by name (for separate collapsible sections).
+ * Groups inputs by name into a Map for efficient lookup.
+ * @deprecated Use groupInputsByName instead.
  */
 export function groupMediaInputsByName(
+  inputs: BlueprintInputDef[]
+): Map<string, BlueprintInputDef> {
+  return groupInputsByName(inputs);
+}
+
+/**
+ * Groups inputs by name into a Map for efficient lookup.
+ */
+export function groupInputsByName(
   inputs: BlueprintInputDef[]
 ): Map<string, BlueprintInputDef> {
   const map = new Map<string, BlueprintInputDef>();

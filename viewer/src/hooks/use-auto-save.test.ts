@@ -260,4 +260,113 @@ describe("useAutoSave", () => {
 
     expect(result.current.isDirty).toBe(true);
   });
+
+  it("saves dirty data on unmount", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const initialData = { foo: "bar" };
+
+    const { rerender, unmount } = renderHook(
+      ({ data }) =>
+        useAutoSave({
+          data,
+          onSave,
+          debounceMs: 10000, // Long debounce so it won't auto-save before unmount
+          initialData,
+        }),
+      { initialProps: { data: initialData } }
+    );
+
+    // Change data
+    rerender({ data: { foo: "baz" } });
+
+    // Unmount before debounce completes
+    unmount();
+
+    // Should trigger save on unmount
+    expect(onSave).toHaveBeenCalledWith({ foo: "baz" });
+  });
+
+  it("logs error when unmount save fails", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const saveError = new Error("Unmount save failed");
+    const onSave = vi.fn().mockRejectedValue(saveError);
+    const initialData = { foo: "bar" };
+
+    const { rerender, unmount } = renderHook(
+      ({ data }) =>
+        useAutoSave({
+          data,
+          onSave,
+          debounceMs: 10000,
+          initialData,
+        }),
+      { initialProps: { data: initialData } }
+    );
+
+    // Change data
+    rerender({ data: { foo: "baz" } });
+
+    // Unmount
+    unmount();
+
+    // Wait for the promise rejection to be handled
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+
+    // Should have logged the error
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "[useAutoSave] Error during unmount save:",
+      saveError
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("does not save on unmount when data is not dirty", () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const initialData = { foo: "bar" };
+
+    const { unmount } = renderHook(() =>
+      useAutoSave({
+        data: initialData,
+        onSave,
+        initialData,
+      })
+    );
+
+    // Unmount without changing data
+    unmount();
+
+    // Should not trigger save
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("handles non-Error thrown values during save", async () => {
+    const onSave = vi.fn().mockRejectedValue("string error");
+    const initialData = { foo: "bar" };
+
+    const { result, rerender } = renderHook(
+      ({ data }) =>
+        useAutoSave({
+          data,
+          onSave,
+          debounceMs: 100,
+          initialData,
+        }),
+      { initialProps: { data: initialData } }
+    );
+
+    // Change data to trigger save
+    rerender({ data: { foo: "baz" } });
+
+    // Advance and wait for save to fail
+    await act(async () => {
+      vi.advanceTimersByTime(200);
+    });
+
+    // Should convert non-Error to Error
+    expect(result.current.lastError).toBeInstanceOf(Error);
+    expect(result.current.lastError?.message).toBe("string error");
+  });
 });

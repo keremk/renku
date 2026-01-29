@@ -132,8 +132,10 @@ export function useAutoSave<T>({
         const result = onSaveRef.current(currentData);
         // Handle both Promise and non-Promise returns
         if (result && typeof result.catch === "function") {
-          result.catch(() => {
-            // Ignore errors on unmount
+          result.catch((error: unknown) => {
+            // Log error on unmount save for debugging purposes
+            // We can't update state since component is unmounted
+            console.error("[useAutoSave] Error during unmount save:", error);
           });
         }
       }
