@@ -617,6 +617,10 @@ export interface ManifestArtefactEntry {
   status: ArtefactEventStatus;
   diagnostics?: Record<string, unknown>;
   createdAt: IsoDatetime;
+  /** Source of this artifact - 'producer' for generated, 'user' for edited */
+  editedBy?: ArtefactEventEditedBy;
+  /** The first producer-generated blob hash (preserved across edits for restore) */
+  originalHash?: string;
 }
 
 export interface Manifest {
@@ -683,6 +687,8 @@ export interface ArtefactEventOutput {
   blob?: BlobRef;
 }
 
+export type ArtefactEventEditedBy = 'producer' | 'user';
+
 export interface ArtefactEvent {
   artefactId: Id;
   revision: RevisionId;
@@ -692,6 +698,10 @@ export interface ArtefactEvent {
   producedBy: Id;
   diagnostics?: Record<string, unknown>;
   createdAt: IsoDatetime;
+  /** Source of this artifact - 'producer' for generated, 'user' for edited */
+  editedBy?: ArtefactEventEditedBy;
+  /** The first producer-generated blob hash (preserved across edits for restore) */
+  originalHash?: string;
 }
 
 export interface SerializedError {

@@ -17,6 +17,13 @@ import type {
   EnableEditingRequest,
   MediaInputType,
 } from "./types.js";
+import {
+  handleArtifactFileEdit,
+  handleArtifactTextEdit,
+  handleArtifactRestore,
+  type TextArtifactEditRequest,
+  type ArtifactRestoreRequest,
+} from "./artifact-edit-handler.js";
 
 /**
  * Handles builds sub-routes: create, inputs (GET/PUT), metadata (PUT), enable-editing (POST)
@@ -28,12 +35,16 @@ import type {
  *   PUT  /blueprints/builds/metadata
  *   POST /blueprints/builds/enable-editing
  *   POST /blueprints/builds/upload?folder=...&movieId=...&inputType=...
+ *   POST /blueprints/builds/artifacts/edit?folder=...&movieId=...&artifactId=... (multipart for media)
+ *   POST /blueprints/builds/artifacts/edit-text (JSON body for text)
+ *   POST /blueprints/builds/artifacts/restore (JSON body)
  */
 export async function handleBuildsSubRoute(
   req: IncomingMessage,
   res: ServerResponse,
   url: URL,
   subAction: string,
+  segments: string[] = [],
 ): Promise<boolean> {
   switch (subAction) {
     case "create": {
@@ -117,6 +128,42 @@ export async function handleBuildsSubRoute(
       }
       await handleFileUpload(req, res, folder, movieId, inputType ?? undefined);
       return true;
+    }
+
+    case "artifacts": {
+      // Handle artifacts sub-routes: edit, edit-text, restore
+      // segments[0] = "artifacts", segments[1] = "edit"/"edit-text"/"restore"
+      const artifactsSubAction = segments[1];
+      if (artifactsSubAction === "edit" && req.method === "POST") {
+        // Multipart file upload for media artifacts
+        const folder = url.searchParams.get("folder");
+        const movieId = url.searchParams.get("movieId");
+        const artifactId = url.searchParams.get("artifactId");
+        if (!folder || !movieId || !artifactId) {
+          return respondBadRequest(res, "Missing folder, movieId, or artifactId parameter");
+        }
+        await handleArtifactFileEdit(req, res, folder, movieId, artifactId);
+        return true;
+      }
+      if (artifactsSubAction === "edit-text" && req.method === "POST") {
+        // JSON body for text artifact edit
+        const body = await parseJsonBody<TextArtifactEditRequest>(req);
+        if (!body.blueprintFolder || !body.movieId || !body.artifactId) {
+          return respondBadRequest(res, "Missing blueprintFolder, movieId, or artifactId");
+        }
+        await handleArtifactTextEdit(req, res, body);
+        return true;
+      }
+      if (artifactsSubAction === "restore" && req.method === "POST") {
+        // JSON body for restore
+        const body = await parseJsonBody<ArtifactRestoreRequest>(req);
+        if (!body.blueprintFolder || !body.movieId || !body.artifactId) {
+          return respondBadRequest(res, "Missing blueprintFolder, movieId, or artifactId");
+        }
+        await handleArtifactRestore(res, body);
+        return true;
+      }
+      return respondNotFound(res);
     }
 
     default:

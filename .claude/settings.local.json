@@ -70,7 +70,8 @@
       "Bash(python3:*)",
       "Bash(curl:*)",
       "WebFetch(domain:elevenlabs.io)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "WebFetch(domain:www.npmjs.com)"
     ],
     "deny": [],
     "ask": []

@@ -11,6 +11,59 @@ import type { ArtifactInfo, BuildManifestResponse } from "./types.js";
 const TIMELINE_ARTEFACT_ID = "Artifact:TimelineComposer.Timeline";
 
 /**
+ * ArtefactEvent structure for reading from event log.
+ */
+interface ArtefactEvent {
+  artefactId: string;
+  output: {
+    blob?: {
+      hash: string;
+      size: number;
+      mimeType?: string;
+    };
+  };
+  status: "succeeded" | "failed" | "skipped";
+  createdAt: string;
+  editedBy?: "producer" | "user";
+  originalHash?: string;
+}
+
+/**
+ * Read latest artifact events from the event log.
+ * Returns a map of artifactId -> latest event info.
+ */
+async function readLatestArtifactEvents(
+  movieDir: string,
+): Promise<Map<string, ArtefactEvent>> {
+  const logPath = path.join(movieDir, "events", "artefacts.log");
+  const latest = new Map<string, ArtefactEvent>();
+
+  if (!existsSync(logPath)) {
+    return latest;
+  }
+
+  try {
+    const content = await fs.readFile(logPath, "utf8");
+    const lines = content.split(/\r?\n/).filter((line) => line.trim());
+
+    for (const line of lines) {
+      try {
+        const event = JSON.parse(line) as ArtefactEvent;
+        if (event.status === "succeeded") {
+          latest.set(event.artefactId, event);
+        }
+      } catch {
+        // Skip malformed lines
+      }
+    }
+  } catch {
+    // Return empty map on error
+  }
+
+  return latest;
+}
+
+/**
  * Gets the manifest data for a specific build.
  */
 export async function getBuildManifest(
@@ -93,7 +146,11 @@ export async function getBuildManifest(
     // Extract model selections from inputs
     const { modelSelections } = extractModelSelectionsFromInputs(parsedInputs);
 
-    // Parse artifacts - extract blob info and clean up names
+    // Read latest artifact events from event log for current state
+    // (editedBy, originalHash, and possibly updated hash from edits)
+    const latestEvents = await readLatestArtifactEvents(movieDir);
+
+    // Parse artifacts - merge manifest data with event log data
     const parsedArtifacts: ArtifactInfo[] = [];
     if (manifest.artefacts) {
       for (const [key, entry] of Object.entries(manifest.artefacts)) {
@@ -102,14 +159,28 @@ export async function getBuildManifest(
         // Extract name from artifact ID (e.g., "Artifact:Producer.Output" -> "Producer.Output")
         const cleanName = key.startsWith("Artifact:") ? key.slice(9) : key;
 
+        // Check event log for latest state (may have edits)
+        const latestEvent = latestEvents.get(key);
+        const hasEventLogData = latestEvent?.output?.blob?.hash;
+
+        // Use event log data if available (includes user edits), otherwise fall back to manifest
+        const currentHash = hasEventLogData ? latestEvent.output.blob!.hash : entry.blob.hash;
+        const currentSize = hasEventLogData ? latestEvent.output.blob!.size : entry.blob.size;
+        const currentMimeType = hasEventLogData
+          ? latestEvent.output.blob!.mimeType ?? "application/octet-stream"
+          : entry.blob.mimeType ?? "application/octet-stream";
+
         parsedArtifacts.push({
           id: key,
           name: cleanName,
-          hash: entry.blob.hash,
-          size: entry.blob.size,
-          mimeType: entry.blob.mimeType ?? "application/octet-stream",
+          hash: currentHash,
+          size: currentSize,
+          mimeType: currentMimeType,
           status: entry.status ?? "unknown",
-          createdAt: entry.createdAt ?? null,
+          createdAt: latestEvent?.createdAt ?? entry.createdAt ?? null,
+          // Include edit tracking fields from event log
+          editedBy: latestEvent?.editedBy,
+          originalHash: latestEvent?.originalHash,
         });
       }
     }

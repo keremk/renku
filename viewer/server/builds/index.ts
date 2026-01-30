@@ -29,3 +29,12 @@ export { listBuilds } from "./list-handler.js";
 export { getBuildManifest, getBuildTimeline } from "./manifest-handler.js";
 export { handleBuildsSubRoute } from "./builds-handler.js";
 export { handleFileUpload, streamInputFile } from "./upload-handler.js";
+export {
+  handleArtifactFileEdit,
+  handleArtifactTextEdit,
+  handleArtifactRestore,
+  type ArtifactEditResponse,
+  type ArtifactRestoreResponse,
+  type TextArtifactEditRequest,
+  type ArtifactRestoreRequest,
+} from "./artifact-edit-handler.js";

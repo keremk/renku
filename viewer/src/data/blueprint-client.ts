@@ -325,3 +325,118 @@ export function parseFileRef(value: unknown): string | null {
   const match = value.match(/^file:\.\/input-files\/(.+)$/);
   return match ? match[1] : null;
 }
+
+// --- Artifact editing API functions ---
+
+/**
+ * Response from artifact edit operation.
+ */
+export interface ArtifactEditResponse {
+  success: boolean;
+  newHash: string;
+  originalHash?: string;
+  editedBy: "user";
+}
+
+/**
+ * Response from artifact restore operation.
+ */
+export interface ArtifactRestoreResponse {
+  success: boolean;
+  restoredHash: string;
+}
+
+/**
+ * Edits an artifact by uploading a new file (for media artifacts).
+ */
+export async function editArtifactFile(
+  blueprintFolder: string,
+  movieId: string,
+  artifactId: string,
+  file: File,
+): Promise<ArtifactEditResponse> {
+  const url = new URL(`${API_BASE}/blueprints/builds/artifacts/edit`, window.location.origin);
+  url.searchParams.set("folder", blueprintFolder);
+  url.searchParams.set("movieId", movieId);
+  url.searchParams.set("artifactId", artifactId);
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    let errorMessage = `Edit failed (${response.status})`;
+    try {
+      const errorJson = JSON.parse(errorText);
+      if (errorJson.error) {
+        errorMessage = errorJson.error;
+      }
+    } catch {
+      errorMessage = errorText || errorMessage;
+    }
+    throw new Error(errorMessage);
+  }
+
+  return response.json() as Promise<ArtifactEditResponse>;
+}
+
+/**
+ * Edits a text artifact by providing new content (for JSON/text artifacts).
+ */
+export async function editArtifactText(
+  blueprintFolder: string,
+  movieId: string,
+  artifactId: string,
+  content: string,
+  mimeType: string,
+): Promise<ArtifactEditResponse> {
+  const response = await fetch(`${API_BASE}/blueprints/builds/artifacts/edit-text`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      blueprintFolder,
+      movieId,
+      artifactId,
+      content,
+      mimeType,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    throw new Error(`Edit failed: ${errorText}`);
+  }
+
+  return response.json() as Promise<ArtifactEditResponse>;
+}
+
+/**
+ * Restores an artifact to its original producer-generated version.
+ */
+export async function restoreArtifact(
+  blueprintFolder: string,
+  movieId: string,
+  artifactId: string,
+): Promise<ArtifactRestoreResponse> {
+  const response = await fetch(`${API_BASE}/blueprints/builds/artifacts/restore`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      blueprintFolder,
+      movieId,
+      artifactId,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    throw new Error(`Restore failed: ${errorText}`);
+  }
+
+  return response.json() as Promise<ArtifactRestoreResponse>;
+}

@@ -98,6 +98,10 @@ export interface ArtifactInfo {
   mimeType: string;
   status: string;
   createdAt: string | null;
+  /** Source of this artifact - 'producer' for generated, 'user' for edited */
+  editedBy?: 'producer' | 'user';
+  /** The first producer-generated blob hash (preserved across edits for restore) */
+  originalHash?: string;
 }
 
 /**

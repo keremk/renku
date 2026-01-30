@@ -44,7 +44,7 @@ export async function handleBlueprintRequest(
 
   // Handle builds sub-routes that support POST/PUT
   if (action === "builds" && subAction) {
-    return handleBuildsSubRoute(req, res, url, subAction);
+    return handleBuildsSubRoute(req, res, url, subAction, segments.slice(1));
   }
 
   // All other routes require GET
