@@ -343,7 +343,7 @@ export async function handleArtifactFileEdit(
  * Handle artifact edit via JSON body (for text content).
  */
 export async function handleArtifactTextEdit(
-  req: IncomingMessage,
+  _req: IncomingMessage,
   res: ServerResponse,
   body: TextArtifactEditRequest,
 ): Promise<void> {

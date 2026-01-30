@@ -1,12 +1,24 @@
 /**
  * Dialog for editing text artifacts (JSON, Markdown) with syntax highlighting.
- * Uses Prism.js for highlighting with Gruvbox theme.
+ * Uses prism-react-editor for a proper code editing experience.
  */
 
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import Prism from "prismjs";
-import "prismjs/components/prism-json";
-import "prismjs/components/prism-markdown";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { Editor } from "prism-react-editor";
+import { BasicSetup } from "prism-react-editor/setups";
+
+// Language grammars
+import "prism-react-editor/prism/languages/json";
+import "prism-react-editor/prism/languages/markdown";
+
+// Required CSS
+import "prism-react-editor/layout.css";
+import "prism-react-editor/search.css";
+
+// Gruvbox theme
+import "@/styles/prism-gruvbox-dark.css";
+import "@/styles/prism-gruvbox-light.css";
+
 import {
   Dialog,
   DialogContent,
@@ -15,11 +27,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-// Import Gruvbox theme based on system preference
-// The CSS files are loaded conditionally via className
-import "@/styles/prism-gruvbox-dark.css";
-import "@/styles/prism-gruvbox-light.css";
 
 interface ArtifactTextEditDialogProps {
   /** Whether the dialog is open */
@@ -41,7 +48,7 @@ interface ArtifactTextEditDialogProps {
 }
 
 /**
- * Get Prism.js language from MIME type.
+ * Get prism-react-editor language from MIME type.
  * Treats text/plain as markdown since LLM outputs often contain markdown formatting
  * and markdown highlighting handles plain text gracefully.
  */
@@ -63,8 +70,8 @@ function getLanguageFromMimeType(mimeType: string): string {
 }
 
 /**
- * Dialog for editing text artifacts with syntax-highlighted preview.
- * Uses a textarea for editing with a synchronized highlighted overlay.
+ * Dialog for editing text artifacts with proper code editing experience.
+ * Uses prism-react-editor for syntax highlighting and editing.
  */
 export function ArtifactTextEditDialog({
   open,
@@ -76,48 +83,14 @@ export function ArtifactTextEditDialog({
   isSaving = false,
   readOnly = false,
 }: ArtifactTextEditDialogProps) {
-  const [editValue, setEditValue] = useState(content);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const preRef = useRef<HTMLPreElement>(null);
+  // Track the current value via ref to avoid re-renders
+  const valueRef = useRef(content);
+  // Key to force remount editor when content changes
+  const [editorKey, setEditorKey] = useState(0);
   const language = getLanguageFromMimeType(mimeType);
 
-  // Reset to content when dialog opens via onOpenChange callback
-  const handleOpenChange = useCallback(
-    (isOpen: boolean) => {
-      if (isOpen) {
-        setEditValue(content);
-      }
-      onOpenChange(isOpen);
-    },
-    [content, onOpenChange]
-  );
-
-  const handleSaveAndClose = useCallback(() => {
-    onSave?.(editValue);
-  }, [editValue, onSave]);
-
-  const handleCancel = useCallback(() => {
-    onOpenChange(false);
-  }, [onOpenChange]);
-
-  // Ref for the scrollable container in edit mode
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Highlighted code memoized
-  const highlightedCode = useMemo(() => {
-    if (language === "plaintext") {
-      return editValue;
-    }
-    try {
-      return Prism.highlight(editValue, Prism.languages[language], language);
-    } catch {
-      return editValue;
-    }
-  }, [editValue, language]);
-
-  // Determine theme class based on Tailwind's dark mode class
+  // Determine theme based on Tailwind's dark mode class
   const [isDark, setIsDark] = useState(() => {
-    // Initial value from DOM
     return document.documentElement.classList.contains("dark");
   });
 
@@ -131,6 +104,32 @@ export function ArtifactTextEditDialog({
       attributeFilter: ["class"],
     });
     return () => observer.disconnect();
+  }, []);
+
+  // Reset to content when dialog opens
+  const handleOpenChange = useCallback(
+    (isOpen: boolean) => {
+      if (isOpen) {
+        valueRef.current = content;
+        // Force remount editor with new content
+        setEditorKey((k) => k + 1);
+      }
+      onOpenChange(isOpen);
+    },
+    [content, onOpenChange]
+  );
+
+  const handleSaveAndClose = useCallback(() => {
+    onSave?.(valueRef.current);
+  }, [onSave]);
+
+  const handleCancel = useCallback(() => {
+    onOpenChange(false);
+  }, [onOpenChange]);
+
+  // Track value changes without causing re-renders
+  const handleUpdate = useCallback((value: string) => {
+    valueRef.current = value;
   }, []);
 
   return (
@@ -149,69 +148,24 @@ export function ArtifactTextEditDialog({
           {/* Editor container */}
           <div
             className={cn(
-              "relative flex-1 min-h-[400px] rounded-lg border",
+              "relative flex-1 min-h-[400px] rounded-lg border overflow-hidden",
               isDark ? "bg-[#1d2021] prism-dark" : "bg-[#fbf1c7] prism-light"
             )}
           >
-            {readOnly ? (
-              /* Read-only mode: single scrollable pre element */
-              <pre
-                ref={preRef}
-                className={cn(
-                  "absolute inset-0 m-0 p-4 overflow-auto",
-                  "font-mono text-sm whitespace-pre-wrap break-words",
-                  `language-${language}`
-                )}
-              >
-                <code
-                  className={`language-${language}`}
-                  dangerouslySetInnerHTML={{ __html: highlightedCode }}
-                />
-              </pre>
-            ) : (
-              /* Edit mode: single scrollable container with both elements inside */
-              <div
-                ref={containerRef}
-                className="absolute inset-0 overflow-auto"
-              >
-                <div className="relative min-h-full">
-                  {/* Highlighted code display - determines the content height */}
-                  <pre
-                    ref={preRef}
-                    className={cn(
-                      "m-0 p-4 pointer-events-none",
-                      "font-mono text-sm whitespace-pre-wrap break-words leading-[1.5]",
-                      `language-${language}`
-                    )}
-                    style={{ padding: "1rem" }}
-                    aria-hidden
-                  >
-                    <code
-                      className={`language-${language}`}
-                      dangerouslySetInnerHTML={{ __html: highlightedCode }}
-                    />
-                  </pre>
-
-                  {/* Transparent textarea overlaid on top */}
-                  <textarea
-                    ref={textareaRef}
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    className={cn(
-                      "absolute inset-0 w-full h-full p-4 resize-none",
-                      "font-mono text-sm whitespace-pre-wrap break-words leading-[1.5]",
-                      "bg-transparent caret-zinc-800 dark:caret-zinc-200",
-                      "text-transparent",
-                      "selection:bg-primary/30 selection:text-transparent",
-                      "focus:outline-none",
-                      // Remove default textarea styling
-                      "border-none outline-none"
-                    )}
-                    spellCheck={false}
-                  />
-                </div>
-              </div>
-            )}
+            <Editor
+              key={editorKey}
+              language={language}
+              value={content}
+              onUpdate={handleUpdate}
+              readOnly={readOnly}
+              wordWrap={true}
+              style={{
+                height: "100%",
+                fontSize: "14px",
+              }}
+            >
+              <BasicSetup />
+            </Editor>
           </div>
 
           <div className="flex justify-end gap-2">
@@ -221,7 +175,11 @@ export function ArtifactTextEditDialog({
               </Button>
             ) : (
               <>
-                <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
+                <Button
+                  variant="outline"
+                  onClick={handleCancel}
+                  disabled={isSaving}
+                >
                   Cancel
                 </Button>
                 <Button onClick={handleSaveAndClose} disabled={isSaving}>

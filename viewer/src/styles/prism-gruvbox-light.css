@@ -143,3 +143,12 @@
 .prism-light .token.deleted {
 	background: #9d0006; /* red2 */
 }
+
+/* prism-react-editor caret styling */
+.prism-light .prism-code-editor textarea {
+	caret-color: #3c3836 !important; /* fg1 / fg - dark caret on light bg */
+}
+
+.prism-light .prism-code-editor {
+	background: #fbf1c7 !important; /* bg0 */
+}
