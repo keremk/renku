@@ -609,7 +609,8 @@ function TextCard({
         if (!cancelled) {
           setContent(text);
         }
-      } catch {
+      } catch (error) {
+        console.error("[TextCard] Failed to load content:", error);
         if (!cancelled) {
           setContent("Failed to load content");
         }
@@ -777,6 +778,13 @@ function MediaDialog({
 // ============================================================================
 
 function getBlobUrl(blueprintFolder: string, movieId: string, hash: string): string {
+  if (!blueprintFolder || !movieId || !hash) {
+    console.warn("[getBlobUrl] Missing required parameters:", {
+      blueprintFolder: !!blueprintFolder,
+      movieId: !!movieId,
+      hash: !!hash,
+    });
+  }
   const params = new URLSearchParams({
     folder: blueprintFolder,
     movieId,

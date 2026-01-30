@@ -15,6 +15,8 @@ interface TextInputCardProps {
   onChange: (value: string) => void;
   /** Whether the input is editable */
   isEditable: boolean;
+  /** Whether the card is selected */
+  isSelected?: boolean;
 }
 
 /**
@@ -26,6 +28,7 @@ export function TextInputCard({
   value,
   onChange,
   isEditable,
+  isSelected = false,
 }: TextInputCardProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -50,6 +53,7 @@ export function TextInputCard({
   if (isEmpty && !isEditable) {
     return (
       <MediaCard
+        isSelected={isSelected}
         footer={
           <InputCardFooter
             label={input.name}
@@ -104,6 +108,7 @@ export function TextInputCard({
   return (
     <>
       <MediaCard
+        isSelected={isSelected}
         onClick={isEditable ? () => setDialogOpen(true) : undefined}
         footer={
           <InputCardFooter

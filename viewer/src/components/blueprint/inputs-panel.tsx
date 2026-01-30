@@ -13,12 +13,14 @@ import {
   getMediaTypeFromInput,
   type MediaType,
 } from "@/lib/input-utils";
-import { parseFileRef, type MediaInputType } from "@/data/blueprint-client";
+import { parseFileRef } from "@/data/blueprint-client";
 import {
   uploadAndValidate,
   getInputNameFromNodeId,
   getSelectionStyles,
   getSectionHighlightStyles,
+  toMediaInputType,
+  isValidFileRef,
 } from "@/lib/panel-utils";
 
 interface InputValue {
@@ -243,12 +245,12 @@ function MediaInputSection({
       const result = await uploadAndValidate(
         { blueprintFolder, movieId },
         files,
-        mediaType as MediaInputType
+        toMediaInputType(mediaType)
       );
 
       const newRefs = result.files.map((f) => f.fileRef);
       const existingRefs = Array.isArray(value)
-        ? value.filter((v) => typeof v === "string" && v.startsWith("file:"))
+        ? value.filter((v) => isValidFileRef(v))
         : [];
 
       onChange([...existingRefs, ...newRefs]);

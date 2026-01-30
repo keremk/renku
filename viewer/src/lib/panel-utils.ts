@@ -4,9 +4,78 @@
 
 import {
   uploadInputFiles,
+  parseFileRef,
   type MediaInputType,
   type UploadFilesResponse,
 } from "@/data/blueprint-client";
+import type { MediaType } from "@/lib/input-utils";
+
+// ============================================================================
+// Type Guards
+// ============================================================================
+
+/**
+ * Valid media input types for file uploads.
+ */
+const MEDIA_INPUT_TYPES: readonly MediaInputType[] = ["image", "video", "audio"];
+
+/**
+ * Type guard to check if a value is a valid MediaInputType.
+ */
+export function isMediaInputType(value: unknown): value is MediaInputType {
+  return (
+    typeof value === "string" &&
+    MEDIA_INPUT_TYPES.includes(value as MediaInputType)
+  );
+}
+
+/**
+ * Converts a MediaType to MediaInputType safely.
+ * Returns null if the conversion is not valid.
+ */
+export function toMediaInputType(mediaType: MediaType): MediaInputType {
+  // MediaType and MediaInputType have the same values, but we verify to be safe
+  if (isMediaInputType(mediaType)) {
+    return mediaType;
+  }
+  // This should never happen as MediaType is a subset of MediaInputType values
+  // but we handle it defensively
+  console.warn(`[toMediaInputType] Unexpected media type: ${mediaType}`);
+  return "image"; // fallback
+}
+
+// ============================================================================
+// File Reference Utilities
+// ============================================================================
+
+/**
+ * Pattern for valid file references: "file:./input-files/filename"
+ */
+const FILE_REF_PATTERN = /^file:\.\/input-files\/.+$/;
+
+/**
+ * Checks if a value is a valid file reference string.
+ */
+export function isValidFileRef(value: unknown): value is string {
+  return typeof value === "string" && FILE_REF_PATTERN.test(value);
+}
+
+/**
+ * Extracts filename from a file reference, with validation.
+ * Returns null for invalid references and logs a warning.
+ */
+export function extractFilenameFromRef(value: unknown): string | null {
+  const filename = parseFileRef(value);
+  if (value !== undefined && value !== null && filename === null) {
+    // Value exists but is not a valid file ref - this might indicate data issues
+    if (typeof value === "string" && value.length > 0) {
+      console.warn(
+        `[extractFilenameFromRef] Invalid file reference format: "${value.slice(0, 50)}${value.length > 50 ? "..." : ""}"`
+      );
+    }
+  }
+  return filename;
+}
 
 // ============================================================================
 // Upload Utilities

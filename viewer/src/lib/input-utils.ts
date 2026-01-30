@@ -23,6 +23,26 @@ export interface CategorizedInputs {
 export type MediaType = "image" | "video" | "audio";
 
 /**
+ * Known valid input types for categorization.
+ * Mirrors the VALID_INPUT_TYPES from core validation.
+ */
+const KNOWN_INPUT_TYPES = new Set([
+  "string",
+  "text",
+  "int",
+  "integer",
+  "number",
+  "boolean",
+  "array",
+  "collection",
+  "image",
+  "video",
+  "audio",
+  "json",
+  "enum",
+]);
+
+/**
  * Checks if a type is a media type (image, video, audio).
  */
 export function isMediaType(type: string, itemType?: string): boolean {
@@ -62,6 +82,16 @@ export function getInputCategory(input: BlueprintInputDef): InputCategory {
   // Check for text type (long-form content)
   if (input.type === "text") {
     return "text";
+  }
+
+  // Log warning for unknown types in development
+  if (
+    process.env.NODE_ENV === "development" &&
+    !KNOWN_INPUT_TYPES.has(input.type)
+  ) {
+    console.warn(
+      `[getInputCategory] Unknown input type "${input.type}" for input "${input.name}". Categorizing as "other".`
+    );
   }
 
   // Everything else (string, int, enum, boolean, etc.)

@@ -8,6 +8,10 @@ import {
   UploadContextError,
   UploadEmptyError,
   validateUploadContext,
+  isMediaInputType,
+  toMediaInputType,
+  isValidFileRef,
+  extractFilenameFromRef,
 } from "./panel-utils";
 import type { UploadFilesResponse } from "@/data/blueprint-client";
 
@@ -264,5 +268,120 @@ describe("validateUploadContext", () => {
     expect(() =>
       validateUploadContext({ blueprintFolder: "/path", movieId: "123" })
     ).not.toThrow();
+  });
+});
+
+// ============================================================================
+// Type Guard Tests
+// ============================================================================
+
+describe("isMediaInputType", () => {
+  it("returns true for 'image'", () => {
+    expect(isMediaInputType("image")).toBe(true);
+  });
+
+  it("returns true for 'video'", () => {
+    expect(isMediaInputType("video")).toBe(true);
+  });
+
+  it("returns true for 'audio'", () => {
+    expect(isMediaInputType("audio")).toBe(true);
+  });
+
+  it("returns false for unknown string", () => {
+    expect(isMediaInputType("document")).toBe(false);
+  });
+
+  it("returns false for non-string values", () => {
+    expect(isMediaInputType(123)).toBe(false);
+    expect(isMediaInputType(null)).toBe(false);
+    expect(isMediaInputType(undefined)).toBe(false);
+    expect(isMediaInputType({})).toBe(false);
+  });
+
+  it("returns false for empty string", () => {
+    expect(isMediaInputType("")).toBe(false);
+  });
+});
+
+describe("toMediaInputType", () => {
+  it("converts 'image' MediaType to MediaInputType", () => {
+    expect(toMediaInputType("image")).toBe("image");
+  });
+
+  it("converts 'video' MediaType to MediaInputType", () => {
+    expect(toMediaInputType("video")).toBe("video");
+  });
+
+  it("converts 'audio' MediaType to MediaInputType", () => {
+    expect(toMediaInputType("audio")).toBe("audio");
+  });
+});
+
+// ============================================================================
+// File Reference Tests
+// ============================================================================
+
+describe("isValidFileRef", () => {
+  it("returns true for valid file reference", () => {
+    expect(isValidFileRef("file:./input-files/image.png")).toBe(true);
+  });
+
+  it("returns true for file ref with nested path", () => {
+    expect(isValidFileRef("file:./input-files/path/to/file.jpg")).toBe(true);
+  });
+
+  it("returns false for invalid prefix", () => {
+    expect(isValidFileRef("./input-files/image.png")).toBe(false);
+  });
+
+  it("returns false for different directory", () => {
+    expect(isValidFileRef("file:./other-dir/image.png")).toBe(false);
+  });
+
+  it("returns false for missing filename", () => {
+    expect(isValidFileRef("file:./input-files/")).toBe(false);
+  });
+
+  it("returns false for non-string values", () => {
+    expect(isValidFileRef(123)).toBe(false);
+    expect(isValidFileRef(null)).toBe(false);
+    expect(isValidFileRef(undefined)).toBe(false);
+    expect(isValidFileRef({})).toBe(false);
+  });
+
+  it("returns false for empty string", () => {
+    expect(isValidFileRef("")).toBe(false);
+  });
+});
+
+describe("extractFilenameFromRef", () => {
+  it("extracts filename from valid file reference", () => {
+    expect(extractFilenameFromRef("file:./input-files/image.png")).toBe(
+      "image.png"
+    );
+  });
+
+  it("extracts filename with path from nested reference", () => {
+    expect(extractFilenameFromRef("file:./input-files/path/to/file.jpg")).toBe(
+      "path/to/file.jpg"
+    );
+  });
+
+  it("returns null for invalid file reference", () => {
+    expect(extractFilenameFromRef("not-a-file-ref")).toBeNull();
+  });
+
+  it("returns null for null input", () => {
+    expect(extractFilenameFromRef(null)).toBeNull();
+  });
+
+  it("returns null for undefined input", () => {
+    expect(extractFilenameFromRef(undefined)).toBeNull();
+  });
+
+  it("returns null for non-string values", () => {
+    expect(extractFilenameFromRef(123)).toBeNull();
+    expect(extractFilenameFromRef({})).toBeNull();
   });
 });

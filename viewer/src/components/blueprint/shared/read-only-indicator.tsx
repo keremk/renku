@@ -29,7 +29,7 @@ export function ReadOnlyIndicator({
         disabled={isEnabling}
         className="h-6 px-2 text-xs text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 hover:text-amber-700 dark:hover:text-amber-300"
       >
-        {isEnabling ? "..." : "Enable"}
+        {isEnabling ? "Enabling..." : "Enable"}
       </Button>
     </div>
   );

@@ -11,12 +11,8 @@ import { FilePreviewThumbnail } from "./file-preview";
 import { FileUploadDialog } from "./file-upload-dialog";
 import type { BlueprintInputDef } from "@/types/blueprint-graph";
 import type { MediaType } from "@/lib/input-utils";
-import {
-  buildInputFileUrl,
-  parseFileRef,
-  type MediaInputType,
-} from "@/data/blueprint-client";
-import { uploadAndValidate } from "@/lib/panel-utils";
+import { buildInputFileUrl, parseFileRef } from "@/data/blueprint-client";
+import { uploadAndValidate, toMediaInputType } from "@/lib/panel-utils";
 
 interface MediaInputCardProps {
   /** Input definition */
@@ -82,7 +78,7 @@ export function MediaInputCard({
       const result = await uploadAndValidate(
         { blueprintFolder, movieId },
         files,
-        mediaType as MediaInputType
+        toMediaInputType(mediaType)
       );
 
       const newRef = result.files[0].fileRef;
