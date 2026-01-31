@@ -448,6 +448,70 @@ Export completed successfully.
 
 ---
 
+### `renku export:davinci`
+
+Export a generated movie timeline to OpenTimelineIO (OTIO) format for import into DaVinci Resolve, Premiere Pro, and other professional NLE applications.
+
+**Usage:**
+```bash
+renku export:davinci --movie-id=<id> [options]
+renku export:davinci --last [options]
+```
+
+**Options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--movie-id`, `--id` | - | Movie ID to export |
+| `--last` | - | Export the most recent movie |
+| `--fps` | 30 | Frames per second for timeline |
+
+**Requirements:**
+- Blueprint must include a `TimelineComposer` producer
+- Movie must have a Timeline artifact
+
+**Output:**
+- `builds/{movieId}/DaVinciProject.otio` - Main OTIO file
+- `artifacts/{movieId}/DaVinciProject.otio` - Symlink for easy access
+
+**Examples:**
+```bash
+# Export most recent movie
+renku export:davinci --last
+
+# Export specific movie
+renku export:davinci --movie-id=movie-a1b2c3d4
+
+# Export with custom frame rate
+renku export:davinci --last --fps=24
+```
+
+**Importing into DaVinci Resolve:**
+
+1. Open DaVinci Resolve, go to the **Edit** page
+2. **File** → **Import** → **Timeline** (or right-click in Media Pool → **Timelines** → **Import** → select OTIO)
+3. Select the `.otio` file
+4. If media paths don't match, DaVinci prompts to locate the media folder
+5. Check "Ignore file extensions when matching" if relinking to different quality media
+
+**Track Mapping:**
+
+| Renku Track | OTIO Track |
+|-------------|------------|
+| VideoTrack | Video |
+| ImageTrack | Video |
+| AudioTrack | Audio |
+| MusicTrack | Audio |
+| CaptionsTrack | Markers |
+
+**Notes:**
+- OTIO is a snapshot format - no live sync with Renku
+- Re-export generates a new timeline state
+- DaVinci will auto-link to existing media in your Media Pool when re-importing
+- For iterative workflows, enable "Automatically conform missing clips" in DaVinci Project Settings
+
+---
+
 ### `renku producers:list`
 
 List all available models for producers defined in a blueprint. This is useful for discovering model options when configuring the inputs file.

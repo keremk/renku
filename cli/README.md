@@ -178,6 +178,9 @@ This auto-detects your blueprint, starts a local server if needed, and opens you
   - `--inputs=<file>` - Export config YAML file (for advanced settings)
   - `--exporter=<type>` - Exporter backend: `remotion` or `ffmpeg`
   - `--width`, `--height`, `--fps` - Video dimensions and frame rate
+- `renku export:davinci` - Export timeline to OTIO format for DaVinci Resolve
+  - `--movie-id=<id>` / `--last` - Movie to export
+  - `--fps=<n>` - Frame rate (default: 30)
 
 For complete command documentation, see the [CLI Reference](https://gorenku.com/docs/cli-reference).
 
