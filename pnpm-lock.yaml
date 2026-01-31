@@ -79,6 +79,9 @@ importers:
       '@eslint/js':
         specifier: ^9.36.0
         version: 9.36.0
+      '@gorenku/compositions':
+        specifier: ^0.1.4
+        version: 0.1.4(bufferutil@4.0.9)
       '@types/node':
         specifier: ^20.16.11
         version: 20.16.11
@@ -189,6 +192,9 @@ importers:
       '@eslint/js':
         specifier: ^9.36.0
         version: 9.36.0
+      '@gorenku/compositions':
+        specifier: ^0.1.4
+        version: 0.1.4(bufferutil@4.0.9)
       '@types/node':
         specifier: ^20.16.11
         version: 20.16.11
@@ -1458,6 +1464,9 @@ packages:
 
   '@flystorage/stream-mime-type@1.1.0':
     resolution: {integrity: sha512-PAb2fH3Gl99aHCMzkr91soUuySdCNBINIiyWrccobup0ouXBhVGUaMBvVw817ub/yDZK6Tn4OBs2zqYmYXtOlw==}
+
+  '@gorenku/compositions@0.1.4':
+    resolution: {integrity: sha512-1M4QbNahk5kPcsMh2bU4V4RJDtMoqXNCReEAECQSTxepSCxvq3fkmgXExRq9tfI+68PjEEfP3XMF9ljfP12TKQ==}
 
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
@@ -8290,6 +8299,23 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@gorenku/compositions@0.1.4(bufferutil@4.0.9)':
+    dependencies:
+      '@remotion/bundler': 4.0.382(bufferutil@4.0.9)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      '@remotion/cli': 4.0.382(bufferutil@4.0.9)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      '@remotion/renderer': 4.0.382(bufferutil@4.0.9)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      react: 19.2.1
+      react-dom: 19.2.1(react@19.2.1)
+      remotion: 4.0.382(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      serve-handler: 6.1.6
+    transitivePeerDependencies:
+      - '@swc/core'
+      - bufferutil
+      - supports-color
+      - uglify-js
+      - utf-8-validate
+      - webpack-cli
+
   '@humanfs/core@0.19.1': {}
 
   '@humanfs/node@0.16.7':
@@ -14322,7 +14348,7 @@ snapshots:
 
   tapable@2.3.0: {}
 
-  terser-webpack-plugin@5.3.15(esbuild@0.25.0)(webpack@5.96.1):
+  terser-webpack-plugin@5.3.15(esbuild@0.25.0)(webpack@5.96.1(esbuild@0.25.0)):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       jest-worker: 27.5.1
@@ -14886,7 +14912,7 @@ snapshots:
       neo-async: 2.6.2
       schema-utils: 3.3.0
       tapable: 2.3.0
-      terser-webpack-plugin: 5.3.15(esbuild@0.25.0)(webpack@5.96.1)
+      terser-webpack-plugin: 5.3.15(esbuild@0.25.0)(webpack@5.96.1(esbuild@0.25.0))
       watchpack: 2.4.4
       webpack-sources: 3.3.3
     transitivePeerDependencies:
