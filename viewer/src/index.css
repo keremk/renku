@@ -13,3 +13,23 @@
     font-family: var(--font-sans, "Montserrat", sans-serif);
   }
 }
+
+/* ReactFlow Controls dark mode styling */
+.dark .react-flow__controls {
+  background: var(--card);
+  border-color: var(--border);
+}
+
+.dark .react-flow__controls-button {
+  background: var(--card);
+  border-color: var(--border);
+  fill: var(--foreground);
+}
+
+.dark .react-flow__controls-button:hover {
+  background: var(--muted);
+}
+
+.dark .react-flow__controls-button svg {
+  fill: var(--foreground);
+}
