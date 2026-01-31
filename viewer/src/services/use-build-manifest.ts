@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { fetchBuildManifest } from "@/data/blueprint-client";
 import type { BuildManifestResponse } from "@/types/builds";
 
@@ -10,6 +10,10 @@ interface BuildManifestState {
   error: Error | null;
 }
 
+interface BuildManifestResult extends BuildManifestState {
+  refetch: () => void;
+}
+
 const idleState: BuildManifestState = {
   manifest: null,
   status: "idle",
@@ -19,8 +23,13 @@ const idleState: BuildManifestState = {
 export function useBuildManifest(
   blueprintFolder: string | null,
   movieId: string | null
-): BuildManifestState {
+): BuildManifestResult {
   const [state, setState] = useState<BuildManifestState>(idleState);
+  // Track trigger for refetch - increment to force re-run
+  const [refetchTrigger, setRefetchTrigger] = useState(0);
+  // Store current params in refs so refetch callback doesn't need dependencies
+  const paramsRef = useRef({ blueprintFolder, movieId });
+  paramsRef.current = { blueprintFolder, movieId };
 
   useEffect(() => {
     if (!blueprintFolder || !movieId) {
@@ -67,7 +76,15 @@ export function useBuildManifest(
     return () => {
       cancelled = true;
     };
-  }, [blueprintFolder, movieId]);
+  }, [blueprintFolder, movieId, refetchTrigger]);
 
-  return blueprintFolder && movieId ? state : idleState;
+  const refetch = useCallback(() => {
+    // Only refetch if we have valid params
+    if (paramsRef.current.blueprintFolder && paramsRef.current.movieId) {
+      setRefetchTrigger((prev) => prev + 1);
+    }
+  }, []);
+
+  const result = blueprintFolder && movieId ? state : idleState;
+  return { ...result, refetch };
 }

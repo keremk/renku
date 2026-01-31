@@ -40,6 +40,8 @@ interface WorkspaceLayoutProps {
   selectedBuildManifest: BuildManifestResponse | null;
   /** Callback to refresh builds list */
   onBuildsRefresh?: () => Promise<void>;
+  /** Callback to refresh the build manifest (after artifact edits) */
+  onManifestRefresh?: () => void;
 }
 
 // Blueprint flow panel sizing (the graph at the bottom)
@@ -63,6 +65,7 @@ function WorkspaceLayoutInner({
   selectedBuildId,
   selectedBuildManifest,
   onBuildsRefresh,
+  onManifestRefresh,
 }: WorkspaceLayoutProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [detailPanelTab, setDetailPanelTab] = useState<DetailPanelTab>("inputs");
@@ -312,6 +315,7 @@ function WorkspaceLayoutInner({
               onPause={pause}
               onSeek={seek}
               onReset={reset}
+              onArtifactUpdated={onManifestRefresh}
             />
           </div>
         </div>

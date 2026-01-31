@@ -23,7 +23,7 @@ function BlueprintApp() {
   );
 
   // Load manifest for selected build
-  const { manifest: selectedBuildManifest } = useBuildManifest(
+  const { manifest: selectedBuildManifest, refetch: refetchManifest } = useBuildManifest(
     resolvedPaths?.blueprintFolder ?? null,
     blueprintRoute?.selectedBuildId ?? null
   );
@@ -73,6 +73,7 @@ function BlueprintApp() {
       selectedBuildId={blueprintRoute.selectedBuildId}
       selectedBuildManifest={selectedBuildManifest}
       onBuildsRefresh={refetchBuilds}
+      onManifestRefresh={refetchManifest}
     />
   );
 }

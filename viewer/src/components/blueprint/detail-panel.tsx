@@ -55,6 +55,8 @@ interface DetailPanelProps {
   onPause?: () => void;
   onSeek?: (time: number) => void;
   onReset?: () => void;
+  /** Callback when an artifact is edited or restored */
+  onArtifactUpdated?: () => void;
 }
 
 export function DetailPanel({
@@ -84,6 +86,7 @@ export function DetailPanel({
   onPause,
   onSeek,
   onReset,
+  onArtifactUpdated,
 }: DetailPanelProps) {
   // Support both controlled and uncontrolled tab state
   const [internalActiveTab, setInternalActiveTab] = useState<Tab>("inputs");
@@ -177,6 +180,7 @@ export function DetailPanel({
             blueprintFolder={blueprintFolder}
             artifacts={artifacts}
             graphData={graphData}
+            onArtifactUpdated={onArtifactUpdated}
           />
         )}
         {activeTab === "preview" && (
