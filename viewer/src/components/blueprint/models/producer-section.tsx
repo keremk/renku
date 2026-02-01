@@ -3,6 +3,8 @@ import { Pencil } from "lucide-react";
 import { CollapsibleSection, MediaGrid, TextCard, PropertyRow } from "../shared";
 import { ModelSelector } from "./model-selector";
 import { ConfigPropertiesEditor } from "./config-properties-editor";
+import { hasRegisteredEditor } from "./config-editors";
+import { isComplexProperty } from "./config-utils";
 import { getSectionHighlightStyles } from "@/lib/panel-utils";
 import type {
   AvailableModelOption,
@@ -103,6 +105,15 @@ export function ProducerSection({
   // Build section title
   const sectionTitle = producerId;
 
+  // For composition producers, filter to only show properties with registered editors
+  // (e.g., subtitles) - don't show primitive config like width, height, fps, etc.
+  const compositionConfigProperties = useMemo(() => {
+    if (category !== "composition" || !configProperties) return [];
+    return configProperties.filter(
+      (prop) => isComplexProperty(prop) && hasRegisteredEditor(prop.key)
+    );
+  }, [category, configProperties]);
+
   // Count items based on category
   const itemCount = useMemo(() => {
     if (category === "prompt" && promptData) {
@@ -111,11 +122,14 @@ export function ProducerSection({
       if (promptData.userPrompt !== undefined) count++;
       return count;
     }
+    if (category === "composition") {
+      return compositionConfigProperties.length || undefined;
+    }
     if (category === "asset" && configProperties) {
       return configProperties.length;
     }
     return undefined;
-  }, [category, promptData, configProperties]);
+  }, [category, promptData, configProperties, compositionConfigProperties]);
 
   // Actions to render in header (edited badge only)
   const headerActions = isEdited ? (
@@ -127,8 +141,31 @@ export function ProducerSection({
     </div>
   ) : null;
 
-  // For composition producers, show a simpler non-collapsible section
+  // For composition producers with displayable config, show collapsible section
+  // For composition producers without displayable config, show simple non-collapsible section
   if (category === "composition") {
+    // If there are displayable config properties, render with ConfigPropertiesEditor
+    if (compositionConfigProperties.length > 0) {
+      return (
+        <CollapsibleSection
+          title={sectionTitle}
+          count={compositionConfigProperties.length}
+          description={description}
+          defaultOpen={true}
+          actions={headerActions}
+          className={getSectionHighlightStyles(isSelected, "blue")}
+        >
+          <ConfigPropertiesEditor
+            properties={compositionConfigProperties}
+            values={configValues}
+            isEditable={isEditable}
+            onChange={(key, value) => onConfigChange?.(key, value)}
+          />
+        </CollapsibleSection>
+      );
+    }
+
+    // No displayable config properties - render simple view
     return (
       <div className={`rounded-lg px-2 py-1.5 ${getSectionHighlightStyles(isSelected, "blue")}`}>
         <div className="flex items-center justify-between">

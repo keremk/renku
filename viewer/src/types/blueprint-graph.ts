@@ -135,6 +135,8 @@ export interface SchemaProperty {
   maximum?: number;
   items?: SchemaProperty;
   properties?: Record<string, SchemaProperty>;
+  /** JSON Schema $ref for referencing other schema definitions */
+  $ref?: string;
 }
 
 /**

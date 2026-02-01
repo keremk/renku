@@ -20,3 +20,13 @@ artifacts:
   - name: FinalVideo
     description: Final rendered MP4 video.
     type: video
+
+# Model mappings for available renderers
+mappings:
+  renku:
+    ffmpeg/native-render:
+      Timeline: timeline
+      Transcription: transcription
+    remotion/docker-render:
+      Timeline: timeline
+      Transcription: transcription

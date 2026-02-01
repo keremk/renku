@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { EnableEditingBanner } from "./shared";
 import { ProducerSection } from "./models/producer-section";
 import { isNestedSttSelection, isSpeechModelSelection } from "./models/stt-helpers";
+import { hasRegisteredEditor } from "./models/config-editors";
+import { isComplexProperty } from "./models/config-utils";
 import type {
   ModelSelectionValue,
   ProducerModelInfo,
@@ -234,11 +236,46 @@ export function ModelsPanel({
     ? selectedNodeId.replace("Producer:", "")
     : null;
 
-  // Get list of producer IDs from the producerModels
-  const producerIds = useMemo(
-    () => Object.keys(producerModels),
-    [producerModels]
-  );
+  // Get list of producer IDs, filtering out producers with only unhandled complex properties
+  const producerIds = useMemo(() => {
+    return Object.keys(producerModels).filter((producerId) => {
+      const info = producerModels[producerId];
+      const configProps = configPropertiesByProducer[producerId] ?? [];
+
+      // Prompt producers always show (they have prompts)
+      if (info.category === "prompt") return true;
+
+      // Check if producer has displayable config
+      const hasDisplayableConfig = configProps.some((prop) => {
+        // Primitive types are always displayable
+        if (!isComplexProperty(prop)) {
+          return true;
+        }
+        // Complex types are displayable if we have a registered editor
+        return hasRegisteredEditor(prop.key);
+      });
+
+      // Check if producer has ONLY unhandled complex properties (no displayable content)
+      const hasOnlyUnhandledComplex = configProps.length > 0 && !hasDisplayableConfig;
+
+      // Hide producers that have ONLY unhandled complex properties
+      if (hasOnlyUnhandledComplex) return false;
+
+      // Asset producers: show if they have displayable config OR no config (for model selection)
+      if (info.category === "asset") {
+        return hasDisplayableConfig || configProps.length === 0;
+      }
+
+      // Composition producers: show only if they have displayable config
+      // (no model selection needed, so nothing to show if no config)
+      if (info.category === "composition") {
+        return hasDisplayableConfig;
+      }
+
+      // Default: show if has displayable config
+      return hasDisplayableConfig;
+    });
+  }, [producerModels, configPropertiesByProducer]);
 
   // Track which producers have been edited (for showing edited badge)
   const editedProducerIds = useMemo(() => {
@@ -294,7 +331,7 @@ export function ModelsPanel({
             availableModels={info.availableModels}
             currentSelection={selection}
             isSelected={isSelected}
-            isEditable={info.category !== 'composition' && isEditable}
+            isEditable={isEditable}
             isEdited={isEdited}
             onModelChange={handleSelectionChange}
             promptData={promptDataByProducer[producerId]}

@@ -31,6 +31,8 @@ export interface SchemaProperty {
   minimum?: number;
   maximum?: number;
   items?: SchemaProperty;
+  /** JSON Schema $ref for referencing other schema definitions */
+  $ref?: string;
 }
 
 /**
@@ -187,8 +189,8 @@ export async function getProducerConfigSchemas(
       const childNode = producerImport.path ? node.children.get(producerId) : undefined;
       const category = detectProducerCategory(producerImport, childNode);
 
-      // Only asset producers have config schemas (prompt producers use prompts, not config)
-      if (category !== "asset") {
+      // Prompt producers use prompts, not config - skip them
+      if (category === "prompt") {
         producers[producerId] = {
           producerId,
           category,
@@ -197,6 +199,7 @@ export async function getProducerConfigSchemas(
         continue;
       }
 
+      // Asset and composition producers can have config schemas
       // Get available models from mappings
       const mappings = getProducerMappings(root, producerId);
       if (!mappings || !catalog || !catalogModelsDir) {

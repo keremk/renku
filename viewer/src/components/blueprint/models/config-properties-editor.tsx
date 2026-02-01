@@ -1,15 +1,16 @@
 /**
  * Editor for config properties with type-aware inputs.
  * Shows all unmapped properties from the model's JSON schema.
- * Filters out complex types (object, array) that need specialized editors.
+ * Supports specialized editors for complex types via the config editor registry.
  */
 
-import { useMemo } from "react";
+import { useMemo, type ComponentType } from "react";
 import { AlertCircle } from "lucide-react";
 import { ConfigPropertyRow } from "./config-property-row";
 import { ModelSelector } from "./model-selector";
 import { isComplexProperty } from "./config-utils";
-import { PropertyRow } from "../shared/property-row";
+import { getEditorComponent, type ConfigEditorProps } from "./config-editors";
+import { PropertyRow, MediaGrid } from "../shared";
 import type { ConfigProperty } from "@/types/blueprint-graph";
 import type { AvailableModelOption, ModelSelectionValue } from "@/types/blueprint-graph";
 
@@ -53,15 +54,25 @@ export function ConfigPropertiesEditor({
   isComposition = false,
   onModelChange,
 }: ConfigPropertiesEditorProps) {
-  // Combine all properties into a flat sorted list (required first, then optional)
-  const { sortedProperties, complexCount } = useMemo(() => {
+  // Categorize properties into primitive, object-with-editor, and unhandled
+  const { primitiveProps, objectPropsWithEditor, unhandledComplexCount } = useMemo(() => {
     const required: ConfigProperty[] = [];
     const optional: ConfigProperty[] = [];
-    let complex = 0;
+    const withEditor: Array<{
+      property: ConfigProperty;
+      Editor: ComponentType<ConfigEditorProps<unknown>>;
+    }> = [];
+    let unhandled = 0;
 
     for (const prop of properties) {
       if (isComplexProperty(prop)) {
-        complex++;
+        // Check if there's a registered editor for this property
+        const Editor = getEditorComponent(prop.key);
+        if (Editor) {
+          withEditor.push({ property: prop, Editor });
+        } else {
+          unhandled++;
+        }
         continue;
       }
       if (prop.required) {
@@ -75,7 +86,11 @@ export function ConfigPropertiesEditor({
     required.sort((a, b) => a.key.localeCompare(b.key));
     optional.sort((a, b) => a.key.localeCompare(b.key));
 
-    return { sortedProperties: [...required, ...optional], complexCount: complex };
+    return {
+      primitiveProps: [...required, ...optional],
+      objectPropsWithEditor: withEditor,
+      unhandledComplexCount: unhandled,
+    };
   }, [properties]);
 
   // Show error state when schema failed to load
@@ -94,6 +109,10 @@ export function ConfigPropertiesEditor({
   // Check if we should show model selection
   const showModelSelection = producerId && availableModels && onModelChange && !isComposition;
 
+  // Check if there's any displayable content
+  const hasDisplayableContent =
+    primitiveProps.length > 0 || objectPropsWithEditor.length > 0;
+
   // No properties and no model selection
   if (properties.length === 0 && !showModelSelection) {
     return (
@@ -103,11 +122,13 @@ export function ConfigPropertiesEditor({
     );
   }
 
-  // Only complex properties, no model selection
-  if (sortedProperties.length === 0 && complexCount > 0 && !showModelSelection) {
+  // Only unhandled complex properties, no model selection, no editors
+  if (!hasDisplayableContent && unhandledComplexCount > 0 && !showModelSelection) {
     return (
       <div className="text-xs text-muted-foreground italic py-2">
-        {complexCount} complex {complexCount === 1 ? "property" : "properties"} not shown (requires specialized editor).
+        {unhandledComplexCount} complex{" "}
+        {unhandledComplexCount === 1 ? "property" : "properties"} not shown
+        (requires specialized editor).
       </div>
     );
   }
@@ -127,8 +148,8 @@ export function ConfigPropertiesEditor({
         </PropertyRow>
       )}
 
-      {/* All properties in flat list */}
-      {sortedProperties.map((prop) => (
+      {/* Primitive properties in flat list */}
+      {primitiveProps.map((prop) => (
         <ConfigPropertyRow
           key={prop.key}
           property={prop}
@@ -138,10 +159,25 @@ export function ConfigPropertiesEditor({
         />
       ))}
 
+      {/* Object properties with registered editors */}
+      {objectPropsWithEditor.length > 0 && (
+        <MediaGrid className="grid-cols-1 mt-4">
+          {objectPropsWithEditor.map(({ property, Editor }) => (
+            <Editor
+              key={property.key}
+              value={values[property.key]}
+              isEditable={isEditable}
+              onChange={(value) => onChange(property.key, value)}
+            />
+          ))}
+        </MediaGrid>
+      )}
+
       {/* Hidden complex properties indicator */}
-      {complexCount > 0 && (
+      {unhandledComplexCount > 0 && (
         <div className="text-xs text-muted-foreground italic">
-          {complexCount} complex {complexCount === 1 ? "property" : "properties"} not shown.
+          {unhandledComplexCount} complex{" "}
+          {unhandledComplexCount === 1 ? "property" : "properties"} not shown.
         </div>
       )}
     </div>
