@@ -24,6 +24,13 @@ import {
   type TextArtifactEditRequest,
   type ArtifactRestoreRequest,
 } from "./artifact-edit-handler.js";
+import {
+  getProducerPrompts,
+  saveProducerPrompts,
+  restoreProducerPrompts,
+  type SavePromptsRequest,
+  type RestorePromptsRequest,
+} from "./prompts-handler.js";
 
 /**
  * Handles builds sub-routes: create, inputs (GET/PUT), metadata (PUT), enable-editing (POST)
@@ -38,6 +45,9 @@ import {
  *   POST /blueprints/builds/artifacts/edit?folder=...&movieId=...&artifactId=... (multipart for media)
  *   POST /blueprints/builds/artifacts/edit-text (JSON body for text)
  *   POST /blueprints/builds/artifacts/restore (JSON body)
+ *   GET  /blueprints/builds/prompts?folder=...&movieId=...&blueprintPath=...&producerId=...
+ *   PUT  /blueprints/builds/prompts (JSON body)
+ *   POST /blueprints/builds/prompts/restore (JSON body)
  */
 export async function handleBuildsSubRoute(
   req: IncomingMessage,
@@ -164,6 +174,60 @@ export async function handleBuildsSubRoute(
         return true;
       }
       return respondNotFound(res);
+    }
+
+    case "prompts": {
+      // Handle prompts sub-routes: get, save, restore
+      // segments[0] = "prompts", segments[1] = undefined or "restore"
+      const promptsSubAction = segments[1];
+
+      if (promptsSubAction === "restore" && req.method === "POST") {
+        // Restore prompts to template
+        const body = await parseJsonBody<RestorePromptsRequest>(req);
+        if (!body.blueprintFolder || !body.movieId || !body.producerId) {
+          return respondBadRequest(res, "Missing blueprintFolder, movieId, or producerId");
+        }
+        await restoreProducerPrompts(body.blueprintFolder, body.movieId, body.producerId);
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ success: true }));
+        return true;
+      }
+
+      if (req.method === "GET") {
+        const folder = url.searchParams.get("folder");
+        const movieId = url.searchParams.get("movieId");
+        const blueprintPath = url.searchParams.get("blueprintPath");
+        const producerId = url.searchParams.get("producerId");
+        const catalogRoot = url.searchParams.get("catalog") ?? undefined;
+        if (!folder || !movieId || !blueprintPath || !producerId) {
+          return respondBadRequest(res, "Missing folder, movieId, blueprintPath, or producerId parameter");
+        }
+        try {
+          const result = await getProducerPrompts(folder, movieId, blueprintPath, producerId, catalogRoot);
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify(result));
+          return true;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to get prompts";
+          res.statusCode = 400;
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({ error: message }));
+          return true;
+        }
+      }
+
+      if (req.method === "PUT") {
+        const body = await parseJsonBody<SavePromptsRequest>(req);
+        if (!body.blueprintFolder || !body.movieId || !body.producerId || !body.prompts) {
+          return respondBadRequest(res, "Missing blueprintFolder, movieId, producerId, or prompts");
+        }
+        await saveProducerPrompts(body.blueprintFolder, body.movieId, body.producerId, body.prompts);
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ success: true }));
+        return true;
+      }
+
+      return respondMethodNotAllowed(res);
     }
 
     default:

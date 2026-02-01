@@ -7,12 +7,21 @@ import { BottomTabbedPanel } from "./bottom-tabbed-panel";
 import { ExecutionProvider, useExecution } from "@/contexts/execution-context";
 import { computeBlueprintLayerCount } from "@/lib/blueprint-layout";
 import { enableBuildEditing } from "@/data/blueprint-client";
-import { useBuildInputs, useProducerModels, usePanelResizer, useBottomPanelTabs, usePreviewPlayback } from "@/hooks";
+import {
+  useBuildInputs,
+  useProducerModels,
+  useProducerConfigSchemas,
+  useProducerPrompts,
+  usePanelResizer,
+  useBottomPanelTabs,
+  usePreviewPlayback,
+} from "@/hooks";
 import { useMovieTimeline } from "@/services/use-movie-timeline";
 import type {
   BlueprintGraphData,
   InputTemplateData,
   ModelSelectionValue,
+  ConfigProperty,
 } from "@/types/blueprint-graph";
 import type { BuildInfo, BuildManifestResponse } from "@/types/builds";
 
@@ -88,6 +97,11 @@ function WorkspaceLayoutInner({
 
   // Custom hooks for data fetching and panel resizing
   const { producerModels } = useProducerModels({
+    blueprintPath,
+    catalogRoot,
+  });
+
+  const { configSchemas } = useProducerConfigSchemas({
     blueprintPath,
     catalogRoot,
   });
@@ -204,6 +218,47 @@ function WorkspaceLayoutInner({
     blueprintFolder && selectedBuildId && selectedBuild && !selectedBuild.hasInputsFile
   );
 
+  // Fetch prompts for prompt-type producers (only when editing is enabled)
+  const {
+    promptDataByProducer,
+    savePrompt: handleSavePrompt,
+  } = useProducerPrompts({
+    blueprintFolder,
+    blueprintPath,
+    movieId: selectedBuildId,
+    producerModels,
+    catalogRoot,
+    enabled: isInputsEditable,
+  });
+
+  // Compute config properties for each producer based on current model selection
+  const configPropertiesByProducer = useMemo<Record<string, ConfigProperty[]>>(() => {
+    const result: Record<string, ConfigProperty[]> = {};
+    for (const [producerId, schemas] of Object.entries(configSchemas)) {
+      // Find current model selection for this producer
+      const selection = parsedModelSelections.find((s) => s.producerId === producerId);
+      if (selection) {
+        const modelKey = `${selection.provider}/${selection.model}`;
+        const modelSchema = schemas.modelSchemas[modelKey];
+        if (modelSchema) {
+          result[producerId] = modelSchema.properties;
+        }
+      }
+    }
+    return result;
+  }, [configSchemas, parsedModelSelections]);
+
+  // Compute config values for each producer from model selection configs
+  const configValuesByProducer = useMemo<Record<string, Record<string, unknown>>>(() => {
+    const result: Record<string, Record<string, unknown>> = {};
+    for (const selection of parsedModelSelections) {
+      if (selection.config && Object.keys(selection.config).length > 0) {
+        result[selection.producerId] = selection.config;
+      }
+    }
+    return result;
+  }, [parsedModelSelections]);
+
   // Handle enabling editing for a build
   const handleEnableEditing = useCallback(async () => {
     if (!blueprintFolder || !selectedBuildId) return;
@@ -303,6 +358,10 @@ function WorkspaceLayoutInner({
               producerModels={producerModels}
               modelSelections={parsedModelSelections}
               onSaveModels={handleSaveModels}
+              promptDataByProducer={promptDataByProducer}
+              onPromptChange={handleSavePrompt}
+              configPropertiesByProducer={configPropertiesByProducer}
+              configValuesByProducer={configValuesByProducer}
               hasTimeline={hasTimeline}
               activeTab={detailPanelTab}
               onTabChange={setDetailPanelTab}

@@ -38,3 +38,13 @@ export {
   type TextArtifactEditRequest,
   type ArtifactRestoreRequest,
 } from "./artifact-edit-handler.js";
+export {
+  getProducerPrompts,
+  saveProducerPrompts,
+  restoreProducerPrompts,
+  type ProducerPromptsResponse,
+  type SavePromptsRequest,
+  type RestorePromptsRequest,
+} from "./prompts-handler.js";
+// Re-export PromptFileData from core for convenience
+export { type PromptFileData } from "@gorenku/core";

@@ -264,7 +264,7 @@ describe('ModelsPanel', () => {
       mockOnSave.mockClear();
     });
 
-    it('shows save button when editing is enabled', () => {
+    it('renders producer sections when editing is enabled', () => {
       const { container } = render(
         <ModelsPanel
           producerModels={defaultProducerModels}
@@ -275,7 +275,9 @@ describe('ModelsPanel', () => {
         />
       );
 
-      expect(container.textContent).toContain('Edit Models');
+      // Should render producer sections for editable mode
+      expect(container.textContent).toContain('ImageProducer');
+      expect(container.textContent).toContain('TranscriptionProducer');
     });
 
     it('displays nested STT selection value in dropdown', () => {
@@ -350,13 +352,14 @@ describe('ModelsPanel', () => {
         />
       );
 
-      // Find the card container with border styling
-      const cards = document.querySelectorAll('.rounded-lg.border');
-      // Find the card containing ImageProducer
-      const imageProducerCard = Array.from(cards).find(card =>
-        card.textContent?.includes('ImageProducer')
+      // Find the section container with ring styling (using getSectionHighlightStyles)
+      const sections = document.querySelectorAll('.rounded-lg');
+      // Find the section containing ImageProducer
+      const imageProducerSection = Array.from(sections).find(section =>
+        section.textContent?.includes('ImageProducer')
       );
-      expect(imageProducerCard?.className).toContain('border-blue-400');
+      // The highlight style uses ring-1 ring-blue-400/30 from getSectionHighlightStyles
+      expect(imageProducerSection?.className).toContain('ring-blue-400/30');
     });
   });
 });

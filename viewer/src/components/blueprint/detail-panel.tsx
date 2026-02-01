@@ -1,15 +1,17 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { InputsPanel } from "./inputs-panel";
 import { ModelsPanel } from "./models-panel";
 import { OutputsPanel } from "./outputs-panel";
 import { PreviewPanel } from "./preview-panel";
-import { ReadOnlyIndicator } from "./shared";
+import { ReadOnlyIndicator, SaveChangesButton } from "./shared";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import type {
   BlueprintGraphData,
   InputTemplateData,
   ModelSelectionValue,
   ProducerModelInfo,
+  PromptData,
+  ConfigProperty,
 } from "@/types/blueprint-graph";
 import type { ArtifactInfo } from "@/types/builds";
 import type { TimelineDocument } from "@/types/timeline";
@@ -41,6 +43,21 @@ interface DetailPanelProps {
   modelSelections?: ModelSelectionValue[];
   /** Callback when models are saved */
   onSaveModels?: (models: ModelSelectionValue[]) => Promise<void>;
+  /** Prompt data per producer (for prompt producers) */
+  promptDataByProducer?: Record<string, PromptData>;
+  /** Callback when prompts change */
+  onPromptChange?: (producerId: string, prompts: PromptData) => Promise<void>;
+  /** Config properties per producer */
+  configPropertiesByProducer?: Record<string, ConfigProperty[]>;
+  /** Config values per producer */
+  configValuesByProducer?: Record<string, Record<string, unknown>>;
+  /** Callback to save all changes (inputs + models) */
+  onSaveAll?: (
+    inputs: Record<string, unknown>,
+    models: ModelSelectionValue[],
+  ) => Promise<void>;
+  /** Callback to reload data (undo changes) */
+  onReload?: () => void;
   /** Whether a timeline artifact exists for the selected build */
   hasTimeline?: boolean;
   // Controlled tab state (optional)
@@ -75,6 +92,12 @@ export function DetailPanel({
   producerModels = {},
   modelSelections = [],
   onSaveModels,
+  promptDataByProducer = {},
+  onPromptChange,
+  configPropertiesByProducer = {},
+  configValuesByProducer = {},
+  onSaveAll,
+  onReload,
   hasTimeline = false,
   activeTab: controlledActiveTab,
   onTabChange,
@@ -110,6 +133,139 @@ export function DetailPanel({
   // Show read-only indicator when not editable but can enable editing
   const showReadOnlyIndicator = !isInputsEditable && canEnableEditing;
 
+  // ============================================================================
+  // Editable State Management (lifted from individual panels)
+  // ============================================================================
+
+  // Create initial value maps from props
+  const initialInputValues = useMemo(() => {
+    const map: Record<string, unknown> = {};
+    for (const iv of inputData?.inputs ?? []) {
+      map[iv.name] = iv.value;
+    }
+    return map;
+  }, [inputData?.inputs]);
+
+  const initialModelSelections = useMemo(() => {
+    const map = new Map<string, ModelSelectionValue>();
+    for (const selection of modelSelections) {
+      map.set(selection.producerId, selection);
+    }
+    return map;
+  }, [modelSelections]);
+
+  // Editable state for inputs
+  const [editedInputs, setEditedInputs] = useState<Record<string, unknown>>(initialInputValues);
+  const [editedModels, setEditedModels] = useState<Map<string, ModelSelectionValue>>(new Map());
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Reset edit state when props change (e.g., build selection change)
+  useEffect(() => {
+    setEditedInputs(initialInputValues);
+  }, [initialInputValues]);
+
+  useEffect(() => {
+    setEditedModels(new Map());
+  }, [modelSelections]);
+
+  // Compute dirty state
+  const isInputsDirty = useMemo(() => {
+    return JSON.stringify(editedInputs) !== JSON.stringify(initialInputValues);
+  }, [editedInputs, initialInputValues]);
+
+  const isModelsDirty = useMemo(() => {
+    if (editedModels.size === 0) return false;
+    for (const [producerId, value] of editedModels) {
+      const original = initialModelSelections.get(producerId);
+      if (!original) return true;
+      if (value.provider !== original.provider || value.model !== original.model) {
+        return true;
+      }
+    }
+    return false;
+  }, [editedModels, initialModelSelections]);
+
+  const isDirty = isInputsDirty || isModelsDirty;
+
+  // Handle input value changes
+  const handleInputChange = useCallback((name: string, value: unknown) => {
+    setEditedInputs((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  }, []);
+
+  // Handle model selection changes
+  const handleModelChange = useCallback((selection: ModelSelectionValue) => {
+    setEditedModels((prev) => {
+      const next = new Map(prev);
+      next.set(selection.producerId, selection);
+      return next;
+    });
+  }, []);
+
+  // Handle save all
+  const handleSaveAll = useCallback(async () => {
+    if (!isDirty) return;
+
+    setIsSaving(true);
+    try {
+      // Build the final models array
+      const finalModels: ModelSelectionValue[] = [];
+      const processed = new Set<string>();
+
+      // Add edited models first
+      for (const [producerId, value] of editedModels) {
+        finalModels.push(value);
+        processed.add(producerId);
+      }
+
+      // Add unedited models
+      for (const [producerId, value] of initialModelSelections) {
+        if (!processed.has(producerId)) {
+          finalModels.push(value);
+        }
+      }
+
+      // Use onSaveAll if available, otherwise fall back to individual saves
+      if (onSaveAll) {
+        await onSaveAll(editedInputs, finalModels);
+      } else {
+        // Fall back to individual saves
+        if (isInputsDirty && onSaveInputs) {
+          await onSaveInputs(editedInputs);
+        }
+        if (isModelsDirty && onSaveModels) {
+          await onSaveModels(finalModels);
+        }
+      }
+
+      // Clear edit states after successful save
+      setEditedModels(new Map());
+    } finally {
+      setIsSaving(false);
+    }
+  }, [
+    isDirty,
+    isInputsDirty,
+    isModelsDirty,
+    editedInputs,
+    editedModels,
+    initialModelSelections,
+    onSaveAll,
+    onSaveInputs,
+    onSaveModels,
+  ]);
+
+  // Handle undo
+  const handleUndo = useCallback(() => {
+    // Reset to initial values
+    setEditedInputs(initialInputValues);
+    setEditedModels(new Map());
+    // Optionally trigger reload from server
+    onReload?.();
+  }, [initialInputValues, onReload]);
+
   return (
     <div className="flex flex-col h-full bg-card rounded-xl border border-border/60 overflow-hidden">
       {/* Tab buttons */}
@@ -137,12 +293,20 @@ export function DetailPanel({
           />
         </div>
 
-        {/* Right side: read-only indicator, action button, and theme toggle */}
+        {/* Right side: read-only indicator, save button, action button, and theme toggle */}
         <div className="ml-auto flex items-center gap-2 pr-3">
           {showReadOnlyIndicator && (
             <ReadOnlyIndicator
               onEnableEditing={handleEnableEditing}
               isEnabling={isEnabling}
+            />
+          )}
+          {isInputsEditable && (
+            <SaveChangesButton
+              isDirty={isDirty}
+              isSaving={isSaving}
+              onSave={handleSaveAll}
+              onUndo={handleUndo}
             />
           )}
           {actionButton}
@@ -161,6 +325,9 @@ export function DetailPanel({
             onSave={onSaveInputs}
             blueprintFolder={blueprintFolder}
             movieId={movieId}
+            // Controlled mode: pass edited values and change handler
+            controlledValues={editedInputs}
+            onValueChange={handleInputChange}
           />
         )}
         {activeTab === "models" && (
@@ -172,6 +339,13 @@ export function DetailPanel({
             onSave={onSaveModels}
             canEnableEditing={canEnableEditing}
             onEnableEditing={onEnableEditing}
+            // Controlled mode: pass change handler (save is handled by tab bar)
+            onSelectionChange={handleModelChange}
+            hideHeader={true}
+            promptDataByProducer={promptDataByProducer}
+            onPromptChange={onPromptChange}
+            configPropertiesByProducer={configPropertiesByProducer}
+            configValuesByProducer={configValuesByProducer}
           />
         )}
         {activeTab === "outputs" && (

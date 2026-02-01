@@ -34,12 +34,16 @@ interface InputsPanelProps {
   selectedNodeId: string | null;
   /** Whether inputs are editable (requires buildId) */
   isEditable?: boolean;
-  /** Callback when inputs are saved */
+  /** Callback when inputs are saved (only used when not in controlled mode) */
   onSave?: (values: Record<string, unknown>) => Promise<void>;
   /** Blueprint folder path for file uploads */
   blueprintFolder?: string | null;
   /** Movie ID for the current build */
   movieId?: string | null;
+  /** Controlled mode: current values from parent */
+  controlledValues?: Record<string, unknown>;
+  /** Controlled mode: callback when a value changes */
+  onValueChange?: (name: string, value: unknown) => void;
 }
 
 export function InputsPanel({
@@ -50,8 +54,13 @@ export function InputsPanel({
   onSave,
   blueprintFolder = null,
   movieId = null,
+  controlledValues,
+  onValueChange,
 }: InputsPanelProps) {
-  // Create a map of input values by name
+  // Determine if we're in controlled mode
+  const isControlled = controlledValues !== undefined && onValueChange !== undefined;
+
+  // Create a map of input values by name (for uncontrolled mode)
   const initialValueMap = useMemo(() => {
     const map: Record<string, unknown> = {};
     for (const iv of inputValues) {
@@ -60,15 +69,21 @@ export function InputsPanel({
     return map;
   }, [inputValues]);
 
-  // Track all input values locally
-  const [allValues, setAllValues] = useState<Record<string, unknown>>(initialValueMap);
+  // Track all input values locally (for uncontrolled mode)
+  // Generate a stable key when the input values change to trigger state reset
+  const initialValueKey = useMemo(() => JSON.stringify(initialValueMap), [initialValueMap]);
+  const [internalValues, setInternalValues] = useState<Record<string, unknown>>(initialValueMap);
 
-  // Reset values when input values change (e.g., build selection change)
+  // Reset internal state when initialValueMap changes (uncontrolled mode only)
+  // Using the serialized key as dependency ensures we only reset on actual data changes
   useEffect(() => {
-    setAllValues(initialValueMap);
-  }, [initialValueMap]);
+    if (!isControlled) {
+      setInternalValues(initialValueMap);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialValueKey, isControlled]);
 
-  // Handle save with auto-save
+  // Handle save with auto-save - only for uncontrolled mode
   const handleSave = useCallback(
     async (values: Record<string, unknown>) => {
       if (onSave) {
@@ -78,14 +93,17 @@ export function InputsPanel({
     [onSave]
   );
 
-  // Auto-save hook
+  // Auto-save hook - only enabled in uncontrolled mode
   const { isSaving } = useAutoSave({
-    data: allValues,
+    data: internalValues,
     onSave: handleSave,
     debounceMs: 1000,
-    enabled: isEditable && !!onSave,
+    enabled: !isControlled && isEditable && !!onSave,
     initialData: initialValueMap,
   });
+
+  // Get the current values (controlled or internal)
+  const allValues = isControlled ? controlledValues : internalValues;
 
   // Get the current value for an input
   const getValue = useCallback(
@@ -97,11 +115,17 @@ export function InputsPanel({
 
   // Handle value change
   const handleValueChange = useCallback((name: string, value: unknown) => {
-    setAllValues((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  }, []);
+    if (isControlled) {
+      // In controlled mode, notify parent
+      onValueChange(name, value);
+    } else {
+      // In uncontrolled mode, update internal state
+      setInternalValues((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
+  }, [isControlled, onValueChange]);
 
   // Categorize inputs
   const categorized = useMemo(() => categorizeInputs(inputs), [inputs]);

@@ -352,6 +352,9 @@ importers:
       remotion:
         specifier: 4.0.382
         version: 4.0.382(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      smol-toml:
+        specifier: ^1.4.2
+        version: 1.5.2
       tailwind-merge:
         specifier: ^3.4.0
         version: 3.4.0

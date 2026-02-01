@@ -2,6 +2,9 @@ import type {
   BlueprintGraphData,
   InputTemplateData,
   ProducerModelsResponse,
+  ProducerConfigSchemasResponse,
+  ProducerPromptsResponse,
+  PromptData,
   ModelSelectionValue,
 } from "@/types/blueprint-graph";
 import type { BuildsListResponse, BuildManifestResponse } from "@/types/builds";
@@ -70,6 +73,22 @@ export function fetchProducerModels(
     url.searchParams.set("catalog", catalogRoot);
   }
   return fetchJson<ProducerModelsResponse>(url.toString());
+}
+
+/**
+ * Fetches config schemas for each producer in a blueprint.
+ * Returns JSON schema properties that are NOT mapped through connections.
+ */
+export function fetchProducerConfigSchemas(
+  blueprintPath: string,
+  catalogRoot?: string | null
+): Promise<ProducerConfigSchemasResponse> {
+  const url = new URL(`${API_BASE}/blueprints/producer-config-schemas`, window.location.origin);
+  url.searchParams.set("path", blueprintPath);
+  if (catalogRoot) {
+    url.searchParams.set("catalog", catalogRoot);
+  }
+  return fetchJson<ProducerConfigSchemasResponse>(url.toString());
 }
 
 export function fetchBuildsList(blueprintFolder: string): Promise<BuildsListResponse> {
@@ -439,4 +458,80 @@ export async function restoreArtifact(
   }
 
   return response.json() as Promise<ArtifactRestoreResponse>;
+}
+
+// --- Prompts API functions ---
+
+/**
+ * Fetches prompts for a producer.
+ * Returns the edited version from build folder if it exists, otherwise the template.
+ */
+export function fetchProducerPrompts(
+  blueprintFolder: string,
+  movieId: string,
+  blueprintPath: string,
+  producerId: string,
+  catalogRoot?: string | null,
+): Promise<ProducerPromptsResponse> {
+  const url = new URL(`${API_BASE}/blueprints/builds/prompts`, window.location.origin);
+  url.searchParams.set("folder", blueprintFolder);
+  url.searchParams.set("movieId", movieId);
+  url.searchParams.set("blueprintPath", blueprintPath);
+  url.searchParams.set("producerId", producerId);
+  if (catalogRoot) {
+    url.searchParams.set("catalog", catalogRoot);
+  }
+  return fetchJson<ProducerPromptsResponse>(url.toString());
+}
+
+/**
+ * Saves edited prompts to the build folder.
+ */
+export async function saveProducerPrompts(
+  blueprintFolder: string,
+  movieId: string,
+  blueprintPath: string,
+  producerId: string,
+  prompts: PromptData,
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/blueprints/builds/prompts`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      blueprintFolder,
+      movieId,
+      blueprintPath,
+      producerId,
+      prompts,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    throw new Error(`Failed to save prompts: ${errorText}`);
+  }
+}
+
+/**
+ * Restores prompts to the template version by deleting the build copy.
+ */
+export async function restoreProducerPrompts(
+  blueprintFolder: string,
+  movieId: string,
+  producerId: string,
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/blueprints/builds/prompts/restore`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      blueprintFolder,
+      movieId,
+      producerId,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    throw new Error(`Failed to restore prompts: ${errorText}`);
+  }
 }

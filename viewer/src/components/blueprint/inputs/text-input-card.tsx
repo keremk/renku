@@ -6,9 +6,38 @@ import { TextEditDialog } from "./text-edit-dialog";
 import type { BlueprintInputDef } from "@/types/blueprint-graph";
 import { cn } from "@/lib/utils";
 
-interface TextInputCardProps {
+/**
+ * Props using input definition (original interface for inputs panel).
+ */
+interface InputDefProps {
   /** Input definition */
   input: BlueprintInputDef;
+  label?: never;
+  description?: never;
+}
+
+/**
+ * Props using direct label/description (for prompts and other uses).
+ */
+interface DirectProps {
+  /** Label to display in footer */
+  label: string;
+  /** Optional description */
+  description?: string;
+  input?: never;
+}
+
+/**
+ * Props for custom dialog rendering.
+ */
+interface CustomDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  value: string;
+  onSave: (value: string) => void;
+}
+
+type TextInputCardProps = (InputDefProps | DirectProps) & {
   /** Current text value */
   value: unknown;
   /** Callback when value changes */
@@ -17,20 +46,40 @@ interface TextInputCardProps {
   isEditable: boolean;
   /** Whether the card is selected */
   isSelected?: boolean;
-}
+  /**
+   * Optional custom dialog renderer.
+   * If provided, will be used instead of TextEditDialog.
+   * Useful for prompts that need syntax highlighting or variable insertion.
+   */
+  renderDialog?: (props: CustomDialogProps) => React.ReactNode;
+};
 
 /**
  * Card component for text type inputs.
  * Shows a preview of the text with edit support via dialog.
+ *
+ * Can be used with either:
+ * - `input` prop (BlueprintInputDef) for inputs panel
+ * - `label` and `description` props directly for prompts and other uses
+ *
+ * Supports custom dialog via `renderDialog` prop for specialized editing
+ * (e.g., prompts with syntax highlighting and variables).
  */
 export function TextInputCard({
   input,
+  label: directLabel,
+  description: directDescription,
   value,
   onChange,
   isEditable,
   isSelected = false,
+  renderDialog,
 }: TextInputCardProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Get label and description from either source
+  const label = input?.name ?? directLabel ?? "";
+  const description = input?.description ?? directDescription;
 
   // Convert value to string
   const textValue = useMemo(() => {
@@ -49,6 +98,25 @@ export function TextInputCard({
 
   const isEmpty = !textValue;
 
+  // Render the edit dialog (custom or default)
+  const dialog = renderDialog ? (
+    renderDialog({
+      open: dialogOpen,
+      onOpenChange: setDialogOpen,
+      value: textValue,
+      onSave: onChange,
+    })
+  ) : (
+    <TextEditDialog
+      open={dialogOpen}
+      onOpenChange={setDialogOpen}
+      label={label}
+      description={description}
+      value={textValue}
+      onSave={onChange}
+    />
+  );
+
   // Empty state - show placeholder
   if (isEmpty && !isEditable) {
     return (
@@ -56,8 +124,8 @@ export function TextInputCard({
         isSelected={isSelected}
         footer={
           <InputCardFooter
-            label={input.name}
-            description={input.description}
+            label={label}
+            description={description}
             disabled={true}
           />
         }
@@ -89,18 +157,11 @@ export function TextInputCard({
           </div>
           <div className="flex items-center gap-1 text-xs">
             <Plus className="size-3" />
-            <span>Add {input.name}</span>
+            <span>Add {label}</span>
           </div>
         </button>
 
-        <TextEditDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          label={input.name}
-          description={input.description}
-          value={textValue}
-          onSave={onChange}
-        />
+        {dialog}
       </>
     );
   }
@@ -112,8 +173,8 @@ export function TextInputCard({
         onClick={isEditable ? () => setDialogOpen(true) : undefined}
         footer={
           <InputCardFooter
-            label={input.name}
-            description={input.description}
+            label={label}
+            description={description}
             onEdit={isEditable ? () => setDialogOpen(true) : undefined}
             disabled={!isEditable}
           />
@@ -126,14 +187,7 @@ export function TextInputCard({
         </div>
       </MediaCard>
 
-      <TextEditDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        label={input.name}
-        description={input.description}
-        value={textValue}
-        onSave={onChange}
-      />
+      {dialog}
     </>
   );
 }

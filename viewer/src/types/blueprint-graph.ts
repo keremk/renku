@@ -117,3 +117,92 @@ export interface ProducerModelInfo {
 export interface ProducerModelsResponse {
   producers: Record<string, ProducerModelInfo>;
 }
+
+// ============================================================================
+// Config Schemas Types
+// ============================================================================
+
+/**
+ * JSON Schema property definition.
+ */
+export interface SchemaProperty {
+  type?: string;
+  description?: string;
+  title?: string;
+  default?: unknown;
+  enum?: unknown[];
+  minimum?: number;
+  maximum?: number;
+  items?: SchemaProperty;
+}
+
+/**
+ * Config property with metadata for UI display.
+ */
+export interface ConfigProperty {
+  /** Property key (e.g., "aspect_ratio", "imageClip.artifact") */
+  key: string;
+  /** JSON schema for this property */
+  schema: SchemaProperty;
+  /** Whether this property is required */
+  required: boolean;
+}
+
+/**
+ * Config schema for a specific provider/model combination.
+ */
+export interface ModelConfigSchema {
+  provider: string;
+  model: string;
+  properties: ConfigProperty[];
+}
+
+/**
+ * Config schemas for a producer's available models.
+ */
+export interface ProducerConfigSchemas {
+  producerId: string;
+  category: ProducerCategory;
+  /** Config schemas per model - key is "provider/model" */
+  modelSchemas: Record<string, ModelConfigSchema>;
+}
+
+/**
+ * Response from producer-config-schemas endpoint
+ */
+export interface ProducerConfigSchemasResponse {
+  producers: Record<string, ProducerConfigSchemas>;
+}
+
+// ============================================================================
+// Prompts Types
+// ============================================================================
+
+/**
+ * Prompt data structure from TOML file.
+ */
+export interface PromptData {
+  /** Variables used in the prompts (e.g., ["Audience", "Duration"]) */
+  variables?: string[];
+  /** System prompt template */
+  systemPrompt?: string;
+  /** User prompt template */
+  userPrompt?: string;
+  /** Additional config from TOML */
+  config?: Record<string, unknown>;
+  /** Source of the prompt data: 'build' if edited, 'template' if original */
+  source?: "build" | "template";
+}
+
+/**
+ * Response from GET /blueprints/builds/prompts
+ */
+export interface ProducerPromptsResponse {
+  producerId: string;
+  /** Source of the prompt data: 'build' if edited, 'template' if original */
+  source: "build" | "template";
+  /** The prompt data */
+  prompts: PromptData;
+  /** Path to the prompt file (for reference) */
+  promptPath: string;
+}

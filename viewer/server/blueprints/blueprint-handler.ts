@@ -8,6 +8,7 @@ import { handleBuildsSubRoute, listBuilds, getBuildManifest, getBuildTimeline, s
 import { parseBlueprintToGraph } from "./parse-handler.js";
 import { resolveBlueprintName } from "./resolve-handler.js";
 import { getProducerModelsFromBlueprint } from "./producer-models.js";
+import { getProducerConfigSchemas } from "./config-schemas-handler.js";
 import { parseInputsFile } from "./inputs-handler.js";
 import { streamBuildBlob, streamBuildAsset } from "./blob-handler.js";
 
@@ -24,6 +25,7 @@ import { streamBuildBlob, streamBuildAsset } from "./blob-handler.js";
  *   GET  /blueprints/blob?folder=...&movieId=...&hash=...
  *   GET  /blueprints/resolve?name=...
  *   GET  /blueprints/producer-models?path=...&catalog=...
+ *   GET  /blueprints/producer-config-schemas?path=...&catalog=...
  *   GET  /blueprints/input-file?folder=...&movieId=...&filename=...
  *   POST /blueprints/builds/create
  *   GET  /blueprints/builds/inputs?folder=...&movieId=...&blueprintPath=...
@@ -158,6 +160,17 @@ export async function handleBlueprintRequest(
       const producerModels = await getProducerModelsFromBlueprint(blueprintPath, catalogRoot);
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify(producerModels));
+      return true;
+    }
+
+    case "producer-config-schemas": {
+      const blueprintPath = url.searchParams.get("path");
+      if (!blueprintPath) {
+        return respondBadRequest(res, "Missing path parameter");
+      }
+      const configSchemas = await getProducerConfigSchemas(blueprintPath, catalogRoot);
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify(configSchemas));
       return true;
     }
 

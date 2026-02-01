@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { PanelHeader, EnableEditingBanner } from "./shared";
-import { ModelCard } from "./models/model-card";
+import { EnableEditingBanner } from "./shared";
+import { ProducerSection } from "./models/producer-section";
 import { isNestedSttSelection, isSpeechModelSelection } from "./models/stt-helpers";
 import type {
   ModelSelectionValue,
   ProducerModelInfo,
+  PromptData,
+  ConfigProperty,
 } from "@/types/blueprint-graph";
 
 interface ModelsPanelProps {
@@ -16,12 +18,26 @@ interface ModelsPanelProps {
   selectedNodeId: string | null;
   /** Whether models are editable (requires buildId) */
   isEditable?: boolean;
-  /** Callback when models are saved */
+  /** Callback when models are saved (only used when not in controlled mode) */
   onSave?: (models: ModelSelectionValue[]) => Promise<void>;
   /** Whether editing can be enabled for this build */
   canEnableEditing?: boolean;
   /** Callback to enable editing for this build */
   onEnableEditing?: () => Promise<void>;
+  /** Controlled mode: callback when a selection changes */
+  onSelectionChange?: (selection: ModelSelectionValue) => void;
+  /** Whether to hide the header (save is handled elsewhere) */
+  hideHeader?: boolean;
+  /** Prompt data per producer (for prompt producers) */
+  promptDataByProducer?: Record<string, PromptData>;
+  /** Callback when prompts change */
+  onPromptChange?: (producerId: string, prompts: PromptData) => void | Promise<void>;
+  /** Config properties per producer */
+  configPropertiesByProducer?: Record<string, ConfigProperty[]>;
+  /** Config values per producer */
+  configValuesByProducer?: Record<string, Record<string, unknown>>;
+  /** Callback when config changes */
+  onConfigChange?: (producerId: string, key: string, value: unknown) => void;
 }
 
 export function ModelsPanel({
@@ -32,7 +48,16 @@ export function ModelsPanel({
   onSave,
   canEnableEditing = false,
   onEnableEditing,
+  onSelectionChange,
+  hideHeader: _hideHeader = false,
+  promptDataByProducer = {},
+  onPromptChange,
+  configPropertiesByProducer = {},
+  configValuesByProducer = {},
+  onConfigChange,
 }: ModelsPanelProps) {
+  // Determine if we're in controlled mode
+  const isControlled = onSelectionChange !== undefined;
   const [isEnabling, setIsEnabling] = useState(false);
 
   // Handle enable editing
@@ -55,7 +80,7 @@ export function ModelsPanel({
     return map;
   }, [modelSelections]);
 
-  // Track edit values locally
+  // Track edit values locally (for uncontrolled mode)
   const [editValues, setEditValues] = useState<Map<string, ModelSelectionValue>>(
     new Map()
   );
@@ -66,8 +91,7 @@ export function ModelsPanel({
     setEditValues(new Map());
   }, [modelSelections]);
 
-  // Compute if there are unsaved changes
-  // For nested STT selections, compare against config.sttProvider/sttModel
+  // Compute if there are unsaved changes (for uncontrolled mode)
   const isDirty = useMemo(() => {
     for (const [producerId, value] of editValues) {
       const original = initialSelectionMap.get(producerId);
@@ -125,16 +149,22 @@ export function ModelsPanel({
   // Handle selection change
   const handleSelectionChange = useCallback(
     (selection: ModelSelectionValue) => {
-      setEditValues((prev) => {
-        const next = new Map(prev);
-        next.set(selection.producerId, selection);
-        return next;
-      });
+      if (isControlled) {
+        // In controlled mode, notify parent
+        onSelectionChange(selection);
+      } else {
+        // In uncontrolled mode, update internal state
+        setEditValues((prev) => {
+          const next = new Map(prev);
+          next.set(selection.producerId, selection);
+          return next;
+        });
+      }
     },
-    []
+    [isControlled, onSelectionChange]
   );
 
-  // Handle save
+  // Handle save (for uncontrolled mode)
   // For nested STT selections, wrap edited values back in the nested format
   const handleSave = useCallback(async () => {
     if (!onSave || !isDirty) return;
@@ -192,6 +222,26 @@ export function ModelsPanel({
     [producerModels]
   );
 
+  // Track which producers have been edited (for showing edited badge)
+  const editedProducerIds = useMemo(() => {
+    const edited = new Set<string>();
+    // Check model edits
+    for (const producerId of editValues.keys()) {
+      edited.add(producerId);
+    }
+    // Check prompt edits (if prompts have source: 'build', they're edited)
+    for (const [producerId, promptData] of Object.entries(promptDataByProducer)) {
+      if (promptData.source === 'build') {
+        edited.add(producerId);
+      }
+    }
+    return edited;
+  }, [editValues, promptDataByProducer]);
+
+  // Suppress unused variable warnings temporarily
+  void isSaving;
+  void handleSave;
+
   if (producerIds.length === 0) {
     return (
       <div className="text-muted-foreground text-sm">
@@ -201,7 +251,7 @@ export function ModelsPanel({
   }
 
   return (
-    <div className="space-y-3 max-w-2xl mx-auto">
+    <div className="space-y-6">
       {/* Enable Editing banner for read-only builds */}
       {canEnableEditing && !isEditable && (
         <EnableEditingBanner
@@ -210,23 +260,14 @@ export function ModelsPanel({
         />
       )}
 
-      {/* Header with save button */}
-      {isEditable && (
-        <PanelHeader
-          title="Edit Models"
-          isDirty={isDirty}
-          isSaving={isSaving}
-          onSave={handleSave}
-        />
-      )}
-
       {producerIds.map((producerId) => {
         const info = producerModels[producerId];
         const selection = getSelection(producerId);
         const isSelected = selectedProducerId === producerId;
+        const isEdited = editedProducerIds.has(producerId);
 
         return (
-          <ModelCard
+          <ProducerSection
             key={producerId}
             producerId={producerId}
             producerType={info.producerType}
@@ -236,7 +277,13 @@ export function ModelsPanel({
             currentSelection={selection}
             isSelected={isSelected}
             isEditable={info.category !== 'composition' && isEditable}
-            onChange={handleSelectionChange}
+            isEdited={isEdited}
+            onModelChange={handleSelectionChange}
+            promptData={promptDataByProducer[producerId]}
+            onPromptChange={onPromptChange ? (prompts) => onPromptChange(producerId, prompts) : undefined}
+            configProperties={configPropertiesByProducer[producerId]}
+            configValues={configValuesByProducer[producerId]}
+            onConfigChange={onConfigChange ? (key, value) => onConfigChange(producerId, key, value) : undefined}
           />
         );
       })}
