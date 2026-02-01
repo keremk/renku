@@ -15,6 +15,7 @@ import {
   usePanelResizer,
   useBottomPanelTabs,
   usePreviewPlayback,
+  useModelSelectionEditor,
 } from "@/hooks";
 import { useMovieTimeline } from "@/services/use-movie-timeline";
 import type {
@@ -186,6 +187,12 @@ function WorkspaceLayoutInner({
     return selectedBuildManifest?.models ?? [];
   }, [buildModels, selectedBuildManifest?.models]);
 
+  // Use the model selection editor hook for single source of truth
+  const modelEditor = useModelSelectionEditor({
+    savedSelections: parsedModelSelections,
+    onSave: handleSaveModels,
+  });
+
   // Merge input data from build inputs or manifest
   const effectiveInputData = useMemo<InputTemplateData | null>(() => {
     // Priority: build inputs file > manifest inputs > template inputs
@@ -231,12 +238,12 @@ function WorkspaceLayoutInner({
     enabled: isInputsEditable,
   });
 
-  // Compute config properties for each producer based on current model selection
+  // Compute config properties for each producer based on current model selection (including unsaved edits)
   const configPropertiesByProducer = useMemo<Record<string, ConfigProperty[]>>(() => {
     const result: Record<string, ConfigProperty[]> = {};
     for (const [producerId, schemas] of Object.entries(configSchemas)) {
-      // Find current model selection for this producer
-      const selection = parsedModelSelections.find((s) => s.producerId === producerId);
+      // Find current model selection for this producer (uses edits if available)
+      const selection = modelEditor.currentSelections.find((s) => s.producerId === producerId);
       if (selection) {
         const modelKey = `${selection.provider}/${selection.model}`;
         const modelSchema = schemas.modelSchemas[modelKey];
@@ -246,18 +253,18 @@ function WorkspaceLayoutInner({
       }
     }
     return result;
-  }, [configSchemas, parsedModelSelections]);
+  }, [configSchemas, modelEditor.currentSelections]);
 
-  // Compute config values for each producer from model selection configs
+  // Compute config values for each producer from model selection configs (including unsaved edits)
   const configValuesByProducer = useMemo<Record<string, Record<string, unknown>>>(() => {
     const result: Record<string, Record<string, unknown>> = {};
-    for (const selection of parsedModelSelections) {
+    for (const selection of modelEditor.currentSelections) {
       if (selection.config && Object.keys(selection.config).length > 0) {
         result[selection.producerId] = selection.config;
       }
     }
     return result;
-  }, [parsedModelSelections]);
+  }, [modelEditor.currentSelections]);
 
   // Handle enabling editing for a build
   const handleEnableEditing = useCallback(async () => {
@@ -269,6 +276,14 @@ function WorkspaceLayoutInner({
       await onBuildsRefresh();
     }
   }, [blueprintFolder, selectedBuildId, onBuildsRefresh]);
+
+  // Handle config value changes - delegate to hook
+  const handleConfigChange = useCallback(
+    (producerId: string, key: string, value: unknown) => {
+      modelEditor.updateConfig(producerId, key, value);
+    },
+    [modelEditor]
+  );
 
   // Initialize producer statuses from manifest when build changes
   useEffect(() => {
@@ -356,12 +371,18 @@ function WorkspaceLayoutInner({
               canEnableEditing={canEnableEditing}
               onEnableEditing={handleEnableEditing}
               producerModels={producerModels}
-              modelSelections={parsedModelSelections}
-              onSaveModels={handleSaveModels}
+              modelSelections={modelEditor.currentSelections}
               promptDataByProducer={promptDataByProducer}
               onPromptChange={handleSavePrompt}
               configPropertiesByProducer={configPropertiesByProducer}
               configValuesByProducer={configValuesByProducer}
+              onConfigChange={handleConfigChange}
+              onModelSelectionChange={modelEditor.updateSelection}
+              isModelsDirty={modelEditor.isDirty}
+              isModelsSaving={modelEditor.isSaving}
+              modelSaveError={modelEditor.lastError}
+              onSaveModels={modelEditor.save}
+              onResetModels={modelEditor.reset}
               hasTimeline={hasTimeline}
               activeTab={detailPanelTab}
               onTabChange={setDetailPanelTab}

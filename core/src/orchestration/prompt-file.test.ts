@@ -143,6 +143,56 @@ systemPrompt = "Generate JSON"
       expect(content).not.toContain('variables');
       expect(content).not.toContain('config');
     });
+
+    it('preserves multi-line strings with triple quotes', async () => {
+      const promptPath = join(tempDir, 'multiline.toml');
+      const multiLinePrompt = `You are a helpful assistant.
+
+Guidelines:
+1. Be concise
+2. Be accurate
+3. Be friendly
+
+Always respond in a professional manner.`;
+
+      const data: PromptFileData = {
+        systemPrompt: multiLinePrompt,
+        userPrompt: 'Simple single line prompt',
+      };
+
+      await savePromptFile(promptPath, data);
+
+      // Verify the file content uses triple quotes for multi-line
+      const content = await fs.readFile(promptPath, 'utf8');
+      expect(content).toContain('systemPrompt = """');
+      expect(content).not.toContain('\\n'); // Should not have escaped newlines
+      expect(content).toContain('Guidelines:'); // Actual newlines preserved
+
+      // Single line prompt should use regular quotes
+      expect(content).toContain('userPrompt = "Simple single line prompt"');
+
+      // Verify data round-trips correctly
+      const loaded = await loadPromptFile(promptPath);
+      expect(loaded.systemPrompt).toBe(multiLinePrompt);
+      expect(loaded.userPrompt).toBe('Simple single line prompt');
+    });
+
+    it('handles special characters in multi-line strings', async () => {
+      const promptPath = join(tempDir, 'special.toml');
+      const promptWithSpecialChars = `Line with "quotes" and backslash \\
+Next line with tab:\ttab
+And some unicode: 你好`;
+
+      const data: PromptFileData = {
+        systemPrompt: promptWithSpecialChars,
+      };
+
+      await savePromptFile(promptPath, data);
+
+      // Verify data round-trips correctly
+      const loaded = await loadPromptFile(promptPath);
+      expect(loaded.systemPrompt).toBe(promptWithSpecialChars);
+    });
   });
 
   describe('promptFileExists', () => {

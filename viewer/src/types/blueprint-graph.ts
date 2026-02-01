@@ -134,6 +134,7 @@ export interface SchemaProperty {
   minimum?: number;
   maximum?: number;
   items?: SchemaProperty;
+  properties?: Record<string, SchemaProperty>;
 }
 
 /**

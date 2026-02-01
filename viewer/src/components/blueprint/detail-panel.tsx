@@ -39,10 +39,8 @@ interface DetailPanelProps {
   onEnableEditing?: () => Promise<void>;
   /** Available models per producer from API */
   producerModels?: Record<string, ProducerModelInfo>;
-  /** Current model selections from inputs.yaml */
+  /** Current model selections (merged saved + edits from hook) */
   modelSelections?: ModelSelectionValue[];
-  /** Callback when models are saved */
-  onSaveModels?: (models: ModelSelectionValue[]) => Promise<void>;
   /** Prompt data per producer (for prompt producers) */
   promptDataByProducer?: Record<string, PromptData>;
   /** Callback when prompts change */
@@ -51,13 +49,20 @@ interface DetailPanelProps {
   configPropertiesByProducer?: Record<string, ConfigProperty[]>;
   /** Config values per producer */
   configValuesByProducer?: Record<string, Record<string, unknown>>;
-  /** Callback to save all changes (inputs + models) */
-  onSaveAll?: (
-    inputs: Record<string, unknown>,
-    models: ModelSelectionValue[],
-  ) => Promise<void>;
-  /** Callback to reload data (undo changes) */
-  onReload?: () => void;
+  /** Callback when config values change */
+  onConfigChange?: (producerId: string, key: string, value: unknown) => void;
+  /** Callback when model selection changes */
+  onModelSelectionChange?: (selection: ModelSelectionValue) => void;
+  /** Whether model selections have unsaved changes (from hook) */
+  isModelsDirty?: boolean;
+  /** Whether model selections are being saved (from hook) */
+  isModelsSaving?: boolean;
+  /** Last error from model save (from hook) */
+  modelSaveError?: Error | null;
+  /** Callback to save model changes (from hook) */
+  onSaveModels?: () => Promise<void>;
+  /** Callback to reset model edits (from hook) */
+  onResetModels?: () => void;
   /** Whether a timeline artifact exists for the selected build */
   hasTimeline?: boolean;
   // Controlled tab state (optional)
@@ -91,13 +96,17 @@ export function DetailPanel({
   onEnableEditing,
   producerModels = {},
   modelSelections = [],
-  onSaveModels,
   promptDataByProducer = {},
   onPromptChange,
   configPropertiesByProducer = {},
   configValuesByProducer = {},
-  onSaveAll,
-  onReload,
+  onConfigChange,
+  onModelSelectionChange,
+  isModelsDirty = false,
+  isModelsSaving = false,
+  modelSaveError: _modelSaveError,
+  onSaveModels,
+  onResetModels,
   hasTimeline = false,
   activeTab: controlledActiveTab,
   onTabChange,
@@ -134,10 +143,10 @@ export function DetailPanel({
   const showReadOnlyIndicator = !isInputsEditable && canEnableEditing;
 
   // ============================================================================
-  // Editable State Management (lifted from individual panels)
+  // Editable State Management (inputs only - models handled by hook in parent)
   // ============================================================================
 
-  // Create initial value maps from props
+  // Create initial input values from props
   const initialInputValues = useMemo(() => {
     const map: Record<string, unknown> = {};
     for (const iv of inputData?.inputs ?? []) {
@@ -146,45 +155,21 @@ export function DetailPanel({
     return map;
   }, [inputData?.inputs]);
 
-  const initialModelSelections = useMemo(() => {
-    const map = new Map<string, ModelSelectionValue>();
-    for (const selection of modelSelections) {
-      map.set(selection.producerId, selection);
-    }
-    return map;
-  }, [modelSelections]);
-
-  // Editable state for inputs
+  // Editable state for inputs only (models managed by hook in parent)
   const [editedInputs, setEditedInputs] = useState<Record<string, unknown>>(initialInputValues);
-  const [editedModels, setEditedModels] = useState<Map<string, ModelSelectionValue>>(new Map());
   const [isSaving, setIsSaving] = useState(false);
 
-  // Reset edit state when props change (e.g., build selection change)
+  // Reset input edit state when props change (e.g., build selection change)
   useEffect(() => {
     setEditedInputs(initialInputValues);
   }, [initialInputValues]);
-
-  useEffect(() => {
-    setEditedModels(new Map());
-  }, [modelSelections]);
 
   // Compute dirty state
   const isInputsDirty = useMemo(() => {
     return JSON.stringify(editedInputs) !== JSON.stringify(initialInputValues);
   }, [editedInputs, initialInputValues]);
 
-  const isModelsDirty = useMemo(() => {
-    if (editedModels.size === 0) return false;
-    for (const [producerId, value] of editedModels) {
-      const original = initialModelSelections.get(producerId);
-      if (!original) return true;
-      if (value.provider !== original.provider || value.model !== original.model) {
-        return true;
-      }
-    }
-    return false;
-  }, [editedModels, initialModelSelections]);
-
+  // Combined dirty state: inputs OR models
   const isDirty = isInputsDirty || isModelsDirty;
 
   // Handle input value changes
@@ -195,76 +180,37 @@ export function DetailPanel({
     }));
   }, []);
 
-  // Handle model selection changes
+  // Handle model selection changes - delegate to parent hook
   const handleModelChange = useCallback((selection: ModelSelectionValue) => {
-    setEditedModels((prev) => {
-      const next = new Map(prev);
-      next.set(selection.producerId, selection);
-      return next;
-    });
-  }, []);
+    onModelSelectionChange?.(selection);
+  }, [onModelSelectionChange]);
 
-  // Handle save all
+  // Handle save all - save inputs and models separately
   const handleSaveAll = useCallback(async () => {
     if (!isDirty) return;
 
     setIsSaving(true);
     try {
-      // Build the final models array
-      const finalModels: ModelSelectionValue[] = [];
-      const processed = new Set<string>();
-
-      // Add edited models first
-      for (const [producerId, value] of editedModels) {
-        finalModels.push(value);
-        processed.add(producerId);
+      // Save inputs if dirty
+      if (isInputsDirty && onSaveInputs) {
+        await onSaveInputs(editedInputs);
       }
-
-      // Add unedited models
-      for (const [producerId, value] of initialModelSelections) {
-        if (!processed.has(producerId)) {
-          finalModels.push(value);
-        }
+      // Save models if dirty (delegate to hook's save)
+      if (isModelsDirty && onSaveModels) {
+        await onSaveModels();
       }
-
-      // Use onSaveAll if available, otherwise fall back to individual saves
-      if (onSaveAll) {
-        await onSaveAll(editedInputs, finalModels);
-      } else {
-        // Fall back to individual saves
-        if (isInputsDirty && onSaveInputs) {
-          await onSaveInputs(editedInputs);
-        }
-        if (isModelsDirty && onSaveModels) {
-          await onSaveModels(finalModels);
-        }
-      }
-
-      // Clear edit states after successful save
-      setEditedModels(new Map());
     } finally {
       setIsSaving(false);
     }
-  }, [
-    isDirty,
-    isInputsDirty,
-    isModelsDirty,
-    editedInputs,
-    editedModels,
-    initialModelSelections,
-    onSaveAll,
-    onSaveInputs,
-    onSaveModels,
-  ]);
+  }, [isDirty, isInputsDirty, isModelsDirty, editedInputs, onSaveInputs, onSaveModels]);
 
-  // Handle undo
+  // Handle undo - reset inputs and models
   const handleUndo = useCallback(() => {
-    // Reset to initial values
+    // Reset inputs to initial values
     setEditedInputs(initialInputValues);
-    setEditedModels(new Map());
-    // Optionally trigger reload from server
-    onReload?.();
-  }, [initialInputValues, onReload]);
+    // Reset model edits via hook
+    onResetModels?.();
+  }, [initialInputValues, onResetModels]);
 
   return (
     <div className="flex flex-col h-full bg-card rounded-xl border border-border/60 overflow-hidden">
@@ -304,7 +250,7 @@ export function DetailPanel({
           {isInputsEditable && (
             <SaveChangesButton
               isDirty={isDirty}
-              isSaving={isSaving}
+              isSaving={isSaving || isModelsSaving}
               onSave={handleSaveAll}
               onUndo={handleUndo}
             />
@@ -336,7 +282,6 @@ export function DetailPanel({
             modelSelections={modelSelections}
             selectedNodeId={selectedNodeId}
             isEditable={isInputsEditable}
-            onSave={onSaveModels}
             canEnableEditing={canEnableEditing}
             onEnableEditing={onEnableEditing}
             // Controlled mode: pass change handler (save is handled by tab bar)
@@ -346,6 +291,7 @@ export function DetailPanel({
             onPromptChange={onPromptChange}
             configPropertiesByProducer={configPropertiesByProducer}
             configValuesByProducer={configValuesByProducer}
+            onConfigChange={onConfigChange}
           />
         )}
         {activeTab === "outputs" && (

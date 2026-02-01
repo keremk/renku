@@ -120,11 +120,29 @@ export function ModelsPanel({
     return false;
   }, [editValues, initialSelectionMap]);
 
-  // Get the current selection for a producer (edited or original)
-  // For nested STT selections, extract the actual provider/model from config
+  // Get the current selection for a producer
+  // In controlled mode, props contain current state (saved + edits) so use directly
+  // In uncontrolled mode, check editValues first, then fall back to initial
   const getSelection = useCallback(
     (producerId: string): ModelSelectionValue | undefined => {
-      // Check for edited value first
+      // In controlled mode, trust the props completely
+      // (parent hook manages edits and passes merged currentSelections)
+      if (isControlled) {
+        const existing = initialSelectionMap.get(producerId);
+        if (!existing) return undefined;
+
+        // For nested STT selections, extract actual provider/model from config
+        if (isNestedSttSelection(existing)) {
+          return {
+            ...existing,
+            provider: existing.config!.sttProvider as string,
+            model: existing.config!.sttModel as string,
+          };
+        }
+        return existing;
+      }
+
+      // Uncontrolled mode: check for edited value first
       if (editValues.has(producerId)) {
         return editValues.get(producerId);
       }
@@ -143,7 +161,7 @@ export function ModelsPanel({
 
       return existing;
     },
-    [editValues, initialSelectionMap]
+    [isControlled, editValues, initialSelectionMap]
   );
 
   // Handle selection change

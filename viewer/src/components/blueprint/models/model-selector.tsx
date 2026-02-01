@@ -37,6 +37,7 @@ export function ModelSelector({
     : undefined;
 
   // Handle model selection change
+  // Clear config when model changes - new model has different schema
   const handleChange = (value: string) => {
     const [provider, ...modelParts] = value.split("/");
     const model = modelParts.join("/");
@@ -44,7 +45,7 @@ export function ModelSelector({
       producerId,
       provider,
       model,
-      config: currentSelection?.config,
+      config: {}, // Clear config - new model has different schema
     });
   };
 

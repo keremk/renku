@@ -1,9 +1,11 @@
 /**
  * Individual config property row with type-aware input.
  * Supports string, number, boolean, and enum types.
+ * Filters out complex types (object, array) that need specialized editors.
  */
 
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -11,6 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PropertyRow } from "../shared/property-row";
+import { isComplexProperty } from "./config-utils";
 import type { ConfigProperty } from "@/types/blueprint-graph";
 
 interface ConfigPropertyRowProps {
@@ -26,6 +30,7 @@ interface ConfigPropertyRowProps {
 
 /**
  * Renders a type-appropriate input for a config property.
+ * Returns null for complex types (object, array) that need specialized editors.
  */
 export function ConfigPropertyRow({
   property,
@@ -37,55 +42,66 @@ export function ConfigPropertyRow({
   const schemaType = schema.type;
   const hasEnum = schema.enum && schema.enum.length > 0;
 
+  // Filter out complex types - they need specialized editors
+  if (isComplexProperty(property)) {
+    return null;
+  }
+
   // Determine the display value
   const displayValue = value ?? schema.default;
 
-  return (
-    <div className="flex items-center justify-between gap-3 text-xs bg-background/50 p-2 rounded border border-border/30">
-      {/* Property name and info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1">
-          <span className="font-medium text-foreground truncate">{key}</span>
-          {required && <span className="text-amber-500">*</span>}
-        </div>
-        {schema.description && (
-          <p className="text-muted-foreground truncate mt-0.5">
-            {schema.description}
-          </p>
-        )}
-      </div>
+  // Render the appropriate input based on type
+  const renderInput = () => {
+    if (hasEnum) {
+      return (
+        <EnumInput
+          options={schema.enum as (string | number | boolean)[]}
+          value={displayValue as string}
+          isEditable={isEditable}
+          onChange={onChange}
+        />
+      );
+    }
 
-      {/* Input based on type */}
-      <div className="flex-shrink-0 w-40">
-        {hasEnum ? (
-          <EnumInput
-            options={schema.enum!}
-            value={displayValue as string}
-            isEditable={isEditable}
-            onChange={onChange}
-          />
-        ) : schemaType === "boolean" ? (
-          <BooleanInput
-            value={displayValue as boolean}
-            isEditable={isEditable}
-            onChange={onChange}
-          />
-        ) : schemaType === "number" || schemaType === "integer" ? (
-          <NumberInput
-            value={displayValue as number}
-            schema={schema}
-            isEditable={isEditable}
-            onChange={onChange}
-          />
-        ) : (
-          <StringInput
-            value={displayValue as string}
-            isEditable={isEditable}
-            onChange={onChange}
-          />
-        )}
-      </div>
-    </div>
+    if (schemaType === "boolean") {
+      return (
+        <BooleanInput
+          value={displayValue as boolean}
+          isEditable={isEditable}
+          onChange={onChange}
+        />
+      );
+    }
+
+    if (schemaType === "number" || schemaType === "integer") {
+      return (
+        <NumberInput
+          value={displayValue as number}
+          schema={schema}
+          isEditable={isEditable}
+          onChange={onChange}
+        />
+      );
+    }
+
+    return (
+      <StringInput
+        value={displayValue as string}
+        isEditable={isEditable}
+        onChange={onChange}
+      />
+    );
+  };
+
+  return (
+    <PropertyRow
+      name={key}
+      type={schemaType}
+      description={schema.description}
+      required={required}
+    >
+      {renderInput()}
+    </PropertyRow>
   );
 }
 
@@ -136,13 +152,12 @@ interface BooleanInputProps {
 
 function BooleanInput({ value, isEditable, onChange }: BooleanInputProps) {
   return (
-    <div className="flex justify-end">
-      <input
-        type="checkbox"
+    <div className="flex justify-start">
+      <Switch
         checked={value ?? false}
-        onChange={(e) => onChange(e.target.checked)}
+        onCheckedChange={(checked) => onChange(checked)}
         disabled={!isEditable}
-        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+        size="sm"
       />
     </div>
   );

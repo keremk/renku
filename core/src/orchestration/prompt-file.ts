@@ -67,42 +67,94 @@ export async function loadPromptFile(promptPath: string): Promise<PromptFileData
 }
 
 /**
+ * Formats a string value for TOML output.
+ * Uses multi-line basic strings (triple quotes) if the string contains newlines.
+ * Otherwise uses a regular basic string.
+ */
+function formatTomlString(value: string): string {
+  if (value.includes('\n')) {
+    // Multi-line basic string with triple quotes
+    // We need to escape any backslashes and triple quotes inside the string
+    const escaped = value
+      .replace(/\\/g, '\\\\')
+      .replace(/"""/g, '\\"\\"\\"');
+    // Per TOML spec: newline immediately after opening """ is trimmed
+    // So we add one, then put content, then closing """ on same line as content end
+    // This ensures the content is preserved exactly
+    return `"""\n${escaped}"""`;
+  }
+  // Regular basic string - escape special characters
+  const escaped = value
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\t/g, '\\t')
+    .replace(/\r/g, '\\r');
+  return `"${escaped}"`;
+}
+
+/**
+ * Formats an array of strings for TOML output.
+ */
+function formatTomlArray(arr: string[]): string {
+  const items = arr.map(s => `"${s.replace(/"/g, '\\"')}"`);
+  return `[ ${items.join(', ')} ]`;
+}
+
+/**
  * Save prompt data to a TOML file.
  * Creates parent directories if they don't exist.
+ * Uses multi-line strings for prompts containing newlines.
  *
  * @param promptPath - Absolute path to the TOML prompt file
  * @param data - Prompt data to save
  */
 export async function savePromptFile(promptPath: string, data: PromptFileData): Promise<void> {
-  const obj: Record<string, unknown> = {};
-
-  if (data.model) {
-    obj.model = data.model;
-  }
-  if (data.textFormat) {
-    obj.textFormat = data.textFormat;
-  }
-  if (data.variables && data.variables.length > 0) {
-    obj.variables = data.variables;
-  }
-  if (data.systemPrompt) {
-    obj.systemPrompt = data.systemPrompt;
-  }
-  if (data.userPrompt) {
-    obj.userPrompt = data.userPrompt;
-  }
-  if (data.config && Object.keys(data.config).length > 0) {
-    obj.config = data.config;
-  }
-  if (data.outputs && Object.keys(data.outputs).length > 0) {
-    obj.outputs = data.outputs;
-  }
-
   // Ensure parent directory exists
   const dir = dirname(promptPath);
   await mkdir(dir, { recursive: true });
 
-  const content = stringifyToml(obj);
+  // Build TOML content manually to preserve multi-line strings
+  const lines: string[] = [];
+
+  if (data.model) {
+    lines.push(`model = ${formatTomlString(data.model)}`);
+  }
+  if (data.textFormat) {
+    lines.push(`textFormat = ${formatTomlString(data.textFormat)}`);
+  }
+  if (data.variables && data.variables.length > 0) {
+    lines.push(`variables = ${formatTomlArray(data.variables)}`);
+  }
+
+  // Add blank line before prompts for readability
+  if (lines.length > 0 && (data.systemPrompt || data.userPrompt)) {
+    lines.push('');
+  }
+
+  if (data.systemPrompt) {
+    lines.push(`systemPrompt = ${formatTomlString(data.systemPrompt)}`);
+  }
+
+  // Add blank line between prompts for readability
+  if (data.systemPrompt && data.userPrompt) {
+    lines.push('');
+  }
+
+  if (data.userPrompt) {
+    lines.push(`userPrompt = ${formatTomlString(data.userPrompt)}`);
+  }
+
+  // Use smol-toml's stringify for complex nested structures
+  if (data.config && Object.keys(data.config).length > 0) {
+    lines.push('');
+    lines.push(stringifyToml({ config: data.config }));
+  }
+  if (data.outputs && Object.keys(data.outputs).length > 0) {
+    lines.push('');
+    lines.push(stringifyToml({ outputs: data.outputs }));
+  }
+
+  const content = lines.join('\n') + '\n';
   await writeFile(promptPath, content, 'utf8');
 }
 

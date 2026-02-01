@@ -10,6 +10,8 @@ export interface UseProducerConfigSchemasOptions {
 export interface UseProducerConfigSchemasResult {
   configSchemas: Record<string, ProducerConfigSchemas>;
   isLoading: boolean;
+  /** Error message if schema fetch failed */
+  error: string | null;
 }
 
 /**
@@ -23,6 +25,7 @@ export function useProducerConfigSchemas(
 
   const [configSchemas, setConfigSchemas] = useState<Record<string, ProducerConfigSchemas>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!blueprintPath) return;
@@ -31,14 +34,17 @@ export function useProducerConfigSchemas(
 
     const loadConfigSchemas = async () => {
       setIsLoading(true);
+      setError(null);
       try {
         const response = await fetchProducerConfigSchemas(blueprintPath, catalogRoot);
         if (!cancelled) {
           setConfigSchemas(response.producers);
         }
-      } catch (error) {
+      } catch (err) {
         if (!cancelled) {
-          console.error("Failed to fetch producer config schemas:", error);
+          const message = err instanceof Error ? err.message : "Unknown error";
+          console.error("Failed to fetch producer config schemas:", err);
+          setError(`Failed to load config schema: ${message}`);
         }
       } finally {
         if (!cancelled) {
@@ -57,5 +63,6 @@ export function useProducerConfigSchemas(
   return {
     configSchemas,
     isLoading,
+    error,
   };
 }

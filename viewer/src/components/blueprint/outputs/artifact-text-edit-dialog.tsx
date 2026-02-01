@@ -159,6 +159,7 @@ export function ArtifactTextEditDialog({
               onUpdate={handleUpdate}
               readOnly={readOnly}
               wordWrap={true}
+              lineNumbers={false}
               style={{
                 height: "100%",
                 fontSize: "14px",

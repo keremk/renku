@@ -1,9 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { Pencil } from "lucide-react";
-import { CollapsibleSection, MediaGrid } from "../shared";
-import { TextInputCard } from "../inputs/text-input-card";
+import { CollapsibleSection, MediaGrid, TextCard, PropertyRow } from "../shared";
 import { ModelSelector } from "./model-selector";
-import { PromptEditDialog } from "./prompt-edit-dialog";
 import { ConfigPropertiesEditor } from "./config-properties-editor";
 import { getSectionHighlightStyles } from "@/lib/panel-utils";
 import type {
@@ -45,18 +43,20 @@ interface ProducerSectionProps {
   configValues?: Record<string, unknown>;
   /** Callback when config changes */
   onConfigChange?: (key: string, value: unknown) => void;
+  /** Error message if config schema failed to load */
+  schemaError?: string | null;
 }
 
 /**
  * Section for a producer showing model selection and expandable content.
  * Uses CollapsibleSection for consistent styling with InputsPanel.
- * - For prompt producers: shows prompt cards using TextInputCard (same as inputs)
- * - For asset producers: shows config properties editor
+ * - For prompt producers: shows model row then prompt cards using TextCard with hover overlay
+ * - For asset producers: shows model row then config properties editor
  * - For composition producers: just shows the header (no expandable content)
  */
 export function ProducerSection({
   producerId,
-  producerType,
+  producerType: _producerType,
   description,
   category,
   availableModels,
@@ -70,6 +70,7 @@ export function ProducerSection({
   configProperties,
   configValues = {},
   onConfigChange,
+  schemaError,
 }: ProducerSectionProps) {
   // Handle saving system prompt
   const handleSaveSystemPrompt = useCallback(
@@ -116,37 +117,15 @@ export function ProducerSection({
     return undefined;
   }, [category, promptData, configProperties]);
 
-  // Actions to render in header (model selector and badges)
-  const headerActions = (
+  // Actions to render in header (edited badge only)
+  const headerActions = isEdited ? (
     <div className="flex items-center gap-2">
-      {producerType && (
-        <span className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
-          {producerType}
-        </span>
-      )}
-      {isEdited && (
-        <span className="flex items-center gap-0.5 text-xs text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">
-          <Pencil className="size-3" />
-          Edited
-        </span>
-      )}
-      <div className="w-48">
-        {category === "composition" ? (
-          <span className="text-xs text-muted-foreground italic bg-muted/50 px-2 py-1.5 rounded block text-center">
-            No model required
-          </span>
-        ) : (
-          <ModelSelector
-            producerId={producerId}
-            availableModels={availableModels}
-            currentSelection={currentSelection}
-            isEditable={isEditable}
-            onChange={onModelChange}
-          />
-        )}
-      </div>
+      <span className="flex items-center gap-0.5 text-xs text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">
+        <Pencil className="size-3" />
+        Edited
+      </span>
     </div>
-  );
+  ) : null;
 
   // For composition producers, show a simpler non-collapsible section
   if (category === "composition") {
@@ -170,71 +149,49 @@ export function ProducerSection({
       title={sectionTitle}
       count={itemCount}
       description={description}
-      defaultOpen={false}
+      defaultOpen={true}
       actions={headerActions}
       className={getSectionHighlightStyles(isSelected, "blue")}
     >
-      {/* Prompt producers: show prompt cards using TextInputCard */}
+      {/* Prompt producers: show model row then prompt cards */}
       {category === "prompt" && (
         promptData ? (
           <div className="space-y-4">
+            {/* Model selection row */}
+            <PropertyRow name="Model" type="select" required>
+              <ModelSelector
+                producerId={producerId}
+                availableModels={availableModels}
+                currentSelection={currentSelection}
+                isEditable={isEditable}
+                onChange={onModelChange}
+              />
+            </PropertyRow>
+
+            {/* Prompt cards */}
             <MediaGrid className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2">
               {promptData.systemPrompt !== undefined && (
-                <TextInputCard
+                <TextCard
                   label="System Prompt"
                   value={promptData.systemPrompt}
                   onChange={handleSaveSystemPrompt}
                   isEditable={isEditable}
-                  renderDialog={({ open, onOpenChange, value, onSave }) => (
-                    <PromptEditDialog
-                      open={open}
-                      onOpenChange={onOpenChange}
-                      title="Edit System Prompt"
-                      content={value}
-                      variables={promptData.variables}
-                      onSave={onSave}
-                    />
-                  )}
+                  language="markdown"
+                  variables={promptData.variables}
                 />
               )}
               {promptData.userPrompt !== undefined && (
-                <TextInputCard
+                <TextCard
                   label="User Prompt"
                   value={promptData.userPrompt}
                   onChange={handleSaveUserPrompt}
                   isEditable={isEditable}
-                  renderDialog={({ open, onOpenChange, value, onSave }) => (
-                    <PromptEditDialog
-                      open={open}
-                      onOpenChange={onOpenChange}
-                      title="Edit User Prompt"
-                      content={value}
-                      variables={promptData.variables}
-                      onSave={onSave}
-                    />
-                  )}
+                  language="markdown"
+                  variables={promptData.variables}
                 />
               )}
             </MediaGrid>
 
-            {/* Variables list */}
-            {promptData.variables && promptData.variables.length > 0 && (
-              <div>
-                <div className="text-xs font-medium text-muted-foreground mb-1.5">
-                  Available Variables
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {promptData.variables.map((v) => (
-                    <span
-                      key={v}
-                      className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded font-mono"
-                    >
-                      {`{{${v}}}`}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         ) : (
           <div className="text-xs text-muted-foreground italic py-2">
@@ -243,18 +200,42 @@ export function ProducerSection({
         )
       )}
 
-      {/* Asset producers: show config properties editor */}
+      {/* Asset producers: show config properties editor with model selection */}
       {category === "asset" && (
-        configProperties && configProperties.length > 0 ? (
+        schemaError ? (
+          <ConfigPropertiesEditor
+            properties={[]}
+            values={{}}
+            isEditable={false}
+            onChange={() => {}}
+            schemaError={schemaError}
+          />
+        ) : configProperties && configProperties.length > 0 ? (
           <ConfigPropertiesEditor
             properties={configProperties}
             values={configValues}
             isEditable={isEditable}
             onChange={(key, value) => onConfigChange?.(key, value)}
+            producerId={producerId}
+            availableModels={availableModels}
+            currentModelSelection={currentSelection}
+            onModelChange={onModelChange}
           />
         ) : (
-          <div className="text-xs text-muted-foreground italic py-2">
-            {configProperties ? "No configurable properties for this model." : "Config schema not loaded."}
+          <div className="space-y-3">
+            {/* Model selection row for asset producers without config */}
+            <PropertyRow name="Model" type="select" required>
+              <ModelSelector
+                producerId={producerId}
+                availableModels={availableModels}
+                currentSelection={currentSelection}
+                isEditable={isEditable}
+                onChange={onModelChange}
+              />
+            </PropertyRow>
+            <div className="text-xs text-muted-foreground italic">
+              {configProperties ? "No additional configurable properties for this model." : "Config schema not loaded."}
+            </div>
           </div>
         )
       )}
