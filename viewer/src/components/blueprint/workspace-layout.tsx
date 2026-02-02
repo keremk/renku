@@ -11,6 +11,7 @@ import {
   useBuildInputs,
   useProducerModels,
   useProducerConfigSchemas,
+  useProducerConfigState,
   useProducerPrompts,
   usePanelResizer,
   useBottomPanelTabs,
@@ -22,7 +23,6 @@ import type {
   BlueprintGraphData,
   InputTemplateData,
   ModelSelectionValue,
-  ConfigProperty,
 } from "@/types/blueprint-graph";
 import type { BuildInfo, BuildManifestResponse } from "@/types/builds";
 
@@ -238,33 +238,11 @@ function WorkspaceLayoutInner({
     enabled: isInputsEditable,
   });
 
-  // Compute config properties for each producer based on current model selection (including unsaved edits)
-  const configPropertiesByProducer = useMemo<Record<string, ConfigProperty[]>>(() => {
-    const result: Record<string, ConfigProperty[]> = {};
-    for (const [producerId, schemas] of Object.entries(configSchemas)) {
-      // Find current model selection for this producer (uses edits if available)
-      const selection = modelEditor.currentSelections.find((s) => s.producerId === producerId);
-      if (selection) {
-        const modelKey = `${selection.provider}/${selection.model}`;
-        const modelSchema = schemas.modelSchemas[modelKey];
-        if (modelSchema) {
-          result[producerId] = modelSchema.properties;
-        }
-      }
-    }
-    return result;
-  }, [configSchemas, modelEditor.currentSelections]);
-
-  // Compute config values for each producer from model selection configs (including unsaved edits)
-  const configValuesByProducer = useMemo<Record<string, Record<string, unknown>>>(() => {
-    const result: Record<string, Record<string, unknown>> = {};
-    for (const selection of modelEditor.currentSelections) {
-      if (selection.config && Object.keys(selection.config).length > 0) {
-        result[selection.producerId] = selection.config;
-      }
-    }
-    return result;
-  }, [modelEditor.currentSelections]);
+  // Compute config properties and values using the dedicated hook
+  const { configPropertiesByProducer, configValuesByProducer } = useProducerConfigState({
+    configSchemas,
+    currentSelections: modelEditor.currentSelections,
+  });
 
   // Handle enabling editing for a build
   const handleEnableEditing = useCallback(async () => {
@@ -376,6 +354,7 @@ function WorkspaceLayoutInner({
               onPromptChange={handleSavePrompt}
               configPropertiesByProducer={configPropertiesByProducer}
               configValuesByProducer={configValuesByProducer}
+              configSchemasByProducer={configSchemas}
               onConfigChange={handleConfigChange}
               onModelSelectionChange={modelEditor.updateSelection}
               isModelsDirty={modelEditor.isDirty}

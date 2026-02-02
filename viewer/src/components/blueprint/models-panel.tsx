@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { EnableEditingBanner } from "./shared";
 import { ProducerSection } from "./models/producer-section";
-import { isNestedSttSelection, isSpeechModelSelection } from "./models/stt-helpers";
+import { hasNestedModels, getNestedModelSelection, isNestedSttSelection, isSpeechModelSelection } from "./models/stt-helpers";
 import { hasRegisteredEditor } from "./models/config-editors";
 import { isComplexProperty } from "./models/config-utils";
 import type {
   ModelSelectionValue,
   ProducerModelInfo,
+  ProducerConfigSchemas,
   PromptData,
   ConfigProperty,
 } from "@/types/blueprint-graph";
@@ -40,6 +41,8 @@ interface ModelsPanelProps {
   configValuesByProducer?: Record<string, Record<string, unknown>>;
   /** Callback when config changes */
   onConfigChange?: (producerId: string, key: string, value: unknown) => void;
+  /** Config schemas per producer (for nested model detection) */
+  configSchemasByProducer?: Record<string, ProducerConfigSchemas>;
 }
 
 export function ModelsPanel({
@@ -57,6 +60,7 @@ export function ModelsPanel({
   configPropertiesByProducer = {},
   configValuesByProducer = {},
   onConfigChange,
+  configSchemasByProducer = {},
 }: ModelsPanelProps) {
   // Determine if we're in controlled mode
   const isControlled = onSelectionChange !== undefined;
@@ -101,10 +105,22 @@ export function ModelsPanel({
         return true; // New selection
       }
 
-      // For nested STT selections, compare against config values
+      // Check if this producer has nested models via schema
+      const schemas = configSchemasByProducer[producerId];
+      if (hasNestedModels(schemas)) {
+        const nestedDecl = schemas.nestedModels[0].declaration;
+        const nestedSel = getNestedModelSelection(original, nestedDecl.configPath);
+        if (!nestedSel || value.provider !== nestedSel.provider || value.model !== nestedSel.model) {
+          return true;
+        }
+        continue;
+      }
+
+      // Legacy: For nested STT selections without schema, compare against config values
       if (isNestedSttSelection(original)) {
-        const sttProvider = original.config!.sttProvider as string;
-        const sttModel = original.config!.sttModel as string;
+        const sttConfig = original.config?.stt as Record<string, unknown> | undefined;
+        const sttProvider = sttConfig?.provider as string;
+        const sttModel = sttConfig?.model as string;
         if (value.provider !== sttProvider || value.model !== sttModel) {
           return true;
         }
@@ -120,7 +136,7 @@ export function ModelsPanel({
       }
     }
     return false;
-  }, [editValues, initialSelectionMap]);
+  }, [editValues, initialSelectionMap, configSchemasByProducer]);
 
   // Get the current selection for a producer
   // In controlled mode, props contain current state (saved + edits) so use directly
@@ -133,12 +149,21 @@ export function ModelsPanel({
         const existing = initialSelectionMap.get(producerId);
         if (!existing) return undefined;
 
-        // For nested STT selections, extract actual provider/model from config
+        // Check if this producer has nested models via schema
+        const schemas = configSchemasByProducer[producerId];
+        if (hasNestedModels(schemas)) {
+          // For producers with nested models, the top-level selection stays as-is
+          // The nested model selector handles the config.stt.provider/model separately
+          return existing;
+        }
+
+        // Legacy: For nested STT selections without schema, extract actual provider/model from config
         if (isNestedSttSelection(existing)) {
+          const sttConfig = existing.config?.stt as Record<string, unknown> | undefined;
           return {
             ...existing,
-            provider: existing.config!.sttProvider as string,
-            model: existing.config!.sttModel as string,
+            provider: sttConfig?.provider as string,
+            model: sttConfig?.model as string,
           };
         }
         return existing;
@@ -152,18 +177,25 @@ export function ModelsPanel({
       const existing = initialSelectionMap.get(producerId);
       if (!existing) return undefined;
 
-      // For nested STT selections, extract actual provider/model from config
+      // Check if this producer has nested models via schema
+      const schemas = configSchemasByProducer[producerId];
+      if (hasNestedModels(schemas)) {
+        return existing;
+      }
+
+      // Legacy: For nested STT selections without schema, extract actual provider/model from config
       if (isNestedSttSelection(existing)) {
+        const sttConfig = existing.config?.stt as Record<string, unknown> | undefined;
         return {
           ...existing,
-          provider: existing.config!.sttProvider as string,
-          model: existing.config!.sttModel as string,
+          provider: sttConfig?.provider as string,
+          model: sttConfig?.model as string,
         };
       }
 
       return existing;
     },
-    [isControlled, editValues, initialSelectionMap]
+    [isControlled, editValues, initialSelectionMap, configSchemasByProducer]
   );
 
   // Handle selection change
@@ -185,7 +217,7 @@ export function ModelsPanel({
   );
 
   // Handle save (for uncontrolled mode)
-  // For nested STT selections, wrap edited values back in the nested format
+  // For producers with nested models, wrap edited values back in the nested format
   const handleSave = useCallback(async () => {
     if (!onSave || !isDirty) return;
 
@@ -198,16 +230,38 @@ export function ModelsPanel({
       // First add all edited values
       for (const [producerId, value] of editValues) {
         const original = initialSelectionMap.get(producerId);
+        const schemas = configSchemasByProducer[producerId];
 
-        // If original was in nested STT format, preserve that format
-        if (original && isSpeechModelSelection(original)) {
+        // If producer has nested models via schema, preserve the top-level and update nested
+        if (hasNestedModels(schemas)) {
+          // Find the first nested model declaration
+          const nestedDecl = schemas.nestedModels[0].declaration;
           allSelections.push({
             producerId,
-            provider: original.provider, // "renku"
-            model: original.model, // "speech/transcription"
+            provider: original?.provider ?? "renku",
+            model: original?.model ?? value.model,
             config: {
-              sttProvider: value.provider,
-              sttModel: value.model,
+              ...original?.config,
+              [nestedDecl.configPath]: {
+                ...(original?.config?.[nestedDecl.configPath] as Record<string, unknown> ?? {}),
+                [nestedDecl.providerField]: value.provider,
+                [nestedDecl.modelField]: value.model,
+              },
+            },
+          });
+        } else if (original && isSpeechModelSelection(original)) {
+          // Legacy: If original was in speech model format without schema
+          allSelections.push({
+            producerId,
+            provider: original.provider,
+            model: original.model,
+            config: {
+              ...original.config,
+              stt: {
+                ...(original.config?.stt as Record<string, unknown> ?? {}),
+                provider: value.provider,
+                model: value.model,
+              },
             },
           });
         } else {
@@ -229,7 +283,7 @@ export function ModelsPanel({
     } finally {
       setIsSaving(false);
     }
-  }, [onSave, isDirty, initialSelectionMap, editValues]);
+  }, [onSave, isDirty, initialSelectionMap, editValues, configSchemasByProducer]);
 
   // Determine which producer is selected based on node ID
   const selectedProducerId = selectedNodeId?.startsWith("Producer:")
@@ -320,6 +374,7 @@ export function ModelsPanel({
         const selection = getSelection(producerId);
         const isSelected = selectedProducerId === producerId;
         const isEdited = editedProducerIds.has(producerId);
+        const schemas = configSchemasByProducer[producerId];
 
         return (
           <ProducerSection
@@ -339,6 +394,7 @@ export function ModelsPanel({
             configProperties={configPropertiesByProducer[producerId]}
             configValues={configValuesByProducer[producerId]}
             onConfigChange={onConfigChange ? (key, value) => onConfigChange(producerId, key, value) : undefined}
+            nestedModelSchemas={schemas?.nestedModels}
           />
         );
       })}

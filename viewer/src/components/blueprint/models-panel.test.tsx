@@ -29,8 +29,10 @@ function createNestedSttSelection(overrides: Partial<ModelSelectionValue> = {}):
     provider: 'renku',
     model: 'speech/transcription',
     config: {
-      sttProvider: 'fal-ai',
-      sttModel: 'elevenlabs/speech-to-text',
+      stt: {
+        provider: 'fal-ai',
+        model: 'elevenlabs/speech-to-text',
+      },
     },
     ...overrides,
   };
@@ -86,25 +88,29 @@ describe('isNestedSttSelection', () => {
     expect(isNestedSttSelection(selection)).toBe(false);
   });
 
-  it('returns false for selection with partial config (missing sttModel)', () => {
+  it('returns false for selection with partial config (missing stt.model)', () => {
     const selection: ModelSelectionValue = {
       producerId: 'TranscriptionProducer',
       provider: 'renku',
       model: 'speech/transcription',
       config: {
-        sttProvider: 'fal-ai',
+        stt: {
+          provider: 'fal-ai',
+        },
       },
     };
     expect(isNestedSttSelection(selection)).toBe(false);
   });
 
-  it('returns false for selection with partial config (missing sttProvider)', () => {
+  it('returns false for selection with partial config (missing stt.provider)', () => {
     const selection: ModelSelectionValue = {
       producerId: 'TranscriptionProducer',
       provider: 'renku',
       model: 'speech/transcription',
       config: {
-        sttModel: 'elevenlabs/speech-to-text',
+        stt: {
+          model: 'elevenlabs/speech-to-text',
+        },
       },
     };
     expect(isNestedSttSelection(selection)).toBe(false);
@@ -116,8 +122,10 @@ describe('isNestedSttSelection', () => {
       provider: 'other-provider',
       model: 'speech/transcription',
       config: {
-        sttProvider: 'fal-ai',
-        sttModel: 'elevenlabs/speech-to-text',
+        stt: {
+          provider: 'fal-ai',
+          model: 'elevenlabs/speech-to-text',
+        },
       },
     };
     expect(isNestedSttSelection(selection)).toBe(false);
@@ -129,8 +137,10 @@ describe('isNestedSttSelection', () => {
       provider: 'renku',
       model: 'timeline/ordered',
       config: {
-        sttProvider: 'fal-ai',
-        sttModel: 'elevenlabs/speech-to-text',
+        stt: {
+          provider: 'fal-ai',
+          model: 'elevenlabs/speech-to-text',
+        },
       },
     };
     expect(isNestedSttSelection(selection)).toBe(false);
@@ -147,8 +157,10 @@ describe('isNestedSttSelection', () => {
       provider: 'renku',
       model: 'speech/other-type',
       config: {
-        sttProvider: 'openai',
-        sttModel: 'whisper-1',
+        stt: {
+          provider: 'openai',
+          model: 'whisper-1',
+        },
       },
     };
     expect(isNestedSttSelection(selection)).toBe(true);
@@ -381,9 +393,10 @@ describe('Nested STT Selection Integration', () => {
     // Verify isNestedSttSelection identifies it correctly
     expect(isNestedSttSelection(originalSelection)).toBe(true);
 
-    // The expected extracted values for display
-    expect(originalSelection.config?.sttProvider).toBe('fal-ai');
-    expect(originalSelection.config?.sttModel).toBe('elevenlabs/speech-to-text');
+    // The expected extracted values for display (new nested format)
+    const sttConfig = originalSelection.config?.stt as Record<string, unknown>;
+    expect(sttConfig?.provider).toBe('fal-ai');
+    expect(sttConfig?.model).toBe('elevenlabs/speech-to-text');
 
     // The original format that should be preserved
     expect(originalSelection.provider).toBe('renku');

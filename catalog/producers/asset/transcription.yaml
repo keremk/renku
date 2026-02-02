@@ -27,6 +27,6 @@ artifacts:
     type: json
 
 mappings:
-  fal-ai:
-    elevenlabs/speech-to-text:
+  renku:
+    speech/transcription:
       LanguageCode: language_code

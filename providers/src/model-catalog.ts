@@ -2,12 +2,12 @@ import { readdir, readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { ModelPriceConfig } from './producers/cost-functions.js';
-import { parseSchemaFile, type SchemaFile } from './sdk/unified/schema-file.js';
+import { parseSchemaFile, type SchemaFile, type NestedModelDeclaration } from './sdk/unified/schema-file.js';
 
 /**
  * Model output type - determines which handler factory and output mime type to use.
  */
-export type ModelType = 'image' | 'video' | 'audio' | 'llm' | 'text' | 'internal' | 'json';
+export type ModelType = 'image' | 'video' | 'audio' | 'llm' | 'text' | 'internal' | 'json' | 'stt';
 
 /**
  * Model definition from YAML catalog.
@@ -272,5 +272,38 @@ export async function loadModelSchemaFile(
   }
 }
 
-// Re-export SchemaFile type for convenience
-export type { SchemaFile };
+/**
+ * Get available models from the catalog that match a nested model declaration's constraints.
+ * Filters by allowedTypes and allowedProviders if specified.
+ */
+export function getAvailableModelsForNestedSlot(
+  catalog: LoadedModelCatalog,
+  declaration: NestedModelDeclaration
+): Array<{ provider: string; model: string }> {
+  const result: Array<{ provider: string; model: string }> = [];
+
+  for (const [provider, modelMap] of catalog.providers) {
+    // Skip provider if not in allowedProviders
+    if (declaration.allowedProviders && declaration.allowedProviders.length > 0) {
+      if (!declaration.allowedProviders.includes(provider)) {
+        continue;
+      }
+    }
+
+    for (const [modelName, modelDef] of modelMap) {
+      // Skip model if type not in allowedTypes
+      if (declaration.allowedTypes && declaration.allowedTypes.length > 0) {
+        if (!declaration.allowedTypes.includes(modelDef.type)) {
+          continue;
+        }
+      }
+
+      result.push({ provider, model: modelName });
+    }
+  }
+
+  return result;
+}
+
+// Re-export types for convenience
+export type { SchemaFile, NestedModelDeclaration };

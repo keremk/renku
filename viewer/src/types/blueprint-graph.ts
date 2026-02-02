@@ -168,6 +168,44 @@ export interface ProducerConfigSchemas {
   category: ProducerCategory;
   /** Config schemas per model - key is "provider/model" */
   modelSchemas: Record<string, ModelConfigSchema>;
+  /** Nested model schemas (if the producer's schema declares nested models) */
+  nestedModels?: NestedModelConfigSchema[];
+}
+
+/**
+ * Declaration of a nested model slot within a parent model's schema.
+ */
+export interface NestedModelDeclaration {
+  /** Unique name for this nested model slot (e.g., "stt") */
+  name: string;
+  /** Human-readable description */
+  description?: string;
+  /** Path in config object where nested model lives (e.g., "stt") */
+  configPath: string;
+  /** Property name within configPath for provider (e.g., "provider") */
+  providerField: string;
+  /** Property name within configPath for model (e.g., "model") */
+  modelField: string;
+  /** Whether this nested model is required */
+  required?: boolean;
+  /** Filter available models by type */
+  allowedTypes?: string[];
+  /** Filter available providers */
+  allowedProviders?: string[];
+  /** Fields that are provided by the parent and should not be shown in nested model config UI */
+  mappedFields?: string[];
+}
+
+/**
+ * Schema information for a nested model slot.
+ */
+export interface NestedModelConfigSchema {
+  /** Declaration from the parent schema's x-renku-nested-models */
+  declaration: NestedModelDeclaration;
+  /** Available models from catalog that match this slot's constraints */
+  availableModels: Array<{ provider: string; model: string }>;
+  /** Config schemas for each available nested model - key is "provider/model" */
+  modelSchemas: Record<string, ModelConfigSchema>;
 }
 
 /**

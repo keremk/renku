@@ -55,6 +55,7 @@ describe('parseSchemaFile', () => {
           },
         },
       });
+      expect(result.nestedModels).toEqual([]);
     });
 
     it('parses schema file with only input_schema (no output)', () => {
@@ -73,6 +74,7 @@ describe('parseSchemaFile', () => {
       });
       expect(result.outputSchema).toBeUndefined();
       expect(result.definitions).toEqual({});
+      expect(result.nestedModels).toEqual([]);
     });
 
     it('extracts multiple definitions', () => {
@@ -134,6 +136,124 @@ describe('parseSchemaFile', () => {
       expect(result.inputSchema.type).toBe('object');
       expect(result.inputSchema.title).toBe('Input');
       expect(result.outputSchema).toBeUndefined();
+    });
+  });
+
+  describe('nested model declarations (x-renku-nested-models)', () => {
+    it('extracts x-renku-nested-models from schema', () => {
+      const content = JSON.stringify({
+        input_schema: {
+          type: 'object',
+          properties: {
+            languageCode: { type: 'string' },
+            stt: { type: 'object' },
+          },
+        },
+        'x-renku-nested-models': [
+          {
+            name: 'stt',
+            description: 'Speech-to-text backend model',
+            configPath: 'stt',
+            providerField: 'provider',
+            modelField: 'model',
+            required: true,
+            allowedTypes: ['json', 'audio'],
+          },
+        ],
+      });
+
+      const result = parseSchemaFile(content);
+
+      expect(result.nestedModels).toHaveLength(1);
+      expect(result.nestedModels[0]).toEqual({
+        name: 'stt',
+        description: 'Speech-to-text backend model',
+        configPath: 'stt',
+        providerField: 'provider',
+        modelField: 'model',
+        required: true,
+        allowedTypes: ['json', 'audio'],
+      });
+    });
+
+    it('extracts multiple nested model declarations', () => {
+      const content = JSON.stringify({
+        input_schema: { type: 'object' },
+        'x-renku-nested-models': [
+          {
+            name: 'stt',
+            configPath: 'stt',
+            providerField: 'provider',
+            modelField: 'model',
+          },
+          {
+            name: 'tts',
+            configPath: 'tts',
+            providerField: 'provider',
+            modelField: 'model',
+            allowedProviders: ['elevenlabs', 'openai'],
+          },
+        ],
+      });
+
+      const result = parseSchemaFile(content);
+
+      expect(result.nestedModels).toHaveLength(2);
+      expect(result.nestedModels[0].name).toBe('stt');
+      expect(result.nestedModels[1].name).toBe('tts');
+      expect(result.nestedModels[1].allowedProviders).toEqual(['elevenlabs', 'openai']);
+    });
+
+    it('returns empty array when no nested models', () => {
+      const content = JSON.stringify({
+        input_schema: { type: 'object' },
+      });
+
+      const result = parseSchemaFile(content);
+
+      expect(result.nestedModels).toEqual([]);
+    });
+
+    it('filters out invalid nested model declarations', () => {
+      const content = JSON.stringify({
+        input_schema: { type: 'object' },
+        'x-renku-nested-models': [
+          {
+            name: 'valid',
+            configPath: 'valid',
+            providerField: 'provider',
+            modelField: 'model',
+          },
+          {
+            // Missing required fields
+            name: 'invalid',
+          },
+          {
+            // Missing name
+            configPath: 'invalid2',
+            providerField: 'provider',
+            modelField: 'model',
+          },
+          null,
+          'string',
+        ],
+      });
+
+      const result = parseSchemaFile(content);
+
+      expect(result.nestedModels).toHaveLength(1);
+      expect(result.nestedModels[0].name).toBe('valid');
+    });
+
+    it('handles x-renku-nested-models in old format (returns empty array)', () => {
+      const content = JSON.stringify({
+        type: 'object',
+        properties: { prompt: { type: 'string' } },
+      });
+
+      const result = parseSchemaFile(content);
+
+      expect(result.nestedModels).toEqual([]);
     });
   });
 

@@ -8,10 +8,12 @@ import { useMemo, type ComponentType } from "react";
 import { AlertCircle } from "lucide-react";
 import { ConfigPropertyRow } from "./config-property-row";
 import { ModelSelector } from "./model-selector";
+import { NestedModelSelector } from "./nested-model-selector";
 import { isComplexProperty } from "./config-utils";
+import { getNestedModelSelection } from "./stt-helpers";
 import { getEditorComponent, type ConfigEditorProps } from "./config-editors";
 import { PropertyRow, MediaGrid } from "../shared";
-import type { ConfigProperty } from "@/types/blueprint-graph";
+import type { ConfigProperty, NestedModelConfigSchema } from "@/types/blueprint-graph";
 import type { AvailableModelOption, ModelSelectionValue } from "@/types/blueprint-graph";
 
 interface ConfigPropertiesEditorProps {
@@ -35,6 +37,10 @@ interface ConfigPropertiesEditorProps {
   isComposition?: boolean;
   /** Callback when model selection changes */
   onModelChange?: (selection: ModelSelectionValue) => void;
+  /** Nested model schemas (if this producer has nested model declarations) */
+  nestedModelSchemas?: NestedModelConfigSchema[];
+  /** Callback when nested model selection changes */
+  onNestedModelChange?: (nestedSchema: NestedModelConfigSchema, provider: string, model: string) => void;
 }
 
 /**
@@ -53,6 +59,8 @@ export function ConfigPropertiesEditor({
   currentModelSelection,
   isComposition = false,
   onModelChange,
+  nestedModelSchemas,
+  onNestedModelChange,
 }: ConfigPropertiesEditorProps) {
   // Categorize properties into primitive, object-with-editor, and unhandled
   const { primitiveProps, objectPropsWithEditor, unhandledComplexCount } = useMemo(() => {
@@ -147,6 +155,32 @@ export function ConfigPropertiesEditor({
           />
         </PropertyRow>
       )}
+
+      {/* Nested model selectors (after main Model row) */}
+      {nestedModelSchemas && nestedModelSchemas.length > 0 && onNestedModelChange && nestedModelSchemas.map((nestedSchema) => {
+        const nestedSel = getNestedModelSelection(
+          currentModelSelection,
+          nestedSchema.declaration.configPath
+        );
+        return (
+          <PropertyRow
+            key={nestedSchema.declaration.name}
+            name={nestedSchema.declaration.description ?? nestedSchema.declaration.name}
+            type="select"
+            required={nestedSchema.declaration.required}
+          >
+            <NestedModelSelector
+              nestedSchema={nestedSchema}
+              currentProvider={nestedSel?.provider}
+              currentModel={nestedSel?.model}
+              isEditable={isEditable}
+              onChange={(provider, model) =>
+                onNestedModelChange(nestedSchema, provider, model)
+              }
+            />
+          </PropertyRow>
+        );
+      })}
 
       {/* Primitive properties in flat list */}
       {primitiveProps.map((prop) => (

@@ -9,6 +9,7 @@ describe('validateOutput', () => {
         inputSchema: { type: 'object' },
         outputSchema: undefined,
         definitions: {},
+        nestedModels: [],
       };
 
       const result = validateOutput({ some: 'data' }, schemaFile);
@@ -31,6 +32,7 @@ describe('validateOutput', () => {
           required: ['url'],
         },
         definitions: {},
+        nestedModels: [],
       };
 
       const output = { url: 'https://example.com/image.png', seed: 12345 };
@@ -51,6 +53,7 @@ describe('validateOutput', () => {
           required: ['url'],
         },
         definitions: {},
+        nestedModels: [],
       };
 
       const output = { other: 'data' };
@@ -71,6 +74,7 @@ describe('validateOutput', () => {
           },
         },
         definitions: {},
+        nestedModels: [],
       };
 
       const output = { seed: 'not a number' };
@@ -104,6 +108,7 @@ describe('validateOutput', () => {
             required: ['url'],
           },
         },
+        nestedModels: [],
       };
 
       const output = {
@@ -136,6 +141,7 @@ describe('validateOutput', () => {
             required: ['url'],
           },
         },
+        nestedModels: [],
       };
 
       // Missing required 'url' field
@@ -152,6 +158,7 @@ describe('validateOutput', () => {
         inputSchema: { type: 'object' },
         outputSchema: { type: 'object', properties: { x: { type: 'number' } } },
         definitions: {},
+        nestedModels: [],
       };
 
       // Call twice with same schema
@@ -174,6 +181,7 @@ describe('validateOutputWithLogging', () => {
         required: ['url'],
       },
       definitions: {},
+      nestedModels: [],
     };
 
     const warnSpy = vi.fn();
@@ -203,6 +211,7 @@ describe('validateOutputWithLogging', () => {
       inputSchema: { type: 'object' },
       outputSchema: { type: 'object', properties: { url: { type: 'string' } } },
       definitions: {},
+      nestedModels: [],
     };
 
     const warnSpy = vi.fn();
@@ -219,6 +228,7 @@ describe('validateOutputWithLogging', () => {
       inputSchema: { type: 'object' },
       outputSchema: undefined,
       definitions: {},
+      nestedModels: [],
     };
 
     const warnSpy = vi.fn();

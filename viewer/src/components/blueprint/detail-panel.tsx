@@ -12,6 +12,7 @@ import type {
   ProducerModelInfo,
   PromptData,
   ConfigProperty,
+  ProducerConfigSchemas,
 } from "@/types/blueprint-graph";
 import type { ArtifactInfo } from "@/types/builds";
 import type { TimelineDocument } from "@/types/timeline";
@@ -49,6 +50,8 @@ interface DetailPanelProps {
   configPropertiesByProducer?: Record<string, ConfigProperty[]>;
   /** Config values per producer */
   configValuesByProducer?: Record<string, Record<string, unknown>>;
+  /** Config schemas per producer (for nested model detection) */
+  configSchemasByProducer?: Record<string, ProducerConfigSchemas>;
   /** Callback when config values change */
   onConfigChange?: (producerId: string, key: string, value: unknown) => void;
   /** Callback when model selection changes */
@@ -100,6 +103,7 @@ export function DetailPanel({
   onPromptChange,
   configPropertiesByProducer = {},
   configValuesByProducer = {},
+  configSchemasByProducer = {},
   onConfigChange,
   onModelSelectionChange,
   isModelsDirty = false,
@@ -291,6 +295,7 @@ export function DetailPanel({
             onPromptChange={onPromptChange}
             configPropertiesByProducer={configPropertiesByProducer}
             configValuesByProducer={configValuesByProducer}
+            configSchemasByProducer={configSchemasByProducer}
             onConfigChange={onConfigChange}
           />
         )}

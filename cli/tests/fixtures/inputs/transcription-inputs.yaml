@@ -60,8 +60,10 @@ models:
     provider: renku
     producerId: TranscriptionProducer
     config:
-      sttProvider: fal-ai
-      sttModel: elevenlabs/speech-to-text
+      languageCode: eng
+      stt:
+        provider: fal-ai
+        model: elevenlabs/speech-to-text
   - model: ffmpeg/native-render
     provider: renku
     producerId: VideoExporter

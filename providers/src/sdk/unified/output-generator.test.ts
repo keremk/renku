@@ -65,6 +65,7 @@ describe('generateOutputFromSchema', () => {
           },
         },
         definitions: {},
+        nestedModels: [],
       };
 
       const result = generateOutputFromSchema(schemaFile, {
@@ -86,6 +87,7 @@ describe('generateOutputFromSchema', () => {
           },
         },
         definitions: {},
+        nestedModels: [],
       };
 
       const result = generateOutputFromSchema(schemaFile, {
@@ -109,6 +111,7 @@ describe('generateOutputFromSchema', () => {
           },
         },
         definitions: {},
+        nestedModels: [],
       };
 
       const result = generateOutputFromSchema(schemaFile, {
@@ -136,6 +139,7 @@ describe('generateOutputFromSchema', () => {
           },
         },
         definitions: {},
+        nestedModels: [],
       };
 
       const result = generateOutputFromSchema(schemaFile, {
@@ -166,6 +170,7 @@ describe('generateOutputFromSchema', () => {
             },
           },
         },
+        nestedModels: [],
       };
 
       const result = generateOutputFromSchema(schemaFile, {
@@ -193,6 +198,7 @@ describe('generateOutputFromSchema', () => {
           },
         },
         definitions: {},
+        nestedModels: [],
       };
 
       const result = generateOutputFromSchema(schemaFile, {
@@ -225,6 +231,7 @@ describe('generateOutputFromSchema', () => {
           },
         },
         definitions: {},
+        nestedModels: [],
       };
 
       const result = generateOutputFromSchema(schemaFile, {
@@ -247,6 +254,7 @@ describe('generateOutputFromSchema', () => {
           },
         },
         definitions: {},
+        nestedModels: [],
       };
 
       const result = generateOutputFromSchema(schemaFile, {
@@ -267,6 +275,7 @@ describe('generateOutputFromSchema', () => {
           },
         },
         definitions: {},
+        nestedModels: [],
       };
 
       const result = generateOutputFromSchema(schemaFile, {
@@ -289,6 +298,7 @@ describe('generateOutputFromSchema', () => {
           },
         },
         definitions: {},
+        nestedModels: [],
       };
 
       const result = generateOutputFromSchema(schemaFile, {
@@ -312,6 +322,7 @@ describe('generateOutputFromSchema', () => {
           },
         },
         definitions: {},
+        nestedModels: [],
       };
 
       const result = generateOutputFromSchema(schemaFile, {
@@ -346,6 +357,7 @@ describe('generateOutputFromSchema', () => {
             },
           },
         },
+        nestedModels: [],
       };
 
       const result = generateOutputFromSchema(schemaFile, {
@@ -375,6 +387,7 @@ describe('generateOutputFromSchema', () => {
           },
         },
         definitions: {},
+        nestedModels: [],
       };
 
       const result = generateOutputFromSchema(schemaFile, {
@@ -403,6 +416,7 @@ describe('generateOutputFromSchema', () => {
           },
         },
         definitions: {},
+        nestedModels: [],
       };
 
       const result = generateOutputFromSchema(schemaFile, {

@@ -35,6 +35,7 @@ const TYPE_TO_MIME: Record<ModelType, string> = {
   'text': 'text/plain',
   'internal': 'application/json',
   'json': 'application/json',
+  'stt': 'application/json',
 };
 
 /**

@@ -1,0 +1,36 @@
+{
+  "input_schema": {
+    "title": "TranscriptionConfig",
+    "type": "object",
+    "properties": {
+      "stt": {
+        "type": "object",
+        "description": "Speech-to-text model configuration",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": "STT provider (e.g., 'fal-ai')"
+          },
+          "model": {
+            "type": "string",
+            "description": "STT model (e.g., 'elevenlabs/speech-to-text')"
+          }
+        },
+        "required": ["provider", "model"]
+      }
+    },
+    "required": ["stt"]
+  },
+  "x-renku-nested-models": [
+    {
+      "name": "stt",
+      "description": "Speech-to-text backend model",
+      "configPath": "stt",
+      "providerField": "provider",
+      "modelField": "model",
+      "required": true,
+      "allowedTypes": ["stt"],
+      "mappedFields": ["language_code"]
+    }
+  ]
+}

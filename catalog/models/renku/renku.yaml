@@ -24,4 +24,5 @@ models:
     mime:
       - application/json
     handler: transcription
+    schema: speech-transcription
     price: 0

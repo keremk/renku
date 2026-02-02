@@ -2,9 +2,11 @@ import { useCallback, useMemo } from "react";
 import { Pencil } from "lucide-react";
 import { CollapsibleSection, MediaGrid, TextCard, PropertyRow } from "../shared";
 import { ModelSelector } from "./model-selector";
+import { NestedModelSelector } from "./nested-model-selector";
 import { ConfigPropertiesEditor } from "./config-properties-editor";
 import { hasRegisteredEditor } from "./config-editors";
 import { isComplexProperty } from "./config-utils";
+import { getNestedModelSelection } from "./stt-helpers";
 import { getSectionHighlightStyles } from "@/lib/panel-utils";
 import type {
   AvailableModelOption,
@@ -12,6 +14,7 @@ import type {
   ProducerCategory,
   PromptData,
   ConfigProperty,
+  NestedModelConfigSchema,
 } from "@/types/blueprint-graph";
 
 interface ProducerSectionProps {
@@ -47,6 +50,8 @@ interface ProducerSectionProps {
   onConfigChange?: (key: string, value: unknown) => void;
   /** Error message if config schema failed to load */
   schemaError?: string | null;
+  /** Nested model schemas (if this producer has nested model declarations) */
+  nestedModelSchemas?: NestedModelConfigSchema[];
 }
 
 /**
@@ -73,6 +78,7 @@ export function ProducerSection({
   configValues = {},
   onConfigChange,
   schemaError,
+  nestedModelSchemas,
 }: ProducerSectionProps) {
   // Handle saving system prompt
   const handleSaveSystemPrompt = useCallback(
@@ -100,6 +106,32 @@ export function ProducerSection({
       await Promise.resolve(onPromptChange(updatedPrompts));
     },
     [promptData, onPromptChange]
+  );
+
+  // Handle nested model selection change
+  const handleNestedModelChange = useCallback(
+    (nestedSchema: NestedModelConfigSchema, provider: string, model: string) => {
+      if (!currentSelection) return;
+
+      const { configPath, providerField, modelField } = nestedSchema.declaration;
+
+      // Update the nested model config while preserving other properties
+      const existingNestedConfig = (currentSelection.config?.[configPath] ?? {}) as Record<string, unknown>;
+      const updatedConfig = {
+        ...currentSelection.config,
+        [configPath]: {
+          ...existingNestedConfig,
+          [providerField]: provider,
+          [modelField]: model,
+        },
+      };
+
+      onModelChange({
+        ...currentSelection,
+        config: updatedConfig,
+      });
+    },
+    [currentSelection, onModelChange]
   );
 
   // Build section title
@@ -248,16 +280,20 @@ export function ProducerSection({
             schemaError={schemaError}
           />
         ) : configProperties && configProperties.length > 0 ? (
-          <ConfigPropertiesEditor
-            properties={configProperties}
-            values={configValues}
-            isEditable={isEditable}
-            onChange={(key, value) => onConfigChange?.(key, value)}
-            producerId={producerId}
-            availableModels={availableModels}
-            currentModelSelection={currentSelection}
-            onModelChange={onModelChange}
-          />
+          <div className="space-y-4">
+            <ConfigPropertiesEditor
+              properties={configProperties}
+              values={configValues}
+              isEditable={isEditable}
+              onChange={(key, value) => onConfigChange?.(key, value)}
+              producerId={producerId}
+              availableModels={availableModels}
+              currentModelSelection={currentSelection}
+              onModelChange={onModelChange}
+              nestedModelSchemas={nestedModelSchemas}
+              onNestedModelChange={handleNestedModelChange}
+            />
+          </div>
         ) : (
           <div className="space-y-3">
             {/* Model selection row for asset producers without config */}
@@ -270,9 +306,36 @@ export function ProducerSection({
                 onChange={onModelChange}
               />
             </PropertyRow>
-            <div className="text-xs text-muted-foreground italic">
-              {configProperties ? "No additional configurable properties for this model." : "Config schema not loaded."}
-            </div>
+            {/* Render nested model selectors if present (even without top-level config) */}
+            {nestedModelSchemas && nestedModelSchemas.length > 0 && nestedModelSchemas.map((nestedSchema) => {
+              const nestedSel = getNestedModelSelection(
+                currentSelection,
+                nestedSchema.declaration.configPath
+              );
+              return (
+                <PropertyRow
+                  key={nestedSchema.declaration.name}
+                  name={nestedSchema.declaration.description ?? nestedSchema.declaration.name}
+                  type="select"
+                  required={nestedSchema.declaration.required}
+                >
+                  <NestedModelSelector
+                    nestedSchema={nestedSchema}
+                    currentProvider={nestedSel?.provider}
+                    currentModel={nestedSel?.model}
+                    isEditable={isEditable}
+                    onChange={(provider, model) =>
+                      handleNestedModelChange(nestedSchema, provider, model)
+                    }
+                  />
+                </PropertyRow>
+              );
+            })}
+            {!nestedModelSchemas?.length && (
+              <div className="text-xs text-muted-foreground italic">
+                {configProperties ? "No additional configurable properties for this model." : "Config schema not loaded."}
+              </div>
+            )}
           </div>
         )
       )}

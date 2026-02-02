@@ -499,9 +499,9 @@ models:
       pricePerMegapixel: 0.0008
 
 
-  # JSON Models
+  # STT (Speech-to-Text) Models
   - name: elevenlabs/speech-to-text
-    type: json
+    type: stt
     mime:
       - application/json
     price:

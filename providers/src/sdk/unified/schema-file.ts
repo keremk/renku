@@ -1,6 +1,31 @@
 import type { JSONSchema7 } from 'ai';
 
 /**
+ * Declaration of a nested model slot within a parent model's schema.
+ * Used to declare that a model delegates to another model for specific functionality.
+ */
+export interface NestedModelDeclaration {
+  /** Unique name for this nested model slot (e.g., "stt") */
+  name: string;
+  /** Human-readable description */
+  description?: string;
+  /** Path in config object where nested model lives (e.g., "stt") */
+  configPath: string;
+  /** Property name within configPath for provider (e.g., "provider") */
+  providerField: string;
+  /** Property name within configPath for model (e.g., "model") */
+  modelField: string;
+  /** Whether this nested model is required */
+  required?: boolean;
+  /** Filter available models by type (e.g., ["json", "audio"]) */
+  allowedTypes?: string[];
+  /** Filter available providers (e.g., ["fal-ai", "replicate"]) */
+  allowedProviders?: string[];
+  /** Fields that are provided by the parent and should not be shown in nested model config UI */
+  mappedFields?: string[];
+}
+
+/**
  * Parsed schema file with input/output schemas and $ref definitions.
  */
 export interface SchemaFile {
@@ -10,6 +35,23 @@ export interface SchemaFile {
   outputSchema?: JSONSchema7;
   /** Additional type definitions for $ref resolution (e.g., ImageSize, File, VideoFile) */
   definitions: Record<string, JSONSchema7>;
+  /** Nested model declarations from x-renku-nested-models extension */
+  nestedModels: NestedModelDeclaration[];
+}
+
+/**
+ * Raw nested model declaration structure from x-renku-nested-models.
+ */
+interface RawNestedModelDeclaration {
+  name: string;
+  description?: string;
+  configPath: string;
+  providerField: string;
+  modelField: string;
+  required?: boolean;
+  allowedTypes?: string[];
+  allowedProviders?: string[];
+  mappedFields?: string[];
 }
 
 /**
@@ -19,7 +61,8 @@ export interface SchemaFile {
 interface NewFormatSchemaFile {
   input_schema: JSONSchema7;
   output_schema?: JSONSchema7;
-  [key: string]: JSONSchema7 | undefined;
+  'x-renku-nested-models'?: RawNestedModelDeclaration[];
+  [key: string]: JSONSchema7 | RawNestedModelDeclaration[] | undefined;
 }
 
 /**
@@ -75,21 +118,25 @@ export function parseSchemaFile(content: string): SchemaFile {
   }
 
   if (isNewFormat(parsed)) {
-    // New format: extract input_schema, output_schema, and remaining definitions
-    const { input_schema, output_schema, ...rest } = parsed;
+    // New format: extract input_schema, output_schema, nested models, and remaining definitions
+    const { input_schema, output_schema, 'x-renku-nested-models': rawNestedModels, ...rest } = parsed;
 
     // Filter out undefined values and collect definitions
     const definitions: Record<string, JSONSchema7> = {};
     for (const [key, value] of Object.entries(rest)) {
-      if (value !== undefined && typeof value === 'object') {
+      if (value !== undefined && typeof value === 'object' && !Array.isArray(value)) {
         definitions[key] = value as JSONSchema7;
       }
     }
+
+    // Parse nested model declarations
+    const nestedModels: NestedModelDeclaration[] = parseNestedModelDeclarations(rawNestedModels);
 
     return {
       inputSchema: input_schema,
       outputSchema: output_schema,
       definitions,
+      nestedModels,
     };
   }
 
@@ -98,7 +145,43 @@ export function parseSchemaFile(content: string): SchemaFile {
     inputSchema: parsed as JSONSchema7,
     outputSchema: undefined,
     definitions: {},
+    nestedModels: [],
   };
+}
+
+/**
+ * Parses and validates nested model declarations from x-renku-nested-models.
+ */
+function parseNestedModelDeclarations(
+  raw: RawNestedModelDeclaration[] | undefined
+): NestedModelDeclaration[] {
+  if (!raw || !Array.isArray(raw)) {
+    return [];
+  }
+
+  return raw
+    .filter((item): item is RawNestedModelDeclaration => {
+      // Validate required fields
+      return (
+        typeof item === 'object' &&
+        item !== null &&
+        typeof item.name === 'string' &&
+        typeof item.configPath === 'string' &&
+        typeof item.providerField === 'string' &&
+        typeof item.modelField === 'string'
+      );
+    })
+    .map((item) => ({
+      name: item.name,
+      description: item.description,
+      configPath: item.configPath,
+      providerField: item.providerField,
+      modelField: item.modelField,
+      required: item.required,
+      allowedTypes: item.allowedTypes,
+      allowedProviders: item.allowedProviders,
+      mappedFields: item.mappedFields,
+    }));
 }
 
 /**

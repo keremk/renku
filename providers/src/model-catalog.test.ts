@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { resolve } from 'node:path';
 import { readdir, readFile } from 'node:fs/promises';
 import { parse as parseYaml } from 'yaml';
-import { loadModelCatalog, lookupModel, resolveSchemaPath, type ModelDefinition } from './model-catalog.js';
+import {
+  loadModelCatalog,
+  lookupModel,
+  resolveSchemaPath,
+  getAvailableModelsForNestedSlot,
+  type ModelDefinition,
+  type NestedModelDeclaration,
+} from './model-catalog.js';
 
 const CATALOG_ROOT = resolve(import.meta.dirname, '../../catalog');
 const MODELS_DIR = resolve(CATALOG_ROOT, 'models');
@@ -209,6 +216,109 @@ describe('model-catalog', () => {
       const falModel = lookupModel(catalog, 'fal-ai', 'veo3.1');
       expect(falModel).not.toBeNull();
       expect(falModel!.schema).toBeUndefined();
+    });
+  });
+
+  describe('getAvailableModelsForNestedSlot', () => {
+    it('filters models by allowedTypes', async () => {
+      const catalog = await loadModelCatalog(MODELS_DIR);
+
+      const declaration: NestedModelDeclaration = {
+        name: 'stt',
+        configPath: 'stt',
+        providerField: 'provider',
+        modelField: 'model',
+        allowedTypes: ['json'],
+      };
+
+      const models = getAvailableModelsForNestedSlot(catalog, declaration);
+
+      // Should only include json type models
+      expect(models.length).toBeGreaterThan(0);
+
+      // Verify all returned models are json type
+      for (const { provider, model } of models) {
+        const modelDef = lookupModel(catalog, provider, model);
+        expect(modelDef).not.toBeNull();
+        expect(modelDef!.type).toBe('json');
+      }
+    });
+
+    it('filters models by allowedProviders', async () => {
+      const catalog = await loadModelCatalog(MODELS_DIR);
+
+      const declaration: NestedModelDeclaration = {
+        name: 'stt',
+        configPath: 'stt',
+        providerField: 'provider',
+        modelField: 'model',
+        allowedProviders: ['fal-ai'],
+      };
+
+      const models = getAvailableModelsForNestedSlot(catalog, declaration);
+
+      // Should only include fal-ai models
+      expect(models.length).toBeGreaterThan(0);
+      expect(models.every((m) => m.provider === 'fal-ai')).toBe(true);
+    });
+
+    it('filters by both allowedTypes and allowedProviders', async () => {
+      const catalog = await loadModelCatalog(MODELS_DIR);
+
+      const declaration: NestedModelDeclaration = {
+        name: 'stt',
+        configPath: 'stt',
+        providerField: 'provider',
+        modelField: 'model',
+        allowedTypes: ['json'],
+        allowedProviders: ['fal-ai'],
+      };
+
+      const models = getAvailableModelsForNestedSlot(catalog, declaration);
+
+      // Should only include json type models from fal-ai
+      expect(models.length).toBeGreaterThan(0);
+      expect(models.every((m) => m.provider === 'fal-ai')).toBe(true);
+
+      for (const { provider, model } of models) {
+        const modelDef = lookupModel(catalog, provider, model);
+        expect(modelDef).not.toBeNull();
+        expect(modelDef!.type).toBe('json');
+      }
+    });
+
+    it('returns all models when no filters are specified', async () => {
+      const catalog = await loadModelCatalog(MODELS_DIR);
+
+      const declaration: NestedModelDeclaration = {
+        name: 'any',
+        configPath: 'any',
+        providerField: 'provider',
+        modelField: 'model',
+        // No allowedTypes or allowedProviders
+      };
+
+      const models = getAvailableModelsForNestedSlot(catalog, declaration);
+
+      // Should include models from multiple providers
+      const providers = new Set(models.map((m) => m.provider));
+      expect(providers.size).toBeGreaterThan(1);
+    });
+
+    it('returns empty array when no models match filters', async () => {
+      const catalog = await loadModelCatalog(MODELS_DIR);
+
+      const declaration: NestedModelDeclaration = {
+        name: 'nonexistent',
+        configPath: 'nonexistent',
+        providerField: 'provider',
+        modelField: 'model',
+        allowedProviders: ['nonexistent-provider'],
+      };
+
+      const models = getAvailableModelsForNestedSlot(catalog, declaration);
+
+      expect(models).toEqual([]);
     });
   });
 });

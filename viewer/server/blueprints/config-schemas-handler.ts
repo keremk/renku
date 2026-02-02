@@ -13,8 +13,10 @@ import {
 import {
   loadModelCatalog,
   loadModelSchemaFile,
+  getAvailableModelsForNestedSlot,
   type LoadedModelCatalog,
   type SchemaFile,
+  type NestedModelDeclaration,
 } from "@gorenku/providers";
 import { detectProducerCategory } from "./producer-models.js";
 import type { ProducerCategory } from "./types.js";
@@ -57,6 +59,18 @@ export interface ModelConfigSchema {
 }
 
 /**
+ * Schema information for a nested model slot.
+ */
+export interface NestedModelConfigSchema {
+  /** Declaration from the parent schema's x-renku-nested-models */
+  declaration: NestedModelDeclaration;
+  /** Available models from catalog that match this slot's constraints */
+  availableModels: Array<{ provider: string; model: string }>;
+  /** Config schemas for each available nested model - key is "provider/model" */
+  modelSchemas: Record<string, ModelConfigSchema>;
+}
+
+/**
  * Config schemas for a producer's available models.
  */
 export interface ProducerConfigSchemas {
@@ -64,6 +78,8 @@ export interface ProducerConfigSchemas {
   category: ProducerCategory;
   /** Config schemas per model - key is "provider/model" */
   modelSchemas: Record<string, ModelConfigSchema>;
+  /** Nested model schemas (if the producer's schema declares nested models) */
+  nestedModels?: NestedModelConfigSchema[];
 }
 
 /**
@@ -165,6 +181,53 @@ function getMappedFieldsForModel(
 }
 
 /**
+ * Process nested model declarations and load their schemas.
+ */
+async function processNestedModels(
+  nestedModelDeclarations: NestedModelDeclaration[],
+  catalog: LoadedModelCatalog,
+  catalogModelsDir: string,
+): Promise<NestedModelConfigSchema[]> {
+  const result: NestedModelConfigSchema[] = [];
+
+  for (const declaration of nestedModelDeclarations) {
+    // Get available models from catalog that match this slot's constraints
+    const availableModels = getAvailableModelsForNestedSlot(catalog, declaration);
+
+    // Load config schemas for each available nested model
+    const modelSchemas: Record<string, ModelConfigSchema> = {};
+
+    // Create a set of mapped fields from the declaration (fields provided by parent)
+    const mappedFields = new Set(declaration.mappedFields ?? []);
+
+    for (const { provider, model } of availableModels) {
+      const schemaFile = await loadModelSchemaFile(catalogModelsDir, catalog, provider, model);
+      if (!schemaFile) {
+        continue;
+      }
+
+      // Filter out fields that are provided by the parent via mappedFields
+      const configProperties = getUnmappedProperties(schemaFile, mappedFields);
+
+      const key = `${provider}/${model}`;
+      modelSchemas[key] = {
+        provider,
+        model,
+        properties: configProperties,
+      };
+    }
+
+    result.push({
+      declaration,
+      availableModels,
+      modelSchemas,
+    });
+  }
+
+  return result;
+}
+
+/**
  * Gets config schemas for all producers in a blueprint.
  */
 export async function getProducerConfigSchemas(
@@ -212,6 +275,7 @@ export async function getProducerConfigSchemas(
       }
 
       const modelSchemas: Record<string, ModelConfigSchema> = {};
+      let nestedModels: NestedModelConfigSchema[] | undefined;
 
       // For each provider/model combination
       for (const [provider, modelMappings] of Object.entries(mappings)) {
@@ -227,13 +291,21 @@ export async function getProducerConfigSchemas(
           // Get unmapped properties (config properties)
           const configProperties = getUnmappedProperties(schemaFile, mappedFields);
 
-          if (configProperties.length > 0) {
-            const key = `${provider}/${model}`;
-            modelSchemas[key] = {
-              provider,
-              model,
-              properties: configProperties,
-            };
+          // Always add the entry so client knows schema was loaded (even if no config properties)
+          const key = `${provider}/${model}`;
+          modelSchemas[key] = {
+            provider,
+            model,
+            properties: configProperties,
+          };
+
+          // Process nested model declarations if present
+          if (schemaFile.nestedModels && schemaFile.nestedModels.length > 0) {
+            nestedModels = await processNestedModels(
+              schemaFile.nestedModels,
+              catalog,
+              catalogModelsDir,
+            );
           }
         }
       }
@@ -242,6 +314,7 @@ export async function getProducerConfigSchemas(
         producerId,
         category,
         modelSchemas,
+        nestedModels,
       };
     }
 

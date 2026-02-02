@@ -17,12 +17,20 @@ const TIMELINE_ARTEFACT_ID = 'Artifact:TimelineComposer.Timeline';
 // Input ID reserved for future explicit input lookup; currently we iterate all inputs
 const _AUDIO_SEGMENTS_INPUT_ID = 'Input:TranscriptionProducer.AudioSegments';
 
+/**
+ * Nested model config structure for STT backend.
+ */
+interface NestedModelConfig {
+  provider: string;
+  model: string;
+  /** Additional model-specific config properties forwarded to the backend */
+  [key: string]: unknown;
+}
+
 interface TranscriptionHandlerConfig {
   languageCode?: string;
-  /** Required: The provider for the STT model (e.g., 'fal-ai', 'replicate') */
-  sttProvider: string;
-  /** Required: The STT model to use (e.g., 'elevenlabs/speech-to-text') */
-  sttModel: string;
+  /** Required: Nested STT model configuration */
+  stt: NestedModelConfig;
 }
 
 /**
@@ -148,13 +156,13 @@ export function createTranscriptionHandler(): HandlerFactory {
         // This validates the schema exists in the catalog
         let sttSchema: string | null = null;
         if (getModelSchema) {
-          sttSchema = await getModelSchema(config.sttProvider, config.sttModel);
+          sttSchema = await getModelSchema(config.stt.provider, config.stt.model);
         }
 
         // Resolve the STT handler from the registry (validates handler exists)
         const sttHandler = handlerResolver({
-          provider: config.sttProvider,
-          model: config.sttModel,
+          provider: config.stt.provider,
+          model: config.stt.model,
           environment: 'local',
         });
 
@@ -185,14 +193,17 @@ export function createTranscriptionHandler(): HandlerFactory {
         }
 
         // Delegate STT call to the configured provider's handler
-        notify('progress', `Calling speech-to-text API (${config.sttProvider}/${config.sttModel})...`);
+        notify('progress', `Calling speech-to-text API (${config.stt.provider}/${config.stt.model})...`);
+
+        // Extract nested STT config properties to forward (exclude provider/model)
+        const { provider: _sttProvider, model: _sttModel, ...sttConfigProps } = config.stt;
 
         // Construct job context for the STT call
         // The handler will use its simulated mode logic in dry-run
         const sttJobContext: ProviderJobContext = {
           jobId: `${request.jobId}-stt`,
-          provider: config.sttProvider,
-          model: config.sttModel,
+          provider: config.stt.provider,
+          model: config.stt.model,
           revision: request.revision,
           layerIndex: request.layerIndex,
           attempt: request.attempt,
@@ -204,6 +215,8 @@ export function createTranscriptionHandler(): HandlerFactory {
               resolvedInputs: {
                 audio_url: audioUrl,
                 language_code: languageCode,
+                // Forward any additional STT-specific config properties (e.g., diarize, tag_audio_events)
+                ...sttConfigProps,
               },
               // SDK mapping tells buildPayload how to transform resolvedInputs into API payload
               // Maps input keys to their target field names in the provider's schema
@@ -211,11 +224,19 @@ export function createTranscriptionHandler(): HandlerFactory {
                 sdkMapping: {
                   audio_url: { field: 'audio_url' },
                   language_code: { field: 'language_code' },
+                  // Add mappings for forwarded STT config properties
+                  ...Object.fromEntries(
+                    Object.keys(sttConfigProps).map(key => [key, { field: key }])
+                  ),
                 },
                 // inputBindings maps input aliases to canonical IDs in resolvedInputs
                 inputBindings: {
                   audio_url: 'audio_url',
                   language_code: 'language_code',
+                  // Add bindings for forwarded STT config properties
+                  ...Object.fromEntries(
+                    Object.keys(sttConfigProps).map(key => [key, key])
+                  ),
                 },
               },
               // Pass the schema for the STT model - required by schema-first-handler
@@ -265,28 +286,46 @@ export function createTranscriptionHandler(): HandlerFactory {
 function parseTranscriptionConfig(raw: unknown): TranscriptionHandlerConfig {
   const config = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
 
-  // Validate required sttProvider field
-  if (typeof config.sttProvider !== 'string' || !config.sttProvider) {
+  const stt = config.stt as Record<string, unknown> | undefined;
+
+  // Validate required stt nested object
+  if (!stt || typeof stt !== 'object') {
     throw createProviderError(
       SdkErrorCode.INVALID_CONFIG,
-      'TranscriptionProducer requires config.sttProvider (e.g., "fal-ai", "replicate")',
+      'TranscriptionProducer requires config.stt with provider and model. ' +
+        'Add config.stt: { provider: "fal-ai", model: "elevenlabs/speech-to-text" }',
       { kind: 'user_input', causedByUser: true },
     );
   }
 
-  // Validate required sttModel field
-  if (typeof config.sttModel !== 'string' || !config.sttModel) {
+  // Validate required stt.provider field
+  if (typeof stt.provider !== 'string' || !stt.provider) {
     throw createProviderError(
       SdkErrorCode.INVALID_CONFIG,
-      'TranscriptionProducer requires config.sttModel (e.g., "elevenlabs/speech-to-text")',
+      'TranscriptionProducer requires config.stt.provider (e.g., "fal-ai", "replicate")',
       { kind: 'user_input', causedByUser: true },
     );
   }
+
+  // Validate required stt.model field
+  if (typeof stt.model !== 'string' || !stt.model) {
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      'TranscriptionProducer requires config.stt.model (e.g., "elevenlabs/speech-to-text")',
+      { kind: 'user_input', causedByUser: true },
+    );
+  }
+
+  // Extract additional STT config properties (diarize, tag_audio_events, etc.)
+  const { provider, model, ...sttConfigProps } = stt;
 
   return {
     languageCode: typeof config.languageCode === 'string' ? config.languageCode : undefined,
-    sttProvider: config.sttProvider,
-    sttModel: config.sttModel,
+    stt: {
+      provider: provider as string,
+      model: model as string,
+      ...sttConfigProps,
+    },
   };
 }
 
