@@ -20,6 +20,8 @@ export interface PropertyRowProps {
   children: React.ReactNode;
   /** Additional class name */
   className?: string;
+  /** Whether the row is selected/highlighted */
+  isSelected?: boolean;
 }
 
 /**
@@ -33,11 +35,15 @@ export function PropertyRow({
   required = false,
   children,
   className,
+  isSelected = false,
 }: PropertyRowProps) {
   return (
     <div
       className={cn(
-        "grid grid-cols-2 gap-4 p-3 rounded-lg border bg-card/50 max-w-2xl",
+        "grid grid-cols-2 gap-4 p-3 rounded-lg border max-w-2xl",
+        isSelected
+          ? "border-primary/50 bg-primary/5 ring-1 ring-primary/30"
+          : "bg-card/50",
         className
       )}
     >

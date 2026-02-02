@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import type { BlueprintInputDef } from "@/types/blueprint-graph";
-import { CollapsibleSection, MediaGrid } from "./shared";
+import { CollapsibleSection, MediaGrid, PropertyRow } from "./shared";
 import { DefaultTextEditor } from "./inputs/default-text-editor";
 import { MediaInputCard, AddMediaCard } from "./inputs/media-input-card";
 import { TextInputCard } from "./inputs/text-input-card";
@@ -17,7 +17,6 @@ import { parseFileRef } from "@/data/blueprint-client";
 import {
   uploadAndValidate,
   getInputNameFromNodeId,
-  getSelectionStyles,
   getSectionHighlightStyles,
   toMediaInputType,
   isValidFileRef,
@@ -300,7 +299,7 @@ function MediaInputSection({
       count={itemCount}
       description={input.description}
       defaultOpen
-      className={getSectionHighlightStyles(isSelected, "blue")}
+      className={getSectionHighlightStyles(isSelected, "primary")}
     >
       <MediaGrid>
         {/* Render existing items */}
@@ -389,33 +388,14 @@ function OtherInputCard({
   };
 
   return (
-    <div
-      className={`p-3 rounded-lg border transition-all ${getSelectionStyles(isSelected, "blue")}`}
+    <PropertyRow
+      name={input.name}
+      type={input.type}
+      description={input.description}
+      required={input.required}
+      isSelected={isSelected}
     >
-      <div className="grid grid-cols-2 gap-4">
-        {/* Left column: name, type, required badge, description */}
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-medium text-sm text-foreground">
-              {input.name}
-            </span>
-            <span className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
-              {input.type}
-            </span>
-            {input.required && (
-              <span className="text-xs text-amber-400">required</span>
-            )}
-          </div>
-          {input.description && (
-            <p className="text-xs text-muted-foreground">{input.description}</p>
-          )}
-        </div>
-
-        {/* Right column: editor component */}
-        <div className="min-w-0">
-          <DefaultTextEditor {...editorProps} />
-        </div>
-      </div>
-    </div>
+      <DefaultTextEditor {...editorProps} />
+    </PropertyRow>
   );
 }

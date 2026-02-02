@@ -144,20 +144,25 @@ describe("getOutputNameFromNodeId", () => {
 
 describe("getSelectionStyles", () => {
   it("returns selected styles when isSelected is true", () => {
-    const result = getSelectionStyles(true, "blue");
-    expect(result).toContain("border-blue-400");
-    expect(result).toContain("bg-blue-500/10");
+    const result = getSelectionStyles(true, "primary");
+    expect(result).toContain("border-primary/50");
+    expect(result).toContain("bg-primary/5");
     expect(result).toContain("ring-1");
   });
 
   it("returns default styles when isSelected is false", () => {
-    const result = getSelectionStyles(false, "blue");
+    const result = getSelectionStyles(false, "primary");
     expect(result).toContain("border-border/40");
     expect(result).toContain("bg-muted/30");
   });
 
-  it("uses blue as default color", () => {
+  it("uses primary as default color", () => {
     const result = getSelectionStyles(true);
+    expect(result).toContain("primary");
+  });
+
+  it("supports blue color", () => {
+    const result = getSelectionStyles(true, "blue");
     expect(result).toContain("blue");
   });
 
@@ -183,13 +188,19 @@ describe("getSectionHighlightStyles", () => {
   });
 
   it("returns highlight styles when selected", () => {
-    const result = getSectionHighlightStyles(true, "blue");
+    const result = getSectionHighlightStyles(true, "primary");
     expect(result).toContain("ring-1");
-    expect(result).toContain("blue");
+    expect(result).toContain("primary");
     expect(result).toContain("rounded-lg");
   });
 
+  it("uses primary as default color", () => {
+    const result = getSectionHighlightStyles(true);
+    expect(result).toContain("primary");
+  });
+
   it("supports all colors", () => {
+    expect(getSectionHighlightStyles(true, "blue")).toContain("blue");
     expect(getSectionHighlightStyles(true, "purple")).toContain("purple");
     expect(getSectionHighlightStyles(true, "green")).toContain("green");
     expect(getSectionHighlightStyles(true, "amber")).toContain("amber");

@@ -370,8 +370,8 @@ describe('ModelsPanel', () => {
       const imageProducerSection = Array.from(sections).find(section =>
         section.textContent?.includes('ImageProducer')
       );
-      // The highlight style uses ring-1 ring-blue-400/30 from getSectionHighlightStyles
-      expect(imageProducerSection?.className).toContain('ring-blue-400/30');
+      // The highlight style uses ring-1 ring-primary/30 from getSectionHighlightStyles
+      expect(imageProducerSection?.className).toContain('ring-primary/30');
     });
   });
 });

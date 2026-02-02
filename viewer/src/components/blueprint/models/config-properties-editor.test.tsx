@@ -115,7 +115,7 @@ describe("ConfigPropertiesEditor", () => {
       expect(screen.queryByText("tags_array")).toBeNull();
     });
 
-    it("shows hidden properties count when complex properties filtered", () => {
+    it("does not show info messages for complex properties (clean UI)", () => {
       const properties = [
         createMockProperty("visible", { schema: { type: "string" } }),
         createMockProperty("hidden1", { schema: { type: "object" } }),
@@ -131,29 +131,14 @@ describe("ConfigPropertiesEditor", () => {
         />
       );
 
-      expect(screen.getByText("2 complex properties not shown.")).toBeTruthy();
+      // Visible property should be shown
+      expect(screen.getByText("visible")).toBeTruthy();
+      // No info message about hidden properties (clean UI design)
+      expect(screen.queryByText(/complex propert/i)).toBeNull();
     });
 
-    it("shows singular text for single hidden property", () => {
-      const properties = [
-        createMockProperty("visible", { schema: { type: "string" } }),
-        createMockProperty("hidden", { schema: { type: "object" } }),
-      ];
-
-      render(
-        <ConfigPropertiesEditor
-          properties={properties}
-          values={{}}
-          isEditable={true}
-          onChange={() => {}}
-        />
-      );
-
-      expect(screen.getByText("1 complex property not shown.")).toBeTruthy();
-    });
-
-    it("shows message when no properties available", () => {
-      render(
+    it("renders nothing when no properties available", () => {
+      const { container } = render(
         <ConfigPropertiesEditor
           properties={[]}
           values={{}}
@@ -162,16 +147,17 @@ describe("ConfigPropertiesEditor", () => {
         />
       );
 
-      expect(screen.getByText("No configurable properties available.")).toBeTruthy();
+      // Should render nothing (null)
+      expect(container.firstChild).toBeNull();
     });
 
-    it("shows message when only complex properties exist", () => {
+    it("renders nothing when only complex properties exist", () => {
       const properties = [
         createMockProperty("obj", { schema: { type: "object" } }),
         createMockProperty("arr", { schema: { type: "array" } }),
       ];
 
-      render(
+      const { container } = render(
         <ConfigPropertiesEditor
           properties={properties}
           values={{}}
@@ -180,9 +166,8 @@ describe("ConfigPropertiesEditor", () => {
         />
       );
 
-      expect(
-        screen.getByText("2 complex properties not shown (requires specialized editor).")
-      ).toBeTruthy();
+      // Should render nothing (null) - no info messages
+      expect(container.firstChild).toBeNull();
     });
   });
 

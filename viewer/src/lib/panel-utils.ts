@@ -240,12 +240,16 @@ export function getOutputNameFromNodeId(nodeId: string | null | undefined): stri
 // Selection Styling Utilities
 // ============================================================================
 
-export type SelectionColor = "purple" | "blue" | "green" | "amber";
+export type SelectionColor = "primary" | "purple" | "blue" | "green" | "amber";
 
 const selectionStyleMap: Record<
   SelectionColor,
   { selected: string; default: string }
 > = {
+  primary: {
+    selected: "border-primary/50 bg-primary/5 ring-1 ring-primary/30",
+    default: "border-border/40 bg-muted/30",
+  },
   purple: {
     selected: "border-purple-400 bg-purple-500/10 ring-1 ring-purple-400/30",
     default: "border-border/40 bg-muted/30",
@@ -269,7 +273,7 @@ const selectionStyleMap: Record<
  */
 export function getSelectionStyles(
   isSelected: boolean,
-  color: SelectionColor = "blue"
+  color: SelectionColor = "primary"
 ): string {
   const styles = selectionStyleMap[color];
   return isSelected ? styles.selected : styles.default;
@@ -280,13 +284,14 @@ export function getSelectionStyles(
  */
 export function getSectionHighlightStyles(
   isSelected: boolean,
-  color: SelectionColor = "blue"
+  color: SelectionColor = "primary"
 ): string | undefined {
   if (!isSelected) {
     return undefined;
   }
 
   const colorMap: Record<SelectionColor, string> = {
+    primary: "ring-1 ring-primary/30 bg-primary/5 rounded-lg",
     purple: "ring-1 ring-purple-400/30 bg-purple-500/5 rounded-lg",
     blue: "ring-1 ring-blue-400/30 bg-blue-500/5 rounded-lg",
     green: "ring-1 ring-green-400/30 bg-green-500/5 rounded-lg",

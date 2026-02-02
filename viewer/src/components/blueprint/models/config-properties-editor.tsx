@@ -121,24 +121,14 @@ export function ConfigPropertiesEditor({
   const hasDisplayableContent =
     primitiveProps.length > 0 || objectPropsWithEditor.length > 0;
 
-  // No properties and no model selection
+  // No displayable content and no model selection - render nothing
   if (properties.length === 0 && !showModelSelection) {
-    return (
-      <div className="text-xs text-muted-foreground italic py-2">
-        No configurable properties available.
-      </div>
-    );
+    return null;
   }
 
-  // Only unhandled complex properties, no model selection, no editors
+  // Only unhandled complex properties, no model selection, no editors - render nothing
   if (!hasDisplayableContent && unhandledComplexCount > 0 && !showModelSelection) {
-    return (
-      <div className="text-xs text-muted-foreground italic py-2">
-        {unhandledComplexCount} complex{" "}
-        {unhandledComplexCount === 1 ? "property" : "properties"} not shown
-        (requires specialized editor).
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -207,13 +197,6 @@ export function ConfigPropertiesEditor({
         </MediaGrid>
       )}
 
-      {/* Hidden complex properties indicator */}
-      {unhandledComplexCount > 0 && (
-        <div className="text-xs text-muted-foreground italic">
-          {unhandledComplexCount} complex{" "}
-          {unhandledComplexCount === 1 ? "property" : "properties"} not shown.
-        </div>
-      )}
     </div>
   );
 }

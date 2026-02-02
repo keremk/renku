@@ -22,6 +22,10 @@ interface CollapsibleSectionProps {
   children: React.ReactNode;
   /** Optional class name for the container */
   className?: string;
+  /** Whether to wrap content in a subtle background for visual grouping */
+  contentBackground?: boolean;
+  /** Whether the entire section is highlighted (e.g., when selected) */
+  isHighlighted?: boolean;
 }
 
 /**
@@ -36,11 +40,20 @@ export function CollapsibleSection({
   actions,
   children,
   className,
+  contentBackground = false,
+  isHighlighted = false,
 }: CollapsibleSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className={className}>
+    <Collapsible
+      open={isOpen}
+      onOpenChange={setIsOpen}
+      className={cn(
+        className,
+        isHighlighted && "ring-1 ring-primary/30 bg-primary/5 rounded-lg"
+      )}
+    >
       <div className="flex items-start gap-2 w-full group hover:bg-muted/50 rounded-lg px-2 py-1.5 transition-colors">
         <CollapsibleTrigger className="flex-1 min-w-0 text-left">
           <div className="flex items-center gap-2">
@@ -71,7 +84,13 @@ export function CollapsibleSection({
         )}
       </div>
       <CollapsibleContent className={cn("pt-3", !isOpen && "hidden")}>
-        {children}
+        {contentBackground ? (
+          <div className="bg-muted/20 border border-border/30 rounded-lg p-3">
+            {children}
+          </div>
+        ) : (
+          children
+        )}
       </CollapsibleContent>
     </Collapsible>
   );

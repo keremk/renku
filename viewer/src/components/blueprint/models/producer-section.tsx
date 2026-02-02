@@ -185,7 +185,7 @@ export function ProducerSection({
           description={description}
           defaultOpen={true}
           actions={headerActions}
-          className={getSectionHighlightStyles(isSelected, "blue")}
+          className={getSectionHighlightStyles(isSelected, "primary")}
         >
           <ConfigPropertiesEditor
             properties={compositionConfigProperties}
@@ -199,7 +199,7 @@ export function ProducerSection({
 
     // No displayable config properties - render simple view
     return (
-      <div className={`rounded-lg px-2 py-1.5 ${getSectionHighlightStyles(isSelected, "blue")}`}>
+      <div className={`rounded-lg px-2 py-1.5 ${getSectionHighlightStyles(isSelected, "primary")}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-foreground">{producerId}</span>
@@ -220,53 +220,46 @@ export function ProducerSection({
       description={description}
       defaultOpen={true}
       actions={headerActions}
-      className={getSectionHighlightStyles(isSelected, "blue")}
+      className={getSectionHighlightStyles(isSelected, "primary")}
     >
       {/* Prompt producers: show model row then prompt cards */}
-      {category === "prompt" && (
-        promptData ? (
-          <div className="space-y-4">
-            {/* Model selection row */}
-            <PropertyRow name="Model" type="select" required>
-              <ModelSelector
-                producerId={producerId}
-                availableModels={availableModels}
-                currentSelection={currentSelection}
+      {category === "prompt" && promptData && (
+        <div className="space-y-4">
+          {/* Model selection row */}
+          <PropertyRow name="Model" type="select" required>
+            <ModelSelector
+              producerId={producerId}
+              availableModels={availableModels}
+              currentSelection={currentSelection}
+              isEditable={isEditable}
+              onChange={onModelChange}
+            />
+          </PropertyRow>
+
+          {/* Prompt cards */}
+          <MediaGrid className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2">
+            {promptData.systemPrompt !== undefined && (
+              <TextCard
+                label="System Prompt"
+                value={promptData.systemPrompt}
+                onChange={handleSaveSystemPrompt}
                 isEditable={isEditable}
-                onChange={onModelChange}
+                language="markdown"
+                variables={promptData.variables}
               />
-            </PropertyRow>
-
-            {/* Prompt cards */}
-            <MediaGrid className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2">
-              {promptData.systemPrompt !== undefined && (
-                <TextCard
-                  label="System Prompt"
-                  value={promptData.systemPrompt}
-                  onChange={handleSaveSystemPrompt}
-                  isEditable={isEditable}
-                  language="markdown"
-                  variables={promptData.variables}
-                />
-              )}
-              {promptData.userPrompt !== undefined && (
-                <TextCard
-                  label="User Prompt"
-                  value={promptData.userPrompt}
-                  onChange={handleSaveUserPrompt}
-                  isEditable={isEditable}
-                  language="markdown"
-                  variables={promptData.variables}
-                />
-              )}
-            </MediaGrid>
-
-          </div>
-        ) : (
-          <div className="text-xs text-muted-foreground italic py-2">
-            Prompt data not loaded. This producer uses a TOML prompt file.
-          </div>
-        )
+            )}
+            {promptData.userPrompt !== undefined && (
+              <TextCard
+                label="User Prompt"
+                value={promptData.userPrompt}
+                onChange={handleSaveUserPrompt}
+                isEditable={isEditable}
+                language="markdown"
+                variables={promptData.variables}
+              />
+            )}
+          </MediaGrid>
+        </div>
       )}
 
       {/* Asset producers: show config properties editor with model selection */}
@@ -331,11 +324,6 @@ export function ProducerSection({
                 </PropertyRow>
               );
             })}
-            {!nestedModelSchemas?.length && (
-              <div className="text-xs text-muted-foreground italic">
-                {configProperties ? "No additional configurable properties for this model." : "Config schema not loaded."}
-              </div>
-            )}
           </div>
         )
       )}

@@ -125,7 +125,7 @@ function OutputDefinitionCard({
     <div
       className={cn(
         "p-3 rounded-lg border transition-all",
-        getSelectionStyles(isSelected, "purple")
+        getSelectionStyles(isSelected, "primary")
       )}
     >
       <div className="flex items-center gap-2 mb-1">
