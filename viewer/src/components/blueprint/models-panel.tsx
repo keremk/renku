@@ -360,7 +360,7 @@ export function ModelsPanel({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Enable Editing banner for read-only builds */}
       {canEnableEditing && !isEditable && (
         <EnableEditingBanner

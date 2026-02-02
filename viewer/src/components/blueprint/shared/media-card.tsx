@@ -31,16 +31,16 @@ export function MediaCard({
       type={onClick ? "button" : undefined}
       onClick={onClick}
       className={cn(
-        "rounded-xl border bg-card overflow-hidden flex flex-col transition-all text-left w-full",
+        "rounded-xl border bg-card overflow-hidden flex flex-col transition-all text-left w-full shadow-lg",
         isSelected
-          ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+          ? "border-primary ring-2 ring-primary/40 shadow-xl -translate-y-1"
           : "border-border",
-        onClick && "hover:border-primary/50 cursor-pointer",
+        onClick && "hover:border-primary/70 hover:shadow-xl hover:-translate-y-1 cursor-pointer",
         className
       )}
     >
       <div className="flex-1 min-h-0">{children}</div>
-      <div className="border-t border-border bg-muted/50 px-3 py-2 flex items-center justify-between gap-2">
+      <div className="border-t border-border/60 bg-muted/50 px-4 py-3 flex items-center justify-between gap-2">
         {footer}
       </div>
     </Wrapper>

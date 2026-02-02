@@ -116,7 +116,7 @@ export function TextCard({
         isSelected={isSelected}
         footer={<TextCardFooter label={label} description={description} />}
       >
-        <div className="bg-muted/30 flex flex-col items-center justify-center gap-2 p-4 text-muted-foreground min-h-[120px]">
+        <div className="bg-muted/30 flex flex-col items-center justify-center gap-3 p-6 text-muted-foreground min-h-[120px]">
           <FileText className="size-8" />
           <span className="text-xs">No content</span>
         </div>
@@ -133,16 +133,16 @@ export function TextCard({
           onClick={() => setDialogOpen(true)}
           className={cn(
             "w-full rounded-xl border-2 border-dashed transition-all min-h-[120px]",
-            "flex flex-col items-center justify-center gap-2",
+            "flex flex-col items-center justify-center gap-3",
             "bg-muted/30 text-muted-foreground",
-            "hover:border-primary/50 hover:bg-primary/5 hover:text-foreground cursor-pointer"
+            "hover:border-primary hover:bg-primary/10 hover:text-foreground hover:shadow-lg hover:-translate-y-1 cursor-pointer"
           )}
         >
-          <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center">
-            <FileText className="size-6" />
+          <div className="w-14 h-14 rounded-full bg-muted/50 flex items-center justify-center">
+            <FileText className="size-7" />
           </div>
-          <div className="flex items-center gap-1 text-xs">
-            <Plus className="size-3" />
+          <div className="flex items-center gap-1.5 text-xs font-medium">
+            <Plus className="size-3.5" />
             <span>Add {label}</span>
           </div>
         </button>
@@ -174,11 +174,11 @@ export function TextCard({
           />
         }
       >
-        <div className="bg-muted/30 p-3 text-left overflow-hidden group relative h-[200px]">
+        <div className="bg-muted/30 p-4 text-left overflow-hidden group relative h-[200px]">
           <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap overflow-hidden h-full max-h-full">
             {formattedPreview}
           </pre>
-          <div className="absolute inset-0 bg-linear-to-t from-muted/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <div className="absolute inset-0 bg-linear-to-t from-card to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
             <Maximize2 className="size-8 text-foreground" />
           </div>
         </div>

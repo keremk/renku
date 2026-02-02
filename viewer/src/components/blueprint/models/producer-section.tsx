@@ -224,7 +224,7 @@ export function ProducerSection({
     >
       {/* Prompt producers: show model row then prompt cards */}
       {category === "prompt" && promptData && (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {/* Model selection row */}
           <PropertyRow name="Model" type="select" required>
             <ModelSelector

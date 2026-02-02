@@ -50,31 +50,34 @@ export function CollapsibleSection({
       open={isOpen}
       onOpenChange={setIsOpen}
       className={cn(
-        className,
-        isHighlighted && "ring-1 ring-primary/30 bg-primary/5 rounded-lg"
+        "rounded-xl transition-all",
+        isHighlighted
+          ? "bg-primary/15 shadow-lg"
+          : "bg-muted/40",
+        className
       )}
     >
-      <div className="flex items-start gap-2 w-full group hover:bg-muted/50 rounded-lg px-2 py-1.5 transition-colors">
+      <div className="flex items-start gap-3 w-full group hover:bg-muted/60 rounded-t-xl px-4 py-3.5 transition-colors">
         <CollapsibleTrigger className="flex-1 min-w-0 text-left">
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground flex-shrink-0">
+          <div className="flex items-center gap-2.5">
+            <span className="text-primary flex-shrink-0">
               {isOpen ? (
-                <ChevronDown className="size-4" />
+                <ChevronDown className="size-5" />
               ) : (
-                <ChevronRight className="size-4" />
+                <ChevronRight className="size-5" />
               )}
             </span>
-            <span className="text-sm font-medium text-foreground truncate">
+            <span className="text-sm font-bold text-foreground truncate">
               {title}
             </span>
             {count !== undefined && (
-              <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full flex-shrink-0">
+              <span className="text-xs font-medium text-primary-foreground bg-primary px-2.5 py-0.5 rounded-full flex-shrink-0">
                 {count}
               </span>
             )}
           </div>
           {description && (
-            <p className="text-xs text-muted-foreground mt-0.5 ml-6 line-clamp-2">
+            <p className="text-xs text-muted-foreground mt-1.5 ml-7 line-clamp-2">
               {description}
             </p>
           )}
@@ -83,14 +86,16 @@ export function CollapsibleSection({
           <div className="flex-shrink-0 mt-0.5">{actions}</div>
         )}
       </div>
-      <CollapsibleContent className={cn("pt-3", !isOpen && "hidden")}>
-        {contentBackground ? (
-          <div className="bg-muted/20 border border-border/30 rounded-lg p-3">
-            {children}
-          </div>
-        ) : (
-          children
-        )}
+      <CollapsibleContent className={cn(!isOpen && "hidden")}>
+        <div className="px-4 pb-4">
+          {contentBackground ? (
+            <div className="bg-card rounded-lg p-4 shadow-md">
+              {children}
+            </div>
+          ) : (
+            children
+          )}
+        </div>
       </CollapsibleContent>
     </Collapsible>
   );

@@ -141,7 +141,7 @@ export function InputsPanel({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Saving indicator */}
       {isSaving && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -152,7 +152,7 @@ export function InputsPanel({
 
       {/* Media inputs - one section per input */}
       {categorized.media.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {categorized.media.map((input) => (
             <MediaInputSection
               key={input.name}
@@ -196,7 +196,7 @@ export function InputsPanel({
           count={categorized.other.length}
           defaultOpen
         >
-          <div className="space-y-3">
+          <div className="space-y-4">
             {categorized.other.map((input) => {
               const value = getValue(input.name);
               const isSelected = selectedInputName === input.name;

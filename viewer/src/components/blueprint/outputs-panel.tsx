@@ -32,10 +32,7 @@ import {
   groupArtifactsByProducer,
   sortProducersByTopology,
 } from "@/lib/artifact-utils";
-import {
-  getOutputNameFromNodeId,
-  getSelectionStyles,
-} from "@/lib/panel-utils";
+import { getOutputNameFromNodeId } from "@/lib/panel-utils";
 import { useExecution } from "@/contexts/execution-context";
 import { MediaCard, MediaGrid, CollapsibleSection } from "./shared";
 import { EditedBadge } from "./outputs/edited-badge";
@@ -92,9 +89,9 @@ export function OutputsPanel({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {!movieId && (
-        <div className="text-muted-foreground text-xs bg-muted/30 p-2 rounded mb-4">
+        <div className="text-muted-foreground text-xs bg-muted/20 p-3 rounded-lg border border-border/30 mb-4">
           Select a build to view generated artifacts.
         </div>
       )}
@@ -124,12 +121,14 @@ function OutputDefinitionCard({
   return (
     <div
       className={cn(
-        "p-3 rounded-lg border transition-all",
-        getSelectionStyles(isSelected, "primary")
+        "p-4 rounded-xl border transition-all shadow-lg",
+        isSelected
+          ? "border-primary bg-primary/10 ring-2 ring-primary/40 shadow-xl -translate-y-0.5"
+          : "bg-card border-border hover:border-primary/70 hover:shadow-xl hover:-translate-y-0.5"
       )}
     >
       <div className="flex items-center gap-2 mb-1">
-        <span className="font-medium text-sm text-foreground">{output.name}</span>
+        <span className="font-semibold text-sm text-foreground">{output.name}</span>
         <span className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
           {output.type}
         </span>
@@ -174,7 +173,7 @@ function ArtifactGallery({
   }, [artifacts, graphData]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {orderedProducers.map((producerName) => {
         const producerArtifacts = groupedByProducer.get(producerName) ?? [];
         const artifactIds = producerArtifacts.map((a) => a.id);

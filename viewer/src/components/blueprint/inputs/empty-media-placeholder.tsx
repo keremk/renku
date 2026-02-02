@@ -45,19 +45,19 @@ export function EmptyMediaPlaceholder({
       disabled={disabled}
       className={cn(
         "w-full aspect-video rounded-xl border-2 border-dashed transition-all",
-        "flex flex-col items-center justify-center gap-2",
+        "flex flex-col items-center justify-center gap-3",
         "bg-muted/30 text-muted-foreground",
         disabled
           ? "opacity-50 cursor-not-allowed"
-          : "hover:border-primary/50 hover:bg-primary/5 hover:text-foreground cursor-pointer",
+          : "hover:border-primary hover:bg-primary/10 hover:text-foreground hover:shadow-md hover:-translate-y-0.5 cursor-pointer",
         className
       )}
     >
-      <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center">
-        <Icon className="size-6" />
+      <div className="w-14 h-14 rounded-full bg-muted/50 flex items-center justify-center">
+        <Icon className="size-7" />
       </div>
-      <div className="flex items-center gap-1 text-xs">
-        <Plus className="size-3" />
+      <div className="flex items-center gap-1.5 text-xs font-medium">
+        <Plus className="size-3.5" />
         <span>Add {label}</span>
       </div>
     </button>

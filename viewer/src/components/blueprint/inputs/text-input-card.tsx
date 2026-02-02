@@ -130,7 +130,7 @@ export function TextInputCard({
           />
         }
       >
-        <div className="aspect-video bg-muted/30 flex flex-col items-center justify-center gap-2 p-4 text-muted-foreground">
+        <div className="aspect-video bg-muted/30 flex flex-col items-center justify-center gap-3 p-6 text-muted-foreground">
           <FileText className="size-8" />
           <span className="text-xs">No content</span>
         </div>
@@ -147,16 +147,16 @@ export function TextInputCard({
           onClick={() => setDialogOpen(true)}
           className={cn(
             "w-full aspect-video rounded-xl border-2 border-dashed transition-all",
-            "flex flex-col items-center justify-center gap-2",
+            "flex flex-col items-center justify-center gap-3",
             "bg-muted/30 text-muted-foreground",
-            "hover:border-primary/50 hover:bg-primary/5 hover:text-foreground cursor-pointer"
+            "hover:border-primary hover:bg-primary/10 hover:text-foreground hover:shadow-lg hover:-translate-y-1 cursor-pointer"
           )}
         >
-          <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center">
-            <FileText className="size-6" />
+          <div className="w-14 h-14 rounded-full bg-muted/50 flex items-center justify-center">
+            <FileText className="size-7" />
           </div>
-          <div className="flex items-center gap-1 text-xs">
-            <Plus className="size-3" />
+          <div className="flex items-center gap-1.5 text-xs font-medium">
+            <Plus className="size-3.5" />
             <span>Add {label}</span>
           </div>
         </button>
@@ -180,7 +180,7 @@ export function TextInputCard({
           />
         }
       >
-        <div className="aspect-video bg-muted/30 p-3 overflow-hidden">
+        <div className="aspect-video bg-muted/30 p-4 overflow-hidden">
           <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap h-full overflow-hidden">
             {previewText}
           </pre>
