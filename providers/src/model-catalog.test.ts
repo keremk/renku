@@ -270,20 +270,20 @@ describe('model-catalog', () => {
         configPath: 'stt',
         providerField: 'provider',
         modelField: 'model',
-        allowedTypes: ['json'],
+        allowedTypes: ['stt'],
         allowedProviders: ['fal-ai'],
       };
 
       const models = getAvailableModelsForNestedSlot(catalog, declaration);
 
-      // Should only include json type models from fal-ai
+      // Should only include stt type models from fal-ai
       expect(models.length).toBeGreaterThan(0);
       expect(models.every((m) => m.provider === 'fal-ai')).toBe(true);
 
       for (const { provider, model } of models) {
         const modelDef = lookupModel(catalog, provider, model);
         expect(modelDef).not.toBeNull();
-        expect(modelDef!.type).toBe('json');
+        expect(modelDef!.type).toBe('stt');
       }
     });
 

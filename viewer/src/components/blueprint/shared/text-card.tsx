@@ -170,11 +170,11 @@ export function TextCard({
   }
 
   // Content state - show preview with hover overlay
+  // Note: Content area is clickable (button), not the entire card, to avoid nested buttons with dropdown
   return (
     <>
       <MediaCard
         isSelected={isSelected}
-        onClick={() => setDialogOpen(true)}
         footer={
           <CardActionsFooter
             label={label}
@@ -184,14 +184,18 @@ export function TextCard({
           />
         }
       >
-        <div className={cn("bg-muted/30 p-4 text-left overflow-hidden group relative", contentSizeClass)}>
+        <button
+          type="button"
+          onClick={() => setDialogOpen(true)}
+          className={cn("w-full bg-muted/30 p-4 text-left overflow-hidden group relative", contentSizeClass)}
+        >
           <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap overflow-hidden h-full max-h-full">
             {formattedPreview}
           </pre>
           <div className="absolute inset-0 bg-linear-to-t from-card to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
             <Maximize2 className="size-8 text-foreground" />
           </div>
-        </div>
+        </button>
       </MediaCard>
 
       <TextEditorDialog

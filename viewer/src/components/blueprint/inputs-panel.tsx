@@ -1,9 +1,18 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import type { BlueprintInputDef } from "@/types/blueprint-graph";
-import { CollapsibleSection, MediaGrid, PropertyRow, TextCard } from "./shared";
+import {
+  CollapsibleSection,
+  MediaGrid,
+  PropertyRow,
+  TextCard,
+  VideoCard,
+  AudioCard,
+  ImageCard,
+} from "./shared";
 import { DefaultTextEditor } from "./inputs/default-text-editor";
-import { MediaInputCard, AddMediaCard } from "./inputs/media-input-card";
+import { InputCardFooter } from "./inputs/input-card-footer";
+import { EmptyMediaPlaceholder } from "./inputs/empty-media-placeholder";
 import { FileUploadDialog } from "./inputs/file-upload-dialog";
 import type { InputEditorProps } from "./inputs/input-registry";
 import { useAutoSave } from "@/hooks/use-auto-save";
@@ -12,7 +21,7 @@ import {
   getMediaTypeFromInput,
   type MediaType,
 } from "@/lib/input-utils";
-import { parseFileRef } from "@/data/blueprint-client";
+import { buildInputFileUrl, parseFileRef } from "@/data/blueprint-client";
 import {
   uploadAndValidate,
   getInputNameFromNodeId,
@@ -262,6 +271,7 @@ function MediaInputSection({
   const itemCount = items.length;
   const canAddMore = isArray; // Can always add more to arrays
   const showAddButton = isEditable && canAddMore;
+  const isDisabled = !blueprintFolder || !movieId;
 
   // Handle adding new files to array
   const handleAddFiles = useCallback(
@@ -306,7 +316,7 @@ function MediaInputSection({
         {/* Render existing items */}
         {isArray
           ? items.map((_, index) => (
-              <MediaInputCard
+              <MediaInputItemCard
                 key={`${input.name}-${index}`}
                 input={input}
                 value={value}
@@ -314,39 +324,42 @@ function MediaInputSection({
                 isEditable={isEditable}
                 blueprintFolder={blueprintFolder}
                 movieId={movieId}
+                mediaType={mediaType}
                 arrayIndex={index}
                 onRemoveArrayItem={handleRemoveArrayItem}
               />
             ))
           : items.length > 0 && (
-              <MediaInputCard
+              <MediaInputItemCard
                 input={input}
                 value={value}
                 onChange={onChange}
                 isEditable={isEditable}
                 blueprintFolder={blueprintFolder}
                 movieId={movieId}
+                mediaType={mediaType}
               />
             )}
 
         {/* Empty state for single items */}
         {!isArray && items.length === 0 && (
-          <MediaInputCard
+          <MediaInputItemCard
             input={input}
             value={value}
             onChange={onChange}
             isEditable={isEditable}
             blueprintFolder={blueprintFolder}
             movieId={movieId}
+            mediaType={mediaType}
           />
         )}
 
         {/* Add button for arrays */}
         {showAddButton && (
-          <AddMediaCard
+          <AddMediaPlaceholder
             mediaType={mediaType as MediaType}
             onAdd={() => setAddDialogOpen(true)}
-            disabled={!blueprintFolder || !movieId}
+            disabled={isDisabled}
           />
         )}
       </MediaGrid>
@@ -359,6 +372,163 @@ function MediaInputSection({
         onConfirm={handleAddFiles}
       />
     </CollapsibleSection>
+  );
+}
+
+// ============================================================================
+// Media Input Item Card (uses shared VideoCard/AudioCard/ImageCard)
+// ============================================================================
+
+interface MediaInputItemCardProps {
+  input: BlueprintInputDef;
+  value: unknown;
+  onChange: (value: unknown) => void;
+  isEditable: boolean;
+  blueprintFolder: string | null;
+  movieId: string | null;
+  mediaType: MediaType;
+  arrayIndex?: number;
+  onRemoveArrayItem?: (index: number) => void;
+}
+
+function MediaInputItemCard({
+  input,
+  value,
+  onChange,
+  isEditable,
+  blueprintFolder,
+  movieId,
+  mediaType,
+  arrayIndex,
+  onRemoveArrayItem,
+}: MediaInputItemCardProps) {
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Parse file reference from value
+  const fileRef = useMemo(() => {
+    if (arrayIndex !== undefined && Array.isArray(value)) {
+      return parseFileRef(value[arrayIndex]);
+    }
+    return parseFileRef(value);
+  }, [value, arrayIndex]);
+
+  // Build URL for preview
+  const fileUrl = useMemo(() => {
+    if (!blueprintFolder || !movieId || !fileRef) return null;
+    return buildInputFileUrl(blueprintFolder, movieId, fileRef);
+  }, [blueprintFolder, movieId, fileRef]);
+
+  // Handle file upload
+  const handleUpload = useCallback(
+    async (files: File[]) => {
+      const result = await uploadAndValidate(
+        { blueprintFolder, movieId },
+        files,
+        toMediaInputType(mediaType)
+      );
+
+      const newRef = result.files[0].fileRef;
+
+      if (arrayIndex !== undefined && Array.isArray(value)) {
+        // Replace item in array
+        const newArray = [...value];
+        newArray[arrayIndex] = newRef;
+        onChange(newArray);
+      } else {
+        // Replace single value
+        onChange(newRef);
+      }
+    },
+    [blueprintFolder, movieId, mediaType, arrayIndex, value, onChange]
+  );
+
+  // Handle remove
+  const handleRemove = useCallback(() => {
+    if (arrayIndex !== undefined && onRemoveArrayItem) {
+      onRemoveArrayItem(arrayIndex);
+    } else {
+      onChange(undefined);
+    }
+  }, [arrayIndex, onRemoveArrayItem, onChange]);
+
+  const isArray = input.type === "array";
+  const canRemove = isArray && arrayIndex !== undefined;
+  const isDisabled = !blueprintFolder || !movieId;
+  const label = arrayIndex !== undefined ? `${input.name}[${arrayIndex}]` : input.name;
+
+  // No file - show placeholder
+  if (!fileUrl) {
+    return (
+      <>
+        <EmptyMediaPlaceholder
+          mediaType={mediaType}
+          onClick={() => setDialogOpen(true)}
+          disabled={!isEditable || isDisabled}
+        />
+        <FileUploadDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          mediaType={mediaType}
+          multiple={false}
+          onConfirm={handleUpload}
+        />
+      </>
+    );
+  }
+
+  // Build footer for the card
+  const footer = (
+    <InputCardFooter
+      label={label}
+      description={input.description}
+      onEdit={isEditable ? () => setDialogOpen(true) : undefined}
+      onRemove={isEditable ? handleRemove : undefined}
+      canRemove={canRemove}
+      disabled={!isEditable}
+    />
+  );
+
+  // Render appropriate card based on media type
+  return (
+    <>
+      {mediaType === "video" && (
+        <VideoCard url={fileUrl} title={label} footer={footer} />
+      )}
+      {mediaType === "audio" && (
+        <AudioCard url={fileUrl} title={label} footer={footer} />
+      )}
+      {mediaType === "image" && (
+        <ImageCard url={fileUrl} title={label} footer={footer} />
+      )}
+
+      <FileUploadDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        mediaType={mediaType}
+        multiple={false}
+        onConfirm={handleUpload}
+      />
+    </>
+  );
+}
+
+// ============================================================================
+// Add Media Placeholder
+// ============================================================================
+
+interface AddMediaPlaceholderProps {
+  mediaType: MediaType;
+  onAdd: () => void;
+  disabled?: boolean;
+}
+
+function AddMediaPlaceholder({ mediaType, onAdd, disabled = false }: AddMediaPlaceholderProps) {
+  return (
+    <EmptyMediaPlaceholder
+      mediaType={mediaType}
+      onClick={onAdd}
+      disabled={disabled}
+    />
   );
 }
 

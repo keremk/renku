@@ -10,10 +10,18 @@ export type { TextCardProps } from "./text-card";
 export { PropertyRow } from "./property-row";
 export type { PropertyRowProps } from "./property-row";
 
-// New unified components
+// Unified dialog components
 export { TextEditorDialog } from "./text-editor-dialog";
 export type { TextEditorDialogProps } from "./text-editor-dialog";
 export { MediaExpandDialog } from "./media-expand-dialog";
 export type { MediaExpandDialogProps } from "./media-expand-dialog";
 export { CardActionsFooter } from "./card-actions-footer";
 export type { CardActionsFooterProps, CardAction } from "./card-actions-footer";
+
+// Shared media card components
+export { VideoCard } from "./video-card";
+export type { VideoCardProps } from "./video-card";
+export { AudioCard } from "./audio-card";
+export type { AudioCardProps } from "./audio-card";
+export { ImageCard } from "./image-card";
+export type { ImageCardProps } from "./image-card";

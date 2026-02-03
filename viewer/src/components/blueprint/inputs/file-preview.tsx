@@ -1,8 +1,6 @@
 /**
- * File preview components for displaying uploaded input files.
+ * File preview components for the upload dialog.
  */
-
-/* eslint-disable react-refresh/only-export-components */
 
 import { Music, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,7 +20,7 @@ interface FilePreviewThumbnailProps {
 /**
  * Renders a thumbnail preview for a file based on its media type.
  */
-export function FilePreviewThumbnail({
+function FilePreviewThumbnail({
   url,
   mediaType,
   filename,
@@ -64,113 +62,14 @@ export function FilePreviewThumbnail({
   );
 }
 
-interface SingleFilePreviewProps {
-  /** URL to the file */
-  url: string;
-  /** Filename to display */
-  filename: string;
-  /** Media type for appropriate rendering */
-  mediaType: MediaInputType;
-  /** Optional file info (e.g., "1920x1080 · 245 KB") */
-  fileInfo?: string;
-}
-
 /**
- * Displays a single file preview with thumbnail and filename.
+ * Gets the media type from a MIME type string.
  */
-export function SingleFilePreview({
-  url,
-  filename,
-  mediaType,
-  fileInfo,
-}: SingleFilePreviewProps) {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="w-20 h-14 rounded-md overflow-hidden bg-black/50 flex-shrink-0">
-        <FilePreviewThumbnail
-          url={url}
-          mediaType={mediaType}
-          filename={filename}
-        />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs text-foreground font-medium truncate">{filename}</p>
-        {fileInfo && (
-          <p className="text-[10px] text-muted-foreground">{fileInfo}</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-interface FilePreviewGridProps {
-  /** Array of file objects to display */
-  files: Array<{
-    url: string;
-    filename: string;
-  }>;
-  /** Media type for appropriate rendering */
-  mediaType: MediaInputType;
-  /** Maximum number of thumbnails to display before showing "+N more" */
-  maxVisible?: number;
-}
-
-/**
- * Displays a horizontal scrolling grid of file thumbnails.
- * Shows "+N more" indicator when there are more files than maxVisible.
- */
-export function FilePreviewGrid({
-  files,
-  mediaType,
-  maxVisible = 4,
-}: FilePreviewGridProps) {
-  if (files.length === 0) {
-    return null;
-  }
-
-  const showOverflow = files.length > maxVisible;
-  const visibleCount = showOverflow ? maxVisible - 1 : files.length;
-  const overflowCount = files.length - visibleCount;
-
-  return (
-    <div className="space-y-1">
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {files.slice(0, visibleCount).map((file, index) => (
-          <div
-            key={`${file.filename}-${index}`}
-            className="w-16 h-12 rounded-md overflow-hidden bg-black/50 flex-shrink-0"
-          >
-            <FilePreviewThumbnail
-              url={file.url}
-              mediaType={mediaType}
-              filename={file.filename}
-            />
-          </div>
-        ))}
-
-        {showOverflow && (
-          <div className="w-16 h-12 rounded-md overflow-hidden bg-black/50 flex-shrink-0 relative">
-            {/* Show the next file as background */}
-            {files[visibleCount] && (
-              <FilePreviewThumbnail
-                url={files[visibleCount].url}
-                mediaType={mediaType}
-                filename={files[visibleCount].filename}
-              />
-            )}
-            {/* Overlay with count */}
-            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-              <span className="text-white text-xs font-medium">+{overflowCount}</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <p className="text-[10px] text-muted-foreground">
-        {files.length} {files.length === 1 ? "file" : "files"}
-      </p>
-    </div>
-  );
+function getMediaTypeFromMime(mimeType: string): MediaInputType {
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType.startsWith("video/")) return "video";
+  if (mimeType.startsWith("audio/")) return "audio";
+  return "image"; // Default fallback
 }
 
 interface SelectedFilePreviewProps {
@@ -215,24 +114,4 @@ export function SelectedFilePreview({ file, onRemove }: SelectedFilePreviewProps
       </p>
     </div>
   );
-}
-
-/**
- * Gets the media type from a MIME type string.
- */
-export function getMediaTypeFromMime(mimeType: string): MediaInputType {
-  if (mimeType.startsWith("image/")) return "image";
-  if (mimeType.startsWith("video/")) return "video";
-  if (mimeType.startsWith("audio/")) return "audio";
-  return "image"; // Default fallback
-}
-
-/**
- * Formats a file size in bytes to a human-readable string.
- */
-export function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }

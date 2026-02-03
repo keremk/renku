@@ -3,7 +3,6 @@ import {
   Download,
   ExternalLink,
   Copy,
-  Music,
   File,
   Maximize2,
   RefreshCw,
@@ -25,9 +24,11 @@ import {
   MediaCard,
   MediaGrid,
   CollapsibleSection,
-  MediaExpandDialog,
   CardActionsFooter,
   TextEditorDialog,
+  VideoCard,
+  AudioCard,
+  ImageCard,
   type CardAction,
 } from "./shared";
 import { EditedBadge } from "./outputs/edited-badge";
@@ -234,34 +235,37 @@ function ArtifactCardRenderer({
 }) {
   if (artifact.mimeType.startsWith("video/")) {
     return (
-      <VideoCard
+      <MediaArtifactCard
         artifact={artifact}
         blueprintFolder={blueprintFolder}
         movieId={movieId}
         isSelected={isSelected}
         onArtifactUpdated={onArtifactUpdated}
+        mediaType="video"
       />
     );
   }
   if (artifact.mimeType.startsWith("audio/")) {
     return (
-      <AudioCard
+      <MediaArtifactCard
         artifact={artifact}
         blueprintFolder={blueprintFolder}
         movieId={movieId}
         isSelected={isSelected}
         onArtifactUpdated={onArtifactUpdated}
+        mediaType="audio"
       />
     );
   }
   if (artifact.mimeType.startsWith("image/")) {
     return (
-      <ImageCard
+      <MediaArtifactCard
         artifact={artifact}
         blueprintFolder={blueprintFolder}
         movieId={movieId}
         isSelected={isSelected}
         onArtifactUpdated={onArtifactUpdated}
+        mediaType="image"
       />
     );
   }
@@ -461,23 +465,26 @@ function ArtifactCardFooter({
 }
 
 // ============================================================================
-// Video Card
+// Media Artifact Card (unified component for video, audio, and image artifacts)
 // ============================================================================
 
-function VideoCard({
+type MediaType = "video" | "audio" | "image";
+
+function MediaArtifactCard({
   artifact,
   blueprintFolder,
   movieId,
   isSelected,
   onArtifactUpdated,
+  mediaType,
 }: {
   artifact: ArtifactInfo;
   blueprintFolder: string;
   movieId: string;
   isSelected: boolean;
   onArtifactUpdated?: () => void;
+  mediaType: MediaType;
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const url = getBlobUrl(blueprintFolder, movieId, artifact.hash);
   const displayName = shortenArtifactDisplayName(artifact.id);
@@ -496,220 +503,53 @@ function VideoCard({
       await restoreArtifact(blueprintFolder, movieId, artifact.id);
       onArtifactUpdated?.();
     } catch (error) {
-      console.error("[VideoCard] Restore failed:", error);
+      console.error(`[MediaArtifactCard:${mediaType}] Restore failed:`, error);
     }
   };
 
-  return (
-    <>
-      <MediaCard
-        isSelected={isSelected}
-        footer={
-          <ArtifactCardFooter
-            artifactId={artifact.id}
-            displayName={displayName}
-            downloadName={artifact.name}
-            url={url}
-            isEdited={isEdited}
-            onExpand={() => setIsExpanded(true)}
-            onEdit={handleEdit}
-            onRestore={isEdited ? handleRestore : undefined}
-          />
-        }
-      >
-        <div className="aspect-video bg-black flex items-center justify-center">
-          <video
-            src={url}
-            controls
-            className="w-full h-full object-contain"
-            preload="metadata"
-          >
-            Your browser does not support the video tag.
-          </video>
-        </div>
-      </MediaCard>
-
-      <MediaExpandDialog
-        open={isExpanded}
-        onOpenChange={setIsExpanded}
-        title={displayName}
-        url={url}
-        mediaType="video"
-      />
-
-      <FileUploadDialog
-        open={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
-        mediaType="video"
-        multiple={false}
-        onConfirm={handleFileUpload}
-      />
-    </>
+  const footer = (
+    <ArtifactCardFooter
+      artifactId={artifact.id}
+      displayName={displayName}
+      downloadName={artifact.name}
+      url={url}
+      isEdited={isEdited}
+      onEdit={handleEdit}
+      onRestore={isEdited ? handleRestore : undefined}
+    />
   );
-}
-
-// ============================================================================
-// Audio Card
-// ============================================================================
-
-function AudioCard({
-  artifact,
-  blueprintFolder,
-  movieId,
-  isSelected,
-  onArtifactUpdated,
-}: {
-  artifact: ArtifactInfo;
-  blueprintFolder: string;
-  movieId: string;
-  isSelected: boolean;
-  onArtifactUpdated?: () => void;
-}) {
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const url = getBlobUrl(blueprintFolder, movieId, artifact.hash);
-  const displayName = shortenArtifactDisplayName(artifact.id);
-  const isEdited = artifact.editedBy === "user";
-
-  const handleEdit = () => setIsEditDialogOpen(true);
-
-  const handleFileUpload = async (files: File[]) => {
-    if (files.length === 0) return;
-    await editArtifactFile(blueprintFolder, movieId, artifact.id, files[0]);
-    onArtifactUpdated?.();
-  };
-
-  const handleRestore = async () => {
-    try {
-      await restoreArtifact(blueprintFolder, movieId, artifact.id);
-      onArtifactUpdated?.();
-    } catch (error) {
-      console.error("[AudioCard] Restore failed:", error);
-    }
-  };
 
   return (
     <>
-      <MediaCard
-        isSelected={isSelected}
-        footer={
-          <ArtifactCardFooter
-            artifactId={artifact.id}
-            displayName={displayName}
-            downloadName={artifact.name}
-            url={url}
-            isEdited={isEdited}
-            onEdit={handleEdit}
-            onRestore={isEdited ? handleRestore : undefined}
-          />
-        }
-      >
-        <div className="aspect-video bg-linear-to-br from-muted to-muted/50 flex flex-col items-center justify-center gap-4 p-4">
-          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-            <Music className="size-8 text-primary" />
-          </div>
-          <audio src={url} controls className="w-full" preload="metadata">
-            Your browser does not support the audio element.
-          </audio>
-        </div>
-      </MediaCard>
+      {mediaType === "video" && (
+        <VideoCard
+          url={url}
+          title={displayName}
+          isSelected={isSelected}
+          footer={footer}
+        />
+      )}
+      {mediaType === "audio" && (
+        <AudioCard
+          url={url}
+          title={displayName}
+          isSelected={isSelected}
+          footer={footer}
+        />
+      )}
+      {mediaType === "image" && (
+        <ImageCard
+          url={url}
+          title={displayName}
+          isSelected={isSelected}
+          footer={footer}
+        />
+      )}
 
       <FileUploadDialog
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
-        mediaType="audio"
-        multiple={false}
-        onConfirm={handleFileUpload}
-      />
-    </>
-  );
-}
-
-// ============================================================================
-// Image Card
-// ============================================================================
-
-function ImageCard({
-  artifact,
-  blueprintFolder,
-  movieId,
-  isSelected,
-  onArtifactUpdated,
-}: {
-  artifact: ArtifactInfo;
-  blueprintFolder: string;
-  movieId: string;
-  isSelected: boolean;
-  onArtifactUpdated?: () => void;
-}) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const url = getBlobUrl(blueprintFolder, movieId, artifact.hash);
-  const displayName = shortenArtifactDisplayName(artifact.id);
-  const isEdited = artifact.editedBy === "user";
-
-  const handleEdit = () => setIsEditDialogOpen(true);
-
-  const handleFileUpload = async (files: File[]) => {
-    if (files.length === 0) return;
-    await editArtifactFile(blueprintFolder, movieId, artifact.id, files[0]);
-    onArtifactUpdated?.();
-  };
-
-  const handleRestore = async () => {
-    try {
-      await restoreArtifact(blueprintFolder, movieId, artifact.id);
-      onArtifactUpdated?.();
-    } catch (error) {
-      console.error("[ImageCard] Restore failed:", error);
-    }
-  };
-
-  return (
-    <>
-      <MediaCard
-        isSelected={isSelected}
-        footer={
-          <ArtifactCardFooter
-            artifactId={artifact.id}
-            displayName={displayName}
-            downloadName={artifact.name}
-            url={url}
-            isEdited={isEdited}
-            onExpand={() => setIsExpanded(true)}
-            onEdit={handleEdit}
-            onRestore={isEdited ? handleRestore : undefined}
-          />
-        }
-      >
-        <button
-          type="button"
-          onClick={() => setIsExpanded(true)}
-          className="aspect-video w-full bg-black/50 flex items-center justify-center group relative overflow-hidden"
-        >
-          <img
-            src={url}
-            alt={displayName}
-            className="w-full h-full object-contain"
-            loading="lazy"
-          />
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-            <Maximize2 className="size-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-        </button>
-      </MediaCard>
-
-      <MediaExpandDialog
-        open={isExpanded}
-        onOpenChange={setIsExpanded}
-        title={displayName}
-        url={url}
-        mediaType="image"
-      />
-
-      <FileUploadDialog
-        open={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
-        mediaType="image"
+        mediaType={mediaType}
         multiple={false}
         onConfirm={handleFileUpload}
       />

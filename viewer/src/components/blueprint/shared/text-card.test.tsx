@@ -22,7 +22,7 @@ describe("TextCard", () => {
     expect(screen.getByText("Hello world")).toBeTruthy();
   });
 
-  it("displays description when provided", () => {
+  it("displays description as tooltip when provided", () => {
     render(
       <TextCard
         label="Test"
@@ -31,7 +31,9 @@ describe("TextCard", () => {
       />
     );
 
-    expect(screen.getByText("This is a description")).toBeTruthy();
+    // Description is shown as title attribute (tooltip) on the label
+    const labelElement = screen.getByText("Test");
+    expect(labelElement.getAttribute("title")).toBe("This is a description");
   });
 
   it("shows full content up to safety limit (CSS handles visual clipping)", () => {
@@ -309,17 +311,22 @@ describe("TextCard", () => {
     expect(preElement?.textContent).toContain('"value": 123');
   });
 
-  it("shows Edit button in footer when editable", () => {
-    render(
+  it("shows dropdown trigger when editable", () => {
+    const { container } = render(
       <TextCard label="Test" value="content" isEditable={true} onChange={() => {}} />
     );
 
-    expect(screen.getByRole("button", { name: "Edit" })).toBeTruthy();
+    // The dropdown trigger should be present when editable
+    const dropdownTrigger = container.querySelector('[data-slot="dropdown-menu-trigger"]');
+    expect(dropdownTrigger).toBeTruthy();
+    expect(dropdownTrigger?.getAttribute("aria-haspopup")).toBe("menu");
   });
 
-  it("does not show Edit button when not editable", () => {
-    render(<TextCard label="Test" value="content" isEditable={false} />);
+  it("does not show dropdown when not editable", () => {
+    const { container } = render(<TextCard label="Test" value="content" isEditable={false} />);
 
-    expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+    // No dropdown trigger should be present when not editable (no actions)
+    const dropdownTrigger = container.querySelector('[data-slot="dropdown-menu-trigger"]');
+    expect(dropdownTrigger).toBeNull();
   });
 });
