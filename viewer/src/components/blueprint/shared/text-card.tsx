@@ -9,31 +9,11 @@
  * - Variables panel for prompt templates
  */
 
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { FileText, Plus, Maximize2 } from "lucide-react";
-import { Editor } from "prism-react-editor";
-import { BasicSetup } from "prism-react-editor/setups";
-
-// Language grammars
-import "prism-react-editor/prism/languages/json";
-import "prism-react-editor/prism/languages/markdown";
-
-// Required CSS
-import "prism-react-editor/layout.css";
-import "prism-react-editor/search.css";
-
-// Gruvbox theme
-import "@/styles/prism-gruvbox-dark.css";
-import "@/styles/prism-gruvbox-light.css";
-
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { useState, useMemo, useCallback } from "react";
+import { FileText, Plus, Maximize2, Pencil } from "lucide-react";
 import { MediaCard } from "./media-card";
+import { TextEditorDialog } from "./text-editor-dialog";
+import { CardActionsFooter, type CardAction } from "./card-actions-footer";
 import { cn } from "@/lib/utils";
 
 export interface TextCardProps {
@@ -53,6 +33,8 @@ export interface TextCardProps {
   language?: "json" | "markdown";
   /** Variables available for prompt templates */
   variables?: string[];
+  /** Content area sizing: "fixed" (h-[200px]) or "aspect" (aspect-video). Defaults to "fixed" */
+  sizing?: "fixed" | "aspect";
 }
 
 /** Safety limit for preview to avoid DOM performance issues with very large text */
@@ -71,6 +53,7 @@ export function TextCard({
   onChange,
   language = "markdown",
   variables,
+  sizing = "fixed",
 }: TextCardProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -109,14 +92,39 @@ export function TextCard({
     [onChange]
   );
 
+  // Build footer actions
+  const footerActions = useMemo((): CardAction[] => {
+    const actions: CardAction[] = [];
+
+    if (isEditable) {
+      actions.push({
+        id: "edit",
+        label: "Edit",
+        icon: Pencil,
+        onClick: () => setDialogOpen(true),
+      });
+    }
+
+    return actions;
+  }, [isEditable]);
+
+  // Sizing classes
+  const contentSizeClass = sizing === "aspect" ? "aspect-video" : "h-[200px]";
+  const emptyMinHeight = sizing === "aspect" ? "aspect-video" : "min-h-[120px]";
+
   // Empty state - non-editable
   if (isEmpty && !isEditable) {
     return (
       <MediaCard
         isSelected={isSelected}
-        footer={<TextCardFooter label={label} description={description} />}
+        footer={
+          <CardActionsFooter
+            label={label}
+            description={description}
+          />
+        }
       >
-        <div className="bg-muted/30 flex flex-col items-center justify-center gap-3 p-6 text-muted-foreground min-h-[120px]">
+        <div className={cn("bg-muted/30 flex flex-col items-center justify-center gap-3 p-6 text-muted-foreground", emptyMinHeight)}>
           <FileText className="size-8" />
           <span className="text-xs">No content</span>
         </div>
@@ -132,7 +140,8 @@ export function TextCard({
           type="button"
           onClick={() => setDialogOpen(true)}
           className={cn(
-            "w-full rounded-xl border-2 border-dashed transition-all min-h-[120px]",
+            "w-full rounded-xl border-2 border-dashed transition-all",
+            emptyMinHeight,
             "flex flex-col items-center justify-center gap-3",
             "bg-muted/30 text-muted-foreground",
             "hover:border-primary hover:bg-primary/10 hover:text-foreground hover:shadow-lg hover:-translate-y-1 cursor-pointer"
@@ -147,7 +156,7 @@ export function TextCard({
           </div>
         </button>
 
-        <TextCardDialog
+        <TextEditorDialog
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           title={`Add ${label}`}
@@ -167,14 +176,15 @@ export function TextCard({
         isSelected={isSelected}
         onClick={() => setDialogOpen(true)}
         footer={
-          <TextCardFooter
+          <CardActionsFooter
             label={label}
             description={description}
-            onEdit={isEditable ? () => setDialogOpen(true) : undefined}
+            actions={footerActions}
+            disabled={!isEditable}
           />
         }
       >
-        <div className="bg-muted/30 p-4 text-left overflow-hidden group relative h-[200px]">
+        <div className={cn("bg-muted/30 p-4 text-left overflow-hidden group relative", contentSizeClass)}>
           <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap overflow-hidden h-full max-h-full">
             {formattedPreview}
           </pre>
@@ -184,7 +194,7 @@ export function TextCard({
         </div>
       </MediaCard>
 
-      <TextCardDialog
+      <TextEditorDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         title={isEditable ? `Edit ${label}` : label}
@@ -192,216 +202,7 @@ export function TextCard({
         language={language}
         variables={variables}
         onSave={isEditable ? handleSave : undefined}
-        readOnly={!isEditable}
       />
     </>
-  );
-}
-
-// ============================================================================
-// Text Card Footer
-// ============================================================================
-
-interface TextCardFooterProps {
-  label: string;
-  description?: string;
-  onEdit?: () => void;
-}
-
-function TextCardFooter({ label, description, onEdit }: TextCardFooterProps) {
-  return (
-    <>
-      <div className="flex-1 min-w-0">
-        <span className="text-xs text-foreground truncate block" title={label}>
-          {label}
-        </span>
-        {description && (
-          <span
-            className="text-[10px] text-muted-foreground truncate block"
-            title={description}
-          >
-            {description}
-          </span>
-        )}
-      </div>
-      {onEdit && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit();
-          }}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-muted"
-        >
-          Edit
-        </button>
-      )}
-    </>
-  );
-}
-
-// ============================================================================
-// Text Card Dialog
-// ============================================================================
-
-interface TextCardDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: string;
-  content: string;
-  language: "json" | "markdown";
-  variables?: string[];
-  onSave?: (content: string) => void;
-  readOnly?: boolean;
-  isSaving?: boolean;
-}
-
-function TextCardDialog({
-  open,
-  onOpenChange,
-  title,
-  content,
-  language,
-  variables,
-  onSave,
-  readOnly = false,
-  isSaving = false,
-}: TextCardDialogProps) {
-  // Track the current value via ref to avoid re-renders
-  const valueRef = useRef(content);
-  // Key to force remount editor when content changes
-  const [editorKey, setEditorKey] = useState(0);
-
-  // Determine theme based on Tailwind's dark mode class
-  const [isDark, setIsDark] = useState(() => {
-    return document.documentElement.classList.contains("dark");
-  });
-
-  // Subscribe to dark mode changes
-  useEffect(() => {
-    const observer = new MutationObserver(() => {
-      setIsDark(document.documentElement.classList.contains("dark"));
-    });
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-    return () => observer.disconnect();
-  }, []);
-
-  // Reset to content when dialog opens
-  const handleOpenChange = useCallback(
-    (isOpen: boolean) => {
-      if (isOpen) {
-        valueRef.current = content;
-        // Force remount editor with new content
-        setEditorKey((k) => k + 1);
-      }
-      onOpenChange(isOpen);
-    },
-    [content, onOpenChange]
-  );
-
-  const handleSaveAndClose = useCallback(() => {
-    onSave?.(valueRef.current);
-  }, [onSave]);
-
-  const handleCancel = useCallback(() => {
-    onOpenChange(false);
-  }, [onOpenChange]);
-
-  // Track value changes without causing re-renders
-  const handleUpdate = useCallback((value: string) => {
-    valueRef.current = value;
-  }, []);
-
-  // Insert a variable (copies to clipboard)
-  const handleInsertVariable = useCallback((variable: string) => {
-    navigator.clipboard.writeText(`{{${variable}}}`);
-  }, []);
-
-  const showVariables = variables && variables.length > 0 && !readOnly;
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="w-[60vw] max-w-5xl h-[80vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <span className="truncate">{title}</span>
-            <span className="text-xs font-normal text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-              {language.toUpperCase()}
-            </span>
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="flex-1 min-h-0 flex flex-col gap-4">
-          {/* Variables panel */}
-          {showVariables && (
-            <div>
-              <div className="text-xs text-muted-foreground mb-2">
-                Available Variables (click to copy):
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {variables.map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => handleInsertVariable(v)}
-                    className="text-xs bg-primary/10 text-primary px-2 py-1 rounded hover:bg-primary/20 transition-colors"
-                  >
-                    {`{{${v}}}`}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Editor container */}
-          <div
-            className={cn(
-              "relative flex-1 min-h-[300px] rounded-lg border overflow-hidden",
-              isDark ? "bg-[#1d2021] prism-dark" : "bg-[#fbf1c7] prism-light"
-            )}
-          >
-            <Editor
-              key={editorKey}
-              language={language}
-              value={content}
-              onUpdate={handleUpdate}
-              readOnly={readOnly}
-              wordWrap={true}
-              lineNumbers={false}
-              style={{
-                height: "100%",
-                fontSize: "14px",
-              }}
-            >
-              <BasicSetup />
-            </Editor>
-          </div>
-
-          <div className="flex justify-end gap-2">
-            {readOnly ? (
-              <Button variant="outline" onClick={handleCancel}>
-                Close
-              </Button>
-            ) : (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={handleCancel}
-                  disabled={isSaving}
-                >
-                  Cancel
-                </Button>
-                <Button onClick={handleSaveAndClose} disabled={isSaving}>
-                  {isSaving ? "Saving..." : "Save"}
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }

@@ -9,3 +9,11 @@ export { TextCard } from "./text-card";
 export type { TextCardProps } from "./text-card";
 export { PropertyRow } from "./property-row";
 export type { PropertyRowProps } from "./property-row";
+
+// New unified components
+export { TextEditorDialog } from "./text-editor-dialog";
+export type { TextEditorDialogProps } from "./text-editor-dialog";
+export { MediaExpandDialog } from "./media-expand-dialog";
+export type { MediaExpandDialogProps } from "./media-expand-dialog";
+export { CardActionsFooter } from "./card-actions-footer";
+export type { CardActionsFooterProps, CardAction } from "./card-actions-footer";

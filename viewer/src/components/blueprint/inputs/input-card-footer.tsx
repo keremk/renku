@@ -1,11 +1,6 @@
-import { MoreHorizontal, Pencil, Trash2, Maximize2 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
+import { useMemo } from "react";
+import { Pencil, Trash2, Maximize2 } from "lucide-react";
+import { CardActionsFooter, type CardAction } from "../shared/card-actions-footer";
 
 interface InputCardFooterProps {
   /** Input label/name to display */
@@ -26,6 +21,7 @@ interface InputCardFooterProps {
 
 /**
  * Footer component for input cards with label and dropdown menu.
+ * This is a thin wrapper around CardActionsFooter with input-specific action presets.
  */
 export function InputCardFooter({
   label,
@@ -36,55 +32,48 @@ export function InputCardFooter({
   canRemove = false,
   disabled = false,
 }: InputCardFooterProps) {
-  const showDropdown = !disabled && (onExpand || onEdit || (canRemove && onRemove));
+  // Build actions list based on what callbacks are provided
+  const actions = useMemo((): CardAction[] => {
+    const result: CardAction[] = [];
+
+    if (onExpand) {
+      result.push({
+        id: "expand",
+        label: "Expand",
+        icon: Maximize2,
+        onClick: onExpand,
+      });
+    }
+
+    if (onEdit) {
+      result.push({
+        id: "edit",
+        label: "Edit",
+        icon: Pencil,
+        onClick: onEdit,
+        separator: result.length > 0, // separator after expand if present
+      });
+    }
+
+    if (canRemove && onRemove) {
+      result.push({
+        id: "remove",
+        label: "Remove",
+        icon: Trash2,
+        onClick: onRemove,
+        destructive: true,
+      });
+    }
+
+    return result;
+  }, [onExpand, onEdit, onRemove, canRemove]);
 
   return (
-    <>
-      <span
-        className="text-xs text-foreground truncate flex-1"
-        title={description ?? label}
-      >
-        {label}
-      </span>
-
-      {showDropdown && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-            >
-              <MoreHorizontal className="size-4" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {onExpand && (
-              <DropdownMenuItem onClick={onExpand}>
-                <Maximize2 className="size-4" />
-                <span>Expand</span>
-              </DropdownMenuItem>
-            )}
-            {onExpand && (onEdit || (canRemove && onRemove)) && (
-              <DropdownMenuSeparator />
-            )}
-            {onEdit && (
-              <DropdownMenuItem onClick={onEdit}>
-                <Pencil className="size-4" />
-                <span>Edit</span>
-              </DropdownMenuItem>
-            )}
-            {canRemove && onRemove && (
-              <DropdownMenuItem
-                onClick={onRemove}
-                className="text-destructive focus:text-destructive"
-              >
-                <Trash2 className="size-4" />
-                <span>Remove</span>
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
-    </>
+    <CardActionsFooter
+      label={label}
+      description={description}
+      actions={actions}
+      disabled={disabled}
+    />
   );
 }

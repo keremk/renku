@@ -1,10 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
-import { X, Maximize2 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-} from "@/components/ui/dialog";
+import { Maximize2 } from "lucide-react";
 import { MediaCard } from "../shared/media-card";
+import { MediaExpandDialog } from "../shared/media-expand-dialog";
 import { InputCardFooter } from "./input-card-footer";
 import { EmptyMediaPlaceholder } from "./empty-media-placeholder";
 import { FilePreviewThumbnail } from "./file-preview";
@@ -208,62 +205,5 @@ export function AddMediaCard({ mediaType, onAdd, disabled = false }: AddMediaCar
       onClick={onAdd}
       disabled={disabled}
     />
-  );
-}
-
-// ============================================================================
-// Media Expand Dialog
-// ============================================================================
-
-interface MediaExpandDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: string;
-  url: string;
-  mediaType: "image" | "video";
-}
-
-function MediaExpandDialog({
-  open,
-  onOpenChange,
-  title,
-  url,
-  mediaType,
-}: MediaExpandDialogProps) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden">
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
-          >
-            <X className="size-5" />
-          </button>
-          <div className="p-4">
-            {mediaType === "image" ? (
-              <img
-                src={url}
-                alt={title}
-                className="w-full max-h-[70vh] object-contain rounded-lg"
-              />
-            ) : (
-              <video
-                src={url}
-                controls
-                autoPlay
-                className="w-full max-h-[70vh] object-contain rounded-lg"
-              >
-                Your browser does not support the video tag.
-              </video>
-            )}
-          </div>
-          <div className="px-4 pb-4">
-            <p className="text-sm text-muted-foreground truncate">{title}</p>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }

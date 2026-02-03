@@ -1,13 +1,11 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
-  MoreHorizontal,
   Download,
   ExternalLink,
   Copy,
   Music,
   File,
   Maximize2,
-  X,
   RefreshCw,
   Square,
   CheckSquare,
@@ -15,17 +13,6 @@ import {
   Pencil,
   RotateCcw,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import {
   shortenArtifactDisplayName,
@@ -34,9 +21,16 @@ import {
 } from "@/lib/artifact-utils";
 import { getOutputNameFromNodeId } from "@/lib/panel-utils";
 import { useExecution } from "@/contexts/execution-context";
-import { MediaCard, MediaGrid, CollapsibleSection } from "./shared";
+import {
+  MediaCard,
+  MediaGrid,
+  CollapsibleSection,
+  MediaExpandDialog,
+  CardActionsFooter,
+  TextEditorDialog,
+  type CardAction,
+} from "./shared";
 import { EditedBadge } from "./outputs/edited-badge";
-import { ArtifactTextEditDialog } from "./outputs/artifact-text-edit-dialog";
 import { FileUploadDialog } from "./inputs/file-upload-dialog";
 import {
   editArtifactFile,
@@ -273,7 +267,7 @@ function ArtifactCardRenderer({
   }
   if (artifact.mimeType.startsWith("text/") || artifact.mimeType === "application/json") {
     return (
-      <TextCard
+      <ArtifactTextCard
         artifact={artifact}
         blueprintFolder={blueprintFolder}
         movieId={movieId}
@@ -345,19 +339,10 @@ function ProducerArtifactSection({
 }
 
 // ============================================================================
-// Card Footer (for artifacts)
+// Artifact Card Footer (builds actions for CardActionsFooter)
 // ============================================================================
 
-function CardFooter({
-  artifactId,
-  displayName,
-  downloadName,
-  url,
-  isEdited,
-  onExpand,
-  onEdit,
-  onRestore,
-}: {
+interface ArtifactCardFooterProps {
   artifactId: string;
   displayName: string;
   downloadName: string;
@@ -366,86 +351,112 @@ function CardFooter({
   onExpand?: () => void;
   onEdit?: () => void;
   onRestore?: () => void;
-}) {
+}
+
+function ArtifactCardFooter({
+  artifactId,
+  displayName,
+  downloadName,
+  url,
+  isEdited,
+  onExpand,
+  onEdit,
+  onRestore,
+}: ArtifactCardFooterProps) {
   const { isArtifactSelected, toggleArtifactSelection } = useExecution();
   const isSelected = isArtifactSelected(artifactId);
 
-  const handleDownload = () => {
+  const handleDownload = useCallback(() => {
     const a = document.createElement("a");
     a.href = url;
     a.download = downloadName;
     a.click();
-  };
+  }, [url, downloadName]);
 
-  const handleCopyUrl = async () => {
+  const handleCopyUrl = useCallback(async () => {
     await navigator.clipboard.writeText(window.location.origin + url);
-  };
+  }, [url]);
 
-  const handleOpenInNewTab = () => {
+  const handleOpenInNewTab = useCallback(() => {
     window.open(url, "_blank");
-  };
+  }, [url]);
 
-  const handleToggleRegeneration = () => {
+  const handleToggleRegeneration = useCallback(() => {
     toggleArtifactSelection(artifactId);
-  };
+  }, [toggleArtifactSelection, artifactId]);
+
+  // Build actions list
+  const actions = useMemo((): CardAction[] => {
+    const result: CardAction[] = [];
+
+    if (onEdit) {
+      result.push({
+        id: "edit",
+        label: "Edit",
+        icon: Pencil,
+        onClick: onEdit,
+      });
+    }
+
+    if (isEdited && onRestore) {
+      result.push({
+        id: "restore",
+        label: "Restore Original",
+        icon: RotateCcw,
+        onClick: onRestore,
+      });
+    }
+
+    result.push({
+      id: "regenerate",
+      label: "Generate Again",
+      icon: RefreshCw,
+      onClick: handleToggleRegeneration,
+      suffix: <Check className={`size-4 ${isSelected ? "text-primary" : "invisible"}`} />,
+    });
+
+    // Add separator before file actions
+    if (onExpand) {
+      result.push({
+        id: "expand",
+        label: "Expand",
+        icon: Maximize2,
+        onClick: onExpand,
+        separator: true,
+      });
+    }
+
+    result.push({
+      id: "download",
+      label: "Download",
+      icon: Download,
+      onClick: handleDownload,
+      separator: !onExpand,
+    });
+
+    result.push({
+      id: "open-new-tab",
+      label: "Open in new tab",
+      icon: ExternalLink,
+      onClick: handleOpenInNewTab,
+    });
+
+    result.push({
+      id: "copy-url",
+      label: "Copy URL",
+      icon: Copy,
+      onClick: handleCopyUrl,
+    });
+
+    return result;
+  }, [onEdit, isEdited, onRestore, onExpand, handleToggleRegeneration, handleDownload, handleOpenInNewTab, handleCopyUrl, isSelected]);
 
   return (
-    <>
-      <div className="flex items-center gap-1.5 flex-1 min-w-0">
-        <span className="text-xs text-foreground truncate" title={displayName}>
-          {displayName}
-        </span>
-        {isEdited && <EditedBadge />}
-      </div>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-          >
-            <MoreHorizontal className="size-4" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {onEdit && (
-            <DropdownMenuItem onClick={onEdit}>
-              <Pencil className="size-4" />
-              <span>Edit</span>
-            </DropdownMenuItem>
-          )}
-          {isEdited && onRestore && (
-            <DropdownMenuItem onClick={onRestore}>
-              <RotateCcw className="size-4" />
-              <span>Restore Original</span>
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onClick={handleToggleRegeneration}>
-            <RefreshCw className="size-4" />
-            <span className="flex-1">Generate Again</span>
-            <Check className={`size-4 ${isSelected ? "text-primary" : "invisible"}`} />
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          {onExpand && (
-            <DropdownMenuItem onClick={onExpand}>
-              <Maximize2 className="size-4" />
-              <span>Expand</span>
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onClick={handleDownload}>
-            <Download className="size-4" />
-            <span>Download</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleOpenInNewTab}>
-            <ExternalLink className="size-4" />
-            <span>Open in new tab</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleCopyUrl}>
-            <Copy className="size-4" />
-            <span>Copy URL</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </>
+    <CardActionsFooter
+      label={displayName}
+      actions={actions}
+      badge={isEdited ? <EditedBadge /> : undefined}
+    />
   );
 }
 
@@ -494,7 +505,7 @@ function VideoCard({
       <MediaCard
         isSelected={isSelected}
         footer={
-          <CardFooter
+          <ArtifactCardFooter
             artifactId={artifact.id}
             displayName={displayName}
             downloadName={artifact.name}
@@ -518,20 +529,13 @@ function VideoCard({
         </div>
       </MediaCard>
 
-      <MediaDialog
+      <MediaExpandDialog
         open={isExpanded}
         onOpenChange={setIsExpanded}
         title={displayName}
-      >
-        <video
-          src={url}
-          controls
-          autoPlay
-          className="w-full max-h-[70vh] object-contain rounded-lg"
-        >
-          Your browser does not support the video tag.
-        </video>
-      </MediaDialog>
+        url={url}
+        mediaType="video"
+      />
 
       <FileUploadDialog
         open={isEditDialogOpen}
@@ -588,7 +592,7 @@ function AudioCard({
       <MediaCard
         isSelected={isSelected}
         footer={
-          <CardFooter
+          <ArtifactCardFooter
             artifactId={artifact.id}
             displayName={displayName}
             downloadName={artifact.name}
@@ -665,7 +669,7 @@ function ImageCard({
       <MediaCard
         isSelected={isSelected}
         footer={
-          <CardFooter
+          <ArtifactCardFooter
             artifactId={artifact.id}
             displayName={displayName}
             downloadName={artifact.name}
@@ -694,17 +698,13 @@ function ImageCard({
         </button>
       </MediaCard>
 
-      <MediaDialog
+      <MediaExpandDialog
         open={isExpanded}
         onOpenChange={setIsExpanded}
         title={displayName}
-      >
-        <img
-          src={url}
-          alt={displayName}
-          className="w-full max-h-[70vh] object-contain rounded-lg"
-        />
-      </MediaDialog>
+        url={url}
+        mediaType="image"
+      />
 
       <FileUploadDialog
         open={isEditDialogOpen}
@@ -718,10 +718,10 @@ function ImageCard({
 }
 
 // ============================================================================
-// Text Card
+// Artifact Text Card (fetches content from blob URL, has save/restore)
 // ============================================================================
 
-function TextCard({
+function ArtifactTextCard({
   artifact,
   blueprintFolder,
   movieId,
@@ -812,7 +812,7 @@ function TextCard({
       <MediaCard
         isSelected={isSelected}
         footer={
-          <CardFooter
+          <ArtifactCardFooter
             artifactId={artifact.id}
             displayName={displayName}
             downloadName={artifact.name}
@@ -846,17 +846,17 @@ function TextCard({
         </button>
       </MediaCard>
 
-      <ArtifactTextEditDialog
+      <TextEditorDialog
         key={isExpanded ? `view-${artifact.hash}` : "closed-view"}
         open={isExpanded}
         onOpenChange={setIsExpanded}
         title={displayName}
         content={content ?? ""}
         mimeType={artifact.mimeType}
-        readOnly
+        size="large"
       />
 
-      <ArtifactTextEditDialog
+      <TextEditorDialog
         key={isEditDialogOpen ? `edit-${artifact.hash}` : "closed"}
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
@@ -865,6 +865,7 @@ function TextCard({
         mimeType={artifact.mimeType}
         onSave={handleSaveEdit}
         isSaving={isSaving}
+        size="large"
       />
     </>
   );
@@ -917,44 +918,6 @@ function GenericCard({
         </span>
       </div>
     </MediaCard>
-  );
-}
-
-// ============================================================================
-// Media Dialog (for expanded view)
-// ============================================================================
-
-function MediaDialog({
-  open,
-  onOpenChange,
-  title,
-  children,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden">
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
-          >
-            <X className="size-5" />
-          </button>
-          <div className="p-4">
-            {children}
-          </div>
-          <div className="px-4 pb-4">
-            <p className="text-sm text-muted-foreground truncate">{title}</p>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }
 

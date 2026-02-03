@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import type { BlueprintInputDef } from "@/types/blueprint-graph";
-import { CollapsibleSection, MediaGrid, PropertyRow } from "./shared";
+import { CollapsibleSection, MediaGrid, PropertyRow, TextCard } from "./shared";
 import { DefaultTextEditor } from "./inputs/default-text-editor";
 import { MediaInputCard, AddMediaCard } from "./inputs/media-input-card";
-import { TextInputCard } from "./inputs/text-input-card";
 import { FileUploadDialog } from "./inputs/file-upload-dialog";
 import type { InputEditorProps } from "./inputs/input-registry";
 import { useAutoSave } from "@/hooks/use-auto-save";
@@ -177,12 +176,14 @@ export function InputsPanel({
         >
           <MediaGrid>
             {categorized.text.map((input) => (
-              <TextInputCard
+              <TextCard
                 key={input.name}
-                input={input}
-                value={getValue(input.name)}
+                label={input.name}
+                description={input.description}
+                value={String(getValue(input.name) ?? "")}
                 onChange={(value) => handleValueChange(input.name, value)}
                 isEditable={isEditable}
+                sizing="aspect"
               />
             ))}
           </MediaGrid>

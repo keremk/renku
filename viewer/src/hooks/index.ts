@@ -1,4 +1,5 @@
 export * from "./use-build-inputs";
+export * from "./use-dark-mode";
 export * from "./use-producer-models";
 export * from "./use-producer-config-schemas";
 export * from "./use-producer-config-state";
