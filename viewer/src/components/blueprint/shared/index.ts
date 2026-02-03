@@ -1,4 +1,3 @@
-export { PanelHeader } from "./panel-header";
 export { EnableEditingBanner } from "./enable-editing-banner";
 export { CollapsibleSection } from "./collapsible-section";
 export { MediaCard } from "./media-card";

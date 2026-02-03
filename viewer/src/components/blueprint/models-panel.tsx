@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { EnableEditingBanner } from "./shared";
 import { ProducerSection } from "./models/producer-section";
-import { hasNestedModels, getNestedModelSelection, isNestedSttSelection, isSpeechModelSelection } from "./models/stt-helpers";
+import { hasNestedModels, getNestedModelSelection } from "./models/stt-helpers";
 import { hasRegisteredEditor } from "./models/config-editors";
 import { isComplexProperty } from "./models/config-utils";
 import type {
@@ -116,17 +116,6 @@ export function ModelsPanel({
         continue;
       }
 
-      // Legacy: For nested STT selections without schema, compare against config values
-      if (isNestedSttSelection(original)) {
-        const sttConfig = original.config?.stt as Record<string, unknown> | undefined;
-        const sttProvider = sttConfig?.provider as string;
-        const sttModel = sttConfig?.model as string;
-        if (value.provider !== sttProvider || value.model !== sttModel) {
-          return true;
-        }
-        continue;
-      }
-
       // Standard comparison for other producers
       if (
         value.provider !== original.provider ||
@@ -157,15 +146,6 @@ export function ModelsPanel({
           return existing;
         }
 
-        // Legacy: For nested STT selections without schema, extract actual provider/model from config
-        if (isNestedSttSelection(existing)) {
-          const sttConfig = existing.config?.stt as Record<string, unknown> | undefined;
-          return {
-            ...existing,
-            provider: sttConfig?.provider as string,
-            model: sttConfig?.model as string,
-          };
-        }
         return existing;
       }
 
@@ -181,16 +161,6 @@ export function ModelsPanel({
       const schemas = configSchemasByProducer[producerId];
       if (hasNestedModels(schemas)) {
         return existing;
-      }
-
-      // Legacy: For nested STT selections without schema, extract actual provider/model from config
-      if (isNestedSttSelection(existing)) {
-        const sttConfig = existing.config?.stt as Record<string, unknown> | undefined;
-        return {
-          ...existing,
-          provider: sttConfig?.provider as string,
-          model: sttConfig?.model as string,
-        };
       }
 
       return existing;
@@ -246,21 +216,6 @@ export function ModelsPanel({
                 ...(original?.config?.[nestedDecl.configPath] as Record<string, unknown> ?? {}),
                 [nestedDecl.providerField]: value.provider,
                 [nestedDecl.modelField]: value.model,
-              },
-            },
-          });
-        } else if (original && isSpeechModelSelection(original)) {
-          // Legacy: If original was in speech model format without schema
-          allSelections.push({
-            producerId,
-            provider: original.provider,
-            model: original.model,
-            config: {
-              ...original.config,
-              stt: {
-                ...(original.config?.stt as Record<string, unknown> ?? {}),
-                provider: value.provider,
-                model: value.model,
               },
             },
           });

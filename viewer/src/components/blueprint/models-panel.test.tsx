@@ -4,7 +4,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ModelsPanel } from './models-panel';
-import { isNestedSttSelection, isSpeechModelSelection } from './models/stt-helpers';
 import type {
   ModelSelectionValue,
   ProducerModelInfo,
@@ -70,143 +69,6 @@ function createTranscriptionProducerInfo(): ProducerModelInfo {
 }
 
 // =============================================================================
-// Helper Function Tests
-// =============================================================================
-
-describe('isNestedSttSelection', () => {
-  it('returns false for undefined selection', () => {
-    expect(isNestedSttSelection(undefined)).toBe(false);
-  });
-
-  it('returns false for regular selection', () => {
-    const selection = createRegularSelection();
-    expect(isNestedSttSelection(selection)).toBe(false);
-  });
-
-  it('returns false for speech selection without config', () => {
-    const selection = createSpeechSelectionWithoutConfig();
-    expect(isNestedSttSelection(selection)).toBe(false);
-  });
-
-  it('returns false for selection with partial config (missing stt.model)', () => {
-    const selection: ModelSelectionValue = {
-      producerId: 'TranscriptionProducer',
-      provider: 'renku',
-      model: 'speech/transcription',
-      config: {
-        stt: {
-          provider: 'fal-ai',
-        },
-      },
-    };
-    expect(isNestedSttSelection(selection)).toBe(false);
-  });
-
-  it('returns false for selection with partial config (missing stt.provider)', () => {
-    const selection: ModelSelectionValue = {
-      producerId: 'TranscriptionProducer',
-      provider: 'renku',
-      model: 'speech/transcription',
-      config: {
-        stt: {
-          model: 'elevenlabs/speech-to-text',
-        },
-      },
-    };
-    expect(isNestedSttSelection(selection)).toBe(false);
-  });
-
-  it('returns false for non-renku provider with speech model', () => {
-    const selection: ModelSelectionValue = {
-      producerId: 'TranscriptionProducer',
-      provider: 'other-provider',
-      model: 'speech/transcription',
-      config: {
-        stt: {
-          provider: 'fal-ai',
-          model: 'elevenlabs/speech-to-text',
-        },
-      },
-    };
-    expect(isNestedSttSelection(selection)).toBe(false);
-  });
-
-  it('returns false for renku provider with non-speech model', () => {
-    const selection: ModelSelectionValue = {
-      producerId: 'SomeProducer',
-      provider: 'renku',
-      model: 'timeline/ordered',
-      config: {
-        stt: {
-          provider: 'fal-ai',
-          model: 'elevenlabs/speech-to-text',
-        },
-      },
-    };
-    expect(isNestedSttSelection(selection)).toBe(false);
-  });
-
-  it('returns true for valid nested STT selection', () => {
-    const selection = createNestedSttSelection();
-    expect(isNestedSttSelection(selection)).toBe(true);
-  });
-
-  it('returns true for different speech models', () => {
-    const selection: ModelSelectionValue = {
-      producerId: 'SttProducer',
-      provider: 'renku',
-      model: 'speech/other-type',
-      config: {
-        stt: {
-          provider: 'openai',
-          model: 'whisper-1',
-        },
-      },
-    };
-    expect(isNestedSttSelection(selection)).toBe(true);
-  });
-});
-
-describe('isSpeechModelSelection', () => {
-  it('returns false for undefined selection', () => {
-    expect(isSpeechModelSelection(undefined)).toBe(false);
-  });
-
-  it('returns false for regular selection', () => {
-    const selection = createRegularSelection();
-    expect(isSpeechModelSelection(selection)).toBe(false);
-  });
-
-  it('returns false for non-renku provider with speech model', () => {
-    const selection: ModelSelectionValue = {
-      producerId: 'Producer',
-      provider: 'other',
-      model: 'speech/transcription',
-    };
-    expect(isSpeechModelSelection(selection)).toBe(false);
-  });
-
-  it('returns false for renku provider with non-speech model', () => {
-    const selection: ModelSelectionValue = {
-      producerId: 'Producer',
-      provider: 'renku',
-      model: 'timeline/ordered',
-    };
-    expect(isSpeechModelSelection(selection)).toBe(false);
-  });
-
-  it('returns true for speech selection without config', () => {
-    const selection = createSpeechSelectionWithoutConfig();
-    expect(isSpeechModelSelection(selection)).toBe(true);
-  });
-
-  it('returns true for nested STT selection', () => {
-    const selection = createNestedSttSelection();
-    expect(isSpeechModelSelection(selection)).toBe(true);
-  });
-});
-
-// =============================================================================
 // ModelsPanel Component Tests
 // =============================================================================
 
@@ -232,7 +94,7 @@ describe('ModelsPanel', () => {
       expect(container.textContent).toContain('fal-ai/flux-pro/text-to-image');
     });
 
-    it('displays nested STT selection with extracted provider/model', () => {
+    it('displays nested STT selection with top-level values when no schema provided', () => {
       const selections = [createNestedSttSelection()];
 
       const { container } = render(
@@ -243,13 +105,12 @@ describe('ModelsPanel', () => {
         />
       );
 
-      // Should display the nested config values
-      expect(container.textContent).toContain('elevenlabs/speech-to-text');
-      // Verify renku/speech/transcription is NOT displayed as the selection value
-      // (it may appear as producerType badge, but not as the selected model)
+      // Without schema, displays the top-level selection (renku/speech/transcription)
+      // The nested extraction now requires schema-driven detection
+      expect(container.textContent).toContain('renku/speech/transcription');
     });
 
-    it('displays multiple selections correctly including nested STT', () => {
+    it('displays multiple selections correctly', () => {
       const selections = [
         createRegularSelection(),
         createNestedSttSelection(),
@@ -263,9 +124,10 @@ describe('ModelsPanel', () => {
         />
       );
 
-      // Both should be visible
+      // Regular selection shows full model
       expect(container.textContent).toContain('flux-pro/text-to-image');
-      expect(container.textContent).toContain('elevenlabs/speech-to-text');
+      // Nested selection shows top-level values without schema
+      expect(container.textContent).toContain('renku/speech/transcription');
     });
   });
 
@@ -381,42 +243,36 @@ describe('ModelsPanel', () => {
 // =============================================================================
 
 describe('Nested STT Selection Integration', () => {
-  it('correctly transforms nested selection for display and back for save', () => {
-    // Simulate the flow:
-    // 1. Initial selection comes in with nested format
-    // 2. getSelection extracts the actual provider/model for display
-    // 3. When user edits, the value is in direct format
-    // 4. handleSave transforms it back to nested format
-
+  it('correctly stores nested selection structure', () => {
+    // Test the nested selection data structure
     const originalSelection = createNestedSttSelection();
 
-    // Verify isNestedSttSelection identifies it correctly
-    expect(isNestedSttSelection(originalSelection)).toBe(true);
-
-    // The expected extracted values for display (new nested format)
+    // The nested config should have stt.provider and stt.model
     const sttConfig = originalSelection.config?.stt as Record<string, unknown>;
     expect(sttConfig?.provider).toBe('fal-ai');
     expect(sttConfig?.model).toBe('elevenlabs/speech-to-text');
 
-    // The original format that should be preserved
+    // The top-level selection uses the meta-producer format
     expect(originalSelection.provider).toBe('renku');
     expect(originalSelection.model).toBe('speech/transcription');
   });
 
-  it('handles selection without nested config gracefully', () => {
+  it('handles selection without nested config', () => {
     const selectionWithoutConfig = createSpeechSelectionWithoutConfig();
 
-    // Should identify as speech selection pattern
-    expect(isSpeechModelSelection(selectionWithoutConfig)).toBe(true);
+    // Should have top-level renku/speech provider/model
+    expect(selectionWithoutConfig.provider).toBe('renku');
+    expect(selectionWithoutConfig.model).toBe('speech/transcription');
 
-    // But not as nested STT (missing config)
-    expect(isNestedSttSelection(selectionWithoutConfig)).toBe(false);
+    // But no nested config
+    expect(selectionWithoutConfig.config).toBeUndefined();
   });
 
-  it('correctly identifies non-speech selections', () => {
+  it('regular selections have direct provider/model', () => {
     const regularSelection = createRegularSelection();
 
-    expect(isSpeechModelSelection(regularSelection)).toBe(false);
-    expect(isNestedSttSelection(regularSelection)).toBe(false);
+    // Regular selections use direct provider/model
+    expect(regularSelection.provider).toBe('fal-ai');
+    expect(regularSelection.model).toBe('flux-pro/text-to-image');
   });
 });

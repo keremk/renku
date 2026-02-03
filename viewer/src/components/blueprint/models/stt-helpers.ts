@@ -41,32 +41,3 @@ export function getNestedModelSelection(
 
   return { provider, model };
 }
-
-/**
- * @deprecated Use hasNestedModels with schema-driven detection instead.
- * Check if a model selection represents a "speech/" meta-producer.
- * These producers (like TranscriptionProducer) have:
- * - Top-level: provider="renku", model="speech/transcription"
- * - Actual backend selection in: config.stt.provider and config.stt.model
- */
-export function isNestedSttSelection(selection?: ModelSelectionValue): boolean {
-  if (!selection) return false;
-  // Check if the selection uses the nested STT config pattern (new format)
-  const sttConfig = selection.config?.stt as Record<string, unknown> | undefined;
-  return (
-    selection.provider === "renku" &&
-    selection.model.startsWith("speech/") &&
-    typeof sttConfig?.provider === "string" &&
-    typeof sttConfig?.model === "string"
-  );
-}
-
-/**
- * @deprecated Use hasNestedModels with schema-driven detection instead.
- * Check if a selection uses the speech/ meta-producer pattern
- * (even if config is not yet populated - for new selections)
- */
-export function isSpeechModelSelection(selection?: ModelSelectionValue): boolean {
-  if (!selection) return false;
-  return selection.provider === "renku" && selection.model.startsWith("speech/");
-}

@@ -91,7 +91,7 @@ export function CardActionsFooter({
               <CardActionItem
                 key={action.id}
                 action={action}
-                showSeparator={action.separator && index > 0}
+                showSeparator={Boolean(action.separator) && index > 0}
               />
             ))}
           </DropdownMenuContent>
