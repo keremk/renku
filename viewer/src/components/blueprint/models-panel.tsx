@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { EnableEditingBanner } from "./shared";
 import { ProducerSection } from "./models/producer-section";
-import { hasNestedModels, getNestedModelSelection } from "./models/stt-helpers";
 import { hasRegisteredEditor } from "./models/config-editors";
 import { isComplexProperty } from "./models/config-utils";
 import type {
@@ -15,25 +14,23 @@ import type {
 interface ModelsPanelProps {
   /** Available models per producer from API */
   producerModels: Record<string, ProducerModelInfo>;
-  /** Current model selections from inputs.yaml */
+  /** Current model selections (from hook, includes edits) */
   modelSelections: ModelSelectionValue[];
   /** Currently selected node ID for highlighting */
   selectedNodeId: string | null;
   /** Whether models are editable (requires buildId) */
   isEditable?: boolean;
-  /** Callback when models are saved (only used when not in controlled mode) */
-  onSave?: (models: ModelSelectionValue[]) => Promise<void>;
   /** Whether editing can be enabled for this build */
   canEnableEditing?: boolean;
   /** Callback to enable editing for this build */
   onEnableEditing?: () => Promise<void>;
-  /** Controlled mode: callback when a selection changes */
+  /** Callback when a model selection changes (auto-save handled by parent hook) */
   onSelectionChange?: (selection: ModelSelectionValue) => void;
-  /** Whether to hide the header (save is handled elsewhere) */
+  /** Whether to hide the header */
   hideHeader?: boolean;
   /** Prompt data per producer (for prompt producers) */
   promptDataByProducer?: Record<string, PromptData>;
-  /** Callback when prompts change */
+  /** Callback when prompts change (immediate save) */
   onPromptChange?: (producerId: string, prompts: PromptData) => void | Promise<void>;
   /** Config properties per producer */
   configPropertiesByProducer?: Record<string, ConfigProperty[]>;
@@ -50,7 +47,6 @@ export function ModelsPanel({
   modelSelections,
   selectedNodeId,
   isEditable = false,
-  onSave,
   canEnableEditing = false,
   onEnableEditing,
   onSelectionChange,
@@ -62,8 +58,6 @@ export function ModelsPanel({
   onConfigChange,
   configSchemasByProducer = {},
 }: ModelsPanelProps) {
-  // Determine if we're in controlled mode
-  const isControlled = onSelectionChange !== undefined;
   const [isEnabling, setIsEnabling] = useState(false);
 
   // Handle enable editing
@@ -78,7 +72,7 @@ export function ModelsPanel({
   }, [onEnableEditing]);
 
   // Create a map of current selections by producerId
-  const initialSelectionMap = useMemo(() => {
+  const selectionMap = useMemo(() => {
     const map = new Map<string, ModelSelectionValue>();
     for (const selection of modelSelections) {
       map.set(selection.producerId, selection);
@@ -86,159 +80,21 @@ export function ModelsPanel({
     return map;
   }, [modelSelections]);
 
-  // Track edit values locally (for uncontrolled mode)
-  const [editValues, setEditValues] = useState<Map<string, ModelSelectionValue>>(
-    new Map()
-  );
-  const [isSaving, setIsSaving] = useState(false);
-
-  // Reset edit values when model selections change (e.g., build selection change)
-  useEffect(() => {
-    setEditValues(new Map());
-  }, [modelSelections]);
-
-  // Compute if there are unsaved changes (for uncontrolled mode)
-  const isDirty = useMemo(() => {
-    for (const [producerId, value] of editValues) {
-      const original = initialSelectionMap.get(producerId);
-      if (!original) {
-        return true; // New selection
-      }
-
-      // Check if this producer has nested models via schema
-      const schemas = configSchemasByProducer[producerId];
-      if (hasNestedModels(schemas)) {
-        const nestedDecl = schemas.nestedModels[0].declaration;
-        const nestedSel = getNestedModelSelection(original, nestedDecl.configPath);
-        if (!nestedSel || value.provider !== nestedSel.provider || value.model !== nestedSel.model) {
-          return true;
-        }
-        continue;
-      }
-
-      // Standard comparison for other producers
-      if (
-        value.provider !== original.provider ||
-        value.model !== original.model
-      ) {
-        return true;
-      }
-    }
-    return false;
-  }, [editValues, initialSelectionMap, configSchemasByProducer]);
-
   // Get the current selection for a producer
-  // In controlled mode, props contain current state (saved + edits) so use directly
-  // In uncontrolled mode, check editValues first, then fall back to initial
   const getSelection = useCallback(
     (producerId: string): ModelSelectionValue | undefined => {
-      // In controlled mode, trust the props completely
-      // (parent hook manages edits and passes merged currentSelections)
-      if (isControlled) {
-        const existing = initialSelectionMap.get(producerId);
-        if (!existing) return undefined;
-
-        // Check if this producer has nested models via schema
-        const schemas = configSchemasByProducer[producerId];
-        if (hasNestedModels(schemas)) {
-          // For producers with nested models, the top-level selection stays as-is
-          // The nested model selector handles the config.stt.provider/model separately
-          return existing;
-        }
-
-        return existing;
-      }
-
-      // Uncontrolled mode: check for edited value first
-      if (editValues.has(producerId)) {
-        return editValues.get(producerId);
-      }
-
-      const existing = initialSelectionMap.get(producerId);
-      if (!existing) return undefined;
-
-      // Check if this producer has nested models via schema
-      const schemas = configSchemasByProducer[producerId];
-      if (hasNestedModels(schemas)) {
-        return existing;
-      }
-
-      return existing;
+      return selectionMap.get(producerId);
     },
-    [isControlled, editValues, initialSelectionMap, configSchemasByProducer]
+    [selectionMap]
   );
 
-  // Handle selection change
+  // Handle selection change - delegate to parent (auto-save handled by parent hook)
   const handleSelectionChange = useCallback(
     (selection: ModelSelectionValue) => {
-      if (isControlled) {
-        // In controlled mode, notify parent
-        onSelectionChange(selection);
-      } else {
-        // In uncontrolled mode, update internal state
-        setEditValues((prev) => {
-          const next = new Map(prev);
-          next.set(selection.producerId, selection);
-          return next;
-        });
-      }
+      onSelectionChange?.(selection);
     },
-    [isControlled, onSelectionChange]
+    [onSelectionChange]
   );
-
-  // Handle save (for uncontrolled mode)
-  // For producers with nested models, wrap edited values back in the nested format
-  const handleSave = useCallback(async () => {
-    if (!onSave || !isDirty) return;
-
-    setIsSaving(true);
-    try {
-      // Merge original selections with edited values
-      const allSelections: ModelSelectionValue[] = [];
-      const processed = new Set<string>();
-
-      // First add all edited values
-      for (const [producerId, value] of editValues) {
-        const original = initialSelectionMap.get(producerId);
-        const schemas = configSchemasByProducer[producerId];
-
-        // If producer has nested models via schema, preserve the top-level and update nested
-        if (hasNestedModels(schemas)) {
-          // Find the first nested model declaration
-          const nestedDecl = schemas.nestedModels[0].declaration;
-          allSelections.push({
-            producerId,
-            provider: original?.provider ?? "renku",
-            model: original?.model ?? value.model,
-            config: {
-              ...original?.config,
-              [nestedDecl.configPath]: {
-                ...(original?.config?.[nestedDecl.configPath] as Record<string, unknown> ?? {}),
-                [nestedDecl.providerField]: value.provider,
-                [nestedDecl.modelField]: value.model,
-              },
-            },
-          });
-        } else {
-          allSelections.push(value);
-        }
-        processed.add(producerId);
-      }
-
-      // Then add original values that weren't edited
-      for (const [producerId, value] of initialSelectionMap) {
-        if (!processed.has(producerId)) {
-          allSelections.push(value);
-        }
-      }
-
-      await onSave(allSelections);
-      // Clear edit state after successful save
-      setEditValues(new Map());
-    } finally {
-      setIsSaving(false);
-    }
-  }, [onSave, isDirty, initialSelectionMap, editValues, configSchemasByProducer]);
 
   // Determine which producer is selected based on node ID
   const selectedProducerId = selectedNodeId?.startsWith("Producer:")
@@ -286,26 +142,6 @@ export function ModelsPanel({
     });
   }, [producerModels, configPropertiesByProducer]);
 
-  // Track which producers have been edited (for showing edited badge)
-  const editedProducerIds = useMemo(() => {
-    const edited = new Set<string>();
-    // Check model edits
-    for (const producerId of editValues.keys()) {
-      edited.add(producerId);
-    }
-    // Check prompt edits (if prompts have source: 'build', they're edited)
-    for (const [producerId, promptData] of Object.entries(promptDataByProducer)) {
-      if (promptData.source === 'build') {
-        edited.add(producerId);
-      }
-    }
-    return edited;
-  }, [editValues, promptDataByProducer]);
-
-  // Suppress unused variable warnings temporarily
-  void isSaving;
-  void handleSave;
-
   if (producerIds.length === 0) {
     return (
       <div className="text-muted-foreground text-sm">
@@ -328,7 +164,6 @@ export function ModelsPanel({
         const info = producerModels[producerId];
         const selection = getSelection(producerId);
         const isSelected = selectedProducerId === producerId;
-        const isEdited = editedProducerIds.has(producerId);
         const schemas = configSchemasByProducer[producerId];
 
         return (
@@ -342,7 +177,6 @@ export function ModelsPanel({
             currentSelection={selection}
             isSelected={isSelected}
             isEditable={isEditable}
-            isEdited={isEdited}
             onModelChange={handleSelectionChange}
             promptData={promptDataByProducer[producerId]}
             onPromptChange={onPromptChange ? (prompts) => onPromptChange(producerId, prompts) : undefined}

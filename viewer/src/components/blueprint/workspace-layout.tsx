@@ -356,12 +356,7 @@ function WorkspaceLayoutInner({
               configValuesByProducer={configValuesByProducer}
               configSchemasByProducer={configSchemas}
               onConfigChange={handleConfigChange}
-              onModelSelectionChange={modelEditor.updateSelection}
-              isModelsDirty={modelEditor.isDirty}
-              isModelsSaving={modelEditor.isSaving}
-              modelSaveError={modelEditor.lastError}
-              onSaveModels={modelEditor.save}
-              onResetModels={modelEditor.reset}
+              modelEditor={modelEditor}
               hasTimeline={hasTimeline}
               activeTab={detailPanelTab}
               onTabChange={setDetailPanelTab}

@@ -3,7 +3,6 @@ export { CollapsibleSection } from "./collapsible-section";
 export { MediaCard } from "./media-card";
 export { MediaGrid } from "./media-grid";
 export { ReadOnlyIndicator } from "./read-only-indicator";
-export { SaveChangesButton } from "./save-changes-button";
 export { TextCard } from "./text-card";
 export type { TextCardProps } from "./text-card";
 export { PropertyRow } from "./property-row";

@@ -1,5 +1,4 @@
 import { useCallback, useMemo } from "react";
-import { Pencil } from "lucide-react";
 import { CollapsibleSection, MediaGrid, TextCard, PropertyRow } from "../shared";
 import { ModelSelector } from "./model-selector";
 import { NestedModelSelector } from "./nested-model-selector";
@@ -34,8 +33,6 @@ interface ProducerSectionProps {
   isSelected: boolean;
   /** Whether editing is enabled */
   isEditable: boolean;
-  /** Whether any content has been edited */
-  isEdited?: boolean;
   /** Callback when model selection changes */
   onModelChange: (selection: ModelSelectionValue) => void;
   /** Prompt data for prompt producers */
@@ -70,7 +67,6 @@ export function ProducerSection({
   currentSelection,
   isSelected,
   isEditable,
-  isEdited = false,
   onModelChange,
   promptData,
   onPromptChange,
@@ -163,16 +159,6 @@ export function ProducerSection({
     return undefined;
   }, [category, promptData, configProperties, compositionConfigProperties]);
 
-  // Actions to render in header (edited badge only)
-  const headerActions = isEdited ? (
-    <div className="flex items-center gap-2">
-      <span className="flex items-center gap-0.5 text-xs text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">
-        <Pencil className="size-3" />
-        Edited
-      </span>
-    </div>
-  ) : null;
-
   // For composition producers with displayable config, show collapsible section
   // For composition producers without displayable config, show simple non-collapsible section
   if (category === "composition") {
@@ -184,7 +170,6 @@ export function ProducerSection({
           count={compositionConfigProperties.length}
           description={description}
           defaultOpen={true}
-          actions={headerActions}
           className={getSectionHighlightStyles(isSelected, "primary")}
         >
           <ConfigPropertiesEditor
@@ -200,11 +185,8 @@ export function ProducerSection({
     // No displayable config properties - render simple view
     return (
       <div className={`rounded-lg px-2 py-1.5 ${getSectionHighlightStyles(isSelected, "primary")}`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-foreground">{producerId}</span>
-          </div>
-          {headerActions}
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-foreground">{producerId}</span>
         </div>
         {description && (
           <p className="text-xs text-muted-foreground mt-0.5 ml-0">{description}</p>
@@ -219,7 +201,6 @@ export function ProducerSection({
       count={itemCount}
       description={description}
       defaultOpen={true}
-      actions={headerActions}
       className={getSectionHighlightStyles(isSelected, "primary")}
     >
       {/* Prompt producers: show model row then prompt cards */}

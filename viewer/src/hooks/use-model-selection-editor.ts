@@ -8,6 +8,8 @@ export interface UseModelSelectionEditorOptions {
   onSave: (selections: ModelSelectionValue[]) => Promise<void>;
   /** Optional equality function */
   isEqual?: (a: ModelSelectionValue[], b: ModelSelectionValue[]) => boolean;
+  /** Debounce delay in milliseconds for auto-save (default: 1000) */
+  debounceMs?: number;
 }
 
 export interface UseModelSelectionEditorResult {
@@ -23,29 +25,28 @@ export interface UseModelSelectionEditorResult {
   updateSelection: (selection: ModelSelectionValue) => void;
   /** Update a config property for a producer */
   updateConfig: (producerId: string, key: string, value: unknown) => void;
-  /** Save all changes */
+  /** Save all changes immediately */
   save: () => Promise<void>;
   /** Reset edits (discard unsaved changes) */
   reset: () => void;
 }
 
 /**
- * Hook for editing model selections with draft state management.
- *
- * IMPORTANT: This hook does NOT auto-save. Save is explicit via save() method.
- * Changes are buffered in edit state until save() is called.
+ * Hook for editing model selections with draft state management and auto-save.
  *
  * Features:
  * - Single source of truth for edit state
  * - Tracks isDirty by comparing against saved state
  * - Handles both model selection and config changes
  * - Resets edits on savedSelections prop change
- * - Explicit save() method - no auto-save, no debounce
+ * - Auto-saves with debounce when changes occur
+ * - Explicit save() method for immediate saves
  */
 export function useModelSelectionEditor({
   savedSelections,
   onSave,
   isEqual = defaultIsEqual,
+  debounceMs = 1000,
 }: UseModelSelectionEditorOptions): UseModelSelectionEditorResult {
   // Edit state - Map for O(1) lookups
   const [edits, setEdits] = useState<Map<string, ModelSelectionValue>>(
@@ -58,6 +59,7 @@ export function useModelSelectionEditor({
   const lastSavedRef = useRef<ModelSelectionValue[]>(savedSelections);
   const onSaveRef = useRef(onSave);
   const isMountedRef = useRef(true);
+  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Update refs on render
   onSaveRef.current = onSave;
@@ -69,6 +71,11 @@ export function useModelSelectionEditor({
       lastSavedRef.current = savedSelections;
       setEdits(new Map());
       setLastError(null);
+      // Cancel any pending debounced save
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+        debounceTimeoutRef.current = null;
+      }
     }
   }, [savedSelections, isEqual]);
 
@@ -77,6 +84,11 @@ export function useModelSelectionEditor({
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      // Cancel any pending debounced save on unmount
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+        debounceTimeoutRef.current = null;
+      }
     };
   }, []);
 
@@ -129,8 +141,8 @@ export function useModelSelectionEditor({
     [savedSelections]
   );
 
-  // Save handler
-  const save = useCallback(async () => {
+  // Core save logic (shared by auto-save and manual save)
+  const doSave = useCallback(async () => {
     if (!isMountedRef.current) return;
 
     setIsSaving(true);
@@ -169,8 +181,44 @@ export function useModelSelectionEditor({
     }
   }, [savedSelections, edits]);
 
+  // Manual save handler (immediate, no debounce)
+  const save = useCallback(async () => {
+    // Cancel any pending debounced save
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+      debounceTimeoutRef.current = null;
+    }
+    await doSave();
+  }, [doSave]);
+
+  // Auto-save effect - triggers debounced save when edits change
+  useEffect(() => {
+    if (!isDirty || edits.size === 0) return;
+
+    // Cancel previous timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Schedule new save
+    debounceTimeoutRef.current = setTimeout(() => {
+      doSave();
+    }, debounceMs);
+
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [edits, isDirty, debounceMs, doSave]);
+
   // Reset handler
   const reset = useCallback(() => {
+    // Cancel any pending debounced save
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+      debounceTimeoutRef.current = null;
+    }
     setEdits(new Map());
     setLastError(null);
   }, []);
