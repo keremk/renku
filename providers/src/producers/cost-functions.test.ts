@@ -928,6 +928,160 @@ describe('calculateCost', () => {
 		});
 	});
 
+	describe('costByImageMegapixels', () => {
+		it('calculates cost for single image with explicit dimensions', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByImageMegapixels',
+				pricePerMegapixel: 0.09,
+				inputs: ['num_images', 'image_size'],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { num_images: 1, image_size: { width: 1024, height: 1024 } },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			// 1024 * 1024 / 1_000_000 * 0.09 = 0.094371
+			expect(result.cost).toBeCloseTo(0.094371, 4);
+			expect(result.isPlaceholder).toBe(false);
+		});
+
+		it('calculates cost for multiple images', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByImageMegapixels',
+				pricePerMegapixel: 0.09,
+				inputs: ['num_images', 'image_size'],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { num_images: 4, image_size: { width: 1024, height: 1024 } },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			// 4 * 0.094371 ≈ 0.377487
+			expect(result.cost).toBeCloseTo(0.377487, 4);
+			expect(result.isPlaceholder).toBe(false);
+		});
+
+		it('resolves image_size preset to dimensions', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByImageMegapixels',
+				pricePerMegapixel: 0.09,
+				inputs: ['num_images', 'image_size'],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { num_images: 1, image_size: 'landscape_16_9' },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			// 1820 * 1024 / 1_000_000 * 0.09 ≈ 0.1677
+			expect(result.cost).toBeCloseTo(0.1677, 3);
+			expect(result.isPlaceholder).toBe(false);
+		});
+
+		it('handles custom dimensions via object (e.g., {width: 2048, height: 2048})', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByImageMegapixels',
+				pricePerMegapixel: 0.09,
+				inputs: ['num_images', 'image_size'],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { num_images: 1, image_size: { width: 2048, height: 2048 } },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			// 2048 * 2048 / 1_000_000 * 0.09 = 0.37748736
+			expect(result.cost).toBeCloseTo(0.3775, 3);
+			expect(result.isPlaceholder).toBe(false);
+		});
+
+		it('handles non-square custom dimensions via object', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByImageMegapixels',
+				pricePerMegapixel: 0.09,
+				inputs: ['num_images', 'image_size'],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { num_images: 1, image_size: { width: 1920, height: 1080 } },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			// 1920 * 1080 / 1_000_000 * 0.09 = 0.186624
+			expect(result.cost).toBeCloseTo(0.1866, 3);
+			expect(result.isPlaceholder).toBe(false);
+		});
+
+		it('returns placeholder when image_size is missing', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByImageMegapixels',
+				pricePerMegapixel: 0.09,
+				inputs: ['num_images', 'image_size'],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { num_images: 1 },
+				artefactSourcedFields: [],
+				missingFields: ['image_size'],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.isPlaceholder).toBe(true);
+			expect(result.range).toBeDefined();
+			expect(result.note).toContain('missing');
+		});
+
+		it('returns placeholder when image_size comes from artefact', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByImageMegapixels',
+				pricePerMegapixel: 0.09,
+				inputs: ['num_images', 'image_size'],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { num_images: 1 },
+				artefactSourcedFields: ['image_size'],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.isPlaceholder).toBe(true);
+			expect(result.range).toBeDefined();
+			expect(result.note).toContain('artefact');
+		});
+
+		it('uses default num_images when not provided', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByImageMegapixels',
+				pricePerMegapixel: 0.09,
+				inputs: ['num_images', 'image_size'],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { image_size: { width: 1024, height: 1024 } },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			// Default num_images = 1
+			expect(result.cost).toBeCloseTo(0.094371, 4);
+			expect(result.isPlaceholder).toBe(false);
+		});
+
+		it('returns placeholder when pricePerMegapixel is missing', () => {
+			const config: ModelPriceConfig = {
+				function: 'costByImageMegapixels',
+				inputs: ['num_images', 'image_size'],
+			};
+			const extracted: ExtractedCostInputs = {
+				values: { num_images: 1, image_size: { width: 1024, height: 1024 } },
+				artefactSourcedFields: [],
+				missingFields: [],
+			};
+			const result = calculateCost(config, extracted);
+			expect(result.cost).toBe(0);
+			expect(result.isPlaceholder).toBe(true);
+			expect(result.note).toBe('Missing pricePerMegapixel');
+		});
+	});
+
 	describe('unknown function', () => {
 		it('returns placeholder for unknown function', () => {
 			const config = {

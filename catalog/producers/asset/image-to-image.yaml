@@ -150,6 +150,51 @@ mappings:
       OutputFormat: output_format
       AspectRatio: aspect_ratio
       Resolution: resolution
+    
+    hunyuan-image/v3/instruct/edit:
+      Prompt: prompt
+      NumImages: num_images
+      Seed: seed
+      GuidanceScale: guidance_scale
+      EnableSafetyChecker: enable_safety_checker
+      OutputFormat: output_format
+      # AspectRatio preset - only applied when Width is not provided
+      AspectRatio:
+        conditional:
+          when:
+            input: Width
+            empty: true
+          then:
+            field: image_size
+            transform:
+              "16:9": landscape_16_9
+              "9:16": portrait_16_9
+              "4:3": landscape_4_3
+              "3:4": portrait_4_3
+              "1:1": square_hd
+      # Custom dimensions via Width/Height (takes precedence over AspectRatio)
+      Width:
+        conditional:
+          when:
+            input: Width
+            notEmpty: true
+          then:
+            field: image_size.width
+      Height:
+        conditional:
+          when:
+            input: Width
+            notEmpty: true
+          then:
+            field: image_size.height
+    
+    xai/grok-imagine-image/edit:
+      Prompt: prompt
+      SourceImages:
+        field: image_url
+        firstOf: true
+      NumImages: num_images
+      OutputFormat: output_format
 
   replicate:
     qwen/qwen-image-edit-2511:

@@ -152,6 +152,42 @@ models:
     price:
       function: costByRun
       price: 0.04
+  - name: xai/grok-imagine-image
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByRun
+      price: 0.02    
+  - name: xai/grok-imagine-image/edit
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByRun
+      price: 0.022
+  - name: hunyuan-image/v3/instruct/text-to-image
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+    price:
+      function: costByImageMegapixels
+      inputs: [num_images, image_size]
+      pricePerMegapixel: 0.09
+  - name: hunyuan-image/v3/instruct/edit
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+    price:
+      function: costByImageMegapixels
+      inputs: [num_images, image_size]
+      pricePerMegapixel: 0.09
 
 # Audio Models
   - name: elevenlabs/tts/eleven-v3

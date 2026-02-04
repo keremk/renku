@@ -782,6 +782,100 @@ describe('YAML Mapping Transforms Integration', () => {
       });
     });
 
+    it('hunyuan text-to-image pattern with AspectRatio preset', async () => {
+      // Pattern from text-to-image.yaml for hunyuan model - preset mode
+      const mapping: Record<string, MappingFieldDefinition> = {
+        Prompt: { field: 'prompt' },
+        NumImages: { field: 'num_images' },
+        AspectRatio: {
+          conditional: {
+            when: { input: 'Width', empty: true },
+            then: {
+              field: 'image_size',
+              transform: {
+                '16:9': 'landscape_16_9',
+                '9:16': 'portrait_16_9',
+                '1:1': 'square_hd',
+              },
+            },
+          },
+        },
+        Width: {
+          conditional: {
+            when: { input: 'Width', notEmpty: true },
+            then: { field: 'image_size.width' },
+          },
+        },
+        Height: {
+          conditional: {
+            when: { input: 'Width', notEmpty: true },
+            then: { field: 'image_size.height' },
+          },
+        },
+      };
+      const payload = await buildTransformedPayload(
+        {
+          Prompt: 'A beautiful landscape',
+          NumImages: 2,
+          AspectRatio: '16:9',
+        },
+        mapping
+      );
+      expect(payload).toEqual({
+        prompt: 'A beautiful landscape',
+        num_images: 2,
+        image_size: 'landscape_16_9',
+      });
+    });
+
+    it('hunyuan text-to-image pattern with custom Width/Height', async () => {
+      // Pattern from text-to-image.yaml for hunyuan model - custom dimensions
+      const mapping: Record<string, MappingFieldDefinition> = {
+        Prompt: { field: 'prompt' },
+        NumImages: { field: 'num_images' },
+        AspectRatio: {
+          conditional: {
+            when: { input: 'Width', empty: true },
+            then: {
+              field: 'image_size',
+              transform: {
+                '16:9': 'landscape_16_9',
+                '9:16': 'portrait_16_9',
+                '1:1': 'square_hd',
+              },
+            },
+          },
+        },
+        Width: {
+          conditional: {
+            when: { input: 'Width', notEmpty: true },
+            then: { field: 'image_size.width' },
+          },
+        },
+        Height: {
+          conditional: {
+            when: { input: 'Width', notEmpty: true },
+            then: { field: 'image_size.height' },
+          },
+        },
+      };
+      const payload = await buildTransformedPayload(
+        {
+          Prompt: 'A high-res landscape',
+          NumImages: 1,
+          Width: 2048,
+          Height: 2048,
+          AspectRatio: '1:1', // Should be ignored when Width is provided
+        },
+        mapping
+      );
+      expect(payload).toEqual({
+        prompt: 'A high-res landscape',
+        num_images: 1,
+        image_size: { width: 2048, height: 2048 },
+      });
+    });
+
     it('image-to-video pattern with conditional expand', async () => {
       // Pattern that uses conditional to expand dimensions
       const mapping: Record<string, MappingFieldDefinition> = {

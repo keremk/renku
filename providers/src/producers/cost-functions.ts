@@ -58,7 +58,8 @@ export type CostFunctionName =
 	| 'costByAudioSeconds'
 	| 'costByImageSizeAndQuality'
 	| 'costByVideoPerMillionTokens'
-	| 'costByVideoMegapixels';
+	| 'costByVideoMegapixels'
+	| 'costByImageMegapixels';
 
 /**
  * Price entry for resolution-based pricing.
@@ -944,6 +945,99 @@ function costByVideoPerMillionTokens(
 }
 
 /**
+ * Image size presets mapped to dimensions.
+ */
+const IMAGE_SIZE_PRESETS: Record<string, { width: number; height: number }> = {
+	landscape_4_3: { width: 1365, height: 1024 },
+	landscape_16_9: { width: 1820, height: 1024 },
+	portrait_4_3: { width: 1024, height: 1365 },
+	portrait_16_9: { width: 1024, height: 1820 },
+	square: { width: 1024, height: 1024 },
+	square_hd: { width: 1024, height: 1024 },
+	auto: { width: 1024, height: 1024 }, // Default fallback
+};
+
+/**
+ * Parse image_size value to width and height.
+ * Supports string presets (e.g., "landscape_16_9") and object {width, height}.
+ */
+function parseImageSize(
+	imageSize: unknown
+): { width: number; height: number } | null {
+	if (imageSize === undefined || imageSize === null) {
+		return null;
+	}
+
+	// Handle string preset
+	if (typeof imageSize === 'string') {
+		const preset = IMAGE_SIZE_PRESETS[imageSize];
+		if (preset) {
+			return preset;
+		}
+		return null;
+	}
+
+	// Handle object {width, height}
+	if (typeof imageSize === 'object') {
+		const obj = imageSize as Record<string, unknown>;
+		const width = Number(obj.width);
+		const height = Number(obj.height);
+		if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+			return { width, height };
+		}
+	}
+
+	return null;
+}
+
+function costByImageMegapixels(
+	config: ModelPriceConfig,
+	extracted: ExtractedCostInputs
+): CostEstimate {
+	const pricePerMegapixel = config.pricePerMegapixel;
+	if (pricePerMegapixel === undefined) {
+		return { cost: 0, isPlaceholder: true, note: 'Missing pricePerMegapixel' };
+	}
+
+	// inputs: [num_images_field, image_size_field]
+	const inputs = config.inputs ?? [];
+	const numImagesField = inputs[0];
+	const imageSizeField = inputs[1];
+
+	const numImagesValue = numImagesField ? extracted.values[numImagesField] : 1;
+	const imageSizeValue = imageSizeField ? extracted.values[imageSizeField] : undefined;
+
+	const numImages = typeof numImagesValue === 'number' ? numImagesValue : 1;
+	const dimensions = parseImageSize(imageSizeValue);
+
+	// Handle artefact-sourced or missing dimensions
+	const hasArtefactSources = extracted.artefactSourcedFields.length > 0;
+
+	if (hasArtefactSources || !dimensions) {
+		const defaultDims = IMAGE_SIZE_PRESETS.square_hd;
+		const samples = [
+			{ label: '1024x1024', cost: (1024 * 1024 / 1_000_000) * numImages * pricePerMegapixel },
+			{ label: '1820x1024', cost: (1820 * 1024 / 1_000_000) * numImages * pricePerMegapixel },
+			{ label: '2048x2048', cost: (2048 * 2048 / 1_000_000) * numImages * pricePerMegapixel },
+		];
+
+		return {
+			cost: (defaultDims.width * defaultDims.height / 1_000_000) * numImages * pricePerMegapixel,
+			isPlaceholder: true,
+			note: hasArtefactSources
+				? `Input from artefact: ${extracted.artefactSourcedFields.join(', ')}`
+				: 'image_size missing or auto',
+			range: { min: samples[0].cost, max: samples[2].cost, samples },
+		};
+	}
+
+	const megapixels = (dimensions.width * dimensions.height) / 1_000_000;
+	const cost = megapixels * numImages * pricePerMegapixel;
+
+	return { cost, isPlaceholder: false };
+}
+
+/**
  * Video size presets for LTX models mapped to dimensions.
  */
 const VIDEO_SIZE_PRESETS: Record<string, { width: number; height: number }> = {
@@ -1099,6 +1193,8 @@ export function calculateCost(
 			return costByVideoPerMillionTokens(priceConfig, extracted);
 		case 'costByVideoMegapixels':
 			return costByVideoMegapixels(priceConfig, extracted);
+		case 'costByImageMegapixels':
+			return costByImageMegapixels(priceConfig, extracted);
 		default:
 			return {
 				cost: 0,
@@ -1493,6 +1589,11 @@ export function formatPrice(price: ModelPriceConfig | number | undefined): strin
 		case 'costByVideoMegapixels':
 			return price.pricePerMegapixel !== undefined
 				? `$${price.pricePerMegapixel.toFixed(4)}/MP`
+				: '-';
+
+		case 'costByImageMegapixels':
+			return price.pricePerMegapixel !== undefined
+				? `$${price.pricePerMegapixel.toFixed(4)}/MP/image`
 				: '-';
 
 		default:

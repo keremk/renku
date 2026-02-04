@@ -1,0 +1,171 @@
+{
+  "input_schema": {
+    "title": "XAIImageInput",
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "Abstract human silhouette, golden particles ready to burst outward representing joy, data visualization style, emotional expression through particles, artistic scientific"
+        ],
+        "maxLength": 8000,
+        "type": "string",
+        "description": "Text description of the desired image.",
+        "title": "Prompt"
+      },
+      "aspect_ratio": {
+        "enum": [
+          "2:1",
+          "20:9",
+          "19.5:9",
+          "16:9",
+          "4:3",
+          "3:2",
+          "1:1",
+          "2:3",
+          "3:4",
+          "9:16",
+          "9:19.5",
+          "9:20",
+          "1:2"
+        ],
+        "title": "Aspect Ratio",
+        "type": "string",
+        "description": "Aspect ratio of the generated image.",
+        "default": "1:1"
+      },
+      "num_images": {
+        "minimum": 1,
+        "title": "Number of Images",
+        "type": "integer",
+        "description": "Number of images to generate.",
+        "maximum": 4,
+        "default": 1
+      },
+      "sync_mode": {
+        "title": "Sync Mode",
+        "type": "boolean",
+        "description": "If `True`, the media will be returned as a data URI and the output data won't be available in the request history.",
+        "default": false
+      },
+      "output_format": {
+        "enum": [
+          "jpeg",
+          "png",
+          "webp"
+        ],
+        "title": "Output Format",
+        "type": "string",
+        "description": "The format of the generated image.",
+        "default": "jpeg"
+      }
+    },
+    "x-fal-order-properties": [
+      "prompt",
+      "num_images",
+      "aspect_ratio",
+      "output_format",
+      "sync_mode"
+    ],
+    "required": [
+      "prompt"
+    ]
+  },
+  "output_schema": {
+    "title": "XAIImageOutput",
+    "type": "object",
+    "properties": {
+      "images": {
+        "examples": [
+          [
+            {
+              "url": "https://v3b.fal.media/files/b/0a8b90b7/9avg_nKJmcVinjQHJR_Ja.jpg"
+            }
+          ]
+        ],
+        "title": "Images",
+        "type": "array",
+        "description": "The URL of the generated image.",
+        "items": {
+          "$ref": "#/ImageFile"
+        }
+      },
+      "revised_prompt": {
+        "title": "Revised Prompt",
+        "type": "string",
+        "description": "The enhanced prompt that was used to generate the image."
+      }
+    },
+    "x-fal-order-properties": [
+      "images",
+      "revised_prompt"
+    ],
+    "required": [
+      "images",
+      "revised_prompt"
+    ]
+  },
+  "ImageFile": {
+    "title": "ImageFile",
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "title": "File Size",
+        "type": "integer",
+        "description": "The size of the file in bytes."
+      },
+      "height": {
+        "title": "Height",
+        "type": "integer",
+        "description": "The height of the image"
+      },
+      "url": {
+        "title": "Url",
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
+      },
+      "width": {
+        "title": "Width",
+        "type": "integer",
+        "description": "The width of the image"
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name",
+        "type": "string",
+        "description": "The name of the file. It will be auto-generated if not provided."
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type",
+        "type": "string",
+        "description": "The mime type of the file."
+      },
+      "file_data": {
+        "format": "binary",
+        "title": "File Data",
+        "type": "string",
+        "description": "File data"
+      }
+    },
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data",
+      "width",
+      "height"
+    ],
+    "required": [
+      "url"
+    ]
+  }
+}

@@ -1,0 +1,160 @@
+{
+  "input_schema": {
+    "title": "XAIImageEditInput",
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "Make this scene more realistic but still keep the game vibes"
+        ],
+        "maxLength": 8000,
+        "type": "string",
+        "description": "Text description of the desired image.",
+        "title": "Prompt"
+      },
+      "num_images": {
+        "minimum": 1,
+        "title": "Number of Images",
+        "type": "integer",
+        "description": "Number of images to generate.",
+        "maximum": 4,
+        "default": 1
+      },
+      "sync_mode": {
+        "title": "Sync Mode",
+        "type": "boolean",
+        "description": "If `True`, the media will be returned as a data URI and the output data won't be available in the request history.",
+        "default": false
+      },
+      "output_format": {
+        "enum": [
+          "jpeg",
+          "png",
+          "webp"
+        ],
+        "title": "Output Format",
+        "type": "string",
+        "description": "The format of the generated image.",
+        "default": "jpeg"
+      },
+      "image_url": {
+        "examples": [
+          "https://v3b.fal.media/files/b/0a8b911d/Abk8vStrvmSPlzUqI_NN3_image_043.png"
+        ],
+        "title": "Image URL",
+        "type": "string",
+        "description": "URL of the image to edit.",
+        "format": "uri"
+      }
+    },
+    "x-fal-order-properties": [
+      "prompt",
+      "num_images",
+      "output_format",
+      "sync_mode",
+      "image_url"
+    ],
+    "required": [
+      "prompt",
+      "image_url"
+    ]
+  },
+  "output_schema": {
+    "title": "XAIImageEditOutput",
+    "type": "object",
+    "properties": {
+      "images": {
+        "examples": [
+          [
+            {
+              "url": "https://v3b.fal.media/files/b/0a8b911d/XMqiVoO2ECXUZEUYmPl2l.jpg"
+            }
+          ]
+        ],
+        "title": "Images",
+        "type": "array",
+        "description": "The URL of the edited image.",
+        "items": {
+          "$ref": "#/ImageFile"
+        }
+      },
+      "revised_prompt": {
+        "title": "Revised Prompt",
+        "type": "string",
+        "description": "The enhanced prompt that was used to generate the image."
+      }
+    },
+    "x-fal-order-properties": [
+      "images",
+      "revised_prompt"
+    ],
+    "required": [
+      "images",
+      "revised_prompt"
+    ]
+  },
+  "ImageFile": {
+    "title": "ImageFile",
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "title": "File Size",
+        "type": "integer",
+        "description": "The size of the file in bytes."
+      },
+      "height": {
+        "title": "Height",
+        "type": "integer",
+        "description": "The height of the image"
+      },
+      "url": {
+        "title": "Url",
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
+      },
+      "width": {
+        "title": "Width",
+        "type": "integer",
+        "description": "The width of the image"
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name",
+        "type": "string",
+        "description": "The name of the file. It will be auto-generated if not provided."
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type",
+        "type": "string",
+        "description": "The mime type of the file."
+      },
+      "file_data": {
+        "format": "binary",
+        "title": "File Data",
+        "type": "string",
+        "description": "File data"
+      }
+    },
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data",
+      "width",
+      "height"
+    ],
+    "required": [
+      "url"
+    ]
+  }
+}
