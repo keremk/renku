@@ -362,6 +362,19 @@ models:
           pricePerSecond: 0.1
         - resolution: 1080p
           pricePerSecond: 0.15
+  - name: wan/v2.6/image-to-video/flash
+    subProvider: wan
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 720p
+          pricePerSecond: 0.05
+        - resolution: 1080p
+          pricePerSecond: 0.075
   - name: wan/v2.6/reference-to-video
     subProvider: wan
     type: video
@@ -506,7 +519,6 @@ models:
       function: costByVideoMegapixels
       inputs: [num_frames, video_size]
       pricePerMegapixel: 0.0008
-
   - name: ltx-2-19b/distilled/image-to-video
     type: video
     mime:
@@ -515,7 +527,6 @@ models:
       function: costByVideoMegapixels
       inputs: [num_frames, video_size]
       pricePerMegapixel: 0.0008
-
   - name: ltx-2-19b/distilled/extend-video
     type: video
     mime:
@@ -524,7 +535,6 @@ models:
       function: costByVideoMegapixels
       inputs: [num_frames, video_size]
       pricePerMegapixel: 0.0008
-
   - name: ltx-2-19b/distilled/video-to-video
     type: video
     mime:
@@ -533,7 +543,40 @@ models:
       function: costByVideoMegapixels
       inputs: [num_frames, video_size]
       pricePerMegapixel: 0.0008
+  - name: ltx-2-19b/distilled/audio-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoMegapixels
+      inputs: [num_frames, video_size]
+      pricePerMegapixel: 0.0018
 
+  # XAI Video Models
+  - name: xai/grok-imagine-video/text-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.05
+  - name: xai/grok-imagine-video/image-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.05
+  - name: xai/grok-imagine-video/edit-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.06
 
   # STT (Speech-to-Text) Models
   - name: elevenlabs/speech-to-text

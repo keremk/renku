@@ -163,6 +163,14 @@ mappings:
       GenerateAudio: generate_audio
       CameraFixed: camera_fixed
 
+    # XAI Grok Imagine Video Image-to-Video
+    xai/grok-imagine-video/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+
     # LTX-2-19b Distilled Image-to-Video
     ltx-2-19b/distilled/image-to-video:
       Prompt: prompt

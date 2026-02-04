@@ -1,0 +1,161 @@
+{
+  "input_schema": {
+    "title": "XAIVideoEditInput",
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "Colorize the video"
+        ],
+        "maxLength": 4096,
+        "type": "string",
+        "description": "Text description of the desired edit.",
+        "title": "Prompt"
+      },
+      "resolution": {
+        "enum": [
+          "auto",
+          "480p",
+          "720p"
+        ],
+        "title": "Resolution",
+        "type": "string",
+        "description": "Resolution of the output video.",
+        "default": "auto"
+      },
+      "video_url": {
+        "examples": [
+          "https://v3b.fal.media/files/b/0a8b9112/V5Z_NIPE3ppMDWivNo6_q_video_019.mp4"
+        ],
+        "title": "Video URL",
+        "type": "string",
+        "description": "URL of the input video to edit. The video will be resized to a maximum area of 854x480 pixels and truncated to 8 seconds.",
+        "format": "uri"
+      }
+    },
+    "x-fal-order-properties": [
+      "prompt",
+      "video_url",
+      "resolution"
+    ],
+    "required": [
+      "prompt",
+      "video_url"
+    ]
+  },
+  "output_schema": {
+    "title": "XAIVideoEditOutput",
+    "type": "object",
+    "properties": {
+      "video": {
+        "examples": [
+          {
+            "height": 720,
+            "duration": 5.041667,
+            "url": "https://v3b.fal.media/files/b/0a8b9113/EuDrZuQTW9m1phBXOsauz_EpJH3s8X.mp4",
+            "width": 1280,
+            "fps": 24,
+            "file_name": "EuDrZuQTW9m1phBXOsauz_EpJH3s8X.mp4",
+            "num_frames": 121,
+            "content_type": "video/mp4"
+          }
+        ],
+        "title": "Video",
+        "description": "The generated video.",
+        "allOf": [
+          {
+            "$ref": "#/VideoFile"
+          }
+        ]
+      }
+    },
+    "x-fal-order-properties": [
+      "video"
+    ],
+    "required": [
+      "video"
+    ]
+  },
+  "VideoFile": {
+    "title": "VideoFile",
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "title": "File Size",
+        "type": "integer",
+        "description": "The size of the file in bytes."
+      },
+      "duration": {
+        "title": "Duration",
+        "type": "number",
+        "description": "The duration of the video"
+      },
+      "height": {
+        "title": "Height",
+        "type": "integer",
+        "description": "The height of the video"
+      },
+      "url": {
+        "title": "Url",
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
+      },
+      "fps": {
+        "title": "Fps",
+        "type": "number",
+        "description": "The FPS of the video"
+      },
+      "width": {
+        "title": "Width",
+        "type": "integer",
+        "description": "The width of the video"
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name",
+        "type": "string",
+        "description": "The name of the file. It will be auto-generated if not provided."
+      },
+      "num_frames": {
+        "title": "Num Frames",
+        "type": "integer",
+        "description": "The number of frames in the video"
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type",
+        "type": "string",
+        "description": "The mime type of the file."
+      },
+      "file_data": {
+        "format": "binary",
+        "title": "File Data",
+        "type": "string",
+        "description": "File data"
+      }
+    },
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data",
+      "width",
+      "height",
+      "fps",
+      "duration",
+      "num_frames"
+    ],
+    "required": [
+      "url"
+    ]
+  }
+}

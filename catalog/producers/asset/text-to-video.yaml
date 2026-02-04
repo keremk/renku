@@ -136,6 +136,13 @@ mappings:
       CameraFixed: camera_fixed
       Seed: seed
 
+    # XAI Grok Imagine Video Text-to-Video
+    xai/grok-imagine-video/text-to-video:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+
     # LTX-2-19b Distilled Text-to-Video
     ltx-2-19b/distilled/text-to-video:
       Prompt: prompt

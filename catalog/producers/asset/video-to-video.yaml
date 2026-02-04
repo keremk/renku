@@ -55,6 +55,12 @@ artifacts:
 
 mappings:
   fal-ai:
+    # XAI Grok Imagine Video Edit-Video
+    xai/grok-imagine-video/edit-video:
+      Prompt: prompt
+      SourceVideo: video_url
+      Resolution: resolution
+
     # LTX-2-19b Distilled Extend-Video
     ltx-2-19b/distilled/extend-video:
       Prompt: prompt
