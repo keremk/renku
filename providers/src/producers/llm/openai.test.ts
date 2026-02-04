@@ -4,7 +4,6 @@ import { createOpenAiLlmHandler } from './openai.js';
 
 const mocks = vi.hoisted(() => ({
   generateText: vi.fn(),
-  generateObject: vi.fn(),
   modelFn: vi.fn(),
   createOpenAI: vi.fn(),
 }));
@@ -22,7 +21,6 @@ vi.mock('ai', async () => {
   return {
     ...actual,
     generateText: (...args: unknown[]) => mocks.generateText(...args),
-    generateObject: (...args: unknown[]) => mocks.generateObject(...args),
   };
 });
 
@@ -111,7 +109,6 @@ describe('createOpenAiLlmHandler', () => {
     mocks.modelFn.mockReturnValue('mock-model');
     mocks.createOpenAI.mockReturnValue(mocks.modelFn);
     mocks.generateText.mockReset();
-    mocks.generateObject.mockReset();
   });
 
   it('only initializes the OpenAI client once during warmStart + invoke', async () => {
@@ -158,8 +155,8 @@ describe('createOpenAiLlmHandler', () => {
   });
 
   it('invokes OpenAI with implicit artifact mapping (camelCase to PascalCase)', async () => {
-    mocks.generateObject.mockResolvedValue({
-      object: {
+    mocks.generateText.mockResolvedValue({
+      output: {
         MovieTitle: 'Journey to Mars',
         MovieSummary: 'A thrilling space adventure',
       },
@@ -212,11 +209,12 @@ describe('createOpenAiLlmHandler', () => {
     expect(mocks.createOpenAI).toHaveBeenCalledWith({ apiKey: 'test-key' });
     expect(mocks.modelFn).toHaveBeenCalledWith('openai/gpt5');
 
-    expect(mocks.generateObject).toHaveBeenCalledTimes(1);
-    const callArgs = mocks.generateObject.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(mocks.generateText).toHaveBeenCalledTimes(1);
+    const callArgs = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(callArgs.prompt).toContain('Topic: space travel');
     expect(callArgs.model).toBe('mock-model');
     expect(callArgs.system).toBe('Write for children');
+    expect(callArgs.output).toBeDefined();
 
     expect(result.status).toBe('succeeded');
     expect(result.artefacts).toHaveLength(2);
@@ -233,8 +231,8 @@ describe('createOpenAiLlmHandler', () => {
   });
 
   it('handles array properties with segment indexing', async () => {
-    mocks.generateObject.mockResolvedValueOnce({
-      object: {
+    mocks.generateText.mockResolvedValueOnce({
+      output: {
         MovieTitle: 'The Great War',
         NarrationScript: ['Segment zero', 'Segment one', 'Segment two'],
       },
@@ -349,8 +347,8 @@ describe('createOpenAiLlmHandler', () => {
   });
 
   it('marks artefacts as failed when field is missing from JSON response', async () => {
-    mocks.generateObject.mockResolvedValueOnce({
-      object: { MovieTitle: 'Title only' },
+    mocks.generateText.mockResolvedValueOnce({
+      output: { MovieTitle: 'Title only' },
       usage: { inputTokens: 5, outputTokens: 10, totalTokens: 15 },
       warnings: [],
       response: { id: 'resp-missing', model: 'openai/gpt5', createdAt: '' },
@@ -475,7 +473,7 @@ describe('createOpenAiLlmHandler', () => {
   });
 
   it('simulates responses in dry-run mode without calling the AI provider', async () => {
-    // In simulated mode, all validation runs the same as live mode, but generateObject
+    // In simulated mode, all validation runs the same as live mode, but generateText
     // is NOT called - we use simulateOpenAiGeneration at the very end instead
 
     const factory = createOpenAiLlmHandler();
@@ -528,8 +526,8 @@ describe('createOpenAiLlmHandler', () => {
 
     const result = await handler.invoke(request);
 
-    // In simulated mode, generateObject is NOT called (we use simulateOpenAiGeneration)
-    expect(mocks.generateObject).not.toHaveBeenCalled();
+    // In simulated mode, generateText is NOT called (we use simulateOpenAiGeneration)
+    expect(mocks.generateText).not.toHaveBeenCalled();
     expect(result.status).toBe('succeeded');
 
     // The simulated data is generated based on the schema
@@ -545,8 +543,8 @@ describe('createOpenAiLlmHandler', () => {
   });
 
   it('normalizes TOML config from [prompt_settings] section', async () => {
-    mocks.generateObject.mockResolvedValueOnce({
-      object: {
+    mocks.generateText.mockResolvedValueOnce({
+      output: {
         MovieTitle: 'The Battle',
         MovieSummary: 'A historic event',
       },
@@ -607,7 +605,7 @@ describe('createOpenAiLlmHandler', () => {
     const summary = result.artefacts.find((artefact) => artefact.artefactId === 'Artifact:MovieSummary');
     expect(summary?.blob?.data).toBe('A historic event');
 
-    const args = mocks.generateObject.mock.calls[0]?.[0] as Record<string, unknown>;
+    const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(typeof args.system).toBe('string');
     expect((args.system as string) ?? '').toContain('Teach kids about English history.');
   });
@@ -664,8 +662,8 @@ describe('createOpenAiLlmHandler', () => {
   });
 
   it('passes reasoning effort to provider options for reasoning models', async () => {
-    mocks.generateObject.mockResolvedValueOnce({
-      object: { Result: 'analyzed' },
+    mocks.generateText.mockResolvedValueOnce({
+      output: { Result: 'analyzed' },
       usage: { inputTokens: 50, outputTokens: 100, totalTokens: 150 },
       warnings: [],
       response: { id: 'resp-reason', model: 'o1', createdAt: '' },
@@ -690,14 +688,14 @@ describe('createOpenAiLlmHandler', () => {
 
     await handler.invoke(request);
 
-    expect(mocks.generateObject).toHaveBeenCalledTimes(1);
-    const args = mocks.generateObject.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(mocks.generateText).toHaveBeenCalledTimes(1);
+    const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
     const providerOpts = args.providerOptions as Record<string, Record<string, unknown>> | undefined;
     expect(providerOpts?.openai?.reasoningEffort).toBe('high');
   });
 
-  it('propagates errors when generateObject fails', async () => {
-    mocks.generateObject.mockRejectedValueOnce(new Error('API rate limit exceeded'));
+  it('propagates errors when generateText with structured output fails', async () => {
+    mocks.generateText.mockRejectedValueOnce(new Error('API rate limit exceeded'));
 
     const handler = buildHandler();
     await handler.warmStart?.({ logger: undefined });
@@ -791,9 +789,9 @@ describe('createOpenAiLlmHandler', () => {
     await expect(handler.invoke(request)).rejects.toThrow(/MissingVar/);
   });
 
-  it('passes schema name and description to generateObject', async () => {
-    mocks.generateObject.mockResolvedValueOnce({
-      object: { Title: 'Test Movie' },
+  it('passes schema name and description to generateText with structured output', async () => {
+    mocks.generateText.mockResolvedValueOnce({
+      output: { Title: 'Test Movie' },
       usage: { inputTokens: 20, outputTokens: 10, totalTokens: 30 },
       warnings: [],
       response: { id: 'resp-schema', model: 'gpt5', createdAt: '' },
@@ -819,10 +817,10 @@ describe('createOpenAiLlmHandler', () => {
 
     await handler.invoke(request);
 
-    expect(mocks.generateObject).toHaveBeenCalledTimes(1);
-    const args = mocks.generateObject.mock.calls[0]?.[0] as Record<string, unknown>;
-    expect(args.schemaName).toBe('MovieSchema');
-    expect(args.schemaDescription).toBe('Schema for movie data');
+    expect(mocks.generateText).toHaveBeenCalledTimes(1);
+    const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+    // With Output.object(), name and description are passed via the output option
+    expect(args.output).toBeDefined();
   });
 
   it('requires API key during warmStart in simulated mode (same as live)', async () => {
@@ -844,8 +842,8 @@ describe('createOpenAiLlmHandler', () => {
   });
 
   it('includes usage and response metadata in diagnostics', async () => {
-    mocks.generateObject.mockResolvedValueOnce({
-      object: { Title: 'Test' },
+    mocks.generateText.mockResolvedValueOnce({
+      output: { Title: 'Test' },
       usage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 },
       warnings: ['Some warning about token usage'],
       response: { id: 'resp-123', model: 'gpt-4o', createdAt: '2025-01-01T00:00:00Z' },
@@ -876,5 +874,264 @@ describe('createOpenAiLlmHandler', () => {
     });
     expect(result.diagnostics?.warnings).toEqual(['Some warning about token usage']);
     expect(result.diagnostics?.response).toMatchObject({ id: 'resp-123' });
+  });
+
+  describe('auto-derive responseFormat from outputSchema', () => {
+    it('automatically uses structured output when outputSchema is present in request extras', async () => {
+      mocks.generateText.mockResolvedValueOnce({
+        output: { MovieTitle: 'Auto-derived Title', MovieSummary: 'Auto-derived summary' },
+        usage: { inputTokens: 50, outputTokens: 100, totalTokens: 150 },
+        warnings: [],
+        response: { id: 'resp-auto', model: 'openai/gpt5', createdAt: '' },
+      });
+
+      const handler = buildHandler();
+      await handler.warmStart?.({ logger: undefined });
+
+      const outputSchema = JSON.stringify({
+        title: 'MovieOutput',
+        description: 'Movie generation output',
+        type: 'object',
+        properties: {
+          MovieTitle: { type: 'string' },
+          MovieSummary: { type: 'string' },
+        },
+        required: ['MovieTitle', 'MovieSummary'],
+      });
+
+      const request = createJobContext({
+        produces: ['Artifact:MovieTitle', 'Artifact:MovieSummary'],
+        context: {
+          providerConfig: {
+            systemPrompt: 'Generate a movie',
+            // No responseFormat specified - should auto-derive from outputSchema
+          },
+          extras: {
+            schema: {
+              output: outputSchema,
+            },
+            resolvedInputs: {},
+          },
+        },
+      });
+
+      const result = await handler.invoke(request);
+
+      // Should use generateText with output option (structured output)
+      expect(mocks.generateText).toHaveBeenCalledTimes(1);
+      expect(result.status).toBe('succeeded');
+      expect(result.artefacts).toHaveLength(2);
+
+      // Verify output option was passed (contains schema)
+      const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(args.output).toBeDefined();
+    });
+
+    it('uses explicit responseFormat config over auto-derivation from outputSchema', async () => {
+      mocks.generateText.mockResolvedValueOnce({
+        text: 'Plain text response',
+        usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+        warnings: [],
+        response: { id: 'resp-explicit', model: 'openai/gpt5', createdAt: '' },
+      });
+
+      const handler = buildHandler();
+      await handler.warmStart?.({ logger: undefined });
+
+      const outputSchema = JSON.stringify({
+        type: 'object',
+        properties: { Title: { type: 'string' } },
+      });
+
+      const request = createJobContext({
+        produces: ['Artifact:Output'],
+        context: {
+          providerConfig: {
+            systemPrompt: 'Generate text',
+            // Explicit text responseFormat should override outputSchema
+            responseFormat: { type: 'text' },
+          },
+          extras: {
+            schema: {
+              output: outputSchema, // Has outputSchema but explicit config says text
+            },
+            resolvedInputs: {},
+          },
+        },
+      });
+
+      const result = await handler.invoke(request);
+
+      // Should use generateText without output option (text mode)
+      expect(mocks.generateText).toHaveBeenCalledTimes(1);
+      const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(args.output).toBeUndefined(); // No structured output
+      expect(result.status).toBe('succeeded');
+    });
+
+    it('explicit json_schema config takes precedence over outputSchema', async () => {
+      mocks.generateText.mockResolvedValueOnce({
+        output: { ExplicitTitle: 'From explicit schema' },
+        usage: { inputTokens: 20, outputTokens: 40, totalTokens: 60 },
+        warnings: [],
+        response: { id: 'resp-explicit-json', model: 'openai/gpt5', createdAt: '' },
+      });
+
+      const handler = buildHandler();
+      await handler.warmStart?.({ logger: undefined });
+
+      const outputSchemaFromContext = JSON.stringify({
+        title: 'ContextSchema',
+        type: 'object',
+        properties: { ContextTitle: { type: 'string' } },
+      });
+
+      const explicitSchema = {
+        type: 'object',
+        properties: { ExplicitTitle: { type: 'string' } },
+      };
+
+      const request = createJobContext({
+        produces: ['Artifact:ExplicitTitle'],
+        context: {
+          providerConfig: {
+            systemPrompt: 'Generate',
+            // Explicit json_schema with different schema
+            responseFormat: {
+              type: 'json_schema',
+              schema: explicitSchema,
+              name: 'ExplicitSchemaName',
+            },
+          },
+          extras: {
+            schema: {
+              output: outputSchemaFromContext, // Different schema in context
+            },
+            resolvedInputs: {},
+          },
+        },
+      });
+
+      const result = await handler.invoke(request);
+
+      // Should use generateText with output option (structured output)
+      expect(mocks.generateText).toHaveBeenCalledTimes(1);
+      expect(result.status).toBe('succeeded');
+
+      // Verify the output option was passed (structured output mode)
+      const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(args.output).toBeDefined();
+    });
+
+    it('defaults to text mode when no outputSchema and no responseFormat', async () => {
+      mocks.generateText.mockResolvedValueOnce({
+        text: 'Default text response',
+        usage: { inputTokens: 5, outputTokens: 10, totalTokens: 15 },
+        warnings: [],
+        response: { id: 'resp-default', model: 'openai/gpt5', createdAt: '' },
+      });
+
+      const handler = buildHandler();
+      await handler.warmStart?.({ logger: undefined });
+
+      const request = createJobContext({
+        produces: ['Artifact:Output'],
+        context: {
+          providerConfig: {
+            systemPrompt: 'Generate something',
+            // No responseFormat, no outputSchema in extras
+          },
+          extras: {
+            resolvedInputs: {},
+            // No schema.output
+          },
+        },
+      });
+
+      const result = await handler.invoke(request);
+
+      // Should default to generateText without output option (text mode)
+      expect(mocks.generateText).toHaveBeenCalledTimes(1);
+      const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(args.output).toBeUndefined(); // No structured output
+      expect(result.status).toBe('succeeded');
+    });
+
+    it('uses outputSchema title as schema name when auto-deriving', async () => {
+      mocks.generateText.mockResolvedValueOnce({
+        output: { Content: 'Test content' },
+        usage: { inputTokens: 30, outputTokens: 60, totalTokens: 90 },
+        warnings: [],
+        response: { id: 'resp-title', model: 'openai/gpt5', createdAt: '' },
+      });
+
+      const handler = buildHandler();
+      await handler.warmStart?.({ logger: undefined });
+
+      const outputSchema = JSON.stringify({
+        title: 'CustomSchemaTitle',
+        description: 'Custom schema description',
+        type: 'object',
+        properties: { Content: { type: 'string' } },
+      });
+
+      const request = createJobContext({
+        produces: ['Artifact:Content'],
+        context: {
+          providerConfig: {
+            systemPrompt: 'Generate content',
+          },
+          extras: {
+            schema: { output: outputSchema },
+            resolvedInputs: {},
+          },
+        },
+      });
+
+      await handler.invoke(request);
+
+      // Should use generateText with output option (structured output)
+      expect(mocks.generateText).toHaveBeenCalledTimes(1);
+      const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(args.output).toBeDefined();
+    });
+
+    it('falls back to "output" as schema name when title is not in outputSchema', async () => {
+      mocks.generateText.mockResolvedValueOnce({
+        output: { Data: 'Test data' },
+        usage: { inputTokens: 25, outputTokens: 50, totalTokens: 75 },
+        warnings: [],
+        response: { id: 'resp-notitle', model: 'openai/gpt5', createdAt: '' },
+      });
+
+      const handler = buildHandler();
+      await handler.warmStart?.({ logger: undefined });
+
+      const outputSchema = JSON.stringify({
+        type: 'object',
+        properties: { Data: { type: 'string' } },
+        // No title field
+      });
+
+      const request = createJobContext({
+        produces: ['Artifact:Data'],
+        context: {
+          providerConfig: {
+            systemPrompt: 'Generate data',
+          },
+          extras: {
+            schema: { output: outputSchema },
+            resolvedInputs: {},
+          },
+        },
+      });
+
+      await handler.invoke(request);
+
+      // Should use generateText with output option (structured output)
+      expect(mocks.generateText).toHaveBeenCalledTimes(1);
+      const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(args.output).toBeDefined();
+    });
   });
 });

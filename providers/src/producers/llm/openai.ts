@@ -10,6 +10,7 @@ import {
   buildArtefactsFromResponse,
   sanitizeResponseMetadata,
   type OpenAiLlmConfig,
+  type OpenAiResponseFormat,
   type GenerationResult,
 } from '../../sdk/openai/index.js';
 
@@ -53,22 +54,30 @@ export function createOpenAiLlmHandler(): HandlerFactory {
 
         // 1. Parse config
         const config = runtime.config.parse<OpenAiLlmConfig>(parseOpenAiConfig);
-        const schemaInfo = config.responseFormat?.type === 'json_schema'
+
+        // 2. Auto-derive responseFormat from outputSchema if not explicitly set
+        const rawConfig = runtime.config.raw as Record<string, unknown> | null | undefined;
+        const hasExplicitResponseFormat = rawConfig?.responseFormat !== undefined;
+        const outputSchema = getOutputSchemaFromRequest(request);
+        const responseFormat = deriveResponseFormat(config.responseFormat, outputSchema, hasExplicitResponseFormat);
+
+        const schemaInfo = responseFormat?.type === 'json_schema'
           ? {
-              hasSchema: Boolean(config.responseFormat.schema),
-              schema: config.responseFormat.schema,
+              hasSchema: Boolean(responseFormat.schema),
+              schema: responseFormat.schema,
             }
           : { hasSchema: false };
         const configLogPayload = {
           producer: request.jobId,
           provider: descriptor.provider,
           model: descriptor.model,
-          responseFormat: config.responseFormat?.type,
+          responseFormat: responseFormat?.type,
+          autoDerivedFromOutputSchema: outputSchema !== undefined && config.responseFormat?.type !== 'json_schema',
           ...schemaInfo,
         };
         logger?.debug?.('providers.openai.config', configLogPayload);
 
-        // 2. Render prompts with variable substitution
+        // 3. Render prompts with variable substitution
         const promptInputs = buildPromptVariablePayload(config.variables, runtime, request);
         const prompts = renderPrompts(config, promptInputs, logger);
         const promptPayload = {
@@ -83,7 +92,7 @@ export function createOpenAiLlmHandler(): HandlerFactory {
         };
         logger?.debug?.('providers.openai.prompts', promptLogPayload);
 
-        // 3. Call OpenAI via AI SDK
+        // 4. Call OpenAI via AI SDK
         // Both live and simulated modes run the same code path - only the final
         // API call is skipped in simulated mode
         await clientManager.ensure();
@@ -92,7 +101,7 @@ export function createOpenAiLlmHandler(): HandlerFactory {
         const generation: GenerationResult = await callOpenAi({
           model,
           prompts,
-          responseFormat: config.responseFormat,
+          responseFormat,
           config,
           mode: init.mode,
           request,
@@ -238,4 +247,54 @@ interface FanInValue {
 
 function isFanInValue(value: unknown): value is FanInValue {
   return Boolean(value && typeof value === 'object' && Array.isArray((value as FanInValue).groups));
+}
+
+/**
+ * Extracts outputSchema from request context extras.
+ * The outputSchema is set by core in producer-graph.ts via extras.schema.output.
+ */
+function getOutputSchemaFromRequest(request: ProviderJobContext): string | undefined {
+  const extras = request.context?.extras as Record<string, unknown> | undefined;
+  const schema = extras?.schema as Record<string, unknown> | undefined;
+  return typeof schema?.output === 'string' ? schema.output : undefined;
+}
+
+/**
+ * Derives the responseFormat to use, auto-deriving from outputSchema if available.
+ * Explicit config (json_schema OR text) takes precedence over auto-derivation.
+ *
+ * @param configFormat - The parsed response format from config
+ * @param outputSchema - The output schema from request context (if any)
+ * @param hasExplicitConfig - Whether the raw config explicitly set responseFormat
+ */
+function deriveResponseFormat(
+  configFormat: OpenAiResponseFormat | undefined,
+  outputSchema: string | undefined,
+  hasExplicitConfig: boolean,
+): OpenAiResponseFormat {
+  // Explicit config takes precedence (user intentionally set a format)
+  if (hasExplicitConfig && configFormat?.type !== undefined) {
+    return configFormat;
+  }
+
+  // Auto-derive from outputSchema if available and no explicit config
+  if (outputSchema) {
+    return buildResponseFormatFromSchema(outputSchema);
+  }
+
+  // Default to config format or text
+  return configFormat ?? { type: 'text' };
+}
+
+/**
+ * Builds a responseFormat from an outputSchema JSON string.
+ */
+function buildResponseFormatFromSchema(schemaString: string): OpenAiResponseFormat {
+  const schema = JSON.parse(schemaString) as Record<string, unknown>;
+  return {
+    type: 'json_schema',
+    schema,
+    name: typeof schema.title === 'string' ? schema.title : 'output',
+    description: typeof schema.description === 'string' ? schema.description : undefined,
+  };
 }

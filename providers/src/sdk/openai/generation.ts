@@ -1,7 +1,7 @@
 import {
-  generateObject,
   generateText,
   jsonSchema,
+  Output,
   type CallSettings,
   type JSONSchema7,
   type JSONValue,
@@ -124,18 +124,21 @@ async function generateStructuredOutput(options: StructuredOutputOptions): Promi
     return simulateOpenAiGeneration({ request, config: { responseFormat } as OpenAiLlmConfig });
   }
 
-  const generation = await generateObject({
+  // Use generateText with Output.object() instead of deprecated generateObject
+  const generation = await generateText({
     ...baseCallOptions,
     model,
     prompt,
     system,
-    schema,
-    schemaName: responseFormat.name,
-    schemaDescription: responseFormat.description,
+    output: Output.object({
+      schema,
+      name: responseFormat.name,
+      description: responseFormat.description,
+    }),
   });
 
   return {
-    data: generation.object as JsonObject,
+    data: generation.output as JsonObject,
     usage: generation.usage as Record<string, unknown> | undefined,
     warnings: generation.warnings,
     response: generation.response as Record<string, unknown> | undefined,

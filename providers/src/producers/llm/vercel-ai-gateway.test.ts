@@ -572,4 +572,136 @@ describe('createVercelAiGatewayHandler', () => {
       'anthropic/claude-sonnet-4-20250514'
     );
   });
+
+  describe('auto-derive responseFormat from outputSchema', () => {
+    it('automatically uses structured output when outputSchema is present in request extras', async () => {
+      mocks.generateText.mockResolvedValueOnce({
+        output: { MovieTitle: 'Auto-derived Title', MovieSummary: 'Auto-derived summary' },
+        usage: { inputTokens: 50, outputTokens: 100, totalTokens: 150 },
+        warnings: [],
+        response: { id: 'resp-auto', model: 'claude-sonnet-4', createdAt: '' },
+      });
+
+      const handler = buildHandler();
+      await handler.warmStart?.({ logger: undefined });
+
+      const outputSchema = JSON.stringify({
+        title: 'MovieOutput',
+        description: 'Movie generation output',
+        type: 'object',
+        properties: {
+          MovieTitle: { type: 'string' },
+          MovieSummary: { type: 'string' },
+        },
+        required: ['MovieTitle', 'MovieSummary'],
+      });
+
+      const request = createJobContext({
+        produces: ['Artifact:MovieTitle', 'Artifact:MovieSummary'],
+        context: {
+          providerConfig: {
+            systemPrompt: 'Generate a movie',
+            // No responseFormat specified - should auto-derive from outputSchema
+          },
+          extras: {
+            schema: {
+              output: outputSchema,
+            },
+            resolvedInputs: {},
+          },
+        },
+      });
+
+      const result = await handler.invoke(request);
+
+      // Should use structured output (generateText is called once)
+      expect(mocks.generateText).toHaveBeenCalledTimes(1);
+      expect(result.status).toBe('succeeded');
+      expect(result.artefacts).toHaveLength(2);
+
+      // Verify the call includes the output option for structured output
+      const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(args.output).toBeDefined();
+    });
+
+    it('uses explicit responseFormat config over auto-derivation from outputSchema', async () => {
+      mocks.generateText.mockResolvedValueOnce({
+        text: 'Plain text response',
+        usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+        warnings: [],
+        response: { id: 'resp-explicit', model: 'claude-sonnet-4', createdAt: '' },
+      });
+
+      const handler = buildHandler();
+      await handler.warmStart?.({ logger: undefined });
+
+      const outputSchema = JSON.stringify({
+        type: 'object',
+        properties: { Title: { type: 'string' } },
+      });
+
+      const request = createJobContext({
+        produces: ['Artifact:Output'],
+        context: {
+          providerConfig: {
+            systemPrompt: 'Generate text',
+            // Explicit text responseFormat should override outputSchema
+            responseFormat: { type: 'text' },
+          },
+          extras: {
+            schema: {
+              output: outputSchema, // Has outputSchema but explicit config says text
+            },
+            resolvedInputs: {},
+          },
+        },
+      });
+
+      const result = await handler.invoke(request);
+
+      // Should use plain text because explicit config says text
+      expect(mocks.generateText).toHaveBeenCalledTimes(1);
+      expect(result.status).toBe('succeeded');
+
+      // Verify the call does NOT include the output option
+      const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(args.output).toBeUndefined();
+    });
+
+    it('defaults to plain text when no outputSchema and no responseFormat', async () => {
+      mocks.generateText.mockResolvedValueOnce({
+        text: 'Default text response',
+        usage: { inputTokens: 5, outputTokens: 10, totalTokens: 15 },
+        warnings: [],
+        response: { id: 'resp-default', model: 'claude-sonnet-4', createdAt: '' },
+      });
+
+      const handler = buildHandler();
+      await handler.warmStart?.({ logger: undefined });
+
+      const request = createJobContext({
+        produces: ['Artifact:Output'],
+        context: {
+          providerConfig: {
+            systemPrompt: 'Generate something',
+            // No responseFormat, no outputSchema in extras
+          },
+          extras: {
+            resolvedInputs: {},
+            // No schema.output
+          },
+        },
+      });
+
+      const result = await handler.invoke(request);
+
+      // Should default to plain text
+      expect(mocks.generateText).toHaveBeenCalledTimes(1);
+      expect(result.status).toBe('succeeded');
+
+      // Verify the call does NOT include the output option
+      const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(args.output).toBeUndefined();
+    });
+  });
 });

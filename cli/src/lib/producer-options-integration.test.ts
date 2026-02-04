@@ -4,7 +4,6 @@ import { loadBlueprintBundle } from './blueprint-loader/index.js';
 import {
   buildProducerOptionsFromBlueprint,
   type ModelSelection,
-  type BlueprintTreeNode,
 } from '@gorenku/core';
 import { CATALOG_ROOT, CLI_FIXTURES_BLUEPRINTS } from '../../tests/test-catalog-paths.js';
 
@@ -63,33 +62,8 @@ describe('producer options', () => {
     });
   });
 
-  it('throws when a json_schema variant is missing outputSchema', async () => {
-    const blueprint: BlueprintTreeNode = {
-      id: 'test-node',
-      namespacePath: [],
-      document: {
-        meta: { id: 'test-blueprint', name: 'Test', description: 'test blueprint' },
-        inputs: [],
-        artefacts: [],
-        edges: [],
-        producerImports: [],
-        producers: [
-          {
-            name: 'BrokenProducer',
-            models: [
-              {
-                provider: 'openai',
-                model: 'missing-schema',
-                textFormat: 'json_schema',
-              },
-            ],
-          },
-        ],
-      },
-      children: new Map(),
-      sourcePath: '/test/mock-blueprint.yaml',
-    };
-
-    await expect(buildProducerOptionsFromBlueprint(blueprint)).rejects.toThrow(/missing outputSchema/i);
-  });
+  // Note: The test "throws when a json_schema variant is missing outputSchema" was removed.
+  // This error was intentionally removed as part of the auto-derive responseFormat feature.
+  // The provider now auto-derives responseFormat from outputSchema in request context,
+  // rather than requiring textFormat and outputSchema to be paired in core.
 });

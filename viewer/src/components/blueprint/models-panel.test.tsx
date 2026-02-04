@@ -132,10 +132,10 @@ describe('ModelsPanel', () => {
   });
 
   describe('editable mode', () => {
-    const mockOnSave = vi.fn();
+    const mockOnSelectionChange = vi.fn();
 
     beforeEach(() => {
-      mockOnSave.mockClear();
+      mockOnSelectionChange.mockClear();
     });
 
     it('renders producer sections when editing is enabled', () => {
@@ -145,7 +145,7 @@ describe('ModelsPanel', () => {
           modelSelections={[createRegularSelection()]}
           selectedNodeId={null}
           isEditable={true}
-          onSave={mockOnSave}
+          onSelectionChange={mockOnSelectionChange}
         />
       );
 
@@ -163,7 +163,7 @@ describe('ModelsPanel', () => {
           modelSelections={selections}
           selectedNodeId={null}
           isEditable={true}
-          onSave={mockOnSave}
+          onSelectionChange={mockOnSelectionChange}
         />
       );
 
@@ -174,8 +174,8 @@ describe('ModelsPanel', () => {
   });
 
   describe('save behavior with nested STT selections', () => {
-    it('does not call onSave when selection matches original', () => {
-      const mockOnSave = vi.fn().mockResolvedValue(undefined);
+    it('does not call onSelectionChange when selection matches original', () => {
+      const mockOnSelectionChange = vi.fn();
       const selections = [createNestedSttSelection()];
 
       render(
@@ -184,7 +184,7 @@ describe('ModelsPanel', () => {
           modelSelections={selections}
           selectedNodeId={null}
           isEditable={true}
-          onSave={mockOnSave}
+          onSelectionChange={mockOnSelectionChange}
         />
       );
 
@@ -195,8 +195,8 @@ describe('ModelsPanel', () => {
         fireEvent.click(saveButton);
       }
 
-      // onSave should not have been called since nothing changed
-      expect(mockOnSave).not.toHaveBeenCalled();
+      // onSelectionChange should not have been called since nothing changed
+      expect(mockOnSelectionChange).not.toHaveBeenCalled();
     });
   });
 

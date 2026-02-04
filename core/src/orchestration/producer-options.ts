@@ -152,11 +152,6 @@ function toLoadedOption(
 
 function buildVariantConfig(variant: ProducerModelVariant): Record<string, unknown> {
   const base: Record<string, unknown> = { ...(variant.config ?? {}) };
-  const textFormat =
-    (variant.textFormat as string | undefined) ??
-    (variant.config?.text_format as string | undefined) ??
-    (variant.config?.textFormat as string | undefined);
-  const outputSchemaText = variant.outputSchema;
   if (variant.systemPrompt) {
     base.systemPrompt = variant.systemPrompt;
   }
@@ -166,30 +161,8 @@ function buildVariantConfig(variant: ProducerModelVariant): Record<string, unkno
   if (variant.variables) {
     base.variables = variant.variables;
   }
-  if (textFormat) {
-    const type = textFormat === 'json_schema' ? 'json_schema' : 'text';
-    if (type === 'json_schema') {
-      if (!outputSchemaText) {
-        throw createRuntimeError(
-          RuntimeErrorCode.MISSING_OUTPUT_SCHEMA,
-          `Model "${variant.model}" declared text_format=json_schema but is missing outputSchema.`,
-        );
-      }
-      const responseFormat: Record<string, unknown> = { type };
-      if (variant.outputSchema) {
-        try {
-          responseFormat.schema = JSON.parse(variant.outputSchema);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          throw createRuntimeError(
-            RuntimeErrorCode.INVALID_OUTPUT_SCHEMA_JSON,
-            `Model "${variant.model}" has invalid outputSchema JSON: ${message}`,
-          );
-        }
-      }
-      base.responseFormat = responseFormat;
-    }
-  }
+  // Note: responseFormat is no longer built here.
+  // The provider will auto-derive it from outputSchema in the request context.
   return base;
 }
 
@@ -321,7 +294,6 @@ async function selectionToVariant(
   const systemPrompt = selection.systemPrompt ?? promptConfig.systemPrompt;
   const userPrompt = selection.userPrompt ?? promptConfig.userPrompt;
   const variables = selection.variables ?? promptConfig.variables;
-  const textFormat = selection.textFormat ?? (selection.config?.text_format as string | undefined) ?? promptConfig.textFormat;
 
   if (systemPrompt) {
     config.systemPrompt = systemPrompt;
@@ -332,21 +304,8 @@ async function selectionToVariant(
   if (variables) {
     config.variables = variables;
   }
-
-  // Handle responseFormat for json_schema text format
-  if (textFormat) {
-    const type = textFormat === 'json_schema' ? 'json_schema' : 'text';
-    if (type === 'json_schema' && outputSchemaContent) {
-      try {
-        config.responseFormat = { type, schema: JSON.parse(outputSchemaContent) };
-      } catch {
-        throw createRuntimeError(
-          RuntimeErrorCode.FAILED_SCHEMA_PARSING,
-          `Failed to parse output schema for model ${selection.model}`,
-        );
-      }
-    }
-  }
+  // Note: responseFormat is no longer built here.
+  // The provider will auto-derive it from outputSchema in the request context.
 
   return {
     provider: selection.provider,
