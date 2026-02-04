@@ -1230,10 +1230,10 @@ function parseCombineTransform(raw: unknown, context: string): CombineTransform 
 
   const obj = raw as Record<string, unknown>;
 
-  if (!Array.isArray(obj.inputs) || obj.inputs.length < 2) {
+  if (!Array.isArray(obj.inputs) || obj.inputs.length < 1) {
     throw createParserError(
       ParserErrorCode.INVALID_COMBINE_TRANSFORM,
-      `combine.inputs must be array of 2+ inputs at "${context}".`,
+      `combine.inputs must be array of 1+ inputs at "${context}".`,
     );
   }
 

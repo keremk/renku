@@ -207,8 +207,8 @@ async function main() {
   // Determine output path
   let outputPath;
   if (type) {
-    if (!['audio', 'video', 'image'].includes(type)) {
-      console.error(`[fetch-fal] Invalid type: ${type}. Must be one of: audio, video, image`);
+    if (!['audio', 'video', 'image', 'json'].includes(type)) {
+      console.error(`[fetch-fal] Invalid type: ${type}. Must be one of: audio, video, image, json`);
       process.exit(1);
     }
     const filename = modelNameToFilename(normalizedName);
