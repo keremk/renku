@@ -136,7 +136,7 @@ export function AudioCard({
 
   return (
     <MediaCard isSelected={isSelected} footer={footer}>
-      <div className="aspect-video bg-gradient-to-br from-muted/70 via-muted/50 to-muted/30 dark:from-black/60 dark:via-black/40 dark:to-black/20 flex flex-col items-center justify-center p-6">
+      <div className="aspect-video bg-linear-to-br from-muted/70 via-muted/50 to-muted/30 dark:from-black/60 dark:via-black/40 dark:to-black/20 flex flex-col items-center justify-center p-6">
         {/* Hidden audio element */}
         <audio ref={audioRef} src={url} preload="metadata" title={title} />
 

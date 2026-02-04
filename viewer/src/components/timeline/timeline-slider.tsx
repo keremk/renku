@@ -115,7 +115,7 @@ export const TimelineSlider = ({
           <div className="absolute top-4 left-0 right-0 h-0.5 bg-muted-foreground/30" />
 
           <div
-            className="absolute top-4 left-0 h-0.5 bg-gradient-to-r from-orange-400 to-yellow-500 transition-all"
+            className="absolute top-4 left-0 h-0.5 bg-linear-to-r from-orange-400 to-yellow-500 transition-all"
             style={{ width: `${playheadPercent}%` }}
           />
 
@@ -166,8 +166,8 @@ export const TimelineSlider = ({
             }}
             onMouseDown={handleMouseDown}
           >
-            <div className="w-4 h-4 rounded-full bg-gradient-to-br from-orange-400 to-yellow-500 border-2 border-white shadow-lg hover:scale-110 transition-transform">
-              <div className="w-full h-full rounded-full bg-gradient-to-br from-white/20 to-transparent" />
+            <div className="w-4 h-4 rounded-full bg-linear-to-br from-orange-400 to-yellow-500 border-2 border-white shadow-lg hover:scale-110 transition-transform">
+              <div className="w-full h-full rounded-full bg-linear-to-br from-white/20 to-transparent" />
             </div>
           </div>
         </div>

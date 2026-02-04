@@ -65,7 +65,7 @@ function StatCard({
   iconColor?: string;
 }) {
   return (
-    <div className="flex flex-col items-center p-4 rounded-xl bg-gradient-to-b from-muted/80 to-muted/40 border border-border/30">
+    <div className="flex flex-col items-center p-4 rounded-xl bg-linear-to-b from-muted/80 to-muted/40 border border-border/30">
       <Icon className={`w-5 h-5 ${iconColor} mb-2 opacity-80`} />
       <div className="text-2xl font-semibold tracking-tight">{value}</div>
       <div className="text-xs text-muted-foreground mt-1">{label}</div>
@@ -81,8 +81,8 @@ function NoopContent({ onClose }: { onClose: () => void }) {
     <div className="flex flex-col items-center py-8 px-6">
       {/* Success icon with gradient ring */}
       <div className="relative mb-6">
-        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 blur-xl" />
-        <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 flex items-center justify-center ring-1 ring-emerald-500/20">
+        <div className="absolute inset-0 rounded-full bg-linear-to-br from-emerald-500/20 to-emerald-600/10 blur-xl" />
+        <div className="relative w-16 h-16 rounded-full bg-linear-to-br from-emerald-500/20 to-emerald-600/10 flex items-center justify-center ring-1 ring-emerald-500/20">
           <CheckCircle2 className="w-8 h-8 text-emerald-500" />
         </div>
       </div>
@@ -124,8 +124,8 @@ function ErrorContent({ error, onClose }: { error: string; onClose: () => void }
     <div className="flex flex-col items-center py-8 px-6">
       {/* Error icon */}
       <div className="relative mb-6">
-        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-red-500/20 to-red-600/10 blur-xl" />
-        <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-red-500/20 to-red-600/10 flex items-center justify-center ring-1 ring-red-500/20">
+        <div className="absolute inset-0 rounded-full bg-linear-to-br from-red-500/20 to-red-600/10 blur-xl" />
+        <div className="relative w-16 h-16 rounded-full bg-linear-to-br from-red-500/20 to-red-600/10 flex items-center justify-center ring-1 ring-red-500/20">
           <AlertCircle className="w-8 h-8 text-red-500" />
         </div>
       </div>

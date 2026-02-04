@@ -60,7 +60,7 @@ export function CollapsibleSection({
       <div className="flex items-start gap-3 w-full group hover:bg-muted/60 rounded-t-xl px-4 py-3.5 transition-colors">
         <CollapsibleTrigger className="flex-1 min-w-0 text-left">
           <div className="flex items-center gap-2.5">
-            <span className="text-primary flex-shrink-0">
+            <span className="text-primary shrink-0">
               {isOpen ? (
                 <ChevronDown className="size-5" />
               ) : (
@@ -71,7 +71,7 @@ export function CollapsibleSection({
               {title}
             </span>
             {count !== undefined && (
-              <span className="text-xs font-medium text-primary-foreground bg-primary px-2.5 py-0.5 rounded-full flex-shrink-0">
+              <span className="text-xs font-medium text-primary-foreground bg-primary px-2.5 py-0.5 rounded-full shrink-0">
                 {count}
               </span>
             )}
@@ -83,7 +83,7 @@ export function CollapsibleSection({
           )}
         </CollapsibleTrigger>
         {actions && (
-          <div className="flex-shrink-0 mt-0.5">{actions}</div>
+          <div className="shrink-0 mt-0.5">{actions}</div>
         )}
       </div>
       <CollapsibleContent className={cn(!isOpen && "hidden")}>

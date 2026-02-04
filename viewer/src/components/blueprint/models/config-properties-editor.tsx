@@ -105,7 +105,7 @@ export function ConfigPropertiesEditor({
   if (schemaError) {
     return (
       <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-        <AlertCircle className="size-4 flex-shrink-0 mt-0.5" />
+        <AlertCircle className="size-4 shrink-0 mt-0.5" />
         <div>
           <p className="font-medium">Failed to load config schema</p>
           <p className="text-xs mt-1 text-destructive/80">{schemaError}</p>

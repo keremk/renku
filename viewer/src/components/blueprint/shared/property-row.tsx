@@ -52,12 +52,12 @@ export function PropertyRow({
         <div className="flex items-center gap-2 mb-1">
           <span className="font-medium text-sm text-foreground">{name}</span>
           {type && (
-            <span className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded flex-shrink-0">
+            <span className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded shrink-0">
               {type}
             </span>
           )}
           {required && (
-            <span className="text-amber-500 text-xs flex-shrink-0">*</span>
+            <span className="text-amber-500 text-xs shrink-0">*</span>
           )}
         </div>
         {description && (

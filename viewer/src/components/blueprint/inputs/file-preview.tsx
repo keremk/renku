@@ -51,7 +51,7 @@ function FilePreviewThumbnail({
   return (
     <div
       className={cn(
-        "w-full h-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center",
+        "w-full h-full bg-linear-to-br from-muted to-muted/50 flex items-center justify-center",
         className
       )}
     >
