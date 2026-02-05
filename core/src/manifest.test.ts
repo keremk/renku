@@ -150,10 +150,77 @@ describe('ManifestService', () => {
     expect(manifest.inputs.inquiry_prompt.payloadDigest).toBe(
       hashPayload({ prompt: 'second' }).canonical,
     );
-    expect(Object.keys(manifest.artefacts)).toEqual(['segment_script_0']);
+    // The latest event for segment_script_0 is 'failed' (rev-0003),
+    // so it should be excluded from the manifest
+    expect(Object.keys(manifest.artefacts)).toEqual([]);
     expect(manifest.revision).toBe('rev-0003');
     expect(manifest.baseRevision).toBe('rev-0002');
     expect(manifest.createdAt).toBe(clock.now());
+  });
+
+  it('excludes stale succeeded artifact when latest event is failed', async () => {
+    const ctx = memoryContext();
+    await initializeMovieStorage(ctx, 'demo');
+    const manifestSvc = createManifestService(ctx);
+    const eventLog = createEventLog(ctx);
+
+    // Artifact A succeeds in rev-0001
+    const succeededEvent: ArtefactEvent = {
+      artefactId: 'artifact_a',
+      revision: 'rev-0001',
+      inputsHash: 'inputs:hash',
+      output: {
+        blob: {
+          hash: 'artifact-a-hash',
+          size: 100,
+          mimeType: 'text/plain',
+        },
+      },
+      status: 'succeeded',
+      producedBy: 'producer_a',
+      createdAt: new Date('2025-01-01T00:00:00Z').toISOString(),
+    };
+    await eventLog.appendArtefact('demo', succeededEvent);
+
+    // Artifact B succeeds in rev-0001 (control — should remain)
+    const succeededEventB: ArtefactEvent = {
+      artefactId: 'artifact_b',
+      revision: 'rev-0001',
+      inputsHash: 'inputs:hash',
+      output: {
+        blob: {
+          hash: 'artifact-b-hash',
+          size: 200,
+          mimeType: 'text/plain',
+        },
+      },
+      status: 'succeeded',
+      producedBy: 'producer_b',
+      createdAt: new Date('2025-01-01T00:00:00Z').toISOString(),
+    };
+    await eventLog.appendArtefact('demo', succeededEventB);
+
+    // Artifact A fails in rev-0002 — should evict the stale succeeded entry
+    await eventLog.appendArtefact('demo', {
+      ...succeededEvent,
+      revision: 'rev-0002',
+      status: 'failed',
+      createdAt: new Date('2025-01-02T00:00:00Z').toISOString(),
+    });
+
+    const manifest = await manifestSvc.buildFromEvents({
+      movieId: 'demo',
+      targetRevision: 'rev-0002',
+      baseRevision: 'rev-0001',
+      eventLog,
+      clock,
+    });
+
+    // Artifact A's latest event is 'failed' → excluded from manifest
+    expect(manifest.artefacts.artifact_a).toBeUndefined();
+    // Artifact B's latest event is 'succeeded' → still present
+    expect(manifest.artefacts.artifact_b).toBeDefined();
+    expect(manifest.artefacts.artifact_b.hash).toBe('artifact-b-hash');
   });
 
   it('errors when loading manifest without pointer', async () => {

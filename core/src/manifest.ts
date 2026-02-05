@@ -220,12 +220,19 @@ async function collectLatestArtefacts(
   eventLog: EventLog,
   movieId: string,
 ): Promise<Record<string, ManifestArtefactEntry>> {
-  const latest = new Map<string, ManifestArtefactEntry>();
+  // Track the LATEST event per artifact (regardless of status)
+  const allLatest = new Map<string, ArtefactEvent>();
   for await (const event of eventLog.streamArtefacts(movieId)) {
+    allLatest.set(event.artefactId, event);
+  }
+
+  // Only include artifacts whose LATEST event is succeeded
+  const latest = new Map<string, ManifestArtefactEntry>();
+  for (const [artefactId, event] of allLatest) {
     if (event.status !== 'succeeded') {
       continue;
     }
-    latest.set(event.artefactId, {
+    latest.set(artefactId, {
       hash: deriveArtefactHash(event),
       blob: event.output.blob,
       producedBy: event.producedBy,
