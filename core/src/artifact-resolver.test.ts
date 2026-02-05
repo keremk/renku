@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer';
 import { TextEncoder } from 'node:util';
 import { describe, expect, it } from 'vitest';
-import { extractArtifactKind, resolveArtifactsFromEventLog, resolveArtifactBlobPaths } from './artifact-resolver.js';
+import { extractArtifactKind, resolveArtifactsFromEventLog, resolveArtifactBlobPaths, findFailedArtifacts } from './artifact-resolver.js';
 import type { EventLog } from './event-log.js';
 import type { StorageContext } from './storage.js';
 import type { ArtefactEvent, BlobRef, RevisionId } from './types.js';
@@ -619,5 +619,231 @@ describe('resolveArtifactBlobPaths', () => {
 
       expect(result['Artifact:Test.Asset']).toBe(expected);
     }
+  });
+});
+
+describe('findFailedArtifacts', () => {
+  it('returns empty array for empty artifact IDs', async () => {
+    const mockEventLog = createMockEventLog([]);
+
+    const result = await findFailedArtifacts({
+      artifactIds: [],
+      eventLog: mockEventLog,
+      movieId: 'test-movie',
+    });
+
+    expect(result).toEqual([]);
+  });
+
+  it('returns empty array when all artifacts succeeded', async () => {
+    const events: ArtefactEvent[] = [
+      {
+        artefactId: 'Artifact:SegmentImage[segment=0]',
+        revision: 'rev-1' as RevisionId,
+        inputsHash: 'hash-1',
+        output: { blob: { hash: 'abc123', size: 100, mimeType: 'image/png' } },
+        status: 'succeeded',
+        producedBy: 'job-1',
+        createdAt: '2025-01-01T00:00:00Z',
+      },
+    ];
+
+    const mockEventLog = createMockEventLog(events);
+
+    const result = await findFailedArtifacts({
+      artifactIds: ['Artifact:SegmentImage[segment=0]'],
+      eventLog: mockEventLog,
+      movieId: 'test-movie',
+    });
+
+    expect(result).toEqual([]);
+  });
+
+  it('returns failed artifact IDs', async () => {
+    const events: ArtefactEvent[] = [
+      {
+        artefactId: 'Artifact:SegmentImage[segment=0]',
+        revision: 'rev-1' as RevisionId,
+        inputsHash: 'hash-1',
+        output: {},
+        status: 'failed',
+        producedBy: 'job-1',
+        createdAt: '2025-01-01T00:00:00Z',
+      },
+    ];
+
+    const mockEventLog = createMockEventLog(events);
+
+    const result = await findFailedArtifacts({
+      artifactIds: ['Artifact:SegmentImage[segment=0]'],
+      eventLog: mockEventLog,
+      movieId: 'test-movie',
+    });
+
+    expect(result).toEqual(['Artifact:SegmentImage[segment=0]']);
+  });
+
+  it('returns only failed artifacts from mixed results', async () => {
+    const events: ArtefactEvent[] = [
+      {
+        artefactId: 'Artifact:SegmentImage[segment=0]',
+        revision: 'rev-1' as RevisionId,
+        inputsHash: 'hash-1',
+        output: { blob: { hash: 'abc123', size: 100, mimeType: 'image/png' } },
+        status: 'succeeded',
+        producedBy: 'job-1',
+        createdAt: '2025-01-01T00:00:00Z',
+      },
+      {
+        artefactId: 'Artifact:SegmentImage[segment=1]',
+        revision: 'rev-1' as RevisionId,
+        inputsHash: 'hash-2',
+        output: {},
+        status: 'failed',
+        producedBy: 'job-2',
+        createdAt: '2025-01-01T00:00:01Z',
+      },
+      {
+        artefactId: 'Artifact:SegmentImage[segment=2]',
+        revision: 'rev-1' as RevisionId,
+        inputsHash: 'hash-3',
+        output: { blob: { hash: 'def456', size: 200, mimeType: 'image/png' } },
+        status: 'succeeded',
+        producedBy: 'job-3',
+        createdAt: '2025-01-01T00:00:02Z',
+      },
+    ];
+
+    const mockEventLog = createMockEventLog(events);
+
+    const result = await findFailedArtifacts({
+      artifactIds: [
+        'Artifact:SegmentImage[segment=0]',
+        'Artifact:SegmentImage[segment=1]',
+        'Artifact:SegmentImage[segment=2]',
+      ],
+      eventLog: mockEventLog,
+      movieId: 'test-movie',
+    });
+
+    expect(result).toEqual(['Artifact:SegmentImage[segment=1]']);
+  });
+
+  it('uses latest event status when multiple events exist', async () => {
+    const events: ArtefactEvent[] = [
+      {
+        artefactId: 'Artifact:SegmentImage[segment=0]',
+        revision: 'rev-1' as RevisionId,
+        inputsHash: 'hash-1',
+        output: {},
+        status: 'failed',
+        producedBy: 'job-1',
+        createdAt: '2025-01-01T00:00:00Z',
+      },
+      {
+        artefactId: 'Artifact:SegmentImage[segment=0]',
+        revision: 'rev-2' as RevisionId,
+        inputsHash: 'hash-2',
+        output: { blob: { hash: 'abc123', size: 100, mimeType: 'image/png' } },
+        status: 'succeeded',
+        producedBy: 'job-2',
+        createdAt: '2025-01-01T00:01:00Z',
+      },
+    ];
+
+    const mockEventLog = createMockEventLog(events);
+
+    const result = await findFailedArtifacts({
+      artifactIds: ['Artifact:SegmentImage[segment=0]'],
+      eventLog: mockEventLog,
+      movieId: 'test-movie',
+    });
+
+    // Latest event succeeded, so should return empty
+    expect(result).toEqual([]);
+  });
+
+  it('returns failed when latest event is failure after success', async () => {
+    const events: ArtefactEvent[] = [
+      {
+        artefactId: 'Artifact:SegmentImage[segment=0]',
+        revision: 'rev-1' as RevisionId,
+        inputsHash: 'hash-1',
+        output: { blob: { hash: 'abc123', size: 100, mimeType: 'image/png' } },
+        status: 'succeeded',
+        producedBy: 'job-1',
+        createdAt: '2025-01-01T00:00:00Z',
+      },
+      {
+        artefactId: 'Artifact:SegmentImage[segment=0]',
+        revision: 'rev-2' as RevisionId,
+        inputsHash: 'hash-2',
+        output: {},
+        status: 'failed',
+        producedBy: 'job-2',
+        createdAt: '2025-01-01T00:01:00Z',
+      },
+    ];
+
+    const mockEventLog = createMockEventLog(events);
+
+    const result = await findFailedArtifacts({
+      artifactIds: ['Artifact:SegmentImage[segment=0]'],
+      eventLog: mockEventLog,
+      movieId: 'test-movie',
+    });
+
+    // Latest event failed, so should return the artifact
+    expect(result).toEqual(['Artifact:SegmentImage[segment=0]']);
+  });
+
+  it('only checks requested artifacts', async () => {
+    const events: ArtefactEvent[] = [
+      {
+        artefactId: 'Artifact:SegmentImage[segment=0]',
+        revision: 'rev-1' as RevisionId,
+        inputsHash: 'hash-1',
+        output: {},
+        status: 'failed',
+        producedBy: 'job-1',
+        createdAt: '2025-01-01T00:00:00Z',
+      },
+      {
+        artefactId: 'Artifact:SegmentAudio[segment=0]',
+        revision: 'rev-1' as RevisionId,
+        inputsHash: 'hash-2',
+        output: {},
+        status: 'failed',
+        producedBy: 'job-2',
+        createdAt: '2025-01-01T00:00:01Z',
+      },
+    ];
+
+    const mockEventLog = createMockEventLog(events);
+
+    const result = await findFailedArtifacts({
+      artifactIds: ['Artifact:SegmentImage[segment=0]'], // Only check image
+      eventLog: mockEventLog,
+      movieId: 'test-movie',
+    });
+
+    // Should only return the requested artifact
+    expect(result).toEqual(['Artifact:SegmentImage[segment=0]']);
+    expect(result).not.toContain('Artifact:SegmentAudio[segment=0]');
+  });
+
+  it('returns empty array for artifacts not in event log', async () => {
+    const events: ArtefactEvent[] = []; // No events
+
+    const mockEventLog = createMockEventLog(events);
+
+    const result = await findFailedArtifacts({
+      artifactIds: ['Artifact:SegmentImage[segment=0]'],
+      eventLog: mockEventLog,
+      movieId: 'test-movie',
+    });
+
+    // No events means no failures detected (artifact might not have run yet)
+    expect(result).toEqual([]);
   });
 });

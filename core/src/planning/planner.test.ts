@@ -1181,6 +1181,93 @@ describe('planner', () => {
       expect(jobsInPlan.length).toBe(1);
       expect(jobsInPlan[0]?.jobId).toBe('Producer:TimelineAssembler');
     });
+
+    it('surgical mode also includes jobs with missing artifacts', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseRevision = 'rev-0001';
+      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+
+      // Create a manifest where AudioProducer[1] artifact is MISSING (simulating a failed run).
+      // Only AudioProducer[0]'s artifact and ScriptProducer's artifacts exist.
+      const artefactCreatedAt = new Date().toISOString();
+      const manifest: Manifest = {
+        revision: baseRevision,
+        baseRevision: null,
+        createdAt: artefactCreatedAt,
+        inputs: Object.fromEntries(
+          baseline.map((event) => [
+            event.id,
+            {
+              hash: event.hash,
+              payloadDigest: hashPayload(event.payload).canonical,
+              createdAt: event.createdAt,
+            },
+          ]),
+        ),
+        artefacts: {
+          'Artifact:NarrationScript[0]': {
+            hash: 'h0',
+            producedBy: 'Producer:ScriptProducer',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+          },
+          'Artifact:NarrationScript[1]': {
+            hash: 'h1',
+            producedBy: 'Producer:ScriptProducer',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+          },
+          'Artifact:SegmentAudio[0]': {
+            hash: 'h2',
+            producedBy: 'Producer:AudioProducer[0]',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+          },
+          // Artifact:SegmentAudio[1] is MISSING (AudioProducer[1] failed)
+          // Artifact:FinalVideo is MISSING (TimelineAssembler failed due to missing input)
+        },
+        timeline: {},
+      };
+
+      // Surgical regeneration targets AudioProducer[0] (e.g., user wants to regenerate SegmentAudio[0])
+      const plan = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: [],
+        artifactRegenerations: [{
+          targetArtifactId: 'Artifact:SegmentAudio[0]',
+          sourceJobId: 'Producer:AudioProducer[0]',
+        }],
+      });
+
+      const jobIds = plan.layers.flat().map((job) => job.jobId);
+
+      // Surgical targets: AudioProducer[0] + downstream TimelineAssembler
+      expect(jobIds).toContain('Producer:AudioProducer[0]');
+      expect(jobIds).toContain('Producer:TimelineAssembler');
+
+      // Dirty detection should also pick up AudioProducer[1] because SegmentAudio[1] is missing
+      expect(jobIds).toContain('Producer:AudioProducer[1]');
+
+      // ScriptProducer should NOT be included (its artifacts all exist)
+      expect(jobIds).not.toContain('Producer:ScriptProducer');
+
+      // Total: AudioProducer[0] (surgical) + AudioProducer[1] (missing) + TimelineAssembler (downstream of both)
+      expect(jobIds.length).toBe(3);
+
+      assertTopological(plan, graph);
+    });
   });
 
   describe('upToLayer', () => {

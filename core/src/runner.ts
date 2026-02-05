@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer';
-import { resolveArtifactsFromEventLog, readBlob, resolveArtifactBlobPaths } from './artifact-resolver.js';
+import { resolveArtifactsFromEventLog, readBlob, resolveArtifactBlobPaths, findFailedArtifacts } from './artifact-resolver.js';
 import { formatCanonicalArtifactId, isCanonicalArtifactId } from './canonical-ids.js';
 import type { EventLog } from './event-log.js';
 import { hashInputs } from './event-log.js';
@@ -208,9 +208,70 @@ async function executeJob(
   const expectedArtefacts = job.produces.filter((id) => isCanonicalArtifactId(id));
 
   try {
+    // Collect all required artifact IDs for this job
+    const requiredArtifactIds = collectResolvedArtifactIds(job);
+
+    // Check if any required upstream artifacts have failed
+    const failedUpstream = await findFailedArtifacts({
+      artifactIds: requiredArtifactIds,
+      eventLog,
+      movieId,
+    });
+
+    if (failedUpstream.length > 0) {
+      const completedAt = clock.now();
+      logger.info?.('runner.job.blocked', {
+        movieId,
+        revision,
+        jobId: job.jobId,
+        producer: job.producer,
+        layerIndex,
+        reason: 'upstream_failure',
+        failedArtifacts: failedUpstream,
+      });
+      notifications?.publish({
+        type: 'error',
+        message: `Job ${job.jobId} [${job.producer}] blocked: upstream artifacts failed.`,
+        timestamp: completedAt,
+      });
+
+      // Record failed artifacts for this job due to upstream failure
+      for (const artefactId of expectedArtefacts) {
+        const event: ArtefactEvent = {
+          artefactId,
+          revision,
+          inputsHash,
+          output: {},
+          status: 'failed',
+          producedBy: job.jobId,
+          diagnostics: {
+            reason: 'upstream_failure',
+            failedUpstreamArtifacts: failedUpstream,
+          },
+          createdAt: clock.now(),
+        };
+        await eventLog.appendArtefact(movieId, event);
+      }
+
+      return {
+        jobId: job.jobId,
+        producer: job.producer,
+        status: 'failed',
+        artefacts: [],
+        diagnostics: {
+          reason: 'upstream_failure',
+          failedUpstreamArtifacts: failedUpstream,
+        },
+        layerIndex,
+        attempt,
+        startedAt,
+        completedAt,
+      };
+    }
+
     // Resolve artifacts from event log
     const resolvedArtifacts = await resolveArtifactsFromEventLog({
-      artifactIds: collectResolvedArtifactIds(job),
+      artifactIds: requiredArtifactIds,
       eventLog,
       storage,
       movieId,

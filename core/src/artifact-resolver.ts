@@ -167,6 +167,53 @@ function formatResolvedKey(artifactId: string): string {
  * });
  * // Returns: { 'Artifact:VideoProducer.GeneratedVideo[0]': '/path/to/blobs/b8/b855...mp4' }
  */
+/**
+ * Checks which of the requested artifacts have failed status in the event log.
+ *
+ * This is used to detect upstream failures before executing downstream jobs.
+ * When an artifact has failed, downstream jobs that depend on it should not run.
+ *
+ * @param args Configuration with artifact IDs to check, event log, and movie ID
+ * @returns Array of artifact IDs that have failed status
+ *
+ * @example
+ * const failed = await findFailedArtifacts({
+ *   artifactIds: ['Artifact:VideoProducer.GeneratedVideo[0]', 'Artifact:AudioProducer.GeneratedAudio[0]'],
+ *   eventLog,
+ *   movieId: 'movie-123',
+ * });
+ * // Returns: ['Artifact:VideoProducer.GeneratedVideo[0]'] if that artifact failed
+ */
+export async function findFailedArtifacts(args: {
+  artifactIds: string[];
+  eventLog: EventLog;
+  movieId: string;
+}): Promise<string[]> {
+  if (args.artifactIds.length === 0) {
+    return [];
+  }
+
+  // Map to store latest event for each artifact ID
+  const latestEvents = new Map<string, ArtefactEvent>();
+
+  // Stream events and collect latest events for requested artifacts
+  for await (const event of args.eventLog.streamArtefacts(args.movieId)) {
+    if (args.artifactIds.includes(event.artefactId)) {
+      latestEvents.set(event.artefactId, event);
+    }
+  }
+
+  // Return IDs where the latest event is a failure
+  const failed: string[] = [];
+  for (const [artifactId, event] of latestEvents) {
+    if (event.status === 'failed') {
+      failed.push(artifactId);
+    }
+  }
+
+  return failed;
+}
+
 export async function resolveArtifactBlobPaths(args: {
   artifactIds: string[];
   eventLog: EventLog;

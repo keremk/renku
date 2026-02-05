@@ -9,7 +9,7 @@ meta:
 
 inputs:
   - name: Prompt
-    description: Optional text prompt for guidance.
+    description: Text prompt describing the video action and subject.
     type: string
 
   # Character

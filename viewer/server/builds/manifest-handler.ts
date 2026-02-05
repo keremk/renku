@@ -200,16 +200,17 @@ export async function getBuildManifest(
 
 /**
  * Gets the timeline data for a specific build.
+ * Returns null if the timeline artifact is not available (e.g., build incomplete or TimelineComposer failed).
  */
 export async function getBuildTimeline(
   blueprintFolder: string,
   movieId: string,
-): Promise<unknown> {
+): Promise<unknown | null> {
   const movieDir = path.join(blueprintFolder, "builds", movieId);
   const currentPath = path.join(movieDir, "current.json");
 
   if (!existsSync(currentPath)) {
-    throw new Error(`Build not found: ${movieId}`);
+    return null;
   }
 
   const currentContent = await fs.readFile(currentPath, "utf8");
@@ -218,12 +219,12 @@ export async function getBuildTimeline(
   };
 
   if (!current.manifestPath) {
-    throw new Error(`Manifest not found for build: ${movieId}`);
+    return null;
   }
 
   const manifestPath = path.join(movieDir, current.manifestPath);
   if (!existsSync(manifestPath)) {
-    throw new Error(`Manifest file not found for build: ${movieId}`);
+    return null;
   }
 
   const manifestContent = await fs.readFile(manifestPath, "utf8");
@@ -238,7 +239,7 @@ export async function getBuildTimeline(
 
   const artefact = manifest.artefacts?.[TIMELINE_ARTEFACT_ID];
   if (!artefact?.blob?.hash) {
-    throw new Error(`Timeline artefact not found for build: ${movieId}`);
+    return null;
   }
 
   // Resolve the blob path
@@ -260,7 +261,7 @@ export async function getBuildTimeline(
   }
 
   if (!timelinePath) {
-    throw new Error(`Timeline blob not found for build: ${movieId}`);
+    return null;
   }
 
   const contents = await fs.readFile(timelinePath, "utf8");

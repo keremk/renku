@@ -26,41 +26,6 @@ inputs:
     description: Custom height in pixels.
     type: integer
 
-  # Generation control
-  - name: NumImages
-    description: Number of images to generate (1-6).
-    type: integer
-  - name: Seed
-    description: Random seed for reproducibility.
-    type: integer
-  - name: GuidanceScale
-    description: Prompt adherence strength (1-20).
-    type: number
-  - name: NegativePrompt
-    description: What to avoid in the image.
-    type: string
-  - name: EnhancePrompt
-    description: Enable LLM prompt enhancement.
-    type: boolean
-
-  # Output
-  - name: OutputFormat
-    description: "Image format (jpeg, png, webp)."
-    type: string
-
-  # Safety
-  - name: EnableSafetyChecker
-    description: Enable content moderation.
-    type: boolean
-
-  # Model-specific
-  - name: Quality
-    description: "Image quality level (low, medium, high)."
-    type: string
-  - name: Background
-    description: "Background mode (auto, transparent, opaque)."
-    type: string
-
 artifacts:
   - name: GeneratedImage
     description: The generated image(s).
@@ -71,9 +36,6 @@ mappings:
     # Pattern 4: image_size presets
     bytedance/seedream/v4.5/text-to-image:
       Prompt: prompt
-      NumImages: num_images
-      Seed: seed
-      EnableSafetyChecker: enable_safety_checker
       # AspectRatio + Resolution combine into image_size
       ImageSize:
         field: image_size
@@ -97,14 +59,6 @@ mappings:
 
     bytedance/seedream/v4/text-to-image:
       Prompt: prompt
-      NumImages: num_images
-      Seed: seed
-      EnableSafetyChecker: enable_safety_checker
-      EnhancePrompt:
-        field: enhance_prompt_mode
-        transform:
-          true: standard
-          false: fast
       AspectRatio:
         field: image_size
         transform:
@@ -119,21 +73,12 @@ mappings:
     # Pattern 1: aspect_ratio only
     flux-pro/kontext/text-to-image:
       Prompt: prompt
-      NumImages: num_images
-      Seed: seed
-      GuidanceScale: guidance_scale
-      EnhancePrompt: enhance_prompt
-      OutputFormat: output_format
       AspectRatio: aspect_ratio
       # Resolution ignored - model doesn't support it
 
     # Pattern 5: Fixed dimension strings
     gpt-image-1.5:
       Prompt: prompt
-      NumImages: num_images
-      OutputFormat: output_format
-      Quality: quality
-      Background: background
       AspectRatio:
         field: image_size
         transform:
@@ -146,8 +91,6 @@ mappings:
     # Pattern 2: aspect_ratio + resolution
     nano-banana-pro:
       Prompt: prompt
-      NumImages: num_images
-      OutputFormat: output_format
       AspectRatio: aspect_ratio
       Resolution: resolution
       # Both pass through directly
@@ -155,12 +98,6 @@ mappings:
     # Pattern 4: image_size presets
     qwen-image-2512:
       Prompt: prompt
-      NumImages: num_images
-      Seed: seed
-      GuidanceScale: guidance_scale
-      NegativePrompt: negative_prompt
-      EnableSafetyChecker: enable_safety_checker
-      OutputFormat: output_format
       AspectRatio:
         field: image_size
         transform:
@@ -189,10 +126,6 @@ mappings:
 
     wan/v2.6/text-to-image:
       Prompt: prompt
-      Seed: seed
-      NegativePrompt: negative_prompt
-      NumImages: max_images
-      EnableSafetyChecker: enable_safety_checker
       AspectRatio:
         field: image_size
         transform:
@@ -204,11 +137,6 @@ mappings:
 
     hunyuan-image/v3/instruct/text-to-image:
       Prompt: prompt
-      NumImages: num_images
-      Seed: seed
-      GuidanceScale: guidance_scale
-      EnableSafetyChecker: enable_safety_checker
-      OutputFormat: output_format
       # AspectRatio preset - only applied when Width is not provided
       AspectRatio:
         conditional:
@@ -241,8 +169,6 @@ mappings:
 
     xai/grok-imagine-image:
       Prompt: prompt
-      NumImages: num_images
-      OutputFormat: output_format
       AspectRatio: aspect_ratio
 
   replicate:
@@ -253,8 +179,6 @@ mappings:
       Resolution: size
       Width: width
       Height: height
-      NumImages: max_images
-      EnhancePrompt: enhance_prompt
 
     # Bytedance Seedream 4.5
     bytedance/seedream-4.5:
@@ -263,8 +187,6 @@ mappings:
       Resolution: size
       Width: width
       Height: height
-      NumImages: max_images
-      EnhancePrompt: enhance_prompt
 
     # Google Nano Banana
     google/nano-banana:
@@ -274,7 +196,6 @@ mappings:
     # Pattern 1: aspect_ratio only
     google/imagen-4:
       Prompt: prompt
-      OutputFormat: output_format
       AspectRatio: aspect_ratio
       # Only supports: 1:1, 9:16, 16:9, 3:4, 4:3
       # Resolution ignored
@@ -282,9 +203,6 @@ mappings:
     # Pattern 7: Width/Height only
     prunaai/z-image-turbo:
       Prompt: prompt
-      Seed: seed
-      GuidanceScale: guidance_scale
-      OutputFormat: output_format
       Width: width
       Height: height
       # For users who specify AspectRatio + Resolution (expands width/height into payload)

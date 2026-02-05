@@ -71,20 +71,35 @@ export function createPlanner(options: PlannerOptions = {}) {
       let jobsToInclude: Set<string>;
 
       if (args.artifactRegenerations && args.artifactRegenerations.length > 0) {
-        // Surgical mode: only include source jobs + downstream dependencies
+        // Surgical mode: source jobs + downstream dependencies
         const sourceJobIds = args.artifactRegenerations.map((r) => r.sourceJobId);
-        jobsToInclude = computeMultipleArtifactRegenerationJobs(
+        const surgicalJobs = computeMultipleArtifactRegenerationJobs(
           sourceJobIds,
           blueprint,
         );
+
+        // Also detect jobs with missing/dirty artifacts (same logic as normal mode)
+        const initialDirty = determineInitialDirtyJobs(
+          manifest,
+          metadata,
+          dirtyInputs,
+          dirtyArtefacts,
+        );
+        const propagatedDirty = propagateDirtyJobs(initialDirty, blueprint);
+
+        // Union: surgical targets + missing/dirty artifacts
+        jobsToInclude = new Set([...surgicalJobs, ...propagatedDirty]);
+
         logger.debug?.('planner.surgical.jobs', {
           movieId: args.movieId,
           sourceJobIds,
           targetArtifactIds: args.artifactRegenerations.map((r) => r.targetArtifactId),
+          surgicalJobs: Array.from(surgicalJobs),
+          dirtyJobs: Array.from(propagatedDirty),
           jobs: Array.from(jobsToInclude),
         });
       } else {
-        // Normal mode: use dirty detection
+        // Normal mode: use dirty detection only
         const initialDirty = determineInitialDirtyJobs(
           manifest,
           metadata,

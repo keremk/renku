@@ -1,0 +1,45 @@
+{
+  "input_schema": {
+    "description": "Request model for creating a custom voice.",
+    "type": "object",
+    "properties": {
+      "voice_url": {
+        "examples": [
+          "https://v3b.fal.media/files/b/0a867736/_Wo19V-XrOVYZt6jKE8t5_kling_video.wav"
+        ],
+        "description": "URL of the voice audio file. Supports .mp3/.wav audio or .mp4/.mov video. Duration must be 5-30 seconds with clean, single-voice audio.",
+        "type": "string",
+        "title": "Voice Url",
+        "format": "uri"
+      }
+    },
+    "x-fal-order-properties": [
+      "voice_url"
+    ],
+    "title": "CreateVoiceInput",
+    "required": [
+      "voice_url"
+    ]
+  },
+  "output_schema": {
+    "description": "Response model for creating a custom voice.",
+    "type": "object",
+    "properties": {
+      "voice_id": {
+        "examples": [
+          "829877809978941442"
+        ],
+        "description": "Unique identifier for the created voice",
+        "type": "string",
+        "title": "Voice Id"
+      }
+    },
+    "x-fal-order-properties": [
+      "voice_id"
+    ],
+    "title": "CreateVoiceOutput",
+    "required": [
+      "voice_id"
+    ]
+  }
+}

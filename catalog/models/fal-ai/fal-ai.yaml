@@ -550,7 +550,7 @@ models:
     price:
       function: costByVideoMegapixels
       inputs: [num_frames, video_size]
-      pricePerMegapixel: 0.0018
+      pricePerMegapixel: 0.0008 
 
   # XAI Video Models
   - name: xai/grok-imagine-video/text-to-video

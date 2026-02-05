@@ -1,0 +1,229 @@
+{
+  "input_schema": {
+    "title": "TextToVideoV3ProRequest",
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "Close-up of glowing fireflies dancing in a dark forest at twilight. Soft bioluminescent particles float through the air. Shallow depth of field, bokeh lights in background. Magical atmosphere, gentle movement."
+        ],
+        "description": "Text prompt for video generation. Either prompt or multi_prompt must be provided, but not both.",
+        "type": "string",
+        "title": "Prompt",
+        "maxLength": 2500
+      },
+      "aspect_ratio": {
+        "enum": [
+          "16:9",
+          "9:16",
+          "1:1"
+        ],
+        "description": "The aspect ratio of the generated video frame",
+        "type": "string",
+        "title": "Aspect Ratio",
+        "default": "16:9"
+      },
+      "duration": {
+        "enum": [
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9",
+          "10",
+          "11",
+          "12",
+          "13",
+          "14",
+          "15"
+        ],
+        "description": "The duration of the generated video in seconds",
+        "type": "string",
+        "title": "Duration",
+        "default": "5"
+      },
+      "generate_audio": {
+        "description": "Whether to generate native audio for the video. Supports Chinese and English voice output. Other languages are automatically translated to English. For English speech, use lowercase letters; for acronyms or proper nouns, use uppercase.",
+        "type": "boolean",
+        "title": "Generate Audio",
+        "default": true
+      },
+      "multi_prompt": {
+        "examples": [
+          null
+        ],
+        "description": "List of prompts for multi-shot video generation. If provided, overrides the single prompt and divides the video into multiple shots with specified prompts and durations.",
+        "type": "array",
+        "title": "Multi Prompt",
+        "items": {
+          "$ref": "#/KlingV3MultiPromptElement"
+        }
+      },
+      "voice_ids": {
+        "description": "Optional Voice IDs for video generation. Reference voices in your prompt with <<<voice_1>>> and <<<voice_2>>> (maximum 2 voices per task). Get voice IDs from the kling video create-voice endpoint: https://fal.ai/models/fal-ai/kling-video/create-voice",
+        "type": "array",
+        "title": "Voice Ids",
+        "items": {
+          "type": "string"
+        }
+      },
+      "shot_type": {
+        "enum": [
+          "customize",
+          "intelligent"
+        ],
+        "description": "The type of multi-shot video generation",
+        "type": "string",
+        "title": "Shot Type",
+        "default": "customize"
+      },
+      "negative_prompt": {
+        "title": "Negative Prompt",
+        "type": "string",
+        "maxLength": 2500,
+        "default": "blur, distort, and low quality"
+      },
+      "cfg_scale": {
+        "minimum": 0,
+        "maximum": 1,
+        "type": "number",
+        "title": "Cfg Scale",
+        "description": "\n            The CFG (Classifier Free Guidance) scale is a measure of how close you want\n            the model to stick to your prompt.\n        ",
+        "default": 0.5
+      }
+    },
+    "x-fal-order-properties": [
+      "prompt",
+      "duration",
+      "multi_prompt",
+      "generate_audio",
+      "voice_ids",
+      "shot_type",
+      "aspect_ratio",
+      "negative_prompt",
+      "cfg_scale"
+    ]
+  },
+  "output_schema": {
+    "title": "TextToVideoV3ProOutput",
+    "type": "object",
+    "properties": {
+      "video": {
+        "examples": [
+          {
+            "file_size": 8062911,
+            "file_name": "output.mp4",
+            "content_type": "video/mp4",
+            "url": "https://storage.googleapis.com/falserverless/example_outputs/kling-v3/pro-t2v/out.mp4"
+          }
+        ],
+        "description": "The generated video",
+        "title": "Video",
+        "allOf": [
+          {
+            "$ref": "#/File"
+          }
+        ]
+      }
+    },
+    "x-fal-order-properties": [
+      "video"
+    ],
+    "required": [
+      "video"
+    ]
+  },
+  "KlingV3MultiPromptElement": {
+    "title": "KlingV3MultiPromptElement",
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "description": "The prompt for this shot.",
+        "type": "string",
+        "title": "Prompt"
+      },
+      "duration": {
+        "enum": [
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9",
+          "10",
+          "11",
+          "12",
+          "13",
+          "14",
+          "15"
+        ],
+        "description": "The duration of this shot in seconds",
+        "type": "string",
+        "title": "Duration",
+        "default": "5"
+      }
+    },
+    "x-fal-order-properties": [
+      "prompt",
+      "duration"
+    ],
+    "required": [
+      "prompt"
+    ]
+  },
+  "File": {
+    "title": "File",
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "description": "The size of the file in bytes.",
+        "type": "integer",
+        "title": "File Size"
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "type": "string",
+        "title": "File Name"
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "description": "The mime type of the file.",
+        "type": "string",
+        "title": "Content Type"
+      },
+      "url": {
+        "description": "The URL where the file can be downloaded from.",
+        "type": "string",
+        "title": "Url",
+        "format": "uri"
+      },
+      "file_data": {
+        "format": "binary",
+        "description": "File data",
+        "type": "string",
+        "title": "File Data"
+      }
+    },
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data"
+    ],
+    "required": [
+      "url"
+    ]
+  }
+}

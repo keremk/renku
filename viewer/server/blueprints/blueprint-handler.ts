@@ -107,6 +107,12 @@ export async function handleBlueprintRequest(
         return respondBadRequest(res, "Missing folder or movieId parameter");
       }
       const timelineData = await getBuildTimeline(folder, movieId);
+      if (timelineData === null) {
+        res.statusCode = 404;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Timeline not available for this build" }));
+        return true;
+      }
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify(timelineData));
       return true;
