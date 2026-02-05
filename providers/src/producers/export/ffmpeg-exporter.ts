@@ -129,7 +129,17 @@ export function createFfmpegExporterHandler(): HandlerFactory {
       // over manifest-based resolution to ensure fresh paths during execution.
       const moviePath = storage.resolve(movieId, '');
       const eventLogPaths = request.context.extras?.assetBlobPaths as Record<string, string> | undefined;
-      const assetPaths = await buildAssetPaths(storage, movieId, timeline, eventLogPaths);
+      const relativeAssetPaths = await buildAssetPaths(storage, movieId, timeline, eventLogPaths);
+
+      // Resolve relative asset paths to absolute paths for FFmpeg execution.
+      // storage.resolve() returns storage-relative paths, but FFmpeg runs in the
+      // process CWD, so paths must be absolute.
+      const assetPaths: AssetPathMap = {};
+      for (const [assetId, assetPath] of Object.entries(relativeAssetPaths)) {
+        assetPaths[assetId] = path.isAbsolute(assetPath)
+          ? assetPath
+          : path.resolve(storageRoot, assetPath);
+      }
 
       // Try to load transcription for subtitles (optional)
       // First try to get it from runtime inputs (during execution), then fall back to manifest
