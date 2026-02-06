@@ -185,6 +185,37 @@ export async function getBuildManifest(
       }
     }
 
+    // Second pass: Include artifacts from event log that are NOT in the manifest.
+    // This handles mid-execution artifacts that exist in artefacts.log but not yet
+    // in the manifest file (which is only written after execution completes).
+    const manifestArtifactIds = new Set(
+      manifest.artefacts ? Object.keys(manifest.artefacts) : [],
+    );
+    for (const [artifactId, event] of latestEvents) {
+      if (manifestArtifactIds.has(artifactId)) {
+        // Already processed in first pass
+        continue;
+      }
+      // Event log only contains succeeded events (filtered in readLatestArtifactEvents)
+      if (!event.output?.blob?.hash) {
+        continue;
+      }
+      const cleanName = artifactId.startsWith("Artifact:")
+        ? artifactId.slice(9)
+        : artifactId;
+      parsedArtifacts.push({
+        id: artifactId,
+        name: cleanName,
+        hash: event.output.blob.hash,
+        size: event.output.blob.size,
+        mimeType: event.output.blob.mimeType ?? "application/octet-stream",
+        status: "succeeded",
+        createdAt: event.createdAt ?? null,
+        editedBy: event.editedBy,
+        originalHash: event.originalHash,
+      });
+    }
+
     return {
       movieId,
       revision,

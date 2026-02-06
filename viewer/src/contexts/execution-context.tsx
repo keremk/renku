@@ -10,6 +10,7 @@ import {
   useReducer,
   useCallback,
   useRef,
+  useEffect,
   type ReactNode,
 } from 'react';
 import {
@@ -455,11 +456,34 @@ const ExecutionContext = createContext<ExecutionContextValue | null>(null);
 
 interface ExecutionProviderProps {
   children: ReactNode;
+  /** Callback invoked when an artifact is produced during execution */
+  onArtifactProduced?: () => void;
 }
 
-export function ExecutionProvider({ children }: ExecutionProviderProps) {
+export function ExecutionProvider({ children, onArtifactProduced }: ExecutionProviderProps) {
   const [state, dispatch] = useReducer(executionReducer, initialState);
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onArtifactProducedRef = useRef(onArtifactProduced);
+
+  // Keep ref in sync with prop (avoids stale closures in SSE handler)
+  useEffect(() => {
+    onArtifactProducedRef.current = onArtifactProduced;
+  }, [onArtifactProduced]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const setLayerRange = useCallback((range: LayerRange) => {
     dispatch({ type: 'SET_LAYER_RANGE', range });
@@ -508,8 +532,29 @@ export function ExecutionProvider({ children }: ExecutionProviderProps) {
         response.jobId,
         (event: SSEEvent) => {
           handleSSEEvent(event, dispatch);
+
+          // Trigger artifact refresh on successful job completion
+          if (event.type === 'job-complete' && event.status === 'succeeded') {
+            // Schedule a debounced refetch (500ms trailing-edge)
+            if (debounceTimerRef.current) {
+              clearTimeout(debounceTimerRef.current);
+            }
+            debounceTimerRef.current = setTimeout(() => {
+              debounceTimerRef.current = null;
+              onArtifactProducedRef.current?.();
+            }, 500);
+          }
+
           // Close SSE connection when execution completes or errors
           if (event.type === 'execution-complete' || event.type === 'error') {
+            // Cancel pending debounce and call immediately on completion
+            if (debounceTimerRef.current) {
+              clearTimeout(debounceTimerRef.current);
+              debounceTimerRef.current = null;
+            }
+            // Final refresh to ensure all artifacts are visible
+            onArtifactProducedRef.current?.();
+
             if (unsubscribeRef.current) {
               unsubscribeRef.current();
               unsubscribeRef.current = null;
@@ -543,6 +588,12 @@ export function ExecutionProvider({ children }: ExecutionProviderProps) {
       unsubscribeRef.current = null;
     }
 
+    // Clean up debounce timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+
     dispatch({ type: 'CANCEL' });
   }, [state.currentJobId]);
 
@@ -559,6 +610,11 @@ export function ExecutionProvider({ children }: ExecutionProviderProps) {
     if (unsubscribeRef.current) {
       unsubscribeRef.current();
       unsubscribeRef.current = null;
+    }
+    // Clean up debounce timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
     }
     dispatch({ type: 'RESET' });
   }, []);

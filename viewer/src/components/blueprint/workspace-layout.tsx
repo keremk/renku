@@ -264,11 +264,15 @@ function WorkspaceLayoutInner({
   );
 
   // Initialize producer statuses from manifest when build changes
+  // Skip during execution to avoid SSE-driven status badges being overwritten
   useEffect(() => {
+    if (state.status === 'executing') {
+      return;
+    }
     if (selectedBuildManifest?.artefacts) {
       initializeFromManifest(selectedBuildManifest.artefacts);
     }
-  }, [selectedBuildManifest, initializeFromManifest]);
+  }, [selectedBuildManifest, initializeFromManifest, state.status]);
 
   const handleNodeSelect = useCallback((nodeId: string | null) => {
     setSelectedNodeId(nodeId);
@@ -425,7 +429,7 @@ function WorkspaceLayoutInner({
  */
 export function WorkspaceLayout(props: WorkspaceLayoutProps) {
   return (
-    <ExecutionProvider>
+    <ExecutionProvider onArtifactProduced={props.onManifestRefresh}>
       <WorkspaceLayoutInner {...props} />
     </ExecutionProvider>
   );
