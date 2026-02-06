@@ -5,7 +5,7 @@
  * Uses @uiw/react-color Sketch picker for color selection.
  */
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Subtitles, Type, Palette, Layout, Sparkles } from "lucide-react";
 import { Sketch } from "@uiw/react-color";
 
@@ -97,6 +97,14 @@ export function SubtitlesCard({
   const config = useMemo(() => {
     return { ...SUBTITLE_DEFAULTS, ...value };
   }, [value]);
+
+  // Auto-emit defaults when value is undefined and editable
+  // This ensures defaults are persisted on first render
+  useEffect(() => {
+    if (value === undefined && isEditable && onChange) {
+      onChange(SUBTITLE_DEFAULTS);
+    }
+  }, [value, isEditable, onChange]);
 
   const handleSave = useCallback(
     (newConfig: SubtitleConfig) => {
