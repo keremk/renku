@@ -404,13 +404,13 @@ function processVideoClip(
   filterParts.push(videoFilter);
   videoLabels.push(`[${videoLabel}]`);
 
-  // Handle video audio if volume is explicitly set and > 0
-  // Note: Many video files (especially AI-generated) don't have audio tracks,
-  // so we only extract audio when volume is explicitly specified.
-  if (clipInfo.volume !== undefined && clipInfo.volume > 0) {
+  // Handle video audio - extract by default (volume defaults to 1)
+  // Users can explicitly set volume: 0 to strip audio from video clips
+  const effectiveVolume = clipInfo.volume ?? 1;
+  if (effectiveVolume > 0) {
     audioInfos.push({
       inputIndex,
-      volume: clipInfo.volume,
+      volume: effectiveVolume,
       startTime: clip.startTime,
       duration: clip.duration,
     });
