@@ -9,13 +9,14 @@
 
 import type { ComponentType } from "react";
 import { SubtitlesCard, type SubtitlesCardProps } from "./subtitles-card";
+import { TimelineCard, type TimelineCardProps } from "./timeline-card";
 
 /**
  * Props that all config editor components receive.
  */
 export interface ConfigEditorProps<T = unknown> {
-  /** Current value of the config property */
-  value: T;
+  /** Current value of the config property (undefined triggers auto-persist of defaults) */
+  value: T | undefined;
   /** Whether editing is enabled */
   isEditable?: boolean;
   /** Whether this card is selected/highlighted */
@@ -33,9 +34,7 @@ export const CONFIG_EDITOR_REGISTRY: Record<
   ComponentType<ConfigEditorProps<unknown>>
 > = {
   subtitles: SubtitlesCard as ComponentType<ConfigEditorProps<unknown>>,
-  // Future: Add more editors as needed
-  // timeline: TimelineConfigCard,
-  // videoClip: VideoClipCard,
+  timeline: TimelineCard as ComponentType<ConfigEditorProps<unknown>>,
 };
 
 /**
@@ -55,4 +54,4 @@ export function getEditorComponent(
 }
 
 // Re-export types for convenience
-export type { SubtitlesCardProps };
+export type { SubtitlesCardProps, TimelineCardProps };

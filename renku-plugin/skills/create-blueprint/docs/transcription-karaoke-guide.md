@@ -523,7 +523,39 @@ renku export --last --inputs=./export-config.yaml
 - **Music track** (`kind: Music`): Never transcribed - background music only
 - **Video track** with audio: Audio track extracted and transcribed
 
-### 2. Language Configuration
+### 2. Lipsync Video Workflows (Audio-to-Video)
+
+When using audio-to-video producers (e.g., `asset/audio-to-video`) for lipsync character videos:
+
+**Use the `AudioTrack` artifact from the video producer**, not the original narration audio:
+
+```yaml
+connections:
+  # CORRECT: Use AudioTrack from lipsync video producer
+  - from: LipsyncVideoProducer[segment].AudioTrack
+    to: TranscriptionProducer.AudioSegments
+
+collectors:
+  - name: TranscriptionAudio
+    from: LipsyncVideoProducer[segment].AudioTrack
+    into: TranscriptionProducer.AudioSegments
+    groupBy: segment
+```
+
+**Why this matters:**
+- The `AudioTrack` artifact is only generated when connected to a downstream consumer
+- It ensures the audio timing matches the actual video segments in the timeline
+- The original narration audio may have different timing than the final lipsync video
+- This keeps the transcription in sync with what viewers see and hear
+
+**Do NOT do this:**
+```yaml
+# WRONG: Using original narration audio for lipsync video workflows
+- from: NarrationAudioProducer[segment].GeneratedAudio
+  to: TranscriptionProducer.AudioSegments
+```
+
+### 3. Language Configuration
 
 Specify the correct language code for better transcription accuracy:
 
@@ -540,7 +572,7 @@ Common language codes:
 - `jpn` - Japanese
 - `zho` - Chinese
 
-### 3. Font Selection
+### 4. Font Selection
 
 The `font` option uses system fonts by name:
 - Use font names installed on your system (e.g., "Arial", "Helvetica", "Times New Roman")
@@ -548,7 +580,7 @@ The `font` option uses system fonts by name:
 - Test with your target text before full generation
 - Common cross-platform fonts: Arial, Helvetica, Verdana, Georgia
 
-### 4. Words Per Line
+### 5. Words Per Line
 
 Adjust `maxWordsPerLine` based on:
 - Video resolution (fewer words for mobile/vertical video)
@@ -560,7 +592,7 @@ Recommendations:
 - 9:16 mobile/TikTok: 3-4 words
 - 1:1 square video: 4-6 words
 
-### 5. Background Opacity Settings
+### 6. Background Opacity Settings
 
 | Content Type | Recommended Opacity |
 |--------------|---------------------|
@@ -569,7 +601,7 @@ Recommendations:
 | Mixed/varied backgrounds | 0.5 |
 | No background (text only) | 0 |
 
-### 6. Performance Considerations
+### 7. Performance Considerations
 
 - Transcription adds processing time proportional to audio duration
 - More words per line = fewer subtitle events = slightly faster rendering

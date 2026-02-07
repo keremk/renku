@@ -49,15 +49,16 @@ models:
     provider: renku
     producerId: TimelineComposer
     config:
-      masterTracks: ["Audio", "Video"]
-      videoClip:
-        artifact: VideoSegments
-      audioClip:
-        artifact: AudioSegments
-      musicClip:
-        artifact: Music
-        volume: 0.3
-      tracks: ["Video", "Audio", "Music"]
+      timeline:
+        masterTracks: ["Audio", "Video"]
+        videoClip:
+          artifact: VideoSegments
+        audioClip:
+          artifact: AudioSegments
+        musicClip:
+          artifact: Music
+          volume: 0.3
+        tracks: ["Video", "Audio", "Music"]
 
   # Speech transcription for karaoke subtitles
   - model: speech/transcription

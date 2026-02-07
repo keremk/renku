@@ -106,9 +106,11 @@ describe('createProviderRegistry', () => {
         produces: ['Artifact:TimelineComposer.Timeline'],
         context: {
           providerConfig: {
-            tracks: ['Audio'],
-            masterTracks: ['Audio'],
-            clips: [],
+            timeline: {
+              tracks: ['Audio'],
+              masterTracks: ['Audio'],
+              clips: [],
+            },
           },
         },
       }),

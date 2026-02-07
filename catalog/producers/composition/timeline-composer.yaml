@@ -38,3 +38,12 @@ artifacts:
   - name: Timeline
     description: OrderedTimeline JSON manifest.
     type: json
+
+# Model mappings for available timeline composers
+mappings:
+  renku:
+    timeline/ordered:
+      ImageSegments: imageSegments
+      VideoSegments: videoSegments
+      AudioSegments: audioSegments
+      Music: music

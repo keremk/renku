@@ -218,14 +218,16 @@ describe('end-to-end: TimelineComposer with conditional segments', () => {
         // Build config matching the condition-example input-template.yaml
         // The config has tracks: ["Image", "Audio"], masterTracks: ["Audio", "Video"]
         const timelineConfig = {
-          clips: [
-            { kind: 'Image', inputs: 'ImageSegments' },
-            { kind: 'Audio', inputs: 'AudioSegments', volume: 0.9 },
-            { kind: 'Video', inputs: 'VideoSegments' },
-          ],
-          tracks: ['Image', 'Audio', 'Video'],
-          masterTracks: ['Audio', 'Video'],
-          numTracks: 2,
+          timeline: {
+            clips: [
+              { kind: 'Image', inputs: 'ImageSegments' },
+              { kind: 'Audio', inputs: 'AudioSegments', volume: 0.9 },
+              { kind: 'Video', inputs: 'VideoSegments' },
+            ],
+            tracks: ['Image', 'Audio', 'Video'],
+            masterTracks: ['Audio', 'Video'],
+            numTracks: 2,
+          },
         };
 
         // Build provider context with the constructed config

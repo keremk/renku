@@ -33,11 +33,12 @@ models:
     provider: renku
     producerId: TimelineComposer
     config:
-      tracks: ["Video", "Audio"]
-      masterTracks: ["Audio"]
-      numTracks: 2
-      videoClip:
-        artifact: VideoSegments
-      audioClip:
-        artifact: AudioSegments
-        volume: 0.9
+      timeline:
+        tracks: ["Video", "Audio"]
+        masterTracks: ["Audio"]
+        numTracks: 2
+        videoClip:
+          artifact: VideoSegments
+        audioClip:
+          artifact: AudioSegments
+          volume: 0.9

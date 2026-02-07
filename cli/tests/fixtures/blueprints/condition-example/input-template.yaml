@@ -31,13 +31,14 @@ models:
     provider: renku
     producerId: TimelineComposer
     config:
-      tracks: ["Image", "Audio"]
-      masterTracks: ["Audio", "Video"]
-      numTracks: 2
-      imageClip:
-        artifact: ImageSegments[Image]
-      audioClip:
-        artifact: AudioSegments
-        volume: 0.9
-      videoClip:
-        artifact: VideoSegments
+      timeline:
+        tracks: ["Image", "Audio"]
+        masterTracks: ["Audio", "Video"]
+        numTracks: 2
+        imageClip:
+          artifact: ImageSegments[Image]
+        audioClip:
+          artifact: AudioSegments
+          volume: 0.9
+        videoClip:
+          artifact: VideoSegments

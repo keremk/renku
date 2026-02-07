@@ -254,10 +254,12 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
             provider: 'renku',
             producerId: 'TimelineComposer',
             config: {
-              tracks: ['Image'],
-              masterTracks: ['Image'],
-              numTracks: 1,
-              imageClip: { artifact: 'ImageSegments[Image]' },
+              timeline: {
+                tracks: ['Image'],
+                masterTracks: ['Image'],
+                numTracks: 1,
+                imageClip: { artifact: 'ImageSegments[Image]' },
+              },
             },
           },
         ],
@@ -425,10 +427,12 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
             provider: 'renku',
             producerId: 'TimelineComposer',
             config: {
-              tracks: ['Image'],
-              masterTracks: ['Image'],
-              numTracks: 1,
-              imageClip: { artifact: 'ImageSegments[Image]' },
+              timeline: {
+                tracks: ['Image'],
+                masterTracks: ['Image'],
+                numTracks: 1,
+                imageClip: { artifact: 'ImageSegments[Image]' },
+              },
             },
           },
         ],

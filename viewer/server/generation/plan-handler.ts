@@ -19,6 +19,7 @@ import {
   buildProducerCatalog,
   persistInputBlob,
   isRenkuError,
+  createLogger,
   type ExecutionPlan,
   type Manifest,
   type PendingArtefactDraft,
@@ -238,8 +239,11 @@ async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanR
     modelCatalog,
   });
 
+  // Create logger with debug level enabled for planner diagnostics
+  const debugLogger = createLogger({ level: 'debug', prefix: '[planner]' });
+
   // Generate plan
-  const planResult = await createPlanningService({}).generatePlan({
+  const planResult = await createPlanningService({ logger: debugLogger }).generatePlan({
     movieId,
     blueprintTree: blueprintRoot,
     inputValues,

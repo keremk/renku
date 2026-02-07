@@ -21,7 +21,6 @@ interface TimelineClipConfig {
   effect?: string;
   duration?: string;
   play?: string;
-  fitStrategy?: string;
   partitionBy?: number;
   captionAlgorithm?: string;
   volume?: number;
@@ -322,7 +321,15 @@ function parseTimelineConfig(raw: unknown): TimelineProducerConfig {
       { kind: 'user_input', causedByUser: true },
     );
   }
-  const source = isRecord(raw.config) ? (raw.config as Record<string, unknown>) : (raw as Record<string, unknown>);
+  const outer = isRecord(raw.config) ? (raw.config as Record<string, unknown>) : (raw as Record<string, unknown>);
+  if (!isRecord(outer.timeline)) {
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      'TimelineProducer config must include a "timeline" object.',
+      { kind: 'user_input', causedByUser: true },
+    );
+  }
+  const source = outer.timeline as Record<string, unknown>;
   const tracks = Array.isArray(source.tracks)
     ? source.tracks
       .map((entry) => (typeof entry === 'string' ? (entry as ClipKind) : undefined))
@@ -338,7 +345,6 @@ function parseTimelineConfig(raw: unknown): TimelineProducerConfig {
       effect: typeof entry.effect === 'string' ? entry.effect : undefined,
       duration: typeof entry.duration === 'string' ? entry.duration : undefined,
       play: typeof entry.play === 'string' ? entry.play : undefined,
-      fitStrategy: typeof entry.fitStrategy === 'string' ? entry.fitStrategy : undefined,
       partitionBy: typeof entry.partitionBy === 'number' ? entry.partitionBy : undefined,
       captionAlgorithm: typeof entry.captionAlgorithm === 'string' ? entry.captionAlgorithm : undefined,
       volume: typeof entry.volume === 'number' ? entry.volume : undefined,
@@ -380,7 +386,6 @@ function buildClipsFromShorthand(source: Record<string, unknown>): TimelineClipC
     clips.push({
       kind: 'Video',
       inputs: videoClip.artifact,
-      fitStrategy: typeof videoClip.fitStrategy === 'string' ? videoClip.fitStrategy : undefined,
       volume: typeof videoClip.volume === 'number' ? videoClip.volume : undefined,
     });
   }

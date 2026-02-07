@@ -50,15 +50,16 @@ models:
     provider: renku
     producerId: TimelineComposer
     config:
-      masterTracks: ["Audio"]
-      tracks: ["Video", "Audio", "Music"]
-      videoClip:
-        artifact: VideoSegments
-      audioClip:
-        artifact: AudioSegments
-      musicClip:
-        artifact: Music
-        volume: 0.4
+      timeline:
+        masterTracks: ["Audio"]
+        tracks: ["Video", "Audio", "Music"]
+        videoClip:
+          artifact: VideoSegments
+        audioClip:
+          artifact: AudioSegments
+        musicClip:
+          artifact: Music
+          volume: 0.4
   - model: speech/transcription
     provider: renku
     producerId: TranscriptionProducer

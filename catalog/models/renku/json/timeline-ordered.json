@@ -2,120 +2,118 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
-    "masterTracks": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "enum": [
-          "Image",
-          "Audio",
-          "Music",
-          "Video"
-        ]
-      },
-      "default": ["Audio"],
-      "description": "Priority-ordered list of track kinds for segment duration. If primary track is missing a segment, fallback to next."
-    },
-    "tracks": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "enum": [
-          "Image",
-          "Audio",
-          "Music",
-          "Video"
-        ]
-      }
-    },
-    "imageClip": {
+    "timeline": {
       "type": "object",
+      "description": "Timeline composition configuration",
       "properties": {
-        "artifact": {
-          "type": "string"
+        "tracks": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "Image",
+              "Audio",
+              "Music",
+              "Video"
+            ]
+          }
         },
-        "effect": {
-          "type": "string",
-          "enum": [
-            "KennBurns"
+        "masterTracks": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "Image",
+              "Audio",
+              "Music",
+              "Video"
+            ]
+          },
+          "default": ["Audio"],
+          "description": "Priority-ordered list of track kinds for segment duration. If primary track is missing a segment, fallback to next."
+        },
+        "imageClip": {
+          "type": "object",
+          "properties": {
+            "artifact": {
+              "type": "string"
+            },
+            "effect": {
+              "type": "string",
+              "enum": [
+                "KennBurns"
+              ],
+              "default": "KennBurns"
+            }
+          },
+          "required": [
+            "artifact"
           ],
-          "default": "KennBurns"
-        }
-      },
-      "required": [
-        "artifact"
-      ],
-      "additionalProperties": true
-    },
-    "videoClip": {
-      "type": "object",
-      "properties": {
-        "artifact": {
-          "type": "string"
+          "additionalProperties": true
         },
-        "volume": {
-          "type": "number",
-          "minimum": 0.0,
-          "maximum": 1.0,
-          "default": 0.0
-        },
-        "fitStrategy": {
-          "type": "string",
-          "enum": [
-            "auto",
-            "stretch",
-            "fade"
+        "videoClip": {
+          "type": "object",
+          "properties": {
+            "artifact": {
+              "type": "string"
+            },
+            "volume": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0,
+              "default": 0.0
+            }
+          },
+          "required": [
+            "artifact"
           ],
-          "default": "auto"
-        }
-      },
-      "required": [
-        "artifact"
-      ],
-      "additionalProperties": true
-    },
-    "audioClip": {
-      "type": "object",
-      "properties": {
-        "artifact": {
-          "type": "string"
+          "additionalProperties": true
         },
-        "volume": {
-          "type": "number",
-          "minimum": 0.0,
-          "maximum": 1.0,
-          "default": 0.0
-        }
-      },
-      "required": [
-        "artifact"
-      ],
-      "additionalProperties": true
-    },
-    "musicClip": {
-      "type": "object",
-      "properties": {
-        "artifact": {
-          "type": "string"
-        },
-        "volume": {
-          "type": "number",
-          "minimum": 0.0,
-          "maximum": 1.0,
-          "default": 0.0
-        },
-        "playStrategy": {
-          "type": "string",
-          "enum": [
-            "loop",
-            "stopWhenFinished"
+        "audioClip": {
+          "type": "object",
+          "properties": {
+            "artifact": {
+              "type": "string"
+            },
+            "volume": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0,
+              "default": 0.0
+            }
+          },
+          "required": [
+            "artifact"
           ],
-          "default": "loop"
+          "additionalProperties": true
+        },
+        "musicClip": {
+          "type": "object",
+          "properties": {
+            "artifact": {
+              "type": "string"
+            },
+            "volume": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0,
+              "default": 0.0
+            },
+            "playStrategy": {
+              "type": "string",
+              "enum": [
+                "loop",
+                "stopWhenFinished"
+              ],
+              "default": "loop"
+            }
+          },
+          "required": [
+            "artifact"
+          ],
+          "additionalProperties": true
         }
       },
-      "required": [
-        "artifact"
-      ],
       "additionalProperties": true
     }
   },

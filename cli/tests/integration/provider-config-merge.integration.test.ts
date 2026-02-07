@@ -43,22 +43,25 @@ describe('integration: provider config merging', () => {
         provider: 'renku',
         model: 'timeline/ordered',
         config: {
-          audioClip: { artifact: 'AudioSegments', volume: 0.9 },
-          imageClip: { artifact: 'ImageSegments[Image]' },
-          tracks: ['Image', 'Audio'],
-          masterTracks: ['Audio'],
-          numTracks: 2,
+          timeline: {
+            audioClip: { artifact: 'AudioSegments', volume: 0.9 },
+            imageClip: { artifact: 'ImageSegments[Image]' },
+            tracks: ['Image', 'Audio'],
+            masterTracks: ['Audio'],
+            numTracks: 2,
+          },
         },
       },
     ], true, { baseDir });
 
     const timelineOptions = options.get('TimelineComposer');
     const primary = timelineOptions?.[0];
-    expect(primary?.config?.audioClip).toMatchObject({
+    const timeline = primary?.config?.timeline as Record<string, unknown> | undefined;
+    expect(timeline?.audioClip).toMatchObject({
       artifact: 'AudioSegments',
       volume: 0.9,
     });
-    expect(primary?.config?.imageClip).toMatchObject({
+    expect(timeline?.imageClip).toMatchObject({
       artifact: 'ImageSegments[Image]',
     });
   });

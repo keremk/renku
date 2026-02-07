@@ -65,6 +65,15 @@ export function createPlanner(options: PlannerOptions = {}) {
       const latestArtefacts = await readLatestArtefacts(eventLog, args.movieId);
       const dirtyArtefacts = determineDirtyArtefacts(manifest, latestArtefacts);
 
+      // Debug logging for dirty detection diagnosis
+      logger.debug?.('planner.dirty', {
+        movieId: args.movieId,
+        dirtyInputCount: dirtyInputs.size,
+        dirtyInputs: Array.from(dirtyInputs),
+        dirtyArtefactCount: dirtyArtefacts.size,
+        dirtyArtefacts: Array.from(dirtyArtefacts),
+      });
+
       const metadata = buildGraphMetadata(blueprint);
 
       // Determine which jobs to include in the plan
@@ -84,6 +93,7 @@ export function createPlanner(options: PlannerOptions = {}) {
           metadata,
           dirtyInputs,
           dirtyArtefacts,
+          logger,
         );
         const propagatedDirty = propagateDirtyJobs(initialDirty, blueprint);
 
@@ -105,8 +115,24 @@ export function createPlanner(options: PlannerOptions = {}) {
           metadata,
           dirtyInputs,
           dirtyArtefacts,
+          logger,
         );
+
+        // Log initial dirty jobs with their reasons
+        logger.debug?.('planner.initialDirty', {
+          movieId: args.movieId,
+          jobs: Array.from(initialDirty),
+        });
+
         jobsToInclude = propagateDirtyJobs(initialDirty, blueprint);
+
+        // Log propagated dirty jobs
+        logger.debug?.('planner.propagatedDirty', {
+          movieId: args.movieId,
+          initialCount: initialDirty.size,
+          propagatedCount: jobsToInclude.size,
+          propagatedJobs: Array.from(jobsToInclude).filter((j) => !initialDirty.has(j)),
+        });
       }
 
       const { layers, blueprintLayerCount } = buildExecutionLayers(
@@ -163,6 +189,7 @@ function determineInitialDirtyJobs(
   metadata: Map<string, GraphMetadata>,
   dirtyInputs: Set<string>,
   dirtyArtefacts: Set<string>,
+  logger?: Partial<Logger>,
 ): Set<string> {
   const dirtyJobs = new Set<string>();
   const isInitial = Object.keys(manifest.inputs).length === 0;
@@ -170,19 +197,51 @@ function determineInitialDirtyJobs(
   for (const [jobId, info] of metadata) {
     if (isInitial) {
       dirtyJobs.add(jobId);
+      logger?.debug?.('planner.job.dirty.reason', {
+        jobId,
+        reason: 'isInitial',
+        message: 'Manifest has no inputs (initial run)',
+      });
       continue;
     }
-    const producesMissing = info.node.produces.some(
+
+    // Check which artifacts are missing from manifest
+    const missingArtifacts = info.node.produces.filter(
       (id) => isCanonicalArtifactId(id) && manifest.artefacts[id] === undefined,
     );
-    const touchesDirtyInput = Array.from(info.inputBases).some((id) =>
+    const producesMissing = missingArtifacts.length > 0;
+
+    // Check which inputs are dirty
+    const dirtyInputsForJob = Array.from(info.inputBases).filter((id) =>
       dirtyInputs.has(id),
     );
-    const touchesDirtyArtefact = Array.from(info.artefactInputs).some((artefactId) =>
+    const touchesDirtyInput = dirtyInputsForJob.length > 0;
+
+    // Check which upstream artifacts are dirty
+    const dirtyArtefactsForJob = Array.from(info.artefactInputs).filter((artefactId) =>
       dirtyArtefacts.has(artefactId),
     );
+    const touchesDirtyArtefact = dirtyArtefactsForJob.length > 0;
+
     if (producesMissing || touchesDirtyInput || touchesDirtyArtefact) {
       dirtyJobs.add(jobId);
+
+      // Log detailed reason for this job being marked dirty
+      logger?.debug?.('planner.job.dirty.reason', {
+        jobId,
+        producesMissing,
+        touchesDirtyInput,
+        touchesDirtyArtefact,
+        missingArtifacts: producesMissing ? missingArtifacts : undefined,
+        dirtyInputs: touchesDirtyInput ? dirtyInputsForJob : undefined,
+        dirtyArtefacts: touchesDirtyArtefact ? dirtyArtefactsForJob : undefined,
+        // Also log what the job produces for comparison
+        allProducedArtifacts: info.node.produces.filter(isCanonicalArtifactId),
+        // Log manifest artifact keys that contain the producer name for debugging
+        manifestArtifactSample: Object.keys(manifest.artefacts)
+          .filter((key) => key.includes(info.node.producer))
+          .slice(0, 5),
+      });
     }
   }
 
