@@ -16,11 +16,14 @@ import {
 } from '../types.js';
 import type { Logger } from '../logger.js';
 import type { NotificationBus } from '../notifications.js';
+import type { JobDirtyReason, PlanExplanation } from './explanation.js';
 
-interface PlannerOptions {
+export interface PlannerOptions {
   logger?: Partial<Logger>;
   clock?: Clock;
   notifications?: NotificationBus;
+  /** If true, collect explanation data for why jobs are scheduled */
+  collectExplanation?: boolean;
 }
 
 interface ComputePlanArgs {
@@ -36,12 +39,32 @@ interface ComputePlanArgs {
   artifactRegenerations?: ArtifactRegenerationConfig[];
   /** Limit plan to layers 0 through upToLayer (0-indexed). Jobs in later layers are excluded from the plan. */
   upToLayer?: number;
+  /** If true, collect explanation data for why jobs are scheduled (overrides options) */
+  collectExplanation?: boolean;
+}
+
+export interface ComputePlanResult {
+  plan: ExecutionPlan;
+  /** Explanation of why jobs were scheduled (only if collectExplanation was true) */
+  explanation?: PlanExplanation;
 }
 
 interface GraphMetadata {
   node: ProducerGraph['nodes'][number];
   inputBases: Set<string>;
   artefactInputs: Set<string>;
+}
+
+/** Result from initial dirty job detection with reasons */
+interface InitialDirtyResult {
+  dirtyJobs: Set<string>;
+  reasons: JobDirtyReason[];
+}
+
+/** Result from dirty job propagation with tracking */
+interface PropagateResult {
+  allDirty: Set<string>;
+  propagatedReasons: JobDirtyReason[];
 }
 
 type InputsMap = Map<string, InputEvent>;
@@ -51,9 +74,11 @@ export function createPlanner(options: PlannerOptions = {}) {
   const logger = options.logger ?? {};
   const clock = options.clock;
   const notifications = options.notifications;
+  const defaultCollectExplanation = options.collectExplanation ?? false;
 
   return {
-    async computePlan(args: ComputePlanArgs): Promise<ExecutionPlan> {
+    async computePlan(args: ComputePlanArgs): Promise<ComputePlanResult> {
+      const collectExplanation = args.collectExplanation ?? defaultCollectExplanation;
       const manifest = args.manifest ?? createEmptyManifest();
       const eventLog = args.eventLog;
       const pendingEdits = args.pendingEdits ?? [];
@@ -65,19 +90,13 @@ export function createPlanner(options: PlannerOptions = {}) {
       const latestArtefacts = await readLatestArtefacts(eventLog, args.movieId);
       const dirtyArtefacts = determineDirtyArtefacts(manifest, latestArtefacts);
 
-      // Debug logging for dirty detection diagnosis
-      logger.debug?.('planner.dirty', {
-        movieId: args.movieId,
-        dirtyInputCount: dirtyInputs.size,
-        dirtyInputs: Array.from(dirtyInputs),
-        dirtyArtefactCount: dirtyArtefacts.size,
-        dirtyArtefacts: Array.from(dirtyArtefacts),
-      });
-
       const metadata = buildGraphMetadata(blueprint);
 
       // Determine which jobs to include in the plan
       let jobsToInclude: Set<string>;
+      let jobReasons: JobDirtyReason[] = [];
+      let initialDirtyJobs: string[] = [];
+      let propagatedJobs: string[] = [];
 
       if (args.artifactRegenerations && args.artifactRegenerations.length > 0) {
         // Surgical mode: source jobs + downstream dependencies
@@ -88,17 +107,28 @@ export function createPlanner(options: PlannerOptions = {}) {
         );
 
         // Also detect jobs with missing/dirty artifacts (same logic as normal mode)
-        const initialDirty = determineInitialDirtyJobs(
+        const { dirtyJobs: initialDirty, reasons: initialReasons } = determineInitialDirtyJobs(
           manifest,
           metadata,
           dirtyInputs,
           dirtyArtefacts,
-          logger,
+          collectExplanation,
         );
-        const propagatedDirty = propagateDirtyJobs(initialDirty, blueprint);
+        const { allDirty: propagatedDirty, propagatedReasons } = propagateDirtyJobs(
+          initialDirty,
+          blueprint,
+          metadata,
+          collectExplanation,
+        );
 
         // Union: surgical targets + missing/dirty artifacts
         jobsToInclude = new Set([...surgicalJobs, ...propagatedDirty]);
+
+        if (collectExplanation) {
+          jobReasons = [...initialReasons, ...propagatedReasons];
+          initialDirtyJobs = Array.from(initialDirty);
+          propagatedJobs = Array.from(propagatedDirty).filter((j) => !initialDirty.has(j));
+        }
 
         logger.debug?.('planner.surgical.jobs', {
           movieId: args.movieId,
@@ -110,28 +140,33 @@ export function createPlanner(options: PlannerOptions = {}) {
         });
       } else {
         // Normal mode: use dirty detection only
-        const initialDirty = determineInitialDirtyJobs(
+        const { dirtyJobs: initialDirty, reasons: initialReasons } = determineInitialDirtyJobs(
           manifest,
           metadata,
           dirtyInputs,
           dirtyArtefacts,
-          logger,
+          collectExplanation,
         );
 
-        // Log initial dirty jobs with their reasons
-        logger.debug?.('planner.initialDirty', {
-          movieId: args.movieId,
-          jobs: Array.from(initialDirty),
-        });
+        const { allDirty, propagatedReasons } = propagateDirtyJobs(
+          initialDirty,
+          blueprint,
+          metadata,
+          collectExplanation,
+        );
+        jobsToInclude = allDirty;
 
-        jobsToInclude = propagateDirtyJobs(initialDirty, blueprint);
+        if (collectExplanation) {
+          jobReasons = [...initialReasons, ...propagatedReasons];
+          initialDirtyJobs = Array.from(initialDirty);
+          propagatedJobs = Array.from(allDirty).filter((j) => !initialDirty.has(j));
+        }
 
-        // Log propagated dirty jobs
         logger.debug?.('planner.propagatedDirty', {
           movieId: args.movieId,
           initialCount: initialDirty.size,
-          propagatedCount: jobsToInclude.size,
-          propagatedJobs: Array.from(jobsToInclude).filter((j) => !initialDirty.has(j)),
+          propagatedCount: allDirty.size,
+          propagatedJobs: Array.from(allDirty).filter((j) => !initialDirty.has(j)),
         });
       }
 
@@ -156,13 +191,30 @@ export function createPlanner(options: PlannerOptions = {}) {
         timestamp: nowIso(clock),
       });
 
-      return {
+      const plan: ExecutionPlan = {
         revision: args.targetRevision,
         manifestBaseHash: manifestBaseHash(manifest),
         layers,
         createdAt: nowIso(clock),
         blueprintLayerCount,
       };
+
+      // Build explanation if requested
+      let explanation: PlanExplanation | undefined;
+      if (collectExplanation) {
+        explanation = {
+          movieId: args.movieId,
+          revision: args.targetRevision,
+          dirtyInputs: Array.from(dirtyInputs),
+          dirtyArtefacts: Array.from(dirtyArtefacts),
+          jobReasons,
+          initialDirtyJobs,
+          propagatedJobs,
+          surgicalTargets: args.artifactRegenerations?.map((r) => r.targetArtifactId),
+        };
+      }
+
+      return { plan, explanation };
     },
   };
 }
@@ -189,19 +241,22 @@ function determineInitialDirtyJobs(
   metadata: Map<string, GraphMetadata>,
   dirtyInputs: Set<string>,
   dirtyArtefacts: Set<string>,
-  logger?: Partial<Logger>,
-): Set<string> {
+  collectReasons: boolean,
+): InitialDirtyResult {
   const dirtyJobs = new Set<string>();
+  const reasons: JobDirtyReason[] = [];
   const isInitial = Object.keys(manifest.inputs).length === 0;
 
   for (const [jobId, info] of metadata) {
     if (isInitial) {
       dirtyJobs.add(jobId);
-      logger?.debug?.('planner.job.dirty.reason', {
-        jobId,
-        reason: 'isInitial',
-        message: 'Manifest has no inputs (initial run)',
-      });
+      if (collectReasons) {
+        reasons.push({
+          jobId,
+          producer: info.node.producer,
+          reason: 'initial',
+        });
+      }
       continue;
     }
 
@@ -226,32 +281,49 @@ function determineInitialDirtyJobs(
     if (producesMissing || touchesDirtyInput || touchesDirtyArtefact) {
       dirtyJobs.add(jobId);
 
-      // Log detailed reason for this job being marked dirty
-      logger?.debug?.('planner.job.dirty.reason', {
-        jobId,
-        producesMissing,
-        touchesDirtyInput,
-        touchesDirtyArtefact,
-        missingArtifacts: producesMissing ? missingArtifacts : undefined,
-        dirtyInputs: touchesDirtyInput ? dirtyInputsForJob : undefined,
-        dirtyArtefacts: touchesDirtyArtefact ? dirtyArtefactsForJob : undefined,
-        // Also log what the job produces for comparison
-        allProducedArtifacts: info.node.produces.filter(isCanonicalArtifactId),
-        // Log manifest artifact keys that contain the producer name for debugging
-        manifestArtifactSample: Object.keys(manifest.artefacts)
-          .filter((key) => key.includes(info.node.producer))
-          .slice(0, 5),
-      });
+      if (collectReasons) {
+        // Prioritize reason: producesMissing > touchesDirtyInput > touchesDirtyArtefact
+        if (producesMissing) {
+          reasons.push({
+            jobId,
+            producer: info.node.producer,
+            reason: 'producesMissing',
+            missingArtifacts,
+          });
+        } else if (touchesDirtyInput) {
+          reasons.push({
+            jobId,
+            producer: info.node.producer,
+            reason: 'touchesDirtyInput',
+            dirtyInputs: dirtyInputsForJob,
+          });
+        } else if (touchesDirtyArtefact) {
+          reasons.push({
+            jobId,
+            producer: info.node.producer,
+            reason: 'touchesDirtyArtefact',
+            dirtyArtefacts: dirtyArtefactsForJob,
+          });
+        }
+      }
     }
   }
 
-  return dirtyJobs;
+  return { dirtyJobs, reasons };
 }
 
-function propagateDirtyJobs(initialDirty: Set<string>, blueprint: ProducerGraph): Set<string> {
+function propagateDirtyJobs(
+  initialDirty: Set<string>,
+  blueprint: ProducerGraph,
+  metadata: Map<string, GraphMetadata>,
+  collectReasons: boolean,
+): PropagateResult {
   const dirty = new Set(initialDirty);
   const queue = Array.from(initialDirty);
   const adjacency = buildAdjacencyMap(blueprint);
+  const propagatedReasons: JobDirtyReason[] = [];
+  // Track which job caused propagation to each downstream job
+  const propagationSource = new Map<string, string>();
 
   while (queue.length > 0) {
     const jobId = queue.shift()!;
@@ -263,11 +335,26 @@ function propagateDirtyJobs(initialDirty: Set<string>, blueprint: ProducerGraph)
       if (!dirty.has(next)) {
         dirty.add(next);
         queue.push(next);
+        propagationSource.set(next, jobId);
       }
     }
   }
 
-  return dirty;
+  if (collectReasons) {
+    for (const [jobId, sourceJobId] of propagationSource) {
+      const info = metadata.get(jobId);
+      if (info) {
+        propagatedReasons.push({
+          jobId,
+          producer: info.node.producer,
+          reason: 'propagated',
+          propagatedFrom: sourceJobId,
+        });
+      }
+    }
+  }
+
+  return { allDirty: dirty, propagatedReasons };
 }
 
 /**

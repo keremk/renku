@@ -93,9 +93,11 @@ async function loadManifest(ctx: ReturnType<typeof memoryContext>): Promise<Mani
   }
 }
 
-function assertTopological(plan: ExecutionPlanLike, graph: ProducerGraph) {
+import type { ExecutionPlan } from '../types.js';
+
+function assertTopological(plan: ExecutionPlan, graph: ProducerGraph) {
   const order = new Map<string, number>();
-  plan.layers.forEach((layer, index) => {
+  plan.layers.forEach((layer: ExecutionPlan['layers'][0], index: number) => {
     for (const job of layer) {
       order.set(job.jobId, index);
     }
@@ -109,8 +111,6 @@ function assertTopological(plan: ExecutionPlanLike, graph: ProducerGraph) {
     expect(fromOrder).toBeLessThan(toOrder);
   }
 }
-
-type ExecutionPlanLike = Awaited<ReturnType<ReturnType<typeof createPlanner>['computePlan']>>;
 
 function createInputEvents(values: Record<string, unknown>, revision: RevisionId): InputEvent[] {
   const now = new Date().toISOString();
@@ -189,7 +189,7 @@ describe('planner', () => {
     const planner = createPlanner();
     const manifest = await loadManifest(ctx);
 
-    const plan = await planner.computePlan({
+    const { plan } = await planner.computePlan({
       movieId: 'demo',
       manifest,
       eventLog,
@@ -264,7 +264,7 @@ describe('planner', () => {
       timeline: {},
     };
 
-    const plan = await planner.computePlan({
+    const { plan } = await planner.computePlan({
       movieId: 'demo',
       manifest,
       eventLog,
@@ -311,7 +311,7 @@ describe('planner', () => {
     const nextRevision = nextRevisionId(baseRevision);
     const pending = createInputEvents({ InquiryPrompt: 'An epic voyage' }, nextRevision);
 
-    const plan = await planner.computePlan({
+    const { plan } = await planner.computePlan({
       movieId: 'demo',
       manifest,
       eventLog,
@@ -414,7 +414,7 @@ describe('planner', () => {
       createdAt: new Date().toISOString(),
     });
 
-    const plan = await planner.computePlan({
+    const { plan } = await planner.computePlan({
       movieId: 'demo',
       manifest,
       eventLog,
@@ -530,7 +530,7 @@ describe('planner', () => {
       'rev-0002' as RevisionId,
     );
 
-    const plan = await planner.computePlan({
+    const { plan } = await planner.computePlan({
       movieId: 'demo',
       manifest,
       eventLog,
@@ -646,7 +646,7 @@ describe('planner', () => {
       'rev-0002' as RevisionId,
     );
 
-    const plan = await planner.computePlan({
+    const { plan } = await planner.computePlan({
       movieId: 'demo',
       manifest,
       eventLog,
@@ -776,7 +776,7 @@ describe('planner', () => {
       };
 
       // Without reRunFrom, plan should be empty (nothing dirty)
-      const planWithoutRerun = await planner.computePlan({
+      const { plan: planWithoutRerun } = await planner.computePlan({
         movieId: 'demo',
         manifest,
         eventLog,
@@ -787,7 +787,7 @@ describe('planner', () => {
       expect(planWithoutRerun.layers.flat()).toHaveLength(0);
 
       // With reRunFrom=1, should include AudioProducer jobs (layer 1) and TimelineAssembler (layer 2)
-      const planWithRerun = await planner.computePlan({
+      const { plan: planWithRerun } = await planner.computePlan({
         movieId: 'demo',
         manifest,
         eventLog,
@@ -827,7 +827,7 @@ describe('planner', () => {
 
       const manifest = createSucceededManifest(baseline, { revision: baseRevision });
 
-      const plan = await planner.computePlan({
+      const { plan } = await planner.computePlan({
         movieId: 'demo',
         manifest,
         eventLog,
@@ -861,7 +861,7 @@ describe('planner', () => {
       const manifest = createSucceededManifest(baseline, { revision: baseRevision });
 
       // Layer 2 is the last layer (TimelineAssembler)
-      const plan = await planner.computePlan({
+      const { plan } = await planner.computePlan({
         movieId: 'demo',
         manifest,
         eventLog,
@@ -1070,7 +1070,7 @@ describe('planner', () => {
       const manifest = createSucceededManifest(baseline, { revision: baseRevision });
 
       // Surgical regeneration of AudioProducer[0]
-      const plan = await planner.computePlan({
+      const { plan } = await planner.computePlan({
         movieId: 'demo',
         manifest,
         eventLog,
@@ -1112,7 +1112,7 @@ describe('planner', () => {
       const manifest = createSucceededManifest(baseline, { revision: baseRevision });
 
       // Surgical regeneration of BOTH AudioProducer[0] and AudioProducer[1]
-      const plan = await planner.computePlan({
+      const { plan } = await planner.computePlan({
         movieId: 'demo',
         manifest,
         eventLog,
@@ -1161,7 +1161,7 @@ describe('planner', () => {
       const manifest = createSucceededManifest(baseline, { revision: baseRevision });
 
       // Surgical regeneration of TimelineAssembler with reRunFrom=0 (should be ignored)
-      const plan = await planner.computePlan({
+      const { plan } = await planner.computePlan({
         movieId: 'demo',
         manifest,
         eventLog,
@@ -1238,7 +1238,7 @@ describe('planner', () => {
       };
 
       // Surgical regeneration targets AudioProducer[0] (e.g., user wants to regenerate SegmentAudio[0])
-      const plan = await planner.computePlan({
+      const { plan } = await planner.computePlan({
         movieId: 'demo',
         manifest,
         eventLog,
@@ -1287,7 +1287,7 @@ describe('planner', () => {
       const manifest = createSucceededManifest(baseline, { revision: baseRevision });
 
       // reRunFrom=0 would normally include all jobs, but upToLayer=1 should exclude layer 2
-      const plan = await planner.computePlan({
+      const { plan } = await planner.computePlan({
         movieId: 'demo',
         manifest,
         eventLog,
@@ -1326,7 +1326,7 @@ describe('planner', () => {
 
       const manifest = createSucceededManifest(baseline, { revision: baseRevision });
 
-      const plan = await planner.computePlan({
+      const { plan } = await planner.computePlan({
         movieId: 'demo',
         manifest,
         eventLog,
@@ -1361,7 +1361,7 @@ describe('planner', () => {
 
       // Surgical regeneration of ScriptProducer would normally include all downstream
       // But upToLayer=0 should limit to only layer 0
-      const plan = await planner.computePlan({
+      const { plan } = await planner.computePlan({
         movieId: 'demo',
         manifest,
         eventLog,
@@ -1404,7 +1404,7 @@ describe('planner', () => {
       const manifest = createSucceededManifest(baseline, { revision: baseRevision });
 
       // upToLayer=10 is beyond max layer (2), so all jobs should be included
-      const plan = await planner.computePlan({
+      const { plan } = await planner.computePlan({
         movieId: 'demo',
         manifest,
         eventLog,
@@ -1588,7 +1588,7 @@ describe('planner', () => {
       };
 
       // Plan with upToLayer=0, so only layer 0 is scheduled
-      const plan = await planner.computePlan({
+      const { plan } = await planner.computePlan({
         movieId: 'demo',
         manifest,
         eventLog,
@@ -1619,7 +1619,7 @@ describe('planner', () => {
       const manifest = createSucceededManifest(baseline);
 
       // All artifacts succeeded, nothing dirty -> NOOP plan
-      const plan = await planner.computePlan({
+      const { plan } = await planner.computePlan({
         movieId: 'demo',
         manifest,
         eventLog,
@@ -1653,7 +1653,7 @@ describe('planner', () => {
       const manifest = createSucceededManifest(baseline, { revision: baseRevision });
 
       // reRunFrom=0 forces all jobs, but upToLayer=0 limits to only layer 0
-      const plan = await planner.computePlan({
+      const { plan } = await planner.computePlan({
         movieId: 'demo',
         manifest,
         eventLog,
@@ -1687,7 +1687,7 @@ describe('planner', () => {
       const manifest = createSucceededManifest(baseline);
 
       // Nothing dirty, no reRunFrom, no surgical -> empty plan
-      const plan = await planner.computePlan({
+      const { plan } = await planner.computePlan({
         movieId: 'demo',
         manifest,
         eventLog,
@@ -1716,7 +1716,7 @@ describe('planner', () => {
       const topologyResult = computeTopologyLayers(nodes, graph.edges);
 
       // Compute plan
-      const plan = await planner.computePlan({
+      const { plan } = await planner.computePlan({
         movieId: 'demo',
         manifest,
         eventLog,
@@ -1742,7 +1742,7 @@ describe('planner', () => {
       const topologyResult = computeTopologyLayers(nodes, graph.edges);
 
       // Compute plan with all jobs (initial run)
-      const plan = await planner.computePlan({
+      const { plan } = await planner.computePlan({
         movieId: 'demo',
         manifest,
         eventLog,

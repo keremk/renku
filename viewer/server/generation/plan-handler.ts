@@ -5,7 +5,7 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { resolve, dirname, relative } from 'node:path';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import {
   createStorageContext,
   initializeMovieStorage,
@@ -19,7 +19,6 @@ import {
   buildProducerCatalog,
   persistInputBlob,
   isRenkuError,
-  createLogger,
   type ExecutionPlan,
   type Manifest,
   type PendingArtefactDraft,
@@ -114,7 +113,13 @@ export async function handlePlanRequest(
     });
 
     // Build response
-    const response = buildPlanResponse(cachedPlan, planResult.plan);
+    const response = buildPlanResponse(cachedPlan, planResult.plan, {
+      blueprintPath: planResult.blueprintPath,
+      inputsPath,
+      artifactIds: body.artifactIds,
+      reRunFrom: body.reRunFrom,
+      upToLayer: body.upToLayer,
+    });
     sendJson(res, response);
     return true;
   } catch (error) {
@@ -239,11 +244,8 @@ async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanR
     modelCatalog,
   });
 
-  // Create logger with debug level enabled for planner diagnostics
-  const debugLogger = createLogger({ level: 'debug', prefix: '[planner]' });
-
   // Generate plan
-  const planResult = await createPlanningService({ logger: debugLogger }).generatePlan({
+  const planResult = await createPlanningService().generatePlan({
     movieId,
     blueprintTree: blueprintRoot,
     inputValues,
@@ -290,6 +292,9 @@ async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanR
       await mkdir(movieDir, { recursive: true });
       await initializeMovieStorage(localStorageContext, movieId);
 
+      // Write movie metadata (blueprintPath for CLI compatibility)
+      await mergeMovieMetadata(movieDir, { blueprintPath });
+
       // Copy blobs from memory storage to local storage
       await copyBlobsFromMemoryToLocal(memoryStorageContext, localStorageContext, movieId);
 
@@ -306,11 +311,68 @@ async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanR
   };
 }
 
+interface CliCommandOptions {
+  blueprintPath: string;
+  inputsPath?: string;
+  artifactIds?: string[];
+  reRunFrom?: number;
+  upToLayer?: number;
+}
+
+/**
+ * Build the equivalent CLI command for the given plan options.
+ */
+function buildCliCommand(
+  movieId: string,
+  options: CliCommandOptions
+): string {
+  const parts: string[] = ['renku generate'];
+
+  // Movie ID
+  parts.push(`--movie-id=${movieId}`);
+
+  // Blueprint path (required for CLI to work properly)
+  parts.push(`--blueprint=${options.blueprintPath}`);
+
+  // Inputs path (if provided)
+  if (options.inputsPath) {
+    parts.push(`--inputs=${options.inputsPath}`);
+  }
+
+  // Artifact IDs for surgical regeneration
+  if (options.artifactIds && options.artifactIds.length > 0) {
+    for (const artifactId of options.artifactIds) {
+      // Remove the "Artifact:" prefix if present for CLI format
+      const shortId = artifactId.replace(/^Artifact:/, '');
+      parts.push(`--aid=${shortId}`);
+    }
+  }
+
+  // Re-run from layer
+  if (options.reRunFrom !== undefined) {
+    parts.push(`--from=${options.reRunFrom}`);
+  }
+
+  // Up to layer
+  if (options.upToLayer !== undefined) {
+    parts.push(`--up=${options.upToLayer}`);
+  }
+
+  // Add --explain flag to help debug
+  parts.push('--explain');
+
+  return parts.join(' ');
+}
+
 /**
  * Builds the PlanResponse from cached plan and execution plan.
  * @internal Exported for testing
  */
-export function buildPlanResponse(cachedPlan: CachedPlan, plan: ExecutionPlan): PlanResponse {
+export function buildPlanResponse(
+  cachedPlan: CachedPlan,
+  plan: ExecutionPlan,
+  cliOptions?: CliCommandOptions
+): PlanResponse {
   // Build job cost lookup map for quick access
   const jobCostMap = new Map<string, { cost: number; min: number; max: number; isPlaceholder: boolean }>();
   for (const jobCost of cachedPlan.costSummary.jobs) {
@@ -381,6 +443,11 @@ export function buildPlanResponse(cachedPlan: CachedPlan, plan: ExecutionPlan): 
     missingProviders: cachedPlan.costSummary.missingProviders,
   };
 
+  // Build CLI command if options provided
+  const cliCommand = cliOptions
+    ? buildCliCommand(cachedPlan.movieId, cliOptions)
+    : undefined;
+
   return {
     planId: cachedPlan.planId,
     movieId: cachedPlan.movieId,
@@ -393,6 +460,7 @@ export function buildPlanResponse(cachedPlan: CachedPlan, plan: ExecutionPlan): 
     costSummary,
     layerBreakdown,
     surgicalInfo: cachedPlan.surgicalInfo,
+    cliCommand,
   };
 }
 
@@ -547,4 +615,42 @@ function deriveSurgicalInfoArray(
     });
   }
   return results.length > 0 ? results : undefined;
+}
+
+// =============================================================================
+// Movie Metadata Helpers
+// =============================================================================
+
+interface MovieMetadata {
+  blueprintPath?: string;
+  lastInputsPath?: string;
+  displayName?: string;
+  createdAt?: string;
+}
+
+const METADATA_FILE = 'movie-metadata.json';
+
+async function readMovieMetadata(movieDir: string): Promise<MovieMetadata | null> {
+  const targetPath = resolve(movieDir, METADATA_FILE);
+  try {
+    const contents = await readFile(targetPath, 'utf8');
+    return JSON.parse(contents) as MovieMetadata;
+  } catch {
+    return null;
+  }
+}
+
+async function mergeMovieMetadata(
+  movieDir: string,
+  updates: Partial<MovieMetadata>,
+): Promise<MovieMetadata> {
+  const current = (await readMovieMetadata(movieDir)) ?? {};
+  const next: MovieMetadata = {
+    ...current,
+    ...updates,
+  };
+  const targetPath = resolve(movieDir, METADATA_FILE);
+  await mkdir(dirname(targetPath), { recursive: true });
+  await writeFile(targetPath, JSON.stringify(next, null, 2), 'utf8');
+  return next;
 }

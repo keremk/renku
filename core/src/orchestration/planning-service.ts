@@ -4,6 +4,7 @@ import { expandBlueprintGraph } from '../resolution/canonical-expander.js';
 import { buildInputSourceMapFromCanonical, normalizeInputValues } from '../resolution/input-sources.js';
 import { createProducerGraph } from '../resolution/producer-graph.js';
 import { createPlanAdapter, type PlanAdapterOptions } from '../planning/adapter.js';
+import type { PlanExplanation } from '../planning/explanation.js';
 import { isCanonicalInputId, formatProducerAlias } from '../parsing/canonical-ids.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import type { EventLog } from '../event-log.js';
@@ -66,6 +67,8 @@ export interface GeneratePlanArgs {
   targetArtifactIds?: string[];
   /** Limit plan to layers 0 through upToLayer (0-indexed). Jobs in later layers are excluded from the plan. */
   upToLayer?: number;
+  /** If true, collect explanation data for why jobs are scheduled */
+  collectExplanation?: boolean;
 }
 
 export interface GeneratePlanResult {
@@ -76,6 +79,8 @@ export interface GeneratePlanResult {
   manifestHash: string | null;
   inputEvents: InputEvent[];
   resolvedInputs: Record<string, unknown>;
+  /** Explanation of why jobs were scheduled (only if collectExplanation was true) */
+  explanation?: PlanExplanation;
 }
 
 export interface PlanningServiceOptions extends PlanAdapterOptions {
@@ -161,7 +166,7 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
         );
       }
 
-      const plan = await adapter.compute({
+      const { plan, explanation } = await adapter.compute({
         movieId: args.movieId,
         manifest,
         eventLog: args.eventLog,
@@ -171,6 +176,7 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
         reRunFrom: args.reRunFrom,
         artifactRegenerations,
         upToLayer: args.upToLayer,
+        collectExplanation: args.collectExplanation,
       });
 
       await planStore.save(plan, { movieId: args.movieId, storage: args.storage });
@@ -184,6 +190,7 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
         manifestHash,
         inputEvents,
         resolvedInputs,
+        explanation,
       };
     },
   };

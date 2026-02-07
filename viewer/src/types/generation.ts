@@ -123,6 +123,8 @@ export interface PlanDisplayInfo {
   layerBreakdown: LayerDisplayInfo[];
   /** Surgical regeneration info if present */
   surgicalInfo?: SurgicalDisplayInfo[];
+  /** Equivalent CLI command for debugging/copy-paste */
+  cliCommand?: string;
 }
 
 /**

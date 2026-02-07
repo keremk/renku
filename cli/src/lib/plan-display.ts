@@ -1,4 +1,4 @@
-import type { ExecutionPlan, InputEvent, Logger, BlobInput } from '@gorenku/core';
+import type { ExecutionPlan, InputEvent, Logger, BlobInput, PlanExplanation } from '@gorenku/core';
 import { isBlobInput } from '@gorenku/core';
 import type { PlanCostSummary } from '@gorenku/providers';
 import chalk from 'chalk';
@@ -253,4 +253,138 @@ export function displayCostSummary(
 		`\n${chalk.bold('Total Estimated Cost:')} ${chalk.green(totalStr)}${totalAnnotation}`
 	);
 	logger.info('');
+}
+
+export interface DisplayExplanationOptions {
+	explanation: PlanExplanation;
+	logger?: Logger;
+}
+
+/**
+ * Display plan explanation showing why each job was scheduled.
+ * Used by --explain flag.
+ */
+export function displayPlanExplanation(options: DisplayExplanationOptions): void {
+	const { explanation } = options;
+	const logger = options.logger ?? globalThis.console;
+
+	logger.info(`\n${chalk.bold('=== Plan Explanation ===')}`);
+	logger.info(`${chalk.bold('Movie ID')}: ${explanation.movieId}`);
+	logger.info(`${chalk.bold('Revision')}: ${explanation.revision}`);
+	logger.info('');
+
+	// Show surgical targets if present
+	if (explanation.surgicalTargets && explanation.surgicalTargets.length > 0) {
+		logger.info(`${chalk.bold('Surgical Targets')} (${explanation.surgicalTargets.length}):`);
+		for (const target of explanation.surgicalTargets) {
+			logger.info(`  ${chalk.dim('•')} ${chalk.cyan(target)}`);
+		}
+		logger.info('');
+	}
+
+	// Show dirty inputs
+	logger.info(`${chalk.bold('Dirty Inputs')} (${explanation.dirtyInputs.length}):`);
+	if (explanation.dirtyInputs.length === 0) {
+		logger.info(`  ${chalk.dim('(none)')}`);
+	} else {
+		for (const input of explanation.dirtyInputs.slice(0, 20)) {
+			logger.info(`  ${chalk.dim('•')} ${chalk.blue(input)}`);
+		}
+		if (explanation.dirtyInputs.length > 20) {
+			logger.info(`  ${chalk.dim(`... and ${explanation.dirtyInputs.length - 20} more`)}`);
+		}
+	}
+	logger.info('');
+
+	// Show dirty artifacts
+	logger.info(`${chalk.bold('Dirty Artifacts')} (${explanation.dirtyArtefacts.length}):`);
+	if (explanation.dirtyArtefacts.length === 0) {
+		logger.info(`  ${chalk.dim('(none)')}`);
+	} else {
+		for (const artifact of explanation.dirtyArtefacts.slice(0, 20)) {
+			logger.info(`  ${chalk.dim('•')} ${chalk.magenta(artifact)}`);
+		}
+		if (explanation.dirtyArtefacts.length > 20) {
+			logger.info(`  ${chalk.dim(`... and ${explanation.dirtyArtefacts.length - 20} more`)}`);
+		}
+	}
+	logger.info('');
+
+	// Show job scheduling reasons
+	logger.info(`${chalk.bold('Job Scheduling Reasons:')}`);
+	logger.info('');
+
+	if (explanation.jobReasons.length === 0) {
+		logger.info(`  ${chalk.dim('(no jobs scheduled)')}`);
+	} else {
+		for (const jobReason of explanation.jobReasons) {
+			const reasonLabel = formatReasonLabel(jobReason.reason);
+			logger.info(`  ${chalk.bold(jobReason.jobId)} - ${reasonLabel}`);
+
+			// Show details based on reason
+			switch (jobReason.reason) {
+				case 'initial':
+					logger.info(`    ${chalk.dim('Manifest has no inputs (initial run)')}`);
+					break;
+				case 'producesMissing':
+					if (jobReason.missingArtifacts && jobReason.missingArtifacts.length > 0) {
+						logger.info(`    ${chalk.dim('Missing:')}`);
+						for (const artifact of jobReason.missingArtifacts.slice(0, 5)) {
+							logger.info(`      ${chalk.dim('-')} ${chalk.magenta(artifact)}`);
+						}
+						if (jobReason.missingArtifacts.length > 5) {
+							logger.info(`      ${chalk.dim(`... and ${jobReason.missingArtifacts.length - 5} more`)}`);
+						}
+					}
+					break;
+				case 'touchesDirtyInput':
+					if (jobReason.dirtyInputs && jobReason.dirtyInputs.length > 0) {
+						const inputsList = jobReason.dirtyInputs.slice(0, 3).join(', ');
+						const more = jobReason.dirtyInputs.length > 3 ? ` (+${jobReason.dirtyInputs.length - 3} more)` : '';
+						logger.info(`    ${chalk.dim('Dirty inputs:')} ${inputsList}${more}`);
+					}
+					break;
+				case 'touchesDirtyArtefact':
+					if (jobReason.dirtyArtefacts && jobReason.dirtyArtefacts.length > 0) {
+						const artifactsList = jobReason.dirtyArtefacts.slice(0, 3).join(', ');
+						const more = jobReason.dirtyArtefacts.length > 3 ? ` (+${jobReason.dirtyArtefacts.length - 3} more)` : '';
+						logger.info(`    ${chalk.dim('Dirty artifacts:')} ${artifactsList}${more}`);
+					}
+					break;
+				case 'propagated':
+					if (jobReason.propagatedFrom) {
+						logger.info(`    ${chalk.dim('Propagated from:')} ${chalk.blue(jobReason.propagatedFrom)}`);
+					}
+					break;
+			}
+			logger.info('');
+		}
+	}
+
+	// Show summary
+	logger.info(`${chalk.bold('Summary:')}`);
+	logger.info(`  Initial dirty jobs: ${explanation.initialDirtyJobs.length}`);
+	logger.info(`  Propagated jobs: ${explanation.propagatedJobs.length}`);
+	logger.info(`  Total jobs in plan: ${explanation.jobReasons.length}`);
+	logger.info('');
+}
+
+/**
+ * Format a reason code as a human-readable label.
+ */
+function formatReasonLabel(reason: string): string {
+	switch (reason) {
+		case 'initial':
+			return chalk.yellow('INITIAL RUN');
+		case 'producesMissing':
+			return chalk.red('PRODUCES MISSING ARTIFACTS');
+		case 'touchesDirtyInput':
+			return chalk.cyan('TOUCHES DIRTY INPUTS');
+		case 'touchesDirtyArtefact':
+			return chalk.magenta('TOUCHES DIRTY ARTIFACTS');
+		case 'propagated':
+			return chalk.blue('PROPAGATED FROM UPSTREAM');
+		default:
+			return reason;
+	}
 }

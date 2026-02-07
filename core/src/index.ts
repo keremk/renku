@@ -8,6 +8,7 @@ export * from './event-log.js';
 export * from './manifest.js';
 export * from './hashing.js';
 export * from './planning/planner.js';
+export * from './planning/explanation.js';
 export * from './orchestration/planning-service.js';
 export * from './orchestration/producer-options.js';
 export * from './orchestration/prompt-file.js';

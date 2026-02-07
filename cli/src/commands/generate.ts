@@ -33,6 +33,8 @@ export interface GenerateOptions {
   dryRun?: boolean;
   nonInteractive?: boolean;
   costsOnly?: boolean;
+  /** Generate plan, display explanation, and exit without executing */
+  explain?: boolean;
   concurrency?: number;
   upToLayer?: number;
   reRunFrom?: number;
@@ -148,6 +150,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
       dryRun: options.dryRun,
       nonInteractive: options.nonInteractive,
       costsOnly: options.costsOnly,
+      explain: options.explain,
       concurrency,
       upToLayer,
       reRunFrom: options.reRunFrom,
@@ -221,6 +224,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
     dryRun: options.dryRun,
     nonInteractive: options.nonInteractive,
     costsOnly: options.costsOnly,
+    explain: options.explain,
     concurrency,
     upToLayer,
     logger,

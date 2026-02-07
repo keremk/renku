@@ -409,6 +409,7 @@ function planResponseToDisplayInfo(response: PlanResponse): PlanDisplayInfo {
     costByProducer,
     layerBreakdown,
     surgicalInfo,
+    cliCommand: response.cliCommand,
   };
 }
 

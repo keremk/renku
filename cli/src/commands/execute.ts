@@ -4,7 +4,7 @@ import { generatePlan, type PendingArtefactDraft } from '../lib/planner.js';
 import { executeBuild, type BuildSummary } from '../lib/build.js';
 import { expandPath } from '../lib/path.js';
 import { confirmPlanExecution } from '../lib/interactive-confirm.js';
-import { displayPlanAndCosts } from '../lib/plan-display.js';
+import { displayPlanAndCosts, displayPlanExplanation } from '../lib/plan-display.js';
 import { readMovieMetadata } from '../lib/movie-metadata.js';
 import { resolveBlueprintSpecifier } from '../lib/config-assets.js';
 import { resolveAndPersistConcurrency } from '../lib/concurrency.js';
@@ -50,6 +50,9 @@ export interface ExecuteOptions {
 
   /** Show costs and exit without executing */
   costsOnly?: boolean;
+
+  /** Generate plan, display explanation, and exit without executing */
+  explain?: boolean;
 
   /** Number of concurrent jobs */
   concurrency?: number;
@@ -169,6 +172,7 @@ export async function runExecute(options: ExecuteOptions): Promise<ExecuteResult
     logger,
     reRunFrom: options.reRunFrom,
     targetArtifactIds: options.targetArtifactIds,
+    collectExplanation: options.explain,
   });
 
   // Validate reRunFrom against previous stage statuses
@@ -194,6 +198,20 @@ export async function runExecute(options: ExecuteOptions): Promise<ExecuteResult
   // Handle --costs-only: display plan summary and costs, then return early
   if (options.costsOnly) {
     return handleCostsOnly({
+      planResult,
+      storageMovieId,
+      movieDir,
+      storageRoot,
+      basePath,
+      isNew,
+      logger,
+      movieId: options.movieId,
+    });
+  }
+
+  // Handle --explain: display plan explanation, then return early
+  if (options.explain) {
+    return handleExplain({
       planResult,
       storageMovieId,
       movieDir,
@@ -306,9 +324,13 @@ async function resolveBlueprintPath(args: {
     // For new movies, use the provided specifier
     blueprintInput = args.specifier;
   } else {
-    // For edits, always use the blueprint from movie metadata (ignore specifier)
-    const metadata = await readMovieMetadata(args.movieDir);
-    blueprintInput = metadata?.blueprintPath;
+    // For edits, prefer explicit specifier if provided, otherwise use metadata
+    if (args.specifier && args.specifier.trim().length > 0) {
+      blueprintInput = args.specifier;
+    } else {
+      const metadata = await readMovieMetadata(args.movieDir);
+      blueprintInput = metadata?.blueprintPath;
+    }
   }
 
   if (!blueprintInput || blueprintInput.trim().length === 0) {
@@ -340,6 +362,59 @@ async function handleCostsOnly(args: {
 }): Promise<ExecuteResult> {
   const { planResult, storageMovieId, movieDir, storageRoot, basePath, isNew, logger } = args;
 
+  displayPlanAndCosts({
+    plan: planResult.plan,
+    inputs: planResult.inputEvents,
+    costSummary: planResult.costSummary,
+    logger,
+  });
+
+  const cleanedUp = await cleanupPartialRunDirectory({
+    storageRoot,
+    basePath,
+    movieId: storageMovieId,
+    isNew,
+  });
+
+  return {
+    movieId: args.movieId ?? normalizePublicId(storageMovieId),
+    storageMovieId,
+    planPath: planResult.planPath,
+    targetRevision: planResult.targetRevision,
+    build: undefined,
+    isDryRun: undefined,
+    manifestPath: undefined,
+    storagePath: movieDir,
+    cleanedUp,
+  };
+}
+
+/**
+ * Handle --explain: display plan explanation, cleanup, return early.
+ */
+async function handleExplain(args: {
+  planResult: Awaited<ReturnType<typeof generatePlan>>;
+  storageMovieId: string;
+  movieDir: string;
+  storageRoot: string;
+  basePath: string;
+  isNew: boolean;
+  logger: Logger;
+  movieId?: string;
+}): Promise<ExecuteResult> {
+  const { planResult, storageMovieId, movieDir, storageRoot, basePath, isNew, logger } = args;
+
+  // Display explanation if available
+  if (planResult.explanation) {
+    displayPlanExplanation({
+      explanation: planResult.explanation,
+      logger,
+    });
+  } else {
+    logger.error('No explanation data available. This should not happen when --explain is used.');
+  }
+
+  // Also display cost summary for context
   displayPlanAndCosts({
     plan: planResult.plan,
     inputs: planResult.inputEvents,

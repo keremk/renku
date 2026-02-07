@@ -92,6 +92,8 @@ export interface PlanResponse {
   layerBreakdown: LayerInfo[];
   /** Surgical regeneration info if artifactIds was provided */
   surgicalInfo?: SurgicalInfo[];
+  /** Equivalent CLI command for debugging/copy-paste */
+  cliCommand?: string;
 }
 
 /**

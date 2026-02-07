@@ -17,8 +17,10 @@ import {
   type PendingArtefactDraft,
   type Logger,
   type ArtifactOverride,
+  type PlanExplanation,
 } from '@gorenku/core';
 export type { PendingArtefactDraft } from '@gorenku/core';
+export type { PlanExplanation } from '@gorenku/core';
 import {
   loadPricingCatalog,
   estimatePlanCosts,
@@ -51,6 +53,8 @@ export interface GeneratePlanOptions {
   reRunFrom?: number;
   /** Target artifact IDs for surgical regeneration (canonical format, e.g., ["Artifact:AudioProducer.GeneratedAudio[0]"]) */
   targetArtifactIds?: string[];
+  /** If true, collect explanation data for why jobs are scheduled */
+  collectExplanation?: boolean;
 }
 
 export interface GeneratePlanResult {
@@ -75,6 +79,8 @@ export interface GeneratePlanResult {
     targetArtifactId: string;
     sourceJobId: string;
   }>;
+  /** Plan explanation (only if collectExplanation was true) */
+  explanation?: PlanExplanation;
 }
 
 export async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanResult> {
@@ -183,6 +189,7 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
     pendingArtefacts: allPendingArtefacts.length > 0 ? allPendingArtefacts : undefined,
     reRunFrom: options.reRunFrom,
     targetArtifactIds: options.targetArtifactIds,
+    collectExplanation: options.collectExplanation,
   });
   logger.debug('[planner] resolved inputs', { inputs: Object.keys(planResult.resolvedInputs) });
   const absolutePlanPath = resolve(storageRoot, basePath, movieId, 'runs', `${planResult.targetRevision}-plan.json`);
@@ -216,6 +223,7 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
     modelCatalog,
     catalogModelsDir: catalogModelsDir ?? undefined,
     surgicalInfo,
+    explanation: planResult.explanation,
     persist: async () => {
       // Create LOCAL storage and write everything
       const localStorageContext = createStorageContext({

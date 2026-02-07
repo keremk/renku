@@ -4,8 +4,8 @@
  * User selects artifacts in Outputs panel and layer limit via Run button dropdown.
  */
 
-import { useMemo } from "react";
-import { CheckCircle2, AlertCircle, Layers, Briefcase, DollarSign, X } from "lucide-react";
+import { useMemo, useState, useCallback } from "react";
+import { CheckCircle2, AlertCircle, Layers, Briefcase, DollarSign, X, Copy, Check } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -154,6 +154,43 @@ function ErrorContent({ error, onClose }: { error: string; onClose: () => void }
 }
 
 /**
+ * Copy CLI command button with feedback.
+ */
+function CopyCliCommandButton({ cliCommand }: { cliCommand: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(cliCommand);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy CLI command:', err);
+    }
+  }, [cliCommand]);
+
+  return (
+    <button
+      onClick={handleCopy}
+      title="Copy CLI command"
+      className="flex items-center gap-1.5 py-1.5 px-2.5 text-xs font-medium rounded-md bg-muted/50 hover:bg-muted border border-border/40 text-muted-foreground hover:text-foreground transition-all duration-150"
+    >
+      {copied ? (
+        <>
+          <Check className="w-3.5 h-3.5 text-emerald-500" />
+          <span className="text-emerald-500">Copied!</span>
+        </>
+      ) : (
+        <>
+          <Copy className="w-3.5 h-3.5" />
+          <span>Copy CLI</span>
+        </>
+      )}
+    </button>
+  );
+}
+
+/**
  * Execution plan dialog content.
  */
 function PlanContent({
@@ -266,20 +303,29 @@ function PlanContent({
       </div>
 
       {/* Footer */}
-      <div className="px-6 py-4 border-t border-border/30 bg-muted/20 flex justify-end gap-3">
-        <button
-          onClick={onCancel}
-          className="py-2 px-4 text-sm font-medium rounded-lg bg-transparent hover:bg-muted border border-border/50 text-foreground/80 hover:text-foreground transition-all duration-150"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={onExecute}
-          disabled={isReplanning}
-          className="py-2 px-5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-all duration-150 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
-        >
-          {isReplanning ? 'Updating...' : 'Execute'}
-        </button>
+      <div className="px-6 py-4 border-t border-border/30 bg-muted/20 flex justify-between items-center">
+        {/* CLI command copy button */}
+        <div className="flex items-center">
+          {planInfo.cliCommand && (
+            <CopyCliCommandButton cliCommand={planInfo.cliCommand} />
+          )}
+        </div>
+        {/* Action buttons */}
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="py-2 px-4 text-sm font-medium rounded-lg bg-transparent hover:bg-muted border border-border/50 text-foreground/80 hover:text-foreground transition-all duration-150"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onExecute}
+            disabled={isReplanning}
+            className="py-2 px-5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-all duration-150 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+          >
+            {isReplanning ? 'Updating...' : 'Execute'}
+          </button>
+        </div>
       </div>
     </div>
   );
