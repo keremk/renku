@@ -168,7 +168,7 @@ describe('serializeInputsToYaml', () => {
       });
     });
 
-    it('serializes LLM-specific fields', () => {
+    it('serializes LLM-specific fields inside config', () => {
       const data: RawInputsData = {
         inputs: {},
         models: [
@@ -176,10 +176,12 @@ describe('serializeInputsToYaml', () => {
             producerId: 'ChatProducer',
             provider: 'openai',
             model: 'gpt-4',
-            systemPrompt: 'You are helpful.',
-            userPrompt: 'Answer: {{question}}',
-            textFormat: 'json_schema',
-            variables: ['question'],
+            config: {
+              systemPrompt: 'You are helpful.',
+              userPrompt: 'Answer: {{question}}',
+              textFormat: 'json_schema',
+              variables: ['question'],
+            },
           },
         ],
       };
@@ -187,10 +189,10 @@ describe('serializeInputsToYaml', () => {
       const yaml = serializeInputsToYaml(data);
       const parsed = parseYaml(yaml);
 
-      expect(parsed.models[0].systemPrompt).toBe('You are helpful.');
-      expect(parsed.models[0].userPrompt).toBe('Answer: {{question}}');
-      expect(parsed.models[0].textFormat).toBe('json_schema');
-      expect(parsed.models[0].variables).toEqual(['question']);
+      expect(parsed.models[0].config.systemPrompt).toBe('You are helpful.');
+      expect(parsed.models[0].config.userPrompt).toBe('Answer: {{question}}');
+      expect(parsed.models[0].config.textFormat).toBe('json_schema');
+      expect(parsed.models[0].config.variables).toEqual(['question']);
     });
 
     it('handles empty models array', () => {
@@ -248,11 +250,13 @@ describe('serializeInputsToYaml', () => {
             producerId: 'TestProducer',
             provider: 'openai',
             model: 'gpt-4',
-            config: { temperature: 0.7 },
-            systemPrompt: 'Be helpful',
-            userPrompt: 'Answer {{q}}',
-            textFormat: 'json',
-            variables: ['q'],
+            config: {
+              temperature: 0.7,
+              systemPrompt: 'Be helpful',
+              userPrompt: 'Answer {{q}}',
+              textFormat: 'json',
+              variables: ['q'],
+            },
           },
         ],
       };
@@ -264,11 +268,13 @@ describe('serializeInputsToYaml', () => {
       expect(model.producerId).toBe('TestProducer');
       expect(model.provider).toBe('openai');
       expect(model.model).toBe('gpt-4');
-      expect(model.config).toEqual({ temperature: 0.7 });
-      expect(model.systemPrompt).toBe('Be helpful');
-      expect(model.userPrompt).toBe('Answer {{q}}');
-      expect(model.textFormat).toBe('json');
-      expect(model.variables).toEqual(['q']);
+      expect(model.config).toEqual({
+        temperature: 0.7,
+        systemPrompt: 'Be helpful',
+        userPrompt: 'Answer {{q}}',
+        textFormat: 'json',
+        variables: ['q'],
+      });
     });
 
     it('handles special characters in strings through round-trip', () => {
@@ -295,10 +301,9 @@ describe('toSerializableModelSelection', () => {
       producerId: 'TestProducer',
       provider: 'openai',
       model: 'gpt-4',
-      config: { temp: 0.5 },
+      config: { temp: 0.5, systemPrompt: 'Be helpful' },
       namespacePath: ['Root', 'Child'],
       outputs: { result: { type: 'string' } },
-      systemPrompt: 'Be helpful',
     };
 
     const serializable = toSerializableModelSelection(full);
@@ -306,8 +311,7 @@ describe('toSerializableModelSelection', () => {
     expect(serializable.producerId).toBe('TestProducer');
     expect(serializable.provider).toBe('openai');
     expect(serializable.model).toBe('gpt-4');
-    expect(serializable.config).toEqual({ temp: 0.5 });
-    expect(serializable.systemPrompt).toBe('Be helpful');
+    expect(serializable.config).toEqual({ temp: 0.5, systemPrompt: 'Be helpful' });
     // Runtime fields should be stripped
     expect('namespacePath' in serializable).toBe(false);
     expect('outputs' in serializable).toBe(false);
@@ -336,10 +340,6 @@ describe('toSerializableModelSelection', () => {
     const serializable = toSerializableModelSelection(full);
 
     expect(serializable.config).toBeUndefined();
-    expect(serializable.systemPrompt).toBeUndefined();
-    expect(serializable.userPrompt).toBeUndefined();
-    expect(serializable.textFormat).toBeUndefined();
-    expect(serializable.variables).toBeUndefined();
   });
 });
 

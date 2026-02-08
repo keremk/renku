@@ -5,7 +5,8 @@
 
 import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import type { BlueprintMeta } from '../types.js';
 import { parse as parseToml, stringify as stringifyToml } from 'smol-toml';
 
 /**
@@ -177,4 +178,92 @@ export async function deletePromptFile(promptPath: string): Promise<void> {
   if (existsSync(promptPath)) {
     await unlink(promptPath);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Build-folder prompt path resolution
+// ---------------------------------------------------------------------------
+
+/**
+ * Get the prompts directory inside a movie's builds folder.
+ *
+ * @param buildsDir - Absolute path to the movie-specific builds directory
+ *                    (e.g., `.../builds/movie-123/`)
+ */
+export function getBuildPromptsDir(buildsDir: string): string {
+  return resolve(buildsDir, 'prompts');
+}
+
+/**
+ * Get the build prompt file path for a specific producer.
+ *
+ * @param buildsDir - Absolute path to the movie-specific builds directory
+ * @param producerId - The producer alias (e.g., "ScriptProducer")
+ */
+export function getBuildPromptPath(buildsDir: string, producerId: string): string {
+  return resolve(getBuildPromptsDir(buildsDir), `${producerId}.toml`);
+}
+
+/**
+ * Resolve the prompt file path for a producer.
+ * Checks builds folder first (user edits), falls back to blueprint template.
+ *
+ * Resolution order:
+ * 1. {buildsDir}/prompts/{producerId}.toml — if exists (user edited)
+ * 2. {producerDir}/{meta.promptFile} — blueprint template (always exists)
+ * 3. undefined — producer has no promptFile in meta
+ *
+ * @param producerMeta - The blueprint meta containing promptFile reference
+ * @param producerSourcePath - Absolute path to the producer YAML file
+ * @param buildsDir - Optional absolute path to the movie builds directory
+ * @param producerId - Optional producer alias for builds folder lookup
+ */
+export function resolvePromptPath(
+  producerMeta: BlueprintMeta,
+  producerSourcePath: string,
+  buildsDir?: string,
+  producerId?: string,
+): string | undefined {
+  // Check builds folder first
+  if (buildsDir && producerId) {
+    const buildPath = getBuildPromptPath(buildsDir, producerId);
+    if (promptFileExists(buildPath)) {
+      return buildPath;
+    }
+  }
+  // Fall back to blueprint template
+  if (producerMeta.promptFile) {
+    return resolve(dirname(producerSourcePath), producerMeta.promptFile);
+  }
+  return undefined;
+}
+
+/**
+ * Save prompt data to the builds folder for a specific producer.
+ *
+ * @param buildsDir - Absolute path to the movie-specific builds directory
+ * @param producerId - The producer alias
+ * @param prompts - The prompt data to save
+ */
+export async function saveProducerPrompts(
+  buildsDir: string,
+  producerId: string,
+  prompts: PromptFileData,
+): Promise<void> {
+  const promptPath = getBuildPromptPath(buildsDir, producerId);
+  await savePromptFile(promptPath, prompts);
+}
+
+/**
+ * Restore prompts to the template version by deleting the build copy.
+ *
+ * @param buildsDir - Absolute path to the movie-specific builds directory
+ * @param producerId - The producer alias
+ */
+export async function restoreProducerPrompts(
+  buildsDir: string,
+  producerId: string,
+): Promise<void> {
+  const buildPath = getBuildPromptPath(buildsDir, producerId);
+  await deletePromptFile(buildPath);
 }

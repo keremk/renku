@@ -1,4 +1,5 @@
 import type { ArtefactEventStatus } from '@gorenku/core';
+import { createProviderError, SdkErrorCode } from '../../sdk/errors.js';
 import type { HandlerFactory, ProviderJobContext } from '../../types.js';
 import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
 import type { ProducerInvokeArgs, ProducerRuntime } from '../../sdk/types.js';
@@ -55,11 +56,9 @@ export function createOpenAiLlmHandler(): HandlerFactory {
         // 1. Parse config
         const config = runtime.config.parse<OpenAiLlmConfig>(parseOpenAiConfig);
 
-        // 2. Auto-derive responseFormat from outputSchema if not explicitly set
-        const rawConfig = runtime.config.raw as Record<string, unknown> | null | undefined;
-        const hasExplicitResponseFormat = rawConfig?.responseFormat !== undefined;
+        // 2. Auto-derive responseFormat from outputSchema (always)
         const outputSchema = getOutputSchemaFromRequest(request);
-        const responseFormat = deriveResponseFormat(config.responseFormat, outputSchema, hasExplicitResponseFormat);
+        const responseFormat = deriveResponseFormat(outputSchema);
 
         const schemaInfo = responseFormat?.type === 'json_schema'
           ? {
@@ -171,8 +170,10 @@ function buildPromptVariablePayload(
     const canonicalId = inputBindings?.[variable] ?? variable;
     const value = runtime.inputs.getByNodeId(canonicalId);
     if (value === undefined) {
-      throw new Error(
+      throw createProviderError(
+        SdkErrorCode.MISSING_REQUIRED_INPUT,
         `[providers.openai.prompts] Missing resolved input for canonical id "${canonicalId}" (variable "${variable}")`,
+        { kind: 'user_input', causedByUser: true },
       );
     }
     payload[variable] = normalizePromptValue(value, runtime);
@@ -226,15 +227,21 @@ function formatFanInPromptValue(value: FanInValue, runtime: ProducerRuntime): st
       }
       const resolved = runtime.inputs.getByNodeId(memberId) ?? runtime.inputs.get(memberId);
       if (typeof resolved !== 'string' || resolved.trim().length === 0) {
-        throw new Error(
+        throw createProviderError(
+          SdkErrorCode.MISSING_FANIN_DATA,
           `[providers.openai.prompts] Fan-in member "${memberId}" is missing text content for prompt variable.`,
+          { kind: 'user_input' },
         );
       }
       lines.push(`- ${resolved.trim()}`);
     }
   }
   if (lines.length === 0) {
-    throw new Error('[providers.openai.prompts] Fan-in collection did not yield any values for prompt variable.');
+    throw createProviderError(
+      SdkErrorCode.MISSING_FANIN_DATA,
+      '[providers.openai.prompts] Fan-in collection did not yield any values for prompt variable.',
+      { kind: 'user_input' },
+    );
   }
   return lines.join('\n');
 }
@@ -260,30 +267,16 @@ function getOutputSchemaFromRequest(request: ProviderJobContext): string | undef
 }
 
 /**
- * Derives the responseFormat to use, auto-deriving from outputSchema if available.
- * Explicit config (json_schema OR text) takes precedence over auto-derivation.
- *
- * @param configFormat - The parsed response format from config
- * @param outputSchema - The output schema from request context (if any)
- * @param hasExplicitConfig - Whether the raw config explicitly set responseFormat
+ * Derives the responseFormat to use, always auto-deriving from outputSchema.
+ * textFormat is no longer user-configurable — providers always deduce from schema.
  */
 function deriveResponseFormat(
-  configFormat: OpenAiResponseFormat | undefined,
   outputSchema: string | undefined,
-  hasExplicitConfig: boolean,
 ): OpenAiResponseFormat {
-  // Explicit config takes precedence (user intentionally set a format)
-  if (hasExplicitConfig && configFormat?.type !== undefined) {
-    return configFormat;
-  }
-
-  // Auto-derive from outputSchema if available and no explicit config
   if (outputSchema) {
     return buildResponseFormatFromSchema(outputSchema);
   }
-
-  // Default to config format or text
-  return configFormat ?? { type: 'text' };
+  return { type: 'text' };
 }
 
 /**

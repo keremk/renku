@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
@@ -9,16 +8,24 @@ import {
   createPlanningService,
   createMovieMetadataService,
   planStore,
-  persistInputBlob,
-  inferMimeType,
   validateBlueprintTree,
+  buildProducerCatalog,
+  copyManifestToMemory,
+  copyEventsToMemory,
+  copyBlobsFromMemoryToLocal,
+  buildProviderMetadata,
+  convertArtifactOverridesToDrafts,
+  persistArtifactOverrideBlobs,
+  deriveSurgicalInfoArray,
+  createValidationError,
+  ValidationErrorCode,
   type InputEvent,
   type Manifest,
   type ExecutionPlan,
   type PendingArtefactDraft,
   type Logger,
-  type ArtifactOverride,
   type PlanExplanation,
+  type ProducerOptionsMap,
 } from '@gorenku/core';
 export type { PendingArtefactDraft } from '@gorenku/core';
 export type { PlanExplanation } from '@gorenku/core';
@@ -33,11 +40,8 @@ import {
 import type { CliConfig } from './cli-config.js';
 import { loadBlueprintBundle } from './blueprint-loader/index.js';
 import { loadInputsFromYaml } from './input-loader.js';
-import { buildProducerCatalog, type ProducerOptionsMap, type ProviderOptionEntry } from '@gorenku/core';
 import { expandPath } from './path.js';
-import { applyProviderDefaults } from './provider-defaults.js';
 import chalk from 'chalk';
-import { Buffer } from 'buffer';
 
 export interface GeneratePlanOptions {
   cliConfig: CliConfig;
@@ -121,7 +125,10 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
     const errorMessages = validation.errors
       .map((e) => `  ${e.code}: ${e.message}`)
       .join('\n');
-    throw new Error(`Blueprint validation failed:\n${errorMessages}`);
+    throw createValidationError(
+      ValidationErrorCode.BLUEPRINT_VALIDATION_FAILED,
+      `Blueprint validation failed:\n${errorMessages}`,
+    );
   }
 
   // Load inputs from YAML - always required (contains model selections)
@@ -137,8 +144,9 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
   const { values: inputValues, providerOptions, artifactOverrides } = await loadInputsFromYaml(
     options.inputsPath,
     blueprintRoot,
+    false,
+    movieDir,
   );
-  applyProviderDefaults(inputValues, providerOptions);
   const catalog = buildProducerCatalog(providerOptions);
   logger.info(`${chalk.bold('Using blueprint:')} ${blueprintPath}`);
 
@@ -170,10 +178,11 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
   }
 
   // Generate plan (writes go to in-memory storage)
-  const providerMetadata = await buildProviderMetadata(providerOptions, {
-    catalogModelsDir,
-    modelCatalog,
-  });
+  const providerMetadata = await buildProviderMetadata(
+    providerOptions,
+    { catalogModelsDir, modelCatalog },
+    loadModelInputSchema as Parameters<typeof buildProviderMetadata>[2],
+  );
   const planResult = await createPlanningService({
     logger,
     notifications,
@@ -258,93 +267,6 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
   };
 }
 
-/**
- * Copy existing manifest from local storage to in-memory storage.
- */
-async function copyManifestToMemory(
-  localCtx: ReturnType<typeof createStorageContext>,
-  memoryCtx: ReturnType<typeof createStorageContext>,
-  movieId: string,
-): Promise<void> {
-  const currentJsonPath = localCtx.resolve(movieId, 'current.json');
-  if (await localCtx.storage.fileExists(currentJsonPath)) {
-    const content = await localCtx.storage.readToString(currentJsonPath);
-    const memoryPath = memoryCtx.resolve(movieId, 'current.json');
-    await memoryCtx.storage.write(memoryPath, content, { mimeType: 'application/json' });
-
-    // Also copy the actual manifest file if it exists
-    const parsed = JSON.parse(content) as { manifestPath?: string | null };
-    if (parsed.manifestPath) {
-      const manifestFullPath = localCtx.resolve(movieId, parsed.manifestPath);
-      if (await localCtx.storage.fileExists(manifestFullPath)) {
-        const manifestContent = await localCtx.storage.readToString(manifestFullPath);
-        const memoryManifestPath = memoryCtx.resolve(movieId, parsed.manifestPath);
-        await memoryCtx.storage.write(memoryManifestPath, manifestContent, { mimeType: 'application/json' });
-      }
-    }
-  }
-}
-
-/**
- * Copy existing event logs from local storage to in-memory storage.
- */
-async function copyEventsToMemory(
-  localCtx: ReturnType<typeof createStorageContext>,
-  memoryCtx: ReturnType<typeof createStorageContext>,
-  movieId: string,
-): Promise<void> {
-  const eventFiles = ['events/inputs.log', 'events/artefacts.log'];
-  for (const eventFile of eventFiles) {
-    const localPath = localCtx.resolve(movieId, eventFile);
-    if (await localCtx.storage.fileExists(localPath)) {
-      const content = await localCtx.storage.readToString(localPath);
-      const memoryPath = memoryCtx.resolve(movieId, eventFile);
-      await memoryCtx.storage.write(memoryPath, content, { mimeType: 'text/plain' });
-    }
-  }
-}
-
-interface CatalogSchemaOptions {
-  catalogModelsDir: string | null;
-  modelCatalog?: LoadedModelCatalog;
-}
-
-async function buildProviderMetadata(
-  options: ProducerOptionsMap,
-  catalogOptions: CatalogSchemaOptions
-): Promise<Map<string, ProviderOptionEntry>> {
-  const { catalogModelsDir, modelCatalog } = catalogOptions;
-  const map = new Map<string, ProviderOptionEntry>();
-
-  for (const [key, entries] of options) {
-    const primary = entries[0];
-    if (!primary) {
-      continue;
-    }
-
-    // Try to load input schema from model catalog if not already present
-    let inputSchema = primary.inputSchema;
-    if (!inputSchema && catalogModelsDir && modelCatalog && primary.provider && primary.model) {
-      inputSchema = await loadModelInputSchema(
-        catalogModelsDir,
-        modelCatalog,
-        primary.provider,
-        primary.model
-      ) ?? undefined;
-    }
-
-    map.set(key, {
-      sdkMapping: primary.sdkMapping,
-      outputs: primary.outputs,
-      inputSchema,
-      outputSchema: primary.outputSchema,
-      config: primary.config,
-      selectionInputKeys: primary.selectionInputKeys,
-      configInputPaths: primary.configInputPaths,
-    });
-  }
-  return map;
-}
 
 /**
  * Resolve the catalog models directory path from CLI config.
@@ -356,102 +278,3 @@ function resolveCatalogModelsDir(cliConfig: CliConfig): string | null {
   return null;
 }
 
-/**
- * Convert artifact overrides from inputs.yaml to PendingArtefactDraft objects.
- * Computes blob hash from the data for dirty tracking.
- */
-function convertArtifactOverridesToDrafts(overrides: ArtifactOverride[]): PendingArtefactDraft[] {
-  return overrides.map((override) => {
-    const buffer = Buffer.isBuffer(override.blob.data)
-      ? override.blob.data
-      : Buffer.from(override.blob.data);
-    const hash = createHash('sha256').update(buffer).digest('hex');
-
-    return {
-      artefactId: override.artifactId,
-      producedBy: 'user-override',
-      output: {
-        blob: {
-          hash,
-          size: buffer.byteLength,
-          mimeType: override.blob.mimeType,
-        },
-      },
-    };
-  });
-}
-
-/**
- * Persist artifact override blobs to storage before converting to drafts.
- */
-async function persistArtifactOverrideBlobs(
-  overrides: ArtifactOverride[],
-  storage: ReturnType<typeof createStorageContext>,
-  movieId: string,
-): Promise<ArtifactOverride[]> {
-  // Blob data is already in BlobInput format, persist it
-  for (const override of overrides) {
-    await persistInputBlob(storage, movieId, override.blob);
-  }
-  return overrides; // Return as-is, blobs are now persisted
-}
-
-/**
- * Copy blobs from in-memory storage to local storage.
- * Follows the same pattern as copyManifestToMemory and copyEventsToMemory.
- */
-async function copyBlobsFromMemoryToLocal(
-  memoryCtx: ReturnType<typeof createStorageContext>,
-  localCtx: ReturnType<typeof createStorageContext>,
-  movieId: string,
-): Promise<void> {
-  const blobsDir = memoryCtx.resolve(movieId, 'blobs');
-
-  // Check if blobs directory exists before listing
-  if (!(await memoryCtx.storage.directoryExists(blobsDir))) {
-    return; // No blobs to copy
-  }
-
-  // List all files in blobs directory recursively
-  const listing = memoryCtx.storage.list(blobsDir, { deep: true });
-
-  for await (const item of listing) {
-    if (item.type === 'file') {
-      // Read from memory storage
-      const content = await memoryCtx.storage.readToUint8Array(item.path);
-
-      // Infer MIME type from file extension (reuse existing utility)
-      const ext = item.path.split('.').pop() || '';
-      const mimeType = inferMimeType(ext);
-
-      // Convert to Buffer for compatibility with FlyStorage local adapter
-      const buffer = Buffer.from(content);
-
-      // Write to local storage
-      await localCtx.storage.write(item.path, buffer, { mimeType });
-    }
-  }
-}
-
-/**
- * Derive surgical regeneration info from the manifest for multiple artifacts.
- */
-function deriveSurgicalInfoArray(
-  targetArtifactIds: string[],
-  manifest: Manifest,
-): Array<{ targetArtifactId: string; sourceJobId: string }> | undefined {
-  const results: Array<{ targetArtifactId: string; sourceJobId: string }> = [];
-  for (const targetArtifactId of targetArtifactIds) {
-    const entry = manifest.artefacts[targetArtifactId];
-    if (!entry) {
-      // If artifact not in manifest, we can't derive the source job
-      // This will be handled by the core's resolveArtifactsToJobs which will throw
-      continue;
-    }
-    results.push({
-      targetArtifactId,
-      sourceJobId: entry.producedBy,
-    });
-  }
-  return results.length > 0 ? results : undefined;
-}

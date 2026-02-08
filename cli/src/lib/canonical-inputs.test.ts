@@ -3,7 +3,6 @@ import { resolve, dirname } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { loadBlueprintBundle } from './blueprint-loader/index.js';
 import { loadInputsFromYaml } from './input-loader.js';
-import { applyProviderDefaults } from './provider-defaults.js';
 import { CATALOG_ROOT, CLI_FIXTURES_BLUEPRINTS, CLI_FIXTURES_SCHEMAS } from '../../tests/test-catalog-paths.js';
 
 const catalogRoot = CATALOG_ROOT;
@@ -29,8 +28,7 @@ describe('canonical inputs snapshot', () => {
     const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'audio-only', 'audio-only.yaml');
     const inputsPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'audio-only', 'input-template.yaml');
     const { root: blueprint } = await loadBlueprintBundle(blueprintPath, { catalogRoot });
-    const { values, providerOptions } = await loadInputsFromYaml(inputsPath, blueprint);
-    applyProviderDefaults(values, providerOptions);
+    const { values } = await loadInputsFromYaml(inputsPath, blueprint);
     const canonicalIds = Object.keys(values)
       .filter((key) => key.startsWith('Input:'))
       .sort();

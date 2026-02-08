@@ -1702,6 +1702,222 @@ describe('planner', () => {
     });
   });
 
+  describe('dirty tracking for model config fields', () => {
+    function buildTwoNodeGraph(
+      aInputs: string[] = ['Input:Prompt', 'Input:ProducerA.provider', 'Input:ProducerA.model'],
+      bInputs: string[] = ['Artifact:A', 'Input:ProducerB.volume'],
+    ): ProducerGraph {
+      return {
+        nodes: [
+          {
+            jobId: 'Producer:A',
+            producer: 'ProducerA',
+            inputs: aInputs,
+            produces: ['Artifact:A'],
+            provider: 'provider-a',
+            providerModel: 'model-a',
+            rateKey: 'rk:a',
+            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerA', inputs: [], produces: [] },
+          },
+          {
+            jobId: 'Producer:B',
+            producer: 'ProducerB',
+            inputs: bInputs,
+            produces: ['Artifact:B'],
+            provider: 'provider-b',
+            providerModel: 'model-b',
+            rateKey: 'rk:b',
+            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerB', inputs: [], produces: [] },
+          },
+        ],
+        edges: [{ from: 'Producer:A', to: 'Producer:B' }],
+      };
+    }
+
+    async function setupBaselineRun(
+      baseInputs: Record<string, unknown>,
+      graph: ProducerGraph,
+    ) {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const baseline = createInputEvents(baseInputs, 'rev-0001');
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+      const manifest = createSucceededManifest(baseline, {
+        revision: 'rev-0001',
+        artefacts: {
+          'Artifact:A': { hash: 'ha', producedBy: 'Producer:A' },
+          'Artifact:B': { hash: 'hb', producedBy: 'Producer:B' },
+        },
+      });
+      return { ctx, eventLog, manifest, graph };
+    }
+
+    it('provider change triggers re-run of producer and downstream', async () => {
+      const graph = buildTwoNodeGraph();
+      const { eventLog, manifest } = await setupBaselineRun(
+        {
+          'Input:Prompt': 'hello',
+          'Input:ProducerA.provider': 'openai',
+          'Input:ProducerA.model': 'model-a',
+          'Input:ProducerB.volume': 0.5,
+        },
+        graph,
+      );
+      const planner = createPlanner();
+
+      const pending = createInputEvents(
+        { 'Input:ProducerA.provider': 'anthropic' },
+        'rev-0002' as RevisionId,
+      );
+
+      const { plan } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002' as RevisionId,
+        pendingEdits: pending,
+      });
+
+      const allJobs = plan.layers.flat().map((j) => j.jobId);
+      expect(allJobs).toContain('Producer:A');
+      expect(allJobs).toContain('Producer:B');
+    });
+
+    it('systemPrompt change triggers re-run of producer and downstream', async () => {
+      const graph = buildTwoNodeGraph(
+        ['Input:Prompt', 'Input:ProducerA.systemPrompt'],
+      );
+      const { eventLog, manifest } = await setupBaselineRun(
+        {
+          'Input:Prompt': 'hello',
+          'Input:ProducerA.systemPrompt': 'old system prompt',
+          'Input:ProducerB.volume': 0.5,
+        },
+        graph,
+      );
+      const planner = createPlanner();
+
+      const pending = createInputEvents(
+        { 'Input:ProducerA.systemPrompt': 'new system prompt' },
+        'rev-0002' as RevisionId,
+      );
+
+      const { plan } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002' as RevisionId,
+        pendingEdits: pending,
+      });
+
+      const allJobs = plan.layers.flat().map((j) => j.jobId);
+      expect(allJobs).toContain('Producer:A');
+      expect(allJobs).toContain('Producer:B');
+    });
+
+    it('userPrompt change triggers re-run of producer and downstream', async () => {
+      const graph = buildTwoNodeGraph(
+        ['Input:Prompt', 'Input:ProducerA.userPrompt'],
+      );
+      const { eventLog, manifest } = await setupBaselineRun(
+        {
+          'Input:Prompt': 'hello',
+          'Input:ProducerA.userPrompt': 'old user prompt',
+          'Input:ProducerB.volume': 0.5,
+        },
+        graph,
+      );
+      const planner = createPlanner();
+
+      const pending = createInputEvents(
+        { 'Input:ProducerA.userPrompt': 'new user prompt' },
+        'rev-0002' as RevisionId,
+      );
+
+      const { plan } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002' as RevisionId,
+        pendingEdits: pending,
+      });
+
+      const allJobs = plan.layers.flat().map((j) => j.jobId);
+      expect(allJobs).toContain('Producer:A');
+      expect(allJobs).toContain('Producer:B');
+    });
+
+    it('multiple config changes only dirty dependent producer', async () => {
+      const graph = buildTwoNodeGraph(
+        ['Input:Prompt'],
+        ['Artifact:A', 'Input:ProducerB.volume', 'Input:ProducerB.speed'],
+      );
+      const { eventLog, manifest } = await setupBaselineRun(
+        {
+          'Input:Prompt': 'hello',
+          'Input:ProducerB.volume': 0.5,
+          'Input:ProducerB.speed': 1.0,
+        },
+        graph,
+      );
+      const planner = createPlanner();
+
+      const pending = createInputEvents(
+        {
+          'Input:ProducerB.volume': 0.8,
+          'Input:ProducerB.speed': 1.5,
+        },
+        'rev-0002' as RevisionId,
+      );
+
+      const { plan } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002' as RevisionId,
+        pendingEdits: pending,
+      });
+
+      const allJobs = plan.layers.flat().map((j) => j.jobId);
+      expect(allJobs).toContain('Producer:B');
+      expect(allJobs).not.toContain('Producer:A');
+      expect(allJobs.length).toBe(1);
+    });
+
+    it('unchanged config produces empty plan', async () => {
+      const graph = buildTwoNodeGraph();
+      const { eventLog, manifest } = await setupBaselineRun(
+        {
+          'Input:Prompt': 'hello',
+          'Input:ProducerA.provider': 'openai',
+          'Input:ProducerA.model': 'model-a',
+          'Input:ProducerB.volume': 0.5,
+        },
+        graph,
+      );
+      const planner = createPlanner();
+
+      const { plan } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002' as RevisionId,
+        pendingEdits: [],
+      });
+
+      const allJobs = plan.layers.flat();
+      expect(allJobs.length).toBe(0);
+    });
+  });
+
   describe('topology service consistency', () => {
     it('blueprintLayerCount matches topology service computation', async () => {
       const ctx = memoryContext();

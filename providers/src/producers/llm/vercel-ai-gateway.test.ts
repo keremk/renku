@@ -239,6 +239,15 @@ describe('createVercelAiGatewayHandler', () => {
             Audience: 'children',
             InquiryPrompt: 'space travel',
           },
+          schema: {
+            output: JSON.stringify({
+              type: 'object',
+              properties: {
+                MovieTitle: { type: 'string' },
+                MovieSummary: { type: 'string' },
+              },
+            }),
+          },
         },
       },
     });
@@ -366,6 +375,15 @@ describe('createVercelAiGatewayHandler', () => {
           resolvedInputs: {
             InquiryPrompt: 'The Silk Road',
           },
+          schema: {
+            output: JSON.stringify({
+              type: 'object',
+              properties: {
+                MovieTitle: { type: 'string' },
+                NarrationScript: { type: 'array', items: { type: 'string' } },
+              },
+            }),
+          },
         },
       },
     });
@@ -441,6 +459,12 @@ describe('createVercelAiGatewayHandler', () => {
           systemPrompt: 'Hello',
           responseFormat: { type: 'json_schema', schema: {} },
         },
+        extras: {
+          resolvedInputs: {},
+          schema: {
+            output: JSON.stringify({}),
+          },
+        },
       },
     });
 
@@ -470,6 +494,15 @@ describe('createVercelAiGatewayHandler', () => {
               type: 'object',
               properties: { Output: { type: 'string' } },
             },
+          },
+        },
+        extras: {
+          resolvedInputs: {},
+          schema: {
+            output: JSON.stringify({
+              type: 'object',
+              properties: { Output: { type: 'string' } },
+            }),
           },
         },
       },
@@ -525,6 +558,15 @@ describe('createVercelAiGatewayHandler', () => {
               type: 'object',
               properties: { Title: { type: 'string' } },
             },
+          },
+        },
+        extras: {
+          resolvedInputs: {},
+          schema: {
+            output: JSON.stringify({
+              type: 'object',
+              properties: { Title: { type: 'string' } },
+            }),
           },
         },
       },
@@ -624,9 +666,9 @@ describe('createVercelAiGatewayHandler', () => {
       expect(args.output).toBeDefined();
     });
 
-    it('uses explicit responseFormat config over auto-derivation from outputSchema', async () => {
+    it('always uses outputSchema even when explicit responseFormat is also in config', async () => {
       mocks.generateText.mockResolvedValueOnce({
-        text: 'Plain text response',
+        output: { Title: 'From schema' },
         usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
         warnings: [],
         response: { id: 'resp-explicit', model: 'claude-sonnet-4', createdAt: '' },
@@ -641,16 +683,16 @@ describe('createVercelAiGatewayHandler', () => {
       });
 
       const request = createJobContext({
-        produces: ['Artifact:Output'],
+        produces: ['Artifact:Title'],
         context: {
           providerConfig: {
             systemPrompt: 'Generate text',
-            // Explicit text responseFormat should override outputSchema
+            // Explicit text responseFormat — but outputSchema always wins
             responseFormat: { type: 'text' },
           },
           extras: {
             schema: {
-              output: outputSchema, // Has outputSchema but explicit config says text
+              output: outputSchema,
             },
             resolvedInputs: {},
           },
@@ -659,13 +701,11 @@ describe('createVercelAiGatewayHandler', () => {
 
       const result = await handler.invoke(request);
 
-      // Should use plain text because explicit config says text
+      // outputSchema always wins — structured output is used
       expect(mocks.generateText).toHaveBeenCalledTimes(1);
-      expect(result.status).toBe('succeeded');
-
-      // Verify the call does NOT include the output option
       const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
-      expect(args.output).toBeUndefined();
+      expect(args.output).toBeDefined(); // Structured output from schema
+      expect(result.status).toBe('succeeded');
     });
 
     it('defaults to plain text when no outputSchema and no responseFormat', async () => {

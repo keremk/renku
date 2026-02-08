@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import { parse as parseToml } from 'smol-toml';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
+import { flattenConfigKeys, flattenConfigValues, deepMergeConfig } from './config-utils.js';
+import { loadPromptFile, type PromptFileData } from './prompt-file.js';
 import type {
   BlueprintMeta,
   BlueprintTreeNode,
@@ -19,13 +20,27 @@ import { resolveMappingsForModel } from '../resolution/mapping-resolver.js';
 import type { ModelSelection } from '../parsing/input-loader.js';
 
 interface PromptConfig {
-  model?: string;
-  textFormat?: string;
-  variables?: string[];
-  systemPrompt?: string;
-  userPrompt?: string;
-  config?: Record<string, unknown>;
+  config: Record<string, unknown>;
   outputs?: Record<string, unknown>;
+}
+
+/**
+ * Convert PromptFileData to a flat config dict + outputs.
+ * Top-level fields (systemPrompt, userPrompt, etc.) become config keys;
+ * nested `config` section is merged in (flat).
+ */
+function promptFileToConfig(data: PromptFileData): PromptConfig {
+  const config: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (key === 'outputs' || key === 'config' || value === undefined) {
+      continue;
+    }
+    config[key] = value;
+  }
+  if (data.config && typeof data.config === 'object') {
+    Object.assign(config, data.config);
+  }
+  return { config, outputs: data.outputs };
 }
 
 export interface LoadedProducerOption {
@@ -51,21 +66,22 @@ export type ProducerOptionsMap = Map<string, LoadedProducerOption[]>;
 export interface BuildProducerOptionsContext {
   /** Base directory for resolving relative paths (typically the input file directory) */
   baseDir: string;
+  /** Pre-resolved prompt file paths: producerAlias → absolute TOML path */
+  resolvedPromptPaths?: Map<string, string>;
 }
 
 export async function buildProducerOptionsFromBlueprint(
   blueprint: BlueprintTreeNode,
   selections: ModelSelection[] = [],
   allowAmbiguousDefault = false,
-  _context?: BuildProducerOptionsContext,
+  context?: BuildProducerOptionsContext,
 ): Promise<ProducerOptionsMap> {
   const map: ProducerOptionsMap = new Map();
   const selectionMap = new Map<string, ModelSelection>();
   for (const selection of selections) {
     selectionMap.set(selection.producerId, selection);
   }
-  // Note: baseDir from context is no longer used - promptFile/outputSchema now come from producer meta
-  await collectProducers(blueprint, blueprint, map, selectionMap, allowAmbiguousDefault);
+  await collectProducers(blueprint, blueprint, map, selectionMap, allowAmbiguousDefault, context?.resolvedPromptPaths);
   return map;
 }
 
@@ -75,6 +91,7 @@ async function collectProducers(
   map: ProducerOptionsMap,
   selectionMap: Map<string, ModelSelection>,
   allowAmbiguousDefault: boolean,
+  resolvedPromptPaths?: Map<string, string>,
 ): Promise<void> {
   for (const producer of node.document.producers) {
     const namespacedName = formatProducerAlias(node.namespacePath, producer.name);
@@ -89,12 +106,13 @@ async function collectProducers(
       node.document.meta,
       node.sourcePath,
       rootBlueprint,
+      resolvedPromptPaths,
     );
     const option = toLoadedOption(namespacedName, chosen, selection);
     registerProducerOption(map, namespacedName, option);
   }
   for (const child of node.children.values()) {
-    await collectProducers(child, rootBlueprint, map, selectionMap, allowAmbiguousDefault);
+    await collectProducers(child, rootBlueprint, map, selectionMap, allowAmbiguousDefault, resolvedPromptPaths);
   }
 }
 
@@ -150,19 +168,25 @@ function toLoadedOption(
   };
 }
 
+/** Keys on ProducerModelVariant that are structural (not config values). */
+const VARIANT_STRUCTURAL_KEYS = new Set([
+  'provider', 'model', 'promptFile', 'inputSchema', 'outputSchema',
+  'outputSchemaParsed', 'inputs', 'outputs', 'config',
+]);
+
+/**
+ * Build a flat config dict from a variant. Merges variant.config with any
+ * top-level non-structural fields (e.g., systemPrompt, userPrompt, variables).
+ * This is provider-agnostic — it doesn't hardcode knowledge of specific fields.
+ */
 function buildVariantConfig(variant: ProducerModelVariant): Record<string, unknown> {
   const base: Record<string, unknown> = { ...(variant.config ?? {}) };
-  if (variant.systemPrompt) {
-    base.systemPrompt = variant.systemPrompt;
+  for (const [key, value] of Object.entries(variant)) {
+    if (VARIANT_STRUCTURAL_KEYS.has(key) || value === undefined) {
+      continue;
+    }
+    base[key] = value;
   }
-  if (variant.userPrompt) {
-    base.userPrompt = variant.userPrompt;
-  }
-  if (variant.variables) {
-    base.variables = variant.variables;
-  }
-  // Note: responseFormat is no longer built here.
-  // The provider will auto-derive it from outputSchema in the request context.
   return base;
 }
 
@@ -220,36 +244,6 @@ export function collectVariants(producer: ProducerConfig): CollectedVariant[] {
   return [];
 }
 
-/**
- * Load prompt configuration from a TOML file.
- */
-async function loadPromptConfig(promptPath: string): Promise<PromptConfig> {
-  const contents = await readFile(promptPath, 'utf8');
-  const parsed = parseToml(contents) as Record<string, unknown>;
-  const prompt: PromptConfig = {};
-  if (typeof parsed.model === 'string') {
-    prompt.model = parsed.model;
-  }
-  if (typeof parsed.textFormat === 'string') {
-    prompt.textFormat = parsed.textFormat;
-  }
-  if (Array.isArray(parsed.variables)) {
-    prompt.variables = parsed.variables.map(String);
-  }
-  if (typeof parsed.systemPrompt === 'string') {
-    prompt.systemPrompt = parsed.systemPrompt;
-  }
-  if (typeof parsed.userPrompt === 'string') {
-    prompt.userPrompt = parsed.userPrompt;
-  }
-  if (parsed.config && typeof parsed.config === 'object') {
-    prompt.config = parsed.config as Record<string, unknown>;
-  }
-  if (parsed.outputs && typeof parsed.outputs === 'object') {
-    prompt.outputs = parsed.outputs as Record<string, unknown>;
-  }
-  return prompt;
-}
 
 /**
  * Load JSON schema from a file path.
@@ -270,48 +264,32 @@ async function selectionToVariant(
   selection: ModelSelection,
   producerMeta: BlueprintMeta,
   producerSourcePath: string,
+  resolvedPath?: string,
 ): Promise<CollectedVariant> {
   const producerDir = dirname(producerSourcePath);
 
-  // Load prompt config from producer meta's promptFile (relative to producer YAML)
-  let promptConfig: PromptConfig = {};
-  if (producerMeta.promptFile) {
-    const promptPath = resolve(producerDir, producerMeta.promptFile);
-    promptConfig = await loadPromptConfig(promptPath);
+  let promptConfig: PromptConfig = { config: {} };
+  // Use pre-resolved path if available (builds folder > blueprint template)
+  const promptPath = resolvedPath
+    ?? (producerMeta.promptFile ? resolve(producerDir, producerMeta.promptFile) : undefined);
+  if (promptPath) {
+    const promptData = await loadPromptFile(promptPath);
+    promptConfig = promptFileToConfig(promptData);
   }
 
-  // Load output schema from producer meta's outputSchema (relative to producer YAML)
   let outputSchemaContent: string | undefined;
   if (producerMeta.outputSchema) {
-    const schemaPath = resolve(producerDir, producerMeta.outputSchema);
-    outputSchemaContent = await loadJsonSchema(schemaPath);
+    outputSchemaContent = await loadJsonSchema(resolve(producerDir, producerMeta.outputSchema));
   }
 
-  // Build config from prompt file and selection's config (selection takes precedence)
-  const config: Record<string, unknown> = { ...(promptConfig.config ?? {}), ...(selection.config ?? {}) };
-
-  // Use inline values from selection if provided, otherwise use prompt file values
-  const systemPrompt = selection.systemPrompt ?? promptConfig.systemPrompt;
-  const userPrompt = selection.userPrompt ?? promptConfig.userPrompt;
-  const variables = selection.variables ?? promptConfig.variables;
-
-  if (systemPrompt) {
-    config.systemPrompt = systemPrompt;
-  }
-  if (userPrompt) {
-    config.userPrompt = userPrompt;
-  }
-  if (variables) {
-    config.variables = variables;
-  }
-  // Note: responseFormat is no longer built here.
-  // The provider will auto-derive it from outputSchema in the request context.
+  // Deep merge: prompt file defaults, then selection overrides
+  const config = deepMergeConfig(promptConfig.config, selection.config ?? {});
 
   return {
     provider: selection.provider,
     model: selection.model,
     config: Object.keys(config).length > 0 ? config : undefined,
-    sdkMapping: undefined, // SDK mappings now come from producer YAML, resolved in chooseVariant
+    sdkMapping: undefined,
     outputs: selection.outputs ?? (promptConfig.outputs as Record<string, BlueprintProducerOutputDefinition> | undefined),
     inputSchema: undefined,
     outputSchema: outputSchemaContent,
@@ -328,6 +306,7 @@ async function chooseVariant(
   producerMeta: BlueprintMeta,
   producerSourcePath: string,
   rootBlueprint: BlueprintTreeNode,
+  resolvedPromptPaths?: Map<string, string>,
 ): Promise<CollectedVariant> {
   // If producer has no variants (interface-only), must have selection
   if (variants.length === 0) {
@@ -340,7 +319,7 @@ async function chooseVariant(
     }
     // Convert selection directly to a variant, loading promptFile/outputSchema from producer meta
     // Also resolve SDK mapping from producer YAML
-    const variant = await selectionToVariant(selection, producerMeta, producerSourcePath);
+    const variant = await selectionToVariant(selection, producerMeta, producerSourcePath, resolvedPromptPaths?.get(producerName));
     const resolvedMapping = resolveSdkMappingFromProducer(
       rootBlueprint,
       producerName,
@@ -377,7 +356,7 @@ async function chooseVariant(
       };
     }
     // Selection specifies a model not in producer's variants - use selection directly
-    const variant = await selectionToVariant(selection, producerMeta, producerSourcePath);
+    const variant = await selectionToVariant(selection, producerMeta, producerSourcePath, resolvedPromptPaths?.get(producerName));
     const resolvedMapping = resolveSdkMappingFromProducer(
       rootBlueprint,
       producerName,
@@ -468,53 +447,3 @@ function toCatalogEntry(option: LoadedProducerOption): ProducerCatalogEntry {
   };
 }
 
-function deepMergeConfig(base: Record<string, unknown>, override: Record<string, unknown>): Record<string, unknown> {
-  const result: Record<string, unknown> = { ...base };
-  for (const [key, value] of Object.entries(override)) {
-    const existing = result[key];
-    if (isPlainObject(existing) && isPlainObject(value)) {
-      result[key] = deepMergeConfig(existing as Record<string, unknown>, value as Record<string, unknown>);
-      continue;
-    }
-    result[key] = value;
-  }
-  return result;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function flattenConfigKeys(source: Record<string, unknown>, prefix = ''): string[] {
-  const keys: string[] = [];
-  for (const [key, value] of Object.entries(source)) {
-    const nextKey = prefix ? `${prefix}.${key}` : key;
-    if (key === 'responseFormat') {
-      keys.push(nextKey);
-      continue;
-    }
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
-      keys.push(...flattenConfigKeys(value as Record<string, unknown>, nextKey));
-    } else {
-      keys.push(nextKey);
-    }
-  }
-  return keys;
-}
-
-function flattenConfigValues(source: Record<string, unknown>, prefix = ''): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(source)) {
-    const nextKey = prefix ? `${prefix}.${key}` : key;
-    if (key === 'responseFormat') {
-      result[nextKey] = value;
-      continue;
-    }
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
-      Object.assign(result, flattenConfigValues(value as Record<string, unknown>, nextKey));
-    } else {
-      result[nextKey] = value;
-    }
-  }
-  return result;
-}

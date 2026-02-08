@@ -117,14 +117,15 @@ describe('buildProducerOptionsFromBlueprint', () => {
     ]);
 
     // When no baseDir is provided, promptFile/outputSchema paths are stored but not loaded
+    // systemPrompt is now folded into config (no longer a top-level ModelSelection field)
     const selections: ModelSelection[] = [
       {
         producerId: 'ScriptProducer',
         provider: 'openai',
         model: 'gpt-5-mini',
-        systemPrompt: 'You are a script writer.',
         config: {
           text_format: 'json_schema',
+          systemPrompt: 'You are a script writer.',
         },
       },
     ];
@@ -146,15 +147,18 @@ describe('buildProducerOptionsFromBlueprint', () => {
       { name: 'ChatProducer' },
     ]);
 
+    // systemPrompt, userPrompt, variables are now folded into config
     const selections: ModelSelection[] = [
       {
         producerId: 'ChatProducer',
         provider: 'openai',
         model: 'gpt-4o',
-        systemPrompt: 'You are a helpful assistant.',
-        userPrompt: 'Answer: {{question}}',
-        textFormat: 'text',
-        variables: ['question'],
+        config: {
+          systemPrompt: 'You are a helpful assistant.',
+          userPrompt: 'Answer: {{question}}',
+          textFormat: 'text',
+          variables: ['question'],
+        },
       },
     ];
 

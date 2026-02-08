@@ -19,10 +19,6 @@ export interface SerializableModelSelection {
   provider: string;
   model: string;
   config?: Record<string, unknown>;
-  systemPrompt?: string;
-  userPrompt?: string;
-  textFormat?: string;
-  variables?: string[];
 }
 
 /**
@@ -35,23 +31,9 @@ export function toSerializableModelSelection(selection: ModelSelection): Seriali
     provider: selection.provider,
     model: selection.model,
   };
-
   if (selection.config && Object.keys(selection.config).length > 0) {
     result.config = selection.config;
   }
-  if (selection.systemPrompt) {
-    result.systemPrompt = selection.systemPrompt;
-  }
-  if (selection.userPrompt) {
-    result.userPrompt = selection.userPrompt;
-  }
-  if (selection.textFormat) {
-    result.textFormat = selection.textFormat;
-  }
-  if (selection.variables && selection.variables.length > 0) {
-    result.variables = selection.variables;
-  }
-
   return result;
 }
 
@@ -88,23 +70,9 @@ export function serializeInputsToYaml(data: RawInputsData): string {
         provider: m.provider,
         model: m.model,
       };
-
       if (m.config && Object.keys(m.config).length > 0) {
         entry.config = m.config;
       }
-      if (m.systemPrompt) {
-        entry.systemPrompt = m.systemPrompt;
-      }
-      if (m.userPrompt) {
-        entry.userPrompt = m.userPrompt;
-      }
-      if (m.textFormat) {
-        entry.textFormat = m.textFormat;
-      }
-      if (m.variables && m.variables.length > 0) {
-        entry.variables = m.variables;
-      }
-
       return entry;
     });
   }

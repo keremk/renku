@@ -75,7 +75,8 @@
       "mcp__plugin_context7_context7__query-docs",
       "WebFetch(domain:opentimelineio.readthedocs.io)",
       "Bash(wc:*)",
-      "mcp__plugin_context7_context7__resolve-library-id"
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ],
     "deny": [],
     "ask": []

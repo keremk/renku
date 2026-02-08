@@ -14,6 +14,7 @@ import {
   parseQualifiedProducerName,
 } from './canonical-ids.js';
 import { createParserError, ParserErrorCode } from '../errors/index.js';
+import { flattenConfigValues } from '../orchestration/config-utils.js';
 import type {
   BlobInput,
   BlueprintProducerOutputDefinition,
@@ -38,14 +39,6 @@ export interface ModelSelection {
   namespacePath?: string[];
   /** Output definitions for the model */
   outputs?: Record<string, BlueprintProducerOutputDefinition>;
-  /** Inline system prompt for LLM models */
-  systemPrompt?: string;
-  /** Inline user prompt for LLM models */
-  userPrompt?: string;
-  /** Text format for LLM output (e.g., 'json_schema') */
-  textFormat?: string;
-  /** Variables to extract from prompt template */
-  variables?: string[];
 }
 
 /** Artifact override from inputs.yaml with file: prefix */
@@ -251,7 +244,7 @@ function applyModelSelectionsToInputs(values: Record<string, unknown>, selection
     values[providerId] = selection.provider;
     values[modelId] = selection.model;
     if (selection.config && typeof selection.config === 'object') {
-      const flattened = flattenConfig(selection.config);
+      const flattened = flattenConfigValues(selection.config);
       for (const [key, value] of Object.entries(flattened)) {
         const canonicalKey = formatProducerScopedInputId(namespacePath, producerName, key);
         values[canonicalKey] = value;
@@ -260,18 +253,6 @@ function applyModelSelectionsToInputs(values: Record<string, unknown>, selection
   }
 }
 
-function flattenConfig(source: Record<string, unknown>, prefix = ''): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(source)) {
-    const nextKey = prefix ? `${prefix}.${key}` : key;
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
-      Object.assign(result, flattenConfig(value as Record<string, unknown>, nextKey));
-    } else {
-      result[nextKey] = value;
-    }
-  }
-  return result;
-}
 
 function collectProducerScopedInputs(
   tree: BlueprintTreeNode,
@@ -317,7 +298,7 @@ function collectProducerScopedInputs(
           : [];
 
       const addFlattenedConfig = (variant: ProducerModelVariant) => {
-        const flattened = flattenConfig(variant.config ?? {});
+        const flattened = flattenConfigValues(variant.config ?? {});
         for (const key of Object.keys(flattened)) {
           addEntry(namespacePath, producerName, key);
         }
@@ -353,6 +334,12 @@ function collectProducerScopedInputs(
   return Array.from(entries.values());
 }
 
+/** Keys recognized as core model-selection properties; everything else is folded into config. */
+const MODEL_SELECTION_KEYS = new Set([
+  'producerId', 'provider', 'model', 'config', 'outputs',
+  'promptFile', 'outputSchema', 'inputs',
+]);
+
 function resolveModelSelections(
   raw: unknown,
   index: ProducerIndex,
@@ -372,17 +359,22 @@ function resolveModelSelections(
       const producerId = readString(record, 'producerId');
       const provider = readString(record, 'provider');
       const model = readString(record, 'model');
-      const config =
-        record.config && typeof record.config === 'object' ? (record.config as Record<string, unknown>) : undefined;
-
-      // Parse outputs (SDK mappings now come from producer YAML, not input YAML)
       const outputs = parseOutputs(record.outputs);
 
-      // Parse inline LLM config (promptFile/outputSchema are now in producer meta, not here)
-      const systemPrompt = typeof record.systemPrompt === 'string' ? record.systemPrompt : undefined;
-      const userPrompt = typeof record.userPrompt === 'string' ? record.userPrompt : undefined;
-      const textFormat = typeof record.textFormat === 'string' ? record.textFormat : undefined;
-      const variables = Array.isArray(record.variables) ? record.variables.map(String) : undefined;
+      // Start with explicit config section
+      const baseConfig: Record<string, unknown> = record.config && typeof record.config === 'object'
+        ? { ...(record.config as Record<string, unknown>) }
+        : {};
+
+      // Fold ALL unrecognized top-level keys into config (provider-agnostic).
+      // Explicit config section takes precedence over top-level shorthand.
+      for (const [key, value] of Object.entries(record)) {
+        if (!MODEL_SELECTION_KEYS.has(key) && value !== undefined && !(key in baseConfig)) {
+          baseConfig[key] = value;
+        }
+      }
+
+      const config = Object.keys(baseConfig).length > 0 ? baseConfig : undefined;
 
       const resolved = resolveProducerName(producerId, index);
       selections.set(resolved.producerAlias, {
@@ -392,10 +384,6 @@ function resolveModelSelections(
         config,
         namespacePath: resolved.namespacePath,
         outputs,
-        systemPrompt,
-        userPrompt,
-        textFormat,
-        variables,
       });
     }
   }
@@ -506,7 +494,7 @@ function collectSelectionEntries(selections: ModelSelection[]): CanonicalInputEn
   for (const selection of selections) {
     const namespacePath = selection.namespacePath ?? [];
     const { producerName: producer } = parseQualifiedProducerName(selection.producerId);
-    const flattened = flattenConfig(selection.config ?? {});
+    const flattened = flattenConfigValues(selection.config ?? {});
     for (const key of Object.keys(flattened)) {
       const canonicalId = formatProducerScopedInputId(namespacePath, producer, key);
       if (!entries.has(canonicalId)) {

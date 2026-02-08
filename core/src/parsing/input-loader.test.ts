@@ -472,10 +472,11 @@ describe('model selection SDK mapping parsing', () => {
     const selection = loaded.modelSelections.find((s) => s.producerId === 'ChatProducer');
 
     expect(selection).toBeDefined();
-    expect(selection?.systemPrompt).toBe('You are a helpful assistant.');
-    expect(selection?.userPrompt).toBe('Answer the following: {{question}}');
-    expect(selection?.textFormat).toBe('text');
-    expect(selection?.variables).toEqual(['question']);
+    // Top-level keys are now folded into config
+    expect(selection?.config?.systemPrompt).toBe('You are a helpful assistant.');
+    expect(selection?.config?.userPrompt).toBe('Answer the following: {{question}}');
+    expect(selection?.config?.textFormat).toBe('text');
+    expect(selection?.config?.variables).toEqual(['question']);
   });
 
   it('loads input template from catalog (SDK mappings come from producer YAML)', async () => {
@@ -798,5 +799,161 @@ describe('parseInputsForDisplay', () => {
     const invalidPath = join(workdir, 'inputs.json');
 
     await expect(parseInputsForDisplay(invalidPath)).rejects.toThrow(/must be YAML/);
+  });
+});
+
+describe('model selection config folding', () => {
+  it('top-level systemPrompt appears in inputValues', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-fold-sysprompt-'));
+    const savedPath = join(workdir, 'inputs.yaml');
+    const blueprint = createMinimalBlueprintTree();
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {},
+        models: [
+          {
+            producerId: 'ChatProducer',
+            provider: 'openai',
+            model: 'gpt-4o',
+            systemPrompt: 'You are a helpful assistant.',
+          },
+        ],
+      }),
+      'utf8',
+    );
+
+    const loaded = await loadInputsFromYaml(savedPath, blueprint);
+    expect(loaded.values['Input:ChatProducer.systemPrompt']).toBe('You are a helpful assistant.');
+  });
+
+  it('top-level userPrompt appears in inputValues', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-fold-userprompt-'));
+    const savedPath = join(workdir, 'inputs.yaml');
+    const blueprint = createMinimalBlueprintTree();
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {},
+        models: [
+          {
+            producerId: 'ChatProducer',
+            provider: 'openai',
+            model: 'gpt-4o',
+            userPrompt: 'Tell me about {{topic}}',
+          },
+        ],
+      }),
+      'utf8',
+    );
+
+    const loaded = await loadInputsFromYaml(savedPath, blueprint);
+    expect(loaded.values['Input:ChatProducer.userPrompt']).toBe('Tell me about {{topic}}');
+  });
+
+  it('top-level variables appears in inputValues', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-fold-vars-'));
+    const savedPath = join(workdir, 'inputs.yaml');
+    const blueprint = createMinimalBlueprintTree();
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {},
+        models: [
+          {
+            producerId: 'ChatProducer',
+            provider: 'openai',
+            model: 'gpt-4o',
+            variables: ['topic', 'style'],
+          },
+        ],
+      }),
+      'utf8',
+    );
+
+    const loaded = await loadInputsFromYaml(savedPath, blueprint);
+    expect(loaded.values['Input:ChatProducer.variables']).toEqual(['topic', 'style']);
+  });
+
+  it('custom top-level key (temperature) appears in inputValues', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-fold-custom-'));
+    const savedPath = join(workdir, 'inputs.yaml');
+    const blueprint = createMinimalBlueprintTree();
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {},
+        models: [
+          {
+            producerId: 'ChatProducer',
+            provider: 'openai',
+            model: 'gpt-4o',
+            temperature: 0.8,
+          },
+        ],
+      }),
+      'utf8',
+    );
+
+    const loaded = await loadInputsFromYaml(savedPath, blueprint);
+    expect(loaded.values['Input:ChatProducer.temperature']).toBe(0.8);
+  });
+
+  it('explicit config section merges with top-level extras', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-fold-merge-'));
+    const savedPath = join(workdir, 'inputs.yaml');
+    const blueprint = createMinimalBlueprintTree();
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {},
+        models: [
+          {
+            producerId: 'ScriptProducer',
+            provider: 'openai',
+            model: 'gpt-5.2',
+            systemPrompt: 'Write a story.',
+            config: { text_format: 'json_schema' },
+          },
+        ],
+      }),
+      'utf8',
+    );
+
+    const loaded = await loadInputsFromYaml(savedPath, blueprint);
+    expect(loaded.values['Input:ScriptProducer.text_format']).toBe('json_schema');
+    expect(loaded.values['Input:ScriptProducer.systemPrompt']).toBe('Write a story.');
+  });
+
+  it('config section takes precedence over top-level for same key', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-fold-precedence-'));
+    const savedPath = join(workdir, 'inputs.yaml');
+    const blueprint = createMinimalBlueprintTree();
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {},
+        models: [
+          {
+            producerId: 'ChatProducer',
+            provider: 'openai',
+            model: 'gpt-4o',
+            systemPrompt: 'top-level prompt',
+            config: { systemPrompt: 'config prompt' },
+          },
+        ],
+      }),
+      'utf8',
+    );
+
+    const loaded = await loadInputsFromYaml(savedPath, blueprint);
+    // Explicit config takes precedence over top-level shorthand
+    expect(loaded.values['Input:ChatProducer.systemPrompt']).toBe('config prompt');
   });
 });

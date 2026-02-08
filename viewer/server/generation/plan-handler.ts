@@ -4,7 +4,7 @@
  */
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { resolve, dirname, relative } from 'node:path';
+import { resolve, relative } from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import {
   createStorageContext,
@@ -15,28 +15,29 @@ import {
   createMovieMetadataService,
   validateBlueprintTree,
   loadYamlBlueprintTree,
-  loadInputsFromYaml as coreLoadInputsFromYaml,
-  buildProducerOptionsFromBlueprint,
+  loadInputs,
   buildProducerCatalog,
-  persistInputBlob,
   isRenkuError,
+  createValidationError,
+  ValidationErrorCode,
+  copyManifestToMemory,
+  copyEventsToMemory,
+  copyBlobsFromMemoryToLocal,
+  buildProviderMetadata,
+  convertArtifactOverridesToDrafts,
+  persistArtifactOverrideBlobs,
+  deriveSurgicalInfoArray,
   type ExecutionPlan,
   type Manifest,
-  type PendingArtefactDraft,
   type ProducerOptionsMap,
-  type ProviderOptionEntry,
-  type ArtifactOverride,
 } from '@gorenku/core';
 import {
   loadPricingCatalog,
   estimatePlanCosts,
   loadModelCatalog,
   loadModelInputSchema,
-  type LoadedModelCatalog,
   type PlanCostSummary,
 } from '@gorenku/providers';
-import { createHash } from 'node:crypto';
-import { Buffer } from 'node:buffer';
 
 import type { PlanRequest, PlanResponse, LayerInfo, SurgicalInfo, CachedPlan, SerializablePlanCostSummary } from './types.js';
 import type { ProducerCostData } from '@gorenku/providers';
@@ -205,21 +206,19 @@ async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanR
   const validation = validateBlueprintTree(blueprintRoot, { errorsOnly: true });
   if (!validation.valid) {
     const errorMessages = validation.errors.map((e) => `  ${e.code}: ${e.message}`).join('\n');
-    throw new Error(`Blueprint validation failed:\n${errorMessages}`);
+    throw createValidationError(
+      ValidationErrorCode.BLUEPRINT_VALIDATION_FAILED,
+      `Blueprint validation failed:\n${errorMessages}`,
+    );
   }
 
-  // Load inputs from YAML
-  const baseInputs = await coreLoadInputsFromYaml(inputsPath, blueprintRoot);
-  const baseDir = dirname(inputsPath);
-  const providerOptions = await buildProducerOptionsFromBlueprint(
-    blueprintRoot,
-    baseInputs.modelSelections,
-    false,
-    { baseDir }
-  );
-
-  const inputValues = baseInputs.values;
-  const artifactOverrides = baseInputs.artifactOverrides;
+  // Load inputs from YAML + TOML prompts (unified)
+  const buildsDir = resolve(buildsFolder, movieId);
+  const { values: inputValues, providerOptions, artifactOverrides } = await loadInputs({
+    yamlPath: inputsPath,
+    blueprintTree: blueprintRoot,
+    buildsDir,
+  });
 
   // Build producer catalog
   const catalog = buildProducerCatalog(providerOptions);
@@ -240,10 +239,11 @@ async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanR
   const allPendingArtefacts = overrideDrafts;
 
   // Build provider metadata with schemas
-  const providerMetadata = await buildProviderMetadata(providerOptions, {
-    catalogModelsDir,
-    modelCatalog,
-  });
+  const providerMetadata = await buildProviderMetadata(
+    providerOptions,
+    { catalogModelsDir, modelCatalog },
+    loadModelInputSchema as Parameters<typeof buildProviderMetadata>[2],
+  );
 
   // Generate plan
   const planResult = await createPlanningService().generatePlan({
@@ -466,156 +466,4 @@ export function buildPlanResponse(
   };
 }
 
-// =============================================================================
-// Helper Functions (adapted from cli/src/lib/planner.ts)
-// =============================================================================
-
-async function copyManifestToMemory(
-  localCtx: ReturnType<typeof createStorageContext>,
-  memoryCtx: ReturnType<typeof createStorageContext>,
-  movieId: string
-): Promise<void> {
-  const currentJsonPath = localCtx.resolve(movieId, 'current.json');
-  if (await localCtx.storage.fileExists(currentJsonPath)) {
-    const content = await localCtx.storage.readToString(currentJsonPath);
-    const memoryPath = memoryCtx.resolve(movieId, 'current.json');
-    await memoryCtx.storage.write(memoryPath, content, { mimeType: 'application/json' });
-
-    const parsed = JSON.parse(content) as { manifestPath?: string | null };
-    if (parsed.manifestPath) {
-      const manifestFullPath = localCtx.resolve(movieId, parsed.manifestPath);
-      if (await localCtx.storage.fileExists(manifestFullPath)) {
-        const manifestContent = await localCtx.storage.readToString(manifestFullPath);
-        const memoryManifestPath = memoryCtx.resolve(movieId, parsed.manifestPath);
-        await memoryCtx.storage.write(memoryManifestPath, manifestContent, { mimeType: 'application/json' });
-      }
-    }
-  }
-}
-
-async function copyEventsToMemory(
-  localCtx: ReturnType<typeof createStorageContext>,
-  memoryCtx: ReturnType<typeof createStorageContext>,
-  movieId: string
-): Promise<void> {
-  const eventFiles = ['events/inputs.log', 'events/artefacts.log'];
-  for (const eventFile of eventFiles) {
-    const localPath = localCtx.resolve(movieId, eventFile);
-    if (await localCtx.storage.fileExists(localPath)) {
-      const content = await localCtx.storage.readToString(localPath);
-      const memoryPath = memoryCtx.resolve(movieId, eventFile);
-      await memoryCtx.storage.write(memoryPath, content, { mimeType: 'text/plain' });
-    }
-  }
-}
-
-async function copyBlobsFromMemoryToLocal(
-  memoryCtx: ReturnType<typeof createStorageContext>,
-  localCtx: ReturnType<typeof createStorageContext>,
-  movieId: string
-): Promise<void> {
-  const { inferMimeType } = await import('@gorenku/core');
-  const blobsDir = memoryCtx.resolve(movieId, 'blobs');
-
-  if (!(await memoryCtx.storage.directoryExists(blobsDir))) {
-    return;
-  }
-
-  const listing = memoryCtx.storage.list(blobsDir, { deep: true });
-
-  for await (const item of listing) {
-    if (item.type === 'file') {
-      const content = await memoryCtx.storage.readToUint8Array(item.path);
-      const ext = item.path.split('.').pop() || '';
-      const mimeType = inferMimeType(ext);
-      const buffer = Buffer.from(content);
-      await localCtx.storage.write(item.path, buffer, { mimeType });
-    }
-  }
-}
-
-interface CatalogSchemaOptions {
-  catalogModelsDir: string | null;
-  modelCatalog?: LoadedModelCatalog;
-}
-
-async function buildProviderMetadata(
-  options: ProducerOptionsMap,
-  catalogOptions: CatalogSchemaOptions
-): Promise<Map<string, ProviderOptionEntry>> {
-  const { catalogModelsDir, modelCatalog } = catalogOptions;
-  const map = new Map<string, ProviderOptionEntry>();
-
-  for (const [key, entries] of options) {
-    const primary = entries[0];
-    if (!primary) {
-      continue;
-    }
-
-    let inputSchema = primary.inputSchema;
-    if (!inputSchema && catalogModelsDir && modelCatalog && primary.provider && primary.model) {
-      inputSchema =
-        (await loadModelInputSchema(catalogModelsDir, modelCatalog, primary.provider, primary.model)) ?? undefined;
-    }
-
-    map.set(key, {
-      sdkMapping: primary.sdkMapping,
-      outputs: primary.outputs,
-      inputSchema,
-      outputSchema: primary.outputSchema,
-      config: primary.config,
-      selectionInputKeys: primary.selectionInputKeys,
-      configInputPaths: primary.configInputPaths,
-    });
-  }
-  return map;
-}
-
-function convertArtifactOverridesToDrafts(overrides: ArtifactOverride[]): PendingArtefactDraft[] {
-  return overrides.map((override) => {
-    const buffer = Buffer.isBuffer(override.blob.data) ? override.blob.data : Buffer.from(override.blob.data);
-    const hash = createHash('sha256').update(buffer).digest('hex');
-
-    return {
-      artefactId: override.artifactId,
-      producedBy: 'user-override',
-      output: {
-        blob: {
-          hash,
-          size: buffer.byteLength,
-          mimeType: override.blob.mimeType,
-        },
-      },
-    };
-  });
-}
-
-async function persistArtifactOverrideBlobs(
-  overrides: ArtifactOverride[],
-  storage: ReturnType<typeof createStorageContext>,
-  movieId: string
-): Promise<ArtifactOverride[]> {
-  for (const override of overrides) {
-    await persistInputBlob(storage, movieId, override.blob);
-  }
-  return overrides;
-}
-
-function deriveSurgicalInfoArray(
-  targetArtifactIds: string[],
-  manifest: Manifest
-): SurgicalInfo[] | undefined {
-  const results: SurgicalInfo[] = [];
-  for (const targetArtifactId of targetArtifactIds) {
-    const entry = manifest.artefacts[targetArtifactId];
-    if (!entry) {
-      continue;
-    }
-    results.push({
-      targetArtifactId,
-      sourceJobId: entry.producedBy,
-    });
-  }
-  return results.length > 0 ? results : undefined;
-}
 

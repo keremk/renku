@@ -102,6 +102,9 @@ export const ValidationErrorCode = {
   INVALID_ARTIFACT_TYPE: 'V061',
   INVALID_ITEM_TYPE: 'V062',
 
+  // Blueprint validation errors (V070)
+  BLUEPRINT_VALIDATION_FAILED: 'V070',
+
   // Warnings (W001-W003)
   UNUSED_INPUT: 'W001',
   UNUSED_ARTIFACT: 'W002',

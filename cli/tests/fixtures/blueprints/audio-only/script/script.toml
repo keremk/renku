@@ -1,4 +1,4 @@
-variables = ["Audience", "Duration", "NumOfSegments", "Language", "InquiryPrompt"]
+variables = [ "Audience", "Duration", "NumOfSegments", "Language", "InquiryPrompt" ]
 
 systemPrompt = """
 You are an expert historical researcher and documentary script writer.

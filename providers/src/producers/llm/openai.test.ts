@@ -200,6 +200,15 @@ describe('createOpenAiLlmHandler', () => {
             Audience: 'children',
             InquiryPrompt: 'space travel',
           },
+          schema: {
+            output: JSON.stringify({
+              type: 'object',
+              properties: {
+                MovieTitle: { type: 'string' },
+                MovieSummary: { type: 'string' },
+              },
+            }),
+          },
         },
       },
     });
@@ -274,6 +283,21 @@ describe('createOpenAiLlmHandler', () => {
                 },
               },
             },
+          },
+        },
+        extras: {
+          resolvedInputs: {},
+          schema: {
+            output: JSON.stringify({
+              type: 'object',
+              properties: {
+                MovieTitle: { type: 'string' },
+                NarrationScript: {
+                  type: 'array',
+                  items: { type: 'string' },
+                },
+              },
+            }),
           },
         },
       },
@@ -364,6 +388,12 @@ describe('createOpenAiLlmHandler', () => {
         providerConfig: {
           systemPrompt: 'Hello',
           responseFormat: { type: 'json_schema', schema: {} },
+        },
+        extras: {
+          resolvedInputs: {},
+          schema: {
+            output: JSON.stringify({}),
+          },
         },
       },
     });
@@ -520,6 +550,15 @@ describe('createOpenAiLlmHandler', () => {
           resolvedInputs: {
             InquiryPrompt: 'The Silk Road',
           },
+          schema: {
+            output: JSON.stringify({
+              type: 'object',
+              properties: {
+                MovieTitle: { type: 'string' },
+                NarrationScript: { type: 'array', items: { type: 'string' } },
+              },
+            }),
+          },
         },
       },
     });
@@ -590,6 +629,16 @@ describe('createOpenAiLlmHandler', () => {
           resolvedInputs: {
             Audience: 'kids',
             Language: 'English',
+          },
+          schema: {
+            output: JSON.stringify({
+              type: 'object',
+              properties: {
+                MovieTitle: { type: 'string' },
+                MovieSummary: { type: 'string' },
+              },
+              required: ['MovieTitle', 'MovieSummary'],
+            }),
           },
         },
       },
@@ -683,6 +732,12 @@ describe('createOpenAiLlmHandler', () => {
           },
           reasoning: 'high',
         },
+        extras: {
+          resolvedInputs: {},
+          schema: {
+            output: JSON.stringify({ type: 'object', properties: { Result: { type: 'string' } } }),
+          },
+        },
       },
     });
 
@@ -708,6 +763,12 @@ describe('createOpenAiLlmHandler', () => {
           responseFormat: {
             type: 'json_schema',
             schema: { type: 'object', properties: { Output: { type: 'string' } } },
+          },
+        },
+        extras: {
+          resolvedInputs: {},
+          schema: {
+            output: JSON.stringify({ type: 'object', properties: { Output: { type: 'string' } } }),
           },
         },
       },
@@ -812,6 +873,17 @@ describe('createOpenAiLlmHandler', () => {
             description: 'Schema for movie data',
           },
         },
+        extras: {
+          resolvedInputs: {},
+          schema: {
+            output: JSON.stringify({
+              title: 'MovieSchema',
+              description: 'Schema for movie data',
+              type: 'object',
+              properties: { Title: { type: 'string' } },
+            }),
+          },
+        },
       },
     });
 
@@ -860,6 +932,12 @@ describe('createOpenAiLlmHandler', () => {
           responseFormat: {
             type: 'json_schema',
             schema: { type: 'object', properties: { Title: { type: 'string' } } },
+          },
+        },
+        extras: {
+          resolvedInputs: {},
+          schema: {
+            output: JSON.stringify({ type: 'object', properties: { Title: { type: 'string' } } }),
           },
         },
       },
@@ -927,9 +1005,9 @@ describe('createOpenAiLlmHandler', () => {
       expect(args.output).toBeDefined();
     });
 
-    it('uses explicit responseFormat config over auto-derivation from outputSchema', async () => {
+    it('always uses outputSchema even when explicit responseFormat is also in config', async () => {
       mocks.generateText.mockResolvedValueOnce({
-        text: 'Plain text response',
+        output: { Title: 'From schema' },
         usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
         warnings: [],
         response: { id: 'resp-explicit', model: 'openai/gpt5', createdAt: '' },
@@ -944,16 +1022,16 @@ describe('createOpenAiLlmHandler', () => {
       });
 
       const request = createJobContext({
-        produces: ['Artifact:Output'],
+        produces: ['Artifact:Title'],
         context: {
           providerConfig: {
             systemPrompt: 'Generate text',
-            // Explicit text responseFormat should override outputSchema
+            // Explicit text responseFormat — but outputSchema always wins
             responseFormat: { type: 'text' },
           },
           extras: {
             schema: {
-              output: outputSchema, // Has outputSchema but explicit config says text
+              output: outputSchema,
             },
             resolvedInputs: {},
           },
@@ -962,65 +1040,11 @@ describe('createOpenAiLlmHandler', () => {
 
       const result = await handler.invoke(request);
 
-      // Should use generateText without output option (text mode)
+      // outputSchema always wins — structured output is used
       expect(mocks.generateText).toHaveBeenCalledTimes(1);
       const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
-      expect(args.output).toBeUndefined(); // No structured output
+      expect(args.output).toBeDefined(); // Structured output from schema
       expect(result.status).toBe('succeeded');
-    });
-
-    it('explicit json_schema config takes precedence over outputSchema', async () => {
-      mocks.generateText.mockResolvedValueOnce({
-        output: { ExplicitTitle: 'From explicit schema' },
-        usage: { inputTokens: 20, outputTokens: 40, totalTokens: 60 },
-        warnings: [],
-        response: { id: 'resp-explicit-json', model: 'openai/gpt5', createdAt: '' },
-      });
-
-      const handler = buildHandler();
-      await handler.warmStart?.({ logger: undefined });
-
-      const outputSchemaFromContext = JSON.stringify({
-        title: 'ContextSchema',
-        type: 'object',
-        properties: { ContextTitle: { type: 'string' } },
-      });
-
-      const explicitSchema = {
-        type: 'object',
-        properties: { ExplicitTitle: { type: 'string' } },
-      };
-
-      const request = createJobContext({
-        produces: ['Artifact:ExplicitTitle'],
-        context: {
-          providerConfig: {
-            systemPrompt: 'Generate',
-            // Explicit json_schema with different schema
-            responseFormat: {
-              type: 'json_schema',
-              schema: explicitSchema,
-              name: 'ExplicitSchemaName',
-            },
-          },
-          extras: {
-            schema: {
-              output: outputSchemaFromContext, // Different schema in context
-            },
-            resolvedInputs: {},
-          },
-        },
-      });
-
-      const result = await handler.invoke(request);
-
-      // Should use generateText with output option (structured output)
-      expect(mocks.generateText).toHaveBeenCalledTimes(1);
-      expect(result.status).toBe('succeeded');
-
-      // Verify the output option was passed (structured output mode)
-      const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
-      expect(args.output).toBeDefined();
     });
 
     it('defaults to text mode when no outputSchema and no responseFormat', async () => {

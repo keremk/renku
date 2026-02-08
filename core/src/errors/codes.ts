@@ -122,6 +122,9 @@ export const ValidationErrorCode = {
   INVALID_INPUT_TYPE: 'V060',
   INVALID_ARTIFACT_TYPE: 'V061',
   INVALID_ITEM_TYPE: 'V062',
+
+  // V070-V079: Blueprint Validation
+  BLUEPRINT_VALIDATION_FAILED: 'V070',
 } as const;
 
 export type ValidationErrorCodeValue = (typeof ValidationErrorCode)[keyof typeof ValidationErrorCode];

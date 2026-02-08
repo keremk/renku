@@ -1,16 +1,17 @@
 /**
  * Handler for producer prompts (TOML files).
  * Supports reading, editing, and restoring prompts for prompt-type producers.
- * Uses core package for all TOML file operations.
+ * Thin REST wrappers that delegate to core package for all operations.
  */
 
 import path from "node:path";
 import {
   loadYamlBlueprintTree,
   loadPromptFile,
-  savePromptFile,
-  deletePromptFile,
   promptFileExists,
+  saveProducerPrompts as coreSaveProducerPrompts,
+  restoreProducerPrompts as coreRestoreProducerPrompts,
+  getBuildPromptPath as coreGetBuildPromptPath,
   type BlueprintTreeNode,
   type PromptFileData,
 } from "@gorenku/core";
@@ -47,6 +48,13 @@ export interface RestorePromptsRequest {
   blueprintFolder: string;
   movieId: string;
   producerId: string;
+}
+
+/**
+ * Compute the movie-specific builds directory from blueprint folder and movie ID.
+ */
+function resolveBuildsDir(blueprintFolder: string, movieId: string): string {
+  return path.join(blueprintFolder, "builds", movieId);
 }
 
 /**
@@ -107,20 +115,6 @@ async function findProducerPromptPath(
 }
 
 /**
- * Gets the build folder path for prompts.
- */
-function getBuildPromptsDir(blueprintFolder: string, movieId: string): string {
-  return path.join(blueprintFolder, "builds", movieId, "prompts");
-}
-
-/**
- * Gets the build prompt file path for a producer.
- */
-function getBuildPromptPath(blueprintFolder: string, movieId: string, producerId: string): string {
-  return path.join(getBuildPromptsDir(blueprintFolder, movieId), `${producerId}.toml`);
-}
-
-/**
  * Gets prompt data for a producer.
  * Checks build folder first, falls back to template.
  */
@@ -138,7 +132,8 @@ export async function getProducerPrompts(
   }
 
   // Check if there's an edited version in the build folder
-  const buildPromptPath = getBuildPromptPath(blueprintFolder, movieId, producerId);
+  const buildsDir = resolveBuildsDir(blueprintFolder, movieId);
+  const buildPromptPath = coreGetBuildPromptPath(buildsDir, producerId);
 
   if (promptFileExists(buildPromptPath)) {
     // Return the edited version
@@ -167,6 +162,7 @@ export async function getProducerPrompts(
 
 /**
  * Saves edited prompts to the build folder.
+ * Delegates to core's saveProducerPrompts.
  */
 export async function saveProducerPrompts(
   blueprintFolder: string,
@@ -174,18 +170,19 @@ export async function saveProducerPrompts(
   producerId: string,
   prompts: PromptFileData,
 ): Promise<void> {
-  const promptPath = getBuildPromptPath(blueprintFolder, movieId, producerId);
-  await savePromptFile(promptPath, prompts);
+  const buildsDir = resolveBuildsDir(blueprintFolder, movieId);
+  await coreSaveProducerPrompts(buildsDir, producerId, prompts);
 }
 
 /**
  * Restores prompts to the template version by deleting the build copy.
+ * Delegates to core's restoreProducerPrompts.
  */
 export async function restoreProducerPrompts(
   blueprintFolder: string,
   movieId: string,
   producerId: string,
 ): Promise<void> {
-  const buildPromptPath = getBuildPromptPath(blueprintFolder, movieId, producerId);
-  await deletePromptFile(buildPromptPath);
+  const buildsDir = resolveBuildsDir(blueprintFolder, movieId);
+  await coreRestoreProducerPrompts(buildsDir, producerId);
 }
