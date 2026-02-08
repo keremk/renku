@@ -1,9 +1,10 @@
 import pLimit from 'p-limit';
-import { createRunner } from '../runner.js';
+import { createRunner, accumulateArtifacts } from '../runner.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import type {
   ExecutionPlan,
   JobResult,
+  Manifest,
   RunResult,
 } from '../types.js';
 import type {
@@ -90,6 +91,10 @@ export async function executePlanWithConcurrency(
       totalLayers: plan.layers.length,
     });
   }
+
+  // Track a running manifest that accumulates artifacts produced in earlier layers.
+  // This ensures hashInputContents in later layers resolves correct upstream hashes.
+  let runningManifest: Manifest = context.manifest;
 
   for (let layerIndex = 0; layerIndex < plan.layers.length; layerIndex += 1) {
     // Check for cancellation
@@ -201,6 +206,7 @@ export async function executePlanWithConcurrency(
 
           const result = await runner.executeJob(job, {
             ...context,
+            manifest: runningManifest,
             layerIndex,
             attempt: 1,
             revision: plan.revision,
@@ -222,6 +228,11 @@ export async function executePlanWithConcurrency(
       ),
     );
     jobs.push(...layerResults);
+
+    // Update running manifest with produced artifacts so later layers see correct hashes
+    for (const result of layerResults) {
+      runningManifest = accumulateArtifacts(runningManifest, result.artefacts);
+    }
 
     const layerCompleteMessage = `Layer ${layerIndex} finished running`;
     logger.info?.(layerCompleteMessage);

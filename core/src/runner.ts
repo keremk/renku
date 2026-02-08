@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer';
 import { resolveArtifactsFromEventLog, readBlob, resolveArtifactBlobPaths, findFailedArtifacts } from './artifact-resolver.js';
 import { formatCanonicalArtifactId, isCanonicalArtifactId } from './canonical-ids.js';
 import type { EventLog } from './event-log.js';
-import { hashInputs } from './event-log.js';
+import { hashInputContents } from './hashing.js';
 import { createManifestService, type ManifestService } from './manifest.js';
 import type { StorageContext } from './storage.js';
 import { persistBlobToStorage } from './blob-utils.js';
@@ -94,6 +94,10 @@ export function createRunner(options: RunnerOptions = {}) {
       const startedAt = clock.now();
       const jobs: JobResult[] = [];
 
+      // Track a running manifest that accumulates artifacts produced in earlier layers.
+      // This ensures hashInputContents in later layers resolves correct upstream hashes.
+      let runningManifest = context.manifest;
+
       for (let layerIndex = 0; layerIndex < plan.layers.length; layerIndex += 1) {
         const layer = plan.layers[layerIndex] ?? [];
         if (layer.length === 0) {
@@ -115,6 +119,7 @@ export function createRunner(options: RunnerOptions = {}) {
         for (const job of layer) {
           const jobResult = await executeJob(job, {
             ...context,
+            manifest: runningManifest,
             layerIndex,
             attempt: 1,
             revision: plan.revision,
@@ -125,6 +130,9 @@ export function createRunner(options: RunnerOptions = {}) {
             notifications,
           });
           jobs.push(jobResult);
+
+          // Update running manifest with produced artifacts so later layers see correct hashes
+          runningManifest = accumulateArtifacts(runningManifest, jobResult.artefacts);
         }
 
         logger.info?.('runner.layer.end', {
@@ -204,7 +212,7 @@ async function executeJob(
   const { movieId, layerIndex, attempt, revision, produce, logger, clock, storage, eventLog } = context;
   const notifications = context.notifications;
   const startedAt = clock.now();
-  const inputsHash = hashInputs(job.inputs);
+  const inputsHash = hashInputContents(job.inputs, context.manifest);
   const expectedArtefacts = job.produces.filter((id) => isCanonicalArtifactId(id));
 
   try {
@@ -572,6 +580,32 @@ function deriveJobStatus(
     return baseStatus === 'succeeded' ? 'skipped' : baseStatus;
   }
   return 'succeeded';
+}
+
+/**
+ * Accumulate newly produced artifacts into the manifest's artefacts map.
+ * This ensures that later-layer jobs see correct upstream artifact hashes
+ * when computing content-aware inputsHash.
+ */
+export function accumulateArtifacts(manifest: Manifest, artefacts: ArtefactEvent[]): Manifest {
+  if (artefacts.length === 0) {
+    return manifest;
+  }
+  const updatedArtefacts = { ...manifest.artefacts };
+  for (const event of artefacts) {
+    if (event.status === 'succeeded' && event.output.blob) {
+      updatedArtefacts[event.artefactId] = {
+        hash: event.output.blob.hash,
+        blob: event.output.blob,
+        producedBy: event.producedBy,
+        status: event.status,
+        diagnostics: event.diagnostics,
+        createdAt: event.createdAt,
+        inputsHash: event.inputsHash,
+      };
+    }
+  }
+  return { ...manifest, artefacts: updatedArtefacts };
 }
 
 function serializeError(error: unknown): SerializedError {

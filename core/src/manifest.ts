@@ -241,6 +241,7 @@ async function collectLatestArtefacts(
       createdAt: event.createdAt,
       editedBy: event.editedBy,
       originalHash: event.originalHash,
+      inputsHash: event.inputsHash,
     });
   }
   return Object.fromEntries(latest.entries());

@@ -16,6 +16,7 @@ export interface JobDirtyReason {
     | 'producesMissing' // Job produces artifacts not in manifest
     | 'touchesDirtyInput' // Job depends on dirty inputs
     | 'touchesDirtyArtefact' // Job depends on dirty upstream artifacts
+    | 'inputsHashChanged' // Stored inputsHash differs from recomputed content hash
     | 'propagated'; // Marked dirty because an upstream job is dirty
   /** Missing artifact IDs if reason is 'producesMissing' */
   missingArtifacts?: string[];
@@ -23,6 +24,8 @@ export interface JobDirtyReason {
   dirtyInputs?: string[];
   /** Dirty artifact IDs if reason is 'touchesDirtyArtefact' */
   dirtyArtefacts?: string[];
+  /** Artifact IDs with stale inputsHash if reason is 'inputsHashChanged' */
+  staleArtifacts?: string[];
   /** Upstream job ID if reason is 'propagated' */
   propagatedFrom?: string;
 }

@@ -621,6 +621,8 @@ export interface ManifestArtefactEntry {
   editedBy?: ArtefactEventEditedBy;
   /** The first producer-generated blob hash (preserved across edits for restore) */
   originalHash?: string;
+  /** Content-aware hash of inputs used to produce this artifact */
+  inputsHash?: string;
 }
 
 export interface Manifest {

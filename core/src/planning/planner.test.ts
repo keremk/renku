@@ -3,7 +3,7 @@ import { createPlanner, computeArtifactRegenerationJobs, computeMultipleArtifact
 import { createEventLog } from '../event-log.js';
 import { createStorageContext, initializeMovieStorage } from '../storage.js';
 import { createManifestService, ManifestNotFoundError } from '../manifest.js';
-import { hashArtefactOutput, hashPayload } from '../hashing.js';
+import { hashArtefactOutput, hashPayload, hashInputContents } from '../hashing.js';
 import { nextRevisionId } from '../revisions.js';
 import { computeTopologyLayers } from '../topology/index.js';
 import type {
@@ -1915,6 +1915,458 @@ describe('planner', () => {
 
       const allJobs = plan.layers.flat();
       expect(allJobs.length).toBe(0);
+    });
+  });
+
+  describe('content-aware inputsHash dirty detection', () => {
+    it('detects dirty job when upstream artifact hash changes (partial re-run scenario)', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseRevision = 'rev-0001';
+      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+
+      // Simulate a completed run: all artifacts exist, inputsHash stored on each
+      const artefactCreatedAt = new Date().toISOString();
+
+      // Compute the content-aware inputsHash that would have been stored during the run
+      const scriptInputsHash = hashInputContents(
+        ['Input:InquiryPrompt'],
+        {
+          inputs: Object.fromEntries(baseline.map(e => [e.id, { hash: e.hash }])),
+          artefacts: {},
+        },
+      );
+      const audioInputsHash0 = hashInputContents(
+        ['Artifact:NarrationScript[0]'],
+        {
+          inputs: {},
+          artefacts: { 'Artifact:NarrationScript[0]': { hash: 'hash-script-0' } },
+        },
+      );
+      const audioInputsHash1 = hashInputContents(
+        ['Artifact:NarrationScript[1]'],
+        {
+          inputs: {},
+          artefacts: { 'Artifact:NarrationScript[1]': { hash: 'hash-script-1' } },
+        },
+      );
+      const timelineInputsHash = hashInputContents(
+        ['Artifact:SegmentAudio[0]', 'Artifact:SegmentAudio[1]'],
+        {
+          inputs: {},
+          artefacts: {
+            'Artifact:SegmentAudio[0]': { hash: 'hash-audio-0' },
+            'Artifact:SegmentAudio[1]': { hash: 'hash-audio-1' },
+          },
+        },
+      );
+
+      const manifest: Manifest = {
+        revision: baseRevision,
+        baseRevision: null,
+        createdAt: artefactCreatedAt,
+        inputs: Object.fromEntries(
+          baseline.map((event) => [
+            event.id,
+            { hash: event.hash, payloadDigest: hashPayload(event.payload).canonical, createdAt: event.createdAt },
+          ]),
+        ),
+        artefacts: {
+          'Artifact:NarrationScript[0]': {
+            hash: 'hash-script-0',
+            producedBy: 'Producer:ScriptProducer',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+            inputsHash: scriptInputsHash,
+          },
+          'Artifact:NarrationScript[1]': {
+            hash: 'hash-script-1',
+            producedBy: 'Producer:ScriptProducer',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+            inputsHash: scriptInputsHash,
+          },
+          'Artifact:SegmentAudio[0]': {
+            hash: 'hash-audio-0',
+            producedBy: 'Producer:AudioProducer[0]',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+            inputsHash: audioInputsHash0,
+          },
+          'Artifact:SegmentAudio[1]': {
+            hash: 'hash-audio-1',
+            producedBy: 'Producer:AudioProducer[1]',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+            inputsHash: audioInputsHash1,
+          },
+          'Artifact:FinalVideo': {
+            hash: 'hash-final-video',
+            producedBy: 'Producer:TimelineAssembler',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+            inputsHash: timelineInputsHash,
+          },
+        },
+        timeline: {},
+      };
+
+      // Now simulate layer 0 re-run: NarrationScript[0] gets a new hash
+      // (ScriptProducer ran again and produced different content)
+      // The artifact event in the event log already has the new hash
+      await eventLog.appendArtefact('demo', {
+        artefactId: 'Artifact:NarrationScript[0]',
+        revision: 'rev-0002' as RevisionId,
+        inputsHash: scriptInputsHash, // same inputs, different output
+        output: { blob: { hash: 'NEW-hash-script-0', size: 100, mimeType: 'text/plain' } },
+        status: 'succeeded',
+        producedBy: 'Producer:ScriptProducer',
+        createdAt: new Date().toISOString(),
+      });
+
+      // Update manifest to reflect the new artifact hash (as if manifest was rebuilt from events)
+      manifest.artefacts['Artifact:NarrationScript[0]'] = {
+        hash: 'NEW-hash-script-0',
+        producedBy: 'Producer:ScriptProducer',
+        status: 'succeeded',
+        createdAt: artefactCreatedAt,
+        inputsHash: scriptInputsHash,
+      };
+
+      // Now request a plan - AudioProducer[0] should be dirty because its input
+      // (NarrationScript[0]) has hash 'NEW-hash-script-0' but the stored inputsHash
+      // was computed with the old hash 'hash-script-0'
+      const { plan } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0003' as RevisionId,
+        pendingEdits: [],
+      });
+
+      const jobIds = plan.layers.flat().map((j) => j.jobId);
+
+      // AudioProducer[0] should be dirty (inputsHash mismatch)
+      expect(jobIds).toContain('Producer:AudioProducer[0]');
+      // TimelineAssembler should be dirty (propagated from AudioProducer[0])
+      expect(jobIds).toContain('Producer:TimelineAssembler');
+      // ScriptProducer should NOT be dirty (its artifact exists, inputs unchanged)
+      expect(jobIds).not.toContain('Producer:ScriptProducer');
+      // AudioProducer[1] should NOT be dirty (NarrationScript[1] didn't change)
+      expect(jobIds).not.toContain('Producer:AudioProducer[1]');
+    });
+
+    it('returns empty plan when inputsHash matches (no false positives)', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseRevision = 'rev-0001';
+      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+
+      const artefactCreatedAt = new Date().toISOString();
+
+      // Compute correct content-aware hashes for all artifacts
+      const manifestData = {
+        inputs: Object.fromEntries(baseline.map(e => [e.id, { hash: e.hash }])),
+        artefacts: {
+          'Artifact:NarrationScript[0]': { hash: 'hash-script-0' },
+          'Artifact:NarrationScript[1]': { hash: 'hash-script-1' },
+          'Artifact:SegmentAudio[0]': { hash: 'hash-audio-0' },
+          'Artifact:SegmentAudio[1]': { hash: 'hash-audio-1' },
+          'Artifact:FinalVideo': { hash: 'hash-final-video' },
+        },
+      };
+
+      const manifest: Manifest = {
+        revision: baseRevision,
+        baseRevision: null,
+        createdAt: artefactCreatedAt,
+        inputs: Object.fromEntries(
+          baseline.map((event) => [
+            event.id,
+            { hash: event.hash, payloadDigest: hashPayload(event.payload).canonical, createdAt: event.createdAt },
+          ]),
+        ),
+        artefacts: {
+          'Artifact:NarrationScript[0]': {
+            hash: 'hash-script-0',
+            producedBy: 'Producer:ScriptProducer',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+            inputsHash: hashInputContents(['Input:InquiryPrompt'], manifestData),
+          },
+          'Artifact:NarrationScript[1]': {
+            hash: 'hash-script-1',
+            producedBy: 'Producer:ScriptProducer',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+            inputsHash: hashInputContents(['Input:InquiryPrompt'], manifestData),
+          },
+          'Artifact:SegmentAudio[0]': {
+            hash: 'hash-audio-0',
+            producedBy: 'Producer:AudioProducer[0]',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+            inputsHash: hashInputContents(['Artifact:NarrationScript[0]'], manifestData),
+          },
+          'Artifact:SegmentAudio[1]': {
+            hash: 'hash-audio-1',
+            producedBy: 'Producer:AudioProducer[1]',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+            inputsHash: hashInputContents(['Artifact:NarrationScript[1]'], manifestData),
+          },
+          'Artifact:FinalVideo': {
+            hash: 'hash-final-video',
+            producedBy: 'Producer:TimelineAssembler',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+            inputsHash: hashInputContents(['Artifact:SegmentAudio[0]', 'Artifact:SegmentAudio[1]'], manifestData),
+          },
+        },
+        timeline: {},
+      };
+
+      const { plan } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002' as RevisionId,
+        pendingEdits: [],
+      });
+
+      // Nothing should be dirty - all inputsHash values match
+      expect(plan.layers.flat()).toHaveLength(0);
+    });
+
+    it('old manifests without inputsHash gracefully skip the check', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseRevision = 'rev-0001';
+      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+
+      // Old-style manifest: no inputsHash on any artifact
+      const manifest = createSucceededManifest(baseline, { revision: baseRevision });
+
+      // Should produce empty plan (backward compatible — no inputsHash means no mismatch)
+      const { plan } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002' as RevisionId,
+        pendingEdits: [],
+      });
+
+      expect(plan.layers.flat()).toHaveLength(0);
+    });
+
+    it('produces inputsHashChanged explanation reason', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const planner = createPlanner();
+
+      const graph: ProducerGraph = {
+        nodes: [
+          {
+            jobId: 'Producer:A',
+            producer: 'ProducerA',
+            inputs: ['Input:Prompt'],
+            produces: ['Artifact:A'],
+            provider: 'p-a',
+            providerModel: 'm-a',
+            rateKey: 'rk:a',
+            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerA', inputs: [], produces: [] },
+          },
+          {
+            jobId: 'Producer:B',
+            producer: 'ProducerB',
+            inputs: ['Artifact:A'],
+            produces: ['Artifact:B'],
+            provider: 'p-b',
+            providerModel: 'm-b',
+            rateKey: 'rk:b',
+            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerB', inputs: [], produces: [] },
+          },
+        ],
+        edges: [{ from: 'Producer:A', to: 'Producer:B' }],
+      };
+
+      const baseRevision = 'rev-0001';
+      const baseline = createInputEvents({ 'Input:Prompt': 'hello' }, baseRevision);
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+
+      const artefactCreatedAt = new Date().toISOString();
+      const manifestData = {
+        inputs: Object.fromEntries(baseline.map(e => [e.id, { hash: e.hash }])),
+        artefacts: {
+          'Artifact:A': { hash: 'old-hash-a' },
+          'Artifact:B': { hash: 'hash-b' },
+        },
+      };
+
+      const manifest: Manifest = {
+        revision: baseRevision,
+        baseRevision: null,
+        createdAt: artefactCreatedAt,
+        inputs: Object.fromEntries(
+          baseline.map(e => [e.id, { hash: e.hash, payloadDigest: hashPayload(e.payload).canonical, createdAt: e.createdAt }]),
+        ),
+        artefacts: {
+          'Artifact:A': {
+            hash: 'new-hash-a', // hash changed (re-run produced new content)
+            producedBy: 'Producer:A',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+            inputsHash: hashInputContents(['Input:Prompt'], manifestData),
+          },
+          'Artifact:B': {
+            hash: 'hash-b',
+            producedBy: 'Producer:B',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+            // inputsHash was computed with old Artifact:A hash
+            inputsHash: hashInputContents(['Artifact:A'], manifestData),
+          },
+        },
+        timeline: {},
+      };
+
+      const { plan, explanation } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002' as RevisionId,
+        pendingEdits: [],
+        collectExplanation: true,
+      });
+
+      const jobIds = plan.layers.flat().map(j => j.jobId);
+      expect(jobIds).toContain('Producer:B');
+
+      // Check explanation
+      const bReason = explanation?.jobReasons.find(r => r.jobId === 'Producer:B');
+      expect(bReason?.reason).toBe('inputsHashChanged');
+      expect(bReason?.staleArtifacts).toContain('Artifact:B');
+    });
+
+    it('detects dirty with mixed Input and Artifact inputs', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const planner = createPlanner();
+
+      const graph: ProducerGraph = {
+        nodes: [
+          {
+            jobId: 'Producer:A',
+            producer: 'ProducerA',
+            inputs: ['Input:Prompt'],
+            produces: ['Artifact:A'],
+            provider: 'p-a',
+            providerModel: 'm-a',
+            rateKey: 'rk:a',
+            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerA', inputs: [], produces: [] },
+          },
+          {
+            jobId: 'Producer:B',
+            producer: 'ProducerB',
+            inputs: ['Artifact:A', 'Input:ProducerB.config'],
+            produces: ['Artifact:B'],
+            provider: 'p-b',
+            providerModel: 'm-b',
+            rateKey: 'rk:b',
+            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerB', inputs: [], produces: [] },
+          },
+        ],
+        edges: [{ from: 'Producer:A', to: 'Producer:B' }],
+      };
+
+      const baseRevision = 'rev-0001';
+      const baseline = createInputEvents(
+        { 'Input:Prompt': 'hello', 'Input:ProducerB.config': 'v1' },
+        baseRevision,
+      );
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+
+      const artefactCreatedAt = new Date().toISOString();
+      const oldManifestData = {
+        inputs: Object.fromEntries(baseline.map(e => [e.id, { hash: e.hash }])),
+        artefacts: {
+          'Artifact:A': { hash: 'old-hash-a' },
+          'Artifact:B': { hash: 'hash-b' },
+        },
+      };
+
+      const manifest: Manifest = {
+        revision: baseRevision,
+        baseRevision: null,
+        createdAt: artefactCreatedAt,
+        inputs: Object.fromEntries(
+          baseline.map(e => [e.id, { hash: e.hash, payloadDigest: hashPayload(e.payload).canonical, createdAt: e.createdAt }]),
+        ),
+        artefacts: {
+          'Artifact:A': {
+            hash: 'new-hash-a', // changed
+            producedBy: 'Producer:A',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+            inputsHash: hashInputContents(['Input:Prompt'], oldManifestData),
+          },
+          'Artifact:B': {
+            hash: 'hash-b',
+            producedBy: 'Producer:B',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+            // inputsHash was computed with old Artifact:A hash
+            inputsHash: hashInputContents(['Artifact:A', 'Input:ProducerB.config'], oldManifestData),
+          },
+        },
+        timeline: {},
+      };
+
+      const { plan } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002' as RevisionId,
+        pendingEdits: [],
+      });
+
+      const jobIds = plan.layers.flat().map(j => j.jobId);
+      // ProducerB should be dirty because Artifact:A hash changed
+      expect(jobIds).toContain('Producer:B');
+      // ProducerA should NOT be dirty (its input hash is unchanged)
+      expect(jobIds).not.toContain('Producer:A');
     });
   });
 

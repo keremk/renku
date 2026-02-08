@@ -1,7 +1,7 @@
 import { isCanonicalArtifactId, isCanonicalInputId } from '../canonical-ids.js';
 import type { EventLog } from '../event-log.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
-import { hashPayload } from '../hashing.js';
+import { hashPayload, hashInputContents } from '../hashing.js';
 import { deriveArtefactHash } from '../manifest.js';
 import { computeTopologyLayers } from '../topology/index.js';
 import {
@@ -278,11 +278,26 @@ function determineInitialDirtyJobs(
     );
     const touchesDirtyArtefact = dirtyArtefactsForJob.length > 0;
 
-    if (producesMissing || touchesDirtyInput || touchesDirtyArtefact) {
+    // Check 4: Job's inputsHash has changed (content of inputs differs from when artifact was produced)
+    let hasStaleInputsHash = false;
+    const staleInputsHashArtifacts: string[] = [];
+    if (!producesMissing && !touchesDirtyInput && !touchesDirtyArtefact) {
+      const jobProducedIds = info.node.produces.filter(id => isCanonicalArtifactId(id));
+      const expectedHash = hashInputContents(info.node.inputs, manifest);
+
+      for (const artId of jobProducedIds) {
+        const entry = manifest.artefacts[artId];
+        if (entry?.inputsHash && entry.inputsHash !== expectedHash) {
+          staleInputsHashArtifacts.push(artId);
+        }
+      }
+      hasStaleInputsHash = staleInputsHashArtifacts.length > 0;
+    }
+
+    if (producesMissing || touchesDirtyInput || touchesDirtyArtefact || hasStaleInputsHash) {
       dirtyJobs.add(jobId);
 
       if (collectReasons) {
-        // Prioritize reason: producesMissing > touchesDirtyInput > touchesDirtyArtefact
         if (producesMissing) {
           reasons.push({
             jobId,
@@ -303,6 +318,13 @@ function determineInitialDirtyJobs(
             producer: info.node.producer,
             reason: 'touchesDirtyArtefact',
             dirtyArtefacts: dirtyArtefactsForJob,
+          });
+        } else if (hasStaleInputsHash) {
+          reasons.push({
+            jobId,
+            producer: info.node.producer,
+            reason: 'inputsHashChanged',
+            staleArtifacts: staleInputsHashArtifacts,
           });
         }
       }

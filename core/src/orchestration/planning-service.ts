@@ -182,11 +182,15 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
       await planStore.save(plan, { movieId: args.movieId, storage: args.storage });
       const planPath = args.storage.resolve(args.movieId, 'runs', `${targetRevision}-plan.json`);
 
+      // Merge current input events into the manifest so the runner has
+      // up-to-date input hashes for content-aware inputsHash computation.
+      const manifestWithInputs = mergeInputEventsIntoManifest(manifest, inputEvents);
+
       return {
         plan,
         planPath,
         targetRevision,
-        manifest,
+        manifest: manifestWithInputs,
         manifestHash,
         inputEvents,
         resolvedInputs,
@@ -286,6 +290,27 @@ function makeArtefactEvent(
     diagnostics: draft.diagnostics,
     createdAt,
   };
+}
+
+/**
+ * Merge current input events into the manifest's inputs map.
+ * This ensures the runner has up-to-date input hashes for content-aware
+ * inputsHash computation (so hashInputContents can resolve real content
+ * hashes instead of falling back to hashing ID strings).
+ */
+function mergeInputEventsIntoManifest(manifest: Manifest, inputEvents: InputEvent[]): Manifest {
+  if (inputEvents.length === 0) {
+    return manifest;
+  }
+  const mergedInputs = { ...manifest.inputs };
+  for (const event of inputEvents) {
+    mergedInputs[event.id] = {
+      hash: event.hash,
+      payloadDigest: hashPayload(event.payload).canonical,
+      createdAt: event.createdAt,
+    };
+  }
+  return { ...manifest, inputs: mergedInputs };
 }
 
 async function ensureUniquePlanRevision(
