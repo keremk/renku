@@ -10,7 +10,6 @@ export type {
   BuildInputsResponse,
   BuildMetadataRequest,
   EnableEditingRequest,
-  MovieMetadata,
   BuildInfo,
   BuildsListResponse,
   ArtifactInfo,
@@ -19,6 +18,8 @@ export type {
   UploadFilesResponse,
   MediaInputType,
 } from "./types.js";
+// Re-export MovieMetadata from core for convenience
+export { type MovieMetadata } from "@gorenku/core";
 
 // Handlers
 export { generateMovieId, createBuild } from "./create-handler.js";

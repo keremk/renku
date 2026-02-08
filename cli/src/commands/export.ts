@@ -4,8 +4,8 @@ import { parse as parseYaml } from 'yaml';
 import { getDefaultCliConfigPath, getProjectLocalStorage, readCliConfig } from '../lib/cli-config.js';
 import { resolveTargetMovieId } from '../lib/movie-id-utils.js';
 import { loadCurrentManifest } from '../lib/artifacts-view.js';
-import { readMovieMetadata } from '../lib/movie-metadata.js';
 import { loadBlueprintBundle } from '../lib/blueprint-loader/index.js';
+import { createStorageContext, createMovieMetadataService } from '@gorenku/core';
 import { createProviderRegistry, loadModelCatalog, createProviderError, SdkErrorCode } from '@gorenku/providers';
 
 const DEFAULT_WIDTH = 1920;
@@ -468,8 +468,13 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
   });
 
   // Load movie metadata to get the blueprint path
-  const movieDir = resolve(projectStorage.root, projectStorage.basePath, storageMovieId);
-  const metadata = await readMovieMetadata(movieDir);
+  const storageContext = createStorageContext({
+    kind: 'local',
+    rootDir: projectStorage.root,
+    basePath: projectStorage.basePath,
+  });
+  const metadataService = createMovieMetadataService(storageContext);
+  const metadata = await metadataService.read(storageMovieId);
   if (!metadata?.blueprintPath) {
     throw new Error(`Unable to find movie metadata for ${storageMovieId}.`);
   }

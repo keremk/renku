@@ -5,13 +5,14 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { resolve, dirname, relative } from 'node:path';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 import {
   createStorageContext,
   initializeMovieStorage,
   createManifestService,
   createEventLog,
   createPlanningService,
+  createMovieMetadataService,
   validateBlueprintTree,
   loadYamlBlueprintTree,
   loadInputsFromYaml as coreLoadInputsFromYaml,
@@ -292,8 +293,9 @@ async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanR
       await mkdir(movieDir, { recursive: true });
       await initializeMovieStorage(localStorageContext, movieId);
 
-      // Write movie metadata (blueprintPath for CLI compatibility)
-      await mergeMovieMetadata(movieDir, { blueprintPath });
+      // Write movie metadata using the core service (blueprintPath for CLI compatibility)
+      const metadataService = createMovieMetadataService(localStorageContext);
+      await metadataService.merge(movieId, { blueprintPath });
 
       // Copy blobs from memory storage to local storage
       await copyBlobsFromMemoryToLocal(memoryStorageContext, localStorageContext, movieId);
@@ -617,40 +619,3 @@ function deriveSurgicalInfoArray(
   return results.length > 0 ? results : undefined;
 }
 
-// =============================================================================
-// Movie Metadata Helpers
-// =============================================================================
-
-interface MovieMetadata {
-  blueprintPath?: string;
-  lastInputsPath?: string;
-  displayName?: string;
-  createdAt?: string;
-}
-
-const METADATA_FILE = 'movie-metadata.json';
-
-async function readMovieMetadata(movieDir: string): Promise<MovieMetadata | null> {
-  const targetPath = resolve(movieDir, METADATA_FILE);
-  try {
-    const contents = await readFile(targetPath, 'utf8');
-    return JSON.parse(contents) as MovieMetadata;
-  } catch {
-    return null;
-  }
-}
-
-async function mergeMovieMetadata(
-  movieDir: string,
-  updates: Partial<MovieMetadata>,
-): Promise<MovieMetadata> {
-  const current = (await readMovieMetadata(movieDir)) ?? {};
-  const next: MovieMetadata = {
-    ...current,
-    ...updates,
-  };
-  const targetPath = resolve(movieDir, METADATA_FILE);
-  await mkdir(dirname(targetPath), { recursive: true });
-  await writeFile(targetPath, JSON.stringify(next, null, 2), 'utf8');
-  return next;
-}

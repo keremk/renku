@@ -7,6 +7,7 @@ import {
   createManifestService,
   createEventLog,
   createPlanningService,
+  createMovieMetadataService,
   planStore,
   persistInputBlob,
   inferMimeType,
@@ -34,7 +35,6 @@ import { loadBlueprintBundle } from './blueprint-loader/index.js';
 import { loadInputsFromYaml } from './input-loader.js';
 import { buildProducerCatalog, type ProducerOptionsMap, type ProviderOptionEntry } from '@gorenku/core';
 import { expandPath } from './path.js';
-import { mergeMovieMetadata } from './movie-metadata.js';
 import { applyProviderDefaults } from './provider-defaults.js';
 import chalk from 'chalk';
 import { Buffer } from 'buffer';
@@ -234,7 +234,10 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
 
       await mkdir(movieDir, { recursive: true });
       await initializeMovieStorage(localStorageContext, movieId);
-      await mergeMovieMetadata(movieDir, { blueprintPath });
+
+      // Write movie metadata using the core service
+      const metadataService = createMovieMetadataService(localStorageContext);
+      await metadataService.merge(movieId, { blueprintPath });
 
       // Copy blobs from memory storage to local storage
       await copyBlobsFromMemoryToLocal(

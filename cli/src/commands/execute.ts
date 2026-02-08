@@ -5,12 +5,13 @@ import { executeBuild, type BuildSummary } from '../lib/build.js';
 import { expandPath } from '../lib/path.js';
 import { confirmPlanExecution } from '../lib/interactive-confirm.js';
 import { displayPlanAndCosts, displayPlanExplanation } from '../lib/plan-display.js';
-import { readMovieMetadata } from '../lib/movie-metadata.js';
 import { resolveBlueprintSpecifier } from '../lib/config-assets.js';
 import { resolveAndPersistConcurrency } from '../lib/concurrency.js';
 import { cleanupPartialRunDirectory } from '../lib/cleanup.js';
 import {
   createRuntimeError,
+  createStorageContext,
+  createMovieMetadataService,
   RuntimeErrorCode,
   validateStageRange,
   deriveStageStatuses,
@@ -157,7 +158,9 @@ export async function runExecute(options: ExecuteOptions): Promise<ExecuteResult
   const blueprintPath = await resolveBlueprintPath({
     specifier: options.blueprintSpecifier,
     movieDir,
-    cliRoot: cliConfig.storage.root,
+    cliRoot: storageRoot,
+    basePath,
+    storageMovieId,
     isNew,
   });
 
@@ -316,6 +319,8 @@ async function resolveBlueprintPath(args: {
   specifier?: string;
   movieDir: string;
   cliRoot: string;
+  basePath: string;
+  storageMovieId: string;
   isNew: boolean;
 }): Promise<string> {
   let blueprintInput: string | undefined;
@@ -328,7 +333,14 @@ async function resolveBlueprintPath(args: {
     if (args.specifier && args.specifier.trim().length > 0) {
       blueprintInput = args.specifier;
     } else {
-      const metadata = await readMovieMetadata(args.movieDir);
+      // Use core MovieMetadataService for reading metadata
+      const storageContext = createStorageContext({
+        kind: 'local',
+        rootDir: args.cliRoot,
+        basePath: args.basePath,
+      });
+      const metadataService = createMovieMetadataService(storageContext);
+      const metadata = await metadataService.read(args.storageMovieId);
       blueprintInput = metadata?.blueprintPath;
     }
   }

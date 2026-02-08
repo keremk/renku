@@ -5,7 +5,8 @@
 import { existsSync } from "node:fs";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import type { CreateBuildResponse, MovieMetadata } from "./types.js";
+import { createStorageContext, createMovieMetadataService, initializeMovieStorage } from "@gorenku/core";
+import type { CreateBuildResponse } from "./types.js";
 
 /**
  * Generates a unique movie ID.
@@ -42,13 +43,22 @@ export async function createBuild(
   }
   await fs.writeFile(inputsPath, templateContent, "utf8");
 
-  // Create movie-metadata.json with displayName and createdAt
-  const metadata: MovieMetadata = {
+  // Create storage context and initialize movie storage
+  const storageContext = createStorageContext({
+    kind: "local",
+    rootDir: blueprintFolder,
+    basePath: "builds",
+  });
+
+  // Initialize the movie storage structure (creates current.json, etc.)
+  await initializeMovieStorage(storageContext, movieId);
+
+  // Create metadata using the core service
+  const metadataService = createMovieMetadataService(storageContext);
+  await metadataService.write(movieId, {
     displayName: displayName || undefined,
     createdAt: new Date().toISOString(),
-  };
-  const metadataPath = path.join(buildDir, "movie-metadata.json");
-  await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), "utf8");
+  });
 
   return { movieId, inputsPath };
 }

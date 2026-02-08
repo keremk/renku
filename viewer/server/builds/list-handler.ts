@@ -5,7 +5,8 @@
 import { existsSync } from "node:fs";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import type { BuildInfo, BuildsListResponse, MovieMetadata } from "./types.js";
+import { createStorageContext, createMovieMetadataService } from "@gorenku/core";
+import type { BuildInfo, BuildsListResponse } from "./types.js";
 
 /**
  * Lists all builds in the builds/ subfolder of the blueprint folder.
@@ -21,6 +22,14 @@ export async function listBuilds(blueprintFolder: string): Promise<BuildsListRes
       return { builds: [], blueprintFolder };
     }
 
+    // Create storage context for reading metadata
+    const storageContext = createStorageContext({
+      kind: "local",
+      rootDir: blueprintFolder,
+      basePath: "builds",
+    });
+    const metadataService = createMovieMetadataService(storageContext);
+
     const entries = await fs.readdir(buildsDir, { withFileTypes: true });
     const movieDirs = entries.filter(
       (entry) => entry.isDirectory() && entry.name.startsWith("movie-"),
@@ -31,7 +40,6 @@ export async function listBuilds(blueprintFolder: string): Promise<BuildsListRes
       const movieDir = path.join(buildsDir, movieId);
       const currentPath = path.join(movieDir, "current.json");
       const inputsPath = path.join(movieDir, "inputs.yaml");
-      const metadataPath = path.join(movieDir, "movie-metadata.json");
 
       try {
         const stat = await fs.stat(movieDir);
@@ -53,16 +61,13 @@ export async function listBuilds(blueprintFolder: string): Promise<BuildsListRes
         // Check for inputs.yaml
         const hasInputsFile = existsSync(inputsPath);
 
-        // Read displayName from movie-metadata.json
+        // Read displayName from metadata using the core service
         let displayName: string | null = null;
-        if (existsSync(metadataPath)) {
-          try {
-            const metaContent = await fs.readFile(metadataPath, "utf8");
-            const metadata = JSON.parse(metaContent) as MovieMetadata;
-            displayName = metadata.displayName ?? null;
-          } catch {
-            // Ignore parse errors
-          }
+        try {
+          const metadata = await metadataService.read(movieId);
+          displayName = metadata?.displayName ?? null;
+        } catch {
+          // Ignore read errors
         }
 
         // Filter out builds that have neither manifest nor inputs file

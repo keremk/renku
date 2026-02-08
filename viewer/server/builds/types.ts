@@ -58,16 +58,6 @@ export interface EnableEditingRequest {
 }
 
 /**
- * Movie metadata stored in movie-metadata.json
- */
-export interface MovieMetadata {
-  blueprintPath?: string;
-  lastInputsPath?: string;
-  displayName?: string;
-  createdAt?: string;
-}
-
-/**
  * Build information for list display.
  */
 export interface BuildInfo {
