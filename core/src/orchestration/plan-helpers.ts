@@ -192,7 +192,7 @@ export async function persistArtifactOverrideBlobs(
 // Surgical regeneration
 // ---------------------------------------------------------------------------
 
-export interface PlanSurgicalInfo {
+export interface SurgicalInfo {
   targetArtifactId: string;
   sourceJobId: string;
 }
@@ -203,8 +203,8 @@ export interface PlanSurgicalInfo {
 export function deriveSurgicalInfoArray(
   targetArtifactIds: string[],
   manifest: Manifest,
-): PlanSurgicalInfo[] | undefined {
-  const results: PlanSurgicalInfo[] = [];
+): SurgicalInfo[] | undefined {
+  const results: SurgicalInfo[] = [];
   for (const targetArtifactId of targetArtifactIds) {
     const entry = manifest.artefacts[targetArtifactId];
     if (!entry) {

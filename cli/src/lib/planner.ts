@@ -26,6 +26,7 @@ import {
   type Logger,
   type PlanExplanation,
   type ProducerOptionsMap,
+  type SurgicalInfo,
 } from '@gorenku/core';
 export type { PendingArtefactDraft } from '@gorenku/core';
 export type { PlanExplanation } from '@gorenku/core';
@@ -79,10 +80,7 @@ export interface GeneratePlanResult {
   /** Persist the plan to local storage. Call after confirmation. */
   persist: () => Promise<void>;
   /** Surgical regeneration info when targetArtifactIds is provided. */
-  surgicalInfo?: Array<{
-    targetArtifactId: string;
-    sourceJobId: string;
-  }>;
+  surgicalInfo?: SurgicalInfo[];
   /** Plan explanation (only if collectExplanation was true) */
   explanation?: PlanExplanation;
 }

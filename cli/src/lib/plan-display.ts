@@ -1,4 +1,4 @@
-import type { ExecutionPlan, InputEvent, Logger, BlobInput, PlanExplanation } from '@gorenku/core';
+import type { ExecutionPlan, InputEvent, Logger, BlobInput, PlanExplanation, SurgicalInfo } from '@gorenku/core';
 import { isBlobInput } from '@gorenku/core';
 import type { PlanCostSummary } from '@gorenku/providers';
 import chalk from 'chalk';
@@ -119,14 +119,9 @@ export function formatCostRange(minCost: number, maxCost: number): string {
 	return `${formatCost(minCost)} - ${formatCost(maxCost)}`;
 }
 
-export interface SurgicalTargetInfo {
-	targetArtifactId: string;
-	sourceJobId: string;
-}
-
 export interface SurgicalPlanDisplayOptions {
 	plan: ExecutionPlan;
-	targets: SurgicalTargetInfo[];
+	targets: SurgicalInfo[];
 	logger?: Logger;
 }
 

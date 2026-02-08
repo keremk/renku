@@ -2,6 +2,8 @@
  * Client-side types for generation functionality.
  */
 
+import type { SurgicalInfo } from '../../server/generation/types';
+
 // =============================================================================
 // Producer Status Types
 // =============================================================================
@@ -96,14 +98,6 @@ export interface ProducerCostEntry {
 }
 
 /**
- * Surgical regeneration display info.
- */
-export interface SurgicalDisplayInfo {
-  targetArtifactId: string;
-  sourceJobId: string;
-}
-
-/**
  * Plan information formatted for UI display.
  */
 export interface PlanDisplayInfo {
@@ -122,7 +116,7 @@ export interface PlanDisplayInfo {
   costByProducer: ProducerCostEntry[];
   layerBreakdown: LayerDisplayInfo[];
   /** Surgical regeneration info if present */
-  surgicalInfo?: SurgicalDisplayInfo[];
+  surgicalInfo?: SurgicalInfo[];
   /** Equivalent CLI command for debugging/copy-paste */
   cliCommand?: string;
 }
@@ -166,6 +160,7 @@ export type {
   JobDetailInfo,
   LayerInfo,
   LayerJobInfo,
+  SurgicalInfo,
   SSEEvent,
   JobStartEvent,
   JobCompleteEvent,

@@ -1,6 +1,6 @@
 import process from 'node:process';
 import * as readline from 'node:readline';
-import type { ExecutionPlan, InputEvent, Logger } from '@gorenku/core';
+import type { ExecutionPlan, InputEvent, Logger, SurgicalInfo } from '@gorenku/core';
 import type { PlanCostSummary } from '@gorenku/providers';
 import chalk from 'chalk';
 import {
@@ -8,7 +8,6 @@ import {
 	displayPlanSummary,
 	displayCostSummary,
 	displaySurgicalPlanSummary,
-	type SurgicalTargetInfo,
 } from './plan-display.js';
 
 // Re-export for backward compatibility
@@ -21,7 +20,7 @@ interface PlanConfirmationOptions {
 	upToLayer?: number;
 	costSummary?: PlanCostSummary;
 	/** Surgical regeneration info. When provided, uses surgical plan display. */
-	surgicalMode?: SurgicalTargetInfo[];
+	surgicalMode?: SurgicalInfo[];
 }
 
 /**

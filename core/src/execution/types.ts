@@ -6,13 +6,10 @@ import type { NotificationBus } from '../notifications.js';
 import type {
   Clock,
   ExecutionPlan,
-  InputEvent,
   Manifest,
   ProduceFn,
-  RevisionId,
   RunResult,
 } from '../types.js';
-import type { ProducerOptionsMap } from '../orchestration/producer-options.js';
 
 /**
  * Context for plan execution containing all required services.
@@ -51,60 +48,6 @@ export interface PreparePlanOptions {
   isNew: boolean;
   targetArtifactIds?: string[];
   reRunFrom?: number;
-}
-
-/**
- * Information about surgical regeneration targets.
- */
-export interface SurgicalInfo {
-  artifactId: string;
-  jobId: string;
-  layer: number;
-}
-
-/**
- * Summary of estimated costs for a plan.
- */
-export interface PlanCostSummary {
-  totalEstimatedCost: number;
-  totalJobs: number;
-  layerBreakdown: LayerCostBreakdown[];
-}
-
-export interface LayerCostBreakdown {
-  layerIndex: number;
-  jobCount: number;
-  estimatedCost: number;
-  producers: ProducerCostBreakdown[];
-}
-
-export interface ProducerCostBreakdown {
-  producer: string;
-  provider: string;
-  model: string;
-  count: number;
-  estimatedCost: number;
-}
-
-/**
- * Result of preparing a plan.
- */
-export interface PreparePlanResult {
-  plan: ExecutionPlan;
-  manifest: Manifest;
-  manifestHash: string | null;
-  resolvedInputs: Record<string, unknown>;
-  providerOptions: ProducerOptionsMap;
-  inputEvents: InputEvent[];
-  costSummary: PlanCostSummary;
-  blueprintPath: string;
-  targetRevision: RevisionId;
-  surgicalInfo?: SurgicalInfo[];
-  /**
-   * Persist the plan and input events to storage.
-   * Call this to save the plan before execution.
-   */
-  persist: () => Promise<void>;
 }
 
 /**

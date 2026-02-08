@@ -3,7 +3,8 @@
  * These expose the same capabilities as the CLI `generate` command.
  */
 
-import type { ExecutionPlan, Manifest } from '@gorenku/core';
+import type { ExecutionPlan, Manifest, SurgicalInfo } from '@gorenku/core';
+export type { SurgicalInfo } from '@gorenku/core';
 import type { PlanCostSummary, ProducerCostData } from '@gorenku/providers';
 
 // =============================================================================
@@ -121,14 +122,6 @@ export interface LayerJobInfo {
   producer: string;
   /** Estimated cost for this job (if available) */
   estimatedCost?: number;
-}
-
-/**
- * Surgical regeneration info.
- */
-export interface SurgicalInfo {
-  targetArtifactId: string;
-  sourceJobId: string;
 }
 
 /**
