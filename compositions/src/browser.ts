@@ -6,6 +6,7 @@ export type {
   MusicTrack,
   VideoTrack,
   CaptionsTrack,
+  TranscriptionTrack,
   UnknownTrack,
   TimelineClip,
   ImageClip,
@@ -13,6 +14,7 @@ export type {
   MusicClip,
   VideoClip,
   CaptionsClip,
+  TranscriptionClip,
   KenBurnsEffect,
   AssetMap,
 } from "./types/timeline.js";

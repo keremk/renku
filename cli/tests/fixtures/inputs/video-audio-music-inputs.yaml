@@ -52,11 +52,13 @@ models:
     config:
       timeline:
         masterTracks: ["Audio"]
-        tracks: ["Video", "Audio", "Music"]
+        tracks: ["Video", "Audio", "Transcription", "Music"]
         videoClip:
           artifact: VideoSegments
         audioClip:
           artifact: AudioSegments
+        transcriptionClip:
+          artifact: TranscriptionAudio
         musicClip:
           artifact: Music
           volume: 0.4

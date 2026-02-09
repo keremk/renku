@@ -13,7 +13,7 @@ interface FanInValue {
   groups: string[][];
 }
 
-type ClipKind = 'Image' | 'Audio' | 'Music' | 'Video' | 'Captions';
+type ClipKind = 'Image' | 'Audio' | 'Music' | 'Video' | 'Captions' | 'Transcription';
 
 interface TimelineClipConfig {
   kind: ClipKind;
@@ -374,6 +374,7 @@ function buildClipsFromShorthand(source: Record<string, unknown>): TimelineClipC
   const videoClip = isRecord(source.videoClip) ? (source.videoClip as Record<string, unknown>) : undefined;
   const audioClip = isRecord(source.audioClip) ? (source.audioClip as Record<string, unknown>) : undefined;
   const musicClip = isRecord(source.musicClip) ? (source.musicClip as Record<string, unknown>) : undefined;
+  const transcriptionClip = isRecord(source.transcriptionClip) ? (source.transcriptionClip as Record<string, unknown>) : undefined;
 
   if (imageClip?.artifact && typeof imageClip.artifact === 'string') {
     clips.push({
@@ -402,6 +403,12 @@ function buildClipsFromShorthand(source: Record<string, unknown>): TimelineClipC
       inputs: musicClip.artifact,
       play: typeof musicClip.play === 'string' ? musicClip.play : musicClip.playStrategy as string | undefined,
       volume: typeof musicClip.volume === 'number' ? musicClip.volume : undefined,
+    });
+  }
+  if (transcriptionClip?.artifact && typeof transcriptionClip.artifact === 'string') {
+    clips.push({
+      kind: 'Transcription',
+      inputs: transcriptionClip.artifact,
     });
   }
   return clips;
@@ -549,6 +556,15 @@ async function buildTrack(args: {
         segmentOffsets,
         inputs,
         durationCache,
+      });
+    case 'Transcription':
+      return buildTranscriptionTrack({
+        clip,
+        fanIn,
+        trackIndex,
+        segmentDurations,
+        segmentOffsets,
+        inputs,
       });
     default:
       throw createProviderError(
@@ -781,6 +797,45 @@ async function buildVideoTrack(args: {
       startTime: segmentOffsets[index],
       duration: segmentDurations[index],
       properties,
+    });
+  }
+
+  return {
+    id: `track-${trackIndex}`,
+    kind: clip.kind,
+    clips,
+  };
+}
+
+function buildTranscriptionTrack(args: {
+  clip: TimelineClipConfig;
+  fanIn: FanInValue;
+  trackIndex: number;
+  segmentDurations: number[];
+  segmentOffsets: number[];
+  inputs: ResolvedInputsAccessor;
+}): TimelineTrack {
+  const { clip, fanIn, trackIndex, segmentDurations, segmentOffsets, inputs } = args;
+  const normalizedGroups = normalizeGroups(fanIn.groups, segmentDurations.length);
+  const groups = filterExistingAssets(normalizedGroups, inputs);
+  const clips: TimelineClip[] = [];
+
+  for (let index = 0; index < segmentDurations.length; index += 1) {
+    const assets = groups[index] ?? [];
+    const assetId = assets[0];
+    if (!assetId) {
+      // Skip segments with no transcription audio (silent segments)
+      continue;
+    }
+
+    clips.push({
+      id: `clip-${trackIndex}-${index}`,
+      kind: clip.kind,
+      startTime: segmentOffsets[index],
+      duration: segmentDurations[index],
+      properties: {
+        assetId,
+      },
     });
   }
 

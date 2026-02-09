@@ -1,21 +1,19 @@
 import { Buffer } from 'node:buffer';
+import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
 import { createProviderError, SdkErrorCode } from '../../sdk/errors.js';
 import type { HandlerFactory, HandlerFactoryInit, ProviderJobContext } from '../../types.js';
-import type { TimelineDocument, AudioClip } from '@gorenku/compositions';
+import type { TimelineDocument, TranscriptionClip, TranscriptionTrack } from '@gorenku/compositions';
 import type { StorageContext } from '@gorenku/core';
 import { concatenateWithSilence } from './audio-concatenator.js';
 import { alignTranscriptionToTimeline } from './timestamp-aligner.js';
 import type {
   AudioSegment,
   STTOutput,
-  TranscriptionArtifact,
 } from './types.js';
 
 const TIMELINE_ARTEFACT_ID = 'Artifact:TimelineComposer.Timeline';
-// Input ID reserved for future explicit input lookup; currently we iterate all inputs
-const _AUDIO_SEGMENTS_INPUT_ID = 'Input:TranscriptionProducer.AudioSegments';
 
 /**
  * Nested model config structure for STT backend.
@@ -37,8 +35,8 @@ interface TranscriptionHandlerConfig {
  * Create the transcription producer handler.
  *
  * This handler:
- * 1. Loads the timeline to get audio clip timing info
- * 2. Loads audio buffers from the AudioSegments fan-in input
+ * 1. Loads the timeline and finds the Transcription track
+ * 2. Loads audio buffers from asset blob paths (auto-resolved by the runner)
  * 3. Concatenates audio with silence gaps to match timeline positions
  * 4. Calls STT API to transcribe the concatenated audio
  * 5. Aligns timestamps to the original timeline positions
@@ -89,60 +87,69 @@ export function createTranscriptionHandler(): HandlerFactory {
           runtime.inputs.getByNodeId<string>('Input:TranscriptionProducer.LanguageCode') ??
           'eng';
 
-        // Extract audio clips from timeline (Audio tracks only, skip Music)
-        const audioClips = extractAudioClipsFromTimeline(timeline);
-        notify('progress', `Found ${audioClips.length} audio clips in timeline`);
-
-        // Debug: Log available input keys
-        const allInputs = runtime.inputs.all();
-        const inputKeys = Object.keys(allInputs);
-        notify('progress', `Available input keys (${inputKeys.length}): ${inputKeys.slice(0, 5).join(', ')}${inputKeys.length > 5 ? '...' : ''}`);
-
-        // If no audio clips, return empty transcription
-        if (audioClips.length === 0) {
-          const emptyTranscription: TranscriptionArtifact = {
-            text: '',
-            words: [],
-            segments: [],
-            language: languageCode,
-            totalDuration: timeline.duration,
-          };
-
-          return {
-            status: 'succeeded',
-            artefacts: [{
-              artefactId: runtime.artefacts.expectBlob(produceId),
-              status: 'succeeded',
-              blob: {
-                data: Buffer.from(JSON.stringify(emptyTranscription, null, 2)),
-                mimeType: 'application/json',
-              },
-              diagnostics: { reason: 'no_audio_clips' },
-            }],
-          };
+        // Find the Transcription track in the timeline
+        const transcriptionTrack = timeline.tracks.find(
+          (track): track is TranscriptionTrack => track.kind === 'Transcription',
+        );
+        if (!transcriptionTrack) {
+          throw createProviderError(
+            SdkErrorCode.MISSING_TIMELINE,
+            'Timeline has no Transcription track. Add a Transcription track to the TimelineComposer config ' +
+              'and wire TranscriptionAudio to TimelineComposer.',
+            { kind: 'user_input', causedByUser: true },
+          );
         }
 
-        // Load audio buffers from fan-in input
-        notify('progress', `Looking for audio buffers with assetIds: ${audioClips.map(c => c.properties.assetId).join(', ')}`);
-        const audioBuffers = loadAudioBuffersFromInput(allInputs, audioClips);
+        const transcriptionClips = [...transcriptionTrack.clips]
+          .sort((a, b) => a.startTime - b.startTime);
 
-        // Debug: Log buffer sizes
-        const bufferSizes = audioBuffers.map((b, i) => `${audioClips[i]?.properties.assetId}: ${b.length} bytes`);
-        notify('progress', `Loaded buffers: ${bufferSizes.join(', ')}`);
+        if (transcriptionClips.length === 0) {
+          throw createProviderError(
+            SdkErrorCode.MISSING_ASSET,
+            'Transcription track is empty — no audio clips to transcribe. ' +
+              'Ensure audio is wired to TimelineComposer.TranscriptionAudio.',
+            { kind: 'user_input', causedByUser: true },
+          );
+        }
 
-        // Build audio segments with timing info
-        const audioSegments: AudioSegment[] = audioClips.map((clip, index) => ({
-          buffer: audioBuffers[index] ?? Buffer.alloc(0),
-          startTime: clip.startTime,
-          duration: clip.duration,
-          clipId: clip.id,
-          assetId: clip.properties.assetId,
-        })).filter(seg => seg.buffer.length > 0);
+        notify('progress', `Found ${transcriptionClips.length} clips in Transcription track`);
 
-        notify('progress', `Audio segments after filtering: ${audioSegments.length}`);
+        // Load audio buffers from asset blob paths or resolved inputs
+        const allInputs = runtime.inputs.all();
+        const assetBlobPaths = request.context.extras?.assetBlobPaths as Record<string, string> | undefined;
+
+        // Diagnostic logging: trace asset resolution pipeline
+        const clipAssetIds = transcriptionClips.map(c => c.properties.assetId);
+        notify('progress',
+          `Audio resolution diagnostics:\n` +
+          `  clipAssetIds: ${JSON.stringify(clipAssetIds)}\n` +
+          `  assetBlobPaths keys: ${assetBlobPaths ? JSON.stringify(Object.keys(assetBlobPaths)) : 'undefined'}\n` +
+          `  allInputs keys (Artifact:*): ${JSON.stringify(Object.keys(allInputs).filter(k => k.startsWith('Artifact:')))}`
+        );
+
+        const { segments: audioSegments, skippedAssetIds } = await loadAudioSegmentsFromTranscriptionTrack(
+          transcriptionClips,
+          assetBlobPaths,
+          allInputs,
+        );
+
+        for (const skippedId of skippedAssetIds) {
+          notify('progress', `Warning: could not load audio for asset "${skippedId}" — skipped`);
+        }
+
+        if (runtime.mode !== 'simulated' && audioSegments.length === 0 && transcriptionClips.length > 0) {
+          throw createProviderError(
+            SdkErrorCode.EMPTY_AUDIO_SEGMENTS,
+            `All ${transcriptionClips.length} transcription clips failed to load audio. ` +
+              `Skipped asset IDs: ${skippedAssetIds.join(', ')}. ` +
+              'Ensure audio artifacts are wired to TimelineComposer.TranscriptionAudio and available in assetBlobPaths or resolved inputs.',
+            { kind: 'user_input', causedByUser: true, metadata: { skippedAssetIds } },
+          );
+        }
+
+        notify('progress', `Loaded ${audioSegments.length} audio segments`);
 
         // Validate STT delegation requirements early (applies to both modes)
-        // This ensures dry-run catches configuration errors that would fail in live mode
         if (!handlerResolver) {
           throw createProviderError(
             SdkErrorCode.INVALID_CONFIG,
@@ -153,7 +160,6 @@ export function createTranscriptionHandler(): HandlerFactory {
         }
 
         // Load the STT model's input schema for delegation (both modes)
-        // This validates the schema exists in the catalog
         let sttSchema: string | null = null;
         if (getModelSchema) {
           sttSchema = await getModelSchema(config.stt.provider, config.stt.model);
@@ -169,16 +175,12 @@ export function createTranscriptionHandler(): HandlerFactory {
         // Get audio URL - either from cloud upload (live) or placeholder (simulated)
         let audioUrl: string;
         if (runtime.mode === 'simulated') {
-          // In simulated mode, use a placeholder URL
-          // The STT handler will generate mock JSON output via the unified handler
           audioUrl = 'https://simulated.example.com/audio.wav';
           notify('progress', 'Using placeholder audio URL (simulated mode)');
         } else {
-          // Live mode: concatenate audio, upload, get signed URL
           notify('progress', 'Concatenating audio segments...');
           const concatenatedAudio = await concatenateWithSilence(audioSegments, timeline.duration);
 
-          // Upload to cloud storage and get signed URL
           if (!runtime.cloudStorage) {
             throw createProviderError(
               SdkErrorCode.BLOB_INPUT_NO_STORAGE,
@@ -195,11 +197,8 @@ export function createTranscriptionHandler(): HandlerFactory {
         // Delegate STT call to the configured provider's handler
         notify('progress', `Calling speech-to-text API (${config.stt.provider}/${config.stt.model})...`);
 
-        // Extract nested STT config properties to forward (exclude provider/model)
         const { provider: _sttProvider, model: _sttModel, ...sttConfigProps } = config.stt;
 
-        // Construct job context for the STT call
-        // The handler will use its simulated mode logic in dry-run
         const sttJobContext: ProviderJobContext = {
           jobId: `${request.jobId}-stt`,
           provider: config.stt.provider,
@@ -215,48 +214,48 @@ export function createTranscriptionHandler(): HandlerFactory {
               resolvedInputs: {
                 audio_url: audioUrl,
                 language_code: languageCode,
-                // Forward any additional STT-specific config properties (e.g., diarize, tag_audio_events)
                 ...sttConfigProps,
               },
-              // SDK mapping tells buildPayload how to transform resolvedInputs into API payload
-              // Maps input keys to their target field names in the provider's schema
               jobContext: {
                 sdkMapping: {
                   audio_url: { field: 'audio_url' },
                   language_code: { field: 'language_code' },
-                  // Add mappings for forwarded STT config properties
                   ...Object.fromEntries(
                     Object.keys(sttConfigProps).map(key => [key, { field: key }])
                   ),
                 },
-                // inputBindings maps input aliases to canonical IDs in resolvedInputs
                 inputBindings: {
                   audio_url: 'audio_url',
                   language_code: 'language_code',
-                  // Add bindings for forwarded STT config properties
                   ...Object.fromEntries(
                     Object.keys(sttConfigProps).map(key => [key, key])
                   ),
                 },
               },
-              // Pass the schema for the STT model - required by schema-first-handler
               ...(sttSchema && { schema: { raw: sttSchema } }),
             },
           },
         };
 
-        // Invoke the STT handler (uses same code path for dry-run/live)
         const sttResult = await sttHandler.invoke(sttJobContext);
-
-        // Extract STT output from handler result
         const sttRawOutput = extractSttOutputFromResult(sttResult);
 
-        // Parse and align timestamps to timeline
         notify('progress', 'Aligning transcription timestamps...');
         const sttParsed = sttRawOutput as { data?: STTOutput } | STTOutput;
         const sttOutput: STTOutput = 'data' in sttParsed && sttParsed.data
           ? sttParsed.data
           : sttParsed as STTOutput;
+
+        if (runtime.mode !== 'simulated') {
+          const wordCount = sttOutput.words.filter(w => w.type === 'word').length;
+          if (wordCount === 0) {
+            throw createProviderError(
+              SdkErrorCode.EMPTY_TRANSCRIPTION_RESULT,
+              'Speech-to-text returned 0 words. The audio may be silent, corrupted, or the STT model failed to detect speech.',
+              { kind: 'unknown', metadata: { audioSegmentsLoaded: audioSegments.length } },
+            );
+          }
+        }
 
         const transcription = alignTranscriptionToTimeline(sttOutput, audioSegments);
 
@@ -275,6 +274,9 @@ export function createTranscriptionHandler(): HandlerFactory {
               wordCount: transcription.words.length,
               segmentCount: transcription.segments.length,
               language: transcription.language,
+              audioSegmentsLoaded: audioSegments.length,
+              audioSegmentsExpected: transcriptionClips.length,
+              skippedAssetIds,
             },
           }],
         };
@@ -288,7 +290,6 @@ function parseTranscriptionConfig(raw: unknown): TranscriptionHandlerConfig {
 
   const stt = config.stt as Record<string, unknown> | undefined;
 
-  // Validate required stt nested object
   if (!stt || typeof stt !== 'object') {
     throw createProviderError(
       SdkErrorCode.INVALID_CONFIG,
@@ -298,7 +299,6 @@ function parseTranscriptionConfig(raw: unknown): TranscriptionHandlerConfig {
     );
   }
 
-  // Validate required stt.provider field
   if (typeof stt.provider !== 'string' || !stt.provider) {
     throw createProviderError(
       SdkErrorCode.INVALID_CONFIG,
@@ -307,7 +307,6 @@ function parseTranscriptionConfig(raw: unknown): TranscriptionHandlerConfig {
     );
   }
 
-  // Validate required stt.model field
   if (typeof stt.model !== 'string' || !stt.model) {
     throw createProviderError(
       SdkErrorCode.INVALID_CONFIG,
@@ -316,7 +315,6 @@ function parseTranscriptionConfig(raw: unknown): TranscriptionHandlerConfig {
     );
   }
 
-  // Extract additional STT config properties (diarize, tag_audio_events, etc.)
   const { provider, model, ...sttConfigProps } = stt;
 
   return {
@@ -331,11 +329,8 @@ function parseTranscriptionConfig(raw: unknown): TranscriptionHandlerConfig {
 
 /**
  * Extract STT output from the handler result.
- * The handler returns a ProviderResult with artifacts, we need to extract the actual STT data.
  */
 function extractSttOutputFromResult(result: import('../../types.js').ProviderResult): unknown {
-  // The STT handler should return the transcription in the first artifact's diagnostics
-  // or in the raw output. This handles both simulated and live modes.
   if (result.status === 'failed') {
     throw createProviderError(
       SdkErrorCode.PROVIDER_PREDICTION_FAILED,
@@ -353,101 +348,102 @@ function extractSttOutputFromResult(result: import('../../types.js').ProviderRes
     );
   }
 
-  // Try to extract from diagnostics.rawOutput (schema-first handler includes this)
   const diagnostics = firstArtifact.diagnostics as Record<string, unknown> | undefined;
   if (diagnostics?.rawOutput) {
     return diagnostics.rawOutput;
   }
 
-  // Try to extract from blob data if present
   if (firstArtifact.blob?.data) {
     try {
       return JSON.parse(firstArtifact.blob.data.toString());
     } catch {
-      // Not JSON, return as-is
       return firstArtifact.blob.data;
     }
   }
 
-  // Fallback to diagnostics itself
   return diagnostics ?? {};
 }
 
 /**
- * Extract audio clips from timeline (Audio track only, skip Music).
+ * Load audio segments from the Transcription track clips.
+ * Uses asset blob paths (file paths resolved by the runner) or falls back to resolved inputs.
  */
-function extractAudioClipsFromTimeline(timeline: TimelineDocument): AudioClip[] {
-  const audioClips: AudioClip[] = [];
-
-  for (const track of timeline.tracks) {
-    // Only process Audio tracks, skip Music tracks
-    if (track.kind === 'Audio') {
-      for (const clip of track.clips) {
-        if (clip.kind === 'Audio') {
-          audioClips.push(clip as AudioClip);
-        }
-      }
-    }
-  }
-
-  // Sort by start time
-  return audioClips.sort((a, b) => a.startTime - b.startTime);
-}
-
-/**
- * Load audio buffers from the fan-in input based on clip asset IDs.
- *
- * The resolved inputs contain artifact data keyed by artifact IDs.
- * We match them to clips using the assetId from timeline clip properties.
- */
-function loadAudioBuffersFromInput(
+async function loadAudioSegmentsFromTranscriptionTrack(
+  clips: TranscriptionClip[],
+  assetBlobPaths: Record<string, string> | undefined,
   allInputs: Record<string, unknown>,
-  clips: AudioClip[],
-): Buffer[] {
-  const buffers: Buffer[] = [];
+): Promise<{ segments: AudioSegment[]; skippedAssetIds: string[] }> {
+  const segments: AudioSegment[] = [];
+  const skippedAssetIds: string[] = [];
 
   for (const clip of clips) {
     const assetId = clip.properties.assetId;
     let buffer: Buffer | undefined;
 
-    // Look up the artifact data by asset ID
-    const artifactData = allInputs[assetId];
-
-    if (artifactData) {
-      buffer = extractBufferFromInput(artifactData);
-    }
-
-    // If not found, try without the "Artifact:" prefix (some resolvers strip it)
-    if (!buffer && assetId.startsWith('Artifact:')) {
-      const shortId = assetId.replace('Artifact:', '');
-      const shortData = allInputs[shortId];
-      if (shortData) {
-        buffer = extractBufferFromInput(shortData);
+    // Try loading from asset blob paths (file system)
+    if (assetBlobPaths) {
+      const filePath = assetBlobPaths[assetId];
+      if (filePath) {
+        try {
+          buffer = await readFile(filePath);
+        } catch {
+          // File may not exist in simulation/dry-run mode
+        }
       }
     }
 
-    buffers.push(buffer ?? Buffer.alloc(0));
+    // Fallback: try loading from resolved inputs (in-memory)
+    if (!buffer) {
+      buffer = extractBufferFromInput(allInputs[assetId]);
+    }
+
+    // Fallback: try without "Artifact:" prefix
+    if (!buffer && assetId.startsWith('Artifact:')) {
+      const shortId = assetId.replace('Artifact:', '');
+      if (assetBlobPaths) {
+        const filePath = assetBlobPaths[shortId];
+        if (filePath) {
+          try {
+            buffer = await readFile(filePath);
+          } catch {
+            // File may not exist in simulation/dry-run mode
+          }
+        }
+      }
+      if (!buffer) {
+        buffer = extractBufferFromInput(allInputs[shortId]);
+      }
+    }
+
+    if (!buffer || buffer.length === 0) {
+      skippedAssetIds.push(assetId);
+      continue;
+    }
+
+    segments.push({
+      buffer,
+      startTime: clip.startTime,
+      duration: clip.duration,
+      clipId: clip.id,
+      assetId,
+    });
   }
 
-  return buffers;
+  return { segments, skippedAssetIds };
 }
 
 /**
  * Extract a Buffer from various input formats.
- * Handles: raw Buffer, Uint8Array, BlobInput { data, mimeType }, or nested structures.
  */
 function extractBufferFromInput(value: unknown): Buffer | undefined {
-  // Direct Buffer
   if (Buffer.isBuffer(value)) {
     return value;
   }
 
-  // Uint8Array (convert to Buffer)
   if (value instanceof Uint8Array) {
     return Buffer.from(value);
   }
 
-  // BlobInput structure: { data: Buffer|Uint8Array, mimeType: string }
   if (typeof value === 'object' && value !== null && 'data' in value) {
     const obj = value as { data?: unknown; mimeType?: string };
     if (Buffer.isBuffer(obj.data)) {
@@ -458,7 +454,6 @@ function extractBufferFromInput(value: unknown): Buffer | undefined {
     }
   }
 
-  // Nested blob structure: { blob: { data: Buffer } }
   if (typeof value === 'object' && value !== null && 'blob' in value) {
     const obj = value as { blob?: { data?: unknown } };
     if (obj.blob && Buffer.isBuffer(obj.blob.data)) {
@@ -479,15 +474,12 @@ async function uploadAudioAndGetUrl(
   audioBuffer: Buffer,
   cloudStorage: StorageContext,
 ): Promise<string> {
-  // Generate content-addressed key
   const hash = createHash('sha256').update(audioBuffer).digest('hex');
   const prefix = hash.slice(0, 2);
   const key = `blobs/${prefix}/${hash}.wav`;
 
-  // Upload to cloud storage
   await cloudStorage.storage.write(key, audioBuffer, { mimeType: 'audio/wav' });
 
-  // Get signed URL
   if (!cloudStorage.temporaryUrl) {
     throw createProviderError(
       SdkErrorCode.CLOUD_STORAGE_URL_FAILED,
@@ -502,8 +494,7 @@ async function uploadAudioAndGetUrl(
 // Export for testing
 export const __test__ = {
   parseTranscriptionConfig,
-  extractAudioClipsFromTimeline,
-  loadAudioBuffersFromInput,
+  loadAudioSegmentsFromTranscriptionTrack,
   extractBufferFromInput,
   uploadAudioAndGetUrl,
 };

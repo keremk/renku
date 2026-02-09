@@ -26,6 +26,12 @@ inputs:
     itemType: audio
     dimensions: segment
     fanIn: true
+  - name: TranscriptionAudio
+    description: Audio clips to transcribe, grouped per segment.
+    type: collection
+    itemType: audio
+    dimensions: segment
+    fanIn: true
   - name: Music
     description: Background music clips that score the movie (looped as needed).
     type: audio
@@ -46,4 +52,5 @@ mappings:
       ImageSegments: imageSegments
       VideoSegments: videoSegments
       AudioSegments: audioSegments
+      TranscriptionAudio: transcriptionAudio
       Music: music

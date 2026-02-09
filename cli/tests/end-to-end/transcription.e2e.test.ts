@@ -97,10 +97,13 @@ describe('end-to-end: transcription producer plan validation', () => {
       'Artifact:TimelineComposer.Timeline'
     );
 
-    // Verify fan-in from collector (AudioSegments from AudioProducer)
-    const fanIn = transcriptionJob?.context?.fanIn?.['Input:TranscriptionProducer.AudioSegments'];
-    expect(fanIn).toBeDefined();
-    expect(fanIn?.members?.length).toBeGreaterThan(0);
+    // TranscriptionProducer no longer has AudioSegments fan-in;
+    // audio is now wired to TimelineComposer.TranscriptionAudio instead.
+    // Verify the TimelineComposer receives the TranscriptionAudio fan-in
+    const timelineJob = findJob(plan, 'TimelineComposer');
+    const transcriptionAudioFanIn = timelineJob?.context?.fanIn?.['Input:TimelineComposer.TranscriptionAudio'];
+    expect(transcriptionAudioFanIn).toBeDefined();
+    expect(transcriptionAudioFanIn?.members?.length).toBeGreaterThan(0);
 
     // Verify VideoExporter receives Transcription input
     const exporterJob = findJob(plan, 'VideoExporter');
@@ -385,6 +388,66 @@ describe('end-to-end: karaoke filter generation with real transcription', () => 
     // - Each group has 1 background + N highlights
     // So total = 5 backgrounds + 17 word highlights = 22
     expect(drawtextCount).toBeGreaterThan(10);
+  });
+});
+
+describe('end-to-end: TranscriptionProducer output validation', () => {
+  it('produces non-empty aligned transcription from real fixture data', async () => {
+    const sttOutput = await loadTranscriptionFixture();
+    const audioBuffer = await loadAudioFixture();
+
+    const audioSegments: AudioSegment[] = [
+      {
+        buffer: audioBuffer,
+        startTime: 0,
+        duration: 7.0,
+        clipId: 'clip-fixture',
+        assetId: 'audio-fixture',
+      },
+    ];
+
+    const transcription = alignTranscriptionToTimeline(sttOutput, audioSegments);
+
+    // Must have non-empty word list
+    expect(transcription.words.length).toBeGreaterThan(0);
+
+    // Every word must have valid timing
+    for (const word of transcription.words) {
+      expect(word.startTime).toBeGreaterThanOrEqual(0);
+      expect(word.endTime).toBeGreaterThanOrEqual(word.startTime);
+      expect(word.text.trim().length).toBeGreaterThan(0);
+    }
+
+    // Segments must have non-empty text
+    expect(transcription.segments.length).toBeGreaterThan(0);
+    for (const segment of transcription.segments) {
+      expect(segment.text.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it('alignment with empty STT output produces empty words', () => {
+    const emptySttOutput: STTOutput = {
+      text: '',
+      language_code: 'eng',
+      language_probability: 0,
+      words: [],
+    };
+
+    const audioSegments: AudioSegment[] = [
+      {
+        buffer: Buffer.alloc(100),
+        startTime: 0,
+        duration: 5.0,
+        clipId: 'clip-1',
+        assetId: 'audio-1',
+      },
+    ];
+
+    const transcription = alignTranscriptionToTimeline(emptySttOutput, audioSegments);
+
+    // Empty STT should produce empty aligned output
+    expect(transcription.words).toHaveLength(0);
+    expect(transcription.text).toBe('');
   });
 });
 

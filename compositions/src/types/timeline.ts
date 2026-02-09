@@ -1,4 +1,4 @@
-export type TimelineTrackKind = "Image" | "Audio" | "Music" | "Video" | "Captions";
+export type TimelineTrackKind = "Image" | "Audio" | "Music" | "Video" | "Captions" | "Transcription";
 
 export interface TimelineDocument {
   id: string;
@@ -19,6 +19,7 @@ export type TimelineTrack =
   | MusicTrack
   | VideoTrack
   | CaptionsTrack
+  | TranscriptionTrack
   | UnknownTrack;
 
 interface TimelineTrackBase<TKind extends string, TClip extends TimelineClip> {
@@ -95,6 +96,13 @@ export type CaptionsClip = TimelineClipBase<
   }
 >;
 
+export type TranscriptionClip = TimelineClipBase<
+  "Transcription",
+  {
+    assetId: string;
+  }
+>;
+
 export type UnknownClip = TimelineClipBase<string, Record<string, unknown>>;
 
 export type TimelineClip =
@@ -103,6 +111,7 @@ export type TimelineClip =
   | MusicClip
   | VideoClip
   | CaptionsClip
+  | TranscriptionClip
   | UnknownClip;
 
 export type ImageTrack = TimelineTrackBase<"Image", ImageClip>;
@@ -110,6 +119,7 @@ export type AudioTrack = TimelineTrackBase<"Audio", AudioClip>;
 export type MusicTrack = TimelineTrackBase<"Music", MusicClip>;
 export type VideoTrack = TimelineTrackBase<"Video", VideoClip>;
 export type CaptionsTrack = TimelineTrackBase<"Captions", CaptionsClip>;
+export type TranscriptionTrack = TimelineTrackBase<"Transcription", TranscriptionClip>;
 export type UnknownTrack = TimelineTrackBase<string, TimelineClip>;
 
 export interface AssetMap {

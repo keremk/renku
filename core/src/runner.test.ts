@@ -600,6 +600,195 @@ describe('createRunner', () => {
     expect(result.status).toBe('skipped');
   });
 
+  it('resolves asset data from Timeline clips into resolvedInputs for downstream consumers', async () => {
+    const storage = createStorageContext({ kind: 'memory' });
+    await initializeMovieStorage(storage, 'movie-asset-data');
+    const eventLog = createEventLog(storage);
+    const manifestService = createManifestService(storage);
+
+    const audioPayload = new TextEncoder().encode('audio-binary-data');
+    let observedResolvedInputs: Record<string, unknown> | undefined;
+    let observedAssetBlobPaths: Record<string, string> | undefined;
+
+    // Plan:
+    // Layer 0: AudioProducer produces audio blob
+    // Layer 1: TimelineComposer produces a Timeline JSON with assetId references
+    // Layer 2: TranscriptionProducer consumes Timeline — needs audio data
+    const assetPlan: ExecutionPlan = {
+      revision: 'rev-asset',
+      manifestBaseHash: 'hash-asset',
+      layers: [
+        [
+          {
+            jobId: 'job-audio-0',
+            producer: 'AudioProducer',
+            inputs: [],
+            produces: ['Artifact:AudioProducer.GeneratedAudio[0]'],
+            provider: 'replicate',
+            providerModel: 'audio/model',
+            rateKey: 'audio:model',
+          },
+        ],
+        [
+          {
+            jobId: 'job-timeline',
+            producer: 'TimelineComposer',
+            inputs: ['Input:TimelineComposer.AudioSegments'],
+            produces: ['Artifact:TimelineComposer.Timeline'],
+            provider: 'renku',
+            providerModel: 'timeline/ordered',
+            rateKey: 'timeline:ordered',
+            context: {
+              namespacePath: ['TimelineComposer'],
+              indices: {},
+              producerAlias: 'TimelineComposer',
+              inputs: ['Input:TimelineComposer.AudioSegments'],
+              produces: ['Artifact:TimelineComposer.Timeline'],
+              fanIn: {
+                'Input:TimelineComposer.AudioSegments': {
+                  groupBy: 'segment',
+                  members: [
+                    { id: 'Artifact:AudioProducer.GeneratedAudio[0]', group: 0 },
+                  ],
+                },
+              },
+            },
+          },
+        ],
+        [
+          {
+            jobId: 'job-transcription',
+            producer: 'TranscriptionProducer',
+            inputs: ['Artifact:TimelineComposer.Timeline'],
+            produces: ['Artifact:TranscriptionProducer.Transcription'],
+            provider: 'renku',
+            providerModel: 'speech/transcription',
+            rateKey: 'transcription:stt',
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'TranscriptionProducer',
+              inputs: ['Artifact:TimelineComposer.Timeline'],
+              produces: ['Artifact:TranscriptionProducer.Transcription'],
+              inputBindings: {
+                Timeline: 'Artifact:TimelineComposer.Timeline',
+              },
+            },
+          },
+        ],
+      ],
+      createdAt: new Date().toISOString(),
+      blueprintLayerCount: 3,
+    };
+
+    const runner = createRunner({
+      produce: async (request) => {
+        if (request.job.jobId === 'job-audio-0') {
+          return {
+            jobId: request.job.jobId,
+            status: 'succeeded',
+            artefacts: [
+              {
+                artefactId: 'Artifact:AudioProducer.GeneratedAudio[0]',
+                blob: { data: audioPayload, mimeType: 'audio/mpeg' },
+              },
+            ],
+          };
+        }
+
+        if (request.job.jobId === 'job-timeline') {
+          // Produce a Timeline JSON containing clips with assetId references
+          const timeline = {
+            id: 'timeline-1',
+            duration: 10,
+            tracks: [
+              {
+                id: 'track-0',
+                kind: 'Audio',
+                clips: [
+                  {
+                    id: 'clip-0',
+                    kind: 'Audio',
+                    startTime: 0,
+                    duration: 10,
+                    properties: {
+                      assetId: 'Artifact:AudioProducer.GeneratedAudio[0]',
+                      volume: 1.0,
+                    },
+                  },
+                ],
+              },
+              {
+                id: 'track-1',
+                kind: 'Transcription',
+                clips: [
+                  {
+                    id: 'clip-t-0',
+                    kind: 'Transcription',
+                    startTime: 0,
+                    duration: 10,
+                    properties: {
+                      assetId: 'Artifact:AudioProducer.GeneratedAudio[0]',
+                    },
+                  },
+                ],
+              },
+            ],
+          };
+          return {
+            jobId: request.job.jobId,
+            status: 'succeeded',
+            artefacts: [
+              {
+                artefactId: 'Artifact:TimelineComposer.Timeline',
+                blob: {
+                  data: JSON.stringify(timeline),
+                  mimeType: 'application/json',
+                },
+              },
+            ],
+          };
+        }
+
+        // TranscriptionProducer — capture what it receives
+        observedResolvedInputs = request.job.context?.extras?.resolvedInputs as Record<string, unknown> | undefined;
+        observedAssetBlobPaths = request.job.context?.extras?.assetBlobPaths as Record<string, string> | undefined;
+        return {
+          jobId: request.job.jobId,
+          status: 'succeeded',
+          artefacts: [],
+        };
+      },
+    });
+
+    const result = await runner.execute(assetPlan, {
+      movieId: 'movie-asset-data',
+      manifest: baseManifest,
+      storage,
+      eventLog,
+      manifestService,
+    });
+
+    expect(result.status).toBe('succeeded');
+
+    // TranscriptionProducer should have the Timeline in resolvedInputs
+    const timeline = observedResolvedInputs?.['Artifact:TimelineComposer.Timeline'] as Record<string, unknown> | undefined;
+    expect(timeline).toBeDefined();
+    expect(timeline?.id).toBe('timeline-1');
+
+    // Asset blob paths should be populated (storage-relative paths)
+    expect(observedAssetBlobPaths).toBeDefined();
+    expect(observedAssetBlobPaths?.['Artifact:AudioProducer.GeneratedAudio[0]']).toBeDefined();
+
+    // Audio data should also be available in resolvedInputs (the fix!)
+    // This enables handlers to access blob data directly without needing
+    // to resolve storage-relative paths to absolute file paths.
+    const audioData = observedResolvedInputs?.['Artifact:AudioProducer.GeneratedAudio[0]'];
+    expect(audioData).toBeDefined();
+    expect(audioData).toBeInstanceOf(Buffer);
+    expect(Array.from(audioData as Buffer)).toEqual(Array.from(audioPayload));
+  });
+
   it('provides fan-in artefact blobs to downstream jobs', async () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-fanin-assets');

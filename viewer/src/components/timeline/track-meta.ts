@@ -1,4 +1,4 @@
-import { Film, Mic, Music, Video, Volume2 } from "lucide-react";
+import { Film, Mic, Mic2, Music, Video, Volume2 } from "lucide-react";
 import type { TimelineTrack } from "@/types/timeline";
 
 const TRACK_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -7,6 +7,7 @@ const TRACK_ICON: Record<string, React.ComponentType<{ className?: string }>> = 
   Music,
   Video,
   Captions: Volume2,
+  Transcription: Mic2,
 };
 
 const TRACK_LABEL: Record<string, string> = {
@@ -15,6 +16,7 @@ const TRACK_LABEL: Record<string, string> = {
   Music: "Music",
   Video: "Video",
   Captions: "Captions",
+  Transcription: "Transcription",
 };
 
 export const getTrackMeta = (track: TimelineTrack) => {

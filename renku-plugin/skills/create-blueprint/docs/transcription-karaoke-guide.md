@@ -29,7 +29,7 @@ AudioProducer[segment].GeneratedAudio
          ├────────────────────────────┐
          │                            │
          ▼                            ▼
-TimelineComposer.AudioSegments   TranscriptionProducer.AudioSegments
+TimelineComposer.AudioSegments   TimelineComposer.TranscriptionAudio
          │                            │
          ▼                            ▼
 TimelineComposer.Timeline ─────► TranscriptionProducer.Timeline
@@ -189,7 +189,7 @@ connections:
 
   # Wire audio segments to transcription producer
   - from: AudioProducer[segment].GeneratedAudio
-    to: TranscriptionProducer.AudioSegments
+    to: TimelineComposer.TranscriptionAudio
 
   # Wire transcription to exporter
   - from: TranscriptionProducer.Transcription
@@ -215,7 +215,7 @@ collectors:
   # Collect audio segments for transcription
   - name: TranscriptionAudio
     from: AudioProducer[segment].GeneratedAudio
-    into: TranscriptionProducer.AudioSegments
+    into: TimelineComposer.TranscriptionAudio
     groupBy: segment
 ```
 
@@ -411,7 +411,7 @@ connections:
   - from: TimelineComposer.Timeline
     to: TranscriptionProducer.Timeline
   - from: AudioProducer[segment].GeneratedAudio
-    to: TranscriptionProducer.AudioSegments
+    to: TimelineComposer.TranscriptionAudio
 
   # Video export with karaoke
   - from: TimelineComposer.Timeline
@@ -432,7 +432,7 @@ collectors:
     groupBy: segment
   - name: TranscriptionAudio
     from: AudioProducer[segment].GeneratedAudio
-    into: TranscriptionProducer.AudioSegments
+    into: TimelineComposer.TranscriptionAudio
     groupBy: segment
 ```
 
@@ -533,12 +533,12 @@ When using audio-to-video producers (e.g., `asset/audio-to-video`) for lipsync c
 connections:
   # CORRECT: Use AudioTrack from lipsync video producer
   - from: LipsyncVideoProducer[segment].AudioTrack
-    to: TranscriptionProducer.AudioSegments
+    to: TimelineComposer.TranscriptionAudio
 
 collectors:
   - name: TranscriptionAudio
     from: LipsyncVideoProducer[segment].AudioTrack
-    into: TranscriptionProducer.AudioSegments
+    into: TimelineComposer.TranscriptionAudio
     groupBy: segment
 ```
 
@@ -552,7 +552,7 @@ collectors:
 ```yaml
 # WRONG: Using original narration audio for lipsync video workflows
 - from: NarrationAudioProducer[segment].GeneratedAudio
-  to: TranscriptionProducer.AudioSegments
+  to: TimelineComposer.TranscriptionAudio
 ```
 
 ### 3. Language Configuration

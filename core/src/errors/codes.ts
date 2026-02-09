@@ -262,6 +262,10 @@ export const SdkErrorCode = {
   FFMPEG_EXTRACTION_FAILED: 'S050',
   FFMPEG_NO_AUDIO_STREAM: 'S051',
   FFMPEG_TEMP_FILE_ERROR: 'S052',
+
+  // S060-S069: Transcription Producer
+  EMPTY_AUDIO_SEGMENTS: 'S060',
+  EMPTY_TRANSCRIPTION_RESULT: 'S061',
 } as const;
 
 export type SdkErrorCodeValue = (typeof SdkErrorCode)[keyof typeof SdkErrorCode];

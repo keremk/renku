@@ -161,13 +161,15 @@ connections:
   - from: TimelineComposer.Timeline
     to: Timeline
 
+  # Wire audio to TimelineComposer for Transcription track
+  - from: AudioProducer[segment].GeneratedAudio
+    to: TimelineComposer.TranscriptionAudio
+
   # Wire to VideoExporter
   - from: TimelineComposer.Timeline
     to: VideoExporter.Timeline
   - from: TimelineComposer.Timeline
     to: TranscriptionProducer.Timeline
-  - from: AudioProducer[segment].GeneratedAudio
-    to: TranscriptionProducer.AudioSegments
   - from: TranscriptionProducer.Transcription
     to: VideoExporter.Transcription
   - from: VideoExporter.FinalVideo
@@ -188,5 +190,5 @@ collectors:
     groupBy: segment
   - name: TranscriptionAudio
     from: AudioProducer[segment].GeneratedAudio
-    into: TranscriptionProducer.AudioSegments
+    into: TimelineComposer.TranscriptionAudio
     groupBy: segment

@@ -486,7 +486,7 @@ collectors:
   # CRITICAL: Fan-in requires BOTH connection AND collector
   - name: TranscriptionAudio
     from: AudioProducer[segment].GeneratedAudio
-    into: TranscriptionProducer.AudioSegments
+    into: TimelineComposer.TranscriptionAudio
     groupBy: segment
 ```
 

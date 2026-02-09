@@ -1,0 +1,44 @@
+inputs:
+  InquiryPrompt: 'I want to learn about the last days of Pompeii'
+  NumOfSegments: 4
+  NumOfImagesPerSegment: 2
+  Duration: 40
+  SegmentDuration: 10
+  VoiceId: Wise_Woman
+  AspectRatio: '16:9'
+  Resolution: '480p'
+  Size: '1K'
+  Style: 'Ghibli'
+
+models:
+  - model: minimax/speech-2.6-hd
+    provider: replicate
+    producerId: AudioProducer
+  - model: bytedance/seedance-1-pro-fast
+    provider: replicate
+    producerId: VideoProducer
+  - model: google/nano-banana
+    provider: replicate
+    producerId: ImageProducer
+  - model: gpt-5-mini
+    provider: openai
+    producerId: DocProducer
+    config:
+      text_format: json_schema
+  - model: timeline/ordered
+    provider: renku
+    producerId: TimelineComposer
+    config:
+      timeline:
+        tracks: ["Image", "Audio", "Video", "Transcription"]
+        masterTracks: ["Audio", "Video"]
+        numTracks: 4
+        imageClip:
+          artifact: ImageSegments[Image]
+        audioClip:
+          artifact: AudioSegments
+          volume: 0.9
+        videoClip:
+          artifact: VideoSegments
+        transcriptionClip:
+          artifact: TranscriptionAudio

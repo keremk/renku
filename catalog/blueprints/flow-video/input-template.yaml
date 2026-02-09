@@ -55,10 +55,12 @@ models:
           artifact: VideoSegments
         audioClip:
           artifact: AudioSegments
+        transcriptionClip:
+          artifact: TranscriptionAudio
         musicClip:
           artifact: Music
           volume: 0.3
-        tracks: ["Video", "Audio", "Music"]
+        tracks: ["Video", "Audio", "Transcription", "Music"]
 
   # Speech transcription for karaoke subtitles
   - model: speech/transcription

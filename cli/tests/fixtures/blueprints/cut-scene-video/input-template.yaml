@@ -51,7 +51,9 @@ models:
           artifact: VideoSegments
         audioClip:
           artifact: AudioSegments
+        transcriptionClip:
+          artifact: TranscriptionAudio
         musicClip:
           artifact: Music
           volume: 0.4
-        tracks: ["Video", "Audio", "Music"]
+        tracks: ["Video", "Audio", "Transcription", "Music"]

@@ -452,6 +452,362 @@ describe('TimelineProducer', () => {
     expect(timeline.duration).toBeCloseTo(13);
   });
 
+  it('builds a Transcription track with correct clip timing', async () => {
+    const handler = createHandler();
+    const request = makeRequest();
+    const resolvedInputs = request.context.extras?.resolvedInputs as Record<string, unknown>;
+    const config = request.context.providerConfig as { config: { timeline: { clips: Array<Record<string, unknown>>; numTracks: number; tracks: string[] } } };
+    config.config.timeline.clips.push({ kind: 'Transcription', inputs: 'TranscriptionAudio' });
+    config.config.timeline.numTracks = 3;
+    config.config.timeline.tracks = ['Image', 'Audio', 'Transcription'];
+    request.inputs.push('Input:TimelineComposer.TranscriptionAudio');
+
+    const transcriptionFanIn = {
+      groupBy: 'segment',
+      groups: [
+        ['Artifact:TranscriptionAudio[0]'],
+        ['Artifact:TranscriptionAudio[1]'],
+      ],
+    };
+    resolvedInputs['Input:TimelineComposer.TranscriptionAudio'] = transcriptionFanIn;
+    resolvedInputs['TimelineComposer.TranscriptionAudio'] = transcriptionFanIn;
+    resolvedInputs['Artifact:TranscriptionAudio[0]'] = createAssetPayload(12);
+    resolvedInputs['Artifact:TranscriptionAudio[1]'] = createAssetPayload(8);
+
+    const result = await handler.invoke(request);
+    expect(result.status).toBe('succeeded');
+
+    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timeline = JSON.parse(typeof timelinePayload === 'string' ? timelinePayload : '{}') as {
+      tracks: Array<{ kind: string; clips: Array<{ startTime: number; duration: number; properties: Record<string, unknown> }> }>;
+    };
+    const transcriptionTrack = timeline.tracks.find((track) => track.kind === 'Transcription');
+    expect(transcriptionTrack).toBeDefined();
+    expect(transcriptionTrack?.clips).toHaveLength(2);
+    expect(transcriptionTrack?.clips[0]?.startTime).toBe(0);
+    expect(transcriptionTrack?.clips[0]?.duration).toBeCloseTo(12);
+    expect(transcriptionTrack?.clips[0]?.properties.assetId).toBe('Artifact:TranscriptionAudio[0]');
+    expect(transcriptionTrack?.clips[1]?.startTime).toBeCloseTo(12);
+    expect(transcriptionTrack?.clips[1]?.duration).toBeCloseTo(8);
+    expect(transcriptionTrack?.clips[1]?.properties.assetId).toBe('Artifact:TranscriptionAudio[1]');
+  });
+
+  it('skips silent segments in Transcription track', async () => {
+    const handler = createHandler();
+    const request = makeRequest();
+    const resolvedInputs = request.context.extras?.resolvedInputs as Record<string, unknown>;
+    const config = request.context.providerConfig as { config: { timeline: { clips: Array<Record<string, unknown>>; numTracks: number; tracks: string[] } } };
+    config.config.timeline.clips.push({ kind: 'Transcription', inputs: 'TranscriptionAudio' });
+    config.config.timeline.numTracks = 3;
+    config.config.timeline.tracks = ['Image', 'Audio', 'Transcription'];
+    request.inputs.push('Input:TimelineComposer.TranscriptionAudio');
+
+    // Sparse: segment 0 has audio, segment 1 is silent
+    const transcriptionFanIn = {
+      groupBy: 'segment',
+      groups: [
+        ['Artifact:TranscriptionAudio[0]'],
+        [], // silent segment
+      ],
+    };
+    resolvedInputs['Input:TimelineComposer.TranscriptionAudio'] = transcriptionFanIn;
+    resolvedInputs['TimelineComposer.TranscriptionAudio'] = transcriptionFanIn;
+    resolvedInputs['Artifact:TranscriptionAudio[0]'] = createAssetPayload(12);
+
+    const result = await handler.invoke(request);
+    expect(result.status).toBe('succeeded');
+
+    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timeline = JSON.parse(typeof timelinePayload === 'string' ? timelinePayload : '{}') as {
+      tracks: Array<{ kind: string; clips: Array<{ startTime: number; duration: number; properties: Record<string, unknown> }> }>;
+    };
+    const transcriptionTrack = timeline.tracks.find((track) => track.kind === 'Transcription');
+    expect(transcriptionTrack).toBeDefined();
+    // Only 1 clip — segment 1 is skipped
+    expect(transcriptionTrack?.clips).toHaveLength(1);
+    expect(transcriptionTrack?.clips[0]?.properties.assetId).toBe('Artifact:TranscriptionAudio[0]');
+  });
+
+  it('builds Transcription track from shorthand transcriptionClip config', async () => {
+    const handler = createHandler();
+    const request = makeRequest();
+    const resolvedInputs = request.context.extras?.resolvedInputs as Record<string, unknown>;
+    const config = request.context.providerConfig as { config: { timeline: Record<string, unknown> } };
+
+    // Use shorthand config instead of explicit clips
+    config.config.timeline = {
+      masterTracks: ['Audio'],
+      tracks: ['Audio', 'Transcription'],
+      audioClip: { artifact: 'AudioSegments' },
+      transcriptionClip: { artifact: 'TranscriptionAudio' },
+    };
+    request.inputs.push('Input:TimelineComposer.TranscriptionAudio');
+
+    const transcriptionFanIn = {
+      groupBy: 'segment',
+      groups: [
+        ['Artifact:TranscriptionAudio[0]'],
+        ['Artifact:TranscriptionAudio[1]'],
+      ],
+    };
+    resolvedInputs['Input:TimelineComposer.TranscriptionAudio'] = transcriptionFanIn;
+    resolvedInputs['TimelineComposer.TranscriptionAudio'] = transcriptionFanIn;
+    resolvedInputs['Artifact:TranscriptionAudio[0]'] = createAssetPayload(12);
+    resolvedInputs['Artifact:TranscriptionAudio[1]'] = createAssetPayload(8);
+
+    const result = await handler.invoke(request);
+    expect(result.status).toBe('succeeded');
+
+    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timeline = JSON.parse(typeof timelinePayload === 'string' ? timelinePayload : '{}') as {
+      tracks: Array<{ kind: string; clips: Array<{ properties: Record<string, unknown> }> }>;
+    };
+    const transcriptionTrack = timeline.tracks.find((track) => track.kind === 'Transcription');
+    expect(transcriptionTrack).toBeDefined();
+    expect(transcriptionTrack?.clips).toHaveLength(2);
+    expect(transcriptionTrack?.clips[0]?.properties.assetId).toBe('Artifact:TranscriptionAudio[0]');
+  });
+
+  it('builds Transcription track with mixed audio sources from different producers', async () => {
+    const handler = createHandler();
+    const request = makeRequest({ audioDurations: [10, 8] });
+    const resolvedInputs = request.context.extras?.resolvedInputs as Record<string, unknown>;
+    const config = request.context.providerConfig as { config: { timeline: { clips: Array<Record<string, unknown>>; numTracks: number; tracks: string[]; masterTracks: string[] } } };
+
+    // Add Video track as fallback master and Transcription track
+    config.config.timeline.clips.push({ kind: 'Video', inputs: 'VideoSegments' });
+    config.config.timeline.clips.push({ kind: 'Transcription', inputs: 'TranscriptionAudio' });
+    config.config.timeline.numTracks = 4;
+    config.config.timeline.tracks = ['Image', 'Audio', 'Video', 'Transcription'];
+    config.config.timeline.masterTracks = ['Audio', 'Video'];
+    request.inputs.push('Input:TimelineComposer.VideoSegments');
+    request.inputs.push('Input:TimelineComposer.TranscriptionAudio');
+
+    // 4 segments: Audio durations [10, 8, 7, 10] — master track gives segment durations
+    // Extend audio to 4 segments
+    const audioGroups = [
+      ['Artifact:AudioProducer.GeneratedAudio[0]'],
+      ['Artifact:AudioProducer.GeneratedAudio[1]'],
+      ['Artifact:AudioProducer.GeneratedAudio[2]'],
+      ['Artifact:AudioProducer.GeneratedAudio[3]'],
+    ];
+    resolvedInputs['Input:TimelineComposer.AudioSegments'] = { groupBy: 'segment', groups: audioGroups };
+    resolvedInputs['TimelineComposer.AudioSegments'] = { groupBy: 'segment', groups: audioGroups };
+    resolvedInputs['Artifact:AudioProducer.GeneratedAudio[0]'] = createAssetPayload(10);
+    resolvedInputs['Artifact:AudioProducer.GeneratedAudio[1]'] = createAssetPayload(8);
+    resolvedInputs['Artifact:AudioProducer.GeneratedAudio[2]'] = createAssetPayload(7);
+    resolvedInputs['Artifact:AudioProducer.GeneratedAudio[3]'] = createAssetPayload(10);
+
+    // Video groups for all 4 segments
+    const videoGroups = [
+      ['Artifact:Video[0]'],
+      ['Artifact:Video[1]'],
+      ['Artifact:Video[2]'],
+      ['Artifact:Video[3]'],
+    ];
+    resolvedInputs['Input:TimelineComposer.VideoSegments'] = { groupBy: 'segment', groups: videoGroups };
+    resolvedInputs['TimelineComposer.VideoSegments'] = { groupBy: 'segment', groups: videoGroups };
+    resolvedInputs['Artifact:Video[0]'] = createAssetPayload(10);
+    resolvedInputs['Artifact:Video[1]'] = createAssetPayload(8);
+    resolvedInputs['Artifact:Video[2]'] = createAssetPayload(7);
+    resolvedInputs['Artifact:Video[3]'] = createAssetPayload(10);
+
+    // Extend images to 4 segments
+    const imageGroups = [
+      ['Artifact:Image[0][0]', 'Artifact:Image[0][1]'],
+      ['Artifact:Image[1][0]'],
+      ['Artifact:Image[2][0]'],
+      ['Artifact:Image[3][0]'],
+    ];
+    resolvedInputs['Input:TimelineComposer.ImageSegments'] = { groupBy: 'segment', orderBy: 'image', groups: imageGroups };
+    resolvedInputs['TimelineComposer.ImageSegments'] = { groupBy: 'segment', orderBy: 'image', groups: imageGroups };
+    resolvedInputs['Artifact:Image[2][0]'] = createAssetPayload(1);
+    resolvedInputs['Artifact:Image[3][0]'] = createAssetPayload(1);
+
+    // TranscriptionAudio: mixed sources from different producers
+    // Seg 0: narration audio, Seg 1: lipsync audio, Seg 2: silent, Seg 3: narration audio
+    const transcriptionGroups = [
+      ['Artifact:AudioProducer.GeneratedAudio[0]'],   // narration
+      ['Artifact:LipsyncVideo.AudioTrack[1]'],         // lipsync
+      [],                                               // silent
+      ['Artifact:AudioProducer.GeneratedAudio[3]'],   // narration
+    ];
+    resolvedInputs['Input:TimelineComposer.TranscriptionAudio'] = { groupBy: 'segment', groups: transcriptionGroups };
+    resolvedInputs['TimelineComposer.TranscriptionAudio'] = { groupBy: 'segment', groups: transcriptionGroups };
+    // AudioProducer assets already registered above; add lipsync asset
+    resolvedInputs['Artifact:LipsyncVideo.AudioTrack[1]'] = createAssetPayload(8);
+
+    const result = await handler.invoke(request);
+    expect(result.status).toBe('succeeded');
+
+    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timeline = JSON.parse(typeof timelinePayload === 'string' ? timelinePayload : '{}') as {
+      duration: number;
+      tracks: Array<{ kind: string; clips: Array<{ startTime: number; duration: number; properties: Record<string, unknown> }> }>;
+    };
+
+    const transcriptionTrack = timeline.tracks.find((track) => track.kind === 'Transcription');
+    expect(transcriptionTrack).toBeDefined();
+    // 3 clips: segments 0, 1, 3 (segment 2 is silent)
+    expect(transcriptionTrack?.clips).toHaveLength(3);
+
+    // Clip 0: segment 0 at offset 0, duration 10
+    expect(transcriptionTrack?.clips[0]?.startTime).toBe(0);
+    expect(transcriptionTrack?.clips[0]?.duration).toBeCloseTo(10);
+    expect(transcriptionTrack?.clips[0]?.properties.assetId).toBe('Artifact:AudioProducer.GeneratedAudio[0]');
+
+    // Clip 1: segment 1 at offset 10, duration 8
+    expect(transcriptionTrack?.clips[1]?.startTime).toBeCloseTo(10);
+    expect(transcriptionTrack?.clips[1]?.duration).toBeCloseTo(8);
+    expect(transcriptionTrack?.clips[1]?.properties.assetId).toBe('Artifact:LipsyncVideo.AudioTrack[1]');
+
+    // Clip 2: segment 3 at offset 10+8+7=25, duration 10
+    expect(transcriptionTrack?.clips[2]?.startTime).toBeCloseTo(25);
+    expect(transcriptionTrack?.clips[2]?.duration).toBeCloseTo(10);
+    expect(transcriptionTrack?.clips[2]?.properties.assetId).toBe('Artifact:AudioProducer.GeneratedAudio[3]');
+  });
+
+  it('builds Transcription track alongside Audio, Video, and Image tracks', async () => {
+    const handler = createHandler();
+    const request = makeRequest({ audioDurations: [12, 8] });
+    const resolvedInputs = request.context.extras?.resolvedInputs as Record<string, unknown>;
+    const config = request.context.providerConfig as { config: { timeline: { clips: Array<Record<string, unknown>>; numTracks: number; tracks: string[]; masterTracks: string[] } } };
+
+    // Add Video and Transcription tracks
+    config.config.timeline.clips.push({ kind: 'Video', inputs: 'VideoSegments' });
+    config.config.timeline.clips.push({ kind: 'Transcription', inputs: 'TranscriptionAudio' });
+    config.config.timeline.numTracks = 4;
+    config.config.timeline.tracks = ['Image', 'Audio', 'Video', 'Transcription'];
+    config.config.timeline.masterTracks = ['Audio'];
+    request.inputs.push('Input:TimelineComposer.VideoSegments');
+    request.inputs.push('Input:TimelineComposer.TranscriptionAudio');
+
+    // Video for both segments
+    const videoGroups = [['Artifact:Video[0]'], ['Artifact:Video[1]']];
+    resolvedInputs['Input:TimelineComposer.VideoSegments'] = { groupBy: 'segment', groups: videoGroups };
+    resolvedInputs['TimelineComposer.VideoSegments'] = { groupBy: 'segment', groups: videoGroups };
+    resolvedInputs['Artifact:Video[0]'] = createAssetPayload(12);
+    resolvedInputs['Artifact:Video[1]'] = createAssetPayload(8);
+
+    // Transcription for both segments
+    const transcriptionGroups = [['Artifact:TranscriptionAudio[0]'], ['Artifact:TranscriptionAudio[1]']];
+    resolvedInputs['Input:TimelineComposer.TranscriptionAudio'] = { groupBy: 'segment', groups: transcriptionGroups };
+    resolvedInputs['TimelineComposer.TranscriptionAudio'] = { groupBy: 'segment', groups: transcriptionGroups };
+    resolvedInputs['Artifact:TranscriptionAudio[0]'] = createAssetPayload(12);
+    resolvedInputs['Artifact:TranscriptionAudio[1]'] = createAssetPayload(8);
+
+    const result = await handler.invoke(request);
+    expect(result.status).toBe('succeeded');
+
+    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timeline = JSON.parse(typeof timelinePayload === 'string' ? timelinePayload : '{}') as {
+      tracks: Array<{ kind: string; clips: Array<{ startTime: number; duration: number; properties: Record<string, unknown> }> }>;
+    };
+
+    // All 4 track types should be present
+    expect(timeline.tracks).toHaveLength(4);
+    const kinds = timeline.tracks.map((t) => t.kind).sort();
+    expect(kinds).toEqual(['Audio', 'Image', 'Transcription', 'Video']);
+
+    // Each track builds correctly without interference
+    const audioTrack = timeline.tracks.find((t) => t.kind === 'Audio');
+    expect(audioTrack?.clips).toHaveLength(2);
+    expect(audioTrack?.clips[0]?.properties.assetId).toBe('Artifact:Audio[0]');
+
+    const imageTrack = timeline.tracks.find((t) => t.kind === 'Image');
+    expect(imageTrack?.clips).toHaveLength(2);
+
+    const videoTrack = timeline.tracks.find((t) => t.kind === 'Video');
+    expect(videoTrack?.clips).toHaveLength(2);
+
+    const transcriptionTrack = timeline.tracks.find((t) => t.kind === 'Transcription');
+    expect(transcriptionTrack?.clips).toHaveLength(2);
+    expect(transcriptionTrack?.clips[0]?.startTime).toBe(0);
+    expect(transcriptionTrack?.clips[0]?.duration).toBeCloseTo(12);
+    expect(transcriptionTrack?.clips[1]?.startTime).toBeCloseTo(12);
+    expect(transcriptionTrack?.clips[1]?.duration).toBeCloseTo(8);
+  });
+
+  it('builds Transcription track with interleaved sparse pattern across 6 segments', async () => {
+    const handler = createHandler();
+    const request = makeRequest();
+    const resolvedInputs = request.context.extras?.resolvedInputs as Record<string, unknown>;
+    const config = request.context.providerConfig as { config: { timeline: { clips: Array<Record<string, unknown>>; numTracks: number; tracks: string[]; masterTracks: string[] } } };
+
+    // Configure with Audio as master + Transcription
+    config.config.timeline.clips = [
+      { kind: 'Audio', inputs: 'AudioSegments' },
+      { kind: 'Transcription', inputs: 'TranscriptionAudio' },
+    ];
+    config.config.timeline.numTracks = 2;
+    config.config.timeline.tracks = ['Audio', 'Transcription'];
+    config.config.timeline.masterTracks = ['Audio'];
+    request.inputs.length = 0;
+    request.inputs.push('Input:TimelineComposer.AudioSegments');
+    request.inputs.push('Input:TimelineComposer.TranscriptionAudio');
+
+    // 6 segments with uniform duration from SegmentDuration
+    resolvedInputs['Input:SegmentDuration'] = 5;
+    resolvedInputs['SegmentDuration'] = 5;
+    resolvedInputs['Input:TimelineComposer.Duration'] = 30;
+    resolvedInputs['TimelineComposer.Duration'] = 30;
+    resolvedInputs['Duration'] = 30;
+
+    // Audio for all 6 segments (all have audio)
+    const audioGroups = Array.from({ length: 6 }, (_, i) => [`Artifact:Audio[${i}]`]);
+    resolvedInputs['Input:TimelineComposer.AudioSegments'] = { groupBy: 'segment', groups: audioGroups };
+    resolvedInputs['TimelineComposer.AudioSegments'] = { groupBy: 'segment', groups: audioGroups };
+    for (let i = 0; i < 6; i++) {
+      resolvedInputs[`Artifact:Audio[${i}]`] = createAssetPayload(5);
+    }
+
+    // TranscriptionAudio: only at segments 0, 2, 5 (sparse)
+    const transcriptionGroups = [
+      ['Artifact:TranscriptionAudio[0]'], // seg 0
+      [],                                  // seg 1 silent
+      ['Artifact:TranscriptionAudio[2]'], // seg 2
+      [],                                  // seg 3 silent
+      [],                                  // seg 4 silent
+      ['Artifact:TranscriptionAudio[5]'], // seg 5
+    ];
+    resolvedInputs['Input:TimelineComposer.TranscriptionAudio'] = { groupBy: 'segment', groups: transcriptionGroups };
+    resolvedInputs['TimelineComposer.TranscriptionAudio'] = { groupBy: 'segment', groups: transcriptionGroups };
+    resolvedInputs['Artifact:TranscriptionAudio[0]'] = createAssetPayload(5);
+    resolvedInputs['Artifact:TranscriptionAudio[2]'] = createAssetPayload(5);
+    resolvedInputs['Artifact:TranscriptionAudio[5]'] = createAssetPayload(5);
+
+    const result = await handler.invoke(request);
+    expect(result.status).toBe('succeeded');
+
+    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timeline = JSON.parse(typeof timelinePayload === 'string' ? timelinePayload : '{}') as {
+      duration: number;
+      tracks: Array<{ kind: string; clips: Array<{ startTime: number; duration: number; properties: Record<string, unknown> }> }>;
+    };
+
+    expect(timeline.duration).toBeCloseTo(30);
+
+    const transcriptionTrack = timeline.tracks.find((track) => track.kind === 'Transcription');
+    expect(transcriptionTrack).toBeDefined();
+    // 3 clips: segments 0, 2, 5
+    expect(transcriptionTrack?.clips).toHaveLength(3);
+
+    // Seg 0: offset=0, duration=5
+    expect(transcriptionTrack?.clips[0]?.startTime).toBe(0);
+    expect(transcriptionTrack?.clips[0]?.duration).toBeCloseTo(5);
+    expect(transcriptionTrack?.clips[0]?.properties.assetId).toBe('Artifact:TranscriptionAudio[0]');
+
+    // Seg 2: offset=10 (5+5), duration=5
+    expect(transcriptionTrack?.clips[1]?.startTime).toBeCloseTo(10);
+    expect(transcriptionTrack?.clips[1]?.duration).toBeCloseTo(5);
+    expect(transcriptionTrack?.clips[1]?.properties.assetId).toBe('Artifact:TranscriptionAudio[2]');
+
+    // Seg 5: offset=25 (5*5), duration=5
+    expect(transcriptionTrack?.clips[2]?.startTime).toBeCloseTo(25);
+    expect(transcriptionTrack?.clips[2]?.duration).toBeCloseTo(5);
+    expect(transcriptionTrack?.clips[2]?.properties.assetId).toBe('Artifact:TranscriptionAudio[5]');
+  });
+
   it('skips image clips for segments with no images', async () => {
     const handler = createHandler();
     const request = makeRequest();
