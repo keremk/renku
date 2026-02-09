@@ -156,7 +156,7 @@ function executionReducer(
       if (state.planInfo) {
         for (const layer of state.planInfo.layerBreakdown) {
           for (const job of layer.jobs) {
-            pendingStatuses[job.producer] = 'pending';
+            pendingStatuses[toProducerNodeId(job.producer)] = 'pending';
           }
         }
       }
@@ -177,7 +177,7 @@ function executionReducer(
         ...state,
         producerStatuses: {
           ...state.producerStatuses,
-          [action.producer]: action.status,
+          [toProducerNodeId(action.producer)]: action.status,
         },
       };
 
@@ -301,6 +301,10 @@ function extractProducerFromArtifactId(artifactId: string): string | null {
   return match ? match[1] : null;
 }
 
+function toProducerNodeId(producerName: string): string {
+  return `Producer:${producerName}`;
+}
+
 /**
  * Map artifact status to producer status.
  */
@@ -311,7 +315,7 @@ function mapArtifactStatusToProducerStatus(artifactStatus: string): ProducerStat
     case 'failed':
       return 'error';
     case 'skipped':
-      return 'not-run-yet';
+      return 'skipped';
     default:
       return 'not-run-yet';
   }
@@ -325,10 +329,11 @@ function mapArtifactsToProducerStatuses(artifacts: ArtifactInfo[]): ProducerStat
   const statuses: ProducerStatusMap = {};
   const statusPriority: Record<ProducerStatus, number> = {
     'error': 0,
-    'not-run-yet': 1,
+    'running': 1,
     'pending': 2,
-    'running': 3,
-    'success': 4,
+    'skipped': 3,
+    'not-run-yet': 4,
+    'success': 5,
   };
 
   for (const artifact of artifacts) {
@@ -336,11 +341,12 @@ function mapArtifactsToProducerStatuses(artifacts: ArtifactInfo[]): ProducerStat
     if (!producer) continue;
 
     const newStatus = mapArtifactStatusToProducerStatus(artifact.status);
-    const existingStatus = statuses[producer];
+    const producerNodeId = toProducerNodeId(producer);
+    const existingStatus = statuses[producerNodeId];
 
     // Keep the "worst" status (lower priority number)
     if (!existingStatus || statusPriority[newStatus] < statusPriority[existingStatus]) {
-      statuses[producer] = newStatus;
+      statuses[producerNodeId] = newStatus;
     }
   }
 
@@ -759,7 +765,7 @@ function handleSSEEvent(event: SSEEvent, dispatch: React.Dispatch<ExecutionActio
     }
 
     case 'job-complete': {
-      const producerStatus = event.status === 'succeeded' ? 'success' : event.status === 'failed' ? 'error' : 'not-run-yet';
+      const producerStatus = event.status === 'succeeded' ? 'success' : event.status === 'failed' ? 'error' : 'skipped';
       dispatch({
         type: 'UPDATE_PRODUCER_STATUS',
         producer: event.producer,

@@ -10,7 +10,7 @@ import { BlueprintLegend } from './blueprint-legend';
 import { TimelinePanel } from './timeline-panel';
 import type { BottomPanelTab } from '@/hooks';
 import type { BlueprintGraphData } from '@/types/blueprint-graph';
-import type { ExecutionLogEntry, ProducerStatus } from '@/types/generation';
+import type { ExecutionLogEntry, ProducerStatusMap } from '@/types/generation';
 import type { TimelineDocument } from '@/types/timeline';
 
 type TimelineStatus = "idle" | "loading" | "success" | "error";
@@ -23,7 +23,7 @@ interface BottomTabbedPanelProps {
   // Blueprint panel props
   graphData: BlueprintGraphData;
   onNodeSelect: (nodeId: string | null) => void;
-  producerStatuses: Record<string, ProducerStatus>;
+  producerStatuses: ProducerStatusMap;
   // Execution panel props
   executionLogs: ExecutionLogEntry[];
   // Timeline panel props

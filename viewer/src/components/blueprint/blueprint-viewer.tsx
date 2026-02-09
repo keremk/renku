@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useEffect } from "react";
+import { useCallback, useMemo, useEffect, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -7,7 +7,8 @@ import {
   useNodesState,
   useEdgesState,
   type OnNodesChange,
-  // type Node,
+  type NodeMouseHandler,
+  type Node,
   type NodeTypes,
   type EdgeTypes,
 } from "@xyflow/react";
@@ -17,9 +18,10 @@ import { InputNode } from "./nodes/input-node";
 import { ProducerNode } from "./nodes/producer-node";
 import { OutputNode } from "./nodes/output-node";
 import { ConditionalEdge } from "./edges/conditional-edge";
+import { ProducerDetailsDialog, type ProducerDetails } from "./producer-details-dialog";
 import { layoutBlueprintGraph } from "@/lib/blueprint-layout";
-import type { BlueprintGraphData } from "@/types/blueprint-graph";
-import type { ProducerStatusMap } from "@/types/generation";
+import type { BlueprintGraphData, ProducerBinding } from "@/types/blueprint-graph";
+import type { ProducerStatusMap, ProducerStatus } from "@/types/generation";
 
 const nodeTypes: NodeTypes = {
   inputNode: InputNode,
@@ -37,6 +39,57 @@ interface BlueprintViewerProps {
   producerStatuses?: ProducerStatusMap;
 }
 
+interface ProducerNodeData {
+  label: string;
+  loop?: string;
+  producerType?: string;
+  description?: string;
+  status: ProducerStatus;
+  inputBindings: ProducerBinding[];
+  outputBindings: ProducerBinding[];
+}
+
+const validProducerStatuses: ProducerStatus[] = [
+  "success",
+  "error",
+  "not-run-yet",
+  "skipped",
+  "running",
+  "pending",
+];
+
+function parseProducerNodeData(node: Node): ProducerDetails {
+  if (node.type !== "producerNode") {
+    throw new Error(`Expected producer node type, received: ${String(node.type)}`);
+  }
+
+  const data = node.data as Partial<ProducerNodeData>;
+
+  if (typeof data.label !== "string" || data.label.length === 0) {
+    throw new Error(`Producer node ${node.id} is missing a label`);
+  }
+  if (!Array.isArray(data.inputBindings)) {
+    throw new Error(`Producer node ${node.id} is missing input bindings`);
+  }
+  if (!Array.isArray(data.outputBindings)) {
+    throw new Error(`Producer node ${node.id} is missing output bindings`);
+  }
+  if (typeof data.status !== "string" || !validProducerStatuses.includes(data.status as ProducerStatus)) {
+    throw new Error(`Producer node ${node.id} has an invalid status`);
+  }
+
+  return {
+    nodeId: node.id,
+    label: data.label,
+    loop: data.loop,
+    producerType: data.producerType,
+    description: data.description,
+    status: data.status,
+    inputBindings: data.inputBindings,
+    outputBindings: data.outputBindings,
+  };
+}
+
 export function BlueprintViewer({
   graphData,
   onNodeSelect,
@@ -49,6 +102,7 @@ export function BlueprintViewer({
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [dialogProducer, setDialogProducer] = useState<ProducerDetails | null>(null);
 
   // Synchronize nodes and edges when layout changes (new build selected, graph changes, etc.)
   useEffect(() => {
@@ -77,7 +131,28 @@ export function BlueprintViewer({
 
   const handlePaneClick = useCallback(() => {
     onNodeSelect?.(null);
+    setDialogProducer(null);
   }, [onNodeSelect]);
+
+  const handleNodeClick: NodeMouseHandler = useCallback(
+    (_event, node) => {
+      onNodeSelect?.(node.id);
+
+      if (node.type === "producerNode") {
+        setDialogProducer(parseProducerNodeData(node));
+        return;
+      }
+
+      setDialogProducer(null);
+    },
+    [onNodeSelect]
+  );
+
+  const handleDialogOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setDialogProducer(null);
+    }
+  }, []);
 
   return (
     <div className="absolute inset-0">
@@ -86,6 +161,7 @@ export function BlueprintViewer({
         edges={edges}
         onNodesChange={handleNodesChange}
         onEdgesChange={onEdgesChange}
+        onNodeClick={handleNodeClick}
         onPaneClick={handlePaneClick}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
@@ -121,6 +197,11 @@ export function BlueprintViewer({
           maskColor="rgba(0,0,0,0.8)"
         /> */}
       </ReactFlow>
+      <ProducerDetailsDialog
+        open={dialogProducer !== null}
+        producer={dialogProducer}
+        onOpenChange={handleDialogOpenChange}
+      />
     </div>
   );
 }

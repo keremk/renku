@@ -583,8 +583,8 @@ describe('ExecutionContext', () => {
         await result.current.confirmExecution();
       });
 
-      expect(result.current.state.producerStatuses['ProducerA']).toBe('pending');
-      expect(result.current.state.producerStatuses['ProducerB']).toBe('pending');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('pending');
+      expect(result.current.state.producerStatuses['Producer:ProducerB']).toBe('pending');
     });
 
     it('subscribes to job stream', async () => {
@@ -710,7 +710,7 @@ describe('ExecutionContext', () => {
         });
       });
 
-      expect(result.current.state.producerStatuses['ProducerA']).toBe('running');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('running');
       expect(result.current.state.executionLogs).toHaveLength(1);
       expect(result.current.state.executionLogs[0].type).toBe('job-start');
       expect(result.current.state.executionLogs[0].message).toContain('Starting ProducerA');
@@ -728,7 +728,7 @@ describe('ExecutionContext', () => {
         });
       });
 
-      expect(result.current.state.producerStatuses['ProducerA']).toBe('success');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('success');
       expect(result.current.state.executionLogs[0].message).toContain('completed successfully');
       expect(result.current.state.executionLogs[0].message).toContain('✓');
     });
@@ -746,7 +746,7 @@ describe('ExecutionContext', () => {
         });
       });
 
-      expect(result.current.state.producerStatuses['ProducerA']).toBe('error');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('error');
       expect(result.current.state.executionLogs[0].message).toContain('failed');
       expect(result.current.state.executionLogs[0].message).toContain('✗');
       expect(result.current.state.executionLogs[0].errorDetails).toBe('Something went wrong');
@@ -764,7 +764,7 @@ describe('ExecutionContext', () => {
         });
       });
 
-      expect(result.current.state.producerStatuses['ProducerA']).toBe('not-run-yet');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('skipped');
       expect(result.current.state.executionLogs[0].message).toContain('skipped');
     });
 
@@ -1028,7 +1028,7 @@ describe('ExecutionContext', () => {
         ]);
       });
 
-      expect(result.current.state.producerStatuses['ProducerA']).toBe('success');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('success');
     });
 
     it('maps failed artifacts to error status', () => {
@@ -1042,10 +1042,10 @@ describe('ExecutionContext', () => {
         ]);
       });
 
-      expect(result.current.state.producerStatuses['ProducerA']).toBe('error');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('error');
     });
 
-    it('maps skipped artifacts to not-run-yet status', () => {
+    it('maps skipped artifacts to skipped status', () => {
       const { result } = renderHook(() => useExecution(), {
         wrapper: createWrapper(),
       });
@@ -1056,7 +1056,7 @@ describe('ExecutionContext', () => {
         ]);
       });
 
-      expect(result.current.state.producerStatuses['ProducerA']).toBe('not-run-yet');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('skipped');
     });
 
     it('maps unknown status to not-run-yet', () => {
@@ -1070,7 +1070,7 @@ describe('ExecutionContext', () => {
         ]);
       });
 
-      expect(result.current.state.producerStatuses['ProducerA']).toBe('not-run-yet');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('not-run-yet');
     });
 
     it('uses worst status when producer has multiple artifacts', () => {
@@ -1087,7 +1087,7 @@ describe('ExecutionContext', () => {
       });
 
       // Failed (error) has lower priority, so it should be kept
-      expect(result.current.state.producerStatuses['ProducerA']).toBe('error');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('error');
     });
 
     it('handles multiple producers', () => {
@@ -1103,9 +1103,9 @@ describe('ExecutionContext', () => {
         ]);
       });
 
-      expect(result.current.state.producerStatuses['ProducerA']).toBe('success');
-      expect(result.current.state.producerStatuses['ProducerB']).toBe('error');
-      expect(result.current.state.producerStatuses['ProducerC']).toBe('not-run-yet');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('success');
+      expect(result.current.state.producerStatuses['Producer:ProducerB']).toBe('error');
+      expect(result.current.state.producerStatuses['Producer:ProducerC']).toBe('skipped');
     });
 
     it('ignores artifacts with invalid IDs', () => {
@@ -1121,7 +1121,7 @@ describe('ExecutionContext', () => {
       });
 
       expect(Object.keys(result.current.state.producerStatuses)).toHaveLength(1);
-      expect(result.current.state.producerStatuses['ProducerA']).toBe('success');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('success');
     });
   });
 

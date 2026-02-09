@@ -4,6 +4,7 @@
 
 import { describe, it, expect } from "vitest";
 import {
+  collectNodesAndEdges,
   normalizeProducerName,
   resolveEndpoint,
   resolveEdgeEndpoints,
@@ -100,5 +101,71 @@ describe("resolveEdgeEndpoints", () => {
     expect(result.sourceType).toBe("producer");
     expect(result.sourceProducer).toBe("VideoGen");
     expect(result.targetType).toBe("output");
+  });
+});
+
+describe("collectNodesAndEdges", () => {
+  it("attaches detailed input/output bindings to producer nodes", () => {
+    const node = {
+      document: {
+        meta: { id: "id", name: "test" },
+        inputs: [{ name: "Title", type: "string", required: true }],
+        producerImports: [
+          { name: "AudioGen", producer: "asset/text-to-audio" },
+          { name: "VideoGen", producer: "asset/text-to-video" },
+        ],
+        artefacts: [{ name: "FinalVideo", type: "video" }],
+        edges: [
+          { from: "Title", to: "AudioGen.Input" },
+          { from: "AudioGen.Output", to: "VideoGen.Input", if: "HasAudio" },
+          { from: "VideoGen.Output", to: "FinalVideo" },
+        ],
+      },
+    } as unknown as import("@gorenku/core").BlueprintTreeNode;
+
+    const nodes: import("../types.js").BlueprintGraphNode[] = [];
+    const edges: import("../types.js").BlueprintGraphEdge[] = [];
+    const conditions: import("../types.js").ConditionDef[] = [];
+
+    collectNodesAndEdges(node, nodes, edges, conditions);
+
+    const audioNode = nodes.find((n) => n.id === "Producer:AudioGen");
+    const videoNode = nodes.find((n) => n.id === "Producer:VideoGen");
+
+    expect(audioNode?.inputBindings).toEqual([
+      expect.objectContaining({
+        from: "Title",
+        to: "AudioGen.Input",
+        sourceType: "input",
+        targetType: "producer",
+      }),
+    ]);
+    expect(audioNode?.outputBindings).toEqual([
+      expect.objectContaining({
+        from: "AudioGen.Output",
+        to: "VideoGen.Input",
+        sourceType: "producer",
+        targetType: "producer",
+        conditionName: "HasAudio",
+        isConditional: true,
+      }),
+    ]);
+
+    expect(videoNode?.inputBindings).toEqual([
+      expect.objectContaining({
+        from: "AudioGen.Output",
+        to: "VideoGen.Input",
+        sourceType: "producer",
+        targetType: "producer",
+      }),
+    ]);
+    expect(videoNode?.outputBindings).toEqual([
+      expect.objectContaining({
+        from: "VideoGen.Output",
+        to: "FinalVideo",
+        sourceType: "producer",
+        targetType: "output",
+      }),
+    ]);
   });
 });

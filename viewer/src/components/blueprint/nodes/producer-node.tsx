@@ -1,11 +1,14 @@
 import { Handle, Position } from "@xyflow/react";
 import type { ProducerStatus } from "@/types/generation";
+import type { ProducerBinding } from "@/types/blueprint-graph";
 
 interface ProducerNodeData {
   label: string;
   loop?: string;
   producerType?: string;
   description?: string;
+  inputBindings: ProducerBinding[];
+  outputBindings: ProducerBinding[];
   status?: ProducerStatus;
 }
 
@@ -22,15 +25,9 @@ function getStatusStyles(status: ProducerStatus | undefined, selected: boolean):
   bg: string;
   dot: string;
   dotPulse: boolean;
+  ring: string;
 } {
-  if (selected) {
-    return {
-      border: "border-green-400 ring-2 ring-green-400/30",
-      bg: "",
-      dot: "",
-      dotPulse: false,
-    };
-  }
+  const ring = selected ? "ring-2 ring-primary/35" : "";
 
   switch (status) {
     case 'success':
@@ -39,6 +36,7 @@ function getStatusStyles(status: ProducerStatus | undefined, selected: boolean):
         bg: "bg-emerald-500/5",
         dot: "bg-emerald-500",
         dotPulse: false,
+        ring,
       };
     case 'error':
       return {
@@ -46,6 +44,15 @@ function getStatusStyles(status: ProducerStatus | undefined, selected: boolean):
         bg: "bg-red-500/5",
         dot: "bg-red-500",
         dotPulse: false,
+        ring,
+      };
+    case 'skipped':
+      return {
+        border: "border-slate-500/70",
+        bg: "bg-slate-500/5",
+        dot: "bg-slate-500",
+        dotPulse: false,
+        ring,
       };
     case 'running':
       return {
@@ -53,6 +60,7 @@ function getStatusStyles(status: ProducerStatus | undefined, selected: boolean):
         bg: "bg-blue-500/5",
         dot: "bg-blue-500",
         dotPulse: true,
+        ring,
       };
     case 'pending':
       return {
@@ -60,6 +68,7 @@ function getStatusStyles(status: ProducerStatus | undefined, selected: boolean):
         bg: "bg-amber-500/5",
         dot: "bg-amber-500",
         dotPulse: false,
+        ring,
       };
     case 'not-run-yet':
     default:
@@ -68,6 +77,7 @@ function getStatusStyles(status: ProducerStatus | undefined, selected: boolean):
         bg: "",
         dot: "",
         dotPulse: false,
+        ring,
       };
   }
 }
@@ -85,6 +95,7 @@ export function ProducerNode({ data, selected }: ProducerNodeProps) {
         bg-card border-2
         ${styles.border}
         ${styles.bg}
+        ${styles.ring}
         transition-all duration-200
       `}
       title={nodeData.description}

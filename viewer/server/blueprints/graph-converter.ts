@@ -13,6 +13,7 @@ import type {
   BlueprintGraphNode,
   BlueprintGraphEdge,
   ConditionDef,
+  ProducerBinding,
 } from "../types.js";
 import type { EndpointInfo, EdgeEndpoints } from "./types.js";
 
@@ -111,7 +112,15 @@ export function collectNodesAndEdges(
       loop: producerImport.loop,
       producerType: producerImport.producer,
       description: producerImport.description,
+      inputBindings: [],
+      outputBindings: [],
     });
+  }
+  const producerNodeById = new Map<string, BlueprintGraphNode>();
+  for (const producerNode of nodes) {
+    if (producerNode.type === "producer") {
+      producerNodeById.set(producerNode.id, producerNode);
+    }
   }
 
   // Add single "Outputs" node representing all blueprint outputs
@@ -127,7 +136,7 @@ export function collectNodesAndEdges(
   const producersWithOutputs = new Set<string>();
   const addedEdges = new Set<string>();
 
-  // Process edges to create producer-to-producer connections
+  // Process edges to create producer-to-producer connections and detailed producer bindings.
   for (const edge of doc.edges) {
     const isConditional = Boolean(edge.if || edge.conditions);
     const { sourceType, sourceProducer, targetType, targetProducer } = resolveEdgeEndpoints(
@@ -137,6 +146,38 @@ export function collectNodesAndEdges(
       producerNames,
       artifactNames,
     );
+    const edgeBinding: ProducerBinding = {
+      from: edge.from,
+      to: edge.to,
+      sourceType,
+      targetType,
+      conditionName: edge.if,
+      isConditional,
+    };
+
+    if (sourceType === "producer" && sourceProducer) {
+      const normalizedSource = normalizeProducerName(sourceProducer);
+      const sourceNodeId = `Producer:${normalizedSource}`;
+      const sourceNode = producerNodeById.get(sourceNodeId);
+      if (sourceNode) {
+        if (!sourceNode.outputBindings) {
+          throw new Error(`Missing outputBindings for producer node: ${sourceNodeId}`);
+        }
+        sourceNode.outputBindings.push(edgeBinding);
+      }
+    }
+
+    if (targetType === "producer" && targetProducer) {
+      const normalizedTarget = normalizeProducerName(targetProducer);
+      const targetNodeId = `Producer:${normalizedTarget}`;
+      const targetNode = producerNodeById.get(targetNodeId);
+      if (targetNode) {
+        if (!targetNode.inputBindings) {
+          throw new Error(`Missing inputBindings for producer node: ${targetNodeId}`);
+        }
+        targetNode.inputBindings.push(edgeBinding);
+      }
+    }
 
     // Input -> Producer: track that this producer has input dependencies
     if (sourceType === "input" && targetType === "producer" && targetProducer) {

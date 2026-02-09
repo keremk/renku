@@ -19,6 +19,10 @@ export interface BlueprintGraphNode {
   producerType?: string;
   /** Description from the blueprint */
   description?: string;
+  /** Detailed incoming bindings for producer nodes */
+  inputBindings?: ProducerBinding[];
+  /** Detailed outgoing bindings for producer nodes */
+  outputBindings?: ProducerBinding[];
 }
 
 export interface BlueprintGraphEdge {
@@ -62,6 +66,17 @@ export interface BlueprintGraphData {
   layerAssignments?: Record<string, number>;
   /** Total number of layers in the blueprint topology */
   layerCount?: number;
+}
+
+export type BindingEndpointType = "input" | "producer" | "output" | "unknown";
+
+export interface ProducerBinding {
+  from: string;
+  to: string;
+  sourceType: BindingEndpointType;
+  targetType: BindingEndpointType;
+  conditionName?: string;
+  isConditional: boolean;
 }
 
 export interface InputTemplateData {

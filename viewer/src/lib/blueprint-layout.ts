@@ -68,6 +68,13 @@ export function layoutBlueprintGraph(
   const layerCounts: Map<number, number> = new Map();
 
   sortedProducers.forEach((node) => {
+    if (!node.inputBindings) {
+      throw new Error(`Missing input bindings for producer node: ${node.id}`);
+    }
+    if (!node.outputBindings) {
+      throw new Error(`Missing output bindings for producer node: ${node.id}`);
+    }
+
     const layer = producerLayers.get(node.id) ?? 0;
     const layerIndex = layerCounts.get(layer) ?? 0;
     layerCounts.set(layer, layerIndex + 1);
@@ -84,7 +91,9 @@ export function layoutBlueprintGraph(
         loop: node.loop,
         producerType: node.producerType,
         description: node.description,
-        status: producerStatuses?.[node.label] ?? 'not-run-yet',
+        status: producerStatuses?.[node.id] ?? 'not-run-yet',
+        inputBindings: node.inputBindings,
+        outputBindings: node.outputBindings,
       },
     });
   });

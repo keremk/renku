@@ -11,13 +11,13 @@ import type { SurgicalInfo } from '../../server/generation/types';
 /**
  * Status of a producer in the execution flow.
  */
-export type ProducerStatus = 'success' | 'error' | 'not-run-yet' | 'running' | 'pending';
+export type ProducerStatus = 'success' | 'error' | 'not-run-yet' | 'skipped' | 'running' | 'pending';
 
 /**
- * Map of producer names to their status.
+ * Map of canonical producer node IDs (e.g. "Producer:ScriptProducer") to status.
  */
 export interface ProducerStatusMap {
-  [producerName: string]: ProducerStatus;
+  [producerNodeId: string]: ProducerStatus;
 }
 
 // =============================================================================

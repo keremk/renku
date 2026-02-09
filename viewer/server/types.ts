@@ -34,6 +34,8 @@ export interface BlueprintGraphNode {
   loop?: string;
   producerType?: string;
   description?: string;
+  inputBindings?: ProducerBinding[];
+  outputBindings?: ProducerBinding[];
 }
 
 /**
@@ -74,4 +76,15 @@ export interface BlueprintOutputDef {
 export interface ConditionDef {
   name: string;
   definition: unknown;
+}
+
+export type BindingEndpointType = "input" | "producer" | "output" | "unknown";
+
+export interface ProducerBinding {
+  from: string;
+  to: string;
+  sourceType: BindingEndpointType;
+  targetType: BindingEndpointType;
+  conditionName?: string;
+  isConditional: boolean;
 }
