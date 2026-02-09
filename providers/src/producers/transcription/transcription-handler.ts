@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import path from 'node:path';
 import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
 import { createProviderError, SdkErrorCode } from '../../sdk/errors.js';
 import type { HandlerFactory, HandlerFactoryInit, ProviderJobContext } from '../../types.js';
@@ -36,7 +37,7 @@ interface TranscriptionHandlerConfig {
  *
  * This handler:
  * 1. Loads the timeline and finds the Transcription track
- * 2. Loads audio buffers from asset blob paths (auto-resolved by the runner)
+ * 2. Loads audio buffers from asset blob paths resolved by the runner
  * 3. Concatenates audio with silence gaps to match timeline positions
  * 4. Calls STT API to transcribe the concatenated audio
  * 5. Aligns timestamps to the original timeline positions
@@ -114,36 +115,35 @@ export function createTranscriptionHandler(): HandlerFactory {
 
         notify('progress', `Found ${transcriptionClips.length} clips in Transcription track`);
 
-        // Load audio buffers from asset blob paths or resolved inputs
-        const allInputs = runtime.inputs.all();
-        const assetBlobPaths = request.context.extras?.assetBlobPaths as Record<string, string> | undefined;
-
-        // Diagnostic logging: trace asset resolution pipeline
-        const clipAssetIds = transcriptionClips.map(c => c.properties.assetId);
-        notify('progress',
-          `Audio resolution diagnostics:\n` +
-          `  clipAssetIds: ${JSON.stringify(clipAssetIds)}\n` +
-          `  assetBlobPaths keys: ${assetBlobPaths ? JSON.stringify(Object.keys(assetBlobPaths)) : 'undefined'}\n` +
-          `  allInputs keys (Artifact:*): ${JSON.stringify(Object.keys(allInputs).filter(k => k.startsWith('Artifact:')))}`
-        );
-
-        const { segments: audioSegments, skippedAssetIds } = await loadAudioSegmentsFromTranscriptionTrack(
-          transcriptionClips,
-          assetBlobPaths,
-          allInputs,
-        );
-
-        for (const skippedId of skippedAssetIds) {
-          notify('progress', `Warning: could not load audio for asset "${skippedId}" — skipped`);
+        const storageRoot = runtime.inputs.getByNodeId<string>('Input:StorageRoot');
+        if (typeof storageRoot !== 'string' || storageRoot.trim().length === 0) {
+          throw createProviderError(
+            SdkErrorCode.MISSING_STORAGE_ROOT,
+            'Transcription producer is missing storage root (Input:StorageRoot).',
+            { kind: 'user_input', causedByUser: true },
+          );
         }
 
-        if (runtime.mode !== 'simulated' && audioSegments.length === 0 && transcriptionClips.length > 0) {
+        const assetBlobPaths = request.context.extras?.assetBlobPaths as Record<string, string> | undefined;
+        if (!assetBlobPaths) {
+          throw createProviderError(
+            SdkErrorCode.MISSING_ASSET,
+            'Transcription producer is missing asset blob paths in context extras.',
+            { kind: 'user_input', causedByUser: true },
+          );
+        }
+
+        const audioSegments = await loadAudioSegmentsFromTranscriptionTrack(
+          transcriptionClips,
+          assetBlobPaths,
+          storageRoot,
+        );
+
+        if (audioSegments.length === 0) {
           throw createProviderError(
             SdkErrorCode.EMPTY_AUDIO_SEGMENTS,
-            `All ${transcriptionClips.length} transcription clips failed to load audio. ` +
-              `Skipped asset IDs: ${skippedAssetIds.join(', ')}. ` +
-              'Ensure audio artifacts are wired to TimelineComposer.TranscriptionAudio and available in assetBlobPaths or resolved inputs.',
-            { kind: 'user_input', causedByUser: true, metadata: { skippedAssetIds } },
+            `Transcription producer loaded 0 audio segments from ${transcriptionClips.length} clips.`,
+            { kind: 'user_input', causedByUser: true },
           );
         }
 
@@ -276,7 +276,6 @@ export function createTranscriptionHandler(): HandlerFactory {
               language: transcription.language,
               audioSegmentsLoaded: audioSegments.length,
               audioSegmentsExpected: transcriptionClips.length,
-              skippedAssetIds,
             },
           }],
         };
@@ -366,58 +365,42 @@ function extractSttOutputFromResult(result: import('../../types.js').ProviderRes
 
 /**
  * Load audio segments from the Transcription track clips.
- * Uses asset blob paths (file paths resolved by the runner) or falls back to resolved inputs.
+ * Uses canonical asset IDs with runner-provided blob paths.
  */
 async function loadAudioSegmentsFromTranscriptionTrack(
   clips: TranscriptionClip[],
-  assetBlobPaths: Record<string, string> | undefined,
-  allInputs: Record<string, unknown>,
-): Promise<{ segments: AudioSegment[]; skippedAssetIds: string[] }> {
+  assetBlobPaths: Record<string, string>,
+  storageRoot: string,
+): Promise<AudioSegment[]> {
   const segments: AudioSegment[] = [];
-  const skippedAssetIds: string[] = [];
 
   for (const clip of clips) {
     const assetId = clip.properties.assetId;
-    let buffer: Buffer | undefined;
-
-    // Try loading from asset blob paths (file system)
-    if (assetBlobPaths) {
-      const filePath = assetBlobPaths[assetId];
-      if (filePath) {
-        try {
-          buffer = await readFile(filePath);
-        } catch {
-          // File may not exist in simulation/dry-run mode
-        }
-      }
+    const blobPath = assetBlobPaths[assetId];
+    if (typeof blobPath !== 'string' || blobPath.length === 0) {
+      throw createProviderError(
+        SdkErrorCode.MISSING_ASSET,
+        `Transcription clip "${clip.id}" is missing blob path for asset "${assetId}".`,
+        { kind: 'user_input', causedByUser: true, metadata: { clipId: clip.id, assetId } },
+      );
     }
 
-    // Fallback: try loading from resolved inputs (in-memory)
-    if (!buffer) {
-      buffer = extractBufferFromInput(allInputs[assetId]);
-    }
+    const absolutePath = path.resolve(storageRoot, blobPath);
+    let buffer: Buffer;
 
-    // Fallback: try without "Artifact:" prefix
-    if (!buffer && assetId.startsWith('Artifact:')) {
-      const shortId = assetId.replace('Artifact:', '');
-      if (assetBlobPaths) {
-        const filePath = assetBlobPaths[shortId];
-        if (filePath) {
-          try {
-            buffer = await readFile(filePath);
-          } catch {
-            // File may not exist in simulation/dry-run mode
-          }
-        }
-      }
-      if (!buffer) {
-        buffer = extractBufferFromInput(allInputs[shortId]);
-      }
-    }
-
-    if (!buffer || buffer.length === 0) {
-      skippedAssetIds.push(assetId);
-      continue;
+    try {
+      buffer = await readFile(absolutePath);
+    } catch (error) {
+      throw createProviderError(
+        SdkErrorCode.MISSING_ASSET,
+        `Transcription clip "${clip.id}" could not read audio file for asset "${assetId}" at "${absolutePath}".`,
+        {
+          kind: 'user_input',
+          causedByUser: true,
+          metadata: { clipId: clip.id, assetId, blobPath, absolutePath },
+          raw: error,
+        },
+      );
     }
 
     segments.push({
@@ -429,42 +412,7 @@ async function loadAudioSegmentsFromTranscriptionTrack(
     });
   }
 
-  return { segments, skippedAssetIds };
-}
-
-/**
- * Extract a Buffer from various input formats.
- */
-function extractBufferFromInput(value: unknown): Buffer | undefined {
-  if (Buffer.isBuffer(value)) {
-    return value;
-  }
-
-  if (value instanceof Uint8Array) {
-    return Buffer.from(value);
-  }
-
-  if (typeof value === 'object' && value !== null && 'data' in value) {
-    const obj = value as { data?: unknown; mimeType?: string };
-    if (Buffer.isBuffer(obj.data)) {
-      return obj.data;
-    }
-    if (obj.data instanceof Uint8Array) {
-      return Buffer.from(obj.data);
-    }
-  }
-
-  if (typeof value === 'object' && value !== null && 'blob' in value) {
-    const obj = value as { blob?: { data?: unknown } };
-    if (obj.blob && Buffer.isBuffer(obj.blob.data)) {
-      return obj.blob.data;
-    }
-    if (obj.blob && obj.blob.data instanceof Uint8Array) {
-      return Buffer.from(obj.blob.data);
-    }
-  }
-
-  return undefined;
+  return segments;
 }
 
 /**
@@ -495,6 +443,5 @@ async function uploadAudioAndGetUrl(
 export const __test__ = {
   parseTranscriptionConfig,
   loadAudioSegmentsFromTranscriptionTrack,
-  extractBufferFromInput,
   uploadAudioAndGetUrl,
 };

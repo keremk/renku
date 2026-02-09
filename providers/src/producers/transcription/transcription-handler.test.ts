@@ -1,9 +1,12 @@
 import { Buffer } from 'node:buffer';
-import { describe, expect, it } from 'vitest';
-import { __test__ } from './transcription-handler.js';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { TranscriptionClip } from '@gorenku/compositions';
+import { __test__ } from './transcription-handler.js';
 
-const { parseTranscriptionConfig, loadAudioSegmentsFromTranscriptionTrack, extractBufferFromInput } = __test__;
+const { parseTranscriptionConfig, loadAudioSegmentsFromTranscriptionTrack } = __test__;
 
 function makeTranscriptionClip(index: number, startTime: number, duration: number, assetId: string): TranscriptionClip {
   return {
@@ -13,6 +16,12 @@ function makeTranscriptionClip(index: number, startTime: number, duration: numbe
     duration,
     properties: { assetId },
   };
+}
+
+async function writeBinaryFile(storageRoot: string, relativePath: string, data: Buffer): Promise<void> {
+  const absolutePath = resolve(storageRoot, relativePath);
+  await mkdir(dirname(absolutePath), { recursive: true });
+  await writeFile(absolutePath, data);
 }
 
 describe('parseTranscriptionConfig', () => {
@@ -48,215 +57,86 @@ describe('parseTranscriptionConfig', () => {
 });
 
 describe('loadAudioSegmentsFromTranscriptionTrack', () => {
-  it('loads audio segments from resolved inputs', async () => {
-    const clips: TranscriptionClip[] = [
-      makeTranscriptionClip(0, 0, 10, 'Artifact:Audio[0]'),
-      makeTranscriptionClip(1, 10, 8, 'Artifact:Audio[1]'),
-    ];
-    const allInputs: Record<string, unknown> = {
-      'Artifact:Audio[0]': Buffer.from('audio-data-0'),
-      'Artifact:Audio[1]': Buffer.from('audio-data-1'),
-    };
+  let storageRoot = '';
 
-    const { segments, skippedAssetIds } = await loadAudioSegmentsFromTranscriptionTrack(clips, undefined, allInputs);
-    expect(segments).toHaveLength(2);
-    expect(skippedAssetIds).toHaveLength(0);
-    expect(segments[0]?.startTime).toBe(0);
-    expect(segments[0]?.duration).toBe(10);
-    expect(segments[0]?.assetId).toBe('Artifact:Audio[0]');
-    expect(segments[0]?.clipId).toBe('clip-t-0');
-    expect(segments[1]?.startTime).toBe(10);
-    expect(segments[1]?.duration).toBe(8);
+  beforeEach(async () => {
+    storageRoot = await mkdtemp(join(tmpdir(), 'renku-transcription-handler-'));
   });
 
-  it('skips clips with no loadable audio and reports skipped asset IDs', async () => {
-    const clips: TranscriptionClip[] = [
-      makeTranscriptionClip(0, 0, 10, 'Artifact:Audio[0]'),
-      makeTranscriptionClip(1, 10, 8, 'Artifact:Audio[1]'),
-    ];
-    const allInputs: Record<string, unknown> = {
-      'Artifact:Audio[0]': Buffer.from('audio-data-0'),
-      // Audio[1] is missing — will be skipped
-    };
-
-    const { segments, skippedAssetIds } = await loadAudioSegmentsFromTranscriptionTrack(clips, undefined, allInputs);
-    expect(segments).toHaveLength(1);
-    expect(segments[0]?.assetId).toBe('Artifact:Audio[0]');
-    expect(skippedAssetIds).toEqual(['Artifact:Audio[1]']);
-  });
-
-  it('loads from asset blob paths when available', async () => {
-    const clips: TranscriptionClip[] = [
-      makeTranscriptionClip(0, 0, 10, 'Artifact:Audio[0]'),
-    ];
-    const allInputs: Record<string, unknown> = {};
-    // assetBlobPaths point to files — in this test we don't actually read files,
-    // so we provide a fallback via allInputs instead
-    const assetBlobPaths: Record<string, string> = {};
-
-    // Fallback to allInputs
-    allInputs['Artifact:Audio[0]'] = Buffer.from('audio-data-from-inputs');
-    const { segments } = await loadAudioSegmentsFromTranscriptionTrack(clips, assetBlobPaths, allInputs);
-    expect(segments).toHaveLength(1);
-  });
-
-  it('returns empty segments with all asset IDs as skipped when none are loadable', async () => {
-    const clips: TranscriptionClip[] = [
-      makeTranscriptionClip(0, 0, 10, 'Artifact:Missing[0]'),
-      makeTranscriptionClip(1, 10, 8, 'Artifact:Missing[1]'),
-      makeTranscriptionClip(2, 18, 5, 'Artifact:Missing[2]'),
-    ];
-    const allInputs: Record<string, unknown> = {};
-
-    const { segments, skippedAssetIds } = await loadAudioSegmentsFromTranscriptionTrack(clips, undefined, allInputs);
-    expect(segments).toHaveLength(0);
-    expect(skippedAssetIds).toEqual([
-      'Artifact:Missing[0]',
-      'Artifact:Missing[1]',
-      'Artifact:Missing[2]',
-    ]);
-  });
-
-  it('tries without Artifact: prefix as fallback', async () => {
-    const clips: TranscriptionClip[] = [
-      makeTranscriptionClip(0, 0, 10, 'Artifact:Audio[0]'),
-    ];
-    const allInputs: Record<string, unknown> = {
-      'Audio[0]': Buffer.from('audio-data-short-id'),
-    };
-
-    const { segments } = await loadAudioSegmentsFromTranscriptionTrack(clips, undefined, allInputs);
-    expect(segments).toHaveLength(1);
-  });
-});
-
-describe('loadAudioSegmentsFromTranscriptionTrack — mixed producer assetIds', () => {
-  it('loads segments from different producer assetIds (AudioProducer and LipsyncVideo)', async () => {
-    const clips: TranscriptionClip[] = [
-      makeTranscriptionClip(0, 0, 10, 'Artifact:AudioProducer.GeneratedAudio[0]'),
-      makeTranscriptionClip(1, 10, 8, 'Artifact:LipsyncVideo.AudioTrack[1]'),
-      makeTranscriptionClip(2, 18, 10, 'Artifact:AudioProducer.GeneratedAudio[2]'),
-    ];
-    const allInputs: Record<string, unknown> = {
-      'Artifact:AudioProducer.GeneratedAudio[0]': Buffer.from('narration-audio-0'),
-      'Artifact:LipsyncVideo.AudioTrack[1]': Buffer.from('lipsync-audio-1'),
-      'Artifact:AudioProducer.GeneratedAudio[2]': Buffer.from('narration-audio-2'),
-    };
-
-    const { segments } = await loadAudioSegmentsFromTranscriptionTrack(clips, undefined, allInputs);
-    expect(segments).toHaveLength(3);
-    expect(segments[0]?.assetId).toBe('Artifact:AudioProducer.GeneratedAudio[0]');
-    expect(segments[1]?.assetId).toBe('Artifact:LipsyncVideo.AudioTrack[1]');
-    expect(segments[2]?.assetId).toBe('Artifact:AudioProducer.GeneratedAudio[2]');
-    expect(segments[0]?.startTime).toBe(0);
-    expect(segments[1]?.startTime).toBe(10);
-    expect(segments[2]?.startTime).toBe(18);
-  });
-});
-
-describe('loadAudioSegmentsFromTranscriptionTrack — timing gaps', () => {
-  it('preserves exact timing from clips with non-contiguous startTimes', async () => {
-    const clips: TranscriptionClip[] = [
-      makeTranscriptionClip(0, 0, 10, 'Artifact:Audio[0]'),
-      makeTranscriptionClip(1, 18, 8, 'Artifact:Audio[1]'),
-      makeTranscriptionClip(2, 35, 10, 'Artifact:Audio[2]'),
-    ];
-    const allInputs: Record<string, unknown> = {
-      'Artifact:Audio[0]': Buffer.from('audio-data-0'),
-      'Artifact:Audio[1]': Buffer.from('audio-data-1'),
-      'Artifact:Audio[2]': Buffer.from('audio-data-2'),
-    };
-
-    const { segments } = await loadAudioSegmentsFromTranscriptionTrack(clips, undefined, allInputs);
-    expect(segments).toHaveLength(3);
-    expect(segments[0]?.startTime).toBe(0);
-    expect(segments[0]?.duration).toBe(10);
-    expect(segments[1]?.startTime).toBe(18);
-    expect(segments[1]?.duration).toBe(8);
-    expect(segments[2]?.startTime).toBe(35);
-    expect(segments[2]?.duration).toBe(10);
-  });
-});
-
-describe('loadAudioSegmentsFromTranscriptionTrack — mixed blob formats', () => {
-  it('loads segments from Buffer, Uint8Array, BlobInput, and nested blob formats', async () => {
-    const clips: TranscriptionClip[] = [
-      makeTranscriptionClip(0, 0, 5, 'Artifact:A[0]'),
-      makeTranscriptionClip(1, 5, 5, 'Artifact:A[1]'),
-      makeTranscriptionClip(2, 10, 5, 'Artifact:A[2]'),
-      makeTranscriptionClip(3, 15, 5, 'Artifact:A[3]'),
-    ];
-    const allInputs: Record<string, unknown> = {
-      'Artifact:A[0]': Buffer.from('buffer-format'),
-      'Artifact:A[1]': new Uint8Array([1, 2, 3, 4]),
-      'Artifact:A[2]': { data: Buffer.from('blob-input-data'), mimeType: 'audio/wav' },
-      'Artifact:A[3]': { blob: { data: Buffer.from('nested-blob-data') } },
-    };
-
-    const { segments } = await loadAudioSegmentsFromTranscriptionTrack(clips, undefined, allInputs);
-    expect(segments).toHaveLength(4);
-    expect(segments[0]?.buffer.length).toBeGreaterThan(0);
-    expect(segments[1]?.buffer.length).toBe(4);
-    expect(segments[2]?.buffer.toString()).toBe('blob-input-data');
-    expect(segments[3]?.buffer.toString()).toBe('nested-blob-data');
-  });
-});
-
-describe('contract: Transcription track output matches TranscriptionProducer input', () => {
-  it('TranscriptionTrack clips produce matching AudioSegments', async () => {
-    const clips: TranscriptionClip[] = [
-      makeTranscriptionClip(0, 10, 8, 'Artifact:AudioProducer.GeneratedAudio[1]'),
-      makeTranscriptionClip(1, 20, 10, 'Artifact:AudioProducer.GeneratedAudio[2]'),
-      makeTranscriptionClip(2, 30, 10, 'Artifact:AudioProducer.GeneratedAudio[3]'),
-    ];
-    const allInputs: Record<string, unknown> = {
-      'Artifact:AudioProducer.GeneratedAudio[1]': Buffer.from('audio-seg-1'),
-      'Artifact:AudioProducer.GeneratedAudio[2]': Buffer.from('audio-seg-2'),
-      'Artifact:AudioProducer.GeneratedAudio[3]': Buffer.from('audio-seg-3'),
-    };
-
-    const { segments: audioSegments } = await loadAudioSegmentsFromTranscriptionTrack(clips, undefined, allInputs);
-    expect(audioSegments).toHaveLength(3);
-
-    for (let i = 0; i < clips.length; i++) {
-      const clip = clips[i]!;
-      const segment = audioSegments[i]!;
-      expect(segment.startTime).toBe(clip.startTime);
-      expect(segment.duration).toBe(clip.duration);
-      expect(segment.assetId).toBe(clip.properties.assetId);
-      expect(segment.clipId).toBe(clip.id);
-      expect(segment.buffer.length).toBeGreaterThan(0);
+  afterEach(async () => {
+    if (storageRoot) {
+      await rm(storageRoot, { recursive: true, force: true });
     }
   });
-});
 
-describe('extractBufferFromInput', () => {
-  it('extracts from Buffer', () => {
-    const buf = Buffer.from('hello');
-    expect(extractBufferFromInput(buf)).toBe(buf);
+  it('loads audio segments from canonical asset blob paths', async () => {
+    const clips: TranscriptionClip[] = [
+      makeTranscriptionClip(0, 0, 10, 'Artifact:AudioProducer.GeneratedAudio[0]'),
+      makeTranscriptionClip(1, 10, 8, 'Artifact:AudioProducer.GeneratedAudio[1]'),
+    ];
+    const assetBlobPaths: Record<string, string> = {
+      'Artifact:AudioProducer.GeneratedAudio[0]': 'builds/movie-123/blobs/aa/audio-0.mp3',
+      'Artifact:AudioProducer.GeneratedAudio[1]': 'builds/movie-123/blobs/bb/audio-1.mp3',
+    };
+    const segment0Data = Buffer.from('audio-segment-0');
+    const segment1Data = Buffer.from('audio-segment-1');
+
+    await writeBinaryFile(storageRoot, assetBlobPaths['Artifact:AudioProducer.GeneratedAudio[0]']!, segment0Data);
+    await writeBinaryFile(storageRoot, assetBlobPaths['Artifact:AudioProducer.GeneratedAudio[1]']!, segment1Data);
+
+    const segments = await loadAudioSegmentsFromTranscriptionTrack(clips, assetBlobPaths, storageRoot);
+
+    expect(segments).toHaveLength(2);
+    expect(segments[0]?.assetId).toBe('Artifact:AudioProducer.GeneratedAudio[0]');
+    expect(segments[0]?.startTime).toBe(0);
+    expect(segments[0]?.duration).toBe(10);
+    expect(segments[0]?.buffer.equals(segment0Data)).toBe(true);
+    expect(segments[1]?.assetId).toBe('Artifact:AudioProducer.GeneratedAudio[1]');
+    expect(segments[1]?.startTime).toBe(10);
+    expect(segments[1]?.duration).toBe(8);
+    expect(segments[1]?.buffer.equals(segment1Data)).toBe(true);
   });
 
-  it('extracts from Uint8Array', () => {
-    const arr = new Uint8Array([1, 2, 3]);
-    const result = extractBufferFromInput(arr);
-    expect(result).toBeInstanceOf(Buffer);
-    expect(result?.length).toBe(3);
+  it('throws when a clip asset ID is missing in assetBlobPaths', async () => {
+    const clips: TranscriptionClip[] = [
+      makeTranscriptionClip(0, 0, 10, 'Artifact:AudioProducer.GeneratedAudio[0]'),
+    ];
+    const assetBlobPaths: Record<string, string> = {};
+
+    await expect(
+      loadAudioSegmentsFromTranscriptionTrack(clips, assetBlobPaths, storageRoot),
+    ).rejects.toThrow(/missing blob path/i);
   });
 
-  it('extracts from BlobInput structure', () => {
-    const blobInput = { data: Buffer.from('blob-data'), mimeType: 'audio/wav' };
-    expect(extractBufferFromInput(blobInput)?.toString()).toBe('blob-data');
+  it('throws when the resolved file path does not exist', async () => {
+    const clips: TranscriptionClip[] = [
+      makeTranscriptionClip(0, 0, 10, 'Artifact:AudioProducer.GeneratedAudio[0]'),
+    ];
+    const assetBlobPaths: Record<string, string> = {
+      'Artifact:AudioProducer.GeneratedAudio[0]': 'builds/movie-123/blobs/aa/missing.mp3',
+    };
+
+    await expect(
+      loadAudioSegmentsFromTranscriptionTrack(clips, assetBlobPaths, storageRoot),
+    ).rejects.toThrow(/could not read audio file/i);
   });
 
-  it('extracts from nested blob structure', () => {
-    const nested = { blob: { data: Buffer.from('nested') } };
-    expect(extractBufferFromInput(nested)?.toString()).toBe('nested');
-  });
+  it('resolves storage-relative blob paths to absolute files under storage root', async () => {
+    const clip = makeTranscriptionClip(0, 4, 6, 'Artifact:AudioProducer.GeneratedAudio[0]');
+    const relativeBlobPath = 'builds/movie-abc/blobs/cc/audio.mp3';
+    const assetBlobPaths = {
+      'Artifact:AudioProducer.GeneratedAudio[0]': relativeBlobPath,
+    };
+    const expectedData = Buffer.from('fixture-audio-bytes');
 
-  it('returns undefined for non-binary values', () => {
-    expect(extractBufferFromInput('string-value')).toBeUndefined();
-    expect(extractBufferFromInput(42)).toBeUndefined();
-    expect(extractBufferFromInput(null)).toBeUndefined();
-    expect(extractBufferFromInput(undefined)).toBeUndefined();
+    await writeBinaryFile(storageRoot, relativeBlobPath, expectedData);
+
+    const segments = await loadAudioSegmentsFromTranscriptionTrack([clip], assetBlobPaths, storageRoot);
+    expect(segments).toHaveLength(1);
+    expect(segments[0]?.buffer.equals(expectedData)).toBe(true);
+
+    const absolutePath = resolve(storageRoot, relativeBlobPath);
+    const fileData = await readFile(absolutePath);
+    expect(fileData.equals(expectedData)).toBe(true);
   });
 });

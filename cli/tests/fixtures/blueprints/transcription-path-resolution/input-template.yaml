@@ -1,0 +1,36 @@
+inputs:
+  NumOfSegments: 3
+  NarrationScript:
+    - "Segment one narration for transcription path resolution."
+    - "Segment two narration for transcription path resolution."
+    - "Segment three narration for transcription path resolution."
+  VoiceId: Wise_Woman
+  Duration: 21
+  SegmentDuration: 7
+  LanguageCode: eng
+
+models:
+  - model: minimax/speech-2.6-hd
+    provider: replicate
+    producerId: AudioProducer
+  - model: timeline/ordered
+    provider: renku
+    producerId: TimelineComposer
+    config:
+      timeline:
+        tracks: ["Audio", "Transcription"]
+        masterTracks: ["Audio"]
+        numTracks: 2
+        audioClip:
+          artifact: AudioSegments
+          volume: 1.0
+        transcriptionClip:
+          artifact: TranscriptionAudio
+  - model: speech/transcription
+    provider: renku
+    producerId: TranscriptionProducer
+    config:
+      languageCode: eng
+      stt:
+        provider: fal-ai
+        model: elevenlabs/speech-to-text

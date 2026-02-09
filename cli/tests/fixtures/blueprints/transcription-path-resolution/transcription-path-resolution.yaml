@@ -1,0 +1,94 @@
+meta:
+  name: Transcription Path Resolution Test
+  description: Verifies transcription audio loading from canonical blob paths.
+  id: TranscriptionPathResolutionTest
+  version: 0.1.0
+
+inputs:
+  - name: NumOfSegments
+    description: Number of narration segments.
+    type: int
+    required: true
+  - name: NarrationScript
+    description: Narration text per segment.
+    type: array
+    itemType: string
+    required: true
+  - name: VoiceId
+    description: Voice identifier for TTS.
+    type: string
+    required: true
+  - name: Duration
+    description: Total timeline duration in seconds.
+    type: int
+    required: true
+  - name: SegmentDuration
+    description: Segment duration in seconds.
+    type: int
+    required: true
+  - name: LanguageCode
+    description: ISO-639-3 language code.
+    type: string
+    required: true
+
+artifacts:
+  - name: SegmentAudio
+    description: Narration audio per segment.
+    type: array
+    itemType: audio
+    countInput: NumOfSegments
+  - name: Timeline
+    description: Timeline document.
+    type: json
+  - name: Transcription
+    description: Transcription output.
+    type: json
+
+loops:
+  - name: segment
+    countInput: NumOfSegments
+
+producers:
+  - name: AudioProducer
+    producer: asset/text-to-speech
+    loop: segment
+  - name: TimelineComposer
+    producer: composition/timeline-composer
+  - name: TranscriptionProducer
+    producer: asset/transcription
+
+connections:
+  - from: NarrationScript[segment]
+    to: AudioProducer[segment].Text
+  - from: VoiceId
+    to: AudioProducer[segment].VoiceId
+  - from: AudioProducer[segment].GeneratedAudio
+    to: SegmentAudio[segment]
+
+  - from: AudioProducer[segment].GeneratedAudio
+    to: TimelineComposer.AudioSegments
+  - from: AudioProducer[segment].GeneratedAudio
+    to: TimelineComposer.TranscriptionAudio
+  - from: Duration
+    to: TimelineComposer.Duration
+  - from: SegmentDuration
+    to: TimelineComposer.SegmentDuration
+  - from: TimelineComposer.Timeline
+    to: Timeline
+
+  - from: TimelineComposer.Timeline
+    to: TranscriptionProducer.Timeline
+  - from: LanguageCode
+    to: TranscriptionProducer.LanguageCode
+  - from: TranscriptionProducer.Transcription
+    to: Transcription
+
+collectors:
+  - name: TimelineAudio
+    from: AudioProducer[segment].GeneratedAudio
+    into: TimelineComposer.AudioSegments
+    groupBy: segment
+  - name: TranscriptionAudio
+    from: AudioProducer[segment].GeneratedAudio
+    into: TimelineComposer.TranscriptionAudio
+    groupBy: segment

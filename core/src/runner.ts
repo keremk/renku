@@ -384,24 +384,8 @@ async function executeJob(
         })
       : {};
 
-    // Also resolve asset blob DATA and merge into resolvedInputs so that
-    // handlers can access binary content directly (e.g., TranscriptionProducer
-    // needs audio buffers from Timeline clips). assetBlobPaths provides
-    // storage-relative paths for ffmpeg, but handlers using readFile need
-    // absolute paths or in-memory data.
-    let jobWithAssetData = enrichedJob;
-    if (assetIds.length > 0) {
-      const assetData = await resolveArtifactsFromEventLog({
-        artifactIds: assetIds,
-        eventLog,
-        storage,
-        movieId,
-      });
-      jobWithAssetData = mergeResolvedArtifacts(enrichedJob, assetData);
-    }
-
     // Merge asset blob paths into job context
-    const jobWithAssetPaths = mergeAssetBlobPaths(jobWithAssetData, assetBlobPaths);
+    const jobWithAssetPaths = mergeAssetBlobPaths(enrichedJob, assetBlobPaths);
 
     // Resolve BlobRef objects back to BlobInput for provider execution
     const jobWithResolvedBlobs = await resolveBlobRefsInJobContext(
