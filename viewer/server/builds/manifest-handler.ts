@@ -82,29 +82,24 @@ export async function getBuildManifest(
   };
 
   try {
-    if (!existsSync(currentPath)) {
-      return emptyResponse;
+    // Step 1: Read current.json for revision & manifestPath (may not exist)
+    let revision: string | null = null;
+    let manifestPath: string | null = null;
+
+    if (existsSync(currentPath)) {
+      const currentContent = await fs.readFile(currentPath, "utf8");
+      const current = JSON.parse(currentContent) as {
+        revision?: string;
+        manifestPath?: string | null;
+      };
+      revision = current.revision ?? null;
+      manifestPath = current.manifestPath
+        ? path.join(movieDir, current.manifestPath)
+        : null;
     }
 
-    const currentContent = await fs.readFile(currentPath, "utf8");
-    const current = JSON.parse(currentContent) as {
-      revision?: string;
-      manifestPath?: string | null;
-    };
-
-    const revision = current.revision ?? null;
-
-    if (!current.manifestPath) {
-      return { ...emptyResponse, revision };
-    }
-
-    const manifestPath = path.join(movieDir, current.manifestPath);
-    if (!existsSync(manifestPath)) {
-      return { ...emptyResponse, revision };
-    }
-
-    const manifestContent = await fs.readFile(manifestPath, "utf8");
-    const manifest = JSON.parse(manifestContent) as {
+    // Step 2: Try to read manifest file if path exists (may not exist yet)
+    type ManifestData = {
       inputs?: Record<string, { payloadDigest?: unknown }>;
       artefacts?: Record<
         string,
@@ -117,12 +112,23 @@ export async function getBuildManifest(
       >;
       createdAt?: string;
     };
+    let manifest: ManifestData | null = null;
+    let manifestMtime: string | null = null;
 
-    const stat = await fs.stat(manifestPath);
+    if (manifestPath && existsSync(manifestPath)) {
+      const manifestContent = await fs.readFile(manifestPath, "utf8");
+      manifest = JSON.parse(manifestContent) as ManifestData;
+      const stat = await fs.stat(manifestPath);
+      manifestMtime = stat.mtime.toISOString();
+    }
 
-    // Parse inputs - extract values from payloadDigest and clean up names
+    // Step 3: Always read event log (the key fix — this was previously unreachable
+    // when manifestPath was null or the manifest file didn't exist yet)
+    const latestEvents = await readLatestArtifactEvents(movieDir);
+
+    // Step 4: Parse inputs from manifest (if available)
     const parsedInputs: Record<string, unknown> = {};
-    if (manifest.inputs) {
+    if (manifest?.inputs) {
       for (const [key, entry] of Object.entries(manifest.inputs)) {
         // Remove "Input:" prefix if present
         const cleanName = key.startsWith("Input:") ? key.slice(6) : key;
@@ -146,15 +152,15 @@ export async function getBuildManifest(
     // Extract model selections from inputs
     const { modelSelections } = extractModelSelectionsFromInputs(parsedInputs);
 
-    // Read latest artifact events from event log for current state
-    // (editedBy, originalHash, and possibly updated hash from edits)
-    const latestEvents = await readLatestArtifactEvents(movieDir);
-
-    // Parse artifacts - merge manifest data with event log data
+    // Step 5: Build artifacts — merge manifest data with event log data
     const parsedArtifacts: ArtifactInfo[] = [];
-    if (manifest.artefacts) {
+    const manifestArtifactIds = new Set<string>();
+
+    // First pass: manifest artifacts (merged with event log for latest state)
+    if (manifest?.artefacts) {
       for (const [key, entry] of Object.entries(manifest.artefacts)) {
         if (!entry || !entry.blob) continue;
+        manifestArtifactIds.add(key);
 
         // Extract name from artifact ID (e.g., "Artifact:Producer.Output" -> "Producer.Output")
         const cleanName = key.startsWith("Artifact:") ? key.slice(9) : key;
@@ -188,9 +194,6 @@ export async function getBuildManifest(
     // Second pass: Include artifacts from event log that are NOT in the manifest.
     // This handles mid-execution artifacts that exist in artefacts.log but not yet
     // in the manifest file (which is only written after execution completes).
-    const manifestArtifactIds = new Set(
-      manifest.artefacts ? Object.keys(manifest.artefacts) : [],
-    );
     for (const [artifactId, event] of latestEvents) {
       if (manifestArtifactIds.has(artifactId)) {
         // Already processed in first pass
@@ -222,7 +225,7 @@ export async function getBuildManifest(
       inputs: parsedInputs,
       models: modelSelections.length > 0 ? modelSelections : undefined,
       artefacts: parsedArtifacts,
-      createdAt: manifest.createdAt ?? stat.mtime.toISOString(),
+      createdAt: manifest?.createdAt ?? manifestMtime ?? null,
     };
   } catch {
     return emptyResponse;

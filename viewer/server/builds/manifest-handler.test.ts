@@ -292,6 +292,75 @@ describe("getBuildManifest", () => {
     expect(result.artefacts.length).toBe(0);
   });
 
+  it("returns event log artifacts when current.json has null manifestPath (mid-execution)", async () => {
+    // Simulate mid-execution: current.json exists with manifestPath: null
+    await fs.writeFile(
+      path.join(movieDir, "current.json"),
+      JSON.stringify({ revision: "rev-001", manifestPath: null })
+    );
+
+    // Event log has artifacts from completed producers
+    const event1 = {
+      artefactId: "Artifact:ImageGen.Output",
+      output: {
+        blob: { hash: "imgHash123", size: 500, mimeType: "image/png" },
+      },
+      status: "succeeded",
+      createdAt: "2024-01-01T12:00:00Z",
+    };
+    const event2 = {
+      artefactId: "Artifact:AudioGen.Output",
+      output: {
+        blob: { hash: "audioHash456", size: 1000, mimeType: "audio/mpeg" },
+      },
+      status: "succeeded",
+      createdAt: "2024-01-01T12:01:00Z",
+    };
+    await fs.writeFile(
+      path.join(movieDir, "events", "artefacts.log"),
+      JSON.stringify(event1) + "\n" + JSON.stringify(event2) + "\n"
+    );
+
+    const result = await getBuildManifest(blueprintFolder, movieId);
+
+    expect(result.movieId).toBe(movieId);
+    expect(result.revision).toBe("rev-001");
+    expect(result.artefacts.length).toBe(2);
+
+    const imgArtifact = result.artefacts.find(a => a.id === "Artifact:ImageGen.Output");
+    expect(imgArtifact).toBeDefined();
+    expect(imgArtifact!.hash).toBe("imgHash123");
+    expect(imgArtifact!.mimeType).toBe("image/png");
+
+    const audioArtifact = result.artefacts.find(a => a.id === "Artifact:AudioGen.Output");
+    expect(audioArtifact).toBeDefined();
+    expect(audioArtifact!.hash).toBe("audioHash456");
+    expect(audioArtifact!.mimeType).toBe("audio/mpeg");
+  });
+
+  it("returns event log artifacts when no current.json exists", async () => {
+    // No current.json, but event log exists (edge case)
+    const eventLogEntry = {
+      artefactId: "Artifact:Producer.Output",
+      output: {
+        blob: { hash: "hash789", size: 250, mimeType: "text/plain" },
+      },
+      status: "succeeded",
+      createdAt: "2024-01-01T12:00:00Z",
+    };
+    await fs.writeFile(
+      path.join(movieDir, "events", "artefacts.log"),
+      JSON.stringify(eventLogEntry) + "\n"
+    );
+
+    const result = await getBuildManifest(blueprintFolder, movieId);
+
+    expect(result.movieId).toBe(movieId);
+    expect(result.revision).toBeNull();
+    expect(result.artefacts.length).toBe(1);
+    expect(result.artefacts[0].hash).toBe("hash789");
+  });
+
   it("defaults mimeType to application/octet-stream for event-log artifacts", async () => {
     // Create current.json with empty manifest
     await fs.writeFile(
