@@ -338,7 +338,107 @@ models:
     price:
       function: costByVideoDuration
       inputs: [duration]
-      pricePerSecond: 0.0562 
+      pricePerSecond: 0.0562
+  - name: kling-video/o1/reference-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.112
+  - name: kling-video/o1/standard/reference-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.084
+  - name: kling-video/o3/standard/image-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.224
+        - generate_audio: false
+          pricePerSecond: 0.168
+  - name: kling-video/o3/standard/reference-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.224
+        - generate_audio: false
+          pricePerSecond: 0.168
+  - name: kling-video/o3/standard/text-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.224
+        - generate_audio: false
+          pricePerSecond: 0.168
+  - name: kling-video/v3/pro/image-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.336
+        - generate_audio: false
+          pricePerSecond: 0.224
+  - name: kling-video/v3/pro/text-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.336
+        - generate_audio: false
+          pricePerSecond: 0.224
+  - name: kling-video/v3/standard/image-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.252
+        - generate_audio: false
+          pricePerSecond: 0.168
+  - name: kling-video/v3/standard/text-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.252
+        - generate_audio: false
+          pricePerSecond: 0.168
   # Sora 2 Models
   - name: sora-2/text-to-video
     type: video
@@ -529,6 +629,16 @@ models:
       function: costByVideoDuration
       inputs: [duration]
       pricePerSecond: 0.04
+
+  # LTX-2-19b Video Models
+  - name: ltx-2-19b/audio-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoMegapixels
+      inputs: [num_frames, video_size]
+      pricePerMegapixel: 0.0018
 
   # LTX-2-19b Distilled Video Models
   - name: ltx-2-19b/distilled/text-to-video
