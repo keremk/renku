@@ -391,6 +391,46 @@ models:
           pricePerSecond: 0.224
         - generate_audio: false
           pricePerSecond: 0.168
+  - name: kling-video/o3/standard/video-to-video/reference
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.252
+  - name: kling-video/o3/pro/image-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.28
+        - generate_audio: false
+          pricePerSecond: 0.224
+  - name: kling-video/o3/pro/reference-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.28
+        - generate_audio: false
+          pricePerSecond: 0.224
+  - name: kling-video/o3/pro/video-to-video/reference
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.336
   - name: kling-video/v3/pro/image-to-video
     type: video
     mime:

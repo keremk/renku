@@ -107,7 +107,7 @@
         "format": "uri"
       }
     },
-    "title": "O3StandardImageToVideoInput",
+    "title": "O3ProImageToVideoInput",
     "description": "Single-shot image-to-video input for O3 model.",
     "required": [
       "image_url"
@@ -137,7 +137,7 @@
         ]
       }
     },
-    "title": "O3StandardImageToVideoOutput",
+    "title": "O3ProImageToVideoOutput",
     "required": [
       "video"
     ]

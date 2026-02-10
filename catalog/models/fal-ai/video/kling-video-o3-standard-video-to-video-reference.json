@@ -1,0 +1,278 @@
+{
+  "input_schema": {
+    "x-fal-order-properties": [
+      "prompt",
+      "video_url",
+      "image_urls",
+      "keep_audio",
+      "elements",
+      "shot_type",
+      "aspect_ratio",
+      "duration"
+    ],
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "Replace both character with @Element1 and @Element2"
+        ],
+        "maxLength": 2500,
+        "type": "string",
+        "title": "Prompt",
+        "description": "Text prompt for video generation. Reference video as @Video1."
+      },
+      "duration": {
+        "enum": [
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9",
+          "10",
+          "11",
+          "12",
+          "13",
+          "14",
+          "15"
+        ],
+        "title": "Duration",
+        "type": "string",
+        "examples": [
+          "5"
+        ],
+        "description": "Video duration in seconds (3-15s for reference video)."
+      },
+      "video_url": {
+        "description": "Reference video URL. Only .mp4/.mov formats, 3-10s duration, 720-2160px resolution, max 200MB.",
+        "type": "string",
+        "examples": [
+          "https://storage.googleapis.com/falserverless/example_inputs/kling-o3/standard-v2v-reference/video_reference.mp4"
+        ],
+        "title": "Video Url",
+        "x-fal": {
+          "min_fps": 24,
+          "max_fps": 60,
+          "max_file_size": 209715200,
+          "min_duration": 3,
+          "min_width": 720,
+          "min_height": 720,
+          "max_duration": 10.05,
+          "max_width": 2160,
+          "max_height": 2160,
+          "timeout": 30
+        },
+        "limit_description": "Max file size: 200.0MB, Min width: 720px, Min height: 720px, Max width: 2160px, Max height: 2160px, Min duration: 3.0s, Max duration: 10.05s, Min FPS: 24.0, Max FPS: 60.0, Timeout: 30.0s",
+        "format": "uri"
+      },
+      "aspect_ratio": {
+        "enum": [
+          "auto",
+          "16:9",
+          "9:16",
+          "1:1"
+        ],
+        "title": "Aspect Ratio",
+        "type": "string",
+        "examples": [
+          "auto"
+        ],
+        "description": "Aspect ratio.",
+        "default": "auto"
+      },
+      "keep_audio": {
+        "examples": [
+          false
+        ],
+        "title": "Keep Audio",
+        "type": "boolean",
+        "description": "Whether to keep the original audio from the reference video. ",
+        "default": true
+      },
+      "shot_type": {
+        "enum": [
+          "customize"
+        ],
+        "title": "Shot Type",
+        "type": "string",
+        "description": "The type of multi-shot video generation.",
+        "default": "customize"
+      },
+      "elements": {
+        "examples": [
+          [
+            {
+              "reference_image_urls": [
+                "https://storage.googleapis.com/falserverless/example_inputs/kling-o3/standard-v2v-reference/element1_reference1.png"
+              ],
+              "frontal_image_url": "https://storage.googleapis.com/falserverless/example_inputs/kling-o3/standard-v2v-reference/element1_front.png"
+            },
+            {
+              "reference_image_urls": [
+                "https://storage.googleapis.com/falserverless/example_inputs/kling-o3/standard-v2v-reference/element2_reference1.png"
+              ],
+              "frontal_image_url": "https://storage.googleapis.com/falserverless/example_inputs/kling-o3/standard-v2v-reference/element2_front.png"
+            }
+          ]
+        ],
+        "title": "Elements",
+        "type": "array",
+        "description": "Elements (characters/objects) to include. Reference in prompt as @Element1, @Element2.",
+        "items": {
+          "$ref": "#/KlingV3ImageElementInput"
+        }
+      },
+      "image_urls": {
+        "examples": [
+          null
+        ],
+        "title": "Image Urls",
+        "type": "array",
+        "description": "Reference images for style/appearance. Reference in prompt as @Image1, @Image2, etc. Maximum 4 total (elements + reference images) when using video.",
+        "items": {
+          "x-fal": {
+            "max_aspect_ratio": 2.5,
+            "min_height": 300,
+            "min_aspect_ratio": 0.4,
+            "min_width": 300,
+            "timeout": 20,
+            "max_file_size": 10485760
+          },
+          "type": "string",
+          "limit_description": "Max file size: 10.0MB, Min width: 300px, Min height: 300px, Min aspect ratio: 0.40, Max aspect ratio: 2.50, Timeout: 20.0s",
+          "format": "uri"
+        }
+      }
+    },
+    "title": "O3StandardReferenceVideoV2VInput",
+    "description": "Reference video input for O3 model (3-10s duration only).",
+    "required": [
+      "prompt",
+      "video_url"
+    ]
+  },
+  "output_schema": {
+    "x-fal-order-properties": [
+      "video"
+    ],
+    "type": "object",
+    "properties": {
+      "video": {
+        "examples": [
+          {
+            "file_size": 7992288,
+            "file_name": "output.mp4",
+            "content_type": "video/mp4",
+            "url": "https://storage.googleapis.com/falserverless/example_outputs/kling-o3/standard-v2v-reference/output.mp4"
+          }
+        ],
+        "title": "Video",
+        "description": "The generated video.",
+        "allOf": [
+          {
+            "$ref": "#/File"
+          }
+        ]
+      }
+    },
+    "title": "O3StandardReferenceV2VOutput",
+    "required": [
+      "video"
+    ]
+  },
+  "KlingV3ImageElementInput": {
+    "x-fal-order-properties": [
+      "frontal_image_url",
+      "reference_image_urls"
+    ],
+    "type": "object",
+    "properties": {
+      "reference_image_urls": {
+        "title": "Reference Image Urls",
+        "type": "array",
+        "description": "Additional reference images from different angles. 1-3 images supported. At least one image is required.",
+        "items": {
+          "x-fal": {
+            "max_aspect_ratio": 2.5,
+            "min_height": 300,
+            "min_aspect_ratio": 0.4,
+            "min_width": 300,
+            "timeout": 20,
+            "max_file_size": 10485760
+          },
+          "type": "string",
+          "limit_description": "Max file size: 10.0MB, Min width: 300px, Min height: 300px, Min aspect ratio: 0.40, Max aspect ratio: 2.50, Timeout: 20.0s",
+          "format": "uri"
+        }
+      },
+      "frontal_image_url": {
+        "x-fal": {
+          "max_aspect_ratio": 2.5,
+          "min_height": 300,
+          "min_aspect_ratio": 0.4,
+          "min_width": 300,
+          "timeout": 20,
+          "max_file_size": 10485760
+        },
+        "title": "Frontal Image Url",
+        "type": "string",
+        "description": "The frontal image of the element (main view).\n\nMax file size: 10.0MB, Min width: 300px, Min height: 300px, Min aspect ratio: 0.40, Max aspect ratio: 2.50, Timeout: 20.0s",
+        "format": "uri"
+      }
+    },
+    "title": "KlingV3ImageElementInput"
+  },
+  "File": {
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data"
+    ],
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "title": "File Size",
+        "type": "integer",
+        "description": "The size of the file in bytes."
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name",
+        "type": "string",
+        "description": "The name of the file. It will be auto-generated if not provided."
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type",
+        "type": "string",
+        "description": "The mime type of the file."
+      },
+      "url": {
+        "title": "Url",
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
+      },
+      "file_data": {
+        "format": "binary",
+        "title": "File Data",
+        "type": "string",
+        "description": "File data"
+      }
+    },
+    "title": "File",
+    "required": [
+      "url"
+    ]
+  }
+}

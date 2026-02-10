@@ -89,7 +89,7 @@ producers:
   - name: ProductImageProducer
     producer: asset/text-to-image
   - name: VideoProducer
-    producer: asset/reference-to-video
+    producer: asset/ref-image-to-video
     loop: clip
   - name: AudioProducer
     producer: asset/text-to-speech

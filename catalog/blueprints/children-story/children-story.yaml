@@ -80,7 +80,7 @@ producers:
   - name: Character4ImageProducer
     producer: asset/text-to-image
   - name: SceneVideoProducer
-    producer: asset/reference-to-video
+    producer: asset/ref-image-to-video
     loop: segment
   - name: NarrationProducer
     producer: asset/text-to-speech
