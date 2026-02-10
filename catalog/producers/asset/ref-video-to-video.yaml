@@ -1,7 +1,7 @@
 meta:
-  name: Reference-Image-to-Video Generator
-  description: Generate video using reference images for subject consistency.
-  id: ReferenceToVideoProducer
+  name: Reference-Video-to-Video Generator
+  description: Generate video using reference videos for subject consistency.
+  id: RefVideoToVideoProducer
   kind: producer
   version: 0.1.0
   author: Renku
@@ -13,10 +13,10 @@ inputs:
     type: string
 
   # References
-  - name: ReferenceImages
-    description: Reference images for consistent subject appearance.
+  - name: ReferenceVideos
+    description: Reference videos for subject consistency.
     type: collection
-    itemType: image
+    itemType: video
 
   # Duration
   - name: Duration
@@ -50,18 +50,15 @@ artifacts:
     description: The audio track of the generated video.
     type: audio
 
-
 mappings:
   fal-ai:
-    # Veo 3.1 Reference-to-Video (uses image references)
-    veo3.1/reference-to-video:
+    # Wan v2.6 Reference-to-Video (uses video references)
+    wan/v2.6/reference-to-video:
       Prompt: prompt
-      ReferenceImages: image_urls
+      ReferenceVideos: video_urls
       Duration:
         field: duration
-        intToSecondsString: true
+        intToString: true
+      AspectRatio: aspect_ratio
       Resolution: resolution
-      GenerateAudio: generate_audio
-      AutoFixPrompt: auto_fix
 
-    

@@ -116,6 +116,61 @@ function addUriFormat(obj, propertyName = null) {
 }
 
 /**
+ * Extract the primary input/output schema names from OpenAPI paths.
+ * The primary input is the requestBody schema of the POST operation.
+ * The primary output is the response schema (from POST or GET /requests/{request_id}).
+ */
+function findPrimarySchemaNames(openapi) {
+  let primaryInput = null;
+  let primaryOutput = null;
+
+  const paths = openapi?.paths;
+  if (!paths) return { primaryInput, primaryOutput };
+
+  for (const [, pathItem] of Object.entries(paths)) {
+    const post = pathItem?.post;
+    if (!post) continue;
+
+    // Input from requestBody
+    const inputRef =
+      post?.requestBody?.content?.['application/json']?.schema?.['$ref'];
+    if (inputRef) {
+      primaryInput = inputRef.replace('#/components/schemas/', '');
+    }
+
+    // Output from response (may be QueueStatus for queued endpoints)
+    const outputRef =
+      post?.responses?.['200']?.content?.['application/json']?.schema?.[
+        '$ref'
+      ];
+    if (outputRef) {
+      const name = outputRef.replace('#/components/schemas/', '');
+      if (name !== 'QueueStatus') {
+        primaryOutput = name;
+      }
+    }
+  }
+
+  // For queued endpoints, the actual output schema is on GET /requests/{request_id}
+  if (!primaryOutput) {
+    for (const [pathStr, pathItem] of Object.entries(paths)) {
+      if (pathStr.includes('/requests/{request_id}')) {
+        const get = pathItem?.get;
+        const ref =
+          get?.responses?.['200']?.content?.['application/json']?.schema?.[
+            '$ref'
+          ];
+        if (ref) {
+          primaryOutput = ref.replace('#/components/schemas/', '');
+        }
+      }
+    }
+  }
+
+  return { primaryInput, primaryOutput };
+}
+
+/**
  * Fetch and transform schema for a model
  * @param {string} modelName - The model name
  * @param {string} [subProvider] - Optional sub-provider. If specified, use model name as-is for endpoint.
@@ -146,6 +201,9 @@ export async function fetchAndTransformSchema(modelName, subProvider) {
     throw new Error('No schemas found in OpenAPI response');
   }
 
+  // Find the primary input/output schema names from paths
+  const { primaryInput, primaryOutput } = findPrimarySchemaNames(openapi);
+
   // Build the result object
   const result = {};
 
@@ -155,11 +213,11 @@ export async function fetchAndTransformSchema(modelName, subProvider) {
       continue;
     }
 
-    // Rename Input/Output schemas
+    // Only rename schemas that are the primary input/output for this endpoint
     let outputKey;
-    if (schemaName.endsWith('Input')) {
+    if (primaryInput && schemaName === primaryInput) {
       outputKey = 'input_schema';
-    } else if (schemaName.endsWith('Output')) {
+    } else if (primaryOutput && schemaName === primaryOutput) {
       outputKey = 'output_schema';
     } else {
       outputKey = schemaName;

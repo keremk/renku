@@ -16,20 +16,10 @@
         "examples": [
           "Two person street interview in New York City.\nSample Dialogue:\nHost: \"Did you hear the news?\"\nPerson: \"Yes! Veo 3.1 is now available on fal. If you want to see it, go check their website.\""
         ],
-        "maxLength": 20000,
-        "type": "string",
         "description": "The text prompt describing the video you want to generate",
-        "title": "Prompt"
-      },
-      "aspect_ratio": {
-        "enum": [
-          "16:9",
-          "9:16"
-        ],
-        "description": "Aspect ratio of the generated video",
         "type": "string",
-        "title": "Aspect Ratio",
-        "default": "16:9"
+        "title": "Prompt",
+        "maxLength": 20000
       },
       "duration": {
         "enum": [
@@ -42,27 +32,38 @@
         "title": "Duration",
         "default": "8s"
       },
+      "aspect_ratio": {
+        "enum": [
+          "16:9",
+          "9:16"
+        ],
+        "description": "Aspect ratio of the generated video",
+        "type": "string",
+        "title": "Aspect Ratio",
+        "default": "16:9"
+      },
       "generate_audio": {
         "description": "Whether to generate audio for the video.",
         "type": "boolean",
         "title": "Generate Audio",
         "default": true
       },
-      "resolution": {
-        "enum": [
-          "720p",
-          "1080p"
-        ],
-        "description": "The resolution of the generated video.",
-        "type": "string",
-        "title": "Resolution",
-        "default": "720p"
-      },
       "auto_fix": {
         "description": "Whether to automatically attempt to fix prompts that fail content policy or other validation checks by rewriting them.",
         "type": "boolean",
         "title": "Auto Fix",
         "default": true
+      },
+      "resolution": {
+        "enum": [
+          "720p",
+          "1080p",
+          "4k"
+        ],
+        "description": "The resolution of the generated video.",
+        "type": "string",
+        "title": "Resolution",
+        "default": "720p"
       },
       "seed": {
         "description": "The seed for the random number generator.",

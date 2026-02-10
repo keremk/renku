@@ -1,0 +1,230 @@
+{
+  "input_schema": {
+    "x-fal-order-properties": [
+      "prompt",
+      "image_urls",
+      "elements",
+      "duration",
+      "aspect_ratio"
+    ],
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "Take @Image1 as the start frame. Start with a high-angle satellite view of the ancient greenhouse ruin surrounded by nature. The camera swoops down and flies inside the building, revealing the character from @Element1 standing in the sun-drenched center. The camera then seamlessly transitions into a smooth 180-degree orbit around the character, moving to the back view. As the open backpack comes into focus, the camera continues to push forward, zooming deep inside the bag to reveal the glowing stone from @Element2 nestled inside. Cinematic lighting, hopeful atmosphere, 35mm lens. Make sure to keep it as the style of @Image2."
+        ],
+        "maxLength": 2500,
+        "type": "string",
+        "title": "Prompt",
+        "description": "Take @Element1, @Element2 to reference elements and @Image1, @Image2 to reference images in order."
+      },
+      "duration": {
+        "enum": [
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9",
+          "10"
+        ],
+        "title": "Duration",
+        "type": "string",
+        "description": "Video duration in seconds.",
+        "default": "5"
+      },
+      "aspect_ratio": {
+        "enum": [
+          "16:9",
+          "9:16",
+          "1:1"
+        ],
+        "title": "Aspect Ratio",
+        "type": "string",
+        "description": "The aspect ratio of the generated video frame.",
+        "default": "16:9"
+      },
+      "elements": {
+        "examples": [
+          [
+            {
+              "reference_image_urls": [
+                "https://v3b.fal.media/files/b/kangaroo/YMpmQkYt9xugpOTQyZW0O.png",
+                "https://v3b.fal.media/files/b/zebra/d6ywajNyJ6bnpa_xBue-K.png"
+              ],
+              "frontal_image_url": "https://v3b.fal.media/files/b/panda/MQp-ghIqshvMZROKh9lW3.png"
+            },
+            {
+              "reference_image_urls": [
+                "https://v3b.fal.media/files/b/kangaroo/EBF4nWihspyv4pp6hgj7D.png"
+              ],
+              "frontal_image_url": "https://v3b.fal.media/files/b/koala/gSnsA7HJlgcaTyR5Ujj2H.png"
+            }
+          ]
+        ],
+        "title": "Elements",
+        "type": "array",
+        "description": "Elements (characters/objects) to include in the video. Reference in prompt as @Element1, @Element2, etc. Maximum 7 total (elements + reference images + start image).",
+        "items": {
+          "$ref": "#/OmniVideoElementInput"
+        }
+      },
+      "image_urls": {
+        "examples": [
+          [
+            "https://v3b.fal.media/files/b/koala/v9COzzH23FGBYdGLgbK3u.png",
+            "https://v3b.fal.media/files/b/elephant/5Is2huKQFSE7A7c5uUeUF.png"
+          ]
+        ],
+        "title": "Image Urls",
+        "type": "array",
+        "description": "Additional reference images for style/appearance. Reference in prompt as @Image1, @Image2, etc. Maximum 7 total (elements + reference images + start image).",
+        "items": {
+          "x-fal": {
+            "max_aspect_ratio": 2.5,
+            "min_height": 300,
+            "min_aspect_ratio": 0.4,
+            "min_width": 300,
+            "timeout": 20,
+            "max_file_size": 10485760
+          },
+          "type": "string",
+          "limit_description": "Max file size: 10.0MB, Min width: 300px, Min height: 300px, Min aspect ratio: 0.40, Max aspect ratio: 2.50, Timeout: 20.0s",
+          "format": "uri"
+        }
+      }
+    },
+    "title": "OmniVideoReferenceToVideoInput",
+    "description": "Input for start-frame video generation with optional reference images and elements.",
+    "required": [
+      "prompt"
+    ]
+  },
+  "output_schema": {
+    "x-fal-order-properties": [
+      "video"
+    ],
+    "type": "object",
+    "properties": {
+      "video": {
+        "examples": [
+          {
+            "file_size": 47359974,
+            "file_name": "output.mp4",
+            "content_type": "video/mp4",
+            "url": "https://v3b.fal.media/files/b/panda/oVdiICFXY03Vbam-08Aj8_output.mp4"
+          }
+        ],
+        "title": "Video",
+        "description": "The generated video.",
+        "allOf": [
+          {
+            "$ref": "#/File"
+          }
+        ]
+      }
+    },
+    "title": "OmniVideoReferenceToVideoOutput",
+    "required": [
+      "video"
+    ]
+  },
+  "OmniVideoElementInput": {
+    "x-fal-order-properties": [
+      "frontal_image_url",
+      "reference_image_urls"
+    ],
+    "type": "object",
+    "properties": {
+      "reference_image_urls": {
+        "title": "Reference Image Urls",
+        "type": "array",
+        "description": "Additional reference images from different angles. 1-3 images supported. At least one image is required.",
+        "items": {
+          "x-fal": {
+            "max_aspect_ratio": 2.5,
+            "min_height": 300,
+            "min_aspect_ratio": 0.4,
+            "min_width": 300,
+            "timeout": 20,
+            "max_file_size": 10485760
+          },
+          "type": "string",
+          "limit_description": "Max file size: 10.0MB, Min width: 300px, Min height: 300px, Min aspect ratio: 0.40, Max aspect ratio: 2.50, Timeout: 20.0s",
+          "format": "uri"
+        }
+      },
+      "frontal_image_url": {
+        "x-fal": {
+          "max_aspect_ratio": 2.5,
+          "min_height": 300,
+          "min_aspect_ratio": 0.4,
+          "min_width": 300,
+          "timeout": 20,
+          "max_file_size": 10485760
+        },
+        "title": "Frontal Image Url",
+        "type": "string",
+        "description": "The frontal image of the element (main view).\n\nMax file size: 10.0MB, Min width: 300px, Min height: 300px, Min aspect ratio: 0.40, Max aspect ratio: 2.50, Timeout: 20.0s",
+        "format": "uri"
+      }
+    },
+    "title": "OmniVideoElementInput",
+    "required": [
+      "frontal_image_url"
+    ]
+  },
+  "File": {
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data"
+    ],
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "title": "File Size",
+        "type": "integer",
+        "description": "The size of the file in bytes."
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name",
+        "type": "string",
+        "description": "The name of the file. It will be auto-generated if not provided."
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type",
+        "type": "string",
+        "description": "The mime type of the file."
+      },
+      "url": {
+        "title": "Url",
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
+      },
+      "file_data": {
+        "format": "binary",
+        "title": "File Data",
+        "type": "string",
+        "description": "File data"
+      }
+    },
+    "title": "File",
+    "required": [
+      "url"
+    ]
+  }
+}
