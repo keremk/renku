@@ -64,4 +64,20 @@ mappings:
       GenerateAudio: generate_audio
       AutoFixPrompt: auto_fix
 
-    
+    # Kling Video O1 Reference-to-Video
+    kling-video/o1/reference-to-video:
+      Prompt: prompt
+      ReferenceImages: image_urls
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+
+    # Kling Video O1 Standard Reference-to-Video
+    kling-video/o1/standard/reference-to-video:
+      Prompt: prompt
+      ReferenceImages: image_urls
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
