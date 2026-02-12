@@ -1,0 +1,283 @@
+{
+  "input_schema": {
+    "title": "Qwen3TTSInput",
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "Very happy."
+        ],
+        "title": "Prompt",
+        "type": "string",
+        "description": "Optional prompt to guide the style of the generated speech. This prompt will be ignored if a speaker embedding is provided."
+      },
+      "speaker_voice_embedding_file_url": {
+        "examples": [
+          "https://storage.googleapis.com/falserverless/example_outputs/qwen3-tts/clone_out.safetensors"
+        ],
+        "title": "Speaker Voice Embedding File Url",
+        "type": "string",
+        "description": "URL to a speaker embedding file in safetensors format, from `fal-ai/qwen-3-tts/clone-voice` endpoint. If provided, the TTS model will use the cloned voice for synthesis instead of the predefined voices.",
+        "format": "uri"
+      },
+      "top_p": {
+        "minimum": 0,
+        "title": "Top P",
+        "type": "number",
+        "description": "Top-p sampling parameter.",
+        "maximum": 1,
+        "default": 1
+      },
+      "repetition_penalty": {
+        "minimum": 0,
+        "title": "Repetition Penalty",
+        "type": "number",
+        "description": "Penalty to reduce repeated tokens/codes.",
+        "default": 1.05
+      },
+      "top_k": {
+        "minimum": 0,
+        "title": "Top K",
+        "type": "integer",
+        "description": "Top-k sampling parameter.",
+        "default": 50
+      },
+      "subtalker_temperature": {
+        "minimum": 0,
+        "title": "Subtalker Temperature",
+        "type": "number",
+        "description": "Temperature for sub-talker sampling.",
+        "maximum": 1,
+        "default": 0.9
+      },
+      "voice": {
+        "examples": [
+          "Vivian"
+        ],
+        "title": "Voice",
+        "type": "string",
+        "description": "The voice to be used for speech synthesis, will be ignored if a speaker embedding is provided. Check out the **[documentation](https://github.com/QwenLM/Qwen3-TTS/tree/main?tab=readme-ov-file#custom-voice-generate)** for each voice's details and which language they primarily support.",
+        "enum": [
+          "Vivian",
+          "Serena",
+          "Uncle_Fu",
+          "Dylan",
+          "Eric",
+          "Ryan",
+          "Aiden",
+          "Ono_Anna",
+          "Sohee"
+        ]
+      },
+      "reference_text": {
+        "examples": [
+          "Okay. Yeah. I resent you. I love you. I respect you. But you know what? You blew it! And it is all thanks to you."
+        ],
+        "title": "Reference Text",
+        "type": "string",
+        "description": "Optional reference text that was used when creating the speaker embedding. Providing this can improve synthesis quality when using a cloned voice."
+      },
+      "temperature": {
+        "minimum": 0,
+        "title": "Temperature",
+        "type": "number",
+        "description": "Sampling temperature; higher => more random.",
+        "maximum": 1,
+        "default": 0.9
+      },
+      "text": {
+        "examples": [
+          "I am solving the equation: x = [-b ± √(b²-4ac)] / 2a? Nobody can — it's a disaster (◍•͈⌔•͈◍), very sad!"
+        ],
+        "title": "Text",
+        "type": "string",
+        "description": "The text to be converted to speech."
+      },
+      "subtalker_top_k": {
+        "minimum": 0,
+        "title": "Subtalker Top K",
+        "type": "integer",
+        "description": "Top-k for sub-talker sampling.",
+        "default": 50
+      },
+      "language": {
+        "examples": [
+          "English"
+        ],
+        "title": "Language",
+        "type": "string",
+        "description": "The language of the voice.",
+        "enum": [
+          "Auto",
+          "English",
+          "Chinese",
+          "Spanish",
+          "French",
+          "German",
+          "Italian",
+          "Japanese",
+          "Korean",
+          "Portuguese",
+          "Russian"
+        ],
+        "default": "Auto"
+      },
+      "max_new_tokens": {
+        "minimum": 1,
+        "title": "Max New Tokens",
+        "type": "integer",
+        "description": "Maximum number of new codec tokens to generate.",
+        "maximum": 8192,
+        "default": 200
+      },
+      "subtalker_dosample": {
+        "title": "Subtalker Dosample",
+        "type": "boolean",
+        "description": "Sampling switch for the sub-talker.",
+        "default": true
+      },
+      "subtalker_top_p": {
+        "minimum": 0,
+        "title": "Subtalker Top P",
+        "type": "number",
+        "description": "Top-p for sub-talker sampling.",
+        "maximum": 1,
+        "default": 1
+      }
+    },
+    "x-fal-order-properties": [
+      "text",
+      "prompt",
+      "voice",
+      "language",
+      "speaker_voice_embedding_file_url",
+      "reference_text",
+      "top_k",
+      "top_p",
+      "temperature",
+      "repetition_penalty",
+      "subtalker_dosample",
+      "subtalker_top_k",
+      "subtalker_top_p",
+      "subtalker_temperature",
+      "max_new_tokens"
+    ],
+    "required": [
+      "text"
+    ]
+  },
+  "output_schema": {
+    "title": "Qwen3TTSOutput",
+    "type": "object",
+    "properties": {
+      "audio": {
+        "examples": [
+          {
+            "duration": 13.025333333333334,
+            "file_name": "n5Ynr2aFKUPw1QjLYjB_4_XEdHoD1K.mp3",
+            "sample_rate": 24000,
+            "content_type": "audio/mpeg",
+            "url": "https://storage.googleapis.com/falserverless/example_outputs/qwen3-tts/tts_out.mp3",
+            "channels": 1
+          }
+        ],
+        "title": "Audio",
+        "description": "The generated speech audio file.",
+        "allOf": [
+          {
+            "$ref": "#/AudioFile"
+          }
+        ]
+      }
+    },
+    "x-fal-order-properties": [
+      "audio"
+    ],
+    "required": [
+      "audio"
+    ]
+  },
+  "AudioFile": {
+    "title": "AudioFile",
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "title": "File Size",
+        "type": "integer",
+        "description": "The size of the file in bytes."
+      },
+      "duration": {
+        "title": "Duration",
+        "type": "number",
+        "description": "The duration of the audio"
+      },
+      "file_data": {
+        "format": "binary",
+        "title": "File Data",
+        "type": "string",
+        "description": "File data"
+      },
+      "bitrate": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "integer"
+          }
+        ],
+        "title": "Bitrate",
+        "description": "The bitrate of the audio (e.g., '192k' or 192000)"
+      },
+      "url": {
+        "title": "Url",
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name",
+        "type": "string",
+        "description": "The name of the file. It will be auto-generated if not provided."
+      },
+      "sample_rate": {
+        "title": "Sample Rate",
+        "type": "integer",
+        "description": "The sample rate of the audio"
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type",
+        "type": "string",
+        "description": "The mime type of the file."
+      },
+      "channels": {
+        "title": "Channels",
+        "type": "integer",
+        "description": "The number of channels in the audio"
+      }
+    },
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data",
+      "duration",
+      "channels",
+      "sample_rate",
+      "bitrate"
+    ],
+    "required": [
+      "url"
+    ]
+  }
+}

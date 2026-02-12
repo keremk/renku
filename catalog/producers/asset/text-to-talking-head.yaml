@@ -38,13 +38,6 @@ inputs:
     description: "Resolution preset (480p, 720p)."
     type: string
 
-  # Generation control
-  - name: Seed
-    description: Random seed for reproducibility.
-    type: integer
-  - name: Acceleration
-    description: "Acceleration level (none, regular, high)."
-    type: string
 
 artifacts:
   - name: GeneratedVideo
@@ -82,5 +75,3 @@ mappings:
         durationToFrames:
           fps: 24
       Resolution: resolution
-      Seed: seed
-      Acceleration: acceleration

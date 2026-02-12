@@ -169,7 +169,7 @@ export function ProducerSection({
           title={sectionTitle}
           count={compositionConfigProperties.length}
           description={description}
-          defaultOpen={true}
+          defaultOpen={false}
           className={getSectionHighlightStyles(isSelected, "primary")}
         >
           <ConfigPropertiesEditor
@@ -200,7 +200,7 @@ export function ProducerSection({
       title={sectionTitle}
       count={itemCount}
       description={description}
-      defaultOpen={true}
+      defaultOpen={false}
       className={getSectionHighlightStyles(isSelected, "primary")}
     >
       {/* Prompt producers: show model row then prompt cards */}

@@ -199,7 +199,6 @@ function ConnectionRow({
                   <MapPin
                     className="h-3.5 w-3.5 shrink-0 text-primary/85"
                     aria-label="Current producer"
-                    title="Current producer"
                   />
                 )}
               </div>
@@ -232,7 +231,6 @@ function ConnectionRow({
                   <MapPin
                     className="h-3.5 w-3.5 shrink-0 text-primary/85"
                     aria-label="Current producer"
-                    title="Current producer"
                   />
                 )}
               </div>

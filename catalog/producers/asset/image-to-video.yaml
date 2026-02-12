@@ -44,17 +44,6 @@ inputs:
     description: Voice IDs for speech generation.
     type: array
 
-  # Generation control
-  - name: Seed
-    description: Random seed for reproducibility.
-    type: integer
-  - name: EnhancePrompt
-    description: Enable prompt enhancement.
-    type: boolean
-  - name: CameraFixed
-    description: Keep camera position fixed.
-    type: boolean
-
 artifacts:
   - name: GeneratedVideo
     description: The generated video.
@@ -81,7 +70,6 @@ mappings:
       AspectRatio: aspect_ratio
       Resolution: resolution
       GenerateAudio: generate_audio
-      EnhancePrompt: auto_fix
 
     # Veo 3.1 Fast First-Last-Frame
     veo3.1/fast/first-last-frame-to-video:
@@ -111,8 +99,6 @@ mappings:
         field: duration
         intToString: true
       Resolution: resolution
-      Seed: seed
-      EnhancePrompt: enable_prompt_expansion
 
     # Kling Omni (Video o1) Image-to-Video
     kling-video/o1/image-to-video:
@@ -131,7 +117,6 @@ mappings:
       Duration: 
         field: duration
         intToString: true
-      NegativePrompt: negative_prompt
 
     # Kling v2.6 Pro Image-to-Video
     kling-video/v2.6/pro/image-to-video:
@@ -140,7 +125,6 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      NegativePrompt: negative_prompt
       GenerateAudio: generate_audio
       VoiceIds: voice_ids
 
@@ -161,7 +145,6 @@ mappings:
       AspectRatio: aspect_ratio
       Resolution: resolution
       GenerateAudio: generate_audio
-      CameraFixed: camera_fixed
 
     # XAI Grok Imagine Video Image-to-Video
     xai/grok-imagine-video/image-to-video:
@@ -174,7 +157,6 @@ mappings:
     # LTX-2-19b Distilled Image-to-Video
     ltx-2-19b/distilled/image-to-video:
       Prompt: prompt
-      NegativePrompt: negative_prompt
       StartImage: image_url
       VideoSize:
         field: video_size
@@ -204,8 +186,6 @@ mappings:
         durationToFrames:
           fps: 25
       GenerateAudio: generate_audio
-      Seed: seed
-      EnhancePrompt: enable_prompt_expansion
 
   replicate:
     # Google Veo 3.1 Fast
@@ -217,8 +197,6 @@ mappings:
       AspectRatio: aspect_ratio
       Resolution: resolution
       GenerateAudio: generate_audio
-      NegativePrompt: negative_prompt
-      Seed: seed
 
     # MiniMax Hailuo 2.3 Fast (image required)
     minimax/hailuo-2.3-fast:
@@ -226,7 +204,6 @@ mappings:
       StartImage: first_frame_image
       Duration: duration
       Resolution: resolution
-      EnhancePrompt: prompt_optimizer
 
     # MiniMax Hailuo 0.2 Fast (with interpolation)
     minimax/hailuo-02-fast:
@@ -235,7 +212,6 @@ mappings:
       EndImage: last_frame_image
       Duration: duration
       Resolution: resolution
-      EnhancePrompt: prompt_optimizer
 
     # MiniMax Hailuo 0.2 (flexible)
     minimax/hailuo-02:
@@ -244,7 +220,6 @@ mappings:
       EndImage: last_frame_image
       Duration: duration
       Resolution: resolution
-      EnhancePrompt: prompt_optimizer
 
     # ByteDance Seedance (with image)
     bytedance/seedance-1.5-pro:
@@ -254,5 +229,3 @@ mappings:
       Duration: duration
       AspectRatio: aspect_ratio
       GenerateAudio: generate_audio
-      CameraFixed: camera_fixed
-      Seed: seed

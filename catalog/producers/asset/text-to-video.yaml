@@ -11,9 +11,6 @@ inputs:
   - name: Prompt
     description: Text description of the video to generate.
     type: string
-  - name: NegativePrompt
-    description: What to avoid in the video.
-    type: string
 
   # Duration
   - name: Duration
@@ -39,22 +36,6 @@ inputs:
     description: URL to background audio file.
     type: string
 
-  # Generation control
-  - name: Seed
-    description: Random seed for reproducibility.
-    type: integer
-  - name: EnhancePrompt
-    description: Enable LLM prompt enhancement.
-    type: boolean
-  - name: CameraFixed
-    description: Keep camera position fixed.
-    type: boolean
-
-  # Multi-shot
-  - name: MultiShots
-    description: Enable multi-shot segmentation.
-    type: boolean
-
 artifacts:
   - name: GeneratedVideo
     description: The generated video.
@@ -74,41 +55,32 @@ mappings:
     # Wan v2.6 Text-to-Video
     wan/v2.6/text-to-video:
       Prompt: prompt
-      NegativePrompt: negative_prompt
       Duration:
         field: duration
         intToString: true
       AspectRatio: aspect_ratio
       Resolution: resolution
       AudioUrl: audio_url
-      Seed: seed
-      EnhancePrompt: enable_prompt_expansion
-      MultiShots: multi_shots
-
+  
     # Veo 3.1 Text-to-Video
     veo3.1:
       Prompt: prompt
-      NegativePrompt: negative_prompt
       Duration:
         field: duration
         intToSecondsString: true
       AspectRatio: aspect_ratio
       Resolution: resolution
       GenerateAudio: generate_audio
-      Seed: seed
-      EnhancePrompt: auto_fix
 
     # Veo 3.1 Fast
     veo3.1/fast:
       Prompt: prompt
-      NegativePrompt: negative_prompt
       Duration:
         field: duration
         intToSecondsString: true
       AspectRatio: aspect_ratio
       Resolution: resolution
       GenerateAudio: generate_audio
-      Seed: seed
 
     # Sora 2 Text-to-Video
     sora-2/text-to-video:
@@ -124,8 +96,6 @@ mappings:
       AspectRatio: aspect_ratio
       Resolution: resolution
       GenerateAudio: generate_audio
-      CameraFixed: camera_fixed
-      Seed: seed
 
     # ByteDance Seedance v1-Pro-Fast
     bytedance/seedance/v1/pro/fast/text-to-video:
@@ -133,8 +103,6 @@ mappings:
       Duration: duration
       AspectRatio: aspect_ratio
       Resolution: resolution
-      CameraFixed: camera_fixed
-      Seed: seed
 
     # XAI Grok Imagine Video Text-to-Video
     xai/grok-imagine-video/text-to-video:
@@ -146,7 +114,6 @@ mappings:
     # LTX-2-19b Distilled Text-to-Video
     ltx-2-19b/distilled/text-to-video:
       Prompt: prompt
-      NegativePrompt: negative_prompt
       VideoSize:
         field: video_size
         combine:
@@ -174,8 +141,6 @@ mappings:
         durationToFrames:
           fps: 25
       GenerateAudio: generate_audio
-      Seed: seed
-      EnhancePrompt: enable_prompt_expansion
 
   replicate:
     # ByteDance Seedance 1.5 Pro
@@ -184,41 +149,31 @@ mappings:
       Duration: duration
       AspectRatio: aspect_ratio
       GenerateAudio: generate_audio
-      CameraFixed: camera_fixed
-      Seed: seed
 
     # ByteDance Seedance 1-Pro-Fast
     bytedance/seedance-1-pro-fast:
       Prompt: prompt
       Duration: duration
       AspectRatio: aspect_ratio
-      CameraFixed: camera_fixed
-      Seed: seed
 
     # ByteDance Seedance 1-Lite
     bytedance/seedance-1-lite:
       Prompt: prompt
       Duration: duration
       AspectRatio: aspect_ratio
-      CameraFixed: camera_fixed
-      Seed: seed
 
     # Google Veo 3.1 Fast
     google/veo-3.1-fast:
       Prompt: prompt
-      NegativePrompt: negative_prompt
       Duration: duration
       AspectRatio: aspect_ratio
       Resolution: resolution
-      GenerateAudio: generate_audio
-      Seed: seed
 
     # MiniMax Hailuo 2.3
     minimax/hailuo-2.3:
       Prompt: prompt
       Duration: duration
       Resolution: resolution
-      EnhancePrompt: prompt_optimizer
 
     # OpenAI Sora 2
     openai/sora-2:

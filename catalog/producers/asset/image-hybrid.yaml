@@ -32,36 +32,6 @@ inputs:
     description: Custom height in pixels.
     type: integer
 
-  # Generation control (includes i2i-specific params)
-  - name: Strength
-    description: Reference image influence strength (0.0-1.0). Lower = more creative.
-    type: number
-  - name: NumImages
-    description: Number of images to generate.
-    type: integer
-  - name: Seed
-    description: Random seed for reproducibility.
-    type: integer
-  - name: GuidanceScale
-    description: Prompt adherence strength.
-    type: number
-  - name: NegativePrompt
-    description: What to avoid in the image.
-    type: string
-  - name: EnhancePrompt
-    description: Enable LLM prompt enhancement.
-    type: boolean
-
-  # Output
-  - name: OutputFormat
-    description: "Image format (jpeg, png, webp, jpg)."
-    type: string
-
-  # Safety
-  - name: EnableSafetyChecker
-    description: Enable content moderation.
-    type: boolean
-
 artifacts:
   - name: GeneratedImage
     description: The generated image(s).
@@ -74,7 +44,6 @@ mappings:
     bytedance/seedream-4.5:
       Prompt: prompt
       ReferenceImages: image_input
-      NumImages: max_images
       AspectRatio: aspect_ratio
       Resolution:
         field: size
@@ -102,8 +71,6 @@ mappings:
     bytedance/seedream-4:
       Prompt: prompt
       ReferenceImages: image_input
-      NumImages: max_images
-      EnhancePrompt: enhance_prompt
       AspectRatio: aspect_ratio
       Resolution:
         field: size
@@ -131,14 +98,12 @@ mappings:
     google/nano-banana-pro:
       Prompt: prompt
       ReferenceImages: image_input
-      OutputFormat: output_format
       AspectRatio: aspect_ratio
       Resolution: resolution
 
     google/nano-banana:
       Prompt: prompt
       ReferenceImages: image_input
-      OutputFormat: output_format
       AspectRatio: aspect_ratio
       # No resolution support
 
@@ -148,15 +113,6 @@ mappings:
       ReferenceImages:
         field: image
         firstOf: true  # Takes first element from array
-      Strength: strength
-      GuidanceScale: guidance
-      Seed: seed
-      NegativePrompt: negative_prompt
-      EnhancePrompt: enhance_prompt
-      OutputFormat: output_format
-      EnableSafetyChecker:
-        field: disable_safety_checker
-        invert: true
       AspectRatio: aspect_ratio
       # Resolution maps to quality mode
       Resolution:

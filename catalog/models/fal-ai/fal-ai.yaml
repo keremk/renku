@@ -224,6 +224,30 @@ models:
       function: costByCharacters
       inputs: [text]
       pricePerCharacter: 0.0001
+  - name: minimax/speech-2.8-hd
+    type: audio
+    mime:
+      - audio/mp3
+    price:
+      function: costByCharacters
+      inputs: [text]
+      pricePerCharacter: 0.0001
+  - name: minimax/speech-2.8-turbo
+    type: audio
+    mime:
+      - audio/mp3
+    price:
+      function: costByCharacters
+      inputs: [text]
+      pricePerCharacter: 0.00006
+  - name: qwen-3-tts/text-to-speech/1.7b
+    type: audio
+    mime:
+      - audio/mp3
+    price:
+      function: costByCharacters
+      inputs: [text]
+      pricePerCharacter: 0.00009
   - name: maya/batch
     type: audio
     mime:

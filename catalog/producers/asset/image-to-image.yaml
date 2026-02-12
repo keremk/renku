@@ -35,44 +35,6 @@ inputs:
     description: Custom output height in pixels.
     type: integer
 
-  # Edit control
-  - name: Strength
-    description: How much to transform the source image (0.0-1.0).
-    type: number
-  - name: NumImages
-    description: Number of variations to generate.
-    type: integer
-  - name: Seed
-    description: Random seed for reproducibility.
-    type: integer
-  - name: GuidanceScale
-    description: Prompt adherence strength.
-    type: number
-  - name: NegativePrompt
-    description: What to avoid in the output.
-    type: string
-  - name: EnhancePrompt
-    description: Enable LLM prompt enhancement.
-    type: boolean
-
-  # Output
-  - name: OutputFormat
-    description: "Image format (jpeg, png, webp)."
-    type: string
-
-  # Safety
-  - name: EnableSafetyChecker
-    description: Enable content moderation.
-    type: boolean
-
-  # Model-specific
-  - name: Quality
-    description: "Image quality level (low, medium, high)."
-    type: string
-  - name: InputFidelity
-    description: "Input image fidelity (low, high)."
-    type: string
-
 artifacts:
   - name: TransformedImage
     description: The edited/transformed image(s).
@@ -83,12 +45,6 @@ mappings:
     qwen-image-edit-2511:
       Prompt: prompt
       SourceImages: image_urls
-      NumImages: num_images
-      Seed: seed
-      GuidanceScale: guidance_scale
-      NegativePrompt: negative_prompt
-      EnableSafetyChecker: enable_safety_checker
-      OutputFormat: output_format
       AspectRatio:
         field: image_size
         transform:
@@ -102,10 +58,6 @@ mappings:
       Prompt: prompt
       SourceImages: image_urls
       MaskImage: mask_image_url
-      NumImages: num_images
-      OutputFormat: output_format
-      Quality: quality
-      InputFidelity: input_fidelity
       AspectRatio:
         field: image_size
         transform:
@@ -117,11 +69,6 @@ mappings:
     wan/v2.6/image-to-image:
       Prompt: prompt
       SourceImages: image_urls
-      Seed: seed
-      NegativePrompt: negative_prompt
-      NumImages: num_images
-      EnhancePrompt: enable_prompt_expansion
-      EnableSafetyChecker: enable_safety_checker
       AspectRatio:
         field: image_size
         transform:
@@ -136,28 +83,16 @@ mappings:
       SourceImages:
         field: image_url
         firstOf: true
-      NumImages: num_images
-      Seed: seed
-      GuidanceScale: guidance_scale
-      EnhancePrompt: enhance_prompt
-      OutputFormat: output_format
       AspectRatio: aspect_ratio
 
     nano-banana-pro/edit:
       Prompt: prompt
       SourceImages: image_urls
-      NumImages: num_images
-      OutputFormat: output_format
       AspectRatio: aspect_ratio
       Resolution: resolution
     
     hunyuan-image/v3/instruct/edit:
       Prompt: prompt
-      NumImages: num_images
-      Seed: seed
-      GuidanceScale: guidance_scale
-      EnableSafetyChecker: enable_safety_checker
-      OutputFormat: output_format
       # AspectRatio preset - only applied when Width is not provided
       AspectRatio:
         conditional:
@@ -193,16 +128,9 @@ mappings:
       SourceImages:
         field: image_url
         firstOf: true
-      NumImages: num_images
-      OutputFormat: output_format
 
   replicate:
     qwen/qwen-image-edit-2511:
       Prompt: prompt
       SourceImages: image
-      Seed: seed
-      OutputFormat: output_format
-      EnableSafetyChecker:
-        field: disable_safety_checker
-        invert: true
       AspectRatio: aspect_ratio
