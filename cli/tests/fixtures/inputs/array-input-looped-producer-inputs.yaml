@@ -1,0 +1,12 @@
+inputs:
+  NumCharacters: 3
+  Prompt: "Turn this into a cinematic portrait"
+  CelebrityThenImages:
+    - "file:../media/grid-image-fixture.jpeg"
+    - "file:../media/grid-image-fixture.jpeg"
+    - "file:../media/grid-image-fixture.jpeg"
+
+models:
+  - model: flux-pro/kontext
+    provider: fal-ai
+    producerId: ThenImageProducer

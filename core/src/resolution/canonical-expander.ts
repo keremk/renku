@@ -739,6 +739,9 @@ function collapseInputNodes(
     const elementInputs = elementInputsByBase.get(baseKey);
     if (elementInputs && elementInputs.length > 0) {
       for (const elementNode of elementInputs) {
+        if (!nodeMatchesElementInstance(node, elementNode)) {
+          continue;
+        }
         const elementAlias = elementNode.name;
         const elementCanonicalId = resolveInputAlias(elementNode.id, new Set());
         // Only propagate if the element was aliased to something different (i.e., resolved to an artifact)
@@ -846,6 +849,34 @@ function getDimensionIndex(node: CanonicalNodeInstance, label: string): number |
     }
   }
   return undefined;
+}
+
+function nodeMatchesElementInstance(
+  baseNode: CanonicalNodeInstance,
+  elementNode: CanonicalNodeInstance,
+): boolean {
+  const baseIndices = getIndicesByLabel(baseNode);
+  const elementIndices = getIndicesByLabel(elementNode);
+
+  for (const [label, index] of baseIndices.entries()) {
+    const elementIndex = elementIndices.get(label);
+    if (elementIndex !== undefined && elementIndex !== index) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function getIndicesByLabel(node: CanonicalNodeInstance): Map<string, number> {
+  const indices = new Map<string, number>();
+  for (const symbol of node.dimensions) {
+    const value = node.indices[symbol];
+    if (value === undefined) {
+      continue;
+    }
+    indices.set(extractDimensionLabel(symbol), value);
+  }
+  return indices;
 }
 
 function formatProducerAliasForNode(node: BlueprintGraphNode): string {

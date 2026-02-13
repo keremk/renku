@@ -823,4 +823,90 @@ describe('expandBlueprintGraph', () => {
     expect(bindings!['ReferenceImages[1]']).toBe('Artifact:ProductImage.GeneratedImage');
   });
 
+  it('keeps array-input element bindings aligned with loop instance', () => {
+    const producerDoc: BlueprintDocument = {
+      meta: { id: 'ThenImageProducer', name: 'ThenImageProducer' },
+      inputs: [
+        { name: 'Prompt', type: 'string', required: true },
+        { name: 'SourceImages', type: 'collection', required: false },
+      ],
+      artefacts: [
+        { name: 'TransformedImage', type: 'image' },
+      ],
+      producers: [
+        { name: 'ImageTransformer', provider: 'fal-ai', model: 'flux-pro/kontext' },
+      ],
+      producerImports: [],
+      edges: [
+        { from: 'Prompt', to: 'ImageTransformer' },
+        { from: 'SourceImages', to: 'ImageTransformer' },
+        { from: 'ImageTransformer', to: 'TransformedImage' },
+      ],
+    };
+
+    const rootDoc: BlueprintDocument = {
+      meta: { id: 'ArrayLoop', name: 'ArrayLoop' },
+      inputs: [
+        { name: 'NumCharacters', type: 'int', required: true },
+        { name: 'Prompt', type: 'string', required: true },
+        { name: 'CelebrityThenImages', type: 'array', itemType: 'image', required: true },
+      ],
+      artefacts: [
+        { name: 'OutputImages', type: 'array', itemType: 'image', countInput: 'NumCharacters' },
+      ],
+      producers: [],
+      producerImports: [],
+      loops: [
+        { name: 'character', countInput: 'NumCharacters' },
+      ],
+      edges: [
+        { from: 'Prompt', to: 'ThenImageProducer[character].Prompt' },
+        { from: 'CelebrityThenImages[character]', to: 'ThenImageProducer[character].SourceImages[0]' },
+        { from: 'ThenImageProducer[character].TransformedImage', to: 'OutputImages[character]' },
+      ],
+    };
+
+    const tree: BlueprintTreeNode = {
+      id: 'ArrayLoop',
+      namespacePath: [],
+      document: rootDoc,
+      children: new Map([
+        ['ThenImageProducer', {
+          id: 'ThenImageProducer',
+          namespacePath: ['ThenImageProducer'],
+          document: producerDoc,
+          children: new Map(),
+          sourcePath: '/test/mock-blueprint.yaml',
+        }],
+      ]),
+      sourcePath: '/test/mock-blueprint.yaml',
+    };
+
+    const graph = buildBlueprintGraph(tree);
+    const inputSources = buildInputSourceMapFromCanonical(graph);
+    const canonicalInputs = normalizeInputValues({
+      'Input:NumCharacters': 3,
+      'Input:Prompt': 'Turn this into a modern photo',
+      'Input:CelebrityThenImages': ['image-a', 'image-b', 'image-c'],
+    }, inputSources);
+
+    const expanded = expandBlueprintGraph(graph, canonicalInputs, inputSources);
+    const producerNodes = expanded.nodes
+      .filter((node) => node.type === 'Producer' && node.id.startsWith('Producer:ThenImageProducer'))
+      .sort((a, b) => a.id.localeCompare(b.id));
+
+    expect(producerNodes).toHaveLength(3);
+
+    for (const producerNode of producerNodes) {
+      const indexMatch = producerNode.id.match(/\[(\d+)\]$/);
+      expect(indexMatch).toBeDefined();
+      const index = parseInt(indexMatch![1]!, 10);
+
+      const bindings = expanded.inputBindings[producerNode.id];
+      expect(bindings).toBeDefined();
+      expect(bindings?.SourceImages).toBe(`Input:ThenImageProducer.SourceImages[${index}]`);
+      expect(bindings?.['SourceImages[0]']).toBe(`Input:CelebrityThenImages[${index}]`);
+    }
+  });
+
 });

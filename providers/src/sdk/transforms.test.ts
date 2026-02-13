@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { applyMapping, setNestedValue, collectElementBindings, type TransformContext } from './transforms.js';
-import type { MappingFieldDefinition } from '@gorenku/core';
+import { SdkErrorCode, type MappingFieldDefinition } from '@gorenku/core';
 
 describe('transforms', () => {
   // Helper to create a basic context
@@ -833,6 +833,91 @@ describe('transforms', () => {
         field: 'image_urls',
         value: ['element1.jpg', 'element2.jpg'],
       });
+    });
+
+    it('resolves indexed canonical input from parent array input', () => {
+      const context: TransformContext = {
+        inputs: {
+          'Input:CelebrityThenImages': ['img0.jpg', 'img1.jpg', 'img2.jpg'],
+        },
+        inputBindings: {
+          SourceImages: 'Input:CelebrityThenImages[1]',
+        },
+      };
+
+      const mapping = { field: 'image_url' };
+      const result = applyMapping('SourceImages', mapping, context);
+
+      expect(result).toEqual({
+        field: 'image_url',
+        value: 'img1.jpg',
+      });
+    });
+
+    it('resolves nested indexed canonical input from parent arrays', () => {
+      const context: TransformContext = {
+        inputs: {
+          'Input:Grid': [
+            ['r0c0', 'r0c1'],
+            ['r1c0', 'r1c1'],
+          ],
+        },
+        inputBindings: {
+          Cell: 'Input:Grid[1][0]',
+        },
+      };
+
+      const mapping = { field: 'cell' };
+      const result = applyMapping('Cell', mapping, context);
+
+      expect(result).toEqual({
+        field: 'cell',
+        value: 'r1c0',
+      });
+    });
+
+    it('throws a descriptive error when indexed canonical input is out of bounds', () => {
+      const context: TransformContext = {
+        inputs: {
+          'Input:CelebrityThenImages': ['img0.jpg'],
+        },
+        inputBindings: {
+          SourceImages: 'Input:CelebrityThenImages[2]',
+        },
+      };
+
+      const mapping = { field: 'image_url' };
+
+      try {
+        applyMapping('SourceImages', mapping, context);
+        expect.fail('Expected applyMapping to throw for out-of-bounds index');
+      } catch (error) {
+        const providerError = error as { code?: string; message?: string };
+        expect(providerError.code).toBe(SdkErrorCode.INVALID_INDEXED_INPUT_ACCESS);
+        expect(providerError.message).toContain('index 2 is out of bounds');
+      }
+    });
+
+    it('throws a descriptive error when indexed canonical parent is not an array', () => {
+      const context: TransformContext = {
+        inputs: {
+          'Input:CelebrityThenImages': 'not-an-array',
+        },
+        inputBindings: {
+          SourceImages: 'Input:CelebrityThenImages[0]',
+        },
+      };
+
+      const mapping = { field: 'image_url' };
+
+      try {
+        applyMapping('SourceImages', mapping, context);
+        expect.fail('Expected applyMapping to throw when indexed parent is not an array');
+      } catch (error) {
+        const providerError = error as { code?: string; message?: string };
+        expect(providerError.code).toBe(SdkErrorCode.INVALID_INDEXED_INPUT_ACCESS);
+        expect(providerError.message).toContain('is not an array');
+      }
     });
   });
 

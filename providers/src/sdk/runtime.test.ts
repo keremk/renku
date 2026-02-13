@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createProducerRuntime } from './runtime.js';
 import type { ProviderJobContext } from '../types.js';
+import { SdkErrorCode } from '@gorenku/core';
 
 // Helper to create a minimal job context for testing
 function createTestJobContext(
@@ -375,6 +376,52 @@ describe('createProducerRuntime', () => {
       await expect(runtime.sdk.buildPayload(undefined, undefined)).rejects.toThrow(
         'Cannot expand non-object value for "Size"',
       );
+    });
+
+    it('resolves indexed canonical input IDs from parent array values', async () => {
+      const request = createTestJobContext(
+        { 'Input:NarrationScript': ['segment 0', 'segment 1', 'segment 2'] },
+        { Text: 'Input:NarrationScript[1]' },
+        {
+          Text: { field: 'text' },
+        },
+      );
+
+      const runtime = createProducerRuntime({
+        descriptor: { provider: 'test', model: 'test', environment: 'local' },
+        domain: 'media',
+        request,
+        mode: 'live',
+      });
+
+      const payload = await runtime.sdk.buildPayload(undefined, undefined);
+      expect(payload).toEqual({ text: 'segment 1' });
+    });
+
+    it('throws error when indexed canonical input ID is out of bounds', async () => {
+      const request = createTestJobContext(
+        { 'Input:NarrationScript': ['segment 0'] },
+        { Text: 'Input:NarrationScript[2]' },
+        {
+          Text: { field: 'text' },
+        },
+      );
+
+      const runtime = createProducerRuntime({
+        descriptor: { provider: 'test', model: 'test', environment: 'local' },
+        domain: 'media',
+        request,
+        mode: 'live',
+      });
+
+      try {
+        await runtime.sdk.buildPayload(undefined, undefined);
+        expect.fail('Expected buildPayload to throw for out-of-bounds indexed input access');
+      } catch (error) {
+        const providerError = error as { code?: string; message?: string };
+        expect(providerError.code).toBe(SdkErrorCode.INVALID_INDEXED_INPUT_ACCESS);
+        expect(providerError.message).toContain('index 2 is out of bounds');
+      }
     });
   });
 

@@ -82,7 +82,7 @@ export function applyMapping(
 
   if (canonicalId) {
     // Direct lookup succeeded - check if we have a resolved value
-    value = context.inputs[canonicalId];
+    value = resolveInputValue(canonicalId, context.inputs);
   }
 
   // If direct lookup didn't yield a value, check for element-level bindings
@@ -93,9 +93,11 @@ export function applyMapping(
     const elementBindings = collectElementBindings(inputAlias, context.inputBindings);
     if (elementBindings.length > 0) {
       // Reconstruct array from element bindings, filtering out undefined values
-      const elements = elementBindings.map(binding => context.inputs[binding.canonicalId]);
+      const elements = elementBindings.map((binding) =>
+        resolveInputValue(binding.canonicalId, context.inputs),
+      );
       // Only return if we have at least one valid element
-      if (elements.some(e => e !== undefined)) {
+      if (elements.some((element) => element !== undefined)) {
         value = elements;
       }
     }
@@ -196,7 +198,7 @@ export function setNestedValue(
  */
 function evaluateCondition(condition: MappingCondition, context: TransformContext): boolean {
   const canonicalId = context.inputBindings[condition.input];
-  const value = canonicalId ? context.inputs[canonicalId] : undefined;
+  const value = canonicalId ? resolveInputValue(canonicalId, context.inputs) : undefined;
 
   // Check equals condition
   if ('equals' in condition) {
@@ -236,7 +238,7 @@ function applyCombineTransform(
 
   for (const inputName of combine.inputs) {
     const canonicalId = context.inputBindings[inputName];
-    const value = canonicalId ? context.inputs[canonicalId] : undefined;
+    const value = canonicalId ? resolveInputValue(canonicalId, context.inputs) : undefined;
 
     if (value !== undefined && value !== null && value !== '') {
       keyParts.push(String(value));
@@ -365,4 +367,86 @@ export function collectElementBindings(
 
   // Sort by index to ensure correct array order
   return elements.sort((a, b) => a.index - b.index);
+}
+
+interface IndexedInputAccess {
+  baseId: string;
+  indices: number[];
+}
+
+function resolveInputValue(
+  canonicalId: string,
+  inputs: Record<string, unknown>,
+): unknown {
+  if (canonicalId in inputs) {
+    return inputs[canonicalId];
+  }
+
+  const indexedAccess = parseIndexedInputAccess(canonicalId);
+  if (!indexedAccess) {
+    return undefined;
+  }
+
+  const baseValue = inputs[indexedAccess.baseId];
+  if (baseValue === undefined) {
+    return undefined;
+  }
+
+  let currentValue: unknown = baseValue;
+  let currentPath = indexedAccess.baseId;
+
+  for (let i = 0; i < indexedAccess.indices.length; i += 1) {
+    const index = indexedAccess.indices[i]!;
+    if (!Array.isArray(currentValue)) {
+      throw createProviderError(
+        SdkErrorCode.INVALID_INDEXED_INPUT_ACCESS,
+        `Invalid indexed input access "${canonicalId}": "${currentPath}" is not an array.`,
+        { kind: 'user_input', causedByUser: true },
+      );
+    }
+    if (index >= currentValue.length) {
+      throw createProviderError(
+        SdkErrorCode.INVALID_INDEXED_INPUT_ACCESS,
+        `Invalid indexed input access "${canonicalId}": index ${index} is out of bounds for "${currentPath}" (length ${currentValue.length}).`,
+        { kind: 'user_input', causedByUser: true },
+      );
+    }
+
+    currentValue = currentValue[index];
+    currentPath = `${currentPath}[${index}]`;
+
+    if (currentValue === undefined && i < indexedAccess.indices.length - 1) {
+      throw createProviderError(
+        SdkErrorCode.INVALID_INDEXED_INPUT_ACCESS,
+        `Invalid indexed input access "${canonicalId}": "${currentPath}" cannot be indexed further because it is undefined.`,
+        { kind: 'user_input', causedByUser: true },
+      );
+    }
+  }
+
+  return currentValue;
+}
+
+function parseIndexedInputAccess(canonicalId: string): IndexedInputAccess | undefined {
+  if (!canonicalId.startsWith('Input:')) {
+    return undefined;
+  }
+
+  const indices: number[] = [];
+  let baseId = canonicalId;
+
+  while (true) {
+    const match = baseId.match(/^(.*)\[(\d+)\]$/);
+    if (!match) {
+      break;
+    }
+    indices.unshift(parseInt(match[2]!, 10));
+    baseId = match[1]!;
+  }
+
+  if (indices.length === 0 || baseId === canonicalId) {
+    return undefined;
+  }
+
+  return { baseId, indices };
 }

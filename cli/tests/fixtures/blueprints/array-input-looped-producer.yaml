@@ -1,0 +1,44 @@
+meta:
+  name: Array Input Looped Producer
+  description: Verifies array input element access when wiring into a looped producer collection slot.
+  id: ArrayInputLoopedProducer
+  version: 0.1.0
+
+inputs:
+  - name: NumCharacters
+    description: Number of loop iterations.
+    type: int
+    required: true
+  - name: Prompt
+    description: Prompt for image transformation.
+    type: string
+    required: true
+  - name: CelebrityThenImages
+    description: Source images aligned by character index.
+    type: array
+    itemType: image
+    required: true
+
+artifacts:
+  - name: OutputImages
+    description: Transformed images by character.
+    type: array
+    itemType: image
+    countInput: NumCharacters
+
+loops:
+  - name: character
+    countInput: NumCharacters
+
+producers:
+  - name: ThenImageProducer
+    producer: asset/image-to-image
+    loop: character
+
+connections:
+  - from: Prompt
+    to: ThenImageProducer[character].Prompt
+  - from: CelebrityThenImages[character]
+    to: ThenImageProducer[character].SourceImages[0]
+  - from: ThenImageProducer[character].TransformedImage
+    to: OutputImages[character]
