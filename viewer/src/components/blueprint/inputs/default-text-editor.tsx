@@ -30,8 +30,28 @@ function ReadOnlyValue({ value }: { value: unknown }) {
 }
 
 /**
+ * Check if the input type is numeric (int or number).
+ */
+function isNumericType(type: string): boolean {
+  return type === "int" || type === "integer" || type === "number";
+}
+
+/**
+ * Parse a string value to a number, returning undefined for empty/invalid values.
+ */
+function parseNumericValue(value: string): number | undefined {
+  const trimmed = value.trim();
+  if (trimmed === "") {
+    return undefined;
+  }
+  const parsed = Number(trimmed);
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+/**
  * Default text editor that handles both short and long text.
  * Uses Input for short text and Textarea for long/multiline text.
+ * Properly converts numeric types to numbers.
  */
 export function DefaultTextEditor({
   input,
@@ -41,6 +61,16 @@ export function DefaultTextEditor({
 }: InputEditorProps) {
   const stringValue = formatValueAsString(value);
   const isLongText = stringValue.length > 100 || stringValue.includes("\n");
+  const isNumeric = isNumericType(input.type);
+
+  // Handler that converts to number for numeric types
+  const handleChange = (newValue: string) => {
+    if (isNumeric) {
+      onChange(parseNumericValue(newValue));
+    } else {
+      onChange(newValue);
+    }
+  };
 
   if (!isEditable) {
     return <ReadOnlyValue value={value} />;
@@ -50,7 +80,7 @@ export function DefaultTextEditor({
     return (
       <Textarea
         value={stringValue}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => handleChange(e.target.value)}
         className="text-xs font-mono min-h-[60px] max-h-48 resize-y
           bg-muted/30 border-border/50
           focus:bg-background focus:border-primary/50"
@@ -61,8 +91,9 @@ export function DefaultTextEditor({
 
   return (
     <Input
+      type={isNumeric ? "number" : "text"}
       value={stringValue}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => handleChange(e.target.value)}
       className="text-xs font-mono h-8
         bg-muted/30 border-border/50
         focus:bg-background focus:border-primary/50"
