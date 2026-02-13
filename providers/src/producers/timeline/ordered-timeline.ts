@@ -13,6 +13,26 @@ interface FanInValue {
   groups: string[][];
 }
 
+/**
+ * Context for master track expansion. Maps groups to segments when groups have multiple items.
+ */
+interface MasterTrackContext {
+  /** For each segment index, which group index it belongs to */
+  segmentToGroup: number[];
+  /** For each group index, the segment indices it expanded into */
+  groupToSegments: Map<number, number[]>;
+  /** Original number of groups */
+  groupCount: number;
+  /** Duration of each expanded segment */
+  segmentDurations: number[];
+  /** Start time offset of each expanded segment */
+  segmentOffsets: number[];
+  /** Total timeline duration */
+  totalDuration: number;
+  /** The canonical input ID of the primary master track that drives expansion */
+  primaryMasterInputId: string;
+}
+
 type ClipKind = 'Image' | 'Audio' | 'Music' | 'Video' | 'Captions' | 'Transcription';
 
 interface TimelineClipConfig {
@@ -158,23 +178,199 @@ function resolveAllowedTracks(config: TimelineProducerConfig): Set<ClipKind> {
 }
 
 /**
- * Resolves segment count by finding the first master track with fan-in data.
+ * Finds the primary master clip (first master track with fan-in data).
  */
-function resolveSegmentCount(
+function findPrimaryMasterClip(
   clips: TimelineClipConfig[],
   masterKinds: ClipKind[],
   fanInByInput: Map<string, FanInValue>,
-): number {
+): { clip: TimelineClipConfig; fanIn: FanInValue } | undefined {
   for (const masterKind of masterKinds) {
     const candidates = clips.filter((clip) => clip.kind === masterKind);
     for (const candidate of candidates) {
       const fanIn = fanInByInput.get(candidate.inputs);
       if (fanIn && fanIn.groups.length > 0) {
-        return fanIn.groups.length;
+        return { clip: candidate, fanIn };
       }
     }
   }
-  return 0;
+  return undefined;
+}
+
+/**
+ * Builds MasterTrackContext by expanding groups with multiple items into segments.
+ * Each item in a group becomes its own segment while preserving group membership info.
+ */
+async function buildMasterTrackContext(args: {
+  clips: TimelineClipConfig[];
+  fanInByInput: Map<string, FanInValue>;
+  masterKinds: ClipKind[];
+  inputs: ResolvedInputsAccessor;
+  durationCache: Map<string, number>;
+}): Promise<MasterTrackContext> {
+  const { clips, fanInByInput, masterKinds, inputs, durationCache } = args;
+
+  const primaryMaster = findPrimaryMasterClip(clips, masterKinds, fanInByInput);
+  if (!primaryMaster) {
+    throw createProviderError(
+      SdkErrorCode.MISSING_SEGMENTS,
+      'TimelineProducer requires at least one master track with fan-in data.',
+      { kind: 'user_input', causedByUser: true },
+    );
+  }
+
+  const { clip: primaryClip, fanIn: primaryFanIn } = primaryMaster;
+  const primaryMasterInputId = primaryClip.inputs;
+  const groupCount = primaryFanIn.groups.length;
+  const primaryGroups = filterExistingAssets(normalizeGroups(primaryFanIn.groups, groupCount), inputs).map((group) =>
+    [...group].sort(),
+  );
+  const expandedSegmentCount = primaryGroups.reduce((sum, group) => sum + Math.max(1, group.length), 0);
+
+  // Build segment-to-group and group-to-segments mappings
+  const segmentToGroup: number[] = [];
+  const groupToSegments = new Map<number, number[]>();
+  const segmentDurations: number[] = [];
+
+  // Pre-compute master clips by kind for duration fallback
+  const masterClipsByKind = new Map<ClipKind, { clip: TimelineClipConfig; fanIn: FanInValue }[]>();
+  for (const masterKind of masterKinds) {
+    const candidates = clips.filter((c) => c.kind === masterKind);
+    const clipsWithFanIn: { clip: TimelineClipConfig; fanIn: FanInValue }[] = [];
+    for (const candidate of candidates) {
+      const fanIn = fanInByInput.get(candidate.inputs);
+      if (fanIn) {
+        clipsWithFanIn.push({ clip: candidate, fanIn });
+      }
+    }
+    if (clipsWithFanIn.length > 0) {
+      masterClipsByKind.set(masterKind, clipsWithFanIn);
+    }
+  }
+
+  const resolvedInputs = inputs.all();
+
+  for (let groupIndex = 0; groupIndex < groupCount; groupIndex++) {
+    const groupAssets = primaryGroups[groupIndex] ?? [];
+
+    const segmentIndices: number[] = [];
+
+    if (groupAssets.length === 0) {
+      // Empty group still creates one segment (for backward compatibility and non-master tracks)
+      const segmentIndex = segmentToGroup.length;
+      segmentToGroup.push(groupIndex);
+      segmentIndices.push(segmentIndex);
+
+      // Determine duration using fallback chain
+      const duration = await determineDurationForSegment({
+        groupIndex,
+        masterClipsByKind,
+        masterKinds,
+        groupCount,
+        expandedSegmentCount,
+        inputs,
+        durationCache,
+        resolvedInputs,
+      });
+      segmentDurations.push(duration);
+    } else {
+      // Each item in the group becomes a segment
+      for (const assetId of groupAssets) {
+        const segmentIndex = segmentToGroup.length;
+        segmentToGroup.push(groupIndex);
+        segmentIndices.push(segmentIndex);
+
+        // Get duration from this specific asset
+        let duration: number | undefined;
+
+        // For master tracks with native duration, use the asset's actual duration
+        if (TRACK_KINDS_WITH_NATIVE_DURATION.has(primaryClip.kind)) {
+          duration = await tryLoadAssetDuration({ assetId, inputs, cache: durationCache });
+        }
+
+        // Fallback chain if no native duration
+        if (duration === undefined) {
+          duration = await determineDurationForSegment({
+            groupIndex,
+            masterClipsByKind,
+            masterKinds,
+            groupCount,
+            expandedSegmentCount,
+            inputs,
+            durationCache,
+            resolvedInputs,
+          });
+        }
+
+        segmentDurations.push(duration);
+      }
+    }
+
+    groupToSegments.set(groupIndex, segmentIndices);
+  }
+
+  const segmentOffsets = buildSegmentOffsets(segmentDurations);
+  const totalDuration = roundSeconds(segmentDurations.reduce((sum, d) => sum + d, 0));
+
+  return {
+    segmentToGroup,
+    groupToSegments,
+    groupCount,
+    segmentDurations,
+    segmentOffsets,
+    totalDuration,
+    primaryMasterInputId,
+  };
+}
+
+/**
+ * Determines the duration for a segment using the master track fallback chain.
+ */
+async function determineDurationForSegment(args: {
+  groupIndex: number;
+  masterClipsByKind: Map<ClipKind, { clip: TimelineClipConfig; fanIn: FanInValue }[]>;
+  masterKinds: ClipKind[];
+  groupCount: number;
+  expandedSegmentCount: number;
+  inputs: ResolvedInputsAccessor;
+  durationCache: Map<string, number>;
+  resolvedInputs: Record<string, unknown>;
+}): Promise<number> {
+  const { groupIndex, masterClipsByKind, masterKinds, groupCount, expandedSegmentCount, inputs, durationCache, resolvedInputs } = args;
+
+  // Try each master track kind in priority order
+  for (const masterKind of masterKinds) {
+    if (!TRACK_KINDS_WITH_NATIVE_DURATION.has(masterKind)) {
+      continue;
+    }
+    const clipsForKind = masterClipsByKind.get(masterKind);
+    if (!clipsForKind) {
+      continue;
+    }
+    for (const { fanIn } of clipsForKind) {
+      const groups = normalizeGroups(fanIn.groups, groupCount);
+      const assetId = groups[groupIndex]?.[0];
+      if (assetId) {
+        const assetDuration = await tryLoadAssetDuration({ assetId, inputs, cache: durationCache });
+        if (assetDuration !== undefined) {
+          return assetDuration;
+        }
+      }
+    }
+  }
+
+  // Fallback: use SegmentDuration input
+  const segmentDuration = readOptionalPositiveNumber(resolvedInputs, [
+    'Input:SegmentDuration',
+    'SegmentDuration',
+  ]);
+  if (segmentDuration !== undefined) {
+    return segmentDuration;
+  }
+
+  // Final fallback: divide total Duration equally
+  const totalDuration = readTimelineDuration(resolvedInputs);
+  return roundSeconds(totalDuration / expandedSegmentCount);
 }
 
 export function createTimelineProducerHandler(): HandlerFactory {
@@ -235,28 +431,14 @@ export function createTimelineProducerHandler(): HandlerFactory {
         }
       }
 
-      // Determine segment count from the first master track with fan-in data
-      const segmentCount = resolveSegmentCount(clips, masterTracks, fanInByInput);
-      if (segmentCount === 0) {
-        throw createProviderError(
-          SdkErrorCode.MISSING_SEGMENTS,
-          'TimelineProducer requires at least one master track with fan-in data.',
-          { kind: 'user_input', causedByUser: true },
-        );
-      }
-
-      // Determine segment durations using fallback master tracks
-      const segmentDurations = await determineMasterSegmentDurationsWithFallback({
+      // Build master track context with group-to-segment expansion
+      const masterContext = await buildMasterTrackContext({
         clips,
         fanInByInput,
         masterKinds: masterTracks,
-        segmentCount,
         inputs: runtime.inputs,
         durationCache: assetDurationCache,
       });
-      const segmentOffsets = buildSegmentOffsets(segmentDurations);
-
-      const totalTimelineDuration = roundSeconds(segmentDurations.reduce((sum, value) => sum + value, 0));
 
       const tracks: TimelineTrack[] = await Promise.all(
         clips.map(async (clip, index) => {
@@ -272,9 +454,7 @@ export function createTimelineProducerHandler(): HandlerFactory {
             clip,
             fanIn,
             trackIndex: index,
-            segmentDurations,
-            segmentOffsets,
-            totalDuration: totalTimelineDuration,
+            masterContext,
             inputs: runtime.inputs,
             durationCache: assetDurationCache,
           });
@@ -285,7 +465,7 @@ export function createTimelineProducerHandler(): HandlerFactory {
         id: `timeline-${request.revision}`,
         movieId: readOptionalString(resolvedInputs, ['MovieId', 'movieId']),
         movieTitle: readOptionalString(resolvedInputs, ['MovieTitle', 'ScriptGenerator.MovieTitle']),
-        duration: totalTimelineDuration,
+        duration: masterContext.totalDuration,
         assetFolder: buildAssetFolder(runtime.inputs),
         tracks,
       };
@@ -505,13 +685,11 @@ async function buildTrack(args: {
   clip: TimelineClipConfig;
   fanIn: FanInValue;
   trackIndex: number;
-  segmentDurations: number[];
-  segmentOffsets: number[];
-  totalDuration: number;
+  masterContext: MasterTrackContext;
   inputs: ResolvedInputsAccessor;
   durationCache: Map<string, number>;
 }): Promise<TimelineTrack> {
-  const { clip, fanIn, trackIndex, segmentDurations, segmentOffsets, totalDuration, inputs, durationCache } = args;
+  const { clip, fanIn, trackIndex, masterContext, inputs, durationCache } = args;
   if (!fanIn || fanIn.groups.length === 0) {
     return {
       id: `track-${trackIndex}`,
@@ -525,8 +703,7 @@ async function buildTrack(args: {
         clip,
         fanIn,
         trackIndex,
-        segmentDurations,
-        segmentOffsets,
+        masterContext,
         inputs,
       });
     case 'Image':
@@ -534,8 +711,7 @@ async function buildTrack(args: {
         clip,
         fanIn,
         trackIndex,
-        segmentDurations,
-        segmentOffsets,
+        masterContext,
         inputs,
       });
     case 'Music':
@@ -543,7 +719,7 @@ async function buildTrack(args: {
         clip,
         fanIn,
         trackIndex,
-        totalDuration,
+        masterContext,
         inputs,
         durationCache,
       });
@@ -552,8 +728,7 @@ async function buildTrack(args: {
         clip,
         fanIn,
         trackIndex,
-        segmentDurations,
-        segmentOffsets,
+        masterContext,
         inputs,
         durationCache,
       });
@@ -562,8 +737,7 @@ async function buildTrack(args: {
         clip,
         fanIn,
         trackIndex,
-        segmentDurations,
-        segmentOffsets,
+        masterContext,
         inputs,
       });
     default:
@@ -579,34 +753,78 @@ function buildAudioTrack(args: {
   clip: TimelineClipConfig;
   fanIn: FanInValue;
   trackIndex: number;
-  segmentDurations: number[];
-  segmentOffsets: number[];
+  masterContext: MasterTrackContext;
   inputs: ResolvedInputsAccessor;
 }): TimelineTrack {
-  const { clip, fanIn, trackIndex, segmentDurations, segmentOffsets, inputs } = args;
-  const normalizedGroups = normalizeGroups(fanIn.groups, segmentDurations.length);
+  const { clip, fanIn, trackIndex, masterContext, inputs } = args;
+  const { groupCount, groupToSegments, segmentDurations, segmentOffsets, primaryMasterInputId } = masterContext;
+  const isMaster = clip.inputs === primaryMasterInputId;
+  const normalizedGroups = normalizeGroups(fanIn.groups, groupCount);
   // Filter out assets that don't exist (were skipped due to conditional execution)
   const groups = filterExistingAssets(normalizedGroups, inputs);
   const clips: TimelineClip[] = [];
+  const volume = typeof clip.volume === 'number' ? clip.volume : 1;
 
-  for (let index = 0; index < segmentDurations.length; index += 1) {
-    const assets = groups[index] ?? [];
-    const assetId = assets[0];
-    if (!assetId) {
-      // Skip segments with no audio assets (conditionally skipped)
-      continue;
+  if (isMaster) {
+    // Master mode: iterate all items across all groups, each item gets its own segment
+    let segmentIndex = 0;
+    for (let groupIndex = 0; groupIndex < groupCount; groupIndex++) {
+      const assets = groups[groupIndex] ?? [];
+      // Sort assets alphabetically to match the expansion order in buildMasterTrackContext
+      const sortedAssets = [...assets].sort();
+
+      if (sortedAssets.length === 0) {
+        // Empty group still has one segment
+        segmentIndex++;
+        continue;
+      }
+
+      for (const assetId of sortedAssets) {
+        clips.push({
+          id: `clip-${trackIndex}-${segmentIndex}`,
+          kind: clip.kind,
+          startTime: segmentOffsets[segmentIndex] ?? 0,
+          duration: segmentDurations[segmentIndex] ?? 0,
+          properties: {
+            volume,
+            assetId,
+          },
+        });
+
+        segmentIndex++;
+      }
     }
+  } else {
+    // Non-master span mode: one clip per group spanning all its segments
+    for (let groupIndex = 0; groupIndex < groupCount; groupIndex++) {
+      const assets = groups[groupIndex] ?? [];
+      const assetId = assets[0];
+      if (!assetId) {
+        // Skip groups with no audio assets (conditionally skipped)
+        continue;
+      }
 
-    clips.push({
-      id: `clip-${trackIndex}-${index}`,
-      kind: clip.kind,
-      startTime: segmentOffsets[index],
-      duration: segmentDurations[index],
-      properties: {
-        volume: typeof clip.volume === 'number' ? clip.volume : 1,
-        assetId,
-      },
-    });
+      const segmentIndices = groupToSegments.get(groupIndex) ?? [];
+      if (segmentIndices.length === 0) {
+        continue;
+      }
+
+      // Compute start time and combined duration for this group
+      const startSegment = Math.min(...segmentIndices);
+      const startTime = segmentOffsets[startSegment] ?? 0;
+      const duration = segmentIndices.reduce((sum, segIdx) => sum + (segmentDurations[segIdx] ?? 0), 0);
+
+      clips.push({
+        id: `clip-${trackIndex}-${groupIndex}`,
+        kind: clip.kind,
+        startTime,
+        duration,
+        properties: {
+          volume,
+          assetId,
+        },
+      });
+    }
   }
 
   return {
@@ -620,25 +838,28 @@ function buildImageTrack(args: {
   clip: TimelineClipConfig;
   fanIn: FanInValue;
   trackIndex: number;
-  segmentDurations: number[];
-  segmentOffsets: number[];
+  masterContext: MasterTrackContext;
   inputs: ResolvedInputsAccessor;
 }): TimelineTrack {
-  const { clip, fanIn, trackIndex, segmentDurations, segmentOffsets, inputs } = args;
+  const { clip, fanIn, trackIndex, masterContext, inputs } = args;
+  const { groupCount, segmentToGroup, segmentDurations, segmentOffsets } = masterContext;
   const effectName = clip.effect ?? DEFAULT_EFFECT;
-  const normalizedGroups = normalizeGroups(fanIn.groups, segmentDurations.length);
+  const normalizedGroups = normalizeGroups(fanIn.groups, groupCount);
   // Filter out assets that don't exist (were skipped due to conditional execution)
   const groups = filterExistingAssets(normalizedGroups, inputs);
   const clips: TimelineClip[] = [];
+  const segmentCount = segmentDurations.length;
 
-  for (let index = 0; index < segmentDurations.length; index += 1) {
-    const images = groups[index] ?? [];
+  // Per-segment mode: each segment uses images from its group
+  for (let segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++) {
+    const groupIndex = segmentToGroup[segmentIndex] ?? 0;
+    const images = groups[groupIndex] ?? [];
     if (images.length === 0) {
       // Skip segments with no image assets (conditionally skipped)
       continue;
     }
     const effects = images.map((assetId, imageIndex) => {
-      const preset = pickKenBurnsPreset(index, imageIndex);
+      const preset = pickKenBurnsPreset(segmentIndex, imageIndex);
       return {
         name: effectName,
         style: preset.style,
@@ -653,10 +874,10 @@ function buildImageTrack(args: {
     });
 
     clips.push({
-      id: `clip-${trackIndex}-${index}`,
+      id: `clip-${trackIndex}-${segmentIndex}`,
       kind: clip.kind,
-      startTime: segmentOffsets[index],
-      duration: segmentDurations[index],
+      startTime: segmentOffsets[segmentIndex] ?? 0,
+      duration: segmentDurations[segmentIndex] ?? 0,
       properties: {
         effect: effectName,
         effects,
@@ -675,11 +896,12 @@ async function buildMusicTrack(args: {
   clip: TimelineClipConfig;
   fanIn: FanInValue;
   trackIndex: number;
-  totalDuration: number;
+  masterContext: MasterTrackContext;
   inputs: ResolvedInputsAccessor;
   durationCache: Map<string, number>;
 }): Promise<TimelineTrack> {
-  const { clip, fanIn, trackIndex, totalDuration, inputs, durationCache } = args;
+  const { clip, fanIn, trackIndex, masterContext, inputs, durationCache } = args;
+  const { totalDuration } = masterContext;
   const allAssets = flattenFanInAssets(fanIn);
   // Filter out assets that don't exist (were skipped due to conditional execution)
   const assets = allAssets.filter((assetId) => tryResolveAssetBinary(inputs, assetId) !== undefined);
@@ -762,42 +984,93 @@ async function buildVideoTrack(args: {
   clip: TimelineClipConfig;
   fanIn: FanInValue;
   trackIndex: number;
-  segmentDurations: number[];
-  segmentOffsets: number[];
+  masterContext: MasterTrackContext;
   inputs: ResolvedInputsAccessor;
   durationCache: Map<string, number>;
 }): Promise<TimelineTrack> {
-  const { clip, fanIn, trackIndex, segmentDurations, segmentOffsets, inputs, durationCache } = args;
-  const normalizedGroups = normalizeGroups(fanIn.groups, segmentDurations.length);
+  const { clip, fanIn, trackIndex, masterContext, inputs, durationCache } = args;
+  const { groupCount, groupToSegments, segmentDurations, segmentOffsets, primaryMasterInputId } = masterContext;
+  const isMaster = clip.inputs === primaryMasterInputId;
+  const normalizedGroups = normalizeGroups(fanIn.groups, groupCount);
   // Filter out assets that don't exist (were skipped due to conditional execution)
   const groups = filterExistingAssets(normalizedGroups, inputs);
   const clips: TimelineClip[] = [];
 
-  for (let index = 0; index < segmentDurations.length; index += 1) {
-    const assets = groups[index] ?? [];
-    const assetId = assets[0];
-    if (!assetId) {
-      continue;
-    }
-    // Asset is guaranteed to exist since we filtered above
-    const originalDuration = await loadAssetDuration({ assetId, inputs, cache: durationCache });
-    const fitStrategy = resolveVideoFitStrategy();
-    const properties: Record<string, unknown> = {
-      assetId,
-      originalDuration,
-      fitStrategy,
-    };
-    if (typeof clip.volume === 'number') {
-      properties.volume = clip.volume;
-    }
+  if (isMaster) {
+    // Master mode: iterate all items across all groups, each item gets its own segment
+    let segmentIndex = 0;
+    for (let groupIndex = 0; groupIndex < groupCount; groupIndex++) {
+      const assets = groups[groupIndex] ?? [];
+      // Sort assets alphabetically to match the expansion order in buildMasterTrackContext
+      const sortedAssets = [...assets].sort();
 
-    clips.push({
-      id: `clip-${trackIndex}-${index}`,
-      kind: clip.kind,
-      startTime: segmentOffsets[index],
-      duration: segmentDurations[index],
-      properties,
-    });
+      if (sortedAssets.length === 0) {
+        // Empty group still has one segment
+        segmentIndex++;
+        continue;
+      }
+
+      for (const assetId of sortedAssets) {
+        const originalDuration = await loadAssetDuration({ assetId, inputs, cache: durationCache });
+        const fitStrategy = resolveVideoFitStrategy();
+        const properties: Record<string, unknown> = {
+          assetId,
+          originalDuration,
+          fitStrategy,
+        };
+        if (typeof clip.volume === 'number') {
+          properties.volume = clip.volume;
+        }
+
+        clips.push({
+          id: `clip-${trackIndex}-${segmentIndex}`,
+          kind: clip.kind,
+          startTime: segmentOffsets[segmentIndex] ?? 0,
+          duration: segmentDurations[segmentIndex] ?? 0,
+          properties,
+        });
+
+        segmentIndex++;
+      }
+    }
+  } else {
+    // Non-master span mode: one clip per group spanning all its segments
+    for (let groupIndex = 0; groupIndex < groupCount; groupIndex++) {
+      const assets = groups[groupIndex] ?? [];
+      const assetId = assets[0];
+      if (!assetId) {
+        continue;
+      }
+
+      const segmentIndices = groupToSegments.get(groupIndex) ?? [];
+      if (segmentIndices.length === 0) {
+        continue;
+      }
+
+      // Compute start time and combined duration for this group
+      const startSegment = Math.min(...segmentIndices);
+      const startTime = segmentOffsets[startSegment] ?? 0;
+      const duration = segmentIndices.reduce((sum, segIdx) => sum + (segmentDurations[segIdx] ?? 0), 0);
+
+      const originalDuration = await loadAssetDuration({ assetId, inputs, cache: durationCache });
+      const fitStrategy = resolveVideoFitStrategy();
+      const properties: Record<string, unknown> = {
+        assetId,
+        originalDuration,
+        fitStrategy,
+      };
+      if (typeof clip.volume === 'number') {
+        properties.volume = clip.volume;
+      }
+
+      clips.push({
+        id: `clip-${trackIndex}-${groupIndex}`,
+        kind: clip.kind,
+        startTime,
+        duration,
+        properties,
+      });
+    }
   }
 
   return {
@@ -811,28 +1084,39 @@ function buildTranscriptionTrack(args: {
   clip: TimelineClipConfig;
   fanIn: FanInValue;
   trackIndex: number;
-  segmentDurations: number[];
-  segmentOffsets: number[];
+  masterContext: MasterTrackContext;
   inputs: ResolvedInputsAccessor;
 }): TimelineTrack {
-  const { clip, fanIn, trackIndex, segmentDurations, segmentOffsets, inputs } = args;
-  const normalizedGroups = normalizeGroups(fanIn.groups, segmentDurations.length);
+  const { clip, fanIn, trackIndex, masterContext, inputs } = args;
+  const { groupCount, groupToSegments, segmentDurations, segmentOffsets } = masterContext;
+  const normalizedGroups = normalizeGroups(fanIn.groups, groupCount);
   const groups = filterExistingAssets(normalizedGroups, inputs);
   const clips: TimelineClip[] = [];
 
-  for (let index = 0; index < segmentDurations.length; index += 1) {
-    const assets = groups[index] ?? [];
+  // Non-master span mode: one clip per group spanning all its segments
+  for (let groupIndex = 0; groupIndex < groupCount; groupIndex++) {
+    const assets = groups[groupIndex] ?? [];
     const assetId = assets[0];
     if (!assetId) {
-      // Skip segments with no transcription audio (silent segments)
+      // Skip groups with no transcription audio (silent segments)
       continue;
     }
 
+    const segmentIndices = groupToSegments.get(groupIndex) ?? [];
+    if (segmentIndices.length === 0) {
+      continue;
+    }
+
+    // Compute start time and combined duration for this group
+    const startSegment = Math.min(...segmentIndices);
+    const startTime = segmentOffsets[startSegment] ?? 0;
+    const duration = segmentIndices.reduce((sum, segIdx) => sum + (segmentDurations[segIdx] ?? 0), 0);
+
     clips.push({
-      id: `clip-${trackIndex}-${index}`,
+      id: `clip-${trackIndex}-${groupIndex}`,
       kind: clip.kind,
-      startTime: segmentOffsets[index],
-      duration: segmentDurations[index],
+      startTime,
+      duration,
       properties: {
         assetId,
       },
@@ -897,93 +1181,6 @@ function readTimelineDuration(inputs: Record<string, unknown>): number {
     'TimelineProducer requires a positive Duration input.',
     { kind: 'user_input', causedByUser: true },
   );
-}
-
-/**
- * Determines segment durations using a fallback chain of master tracks.
- * For each segment, tries master tracks in priority order until one has an asset.
- * Falls back to SegmentDuration input or equal division of Duration if no master track has an asset.
- */
-async function determineMasterSegmentDurationsWithFallback(args: {
-  clips: TimelineClipConfig[];
-  fanInByInput: Map<string, FanInValue>;
-  masterKinds: ClipKind[];
-  segmentCount: number;
-  inputs: ResolvedInputsAccessor;
-  durationCache: Map<string, number>;
-}): Promise<number[]> {
-  const { clips, fanInByInput, masterKinds, segmentCount, inputs, durationCache } = args;
-  const resolvedInputs = inputs.all();
-  const durations: number[] = [];
-
-  // Pre-compute master clips and their fan-in data grouped by kind
-  const masterClipsByKind = new Map<ClipKind, { clip: TimelineClipConfig; fanIn: FanInValue }[]>();
-  for (const masterKind of masterKinds) {
-    const candidates = clips.filter((clip) => clip.kind === masterKind);
-    const clipsWithFanIn: { clip: TimelineClipConfig; fanIn: FanInValue }[] = [];
-    for (const candidate of candidates) {
-      const fanIn = fanInByInput.get(candidate.inputs);
-      if (fanIn) {
-        clipsWithFanIn.push({ clip: candidate, fanIn });
-      }
-    }
-    if (clipsWithFanIn.length > 0) {
-      masterClipsByKind.set(masterKind, clipsWithFanIn);
-    }
-  }
-
-  for (let segmentIndex = 0; segmentIndex < segmentCount; segmentIndex += 1) {
-    let duration: number | undefined;
-
-    // Try each master track kind in priority order
-    for (const masterKind of masterKinds) {
-      if (duration !== undefined) {
-        break;
-      }
-      // Only tracks with native duration (Audio, Video, Music) can provide segment duration
-      if (!TRACK_KINDS_WITH_NATIVE_DURATION.has(masterKind)) {
-        continue;
-      }
-      const clipsForKind = masterClipsByKind.get(masterKind);
-      if (!clipsForKind) {
-        continue;
-      }
-      for (const { fanIn } of clipsForKind) {
-        const groups = normalizeGroups(fanIn.groups, segmentCount);
-        const assetId = groups[segmentIndex]?.[0];
-        if (assetId) {
-          // Use tryLoadAssetDuration to handle skipped assets gracefully
-          const assetDuration = await tryLoadAssetDuration({ assetId, inputs, cache: durationCache });
-          if (assetDuration !== undefined) {
-            duration = assetDuration;
-            break;
-          }
-          // Asset was skipped - continue to next candidate
-        }
-      }
-    }
-
-    // Fallback: use SegmentDuration input if no master track had an asset
-    if (duration === undefined) {
-      const segmentDuration = readOptionalPositiveNumber(resolvedInputs, [
-        'Input:SegmentDuration',
-        'SegmentDuration',
-      ]);
-      if (segmentDuration !== undefined) {
-        duration = segmentDuration;
-      }
-    }
-
-    // Final fallback: divide total Duration equally
-    if (duration === undefined) {
-      const totalDuration = readTimelineDuration(resolvedInputs);
-      duration = roundSeconds(totalDuration / segmentCount);
-    }
-
-    durations.push(duration);
-  }
-
-  return durations;
 }
 
 /**

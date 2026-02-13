@@ -839,4 +839,435 @@ describe('TimelineProducer', () => {
     expect(imageTrack?.clips).toHaveLength(1);
     expect(imageTrack?.clips[0]?.id).toBe('clip-0-0');
   });
+
+  describe('master track item expansion', () => {
+    it('expands multiple items per group into separate segments', async () => {
+      const handler = createHandler();
+      const request = makeRequest();
+      const resolvedInputs = request.context.extras?.resolvedInputs as Record<string, unknown>;
+      const config = request.context.providerConfig as { config: { timeline: { clips: Array<Record<string, unknown>>; numTracks: number; tracks: string[]; masterTracks: string[] } } };
+
+      // Configure Video as master track
+      config.config.timeline.masterTracks = ['Video'];
+      config.config.timeline.tracks = ['Video', 'Audio', 'Image'];
+      config.config.timeline.clips = [
+        { kind: 'Video', inputs: 'VideoSegments' },
+        { kind: 'Audio', inputs: 'AudioSegments' },
+        { kind: 'Image', inputs: 'ImageSegments', effect: 'KenBurns' },
+      ];
+      request.inputs.length = 0;
+      request.inputs.push('Input:TimelineComposer.VideoSegments');
+      request.inputs.push('Input:TimelineComposer.AudioSegments');
+      request.inputs.push('Input:TimelineComposer.ImageSegments');
+
+      // Video master track: group 0 has 2 items, group 1 has 1 item
+      // This should create 3 segments total: [V0a, V0b] from group 0, [V1] from group 1
+      const videoGroups = [
+        ['Artifact:Video[0][a]', 'Artifact:Video[0][b]'], // group 0: 2 items
+        ['Artifact:Video[1]'], // group 1: 1 item
+      ];
+      resolvedInputs['Input:TimelineComposer.VideoSegments'] = { groupBy: 'segment', groups: videoGroups };
+      resolvedInputs['TimelineComposer.VideoSegments'] = { groupBy: 'segment', groups: videoGroups };
+      resolvedInputs['Artifact:Video[0][a]'] = createAssetPayload(5);
+      resolvedInputs['Artifact:Video[0][b]'] = createAssetPayload(7);
+      resolvedInputs['Artifact:Video[1]'] = createAssetPayload(8);
+
+      // Audio: 1 item per group (should span the expanded segments)
+      const audioGroups = [
+        ['Artifact:Audio[0]'], // group 0: single audio spanning both video clips
+        ['Artifact:Audio[1]'], // group 1: single audio for video clip
+      ];
+      resolvedInputs['Input:TimelineComposer.AudioSegments'] = { groupBy: 'segment', groups: audioGroups };
+      resolvedInputs['TimelineComposer.AudioSegments'] = { groupBy: 'segment', groups: audioGroups };
+      resolvedInputs['Artifact:Audio[0]'] = createAssetPayload(12);
+      resolvedInputs['Artifact:Audio[1]'] = createAssetPayload(8);
+
+      // Images: 1 set per group (should repeat for each expanded segment)
+      const imageGroups = [
+        ['Artifact:Image[0][0]', 'Artifact:Image[0][1]'], // group 0
+        ['Artifact:Image[1][0]'], // group 1
+      ];
+      resolvedInputs['Input:TimelineComposer.ImageSegments'] = { groupBy: 'segment', orderBy: 'image', groups: imageGroups };
+      resolvedInputs['TimelineComposer.ImageSegments'] = { groupBy: 'segment', orderBy: 'image', groups: imageGroups };
+
+      const result = await handler.invoke(request);
+      expect(result.status).toBe('succeeded');
+
+      const timelinePayload = result.artefacts[0]?.blob?.data;
+      const timeline = JSON.parse(typeof timelinePayload === 'string' ? timelinePayload : '{}') as {
+        duration: number;
+        tracks: Array<{ kind: string; clips: Array<{ startTime: number; duration: number; properties: Record<string, unknown> }> }>;
+      };
+
+      // Total duration: 5 + 7 + 8 = 20
+      expect(timeline.duration).toBeCloseTo(20);
+
+      // Video track (master): should have 3 clips, one per item
+      const videoTrack = timeline.tracks.find((t) => t.kind === 'Video');
+      expect(videoTrack).toBeDefined();
+      expect(videoTrack?.clips).toHaveLength(3);
+      // Sorted alphabetically: Video[0][a] first, then Video[0][b]
+      expect(videoTrack?.clips[0]?.properties.assetId).toBe('Artifact:Video[0][a]');
+      expect(videoTrack?.clips[0]?.startTime).toBe(0);
+      expect(videoTrack?.clips[0]?.duration).toBeCloseTo(5);
+      expect(videoTrack?.clips[1]?.properties.assetId).toBe('Artifact:Video[0][b]');
+      expect(videoTrack?.clips[1]?.startTime).toBeCloseTo(5);
+      expect(videoTrack?.clips[1]?.duration).toBeCloseTo(7);
+      expect(videoTrack?.clips[2]?.properties.assetId).toBe('Artifact:Video[1]');
+      expect(videoTrack?.clips[2]?.startTime).toBeCloseTo(12);
+      expect(videoTrack?.clips[2]?.duration).toBeCloseTo(8);
+    });
+
+    it('spans non-master audio across expanded segments', async () => {
+      const handler = createHandler();
+      const request = makeRequest();
+      const resolvedInputs = request.context.extras?.resolvedInputs as Record<string, unknown>;
+      const config = request.context.providerConfig as { config: { timeline: { clips: Array<Record<string, unknown>>; numTracks: number; tracks: string[]; masterTracks: string[] } } };
+
+      // Configure Video as master track
+      config.config.timeline.masterTracks = ['Video'];
+      config.config.timeline.tracks = ['Video', 'Audio'];
+      config.config.timeline.clips = [
+        { kind: 'Video', inputs: 'VideoSegments' },
+        { kind: 'Audio', inputs: 'AudioSegments' },
+      ];
+      request.inputs.length = 0;
+      request.inputs.push('Input:TimelineComposer.VideoSegments');
+      request.inputs.push('Input:TimelineComposer.AudioSegments');
+
+      // Video master: group 0 has 2 items (expands to 2 segments)
+      const videoGroups = [
+        ['Artifact:Video[0][a]', 'Artifact:Video[0][b]'],
+      ];
+      resolvedInputs['Input:TimelineComposer.VideoSegments'] = { groupBy: 'segment', groups: videoGroups };
+      resolvedInputs['TimelineComposer.VideoSegments'] = { groupBy: 'segment', groups: videoGroups };
+      resolvedInputs['Artifact:Video[0][a]'] = createAssetPayload(6);
+      resolvedInputs['Artifact:Video[0][b]'] = createAssetPayload(4);
+
+      // Audio: 1 item per group - should span both video segments
+      const audioGroups = [
+        ['Artifact:Audio[0]'],
+      ];
+      resolvedInputs['Input:TimelineComposer.AudioSegments'] = { groupBy: 'segment', groups: audioGroups };
+      resolvedInputs['TimelineComposer.AudioSegments'] = { groupBy: 'segment', groups: audioGroups };
+      resolvedInputs['Artifact:Audio[0]'] = createAssetPayload(10);
+
+      const result = await handler.invoke(request);
+      expect(result.status).toBe('succeeded');
+
+      const timelinePayload = result.artefacts[0]?.blob?.data;
+      const timeline = JSON.parse(typeof timelinePayload === 'string' ? timelinePayload : '{}') as {
+        tracks: Array<{ kind: string; clips: Array<{ startTime: number; duration: number; properties: Record<string, unknown> }> }>;
+      };
+
+      // Audio track should have 1 clip spanning duration 6+4=10
+      const audioTrack = timeline.tracks.find((t) => t.kind === 'Audio');
+      expect(audioTrack).toBeDefined();
+      expect(audioTrack?.clips).toHaveLength(1);
+      expect(audioTrack?.clips[0]?.startTime).toBe(0);
+      expect(audioTrack?.clips[0]?.duration).toBeCloseTo(10);
+      expect(audioTrack?.clips[0]?.properties.assetId).toBe('Artifact:Audio[0]');
+    });
+
+    it('expands primary audio clips per segment when a group has multiple assets', async () => {
+      const handler = createHandler();
+      const request = makeRequest();
+      const resolvedInputs = request.context.extras?.resolvedInputs as Record<string, unknown>;
+      const config = request.context.providerConfig as {
+        config: { timeline: { clips: Array<Record<string, unknown>>; numTracks: number; tracks: string[]; masterTracks: string[] } };
+      };
+
+      config.config.timeline.masterTracks = ['Audio'];
+      config.config.timeline.tracks = ['Audio'];
+      config.config.timeline.clips = [
+        { kind: 'Audio', inputs: 'AudioSegments' },
+      ];
+      config.config.timeline.numTracks = 1;
+      request.inputs.length = 0;
+      request.inputs.push('Input:TimelineComposer.AudioSegments');
+
+      const audioGroups = [
+        ['Artifact:Audio[0][b]', 'Artifact:Audio[0][a]'],
+        ['Artifact:Audio[1]'],
+      ];
+      resolvedInputs['Input:TimelineComposer.AudioSegments'] = { groupBy: 'segment', groups: audioGroups };
+      resolvedInputs['TimelineComposer.AudioSegments'] = { groupBy: 'segment', groups: audioGroups };
+      resolvedInputs['Artifact:Audio[0][a]'] = createAssetPayload(4);
+      resolvedInputs['Artifact:Audio[0][b]'] = createAssetPayload(6);
+      resolvedInputs['Artifact:Audio[1]'] = createAssetPayload(5);
+
+      const result = await handler.invoke(request);
+      expect(result.status).toBe('succeeded');
+
+      const timelinePayload = result.artefacts[0]?.blob?.data;
+      const timeline = JSON.parse(typeof timelinePayload === 'string' ? timelinePayload : '{}') as {
+        duration: number;
+        tracks: Array<{
+          kind: string;
+          clips: Array<{ startTime: number; duration: number; properties: { assetId?: string } }>;
+        }>;
+      };
+
+      expect(timeline.duration).toBeCloseTo(15);
+
+      const audioTrack = timeline.tracks.find((track) => track.kind === 'Audio');
+      expect(audioTrack).toBeDefined();
+      expect(audioTrack?.clips).toHaveLength(3);
+      expect(audioTrack?.clips[0]?.properties.assetId).toBe('Artifact:Audio[0][a]');
+      expect(audioTrack?.clips[0]?.startTime).toBe(0);
+      expect(audioTrack?.clips[0]?.duration).toBeCloseTo(4);
+      expect(audioTrack?.clips[1]?.properties.assetId).toBe('Artifact:Audio[0][b]');
+      expect(audioTrack?.clips[1]?.startTime).toBeCloseTo(4);
+      expect(audioTrack?.clips[1]?.duration).toBeCloseTo(6);
+      expect(audioTrack?.clips[2]?.properties.assetId).toBe('Artifact:Audio[1]');
+      expect(audioTrack?.clips[2]?.startTime).toBeCloseTo(10);
+      expect(audioTrack?.clips[2]?.duration).toBeCloseTo(5);
+    });
+
+    it('uses expanded segment count for Duration fallback when primary master has no native durations', async () => {
+      const handler = createHandler();
+      const request = makeRequest();
+      const resolvedInputs = request.context.extras?.resolvedInputs as Record<string, unknown>;
+      const config = request.context.providerConfig as {
+        config: { timeline: { clips: Array<Record<string, unknown>>; numTracks: number; tracks: string[]; masterTracks: string[] } };
+      };
+
+      config.config.timeline.masterTracks = ['Image'];
+      config.config.timeline.tracks = ['Image'];
+      config.config.timeline.clips = [
+        { kind: 'Image', inputs: 'ImageSegments', effect: 'KenBurns' },
+      ];
+      config.config.timeline.numTracks = 1;
+      request.inputs.length = 0;
+      request.inputs.push('Input:TimelineComposer.ImageSegments');
+
+      resolvedInputs['Input:TimelineComposer.Duration'] = 24;
+      resolvedInputs['TimelineComposer.Duration'] = 24;
+      resolvedInputs.Duration = 24;
+      delete resolvedInputs['Input:SegmentDuration'];
+      delete resolvedInputs.SegmentDuration;
+
+      const imageGroups = [
+        ['Artifact:Image[0][a]', 'Artifact:Image[0][b]'],
+        ['Artifact:Image[1]'],
+        ['Artifact:Image[2][a]', 'Artifact:Image[2][b]', 'Artifact:Image[2][c]'],
+      ];
+      resolvedInputs['Input:TimelineComposer.ImageSegments'] = { groupBy: 'segment', orderBy: 'image', groups: imageGroups };
+      resolvedInputs['TimelineComposer.ImageSegments'] = { groupBy: 'segment', orderBy: 'image', groups: imageGroups };
+      for (const group of imageGroups) {
+        for (const assetId of group) {
+          resolvedInputs[assetId] = createAssetPayload(1);
+        }
+      }
+
+      const result = await handler.invoke(request);
+      expect(result.status).toBe('succeeded');
+
+      const timelinePayload = result.artefacts[0]?.blob?.data;
+      const timeline = JSON.parse(typeof timelinePayload === 'string' ? timelinePayload : '{}') as {
+        duration: number;
+        tracks: Array<{ kind: string; clips: Array<{ startTime: number; duration: number }> }>;
+      };
+
+      expect(timeline.duration).toBeCloseTo(24);
+
+      const imageTrack = timeline.tracks.find((track) => track.kind === 'Image');
+      expect(imageTrack).toBeDefined();
+      expect(imageTrack?.clips).toHaveLength(6);
+      for (const imageClip of imageTrack?.clips ?? []) {
+        expect(imageClip.duration).toBeCloseTo(4);
+      }
+      expect(imageTrack?.clips[5]?.startTime).toBeCloseTo(20);
+    });
+
+    it('repeats images for each expanded segment from the same group', async () => {
+      const handler = createHandler();
+      const request = makeRequest();
+      const resolvedInputs = request.context.extras?.resolvedInputs as Record<string, unknown>;
+      const config = request.context.providerConfig as { config: { timeline: { clips: Array<Record<string, unknown>>; numTracks: number; tracks: string[]; masterTracks: string[] } } };
+
+      // Configure Video as master track
+      config.config.timeline.masterTracks = ['Video'];
+      config.config.timeline.tracks = ['Video', 'Image'];
+      config.config.timeline.clips = [
+        { kind: 'Video', inputs: 'VideoSegments' },
+        { kind: 'Image', inputs: 'ImageSegments', effect: 'KenBurns' },
+      ];
+      request.inputs.length = 0;
+      request.inputs.push('Input:TimelineComposer.VideoSegments');
+      request.inputs.push('Input:TimelineComposer.ImageSegments');
+
+      // Video master: group 0 has 2 items (expands to 2 segments)
+      const videoGroups = [
+        ['Artifact:Video[0][a]', 'Artifact:Video[0][b]'],
+      ];
+      resolvedInputs['Input:TimelineComposer.VideoSegments'] = { groupBy: 'segment', groups: videoGroups };
+      resolvedInputs['TimelineComposer.VideoSegments'] = { groupBy: 'segment', groups: videoGroups };
+      resolvedInputs['Artifact:Video[0][a]'] = createAssetPayload(5);
+      resolvedInputs['Artifact:Video[0][b]'] = createAssetPayload(5);
+
+      // Images: 1 set per group - should be used in both expanded segments
+      const imageGroups = [
+        ['Artifact:Image[0][0]', 'Artifact:Image[0][1]'],
+      ];
+      resolvedInputs['Input:TimelineComposer.ImageSegments'] = { groupBy: 'segment', orderBy: 'image', groups: imageGroups };
+      resolvedInputs['TimelineComposer.ImageSegments'] = { groupBy: 'segment', orderBy: 'image', groups: imageGroups };
+
+      const result = await handler.invoke(request);
+      expect(result.status).toBe('succeeded');
+
+      const timelinePayload = result.artefacts[0]?.blob?.data;
+      const timeline = JSON.parse(typeof timelinePayload === 'string' ? timelinePayload : '{}') as {
+        tracks: Array<{ kind: string; clips: Array<{ startTime: number; duration: number; properties: { effects?: Array<{ assetId: string }> } }> }>;
+      };
+
+      // Image track should have 2 clips (one per segment), each using the same images
+      const imageTrack = timeline.tracks.find((t) => t.kind === 'Image');
+      expect(imageTrack).toBeDefined();
+      expect(imageTrack?.clips).toHaveLength(2);
+
+      // Both clips should use the same images from group 0
+      expect(imageTrack?.clips[0]?.properties.effects?.map((e) => e.assetId)).toEqual([
+        'Artifact:Image[0][0]',
+        'Artifact:Image[0][1]',
+      ]);
+      expect(imageTrack?.clips[1]?.properties.effects?.map((e) => e.assetId)).toEqual([
+        'Artifact:Image[0][0]',
+        'Artifact:Image[0][1]',
+      ]);
+
+      // But at different times
+      expect(imageTrack?.clips[0]?.startTime).toBe(0);
+      expect(imageTrack?.clips[0]?.duration).toBeCloseTo(5);
+      expect(imageTrack?.clips[1]?.startTime).toBeCloseTo(5);
+      expect(imageTrack?.clips[1]?.duration).toBeCloseTo(5);
+    });
+
+    it('maintains backward compatibility with single item per group', async () => {
+      // This is covered by the existing tests, but let's verify explicitly
+      const handler = createHandler();
+      const request = makeRequest();
+
+      // Standard config: Audio as master, 1 item per group
+      // This should work exactly as before
+      const result = await handler.invoke(request);
+      expect(result.status).toBe('succeeded');
+
+      const timelinePayload = result.artefacts[0]?.blob?.data;
+      const timeline = JSON.parse(typeof timelinePayload === 'string' ? timelinePayload : '{}') as {
+        duration: number;
+        tracks: Array<{ kind: string; clips: Array<{ startTime: number; duration: number }> }>;
+      };
+
+      // Standard 2 segments, same as before
+      const audioTrack = timeline.tracks.find((t) => t.kind === 'Audio');
+      expect(audioTrack?.clips).toHaveLength(2);
+      expect(audioTrack?.clips[0]?.startTime).toBe(0);
+      expect(audioTrack?.clips[1]?.startTime).toBeCloseTo(12);
+    });
+
+    it('handles mixed groups with varying item counts', async () => {
+      const handler = createHandler();
+      const request = makeRequest();
+      const resolvedInputs = request.context.extras?.resolvedInputs as Record<string, unknown>;
+      const config = request.context.providerConfig as { config: { timeline: { clips: Array<Record<string, unknown>>; numTracks: number; tracks: string[]; masterTracks: string[] } } };
+
+      // Configure Video as master track
+      config.config.timeline.masterTracks = ['Video'];
+      config.config.timeline.tracks = ['Video', 'Audio', 'Transcription'];
+      config.config.timeline.clips = [
+        { kind: 'Video', inputs: 'VideoSegments' },
+        { kind: 'Audio', inputs: 'AudioSegments' },
+        { kind: 'Transcription', inputs: 'TranscriptionAudio' },
+      ];
+      request.inputs.length = 0;
+      request.inputs.push('Input:TimelineComposer.VideoSegments');
+      request.inputs.push('Input:TimelineComposer.AudioSegments');
+      request.inputs.push('Input:TimelineComposer.TranscriptionAudio');
+
+      // Video master: group 0 has 1 item, group 1 has 2 items, group 2 has 1 item
+      // This should create 4 segments total
+      const videoGroups = [
+        ['Artifact:Video[0]'], // 1 item
+        ['Artifact:Video[1][a]', 'Artifact:Video[1][b]'], // 2 items
+        ['Artifact:Video[2]'], // 1 item
+      ];
+      resolvedInputs['Input:TimelineComposer.VideoSegments'] = { groupBy: 'segment', groups: videoGroups };
+      resolvedInputs['TimelineComposer.VideoSegments'] = { groupBy: 'segment', groups: videoGroups };
+      resolvedInputs['Artifact:Video[0]'] = createAssetPayload(4);
+      resolvedInputs['Artifact:Video[1][a]'] = createAssetPayload(3);
+      resolvedInputs['Artifact:Video[1][b]'] = createAssetPayload(5);
+      resolvedInputs['Artifact:Video[2]'] = createAssetPayload(6);
+
+      // Audio: 1 item per group
+      const audioGroups = [
+        ['Artifact:Audio[0]'],
+        ['Artifact:Audio[1]'],
+        ['Artifact:Audio[2]'],
+      ];
+      resolvedInputs['Input:TimelineComposer.AudioSegments'] = { groupBy: 'segment', groups: audioGroups };
+      resolvedInputs['TimelineComposer.AudioSegments'] = { groupBy: 'segment', groups: audioGroups };
+      resolvedInputs['Artifact:Audio[0]'] = createAssetPayload(4);
+      resolvedInputs['Artifact:Audio[1]'] = createAssetPayload(8);
+      resolvedInputs['Artifact:Audio[2]'] = createAssetPayload(6);
+
+      // Transcription: sparse (only groups 0 and 2)
+      const transcriptionGroups = [
+        ['Artifact:Transcription[0]'],
+        [], // silent
+        ['Artifact:Transcription[2]'],
+      ];
+      resolvedInputs['Input:TimelineComposer.TranscriptionAudio'] = { groupBy: 'segment', groups: transcriptionGroups };
+      resolvedInputs['TimelineComposer.TranscriptionAudio'] = { groupBy: 'segment', groups: transcriptionGroups };
+      resolvedInputs['Artifact:Transcription[0]'] = createAssetPayload(4);
+      resolvedInputs['Artifact:Transcription[2]'] = createAssetPayload(6);
+
+      // Remove default image groups
+      delete resolvedInputs['Input:TimelineComposer.ImageSegments'];
+      delete resolvedInputs['TimelineComposer.ImageSegments'];
+      delete resolvedInputs.ImageSegments;
+
+      const result = await handler.invoke(request);
+      expect(result.status).toBe('succeeded');
+
+      const timelinePayload = result.artefacts[0]?.blob?.data;
+      const timeline = JSON.parse(typeof timelinePayload === 'string' ? timelinePayload : '{}') as {
+        duration: number;
+        tracks: Array<{ kind: string; clips: Array<{ startTime: number; duration: number; properties: Record<string, unknown> }> }>;
+      };
+
+      // Total: 4 + 3 + 5 + 6 = 18
+      expect(timeline.duration).toBeCloseTo(18);
+
+      // Video: 4 clips (one per item)
+      const videoTrack = timeline.tracks.find((t) => t.kind === 'Video');
+      expect(videoTrack?.clips).toHaveLength(4);
+      expect(videoTrack?.clips[0]?.properties.assetId).toBe('Artifact:Video[0]');
+      expect(videoTrack?.clips[0]?.duration).toBeCloseTo(4);
+      expect(videoTrack?.clips[1]?.properties.assetId).toBe('Artifact:Video[1][a]');
+      expect(videoTrack?.clips[1]?.duration).toBeCloseTo(3);
+      expect(videoTrack?.clips[2]?.properties.assetId).toBe('Artifact:Video[1][b]');
+      expect(videoTrack?.clips[2]?.duration).toBeCloseTo(5);
+      expect(videoTrack?.clips[3]?.properties.assetId).toBe('Artifact:Video[2]');
+      expect(videoTrack?.clips[3]?.duration).toBeCloseTo(6);
+
+      // Audio: 3 clips (one per group, spanning its segments)
+      const audioTrack = timeline.tracks.find((t) => t.kind === 'Audio');
+      expect(audioTrack?.clips).toHaveLength(3);
+      expect(audioTrack?.clips[0]?.startTime).toBe(0);
+      expect(audioTrack?.clips[0]?.duration).toBeCloseTo(4); // group 0 has 1 segment
+      expect(audioTrack?.clips[1]?.startTime).toBeCloseTo(4);
+      expect(audioTrack?.clips[1]?.duration).toBeCloseTo(8); // group 1 spans 2 segments: 3+5=8
+      expect(audioTrack?.clips[2]?.startTime).toBeCloseTo(12);
+      expect(audioTrack?.clips[2]?.duration).toBeCloseTo(6); // group 2 has 1 segment
+
+      // Transcription: 2 clips (groups 0 and 2, spanning their segments)
+      const transcriptionTrack = timeline.tracks.find((t) => t.kind === 'Transcription');
+      expect(transcriptionTrack?.clips).toHaveLength(2);
+      expect(transcriptionTrack?.clips[0]?.startTime).toBe(0);
+      expect(transcriptionTrack?.clips[0]?.duration).toBeCloseTo(4);
+      expect(transcriptionTrack?.clips[1]?.startTime).toBeCloseTo(12);
+      expect(transcriptionTrack?.clips[1]?.duration).toBeCloseTo(6);
+    });
+  });
 });
