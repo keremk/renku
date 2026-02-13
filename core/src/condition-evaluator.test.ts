@@ -66,11 +66,92 @@ describe('evaluateCondition', () => {
       expect(result.reason).toContain('!==');
     });
 
-    it('fails when types differ', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Result.Value', is: '5' };
-      const context = createContext({ 'Artifact:Producer.Result': { Value: 5 } });
+    it('fails when types differ and cannot be coerced', () => {
+      // String "5" comparing against number 5 - coercion works here
+      const condition: EdgeConditionClause = { when: 'Producer.Result.Value', is: 5 };
+      const context = createContext({ 'Artifact:Producer.Result': { Value: '5' } });
+      const result = evaluateCondition(condition, {}, context);
+      // With coercion, "5" becomes 5 and matches
+      expect(result.satisfied).toBe(true);
+    });
+
+    it('fails when string cannot be coerced to expected number', () => {
+      const condition: EdgeConditionClause = { when: 'Producer.Result.Value', is: 5 };
+      const context = createContext({ 'Artifact:Producer.Result': { Value: 'not-a-number' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
+    });
+  });
+
+  describe('is operator with type coercion (blob text/plain content)', () => {
+    // These tests verify that string values from blob content (text/plain)
+    // are correctly coerced to match the expected type from YAML conditions
+
+    it('coerces string "true" to boolean true', () => {
+      const condition: EdgeConditionClause = { when: 'Producer.Config.HasFeature', is: true };
+      // Blob content stored as text/plain contains the string "true"
+      const context = createContext({ 'Artifact:Producer.Config': { HasFeature: 'true' } });
+      const result = evaluateCondition(condition, {}, context);
+      expect(result.satisfied).toBe(true);
+    });
+
+    it('coerces string "false" to boolean false', () => {
+      const condition: EdgeConditionClause = { when: 'Producer.Config.IsDisabled', is: false };
+      // Blob content stored as text/plain contains the string "false"
+      const context = createContext({ 'Artifact:Producer.Config': { IsDisabled: 'false' } });
+      const result = evaluateCondition(condition, {}, context);
+      expect(result.satisfied).toBe(true);
+    });
+
+    it('correctly fails when string "true" compared to is: false', () => {
+      const condition: EdgeConditionClause = { when: 'Producer.Config.HasFeature', is: false };
+      const context = createContext({ 'Artifact:Producer.Config': { HasFeature: 'true' } });
+      const result = evaluateCondition(condition, {}, context);
+      expect(result.satisfied).toBe(false);
+    });
+
+    it('correctly fails when string "false" compared to is: true', () => {
+      const condition: EdgeConditionClause = { when: 'Producer.Config.HasFeature', is: true };
+      const context = createContext({ 'Artifact:Producer.Config': { HasFeature: 'false' } });
+      const result = evaluateCondition(condition, {}, context);
+      expect(result.satisfied).toBe(false);
+    });
+
+    it('coerces numeric string to number', () => {
+      const condition: EdgeConditionClause = { when: 'Producer.Stats.Count', is: 42 };
+      const context = createContext({ 'Artifact:Producer.Stats': { Count: '42' } });
+      const result = evaluateCondition(condition, {}, context);
+      expect(result.satisfied).toBe(true);
+    });
+
+    it('coerces numeric string for greaterThan', () => {
+      const condition: EdgeConditionClause = { when: 'Producer.Stats.Count', greaterThan: 10 };
+      const context = createContext({ 'Artifact:Producer.Stats': { Count: '42' } });
+      const result = evaluateCondition(condition, {}, context);
+      expect(result.satisfied).toBe(true);
+    });
+
+    it('coerces numeric string for lessThan', () => {
+      const condition: EdgeConditionClause = { when: 'Producer.Stats.Count', lessThan: 50 };
+      const context = createContext({ 'Artifact:Producer.Stats': { Count: '42' } });
+      const result = evaluateCondition(condition, {}, context);
+      expect(result.satisfied).toBe(true);
+    });
+
+    it('does not coerce non-matching strings', () => {
+      const condition: EdgeConditionClause = { when: 'Producer.Config.HasFeature', is: true };
+      // String "yes" should not be coerced to true
+      const context = createContext({ 'Artifact:Producer.Config': { HasFeature: 'yes' } });
+      const result = evaluateCondition(condition, {}, context);
+      expect(result.satisfied).toBe(false);
+    });
+
+    it('does not coerce when value is already correct type', () => {
+      const condition: EdgeConditionClause = { when: 'Producer.Config.HasFeature', is: true };
+      // Already a boolean, no coercion needed
+      const context = createContext({ 'Artifact:Producer.Config': { HasFeature: true } });
+      const result = evaluateCondition(condition, {}, context);
+      expect(result.satisfied).toBe(true);
     });
   });
 
@@ -692,6 +773,92 @@ describe('evaluateCondition', () => {
   });
 });
 
+describe('decomposed artifacts', () => {
+  // Decomposed artifacts store each field as a separate blob with the full path as artifact ID
+  // e.g., "Artifact:Producer.Output.Field[0].SubField" instead of
+  // "Artifact:Producer.Output" with nested { Field: [{ SubField: value }] }
+
+  it('finds value from decomposed artifact (full path as artifact ID)', () => {
+    const condition: EdgeConditionClause = { when: 'Producer.Output.HasFeature', is: true };
+    // Decomposed: the full path is the artifact ID, value is directly stored (as string from blob)
+    const context = createContext({
+      'Artifact:Producer.Output.HasFeature': 'true', // blob content is string "true"
+    });
+    const result = evaluateCondition(condition, {}, context);
+    expect(result.satisfied).toBe(true);
+  });
+
+  it('finds value from decomposed artifact with array index', () => {
+    const condition: EdgeConditionClause = { when: 'Producer.Output.Characters[char].HasTransition', is: true };
+    // Decomposed: includes array index in artifact ID
+    const context = createContext({
+      'Artifact:Producer.Output.Characters[1].HasTransition': 'true',
+    });
+    const result = evaluateCondition(condition, { char: 1 }, context);
+    expect(result.satisfied).toBe(true);
+  });
+
+  it('correctly evaluates false boolean in decomposed artifact', () => {
+    const condition: EdgeConditionClause = { when: 'Producer.Output.Characters[char].HasTransition', is: true };
+    const context = createContext({
+      'Artifact:Producer.Output.Characters[0].HasTransition': 'false',
+    });
+    const result = evaluateCondition(condition, { char: 0 }, context);
+    expect(result.satisfied).toBe(false);
+  });
+
+  it('prefers decomposed artifact over nested artifact when both exist', () => {
+    const condition: EdgeConditionClause = { when: 'Producer.Output.Field', is: 'decomposed' };
+    const context = createContext({
+      // Both exist - decomposed should win
+      'Artifact:Producer.Output.Field': 'decomposed',
+      'Artifact:Producer.Output': { Field: 'nested' },
+    });
+    const result = evaluateCondition(condition, {}, context);
+    expect(result.satisfied).toBe(true);
+  });
+
+  it('falls back to nested artifact when decomposed not found', () => {
+    const condition: EdgeConditionClause = { when: 'Producer.Output.Field', is: 'nested' };
+    const context = createContext({
+      // Only nested exists
+      'Artifact:Producer.Output': { Field: 'nested' },
+    });
+    const result = evaluateCondition(condition, {}, context);
+    expect(result.satisfied).toBe(true);
+  });
+
+  it('handles deeply nested decomposed artifact path', () => {
+    const condition: EdgeConditionClause = {
+      when: 'Script.Output.Segments[seg].Parts[part].Type',
+      is: 'video',
+    };
+    const context = createContext({
+      'Artifact:Script.Output.Segments[1].Parts[2].Type': 'video',
+    });
+    const result = evaluateCondition(condition, { seg: 1, part: 2 }, context);
+    expect(result.satisfied).toBe(true);
+  });
+
+  it('handles enum values in decomposed artifacts', () => {
+    const condition: EdgeConditionClause = { when: 'Producer.Output.NarrationType', is: 'Voiceover' };
+    const context = createContext({
+      'Artifact:Producer.Output.NarrationType': 'Voiceover',
+    });
+    const result = evaluateCondition(condition, {}, context);
+    expect(result.satisfied).toBe(true);
+  });
+
+  it('handles numeric values in decomposed artifacts with coercion', () => {
+    const condition: EdgeConditionClause = { when: 'Producer.Stats.Count', greaterThan: 10 };
+    const context = createContext({
+      'Artifact:Producer.Stats.Count': '42', // stored as string in blob
+    });
+    const result = evaluateCondition(condition, {}, context);
+    expect(result.satisfied).toBe(true);
+  });
+});
+
 describe('evaluateInputConditions', () => {
   it('returns empty map when inputConditions is undefined', () => {
     const context = createContext({});
@@ -765,5 +932,57 @@ describe('evaluateInputConditions', () => {
     const result = evaluateInputConditions(inputConditions, context);
     expect(result.get('input1')?.satisfied).toBe(false);
     expect(result.get('input1')?.reason).toContain('not found');
+  });
+
+  it('uses target node index when source and target have different indices for same dimension', () => {
+    // This simulates an edge like: ThenImageProducer[character+1] -> TransitionVideoProducer[character]
+    // where the source has character=2 and target has character=1.
+    // The condition checks Characters[character].HasTransition which should use character=1.
+    const inputConditions: Record<string, InputConditionInfo> = {
+      'Artifact:ThenImageProducer.TransformedImage[2]': {
+        condition: {
+          when: 'DirectorProducer.Script.Characters[character].HasTransition',
+          is: true,
+        },
+        // Indices are merged as { ...fromNode.indices, ...toNode.indices }
+        // Source (ThenImageProducer) has character=2, target (TransitionVideoProducer) has character=1
+        indices: {
+          'ThenImageProducer.TransformedImage::ns:ThenImageProducer:0:character': 2,
+          'TransitionVideoProducer.EndImage::ns:TransitionVideoProducer:0:character': 1,
+        },
+      },
+    };
+    const context = createContext({
+      // HasTransition[1] is false, HasTransition[2] is true
+      'Artifact:DirectorProducer.Script.Characters[1].HasTransition': 'false',
+      'Artifact:DirectorProducer.Script.Characters[2].HasTransition': 'true',
+    });
+    const result = evaluateInputConditions(inputConditions, context);
+    // The condition should use character=1 (target), so HasTransition[1] = false
+    // Therefore the condition `is: true` should NOT be satisfied
+    expect(result.get('Artifact:ThenImageProducer.TransformedImage[2]')?.satisfied).toBe(false);
+  });
+
+  it('uses last dimension value when indices have multiple entries with same label', () => {
+    // When multiple entries have the same dimension label, the last one (target) should win
+    const inputConditions: Record<string, InputConditionInfo> = {
+      input1: {
+        condition: {
+          when: 'Producer.Data.Items[idx].Enabled',
+          is: true,
+        },
+        indices: {
+          'Source.Field::scope:idx': 5, // Source has idx=5
+          'Target.Field::scope:idx': 2, // Target has idx=2 (should win)
+        },
+      },
+    };
+    const context = createContext({
+      'Artifact:Producer.Data.Items[2].Enabled': true, // idx=2 has Enabled=true
+      'Artifact:Producer.Data.Items[5].Enabled': false, // idx=5 has Enabled=false
+    });
+    const result = evaluateInputConditions(inputConditions, context);
+    // Should use idx=2 (last entry), which has Enabled=true
+    expect(result.get('input1')?.satisfied).toBe(true);
   });
 });

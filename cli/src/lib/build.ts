@@ -21,6 +21,7 @@ import {
   createProviderProduce,
   prepareProviderHandlers,
   type LoadedModelCatalog,
+  type ConditionHints,
 } from '@gorenku/providers';
 import type { CliConfig } from './cli-config.js';
 import { normalizeConcurrency } from './cli-config.js';
@@ -48,6 +49,8 @@ export interface ExecuteBuildOptions {
   targetArtifactIds?: string[];
   /** Enable dry-run mode: simulated providers, no S3 uploads. */
   dryRun?: boolean;
+  /** Condition hints for dry-run simulation (controls value alternation). */
+  conditionHints?: ConditionHints;
   logger?: Logger;
   notifications?: import('@gorenku/core').NotificationBus;
 }
@@ -149,6 +152,7 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<Execut
     preResolved,
     logger,
     notifications,
+    options.conditionHints,
   );
 
   const run = await executePlanWithConcurrency(

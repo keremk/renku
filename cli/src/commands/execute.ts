@@ -279,6 +279,8 @@ export async function runExecute(options: ExecuteOptions): Promise<ExecuteResult
     reRunFrom: options.dryRun ? undefined : options.reRunFrom,
     targetArtifactIds: options.targetArtifactIds,
     dryRun: options.dryRun,
+    // Pass condition hints for dry-run simulation
+    conditionHints: options.dryRun ? planResult.conditionHints : undefined,
   });
 
   return {

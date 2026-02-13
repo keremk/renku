@@ -100,6 +100,11 @@ export async function readPlan(planPath: string): Promise<any> {
   return JSON.parse(contents);
 }
 
+export async function readManifest(manifestPath: string): Promise<any> {
+  const contents = await readFile(manifestPath, 'utf8');
+  return JSON.parse(contents);
+}
+
 export function findJob(plan: any, producer: string) {
   return plan.layers.flat().find((job: any) => job.producer === producer);
 }

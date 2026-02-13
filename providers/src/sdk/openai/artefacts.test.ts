@@ -112,6 +112,69 @@ describe('buildArtefactsFromResponse', () => {
       expect(artefacts[1]?.status).toBe('failed');
       expect(artefacts[1]?.diagnostics?.reason).toBe('json_path_not_found');
     });
+
+    it('extracts boolean fields from decomposed artifacts', () => {
+      const response = {
+        Characters: [
+          { Name: 'Alice', HasTransition: true },
+          { Name: 'Bob', HasTransition: false },
+          { Name: 'Charlie', HasTransition: true },
+        ],
+      };
+
+      const produces = [
+        'Artifact:DirectorProducer.Script.Characters[0].Name',
+        'Artifact:DirectorProducer.Script.Characters[0].HasTransition',
+        'Artifact:DirectorProducer.Script.Characters[1].Name',
+        'Artifact:DirectorProducer.Script.Characters[1].HasTransition',
+        'Artifact:DirectorProducer.Script.Characters[2].Name',
+        'Artifact:DirectorProducer.Script.Characters[2].HasTransition',
+      ];
+
+      const artefacts = buildArtefactsFromResponse(response, produces, {
+        producerId: 'Producer:DirectorProducer',
+      });
+
+      expect(artefacts).toHaveLength(6);
+      expect(artefacts.every((a) => a.status === 'succeeded')).toBe(true);
+
+      // String values
+      expect(artefacts[0]?.blob?.data).toBe('Alice');
+      expect(artefacts[2]?.blob?.data).toBe('Bob');
+      expect(artefacts[4]?.blob?.data).toBe('Charlie');
+
+      // Boolean values should be serialized as JSON
+      expect(artefacts[1]?.blob?.data).toBe('true');
+      expect(artefacts[3]?.blob?.data).toBe('false');
+      expect(artefacts[5]?.blob?.data).toBe('true');
+    });
+
+    it('extracts number fields from decomposed artifacts', () => {
+      const response = {
+        Items: [
+          { Name: 'Item A', Count: 42 },
+          { Name: 'Item B', Count: 0 },
+        ],
+      };
+
+      const produces = [
+        'Artifact:Producer.Output.Items[0].Name',
+        'Artifact:Producer.Output.Items[0].Count',
+        'Artifact:Producer.Output.Items[1].Name',
+        'Artifact:Producer.Output.Items[1].Count',
+      ];
+
+      const artefacts = buildArtefactsFromResponse(response, produces, {
+        producerId: 'Producer:Producer',
+      });
+
+      expect(artefacts).toHaveLength(4);
+      expect(artefacts.every((a) => a.status === 'succeeded')).toBe(true);
+
+      // Number values should be serialized as JSON
+      expect(artefacts[1]?.blob?.data).toBe('42');
+      expect(artefacts[3]?.blob?.data).toBe('0');
+    });
   });
 });
 

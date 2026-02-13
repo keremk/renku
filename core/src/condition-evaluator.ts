@@ -142,16 +142,26 @@ function evaluateConditionClause(
   indices: Record<string, number>,
   context: ConditionEvaluationContext,
 ): ConditionEvaluationResult {
-  // Resolve the artifact path and get the value
-  const { artifactId, fieldPath } = resolveConditionPath(clause.when, indices);
-  const artifactData = context.resolvedArtifacts[artifactId];
+  // Resolve the artifact path - try both decomposed and nested formats
+  const { artifactId, fieldPath, decomposedArtifactId } = resolveConditionPath(clause.when, indices);
 
-  if (artifactData === undefined) {
-    // If the artifact doesn't exist yet, we can't evaluate
-    return { satisfied: false, reason: `Artifact ${artifactId} not found` };
+  let value: unknown;
+
+  // First, try decomposed artifact (full path is artifact ID, e.g., "Artifact:Producer.Output.Field[0].SubField")
+  // This is the format used when artifacts are stored as individual blobs
+  if (decomposedArtifactId && context.resolvedArtifacts[decomposedArtifactId] !== undefined) {
+    value = context.resolvedArtifacts[decomposedArtifactId];
+  } else if (context.resolvedArtifacts[artifactId] !== undefined) {
+    // Fall back to nested artifact (first two segments are artifact ID, navigate field path)
+    const artifactData = context.resolvedArtifacts[artifactId];
+    value = getValueAtPath(artifactData, fieldPath);
+  } else {
+    // If neither format exists, we can't evaluate
+    const triedIds = decomposedArtifactId
+      ? `${decomposedArtifactId} or ${artifactId}`
+      : artifactId;
+    return { satisfied: false, reason: `Artifact not found (tried: ${triedIds})` };
   }
-
-  const value = getValueAtPath(artifactData, fieldPath);
 
   // Evaluate each operator
   if (clause.is !== undefined) {
@@ -221,7 +231,7 @@ function evaluateConditionClause(
 }
 
 /**
- * Resolves a condition path to an artifact ID and field path.
+ * Resolves a condition path to artifact IDs and field path.
  *
  * The condition path format is: "Producer.ArtifactName.FieldPath"
  * where Producer.ArtifactName identifies the artifact and FieldPath is
@@ -229,19 +239,24 @@ function evaluateConditionClause(
  *
  * Example: "DocProducer.VideoScript.Segments[segment].NarrationType"
  * with indices { segment: 2 } becomes:
- * - artifactId: "Artifact:DocProducer.VideoScript"
+ * - artifactId: "Artifact:DocProducer.VideoScript" (nested format)
  * - fieldPath: ["Segments", "[2]", "NarrationType"]
+ * - decomposedArtifactId: "Artifact:DocProducer.VideoScript.Segments[2].NarrationType" (decomposed format)
  *
- * The artifact ID is always the first two segments (Producer.ArtifactName).
- * Everything after is the field path within that artifact.
+ * Returns both formats so the caller can try decomposed first, then fall back to nested.
  */
 function resolveConditionPath(
   whenPath: string,
   indices: Record<string, number>,
-): { artifactId: string; fieldPath: string[] } {
+): { artifactId: string; fieldPath: string[]; decomposedArtifactId?: string } {
   // Replace dimension placeholders with indices
+  // Iterate in reverse order so that target node indices (added last in merge) win
+  // when the same dimension label appears in both source and target nodes.
+  // This ensures condition evaluation uses the current producer's index, not the
+  // upstream source's index.
   let resolvedPath = whenPath;
-  for (const [symbol, index] of Object.entries(indices)) {
+  const indexEntries = Object.entries(indices).reverse();
+  for (const [symbol, index] of indexEntries) {
     // Extract the dimension label from the full symbol
     const label = extractDimensionLabel(symbol);
     // Replace [label] with [index]
@@ -267,10 +282,25 @@ function resolveConditionPath(
   const artifactPath = segments.slice(0, 2).join('.');
   const fieldPath = segments.slice(2);
 
-  // Format as canonical artifact ID
+  // Format as canonical artifact ID (nested format)
   const artifactId = formatCanonicalArtifactId([], artifactPath);
 
-  return { artifactId, fieldPath };
+  // Also build the decomposed artifact ID (full path as artifact ID)
+  // This handles artifacts that were stored as individual blobs
+  let decomposedArtifactId: string | undefined;
+  if (fieldPath.length > 0) {
+    // Rebuild the full path: join segments, converting "[n]" back to proper format
+    const fullPath = segments.map((seg, i) => {
+      // If this segment is a bracket index and not the first segment, don't add a dot before it
+      if (seg.startsWith('[') && i > 0) {
+        return seg;
+      }
+      return i > 0 ? `.${seg}` : seg;
+    }).join('');
+    decomposedArtifactId = formatCanonicalArtifactId([], fullPath);
+  }
+
+  return { artifactId, fieldPath, decomposedArtifactId };
 }
 
 /**
@@ -349,6 +379,45 @@ function getValueAtPath(obj: unknown, path: string[]): unknown {
 }
 
 /**
+ * Coerces a string value to match the type of the compare value.
+ * This handles the case where blob content is stored as text/plain
+ * but needs to be compared against typed values from YAML.
+ *
+ * Examples:
+ * - coerceToType("true", true) → true (boolean)
+ * - coerceToType("false", false) → false (boolean)
+ * - coerceToType("42", 42) → 42 (number)
+ * - coerceToType("hello", "world") → "hello" (string, no change)
+ */
+function coerceToType(value: unknown, compareValue: unknown): unknown {
+  // Only coerce strings to match the compare value's type
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  // Coerce to boolean if compareValue is boolean
+  if (typeof compareValue === 'boolean') {
+    if (value === 'true') {
+      return true;
+    }
+    if (value === 'false') {
+      return false;
+    }
+  }
+
+  // Coerce to number if compareValue is number
+  if (typeof compareValue === 'number') {
+    const parsed = Number(value);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+
+  // No coercion needed or possible
+  return value;
+}
+
+/**
  * Evaluates a single operator.
  */
 function evaluateOperator(
@@ -356,14 +425,17 @@ function evaluateOperator(
   value: unknown,
   compareValue: unknown,
 ): ConditionEvaluationResult {
+  // Coerce value to match compareValue's type (handles blob text/plain content)
+  const coercedValue = coerceToType(value, compareValue);
+
   switch (operator) {
     case 'is':
-      return deepEqual(value, compareValue)
+      return deepEqual(coercedValue, compareValue)
         ? { satisfied: true }
         : { satisfied: false, reason: `${JSON.stringify(value)} !== ${JSON.stringify(compareValue)}` };
 
     case 'isNot':
-      return !deepEqual(value, compareValue)
+      return !deepEqual(coercedValue, compareValue)
         ? { satisfied: true }
         : { satisfied: false, reason: `${JSON.stringify(value)} === ${JSON.stringify(compareValue)}` };
 
@@ -373,36 +445,36 @@ function evaluateOperator(
         : { satisfied: false, reason: `${JSON.stringify(value)} does not contain ${JSON.stringify(compareValue)}` };
 
     case 'greaterThan':
-      if (typeof value !== 'number' || typeof compareValue !== 'number') {
+      if (typeof coercedValue !== 'number' || typeof compareValue !== 'number') {
         return { satisfied: false, reason: 'greaterThan requires numeric values' };
       }
-      return value > compareValue
+      return coercedValue > compareValue
         ? { satisfied: true }
-        : { satisfied: false, reason: `${value} is not > ${compareValue}` };
+        : { satisfied: false, reason: `${coercedValue} is not > ${compareValue}` };
 
     case 'lessThan':
-      if (typeof value !== 'number' || typeof compareValue !== 'number') {
+      if (typeof coercedValue !== 'number' || typeof compareValue !== 'number') {
         return { satisfied: false, reason: 'lessThan requires numeric values' };
       }
-      return value < compareValue
+      return coercedValue < compareValue
         ? { satisfied: true }
-        : { satisfied: false, reason: `${value} is not < ${compareValue}` };
+        : { satisfied: false, reason: `${coercedValue} is not < ${compareValue}` };
 
     case 'greaterOrEqual':
-      if (typeof value !== 'number' || typeof compareValue !== 'number') {
+      if (typeof coercedValue !== 'number' || typeof compareValue !== 'number') {
         return { satisfied: false, reason: 'greaterOrEqual requires numeric values' };
       }
-      return value >= compareValue
+      return coercedValue >= compareValue
         ? { satisfied: true }
-        : { satisfied: false, reason: `${value} is not >= ${compareValue}` };
+        : { satisfied: false, reason: `${coercedValue} is not >= ${compareValue}` };
 
     case 'lessOrEqual':
-      if (typeof value !== 'number' || typeof compareValue !== 'number') {
+      if (typeof coercedValue !== 'number' || typeof compareValue !== 'number') {
         return { satisfied: false, reason: 'lessOrEqual requires numeric values' };
       }
-      return value <= compareValue
+      return coercedValue <= compareValue
         ? { satisfied: true }
-        : { satisfied: false, reason: `${value} is not <= ${compareValue}` };
+        : { satisfied: false, reason: `${coercedValue} is not <= ${compareValue}` };
 
     case 'exists': {
       const shouldExist = compareValue === true;

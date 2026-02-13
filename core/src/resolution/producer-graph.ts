@@ -4,6 +4,9 @@ import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import type {
   BlueprintProducerOutputDefinition,
   BlueprintProducerSdkMappingField,
+  EdgeConditionClause,
+  EdgeConditionDefinition,
+  EdgeConditionGroup,
   FanInDescriptor,
   InputConditionInfo,
   ProducerCatalog,
@@ -280,7 +283,8 @@ function resolveCatalogEntry(id: string, catalog: ProducerCatalog) {
  * Computes the set of artifact IDs that are actually connected downstream.
  * An artifact is "connected" if:
  * 1. It has an outgoing edge to another node (used as input or chains to another artifact), OR
- * 2. It's a root-level blueprint artifact (empty namespace path) - these are final outputs
+ * 2. It's a root-level blueprint artifact (empty namespace path) - these are final outputs, OR
+ * 3. It's referenced in a condition `when` clause on an edge
  *
  * Producer-specific artifacts (with non-empty namespace path) that have no downstream
  * connections are excluded - they're declared by the producer but not used in the blueprint.
@@ -302,7 +306,129 @@ function computeConnectedArtifacts(canonical: CanonicalBlueprint): Set<string> {
     }
   }
 
+  // Include artifacts referenced in condition `when` clauses
+  const conditionPatterns = extractConditionArtifactPatterns(canonical.edges);
+  for (const node of canonical.nodes) {
+    if (node.type === 'Artifact' && !connected.has(node.id)) {
+      // Check if this artifact matches any condition pattern
+      if (matchesConditionPattern(node.id, conditionPatterns)) {
+        connected.add(node.id);
+      }
+    }
+  }
+
   return connected;
+}
+
+/**
+ * Extracts artifact path patterns from condition `when` clauses.
+ * The patterns are used to match canonical artifact IDs.
+ *
+ * Example: "DocProducer.VideoScript.Segments[segment].UseNarrationAudio"
+ * Returns regex that treats symbolic indices as wildcards and numeric indices as exact.
+ */
+function extractConditionArtifactPatterns(edges: CanonicalEdgeInstance[]): RegExp[] {
+  const patterns: RegExp[] = [];
+
+  for (const edge of edges) {
+    if (!edge.conditions) {
+      continue;
+    }
+
+    const whenPaths = extractWhenPaths(edge.conditions);
+    for (const whenPath of whenPaths) {
+      // Convert the when path to a pattern that can match canonical artifact IDs
+      const pattern = whenPathToPattern(whenPath);
+      if (pattern) {
+        patterns.push(pattern);
+      }
+    }
+  }
+
+  return patterns;
+}
+
+/**
+ * Recursively extracts all `when` paths from a condition definition.
+ */
+function extractWhenPaths(condition: EdgeConditionDefinition): string[] {
+  const paths: string[] = [];
+
+  if (Array.isArray(condition)) {
+    for (const item of condition) {
+      paths.push(...extractWhenPaths(item));
+    }
+  } else if ('all' in condition || 'any' in condition) {
+    const group = condition as EdgeConditionGroup;
+    if (group.all) {
+      for (const clause of group.all) {
+        if ('when' in clause) {
+          paths.push(clause.when);
+        }
+      }
+    }
+    if (group.any) {
+      for (const clause of group.any) {
+        if ('when' in clause) {
+          paths.push(clause.when);
+        }
+      }
+    }
+  } else if ('when' in condition) {
+    paths.push((condition as EdgeConditionClause).when);
+  }
+
+  return paths;
+}
+
+/**
+ * Converts a condition `when` path to a pattern for matching canonical artifact IDs.
+ *
+ * Example: "DocProducer.VideoScript.Segments[segment].UseNarrationAudio"
+ * Returns regex that:
+ * - Treats symbolic indices (e.g. [segment]) as wildcards that match numeric indices
+ * - Keeps explicit numeric indices (e.g. [0]) exact
+ */
+function whenPathToPattern(whenPath: string): RegExp | null {
+  const normalizedPath = whenPath.startsWith('Artifact:')
+    ? whenPath.slice('Artifact:'.length)
+    : whenPath;
+  if (!normalizedPath) {
+    return null;
+  }
+
+  const wildcardToken = '__RENKU_ANY_INDEX__';
+  const withWildcards = normalizedPath.replace(/\[([^\d\]]+)\]/g, wildcardToken);
+  const escaped = escapeRegexLiteral(withWildcards);
+  const regexSource = escaped.replace(
+    new RegExp(escapeRegexLiteral(wildcardToken), 'g'),
+    '\\[\\d+\\]',
+  );
+  return new RegExp(`^${regexSource}$`);
+}
+
+/**
+ * Checks if a canonical artifact ID matches any of the condition patterns.
+ *
+ * Example:
+ * - Artifact ID: "Artifact:DocProducer.VideoScript.Segments[0].UseNarrationAudio"
+ * - Pattern: "DocProducer.VideoScript.Segments.UseNarrationAudio"
+ * - Should match because the artifact is the concrete instance of the pattern
+ */
+function matchesConditionPattern(artifactId: string, patterns: RegExp[]): boolean {
+  if (patterns.length === 0) {
+    return false;
+  }
+
+  // Extract the artifact body (everything after "Artifact:")
+  const body = artifactId.slice('Artifact:'.length);
+
+  // Match against compiled regex patterns
+  return patterns.some((pattern) => pattern.test(body));
+}
+
+function escapeRegexLiteral(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function extractProducerIdFromTarget(target: string): string | undefined {

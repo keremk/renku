@@ -90,6 +90,10 @@ describe('ModelsPanel', () => {
         />
       );
 
+      // Panels start collapsed, so we need to expand the ImageProducer panel first
+      const imageProducerButton = screen.getByRole('button', { name: /ImageProducer/i });
+      fireEvent.click(imageProducerButton);
+
       // The display shows "fal-ai/flux-pro/text-to-image"
       expect(container.textContent).toContain('fal-ai/flux-pro/text-to-image');
     });
@@ -104,6 +108,10 @@ describe('ModelsPanel', () => {
           selectedNodeId={null}
         />
       );
+
+      // Panels start collapsed, so we need to expand the TranscriptionProducer panel first
+      const transcriptionButton = screen.getByRole('button', { name: /TranscriptionProducer/i });
+      fireEvent.click(transcriptionButton);
 
       // Without schema, displays the top-level selection (renku/speech/transcription)
       // The nested extraction now requires schema-driven detection
@@ -123,6 +131,12 @@ describe('ModelsPanel', () => {
           selectedNodeId={null}
         />
       );
+
+      // Panels start collapsed, so we need to expand them first
+      const imageProducerButton = screen.getByRole('button', { name: /ImageProducer/i });
+      fireEvent.click(imageProducerButton);
+      const transcriptionButton = screen.getByRole('button', { name: /TranscriptionProducer/i });
+      fireEvent.click(transcriptionButton);
 
       // Regular selection shows full model
       expect(container.textContent).toContain('flux-pro/text-to-image');
@@ -166,6 +180,10 @@ describe('ModelsPanel', () => {
           onSelectionChange={mockOnSelectionChange}
         />
       );
+
+      // Panels start collapsed, so we need to expand the TranscriptionProducer panel first
+      const transcriptionButton = screen.getByRole('button', { name: /TranscriptionProducer/i });
+      fireEvent.click(transcriptionButton);
 
       // The dropdown should show the extracted STT values
       const comboboxes = screen.getAllByRole('combobox');

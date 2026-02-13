@@ -95,6 +95,8 @@ connections:
     to: DocProducer.NumOfSegments
   - from: NumOfImagesPerSegment
     to: DocProducer.NumOfImagesPerSegment
+  - from: Duration
+    to: DocProducer.Duration
   - from: Style
     to: DocProducer.Style
 

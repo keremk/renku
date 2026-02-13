@@ -435,13 +435,11 @@ function parseIndexedInputAccess(canonicalId: string): IndexedInputAccess | unde
   const indices: number[] = [];
   let baseId = canonicalId;
 
-  while (true) {
-    const match = baseId.match(/^(.*)\[(\d+)\]$/);
-    if (!match) {
-      break;
-    }
+  let match = baseId.match(/^(.*)\[(\d+)\]$/);
+  while (match) {
     indices.unshift(parseInt(match[2]!, 10));
     baseId = match[1]!;
+    match = baseId.match(/^(.*)\[(\d+)\]$/);
   }
 
   if (indices.length === 0 || baseId === canonicalId) {

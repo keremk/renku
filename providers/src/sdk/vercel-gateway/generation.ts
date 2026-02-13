@@ -10,8 +10,8 @@ import {
 import type { OpenAiResponseFormat, OpenAiLlmConfig } from '../openai/config.js';
 import { normalizeJsonSchema, separateConfigOptions } from '../openai/config.js';
 import type { RenderedPrompts } from '../openai/prompts.js';
-import type { ProviderJobContext, ProviderMode } from '../../types.js';
-import { simulateOpenAiGeneration } from '../openai/simulation.js';
+import type { ProviderJobContext, ProviderMode, ConditionHints } from '../../types.js';
+import { simulateOpenAiGeneration, type SimulationSizeHints } from '../openai/simulation.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -31,6 +31,8 @@ export interface VercelGatewayGenerationOptions {
   mode?: ProviderMode;
   /** Full request context for simulation (required when mode is 'simulated') */
   request?: ProviderJobContext;
+  /** Condition hints for dry-run simulation (for alternating/cycling values) */
+  conditionHints?: ConditionHints;
 }
 
 export interface VercelGatewayGenerationResult {
@@ -97,7 +99,7 @@ function buildProviderOptions(
 export async function callVercelGateway(
   options: VercelGatewayGenerationOptions
 ): Promise<VercelGatewayGenerationResult> {
-  const { model, prompts, responseFormat, config, mode, request } = options;
+  const { model, prompts, responseFormat, config, mode, request, conditionHints } = options;
 
   // Build prompt string (required by AI SDK)
   const prompt = prompts.user?.trim() || prompts.system?.trim() || ' ';
@@ -134,6 +136,7 @@ export async function callVercelGateway(
       config,
       providerPrefix,
       providerSpecific,
+      conditionHints,
     });
   } else {
     return await generatePlainText({
@@ -160,12 +163,13 @@ interface StructuredOutputOptions {
   config: OpenAiLlmConfig;
   providerPrefix?: string;
   providerSpecific: Record<string, unknown>;
+  conditionHints?: ConditionHints;
 }
 
 async function generateStructuredOutput(
   options: StructuredOutputOptions
 ): Promise<VercelGatewayGenerationResult> {
-  const { model, prompt, system, responseFormat, callSettings, mode, request, providerPrefix, providerSpecific } =
+  const { model, prompt, system, responseFormat, callSettings, mode, request, providerPrefix, providerSpecific, conditionHints } =
     options;
 
   if (!responseFormat.schema) {
@@ -182,7 +186,14 @@ async function generateStructuredOutput(
   // In simulated mode, return mock data instead of calling the AI SDK
   // All validation and setup has already run identically to live mode
   if (mode === 'simulated' && request) {
-    return simulateOpenAiGeneration({ request, config: { responseFormat } as OpenAiLlmConfig });
+    const sizeHints: SimulationSizeHints | undefined = conditionHints
+      ? { conditionHints }
+      : undefined;
+    return simulateOpenAiGeneration({
+      request,
+      config: { responseFormat } as OpenAiLlmConfig,
+      sizeHints,
+    });
   }
 
   // Build provider options: provider-specific settings + gateway routing

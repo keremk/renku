@@ -16,6 +16,8 @@ export type {
   ProviderContextPayload,
   ProviderAttachment,
   ResolvedProviderHandler,
+  ConditionHints,
+  VaryingFieldHint,
 } from './types.js';
 
 // Transcription exports for E2E testing

@@ -19,6 +19,8 @@ import {
   deriveSurgicalInfoArray,
   createValidationError,
   ValidationErrorCode,
+  analyzeConditions,
+  conditionAnalysisToVaryingHints,
   type InputEvent,
   type Manifest,
   type ExecutionPlan,
@@ -27,6 +29,7 @@ import {
   type PlanExplanation,
   type ProducerOptionsMap,
   type SurgicalInfo,
+  type ConditionAnalysis,
 } from '@gorenku/core';
 export type { PendingArtefactDraft } from '@gorenku/core';
 export type { PlanExplanation } from '@gorenku/core';
@@ -37,6 +40,7 @@ import {
   loadModelInputSchema,
   type PlanCostSummary,
   type LoadedModelCatalog,
+  type ConditionHints,
 } from '@gorenku/providers';
 import type { CliConfig } from './cli-config.js';
 import { loadBlueprintBundle } from './blueprint-loader/index.js';
@@ -83,6 +87,10 @@ export interface GeneratePlanResult {
   surgicalInfo?: SurgicalInfo[];
   /** Plan explanation (only if collectExplanation was true) */
   explanation?: PlanExplanation;
+  /** Condition analysis for dry-run simulation */
+  conditionAnalysis?: ConditionAnalysis;
+  /** Condition hints for dry-run simulation (derived from conditionAnalysis) */
+  conditionHints?: ConditionHints;
 }
 
 export async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanResult> {
@@ -128,6 +136,13 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
       `Blueprint validation failed:\n${errorMessages}`,
     );
   }
+
+  // Analyze conditions for dry-run simulation
+  const conditionAnalysisResult = analyzeConditions(blueprintRoot.document);
+  const varyingHints = conditionAnalysisToVaryingHints(conditionAnalysisResult);
+  const conditionHints: ConditionHints | undefined = varyingHints.length > 0
+    ? { varyingFields: varyingHints, mode: 'alternating' }
+    : undefined;
 
   // Load inputs from YAML - always required (contains model selections)
   if (!options.inputsPath) {
@@ -231,6 +246,8 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
     catalogModelsDir: catalogModelsDir ?? undefined,
     surgicalInfo,
     explanation: planResult.explanation,
+    conditionAnalysis: conditionAnalysisResult,
+    conditionHints,
     persist: async () => {
       // Create LOCAL storage and write everything
       const localStorageContext = createStorageContext({

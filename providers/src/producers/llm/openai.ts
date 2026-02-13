@@ -1,6 +1,6 @@
 import type { ArtefactEventStatus } from '@gorenku/core';
 import { createProviderError, SdkErrorCode } from '../../sdk/errors.js';
-import type { HandlerFactory, ProviderJobContext } from '../../types.js';
+import type { HandlerFactory, ProviderJobContext, ConditionHints } from '../../types.js';
 import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
 import type { ProducerInvokeArgs, ProducerRuntime } from '../../sdk/types.js';
 import {
@@ -97,6 +97,9 @@ export function createOpenAiLlmHandler(): HandlerFactory {
         await clientManager.ensure();
         const model = clientManager.getModel(request.model);
 
+        // Extract condition hints from request context (for dry-run simulation)
+        const conditionHints = extractConditionHints(request);
+
         const generation: GenerationResult = await callOpenAi({
           model,
           prompts,
@@ -104,6 +107,7 @@ export function createOpenAiLlmHandler(): HandlerFactory {
           config,
           mode: init.mode,
           request,
+          conditionHints,
         });
 
         // 5. Build artifacts using implicit mapping
@@ -254,6 +258,19 @@ interface FanInValue {
 
 function isFanInValue(value: unknown): value is FanInValue {
   return Boolean(value && typeof value === 'object' && Array.isArray((value as FanInValue).groups));
+}
+
+/**
+ * Extracts condition hints from the request context.
+ * These are set by the CLI in dry-run mode to control mock value generation.
+ */
+export function extractConditionHints(request: ProviderJobContext): ConditionHints | undefined {
+  const extras = request.context?.extras as Record<string, unknown> | undefined;
+  const hints = extras?.conditionHints as ConditionHints | undefined;
+  if (hints && hints.varyingFields && hints.mode) {
+    return hints;
+  }
+  return undefined;
 }
 
 /**

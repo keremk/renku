@@ -19,6 +19,7 @@ import type {
   ProviderEnvironment,
   ProducerHandler,
   ResolvedProviderHandler,
+  ConditionHints,
 } from '../types.js';
 
 /**
@@ -36,6 +37,7 @@ import type {
  * @param preResolved - Pre-resolved handlers for warm start optimization
  * @param logger - Logger for debug output
  * @param notifications - Optional notification bus for progress updates
+ * @param conditionHints - Optional condition hints for dry-run simulation
  * @returns A ProduceFn that can be passed to ExecutionService
  */
 export function createProviderProduce(
@@ -45,6 +47,7 @@ export function createProviderProduce(
   preResolved: ResolvedProviderHandler[] = [],
   logger: Logger = globalThis.console,
   notifications?: NotificationBus,
+  conditionHints?: ConditionHints,
 ): ProduceFn {
   const handlerCache = new Map<string, ProducerHandler>();
 
@@ -90,7 +93,7 @@ export function createProviderProduce(
     }
 
     const prepared = prepareJobContext(request.job, resolvedInputs);
-    const context = buildProviderContext(providerOption, prepared.context, prepared.resolvedInputs);
+    const context = buildProviderContext(providerOption, prepared.context, prepared.resolvedInputs, conditionHints);
     const log = formatResolvedInputs(prepared.resolvedInputs);
     logger.debug?.('provider.invoke.inputs', {
       producer: producerName,
@@ -248,16 +251,18 @@ export function resolveProviderOption(
  * @param option - The loaded producer option
  * @param jobContext - The job context from prepareJobContext
  * @param resolvedInputs - The resolved inputs map
+ * @param conditionHints - Optional condition hints for dry-run simulation
  * @returns The provider context payload
  */
 export function buildProviderContext(
   option: LoadedProducerOption,
   jobContext: ProducerJobContext | undefined,
   resolvedInputs: Record<string, unknown>,
+  conditionHints?: ConditionHints,
 ): ProviderContextPayload {
   const baseConfig = normalizeProviderConfig(option);
   const rawAttachments = option.attachments.length > 0 ? option.attachments : undefined;
-  const extras = buildContextExtras(jobContext, resolvedInputs);
+  const extras = buildContextExtras(jobContext, resolvedInputs, conditionHints);
 
   return {
     providerConfig: baseConfig,
@@ -278,6 +283,7 @@ function normalizeProviderConfig(option: LoadedProducerOption): unknown {
 function buildContextExtras(
   jobContext: ProducerJobContext | undefined,
   resolvedInputs: Record<string, unknown>,
+  conditionHints?: ConditionHints,
 ): Record<string, unknown> {
   const plannerContext = jobContext
     ? {
@@ -301,6 +307,10 @@ function buildContextExtras(
   }
   if (jobContext) {
     extras.jobContext = jobContext;
+  }
+  // Add condition hints for dry-run simulation
+  if (conditionHints) {
+    extras.conditionHints = conditionHints;
   }
   return extras;
 }

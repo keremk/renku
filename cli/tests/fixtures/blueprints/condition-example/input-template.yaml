@@ -22,7 +22,7 @@ models:
     provider: replicate
     producerId: ImageProducer
     # SDK mappings now come from producer YAML mappings section
-  - model: gpt-5-mini
+  - model: gpt-5.2
     provider: openai
     producerId: DocProducer
     config:

@@ -70,3 +70,12 @@ The repo relies on linting and type checks as the baseline gate, and all package
 
 ## Commit & Pull Request Guidelines
 Follow the `<type>: <summary>` pattern seen in history (example `init: first version that runs on Next.js`). Keep subjects imperative and scope commits to one concern. Pull requests should explain the change, link tracking issues, and include screenshots or clips for UI updates. Add a testing note listing the commands you ran (at minimum `pnpm check`). Call out required follow-ups such as database pushes or environment changes before requesting review.
+
+## Communication Style
+When replying to this user, prioritize readability and clarity over brevity.
+
+- Use a friendly, human tone.
+- Avoid unexplained jargon; define technical terms in plain language.
+- Use clear spacing and bullet points so responses are easy to scan.
+- Explain findings with concrete examples and expected impact.
+- Prefer verbose, high-context explanations over terse summaries.

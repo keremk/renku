@@ -9,8 +9,8 @@ import {
 import type { OpenAiResponseFormat, OpenAiLlmConfig } from './config.js';
 import { normalizeJsonSchema } from './config.js';
 import type { RenderedPrompts } from './prompts.js';
-import type { ProviderJobContext, ProviderMode } from '../../types.js';
-import { simulateOpenAiGeneration } from './simulation.js';
+import type { ProviderJobContext, ProviderMode, ConditionHints } from '../../types.js';
+import { simulateOpenAiGeneration, type SimulationSizeHints } from './simulation.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -24,6 +24,8 @@ export interface GenerationOptions {
   mode?: ProviderMode;
   /** Full request context for simulation (required when mode is 'simulated') */
   request?: ProviderJobContext;
+  /** Condition hints for dry-run simulation (controls value alternation) */
+  conditionHints?: ConditionHints;
 }
 
 export interface GenerationResult {
@@ -41,7 +43,7 @@ export interface GenerationResult {
  * it returns mock data based on the schema.
  */
 export async function callOpenAi(options: GenerationOptions): Promise<GenerationResult> {
-  const { model, prompts, responseFormat, config, mode, request } = options;
+  const { model, prompts, responseFormat, config, mode, request, conditionHints } = options;
 
   // Build prompt string (required by AI SDK)
   const prompt = prompts.user?.trim() || prompts.system?.trim() || ' ';
@@ -81,6 +83,7 @@ export async function callOpenAi(options: GenerationOptions): Promise<Generation
       baseCallOptions,
       mode,
       request,
+      conditionHints,
     });
   } else {
     return await generatePlainText({
@@ -102,10 +105,11 @@ interface StructuredOutputOptions {
   baseCallOptions: CallSettings & { providerOptions?: Record<string, Record<string, JSONValue>> };
   mode?: ProviderMode;
   request?: ProviderJobContext;
+  conditionHints?: ConditionHints;
 }
 
 async function generateStructuredOutput(options: StructuredOutputOptions): Promise<GenerationResult> {
-  const { model, prompt, system, responseFormat, baseCallOptions, mode, request } = options;
+  const { model, prompt, system, responseFormat, baseCallOptions, mode, request, conditionHints } = options;
 
   if (!responseFormat.schema) {
     throw new Error('Schema is required for json_schema response format.');
@@ -121,7 +125,14 @@ async function generateStructuredOutput(options: StructuredOutputOptions): Promi
   // In simulated mode, return mock data instead of calling the AI SDK
   // All validation and setup has already run identically to live mode
   if (mode === 'simulated' && request) {
-    return simulateOpenAiGeneration({ request, config: { responseFormat } as OpenAiLlmConfig });
+    const sizeHints: SimulationSizeHints | undefined = conditionHints
+      ? { conditionHints }
+      : undefined;
+    return simulateOpenAiGeneration({
+      request,
+      config: { responseFormat } as OpenAiLlmConfig,
+      sizeHints,
+    });
   }
 
   // Use generateText with Output.object() instead of deprecated generateObject

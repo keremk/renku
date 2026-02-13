@@ -793,13 +793,17 @@ function collectResolvedArtifactIds(job: JobDescriptor): string[] {
       }
     }
   }
-  // Also collect base artifacts needed for condition evaluation
+  // Also collect artifacts needed for condition evaluation
+  // Both base (nested) and decomposed artifact IDs are requested
   const inputConditions = job.context?.inputConditions;
   if (inputConditions) {
     for (const conditionInfo of Object.values(inputConditions)) {
-      const artifactId = extractConditionArtifactId(conditionInfo.condition);
-      if (artifactId) {
-        ids.add(artifactId);
+      const artifactIds = extractConditionArtifactIds(
+        conditionInfo.condition,
+        conditionInfo.indices,
+      );
+      for (const id of artifactIds) {
+        ids.add(id);
       }
     }
   }
@@ -807,69 +811,107 @@ function collectResolvedArtifactIds(job: JobDescriptor): string[] {
 }
 
 /**
- * Extracts the base artifact ID from a condition definition.
- * The condition path format is "Producer.ArtifactName.FieldPath..."
- * Returns "Artifact:Producer.ArtifactName"
+ * Extracts artifact IDs from a condition definition.
+ * Returns both base (nested) and decomposed artifact IDs.
+ *
+ * For condition path "Producer.ArtifactName.Field[dimension].SubField" with indices { dimension: 0 }:
+ * - Base: "Artifact:Producer.ArtifactName" (for nested artifacts)
+ * - Decomposed: "Artifact:Producer.ArtifactName.Field[0].SubField" (for decomposed artifacts)
+ *
+ * The resolver will request both; whichever exists in the event log will be found.
  */
-function extractConditionArtifactId(
+function extractConditionArtifactIds(
   condition: EdgeConditionDefinition,
-): string | null {
+  indices: Record<string, number>,
+): string[] {
+  const ids: string[] = [];
+
   // Handle array of conditions
   if (Array.isArray(condition)) {
     for (const item of condition) {
-      const result = extractConditionArtifactIdFromItem(item);
-      if (result) {
-        return result;
-      }
+      ids.push(...extractConditionArtifactIdsFromItem(item, indices));
     }
-    return null;
+    return ids;
   }
-  return extractConditionArtifactIdFromItem(condition);
+  return extractConditionArtifactIdsFromItem(condition, indices);
 }
 
-function extractConditionArtifactIdFromItem(
+function extractConditionArtifactIdsFromItem(
   item: EdgeConditionClause | EdgeConditionGroup,
-): string | null {
+  indices: Record<string, number>,
+): string[] {
+  const ids: string[] = [];
+
   // Handle groups (all/any)
   if ('all' in item && item.all) {
     for (const clause of item.all) {
-      const result = extractConditionArtifactIdFromClause(clause);
-      if (result) {
-        return result;
-      }
+      ids.push(...extractConditionArtifactIdsFromClause(clause, indices));
     }
   }
   if ('any' in item && item.any) {
     for (const clause of item.any) {
-      const result = extractConditionArtifactIdFromClause(clause);
-      if (result) {
-        return result;
-      }
+      ids.push(...extractConditionArtifactIdsFromClause(clause, indices));
     }
   }
   // Handle single clause
   if ('when' in item) {
-    return extractConditionArtifactIdFromClause(item as EdgeConditionClause);
+    ids.push(...extractConditionArtifactIdsFromClause(item as EdgeConditionClause, indices));
   }
-  return null;
+  return ids;
 }
 
-function extractConditionArtifactIdFromClause(
+function extractConditionArtifactIdsFromClause(
   clause: EdgeConditionClause,
-): string | null {
+  indices: Record<string, number>,
+): string[] {
   const whenPath = clause.when;
   if (!whenPath) {
-    return null;
+    return [];
   }
 
-  // Split by '.' and take first two segments (Producer.ArtifactName)
+  const ids: string[] = [];
+
+  // Split by '.' and take first two segments for base artifact ID
   const segments = whenPath.split('.');
   if (segments.length < 2) {
-    return null;
+    return [];
   }
 
+  // Base artifact ID (first two segments)
   const artifactPath = segments.slice(0, 2).join('.');
-  return formatCanonicalArtifactId([], artifactPath);
+  ids.push(formatCanonicalArtifactId([], artifactPath));
+
+  // For decomposed artifacts, substitute indices and build full path
+  if (segments.length > 2) {
+    let fullPath = whenPath;
+
+    // Replace dimension placeholders with indices
+    // Iterate in reverse order so that target node indices (added last in merge) win
+    // when the same dimension label appears in both source and target nodes.
+    const indexEntries = Object.entries(indices).reverse();
+    for (const [symbol, index] of indexEntries) {
+      // Extract the dimension label from the full symbol (e.g., "loop:segment" -> "segment")
+      const parts = symbol.split(':');
+      const label = parts.length > 0 ? parts[parts.length - 1] ?? symbol : symbol;
+
+      // Replace [label] with [index]
+      fullPath = fullPath.replace(
+        new RegExp(`\\[${escapeRegexChars(label)}\\]`, 'g'),
+        `[${index}]`,
+      );
+    }
+
+    ids.push(formatCanonicalArtifactId([], fullPath));
+  }
+
+  return ids;
+}
+
+/**
+ * Escapes special regex characters.
+ */
+function escapeRegexChars(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**

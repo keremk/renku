@@ -14,6 +14,7 @@ import {
   type OpenAiResponseFormat,
   type VercelGatewayGenerationResult,
 } from '../../sdk/vercel-gateway/index.js';
+import { extractConditionHints } from './openai.js';
 
 /**
  * Creates a handler factory for the Vercel AI Gateway producer.
@@ -101,7 +102,10 @@ export function createVercelAiGatewayHandler(): HandlerFactory {
           await clientManager.ensure(apiKeyName);
           const model = clientManager.getModel(request.model);
 
-          // 6. Call provider via Vercel AI Gateway
+          // 6. Extract condition hints from request context (for dry-run simulation)
+          const conditionHints = extractConditionHints(request);
+
+          // 7. Call provider via Vercel AI Gateway
           const generation: VercelGatewayGenerationResult = await callVercelGateway({
             model,
             prompts,
@@ -109,19 +113,20 @@ export function createVercelAiGatewayHandler(): HandlerFactory {
             config,
             mode: init.mode,
             request,
+            conditionHints,
           });
 
-          // 7. Build artifacts using implicit mapping
+          // 8. Build artifacts using implicit mapping
           const artefacts = buildArtefactsFromResponse(generation.data, request.produces, {
             producerId: request.jobId,
           });
 
-          // 8. Determine overall status
+          // 9. Determine overall status
           const status: ArtefactEventStatus = artefacts.some((artefact) => artefact.status === 'failed')
             ? 'failed'
             : 'succeeded';
 
-          // 9. Build diagnostics
+          // 10. Build diagnostics
           const textLength =
             typeof generation.data === 'string'
               ? generation.data.length

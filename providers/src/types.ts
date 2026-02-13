@@ -127,3 +127,36 @@ export interface ProviderRegistry {
   resolveMany(descriptors: ProviderDescriptor[]): ResolvedProviderHandler[];
   warmStart?(bindings: ResolvedProviderHandler[]): Promise<void>;
 }
+
+// === Simulation Hints for Condition-Aware Mock Generation ===
+
+/**
+ * Hint for a field that should vary its values during simulation.
+ * Used to exercise different conditional branches in dry-run mode.
+ */
+export interface VaryingFieldHint {
+  /** Path to the field within the schema (e.g., "Segments.NarrationType") */
+  path: string;
+  /** Values to cycle through when generating array items */
+  values: unknown[];
+  /** Dimension name to vary on (e.g., "segment") - determines which array index to use for cycling */
+  dimension?: string;
+  /** Artifact path for matching (e.g., "DocProducer.VideoScript") */
+  artifactPath: string;
+}
+
+/**
+ * Hints for condition-aware mock generation.
+ * Controls how simulated values are generated to test different branches.
+ */
+export interface ConditionHints {
+  /** Fields that should vary their values */
+  varyingFields: VaryingFieldHint[];
+  /**
+   * Generation mode:
+   * - 'first-value': Use first enum/expected value (default legacy behavior)
+   * - 'alternating': Alternate between values based on array index
+   * - 'comprehensive': Try all combinations (future use)
+   */
+  mode: 'first-value' | 'alternating' | 'comprehensive';
+}

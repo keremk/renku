@@ -596,6 +596,158 @@ describe('createProducerGraph', () => {
     });
   });
 
+  describe('condition-referenced artifacts', () => {
+    it('keeps numeric condition index matches exact and does not match sibling indices', () => {
+      const canonical: CanonicalBlueprint = {
+        nodes: [
+          {
+            id: 'Producer:ScriptProducer',
+            type: 'Producer',
+            producerAlias: 'ScriptProducer',
+            namespacePath: [],
+            name: 'ScriptProducer',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Producer:ImageProducer',
+            type: 'Producer',
+            producerAlias: 'ImageProducer',
+            namespacePath: [],
+            name: 'ImageProducer',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Input:ImageProducer.Prompt',
+            type: 'Input',
+            producerAlias: 'ImageProducer',
+            namespacePath: [],
+            name: 'Prompt',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Artifact:ScriptProducer.Output.Items[0].Enabled',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: ['ScriptProducer', 'Output'],
+            name: 'Items[0].Enabled',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Artifact:ScriptProducer.Output.Items[1].Enabled',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: ['ScriptProducer', 'Output'],
+            name: 'Items[1].Enabled',
+            indices: {},
+            dimensions: [],
+          },
+        ],
+        edges: [
+          { from: 'Producer:ScriptProducer', to: 'Artifact:ScriptProducer.Output.Items[0].Enabled' },
+          { from: 'Producer:ScriptProducer', to: 'Artifact:ScriptProducer.Output.Items[1].Enabled' },
+          {
+            from: 'Input:ImageProducer.Prompt',
+            to: 'Producer:ImageProducer',
+            conditions: {
+              when: 'ScriptProducer.Output.Items[0].Enabled',
+              is: true,
+            },
+            indices: {},
+          },
+        ],
+        inputBindings: {},
+        fanIn: {},
+      };
+
+      const options = createDefaultOptions(['ScriptProducer', 'ImageProducer']);
+      const result = createProducerGraph(canonical, defaultCatalog, options);
+
+      const scriptNode = result.nodes.find((node) => node.jobId === 'Producer:ScriptProducer');
+      expect(scriptNode).toBeDefined();
+      expect(scriptNode!.produces).toContain('Artifact:ScriptProducer.Output.Items[0].Enabled');
+      expect(scriptNode!.produces).not.toContain('Artifact:ScriptProducer.Output.Items[1].Enabled');
+    });
+
+    it('treats symbolic condition indices as wildcards across concrete artifact indices', () => {
+      const canonical: CanonicalBlueprint = {
+        nodes: [
+          {
+            id: 'Producer:ScriptProducer',
+            type: 'Producer',
+            producerAlias: 'ScriptProducer',
+            namespacePath: [],
+            name: 'ScriptProducer',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Producer:ImageProducer',
+            type: 'Producer',
+            producerAlias: 'ImageProducer',
+            namespacePath: [],
+            name: 'ImageProducer',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Input:ImageProducer.Prompt',
+            type: 'Input',
+            producerAlias: 'ImageProducer',
+            namespacePath: [],
+            name: 'Prompt',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Artifact:ScriptProducer.Output.Items[0].Enabled',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: ['ScriptProducer', 'Output'],
+            name: 'Items[0].Enabled',
+            indices: {},
+            dimensions: [],
+          },
+          {
+            id: 'Artifact:ScriptProducer.Output.Items[1].Enabled',
+            type: 'Artifact',
+            producerAlias: '',
+            namespacePath: ['ScriptProducer', 'Output'],
+            name: 'Items[1].Enabled',
+            indices: {},
+            dimensions: [],
+          },
+        ],
+        edges: [
+          { from: 'Producer:ScriptProducer', to: 'Artifact:ScriptProducer.Output.Items[0].Enabled' },
+          { from: 'Producer:ScriptProducer', to: 'Artifact:ScriptProducer.Output.Items[1].Enabled' },
+          {
+            from: 'Input:ImageProducer.Prompt',
+            to: 'Producer:ImageProducer',
+            conditions: {
+              when: 'ScriptProducer.Output.Items[item].Enabled',
+              is: true,
+            },
+            indices: {},
+          },
+        ],
+        inputBindings: {},
+        fanIn: {},
+      };
+
+      const options = createDefaultOptions(['ScriptProducer', 'ImageProducer']);
+      const result = createProducerGraph(canonical, defaultCatalog, options);
+
+      const scriptNode = result.nodes.find((node) => node.jobId === 'Producer:ScriptProducer');
+      expect(scriptNode).toBeDefined();
+      expect(scriptNode!.produces).toContain('Artifact:ScriptProducer.Output.Items[0].Enabled');
+      expect(scriptNode!.produces).toContain('Artifact:ScriptProducer.Output.Items[1].Enabled');
+    });
+  });
+
   describe('input conditions', () => {
     it('collects input conditions from edges targeting the producer', () => {
       const canonical: CanonicalBlueprint = {
