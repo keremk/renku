@@ -3,6 +3,7 @@ import { DetailPanel } from "./detail-panel";
 import { BuildsListSidebar } from "./builds-list-sidebar";
 import { RunButton } from "./run-button";
 import { PlanDialog } from "./plan-dialog";
+import { CompletionDialog } from "./completion-dialog";
 import { BottomTabbedPanel } from "./bottom-tabbed-panel";
 import { ExecutionProvider, useExecution } from "@/contexts/execution-context";
 import { computeBlueprintLayerCount } from "@/lib/blueprint-layout";
@@ -420,6 +421,9 @@ function WorkspaceLayoutInner({
 
       {/* Plan Dialog */}
       <PlanDialog />
+
+      {/* Completion Dialog */}
+      <CompletionDialog />
     </div>
   );
 }

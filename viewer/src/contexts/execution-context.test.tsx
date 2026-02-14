@@ -148,6 +148,7 @@ describe('ExecutionContext', () => {
         blueprintName: null,
         movieId: null,
         selectedForRegeneration: new Set(),
+        showCompletionDialog: false,
       });
     });
   });
@@ -1238,6 +1239,126 @@ describe('ExecutionContext', () => {
       expect(selected).toHaveLength(2);
       expect(selected).toContain('artifact-1');
       expect(selected).toContain('artifact-2');
+    });
+  });
+
+  // =============================================================================
+  // Completion Dialog Tests
+  // =============================================================================
+
+  describe('completion dialog', () => {
+    it('shows completion dialog when execution completes successfully', async () => {
+      mockCreatePlan.mockResolvedValue(createMockPlanResponse());
+      mockExecutePlan.mockResolvedValue(createMockExecuteResponse());
+
+      let sseCallback: (event: any) => void;
+      mockSubscribeToJobStream.mockImplementation((_jobId, onEvent) => {
+        sseCallback = onEvent;
+        return () => {};
+      });
+
+      const { result } = renderHook(() => useExecution(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.requestPlan('test-blueprint');
+      });
+
+      await act(async () => {
+        await result.current.confirmExecution();
+      });
+
+      expect(result.current.state.showCompletionDialog).toBe(false);
+
+      act(() => {
+        sseCallback({
+          type: 'execution-complete',
+          status: 'succeeded',
+          summary: { counts: { succeeded: 5, failed: 0, skipped: 0 } },
+        });
+      });
+
+      expect(result.current.state.showCompletionDialog).toBe(true);
+      expect(result.current.state.status).toBe('completed');
+    });
+
+    it('shows completion dialog when execution fails', async () => {
+      mockCreatePlan.mockResolvedValue(createMockPlanResponse());
+      mockExecutePlan.mockResolvedValue(createMockExecuteResponse());
+
+      let sseCallback: (event: any) => void;
+      mockSubscribeToJobStream.mockImplementation((_jobId, onEvent) => {
+        sseCallback = onEvent;
+        return () => {};
+      });
+
+      const { result } = renderHook(() => useExecution(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.requestPlan('test-blueprint');
+      });
+
+      await act(async () => {
+        await result.current.confirmExecution();
+      });
+
+      act(() => {
+        sseCallback({
+          type: 'execution-complete',
+          status: 'failed',
+          summary: { counts: { succeeded: 0, failed: 3, skipped: 0 } },
+        });
+      });
+
+      expect(result.current.state.showCompletionDialog).toBe(true);
+      expect(result.current.state.status).toBe('failed');
+    });
+
+    it('dismissCompletion hides dialog and clears selections when clearSelections is true', () => {
+      const { result } = renderHook(() => useExecution(), {
+        wrapper: createWrapper(),
+      });
+
+      // Set up some selections
+      act(() => {
+        result.current.selectProducerArtifacts(['artifact-1', 'artifact-2']);
+      });
+
+      expect(result.current.state.selectedForRegeneration.size).toBe(2);
+
+      // Simulate dialog showing after completion (manually set for test)
+      // The dialog would normally be shown by EXECUTION_COMPLETE action
+      act(() => {
+        result.current.dismissCompletion(true);
+      });
+
+      expect(result.current.state.showCompletionDialog).toBe(false);
+      expect(result.current.state.selectedForRegeneration.size).toBe(0);
+    });
+
+    it('dismissCompletion hides dialog but keeps selections when clearSelections is false', () => {
+      const { result } = renderHook(() => useExecution(), {
+        wrapper: createWrapper(),
+      });
+
+      // Set up some selections
+      act(() => {
+        result.current.selectProducerArtifacts(['artifact-1', 'artifact-2']);
+      });
+
+      expect(result.current.state.selectedForRegeneration.size).toBe(2);
+
+      act(() => {
+        result.current.dismissCompletion(false);
+      });
+
+      expect(result.current.state.showCompletionDialog).toBe(false);
+      expect(result.current.state.selectedForRegeneration.size).toBe(2);
+      expect(result.current.isArtifactSelected('artifact-1')).toBe(true);
+      expect(result.current.isArtifactSelected('artifact-2')).toBe(true);
     });
   });
 

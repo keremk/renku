@@ -59,6 +59,8 @@ interface ExecutionState {
   movieId: string | null;
   /** Set of artifact IDs selected for regeneration */
   selectedForRegeneration: Set<string>;
+  /** Whether the completion dialog should be shown */
+  showCompletionDialog: boolean;
 }
 
 // =============================================================================
@@ -87,7 +89,8 @@ type ExecutionAction =
   | { type: 'TOGGLE_ARTIFACT_SELECTION'; artifactId: string }
   | { type: 'SELECT_PRODUCER_ARTIFACTS'; artifactIds: string[] }
   | { type: 'DESELECT_PRODUCER_ARTIFACTS'; artifactIds: string[] }
-  | { type: 'CLEAR_REGENERATION_SELECTION' };
+  | { type: 'CLEAR_REGENERATION_SELECTION' }
+  | { type: 'DISMISS_COMPLETION'; clearSelections: boolean };
 
 // =============================================================================
 // Initial State
@@ -108,6 +111,7 @@ const initialState: ExecutionState = {
   blueprintName: null,
   movieId: null,
   selectedForRegeneration: new Set(),
+  showCompletionDialog: false,
 };
 
 // =============================================================================
@@ -188,6 +192,7 @@ function executionReducer(
         currentJobId: null,
         progress: null,
         isStopping: false,
+        showCompletionDialog: true,
       };
 
     case 'CANCEL':
@@ -282,6 +287,13 @@ function executionReducer(
 
     case 'CLEAR_REGENERATION_SELECTION':
       return { ...state, selectedForRegeneration: new Set() };
+
+    case 'DISMISS_COMPLETION':
+      return {
+        ...state,
+        showCompletionDialog: false,
+        selectedForRegeneration: action.clearSelections ? new Set() : state.selectedForRegeneration,
+      };
 
     default:
       return state;
@@ -432,6 +444,8 @@ interface ExecutionContextValue {
   confirmExecution: (dryRun?: boolean) => Promise<void>;
   cancelExecution: () => Promise<void>;
   dismissDialog: () => void;
+  /** Dismiss the completion dialog, optionally clearing regeneration selections */
+  dismissCompletion: (clearSelections: boolean) => void;
   initializeFromManifest: (artifacts: ArtifactInfo[]) => void;
   reset: () => void;
   showBottomPanel: () => void;
@@ -608,6 +622,10 @@ export function ExecutionProvider({ children, onArtifactProduced }: ExecutionPro
     dispatch({ type: 'DISMISS_DIALOG' });
   }, []);
 
+  const dismissCompletion = useCallback((clearSelections: boolean) => {
+    dispatch({ type: 'DISMISS_COMPLETION', clearSelections });
+  }, []);
+
   const initializeFromManifest = useCallback((artifacts: ArtifactInfo[]) => {
     dispatch({ type: 'INIT_FROM_MANIFEST', artifacts });
   }, []);
@@ -670,6 +688,7 @@ export function ExecutionProvider({ children, onArtifactProduced }: ExecutionPro
     confirmExecution,
     cancelExecution,
     dismissDialog,
+    dismissCompletion,
     initializeFromManifest,
     reset,
     showBottomPanel,
