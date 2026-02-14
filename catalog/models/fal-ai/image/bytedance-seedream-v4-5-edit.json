@@ -7,17 +7,18 @@
       "max_images",
       "seed",
       "sync_mode",
-      "enable_safety_checker"
+      "enable_safety_checker",
+      "image_urls"
     ],
     "type": "object",
     "properties": {
       "prompt": {
         "examples": [
-          "A selfie of a cat, with the cat as the protagonist. The setting is twilight at the Eiffel Tower. The cat is happy, holding a piece of baklava in its paw. The photo has a slight motion blur and is slightly overexposed. From a selfie angle, with a bit of motion blur, the overall image presents a sense of calm madness. The text \"Seedream 4.5 is on fal\" should be written on the picture at the top in clearly visible font and crisp lettering. The image has a 4:3 aspect ratio"
+          "Replace the product in Figure 1 with that in Figure 2. For the title copy the text in Figure 3 to the top of the screen, the title should have a clear contrast with the background but not be overly eye-catching."
         ],
         "title": "Prompt",
         "type": "string",
-        "description": "The text prompt used to generate the image"
+        "description": "The text prompt used to edit the image"
       },
       "num_images": {
         "minimum": 1,
@@ -49,7 +50,7 @@
         "title": "Image Size",
         "description": "The size of the generated image. Width and height must be between 1920 and 4096, or total number of pixels must be between 2560*1440 and 4096*4096.",
         "examples": [
-          "auto_2K"
+          "auto_4K"
         ],
         "default": {
           "height": 2048,
@@ -60,7 +61,7 @@
         "minimum": 1,
         "maximum": 6,
         "type": "integer",
-        "description": "If set to a number greater than one, enables multi-image generation. The model will potentially return up to `max_images` images every generation, and in total, `num_images` generations will be carried out. In total, the number of images generated will be between `num_images` and `max_images*num_images`.",
+        "description": "If set to a number greater than one, enables multi-image generation. The model will potentially return up to `max_images` images every generation, and in total, `num_images` generations will be carried out. In total, the number of images generated will be between `num_images` and `max_images*num_images`. The total number of images (image inputs + image outputs) must not exceed 15",
         "title": "Max Images",
         "default": 1
       },
@@ -83,17 +84,33 @@
         "description": "Random seed to control the stochasticity of image generation.",
         "type": "integer",
         "title": "Seed"
+      },
+      "image_urls": {
+        "examples": [
+          [
+            "https://storage.googleapis.com/falserverless/example_inputs/seedreamv45/seedream_v45_edit_input_1.png",
+            "https://storage.googleapis.com/falserverless/example_inputs/seedreamv45/seedream_v45_edit_input_2.png",
+            "https://storage.googleapis.com/falserverless/example_inputs/seedreamv45/seedream_v45_edit_input_3.png"
+          ]
+        ],
+        "title": "Image URLs",
+        "type": "array",
+        "description": "List of URLs of input images for editing. Presently, up to 10 image inputs are allowed. If over 10 images are sent, only the last 10 will be used.",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        }
       }
     },
-    "title": "SeedDream45T2IInput",
+    "title": "SeedDream45EditInput",
     "required": [
-      "prompt"
+      "prompt",
+      "image_urls"
     ]
   },
   "output_schema": {
     "x-fal-order-properties": [
-      "images",
-      "seed"
+      "images"
     ],
     "type": "object",
     "properties": {
@@ -101,7 +118,7 @@
         "examples": [
           [
             {
-              "url": "https://storage.googleapis.com/falserverless/example_outputs/seedreamv45/seedream_v45_t2i_output.png"
+              "url": "https://storage.googleapis.com/falserverless/example_outputs/seedreamv45/seedream_v45_edit_output.png"
             }
           ]
         ],
@@ -111,20 +128,11 @@
         "items": {
           "$ref": "#/Image"
         }
-      },
-      "seed": {
-        "examples": [
-          42
-        ],
-        "title": "Seed",
-        "type": "integer",
-        "description": "Seed used for generation"
       }
     },
-    "title": "SeedDream45T2IOutput",
+    "title": "SeedDream45EditOutput",
     "required": [
-      "images",
-      "seed"
+      "images"
     ]
   },
   "ImageSize": {

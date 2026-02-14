@@ -2,14 +2,28 @@ models:
 # Image Models
   - name: bytedance/seedream/v4/text-to-image
     type: image
-    mime: 
+    mime:
+      - image/png
+    price:
+      function: costByRun
+      price: 0.03
+  - name: bytedance/seedream/v4/edit
+    type: image
+    mime:
       - image/png
     price:
       function: costByRun
       price: 0.03
   - name: bytedance/seedream/v4.5/text-to-image
     type: image
-    mime: 
+    mime:
+      - image/png
+    price:
+      function: costByRun
+      price: 0.04
+  - name: bytedance/seedream/v4.5/edit
+    type: image
+    mime:
       - image/png
     price:
       function: costByRun

@@ -42,6 +42,44 @@ artifacts:
 
 mappings:
   fal-ai:
+    bytedance/seedream/v4/edit:
+      Prompt: prompt
+      SourceImages: image_urls
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+          "3:2": landscape_4_3
+          "2:3": portrait_4_3
+
+    bytedance/seedream/v4.5/edit:
+      Prompt: prompt
+      SourceImages: image_urls
+      # AspectRatio + Resolution combine into image_size
+      ImageSize:
+        field: image_size
+        combine:
+          inputs: [AspectRatio, Resolution]
+          table:
+            # Resolution only (aspect determined by resolution)
+            "+2K": auto_2K
+            "+4K": auto_4K
+            # AspectRatio only (default resolution)
+            "16:9+": landscape_16_9
+            "9:16+": portrait_16_9
+            "4:3+": landscape_4_3
+            "3:4+": portrait_4_3
+            "1:1+": square_hd
+            # Both specified - prefer resolution auto modes
+            "16:9+2K": auto_2K
+            "16:9+4K": auto_4K
+            "1:1+2K": auto_2K
+            "1:1+4K": auto_4K
+
     qwen-image-edit-2511:
       Prompt: prompt
       SourceImages: image_urls
