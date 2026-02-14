@@ -6,6 +6,7 @@ import { createManifestService, ManifestNotFoundError } from '../manifest.js';
 import { hashArtefactOutput, hashPayload, hashInputContents } from '../hashing.js';
 import { nextRevisionId } from '../revisions.js';
 import { computeTopologyLayers } from '../topology/index.js';
+import { RuntimeErrorCode } from '../errors/index.js';
 import type {
   InputEvent,
   Manifest,
@@ -68,6 +69,55 @@ function buildProducerGraph(): ProducerGraph {
     { from: 'Producer:ScriptProducer', to: 'Producer:AudioProducer[1]' },
     { from: 'Producer:AudioProducer[0]', to: 'Producer:TimelineAssembler' },
     { from: 'Producer:AudioProducer[1]', to: 'Producer:TimelineAssembler' },
+  ];
+
+  return { nodes, edges };
+}
+
+function buildConditionArtifactGraph(): ProducerGraph {
+  const nodes: ProducerGraphNode[] = [
+    {
+      jobId: 'Producer:DirectorProducer',
+      producer: 'DirectorProducer',
+      inputs: ['Input:Prompt'],
+      produces: [
+        'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt',
+        'Artifact:DirectorProducer.Script.Characters[0].HasTransition',
+      ],
+      provider: 'openai',
+      providerModel: 'openai/GPT-5',
+      rateKey: 'llm:director',
+      context: { namespacePath: [], indices: {}, producerAlias: 'DirectorProducer', inputs: [], produces: [] },
+    },
+    {
+      jobId: 'Producer:TransitionVideoProducer[0]',
+      producer: 'TransitionVideoProducer',
+      inputs: ['Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt'],
+      produces: ['Artifact:TransitionVideoProducer.GeneratedVideo[0]'],
+      provider: 'fal-ai',
+      providerModel: 'kling-video/v2.5',
+      rateKey: 'video:kling',
+      context: {
+        namespacePath: [],
+        indices: {},
+        producerAlias: 'TransitionVideoProducer',
+        inputs: [],
+        produces: [],
+        inputConditions: {
+          'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
+            condition: {
+              when: 'DirectorProducer.Script.Characters[0].HasTransition',
+              is: true,
+            },
+            indices: {},
+          },
+        },
+      },
+    },
+  ];
+
+  const edges: ProducerGraphEdge[] = [
+    { from: 'Producer:DirectorProducer', to: 'Producer:TransitionVideoProducer[0]' },
   ];
 
   return { nodes, edges };
@@ -277,6 +327,234 @@ describe('planner', () => {
     expect(plan.layers.every((layer) => layer.length === 0)).toBe(true);
   });
 
+  it('allows regeneration when canonical condition artifacts are missing but producer layer is runnable', async () => {
+    const ctx = memoryContext();
+    await initializeMovieStorage(ctx, 'demo');
+    const eventLog = createEventLog(ctx);
+    const graph = buildConditionArtifactGraph();
+    const planner = createPlanner();
+
+    const baseline = createInputEvents({ 'Input:Prompt': 'Keep transitions correct' }, 'rev-0001');
+    for (const event of baseline) {
+      await eventLog.appendInput('demo', event);
+    }
+
+    const manifest = createSucceededManifest(baseline, {
+      artefacts: {
+        'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
+          hash: 'meeting-hash',
+          producedBy: 'Producer:DirectorProducer',
+        },
+        'Artifact:TransitionVideoProducer.GeneratedVideo[0]': {
+          hash: 'transition-hash',
+          producedBy: 'Producer:TransitionVideoProducer[0]',
+        },
+      },
+    });
+
+    const { plan } = await planner.computePlan({
+      movieId: 'demo',
+      manifest,
+      eventLog,
+      blueprint: graph,
+      targetRevision: 'rev-0002',
+      pendingEdits: [],
+    });
+
+    const jobs = plan.layers.flat().map((job) => job.jobId);
+    expect(jobs).toContain('Producer:DirectorProducer');
+  });
+
+  it('fails fast when canonical condition artifacts are missing and producer layer is skipped by reRunFrom', async () => {
+    const ctx = memoryContext();
+    await initializeMovieStorage(ctx, 'demo');
+    const eventLog = createEventLog(ctx);
+    const graph = buildConditionArtifactGraph();
+    const planner = createPlanner();
+
+    const baseline = createInputEvents({ 'Input:Prompt': 'Keep transitions correct' }, 'rev-0001');
+    for (const event of baseline) {
+      await eventLog.appendInput('demo', event);
+    }
+
+    const manifest = createSucceededManifest(baseline, {
+      artefacts: {
+        'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
+          hash: 'meeting-hash',
+          producedBy: 'Producer:DirectorProducer',
+        },
+        'Artifact:TransitionVideoProducer.GeneratedVideo[0]': {
+          hash: 'transition-hash',
+          producedBy: 'Producer:TransitionVideoProducer[0]',
+        },
+      },
+    });
+
+    await expect(
+      planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: [],
+        reRunFrom: 1,
+      }),
+    ).rejects.toMatchObject({
+      code: RuntimeErrorCode.MISSING_CANONICAL_CONDITION_ARTIFACT,
+    });
+  });
+
+  it('does not mark jobs dirty when canonical condition artifacts are present', async () => {
+    const ctx = memoryContext();
+    await initializeMovieStorage(ctx, 'demo');
+    const eventLog = createEventLog(ctx);
+    const graph = buildConditionArtifactGraph();
+    const planner = createPlanner();
+
+    const baseline = createInputEvents({ 'Input:Prompt': 'Keep transitions correct' }, 'rev-0001');
+    for (const event of baseline) {
+      await eventLog.appendInput('demo', event);
+    }
+
+    const manifest = createSucceededManifest(baseline, {
+      artefacts: {
+        'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
+          hash: 'meeting-hash',
+          producedBy: 'Producer:DirectorProducer',
+        },
+        'Artifact:DirectorProducer.Script.Characters[0].HasTransition': {
+          hash: 'has-transition-hash',
+          producedBy: 'Producer:DirectorProducer',
+        },
+        'Artifact:TransitionVideoProducer.GeneratedVideo[0]': {
+          hash: 'transition-hash',
+          producedBy: 'Producer:TransitionVideoProducer[0]',
+        },
+      },
+    });
+
+    const { plan } = await planner.computePlan({
+      movieId: 'demo',
+      manifest,
+      eventLog,
+      blueprint: graph,
+      targetRevision: 'rev-0002',
+      pendingEdits: [],
+    });
+
+    expect(plan.layers).toHaveLength(0);
+  });
+
+  it('treats canonical condition artifacts in event log as available even when manifest is stale', async () => {
+    const ctx = memoryContext();
+    await initializeMovieStorage(ctx, 'demo');
+    const eventLog = createEventLog(ctx);
+    const graph = buildConditionArtifactGraph();
+    const planner = createPlanner();
+
+    const baseline = createInputEvents({ 'Input:Prompt': 'Keep transitions correct' }, 'rev-0001');
+    for (const event of baseline) {
+      await eventLog.appendInput('demo', event);
+    }
+
+    const manifest = createSucceededManifest(baseline, {
+      artefacts: {
+        'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
+          hash: 'meeting-hash',
+          producedBy: 'Producer:DirectorProducer',
+        },
+        'Artifact:TransitionVideoProducer.GeneratedVideo[0]': {
+          hash: 'transition-hash',
+          producedBy: 'Producer:TransitionVideoProducer[0]',
+        },
+      },
+    });
+
+    await eventLog.appendArtefact('demo', {
+      artefactId: 'Artifact:DirectorProducer.Script.Characters[0].HasTransition',
+      revision: 'rev-fix',
+      inputsHash: 'condition-hash',
+      output: {
+        blob: {
+          hash: 'has-transition-hash',
+          size: 4,
+          mimeType: 'text/plain',
+        },
+      },
+      status: 'succeeded',
+      producedBy: 'Producer:DirectorProducer',
+      createdAt: new Date().toISOString(),
+    });
+
+    const { plan } = await planner.computePlan({
+      movieId: 'demo',
+      manifest,
+      eventLog,
+      blueprint: graph,
+      targetRevision: 'rev-0002',
+      pendingEdits: [],
+    });
+
+    expect(plan.layers.flat()).toHaveLength(0);
+  });
+
+  it('allows reRunFrom above the condition producer when canonical condition artifact exists in event log', async () => {
+    const ctx = memoryContext();
+    await initializeMovieStorage(ctx, 'demo');
+    const eventLog = createEventLog(ctx);
+    const graph = buildConditionArtifactGraph();
+    const planner = createPlanner();
+
+    const baseline = createInputEvents({ 'Input:Prompt': 'Keep transitions correct' }, 'rev-0001');
+    for (const event of baseline) {
+      await eventLog.appendInput('demo', event);
+    }
+
+    const manifest = createSucceededManifest(baseline, {
+      artefacts: {
+        'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
+          hash: 'meeting-hash',
+          producedBy: 'Producer:DirectorProducer',
+        },
+        'Artifact:TransitionVideoProducer.GeneratedVideo[0]': {
+          hash: 'transition-hash',
+          producedBy: 'Producer:TransitionVideoProducer[0]',
+        },
+      },
+    });
+
+    await eventLog.appendArtefact('demo', {
+      artefactId: 'Artifact:DirectorProducer.Script.Characters[0].HasTransition',
+      revision: 'rev-fix',
+      inputsHash: 'condition-hash',
+      output: {
+        blob: {
+          hash: 'has-transition-hash',
+          size: 4,
+          mimeType: 'text/plain',
+        },
+      },
+      status: 'succeeded',
+      producedBy: 'Producer:DirectorProducer',
+      createdAt: new Date().toISOString(),
+    });
+
+    const { plan } = await planner.computePlan({
+      movieId: 'demo',
+      manifest,
+      eventLog,
+      blueprint: graph,
+      targetRevision: 'rev-0002',
+      pendingEdits: [],
+      reRunFrom: 1,
+    });
+
+    const jobs = plan.layers.flat().map((job) => job.jobId);
+    expect(jobs).toContain('Producer:TransitionVideoProducer[0]');
+    expect(jobs).not.toContain('Producer:DirectorProducer');
+  });
+
   it('propagates dirtiness downstream when inputs change', async () => {
     const ctx = memoryContext();
     await initializeMovieStorage(ctx, 'demo');
@@ -427,6 +705,58 @@ describe('planner', () => {
     expect(jobs.some((job) => job.producer === 'AudioProducer')).toBe(true);
     expect(jobs.some((job) => job.producer === 'TimelineAssembler')).toBe(true);
     expect(jobs.some((job) => job.producer === 'ScriptProducer')).toBe(false);
+  });
+
+  it('automatically re-plans producer when latest artifact attempt failed despite stale manifest success', async () => {
+    const ctx = memoryContext();
+    await initializeMovieStorage(ctx, 'demo');
+    const eventLog = createEventLog(ctx);
+    const graph = buildProducerGraph();
+    const planner = createPlanner({ collectExplanation: true });
+
+    const baseRevision = 'rev-0001';
+    const baseline = createInputEvents({ InquiryPrompt: 'Tell me a story' }, baseRevision);
+    for (const event of baseline) {
+      await eventLog.appendInput('demo', event);
+    }
+
+    const manifest = createSucceededManifest(baseline, { revision: baseRevision as RevisionId });
+
+    await eventLog.appendArtefact('demo', {
+      artefactId: 'Artifact:SegmentAudio[0]',
+      revision: 'rev-manual-fail',
+      inputsHash: 'manual-fail',
+      output: {},
+      status: 'failed',
+      producedBy: 'Producer:AudioProducer[0]',
+      diagnostics: {
+        error: {
+          name: 'Error',
+          message: 'simulated provider failure',
+        },
+      },
+      createdAt: new Date().toISOString(),
+    });
+
+    const { plan, explanation } = await planner.computePlan({
+      movieId: 'demo',
+      manifest,
+      eventLog,
+      blueprint: graph,
+      targetRevision: nextRevisionId(baseRevision),
+      pendingEdits: [],
+      collectExplanation: true,
+    });
+
+    const jobs = plan.layers.flat().map((job) => job.jobId);
+    expect(jobs).toContain('Producer:AudioProducer[0]');
+    expect(jobs).toContain('Producer:TimelineAssembler');
+    expect(jobs).not.toContain('Producer:ScriptProducer');
+    expect(jobs).not.toContain('Producer:AudioProducer[1]');
+
+    const reason = explanation?.jobReasons.find((entry) => entry.jobId === 'Producer:AudioProducer[0]');
+    expect(reason?.reason).toBe('latestAttemptFailed');
+    expect(reason?.failedArtifacts).toContain('Artifact:SegmentAudio[0]');
   });
 
   it('marks producer and downstream jobs dirty when model selection input changes', async () => {

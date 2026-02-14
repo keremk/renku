@@ -1,5 +1,5 @@
 import { createProducerHandlerFactory } from '../handler-factory.js';
-import { createProviderError, SdkErrorCode } from '../errors.js';
+import { createProviderError, SdkErrorCode, type ProviderError } from '../errors.js';
 import type { HandlerFactory, ProviderJobContext } from '../../types.js';
 import { buildArtefactsFromUrls, buildArtefactsFromJson } from './artefacts.js';
 import { extractPlannerContext } from './utils.js';
@@ -152,6 +152,9 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
               message: `Provider ${notificationLabel} failed for job ${request.jobId}: ${rawMessage}`,
               timestamp: new Date().toISOString(),
             });
+            if (isProviderError(error)) {
+              throw error;
+            }
             throw createProviderError(
               SdkErrorCode.PROVIDER_PREDICTION_FAILED,
               `${adapter.name} prediction failed: ${rawMessage}`,
@@ -228,6 +231,18 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
       },
     })(init);
   };
+}
+
+function isProviderError(error: unknown): error is ProviderError {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const candidate = error as Partial<ProviderError>;
+  return (
+    typeof candidate.code === 'string' &&
+    typeof candidate.kind === 'string' &&
+    typeof candidate.retryable === 'boolean'
+  );
 }
 
 /**

@@ -60,6 +60,8 @@ export interface GeneratePlanOptions {
   notifications?: import('@gorenku/core').NotificationBus;
   /** Force re-run from this layer index onwards (0-indexed). Jobs at this layer and above will be included in the plan. */
   reRunFrom?: number;
+  /** Limit plan to layers 0 through upToLayer (0-indexed). */
+  upToLayer?: number;
   /** Target artifact IDs for surgical regeneration (canonical format, e.g., ["Artifact:AudioProducer.GeneratedAudio[0]"]) */
   targetArtifactIds?: string[];
   /** If true, collect explanation data for why jobs are scheduled */
@@ -210,6 +212,7 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
     eventLog,
     pendingArtefacts: allPendingArtefacts.length > 0 ? allPendingArtefacts : undefined,
     reRunFrom: options.reRunFrom,
+    upToLayer: options.upToLayer,
     targetArtifactIds: options.targetArtifactIds,
     collectExplanation: options.collectExplanation,
   });
@@ -292,4 +295,3 @@ function resolveCatalogModelsDir(cliConfig: CliConfig): string | null {
   }
   return null;
 }
-

@@ -5,6 +5,7 @@ inputs:
     - "file:../media/grid-image-fixture.jpeg"
     - "file:../media/grid-image-fixture.jpeg"
     - "file:../media/grid-image-fixture.jpeg"
+  SettingImage: "file:../media/grid-image-fixture.jpeg"
 
 models:
   - model: flux-pro/kontext

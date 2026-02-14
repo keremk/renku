@@ -14,12 +14,15 @@ export interface JobDirtyReason {
   reason:
     | 'initial' // Manifest has no inputs (first run)
     | 'producesMissing' // Job produces artifacts not in manifest
+    | 'latestAttemptFailed' // Job produced artifacts that most recently failed
     | 'touchesDirtyInput' // Job depends on dirty inputs
     | 'touchesDirtyArtefact' // Job depends on dirty upstream artifacts
     | 'inputsHashChanged' // Stored inputsHash differs from recomputed content hash
     | 'propagated'; // Marked dirty because an upstream job is dirty
   /** Missing artifact IDs if reason is 'producesMissing' */
   missingArtifacts?: string[];
+  /** Failed artifact IDs if reason is 'latestAttemptFailed' */
+  failedArtifacts?: string[];
   /** Dirty input IDs if reason is 'touchesDirtyInput' */
   dirtyInputs?: string[];
   /** Dirty artifact IDs if reason is 'touchesDirtyArtefact' */

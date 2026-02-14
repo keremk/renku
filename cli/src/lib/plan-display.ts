@@ -339,6 +339,13 @@ export function displayPlanExplanation(options: DisplayExplanationOptions): void
 						logger.info(`    ${chalk.dim('Dirty inputs:')} ${inputsList}${more}`);
 					}
 					break;
+				case 'latestAttemptFailed':
+					if (jobReason.failedArtifacts && jobReason.failedArtifacts.length > 0) {
+						const failedList = jobReason.failedArtifacts.slice(0, 3).join(', ');
+						const more = jobReason.failedArtifacts.length > 3 ? ` (+${jobReason.failedArtifacts.length - 3} more)` : '';
+						logger.info(`    ${chalk.dim('Latest failed artifacts:')} ${failedList}${more}`);
+					}
+					break;
 				case 'touchesDirtyArtefact':
 					if (jobReason.dirtyArtefacts && jobReason.dirtyArtefacts.length > 0) {
 						const artifactsList = jobReason.dirtyArtefacts.slice(0, 3).join(', ');
@@ -375,6 +382,8 @@ function formatReasonLabel(reason: string): string {
 			return chalk.red('PRODUCES MISSING ARTIFACTS');
 		case 'touchesDirtyInput':
 			return chalk.cyan('TOUCHES DIRTY INPUTS');
+		case 'latestAttemptFailed':
+			return chalk.red('LATEST ATTEMPT FAILED');
 		case 'touchesDirtyArtefact':
 			return chalk.magenta('TOUCHES DIRTY ARTIFACTS');
 		case 'propagated':

@@ -718,6 +718,13 @@ function createLogEntry(
   };
 }
 
+function formatJobLabel(producer: string, jobId?: string): string {
+  if (typeof jobId === 'string' && jobId.startsWith('Producer:')) {
+    return jobId.slice('Producer:'.length);
+  }
+  return producer;
+}
+
 function handleSSEEvent(event: SSEEvent, dispatch: React.Dispatch<ExecutionAction>) {
   switch (event.type) {
     case 'layer-start': {
@@ -750,6 +757,7 @@ function handleSSEEvent(event: SSEEvent, dispatch: React.Dispatch<ExecutionActio
     }
 
     case 'job-start': {
+      const jobLabel = formatJobLabel(event.producer, event.jobId);
       dispatch({
         type: 'UPDATE_PRODUCER_STATUS',
         producer: event.producer,
@@ -757,7 +765,7 @@ function handleSSEEvent(event: SSEEvent, dispatch: React.Dispatch<ExecutionActio
       });
       const logEntry = createLogEntry(
         'job-start',
-        `Starting ${event.producer}...`,
+        `Starting ${jobLabel}...`,
         { jobId: event.jobId, producer: event.producer, layerIndex: event.layerIndex, status: 'running' }
       );
       dispatch({ type: 'ADD_LOG_ENTRY', entry: logEntry });
@@ -765,6 +773,7 @@ function handleSSEEvent(event: SSEEvent, dispatch: React.Dispatch<ExecutionActio
     }
 
     case 'job-complete': {
+      const jobLabel = formatJobLabel(event.producer, event.jobId);
       const producerStatus = event.status === 'succeeded' ? 'success' : event.status === 'failed' ? 'error' : 'skipped';
       dispatch({
         type: 'UPDATE_PRODUCER_STATUS',
@@ -775,7 +784,7 @@ function handleSSEEvent(event: SSEEvent, dispatch: React.Dispatch<ExecutionActio
       const statusLabel = event.status === 'succeeded' ? 'completed successfully' : event.status === 'failed' ? 'failed' : 'skipped';
       const logEntry = createLogEntry(
         'job-complete',
-        `${event.producer} ${statusLabel} ${statusIcon}`,
+        `${jobLabel} ${statusLabel} ${statusIcon}`,
         {
           jobId: event.jobId,
           producer: event.producer,

@@ -18,6 +18,10 @@ inputs:
     type: array
     itemType: image
     required: true
+  - name: SettingImage
+    description: Shared setting image used as secondary source for every iteration.
+    type: image
+    required: true
 
 artifacts:
   - name: OutputImages
@@ -40,5 +44,7 @@ connections:
     to: ThenImageProducer[character].Prompt
   - from: CelebrityThenImages[character]
     to: ThenImageProducer[character].SourceImages[0]
+  - from: SettingImage
+    to: ThenImageProducer[character].SourceImages[1]
   - from: ThenImageProducer[character].TransformedImage
     to: OutputImages[character]

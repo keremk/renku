@@ -147,10 +147,6 @@ export async function runExecute(options: ExecuteOptions): Promise<ExecuteResult
   const movieDir = resolve(storageRoot, basePath, storageMovieId);
   const upToLayer = options.upToLayer;
 
-  if (options.dryRun && upToLayer !== undefined) {
-    logger.info('--upToLayer applies only to live runs; dry runs will simulate all layers.');
-  }
-
   // Resolve inputs path - always required (contains model selections)
   const inputsPath = resolveInputsPath(options.inputsPath);
 
@@ -174,6 +170,7 @@ export async function runExecute(options: ExecuteOptions): Promise<ExecuteResult
     pendingArtefacts: options.pendingArtefacts,
     logger,
     reRunFrom: options.reRunFrom,
+    upToLayer,
     targetArtifactIds: options.targetArtifactIds,
     collectExplanation: options.explain,
   });
@@ -275,7 +272,7 @@ export async function runExecute(options: ExecuteOptions): Promise<ExecuteResult
     catalogModelsDir: planResult.catalogModelsDir,
     logger,
     concurrency,
-    upToLayer: options.dryRun ? undefined : upToLayer,
+    upToLayer,
     reRunFrom: options.dryRun ? undefined : options.reRunFrom,
     targetArtifactIds: options.targetArtifactIds,
     dryRun: options.dryRun,

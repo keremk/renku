@@ -77,7 +77,8 @@
       "Bash(wc:*)",
       "mcp__plugin_context7_context7__resolve-library-id",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(npx vitest run:*)"
+      "Bash(npx vitest run:*)",
+      "WebFetch(domain:fal.ai)"
     ],
     "deny": [],
     "ask": []

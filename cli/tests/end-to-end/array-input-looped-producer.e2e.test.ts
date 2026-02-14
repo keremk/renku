@@ -65,6 +65,7 @@ describe('end-to-end: array input wiring to looped producer collection element',
     expect(jobs).toHaveLength(3);
 
     const mappedSourceIds = new Set<string>();
+    const mappedSettingIds = new Set<string>();
     for (const job of jobs) {
       const index = parseFirstIndex(job.jobId);
       const bindings = job.context?.inputBindings;
@@ -72,7 +73,9 @@ describe('end-to-end: array input wiring to looped producer collection element',
       expect(bindings?.Prompt).toBe('Input:Prompt');
       expect(bindings?.SourceImages).toBe(`Input:ThenImageProducer.SourceImages[${index}]`);
       expect(bindings?.['SourceImages[0]']).toBe(`Input:CelebrityThenImages[${index}]`);
+      expect(bindings?.['SourceImages[1]']).toBe('Input:SettingImage');
       mappedSourceIds.add(bindings?.['SourceImages[0]']);
+      mappedSettingIds.add(bindings?.['SourceImages[1]']);
     }
 
     expect(mappedSourceIds).toEqual(
@@ -82,5 +85,6 @@ describe('end-to-end: array input wiring to looped producer collection element',
         'Input:CelebrityThenImages[2]',
       ]),
     );
+    expect(mappedSettingIds).toEqual(new Set(['Input:SettingImage']));
   });
 });

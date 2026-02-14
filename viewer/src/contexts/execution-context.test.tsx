@@ -768,6 +768,21 @@ describe('ExecutionContext', () => {
       expect(result.current.state.executionLogs[0].message).toContain('skipped');
     });
 
+    it('shows indexed job label when canonical jobId is available', async () => {
+      const result = await setupExecutingState();
+
+      act(() => {
+        sseCallback({
+          type: 'job-start',
+          jobId: 'Producer:ThenImageProducer[1]',
+          producer: 'ThenImageProducer',
+          layerIndex: 1,
+        });
+      });
+
+      expect(result.current.state.executionLogs[0].message).toContain('Starting ThenImageProducer[1]');
+    });
+
     it('handles layer-complete event', async () => {
       const result = await setupExecutingState();
 

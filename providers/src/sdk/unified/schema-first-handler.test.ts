@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createUnifiedHandler } from './schema-first-handler.js';
 import type { ProviderAdapter, ClientOptions, ProviderClient } from './provider-adapter.js';
 import type { HandlerFactoryInit, ProviderJobContext } from '../../types.js';
+import { createProviderError, SdkErrorCode } from '../errors.js';
 
 // Type for extras to avoid repetitive casting
 type TestExtras = {
@@ -227,6 +228,35 @@ describe('createUnifiedHandler', () => {
     const handler = factory(createMockInitContext({ mode: 'live' }));
 
     await expect(handler.invoke(createMockRequest())).rejects.toThrow(/Mock API error/);
+  });
+
+  it('rethrows structured ProviderError from adapter without rewrapping', async () => {
+    const providerError = createProviderError(
+      SdkErrorCode.MISSING_REQUIRED_INPUT,
+      'Structured provider validation failure',
+      { kind: 'user_input', retryable: false, causedByUser: true },
+    );
+    const adapter: ProviderAdapter = {
+      name: 'structured-provider',
+      secretKey: 'STRUCTURED_KEY',
+      async createClient(): Promise<ProviderClient> {
+        return { configured: true };
+      },
+      formatModelIdentifier: (m) => `structured/${m}`,
+      async invoke(): Promise<unknown> {
+        throw providerError;
+      },
+      normalizeOutput: () => ['https://mock.example.com/output.png'],
+    };
+    const factory = createUnifiedHandler({ adapter, outputMimeType: 'image/png' });
+    const handler = factory(createMockInitContext({ mode: 'live' }));
+
+    await expect(handler.invoke(createMockRequest())).rejects.toMatchObject({
+      code: SdkErrorCode.MISSING_REQUIRED_INPUT,
+      retryable: false,
+      kind: 'user_input',
+      message: 'Structured provider validation failure',
+    });
   });
 
   it('returns failed status when no output URLs', async () => {

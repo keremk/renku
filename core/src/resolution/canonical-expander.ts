@@ -619,6 +619,13 @@ function collapseInputNodes(
       return;
     }
     const existing = bindingMap.get(targetId) ?? new Map<string, string>();
+    const previous = existing.get(alias);
+    if (previous !== undefined && previous !== canonicalId) {
+      throw createRuntimeError(
+        RuntimeErrorCode.INVALID_INPUT_BINDING,
+        `Conflicting input binding for ${targetId}.${alias}: ${previous} vs ${canonicalId}`,
+      );
+    }
     existing.set(alias, canonicalId);
     bindingMap.set(targetId, existing);
   }

@@ -175,6 +175,7 @@ describe('inferMimeType', () => {
   it('infers mime type from extension', () => {
     expect(inferMimeType('png')).toBe('image/png');
     expect(inferMimeType('jpg')).toBe('image/jpeg');
+    expect(inferMimeType('avif')).toBe('image/avif');
     expect(inferMimeType('mp4')).toBe('video/mp4');
     expect(inferMimeType('mp3')).toBe('audio/mpeg');
     expect(inferMimeType('json')).toBe('application/json');
@@ -195,6 +196,7 @@ describe('inferBlobExtension', () => {
   it('infers extension from mimeType', () => {
     expect(inferBlobExtension('image/png')).toBe('png');
     expect(inferBlobExtension('image/jpeg')).toBe('jpg');
+    expect(inferBlobExtension('image/avif')).toBe('avif');
     expect(inferBlobExtension('video/mp4')).toBe('mp4');
     expect(inferBlobExtension('audio/mpeg')).toBe('mp3');
   });
