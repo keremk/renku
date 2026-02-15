@@ -32,6 +32,7 @@ renku init --root=/path/to/storage
 ```
 
 This creates:
+
 - `~/.config/renku/cli-config.json` with storage settings (fixed location)
 - `{rootFolder}/.gitignore` with patterns for `**/builds/` and `**/artifacts/`
 - `{rootFolder}/catalog/` containing:
@@ -40,6 +41,7 @@ This creates:
   - `blueprints/` - Example blueprints to get started
 
 Required flags:
+
 - `--root`: Storage root directory (mandatory)
 
 **Note:** Builds and artifacts are created in the **current working directory** when you run `renku generate`, not in the root folder. This allows project-based organization where each project has its own builds.
@@ -50,11 +52,11 @@ Required flags:
 
 ```yaml
 inputs:
-  InquiryPrompt: "Explain the water cycle"
+  InquiryPrompt: 'Explain the water cycle'
   Duration: 30
   NumOfSegments: 3
-  VoiceId: "Wise_Woman"
-  ImageStyle: "Scientific illustration"
+  VoiceId: 'Wise_Woman'
+  ImageStyle: 'Scientific illustration'
 ```
 
 2. **Run the generate command**:
@@ -80,14 +82,17 @@ renku viewer
 Initialize Renku storage configuration.
 
 **Usage:**
+
 ```bash
 renku init --root=/path/to/storage
 ```
 
 **Options:**
+
 - `--root` (required): Storage root directory for builds and blueprints
 
 **Creates:**
+
 - `~/.config/renku/cli-config.json` with storage settings
 - `{rootFolder}/.gitignore` with patterns for `**/builds/` and `**/artifacts/`
 - `{rootFolder}/catalog/` containing:
@@ -98,6 +103,7 @@ renku init --root=/path/to/storage
 **Note:** Builds and artifacts are created in your **current working directory** when running `renku generate`. This supports project-based workflows where each project folder has its own `builds/` and `artifacts/` directories.
 
 **Example:**
+
 ```bash
 renku init --root=/Users/alice/renku-storage
 ```
@@ -109,16 +115,19 @@ renku init --root=/Users/alice/renku-storage
 Update the catalog in the active workspace.
 
 **Usage:**
+
 ```bash
 renku update
 ```
 
 **Behavior:**
+
 - Reads the active workspace from CLI config
 - Copies bundled catalog files, overwriting existing ones
 - Users can revert changes using git
 
 **Example:**
+
 ```bash
 renku update
 ```
@@ -130,18 +139,22 @@ renku update
 Switch to an existing Renku workspace.
 
 **Usage:**
+
 ```bash
 renku use --root=/path/to/workspace
 ```
 
 **Options:**
+
 - `--root` (required): Path to an existing Renku workspace
 
 **Behavior:**
+
 - Validates the folder is a valid Renku workspace
 - Updates CLI config to point to the specified workspace
 
 **Example:**
+
 ```bash
 renku use --root=~/other-workspace
 ```
@@ -153,6 +166,7 @@ renku use --root=~/other-workspace
 Create a new blueprint project, either from scratch or by copying an existing blueprint from the catalog.
 
 **Usage:**
+
 ```bash
 # Create from scratch (scaffold)
 renku new:blueprint <name>
@@ -162,25 +176,30 @@ renku new:blueprint <name> --using=<catalog-blueprint>
 ```
 
 **Arguments:**
+
 - `<name>` (required): Name for the new blueprint (kebab-case, e.g., `my-video-project`)
 
 **Options:**
+
 - `--using` (optional): Name of an existing blueprint in the catalog to copy from
 
 **Behavior:**
 
 Without `--using` (scaffold mode):
+
 - Creates a new folder with the blueprint name
 - Generates a skeleton blueprint YAML with all required sections
 - Generates an input-template.yaml with example structure
 - The blueprint ID is auto-generated as PascalCase from the name
 
 With `--using` (copy mode):
+
 - Copies the entire blueprint folder from the catalog
 - Renames the blueprint YAML file to match the new name
 - Preserves all files including prompt producers, schemas, etc.
 
 **Examples:**
+
 ```bash
 # Create a new blueprint from scratch
 renku new:blueprint my-video-project
@@ -193,6 +212,7 @@ renku new:blueprint history-series --using=documentary-talkinghead
 ```
 
 **Output Structure:**
+
 ```
 my-video-project/
 ├── my-video-project.yaml    # Blueprint definition
@@ -201,6 +221,7 @@ my-video-project/
 ```
 
 **Notes:**
+
 - Always use this command instead of directly referencing catalog blueprints
 - Blueprint names must be kebab-case (lowercase with hyphens)
 - The blueprint ID in the YAML is automatically converted to PascalCase
@@ -212,23 +233,34 @@ my-video-project/
 Create a new movie or continue an existing one.
 
 **Usage (new run):**
+
 ```bash
 renku generate [<inquiry-prompt>] --inputs=<path> --blueprint=<path> [--dry-run] [--non-interactive] [--up-to-layer=<n>] [--re-run-from=<n>]
 ```
 
 **Usage (continue an existing movie):**
+
 ```bash
 renku generate --movie-id=<movie-id> --inputs=<path> [--dry-run] [--non-interactive] [--up-to-layer=<n>] [--re-run-from=<n>]
 renku generate --last --inputs=<path> [--dry-run] [--non-interactive] [--up-to-layer=<n>] [--re-run-from=<n>]
 ```
 
 **Usage (surgical regeneration of specific artifacts):**
+
 ```bash
-renku generate --last --artifact-id=<artifact-id> --inputs=<path> [--up-to-layer=<n>]
-renku generate --movie-id=<movie-id> --aid=<artifact-id> --aid=<artifact-id> --inputs=<path> [--up-to-layer=<n>]
+renku generate --last --artifact-id=<canonical-artifact-id> --inputs=<path> [--up-to-layer=<n>]
+renku generate --movie-id=<movie-id> --aid=<canonical-artifact-id> --aid=<canonical-artifact-id> --inputs=<path> [--up-to-layer=<n>]
+```
+
+**Usage (pin existing outputs during regeneration):**
+
+```bash
+renku generate --last --inputs=<path> --pin=<canonical-id> [--pin=<canonical-id>] [--from=<n>] [--up-to-layer=<n>]
+renku generate --movie-id=<movie-id> --inputs=<path> --pin=<canonical-id> [--pin=<canonical-id>] [--from=<n>] [--up-to-layer=<n>]
 ```
 
 **Options:**
+
 - `--inputs` / `--in` (required): Path to inputs YAML file (contains model selections)
 - `--blueprint` / `--bp` (required for new runs): Path to blueprint YAML file
 - `--movie-id` / `--id` (mutually exclusive with `--last`): Continue a specific movie
@@ -237,15 +269,18 @@ renku generate --movie-id=<movie-id> --aid=<artifact-id> --aid=<artifact-id> --i
 - `--non-interactive`: Skip confirmation prompt
 - `--up-to-layer` / `--up`: Stop execution after the specified layer (live runs only)
 - `--re-run-from` / `--from`: Re-run from specified layer (0-indexed), skipping earlier layers
-- `--artifact-id` / `--artifact` / `--aid`: Regenerate specific artifact(s) and their downstream dependencies only (requires `--last` or `--movie-id`). Can be specified multiple times to target multiple artifacts.
+- `--artifact-id` / `--artifact` / `--aid`: Regenerate specific artifact(s) and their downstream dependencies only (requires `--last` or `--movie-id`). Requires canonical `Artifact:...` IDs. Can be specified multiple times to target multiple artifacts.
+- `--pin`: Keep existing outputs from regeneration. Accepts canonical `Artifact:...` or `Producer:...` IDs. Repeatable. Requires `--last` or `--movie-id`.
 
 **Behavior:**
+
 1. New runs: validate inputs/blueprint, generate a new movie id, create `builds/movie-{id}/`, and execute the workflow.
 2. Continuing runs: load the existing manifest, apply any artifact edits, regenerate the plan, and execute with the stored blueprint (or an explicit override).
 3. Artifacts view under `artifacts/<id>` stays in sync after successful runs.
 4. The CLI records the latest movie id so `--last` can target it explicitly; if missing, the command fails with an error.
 
 **Examples:**
+
 ```bash
 # New run with inline prompt
 renku generate "Explain black holes" --inputs=~/inputs.yaml --blueprint=~/.renku/blueprints/audio-only.yaml
@@ -263,16 +298,25 @@ renku generate --last --inputs=./inputs.yaml --from=2
 renku generate --movie-id=movie-q123456 --inputs=./inputs.yaml --from=2 --up-to-layer=3
 
 # Surgical regeneration: regenerate only a specific artifact and its downstream dependencies
-renku generate --last --artifact-id="AudioProducer.GeneratedAudio[0]" --inputs=./inputs.yaml
+renku generate --last --artifact-id="Artifact:AudioProducer.GeneratedAudio[0]" --inputs=./inputs.yaml
 
 # Surgical regeneration with layer limit
-renku generate --movie-id=movie-q123456 --artifact-id="ImageProducer.GeneratedImage[2]" --inputs=./inputs.yaml --up-to-layer=1
+renku generate --movie-id=movie-q123456 --artifact-id="Artifact:ImageProducer.GeneratedImage[2]" --inputs=./inputs.yaml --up-to-layer=1
 
 # Multiple artifact regeneration using --aid alias
-renku generate --last --aid="AudioProducer.GeneratedAudio[0]" --aid="AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+renku generate --last --aid="Artifact:AudioProducer.GeneratedAudio[0]" --aid="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
 
 # Multiple artifacts with layer limit
-renku generate --last --aid="ImageProducer.GeneratedImage[1]" --aid="ImageProducer.GeneratedImage[3]" --inputs=./inputs.yaml --up-to-layer=2
+renku generate --last --aid="Artifact:ImageProducer.GeneratedImage[1]" --aid="Artifact:ImageProducer.GeneratedImage[3]" --inputs=./inputs.yaml --up-to-layer=2
+
+# Pin one artifact
+renku generate --last --inputs=./inputs.yaml --pin="Artifact:ScriptProducer.NarrationScript[0]"
+
+# Pin all reusable outputs of a producer
+renku generate --last --inputs=./inputs.yaml --pin="Producer:ScriptProducer" --from=1
+
+# Pin multiple IDs
+renku generate --movie-id=movie-q123456 --inputs=./inputs.yaml --pin="Artifact:AudioProducer.GeneratedAudio[0]" --pin="Producer:ImageProducer"
 ```
 
 ---
@@ -282,16 +326,19 @@ renku generate --last --aid="ImageProducer.GeneratedImage[1]" --aid="ImageProduc
 List all builds in the current project directory.
 
 **Usage:**
+
 ```bash
 renku list
 ```
 
 **Behavior:**
+
 - Scans `builds/` in the current working directory
 - Shows which builds have artifacts (completed runs) vs. dry-run only builds
 - Suggests running `renku clean` to remove dry-run builds
 
 **Example Output:**
+
 ```
 Builds in current project:
 
@@ -309,22 +356,26 @@ Run `renku clean` to remove 2 dry-run build(s).
 Remove build artifacts from the current project. By default, only removes dry-run builds (builds without artifacts).
 
 **Usage:**
+
 ```bash
 renku clean [--movie-id=<id>] [--all] [--dry-run]
 ```
 
 **Options:**
+
 - `--movie-id`, `--id`: Clean a specific movie by ID
 - `--all`: Clean all builds including those with artifacts (requires confirmation)
 - `--dry-run`: Show what would be cleaned without actually deleting
 - `--non-interactive`: Skip confirmation prompts
 
 **Behavior:**
+
 - Without options: Removes all dry-run builds (builds without corresponding `artifacts/` folder)
 - With `--movie-id`: Removes only the specified build (protected if it has artifacts unless `--all` is used)
 - With `--all`: Removes all builds including those with artifacts
 
 **Examples:**
+
 ```bash
 # Clean only dry-run builds (safe default)
 renku clean
@@ -346,6 +397,7 @@ renku clean --all
 Export a previously generated movie to MP4/MP3 format.
 
 **Usage:**
+
 ```bash
 renku export --movie-id=<movie-id> [options]
 renku export --last [options]
@@ -353,6 +405,7 @@ renku export --last --inputs=<config.yaml>
 ```
 
 **CLI Options:**
+
 - `--movie-id` / `--id` (mutually exclusive with `--last`): Export a specific movie by ID
 - `--last` (mutually exclusive with `--movie-id`): Export the most recently generated movie
 - `--inputs` / `--in` (optional): Path to export config YAML file (for advanced settings)
@@ -363,10 +416,10 @@ renku export --last --inputs=<config.yaml>
 
 **Exporter Backends:**
 
-| Exporter | Description | Requirements |
-|----------|-------------|--------------|
-| `remotion` | Docker-based Remotion renderer (default) | Docker Desktop |
-| `ffmpeg` | Native FFmpeg renderer | FFmpeg installed |
+| Exporter   | Description                              | Requirements     |
+| ---------- | ---------------------------------------- | ---------------- |
+| `remotion` | Docker-based Remotion renderer (default) | Docker Desktop   |
+| `ffmpeg`   | Native FFmpeg renderer                   | FFmpeg installed |
 
 The FFmpeg exporter is faster and requires no Docker. It also supports karaoke-style subtitles and produces MP3 for audio-only timelines.
 
@@ -382,24 +435,25 @@ fps: 30
 exporter: ffmpeg
 
 # FFmpeg-specific encoding settings
-preset: medium      # x264 preset: ultrafast, fast, medium, slow
-crf: 23             # Quality (0-51, lower = better quality)
-audioBitrate: 192k  # Audio bitrate
+preset: medium # x264 preset: ultrafast, fast, medium, slow
+crf: 23 # Quality (0-51, lower = better quality)
+audioBitrate: 192k # Audio bitrate
 
 # Subtitle settings (requires TranscriptionProducer in blueprint)
 subtitles:
-  font: Arial                    # Font name (system fonts)
-  fontSize: 48                   # Font size in pixels
-  fontBaseColor: "#FFFFFF"       # Default text color (hex)
-  fontHighlightColor: "#FFD700"  # Karaoke highlight color (hex)
-  backgroundColor: "#000000"     # Background box color (hex)
-  backgroundOpacity: 0.5         # Background opacity (0-1, 0 = no box)
-  bottomMarginPercent: 10        # Position from bottom (% of height)
-  maxWordsPerLine: 4             # Words displayed at once
-  highlightEffect: true          # Enable karaoke-style highlighting
+  font: Arial # Font name (system fonts)
+  fontSize: 48 # Font size in pixels
+  fontBaseColor: '#FFFFFF' # Default text color (hex)
+  fontHighlightColor: '#FFD700' # Karaoke highlight color (hex)
+  backgroundColor: '#000000' # Background box color (hex)
+  backgroundOpacity: 0.5 # Background opacity (0-1, 0 = no box)
+  bottomMarginPercent: 10 # Position from bottom (% of height)
+  maxWordsPerLine: 4 # Words displayed at once
+  highlightEffect: true # Enable karaoke-style highlighting
 ```
 
 **Requirements:**
+
 - The blueprint must include a `TimelineComposer` producer
 - The movie must have a Timeline artifact
 - For `remotion`: Docker Desktop running
@@ -407,6 +461,7 @@ subtitles:
 - For subtitles: Blueprint must include a `TranscriptionProducer`
 
 **Behavior:**
+
 1. Validates the blueprint has a TimelineComposer producer
 2. Validates the manifest contains a Timeline artifact
 3. Invokes the selected exporter with specified settings
@@ -414,12 +469,14 @@ subtitles:
 5. Creates a symlink in `artifacts/{movieId}/` for easy access
 
 **Error Messages:**
+
 - "A TimelineComposer producer is required in the blueprint to export video." — Blueprint missing TimelineComposer
 - "No timeline found. Please run the generation first to create a timeline." — No Timeline artifact in manifest
 - "Docker render failed: ..." — Remotion rendering error
 - "FFmpeg render failed: ..." — FFmpeg rendering error
 
 **Examples:**
+
 ```bash
 # Export with defaults (1920x1080 @ 30fps, remotion exporter)
 renku export --movie-id=movie-q123456
@@ -438,6 +495,7 @@ renku export --last --inputs=./export-config.yaml
 ```
 
 **Output:**
+
 ```
 Export completed successfully.
   Movie: movie-q123456
@@ -453,6 +511,7 @@ Export completed successfully.
 Export a generated movie timeline to OpenTimelineIO (OTIO) format for import into DaVinci Resolve, Premiere Pro, and other professional NLE applications.
 
 **Usage:**
+
 ```bash
 renku export:davinci --movie-id=<id> [options]
 renku export:davinci --last [options]
@@ -460,21 +519,24 @@ renku export:davinci --last [options]
 
 **Options:**
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--movie-id`, `--id` | - | Movie ID to export |
-| `--last` | - | Export the most recent movie |
-| `--fps` | 30 | Frames per second for timeline |
+| Option               | Default | Description                    |
+| -------------------- | ------- | ------------------------------ |
+| `--movie-id`, `--id` | -       | Movie ID to export             |
+| `--last`             | -       | Export the most recent movie   |
+| `--fps`              | 30      | Frames per second for timeline |
 
 **Requirements:**
+
 - Blueprint must include a `TimelineComposer` producer
 - Movie must have a Timeline artifact
 
 **Output:**
+
 - `builds/{movieId}/DaVinciProject.otio` - Main OTIO file
 - `artifacts/{movieId}/DaVinciProject.otio` - Symlink for easy access
 
 **Examples:**
+
 ```bash
 # Export most recent movie
 renku export:davinci --last
@@ -496,15 +558,16 @@ renku export:davinci --last --fps=24
 
 **Track Mapping:**
 
-| Renku Track | OTIO Track |
-|-------------|------------|
-| VideoTrack | Video |
-| ImageTrack | Video |
-| AudioTrack | Audio |
-| MusicTrack | Audio |
-| CaptionsTrack | Markers |
+| Renku Track   | OTIO Track |
+| ------------- | ---------- |
+| VideoTrack    | Video      |
+| ImageTrack    | Video      |
+| AudioTrack    | Audio      |
+| MusicTrack    | Audio      |
+| CaptionsTrack | Markers    |
 
 **Notes:**
+
 - OTIO is a snapshot format - no live sync with Renku
 - Re-export generates a new timeline state
 - DaVinci will auto-link to existing media in your Media Pool when re-importing
@@ -517,14 +580,17 @@ renku export:davinci --last --fps=24
 List all available models for producers defined in a blueprint. This is useful for discovering model options when configuring the inputs file.
 
 **Usage:**
+
 ```bash
 renku producers:list --blueprint=<path>
 ```
 
 **Options:**
+
 - `--blueprint` / `--bp` (required): Path to the blueprint YAML file whose producers should be listed
 
 **Behavior:**
+
 1. Loads the blueprint
 2. Extracts all producer configurations with their model variants
 3. Looks up pricing and type info from the model catalog
@@ -532,11 +598,13 @@ renku producers:list --blueprint=<path>
 5. Displays all available models grouped by producer
 
 **Example:**
+
 ```bash
 renku producers:list --blueprint=image-audio.yaml
 ```
 
 **Output:**
+
 ```
 Producer model configurations:
 
@@ -563,20 +631,24 @@ AudioProducer (2 audio models)
 Validate blueprint structure and references.
 
 **Usage:**
+
 ```bash
 renku blueprints:validate <path-to-blueprint.yaml>
 ```
 
 **Options:**
+
 - Positional argument (required): Path to the blueprint YAML file to validate
 
 **Behavior:**
+
 - Validates YAML syntax
 - Checks module references
 - Validates connections
 - Ensures all required fields are present
 
 **Example:**
+
 ```bash
 renku blueprints:validate {rootFolder}/catalog/blueprints/image-audio.yaml
 ```
@@ -588,23 +660,28 @@ renku blueprints:validate {rootFolder}/catalog/blueprints/image-audio.yaml
 Open the blueprint viewer (starts the server if needed).
 
 **Usage:**
+
 ```bash
 renku viewer [path/to/blueprint.yaml]
 ```
 
 **Arguments:**
+
 - `[path]` (optional): Path to a blueprint YAML file. If not provided, auto-detects blueprints in the current directory.
 
 **Options:**
+
 - `--viewerHost`, `--viewerPort` (optional): Override host/port
 
 **Behavior:**
+
 - Auto-detects blueprints in the current directory if no path is provided.
 - Starts the bundled viewer server in background if not running.
 - Opens the blueprint viewer in your browser.
 - Displays the blueprint graph, builds, and timeline preview.
 
 **Examples:**
+
 ```bash
 # Auto-detect blueprint in current directory
 renku viewer
@@ -614,6 +691,7 @@ renku viewer ./path/to/my-blueprint.yaml
 ```
 
 **Related commands:**
+
 - `renku viewer:stop` — stop the background server.
 
 ---
@@ -623,9 +701,11 @@ renku viewer ./path/to/my-blueprint.yaml
 ### Provider Types
 
 #### 1. OpenAI
+
 Uses LLM for text generation with structured outputs.
 
 **Configuration:**
+
 ```yaml
 producers:
   - name: ScriptGenerator
@@ -637,6 +717,7 @@ producers:
 ```
 
 **Prompt File (`prompts/generate-script.md`):**
+
 ```markdown
 You are a creative scriptwriter. Generate a movie script based on the following:
 
@@ -647,6 +728,7 @@ Audience: {Audience}
 ```
 
 **JSON Schema (TypeScript Interface):**
+
 ```typescript
 interface ScriptGeneratorOutput {
   MovieTitle: string;
@@ -656,9 +738,11 @@ interface ScriptGeneratorOutput {
 ```
 
 #### 2. Replicate
+
 Invokes models for image and audio generation.
 
 **Configuration:**
+
 ```yaml
 producers:
   - name: ImageGenerator
@@ -677,14 +761,17 @@ producers:
 ```
 
 **SDK Mapping:**
+
 - Maps blueprint inputs to Replicate SDK field names
 - Supports type conversion (string to number)
 - Enforces required/optional fields
 
 #### 3. Renku
+
 Built-in providers for specialized tasks.
 
 **Configuration:**
+
 ```yaml
 producers:
   - name: TimelineComposer
@@ -694,6 +781,7 @@ producers:
 ```
 
 **Available Models:**
+
 - `OrderedTimeline`: Composes images and audio into a timeline JSON manifest
 
 ### Environment Configuration
@@ -704,10 +792,12 @@ producers:
 ### Credentials
 
 The CLI reads credentials from `.env` files in:
+
 1. CLI directory (`cli/.env`)
 2. Current working directory (`.env`)
 
 **Required Variables:**
+
 ```bash
 OPENAI_API_KEY=sk-...
 REPLICATE_API_TOKEN=r8_...
@@ -720,12 +810,14 @@ REPLICATE_API_TOKEN=r8_...
 ### Directory Layout
 
 Configuration (fixed location):
+
 ```
 ~/.config/renku/
 ├── cli-config.json          # Storage configuration
 ```
 
 Workspace root (initialized with `renku init`):
+
 ```
 {rootFolder}/
 ├── .gitignore               # Auto-generated: ignores **/builds/ and **/artifacts/
@@ -735,6 +827,7 @@ Workspace root (initialized with `renku init`):
 ```
 
 Project directory (current working directory when running `renku generate`):
+
 ```
 {project}/
 ├── builds/                  # GITIGNORED - build data
@@ -757,6 +850,7 @@ Project directory (current working directory when running `renku generate`):
 ```
 
 **Key Concepts:**
+
 - **Workspace root**: Contains catalog/blueprints (tracked in git)
 - **Project directory**: Where you run `renku generate` - contains builds/ and artifacts/ (gitignored)
 - **artifacts/**: Human-friendly symlinks to generated content - presence indicates a "real" build (not dry-run)
@@ -764,6 +858,7 @@ Project directory (current working directory when running `renku generate`):
 ### File Descriptions
 
 #### `cli-config.json`
+
 Storage configuration created by `init`. Located at `~/.config/renku/cli-config.json`.
 
 ```json
@@ -776,21 +871,27 @@ Storage configuration created by `init`. Located at `~/.config/renku/cli-config.
 ```
 
 #### `events/inputs.log`
+
 JSONL file containing input events. Each line is a JSON object with the input ID, value, and metadata.
 
 #### `events/artefacts.log`
+
 JSONL file containing artifact production events with status, blob references, and metadata.
 
 #### `runs/{revision}-plan.json`
+
 Execution plan with nodes, edges, and dependencies for a specific revision.
 
 #### `manifests/{revision}.json`
+
 Artifact metadata with types, blob references, and node IDs for a specific revision.
 
 #### `blobs/`
+
 Content-addressed blob storage. Files are stored under `{hash-prefix}/{hash}` paths.
 
 #### `current.json`
+
 Pointer to the current manifest revision.
 
 ---
@@ -804,6 +905,7 @@ Continuing work on an existing movie uses the same `generate` command with a tar
 **Workflow:**
 
 1. **Generate once to seed the movie:**
+
    ```bash
    renku generate --inputs=./inputs.yaml --blueprint=./blueprints/audio-only.yaml
    # Output: movie-q123456
@@ -813,6 +915,7 @@ Continuing work on an existing movie uses the same `generate` command with a tar
    - Update your original inputs file or edit artifacts in the `artifacts/movie-q123456/` folder.
 
 3. **Re-run generation against the same movie:**
+
    ```bash
    renku generate --movie-id=movie-q123456 --inputs=./inputs.yaml
    ```
@@ -822,6 +925,7 @@ Continuing work on an existing movie uses the same `generate` command with a tar
    - Use `renku viewer` to open the blueprint viewer.
 
 **Use Cases:**
+
 - Fix LLM-generated script errors by editing inputs and rerunning.
 - Replace unsatisfactory artifacts by editing files in `artifacts/`.
 - Regenerate partial workflows with `--up-to-layer` to limit execution.
@@ -837,6 +941,7 @@ renku generate --last --inputs=./inputs.yaml --from=2
 ```
 
 The `--from` flag:
+
 - Takes a 0-indexed layer number
 - Skips all layers before the specified layer (uses existing artifacts)
 - Forces all jobs at the specified layer and above to re-run
@@ -853,21 +958,25 @@ renku generate --last --inputs=./inputs.yaml --from=2 --up-to-layer=3
 
 When you need to regenerate only specific artifacts (and their downstream dependencies) without affecting sibling artifacts in the same layer, use `--artifact-id` or the shorter `--aid` alias:
 
+`--artifact-id` / `--aid` requires canonical artifact IDs (`Artifact:...`).
+
 ```bash
 # Regenerate only AudioProducer[0] and anything that depends on it
-renku generate --last --artifact-id="AudioProducer.GeneratedAudio[0]" --inputs=./inputs.yaml
+renku generate --last --artifact-id="Artifact:AudioProducer.GeneratedAudio[0]" --inputs=./inputs.yaml
 
 # Regenerate multiple artifacts using the --aid alias
-renku generate --last --aid="AudioProducer.GeneratedAudio[0]" --aid="AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+renku generate --last --aid="Artifact:AudioProducer.GeneratedAudio[0]" --aid="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
 ```
 
 **Note:** When using `--artifact-id` or `--aid` with shell interpreters like zsh, quote the artifact ID to prevent bracket expansion:
+
 ```bash
-renku generate --last --aid="AudioProducer.GeneratedAudio[0]" --inputs=./inputs.yaml
+renku generate --last --aid="Artifact:AudioProducer.GeneratedAudio[0]" --inputs=./inputs.yaml
 ```
 
 The `--artifact-id` / `--aid` flag:
-- Takes an artifact ID in short format (e.g., `AudioProducer.GeneratedAudio[0]`)
+
+- Takes a canonical artifact ID (e.g., `Artifact:AudioProducer.GeneratedAudio[0]`)
 - Requires `--last` or `--movie-id` to target an existing movie
 - Regenerates only the specified artifact(s) and their downstream dependencies
 - Can be specified multiple times to target multiple artifacts (union of all downstream jobs)
@@ -876,30 +985,35 @@ The `--artifact-id` / `--aid` flag:
 - Can be combined with `--up-to-layer` to limit downstream propagation
 
 **Finding artifact IDs:** Browse the manifest or artifacts folder to find the artifact ID you want to regenerate:
+
 ```bash
 cat builds/movie-{id}/manifests/rev-XXXX.json | jq '.artefacts | keys'
 ```
 
+The keys under `.artefacts` are canonical IDs. Use those values directly with `--artifact-id`, `--aid`, and `--pin`.
+
 **Use cases:**
+
 - One segment's audio/video didn't turn out well but others are fine
 - You generated up to a layer with `--up-to-layer` and want to regenerate just one artifact
 - You edited an artifact manually and want to regenerate only what depends on it
 
 **Comparison with `--re-run-from`:**
 
-| Feature | `--re-run-from=N` | `--artifact-id=X` |
-|---------|-------------------|-------------------|
-| Scope | All jobs at layer N and above | Only the target artifact and downstream |
+| Feature      | `--re-run-from=N`                  | `--artifact-id=X`                       |
+| ------------ | ---------------------------------- | --------------------------------------- |
+| Scope        | All jobs at layer N and above      | Only the target artifact and downstream |
 | Sibling jobs | Included (all jobs at layer N run) | Excluded (only downstream dependencies) |
-| Use case | Retry a layer after config change | Fix one specific artifact |
-| Layer limit | Yes (`--up-to-layer`) | Yes (`--up-to-layer`) |
+| Use case     | Retry a layer after config change  | Fix one specific artifact               |
+| Layer limit  | Yes (`--up-to-layer`)              | Yes (`--up-to-layer`)                   |
 
 **Example: Regenerating one segment**
 
 If you have 5 audio segments and segment 2 sounds off:
+
 ```bash
 # This regenerates ONLY AudioProducer[2] and anything downstream of it
-renku generate --last --artifact-id="AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+renku generate --last --artifact-id="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
 
 # This would regenerate ALL audio segments (not what you want)
 renku generate --last --from=1 --inputs=./inputs.yaml
@@ -908,21 +1022,51 @@ renku generate --last --from=1 --inputs=./inputs.yaml
 **Example: Regenerating multiple segments**
 
 If segments 0 and 2 need work but segment 1 is fine:
+
 ```bash
 # This regenerates Audio[0], Audio[2], and their downstream dependencies
-renku generate --last --aid="AudioProducer.GeneratedAudio[0]" --aid="AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+renku generate --last --aid="Artifact:AudioProducer.GeneratedAudio[0]" --aid="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
 ```
+
+### Pinning Existing Outputs
+
+Use `--pin` to keep known-good outputs during regeneration.
+
+Pin IDs must be canonical and can be either:
+
+- `Artifact:...` to pin one concrete output
+- `Producer:...` to pin all reusable outputs from a producer
+
+```bash
+# Pin one artifact
+renku generate --last --inputs=./inputs.yaml --pin="Artifact:ScriptProducer.NarrationScript[0]"
+
+# Pin a producer's outputs
+renku generate --last --inputs=./inputs.yaml --pin="Producer:ScriptProducer" --from=1
+
+# Repeat --pin to combine producer and artifact pins
+renku generate --movie-id=movie-q123456 --inputs=./inputs.yaml --pin="Artifact:AudioProducer.GeneratedAudio[0]" --pin="Producer:ImageProducer"
+```
+
+Pinning rules:
+
+- Requires `--last` or `--movie-id` (pinning on brand new runs fails)
+- Pin IDs must be canonical (`Artifact:...` or `Producer:...`)
+- A pinned artifact cannot also be targeted with `--artifact-id` / `--aid` in the same command
+- Pinned outputs must already exist as reusable successful outputs
 
 ### Dry Run Mode
 
 Dry run mode executes a mocked workflow without calling providers.
 
 **Usage:**
+
 ```bash
 renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml --dry-run
 ```
 
 **Behavior:**
+
 - Validates blueprint and inputs
 - Generates execution plan
 - Creates movie directory
@@ -930,6 +1074,7 @@ renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml 
 - Does not call OpenAI, Replicate, or Renku APIs
 
 **Use Cases:**
+
 - Test blueprint structure
 - Validate input files
 - Preview execution plan
@@ -940,11 +1085,13 @@ renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml 
 Non-interactive mode skips confirmation prompts.
 
 **Usage:**
+
 ```bash
 renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml --non-interactive
 ```
 
 **Use Cases:**
+
 - CI/CD pipelines
 - Automated workflows
 - Batch processing
@@ -956,38 +1103,49 @@ renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml 
 ### Common Issues
 
 **1. Missing API Credentials**
+
 ```
 Error: OPENAI_API_KEY not found
 ```
+
 **Solution:** Add credentials to `.env` file in CLI directory or current working directory.
 
 **2. Invalid Blueprint Path**
+
 ```
 Error: Blueprint file not found: /path/to/blueprint.yaml
 ```
+
 **Solution:** Use absolute paths or paths relative to current directory.
 
 **3. Missing Required Input**
+
 ```
 Error: Required input 'InquiryPrompt' not found in inputs.yaml
 ```
+
 **Solution:** Ensure all required inputs from blueprint are present in YAML file.
 
 **4. Module Reference Error**
+
 ```
 Error: Module not found: ./modules/missing-module.yaml
 ```
+
 **Solution:** Check module path is relative to blueprint file location.
 
 **5. Provider Configuration Error**
+
 ```
 Error: Invalid sdkMapping for Replicate producer
 ```
+
 **Solution:** Ensure all required SDK fields are mapped in `sdkMapping` section.
 
 ### Debug Mode
 
 Set environment variable for verbose logging:
+
 ```bash
 DEBUG=renku:* renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml
 ```
@@ -995,16 +1153,19 @@ DEBUG=renku:* renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/au
 ### Validation Commands
 
 **Validate blueprint:**
+
 ```bash
 renku blueprints:validate my-blueprint.yaml
 ```
 
 **Check providers:**
+
 ```bash
 renku producers:list --blueprint=my-blueprint.yaml
 ```
 
 **Dry run:**
+
 ```bash
 renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml --dry-run
 ```
@@ -1025,6 +1186,7 @@ renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml 
 ### Movie ID Format
 
 Movie IDs are 8-character prefixes of UUIDs:
+
 - Generated: `a1b2c3d4-5678-9abc-def0-123456789abc`
 - Stored as: `movie-a1b2c3d4`
 
@@ -1037,7 +1199,7 @@ Movie IDs are 8-character prefixes of UUIDs:
 
 ### Default Values
 
-- **Blueprint:** *(none – always pass `--blueprint`/`--bp`)*
+- **Blueprint:** _(none – always pass `--blueprint`/`--bp`)_
 - **Config Path:** `~/.renku/`
 - **Storage Base Path:** `builds/`
 - **Environment:** `local`
