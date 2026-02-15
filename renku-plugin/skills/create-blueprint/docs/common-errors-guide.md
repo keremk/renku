@@ -663,6 +663,59 @@ export S3_BUCKET_NAME="your-bucket"
 
 ---
 
+## Generate/Pinning Errors
+
+### R121: Pin Requires Existing Movie
+**Error:** Pinning was requested on a brand new run.
+
+**Cause:** `--pin` was used without `--last` or `--movie-id`.
+
+**Fix:** Run the first generation without pinning, then pin on a subsequent run:
+
+```bash
+renku generate --last --inputs=<inputs.yaml> --pin="Artifact:..."
+```
+
+---
+
+### R122: Invalid Pin ID
+**Error:** Pin ID is not canonical.
+
+**Cause:** `--pin` value is missing canonical prefix.
+
+**Fix:** Use canonical IDs only:
+- `Artifact:...`
+- `Producer:...`
+
+---
+
+### R123: Pinned Producer Not Found
+**Error:** The pinned producer ID does not exist in the current producer graph.
+
+**Cause:** Typo, stale ID, or blueprint changed.
+
+**Fix:** Verify producer canonical ID in current plan/output graph.
+
+---
+
+### R124: Pin Target Not Reusable
+**Error:** A pinned artifact cannot be reused.
+
+**Cause:** Artifact is missing or latest attempt failed.
+
+**Fix:** Unpin it or regenerate it first, then pin.
+
+---
+
+### R125: Pin Conflicts With Surgical Target
+**Error:** Same artifact is both pinned and targeted for surgical regeneration.
+
+**Cause:** Contradictory command flags.
+
+**Fix:** Remove the artifact from either `--pin` or `--artifact-id/--aid`.
+
+---
+
 ## Quick Troubleshooting Checklist
 
 1. **Run validation first:**

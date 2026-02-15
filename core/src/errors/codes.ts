@@ -207,6 +207,11 @@ export const RuntimeErrorCode = {
 
   // R120-R129: Stage Range Validation
   STAGE_START_REQUIRES_PREDECESSOR: 'R120',
+  PIN_REQUIRES_EXISTING_MOVIE: 'R121',
+  INVALID_PIN_ID: 'R122',
+  PIN_PRODUCER_NOT_FOUND: 'R123',
+  PIN_TARGET_NOT_REUSABLE: 'R124',
+  PIN_CONFLICT_WITH_SURGICAL_TARGET: 'R125',
 } as const;
 
 export type RuntimeErrorCodeValue = (typeof RuntimeErrorCode)[keyof typeof RuntimeErrorCode];

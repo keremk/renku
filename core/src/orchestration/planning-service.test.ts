@@ -17,6 +17,7 @@ import {
 import { createStorageContext, initializeMovieStorage } from '../storage.js';
 import { createManifestService } from '../manifest.js';
 import { createEventLog } from '../event-log.js';
+import { RuntimeErrorCode } from '../errors/index.js';
 
 describe('applyOutputSchemasToBlueprintTree', () => {
   it('applies outputSchema from providerOptions to JSON artifacts with arrays', () => {
@@ -698,6 +699,168 @@ describe('createPlanningService', () => {
       // Verify plan file exists
       const planExists = await storage.storage.fileExists(result.planPath);
       expect(planExists).toBe(true);
+    });
+
+    it('fails pinning on new runs', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      await expect(
+        service.generatePlan({
+          movieId,
+          blueprintTree: createSimpleBlueprint(),
+          inputValues: { 'Input:Prompt': 'Hello world' },
+          providerCatalog: defaultCatalog,
+          providerOptions: createDefaultOptions(['TestProducer']),
+          storage,
+          manifestService,
+          eventLog,
+          pinIds: ['Artifact:Output'],
+        }),
+      ).rejects.toMatchObject({
+        code: RuntimeErrorCode.PIN_REQUIRES_EXISTING_MOVIE,
+      });
+    });
+
+    it('fails on invalid non-canonical pin IDs', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      await expect(
+        service.generatePlan({
+          movieId,
+          blueprintTree: createSimpleBlueprint(),
+          inputValues: { 'Input:Prompt': 'Hello world' },
+          providerCatalog: defaultCatalog,
+          providerOptions: createDefaultOptions(['TestProducer']),
+          storage,
+          manifestService,
+          eventLog,
+          pinIds: ['NotCanonical'],
+        }),
+      ).rejects.toMatchObject({
+        code: RuntimeErrorCode.INVALID_PIN_ID,
+      });
+    });
+
+    it('fails when pinned producer is missing from producer graph', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      await expect(
+        service.generatePlan({
+          movieId,
+          blueprintTree: createSimpleBlueprint(),
+          inputValues: { 'Input:Prompt': 'Hello world' },
+          providerCatalog: defaultCatalog,
+          providerOptions: createDefaultOptions(['TestProducer']),
+          storage,
+          manifestService,
+          eventLog,
+          pinIds: ['Producer:DoesNotExist'],
+        }),
+      ).rejects.toMatchObject({
+        code: RuntimeErrorCode.PIN_PRODUCER_NOT_FOUND,
+      });
+    });
+
+    it('fails when pinned artifact is not reusable', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      await eventLog.appendArtefact(movieId, {
+        artefactId: 'Artifact:PreviouslySucceeded',
+        revision: 'rev-0001',
+        inputsHash: 'inputs-hash',
+        output: { blob: { hash: 'blob-hash', size: 10, mimeType: 'text/plain' } },
+        status: 'succeeded',
+        producedBy: 'Producer:TestProducer',
+        createdAt: new Date().toISOString(),
+      });
+
+      await expect(
+        service.generatePlan({
+          movieId,
+          blueprintTree: createSimpleBlueprint(),
+          inputValues: { 'Input:Prompt': 'Hello world' },
+          providerCatalog: defaultCatalog,
+          providerOptions: createDefaultOptions(['TestProducer']),
+          storage,
+          manifestService,
+          eventLog,
+          pinIds: ['Artifact:Output'],
+        }),
+      ).rejects.toMatchObject({
+        code: RuntimeErrorCode.PIN_TARGET_NOT_REUSABLE,
+      });
+    });
+
+    it('fails when pin conflicts with surgical regeneration target', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      await eventLog.appendArtefact(movieId, {
+        artefactId: 'Artifact:Output',
+        revision: 'rev-0001',
+        inputsHash: 'inputs-hash',
+        output: { blob: { hash: 'blob-hash', size: 10, mimeType: 'text/plain' } },
+        status: 'succeeded',
+        producedBy: 'Producer:TestProducer',
+        createdAt: new Date().toISOString(),
+      });
+
+      await expect(
+        service.generatePlan({
+          movieId,
+          blueprintTree: createSimpleBlueprint(),
+          inputValues: { 'Input:Prompt': 'Hello world' },
+          providerCatalog: defaultCatalog,
+          providerOptions: createDefaultOptions(['TestProducer']),
+          storage,
+          manifestService,
+          eventLog,
+          pinIds: ['Artifact:Output'],
+          targetArtifactIds: ['Artifact:Output'],
+        }),
+      ).rejects.toMatchObject({
+        code: RuntimeErrorCode.PIN_CONFLICT_WITH_SURGICAL_TARGET,
+      });
+    });
+
+    it('resolves producer pin to artifact pins through shared core logic', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      await eventLog.appendArtefact(movieId, {
+        artefactId: 'Artifact:Output',
+        revision: 'rev-0001',
+        inputsHash: 'inputs-hash',
+        output: { blob: { hash: 'blob-hash', size: 10, mimeType: 'text/plain' } },
+        status: 'succeeded',
+        producedBy: 'Producer:TestProducer',
+        createdAt: new Date().toISOString(),
+      });
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: { 'Input:Prompt': 'Hello world' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+        pinIds: ['Producer:TestProducer'],
+        collectExplanation: true,
+      });
+
+      expect(result.explanation?.pinnedArtifactIds).toEqual(['Artifact:Output']);
     });
   });
 

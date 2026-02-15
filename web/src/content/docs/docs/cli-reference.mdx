@@ -186,6 +186,7 @@ renku generate --last --inputs=<path> [options]
 ```bash
 renku generate --last --artifact-id=<id> --inputs=<path> [--up-to-layer=<n>]
 renku generate --last --aid=<id> --aid=<id> --inputs=<path> [--up-to-layer=<n>]
+renku generate --last --pin=<canonical-id> --pin=<canonical-id> --inputs=<path> [options]
 ```
 
 **Options:**
@@ -200,7 +201,8 @@ renku generate --last --aid=<id> --aid=<id> --inputs=<path> [--up-to-layer=<n>]
 | `--non-interactive` | Skip confirmation prompts |
 | `--up-to-layer`, `--up` | Stop after specified layer (live runs only) |
 | `--re-run-from`, `--from` | Re-run from specified layer (0-indexed), skipping earlier layers |
-| `--artifact-id`, `--artifact`, `--aid` | Regenerate specific artifact(s) and their downstream dependencies (requires `--last` or `--movie-id`). Can be specified multiple times. |
+| `--artifact-id`, `--artifact`, `--aid` | Regenerate specific artifact(s) and their downstream dependencies (requires `--last` or `--movie-id`). Prefer canonical IDs (`Artifact:...`). Can be specified multiple times. |
+| `--pin` | Keep existing outputs from regeneration. Accepts canonical `Artifact:...` or `Producer:...` IDs. Repeatable. Requires `--last` or `--movie-id`. |
 
 **Behavior:**
 
@@ -243,19 +245,29 @@ renku generate --last --inputs=./inputs.yaml --from=2
 renku generate --movie-id=movie-a1b2c3d4 --inputs=./inputs.yaml --from=3 --up-to-layer=4
 
 # Surgical regeneration: regenerate only one artifact and its downstream dependencies
-renku generate --last --artifact-id="AudioProducer.GeneratedAudio[0]" --inputs=./inputs.yaml
+renku generate --last --artifact-id="Artifact:AudioProducer.GeneratedAudio[0]" --inputs=./inputs.yaml
 
 # Surgical regeneration with layer limit
-renku generate --last --artifact-id="ImageProducer.GeneratedImage[2]" --inputs=./inputs.yaml --up-to-layer=1
+renku generate --last --artifact-id="Artifact:ImageProducer.GeneratedImage[2]" --inputs=./inputs.yaml --up-to-layer=1
 
 # Multiple artifact regeneration using --aid alias
-renku generate --last --aid="AudioProducer.GeneratedAudio[0]" --aid="AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+renku generate --last --aid="Artifact:AudioProducer.GeneratedAudio[0]" --aid="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
 
 # Multiple artifacts with layer limit
-renku generate --last --aid="ImageProducer.GeneratedImage[1]" --aid="ImageProducer.GeneratedImage[3]" --inputs=./inputs.yaml --up-to-layer=2
+renku generate --last --aid="Artifact:ImageProducer.GeneratedImage[1]" --aid="Artifact:ImageProducer.GeneratedImage[3]" --inputs=./inputs.yaml --up-to-layer=2
+
+# Pin one artifact (keep from regeneration)
+renku generate --last --inputs=./inputs.yaml --pin="Artifact:ScriptProducer.NarrationScript[0]"
+
+# Pin all outputs of a producer
+renku generate --last --inputs=./inputs.yaml --pin="Producer:ScriptProducer" --from=1
+
+# Multiple pins
+renku generate --movie-id=movie-a1b2c3d4 --inputs=./inputs.yaml --pin="Artifact:AudioProducer.GeneratedAudio[0]" --pin="Producer:ImageProducer"
 ```
 
-**Note:** When using `--artifact-id` with zsh, quote the artifact ID to prevent bracket expansion.
+**Note:** When using IDs with brackets in zsh, quote the ID to prevent bracket expansion.  
+**Note:** Short non-canonical `--artifact-id/--aid` values are deprecated; prefer canonical `Artifact:...` IDs.
 
 ---
 

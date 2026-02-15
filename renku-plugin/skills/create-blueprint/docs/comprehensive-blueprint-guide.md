@@ -1940,6 +1940,19 @@ renku generate \
   --dry-run
 ```
 
+Pin existing outputs when regenerating an existing movie (canonical IDs only):
+
+```bash
+renku generate --last --inputs=<inputs.yaml> --pin="Artifact:ScriptProducer.NarrationScript[0]"
+renku generate --last --inputs=<inputs.yaml> --pin="Producer:ScriptProducer" --from=1
+```
+
+Surgical regeneration (canonical artifact ID format):
+
+```bash
+renku generate --last --inputs=<inputs.yaml> --artifact-id="Artifact:AudioProducer.GeneratedAudio[0]"
+```
+
 ### Inspect Execution Plan
 
 After generation, examine the plan:

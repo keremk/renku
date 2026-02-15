@@ -66,6 +66,8 @@ export interface ExecuteOptions {
 
   /** Target artifact IDs for surgical regeneration (canonical format, e.g., "Artifact:AudioProducer.GeneratedAudio[0]") */
   targetArtifactIds?: string[];
+  /** Pin IDs (canonical Artifact:... or Producer:...). */
+  pinnedIds?: string[];
 
   /** Logger instance */
   logger: Logger;
@@ -172,6 +174,7 @@ export async function runExecute(options: ExecuteOptions): Promise<ExecuteResult
     reRunFrom: options.reRunFrom,
     upToLayer,
     targetArtifactIds: options.targetArtifactIds,
+    pinnedIds: options.pinnedIds,
     collectExplanation: options.explain,
   });
 

@@ -58,7 +58,12 @@ import { runExportDavinci } from './commands/export-davinci.js';
 import type { BuildSummary, JobSummary } from './lib/build.js';
 import { readCliConfig } from './lib/cli-config.js';
 import { resolveBlueprintSpecifier } from './lib/config-assets.js';
-import { type LogLevel, type Logger as CoreLogger } from '@gorenku/core';
+import {
+  type LogLevel,
+  type Logger as CoreLogger,
+  isRenkuError,
+  formatError,
+} from '@gorenku/core';
 import { detectViewerAddress } from './lib/viewer-network.js';
 
 
@@ -70,6 +75,7 @@ const cli = meow(
   $ renku generate --movie-id=abc123 --from=1
   $ renku generate --last --artifact-id=AudioProducer.GeneratedAudio[0] --inputs=./inputs.yaml
   $ renku generate --last --aid=AudioProducer.GeneratedAudio[0] --aid=AudioProducer.GeneratedAudio[2] --inputs=./inputs.yaml
+  $ renku generate --last --pin=Artifact:ScriptProducer.NarrationScript[0] --inputs=./inputs.yaml
   $ renku generate --last --inputs=./inputs.yaml --explain  # Show why each job is scheduled
   $ renku explain --last                     # Explain the last saved plan
   $ renku explain --movie-id=movie-abc123    # Explain a specific movie's plan\n  $ renku export --movie-id=abc123\n  $ renku export --last --width=1920 --height=1080 --fps=30\n  $ renku export --last --exporter=ffmpeg\n  $ renku export:davinci --last              # Export to OTIO for DaVinci Resolve\n  $ renku export:davinci --id=abc123 --fps=24 # Export specific movie at 24fps\n  $ renku producers:list --blueprint=image-audio.yaml\n  $ renku blueprints:validate image-audio.yaml\n  $ renku list                           # List builds in current project
@@ -104,6 +110,7 @@ const cli = meow(
       artifactId: { type: 'string', isMultiple: true },
       artifact: { type: 'string', isMultiple: true },
       aid: { type: 'string', isMultiple: true },
+      pin: { type: 'string', isMultiple: true },
       all: { type: 'boolean' },
       costsOnly: { type: 'boolean' },
       explain: { type: 'boolean' },
@@ -148,6 +155,7 @@ async function main(): Promise<void> {
     artifactId?: string[];
     artifact?: string[];
     aid?: string[];
+    pin?: string[];
     all?: boolean;
     costsOnly?: boolean;
     explain?: boolean;
@@ -240,6 +248,7 @@ async function main(): Promise<void> {
         ...(flags.artifact ?? []),
         ...(flags.aid ?? []),
       ];
+      const pinFlags = [...(flags.pin ?? [])];
 
       if (positionalInquiry !== undefined) {
         logger.error('Error: inline inquiry prompt is no longer supported. Provide it in your inputs.yaml.');
@@ -305,6 +314,7 @@ async function main(): Promise<void> {
           upToLayer,
           reRunFrom,
           artifactIds: artifactIdFlags.length > 0 ? artifactIdFlags : undefined,
+          pinIds: pinFlags.length > 0 ? pinFlags : undefined,
           logLevel,
         });
         const viewerUrl =
@@ -317,7 +327,11 @@ async function main(): Promise<void> {
         }
         return;
       } catch (error) {
-        logger.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+        if (isRenkuError(error)) {
+          logger.error(formatError(error));
+        } else {
+          logger.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+        }
         process.exitCode = 1;
         return;
       }

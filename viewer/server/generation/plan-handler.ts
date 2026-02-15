@@ -95,7 +95,7 @@ export async function handlePlanRequest(
       reRunFrom: body.reRunFrom,
       targetArtifactIds: body.artifactIds,
       upToLayer: body.upToLayer,
-      pinnedArtifactIds: body.pinnedArtifactIds,
+      pinIds: body.pinnedArtifactIds,
     });
 
     // Cache the plan
@@ -154,8 +154,8 @@ interface GeneratePlanOptions {
   targetArtifactIds?: string[];
   /** Limit plan to layers 0 through upToLayer (0-indexed). */
   upToLayer?: number;
-  /** Artifact IDs that are pinned (kept). */
-  pinnedArtifactIds?: string[];
+  /** Pin IDs (canonical Artifact:... or Producer:...). */
+  pinIds?: string[];
 }
 
 /**
@@ -179,7 +179,7 @@ interface GeneratePlanResult {
  * Based on cli/src/lib/planner.ts but adapted for viewer use.
  */
 async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanResult> {
-  const { cliConfig, movieId, isNew, blueprintPath, inputsPath, buildsFolder, basePath, reRunFrom, targetArtifactIds, upToLayer, pinnedArtifactIds } = options;
+  const { cliConfig, movieId, isNew, blueprintPath, inputsPath, buildsFolder, basePath, reRunFrom, targetArtifactIds, upToLayer, pinIds } = options;
   const storageRoot = cliConfig.storage.root;
   const movieDir = resolve(buildsFolder, movieId);
 
@@ -262,7 +262,7 @@ async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanR
     reRunFrom,
     targetArtifactIds,
     upToLayer,
-    pinnedArtifactIds,
+    pinIds,
   });
 
   // Load pricing catalog and estimate costs
@@ -469,5 +469,3 @@ export function buildPlanResponse(
     cliCommand,
   };
 }
-
-

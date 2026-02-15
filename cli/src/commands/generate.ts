@@ -5,7 +5,7 @@ import { resolveAndPersistConcurrency } from '../lib/concurrency.js';
 import { buildArtifactsView, loadCurrentManifest, prepareArtifactsPreflight } from '../lib/artifacts-view.js';
 import crypto from 'node:crypto';
 import { resolve } from 'node:path';
-import type { LogLevel } from '@gorenku/core';
+import { isCanonicalArtifactId, type LogLevel } from '@gorenku/core';
 import { createCliLogger } from '../lib/logger.js';
 
 /**
@@ -43,6 +43,8 @@ export interface GenerateOptions {
   storageOverride?: { root: string; basePath: string };
   /** Target artifact IDs for surgical regeneration (short format, e.g., "AudioProducer.GeneratedAudio[0]") */
   artifactIds?: string[];
+  /** Pin IDs (canonical Artifact:... or Producer:...). */
+  pinIds?: string[];
 }
 
 export interface GenerateResult {
@@ -106,8 +108,10 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
     );
   }
 
-  // Convert short artifact ID formats to canonical format
-  const targetArtifactIds = options.artifactIds?.map((id) => `Artifact:${id}`);
+  // Convert artifact target IDs to canonical format.
+  // Short IDs remain supported for now, but are deprecated.
+  const normalizedTargets = normalizeTargetArtifactIds(options.artifactIds);
+  const targetArtifactIds = normalizedTargets.targetArtifactIds;
 
   const upToLayer = options.upToLayer;
 
@@ -128,6 +132,12 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
       level: options.logLevel,
       logFilePath,
     });
+    if (normalizedTargets.deprecatedShortIds.length > 0) {
+      logger.warn?.(
+        `Deprecated short artifact IDs for --artifact-id/--aid: ${normalizedTargets.deprecatedShortIds.join(', ')}. ` +
+          'Use canonical Artifact:... IDs instead.',
+      );
+    }
 
     const { manifest } = await loadCurrentManifest(activeConfig, storageMovieId).catch((error) => {
       const message = error instanceof Error ? error.message : String(error);
@@ -155,6 +165,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
       upToLayer,
       reRunFrom: options.reRunFrom,
       targetArtifactIds,
+      pinnedIds: options.pinIds,
       logger,
       cliConfig: activeConfig,
     });
@@ -210,6 +221,12 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
     level: options.logLevel,
     logFilePath,
   });
+  if (normalizedTargets.deprecatedShortIds.length > 0) {
+    logger.warn?.(
+      `Deprecated short artifact IDs for --artifact-id/--aid: ${normalizedTargets.deprecatedShortIds.join(', ')}. ` +
+        'Use canonical Artifact:... IDs instead.',
+    );
+  }
 
   // Persist lastMovieId immediately so --last works even if build fails
   // This allows users to retry failed builds with --last or --movie-id
@@ -227,6 +244,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
     explain: options.explain,
     concurrency,
     upToLayer,
+    pinnedIds: options.pinIds,
     logger,
     cliConfig: activeConfig,
   });
@@ -274,6 +292,27 @@ function normalizePublicId(storageMovieId: string): string {
 
 function generateMovieId(): string {
   return crypto.randomUUID().slice(0, 8);
+}
+
+function normalizeTargetArtifactIds(
+  artifactIds: string[] | undefined,
+): { targetArtifactIds: string[] | undefined; deprecatedShortIds: string[] } {
+  if (!artifactIds || artifactIds.length === 0) {
+    return { targetArtifactIds: undefined, deprecatedShortIds: [] };
+  }
+
+  const targetArtifactIds: string[] = [];
+  const deprecatedShortIds: string[] = [];
+  for (const id of artifactIds) {
+    if (isCanonicalArtifactId(id)) {
+      targetArtifactIds.push(id);
+      continue;
+    }
+    deprecatedShortIds.push(id);
+    targetArtifactIds.push(`Artifact:${id}`);
+  }
+
+  return { targetArtifactIds, deprecatedShortIds };
 }
 
 interface ArtifactInfo {

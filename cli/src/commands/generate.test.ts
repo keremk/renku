@@ -12,6 +12,7 @@ import { readCliConfig } from '../lib/cli-config.js';
 import { createInputsFile } from './__testutils__/inputs.js';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { CLI_FIXTURES_BLUEPRINTS } from '../../tests/test-catalog-paths.js';
+import { RuntimeErrorCode } from '@gorenku/core';
 
 // Use CLI fixtures for blueprints
 const VIDEO_AUDIO_MUSIC_BLUEPRINT_PATH = resolve(
@@ -477,5 +478,149 @@ describe('runGenerate (new runs)', () => {
 
     expect(next.storageMovieId).toBe(first.storageMovieId);
     expect(next.build?.jobCount ?? 0).toBeGreaterThanOrEqual(0);
+  });
+
+  it('fails when pinning is requested for a new movie run', async () => {
+    const root = await createTempRoot();
+    const cliConfigPath = join(root, 'cli-config.json');
+    process.env.RENKU_CLI_CONFIG = cliConfigPath;
+
+    await runInit({ rootFolder: root, configPath: cliConfigPath });
+
+    const inputsPath = await createInputsFile({
+      root,
+      prompt: 'Pinned new movie',
+      models: AUDIO_ONLY_MODELS,
+      includeDefaults: false,
+      overrides: AUDIO_ONLY_OVERRIDES,
+    });
+
+    await expect(
+      runGenerate({
+        ...LOG_DEFAULTS,
+        inputsPath,
+        blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
+        dryRun: true,
+        pinIds: ['Artifact:ScriptProducer.NarrationScript[0]'],
+        storageOverride: { root, basePath: 'builds' },
+      }),
+    ).rejects.toMatchObject({
+      code: RuntimeErrorCode.PIN_REQUIRES_EXISTING_MOVIE,
+    });
+  });
+
+  it('fails on non-canonical pin IDs from CLI', async () => {
+    const root = await createTempRoot();
+    const cliConfigPath = join(root, 'cli-config.json');
+    process.env.RENKU_CLI_CONFIG = cliConfigPath;
+
+    await runInit({ rootFolder: root, configPath: cliConfigPath });
+
+    const inputsPath = await createInputsFile({
+      root,
+      prompt: 'Baseline',
+      models: AUDIO_ONLY_MODELS,
+      includeDefaults: false,
+      overrides: AUDIO_ONLY_OVERRIDES,
+    });
+    await runGenerate({
+      ...LOG_DEFAULTS,
+      inputsPath,
+      nonInteractive: true,
+      blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
+      storageOverride: { root, basePath: 'builds' },
+    });
+
+    await expect(
+      runGenerate({
+        ...LOG_DEFAULTS,
+        inputsPath,
+        useLast: true,
+        dryRun: true,
+        pinIds: ['ScriptProducer'],
+        storageOverride: { root, basePath: 'builds' },
+      }),
+    ).rejects.toMatchObject({
+      code: RuntimeErrorCode.INVALID_PIN_ID,
+    });
+  });
+
+  it('applies producer pin via shared core logic during rerun-from planning', async () => {
+    const root = await createTempRoot();
+    const cliConfigPath = join(root, 'cli-config.json');
+    process.env.RENKU_CLI_CONFIG = cliConfigPath;
+
+    await runInit({ rootFolder: root, configPath: cliConfigPath });
+
+    const inputsPath = await createInputsFile({
+      root,
+      prompt: 'Pin producer',
+      models: AUDIO_ONLY_MODELS,
+      includeDefaults: false,
+      overrides: AUDIO_ONLY_OVERRIDES,
+    });
+    await runGenerate({
+      ...LOG_DEFAULTS,
+      inputsPath,
+      nonInteractive: true,
+      blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
+      storageOverride: { root, basePath: 'builds' },
+    });
+
+    const result = await runGenerate({
+      ...LOG_DEFAULTS,
+      inputsPath,
+      useLast: true,
+      dryRun: true,
+      reRunFrom: 0,
+      pinIds: ['Producer:ScriptProducer'],
+      storageOverride: { root, basePath: 'builds' },
+    });
+
+    const plan = JSON.parse(await readFile(result.planPath, 'utf8')) as {
+      layers: Array<Array<{ jobId: string }>>;
+    };
+    const jobIds = plan.layers.flat().map((job) => job.jobId);
+    expect(jobIds).not.toContain('Producer:ScriptProducer');
+    expect(jobIds).toContain('Producer:AudioProducer[0]');
+    expect(jobIds).toContain('Producer:AudioProducer[1]');
+    expect(jobIds.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('fails when pin and surgical target conflict', async () => {
+    const root = await createTempRoot();
+    const cliConfigPath = join(root, 'cli-config.json');
+    process.env.RENKU_CLI_CONFIG = cliConfigPath;
+
+    await runInit({ rootFolder: root, configPath: cliConfigPath });
+
+    const inputsPath = await createInputsFile({
+      root,
+      prompt: 'Conflict test',
+      models: AUDIO_ONLY_MODELS,
+      includeDefaults: false,
+      overrides: AUDIO_ONLY_OVERRIDES,
+    });
+    await runGenerate({
+      ...LOG_DEFAULTS,
+      inputsPath,
+      nonInteractive: true,
+      blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
+      storageOverride: { root, basePath: 'builds' },
+    });
+
+    await expect(
+      runGenerate({
+        ...LOG_DEFAULTS,
+        inputsPath,
+        useLast: true,
+        dryRun: true,
+        artifactIds: ['ScriptProducer.NarrationScript[0]'],
+        pinIds: ['Artifact:ScriptProducer.NarrationScript[0]'],
+        storageOverride: { root, basePath: 'builds' },
+      }),
+    ).rejects.toMatchObject({
+      code: RuntimeErrorCode.PIN_CONFLICT_WITH_SURGICAL_TARGET,
+    });
   });
 });

@@ -64,6 +64,8 @@ export interface GeneratePlanOptions {
   upToLayer?: number;
   /** Target artifact IDs for surgical regeneration (canonical format, e.g., ["Artifact:AudioProducer.GeneratedAudio[0]"]) */
   targetArtifactIds?: string[];
+  /** Pin IDs (canonical Artifact:... or Producer:...). */
+  pinnedIds?: string[];
   /** If true, collect explanation data for why jobs are scheduled */
   collectExplanation?: boolean;
 }
@@ -214,6 +216,7 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<Genera
     reRunFrom: options.reRunFrom,
     upToLayer: options.upToLayer,
     targetArtifactIds: options.targetArtifactIds,
+    pinIds: options.pinnedIds,
     collectExplanation: options.collectExplanation,
   });
   logger.debug('[planner] resolved inputs', { inputs: Object.keys(planResult.resolvedInputs) });

@@ -5,7 +5,12 @@ import { buildInputSourceMapFromCanonical, normalizeInputValues } from '../resol
 import { createProducerGraph } from '../resolution/producer-graph.js';
 import { createPlanAdapter, type PlanAdapterOptions } from '../planning/adapter.js';
 import type { PlanExplanation } from '../planning/explanation.js';
-import { isCanonicalInputId, formatProducerAlias } from '../parsing/canonical-ids.js';
+import {
+  isCanonicalArtifactId,
+  isCanonicalInputId,
+  isCanonicalProducerId,
+  formatProducerAlias,
+} from '../parsing/canonical-ids.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import type { EventLog } from '../event-log.js';
 import { hashPayload } from '../hashing.js';
@@ -69,8 +74,12 @@ export interface GeneratePlanArgs {
   upToLayer?: number;
   /** If true, collect explanation data for why jobs are scheduled */
   collectExplanation?: boolean;
+  /** Canonical pin IDs (`Artifact:...` or `Producer:...`) from wrappers. */
+  pinIds?: string[];
   /** Artifact IDs that are pinned (kept). Jobs whose produced artifacts are ALL pinned are excluded from the plan. */
   pinnedArtifactIds?: string[];
+  /** Producer IDs that are pinned (legacy/compat). */
+  pinnedProducerIds?: string[];
 }
 
 export interface GeneratePlanResult {
@@ -158,6 +167,17 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
         args.providerOptions,
       );
 
+      const resolvedPinnedArtifactIds = await resolveAndValidatePinIds({
+        movieId: args.movieId,
+        pinIds: args.pinIds,
+        pinnedArtifactIds: args.pinnedArtifactIds,
+        pinnedProducerIds: args.pinnedProducerIds,
+        manifest,
+        eventLog: args.eventLog,
+        producerGraph,
+        targetArtifactIds: args.targetArtifactIds,
+      });
+
       // Resolve artifact regeneration configs if targetArtifactIds is provided
       let artifactRegenerations: ArtifactRegenerationConfig[] | undefined;
       if (args.targetArtifactIds && args.targetArtifactIds.length > 0) {
@@ -179,7 +199,7 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
         artifactRegenerations,
         upToLayer: args.upToLayer,
         collectExplanation: args.collectExplanation,
-        pinnedArtifactIds: args.pinnedArtifactIds,
+        pinnedArtifactIds: resolvedPinnedArtifactIds.length > 0 ? resolvedPinnedArtifactIds : undefined,
       });
 
       await planStore.save(plan, { movieId: args.movieId, storage: args.storage });
@@ -445,6 +465,202 @@ export function injectDerivedInputs(
   }
 
   return result;
+}
+
+interface ResolveAndValidatePinIdsArgs {
+  movieId: string;
+  pinIds?: string[];
+  pinnedArtifactIds?: string[];
+  pinnedProducerIds?: string[];
+  manifest: Manifest;
+  eventLog: EventLog;
+  producerGraph: { nodes: Array<{ jobId: string; produces: string[] }> };
+  targetArtifactIds?: string[];
+}
+
+async function resolveAndValidatePinIds(
+  args: ResolveAndValidatePinIdsArgs,
+): Promise<string[]> {
+  const requestedPinIds = [
+    ...(args.pinIds ?? []),
+    ...(args.pinnedArtifactIds ?? []),
+    ...(args.pinnedProducerIds ?? []),
+  ];
+
+  if (requestedPinIds.length === 0) {
+    return [];
+  }
+
+  const artifactPins = new Set<string>();
+  const producerPins = new Set<string>();
+
+  for (const id of requestedPinIds) {
+    if (isCanonicalArtifactId(id)) {
+      artifactPins.add(id);
+      continue;
+    }
+    if (isCanonicalProducerId(id)) {
+      producerPins.add(id);
+      continue;
+    }
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_PIN_ID,
+      `Invalid pin ID "${id}". Expected canonical Artifact:... or Producer:...`,
+      {
+        context: `pinId=${id}`,
+        suggestion: 'Use canonical IDs, for example Artifact:ScriptProducer.NarrationScript[0] or Producer:ScriptProducer.',
+      },
+    );
+  }
+
+  const producerNodeMap = new Map<string, { jobId: string; produces: string[] }>();
+  for (const node of args.producerGraph.nodes) {
+    producerNodeMap.set(node.jobId, node);
+  }
+
+  for (const producerId of producerPins) {
+    const node = producerNodeMap.get(producerId);
+    if (!node) {
+      throw createRuntimeError(
+        RuntimeErrorCode.PIN_PRODUCER_NOT_FOUND,
+        `Pinned producer "${producerId}" was not found in the current producer graph.`,
+        {
+          context: `producerId=${producerId}`,
+          suggestion: 'Check the producer canonical ID against the current blueprint graph.',
+        },
+      );
+    }
+    const producedArtifacts = node.produces.filter((id) => isCanonicalArtifactId(id));
+    if (producedArtifacts.length === 0) {
+      throw createRuntimeError(
+        RuntimeErrorCode.PIN_TARGET_NOT_REUSABLE,
+        `Pinned producer "${producerId}" does not produce reusable canonical artifacts.`,
+        {
+          context: `producerId=${producerId}`,
+          suggestion: 'Pin canonical artifact IDs produced by this run, or pin a producer that emits canonical artifacts.',
+        },
+      );
+    }
+    for (const artifactId of producedArtifacts) {
+      artifactPins.add(artifactId);
+    }
+  }
+
+  const resolvedPinnedArtifactIds = [...artifactPins];
+
+  const snapshot = await readLatestArtefactSnapshot(args.eventLog, args.movieId);
+  const hasSucceededManifestArtifacts = Object.values(args.manifest.artefacts)
+    .some((entry) => entry.status === 'succeeded');
+  const hasPriorReusableArtifacts = hasSucceededManifestArtifacts || snapshot.latestSuccessfulIds.size > 0;
+  if (!hasPriorReusableArtifacts) {
+    throw createRuntimeError(
+      RuntimeErrorCode.PIN_REQUIRES_EXISTING_MOVIE,
+      'Pinning requires an existing movie with reusable outputs. Use --last or --movie-id/--id after a successful run.',
+      {
+        context: `movieId=${args.movieId}`,
+        suggestion: 'Run the first generation without --pin, then pin artifacts/producers on subsequent runs.',
+      },
+    );
+  }
+
+  assertNoPinSurgicalConflict(resolvedPinnedArtifactIds, args.targetArtifactIds);
+
+  await validatePinnedTargetsReusable(
+    args.movieId,
+    resolvedPinnedArtifactIds,
+    args.manifest,
+    snapshot,
+  );
+
+  return resolvedPinnedArtifactIds;
+}
+
+function assertNoPinSurgicalConflict(
+  pinnedArtifactIds: string[],
+  targetArtifactIds: string[] | undefined,
+): void {
+  if (!targetArtifactIds || targetArtifactIds.length === 0 || pinnedArtifactIds.length === 0) {
+    return;
+  }
+  const pinned = new Set(pinnedArtifactIds);
+  const conflicts = targetArtifactIds.filter((id) => pinned.has(id));
+  if (conflicts.length === 0) {
+    return;
+  }
+
+  throw createRuntimeError(
+    RuntimeErrorCode.PIN_CONFLICT_WITH_SURGICAL_TARGET,
+    `Pinning conflicts with surgical regeneration for artifact(s): ${conflicts.join(', ')}`,
+    {
+      context: `conflicts=${conflicts.join(',')}`,
+      suggestion: 'Remove the conflicting artifact from --pin or --artifact-id/--aid.',
+    },
+  );
+}
+
+async function validatePinnedTargetsReusable(
+  movieId: string,
+  pinnedArtifactIds: string[],
+  manifest: Manifest,
+  snapshot: { latestSuccessfulIds: Set<string>; latestFailedIds: Set<string> },
+): Promise<void> {
+  if (pinnedArtifactIds.length === 0) {
+    return;
+  }
+  const invalid: string[] = [];
+
+  for (const artifactId of pinnedArtifactIds) {
+    if (snapshot.latestFailedIds.has(artifactId)) {
+      invalid.push(`${artifactId} (latest attempt failed)`);
+      continue;
+    }
+    if (snapshot.latestSuccessfulIds.has(artifactId)) {
+      continue;
+    }
+    const manifestEntry = manifest.artefacts[artifactId];
+    if (manifestEntry?.status === 'succeeded') {
+      continue;
+    }
+    invalid.push(`${artifactId} (no reusable successful artifact found)`);
+  }
+
+  if (invalid.length > 0) {
+    throw createRuntimeError(
+      RuntimeErrorCode.PIN_TARGET_NOT_REUSABLE,
+      `Pinned artifact(s) are not reusable: ${invalid.join('; ')}`,
+      {
+        context: `movieId=${movieId}`,
+        suggestion: 'Unpin these IDs or regenerate them before pinning.',
+      },
+    );
+  }
+}
+
+async function readLatestArtefactSnapshot(
+  eventLog: EventLog,
+  movieId: string,
+): Promise<{ latestSuccessfulIds: Set<string>; latestFailedIds: Set<string> }> {
+  const latestById = new Map<string, ArtefactEvent>();
+  for await (const event of eventLog.streamArtefacts(movieId)) {
+    latestById.set(event.artefactId, event);
+  }
+
+  const latestSuccessfulIds = new Set<string>();
+  const latestFailedIds = new Set<string>();
+  for (const [artefactId, event] of latestById) {
+    if (event.status === 'succeeded') {
+      latestSuccessfulIds.add(artefactId);
+      continue;
+    }
+    if (event.status === 'failed') {
+      latestFailedIds.add(artefactId);
+    }
+  }
+
+  return {
+    latestSuccessfulIds,
+    latestFailedIds,
+  };
 }
 
 /**
