@@ -15,7 +15,7 @@ Inputs are specified in YAML with two main sections:
 
 ```yaml
 inputs:
-  InquiryPrompt: "Your topic or prompt here"
+  InquiryPrompt: 'Your topic or prompt here'
   Duration: 60
   NumOfSegments: 3
   # ... other blueprint-specific inputs
@@ -29,11 +29,11 @@ models:
 
 ### Input Types
 
-| Type | YAML Syntax | Example |
-|------|-------------|---------|
+| Type     | YAML Syntax             | Example                          |
+| -------- | ----------------------- | -------------------------------- |
 | `string` | Quoted or unquoted text | `"Hello world"` or `Hello world` |
-| `int` | Number without quotes | `42` |
-| `array` | YAML list | `["item1", "item2"]` |
+| `int`    | Number without quotes   | `42`                             |
+| `array`  | YAML list               | `["item1", "item2"]`             |
 
 ### Using Input Templates
 
@@ -86,6 +86,7 @@ ls ./catalog/blueprints/
 ```
 
 Each blueprint directory contains:
+
 - The blueprint YAML file with the workflow definition
 - An `input-template.yaml` documenting required inputs and their types
 
@@ -98,6 +99,7 @@ renku producers:list --blueprint=video-only.yaml
 ```
 
 Output:
+
 ```
 Producer model configurations:
 
@@ -150,6 +152,7 @@ cat {workspace}/builds/movie-{id}/runs/rev-0001-plan.json
 ```
 
 The plan shows:
+
 - Execution layers (parallel groups)
 - Jobs in each layer
 - Input/output connections
@@ -168,6 +171,7 @@ renku generate \
 ```
 
 Renku will:
+
 1. Create a new movie directory
 2. Execute producers layer by layer
 3. Store artifacts in the blob store
@@ -204,11 +208,13 @@ renku generate \
 Generated content is in two locations within your **current working directory**:
 
 **Build directory** (`builds/movie-{id}/`):
+
 - `blobs/` - Raw generated files
 - `manifests/` - Artifact metadata
 - `events/` - Execution logs
 
 **Artifacts view** (`artifacts/movie-{id}/`):
+
 - Human-readable filenames
 - Symlinks to blob storage
 - Easy to browse and share
@@ -243,6 +249,7 @@ renku generate --movie-id=movie-a1b2c3d4 --inputs=./inputs.yaml
 ```
 
 Renku will:
+
 - Detect your manual edits
 - Keep your changes
 - Only regenerate downstream artifacts that depend on the edited file
@@ -279,6 +286,7 @@ renku generate \
 ```
 
 This stops after layer 1, so you can:
+
 - Review the generated script
 - Check audio quality
 - Make edits before generating expensive video content
@@ -301,11 +309,13 @@ renku generate --last --inputs=./inputs.yaml --from=2
 ```
 
 This is useful when:
+
 - You want to try a different video model without regenerating scripts
 - A later layer failed and you want to retry from that point
 - You've manually edited artifacts at a specific layer
 
 The `--from` flag:
+
 - Takes a 0-indexed layer number
 - Skips all layers before the specified layer (uses existing artifacts)
 - Forces all jobs at the specified layer and above to re-run
@@ -320,31 +330,64 @@ renku generate --last --inputs=./inputs.yaml --from=2 --up-to-layer=3
 
 ### Surgical Artifact Regeneration
 
-When you need to regenerate just one or a few specific artifacts without affecting siblings, use `--artifact-id` or the shorter `--aid` alias:
+When you need to regenerate just one or a few specific artifacts without affecting siblings, use `--artifact-id` or the shorter `--aid` alias.
+
+`--artifact-id` / `--aid` requires canonical artifact IDs (`Artifact:...`).
 
 ```bash
 # Regenerate only segment 2's audio (not segments 0, 1, 3, 4)
-renku generate --last --artifact-id="AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+renku generate --last --artifact-id="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
 
 # Regenerate multiple specific segments using --aid alias
-renku generate --last --aid="AudioProducer.GeneratedAudio[0]" --aid="AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+renku generate --last --aid="Artifact:AudioProducer.GeneratedAudio[0]" --aid="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
 ```
 
 This is different from `--from` which regenerates **all** jobs at a layer. With `--artifact-id` / `--aid`:
+
 - Only the specified artifact(s) and their downstream dependencies are regenerated
 - Sibling artifacts in the same layer are untouched
 - Can be specified multiple times to target multiple artifacts
+- IDs must be canonical (`Artifact:...`) or the command fails fast
 - You can combine with `--up-to-layer` to limit how far downstream propagation goes
 
 **When to use each:**
 
-| Scenario | Use |
-|----------|-----|
-| One segment sounds wrong, others are fine | `--artifact-id` or `--aid` |
-| Multiple specific segments need work | `--aid=X --aid=Y` |
-| Changed model settings, need to redo a layer | `--from` |
-| Generated up to layer 1, now want to fix one image | `--artifact-id` + `--up-to-layer` |
-| Need to retry all video generation | `--from=N` where N is the video layer |
+| Scenario                                           | Use                                   |
+| -------------------------------------------------- | ------------------------------------- |
+| One segment sounds wrong, others are fine          | `--artifact-id` or `--aid`            |
+| Multiple specific segments need work               | `--aid=Artifact:X --aid=Artifact:Y`   |
+| Changed model settings, need to redo a layer       | `--from`                              |
+| Generated up to layer 1, now want to fix one image | `--artifact-id` + `--up-to-layer`     |
+| Need to retry all video generation                 | `--from=N` where N is the video layer |
+
+### Pinning Existing Outputs
+
+Use `--pin` to keep specific existing outputs and skip regenerating jobs whose outputs are fully pinned.
+
+Pin IDs are canonical IDs and can be either:
+
+- `Artifact:...` to pin one concrete output
+- `Producer:...` to pin all reusable outputs from that producer
+
+```bash
+# Pin one artifact
+renku generate --last --inputs=./inputs.yaml --pin="Artifact:ScriptProducer.NarrationScript[0]"
+
+# Pin all reusable outputs from a producer
+renku generate --last --inputs=./inputs.yaml --pin="Producer:ScriptProducer" --from=1
+
+# Mix artifact and producer pins (repeat --pin)
+renku generate --movie-id=movie-a1b2c3d4 --inputs=./inputs.yaml \
+  --pin="Artifact:AudioProducer.GeneratedAudio[0]" \
+  --pin="Producer:ImageProducer"
+```
+
+Pinning rules:
+
+- Pinning is for existing movies (`--last` or `--movie-id`), not brand new runs
+- Pin IDs must be canonical (`Artifact:...` or `Producer:...`)
+- You cannot pin an artifact and target that same artifact with `--artifact-id`/`--aid` in the same command
+- Pinned outputs must already exist as reusable successful outputs
 
 **Finding artifact IDs:**
 
@@ -353,9 +396,12 @@ This is different from `--from` which regenerates **all** jobs at a layer. With 
 cat builds/movie-{id}/manifests/rev-XXXX.json | jq '.artefacts | keys'
 ```
 
+The keys in `.artefacts` are canonical artifact IDs. Use those values directly with `--artifact-id`, `--aid`, and `--pin`.
+
 **Note:** Quote the artifact ID when using zsh to prevent bracket expansion:
+
 ```bash
-renku generate --last --aid="AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+renku generate --last --aid="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
 ```
 
 ### Cost-Saving Strategies
@@ -365,7 +411,8 @@ renku generate --last --aid="AudioProducer.GeneratedAudio[2]" --inputs=./inputs.
 3. **Iterate on prompts** - Edit video prompts before generating videos
 4. **Leverage caching** - Re-running generation only rebuilds changed artifacts
 5. **Use `--from` for retries** - If a later layer fails, use `--from=N` to retry from that layer without regenerating earlier content
-6. **Use `--aid` for surgical fixes** - If specific segments need work, regenerate just those artifacts instead of the whole layer (e.g., `--aid=Audio[0] --aid=Audio[2]`)
+6. **Use `--aid` for surgical fixes** - If specific segments need work, regenerate just those artifacts instead of the whole layer (e.g., `--aid=Artifact:AudioProducer.GeneratedAudio[0] --aid=Artifact:AudioProducer.GeneratedAudio[2]`)
+7. **Use `--pin` to preserve good outputs** - Keep known-good artifacts/producers and only regenerate what still needs work
 
 ## Viewing Content
 
@@ -412,10 +459,10 @@ renku export --last \
 
 Renku supports two exporter backends:
 
-| Exporter | Description | Requirements |
-|----------|-------------|--------------|
-| `remotion` | Docker-based Remotion renderer (default) | Docker Desktop |
-| `ffmpeg` | Native FFmpeg renderer | FFmpeg installed |
+| Exporter   | Description                              | Requirements     |
+| ---------- | ---------------------------------------- | ---------------- |
+| `remotion` | Docker-based Remotion renderer (default) | Docker Desktop   |
+| `ffmpeg`   | Native FFmpeg renderer                   | FFmpeg installed |
 
 Use the `--exporter` flag to choose:
 
@@ -428,12 +475,14 @@ renku export --last --exporter=remotion
 ```
 
 **FFmpeg exporter advantages:**
+
 - No Docker installation required
 - Faster rendering for simple timelines
 - Produces MP3 for audio-only timelines
 - Supports karaoke-style subtitles
 
 **Remotion exporter advantages:**
+
 - More advanced video effects
 - Better suited for complex compositions
 
@@ -455,17 +504,17 @@ fps: 30
 exporter: ffmpeg
 
 # FFmpeg encoding settings
-preset: medium      # ultrafast, fast, medium, slow
-crf: 23             # Quality: 0-51 (lower = better)
-audioBitrate: 192k  # Audio quality
+preset: medium # ultrafast, fast, medium, slow
+crf: 23 # Quality: 0-51 (lower = better)
+audioBitrate: 192k # Audio quality
 
 # Karaoke-style subtitles (requires TranscriptionProducer)
 subtitles:
   font: Arial
   fontSize: 48
-  fontBaseColor: "#FFFFFF"
-  fontHighlightColor: "#FFD700"
-  backgroundColor: "#000000"
+  fontBaseColor: '#FFFFFF'
+  fontHighlightColor: '#FFD700'
+  backgroundColor: '#000000'
   backgroundOpacity: 0.5
   bottomMarginPercent: 10
   maxWordsPerLine: 4
@@ -481,6 +530,7 @@ If your blueprint includes a `TranscriptionProducer`, the FFmpeg exporter can ad
 3. Run export with the config file
 
 The exported video is saved to:
+
 - `builds/movie-{id}/FinalVideo.mp4`
 - `artifacts/movie-{id}/FinalVideo.mp4` (symlink)
 
@@ -517,6 +567,7 @@ renku clean --all
 ### Start Small
 
 For new blueprints, start with:
+
 - Fewer segments (2-3 instead of 10)
 - Dry run first
 - Layer-by-layer generation
@@ -524,6 +575,7 @@ For new blueprints, start with:
 ### Review at Each Stage
 
 Don't generate everything at once:
+
 1. Generate script → Review
 2. Generate prompts → Review and edit
 3. Generate media → Review
@@ -532,6 +584,7 @@ Don't generate everything at once:
 ### Use Version Control
 
 Keep your inputs files in version control:
+
 - Track changes to prompts and settings
 - Reproduce past generations
 - Share configurations with team members
@@ -539,6 +592,7 @@ Keep your inputs files in version control:
 ### Monitor Costs
 
 Check provider dashboards regularly:
+
 - Video generation is most expensive
 - Audio generation is moderate
 - Script generation is cheap
