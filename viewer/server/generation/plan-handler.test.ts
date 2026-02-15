@@ -192,9 +192,9 @@ describe('buildPlanResponse', () => {
       ];
 
       const jobCosts = [
-        createMockJobCost('job-1a', 1.40),
-        createMockJobCost('job-1b', 1.40),
-        createMockJobCost('job-1c', 1.40),
+        createMockJobCost('job-1a', 1.4),
+        createMockJobCost('job-1b', 1.4),
+        createMockJobCost('job-1c', 1.4),
       ];
 
       const { cachedPlan, plan } = createMockCachedPlan(layers, jobCosts);
@@ -234,7 +234,7 @@ describe('buildPlanResponse', () => {
       ];
 
       const jobCosts = [
-        createMockJobCost('job-1', 0.50),
+        createMockJobCost('job-1', 0.5),
         createMockJobCost('job-2', 0.75),
       ];
 
@@ -242,8 +242,10 @@ describe('buildPlanResponse', () => {
       const response = buildPlanResponse(cachedPlan, plan);
 
       expect(response.layerBreakdown[0].layerCost).toBeCloseTo(1.25);
-      expect(response.layerBreakdown[0].jobs[0].estimatedCost).toBeCloseTo(0.50);
-      expect(response.layerBreakdown[0].jobs[1].estimatedCost).toBeCloseTo(0.75);
+      expect(response.layerBreakdown[0].jobs[0].estimatedCost).toBeCloseTo(0.5);
+      expect(response.layerBreakdown[0].jobs[1].estimatedCost).toBeCloseTo(
+        0.75
+      );
     });
 
     it('handles jobs without cost data', () => {
@@ -378,6 +380,33 @@ describe('buildPlanResponse', () => {
       expect(response.layers).toBe(0);
       expect(response.totalJobs).toBe(0);
       // This should trigger NOOP UI
+    });
+  });
+
+  describe('cliCommand', () => {
+    it('includes canonical artifact IDs and pin flags when provided', () => {
+      const layers: JobDescriptor[][] = [[createMockJob('job-0', 'Producer0')]];
+      const { cachedPlan, plan } = createMockCachedPlan(layers);
+
+      const response = buildPlanResponse(cachedPlan, plan, {
+        blueprintPath: '/tmp/blueprint.yaml',
+        inputsPath: '/tmp/inputs.yaml',
+        artifactIds: ['Artifact:AudioProducer.GeneratedAudio[0]'],
+        pinIds: [
+          'Artifact:ScriptProducer.NarrationScript[0]',
+          'Producer:ImageProducer',
+        ],
+        reRunFrom: 1,
+        upToLayer: 3,
+      });
+
+      expect(response.cliCommand).toContain(
+        '--aid=Artifact:AudioProducer.GeneratedAudio[0]'
+      );
+      expect(response.cliCommand).toContain(
+        '--pin=Artifact:ScriptProducer.NarrationScript[0]'
+      );
+      expect(response.cliCommand).toContain('--pin=Producer:ImageProducer');
     });
   });
 });

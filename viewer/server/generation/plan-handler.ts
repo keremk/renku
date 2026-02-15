@@ -39,10 +39,26 @@ import {
   type PlanCostSummary,
 } from '@gorenku/providers';
 
-import type { PlanRequest, PlanResponse, LayerInfo, SurgicalInfo, CachedPlan, SerializablePlanCostSummary } from './types.js';
+import type {
+  PlanRequest,
+  PlanResponse,
+  LayerInfo,
+  SurgicalInfo,
+  CachedPlan,
+  SerializablePlanCostSummary,
+} from './types.js';
 import type { ProducerCostData } from '@gorenku/providers';
-import { requireCliConfig, getCatalogModelsDir, type CliConfig } from './config.js';
-import { resolveBlueprintPaths, generateMovieId, normalizeMovieId, resolveBuildInputsPath } from './paths.js';
+import {
+  requireCliConfig,
+  getCatalogModelsDir,
+  type CliConfig,
+} from './config.js';
+import {
+  resolveBlueprintPaths,
+  generateMovieId,
+  normalizeMovieId,
+  resolveBuildInputsPath,
+} from './paths.js';
 import { getJobManager } from './job-manager.js';
 import { parseJsonBody, sendJson, sendError } from './http-utils.js';
 
@@ -65,19 +81,28 @@ export async function handlePlanRequest(
     const cliConfig = await requireCliConfig();
 
     // Resolve blueprint and inputs paths
-    const paths = await resolveBlueprintPaths(body.blueprint, body.inputs, cliConfig);
+    const paths = await resolveBlueprintPaths(
+      body.blueprint,
+      body.inputs,
+      cliConfig
+    );
 
     // Compute basePath relative to storage root (e.g., "animated-edu-characters/builds")
     const basePath = relative(cliConfig.storage.root, paths.buildsFolder);
 
     // Determine movie ID (new or existing)
     const isNew = !body.movieId;
-    const movieId = body.movieId ? normalizeMovieId(body.movieId) : generateMovieId();
+    const movieId = body.movieId
+      ? normalizeMovieId(body.movieId)
+      : generateMovieId();
 
     // Check for build-specific inputs.yaml if movieId is provided and no explicit inputs override
     let inputsPath = paths.inputsPath;
     if (body.movieId && !body.inputs) {
-      const buildInputsPath = await resolveBuildInputsPath(paths.blueprintFolder, movieId);
+      const buildInputsPath = await resolveBuildInputsPath(
+        paths.blueprintFolder,
+        movieId
+      );
       if (buildInputsPath) {
         inputsPath = buildInputsPath;
       }
@@ -120,6 +145,7 @@ export async function handlePlanRequest(
       blueprintPath: planResult.blueprintPath,
       inputsPath,
       artifactIds: body.artifactIds,
+      pinIds: body.pinnedArtifactIds,
       reRunFrom: body.reRunFrom,
       upToLayer: body.upToLayer,
     });
@@ -178,13 +204,30 @@ interface GeneratePlanResult {
  * Generates an execution plan.
  * Based on cli/src/lib/planner.ts but adapted for viewer use.
  */
-async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanResult> {
-  const { cliConfig, movieId, isNew, blueprintPath, inputsPath, buildsFolder, basePath, reRunFrom, targetArtifactIds, upToLayer, pinIds } = options;
+async function generatePlan(
+  options: GeneratePlanOptions
+): Promise<GeneratePlanResult> {
+  const {
+    cliConfig,
+    movieId,
+    isNew,
+    blueprintPath,
+    inputsPath,
+    buildsFolder,
+    basePath,
+    reRunFrom,
+    targetArtifactIds,
+    upToLayer,
+    pinIds,
+  } = options;
   const storageRoot = cliConfig.storage.root;
   const movieDir = resolve(buildsFolder, movieId);
 
   // Use IN-MEMORY storage for planning (no disk writes yet)
-  const memoryStorageContext = createStorageContext({ kind: 'memory', basePath });
+  const memoryStorageContext = createStorageContext({
+    kind: 'memory',
+    basePath,
+  });
   await initializeMovieStorage(memoryStorageContext, movieId);
 
   // For edits (isNew: false), load existing manifest and events from disk
@@ -194,8 +237,16 @@ async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanR
       rootDir: storageRoot,
       basePath,
     });
-    await copyManifestToMemory(localStorageContext, memoryStorageContext, movieId);
-    await copyEventsToMemory(localStorageContext, memoryStorageContext, movieId);
+    await copyManifestToMemory(
+      localStorageContext,
+      memoryStorageContext,
+      movieId
+    );
+    await copyEventsToMemory(
+      localStorageContext,
+      memoryStorageContext,
+      movieId
+    );
   }
 
   const manifestService = createManifestService(memoryStorageContext);
@@ -203,21 +254,29 @@ async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanR
 
   // Load blueprint
   const catalogRoot = cliConfig.catalog?.root ?? undefined;
-  const { root: blueprintRoot } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
+  const { root: blueprintRoot } = await loadYamlBlueprintTree(blueprintPath, {
+    catalogRoot,
+  });
 
   // Validate blueprint
   const validation = validateBlueprintTree(blueprintRoot, { errorsOnly: true });
   if (!validation.valid) {
-    const errorMessages = validation.errors.map((e) => `  ${e.code}: ${e.message}`).join('\n');
+    const errorMessages = validation.errors
+      .map((e) => `  ${e.code}: ${e.message}`)
+      .join('\n');
     throw createValidationError(
       ValidationErrorCode.BLUEPRINT_VALIDATION_FAILED,
-      `Blueprint validation failed:\n${errorMessages}`,
+      `Blueprint validation failed:\n${errorMessages}`
     );
   }
 
   // Load inputs from YAML + TOML prompts (unified)
   const buildsDir = resolve(buildsFolder, movieId);
-  const { values: inputValues, providerOptions, artifactOverrides } = await loadInputs({
+  const {
+    values: inputValues,
+    providerOptions,
+    artifactOverrides,
+  } = await loadInputs({
     yamlPath: inputsPath,
     blueprintTree: blueprintRoot,
     buildsDir,
@@ -228,7 +287,9 @@ async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanR
 
   // Load model catalog for schema loading
   const catalogModelsDir = getCatalogModelsDir(cliConfig);
-  const modelCatalog = catalogModelsDir ? await loadModelCatalog(catalogModelsDir) : undefined;
+  const modelCatalog = catalogModelsDir
+    ? await loadModelCatalog(catalogModelsDir)
+    : undefined;
 
   // Persist artifact override blobs to storage
   const persistedOverrides = await persistArtifactOverrideBlobs(
@@ -245,7 +306,7 @@ async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanR
   const providerMetadata = await buildProviderMetadata(
     providerOptions,
     { catalogModelsDir, modelCatalog },
-    loadModelInputSchema as Parameters<typeof buildProviderMetadata>[2],
+    loadModelInputSchema as Parameters<typeof buildProviderMetadata>[2]
   );
 
   // Generate plan
@@ -258,7 +319,8 @@ async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanR
     storage: memoryStorageContext,
     manifestService,
     eventLog,
-    pendingArtefacts: allPendingArtefacts.length > 0 ? allPendingArtefacts : undefined,
+    pendingArtefacts:
+      allPendingArtefacts.length > 0 ? allPendingArtefacts : undefined,
     reRunFrom,
     targetArtifactIds,
     upToLayer,
@@ -269,7 +331,11 @@ async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanR
   const pricingCatalog = catalogModelsDir
     ? await loadPricingCatalog(catalogModelsDir)
     : { providers: new Map() };
-  const costSummary = estimatePlanCosts(planResult.plan, pricingCatalog, planResult.resolvedInputs);
+  const costSummary = estimatePlanCosts(
+    planResult.plan,
+    pricingCatalog,
+    planResult.resolvedInputs
+  );
 
   // Derive surgical info if targetArtifactIds was provided
   const surgicalInfo = targetArtifactIds?.length
@@ -302,7 +368,11 @@ async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanR
       await metadataService.merge(movieId, { blueprintPath });
 
       // Copy blobs from memory storage to local storage
-      await copyBlobsFromMemoryToLocal(memoryStorageContext, localStorageContext, movieId);
+      await copyBlobsFromMemoryToLocal(
+        memoryStorageContext,
+        localStorageContext,
+        movieId
+      );
 
       // Write input events to local event log
       const localEventLog = createEventLog(localStorageContext);
@@ -312,7 +382,10 @@ async function generatePlan(options: GeneratePlanOptions): Promise<GeneratePlanR
 
       // Write plan to local storage
       const { planStore } = await import('@gorenku/core');
-      await planStore.save(planResult.plan, { movieId, storage: localStorageContext });
+      await planStore.save(planResult.plan, {
+        movieId,
+        storage: localStorageContext,
+      });
     },
   };
 }
@@ -321,6 +394,7 @@ interface CliCommandOptions {
   blueprintPath: string;
   inputsPath?: string;
   artifactIds?: string[];
+  pinIds?: string[];
   reRunFrom?: number;
   upToLayer?: number;
 }
@@ -328,10 +402,7 @@ interface CliCommandOptions {
 /**
  * Build the equivalent CLI command for the given plan options.
  */
-function buildCliCommand(
-  movieId: string,
-  options: CliCommandOptions
-): string {
+function buildCliCommand(movieId: string, options: CliCommandOptions): string {
   const parts: string[] = ['renku generate'];
 
   // Movie ID
@@ -348,9 +419,14 @@ function buildCliCommand(
   // Artifact IDs for surgical regeneration
   if (options.artifactIds && options.artifactIds.length > 0) {
     for (const artifactId of options.artifactIds) {
-      // Remove the "Artifact:" prefix if present for CLI format
-      const shortId = artifactId.replace(/^Artifact:/, '');
-      parts.push(`--aid=${shortId}`);
+      parts.push(`--aid=${artifactId}`);
+    }
+  }
+
+  // Pin IDs
+  if (options.pinIds && options.pinIds.length > 0) {
+    for (const pinId of options.pinIds) {
+      parts.push(`--pin=${pinId}`);
     }
   }
 
@@ -380,12 +456,20 @@ export function buildPlanResponse(
   cliOptions?: CliCommandOptions
 ): PlanResponse {
   // Build job cost lookup map for quick access
-  const jobCostMap = new Map<string, { cost: number; min: number; max: number; isPlaceholder: boolean }>();
+  const jobCostMap = new Map<
+    string,
+    { cost: number; min: number; max: number; isPlaceholder: boolean }
+  >();
   for (const jobCost of cachedPlan.costSummary.jobs) {
     const cost = jobCost.estimate.cost;
     const min = jobCost.estimate.range?.min ?? cost;
     const max = jobCost.estimate.range?.max ?? cost;
-    jobCostMap.set(jobCost.jobId, { cost, min, max, isPlaceholder: jobCost.estimate.isPlaceholder });
+    jobCostMap.set(jobCost.jobId, {
+      cost,
+      min,
+      max,
+      isPlaceholder: jobCost.estimate.isPlaceholder,
+    });
   }
 
   // Build layerBreakdown with per-layer costs (only include layers with jobs)
@@ -429,7 +513,10 @@ export function buildPlanResponse(
     // Filter out layers with no jobs (skipped layers)
     .filter((layer) => layer.jobCount > 0);
 
-  const totalJobs = plan.layers.reduce((sum, layerJobs) => sum + layerJobs.length, 0);
+  const totalJobs = plan.layers.reduce(
+    (sum, layerJobs) => sum + layerJobs.length,
+    0
+  );
 
   // Convert byProducer Map to plain object for JSON serialization
   const byProducerObj: Record<string, ProducerCostData> = {};

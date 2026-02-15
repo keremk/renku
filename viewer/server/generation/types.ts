@@ -28,7 +28,7 @@ export interface PlanRequest {
   artifactIds?: string[];
   /** Limit plan to layers 0 through upToLayer (0-indexed). Jobs in later layers are excluded. */
   upToLayer?: number;
-  /** Artifact IDs that are pinned (kept). Jobs whose produced artifacts are ALL pinned are excluded from the plan. */
+  /** Pin IDs (canonical Artifact:... or Producer:...). Jobs whose produced artifacts are ALL pinned are excluded from the plan. */
   pinnedArtifactIds?: string[];
 }
 
@@ -212,7 +212,13 @@ export interface BuildSummaryInfo {
 /**
  * Job execution status.
  */
-export type JobStatus = 'pending' | 'planning' | 'running' | 'completed' | 'failed' | 'cancelled';
+export type JobStatus =
+  | 'pending'
+  | 'planning'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'cancelled';
 
 // =============================================================================
 // SSE Event Types
