@@ -5,7 +5,7 @@
  */
 
 import { useMemo, useState, useCallback } from "react";
-import { CheckCircle2, AlertCircle, Layers, Briefcase, DollarSign, X, Copy, Check } from "lucide-react";
+import { CheckCircle2, AlertCircle, Layers, Briefcase, DollarSign, X, Copy, Check, Pin } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -199,6 +199,7 @@ function PlanContent({
   showCostRange,
   isSurgicalMode,
   isReplanning,
+  pinnedCount,
   onCancel,
   onExecute,
 }: {
@@ -207,6 +208,7 @@ function PlanContent({
   showCostRange: boolean;
   isSurgicalMode: boolean;
   isReplanning: boolean;
+  pinnedCount: number;
   onCancel: () => void;
   onExecute: () => void;
 }) {
@@ -261,6 +263,16 @@ function PlanContent({
           />
         </div>
       </div>
+
+      {/* Pinned artifacts info */}
+      {pinnedCount > 0 && (
+        <div className="mx-6 mb-2 bg-amber-500/5 border border-amber-500/20 rounded-lg p-3">
+          <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
+            <Pin className="inline size-3.5 mr-1" />
+            {pinnedCount} artifact{pinnedCount !== 1 ? 's' : ''} pinned — will be kept from prior run
+          </p>
+        </div>
+      )}
 
       {/* Cost Breakdown */}
       <div className="px-6 pb-5">
@@ -337,6 +349,7 @@ export function PlanDialog() {
     confirmExecution,
     dismissDialog,
     clearLogs,
+    getPinnedArtifacts,
   } = useExecution();
 
   const { planInfo, status, error } = state;
@@ -354,6 +367,7 @@ export function PlanDialog() {
   const isSurgicalMode = planInfo?.surgicalInfo && planInfo.surgicalInfo.length > 0;
   const isNoop = planInfo?.totalJobs === 0;
   const showCostRange = planInfo?.hasRanges && planInfo.minCost !== planInfo.maxCost;
+  const pinnedCount = getPinnedArtifacts().length;
 
   const handleExecute = () => {
     clearLogs();
@@ -387,6 +401,7 @@ export function PlanDialog() {
             showCostRange={showCostRange ?? false}
             isSurgicalMode={isSurgicalMode ?? false}
             isReplanning={isReplanning}
+            pinnedCount={pinnedCount}
             onCancel={dismissDialog}
             onExecute={handleExecute}
           />

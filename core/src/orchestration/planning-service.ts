@@ -69,6 +69,8 @@ export interface GeneratePlanArgs {
   upToLayer?: number;
   /** If true, collect explanation data for why jobs are scheduled */
   collectExplanation?: boolean;
+  /** Artifact IDs that are pinned (kept). Jobs whose produced artifacts are ALL pinned are excluded from the plan. */
+  pinnedArtifactIds?: string[];
 }
 
 export interface GeneratePlanResult {
@@ -177,6 +179,7 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
         artifactRegenerations,
         upToLayer: args.upToLayer,
         collectExplanation: args.collectExplanation,
+        pinnedArtifactIds: args.pinnedArtifactIds,
       });
 
       await planStore.save(plan, { movieId: args.movieId, storage: args.storage });

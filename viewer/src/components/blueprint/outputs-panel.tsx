@@ -11,6 +11,8 @@ import {
   Check,
   Pencil,
   RotateCcw,
+  Pin,
+  PinOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -158,7 +160,14 @@ function ArtifactGallery({
   graphData?: BlueprintGraphData;
   onArtifactUpdated?: () => void;
 }) {
-  const { isArtifactSelected, selectProducerArtifacts, deselectProducerArtifacts } = useExecution();
+  const {
+    isArtifactSelected,
+    selectProducerArtifacts,
+    deselectProducerArtifacts,
+    isArtifactPinned,
+    pinProducerArtifacts,
+    unpinProducerArtifacts,
+  } = useExecution();
 
   // Group artifacts by producer and sort by topological order
   const { groupedByProducer, orderedProducers } = useMemo(() => {
@@ -172,15 +181,31 @@ function ArtifactGallery({
       {orderedProducers.map((producerName) => {
         const producerArtifacts = groupedByProducer.get(producerName) ?? [];
         const artifactIds = producerArtifacts.map((a) => a.id);
+        const generatedIds = producerArtifacts
+          .filter((a) => a.status === "succeeded")
+          .map((a) => a.id);
+
         const selectedCount = artifactIds.filter((id) => isArtifactSelected(id)).length;
         const allSelected = selectedCount === artifactIds.length && artifactIds.length > 0;
         const someSelected = selectedCount > 0 && selectedCount < artifactIds.length;
+
+        const pinnedCount = generatedIds.filter((id) => isArtifactPinned(id)).length;
+        const allPinned = pinnedCount === generatedIds.length && generatedIds.length > 0;
+        const somePinned = pinnedCount > 0 && pinnedCount < generatedIds.length;
 
         const handleSelectAll = () => {
           if (allSelected) {
             deselectProducerArtifacts(artifactIds);
           } else {
             selectProducerArtifacts(artifactIds);
+          }
+        };
+
+        const handlePinAll = () => {
+          if (allPinned) {
+            unpinProducerArtifacts(generatedIds);
+          } else {
+            pinProducerArtifacts(generatedIds);
           }
         };
 
@@ -192,11 +217,16 @@ function ArtifactGallery({
             allSelected={allSelected}
             someSelected={someSelected}
             onSelectAll={handleSelectAll}
+            allPinned={allPinned}
+            somePinned={somePinned}
+            hasGenerated={generatedIds.length > 0}
+            onPinAll={handlePinAll}
             defaultOpen
           >
             <MediaGrid>
               {producerArtifacts.map((artifact) => {
                 const isSelected = isArtifactSelected(artifact.id);
+                const isPinned = isArtifactPinned(artifact.id);
                 return (
                   <ArtifactCardRenderer
                     key={artifact.id}
@@ -204,6 +234,7 @@ function ArtifactGallery({
                     blueprintFolder={blueprintFolder}
                     movieId={movieId}
                     isSelected={isSelected}
+                    isPinned={isPinned}
                     onArtifactUpdated={onArtifactUpdated}
                   />
                 );
@@ -225,12 +256,14 @@ function ArtifactCardRenderer({
   blueprintFolder,
   movieId,
   isSelected,
+  isPinned,
   onArtifactUpdated,
 }: {
   artifact: ArtifactInfo;
   blueprintFolder: string;
   movieId: string;
   isSelected: boolean;
+  isPinned: boolean;
   onArtifactUpdated?: () => void;
 }) {
   if (artifact.mimeType.startsWith("video/")) {
@@ -240,6 +273,7 @@ function ArtifactCardRenderer({
         blueprintFolder={blueprintFolder}
         movieId={movieId}
         isSelected={isSelected}
+        isPinned={isPinned}
         onArtifactUpdated={onArtifactUpdated}
         mediaType="video"
       />
@@ -252,6 +286,7 @@ function ArtifactCardRenderer({
         blueprintFolder={blueprintFolder}
         movieId={movieId}
         isSelected={isSelected}
+        isPinned={isPinned}
         onArtifactUpdated={onArtifactUpdated}
         mediaType="audio"
       />
@@ -264,6 +299,7 @@ function ArtifactCardRenderer({
         blueprintFolder={blueprintFolder}
         movieId={movieId}
         isSelected={isSelected}
+        isPinned={isPinned}
         onArtifactUpdated={onArtifactUpdated}
         mediaType="image"
       />
@@ -276,11 +312,12 @@ function ArtifactCardRenderer({
         blueprintFolder={blueprintFolder}
         movieId={movieId}
         isSelected={isSelected}
+        isPinned={isPinned}
         onArtifactUpdated={onArtifactUpdated}
       />
     );
   }
-  return <GenericCard artifact={artifact} isSelected={isSelected} />;
+  return <GenericCard artifact={artifact} isSelected={isSelected} isPinned={isPinned} />;
 }
 
 // ============================================================================
@@ -293,6 +330,10 @@ function ProducerArtifactSection({
   allSelected,
   someSelected,
   onSelectAll,
+  allPinned = false,
+  somePinned = false,
+  hasGenerated = false,
+  onPinAll,
   defaultOpen = true,
   children,
 }: {
@@ -301,6 +342,10 @@ function ProducerArtifactSection({
   allSelected: boolean;
   someSelected: boolean;
   onSelectAll: () => void;
+  allPinned?: boolean;
+  somePinned?: boolean;
+  hasGenerated?: boolean;
+  onPinAll?: () => void;
   defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
@@ -309,25 +354,52 @@ function ProducerArtifactSection({
     onSelectAll();
   };
 
-  const regenerateAction = (
-    <button
-      type="button"
-      onClick={handleCheckboxClick}
-      className={cn(
-        "flex items-center gap-1.5 px-2 py-1 rounded hover:bg-muted transition-colors text-xs",
-        allSelected || someSelected ? "text-primary" : "text-muted-foreground"
+  const handlePinClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onPinAll?.();
+  };
+
+  const actions = (
+    <div className="flex items-center gap-1">
+      {hasGenerated && onPinAll && (
+        <button
+          type="button"
+          onClick={handlePinClick}
+          className={cn(
+            "flex items-center gap-1.5 px-2 py-1 rounded hover:bg-muted transition-colors text-xs",
+            allPinned || somePinned ? "text-amber-500" : "text-muted-foreground"
+          )}
+          title={allPinned ? "Unpin all" : "Pin all (keep from regeneration)"}
+        >
+          <span>Keep</span>
+          {allPinned ? (
+            <Pin className="size-4" />
+          ) : somePinned ? (
+            <Pin className="size-4 opacity-50" />
+          ) : (
+            <PinOff className="size-4" />
+          )}
+        </button>
       )}
-      title={allSelected ? "Deselect all" : "Select all for regeneration"}
-    >
-      <span>Generate Again</span>
-      {allSelected ? (
-        <CheckSquare className="size-4" />
-      ) : someSelected ? (
-        <Square className="size-4 fill-primary/30" />
-      ) : (
-        <Square className="size-4" />
-      )}
-    </button>
+      <button
+        type="button"
+        onClick={handleCheckboxClick}
+        className={cn(
+          "flex items-center gap-1.5 px-2 py-1 rounded hover:bg-muted transition-colors text-xs",
+          allSelected || someSelected ? "text-primary" : "text-muted-foreground"
+        )}
+        title={allSelected ? "Deselect all" : "Select all for regeneration"}
+      >
+        <span>Generate Again</span>
+        {allSelected ? (
+          <CheckSquare className="size-4" />
+        ) : someSelected ? (
+          <Square className="size-4 fill-primary/30" />
+        ) : (
+          <Square className="size-4" />
+        )}
+      </button>
+    </div>
   );
 
   return (
@@ -335,7 +407,7 @@ function ProducerArtifactSection({
       title={producerName}
       count={count}
       defaultOpen={defaultOpen}
-      actions={regenerateAction}
+      actions={actions}
     >
       {children}
     </CollapsibleSection>
@@ -367,8 +439,9 @@ function ArtifactCardFooter({
   onEdit,
   onRestore,
 }: ArtifactCardFooterProps) {
-  const { isArtifactSelected, toggleArtifactSelection } = useExecution();
+  const { isArtifactSelected, toggleArtifactSelection, isArtifactPinned, toggleArtifactPin } = useExecution();
   const isSelected = isArtifactSelected(artifactId);
+  const isPinned = isArtifactPinned(artifactId);
 
   const handleDownload = useCallback(() => {
     const a = document.createElement("a");
@@ -388,6 +461,10 @@ function ArtifactCardFooter({
   const handleToggleRegeneration = useCallback(() => {
     toggleArtifactSelection(artifactId);
   }, [toggleArtifactSelection, artifactId]);
+
+  const handleTogglePin = useCallback(() => {
+    toggleArtifactPin(artifactId);
+  }, [toggleArtifactPin, artifactId]);
 
   // Build actions list
   const actions = useMemo((): CardAction[] => {
@@ -417,6 +494,14 @@ function ArtifactCardFooter({
       icon: RefreshCw,
       onClick: handleToggleRegeneration,
       suffix: <Check className={`size-4 ${isSelected ? "text-primary" : "invisible"}`} />,
+    });
+
+    result.push({
+      id: "pin",
+      label: "Keep (Pin)",
+      icon: Pin,
+      onClick: handleTogglePin,
+      suffix: <Pin className={`size-4 ${isPinned ? "text-amber-500" : "invisible"}`} />,
     });
 
     // Add separator before file actions
@@ -453,7 +538,7 @@ function ArtifactCardFooter({
     });
 
     return result;
-  }, [onEdit, isEdited, onRestore, onExpand, handleToggleRegeneration, handleDownload, handleOpenInNewTab, handleCopyUrl, isSelected]);
+  }, [onEdit, isEdited, onRestore, onExpand, handleToggleRegeneration, handleTogglePin, handleDownload, handleOpenInNewTab, handleCopyUrl, isSelected, isPinned]);
 
   return (
     <CardActionsFooter
@@ -475,6 +560,7 @@ function MediaArtifactCard({
   blueprintFolder,
   movieId,
   isSelected,
+  isPinned,
   onArtifactUpdated,
   mediaType,
 }: {
@@ -482,6 +568,7 @@ function MediaArtifactCard({
   blueprintFolder: string;
   movieId: string;
   isSelected: boolean;
+  isPinned: boolean;
   onArtifactUpdated?: () => void;
   mediaType: MediaType;
 }) {
@@ -526,6 +613,7 @@ function MediaArtifactCard({
           url={url}
           title={displayName}
           isSelected={isSelected}
+          isPinned={isPinned}
           footer={footer}
         />
       )}
@@ -534,6 +622,7 @@ function MediaArtifactCard({
           url={url}
           title={displayName}
           isSelected={isSelected}
+          isPinned={isPinned}
           footer={footer}
         />
       )}
@@ -542,6 +631,7 @@ function MediaArtifactCard({
           url={url}
           title={displayName}
           isSelected={isSelected}
+          isPinned={isPinned}
           footer={footer}
         />
       )}
@@ -566,12 +656,14 @@ function ArtifactTextCard({
   blueprintFolder,
   movieId,
   isSelected,
+  isPinned,
   onArtifactUpdated,
 }: {
   artifact: ArtifactInfo;
   blueprintFolder: string;
   movieId: string;
   isSelected: boolean;
+  isPinned: boolean;
   onArtifactUpdated?: () => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -651,6 +743,7 @@ function ArtifactTextCard({
     <>
       <MediaCard
         isSelected={isSelected}
+        isPinned={isPinned}
         footer={
           <ArtifactCardFooter
             artifactId={artifact.id}
@@ -718,9 +811,11 @@ function ArtifactTextCard({
 function GenericCard({
   artifact,
   isSelected,
+  isPinned,
 }: {
   artifact: ArtifactInfo;
   isSelected: boolean;
+  isPinned: boolean;
 }) {
   const { isArtifactSelected, toggleArtifactSelection } = useExecution();
   const displayName = shortenArtifactDisplayName(artifact.id);
@@ -729,6 +824,7 @@ function GenericCard({
   return (
     <MediaCard
       isSelected={isSelected}
+      isPinned={isPinned}
       footer={
         <>
           <span className="text-xs text-foreground truncate flex-1" title={displayName}>

@@ -59,6 +59,8 @@ interface ExecutionState {
   movieId: string | null;
   /** Set of artifact IDs selected for regeneration */
   selectedForRegeneration: Set<string>;
+  /** Set of artifact IDs that are pinned (kept from regeneration) */
+  pinnedArtifacts: Set<string>;
   /** Whether the completion dialog should be shown */
   showCompletionDialog: boolean;
 }
@@ -90,6 +92,10 @@ type ExecutionAction =
   | { type: 'SELECT_PRODUCER_ARTIFACTS'; artifactIds: string[] }
   | { type: 'DESELECT_PRODUCER_ARTIFACTS'; artifactIds: string[] }
   | { type: 'CLEAR_REGENERATION_SELECTION' }
+  | { type: 'TOGGLE_ARTIFACT_PIN'; artifactId: string }
+  | { type: 'PIN_PRODUCER_ARTIFACTS'; artifactIds: string[] }
+  | { type: 'UNPIN_PRODUCER_ARTIFACTS'; artifactIds: string[] }
+  | { type: 'CLEAR_PINNED_SELECTION' }
   | { type: 'DISMISS_COMPLETION'; clearSelections: boolean };
 
 // =============================================================================
@@ -111,6 +117,7 @@ const initialState: ExecutionState = {
   blueprintName: null,
   movieId: null,
   selectedForRegeneration: new Set(),
+  pinnedArtifacts: new Set(),
   showCompletionDialog: false,
 };
 
@@ -219,6 +226,7 @@ function executionReducer(
         totalLayers: state.totalLayers,
         bottomPanelVisible: state.bottomPanelVisible,
         selectedForRegeneration: state.selectedForRegeneration,
+        pinnedArtifacts: state.pinnedArtifacts,
       };
 
     case 'INIT_FROM_MANIFEST': {
@@ -261,20 +269,24 @@ function executionReducer(
 
     case 'TOGGLE_ARTIFACT_SELECTION': {
       const newSet = new Set(state.selectedForRegeneration);
+      const newPinned = new Set(state.pinnedArtifacts);
       if (newSet.has(action.artifactId)) {
         newSet.delete(action.artifactId);
       } else {
         newSet.add(action.artifactId);
+        newPinned.delete(action.artifactId);
       }
-      return { ...state, selectedForRegeneration: newSet };
+      return { ...state, selectedForRegeneration: newSet, pinnedArtifacts: newPinned };
     }
 
     case 'SELECT_PRODUCER_ARTIFACTS': {
       const newSet = new Set(state.selectedForRegeneration);
+      const newPinned = new Set(state.pinnedArtifacts);
       for (const id of action.artifactIds) {
         newSet.add(id);
+        newPinned.delete(id);
       }
-      return { ...state, selectedForRegeneration: newSet };
+      return { ...state, selectedForRegeneration: newSet, pinnedArtifacts: newPinned };
     }
 
     case 'DESELECT_PRODUCER_ARTIFACTS': {
@@ -288,11 +300,45 @@ function executionReducer(
     case 'CLEAR_REGENERATION_SELECTION':
       return { ...state, selectedForRegeneration: new Set() };
 
+    case 'TOGGLE_ARTIFACT_PIN': {
+      const newPinned = new Set(state.pinnedArtifacts);
+      const newRegen = new Set(state.selectedForRegeneration);
+      if (newPinned.has(action.artifactId)) {
+        newPinned.delete(action.artifactId);
+      } else {
+        newPinned.add(action.artifactId);
+        newRegen.delete(action.artifactId);
+      }
+      return { ...state, pinnedArtifacts: newPinned, selectedForRegeneration: newRegen };
+    }
+
+    case 'PIN_PRODUCER_ARTIFACTS': {
+      const newPinned = new Set(state.pinnedArtifacts);
+      const newRegen = new Set(state.selectedForRegeneration);
+      for (const id of action.artifactIds) {
+        newPinned.add(id);
+        newRegen.delete(id);
+      }
+      return { ...state, pinnedArtifacts: newPinned, selectedForRegeneration: newRegen };
+    }
+
+    case 'UNPIN_PRODUCER_ARTIFACTS': {
+      const newPinned = new Set(state.pinnedArtifacts);
+      for (const id of action.artifactIds) {
+        newPinned.delete(id);
+      }
+      return { ...state, pinnedArtifacts: newPinned };
+    }
+
+    case 'CLEAR_PINNED_SELECTION':
+      return { ...state, pinnedArtifacts: new Set() };
+
     case 'DISMISS_COMPLETION':
       return {
         ...state,
         showCompletionDialog: false,
         selectedForRegeneration: action.clearSelections ? new Set() : state.selectedForRegeneration,
+        pinnedArtifacts: action.clearSelections ? new Set() : state.pinnedArtifacts,
       };
 
     default:
@@ -463,6 +509,18 @@ interface ExecutionContextValue {
   isArtifactSelected: (artifactId: string) => boolean;
   /** Get all selected artifact IDs */
   getSelectedArtifacts: () => string[];
+  /** Toggle pin on an artifact (pinned artifacts are kept/not regenerated) */
+  toggleArtifactPin: (artifactId: string) => void;
+  /** Pin all artifacts from a producer */
+  pinProducerArtifacts: (artifactIds: string[]) => void;
+  /** Unpin all artifacts from a producer */
+  unpinProducerArtifacts: (artifactIds: string[]) => void;
+  /** Clear all pinned selections */
+  clearPinnedSelection: () => void;
+  /** Check if an artifact is pinned */
+  isArtifactPinned: (artifactId: string) => boolean;
+  /** Get all pinned artifact IDs */
+  getPinnedArtifacts: () => string[];
 }
 
 // =============================================================================
@@ -520,12 +578,14 @@ export function ExecutionProvider({ children, onArtifactProduced }: ExecutionPro
     try {
       // Get selected artifacts for surgical regeneration
       const selectedArtifacts = Array.from(state.selectedForRegeneration);
+      const pinnedArtifacts = Array.from(state.pinnedArtifacts);
 
       const response = await createPlan({
         blueprint: blueprintName,
         movieId: movieId ?? undefined,
         artifactIds: selectedArtifacts.length > 0 ? selectedArtifacts : undefined,
         upToLayer: upToLayer,
+        pinnedArtifactIds: pinnedArtifacts.length > 0 ? pinnedArtifacts : undefined,
       });
 
       const planInfo = planResponseToDisplayInfo(response);
@@ -534,7 +594,7 @@ export function ExecutionProvider({ children, onArtifactProduced }: ExecutionPro
       const message = error instanceof Error ? error.message : 'Failed to create plan';
       dispatch({ type: 'PLAN_FAILED', error: message });
     }
-  }, [state.selectedForRegeneration]);
+  }, [state.selectedForRegeneration, state.pinnedArtifacts]);
 
   const confirmExecution = useCallback(async (dryRun = false) => {
     if (!state.planInfo) return;
@@ -680,6 +740,30 @@ export function ExecutionProvider({ children, onArtifactProduced }: ExecutionPro
     return Array.from(state.selectedForRegeneration);
   }, [state.selectedForRegeneration]);
 
+  const toggleArtifactPin = useCallback((artifactId: string) => {
+    dispatch({ type: 'TOGGLE_ARTIFACT_PIN', artifactId });
+  }, []);
+
+  const pinProducerArtifacts = useCallback((artifactIds: string[]) => {
+    dispatch({ type: 'PIN_PRODUCER_ARTIFACTS', artifactIds });
+  }, []);
+
+  const unpinProducerArtifacts = useCallback((artifactIds: string[]) => {
+    dispatch({ type: 'UNPIN_PRODUCER_ARTIFACTS', artifactIds });
+  }, []);
+
+  const clearPinnedSelection = useCallback(() => {
+    dispatch({ type: 'CLEAR_PINNED_SELECTION' });
+  }, []);
+
+  const isArtifactPinned = useCallback((artifactId: string) => {
+    return state.pinnedArtifacts.has(artifactId);
+  }, [state.pinnedArtifacts]);
+
+  const getPinnedArtifacts = useCallback(() => {
+    return Array.from(state.pinnedArtifacts);
+  }, [state.pinnedArtifacts]);
+
   const value: ExecutionContextValue = {
     state,
     setLayerRange,
@@ -700,6 +784,12 @@ export function ExecutionProvider({ children, onArtifactProduced }: ExecutionPro
     clearRegenerationSelection,
     isArtifactSelected,
     getSelectedArtifacts,
+    toggleArtifactPin,
+    pinProducerArtifacts,
+    unpinProducerArtifacts,
+    clearPinnedSelection,
+    isArtifactPinned,
+    getPinnedArtifacts,
   };
 
   return (

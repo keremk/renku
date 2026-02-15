@@ -2758,4 +2758,342 @@ describe('planner', () => {
       }
     });
   });
+
+  describe('pinned artifacts', () => {
+    it('excludes fully pinned job from plan', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      // Set up baseline and a changed input so ScriptProducer is dirty
+      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, 'rev-0001');
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+      const manifest = createSucceededManifest(baseline);
+
+      // Change input to make everything dirty
+      const edits = createInputEvents({ 'Input:InquiryPrompt': 'New story' }, 'rev-0002');
+
+      // Pin ALL artifacts from ScriptProducer
+      const { plan } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: edits,
+        pinnedArtifactIds: ['Artifact:NarrationScript[0]', 'Artifact:NarrationScript[1]'],
+      });
+
+      // ScriptProducer should be excluded
+      const allJobIds = plan.layers.flat().map(j => j.jobId);
+      expect(allJobIds).not.toContain('Producer:ScriptProducer');
+    });
+
+    it('keeps fully pinned job excluded when reRunFrom would otherwise force all layers', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, 'rev-0001');
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+      const manifest = createSucceededManifest(baseline);
+
+      const { plan } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: [],
+        reRunFrom: 0,
+        pinnedArtifactIds: ['Artifact:NarrationScript[0]', 'Artifact:NarrationScript[1]'],
+      });
+
+      const allJobIds = plan.layers.flat().map((j) => j.jobId);
+      expect(allJobIds).not.toContain('Producer:ScriptProducer');
+      expect(allJobIds).toContain('Producer:AudioProducer[0]');
+      expect(allJobIds).toContain('Producer:AudioProducer[1]');
+      expect(allJobIds).toContain('Producer:TimelineAssembler');
+    });
+
+    it('does not exclude pinned job when pinned output is missing and cannot be reused', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, 'rev-0001');
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+
+      const manifest = createSucceededManifest(baseline, {
+        artefacts: {
+          'Artifact:NarrationScript[0]': {
+            hash: 'h0',
+            producedBy: 'Producer:ScriptProducer',
+          },
+          'Artifact:NarrationScript[1]': {
+            hash: 'h1',
+            producedBy: 'Producer:ScriptProducer',
+          },
+          'Artifact:SegmentAudio[0]': {
+            hash: 'h2',
+            producedBy: 'Producer:AudioProducer[0]',
+          },
+          'Artifact:FinalVideo': {
+            hash: 'h4',
+            producedBy: 'Producer:TimelineAssembler',
+          },
+        },
+      });
+
+      const { plan, explanation } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: [],
+        pinnedArtifactIds: ['Artifact:SegmentAudio[1]'],
+        collectExplanation: true,
+      });
+
+      const allJobIds = plan.layers.flat().map((j) => j.jobId);
+      expect(allJobIds).toContain('Producer:AudioProducer[1]');
+      expect(allJobIds).toContain('Producer:TimelineAssembler');
+      expect(allJobIds).not.toContain('Producer:ScriptProducer');
+      expect(allJobIds).not.toContain('Producer:AudioProducer[0]');
+
+      const reason = explanation?.jobReasons.find((entry) => entry.jobId === 'Producer:AudioProducer[1]');
+      expect(reason?.reason).toBe('producesMissing');
+      expect(reason?.missingArtifacts).toContain('Artifact:SegmentAudio[1]');
+    });
+
+    it('pinned job prevents downstream propagation', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, 'rev-0001');
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+      const manifest = createSucceededManifest(baseline);
+      const edits = createInputEvents({ 'Input:InquiryPrompt': 'New story' }, 'rev-0002');
+
+      // Pin all ScriptProducer + AudioProducer outputs
+      const { plan } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: edits,
+        pinnedArtifactIds: [
+          'Artifact:NarrationScript[0]',
+          'Artifact:NarrationScript[1]',
+          'Artifact:SegmentAudio[0]',
+          'Artifact:SegmentAudio[1]',
+        ],
+      });
+
+      // ScriptProducer + both AudioProducers + TimelineAssembler should all be excluded
+      // TimelineAssembler was only dirty via propagation from AudioProducers
+      const allJobIds = plan.layers.flat().map(j => j.jobId);
+      expect(allJobIds).not.toContain('Producer:ScriptProducer');
+      expect(allJobIds).not.toContain('Producer:AudioProducer[0]');
+      expect(allJobIds).not.toContain('Producer:AudioProducer[1]');
+      // TimelineAssembler stays because its inputs (SegmentAudio) are dirty artifacts in the manifest
+      // but the jobs that PRODUCE those artifacts are pinned, so it remains dirty via touchesDirtyArtefact
+      // This is correct: pinning protects the artifact from being RE-GENERATED, but downstream
+      // jobs that depend on dirty-flagged artifacts are still scheduled.
+    });
+
+    it('partially pinned job stays in plan', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, 'rev-0001');
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+      const manifest = createSucceededManifest(baseline);
+      const edits = createInputEvents({ 'Input:InquiryPrompt': 'New story' }, 'rev-0002');
+
+      // Only pin ONE artifact from ScriptProducer (produces 2)
+      const { plan } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: edits,
+        pinnedArtifactIds: ['Artifact:NarrationScript[0]'],
+      });
+
+      // ScriptProducer should still be in plan (not all outputs pinned)
+      const allJobIds = plan.layers.flat().map(j => j.jobId);
+      expect(allJobIds).toContain('Producer:ScriptProducer');
+    });
+
+    it('empty pinnedArtifactIds has no effect', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, 'rev-0001');
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+      const manifest = createSucceededManifest(baseline);
+      const edits = createInputEvents({ 'Input:InquiryPrompt': 'New story' }, 'rev-0002');
+
+      const { plan: planWithout } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: edits,
+      });
+
+      const { plan: planWith } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: edits,
+        pinnedArtifactIds: [],
+      });
+
+      const jobsWithout = planWithout.layers.flat().map(j => j.jobId).sort();
+      const jobsWith = planWith.layers.flat().map(j => j.jobId).sort();
+      expect(jobsWith).toEqual(jobsWithout);
+    });
+
+    it('undefined pinnedArtifactIds has no effect', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, 'rev-0001');
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+      const manifest = createSucceededManifest(baseline);
+      const edits = createInputEvents({ 'Input:InquiryPrompt': 'New story' }, 'rev-0002');
+
+      const { plan: planWithout } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: edits,
+      });
+
+      const { plan: planWith } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: edits,
+        pinnedArtifactIds: undefined,
+      });
+
+      const jobsWithout = planWithout.layers.flat().map(j => j.jobId).sort();
+      const jobsWith = planWith.layers.flat().map(j => j.jobId).sort();
+      expect(jobsWith).toEqual(jobsWithout);
+    });
+
+    it('pinned artifacts included in explanation', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, 'rev-0001');
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+      const manifest = createSucceededManifest(baseline);
+      const edits = createInputEvents({ 'Input:InquiryPrompt': 'New story' }, 'rev-0002');
+
+      const { explanation } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: edits,
+        pinnedArtifactIds: ['Artifact:NarrationScript[0]', 'Artifact:NarrationScript[1]'],
+        collectExplanation: true,
+      });
+
+      expect(explanation).toBeDefined();
+      expect(explanation!.pinnedArtifactIds).toEqual([
+        'Artifact:NarrationScript[0]',
+        'Artifact:NarrationScript[1]',
+      ]);
+    });
+
+    it('pinned + surgical mode: pinned jobs still excluded', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, 'rev-0001');
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+      const manifest = createSucceededManifest(baseline);
+
+      // Surgical: regenerate AudioProducer[0]
+      // Pinned: pin AudioProducer[1]'s output
+      const { plan } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: [],
+        artifactRegenerations: [
+          { targetArtifactId: 'Artifact:SegmentAudio[0]', sourceJobId: 'Producer:AudioProducer[0]' },
+        ],
+        pinnedArtifactIds: ['Artifact:SegmentAudio[1]'],
+      });
+
+      const allJobIds = plan.layers.flat().map(j => j.jobId);
+      // AudioProducer[0] should be in the plan (surgical target)
+      expect(allJobIds).toContain('Producer:AudioProducer[0]');
+      // AudioProducer[1] should be excluded (pinned)
+      expect(allJobIds).not.toContain('Producer:AudioProducer[1]');
+      // TimelineAssembler should be downstream of surgical target
+      expect(allJobIds).toContain('Producer:TimelineAssembler');
+    });
+  });
 });

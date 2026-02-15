@@ -20,6 +20,8 @@ export interface ImageCardProps {
   footer: React.ReactNode;
   /** Whether the card is selected */
   isSelected?: boolean;
+  /** Whether the card is pinned */
+  isPinned?: boolean;
 }
 
 /**
@@ -31,12 +33,13 @@ export function ImageCard({
   title,
   footer,
   isSelected = false,
+  isPinned = false,
 }: ImageCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
     <>
-      <MediaCard isSelected={isSelected} footer={footer}>
+      <MediaCard isSelected={isSelected} isPinned={isPinned} footer={footer}>
         <button
           type="button"
           onClick={() => setIsExpanded(true)}

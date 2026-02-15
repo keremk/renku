@@ -28,6 +28,8 @@ export interface PlanRequest {
   artifactIds?: string[];
   /** Limit plan to layers 0 through upToLayer (0-indexed). Jobs in later layers are excluded. */
   upToLayer?: number;
+  /** Artifact IDs that are pinned (kept). Jobs whose produced artifacts are ALL pinned are excluded from the plan. */
+  pinnedArtifactIds?: string[];
 }
 
 /**

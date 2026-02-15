@@ -148,6 +148,7 @@ describe('ExecutionContext', () => {
         blueprintName: null,
         movieId: null,
         selectedForRegeneration: new Set(),
+        pinnedArtifacts: new Set(),
         showCompletionDialog: false,
       });
     });

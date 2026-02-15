@@ -19,6 +19,8 @@ export interface AudioCardProps {
   footer: React.ReactNode;
   /** Whether the card is selected */
   isSelected?: boolean;
+  /** Whether the card is pinned */
+  isPinned?: boolean;
 }
 
 /**
@@ -40,6 +42,7 @@ export function AudioCard({
   title,
   footer,
   isSelected = false,
+  isPinned = false,
 }: AudioCardProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
@@ -135,7 +138,7 @@ export function AudioCard({
   }, []);
 
   return (
-    <MediaCard isSelected={isSelected} footer={footer}>
+    <MediaCard isSelected={isSelected} isPinned={isPinned} footer={footer}>
       <div className="aspect-video bg-linear-to-br from-muted/70 via-muted/50 to-muted/30 dark:from-black/60 dark:via-black/40 dark:to-black/20 flex flex-col items-center justify-center p-6">
         {/* Hidden audio element */}
         <audio ref={audioRef} src={url} preload="metadata" title={title} />

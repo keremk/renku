@@ -4,7 +4,7 @@
  */
 
 import { useMemo } from "react";
-import { CheckCircle2, AlertCircle, X } from "lucide-react";
+import { CheckCircle2, AlertCircle, X, Pin } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -86,11 +86,13 @@ function extractCompletionSummary(logs: ExecutionLogEntry[]): CompletionSummary 
 function SuccessContent({
   summary,
   selectedCount,
+  pinnedCount,
   onStartFresh,
   onKeepSelections,
 }: {
   summary: CompletionSummary;
   selectedCount: number;
+  pinnedCount: number;
   onStartFresh: () => void;
   onKeepSelections: () => void;
 }) {
@@ -116,11 +118,19 @@ function SuccessContent({
       </p>
 
       {/* Selection info if applicable */}
-      {selectedCount > 0 && (
-        <div className="w-full max-w-sm bg-muted/50 rounded-lg p-3 border border-border/30 mb-6">
-          <p className="text-xs text-muted-foreground text-center">
-            You have <span className="font-medium text-foreground/80">{selectedCount}</span> artifact{selectedCount !== 1 ? 's' : ''} marked for regeneration
-          </p>
+      {(selectedCount > 0 || pinnedCount > 0) && (
+        <div className="w-full max-w-sm bg-muted/50 rounded-lg p-3 border border-border/30 mb-6 space-y-1.5">
+          {selectedCount > 0 && (
+            <p className="text-xs text-muted-foreground text-center">
+              You have <span className="font-medium text-foreground/80">{selectedCount}</span> artifact{selectedCount !== 1 ? 's' : ''} marked for regeneration
+            </p>
+          )}
+          {pinnedCount > 0 && (
+            <p className="text-xs text-muted-foreground text-center">
+              <Pin className="inline size-3 mr-0.5 text-amber-500" />
+              <span className="font-medium text-amber-500">{pinnedCount}</span> artifact{pinnedCount !== 1 ? 's' : ''} pinned (kept)
+            </p>
+          )}
         </div>
       )}
 
@@ -149,11 +159,13 @@ function SuccessContent({
 function FailureContent({
   summary,
   selectedCount,
+  pinnedCount,
   onStartFresh,
   onKeepSelections,
 }: {
   summary: CompletionSummary;
   selectedCount: number;
+  pinnedCount: number;
   onStartFresh: () => void;
   onKeepSelections: () => void;
 }) {
@@ -196,11 +208,19 @@ function FailureContent({
       )}
 
       {/* Selection info if applicable */}
-      {selectedCount > 0 && (
-        <div className="w-full max-w-sm bg-muted/50 rounded-lg p-3 border border-border/30 mb-6">
-          <p className="text-xs text-muted-foreground text-center">
-            You have <span className="font-medium text-foreground/80">{selectedCount}</span> artifact{selectedCount !== 1 ? 's' : ''} marked for regeneration
-          </p>
+      {(selectedCount > 0 || pinnedCount > 0) && (
+        <div className="w-full max-w-sm bg-muted/50 rounded-lg p-3 border border-border/30 mb-6 space-y-1.5">
+          {selectedCount > 0 && (
+            <p className="text-xs text-muted-foreground text-center">
+              You have <span className="font-medium text-foreground/80">{selectedCount}</span> artifact{selectedCount !== 1 ? 's' : ''} marked for regeneration
+            </p>
+          )}
+          {pinnedCount > 0 && (
+            <p className="text-xs text-muted-foreground text-center">
+              <Pin className="inline size-3 mr-0.5 text-amber-500" />
+              <span className="font-medium text-amber-500">{pinnedCount}</span> artifact{pinnedCount !== 1 ? 's' : ''} pinned (kept)
+            </p>
+          )}
         </div>
       )}
 
@@ -224,11 +244,12 @@ function FailureContent({
 }
 
 export function CompletionDialog() {
-  const { state, dismissCompletion, getSelectedArtifacts } = useExecution();
+  const { state, dismissCompletion, getSelectedArtifacts, getPinnedArtifacts } = useExecution();
 
   const isOpen = state.showCompletionDialog;
   const isSuccess = state.status === 'completed';
   const selectedCount = getSelectedArtifacts().length;
+  const pinnedCount = getPinnedArtifacts().length;
 
   const summary = useMemo(() => {
     return extractCompletionSummary(state.executionLogs);
@@ -264,6 +285,7 @@ export function CompletionDialog() {
           <SuccessContent
             summary={summary}
             selectedCount={selectedCount}
+            pinnedCount={pinnedCount}
             onStartFresh={handleStartFresh}
             onKeepSelections={handleKeepSelections}
           />
@@ -271,6 +293,7 @@ export function CompletionDialog() {
           <FailureContent
             summary={summary}
             selectedCount={selectedCount}
+            pinnedCount={pinnedCount}
             onStartFresh={handleStartFresh}
             onKeepSelections={handleKeepSelections}
           />

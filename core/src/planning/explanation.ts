@@ -53,4 +53,6 @@ export interface PlanExplanation {
   propagatedJobs: string[];
   /** Target artifact IDs if surgical regeneration mode */
   surgicalTargets?: string[];
+  /** Pinned artifact IDs that were excluded from the plan */
+  pinnedArtifactIds?: string[];
 }

@@ -44,6 +44,8 @@ interface ComputePlanArgs {
   upToLayer?: number;
   /** If true, collect explanation data for why jobs are scheduled (overrides options) */
   collectExplanation?: boolean;
+  /** Artifact IDs that are pinned (kept). Jobs whose produced artifacts are ALL pinned are excluded from the plan. */
+  pinnedArtifactIds?: string[];
 }
 
 export interface ComputePlanResult {
@@ -192,6 +194,29 @@ export function createPlanner(options: PlannerOptions = {}) {
         });
       }
 
+      // Filter out fully pinned jobs (all their produced artifacts are pinned and reusable)
+      const pinnedExcludedJobIds = new Set<string>();
+      if (args.pinnedArtifactIds && args.pinnedArtifactIds.length > 0) {
+        const pinnedSet = new Set(args.pinnedArtifactIds);
+        for (const [jobId, info] of metadata) {
+          const producedArtifacts = info.node.produces.filter((id) => isCanonicalArtifactId(id));
+          if (producedArtifacts.length === 0) {
+            continue;
+          }
+          const allPinned = producedArtifacts.every((id) => pinnedSet.has(id));
+          if (!allPinned) {
+            continue;
+          }
+          const allReusable = producedArtifacts.every((id) =>
+            isPinnedArtifactReusable(id, manifest, latestArtefacts, artefactSnapshot.latestFailedIds),
+          );
+          if (allReusable) {
+            jobsToInclude.delete(jobId);
+            pinnedExcludedJobIds.add(jobId);
+          }
+        }
+      }
+
       const { layers, blueprintLayerCount } = buildExecutionLayers(
         jobsToInclude,
         metadata,
@@ -199,6 +224,7 @@ export function createPlanner(options: PlannerOptions = {}) {
         args.reRunFrom,
         args.artifactRegenerations,
         args.upToLayer,
+        pinnedExcludedJobIds,
       );
       validateConditionArtifactsCanBeRegenerated(
         args.movieId,
@@ -240,6 +266,7 @@ export function createPlanner(options: PlannerOptions = {}) {
           initialDirtyJobs,
           propagatedJobs,
           surgicalTargets: args.artifactRegenerations?.map((r) => r.targetArtifactId),
+          pinnedArtifactIds: args.pinnedArtifactIds,
         };
       }
 
@@ -652,6 +679,22 @@ interface BuildExecutionLayersResult {
   blueprintLayerCount: number;
 }
 
+function isPinnedArtifactReusable(
+  artifactId: string,
+  manifest: Manifest,
+  latestArtefacts: ArtefactMap,
+  latestFailedIds: Set<string>,
+): boolean {
+  if (latestFailedIds.has(artifactId)) {
+    return false;
+  }
+  if (latestArtefacts.has(artifactId)) {
+    return true;
+  }
+  const manifestEntry = manifest.artefacts[artifactId];
+  return manifestEntry?.status === 'succeeded';
+}
+
 function buildExecutionLayers(
   dirtyJobs: Set<string>,
   metadata: Map<string, GraphMetadata>,
@@ -659,6 +702,7 @@ function buildExecutionLayers(
   reRunFrom?: number,
   artifactRegenerations?: ArtifactRegenerationConfig[],
   upToLayer?: number,
+  excludedJobIds?: Set<string>,
 ): BuildExecutionLayersResult {
   // Use shared topology service to compute stable layer indices for all producer jobs
   const nodes = Array.from(metadata.keys()).map((id) => ({ id }));
@@ -689,6 +733,9 @@ function buildExecutionLayers(
   if (reRunFrom !== undefined && !inSurgicalMode) {
     // Force all jobs at layer >= reRunFrom to be included (normal mode only)
     for (const [jobId] of metadata) {
+      if (excludedJobIds?.has(jobId)) {
+        continue;
+      }
       const level = levelMap.get(jobId);
       if (level !== undefined && level >= reRunFrom) {
         jobsToInclude.add(jobId);

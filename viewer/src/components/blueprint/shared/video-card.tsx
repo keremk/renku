@@ -17,6 +17,8 @@ export interface VideoCardProps {
   footer: React.ReactNode;
   /** Whether the card is selected */
   isSelected?: boolean;
+  /** Whether the card is pinned */
+  isPinned?: boolean;
 }
 
 /**
@@ -27,9 +29,10 @@ export function VideoCard({
   url,
   footer,
   isSelected = false,
+  isPinned = false,
 }: VideoCardProps) {
   return (
-    <MediaCard isSelected={isSelected} footer={footer}>
+    <MediaCard isSelected={isSelected} isPinned={isPinned} footer={footer}>
       <div className="aspect-video bg-muted/50 dark:bg-black/50 flex items-center justify-center">
         <video
           src={url}

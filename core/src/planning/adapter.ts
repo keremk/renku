@@ -27,6 +27,8 @@ export interface PlanAdapterArgs {
   upToLayer?: number;
   /** If true, collect explanation data for why jobs are scheduled */
   collectExplanation?: boolean;
+  /** Artifact IDs that are pinned (kept). Jobs whose produced artifacts are ALL pinned are excluded from the plan. */
+  pinnedArtifactIds?: string[];
 }
 
 export interface PlanAdapterResult {
