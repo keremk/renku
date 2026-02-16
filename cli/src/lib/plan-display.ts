@@ -1,4 +1,12 @@
-import type { ExecutionPlan, InputEvent, Logger, BlobInput, PlanExplanation, SurgicalInfo } from '@gorenku/core';
+import type {
+	ExecutionPlan,
+	InputEvent,
+	Logger,
+	BlobInput,
+	PlanExplanation,
+	SurgicalInfo,
+	RecoveryPrepassSummary,
+} from '@gorenku/core';
 import { isBlobInput } from '@gorenku/core';
 import type { PlanCostSummary } from '@gorenku/providers';
 import chalk from 'chalk';
@@ -129,7 +137,9 @@ export interface SurgicalPlanDisplayOptions {
  * Display a surgical regeneration plan summary.
  * Shows the target artifacts, source jobs, and downstream dependencies.
  */
-export function displaySurgicalPlanSummary(options: SurgicalPlanDisplayOptions): void {
+export function displaySurgicalPlanSummary(
+	options: SurgicalPlanDisplayOptions
+): void {
 	const logger = options.logger ?? globalThis.console;
 	const allJobs = options.plan.layers.flat();
 	const sourceJobIds = new Set(options.targets.map((t) => t.sourceJobId));
@@ -139,12 +149,18 @@ export function displaySurgicalPlanSummary(options: SurgicalPlanDisplayOptions):
 	// Show target artifacts
 	if (options.targets.length === 1) {
 		const target = options.targets[0];
-		logger.info(`${chalk.bold('Target Artifact')}: ${chalk.cyan(target.targetArtifactId)}`);
-		logger.info(`${chalk.bold('Source Job')}: ${chalk.blue(target.sourceJobId)}`);
+		logger.info(
+			`${chalk.bold('Target Artifact')}: ${chalk.cyan(target.targetArtifactId)}`
+		);
+		logger.info(
+			`${chalk.bold('Source Job')}: ${chalk.blue(target.sourceJobId)}`
+		);
 	} else {
 		logger.info(`${chalk.bold('Target Artifacts')}: ${options.targets.length}`);
 		for (const target of options.targets) {
-			logger.info(`  ${chalk.dim('•')} ${chalk.cyan(target.targetArtifactId)} (from ${chalk.blue(target.sourceJobId)})`);
+			logger.info(
+				`  ${chalk.dim('•')} ${chalk.cyan(target.targetArtifactId)} (from ${chalk.blue(target.sourceJobId)})`
+			);
 		}
 	}
 
@@ -158,7 +174,9 @@ export function displaySurgicalPlanSummary(options: SurgicalPlanDisplayOptions):
 		// Find source jobs first
 		const sourceJobs = allJobs.filter((j) => sourceJobIds.has(j.jobId));
 		for (const job of sourceJobs) {
-			logger.info(`  ${chalk.green('→')} ${chalk.bold(job.jobId)} [${job.producer}] ${chalk.yellow('(source)')}`);
+			logger.info(
+				`  ${chalk.green('→')} ${chalk.bold(job.jobId)} [${job.producer}] ${chalk.yellow('(source)')}`
+			);
 		}
 
 		// Show downstream jobs
@@ -252,6 +270,7 @@ export function displayCostSummary(
 
 export interface DisplayExplanationOptions {
 	explanation: PlanExplanation;
+	recoverySummary?: RecoveryPrepassSummary;
 	logger?: Logger;
 }
 
@@ -259,7 +278,9 @@ export interface DisplayExplanationOptions {
  * Display plan explanation showing why each job was scheduled.
  * Used by --explain flag.
  */
-export function displayPlanExplanation(options: DisplayExplanationOptions): void {
+export function displayPlanExplanation(
+	options: DisplayExplanationOptions
+): void {
 	const { explanation } = options;
 	const logger = options.logger ?? globalThis.console;
 
@@ -268,9 +289,13 @@ export function displayPlanExplanation(options: DisplayExplanationOptions): void
 	logger.info(`${chalk.bold('Revision')}: ${explanation.revision}`);
 	logger.info('');
 
+	displayRecoverySummary(options.recoverySummary, logger);
+
 	// Show surgical targets if present
 	if (explanation.surgicalTargets && explanation.surgicalTargets.length > 0) {
-		logger.info(`${chalk.bold('Surgical Targets')} (${explanation.surgicalTargets.length}):`);
+		logger.info(
+			`${chalk.bold('Surgical Targets')} (${explanation.surgicalTargets.length}):`
+		);
 		for (const target of explanation.surgicalTargets) {
 			logger.info(`  ${chalk.dim('•')} ${chalk.cyan(target)}`);
 		}
@@ -278,7 +303,9 @@ export function displayPlanExplanation(options: DisplayExplanationOptions): void
 	}
 
 	// Show dirty inputs
-	logger.info(`${chalk.bold('Dirty Inputs')} (${explanation.dirtyInputs.length}):`);
+	logger.info(
+		`${chalk.bold('Dirty Inputs')} (${explanation.dirtyInputs.length}):`
+	);
 	if (explanation.dirtyInputs.length === 0) {
 		logger.info(`  ${chalk.dim('(none)')}`);
 	} else {
@@ -286,13 +313,17 @@ export function displayPlanExplanation(options: DisplayExplanationOptions): void
 			logger.info(`  ${chalk.dim('•')} ${chalk.blue(input)}`);
 		}
 		if (explanation.dirtyInputs.length > 20) {
-			logger.info(`  ${chalk.dim(`... and ${explanation.dirtyInputs.length - 20} more`)}`);
+			logger.info(
+				`  ${chalk.dim(`... and ${explanation.dirtyInputs.length - 20} more`)}`
+			);
 		}
 	}
 	logger.info('');
 
 	// Show dirty artifacts
-	logger.info(`${chalk.bold('Dirty Artifacts')} (${explanation.dirtyArtefacts.length}):`);
+	logger.info(
+		`${chalk.bold('Dirty Artifacts')} (${explanation.dirtyArtefacts.length}):`
+	);
 	if (explanation.dirtyArtefacts.length === 0) {
 		logger.info(`  ${chalk.dim('(none)')}`);
 	} else {
@@ -300,7 +331,9 @@ export function displayPlanExplanation(options: DisplayExplanationOptions): void
 			logger.info(`  ${chalk.dim('•')} ${chalk.magenta(artifact)}`);
 		}
 		if (explanation.dirtyArtefacts.length > 20) {
-			logger.info(`  ${chalk.dim(`... and ${explanation.dirtyArtefacts.length - 20} more`)}`);
+			logger.info(
+				`  ${chalk.dim(`... and ${explanation.dirtyArtefacts.length - 20} more`)}`
+			);
 		}
 	}
 	logger.info('');
@@ -319,43 +352,72 @@ export function displayPlanExplanation(options: DisplayExplanationOptions): void
 			// Show details based on reason
 			switch (jobReason.reason) {
 				case 'initial':
-					logger.info(`    ${chalk.dim('Manifest has no inputs (initial run)')}`);
+					logger.info(
+						`    ${chalk.dim('Manifest has no inputs (initial run)')}`
+					);
 					break;
 				case 'producesMissing':
-					if (jobReason.missingArtifacts && jobReason.missingArtifacts.length > 0) {
+					if (
+						jobReason.missingArtifacts &&
+						jobReason.missingArtifacts.length > 0
+					) {
 						logger.info(`    ${chalk.dim('Missing:')}`);
 						for (const artifact of jobReason.missingArtifacts.slice(0, 5)) {
 							logger.info(`      ${chalk.dim('-')} ${chalk.magenta(artifact)}`);
 						}
 						if (jobReason.missingArtifacts.length > 5) {
-							logger.info(`      ${chalk.dim(`... and ${jobReason.missingArtifacts.length - 5} more`)}`);
+							logger.info(
+								`      ${chalk.dim(`... and ${jobReason.missingArtifacts.length - 5} more`)}`
+							);
 						}
 					}
 					break;
 				case 'touchesDirtyInput':
 					if (jobReason.dirtyInputs && jobReason.dirtyInputs.length > 0) {
 						const inputsList = jobReason.dirtyInputs.slice(0, 3).join(', ');
-						const more = jobReason.dirtyInputs.length > 3 ? ` (+${jobReason.dirtyInputs.length - 3} more)` : '';
-						logger.info(`    ${chalk.dim('Dirty inputs:')} ${inputsList}${more}`);
+						const more =
+							jobReason.dirtyInputs.length > 3
+								? ` (+${jobReason.dirtyInputs.length - 3} more)`
+								: '';
+						logger.info(
+							`    ${chalk.dim('Dirty inputs:')} ${inputsList}${more}`
+						);
 					}
 					break;
 				case 'latestAttemptFailed':
-					if (jobReason.failedArtifacts && jobReason.failedArtifacts.length > 0) {
+					if (
+						jobReason.failedArtifacts &&
+						jobReason.failedArtifacts.length > 0
+					) {
 						const failedList = jobReason.failedArtifacts.slice(0, 3).join(', ');
-						const more = jobReason.failedArtifacts.length > 3 ? ` (+${jobReason.failedArtifacts.length - 3} more)` : '';
-						logger.info(`    ${chalk.dim('Latest failed artifacts:')} ${failedList}${more}`);
+						const more =
+							jobReason.failedArtifacts.length > 3
+								? ` (+${jobReason.failedArtifacts.length - 3} more)`
+								: '';
+						logger.info(
+							`    ${chalk.dim('Latest failed artifacts:')} ${failedList}${more}`
+						);
 					}
 					break;
 				case 'touchesDirtyArtefact':
 					if (jobReason.dirtyArtefacts && jobReason.dirtyArtefacts.length > 0) {
-						const artifactsList = jobReason.dirtyArtefacts.slice(0, 3).join(', ');
-						const more = jobReason.dirtyArtefacts.length > 3 ? ` (+${jobReason.dirtyArtefacts.length - 3} more)` : '';
-						logger.info(`    ${chalk.dim('Dirty artifacts:')} ${artifactsList}${more}`);
+						const artifactsList = jobReason.dirtyArtefacts
+							.slice(0, 3)
+							.join(', ');
+						const more =
+							jobReason.dirtyArtefacts.length > 3
+								? ` (+${jobReason.dirtyArtefacts.length - 3} more)`
+								: '';
+						logger.info(
+							`    ${chalk.dim('Dirty artifacts:')} ${artifactsList}${more}`
+						);
 					}
 					break;
 				case 'propagated':
 					if (jobReason.propagatedFrom) {
-						logger.info(`    ${chalk.dim('Propagated from:')} ${chalk.blue(jobReason.propagatedFrom)}`);
+						logger.info(
+							`    ${chalk.dim('Propagated from:')} ${chalk.blue(jobReason.propagatedFrom)}`
+						);
 					}
 					break;
 			}
@@ -368,6 +430,89 @@ export function displayPlanExplanation(options: DisplayExplanationOptions): void
 	logger.info(`  Initial dirty jobs: ${explanation.initialDirtyJobs.length}`);
 	logger.info(`  Propagated jobs: ${explanation.propagatedJobs.length}`);
 	logger.info(`  Total jobs in plan: ${explanation.jobReasons.length}`);
+	logger.info('');
+}
+
+function displayRecoverySummary(
+	recoverySummary: RecoveryPrepassSummary | undefined,
+	logger: Logger
+): void {
+	logger.info(`${chalk.bold('Recovery Prepass:')}`);
+	if (!recoverySummary) {
+		logger.info(`  ${chalk.dim('(not run for this plan)')}`);
+		logger.info('');
+		return;
+	}
+
+	logger.info(
+		`  Checked artifacts (${recoverySummary.checkedArtifactIds.length}):`
+	);
+	if (recoverySummary.checkedArtifactIds.length === 0) {
+		logger.info(`    ${chalk.dim('(none)')}`);
+	} else {
+		for (const artefactId of recoverySummary.checkedArtifactIds.slice(0, 10)) {
+			logger.info(`    ${chalk.dim('-')} ${chalk.magenta(artefactId)}`);
+		}
+		if (recoverySummary.checkedArtifactIds.length > 10) {
+			logger.info(
+				`    ${chalk.dim(`... and ${recoverySummary.checkedArtifactIds.length - 10} more`)}`
+			);
+		}
+	}
+
+	logger.info(
+		`  Recovered artifacts (${recoverySummary.recoveredArtifactIds.length}):`
+	);
+	if (recoverySummary.recoveredArtifactIds.length === 0) {
+		logger.info(`    ${chalk.dim('(none)')}`);
+	} else {
+		for (const artefactId of recoverySummary.recoveredArtifactIds.slice(
+			0,
+			10
+		)) {
+			logger.info(`    ${chalk.dim('-')} ${chalk.green(artefactId)}`);
+		}
+		if (recoverySummary.recoveredArtifactIds.length > 10) {
+			logger.info(
+				`    ${chalk.dim(`... and ${recoverySummary.recoveredArtifactIds.length - 10} more`)}`
+			);
+		}
+	}
+
+	logger.info(
+		`  Pending artifacts (${recoverySummary.pendingArtifactIds.length}):`
+	);
+	if (recoverySummary.pendingArtifactIds.length === 0) {
+		logger.info(`    ${chalk.dim('(none)')}`);
+	} else {
+		for (const artefactId of recoverySummary.pendingArtifactIds.slice(0, 10)) {
+			logger.info(`    ${chalk.dim('-')} ${chalk.yellow(artefactId)}`);
+		}
+		if (recoverySummary.pendingArtifactIds.length > 10) {
+			logger.info(
+				`    ${chalk.dim(`... and ${recoverySummary.pendingArtifactIds.length - 10} more`)}`
+			);
+		}
+	}
+
+	logger.info(
+		`  Failed recovery attempts (${recoverySummary.failedRecoveries.length}):`
+	);
+	if (recoverySummary.failedRecoveries.length === 0) {
+		logger.info(`    ${chalk.dim('(none)')}`);
+	} else {
+		for (const failure of recoverySummary.failedRecoveries.slice(0, 10)) {
+			logger.info(
+				`    ${chalk.dim('-')} ${chalk.magenta(failure.artefactId)}: ${failure.reason}`
+			);
+		}
+		if (recoverySummary.failedRecoveries.length > 10) {
+			logger.info(
+				`    ${chalk.dim(`... and ${recoverySummary.failedRecoveries.length - 10} more`)}`
+			);
+		}
+	}
+
 	logger.info('');
 }
 

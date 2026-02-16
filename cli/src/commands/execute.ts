@@ -1,115 +1,122 @@
 import { resolve } from 'node:path';
-import { getDefaultCliConfigPath, readCliConfig, type CliConfig } from '../lib/cli-config.js';
+import {
+	getDefaultCliConfigPath,
+	readCliConfig,
+	type CliConfig,
+} from '../lib/cli-config.js';
 import { generatePlan, type PendingArtefactDraft } from '../lib/planner.js';
 import { executeBuild, type BuildSummary } from '../lib/build.js';
 import { expandPath } from '../lib/path.js';
 import { confirmPlanExecution } from '../lib/interactive-confirm.js';
-import { displayPlanAndCosts, displayPlanExplanation } from '../lib/plan-display.js';
+import {
+	displayPlanAndCosts,
+	displayPlanExplanation,
+} from '../lib/plan-display.js';
 import { resolveBlueprintSpecifier } from '../lib/config-assets.js';
 import { resolveAndPersistConcurrency } from '../lib/concurrency.js';
 import { cleanupPartialRunDirectory } from '../lib/cleanup.js';
 import {
-  createRuntimeError,
-  createStorageContext,
-  createMovieMetadataService,
-  RuntimeErrorCode,
-  validateStageRange,
-  deriveStageStatuses,
-  type Logger,
-  type ExecutionPlan,
-  type Manifest,
-  type StageStatus,
+	createRuntimeError,
+	createStorageContext,
+	createMovieMetadataService,
+	RuntimeErrorCode,
+	validateStageRange,
+	deriveStageStatuses,
+	type Logger,
+	type ExecutionPlan,
+	type Manifest,
+	type StageStatus,
 } from '@gorenku/core';
 
 /**
  * Unified execution options supporting both new and existing movies.
  */
 export interface ExecuteOptions {
-  /** Storage movie ID (e.g., "movie-abc123") */
-  storageMovieId: string;
+	/** Storage movie ID (e.g., "movie-abc123") */
+	storageMovieId: string;
 
-  /** Public movie ID for new movies (e.g., "abc123") */
-  movieId?: string;
+	/** Public movie ID for new movies (e.g., "abc123") */
+	movieId?: string;
 
-  /** Whether this is a new movie (true) or edit of existing (false) */
-  isNew: boolean;
+	/** Whether this is a new movie (true) or edit of existing (false) */
+	isNew: boolean;
 
-  /** Path to inputs YAML file (required for both new and edit) */
-  inputsPath?: string;
+	/** Path to inputs YAML file (required for both new and edit) */
+	inputsPath?: string;
 
-  /** Blueprint specifier - used only for new movies, ignored for edits */
-  blueprintSpecifier?: string;
+	/** Blueprint specifier - used only for new movies, ignored for edits */
+	blueprintSpecifier?: string;
 
-  /** Pending artefacts for partial re-rendering (edit only) */
-  pendingArtefacts?: PendingArtefactDraft[];
+	/** Pending artefacts for partial re-rendering (edit only) */
+	pendingArtefacts?: PendingArtefactDraft[];
 
-  /** Run in dry-run mode (simulate without executing) */
-  dryRun?: boolean;
+	/** Run in dry-run mode (simulate without executing) */
+	dryRun?: boolean;
 
-  /** Skip interactive confirmation */
-  nonInteractive?: boolean;
+	/** Skip interactive confirmation */
+	nonInteractive?: boolean;
 
-  /** Show costs and exit without executing */
-  costsOnly?: boolean;
+	/** Show costs and exit without executing */
+	costsOnly?: boolean;
 
-  /** Generate plan, display explanation, and exit without executing */
-  explain?: boolean;
+	/** Generate plan, display explanation, and exit without executing */
+	explain?: boolean;
 
-  /** Number of concurrent jobs */
-  concurrency?: number;
+	/** Number of concurrent jobs */
+	concurrency?: number;
 
-  /** Limit execution to specific layer */
-  upToLayer?: number;
+	/** Limit execution to specific layer */
+	upToLayer?: number;
 
-  /** Re-run from specific layer (skips earlier layers) */
-  reRunFrom?: number;
+	/** Re-run from specific layer (skips earlier layers) */
+	reRunFrom?: number;
 
-  /** Target artifact IDs for surgical regeneration (canonical format, e.g., "Artifact:AudioProducer.GeneratedAudio[0]") */
-  targetArtifactIds?: string[];
-  /** Pin IDs (canonical Artifact:... or Producer:...). */
-  pinnedIds?: string[];
+	/** Target artifact IDs for surgical regeneration (canonical format, e.g., "Artifact:AudioProducer.GeneratedAudio[0]") */
+	targetArtifactIds?: string[];
+	/** Pin IDs (canonical Artifact:... or Producer:...). */
+	pinnedIds?: string[];
 
-  /** Logger instance */
-  logger: Logger;
+	/** Logger instance */
+	logger: Logger;
 
-  /**
-   * CLI config to use for storage paths.
-   * If provided, uses this config instead of reading from global config file.
-   * This allows generate.ts to pass project-local storage configuration.
-   */
-  cliConfig?: CliConfig;
+	/**
+	 * CLI config to use for storage paths.
+	 * If provided, uses this config instead of reading from global config file.
+	 * This allows generate.ts to pass project-local storage configuration.
+	 */
+	cliConfig?: CliConfig;
 }
 
 /**
  * Unified execution result.
  */
 export interface ExecuteResult {
-  /** Public movie ID (without "movie-" prefix) */
-  movieId: string;
+	/** Public movie ID (without "movie-" prefix) */
+	movieId: string;
 
-  /** Storage movie ID (with "movie-" prefix) */
-  storageMovieId: string;
+	/** Storage movie ID (with "movie-" prefix) */
+	storageMovieId: string;
 
-  /** Path to saved plan JSON */
-  planPath: string;
+	/** Path to saved plan JSON */
+	planPath: string;
 
-  /** Plan revision string */
-  targetRevision: string;
+	/** Plan revision string */
+	targetRevision: string;
 
-  /** Build summary (available for both dry-run and live execution) */
-  build?: BuildSummary;
+	/** Build summary (available for both dry-run and live execution) */
+	build?: BuildSummary;
 
-  /** Whether this was a dry-run execution */
-  isDryRun?: boolean;
+	/** Whether this was a dry-run execution */
+	isDryRun?: boolean;
 
-  /** Path to manifest file (if build succeeded) */
-  manifestPath?: string;
+	/** Path to manifest file (if build succeeded) */
+	manifestPath?: string;
 
-  /** Path to movie storage directory */
-  storagePath: string;
+	/** Path to movie storage directory */
+	storagePath: string;
 
-  /** Whether cleanup was performed on cancel/costs-only */
-  cleanedUp?: boolean;
+	/** Whether cleanup was performed on cancel/costs-only */
+	cleanedUp?: boolean;
 }
 
 /**
@@ -118,181 +125,184 @@ export interface ExecuteResult {
  * Consolidates the shared logic from runEdit() and runQuery() into a single
  * parametric function. The `isNew` flag controls blueprint resolution and cleanup behavior.
  */
-export async function runExecute(options: ExecuteOptions): Promise<ExecuteResult> {
-  const configPath = getDefaultCliConfigPath();
+export async function runExecute(
+	options: ExecuteOptions
+): Promise<ExecuteResult> {
+	const configPath = getDefaultCliConfigPath();
 
-  // Use provided config if available, otherwise read from global config file
-  let cliConfig: CliConfig;
-  let concurrency: number;
+	// Use provided config if available, otherwise read from global config file
+	let cliConfig: CliConfig;
+	let concurrency: number;
 
-  if (options.cliConfig) {
-    // Config was provided by caller (e.g., generate.ts), which already resolved concurrency
-    // Don't call resolveAndPersistConcurrency again to avoid overwriting lastMovieId
-    cliConfig = options.cliConfig;
-    concurrency = options.concurrency ?? cliConfig.concurrency ?? 1;
-  } else {
-    const globalConfig = await readCliConfig(configPath);
-    if (!globalConfig) {
-      throw new Error('Renku CLI is not initialized. Run "renku init" first.');
-    }
-    const resolved = await resolveAndPersistConcurrency(globalConfig, {
-      override: options.concurrency,
-      configPath,
-    });
-    cliConfig = resolved.cliConfig;
-    concurrency = resolved.concurrency;
-  }
+	if (options.cliConfig) {
+		// Config was provided by caller (e.g., generate.ts), which already resolved concurrency
+		// Don't call resolveAndPersistConcurrency again to avoid overwriting lastMovieId
+		cliConfig = options.cliConfig;
+		concurrency = options.concurrency ?? cliConfig.concurrency ?? 1;
+	} else {
+		const globalConfig = await readCliConfig(configPath);
+		if (!globalConfig) {
+			throw new Error('Renku CLI is not initialized. Run "renku init" first.');
+		}
+		const resolved = await resolveAndPersistConcurrency(globalConfig, {
+			override: options.concurrency,
+			configPath,
+		});
+		cliConfig = resolved.cliConfig;
+		concurrency = resolved.concurrency;
+	}
 
-  const { storageMovieId, isNew, logger } = options;
-  const storageRoot = cliConfig.storage.root;
-  const basePath = cliConfig.storage.basePath;
-  const movieDir = resolve(storageRoot, basePath, storageMovieId);
-  const upToLayer = options.upToLayer;
+	const { storageMovieId, isNew, logger } = options;
+	const storageRoot = cliConfig.storage.root;
+	const basePath = cliConfig.storage.basePath;
+	const movieDir = resolve(storageRoot, basePath, storageMovieId);
+	const upToLayer = options.upToLayer;
 
-  // Resolve inputs path - always required (contains model selections)
-  const inputsPath = resolveInputsPath(options.inputsPath);
+	// Resolve inputs path - always required (contains model selections)
+	const inputsPath = resolveInputsPath(options.inputsPath);
 
-  // Resolve blueprint path
-  const blueprintPath = await resolveBlueprintPath({
-    specifier: options.blueprintSpecifier,
-    movieDir,
-    cliRoot: storageRoot,
-    basePath,
-    storageMovieId,
-    isNew,
-  });
+	// Resolve blueprint path
+	const blueprintPath = await resolveBlueprintPath({
+		specifier: options.blueprintSpecifier,
+		movieDir,
+		cliRoot: storageRoot,
+		basePath,
+		storageMovieId,
+		isNew,
+	});
 
-  // Generate plan
-  const planResult = await generatePlan({
-    cliConfig,
-    movieId: storageMovieId,
-    isNew,
-    inputsPath,
-    usingBlueprint: blueprintPath,
-    pendingArtefacts: options.pendingArtefacts,
-    logger,
-    reRunFrom: options.reRunFrom,
-    upToLayer,
-    targetArtifactIds: options.targetArtifactIds,
-    pinnedIds: options.pinnedIds,
-    collectExplanation: options.explain,
-  });
+	// Generate plan
+	const planResult = await generatePlan({
+		cliConfig,
+		movieId: storageMovieId,
+		isNew,
+		inputsPath,
+		usingBlueprint: blueprintPath,
+		pendingArtefacts: options.pendingArtefacts,
+		logger,
+		reRunFrom: options.reRunFrom,
+		upToLayer,
+		targetArtifactIds: options.targetArtifactIds,
+		pinnedIds: options.pinnedIds,
+		collectExplanation: options.explain,
+	});
 
-  // Validate reRunFrom against previous stage statuses
-  if (options.reRunFrom !== undefined && options.reRunFrom > 0) {
-    validateReRunFromStage(
-      options.reRunFrom,
-      planResult.plan,
-      planResult.manifest,
-      isNew,
-    );
-  }
+	// Validate reRunFrom against previous stage statuses
+	if (options.reRunFrom !== undefined && options.reRunFrom > 0) {
+		validateReRunFromStage(
+			options.reRunFrom,
+			planResult.plan,
+			planResult.manifest,
+			isNew
+		);
+	}
 
-  if (options.dryRun) {
-    logger.debug?.('execute.dryrun.plan.debug', {
-      pendingInputs: planResult.inputEvents.length,
-      layers: planResult.plan.layers.map((layer) => layer.length),
-    });
-  }
+	if (options.dryRun) {
+		logger.debug?.('execute.dryrun.plan.debug', {
+			pendingInputs: planResult.inputEvents.length,
+			layers: planResult.plan.layers.map((layer) => layer.length),
+		});
+	}
 
-  const hasJobs = planResult.plan.layers.some((layer) => layer.length > 0);
-  const nonInteractive = Boolean(options.nonInteractive);
+	const hasJobs = planResult.plan.layers.some((layer) => layer.length > 0);
+	const nonInteractive = Boolean(options.nonInteractive);
 
-  // Handle --costs-only: display plan summary and costs, then return early
-  if (options.costsOnly) {
-    return handleCostsOnly({
-      planResult,
-      storageMovieId,
-      movieDir,
-      storageRoot,
-      basePath,
-      isNew,
-      logger,
-      movieId: options.movieId,
-    });
-  }
+	// Handle --costs-only: display plan summary and costs, then return early
+	if (options.costsOnly) {
+		return handleCostsOnly({
+			planResult,
+			storageMovieId,
+			movieDir,
+			storageRoot,
+			basePath,
+			isNew,
+			logger,
+			movieId: options.movieId,
+		});
+	}
 
-  // Handle --explain: display plan explanation, then return early
-  if (options.explain) {
-    return handleExplain({
-      planResult,
-      storageMovieId,
-      movieDir,
-      storageRoot,
-      basePath,
-      isNew,
-      logger,
-      movieId: options.movieId,
-    });
-  }
+	// Handle --explain: display plan explanation, then return early
+	if (options.explain) {
+		return handleExplain({
+			planResult,
+			storageMovieId,
+			movieDir,
+			storageRoot,
+			basePath,
+			isNew,
+			logger,
+			movieId: options.movieId,
+		});
+	}
 
-  // Determine if we should persist now or after confirmation
-  // For edits with no jobs, skip confirmation entirely
-  const skipConfirmation = options.dryRun || nonInteractive || (!isNew && !hasJobs);
+	// Determine if we should persist now or after confirmation
+	// For edits with no jobs, skip confirmation entirely
+	const skipConfirmation =
+		options.dryRun || nonInteractive || (!isNew && !hasJobs);
 
-  if (skipConfirmation) {
-    await planResult.persist();
-  }
+	if (skipConfirmation) {
+		await planResult.persist();
+	}
 
-  // Interactive confirmation
-  if (!skipConfirmation) {
-    const confirmed = await confirmPlanExecution(planResult.plan, {
-      inputs: planResult.inputEvents,
-      concurrency,
-      upToLayer,
-      logger,
-      costSummary: planResult.costSummary,
-      surgicalMode: planResult.surgicalInfo,
-    });
+	// Interactive confirmation
+	if (!skipConfirmation) {
+		const confirmed = await confirmPlanExecution(planResult.plan, {
+			inputs: planResult.inputEvents,
+			concurrency,
+			upToLayer,
+			logger,
+			costSummary: planResult.costSummary,
+			surgicalMode: planResult.surgicalInfo,
+		});
 
-    if (!confirmed) {
-      return handleCancellation({
-        planResult,
-        storageMovieId,
-        movieDir,
-        storageRoot,
-        basePath,
-        isNew,
-        logger,
-        movieId: options.movieId,
-      });
-    }
+		if (!confirmed) {
+			return handleCancellation({
+				planResult,
+				storageMovieId,
+				movieDir,
+				storageRoot,
+				basePath,
+				isNew,
+				logger,
+				movieId: options.movieId,
+			});
+		}
 
-    // User confirmed - persist now before execution
-    await planResult.persist();
-  }
+		// User confirmed - persist now before execution
+		await planResult.persist();
+	}
 
-  // Execute build (with dryRun parameter to control mode)
-  const buildResult = await executeBuild({
-    cliConfig,
-    movieId: storageMovieId,
-    plan: planResult.plan,
-    manifest: planResult.manifest,
-    manifestHash: planResult.manifestHash,
-    providerOptions: planResult.providerOptions,
-    resolvedInputs: planResult.resolvedInputs,
-    catalog: planResult.modelCatalog,
-    catalogModelsDir: planResult.catalogModelsDir,
-    logger,
-    concurrency,
-    upToLayer,
-    reRunFrom: options.dryRun ? undefined : options.reRunFrom,
-    targetArtifactIds: options.targetArtifactIds,
-    dryRun: options.dryRun,
-    // Pass condition hints for dry-run simulation
-    conditionHints: options.dryRun ? planResult.conditionHints : undefined,
-  });
+	// Execute build (with dryRun parameter to control mode)
+	const buildResult = await executeBuild({
+		cliConfig,
+		movieId: storageMovieId,
+		plan: planResult.plan,
+		manifest: planResult.manifest,
+		manifestHash: planResult.manifestHash,
+		providerOptions: planResult.providerOptions,
+		resolvedInputs: planResult.resolvedInputs,
+		catalog: planResult.modelCatalog,
+		catalogModelsDir: planResult.catalogModelsDir,
+		logger,
+		concurrency,
+		upToLayer,
+		reRunFrom: options.dryRun ? undefined : options.reRunFrom,
+		targetArtifactIds: options.targetArtifactIds,
+		dryRun: options.dryRun,
+		// Pass condition hints for dry-run simulation
+		conditionHints: options.dryRun ? planResult.conditionHints : undefined,
+	});
 
-  return {
-    movieId: options.movieId ?? normalizePublicId(storageMovieId),
-    storageMovieId,
-    planPath: planResult.planPath,
-    targetRevision: planResult.targetRevision,
-    build: buildResult.summary,
-    isDryRun: buildResult.dryRun,
-    manifestPath: buildResult.manifestPath,
-    storagePath: movieDir,
-  };
+	return {
+		movieId: options.movieId ?? normalizePublicId(storageMovieId),
+		storageMovieId,
+		planPath: planResult.planPath,
+		targetRevision: planResult.targetRevision,
+		build: buildResult.summary,
+		isDryRun: buildResult.dryRun,
+		manifestPath: buildResult.manifestPath,
+		storagePath: movieDir,
+	};
 }
 
 // ============================================================================
@@ -304,12 +314,14 @@ export async function runExecute(options: ExecuteOptions): Promise<ExecuteResult
  * @param explicitPath - The explicit path provided by the user
  */
 function resolveInputsPath(explicitPath: string | undefined): string {
-  if (!explicitPath) {
-    // Note: This should be caught earlier in generate.ts validation,
-    // but we keep this check as a safety net
-    throw new Error('Input YAML path is required. Provide --inputs=/path/to/inputs.yaml');
-  }
-  return expandPath(explicitPath);
+	if (!explicitPath) {
+		// Note: This should be caught earlier in generate.ts validation,
+		// but we keep this check as a safety net
+		throw new Error(
+			'Input YAML path is required. Provide --inputs=/path/to/inputs.yaml'
+		);
+	}
+	return expandPath(explicitPath);
 }
 
 /**
@@ -318,187 +330,220 @@ function resolveInputsPath(explicitPath: string | undefined): string {
  * - For edits: always use the blueprint from movie metadata (ignore specifier)
  */
 async function resolveBlueprintPath(args: {
-  specifier?: string;
-  movieDir: string;
-  cliRoot: string;
-  basePath: string;
-  storageMovieId: string;
-  isNew: boolean;
+	specifier?: string;
+	movieDir: string;
+	cliRoot: string;
+	basePath: string;
+	storageMovieId: string;
+	isNew: boolean;
 }): Promise<string> {
-  let blueprintInput: string | undefined;
+	let blueprintInput: string | undefined;
 
-  if (args.isNew) {
-    // For new movies, use the provided specifier
-    blueprintInput = args.specifier;
-  } else {
-    // For edits, prefer explicit specifier if provided, otherwise use metadata
-    if (args.specifier && args.specifier.trim().length > 0) {
-      blueprintInput = args.specifier;
-    } else {
-      // Use core MovieMetadataService for reading metadata
-      const storageContext = createStorageContext({
-        kind: 'local',
-        rootDir: args.cliRoot,
-        basePath: args.basePath,
-      });
-      const metadataService = createMovieMetadataService(storageContext);
-      const metadata = await metadataService.read(args.storageMovieId);
-      blueprintInput = metadata?.blueprintPath;
-    }
-  }
+	if (args.isNew) {
+		// For new movies, use the provided specifier
+		blueprintInput = args.specifier;
+	} else {
+		// For edits, prefer explicit specifier if provided, otherwise use metadata
+		if (args.specifier && args.specifier.trim().length > 0) {
+			blueprintInput = args.specifier;
+		} else {
+			// Use core MovieMetadataService for reading metadata
+			const storageContext = createStorageContext({
+				kind: 'local',
+				rootDir: args.cliRoot,
+				basePath: args.basePath,
+			});
+			const metadataService = createMovieMetadataService(storageContext);
+			const metadata = await metadataService.read(args.storageMovieId);
+			blueprintInput = metadata?.blueprintPath;
+		}
+	}
 
-  if (!blueprintInput || blueprintInput.trim().length === 0) {
-    throw new Error('Blueprint path is required. Provide --blueprint=/path/to/blueprint.yaml');
-  }
+	if (!blueprintInput || blueprintInput.trim().length === 0) {
+		throw new Error(
+			'Blueprint path is required. Provide --blueprint=/path/to/blueprint.yaml'
+		);
+	}
 
-  return resolveBlueprintSpecifier(blueprintInput, { cliRoot: args.cliRoot });
+	return resolveBlueprintSpecifier(blueprintInput, { cliRoot: args.cliRoot });
 }
 
 /**
  * Normalize storage movie ID to public ID (remove "movie-" prefix).
  */
 function normalizePublicId(storageMovieId: string): string {
-  return storageMovieId.startsWith('movie-') ? storageMovieId.slice('movie-'.length) : storageMovieId;
+	return storageMovieId.startsWith('movie-')
+		? storageMovieId.slice('movie-'.length)
+		: storageMovieId;
 }
 
 /**
  * Handle --costs-only: display plan and costs, cleanup, return early.
  */
 async function handleCostsOnly(args: {
-  planResult: Awaited<ReturnType<typeof generatePlan>>;
-  storageMovieId: string;
-  movieDir: string;
-  storageRoot: string;
-  basePath: string;
-  isNew: boolean;
-  logger: Logger;
-  movieId?: string;
+	planResult: Awaited<ReturnType<typeof generatePlan>>;
+	storageMovieId: string;
+	movieDir: string;
+	storageRoot: string;
+	basePath: string;
+	isNew: boolean;
+	logger: Logger;
+	movieId?: string;
 }): Promise<ExecuteResult> {
-  const { planResult, storageMovieId, movieDir, storageRoot, basePath, isNew, logger } = args;
+	const {
+		planResult,
+		storageMovieId,
+		movieDir,
+		storageRoot,
+		basePath,
+		isNew,
+		logger,
+	} = args;
 
-  displayPlanAndCosts({
-    plan: planResult.plan,
-    inputs: planResult.inputEvents,
-    costSummary: planResult.costSummary,
-    logger,
-  });
+	displayPlanAndCosts({
+		plan: planResult.plan,
+		inputs: planResult.inputEvents,
+		costSummary: planResult.costSummary,
+		logger,
+	});
 
-  const cleanedUp = await cleanupPartialRunDirectory({
-    storageRoot,
-    basePath,
-    movieId: storageMovieId,
-    isNew,
-  });
+	const cleanedUp = await cleanupPartialRunDirectory({
+		storageRoot,
+		basePath,
+		movieId: storageMovieId,
+		isNew,
+	});
 
-  return {
-    movieId: args.movieId ?? normalizePublicId(storageMovieId),
-    storageMovieId,
-    planPath: planResult.planPath,
-    targetRevision: planResult.targetRevision,
-    build: undefined,
-    isDryRun: undefined,
-    manifestPath: undefined,
-    storagePath: movieDir,
-    cleanedUp,
-  };
+	return {
+		movieId: args.movieId ?? normalizePublicId(storageMovieId),
+		storageMovieId,
+		planPath: planResult.planPath,
+		targetRevision: planResult.targetRevision,
+		build: undefined,
+		isDryRun: undefined,
+		manifestPath: undefined,
+		storagePath: movieDir,
+		cleanedUp,
+	};
 }
 
 /**
  * Handle --explain: display plan explanation, cleanup, return early.
  */
 async function handleExplain(args: {
-  planResult: Awaited<ReturnType<typeof generatePlan>>;
-  storageMovieId: string;
-  movieDir: string;
-  storageRoot: string;
-  basePath: string;
-  isNew: boolean;
-  logger: Logger;
-  movieId?: string;
+	planResult: Awaited<ReturnType<typeof generatePlan>>;
+	storageMovieId: string;
+	movieDir: string;
+	storageRoot: string;
+	basePath: string;
+	isNew: boolean;
+	logger: Logger;
+	movieId?: string;
 }): Promise<ExecuteResult> {
-  const { planResult, storageMovieId, movieDir, storageRoot, basePath, isNew, logger } = args;
+	const {
+		planResult,
+		storageMovieId,
+		movieDir,
+		storageRoot,
+		basePath,
+		isNew,
+		logger,
+	} = args;
 
-  // Display explanation if available
-  if (planResult.explanation) {
-    displayPlanExplanation({
-      explanation: planResult.explanation,
-      logger,
-    });
-  } else {
-    logger.error('No explanation data available. This should not happen when --explain is used.');
-  }
+	// Display explanation if available
+	if (planResult.explanation) {
+		displayPlanExplanation({
+			explanation: planResult.explanation,
+			recoverySummary: planResult.recoverySummary,
+			logger,
+		});
+	} else {
+		logger.error(
+			'No explanation data available. This should not happen when --explain is used.'
+		);
+	}
 
-  // Also display cost summary for context
-  displayPlanAndCosts({
-    plan: planResult.plan,
-    inputs: planResult.inputEvents,
-    costSummary: planResult.costSummary,
-    logger,
-  });
+	// Also display cost summary for context
+	displayPlanAndCosts({
+		plan: planResult.plan,
+		inputs: planResult.inputEvents,
+		costSummary: planResult.costSummary,
+		logger,
+	});
 
-  const cleanedUp = await cleanupPartialRunDirectory({
-    storageRoot,
-    basePath,
-    movieId: storageMovieId,
-    isNew,
-  });
+	const cleanedUp = await cleanupPartialRunDirectory({
+		storageRoot,
+		basePath,
+		movieId: storageMovieId,
+		isNew,
+	});
 
-  return {
-    movieId: args.movieId ?? normalizePublicId(storageMovieId),
-    storageMovieId,
-    planPath: planResult.planPath,
-    targetRevision: planResult.targetRevision,
-    build: undefined,
-    isDryRun: undefined,
-    manifestPath: undefined,
-    storagePath: movieDir,
-    cleanedUp,
-  };
+	return {
+		movieId: args.movieId ?? normalizePublicId(storageMovieId),
+		storageMovieId,
+		planPath: planResult.planPath,
+		targetRevision: planResult.targetRevision,
+		build: undefined,
+		isDryRun: undefined,
+		manifestPath: undefined,
+		storagePath: movieDir,
+		cleanedUp,
+	};
 }
 
 /**
  * Handle user cancellation: log message, cleanup, return early.
  */
 async function handleCancellation(args: {
-  planResult: Awaited<ReturnType<typeof generatePlan>>;
-  storageMovieId: string;
-  movieDir: string;
-  storageRoot: string;
-  basePath: string;
-  isNew: boolean;
-  logger: Logger;
-  movieId?: string;
+	planResult: Awaited<ReturnType<typeof generatePlan>>;
+	storageMovieId: string;
+	movieDir: string;
+	storageRoot: string;
+	basePath: string;
+	isNew: boolean;
+	logger: Logger;
+	movieId?: string;
 }): Promise<ExecuteResult> {
-  const { planResult, storageMovieId, movieDir, storageRoot, basePath, isNew, logger } = args;
+	const {
+		planResult,
+		storageMovieId,
+		movieDir,
+		storageRoot,
+		basePath,
+		isNew,
+		logger,
+	} = args;
 
-  logger.info('\nExecution cancelled.');
-  logger.info('Tip: Run with --dry-run to see what would happen without executing.');
+	logger.info('\nExecution cancelled.');
+	logger.info(
+		'Tip: Run with --dry-run to see what would happen without executing.'
+	);
 
-  const cleanedUp = await cleanupPartialRunDirectory({
-    storageRoot,
-    basePath,
-    movieId: storageMovieId,
-    isNew,
-  });
+	const cleanedUp = await cleanupPartialRunDirectory({
+		storageRoot,
+		basePath,
+		movieId: storageMovieId,
+		isNew,
+	});
 
-  return {
-    movieId: args.movieId ?? normalizePublicId(storageMovieId),
-    storageMovieId,
-    planPath: planResult.planPath,
-    targetRevision: planResult.targetRevision,
-    build: undefined,
-    isDryRun: undefined,
-    manifestPath: undefined,
-    storagePath: movieDir,
-    cleanedUp,
-  };
+	return {
+		movieId: args.movieId ?? normalizePublicId(storageMovieId),
+		storageMovieId,
+		planPath: planResult.planPath,
+		targetRevision: planResult.targetRevision,
+		build: undefined,
+		isDryRun: undefined,
+		manifestPath: undefined,
+		storagePath: movieDir,
+		cleanedUp,
+	};
 }
 
 /**
  * Format a movie ID with the "movie-" prefix if not present.
  */
 export function formatMovieId(publicId: string): string {
-  return publicId.startsWith('movie-') ? publicId : `movie-${publicId}`;
+	return publicId.startsWith('movie-') ? publicId : `movie-${publicId}`;
 }
 
 /**
@@ -506,60 +551,69 @@ export function formatMovieId(publicId: string): string {
  * Throws an error if the previous stage didn't succeed.
  */
 function validateReRunFromStage(
-  reRunFrom: number,
-  plan: ExecutionPlan,
-  manifest: Manifest,
-  isNew: boolean,
+	reRunFrom: number,
+	plan: ExecutionPlan,
+	manifest: Manifest,
+	isNew: boolean
 ): void {
-  const totalLayers = plan.layers.length;
+	const totalLayers = plan.layers.length;
 
-  // For new movies (no manifest), only starting from 0 is valid
-  if (isNew || Object.keys(manifest.artefacts).length === 0) {
-    throw createRuntimeError(
-      RuntimeErrorCode.STAGE_START_REQUIRES_PREDECESSOR,
-      `Cannot re-run from layer ${reRunFrom}: this is a clean run with no previous execution history.`,
-      { suggestion: 'Remove --re-run-from to start from the beginning, or use an existing movie with --movie-id.' },
-    );
-  }
+	// For new movies (no manifest), only starting from 0 is valid
+	if (isNew || Object.keys(manifest.artefacts).length === 0) {
+		throw createRuntimeError(
+			RuntimeErrorCode.STAGE_START_REQUIRES_PREDECESSOR,
+			`Cannot re-run from layer ${reRunFrom}: this is a clean run with no previous execution history.`,
+			{
+				suggestion:
+					'Remove --re-run-from to start from the beginning, or use an existing movie with --movie-id.',
+			}
+		);
+	}
 
-  // Build producers by layer from the plan
-  const producersByLayer = plan.layers.map((layer) =>
-    layer.map((job) => job.producer),
-  );
+	// Build producers by layer from the plan
+	const producersByLayer = plan.layers.map((layer) =>
+		layer.map((job) => job.producer)
+	);
 
-  // Build artifact statuses from manifest
-  // Artifact ID format: "Artifact:ProducerName.OutputName[index]"
-  const artifactStatuses = new Map<string, 'succeeded' | 'failed'>();
+	// Build artifact statuses from manifest
+	// Artifact ID format: "Artifact:ProducerName.OutputName[index]"
+	const artifactStatuses = new Map<string, 'succeeded' | 'failed'>();
 
-  for (const [artifactId, entry] of Object.entries(manifest.artefacts)) {
-    const match = artifactId.match(/^Artifact:([^.]+)\./);
-    if (match) {
-      const producer = match[1];
-      const status = entry.status === 'succeeded' ? 'succeeded' : 'failed';
+	for (const [artifactId, entry] of Object.entries(manifest.artefacts)) {
+		const match = artifactId.match(/^Artifact:([^.]+)\./);
+		if (match) {
+			const producer = match[1];
+			const status = entry.status === 'succeeded' ? 'succeeded' : 'failed';
 
-      // Keep worst status for producer (failed > succeeded)
-      const existing = artifactStatuses.get(producer);
-      if (!existing || status === 'failed') {
-        artifactStatuses.set(producer, status);
-      }
-    }
-  }
+			// Keep worst status for producer (failed > succeeded)
+			const existing = artifactStatuses.get(producer);
+			if (!existing || status === 'failed') {
+				artifactStatuses.set(producer, status);
+			}
+		}
+	}
 
-  // Derive stage statuses
-  const stageStatuses: StageStatus[] = deriveStageStatuses(producersByLayer, artifactStatuses);
+	// Derive stage statuses
+	const stageStatuses: StageStatus[] = deriveStageStatuses(
+		producersByLayer,
+		artifactStatuses
+	);
 
-  // Validate the range
-  const validationResult = validateStageRange(
-    { startStage: reRunFrom, endStage: totalLayers - 1 },
-    { totalStages: totalLayers, stageStatuses },
-  );
+	// Validate the range
+	const validationResult = validateStageRange(
+		{ startStage: reRunFrom, endStage: totalLayers - 1 },
+		{ totalStages: totalLayers, stageStatuses }
+	);
 
-  if (!validationResult.valid) {
-    const issue = validationResult.issues[0];
-    throw createRuntimeError(
-      RuntimeErrorCode.STAGE_START_REQUIRES_PREDECESSOR,
-      `Cannot re-run from layer ${reRunFrom}: ${issue?.message ?? 'previous stage did not succeed'}`,
-      { suggestion: 'Run from an earlier layer or re-run the failed stage first.' },
-    );
-  }
+	if (!validationResult.valid) {
+		const issue = validationResult.issues[0];
+		throw createRuntimeError(
+			RuntimeErrorCode.STAGE_START_REQUIRES_PREDECESSOR,
+			`Cannot re-run from layer ${reRunFrom}: ${issue?.message ?? 'previous stage did not succeed'}`,
+			{
+				suggestion:
+					'Run from an earlier layer or re-run the failed stage first.',
+			}
+		);
+	}
 }

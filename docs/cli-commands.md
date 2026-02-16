@@ -248,8 +248,8 @@ renku generate --last --inputs=<path> [--dry-run] [--non-interactive] [--up-to-l
 **Usage (surgical regeneration of specific artifacts):**
 
 ```bash
-renku generate --last --artifact-id=<canonical-artifact-id> --inputs=<path> [--up-to-layer=<n>]
-renku generate --movie-id=<movie-id> --aid=<canonical-artifact-id> --aid=<canonical-artifact-id> --inputs=<path> [--up-to-layer=<n>]
+renku generate --last --artifact-id="Artifact:AudioProducer.GeneratedAudio[0]" --inputs=<path> [--up-to-layer=<n>]
+renku generate --movie-id=<movie-id> --aid="Artifact:AudioProducer.GeneratedAudio[0]" --aid="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=<path> [--up-to-layer=<n>]
 ```
 
 **Usage (pin existing outputs during regeneration):**
@@ -275,9 +275,11 @@ renku generate --movie-id=<movie-id> --inputs=<path> --pin=<canonical-id> [--pin
 **Behavior:**
 
 1. New runs: validate inputs/blueprint, generate a new movie id, create `builds/movie-{id}/`, and execute the workflow.
-2. Continuing runs: load the existing manifest, apply any artifact edits, regenerate the plan, and execute with the stored blueprint (or an explicit override).
-3. Artifacts view under `artifacts/<id>` stays in sync after successful runs.
-4. The CLI records the latest movie id so `--last` can target it explicitly; if missing, the command fails with an error.
+2. Continuing runs: before planning, the CLI runs an automatic recovery prepass for recoverable failed artifacts (currently fal-ai) using stored `providerRequestId` diagnostics. If the provider reports completion, the artifact is recovered and saved as succeeded before planning.
+3. Continuing runs then load the existing manifest, apply any artifact edits, regenerate the plan, and execute with the stored blueprint (or an explicit override).
+4. Planning precedence is always: `dirty detection + explicit regenerate (--artifact-id/--aid) - explicit pin (--pin)`.
+5. Artifacts view under `artifacts/<id>` stays in sync after successful runs.
+6. The CLI records the latest movie id so `--last` can target it explicitly; if missing, the command fails with an error.
 
 **Examples:**
 
@@ -1054,6 +1056,7 @@ Pinning rules:
 - Pin IDs must be canonical (`Artifact:...` or `Producer:...`)
 - A pinned artifact cannot also be targeted with `--artifact-id` / `--aid` in the same command
 - Pinned outputs must already exist as reusable successful outputs
+- Pins are applied last: if an artifact/job is dirty or explicitly targeted but also pinned, the pin wins and that work is removed from the plan
 
 ### Dry Run Mode
 

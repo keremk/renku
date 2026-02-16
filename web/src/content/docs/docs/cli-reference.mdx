@@ -202,9 +202,9 @@ renku generate --last --inputs=<path> [options]
 **Usage (surgical regeneration):**
 
 ```bash
-renku generate --last --artifact-id=<id> --inputs=<path> [--up-to-layer=<n>]
-renku generate --last --aid=<id> --aid=<id> --inputs=<path> [--up-to-layer=<n>]
-renku generate --last --pin=<canonical-id> --pin=<canonical-id> --inputs=<path> [options]
+renku generate --last --artifact-id="Artifact:AudioProducer.GeneratedAudio[0]" --inputs=<path> [--up-to-layer=<n>]
+renku generate --last --aid="Artifact:AudioProducer.GeneratedAudio[0]" --aid="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=<path> [--up-to-layer=<n>]
+renku generate --last --pin="Artifact:ScriptProducer.NarrationScript[0]" --pin="Producer:ImageProducer" --inputs=<path> [options]
 ```
 
 **Options:**
@@ -217,6 +217,7 @@ renku generate --last --pin=<canonical-id> --pin=<canonical-id> --inputs=<path> 
 | `--last`                               | Continue the most recent movie                                                                                                                                                 |
 | `--dry-run`                            | Execute without calling providers (mock run)                                                                                                                                   |
 | `--non-interactive`                    | Skip confirmation prompts                                                                                                                                                      |
+| `--explain`                            | Print plan explanation and cost summary, then exit without execution                                                                                                           |
 | `--up-to-layer`, `--up`                | Stop after specified layer (live runs only)                                                                                                                                    |
 | `--re-run-from`, `--from`              | Re-run from specified layer (0-indexed), skipping earlier layers                                                                                                               |
 | `--artifact-id`, `--artifact`, `--aid` | Regenerate specific artifact(s) and their downstream dependencies (requires `--last` or `--movie-id`). Requires canonical `Artifact:...` IDs. Can be specified multiple times. |
@@ -233,10 +234,12 @@ For new movies:
 
 For continuing movies:
 
-1. Loads existing manifest
-2. Detects changed inputs (dirty tracking)
-3. Regenerates only affected artifacts
-4. Updates the artifacts view
+1. Runs a pre-plan recovery pass for recoverable failed artifacts (currently fal-ai) using stored provider request IDs
+2. Loads existing manifest
+3. Detects changed inputs and artifacts (dirty tracking)
+4. Applies planning precedence: `dirty detection + explicit regenerate (--artifact-id/--aid) - explicit pin (--pin)`
+5. Regenerates affected artifacts and updates the artifacts view
+6. With `--explain`, includes a recovery summary section (checked, recovered, pending, failed attempts)
 
 **Examples:**
 
@@ -288,7 +291,8 @@ renku generate --movie-id=movie-a1b2c3d4 --inputs=./inputs.yaml --pin="Artifact:
 ```
 
 **Note:** When using IDs with brackets in zsh, quote the ID to prevent bracket expansion.  
-**Note:** Non-canonical `--artifact-id/--aid` values are rejected; use canonical `Artifact:...` IDs.
+**Note:** Non-canonical `--artifact-id/--aid` values are rejected; use canonical `Artifact:...` IDs.  
+**Note:** Pins are applied last; a pinned job/artifact is excluded even if dirty or explicitly targeted.
 
 ---
 

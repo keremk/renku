@@ -37,3 +37,18 @@ export {
   type VercelGatewayGenerationOptions,
   type VercelGatewayGenerationResult,
 } from './vercel-gateway/index.js';
+
+// Fal.ai SDK exports
+export {
+  checkFalJobStatus,
+  recoverFalJob,
+  falSubscribe,
+  FalTimeoutError,
+  getPollIntervalForModel,
+  getTimeoutForModel,
+  type FalJobStatus,
+  type FalJobCheckResult,
+  type FalJobCheckOptions,
+  type FalSubscribeResult,
+  type FalSubscribeOptions,
+} from './fal/index.js';
