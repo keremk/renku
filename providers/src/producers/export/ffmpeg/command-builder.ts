@@ -12,6 +12,8 @@ import type {
   VideoClip,
   CaptionsClip,
 } from '@gorenku/compositions';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import type {
   FfmpegCommand,
   FfmpegBuildOptions,
@@ -22,11 +24,24 @@ import type {
   OutputFormat,
 } from './types.js';
 import { FFMPEG_DEFAULTS } from './types.js';
-import { buildImageFilterChain, buildImageInputArgs } from './kenburns-filter.js';
-import { buildAudioMixFilter, buildAudioInputArgs, buildLoopedAudioInputArgs } from './audio-mixer.js';
+import {
+  buildImageFilterChain,
+  buildImageInputArgs,
+} from './kenburns-filter.js';
+import {
+  buildAudioMixFilter,
+  buildAudioInputArgs,
+  buildLoopedAudioInputArgs,
+} from './audio-mixer.js';
 import { buildVideoFilter, buildVideoInputArgs } from './video-track.js';
-import { buildCaptionFilterChain, parseCaptionsFromArray } from './caption-renderer.js';
+import {
+  buildCaptionFilterChain,
+  parseCaptionsFromArray,
+} from './caption-renderer.js';
 import type { TranscriptionArtifact } from '../../transcription/types.js';
+import { createProviderError, SdkErrorCode } from '../../../sdk/errors.js';
+
+const execFileAsync = promisify(execFile);
 
 // Type guards for timeline tracks
 function isImageTrack(track: TimelineTrack): track is ImageTrack {
@@ -57,6 +72,20 @@ interface InputTracker {
   assetToIndex: Map<string, number>;
 }
 
+interface VideoAudioProbeRequest {
+  assetId: string;
+  assetPath: string;
+}
+
+interface BuildFfmpegCommandRuntimeOptions {
+  probeVideoAudioStream?: (request: VideoAudioProbeRequest) => Promise<boolean>;
+}
+
+interface VideoAudioProbeState {
+  cache: Map<string, boolean>;
+  probe: (request: VideoAudioProbeRequest) => Promise<boolean>;
+}
+
 /**
  * Build a complete FFmpeg command from a timeline.
  *
@@ -67,15 +96,21 @@ interface InputTracker {
  * @param assFilePath - Optional path to ASS subtitle file for karaoke rendering
  * @returns Complete FFmpeg command ready for execution
  */
-export function buildFfmpegCommand(
+export async function buildFfmpegCommand(
   timeline: TimelineDocument,
   assetPaths: AssetPathMap,
   options: Partial<FfmpegBuildOptions>,
   transcription?: TranscriptionArtifact,
-  assFilePath?: string
-): FfmpegCommand {
+  assFilePath?: string,
+  runtimeOptions: BuildFfmpegCommandRuntimeOptions = {}
+): Promise<FfmpegCommand> {
   const fullOptions = resolveOptions(options);
   const outputFormat = detectOutputFormat(timeline);
+  const videoAudioProbeState: VideoAudioProbeState = {
+    cache: new Map(),
+    probe:
+      runtimeOptions.probeVideoAudioStream ?? probeVideoAudioStreamWithFfprobe,
+  };
 
   const tracker: InputTracker = {
     nextIndex: 0,
@@ -90,13 +125,35 @@ export function buildFfmpegCommand(
   // Process each track type
   for (const track of timeline.tracks) {
     if (isImageTrack(track)) {
-      processImageTrack(track, assetPaths, fullOptions, tracker, filterParts, videoLabels);
+      processImageTrack(
+        track,
+        assetPaths,
+        fullOptions,
+        tracker,
+        filterParts,
+        videoLabels
+      );
     } else if (isAudioTrack(track)) {
       processAudioTrack(track, assetPaths, tracker, audioInfos);
     } else if (isMusicTrack(track)) {
-      processMusicTrack(track, assetPaths, timeline.duration, tracker, audioInfos);
+      processMusicTrack(
+        track,
+        assetPaths,
+        timeline.duration,
+        tracker,
+        audioInfos
+      );
     } else if (isVideoTrack(track)) {
-      processVideoTrack(track, assetPaths, fullOptions, tracker, filterParts, videoLabels, audioInfos);
+      await processVideoTrack(
+        track,
+        assetPaths,
+        fullOptions,
+        tracker,
+        filterParts,
+        videoLabels,
+        audioInfos,
+        videoAudioProbeState
+      );
     }
     // Captions are processed after video concatenation
   }
@@ -104,12 +161,18 @@ export function buildFfmpegCommand(
   // Build video concatenation if we have visual elements
   let videoOutputLabel = '';
   if (videoLabels.length > 0) {
-    const concatFilter = buildVideoConcat(videoLabels, timeline.duration, fullOptions);
+    const concatFilter = buildVideoConcat(
+      videoLabels,
+      timeline.duration,
+      fullOptions
+    );
     filterParts.push(concatFilter.filter);
     videoOutputLabel = concatFilter.outputLabel;
 
     // Process captions (overlay on concatenated video)
-    const captionsTrack = timeline.tracks.find((t): t is CaptionsTrack => t.kind === 'Captions');
+    const captionsTrack = timeline.tracks.find(
+      (t): t is CaptionsTrack => t.kind === 'Captions'
+    );
     if (captionsTrack) {
       const captionResult = processCaptionsTrack(
         captionsTrack,
@@ -135,7 +198,9 @@ export function buildFfmpegCommand(
   }
 
   // Build audio mix (always add - generates silence if no audio tracks)
-  const audioResult = buildAudioMixFilter(audioInfos, { totalDuration: timeline.duration });
+  const audioResult = buildAudioMixFilter(audioInfos, {
+    totalDuration: timeline.duration,
+  });
   filterParts.push(audioResult.filterExpr);
 
   // Build the complete command
@@ -162,7 +227,9 @@ export function detectOutputFormat(timeline: TimelineDocument): OutputFormat {
 /**
  * Resolve partial options with defaults.
  */
-function resolveOptions(options: Partial<FfmpegBuildOptions>): FfmpegBuildOptions {
+function resolveOptions(
+  options: Partial<FfmpegBuildOptions>
+): FfmpegBuildOptions {
   return {
     width: options.width ?? FFMPEG_DEFAULTS.width,
     height: options.height ?? FFMPEG_DEFAULTS.height,
@@ -188,7 +255,14 @@ function processImageTrack(
   videoLabels: string[]
 ): void {
   for (const clip of track.clips) {
-    processImageClip(clip, assetPaths, options, tracker, filterParts, videoLabels);
+    processImageClip(
+      clip,
+      assetPaths,
+      options,
+      tracker,
+      filterParts,
+      videoLabels
+    );
   }
 }
 
@@ -221,7 +295,9 @@ function processImageClip(
 
     // Add input for this image
     const inputIndex = tracker.nextIndex++;
-    tracker.inputArgs.push(...buildImageInputArgs(assetPath, durationPerEffect));
+    tracker.inputArgs.push(
+      ...buildImageInputArgs(assetPath, durationPerEffect)
+    );
     tracker.assetToIndex.set(effect.assetId, inputIndex);
 
     // Build filter chain
@@ -327,7 +403,8 @@ function processMusicClip(
   tracker.assetToIndex.set(clip.properties.assetId, inputIndex);
 
   // Determine duration based on settings
-  const duration = clip.properties.duration === 'full' ? totalDuration : clip.duration;
+  const duration =
+    clip.properties.duration === 'full' ? totalDuration : clip.duration;
 
   audioInfos.push({
     inputIndex,
@@ -341,32 +418,43 @@ function processMusicClip(
 /**
  * Process a video track.
  */
-function processVideoTrack(
+async function processVideoTrack(
   track: VideoTrack,
   assetPaths: AssetPathMap,
   options: FfmpegBuildOptions,
   tracker: InputTracker,
   filterParts: string[],
   videoLabels: string[],
-  audioInfos: AudioTrackInfo[]
-): void {
+  audioInfos: AudioTrackInfo[],
+  videoAudioProbeState: VideoAudioProbeState
+): Promise<void> {
   for (const clip of track.clips) {
-    processVideoClip(clip, assetPaths, options, tracker, filterParts, videoLabels, audioInfos);
+    await processVideoClip(
+      clip,
+      assetPaths,
+      options,
+      tracker,
+      filterParts,
+      videoLabels,
+      audioInfos,
+      videoAudioProbeState
+    );
   }
 }
 
 /**
  * Process a single video clip.
  */
-function processVideoClip(
+async function processVideoClip(
   clip: VideoClip,
   assetPaths: AssetPathMap,
   options: FfmpegBuildOptions,
   tracker: InputTracker,
   filterParts: string[],
   videoLabels: string[],
-  audioInfos: AudioTrackInfo[]
-): void {
+  audioInfos: AudioTrackInfo[],
+  videoAudioProbeState: VideoAudioProbeState
+): Promise<void> {
   const assetPath = assetPaths[clip.properties.assetId];
   if (!assetPath) {
     return;
@@ -407,13 +495,92 @@ function processVideoClip(
   // Handle video audio - extract by default (volume defaults to 1)
   // Users can explicitly set volume: 0 to strip audio from video clips
   const effectiveVolume = clipInfo.volume ?? 1;
-  if (effectiveVolume > 0) {
+  if (effectiveVolume <= 0) {
+    return;
+  }
+
+  const hasAudioStream = await resolveVideoAudioAvailability(
+    clip.properties.assetId,
+    assetPath,
+    videoAudioProbeState
+  );
+
+  if (hasAudioStream) {
     audioInfos.push({
       inputIndex,
       volume: effectiveVolume,
       startTime: clip.startTime,
       duration: clip.duration,
     });
+  }
+}
+
+async function resolveVideoAudioAvailability(
+  assetId: string,
+  assetPath: string,
+  probeState: VideoAudioProbeState
+): Promise<boolean> {
+  const cached = probeState.cache.get(assetPath);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const hasAudioStream = await probeState.probe({ assetId, assetPath });
+  probeState.cache.set(assetPath, hasAudioStream);
+  return hasAudioStream;
+}
+
+async function probeVideoAudioStreamWithFfprobe(
+  request: VideoAudioProbeRequest
+): Promise<boolean> {
+  const { assetId, assetPath } = request;
+  try {
+    const { stdout } = await execFileAsync(
+      'ffprobe',
+      [
+        '-v',
+        'error',
+        '-select_streams',
+        'a',
+        '-show_entries',
+        'stream=index',
+        '-of',
+        'csv=p=0',
+        assetPath,
+      ],
+      {
+        encoding: 'utf8',
+        maxBuffer: 10 * 1024 * 1024,
+      }
+    );
+
+    return stdout.trim().length > 0;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const stderr = String((error as { stderr?: unknown }).stderr ?? '').trim();
+    const details = stderr || message;
+
+    if (message.includes('ENOENT')) {
+      throw createProviderError(
+        SdkErrorCode.FFMPEG_NOT_FOUND,
+        `ffprobe was not found while probing audio stream for video asset '${assetId}' at '${assetPath}'. Ensure FFmpeg tools are installed and ffprobe is available in PATH.`,
+        { kind: 'user_input', causedByUser: true, raw: error }
+      );
+    }
+
+    if (details.includes('No such file or directory')) {
+      throw createProviderError(
+        SdkErrorCode.MISSING_ASSET,
+        `Failed to probe audio stream for video asset '${assetId}' at '${assetPath}': source file was not found. ${details}`,
+        { kind: 'user_input', causedByUser: true, raw: error }
+      );
+    }
+
+    throw createProviderError(
+      SdkErrorCode.RENDER_FAILED,
+      `Failed to probe audio stream for video asset '${assetId}' at '${assetPath}'. ${details}`,
+      { kind: 'unknown', causedByUser: false, raw: error }
+    );
   }
 }
 
@@ -525,24 +692,27 @@ function buildCommand(
   // Add encoding options based on output format
   if (outputFormat === 'video') {
     args.push(
-      '-c:v', 'libx264',
-      '-preset', options.preset,
-      '-crf', String(options.crf),
-      '-c:a', 'aac',
-      '-b:a', options.audioBitrate
+      '-c:v',
+      'libx264',
+      '-preset',
+      options.preset,
+      '-crf',
+      String(options.crf),
+      '-c:a',
+      'aac',
+      '-b:a',
+      options.audioBitrate
     );
   } else {
     // Audio only (MP3)
-    args.push(
-      '-c:a', 'libmp3lame',
-      '-b:a', options.audioBitrate
-    );
+    args.push('-c:a', 'libmp3lame', '-b:a', options.audioBitrate);
   }
 
   // Output path
-  const outputPath = outputFormat === 'video'
-    ? options.outputPath.replace(/\.\w+$/, '.mp4')
-    : options.outputPath.replace(/\.\w+$/, '.mp3');
+  const outputPath =
+    outputFormat === 'video'
+      ? options.outputPath.replace(/\.\w+$/, '.mp4')
+      : options.outputPath.replace(/\.\w+$/, '.mp3');
 
   args.push(outputPath);
 
@@ -560,13 +730,15 @@ function buildCommand(
  * Handles special characters that need escaping in filter strings.
  */
 function escapeFilterPath(filePath: string): string {
-  return filePath
-    // Escape backslashes first
-    .replace(/\\/g, '\\\\\\\\')
-    // Escape single quotes
-    .replace(/'/g, "'\\''")
-    // Escape colons (common in Windows paths)
-    .replace(/:/g, '\\:');
+  return (
+    filePath
+      // Escape backslashes first
+      .replace(/\\/g, '\\\\\\\\')
+      // Escape single quotes
+      .replace(/'/g, "'\\''")
+      // Escape colons (common in Windows paths)
+      .replace(/:/g, '\\:')
+  );
 }
 
 /**

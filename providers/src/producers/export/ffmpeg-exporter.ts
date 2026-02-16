@@ -5,7 +5,10 @@ import { promisify } from 'node:util';
 import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
 import { createProviderError, SdkErrorCode } from '../../sdk/errors.js';
 import { validatePayload } from '../../sdk/schema-validator.js';
-import { parseSchemaFile, resolveSchemaRefs } from '../../sdk/unified/schema-file.js';
+import {
+  parseSchemaFile,
+  resolveSchemaRefs,
+} from '../../sdk/unified/schema-file.js';
 import type { HandlerFactory, HandlerFactoryInit } from '../../types.js';
 import type { ResolvedInputsAccessor } from '../../sdk/types.js';
 import { createStorageContext } from '@gorenku/core';
@@ -19,7 +22,8 @@ import type { TranscriptionArtifact } from '../transcription/types.js';
 const execFileAsync = promisify(execFile);
 
 const TIMELINE_ARTEFACT_ID = 'Artifact:TimelineComposer.Timeline';
-const TRANSCRIPTION_ARTEFACT_ID = 'Artifact:TranscriptionProducer.Transcription';
+const TRANSCRIPTION_ARTEFACT_ID =
+  'Artifact:TranscriptionProducer.Transcription';
 
 interface ManifestPointer {
   revision: string | null;
@@ -48,7 +52,10 @@ export function createFfmpegExporterHandler(): HandlerFactory {
       domain: 'media',
       // No configValidator - we validate inside invoke with loaded schema
       invoke: async ({ request, runtime }) => {
-        const notify = (type: 'progress' | 'success' | 'error', message: string) => {
+        const notify = (
+          type: 'progress' | 'success' | 'error',
+          message: string
+        ) => {
           runtime.notifications?.publish({
             type,
             message,
@@ -59,14 +66,20 @@ export function createFfmpegExporterHandler(): HandlerFactory {
         notify('progress', `Exporting via FFmpeg for job ${request.jobId}`);
 
         // Load schema via catalog infrastructure (async, cached by registry)
-        const schemaRaw = await getModelSchema?.('renku', 'ffmpeg/native-render');
+        const schemaRaw = await getModelSchema?.(
+          'renku',
+          'ffmpeg/native-render'
+        );
 
         // Validate config before any processing (fail-fast)
         // Treat undefined/null config as empty object (all fields are optional)
         const rawConfig = runtime.config.raw ?? {};
         if (schemaRaw) {
           const schemaFile = parseSchemaFile(schemaRaw);
-          const resolvedSchema = resolveSchemaRefs(schemaFile.inputSchema, schemaFile.definitions);
+          const resolvedSchema = resolveSchemaRefs(
+            schemaFile.inputSchema,
+            schemaFile.definitions
+          );
           const schemaString = JSON.stringify(resolvedSchema);
           validatePayload(schemaString, rawConfig, 'FFmpeg exporter config');
         }
@@ -75,152 +88,187 @@ export function createFfmpegExporterHandler(): HandlerFactory {
         const config = rawConfig as FfmpegExporterConfig;
         const produceId = request.produces[0];
 
-      if (!produceId) {
-        throw createProviderError(
-          SdkErrorCode.INVALID_CONFIG,
-          'FFmpeg exporter requires at least one declared artefact output.',
-          { kind: 'user_input', causedByUser: true },
-        );
-      }
-
-      const movieId = resolveMovieId(runtime.inputs);
-      const { storageRoot, storageBasePath } = resolveStoragePaths(config, runtime.inputs);
-
-      const storage = createStorageContext({
-        kind: 'local',
-        rootDir: storageRoot,
-        basePath: storageBasePath,
-      });
-
-      // Try to get inline timeline first
-      const inlineTimeline = runtime.inputs.getByNodeId<unknown>(TIMELINE_ARTEFACT_ID);
-
-      // Load timeline from manifest
-      let timeline: TimelineDocument;
-      try {
-        timeline = await loadTimeline(storage, movieId);
-      } catch (error) {
-        if (inlineTimeline && typeof inlineTimeline === 'object') {
-          timeline = inlineTimeline as TimelineDocument;
-        } else {
-          throw error;
+        if (!produceId) {
+          throw createProviderError(
+            SdkErrorCode.INVALID_CONFIG,
+            'FFmpeg exporter requires at least one declared artefact output.',
+            { kind: 'user_input', causedByUser: true }
+          );
         }
-      }
 
-      // Handle simulated mode
-      if (runtime.mode === 'simulated') {
-        const buffer = Buffer.from('simulated-ffmpeg-output');
-        return {
-          status: 'succeeded',
+        const movieId = resolveMovieId(runtime.inputs);
+        const { storageRoot, storageBasePath } = resolveStoragePaths(
+          config,
+          runtime.inputs
+        );
+
+        const storage = createStorageContext({
+          kind: 'local',
+          rootDir: storageRoot,
+          basePath: storageBasePath,
+        });
+
+        // Try to get inline timeline first
+        const inlineTimeline =
+          runtime.inputs.getByNodeId<unknown>(TIMELINE_ARTEFACT_ID);
+
+        // Load timeline from manifest
+        let timeline: TimelineDocument;
+        try {
+          timeline = await loadTimeline(storage, movieId);
+        } catch (error) {
+          if (inlineTimeline && typeof inlineTimeline === 'object') {
+            timeline = inlineTimeline as TimelineDocument;
+          } else {
+            throw error;
+          }
+        }
+
+        // Handle simulated mode
+        if (runtime.mode === 'simulated') {
+          const buffer = Buffer.from('simulated-ffmpeg-output');
+          return {
+            status: 'succeeded',
+            artefacts: [
+              {
+                artefactId: runtime.artefacts.expectBlob(produceId),
+                status: 'succeeded',
+                blob: {
+                  data: buffer,
+                  mimeType: 'video/mp4',
+                },
+              },
+            ],
+          };
+        }
+
+        // Build asset path map - prefer paths from event log (via context.extras.assetBlobPaths)
+        // over manifest-based resolution to ensure fresh paths during execution.
+        const moviePath = storage.resolve(movieId, '');
+        const eventLogPaths = request.context.extras?.assetBlobPaths as
+          | Record<string, string>
+          | undefined;
+        const relativeAssetPaths = await buildAssetPaths(
+          storage,
+          movieId,
+          timeline,
+          eventLogPaths
+        );
+
+        // Resolve relative asset paths to absolute paths for FFmpeg execution.
+        // storage.resolve() returns storage-relative paths, but FFmpeg runs in the
+        // process CWD, so paths must be absolute.
+        const assetPaths: AssetPathMap = {};
+        for (const [assetId, assetPath] of Object.entries(relativeAssetPaths)) {
+          assetPaths[assetId] = path.isAbsolute(assetPath)
+            ? assetPath
+            : path.resolve(storageRoot, assetPath);
+        }
+
+        // Try to load transcription for subtitles (optional)
+        // First try to get it from runtime inputs (during execution), then fall back to manifest
+        let transcription: TranscriptionArtifact | undefined;
+        const inlineTranscription = runtime.inputs.getByNodeId<unknown>(
+          TRANSCRIPTION_ARTEFACT_ID
+        );
+        if (
+          inlineTranscription &&
+          typeof inlineTranscription === 'object' &&
+          'words' in inlineTranscription
+        ) {
+          transcription = inlineTranscription as TranscriptionArtifact;
+        } else {
+          transcription = await loadTranscription(storage, movieId);
+        }
+
+        // Determine output path
+        const outputName =
+          detectOutputFormat(timeline) === 'video'
+            ? 'FinalVideo.mp4'
+            : 'FinalAudio.mp3';
+        const outputPath = path.join(moviePath, outputName);
+
+        // Generate ASS file for subtitles if transcription is available
+        let assFilePath: string | undefined;
+        if (transcription && transcription.words.length > 0) {
+          notify('progress', 'Generating subtitles...');
+          assFilePath = path.join(moviePath, 'subtitles.ass');
+          await generateAssFile(
+            transcription,
+            {
+              width: config.width ?? FFMPEG_DEFAULTS.width,
+              height: config.height ?? FFMPEG_DEFAULTS.height,
+              font: config.subtitles?.font,
+              fontSize: config.subtitles?.fontSize,
+              fontBaseColor: config.subtitles?.fontBaseColor,
+              fontHighlightColor: config.subtitles?.fontHighlightColor,
+              backgroundColor: config.subtitles?.backgroundColor,
+              backgroundOpacity: config.subtitles?.backgroundOpacity,
+              bottomMarginPercent: config.subtitles?.bottomMarginPercent,
+              maxWordsPerLine: config.subtitles?.maxWordsPerLine,
+              highlightEffect: config.subtitles?.highlightEffect,
+            },
+            path.resolve(storageRoot, assFilePath)
+          );
+        }
+
+        // Build FFmpeg command
+        notify('progress', 'Building FFmpeg command...');
+        const ffmpegCommand = await buildFfmpegCommand(
+          timeline,
+          assetPaths,
+          {
+            width: config.width ?? FFMPEG_DEFAULTS.width,
+            height: config.height ?? FFMPEG_DEFAULTS.height,
+            fps: config.fps ?? FFMPEG_DEFAULTS.fps,
+            preset: config.preset ?? FFMPEG_DEFAULTS.preset,
+            crf: config.crf ?? FFMPEG_DEFAULTS.crf,
+            audioBitrate: config.audioBitrate ?? FFMPEG_DEFAULTS.audioBitrate,
+            outputPath: path.resolve(storageRoot, outputPath),
+            ffmpegPath: config.ffmpegPath ?? FFMPEG_DEFAULTS.ffmpegPath,
+            subtitles: config.subtitles,
+          },
+          transcription,
+          assFilePath ? path.resolve(storageRoot, assFilePath) : undefined
+        );
+
+        // Ensure output directory exists
+        await mkdir(path.dirname(ffmpegCommand.outputPath), {
+          recursive: true,
+        });
+
+        // Log the FFmpeg command for debugging
+        const debugCommand = [
+          ffmpegCommand.ffmpegPath,
+          ...ffmpegCommand.args,
+        ].join(' ');
+        notify('progress', `FFmpeg command: ${debugCommand}`);
+
+        // Run FFmpeg
+        notify('progress', 'Running FFmpeg...');
+        await runFfmpeg(ffmpegCommand.ffmpegPath, ffmpegCommand.args);
+
+        // Read output file
+        const buffer = await readFile(ffmpegCommand.outputPath);
+
+        const result = {
+          status: 'succeeded' as const,
           artefacts: [
             {
               artefactId: runtime.artefacts.expectBlob(produceId),
-              status: 'succeeded',
+              status: 'succeeded' as const,
               blob: {
                 data: buffer,
-                mimeType: 'video/mp4',
+                mimeType: ffmpegCommand.mimeType,
               },
             },
           ],
         };
-      }
 
-      // Build asset path map - prefer paths from event log (via context.extras.assetBlobPaths)
-      // over manifest-based resolution to ensure fresh paths during execution.
-      const moviePath = storage.resolve(movieId, '');
-      const eventLogPaths = request.context.extras?.assetBlobPaths as Record<string, string> | undefined;
-      const relativeAssetPaths = await buildAssetPaths(storage, movieId, timeline, eventLogPaths);
-
-      // Resolve relative asset paths to absolute paths for FFmpeg execution.
-      // storage.resolve() returns storage-relative paths, but FFmpeg runs in the
-      // process CWD, so paths must be absolute.
-      const assetPaths: AssetPathMap = {};
-      for (const [assetId, assetPath] of Object.entries(relativeAssetPaths)) {
-        assetPaths[assetId] = path.isAbsolute(assetPath)
-          ? assetPath
-          : path.resolve(storageRoot, assetPath);
-      }
-
-      // Try to load transcription for subtitles (optional)
-      // First try to get it from runtime inputs (during execution), then fall back to manifest
-      let transcription: TranscriptionArtifact | undefined;
-      const inlineTranscription = runtime.inputs.getByNodeId<unknown>(TRANSCRIPTION_ARTEFACT_ID);
-      if (inlineTranscription && typeof inlineTranscription === 'object' && 'words' in inlineTranscription) {
-        transcription = inlineTranscription as TranscriptionArtifact;
-      } else {
-        transcription = await loadTranscription(storage, movieId);
-      }
-
-      // Determine output path
-      const outputName = detectOutputFormat(timeline) === 'video' ? 'FinalVideo.mp4' : 'FinalAudio.mp3';
-      const outputPath = path.join(moviePath, outputName);
-
-      // Generate ASS file for subtitles if transcription is available
-      let assFilePath: string | undefined;
-      if (transcription && transcription.words.length > 0) {
-        notify('progress', 'Generating subtitles...');
-        assFilePath = path.join(moviePath, 'subtitles.ass');
-        await generateAssFile(transcription, {
-          width: config.width ?? FFMPEG_DEFAULTS.width,
-          height: config.height ?? FFMPEG_DEFAULTS.height,
-          font: config.subtitles?.font,
-          fontSize: config.subtitles?.fontSize,
-          fontBaseColor: config.subtitles?.fontBaseColor,
-          fontHighlightColor: config.subtitles?.fontHighlightColor,
-          backgroundColor: config.subtitles?.backgroundColor,
-          backgroundOpacity: config.subtitles?.backgroundOpacity,
-          bottomMarginPercent: config.subtitles?.bottomMarginPercent,
-          maxWordsPerLine: config.subtitles?.maxWordsPerLine,
-          highlightEffect: config.subtitles?.highlightEffect,
-        }, path.resolve(storageRoot, assFilePath));
-      }
-
-      // Build FFmpeg command
-      notify('progress', 'Building FFmpeg command...');
-      const ffmpegCommand = buildFfmpegCommand(timeline, assetPaths, {
-        width: config.width ?? FFMPEG_DEFAULTS.width,
-        height: config.height ?? FFMPEG_DEFAULTS.height,
-        fps: config.fps ?? FFMPEG_DEFAULTS.fps,
-        preset: config.preset ?? FFMPEG_DEFAULTS.preset,
-        crf: config.crf ?? FFMPEG_DEFAULTS.crf,
-        audioBitrate: config.audioBitrate ?? FFMPEG_DEFAULTS.audioBitrate,
-        outputPath: path.resolve(storageRoot, outputPath),
-        ffmpegPath: config.ffmpegPath ?? FFMPEG_DEFAULTS.ffmpegPath,
-        subtitles: config.subtitles,
-      }, transcription, assFilePath ? path.resolve(storageRoot, assFilePath) : undefined);
-
-      // Ensure output directory exists
-      await mkdir(path.dirname(ffmpegCommand.outputPath), { recursive: true });
-
-      // Log the FFmpeg command for debugging
-      const debugCommand = [ffmpegCommand.ffmpegPath, ...ffmpegCommand.args].join(' ');
-      notify('progress', `FFmpeg command: ${debugCommand}`);
-
-      // Run FFmpeg
-      notify('progress', 'Running FFmpeg...');
-      await runFfmpeg(ffmpegCommand.ffmpegPath, ffmpegCommand.args);
-
-      // Read output file
-      const buffer = await readFile(ffmpegCommand.outputPath);
-
-      const result = {
-        status: 'succeeded' as const,
-        artefacts: [
-          {
-            artefactId: runtime.artefacts.expectBlob(produceId),
-            status: 'succeeded' as const,
-            blob: {
-              data: buffer,
-              mimeType: ffmpegCommand.mimeType,
-            },
-          },
-        ],
-      };
-
-      notify('success', `FFmpeg export completed for job ${request.jobId}`);
-      return result;
-    },
-  })(init); // Pass init to inner factory
+        notify('success', `FFmpeg export completed for job ${request.jobId}`);
+        return result;
+      },
+    })(init); // Pass init to inner factory
   };
 }
 
@@ -232,28 +280,32 @@ function resolveMovieId(inputs: ResolvedInputsAccessor): string {
   throw createProviderError(
     SdkErrorCode.INVALID_CONFIG,
     'FFmpeg exporter is missing movieId (Input:MovieId).',
-    { kind: 'user_input', causedByUser: true },
+    { kind: 'user_input', causedByUser: true }
   );
 }
 
-function resolveStoragePaths(config: FfmpegExporterConfig, inputs: ResolvedInputsAccessor): {
+function resolveStoragePaths(
+  config: FfmpegExporterConfig,
+  inputs: ResolvedInputsAccessor
+): {
   storageRoot: string;
   storageBasePath: string;
 } {
-  const root = config.rootFolder ?? inputs.getByNodeId<string>('Input:StorageRoot');
+  const root =
+    config.rootFolder ?? inputs.getByNodeId<string>('Input:StorageRoot');
   const basePath = inputs.getByNodeId<string>('Input:StorageBasePath');
   if (!root || typeof root !== 'string') {
     throw createProviderError(
       SdkErrorCode.MISSING_STORAGE_ROOT,
       'FFmpeg exporter is missing storage root (Input:StorageRoot).',
-      { kind: 'user_input', causedByUser: true },
+      { kind: 'user_input', causedByUser: true }
     );
   }
   if (!basePath || typeof basePath !== 'string' || !basePath.trim()) {
     throw createProviderError(
       SdkErrorCode.INVALID_CONFIG,
       'FFmpeg exporter is missing storage base path (Input:StorageBasePath).',
-      { kind: 'user_input', causedByUser: true },
+      { kind: 'user_input', causedByUser: true }
     );
   }
   return { storageRoot: root, storageBasePath: basePath };
@@ -271,7 +323,7 @@ async function loadTimeline(
     throw createProviderError(
       SdkErrorCode.MISSING_MANIFEST,
       `Manifest pointer missing path for movie ${movieId}.`,
-      { kind: 'user_input', causedByUser: true },
+      { kind: 'user_input', causedByUser: true }
     );
   }
 
@@ -284,12 +336,17 @@ async function loadTimeline(
     throw createProviderError(
       SdkErrorCode.MISSING_TIMELINE,
       `Timeline artefact not found for movie ${movieId}.`,
-      { kind: 'user_input', causedByUser: true },
+      { kind: 'user_input', causedByUser: true }
     );
   }
 
   // Load the actual timeline blob
-  const blobPath = buildBlobPath(storage, movieId, timelineArtefact.blob.hash, 'json');
+  const blobPath = buildBlobPath(
+    storage,
+    movieId,
+    timelineArtefact.blob.hash,
+    'json'
+  );
   const timelineRaw = await storage.storage.readToString(blobPath);
   return JSON.parse(timelineRaw) as TimelineDocument;
 }
@@ -315,13 +372,19 @@ async function loadTranscription(
     const manifestRaw = await storage.storage.readToString(manifestPath);
     const manifest = JSON.parse(manifestRaw) as ManifestFile;
 
-    const transcriptionArtefact = manifest.artefacts?.[TRANSCRIPTION_ARTEFACT_ID];
+    const transcriptionArtefact =
+      manifest.artefacts?.[TRANSCRIPTION_ARTEFACT_ID];
     if (!transcriptionArtefact?.blob?.hash) {
       return undefined;
     }
 
     // Load the actual transcription blob
-    const blobPath = buildBlobPath(storage, movieId, transcriptionArtefact.blob.hash, 'json');
+    const blobPath = buildBlobPath(
+      storage,
+      movieId,
+      transcriptionArtefact.blob.hash,
+      'json'
+    );
     const transcriptionRaw = await storage.storage.readToString(blobPath);
     return JSON.parse(transcriptionRaw) as TranscriptionArtifact;
   } catch {
@@ -363,7 +426,7 @@ async function buildAssetPaths(
   }
 
   // Check if we have all assets resolved from event log
-  const missingAssets = Array.from(assetIds).filter(id => !assetPaths[id]);
+  const missingAssets = Array.from(assetIds).filter((id) => !assetPaths[id]);
   if (missingAssets.length === 0) {
     return assetPaths;
   }
@@ -391,7 +454,12 @@ async function buildAssetPaths(
       const artefact = manifest.artefacts[assetId];
       if (artefact?.blob) {
         const ext = mimeToExtension(artefact.blob.mimeType);
-        const blobPath = buildBlobPath(storage, movieId, artefact.blob.hash, ext);
+        const blobPath = buildBlobPath(
+          storage,
+          movieId,
+          artefact.blob.hash,
+          ext
+        );
         assetPaths[assetId] = blobPath;
       }
     }
@@ -402,7 +470,6 @@ async function buildAssetPaths(
 
   return assetPaths;
 }
-
 
 function collectAssetIds(timeline: TimelineDocument): Set<string> {
   const assetIds = new Set<string>();
@@ -486,11 +553,14 @@ async function runFfmpeg(ffmpegPath: string, args: string[]): Promise<void> {
     const signal = (error as { signal?: string }).signal;
 
     // Check for common FFmpeg errors
-    if (stderr.includes('No such file or directory') || message.includes('No such file')) {
+    if (
+      stderr.includes('No such file or directory') ||
+      message.includes('No such file')
+    ) {
       throw createProviderError(
         SdkErrorCode.MISSING_ASSET,
         `FFmpeg input file not found: ${message}${stderr ? `\nFFmpeg stderr: ${stderr}` : ''}`,
-        { kind: 'user_input', causedByUser: true, raw: error },
+        { kind: 'user_input', causedByUser: true, raw: error }
       );
     }
 
@@ -498,7 +568,7 @@ async function runFfmpeg(ffmpegPath: string, args: string[]): Promise<void> {
       throw createProviderError(
         SdkErrorCode.FFMPEG_NOT_FOUND,
         `FFmpeg not found at '${ffmpegPath}'. Ensure FFmpeg is installed and in your PATH.`,
-        { kind: 'user_input', causedByUser: true, raw: error },
+        { kind: 'user_input', causedByUser: true, raw: error }
       );
     }
 
@@ -513,11 +583,11 @@ async function runFfmpeg(ffmpegPath: string, args: string[]): Promise<void> {
       ? `FFmpeg render failed. ${exitInfo}\nFFmpeg stderr:\n${stderr}`
       : `FFmpeg render failed. ${exitInfo}\n${message}`;
 
-    throw createProviderError(
-      SdkErrorCode.RENDER_FAILED,
-      errorDetails,
-      { kind: 'unknown', causedByUser: false, raw: error },
-    );
+    throw createProviderError(SdkErrorCode.RENDER_FAILED, errorDetails, {
+      kind: 'unknown',
+      causedByUser: false,
+      raw: error,
+    });
   }
 }
 
