@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
 import {
   Player,
   type PlayerRef,
@@ -232,7 +231,7 @@ export const RemotionPreview = ({
     [compositionDimensions, viewportDimensions]
   );
 
-  const playerStyle = useMemo<CSSProperties>(() => {
+  const playerStyle = useMemo(() => {
     if (playerDimensions.width <= 0 || playerDimensions.height <= 0) {
       return {
         width: '100%',

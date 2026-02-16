@@ -5,10 +5,10 @@
  * It routes requests to appropriate handlers in the blueprints and generation modules.
  */
 
-import type { IncomingMessage, ServerResponse } from "node:http";
-import type { Connect } from "vite";
-import { respondNotFound, respondMethodNotAllowed } from "./http-utils.js";
-import { handleBlueprintRequest } from "./blueprints/index.js";
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { Connect } from 'vite';
+import { respondNotFound, respondMethodNotAllowed } from './http-utils.js';
+import { handleBlueprintRequest } from './blueprints/index.js';
 import {
   handlePlanRequest,
   handleExecuteRequest,
@@ -17,7 +17,7 @@ import {
   handleStreamRequest,
   handleCancelRequest,
   sendMethodNotAllowed,
-} from "./generation/index.js";
+} from './generation/index.js';
 
 // Re-export shared types for backward compatibility
 export type {
@@ -27,9 +27,12 @@ export type {
   BlueprintInputDef,
   BlueprintOutputDef,
   ConditionDef,
-} from "./types.js";
+} from './types.js';
 
-export type ViewerApiHandler = (req: IncomingMessage, res: ServerResponse) => Promise<boolean>;
+export type ViewerApiHandler = (
+  req: IncomingMessage,
+  res: ServerResponse
+) => Promise<boolean>;
 
 /**
  * Creates the main viewer API handler.
@@ -41,31 +44,34 @@ export function createViewerApiHandler(): ViewerApiHandler {
     }
 
     try {
-      const url = new URL(req.url, "http://viewer.local");
-      const segments = url.pathname.replace(/^\/viewer-api\/?/, "").split("/").filter(Boolean);
+      const url = new URL(req.url, 'http://viewer.local');
+      const segments = url.pathname
+        .replace(/^\/viewer-api\/?/, '')
+        .split('/')
+        .filter(Boolean);
 
       if (segments.length === 0) {
         return respondNotFound(res);
       }
 
       switch (segments[0]) {
-        case "health":
+        case 'health':
           return handleHealthCheck(req, res);
 
-        case "blueprints":
-          return handleBlueprintRequest(req, res, url, segments.slice(1));
+        case 'blueprints':
+          return await handleBlueprintRequest(req, res, url, segments.slice(1));
 
-        case "generate":
-          return handleGenerateRequest(req, res, segments.slice(1));
+        case 'generate':
+          return await handleGenerateRequest(req, res, segments.slice(1));
 
         default:
           return respondNotFound(res);
       }
     } catch (error) {
-      console.error("[viewer-api]", error);
+      console.error('[viewer-api]', error);
       if (!res.headersSent) {
         res.statusCode = 500;
-        res.end("Internal Server Error");
+        res.end('Internal Server Error');
       } else {
         res.end();
       }
@@ -80,7 +86,7 @@ export function createViewerApiHandler(): ViewerApiHandler {
 export function createViewerApiMiddleware(): Connect.NextHandleFunction {
   const handler = createViewerApiHandler();
   return async (req, res, next) => {
-    if (!req || !req.url || !req.url.startsWith("/viewer-api")) {
+    if (!req || !req.url || !req.url.startsWith('/viewer-api')) {
       next();
       return;
     }
@@ -95,10 +101,10 @@ export function createViewerApiMiddleware(): Connect.NextHandleFunction {
  * Handles health check requests.
  */
 function handleHealthCheck(req: IncomingMessage, res: ServerResponse): boolean {
-  if (req.method !== "GET") {
+  if (req.method !== 'GET') {
     return respondMethodNotAllowed(res);
   }
-  res.setHeader("Content-Type", "application/json");
+  res.setHeader('Content-Type', 'application/json');
   res.end(JSON.stringify({ ok: true }));
   return true;
 }
@@ -117,31 +123,31 @@ function handleHealthCheck(req: IncomingMessage, res: ServerResponse): boolean {
 async function handleGenerateRequest(
   req: IncomingMessage,
   res: ServerResponse,
-  segments: string[],
+  segments: string[]
 ): Promise<boolean> {
   const action = segments[0];
 
   switch (action) {
-    case "plan": {
-      if (req.method !== "POST") {
+    case 'plan': {
+      if (req.method !== 'POST') {
         sendMethodNotAllowed(res);
         return true;
       }
       return handlePlanRequest(req, res);
     }
 
-    case "execute": {
-      if (req.method !== "POST") {
+    case 'execute': {
+      if (req.method !== 'POST') {
         sendMethodNotAllowed(res);
         return true;
       }
       return handleExecuteRequest(req, res);
     }
 
-    case "jobs": {
+    case 'jobs': {
       // /viewer-api/generate/jobs
       if (segments.length === 1) {
-        if (req.method !== "GET") {
+        if (req.method !== 'GET') {
           sendMethodNotAllowed(res);
           return true;
         }
@@ -152,8 +158,8 @@ async function handleGenerateRequest(
       const jobId = decodeURIComponent(segments[1]);
 
       // /viewer-api/generate/jobs/:jobId/stream
-      if (segments.length === 3 && segments[2] === "stream") {
-        if (req.method !== "GET") {
+      if (segments.length === 3 && segments[2] === 'stream') {
+        if (req.method !== 'GET') {
           sendMethodNotAllowed(res);
           return true;
         }
@@ -161,8 +167,8 @@ async function handleGenerateRequest(
       }
 
       // /viewer-api/generate/jobs/:jobId/cancel
-      if (segments.length === 3 && segments[2] === "cancel") {
-        if (req.method !== "POST") {
+      if (segments.length === 3 && segments[2] === 'cancel') {
+        if (req.method !== 'POST') {
           sendMethodNotAllowed(res);
           return true;
         }
@@ -171,7 +177,7 @@ async function handleGenerateRequest(
 
       // /viewer-api/generate/jobs/:jobId
       if (segments.length === 2) {
-        if (req.method !== "GET") {
+        if (req.method !== 'GET') {
           sendMethodNotAllowed(res);
           return true;
         }

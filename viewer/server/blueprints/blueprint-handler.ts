@@ -2,15 +2,25 @@
  * Main router for /blueprints/* endpoints.
  */
 
-import type { IncomingMessage, ServerResponse } from "node:http";
-import { respondNotFound, respondBadRequest, respondMethodNotAllowed } from "../http-utils.js";
-import { handleBuildsSubRoute, listBuilds, getBuildManifest, getBuildTimeline, streamInputFile } from "../builds/index.js";
-import { parseBlueprintToGraph } from "./parse-handler.js";
-import { resolveBlueprintName } from "./resolve-handler.js";
-import { getProducerModelsFromBlueprint } from "./producer-models.js";
-import { getProducerConfigSchemas } from "./config-schemas-handler.js";
-import { parseInputsFile } from "./inputs-handler.js";
-import { streamBuildBlob, streamBuildAsset } from "./blob-handler.js";
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import {
+  respondNotFound,
+  respondBadRequest,
+  respondMethodNotAllowed,
+} from '../http-utils.js';
+import {
+  handleBuildsSubRoute,
+  listBuilds,
+  getBuildManifest,
+  getBuildTimeline,
+  streamInputFile,
+} from '../builds/index.js';
+import { parseBlueprintToGraph } from './parse-handler.js';
+import { resolveBlueprintName } from './resolve-handler.js';
+import { getProducerModelsFromBlueprint } from './producer-models.js';
+import { getProducerConfigSchemas } from './config-schemas-handler.js';
+import { parseInputsFile } from './inputs-handler.js';
+import { streamBuildBlob, streamBuildAsset } from './blob-handler.js';
 
 /**
  * Handles blueprint API requests.
@@ -37,155 +47,200 @@ export async function handleBlueprintRequest(
   req: IncomingMessage,
   res: ServerResponse,
   url: URL,
-  segments: string[],
+  segments: string[]
 ): Promise<boolean> {
   const action = segments[0];
   const subAction = segments[1];
 
-  const catalogRoot = url.searchParams.get("catalog") ?? undefined;
+  const catalogRoot = url.searchParams.get('catalog') ?? undefined;
 
   // Handle builds sub-routes that support POST/PUT
-  if (action === "builds" && subAction) {
+  if (action === 'builds' && subAction) {
     return handleBuildsSubRoute(req, res, url, subAction, segments.slice(1));
   }
 
   // All other routes require GET
-  if (req.method !== "GET") {
+  if (req.method !== 'GET') {
     return respondMethodNotAllowed(res);
   }
 
   switch (action) {
-    case "parse": {
-      const blueprintPath = url.searchParams.get("path");
+    case 'parse': {
+      const blueprintPath = url.searchParams.get('path');
       if (!blueprintPath) {
-        return respondBadRequest(res, "Missing path parameter");
+        return respondBadRequest(res, 'Missing path parameter');
       }
-      const graphData = await parseBlueprintToGraph(blueprintPath, catalogRoot);
-      res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify(graphData));
-      return true;
+      try {
+        const graphData = await parseBlueprintToGraph(
+          blueprintPath,
+          catalogRoot
+        );
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify(graphData));
+        return true;
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Failed to parse blueprint';
+        return respondBadRequest(res, message);
+      }
     }
 
-    case "inputs": {
-      const inputsPath = url.searchParams.get("path");
+    case 'inputs': {
+      const inputsPath = url.searchParams.get('path');
       if (!inputsPath) {
-        return respondBadRequest(res, "Missing path parameter");
+        return respondBadRequest(res, 'Missing path parameter');
       }
       const inputData = await parseInputsFile(inputsPath);
-      res.setHeader("Content-Type", "application/json");
+      res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify(inputData));
       return true;
     }
 
-    case "builds": {
-      const folder = url.searchParams.get("folder");
+    case 'builds': {
+      const folder = url.searchParams.get('folder');
       if (!folder) {
-        return respondBadRequest(res, "Missing folder parameter");
+        return respondBadRequest(res, 'Missing folder parameter');
       }
       const buildsData = await listBuilds(folder);
-      res.setHeader("Content-Type", "application/json");
+      res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify(buildsData));
       return true;
     }
 
-    case "manifest": {
-      const folder = url.searchParams.get("folder");
-      const movieId = url.searchParams.get("movieId");
+    case 'manifest': {
+      const folder = url.searchParams.get('folder');
+      const movieId = url.searchParams.get('movieId');
       if (!folder || !movieId) {
-        return respondBadRequest(res, "Missing folder or movieId parameter");
+        return respondBadRequest(res, 'Missing folder or movieId parameter');
       }
       const manifestData = await getBuildManifest(folder, movieId);
-      res.setHeader("Content-Type", "application/json");
+      res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify(manifestData));
       return true;
     }
 
-    case "timeline": {
-      const folder = url.searchParams.get("folder");
-      const movieId = url.searchParams.get("movieId");
+    case 'timeline': {
+      const folder = url.searchParams.get('folder');
+      const movieId = url.searchParams.get('movieId');
       if (!folder || !movieId) {
-        return respondBadRequest(res, "Missing folder or movieId parameter");
+        return respondBadRequest(res, 'Missing folder or movieId parameter');
       }
       const timelineData = await getBuildTimeline(folder, movieId);
       if (timelineData === null) {
         res.statusCode = 404;
-        res.setHeader("Content-Type", "application/json");
-        res.end(JSON.stringify({ error: "Timeline not available for this build" }));
+        res.setHeader('Content-Type', 'application/json');
+        res.end(
+          JSON.stringify({ error: 'Timeline not available for this build' })
+        );
         return true;
       }
-      res.setHeader("Content-Type", "application/json");
+      res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify(timelineData));
       return true;
     }
 
-    case "asset": {
-      const folder = url.searchParams.get("folder");
-      const movieId = url.searchParams.get("movieId");
-      const assetId = url.searchParams.get("assetId");
+    case 'asset': {
+      const folder = url.searchParams.get('folder');
+      const movieId = url.searchParams.get('movieId');
+      const assetId = url.searchParams.get('assetId');
       if (!folder || !movieId || !assetId) {
-        return respondBadRequest(res, "Missing folder, movieId, or assetId parameter");
+        return respondBadRequest(
+          res,
+          'Missing folder, movieId, or assetId parameter'
+        );
       }
       await streamBuildAsset(req, res, folder, movieId, assetId);
       return true;
     }
 
-    case "blob": {
-      const folder = url.searchParams.get("folder");
-      const movieId = url.searchParams.get("movieId");
-      const hash = url.searchParams.get("hash");
+    case 'blob': {
+      const folder = url.searchParams.get('folder');
+      const movieId = url.searchParams.get('movieId');
+      const hash = url.searchParams.get('hash');
       if (!folder || !movieId || !hash) {
-        return respondBadRequest(res, "Missing folder, movieId, or hash parameter");
+        return respondBadRequest(
+          res,
+          'Missing folder, movieId, or hash parameter'
+        );
       }
       await streamBuildBlob(req, res, folder, movieId, hash);
       return true;
     }
 
-    case "resolve": {
-      const name = url.searchParams.get("name");
+    case 'resolve': {
+      const name = url.searchParams.get('name');
       if (!name) {
-        return respondBadRequest(res, "Missing name parameter");
+        return respondBadRequest(res, 'Missing name parameter');
       }
       try {
         const paths = await resolveBlueprintName(name);
-        res.setHeader("Content-Type", "application/json");
+        res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify(paths));
         return true;
       } catch (error) {
         res.statusCode = 400;
-        const message = error instanceof Error ? error.message : "Failed to resolve blueprint";
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Failed to resolve blueprint';
         res.end(JSON.stringify({ error: message }));
         return true;
       }
     }
 
-    case "producer-models": {
-      const blueprintPath = url.searchParams.get("path");
+    case 'producer-models': {
+      const blueprintPath = url.searchParams.get('path');
       if (!blueprintPath) {
-        return respondBadRequest(res, "Missing path parameter");
+        return respondBadRequest(res, 'Missing path parameter');
       }
-      const producerModels = await getProducerModelsFromBlueprint(blueprintPath, catalogRoot);
-      res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify(producerModels));
-      return true;
+      try {
+        const producerModels = await getProducerModelsFromBlueprint(
+          blueprintPath,
+          catalogRoot
+        );
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify(producerModels));
+        return true;
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Failed to resolve producer models';
+        return respondBadRequest(res, message);
+      }
     }
 
-    case "producer-config-schemas": {
-      const blueprintPath = url.searchParams.get("path");
+    case 'producer-config-schemas': {
+      const blueprintPath = url.searchParams.get('path');
       if (!blueprintPath) {
-        return respondBadRequest(res, "Missing path parameter");
+        return respondBadRequest(res, 'Missing path parameter');
       }
-      const configSchemas = await getProducerConfigSchemas(blueprintPath, catalogRoot);
-      res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify(configSchemas));
-      return true;
+      try {
+        const configSchemas = await getProducerConfigSchemas(
+          blueprintPath,
+          catalogRoot
+        );
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify(configSchemas));
+        return true;
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Failed to resolve producer config schemas';
+        return respondBadRequest(res, message);
+      }
     }
 
-    case "input-file": {
-      const folder = url.searchParams.get("folder");
-      const movieId = url.searchParams.get("movieId");
-      const filename = url.searchParams.get("filename");
+    case 'input-file': {
+      const folder = url.searchParams.get('folder');
+      const movieId = url.searchParams.get('movieId');
+      const filename = url.searchParams.get('filename');
       if (!folder || !movieId || !filename) {
-        return respondBadRequest(res, "Missing folder, movieId, or filename parameter");
+        return respondBadRequest(
+          res,
+          'Missing folder, movieId, or filename parameter'
+        );
       }
       await streamInputFile(req, res, folder, movieId, filename);
       return true;
