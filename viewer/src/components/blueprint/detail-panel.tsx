@@ -1,10 +1,10 @@
-import { useState, useCallback } from "react";
-import { InputsPanel } from "./inputs-panel";
-import { ModelsPanel } from "./models-panel";
-import { OutputsPanel } from "./outputs-panel";
-import { PreviewPanel } from "./preview-panel";
-import { ReadOnlyIndicator } from "./shared";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { useState, useCallback } from 'react';
+import { InputsPanel } from './inputs-panel';
+import { ModelsPanel } from './models-panel';
+import { OutputsPanel } from './outputs-panel';
+import { PreviewPanel } from './preview-panel';
+import { ReadOnlyIndicator } from './shared';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import type {
   BlueprintGraphData,
   InputTemplateData,
@@ -13,14 +13,14 @@ import type {
   PromptData,
   ConfigProperty,
   ProducerConfigSchemas,
-} from "@/types/blueprint-graph";
-import type { UseModelSelectionEditorResult } from "@/hooks";
-import type { ArtifactInfo } from "@/types/builds";
-import type { TimelineDocument } from "@/types/timeline";
-import type { ReactNode } from "react";
+} from '@/types/blueprint-graph';
+import type { UseModelSelectionEditorResult } from '@/hooks';
+import type { ArtifactInfo } from '@/types/builds';
+import type { TimelineDocument } from '@/types/timeline';
+import type { ReactNode } from 'react';
 
-type Tab = "inputs" | "models" | "outputs" | "preview";
-type TimelineStatus = "idle" | "loading" | "success" | "error";
+type Tab = 'inputs' | 'models' | 'outputs' | 'preview';
+type TimelineStatus = 'idle' | 'loading' | 'success' | 'error';
 
 interface DetailPanelProps {
   graphData: BlueprintGraphData;
@@ -112,7 +112,7 @@ export function DetailPanel({
   onArtifactUpdated,
 }: DetailPanelProps) {
   // Support both controlled and uncontrolled tab state
-  const [internalActiveTab, setInternalActiveTab] = useState<Tab>("inputs");
+  const [internalActiveTab, setInternalActiveTab] = useState<Tab>('inputs');
   const activeTab = controlledActiveTab ?? internalActiveTab;
   const setActiveTab = onTabChange ?? setInternalActiveTab;
 
@@ -133,39 +133,42 @@ export function DetailPanel({
   const showReadOnlyIndicator = !isInputsEditable && canEnableEditing;
 
   // Handle model selection changes - delegate to model editor hook
-  const handleModelChange = useCallback((selection: ModelSelectionValue) => {
-    modelEditor?.updateSelection(selection);
-  }, [modelEditor]);
+  const handleModelChange = useCallback(
+    (selection: ModelSelectionValue) => {
+      modelEditor?.updateSelection(selection);
+    },
+    [modelEditor]
+  );
 
   return (
-    <div className="flex flex-col h-full bg-card rounded-xl border border-border/60 overflow-hidden">
+    <div className='flex flex-col h-full bg-card rounded-xl border border-border/60 overflow-hidden'>
       {/* Tab buttons */}
-      <div className="flex items-center border-b border-border/40">
-        <div className="flex">
+      <div className='flex items-center border-b border-border/40'>
+        <div className='flex'>
           <TabButton
-            label="Inputs"
-            active={activeTab === "inputs"}
-            onClick={() => setActiveTab("inputs")}
+            label='Inputs'
+            active={activeTab === 'inputs'}
+            onClick={() => setActiveTab('inputs')}
           />
           <TabButton
-            label="Models"
-            active={activeTab === "models"}
-            onClick={() => setActiveTab("models")}
+            label='Models'
+            active={activeTab === 'models'}
+            onClick={() => setActiveTab('models')}
           />
           <TabButton
-            label="Outputs"
-            active={activeTab === "outputs"}
-            onClick={() => setActiveTab("outputs")}
+            label='Outputs'
+            active={activeTab === 'outputs'}
+            onClick={() => setActiveTab('outputs')}
           />
           <TabButton
-            label="Preview"
-            active={activeTab === "preview"}
-            onClick={() => setActiveTab("preview")}
+            label='Preview'
+            active={activeTab === 'preview'}
+            onClick={() => setActiveTab('preview')}
           />
         </div>
 
         {/* Right side: read-only indicator, action button, and theme toggle */}
-        <div className="ml-auto flex items-center gap-2 pr-3">
+        <div className='ml-auto flex items-center gap-2 pr-3'>
           {showReadOnlyIndicator && (
             <ReadOnlyIndicator
               onEnableEditing={handleEnableEditing}
@@ -178,8 +181,10 @@ export function DetailPanel({
       </div>
 
       {/* Tab content */}
-      <div className={`flex-1 overflow-auto ${activeTab === "preview" ? "" : "p-4"}`}>
-        {activeTab === "inputs" && (
+      <div
+        className={`flex-1 ${activeTab === 'preview' ? 'overflow-hidden' : 'overflow-auto p-4'}`}
+      >
+        {activeTab === 'inputs' && (
           <InputsPanel
             inputs={graphData.inputs}
             inputValues={inputData?.inputs ?? []}
@@ -190,7 +195,7 @@ export function DetailPanel({
             movieId={movieId}
           />
         )}
-        {activeTab === "models" && (
+        {activeTab === 'models' && (
           <ModelsPanel
             producerModels={producerModels}
             modelSelections={modelSelections}
@@ -208,7 +213,7 @@ export function DetailPanel({
             onConfigChange={onConfigChange}
           />
         )}
-        {activeTab === "outputs" && (
+        {activeTab === 'outputs' && (
           <OutputsPanel
             outputs={graphData.outputs}
             selectedNodeId={selectedNodeId}
@@ -219,7 +224,7 @@ export function DetailPanel({
             onArtifactUpdated={onArtifactUpdated}
           />
         )}
-        {activeTab === "preview" && (
+        {activeTab === 'preview' && (
           <PreviewPanel
             movieId={movieId}
             blueprintFolder={blueprintFolder}
@@ -251,14 +256,14 @@ function TabButton({
 }) {
   return (
     <button
-      type="button"
+      type='button'
       onClick={onClick}
       className={`
         px-4 py-2 text-sm font-medium transition-colors
         ${
           active
-            ? "text-foreground border-b-2 border-primary bg-primary/5"
-            : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            ? 'text-foreground border-b-2 border-primary bg-primary/5'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
         }
       `}
     >
