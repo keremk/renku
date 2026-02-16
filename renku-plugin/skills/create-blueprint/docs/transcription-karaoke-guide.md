@@ -85,7 +85,7 @@ artifacts:
 
 | Model | Provider | Description |
 |-------|----------|-------------|
-| `speech/transcription` | renku | Internal handler for transcription with karaoke subtitle support. Configure the actual STT backend via `config.sttProvider` and `config.sttModel`. |
+| `speech/transcription` | renku | Internal handler for transcription with karaoke subtitle support. Configure the actual STT backend via `config.stt.provider` and `config.stt.model`. |
 
 **Configuration:**
 ```yaml
@@ -93,9 +93,10 @@ artifacts:
   provider: renku
   producerId: TranscriptionProducer
   config:
-    sttProvider: fal-ai                    # Provider for STT API
-    sttModel: elevenlabs/speech-to-text    # Model for STT API
-    languageCode: eng                      # Optional: language code
+    stt:
+      provider: "fal-ai"                    # Provider for STT API
+      model: "elevenlabs/speech-to-text"    # Model for STT API
+      diarize: false                         # Optional: speaker diarization
 ```
 
 ### Transcription Output Structure
@@ -218,6 +219,28 @@ collectors:
     into: TimelineComposer.TranscriptionAudio
     groupBy: segment
 ```
+
+#### 4. Add the Transcription Track to TimelineComposer Config
+
+In the input template, add `"Transcription"` to the `tracks` array and a `transcriptionClip` entry in the TimelineComposer model config:
+
+```yaml
+  - model: timeline/ordered
+    provider: renku
+    producerId: TimelineComposer
+    config:
+      timeline:
+        tracks: ["Video", "Audio", "Transcription"]
+        masterTracks: ["Audio"]
+        videoClip:
+          artifact: VideoSegments
+        audioClip:
+          artifact: AudioSegments
+        transcriptionClip:
+          artifact: TranscriptionAudio
+```
+
+The `transcriptionClip` tells the timeline composer which collected audio artifact to use for the transcription track. Without this, the TranscriptionProducer won't have the audio timing information it needs.
 
 ### Dependency Order
 
@@ -469,15 +492,27 @@ models:
     provider: renku
     producerId: TimelineComposer
     config:
-      tracks: ["Video", "Audio", "Music"]
-      masterTracks: ["Audio"]
+      timeline:
+        tracks: ["Video", "Audio", "Music", "Transcription"]
+        masterTracks: ["Audio"]
+        videoClip:
+          artifact: VideoSegments
+        audioClip:
+          artifact: AudioSegments
+        musicClip:
+          artifact: Music
+          volume: 0.4
+        transcriptionClip:
+          artifact: TranscriptionAudio
 
   - model: speech/transcription
     provider: renku
     producerId: TranscriptionProducer
     config:
-      sttProvider: fal-ai
-      sttModel: elevenlabs/speech-to-text
+      stt:
+        provider: "fal-ai"
+        model: "elevenlabs/speech-to-text"
+        diarize: false
 ```
 
 ### Export Configuration: `export-config.yaml`

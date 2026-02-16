@@ -1642,16 +1642,21 @@ models:
     provider: renku
     producerId: TimelineComposer
     config:
-      masterTracks: ["Audio", "Video"]
-      videoClip:
-        artifact: VideoSegments
-      audioClip:
-        artifact: AudioSegments
-      musicClip:
-        artifact: Music
-        volume: 0.4
-      tracks: ["Video", "Audio", "Music"]
+      timeline:
+        tracks: ["Video", "Audio", "Music", "Transcription"]
+        masterTracks: ["Audio", "Video"]
+        videoClip:
+          artifact: VideoSegments
+        audioClip:
+          artifact: AudioSegments
+        musicClip:
+          artifact: Music
+          volume: 0.4
+        transcriptionClip:
+          artifact: TranscriptionAudio
 ```
+
+> **Note:** When using transcription with karaoke subtitles, include `"Transcription"` in the `tracks` array and add a `transcriptionClip` entry pointing to the `TranscriptionAudio` artifact. The transcription track carries audio clips used for word-level speech-to-text alignment.
 
 ### Complete Example
 
