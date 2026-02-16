@@ -25,6 +25,10 @@ import {
   type ArtifactRestoreRequest,
 } from "./artifact-edit-handler.js";
 import {
+  handleArtifactRecheck,
+  type ArtifactRecheckRequest,
+} from "./artifact-recheck-handler.js";
+import {
   getProducerPrompts,
   saveProducerPrompts,
   restoreProducerPrompts,
@@ -171,6 +175,15 @@ export async function handleBuildsSubRoute(
           return respondBadRequest(res, "Missing blueprintFolder, movieId, or artifactId");
         }
         await handleArtifactRestore(res, body);
+        return true;
+      }
+      if (artifactsSubAction === "recheck" && req.method === "POST") {
+        // JSON body for recheck status
+        const body = await parseJsonBody<ArtifactRecheckRequest>(req);
+        if (!body.blueprintFolder || !body.movieId || !body.artifactId) {
+          return respondBadRequest(res, "Missing blueprintFolder, movieId, or artifactId");
+        }
+        await handleArtifactRecheck(res, body);
         return true;
       }
       return respondNotFound(res);

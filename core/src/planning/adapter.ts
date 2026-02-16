@@ -19,6 +19,8 @@ export interface PlanAdapterArgs {
   blueprint: ProducerGraph;
   targetRevision: RevisionId;
   pendingEdits?: InputEvent[];
+  /** Resolved condition artifacts used to determine conditional job activity. */
+  resolvedConditionArtifacts?: Record<string, unknown>;
   /** Force re-run from this layer index onwards (0-indexed). Jobs at this layer and above will be included in the plan. */
   reRunFrom?: number;
   /** Surgical artifact regeneration configs - regenerate only the target artifacts and downstream dependencies. */
@@ -50,7 +52,9 @@ export interface PlanAdapterOptions {
   collectExplanation?: boolean;
 }
 
-export function createPlanAdapter(options: PlanAdapterOptions = {}): PlanAdapter {
+export function createPlanAdapter(
+  options: PlanAdapterOptions = {}
+): PlanAdapter {
   const planner = createPlanner({
     logger: options.logger,
     clock: options.clock,

@@ -401,12 +401,12 @@ describe('buildPlanResponse', () => {
       });
 
       expect(response.cliCommand).toContain(
-        '--aid=Artifact:AudioProducer.GeneratedAudio[0]'
+        "--aid='Artifact:AudioProducer.GeneratedAudio[0]'"
       );
       expect(response.cliCommand).toContain(
-        '--pin=Artifact:ScriptProducer.NarrationScript[0]'
+        "--pin='Artifact:ScriptProducer.NarrationScript[0]'"
       );
-      expect(response.cliCommand).toContain('--pin=Producer:ImageProducer');
+      expect(response.cliCommand).toContain("--pin='Producer:ImageProducer'");
     });
   });
 });

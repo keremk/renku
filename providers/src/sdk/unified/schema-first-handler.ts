@@ -1,11 +1,23 @@
 import { createProducerHandlerFactory } from '../handler-factory.js';
-import { createProviderError, SdkErrorCode, type ProviderError } from '../errors.js';
+import {
+  createProviderError,
+  SdkErrorCode,
+  type ProviderError,
+} from '../errors.js';
 import type { HandlerFactory, ProviderJobContext } from '../../types.js';
 import { buildArtefactsFromUrls, buildArtefactsFromJson } from './artefacts.js';
 import { extractPlannerContext } from './utils.js';
 import { validatePayload } from '../schema-validator.js';
-import type { ProviderAdapter, ProviderClient, ModelContext } from './provider-adapter.js';
-import { parseSchemaFile, resolveSchemaRefs, type SchemaFile } from './schema-file.js';
+import type {
+  ProviderAdapter,
+  ProviderClient,
+  ModelContext,
+} from './provider-adapter.js';
+import {
+  parseSchemaFile,
+  resolveSchemaRefs,
+  type SchemaFile,
+} from './schema-file.js';
 import { validateOutputWithLogging } from './output-validator.js';
 import { generateOutputFromSchema } from './output-generator.js';
 
@@ -21,7 +33,9 @@ export type UnifiedHandlerOptions = {
  * Creates a unified handler for any provider that implements ProviderAdapter.
  * This eliminates the need for separate handler implementations per provider/media-type.
  */
-export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFactory {
+export function createUnifiedHandler(
+  options: UnifiedHandlerOptions
+): HandlerFactory {
   const { adapter, outputMimeType, logKey = 'media', modelContext } = options;
 
   return (init) => {
@@ -43,11 +57,14 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
             schemaRegistry,
           });
         } catch (error) {
-          logger?.error?.(`providers.${adapter.name}.${logKey}.warmStart.error`, {
-            provider: descriptor.provider,
-            model: descriptor.model,
-            error: error instanceof Error ? error.message : String(error),
-          });
+          logger?.error?.(
+            `providers.${adapter.name}.${logKey}.warmStart.error`,
+            {
+              provider: descriptor.provider,
+              model: descriptor.model,
+              error: error instanceof Error ? error.message : String(error),
+            }
+          );
           notify?.publish({
             type: 'error',
             message: `Warm start failed for ${notificationLabel}: ${error instanceof Error ? error.message : String(error)}`,
@@ -75,22 +92,30 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
         const schemaFile = readSchemaFile(request);
         // Resolve $ref by merging definitions into the schema for AJV validation
         const inputSchemaString = schemaFile
-          ? JSON.stringify(resolveSchemaRefs(schemaFile.inputSchema, schemaFile.definitions))
+          ? JSON.stringify(
+              resolveSchemaRefs(schemaFile.inputSchema, schemaFile.definitions)
+            )
           : readInputSchema(request);
 
         if (!inputSchemaString) {
           throw createProviderError(
             SdkErrorCode.MISSING_INPUT_SCHEMA,
             `Missing input schema for ${adapter.name} provider.`,
-            { kind: 'unknown' },
+            { kind: 'unknown' }
           );
         }
 
-        const sdkPayload = await runtime.sdk.buildPayload(undefined, inputSchemaString);
+        const sdkPayload = await runtime.sdk.buildPayload(
+          undefined,
+          inputSchemaString
+        );
         validatePayload(inputSchemaString, sdkPayload, 'input');
         const input = { ...sdkPayload };
 
-        const modelIdentifier = adapter.formatModelIdentifier(request.model, modelContext);
+        const modelIdentifier = adapter.formatModelIdentifier(
+          request.model,
+          modelContext
+        );
 
         logger?.debug?.(`providers.${adapter.name}.${logKey}.invoke.start`, {
           provider: descriptor.provider,
@@ -107,6 +132,8 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
         });
 
         let predictionOutput: unknown;
+        // Track provider request ID for recovery (e.g., fal.ai requestId)
+        let providerRequestId: string | undefined;
 
         if (isSimulated) {
           // SIMULATED MODE: Generate output from schema instead of calling provider
@@ -137,16 +164,58 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
                 adapter.invoke(client!, modelIdentifier, input)
               );
             } else {
-              predictionOutput = await adapter.invoke(client!, modelIdentifier, input);
+              predictionOutput = await adapter.invoke(
+                client!,
+                modelIdentifier,
+                input
+              );
+            }
+
+            // Extract provider request ID if available (e.g., fal.ai returns { data, requestId })
+            if (
+              predictionOutput &&
+              typeof predictionOutput === 'object' &&
+              'requestId' in predictionOutput
+            ) {
+              providerRequestId = (predictionOutput as { requestId?: string })
+                .requestId;
             }
           } catch (error) {
-            const rawMessage = error instanceof Error ? error.message : String(error);
-            logger?.error?.(`providers.${adapter.name}.${logKey}.invoke.error`, {
-              provider: descriptor.provider,
-              model: request.model,
-              jobId: request.jobId,
-              error: rawMessage,
-            });
+            const rawMessage =
+              error instanceof Error ? error.message : String(error);
+
+            const recoveryError = error as {
+              falRequestId?: string;
+              providerRequestId?: string;
+              requestId?: string;
+              recoverable?: boolean;
+              reason?: string;
+              provider?: string;
+              model?: string;
+            };
+            providerRequestId =
+              recoveryError.providerRequestId ??
+              recoveryError.falRequestId ??
+              recoveryError.requestId ??
+              providerRequestId;
+            const recoverable = recoveryError.recoverable === true;
+            const reason =
+              typeof recoveryError.reason === 'string'
+                ? recoveryError.reason
+                : undefined;
+
+            logger?.error?.(
+              `providers.${adapter.name}.${logKey}.invoke.error`,
+              {
+                provider: descriptor.provider,
+                model: request.model,
+                jobId: request.jobId,
+                error: rawMessage,
+                providerRequestId,
+                recoverable,
+                reason,
+              }
+            );
             notify?.publish({
               type: 'error',
               message: `Provider ${notificationLabel} failed for job ${request.jobId}: ${rawMessage}`,
@@ -155,11 +224,44 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
             if (isProviderError(error)) {
               throw error;
             }
-            throw createProviderError(
+
+            // Create provider error with recovery info attached
+            const providerError = createProviderError(
               SdkErrorCode.PROVIDER_PREDICTION_FAILED,
               `${adapter.name} prediction failed: ${rawMessage}`,
-              { kind: 'transient', retryable: true, raw: error },
+              {
+                kind: 'transient',
+                retryable: true,
+                raw: error,
+                metadata: {
+                  provider: recoveryError.provider ?? adapter.name,
+                  model: recoveryError.model ?? request.model,
+                  ...(providerRequestId && { providerRequestId }),
+                  ...(recoverable && { recoverable: true }),
+                  ...(reason && { reason }),
+                },
+              }
             );
+
+            // Attach recovery info to the error for downstream handling
+            if (providerRequestId || recoverable) {
+              (
+                providerError as unknown as Record<string, unknown>
+              ).providerRequestId = providerRequestId;
+              (
+                providerError as unknown as Record<string, unknown>
+              ).recoverable = recoverable;
+              (providerError as unknown as Record<string, unknown>).provider =
+                recoveryError.provider ?? adapter.name;
+              (providerError as unknown as Record<string, unknown>).model =
+                recoveryError.model ?? request.model;
+              if (reason) {
+                (providerError as unknown as Record<string, unknown>).reason =
+                  reason;
+              }
+            }
+
+            throw providerError;
           }
         }
 
@@ -176,7 +278,9 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
         // - JSON outputs: the response IS the artifact data
         // - Media outputs: extract URLs and download content
         const isJsonOutput = outputMimeType === 'application/json';
-        const extras = request.context?.extras as Record<string, unknown> | undefined;
+        const extras = request.context?.extras as
+          | Record<string, unknown>
+          | undefined;
 
         let artefacts: import('@gorenku/core').ProducedArtefact[];
 
@@ -195,11 +299,15 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
             urls: outputUrls,
             mimeType: outputMimeType,
             mode: init.mode,
-            resolvedInputs: extras?.resolvedInputs as Record<string, unknown> | undefined,
+            resolvedInputs: extras?.resolvedInputs as
+              | Record<string, unknown>
+              | undefined,
           });
         }
 
-        const status = artefacts.some((a) => a.status === 'failed') ? 'failed' : 'succeeded';
+        const status = artefacts.some((a) => a.status === 'failed')
+          ? 'failed'
+          : 'succeeded';
 
         logger?.debug?.(`providers.${adapter.name}.${logKey}.invoke.end`, {
           provider: descriptor.provider,
@@ -226,6 +334,11 @@ export function createUnifiedHandler(options: UnifiedHandlerOptions): HandlerFac
             simulated: isSimulated,
             outputType: isJsonOutput ? 'json' : 'media',
             ...(isJsonOutput && { rawOutput: predictionOutput }),
+            // Include provider request ID for recovery on failed requests
+            ...(providerRequestId && {
+              providerRequestId,
+              recoverable: true,
+            }),
           },
         };
       },

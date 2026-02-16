@@ -460,6 +460,43 @@ export async function restoreArtifact(
   return response.json() as Promise<ArtifactRestoreResponse>;
 }
 
+/**
+ * Response from artifact recheck operation.
+ */
+export interface ArtifactRecheckResponse {
+  status: "recovered" | "still_pending" | "failed" | "not_recoverable";
+  artifact?: import("@/types/builds").ArtifactInfo;
+  message: string;
+}
+
+/**
+ * Rechecks a failed artifact's status with the provider.
+ * Useful for recovering from client-side timeouts where the job
+ * may have completed on the provider's servers.
+ */
+export async function recheckArtifact(
+  blueprintFolder: string,
+  movieId: string,
+  artifactId: string,
+): Promise<ArtifactRecheckResponse> {
+  const response = await fetch(`${API_BASE}/blueprints/builds/artifacts/recheck`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      blueprintFolder,
+      movieId,
+      artifactId,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    throw new Error(`Recheck failed: ${errorText}`);
+  }
+
+  return response.json() as Promise<ArtifactRecheckResponse>;
+}
+
 // --- Prompts API functions ---
 
 /**

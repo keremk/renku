@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Download,
   ExternalLink,
@@ -13,15 +13,17 @@ import {
   RotateCcw,
   Pin,
   PinOff,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+  AlertCircle,
+  Clock,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
   shortenArtifactDisplayName,
   groupArtifactsByProducer,
   sortProducersByTopology,
-} from "@/lib/artifact-utils";
-import { getOutputNameFromNodeId } from "@/lib/panel-utils";
-import { useExecution } from "@/contexts/execution-context";
+} from '@/lib/artifact-utils';
+import { getOutputNameFromNodeId } from '@/lib/panel-utils';
+import { useExecution } from '@/contexts/execution-context';
 import {
   MediaCard,
   MediaGrid,
@@ -32,16 +34,20 @@ import {
   AudioCard,
   ImageCard,
   type CardAction,
-} from "./shared";
-import { EditedBadge } from "./outputs/edited-badge";
-import { FileUploadDialog } from "./inputs/file-upload-dialog";
+} from './shared';
+import { EditedBadge } from './outputs/edited-badge';
+import { SkippedBadge } from './outputs/skipped-badge';
+import { FileUploadDialog } from './inputs/file-upload-dialog';
 import {
   editArtifactFile,
   editArtifactText,
   restoreArtifact,
-} from "@/data/blueprint-client";
-import type { BlueprintOutputDef, BlueprintGraphData } from "@/types/blueprint-graph";
-import type { ArtifactInfo } from "@/types/builds";
+} from '@/data/blueprint-client';
+import type {
+  BlueprintOutputDef,
+  BlueprintGraphData,
+} from '@/types/blueprint-graph';
+import type { ArtifactInfo } from '@/types/builds';
 
 interface OutputsPanelProps {
   outputs: BlueprintOutputDef[];
@@ -67,7 +73,7 @@ export function OutputsPanel({
 
   if (outputs.length === 0 && artifacts.length === 0) {
     return (
-      <div className="text-muted-foreground text-sm">
+      <div className='text-muted-foreground text-sm'>
         No outputs defined in this blueprint.
       </div>
     );
@@ -86,9 +92,9 @@ export function OutputsPanel({
   }
 
   return (
-    <div className="space-y-4">
+    <div className='space-y-4'>
       {!movieId && (
-        <div className="text-muted-foreground text-xs bg-muted/20 p-3 rounded-lg border border-border/30 mb-4">
+        <div className='text-muted-foreground text-xs bg-muted/20 p-3 rounded-lg border border-border/30 mb-4'>
           Select a build to view generated artifacts.
         </div>
       )}
@@ -118,26 +124,28 @@ function OutputDefinitionCard({
   return (
     <div
       className={cn(
-        "p-4 rounded-xl border transition-all shadow-lg",
+        'p-4 rounded-xl border transition-all shadow-lg',
         isSelected
-          ? "border-primary bg-primary/10 ring-2 ring-primary/40 shadow-xl -translate-y-0.5"
-          : "bg-card border-border hover:border-primary/70 hover:shadow-xl hover:-translate-y-0.5"
+          ? 'border-primary bg-primary/10 ring-2 ring-primary/40 shadow-xl -translate-y-0.5'
+          : 'bg-card border-border hover:border-primary/70 hover:shadow-xl hover:-translate-y-0.5'
       )}
     >
-      <div className="flex items-center gap-2 mb-1">
-        <span className="font-semibold text-sm text-foreground">{output.name}</span>
-        <span className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
+      <div className='flex items-center gap-2 mb-1'>
+        <span className='font-semibold text-sm text-foreground'>
+          {output.name}
+        </span>
+        <span className='text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded'>
           {output.type}
         </span>
         {output.itemType && (
-          <span className="text-xs text-muted-foreground">
+          <span className='text-xs text-muted-foreground'>
             ({output.itemType}[])
           </span>
         )}
       </div>
 
       {output.description && (
-        <p className="text-xs text-muted-foreground">{output.description}</p>
+        <p className='text-xs text-muted-foreground'>{output.description}</p>
       )}
     </div>
   );
@@ -172,26 +180,53 @@ function ArtifactGallery({
   // Group artifacts by producer and sort by topological order
   const { groupedByProducer, orderedProducers } = useMemo(() => {
     const grouped = groupArtifactsByProducer(artifacts);
-    const ordered = sortProducersByTopology(Array.from(grouped.keys()), graphData);
+    const ordered = sortProducersByTopology(
+      Array.from(grouped.keys()),
+      graphData
+    );
     return { groupedByProducer: grouped, orderedProducers: ordered };
   }, [artifacts, graphData]);
 
   return (
-    <div className="space-y-6">
+    <div className='space-y-6'>
       {orderedProducers.map((producerName) => {
         const producerArtifacts = groupedByProducer.get(producerName) ?? [];
         const artifactIds = producerArtifacts.map((a) => a.id);
         const generatedIds = producerArtifacts
-          .filter((a) => a.status === "succeeded")
+          .filter((a) => a.status === 'succeeded')
           .map((a) => a.id);
 
-        const selectedCount = artifactIds.filter((id) => isArtifactSelected(id)).length;
-        const allSelected = selectedCount === artifactIds.length && artifactIds.length > 0;
-        const someSelected = selectedCount > 0 && selectedCount < artifactIds.length;
+        const selectedCount = artifactIds.filter((id) =>
+          isArtifactSelected(id)
+        ).length;
+        const allSelected =
+          selectedCount === artifactIds.length && artifactIds.length > 0;
+        const someSelected =
+          selectedCount > 0 && selectedCount < artifactIds.length;
 
-        const pinnedCount = generatedIds.filter((id) => isArtifactPinned(id)).length;
-        const allPinned = pinnedCount === generatedIds.length && generatedIds.length > 0;
+        const pinnedCount = generatedIds.filter((id) =>
+          isArtifactPinned(id)
+        ).length;
+        const allPinned =
+          pinnedCount === generatedIds.length && generatedIds.length > 0;
         const somePinned = pinnedCount > 0 && pinnedCount < generatedIds.length;
+
+        // Compute skip/failure status for section header
+        const skippedArtifacts = producerArtifacts.filter(
+          (a) => a.status === 'skipped'
+        );
+        const failedArtifacts = producerArtifacts.filter(
+          (a) => a.status === 'failed'
+        );
+        const allSkipped = skippedArtifacts.length === producerArtifacts.length;
+        const allFailed = failedArtifacts.length === producerArtifacts.length;
+        const hasSkippedOrFailed =
+          skippedArtifacts.length > 0 || failedArtifacts.length > 0;
+
+        // Determine primary skip reason for badge
+        const primarySkipReason =
+          skippedArtifacts[0]?.failureReason ??
+          failedArtifacts[0]?.failureReason;
 
         const handleSelectAll = () => {
           if (allSelected) {
@@ -221,6 +256,10 @@ function ArtifactGallery({
             somePinned={somePinned}
             hasGenerated={generatedIds.length > 0}
             onPinAll={handlePinAll}
+            allSkipped={allSkipped}
+            allFailed={allFailed}
+            hasSkippedOrFailed={hasSkippedOrFailed}
+            skipReason={primarySkipReason}
             defaultOpen
           >
             <MediaGrid>
@@ -266,7 +305,12 @@ function ArtifactCardRenderer({
   isPinned: boolean;
   onArtifactUpdated?: () => void;
 }) {
-  if (artifact.mimeType.startsWith("video/")) {
+  // Handle failed or skipped artifacts first
+  if (artifact.status === 'failed' || artifact.status === 'skipped') {
+    return <FailedArtifactCard artifact={artifact} isSelected={isSelected} />;
+  }
+
+  if (artifact.mimeType.startsWith('video/')) {
     return (
       <MediaArtifactCard
         artifact={artifact}
@@ -275,11 +319,11 @@ function ArtifactCardRenderer({
         isSelected={isSelected}
         isPinned={isPinned}
         onArtifactUpdated={onArtifactUpdated}
-        mediaType="video"
+        mediaType='video'
       />
     );
   }
-  if (artifact.mimeType.startsWith("audio/")) {
+  if (artifact.mimeType.startsWith('audio/')) {
     return (
       <MediaArtifactCard
         artifact={artifact}
@@ -288,11 +332,11 @@ function ArtifactCardRenderer({
         isSelected={isSelected}
         isPinned={isPinned}
         onArtifactUpdated={onArtifactUpdated}
-        mediaType="audio"
+        mediaType='audio'
       />
     );
   }
-  if (artifact.mimeType.startsWith("image/")) {
+  if (artifact.mimeType.startsWith('image/')) {
     return (
       <MediaArtifactCard
         artifact={artifact}
@@ -301,11 +345,14 @@ function ArtifactCardRenderer({
         isSelected={isSelected}
         isPinned={isPinned}
         onArtifactUpdated={onArtifactUpdated}
-        mediaType="image"
+        mediaType='image'
       />
     );
   }
-  if (artifact.mimeType.startsWith("text/") || artifact.mimeType === "application/json") {
+  if (
+    artifact.mimeType.startsWith('text/') ||
+    artifact.mimeType === 'application/json'
+  ) {
     return (
       <ArtifactTextCard
         artifact={artifact}
@@ -317,7 +364,13 @@ function ArtifactCardRenderer({
       />
     );
   }
-  return <GenericCard artifact={artifact} isSelected={isSelected} isPinned={isPinned} />;
+  return (
+    <GenericCard
+      artifact={artifact}
+      isSelected={isSelected}
+      isPinned={isPinned}
+    />
+  );
 }
 
 // ============================================================================
@@ -334,6 +387,10 @@ function ProducerArtifactSection({
   somePinned = false,
   hasGenerated = false,
   onPinAll,
+  allSkipped = false,
+  allFailed = false,
+  hasSkippedOrFailed: _hasSkippedOrFailed = false,
+  skipReason,
   defaultOpen = true,
   children,
 }: {
@@ -346,6 +403,10 @@ function ProducerArtifactSection({
   somePinned?: boolean;
   hasGenerated?: boolean;
   onPinAll?: () => void;
+  allSkipped?: boolean;
+  allFailed?: boolean;
+  hasSkippedOrFailed?: boolean;
+  skipReason?: import('@/types/builds').ArtifactFailureReason;
   defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
@@ -360,51 +421,61 @@ function ProducerArtifactSection({
   };
 
   const actions = (
-    <div className="flex items-center gap-1">
+    <div className='flex items-center gap-1'>
       {hasGenerated && onPinAll && (
         <button
-          type="button"
+          type='button'
           onClick={handlePinClick}
           className={cn(
-            "flex items-center gap-1.5 px-2 py-1 rounded hover:bg-muted transition-colors text-xs",
-            allPinned || somePinned ? "text-amber-500" : "text-muted-foreground"
+            'flex items-center gap-1.5 px-2 py-1 rounded hover:bg-muted transition-colors text-xs',
+            allPinned || somePinned ? 'text-amber-500' : 'text-muted-foreground'
           )}
-          title={allPinned ? "Unpin all" : "Pin all (keep from regeneration)"}
+          title={allPinned ? 'Unpin all' : 'Pin all (keep from regeneration)'}
         >
           <span>Keep</span>
           {allPinned ? (
-            <Pin className="size-4" />
+            <Pin className='size-4' />
           ) : somePinned ? (
-            <Pin className="size-4 opacity-50" />
+            <Pin className='size-4 opacity-50' />
           ) : (
-            <PinOff className="size-4" />
+            <PinOff className='size-4' />
           )}
         </button>
       )}
       <button
-        type="button"
+        type='button'
         onClick={handleCheckboxClick}
         className={cn(
-          "flex items-center gap-1.5 px-2 py-1 rounded hover:bg-muted transition-colors text-xs",
-          allSelected || someSelected ? "text-primary" : "text-muted-foreground"
+          'flex items-center gap-1.5 px-2 py-1 rounded hover:bg-muted transition-colors text-xs',
+          allSelected || someSelected ? 'text-primary' : 'text-muted-foreground'
         )}
-        title={allSelected ? "Deselect all" : "Select all for regeneration"}
+        title={allSelected ? 'Deselect all' : 'Select all for regeneration'}
       >
         <span>Generate Again</span>
         {allSelected ? (
-          <CheckSquare className="size-4" />
+          <CheckSquare className='size-4' />
         ) : someSelected ? (
-          <Square className="size-4 fill-primary/30" />
+          <Square className='size-4 fill-primary/30' />
         ) : (
-          <Square className="size-4" />
+          <Square className='size-4' />
         )}
       </button>
     </div>
   );
 
+  // Build title with optional skip badge
+  const titleWithBadge = (
+    <div className='flex items-center gap-2'>
+      <span>{producerName}</span>
+      {(allSkipped || allFailed) && skipReason && (
+        <SkippedBadge reason={skipReason} />
+      )}
+    </div>
+  );
+
   return (
     <CollapsibleSection
-      title={producerName}
+      title={titleWithBadge}
       count={count}
       defaultOpen={defaultOpen}
       actions={actions}
@@ -439,12 +510,17 @@ function ArtifactCardFooter({
   onEdit,
   onRestore,
 }: ArtifactCardFooterProps) {
-  const { isArtifactSelected, toggleArtifactSelection, isArtifactPinned, toggleArtifactPin } = useExecution();
+  const {
+    isArtifactSelected,
+    toggleArtifactSelection,
+    isArtifactPinned,
+    toggleArtifactPin,
+  } = useExecution();
   const isSelected = isArtifactSelected(artifactId);
   const isPinned = isArtifactPinned(artifactId);
 
   const handleDownload = useCallback(() => {
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = url;
     a.download = downloadName;
     a.click();
@@ -455,7 +531,7 @@ function ArtifactCardFooter({
   }, [url]);
 
   const handleOpenInNewTab = useCallback(() => {
-    window.open(url, "_blank");
+    window.open(url, '_blank');
   }, [url]);
 
   const handleToggleRegeneration = useCallback(() => {
@@ -472,8 +548,8 @@ function ArtifactCardFooter({
 
     if (onEdit) {
       result.push({
-        id: "edit",
-        label: "Edit",
+        id: 'edit',
+        label: 'Edit',
         icon: Pencil,
         onClick: onEdit,
       });
@@ -481,34 +557,42 @@ function ArtifactCardFooter({
 
     if (isEdited && onRestore) {
       result.push({
-        id: "restore",
-        label: "Restore Original",
+        id: 'restore',
+        label: 'Restore Original',
         icon: RotateCcw,
         onClick: onRestore,
       });
     }
 
     result.push({
-      id: "regenerate",
-      label: "Generate Again",
+      id: 'regenerate',
+      label: 'Generate Again',
       icon: RefreshCw,
       onClick: handleToggleRegeneration,
-      suffix: <Check className={`size-4 ${isSelected ? "text-primary" : "invisible"}`} />,
+      suffix: (
+        <Check
+          className={`size-4 ${isSelected ? 'text-primary' : 'invisible'}`}
+        />
+      ),
     });
 
     result.push({
-      id: "pin",
-      label: "Keep (Pin)",
+      id: 'pin',
+      label: 'Keep (Pin)',
       icon: Pin,
       onClick: handleTogglePin,
-      suffix: <Pin className={`size-4 ${isPinned ? "text-amber-500" : "invisible"}`} />,
+      suffix: (
+        <Pin
+          className={`size-4 ${isPinned ? 'text-amber-500' : 'invisible'}`}
+        />
+      ),
     });
 
     // Add separator before file actions
     if (onExpand) {
       result.push({
-        id: "expand",
-        label: "Expand",
+        id: 'expand',
+        label: 'Expand',
         icon: Maximize2,
         onClick: onExpand,
         separator: true,
@@ -516,29 +600,41 @@ function ArtifactCardFooter({
     }
 
     result.push({
-      id: "download",
-      label: "Download",
+      id: 'download',
+      label: 'Download',
       icon: Download,
       onClick: handleDownload,
       separator: !onExpand,
     });
 
     result.push({
-      id: "open-new-tab",
-      label: "Open in new tab",
+      id: 'open-new-tab',
+      label: 'Open in new tab',
       icon: ExternalLink,
       onClick: handleOpenInNewTab,
     });
 
     result.push({
-      id: "copy-url",
-      label: "Copy URL",
+      id: 'copy-url',
+      label: 'Copy URL',
       icon: Copy,
       onClick: handleCopyUrl,
     });
 
     return result;
-  }, [onEdit, isEdited, onRestore, onExpand, handleToggleRegeneration, handleTogglePin, handleDownload, handleOpenInNewTab, handleCopyUrl, isSelected, isPinned]);
+  }, [
+    onEdit,
+    isEdited,
+    onRestore,
+    onExpand,
+    handleToggleRegeneration,
+    handleTogglePin,
+    handleDownload,
+    handleOpenInNewTab,
+    handleCopyUrl,
+    isSelected,
+    isPinned,
+  ]);
 
   return (
     <CardActionsFooter
@@ -553,7 +649,7 @@ function ArtifactCardFooter({
 // Media Artifact Card (unified component for video, audio, and image artifacts)
 // ============================================================================
 
-type MediaType = "video" | "audio" | "image";
+type MediaType = 'video' | 'audio' | 'image';
 
 function MediaArtifactCard({
   artifact,
@@ -575,7 +671,7 @@ function MediaArtifactCard({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const url = getBlobUrl(blueprintFolder, movieId, artifact.hash);
   const displayName = shortenArtifactDisplayName(artifact.id);
-  const isEdited = artifact.editedBy === "user";
+  const isEdited = artifact.editedBy === 'user';
 
   const handleEdit = () => setIsEditDialogOpen(true);
 
@@ -608,7 +704,7 @@ function MediaArtifactCard({
 
   return (
     <>
-      {mediaType === "video" && (
+      {mediaType === 'video' && (
         <VideoCard
           url={url}
           title={displayName}
@@ -617,7 +713,7 @@ function MediaArtifactCard({
           footer={footer}
         />
       )}
-      {mediaType === "audio" && (
+      {mediaType === 'audio' && (
         <AudioCard
           url={url}
           title={displayName}
@@ -626,7 +722,7 @@ function MediaArtifactCard({
           footer={footer}
         />
       )}
-      {mediaType === "image" && (
+      {mediaType === 'image' && (
         <ImageCard
           url={url}
           title={displayName}
@@ -673,7 +769,7 @@ function ArtifactTextCard({
   const [isSaving, setIsSaving] = useState(false);
   const url = getBlobUrl(blueprintFolder, movieId, artifact.hash);
   const displayName = shortenArtifactDisplayName(artifact.id);
-  const isEdited = artifact.editedBy === "user";
+  const isEdited = artifact.editedBy === 'user';
 
   useEffect(() => {
     let cancelled = false;
@@ -686,9 +782,9 @@ function ArtifactTextCard({
           setContent(text);
         }
       } catch (error) {
-        console.error("[TextCard] Failed to load content:", error);
+        console.error('[TextCard] Failed to load content:', error);
         if (!cancelled) {
-          setContent("Failed to load content");
+          setContent('Failed to load content');
         }
       } finally {
         if (!cancelled) {
@@ -717,7 +813,7 @@ function ArtifactTextCard({
       setIsEditDialogOpen(false);
       onArtifactUpdated?.();
     } catch (error) {
-      console.error("[TextCard] Edit failed:", error);
+      console.error('[TextCard] Edit failed:', error);
     } finally {
       setIsSaving(false);
     }
@@ -728,16 +824,16 @@ function ArtifactTextCard({
       await restoreArtifact(blueprintFolder, movieId, artifact.id);
       onArtifactUpdated?.();
     } catch (error) {
-      console.error("[TextCard] Restore failed:", error);
+      console.error('[TextCard] Restore failed:', error);
     }
   };
 
-  const isJson = artifact.mimeType === "application/json";
+  const isJson = artifact.mimeType === 'application/json';
   const displayContent = content
     ? isJson
       ? formatJson(content)
-      : content.slice(0, 500) + (content.length > 500 ? "..." : "")
-    : "";
+      : content.slice(0, 500) + (content.length > 500 ? '...' : '')
+    : '';
 
   return (
     <>
@@ -758,21 +854,21 @@ function ArtifactTextCard({
         }
       >
         <button
-          type="button"
+          type='button'
           onClick={() => setIsExpanded(true)}
-          className="aspect-video w-full bg-muted/30 p-3 text-left overflow-hidden group relative"
+          className='aspect-video w-full bg-muted/30 p-3 text-left overflow-hidden group relative'
         >
           {isLoading ? (
-            <div className="flex items-center justify-center h-full">
-              <span className="text-muted-foreground text-sm">Loading...</span>
+            <div className='flex items-center justify-center h-full'>
+              <span className='text-muted-foreground text-sm'>Loading...</span>
             </div>
           ) : (
             <>
-              <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap overflow-hidden h-full">
+              <pre className='text-xs text-muted-foreground font-mono whitespace-pre-wrap overflow-hidden h-full'>
                 {displayContent}
               </pre>
-              <div className="absolute inset-0 bg-linear-to-t from-muted/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <Maximize2 className="size-8 text-foreground" />
+              <div className='absolute inset-0 bg-linear-to-t from-muted/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center'>
+                <Maximize2 className='size-8 text-foreground' />
               </div>
             </>
           )}
@@ -780,25 +876,25 @@ function ArtifactTextCard({
       </MediaCard>
 
       <TextEditorDialog
-        key={isExpanded ? `view-${artifact.hash}` : "closed-view"}
+        key={isExpanded ? `view-${artifact.hash}` : 'closed-view'}
         open={isExpanded}
         onOpenChange={setIsExpanded}
         title={displayName}
-        content={content ?? ""}
+        content={content ?? ''}
         mimeType={artifact.mimeType}
-        size="large"
+        size='large'
       />
 
       <TextEditorDialog
-        key={isEditDialogOpen ? `edit-${artifact.hash}` : "closed"}
+        key={isEditDialogOpen ? `edit-${artifact.hash}` : 'closed'}
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         title={displayName}
-        content={content ?? ""}
+        content={content ?? ''}
         mimeType={artifact.mimeType}
         onSave={handleSaveEdit}
         isSaving={isSaving}
-        size="large"
+        size='large'
       />
     </>
   );
@@ -827,31 +923,138 @@ function GenericCard({
       isPinned={isPinned}
       footer={
         <>
-          <span className="text-xs text-foreground truncate flex-1" title={displayName}>
+          <span
+            className='text-xs text-foreground truncate flex-1'
+            title={displayName}
+          >
             {displayName}
           </span>
           <button
-            type="button"
+            type='button'
             onClick={() => toggleArtifactSelection(artifact.id)}
             className={cn(
-              "p-1 rounded hover:bg-muted transition-colors",
-              selected ? "text-primary" : "text-muted-foreground"
+              'p-1 rounded hover:bg-muted transition-colors',
+              selected ? 'text-primary' : 'text-muted-foreground'
             )}
-            title={selected ? "Deselect" : "Select for regeneration"}
+            title={selected ? 'Deselect' : 'Select for regeneration'}
           >
-            <RefreshCw className="size-3" />
+            <RefreshCw className='size-3' />
           </button>
-          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+          <span className='text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded'>
             {artifact.mimeType}
           </span>
         </>
       }
     >
-      <div className="aspect-video bg-muted/30 flex flex-col items-center justify-center gap-2">
-        <File className="size-12 text-muted-foreground" />
-        <span className="text-xs text-muted-foreground">
+      <div className='aspect-video bg-muted/30 flex flex-col items-center justify-center gap-2'>
+        <File className='size-12 text-muted-foreground' />
+        <span className='text-xs text-muted-foreground'>
           {formatFileSize(artifact.size)}
         </span>
+      </div>
+    </MediaCard>
+  );
+}
+
+// ============================================================================
+// Failed/Skipped Artifact Card
+// ============================================================================
+
+function FailedArtifactCard({
+  artifact,
+  isSelected,
+}: {
+  artifact: ArtifactInfo;
+  isSelected: boolean;
+}) {
+  const { toggleArtifactSelection } = useExecution();
+  const displayName = shortenArtifactDisplayName(artifact.id);
+
+  const isSkipped = artifact.status === 'skipped';
+  const isFailed = artifact.status === 'failed';
+  const isRecoverable =
+    artifact.recoverable === true &&
+    typeof artifact.providerRequestId === 'string' &&
+    artifact.providerRequestId.length > 0;
+  const isConditionalSkip = artifact.failureReason === 'conditions_not_met';
+
+  const handleToggleRegeneration = useCallback(() => {
+    toggleArtifactSelection(artifact.id);
+  }, [toggleArtifactSelection, artifact.id]);
+
+  // Determine icon and styling based on failure type
+  const Icon = isConditionalSkip ? Clock : AlertCircle;
+  const iconColor = isConditionalSkip
+    ? 'text-muted-foreground'
+    : 'text-destructive';
+  const borderColor = isConditionalSkip
+    ? 'border-muted'
+    : 'border-destructive/50';
+
+  // Build failure message
+  let failureMessage = '';
+  if (artifact.skipMessage) {
+    failureMessage = artifact.skipMessage;
+  } else if (artifact.failureReason === 'timeout') {
+    failureMessage = 'Request timed out';
+  } else if (artifact.failureReason === 'connection_error') {
+    failureMessage = 'Connection failed';
+  } else if (artifact.failureReason === 'upstream_failure') {
+    failureMessage = 'Dependency failed';
+  } else if (artifact.failureReason === 'conditions_not_met') {
+    failureMessage = 'Conditions not met';
+  } else if (isFailed) {
+    failureMessage = 'Generation failed';
+  } else if (isSkipped) {
+    failureMessage = 'Skipped';
+  }
+
+  return (
+    <MediaCard
+      isSelected={isSelected}
+      className={borderColor}
+      footer={
+        <div className='flex items-center justify-between w-full gap-2'>
+          <span
+            className='text-xs text-foreground truncate flex-1'
+            title={displayName}
+          >
+            {displayName}
+          </span>
+          <div className='flex items-center gap-1'>
+            <button
+              type='button'
+              onClick={handleToggleRegeneration}
+              className={cn(
+                'p-1 rounded hover:bg-muted transition-colors',
+                isSelected ? 'text-primary' : 'text-muted-foreground'
+              )}
+              title={isSelected ? 'Deselect' : 'Select for regeneration'}
+            >
+              <RefreshCw className='size-3' />
+            </button>
+          </div>
+        </div>
+      }
+    >
+      <div className='aspect-video bg-muted/30 flex flex-col items-center justify-center gap-3 p-4'>
+        <Icon className={cn('size-12', iconColor)} />
+        <div className='text-center'>
+          <p className={cn('text-sm font-medium', iconColor)}>
+            {failureMessage}
+          </p>
+          {artifact.provider && (
+            <p className='text-xs text-muted-foreground mt-1'>
+              {artifact.provider}
+              {artifact.model && ` / ${artifact.model}`}
+            </p>
+          )}
+          {isRecoverable && (
+            <p className='text-xs text-muted-foreground mt-2 bg-muted/50 px-2 py-1 rounded'>
+              Will be rechecked automatically on Run.
+            </p>
+          )}
+        </div>
       </div>
     </MediaCard>
   );
@@ -861,9 +1064,13 @@ function GenericCard({
 // Utilities
 // ============================================================================
 
-function getBlobUrl(blueprintFolder: string, movieId: string, hash: string): string {
+function getBlobUrl(
+  blueprintFolder: string,
+  movieId: string,
+  hash: string
+): string {
   if (!blueprintFolder || !movieId || !hash) {
-    console.warn("[getBlobUrl] Missing required parameters:", {
+    console.warn('[getBlobUrl] Missing required parameters:', {
       blueprintFolder: !!blueprintFolder,
       movieId: !!movieId,
       hash: !!hash,
@@ -880,7 +1087,8 @@ function getBlobUrl(blueprintFolder: string, movieId: string, hash: string): str
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 

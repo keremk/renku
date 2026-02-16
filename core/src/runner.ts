@@ -1,13 +1,29 @@
 import { Buffer } from 'node:buffer';
-import { resolveArtifactsFromEventLog, readBlob, resolveArtifactBlobPaths, findFailedArtifacts } from './artifact-resolver.js';
-import { formatCanonicalArtifactId, isCanonicalArtifactId } from './canonical-ids.js';
+import {
+  resolveArtifactsFromEventLog,
+  readBlob,
+  resolveArtifactBlobPaths,
+  findFailedArtifacts,
+} from './artifact-resolver.js';
+import {
+  formatCanonicalArtifactId,
+  isCanonicalArtifactId,
+} from './canonical-ids.js';
 import type { EventLog } from './event-log.js';
 import { hashInputContents } from './hashing.js';
 import { createManifestService, type ManifestService } from './manifest.js';
 import type { StorageContext } from './storage.js';
 import { persistBlobToStorage } from './blob-utils.js';
-import { isBlobRef, type EdgeConditionClause, type EdgeConditionDefinition, type EdgeConditionGroup } from './types.js';
-import { evaluateInputConditions, type ConditionEvaluationContext } from './condition-evaluator.js';
+import {
+  isBlobRef,
+  type EdgeConditionClause,
+  type EdgeConditionDefinition,
+  type EdgeConditionGroup,
+} from './types.js';
+import {
+  evaluateInputConditions,
+  type ConditionEvaluationContext,
+} from './condition-evaluator.js';
 import { createRuntimeError, RuntimeErrorCode } from './errors/index.js';
 import {
   type ArtefactEvent,
@@ -81,7 +97,10 @@ export function createRunner(options: RunnerOptions = {}) {
   const baseNotifications = options.notifications;
 
   return {
-    async execute(plan: ExecutionPlan, context: RunnerExecutionContext): Promise<RunResult> {
+    async execute(
+      plan: ExecutionPlan,
+      context: RunnerExecutionContext
+    ): Promise<RunResult> {
       const clock = context.clock ?? baseClock;
       const logger = context.logger ?? baseLogger;
       const produce = context.produce ?? baseProduce;
@@ -89,7 +108,8 @@ export function createRunner(options: RunnerOptions = {}) {
       const eventLog = context.eventLog;
       const notifications = context.notifications ?? baseNotifications;
 
-      const manifestService = context.manifestService ?? createManifestService(storage);
+      const manifestService =
+        context.manifestService ?? createManifestService(storage);
 
       const startedAt = clock.now();
       const jobs: JobResult[] = [];
@@ -98,7 +118,11 @@ export function createRunner(options: RunnerOptions = {}) {
       // This ensures hashInputContents in later layers resolves correct upstream hashes.
       let runningManifest = context.manifest;
 
-      for (let layerIndex = 0; layerIndex < plan.layers.length; layerIndex += 1) {
+      for (
+        let layerIndex = 0;
+        layerIndex < plan.layers.length;
+        layerIndex += 1
+      ) {
         const layer = plan.layers[layerIndex] ?? [];
         if (layer.length === 0) {
           continue;
@@ -132,7 +156,10 @@ export function createRunner(options: RunnerOptions = {}) {
           jobs.push(jobResult);
 
           // Update running manifest with produced artifacts so later layers see correct hashes
-          runningManifest = accumulateArtifacts(runningManifest, jobResult.artefacts);
+          runningManifest = accumulateArtifacts(
+            runningManifest,
+            jobResult.artefacts
+          );
         }
 
         logger.info?.('runner.layer.end', {
@@ -148,7 +175,9 @@ export function createRunner(options: RunnerOptions = {}) {
       }
 
       const completedAt = clock.now();
-      const status: RunResult['status'] = jobs.some((job) => job.status === 'failed')
+      const status: RunResult['status'] = jobs.some(
+        (job) => job.status === 'failed'
+      )
         ? 'failed'
         : 'succeeded';
 
@@ -171,13 +200,17 @@ export function createRunner(options: RunnerOptions = {}) {
       };
     },
 
-    async executeJob(job: JobDescriptor, ctx: SingleJobExecutionContext): Promise<JobResult> {
+    async executeJob(
+      job: JobDescriptor,
+      ctx: SingleJobExecutionContext
+    ): Promise<JobResult> {
       const clock = ctx.clock ?? baseClock;
       const logger = ctx.logger ?? baseLogger;
       const produce = ctx.produce ?? baseProduce;
       const storage = ctx.storage;
       const _eventLog = ctx.eventLog;
-      const manifestService = ctx.manifestService ?? createManifestService(storage);
+      const manifestService =
+        ctx.manifestService ?? createManifestService(storage);
 
       return executeJob(job, {
         ...ctx,
@@ -207,13 +240,25 @@ function createStubProduce(): ProduceFn {
 
 async function executeJob(
   job: JobDescriptor,
-  context: RunnerJobContext,
+  context: RunnerJobContext
 ): Promise<JobResult> {
-  const { movieId, layerIndex, attempt, revision, produce, logger, clock, storage, eventLog } = context;
+  const {
+    movieId,
+    layerIndex,
+    attempt,
+    revision,
+    produce,
+    logger,
+    clock,
+    storage,
+    eventLog,
+  } = context;
   const notifications = context.notifications;
   const startedAt = clock.now();
   const inputsHash = hashInputContents(job.inputs, context.manifest);
-  const expectedArtefacts = job.produces.filter((id) => isCanonicalArtifactId(id));
+  const expectedArtefacts = job.produces.filter((id) =>
+    isCanonicalArtifactId(id)
+  );
 
   try {
     // Collect all required artifact IDs for this job
@@ -291,7 +336,10 @@ async function executeJob(
       const conditionContext: ConditionEvaluationContext = {
         resolvedArtifacts,
       };
-      const conditionResults = evaluateInputConditions(inputConditions, conditionContext);
+      const conditionResults = evaluateInputConditions(
+        inputConditions,
+        conditionContext
+      );
 
       // Determine which inputs are conditional
       const conditionalInputIds = new Set(Object.keys(inputConditions));
@@ -316,13 +364,19 @@ async function executeJob(
 
       // Check if any fanIn has unconditional members
       const fanIn = job.context?.fanIn;
-      const hasUnconditionalFanInMembers = fanIn && Object.values(fanIn).some((spec) =>
-        spec.members.some((member) => !conditionalInputIds.has(member.id)),
-      );
+      const hasUnconditionalFanInMembers =
+        fanIn &&
+        Object.values(fanIn).some((spec) =>
+          spec.members.some((member) => !conditionalInputIds.has(member.id))
+        );
 
       // If there are conditional inputs but none are satisfied, skip the job
       // UNLESS there are unconditional artifact inputs or fanIn members that provide data
-      if (!anySatisfied && !hasUnconditionalArtifactInputs && !hasUnconditionalFanInMembers) {
+      if (
+        !anySatisfied &&
+        !hasUnconditionalArtifactInputs &&
+        !hasUnconditionalFanInMembers
+      ) {
         const completedAt = clock.now();
         logger.info?.('runner.job.skipped', {
           movieId,
@@ -375,14 +429,15 @@ async function executeJob(
     // and resolve their blob paths from the event log.
     // This ensures exporters get fresh paths even when manifest is stale.
     const assetIds = extractAssetIdsFromResolved(resolvedArtifacts);
-    const assetBlobPaths = assetIds.length > 0
-      ? await resolveArtifactBlobPaths({
-          artifactIds: assetIds,
-          eventLog,
-          storage,
-          movieId,
-        })
-      : {};
+    const assetBlobPaths =
+      assetIds.length > 0
+        ? await resolveArtifactBlobPaths({
+            artifactIds: assetIds,
+            eventLog,
+            storage,
+            movieId,
+          })
+        : {};
 
     // Merge asset blob paths into job context
     const jobWithAssetPaths = mergeAssetBlobPaths(enrichedJob, assetBlobPaths);
@@ -391,7 +446,7 @@ async function executeJob(
     const jobWithResolvedBlobs = await resolveBlobRefsInJobContext(
       jobWithAssetPaths,
       storage,
-      movieId,
+      movieId
     );
 
     const result = await produce({
@@ -427,7 +482,12 @@ async function executeJob(
       artefacts: artefacts.length,
     });
     notifications?.publish({
-      type: status === 'failed' ? 'error' : status === 'skipped' ? 'warning' : 'success',
+      type:
+        status === 'failed'
+          ? 'error'
+          : status === 'skipped'
+            ? 'warning'
+            : 'success',
       message: `Job ${job.jobId} [${job.producer}] ${status}.`,
       timestamp: completedAt,
     });
@@ -446,6 +506,7 @@ async function executeJob(
   } catch (error) {
     const completedAt = clock.now();
     const serialized = serializeError(error);
+    const failureDiagnostics = buildFailureDiagnostics(error, serialized);
 
     // Record failed artefacts for observability even when produce throws.
     try {
@@ -457,7 +518,7 @@ async function executeJob(
           output: {},
           status: 'failed',
           producedBy: job.jobId,
-          diagnostics: { error: serialized },
+          diagnostics: failureDiagnostics,
           createdAt: clock.now(),
         };
         await eventLog.appendArtefact(movieId, event);
@@ -475,7 +536,7 @@ async function executeJob(
       throw createRuntimeError(
         RuntimeErrorCode.ARTIFACT_RESOLUTION_FAILED,
         `Failed to record artifact failure for job ${job.jobId}: ${serializeError(logError).message}`,
-        { context: `job ${job.jobId}` },
+        { context: `job ${job.jobId}` }
       );
     }
 
@@ -518,7 +579,7 @@ async function materializeArtefacts(
     storage: StorageContext;
     eventLog: EventLog;
     clock: Clock;
-  },
+  }
 ): Promise<ArtefactEvent[]> {
   const events: ArtefactEvent[] = [];
   for (const artefact of artefacts) {
@@ -531,11 +592,15 @@ async function materializeArtefacts(
       throw createRuntimeError(
         RuntimeErrorCode.MISSING_BLOB_PAYLOAD,
         `Expected blob payload for artefact ${artefact.artefactId}.`,
-        { context: `artefact ${artefact.artefactId}` },
+        { context: `artefact ${artefact.artefactId}` }
       );
     }
     if (blobPayload && status === 'succeeded') {
-      output.blob = await persistBlobToStorage(context.storage, context.movieId, blobPayload);
+      output.blob = await persistBlobToStorage(
+        context.storage,
+        context.movieId,
+        blobPayload
+      );
     }
 
     const event: ArtefactEvent = {
@@ -555,8 +620,9 @@ async function materializeArtefacts(
   return events;
 }
 
-
-function normalizeStatus(status: ArtefactEventStatus | undefined): ArtefactEventStatus {
+function normalizeStatus(
+  status: ArtefactEventStatus | undefined
+): ArtefactEventStatus {
   if (status === 'succeeded' || status === 'failed' || status === 'skipped') {
     return status;
   }
@@ -565,7 +631,7 @@ function normalizeStatus(status: ArtefactEventStatus | undefined): ArtefactEvent
 
 function deriveJobStatus(
   baseStatus: ArtefactEventStatus,
-  artefacts: ArtefactEvent[],
+  artefacts: ArtefactEvent[]
 ): ArtefactEventStatus {
   if (artefacts.some((event) => event.status === 'failed')) {
     return 'failed';
@@ -587,7 +653,10 @@ function deriveJobStatus(
  * This ensures that later-layer jobs see correct upstream artifact hashes
  * when computing content-aware inputsHash.
  */
-export function accumulateArtifacts(manifest: Manifest, artefacts: ArtefactEvent[]): Manifest {
+export function accumulateArtifacts(
+  manifest: Manifest,
+  artefacts: ArtefactEvent[]
+): Manifest {
   if (artefacts.length === 0) {
     return manifest;
   }
@@ -622,13 +691,82 @@ function serializeError(error: unknown): SerializedError {
   };
 }
 
+function buildFailureDiagnostics(
+  error: unknown,
+  serialized: SerializedError
+): Record<string, unknown> {
+  const diagnostics: Record<string, unknown> = { error: serialized };
+  if (!_isRecord(error)) {
+    return diagnostics;
+  }
+
+  const metadata = _isRecord(error.metadata) ? error.metadata : undefined;
+  const providerRequestId =
+    readStringValue(error, 'providerRequestId') ??
+    readStringValue(error, 'falRequestId') ??
+    readStringValue(error, 'requestId') ??
+    readStringValue(metadata, 'providerRequestId');
+  if (providerRequestId) {
+    diagnostics.providerRequestId = providerRequestId;
+  }
+
+  const recoverable =
+    readBooleanValue(error, 'recoverable') ??
+    readBooleanValue(metadata, 'recoverable');
+  if (typeof recoverable === 'boolean') {
+    diagnostics.recoverable = recoverable;
+  }
+
+  const provider =
+    readStringValue(error, 'provider') ?? readStringValue(metadata, 'provider');
+  if (provider) {
+    diagnostics.provider = provider;
+  }
+
+  const model =
+    readStringValue(error, 'model') ?? readStringValue(metadata, 'model');
+  if (model) {
+    diagnostics.model = model;
+  }
+
+  const reason =
+    readStringValue(error, 'reason') ?? readStringValue(metadata, 'reason');
+  if (reason) {
+    diagnostics.reason = reason;
+  }
+
+  return diagnostics;
+}
+
+function readStringValue(
+  source: Record<string, unknown> | undefined,
+  key: string
+): string | undefined {
+  if (!source) {
+    return undefined;
+  }
+  const value = source[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+function readBooleanValue(
+  source: Record<string, unknown> | undefined,
+  key: string
+): boolean | undefined {
+  if (!source) {
+    return undefined;
+  }
+  const value = source[key];
+  return typeof value === 'boolean' ? value : undefined;
+}
+
 function _isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function readResolvedValue(
   canonicalId: string,
-  resolved: Record<string, unknown>,
+  resolved: Record<string, unknown>
 ): unknown {
   if (canonicalId in resolved) {
     return resolved[canonicalId];
@@ -654,7 +792,9 @@ interface FanInResolvedValue {
   groups: string[][];
 }
 
-function materializeFanInValue(descriptor: FanInDescriptor): FanInResolvedValue {
+function materializeFanInValue(
+  descriptor: FanInDescriptor
+): FanInResolvedValue {
   const groups = new Map<number, Array<{ id: string; order?: number }>>();
   for (const member of descriptor.members) {
     const list = groups.get(member.group) ?? [];
@@ -686,7 +826,7 @@ function materializeFanInValue(descriptor: FanInDescriptor): FanInResolvedValue 
  */
 function mergeResolvedArtifacts(
   job: JobDescriptor,
-  resolvedArtifacts: Record<string, unknown>,
+  resolvedArtifacts: Record<string, unknown>
 ): JobDescriptor {
   const hasResolvedArtifacts = Object.keys(resolvedArtifacts).length > 0;
   const jobContext: ProducerJobContext = job.context ?? {
@@ -696,16 +836,21 @@ function mergeResolvedArtifacts(
     inputs: job.inputs,
     produces: job.produces,
   };
-  const hasFanIn = Boolean(jobContext.fanIn && Object.keys(jobContext.fanIn).length > 0);
+  const hasFanIn = Boolean(
+    jobContext.fanIn && Object.keys(jobContext.fanIn).length > 0
+  );
 
   if (!hasResolvedArtifacts && !hasFanIn) {
     return job;
   }
 
   const existingExtras: ProducerJobContextExtras = jobContext.extras ?? {};
-  const existingResolvedInputs = (existingExtras.resolvedInputs ?? {}) as Record<string, unknown>;
+  const existingResolvedInputs = (existingExtras.resolvedInputs ??
+    {}) as Record<string, unknown>;
 
-  const mergedResolvedInputs: Record<string, unknown> = { ...existingResolvedInputs };
+  const mergedResolvedInputs: Record<string, unknown> = {
+    ...existingResolvedInputs,
+  };
 
   if (hasResolvedArtifacts) {
     for (const [resolvedKey, value] of Object.entries(resolvedArtifacts)) {
@@ -714,7 +859,9 @@ function mergeResolvedArtifacts(
   }
 
   if (hasResolvedArtifacts && jobContext.inputBindings) {
-    for (const [_alias, canonicalId] of Object.entries(jobContext.inputBindings)) {
+    for (const [_alias, canonicalId] of Object.entries(
+      jobContext.inputBindings
+    )) {
       const resolvedValue = readResolvedValue(canonicalId, resolvedArtifacts);
       if (resolvedValue !== undefined) {
         mergedResolvedInputs[canonicalId] = resolvedValue;
@@ -749,7 +896,7 @@ function mergeResolvedArtifacts(
  */
 function mergeAssetBlobPaths(
   job: JobDescriptor,
-  assetBlobPaths: Record<string, string>,
+  assetBlobPaths: Record<string, string>
 ): JobDescriptor {
   if (Object.keys(assetBlobPaths).length === 0) {
     return job;
@@ -800,7 +947,7 @@ function collectResolvedArtifactIds(job: JobDescriptor): string[] {
     for (const conditionInfo of Object.values(inputConditions)) {
       const artifactIds = extractConditionArtifactIds(
         conditionInfo.condition,
-        conditionInfo.indices,
+        conditionInfo.indices
       );
       for (const id of artifactIds) {
         ids.add(id);
@@ -822,7 +969,7 @@ function collectResolvedArtifactIds(job: JobDescriptor): string[] {
  */
 function extractConditionArtifactIds(
   condition: EdgeConditionDefinition,
-  indices: Record<string, number>,
+  indices: Record<string, number>
 ): string[] {
   const ids: string[] = [];
 
@@ -838,7 +985,7 @@ function extractConditionArtifactIds(
 
 function extractConditionArtifactIdsFromItem(
   item: EdgeConditionClause | EdgeConditionGroup,
-  indices: Record<string, number>,
+  indices: Record<string, number>
 ): string[] {
   const ids: string[] = [];
 
@@ -855,14 +1002,19 @@ function extractConditionArtifactIdsFromItem(
   }
   // Handle single clause
   if ('when' in item) {
-    ids.push(...extractConditionArtifactIdsFromClause(item as EdgeConditionClause, indices));
+    ids.push(
+      ...extractConditionArtifactIdsFromClause(
+        item as EdgeConditionClause,
+        indices
+      )
+    );
   }
   return ids;
 }
 
 function extractConditionArtifactIdsFromClause(
   clause: EdgeConditionClause,
-  indices: Record<string, number>,
+  indices: Record<string, number>
 ): string[] {
   const whenPath = clause.when;
   if (!whenPath) {
@@ -892,12 +1044,13 @@ function extractConditionArtifactIdsFromClause(
     for (const [symbol, index] of indexEntries) {
       // Extract the dimension label from the full symbol (e.g., "loop:segment" -> "segment")
       const parts = symbol.split(':');
-      const label = parts.length > 0 ? parts[parts.length - 1] ?? symbol : symbol;
+      const label =
+        parts.length > 0 ? (parts[parts.length - 1] ?? symbol) : symbol;
 
       // Replace [label] with [index]
       fullPath = fullPath.replace(
         new RegExp(`\\[${escapeRegexChars(label)}\\]`, 'g'),
-        `[${index}]`,
+        `[${index}]`
       );
     }
 
@@ -921,7 +1074,7 @@ function escapeRegexChars(str: string): string {
 async function resolveBlobRefsToInputs(
   value: unknown,
   storage: StorageContext,
-  movieId: string,
+  movieId: string
 ): Promise<unknown> {
   if (isBlobRef(value)) {
     // Read blob from storage and return as BlobInput
@@ -932,7 +1085,9 @@ async function resolveBlobRefsToInputs(
     };
   }
   if (Array.isArray(value)) {
-    return Promise.all(value.map(v => resolveBlobRefsToInputs(v, storage, movieId)));
+    return Promise.all(
+      value.map((v) => resolveBlobRefsToInputs(v, storage, movieId))
+    );
   }
   // Skip binary data types - don't treat them as plain objects
   if (value instanceof Uint8Array || value instanceof Buffer) {
@@ -954,18 +1109,25 @@ async function resolveBlobRefsToInputs(
 async function resolveBlobRefsInJobContext(
   job: JobDescriptor,
   storage: StorageContext,
-  movieId: string,
+  movieId: string
 ): Promise<JobDescriptor> {
-  if (!job.context || !job.context.extras || !job.context.extras.resolvedInputs) {
+  if (
+    !job.context ||
+    !job.context.extras ||
+    !job.context.extras.resolvedInputs
+  ) {
     return job;
   }
 
-  const resolvedInputs = job.context.extras.resolvedInputs as Record<string, unknown>;
+  const resolvedInputs = job.context.extras.resolvedInputs as Record<
+    string,
+    unknown
+  >;
   const resolvedBlobs = await Promise.all(
     Object.entries(resolvedInputs).map(async ([key, value]) => [
       key,
       await resolveBlobRefsToInputs(value, storage, movieId),
-    ]),
+    ])
   );
 
   const newJob: JobDescriptor = {
@@ -986,7 +1148,9 @@ async function resolveBlobRefsInJobContext(
  * Extracts asset IDs from resolved artifacts.
  * Looks for Timeline-like structures that contain asset references in clips.
  */
-function extractAssetIdsFromResolved(resolved: Record<string, unknown>): string[] {
+function extractAssetIdsFromResolved(
+  resolved: Record<string, unknown>
+): string[] {
   const assetIds = new Set<string>();
 
   for (const value of Object.values(resolved)) {

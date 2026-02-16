@@ -34,9 +34,9 @@ describe('applyOutputSchemasToBlueprintTree', () => {
           },
         ],
         [{ name: 'ScriptProducer' }],
-        [],
+        []
       ),
-      [],
+      []
     );
 
     const providerOptions = new Map<string, ProviderOptionEntry>([
@@ -45,7 +45,10 @@ describe('applyOutputSchemasToBlueprintTree', () => {
         {
           outputSchema: JSON.stringify({
             name: 'VideoScript',
-            schema: { type: 'object', properties: { Segments: { type: 'array' } } },
+            schema: {
+              type: 'object',
+              properties: { Segments: { type: 'array' } },
+            },
           }),
         },
       ],
@@ -80,9 +83,9 @@ describe('applyOutputSchemasToBlueprintTree', () => {
           },
         ],
         [{ name: 'ScriptProducer' }],
-        [],
+        []
       ),
-      [],
+      []
     );
 
     const providerOptions = new Map<string, ProviderOptionEntry>([
@@ -115,7 +118,7 @@ describe('applyOutputSchemasToBlueprintTree', () => {
         },
       ],
       [{ name: 'ChildProducer' }],
-      [],
+      []
     );
 
     const rootDoc = makeBlueprintDocument('Root', [], [], [], []);
@@ -123,7 +126,7 @@ describe('applyOutputSchemasToBlueprintTree', () => {
     const tree = makeTreeNode(
       rootDoc,
       [],
-      new Map([['ChildBlueprint', makeTreeNode(childDoc, ['ChildBlueprint'])]]),
+      new Map([['ChildBlueprint', makeTreeNode(childDoc, ['ChildBlueprint'])]])
     );
 
     // formatProducerAlias(['ChildBlueprint'], 'ChildProducer') returns 'ChildBlueprint'
@@ -160,9 +163,9 @@ describe('applyOutputSchemasToBlueprintTree', () => {
           },
         ],
         [{ name: 'Producer' }],
-        [],
+        []
       ),
-      [],
+      []
     );
 
     const providerOptions = new Map<string, ProviderOptionEntry>([
@@ -195,9 +198,9 @@ describe('applyOutputSchemasToBlueprintTree', () => {
           },
         ],
         [{ name: 'ImageProducer' }],
-        [],
+        []
       ),
-      [],
+      []
     );
 
     const providerOptions = new Map<string, ProviderOptionEntry>([
@@ -231,9 +234,9 @@ describe('applyOutputSchemasToBlueprintTree', () => {
           },
         ],
         [{ name: 'Producer' }],
-        [],
+        []
       ),
-      [],
+      []
     );
 
     const providerOptions = new Map<string, ProviderOptionEntry>([
@@ -267,9 +270,9 @@ describe('applyOutputSchemasToBlueprintTree', () => {
           },
         ],
         [{ name: 'Producer' }],
-        [],
+        []
       ),
-      [],
+      []
     );
 
     const providerOptions = new Map<string, ProviderOptionEntry>([
@@ -301,9 +304,9 @@ describe('applyOutputSchemasToBlueprintTree', () => {
           },
         ],
         [{ name: 'Producer' }],
-        [],
+        []
       ),
-      [],
+      []
     );
 
     // Schema JSON without 'name' property - should use default 'Schema'
@@ -345,9 +348,9 @@ describe('applyOutputSchemasToBlueprintTree', () => {
           },
         ],
         [{ name: 'ScriptProducer' }],
-        [], // No edges initially
+        [] // No edges initially
       ),
-      [],
+      []
     );
 
     // Schema with both top-level scalars and an array
@@ -401,7 +404,7 @@ function makeBlueprintDocument(
   inputs: BlueprintInputDefinition[],
   artefacts: BlueprintArtefactDefinition[],
   producers: ProducerConfig[],
-  edges: { from: string; to: string }[],
+  edges: { from: string; to: string }[]
 ): BlueprintDocument {
   return {
     meta: { id, name: id },
@@ -416,7 +419,7 @@ function makeBlueprintDocument(
 function makeTreeNode(
   document: BlueprintDocument,
   namespacePath: string[],
-  children: Map<string, BlueprintTreeNode> = new Map(),
+  children: Map<string, BlueprintTreeNode> = new Map()
 ): BlueprintTreeNode {
   return {
     id: document.meta.id,
@@ -437,19 +440,21 @@ describe('createPlanningService', () => {
   });
 
   const defaultCatalog: ProducerCatalog = {
-    'TestProducer': {
+    TestProducer: {
       provider: 'openai',
       providerModel: 'gpt-4',
       rateKey: 'openai-gpt4',
     },
-    'ScriptProducer': {
+    ScriptProducer: {
       provider: 'openai',
       providerModel: 'gpt-4o',
       rateKey: 'openai-gpt4o',
     },
   };
 
-  function createDefaultOptions(aliases: string[]): Map<string, ProviderOptionEntry> {
+  function createDefaultOptions(
+    aliases: string[]
+  ): Map<string, ProviderOptionEntry> {
     const options = new Map<string, ProviderOptionEntry>();
     for (const alias of aliases) {
       options.set(alias, {});
@@ -460,17 +465,13 @@ describe('createPlanningService', () => {
   function createSimpleBlueprint(): BlueprintTreeNode {
     const doc = makeBlueprintDocument(
       'SimpleBlueprint',
-      [
-        { name: 'Prompt', type: 'string', required: true },
-      ],
-      [
-        { name: 'Output', type: 'string' },
-      ],
+      [{ name: 'Prompt', type: 'string', required: true }],
+      [{ name: 'Output', type: 'string' }],
       [{ name: 'TestProducer' }],
       [
         { from: 'Prompt', to: 'TestProducer' },
         { from: 'TestProducer', to: 'Output' },
-      ],
+      ]
     );
     return makeTreeNode(doc, []);
   }
@@ -570,7 +571,9 @@ describe('createPlanningService', () => {
         {
           artefactId: 'Artifact:Output',
           producedBy: 'Producer:TestProducer',
-          output: { blob: { hash: 'abc123', size: 100, mimeType: 'text/plain' } },
+          output: {
+            blob: { hash: 'abc123', size: 100, mimeType: 'text/plain' },
+          },
         },
       ];
 
@@ -592,7 +595,9 @@ describe('createPlanningService', () => {
       }
 
       expect(artefactEvents).toHaveLength(1);
-      expect((artefactEvents[0] as { artefactId: string }).artefactId).toBe('Artifact:Output');
+      expect((artefactEvents[0] as { artefactId: string }).artefactId).toBe(
+        'Artifact:Output'
+      );
     });
 
     it('skips undefined input values', async () => {
@@ -701,6 +706,37 @@ describe('createPlanningService', () => {
       expect(planExists).toBe(true);
     });
 
+    it('resolves surgical targets from event log when artifact is missing in manifest', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      await eventLog.appendArtefact(movieId, {
+        artefactId: 'Artifact:Output',
+        revision: 'rev-0001',
+        inputsHash: 'inputs-hash',
+        output: {},
+        status: 'failed',
+        producedBy: 'Producer:TestProducer',
+        createdAt: new Date().toISOString(),
+      });
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: { 'Input:Prompt': 'Test prompt' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+        targetArtifactIds: ['Artifact:Output'],
+      });
+
+      const plannedJobIds = result.plan.layers.flat().map((job) => job.jobId);
+      expect(plannedJobIds).toContain('Producer:TestProducer');
+    });
+
     it('fails pinning on new runs', async () => {
       const service = createPlanningService();
       const manifestService = createManifestService(storage);
@@ -717,7 +753,7 @@ describe('createPlanningService', () => {
           manifestService,
           eventLog,
           pinIds: ['Artifact:Output'],
-        }),
+        })
       ).rejects.toMatchObject({
         code: RuntimeErrorCode.PIN_REQUIRES_EXISTING_MOVIE,
       });
@@ -739,7 +775,7 @@ describe('createPlanningService', () => {
           manifestService,
           eventLog,
           pinIds: ['NotCanonical'],
-        }),
+        })
       ).rejects.toMatchObject({
         code: RuntimeErrorCode.INVALID_PIN_ID,
       });
@@ -761,7 +797,7 @@ describe('createPlanningService', () => {
           manifestService,
           eventLog,
           pinIds: ['Producer:DoesNotExist'],
-        }),
+        })
       ).rejects.toMatchObject({
         code: RuntimeErrorCode.PIN_PRODUCER_NOT_FOUND,
       });
@@ -776,7 +812,9 @@ describe('createPlanningService', () => {
         artefactId: 'Artifact:PreviouslySucceeded',
         revision: 'rev-0001',
         inputsHash: 'inputs-hash',
-        output: { blob: { hash: 'blob-hash', size: 10, mimeType: 'text/plain' } },
+        output: {
+          blob: { hash: 'blob-hash', size: 10, mimeType: 'text/plain' },
+        },
         status: 'succeeded',
         producedBy: 'Producer:TestProducer',
         createdAt: new Date().toISOString(),
@@ -793,7 +831,7 @@ describe('createPlanningService', () => {
           manifestService,
           eventLog,
           pinIds: ['Artifact:Output'],
-        }),
+        })
       ).rejects.toMatchObject({
         code: RuntimeErrorCode.PIN_TARGET_NOT_REUSABLE,
       });
@@ -808,7 +846,9 @@ describe('createPlanningService', () => {
         artefactId: 'Artifact:Output',
         revision: 'rev-0001',
         inputsHash: 'inputs-hash',
-        output: { blob: { hash: 'blob-hash', size: 10, mimeType: 'text/plain' } },
+        output: {
+          blob: { hash: 'blob-hash', size: 10, mimeType: 'text/plain' },
+        },
         status: 'succeeded',
         producedBy: 'Producer:TestProducer',
         createdAt: new Date().toISOString(),
@@ -826,7 +866,7 @@ describe('createPlanningService', () => {
           eventLog,
           pinIds: ['Artifact:Output'],
           targetArtifactIds: ['Artifact:Output'],
-        }),
+        })
       ).rejects.toMatchObject({
         code: RuntimeErrorCode.PIN_CONFLICT_WITH_SURGICAL_TARGET,
       });
@@ -841,7 +881,9 @@ describe('createPlanningService', () => {
         artefactId: 'Artifact:Output',
         revision: 'rev-0001',
         inputsHash: 'inputs-hash',
-        output: { blob: { hash: 'blob-hash', size: 10, mimeType: 'text/plain' } },
+        output: {
+          blob: { hash: 'blob-hash', size: 10, mimeType: 'text/plain' },
+        },
         status: 'succeeded',
         producedBy: 'Producer:TestProducer',
         createdAt: new Date().toISOString(),
@@ -860,7 +902,9 @@ describe('createPlanningService', () => {
         collectExplanation: true,
       });
 
-      expect(result.explanation?.pinnedArtifactIds).toEqual(['Artifact:Output']);
+      expect(result.explanation?.pinnedArtifactIds).toEqual([
+        'Artifact:Output',
+      ]);
     });
   });
 
@@ -874,13 +918,13 @@ describe('createPlanningService', () => {
         service.generatePlan({
           movieId,
           blueprintTree: createSimpleBlueprint(),
-          inputValues: { 'InvalidId': 'test' }, // Missing Input: prefix
+          inputValues: { InvalidId: 'test' }, // Missing Input: prefix
           providerCatalog: defaultCatalog,
           providerOptions: createDefaultOptions(['TestProducer']),
           storage,
           manifestService,
           eventLog,
-        }),
+        })
       ).rejects.toThrow('Input "InvalidId" is not a canonical input id');
     });
 
@@ -935,7 +979,9 @@ describe('createPlanningService', () => {
         artefactEvents.push(event);
       }
 
-      expect((artefactEvents[0] as { status: string }).status).toBe('succeeded');
+      expect((artefactEvents[0] as { status: string }).status).toBe(
+        'succeeded'
+      );
     });
 
     it('uses provided status in artifact draft', async () => {
@@ -998,7 +1044,9 @@ describe('createPlanningService', () => {
         artefactEvents.push(event);
       }
 
-      expect((artefactEvents[0] as { inputsHash: string }).inputsHash).toBe('manual-edit');
+      expect((artefactEvents[0] as { inputsHash: string }).inputsHash).toBe(
+        'manual-edit'
+      );
     });
   });
 
@@ -1024,7 +1072,9 @@ describe('createPlanningService', () => {
 
       // Manually create a plan file for rev-0002 to simulate conflict
       const rev2Path = storage.resolve(movieId, 'runs', 'rev-0002-plan.json');
-      await storage.storage.write(rev2Path, '{}', { mimeType: 'application/json' });
+      await storage.storage.write(rev2Path, '{}', {
+        mimeType: 'application/json',
+      });
 
       // Create second plan - should skip to rev-0003
       const secondResult = await service.generatePlan({

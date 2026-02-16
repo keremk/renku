@@ -46,3 +46,13 @@ export function respondMethodNotAllowed(res: ServerResponse): true {
   res.end("Method Not Allowed");
   return true;
 }
+
+/**
+ * Sends a 500 Internal Server Error response.
+ * Returns true to indicate the request was handled.
+ */
+export function respondServerError(res: ServerResponse, message: string): true {
+  res.statusCode = 500;
+  res.end(message);
+  return true;
+}

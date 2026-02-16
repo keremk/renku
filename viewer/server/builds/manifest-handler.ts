@@ -2,13 +2,13 @@
  * Build manifest handler.
  */
 
-import { existsSync } from "node:fs";
-import { promises as fs } from "node:fs";
-import path from "node:path";
-import { extractModelSelectionsFromInputs } from "@gorenku/core";
-import type { ArtifactInfo, BuildManifestResponse } from "./types.js";
+import { existsSync } from 'node:fs';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
+import { extractModelSelectionsFromInputs } from '@gorenku/core';
+import type { ArtifactInfo, BuildManifestResponse } from './types.js';
 
-const TIMELINE_ARTEFACT_ID = "Artifact:TimelineComposer.Timeline";
+const TIMELINE_ARTEFACT_ID = 'Artifact:TimelineComposer.Timeline';
 
 /**
  * ArtefactEvent structure for reading from event log.
@@ -22,20 +22,75 @@ interface ArtefactEvent {
       mimeType?: string;
     };
   };
-  status: "succeeded" | "failed" | "skipped";
+  status: 'succeeded' | 'failed' | 'skipped';
   createdAt: string;
-  editedBy?: "producer" | "user";
+  editedBy?: 'producer' | 'user';
   originalHash?: string;
+  /** Diagnostics from provider (may include recovery info) */
+  diagnostics?: {
+    provider?: string;
+    model?: string;
+    providerRequestId?: string;
+    recoverable?: boolean;
+    reason?: string;
+  };
+  /** Skip reason if status is 'skipped' */
+  skipReason?: 'conditions_not_met' | 'upstream_failure';
+  /** Human-readable skip message */
+  skipMessage?: string;
+}
+
+/**
+ * Extract recovery info from an artifact event for the ArtifactInfo response.
+ */
+function extractRecoveryInfo(event?: ArtefactEvent): Partial<ArtifactInfo> {
+  if (!event) return {};
+
+  const result: Partial<ArtifactInfo> = {};
+
+  // Extract from diagnostics
+  if (event.diagnostics) {
+    if (event.diagnostics.provider) {
+      result.provider = event.diagnostics.provider;
+    }
+    if (event.diagnostics.model) {
+      result.model = event.diagnostics.model;
+    }
+    if (event.diagnostics.providerRequestId) {
+      result.providerRequestId = event.diagnostics.providerRequestId;
+      if (typeof event.diagnostics.recoverable === 'boolean') {
+        result.recoverable = event.diagnostics.recoverable;
+      }
+    }
+    if (event.diagnostics.reason) {
+      // Map diagnostic reason to ArtifactFailureReason
+      const reason = event.diagnostics.reason;
+      if (reason === 'timeout' || reason === 'connection_error') {
+        result.failureReason = reason;
+      }
+    }
+  }
+
+  // Handle skip info
+  if (event.status === 'skipped') {
+    result.failureReason = event.skipReason ?? 'conditions_not_met';
+    if (event.skipMessage) {
+      result.skipMessage = event.skipMessage;
+    }
+  }
+
+  return result;
 }
 
 /**
  * Read latest artifact events from the event log.
  * Returns a map of artifactId -> latest event info.
+ * Includes succeeded, failed, and skipped events (latest state wins).
  */
 async function readLatestArtifactEvents(
-  movieDir: string,
+  movieDir: string
 ): Promise<Map<string, ArtefactEvent>> {
-  const logPath = path.join(movieDir, "events", "artefacts.log");
+  const logPath = path.join(movieDir, 'events', 'artefacts.log');
   const latest = new Map<string, ArtefactEvent>();
 
   if (!existsSync(logPath)) {
@@ -43,15 +98,15 @@ async function readLatestArtifactEvents(
   }
 
   try {
-    const content = await fs.readFile(logPath, "utf8");
+    const content = await fs.readFile(logPath, 'utf8');
     const lines = content.split(/\r?\n/).filter((line) => line.trim());
 
     for (const line of lines) {
       try {
         const event = JSON.parse(line) as ArtefactEvent;
-        if (event.status === "succeeded") {
-          latest.set(event.artefactId, event);
-        }
+        // Keep all statuses - the latest event for each artifact wins
+        // This allows us to track failed/skipped artifacts for recovery
+        latest.set(event.artefactId, event);
       } catch {
         // Skip malformed lines
       }
@@ -68,10 +123,10 @@ async function readLatestArtifactEvents(
  */
 export async function getBuildManifest(
   blueprintFolder: string,
-  movieId: string,
+  movieId: string
 ): Promise<BuildManifestResponse> {
-  const movieDir = path.join(blueprintFolder, "builds", movieId);
-  const currentPath = path.join(movieDir, "current.json");
+  const movieDir = path.join(blueprintFolder, 'builds', movieId);
+  const currentPath = path.join(movieDir, 'current.json');
 
   const emptyResponse: BuildManifestResponse = {
     movieId,
@@ -87,7 +142,7 @@ export async function getBuildManifest(
     let manifestPath: string | null = null;
 
     if (existsSync(currentPath)) {
-      const currentContent = await fs.readFile(currentPath, "utf8");
+      const currentContent = await fs.readFile(currentPath, 'utf8');
       const current = JSON.parse(currentContent) as {
         revision?: string;
         manifestPath?: string | null;
@@ -116,7 +171,7 @@ export async function getBuildManifest(
     let manifestMtime: string | null = null;
 
     if (manifestPath && existsSync(manifestPath)) {
-      const manifestContent = await fs.readFile(manifestPath, "utf8");
+      const manifestContent = await fs.readFile(manifestPath, 'utf8');
       manifest = JSON.parse(manifestContent) as ManifestData;
       const stat = await fs.stat(manifestPath);
       manifestMtime = stat.mtime.toISOString();
@@ -131,13 +186,13 @@ export async function getBuildManifest(
     if (manifest?.inputs) {
       for (const [key, entry] of Object.entries(manifest.inputs)) {
         // Remove "Input:" prefix if present
-        const cleanName = key.startsWith("Input:") ? key.slice(6) : key;
+        const cleanName = key.startsWith('Input:') ? key.slice(6) : key;
         // Extract value from payloadDigest
-        if (entry && typeof entry === "object" && "payloadDigest" in entry) {
+        if (entry && typeof entry === 'object' && 'payloadDigest' in entry) {
           let value = entry.payloadDigest;
           // payloadDigest may contain JSON-encoded strings (e.g., "\"actual string\"")
           // Try to parse it if it's a string that looks like JSON
-          if (typeof value === "string") {
+          if (typeof value === 'string') {
             try {
               value = JSON.parse(value);
             } catch {
@@ -163,18 +218,22 @@ export async function getBuildManifest(
         manifestArtifactIds.add(key);
 
         // Extract name from artifact ID (e.g., "Artifact:Producer.Output" -> "Producer.Output")
-        const cleanName = key.startsWith("Artifact:") ? key.slice(9) : key;
+        const cleanName = key.startsWith('Artifact:') ? key.slice(9) : key;
 
         // Check event log for latest state (may have edits)
         const latestEvent = latestEvents.get(key);
         const hasEventLogData = latestEvent?.output?.blob?.hash;
 
         // Use event log data if available (includes user edits), otherwise fall back to manifest
-        const currentHash = hasEventLogData ? latestEvent.output.blob!.hash : entry.blob.hash;
-        const currentSize = hasEventLogData ? latestEvent.output.blob!.size : entry.blob.size;
+        const currentHash = hasEventLogData
+          ? latestEvent.output.blob!.hash
+          : entry.blob.hash;
+        const currentSize = hasEventLogData
+          ? latestEvent.output.blob!.size
+          : entry.blob.size;
         const currentMimeType = hasEventLogData
-          ? latestEvent.output.blob!.mimeType ?? "application/octet-stream"
-          : entry.blob.mimeType ?? "application/octet-stream";
+          ? (latestEvent.output.blob!.mimeType ?? 'application/octet-stream')
+          : (entry.blob.mimeType ?? 'application/octet-stream');
 
         parsedArtifacts.push({
           id: key,
@@ -182,11 +241,13 @@ export async function getBuildManifest(
           hash: currentHash,
           size: currentSize,
           mimeType: currentMimeType,
-          status: entry.status ?? "unknown",
+          status: latestEvent?.status ?? entry.status ?? 'unknown',
           createdAt: latestEvent?.createdAt ?? entry.createdAt ?? null,
           // Include edit tracking fields from event log
           editedBy: latestEvent?.editedBy,
           originalHash: latestEvent?.originalHash,
+          // Include recovery info from diagnostics
+          ...extractRecoveryInfo(latestEvent),
         });
       }
     }
@@ -199,23 +260,28 @@ export async function getBuildManifest(
         // Already processed in first pass
         continue;
       }
-      // Event log only contains succeeded events (filtered in readLatestArtifactEvents)
-      if (!event.output?.blob?.hash) {
-        continue;
-      }
-      const cleanName = artifactId.startsWith("Artifact:")
+
+      const cleanName = artifactId.startsWith('Artifact:')
         ? artifactId.slice(9)
         : artifactId;
+
+      // For succeeded artifacts, we need blob info
+      if (event.status === 'succeeded' && !event.output?.blob?.hash) {
+        continue;
+      }
+
       parsedArtifacts.push({
         id: artifactId,
         name: cleanName,
-        hash: event.output.blob.hash,
-        size: event.output.blob.size,
-        mimeType: event.output.blob.mimeType ?? "application/octet-stream",
-        status: "succeeded",
+        hash: event.output?.blob?.hash ?? '',
+        size: event.output?.blob?.size ?? 0,
+        mimeType: event.output?.blob?.mimeType ?? 'application/octet-stream',
+        status: event.status,
         createdAt: event.createdAt ?? null,
         editedBy: event.editedBy,
         originalHash: event.originalHash,
+        // Include recovery info from diagnostics
+        ...extractRecoveryInfo(event),
       });
     }
 
@@ -238,16 +304,16 @@ export async function getBuildManifest(
  */
 export async function getBuildTimeline(
   blueprintFolder: string,
-  movieId: string,
+  movieId: string
 ): Promise<unknown | null> {
-  const movieDir = path.join(blueprintFolder, "builds", movieId);
-  const currentPath = path.join(movieDir, "current.json");
+  const movieDir = path.join(blueprintFolder, 'builds', movieId);
+  const currentPath = path.join(movieDir, 'current.json');
 
   if (!existsSync(currentPath)) {
     return null;
   }
 
-  const currentContent = await fs.readFile(currentPath, "utf8");
+  const currentContent = await fs.readFile(currentPath, 'utf8');
   const current = JSON.parse(currentContent) as {
     manifestPath?: string | null;
   };
@@ -261,7 +327,7 @@ export async function getBuildTimeline(
     return null;
   }
 
-  const manifestContent = await fs.readFile(manifestPath, "utf8");
+  const manifestContent = await fs.readFile(manifestPath, 'utf8');
   const manifest = JSON.parse(manifestContent) as {
     artefacts?: Record<
       string,
@@ -279,10 +345,10 @@ export async function getBuildTimeline(
   // Resolve the blob path
   const hash = artefact.blob.hash;
   const prefix = hash.slice(0, 2);
-  const blobsDir = path.join(movieDir, "blobs");
+  const blobsDir = path.join(movieDir, 'blobs');
 
   // Try different file extensions
-  const extensions = ["json", ""];
+  const extensions = ['json', ''];
   let timelinePath: string | null = null;
 
   for (const ext of extensions) {
@@ -298,6 +364,6 @@ export async function getBuildTimeline(
     return null;
   }
 
-  const contents = await fs.readFile(timelinePath, "utf8");
+  const contents = await fs.readFile(timelinePath, 'utf8');
   return JSON.parse(contents);
 }

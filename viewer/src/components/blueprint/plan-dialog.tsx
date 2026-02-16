@@ -314,6 +314,15 @@ function PlanContent({
         </div>
       </div>
 
+      {/* Cost estimate note */}
+      {planInfo.hasPlaceholders && (
+        <div className="mx-6 mb-2 bg-muted/50 rounded-lg p-2">
+          <p className="text-xs text-muted-foreground text-center">
+            * Cost is estimated. Some producers may be skipped based on conditional logic.
+          </p>
+        </div>
+      )}
+
       {/* Footer */}
       <div className="px-6 py-4 border-t border-border/30 bg-muted/20 flex justify-between items-center">
         {/* CLI command copy button */}

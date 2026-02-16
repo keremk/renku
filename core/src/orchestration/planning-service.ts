@@ -1,9 +1,16 @@
 import { buildBlueprintGraph } from '../resolution/canonical-graph.js';
 import { decomposeJsonSchema } from '../resolution/schema-decomposition.js';
 import { expandBlueprintGraph } from '../resolution/canonical-expander.js';
-import { buildInputSourceMapFromCanonical, normalizeInputValues } from '../resolution/input-sources.js';
+import {
+  buildInputSourceMapFromCanonical,
+  normalizeInputValues,
+} from '../resolution/input-sources.js';
 import { createProducerGraph } from '../resolution/producer-graph.js';
-import { createPlanAdapter, type PlanAdapterOptions } from '../planning/adapter.js';
+import {
+  createPlanAdapter,
+  type PlanAdapterOptions,
+} from '../planning/adapter.js';
+import { collectRequiredConditionArtifactIds } from '../planning/planner.js';
 import type { PlanExplanation } from '../planning/explanation.js';
 import {
   isCanonicalArtifactId,
@@ -19,6 +26,7 @@ import { nextRevisionId } from '../revisions.js';
 import { planStore, type StorageContext } from '../storage.js';
 import type { Clock } from '../types.js';
 import { convertBlobInputToBlobRef } from '../input-blob-storage.js';
+import { formatBlobFileName } from '../blob-utils.js';
 import type {
   ArtefactEvent,
   ArtefactEventOutput,
@@ -103,7 +111,9 @@ export interface PlanningService {
   generatePlan(args: GeneratePlanArgs): Promise<GeneratePlanResult>;
 }
 
-export function createPlanningService(options: PlanningServiceOptions = {}): PlanningService {
+export function createPlanningService(
+  options: PlanningServiceOptions = {}
+): PlanningService {
   const adapter = createPlanAdapter({
     logger: options.logger,
     clock: options.clock,
@@ -117,25 +127,35 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
       const { manifest, hash: manifestHash } = await loadOrCreateManifest(
         args.manifestService,
         args.movieId,
-        now,
+        now
       );
 
       let targetRevision = nextRevisionId(manifest.revision ?? null);
-      targetRevision = await ensureUniquePlanRevision(args.storage, args.movieId, targetRevision);
+      targetRevision = await ensureUniquePlanRevision(
+        args.storage,
+        args.movieId,
+        targetRevision
+      );
 
       // Apply output schemas from provider options to JSON artifacts
       // This enables virtual artifact decomposition for producers with outputSchema in input templates
-      applyOutputSchemasToBlueprintTree(args.blueprintTree, args.providerOptions);
+      applyOutputSchemasToBlueprintTree(
+        args.blueprintTree,
+        args.providerOptions
+      );
 
       const blueprintGraph = buildBlueprintGraph(args.blueprintTree);
       const inputSources = buildInputSourceMapFromCanonical(blueprintGraph);
-      const normalizedInputs = normalizeInputValues(args.inputValues, inputSources);
+      const normalizedInputs = normalizeInputValues(
+        args.inputValues,
+        inputSources
+      );
 
       // Transform BlobInput to BlobRef BEFORE creating events
       const inputsWithBlobRefs = await transformInputBlobsToRefs(
         normalizedInputs,
         args.storage,
-        args.movieId,
+        args.movieId
       );
 
       // Inject derived system inputs (e.g., SegmentDuration from Duration/NumOfSegments)
@@ -145,7 +165,7 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
         inputsWithDerived,
         targetRevision,
         args.inputSource ?? 'user',
-        now(),
+        now()
       );
       for (const event of inputEvents) {
         await args.eventLog.appendInput(args.movieId, event);
@@ -154,17 +174,21 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
       // Note: Blueprint defaults are no longer applied - model JSON schemas are the source of truth
 
       const artefactEvents = (args.pendingArtefacts ?? []).map((draft) =>
-        makeArtefactEvent(draft, targetRevision, now()),
+        makeArtefactEvent(draft, targetRevision, now())
       );
       for (const artefactEvent of artefactEvents) {
         await args.eventLog.appendArtefact(args.movieId, artefactEvent);
       }
 
-      const canonicalBlueprint = expandBlueprintGraph(blueprintGraph, normalizedInputs, inputSources);
+      const canonicalBlueprint = expandBlueprintGraph(
+        blueprintGraph,
+        normalizedInputs,
+        inputSources
+      );
       const producerGraph = createProducerGraph(
         canonicalBlueprint,
         args.providerCatalog,
-        args.providerOptions,
+        args.providerOptions
       );
 
       const resolvedPinnedArtifactIds = await resolveAndValidatePinIds({
@@ -181,12 +205,29 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
       // Resolve artifact regeneration configs if targetArtifactIds is provided
       let artifactRegenerations: ArtifactRegenerationConfig[] | undefined;
       if (args.targetArtifactIds && args.targetArtifactIds.length > 0) {
+        const latestArtefactSnapshot = await readLatestArtefactSnapshot(
+          args.eventLog,
+          args.movieId
+        );
         artifactRegenerations = resolveArtifactsToJobs(
           args.targetArtifactIds,
           manifest,
           producerGraph,
+          latestArtefactSnapshot.latestById
         );
       }
+
+      const requiredConditionArtifactIds =
+        collectRequiredConditionArtifactIds(producerGraph);
+      const resolvedConditionArtifacts =
+        requiredConditionArtifactIds.size > 0
+          ? await resolveConditionArtifactsForPlanning({
+              artifactIds: Array.from(requiredConditionArtifactIds),
+              eventLog: args.eventLog,
+              storage: args.storage,
+              movieId: args.movieId,
+            })
+          : undefined;
 
       const { plan, explanation } = await adapter.compute({
         movieId: args.movieId,
@@ -195,19 +236,33 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
         blueprint: producerGraph,
         targetRevision,
         pendingEdits: inputEvents,
+        resolvedConditionArtifacts,
         reRunFrom: args.reRunFrom,
         artifactRegenerations,
         upToLayer: args.upToLayer,
         collectExplanation: args.collectExplanation,
-        pinnedArtifactIds: resolvedPinnedArtifactIds.length > 0 ? resolvedPinnedArtifactIds : undefined,
+        pinnedArtifactIds:
+          resolvedPinnedArtifactIds.length > 0
+            ? resolvedPinnedArtifactIds
+            : undefined,
       });
 
-      await planStore.save(plan, { movieId: args.movieId, storage: args.storage });
-      const planPath = args.storage.resolve(args.movieId, 'runs', `${targetRevision}-plan.json`);
+      await planStore.save(plan, {
+        movieId: args.movieId,
+        storage: args.storage,
+      });
+      const planPath = args.storage.resolve(
+        args.movieId,
+        'runs',
+        `${targetRevision}-plan.json`
+      );
 
       // Merge current input events into the manifest so the runner has
       // up-to-date input hashes for content-aware inputsHash computation.
-      const manifestWithInputs = mergeInputEventsIntoManifest(manifest, inputEvents);
+      const manifestWithInputs = mergeInputEventsIntoManifest(
+        manifest,
+        inputEvents
+      );
 
       return {
         plan,
@@ -226,7 +281,7 @@ export function createPlanningService(options: PlanningServiceOptions = {}): Pla
 async function loadOrCreateManifest(
   service: ManifestService,
   movieId: string,
-  now: () => string,
+  now: () => string
 ): Promise<{ manifest: Manifest; hash: string | null }> {
   try {
     const { manifest, hash } = await service.loadCurrent(movieId);
@@ -253,7 +308,7 @@ function createInputEvents(
   inputValues: Record<string, unknown>,
   revision: RevisionId,
   editedBy: InputEventSource,
-  createdAt: string,
+  createdAt: string
 ): InputEvent[] {
   const events: InputEvent[] = [];
   for (const [id, payload] of Object.entries(inputValues)) {
@@ -264,7 +319,7 @@ function createInputEvents(
       throw createRuntimeError(
         RuntimeErrorCode.NON_CANONICAL_INPUT_ID,
         `Input "${id}" is not a canonical input id. Expected to start with "Input:".`,
-        { context: id },
+        { context: id }
       );
     }
     events.push(makeInputEvent(id, payload, revision, editedBy, createdAt));
@@ -285,7 +340,7 @@ function makeInputEvent(
   payload: unknown,
   revision: RevisionId,
   editedBy: InputEventSource,
-  createdAt: string,
+  createdAt: string
 ): InputEvent {
   const { hash } = hashPayload(payload);
   return {
@@ -301,7 +356,7 @@ function makeInputEvent(
 function makeArtefactEvent(
   draft: PendingArtefactDraft,
   revision: RevisionId,
-  createdAt: string,
+  createdAt: string
 ): ArtefactEvent {
   return {
     artefactId: draft.artefactId,
@@ -321,7 +376,10 @@ function makeArtefactEvent(
  * inputsHash computation (so hashInputContents can resolve real content
  * hashes instead of falling back to hashing ID strings).
  */
-function mergeInputEventsIntoManifest(manifest: Manifest, inputEvents: InputEvent[]): Manifest {
+function mergeInputEventsIntoManifest(
+  manifest: Manifest,
+  inputEvents: InputEvent[]
+): Manifest {
   if (inputEvents.length === 0) {
     return manifest;
   }
@@ -339,7 +397,7 @@ function mergeInputEventsIntoManifest(manifest: Manifest, inputEvents: InputEven
 async function ensureUniquePlanRevision(
   storage: StorageContext,
   movieId: string,
-  initial: RevisionId,
+  initial: RevisionId
 ): Promise<RevisionId> {
   let candidate = initial;
   while (await planExists(storage, movieId, candidate)) {
@@ -351,7 +409,7 @@ async function ensureUniquePlanRevision(
 async function planExists(
   storage: StorageContext,
   movieId: string,
-  revision: RevisionId,
+  revision: RevisionId
 ): Promise<boolean> {
   const planPath = storage.resolve(movieId, 'runs', `${revision}-plan.json`);
   return storage.storage.fileExists(planPath);
@@ -360,7 +418,7 @@ async function planExists(
 async function transformInputBlobsToRefs(
   inputs: Record<string, unknown>,
   storage: StorageContext,
-  movieId: string,
+  movieId: string
 ): Promise<Record<string, unknown>> {
   const transformed: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(inputs)) {
@@ -376,7 +434,7 @@ async function transformInputBlobsToRefs(
  */
 export function applyOutputSchemasToBlueprintTree(
   tree: BlueprintTreeNode,
-  providerOptions: Map<string, ProviderOptionEntry>,
+  providerOptions: Map<string, ProviderOptionEntry>
 ): void {
   applyOutputSchemasToNode(tree, providerOptions);
   for (const child of tree.children.values()) {
@@ -386,10 +444,13 @@ export function applyOutputSchemasToBlueprintTree(
 
 function applyOutputSchemasToNode(
   node: BlueprintTreeNode,
-  providerOptions: Map<string, ProviderOptionEntry>,
+  providerOptions: Map<string, ProviderOptionEntry>
 ): void {
   for (const producer of node.document.producers) {
-    const producerAlias = formatProducerAlias(node.namespacePath, producer.name);
+    const producerAlias = formatProducerAlias(
+      node.namespacePath,
+      producer.name
+    );
     const options = providerOptions.get(producerAlias);
     if (!options?.outputSchema) {
       continue;
@@ -401,13 +462,22 @@ function applyOutputSchemasToNode(
     // Apply to JSON artifacts with arrays that don't already have a schema
     // and add edges from producer to decomposed virtual artifacts
     node.document.artefacts = node.document.artefacts.map((art) => {
-      if (art.type === 'json' && art.arrays && art.arrays.length > 0 && !art.schema) {
+      if (
+        art.type === 'json' &&
+        art.arrays &&
+        art.arrays.length > 0 &&
+        !art.schema
+      ) {
         // Decompose the schema and add edges for each virtual artifact
-        const decomposed = decomposeJsonSchema(parsedSchema, art.name, art.arrays);
+        const decomposed = decomposeJsonSchema(
+          parsedSchema,
+          art.name,
+          art.arrays
+        );
         for (const field of decomposed) {
           // Add edge for all decomposed virtual artifacts (both scalar and array items)
           const edgeExists = node.document.edges.some(
-            (e) => e.from === producer.name && e.to === field.path,
+            (e) => e.from === producer.name && e.to === field.path
           );
           if (!edgeExists) {
             node.document.edges.push({ from: producer.name, to: field.path });
@@ -424,14 +494,15 @@ function parseJsonSchemaDefinition(schemaJson: string): JsonSchemaDefinition {
   try {
     const parsed = JSON.parse(schemaJson);
     const name = typeof parsed.name === 'string' ? parsed.name : 'Schema';
-    const strict = typeof parsed.strict === 'boolean' ? parsed.strict : undefined;
+    const strict =
+      typeof parsed.strict === 'boolean' ? parsed.strict : undefined;
     const schema = parsed.schema ?? parsed;
     return { name, strict, schema };
   } catch {
     throw createRuntimeError(
       RuntimeErrorCode.INVALID_OUTPUT_SCHEMA_JSON,
       `Invalid schema JSON: ${schemaJson.slice(0, 100)}... ` +
-        `Please provide valid JSON schema.`,
+        `Please provide valid JSON schema.`
     );
   }
 }
@@ -447,7 +518,7 @@ function parseJsonSchemaDefinition(schemaJson: string): JsonSchemaDefinition {
  * @returns A new inputs map with derived system inputs added
  */
 export function injectDerivedInputs(
-  inputs: Record<string, unknown>,
+  inputs: Record<string, unknown>
 ): Record<string, unknown> {
   const result = { ...inputs };
 
@@ -479,7 +550,7 @@ interface ResolveAndValidatePinIdsArgs {
 }
 
 async function resolveAndValidatePinIds(
-  args: ResolveAndValidatePinIdsArgs,
+  args: ResolveAndValidatePinIdsArgs
 ): Promise<string[]> {
   const requestedPinIds = [
     ...(args.pinIds ?? []),
@@ -508,12 +579,16 @@ async function resolveAndValidatePinIds(
       `Invalid pin ID "${id}". Expected canonical Artifact:... or Producer:...`,
       {
         context: `pinId=${id}`,
-        suggestion: 'Use canonical IDs, for example Artifact:ScriptProducer.NarrationScript[0] or Producer:ScriptProducer.',
-      },
+        suggestion:
+          'Use canonical IDs, for example Artifact:ScriptProducer.NarrationScript[0] or Producer:ScriptProducer.',
+      }
     );
   }
 
-  const producerNodeMap = new Map<string, { jobId: string; produces: string[] }>();
+  const producerNodeMap = new Map<
+    string,
+    { jobId: string; produces: string[] }
+  >();
   for (const node of args.producerGraph.nodes) {
     producerNodeMap.set(node.jobId, node);
   }
@@ -526,19 +601,23 @@ async function resolveAndValidatePinIds(
         `Pinned producer "${producerId}" was not found in the current producer graph.`,
         {
           context: `producerId=${producerId}`,
-          suggestion: 'Check the producer canonical ID against the current blueprint graph.',
-        },
+          suggestion:
+            'Check the producer canonical ID against the current blueprint graph.',
+        }
       );
     }
-    const producedArtifacts = node.produces.filter((id) => isCanonicalArtifactId(id));
+    const producedArtifacts = node.produces.filter((id) =>
+      isCanonicalArtifactId(id)
+    );
     if (producedArtifacts.length === 0) {
       throw createRuntimeError(
         RuntimeErrorCode.PIN_TARGET_NOT_REUSABLE,
         `Pinned producer "${producerId}" does not produce reusable canonical artifacts.`,
         {
           context: `producerId=${producerId}`,
-          suggestion: 'Pin canonical artifact IDs produced by this run, or pin a producer that emits canonical artifacts.',
-        },
+          suggestion:
+            'Pin canonical artifact IDs produced by this run, or pin a producer that emits canonical artifacts.',
+        }
       );
     }
     for (const artifactId of producedArtifacts) {
@@ -548,28 +627,37 @@ async function resolveAndValidatePinIds(
 
   const resolvedPinnedArtifactIds = [...artifactPins];
 
-  const snapshot = await readLatestArtefactSnapshot(args.eventLog, args.movieId);
-  const hasSucceededManifestArtifacts = Object.values(args.manifest.artefacts)
-    .some((entry) => entry.status === 'succeeded');
-  const hasPriorReusableArtifacts = hasSucceededManifestArtifacts || snapshot.latestSuccessfulIds.size > 0;
+  const snapshot = await readLatestArtefactSnapshot(
+    args.eventLog,
+    args.movieId
+  );
+  const hasSucceededManifestArtifacts = Object.values(
+    args.manifest.artefacts
+  ).some((entry) => entry.status === 'succeeded');
+  const hasPriorReusableArtifacts =
+    hasSucceededManifestArtifacts || snapshot.latestSuccessfulIds.size > 0;
   if (!hasPriorReusableArtifacts) {
     throw createRuntimeError(
       RuntimeErrorCode.PIN_REQUIRES_EXISTING_MOVIE,
       'Pinning requires an existing movie with reusable outputs. Use --last or --movie-id/--id after a successful run.',
       {
         context: `movieId=${args.movieId}`,
-        suggestion: 'Run the first generation without --pin, then pin artifacts/producers on subsequent runs.',
-      },
+        suggestion:
+          'Run the first generation without --pin, then pin artifacts/producers on subsequent runs.',
+      }
     );
   }
 
-  assertNoPinSurgicalConflict(resolvedPinnedArtifactIds, args.targetArtifactIds);
+  assertNoPinSurgicalConflict(
+    resolvedPinnedArtifactIds,
+    args.targetArtifactIds
+  );
 
   await validatePinnedTargetsReusable(
     args.movieId,
     resolvedPinnedArtifactIds,
     args.manifest,
-    snapshot,
+    snapshot
   );
 
   return resolvedPinnedArtifactIds;
@@ -577,9 +665,13 @@ async function resolveAndValidatePinIds(
 
 function assertNoPinSurgicalConflict(
   pinnedArtifactIds: string[],
-  targetArtifactIds: string[] | undefined,
+  targetArtifactIds: string[] | undefined
 ): void {
-  if (!targetArtifactIds || targetArtifactIds.length === 0 || pinnedArtifactIds.length === 0) {
+  if (
+    !targetArtifactIds ||
+    targetArtifactIds.length === 0 ||
+    pinnedArtifactIds.length === 0
+  ) {
     return;
   }
   const pinned = new Set(pinnedArtifactIds);
@@ -593,8 +685,9 @@ function assertNoPinSurgicalConflict(
     `Pinning conflicts with surgical regeneration for artifact(s): ${conflicts.join(', ')}`,
     {
       context: `conflicts=${conflicts.join(',')}`,
-      suggestion: 'Remove the conflicting artifact from --pin or --artifact-id/--aid.',
-    },
+      suggestion:
+        'Remove the conflicting artifact from --pin or --artifact-id/--aid.',
+    }
   );
 }
 
@@ -602,7 +695,7 @@ async function validatePinnedTargetsReusable(
   movieId: string,
   pinnedArtifactIds: string[],
   manifest: Manifest,
-  snapshot: { latestSuccessfulIds: Set<string>; latestFailedIds: Set<string> },
+  snapshot: { latestSuccessfulIds: Set<string>; latestFailedIds: Set<string> }
 ): Promise<void> {
   if (pinnedArtifactIds.length === 0) {
     return;
@@ -631,15 +724,19 @@ async function validatePinnedTargetsReusable(
       {
         context: `movieId=${movieId}`,
         suggestion: 'Unpin these IDs or regenerate them before pinning.',
-      },
+      }
     );
   }
 }
 
 async function readLatestArtefactSnapshot(
   eventLog: EventLog,
-  movieId: string,
-): Promise<{ latestSuccessfulIds: Set<string>; latestFailedIds: Set<string> }> {
+  movieId: string
+): Promise<{
+  latestById: Map<string, ArtefactEvent>;
+  latestSuccessfulIds: Set<string>;
+  latestFailedIds: Set<string>;
+}> {
   const latestById = new Map<string, ArtefactEvent>();
   for await (const event of eventLog.streamArtefacts(movieId)) {
     latestById.set(event.artefactId, event);
@@ -658,6 +755,7 @@ async function readLatestArtefactSnapshot(
   }
 
   return {
+    latestById,
     latestSuccessfulIds,
     latestFailedIds,
   };
@@ -669,17 +767,21 @@ async function readLatestArtefactSnapshot(
  *
  * @param artifactIds - Array of canonical artifact IDs (e.g., ["Artifact:AudioProducer.GeneratedAudio[0]"])
  * @param manifest - The current manifest containing artifact entries
+ * @param latestById - Latest artifact events keyed by artifact ID (fallback when manifest is stale)
  * @param producerGraph - The producer graph with all job nodes
  * @returns Array of ArtifactRegenerationConfig with target artifacts and source jobs
- * @throws ARTIFACT_NOT_IN_MANIFEST if any artifact not found in manifest
+ * @throws ARTIFACT_NOT_IN_MANIFEST if any artifact not found in manifest or event log
  * @throws ARTIFACT_JOB_NOT_FOUND if any producing job not found in graph
  */
 export function resolveArtifactsToJobs(
   artifactIds: string[],
   manifest: Manifest,
   producerGraph: { nodes: Array<{ jobId: string }> },
+  latestById?: Map<string, ArtefactEvent>
 ): ArtifactRegenerationConfig[] {
-  return artifactIds.map((id) => resolveArtifactToJob(id, manifest, producerGraph));
+  return artifactIds.map((id) =>
+    resolveArtifactToJob(id, manifest, producerGraph, latestById)
+  );
 }
 
 /**
@@ -688,36 +790,41 @@ export function resolveArtifactsToJobs(
  *
  * @param artifactId - The canonical artifact ID (e.g., "Artifact:AudioProducer.GeneratedAudio[0]")
  * @param manifest - The current manifest containing artifact entries
+ * @param latestById - Latest artifact events keyed by artifact ID (fallback when manifest is stale)
  * @param producerGraph - The producer graph with all job nodes
  * @returns ArtifactRegenerationConfig with target artifact and source job
- * @throws ARTIFACT_NOT_IN_MANIFEST if artifact not found in manifest
+ * @throws ARTIFACT_NOT_IN_MANIFEST if artifact not found in manifest or event log
  * @throws ARTIFACT_JOB_NOT_FOUND if producing job not found in graph
  */
 export function resolveArtifactToJob(
   artifactId: string,
   manifest: Manifest,
   producerGraph: { nodes: Array<{ jobId: string }> },
+  latestById?: Map<string, ArtefactEvent>
 ): ArtifactRegenerationConfig {
   const entry = manifest.artefacts[artifactId];
-  if (!entry) {
+  const latestEvent = latestById?.get(artifactId);
+  const sourceJobId = entry?.producedBy ?? latestEvent?.producedBy;
+
+  if (!sourceJobId) {
     throw createRuntimeError(
       RuntimeErrorCode.ARTIFACT_NOT_IN_MANIFEST,
-      `Artifact "${artifactId}" not found in manifest. ` +
+      `Artifact "${artifactId}" not found in manifest or event log. ` +
         `The artifact may not have been generated yet, or the ID may be incorrect.`,
-      { context: `artifactId=${artifactId}` },
+      { context: `artifactId=${artifactId}` }
     );
   }
 
-  const sourceJobId = entry.producedBy;
-
   // Verify the job exists in the producer graph
-  const jobExists = producerGraph.nodes.some((node) => node.jobId === sourceJobId);
+  const jobExists = producerGraph.nodes.some(
+    (node) => node.jobId === sourceJobId
+  );
   if (!jobExists) {
     throw createRuntimeError(
       RuntimeErrorCode.ARTIFACT_JOB_NOT_FOUND,
       `Job "${sourceJobId}" that produced artifact "${artifactId}" not found in producer graph. ` +
         `The blueprint structure may have changed since the artifact was generated.`,
-      { context: `artifactId=${artifactId}, sourceJobId=${sourceJobId}` },
+      { context: `artifactId=${artifactId}, sourceJobId=${sourceJobId}` }
     );
   }
 
@@ -725,4 +832,120 @@ export function resolveArtifactToJob(
     targetArtifactId: artifactId,
     sourceJobId,
   };
+}
+
+const TRUE_LITERAL_HASH =
+  'b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b';
+const FALSE_LITERAL_HASH =
+  'fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa';
+const NULL_LITERAL_HASH =
+  '74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b';
+
+async function resolveConditionArtifactsForPlanning(args: {
+  artifactIds: string[];
+  eventLog: EventLog;
+  storage: StorageContext;
+  movieId: string;
+}): Promise<Record<string, unknown>> {
+  if (args.artifactIds.length === 0) {
+    return {};
+  }
+
+  const requested = new Set(args.artifactIds);
+  const latestEvents = new Map<string, ArtefactEvent>();
+  for await (const event of args.eventLog.streamArtefacts(args.movieId)) {
+    if (event.status !== 'succeeded') {
+      continue;
+    }
+    if (!requested.has(event.artefactId)) {
+      continue;
+    }
+    latestEvents.set(event.artefactId, event);
+  }
+
+  const resolved: Record<string, unknown> = {};
+  for (const [artifactId, event] of latestEvents) {
+    const blob = event.output.blob;
+    if (!blob) {
+      continue;
+    }
+
+    const prefix = blob.hash.slice(0, 2);
+    const fileName = formatBlobFileName(blob.hash, blob.mimeType);
+    const blobPath = args.storage.resolve(
+      args.movieId,
+      'blobs',
+      prefix,
+      fileName
+    );
+
+    try {
+      const payload = await args.storage.storage.readToUint8Array(blobPath);
+      resolved[artifactId] = decodeConditionPayload(payload, blob.mimeType);
+      continue;
+    } catch {
+      const inferred = inferConditionLiteralFromHash(blob.hash, blob.mimeType);
+      if (inferred !== undefined) {
+        resolved[artifactId] = inferred;
+      }
+    }
+  }
+
+  return resolved;
+}
+
+function decodeConditionPayload(
+  payload: Uint8Array,
+  mimeType: string | undefined
+): unknown {
+  if (!isTextLikeMimeType(mimeType)) {
+    return payload;
+  }
+
+  const text = new TextDecoder().decode(payload);
+  if (mimeType?.toLowerCase() === 'application/json') {
+    return JSON.parse(text);
+  }
+
+  const normalized = text.trim().toLowerCase();
+  if (normalized === 'true') {
+    return true;
+  }
+  if (normalized === 'false') {
+    return false;
+  }
+  if (normalized === 'null') {
+    return null;
+  }
+
+  return text;
+}
+
+function inferConditionLiteralFromHash(
+  hash: string,
+  mimeType: string | undefined
+): boolean | null | undefined {
+  if (!isTextLikeMimeType(mimeType)) {
+    return undefined;
+  }
+
+  if (hash === TRUE_LITERAL_HASH) {
+    return true;
+  }
+  if (hash === FALSE_LITERAL_HASH) {
+    return false;
+  }
+  if (hash === NULL_LITERAL_HASH) {
+    return null;
+  }
+
+  return undefined;
+}
+
+function isTextLikeMimeType(mimeType: string | undefined): boolean {
+  if (!mimeType) {
+    return false;
+  }
+  const normalized = mimeType.toLowerCase();
+  return normalized.startsWith('text/') || normalized === 'application/json';
 }

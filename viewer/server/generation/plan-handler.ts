@@ -61,6 +61,7 @@ import {
 } from './paths.js';
 import { getJobManager } from './job-manager.js';
 import { parseJsonBody, sendJson, sendError } from './http-utils.js';
+import { recoverFailedArtifactsBeforePlanning } from './recovery-prepass.js';
 
 /**
  * Handles POST /viewer-api/generate/plan
@@ -237,6 +238,10 @@ async function generatePlan(
       rootDir: storageRoot,
       basePath,
     });
+    await recoverFailedArtifactsBeforePlanning({
+      storage: localStorageContext,
+      movieId,
+    });
     await copyManifestToMemory(
       localStorageContext,
       memoryStorageContext,
@@ -402,31 +407,35 @@ interface CliCommandOptions {
 /**
  * Build the equivalent CLI command for the given plan options.
  */
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'"'"'`)}'`;
+}
+
 function buildCliCommand(movieId: string, options: CliCommandOptions): string {
   const parts: string[] = ['renku generate'];
 
   // Movie ID
-  parts.push(`--movie-id=${movieId}`);
+  parts.push(`--movie-id=${shellQuote(movieId)}`);
 
   // Blueprint path (required for CLI to work properly)
-  parts.push(`--blueprint=${options.blueprintPath}`);
+  parts.push(`--blueprint=${shellQuote(options.blueprintPath)}`);
 
   // Inputs path (if provided)
   if (options.inputsPath) {
-    parts.push(`--inputs=${options.inputsPath}`);
+    parts.push(`--inputs=${shellQuote(options.inputsPath)}`);
   }
 
   // Artifact IDs for surgical regeneration
   if (options.artifactIds && options.artifactIds.length > 0) {
     for (const artifactId of options.artifactIds) {
-      parts.push(`--aid=${artifactId}`);
+      parts.push(`--aid=${shellQuote(artifactId)}`);
     }
   }
 
   // Pin IDs
   if (options.pinIds && options.pinIds.length > 0) {
     for (const pinId of options.pinIds) {
-      parts.push(`--pin=${pinId}`);
+      parts.push(`--pin=${shellQuote(pinId)}`);
     }
   }
 

@@ -13,6 +13,7 @@ export type {
   BuildInfo,
   BuildsListResponse,
   ArtifactInfo,
+  ArtifactFailureReason,
   BuildManifestResponse,
   UploadedFileInfo,
   UploadFilesResponse,
@@ -39,6 +40,11 @@ export {
   type TextArtifactEditRequest,
   type ArtifactRestoreRequest,
 } from "./artifact-edit-handler.js";
+export {
+  handleArtifactRecheck,
+  type ArtifactRecheckRequest,
+  type ArtifactRecheckResponse,
+} from "./artifact-recheck-handler.js";
 export {
   getProducerPrompts,
   saveProducerPrompts,

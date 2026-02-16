@@ -8,8 +8,8 @@ import {
 import { cn } from "@/lib/utils";
 
 interface CollapsibleSectionProps {
-  /** Section title */
-  title: string;
+  /** Section title (can be a string or React node) */
+  title: React.ReactNode;
   /** Optional item count to show as badge */
   count?: number;
   /** Whether to start expanded */

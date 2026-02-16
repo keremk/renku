@@ -1,4 +1,9 @@
-import { formatCanonicalArtifactId, isCanonicalArtifactId, isCanonicalInputId } from '../canonical-ids.js';
+import {
+  formatCanonicalArtifactId,
+  isCanonicalArtifactId,
+  isCanonicalInputId,
+} from '../canonical-ids.js';
+import { evaluateInputConditions } from '../condition-evaluator.js';
 import type { EventLog } from '../event-log.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import { hashPayload, hashInputContents } from '../hashing.js';
@@ -15,6 +20,8 @@ import {
   type Manifest,
   type ArtefactEvent,
   type ProducerGraph,
+  type ResolvedEdgeCondition,
+  type ResolvedEdgeConditionGroup,
   type RevisionId,
 } from '../types.js';
 import type { Logger } from '../logger.js';
@@ -36,6 +43,8 @@ interface ComputePlanArgs {
   blueprint: ProducerGraph;
   targetRevision: RevisionId;
   pendingEdits?: InputEvent[];
+  /** Resolved condition artifacts used to determine conditional job activity. */
+  resolvedConditionArtifacts?: Record<string, unknown>;
   /** Force re-run from this layer index onwards (0-indexed). Jobs at this layer and above are marked dirty. */
   reRunFrom?: number;
   /** Surgical artifact regeneration - regenerate only the target artifacts and downstream dependencies. */
@@ -87,7 +96,8 @@ export function createPlanner(options: PlannerOptions = {}) {
 
   return {
     async computePlan(args: ComputePlanArgs): Promise<ComputePlanResult> {
-      const collectExplanation = args.collectExplanation ?? defaultCollectExplanation;
+      const collectExplanation =
+        args.collectExplanation ?? defaultCollectExplanation;
       const manifest = args.manifest ?? createEmptyManifest();
       const eventLog = args.eventLog;
       const pendingEdits = args.pendingEdits ?? [];
@@ -96,21 +106,30 @@ export function createPlanner(options: PlannerOptions = {}) {
       const latestInputs = await readLatestInputs(eventLog, args.movieId);
       const combinedInputs = mergeInputs(latestInputs, pendingEdits);
       const dirtyInputs = determineDirtyInputs(manifest, combinedInputs);
-      const artefactSnapshot = await readLatestArtefactSnapshot(eventLog, args.movieId);
+      const artefactSnapshot = await readLatestArtefactSnapshot(
+        eventLog,
+        args.movieId
+      );
       const latestArtefacts = artefactSnapshot.latestSuccessful;
       const dirtyArtefacts = determineDirtyArtefacts(
         manifest,
         latestArtefacts,
-        artefactSnapshot.latestFailedIds,
+        artefactSnapshot.latestFailedIds
       );
-      const requiredConditionArtifactIds = collectRequiredConditionArtifactIds(blueprint);
-      const missingConditionArtifacts = determineMissingRequiredConditionArtifacts(
-        manifest,
-        requiredConditionArtifactIds,
-        latestArtefacts,
-      );
+      const requiredConditionArtifactIds =
+        collectRequiredConditionArtifactIds(blueprint);
+      const missingConditionArtifacts =
+        determineMissingRequiredConditionArtifacts(
+          manifest,
+          requiredConditionArtifactIds,
+          latestArtefacts
+        );
 
       const metadata = buildGraphMetadata(blueprint);
+      const conditionallyInactiveJobs = deriveConditionallyInactiveJobs(
+        metadata,
+        args.resolvedConditionArtifacts
+      );
 
       // Determine which jobs to include in the plan
       let jobsToInclude: Set<string>;
@@ -120,28 +139,34 @@ export function createPlanner(options: PlannerOptions = {}) {
 
       if (args.artifactRegenerations && args.artifactRegenerations.length > 0) {
         // Surgical mode: source jobs + downstream dependencies
-        const sourceJobIds = args.artifactRegenerations.map((r) => r.sourceJobId);
+        const sourceJobIds = args.artifactRegenerations.map(
+          (r) => r.sourceJobId
+        );
         const surgicalJobs = computeMultipleArtifactRegenerationJobs(
           sourceJobIds,
-          blueprint,
+          blueprint
         );
 
         // Also detect jobs with missing/dirty artifacts (same logic as normal mode)
-        const { dirtyJobs: initialDirty, reasons: initialReasons } = determineInitialDirtyJobs(
-          manifest,
-          metadata,
-          dirtyInputs,
-          dirtyArtefacts,
-          latestArtefacts,
-          artefactSnapshot.latestFailedIds,
-          collectExplanation,
-        );
-        const { allDirty: propagatedDirty, propagatedReasons } = propagateDirtyJobs(
-          initialDirty,
-          blueprint,
-          metadata,
-          collectExplanation,
-        );
+        const { dirtyJobs: initialDirty, reasons: initialReasons } =
+          determineInitialDirtyJobs(
+            manifest,
+            metadata,
+            conditionallyInactiveJobs,
+            dirtyInputs,
+            dirtyArtefacts,
+            latestArtefacts,
+            artefactSnapshot.latestFailedIds,
+            collectExplanation
+          );
+        const { allDirty: propagatedDirty, propagatedReasons } =
+          propagateDirtyJobs(
+            initialDirty,
+            blueprint,
+            metadata,
+            collectExplanation,
+            args.resolvedConditionArtifacts
+          );
 
         // Union: surgical targets + missing/dirty artifacts
         jobsToInclude = new Set([...surgicalJobs, ...propagatedDirty]);
@@ -149,48 +174,59 @@ export function createPlanner(options: PlannerOptions = {}) {
         if (collectExplanation) {
           jobReasons = [...initialReasons, ...propagatedReasons];
           initialDirtyJobs = Array.from(initialDirty);
-          propagatedJobs = Array.from(propagatedDirty).filter((j) => !initialDirty.has(j));
+          propagatedJobs = Array.from(propagatedDirty).filter(
+            (j) => !initialDirty.has(j)
+          );
         }
 
         logger.debug?.('planner.surgical.jobs', {
           movieId: args.movieId,
           sourceJobIds,
-          targetArtifactIds: args.artifactRegenerations.map((r) => r.targetArtifactId),
+          targetArtifactIds: args.artifactRegenerations.map(
+            (r) => r.targetArtifactId
+          ),
           surgicalJobs: Array.from(surgicalJobs),
           dirtyJobs: Array.from(propagatedDirty),
           jobs: Array.from(jobsToInclude),
         });
       } else {
         // Normal mode: use dirty detection only
-        const { dirtyJobs: initialDirty, reasons: initialReasons } = determineInitialDirtyJobs(
-          manifest,
-          metadata,
-          dirtyInputs,
-          dirtyArtefacts,
-          latestArtefacts,
-          artefactSnapshot.latestFailedIds,
-          collectExplanation,
-        );
+        const { dirtyJobs: initialDirty, reasons: initialReasons } =
+          determineInitialDirtyJobs(
+            manifest,
+            metadata,
+            conditionallyInactiveJobs,
+            dirtyInputs,
+            dirtyArtefacts,
+            latestArtefacts,
+            artefactSnapshot.latestFailedIds,
+            collectExplanation
+          );
 
         const { allDirty, propagatedReasons } = propagateDirtyJobs(
           initialDirty,
           blueprint,
           metadata,
           collectExplanation,
+          args.resolvedConditionArtifacts
         );
         jobsToInclude = allDirty;
 
         if (collectExplanation) {
           jobReasons = [...initialReasons, ...propagatedReasons];
           initialDirtyJobs = Array.from(initialDirty);
-          propagatedJobs = Array.from(allDirty).filter((j) => !initialDirty.has(j));
+          propagatedJobs = Array.from(allDirty).filter(
+            (j) => !initialDirty.has(j)
+          );
         }
 
         logger.debug?.('planner.propagatedDirty', {
           movieId: args.movieId,
           initialCount: initialDirty.size,
           propagatedCount: allDirty.size,
-          propagatedJobs: Array.from(allDirty).filter((j) => !initialDirty.has(j)),
+          propagatedJobs: Array.from(allDirty).filter(
+            (j) => !initialDirty.has(j)
+          ),
         });
       }
 
@@ -199,7 +235,9 @@ export function createPlanner(options: PlannerOptions = {}) {
       if (args.pinnedArtifactIds && args.pinnedArtifactIds.length > 0) {
         const pinnedSet = new Set(args.pinnedArtifactIds);
         for (const [jobId, info] of metadata) {
-          const producedArtifacts = info.node.produces.filter((id) => isCanonicalArtifactId(id));
+          const producedArtifacts = info.node.produces.filter((id) =>
+            isCanonicalArtifactId(id)
+          );
           if (producedArtifacts.length === 0) {
             continue;
           }
@@ -208,7 +246,12 @@ export function createPlanner(options: PlannerOptions = {}) {
             continue;
           }
           const allReusable = producedArtifacts.every((id) =>
-            isPinnedArtifactReusable(id, manifest, latestArtefacts, artefactSnapshot.latestFailedIds),
+            isPinnedArtifactReusable(
+              id,
+              manifest,
+              latestArtefacts,
+              artefactSnapshot.latestFailedIds
+            )
           );
           if (allReusable) {
             jobsToInclude.delete(jobId);
@@ -224,14 +267,14 @@ export function createPlanner(options: PlannerOptions = {}) {
         args.reRunFrom,
         args.artifactRegenerations,
         args.upToLayer,
-        pinnedExcludedJobIds,
+        pinnedExcludedJobIds
       );
       validateConditionArtifactsCanBeRegenerated(
         args.movieId,
         missingConditionArtifacts,
         metadata,
         layers,
-        args.reRunFrom,
+        args.reRunFrom
       );
 
       logger.debug?.('planner.plan.generated', {
@@ -265,7 +308,9 @@ export function createPlanner(options: PlannerOptions = {}) {
           jobReasons,
           initialDirtyJobs,
           propagatedJobs,
-          surgicalTargets: args.artifactRegenerations?.map((r) => r.targetArtifactId),
+          surgicalTargets: args.artifactRegenerations?.map(
+            (r) => r.targetArtifactId
+          ),
           pinnedArtifactIds: args.pinnedArtifactIds,
         };
       }
@@ -275,16 +320,20 @@ export function createPlanner(options: PlannerOptions = {}) {
   };
 }
 
-function buildGraphMetadata(blueprint: ProducerGraph): Map<string, GraphMetadata> {
+function buildGraphMetadata(
+  blueprint: ProducerGraph
+): Map<string, GraphMetadata> {
   const metadata = new Map<string, GraphMetadata>();
   for (const node of blueprint.nodes) {
-    const artefactInputs = node.inputs.filter((input) => isCanonicalArtifactId(input));
+    const artefactInputs = node.inputs.filter((input) =>
+      isCanonicalArtifactId(input)
+    );
     metadata.set(node.jobId, {
       node,
       inputBases: new Set(
         node.inputs
           .map(extractInputBaseId)
-          .filter((value): value is string => value !== null),
+          .filter((value): value is string => value !== null)
       ),
       artefactInputs: new Set(artefactInputs),
     });
@@ -292,20 +341,82 @@ function buildGraphMetadata(blueprint: ProducerGraph): Map<string, GraphMetadata
   return metadata;
 }
 
+function deriveConditionallyInactiveJobs(
+  metadata: Map<string, GraphMetadata>,
+  resolvedConditionArtifacts: Record<string, unknown> | undefined
+): Set<string> {
+  const inactive = new Set<string>();
+  const conditionContext = {
+    resolvedArtifacts: resolvedConditionArtifacts ?? {},
+  };
+
+  for (const [jobId, info] of metadata) {
+    const inputConditions = info.node.context?.inputConditions;
+    if (!inputConditions || Object.keys(inputConditions).length === 0) {
+      continue;
+    }
+
+    const conditionResults = evaluateInputConditions(
+      inputConditions,
+      conditionContext
+    );
+    const conditionalInputIds = new Set(Object.keys(inputConditions));
+
+    let anySatisfied = false;
+    let anyUnknown = false;
+    for (const [, result] of conditionResults) {
+      if (result.satisfied) {
+        anySatisfied = true;
+        break;
+      }
+      if (isConditionEvaluationUnknown(result.reason)) {
+        anyUnknown = true;
+      }
+    }
+
+    const hasUnconditionalArtifactInputs = info.node.inputs.some(
+      (inputId) =>
+        !conditionalInputIds.has(inputId) && isCanonicalArtifactId(inputId)
+    );
+    const fanIn = info.node.context?.fanIn;
+    const hasUnconditionalFanInMembers =
+      fanIn !== undefined &&
+      Object.values(fanIn).some((spec) =>
+        spec.members.some((member) => !conditionalInputIds.has(member.id))
+      );
+
+    if (
+      !anySatisfied &&
+      !anyUnknown &&
+      !hasUnconditionalArtifactInputs &&
+      !hasUnconditionalFanInMembers
+    ) {
+      inactive.add(jobId);
+    }
+  }
+
+  return inactive;
+}
+
 function determineInitialDirtyJobs(
   manifest: Manifest,
   metadata: Map<string, GraphMetadata>,
+  conditionallyInactiveJobs: Set<string>,
   dirtyInputs: Set<string>,
   dirtyArtefacts: Set<string>,
   latestArtefacts: ArtefactMap,
   latestFailedArtefacts: Set<string>,
-  collectReasons: boolean,
+  collectReasons: boolean
 ): InitialDirtyResult {
   const dirtyJobs = new Set<string>();
   const reasons: JobDirtyReason[] = [];
   const isInitial = Object.keys(manifest.inputs).length === 0;
 
   for (const [jobId, info] of metadata) {
+    if (conditionallyInactiveJobs.has(jobId)) {
+      continue;
+    }
+
     if (isInitial) {
       dirtyJobs.add(jobId);
       if (collectReasons) {
@@ -327,27 +438,34 @@ function determineInitialDirtyJobs(
     });
     const producesMissing = missingArtifacts.length > 0;
     const failedArtifacts = info.node.produces.filter(
-      (id) => isCanonicalArtifactId(id) && latestFailedArtefacts.has(id),
+      (id) => isCanonicalArtifactId(id) && latestFailedArtefacts.has(id)
     );
     const latestAttemptFailed = failedArtifacts.length > 0;
 
     // Check which inputs are dirty
     const dirtyInputsForJob = Array.from(info.inputBases).filter((id) =>
-      dirtyInputs.has(id),
+      dirtyInputs.has(id)
     );
     const touchesDirtyInput = dirtyInputsForJob.length > 0;
 
     // Check which upstream artifacts are dirty
-    const dirtyArtefactsForJob = Array.from(info.artefactInputs).filter((artefactId) =>
-      dirtyArtefacts.has(artefactId),
+    const dirtyArtefactsForJob = Array.from(info.artefactInputs).filter(
+      (artefactId) => dirtyArtefacts.has(artefactId)
     );
     const touchesDirtyArtefact = dirtyArtefactsForJob.length > 0;
 
     // Check 4: Job's inputsHash has changed (content of inputs differs from when artifact was produced)
     let hasStaleInputsHash = false;
     const staleInputsHashArtifacts: string[] = [];
-    if (!producesMissing && !touchesDirtyInput && !touchesDirtyArtefact && !latestAttemptFailed) {
-      const jobProducedIds = info.node.produces.filter(id => isCanonicalArtifactId(id));
+    if (
+      !producesMissing &&
+      !touchesDirtyInput &&
+      !touchesDirtyArtefact &&
+      !latestAttemptFailed
+    ) {
+      const jobProducedIds = info.node.produces.filter((id) =>
+        isCanonicalArtifactId(id)
+      );
       const expectedHash = hashInputContents(info.node.inputs, manifest);
 
       for (const artId of jobProducedIds) {
@@ -359,7 +477,13 @@ function determineInitialDirtyJobs(
       hasStaleInputsHash = staleInputsHashArtifacts.length > 0;
     }
 
-    if (producesMissing || touchesDirtyInput || touchesDirtyArtefact || latestAttemptFailed || hasStaleInputsHash) {
+    if (
+      producesMissing ||
+      touchesDirtyInput ||
+      touchesDirtyArtefact ||
+      latestAttemptFailed ||
+      hasStaleInputsHash
+    ) {
       dirtyJobs.add(jobId);
 
       if (collectReasons) {
@@ -409,11 +533,14 @@ function determineInitialDirtyJobs(
 function determineMissingRequiredConditionArtifacts(
   manifest: Manifest,
   requiredConditionArtifactIds: Set<string>,
-  latestArtefacts: ArtefactMap,
+  latestArtefacts: ArtefactMap
 ): string[] {
   const missing: string[] = [];
   for (const artifactId of requiredConditionArtifactIds) {
-    if (manifest.artefacts[artifactId] === undefined && !latestArtefacts.has(artifactId)) {
+    if (
+      manifest.artefacts[artifactId] === undefined &&
+      !latestArtefacts.has(artifactId)
+    ) {
       missing.push(artifactId);
     }
   }
@@ -425,7 +552,7 @@ function validateConditionArtifactsCanBeRegenerated(
   missingConditionArtifacts: string[],
   metadata: Map<string, GraphMetadata>,
   layers: ExecutionPlan['layers'],
-  reRunFrom: number | undefined,
+  reRunFrom: number | undefined
 ): void {
   if (missingConditionArtifacts.length === 0) {
     return;
@@ -457,14 +584,17 @@ function validateConditionArtifactsCanBeRegenerated(
 
     const layerIndex = jobLayerIndex.get(producerJobId);
     if (layerIndex === undefined) {
-      unresolved.push(`${artifactId} (producer ${producerJobId} not scheduled)`);
+      unresolved.push(
+        `${artifactId} (producer ${producerJobId} not scheduled)`
+      );
       continue;
     }
 
-    const isSkippedByReRunFrom = reRunFrom !== undefined && layerIndex < reRunFrom;
+    const isSkippedByReRunFrom =
+      reRunFrom !== undefined && layerIndex < reRunFrom;
     if (isSkippedByReRunFrom) {
       unresolved.push(
-        `${artifactId} (producer ${producerJobId} is at layer ${layerIndex}, but reRunFrom=${reRunFrom})`,
+        `${artifactId} (producer ${producerJobId} is at layer ${layerIndex}, but reRunFrom=${reRunFrom})`
       );
     }
   }
@@ -477,12 +607,14 @@ function validateConditionArtifactsCanBeRegenerated(
         context: movieId,
         suggestion:
           'Re-run with layer settings that include the producer generating these artifacts (for example, reRunFrom=0 and a sufficient upToLayer).',
-      },
+      }
     );
   }
 }
 
-function collectRequiredConditionArtifactIds(blueprint: ProducerGraph): Set<string> {
+export function collectRequiredConditionArtifactIds(
+  blueprint: ProducerGraph
+): Set<string> {
   const ids = new Set<string>();
   for (const node of blueprint.nodes) {
     const inputConditions = node.context?.inputConditions;
@@ -492,7 +624,7 @@ function collectRequiredConditionArtifactIds(blueprint: ProducerGraph): Set<stri
     for (const conditionInfo of Object.values(inputConditions)) {
       const conditionIds = extractConditionArtifactIds(
         conditionInfo.condition,
-        conditionInfo.indices,
+        conditionInfo.indices
       );
       for (const id of conditionIds) {
         ids.add(id);
@@ -504,17 +636,19 @@ function collectRequiredConditionArtifactIds(blueprint: ProducerGraph): Set<stri
 
 function extractConditionArtifactIds(
   condition: EdgeConditionDefinition,
-  indices: Record<string, number>,
+  indices: Record<string, number>
 ): string[] {
   if (Array.isArray(condition)) {
-    return condition.flatMap((item) => extractConditionArtifactIdsFromItem(item, indices));
+    return condition.flatMap((item) =>
+      extractConditionArtifactIdsFromItem(item, indices)
+    );
   }
   return extractConditionArtifactIdsFromItem(condition, indices);
 }
 
 function extractConditionArtifactIdsFromItem(
   item: EdgeConditionClause | EdgeConditionGroup,
-  indices: Record<string, number>,
+  indices: Record<string, number>
 ): string[] {
   if ('all' in item || 'any' in item) {
     const group = item as EdgeConditionGroup;
@@ -545,7 +679,7 @@ function extractConditionArtifactIdsFromItem(
 
 function resolveConditionArtifactId(
   whenPath: string,
-  indices: Record<string, number>,
+  indices: Record<string, number>
 ): string | undefined {
   if (!whenPath || whenPath.startsWith('Input:')) {
     return undefined;
@@ -560,7 +694,7 @@ function resolveConditionArtifactId(
     const label = extractDimensionLabel(symbol);
     resolvedPath = resolvedPath.replace(
       new RegExp(`\\[${escapeRegexChars(label)}\\]`, 'g'),
-      `[${index}]`,
+      `[${index}]`
     );
   }
 
@@ -569,7 +703,7 @@ function resolveConditionArtifactId(
 
 function extractDimensionLabel(symbol: string): string {
   const parts = symbol.split(':');
-  return parts.length > 0 ? parts[parts.length - 1] ?? symbol : symbol;
+  return parts.length > 0 ? (parts[parts.length - 1] ?? symbol) : symbol;
 }
 
 function escapeRegexChars(value: string): string {
@@ -581,10 +715,16 @@ function propagateDirtyJobs(
   blueprint: ProducerGraph,
   metadata: Map<string, GraphMetadata>,
   collectReasons: boolean,
+  resolvedConditionArtifacts: Record<string, unknown> | undefined
 ): PropagateResult {
   const dirty = new Set(initialDirty);
   const queue = Array.from(initialDirty);
-  const adjacency = buildAdjacencyMap(blueprint);
+  const adjacency = buildAdjacencyMap(blueprint, resolvedConditionArtifacts);
+  const artifactProducer = buildArtifactProducerMap(metadata);
+  const conditionResultsCache = new Map<
+    string,
+    Map<string, { satisfied: boolean; reason?: string }>
+  >();
   const propagatedReasons: JobDirtyReason[] = [];
   // Track which job caused propagation to each downstream job
   const propagationSource = new Map<string, string>();
@@ -596,6 +736,19 @@ function propagateDirtyJobs(
       continue;
     }
     for (const next of neighbours) {
+      if (
+        !hasActiveArtifactDependency(
+          jobId,
+          next,
+          metadata,
+          artifactProducer,
+          conditionResultsCache,
+          resolvedConditionArtifacts
+        )
+      ) {
+        continue;
+      }
+
       if (!dirty.has(next)) {
         dirty.add(next);
         queue.push(next);
@@ -628,7 +781,7 @@ function propagateDirtyJobs(
  */
 export function computeArtifactRegenerationJobs(
   sourceJobId: string,
-  blueprint: ProducerGraph,
+  blueprint: ProducerGraph
 ): Set<string> {
   const jobs = new Set<string>([sourceJobId]);
   const queue = [sourceJobId];
@@ -662,7 +815,7 @@ export function computeArtifactRegenerationJobs(
  */
 export function computeMultipleArtifactRegenerationJobs(
   sourceJobIds: string[],
-  blueprint: ProducerGraph,
+  blueprint: ProducerGraph
 ): Set<string> {
   const allJobs = new Set<string>();
   for (const sourceJobId of sourceJobIds) {
@@ -683,7 +836,7 @@ function isPinnedArtifactReusable(
   artifactId: string,
   manifest: Manifest,
   latestArtefacts: ArtefactMap,
-  latestFailedIds: Set<string>,
+  latestFailedIds: Set<string>
 ): boolean {
   if (latestFailedIds.has(artifactId)) {
     return false;
@@ -702,12 +855,12 @@ function buildExecutionLayers(
   reRunFrom?: number,
   artifactRegenerations?: ArtifactRegenerationConfig[],
   upToLayer?: number,
-  excludedJobIds?: Set<string>,
+  excludedJobIds?: Set<string>
 ): BuildExecutionLayersResult {
   // Use shared topology service to compute stable layer indices for all producer jobs
   const nodes = Array.from(metadata.keys()).map((id) => ({ id }));
   const edges = blueprint.edges.filter(
-    (e) => metadata.has(e.from) && metadata.has(e.to),
+    (e) => metadata.has(e.from) && metadata.has(e.to)
   );
 
   const {
@@ -719,17 +872,21 @@ function buildExecutionLayers(
   if (hasCycle) {
     throw createRuntimeError(
       RuntimeErrorCode.CYCLIC_DEPENDENCY,
-      'Producer graph contains a cycle. Unable to create execution plan.',
+      'Producer graph contains a cycle. Unable to create execution plan.'
     );
   }
 
   const maxLevel = blueprintLayerCount > 0 ? blueprintLayerCount - 1 : 0;
-  const layers: ExecutionPlan['layers'] = Array.from({ length: maxLevel + 1 }, () => []);
+  const layers: ExecutionPlan['layers'] = Array.from(
+    { length: maxLevel + 1 },
+    () => []
+  );
 
   // Combine dirty jobs with jobs forced by reRunFrom
   // Note: reRunFrom is NOT applied for surgical regeneration - it would defeat the purpose
   const jobsToInclude = new Set(dirtyJobs);
-  const inSurgicalMode = artifactRegenerations && artifactRegenerations.length > 0;
+  const inSurgicalMode =
+    artifactRegenerations && artifactRegenerations.length > 0;
   if (reRunFrom !== undefined && !inSurgicalMode) {
     // Force all jobs at layer >= reRunFrom to be included (normal mode only)
     for (const [jobId] of metadata) {
@@ -779,12 +936,112 @@ function buildExecutionLayers(
   return { layers, blueprintLayerCount };
 }
 
-function buildAdjacencyMap(blueprint: ProducerGraph): Map<string, Set<string>> {
+function buildArtifactProducerMap(
+  metadata: Map<string, GraphMetadata>
+): Map<string, string> {
+  const producers = new Map<string, string>();
+  for (const [jobId, info] of metadata) {
+    for (const artifactId of info.node.produces) {
+      if (isCanonicalArtifactId(artifactId)) {
+        producers.set(artifactId, jobId);
+      }
+    }
+  }
+  return producers;
+}
+
+function hasActiveArtifactDependency(
+  fromJobId: string,
+  toJobId: string,
+  metadata: Map<string, GraphMetadata>,
+  artifactProducer: Map<string, string>,
+  conditionResultsCache: Map<
+    string,
+    Map<string, { satisfied: boolean; reason?: string }>
+  >,
+  resolvedConditionArtifacts: Record<string, unknown> | undefined
+): boolean {
+  const target = metadata.get(toJobId);
+  if (!target) {
+    return true;
+  }
+
+  const inputConditions = target.node.context?.inputConditions;
+  const conditionalInputIds = new Set(Object.keys(inputConditions ?? {}));
+  let conditionResults = conditionResultsCache.get(toJobId);
+  if (!conditionResults) {
+    conditionResults = evaluateInputConditions(inputConditions, {
+      resolvedArtifacts: resolvedConditionArtifacts ?? {},
+    });
+    conditionResultsCache.set(toJobId, conditionResults);
+  }
+
+  const isInputActive = (inputId: string): boolean => {
+    if (!conditionalInputIds.has(inputId)) {
+      return true;
+    }
+    const result = conditionResults.get(inputId);
+    if (!result) {
+      return true;
+    }
+    if (result.satisfied) {
+      return true;
+    }
+    return isConditionEvaluationUnknown(result.reason);
+  };
+
+  for (const inputId of target.node.inputs) {
+    if (!isCanonicalArtifactId(inputId)) {
+      continue;
+    }
+    if (artifactProducer.get(inputId) !== fromJobId) {
+      continue;
+    }
+    if (isInputActive(inputId)) {
+      return true;
+    }
+  }
+
+  const fanIn = target.node.context?.fanIn;
+  if (fanIn) {
+    for (const spec of Object.values(fanIn)) {
+      for (const member of spec.members) {
+        if (!isCanonicalArtifactId(member.id)) {
+          continue;
+        }
+        if (artifactProducer.get(member.id) !== fromJobId) {
+          continue;
+        }
+        if (isInputActive(member.id)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
+function buildAdjacencyMap(
+  blueprint: ProducerGraph,
+  resolvedConditionArtifacts?: Record<string, unknown>
+): Map<string, Set<string>> {
   const adjacency = new Map<string, Set<string>>();
   for (const node of blueprint.nodes) {
     adjacency.set(node.jobId, new Set());
   }
   for (const edge of blueprint.edges) {
+    if (
+      edge.conditions &&
+      resolvedConditionArtifacts !== undefined &&
+      !isResolvedConditionGroupSatisfied(
+        edge.conditions,
+        resolvedConditionArtifacts
+      )
+    ) {
+      continue;
+    }
+
     if (!adjacency.has(edge.from)) {
       adjacency.set(edge.from, new Set());
     }
@@ -793,7 +1050,222 @@ function buildAdjacencyMap(blueprint: ProducerGraph): Map<string, Set<string>> {
   return adjacency;
 }
 
-async function readLatestInputs(eventLog: EventLog, movieId: string): Promise<InputsMap> {
+function isResolvedConditionGroupSatisfied(
+  group: ResolvedEdgeConditionGroup,
+  resolvedArtifacts: Record<string, unknown>
+): boolean {
+  const evaluations = group.conditions.map((condition) =>
+    isResolvedConditionSatisfied(condition, resolvedArtifacts)
+  );
+  if (group.logic === 'and') {
+    return evaluations.every((value) => value);
+  }
+  return evaluations.some((value) => value);
+}
+
+function isResolvedConditionSatisfied(
+  condition: ResolvedEdgeCondition | ResolvedEdgeConditionGroup,
+  resolvedArtifacts: Record<string, unknown>
+): boolean {
+  if ('logic' in condition) {
+    return isResolvedConditionGroupSatisfied(condition, resolvedArtifacts);
+  }
+  return evaluateResolvedCondition(condition, resolvedArtifacts);
+}
+
+function evaluateResolvedCondition(
+  condition: ResolvedEdgeCondition,
+  resolvedArtifacts: Record<string, unknown>
+): boolean {
+  const value = readResolvedConditionValue(
+    condition.sourceArtifactId,
+    condition.fieldPath,
+    resolvedArtifacts
+  );
+  return evaluateResolvedOperator(
+    condition.operator,
+    value,
+    condition.compareValue
+  );
+}
+
+function readResolvedConditionValue(
+  sourceArtifactId: string,
+  fieldPath: string[],
+  resolvedArtifacts: Record<string, unknown>
+): unknown {
+  let current: unknown = resolvedArtifacts[sourceArtifactId];
+  for (const segment of fieldPath) {
+    current = readResolvedSegment(current, segment);
+    if (current === undefined) {
+      break;
+    }
+  }
+  return current;
+}
+
+function readResolvedSegment(value: unknown, segment: string): unknown {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  const directIndexMatch = segment.match(/^\[(\d+)\]$/);
+  if (directIndexMatch) {
+    if (!Array.isArray(value)) {
+      return undefined;
+    }
+    const index = Number.parseInt(directIndexMatch[1]!, 10);
+    return value[index];
+  }
+
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const objectValue = value as Record<string, unknown>;
+  const withIndexMatch = segment.match(/^([^\[]+)((?:\[\d+\])+)$/);
+  if (!withIndexMatch) {
+    return objectValue[segment];
+  }
+
+  const baseKey = withIndexMatch[1]!;
+  const indexSuffix = withIndexMatch[2]!;
+  let current: unknown = objectValue[baseKey];
+  const indices = Array.from(indexSuffix.matchAll(/\[(\d+)\]/g)).map((match) =>
+    Number.parseInt(match[1]!, 10)
+  );
+  for (const index of indices) {
+    if (!Array.isArray(current)) {
+      return undefined;
+    }
+    current = current[index];
+  }
+  return current;
+}
+
+function evaluateResolvedOperator(
+  operator: string,
+  value: unknown,
+  compareValue: unknown
+): boolean {
+  const coercedValue = coerceConditionValue(value, compareValue);
+
+  switch (operator) {
+    case 'is':
+      return deepEqualValue(coercedValue, compareValue);
+    case 'isNot':
+      return !deepEqualValue(coercedValue, compareValue);
+    case 'contains':
+      if (typeof value === 'string' && typeof compareValue === 'string') {
+        return value.includes(compareValue);
+      }
+      if (Array.isArray(value)) {
+        return value.some((item) => deepEqualValue(item, compareValue));
+      }
+      return false;
+    case 'greaterThan':
+      return (
+        typeof coercedValue === 'number' &&
+        typeof compareValue === 'number' &&
+        coercedValue > compareValue
+      );
+    case 'lessThan':
+      return (
+        typeof coercedValue === 'number' &&
+        typeof compareValue === 'number' &&
+        coercedValue < compareValue
+      );
+    case 'greaterOrEqual':
+      return (
+        typeof coercedValue === 'number' &&
+        typeof compareValue === 'number' &&
+        coercedValue >= compareValue
+      );
+    case 'lessOrEqual':
+      return (
+        typeof coercedValue === 'number' &&
+        typeof compareValue === 'number' &&
+        coercedValue <= compareValue
+      );
+    case 'exists': {
+      const shouldExist = compareValue === true;
+      const doesExist = value !== null && value !== undefined;
+      return shouldExist === doesExist;
+    }
+    case 'matches':
+      if (typeof value !== 'string' || typeof compareValue !== 'string') {
+        return false;
+      }
+      return new RegExp(compareValue).test(value);
+    default:
+      return false;
+  }
+}
+
+function coerceConditionValue(value: unknown, compareValue: unknown): unknown {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (typeof compareValue === 'boolean') {
+      if (trimmed === 'true') {
+        return true;
+      }
+      if (trimmed === 'false') {
+        return false;
+      }
+    }
+    if (typeof compareValue === 'number') {
+      const parsed = Number(trimmed);
+      if (!Number.isNaN(parsed)) {
+        return parsed;
+      }
+    }
+  }
+  return value;
+}
+
+function deepEqualValue(a: unknown, b: unknown): boolean {
+  if (a === b) {
+    return true;
+  }
+  if (typeof a !== typeof b) {
+    return false;
+  }
+  if (a === null || b === null) {
+    return a === b;
+  }
+  if (typeof a !== 'object') {
+    return false;
+  }
+  if (Array.isArray(a) !== Array.isArray(b)) {
+    return false;
+  }
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) {
+      return false;
+    }
+    return a.every((item, index) => deepEqualValue(item, b[index]));
+  }
+  const recordA = a as Record<string, unknown>;
+  const recordB = b as Record<string, unknown>;
+  const keysA = Object.keys(recordA);
+  const keysB = Object.keys(recordB);
+  if (keysA.length !== keysB.length) {
+    return false;
+  }
+  return keysA.every((key) => deepEqualValue(recordA[key], recordB[key]));
+}
+
+function isConditionEvaluationUnknown(reason: string | undefined): boolean {
+  if (!reason) {
+    return false;
+  }
+  return reason.includes('Artifact not found');
+}
+
+async function readLatestInputs(
+  eventLog: EventLog,
+  movieId: string
+): Promise<InputsMap> {
   const inputs = new Map<string, InputEvent>();
   for await (const event of eventLog.streamInputs(movieId)) {
     inputs.set(event.id, event);
@@ -809,7 +1281,10 @@ function mergeInputs(latest: InputsMap, pending: InputEvent[]): InputsMap {
   return merged;
 }
 
-function determineDirtyInputs(manifest: Manifest, inputs: InputsMap): Set<string> {
+function determineDirtyInputs(
+  manifest: Manifest,
+  inputs: InputsMap
+): Set<string> {
   const dirty = new Set<string>();
   for (const [id, event] of inputs) {
     const record = manifest.inputs[id];
@@ -820,7 +1295,10 @@ function determineDirtyInputs(manifest: Manifest, inputs: InputsMap): Set<string
   return dirty;
 }
 
-async function readLatestArtefactSnapshot(eventLog: EventLog, movieId: string): Promise<ArtefactSnapshot> {
+async function readLatestArtefactSnapshot(
+  eventLog: EventLog,
+  movieId: string
+): Promise<ArtefactSnapshot> {
   const latestById = new Map<string, ArtefactEvent>();
   for await (const event of eventLog.streamArtefacts(movieId)) {
     latestById.set(event.artefactId, event);
@@ -847,7 +1325,7 @@ async function readLatestArtefactSnapshot(eventLog: EventLog, movieId: string): 
 function determineDirtyArtefacts(
   manifest: Manifest,
   artefacts: ArtefactMap,
-  latestFailedIds: Set<string>,
+  latestFailedIds: Set<string>
 ): Set<string> {
   const dirty = new Set<string>();
   for (const [id, event] of artefacts) {

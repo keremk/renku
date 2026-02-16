@@ -61,36 +61,38 @@ describe('createRunner', () => {
     const eventLog = createEventLog(storage);
     const manifestService = createManifestService(storage);
 
-    const produce = vi.fn(async (request: ProduceRequest): Promise<ProduceResult> => {
-      if (request.job.jobId === 'job-1') {
+    const produce = vi.fn(
+      async (request: ProduceRequest): Promise<ProduceResult> => {
+        if (request.job.jobId === 'job-1') {
+          return {
+            jobId: request.job.jobId,
+            status: 'succeeded',
+            artefacts: [
+              {
+                artefactId: 'Artifact:NarrationScript',
+                blob: {
+                  data: 'Once upon a time',
+                  mimeType: 'text/plain',
+                },
+              },
+            ],
+          };
+        }
         return {
           jobId: request.job.jobId,
           status: 'succeeded',
           artefacts: [
             {
-              artefactId: 'Artifact:NarrationScript',
+              artefactId: 'Artifact:SegmentAudio[segment=0]',
               blob: {
-                data: 'Once upon a time',
-                mimeType: 'text/plain',
+                data: new TextEncoder().encode('AUDIO_DATA'),
+                mimeType: 'audio/wav',
               },
             },
           ],
         };
       }
-      return {
-        jobId: request.job.jobId,
-        status: 'succeeded',
-        artefacts: [
-          {
-            artefactId: 'Artifact:SegmentAudio[segment=0]',
-            blob: {
-              data: new TextEncoder().encode('AUDIO_DATA'),
-              mimeType: 'audio/wav',
-            },
-          },
-        ],
-      };
-    });
+    );
 
     const runner = createRunner();
     const result = await runner.execute(plan, {
@@ -115,7 +117,7 @@ describe('createRunner', () => {
       'movie-123',
       'blobs',
       firstBlob!.hash.slice(0, 2),
-      formatBlobFileName(firstBlob!.hash, firstBlob!.mimeType),
+      formatBlobFileName(firstBlob!.hash, firstBlob!.mimeType)
     );
     const narration = await storage.storage.readToString(narrationPath);
     expect(narration).toBe('Once upon a time');
@@ -128,15 +130,21 @@ describe('createRunner', () => {
       'movie-123',
       'blobs',
       audioBlob!.hash.slice(0, 2),
-      formatBlobFileName(audioBlob!.hash, audioBlob!.mimeType),
+      formatBlobFileName(audioBlob!.hash, audioBlob!.mimeType)
     );
     const storedAudio = await storage.storage.readToUint8Array(audioPath);
-    expect(Array.from(storedAudio)).toEqual(Array.from(new TextEncoder().encode('AUDIO_DATA')));
+    expect(Array.from(storedAudio)).toEqual(
+      Array.from(new TextEncoder().encode('AUDIO_DATA'))
+    );
 
     const manifest = await result.buildManifest();
     expect(manifest.revision).toBe('rev-0001');
-    expect(Object.keys(manifest.artefacts)).toContain('Artifact:NarrationScript');
-    expect(Object.keys(manifest.artefacts)).toContain('Artifact:SegmentAudio[segment=0]');
+    expect(Object.keys(manifest.artefacts)).toContain(
+      'Artifact:NarrationScript'
+    );
+    expect(Object.keys(manifest.artefacts)).toContain(
+      'Artifact:SegmentAudio[segment=0]'
+    );
   });
 
   it('uses stub produce when none supplied', async () => {
@@ -164,24 +172,26 @@ describe('createRunner', () => {
     const eventLog = createEventLog(storage);
     const manifestService = createManifestService(storage);
 
-    const produce = vi.fn(async (request: ProduceRequest): Promise<ProduceResult> => {
-      if (request.job.jobId === 'job-2') {
-        throw new Error('boom');
-      }
-      return {
-        jobId: request.job.jobId,
-        status: 'succeeded',
-        artefacts: [
-          {
-            artefactId: 'Artifact:NarrationScript',
-            blob: {
-              data: 'Hello world',
-              mimeType: 'text/plain',
+    const produce = vi.fn(
+      async (request: ProduceRequest): Promise<ProduceResult> => {
+        if (request.job.jobId === 'job-2') {
+          throw new Error('boom');
+        }
+        return {
+          jobId: request.job.jobId,
+          status: 'succeeded',
+          artefacts: [
+            {
+              artefactId: 'Artifact:NarrationScript',
+              blob: {
+                data: 'Hello world',
+                mimeType: 'text/plain',
+              },
             },
-          },
-        ],
-      };
-    });
+          ],
+        };
+      }
+    );
 
     const runner = createRunner();
     const result = await runner.execute(plan, {
@@ -199,6 +209,73 @@ describe('createRunner', () => {
     expect(failedJob?.error?.message).toContain('boom');
   });
 
+  it('persists provider recovery diagnostics for failed artefacts', async () => {
+    const storage = createStorageContext({ kind: 'memory' });
+    await initializeMovieStorage(storage, 'movie-recovery');
+    const eventLog = createEventLog(storage);
+    const manifestService = createManifestService(storage);
+
+    const produce = vi.fn(
+      async (request: ProduceRequest): Promise<ProduceResult> => {
+        if (request.job.jobId === 'job-2') {
+          const error = new Error('provider timeout') as Error & {
+            providerRequestId: string;
+            recoverable: boolean;
+            provider: string;
+            model: string;
+            reason: string;
+          };
+          error.providerRequestId = 'req-123';
+          error.recoverable = true;
+          error.provider = 'fal-ai';
+          error.model = 'fal-ai/kling-video';
+          error.reason = 'timeout';
+          throw error;
+        }
+        return {
+          jobId: request.job.jobId,
+          status: 'succeeded',
+          artefacts: [
+            {
+              artefactId: 'Artifact:NarrationScript',
+              blob: {
+                data: 'Hello world',
+                mimeType: 'text/plain',
+              },
+            },
+          ],
+        };
+      }
+    );
+
+    const runner = createRunner();
+    await runner.execute(plan, {
+      movieId: 'movie-recovery',
+      manifest: baseManifest,
+      storage,
+      eventLog,
+      manifestService,
+      produce,
+    });
+
+    const artefactEvents: ArtefactEvent[] = [];
+    for await (const event of eventLog.streamArtefacts('movie-recovery')) {
+      artefactEvents.push(event);
+    }
+
+    const failedEvent = artefactEvents.find(
+      (event) =>
+        event.artefactId === 'Artifact:SegmentAudio[segment=0]' &&
+        event.status === 'failed'
+    );
+    expect(failedEvent).toBeDefined();
+    expect(failedEvent?.diagnostics?.providerRequestId).toBe('req-123');
+    expect(failedEvent?.diagnostics?.recoverable).toBe(true);
+    expect(failedEvent?.diagnostics?.provider).toBe('fal-ai');
+    expect(failedEvent?.diagnostics?.model).toBe('fal-ai/kling-video');
+    expect(failedEvent?.diagnostics?.reason).toBe('timeout');
+  });
+
   it('injects alias inputs derived from upstream artefacts', async () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-alias');
@@ -211,15 +288,21 @@ describe('createRunner', () => {
       size: aliasText.length,
       mimeType: 'text/plain',
     };
-    const aliasDir = storage.resolve('movie-alias', 'blobs', aliasBlobHash.slice(0, 2));
+    const aliasDir = storage.resolve(
+      'movie-alias',
+      'blobs',
+      aliasBlobHash.slice(0, 2)
+    );
     await storage.storage.createDirectory(aliasDir, {});
     const aliasPath = storage.resolve(
       'movie-alias',
       'blobs',
       aliasBlobHash.slice(0, 2),
-      formatBlobFileName(aliasBlobHash, aliasBlobRef.mimeType),
+      formatBlobFileName(aliasBlobHash, aliasBlobRef.mimeType)
     );
-    await storage.storage.write(aliasPath, Buffer.from(aliasText), { mimeType: 'text/plain' });
+    await storage.storage.write(aliasPath, Buffer.from(aliasText), {
+      mimeType: 'text/plain',
+    });
 
     const artefactEvent: ArtefactEvent = {
       artefactId: 'Artifact:ScriptGeneration.NarrationScript[segment=0]',
@@ -237,7 +320,9 @@ describe('createRunner', () => {
 
     const runner = createRunner({
       produce: async (request) => {
-        observedResolvedInputs = request.job.context?.extras?.resolvedInputs as Record<string, unknown> | undefined;
+        observedResolvedInputs = request.job.context?.extras?.resolvedInputs as
+          | Record<string, unknown>
+          | undefined;
         return {
           jobId: request.job.jobId,
           status: 'succeeded',
@@ -292,7 +377,9 @@ describe('createRunner', () => {
     });
 
     expect(
-      observedResolvedInputs?.['Artifact:ScriptGeneration.NarrationScript[segment=0]'],
+      observedResolvedInputs?.[
+        'Artifact:ScriptGeneration.NarrationScript[segment=0]'
+      ]
     ).toBe('aliased text');
   });
 
@@ -306,7 +393,9 @@ describe('createRunner', () => {
 
     const runner = createRunner({
       produce: async (request) => {
-        observedResolvedInputs = request.job.context?.extras?.resolvedInputs as Record<string, unknown> | undefined;
+        observedResolvedInputs = request.job.context?.extras?.resolvedInputs as
+          | Record<string, unknown>
+          | undefined;
         return {
           jobId: request.job.jobId,
           status: 'succeeded',
@@ -340,8 +429,16 @@ describe('createRunner', () => {
             groupBy: 'segment',
             orderBy: 'image',
             members: [
-              { id: 'Artifact:ImageGenerator.SegmentImage[0][0]', group: 0, order: 0 },
-              { id: 'Artifact:ImageGenerator.SegmentImage[1][0]', group: 1, order: 0 },
+              {
+                id: 'Artifact:ImageGenerator.SegmentImage[0][0]',
+                group: 0,
+                order: 0,
+              },
+              {
+                id: 'Artifact:ImageGenerator.SegmentImage[1][0]',
+                group: 1,
+                order: 0,
+              },
             ],
           },
           'Input:TimelineComposer.AudioSegments': {
@@ -375,9 +472,9 @@ describe('createRunner', () => {
     });
 
     expect(observedResolvedInputs).toBeDefined();
-    const imageSegments = observedResolvedInputs?.['Input:TimelineComposer.ImageSegments'] as
-      | { groupBy: string; orderBy?: string; groups: string[][] }
-      | undefined;
+    const imageSegments = observedResolvedInputs?.[
+      'Input:TimelineComposer.ImageSegments'
+    ] as { groupBy: string; orderBy?: string; groups: string[][] } | undefined;
     expect(imageSegments?.groupBy).toBe('segment');
     expect(imageSegments?.orderBy).toBe('image');
     expect(imageSegments?.groups).toEqual([
@@ -385,9 +482,9 @@ describe('createRunner', () => {
       ['Artifact:ImageGenerator.SegmentImage[1][0]'],
     ]);
 
-    const audioSegments = observedResolvedInputs?.['Input:TimelineComposer.AudioSegments'] as
-      | { groupBy: string; groups: string[][] }
-      | undefined;
+    const audioSegments = observedResolvedInputs?.[
+      'Input:TimelineComposer.AudioSegments'
+    ] as { groupBy: string; groups: string[][] } | undefined;
     expect(audioSegments?.groupBy).toBe('segment');
     expect(audioSegments?.groups).toEqual([
       ['Artifact:AudioGenerator.SegmentAudio[0]'],
@@ -404,16 +501,26 @@ describe('createRunner', () => {
     // Store video artifacts that will be unconditional fanIn members
     const videoData = new TextEncoder().encode('video-data');
     const videoBlobHash = 'videohash123';
-    const videoBlobRef = { hash: videoBlobHash, size: videoData.length, mimeType: 'video/mp4' };
-    const videoDir = storage.resolve('movie-conditional-fanin', 'blobs', videoBlobHash.slice(0, 2));
+    const videoBlobRef = {
+      hash: videoBlobHash,
+      size: videoData.length,
+      mimeType: 'video/mp4',
+    };
+    const videoDir = storage.resolve(
+      'movie-conditional-fanin',
+      'blobs',
+      videoBlobHash.slice(0, 2)
+    );
     await storage.storage.createDirectory(videoDir, {});
     const videoPath = storage.resolve(
       'movie-conditional-fanin',
       'blobs',
       videoBlobHash.slice(0, 2),
-      formatBlobFileName(videoBlobHash, videoBlobRef.mimeType),
+      formatBlobFileName(videoBlobHash, videoBlobRef.mimeType)
     );
-    await storage.storage.write(videoPath, Buffer.from(videoData), { mimeType: 'video/mp4' });
+    await storage.storage.write(videoPath, Buffer.from(videoData), {
+      mimeType: 'video/mp4',
+    });
 
     // Add video artifact to event log (unconditional)
     await eventLog.appendArtefact('movie-conditional-fanin', {
@@ -673,7 +780,9 @@ describe('createRunner', () => {
           } satisfies ProduceResult;
         }
 
-        observedResolvedInputs = request.job.context?.extras?.resolvedInputs as Record<string, unknown> | undefined;
+        observedResolvedInputs = request.job.context?.extras?.resolvedInputs as
+          | Record<string, unknown>
+          | undefined;
         return {
           jobId: request.job.jobId,
           status: 'succeeded',
@@ -690,7 +799,8 @@ describe('createRunner', () => {
       manifestService,
     });
 
-    const payload = observedResolvedInputs?.['Artifact:AudioGenerator.SegmentAudio[0]'];
+    const payload =
+      observedResolvedInputs?.['Artifact:AudioGenerator.SegmentAudio[0]'];
     expect(payload).toBeInstanceOf(Uint8Array);
     expect(Array.from(payload as Uint8Array)).toEqual(Array.from(audioPayload));
   });

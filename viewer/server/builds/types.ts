@@ -78,6 +78,15 @@ export interface BuildsListResponse {
 }
 
 /**
+ * Why an artifact failed or was skipped.
+ */
+export type ArtifactFailureReason =
+  | 'timeout' // Provider request timed out
+  | 'connection_error' // Network connection failed
+  | 'upstream_failure' // Dependency producer failed
+  | 'conditions_not_met'; // Conditional producer skipped
+
+/**
  * Artifact information in a build manifest.
  */
 export interface ArtifactInfo {
@@ -86,12 +95,25 @@ export interface ArtifactInfo {
   hash: string;
   size: number;
   mimeType: string;
-  status: string;
+  /** Artifact status: succeeded, failed, or skipped */
+  status: 'succeeded' | 'failed' | 'skipped' | string;
   createdAt: string | null;
   /** Source of this artifact - 'producer' for generated, 'user' for edited */
   editedBy?: 'producer' | 'user';
   /** The first producer-generated blob hash (preserved across edits for restore) */
   originalHash?: string;
+  /** Why the artifact failed or was skipped */
+  failureReason?: ArtifactFailureReason;
+  /** Whether failed artifact can be recovered via recheck (e.g., job still running on provider) */
+  recoverable?: boolean;
+  /** Provider request ID for recovery (e.g., fal.ai requestId) */
+  providerRequestId?: string;
+  /** Human-readable skip message */
+  skipMessage?: string;
+  /** Provider name (e.g., 'fal-ai', 'replicate') */
+  provider?: string;
+  /** Model name (e.g., 'kling-video') */
+  model?: string;
 }
 
 /**

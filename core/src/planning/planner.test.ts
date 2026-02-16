@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { createPlanner, computeArtifactRegenerationJobs, computeMultipleArtifactRegenerationJobs } from './planner.js';
+import {
+  createPlanner,
+  computeArtifactRegenerationJobs,
+  computeMultipleArtifactRegenerationJobs,
+} from './planner.js';
 import { createEventLog } from '../event-log.js';
 import { createStorageContext, initializeMovieStorage } from '../storage.js';
 import { createManifestService, ManifestNotFoundError } from '../manifest.js';
-import { hashArtefactOutput, hashPayload, hashInputContents } from '../hashing.js';
+import {
+  hashArtefactOutput,
+  hashPayload,
+  hashInputContents,
+} from '../hashing.js';
 import { nextRevisionId } from '../revisions.js';
 import { computeTopologyLayers } from '../topology/index.js';
 import { RuntimeErrorCode } from '../errors/index.js';
@@ -30,7 +38,13 @@ function buildProducerGraph(): ProducerGraph {
       provider: 'openai',
       providerModel: 'openai/GPT-5',
       rateKey: 'llm:script',
-      context: { namespacePath: [], indices: {}, producerAlias: 'ScriptProducer', inputs: [], produces: [] },
+      context: {
+        namespacePath: [],
+        indices: {},
+        producerAlias: 'ScriptProducer',
+        inputs: [],
+        produces: [],
+      },
     },
     {
       jobId: 'Producer:AudioProducer[0]',
@@ -40,7 +54,13 @@ function buildProducerGraph(): ProducerGraph {
       provider: 'replicate',
       providerModel: 'elevenlabs/turbo-v2.5',
       rateKey: 'audio:elevenlabs-turbo',
-      context: { namespacePath: [], indices: {}, producerAlias: 'AudioProducer', inputs: [], produces: [] },
+      context: {
+        namespacePath: [],
+        indices: {},
+        producerAlias: 'AudioProducer',
+        inputs: [],
+        produces: [],
+      },
     },
     {
       jobId: 'Producer:AudioProducer[1]',
@@ -50,7 +70,13 @@ function buildProducerGraph(): ProducerGraph {
       provider: 'replicate',
       providerModel: 'elevenlabs/turbo-v2.5',
       rateKey: 'audio:elevenlabs-turbo',
-      context: { namespacePath: [], indices: {}, producerAlias: 'AudioProducer', inputs: [], produces: [] },
+      context: {
+        namespacePath: [],
+        indices: {},
+        producerAlias: 'AudioProducer',
+        inputs: [],
+        produces: [],
+      },
     },
     {
       jobId: 'Producer:TimelineAssembler',
@@ -60,7 +86,13 @@ function buildProducerGraph(): ProducerGraph {
       provider: 'internal',
       providerModel: 'workflow/timeline-assembler',
       rateKey: 'internal:timeline',
-      context: { namespacePath: [], indices: {}, producerAlias: 'TimelineAssembler', inputs: [], produces: [] },
+      context: {
+        namespacePath: [],
+        indices: {},
+        producerAlias: 'TimelineAssembler',
+        inputs: [],
+        produces: [],
+      },
     },
   ];
 
@@ -87,12 +119,20 @@ function buildConditionArtifactGraph(): ProducerGraph {
       provider: 'openai',
       providerModel: 'openai/GPT-5',
       rateKey: 'llm:director',
-      context: { namespacePath: [], indices: {}, producerAlias: 'DirectorProducer', inputs: [], produces: [] },
+      context: {
+        namespacePath: [],
+        indices: {},
+        producerAlias: 'DirectorProducer',
+        inputs: [],
+        produces: [],
+      },
     },
     {
       jobId: 'Producer:TransitionVideoProducer[0]',
       producer: 'TransitionVideoProducer',
-      inputs: ['Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt'],
+      inputs: [
+        'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt',
+      ],
       produces: ['Artifact:TransitionVideoProducer.GeneratedVideo[0]'],
       provider: 'fal-ai',
       providerModel: 'kling-video/v2.5',
@@ -117,13 +157,18 @@ function buildConditionArtifactGraph(): ProducerGraph {
   ];
 
   const edges: ProducerGraphEdge[] = [
-    { from: 'Producer:DirectorProducer', to: 'Producer:TransitionVideoProducer[0]' },
+    {
+      from: 'Producer:DirectorProducer',
+      to: 'Producer:TransitionVideoProducer[0]',
+    },
   ];
 
   return { nodes, edges };
 }
 
-async function loadManifest(ctx: ReturnType<typeof memoryContext>): Promise<Manifest> {
+async function loadManifest(
+  ctx: ReturnType<typeof memoryContext>
+): Promise<Manifest> {
   const svc = createManifestService(ctx);
   try {
     const { manifest } = await svc.loadCurrent('demo');
@@ -162,7 +207,10 @@ function assertTopological(plan: ExecutionPlan, graph: ProducerGraph) {
   }
 }
 
-function createInputEvents(values: Record<string, unknown>, revision: RevisionId): InputEvent[] {
+function createInputEvents(
+  values: Record<string, unknown>,
+  revision: RevisionId
+): InputEvent[] {
   const now = new Date().toISOString();
   return Object.entries(values).map(([id, payload]) => {
     const { hash } = hashPayload(payload);
@@ -192,13 +240,29 @@ function createSucceededManifest(
   const artefactCreatedAt = new Date().toISOString();
 
   // Default artifacts for the standard test graph
-  const defaultArtefacts: Record<string, { hash: string; producedBy: string }> = {
-    'Artifact:NarrationScript[0]': { hash: 'h0', producedBy: 'Producer:ScriptProducer' },
-    'Artifact:NarrationScript[1]': { hash: 'h1', producedBy: 'Producer:ScriptProducer' },
-    'Artifact:SegmentAudio[0]': { hash: 'h2', producedBy: 'Producer:AudioProducer[0]' },
-    'Artifact:SegmentAudio[1]': { hash: 'h3', producedBy: 'Producer:AudioProducer[1]' },
-    'Artifact:FinalVideo': { hash: 'h4', producedBy: 'Producer:TimelineAssembler' },
-  };
+  const defaultArtefacts: Record<string, { hash: string; producedBy: string }> =
+    {
+      'Artifact:NarrationScript[0]': {
+        hash: 'h0',
+        producedBy: 'Producer:ScriptProducer',
+      },
+      'Artifact:NarrationScript[1]': {
+        hash: 'h1',
+        producedBy: 'Producer:ScriptProducer',
+      },
+      'Artifact:SegmentAudio[0]': {
+        hash: 'h2',
+        producedBy: 'Producer:AudioProducer[0]',
+      },
+      'Artifact:SegmentAudio[1]': {
+        hash: 'h3',
+        producedBy: 'Producer:AudioProducer[1]',
+      },
+      'Artifact:FinalVideo': {
+        hash: 'h4',
+        producedBy: 'Producer:TimelineAssembler',
+      },
+    };
 
   const artefactDefs = options?.artefacts ?? defaultArtefacts;
   const artefacts: Manifest['artefacts'] = {};
@@ -223,7 +287,7 @@ function createSucceededManifest(
           payloadDigest: hashPayload(event.payload).canonical,
           createdAt: event.createdAt,
         },
-      ]),
+      ])
     ),
     artefacts,
     timeline: {},
@@ -259,7 +323,10 @@ describe('planner', () => {
     const graph = buildProducerGraph();
     const planner = createPlanner();
 
-    const baseline = createInputEvents({ InquiryPrompt: 'Tell me a story' }, 'rev-0001');
+    const baseline = createInputEvents(
+      { InquiryPrompt: 'Tell me a story' },
+      'rev-0001'
+    );
     for (const event of baseline) {
       await eventLog.appendInput('demo', event);
     }
@@ -277,7 +344,7 @@ describe('planner', () => {
             payloadDigest: hashPayload(event.payload).canonical,
             createdAt: event.createdAt,
           },
-        ]),
+        ])
       ),
       artefacts: {
         'Artifact:NarrationScript[0]': {
@@ -334,7 +401,10 @@ describe('planner', () => {
     const graph = buildConditionArtifactGraph();
     const planner = createPlanner();
 
-    const baseline = createInputEvents({ 'Input:Prompt': 'Keep transitions correct' }, 'rev-0001');
+    const baseline = createInputEvents(
+      { 'Input:Prompt': 'Keep transitions correct' },
+      'rev-0001'
+    );
     for (const event of baseline) {
       await eventLog.appendInput('demo', event);
     }
@@ -372,7 +442,10 @@ describe('planner', () => {
     const graph = buildConditionArtifactGraph();
     const planner = createPlanner();
 
-    const baseline = createInputEvents({ 'Input:Prompt': 'Keep transitions correct' }, 'rev-0001');
+    const baseline = createInputEvents(
+      { 'Input:Prompt': 'Keep transitions correct' },
+      'rev-0001'
+    );
     for (const event of baseline) {
       await eventLog.appendInput('demo', event);
     }
@@ -399,7 +472,7 @@ describe('planner', () => {
         targetRevision: 'rev-0002',
         pendingEdits: [],
         reRunFrom: 1,
-      }),
+      })
     ).rejects.toMatchObject({
       code: RuntimeErrorCode.MISSING_CANONICAL_CONDITION_ARTIFACT,
     });
@@ -412,7 +485,10 @@ describe('planner', () => {
     const graph = buildConditionArtifactGraph();
     const planner = createPlanner();
 
-    const baseline = createInputEvents({ 'Input:Prompt': 'Keep transitions correct' }, 'rev-0001');
+    const baseline = createInputEvents(
+      { 'Input:Prompt': 'Keep transitions correct' },
+      'rev-0001'
+    );
     for (const event of baseline) {
       await eventLog.appendInput('demo', event);
     }
@@ -446,6 +522,103 @@ describe('planner', () => {
     expect(plan.layers).toHaveLength(0);
   });
 
+  it('does not mark missing conditional outputs dirty when conditions are unsatisfied', async () => {
+    const ctx = memoryContext();
+    await initializeMovieStorage(ctx, 'demo');
+    const eventLog = createEventLog(ctx);
+    const graph = buildConditionArtifactGraph();
+    const planner = createPlanner();
+
+    const baseline = createInputEvents(
+      { 'Input:Prompt': 'Keep transitions correct' },
+      'rev-0001'
+    );
+    for (const event of baseline) {
+      await eventLog.appendInput('demo', event);
+    }
+
+    const manifest = createSucceededManifest(baseline, {
+      artefacts: {
+        'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
+          hash: 'meeting-hash',
+          producedBy: 'Producer:DirectorProducer',
+        },
+        'Artifact:DirectorProducer.Script.Characters[0].HasTransition': {
+          hash: 'has-transition-hash',
+          producedBy: 'Producer:DirectorProducer',
+        },
+      },
+    });
+
+    const { plan, explanation } = await planner.computePlan({
+      movieId: 'demo',
+      manifest,
+      eventLog,
+      blueprint: graph,
+      targetRevision: 'rev-0002',
+      pendingEdits: [],
+      collectExplanation: true,
+      resolvedConditionArtifacts: {
+        'Artifact:DirectorProducer.Script.Characters[0].HasTransition': false,
+      },
+    });
+
+    expect(plan.layers.flat()).toHaveLength(0);
+    expect(explanation?.dirtyArtefacts).toEqual([]);
+  });
+
+  it('does not propagate to conditional downstream jobs when condition is unsatisfied', async () => {
+    const ctx = memoryContext();
+    await initializeMovieStorage(ctx, 'demo');
+    const eventLog = createEventLog(ctx);
+    const graph = buildConditionArtifactGraph();
+    const planner = createPlanner();
+
+    const baseRevision = 'rev-0001';
+    const baseline = createInputEvents(
+      { 'Input:Prompt': 'Keep transitions correct' },
+      baseRevision as RevisionId
+    );
+    for (const event of baseline) {
+      await eventLog.appendInput('demo', event);
+    }
+
+    const manifest = createSucceededManifest(baseline, {
+      revision: baseRevision as RevisionId,
+      artefacts: {
+        'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
+          hash: 'meeting-hash',
+          producedBy: 'Producer:DirectorProducer',
+        },
+        'Artifact:DirectorProducer.Script.Characters[0].HasTransition': {
+          hash: 'has-transition-hash',
+          producedBy: 'Producer:DirectorProducer',
+        },
+      },
+    });
+
+    const pending = createInputEvents(
+      { 'Input:Prompt': 'Prompt changed' },
+      'rev-0002' as RevisionId
+    );
+
+    const { plan } = await planner.computePlan({
+      movieId: 'demo',
+      manifest,
+      eventLog,
+      blueprint: graph,
+      targetRevision: 'rev-0002',
+      pendingEdits: pending,
+      resolvedConditionArtifacts: {
+        'Artifact:DirectorProducer.Script.Characters[0].HasTransition': false,
+      },
+    });
+
+    const jobs = plan.layers.flat().map((job) => job.jobId);
+    expect(jobs).toContain('Producer:DirectorProducer');
+    expect(jobs).not.toContain('Producer:TransitionVideoProducer[0]');
+  });
+
   it('treats canonical condition artifacts in event log as available even when manifest is stale', async () => {
     const ctx = memoryContext();
     await initializeMovieStorage(ctx, 'demo');
@@ -453,7 +626,10 @@ describe('planner', () => {
     const graph = buildConditionArtifactGraph();
     const planner = createPlanner();
 
-    const baseline = createInputEvents({ 'Input:Prompt': 'Keep transitions correct' }, 'rev-0001');
+    const baseline = createInputEvents(
+      { 'Input:Prompt': 'Keep transitions correct' },
+      'rev-0001'
+    );
     for (const event of baseline) {
       await eventLog.appendInput('demo', event);
     }
@@ -472,7 +648,8 @@ describe('planner', () => {
     });
 
     await eventLog.appendArtefact('demo', {
-      artefactId: 'Artifact:DirectorProducer.Script.Characters[0].HasTransition',
+      artefactId:
+        'Artifact:DirectorProducer.Script.Characters[0].HasTransition',
       revision: 'rev-fix',
       inputsHash: 'condition-hash',
       output: {
@@ -506,7 +683,10 @@ describe('planner', () => {
     const graph = buildConditionArtifactGraph();
     const planner = createPlanner();
 
-    const baseline = createInputEvents({ 'Input:Prompt': 'Keep transitions correct' }, 'rev-0001');
+    const baseline = createInputEvents(
+      { 'Input:Prompt': 'Keep transitions correct' },
+      'rev-0001'
+    );
     for (const event of baseline) {
       await eventLog.appendInput('demo', event);
     }
@@ -525,7 +705,8 @@ describe('planner', () => {
     });
 
     await eventLog.appendArtefact('demo', {
-      artefactId: 'Artifact:DirectorProducer.Script.Characters[0].HasTransition',
+      artefactId:
+        'Artifact:DirectorProducer.Script.Characters[0].HasTransition',
       revision: 'rev-fix',
       inputsHash: 'condition-hash',
       output: {
@@ -563,7 +744,10 @@ describe('planner', () => {
     const planner = createPlanner();
 
     const baseRevision = 'rev-0001';
-    const baseline = createInputEvents({ InquiryPrompt: 'Tell me a story' }, baseRevision);
+    const baseline = createInputEvents(
+      { InquiryPrompt: 'Tell me a story' },
+      baseRevision
+    );
     for (const event of baseline) {
       await eventLog.appendInput('demo', event);
     }
@@ -580,14 +764,17 @@ describe('planner', () => {
             payloadDigest: hashPayload(event.payload).canonical,
             createdAt: event.createdAt,
           },
-        ]),
+        ])
       ),
       artefacts: {},
       timeline: {},
     };
 
     const nextRevision = nextRevisionId(baseRevision);
-    const pending = createInputEvents({ InquiryPrompt: 'An epic voyage' }, nextRevision);
+    const pending = createInputEvents(
+      { InquiryPrompt: 'An epic voyage' },
+      nextRevision
+    );
 
     const { plan } = await planner.computePlan({
       movieId: 'demo',
@@ -599,8 +786,12 @@ describe('planner', () => {
     });
 
     const jobs = plan.layers.flat();
-    expect(jobs.some((job) => job.jobId.includes('Producer:ScriptProducer'))).toBe(true);
-    expect(jobs.some((job) => job.jobId.includes('Producer:TimelineAssembler'))).toBe(true);
+    expect(
+      jobs.some((job) => job.jobId.includes('Producer:ScriptProducer'))
+    ).toBe(true);
+    expect(
+      jobs.some((job) => job.jobId.includes('Producer:TimelineAssembler'))
+    ).toBe(true);
   });
 
   it('marks artefact consumers dirty when artefact output changes without input edits', async () => {
@@ -611,7 +802,10 @@ describe('planner', () => {
     const planner = createPlanner();
 
     const baseRevision = 'rev-0001';
-    const baseline = createInputEvents({ InquiryPrompt: 'Tell me a story' }, baseRevision);
+    const baseline = createInputEvents(
+      { InquiryPrompt: 'Tell me a story' },
+      baseRevision
+    );
     for (const event of baseline) {
       await eventLog.appendInput('demo', event);
     }
@@ -619,11 +813,19 @@ describe('planner', () => {
     const scriptArtefactId = 'Artifact:NarrationScript[0]';
     const originalScript = 'Segment 0: original narration';
     const originalHash = hashArtefactOutput({
-      blob: { hash: 'script-0-hash', size: originalScript.length, mimeType: 'text/plain' },
+      blob: {
+        hash: 'script-0-hash',
+        size: originalScript.length,
+        mimeType: 'text/plain',
+      },
     });
     const originalScriptOne = 'Segment 1: original narration';
     const originalScriptOneHash = hashArtefactOutput({
-      blob: { hash: 'script-1-hash', size: originalScriptOne.length, mimeType: 'text/plain' },
+      blob: {
+        hash: 'script-1-hash',
+        size: originalScriptOne.length,
+        mimeType: 'text/plain',
+      },
     });
     const baselineArtefactTimestamp = new Date().toISOString();
 
@@ -639,7 +841,7 @@ describe('planner', () => {
             payloadDigest: hashPayload(event.payload).canonical,
             createdAt: event.createdAt,
           },
-        ]),
+        ])
       ),
       artefacts: {
         [scriptArtefactId]: {
@@ -715,12 +917,17 @@ describe('planner', () => {
     const planner = createPlanner({ collectExplanation: true });
 
     const baseRevision = 'rev-0001';
-    const baseline = createInputEvents({ InquiryPrompt: 'Tell me a story' }, baseRevision);
+    const baseline = createInputEvents(
+      { InquiryPrompt: 'Tell me a story' },
+      baseRevision
+    );
     for (const event of baseline) {
       await eventLog.appendInput('demo', event);
     }
 
-    const manifest = createSucceededManifest(baseline, { revision: baseRevision as RevisionId });
+    const manifest = createSucceededManifest(baseline, {
+      revision: baseRevision as RevisionId,
+    });
 
     await eventLog.appendArtefact('demo', {
       artefactId: 'Artifact:SegmentAudio[0]',
@@ -754,7 +961,9 @@ describe('planner', () => {
     expect(jobs).not.toContain('Producer:ScriptProducer');
     expect(jobs).not.toContain('Producer:AudioProducer[1]');
 
-    const reason = explanation?.jobReasons.find((entry) => entry.jobId === 'Producer:AudioProducer[0]');
+    const reason = explanation?.jobReasons.find(
+      (entry) => entry.jobId === 'Producer:AudioProducer[0]'
+    );
     expect(reason?.reason).toBe('latestAttemptFailed');
     expect(reason?.failedArtifacts).toContain('Artifact:SegmentAudio[0]');
   });
@@ -775,7 +984,13 @@ describe('planner', () => {
           provider: 'provider-a',
           providerModel: 'model-a',
           rateKey: 'rk:a',
-          context: { namespacePath: [], indices: {}, producerAlias: 'ProducerA', inputs: [], produces: [] },
+          context: {
+            namespacePath: [],
+            indices: {},
+            producerAlias: 'ProducerA',
+            inputs: [],
+            produces: [],
+          },
         },
         {
           jobId: 'Producer:B',
@@ -785,12 +1000,16 @@ describe('planner', () => {
           provider: 'provider-b',
           providerModel: 'model-b',
           rateKey: 'rk:b',
-          context: { namespacePath: [], indices: {}, producerAlias: 'ProducerB', inputs: [], produces: [] },
+          context: {
+            namespacePath: [],
+            indices: {},
+            producerAlias: 'ProducerB',
+            inputs: [],
+            produces: [],
+          },
         },
       ],
-      edges: [
-        { from: 'Producer:A', to: 'Producer:B' },
-      ],
+      edges: [{ from: 'Producer:A', to: 'Producer:B' }],
     };
 
     const baselineInputs = createInputEvents(
@@ -799,7 +1018,7 @@ describe('planner', () => {
         'Input:ProducerA.model': 'model-a',
         'Input:ProducerB.volume': 0.5,
       },
-      'rev-0001',
+      'rev-0001'
     );
     for (const event of baselineInputs) {
       await eventLog.appendInput('demo', event);
@@ -836,7 +1055,7 @@ describe('planner', () => {
             payloadDigest: hashPayload(event.payload).canonical,
             createdAt: event.createdAt,
           },
-        ]),
+        ])
       ),
       artefacts: {
         'Artifact:A': {
@@ -857,7 +1076,7 @@ describe('planner', () => {
 
     const pending = createInputEvents(
       { 'Input:ProducerA.model': 'model-a-v2' },
-      'rev-0002' as RevisionId,
+      'rev-0002' as RevisionId
     );
 
     const { plan } = await planner.computePlan({
@@ -892,7 +1111,13 @@ describe('planner', () => {
           provider: 'provider-a',
           providerModel: 'model-a',
           rateKey: 'rk:a',
-          context: { namespacePath: [], indices: {}, producerAlias: 'ProducerA', inputs: [], produces: [] },
+          context: {
+            namespacePath: [],
+            indices: {},
+            producerAlias: 'ProducerA',
+            inputs: [],
+            produces: [],
+          },
         },
         {
           jobId: 'Producer:B',
@@ -902,12 +1127,16 @@ describe('planner', () => {
           provider: 'provider-b',
           providerModel: 'model-b',
           rateKey: 'rk:b',
-          context: { namespacePath: [], indices: {}, producerAlias: 'ProducerB', inputs: [], produces: [] },
+          context: {
+            namespacePath: [],
+            indices: {},
+            producerAlias: 'ProducerB',
+            inputs: [],
+            produces: [],
+          },
         },
       ],
-      edges: [
-        { from: 'Producer:A', to: 'Producer:B' },
-      ],
+      edges: [{ from: 'Producer:A', to: 'Producer:B' }],
     };
 
     const baselineInputs = createInputEvents(
@@ -915,7 +1144,7 @@ describe('planner', () => {
         'Input:Prompt': 'hello',
         'Input:ProducerB.volume': 0.5,
       },
-      'rev-0001',
+      'rev-0001'
     );
     for (const event of baselineInputs) {
       await eventLog.appendInput('demo', event);
@@ -952,7 +1181,7 @@ describe('planner', () => {
             payloadDigest: hashPayload(event.payload).canonical,
             createdAt: event.createdAt,
           },
-        ]),
+        ])
       ),
       artefacts: {
         'Artifact:A': {
@@ -973,7 +1202,7 @@ describe('planner', () => {
 
     const pending = createInputEvents(
       { 'Input:ProducerB.volume': 0.7 },
-      'rev-0002' as RevisionId,
+      'rev-0002' as RevisionId
     );
 
     const { plan } = await planner.computePlan({
@@ -1009,7 +1238,13 @@ describe('planner', () => {
           provider: 'internal',
           providerModel: 'mock/ProducerA',
           rateKey: 'internal:a',
-          context: { namespacePath: [], indices: {}, producerAlias: 'Producer:A', inputs: [], produces: [] },
+          context: {
+            namespacePath: [],
+            indices: {},
+            producerAlias: 'Producer:A',
+            inputs: [],
+            produces: [],
+          },
         },
         {
           jobId: 'Producer:B',
@@ -1019,7 +1254,13 @@ describe('planner', () => {
           provider: 'internal',
           providerModel: 'mock/ProducerB',
           rateKey: 'internal:b',
-          context: { namespacePath: [], indices: {}, producerAlias: 'Producer:B', inputs: [], produces: [] },
+          context: {
+            namespacePath: [],
+            indices: {},
+            producerAlias: 'Producer:B',
+            inputs: [],
+            produces: [],
+          },
         },
       ],
       edges: [
@@ -1036,7 +1277,7 @@ describe('planner', () => {
         blueprint: cyclicGraph,
         targetRevision: 'rev-0001',
         pendingEdits: [],
-      }),
+      })
     ).rejects.toThrow(/cycle/i);
   });
 
@@ -1050,7 +1291,10 @@ describe('planner', () => {
 
       // Set up baseline with all artifacts existing (nothing dirty)
       const baseRevision = 'rev-0001';
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        baseRevision
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
@@ -1068,7 +1312,7 @@ describe('planner', () => {
               payloadDigest: hashPayload(event.payload).canonical,
               createdAt: event.createdAt,
             },
-          ]),
+          ])
         ),
         artefacts: {
           'Artifact:NarrationScript[0]': {
@@ -1129,12 +1373,20 @@ describe('planner', () => {
 
       const jobsInPlan = planWithRerun.layers.flat();
       // Layer 0 is ScriptProducer - should NOT be included
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:ScriptProducer')).toBe(false);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:ScriptProducer')
+      ).toBe(false);
       // Layer 1 is AudioProducer[0] and AudioProducer[1] - SHOULD be included
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[0]')).toBe(true);
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[1]')).toBe(true);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[0]')
+      ).toBe(true);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[1]')
+      ).toBe(true);
       // Layer 2 is TimelineAssembler - SHOULD be included
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:TimelineAssembler')).toBe(true);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:TimelineAssembler')
+      ).toBe(true);
 
       // Verify layer structure
       expect(planWithRerun.layers[0]).toHaveLength(0); // Layer 0 empty
@@ -1150,12 +1402,17 @@ describe('planner', () => {
       const planner = createPlanner();
 
       const baseRevision = 'rev-0001';
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        baseRevision
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline, { revision: baseRevision });
+      const manifest = createSucceededManifest(baseline, {
+        revision: baseRevision,
+      });
 
       const { plan } = await planner.computePlan({
         movieId: 'demo',
@@ -1169,10 +1426,18 @@ describe('planner', () => {
 
       const jobsInPlan = plan.layers.flat();
       expect(jobsInPlan).toHaveLength(4); // All 4 jobs
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:ScriptProducer')).toBe(true);
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[0]')).toBe(true);
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[1]')).toBe(true);
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:TimelineAssembler')).toBe(true);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:ScriptProducer')
+      ).toBe(true);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[0]')
+      ).toBe(true);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[1]')
+      ).toBe(true);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:TimelineAssembler')
+      ).toBe(true);
     });
 
     it('reRunFrom at last layer includes only that layer', async () => {
@@ -1183,12 +1448,17 @@ describe('planner', () => {
       const planner = createPlanner();
 
       const baseRevision = 'rev-0001';
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        baseRevision
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline, { revision: baseRevision });
+      const manifest = createSucceededManifest(baseline, {
+        revision: baseRevision,
+      });
 
       // Layer 2 is the last layer (TimelineAssembler)
       const { plan } = await planner.computePlan({
@@ -1219,7 +1489,13 @@ describe('planner', () => {
             provider: 'provider-a',
             providerModel: 'model-a',
             rateKey: 'rk:a',
-            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerA', inputs: [], produces: [] },
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'ProducerA',
+              inputs: [],
+              produces: [],
+            },
           },
         ],
         edges: [],
@@ -1235,7 +1511,10 @@ describe('planner', () => {
       const graph = buildProducerGraph();
 
       // Target AudioProducer[0] - should include it and TimelineAssembler
-      const jobs = computeArtifactRegenerationJobs('Producer:AudioProducer[0]', graph);
+      const jobs = computeArtifactRegenerationJobs(
+        'Producer:AudioProducer[0]',
+        graph
+      );
 
       expect(jobs.size).toBe(2);
       expect(jobs.has('Producer:AudioProducer[0]')).toBe(true);
@@ -1249,7 +1528,10 @@ describe('planner', () => {
       const graph = buildProducerGraph();
 
       // Target ScriptProducer - should include all downstream but nothing upstream
-      const jobs = computeArtifactRegenerationJobs('Producer:ScriptProducer', graph);
+      const jobs = computeArtifactRegenerationJobs(
+        'Producer:ScriptProducer',
+        graph
+      );
 
       expect(jobs.size).toBe(4); // ScriptProducer + 2 AudioProducers + TimelineAssembler
       expect(jobs.has('Producer:ScriptProducer')).toBe(true);
@@ -1269,7 +1551,13 @@ describe('planner', () => {
             provider: 'p-a',
             providerModel: 'm-a',
             rateKey: 'rk:a',
-            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerA', inputs: [], produces: [] },
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'ProducerA',
+              inputs: [],
+              produces: [],
+            },
           },
           {
             jobId: 'Producer:B',
@@ -1279,7 +1567,13 @@ describe('planner', () => {
             provider: 'p-b',
             providerModel: 'm-b',
             rateKey: 'rk:b',
-            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerB', inputs: [], produces: [] },
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'ProducerB',
+              inputs: [],
+              produces: [],
+            },
           },
           {
             jobId: 'Producer:C',
@@ -1289,7 +1583,13 @@ describe('planner', () => {
             provider: 'p-c',
             providerModel: 'm-c',
             rateKey: 'rk:c',
-            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerC', inputs: [], produces: [] },
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'ProducerC',
+              inputs: [],
+              produces: [],
+            },
           },
           {
             jobId: 'Producer:D',
@@ -1299,7 +1599,13 @@ describe('planner', () => {
             provider: 'p-d',
             providerModel: 'm-d',
             rateKey: 'rk:d',
-            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerD', inputs: [], produces: [] },
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'ProducerD',
+              inputs: [],
+              produces: [],
+            },
           },
         ],
         edges: [
@@ -1331,7 +1637,13 @@ describe('planner', () => {
             provider: 'p-a',
             providerModel: 'm-a',
             rateKey: 'rk:a',
-            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerA', inputs: [], produces: [] },
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'ProducerA',
+              inputs: [],
+              produces: [],
+            },
           },
           {
             jobId: 'Producer:B',
@@ -1341,7 +1653,13 @@ describe('planner', () => {
             provider: 'p-b',
             providerModel: 'm-b',
             rateKey: 'rk:b',
-            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerB', inputs: [], produces: [] },
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'ProducerB',
+              inputs: [],
+              produces: [],
+            },
           },
           {
             jobId: 'Producer:C',
@@ -1351,7 +1669,13 @@ describe('planner', () => {
             provider: 'p-c',
             providerModel: 'm-c',
             rateKey: 'rk:c',
-            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerC', inputs: [], produces: [] },
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'ProducerC',
+              inputs: [],
+              produces: [],
+            },
           },
           {
             jobId: 'Producer:D',
@@ -1361,7 +1685,13 @@ describe('planner', () => {
             provider: 'p-d',
             providerModel: 'm-d',
             rateKey: 'rk:d',
-            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerD', inputs: [], produces: [] },
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'ProducerD',
+              inputs: [],
+              produces: [],
+            },
           },
         ],
         edges: [
@@ -1392,12 +1722,17 @@ describe('planner', () => {
       const planner = createPlanner();
 
       const baseRevision = 'rev-0001';
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        baseRevision
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline, { revision: baseRevision });
+      const manifest = createSucceededManifest(baseline, {
+        revision: baseRevision,
+      });
 
       // Surgical regeneration of AudioProducer[0]
       const { plan } = await planner.computePlan({
@@ -1407,21 +1742,31 @@ describe('planner', () => {
         blueprint: graph,
         targetRevision: 'rev-0002',
         pendingEdits: [],
-        artifactRegenerations: [{
-          targetArtifactId: 'Artifact:SegmentAudio[0]',
-          sourceJobId: 'Producer:AudioProducer[0]',
-        }],
+        artifactRegenerations: [
+          {
+            targetArtifactId: 'Artifact:SegmentAudio[0]',
+            sourceJobId: 'Producer:AudioProducer[0]',
+          },
+        ],
       });
 
       const jobsInPlan = plan.layers.flat();
 
       // Should include AudioProducer[0] and TimelineAssembler
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[0]')).toBe(true);
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:TimelineAssembler')).toBe(true);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[0]')
+      ).toBe(true);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:TimelineAssembler')
+      ).toBe(true);
 
       // Should NOT include siblings or upstream
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[1]')).toBe(false);
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:ScriptProducer')).toBe(false);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[1]')
+      ).toBe(false);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:ScriptProducer')
+      ).toBe(false);
 
       expect(jobsInPlan.length).toBe(2);
     });
@@ -1434,12 +1779,17 @@ describe('planner', () => {
       const planner = createPlanner();
 
       const baseRevision = 'rev-0001';
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        baseRevision
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline, { revision: baseRevision });
+      const manifest = createSucceededManifest(baseline, {
+        revision: baseRevision,
+      });
 
       // Surgical regeneration of BOTH AudioProducer[0] and AudioProducer[1]
       const { plan } = await planner.computePlan({
@@ -1464,12 +1814,20 @@ describe('planner', () => {
       const jobsInPlan = plan.layers.flat();
 
       // Should include BOTH AudioProducers and TimelineAssembler
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[0]')).toBe(true);
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[1]')).toBe(true);
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:TimelineAssembler')).toBe(true);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[0]')
+      ).toBe(true);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[1]')
+      ).toBe(true);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:TimelineAssembler')
+      ).toBe(true);
 
       // Should NOT include upstream ScriptProducer
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:ScriptProducer')).toBe(false);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:ScriptProducer')
+      ).toBe(false);
 
       // Total: 3 jobs (2 audio + 1 timeline)
       expect(jobsInPlan.length).toBe(3);
@@ -1483,12 +1841,17 @@ describe('planner', () => {
       const planner = createPlanner();
 
       const baseRevision = 'rev-0001';
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        baseRevision
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline, { revision: baseRevision });
+      const manifest = createSucceededManifest(baseline, {
+        revision: baseRevision,
+      });
 
       // Surgical regeneration of TimelineAssembler with reRunFrom=0 (should be ignored)
       const { plan } = await planner.computePlan({
@@ -1499,10 +1862,12 @@ describe('planner', () => {
         targetRevision: 'rev-0002',
         pendingEdits: [],
         reRunFrom: 0, // This would normally include ALL jobs
-        artifactRegenerations: [{
-          targetArtifactId: 'Artifact:FinalVideo',
-          sourceJobId: 'Producer:TimelineAssembler',
-        }],
+        artifactRegenerations: [
+          {
+            targetArtifactId: 'Artifact:FinalVideo',
+            sourceJobId: 'Producer:TimelineAssembler',
+          },
+        ],
       });
 
       const jobsInPlan = plan.layers.flat();
@@ -1520,7 +1885,10 @@ describe('planner', () => {
       const planner = createPlanner();
 
       const baseRevision = 'rev-0001';
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        baseRevision
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
@@ -1540,7 +1908,7 @@ describe('planner', () => {
               payloadDigest: hashPayload(event.payload).canonical,
               createdAt: event.createdAt,
             },
-          ]),
+          ])
         ),
         artefacts: {
           'Artifact:NarrationScript[0]': {
@@ -1575,10 +1943,12 @@ describe('planner', () => {
         blueprint: graph,
         targetRevision: 'rev-0002',
         pendingEdits: [],
-        artifactRegenerations: [{
-          targetArtifactId: 'Artifact:SegmentAudio[0]',
-          sourceJobId: 'Producer:AudioProducer[0]',
-        }],
+        artifactRegenerations: [
+          {
+            targetArtifactId: 'Artifact:SegmentAudio[0]',
+            sourceJobId: 'Producer:AudioProducer[0]',
+          },
+        ],
       });
 
       const jobIds = plan.layers.flat().map((job) => job.jobId);
@@ -1609,12 +1979,17 @@ describe('planner', () => {
       const planner = createPlanner();
 
       const baseRevision = 'rev-0001';
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        baseRevision
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline, { revision: baseRevision });
+      const manifest = createSucceededManifest(baseline, {
+        revision: baseRevision,
+      });
 
       // reRunFrom=0 would normally include all jobs, but upToLayer=1 should exclude layer 2
       const { plan } = await planner.computePlan({
@@ -1631,12 +2006,20 @@ describe('planner', () => {
       const jobsInPlan = plan.layers.flat();
 
       // Layer 0 (ScriptProducer) should be included
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:ScriptProducer')).toBe(true);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:ScriptProducer')
+      ).toBe(true);
       // Layer 1 (AudioProducers) should be included
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[0]')).toBe(true);
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[1]')).toBe(true);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[0]')
+      ).toBe(true);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[1]')
+      ).toBe(true);
       // Layer 2 (TimelineAssembler) should be EXCLUDED
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:TimelineAssembler')).toBe(false);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:TimelineAssembler')
+      ).toBe(false);
 
       expect(jobsInPlan.length).toBe(3);
     });
@@ -1649,12 +2032,17 @@ describe('planner', () => {
       const planner = createPlanner();
 
       const baseRevision = 'rev-0001';
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        baseRevision
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline, { revision: baseRevision });
+      const manifest = createSucceededManifest(baseline, {
+        revision: baseRevision,
+      });
 
       const { plan } = await planner.computePlan({
         movieId: 'demo',
@@ -1682,12 +2070,17 @@ describe('planner', () => {
       const planner = createPlanner();
 
       const baseRevision = 'rev-0001';
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        baseRevision
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline, { revision: baseRevision });
+      const manifest = createSucceededManifest(baseline, {
+        revision: baseRevision,
+      });
 
       // Surgical regeneration of ScriptProducer would normally include all downstream
       // But upToLayer=0 should limit to only layer 0
@@ -1698,22 +2091,32 @@ describe('planner', () => {
         blueprint: graph,
         targetRevision: 'rev-0002',
         pendingEdits: [],
-        artifactRegenerations: [{
-          targetArtifactId: 'Artifact:NarrationScript[0]',
-          sourceJobId: 'Producer:ScriptProducer',
-        }],
+        artifactRegenerations: [
+          {
+            targetArtifactId: 'Artifact:NarrationScript[0]',
+            sourceJobId: 'Producer:ScriptProducer',
+          },
+        ],
         upToLayer: 0, // Only layer 0
       });
 
       const jobsInPlan = plan.layers.flat();
 
       // ScriptProducer is at layer 0 - should be included
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:ScriptProducer')).toBe(true);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:ScriptProducer')
+      ).toBe(true);
       // AudioProducers are at layer 1 - should be EXCLUDED
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[0]')).toBe(false);
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[1]')).toBe(false);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[0]')
+      ).toBe(false);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[1]')
+      ).toBe(false);
       // TimelineAssembler is at layer 2 - should be EXCLUDED
-      expect(jobsInPlan.some((job) => job.jobId === 'Producer:TimelineAssembler')).toBe(false);
+      expect(
+        jobsInPlan.some((job) => job.jobId === 'Producer:TimelineAssembler')
+      ).toBe(false);
 
       expect(jobsInPlan.length).toBe(1);
     });
@@ -1726,12 +2129,17 @@ describe('planner', () => {
       const planner = createPlanner();
 
       const baseRevision = 'rev-0001';
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        baseRevision
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline, { revision: baseRevision });
+      const manifest = createSucceededManifest(baseline, {
+        revision: baseRevision,
+      });
 
       // upToLayer=10 is beyond max layer (2), so all jobs should be included
       const { plan } = await planner.computePlan({
@@ -1755,7 +2163,10 @@ describe('planner', () => {
       const graph = buildProducerGraph();
 
       // Single source - should behave same as computeArtifactRegenerationJobs
-      const jobs = computeMultipleArtifactRegenerationJobs(['Producer:AudioProducer[0]'], graph);
+      const jobs = computeMultipleArtifactRegenerationJobs(
+        ['Producer:AudioProducer[0]'],
+        graph
+      );
 
       expect(jobs.size).toBe(2);
       expect(jobs.has('Producer:AudioProducer[0]')).toBe(true);
@@ -1774,7 +2185,13 @@ describe('planner', () => {
             provider: 'p-a',
             providerModel: 'm-a',
             rateKey: 'rk:a',
-            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerA', inputs: [], produces: [] },
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'ProducerA',
+              inputs: [],
+              produces: [],
+            },
           },
           {
             jobId: 'Producer:B',
@@ -1784,13 +2201,22 @@ describe('planner', () => {
             provider: 'p-b',
             providerModel: 'm-b',
             rateKey: 'rk:b',
-            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerB', inputs: [], produces: [] },
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'ProducerB',
+              inputs: [],
+              produces: [],
+            },
           },
         ],
         edges: [],
       };
 
-      const jobs = computeMultipleArtifactRegenerationJobs(['Producer:A', 'Producer:B'], graph);
+      const jobs = computeMultipleArtifactRegenerationJobs(
+        ['Producer:A', 'Producer:B'],
+        graph
+      );
 
       expect(jobs.size).toBe(2);
       expect(jobs.has('Producer:A')).toBe(true);
@@ -1836,7 +2262,13 @@ describe('planner', () => {
             provider: 'p-a',
             providerModel: 'm-a',
             rateKey: 'rk:a',
-            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerA', inputs: [], produces: [] },
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'ProducerA',
+              inputs: [],
+              produces: [],
+            },
           },
           {
             jobId: 'Producer:B',
@@ -1846,7 +2278,13 @@ describe('planner', () => {
             provider: 'p-b',
             providerModel: 'm-b',
             rateKey: 'rk:b',
-            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerB', inputs: [], produces: [] },
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'ProducerB',
+              inputs: [],
+              produces: [],
+            },
           },
           {
             jobId: 'Producer:C',
@@ -1856,7 +2294,13 @@ describe('planner', () => {
             provider: 'p-c',
             providerModel: 'm-c',
             rateKey: 'rk:c',
-            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerC', inputs: [], produces: [] },
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'ProducerC',
+              inputs: [],
+              produces: [],
+            },
           },
           {
             jobId: 'Producer:D',
@@ -1866,7 +2310,13 @@ describe('planner', () => {
             provider: 'p-d',
             providerModel: 'm-d',
             rateKey: 'rk:d',
-            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerD', inputs: [], produces: [] },
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'ProducerD',
+              inputs: [],
+              produces: [],
+            },
           },
         ],
         edges: [
@@ -1878,7 +2328,10 @@ describe('planner', () => {
       };
 
       // Target both B and C - should include B, C, D (deduplicated) but not A
-      const jobs = computeMultipleArtifactRegenerationJobs(['Producer:B', 'Producer:C'], graph);
+      const jobs = computeMultipleArtifactRegenerationJobs(
+        ['Producer:B', 'Producer:C'],
+        graph
+      );
 
       expect(jobs.size).toBe(3);
       expect(jobs.has('Producer:B')).toBe(true);
@@ -1897,7 +2350,10 @@ describe('planner', () => {
       const planner = createPlanner();
 
       const baseRevision = 'rev-0001';
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        baseRevision
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
@@ -1910,8 +2366,12 @@ describe('planner', () => {
         inputs: Object.fromEntries(
           baseline.map((event) => [
             event.id,
-            { hash: event.hash, payloadDigest: hashPayload(event.payload).canonical, createdAt: event.createdAt },
-          ]),
+            {
+              hash: event.hash,
+              payloadDigest: hashPayload(event.payload).canonical,
+              createdAt: event.createdAt,
+            },
+          ])
         ),
         artefacts: {},
         timeline: {},
@@ -1941,7 +2401,10 @@ describe('planner', () => {
       const graph = buildProducerGraph();
       const planner = createPlanner();
 
-      const baseline = createInputEvents({ InquiryPrompt: 'Tell me a story' }, 'rev-0001');
+      const baseline = createInputEvents(
+        { InquiryPrompt: 'Tell me a story' },
+        'rev-0001'
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
@@ -1975,12 +2438,17 @@ describe('planner', () => {
       const planner = createPlanner();
 
       const baseRevision = 'rev-0001';
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        baseRevision
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
 
-      const manifest = createSucceededManifest(baseline, { revision: baseRevision });
+      const manifest = createSucceededManifest(baseline, {
+        revision: baseRevision,
+      });
 
       // reRunFrom=0 forces all jobs, but upToLayer=0 limits to only layer 0
       const { plan } = await planner.computePlan({
@@ -1999,7 +2467,7 @@ describe('planner', () => {
       expect(plan.layers[0].length).toBe(1);
       expect(plan.layers[0][0]?.jobId).toBe('Producer:ScriptProducer');
       // No trailing empty layers
-      expect(plan.layers.every(layer => layer.length > 0)).toBe(true);
+      expect(plan.layers.every((layer) => layer.length > 0)).toBe(true);
     });
 
     it('removes all layers when plan is completely empty', async () => {
@@ -2009,7 +2477,10 @@ describe('planner', () => {
       const graph = buildProducerGraph();
       const planner = createPlanner();
 
-      const baseline = createInputEvents({ InquiryPrompt: 'Tell me a story' }, 'rev-0001');
+      const baseline = createInputEvents(
+        { InquiryPrompt: 'Tell me a story' },
+        'rev-0001'
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
@@ -2034,8 +2505,12 @@ describe('planner', () => {
 
   describe('dirty tracking for model config fields', () => {
     function buildTwoNodeGraph(
-      aInputs: string[] = ['Input:Prompt', 'Input:ProducerA.provider', 'Input:ProducerA.model'],
-      bInputs: string[] = ['Artifact:A', 'Input:ProducerB.volume'],
+      aInputs: string[] = [
+        'Input:Prompt',
+        'Input:ProducerA.provider',
+        'Input:ProducerA.model',
+      ],
+      bInputs: string[] = ['Artifact:A', 'Input:ProducerB.volume']
     ): ProducerGraph {
       return {
         nodes: [
@@ -2047,7 +2522,13 @@ describe('planner', () => {
             provider: 'provider-a',
             providerModel: 'model-a',
             rateKey: 'rk:a',
-            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerA', inputs: [], produces: [] },
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'ProducerA',
+              inputs: [],
+              produces: [],
+            },
           },
           {
             jobId: 'Producer:B',
@@ -2057,7 +2538,13 @@ describe('planner', () => {
             provider: 'provider-b',
             providerModel: 'model-b',
             rateKey: 'rk:b',
-            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerB', inputs: [], produces: [] },
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'ProducerB',
+              inputs: [],
+              produces: [],
+            },
           },
         ],
         edges: [{ from: 'Producer:A', to: 'Producer:B' }],
@@ -2066,7 +2553,7 @@ describe('planner', () => {
 
     async function setupBaselineRun(
       baseInputs: Record<string, unknown>,
-      graph: ProducerGraph,
+      graph: ProducerGraph
     ) {
       const ctx = memoryContext();
       await initializeMovieStorage(ctx, 'demo');
@@ -2094,13 +2581,13 @@ describe('planner', () => {
           'Input:ProducerA.model': 'model-a',
           'Input:ProducerB.volume': 0.5,
         },
-        graph,
+        graph
       );
       const planner = createPlanner();
 
       const pending = createInputEvents(
         { 'Input:ProducerA.provider': 'anthropic' },
-        'rev-0002' as RevisionId,
+        'rev-0002' as RevisionId
       );
 
       const { plan } = await planner.computePlan({
@@ -2118,22 +2605,23 @@ describe('planner', () => {
     });
 
     it('systemPrompt change triggers re-run of producer and downstream', async () => {
-      const graph = buildTwoNodeGraph(
-        ['Input:Prompt', 'Input:ProducerA.systemPrompt'],
-      );
+      const graph = buildTwoNodeGraph([
+        'Input:Prompt',
+        'Input:ProducerA.systemPrompt',
+      ]);
       const { eventLog, manifest } = await setupBaselineRun(
         {
           'Input:Prompt': 'hello',
           'Input:ProducerA.systemPrompt': 'old system prompt',
           'Input:ProducerB.volume': 0.5,
         },
-        graph,
+        graph
       );
       const planner = createPlanner();
 
       const pending = createInputEvents(
         { 'Input:ProducerA.systemPrompt': 'new system prompt' },
-        'rev-0002' as RevisionId,
+        'rev-0002' as RevisionId
       );
 
       const { plan } = await planner.computePlan({
@@ -2151,22 +2639,23 @@ describe('planner', () => {
     });
 
     it('userPrompt change triggers re-run of producer and downstream', async () => {
-      const graph = buildTwoNodeGraph(
-        ['Input:Prompt', 'Input:ProducerA.userPrompt'],
-      );
+      const graph = buildTwoNodeGraph([
+        'Input:Prompt',
+        'Input:ProducerA.userPrompt',
+      ]);
       const { eventLog, manifest } = await setupBaselineRun(
         {
           'Input:Prompt': 'hello',
           'Input:ProducerA.userPrompt': 'old user prompt',
           'Input:ProducerB.volume': 0.5,
         },
-        graph,
+        graph
       );
       const planner = createPlanner();
 
       const pending = createInputEvents(
         { 'Input:ProducerA.userPrompt': 'new user prompt' },
-        'rev-0002' as RevisionId,
+        'rev-0002' as RevisionId
       );
 
       const { plan } = await planner.computePlan({
@@ -2186,7 +2675,7 @@ describe('planner', () => {
     it('multiple config changes only dirty dependent producer', async () => {
       const graph = buildTwoNodeGraph(
         ['Input:Prompt'],
-        ['Artifact:A', 'Input:ProducerB.volume', 'Input:ProducerB.speed'],
+        ['Artifact:A', 'Input:ProducerB.volume', 'Input:ProducerB.speed']
       );
       const { eventLog, manifest } = await setupBaselineRun(
         {
@@ -2194,7 +2683,7 @@ describe('planner', () => {
           'Input:ProducerB.volume': 0.5,
           'Input:ProducerB.speed': 1.0,
         },
-        graph,
+        graph
       );
       const planner = createPlanner();
 
@@ -2203,7 +2692,7 @@ describe('planner', () => {
           'Input:ProducerB.volume': 0.8,
           'Input:ProducerB.speed': 1.5,
         },
-        'rev-0002' as RevisionId,
+        'rev-0002' as RevisionId
       );
 
       const { plan } = await planner.computePlan({
@@ -2230,7 +2719,7 @@ describe('planner', () => {
           'Input:ProducerA.model': 'model-a',
           'Input:ProducerB.volume': 0.5,
         },
-        graph,
+        graph
       );
       const planner = createPlanner();
 
@@ -2257,7 +2746,10 @@ describe('planner', () => {
       const planner = createPlanner();
 
       const baseRevision = 'rev-0001';
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        baseRevision
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
@@ -2266,26 +2758,29 @@ describe('planner', () => {
       const artefactCreatedAt = new Date().toISOString();
 
       // Compute the content-aware inputsHash that would have been stored during the run
-      const scriptInputsHash = hashInputContents(
-        ['Input:InquiryPrompt'],
-        {
-          inputs: Object.fromEntries(baseline.map(e => [e.id, { hash: e.hash }])),
-          artefacts: {},
-        },
-      );
+      const scriptInputsHash = hashInputContents(['Input:InquiryPrompt'], {
+        inputs: Object.fromEntries(
+          baseline.map((e) => [e.id, { hash: e.hash }])
+        ),
+        artefacts: {},
+      });
       const audioInputsHash0 = hashInputContents(
         ['Artifact:NarrationScript[0]'],
         {
           inputs: {},
-          artefacts: { 'Artifact:NarrationScript[0]': { hash: 'hash-script-0' } },
-        },
+          artefacts: {
+            'Artifact:NarrationScript[0]': { hash: 'hash-script-0' },
+          },
+        }
       );
       const audioInputsHash1 = hashInputContents(
         ['Artifact:NarrationScript[1]'],
         {
           inputs: {},
-          artefacts: { 'Artifact:NarrationScript[1]': { hash: 'hash-script-1' } },
-        },
+          artefacts: {
+            'Artifact:NarrationScript[1]': { hash: 'hash-script-1' },
+          },
+        }
       );
       const timelineInputsHash = hashInputContents(
         ['Artifact:SegmentAudio[0]', 'Artifact:SegmentAudio[1]'],
@@ -2295,7 +2790,7 @@ describe('planner', () => {
             'Artifact:SegmentAudio[0]': { hash: 'hash-audio-0' },
             'Artifact:SegmentAudio[1]': { hash: 'hash-audio-1' },
           },
-        },
+        }
       );
 
       const manifest: Manifest = {
@@ -2305,8 +2800,12 @@ describe('planner', () => {
         inputs: Object.fromEntries(
           baseline.map((event) => [
             event.id,
-            { hash: event.hash, payloadDigest: hashPayload(event.payload).canonical, createdAt: event.createdAt },
-          ]),
+            {
+              hash: event.hash,
+              payloadDigest: hashPayload(event.payload).canonical,
+              createdAt: event.createdAt,
+            },
+          ])
         ),
         artefacts: {
           'Artifact:NarrationScript[0]': {
@@ -2355,7 +2854,13 @@ describe('planner', () => {
         artefactId: 'Artifact:NarrationScript[0]',
         revision: 'rev-0002' as RevisionId,
         inputsHash: scriptInputsHash, // same inputs, different output
-        output: { blob: { hash: 'NEW-hash-script-0', size: 100, mimeType: 'text/plain' } },
+        output: {
+          blob: {
+            hash: 'NEW-hash-script-0',
+            size: 100,
+            mimeType: 'text/plain',
+          },
+        },
         status: 'succeeded',
         producedBy: 'Producer:ScriptProducer',
         createdAt: new Date().toISOString(),
@@ -2402,7 +2907,10 @@ describe('planner', () => {
       const planner = createPlanner();
 
       const baseRevision = 'rev-0001';
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        baseRevision
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
@@ -2411,7 +2919,9 @@ describe('planner', () => {
 
       // Compute correct content-aware hashes for all artifacts
       const manifestData = {
-        inputs: Object.fromEntries(baseline.map(e => [e.id, { hash: e.hash }])),
+        inputs: Object.fromEntries(
+          baseline.map((e) => [e.id, { hash: e.hash }])
+        ),
         artefacts: {
           'Artifact:NarrationScript[0]': { hash: 'hash-script-0' },
           'Artifact:NarrationScript[1]': { hash: 'hash-script-1' },
@@ -2428,8 +2938,12 @@ describe('planner', () => {
         inputs: Object.fromEntries(
           baseline.map((event) => [
             event.id,
-            { hash: event.hash, payloadDigest: hashPayload(event.payload).canonical, createdAt: event.createdAt },
-          ]),
+            {
+              hash: event.hash,
+              payloadDigest: hashPayload(event.payload).canonical,
+              createdAt: event.createdAt,
+            },
+          ])
         ),
         artefacts: {
           'Artifact:NarrationScript[0]': {
@@ -2437,35 +2951,50 @@ describe('planner', () => {
             producedBy: 'Producer:ScriptProducer',
             status: 'succeeded',
             createdAt: artefactCreatedAt,
-            inputsHash: hashInputContents(['Input:InquiryPrompt'], manifestData),
+            inputsHash: hashInputContents(
+              ['Input:InquiryPrompt'],
+              manifestData
+            ),
           },
           'Artifact:NarrationScript[1]': {
             hash: 'hash-script-1',
             producedBy: 'Producer:ScriptProducer',
             status: 'succeeded',
             createdAt: artefactCreatedAt,
-            inputsHash: hashInputContents(['Input:InquiryPrompt'], manifestData),
+            inputsHash: hashInputContents(
+              ['Input:InquiryPrompt'],
+              manifestData
+            ),
           },
           'Artifact:SegmentAudio[0]': {
             hash: 'hash-audio-0',
             producedBy: 'Producer:AudioProducer[0]',
             status: 'succeeded',
             createdAt: artefactCreatedAt,
-            inputsHash: hashInputContents(['Artifact:NarrationScript[0]'], manifestData),
+            inputsHash: hashInputContents(
+              ['Artifact:NarrationScript[0]'],
+              manifestData
+            ),
           },
           'Artifact:SegmentAudio[1]': {
             hash: 'hash-audio-1',
             producedBy: 'Producer:AudioProducer[1]',
             status: 'succeeded',
             createdAt: artefactCreatedAt,
-            inputsHash: hashInputContents(['Artifact:NarrationScript[1]'], manifestData),
+            inputsHash: hashInputContents(
+              ['Artifact:NarrationScript[1]'],
+              manifestData
+            ),
           },
           'Artifact:FinalVideo': {
             hash: 'hash-final-video',
             producedBy: 'Producer:TimelineAssembler',
             status: 'succeeded',
             createdAt: artefactCreatedAt,
-            inputsHash: hashInputContents(['Artifact:SegmentAudio[0]', 'Artifact:SegmentAudio[1]'], manifestData),
+            inputsHash: hashInputContents(
+              ['Artifact:SegmentAudio[0]', 'Artifact:SegmentAudio[1]'],
+              manifestData
+            ),
           },
         },
         timeline: {},
@@ -2492,13 +3021,18 @@ describe('planner', () => {
       const planner = createPlanner();
 
       const baseRevision = 'rev-0001';
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, baseRevision);
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        baseRevision
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
 
       // Old-style manifest: no inputsHash on any artifact
-      const manifest = createSucceededManifest(baseline, { revision: baseRevision });
+      const manifest = createSucceededManifest(baseline, {
+        revision: baseRevision,
+      });
 
       // Should produce empty plan (backward compatible — no inputsHash means no mismatch)
       const { plan } = await planner.computePlan({
@@ -2529,7 +3063,13 @@ describe('planner', () => {
             provider: 'p-a',
             providerModel: 'm-a',
             rateKey: 'rk:a',
-            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerA', inputs: [], produces: [] },
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'ProducerA',
+              inputs: [],
+              produces: [],
+            },
           },
           {
             jobId: 'Producer:B',
@@ -2539,21 +3079,32 @@ describe('planner', () => {
             provider: 'p-b',
             providerModel: 'm-b',
             rateKey: 'rk:b',
-            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerB', inputs: [], produces: [] },
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'ProducerB',
+              inputs: [],
+              produces: [],
+            },
           },
         ],
         edges: [{ from: 'Producer:A', to: 'Producer:B' }],
       };
 
       const baseRevision = 'rev-0001';
-      const baseline = createInputEvents({ 'Input:Prompt': 'hello' }, baseRevision);
+      const baseline = createInputEvents(
+        { 'Input:Prompt': 'hello' },
+        baseRevision
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
 
       const artefactCreatedAt = new Date().toISOString();
       const manifestData = {
-        inputs: Object.fromEntries(baseline.map(e => [e.id, { hash: e.hash }])),
+        inputs: Object.fromEntries(
+          baseline.map((e) => [e.id, { hash: e.hash }])
+        ),
         artefacts: {
           'Artifact:A': { hash: 'old-hash-a' },
           'Artifact:B': { hash: 'hash-b' },
@@ -2565,7 +3116,14 @@ describe('planner', () => {
         baseRevision: null,
         createdAt: artefactCreatedAt,
         inputs: Object.fromEntries(
-          baseline.map(e => [e.id, { hash: e.hash, payloadDigest: hashPayload(e.payload).canonical, createdAt: e.createdAt }]),
+          baseline.map((e) => [
+            e.id,
+            {
+              hash: e.hash,
+              payloadDigest: hashPayload(e.payload).canonical,
+              createdAt: e.createdAt,
+            },
+          ])
         ),
         artefacts: {
           'Artifact:A': {
@@ -2597,11 +3155,13 @@ describe('planner', () => {
         collectExplanation: true,
       });
 
-      const jobIds = plan.layers.flat().map(j => j.jobId);
+      const jobIds = plan.layers.flat().map((j) => j.jobId);
       expect(jobIds).toContain('Producer:B');
 
       // Check explanation
-      const bReason = explanation?.jobReasons.find(r => r.jobId === 'Producer:B');
+      const bReason = explanation?.jobReasons.find(
+        (r) => r.jobId === 'Producer:B'
+      );
       expect(bReason?.reason).toBe('inputsHashChanged');
       expect(bReason?.staleArtifacts).toContain('Artifact:B');
     });
@@ -2622,7 +3182,13 @@ describe('planner', () => {
             provider: 'p-a',
             providerModel: 'm-a',
             rateKey: 'rk:a',
-            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerA', inputs: [], produces: [] },
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'ProducerA',
+              inputs: [],
+              produces: [],
+            },
           },
           {
             jobId: 'Producer:B',
@@ -2632,7 +3198,13 @@ describe('planner', () => {
             provider: 'p-b',
             providerModel: 'm-b',
             rateKey: 'rk:b',
-            context: { namespacePath: [], indices: {}, producerAlias: 'ProducerB', inputs: [], produces: [] },
+            context: {
+              namespacePath: [],
+              indices: {},
+              producerAlias: 'ProducerB',
+              inputs: [],
+              produces: [],
+            },
           },
         ],
         edges: [{ from: 'Producer:A', to: 'Producer:B' }],
@@ -2641,7 +3213,7 @@ describe('planner', () => {
       const baseRevision = 'rev-0001';
       const baseline = createInputEvents(
         { 'Input:Prompt': 'hello', 'Input:ProducerB.config': 'v1' },
-        baseRevision,
+        baseRevision
       );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
@@ -2649,7 +3221,9 @@ describe('planner', () => {
 
       const artefactCreatedAt = new Date().toISOString();
       const oldManifestData = {
-        inputs: Object.fromEntries(baseline.map(e => [e.id, { hash: e.hash }])),
+        inputs: Object.fromEntries(
+          baseline.map((e) => [e.id, { hash: e.hash }])
+        ),
         artefacts: {
           'Artifact:A': { hash: 'old-hash-a' },
           'Artifact:B': { hash: 'hash-b' },
@@ -2661,7 +3235,14 @@ describe('planner', () => {
         baseRevision: null,
         createdAt: artefactCreatedAt,
         inputs: Object.fromEntries(
-          baseline.map(e => [e.id, { hash: e.hash, payloadDigest: hashPayload(e.payload).canonical, createdAt: e.createdAt }]),
+          baseline.map((e) => [
+            e.id,
+            {
+              hash: e.hash,
+              payloadDigest: hashPayload(e.payload).canonical,
+              createdAt: e.createdAt,
+            },
+          ])
         ),
         artefacts: {
           'Artifact:A': {
@@ -2677,7 +3258,10 @@ describe('planner', () => {
             status: 'succeeded',
             createdAt: artefactCreatedAt,
             // inputsHash was computed with old Artifact:A hash
-            inputsHash: hashInputContents(['Artifact:A', 'Input:ProducerB.config'], oldManifestData),
+            inputsHash: hashInputContents(
+              ['Artifact:A', 'Input:ProducerB.config'],
+              oldManifestData
+            ),
           },
         },
         timeline: {},
@@ -2692,7 +3276,7 @@ describe('planner', () => {
         pendingEdits: [],
       });
 
-      const jobIds = plan.layers.flat().map(j => j.jobId);
+      const jobIds = plan.layers.flat().map((j) => j.jobId);
       // ProducerB should be dirty because Artifact:A hash changed
       expect(jobIds).toContain('Producer:B');
       // ProducerA should NOT be dirty (its input hash is unchanged)
@@ -2768,14 +3352,20 @@ describe('planner', () => {
       const planner = createPlanner();
 
       // Set up baseline and a changed input so ScriptProducer is dirty
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, 'rev-0001');
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        'rev-0001'
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
       const manifest = createSucceededManifest(baseline);
 
       // Change input to make everything dirty
-      const edits = createInputEvents({ 'Input:InquiryPrompt': 'New story' }, 'rev-0002');
+      const edits = createInputEvents(
+        { 'Input:InquiryPrompt': 'New story' },
+        'rev-0002'
+      );
 
       // Pin ALL artifacts from ScriptProducer
       const { plan } = await planner.computePlan({
@@ -2785,11 +3375,14 @@ describe('planner', () => {
         blueprint: graph,
         targetRevision: 'rev-0002',
         pendingEdits: edits,
-        pinnedArtifactIds: ['Artifact:NarrationScript[0]', 'Artifact:NarrationScript[1]'],
+        pinnedArtifactIds: [
+          'Artifact:NarrationScript[0]',
+          'Artifact:NarrationScript[1]',
+        ],
       });
 
       // ScriptProducer should be excluded
-      const allJobIds = plan.layers.flat().map(j => j.jobId);
+      const allJobIds = plan.layers.flat().map((j) => j.jobId);
       expect(allJobIds).not.toContain('Producer:ScriptProducer');
     });
 
@@ -2800,7 +3393,10 @@ describe('planner', () => {
       const graph = buildProducerGraph();
       const planner = createPlanner();
 
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, 'rev-0001');
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        'rev-0001'
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
@@ -2814,7 +3410,10 @@ describe('planner', () => {
         targetRevision: 'rev-0002',
         pendingEdits: [],
         reRunFrom: 0,
-        pinnedArtifactIds: ['Artifact:NarrationScript[0]', 'Artifact:NarrationScript[1]'],
+        pinnedArtifactIds: [
+          'Artifact:NarrationScript[0]',
+          'Artifact:NarrationScript[1]',
+        ],
       });
 
       const allJobIds = plan.layers.flat().map((j) => j.jobId);
@@ -2831,7 +3430,10 @@ describe('planner', () => {
       const graph = buildProducerGraph();
       const planner = createPlanner();
 
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, 'rev-0001');
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        'rev-0001'
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
@@ -2874,7 +3476,9 @@ describe('planner', () => {
       expect(allJobIds).not.toContain('Producer:ScriptProducer');
       expect(allJobIds).not.toContain('Producer:AudioProducer[0]');
 
-      const reason = explanation?.jobReasons.find((entry) => entry.jobId === 'Producer:AudioProducer[1]');
+      const reason = explanation?.jobReasons.find(
+        (entry) => entry.jobId === 'Producer:AudioProducer[1]'
+      );
       expect(reason?.reason).toBe('producesMissing');
       expect(reason?.missingArtifacts).toContain('Artifact:SegmentAudio[1]');
     });
@@ -2886,12 +3490,18 @@ describe('planner', () => {
       const graph = buildProducerGraph();
       const planner = createPlanner();
 
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, 'rev-0001');
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        'rev-0001'
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
       const manifest = createSucceededManifest(baseline);
-      const edits = createInputEvents({ 'Input:InquiryPrompt': 'New story' }, 'rev-0002');
+      const edits = createInputEvents(
+        { 'Input:InquiryPrompt': 'New story' },
+        'rev-0002'
+      );
 
       // Pin all ScriptProducer + AudioProducer outputs
       const { plan } = await planner.computePlan({
@@ -2911,7 +3521,7 @@ describe('planner', () => {
 
       // ScriptProducer + both AudioProducers + TimelineAssembler should all be excluded
       // TimelineAssembler was only dirty via propagation from AudioProducers
-      const allJobIds = plan.layers.flat().map(j => j.jobId);
+      const allJobIds = plan.layers.flat().map((j) => j.jobId);
       expect(allJobIds).not.toContain('Producer:ScriptProducer');
       expect(allJobIds).not.toContain('Producer:AudioProducer[0]');
       expect(allJobIds).not.toContain('Producer:AudioProducer[1]');
@@ -2928,12 +3538,18 @@ describe('planner', () => {
       const graph = buildProducerGraph();
       const planner = createPlanner();
 
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, 'rev-0001');
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        'rev-0001'
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
       const manifest = createSucceededManifest(baseline);
-      const edits = createInputEvents({ 'Input:InquiryPrompt': 'New story' }, 'rev-0002');
+      const edits = createInputEvents(
+        { 'Input:InquiryPrompt': 'New story' },
+        'rev-0002'
+      );
 
       // Only pin ONE artifact from ScriptProducer (produces 2)
       const { plan } = await planner.computePlan({
@@ -2947,7 +3563,7 @@ describe('planner', () => {
       });
 
       // ScriptProducer should still be in plan (not all outputs pinned)
-      const allJobIds = plan.layers.flat().map(j => j.jobId);
+      const allJobIds = plan.layers.flat().map((j) => j.jobId);
       expect(allJobIds).toContain('Producer:ScriptProducer');
     });
 
@@ -2958,12 +3574,18 @@ describe('planner', () => {
       const graph = buildProducerGraph();
       const planner = createPlanner();
 
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, 'rev-0001');
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        'rev-0001'
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
       const manifest = createSucceededManifest(baseline);
-      const edits = createInputEvents({ 'Input:InquiryPrompt': 'New story' }, 'rev-0002');
+      const edits = createInputEvents(
+        { 'Input:InquiryPrompt': 'New story' },
+        'rev-0002'
+      );
 
       const { plan: planWithout } = await planner.computePlan({
         movieId: 'demo',
@@ -2984,8 +3606,14 @@ describe('planner', () => {
         pinnedArtifactIds: [],
       });
 
-      const jobsWithout = planWithout.layers.flat().map(j => j.jobId).sort();
-      const jobsWith = planWith.layers.flat().map(j => j.jobId).sort();
+      const jobsWithout = planWithout.layers
+        .flat()
+        .map((j) => j.jobId)
+        .sort();
+      const jobsWith = planWith.layers
+        .flat()
+        .map((j) => j.jobId)
+        .sort();
       expect(jobsWith).toEqual(jobsWithout);
     });
 
@@ -2996,12 +3624,18 @@ describe('planner', () => {
       const graph = buildProducerGraph();
       const planner = createPlanner();
 
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, 'rev-0001');
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        'rev-0001'
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
       const manifest = createSucceededManifest(baseline);
-      const edits = createInputEvents({ 'Input:InquiryPrompt': 'New story' }, 'rev-0002');
+      const edits = createInputEvents(
+        { 'Input:InquiryPrompt': 'New story' },
+        'rev-0002'
+      );
 
       const { plan: planWithout } = await planner.computePlan({
         movieId: 'demo',
@@ -3022,8 +3656,14 @@ describe('planner', () => {
         pinnedArtifactIds: undefined,
       });
 
-      const jobsWithout = planWithout.layers.flat().map(j => j.jobId).sort();
-      const jobsWith = planWith.layers.flat().map(j => j.jobId).sort();
+      const jobsWithout = planWithout.layers
+        .flat()
+        .map((j) => j.jobId)
+        .sort();
+      const jobsWith = planWith.layers
+        .flat()
+        .map((j) => j.jobId)
+        .sort();
       expect(jobsWith).toEqual(jobsWithout);
     });
 
@@ -3034,12 +3674,18 @@ describe('planner', () => {
       const graph = buildProducerGraph();
       const planner = createPlanner();
 
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, 'rev-0001');
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        'rev-0001'
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
       const manifest = createSucceededManifest(baseline);
-      const edits = createInputEvents({ 'Input:InquiryPrompt': 'New story' }, 'rev-0002');
+      const edits = createInputEvents(
+        { 'Input:InquiryPrompt': 'New story' },
+        'rev-0002'
+      );
 
       const { explanation } = await planner.computePlan({
         movieId: 'demo',
@@ -3048,7 +3694,10 @@ describe('planner', () => {
         blueprint: graph,
         targetRevision: 'rev-0002',
         pendingEdits: edits,
-        pinnedArtifactIds: ['Artifact:NarrationScript[0]', 'Artifact:NarrationScript[1]'],
+        pinnedArtifactIds: [
+          'Artifact:NarrationScript[0]',
+          'Artifact:NarrationScript[1]',
+        ],
         collectExplanation: true,
       });
 
@@ -3066,7 +3715,10 @@ describe('planner', () => {
       const graph = buildProducerGraph();
       const planner = createPlanner();
 
-      const baseline = createInputEvents({ 'Input:InquiryPrompt': 'Tell me a story' }, 'rev-0001');
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        'rev-0001'
+      );
       for (const event of baseline) {
         await eventLog.appendInput('demo', event);
       }
@@ -3082,12 +3734,15 @@ describe('planner', () => {
         targetRevision: 'rev-0002',
         pendingEdits: [],
         artifactRegenerations: [
-          { targetArtifactId: 'Artifact:SegmentAudio[0]', sourceJobId: 'Producer:AudioProducer[0]' },
+          {
+            targetArtifactId: 'Artifact:SegmentAudio[0]',
+            sourceJobId: 'Producer:AudioProducer[0]',
+          },
         ],
         pinnedArtifactIds: ['Artifact:SegmentAudio[1]'],
       });
 
-      const allJobIds = plan.layers.flat().map(j => j.jobId);
+      const allJobIds = plan.layers.flat().map((j) => j.jobId);
       // AudioProducer[0] should be in the plan (surgical target)
       expect(allJobIds).toContain('Producer:AudioProducer[0]');
       // AudioProducer[1] should be excluded (pinned)
