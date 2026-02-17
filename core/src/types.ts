@@ -22,7 +22,7 @@ type Id = string;
 type IsoDatetime = string;
 
 // --- node kinds ---
-export type NodeKind = "InputSource" | "Producer" | "Artifact";
+export type NodeKind = 'InputSource' | 'Producer' | 'Artifact';
 
 // --- artifacts ---
 export type ArtifactKind = string;
@@ -32,8 +32,8 @@ export interface Artifact {
   kind: ArtifactKind;
   version: number;
   createdAt: IsoDatetime;
-  producedBy: Id;          // Producer.id
-  payloadRef: string;      // blob/key/URL; never inline raw bytes
+  producedBy: Id; // Producer.id
+  payloadRef: string; // blob/key/URL; never inline raw bytes
   meta?: Record<string, unknown>;
 }
 
@@ -44,7 +44,7 @@ export interface InputSource<T = unknown> {
   id: Id;
   kind: InputSourceKind;
   value: T;
-  editable: boolean;      // true for user-editable CUIs
+  editable: boolean; // true for user-editable CUIs
   updatedAt: IsoDatetime;
 }
 
@@ -73,8 +73,8 @@ export interface Producer {
   // Declared outputs’ kinds (for planning)
   produces: ArtifactKind[];
   // Execution characteristics
-  rateKey: string;          // key for rate-limiting bucket
-  costClass?: "low" | "mid" | "high";
+  rateKey: string; // key for rate-limiting bucket
+  costClass?: 'low' | 'mid' | 'high';
   medianLatencySec?: number;
 }
 
@@ -82,17 +82,18 @@ export interface ProducerCatalogEntry {
   provider: ProviderName;
   providerModel: string;
   rateKey: string;
-  costClass?: "low" | "mid" | "high";
+  costClass?: 'low' | 'mid' | 'high';
   medianLatencySec?: number;
 }
 
 export type ProducerCatalog = Record<ProducerKind, ProducerCatalogEntry>;
 
 // Allow both strict known types and string for user-defined/namespaced nodes
-type NodeId<K extends NodeKind> =
-  K extends "InputSource" ? (InputSourceKind | string) :
-  K extends "Producer" ? (ProducerKind | string) :
-  (ArtifactKind | string);
+type NodeId<K extends NodeKind> = K extends 'InputSource'
+  ? InputSourceKind | string
+  : K extends 'Producer'
+    ? ProducerKind | string
+    : ArtifactKind | string;
 
 export type BlueprintNodeRef<K extends NodeKind = NodeKind> = {
   kind: K;
@@ -139,7 +140,7 @@ export interface BlueprintInput {
   type: string;
   required: boolean;
   description?: string;
-  itemType?: string;  // For array types
+  itemType?: string; // For array types
 }
 
 /**
@@ -150,16 +151,16 @@ export interface BlueprintOutput {
   type: string;
   required: boolean;
   description?: string;
-  itemType?: string;  // For array types
+  itemType?: string; // For array types
 }
 
 /**
  * Reference to a sub-blueprint.
  */
 export interface SubBlueprintRef {
-  id: string;           // Used in node refs (e.g., "ScriptGeneration")
-  blueprintId: string;  // Matches loaded blueprint's meta.id
-  path?: string;        // Optional path override for locating the sub-blueprint file
+  id: string; // Used in node refs (e.g., "ScriptGeneration")
+  blueprintId: string; // Matches loaded blueprint's meta.id
+  path?: string; // Optional path override for locating the sub-blueprint file
 }
 
 /**
@@ -167,7 +168,7 @@ export interface SubBlueprintRef {
  * All properties beyond the core ones are provider-specific and passed through as-is.
  */
 export interface ProducerConfig {
-  name: string;  // Must match ProducerKind
+  name: string; // Must match ProducerKind
   // Legacy single-model fields (kept for backward compatibility)
   provider?: ProviderName;
   model?: string;
@@ -248,7 +249,14 @@ export interface JsonSchemaDefinition {
  * JSON schema property definition (recursive).
  */
 export interface JsonSchemaProperty {
-  type: 'object' | 'array' | 'string' | 'number' | 'integer' | 'boolean' | 'null';
+  type:
+    | 'object'
+    | 'array'
+    | 'string'
+    | 'number'
+    | 'integer'
+    | 'boolean'
+    | 'null';
   description?: string;
   properties?: Record<string, JsonSchemaProperty>;
   items?: JsonSchemaProperty;
@@ -384,7 +392,10 @@ export type NamedConditionDefinition = EdgeConditionClause | EdgeConditionGroup;
 /**
  * Map of condition name to definition.
  */
-export type BlueprintConditionDefinitions = Record<string, NamedConditionDefinition>;
+export type BlueprintConditionDefinitions = Record<
+  string,
+  NamedConditionDefinition
+>;
 
 /**
  * Inline condition on an edge.
@@ -730,6 +741,7 @@ export interface ProduceRequest {
   layerIndex: number;
   attempt: number;
   revision: RevisionId;
+  signal?: AbortSignal;
 }
 
 export interface ProduceResult {
@@ -872,16 +884,25 @@ export interface BlobInput {
 }
 
 export function isBlobInput(value: unknown): value is BlobInput {
-  return typeof value === 'object' && value !== null &&
-         'data' in value && 'mimeType' in value &&
-         (Buffer.isBuffer((value as BlobInput).data) ||
-          (value as BlobInput).data instanceof Uint8Array);
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'data' in value &&
+    'mimeType' in value &&
+    (Buffer.isBuffer((value as BlobInput).data) ||
+      (value as BlobInput).data instanceof Uint8Array)
+  );
 }
 
 export function isBlobRef(value: unknown): value is BlobRef {
-  return typeof value === 'object' && value !== null &&
-         'hash' in value && 'size' in value && 'mimeType' in value &&
-         typeof (value as BlobRef).hash === 'string' &&
-         typeof (value as BlobRef).size === 'number' &&
-         typeof (value as BlobRef).mimeType === 'string';
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'hash' in value &&
+    'size' in value &&
+    'mimeType' in value &&
+    typeof (value as BlobRef).hash === 'string' &&
+    typeof (value as BlobRef).size === 'number' &&
+    typeof (value as BlobRef).mimeType === 'string'
+  );
 }

@@ -65,6 +65,7 @@ export interface RunnerExecutionContext {
   logger?: Partial<Logger>;
   clock?: Clock;
   notifications?: NotificationBus;
+  signal?: AbortSignal;
 }
 
 type SingleJobExecutionContext = RunnerExecutionContext & {
@@ -82,6 +83,7 @@ interface RunnerJobContext extends RunnerExecutionContext {
   clock: Clock;
   manifestService: ManifestService;
   notifications?: NotificationBus;
+  signal?: AbortSignal;
 }
 
 const defaultClock: Clock = {
@@ -252,6 +254,7 @@ async function executeJob(
     clock,
     storage,
     eventLog,
+    signal,
   } = context;
   const notifications = context.notifications;
   const startedAt = clock.now();
@@ -455,6 +458,7 @@ async function executeJob(
       layerIndex,
       attempt,
       revision,
+      signal,
     });
 
     const artefacts = await materializeArtefacts(result.artefacts, {

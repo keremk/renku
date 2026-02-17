@@ -39,7 +39,11 @@ import type {
   JobDetailInfo,
   SSEEvent,
 } from './types.js';
-import { requireCliConfig, normalizeConcurrency, type CliConfig } from './config.js';
+import {
+  requireCliConfig,
+  normalizeConcurrency,
+  type CliConfig,
+} from './config.js';
 import { getJobManager } from './job-manager.js';
 import { parseJsonBody, sendJson, sendError } from './http-utils.js';
 
@@ -68,10 +72,20 @@ export async function handleExecuteRequest(
     // Check if there's already a running job for this movie
     const existingJobs = jobManager.listJobs();
     const runningJob = existingJobs.find(
-      (j) => j.movieId === cachedPlan.movieId && (j.status === 'running' || j.status === 'planning')
+      (j) =>
+        j.movieId === cachedPlan.movieId &&
+        (j.status === 'pending' ||
+          j.status === 'running' ||
+          j.status === 'planning' ||
+          (j.status === 'cancelled' && !j.completedAt))
     );
     if (runningJob) {
-      sendError(res, 409, `Job already running for movie ${cachedPlan.movieId}: ${runningJob.jobId}`, 'R113');
+      sendError(
+        res,
+        409,
+        `Job already running for movie ${cachedPlan.movieId}: ${runningJob.jobId}`,
+        'R113'
+      );
       return true;
     }
 
@@ -166,11 +180,15 @@ async function executeJobAsync(
       timestamp: new Date().toISOString(),
       planId: cachedPlan.planId,
       totalLayers: cachedPlan.plan.layers.length,
-      totalJobs: cachedPlan.plan.layers.reduce((sum, layer) => sum + layer.length, 0),
+      totalJobs: cachedPlan.plan.layers.reduce(
+        (sum, layer) => sum + layer.length,
+        0
+      ),
     });
 
     // Check if cancelled
     if (jobManager.isJobCancelled(jobId)) {
+      jobManager.finalizeCancelledJob(jobId);
       return;
     }
 
@@ -179,6 +197,11 @@ async function executeJobAsync(
 
     // Remove plan from cache (it's been used)
     jobManager.removePlan(cachedPlan.planId);
+
+    if (jobManager.isJobCancelled(jobId)) {
+      jobManager.finalizeCancelledJob(jobId);
+      return;
+    }
 
     // Update status to running
     jobManager.updateJobStatus(jobId, 'running');
@@ -198,7 +221,11 @@ async function executeJobAsync(
     // Cloud storage: Real for live, stubbed for dry-run
     const cloudStorageEnv = loadCloudStorageEnv();
     const cloudStorage = dryRun
-      ? createDryRunCloudStorage(cliConfig.storage.root, cachedPlan.basePath, cachedPlan.movieId)
+      ? createDryRunCloudStorage(
+          cliConfig.storage.root,
+          cachedPlan.basePath,
+          cachedPlan.movieId
+        )
       : cloudStorageEnv.isConfigured
         ? createCloudStorageContext(cloudStorageEnv.config!)
         : undefined;
@@ -219,8 +246,13 @@ async function executeJobAsync(
     });
 
     // Cast to ProducerOptionsMap for type compatibility
-    const providerOpts = cachedPlan.providerOptions as unknown as import('@gorenku/core').ProducerOptionsMap;
-    const preResolved = prepareProviderHandlers(registry, cachedPlan.plan, providerOpts);
+    const providerOpts =
+      cachedPlan.providerOptions as unknown as import('@gorenku/core').ProducerOptionsMap;
+    const preResolved = prepareProviderHandlers(
+      registry,
+      cachedPlan.plan,
+      providerOpts
+    );
     await registry.warmStart?.(preResolved);
 
     // Resolve BlobRef objects to BlobInput format
@@ -244,13 +276,20 @@ async function executeJobAsync(
       resolvedInputsWithSystem,
       preResolved,
       logger,
-      notifications,
+      notifications
     );
 
-    const concurrency = normalizeConcurrency(options.concurrency ?? cliConfig.concurrency);
+    const concurrency = normalizeConcurrency(
+      options.concurrency ?? cliConfig.concurrency
+    );
 
     // Track layer results for summary
-    const layerStats: Map<number, { succeeded: number; failed: number; skipped: number }> = new Map();
+    const layerStats: Map<
+      number,
+      { succeeded: number; failed: number; skipped: number }
+    > = new Map();
+
+    const abortSignal = jobManager.getJob(jobId).abortController.signal;
 
     // Execute plan with progress tracking
     const run = await executePlanWithConcurrency(
@@ -267,6 +306,7 @@ async function executeJobAsync(
         concurrency,
         reRunFrom: options.reRunFrom,
         upToLayer: options.upToLayer,
+        signal: abortSignal,
         onProgress: (event) => {
           // Check if cancelled
           if (jobManager.isJobCancelled(jobId)) {
@@ -274,7 +314,8 @@ async function executeJobAsync(
           }
 
           const layerIndex = event.layerIndex ?? 0;
-          const producerName = typeof event.producer === 'string' ? event.producer : 'unknown';
+          const producerName =
+            typeof event.producer === 'string' ? event.producer : 'unknown';
 
           if (event.type === 'layer-start') {
             layerStats.set(layerIndex, { succeeded: 0, failed: 0, skipped: 0 });
@@ -290,7 +331,11 @@ async function executeJobAsync(
               jobCount: event.progress?.total ?? 0,
             });
           } else if (event.type === 'layer-complete') {
-            const stats = layerStats.get(layerIndex) ?? { succeeded: 0, failed: 0, skipped: 0 };
+            const stats = layerStats.get(layerIndex) ?? {
+              succeeded: 0,
+              failed: 0,
+              skipped: 0,
+            };
             broadcastEvent(jobId, {
               type: 'layer-complete',
               timestamp: new Date().toISOString(),
@@ -323,7 +368,11 @@ async function executeJobAsync(
               layerIndex,
             });
           } else if (event.type === 'job-complete') {
-            const jobStatus = event.status as 'succeeded' | 'failed' | 'skipped' | undefined;
+            const jobStatus = event.status as
+              | 'succeeded'
+              | 'failed'
+              | 'skipped'
+              | undefined;
             const errorMessage = event.error?.message;
 
             // Update layer stats
@@ -379,14 +428,29 @@ async function executeJobAsync(
       clock: { now: () => new Date().toISOString() },
     });
 
-    const relativeManifestPath = storage.resolve(cachedPlan.movieId, 'manifests', `${manifest.revision}.json`);
-    const manifestPath = resolvePath(cliConfig.storage.root, relativeManifestPath);
+    if (jobManager.isJobCancelled(jobId)) {
+      jobManager.finalizeCancelledJob(jobId);
+      return;
+    }
+
+    const relativeManifestPath = storage.resolve(
+      cachedPlan.movieId,
+      'manifests',
+      `${manifest.revision}.json`
+    );
+    const manifestPath = resolvePath(
+      cliConfig.storage.root,
+      relativeManifestPath
+    );
 
     // Build summary
     const summary = summarizeRun(run, manifestPath);
     jobManager.setJobSummary(jobId, summary);
     jobManager.updateJobProgress(jobId, 100, cachedPlan.plan.layers.length);
-    jobManager.updateJobStatus(jobId, run.status === 'failed' ? 'failed' : 'completed');
+    jobManager.updateJobStatus(
+      jobId,
+      run.status === 'failed' ? 'failed' : 'completed'
+    );
 
     broadcastEvent(jobId, {
       type: 'execution-complete',
@@ -395,7 +459,13 @@ async function executeJobAsync(
       summary,
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    if (jobManager.isJobCancelled(jobId)) {
+      jobManager.finalizeCancelledJob(jobId);
+      return;
+    }
+
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
     jobManager.setJobError(jobId, errorMessage);
     jobManager.updateJobStatus(jobId, 'failed');
 
@@ -451,7 +521,11 @@ function summarizeRun(
 /**
  * Creates a stubbed cloud storage context for dry-run mode.
  */
-function createDryRunCloudStorage(rootDir: string, basePath: string, movieId: string): StorageContext {
+function createDryRunCloudStorage(
+  rootDir: string,
+  basePath: string,
+  movieId: string
+): StorageContext {
   const movieRootDir = `${rootDir}/${basePath}/${movieId}`;
   const movieScopedStorage = createStorageContext({
     kind: 'local',

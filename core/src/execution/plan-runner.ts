@@ -31,11 +31,17 @@ import type {
 export async function executePlanWithConcurrency(
   plan: ExecutionPlan,
   context: PlanExecutionContext,
-  options: ExecutePlanWithConcurrencyOptions,
+  options: ExecutePlanWithConcurrencyOptions
 ): Promise<RunResult> {
   validateOptions(options, plan);
 
-  const { concurrency, upToLayer: layerLimit, reRunFrom, signal, onProgress } = options;
+  const {
+    concurrency,
+    upToLayer: layerLimit,
+    reRunFrom,
+    signal,
+    onProgress,
+  } = options;
   const runner = createRunner();
   const limit = pLimit(concurrency);
   const logger = context.logger ?? {};
@@ -73,7 +79,10 @@ export async function executePlanWithConcurrency(
     let message = `Re-running from layer ${reRunFrom}. Layers 0-${reRunFrom - 1} will use existing artifacts.`;
     if (jobsFromLayer === 0) {
       message += ` Note: No jobs found at layer ${reRunFrom} or above. The plan may be empty.`;
-    } else if (layersWithJobs.length > 0 && layersWithJobs[0]?.index !== reRunFrom) {
+    } else if (
+      layersWithJobs.length > 0 &&
+      layersWithJobs[0]?.index !== reRunFrom
+    ) {
       const firstLayerWithJobs = layersWithJobs[0]?.index;
       message += ` Note: Layer ${reRunFrom} is empty. First layer with jobs is layer ${firstLayerWithJobs}.`;
     }
@@ -210,6 +219,7 @@ export async function executePlanWithConcurrency(
             layerIndex,
             attempt: 1,
             revision: plan.revision,
+            signal,
           });
 
           onProgress?.({
@@ -220,12 +230,14 @@ export async function executePlanWithConcurrency(
             jobId: job.jobId,
             producer: job.producer,
             status: result.status,
-            error: result.error ? { message: result.error.message, code: undefined } : undefined,
+            error: result.error
+              ? { message: result.error.message, code: undefined }
+              : undefined,
           });
 
           return result;
-        }),
-      ),
+        })
+      )
     );
     jobs.push(...layerResults);
 
@@ -284,38 +296,54 @@ export async function executePlanWithConcurrency(
   };
 }
 
-function validateOptions(options: ExecutePlanWithConcurrencyOptions, plan: ExecutionPlan): void {
+function validateOptions(
+  options: ExecutePlanWithConcurrencyOptions,
+  plan: ExecutionPlan
+): void {
   const { concurrency, upToLayer: layerLimit, reRunFrom } = options;
 
   if (!Number.isInteger(concurrency) || concurrency <= 0) {
     throw createRuntimeError(
       RuntimeErrorCode.INVALID_CONCURRENCY_VALUE,
       'Concurrency must be a positive integer.',
-      { suggestion: 'Provide a concurrency value of 1 or greater.' },
+      { suggestion: 'Provide a concurrency value of 1 or greater.' }
     );
   }
 
-  if (layerLimit !== undefined && (!Number.isInteger(layerLimit) || layerLimit < 0)) {
+  if (
+    layerLimit !== undefined &&
+    (!Number.isInteger(layerLimit) || layerLimit < 0)
+  ) {
     throw createRuntimeError(
       RuntimeErrorCode.INVALID_UPTO_LAYER_VALUE,
       'upToLayer must be a non-negative integer.',
-      { suggestion: 'Provide a layer index starting from 0.' },
+      { suggestion: 'Provide a layer index starting from 0.' }
     );
   }
 
-  if (reRunFrom !== undefined && (!Number.isInteger(reRunFrom) || reRunFrom < 0)) {
+  if (
+    reRunFrom !== undefined &&
+    (!Number.isInteger(reRunFrom) || reRunFrom < 0)
+  ) {
     throw createRuntimeError(
       RuntimeErrorCode.INVALID_RERUN_FROM_VALUE,
       `reRunFrom must be a non-negative integer, got ${reRunFrom}.`,
-      { suggestion: 'Provide a layer index starting from 0.' },
+      { suggestion: 'Provide a layer index starting from 0.' }
     );
   }
 
-  if (reRunFrom !== undefined && layerLimit !== undefined && reRunFrom > layerLimit) {
+  if (
+    reRunFrom !== undefined &&
+    layerLimit !== undefined &&
+    reRunFrom > layerLimit
+  ) {
     throw createRuntimeError(
       RuntimeErrorCode.RERUN_FROM_GREATER_THAN_UPTO,
       `reRunFrom (${reRunFrom}) cannot be greater than upToLayer (${layerLimit}).`,
-      { suggestion: 'Use --re-run-from with a value less than or equal to --up-to-layer.' },
+      {
+        suggestion:
+          'Use --re-run-from with a value less than or equal to --up-to-layer.',
+      }
     );
   }
 
@@ -323,7 +351,9 @@ function validateOptions(options: ExecutePlanWithConcurrencyOptions, plan: Execu
     throw createRuntimeError(
       RuntimeErrorCode.RERUN_FROM_EXCEEDS_LAYERS,
       `reRunFrom (${reRunFrom}) exceeds total layers (${plan.layers.length}). Valid range is 0-${plan.layers.length - 1}.`,
-      { suggestion: `Use a layer index between 0 and ${plan.layers.length - 1}.` },
+      {
+        suggestion: `Use a layer index between 0 and ${plan.layers.length - 1}.`,
+      }
     );
   }
 }

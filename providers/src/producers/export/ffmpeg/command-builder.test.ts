@@ -3,6 +3,8 @@ import { buildFfmpegCommand, detectOutputFormat } from './command-builder.js';
 import type {
   TimelineDocument,
   TimelineTrack,
+  ImageTrack,
+  ImageClip,
   VideoTrack,
   VideoClip,
   MusicTrack,
@@ -11,6 +13,7 @@ import type {
 import type { AssetPathMap } from './types.js';
 
 type ProbeFixture = Record<string, boolean>;
+type ImageDimensionsFixture = { width: number; height: number };
 
 /**
  * Create a minimal video clip for testing.
@@ -45,6 +48,33 @@ function createMusicClip(overrides: Partial<MusicClip> = {}): MusicClip {
 }
 
 /**
+ * Create a minimal image clip for testing.
+ */
+function createImageClip(overrides: Partial<ImageClip> = {}): ImageClip {
+  return {
+    id: 'image-clip-1',
+    kind: 'Image',
+    startTime: 0,
+    duration: 10,
+    properties: {
+      effect: 'KenBurns',
+      effects: [
+        {
+          assetId: 'Artifact:TestProducer.Image',
+          startScale: 1,
+          endScale: 1.2,
+          startX: 0,
+          endX: 0,
+          startY: 0,
+          endY: 0,
+        },
+      ],
+    },
+    ...overrides,
+  };
+}
+
+/**
  * Create a minimal video track for testing.
  */
 function createVideoTrack(clips: VideoClip[]): VideoTrack {
@@ -62,6 +92,17 @@ function createMusicTrack(clips: MusicClip[]): MusicTrack {
   return {
     id: 'music-track-1',
     kind: 'Music',
+    clips,
+  };
+}
+
+/**
+ * Create a minimal image track for testing.
+ */
+function createImageTrack(clips: ImageClip[]): ImageTrack {
+  return {
+    id: 'image-track-1',
+    kind: 'Image',
     clips,
   };
 }
@@ -91,7 +132,8 @@ function getFilterComplex(args: string[]): string | undefined {
 async function buildCommandWithProbe(
   timeline: TimelineDocument,
   assetPaths: AssetPathMap,
-  probeFixture: ProbeFixture
+  probeFixture: ProbeFixture,
+  imageDimensions: ImageDimensionsFixture = { width: 1920, height: 1080 }
 ) {
   return buildFfmpegCommand(
     timeline,
@@ -111,6 +153,7 @@ async function buildCommandWithProbe(
         }
         return result;
       },
+      probeImageDimensions: async () => imageDimensions,
     }
   );
 }
@@ -320,6 +363,42 @@ describe('command-builder', () => {
         expect(filterComplex).toContain('amix=inputs=2');
         expect(filterComplex).not.toContain('anullsrc');
       });
+    });
+
+    it('uses looped image inputs with crop-based KenBurns pipeline', async () => {
+      const imageClip = createImageClip();
+      const timeline = createTimeline([createImageTrack([imageClip])], 10);
+      const assetPaths: AssetPathMap = {
+        'Artifact:TestProducer.Image': '/path/to/image.png',
+      };
+
+      const result = await buildFfmpegCommand(
+        timeline,
+        assetPaths,
+        {
+          width: 1920,
+          height: 1080,
+          fps: 30,
+        },
+        undefined,
+        undefined,
+        {
+          probeImageDimensions: async () => ({ width: 1408, height: 768 }),
+        }
+      );
+
+      expect(result.args).toContain('-loop');
+      expect(result.args).toContain('1');
+      expect(result.args).toContain('-framerate');
+      expect(result.args).toContain('30');
+      expect(result.args).toContain('-t');
+      expect(result.args).toContain('-i');
+      expect(result.args).toContain('/path/to/image.png');
+
+      const filterComplex = getFilterComplex(result.args);
+      expect(filterComplex).toContain('crop=');
+      expect(filterComplex).toContain('exact=1');
+      expect(filterComplex).not.toContain('zoompan=');
     });
   });
 

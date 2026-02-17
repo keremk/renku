@@ -26,13 +26,28 @@ export async function handleCancelRequest(
     const job = jobManager.getJob(jobId);
 
     // Check if job can be cancelled
-    if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
-      sendError(res, 400, `Job ${jobId} is already ${job.status} and cannot be cancelled`);
+    if (
+      job.status === 'completed' ||
+      job.status === 'failed' ||
+      job.status === 'cancelled'
+    ) {
+      sendError(
+        res,
+        400,
+        `Job ${jobId} is already ${job.status} and cannot be cancelled`
+      );
       return true;
     }
 
     // Cancel the job
     jobManager.cancelJob(jobId);
+
+    // Notify subscribers immediately so clients can close streams and update UI state.
+    jobManager.broadcastEvent(jobId, {
+      type: 'execution-cancelled',
+      timestamp: new Date().toISOString(),
+      message: `Execution cancelled for job ${jobId}`,
+    });
 
     // Get updated job status
     const updatedJob = jobManager.getJob(jobId);

@@ -43,7 +43,8 @@ const makeJob = (jobId: string): JobDescriptor => ({
 
 describe('executePlanWithConcurrency', () => {
   it('runs layer jobs in parallel up to the limit and keeps layers sequential', async () => {
-    const { movieId, storage, eventLog, manifestService, manifest } = await createRunnerContext();
+    const { movieId, storage, eventLog, manifestService, manifest } =
+      await createRunnerContext();
 
     const layerOne = ['job-1', 'job-2', 'job-3'].map(makeJob);
     const layerTwo = [makeJob('job-4')];
@@ -93,18 +94,21 @@ describe('executePlanWithConcurrency', () => {
         manifestService,
         produce,
       },
-      { concurrency: 2 },
+      { concurrency: 2 }
     );
 
     expect(peak).toBeLessThanOrEqual(2);
     expect(layerTwoStartedAfter).toBe(layerOne.length);
-    expect(starts.slice(0, layerOne.length)).toEqual(layerOne.map((job) => job.jobId));
+    expect(starts.slice(0, layerOne.length)).toEqual(
+      layerOne.map((job) => job.jobId)
+    );
     expect(starts[layerOne.length]).toBe('job-4');
     expect(result.jobs).toHaveLength(4);
   });
 
   it('stops executing after reaching the requested layer', async () => {
-    const { movieId, storage, eventLog, manifestService, manifest } = await createRunnerContext();
+    const { movieId, storage, eventLog, manifestService, manifest } =
+      await createRunnerContext();
     const layers: ExecutionPlan['layers'] = [
       [makeJob('layer-0-job')],
       [makeJob('layer-1-job')],
@@ -126,7 +130,7 @@ describe('executePlanWithConcurrency', () => {
     const result = await executePlanWithConcurrency(
       plan,
       { movieId, manifest, storage, eventLog, manifestService, produce },
-      { concurrency: 2, upToLayer: 1 },
+      { concurrency: 2, upToLayer: 1 }
     );
 
     expect(executed).toEqual(['layer-0-job', 'layer-1-job']);
@@ -134,7 +138,8 @@ describe('executePlanWithConcurrency', () => {
   });
 
   it('rejects negative upToLayer values', async () => {
-    const { movieId, storage, eventLog, manifestService, manifest } = await createRunnerContext();
+    const { movieId, storage, eventLog, manifestService, manifest } =
+      await createRunnerContext();
     const plan: ExecutionPlan = {
       revision: 'rev-0003',
       manifestBaseHash: 'hash',
@@ -152,13 +157,14 @@ describe('executePlanWithConcurrency', () => {
       executePlanWithConcurrency(
         plan,
         { movieId, manifest, storage, eventLog, manifestService, produce },
-        { concurrency: 1, upToLayer: -1 },
-      ),
+        { concurrency: 1, upToLayer: -1 }
+      )
     ).rejects.toThrow(/upToLayer/);
   });
 
   it('skips layers before reRunFrom and executes layers from that point', async () => {
-    const { movieId, storage, eventLog, manifestService, manifest } = await createRunnerContext();
+    const { movieId, storage, eventLog, manifestService, manifest } =
+      await createRunnerContext();
     const layers: ExecutionPlan['layers'] = [
       [makeJob('layer-0-job')],
       [makeJob('layer-1-job')],
@@ -181,7 +187,7 @@ describe('executePlanWithConcurrency', () => {
     const result = await executePlanWithConcurrency(
       plan,
       { movieId, manifest, storage, eventLog, manifestService, produce },
-      { concurrency: 2, reRunFrom: 2 },
+      { concurrency: 2, reRunFrom: 2 }
     );
 
     // Only layers 2 and 3 should have been executed
@@ -196,7 +202,8 @@ describe('executePlanWithConcurrency', () => {
   });
 
   it('combines reRunFrom with upToLayer correctly', async () => {
-    const { movieId, storage, eventLog, manifestService, manifest } = await createRunnerContext();
+    const { movieId, storage, eventLog, manifestService, manifest } =
+      await createRunnerContext();
     const layers: ExecutionPlan['layers'] = [
       [makeJob('layer-0-job')],
       [makeJob('layer-1-job')],
@@ -220,7 +227,7 @@ describe('executePlanWithConcurrency', () => {
     const result = await executePlanWithConcurrency(
       plan,
       { movieId, manifest, storage, eventLog, manifestService, produce },
-      { concurrency: 2, reRunFrom: 1, upToLayer: 3 },
+      { concurrency: 2, reRunFrom: 1, upToLayer: 3 }
     );
 
     // Only layers 1, 2, and 3 should have been executed
@@ -234,7 +241,8 @@ describe('executePlanWithConcurrency', () => {
   });
 
   it('rejects reRunFrom greater than total layers', async () => {
-    const { movieId, storage, eventLog, manifestService, manifest } = await createRunnerContext();
+    const { movieId, storage, eventLog, manifestService, manifest } =
+      await createRunnerContext();
     const plan: ExecutionPlan = {
       revision: 'rev-0006',
       manifestBaseHash: 'hash',
@@ -252,16 +260,18 @@ describe('executePlanWithConcurrency', () => {
       executePlanWithConcurrency(
         plan,
         { movieId, manifest, storage, eventLog, manifestService, produce },
-        { concurrency: 1, reRunFrom: 5 },
-      ),
+        { concurrency: 1, reRunFrom: 5 }
+      )
     ).rejects.toSatisfy(
       (error: unknown) =>
-        isRenkuError(error) && error.code === RuntimeErrorCode.RERUN_FROM_EXCEEDS_LAYERS,
+        isRenkuError(error) &&
+        error.code === RuntimeErrorCode.RERUN_FROM_EXCEEDS_LAYERS
     );
   });
 
   it('rejects reRunFrom greater than upToLayer', async () => {
-    const { movieId, storage, eventLog, manifestService, manifest } = await createRunnerContext();
+    const { movieId, storage, eventLog, manifestService, manifest } =
+      await createRunnerContext();
     const plan: ExecutionPlan = {
       revision: 'rev-0007',
       manifestBaseHash: 'hash',
@@ -279,16 +289,18 @@ describe('executePlanWithConcurrency', () => {
       executePlanWithConcurrency(
         plan,
         { movieId, manifest, storage, eventLog, manifestService, produce },
-        { concurrency: 1, reRunFrom: 2, upToLayer: 1 },
-      ),
+        { concurrency: 1, reRunFrom: 2, upToLayer: 1 }
+      )
     ).rejects.toSatisfy(
       (error: unknown) =>
-        isRenkuError(error) && error.code === RuntimeErrorCode.RERUN_FROM_GREATER_THAN_UPTO,
+        isRenkuError(error) &&
+        error.code === RuntimeErrorCode.RERUN_FROM_GREATER_THAN_UPTO
     );
   });
 
   it('rejects negative reRunFrom values', async () => {
-    const { movieId, storage, eventLog, manifestService, manifest } = await createRunnerContext();
+    const { movieId, storage, eventLog, manifestService, manifest } =
+      await createRunnerContext();
     const plan: ExecutionPlan = {
       revision: 'rev-0008',
       manifestBaseHash: 'hash',
@@ -306,16 +318,18 @@ describe('executePlanWithConcurrency', () => {
       executePlanWithConcurrency(
         plan,
         { movieId, manifest, storage, eventLog, manifestService, produce },
-        { concurrency: 1, reRunFrom: -1 },
-      ),
+        { concurrency: 1, reRunFrom: -1 }
+      )
     ).rejects.toSatisfy(
       (error: unknown) =>
-        isRenkuError(error) && error.code === RuntimeErrorCode.INVALID_RERUN_FROM_VALUE,
+        isRenkuError(error) &&
+        error.code === RuntimeErrorCode.INVALID_RERUN_FROM_VALUE
     );
   });
 
   it('executes all layers when reRunFrom is 0', async () => {
-    const { movieId, storage, eventLog, manifestService, manifest } = await createRunnerContext();
+    const { movieId, storage, eventLog, manifestService, manifest } =
+      await createRunnerContext();
     const layers: ExecutionPlan['layers'] = [
       [makeJob('layer-0-job')],
       [makeJob('layer-1-job')],
@@ -336,7 +350,7 @@ describe('executePlanWithConcurrency', () => {
     const result = await executePlanWithConcurrency(
       plan,
       { movieId, manifest, storage, eventLog, manifestService, produce },
-      { concurrency: 2, reRunFrom: 0 },
+      { concurrency: 2, reRunFrom: 0 }
     );
 
     // All layers should be executed (reRunFrom: 0 means start from beginning)
@@ -346,7 +360,8 @@ describe('executePlanWithConcurrency', () => {
   });
 
   it('emits progress events during execution', async () => {
-    const { movieId, storage, eventLog, manifestService, manifest } = await createRunnerContext();
+    const { movieId, storage, eventLog, manifestService, manifest } =
+      await createRunnerContext();
     const layers: ExecutionPlan['layers'] = [
       [makeJob('layer-0-job')],
       [makeJob('layer-1-job')],
@@ -374,7 +389,7 @@ describe('executePlanWithConcurrency', () => {
         onProgress: (event) => {
           events.push({ type: event.type, layerIndex: event.layerIndex });
         },
-      },
+      }
     );
 
     // Should have layer-start, job-start, job-complete, layer-complete for each layer
@@ -382,11 +397,14 @@ describe('executePlanWithConcurrency', () => {
     expect(events.filter((e) => e.type === 'job-start')).toHaveLength(2);
     expect(events.filter((e) => e.type === 'job-complete')).toHaveLength(2);
     expect(events.filter((e) => e.type === 'layer-complete')).toHaveLength(2);
-    expect(events.filter((e) => e.type === 'execution-complete')).toHaveLength(1);
+    expect(events.filter((e) => e.type === 'execution-complete')).toHaveLength(
+      1
+    );
   });
 
   it('supports cancellation via AbortSignal', async () => {
-    const { movieId, storage, eventLog, manifestService, manifest } = await createRunnerContext();
+    const { movieId, storage, eventLog, manifestService, manifest } =
+      await createRunnerContext();
     const layers: ExecutionPlan['layers'] = [
       [makeJob('layer-0-job')],
       [makeJob('layer-1-job')],
@@ -402,9 +420,13 @@ describe('executePlanWithConcurrency', () => {
 
     const abortController = new AbortController();
     const executed: string[] = [];
+    const seenSignals: AbortSignal[] = [];
 
-    const produce: ProduceFn = async ({ job }) => {
+    const produce: ProduceFn = async ({ job, signal }) => {
       executed.push(job.jobId);
+      if (signal) {
+        seenSignals.push(signal);
+      }
       // Cancel after layer 0
       if (job.jobId === 'layer-0-job') {
         abortController.abort();
@@ -415,11 +437,12 @@ describe('executePlanWithConcurrency', () => {
     const result = await executePlanWithConcurrency(
       plan,
       { movieId, manifest, storage, eventLog, manifestService, produce },
-      { concurrency: 1, signal: abortController.signal },
+      { concurrency: 1, signal: abortController.signal }
     );
 
     // Only layer 0 should have been executed before cancellation
     expect(executed).toEqual(['layer-0-job']);
+    expect(seenSignals).toEqual([abortController.signal]);
     expect(result.status).toBe('failed');
   });
 });

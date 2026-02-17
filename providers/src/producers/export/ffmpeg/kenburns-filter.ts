@@ -1,9 +1,33 @@
 import type { KenBurnsEffect } from '@gorenku/compositions';
 
+const INTERNAL_SCALE_FACTOR = 2;
+const MOTION_SAFETY_MARGIN = 2;
+const EPSILON = 0.0001;
+
+export interface SourceDimensions {
+  width: number;
+  height: number;
+}
+
 /**
  * Options for building a KenBurns filter expression.
  */
 export interface KenBurnsFilterOptions {
+  /** Output width in pixels */
+  width: number;
+  /** Output height in pixels */
+  height: number;
+  /** Cover-scaled source width (after aspect-fit-to-cover) */
+  coverWidth: number;
+  /** Cover-scaled source height (after aspect-fit-to-cover) */
+  coverHeight: number;
+  /** Frames per second */
+  fps: number;
+  /** Duration of the effect in seconds */
+  duration: number;
+}
+
+export interface KenBurnsImageOptions {
   /** Output width in pixels */
   width: number;
   /** Output height in pixels */
@@ -15,154 +39,272 @@ export interface KenBurnsFilterOptions {
 }
 
 /**
- * Build an FFmpeg zoompan filter expression for a KenBurns effect.
+ * Build an FFmpeg crop expression for a KenBurns effect.
  *
- * The zoompan filter creates a pan and zoom effect on a static image.
- * We convert the timeline's effect parameters (center-based offsets and scale)
- * to FFmpeg's zoompan format.
+ * The exported timeline uses the same semantic values as the Remotion preview:
+ * - startScale/endScale are relative zoom values (1 = base framing)
+ * - startX/endX and startY/endY are pixel offsets from center
  *
- * Timeline format:
- * - startX/endX, startY/endY: pixel offsets from center (-60 to +60 typical)
- * - startScale/endScale: zoom factor (1.0 = normal, 1.2 = 20% zoom in)
+ * We implement this by:
+ * 1. Cover-scaling the image to the output aspect ratio (in buildImageFilterChain)
+ * 2. Animating a crop window (zoom + pan) over that cover-scaled frame
+ * 3. Re-scaling the cropped result back to output size
  *
- * FFmpeg zoompan format:
- * - z: zoom expression (how much to zoom, affects visible area)
- * - x, y: position of top-left corner of the visible area
- * - d: duration in frames
- * - s: output size
- * - fps: output frame rate
+ * The crop expression uses `n` (frame index) and `exact=1` so x/y are not rounded
+ * to chroma subsampling boundaries, which reduces visible jitter on slow pans.
  *
  * @param effect - The KenBurns effect parameters
  * @param options - Filter configuration options
- * @returns FFmpeg filter expression string
+ * @returns FFmpeg crop filter expression string
  */
 export function buildKenBurnsFilter(
   effect: KenBurnsEffect,
   options: KenBurnsFilterOptions
 ): string {
-  const { width, height, fps, duration } = options;
-  const totalFrames = Math.ceil(duration * fps);
+  const { width, height, coverWidth, coverHeight, fps, duration } = options;
+  if (duration <= 0) {
+    throw new Error(
+      `KenBurns duration must be greater than 0. Got ${duration}.`
+    );
+  }
+  if (width <= 0 || height <= 0) {
+    throw new Error(
+      `KenBurns output dimensions must be positive. Got width=${width}, height=${height}.`
+    );
+  }
+  if (coverWidth < width || coverHeight < height) {
+    throw new Error(
+      `KenBurns cover dimensions must be at least the output size. Got coverWidth=${coverWidth}, coverHeight=${coverHeight}, width=${width}, height=${height}.`
+    );
+  }
 
-  // Extract effect parameters with defaults
+  const totalFrames = Math.max(1, Math.round(duration * fps));
+
   const startScale = effect.startScale ?? 1;
-  const endScale = effect.endScale ?? 1;
+  const endScale = effect.endScale ?? startScale;
   const startX = effect.startX ?? 0;
-  const endX = effect.endX ?? 0;
+  const endX = effect.endX ?? startX;
   const startY = effect.startY ?? 0;
-  const endY = effect.endY ?? 0;
+  const endY = effect.endY ?? startY;
 
-  // Build zoom expression: interpolate from startScale to endScale over time
-  // 'on' is the current output frame number (0-indexed)
-  // Progress: on / (totalFrames - 1) goes from 0 to 1
-  const zoomExpr = buildZoomExpression(startScale, endScale, totalFrames);
-
-  // Build pan expressions
-  // The timeline uses center-relative offsets, we need to convert to FFmpeg's
-  // top-left corner position. The zoompan filter's x/y specify where to position
-  // the center of the crop rectangle.
-  //
-  // For FFmpeg zoompan:
-  // - x is measured from left edge of image to left edge of visible area
-  // - y is measured from top edge of image to top edge of visible area
-  // - When zoomed in, the visible area is (iw/zoom) x (ih/zoom)
-  //
-  // To center: x = (iw - iw/zoom) / 2 = iw * (1 - 1/zoom) / 2
-  // With offset: x = center_x + offset_x (scaled appropriately)
-  const xExpr = buildPanExpression('iw', startX, endX, totalFrames);
-  const yExpr = buildPanExpression('ih', startY, endY, totalFrames);
-
-  // Build the complete zoompan filter
-  // Note: We add format=yuva420p for proper alpha handling and compatibility
-  return `zoompan=z='${zoomExpr}':x='${xExpr}':y='${yExpr}':d=${totalFrames}:s=${width}x${height}:fps=${fps}`;
-}
-
-/**
- * Build the zoom expression that interpolates from startScale to endScale.
- *
- * @param startScale - Initial zoom level (1.0 = 100%)
- * @param endScale - Final zoom level
- * @param totalFrames - Total number of frames
- * @returns FFmpeg expression string
- */
-function buildZoomExpression(startScale: number, endScale: number, totalFrames: number): string {
-  if (totalFrames <= 1) {
-    return String(startScale);
+  if (startScale < 1 || endScale < 1) {
+    throw new Error(
+      `KenBurns scale values must be greater than or equal to 1. Got startScale=${startScale}, endScale=${endScale}.`
+    );
   }
 
-  // Linear interpolation: startScale + (endScale - startScale) * (on / (totalFrames - 1))
-  // Simplified: startScale + delta * progress
-  const delta = endScale - startScale;
-
-  if (Math.abs(delta) < 0.0001) {
-    // No zoom change, return constant
-    return String(startScale);
-  }
-
-  // Using 'on' (current frame number) to calculate progress
-  // FFmpeg expression: startScale + delta * (on / (totalFrames - 1))
-  const progressDenom = totalFrames - 1;
-  return `${startScale}+${delta}*(on/${progressDenom})`;
-}
-
-/**
- * Build a pan expression that calculates the position of the visible area.
- *
- * The formula centers the visible area and applies the interpolated offset.
- * FFmpeg zoompan x/y specify the top-left corner of the visible area.
- *
- * Base centering: (dimension - dimension/zoom) / 2
- * With offset: base + interpolated_offset
- *
- * @param dimension - 'iw' for width or 'ih' for height
- * @param startOffset - Starting offset in pixels (from center)
- * @param endOffset - Ending offset in pixels (from center)
- * @param totalFrames - Total number of frames
- * @returns FFmpeg expression string
- */
-function buildPanExpression(
-  dimension: 'iw' | 'ih',
-  startOffset: number,
-  endOffset: number,
-  totalFrames: number
-): string {
-  // Base centering formula: (dimension - dimension/zoom) / 2
-  // This centers the visible area within the image
-  const centerExpr = `(${dimension}-${dimension}/zoom)/2`;
-
-  if (totalFrames <= 1) {
-    // Single frame, apply startOffset directly
-    if (Math.abs(startOffset) < 0.0001) {
-      return centerExpr;
+  const motion = resolveMotionPlan(
+    {
+      startScale,
+      endScale,
+      startX,
+      endX,
+      startY,
+      endY,
+    },
+    {
+      width,
+      height,
+      coverWidth,
+      coverHeight,
     }
-    return `${centerExpr}+${startOffset}`;
+  );
+
+  const progressExpr = buildProgressExpression(totalFrames);
+
+  const scaleExpr = buildLinearExpression(
+    motion.startScale,
+    motion.endScale,
+    progressExpr
+  );
+  const offsetXExpr = buildLinearExpression(
+    motion.startX,
+    motion.endX,
+    progressExpr
+  );
+  const offsetYExpr = buildLinearExpression(
+    motion.startY,
+    motion.endY,
+    progressExpr
+  );
+
+  const cropWidthExpr = `${width}/(${scaleExpr})`;
+  const cropHeightExpr = `${height}/(${scaleExpr})`;
+
+  const maxXExpr = `iw-(${cropWidthExpr})`;
+  const maxYExpr = `ih-(${cropHeightExpr})`;
+  const xExpr = `((iw-(${cropWidthExpr}))/2)+(${offsetXExpr})`;
+  const yExpr = `((ih-(${cropHeightExpr}))/2)+(${offsetYExpr})`;
+
+  return `crop=w='${cropWidthExpr}':h='${cropHeightExpr}':x='clip(${xExpr},0,${maxXExpr})':y='clip(${yExpr},0,${maxYExpr})':exact=1`;
+}
+
+/**
+ * Build a normalized progress expression from frame index `n`.
+ */
+function buildProgressExpression(totalFrames: number): string {
+  if (totalFrames <= 1) {
+    return '0';
   }
 
-  // Interpolate offset from startOffset to endOffset
-  const offsetDelta = endOffset - startOffset;
-  const progressDenom = totalFrames - 1;
+  const maxFrame = totalFrames - 1;
+  return `if(lte(n,0),0,if(gte(n,${maxFrame}),1,n/${maxFrame}))`;
+}
 
-  if (Math.abs(startOffset) < 0.0001 && Math.abs(endOffset) < 0.0001) {
-    // No offset at all, just center
-    return centerExpr;
+/**
+ * Build a linear interpolation expression using a progress expression.
+ *
+ * @param startValue - Start value
+ * @param endValue - End value
+ * @param progressExpr - Expression that yields 0..1 progress
+ * @returns FFmpeg expression string
+ */
+function buildLinearExpression(
+  startValue: number,
+  endValue: number,
+  progressExpr: string
+): string {
+  const delta = endValue - startValue;
+
+  if (Math.abs(delta) < EPSILON) {
+    return String(startValue);
   }
 
-  if (Math.abs(offsetDelta) < 0.0001) {
-    // Constant offset, no interpolation needed
-    return `${centerExpr}+${startOffset}`;
+  return `${startValue}+(${delta})*(${progressExpr})`;
+}
+
+interface MotionInput {
+  startScale: number;
+  endScale: number;
+  startX: number;
+  endX: number;
+  startY: number;
+  endY: number;
+}
+
+interface MotionGeometry {
+  width: number;
+  height: number;
+  coverWidth: number;
+  coverHeight: number;
+}
+
+interface MotionPlan {
+  startScale: number;
+  endScale: number;
+  startX: number;
+  endX: number;
+  startY: number;
+  endY: number;
+}
+
+function resolveMotionPlan(
+  input: MotionInput,
+  geometry: MotionGeometry
+): MotionPlan {
+  const maxOffsetX = Math.max(Math.abs(input.startX), Math.abs(input.endX));
+  const maxOffsetY = Math.max(Math.abs(input.startY), Math.abs(input.endY));
+
+  const globalScaleFloor = Math.max(
+    1,
+    requiredScaleForOffset(maxOffsetX, geometry.coverWidth, geometry.width),
+    requiredScaleForOffset(maxOffsetY, geometry.coverHeight, geometry.height)
+  );
+
+  const startScale = Math.max(input.startScale, globalScaleFloor);
+  const endScale = Math.max(input.endScale, globalScaleFloor);
+
+  const start = normalizeMotionEndpoint(
+    { scale: startScale, x: input.startX, y: input.startY },
+    geometry
+  );
+
+  const end = normalizeMotionEndpoint(
+    { scale: endScale, x: input.endX, y: input.endY },
+    geometry
+  );
+
+  return {
+    startScale: start.scale,
+    endScale: end.scale,
+    startX: start.x,
+    endX: end.x,
+    startY: start.y,
+    endY: end.y,
+  };
+}
+
+function normalizeMotionEndpoint(
+  endpoint: { scale: number; x: number; y: number },
+  geometry: MotionGeometry
+): { scale: number; x: number; y: number } {
+  const scale = Math.max(endpoint.scale, 1);
+
+  const maxOffsetX = maxOffsetForScale(
+    geometry.coverWidth,
+    geometry.width,
+    scale
+  );
+  const maxOffsetY = maxOffsetForScale(
+    geometry.coverHeight,
+    geometry.height,
+    scale
+  );
+
+  const clampedX = clampOffset(endpoint.x, maxOffsetX);
+  const clampedY = clampOffset(endpoint.y, maxOffsetY);
+
+  return {
+    scale,
+    x: clampedX,
+    y: clampedY,
+  };
+}
+
+function clampOffset(value: number, maxOffset: number): number {
+  if (Math.abs(value) <= maxOffset + EPSILON) {
+    return value;
+  }
+  return Math.sign(value) * maxOffset;
+}
+
+function requiredScaleForOffset(
+  offset: number,
+  coverSize: number,
+  viewportSize: number
+): number {
+  if (offset < EPSILON) {
+    return 1;
   }
 
-  // Full interpolation: center + startOffset + delta * progress
-  const offsetExpr = `${startOffset}+${offsetDelta}*(on/${progressDenom})`;
-  return `${centerExpr}+${offsetExpr}`;
+  const denominator = coverSize - 2 * (offset + MOTION_SAFETY_MARGIN);
+  if (denominator <= EPSILON) {
+    throw new Error(
+      `KenBurns offset ${offset} exceeds available cover size ${coverSize}.`
+    );
+  }
+
+  return viewportSize / denominator;
+}
+
+function maxOffsetForScale(
+  coverSize: number,
+  viewportSize: number,
+  scale: number
+): number {
+  const max = (coverSize - viewportSize / scale) / 2 - MOTION_SAFETY_MARGIN;
+  return Math.max(0, max);
 }
 
 /**
  * Build a complete image input filter chain for a single image with KenBurns.
  *
  * This combines:
- * 1. Input specification with loop (-loop 1 -t duration -i image.jpg)
- * 2. Zoompan filter for the KenBurns effect
- * 3. Format conversion for compatibility
+ * 1. FPS normalization
+ * 2. Cover scaling to match output aspect ratio
+ * 3. RGB working format for stable subpixel crop movement
+ * 4. Animated crop for pan/zoom (KenBurns)
+ * 5. Final output scaling + pixel format conversion
  *
  * @param inputIndex - FFmpeg input stream index (0-based)
  * @param effect - The KenBurns effect parameters
@@ -173,23 +315,103 @@ function buildPanExpression(
 export function buildImageFilterChain(
   inputIndex: number,
   effect: KenBurnsEffect,
-  options: KenBurnsFilterOptions,
+  options: KenBurnsImageOptions,
+  sourceDimensions: SourceDimensions,
   outputLabel: string
 ): string {
-  const zoompan = buildKenBurnsFilter(effect, options);
+  const { width, height, fps } = options;
+  const workingWidth = width * INTERNAL_SCALE_FACTOR;
+  const workingHeight = height * INTERNAL_SCALE_FACTOR;
+  const scaledEffect = scaleEffectOffsets(effect, INTERNAL_SCALE_FACTOR);
+  const coverSize = computeCoverDimensions(
+    sourceDimensions,
+    workingWidth,
+    workingHeight
+  );
 
-  // Chain: input -> zoompan -> format conversion -> setpts for timing
-  // The setpts=PTS-STARTPTS ensures the video starts at time 0
-  return `[${inputIndex}:v]${zoompan},format=yuv420p,setpts=PTS-STARTPTS[${outputLabel}]`;
+  const coverScale = `scale=${coverSize.width}:${coverSize.height}:flags=lanczos`;
+  const kenBurnsCrop = buildKenBurnsFilter(scaledEffect, {
+    ...options,
+    width: workingWidth,
+    height: workingHeight,
+    coverWidth: coverSize.width,
+    coverHeight: coverSize.height,
+  });
+
+  return `[${inputIndex}:v]fps=${fps},${coverScale},format=gbrp,${kenBurnsCrop},scale=${width}:${height}:flags=lanczos,setsar=1,format=yuv420p,setpts=PTS-STARTPTS[${outputLabel}]`;
+}
+
+function scaleEffectOffsets(
+  effect: KenBurnsEffect,
+  factor: number
+): KenBurnsEffect {
+  const startX = effect.startX ?? 0;
+  const endX = effect.endX ?? startX;
+  const startY = effect.startY ?? 0;
+  const endY = effect.endY ?? startY;
+
+  return {
+    ...effect,
+    startX: startX * factor,
+    endX: endX * factor,
+    startY: startY * factor,
+    endY: endY * factor,
+  };
+}
+
+function computeCoverDimensions(
+  sourceDimensions: SourceDimensions,
+  targetWidth: number,
+  targetHeight: number
+): SourceDimensions {
+  if (sourceDimensions.width <= 0 || sourceDimensions.height <= 0) {
+    throw new Error(
+      `Image dimensions must be positive. Got width=${sourceDimensions.width}, height=${sourceDimensions.height}.`
+    );
+  }
+
+  const sourceRatio = sourceDimensions.width / sourceDimensions.height;
+  const targetRatio = targetWidth / targetHeight;
+
+  if (sourceRatio >= targetRatio) {
+    return {
+      width: roundUpToEven(targetHeight * sourceRatio),
+      height: targetHeight,
+    };
+  }
+
+  return {
+    width: targetWidth,
+    height: roundUpToEven(targetWidth / sourceRatio),
+  };
+}
+
+function roundUpToEven(value: number): number {
+  const rounded = Math.ceil(value);
+  return rounded % 2 === 0 ? rounded : rounded + 1;
 }
 
 /**
- * Build input arguments for an image file with looping.
+ * Build input arguments for a single image file.
  *
  * @param imagePath - Path to the image file
- * @param duration - Duration in seconds
+ * @param duration - Clip duration in seconds
+ * @param fps - Frame rate used by the render graph
  * @returns Array of FFmpeg input arguments
  */
-export function buildImageInputArgs(imagePath: string, duration: number): string[] {
-  return ['-loop', '1', '-t', String(duration), '-i', imagePath];
+export function buildImageInputArgs(
+  imagePath: string,
+  duration: number,
+  fps: number
+): string[] {
+  return [
+    '-loop',
+    '1',
+    '-framerate',
+    String(fps),
+    '-t',
+    String(duration),
+    '-i',
+    imagePath,
+  ];
 }

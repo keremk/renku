@@ -72,7 +72,12 @@ interface ExecutionState {
 type ExecutionAction =
   | { type: 'SET_LAYER_RANGE'; range: LayerRange }
   | { type: 'SET_TOTAL_LAYERS'; totalLayers: number }
-  | { type: 'START_PLANNING'; blueprintName: string; movieId: string | null; upToLayer: number | null }
+  | {
+      type: 'START_PLANNING';
+      blueprintName: string;
+      movieId: string | null;
+      upToLayer: number | null;
+    }
   | { type: 'PLAN_READY'; planInfo: PlanDisplayInfo }
   | { type: 'PLAN_FAILED'; error: string }
   | { type: 'START_EXECUTION'; jobId: string }
@@ -176,7 +181,11 @@ function executionReducer(
         status: 'executing',
         currentJobId: action.jobId,
         producerStatuses: { ...state.producerStatuses, ...pendingStatuses },
-        progress: { currentLayer: 0, totalLayers: state.planInfo?.layers ?? 0, progress: 0 },
+        progress: {
+          currentLayer: 0,
+          totalLayers: state.planInfo?.layers ?? 0,
+          progress: 0,
+        },
       };
     }
 
@@ -276,7 +285,11 @@ function executionReducer(
         newSet.add(action.artifactId);
         newPinned.delete(action.artifactId);
       }
-      return { ...state, selectedForRegeneration: newSet, pinnedArtifacts: newPinned };
+      return {
+        ...state,
+        selectedForRegeneration: newSet,
+        pinnedArtifacts: newPinned,
+      };
     }
 
     case 'SELECT_PRODUCER_ARTIFACTS': {
@@ -286,7 +299,11 @@ function executionReducer(
         newSet.add(id);
         newPinned.delete(id);
       }
-      return { ...state, selectedForRegeneration: newSet, pinnedArtifacts: newPinned };
+      return {
+        ...state,
+        selectedForRegeneration: newSet,
+        pinnedArtifacts: newPinned,
+      };
     }
 
     case 'DESELECT_PRODUCER_ARTIFACTS': {
@@ -309,7 +326,11 @@ function executionReducer(
         newPinned.add(action.artifactId);
         newRegen.delete(action.artifactId);
       }
-      return { ...state, pinnedArtifacts: newPinned, selectedForRegeneration: newRegen };
+      return {
+        ...state,
+        pinnedArtifacts: newPinned,
+        selectedForRegeneration: newRegen,
+      };
     }
 
     case 'PIN_PRODUCER_ARTIFACTS': {
@@ -319,7 +340,11 @@ function executionReducer(
         newPinned.add(id);
         newRegen.delete(id);
       }
-      return { ...state, pinnedArtifacts: newPinned, selectedForRegeneration: newRegen };
+      return {
+        ...state,
+        pinnedArtifacts: newPinned,
+        selectedForRegeneration: newRegen,
+      };
     }
 
     case 'UNPIN_PRODUCER_ARTIFACTS': {
@@ -337,8 +362,12 @@ function executionReducer(
       return {
         ...state,
         showCompletionDialog: false,
-        selectedForRegeneration: action.clearSelections ? new Set() : state.selectedForRegeneration,
-        pinnedArtifacts: action.clearSelections ? new Set() : state.pinnedArtifacts,
+        selectedForRegeneration: action.clearSelections
+          ? new Set()
+          : state.selectedForRegeneration,
+        pinnedArtifacts: action.clearSelections
+          ? new Set()
+          : state.pinnedArtifacts,
       };
 
     default:
@@ -366,7 +395,9 @@ function toProducerNodeId(producerName: string): string {
 /**
  * Map artifact status to producer status.
  */
-function mapArtifactStatusToProducerStatus(artifactStatus: string): ProducerStatus {
+function mapArtifactStatusToProducerStatus(
+  artifactStatus: string
+): ProducerStatus {
   switch (artifactStatus) {
     case 'succeeded':
       return 'success';
@@ -383,15 +414,17 @@ function mapArtifactStatusToProducerStatus(artifactStatus: string): ProducerStat
  * Map artifacts from manifest to producer statuses.
  * Uses the "worst" status if a producer has multiple artifacts.
  */
-function mapArtifactsToProducerStatuses(artifacts: ArtifactInfo[]): ProducerStatusMap {
+function mapArtifactsToProducerStatuses(
+  artifacts: ArtifactInfo[]
+): ProducerStatusMap {
   const statuses: ProducerStatusMap = {};
   const statusPriority: Record<ProducerStatus, number> = {
-    'error': 0,
-    'running': 1,
-    'pending': 2,
-    'skipped': 3,
+    error: 0,
+    running: 1,
+    pending: 2,
+    skipped: 3,
     'not-run-yet': 4,
-    'success': 5,
+    success: 5,
   };
 
   for (const artifact of artifacts) {
@@ -403,7 +436,10 @@ function mapArtifactsToProducerStatuses(artifacts: ArtifactInfo[]): ProducerStat
     const existingStatus = statuses[producerNodeId];
 
     // Keep the "worst" status (lower priority number)
-    if (!existingStatus || statusPriority[newStatus] < statusPriority[existingStatus]) {
+    if (
+      !existingStatus ||
+      statusPriority[newStatus] < statusPriority[existingStatus]
+    ) {
       statuses[producerNodeId] = newStatus;
     }
   }
@@ -424,11 +460,19 @@ function planResponseToDisplayInfo(response: PlanResponse): PlanDisplayInfo {
   const byProducerObj = response.costSummary.byProducer;
   if (byProducerObj && typeof byProducerObj === 'object') {
     for (const [name, data] of Object.entries(byProducerObj)) {
-      const producerData = data as { count: number; totalCost: number; hasPlaceholders: boolean };
+      const producerData = data as {
+        count: number;
+        totalCost: number;
+        hasPlaceholders: boolean;
+      };
       // Check if this producer's cost data is valid (not from missing provider)
       // A producer has cost data if its cost is > 0 or it doesn't have placeholders from missing providers
-      const hasCostData = producerData.totalCost > 0 || !producerData.hasPlaceholders ||
-        !Array.from(missingProviders).some(mp => mp.includes(name) || name.includes(mp.split(':')[0]));
+      const hasCostData =
+        producerData.totalCost > 0 ||
+        !producerData.hasPlaceholders ||
+        !Array.from(missingProviders).some(
+          (mp) => mp.includes(name) || name.includes(mp.split(':')[0])
+        );
       costByProducer.push({
         name,
         count: producerData.count,
@@ -439,19 +483,21 @@ function planResponseToDisplayInfo(response: PlanResponse): PlanDisplayInfo {
     }
   }
 
-  const layerBreakdown: LayerDisplayInfo[] = response.layerBreakdown.map((layer) => ({
-    index: layer.index,
-    jobCount: layer.jobCount,
-    jobs: layer.jobs.map((job) => ({
-      jobId: job.jobId,
-      producer: job.producer,
-      estimatedCost: job.estimatedCost,
-    })),
-    layerCost: layer.layerCost,
-    layerMinCost: layer.layerMinCost,
-    layerMaxCost: layer.layerMaxCost,
-    hasPlaceholders: layer.hasPlaceholders,
-  }));
+  const layerBreakdown: LayerDisplayInfo[] = response.layerBreakdown.map(
+    (layer) => ({
+      index: layer.index,
+      jobCount: layer.jobCount,
+      jobs: layer.jobs.map((job) => ({
+        jobId: job.jobId,
+        producer: job.producer,
+        estimatedCost: job.estimatedCost,
+      })),
+      layerCost: layer.layerCost,
+      layerMinCost: layer.layerMinCost,
+      layerMaxCost: layer.layerMaxCost,
+      hasPlaceholders: layer.hasPlaceholders,
+    })
+  );
 
   // Map surgical info if present
   const surgicalInfo = response.surgicalInfo?.map((info) => ({
@@ -486,7 +532,11 @@ interface ExecutionContextValue {
   setLayerRange: (range: LayerRange) => void;
   setTotalLayers: (totalLayers: number) => void;
   /** Request a new plan. If upToLayer is provided, plan will only include jobs up to that layer. */
-  requestPlan: (blueprintName: string, movieId?: string, upToLayer?: number) => Promise<void>;
+  requestPlan: (
+    blueprintName: string,
+    movieId?: string,
+    upToLayer?: number
+  ) => Promise<void>;
   confirmExecution: (dryRun?: boolean) => Promise<void>;
   cancelExecution: () => Promise<void>;
   dismissDialog: () => void;
@@ -539,7 +589,10 @@ interface ExecutionProviderProps {
   onArtifactProduced?: () => void;
 }
 
-export function ExecutionProvider({ children, onArtifactProduced }: ExecutionProviderProps) {
+export function ExecutionProvider({
+  children,
+  onArtifactProduced,
+}: ExecutionProviderProps) {
   const [state, dispatch] = useReducer(executionReducer, initialState);
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -572,85 +625,104 @@ export function ExecutionProvider({ children, onArtifactProduced }: ExecutionPro
     dispatch({ type: 'SET_TOTAL_LAYERS', totalLayers });
   }, []);
 
-  const requestPlan = useCallback(async (blueprintName: string, movieId?: string, upToLayer?: number) => {
-    dispatch({ type: 'START_PLANNING', blueprintName, movieId: movieId ?? null, upToLayer: upToLayer ?? null });
-
-    try {
-      // Get selected artifacts for surgical regeneration
-      const selectedArtifacts = Array.from(state.selectedForRegeneration);
-      const pinnedArtifacts = Array.from(state.pinnedArtifacts);
-
-      const response = await createPlan({
-        blueprint: blueprintName,
-        movieId: movieId ?? undefined,
-        artifactIds: selectedArtifacts.length > 0 ? selectedArtifacts : undefined,
-        upToLayer: upToLayer,
-        pinnedArtifactIds: pinnedArtifacts.length > 0 ? pinnedArtifacts : undefined,
+  const requestPlan = useCallback(
+    async (blueprintName: string, movieId?: string, upToLayer?: number) => {
+      dispatch({
+        type: 'START_PLANNING',
+        blueprintName,
+        movieId: movieId ?? null,
+        upToLayer: upToLayer ?? null,
       });
 
-      const planInfo = planResponseToDisplayInfo(response);
-      dispatch({ type: 'PLAN_READY', planInfo });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to create plan';
-      dispatch({ type: 'PLAN_FAILED', error: message });
-    }
-  }, [state.selectedForRegeneration, state.pinnedArtifacts]);
+      try {
+        // Get selected artifacts for surgical regeneration
+        const selectedArtifacts = Array.from(state.selectedForRegeneration);
+        const pinnedArtifacts = Array.from(state.pinnedArtifacts);
 
-  const confirmExecution = useCallback(async (dryRun = false) => {
-    if (!state.planInfo) return;
+        const response = await createPlan({
+          blueprint: blueprintName,
+          movieId: movieId ?? undefined,
+          artifactIds:
+            selectedArtifacts.length > 0 ? selectedArtifacts : undefined,
+          upToLayer: upToLayer,
+          pinnedArtifactIds:
+            pinnedArtifacts.length > 0 ? pinnedArtifacts : undefined,
+        });
 
-    try {
-      const response = await executePlan({
-        planId: state.planInfo.planId,
-        upToLayer: state.layerRange.upToLayer ?? undefined,
-        dryRun,
-      });
+        const planInfo = planResponseToDisplayInfo(response);
+        dispatch({ type: 'PLAN_READY', planInfo });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Failed to create plan';
+        dispatch({ type: 'PLAN_FAILED', error: message });
+      }
+    },
+    [state.selectedForRegeneration, state.pinnedArtifacts]
+  );
 
-      dispatch({ type: 'START_EXECUTION', jobId: response.jobId });
+  const confirmExecution = useCallback(
+    async (dryRun = false) => {
+      if (!state.planInfo) return;
 
-      // Subscribe to SSE for real-time updates
-      unsubscribeRef.current = subscribeToJobStream(
-        response.jobId,
-        (event: SSEEvent) => {
-          handleSSEEvent(event, dispatch);
+      try {
+        const response = await executePlan({
+          planId: state.planInfo.planId,
+          upToLayer: state.layerRange.upToLayer ?? undefined,
+          dryRun,
+        });
 
-          // Trigger artifact refresh on successful job completion
-          if (event.type === 'job-complete' && event.status === 'succeeded') {
-            // Schedule a debounced refetch (500ms trailing-edge)
-            if (debounceTimerRef.current) {
-              clearTimeout(debounceTimerRef.current);
+        dispatch({ type: 'START_EXECUTION', jobId: response.jobId });
+
+        // Subscribe to SSE for real-time updates
+        unsubscribeRef.current = subscribeToJobStream(
+          response.jobId,
+          (event: SSEEvent) => {
+            handleSSEEvent(event, dispatch);
+
+            // Trigger artifact refresh on successful job completion
+            if (event.type === 'job-complete' && event.status === 'succeeded') {
+              // Schedule a debounced refetch (500ms trailing-edge)
+              if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+              }
+              debounceTimerRef.current = setTimeout(() => {
+                debounceTimerRef.current = null;
+                onArtifactProducedRef.current?.();
+              }, 500);
             }
-            debounceTimerRef.current = setTimeout(() => {
-              debounceTimerRef.current = null;
+
+            // Close SSE connection when execution completes or errors
+            if (
+              event.type === 'execution-complete' ||
+              event.type === 'execution-cancelled' ||
+              event.type === 'error'
+            ) {
+              // Cancel pending debounce and call immediately on completion
+              if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+                debounceTimerRef.current = null;
+              }
+              // Final refresh to ensure all artifacts are visible
               onArtifactProducedRef.current?.();
-            }, 500);
-          }
 
-          // Close SSE connection when execution completes or errors
-          if (event.type === 'execution-complete' || event.type === 'error') {
-            // Cancel pending debounce and call immediately on completion
-            if (debounceTimerRef.current) {
-              clearTimeout(debounceTimerRef.current);
-              debounceTimerRef.current = null;
+              if (unsubscribeRef.current) {
+                unsubscribeRef.current();
+                unsubscribeRef.current = null;
+              }
             }
-            // Final refresh to ensure all artifacts are visible
-            onArtifactProducedRef.current?.();
-
-            if (unsubscribeRef.current) {
-              unsubscribeRef.current();
-              unsubscribeRef.current = null;
-            }
+          },
+          (error) => {
+            console.error('SSE error:', error);
           }
-        },
-        (error) => {
-          console.error('SSE error:', error);
-        }
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to start execution';
-      dispatch({ type: 'PLAN_FAILED', error: message });
-    }
-  }, [state.planInfo, state.layerRange]);
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Failed to start execution';
+        dispatch({ type: 'PLAN_FAILED', error: message });
+      }
+    },
+    [state.planInfo, state.layerRange]
+  );
 
   const cancelExecution = useCallback(async () => {
     if (state.currentJobId) {
@@ -732,9 +804,12 @@ export function ExecutionProvider({ children, onArtifactProduced }: ExecutionPro
     dispatch({ type: 'CLEAR_REGENERATION_SELECTION' });
   }, []);
 
-  const isArtifactSelected = useCallback((artifactId: string) => {
-    return state.selectedForRegeneration.has(artifactId);
-  }, [state.selectedForRegeneration]);
+  const isArtifactSelected = useCallback(
+    (artifactId: string) => {
+      return state.selectedForRegeneration.has(artifactId);
+    },
+    [state.selectedForRegeneration]
+  );
 
   const getSelectedArtifacts = useCallback(() => {
     return Array.from(state.selectedForRegeneration);
@@ -756,9 +831,12 @@ export function ExecutionProvider({ children, onArtifactProduced }: ExecutionPro
     dispatch({ type: 'CLEAR_PINNED_SELECTION' });
   }, []);
 
-  const isArtifactPinned = useCallback((artifactId: string) => {
-    return state.pinnedArtifacts.has(artifactId);
-  }, [state.pinnedArtifacts]);
+  const isArtifactPinned = useCallback(
+    (artifactId: string) => {
+      return state.pinnedArtifacts.has(artifactId);
+    },
+    [state.pinnedArtifacts]
+  );
 
   const getPinnedArtifacts = useCallback(() => {
     return Array.from(state.pinnedArtifacts);
@@ -834,7 +912,10 @@ function formatJobLabel(producer: string, jobId?: string): string {
   return producer;
 }
 
-function handleSSEEvent(event: SSEEvent, dispatch: React.Dispatch<ExecutionAction>) {
+function handleSSEEvent(
+  event: SSEEvent,
+  dispatch: React.Dispatch<ExecutionAction>
+) {
   switch (event.type) {
     case 'layer-start': {
       const logEntry = createLogEntry(
@@ -872,25 +953,41 @@ function handleSSEEvent(event: SSEEvent, dispatch: React.Dispatch<ExecutionActio
         producer: event.producer,
         status: 'running',
       });
-      const logEntry = createLogEntry(
-        'job-start',
-        `Starting ${jobLabel}...`,
-        { jobId: event.jobId, producer: event.producer, layerIndex: event.layerIndex, status: 'running' }
-      );
+      const logEntry = createLogEntry('job-start', `Starting ${jobLabel}...`, {
+        jobId: event.jobId,
+        producer: event.producer,
+        layerIndex: event.layerIndex,
+        status: 'running',
+      });
       dispatch({ type: 'ADD_LOG_ENTRY', entry: logEntry });
       break;
     }
 
     case 'job-complete': {
       const jobLabel = formatJobLabel(event.producer, event.jobId);
-      const producerStatus = event.status === 'succeeded' ? 'success' : event.status === 'failed' ? 'error' : 'skipped';
+      const producerStatus =
+        event.status === 'succeeded'
+          ? 'success'
+          : event.status === 'failed'
+            ? 'error'
+            : 'skipped';
       dispatch({
         type: 'UPDATE_PRODUCER_STATUS',
         producer: event.producer,
         status: producerStatus,
       });
-      const statusIcon = event.status === 'succeeded' ? '✓' : event.status === 'failed' ? '✗' : '○';
-      const statusLabel = event.status === 'succeeded' ? 'completed successfully' : event.status === 'failed' ? 'failed' : 'skipped';
+      const statusIcon =
+        event.status === 'succeeded'
+          ? '✓'
+          : event.status === 'failed'
+            ? '✗'
+            : '○';
+      const statusLabel =
+        event.status === 'succeeded'
+          ? 'completed successfully'
+          : event.status === 'failed'
+            ? 'failed'
+            : 'skipped';
       const logEntry = createLogEntry(
         'job-complete',
         `${jobLabel} ${statusLabel} ${statusIcon}`,
@@ -916,9 +1013,12 @@ function handleSSEEvent(event: SSEEvent, dispatch: React.Dispatch<ExecutionActio
     }
 
     case 'execution-complete': {
-      const statusLabel = event.status === 'succeeded' ? 'Execution completed successfully' :
-                          event.status === 'partial' ? 'Execution completed with some failures' :
-                          'Execution failed';
+      const statusLabel =
+        event.status === 'succeeded'
+          ? 'Execution completed successfully'
+          : event.status === 'partial'
+            ? 'Execution completed with some failures'
+            : 'Execution failed';
       const logEntry = createLogEntry(
         'info',
         `${statusLabel} (${event.summary.counts.succeeded} succeeded, ${event.summary.counts.failed} failed, ${event.summary.counts.skipped} skipped)`
@@ -931,12 +1031,17 @@ function handleSSEEvent(event: SSEEvent, dispatch: React.Dispatch<ExecutionActio
       break;
     }
 
+    case 'execution-cancelled': {
+      const logEntry = createLogEntry('info', event.message);
+      dispatch({ type: 'ADD_LOG_ENTRY', entry: logEntry });
+      dispatch({ type: 'CANCEL' });
+      break;
+    }
+
     case 'error': {
-      const logEntry = createLogEntry(
-        'error',
-        event.message,
-        { errorDetails: event.code }
-      );
+      const logEntry = createLogEntry('error', event.message, {
+        errorDetails: event.code,
+      });
       dispatch({ type: 'ADD_LOG_ENTRY', entry: logEntry });
       dispatch({ type: 'PLAN_FAILED', error: event.message });
       break;

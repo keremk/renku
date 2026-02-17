@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   buildKenBurnsFilter,
   buildImageFilterChain,
@@ -10,192 +10,187 @@ describe('kenburns-filter', () => {
   const defaultOptions = {
     width: 1920,
     height: 1080,
+    coverWidth: 2400,
+    coverHeight: 1350,
     fps: 30,
     duration: 5,
   };
 
   describe('buildKenBurnsFilter', () => {
-    it('should build a basic zoompan filter with default values', () => {
+    it('builds a crop expression with normalized linear progress', () => {
       const effect: KenBurnsEffect = {
         assetId: 'Artifact:Image[0][0]',
-      };
-
-      const result = buildKenBurnsFilter(effect, defaultOptions);
-
-      // Should have all required zoompan parameters
-      expect(result).toContain('zoompan=');
-      expect(result).toContain('d=150'); // 5 seconds * 30 fps
-      expect(result).toContain('s=1920x1080');
-      expect(result).toContain('fps=30');
-      expect(result).toContain("z='1'"); // No zoom change
-    });
-
-    it('should build portraitZoomIn effect (zoom 1.0 -> 1.2)', () => {
-      const effect: KenBurnsEffect = {
-        assetId: 'Artifact:Image[0][0]',
-        style: 'portraitZoomIn',
         startScale: 1,
-        endScale: 1.2,
-        startX: 0,
-        startY: 0,
-        endX: 0,
-        endY: 0,
-      };
-
-      const result = buildKenBurnsFilter(effect, defaultOptions);
-
-      // Should interpolate zoom from 1 to ~1.2 (allow floating point variance)
-      expect(result).toMatch(/z='1\+0\.1999/);
-      // Should center the visible area (no pan)
-      expect(result).toContain("x='(iw-iw/zoom)/2'");
-      expect(result).toContain("y='(ih-ih/zoom)/2'");
-    });
-
-    it('should build portraitZoomOut effect (zoom 1.2 -> 1.0)', () => {
-      const effect: KenBurnsEffect = {
-        assetId: 'Artifact:Image[0][0]',
-        style: 'portraitZoomOut',
-        startScale: 1.2,
-        endScale: 1,
-        startX: 0,
-        startY: 0,
-        endX: 0,
-        endY: 0,
-      };
-
-      const result = buildKenBurnsFilter(effect, defaultOptions);
-
-      // Should interpolate zoom from 1.2 to 1 (negative delta, allow floating point variance)
-      expect(result).toMatch(/z='1\.2\+-0\.1999/);
-    });
-
-    it('should build diagonalZoomInDownLeft effect with pan', () => {
-      const effect: KenBurnsEffect = {
-        assetId: 'Artifact:Image[0][0]',
-        style: 'diagonalZoomInDownLeft',
+        endScale: 1.3,
         startX: 40,
-        startY: -40,
         endX: -30,
-        endY: 30,
-        startScale: 1,
-        endScale: 1.3,
+        startY: -20,
+        endY: 25,
       };
 
       const result = buildKenBurnsFilter(effect, defaultOptions);
 
-      // Should have zoom interpolation
-      expect(result).toContain("z='1+0.3");
-      // Should have X pan from 40 to -30 (delta = -70)
-      expect(result).toContain('40+-70');
-      // Should have Y pan from -40 to 30 (delta = 70)
-      expect(result).toContain('-40+70');
+      expect(result).toContain("crop=w='1920/");
+      expect(result).toContain('exact=1');
+      expect(result).toContain('if(lte(n,0),0,if(gte(n,149),1,n/149))');
+      expect(result).not.toContain('*(3-2*(');
+      expect(result).toContain('40+(-70)');
+      expect(result).toContain('-20+(45)');
+      expect(result).toContain("x='clip(");
+      expect(result).toContain("y='clip(");
     });
 
-    it('should build landscapePanLeft effect', () => {
+    it('keeps constant expressions when start and end values match', () => {
       const effect: KenBurnsEffect = {
         assetId: 'Artifact:Image[0][0]',
-        style: 'landscapePanLeft',
-        startX: 60,
-        startY: 0,
-        endX: -60,
-        endY: 0,
-        startScale: 1.1,
-        endScale: 1.3,
-      };
-
-      const result = buildKenBurnsFilter(effect, defaultOptions);
-
-      // Should have zoom from 1.1 to 1.3 (allow floating point variance)
-      expect(result).toMatch(/z='1\.1\+0\.1999/);
-      // Should have X pan from 60 to -60 (delta = -120)
-      expect(result).toContain('60+-120');
-      // Y should be centered (no offset)
-      expect(result).toContain("y='(ih-ih/zoom)/2'");
-    });
-
-    it('should handle single frame duration', () => {
-      const effect: KenBurnsEffect = {
-        assetId: 'Artifact:Image[0][0]',
-        startScale: 1,
-        endScale: 1.5,
+        startScale: 1.2,
+        endScale: 1.2,
         startX: 10,
-        endX: 20,
+        endX: 10,
+        startY: -8,
+        endY: -8,
       };
 
-      const result = buildKenBurnsFilter(effect, {
-        ...defaultOptions,
-        duration: 1 / 30, // Single frame
-      });
+      const result = buildKenBurnsFilter(effect, defaultOptions);
 
-      // Should have d=1
-      expect(result).toContain('d=1');
-      // Should use startScale only
-      expect(result).toContain("z='1'");
+      expect(result).toContain("crop=w='1920/(1.2)'");
+      expect(result).toContain('+(10)');
+      expect(result).toContain('+(-8)');
+      expect(result).not.toContain('n/149');
     });
 
-    it('should handle custom resolution and fps', () => {
+    it('defaults end values to start values', () => {
+      const effect: KenBurnsEffect = {
+        assetId: 'Artifact:Image[0][0]',
+        startScale: 1.15,
+        startX: -12,
+        startY: 8,
+      };
+
+      const result = buildKenBurnsFilter(effect, defaultOptions);
+
+      expect(result).toContain("crop=w='1920/(1.15)'");
+      expect(result).toContain('+(-12)');
+      expect(result).toContain('+(8)');
+    });
+
+    it('raises scale to keep offsets inside bounds', () => {
+      const effect: KenBurnsEffect = {
+        assetId: 'Artifact:Image[0][0]',
+        startScale: 1,
+        endScale: 1,
+        startX: 18,
+        endX: 18,
+        startY: 0,
+        endY: 0,
+      };
+
+      const constrained = {
+        ...defaultOptions,
+        coverWidth: 1930,
+        coverHeight: 1082,
+      };
+
+      const result = buildKenBurnsFilter(effect, constrained);
+
+      expect(result).not.toContain("crop=w='1920/(1)'");
+      expect(result).toContain('crop=w=');
+    });
+
+    it('throws when scale is below 1', () => {
+      const effect: KenBurnsEffect = {
+        assetId: 'Artifact:Image[0][0]',
+        startScale: 0.9,
+        endScale: 1,
+      };
+
+      expect(() => buildKenBurnsFilter(effect, defaultOptions)).toThrow(
+        /greater than or equal to 1/
+      );
+    });
+
+    it('throws when duration is not positive', () => {
       const effect: KenBurnsEffect = {
         assetId: 'Artifact:Image[0][0]',
       };
 
-      const result = buildKenBurnsFilter(effect, {
-        width: 1280,
-        height: 720,
-        fps: 24,
-        duration: 3,
-      });
-
-      expect(result).toContain('s=1280x720');
-      expect(result).toContain('fps=24');
-      expect(result).toContain('d=72'); // 3 * 24
+      expect(() =>
+        buildKenBurnsFilter(effect, {
+          ...defaultOptions,
+          duration: 0,
+        })
+      ).toThrow(/must be greater than 0/);
     });
   });
 
   describe('buildImageFilterChain', () => {
-    it('should build a complete filter chain with label', () => {
+    it('builds the full image processing chain with 2x working space', () => {
       const effect: KenBurnsEffect = {
         assetId: 'Artifact:Image[0][0]',
         startScale: 1,
         endScale: 1.2,
       };
 
-      const result = buildImageFilterChain(0, effect, defaultOptions, 'img0');
+      const result = buildImageFilterChain(
+        0,
+        effect,
+        {
+          width: 1920,
+          height: 1080,
+          fps: 30,
+          duration: 5,
+        },
+        { width: 1408, height: 768 },
+        'img0'
+      );
 
-      // Should start with input index
       expect(result).toMatch(/^\[0:v\]/);
-      // Should have zoompan filter
-      expect(result).toContain('zoompan=');
-      // Should convert format
+      expect(result).toContain('fps=30');
+      expect(result).toContain('scale=3960:2160:flags=lanczos');
+      expect(result).toContain('format=gbrp');
+      expect(result).toContain('crop=');
+      expect(result).toContain('exact=1');
+      expect(result).toContain('scale=1920:1080:flags=lanczos');
+      expect(result).toContain('setsar=1');
       expect(result).toContain('format=yuv420p');
-      // Should reset timestamps
       expect(result).toContain('setpts=PTS-STARTPTS');
-      // Should end with output label
       expect(result).toMatch(/\[img0\]$/);
-    });
-
-    it('should use correct input index for multiple images', () => {
-      const effect: KenBurnsEffect = {
-        assetId: 'Artifact:Image[1][2]',
-      };
-
-      const result = buildImageFilterChain(5, effect, defaultOptions, 'img5');
-
-      expect(result).toMatch(/^\[5:v\]/);
-      expect(result).toMatch(/\[img5\]$/);
     });
   });
 
   describe('buildImageInputArgs', () => {
-    it('should build input arguments for an image', () => {
-      const result = buildImageInputArgs('/path/to/image.jpg', 5);
+    it('builds looped image input args with fps and duration', () => {
+      const result = buildImageInputArgs('/path/to/image.jpg', 5, 30);
 
-      expect(result).toEqual(['-loop', '1', '-t', '5', '-i', '/path/to/image.jpg']);
+      expect(result).toEqual([
+        '-loop',
+        '1',
+        '-framerate',
+        '30',
+        '-t',
+        '5',
+        '-i',
+        '/path/to/image.jpg',
+      ]);
     });
 
-    it('should handle decimal durations', () => {
-      const result = buildImageInputArgs('/path/to/image.png', 3.5);
+    it('preserves paths with spaces', () => {
+      const result = buildImageInputArgs(
+        '/path with spaces/image.png',
+        3.5,
+        24
+      );
 
-      expect(result).toContain('3.5');
+      expect(result).toEqual([
+        '-loop',
+        '1',
+        '-framerate',
+        '24',
+        '-t',
+        '3.5',
+        '-i',
+        '/path with spaces/image.png',
+      ]);
     });
   });
 });

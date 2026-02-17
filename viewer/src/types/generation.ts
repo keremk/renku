@@ -11,7 +11,13 @@ import type { SurgicalInfo } from '../../server/generation/types';
 /**
  * Status of a producer in the execution flow.
  */
-export type ProducerStatus = 'success' | 'error' | 'not-run-yet' | 'skipped' | 'running' | 'pending';
+export type ProducerStatus =
+  | 'success'
+  | 'error'
+  | 'not-run-yet'
+  | 'skipped'
+  | 'running'
+  | 'pending';
 
 /**
  * Map of canonical producer node IDs (e.g. "Producer:ScriptProducer") to status.
@@ -27,7 +33,14 @@ export interface ProducerStatusMap {
 /**
  * Overall execution status for the UI.
  */
-export type ExecutionStatus = 'idle' | 'planning' | 'confirming' | 'executing' | 'completed' | 'failed' | 'cancelled';
+export type ExecutionStatus =
+  | 'idle'
+  | 'planning'
+  | 'confirming'
+  | 'executing'
+  | 'completed'
+  | 'failed'
+  | 'cancelled';
 
 /**
  * Layer range for controlling execution scope.
@@ -168,5 +181,6 @@ export type {
   LayerSkippedEvent,
   LayerCompleteEvent,
   ExecutionCompleteEvent,
+  ExecutionCancelledEvent,
   ErrorEvent,
 } from '../../server/generation/types';

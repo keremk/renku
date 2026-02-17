@@ -27,6 +27,7 @@ import { FFMPEG_DEFAULTS } from './types.js';
 import {
   buildImageFilterChain,
   buildImageInputArgs,
+  type SourceDimensions,
 } from './kenburns-filter.js';
 import {
   buildAudioMixFilter,
@@ -77,13 +78,26 @@ interface VideoAudioProbeRequest {
   assetPath: string;
 }
 
+interface ImageDimensionsProbeRequest {
+  assetId: string;
+  assetPath: string;
+}
+
 interface BuildFfmpegCommandRuntimeOptions {
   probeVideoAudioStream?: (request: VideoAudioProbeRequest) => Promise<boolean>;
+  probeImageDimensions?: (
+    request: ImageDimensionsProbeRequest
+  ) => Promise<SourceDimensions>;
 }
 
 interface VideoAudioProbeState {
   cache: Map<string, boolean>;
   probe: (request: VideoAudioProbeRequest) => Promise<boolean>;
+}
+
+interface ImageDimensionsProbeState {
+  cache: Map<string, SourceDimensions>;
+  probe: (request: ImageDimensionsProbeRequest) => Promise<SourceDimensions>;
 }
 
 /**
@@ -111,6 +125,11 @@ export async function buildFfmpegCommand(
     probe:
       runtimeOptions.probeVideoAudioStream ?? probeVideoAudioStreamWithFfprobe,
   };
+  const imageDimensionsProbeState: ImageDimensionsProbeState = {
+    cache: new Map(),
+    probe:
+      runtimeOptions.probeImageDimensions ?? probeImageDimensionsWithFfprobe,
+  };
 
   const tracker: InputTracker = {
     nextIndex: 0,
@@ -125,13 +144,14 @@ export async function buildFfmpegCommand(
   // Process each track type
   for (const track of timeline.tracks) {
     if (isImageTrack(track)) {
-      processImageTrack(
+      await processImageTrack(
         track,
         assetPaths,
         fullOptions,
         tracker,
         filterParts,
-        videoLabels
+        videoLabels,
+        imageDimensionsProbeState
       );
     } else if (isAudioTrack(track)) {
       processAudioTrack(track, assetPaths, tracker, audioInfos);
@@ -246,22 +266,24 @@ function resolveOptions(
 /**
  * Process an image track.
  */
-function processImageTrack(
+async function processImageTrack(
   track: ImageTrack,
   assetPaths: AssetPathMap,
   options: FfmpegBuildOptions,
   tracker: InputTracker,
   filterParts: string[],
-  videoLabels: string[]
-): void {
+  videoLabels: string[],
+  imageDimensionsProbeState: ImageDimensionsProbeState
+): Promise<void> {
   for (const clip of track.clips) {
-    processImageClip(
+    await processImageClip(
       clip,
       assetPaths,
       options,
       tracker,
       filterParts,
-      videoLabels
+      videoLabels,
+      imageDimensionsProbeState
     );
   }
 }
@@ -269,14 +291,15 @@ function processImageTrack(
 /**
  * Process a single image clip with its KenBurns effects.
  */
-function processImageClip(
+async function processImageClip(
   clip: ImageClip,
   assetPaths: AssetPathMap,
   options: FfmpegBuildOptions,
   tracker: InputTracker,
   filterParts: string[],
-  videoLabels: string[]
-): void {
+  videoLabels: string[],
+  imageDimensionsProbeState: ImageDimensionsProbeState
+): Promise<void> {
   const effects = clip.properties.effects;
   if (effects.length === 0) {
     return;
@@ -296,9 +319,15 @@ function processImageClip(
     // Add input for this image
     const inputIndex = tracker.nextIndex++;
     tracker.inputArgs.push(
-      ...buildImageInputArgs(assetPath, durationPerEffect)
+      ...buildImageInputArgs(assetPath, durationPerEffect, options.fps)
     );
     tracker.assetToIndex.set(effect.assetId, inputIndex);
+
+    const sourceDimensions = await resolveImageDimensions(
+      effect.assetId,
+      assetPath,
+      imageDimensionsProbeState
+    );
 
     // Build filter chain
     const label = `img${inputIndex}`;
@@ -311,6 +340,7 @@ function processImageClip(
         fps: options.fps,
         duration: durationPerEffect,
       },
+      sourceDimensions,
       label
     );
 
@@ -530,6 +560,21 @@ async function resolveVideoAudioAvailability(
   return hasAudioStream;
 }
 
+async function resolveImageDimensions(
+  assetId: string,
+  assetPath: string,
+  probeState: ImageDimensionsProbeState
+): Promise<SourceDimensions> {
+  const cached = probeState.cache.get(assetPath);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const dimensions = await probeState.probe({ assetId, assetPath });
+  probeState.cache.set(assetPath, dimensions);
+  return dimensions;
+}
+
 async function probeVideoAudioStreamWithFfprobe(
   request: VideoAudioProbeRequest
 ): Promise<boolean> {
@@ -579,6 +624,78 @@ async function probeVideoAudioStreamWithFfprobe(
     throw createProviderError(
       SdkErrorCode.RENDER_FAILED,
       `Failed to probe audio stream for video asset '${assetId}' at '${assetPath}'. ${details}`,
+      { kind: 'unknown', causedByUser: false, raw: error }
+    );
+  }
+}
+
+async function probeImageDimensionsWithFfprobe(
+  request: ImageDimensionsProbeRequest
+): Promise<SourceDimensions> {
+  const { assetId, assetPath } = request;
+
+  try {
+    const { stdout } = await execFileAsync(
+      'ffprobe',
+      [
+        '-v',
+        'error',
+        '-select_streams',
+        'v:0',
+        '-show_entries',
+        'stream=width,height',
+        '-of',
+        'csv=p=0:s=x',
+        assetPath,
+      ],
+      {
+        encoding: 'utf8',
+        maxBuffer: 10 * 1024 * 1024,
+      }
+    );
+
+    const [widthRaw, heightRaw] = stdout.trim().split('x');
+    const width = Number(widthRaw);
+    const height = Number(heightRaw);
+
+    if (
+      !Number.isFinite(width) ||
+      !Number.isFinite(height) ||
+      width <= 0 ||
+      height <= 0
+    ) {
+      throw createProviderError(
+        SdkErrorCode.RENDER_FAILED,
+        `Failed to parse image dimensions for asset '${assetId}' at '${assetPath}'. ffprobe output: '${stdout.trim()}'`,
+        { kind: 'unknown', causedByUser: false }
+      );
+    }
+
+    return { width, height };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const stderr = String((error as { stderr?: unknown }).stderr ?? '').trim();
+    const details = stderr || message;
+
+    if (message.includes('ENOENT')) {
+      throw createProviderError(
+        SdkErrorCode.FFMPEG_NOT_FOUND,
+        `ffprobe was not found while probing image dimensions for asset '${assetId}' at '${assetPath}'. Ensure FFmpeg tools are installed and ffprobe is available in PATH.`,
+        { kind: 'user_input', causedByUser: true, raw: error }
+      );
+    }
+
+    if (details.includes('No such file or directory')) {
+      throw createProviderError(
+        SdkErrorCode.MISSING_ASSET,
+        `Failed to probe image dimensions for asset '${assetId}' at '${assetPath}': source file was not found. ${details}`,
+        { kind: 'user_input', causedByUser: true, raw: error }
+      );
+    }
+
+    throw createProviderError(
+      SdkErrorCode.RENDER_FAILED,
+      `Failed to probe image dimensions for asset '${assetId}' at '${assetPath}'. ${details}`,
       { kind: 'unknown', causedByUser: false, raw: error }
     );
   }

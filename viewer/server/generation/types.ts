@@ -302,6 +302,14 @@ export interface ExecutionCompleteEvent extends SSEEventBase {
 }
 
 /**
+ * Execution cancelled event.
+ */
+export interface ExecutionCancelledEvent extends SSEEventBase {
+  type: 'execution-cancelled';
+  message: string;
+}
+
+/**
  * Error event.
  */
 export interface ErrorEvent extends SSEEventBase {
@@ -321,6 +329,7 @@ export type SSEEvent =
   | JobCompleteEvent
   | LayerCompleteEvent
   | ExecutionCompleteEvent
+  | ExecutionCancelledEvent
   | ErrorEvent;
 
 // =============================================================================

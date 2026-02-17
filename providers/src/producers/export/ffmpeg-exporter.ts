@@ -246,7 +246,11 @@ export function createFfmpegExporterHandler(): HandlerFactory {
 
         // Run FFmpeg
         notify('progress', 'Running FFmpeg...');
-        await runFfmpeg(ffmpegCommand.ffmpegPath, ffmpegCommand.args);
+        await runFfmpeg(
+          ffmpegCommand.ffmpegPath,
+          ffmpegCommand.args,
+          request.signal
+        );
 
         // Read output file
         const buffer = await readFile(ffmpegCommand.outputPath);
@@ -541,16 +545,33 @@ function detectOutputFormat(timeline: TimelineDocument): 'video' | 'audio' {
   return hasVisualTrack ? 'video' : 'audio';
 }
 
-async function runFfmpeg(ffmpegPath: string, args: string[]): Promise<void> {
+async function runFfmpeg(
+  ffmpegPath: string,
+  args: string[],
+  signal?: AbortSignal
+): Promise<void> {
   try {
     await execFileAsync(ffmpegPath, args, {
       maxBuffer: 100 * 1024 * 1024, // 100MB for large outputs
+      signal,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const stderr = (error as { stderr?: string }).stderr ?? '';
     const exitCode = (error as { code?: number }).code;
-    const signal = (error as { signal?: string }).signal;
+    const terminationSignal = (error as { signal?: string }).signal;
+
+    if (isAbortError(error)) {
+      throw createProviderError(
+        SdkErrorCode.RENDER_FAILED,
+        'FFmpeg render was cancelled by user request.',
+        {
+          kind: 'user_input',
+          causedByUser: true,
+          raw: error,
+        }
+      );
+    }
 
     // Check for common FFmpeg errors
     if (
@@ -573,8 +594,8 @@ async function runFfmpeg(ffmpegPath: string, args: string[]): Promise<void> {
     }
 
     // Build detailed error message
-    const exitInfo = signal
-      ? `Process killed by signal: ${signal}`
+    const exitInfo = terminationSignal
+      ? `Process killed by signal: ${terminationSignal}`
       : exitCode !== undefined
         ? `Exit code: ${exitCode}`
         : 'Unknown exit reason';
@@ -589,6 +610,16 @@ async function runFfmpeg(ffmpegPath: string, args: string[]): Promise<void> {
       raw: error,
     });
   }
+}
+
+function isAbortError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  return (
+    error.name === 'AbortError' ||
+    String((error as { code?: unknown }).code) === 'ABORT_ERR'
+  );
 }
 
 export const __test__ = {

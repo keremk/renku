@@ -8,7 +8,12 @@ import { isRenkuError } from '@gorenku/core';
 
 import type { SSEEvent, JobStatusResponse } from './types.js';
 import { getJobManager } from './job-manager.js';
-import { setupSSE, sendSSEEvent, sendSSEComment, sendError } from './http-utils.js';
+import {
+  setupSSE,
+  sendSSEEvent,
+  sendSSEComment,
+  sendError,
+} from './http-utils.js';
 
 /**
  * Keep-alive interval in milliseconds.
@@ -50,8 +55,18 @@ export async function handleStreamRequest(
     sendSSEEvent(res, 'status', initialStatus);
 
     // If job is already completed, send completion event and close
-    if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
-      if (job.summary) {
+    if (
+      job.status === 'completed' ||
+      job.status === 'failed' ||
+      job.status === 'cancelled'
+    ) {
+      if (job.status === 'cancelled') {
+        sendSSEEvent(res, 'execution-cancelled', {
+          type: 'execution-cancelled',
+          timestamp: new Date().toISOString(),
+          message: `Execution cancelled for job ${jobId}`,
+        });
+      } else if (job.summary) {
         sendSSEEvent(res, 'execution-complete', {
           type: 'execution-complete',
           timestamp: new Date().toISOString(),
@@ -69,7 +84,11 @@ export async function handleStreamRequest(
         sendSSEEvent(res, event.type, event);
 
         // Close stream on completion
-        if (event.type === 'execution-complete' || event.type === 'error') {
+        if (
+          event.type === 'execution-complete' ||
+          event.type === 'execution-cancelled' ||
+          event.type === 'error'
+        ) {
           res.end();
         }
       }

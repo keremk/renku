@@ -47,7 +47,7 @@ export function createProviderProduce(
   preResolved: ResolvedProviderHandler[] = [],
   logger: Logger = globalThis.console,
   notifications?: NotificationBus,
-  conditionHints?: ConditionHints,
+  conditionHints?: ConditionHints
 ): ProduceFn {
   const handlerCache = new Map<string, ProducerHandler>();
 
@@ -56,7 +56,7 @@ export function createProviderProduce(
       registry.mode,
       binding.descriptor.provider,
       binding.descriptor.model,
-      binding.descriptor.environment,
+      binding.descriptor.environment
     );
     handlerCache.set(cacheKey, binding.handler);
   }
@@ -75,7 +75,7 @@ export function createProviderProduce(
       providerOptions,
       producerName,
       request.job.provider,
-      request.job.providerModel,
+      request.job.providerModel
     );
 
     const descriptor = toDescriptor(providerOption);
@@ -83,7 +83,7 @@ export function createProviderProduce(
       registry.mode,
       descriptor.provider,
       descriptor.model,
-      descriptor.environment,
+      descriptor.environment
     );
 
     let handler = handlerCache.get(descriptorKey);
@@ -93,20 +93,30 @@ export function createProviderProduce(
     }
 
     const prepared = prepareJobContext(request.job, resolvedInputs);
-    const context = buildProviderContext(providerOption, prepared.context, prepared.resolvedInputs, conditionHints);
+    const context = buildProviderContext(
+      providerOption,
+      prepared.context,
+      prepared.resolvedInputs,
+      conditionHints
+    );
     const log = formatResolvedInputs(prepared.resolvedInputs);
     logger.debug?.('provider.invoke.inputs', {
       producer: producerName,
       values: log,
     });
-    validateResolvedInputs(producerName, providerOption, prepared.resolvedInputs, logger);
+    validateResolvedInputs(
+      producerName,
+      providerOption,
+      prepared.resolvedInputs,
+      logger
+    );
 
     const produces = request.job.produces.map((id) => `   • ${id}`).join('\n');
     logger.info?.(
-      `- ${providerOption.provider}/${providerOption.model} is starting. It will produce:\n${produces}`,
+      `- ${providerOption.provider}/${providerOption.model} is starting. It will produce:\n${produces}`
     );
     logger.debug?.(
-      `provider.invoke.start ${providerOption.provider}/${providerOption.model} [${providerOption.environment}] -> ${request.job.produces.join(', ')}`,
+      `provider.invoke.start ${providerOption.provider}/${providerOption.model} [${providerOption.environment}] -> ${request.job.produces.join(', ')}`
     );
     notifications?.publish({
       type: 'progress',
@@ -126,9 +136,11 @@ export function createProviderProduce(
         inputs: request.job.inputs,
         produces: request.job.produces,
         context,
+        signal: request.signal,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       logger.error?.('provider.invoke.failed', {
         provider: providerOption.provider,
         model: providerOption.model,
@@ -143,9 +155,11 @@ export function createProviderProduce(
       throw error;
     }
 
-    logger.info?.(`- ${providerOption.provider}/${providerOption.model} finished with success`);
+    logger.info?.(
+      `- ${providerOption.provider}/${providerOption.model} finished with success`
+    );
     logger.debug?.(
-      `provider.invoke.end ${providerOption.provider}/${providerOption.model} [${providerOption.environment}]`,
+      `provider.invoke.end ${providerOption.provider}/${providerOption.model} [${providerOption.environment}]`
     );
     notifications?.publish({
       type: 'success',
@@ -156,7 +170,9 @@ export function createProviderProduce(
     const diagnostics = {
       ...response.diagnostics,
       provider: {
-        ...(response.diagnostics?.provider as Record<string, unknown> | undefined),
+        ...(response.diagnostics?.provider as
+          | Record<string, unknown>
+          | undefined),
         producer: producerName,
         provider: providerOption.provider,
         model: providerOption.model,
@@ -189,7 +205,7 @@ export function createProviderProduce(
 export function prepareProviderHandlers(
   registry: ProviderRegistry,
   plan: ExecutionPlan,
-  providerOptions: ProducerOptionsMap,
+  providerOptions: ProducerOptionsMap
 ): ResolvedProviderHandler[] {
   const descriptorMap = new Map<string, ProviderDescriptor>();
   for (const layer of plan.layers) {
@@ -201,14 +217,14 @@ export function prepareProviderHandlers(
         providerOptions,
         job.producer,
         job.provider,
-        job.providerModel,
+        job.providerModel
       );
       const descriptor = toDescriptor(option);
       const key = makeDescriptorKey(
         registry.mode,
         descriptor.provider,
         descriptor.model,
-        descriptor.environment,
+        descriptor.environment
       );
       if (!descriptorMap.has(key)) {
         descriptorMap.set(key, descriptor);
@@ -232,15 +248,21 @@ export function resolveProviderOption(
   providerOptions: ProducerOptionsMap,
   producer: string,
   provider: string,
-  model: string,
+  model: string
 ): LoadedProducerOption {
   const options = providerOptions.get(producer);
   if (!options || options.length === 0) {
-    throw new Error(`No provider configuration defined for producer "${producer}".`);
+    throw new Error(
+      `No provider configuration defined for producer "${producer}".`
+    );
   }
-  const match = options.find((option) => option.provider === provider && option.model === model);
+  const match = options.find(
+    (option) => option.provider === provider && option.model === model
+  );
   if (!match) {
-    throw new Error(`No provider configuration matches ${producer} -> ${provider}/${model}.`);
+    throw new Error(
+      `No provider configuration matches ${producer} -> ${provider}/${model}.`
+    );
   }
   return match;
 }
@@ -258,10 +280,11 @@ export function buildProviderContext(
   option: LoadedProducerOption,
   jobContext: ProducerJobContext | undefined,
   resolvedInputs: Record<string, unknown>,
-  conditionHints?: ConditionHints,
+  conditionHints?: ConditionHints
 ): ProviderContextPayload {
   const baseConfig = normalizeProviderConfig(option);
-  const rawAttachments = option.attachments.length > 0 ? option.attachments : undefined;
+  const rawAttachments =
+    option.attachments.length > 0 ? option.attachments : undefined;
   const extras = buildContextExtras(jobContext, resolvedInputs, conditionHints);
 
   return {
@@ -274,7 +297,9 @@ export function buildProviderContext(
 }
 
 function normalizeProviderConfig(option: LoadedProducerOption): unknown {
-  const config = option.config ? { ...(option.config as Record<string, unknown>) } : undefined;
+  const config = option.config
+    ? { ...(option.config as Record<string, unknown>) }
+    : undefined;
   return option.customAttributes
     ? { customAttributes: option.customAttributes, config }
     : config;
@@ -283,7 +308,7 @@ function normalizeProviderConfig(option: LoadedProducerOption): unknown {
 function buildContextExtras(
   jobContext: ProducerJobContext | undefined,
   resolvedInputs: Record<string, unknown>,
-  conditionHints?: ConditionHints,
+  conditionHints?: ConditionHints
 ): Record<string, unknown> {
   const plannerContext = jobContext
     ? {
@@ -327,7 +352,7 @@ function makeDescriptorKey(
   mode: string,
   provider: string,
   model: string,
-  environment: ProviderEnvironment,
+  environment: ProviderEnvironment
 ): string {
   return [mode, provider, model, environment].join('|');
 }
@@ -344,7 +369,9 @@ function formatResolvedInputs(inputs: Record<string, unknown>): string {
 
 function summarizeValue(value: unknown): string {
   if (typeof value === 'string') {
-    return value.length > 80 ? `${value.slice(0, 77)}… (${value.length} chars)` : value;
+    return value.length > 80
+      ? `${value.slice(0, 77)}… (${value.length} chars)`
+      : value;
   }
   if (
     typeof value === 'number' ||
@@ -383,14 +410,16 @@ function validateResolvedInputs(
   producerName: string,
   option: LoadedProducerOption,
   inputs: Record<string, unknown>,
-  logger: Logger,
+  logger: Logger
 ): void {
   const keys = Object.keys(inputs);
   if (keys.length === 0) {
     throw new Error(`Aborting ${producerName}: resolved inputs map is empty.`);
   }
   const config = option.config as Record<string, unknown> | undefined;
-  const required = Array.isArray(config?.variables) ? (config?.variables as string[]) : [];
+  const required = Array.isArray(config?.variables)
+    ? (config?.variables as string[])
+    : [];
   const missing = required.filter((key) => {
     if (isCanonicalInputId(key) || isCanonicalArtifactId(key)) {
       return inputs[key] === undefined;
@@ -399,7 +428,7 @@ function validateResolvedInputs(
   });
   if (missing.length > 0) {
     logger.warn?.(
-      `[provider.invoke.inputs] ${producerName} missing resolved input(s): ${missing.join(', ')}.`,
+      `[provider.invoke.inputs] ${producerName} missing resolved input(s): ${missing.join(', ')}.`
     );
   }
 }

@@ -7,7 +7,11 @@ import type { Manifest, ExecutionPlan } from '@gorenku/core';
 import type { PlanCostSummary } from '@gorenku/providers';
 import { handleCancelRequest } from './cancel-handler.js';
 import { getJobManager, resetJobManager } from './job-manager.js';
-import { createMockRequestEmpty, createMockResponse, parseResponseJson } from './test-utils.js';
+import {
+  createMockRequestEmpty,
+  createMockResponse,
+  parseResponseJson,
+} from './test-utils.js';
 import type { JobStatusResponse, CachedPlan } from './types.js';
 
 // Helper to create a mock cached plan
@@ -47,7 +51,7 @@ describe('handleCancelRequest', () => {
     expect(res.statusCode).toBe(200);
     const body = parseResponseJson<JobStatusResponse>(res);
     expect(body.status).toBe('cancelled');
-    expect(body.completedAt).toBeDefined();
+    expect(body.completedAt).toBeUndefined();
   });
 
   it('cancels pending job', async () => {
@@ -192,5 +196,31 @@ describe('handleCancelRequest', () => {
 
     // After cancellation
     expect(manager.isJobCancelled(job.jobId)).toBe(true);
+  });
+
+  it('broadcasts execution-cancelled event', async () => {
+    const manager = getJobManager();
+    const planData = createMockPlanData();
+    const cachedPlan = manager.cachePlan(planData);
+
+    const job = manager.createJob('movie-abc', cachedPlan.planId, 3);
+    manager.updateJobStatus(job.jobId, 'running');
+
+    const events: Array<{ type: string; message?: string }> = [];
+    manager.subscribeToJob(job.jobId, (event) => {
+      events.push({
+        type: event.type,
+        message: 'message' in event ? event.message : undefined,
+      });
+    });
+
+    const req = createMockRequestEmpty('POST');
+    const res = createMockResponse();
+
+    await handleCancelRequest(req, res, job.jobId);
+
+    expect(events.some((event) => event.type === 'execution-cancelled')).toBe(
+      true
+    );
   });
 });

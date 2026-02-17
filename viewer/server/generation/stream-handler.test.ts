@@ -162,6 +162,11 @@ describe('handleStreamRequest', () => {
     const statusEvent = events.find((e) => e.event === 'status');
     expect(statusEvent).toBeDefined();
 
+    const cancelledEvent = events.find(
+      (e) => e.event === 'execution-cancelled'
+    );
+    expect(cancelledEvent).toBeDefined();
+
     const data = statusEvent?.data as Record<string, unknown>;
     expect(data.status).toBe('cancelled');
   });
@@ -291,6 +296,30 @@ describe('handleStreamRequest', () => {
     manager.broadcastEvent(job.jobId, errorEvent);
 
     // Stream should be closed
+    expect(res.writableEnded).toBe(true);
+  });
+
+  it('closes stream on execution-cancelled event', async () => {
+    const manager = getJobManager();
+    const planData = createMockPlanData();
+    const cachedPlan = manager.cachePlan(planData);
+
+    const job = manager.createJob('movie-abc', cachedPlan.planId, 3);
+    manager.updateJobStatus(job.jobId, 'running');
+
+    const req = createMockRequestEmpty('GET');
+    const res = createMockResponse();
+
+    await handleStreamRequest(req, res, job.jobId);
+
+    expect(res.writableEnded).toBe(false);
+
+    manager.broadcastEvent(job.jobId, {
+      type: 'execution-cancelled',
+      timestamp: new Date().toISOString(),
+      message: 'Execution cancelled by user',
+    });
+
     expect(res.writableEnded).toBe(true);
   });
 

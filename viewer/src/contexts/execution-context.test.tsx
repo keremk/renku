@@ -23,7 +23,9 @@ function createWrapper() {
   };
 }
 
-function createMockArtifact(overrides: Partial<ArtifactInfo> = {}): ArtifactInfo {
+function createMockArtifact(
+  overrides: Partial<ArtifactInfo> = {}
+): ArtifactInfo {
   return {
     id: 'Artifact:TestProducer.Output[0]',
     name: 'TestProducer.Output[0]',
@@ -36,7 +38,9 @@ function createMockArtifact(overrides: Partial<ArtifactInfo> = {}): ArtifactInfo
   };
 }
 
-function createMockExecuteResponse(overrides: Partial<ExecuteResponse> = {}): ExecuteResponse {
+function createMockExecuteResponse(
+  overrides: Partial<ExecuteResponse> = {}
+): ExecuteResponse {
   return {
     jobId: 'job-xyz',
     movieId: 'movie-456',
@@ -47,7 +51,9 @@ function createMockExecuteResponse(overrides: Partial<ExecuteResponse> = {}): Ex
   };
 }
 
-function createMockPlanResponse(overrides: Partial<PlanResponse> = {}): PlanResponse {
+function createMockPlanResponse(
+  overrides: Partial<PlanResponse> = {}
+): PlanResponse {
   return {
     planId: 'plan-123',
     movieId: 'movie-456',
@@ -58,15 +64,29 @@ function createMockPlanResponse(overrides: Partial<PlanResponse> = {}): PlanResp
     totalJobs: 5,
     costSummary: {
       jobs: [],
-      totalCost: 1.50,
-      minTotalCost: 1.00,
-      maxTotalCost: 2.00,
+      totalCost: 1.5,
+      minTotalCost: 1.0,
+      maxTotalCost: 2.0,
       hasPlaceholders: false,
       hasRanges: true,
       missingProviders: [],
       byProducer: {
-        'ProducerA': { count: 2, totalCost: 0.75, hasPlaceholders: false, hasRanges: false, minCost: 0.50, maxCost: 1.00 },
-        'ProducerB': { count: 3, totalCost: 0.75, hasPlaceholders: false, hasRanges: false, minCost: 0.50, maxCost: 1.00 },
+        ProducerA: {
+          count: 2,
+          totalCost: 0.75,
+          hasPlaceholders: false,
+          hasRanges: false,
+          minCost: 0.5,
+          maxCost: 1.0,
+        },
+        ProducerB: {
+          count: 3,
+          totalCost: 0.75,
+          hasPlaceholders: false,
+          hasRanges: false,
+          minCost: 0.5,
+          maxCost: 1.0,
+        },
       },
     },
     layerBreakdown: [
@@ -75,11 +95,11 @@ function createMockPlanResponse(overrides: Partial<PlanResponse> = {}): PlanResp
         jobCount: 2,
         jobs: [
           { jobId: 'job-1', producer: 'ProducerA', estimatedCost: 0.25 },
-          { jobId: 'job-2', producer: 'ProducerA', estimatedCost: 0.50 },
+          { jobId: 'job-2', producer: 'ProducerA', estimatedCost: 0.5 },
         ],
         layerCost: 0.75,
-        layerMinCost: 0.50,
-        layerMaxCost: 1.00,
+        layerMinCost: 0.5,
+        layerMaxCost: 1.0,
         hasPlaceholders: false,
       },
       {
@@ -91,8 +111,8 @@ function createMockPlanResponse(overrides: Partial<PlanResponse> = {}): PlanResp
           { jobId: 'job-5', producer: 'ProducerB', estimatedCost: 0.25 },
         ],
         layerCost: 0.75,
-        layerMinCost: 0.50,
-        layerMaxCost: 1.00,
+        layerMinCost: 0.5,
+        layerMaxCost: 1.0,
         hasPlaceholders: false,
       },
     ],
@@ -111,7 +131,12 @@ vi.mock('@/data/generation-client', () => ({
   subscribeToJobStream: vi.fn(),
 }));
 
-import { createPlan, executePlan, cancelJob, subscribeToJobStream } from '@/data/generation-client';
+import {
+  createPlan,
+  executePlan,
+  cancelJob,
+  subscribeToJobStream,
+} from '@/data/generation-client';
 
 const mockCreatePlan = vi.mocked(createPlan);
 const mockExecutePlan = vi.mocked(executePlan);
@@ -372,9 +397,9 @@ describe('ExecutionContext', () => {
       });
 
       const planInfo = result.current.state.planInfo!;
-      expect(planInfo.totalCost).toBe(1.50);
-      expect(planInfo.minCost).toBe(1.00);
-      expect(planInfo.maxCost).toBe(2.00);
+      expect(planInfo.totalCost).toBe(1.5);
+      expect(planInfo.minCost).toBe(1.0);
+      expect(planInfo.maxCost).toBe(2.0);
       expect(planInfo.hasPlaceholders).toBe(false);
       expect(planInfo.hasRanges).toBe(true);
     });
@@ -394,7 +419,9 @@ describe('ExecutionContext', () => {
       const planInfo = result.current.state.planInfo!;
       expect(planInfo.costByProducer).toHaveLength(2);
 
-      const producerA = planInfo.costByProducer.find((p: { name: string }) => p.name === 'ProducerA');
+      const producerA = planInfo.costByProducer.find(
+        (p: { name: string }) => p.name === 'ProducerA'
+      );
       expect(producerA).toEqual({
         name: 'ProducerA',
         count: 2,
@@ -462,7 +489,14 @@ describe('ExecutionContext', () => {
           hasRanges: false,
           missingProviders: ['openai:gpt-4'],
           byProducer: {
-            'TextGenerator': { count: 1, totalCost: 0, hasPlaceholders: true, hasRanges: false, minCost: 0, maxCost: 0 },
+            TextGenerator: {
+              count: 1,
+              totalCost: 0,
+              hasPlaceholders: true,
+              hasRanges: false,
+              minCost: 0,
+              maxCost: 0,
+            },
           },
         },
       });
@@ -504,7 +538,9 @@ describe('ExecutionContext', () => {
     });
 
     it('calls executePlan with correct parameters', async () => {
-      mockExecutePlan.mockResolvedValue(createMockExecuteResponse({ jobId: 'job-abc' }));
+      mockExecutePlan.mockResolvedValue(
+        createMockExecuteResponse({ jobId: 'job-abc' })
+      );
 
       const { result } = renderHook(() => useExecution(), {
         wrapper: createWrapper(),
@@ -530,7 +566,9 @@ describe('ExecutionContext', () => {
     });
 
     it('passes dryRun parameter correctly', async () => {
-      mockExecutePlan.mockResolvedValue(createMockExecuteResponse({ jobId: 'job-abc' }));
+      mockExecutePlan.mockResolvedValue(
+        createMockExecuteResponse({ jobId: 'job-abc' })
+      );
 
       const { result } = renderHook(() => useExecution(), {
         wrapper: createWrapper(),
@@ -585,8 +623,12 @@ describe('ExecutionContext', () => {
         await result.current.confirmExecution();
       });
 
-      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('pending');
-      expect(result.current.state.producerStatuses['Producer:ProducerB']).toBe('pending');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe(
+        'pending'
+      );
+      expect(result.current.state.producerStatuses['Producer:ProducerB']).toBe(
+        'pending'
+      );
     });
 
     it('subscribes to job stream', async () => {
@@ -672,7 +714,9 @@ describe('ExecutionContext', () => {
 
       expect(result.current.state.executionLogs).toHaveLength(1);
       expect(result.current.state.executionLogs[0].type).toBe('layer-start');
-      expect(result.current.state.executionLogs[0].message).toContain('Layer 0');
+      expect(result.current.state.executionLogs[0].message).toContain(
+        'Layer 0'
+      );
       expect(result.current.state.executionLogs[0].message).toContain('3 jobs');
       expect(result.current.state.progress?.currentLayer).toBe(0);
     });
@@ -685,7 +729,9 @@ describe('ExecutionContext', () => {
       });
 
       expect(result.current.state.executionLogs[0].message).toContain('1 job');
-      expect(result.current.state.executionLogs[0].message).not.toContain('1 jobs');
+      expect(result.current.state.executionLogs[0].message).not.toContain(
+        '1 jobs'
+      );
     });
 
     it('handles layer-skipped event', async () => {
@@ -697,7 +743,9 @@ describe('ExecutionContext', () => {
 
       expect(result.current.state.executionLogs).toHaveLength(1);
       expect(result.current.state.executionLogs[0].type).toBe('layer-skipped');
-      expect(result.current.state.executionLogs[0].message).toContain('skipped');
+      expect(result.current.state.executionLogs[0].message).toContain(
+        'skipped'
+      );
     });
 
     it('handles job-start event', async () => {
@@ -712,10 +760,14 @@ describe('ExecutionContext', () => {
         });
       });
 
-      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('running');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe(
+        'running'
+      );
       expect(result.current.state.executionLogs).toHaveLength(1);
       expect(result.current.state.executionLogs[0].type).toBe('job-start');
-      expect(result.current.state.executionLogs[0].message).toContain('Starting ProducerA');
+      expect(result.current.state.executionLogs[0].message).toContain(
+        'Starting ProducerA'
+      );
     });
 
     it('handles job-complete with succeeded status', async () => {
@@ -730,8 +782,12 @@ describe('ExecutionContext', () => {
         });
       });
 
-      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('success');
-      expect(result.current.state.executionLogs[0].message).toContain('completed successfully');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe(
+        'success'
+      );
+      expect(result.current.state.executionLogs[0].message).toContain(
+        'completed successfully'
+      );
       expect(result.current.state.executionLogs[0].message).toContain('✓');
     });
 
@@ -748,10 +804,14 @@ describe('ExecutionContext', () => {
         });
       });
 
-      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('error');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe(
+        'error'
+      );
       expect(result.current.state.executionLogs[0].message).toContain('failed');
       expect(result.current.state.executionLogs[0].message).toContain('✗');
-      expect(result.current.state.executionLogs[0].errorDetails).toBe('Something went wrong');
+      expect(result.current.state.executionLogs[0].errorDetails).toBe(
+        'Something went wrong'
+      );
     });
 
     it('handles job-complete with skipped status', async () => {
@@ -766,8 +826,12 @@ describe('ExecutionContext', () => {
         });
       });
 
-      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('skipped');
-      expect(result.current.state.executionLogs[0].message).toContain('skipped');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe(
+        'skipped'
+      );
+      expect(result.current.state.executionLogs[0].message).toContain(
+        'skipped'
+      );
     });
 
     it('shows indexed job label when canonical jobId is available', async () => {
@@ -782,7 +846,9 @@ describe('ExecutionContext', () => {
         });
       });
 
-      expect(result.current.state.executionLogs[0].message).toContain('Starting ThenImageProducer[1]');
+      expect(result.current.state.executionLogs[0].message).toContain(
+        'Starting ThenImageProducer[1]'
+      );
     });
 
     it('handles layer-complete event', async () => {
@@ -799,8 +865,12 @@ describe('ExecutionContext', () => {
       });
 
       expect(result.current.state.executionLogs[0].type).toBe('layer-complete');
-      expect(result.current.state.executionLogs[0].message).toContain('2 succeeded');
-      expect(result.current.state.executionLogs[0].message).toContain('1 failed');
+      expect(result.current.state.executionLogs[0].message).toContain(
+        '2 succeeded'
+      );
+      expect(result.current.state.executionLogs[0].message).toContain(
+        '1 failed'
+      );
     });
 
     it('handles execution-complete with succeeded status', async () => {
@@ -816,7 +886,9 @@ describe('ExecutionContext', () => {
 
       expect(result.current.state.status).toBe('completed');
       expect(result.current.state.currentJobId).toBeNull();
-      expect(result.current.state.executionLogs[0].message).toContain('completed successfully');
+      expect(result.current.state.executionLogs[0].message).toContain(
+        'completed successfully'
+      );
     });
 
     it('handles execution-complete with partial status', async () => {
@@ -831,7 +903,9 @@ describe('ExecutionContext', () => {
       });
 
       expect(result.current.state.status).toBe('failed');
-      expect(result.current.state.executionLogs[0].message).toContain('some failures');
+      expect(result.current.state.executionLogs[0].message).toContain(
+        'some failures'
+      );
     });
 
     it('handles execution-complete with failed status', async () => {
@@ -846,7 +920,26 @@ describe('ExecutionContext', () => {
       });
 
       expect(result.current.state.status).toBe('failed');
-      expect(result.current.state.executionLogs[0].message).toContain('Execution failed');
+      expect(result.current.state.executionLogs[0].message).toContain(
+        'Execution failed'
+      );
+    });
+
+    it('handles execution-cancelled event', async () => {
+      const result = await setupExecutingState();
+
+      act(() => {
+        sseCallback({
+          type: 'execution-cancelled',
+          message: 'Execution cancelled by user',
+        });
+      });
+
+      expect(result.current.state.status).toBe('cancelled');
+      expect(result.current.state.currentJobId).toBeNull();
+      expect(result.current.state.executionLogs[0].message).toContain(
+        'cancelled'
+      );
     });
 
     it('handles error event', async () => {
@@ -906,7 +999,7 @@ describe('ExecutionContext', () => {
 
       mockCancelJob.mockImplementation(async () => {
         // Simulate async cancellation
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 10));
       });
 
       const { result } = renderHook(() => useExecution(), {
@@ -939,7 +1032,9 @@ describe('ExecutionContext', () => {
       mockSubscribeToJobStream.mockReturnValue(() => {});
       mockCancelJob.mockRejectedValue(new Error('Cancel failed'));
 
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
 
       const { result } = renderHook(() => useExecution(), {
         wrapper: createWrapper(),
@@ -1025,7 +1120,9 @@ describe('ExecutionContext', () => {
       // These should be preserved after reset
       expect(result.current.state.totalLayers).toBe(3); // Preserved from before reset
       expect(result.current.state.bottomPanelVisible).toBe(true);
-      expect(result.current.state.selectedForRegeneration.has('artifact-1')).toBe(true);
+      expect(
+        result.current.state.selectedForRegeneration.has('artifact-1')
+      ).toBe(true);
     });
   });
 
@@ -1041,11 +1138,16 @@ describe('ExecutionContext', () => {
 
       act(() => {
         result.current.initializeFromManifest([
-          createMockArtifact({ id: 'Artifact:ProducerA.Output[0]', status: 'succeeded' }),
+          createMockArtifact({
+            id: 'Artifact:ProducerA.Output[0]',
+            status: 'succeeded',
+          }),
         ]);
       });
 
-      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('success');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe(
+        'success'
+      );
     });
 
     it('maps failed artifacts to error status', () => {
@@ -1055,11 +1157,16 @@ describe('ExecutionContext', () => {
 
       act(() => {
         result.current.initializeFromManifest([
-          createMockArtifact({ id: 'Artifact:ProducerA.Output[0]', status: 'failed' }),
+          createMockArtifact({
+            id: 'Artifact:ProducerA.Output[0]',
+            status: 'failed',
+          }),
         ]);
       });
 
-      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('error');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe(
+        'error'
+      );
     });
 
     it('maps skipped artifacts to skipped status', () => {
@@ -1069,11 +1176,16 @@ describe('ExecutionContext', () => {
 
       act(() => {
         result.current.initializeFromManifest([
-          createMockArtifact({ id: 'Artifact:ProducerA.Output[0]', status: 'skipped' }),
+          createMockArtifact({
+            id: 'Artifact:ProducerA.Output[0]',
+            status: 'skipped',
+          }),
         ]);
       });
 
-      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('skipped');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe(
+        'skipped'
+      );
     });
 
     it('maps unknown status to not-run-yet', () => {
@@ -1083,11 +1195,16 @@ describe('ExecutionContext', () => {
 
       act(() => {
         result.current.initializeFromManifest([
-          createMockArtifact({ id: 'Artifact:ProducerA.Output[0]', status: 'pending' }),
+          createMockArtifact({
+            id: 'Artifact:ProducerA.Output[0]',
+            status: 'pending',
+          }),
         ]);
       });
 
-      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('not-run-yet');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe(
+        'not-run-yet'
+      );
     });
 
     it('uses worst status when producer has multiple artifacts', () => {
@@ -1097,14 +1214,25 @@ describe('ExecutionContext', () => {
 
       act(() => {
         result.current.initializeFromManifest([
-          createMockArtifact({ id: 'Artifact:ProducerA.Output[0]', status: 'succeeded' }),
-          createMockArtifact({ id: 'Artifact:ProducerA.Output[1]', status: 'failed' }),
-          createMockArtifact({ id: 'Artifact:ProducerA.Output[2]', status: 'succeeded' }),
+          createMockArtifact({
+            id: 'Artifact:ProducerA.Output[0]',
+            status: 'succeeded',
+          }),
+          createMockArtifact({
+            id: 'Artifact:ProducerA.Output[1]',
+            status: 'failed',
+          }),
+          createMockArtifact({
+            id: 'Artifact:ProducerA.Output[2]',
+            status: 'succeeded',
+          }),
         ]);
       });
 
       // Failed (error) has lower priority, so it should be kept
-      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('error');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe(
+        'error'
+      );
     });
 
     it('handles multiple producers', () => {
@@ -1114,15 +1242,30 @@ describe('ExecutionContext', () => {
 
       act(() => {
         result.current.initializeFromManifest([
-          createMockArtifact({ id: 'Artifact:ProducerA.Output[0]', status: 'succeeded' }),
-          createMockArtifact({ id: 'Artifact:ProducerB.Output[0]', status: 'failed' }),
-          createMockArtifact({ id: 'Artifact:ProducerC.Output[0]', status: 'skipped' }),
+          createMockArtifact({
+            id: 'Artifact:ProducerA.Output[0]',
+            status: 'succeeded',
+          }),
+          createMockArtifact({
+            id: 'Artifact:ProducerB.Output[0]',
+            status: 'failed',
+          }),
+          createMockArtifact({
+            id: 'Artifact:ProducerC.Output[0]',
+            status: 'skipped',
+          }),
         ]);
       });
 
-      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('success');
-      expect(result.current.state.producerStatuses['Producer:ProducerB']).toBe('error');
-      expect(result.current.state.producerStatuses['Producer:ProducerC']).toBe('skipped');
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe(
+        'success'
+      );
+      expect(result.current.state.producerStatuses['Producer:ProducerB']).toBe(
+        'error'
+      );
+      expect(result.current.state.producerStatuses['Producer:ProducerC']).toBe(
+        'skipped'
+      );
     });
 
     it('ignores artifacts with invalid IDs', () => {
@@ -1133,12 +1276,19 @@ describe('ExecutionContext', () => {
       act(() => {
         result.current.initializeFromManifest([
           createMockArtifact({ id: 'InvalidFormat', status: 'succeeded' }),
-          createMockArtifact({ id: 'Artifact:ProducerA.Output[0]', status: 'succeeded' }),
+          createMockArtifact({
+            id: 'Artifact:ProducerA.Output[0]',
+            status: 'succeeded',
+          }),
         ]);
       });
 
-      expect(Object.keys(result.current.state.producerStatuses)).toHaveLength(1);
-      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe('success');
+      expect(Object.keys(result.current.state.producerStatuses)).toHaveLength(
+        1
+      );
+      expect(result.current.state.producerStatuses['Producer:ProducerA']).toBe(
+        'success'
+      );
     });
   });
 
@@ -1156,13 +1306,17 @@ describe('ExecutionContext', () => {
         result.current.toggleArtifactSelection('artifact-1');
       });
 
-      expect(result.current.state.selectedForRegeneration.has('artifact-1')).toBe(true);
+      expect(
+        result.current.state.selectedForRegeneration.has('artifact-1')
+      ).toBe(true);
 
       act(() => {
         result.current.toggleArtifactSelection('artifact-1');
       });
 
-      expect(result.current.state.selectedForRegeneration.has('artifact-1')).toBe(false);
+      expect(
+        result.current.state.selectedForRegeneration.has('artifact-1')
+      ).toBe(false);
     });
 
     it('selectProducerArtifacts adds multiple artifacts', () => {
@@ -1171,7 +1325,11 @@ describe('ExecutionContext', () => {
       });
 
       act(() => {
-        result.current.selectProducerArtifacts(['artifact-1', 'artifact-2', 'artifact-3']);
+        result.current.selectProducerArtifacts([
+          'artifact-1',
+          'artifact-2',
+          'artifact-3',
+        ]);
       });
 
       expect(result.current.state.selectedForRegeneration.size).toBe(3);
@@ -1186,7 +1344,11 @@ describe('ExecutionContext', () => {
       });
 
       act(() => {
-        result.current.selectProducerArtifacts(['artifact-1', 'artifact-2', 'artifact-3']);
+        result.current.selectProducerArtifacts([
+          'artifact-1',
+          'artifact-2',
+          'artifact-3',
+        ]);
       });
 
       act(() => {
@@ -1203,7 +1365,11 @@ describe('ExecutionContext', () => {
       });
 
       act(() => {
-        result.current.selectProducerArtifacts(['artifact-1', 'artifact-2', 'artifact-3']);
+        result.current.selectProducerArtifacts([
+          'artifact-1',
+          'artifact-2',
+          'artifact-3',
+        ]);
       });
 
       act(() => {
@@ -1428,7 +1594,12 @@ describe('ExecutionContext', () => {
 
       act(() => {
         sseCallback({ type: 'layer-start', layerIndex: 0, jobCount: 1 });
-        sseCallback({ type: 'job-start', jobId: 'job-1', producer: 'P', layerIndex: 0 });
+        sseCallback({
+          type: 'job-start',
+          jobId: 'job-1',
+          producer: 'P',
+          layerIndex: 0,
+        });
       });
 
       expect(result.current.state.executionLogs.length).toBeGreaterThan(0);
@@ -1481,7 +1652,9 @@ describe('ExecutionContext', () => {
   describe('useExecution hook', () => {
     it('throws error when used outside provider', () => {
       // Suppress console.error for this test
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
 
       const { result } = renderHook(() => {
         try {

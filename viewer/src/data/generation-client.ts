@@ -52,14 +52,19 @@ export function createPlan(params: PlanRequest): Promise<PlanResponse> {
  * Execute a prepared plan.
  */
 export function executePlan(params: ExecuteRequest): Promise<ExecuteResponse> {
-  return postJson<ExecuteRequest, ExecuteResponse>(`${API_BASE}/execute`, params);
+  return postJson<ExecuteRequest, ExecuteResponse>(
+    `${API_BASE}/execute`,
+    params
+  );
 }
 
 /**
  * Get status of an execution job.
  */
 export function getJobStatus(jobId: string): Promise<JobStatusResponse> {
-  return fetchJson<JobStatusResponse>(`${API_BASE}/jobs/${encodeURIComponent(jobId)}`);
+  return fetchJson<JobStatusResponse>(
+    `${API_BASE}/jobs/${encodeURIComponent(jobId)}`
+  );
 }
 
 /**
@@ -88,6 +93,7 @@ const SSE_EVENT_TYPES = [
   'job-start',
   'job-complete',
   'execution-complete',
+  'execution-cancelled',
   'error',
 ] as const;
 

@@ -49,6 +49,7 @@ export interface ProviderJobContext {
   inputs: string[];
   produces: string[];
   context: ProviderContextPayload;
+  signal?: AbortSignal;
 }
 
 export interface ProviderResult {

@@ -6,7 +6,12 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { Manifest, ExecutionPlan } from '@gorenku/core';
 import type { PlanCostSummary } from '@gorenku/providers';
 import { getJobManager, resetJobManager } from './job-manager.js';
-import type { SSEEvent, CachedPlan, BuildSummaryInfo, JobDetailInfo } from './types.js';
+import type {
+  SSEEvent,
+  CachedPlan,
+  BuildSummaryInfo,
+  JobDetailInfo,
+} from './types.js';
 
 // Helper to create a mock cached plan
 function createMockPlanData(): Omit<CachedPlan, 'planId' | 'createdAt'> {
@@ -65,7 +70,9 @@ describe('JobManager', () => {
     it('throws PLAN_NOT_FOUND for unknown planId', () => {
       const manager = getJobManager();
 
-      expect(() => manager.getPlan('plan-unknown')).toThrowError(/Plan not found/);
+      expect(() => manager.getPlan('plan-unknown')).toThrowError(
+        /Plan not found/
+      );
     });
   });
 
@@ -429,6 +436,21 @@ describe('JobManager', () => {
 
       manager.updateJobStatus(job.jobId, 'running');
       manager.cancelJob(job.jobId);
+
+      expect(manager.getJob(job.jobId).status).toBe('cancelled');
+      expect(manager.getJob(job.jobId).completedAt).toBeUndefined();
+    });
+
+    it('finalizes cancelled job completion timestamp', () => {
+      const manager = getJobManager();
+      const planData = createMockPlanData();
+      const cachedPlan = manager.cachePlan(planData);
+      const job = manager.createJob('movie-abc', cachedPlan.planId, 3);
+
+      manager.updateJobStatus(job.jobId, 'running');
+      manager.cancelJob(job.jobId);
+
+      manager.finalizeCancelledJob(job.jobId);
 
       expect(manager.getJob(job.jobId).status).toBe('cancelled');
       expect(manager.getJob(job.jobId).completedAt).toBeInstanceOf(Date);

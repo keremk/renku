@@ -138,7 +138,11 @@ class JobManager {
   /**
    * Creates a new execution job.
    */
-  createJob(movieId: string, planId: string, totalLayers: number): ExecutionJob {
+  createJob(
+    movieId: string,
+    planId: string,
+    totalLayers: number
+  ): ExecutionJob {
     const jobId = generateId('job');
     const job: ExecutionJob = {
       jobId,
@@ -167,7 +171,10 @@ class JobManager {
       throw createRuntimeError(
         RuntimeErrorCode.JOB_NOT_FOUND,
         `Job not found: ${jobId}`,
-        { suggestion: 'The job may have been completed and pruned. Check /viewer-api/generate/jobs for active jobs.' }
+        {
+          suggestion:
+            'The job may have been completed and pruned. Check /viewer-api/generate/jobs for active jobs.',
+        }
       );
     }
     return job;
@@ -188,7 +195,11 @@ class JobManager {
   updateJobStatus(jobId: string, status: JobStatus): void {
     const job = this.getJob(jobId);
     job.status = status;
-    if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+    if (
+      status === 'completed' ||
+      status === 'failed' ||
+      status === 'cancelled'
+    ) {
       job.completedAt = new Date();
     }
   }
@@ -196,7 +207,11 @@ class JobManager {
   /**
    * Updates job progress.
    */
-  updateJobProgress(jobId: string, progress: number, currentLayer: number): void {
+  updateJobProgress(
+    jobId: string,
+    progress: number,
+    currentLayer: number
+  ): void {
     const job = this.getJob(jobId);
     job.progress = progress;
     job.currentLayer = currentLayer;
@@ -232,13 +247,31 @@ class JobManager {
   }
 
   /**
-   * Cancels a job by signaling its AbortController.
+   * Requests cancellation by signaling the job's AbortController.
+   *
+   * The job remains active until the execution loop exits and marks it complete.
    */
   cancelJob(jobId: string): void {
     const job = this.getJob(jobId);
-    if (job.status === 'running' || job.status === 'pending' || job.status === 'planning') {
+    if (
+      job.status === 'running' ||
+      job.status === 'pending' ||
+      job.status === 'planning'
+    ) {
       job.abortController.abort();
       job.status = 'cancelled';
+    }
+  }
+
+  /**
+   * Marks a cancelled job as fully finalized.
+   */
+  finalizeCancelledJob(jobId: string): void {
+    const job = this.getJob(jobId);
+    if (job.status !== 'cancelled') {
+      throw new Error(`Cannot finalize non-cancelled job: ${jobId}`);
+    }
+    if (!job.completedAt) {
       job.completedAt = new Date();
     }
   }
@@ -258,7 +291,10 @@ class JobManager {
   /**
    * Subscribes to SSE events for a job.
    */
-  subscribeToJob(jobId: string, callback: (event: SSEEvent) => void): () => void {
+  subscribeToJob(
+    jobId: string,
+    callback: (event: SSEEvent) => void
+  ): () => void {
     const job = this.getJob(jobId);
     job.subscribers.add(callback);
     return () => {
