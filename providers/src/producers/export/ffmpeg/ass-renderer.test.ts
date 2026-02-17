@@ -159,7 +159,9 @@ describe('ass-renderer', () => {
     });
 
     it('handles multiple special characters', () => {
-      expect(escapeAssText('test\\{data}\nend')).toBe('test\\\\\\{data\\}\\Nend');
+      expect(escapeAssText('test\\{data}\nend')).toBe(
+        'test\\\\\\{data\\}\\Nend'
+      );
     });
 
     it('leaves normal text unchanged', () => {
@@ -248,7 +250,12 @@ describe('ass-renderer', () => {
     it('escapes special characters in words', () => {
       const groupWithSpecial = {
         words: [
-          { text: 'Hello{world}', startTime: 0, endTime: 0.5, clipId: 'clip-1' },
+          {
+            text: 'Hello{world}',
+            startTime: 0,
+            endTime: 0.5,
+            clipId: 'clip-1',
+          },
         ],
         startTime: 0,
         endTime: 0.5,
@@ -360,7 +367,12 @@ describe('ass-renderer', () => {
     it('escapes special characters in words', () => {
       const groupWithSpecial = {
         words: [
-          { text: 'Hello{world}', startTime: 0, endTime: 0.5, clipId: 'clip-1' },
+          {
+            text: 'Hello{world}',
+            startTime: 0,
+            endTime: 0.5,
+            clipId: 'clip-1',
+          },
         ],
         startTime: 0,
         endTime: 0.5,
@@ -476,7 +488,9 @@ describe('ass-renderer', () => {
       const result = buildAssSubtitles(transcription, options);
       // BorderStyle is field 16 in the style definition
       // Format: ...0,0,<BorderStyle>,<Outline>,<Shadow>,...
-      expect(result).toMatch(/Style: Default,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,0,0,0,0,100,100,0,0,1,/);
+      expect(result).toMatch(
+        /Style: Default,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,0,0,0,0,100,100,0,0,1,/
+      );
     });
 
     it('uses BorderStyle 4 (semi-transparent box, libass extension) when backgroundOpacity is greater than 0', () => {
@@ -485,11 +499,16 @@ describe('ass-renderer', () => {
         backgroundOpacity: 0.5,
       });
       // BorderStyle=4 is a libass extension that supports semi-transparent boxes with proper alpha
-      expect(result).toMatch(/Style: Default,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,0,0,0,0,100,100,0,0,4,/);
+      expect(result).toMatch(
+        /Style: Default,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,0,0,0,0,100,100,0,0,4,/
+      );
     });
 
     it('respects custom font size', () => {
-      const result = buildAssSubtitles(transcription, { ...options, fontSize: 64 });
+      const result = buildAssSubtitles(transcription, {
+        ...options,
+        fontSize: 64,
+      });
       expect(result).toContain(',64,'); // Font size in style
     });
 
@@ -506,7 +525,9 @@ describe('ass-renderer', () => {
       // Style format: Name,Font,Size,Primary,Secondary,...
       // Gold (#FFD700) in BGR with alpha = &H0000D7FF
       // White (#FFFFFF) in BGR with alpha = &H00FFFFFF
-      expect(result).toMatch(/Style: Default,[^,]+,[^,]+,&H0000D7FF,&H00FFFFFF,/);
+      expect(result).toMatch(
+        /Style: Default,[^,]+,[^,]+,&H0000D7FF,&H00FFFFFF,/
+      );
     });
 
     it('uses base color for both Primary and Secondary when highlightEffect is false', () => {
@@ -520,23 +541,44 @@ describe('ass-renderer', () => {
       // - PrimaryColour = base (white)
       // - SecondaryColour = base (white)
       // Both should be white (#FFFFFF in BGR = &H00FFFFFF)
-      expect(result).toMatch(/Style: Default,[^,]+,[^,]+,&H00FFFFFF,&H00FFFFFF,/);
+      expect(result).toMatch(
+        /Style: Default,[^,]+,[^,]+,&H00FFFFFF,&H00FFFFFF,/
+      );
     });
 
-    it('calculates bottom margin from percent', () => {
+    it('positions subtitles using edgePaddingPercent for bottom-center', () => {
       const result = buildAssSubtitles(transcription, {
         ...options,
-        bottomMarginPercent: 20,
+        position: 'bottom-center',
+        edgePaddingPercent: 20,
       });
-      // 20% of 1080 = 216
-      expect(result).toContain(',216,1'); // MarginV at end of style
+      // Bottom-center with 20% of 1080 => y = 864
+      expect(result).toContain('{\\an2\\pos(960,864)');
+    });
+
+    it('supports top and middle subtitle positions', () => {
+      const top = buildAssSubtitles(transcription, {
+        ...options,
+        position: 'top-center',
+        edgePaddingPercent: 10,
+      });
+      const middle = buildAssSubtitles(transcription, {
+        ...options,
+        position: 'middle-right',
+        edgePaddingPercent: 10,
+      });
+
+      expect(top).toContain('{\\an8\\pos(960,108)');
+      expect(middle).toContain('{\\an6\\pos(1812,540)');
     });
 
     it('generates one dialogue line per word group with karaoke tags', () => {
       const result = buildAssSubtitles(transcription, options);
 
       const lines = result.split('\n');
-      const dialogueLines = lines.filter((line) => line.startsWith('Dialogue:'));
+      const dialogueLines = lines.filter((line) =>
+        line.startsWith('Dialogue:')
+      );
 
       // 2 words in 1 group = 1 dialogue line (karaoke mode: one line per group)
       expect(dialogueLines.length).toBe(1);
@@ -571,7 +613,9 @@ describe('ass-renderer', () => {
       });
 
       const lines = result.split('\n');
-      const dialogueLines = lines.filter((line) => line.startsWith('Dialogue:'));
+      const dialogueLines = lines.filter((line) =>
+        line.startsWith('Dialogue:')
+      );
 
       // 6 words with max 3 per line = 2 groups
       // Karaoke mode: 1 dialogue line per group = 2 lines
@@ -594,7 +638,9 @@ describe('ass-renderer', () => {
       const result = buildAssSubtitles(transcription, options);
 
       const lines = result.split('\n');
-      const dialogueLines = lines.filter((line) => line.startsWith('Dialogue:'));
+      const dialogueLines = lines.filter((line) =>
+        line.startsWith('Dialogue:')
+      );
 
       // Single line for the group: 0-1s (covers both words)
       expect(dialogueLines[0]).toContain('0:00:00.00,0:00:01.00');
@@ -604,7 +650,9 @@ describe('ass-renderer', () => {
       const result = buildAssSubtitles(transcription, options);
 
       const lines = result.split('\n');
-      const dialogueLines = lines.filter((line) => line.startsWith('Dialogue:'));
+      const dialogueLines = lines.filter((line) =>
+        line.startsWith('Dialogue:')
+      );
 
       // Each word is 0.5s = 50 centiseconds
       expect(dialogueLines[0]).toContain('{\\k50}Hello');
@@ -618,7 +666,9 @@ describe('ass-renderer', () => {
       });
 
       const lines = result.split('\n');
-      const dialogueLines = lines.filter((line) => line.startsWith('Dialogue:'));
+      const dialogueLines = lines.filter((line) =>
+        line.startsWith('Dialogue:')
+      );
 
       // Should have dialogue lines
       expect(dialogueLines.length).toBeGreaterThan(0);
@@ -657,7 +707,9 @@ describe('ass-renderer', () => {
       // With default maxWordsPerLine of 4, 5 words should create 2 groups
       const result = buildAssSubtitles(longTranscription, options);
       const lines = result.split('\n');
-      const dialogueLines = lines.filter((line) => line.startsWith('Dialogue:'));
+      const dialogueLines = lines.filter((line) =>
+        line.startsWith('Dialogue:')
+      );
 
       // 5 words with max 4 per line = 2 groups
       expect(dialogueLines.length).toBe(2);

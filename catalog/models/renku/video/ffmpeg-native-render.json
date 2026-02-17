@@ -24,7 +24,17 @@
       },
       "preset": {
         "type": "string",
-        "enum": ["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"],
+        "enum": [
+          "ultrafast",
+          "superfast",
+          "veryfast",
+          "faster",
+          "fast",
+          "medium",
+          "slow",
+          "slower",
+          "veryslow"
+        ],
         "description": "x264 encoding preset (default: medium)"
       },
       "crf": {
@@ -44,9 +54,26 @@
       },
       "subtitles": {
         "$ref": "#/SubtitleConfig"
+      },
+      "text": {
+        "$ref": "#/TextConfig"
       }
     },
     "additionalProperties": false
+  },
+  "OverlayPosition": {
+    "type": "string",
+    "enum": [
+      "top-left",
+      "top-center",
+      "top-right",
+      "middle-left",
+      "middle-center",
+      "middle-right",
+      "bottom-left",
+      "bottom-center",
+      "bottom-right"
+    ]
   },
   "SubtitleConfig": {
     "type": "object",
@@ -82,11 +109,15 @@
         "maximum": 1,
         "description": "Background box opacity 0-1, 0 = no box (default: 0)"
       },
-      "bottomMarginPercent": {
+      "position": {
+        "$ref": "#/OverlayPosition",
+        "description": "Subtitle anchor position (default: bottom-center)"
+      },
+      "edgePaddingPercent": {
         "type": "number",
         "minimum": 0,
         "maximum": 100,
-        "description": "Position from bottom as percentage of height (default: 10)"
+        "description": "Distance from anchored edges as percentage of frame height (default: 8)"
       },
       "maxWordsPerLine": {
         "type": "integer",
@@ -96,6 +127,48 @@
       "highlightEffect": {
         "type": "boolean",
         "description": "Enable karaoke-style word highlighting (default: true)"
+      }
+    },
+    "additionalProperties": false
+  },
+  "TextConfig": {
+    "type": "object",
+    "description": "Configuration for timeline text overlays",
+    "properties": {
+      "font": {
+        "type": "string",
+        "description": "Font name - uses system fonts (default: Arial)"
+      },
+      "fontSize": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Font size in pixels (default: 56)"
+      },
+      "fontBaseColor": {
+        "type": "string",
+        "pattern": "^#[0-9A-Fa-f]{6}$",
+        "description": "Text color in hex format, e.g., '#FFFFFF'"
+      },
+      "backgroundColor": {
+        "type": "string",
+        "pattern": "^#[0-9A-Fa-f]{6}$",
+        "description": "Background box color in hex format, e.g., '#000000'"
+      },
+      "backgroundOpacity": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "description": "Background box opacity 0-1, 0 = no box (default: 0.35)"
+      },
+      "position": {
+        "$ref": "#/OverlayPosition",
+        "description": "Text anchor position (default: middle-center)"
+      },
+      "edgePaddingPercent": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 100,
+        "description": "Distance from anchored edges as percentage of frame height (default: 8)"
       }
     },
     "additionalProperties": false

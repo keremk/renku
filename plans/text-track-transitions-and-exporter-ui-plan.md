@@ -12,10 +12,11 @@ Add first-class `Text` track support end-to-end with:
 ## Product Decisions (Proposed)
 
 1. **Text transition set (v1)**
-   - `none`
-   - `fade-in`
-   - `fade-out`
-   - `fade-in-out` (default)
+   - `none` - appears/disappears immediately.
+   - `fade-in-out` - fades in at start and fades out at end.
+   - `slide-in-out-left` - slides in from left and exits to right.
+   - `slide-in-out-right` - slides in from right and exits to left.
+   - `spring-in-out` - springs from center scale 0 -> 1 on enter and springs out on exit.
 
 2. **Source contract for text**
    `TimelineComposer.TextSegments` fan-in groups contain canonical **artifact IDs**, and each artifact resolves to a **string snippet**.
@@ -25,7 +26,9 @@ Add first-class `Text` track support end-to-end with:
    - `VideoExporter` renders exactly what timeline defines.
 
 4. **Exporter config**
-   Add a new `config.text` object (parallel to subtitles, simpler).
+   Add a new `config.text` object (parallel to subtitles, simpler), using a shared simple layout model:
+   - `position` preset (9-grid anchor)
+   - `edgePaddingPercent` (distance from nearest edge for non-center anchors)
 
 5. **Remotion scope**
    No Remotion text rendering in this change set. `remotion/docker-render` behavior remains unchanged for now.
@@ -55,12 +58,29 @@ text:
   fontBaseColor: '#FFFFFF'
   backgroundColor: '#000000'
   backgroundOpacity: 0.35
-  bottomMarginPercent: 14
+  position: 'middle-center'
+  edgePaddingPercent: 8
+```
+
+```yaml
+subtitles:
+  font: 'Arial'
+  fontSize: 48
+  fontBaseColor: '#FFFFFF'
+  fontHighlightColor: '#FFD700'
+  backgroundColor: '#000000'
+  backgroundOpacity: 0.0
+  position: 'bottom-center'
+  edgePaddingPercent: 8
+  maxWordsPerLine: 4
+  highlightEffect: true
 ```
 
 Notes:
 
 - `maxWordsPerLine` is **subtitle-only**.
+- Shared `position` presets for text and subtitles: `top-left`, `top-center`, `top-right`, `middle-left`, `middle-center`, `middle-right`, `bottom-left`, `bottom-center`, `bottom-right`.
+- `edgePaddingPercent` keeps layout simple while allowing separation when text and subtitles would overlap.
 - Keep field naming consistent with subtitles (`font`, `fontSize`, `fontBaseColor`, etc.).
 - No extra complexity in v1 (no advanced motion presets in exporter config).
 
@@ -84,7 +104,8 @@ Notes:
   - Add mapping for `timeline/ordered`.
 - Extend FFmpeg model schema:
   - `catalog/models/renku/video/ffmpeg-native-render.json`
-  - Add `text` config object.
+  - Add `text` config object with `position` + `edgePaddingPercent`.
+  - Extend `subtitles` config with `position` + `edgePaddingPercent` (so subtitles are not limited to bottom).
 
 ## 2) TimelineProducer: Build Text Track and Timings
 
@@ -110,9 +131,12 @@ Notes:
   - `providers/src/producers/export/ffmpeg-exporter.ts`
 - Add `TextTrack` handling in command builder:
   - Build `drawtext` filter chains from timeline snippet timings.
-  - Apply transition alpha expressions:
-    - none: constant alpha.
-    - fade-in / fade-out / fade-in-out: time-bounded alpha curves.
+  - Apply transition expressions:
+    - `none`: constant alpha and static position/scale.
+    - `fade-in-out`: time-bounded alpha curve.
+    - `slide-in-out-left`: time-bounded horizontal translation with left->center->right path.
+    - `slide-in-out-right`: time-bounded horizontal translation with right->center->left path.
+    - `spring-in-out`: time-bounded scale with damped spring-like easing around center anchor.
 - Rendering order:
   1. base visual stream
   2. text overlay
@@ -131,9 +155,10 @@ Notes:
 - Add `textClip` config support.
 - Add text effect dropdown with:
   - None
-  - Fade In
-  - Fade Out
   - Fade In + Out
+  - Slide In + Out (Left)
+  - Slide In + Out (Right)
+  - Spring In + Out
 - Keep master-track eligibility unchanged (Text is not native-duration).
 
 ## 5) Viewer: New VideoExporter Text Card
@@ -147,12 +172,18 @@ Notes:
   - Font
   - Colors
   - Layout
+- Layout controls:
+  - Position (preset dropdown)
+  - Edge Padding (%)
 - No `Max Words/Line` in text card.
 
 ## 6) Subtitles Consistency Update (UI-only)
 
 - File: `viewer/src/components/blueprint/models/config-editors/subtitles-card.tsx`
-- Keep schema fields unchanged.
+- Keep subtitle-specific behavior fields unchanged (`maxWordsPerLine`, karaoke).
+- Update layout controls to match the shared simple model:
+  - Position (preset dropdown; includes top/middle/bottom anchors)
+  - Edge Padding (%)
 - Align structure/labels with text card for consistency:
   - Font
   - Colors
@@ -165,6 +196,7 @@ Notes:
 - File: `cli/src/commands/export.ts`
 - Extend export config support with `text` block parallel to `subtitles`.
 - Add parsing/validation for `text` keys.
+- Extend subtitle validation to accept `position` + `edgePaddingPercent`.
 - Merge from manifest + file config in the same precedence model used for subtitles.
 - Add tests:
   - `cli/src/commands/export.test.ts`
@@ -214,6 +246,7 @@ Notes:
 - Text transition is selectable in Timeline config and persists through timeline output.
 - FFmpeg renders text according to timeline timing and transition.
 - Text style is configurable through new VideoExporter Text card in Viewer.
+- Text and subtitles can both be positioned at top/middle/bottom anchors to avoid overlap.
 - Subtitles and Text cards feel consistent and easy to understand.
 - Existing subtitle behavior remains functional.
 - No silent fallback behavior for malformed text payloads.
@@ -221,5 +254,5 @@ Notes:
 ## Non-Goals
 
 - Remotion text rendering implementation.
-- New advanced animation families beyond the 4 transition options above.
+- New advanced animation families beyond the 5 transition options above.
 - Broad refactors outside timeline/exporter/viewer config surfaces required for text track support.

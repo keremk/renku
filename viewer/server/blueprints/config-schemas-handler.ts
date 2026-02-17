@@ -3,13 +3,13 @@
  * Returns JSON schema config properties per producer/model that are NOT mapped through connections.
  */
 
-import path from "node:path";
+import path from 'node:path';
 import {
   loadYamlBlueprintTree,
   getProducerMappings,
   resolveMappingsForModel,
   type BlueprintTreeNode,
-} from "@gorenku/core";
+} from '@gorenku/core';
 import {
   loadModelCatalog,
   loadModelSchemaFile,
@@ -17,9 +17,9 @@ import {
   type LoadedModelCatalog,
   type SchemaFile,
   type NestedModelDeclaration,
-} from "@gorenku/providers";
-import { detectProducerCategory } from "./producer-models.js";
-import type { ProducerCategory } from "./types.js";
+} from '@gorenku/providers';
+import { detectProducerCategory } from './producer-models.js';
+import type { ProducerCategory } from './types.js';
 
 /**
  * JSON Schema property definition.
@@ -93,15 +93,14 @@ export interface ProducerConfigSchemasResponse {
  * Properties that should always be excluded from config (output-related or internal).
  */
 const EXCLUDED_PROPERTIES = new Set([
-  "prompt",
-  "image_url",
-  "video_url",
-  "audio_url",
-  "text",
-  "content",
-  "messages",
-  "system",
-  "user",
+  'prompt',
+  'image_url',
+  'video_url',
+  'audio_url',
+  'content',
+  'messages',
+  'system',
+  'user',
 ]);
 
 /**
@@ -110,7 +109,7 @@ const EXCLUDED_PROPERTIES = new Set([
  */
 function getUnmappedProperties(
   schemaFile: SchemaFile,
-  mappedFields: Set<string>,
+  mappedFields: Set<string>
 ): ConfigProperty[] {
   const inputSchema = schemaFile.inputSchema;
   if (!inputSchema?.properties) {
@@ -150,7 +149,7 @@ function getMappedFieldsForModel(
   blueprintTree: BlueprintTreeNode,
   producerId: string,
   provider: string,
-  model: string,
+  model: string
 ): Set<string> {
   const mappedFields = new Set<string>();
 
@@ -163,7 +162,7 @@ function getMappedFieldsForModel(
   if (mappings) {
     for (const mapping of Object.values(mappings)) {
       // Get the target field from the mapping
-      if (typeof mapping === "string") {
+      if (typeof mapping === 'string') {
         mappedFields.add(mapping);
       } else if (mapping.field) {
         mappedFields.add(mapping.field);
@@ -186,13 +185,16 @@ function getMappedFieldsForModel(
 async function processNestedModels(
   nestedModelDeclarations: NestedModelDeclaration[],
   catalog: LoadedModelCatalog,
-  catalogModelsDir: string,
+  catalogModelsDir: string
 ): Promise<NestedModelConfigSchema[]> {
   const result: NestedModelConfigSchema[] = [];
 
   for (const declaration of nestedModelDeclarations) {
     // Get available models from catalog that match this slot's constraints
-    const availableModels = getAvailableModelsForNestedSlot(catalog, declaration);
+    const availableModels = getAvailableModelsForNestedSlot(
+      catalog,
+      declaration
+    );
 
     // Load config schemas for each available nested model
     const modelSchemas: Record<string, ModelConfigSchema> = {};
@@ -201,7 +203,12 @@ async function processNestedModels(
     const mappedFields = new Set(declaration.mappedFields ?? []);
 
     for (const { provider, model } of availableModels) {
-      const schemaFile = await loadModelSchemaFile(catalogModelsDir, catalog, provider, model);
+      const schemaFile = await loadModelSchemaFile(
+        catalogModelsDir,
+        catalog,
+        provider,
+        model
+      );
       if (!schemaFile) {
         continue;
       }
@@ -232,7 +239,7 @@ async function processNestedModels(
  */
 export async function getProducerConfigSchemas(
   blueprintPath: string,
-  catalogRoot?: string,
+  catalogRoot?: string
 ): Promise<ProducerConfigSchemasResponse> {
   const { root } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
   const producers: Record<string, ProducerConfigSchemas> = {};
@@ -241,7 +248,7 @@ export async function getProducerConfigSchemas(
   let catalog: LoadedModelCatalog | null = null;
   let catalogModelsDir: string | null = null;
   if (catalogRoot) {
-    catalogModelsDir = path.join(catalogRoot, "models");
+    catalogModelsDir = path.join(catalogRoot, 'models');
     catalog = await loadModelCatalog(catalogModelsDir);
   }
 
@@ -249,11 +256,13 @@ export async function getProducerConfigSchemas(
   const visitNode = async (node: BlueprintTreeNode) => {
     for (const producerImport of node.document.producerImports) {
       const producerId = producerImport.name;
-      const childNode = producerImport.path ? node.children.get(producerId) : undefined;
+      const childNode = producerImport.path
+        ? node.children.get(producerId)
+        : undefined;
       const category = detectProducerCategory(producerImport, childNode);
 
       // Prompt producers use prompts, not config - skip them
-      if (category === "prompt") {
+      if (category === 'prompt') {
         producers[producerId] = {
           producerId,
           category,
@@ -280,16 +289,29 @@ export async function getProducerConfigSchemas(
       // For each provider/model combination
       for (const [provider, modelMappings] of Object.entries(mappings)) {
         for (const model of Object.keys(modelMappings)) {
-          const schemaFile = await loadModelSchemaFile(catalogModelsDir, catalog, provider, model);
+          const schemaFile = await loadModelSchemaFile(
+            catalogModelsDir,
+            catalog,
+            provider,
+            model
+          );
           if (!schemaFile) {
             continue;
           }
 
           // Get the set of fields that are mapped through connections
-          const mappedFields = getMappedFieldsForModel(root, producerId, provider, model);
+          const mappedFields = getMappedFieldsForModel(
+            root,
+            producerId,
+            provider,
+            model
+          );
 
           // Get unmapped properties (config properties)
-          const configProperties = getUnmappedProperties(schemaFile, mappedFields);
+          const configProperties = getUnmappedProperties(
+            schemaFile,
+            mappedFields
+          );
 
           // Always add the entry so client knows schema was loaded (even if no config properties)
           const key = `${provider}/${model}`;
@@ -304,7 +326,7 @@ export async function getProducerConfigSchemas(
             nestedModels = await processNestedModels(
               schemaFile.nestedModels,
               catalog,
-              catalogModelsDir,
+              catalogModelsDir
             );
           }
         }

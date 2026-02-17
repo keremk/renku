@@ -32,6 +32,12 @@ inputs:
     itemType: audio
     dimensions: segment
     fanIn: true
+  - name: TextSegments
+    description: Text snippets grouped per segment.
+    type: collection
+    itemType: string
+    dimensions: segment
+    fanIn: true
   - name: Music
     description: Background music clips that score the movie (looped as needed).
     type: audio
@@ -53,4 +59,5 @@ mappings:
       VideoSegments: videoSegments
       AudioSegments: audioSegments
       TranscriptionAudio: transcriptionAudio
+      TextSegments: textSegments
       Music: music

@@ -1,5 +1,9 @@
 import { writeFile } from 'node:fs/promises';
-import type { TranscriptionArtifact, TranscriptionWord } from '../../transcription/types.js';
+import type {
+  TranscriptionArtifact,
+  TranscriptionWord,
+} from '../../transcription/types.js';
+import type { OverlayPosition } from './types.js';
 
 /**
  * Options for rendering ASS subtitles with optional karaoke-style highlighting.
@@ -23,8 +27,10 @@ export interface AssRenderOptions {
   backgroundColor?: string;
   /** Background box opacity 0-1, 0 = no box (default: 0) */
   backgroundOpacity?: number;
-  /** Position from bottom as percentage of height (default: 10) */
-  bottomMarginPercent?: number;
+  /** Subtitle anchor position (default: bottom-center) */
+  position?: OverlayPosition;
+  /** Distance from anchored edges as percentage of height (default: 8) */
+  edgePaddingPercent?: number;
   /** Maximum words to display at once per line (default: 4) */
   maxWordsPerLine?: number;
   /** Enable karaoke-style word highlighting (default: true) */
@@ -38,7 +44,8 @@ const DEFAULT_FONT_HIGHLIGHT_COLOR = '#FFD700';
 const DEFAULT_OUTLINE_COLOR = '#000000';
 const DEFAULT_BACKGROUND_COLOR = '#000000';
 const DEFAULT_BACKGROUND_OPACITY = 0; // 0 = no box by default
-const DEFAULT_BOTTOM_MARGIN_PERCENT = 10;
+const DEFAULT_POSITION: OverlayPosition = 'bottom-center';
+const DEFAULT_EDGE_PADDING_PERCENT = 8;
 const DEFAULT_MAX_WORDS_PER_LINE = 4;
 const DEFAULT_OUTLINE_SIZE = 3; // Thick outline for readability
 const DEFAULT_SHADOW_SIZE = 0; // Shadow off by default
@@ -144,14 +151,16 @@ export function formatAssTime(seconds: number): string {
  * @returns Escaped text safe for ASS
  */
 export function escapeAssText(text: string): string {
-  return text
-    // Escape backslashes first
-    .replace(/\\/g, '\\\\')
-    // Escape curly braces (used for override tags)
-    .replace(/\{/g, '\\{')
-    .replace(/\}/g, '\\}')
-    // Handle newlines
-    .replace(/\n/g, '\\N');
+  return (
+    text
+      // Escape backslashes first
+      .replace(/\\/g, '\\\\')
+      // Escape curly braces (used for override tags)
+      .replace(/\{/g, '\\{')
+      .replace(/\}/g, '\\}')
+      // Handle newlines
+      .replace(/\n/g, '\\N')
+  );
 }
 
 /**
@@ -196,6 +205,78 @@ export function groupWordsIntoLines(
 interface DialogueOptions {
   /** Background alpha override (for BorderStyle=3 compatibility) */
   backgroundAlphaOverride?: string;
+  /** Fixed subtitle position override (\an + \pos) */
+  positionOverride?: string;
+}
+
+interface PlacementOptions {
+  width: number;
+  height: number;
+  position: OverlayPosition;
+  edgePaddingPercent: number;
+}
+
+function resolvePlacement(options: PlacementOptions): {
+  alignment: number;
+  x: number;
+  y: number;
+} {
+  const edgePaddingPx = Math.round(
+    options.height * (options.edgePaddingPercent / 100)
+  );
+
+  switch (options.position) {
+    case 'top-left':
+      return { alignment: 7, x: edgePaddingPx, y: edgePaddingPx };
+    case 'top-center':
+      return {
+        alignment: 8,
+        x: Math.round(options.width / 2),
+        y: edgePaddingPx,
+      };
+    case 'top-right':
+      return {
+        alignment: 9,
+        x: options.width - edgePaddingPx,
+        y: edgePaddingPx,
+      };
+    case 'middle-left':
+      return {
+        alignment: 4,
+        x: edgePaddingPx,
+        y: Math.round(options.height / 2),
+      };
+    case 'middle-center':
+      return {
+        alignment: 5,
+        x: Math.round(options.width / 2),
+        y: Math.round(options.height / 2),
+      };
+    case 'middle-right':
+      return {
+        alignment: 6,
+        x: options.width - edgePaddingPx,
+        y: Math.round(options.height / 2),
+      };
+    case 'bottom-left':
+      return {
+        alignment: 1,
+        x: edgePaddingPx,
+        y: options.height - edgePaddingPx,
+      };
+    case 'bottom-center':
+      return {
+        alignment: 2,
+        x: Math.round(options.width / 2),
+        y: options.height - edgePaddingPx,
+      };
+    case 'bottom-right':
+      return {
+        alignment: 3,
+        x: options.width - edgePaddingPx,
+        y: options.height - edgePaddingPx,
+      };
+  }
 }
 
 /**
@@ -232,10 +313,17 @@ function buildKaraokeDialogueLine(
 
   // Build text content with optional alpha override
   // The \4a tag overrides shadow/background alpha (needed for BorderStyle=3 transparency)
-  let textContent = textParts.join(' ');
-  if (dialogueOptions?.backgroundAlphaOverride) {
-    textContent = `{\\4a${dialogueOptions.backgroundAlphaOverride}}${textContent}`;
+  const overrideTags: string[] = [];
+  if (dialogueOptions?.positionOverride) {
+    overrideTags.push(dialogueOptions.positionOverride);
   }
+  if (dialogueOptions?.backgroundAlphaOverride) {
+    overrideTags.push(`\\4a${dialogueOptions.backgroundAlphaOverride}`);
+  }
+  const textContent =
+    overrideTags.length > 0
+      ? `{${overrideTags.join('')}}${textParts.join(' ')}`
+      : textParts.join(' ');
 
   // Dialogue format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
   return `Dialogue: 0,${formattedStart},${formattedEnd},${styleName},,0,0,0,,${textContent}`;
@@ -250,7 +338,9 @@ function buildKaraokeDialogueLines(
   styleName: string,
   dialogueOptions?: DialogueOptions
 ): string[] {
-  return groups.map((group) => buildKaraokeDialogueLine(group, styleName, dialogueOptions));
+  return groups.map((group) =>
+    buildKaraokeDialogueLine(group, styleName, dialogueOptions)
+  );
 }
 
 /**
@@ -272,10 +362,15 @@ function buildSimpleDialogueLine(
   const formattedEnd = formatAssTime(group.endTime);
 
   // Build text content with optional alpha override
-  let textContent = text;
-  if (dialogueOptions?.backgroundAlphaOverride) {
-    textContent = `{\\4a${dialogueOptions.backgroundAlphaOverride}}${text}`;
+  const overrideTags: string[] = [];
+  if (dialogueOptions?.positionOverride) {
+    overrideTags.push(dialogueOptions.positionOverride);
   }
+  if (dialogueOptions?.backgroundAlphaOverride) {
+    overrideTags.push(`\\4a${dialogueOptions.backgroundAlphaOverride}`);
+  }
+  const textContent =
+    overrideTags.length > 0 ? `{${overrideTags.join('')}}${text}` : text;
 
   return `Dialogue: 0,${formattedStart},${formattedEnd},${styleName},,0,0,0,,${textContent}`;
 }
@@ -288,7 +383,9 @@ function buildSimpleDialogueLines(
   styleName: string,
   dialogueOptions?: DialogueOptions
 ): string[] {
-  return groups.map((group) => buildSimpleDialogueLine(group, styleName, dialogueOptions));
+  return groups.map((group) =>
+    buildSimpleDialogueLine(group, styleName, dialogueOptions)
+  );
 }
 
 /**
@@ -320,16 +417,23 @@ export function buildAssSubtitles(
   const fontName = options.font ?? DEFAULT_FONT_NAME;
   const fontSize = options.fontSize ?? DEFAULT_FONT_SIZE;
   const fontBaseColor = options.fontBaseColor ?? DEFAULT_FONT_BASE_COLOR;
-  const fontHighlightColor = options.fontHighlightColor ?? DEFAULT_FONT_HIGHLIGHT_COLOR;
+  const fontHighlightColor =
+    options.fontHighlightColor ?? DEFAULT_FONT_HIGHLIGHT_COLOR;
   const outlineColor = options.outlineColor ?? DEFAULT_OUTLINE_COLOR;
   const backgroundColor = options.backgroundColor ?? DEFAULT_BACKGROUND_COLOR;
-  const backgroundOpacity = options.backgroundOpacity ?? DEFAULT_BACKGROUND_OPACITY;
-  const bottomMarginPercent = options.bottomMarginPercent ?? DEFAULT_BOTTOM_MARGIN_PERCENT;
+  const backgroundOpacity =
+    options.backgroundOpacity ?? DEFAULT_BACKGROUND_OPACITY;
+  const position = options.position ?? DEFAULT_POSITION;
+  const edgePaddingPercent =
+    options.edgePaddingPercent ?? DEFAULT_EDGE_PADDING_PERCENT;
   const maxWordsPerLine = options.maxWordsPerLine ?? DEFAULT_MAX_WORDS_PER_LINE;
   const highlightEffect = options.highlightEffect ?? true;
-
-  // Calculate margin from bottom (in pixels)
-  const marginV = Math.round(height * (bottomMarginPercent / 100));
+  const placement = resolvePlacement({
+    width,
+    height,
+    position,
+    edgePaddingPercent,
+  });
 
   // Determine if background box should be rendered (only when opacity > 0)
   const showBackground = backgroundOpacity > 0;
@@ -360,7 +464,7 @@ export function buildAssSubtitles(
   //         Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle,
   //         BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
   const styleName = 'Default';
-  const styleLine = `Style: ${styleName},${fontName},${fontSize},${primaryColor},${secondaryColor},${outlineColorAss},${backColorAss},0,0,0,0,100,100,0,0,${borderStyle},${DEFAULT_OUTLINE_SIZE},${DEFAULT_SHADOW_SIZE},2,10,10,${marginV},1`;
+  const styleLine = `Style: ${styleName},${fontName},${fontSize},${primaryColor},${secondaryColor},${outlineColorAss},${backColorAss},0,0,0,0,100,100,0,0,${borderStyle},${DEFAULT_OUTLINE_SIZE},${DEFAULT_SHADOW_SIZE},${placement.alignment},0,0,0,1`;
 
   // Group words into lines
   const wordGroups = groupWordsIntoLines(transcription.words, maxWordsPerLine);
@@ -368,13 +472,19 @@ export function buildAssSubtitles(
   // Calculate background alpha override for dialogue lines
   // This is needed because BorderStyle=3 ignores BackColour alpha in many renderers
   // The \4a inline tag forces the alpha override at the dialogue level
-  const dialogueOptions: DialogueOptions | undefined = showBackground && backgroundOpacity < 1
-    ? {
-      // Convert opacity (0=transparent, 1=opaque) to ASS alpha (00=opaque, FF=transparent)
-      // Format: &HXX& where XX is the hex alpha
-      backgroundAlphaOverride: `&H${Math.round((1 - backgroundOpacity) * 255).toString(16).padStart(2, '0').toUpperCase()}&`,
-    }
-    : undefined;
+  const dialogueOptions: DialogueOptions = {
+    positionOverride: `\\an${placement.alignment}\\pos(${placement.x},${placement.y})`,
+  };
+  if (showBackground && backgroundOpacity < 1) {
+    // Convert opacity (0=transparent, 1=opaque) to ASS alpha (00=opaque, FF=transparent)
+    // Format: &HXX& where XX is the hex alpha
+    dialogueOptions.backgroundAlphaOverride = `&H${Math.round(
+      (1 - backgroundOpacity) * 255
+    )
+      .toString(16)
+      .padStart(2, '0')
+      .toUpperCase()}&`;
+  }
 
   // Build dialogue lines based on highlight mode
   const dialogueLines = highlightEffect

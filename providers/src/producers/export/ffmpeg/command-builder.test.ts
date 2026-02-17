@@ -9,6 +9,8 @@ import type {
   VideoClip,
   MusicTrack,
   MusicClip,
+  TextTrack,
+  TextClip,
 } from '@gorenku/compositions';
 import type { AssetPathMap } from './types.js';
 
@@ -103,6 +105,41 @@ function createImageTrack(clips: ImageClip[]): ImageTrack {
   return {
     id: 'image-track-1',
     kind: 'Image',
+    clips,
+  };
+}
+
+/**
+ * Create a minimal text clip for testing.
+ */
+function createTextClip(overrides: Partial<TextClip> = {}): TextClip {
+  return {
+    id: 'text-clip-1',
+    kind: 'Text',
+    startTime: 0,
+    duration: 10,
+    properties: {
+      effect: 'fade-in-out',
+      effects: [
+        {
+          text: 'Hello world',
+          transition: 'fade-in-out',
+          startTime: 0,
+          duration: 10,
+        },
+      ],
+    },
+    ...overrides,
+  };
+}
+
+/**
+ * Create a minimal text track for testing.
+ */
+function createTextTrack(clips: TextClip[]): TextTrack {
+  return {
+    id: 'text-track-1',
+    kind: 'Text',
     clips,
   };
 }
@@ -400,12 +437,73 @@ describe('command-builder', () => {
       expect(filterComplex).toContain('exact=1');
       expect(filterComplex).not.toContain('zoompan=');
     });
+
+    it('renders text-only timelines as video with drawtext overlay', async () => {
+      const textClip = createTextClip();
+      const timeline = createTimeline([createTextTrack([textClip])], 10);
+      const assetPaths: AssetPathMap = {};
+
+      const result = await buildFfmpegCommand(timeline, assetPaths, {
+        width: 1920,
+        height: 1080,
+        fps: 30,
+      });
+
+      const filterComplex = getFilterComplex(result.args);
+      expect(filterComplex).toContain('color=c=black');
+      expect(filterComplex).toContain('drawtext=');
+      expect(result.mimeType).toBe('video/mp4');
+      expect(result.outputPath.endsWith('.mp4')).toBe(true);
+    });
+
+    it('applies text transition expressions for slide and spring effects', async () => {
+      const textClip = createTextClip({
+        properties: {
+          effect: 'slide-in-out-left',
+          effects: [
+            {
+              text: 'Slide text',
+              transition: 'slide-in-out-left',
+              startTime: 0,
+              duration: 5,
+            },
+            {
+              text: 'Spring text',
+              transition: 'spring-in-out',
+              startTime: 5,
+              duration: 5,
+            },
+          ],
+        },
+      });
+      const timeline = createTimeline([createTextTrack([textClip])], 10);
+      const assetPaths: AssetPathMap = {};
+
+      const result = await buildFfmpegCommand(timeline, assetPaths, {
+        width: 1920,
+        height: 1080,
+        fps: 30,
+      });
+
+      const filterComplex = getFilterComplex(result.args);
+      expect(filterComplex).toContain('drawtext=');
+      expect(filterComplex).toContain('sin(12*');
+      expect(filterComplex).toContain('if(lt(t');
+    });
   });
 
   describe('detectOutputFormat', () => {
     it('returns video when timeline has video tracks', () => {
       const clip = createVideoClip();
       const track = createVideoTrack([clip]);
+      const timeline = createTimeline([track]);
+
+      expect(detectOutputFormat(timeline)).toBe('video');
+    });
+
+    it('returns video when timeline has text tracks', () => {
+      const clip = createTextClip();
+      const track = createTextTrack([clip]);
       const timeline = createTimeline([track]);
 
       expect(detectOutputFormat(timeline)).toBe('video');

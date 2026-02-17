@@ -21,16 +21,17 @@ If you're new to Renku, start with the [Quick Start](/docs/quick-start) guide fi
 
 System inputs are special inputs that Renku automatically recognizes by name. **You do not need to declare these in your blueprint's `inputs:` section** - they are automatically available when referenced in connections.
 
-| System Input | Type | Description |
-|--------------|------|-------------|
-| `Duration` | `int` | Total duration of the movie in seconds. Provided in input YAML. |
-| `NumOfSegments` | `int` | Number of segments to generate. Provided in input YAML. |
-| `SegmentDuration` | `int` | Duration of each segment. **Auto-computed** as `Duration / NumOfSegments`. |
-| `MovieId` | `string` | Unique identifier for the movie. Auto-injected by the system. |
-| `StorageRoot` | `string` | Root directory for storage. Auto-injected from CLI config. |
-| `StorageBasePath` | `string` | Base path within storage root. Auto-injected from CLI config. |
+| System Input      | Type     | Description                                                                |
+| ----------------- | -------- | -------------------------------------------------------------------------- |
+| `Duration`        | `int`    | Total duration of the movie in seconds. Provided in input YAML.            |
+| `NumOfSegments`   | `int`    | Number of segments to generate. Provided in input YAML.                    |
+| `SegmentDuration` | `int`    | Duration of each segment. **Auto-computed** as `Duration / NumOfSegments`. |
+| `MovieId`         | `string` | Unique identifier for the movie. Auto-injected by the system.              |
+| `StorageRoot`     | `string` | Root directory for storage. Auto-injected from CLI config.                 |
+| `StorageBasePath` | `string` | Base path within storage root. Auto-injected from CLI config.              |
 
 **How it works:**
+
 - System inputs are automatically injected when referenced in blueprint connections
 - `Duration` and `NumOfSegments` values are provided in the input YAML file
 - `SegmentDuration` is auto-computed as `Duration / NumOfSegments` (unless you provide it explicitly)
@@ -39,12 +40,14 @@ System inputs are special inputs that Renku automatically recognizes by name. **
 ### Blueprint vs Producer
 
 **Blueprints** are workflow definitions that:
+
 - Define user-facing inputs and final artifacts
 - Import and connect multiple producers
 - Define loops for parallel execution
 - Specify collectors for fan-in aggregation
 
 **Producers** are execution units that:
+
 - Accept inputs and produce artifacts
 - Map inputs to specific AI model parameters
 - Support multiple model variants
@@ -61,6 +64,7 @@ Blueprint Input → Producer Input → Producer → Artifact → Next Producer I
 ```
 
 For looped producers:
+
 ```
 ScriptProducer.NarrationScript[0] → AudioProducer[0].TextInput
 ScriptProducer.NarrationScript[1] → AudioProducer[1].TextInput
@@ -75,88 +79,88 @@ ScriptProducer.NarrationScript[2] → AudioProducer[2].TextInput
 
 ```yaml
 meta:
-  name: <string>           # Human-readable name (required)
-  description: <string>    # Purpose and behavior
-  id: <string>             # Unique identifier in PascalCase (required)
-  version: <semver>        # Semantic version (e.g., 0.1.0)
-  author: <string>         # Creator name
-  license: <string>        # License type (e.g., MIT)
+  name: <string> # Human-readable name (required)
+  description: <string> # Purpose and behavior
+  id: <string> # Unique identifier in PascalCase (required)
+  version: <semver> # Semantic version (e.g., 0.1.0)
+  author: <string> # Creator name
+  license: <string> # License type (e.g., MIT)
 
 inputs:
-  - name: <string>         # Input identifier in PascalCase (required)
-    description: <string>  # Purpose and usage
-    type: <string>         # Data type (required)
-    required: <boolean>    # Whether mandatory (default: true)
+  - name: <string> # Input identifier in PascalCase (required)
+    description: <string> # Purpose and usage
+    type: <string> # Data type (required)
+    required: <boolean> # Whether mandatory (default: true)
 
 artifacts:
-  - name: <string>         # Artifact identifier in PascalCase (required)
-    description: <string>  # Purpose and content
-    type: <string>         # Output type (required)
-    itemType: <string>     # Element type for arrays
-    countInput: <string>   # Input that determines array size
+  - name: <string> # Artifact identifier in PascalCase (required)
+    description: <string> # Purpose and content
+    type: <string> # Output type (required)
+    itemType: <string> # Element type for arrays
+    countInput: <string> # Input that determines array size
 
 loops:
-  - name: <string>         # Loop identifier in lowercase (required)
-    description: <string>  # Purpose and behavior
-    countInput: <string>   # Input that determines iteration count (required)
+  - name: <string> # Loop identifier in lowercase (required)
+    description: <string> # Purpose and behavior
+    countInput: <string> # Input that determines iteration count (required)
     countInputOffset: <int> # Offset added to count
-    parent: <string>       # Parent loop for nesting
+    parent: <string> # Parent loop for nesting
 
 producers:
-  - name: <string>         # Producer instance name in PascalCase (required)
-    producer: <string>     # Qualified name: "category/name" (preferred)
-    path: <string>         # Relative path to producer YAML (for custom producers)
-    loop: <string>         # Loop dimension(s) (e.g., "segment")
+  - name: <string> # Producer instance name in PascalCase (required)
+    producer: <string> # Qualified name: "category/name" (preferred)
+    path: <string> # Relative path to producer YAML (for custom producers)
+    loop: <string> # Loop dimension(s) (e.g., "segment")
 
 connections:
-  - from: <string>         # Source reference (required)
-    to: <string>           # Target reference (required)
-    if: <string>           # Condition name for conditional execution
+  - from: <string> # Source reference (required)
+    to: <string> # Target reference (required)
+    if: <string> # Condition name for conditional execution
 
 conditions:
   <conditionName>:
-    when: <string>         # Path to artifact field (e.g., Producer.Artifact.Field[dim])
-    is: <any>              # Equals this value
-    isNot: <any>           # Does not equal this value
-    contains: <string>     # String contains value
-    greaterThan: <number>  # Greater than
-    lessThan: <number>     # Less than
-    exists: <boolean>      # Field exists and is truthy
-    matches: <string>      # Regex pattern
-    all: <array>           # AND: all sub-conditions must pass
-    any: <array>           # OR: at least one sub-condition must pass
+    when: <string> # Path to artifact field (e.g., Producer.Artifact.Field[dim])
+    is: <any> # Equals this value
+    isNot: <any> # Does not equal this value
+    contains: <string> # String contains value
+    greaterThan: <number> # Greater than
+    lessThan: <number> # Less than
+    exists: <boolean> # Field exists and is truthy
+    matches: <string> # Regex pattern
+    all: <array> # AND: all sub-conditions must pass
+    any: <array> # OR: at least one sub-condition must pass
 
 collectors:
-  - name: <string>         # Collector identifier (required)
-    from: <string>         # Source artifact reference (required)
-    into: <string>         # Target input reference (required)
-    groupBy: <string>      # Loop dimension for grouping (required)
-    orderBy: <string>      # Loop dimension for ordering
+  - name: <string> # Collector identifier (required)
+    from: <string> # Source artifact reference (required)
+    into: <string> # Target input reference (required)
+    groupBy: <string> # Loop dimension for grouping (required)
+    orderBy: <string> # Loop dimension for ordering
 ```
 
 ### Input Types
 
-| Type | Description |
-|------|-------------|
-| `string` | Text value |
-| `int` | Integer number |
-| `image` | Image file reference |
-| `audio` | Audio file reference |
-| `video` | Video file reference |
-| `json` | Structured JSON data |
+| Type         | Description                              |
+| ------------ | ---------------------------------------- |
+| `string`     | Text value                               |
+| `int`        | Integer number                           |
+| `image`      | Image file reference                     |
+| `audio`      | Audio file reference                     |
+| `video`      | Video file reference                     |
+| `json`       | Structured JSON data                     |
 | `collection` | Array of items (used with `fanIn: true`) |
 
 ### Artifact Types
 
-| Type | Description |
-|------|-------------|
-| `string` | Text output |
-| `json` | Structured JSON with virtual property expansion (see [JSON Artifacts](#json-artifacts)) |
-| `image` | Image file |
-| `audio` | Audio file |
-| `video` | Video file |
-| `array` | Array of items (requires `itemType`) |
-| `multiDimArray` | Multi-dimensional array |
+| Type            | Description                                                                             |
+| --------------- | --------------------------------------------------------------------------------------- |
+| `string`        | Text output                                                                             |
+| `json`          | Structured JSON with virtual property expansion (see [JSON Artifacts](#json-artifacts)) |
+| `image`         | Image file                                                                              |
+| `audio`         | Audio file                                                                              |
+| `video`         | Video file                                                                              |
+| `array`         | Array of items (requires `itemType`)                                                    |
+| `multiDimArray` | Multi-dimensional array                                                                 |
 
 ### Example Blueprint
 
@@ -186,12 +190,12 @@ artifacts:
     description: Generated video for each segment.
     type: array
     itemType: video
-    countInput: NumOfSegments  # References system input
+    countInput: NumOfSegments # References system input
 
 loops:
   - name: segment
     description: Iterates over narration segments.
-    countInput: NumOfSegments  # References system input
+    countInput: NumOfSegments # References system input
 
 producers:
   - name: ScriptProducer
@@ -207,9 +211,9 @@ connections:
   - from: InquiryPrompt
     to: ScriptProducer.InquiryPrompt
   - from: Duration
-    to: ScriptProducer.Duration           # System input - no declaration needed
+    to: ScriptProducer.Duration # System input - no declaration needed
   - from: NumOfSegments
-    to: ScriptProducer.NumOfSegments      # System input - no declaration needed
+    to: ScriptProducer.NumOfSegments # System input - no declaration needed
 
   # Wire script to VideoPromptProducer (looped)
   - from: ScriptProducer.NarrationScript[segment]
@@ -217,13 +221,13 @@ connections:
   - from: Style
     to: VideoPromptProducer[segment].Style
   - from: SegmentDuration
-    to: VideoPromptProducer[segment].SegmentDuration  # Auto-computed
+    to: VideoPromptProducer[segment].SegmentDuration # Auto-computed
 
   # Wire prompts to VideoProducer (looped)
   - from: VideoPromptProducer.VideoPrompt[segment]
     to: VideoProducer[segment].Prompt
   - from: SegmentDuration
-    to: VideoProducer[segment].Duration   # Auto-computed
+    to: VideoProducer[segment].Duration # Auto-computed
 
   # Wire output to blueprint artifact
   - from: VideoProducer[segment].SegmentVideo
@@ -291,8 +295,8 @@ meta:
   description: Generate documentary scripts.
   id: ScriptProducer
   version: 0.1.0
-  promptFile: ./script.toml              # Prompt template for LLM
-  outputSchema: ./script-output.json     # JSON schema for structured output
+  promptFile: ./script.toml # Prompt template for LLM
+  outputSchema: ./script-output.json # JSON schema for structured output
 
 inputs:
   - name: InquiryPrompt
@@ -352,9 +356,9 @@ mappings:
       AspectRatio:
         field: image_size
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "1:1": square_hd
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '1:1': square_hd
 ```
 
 ### Derived Video Artifacts
@@ -363,11 +367,11 @@ All video-generating producers automatically support **derived artifacts** that 
 
 #### Available Derived Artifacts
 
-| Artifact | Type | Description | Use Cases |
-|----------|------|-------------|-----------|
-| `FirstFrame` | image (PNG) | First frame of the video | Visual preview, thumbnails |
-| `LastFrame` | image (PNG) | Last frame of the video | Seamless video transitions, end-frame matching |
-| `AudioTrack` | audio (WAV) | Audio track from video | Audio post-processing, mixing |
+| Artifact     | Type        | Description              | Use Cases                                      |
+| ------------ | ----------- | ------------------------ | ---------------------------------------------- |
+| `FirstFrame` | image (PNG) | First frame of the video | Visual preview, thumbnails                     |
+| `LastFrame`  | image (PNG) | Last frame of the video  | Seamless video transitions, end-frame matching |
+| `AudioTrack` | audio (WAV) | Audio track from video   | Audio post-processing, mixing                  |
 
 #### How It Works
 
@@ -416,10 +420,10 @@ Add speech transcription and karaoke-style animated subtitles to your videos. Th
 
 #### Components
 
-| Component | Description |
-|-----------|-------------|
+| Component                 | Description                                                               |
+| ------------------------- | ------------------------------------------------------------------------- |
 | **TranscriptionProducer** | Converts audio segments to word-level transcripts with precise timestamps |
-| **VideoExporter** | Renders the transcript as animated karaoke subtitles on the final video |
+| **VideoExporter**         | Renders the transcript as animated karaoke subtitles on the final video   |
 
 #### TranscriptionProducer
 
@@ -507,25 +511,26 @@ models:
     provider: renku
     producerId: VideoExporter
     config:
-      karaoke:
-        fontSize: 48              # Font size in pixels
-        fontColor: white          # Default text color
-        highlightColor: "#FFD700" # Highlighted word color (gold)
-        boxColor: "black@0.5"     # Background with opacity
-        bottomMarginPercent: 10   # Position from bottom
-        maxWordsPerLine: 8        # Words per line
-        highlightAnimation: pop   # Animation: none, pop, spring, pulse
-        animationScale: 1.15      # Animation peak scale
+      subtitles:
+        fontSize: 48 # Font size in pixels
+        fontBaseColor: '#FFFFFF' # Default text color
+        fontHighlightColor: '#FFD700' # Highlighted word color (gold)
+        backgroundColor: '#000000' # Background color
+        backgroundOpacity: 0.5 # Background opacity
+        position: bottom-center # Anchor position
+        edgePaddingPercent: 8 # Distance from frame edges (% of height)
+        maxWordsPerLine: 8 # Words per line
+        highlightEffect: true # Enable karaoke highlighting
 ```
 
 #### Animation Types
 
-| Animation | Description | Best For |
-|-----------|-------------|----------|
-| `none` | Static highlight, no animation | Professional, minimal style |
-| `pop` | Quick scale up then settle | Subtle, professional feel (default) |
-| `spring` | Bouncy scale with oscillation | Dynamic, playful content |
-| `pulse` | Gentle continuous sine wave | Rhythmic, musical content |
+| Animation | Description                    | Best For                            |
+| --------- | ------------------------------ | ----------------------------------- |
+| `none`    | Static highlight, no animation | Professional, minimal style         |
+| `pop`     | Quick scale up then settle     | Subtle, professional feel (default) |
+| `spring`  | Bouncy scale with oscillation  | Dynamic, playful content            |
+| `pulse`   | Gentle continuous sine wave    | Rhythmic, musical content           |
 
 #### Track Type Handling
 
@@ -558,7 +563,6 @@ inputs:
 artifacts:
   - name: Timeline
     type: json
-
 # Timeline composer uses renku provider - no field mappings needed
 # Model selection and config are specified in the input template
 ```
@@ -586,6 +590,7 @@ connections:
 ```
 
 Expands to:
+
 - `NarrationScript[0]` → `AudioProducer[0].TextInput`
 - `NarrationScript[1]` → `AudioProducer[1].TextInput`
 - etc.
@@ -600,14 +605,14 @@ loops:
   - name: segment
     countInput: NumOfSegments
   - name: image
-    parent: segment                    # image is nested inside segment
+    parent: segment # image is nested inside segment
     countInput: NumOfImagesPerNarrative
 
 # Producer runs for each segment × image combination
 producers:
   - name: ImageProducer
     producer: asset/text-to-image
-    loop: segment.image                # Dot notation for nested loops
+    loop: segment.image # Dot notation for nested loops
 
 # Connections use multiple indices
 connections:
@@ -645,21 +650,23 @@ connections:
 ```
 
 This pattern is useful when:
+
 - A producer accepts multiple reference images as a collection
 - Each reference image comes from a different upstream producer
 - The same images should be used for all loop instances
 
 **How it works:**
+
 1. The planner creates element-level input bindings: `ReferenceImages[0]` → artifact ID
 2. At runtime, the SDK reconstructs the array from these element-level bindings
 3. The producer receives `ReferenceImages: [CharacterImage, ProductImage]`
 
 **Comparison with whole-collection binding:**
 
-| Pattern | Syntax | Use Case |
-|---------|--------|----------|
-| Whole-collection | `AllImages → ReferenceImages` | Connect an entire array artifact |
-| Element-level | `Image1 → ReferenceImages[0]` | Connect individual artifacts to specific indices |
+| Pattern          | Syntax                        | Use Case                                         |
+| ---------------- | ----------------------------- | ------------------------------------------------ |
+| Whole-collection | `AllImages → ReferenceImages` | Connect an entire array artifact                 |
+| Element-level    | `Image1 → ReferenceImages[0]` | Connect individual artifacts to specific indices |
 
 ### Broadcast Connections
 
@@ -704,16 +711,16 @@ Define named conditions in the `conditions:` section of your blueprint:
 conditions:
   isImageNarration:
     when: DocProducer.VideoScript.Segments[segment].NarrationType
-    is: "ImageNarration"
+    is: 'ImageNarration'
   isAudioNeeded:
     any:
       - when: DocProducer.VideoScript.Segments[segment].NarrationType
-        is: "TalkingHead"
+        is: 'TalkingHead'
       - when: DocProducer.VideoScript.Segments[segment].UseNarrationAudio
         is: true
   isTalkingHead:
     when: DocProducer.VideoScript.Segments[segment].NarrationType
-    is: "TalkingHead"
+    is: 'TalkingHead'
 ```
 
 #### Condition Path Format
@@ -731,17 +738,17 @@ The `when` field references a path to a value in an upstream artifact:
 
 #### Condition Operators
 
-| Operator | Description |
-|----------|-------------|
-| `is` | Equals the specified value |
-| `isNot` | Does not equal the specified value |
-| `contains` | String contains the value |
-| `greaterThan` | Greater than (numeric) |
-| `lessThan` | Less than (numeric) |
-| `greaterOrEqual` | Greater than or equal (numeric) |
-| `lessOrEqual` | Less than or equal (numeric) |
-| `exists` | Field exists and is truthy |
-| `matches` | Matches a regular expression |
+| Operator         | Description                        |
+| ---------------- | ---------------------------------- |
+| `is`             | Equals the specified value         |
+| `isNot`          | Does not equal the specified value |
+| `contains`       | String contains the value          |
+| `greaterThan`    | Greater than (numeric)             |
+| `lessThan`       | Less than (numeric)                |
+| `greaterOrEqual` | Greater than or equal (numeric)    |
+| `lessOrEqual`    | Less than or equal (numeric)       |
+| `exists`         | Field exists and is truthy         |
+| `matches`        | Matches a regular expression       |
 
 #### Condition Groups
 
@@ -752,14 +759,14 @@ conditions:
   needsAudio:
     any:
       - when: DocProducer.VideoScript.Segments[segment].NarrationType
-        is: "TalkingHead"
+        is: 'TalkingHead'
       - when: DocProducer.VideoScript.Segments[segment].UseNarrationAudio
         is: true
 
   isHighQuality:
     all:
       - when: DocProducer.VideoScript.Segments[segment].Quality
-        is: "high"
+        is: 'high'
       - when: DocProducer.VideoScript.Segments[segment].Duration
         greaterThan: 10
 ```
@@ -791,6 +798,7 @@ When a condition is evaluated at runtime:
 4. **Artifact Absence**: Skipped jobs produce no artifacts - those artifact IDs are absent from the manifest
 
 **Example**: With 3 segments where `NarrationType = ["ImageNarration", "TalkingHead", "ImageNarration"]`:
+
 - `ImageProducer[0]` and `ImageProducer[2]` execute (ImageNarration)
 - `ImageProducer[1]` is skipped (TalkingHead)
 - `AudioProducer[1]` executes (TalkingHead)
@@ -812,8 +820,8 @@ JSON artifacts store structured data as a single blob while exposing nested prop
 meta:
   id: DocumentaryPromptProducer
   name: Documentary Script Generation
-  promptFile: ./documentary-prompt.toml           # Prompt template
-  outputSchema: ./documentary-prompt-output.json  # JSON schema for validation
+  promptFile: ./documentary-prompt.toml # Prompt template
+  outputSchema: ./documentary-prompt-output.json # JSON schema for validation
 
 inputs:
   - name: InquiryPrompt
@@ -843,13 +851,14 @@ The `arrays` field maps JSON array paths to input variables that determine their
 
 ```yaml
 arrays:
-  - path: Segments                    # Top-level array
-    countInput: NumOfSegments         # Sized by NumOfSegments input
-  - path: Segments.ImagePrompts       # Nested array within each segment
+  - path: Segments # Top-level array
+    countInput: NumOfSegments # Sized by NumOfSegments input
+  - path: Segments.ImagePrompts # Nested array within each segment
     countInput: NumOfImagesPerSegment # Sized by NumOfImagesPerSegment input
 ```
 
 This enables the planner to:
+
 1. Create dimension placeholders for arrays (e.g., `[segment]`, `[image]`)
 2. Expand virtual artifacts for each array element
 3. Track granular changes for incremental re-runs
@@ -893,10 +902,10 @@ The `outputSchema` from the producer's `meta:` section is automatically associat
 
 The planner expands JSON schemas into virtual artifacts that can be referenced in connections:
 
-| Virtual Artifact ID | Description |
-|---------------------|-------------|
-| `Producer.VideoScript.Title` | Top-level string property |
-| `Producer.VideoScript.Segments[segment].Script` | Script for each segment |
+| Virtual Artifact ID                                                 | Description                         |
+| ------------------------------------------------------------------- | ----------------------------------- |
+| `Producer.VideoScript.Title`                                        | Top-level string property           |
+| `Producer.VideoScript.Segments[segment].Script`                     | Script for each segment             |
 | `Producer.VideoScript.Segments[segment].ImagePrompts[image].Prompt` | Image prompt for each segment/image |
 
 ### Granular Dirty Tracking
@@ -1047,13 +1056,13 @@ Type:path.to.name[index0][index1]...
 
 ### Examples
 
-| ID | Description |
-|----|-------------|
-| `Input:InquiryPrompt` | Blueprint input |
-| `Input:ScriptProducer.Duration` | Producer input |
-| `Artifact:VideoProducer.SegmentVideo[0]` | First video |
-| `Artifact:ImageProducer.SegmentImage[2][1]` | Image at [2][1] |
-| `Producer:AudioProducer[0]` | First AudioProducer instance |
+| ID                                          | Description                  |
+| ------------------------------------------- | ---------------------------- |
+| `Input:InquiryPrompt`                       | Blueprint input              |
+| `Input:ScriptProducer.Duration`             | Producer input               |
+| `Artifact:VideoProducer.SegmentVideo[0]`    | First video                  |
+| `Artifact:ImageProducer.SegmentImage[2][1]` | Image at [2][1]              |
+| `Producer:AudioProducer[0]`                 | First AudioProducer instance |
 
 ---
 
@@ -1079,6 +1088,7 @@ Type:path.to.name[index0][index1]...
 ### Dirty Tracking
 
 For incremental runs:
+
 1. Compare input hashes against manifest
 2. Find changed or missing artifacts
 3. Mark affected jobs as dirty
@@ -1094,13 +1104,13 @@ For incremental runs:
 ```yaml
 inputs:
   # User-provided inputs
-  InquiryPrompt: "Your topic here"
-  Style: "Documentary"
-  AspectRatio: "16:9"
+  InquiryPrompt: 'Your topic here'
+  Style: 'Documentary'
+  AspectRatio: '16:9'
 
   # System inputs - provide values here, no blueprint declaration needed
-  Duration: 60          # Total movie duration in seconds
-  NumOfSegments: 3      # Number of segments to generate
+  Duration: 60 # Total movie duration in seconds
+  NumOfSegments: 3 # Number of segments to generate
   # SegmentDuration is auto-computed as Duration/NumOfSegments (20 seconds)
   # You can override it: SegmentDuration: 15
 
@@ -1120,8 +1130,8 @@ models:
     provider: renku
     producerId: TimelineComposer
     config:
-      tracks: ["Video", "Audio"]
-      masterTracks: ["Audio"]
+      tracks: ['Video', 'Audio']
+      masterTracks: ['Audio']
 ```
 
 ### Model Selection
@@ -1147,8 +1157,8 @@ models:
     provider: renku
     producerId: TimelineComposer
     config:
-      tracks: ["Video", "Audio", "Music"]
-      masterTracks: ["Audio"]
+      tracks: ['Video', 'Audio', 'Music']
+      masterTracks: ['Audio']
       musicClip:
         volume: 0.4
 ```
@@ -1161,28 +1171,28 @@ models:
 
 ### Blueprint Validation
 
-| Rule | Error |
-|------|-------|
-| Meta section required | `Blueprint must have a meta section` |
-| Meta.id required | `Blueprint meta must have an id` |
-| At least one artifact | `Blueprint must declare at least one artifact` |
+| Rule                            | Error                                            |
+| ------------------------------- | ------------------------------------------------ |
+| Meta section required           | `Blueprint must have a meta section`             |
+| Meta.id required                | `Blueprint meta must have an id`                 |
+| At least one artifact           | `Blueprint must declare at least one artifact`   |
 | Cannot mix models and producers | `Cannot define both models and producer imports` |
 
 ### Input Validation
 
-| Rule | Error |
-|------|-------|
+| Rule                          | Error                                         |
+| ----------------------------- | --------------------------------------------- |
 | Optional inputs need defaults | `Optional input must declare a default value` |
-| Input name required | `Input must have a name` |
-| Input type required | `Input must have a type` |
+| Input name required           | `Input must have a name`                      |
+| Input type required           | `Input must have a type`                      |
 
 ### Connection Validation
 
-| Rule | Error |
-|------|-------|
-| Valid dimension syntax | `Invalid dimension selector` |
-| Known dimension | `Unknown loop symbol` |
-| Dimension count match | `Inconsistent dimension counts` |
+| Rule                   | Error                           |
+| ---------------------- | ------------------------------- |
+| Valid dimension syntax | `Invalid dimension selector`    |
+| Known dimension        | `Unknown loop symbol`           |
+| Dimension count match  | `Inconsistent dimension counts` |
 
 ---
 
@@ -1217,7 +1227,7 @@ loops:
     countInput: NumOfSegments
   - name: image
     countInput: NumOfSegments
-    countInputOffset: 1  # N+1 images
+    countInputOffset: 1 # N+1 images
 
 producers:
   - name: ImageProducer
@@ -1282,12 +1292,12 @@ cat {builds}/{movie}/runs/rev-0001-plan.json
 
 ### Common Issues
 
-| Problem | Cause | Solution |
-|---------|-------|----------|
-| Fan-in empty | Missing collector | Add collector from source to target |
-| Dimension error | Mismatched dimensions | Verify source/target dimensions match |
-| Optional input error | Missing default | Add `default:` to optional inputs |
-| Missing artifacts | Wrong build path | Check `dist/` per package |
+| Problem              | Cause                 | Solution                              |
+| -------------------- | --------------------- | ------------------------------------- |
+| Fan-in empty         | Missing collector     | Add collector from source to target   |
+| Dimension error      | Mismatched dimensions | Verify source/target dimensions match |
+| Optional input error | Missing default       | Add `default:` to optional inputs     |
+| Missing artifacts    | Wrong build path      | Check `dist/` per package             |
 
 ---
 
@@ -1323,18 +1333,19 @@ catalog/
 ```
 
 **Producer Categories:**
+
 - `asset/` - Media generation: images, video, audio, music
 - `prompt/` - LLM-based script and prompt generation
 - `composition/` - Timeline composition and video export
 
 ### Naming Conventions
 
-| Item | Convention | Example |
-|------|------------|---------|
-| Blueprint files | kebab-case | `image-to-video.yaml` |
-| Producer files | kebab-case | `script.yaml` |
-| IDs | PascalCase | `id: ImageToVideo` |
-| Loop names | lowercase | `name: segment` |
+| Item                 | Convention | Example               |
+| -------------------- | ---------- | --------------------- |
+| Blueprint files      | kebab-case | `image-to-video.yaml` |
+| Producer files       | kebab-case | `script.yaml`         |
+| IDs                  | PascalCase | `id: ImageToVideo`    |
+| Loop names           | lowercase  | `name: segment`       |
 | Input/Artifact names | PascalCase | `name: InquiryPrompt` |
 
 ### Producer References
@@ -1345,9 +1356,9 @@ catalog/
 # Works from any location - resolves from catalog
 producers:
   - name: ScriptProducer
-    producer: prompt/script        # → catalog/producers/prompt/script/script.yaml
+    producer: prompt/script # → catalog/producers/prompt/script/script.yaml
   - name: VideoProducer
-    producer: asset/text-to-video  # → catalog/producers/asset/text-to-video.yaml
+    producer: asset/text-to-video # → catalog/producers/asset/text-to-video.yaml
 ```
 
 **Legacy: Relative paths** for custom local producers:
@@ -1356,5 +1367,5 @@ producers:
 # For custom producers not in the catalog
 producers:
   - name: MyCustomProducer
-    path: ./my-producers/custom.yaml  # Relative to blueprint file
+    path: ./my-producers/custom.yaml # Relative to blueprint file
 ```

@@ -83,20 +83,21 @@ artifacts:
 
 ### Supported Models
 
-| Model | Provider | Description |
-|-------|----------|-------------|
-| `speech/transcription` | renku | Internal handler for transcription with karaoke subtitle support. Configure the actual STT backend via `config.stt.provider` and `config.stt.model`. |
+| Model                  | Provider | Description                                                                                                                                          |
+| ---------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `speech/transcription` | renku    | Internal handler for transcription with karaoke subtitle support. Configure the actual STT backend via `config.stt.provider` and `config.stt.model`. |
 
 **Configuration:**
+
 ```yaml
 - model: speech/transcription
   provider: renku
   producerId: TranscriptionProducer
   config:
     stt:
-      provider: "fal-ai"                    # Provider for STT API
-      model: "elevenlabs/speech-to-text"    # Model for STT API
-      diarize: false                         # Optional: speaker diarization
+      provider: 'fal-ai' # Provider for STT API
+      model: 'elevenlabs/speech-to-text' # Model for STT API
+      diarize: false # Optional: speaker diarization
 ```
 
 ### Transcription Output Structure
@@ -225,19 +226,19 @@ collectors:
 In the input template, add `"Transcription"` to the `tracks` array and a `transcriptionClip` entry in the TimelineComposer model config:
 
 ```yaml
-  - model: timeline/ordered
-    provider: renku
-    producerId: TimelineComposer
-    config:
-      timeline:
-        tracks: ["Video", "Audio", "Transcription"]
-        masterTracks: ["Audio"]
-        videoClip:
-          artifact: VideoSegments
-        audioClip:
-          artifact: AudioSegments
-        transcriptionClip:
-          artifact: TranscriptionAudio
+- model: timeline/ordered
+  provider: renku
+  producerId: TimelineComposer
+  config:
+    timeline:
+      tracks: ['Video', 'Audio', 'Transcription']
+      masterTracks: ['Audio']
+      videoClip:
+        artifact: VideoSegments
+      audioClip:
+        artifact: AudioSegments
+      transcriptionClip:
+        artifact: TranscriptionAudio
 ```
 
 The `transcriptionClip` tells the timeline composer which collected audio artifact to use for the transcription track. Without this, the TranscriptionProducer won't have the audio timing information it needs.
@@ -275,15 +276,16 @@ audioBitrate: 192k
 
 # Karaoke subtitle settings
 subtitles:
-  font: Arial                    # Font name (system fonts)
-  fontSize: 48                   # Font size in pixels (default: 48)
-  fontBaseColor: "#FFFFFF"       # Default text color in hex (default: white)
-  fontHighlightColor: "#FFD700"  # Highlighted word color in hex (default: gold)
-  backgroundColor: "#000000"     # Background box color in hex (default: black)
-  backgroundOpacity: 0.5         # Background opacity 0-1 (default: 0, no box)
-  bottomMarginPercent: 10        # Position from bottom (default: 10%)
-  maxWordsPerLine: 4             # Words per line (default: 4)
-  highlightEffect: true          # Enable karaoke highlighting (default: true)
+  font: Arial # Font name (system fonts)
+  fontSize: 48 # Font size in pixels (default: 48)
+  fontBaseColor: '#FFFFFF' # Default text color in hex (default: white)
+  fontHighlightColor: '#FFD700' # Highlighted word color in hex (default: gold)
+  backgroundColor: '#000000' # Background box color in hex (default: black)
+  backgroundOpacity: 0.5 # Background opacity 0-1 (default: 0, no box)
+  position: bottom-center # Anchor position (default: bottom-center)
+  edgePaddingPercent: 8 # Distance from frame edges (% of height, default: 8)
+  maxWordsPerLine: 4 # Words per line (default: 4)
+  highlightEffect: true # Enable karaoke highlighting (default: true)
 ```
 
 Then export with:
@@ -294,21 +296,23 @@ renku export --last --inputs=./export-config.yaml
 
 ### Configuration Options Reference
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `font` | string | Arial | Font name (uses system fonts) |
-| `fontSize` | number | 48 | Font size in pixels |
-| `fontBaseColor` | string | #FFFFFF | Default text color (hex format) |
-| `fontHighlightColor` | string | #FFD700 | Color for the currently spoken word (hex) |
-| `backgroundColor` | string | #000000 | Background box color (hex format) |
-| `backgroundOpacity` | number | 0 | Background opacity (0-1, 0 = no box) |
-| `bottomMarginPercent` | number | 10 | Position from bottom as percentage of height |
-| `maxWordsPerLine` | number | 4 | Maximum words to display at once |
-| `highlightEffect` | boolean | true | Enable karaoke-style word highlighting |
+| Option               | Type    | Default       | Description                                          |
+| -------------------- | ------- | ------------- | ---------------------------------------------------- |
+| `font`               | string  | Arial         | Font name (uses system fonts)                        |
+| `fontSize`           | number  | 48            | Font size in pixels                                  |
+| `fontBaseColor`      | string  | #FFFFFF       | Default text color (hex format)                      |
+| `fontHighlightColor` | string  | #FFD700       | Color for the currently spoken word (hex)            |
+| `backgroundColor`    | string  | #000000       | Background box color (hex format)                    |
+| `backgroundOpacity`  | number  | 0             | Background opacity (0-1, 0 = no box)                 |
+| `position`           | string  | bottom-center | Anchor position (`top-left` to `bottom-right`)       |
+| `edgePaddingPercent` | number  | 8             | Distance from anchored edges as percentage of height |
+| `maxWordsPerLine`    | number  | 4             | Maximum words to display at once                     |
+| `highlightEffect`    | boolean | true          | Enable karaoke-style word highlighting               |
 
 ### Color Format
 
 Colors must be specified in hex format:
+
 - `#FFFFFF` - white
 - `#000000` - black
 - `#FFD700` - gold
@@ -326,16 +330,18 @@ The `highlightEffect` option controls whether word highlighting is enabled:
 
 ```yaml
 subtitles:
-  highlightEffect: true   # Enable karaoke-style highlighting (default)
+  highlightEffect: true # Enable karaoke-style highlighting (default)
   # highlightEffect: false  # Disable to show static subtitles
 ```
 
 When enabled:
+
 - Words change from `fontBaseColor` to `fontHighlightColor` as they're spoken
 - Each word is highlighted based on its timestamp from the transcription
 - Creates a reading-along effect synchronized with the audio
 
 When disabled:
+
 - All words display in `fontBaseColor`
 - Subtitles appear as standard static captions
 
@@ -463,9 +469,9 @@ collectors:
 
 ```yaml
 inputs:
-  InquiryPrompt: "The history of space exploration"
-  Style: "Documentary"
-  VoiceId: "narrator_male_1"
+  InquiryPrompt: 'The history of space exploration'
+  Style: 'Documentary'
+  VoiceId: 'narrator_male_1'
   Duration: 60
   NumOfSegments: 6
 
@@ -493,8 +499,8 @@ models:
     producerId: TimelineComposer
     config:
       timeline:
-        tracks: ["Video", "Audio", "Music", "Transcription"]
-        masterTracks: ["Audio"]
+        tracks: ['Video', 'Audio', 'Music', 'Transcription']
+        masterTracks: ['Audio']
         videoClip:
           artifact: VideoSegments
         audioClip:
@@ -510,8 +516,8 @@ models:
     producerId: TranscriptionProducer
     config:
       stt:
-        provider: "fal-ai"
-        model: "elevenlabs/speech-to-text"
+        provider: 'fal-ai'
+        model: 'elevenlabs/speech-to-text'
         diarize: false
 ```
 
@@ -530,9 +536,9 @@ crf: 23
 subtitles:
   font: Arial
   fontSize: 52
-  fontBaseColor: "#FFFFFF"
-  fontHighlightColor: "#FF6B35"
-  backgroundColor: "#000000"
+  fontBaseColor: '#FFFFFF'
+  fontHighlightColor: '#FF6B35'
+  backgroundColor: '#000000'
   backgroundOpacity: 0.6
   maxWordsPerLine: 6
   highlightEffect: true
@@ -578,12 +584,14 @@ collectors:
 ```
 
 **Why this matters:**
+
 - The `AudioTrack` artifact is only generated when connected to a downstream consumer
 - It ensures the audio timing matches the actual video segments in the timeline
 - The original narration audio may have different timing than the final lipsync video
 - This keeps the transcription in sync with what viewers see and hear
 
 **Do NOT do this:**
+
 ```yaml
 # WRONG: Using original narration audio for lipsync video workflows
 - from: NarrationAudioProducer[segment].GeneratedAudio
@@ -596,10 +604,11 @@ Specify the correct language code for better transcription accuracy:
 
 ```yaml
 inputs:
-  LanguageCode: eng  # ISO 639-3 code
+  LanguageCode: eng # ISO 639-3 code
 ```
 
 Common language codes:
+
 - `eng` - English
 - `spa` - Spanish
 - `fra` - French
@@ -610,6 +619,7 @@ Common language codes:
 ### 4. Font Selection
 
 The `font` option uses system fonts by name:
+
 - Use font names installed on your system (e.g., "Arial", "Helvetica", "Times New Roman")
 - Ensure the font supports your language's characters
 - Test with your target text before full generation
@@ -618,23 +628,25 @@ The `font` option uses system fonts by name:
 ### 5. Words Per Line
 
 Adjust `maxWordsPerLine` based on:
+
 - Video resolution (fewer words for mobile/vertical video)
 - Average word length in your language
 - Font size (smaller fonts can fit more words)
 
 Recommendations:
+
 - 16:9 desktop video: 6-8 words
 - 9:16 mobile/TikTok: 3-4 words
 - 1:1 square video: 4-6 words
 
 ### 6. Background Opacity Settings
 
-| Content Type | Recommended Opacity |
-|--------------|---------------------|
-| Light/bright video backgrounds | 0.6-0.8 |
-| Dark video backgrounds | 0.3-0.5 |
-| Mixed/varied backgrounds | 0.5 |
-| No background (text only) | 0 |
+| Content Type                   | Recommended Opacity |
+| ------------------------------ | ------------------- |
+| Light/bright video backgrounds | 0.6-0.8             |
+| Dark video backgrounds         | 0.3-0.5             |
+| Mixed/varied backgrounds       | 0.5                 |
+| No background (text only)      | 0                   |
 
 ### 7. Performance Considerations
 

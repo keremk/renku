@@ -22,7 +22,20 @@ export interface FfmpegExporterConfig {
   ffmpegPath?: string;
   /** Subtitle options */
   subtitles?: SubtitleConfig;
+  /** Timeline text overlay options */
+  text?: TextConfig;
 }
+
+export type OverlayPosition =
+  | 'top-left'
+  | 'top-center'
+  | 'top-right'
+  | 'middle-left'
+  | 'middle-center'
+  | 'middle-right'
+  | 'bottom-left'
+  | 'bottom-center'
+  | 'bottom-right';
 
 /**
  * Configuration for subtitles with optional karaoke-style word highlighting.
@@ -41,12 +54,34 @@ export interface SubtitleConfig {
   backgroundColor?: string;
   /** Background box opacity 0-1, 0 = no box (default: 0) */
   backgroundOpacity?: number;
-  /** Position from bottom as percentage of height (default: 10) */
-  bottomMarginPercent?: number;
+  /** Subtitle anchor position (default: bottom-center) */
+  position?: OverlayPosition;
+  /** Distance from anchored edges as % of frame height (default: 8) */
+  edgePaddingPercent?: number;
   /** Maximum words to display at once per line (default: 4) */
   maxWordsPerLine?: number;
   /** Enable karaoke-style word highlighting (default: true) */
   highlightEffect?: boolean;
+}
+
+/**
+ * Configuration for timeline text overlays.
+ */
+export interface TextConfig {
+  /** Font name - uses system fonts (default: Arial) */
+  font?: string;
+  /** Font size in pixels (default: 56) */
+  fontSize?: number;
+  /** Text color in hex format, e.g., "#FFFFFF" (default: white) */
+  fontBaseColor?: string;
+  /** Background box color in hex format (default: #000000) */
+  backgroundColor?: string;
+  /** Background box opacity 0-1, 0 = no box (default: 0.35) */
+  backgroundOpacity?: number;
+  /** Text anchor position (default: middle-center) */
+  position?: OverlayPosition;
+  /** Distance from anchored edges as % of frame height (default: 8) */
+  edgePaddingPercent?: number;
 }
 
 /**
@@ -92,6 +127,8 @@ export interface FfmpegBuildOptions {
   ffmpegPath: string;
   /** Subtitle options */
   subtitles?: SubtitleConfig;
+  /** Timeline text overlay options */
+  text?: TextConfig;
 }
 
 /**

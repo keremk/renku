@@ -214,6 +214,16 @@ describe('ffmpeg-exporter', () => {
 
       expect(detectOutputFormat(timeline)).toBe('audio');
     });
+
+    it('should detect video format for text tracks', () => {
+      const timeline: TimelineDocument = {
+        id: 'test',
+        duration: 10,
+        tracks: [{ id: 'track-0', kind: 'Text', clips: [] }],
+      };
+
+      expect(detectOutputFormat(timeline)).toBe('video');
+    });
   });
 
   describe('createFfmpegExporterHandler', () => {
@@ -377,6 +387,17 @@ describe('ffmpeg-exporter', () => {
               fontSize: 48,
               fontBaseColor: '#FFFFFF',
               fontHighlightColor: '#FFD700',
+              position: 'bottom-center',
+              edgePaddingPercent: 8,
+            },
+            text: {
+              font: 'Arial',
+              fontSize: 56,
+              fontBaseColor: '#FFFFFF',
+              backgroundColor: '#000000',
+              backgroundOpacity: 0.35,
+              position: 'middle-center',
+              edgePaddingPercent: 8,
             },
           },
           extras: {
@@ -614,6 +635,151 @@ describe('ffmpeg-exporter', () => {
           },
         })
       ).rejects.toThrow(/must match pattern/);
+    });
+
+    it('prefers inline timeline over manifest timeline in live mode', async () => {
+      const manifestTimeline: TimelineDocument = {
+        id: 'manifest-audio-only',
+        duration: 1,
+        tracks: [
+          { id: 'manifest-audio', kind: 'Audio', clips: [] },
+          { id: 'manifest-music', kind: 'Music', clips: [] },
+        ],
+      };
+      await writeFile(
+        path.join(tempRoot, 'builds', movieId, 'blobs', 'ab', 'ab123.json'),
+        JSON.stringify(manifestTimeline)
+      );
+
+      const inlineTimeline: TimelineDocument = {
+        id: 'inline-video',
+        duration: 1,
+        tracks: [{ id: 'inline-text', kind: 'Text', clips: [] }],
+      };
+
+      let ffmpegOutputPath = '';
+      mockedExecFile.mockImplementationOnce((...args: unknown[]) => {
+        const ffmpegArgs = args[1] as string[];
+        ffmpegOutputPath = ffmpegArgs[ffmpegArgs.length - 1] ?? '';
+
+        const callback =
+          typeof args[3] === 'function'
+            ? (args[3] as (
+                err: Error | null,
+                stdout?: string,
+                stderr?: string
+              ) => void)
+            : typeof args[2] === 'function'
+              ? (args[2] as (
+                  err: Error | null,
+                  stdout?: string,
+                  stderr?: string
+                ) => void)
+              : undefined;
+
+        void writeFile(ffmpegOutputPath, Buffer.from('ok')).then(
+          () => callback?.(null, '', ''),
+          (error) => callback?.(error as Error)
+        );
+
+        return {
+          on: vi.fn(),
+          stdout: { on: vi.fn() },
+          stderr: { on: vi.fn() },
+        } as never;
+      });
+
+      const factory = createFfmpegExporterHandler();
+      const handler = factory({
+        descriptor: {
+          provider: 'renku',
+          model: 'FfmpegExporter',
+          environment: 'local',
+        },
+        mode: 'live',
+        secretResolver: {
+          async getSecret() {
+            return null;
+          },
+        },
+        getModelSchema: mockGetModelSchema,
+      });
+
+      const response = await handler.invoke({
+        jobId: 'test-job',
+        provider: 'renku',
+        model: 'FfmpegExporter',
+        revision: 'rev-1',
+        layerIndex: 0,
+        attempt: 1,
+        inputs: [],
+        produces: ['Artifact:FinalVideo'],
+        context: {
+          environment: 'local',
+          providerConfig: {},
+          extras: {
+            resolvedInputs: {
+              'Input:MovieId': movieId,
+              'Input:StorageRoot': tempRoot,
+              'Input:StorageBasePath': 'builds',
+              'Artifact:TimelineComposer.Timeline': inlineTimeline,
+            },
+          },
+        },
+      });
+
+      expect(response.status).toBe('succeeded');
+      expect(ffmpegOutputPath.endsWith('FinalVideo.mp4')).toBe(true);
+      expect(response.artefacts[0]?.blob?.mimeType).toBe('video/mp4');
+    });
+
+    it('fails fast when declared timeline input is invalid', async () => {
+      const factory = createFfmpegExporterHandler();
+      const handler = factory({
+        descriptor: {
+          provider: 'renku',
+          model: 'FfmpegExporter',
+          environment: 'local',
+        },
+        mode: 'simulated',
+        secretResolver: {
+          async getSecret() {
+            return null;
+          },
+        },
+        getModelSchema: mockGetModelSchema,
+      });
+
+      await expect(
+        handler.invoke({
+          jobId: 'test-job',
+          provider: 'renku',
+          model: 'FfmpegExporter',
+          revision: 'rev-1',
+          layerIndex: 0,
+          attempt: 1,
+          inputs: ['Artifact:TimelineComposer.Timeline'],
+          produces: ['Artifact:FinalVideo'],
+          context: {
+            environment: 'local',
+            providerConfig: {},
+            extras: {
+              resolvedInputs: {
+                'Input:MovieId': movieId,
+                'Input:StorageRoot': tempRoot,
+                'Input:StorageBasePath': 'builds',
+                'Artifact:TimelineComposer.Timeline': {
+                  blob: {
+                    hash: 'ab123',
+                    size: 100,
+                    mimeType: 'application/json',
+                  },
+                },
+              },
+            },
+          },
+        })
+      ).rejects.toThrow(/requires a valid Timeline payload/i);
     });
 
     it('should surface cancellation when ffmpeg is aborted', async () => {

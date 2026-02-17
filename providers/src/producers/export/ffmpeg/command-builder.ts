@@ -6,11 +6,13 @@ import type {
   MusicTrack,
   VideoTrack,
   CaptionsTrack,
+  TextTrack,
   ImageClip,
   AudioClip,
   MusicClip,
   VideoClip,
   CaptionsClip,
+  TextClip,
 } from '@gorenku/compositions';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -39,6 +41,7 @@ import {
   buildCaptionFilterChain,
   parseCaptionsFromArray,
 } from './caption-renderer.js';
+import { buildTextFilterChain, type TextRenderEntry } from './text-renderer.js';
 import type { TranscriptionArtifact } from '../../transcription/types.js';
 import { createProviderError, SdkErrorCode } from '../../../sdk/errors.js';
 
@@ -59,6 +62,10 @@ function isMusicTrack(track: TimelineTrack): track is MusicTrack {
 
 function isVideoTrack(track: TimelineTrack): track is VideoTrack {
   return track.kind === 'Video';
+}
+
+function isTextTrack(track: TimelineTrack): track is TextTrack {
+  return track.kind === 'Text';
 }
 
 /**
@@ -100,6 +107,14 @@ interface ImageDimensionsProbeState {
   probe: (request: ImageDimensionsProbeRequest) => Promise<SourceDimensions>;
 }
 
+const TEXT_TRANSITIONS = new Set([
+  'none',
+  'fade-in-out',
+  'slide-in-out-left',
+  'slide-in-out-right',
+  'spring-in-out',
+]);
+
 /**
  * Build a complete FFmpeg command from a timeline.
  *
@@ -140,6 +155,7 @@ export async function buildFfmpegCommand(
   const filterParts: string[] = [];
   const videoLabels: string[] = [];
   const audioInfos: AudioTrackInfo[] = [];
+  const textEntries: TextRenderEntry[] = [];
 
   // Process each track type
   for (const track of timeline.tracks) {
@@ -174,6 +190,8 @@ export async function buildFfmpegCommand(
         audioInfos,
         videoAudioProbeState
       );
+    } else if (isTextTrack(track)) {
+      collectTextEntries(track, textEntries);
     }
     // Captions are processed after video concatenation
   }
@@ -188,7 +206,33 @@ export async function buildFfmpegCommand(
     );
     filterParts.push(concatFilter.filter);
     videoOutputLabel = concatFilter.outputLabel;
+  }
 
+  if (outputFormat === 'video' && !videoOutputLabel) {
+    const baseVideoLabel = 'vbase';
+    filterParts.push(
+      `color=c=black:s=${fullOptions.width}x${fullOptions.height}:r=${fullOptions.fps}:d=${timeline.duration}[${baseVideoLabel}]`
+    );
+    videoOutputLabel = baseVideoLabel;
+  }
+
+  if (videoOutputLabel && textEntries.length > 0) {
+    const textOutputLabel = 'vtext';
+    const textFilter = buildTextFilterChain(
+      `[${videoOutputLabel}]`,
+      textEntries,
+      {
+        width: fullOptions.width,
+        height: fullOptions.height,
+        text: fullOptions.text,
+      },
+      textOutputLabel
+    );
+    filterParts.push(textFilter);
+    videoOutputLabel = textOutputLabel;
+  }
+
+  if (videoOutputLabel) {
     // Process captions (overlay on concatenated video)
     const captionsTrack = timeline.tracks.find(
       (t): t is CaptionsTrack => t.kind === 'Captions'
@@ -239,7 +283,8 @@ export async function buildFfmpegCommand(
  */
 export function detectOutputFormat(timeline: TimelineDocument): OutputFormat {
   const hasVisualTrack = timeline.tracks.some(
-    (track) => track.kind === 'Image' || track.kind === 'Video'
+    (track) =>
+      track.kind === 'Image' || track.kind === 'Video' || track.kind === 'Text'
   );
   return hasVisualTrack ? 'video' : 'audio';
 }
@@ -260,6 +305,7 @@ function resolveOptions(
     outputPath: options.outputPath ?? 'output.mp4',
     ffmpegPath: options.ffmpegPath ?? FFMPEG_DEFAULTS.ffmpegPath,
     subtitles: options.subtitles,
+    text: options.text,
   };
 }
 
@@ -745,6 +791,97 @@ function extractCaptionsFromClip(clip: CaptionsClip): CaptionEntry[] {
     clip.duration,
     clip.properties.partitionBy
   );
+}
+
+function collectTextEntries(
+  track: TextTrack,
+  textEntries: TextRenderEntry[]
+): void {
+  for (const clip of track.clips) {
+    textEntries.push(...extractTextEntriesFromClip(clip));
+  }
+}
+
+function extractTextEntriesFromClip(clip: TextClip): TextRenderEntry[] {
+  if (!Array.isArray(clip.properties.effects)) {
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      `Text clip "${clip.id}" is missing the effects array required for rendering.`,
+      { kind: 'user_input', causedByUser: true }
+    );
+  }
+
+  return clip.properties.effects.map((effect, index) => {
+    if (typeof effect.text !== 'string' || effect.text.trim().length === 0) {
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Text clip "${clip.id}" contains an invalid text effect at index ${index}.`,
+        {
+          kind: 'user_input',
+          causedByUser: true,
+          metadata: { clipId: clip.id, index },
+        }
+      );
+    }
+
+    if (
+      typeof effect.startTime !== 'number' ||
+      !Number.isFinite(effect.startTime) ||
+      effect.startTime < 0
+    ) {
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Text clip "${clip.id}" contains an invalid startTime at effect index ${index}.`,
+        {
+          kind: 'user_input',
+          causedByUser: true,
+          metadata: { clipId: clip.id, index },
+        }
+      );
+    }
+
+    if (
+      typeof effect.duration !== 'number' ||
+      !Number.isFinite(effect.duration) ||
+      effect.duration <= 0
+    ) {
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Text clip "${clip.id}" contains an invalid duration at effect index ${index}.`,
+        {
+          kind: 'user_input',
+          causedByUser: true,
+          metadata: { clipId: clip.id, index },
+        }
+      );
+    }
+
+    if (
+      typeof effect.transition !== 'string' ||
+      !TEXT_TRANSITIONS.has(effect.transition)
+    ) {
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Text clip "${clip.id}" contains an unsupported transition at effect index ${index}.`,
+        {
+          kind: 'user_input',
+          causedByUser: true,
+          metadata: {
+            clipId: clip.id,
+            index,
+            transition: effect.transition,
+          },
+        }
+      );
+    }
+
+    return {
+      text: effect.text,
+      startTime: effect.startTime,
+      duration: effect.duration,
+      transition: effect.transition,
+    };
+  });
 }
 
 /**

@@ -108,20 +108,32 @@ export function createFfmpegExporterHandler(): HandlerFactory {
           basePath: storageBasePath,
         });
 
-        // Try to get inline timeline first
         const inlineTimeline =
           runtime.inputs.getByNodeId<unknown>(TIMELINE_ARTEFACT_ID);
+        const expectsInlineTimeline =
+          request.inputs.includes(TIMELINE_ARTEFACT_ID);
 
-        // Load timeline from manifest
+        // Prefer inline runtime timeline. During multi-producer runs,
+        // current.json can point to an older revision while VideoExporter runs.
+        // If this job declares Timeline as an input, fail fast when payload is
+        // missing/invalid instead of falling back to a stale manifest snapshot.
         let timeline: TimelineDocument;
-        try {
+        if (isTimelineDocument(inlineTimeline)) {
+          timeline = inlineTimeline;
+        } else if (expectsInlineTimeline) {
+          throw createProviderError(
+            SdkErrorCode.INVALID_CONFIG,
+            `FFmpeg exporter requires a valid Timeline payload for "${TIMELINE_ARTEFACT_ID}".`,
+            {
+              kind: 'user_input',
+              causedByUser: true,
+              metadata: {
+                timelineInputPresent: inlineTimeline !== undefined,
+              },
+            }
+          );
+        } else {
           timeline = await loadTimeline(storage, movieId);
-        } catch (error) {
-          if (inlineTimeline && typeof inlineTimeline === 'object') {
-            timeline = inlineTimeline as TimelineDocument;
-          } else {
-            throw error;
-          }
         }
 
         // Handle simulated mode
@@ -204,7 +216,8 @@ export function createFfmpegExporterHandler(): HandlerFactory {
               fontHighlightColor: config.subtitles?.fontHighlightColor,
               backgroundColor: config.subtitles?.backgroundColor,
               backgroundOpacity: config.subtitles?.backgroundOpacity,
-              bottomMarginPercent: config.subtitles?.bottomMarginPercent,
+              position: config.subtitles?.position,
+              edgePaddingPercent: config.subtitles?.edgePaddingPercent,
               maxWordsPerLine: config.subtitles?.maxWordsPerLine,
               highlightEffect: config.subtitles?.highlightEffect,
             },
@@ -227,6 +240,7 @@ export function createFfmpegExporterHandler(): HandlerFactory {
             outputPath: path.resolve(storageRoot, outputPath),
             ffmpegPath: config.ffmpegPath ?? FFMPEG_DEFAULTS.ffmpegPath,
             subtitles: config.subtitles,
+            text: config.text,
           },
           transcription,
           assFilePath ? path.resolve(storageRoot, assFilePath) : undefined
@@ -313,6 +327,24 @@ function resolveStoragePaths(
     );
   }
   return { storageRoot: root, storageBasePath: basePath };
+}
+
+function isTimelineDocument(value: unknown): value is TimelineDocument {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  const candidate = value as {
+    id?: unknown;
+    duration?: unknown;
+    tracks?: unknown;
+  };
+
+  return (
+    typeof candidate.id === 'string' &&
+    typeof candidate.duration === 'number' &&
+    Array.isArray(candidate.tracks)
+  );
 }
 
 async function loadTimeline(
@@ -489,7 +521,7 @@ function collectAssetIds(timeline: TimelineDocument): Set<string> {
         }
 
         // KenBurns effects with assetIds
-        if (Array.isArray(props.effects)) {
+        if (track.kind === 'Image' && Array.isArray(props.effects)) {
           for (const effect of props.effects) {
             if (effect && typeof effect === 'object' && 'assetId' in effect) {
               assetIds.add(String(effect.assetId));
@@ -540,7 +572,8 @@ function mimeToExtension(mime?: string): string {
 
 function detectOutputFormat(timeline: TimelineDocument): 'video' | 'audio' {
   const hasVisualTrack = timeline.tracks.some(
-    (track) => track.kind === 'Image' || track.kind === 'Video'
+    (track) =>
+      track.kind === 'Image' || track.kind === 'Video' || track.kind === 'Text'
   );
   return hasVisualTrack ? 'video' : 'audio';
 }

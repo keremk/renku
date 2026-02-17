@@ -1,4 +1,5 @@
 import type { CaptionEntry } from './types.js';
+import type { OverlayPosition } from './types.js';
 
 /**
  * Options for rendering captions.
@@ -16,14 +17,73 @@ export interface CaptionRenderOptions {
   boxColor?: string;
   /** Font file path (optional, uses default if not provided) */
   fontFile?: string;
-  /** Position from bottom as percentage of height (default: 10) */
-  bottomMarginPercent?: number;
+  /** Caption anchor position (default: bottom-center) */
+  position?: OverlayPosition;
+  /** Distance from anchored edges as percentage of height (default: 8) */
+  edgePaddingPercent?: number;
 }
 
 const DEFAULT_FONT_SIZE = 48;
 const DEFAULT_FONT_COLOR = 'white';
 const DEFAULT_BOX_COLOR = 'black@0.5';
-const DEFAULT_BOTTOM_MARGIN_PERCENT = 10;
+const DEFAULT_POSITION: OverlayPosition = 'bottom-center';
+const DEFAULT_EDGE_PADDING_PERCENT = 8;
+
+function resolveDrawtextPlacement(
+  position: OverlayPosition,
+  edgePaddingPercent: number,
+  height: number
+): { xExpression: string; yExpression: string } {
+  const edgePaddingPx = Math.round(height * (edgePaddingPercent / 100));
+
+  switch (position) {
+    case 'top-left':
+      return {
+        xExpression: `${edgePaddingPx}`,
+        yExpression: `${edgePaddingPx}`,
+      };
+    case 'top-center':
+      return {
+        xExpression: '(w-text_w)/2',
+        yExpression: `${edgePaddingPx}`,
+      };
+    case 'top-right':
+      return {
+        xExpression: `w-text_w-${edgePaddingPx}`,
+        yExpression: `${edgePaddingPx}`,
+      };
+    case 'middle-left':
+      return {
+        xExpression: `${edgePaddingPx}`,
+        yExpression: '(h-text_h)/2',
+      };
+    case 'middle-center':
+      return {
+        xExpression: '(w-text_w)/2',
+        yExpression: '(h-text_h)/2',
+      };
+    case 'middle-right':
+      return {
+        xExpression: `w-text_w-${edgePaddingPx}`,
+        yExpression: '(h-text_h)/2',
+      };
+    case 'bottom-left':
+      return {
+        xExpression: `${edgePaddingPx}`,
+        yExpression: `h-text_h-${edgePaddingPx}`,
+      };
+    case 'bottom-center':
+      return {
+        xExpression: '(w-text_w)/2',
+        yExpression: `h-text_h-${edgePaddingPx}`,
+      };
+    case 'bottom-right':
+      return {
+        xExpression: `w-text_w-${edgePaddingPx}`,
+        yExpression: `h-text_h-${edgePaddingPx}`,
+      };
+  }
+}
 
 /**
  * Build an FFmpeg drawtext filter for burning captions into video.
@@ -46,10 +106,14 @@ export function buildCaptionFilter(
   const fontSize = options.fontSize ?? DEFAULT_FONT_SIZE;
   const fontColor = options.fontColor ?? DEFAULT_FONT_COLOR;
   const boxColor = options.boxColor ?? DEFAULT_BOX_COLOR;
-  const bottomMargin = options.bottomMarginPercent ?? DEFAULT_BOTTOM_MARGIN_PERCENT;
-
-  // Calculate Y position (from bottom of screen)
-  const yPosition = Math.round(options.height * (1 - bottomMargin / 100));
+  const position = options.position ?? DEFAULT_POSITION;
+  const edgePaddingPercent =
+    options.edgePaddingPercent ?? DEFAULT_EDGE_PADDING_PERCENT;
+  const placement = resolveDrawtextPlacement(
+    position,
+    edgePaddingPercent,
+    options.height
+  );
 
   // Build a drawtext filter for each caption
   const drawtextFilters = captions.map((caption) => {
@@ -57,8 +121,8 @@ export function buildCaptionFilter(
       fontSize,
       fontColor,
       boxColor,
-      yPosition,
-      width: options.width,
+      xExpression: placement.xExpression,
+      yExpression: placement.yExpression,
       fontFile: options.fontFile,
     });
   });
@@ -79,12 +143,13 @@ function buildSingleCaptionFilter(
     fontSize: number;
     fontColor: string;
     boxColor: string;
-    yPosition: number;
-    width: number;
+    xExpression: string;
+    yExpression: string;
     fontFile?: string;
   }
 ): string {
-  const { fontSize, fontColor, boxColor, yPosition, fontFile } = options;
+  const { fontSize, fontColor, boxColor, xExpression, yExpression, fontFile } =
+    options;
 
   // Escape special characters in the text
   const escapedText = escapeDrawtext(caption.text);
@@ -94,8 +159,8 @@ function buildSingleCaptionFilter(
     `text='${escapedText}'`,
     `fontsize=${fontSize}`,
     `fontcolor=${fontColor}`,
-    `x=(w-text_w)/2`, // Center horizontally
-    `y=${yPosition}-text_h`, // Position from bottom
+    `x=${xExpression}`,
+    `y=${yExpression}`,
     `box=1`,
     `boxcolor=${boxColor}`,
     `boxborderw=8`, // Padding around text
@@ -122,15 +187,17 @@ function buildSingleCaptionFilter(
  * @returns Escaped text safe for drawtext filter
  */
 function escapeDrawtext(text: string): string {
-  return text
-    // First escape backslashes
-    .replace(/\\/g, '\\\\')
-    // Then escape single quotes
-    .replace(/'/g, "'\\''")
-    // Escape colons (optional, but safer)
-    .replace(/:/g, '\\:')
-    // Handle newlines
-    .replace(/\n/g, '\\n');
+  return (
+    text
+      // First escape backslashes
+      .replace(/\\/g, '\\\\')
+      // Then escape single quotes
+      .replace(/'/g, "'\\''")
+      // Escape colons (optional, but safer)
+      .replace(/:/g, '\\:')
+      // Handle newlines
+      .replace(/\n/g, '\\n')
+  );
 }
 
 /**
@@ -202,7 +269,10 @@ export function parseCaptionsFromArray(
  * @param wordsPerCaption - Maximum words per caption
  * @returns Partitioned caption strings
  */
-function partitionCaptions(captions: string[], wordsPerCaption: number): string[] {
+function partitionCaptions(
+  captions: string[],
+  wordsPerCaption: number
+): string[] {
   const result: string[] = [];
 
   for (const caption of captions) {

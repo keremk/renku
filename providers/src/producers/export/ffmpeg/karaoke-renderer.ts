@@ -1,4 +1,8 @@
-import type { TranscriptionArtifact, TranscriptionWord } from '../../transcription/types.js';
+import type {
+  TranscriptionArtifact,
+  TranscriptionWord,
+} from '../../transcription/types.js';
+import type { OverlayPosition } from './types.js';
 
 /**
  * Animation style for highlighted word (deprecated - use ASS renderer instead).
@@ -24,8 +28,10 @@ export interface KaraokeRenderOptions {
   boxColor?: string;
   /** Font file path (optional, uses default if not provided) */
   fontFile?: string;
-  /** Position from bottom as percentage of height (default: 10) */
-  bottomMarginPercent?: number;
+  /** Subtitle anchor position (default: bottom-center) */
+  position?: OverlayPosition;
+  /** Distance from anchored edges as percentage of height (default: 8) */
+  edgePaddingPercent?: number;
   /** Maximum words to display at once (default: 8) */
   maxWordsPerLine?: number;
   /** Animation style for highlighted word (default: 'pop') */
@@ -38,10 +44,98 @@ const DEFAULT_FONT_SIZE = 48;
 const DEFAULT_FONT_COLOR = 'white';
 const DEFAULT_HIGHLIGHT_COLOR = '#FFD700';
 const DEFAULT_BOX_COLOR = 'black@0.5';
-const DEFAULT_BOTTOM_MARGIN_PERCENT = 10;
+const DEFAULT_POSITION: OverlayPosition = 'bottom-center';
+const DEFAULT_EDGE_PADDING_PERCENT = 8;
 const DEFAULT_MAX_WORDS_PER_LINE = 8;
 const DEFAULT_HIGHLIGHT_ANIMATION: HighlightAnimation = 'pop';
 const DEFAULT_ANIMATION_SCALE = 1.15; // 15% larger at peak
+
+interface KaraokePlacement {
+  horizontalAnchor: 'left' | 'center' | 'right';
+  yExpression: string;
+  edgePaddingPx: number;
+}
+
+function resolveKaraokePlacement(
+  position: OverlayPosition,
+  edgePaddingPercent: number,
+  height: number
+): KaraokePlacement {
+  const edgePaddingPx = Math.round(height * (edgePaddingPercent / 100));
+
+  switch (position) {
+    case 'top-left':
+      return {
+        horizontalAnchor: 'left',
+        yExpression: `${edgePaddingPx}`,
+        edgePaddingPx,
+      };
+    case 'top-center':
+      return {
+        horizontalAnchor: 'center',
+        yExpression: `${edgePaddingPx}`,
+        edgePaddingPx,
+      };
+    case 'top-right':
+      return {
+        horizontalAnchor: 'right',
+        yExpression: `${edgePaddingPx}`,
+        edgePaddingPx,
+      };
+    case 'middle-left':
+      return {
+        horizontalAnchor: 'left',
+        yExpression: '(h-text_h)/2',
+        edgePaddingPx,
+      };
+    case 'middle-center':
+      return {
+        horizontalAnchor: 'center',
+        yExpression: '(h-text_h)/2',
+        edgePaddingPx,
+      };
+    case 'middle-right':
+      return {
+        horizontalAnchor: 'right',
+        yExpression: '(h-text_h)/2',
+        edgePaddingPx,
+      };
+    case 'bottom-left':
+      return {
+        horizontalAnchor: 'left',
+        yExpression: `h-text_h-${edgePaddingPx}`,
+        edgePaddingPx,
+      };
+    case 'bottom-center':
+      return {
+        horizontalAnchor: 'center',
+        yExpression: `h-text_h-${edgePaddingPx}`,
+        edgePaddingPx,
+      };
+    case 'bottom-right':
+      return {
+        horizontalAnchor: 'right',
+        yExpression: `h-text_h-${edgePaddingPx}`,
+        edgePaddingPx,
+      };
+  }
+}
+
+function buildGroupBaseXExpression(
+  placement: KaraokePlacement,
+  totalWidth: number
+): string {
+  const roundedWidth = Math.round(totalWidth);
+
+  switch (placement.horizontalAnchor) {
+    case 'left':
+      return `${placement.edgePaddingPx}`;
+    case 'center':
+      return `(w-${roundedWidth})/2`;
+    case 'right':
+      return `w-${roundedWidth}-${placement.edgePaddingPx}`;
+  }
+}
 
 /**
  * Word group for rendering - groups consecutive words to display together.
@@ -79,13 +173,18 @@ export function buildKaraokeFilter(
   const fontColor = options.fontColor ?? DEFAULT_FONT_COLOR;
   const highlightColor = options.highlightColor ?? DEFAULT_HIGHLIGHT_COLOR;
   const boxColor = options.boxColor ?? DEFAULT_BOX_COLOR;
-  const bottomMargin = options.bottomMarginPercent ?? DEFAULT_BOTTOM_MARGIN_PERCENT;
+  const position = options.position ?? DEFAULT_POSITION;
+  const edgePaddingPercent =
+    options.edgePaddingPercent ?? DEFAULT_EDGE_PADDING_PERCENT;
   const maxWords = options.maxWordsPerLine ?? DEFAULT_MAX_WORDS_PER_LINE;
-  const highlightAnimation = options.highlightAnimation ?? DEFAULT_HIGHLIGHT_ANIMATION;
+  const highlightAnimation =
+    options.highlightAnimation ?? DEFAULT_HIGHLIGHT_ANIMATION;
   const animationScale = options.animationScale ?? DEFAULT_ANIMATION_SCALE;
-
-  // Calculate Y position (from bottom of screen)
-  const yPosition = Math.round(options.height * (1 - bottomMargin / 100));
+  const placement = resolveKaraokePlacement(
+    position,
+    edgePaddingPercent,
+    options.height
+  );
 
   // Group words into lines
   const wordGroups = groupWordsIntoLines(transcription.words, maxWords);
@@ -99,8 +198,7 @@ export function buildKaraokeFilter(
       fontColor,
       highlightColor,
       boxColor,
-      yPosition,
-      width: options.width,
+      placement,
       fontFile: options.fontFile,
       highlightAnimation,
       animationScale,
@@ -114,7 +212,10 @@ export function buildKaraokeFilter(
 /**
  * Group consecutive words into display lines.
  */
-function groupWordsIntoLines(words: TranscriptionWord[], maxWordsPerLine: number): WordGroup[] {
+function groupWordsIntoLines(
+  words: TranscriptionWord[],
+  maxWordsPerLine: number
+): WordGroup[] {
   const groups: WordGroup[] = [];
   let currentGroup: TranscriptionWord[] = [];
 
@@ -158,22 +259,31 @@ function buildWordGroupFilters(
     fontColor: string;
     highlightColor: string;
     boxColor: string;
-    yPosition: number;
-    width: number;
+    placement: KaraokePlacement;
     fontFile?: string;
     highlightAnimation: HighlightAnimation;
     animationScale: number;
   }
 ): string[] {
   const filters: string[] = [];
-  const { fontSize, fontColor, highlightColor, boxColor, yPosition, fontFile, highlightAnimation, animationScale } = options;
+  const {
+    fontSize,
+    fontColor,
+    highlightColor,
+    boxColor,
+    placement,
+    fontFile,
+    highlightAnimation,
+    animationScale,
+  } = options;
 
   // Calculate positioning for all words using consistent width estimation
   const charWidth = fontSize * 0.6;
   const spaceWidth = charWidth;
-  const fullText = group.words.map(w => w.text).join(' ');
+  const fullText = group.words.map((w) => w.text).join(' ');
   const totalWidth = fullText.length * charWidth;
-  const baseX = `(w-${Math.round(totalWidth)})/2`;
+  const baseX = buildGroupBaseXExpression(placement, totalWidth);
+  const yExpression = placement.yExpression;
 
   // First, render the background box using a transparent/invisible text
   // This ensures the box is rendered once for the whole group
@@ -183,7 +293,7 @@ function buildWordGroupFilters(
     `fontsize=${fontSize}`,
     `fontcolor=${boxColor.split('@')[0] || 'black'}@0`, // Invisible text (0 alpha)
     `x=${baseX}`,
-    `y=${yPosition}-text_h`,
+    `y=${yExpression}`,
     `box=1`,
     `boxcolor=${boxColor}`,
     `boxborderw=8`,
@@ -202,7 +312,10 @@ function buildWordGroupFilters(
     const escapedWord = escapeDrawtext(word.text);
 
     // Calculate X position for this word
-    const wordX = cumulativeOffset === 0 ? baseX : `${baseX}+${Math.round(cumulativeOffset)}`;
+    const wordX =
+      cumulativeOffset === 0
+        ? baseX
+        : `${baseX}+${Math.round(cumulativeOffset)}`;
 
     // Word in default color (when not being spoken but group is visible)
     const defaultParts: string[] = [
@@ -210,7 +323,7 @@ function buildWordGroupFilters(
       `fontsize=${fontSize}`,
       `fontcolor=${fontColor}`,
       `x=${wordX}`,
-      `y=${yPosition}-text_h`,
+      `y=${yExpression}`,
       `enable='between(t,${group.startTime.toFixed(3)},${group.endTime.toFixed(3)})*not(between(t,${word.startTime.toFixed(3)},${word.endTime.toFixed(3)}))'`,
     ];
     if (fontFile) {
@@ -232,7 +345,7 @@ function buildWordGroupFilters(
       `fontsize=${fontsizeExpr}`,
       `fontcolor=${highlightColor}`,
       `x=${wordX}`,
-      `y=${yPosition}-text_h`,
+      `y=${yExpression}`,
       `enable='between(t,${word.startTime.toFixed(3)},${word.endTime.toFixed(3)})'`,
     ];
     if (fontFile) {
@@ -289,15 +402,17 @@ function buildAnimatedFontsize(
  * Escape special characters for FFmpeg drawtext filter.
  */
 export function escapeDrawtext(text: string): string {
-  return text
-    // First escape backslashes
-    .replace(/\\/g, '\\\\')
-    // Then escape single quotes
-    .replace(/'/g, "'\\''")
-    // Escape colons
-    .replace(/:/g, '\\:')
-    // Handle newlines
-    .replace(/\n/g, '\\n');
+  return (
+    text
+      // First escape backslashes
+      .replace(/\\/g, '\\\\')
+      // Then escape single quotes
+      .replace(/'/g, "'\\''")
+      // Escape colons
+      .replace(/:/g, '\\:')
+      // Handle newlines
+      .replace(/\n/g, '\\n')
+  );
 }
 
 /**

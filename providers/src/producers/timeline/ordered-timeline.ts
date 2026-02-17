@@ -43,7 +43,15 @@ type ClipKind =
   | 'Music'
   | 'Video'
   | 'Captions'
-  | 'Transcription';
+  | 'Transcription'
+  | 'Text';
+
+type TextTransition =
+  | 'none'
+  | 'fade-in-out'
+  | 'slide-in-out-left'
+  | 'slide-in-out-right'
+  | 'spring-in-out';
 
 interface TimelineClipConfig {
   kind: ClipKind;
@@ -100,6 +108,14 @@ interface KenBurnsPreset {
 }
 
 const DEFAULT_EFFECT = 'KenBurns';
+const DEFAULT_TEXT_EFFECT: TextTransition = 'fade-in-out';
+const TEXT_TRANSITIONS = new Set<TextTransition>([
+  'none',
+  'fade-in-out',
+  'slide-in-out-left',
+  'slide-in-out-right',
+  'spring-in-out',
+]);
 
 const KEN_BURNS_PRESETS: KenBurnsPreset[] = [
   {
@@ -645,6 +661,9 @@ function buildClipsFromShorthand(
   const transcriptionClip = isRecord(source.transcriptionClip)
     ? (source.transcriptionClip as Record<string, unknown>)
     : undefined;
+  const textClip = isRecord(source.textClip)
+    ? (source.textClip as Record<string, unknown>)
+    : undefined;
 
   if (imageClip?.artifact && typeof imageClip.artifact === 'string') {
     clips.push({
@@ -689,6 +708,13 @@ function buildClipsFromShorthand(
     clips.push({
       kind: 'Transcription',
       inputs: transcriptionClip.artifact,
+    });
+  }
+  if (textClip?.artifact && typeof textClip.artifact === 'string') {
+    clips.push({
+      kind: 'Text',
+      inputs: textClip.artifact,
+      effect: typeof textClip.effect === 'string' ? textClip.effect : undefined,
     });
   }
   return clips;
@@ -870,6 +896,14 @@ async function buildTrack(args: {
       });
     case 'Transcription':
       return buildTranscriptionTrack({
+        clip,
+        fanIn,
+        trackIndex,
+        masterContext,
+        inputs,
+      });
+    case 'Text':
+      return buildTextTrack({
         clip,
         fanIn,
         trackIndex,
@@ -1317,6 +1351,258 @@ function buildTranscriptionTrack(args: {
   };
 }
 
+function buildTextTrack(args: {
+  clip: TimelineClipConfig;
+  fanIn: FanInValue;
+  trackIndex: number;
+  masterContext: MasterTrackContext;
+  inputs: ResolvedInputsAccessor;
+}): TimelineTrack {
+  const { clip, fanIn, trackIndex, masterContext, inputs } = args;
+  const { groupCount, segmentToGroup, segmentDurations, segmentOffsets } =
+    masterContext;
+  const effect = resolveTextTransition(clip.effect);
+  const normalizedGroups = normalizeGroups(fanIn.groups, groupCount);
+  const groups = normalizeTextGroupsBySegment({
+    groups: filterExistingTextAssets(normalizedGroups, inputs),
+    segmentCount: segmentDurations.length,
+  });
+  const clips: TimelineClip[] = [];
+  const segmentCount = segmentDurations.length;
+
+  for (let segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++) {
+    const groupIndex = segmentToGroup[segmentIndex] ?? 0;
+    const snippetAssetIds = groups[groupIndex] ?? [];
+    if (snippetAssetIds.length === 0) {
+      continue;
+    }
+
+    const segmentStart = segmentOffsets[segmentIndex] ?? 0;
+    const segmentDuration = segmentDurations[segmentIndex] ?? 0;
+    const effects = snippetAssetIds
+      .map((assetId, snippetIndex) => {
+        const text = resolveTextSnippet(inputs, assetId);
+        if (text === undefined) {
+          return undefined;
+        }
+        const timing = computeTextSnippetTiming({
+          segmentStart,
+          segmentDuration,
+          snippetIndex,
+          snippetCount: snippetAssetIds.length,
+        });
+        return {
+          assetId,
+          text,
+          transition: effect,
+          startTime: timing.startTime,
+          duration: timing.duration,
+        };
+      })
+      .filter(
+        (
+          value
+        ): value is {
+          assetId: string;
+          text: string;
+          transition: TextTransition;
+          startTime: number;
+          duration: number;
+        } => value !== undefined
+      );
+
+    if (effects.length === 0) {
+      continue;
+    }
+
+    clips.push({
+      id: `clip-${trackIndex}-${segmentIndex}`,
+      kind: clip.kind,
+      startTime: segmentStart,
+      duration: segmentDuration,
+      properties: {
+        effect,
+        effects,
+      },
+    });
+  }
+
+  return {
+    id: `track-${trackIndex}`,
+    kind: clip.kind,
+    clips,
+  };
+}
+
+function normalizeTextGroupsBySegment(args: {
+  groups: string[][];
+  segmentCount: number;
+}): string[][] {
+  const { groups, segmentCount } = args;
+  if (segmentCount <= 1) {
+    return groups;
+  }
+
+  const firstGroup = groups[0] ?? [];
+  const hasNonFirstGroups = groups.slice(1).some((group) => group.length > 0);
+
+  if (firstGroup.length === 0 || hasNonFirstGroups) {
+    return groups;
+  }
+
+  const parsed = firstGroup.map((assetId) => ({
+    assetId,
+    segmentIndex: readSegmentIndexFromAssetId(assetId),
+  }));
+  const shouldRemap = parsed.some(
+    ({ segmentIndex }) => segmentIndex !== undefined && segmentIndex > 0
+  );
+
+  if (!shouldRemap) {
+    return groups;
+  }
+
+  const remapped = Array.from({ length: segmentCount }, () => [] as string[]);
+
+  for (const { assetId, segmentIndex } of parsed) {
+    if (segmentIndex === undefined) {
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Text snippet asset "${assetId}" must include a canonical segment index when mapped into TimelineComposer.TextSegments.`,
+        {
+          kind: 'user_input',
+          causedByUser: true,
+          metadata: { assetId },
+        }
+      );
+    }
+    if (segmentIndex >= segmentCount) {
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Text snippet asset "${assetId}" resolves to segment index ${segmentIndex}, but timeline has ${segmentCount} segments.`,
+        {
+          kind: 'user_input',
+          causedByUser: true,
+          metadata: { assetId, segmentIndex, segmentCount },
+        }
+      );
+    }
+    remapped[segmentIndex]!.push(assetId);
+  }
+
+  return remapped;
+}
+
+function readSegmentIndexFromAssetId(assetId: string): number | undefined {
+  const match = /\[(\d+)\]/.exec(assetId);
+  if (!match) {
+    return undefined;
+  }
+  const segmentIndex = Number(match[1]);
+  if (!Number.isInteger(segmentIndex) || segmentIndex < 0) {
+    return undefined;
+  }
+  return segmentIndex;
+}
+
+function resolveTextTransition(effect: string | undefined): TextTransition {
+  if (effect === undefined) {
+    return DEFAULT_TEXT_EFFECT;
+  }
+  if (TEXT_TRANSITIONS.has(effect as TextTransition)) {
+    return effect as TextTransition;
+  }
+  throw createProviderError(
+    SdkErrorCode.INVALID_CONFIG,
+    `Unsupported Text clip effect "${effect}". Expected one of: ${Array.from(TEXT_TRANSITIONS).join(', ')}.`,
+    { kind: 'user_input', causedByUser: true }
+  );
+}
+
+function resolveTextSnippet(
+  inputs: ResolvedInputsAccessor,
+  assetId: string
+): string | undefined {
+  const value = inputs.getByNodeId(assetId);
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== 'string') {
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      `Text snippet asset "${assetId}" must resolve to a string payload.`,
+      {
+        kind: 'user_input',
+        causedByUser: true,
+        metadata: { assetId, valueType: typeof value },
+      }
+    );
+  }
+  if (value.trim().length === 0) {
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      `Text snippet asset "${assetId}" resolved to an empty string.`,
+      {
+        kind: 'user_input',
+        causedByUser: true,
+        metadata: { assetId },
+      }
+    );
+  }
+  return value;
+}
+
+function computeTextSnippetTiming(args: {
+  segmentStart: number;
+  segmentDuration: number;
+  snippetIndex: number;
+  snippetCount: number;
+}): { startTime: number; duration: number } {
+  const { segmentStart, segmentDuration, snippetIndex, snippetCount } = args;
+
+  if (snippetCount <= 0) {
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      'Text snippet timing requires a positive snippetCount.',
+      { kind: 'unknown', causedByUser: false, metadata: args }
+    );
+  }
+
+  const rawStart =
+    segmentStart + (segmentDuration * snippetIndex) / snippetCount;
+  const rawEnd =
+    snippetIndex === snippetCount - 1
+      ? segmentStart + segmentDuration
+      : segmentStart + (segmentDuration * (snippetIndex + 1)) / snippetCount;
+  const startTime = roundSeconds(rawStart);
+  const endTime = roundSeconds(rawEnd);
+  const duration = roundSeconds(endTime - startTime);
+
+  if (!Number.isFinite(duration) || duration <= 0) {
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      'Computed non-positive text snippet duration.',
+      {
+        kind: 'unknown',
+        causedByUser: false,
+        metadata: {
+          segmentStart,
+          segmentDuration,
+          snippetIndex,
+          snippetCount,
+          startTime,
+          endTime,
+        },
+      }
+    );
+  }
+
+  return {
+    startTime,
+    duration,
+  };
+}
+
 function pickKenBurnsPreset(
   segmentIndex: number,
   imageIndex: number,
@@ -1634,6 +1920,15 @@ function filterExistingAssets(
       const payload = tryResolveAssetBinary(inputs, assetId);
       return payload !== undefined;
     })
+  );
+}
+
+function filterExistingTextAssets(
+  groups: string[][],
+  inputs: ResolvedInputsAccessor
+): string[][] {
+  return groups.map((group) =>
+    group.filter((assetId) => inputs.getByNodeId(assetId) !== undefined)
   );
 }
 

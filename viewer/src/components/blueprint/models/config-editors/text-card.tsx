@@ -1,12 +1,5 @@
-/**
- * SubtitlesCard - Specialized editor for subtitle configuration.
- *
- * Displays subtitle settings in a card format with preview and edit dialog.
- * Uses @uiw/react-color Sketch picker for color selection.
- */
-
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Subtitles, Type, Palette, Layout, Sparkles } from 'lucide-react';
+import { Type, Palette, Layout } from 'lucide-react';
 import { Sketch } from '@uiw/react-color';
 
 import { MediaCard } from '../../shared/media-card';
@@ -26,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import {
   Popover,
   PopoverContent,
@@ -35,23 +27,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { ConfigEditorProps } from './index';
 
-/**
- * Subtitle configuration structure (matches SubtitleConfig from providers).
- */
-export interface SubtitleConfig {
-  font?: string;
-  fontSize?: number;
-  fontBaseColor?: string;
-  fontHighlightColor?: string;
-  backgroundColor?: string;
-  backgroundOpacity?: number;
-  position?: OverlayPosition;
-  edgePaddingPercent?: number;
-  maxWordsPerLine?: number;
-  highlightEffect?: boolean;
-}
-
-type OverlayPosition =
+export type OverlayPosition =
   | 'top-left'
   | 'top-center'
   | 'top-right'
@@ -62,25 +38,26 @@ type OverlayPosition =
   | 'bottom-center'
   | 'bottom-right';
 
-/**
- * Default values for subtitle configuration.
- */
-const SUBTITLE_DEFAULTS: Required<SubtitleConfig> = {
+export interface TextConfig {
+  font?: string;
+  fontSize?: number;
+  fontBaseColor?: string;
+  backgroundColor?: string;
+  backgroundOpacity?: number;
+  position?: OverlayPosition;
+  edgePaddingPercent?: number;
+}
+
+const TEXT_DEFAULTS: Required<TextConfig> = {
   font: 'Arial',
-  fontSize: 48,
+  fontSize: 56,
   fontBaseColor: '#FFFFFF',
-  fontHighlightColor: '#FFD700',
   backgroundColor: '#000000',
-  backgroundOpacity: 0,
-  position: 'bottom-center',
+  backgroundOpacity: 0.35,
+  position: 'middle-center',
   edgePaddingPercent: 8,
-  maxWordsPerLine: 4,
-  highlightEffect: true,
 };
 
-/**
- * Common fonts for subtitle display.
- */
 const FONT_OPTIONS = [
   'Arial',
   'Helvetica',
@@ -105,34 +82,28 @@ const POSITION_OPTIONS: Array<{ value: OverlayPosition; label: string }> = [
   { value: 'bottom-right', label: 'Bottom Right' },
 ];
 
-export type SubtitlesCardProps = ConfigEditorProps<SubtitleConfig>;
+export type TextCardProps = ConfigEditorProps<TextConfig>;
 
-/**
- * Card component for editing subtitle configuration.
- */
-export function SubtitlesCard({
+export function TextCard({
   value,
   isEditable = false,
   isSelected = false,
   onChange,
-}: SubtitlesCardProps) {
+}: TextCardProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Merge value with defaults for display
   const config = useMemo(() => {
-    return { ...SUBTITLE_DEFAULTS, ...value };
+    return { ...TEXT_DEFAULTS, ...value };
   }, [value]);
 
-  // Auto-emit defaults when value is undefined and editable
-  // This ensures defaults are persisted on first render
   useEffect(() => {
     if (value === undefined && isEditable && onChange) {
-      onChange(SUBTITLE_DEFAULTS);
+      onChange(TEXT_DEFAULTS);
     }
   }, [value, isEditable, onChange]);
 
   const handleSave = useCallback(
-    (newConfig: SubtitleConfig) => {
+    (newConfig: TextConfig) => {
       onChange?.(newConfig);
       setDialogOpen(false);
     },
@@ -145,15 +116,15 @@ export function SubtitlesCard({
         isSelected={isSelected}
         onClick={() => setDialogOpen(true)}
         footer={
-          <SubtitlesCardFooter
+          <TextCardFooter
             onEdit={isEditable ? () => setDialogOpen(true) : undefined}
           />
         }
       >
-        <SubtitlesPreview config={config} />
+        <TextPreview config={config} />
       </MediaCard>
 
-      <SubtitlesEditDialog
+      <TextEditDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         config={config}
@@ -164,18 +135,13 @@ export function SubtitlesCard({
   );
 }
 
-// ============================================================================
-// Preview Component
-// ============================================================================
-
-interface SubtitlesPreviewProps {
-  config: Required<SubtitleConfig>;
+interface TextPreviewProps {
+  config: Required<TextConfig>;
 }
 
-function SubtitlesPreview({ config }: SubtitlesPreviewProps) {
+function TextPreview({ config }: TextPreviewProps) {
   return (
     <div className='bg-muted/30 p-4 space-y-3 min-h-[200px]'>
-      {/* Colors section */}
       <div className='space-y-2'>
         <div className='flex items-center gap-2 text-xs text-muted-foreground'>
           <Palette className='size-3' />
@@ -183,7 +149,6 @@ function SubtitlesPreview({ config }: SubtitlesPreviewProps) {
         </div>
         <div className='flex gap-2 flex-wrap'>
           <ColorSwatch label='Text' color={config.fontBaseColor} />
-          <ColorSwatch label='Highlight' color={config.fontHighlightColor} />
           <ColorSwatch
             label='Background'
             color={config.backgroundColor}
@@ -192,7 +157,6 @@ function SubtitlesPreview({ config }: SubtitlesPreviewProps) {
         </div>
       </div>
 
-      {/* Font section */}
       <div className='space-y-1'>
         <div className='flex items-center gap-2 text-xs text-muted-foreground'>
           <Type className='size-3' />
@@ -203,7 +167,6 @@ function SubtitlesPreview({ config }: SubtitlesPreviewProps) {
         </div>
       </div>
 
-      {/* Layout section */}
       <div className='space-y-1'>
         <div className='flex items-center gap-2 text-xs text-muted-foreground'>
           <Layout className='size-3' />
@@ -214,34 +177,9 @@ function SubtitlesPreview({ config }: SubtitlesPreviewProps) {
           {config.edgePaddingPercent}%
         </div>
       </div>
-
-      {/* Effects section */}
-      <div className='space-y-1'>
-        <div className='flex items-center gap-2 text-xs text-muted-foreground'>
-          <Sparkles className='size-3' />
-          <span>Effects</span>
-        </div>
-        <div className='text-xs text-foreground'>
-          Karaoke highlighting:{' '}
-          <span
-            className={
-              config.highlightEffect
-                ? 'text-green-500'
-                : 'text-muted-foreground'
-            }
-          >
-            {config.highlightEffect ? 'On' : 'Off'}
-          </span>{' '}
-          · Max {config.maxWordsPerLine} words/line
-        </div>
-      </div>
     </div>
   );
 }
-
-// ============================================================================
-// Color Swatch Component
-// ============================================================================
 
 interface ColorSwatchProps {
   label: string;
@@ -275,20 +213,16 @@ function ColorSwatch({ label, color, opacity }: ColorSwatchProps) {
   );
 }
 
-// ============================================================================
-// Footer Component
-// ============================================================================
-
-interface SubtitlesCardFooterProps {
+interface TextCardFooterProps {
   onEdit?: () => void;
 }
 
-function SubtitlesCardFooter({ onEdit }: SubtitlesCardFooterProps) {
+function TextCardFooter({ onEdit }: TextCardFooterProps) {
   return (
     <>
       <div className='flex items-center gap-2 flex-1 min-w-0'>
-        <Subtitles className='size-4 text-muted-foreground' />
-        <span className='text-xs text-foreground truncate'>Subtitles</span>
+        <Type className='size-4 text-muted-foreground' />
+        <span className='text-xs text-foreground truncate'>Text Overlay</span>
       </div>
       {onEdit && (
         <button
@@ -306,33 +240,26 @@ function SubtitlesCardFooter({ onEdit }: SubtitlesCardFooterProps) {
   );
 }
 
-// ============================================================================
-// Edit Dialog
-// ============================================================================
-
-interface SubtitlesEditDialogProps {
+interface TextEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  config: Required<SubtitleConfig>;
-  onSave?: (config: SubtitleConfig) => void;
+  config: Required<TextConfig>;
+  onSave?: (config: TextConfig) => void;
   readOnly?: boolean;
 }
 
-function SubtitlesEditDialog({
+function TextEditDialog({
   open,
   onOpenChange,
   config,
   onSave,
   readOnly = false,
-}: SubtitlesEditDialogProps) {
-  // Local form state - initialized from config
-  const [formState, setFormState] = useState<Required<SubtitleConfig>>(config);
+}: TextEditDialogProps) {
+  const [formState, setFormState] = useState<Required<TextConfig>>(config);
 
-  // Handle dialog open/close, reset form state when opening
   const handleOpenChange = useCallback(
     (isOpen: boolean) => {
       if (isOpen) {
-        // Reset form state to current config when dialog opens
         setFormState(config);
       }
       onOpenChange(isOpen);
@@ -349,7 +276,7 @@ function SubtitlesEditDialog({
   }, [onOpenChange]);
 
   const updateField = useCallback(
-    <K extends keyof SubtitleConfig>(key: K, value: SubtitleConfig[K]) => {
+    <K extends keyof TextConfig>(key: K, value: TextConfig[K]) => {
       setFormState((prev) => ({ ...prev, [key]: value }));
     },
     []
@@ -360,13 +287,12 @@ function SubtitlesEditDialog({
       <DialogContent className='sm:max-w-[500px]'>
         <DialogHeader>
           <DialogTitle className='flex items-center gap-2'>
-            <Subtitles className='size-5' />
-            {readOnly ? 'Subtitle Settings' : 'Edit Subtitle Settings'}
+            <Type className='size-5' />
+            {readOnly ? 'Text Overlay Settings' : 'Edit Text Overlay Settings'}
           </DialogTitle>
         </DialogHeader>
 
         <div className='space-y-6 py-4'>
-          {/* Font Section */}
           <FormSection icon={Type} label='Font'>
             <div className='grid grid-cols-2 gap-4'>
               <FormRow label='Family'>
@@ -392,7 +318,7 @@ function SubtitlesEditDialog({
                   type='number'
                   value={formState.fontSize}
                   onChange={(e) =>
-                    updateField('fontSize', parseInt(e.target.value) || 48)
+                    updateField('fontSize', parseInt(e.target.value) || 56)
                   }
                   disabled={readOnly}
                   className='h-8 text-xs'
@@ -403,20 +329,12 @@ function SubtitlesEditDialog({
             </div>
           </FormSection>
 
-          {/* Colors Section */}
           <FormSection icon={Palette} label='Colors'>
             <div className='grid grid-cols-2 gap-4'>
               <FormRow label='Text Color'>
                 <ColorPickerRow
                   value={formState.fontBaseColor}
                   onChange={(v) => updateField('fontBaseColor', v)}
-                  disabled={readOnly}
-                />
-              </FormRow>
-              <FormRow label='Highlight Color'>
-                <ColorPickerRow
-                  value={formState.fontHighlightColor}
-                  onChange={(v) => updateField('fontHighlightColor', v)}
                   disabled={readOnly}
                 />
               </FormRow>
@@ -447,7 +365,6 @@ function SubtitlesEditDialog({
             </div>
           </FormSection>
 
-          {/* Layout Section */}
           <FormSection icon={Layout} label='Layout'>
             <div className='grid grid-cols-2 gap-4'>
               <FormRow label='Position'>
@@ -492,40 +409,6 @@ function SubtitlesEditDialog({
               </FormRow>
             </div>
           </FormSection>
-
-          {/* Effects Section */}
-          <FormSection icon={Sparkles} label='Effects'>
-            <div className='grid grid-cols-2 gap-4'>
-              <FormRow label='Max Words/Line'>
-                <Input
-                  type='number'
-                  value={formState.maxWordsPerLine}
-                  onChange={(e) =>
-                    updateField(
-                      'maxWordsPerLine',
-                      parseInt(e.target.value) || 4
-                    )
-                  }
-                  disabled={readOnly}
-                  className='h-8 text-xs'
-                  min={1}
-                  max={20}
-                />
-              </FormRow>
-              <div className='space-y-1.5'>
-                <label className='text-xs text-muted-foreground'>Karaoke</label>
-                <div className='h-8 rounded-md border border-border/50 px-3 flex items-center justify-between'>
-                  <span className='text-xs text-foreground'>Highlighting</span>
-                  <Switch
-                    checked={formState.highlightEffect}
-                    onCheckedChange={(v) => updateField('highlightEffect', v)}
-                    disabled={readOnly}
-                    size='sm'
-                  />
-                </div>
-              </div>
-            </div>
-          </FormSection>
         </div>
 
         <DialogFooter>
@@ -546,10 +429,6 @@ function SubtitlesEditDialog({
     </Dialog>
   );
 }
-
-// ============================================================================
-// Form Helper Components
-// ============================================================================
 
 interface FormSectionProps {
   icon: React.ComponentType<{ className?: string }>;
@@ -582,10 +461,6 @@ function FormRow({ label, children }: FormRowProps) {
     </div>
   );
 }
-
-// ============================================================================
-// Color Picker Row
-// ============================================================================
 
 interface ColorPickerRowProps {
   value: string;

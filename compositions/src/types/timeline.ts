@@ -1,4 +1,11 @@
-export type TimelineTrackKind = "Image" | "Audio" | "Music" | "Video" | "Captions" | "Transcription";
+export type TimelineTrackKind =
+  | 'Image'
+  | 'Audio'
+  | 'Music'
+  | 'Video'
+  | 'Captions'
+  | 'Transcription'
+  | 'Text';
 
 export interface TimelineDocument {
   id: string;
@@ -20,6 +27,7 @@ export type TimelineTrack =
   | VideoTrack
   | CaptionsTrack
   | TranscriptionTrack
+  | TextTrack
   | UnknownTrack;
 
 interface TimelineTrackBase<TKind extends string, TClip extends TimelineClip> {
@@ -28,7 +36,10 @@ interface TimelineTrackBase<TKind extends string, TClip extends TimelineClip> {
   clips: TClip[];
 }
 
-interface TimelineClipBase<TKind extends string, TProps extends Record<string, unknown>> {
+interface TimelineClipBase<
+  TKind extends string,
+  TProps extends Record<string, unknown>,
+> {
   id: string;
   kind: TKind;
   startTime: number;
@@ -48,8 +59,23 @@ export interface KenBurnsEffect {
   endScale?: number;
 }
 
+export type TextEffectTransition =
+  | 'none'
+  | 'fade-in-out'
+  | 'slide-in-out-left'
+  | 'slide-in-out-right'
+  | 'spring-in-out';
+
+export interface TextEffect {
+  assetId?: string;
+  text: string;
+  transition: TextEffectTransition;
+  startTime: number;
+  duration: number;
+}
+
 export type ImageClip = TimelineClipBase<
-  "Image",
+  'Image',
   {
     effect?: string;
     effects: KenBurnsEffect[];
@@ -57,7 +83,7 @@ export type ImageClip = TimelineClipBase<
 >;
 
 export type AudioClip = TimelineClipBase<
-  "Audio",
+  'Audio',
   {
     assetId: string;
     volume?: number;
@@ -67,17 +93,17 @@ export type AudioClip = TimelineClipBase<
 >;
 
 export type MusicClip = TimelineClipBase<
-  "Music",
+  'Music',
   {
     assetId: string;
     volume?: number;
-    duration?: "full" | "match";
-    play?: "loop" | "no-loop";
+    duration?: 'full' | 'match';
+    play?: 'loop' | 'no-loop';
   }
 >;
 
 export type VideoClip = TimelineClipBase<
-  "Video",
+  'Video',
   {
     assetId: string;
     originalDuration?: number;
@@ -87,7 +113,7 @@ export type VideoClip = TimelineClipBase<
 >;
 
 export type CaptionsClip = TimelineClipBase<
-  "Captions",
+  'Captions',
   {
     assetId?: string;
     captions?: string[];
@@ -97,9 +123,17 @@ export type CaptionsClip = TimelineClipBase<
 >;
 
 export type TranscriptionClip = TimelineClipBase<
-  "Transcription",
+  'Transcription',
   {
     assetId: string;
+  }
+>;
+
+export type TextClip = TimelineClipBase<
+  'Text',
+  {
+    effect: TextEffectTransition;
+    effects: TextEffect[];
   }
 >;
 
@@ -112,14 +146,19 @@ export type TimelineClip =
   | VideoClip
   | CaptionsClip
   | TranscriptionClip
+  | TextClip
   | UnknownClip;
 
-export type ImageTrack = TimelineTrackBase<"Image", ImageClip>;
-export type AudioTrack = TimelineTrackBase<"Audio", AudioClip>;
-export type MusicTrack = TimelineTrackBase<"Music", MusicClip>;
-export type VideoTrack = TimelineTrackBase<"Video", VideoClip>;
-export type CaptionsTrack = TimelineTrackBase<"Captions", CaptionsClip>;
-export type TranscriptionTrack = TimelineTrackBase<"Transcription", TranscriptionClip>;
+export type ImageTrack = TimelineTrackBase<'Image', ImageClip>;
+export type AudioTrack = TimelineTrackBase<'Audio', AudioClip>;
+export type MusicTrack = TimelineTrackBase<'Music', MusicClip>;
+export type VideoTrack = TimelineTrackBase<'Video', VideoClip>;
+export type CaptionsTrack = TimelineTrackBase<'Captions', CaptionsClip>;
+export type TranscriptionTrack = TimelineTrackBase<
+  'Transcription',
+  TranscriptionClip
+>;
+export type TextTrack = TimelineTrackBase<'Text', TextClip>;
 export type UnknownTrack = TimelineTrackBase<string, TimelineClip>;
 
 export interface AssetMap {

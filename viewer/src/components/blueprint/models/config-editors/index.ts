@@ -7,9 +7,10 @@
  * - Hiding producers that only have complex properties with no registered editor
  */
 
-import type { ComponentType } from "react";
-import { SubtitlesCard, type SubtitlesCardProps } from "./subtitles-card";
-import { TimelineCard, type TimelineCardProps } from "./timeline-card";
+import type { ComponentType } from 'react';
+import { SubtitlesCard, type SubtitlesCardProps } from './subtitles-card';
+import { TimelineCard, type TimelineCardProps } from './timeline-card';
+import { TextCard, type TextCardProps } from './text-card';
 
 /**
  * Props that all config editor components receive.
@@ -35,6 +36,7 @@ export const CONFIG_EDITOR_REGISTRY: Record<
 > = {
   subtitles: SubtitlesCard as ComponentType<ConfigEditorProps<unknown>>,
   timeline: TimelineCard as ComponentType<ConfigEditorProps<unknown>>,
+  text: TextCard as ComponentType<ConfigEditorProps<unknown>>,
 };
 
 /**
@@ -54,4 +56,4 @@ export function getEditorComponent(
 }
 
 // Re-export types for convenience
-export type { SubtitlesCardProps, TimelineCardProps };
+export type { SubtitlesCardProps, TimelineCardProps, TextCardProps };
