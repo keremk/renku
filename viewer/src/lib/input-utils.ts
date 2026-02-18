@@ -1,9 +1,9 @@
-import type { BlueprintInputDef } from "@/types/blueprint-graph";
+import type { BlueprintInputDef } from '@/types/blueprint-graph';
 
 /**
  * Input category types.
  */
-export type InputCategory = "media" | "text" | "other";
+export type InputCategory = 'media' | 'text' | 'other';
 
 /**
  * Inputs grouped by category.
@@ -20,26 +20,26 @@ export interface CategorizedInputs {
 /**
  * Media type values.
  */
-export type MediaType = "image" | "video" | "audio";
+export type MediaType = 'image' | 'video' | 'audio';
 
 /**
  * Known valid input types for categorization.
  * Mirrors the VALID_INPUT_TYPES from core validation.
  */
 const KNOWN_INPUT_TYPES = new Set([
-  "string",
-  "text",
-  "int",
-  "integer",
-  "number",
-  "boolean",
-  "array",
-  "collection",
-  "image",
-  "video",
-  "audio",
-  "json",
-  "enum",
+  'string',
+  'text',
+  'int',
+  'integer',
+  'number',
+  'boolean',
+  'array',
+  'collection',
+  'image',
+  'video',
+  'audio',
+  'json',
+  'enum',
 ]);
 
 /**
@@ -48,9 +48,9 @@ const KNOWN_INPUT_TYPES = new Set([
 export function isMediaType(type: string, itemType?: string): boolean {
   const effectiveType = itemType ?? type;
   return (
-    effectiveType === "image" ||
-    effectiveType === "video" ||
-    effectiveType === "audio"
+    effectiveType === 'image' ||
+    effectiveType === 'video' ||
+    effectiveType === 'audio'
   );
 }
 
@@ -76,17 +76,17 @@ export function getMediaTypeFromInput(
 export function getInputCategory(input: BlueprintInputDef): InputCategory {
   // Check for media types (image, video, audio or array of these)
   if (isMediaType(input.type, input.itemType)) {
-    return "media";
+    return 'media';
   }
 
   // Check for text type (long-form content)
-  if (input.type === "text") {
-    return "text";
+  if (input.type === 'text') {
+    return 'text';
   }
 
   // Log warning for unknown types in development
   if (
-    process.env.NODE_ENV === "development" &&
+    process.env.NODE_ENV === 'development' &&
     !KNOWN_INPUT_TYPES.has(input.type)
   ) {
     console.warn(
@@ -95,13 +95,15 @@ export function getInputCategory(input: BlueprintInputDef): InputCategory {
   }
 
   // Everything else (string, int, enum, boolean, etc.)
-  return "other";
+  return 'other';
 }
 
 /**
  * Categorizes an array of input definitions into media, text, and other groups.
  */
-export function categorizeInputs(inputs: BlueprintInputDef[]): CategorizedInputs {
+export function categorizeInputs(
+  inputs: BlueprintInputDef[]
+): CategorizedInputs {
   const result: CategorizedInputs = {
     media: [],
     text: [],
@@ -114,6 +116,26 @@ export function categorizeInputs(inputs: BlueprintInputDef[]): CategorizedInputs
   }
 
   return result;
+}
+
+/**
+ * Returns whether an input should be shown in the Inputs panel.
+ * Derived/runtime system inputs are hidden because they are not user-supplied.
+ */
+export function isInputVisibleInPanel(input: BlueprintInputDef): boolean {
+  if (!input.system) {
+    return true;
+  }
+  return input.system.userSupplied;
+}
+
+/**
+ * Filters inputs to only those that should be displayed in the Inputs panel.
+ */
+export function filterPanelVisibleInputs(
+  inputs: BlueprintInputDef[]
+): BlueprintInputDef[] {
+  return inputs.filter(isInputVisibleInPanel);
 }
 
 /**

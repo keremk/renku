@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { Loader2 } from "lucide-react";
-import type { BlueprintInputDef } from "@/types/blueprint-graph";
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Loader2 } from 'lucide-react';
+import type { BlueprintInputDef } from '@/types/blueprint-graph';
 import {
   CollapsibleSection,
   MediaGrid,
@@ -9,26 +9,27 @@ import {
   VideoCard,
   AudioCard,
   ImageCard,
-} from "./shared";
-import { DefaultTextEditor } from "./inputs/default-text-editor";
-import { InputCardFooter } from "./inputs/input-card-footer";
-import { EmptyMediaPlaceholder } from "./inputs/empty-media-placeholder";
-import { FileUploadDialog } from "./inputs/file-upload-dialog";
-import type { InputEditorProps } from "./inputs/input-registry";
-import { useAutoSave } from "@/hooks/use-auto-save";
+} from './shared';
+import { DefaultTextEditor } from './inputs/default-text-editor';
+import { InputCardFooter } from './inputs/input-card-footer';
+import { EmptyMediaPlaceholder } from './inputs/empty-media-placeholder';
+import { FileUploadDialog } from './inputs/file-upload-dialog';
+import type { InputEditorProps } from './inputs/input-registry';
+import { useAutoSave } from '@/hooks/use-auto-save';
 import {
   categorizeInputs,
+  filterPanelVisibleInputs,
   getMediaTypeFromInput,
   type MediaType,
-} from "@/lib/input-utils";
-import { buildInputFileUrl, parseFileRef } from "@/data/blueprint-client";
+} from '@/lib/input-utils';
+import { buildInputFileUrl, parseFileRef } from '@/data/blueprint-client';
 import {
   uploadAndValidate,
   getInputNameFromNodeId,
   getSectionHighlightStyles,
   toMediaInputType,
   isValidFileRef,
-} from "@/lib/panel-utils";
+} from '@/lib/panel-utils';
 
 interface InputValue {
   name: string;
@@ -69,8 +70,12 @@ export function InputsPanel({
 
   // Track all input values locally
   // Generate a stable key when the input values change to trigger state reset
-  const initialValueKey = useMemo(() => JSON.stringify(initialValueMap), [initialValueMap]);
-  const [internalValues, setInternalValues] = useState<Record<string, unknown>>(initialValueMap);
+  const initialValueKey = useMemo(
+    () => JSON.stringify(initialValueMap),
+    [initialValueMap]
+  );
+  const [internalValues, setInternalValues] =
+    useState<Record<string, unknown>>(initialValueMap);
 
   // Reset internal state when initialValueMap changes
   // Using the serialized key as dependency ensures we only reset on actual data changes
@@ -114,33 +119,41 @@ export function InputsPanel({
     }));
   }, []);
 
+  const visibleInputs = useMemo(
+    () => filterPanelVisibleInputs(inputs),
+    [inputs]
+  );
+
   // Categorize inputs
-  const categorized = useMemo(() => categorizeInputs(inputs), [inputs]);
+  const categorized = useMemo(
+    () => categorizeInputs(visibleInputs),
+    [visibleInputs]
+  );
 
   // Determine which input is selected based on node ID
   const selectedInputName = getInputNameFromNodeId(selectedNodeId);
 
-  if (inputs.length === 0) {
+  if (visibleInputs.length === 0) {
     return (
-      <div className="text-muted-foreground text-sm">
-        No inputs defined in this blueprint.
+      <div className='text-muted-foreground text-sm'>
+        No editable inputs defined in this blueprint.
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <div className='space-y-8'>
       {/* Saving indicator */}
       {isSaving && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Loader2 className="size-3 animate-spin" />
+        <div className='flex items-center gap-2 text-xs text-muted-foreground'>
+          <Loader2 className='size-3 animate-spin' />
           <span>Saving...</span>
         </div>
       )}
 
       {/* Media inputs - one section per input */}
       {categorized.media.length > 0 && (
-        <div className="space-y-6">
+        <div className='space-y-6'>
           {categorized.media.map((input) => (
             <MediaInputSection
               key={input.name}
@@ -159,7 +172,7 @@ export function InputsPanel({
       {/* Text inputs - single section for all */}
       {categorized.text.length > 0 && (
         <CollapsibleSection
-          title="Text Inputs"
+          title='Text Inputs'
           count={categorized.text.length}
           defaultOpen
         >
@@ -169,10 +182,10 @@ export function InputsPanel({
                 key={input.name}
                 label={input.name}
                 description={input.description}
-                value={String(getValue(input.name) ?? "")}
+                value={String(getValue(input.name) ?? '')}
                 onChange={(value) => handleValueChange(input.name, value)}
                 isEditable={isEditable}
-                sizing="aspect"
+                sizing='aspect'
               />
             ))}
           </MediaGrid>
@@ -182,11 +195,11 @@ export function InputsPanel({
       {/* Other inputs - single section for all */}
       {categorized.other.length > 0 && (
         <CollapsibleSection
-          title="Other Inputs"
+          title='Other Inputs'
           count={categorized.other.length}
           defaultOpen
         >
-          <div className="space-y-4">
+          <div className='space-y-4'>
             {categorized.other.map((input) => {
               const value = getValue(input.name);
               const isSelected = selectedInputName === input.name;
@@ -198,7 +211,9 @@ export function InputsPanel({
                   value={value}
                   isSelected={isSelected}
                   isEditable={isEditable}
-                  onChange={(newValue) => handleValueChange(input.name, newValue)}
+                  onChange={(newValue) =>
+                    handleValueChange(input.name, newValue)
+                  }
                 />
               );
             })}
@@ -234,8 +249,9 @@ function MediaInputSection({
 }: MediaInputSectionProps) {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
 
-  const isArray = input.type === "array";
-  const mediaType = getMediaTypeFromInput(input.type, input.itemType) ?? "image";
+  const isArray = input.type === 'array';
+  const mediaType =
+    getMediaTypeFromInput(input.type, input.itemType) ?? 'image';
 
   // Get array items or single item
   const items = useMemo(() => {
@@ -290,7 +306,7 @@ function MediaInputSection({
       count={itemCount}
       description={input.description}
       defaultOpen
-      className={getSectionHighlightStyles(isSelected, "primary")}
+      className={getSectionHighlightStyles(isSelected, 'primary')}
     >
       <MediaGrid>
         {/* Render existing items */}
@@ -431,10 +447,11 @@ function MediaInputItemCard({
     }
   }, [arrayIndex, onRemoveArrayItem, onChange]);
 
-  const isArray = input.type === "array";
+  const isArray = input.type === 'array';
   const canRemove = isArray && arrayIndex !== undefined;
   const isDisabled = !blueprintFolder || !movieId;
-  const label = arrayIndex !== undefined ? `${input.name}[${arrayIndex}]` : input.name;
+  const label =
+    arrayIndex !== undefined ? `${input.name}[${arrayIndex}]` : input.name;
 
   // No file - show placeholder
   if (!fileUrl) {
@@ -471,13 +488,13 @@ function MediaInputItemCard({
   // Render appropriate card based on media type
   return (
     <>
-      {mediaType === "video" && (
+      {mediaType === 'video' && (
         <VideoCard url={fileUrl} title={label} footer={footer} />
       )}
-      {mediaType === "audio" && (
+      {mediaType === 'audio' && (
         <AudioCard url={fileUrl} title={label} footer={footer} />
       )}
-      {mediaType === "image" && (
+      {mediaType === 'image' && (
         <ImageCard url={fileUrl} title={label} footer={footer} />
       )}
 
@@ -502,7 +519,11 @@ interface AddMediaPlaceholderProps {
   disabled?: boolean;
 }
 
-function AddMediaPlaceholder({ mediaType, onAdd, disabled = false }: AddMediaPlaceholderProps) {
+function AddMediaPlaceholder({
+  mediaType,
+  onAdd,
+  disabled = false,
+}: AddMediaPlaceholderProps) {
   return (
     <EmptyMediaPlaceholder
       mediaType={mediaType}

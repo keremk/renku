@@ -1,5 +1,86 @@
 import { SYSTEM_INPUTS } from '../types.js';
 
+export type SystemInputName =
+  (typeof SYSTEM_INPUTS)[keyof typeof SYSTEM_INPUTS];
+export type SystemInputKind = 'user' | 'derived' | 'runtime';
+export type SystemInputValueType = 'number' | 'string';
+
+interface SystemInputMetadata {
+  type: SystemInputValueType;
+  kind: SystemInputKind;
+  userSupplied: boolean;
+  description: string;
+}
+
+export interface SystemInputDefinition extends SystemInputMetadata {
+  name: SystemInputName;
+  canonicalId: string;
+}
+
+export const SYSTEM_INPUT_DEFINITIONS = {
+  [SYSTEM_INPUTS.DURATION]: {
+    type: 'number',
+    kind: 'user',
+    userSupplied: true,
+    description: 'System input: Duration',
+  },
+  [SYSTEM_INPUTS.NUM_OF_SEGMENTS]: {
+    type: 'number',
+    kind: 'user',
+    userSupplied: true,
+    description: 'System input: NumOfSegments',
+  },
+  [SYSTEM_INPUTS.SEGMENT_DURATION]: {
+    type: 'number',
+    kind: 'derived',
+    userSupplied: false,
+    description: 'System input: SegmentDuration',
+  },
+  [SYSTEM_INPUTS.MOVIE_ID]: {
+    type: 'string',
+    kind: 'runtime',
+    userSupplied: false,
+    description: 'System input: MovieId',
+  },
+  [SYSTEM_INPUTS.STORAGE_ROOT]: {
+    type: 'string',
+    kind: 'runtime',
+    userSupplied: false,
+    description: 'System input: StorageRoot',
+  },
+  [SYSTEM_INPUTS.STORAGE_BASE_PATH]: {
+    type: 'string',
+    kind: 'runtime',
+    userSupplied: false,
+    description: 'System input: StorageBasePath',
+  },
+} as const satisfies Record<SystemInputName, SystemInputMetadata>;
+
+const SYSTEM_INPUT_NAME_SET = new Set<SystemInputName>(
+  Object.values(SYSTEM_INPUTS)
+);
+
+export function isSystemInputName(name: string): name is SystemInputName {
+  return SYSTEM_INPUT_NAME_SET.has(name as SystemInputName);
+}
+
+export function getSystemInputDefinition(
+  name: SystemInputName
+): SystemInputDefinition {
+  const metadata = SYSTEM_INPUT_DEFINITIONS[name];
+  return {
+    ...metadata,
+    name,
+    canonicalId: `Input:${name}`,
+  };
+}
+
+export function listSystemInputDefinitions(): SystemInputDefinition[] {
+  return Object.values(SYSTEM_INPUTS).map((name) =>
+    getSystemInputDefinition(name)
+  );
+}
+
 /**
  * Well-known system input canonical IDs.
  */
@@ -25,7 +106,7 @@ export const SYSTEM_INPUT_IDS = {
  * @returns A new inputs map with derived system inputs added
  */
 export function injectDerivedSystemInputs(
-  inputs: Record<string, unknown>,
+  inputs: Record<string, unknown>
 ): Record<string, unknown> {
   const result = { ...inputs };
 
@@ -63,7 +144,7 @@ export function injectBaseSystemInputs(
   inputs: Record<string, unknown>,
   movieId: string,
   storageRoot: string,
-  storageBasePath: string,
+  storageBasePath: string
 ): Record<string, unknown> {
   const result = { ...inputs };
 
@@ -99,8 +180,13 @@ export function injectAllSystemInputs(
   inputs: Record<string, unknown>,
   movieId: string,
   storageRoot: string,
-  storageBasePath: string,
+  storageBasePath: string
 ): Record<string, unknown> {
-  const withBase = injectBaseSystemInputs(inputs, movieId, storageRoot, storageBasePath);
+  const withBase = injectBaseSystemInputs(
+    inputs,
+    movieId,
+    storageRoot,
+    storageBasePath
+  );
   return injectDerivedSystemInputs(withBase);
 }

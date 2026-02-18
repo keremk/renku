@@ -434,11 +434,44 @@ describe('convertTreeToGraph', () => {
           name: 'Duration',
           type: 'number',
           required: false,
+          system: expect.objectContaining({
+            kind: 'user',
+            userSupplied: true,
+          }),
         }),
       ])
     );
 
     const inputsNode = graph.nodes.find((node) => node.id === 'Inputs');
     expect(inputsNode?.description).toBe('1 input');
+  });
+
+  it('marks derived system inputs as non-user-supplied in metadata', () => {
+    const root = {
+      document: {
+        meta: { id: 'id', name: 'test' },
+        inputs: [],
+        producerImports: [
+          { name: 'VideoGen', producer: 'asset/text-to-video' },
+        ],
+        artefacts: [{ name: 'FinalVideo', type: 'video' }],
+        edges: [
+          { from: 'SegmentDuration', to: 'VideoGen.Duration' },
+          { from: 'VideoGen.Output', to: 'FinalVideo' },
+        ],
+      },
+    } as unknown as import('@gorenku/core').BlueprintTreeNode;
+
+    const graph = convertTreeToGraph(root);
+    const segmentDuration = graph.inputs.find(
+      (input) => input.name === 'SegmentDuration'
+    );
+
+    expect(segmentDuration).toBeDefined();
+    expect(segmentDuration?.system).toEqual({
+      kind: 'derived',
+      userSupplied: false,
+      source: 'synthetic',
+    });
   });
 });

@@ -29,7 +29,7 @@ export interface BlueprintGraphData {
  */
 export interface BlueprintGraphNode {
   id: string;
-  type: "input" | "producer" | "output";
+  type: 'input' | 'producer' | 'output';
   label: string;
   loop?: string;
   producerType?: string;
@@ -49,6 +49,14 @@ export interface BlueprintGraphEdge {
   isConditional?: boolean;
 }
 
+export type SystemInputKind = 'user' | 'derived' | 'runtime';
+
+export interface BlueprintInputSystemMeta {
+  kind: SystemInputKind;
+  userSupplied: boolean;
+  source: 'declared' | 'synthetic';
+}
+
 /**
  * Blueprint input definition for graph display.
  */
@@ -58,6 +66,7 @@ export interface BlueprintInputDef {
   required: boolean;
   description?: string;
   itemType?: string;
+  system?: BlueprintInputSystemMeta;
 }
 
 /**
@@ -78,7 +87,7 @@ export interface ConditionDef {
   definition: unknown;
 }
 
-export type BindingEndpointType = "input" | "producer" | "output" | "unknown";
+export type BindingEndpointType = 'input' | 'producer' | 'output' | 'unknown';
 
 export interface ProducerBinding {
   from: string;

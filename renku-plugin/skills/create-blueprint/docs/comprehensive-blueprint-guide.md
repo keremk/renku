@@ -110,36 +110,54 @@ System inputs are special inputs that Renku automatically recognizes by name. **
 
 #### How System Inputs Work
 
-1. **No declaration needed**: System inputs are automatically injected when referenced in blueprint edges
-2. **Provide in input YAML**: User-provided system inputs (`Duration`, `NumOfSegments`) are specified in the input template file
-3. **Auto-computed values**: `SegmentDuration` is automatically calculated as `Duration / NumOfSegments`
-4. **User overrides**: If you explicitly provide `SegmentDuration` in your input YAML, it won't be auto-computed
+1. **Do NOT declare in blueprint `inputs:`**: System inputs must not be listed in the blueprint's `inputs:` section. They are common to all blueprints and are automatically recognized by the system when referenced in connections.
+2. **DO wire explicitly in `connections:`**: Even though system inputs don't need declaration, you must explicitly wire them in the blueprint's `connections:` section to any producer that needs them. They are not automatically passed to producers.
+3. **Provide in input YAML**: User-provided system inputs (`Duration`, `NumOfSegments`) are specified in the input template file.
+4. **Auto-computed values**: `SegmentDuration` is automatically calculated as `Duration / NumOfSegments`.
+5. **User overrides**: If you explicitly provide `SegmentDuration` in your input YAML, it won't be auto-computed.
+6. **Producer inputs**: Prompt producers and other producers that consume system inputs must declare them in their own `inputs:` section (e.g., the prompt producer YAML should list `SegmentDuration` as an input if it uses `{{SegmentDuration}}` in its TOML template).
 
 #### Example: Using System Inputs
 
-**Blueprint (no need to declare Duration, NumOfSegments, SegmentDuration):**
+**Blueprint — do NOT declare system inputs, but DO wire them explicitly:**
 ```yaml
 inputs:
+  # Only declare non-system inputs here
   - name: InquiryPrompt
     type: string
     required: true
   - name: Style
     type: string
     required: true
-  # Duration, NumOfSegments, SegmentDuration are system inputs - no declaration needed!
+  # Duration, NumOfSegments, SegmentDuration are system inputs
+  # Do NOT declare them here — they are automatically available for wiring
 
 loops:
   - name: segment
-    countInput: NumOfSegments  # References system input
+    countInput: NumOfSegments  # References system input directly
 
 connections:
-  # System inputs can be used directly in connections
+  # System inputs must be explicitly wired to producers that need them
   - from: Duration
     to: ScriptProducer.Duration
   - from: NumOfSegments
     to: ScriptProducer.NumOfSegments
   - from: SegmentDuration
-    to: VideoProducer[segment].Duration  # Auto-computed value
+    to: ScriptProducer.SegmentDuration  # Auto-computed value, wired explicitly
+```
+
+**Prompt producer YAML — DO declare system inputs it consumes:**
+```yaml
+inputs:
+  - name: Duration
+    description: Total video duration in seconds.
+    type: int
+  - name: NumOfSegments
+    description: Number of narrative segments.
+    type: int
+  - name: SegmentDuration
+    description: Auto-calculated duration per segment in seconds.
+    type: int
 ```
 
 **Input YAML:**

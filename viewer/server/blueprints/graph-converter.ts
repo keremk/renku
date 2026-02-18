@@ -4,21 +4,22 @@
 
 import {
   computeTopologyLayers,
-  SYSTEM_INPUTS,
+  getSystemInputDefinition,
+  isSystemInputName,
   type BlueprintTreeNode,
   type BlueprintInputDefinition,
   type BlueprintArtefactDefinition,
+  type SystemInputName,
 } from '@gorenku/core';
 import type {
   BlueprintGraphData,
   BlueprintGraphNode,
   BlueprintGraphEdge,
+  BlueprintInputDef,
   ConditionDef,
   ProducerBinding,
 } from '../types.js';
 import type { EndpointInfo, EdgeEndpoints } from './types.js';
-
-const SYSTEM_INPUT_NAMES = new Set<string>(Object.values(SYSTEM_INPUTS));
 
 /**
  * Converts a blueprint tree to graph data for visualization.
@@ -39,15 +40,12 @@ export function convertTreeToGraph(
   const syntheticSystemInputs = collectReferencedSystemInputs(root)
     .filter((inputName) => !declaredInputNames.has(inputName))
     .map((inputName) => createSyntheticSystemInput(inputName));
-  const inputs = [...declaredInputs, ...syntheticSystemInputs].map(
-    (inp: BlueprintInputDefinition) => ({
-      name: inp.name,
-      type: inp.type,
-      required: inp.required,
-      description: inp.description,
-      itemType: inp.itemType,
-    })
-  );
+  const inputs = [
+    ...declaredInputs.map((input) => toGraphInputDefinition(input, 'declared')),
+    ...syntheticSystemInputs.map((input) =>
+      toGraphInputDefinition(input, 'synthetic')
+    ),
+  ];
 
   // Convert outputs (artefacts)
   const outputs = root.document.artefacts.map(
@@ -360,7 +358,7 @@ export function resolveEndpoint(
     if (inputNames.has(name)) {
       return { type: 'input' };
     }
-    if (SYSTEM_INPUT_NAMES.has(name)) {
+    if (isSystemInputName(name)) {
       return { type: 'input' };
     }
     if (producerNames.has(name)) {
@@ -389,8 +387,40 @@ export function resolveEndpoint(
   return { type: 'unknown' };
 }
 
-function collectReferencedSystemInputs(root: BlueprintTreeNode): string[] {
-  const referenced = new Set<string>();
+function toGraphInputDefinition(
+  input: BlueprintInputDefinition,
+  source: 'declared' | 'synthetic'
+): BlueprintInputDef {
+  const system = buildSystemInputMeta(input.name, source);
+  return {
+    name: input.name,
+    type: input.type,
+    required: input.required,
+    description: input.description,
+    itemType: input.itemType,
+    ...(system ? { system } : {}),
+  };
+}
+
+function buildSystemInputMeta(
+  name: string,
+  source: 'declared' | 'synthetic'
+): BlueprintInputDef['system'] | undefined {
+  if (!isSystemInputName(name)) {
+    return undefined;
+  }
+  const definition = getSystemInputDefinition(name);
+  return {
+    kind: definition.kind,
+    userSupplied: definition.userSupplied,
+    source,
+  };
+}
+
+function collectReferencedSystemInputs(
+  root: BlueprintTreeNode
+): SystemInputName[] {
+  const referenced = new Set<SystemInputName>();
 
   for (const edge of root.document.edges) {
     const sourceInput = extractSystemInputName(edge.from);
@@ -407,12 +437,12 @@ function collectReferencedSystemInputs(root: BlueprintTreeNode): string[] {
   return Array.from(referenced).sort((a, b) => a.localeCompare(b));
 }
 
-function extractSystemInputName(reference: string): string | null {
+function extractSystemInputName(reference: string): SystemInputName | null {
   if (reference.startsWith('Input.')) {
     const remainder = reference.slice('Input.'.length);
     const [nameSegment] = remainder.split('.');
     const name = parseReferenceName(nameSegment);
-    if (name && SYSTEM_INPUT_NAMES.has(name)) {
+    if (name && isSystemInputName(name)) {
       return name;
     }
     return null;
@@ -423,7 +453,7 @@ function extractSystemInputName(reference: string): string | null {
   }
 
   const simpleName = parseReferenceName(reference);
-  if (simpleName && SYSTEM_INPUT_NAMES.has(simpleName)) {
+  if (simpleName && isSystemInputName(simpleName)) {
     return simpleName;
   }
 
@@ -435,26 +465,14 @@ function parseReferenceName(reference: string): string | null {
   return match ? match[1] : null;
 }
 
-function createSyntheticSystemInput(name: string): BlueprintInputDefinition {
+function createSyntheticSystemInput(
+  name: SystemInputName
+): BlueprintInputDefinition {
+  const definition = getSystemInputDefinition(name);
   return {
     name,
-    type: getSystemInputType(name),
+    type: definition.type,
     required: false,
-    description: `System input: ${name}`,
+    description: definition.description,
   };
-}
-
-function getSystemInputType(name: string): string {
-  switch (name) {
-    case SYSTEM_INPUTS.DURATION:
-    case SYSTEM_INPUTS.NUM_OF_SEGMENTS:
-    case SYSTEM_INPUTS.SEGMENT_DURATION:
-      return 'number';
-    case SYSTEM_INPUTS.MOVIE_ID:
-    case SYSTEM_INPUTS.STORAGE_ROOT:
-    case SYSTEM_INPUTS.STORAGE_BASE_PATH:
-      return 'string';
-    default:
-      throw new Error(`Unsupported system input type mapping: ${name}`);
-  }
 }

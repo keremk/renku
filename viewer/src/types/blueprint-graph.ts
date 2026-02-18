@@ -11,7 +11,7 @@ export interface BlueprintGraphMeta {
 
 export interface BlueprintGraphNode {
   id: string;
-  type: "input" | "producer" | "output";
+  type: 'input' | 'producer' | 'output';
   label: string;
   /** Loop dimension (e.g., "segment" or "segment.image") */
   loop?: string;
@@ -35,12 +35,21 @@ export interface BlueprintGraphEdge {
   isConditional?: boolean;
 }
 
+export type SystemInputKind = 'user' | 'derived' | 'runtime';
+
+export interface BlueprintInputSystemMeta {
+  kind: SystemInputKind;
+  userSupplied: boolean;
+  source: 'declared' | 'synthetic';
+}
+
 export interface BlueprintInputDef {
   name: string;
   type: string;
   required: boolean;
   description?: string;
   itemType?: string;
+  system?: BlueprintInputSystemMeta;
 }
 
 export interface BlueprintOutputDef {
@@ -68,7 +77,7 @@ export interface BlueprintGraphData {
   layerCount?: number;
 }
 
-export type BindingEndpointType = "input" | "producer" | "output" | "unknown";
+export type BindingEndpointType = 'input' | 'producer' | 'output' | 'unknown';
 
 export interface ProducerBinding {
   from: string;
@@ -247,7 +256,7 @@ export interface PromptData {
   /** Additional config from TOML */
   config?: Record<string, unknown>;
   /** Source of the prompt data: 'build' if edited, 'template' if original */
-  source?: "build" | "template";
+  source?: 'build' | 'template';
 }
 
 /**
@@ -256,7 +265,7 @@ export interface PromptData {
 export interface ProducerPromptsResponse {
   producerId: string;
   /** Source of the prompt data: 'build' if edited, 'template' if original */
-  source: "build" | "template";
+  source: 'build' | 'template';
   /** The prompt data */
   prompts: PromptData;
   /** Path to the prompt file (for reference) */
