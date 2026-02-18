@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { readdir, rm, stat } from 'node:fs/promises';
 import { getProjectLocalStorage, readCliConfig } from '../lib/cli-config.js';
 import { formatMovieId } from './execute.js';
+import { createStorageContext, deleteMovieStorage } from '@gorenku/core';
 import type { Logger } from '@gorenku/core';
 
 export interface CleanOptions {
@@ -35,6 +36,12 @@ export async function runClean(options: CleanOptions): Promise<CleanResult> {
   const buildsRoot = resolve(projectStorage.root, projectStorage.basePath);
   const artifactsRoot = resolve(projectStorage.root, 'artifacts');
 
+  const storageContext = createStorageContext({
+    kind: 'local',
+    rootDir: projectStorage.root,
+    basePath: projectStorage.basePath,
+  });
+
   // If specific movieId provided, clean that one (old behavior with artifacts naming)
   if (options.movieId) {
     const storageMovieId = formatMovieId(options.movieId);
@@ -65,7 +72,7 @@ export async function runClean(options: CleanOptions): Promise<CleanResult> {
       return { cleaned: [], protected: [], dryRun: false };
     }
 
-    await rm(buildPath, { recursive: true, force: true });
+    await deleteMovieStorage(storageContext, storageMovieId);
     if (hasArtifacts) {
       await rm(artifactPath, { recursive: true, force: true });
     }
@@ -126,8 +133,7 @@ export async function runClean(options: CleanOptions): Promise<CleanResult> {
   }
 
   for (const movieId of cleanable) {
-    const buildPath = resolve(buildsRoot, movieId);
-    await rm(buildPath, { recursive: true, force: true });
+    await deleteMovieStorage(storageContext, movieId);
     // Also remove artifacts if --all was used and they exist
     if (options.all) {
       const artifactPath = resolve(artifactsRoot, movieId);

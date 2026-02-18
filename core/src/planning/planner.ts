@@ -1123,7 +1123,7 @@ function readResolvedSegment(value: unknown, segment: string): unknown {
   }
 
   const objectValue = value as Record<string, unknown>;
-  const withIndexMatch = segment.match(/^([^\[]+)((?:\[\d+\])+)$/);
+  const withIndexMatch = segment.match(/^([^[]+)((?:\[\d+\])+)$/);
   if (!withIndexMatch) {
     return objectValue[segment];
   }

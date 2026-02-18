@@ -1,14 +1,15 @@
 import { useState, useCallback } from "react";
-import { Loader2, Plus, Pencil, Check, X } from "lucide-react";
+import { Loader2, Plus, Pencil, Check, X, Trash2 } from "lucide-react";
 import type { BuildInfo } from "@/types/builds";
 import { updateBlueprintRoute } from "@/hooks/use-blueprint-route";
 import { useExecution } from "@/contexts/execution-context";
-import { createBuild, updateBuildMetadata } from "@/data/blueprint-client";
+import { createBuild, updateBuildMetadata, deleteBuild } from "@/data/blueprint-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -34,6 +35,9 @@ export function BuildsListSidebar({
   const [isCreating, setIsCreating] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newBuildName, setNewBuildName] = useState("");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletingBuild, setDeletingBuild] = useState<BuildInfo | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleBuildSelect = (movieId: string) => {
     if (movieId === selectedBuildId) {
@@ -78,6 +82,31 @@ export function BuildsListSidebar({
     },
     [blueprintFolder, onRefresh]
   );
+
+  const handleRequestDelete = useCallback((build: BuildInfo) => {
+    setDeletingBuild(build);
+    setShowDeleteDialog(true);
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!blueprintFolder || !deletingBuild) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteBuild(blueprintFolder, deletingBuild.movieId);
+      await onRefresh?.();
+      // Deselect if the deleted build was selected
+      if (deletingBuild.movieId === selectedBuildId) {
+        updateBlueprintRoute(null);
+      }
+      setShowDeleteDialog(false);
+      setDeletingBuild(null);
+    } catch (error) {
+      console.error("Failed to delete build:", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [blueprintFolder, deletingBuild, selectedBuildId, onRefresh]);
 
   return (
     <div className="flex flex-col h-full bg-card/50 rounded-xl border border-border/40 overflow-hidden">
@@ -129,6 +158,7 @@ export function BuildsListSidebar({
                 onUpdateDisplayName={(name) =>
                   handleDisplayNameUpdate(build.movieId, name)
                 }
+                onDelete={() => handleRequestDelete(build)}
               />
             ))}
           </div>
@@ -182,6 +212,53 @@ export function BuildsListSidebar({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Build Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowDeleteDialog(false);
+          setDeletingBuild(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Delete Build</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete{" "}
+              <span className="font-medium">
+                {deletingBuild?.displayName || deletingBuild?.movieId}
+              </span>
+              ? This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteDialog(false);
+                setDeletingBuild(null);
+              }}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -192,6 +269,7 @@ interface BuildCardProps {
   isExecuting: boolean;
   onSelect: () => void;
   onUpdateDisplayName: (name: string) => Promise<void>;
+  onDelete: () => void;
 }
 
 function BuildCard({
@@ -200,6 +278,7 @@ function BuildCard({
   isExecuting,
   onSelect,
   onUpdateDisplayName,
+  onDelete,
 }: BuildCardProps) {
   const relativeTime = getRelativeTime(build.updatedAt);
   const [isEditing, setIsEditing] = useState(false);
@@ -246,7 +325,7 @@ function BuildCard({
       type="button"
       onClick={isEditing ? undefined : onSelect}
       className={`
-        w-full text-left p-3 rounded-lg transition-colors
+        group/card relative w-full text-left p-3 rounded-lg transition-colors
         ${
           isSelected
             ? "bg-primary/10 border border-primary/30"
@@ -334,6 +413,19 @@ function BuildCard({
           </div>
         </div>
       </div>
+      {!isExecuting && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="absolute bottom-2 right-2 p-0.5 hover:bg-muted rounded opacity-0 group-hover/card:opacity-100 transition-opacity"
+          title="Delete build"
+        >
+          <Trash2 className="w-3 h-3 text-muted-foreground hover:text-destructive" />
+        </button>
+      )}
     </button>
   );
 }

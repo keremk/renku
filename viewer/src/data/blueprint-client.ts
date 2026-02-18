@@ -250,6 +250,24 @@ export function buildBlueprintAssetUrl(
   return url.toString();
 }
 
+/**
+ * Deletes a build and its storage directory.
+ */
+export async function deleteBuild(
+  blueprintFolder: string,
+  movieId: string,
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/blueprints/builds/delete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ blueprintFolder, movieId }),
+  });
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    throw new Error(`Failed to delete build: ${errorText}`);
+  }
+}
+
 // --- File upload API functions ---
 
 /**

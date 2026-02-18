@@ -83,7 +83,8 @@ export const ParserErrorCode = {
   INVALID_INPUT_KEY: 'P094',
 } as const;
 
-export type ParserErrorCodeValue = (typeof ParserErrorCode)[keyof typeof ParserErrorCode];
+export type ParserErrorCodeValue =
+  (typeof ParserErrorCode)[keyof typeof ParserErrorCode];
 
 // =============================================================================
 // Validation Error Codes (V001-V099)
@@ -127,7 +128,8 @@ export const ValidationErrorCode = {
   BLUEPRINT_VALIDATION_FAILED: 'V070',
 } as const;
 
-export type ValidationErrorCodeValue = (typeof ValidationErrorCode)[keyof typeof ValidationErrorCode];
+export type ValidationErrorCodeValue =
+  (typeof ValidationErrorCode)[keyof typeof ValidationErrorCode];
 
 // =============================================================================
 // Runtime Error Codes (R001-R099)
@@ -212,9 +214,14 @@ export const RuntimeErrorCode = {
   PIN_PRODUCER_NOT_FOUND: 'R123',
   PIN_TARGET_NOT_REUSABLE: 'R124',
   PIN_CONFLICT_WITH_SURGICAL_TARGET: 'R125',
+
+  // R130-R139: Build Management
+  MOVIE_NOT_FOUND: 'R130',
+  INVALID_MOVIE_ID: 'R131',
 } as const;
 
-export type RuntimeErrorCodeValue = (typeof RuntimeErrorCode)[keyof typeof RuntimeErrorCode];
+export type RuntimeErrorCodeValue =
+  (typeof RuntimeErrorCode)[keyof typeof RuntimeErrorCode];
 
 // =============================================================================
 // SDK/Provider Error Codes (S001-S099)
@@ -275,7 +282,8 @@ export const SdkErrorCode = {
   EMPTY_TRANSCRIPTION_RESULT: 'S061',
 } as const;
 
-export type SdkErrorCodeValue = (typeof SdkErrorCode)[keyof typeof SdkErrorCode];
+export type SdkErrorCodeValue =
+  (typeof SdkErrorCode)[keyof typeof SdkErrorCode];
 
 // =============================================================================
 // Warning Codes (W001-W099)
@@ -318,7 +326,9 @@ export const ERROR_CODE_CATEGORIES = {
 /**
  * Gets the category for an error code.
  */
-export function getErrorCategory(code: string): 'parser' | 'validation' | 'runtime' | 'sdk' {
+export function getErrorCategory(
+  code: string
+): 'parser' | 'validation' | 'runtime' | 'sdk' {
   const prefix = code.charAt(0) as keyof typeof ERROR_CODE_CATEGORIES;
   return ERROR_CODE_CATEGORIES[prefix] ?? 'runtime';
 }

@@ -15,6 +15,8 @@ import {
 	createStorageContext,
 	createEventLog,
 	type ArtefactEvent,
+	type RevisionId,
+	type FalRecoveryStatusResult,
 } from '@gorenku/core';
 import { CLI_FIXTURES_BLUEPRINTS } from '../../tests/test-catalog-paths.js';
 
@@ -92,7 +94,7 @@ describe('generatePlan recovery prepass', () => {
 			inputsPath: seed.inputsPath,
 			usingBlueprint: AUDIO_ONLY_BLUEPRINT_PATH,
 			recoveryDependencies: {
-				checkFalStatus: vi.fn(async () => ({
+				checkFalStatus: vi.fn(async (): Promise<FalRecoveryStatusResult> => ({
 					status: 'completed',
 					urls: ['https://cdn.example.com/recovered-audio.mp3'],
 				})),
@@ -134,7 +136,7 @@ describe('generatePlan recovery prepass', () => {
 			inputsPath: seed.inputsPath,
 			usingBlueprint: AUDIO_ONLY_BLUEPRINT_PATH,
 			recoveryDependencies: {
-				checkFalStatus: vi.fn(async () => ({ status: 'in_progress' })),
+				checkFalStatus: vi.fn(async (): Promise<FalRecoveryStatusResult> => ({ status: 'in_progress' })),
 			},
 		});
 
@@ -273,7 +275,7 @@ async function appendFailedArtefactEvent(
 ): Promise<void> {
 	const manifestRaw = await readFile(seed.manifestPath, 'utf8');
 	const manifest = JSON.parse(manifestRaw) as {
-		revision: string;
+		revision: RevisionId;
 		artefacts: Record<string, ManifestArtefactEntry>;
 	};
 

@@ -56,13 +56,17 @@ export interface StorageContext {
 }
 
 const DEFAULT_BASE_PATH = 'builds';
+const MOVIE_ID_PATTERN = /^movie-[a-z0-9][a-z0-9-]*$/;
 
 export function createStorageContext(config: StorageConfig): StorageContext {
   const basePath = normalizeSegment(config.basePath ?? DEFAULT_BASE_PATH);
   const storage = new FileStorage(resolveAdapter(config));
   const appendQueues = new Map<string, Promise<void>>();
 
-  async function enqueueAppend(key: string, task: () => Promise<void>): Promise<void> {
+  async function enqueueAppend(
+    key: string,
+    task: () => Promise<void>
+  ): Promise<void> {
     const previous = appendQueues.get(key) ?? Promise.resolve();
     // Chain task after previous, ensuring sequential execution
     // Errors will propagate to callers via the awaited promise
@@ -141,7 +145,7 @@ function resolveAdapter(config: StorageConfig) {
       const neverCase: never = config;
       throw createRuntimeError(
         RuntimeErrorCode.UNSUPPORTED_STORAGE_CONFIG,
-        `Unsupported storage config: ${JSON.stringify(neverCase)}`,
+        `Unsupported storage config: ${JSON.stringify(neverCase)}`
       );
     }
   }
@@ -283,6 +287,31 @@ async function appendLocalFile(
     await handle.write(data);
   } finally {
     await handle.close();
+  }
+}
+
+export async function deleteMovieStorage(
+  ctx: StorageContext,
+  movieId: string
+): Promise<void> {
+  const normalizedMovieId = normalizeSegment(movieId);
+  assertValidMovieId(normalizedMovieId);
+  const movieDir = ctx.resolve(normalizedMovieId);
+  if (!(await ctx.storage.directoryExists(movieDir))) {
+    throw createRuntimeError(
+      RuntimeErrorCode.MOVIE_NOT_FOUND,
+      `Build "${normalizedMovieId}" not found`
+    );
+  }
+  await ctx.storage.deleteDirectory(movieDir);
+}
+
+function assertValidMovieId(movieId: string): void {
+  if (!MOVIE_ID_PATTERN.test(movieId)) {
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_MOVIE_ID,
+      `Invalid movie ID "${movieId}". Expected format: movie-<lowercase letters, numbers, hyphens>.`
+    );
   }
 }
 

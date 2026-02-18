@@ -13,6 +13,14 @@ export interface CreateBuildRequest {
 }
 
 /**
+ * Request for POST /blueprints/builds/delete
+ */
+export interface DeleteBuildRequest {
+  blueprintFolder: string;
+  movieId: string;
+}
+
+/**
  * Response from POST /blueprints/builds/create
  */
 export interface CreateBuildResponse {

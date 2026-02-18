@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { createStorageContext, initializeMovieStorage, planStore } from './storage.js';
+import {
+  createStorageContext,
+  initializeMovieStorage,
+  deleteMovieStorage,
+  planStore,
+} from './storage.js';
+import { isRenkuError, RuntimeErrorCode } from './errors/index.js';
 import type { ExecutionPlan } from './types.js';
 
 function memoryContext(basePath?: string) {
@@ -11,7 +17,7 @@ describe('createStorageContext', () => {
     const ctx = memoryContext('videos');
     expect(ctx.resolve('movie-alpha')).toBe('videos/movie-alpha');
     expect(ctx.resolve('movie-alpha', 'runs', 'rev-0001-plan.json')).toBe(
-      'videos/movie-alpha/runs/rev-0001-plan.json',
+      'videos/movie-alpha/runs/rev-0001-plan.json'
     );
   });
 });
@@ -34,17 +40,70 @@ describe('initializeMovieStorage', () => {
       expect(await storage.directoryExists(dir)).toBe(true);
     }
 
-    expect(await storage.fileExists('builds/demo/events/inputs.log')).toBe(true);
-    expect(await storage.fileExists('builds/demo/events/artefacts.log')).toBe(true);
+    expect(await storage.fileExists('builds/demo/events/inputs.log')).toBe(
+      true
+    );
+    expect(await storage.fileExists('builds/demo/events/artefacts.log')).toBe(
+      true
+    );
     expect(await storage.fileExists('builds/demo/current.json')).toBe(true);
 
-    const pointer = JSON.parse(await storage.readToString('builds/demo/current.json'));
+    const pointer = JSON.parse(
+      await storage.readToString('builds/demo/current.json')
+    );
     expect(pointer).toEqual({
       revision: null,
       manifestPath: null,
       hash: null,
       updatedAt: null,
     });
+  });
+});
+
+describe('deleteMovieStorage', () => {
+  it('deletes an initialized movie directory', async () => {
+    const ctx = memoryContext('builds');
+    await initializeMovieStorage(ctx, 'movie-to-delete');
+
+    // Verify the movie directory exists
+    expect(await ctx.storage.directoryExists('builds/movie-to-delete')).toBe(
+      true
+    );
+
+    await deleteMovieStorage(ctx, 'movie-to-delete');
+
+    // Verify the movie directory is gone
+    expect(await ctx.storage.directoryExists('builds/movie-to-delete')).toBe(
+      false
+    );
+  });
+
+  it('throws MOVIE_NOT_FOUND for non-existent movie', async () => {
+    const ctx = memoryContext('builds');
+
+    try {
+      await deleteMovieStorage(ctx, 'movie-ghost');
+      expect.fail('Expected an error to be thrown');
+    } catch (error) {
+      expect(isRenkuError(error)).toBe(true);
+      if (isRenkuError(error)) {
+        expect(error.code).toBe(RuntimeErrorCode.MOVIE_NOT_FOUND);
+      }
+    }
+  });
+
+  it('throws INVALID_MOVIE_ID for invalid movie IDs', async () => {
+    const ctx = memoryContext('builds');
+
+    try {
+      await deleteMovieStorage(ctx, '..');
+      expect.fail('Expected an error to be thrown');
+    } catch (error) {
+      expect(isRenkuError(error)).toBe(true);
+      if (isRenkuError(error)) {
+        expect(error.code).toBe(RuntimeErrorCode.INVALID_MOVIE_ID);
+      }
+    }
   });
 });
 
