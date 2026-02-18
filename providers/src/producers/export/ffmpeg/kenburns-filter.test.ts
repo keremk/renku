@@ -17,7 +17,7 @@ describe('kenburns-filter', () => {
   };
 
   describe('buildKenBurnsFilter', () => {
-    it('builds a crop expression with normalized linear progress', () => {
+    it('builds zoompan expressions with linear progress', () => {
       const effect: KenBurnsEffect = {
         assetId: 'Artifact:Image[0][0]',
         startScale: 1,
@@ -30,9 +30,9 @@ describe('kenburns-filter', () => {
 
       const result = buildKenBurnsFilter(effect, defaultOptions);
 
-      expect(result).toContain("crop=w='1920/");
-      expect(result).toContain('exact=1');
-      expect(result).toContain('if(lte(n,0),0,if(gte(n,149),1,n/149))');
+      expect(result).toContain("zoompan=z='");
+      expect(result).toContain(':d=1:s=1920x1080:fps=30');
+      expect(result).toContain('if(lte(on,0),0,if(gte(on,149),1,on/149))');
       expect(result).not.toContain('*(3-2*(');
       expect(result).toContain('40+(-70)');
       expect(result).toContain('-20+(45)');
@@ -53,10 +53,10 @@ describe('kenburns-filter', () => {
 
       const result = buildKenBurnsFilter(effect, defaultOptions);
 
-      expect(result).toContain("crop=w='1920/(1.2)'");
+      expect(result).toContain("zoompan=z='1.2'");
       expect(result).toContain('+(10)');
       expect(result).toContain('+(-8)');
-      expect(result).not.toContain('n/149');
+      expect(result).not.toContain('on/149');
     });
 
     it('defaults end values to start values', () => {
@@ -69,7 +69,7 @@ describe('kenburns-filter', () => {
 
       const result = buildKenBurnsFilter(effect, defaultOptions);
 
-      expect(result).toContain("crop=w='1920/(1.15)'");
+      expect(result).toContain("zoompan=z='1.15'");
       expect(result).toContain('+(-12)');
       expect(result).toContain('+(8)');
     });
@@ -93,8 +93,8 @@ describe('kenburns-filter', () => {
 
       const result = buildKenBurnsFilter(effect, constrained);
 
-      expect(result).not.toContain("crop=w='1920/(1)'");
-      expect(result).toContain('crop=w=');
+      expect(result).not.toContain("zoompan=z='1'");
+      expect(result).toContain("zoompan=z='");
     });
 
     it('throws when scale is below 1', () => {
@@ -148,8 +148,7 @@ describe('kenburns-filter', () => {
       expect(result).toContain('fps=30');
       expect(result).toContain('scale=3960:2160:flags=lanczos');
       expect(result).toContain('format=gbrp');
-      expect(result).toContain('crop=');
-      expect(result).toContain('exact=1');
+      expect(result).toContain('zoompan=');
       expect(result).toContain('scale=1920:1080:flags=lanczos');
       expect(result).toContain('setsar=1');
       expect(result).toContain('format=yuv420p');

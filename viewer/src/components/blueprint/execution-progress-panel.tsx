@@ -53,14 +53,18 @@ function formatTimestamp(timestamp: string): string {
   });
 }
 
-export function ExecutionProgressPanel({ logs, isExecuting }: ExecutionProgressPanelProps) {
+export function ExecutionProgressPanel({
+  logs,
+  isExecuting,
+}: ExecutionProgressPanelProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
 
   // Auto-scroll to bottom when new logs are added
   useEffect(() => {
     if (shouldAutoScrollRef.current && scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+      scrollContainerRef.current.scrollTop =
+        scrollContainerRef.current.scrollHeight;
     }
   }, [logs]);
 
@@ -68,37 +72,38 @@ export function ExecutionProgressPanel({ logs, isExecuting }: ExecutionProgressP
   const handleScroll = () => {
     if (!scrollContainerRef.current) return;
 
-    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    const { scrollTop, scrollHeight, clientHeight } =
+      scrollContainerRef.current;
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
     shouldAutoScrollRef.current = isAtBottom;
   };
 
   return (
-    <div className="absolute inset-0 flex flex-col bg-card/30 font-mono text-xs">
+    <div className='absolute inset-0 flex flex-col bg-card/30 font-mono text-xs'>
       {/* Log entries */}
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-3 space-y-0.5"
+        className='flex-1 overflow-y-auto p-3 space-y-0.5'
       >
         {logs.length === 0 ? (
-          <div className="text-muted-foreground/50 italic">
-            {isExecuting ? 'Waiting for execution events...' : 'No execution logs yet'}
+          <div className='text-muted-foreground/50 italic'>
+            {isExecuting
+              ? 'Waiting for execution events...'
+              : 'No execution logs yet'}
           </div>
         ) : (
           logs.map((entry) => (
-            <div key={entry.id} className="flex flex-col gap-0.5">
-              <div className="flex gap-2">
-                <span className="text-muted-foreground/50 shrink-0">
+            <div key={entry.id} className='flex flex-col gap-0.5'>
+              <div className='flex gap-2'>
+                <span className='text-muted-foreground/50 shrink-0'>
                   [{formatTimestamp(entry.timestamp)}]
                 </span>
-                <span className={getLogEntryClass(entry)}>
-                  {entry.message}
-                </span>
+                <span className={getLogEntryClass(entry)}>{entry.message}</span>
               </div>
               {entry.errorDetails && (
-                <div className="ml-[88px]">
-                  <span className="text-red-400/80 text-[10px]">
+                <div className='ml-[88px]'>
+                  <span className='text-red-400/80 text-[10px]'>
                     Error: {entry.errorDetails}
                   </span>
                 </div>
@@ -109,14 +114,24 @@ export function ExecutionProgressPanel({ logs, isExecuting }: ExecutionProgressP
 
         {/* Executing indicator */}
         {isExecuting && logs.length > 0 && (
-          <div className="flex gap-2 animate-pulse">
-            <span className="text-muted-foreground/50 shrink-0">
+          <div className='flex gap-2 animate-pulse'>
+            <span className='text-muted-foreground/50 shrink-0'>
               [{formatTimestamp(new Date().toISOString())}]
             </span>
-            <span className="text-muted-foreground">
-              <span className="inline-block animate-bounce">.</span>
-              <span className="inline-block animate-bounce" style={{ animationDelay: '0.1s' }}>.</span>
-              <span className="inline-block animate-bounce" style={{ animationDelay: '0.2s' }}>.</span>
+            <span className='text-muted-foreground'>
+              <span className='inline-block animate-bounce'>.</span>
+              <span
+                className='inline-block animate-bounce'
+                style={{ animationDelay: '0.1s' }}
+              >
+                .
+              </span>
+              <span
+                className='inline-block animate-bounce'
+                style={{ animationDelay: '0.2s' }}
+              >
+                .
+              </span>
             </span>
           </div>
         )}

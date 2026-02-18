@@ -1,7 +1,6 @@
 import path from 'node:path';
 import { readFile, mkdir } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
 import { createProviderError, SdkErrorCode } from '../../sdk/errors.js';
 import { validatePayload } from '../../sdk/schema-validator.js';
@@ -19,11 +18,23 @@ import type { FfmpegExporterConfig, AssetPathMap } from './ffmpeg/types.js';
 import { FFMPEG_DEFAULTS } from './ffmpeg/types.js';
 import type { TranscriptionArtifact } from '../transcription/types.js';
 
-const execFileAsync = promisify(execFile);
+const MAX_FFMPEG_STDIO_BUFFER_BYTES = 100 * 1024 * 1024;
+const FFMPEG_PROGRESS_PERCENT_STEP = 5;
 
 const TIMELINE_ARTEFACT_ID = 'Artifact:TimelineComposer.Timeline';
 const TRANSCRIPTION_ARTEFACT_ID =
   'Artifact:TranscriptionProducer.Transcription';
+
+interface FfmpegProgressSnapshot {
+  timeSeconds: number;
+  fps: number | null;
+  speed: number | null;
+}
+
+interface RunFfmpegOptions {
+  signal?: AbortSignal;
+  onProgress?: (snapshot: FfmpegProgressSnapshot) => void;
+}
 
 interface ManifestPointer {
   revision: string | null;
@@ -251,20 +262,55 @@ export function createFfmpegExporterHandler(): HandlerFactory {
           recursive: true,
         });
 
-        // Log the FFmpeg command for debugging
-        const debugCommand = [
-          ffmpegCommand.ffmpegPath,
-          ...ffmpegCommand.args,
-        ].join(' ');
-        notify('progress', `FFmpeg command: ${debugCommand}`);
-
         // Run FFmpeg
-        notify('progress', 'Running FFmpeg...');
-        await runFfmpeg(
-          ffmpegCommand.ffmpegPath,
-          ffmpegCommand.args,
-          request.signal
-        );
+        notify('progress', 'Running FFmpeg render...');
+        const renderStartedAt = Date.now();
+        let lastReportedProgressBucket = -1;
+        const totalDurationSeconds = timeline.duration;
+
+        try {
+          await runFfmpeg(ffmpegCommand.ffmpegPath, ffmpegCommand.args, {
+            signal: request.signal,
+            onProgress: (snapshot) => {
+              if (totalDurationSeconds <= 0) {
+                return;
+              }
+
+              const renderedSeconds = Math.min(
+                snapshot.timeSeconds,
+                totalDurationSeconds
+              );
+              const progressPercent = Math.min(
+                100,
+                Math.floor((renderedSeconds / totalDurationSeconds) * 100)
+              );
+              const progressBucket = Math.floor(
+                progressPercent / FFMPEG_PROGRESS_PERCENT_STEP
+              );
+
+              if (progressBucket <= lastReportedProgressBucket) {
+                return;
+              }
+
+              lastReportedProgressBucket = progressBucket;
+              notify(
+                'progress',
+                formatFfmpegProgressMessage(
+                  progressPercent,
+                  renderedSeconds,
+                  totalDurationSeconds,
+                  snapshot
+                )
+              );
+            },
+          });
+        } finally {
+          const elapsedSeconds = Math.max(
+            1,
+            Math.floor((Date.now() - renderStartedAt) / 1000)
+          );
+          notify('progress', `FFmpeg render finished in ${elapsedSeconds}s.`);
+        }
 
         // Read output file
         const buffer = await readFile(ffmpegCommand.outputPath);
@@ -581,16 +627,57 @@ function detectOutputFormat(timeline: TimelineDocument): 'video' | 'audio' {
 async function runFfmpeg(
   ffmpegPath: string,
   args: string[],
-  signal?: AbortSignal
+  options: RunFfmpegOptions
 ): Promise<void> {
+  const { signal, onProgress } = options;
+  let streamedStderr = '';
+  let stderrLineBuffer = '';
+
+  const consumeStderrChunk = (chunk: string): void => {
+    streamedStderr += chunk;
+    stderrLineBuffer += chunk;
+
+    const lines = stderrLineBuffer.split(/\r?\n|\r/g);
+    stderrLineBuffer = lines.pop() ?? '';
+
+    if (!onProgress) {
+      return;
+    }
+
+    for (const rawLine of lines) {
+      const parsed = parseFfmpegProgressLine(rawLine);
+      if (parsed) {
+        onProgress(parsed);
+      }
+    }
+  };
+
   try {
-    await execFileAsync(ffmpegPath, args, {
-      maxBuffer: 100 * 1024 * 1024, // 100MB for large outputs
-      signal,
+    await new Promise<void>((resolve, reject) => {
+      const child = execFile(
+        ffmpegPath,
+        args,
+        {
+          maxBuffer: MAX_FFMPEG_STDIO_BUFFER_BYTES,
+          signal,
+        },
+        (error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        }
+      );
+
+      child.stderr?.on('data', (chunk) => {
+        consumeStderrChunk(String(chunk));
+      });
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const stderr = (error as { stderr?: string }).stderr ?? '';
+    const stderr =
+      streamedStderr || (error as { stderr?: string }).stderr || '';
     const exitCode = (error as { code?: number }).code;
     const terminationSignal = (error as { signal?: string }).signal;
 
@@ -645,6 +732,57 @@ async function runFfmpeg(
   }
 }
 
+function parseFfmpegProgressLine(line: string): FfmpegProgressSnapshot | null {
+  const timeMatch = line.match(/time=(\d{2}):(\d{2}):(\d{2}(?:\.\d+)?)/);
+  if (!timeMatch) {
+    return null;
+  }
+
+  const hours = Number(timeMatch[1]);
+  const minutes = Number(timeMatch[2]);
+  const seconds = Number(timeMatch[3]);
+  const timeSeconds = hours * 3600 + minutes * 60 + seconds;
+
+  const fpsMatch = line.match(/fps=\s*([0-9.]+)/);
+  const speedMatch = line.match(/speed=\s*([0-9.]+)x/);
+
+  return {
+    timeSeconds,
+    fps: fpsMatch ? Number(fpsMatch[1]) : null,
+    speed: speedMatch ? Number(speedMatch[1]) : null,
+  };
+}
+
+function formatFfmpegProgressMessage(
+  progressPercent: number,
+  renderedSeconds: number,
+  totalDurationSeconds: number,
+  snapshot: FfmpegProgressSnapshot
+): string {
+  const renderedLabel = formatDuration(renderedSeconds);
+  const totalLabel = formatDuration(totalDurationSeconds);
+  const speedLabel =
+    snapshot.speed !== null ? `${snapshot.speed.toFixed(2)}x` : 'n/a';
+  const fpsLabel = snapshot.fps !== null ? snapshot.fps.toFixed(1) : 'n/a';
+
+  return `FFmpeg progress ${progressPercent}% (${renderedLabel} / ${totalLabel}, speed ${speedLabel}, fps ${fpsLabel})`;
+}
+
+function formatDuration(valueSeconds: number): string {
+  const roundedSeconds = Math.max(0, Math.floor(valueSeconds));
+  const hours = Math.floor(roundedSeconds / 3600);
+  const minutes = Math.floor((roundedSeconds % 3600) / 60);
+  const seconds = roundedSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds
+      .toString()
+      .padStart(2, '0')}`;
+  }
+
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
 function isAbortError(error: unknown): boolean {
   if (!(error instanceof Error)) {
     return false;
@@ -661,4 +799,7 @@ export const __test__ = {
   mimeToExtension,
   collectAssetIds,
   detectOutputFormat,
+  parseFfmpegProgressLine,
+  formatFfmpegProgressMessage,
+  formatDuration,
 };

@@ -770,6 +770,24 @@ describe('ExecutionContext', () => {
       );
     });
 
+    it('handles job-progress event', async () => {
+      const result = await setupExecutingState();
+
+      act(() => {
+        sseCallback({
+          type: 'job-progress',
+          level: 'progress',
+          message: 'Segment 2/5: Rendering image clip',
+        });
+      });
+
+      expect(result.current.state.executionLogs).toHaveLength(1);
+      expect(result.current.state.executionLogs[0].type).toBe('job-progress');
+      expect(result.current.state.executionLogs[0].message).toContain(
+        'Segment 2/5'
+      );
+    });
+
     it('handles job-complete with succeeded status', async () => {
       const result = await setupExecutingState();
 

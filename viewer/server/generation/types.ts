@@ -273,6 +273,15 @@ export interface JobCompleteEvent extends SSEEventBase {
 }
 
 /**
+ * In-job progress/notification event.
+ */
+export interface JobProgressEvent extends SSEEventBase {
+  type: 'job-progress';
+  level: 'progress' | 'success' | 'warning' | 'error';
+  message: string;
+}
+
+/**
  * Layer complete event.
  */
 export interface LayerCompleteEvent extends SSEEventBase {
@@ -326,6 +335,7 @@ export type SSEEvent =
   | LayerStartEvent
   | LayerSkippedEvent
   | JobStartEvent
+  | JobProgressEvent
   | JobCompleteEvent
   | LayerCompleteEvent
   | ExecutionCompleteEvent

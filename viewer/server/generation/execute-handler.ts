@@ -171,6 +171,18 @@ async function executeJobAsync(
   });
 
   const notifications: NotificationBus = createNotificationBus();
+  const unsubscribeNotifications = notifications.subscribe((notification) => {
+    if (jobManager.isJobCancelled(jobId)) {
+      return;
+    }
+
+    broadcastEvent(jobId, {
+      type: 'job-progress',
+      timestamp: notification.timestamp,
+      level: notification.type,
+      message: notification.message,
+    });
+  });
 
   try {
     // Update status to planning
@@ -475,6 +487,9 @@ async function executeJobAsync(
       message: errorMessage,
       code: isRenkuError(error) ? error.code : undefined,
     });
+  } finally {
+    unsubscribeNotifications();
+    notifications.complete();
   }
 }
 

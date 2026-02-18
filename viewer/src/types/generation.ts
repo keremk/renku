@@ -70,6 +70,7 @@ export type ExecutionLogType =
   | 'layer-complete'
   | 'layer-skipped'
   | 'job-start'
+  | 'job-progress'
   | 'job-complete'
   | 'error'
   | 'info';
@@ -176,6 +177,7 @@ export type {
   SurgicalInfo,
   SSEEvent,
   JobStartEvent,
+  JobProgressEvent,
   JobCompleteEvent,
   LayerStartEvent,
   LayerSkippedEvent,

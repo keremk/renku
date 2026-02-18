@@ -118,69 +118,74 @@ const TEXT_TRANSITIONS = new Set<TextTransition>([
 ]);
 
 const KEN_BURNS_PRESETS: KenBurnsPreset[] = [
+  // Pure zoom presets (no pan — radial motion only)
   {
     style: 'cinematicPushInCenter',
     startX: 0,
     startY: 0,
     endX: 0,
     endY: 0,
-    startScale: 1.04,
-    endScale: 1.16,
+    startScale: 1.02,
+    endScale: 1.28,
   },
+  // Pure pan presets (constant scale — no diagonal zoom drift)
   {
     style: 'cinematicPanLeftToRight',
-    startX: -56,
+    startX: -120,
     startY: 0,
-    endX: 56,
+    endX: 120,
     endY: 0,
-    startScale: 1.08,
-    endScale: 1.2,
+    startScale: 1.06,
+    endScale: 1.06,
   },
   {
     style: 'cinematicPanRightToLeft',
-    startX: 56,
+    startX: 120,
     startY: 0,
-    endX: -56,
+    endX: -120,
     endY: 0,
-    startScale: 1.08,
-    endScale: 1.2,
+    startScale: 1.06,
+    endScale: 1.06,
   },
   {
     style: 'cinematicPanTopToBottom',
     startX: 0,
-    startY: -34,
+    startY: -70,
     endX: 0,
-    endY: 34,
-    startScale: 1.07,
-    endScale: 1.18,
+    endY: 70,
+    startScale: 1.06,
+    endScale: 1.06,
   },
   {
     style: 'cinematicPanBottomToTop',
     startX: 0,
-    startY: 34,
+    startY: 70,
     endX: 0,
-    endY: -34,
-    startScale: 1.07,
-    endScale: 1.18,
+    endY: -70,
+    startScale: 1.06,
+    endScale: 1.06,
   },
+  // Pure zoom preset (no pan — radial motion only)
   {
     style: 'cinematicPullOutCenter',
     startX: 0,
     startY: 0,
     endX: 0,
     endY: 0,
-    startScale: 1.18,
-    endScale: 1.06,
+    startScale: 1.28,
+    endScale: 1.02,
   },
 ];
 
+// First element of each sequence determines the effect for single-image segments.
+// Cycle: panL→R, pushIn, panR→L, pullOut, panT→B, panB→T (all different, alternating pan/zoom).
 const KEN_BURNS_SEQUENCE_PRESETS: readonly number[][] = [
   [1, 0, 2],
-  [3, 0, 4],
-  [2, 0, 1],
-  [4, 0, 3],
-  [0, 1, 5],
-  [0, 2, 5],
+  [0, 3, 5],
+  [2, 5, 1],
+  [5, 4, 0],
+  [3, 1, 4],
+  [4, 2, 3],
 ];
 
 const TRACK_KINDS_WITH_NATIVE_DURATION = new Set<ClipKind>([

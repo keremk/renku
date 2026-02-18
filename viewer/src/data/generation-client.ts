@@ -91,6 +91,7 @@ const SSE_EVENT_TYPES = [
   'layer-skipped',
   'layer-complete',
   'job-start',
+  'job-progress',
   'job-complete',
   'execution-complete',
   'execution-cancelled',

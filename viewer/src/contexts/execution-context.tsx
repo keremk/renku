@@ -963,6 +963,14 @@ function handleSSEEvent(
       break;
     }
 
+    case 'job-progress': {
+      const logType: ExecutionLogEntry['type'] =
+        event.level === 'error' ? 'error' : 'job-progress';
+      const logEntry = createLogEntry(logType, event.message);
+      dispatch({ type: 'ADD_LOG_ENTRY', entry: logEntry });
+      break;
+    }
+
     case 'job-complete': {
       const jobLabel = formatJobLabel(event.producer, event.jobId);
       const producerStatus =

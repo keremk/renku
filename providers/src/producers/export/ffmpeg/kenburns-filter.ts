@@ -39,23 +39,22 @@ export interface KenBurnsImageOptions {
 }
 
 /**
- * Build an FFmpeg crop expression for a KenBurns effect.
+ * Build an FFmpeg KenBurns filter expression.
  *
  * The exported timeline uses the same semantic values as the Remotion preview:
  * - startScale/endScale are relative zoom values (1 = base framing)
  * - startX/endX and startY/endY are pixel offsets from center
  *
- * We implement this by:
- * 1. Cover-scaling the image to the output aspect ratio (in buildImageFilterChain)
- * 2. Animating a crop window (zoom + pan) over that cover-scaled frame
- * 3. Re-scaling the cropped result back to output size
+ * We use FFmpeg's `zoompan` so zoom and pan are evaluated per frame against a
+ * fixed-size output surface, matching Remotion's continuous motion semantics.
  *
- * The crop expression uses `n` (frame index) and `exact=1` so x/y are not rounded
- * to chroma subsampling boundaries, which reduces visible jitter on slow pans.
+ * 1. Cover-scale the image to the output aspect ratio (in buildImageFilterChain)
+ * 2. Animate zoom (`z`) and pan (`x` / `y`) over normalized frame progress
+ * 3. Emit exactly one output frame per input frame (`d=1`) at target fps
  *
  * @param effect - The KenBurns effect parameters
  * @param options - Filter configuration options
- * @returns FFmpeg crop filter expression string
+ * @returns FFmpeg filter expression string
  */
 export function buildKenBurnsFilter(
   effect: KenBurnsEffect,
@@ -110,7 +109,7 @@ export function buildKenBurnsFilter(
     }
   );
 
-  const progressExpr = buildProgressExpression(totalFrames);
+  const progressExpr = buildProgressExpression(totalFrames, 'on');
 
   const scaleExpr = buildLinearExpression(
     motion.startScale,
@@ -128,27 +127,27 @@ export function buildKenBurnsFilter(
     progressExpr
   );
 
-  const cropWidthExpr = `${width}/(${scaleExpr})`;
-  const cropHeightExpr = `${height}/(${scaleExpr})`;
+  const maxXExpr = `iw-iw/zoom`;
+  const maxYExpr = `ih-ih/zoom`;
+  const xExpr = `((iw-iw/zoom)/2)+(${offsetXExpr})`;
+  const yExpr = `((ih-ih/zoom)/2)+(${offsetYExpr})`;
 
-  const maxXExpr = `iw-(${cropWidthExpr})`;
-  const maxYExpr = `ih-(${cropHeightExpr})`;
-  const xExpr = `((iw-(${cropWidthExpr}))/2)+(${offsetXExpr})`;
-  const yExpr = `((ih-(${cropHeightExpr}))/2)+(${offsetYExpr})`;
-
-  return `crop=w='${cropWidthExpr}':h='${cropHeightExpr}':x='clip(${xExpr},0,${maxXExpr})':y='clip(${yExpr},0,${maxYExpr})':exact=1`;
+  return `zoompan=z='${scaleExpr}':x='clip(${xExpr},0,${maxXExpr})':y='clip(${yExpr},0,${maxYExpr})':d=1:s=${width}x${height}:fps=${fps}`;
 }
 
 /**
- * Build a normalized progress expression from frame index `n`.
+ * Build a normalized progress expression from a frame counter variable.
  */
-function buildProgressExpression(totalFrames: number): string {
+function buildProgressExpression(
+  totalFrames: number,
+  frameVariable: string
+): string {
   if (totalFrames <= 1) {
     return '0';
   }
 
   const maxFrame = totalFrames - 1;
-  return `if(lte(n,0),0,if(gte(n,${maxFrame}),1,n/${maxFrame}))`;
+  return `if(lte(${frameVariable},0),0,if(gte(${frameVariable},${maxFrame}),1,${frameVariable}/${maxFrame}))`;
 }
 
 /**

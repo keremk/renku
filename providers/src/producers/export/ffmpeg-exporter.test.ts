@@ -7,7 +7,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 
-const { mimeToExtension, collectAssetIds, detectOutputFormat } = __test__;
+const {
+  mimeToExtension,
+  collectAssetIds,
+  detectOutputFormat,
+  parseFfmpegProgressLine,
+  formatFfmpegProgressMessage,
+  formatDuration,
+} = __test__;
 const mockedExecFile = vi.mocked(execFile);
 
 // Helper to load schema from catalog for tests
@@ -223,6 +230,64 @@ describe('ffmpeg-exporter', () => {
       };
 
       expect(detectOutputFormat(timeline)).toBe('video');
+    });
+  });
+
+  describe('parseFfmpegProgressLine', () => {
+    it('parses ffmpeg progress lines with time, speed, and fps', () => {
+      const line =
+        'frame= 1267 fps=31.2 q=29.0 size=   16384kB time=00:00:42.24 bitrate=3178.0kbits/s speed=1.04x';
+
+      const parsed = parseFfmpegProgressLine(line);
+
+      expect(parsed).toEqual({
+        timeSeconds: 42.24,
+        speed: 1.04,
+        fps: 31.2,
+      });
+    });
+
+    it('returns null when line does not contain render time', () => {
+      expect(parseFfmpegProgressLine('Press [q] to stop, [?] for help')).toBe(
+        null
+      );
+    });
+  });
+
+  describe('formatFfmpegProgressMessage', () => {
+    it('formats a readable progress update', () => {
+      const message = formatFfmpegProgressMessage(53, 43, 81.95, {
+        timeSeconds: 43,
+        speed: 1.03,
+        fps: 29.8,
+      });
+
+      expect(message).toBe(
+        'FFmpeg progress 53% (0:43 / 1:21, speed 1.03x, fps 29.8)'
+      );
+    });
+
+    it('shows n/a when speed/fps are unavailable', () => {
+      const message = formatFfmpegProgressMessage(5, 4, 81.95, {
+        timeSeconds: 4,
+        speed: null,
+        fps: null,
+      });
+
+      expect(message).toBe(
+        'FFmpeg progress 5% (0:04 / 1:21, speed n/a, fps n/a)'
+      );
+    });
+  });
+
+  describe('formatDuration', () => {
+    it('formats minute-second values', () => {
+      expect(formatDuration(81.95)).toBe('1:21');
+      expect(formatDuration(4.99)).toBe('0:04');
+    });
+
+    it('formats hour-minute-second values', () => {
+      expect(formatDuration(3671)).toBe('1:01:11');
     });
   });
 

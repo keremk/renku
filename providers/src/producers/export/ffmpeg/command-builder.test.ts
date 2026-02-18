@@ -433,9 +433,7 @@ describe('command-builder', () => {
       expect(result.args).toContain('/path/to/image.png');
 
       const filterComplex = getFilterComplex(result.args);
-      expect(filterComplex).toContain('crop=');
-      expect(filterComplex).toContain('exact=1');
-      expect(filterComplex).not.toContain('zoompan=');
+      expect(filterComplex).toContain('zoompan=');
     });
 
     it('renders text-only timelines as video with drawtext overlay', async () => {
