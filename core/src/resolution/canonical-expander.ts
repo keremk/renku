@@ -55,7 +55,7 @@ export interface CanonicalBlueprint {
 export function expandBlueprintGraph(
   graph: BlueprintGraph,
   inputValues: Record<string, unknown>,
-  inputSources: Map<string, string>,
+  inputSources: Map<string, string>
 ): CanonicalBlueprint {
   const dimensionSizes = resolveDimensionSizes(
     graph.nodes,
@@ -63,7 +63,7 @@ export function expandBlueprintGraph(
     graph.edges,
     graph.dimensionLineage,
     inputSources,
-    graph.loops,
+    graph.loops
   );
   const instancesByNodeId = new Map<string, CanonicalNodeInstance[]>();
   const allNodes: CanonicalNodeInstance[] = [];
@@ -79,12 +79,15 @@ export function expandBlueprintGraph(
   }
 
   const rawEdges = expandEdges(graph.edges, instancesByNodeId);
-  const { edges, nodes, inputBindings } = collapseInputNodes(rawEdges, allNodes);
+  const { edges, nodes, inputBindings } = collapseInputNodes(
+    rawEdges,
+    allNodes
+  );
   const fanIn = buildFanInCollections(
     graph.collectors,
     nodes,
     edges,
-    instanceByCanonicalId,
+    instanceByCanonicalId
   );
 
   return {
@@ -101,7 +104,7 @@ function resolveDimensionSizes(
   edges: BlueprintGraphEdge[],
   lineage: Map<string, string | null>,
   inputSources: Map<string, string>,
-  loops: Map<string, BlueprintLoopDefinition[]>,
+  loops: Map<string, BlueprintLoopDefinition[]>
 ): Map<string, number> {
   const sizes = new Map<string, number>();
 
@@ -117,19 +120,24 @@ function resolveDimensionSizes(
     if (node.dimensions.length === 0) {
       throw createRuntimeError(
         RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
-        `Artefact "${[...node.namespacePath, node.name].join('.')}" declares countInput but has no dimensions.`,
+        `Artefact "${[...node.namespacePath, node.name].join('.')}" declares countInput but has no dimensions.`
       );
     }
     const symbol = node.dimensions[node.dimensions.length - 1];
     const baseSize = readPositiveInteger(
-      readInputValue(inputValues, node.namespacePath, definition.countInput, inputSources),
-      definition.countInput,
+      readInputValue(
+        inputValues,
+        node.namespacePath,
+        definition.countInput,
+        inputSources
+      ),
+      definition.countInput
     );
     const offset = definition.countInputOffset ?? 0;
     if (!Number.isInteger(offset) || offset < 0) {
       throw createRuntimeError(
         RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
-        `Artefact "${[...node.namespacePath, node.name].join('.')}" declares an invalid countInputOffset (${offset}).`,
+        `Artefact "${[...node.namespacePath, node.name].join('.')}" declares an invalid countInputOffset (${offset}).`
       );
     }
     const size = baseSize + offset;
@@ -153,15 +161,29 @@ function resolveDimensionSizes(
         continue;
       }
       const label = extractDimensionLabel(symbol);
-      const loopDef = findLoopDefinition(symbol, label, node.namespacePath, loops);
+      const loopDef = findLoopDefinition(
+        symbol,
+        label,
+        node.namespacePath,
+        loops
+      );
       if (!loopDef) {
         continue;
       }
       // Find the namespace path where the loop is defined to resolve the input
-      const loopNamespacePath = findLoopNamespacePath(label, node.namespacePath, loops);
+      const loopNamespacePath = findLoopNamespacePath(
+        label,
+        node.namespacePath,
+        loops
+      );
       const baseSize = readPositiveInteger(
-        readInputValue(inputValues, loopNamespacePath, loopDef.countInput, inputSources),
-        loopDef.countInput,
+        readInputValue(
+          inputValues,
+          loopNamespacePath,
+          loopDef.countInput,
+          inputSources
+        ),
+        loopDef.countInput
       );
       const offset = loopDef.countInputOffset ?? 0;
       const size = baseSize + offset;
@@ -189,7 +211,12 @@ function resolveDimensionSizes(
         if (sizes.has(symbol)) {
           continue;
         }
-        const derivedSize = deriveDimensionSize(symbol, inbound, sizes, lineage);
+        const derivedSize = deriveDimensionSize(
+          symbol,
+          inbound,
+          sizes,
+          lineage
+        );
         if (derivedSize !== undefined) {
           assignDimensionSize(sizes, symbol, derivedSize);
           updated = true;
@@ -206,7 +233,7 @@ function resolveDimensionSizes(
         throw createRuntimeError(
           RuntimeErrorCode.MISSING_DIMENSION_SIZE,
           `Missing size for dimension "${label}" on node "${nodeId}". ` +
-          `Ensure the upstream artefact declares countInput or can derive this dimension from a loop.`,
+            `Ensure the upstream artefact declares countInput or can derive this dimension from a loop.`
         );
       }
     }
@@ -218,13 +245,13 @@ function resolveDimensionSizes(
 function assignDimensionSize(
   sizes: Map<string, number>,
   symbol: string,
-  size: number,
+  size: number
 ): void {
   const existing = sizes.get(symbol);
   if (existing !== undefined && existing !== size) {
     throw createRuntimeError(
       RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
-      `Dimension "${symbol}" has conflicting sizes (${existing} vs ${size}).`,
+      `Dimension "${symbol}" has conflicting sizes (${existing} vs ${size}).`
     );
   }
 
@@ -236,7 +263,7 @@ function deriveDimensionSize(
   inbound: Map<string, BlueprintGraphEdge[]>,
   knownSizes: Map<string, number>,
   lineage: Map<string, string | null>,
-  visited: Set<string> = new Set(),
+  visited: Set<string> = new Set()
 ): number | undefined {
   if (visited.has(targetSymbol)) {
     return undefined;
@@ -245,13 +272,16 @@ function deriveDimensionSize(
   const ownerNodeId = extractNodeIdFromSymbol(targetSymbol);
   const incoming = inbound.get(ownerNodeId) ?? [];
   for (const edge of incoming) {
-    const toIndex = edge.to.dimensions.findIndex((symbol) => symbol === targetSymbol);
+    const toIndex = edge.to.dimensions.findIndex(
+      (symbol) => symbol === targetSymbol
+    );
     if (toIndex === -1) {
       continue;
     }
     const targetSelector = edge.to.selectors?.[toIndex];
     const sourceSelector = edge.from.selectors?.[toIndex];
-    const hasExplicitSelector = targetSelector !== undefined || sourceSelector !== undefined;
+    const hasExplicitSelector =
+      targetSelector !== undefined || sourceSelector !== undefined;
     if (hasExplicitSelector) {
       if (!targetSelector || !sourceSelector) {
         continue;
@@ -279,7 +309,7 @@ function deriveDimensionSize(
       inbound,
       knownSizes,
       lineage,
-      new Set(visited),
+      new Set(visited)
     );
     if (recursive !== undefined) {
       return recursive;
@@ -291,7 +321,13 @@ function deriveDimensionSize(
     if (parentSize !== undefined) {
       return parentSize;
     }
-    return deriveDimensionSize(parentSymbol, inbound, knownSizes, lineage, visited);
+    return deriveDimensionSize(
+      parentSymbol,
+      inbound,
+      knownSizes,
+      lineage,
+      visited
+    );
   }
   return undefined;
 }
@@ -306,7 +342,7 @@ function parseDimensionSymbol(symbol: string): DimensionInfo {
   if (delimiterIndex === -1) {
     throw createRuntimeError(
       RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
-      `Dimension symbol "${symbol}" is missing a node qualifier.`,
+      `Dimension symbol "${symbol}" is missing a node qualifier.`
     );
   }
   const nodeId = symbol.slice(0, delimiterIndex);
@@ -320,7 +356,7 @@ function extractNodeIdFromSymbol(symbol: string): string {
 
 function expandNodeInstances(
   node: BlueprintGraphNode,
-  dimensionSizes: Map<string, number>,
+  dimensionSizes: Map<string, number>
 ): CanonicalNodeInstance[] {
   const dimensionSymbols = node.dimensions;
   const tuples = buildIndexTuples(dimensionSymbols, dimensionSizes);
@@ -341,7 +377,7 @@ function expandNodeInstances(
 
 function buildIndexTuples(
   symbols: string[],
-  sizes: Map<string, number>,
+  sizes: Map<string, number>
 ): Record<string, number>[] {
   if (symbols.length === 0) {
     return [{}];
@@ -357,7 +393,7 @@ function buildIndexTuples(
     if (size === undefined) {
       throw createRuntimeError(
         RuntimeErrorCode.MISSING_DIMENSION_SIZE,
-        `Missing size for dimension "${symbol}".`,
+        `Missing size for dimension "${symbol}".`
       );
     }
     for (let value = 0; value < size; value += 1) {
@@ -372,7 +408,7 @@ function buildIndexTuples(
 
 function expandEdges(
   edges: BlueprintGraphEdge[],
-  nodeInstances: Map<string, CanonicalNodeInstance[]>,
+  nodeInstances: Map<string, CanonicalNodeInstance[]>
 ): CanonicalEdgeInstance[] {
   const results: CanonicalEdgeInstance[] = [];
   for (const edge of edges) {
@@ -407,34 +443,18 @@ function buildFanInCollections(
   collectors: BlueprintGraphCollector[],
   nodes: CanonicalNodeInstance[],
   edges: CanonicalEdgeInstance[],
-  instancesById: Map<string, CanonicalNodeInstance>,
+  instancesById: Map<string, CanonicalNodeInstance>
 ): Record<string, FanInDescriptor> {
-  if (collectors.length === 0) {
-    return {};
-  }
-  const collectorMetaByNodeId = new Map<string, { groupBy: string; orderBy?: string }>();
+  const collectorMetaByNodeId = new Map<
+    string,
+    { groupBy: string; orderBy?: string }
+  >();
   for (const collector of collectors) {
     const canonicalTargetId = `Input:${collector.to.nodeId}`;
     collectorMetaByNodeId.set(canonicalTargetId, {
       groupBy: collector.groupBy,
       orderBy: collector.orderBy,
     });
-  }
-  const targets = new Map<string, { groupBy: string; orderBy?: string }>();
-  for (const node of nodes) {
-    if (node.type !== 'Input') {
-      continue;
-    }
-    if (!node.input?.fanIn) {
-      continue;
-    }
-    const meta = collectorMetaByNodeId.get(node.id);
-    if (meta) {
-      targets.set(node.id, meta);
-    }
-  }
-  if (targets.size === 0) {
-    return {};
   }
   const inbound = new Map<string, string[]>();
   for (const edge of edges) {
@@ -446,8 +466,32 @@ function buildFanInCollections(
     inbound.set(edge.to, list);
   }
   const fanIn: Record<string, FanInDescriptor> = {};
-  for (const [targetId, meta] of targets.entries()) {
+  for (const node of nodes) {
+    if (node.type !== 'Input' || !node.input?.fanIn) {
+      continue;
+    }
+    const targetId = node.id;
     const sources = inbound.get(targetId) ?? [];
+    const meta = collectorMetaByNodeId.get(targetId);
+
+    if (!meta) {
+      if (sources.length > 1) {
+        const parents = sources.join(', ');
+        throw createRuntimeError(
+          RuntimeErrorCode.MULTIPLE_UPSTREAM_INPUTS,
+          `Input node ${targetId} is marked fanIn but has multiple upstream dependencies (${parents}) and no collector metadata.`
+        );
+      }
+      fanIn[targetId] = {
+        groupBy: 'singleton',
+        members: sources.map((sourceId) => ({
+          id: sourceId,
+          group: 0,
+        })),
+      };
+      continue;
+    }
+
     if (sources.length === 0) {
       fanIn[targetId] = {
         groupBy: meta.groupBy,
@@ -458,8 +502,13 @@ function buildFanInCollections(
     }
     const members = sources.map((sourceId) => {
       const instance = instancesById.get(sourceId);
-      const group = instance ? getDimensionIndex(instance, meta.groupBy) ?? 0 : 0;
-      const order = meta.orderBy && instance ? getDimensionIndex(instance, meta.orderBy) : undefined;
+      const group = instance
+        ? (getDimensionIndex(instance, meta.groupBy) ?? 0)
+        : 0;
+      const order =
+        meta.orderBy && instance
+          ? getDimensionIndex(instance, meta.orderBy)
+          : undefined;
       return {
         id: sourceId,
         group,
@@ -478,7 +527,7 @@ function buildFanInCollections(
 function edgeInstancesAlign(
   edge: BlueprintGraphEdge,
   fromNode: CanonicalNodeInstance,
-  toNode: CanonicalNodeInstance,
+  toNode: CanonicalNodeInstance
 ): boolean {
   const fromSymbols = edge.from.dimensions;
   const toSymbols = edge.to.dimensions;
@@ -490,8 +539,12 @@ function edgeInstancesAlign(
     const fromSymbol = fromSymbols[i];
     const toSymbol = toSymbols[i];
 
-    const fromIndex = fromSymbol ? getDimensionValue(fromNode.indices, fromSymbol) : undefined;
-    const toIndex = toSymbol ? getDimensionValue(toNode.indices, toSymbol) : undefined;
+    const fromIndex = fromSymbol
+      ? getDimensionValue(fromNode.indices, fromSymbol)
+      : undefined;
+    const toIndex = toSymbol
+      ? getDimensionValue(toNode.indices, toSymbol)
+      : undefined;
 
     const fromSelector = fromSymbol ? fromSelectors?.[i] : undefined;
     const toSelector = toSymbol ? toSelectors?.[i] : undefined;
@@ -518,11 +571,14 @@ function edgeInstancesAlign(
   return true;
 }
 
-function getDimensionValue(indices: Record<string, number>, symbol: string): number {
+function getDimensionValue(
+  indices: Record<string, number>,
+  symbol: string
+): number {
   if (!(symbol in indices)) {
     throw createRuntimeError(
       RuntimeErrorCode.MISSING_DIMENSION_INDEX,
-      `Dimension "${symbol}" missing on node instance.`,
+      `Dimension "${symbol}" missing on node instance.`
     );
   }
   return indices[symbol]!;
@@ -536,7 +592,7 @@ interface CollapseResult {
 
 function collapseInputNodes(
   edges: CanonicalEdgeInstance[],
-  nodes: CanonicalNodeInstance[],
+  nodes: CanonicalNodeInstance[]
 ): CollapseResult {
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
   const inbound = new Map<string, CanonicalEdgeInstance[]>();
@@ -576,14 +632,14 @@ function collapseInputNodes(
       const parents = inboundEdges.map((edge) => edge.from).join(', ');
       throw createRuntimeError(
         RuntimeErrorCode.MULTIPLE_UPSTREAM_INPUTS,
-        `Input node ${id} has multiple upstream dependencies (${parents}).`,
+        `Input node ${id} has multiple upstream dependencies (${parents}).`
       );
     }
     const upstreamId = inboundEdges[0].from;
     if (stack.has(upstreamId)) {
       throw createRuntimeError(
         RuntimeErrorCode.ALIAS_CYCLE_DETECTED,
-        `Alias cycle detected for ${id}`,
+        `Alias cycle detected for ${id}`
       );
     }
     stack.add(upstreamId);
@@ -614,7 +670,11 @@ function collapseInputNodes(
 
   const bindingMap = new Map<string, Map<string, string>>();
 
-  function recordBinding(targetId: string, alias: string, canonicalId: string): void {
+  function recordBinding(
+    targetId: string,
+    alias: string,
+    canonicalId: string
+  ): void {
     if (!alias) {
       return;
     }
@@ -623,7 +683,7 @@ function collapseInputNodes(
     if (previous !== undefined && previous !== canonicalId) {
       throw createRuntimeError(
         RuntimeErrorCode.INVALID_INPUT_BINDING,
-        `Conflicting input binding for ${targetId}.${alias}: ${previous} vs ${canonicalId}`,
+        `Conflicting input binding for ${targetId}.${alias}: ${previous} vs ${canonicalId}`
       );
     }
     existing.set(alias, canonicalId);
@@ -634,7 +694,7 @@ function collapseInputNodes(
     sourceId: string,
     alias: string,
     canonicalId: string,
-    visited: Set<string>,
+    visited: Set<string>
   ): void => {
     const outgoing = outbound.get(sourceId) ?? [];
     for (const edge of outgoing) {
@@ -659,13 +719,22 @@ function collapseInputNodes(
 
   // Build a map to propagate conditions from inbound edges to outbound edges
   // when Input nodes are collapsed. Key = input node ID, Value = conditions from inbound edge
-  const conditionsFromInbound = new Map<string, { conditions: CanonicalEdgeInstance['conditions']; indices: CanonicalEdgeInstance['indices'] }>();
+  const conditionsFromInbound = new Map<
+    string,
+    {
+      conditions: CanonicalEdgeInstance['conditions'];
+      indices: CanonicalEdgeInstance['indices'];
+    }
+  >();
   for (const edge of edges) {
     if (edge.conditions) {
       const targetNode = nodeById.get(edge.to);
       if (targetNode?.type === 'Input') {
         // Store conditions from the inbound edge to this Input node
-        conditionsFromInbound.set(edge.to, { conditions: edge.conditions, indices: edge.indices });
+        conditionsFromInbound.set(edge.to, {
+          conditions: edge.conditions,
+          indices: edge.indices,
+        });
       }
     }
   }
@@ -754,7 +823,12 @@ function collapseInputNodes(
         // Only propagate if the element was aliased to something different (i.e., resolved to an artifact)
         if (elementCanonicalId !== elementNode.id) {
           const elementVisited = new Set<string>();
-          propagateAlias(node.id, elementAlias, elementCanonicalId, elementVisited);
+          propagateAlias(
+            node.id,
+            elementAlias,
+            elementCanonicalId,
+            elementVisited
+          );
         }
       }
     }
@@ -786,12 +860,15 @@ function mapNodeType(kind: string): CanonicalNodeInstance['type'] {
     default:
       throw createRuntimeError(
         RuntimeErrorCode.UNKNOWN_NODE_KIND,
-        `Unknown node kind ${kind}`,
+        `Unknown node kind ${kind}`
       );
   }
 }
 
-function formatCanonicalNodeId(node: BlueprintGraphNode, indices: Record<string, number>): string {
+function formatCanonicalNodeId(
+  node: BlueprintGraphNode,
+  indices: Record<string, number>
+): string {
   // Check if the node name contains dimension placeholders (e.g., "Segments[segment]")
   // For decomposed artifacts, we need to replace placeholders with indices inline
   const hasPlaceholders = /\[[a-zA-Z_][a-zA-Z0-9_]*\]/.test(node.name);
@@ -803,34 +880,37 @@ function formatCanonicalNodeId(node: BlueprintGraphNode, indices: Record<string,
       if (!(symbol in indices)) {
         throw createRuntimeError(
           RuntimeErrorCode.MISSING_DIMENSION_INDEX,
-          `Missing index value for dimension "${symbol}" on node ${node.name}`,
+          `Missing index value for dimension "${symbol}" on node ${node.name}`
         );
       }
       const label = extractDimensionLabel(symbol);
       // Replace [label] with [index]
       resolvedName = resolvedName.replace(
         new RegExp(`\\[${escapeRegex(label)}\\]`, 'g'),
-        `[${indices[symbol]}]`,
+        `[${indices[symbol]}]`
       );
     }
     return formatCanonicalArtifactId(node.namespacePath, resolvedName);
   }
 
   // Standard handling: append indices as suffix
-  const baseId = node.type === 'InputSource'
-    ? formatCanonicalInputId(node.namespacePath, node.name)
-    : node.type === 'Artifact'
-      ? formatCanonicalArtifactId(node.namespacePath, node.name)
-      : formatCanonicalProducerId(node.namespacePath, node.name);
-  const suffix = node.dimensions.map((symbol) => {
-    if (!(symbol in indices)) {
-      throw createRuntimeError(
-        RuntimeErrorCode.MISSING_DIMENSION_INDEX,
-        `Missing index value for dimension "${symbol}" on node ${baseId}`,
-      );
-    }
-    return `[${indices[symbol]}]`;
-  }).join('');
+  const baseId =
+    node.type === 'InputSource'
+      ? formatCanonicalInputId(node.namespacePath, node.name)
+      : node.type === 'Artifact'
+        ? formatCanonicalArtifactId(node.namespacePath, node.name)
+        : formatCanonicalProducerId(node.namespacePath, node.name);
+  const suffix = node.dimensions
+    .map((symbol) => {
+      if (!(symbol in indices)) {
+        throw createRuntimeError(
+          RuntimeErrorCode.MISSING_DIMENSION_INDEX,
+          `Missing index value for dimension "${symbol}" on node ${baseId}`
+        );
+      }
+      return `[${indices[symbol]}]`;
+    })
+    .join('');
   return `${baseId}${suffix}`;
 }
 
@@ -838,9 +918,8 @@ function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-
 function mapOfMapsToRecord(
-  map: Map<string, Map<string, string>>,
+  map: Map<string, Map<string, string>>
 ): Record<string, Record<string, string>> {
   const record: Record<string, Record<string, string>> = {};
   for (const [key, inner] of map.entries()) {
@@ -849,7 +928,10 @@ function mapOfMapsToRecord(
   return record;
 }
 
-function getDimensionIndex(node: CanonicalNodeInstance, label: string): number | undefined {
+function getDimensionIndex(
+  node: CanonicalNodeInstance,
+  label: string
+): number | undefined {
   for (const symbol of node.dimensions) {
     if (extractDimensionLabel(symbol) === label) {
       return node.indices[symbol];
@@ -860,7 +942,7 @@ function getDimensionIndex(node: CanonicalNodeInstance, label: string): number |
 
 function nodeMatchesElementInstance(
   baseNode: CanonicalNodeInstance,
-  elementNode: CanonicalNodeInstance,
+  elementNode: CanonicalNodeInstance
 ): boolean {
   const baseIndices = getIndicesByLabel(baseNode);
   const elementIndices = getIndicesByLabel(elementNode);
@@ -897,7 +979,7 @@ function formatProducerAliasForNode(node: BlueprintGraphNode): string {
 
 function extractDimensionLabel(symbol: string): string {
   const parts = symbol.split(':');
-  return parts.length > 0 ? parts[parts.length - 1] ?? symbol : symbol;
+  return parts.length > 0 ? (parts[parts.length - 1] ?? symbol) : symbol;
 }
 
 /**
@@ -909,7 +991,7 @@ function findLoopDefinition(
   _symbol: string,
   label: string,
   namespacePath: string[],
-  loops: Map<string, BlueprintLoopDefinition[]>,
+  loops: Map<string, BlueprintLoopDefinition[]>
 ): BlueprintLoopDefinition | undefined {
   // Try progressively shorter namespace paths (from current to root)
   // This handles loops defined in any ancestor namespace
@@ -935,7 +1017,7 @@ function findLoopDefinition(
 function findLoopNamespacePath(
   label: string,
   namespacePath: string[],
-  loops: Map<string, BlueprintLoopDefinition[]>,
+  loops: Map<string, BlueprintLoopDefinition[]>
 ): string[] {
   // Try progressively shorter namespace paths (from current to root)
   for (let i = namespacePath.length; i >= 0; i--) {
@@ -956,20 +1038,20 @@ function readInputValue(
   values: Record<string, unknown>,
   namespacePath: string[],
   name: string,
-  inputSources: Map<string, string>,
+  inputSources: Map<string, string>
 ): unknown {
   const canonicalId = formatCanonicalInputId(namespacePath, name);
   const sourceId = inputSources.get(canonicalId);
   if (!sourceId) {
     throw createRuntimeError(
       RuntimeErrorCode.MISSING_INPUT_SOURCE,
-      `Missing input source mapping for "${canonicalId}".`,
+      `Missing input source mapping for "${canonicalId}".`
     );
   }
   if (!(sourceId in values)) {
     throw createRuntimeError(
       RuntimeErrorCode.MISSING_REQUIRED_INPUT,
-      `Input "${sourceId}" is required but missing a value.`,
+      `Input "${sourceId}" is required but missing a value.`
     );
   }
   return values[sourceId];
@@ -979,14 +1061,14 @@ function readPositiveInteger(value: unknown, field: string): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     throw createRuntimeError(
       RuntimeErrorCode.INVALID_INPUT_VALUE,
-      `Input "${field}" must be a finite number.`,
+      `Input "${field}" must be a finite number.`
     );
   }
   const normalized = Math.trunc(value);
   if (normalized <= 0) {
     throw createRuntimeError(
       RuntimeErrorCode.INVALID_INPUT_VALUE,
-      `Input "${field}" must be greater than zero.`,
+      `Input "${field}" must be greater than zero.`
     );
   }
   return normalized;
