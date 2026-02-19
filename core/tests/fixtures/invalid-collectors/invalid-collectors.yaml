@@ -1,0 +1,22 @@
+meta:
+  name: Invalid Collectors Fixture
+  id: InvalidCollectorsFixture
+  version: 0.1.0
+
+inputs:
+  - name: Prompt
+    type: string
+
+artifacts:
+  - name: Output
+    type: string
+
+connections:
+  - from: Prompt
+    to: InvalidCollectorsFixture.Prompt
+
+collectors:
+  - name: LegacyCollector
+    from: SomeProducer.Output
+    into: OtherProducer.Input
+    groupBy: segment

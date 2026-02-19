@@ -206,19 +206,14 @@ connections:
     to: FinalVideo
 ```
 
-#### 3. Add the Collector for AudioSegments
+#### 3. Ensure Fan-In Connection Exists for AudioSegments
 
-**CRITICAL:** Fan-in inputs require BOTH a connection AND a collector:
+**CRITICAL:** Fan-in is connection-driven. Connect the looped audio artifact to the fan-in input:
 
 ```yaml
-collectors:
-  # ... existing collectors ...
-
-  # Collect audio segments for transcription
-  - name: TranscriptionAudio
-    from: AudioProducer[segment].GeneratedAudio
-    into: TimelineComposer.TranscriptionAudio
-    groupBy: segment
+connections:
+  - from: AudioProducer[segment].GeneratedAudio
+    to: TimelineComposer.TranscriptionAudio
 ```
 
 #### 4. Add the Transcription Track to TimelineComposer Config
@@ -449,20 +444,6 @@ connections:
     to: VideoExporter.Transcription
   - from: VideoExporter.FinalVideo
     to: FinalVideo
-
-collectors:
-  - name: TimelineVideo
-    from: VideoProducer[segment].GeneratedVideo
-    into: TimelineComposer.VideoSegments
-    groupBy: segment
-  - name: TimelineAudio
-    from: AudioProducer[segment].GeneratedAudio
-    into: TimelineComposer.AudioSegments
-    groupBy: segment
-  - name: TranscriptionAudio
-    from: AudioProducer[segment].GeneratedAudio
-    into: TimelineComposer.TranscriptionAudio
-    groupBy: segment
 ```
 
 ### Input Template: `karaoke-inputs.yaml`
@@ -575,12 +556,6 @@ connections:
   # CORRECT: Use AudioTrack from lipsync video producer
   - from: LipsyncVideoProducer[segment].AudioTrack
     to: TimelineComposer.TranscriptionAudio
-
-collectors:
-  - name: TranscriptionAudio
-    from: LipsyncVideoProducer[segment].AudioTrack
-    into: TimelineComposer.TranscriptionAudio
-    groupBy: segment
 ```
 
 **Why this matters:**
@@ -662,7 +637,7 @@ Recommendations:
 
 1. Verify the Transcription connection to VideoExporter exists in the blueprint
 2. Check that TranscriptionProducer has the correct Timeline input
-3. Ensure AudioSegments collector is defined
+3. Ensure `AudioProducer[segment].GeneratedAudio -> TimelineComposer.TranscriptionAudio` connection exists
 4. Verify you're using `--exporter=ffmpeg` (Remotion exporter doesn't support subtitles)
 5. Check that the export config file has `subtitles` section
 

@@ -31,8 +31,6 @@ export {
   validateProducerInputOutput,
   validateLoopCountInputs,
   validateArtifactCountInputs,
-  validateCollectors,
-  validateCollectorConnections,
   validateConditionPaths,
   validateTypes,
   validateProducerCycles,

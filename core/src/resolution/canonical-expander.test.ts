@@ -1115,7 +1115,7 @@ describe('expandBlueprintGraph', () => {
     }
   });
 
-  it('creates implicit singleton fan-in for single-source fanIn input without collector', () => {
+  it('creates implicit singleton fan-in for single-source fanIn input without explicit metadata', () => {
     const musicSourceDoc: BlueprintDocument = {
       meta: { id: 'MusicSource', name: 'MusicSource' },
       inputs: [],
@@ -1192,11 +1192,18 @@ describe('expandBlueprintGraph', () => {
 
     expect(expanded.fanIn['Input:TimelineComposer.Music']).toEqual({
       groupBy: 'singleton',
-      members: [{ id: 'Artifact:MusicSource.GeneratedMusic', group: 0 }],
+      orderBy: undefined,
+      members: [
+        {
+          id: 'Artifact:MusicSource.GeneratedMusic',
+          group: 0,
+          order: 0,
+        },
+      ],
     });
   });
 
-  it('fails when fanIn input has multiple sources without collector metadata', () => {
+  it('fails when fanIn input has multiple scalar sources without explicit metadata', () => {
     const musicSourceDoc: BlueprintDocument = {
       meta: { id: 'MusicSource', name: 'MusicSource' },
       inputs: [],
@@ -1284,7 +1291,114 @@ describe('expandBlueprintGraph', () => {
     expect(() =>
       expandBlueprintGraph(graph, canonicalInputs, inputSources)
     ).toThrow(
-      'Input node Input:TimelineComposer.Music is marked fanIn but has multiple upstream dependencies'
+      'Input node Input:TimelineComposer.Music has multiple scalar upstream dependencies'
     );
+  });
+
+  it('infers groupBy for multi-source fanIn connections sharing one loop dimension', () => {
+    const videoSourceDoc: BlueprintDocument = {
+      meta: { id: 'VideoSource', name: 'VideoSource' },
+      inputs: [],
+      artefacts: [{ name: 'GeneratedVideo', type: 'video' }],
+      producers: [
+        { name: 'VideoProducer', provider: 'fal-ai', model: 'image_to_video' },
+      ],
+      producerImports: [],
+      edges: [{ from: 'VideoProducer', to: 'GeneratedVideo' }],
+    };
+
+    const timelineComposerDoc: BlueprintDocument = {
+      meta: { id: 'TimelineComposer', name: 'TimelineComposer' },
+      inputs: [
+        { name: 'VideoSegments', type: 'video', required: false, fanIn: true },
+      ],
+      artefacts: [{ name: 'Timeline', type: 'json' }],
+      producers: [
+        {
+          name: 'TimelineProducer',
+          provider: 'renku',
+          model: 'timeline/ordered',
+        },
+      ],
+      producerImports: [],
+      edges: [
+        { from: 'VideoSegments', to: 'TimelineProducer' },
+        { from: 'TimelineProducer', to: 'Timeline' },
+      ],
+    };
+
+    const rootDoc: BlueprintDocument = {
+      meta: { id: 'ROOT', name: 'ROOT' },
+      inputs: [{ name: 'NumOfCharacters', type: 'number', required: true }],
+      artefacts: [],
+      producers: [],
+      producerImports: [],
+      loops: [{ name: 'character', countInput: 'NumOfCharacters' }],
+      edges: [
+        {
+          from: 'MeetingVideoSource[character].GeneratedVideo',
+          to: 'TimelineComposer.VideoSegments',
+        },
+        {
+          from: 'TransitionVideoSource[character].GeneratedVideo',
+          to: 'TimelineComposer.VideoSegments',
+        },
+      ],
+    };
+
+    const tree: BlueprintTreeNode = {
+      id: 'ROOT',
+      namespacePath: [],
+      document: rootDoc,
+      children: new Map([
+        [
+          'MeetingVideoSource',
+          {
+            id: 'MeetingVideoSource',
+            namespacePath: ['MeetingVideoSource'],
+            document: videoSourceDoc,
+            children: new Map(),
+            sourcePath: '/test/mock-blueprint.yaml',
+          },
+        ],
+        [
+          'TransitionVideoSource',
+          {
+            id: 'TransitionVideoSource',
+            namespacePath: ['TransitionVideoSource'],
+            document: videoSourceDoc,
+            children: new Map(),
+            sourcePath: '/test/mock-blueprint.yaml',
+          },
+        ],
+        [
+          'TimelineComposer',
+          {
+            id: 'TimelineComposer',
+            namespacePath: ['TimelineComposer'],
+            document: timelineComposerDoc,
+            children: new Map(),
+            sourcePath: '/test/mock-blueprint.yaml',
+          },
+        ],
+      ]),
+      sourcePath: '/test/mock-blueprint.yaml',
+    };
+
+    const graph = buildBlueprintGraph(tree);
+    const inputSources = buildInputSourceMapFromCanonical(graph);
+    const canonicalInputs = normalizeInputValues(
+      {
+        'Input:NumOfCharacters': 2,
+      },
+      inputSources
+    );
+    const expanded = expandBlueprintGraph(graph, canonicalInputs, inputSources);
+
+    const fanIn = expanded.fanIn['Input:TimelineComposer.VideoSegments'];
+    expect(fanIn).toBeDefined();
+    expect(fanIn?.groupBy).toBe('character');
+    expect(fanIn?.members).toHaveLength(4);
+    expect(fanIn?.members.map((member) => member.group)).toEqual([0, 1, 0, 1]);
   });
 });

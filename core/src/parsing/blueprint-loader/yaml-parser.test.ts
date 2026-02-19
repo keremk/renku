@@ -7,7 +7,11 @@ import {
   loadYamlBlueprintTree,
   parseYamlBlueprintFile,
 } from './yaml-parser.js';
-import { CATALOG_ROOT, CATALOG_BLUEPRINTS_ROOT, TEST_FIXTURES_ROOT } from '../../../tests/catalog-paths.js';
+import {
+  CATALOG_ROOT,
+  CATALOG_BLUEPRINTS_ROOT,
+  TEST_FIXTURES_ROOT,
+} from '../../../tests/catalog-paths.js';
 import type { EdgeConditionClause, EdgeConditionGroup } from '../../types.js';
 
 const catalogRoot = CATALOG_ROOT;
@@ -15,7 +19,10 @@ const yamlRoot = CATALOG_BLUEPRINTS_ROOT;
 
 describe('parseYamlBlueprintFile', () => {
   it('parses interface-only producer with meta, inputs, and artifacts', async () => {
-    const modulePath = resolve(TEST_FIXTURES_ROOT, 'audio-only/script/script.yaml');
+    const modulePath = resolve(
+      TEST_FIXTURES_ROOT,
+      'audio-only/script/script.yaml'
+    );
     const document = await parseYamlBlueprintFile(modulePath);
     expect(document.meta.id).toBe('ScriptProducer');
     expect(document.producers).toHaveLength(1);
@@ -27,7 +34,10 @@ describe('parseYamlBlueprintFile', () => {
   });
 
   it('parses promptFile and outputSchema from producer meta section', async () => {
-    const modulePath = resolve(TEST_FIXTURES_ROOT, 'audio-only/script/script.yaml');
+    const modulePath = resolve(
+      TEST_FIXTURES_ROOT,
+      'audio-only/script/script.yaml'
+    );
     const document = await parseYamlBlueprintFile(modulePath);
     expect(document.meta.promptFile).toBe('./script.toml');
     expect(document.meta.outputSchema).toBe('./script-output.json');
@@ -35,22 +45,34 @@ describe('parseYamlBlueprintFile', () => {
 
   it('leaves promptFile and outputSchema undefined when not specified', async () => {
     // text-to-music producer has no LLM config files
-    const modulePath = resolve(catalogRoot, 'producers/asset/text-to-music.yaml');
+    const modulePath = resolve(
+      catalogRoot,
+      'producers/asset/text-to-music.yaml'
+    );
     const document = await parseYamlBlueprintFile(modulePath);
     expect(document.meta.promptFile).toBeUndefined();
     expect(document.meta.outputSchema).toBeUndefined();
   });
 
   it('parses countInputOffset for array artefacts', async () => {
-    const modulePath = resolve(TEST_FIXTURES_ROOT, 'flow-video/flow-video.yaml');
+    const modulePath = resolve(
+      TEST_FIXTURES_ROOT,
+      'flow-video/flow-video.yaml'
+    );
     const document = await parseYamlBlueprintFile(modulePath);
-    const imagePrompts = document.artefacts.find((artefact) => artefact.name === 'ImagePrompts');
+    const imagePrompts = document.artefacts.find(
+      (artefact) => artefact.name === 'ImagePrompts'
+    );
     expect(imagePrompts?.countInput).toBe('NumOfSegments');
     expect(imagePrompts?.countInputOffset).toBe(1);
   });
 
-  it('normalizes collector references into canonical edge notation', async () => {
-    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'image-only', 'image-only.yaml');
+  it('normalizes connection references into canonical edge notation', async () => {
+    const blueprintPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'image-only',
+      'image-only.yaml'
+    );
     const document = await parseYamlBlueprintFile(blueprintPath);
     expect(document.edges).toEqual(
       expect.arrayContaining([
@@ -62,7 +84,7 @@ describe('parseYamlBlueprintFile', () => {
           from: 'ScriptProducer.NarrationScript[segment]',
           to: 'ImagePromptProducer[segment].NarrativeText',
         }),
-      ]),
+      ])
     );
     expect(document.producerImports.map((entry) => entry.name)).toEqual([
       'ScriptProducer',
@@ -72,7 +94,11 @@ describe('parseYamlBlueprintFile', () => {
   });
 
   it('accepts dimension selectors with offsets', async () => {
-    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'offset-selector', 'offset-selector.yaml');
+    const blueprintPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'offset-selector',
+      'offset-selector.yaml'
+    );
     const document = await parseYamlBlueprintFile(blueprintPath);
     expect(document.edges).toEqual(
       expect.arrayContaining([
@@ -80,17 +106,34 @@ describe('parseYamlBlueprintFile', () => {
           from: 'ImageProducer[image+1].GeneratedImage',
           to: 'VideoProducer[segment].EndImage',
         }),
-      ]),
+      ])
+    );
+  });
+
+  it('rejects legacy collectors sections', async () => {
+    const blueprintPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'invalid-collectors',
+      'invalid-collectors.yaml'
+    );
+    await expect(parseYamlBlueprintFile(blueprintPath)).rejects.toThrow(
+      /collectors.*no longer supported/i
     );
   });
 });
 
 describe('loadYamlBlueprintTree', () => {
   it('loads entire blueprint hierarchy using FlyStorage reader', async () => {
-    const storage = new FileStorage(new LocalStorageAdapter(TEST_FIXTURES_ROOT));
+    const storage = new FileStorage(
+      new LocalStorageAdapter(TEST_FIXTURES_ROOT)
+    );
     const reader = createFlyStorageBlueprintReader(storage, TEST_FIXTURES_ROOT);
     // Use a self-contained fixture for FlyStorage tests (no catalog dependencies)
-    const entry = resolve(TEST_FIXTURES_ROOT, 'flystorage-test', 'flystorage-test.yaml');
+    const entry = resolve(
+      TEST_FIXTURES_ROOT,
+      'flystorage-test',
+      'flystorage-test.yaml'
+    );
     const { root } = await loadYamlBlueprintTree(entry, { reader });
     expect(root.id).toBe('FlyStorageTest');
     expect(root.children.size).toBeGreaterThan(0);
@@ -120,7 +163,11 @@ describe('loadYamlBlueprintTree', () => {
 
 describe('optional inputs without defaults', () => {
   it('accepts optional inputs without default values', async () => {
-    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
+    const blueprintPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'audio-only',
+      'audio-only.yaml'
+    );
     const document = await parseYamlBlueprintFile(blueprintPath);
 
     // Find optional inputs (required: false)
@@ -136,7 +183,11 @@ describe('optional inputs without defaults', () => {
   });
 
   it('parses required flag correctly for both required and optional inputs', async () => {
-    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
+    const blueprintPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'audio-only',
+      'audio-only.yaml'
+    );
     const document = await parseYamlBlueprintFile(blueprintPath);
 
     // Required inputs
@@ -160,7 +211,11 @@ describe('condition parsing', () => {
   describe('if references on edges', () => {
     it('parses edge with if reference to named condition', async () => {
       // Use root catalog condition-example (has if: references to named conditions)
-      const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'condition-example', 'condition-example.yaml');
+      const blueprintPath = resolve(
+        TEST_FIXTURES_ROOT,
+        'condition-example',
+        'condition-example.yaml'
+      );
       const document = await parseYamlBlueprintFile(blueprintPath);
 
       // Find any edge with conditions (populated from if: reference)
@@ -180,7 +235,11 @@ describe('condition parsing', () => {
 
   describe('named conditions block', () => {
     it('parses conditions block with named condition definitions', async () => {
-      const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'condition-example', 'condition-example.yaml');
+      const blueprintPath = resolve(
+        TEST_FIXTURES_ROOT,
+        'condition-example',
+        'condition-example.yaml'
+      );
       const document = await parseYamlBlueprintFile(blueprintPath);
 
       // Check that conditions are defined
@@ -189,13 +248,17 @@ describe('condition parsing', () => {
     });
 
     it('parses named condition with is operator', async () => {
-      const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'condition-example', 'condition-example.yaml');
+      const blueprintPath = resolve(
+        TEST_FIXTURES_ROOT,
+        'condition-example',
+        'condition-example.yaml'
+      );
       const document = await parseYamlBlueprintFile(blueprintPath);
 
       const conditions = document.conditions ?? {};
       // Find a condition with 'is' operator
       const conditionWithIs = Object.values(conditions).find(
-        (cond) => 'when' in cond && 'is' in cond,
+        (cond) => 'when' in cond && 'is' in cond
       ) as EdgeConditionClause | undefined;
 
       expect(conditionWithIs).toBeDefined();
@@ -204,13 +267,17 @@ describe('condition parsing', () => {
     });
 
     it('parses named condition group with all (AND)', async () => {
-      const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'condition-example', 'condition-example.yaml');
+      const blueprintPath = resolve(
+        TEST_FIXTURES_ROOT,
+        'condition-example',
+        'condition-example.yaml'
+      );
       const document = await parseYamlBlueprintFile(blueprintPath);
 
       const conditions = document.conditions ?? {};
       // Find a condition with 'all' operator (condition-example may not have this)
       const conditionWithAll = Object.values(conditions).find(
-        (cond) => 'all' in cond,
+        (cond) => 'all' in cond
       ) as EdgeConditionGroup | undefined;
 
       if (conditionWithAll) {
@@ -221,13 +288,17 @@ describe('condition parsing', () => {
     });
 
     it('parses named condition group with any (OR)', async () => {
-      const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'condition-example', 'condition-example.yaml');
+      const blueprintPath = resolve(
+        TEST_FIXTURES_ROOT,
+        'condition-example',
+        'condition-example.yaml'
+      );
       const document = await parseYamlBlueprintFile(blueprintPath);
 
       const conditions = document.conditions ?? {};
       // Find a condition with 'any' operator (condition-example may not have this)
       const conditionWithAny = Object.values(conditions).find(
-        (cond) => 'any' in cond,
+        (cond) => 'any' in cond
       ) as EdgeConditionGroup | undefined;
 
       if (conditionWithAny) {
@@ -240,7 +311,11 @@ describe('condition parsing', () => {
 
   describe('if references', () => {
     it('resolves if reference to named condition on edge', async () => {
-      const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'condition-example', 'condition-example.yaml');
+      const blueprintPath = resolve(
+        TEST_FIXTURES_ROOT,
+        'condition-example',
+        'condition-example.yaml'
+      );
       const document = await parseYamlBlueprintFile(blueprintPath);
 
       // Find an edge that uses 'if:' reference (conditions will be populated from the named condition)
@@ -253,7 +328,11 @@ describe('condition parsing', () => {
 
   describe('condition operators', () => {
     it('parses conditions with is operator from named conditions', async () => {
-      const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'condition-example', 'condition-example.yaml');
+      const blueprintPath = resolve(
+        TEST_FIXTURES_ROOT,
+        'condition-example',
+        'condition-example.yaml'
+      );
       const document = await parseYamlBlueprintFile(blueprintPath);
 
       const conditions = document.conditions ?? {};
@@ -262,7 +341,9 @@ describe('condition parsing', () => {
       expect(conditions['isImageNarration']).toBeDefined();
       expect(conditions['isTalkingHead']).toBeDefined();
 
-      const isImageNarration = conditions['isImageNarration'] as EdgeConditionClause;
+      const isImageNarration = conditions[
+        'isImageNarration'
+      ] as EdgeConditionClause;
       expect(isImageNarration.when).toContain('NarrationType');
       expect(isImageNarration.is).toBe('ImageNarration');
     });
@@ -407,7 +488,9 @@ producers:
   it('resolves path syntax for local producers', async () => {
     // audio-only blueprint uses path: syntax for local ScriptProducer
     const entry = resolve(TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
-    const { root } = await loadYamlBlueprintTree(entry, { catalogRoot: catalogRoot });
+    const { root } = await loadYamlBlueprintTree(entry, {
+      catalogRoot: catalogRoot,
+    });
 
     // Should work with path: syntax for local producers
     expect(root.children.has('ScriptProducer')).toBe(true);
@@ -417,7 +500,11 @@ producers:
 
 describe('yaml-parser edge cases', () => {
   it('handles blueprint with loops definition', async () => {
-    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'image-only', 'image-only.yaml');
+    const blueprintPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'image-only',
+      'image-only.yaml'
+    );
     const document = await parseYamlBlueprintFile(blueprintPath);
 
     // Verify loops are parsed correctly
@@ -432,20 +519,12 @@ describe('yaml-parser edge cases', () => {
     }
   });
 
-  it('handles blueprint with collectors definition', async () => {
-    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'image-only', 'image-only.yaml');
-    const document = await parseYamlBlueprintFile(blueprintPath);
-
-    // Check that collectors are parsed (may or may not exist)
-    if (document.collectors) {
-      for (const collector of document.collectors) {
-        expect(collector.from).toBeDefined();
-      }
-    }
-  });
-
   it('handles blueprint with producerImports', async () => {
-    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
+    const blueprintPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'audio-only',
+      'audio-only.yaml'
+    );
     const document = await parseYamlBlueprintFile(blueprintPath);
 
     // Verify producer imports are parsed
@@ -459,11 +538,17 @@ describe('yaml-parser edge cases', () => {
   });
 
   it('parses multiple array artifacts with different dimensions', async () => {
-    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'image-only', 'image-only.yaml');
+    const blueprintPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'image-only',
+      'image-only.yaml'
+    );
     const document = await parseYamlBlueprintFile(blueprintPath);
 
     // Look for array artifacts
-    const arrayArtifacts = document.artefacts.filter((art) => art.type === 'array');
+    const arrayArtifacts = document.artefacts.filter(
+      (art) => art.type === 'array'
+    );
     if (arrayArtifacts.length > 0) {
       // Array artifacts should have countInput
       for (const artifact of arrayArtifacts) {
@@ -473,21 +558,31 @@ describe('yaml-parser edge cases', () => {
   });
 
   it('handles edge references with dimension selectors', async () => {
-    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'image-only', 'image-only.yaml');
+    const blueprintPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'image-only',
+      'image-only.yaml'
+    );
     const document = await parseYamlBlueprintFile(blueprintPath);
 
     // Look for edges with dimension selectors
-    const edgesWithDimensions = document.edges.filter((edge) =>
-      edge.from.includes('[') || edge.to.includes('[')
+    const edgesWithDimensions = document.edges.filter(
+      (edge) => edge.from.includes('[') || edge.to.includes('[')
     );
     expect(edgesWithDimensions.length).toBeGreaterThan(0);
   });
 
   it('handles blueprints referencing nested producers', async () => {
     // Use a self-contained fixture for FlyStorage tests (no catalog dependencies)
-    const storage = new FileStorage(new LocalStorageAdapter(TEST_FIXTURES_ROOT));
+    const storage = new FileStorage(
+      new LocalStorageAdapter(TEST_FIXTURES_ROOT)
+    );
     const reader = createFlyStorageBlueprintReader(storage, TEST_FIXTURES_ROOT);
-    const entry = resolve(TEST_FIXTURES_ROOT, 'flystorage-test', 'flystorage-test.yaml');
+    const entry = resolve(
+      TEST_FIXTURES_ROOT,
+      'flystorage-test',
+      'flystorage-test.yaml'
+    );
     const { root } = await loadYamlBlueprintTree(entry, { reader });
 
     // Verify nested producers are loaded correctly
@@ -502,23 +597,39 @@ describe('yaml-parser edge cases', () => {
   });
 
   it('parses required inputs correctly', async () => {
-    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
+    const blueprintPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'audio-only',
+      'audio-only.yaml'
+    );
     const document = await parseYamlBlueprintFile(blueprintPath);
 
     // Check that required flag is parsed for inputs
-    const requiredInputs = document.inputs.filter((input) => input.required === true);
-    const optionalInputs = document.inputs.filter((input) => input.required === false);
+    const requiredInputs = document.inputs.filter(
+      (input) => input.required === true
+    );
+    const optionalInputs = document.inputs.filter(
+      (input) => input.required === false
+    );
 
     // Should have both types
-    expect(requiredInputs.length + optionalInputs.length).toBe(document.inputs.length);
+    expect(requiredInputs.length + optionalInputs.length).toBe(
+      document.inputs.length
+    );
   });
 
   it('parses edge conditions correctly', async () => {
-    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'condition-example', 'condition-example.yaml');
+    const blueprintPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'condition-example',
+      'condition-example.yaml'
+    );
     const document = await parseYamlBlueprintFile(blueprintPath);
 
     // Look for edges with conditions
-    const edgesWithConditions = document.edges.filter((edge) => edge.conditions);
+    const edgesWithConditions = document.edges.filter(
+      (edge) => edge.conditions
+    );
 
     // Should have at least one conditional edge
     expect(edgesWithConditions.length).toBeGreaterThan(0);
@@ -530,7 +641,11 @@ describe('yaml-parser edge cases', () => {
   });
 
   it('handles blueprint with meta containing name and id', async () => {
-    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
+    const blueprintPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'audio-only',
+      'audio-only.yaml'
+    );
     const document = await parseYamlBlueprintFile(blueprintPath);
 
     // Meta should have both id and name
@@ -540,7 +655,10 @@ describe('yaml-parser edge cases', () => {
   });
 
   it('parses producer definition', async () => {
-    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'audio-only/script/script.yaml');
+    const blueprintPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'audio-only/script/script.yaml'
+    );
     const document = await parseYamlBlueprintFile(blueprintPath);
 
     // Producer should be defined

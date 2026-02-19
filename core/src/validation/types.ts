@@ -89,11 +89,6 @@ export const ValidationErrorCode = {
   // Artifact validation errors (V030)
   ARTIFACT_COUNTINPUT_NOT_FOUND: 'V030',
 
-  // Collector validation errors (V040-V042)
-  COLLECTOR_SOURCE_INVALID: 'V040',
-  COLLECTOR_TARGET_INVALID: 'V041',
-  COLLECTOR_MISSING_CONNECTION: 'V042',
-
   // Condition validation errors (V050)
   CONDITION_PATH_INVALID: 'V050',
 
@@ -171,7 +166,7 @@ export function createIssue(
   message: string,
   severity: ValidationSeverity,
   location: ValidationLocation,
-  suggestion?: string,
+  suggestion?: string
 ): ValidationIssue {
   return {
     code,
@@ -189,7 +184,7 @@ export function createError(
   code: string,
   message: string,
   location: ValidationLocation,
-  suggestion?: string,
+  suggestion?: string
 ): ValidationIssue {
   return createIssue(code, message, 'error', location, suggestion);
 }
@@ -201,7 +196,7 @@ export function createWarning(
   code: string,
   message: string,
   location: ValidationLocation,
-  suggestion?: string,
+  suggestion?: string
 ): ValidationIssue {
   return createIssue(code, message, 'warning', location, suggestion);
 }
@@ -209,7 +204,9 @@ export function createWarning(
 /**
  * Builds a ValidationResult from a list of issues
  */
-export function buildValidationResult(issues: ValidationIssue[]): ValidationResult {
+export function buildValidationResult(
+  issues: ValidationIssue[]
+): ValidationResult {
   const errors = issues.filter((i) => i.severity === 'error');
   const warnings = issues.filter((i) => i.severity === 'warning');
 

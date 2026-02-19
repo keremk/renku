@@ -56,7 +56,7 @@ const defaultReader = new NodeFilesystemReader();
 
 export function createFlyStorageBlueprintReader(
   storage: FileStorage,
-  rootDir: string,
+  rootDir: string
 ): BlueprintResourceReader {
   const normalizedRoot = resolve(rootDir);
   return {
@@ -66,7 +66,7 @@ export function createFlyStorageBlueprintReader(
         throw createParserError(
           ParserErrorCode.INVALID_YAML_DOCUMENT,
           `Blueprint path "${target}" is outside configured root "${normalizedRoot}".`,
-          { filePath: target },
+          { filePath: target }
         );
       }
       const relativePath = relativePosix(normalizedRoot, absolute);
@@ -77,7 +77,7 @@ export function createFlyStorageBlueprintReader(
 
 export async function parseYamlBlueprintFile(
   filePath: string,
-  options: BlueprintParseOptions = {},
+  options: BlueprintParseOptions = {}
 ): Promise<BlueprintDocument> {
   const reader = options.reader ?? defaultReader;
   const absolute = resolve(filePath);
@@ -87,12 +87,14 @@ export async function parseYamlBlueprintFile(
     throw createParserError(
       ParserErrorCode.INVALID_YAML_DOCUMENT,
       `Blueprint YAML at ${filePath} must be a YAML document.`,
-      { filePath },
+      { filePath }
     );
   }
   const meta = parseMeta(raw.meta, filePath);
 
-  const inputs = Array.isArray(raw.inputs) ? raw.inputs.map((entry) => parseInput(entry)) : [];
+  const inputs = Array.isArray(raw.inputs)
+    ? raw.inputs.map((entry) => parseInput(entry))
+    : [];
   const loops = Array.isArray(raw.loops) ? parseLoops(raw.loops) : [];
   const loopSymbols = new Set(loops.map((loop) => loop.name));
   const conditionDefs = parseConditionDefinitions(raw.conditions, loopSymbols);
@@ -101,14 +103,18 @@ export async function parseYamlBlueprintFile(
     throw createParserError(
       ParserErrorCode.MISSING_REQUIRED_SECTION,
       `Blueprint YAML at ${filePath} must declare at least one artifact.`,
-      { filePath },
+      { filePath }
     );
   }
   const artefacts = artefactSource.map((entry) => parseArtefact(entry));
   const rawProducerImports = Array.isArray(raw.producers) ? raw.producers : [];
-  const producerImports = rawProducerImports.map((entry) => parseProducerImport(entry));
+  const producerImports = rawProducerImports.map((entry) =>
+    parseProducerImport(entry)
+  );
   let edges = Array.isArray(raw.connections)
-    ? raw.connections.map((entry) => parseEdge(entry, loopSymbols, conditionDefs))
+    ? raw.connections.map((entry) =>
+        parseEdge(entry, loopSymbols, conditionDefs)
+      )
     : [];
   const producers: ProducerConfig[] = [];
   const isProducerBlueprint = producerImports.length === 0;
@@ -126,12 +132,16 @@ export async function parseYamlBlueprintFile(
     throw createParserError(
       ParserErrorCode.INVALID_PRODUCER_ENTRY,
       `Blueprint YAML at ${filePath} defines producers and models. Only producer leaf blueprints should declare models.`,
-      { filePath },
+      { filePath }
     );
   }
-  const collectors = Array.isArray(raw.collectors)
-    ? parseCollectors(raw.collectors, loopSymbols)
-    : [];
+  if (raw.collectors !== undefined) {
+    throw createParserError(
+      ParserErrorCode.COLLECTORS_SECTION_REMOVED,
+      `Blueprint YAML at ${filePath} uses "collectors", which is no longer supported. Move fan-in metadata onto "connections" entries (groupBy/orderBy).`,
+      { filePath }
+    );
+  }
   const mappings = parseMappingsSection(raw.mappings);
 
   return {
@@ -141,16 +151,16 @@ export async function parseYamlBlueprintFile(
     producers,
     producerImports,
     edges,
-    collectors,
     loops: loops.length > 0 ? loops : undefined,
-    conditions: Object.keys(conditionDefs).length > 0 ? conditionDefs : undefined,
+    conditions:
+      Object.keys(conditionDefs).length > 0 ? conditionDefs : undefined,
     mappings,
   };
 }
 
 export async function loadYamlBlueprintTree(
   entryPath: string,
-  options: BlueprintLoadOptions = {},
+  options: BlueprintLoadOptions = {}
 ): Promise<{ root: BlueprintTreeNode }> {
   const reader = options.reader ?? defaultReader;
   const absolute = resolve(entryPath);
@@ -164,14 +174,14 @@ async function loadNode(
   namespacePath: string[],
   reader: BlueprintResourceReader,
   visiting: Set<string>,
-  options: BlueprintLoadOptions = {},
+  options: BlueprintLoadOptions = {}
 ): Promise<BlueprintTreeNode> {
   const absolute = resolve(filePath);
   if (visiting.has(absolute)) {
     throw createParserError(
       ParserErrorCode.CIRCULAR_BLUEPRINT_REFERENCE,
       `Detected circular blueprint reference at ${absolute}`,
-      { filePath: absolute },
+      { filePath: absolute }
     );
   }
   visiting.add(absolute);
@@ -187,10 +197,20 @@ async function loadNode(
   // Producer imports use the alias as a scope for their internal nodes.
   // This is NOT a hierarchical namespace - it's producer aliasing to avoid conflicts.
   for (const producerImport of document.producerImports) {
-    const childPath = resolveProducerImportPath(absolute, producerImport, options);
+    const childPath = resolveProducerImportPath(
+      absolute,
+      producerImport,
+      options
+    );
     // Use the producer alias as a scope for the producer's nodes
     const aliasPath = [...namespacePath, producerImport.name];
-    const child = await loadNode(childPath, aliasPath, reader, visiting, options);
+    const child = await loadNode(
+      childPath,
+      aliasPath,
+      reader,
+      visiting,
+      options
+    );
     node.children.set(producerImport.name, child);
   }
 
@@ -201,7 +221,7 @@ async function loadNode(
 function resolveProducerImportPath(
   parentFile: string,
   producerImport: ProducerImportDefinition,
-  options: BlueprintLoadOptions = {},
+  options: BlueprintLoadOptions = {}
 ): string {
   // Legacy path support - resolves relative to blueprint file
   if (producerImport.path) {
@@ -211,16 +231,19 @@ function resolveProducerImportPath(
   // Qualified name resolution (e.g., "prompt/script", "asset/text-to-speech")
   if (producerImport.producer && options.catalogRoot) {
     const producersRoot = resolve(options.catalogRoot, 'producers');
-    const resolved = findProducerByQualifiedName(producersRoot, producerImport.producer);
+    const resolved = findProducerByQualifiedName(
+      producersRoot,
+      producerImport.producer
+    );
     if (resolved) {
       return resolved;
     }
     throw createParserError(
       ParserErrorCode.UNKNOWN_PRODUCER_REFERENCE,
       `Producer "${producerImport.producer}" not found in ${producersRoot}. ` +
-      `Tried: ${producersRoot}/${producerImport.producer}.yaml and ` +
-      `${producersRoot}/${producerImport.producer}/${producerImport.producer.split('/').pop()}.yaml`,
-      { filePath: parentFile },
+        `Tried: ${producersRoot}/${producerImport.producer}.yaml and ` +
+        `${producersRoot}/${producerImport.producer}/${producerImport.producer.split('/').pop()}.yaml`,
+      { filePath: parentFile }
     );
   }
 
@@ -229,8 +252,8 @@ function resolveProducerImportPath(
     throw createParserError(
       ParserErrorCode.MISSING_CATALOG_ROOT,
       `Producer "${producerImport.producer}" uses qualified name syntax but no catalogRoot was provided. ` +
-      `Either use path: for relative paths or ensure catalogRoot is configured.`,
-      { filePath: parentFile },
+        `Either use path: for relative paths or ensure catalogRoot is configured.`,
+      { filePath: parentFile }
     );
   }
 
@@ -244,7 +267,10 @@ function resolveProducerImportPath(
  * 1. {producersRoot}/{qualifiedName}.yaml (e.g., producers/asset/text-to-speech.yaml)
  * 2. {producersRoot}/{qualifiedName}/{name}.yaml (e.g., producers/prompt/script/script.yaml)
  */
-function findProducerByQualifiedName(producersRoot: string, qualifiedName: string): string | null {
+function findProducerByQualifiedName(
+  producersRoot: string,
+  qualifiedName: string
+): string | null {
   // Try: producers/asset/text-to-speech.yaml
   const directPath = resolve(producersRoot, `${qualifiedName}.yaml`);
   if (existsSync(directPath)) {
@@ -282,7 +308,7 @@ function parseMeta(raw: unknown, filePath: string): BlueprintDocument['meta'] {
     throw createParserError(
       ParserErrorCode.MISSING_REQUIRED_SECTION,
       `Blueprint YAML at ${filePath} must include a meta section.`,
-      { filePath },
+      { filePath }
     );
   }
   const meta = raw as Record<string, unknown>;
@@ -296,19 +322,31 @@ function parseMeta(raw: unknown, filePath: string): BlueprintDocument['meta'] {
     description: meta.description ? String(meta.description) : undefined,
     author: meta.author ? String(meta.author) : undefined,
     license: meta.license ? String(meta.license) : undefined,
-    promptFile: typeof meta.promptFile === 'string' ? meta.promptFile : undefined,
-    outputSchema: typeof meta.outputSchema === 'string' ? meta.outputSchema : undefined,
+    promptFile:
+      typeof meta.promptFile === 'string' ? meta.promptFile : undefined,
+    outputSchema:
+      typeof meta.outputSchema === 'string' ? meta.outputSchema : undefined,
   };
 }
 
-function parseLoops(rawLoops: unknown[]): Array<{ name: string; parent?: string; countInput: string; countInputOffset?: number }> {
-  const loops: Array<{ name: string; parent?: string; countInput: string; countInputOffset?: number }> = [];
+function parseLoops(rawLoops: unknown[]): Array<{
+  name: string;
+  parent?: string;
+  countInput: string;
+  countInputOffset?: number;
+}> {
+  const loops: Array<{
+    name: string;
+    parent?: string;
+    countInput: string;
+    countInputOffset?: number;
+  }> = [];
   const seen = new Set<string>();
   for (const raw of rawLoops) {
     if (!raw || typeof raw !== 'object') {
       throw createParserError(
         ParserErrorCode.INVALID_LOOP_ENTRY,
-        `Invalid loop entry: ${JSON.stringify(raw)}`,
+        `Invalid loop entry: ${JSON.stringify(raw)}`
       );
     }
     const loop = raw as Record<string, unknown>;
@@ -316,12 +354,15 @@ function parseLoops(rawLoops: unknown[]): Array<{ name: string; parent?: string;
     if (seen.has(name)) {
       throw createParserError(
         ParserErrorCode.DUPLICATE_LOOP_NAME,
-        `Duplicate loop name "${name}".`,
+        `Duplicate loop name "${name}".`
       );
     }
     const parent = loop.parent ? readString(loop, 'parent') : undefined;
     const countInput = readString(loop, 'countInput');
-    const countInputOffset = readOptionalNonNegativeInteger(loop, 'countInputOffset');
+    const countInputOffset = readOptionalNonNegativeInteger(
+      loop,
+      'countInputOffset'
+    );
     loops.push({ name, parent, countInput, countInputOffset });
     seen.add(name);
   }
@@ -332,15 +373,17 @@ function parseInput(raw: unknown): BlueprintInputDefinition {
   if (!raw || typeof raw !== 'object') {
     throw createParserError(
       ParserErrorCode.INVALID_INPUT_ENTRY,
-      `Invalid input entry: ${JSON.stringify(raw)}`,
+      `Invalid input entry: ${JSON.stringify(raw)}`
     );
   }
   const input = raw as Record<string, unknown>;
   const name = readString(input, 'name');
   const type = readString(input, 'type');
   const required = input.required === false ? false : true;
-  const description = typeof input.description === 'string' ? input.description : undefined;
-  const itemType = typeof input.itemType === 'string' ? input.itemType : undefined;
+  const description =
+    typeof input.description === 'string' ? input.description : undefined;
+  const itemType =
+    typeof input.itemType === 'string' ? input.itemType : undefined;
   // Note: default values are no longer parsed here - model JSON schemas are the source of truth
   return {
     name,
@@ -356,26 +399,34 @@ function parseArtefact(raw: unknown): BlueprintArtefactDefinition {
   if (!raw || typeof raw !== 'object') {
     throw createParserError(
       ParserErrorCode.INVALID_ARTIFACT_ENTRY,
-      `Invalid artifact entry: ${JSON.stringify(raw)}`,
+      `Invalid artifact entry: ${JSON.stringify(raw)}`
     );
   }
   const artefact = raw as Record<string, unknown>;
   const name = readString(artefact, 'name');
   const type = readString(artefact, 'type');
-  const countInput = typeof artefact.countInput === 'string' ? artefact.countInput : undefined;
-  const countInputOffset = readOptionalNonNegativeInteger(artefact, 'countInputOffset');
+  const countInput =
+    typeof artefact.countInput === 'string' ? artefact.countInput : undefined;
+  const countInputOffset = readOptionalNonNegativeInteger(
+    artefact,
+    'countInputOffset'
+  );
   if (countInputOffset !== undefined && !countInput) {
     throw createParserError(
       ParserErrorCode.INVALID_COUNTINPUT_CONFIG,
-      `Artifact "${name}" declares countInputOffset but is missing countInput.`,
+      `Artifact "${name}" declares countInputOffset but is missing countInput.`
     );
   }
   const arrays = parseArraysMetadata(artefact.arrays);
   return {
     name,
     type,
-    description: typeof artefact.description === 'string' ? artefact.description : undefined,
-    itemType: typeof artefact.itemType === 'string' ? artefact.itemType : undefined,
+    description:
+      typeof artefact.description === 'string'
+        ? artefact.description
+        : undefined,
+    itemType:
+      typeof artefact.itemType === 'string' ? artefact.itemType : undefined,
     countInput,
     countInputOffset,
     required: artefact.required === false ? false : true,
@@ -383,7 +434,9 @@ function parseArtefact(raw: unknown): BlueprintArtefactDefinition {
   };
 }
 
-function parseArraysMetadata(raw: unknown): ArrayDimensionMapping[] | undefined {
+function parseArraysMetadata(
+  raw: unknown
+): ArrayDimensionMapping[] | undefined {
   if (!raw || !Array.isArray(raw)) {
     return undefined;
   }
@@ -391,13 +444,16 @@ function parseArraysMetadata(raw: unknown): ArrayDimensionMapping[] | undefined 
     if (!entry || typeof entry !== 'object') {
       throw createParserError(
         ParserErrorCode.INVALID_ARRAYS_CONFIG,
-        `Invalid arrays entry: ${JSON.stringify(entry)}`,
+        `Invalid arrays entry: ${JSON.stringify(entry)}`
       );
     }
     const obj = entry as Record<string, unknown>;
     const path = readString(obj, 'path');
     const countInput = readString(obj, 'countInput');
-    const countInputOffset = readOptionalNonNegativeInteger(obj, 'countInputOffset');
+    const countInputOffset = readOptionalNonNegativeInteger(
+      obj,
+      'countInputOffset'
+    );
     return { path, countInput, countInputOffset };
   });
 }
@@ -406,19 +462,20 @@ function parseProducerImport(raw: unknown): ProducerImportDefinition {
   if (!raw || typeof raw !== 'object') {
     throw createParserError(
       ParserErrorCode.INVALID_PRODUCER_ENTRY,
-      `Invalid producer import entry: ${JSON.stringify(raw)}`,
+      `Invalid producer import entry: ${JSON.stringify(raw)}`
     );
   }
   const entry = raw as Record<string, unknown>;
   const name = readString(entry, 'name');
   const path = typeof entry.path === 'string' ? entry.path : undefined;
-  const producer = typeof entry.producer === 'string' ? entry.producer : undefined;
+  const producer =
+    typeof entry.producer === 'string' ? entry.producer : undefined;
 
   // Validate: can't have both path and producer
   if (path && producer) {
     throw createParserError(
       ParserErrorCode.PRODUCER_PATH_AND_NAME_CONFLICT,
-      `Producer import "${name}" cannot have both "path" and "producer" fields. Use one or the other.`,
+      `Producer import "${name}" cannot have both "path" and "producer" fields. Use one or the other.`
     );
   }
 
@@ -426,81 +483,34 @@ function parseProducerImport(raw: unknown): ProducerImportDefinition {
     name,
     path,
     producer,
-    description: typeof entry.description === 'string' ? entry.description : undefined,
+    description:
+      typeof entry.description === 'string' ? entry.description : undefined,
     loop: typeof entry.loop === 'string' ? entry.loop.trim() : undefined,
   };
-}
-
-function parseCollectors(
-  rawCollectors: unknown[],
-  loopSymbols: Set<string>,
-): BlueprintDocument['collectors'] {
-  const collectors: BlueprintDocument['collectors'] = [];
-  const seenTargets = new Set<string>();
-  for (const raw of rawCollectors) {
-    if (!raw || typeof raw !== 'object') {
-      throw createParserError(
-        ParserErrorCode.INVALID_COLLECTOR_ENTRY,
-        `Invalid collector entry: ${JSON.stringify(raw)}`,
-      );
-    }
-    const entry = raw as Record<string, unknown>;
-    const name = readString(entry, 'name');
-    const from = readString(entry, 'from');
-    const into = readString(entry, 'into');
-    const groupBy = readString(entry, 'groupBy');
-    if (!loopSymbols.has(groupBy)) {
-      throw createParserError(
-        ParserErrorCode.UNKNOWN_LOOP_IN_COLLECTOR,
-        `Collector "${name}" references unknown loop "${groupBy}". Declare it under loops[].`,
-      );
-    }
-    const orderByRaw = entry.orderBy;
-    const orderBy =
-      typeof orderByRaw === 'string' && orderByRaw.trim().length > 0
-        ? orderByRaw.trim()
-        : undefined;
-    if (orderBy && !loopSymbols.has(orderBy)) {
-      throw createParserError(
-        ParserErrorCode.UNKNOWN_LOOP_IN_COLLECTOR,
-        `Collector "${name}" references unknown orderBy loop "${orderBy}".`,
-      );
-    }
-    // Check for truly duplicate collectors (same from, into, and groupBy)
-    // Different sources can fan-in to the same target with the same groupBy
-    const collectorKey = `${from}:${into}:${groupBy}`;
-    if (seenTargets.has(collectorKey)) {
-      throw createParserError(
-        ParserErrorCode.DUPLICATE_COLLECTOR_NAME,
-        `Collector "${name}" duplicates an existing collector with the same from, into, and groupBy.`,
-      );
-    }
-    seenTargets.add(collectorKey);
-    collectors.push({
-      name,
-      from,
-      into,
-      groupBy,
-      orderBy,
-    });
-  }
-  return collectors;
 }
 
 function parseEdge(
   raw: unknown,
   allowedDimensions: Set<string>,
-  conditionDefs: BlueprintConditionDefinitions,
+  conditionDefs: BlueprintConditionDefinitions
 ): BlueprintEdgeDefinition {
   if (!raw || typeof raw !== 'object') {
     throw createParserError(
       ParserErrorCode.INVALID_CONNECTION_ENTRY,
-      `Invalid connection entry: ${JSON.stringify(raw)}`,
+      `Invalid connection entry: ${JSON.stringify(raw)}`
     );
   }
   const edge = raw as Record<string, unknown>;
   const from = readString(edge, 'from');
   const to = readString(edge, 'to');
+  const groupBy = readOptionalLoopSymbol(edge, 'groupBy', allowedDimensions);
+  const orderBy = readOptionalLoopSymbol(edge, 'orderBy', allowedDimensions);
+  if (orderBy && !groupBy) {
+    throw createParserError(
+      ParserErrorCode.INVALID_CONNECTION_ENTRY,
+      'Connection cannot declare orderBy without groupBy.'
+    );
+  }
   validateDimensions(from, allowedDimensions, 'from');
   validateDimensions(to, allowedDimensions, 'to');
 
@@ -511,7 +521,7 @@ function parseEdge(
     if (typeof ifRef !== 'string' || ifRef.trim().length === 0) {
       throw createParserError(
         ParserErrorCode.INVALID_CONDITION_ENTRY,
-        `Invalid 'if' reference in connection: expected string, got ${typeof ifRef}`,
+        `Invalid 'if' reference in connection: expected string, got ${typeof ifRef}`
       );
     }
     const conditionName = ifRef.trim();
@@ -519,7 +529,7 @@ function parseEdge(
     if (!def) {
       throw createParserError(
         ParserErrorCode.INVALID_CONDITION_ENTRY,
-        `Unknown condition "${conditionName}" in connection. Define it under conditions[].`,
+        `Unknown condition "${conditionName}" in connection. Define it under conditions[].`
       );
     }
     // Convert named condition to inline condition
@@ -531,7 +541,7 @@ function parseEdge(
     if (conditions !== undefined) {
       throw createParserError(
         ParserErrorCode.INVALID_CONNECTION_ENTRY,
-        `Connection cannot have both 'if' and 'conditions'. Use one or the other.`,
+        `Connection cannot have both 'if' and 'conditions'. Use one or the other.`
       );
     }
     conditions = parseEdgeConditions(edge.conditions, allowedDimensions);
@@ -541,15 +551,45 @@ function parseEdge(
     from,
     to,
     note: typeof edge.note === 'string' ? edge.note : undefined,
+    groupBy,
+    orderBy,
     if: typeof ifRef === 'string' ? ifRef.trim() : undefined,
     conditions,
   };
 }
 
+function readOptionalLoopSymbol(
+  edge: Record<string, unknown>,
+  key: 'groupBy' | 'orderBy',
+  allowedDimensions: Set<string>
+): string | undefined {
+  const raw = edge[key];
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+  if (typeof raw !== 'string' || raw.trim().length === 0) {
+    throw createParserError(
+      ParserErrorCode.INVALID_CONNECTION_ENTRY,
+      `Connection field "${key}" must be a non-empty string when provided.`
+    );
+  }
+  const value = raw.trim();
+  if (!allowedDimensions.has(value)) {
+    throw createParserError(
+      ParserErrorCode.INVALID_CONNECTION_ENTRY,
+      `Connection field "${key}" references unknown loop "${value}". Declare it under loops[].`
+    );
+  }
+  return value;
+}
+
 /**
  * Parses inline edge conditions from YAML.
  */
-function parseEdgeConditions(raw: unknown, allowedDimensions: Set<string>): EdgeConditionDefinition {
+function parseEdgeConditions(
+  raw: unknown,
+  allowedDimensions: Set<string>
+): EdgeConditionDefinition {
   if (Array.isArray(raw)) {
     // Array of clauses or groups (implicit AND)
     return raw.map((item) => parseConditionItem(item, allowedDimensions));
@@ -561,11 +601,14 @@ function parseEdgeConditions(raw: unknown, allowedDimensions: Set<string>): Edge
 /**
  * Parses a single condition item (clause or group).
  */
-function parseConditionItem(raw: unknown, allowedDimensions: Set<string>): EdgeConditionClause | EdgeConditionGroup {
+function parseConditionItem(
+  raw: unknown,
+  allowedDimensions: Set<string>
+): EdgeConditionClause | EdgeConditionGroup {
   if (!raw || typeof raw !== 'object') {
     throw createParserError(
       ParserErrorCode.INVALID_CONDITION_ENTRY,
-      `Invalid condition entry: ${JSON.stringify(raw)}`,
+      `Invalid condition entry: ${JSON.stringify(raw)}`
     );
   }
   const obj = raw as Record<string, unknown>;
@@ -582,33 +625,40 @@ function parseConditionItem(raw: unknown, allowedDimensions: Set<string>): EdgeC
 /**
  * Parses a condition group (AND/OR).
  */
-function parseConditionGroup(obj: Record<string, unknown>, allowedDimensions: Set<string>): EdgeConditionGroup {
+function parseConditionGroup(
+  obj: Record<string, unknown>,
+  allowedDimensions: Set<string>
+): EdgeConditionGroup {
   const group: EdgeConditionGroup = {};
 
   if ('all' in obj) {
     if (!Array.isArray(obj.all)) {
       throw createParserError(
         ParserErrorCode.INVALID_CONDITION_GROUP,
-        `Condition 'all' must be an array.`,
+        `Condition 'all' must be an array.`
       );
     }
-    group.all = obj.all.map((item) => parseConditionClause(item as Record<string, unknown>, allowedDimensions));
+    group.all = obj.all.map((item) =>
+      parseConditionClause(item as Record<string, unknown>, allowedDimensions)
+    );
   }
 
   if ('any' in obj) {
     if (!Array.isArray(obj.any)) {
       throw createParserError(
         ParserErrorCode.INVALID_CONDITION_GROUP,
-        `Condition 'any' must be an array.`,
+        `Condition 'any' must be an array.`
       );
     }
-    group.any = obj.any.map((item) => parseConditionClause(item as Record<string, unknown>, allowedDimensions));
+    group.any = obj.any.map((item) =>
+      parseConditionClause(item as Record<string, unknown>, allowedDimensions)
+    );
   }
 
   if (!group.all && !group.any) {
     throw createParserError(
       ParserErrorCode.INVALID_CONDITION_GROUP,
-      `Condition group must have 'all' or 'any'.`,
+      `Condition group must have 'all' or 'any'.`
     );
   }
 
@@ -618,11 +668,14 @@ function parseConditionGroup(obj: Record<string, unknown>, allowedDimensions: Se
 /**
  * Parses a single condition clause.
  */
-function parseConditionClause(obj: Record<string, unknown>, allowedDimensions: Set<string>): EdgeConditionClause {
+function parseConditionClause(
+  obj: Record<string, unknown>,
+  allowedDimensions: Set<string>
+): EdgeConditionClause {
   if (!obj || typeof obj !== 'object') {
     throw createParserError(
       ParserErrorCode.INVALID_CONDITION_ENTRY,
-      `Invalid condition clause: ${JSON.stringify(obj)}`,
+      `Invalid condition clause: ${JSON.stringify(obj)}`
     );
   }
 
@@ -630,7 +683,7 @@ function parseConditionClause(obj: Record<string, unknown>, allowedDimensions: S
   if (typeof when !== 'string' || when.trim().length === 0) {
     throw createParserError(
       ParserErrorCode.MISSING_CONDITION_OPERATOR,
-      `Condition clause must have a 'when' field with a path.`,
+      `Condition clause must have a 'when' field with a path.`
     );
   }
 
@@ -653,7 +706,7 @@ function parseConditionClause(obj: Record<string, unknown>, allowedDimensions: S
     if (typeof obj.greaterThan !== 'number') {
       throw createParserError(
         ParserErrorCode.INVALID_CONDITION_VALUE_TYPE,
-        `Condition 'greaterThan' must be a number.`,
+        `Condition 'greaterThan' must be a number.`
       );
     }
     clause.greaterThan = obj.greaterThan;
@@ -662,7 +715,7 @@ function parseConditionClause(obj: Record<string, unknown>, allowedDimensions: S
     if (typeof obj.lessThan !== 'number') {
       throw createParserError(
         ParserErrorCode.INVALID_CONDITION_VALUE_TYPE,
-        `Condition 'lessThan' must be a number.`,
+        `Condition 'lessThan' must be a number.`
       );
     }
     clause.lessThan = obj.lessThan;
@@ -671,7 +724,7 @@ function parseConditionClause(obj: Record<string, unknown>, allowedDimensions: S
     if (typeof obj.greaterOrEqual !== 'number') {
       throw createParserError(
         ParserErrorCode.INVALID_CONDITION_VALUE_TYPE,
-        `Condition 'greaterOrEqual' must be a number.`,
+        `Condition 'greaterOrEqual' must be a number.`
       );
     }
     clause.greaterOrEqual = obj.greaterOrEqual;
@@ -680,7 +733,7 @@ function parseConditionClause(obj: Record<string, unknown>, allowedDimensions: S
     if (typeof obj.lessOrEqual !== 'number') {
       throw createParserError(
         ParserErrorCode.INVALID_CONDITION_VALUE_TYPE,
-        `Condition 'lessOrEqual' must be a number.`,
+        `Condition 'lessOrEqual' must be a number.`
       );
     }
     clause.lessOrEqual = obj.lessOrEqual;
@@ -689,7 +742,7 @@ function parseConditionClause(obj: Record<string, unknown>, allowedDimensions: S
     if (typeof obj.exists !== 'boolean') {
       throw createParserError(
         ParserErrorCode.INVALID_CONDITION_VALUE_TYPE,
-        `Condition 'exists' must be a boolean.`,
+        `Condition 'exists' must be a boolean.`
       );
     }
     clause.exists = obj.exists;
@@ -698,14 +751,15 @@ function parseConditionClause(obj: Record<string, unknown>, allowedDimensions: S
     if (typeof obj.matches !== 'string') {
       throw createParserError(
         ParserErrorCode.INVALID_CONDITION_VALUE_TYPE,
-        `Condition 'matches' must be a string (regex pattern).`,
+        `Condition 'matches' must be a string (regex pattern).`
       );
     }
     clause.matches = obj.matches;
   }
 
   // Validate that at least one operator is present
-  const hasOperator = clause.is !== undefined ||
+  const hasOperator =
+    clause.is !== undefined ||
     clause.isNot !== undefined ||
     clause.contains !== undefined ||
     clause.greaterThan !== undefined ||
@@ -718,7 +772,7 @@ function parseConditionClause(obj: Record<string, unknown>, allowedDimensions: S
   if (!hasOperator) {
     throw createParserError(
       ParserErrorCode.MISSING_CONDITION_OPERATOR,
-      `Condition clause must have at least one operator (is, isNot, contains, etc.).`,
+      `Condition clause must have at least one operator (is, isNot, contains, etc.).`
     );
   }
 
@@ -730,7 +784,7 @@ function parseConditionClause(obj: Record<string, unknown>, allowedDimensions: S
  */
 function parseConditionDefinitions(
   raw: Record<string, unknown> | undefined,
-  allowedDimensions: Set<string>,
+  allowedDimensions: Set<string>
 ): BlueprintConditionDefinitions {
   if (!raw) {
     return {};
@@ -742,10 +796,14 @@ function parseConditionDefinitions(
     if (!value || typeof value !== 'object') {
       throw createParserError(
         ParserErrorCode.INVALID_CONDITION_ENTRY,
-        `Invalid condition definition "${name}": expected object.`,
+        `Invalid condition definition "${name}": expected object.`
       );
     }
-    definitions[name] = parseNamedConditionDefinition(value as Record<string, unknown>, allowedDimensions, name);
+    definitions[name] = parseNamedConditionDefinition(
+      value as Record<string, unknown>,
+      allowedDimensions,
+      name
+    );
   }
 
   return definitions;
@@ -757,7 +815,7 @@ function parseConditionDefinitions(
 function parseNamedConditionDefinition(
   obj: Record<string, unknown>,
   allowedDimensions: Set<string>,
-  name: string,
+  name: string
 ): NamedConditionDefinition {
   // Check if it's a group (has 'all' or 'any')
   if ('all' in obj || 'any' in obj) {
@@ -768,7 +826,7 @@ function parseNamedConditionDefinition(
   if (!('when' in obj)) {
     throw createParserError(
       ParserErrorCode.MISSING_CONDITION_OPERATOR,
-      `Condition definition "${name}" must have 'when', 'all', or 'any'.`,
+      `Condition definition "${name}" must have 'when', 'all', or 'any'.`
     );
   }
 
@@ -786,7 +844,7 @@ function parseTransform(raw: unknown): Record<string, unknown> | undefined {
   if (typeof raw !== 'object' || Array.isArray(raw)) {
     throw createParserError(
       ParserErrorCode.INVALID_MAPPING_TRANSFORM,
-      `Invalid transform entry: expected object, got ${typeof raw}`,
+      `Invalid transform entry: expected object, got ${typeof raw}`
     );
   }
   // Transform is a simple key-value mapping where keys are input values
@@ -794,14 +852,16 @@ function parseTransform(raw: unknown): Record<string, unknown> | undefined {
   return raw as Record<string, unknown>;
 }
 
-export function parseSdkMapping(raw: unknown): Record<string, BlueprintProducerSdkMappingField> | undefined {
+export function parseSdkMapping(
+  raw: unknown
+): Record<string, BlueprintProducerSdkMappingField> | undefined {
   if (!raw) {
     return undefined;
   }
   if (typeof raw !== 'object') {
     throw createParserError(
       ParserErrorCode.INVALID_SDK_MAPPING,
-      `Invalid sdkMapping entry: ${JSON.stringify(raw)}`,
+      `Invalid sdkMapping entry: ${JSON.stringify(raw)}`
     );
   }
   const table = raw as Record<string, unknown>;
@@ -814,13 +874,14 @@ export function parseSdkMapping(raw: unknown): Record<string, BlueprintProducerS
     if (!value || typeof value !== 'object') {
       throw createParserError(
         ParserErrorCode.INVALID_SDK_MAPPING,
-        `Invalid sdkMapping field for ${key}.`,
+        `Invalid sdkMapping field for ${key}.`
       );
     }
     const fieldConfig = value as Record<string, unknown>;
     const isExpand = fieldConfig.expand === true;
     const field =
-      typeof fieldConfig.field === 'string' && fieldConfig.field.trim().length > 0
+      typeof fieldConfig.field === 'string' &&
+      fieldConfig.field.trim().length > 0
         ? fieldConfig.field
         : typeof fieldConfig.name === 'string'
           ? fieldConfig.name
@@ -830,7 +891,7 @@ export function parseSdkMapping(raw: unknown): Record<string, BlueprintProducerS
     if (field === undefined) {
       throw createParserError(
         ParserErrorCode.INVALID_SDK_MAPPING,
-        `Invalid sdkMapping field for ${key}: missing 'field' or 'name' property.`,
+        `Invalid sdkMapping field for ${key}: missing 'field' or 'name' property.`
       );
     }
     mapping[key] = {
@@ -843,14 +904,16 @@ export function parseSdkMapping(raw: unknown): Record<string, BlueprintProducerS
   return Object.keys(mapping).length ? mapping : undefined;
 }
 
-export function parseOutputs(raw: unknown): Record<string, BlueprintProducerOutputDefinition> | undefined {
+export function parseOutputs(
+  raw: unknown
+): Record<string, BlueprintProducerOutputDefinition> | undefined {
   if (!raw) {
     return undefined;
   }
   if (typeof raw !== 'object') {
     throw createParserError(
       ParserErrorCode.INVALID_OUTPUT_ENTRY,
-      `Invalid outputs entry: ${JSON.stringify(raw)}`,
+      `Invalid outputs entry: ${JSON.stringify(raw)}`
     );
   }
   const table = raw as Record<string, unknown>;
@@ -859,27 +922,36 @@ export function parseOutputs(raw: unknown): Record<string, BlueprintProducerOutp
     if (!value || typeof value !== 'object') {
       throw createParserError(
         ParserErrorCode.INVALID_OUTPUT_ENTRY,
-        `Invalid producer output entry for ${key}.`,
+        `Invalid producer output entry for ${key}.`
       );
     }
     const output = value as Record<string, unknown>;
     outputs[key] = {
       type: readString(output, 'type'),
-      mimeType: typeof output.mimeType === 'string' ? output.mimeType : undefined,
+      mimeType:
+        typeof output.mimeType === 'string' ? output.mimeType : undefined,
     };
   }
   return Object.keys(outputs).length ? outputs : undefined;
 }
 
-function validateDimensions(reference: string, allowed: Set<string>, label: 'from' | 'to'): void {
+function validateDimensions(
+  reference: string,
+  allowed: Set<string>,
+  label: 'from' | 'to'
+): void {
   parseReference(reference, allowed, label);
 }
 
-function parseReference(reference: string, allowed: Set<string>, label: 'from' | 'to'): void {
+function parseReference(
+  reference: string,
+  allowed: Set<string>,
+  label: 'from' | 'to'
+): void {
   if (typeof reference !== 'string' || reference.trim().length === 0) {
     throw createParserError(
       ParserErrorCode.INVALID_ENDPOINT_REFERENCE,
-      `Invalid ${label} reference "${reference}".`,
+      `Invalid ${label} reference "${reference}".`
     );
   }
   for (const segment of reference.split('.')) {
@@ -887,7 +959,7 @@ function parseReference(reference: string, allowed: Set<string>, label: 'from' |
     if (!match) {
       throw createParserError(
         ParserErrorCode.INVALID_ENDPOINT_REFERENCE,
-        `Invalid ${label} reference "${reference}".`,
+        `Invalid ${label} reference "${reference}".`
       );
     }
     let remainder = segment.slice(match[0].length);
@@ -895,28 +967,28 @@ function parseReference(reference: string, allowed: Set<string>, label: 'from' |
       if (!remainder.startsWith('[')) {
         throw createParserError(
           ParserErrorCode.INVALID_DIMENSION_SELECTOR,
-          `Invalid dimension syntax in ${label} reference "${reference}".`,
+          `Invalid dimension syntax in ${label} reference "${reference}".`
         );
       }
       const closeIndex = remainder.indexOf(']');
       if (closeIndex === -1) {
         throw createParserError(
           ParserErrorCode.INVALID_DIMENSION_SELECTOR,
-          `Unclosed dimension in ${label} reference "${reference}".`,
+          `Unclosed dimension in ${label} reference "${reference}".`
         );
       }
       const symbol = remainder.slice(1, closeIndex).trim();
       if (!symbol) {
         throw createParserError(
           ParserErrorCode.INVALID_DIMENSION_SELECTOR,
-          `Empty dimension in ${label} reference "${reference}".`,
+          `Empty dimension in ${label} reference "${reference}".`
         );
       }
       const selector = parseDimensionSelector(symbol);
       if (selector.kind === 'loop' && !allowed.has(selector.symbol)) {
         throw createParserError(
           ParserErrorCode.INVALID_DIMENSION_SELECTOR,
-          `Unknown dimension "${selector.symbol}" in ${label} reference "${reference}". Declare it under loops[].`,
+          `Unknown dimension "${selector.symbol}" in ${label} reference "${reference}". Declare it under loops[].`
         );
       }
       remainder = remainder.slice(closeIndex + 1);
@@ -931,20 +1003,27 @@ function readString(source: Record<string, unknown>, key: string): string {
   }
   throw createParserError(
     ParserErrorCode.MISSING_REQUIRED_FIELD,
-    `Expected string for "${key}"`,
+    `Expected string for "${key}"`
   );
 }
 
-function readOptionalNonNegativeInteger(source: Record<string, unknown>, key: string): number | undefined {
+function readOptionalNonNegativeInteger(
+  source: Record<string, unknown>,
+  key: string
+): number | undefined {
   const raw = source[key];
   if (raw === undefined) {
     return undefined;
   }
-  if (typeof raw === 'number' && Number.isFinite(raw) && Number.isInteger(raw)) {
+  if (
+    typeof raw === 'number' &&
+    Number.isFinite(raw) &&
+    Number.isInteger(raw)
+  ) {
     if (raw < 0) {
       throw createParserError(
         ParserErrorCode.MISSING_REQUIRED_FIELD,
-        `Expected "${key}" to be a non-negative integer.`,
+        `Expected "${key}" to be a non-negative integer.`
       );
     }
     return raw;
@@ -954,21 +1033,21 @@ function readOptionalNonNegativeInteger(source: Record<string, unknown>, key: st
     if (!/^[0-9]+$/.test(trimmed)) {
       throw createParserError(
         ParserErrorCode.MISSING_REQUIRED_FIELD,
-        `Expected "${key}" to be a non-negative integer.`,
+        `Expected "${key}" to be a non-negative integer.`
       );
     }
     return parseInt(trimmed, 10);
   }
   throw createParserError(
     ParserErrorCode.MISSING_REQUIRED_FIELD,
-    `Expected "${key}" to be a non-negative integer.`,
+    `Expected "${key}" to be a non-negative integer.`
   );
 }
 
 function inferProducerEdges(
   inputs: BlueprintInputDefinition[],
   artefacts: BlueprintArtefactDefinition[],
-  producerName: string,
+  producerName: string
 ): BlueprintEdgeDefinition[] {
   const edges: BlueprintEdgeDefinition[] = [];
   for (const input of inputs) {
@@ -976,8 +1055,17 @@ function inferProducerEdges(
   }
   for (const artefact of artefacts) {
     // For JSON artifacts with schema decomposition, create edges to all decomposed fields
-    if (artefact.type === 'json' && artefact.schema && artefact.arrays && artefact.arrays.length > 0) {
-      const decomposed = decomposeJsonSchemaForEdges(artefact.schema, artefact.name, artefact.arrays);
+    if (
+      artefact.type === 'json' &&
+      artefact.schema &&
+      artefact.arrays &&
+      artefact.arrays.length > 0
+    ) {
+      const decomposed = decomposeJsonSchemaForEdges(
+        artefact.schema,
+        artefact.name,
+        artefact.arrays
+      );
       for (const field of decomposed) {
         edges.push({ from: producerName, to: field.path });
       }
@@ -995,7 +1083,7 @@ function inferProducerEdges(
 function decomposeJsonSchemaForEdges(
   schema: JsonSchemaDefinition,
   artifactName: string,
-  arrayMappings: ArrayDimensionMapping[],
+  arrayMappings: ArrayDimensionMapping[]
 ): Array<{ path: string }> {
   const artifacts: Array<{ path: string }> = [];
   const arrayMap = new Map(arrayMappings.map((m) => [m.path, m.countInput]));
@@ -1003,7 +1091,7 @@ function decomposeJsonSchemaForEdges(
   function walk(
     pathSegments: string[],
     barePath: string[],
-    prop: JsonSchemaProperty,
+    prop: JsonSchemaProperty
   ): void {
     if (prop.type === 'object' && prop.properties) {
       for (const [key, childProp] of Object.entries(prop.properties)) {
@@ -1018,9 +1106,13 @@ function decomposeJsonSchemaForEdges(
       }
 
       const dimName = deriveDimensionName(countInput);
-      const newPathSegments = pathSegments.length > 0
-        ? [...pathSegments.slice(0, -1), `${pathSegments[pathSegments.length - 1]}[${dimName}]`]
-        : [`[${dimName}]`];
+      const newPathSegments =
+        pathSegments.length > 0
+          ? [
+              ...pathSegments.slice(0, -1),
+              `${pathSegments[pathSegments.length - 1]}[${dimName}]`,
+            ]
+          : [`[${dimName}]`];
 
       if (prop.items.type === 'object' && prop.items.properties) {
         for (const [key, childProp] of Object.entries(prop.items.properties)) {
@@ -1031,9 +1123,10 @@ function decomposeJsonSchemaForEdges(
         artifacts.push({ path });
       }
     } else if (isLeafTypeForEdges(prop.type)) {
-      const path = pathSegments.length > 0
-        ? `${artifactName}.${pathSegments.join('.')}`
-        : artifactName;
+      const path =
+        pathSegments.length > 0
+          ? `${artifactName}.${pathSegments.join('.')}`
+          : artifactName;
       artifacts.push({ path });
     }
   }
@@ -1048,7 +1141,12 @@ function decomposeJsonSchemaForEdges(
 }
 
 function isLeafTypeForEdges(type: string): boolean {
-  return type === 'string' || type === 'number' || type === 'integer' || type === 'boolean';
+  return (
+    type === 'string' ||
+    type === 'number' ||
+    type === 'integer' ||
+    type === 'boolean'
+  );
 }
 
 function relativePosix(root: string, target: string): string {
@@ -1057,7 +1155,7 @@ function relativePosix(root: string, target: string): string {
     throw createParserError(
       ParserErrorCode.PATH_ESCAPES_ROOT,
       `Path "${target}" escapes root "${root}".`,
-      { filePath: target },
+      { filePath: target }
     );
   }
   return rel.split(sep).join('/');
@@ -1069,7 +1167,9 @@ function relativePosix(root: string, target: string): string {
  * Parses the mappings section from producer YAML.
  * Structure: mappings: { [provider]: { [model]: { [input]: Mapping } } }
  */
-export function parseMappingsSection(raw: unknown): ProducerMappings | undefined {
+export function parseMappingsSection(
+  raw: unknown
+): ProducerMappings | undefined {
   if (!raw || typeof raw !== 'object') {
     return undefined;
   }
@@ -1081,7 +1181,7 @@ export function parseMappingsSection(raw: unknown): ProducerMappings | undefined
     if (!models || typeof models !== 'object') {
       throw createParserError(
         ParserErrorCode.INVALID_MAPPING_VALUE,
-        `Invalid mappings for provider "${provider}": expected object.`,
+        `Invalid mappings for provider "${provider}": expected object.`
       );
     }
 
@@ -1092,13 +1192,13 @@ export function parseMappingsSection(raw: unknown): ProducerMappings | undefined
       if (!inputMappings || typeof inputMappings !== 'object') {
         throw createParserError(
           ParserErrorCode.INVALID_MAPPING_VALUE,
-          `Invalid mappings for model "${provider}/${model}": expected object.`,
+          `Invalid mappings for model "${provider}/${model}": expected object.`
         );
       }
 
       mappings[provider][model] = parseMappingFields(
         inputMappings as Record<string, unknown>,
-        `${provider}/${model}`,
+        `${provider}/${model}`
       );
     }
   }
@@ -1111,7 +1211,7 @@ export function parseMappingsSection(raw: unknown): ProducerMappings | undefined
  */
 function parseMappingFields(
   raw: Record<string, unknown>,
-  context: string,
+  context: string
 ): InputMappings {
   const result: InputMappings = {};
 
@@ -1134,7 +1234,7 @@ function parseMappingValue(raw: unknown, context: string): MappingValue {
   if (!raw || typeof raw !== 'object') {
     throw createParserError(
       ParserErrorCode.INVALID_MAPPING_VALUE,
-      `Invalid mapping value at "${context}": expected string or object.`,
+      `Invalid mapping value at "${context}": expected string or object.`
     );
   }
 
@@ -1151,7 +1251,7 @@ function parseMappingValue(raw: unknown, context: string): MappingValue {
     if (typeof obj.transform !== 'object' || obj.transform === null) {
       throw createParserError(
         ParserErrorCode.INVALID_MAPPING_TRANSFORM,
-        `Invalid transform at "${context}": expected object.`,
+        `Invalid transform at "${context}": expected object.`
       );
     }
     result.transform = obj.transform as Record<string, unknown>;
@@ -1183,17 +1283,20 @@ function parseMappingValue(raw: unknown, context: string): MappingValue {
 
   // Parse durationToFrames
   if (obj.durationToFrames !== undefined) {
-    if (typeof obj.durationToFrames !== 'object' || obj.durationToFrames === null) {
+    if (
+      typeof obj.durationToFrames !== 'object' ||
+      obj.durationToFrames === null
+    ) {
       throw createParserError(
         ParserErrorCode.INVALID_DURATION_TO_FRAMES,
-        `Invalid durationToFrames at "${context}": expected object with fps.`,
+        `Invalid durationToFrames at "${context}": expected object with fps.`
       );
     }
     const dtf = obj.durationToFrames as Record<string, unknown>;
     if (typeof dtf.fps !== 'number') {
       throw createParserError(
         ParserErrorCode.INVALID_DURATION_TO_FRAMES,
-        `durationToFrames.fps must be a number at "${context}".`,
+        `durationToFrames.fps must be a number at "${context}".`
       );
     }
     result.durationToFrames = { fps: dtf.fps };
@@ -1210,7 +1313,7 @@ function parseMappingValue(raw: unknown, context: string): MappingValue {
   if (!hasOutputTarget) {
     throw createParserError(
       ParserErrorCode.INVALID_MAPPING_VALUE,
-      `Invalid mapping at "${context}": must specify "field", "expand", "combine", or "conditional".`,
+      `Invalid mapping at "${context}": must specify "field", "expand", "combine", or "conditional".`
     );
   }
 
@@ -1220,11 +1323,14 @@ function parseMappingValue(raw: unknown, context: string): MappingValue {
 /**
  * Parses a combine transform definition.
  */
-function parseCombineTransform(raw: unknown, context: string): CombineTransform {
+function parseCombineTransform(
+  raw: unknown,
+  context: string
+): CombineTransform {
   if (!raw || typeof raw !== 'object') {
     throw createParserError(
       ParserErrorCode.INVALID_COMBINE_TRANSFORM,
-      `Invalid combine transform at "${context}": expected object.`,
+      `Invalid combine transform at "${context}": expected object.`
     );
   }
 
@@ -1233,14 +1339,14 @@ function parseCombineTransform(raw: unknown, context: string): CombineTransform 
   if (!Array.isArray(obj.inputs) || obj.inputs.length < 1) {
     throw createParserError(
       ParserErrorCode.INVALID_COMBINE_TRANSFORM,
-      `combine.inputs must be array of 1+ inputs at "${context}".`,
+      `combine.inputs must be array of 1+ inputs at "${context}".`
     );
   }
 
   if (!obj.table || typeof obj.table !== 'object') {
     throw createParserError(
       ParserErrorCode.INVALID_COMBINE_TRANSFORM,
-      `combine.table is required at "${context}".`,
+      `combine.table is required at "${context}".`
     );
   }
 
@@ -1253,11 +1359,14 @@ function parseCombineTransform(raw: unknown, context: string): CombineTransform 
 /**
  * Parses a conditional transform definition.
  */
-function parseConditionalTransform(raw: unknown, context: string): ConditionalTransform {
+function parseConditionalTransform(
+  raw: unknown,
+  context: string
+): ConditionalTransform {
   if (!raw || typeof raw !== 'object') {
     throw createParserError(
       ParserErrorCode.INVALID_CONDITIONAL_MAPPING,
-      `Invalid conditional transform at "${context}": expected object.`,
+      `Invalid conditional transform at "${context}": expected object.`
     );
   }
 
@@ -1266,14 +1375,14 @@ function parseConditionalTransform(raw: unknown, context: string): ConditionalTr
   if (!obj.when || typeof obj.when !== 'object') {
     throw createParserError(
       ParserErrorCode.INVALID_CONDITIONAL_MAPPING,
-      `conditional.when is required at "${context}".`,
+      `conditional.when is required at "${context}".`
     );
   }
 
   if (obj.then === undefined) {
     throw createParserError(
       ParserErrorCode.INVALID_CONDITIONAL_MAPPING,
-      `conditional.then is required at "${context}".`,
+      `conditional.then is required at "${context}".`
     );
   }
 
@@ -1281,7 +1390,7 @@ function parseConditionalTransform(raw: unknown, context: string): ConditionalTr
   if (typeof when.input !== 'string') {
     throw createParserError(
       ParserErrorCode.INVALID_CONDITIONAL_MAPPING,
-      `conditional.when.input is required at "${context}".`,
+      `conditional.when.input is required at "${context}".`
     );
   }
 
@@ -1301,13 +1410,11 @@ function parseConditionalTransform(raw: unknown, context: string): ConditionalTr
 
   // Parse the 'then' clause - can be a string (simple field) or object (complex mapping)
   const thenValue = parseMappingValue(obj.then, `${context}.then`);
-  const thenDef: MappingFieldDefinition = typeof thenValue === 'string'
-    ? { field: thenValue }
-    : thenValue;
+  const thenDef: MappingFieldDefinition =
+    typeof thenValue === 'string' ? { field: thenValue } : thenValue;
 
   return {
     when: condition,
     then: thenDef,
   };
 }
-

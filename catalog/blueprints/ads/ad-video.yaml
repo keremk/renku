@@ -216,19 +216,3 @@ connections:
   # === VideoExporter outputs ===
   - from: VideoExporter.FinalVideo
     to: FinalVideo
-
-collectors:
-  - name: TimelineVideos
-    from: VideoProducer[clip].GeneratedVideo
-    into: TimelineComposer.VideoSegments
-    groupBy: clip
-
-  - name: TimelineAudios
-    from: AudioProducer[clip].GeneratedAudio
-    into: TimelineComposer.AudioSegments
-    groupBy: clip
-
-  - name: TimelineMusic
-    from: MusicProducer.GeneratedMusic
-    into: TimelineComposer.Music
-    groupBy: clip

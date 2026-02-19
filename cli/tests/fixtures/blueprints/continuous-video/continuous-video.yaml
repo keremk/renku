@@ -44,7 +44,6 @@ inputs:
     type: string
     required: false
 
-
 artifacts:
   - name: SegmentVideo
     description: Generated video for each narration segment.
@@ -134,13 +133,3 @@ connections:
     to: TimelineComposer.Duration
   - from: TimelineComposer.Timeline
     to: Timeline
-
-collectors:
-  - name: TimelineVideo
-    from: ImageToVideoProducer[segment].GeneratedVideo
-    into: TimelineComposer.VideoSegments
-    groupBy: segment
-  - name: TimelineAudio
-    from: AudioProducer[segment].GeneratedAudio
-    into: TimelineComposer.AudioSegments
-    groupBy: segment

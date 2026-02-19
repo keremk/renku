@@ -1,0 +1,37 @@
+inputs:
+  Theme: 'Celebrity transformations through time'
+  NumOfCharacters: 3
+  Duration: 45
+  MeetingDuration: 10
+  TransitionDuration: 5
+  AspectRatio: '16:9'
+  Resolution: '480p'
+
+models:
+  - model: gpt-5-mini
+    provider: openai
+    producerId: DirectorProducer
+    config:
+      text_format: json_schema
+  - model: bytedance/seedance-1-pro-fast
+    provider: replicate
+    producerId: MeetingVideoProducer
+  - model: bytedance/seedance-1-pro-fast
+    provider: replicate
+    producerId: TransitionVideoProducer
+  - model: stability-ai/stable-audio-2.5
+    provider: replicate
+    producerId: MusicProducer
+  - model: timeline/ordered
+    provider: renku
+    producerId: TimelineComposer
+    config:
+      timeline:
+        tracks: ['Video', 'Music']
+        masterTracks: ['Video']
+        videoClip:
+          artifact: VideoSegments
+        musicClip:
+          artifact: Music
+          volume: 0.4
+          playStrategy: loop

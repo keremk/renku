@@ -75,21 +75,21 @@ conditions:
   isImageNarration:
     any:
       - when: DocProducer.VideoScript.Segments[segment].NarrationType
-        is: "MapNarration"
+        is: 'MapNarration'
       - when: DocProducer.VideoScript.Segments[segment].NarrationType
-        is: "ImageNarration"
+        is: 'ImageNarration'
   isAudioNeeded:
     any:
       - when: DocProducer.VideoScript.Segments[segment].NarrationType
-        is: "TalkingHead"
+        is: 'TalkingHead'
       - when: DocProducer.VideoScript.Segments[segment].UseNarrationAudio
         is: true
   isTalkingHead:
     when: DocProducer.VideoScript.Segments[segment].NarrationType
-    is: "TalkingHead"
+    is: 'TalkingHead'
   isVideoNarration:
     when: DocProducer.VideoScript.Segments[segment].NarrationType
-    is: "VideoNarration"
+    is: 'VideoNarration'
 
 producers:
   - name: DocProducer
@@ -220,22 +220,3 @@ connections:
     to: TimelineComposer.Duration
   - from: TimelineComposer.Timeline
     to: Timeline
-  
-collectors:
-  - name: TimelineImages
-    from: ImageProducer[segment][image].GeneratedImage
-    into: TimelineComposer.ImageSegments
-    groupBy: segment
-    orderBy: image
-  - name: TimelineAudio
-    from: AudioProducer[segment].GeneratedAudio
-    into: TimelineComposer.AudioSegments
-    groupBy: segment
-  - name: TimelineVideo
-    from: VideoProducer[segment].GeneratedVideo
-    into: TimelineComposer.VideoSegments
-    groupBy: segment
-  - name: TimelineTalkingHeadVideo
-    from: TalkingHeadVideoProducer[segment].GeneratedVideo
-    into: TimelineComposer.VideoSegments
-    groupBy: segment

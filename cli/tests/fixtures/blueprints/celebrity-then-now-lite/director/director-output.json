@@ -1,0 +1,26 @@
+{
+	"name": "CelebrityDirectorOutput",
+	"schema": {
+		"type": "object",
+		"properties": {
+			"MusicPrompt": { "type": "string" },
+			"Characters": {
+				"type": "array",
+				"items": {
+					"type": "object",
+					"properties": {
+						"HasTransition": { "type": "boolean" },
+						"MeetingVideoPrompt": { "type": "string" },
+						"TransitionVideoPrompt": { "type": "string" }
+					},
+					"required": [
+						"HasTransition",
+						"MeetingVideoPrompt",
+						"TransitionVideoPrompt"
+					]
+				}
+			}
+		},
+		"required": ["MusicPrompt", "Characters"]
+	}
+}

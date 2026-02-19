@@ -6,8 +6,6 @@ import {
   validateProducerInputOutput,
   validateLoopCountInputs,
   validateArtifactCountInputs,
-  validateCollectors,
-  validateCollectorConnections,
   validateConditionPaths,
   validateTypes,
   validateProducerCycles,
@@ -21,7 +19,9 @@ import { ValidationErrorCode } from './types.js';
 /**
  * Helper to create a minimal valid blueprint document
  */
-function createDocument(overrides: Partial<BlueprintDocument> = {}): BlueprintDocument {
+function createDocument(
+  overrides: Partial<BlueprintDocument> = {}
+): BlueprintDocument {
   return {
     meta: { id: 'test', name: 'Test Blueprint' },
     inputs: [],
@@ -42,7 +42,7 @@ function createTreeNode(
     sourcePath?: string;
     namespacePath?: string[];
     children?: Map<string, BlueprintTreeNode>;
-  } = {},
+  } = {}
 ): BlueprintTreeNode {
   return {
     id: document.meta.id,
@@ -58,9 +58,7 @@ describe('validateBlueprintTree', () => {
     const doc = createDocument({
       inputs: [{ name: 'Prompt', type: 'string', required: true }],
       artefacts: [{ name: 'Output', type: 'string', required: true }],
-      edges: [
-        { from: 'Prompt', to: 'Output' },
-      ],
+      edges: [{ from: 'Prompt', to: 'Output' }],
     });
     const tree = createTreeNode(doc);
 
@@ -74,9 +72,7 @@ describe('validateBlueprintTree', () => {
     const doc = createDocument({
       inputs: [{ name: 'Prompt', type: 'invalid-type', required: true }],
       artefacts: [{ name: 'Output', type: 'invalid-type', required: true }],
-      edges: [
-        { from: 'NonExistent', to: 'AlsoNonExistent' },
-      ],
+      edges: [{ from: 'NonExistent', to: 'AlsoNonExistent' }],
     });
     const tree = createTreeNode(doc);
 
@@ -94,14 +90,14 @@ describe('validateBlueprintTree', () => {
         { name: 'UnusedInput', type: 'string', required: false },
       ],
       artefacts: [{ name: 'Output', type: 'string', required: true }],
-      edges: [
-        { from: 'UsedInput', to: 'Output' },
-      ],
+      edges: [{ from: 'UsedInput', to: 'Output' }],
     });
     const tree = createTreeNode(doc);
 
     const resultWithWarnings = validateBlueprintTree(tree);
-    const resultWithoutWarnings = validateBlueprintTree(tree, { errorsOnly: true });
+    const resultWithoutWarnings = validateBlueprintTree(tree, {
+      errorsOnly: true,
+    });
 
     expect(resultWithWarnings.warnings.length).toBeGreaterThan(0);
     expect(resultWithoutWarnings.warnings).toHaveLength(0);
@@ -112,9 +108,7 @@ describe('validateConnectionEndpoints', () => {
   it('validates producer names exist', () => {
     const doc = createDocument({
       producerImports: [{ name: 'ValidProducer' }],
-      edges: [
-        { from: 'InvalidProducer.Output', to: 'SomeInput' },
-      ],
+      edges: [{ from: 'InvalidProducer.Output', to: 'SomeInput' }],
     });
     const tree = createTreeNode(doc);
 
@@ -124,7 +118,7 @@ describe('validateConnectionEndpoints', () => {
       expect.objectContaining({
         code: ValidationErrorCode.PRODUCER_NOT_FOUND,
         message: expect.stringContaining('InvalidProducer'),
-      }),
+      })
     );
   });
 
@@ -132,9 +126,7 @@ describe('validateConnectionEndpoints', () => {
     const doc = createDocument({
       inputs: [{ name: 'ValidInput', type: 'string', required: true }],
       artefacts: [{ name: 'Output', type: 'string', required: true }],
-      edges: [
-        { from: 'InvalidInput', to: 'Output' },
-      ],
+      edges: [{ from: 'InvalidInput', to: 'Output' }],
     });
     const tree = createTreeNode(doc);
 
@@ -144,7 +136,7 @@ describe('validateConnectionEndpoints', () => {
       expect.objectContaining({
         code: ValidationErrorCode.INPUT_NOT_FOUND,
         message: expect.stringContaining('InvalidInput'),
-      }),
+      })
     );
   });
 
@@ -152,9 +144,7 @@ describe('validateConnectionEndpoints', () => {
     const doc = createDocument({
       inputs: [{ name: 'Input', type: 'string', required: true }],
       artefacts: [{ name: 'ValidArtifact', type: 'string', required: true }],
-      edges: [
-        { from: 'Input', to: 'InvalidArtifact' },
-      ],
+      edges: [{ from: 'Input', to: 'InvalidArtifact' }],
     });
     const tree = createTreeNode(doc);
 
@@ -164,7 +154,7 @@ describe('validateConnectionEndpoints', () => {
       expect.objectContaining({
         code: ValidationErrorCode.ARTIFACT_NOT_FOUND,
         message: expect.stringContaining('InvalidArtifact'),
-      }),
+      })
     );
   });
 
@@ -190,9 +180,7 @@ describe('validateConnectionEndpoints', () => {
       artefacts: [{ name: 'Output', type: 'string', required: true }],
       producerImports: [{ name: 'Producer' }],
       loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
-      edges: [
-        { from: 'Input', to: 'Producer[undeclaredLoop].Input' },
-      ],
+      edges: [{ from: 'Input', to: 'Producer[undeclaredLoop].Input' }],
     });
     const tree = createTreeNode(doc);
 
@@ -202,7 +190,7 @@ describe('validateConnectionEndpoints', () => {
       expect.objectContaining({
         code: ValidationErrorCode.INVALID_NESTED_PATH,
         message: expect.stringContaining('undeclaredLoop'),
-      }),
+      })
     );
   });
 });
@@ -213,15 +201,15 @@ describe('validateProducerInputOutput', () => {
       inputs: [{ name: 'ValidInput', type: 'string', required: true }],
       artefacts: [{ name: 'Output', type: 'string', required: true }],
     });
-    const producerNode = createTreeNode(producerDoc, { namespacePath: ['Producer'] });
+    const producerNode = createTreeNode(producerDoc, {
+      namespacePath: ['Producer'],
+    });
 
     const rootDoc = createDocument({
       inputs: [{ name: 'Input', type: 'string', required: true }],
       artefacts: [{ name: 'Output', type: 'string', required: true }],
       producerImports: [{ name: 'Producer' }],
-      edges: [
-        { from: 'Input', to: 'Producer.InvalidInput' },
-      ],
+      edges: [{ from: 'Input', to: 'Producer.InvalidInput' }],
     });
     const rootNode = createTreeNode(rootDoc, {
       children: new Map([['Producer', producerNode]]),
@@ -233,7 +221,7 @@ describe('validateProducerInputOutput', () => {
       expect.objectContaining({
         code: ValidationErrorCode.PRODUCER_INPUT_MISMATCH,
         message: expect.stringContaining('InvalidInput'),
-      }),
+      })
     );
   });
 
@@ -242,15 +230,15 @@ describe('validateProducerInputOutput', () => {
       inputs: [{ name: 'Input', type: 'string', required: true }],
       artefacts: [{ name: 'ValidOutput', type: 'string', required: true }],
     });
-    const producerNode = createTreeNode(producerDoc, { namespacePath: ['Producer'] });
+    const producerNode = createTreeNode(producerDoc, {
+      namespacePath: ['Producer'],
+    });
 
     const rootDoc = createDocument({
       inputs: [{ name: 'Input', type: 'string', required: true }],
       artefacts: [{ name: 'Output', type: 'string', required: true }],
       producerImports: [{ name: 'Producer' }],
-      edges: [
-        { from: 'Producer.InvalidOutput', to: 'Output' },
-      ],
+      edges: [{ from: 'Producer.InvalidOutput', to: 'Output' }],
     });
     const rootNode = createTreeNode(rootDoc, {
       children: new Map([['Producer', producerNode]]),
@@ -262,7 +250,7 @@ describe('validateProducerInputOutput', () => {
       expect.objectContaining({
         code: ValidationErrorCode.PRODUCER_OUTPUT_MISMATCH,
         message: expect.stringContaining('InvalidOutput'),
-      }),
+      })
     );
   });
 
@@ -271,7 +259,9 @@ describe('validateProducerInputOutput', () => {
       inputs: [{ name: 'ProducerInput', type: 'string', required: true }],
       artefacts: [{ name: 'ProducerOutput', type: 'string', required: true }],
     });
-    const producerNode = createTreeNode(producerDoc, { namespacePath: ['Producer'] });
+    const producerNode = createTreeNode(producerDoc, {
+      namespacePath: ['Producer'],
+    });
 
     const rootDoc = createDocument({
       inputs: [{ name: 'Input', type: 'string', required: true }],
@@ -306,7 +296,7 @@ describe('validateLoopCountInputs', () => {
       expect.objectContaining({
         code: ValidationErrorCode.LOOP_COUNTINPUT_NOT_FOUND,
         message: expect.stringContaining('InvalidCountInput'),
-      }),
+      })
     );
   });
 
@@ -344,7 +334,7 @@ describe('validateArtifactCountInputs', () => {
       expect.objectContaining({
         code: ValidationErrorCode.ARTIFACT_COUNTINPUT_NOT_FOUND,
         message: expect.stringContaining('InvalidCountInput'),
-      }),
+      })
     );
   });
 
@@ -369,200 +359,6 @@ describe('validateArtifactCountInputs', () => {
   });
 });
 
-describe('validateCollectors', () => {
-  it('validates collector from producer exists', () => {
-    const doc = createDocument({
-      producerImports: [{ name: 'ValidProducer' }],
-      collectors: [
-        {
-          name: 'TestCollector',
-          from: 'InvalidProducer.Output',
-          into: 'ValidProducer.Input',
-          groupBy: 'segment',
-        },
-      ],
-      loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
-    });
-    const tree = createTreeNode(doc);
-
-    const issues = validateCollectors(tree);
-
-    expect(issues).toContainEqual(
-      expect.objectContaining({
-        code: ValidationErrorCode.COLLECTOR_SOURCE_INVALID,
-        message: expect.stringContaining('InvalidProducer'),
-      }),
-    );
-  });
-
-  it('validates collector into producer exists', () => {
-    const doc = createDocument({
-      producerImports: [{ name: 'ValidProducer' }],
-      collectors: [
-        {
-          name: 'TestCollector',
-          from: 'ValidProducer.Output',
-          into: 'InvalidProducer.Input',
-          groupBy: 'segment',
-        },
-      ],
-      loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
-    });
-    const tree = createTreeNode(doc);
-
-    const issues = validateCollectors(tree);
-
-    expect(issues).toContainEqual(
-      expect.objectContaining({
-        code: ValidationErrorCode.COLLECTOR_TARGET_INVALID,
-        message: expect.stringContaining('InvalidProducer'),
-      }),
-    );
-  });
-});
-
-describe('validateCollectorConnections', () => {
-  it('detects collector without corresponding connection', () => {
-    const doc = createDocument({
-      producerImports: [
-        { name: 'ImageProducer' },
-        { name: 'TimelineComposer' },
-      ],
-      loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
-      // Collector defined but NO connection
-      collectors: [
-        {
-          name: 'TimelineImages',
-          from: 'ImageProducer[segment].GeneratedImage',
-          into: 'TimelineComposer.ImageSegments',
-          groupBy: 'segment',
-        },
-      ],
-      edges: [
-        // Missing the required connection!
-      ],
-    });
-    const tree = createTreeNode(doc);
-
-    const issues = validateCollectorConnections(tree);
-
-    expect(issues).toContainEqual(
-      expect.objectContaining({
-        code: ValidationErrorCode.COLLECTOR_MISSING_CONNECTION,
-        message: expect.stringMatching(/TimelineImages.*no corresponding connection/),
-      }),
-    );
-  });
-
-  it('accepts collector with matching connection', () => {
-    const doc = createDocument({
-      producerImports: [
-        { name: 'ImageProducer' },
-        { name: 'TimelineComposer' },
-      ],
-      loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
-      // Both collector AND connection defined
-      collectors: [
-        {
-          name: 'TimelineImages',
-          from: 'ImageProducer[segment].GeneratedImage',
-          into: 'TimelineComposer.ImageSegments',
-          groupBy: 'segment',
-        },
-      ],
-      edges: [
-        // The required connection
-        {
-          from: 'ImageProducer[segment].GeneratedImage',
-          to: 'TimelineComposer.ImageSegments',
-        },
-      ],
-    });
-    const tree = createTreeNode(doc);
-
-    const issues = validateCollectorConnections(tree);
-
-    expect(issues).toHaveLength(0);
-  });
-
-  it('matches connection even with different dimension selectors', () => {
-    const doc = createDocument({
-      producerImports: [
-        { name: 'ImageProducer' },
-        { name: 'TimelineComposer' },
-      ],
-      loops: [
-        { name: 'segment', countInput: 'NumOfSegments' },
-        { name: 'image', parent: 'segment', countInput: 'NumOfImages' },
-      ],
-      collectors: [
-        {
-          name: 'TimelineImages',
-          from: 'ImageProducer[segment][image].GeneratedImage',
-          into: 'TimelineComposer.ImageSegments',
-          groupBy: 'segment',
-          orderBy: 'image',
-        },
-      ],
-      edges: [
-        // Connection with same base path but different dimension notation
-        {
-          from: 'ImageProducer[segment][image].GeneratedImage',
-          to: 'TimelineComposer.ImageSegments',
-        },
-      ],
-    });
-    const tree = createTreeNode(doc);
-
-    const issues = validateCollectorConnections(tree);
-
-    expect(issues).toHaveLength(0);
-  });
-
-  it('detects multiple collectors without connections', () => {
-    const doc = createDocument({
-      producerImports: [
-        { name: 'ImageProducer' },
-        { name: 'AudioProducer' },
-        { name: 'TimelineComposer' },
-      ],
-      loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
-      collectors: [
-        {
-          name: 'TimelineImages',
-          from: 'ImageProducer[segment].GeneratedImage',
-          into: 'TimelineComposer.ImageSegments',
-          groupBy: 'segment',
-        },
-        {
-          name: 'TimelineAudio',
-          from: 'AudioProducer[segment].GeneratedAudio',
-          into: 'TimelineComposer.AudioSegments',
-          groupBy: 'segment',
-        },
-      ],
-      edges: [],
-    });
-    const tree = createTreeNode(doc);
-
-    const issues = validateCollectorConnections(tree);
-
-    expect(issues).toHaveLength(2);
-    expect(issues).toContainEqual(
-      expect.objectContaining({
-        code: ValidationErrorCode.COLLECTOR_MISSING_CONNECTION,
-        message: expect.stringContaining('TimelineImages'),
-      }),
-    );
-    expect(issues).toContainEqual(
-      expect.objectContaining({
-        code: ValidationErrorCode.COLLECTOR_MISSING_CONNECTION,
-        message: expect.stringContaining('TimelineAudio'),
-      }),
-    );
-  });
-});
-
 describe('validateConditionPaths', () => {
   it('validates condition when path producer exists', () => {
     const doc = createDocument({
@@ -582,7 +378,7 @@ describe('validateConditionPaths', () => {
       expect.objectContaining({
         code: ValidationErrorCode.CONDITION_PATH_INVALID,
         message: expect.stringContaining('InvalidProducer'),
-      }),
+      })
     );
   });
 
@@ -624,7 +420,7 @@ describe('validateConditionPaths', () => {
       expect.objectContaining({
         code: ValidationErrorCode.CONDITION_PATH_INVALID,
         message: expect.stringContaining('InvalidProducer1'),
-      }),
+      })
     );
   });
 });
@@ -642,7 +438,7 @@ describe('validateTypes', () => {
       expect.objectContaining({
         code: ValidationErrorCode.INVALID_INPUT_TYPE,
         message: expect.stringContaining('invalid-type'),
-      }),
+      })
     );
   });
 
@@ -658,7 +454,7 @@ describe('validateTypes', () => {
       expect.objectContaining({
         code: ValidationErrorCode.INVALID_ARTIFACT_TYPE,
         message: expect.stringContaining('invalid-type'),
-      }),
+      })
     );
   });
 
@@ -681,7 +477,7 @@ describe('validateTypes', () => {
       expect.objectContaining({
         code: ValidationErrorCode.INVALID_ITEM_TYPE,
         message: expect.stringContaining('invalid-item-type'),
-      }),
+      })
     );
   });
 
@@ -699,7 +495,12 @@ describe('validateTypes', () => {
         { name: 'VideoArtifact', type: 'video', required: true },
         { name: 'AudioArtifact', type: 'audio', required: true },
         { name: 'JsonArtifact', type: 'json', required: true },
-        { name: 'ArrayArtifact', type: 'array', itemType: 'image', required: true },
+        {
+          name: 'ArrayArtifact',
+          type: 'array',
+          itemType: 'image',
+          required: true,
+        },
       ],
     });
     const tree = createTreeNode(doc);
@@ -718,9 +519,7 @@ describe('findUnusedInputs', () => {
         { name: 'UnusedInput', type: 'string', required: false },
       ],
       artefacts: [{ name: 'Output', type: 'string', required: true }],
-      edges: [
-        { from: 'UsedInput', to: 'Output' },
-      ],
+      edges: [{ from: 'UsedInput', to: 'Output' }],
     });
     const tree = createTreeNode(doc);
 
@@ -730,15 +529,13 @@ describe('findUnusedInputs', () => {
       expect.objectContaining({
         code: ValidationErrorCode.UNUSED_INPUT,
         message: expect.stringContaining('UnusedInput'),
-      }),
+      })
     );
   });
 
   it('does not report inputs used in loop countInput', () => {
     const doc = createDocument({
-      inputs: [
-        { name: 'Count', type: 'number', required: true },
-      ],
+      inputs: [{ name: 'Count', type: 'number', required: true }],
       loops: [{ name: 'segment', countInput: 'Count' }],
     });
     const tree = createTreeNode(doc);
@@ -750,11 +547,15 @@ describe('findUnusedInputs', () => {
 
   it('does not report inputs used in artifact countInput', () => {
     const doc = createDocument({
-      inputs: [
-        { name: 'Count', type: 'number', required: true },
-      ],
+      inputs: [{ name: 'Count', type: 'number', required: true }],
       artefacts: [
-        { name: 'Array', type: 'array', itemType: 'string', countInput: 'Count', required: true },
+        {
+          name: 'Array',
+          type: 'array',
+          itemType: 'string',
+          countInput: 'Count',
+          required: true,
+        },
       ],
     });
     const tree = createTreeNode(doc);
@@ -773,9 +574,7 @@ describe('findUnusedArtifacts', () => {
         { name: 'UsedArtifact', type: 'string', required: true },
         { name: 'UnusedArtifact', type: 'string', required: false },
       ],
-      edges: [
-        { from: 'Input', to: 'UsedArtifact' },
-      ],
+      edges: [{ from: 'Input', to: 'UsedArtifact' }],
     });
     const tree = createTreeNode(doc);
 
@@ -785,7 +584,7 @@ describe('findUnusedArtifacts', () => {
       expect.objectContaining({
         code: ValidationErrorCode.UNUSED_ARTIFACT,
         message: expect.stringContaining('UnusedArtifact'),
-      }),
+      })
     );
   });
 });
@@ -798,9 +597,7 @@ describe('findUnreachableProducers', () => {
         { name: 'UnreachableProducer' },
       ],
       inputs: [{ name: 'Input', type: 'string', required: true }],
-      edges: [
-        { from: 'Input', to: 'ReachableProducer.Input' },
-      ],
+      edges: [{ from: 'Input', to: 'ReachableProducer.Input' }],
     });
     const tree = createTreeNode(doc);
 
@@ -810,12 +607,12 @@ describe('findUnreachableProducers', () => {
       expect.objectContaining({
         code: ValidationErrorCode.UNREACHABLE_PRODUCER,
         message: expect.stringContaining('UnreachableProducer'),
-      }),
+      })
     );
     expect(issues).not.toContainEqual(
       expect.objectContaining({
         message: expect.stringContaining('ReachableProducer'),
-      }),
+      })
     );
   });
 });
@@ -853,7 +650,7 @@ describe('recursive validation', () => {
         location: expect.objectContaining({
           namespacePath: ['Producer'],
         }),
-      }),
+      })
     );
   });
 });
@@ -861,10 +658,7 @@ describe('recursive validation', () => {
 describe('validateProducerCycles', () => {
   it('detects simple two-node cycle', () => {
     const doc = createDocument({
-      producerImports: [
-        { name: 'ProducerA' },
-        { name: 'ProducerB' },
-      ],
+      producerImports: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
       edges: [
         { from: 'ProducerA.Output', to: 'ProducerB.Input' },
         { from: 'ProducerB.Output', to: 'ProducerA.Input' },
@@ -877,8 +671,10 @@ describe('validateProducerCycles', () => {
     expect(issues).toContainEqual(
       expect.objectContaining({
         code: ValidationErrorCode.PRODUCER_CYCLE,
-        message: expect.stringMatching(/cycle.*ProducerA.*ProducerB.*ProducerA/i),
-      }),
+        message: expect.stringMatching(
+          /cycle.*ProducerA.*ProducerB.*ProducerA/i
+        ),
+      })
     );
   });
 
@@ -930,9 +726,7 @@ describe('validateProducerCycles', () => {
     // since we filter fromProducer !== toProducer
     const doc = createDocument({
       producerImports: [{ name: 'ProducerA' }],
-      edges: [
-        { from: 'ProducerA.Output', to: 'ProducerA.Input' },
-      ],
+      edges: [{ from: 'ProducerA.Output', to: 'ProducerA.Input' }],
     });
     const tree = createTreeNode(doc);
 
@@ -961,16 +755,11 @@ describe('validateProducerCycles', () => {
 });
 
 describe('validateDimensionConsistency', () => {
-  it('detects dimension loss without collector', () => {
+  it('detects dimension loss when target input is not fanIn', () => {
     const doc = createDocument({
-      producerImports: [
-        { name: 'ProducerA' },
-        { name: 'ProducerB' },
-      ],
+      producerImports: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
       loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
-      edges: [
-        { from: 'ProducerA[segment].Output', to: 'ProducerB.Input' },
-      ],
+      edges: [{ from: 'ProducerA[segment].Output', to: 'ProducerB.Input' }],
     });
     const tree = createTreeNode(doc);
 
@@ -980,7 +769,7 @@ describe('validateDimensionConsistency', () => {
       expect.objectContaining({
         code: ValidationErrorCode.DIMENSION_MISMATCH,
         message: expect.stringContaining('1 dimension'),
-      }),
+      })
     );
   });
 
@@ -988,10 +777,7 @@ describe('validateDimensionConsistency', () => {
     // Cross-dimension patterns like [image] -> [segment] are valid
     // for sliding window and other intentional patterns
     const doc = createDocument({
-      producerImports: [
-        { name: 'ProducerA' },
-        { name: 'ProducerB' },
-      ],
+      producerImports: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
       loops: [
         { name: 'segment', countInput: 'NumOfSegments' },
         { name: 'image', countInput: 'NumOfImages' },
@@ -1010,10 +796,7 @@ describe('validateDimensionConsistency', () => {
 
   it('allows matching dimensions', () => {
     const doc = createDocument({
-      producerImports: [
-        { name: 'ProducerA' },
-        { name: 'ProducerB' },
-      ],
+      producerImports: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
       loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
       edges: [
         { from: 'ProducerA[segment].Output', to: 'ProducerB[segment].Input' },
@@ -1026,67 +809,157 @@ describe('validateDimensionConsistency', () => {
     expect(issues).toHaveLength(0);
   });
 
-  it('allows dimension loss with matching collector', () => {
+  it('allows dimension loss when target input is fanIn', () => {
     const doc = createDocument({
-      producerImports: [
-        { name: 'ProducerA' },
-        { name: 'ProducerB' },
-      ],
+      producerImports: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
       loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
-      edges: [
-        { from: 'ProducerA[segment].Output', to: 'ProducerB.Input' },
-      ],
-      collectors: [
-        { name: 'Collector', from: 'ProducerA[segment].Output', into: 'ProducerB.Input', groupBy: 'segment' },
-      ],
+      edges: [{ from: 'ProducerA[segment].Output', to: 'ProducerB.Input' }],
     });
-    const tree = createTreeNode(doc);
+    const tree = createTreeNode(doc, {
+      children: new Map([
+        [
+          'ProducerB',
+          createTreeNode(
+            createDocument({
+              inputs: [
+                { name: 'Input', type: 'string', required: false, fanIn: true },
+              ],
+            }),
+            { namespacePath: ['ProducerB'] }
+          ),
+        ],
+      ]),
+    });
 
     const issues = validateDimensionConsistency(tree);
 
     expect(issues).toHaveLength(0);
   });
 
-  it('reports error when edge has dimension loss but no matching collector', () => {
-    // Each producer needs its own collector - just having any collector
-    // for the target is not enough
+  it('reports error when edge has dimension loss and target input is not fanIn', () => {
     const doc = createDocument({
-      producerImports: [
-        { name: 'ProducerA' },
-        { name: 'ProducerB' },
-        { name: 'ProducerC' },
-      ],
+      producerImports: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
+      loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
+      edges: [{ from: 'ProducerA[segment].Output', to: 'ProducerB.Input' }],
+    });
+    const tree = createTreeNode(doc);
+
+    const issues = validateDimensionConsistency(tree);
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({
+      code: ValidationErrorCode.DIMENSION_MISMATCH,
+      message: expect.stringContaining('ProducerA'),
+    });
+  });
+
+  it('rejects groupBy/orderBy on non-fanIn targets', () => {
+    const doc = createDocument({
+      producerImports: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
       loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
       edges: [
-        { from: 'ProducerA[segment].Output', to: 'ProducerC.Input' },
-        { from: 'ProducerB[segment].Output', to: 'ProducerC.Input' },
-      ],
-      collectors: [
-        // Only ProducerA has a collector, ProducerB is missing one
-        { name: 'CollectorA', from: 'ProducerA[segment].Output', into: 'ProducerC.Input', groupBy: 'segment' },
+        {
+          from: 'ProducerA[segment].Output',
+          to: 'ProducerB.Input',
+          groupBy: 'segment',
+        },
       ],
     });
     const tree = createTreeNode(doc);
 
     const issues = validateDimensionConsistency(tree);
 
-    // ProducerB's edge should be flagged as missing a collector
-    expect(issues).toHaveLength(1);
-    expect(issues[0]).toMatchObject({
-      code: ValidationErrorCode.DIMENSION_MISMATCH,
-      message: expect.stringContaining('ProducerB'),
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.DIMENSION_MISMATCH,
+        message: expect.stringContaining('declares groupBy/orderBy'),
+      })
+    );
+  });
+
+  it('requires explicit metadata when fanIn source has more than two dimensions', () => {
+    const doc = createDocument({
+      producerImports: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
+      loops: [
+        { name: 'segment', countInput: 'NumOfSegments' },
+        { name: 'image', countInput: 'NumOfImages' },
+        { name: 'variant', countInput: 'NumOfVariants' },
+      ],
+      edges: [
+        {
+          from: 'ProducerA[segment][image][variant].Output',
+          to: 'ProducerB.Input',
+        },
+      ],
     });
+    const tree = createTreeNode(doc, {
+      children: new Map([
+        [
+          'ProducerB',
+          createTreeNode(
+            createDocument({
+              inputs: [
+                { name: 'Input', type: 'string', required: false, fanIn: true },
+              ],
+            }),
+            { namespacePath: ['ProducerB'] }
+          ),
+        ],
+      ]),
+    });
+
+    const issues = validateDimensionConsistency(tree);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: ValidationErrorCode.DIMENSION_MISMATCH,
+        message: expect.stringContaining('uses 3 dimensions'),
+      })
+    );
+  });
+
+  it('allows high-dimensional fanIn when groupBy is provided', () => {
+    const doc = createDocument({
+      producerImports: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
+      loops: [
+        { name: 'segment', countInput: 'NumOfSegments' },
+        { name: 'image', countInput: 'NumOfImages' },
+        { name: 'variant', countInput: 'NumOfVariants' },
+      ],
+      edges: [
+        {
+          from: 'ProducerA[segment][image][variant].Output',
+          to: 'ProducerB.Input',
+          groupBy: 'segment',
+          orderBy: 'image',
+        },
+      ],
+    });
+    const tree = createTreeNode(doc, {
+      children: new Map([
+        [
+          'ProducerB',
+          createTreeNode(
+            createDocument({
+              inputs: [
+                { name: 'Input', type: 'string', required: false, fanIn: true },
+              ],
+            }),
+            { namespacePath: ['ProducerB'] }
+          ),
+        ],
+      ]),
+    });
+
+    const issues = validateDimensionConsistency(tree);
+
+    expect(issues).toHaveLength(0);
   });
 
   it('ignores numeric indices in dimensions', () => {
     const doc = createDocument({
-      producerImports: [
-        { name: 'ProducerA' },
-        { name: 'ProducerB' },
-      ],
-      edges: [
-        { from: 'ProducerA[0].Output', to: 'ProducerB.Input' },
-      ],
+      producerImports: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
+      edges: [{ from: 'ProducerA[0].Output', to: 'ProducerB.Input' }],
     });
     const tree = createTreeNode(doc);
 
@@ -1098,10 +971,7 @@ describe('validateDimensionConsistency', () => {
 
   it('ignores offset expressions in dimensions', () => {
     const doc = createDocument({
-      producerImports: [
-        { name: 'ProducerA' },
-        { name: 'ProducerB' },
-      ],
+      producerImports: [{ name: 'ProducerA' }, { name: 'ProducerB' }],
       loops: [{ name: 'segment', countInput: 'NumOfSegments' }],
       edges: [
         { from: 'ProducerA[segment+1].Output', to: 'ProducerB[segment].Input' },

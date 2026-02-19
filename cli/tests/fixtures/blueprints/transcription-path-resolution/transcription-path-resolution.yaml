@@ -82,13 +82,3 @@ connections:
     to: TranscriptionProducer.LanguageCode
   - from: TranscriptionProducer.Transcription
     to: Transcription
-
-collectors:
-  - name: TimelineAudio
-    from: AudioProducer[segment].GeneratedAudio
-    into: TimelineComposer.AudioSegments
-    groupBy: segment
-  - name: TranscriptionAudio
-    from: AudioProducer[segment].GeneratedAudio
-    into: TimelineComposer.TranscriptionAudio
-    groupBy: segment

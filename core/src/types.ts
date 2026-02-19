@@ -325,6 +325,10 @@ export interface BlueprintEdgeDefinition {
   from: string;
   to: string;
   note?: string;
+  /** Optional fan-in grouping dimension for connections targeting fanIn inputs. */
+  groupBy?: string;
+  /** Optional fan-in ordering dimension for connections targeting fanIn inputs. */
+  orderBy?: string;
   /** Reference to a named condition defined in the conditions block */
   if?: string;
   /** Inline condition definition */
@@ -451,14 +455,6 @@ export interface ProducerImportDefinition {
   loop?: string;
 }
 
-export interface BlueprintCollectorDefinition {
-  name: string;
-  from: string;
-  into: string;
-  groupBy: string;
-  orderBy?: string;
-}
-
 /**
  * Loop dimension definition.
  * Defines a dimension for looping over artifacts.
@@ -482,7 +478,6 @@ export interface BlueprintDocument {
   /** Producer imports from the `producers:` section. No namespace is created. */
   producerImports: ProducerImportDefinition[];
   edges: BlueprintEdgeDefinition[];
-  collectors?: BlueprintCollectorDefinition[];
   /** Loop dimension definitions for artifact iteration */
   loops?: BlueprintLoopDefinition[];
   /** Named condition definitions for reuse across edges */

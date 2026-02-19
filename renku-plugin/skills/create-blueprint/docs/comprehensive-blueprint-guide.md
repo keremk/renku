@@ -1,6 +1,6 @@
 # Renku Blueprint Authoring Guide
 
-This comprehensive guide explains how to author Renku blueprints: the YAML schema, how producers compose into workflows, and the rules the planner and runner enforce (canonical IDs, loops, collectors, fan-in).
+This comprehensive guide explains how to author Renku blueprints: the YAML schema, how producers compose into workflows, and the rules the planner and runner enforce (canonical IDs, loops, and fan-in).
 
 ---
 
@@ -13,7 +13,7 @@ This comprehensive guide explains how to author Renku blueprints: the YAML schem
 5. [Connections](#connections)
 6. [Conditional Connections](#conditional-connections)
 7. [Loops and Dimensions](#loops-and-dimensions)
-8. [Collectors and Fan-In](#collectors-and-fan-in)
+8. [Fan-In Inference and Edge Metadata](#fan-in-inference-and-edge-metadata)
 9. [Canonical IDs](#canonical-ids)
 10. [Planner and Runner Internals](#planner-and-runner-internals)
 11. [Input Files Reference](#input-files-reference)
@@ -35,7 +35,7 @@ Renku is a workflow orchestration system for generating long-form video content 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                           Blueprint YAML                             │
-│  (Defines workflow: inputs, producers, connections, collectors)      │
+│  (Defines workflow: inputs, producers, connections)                  │
 └─────────────────────────────────────────────────────────────────────┘
                                    │
                                    ▼
@@ -81,16 +81,16 @@ Renku is a workflow orchestration system for generating long-form video content 
 
 ### Vocabulary
 
-| Term | Definition |
-|------|------------|
-| **Blueprint** | Top-level YAML that orchestrates a complete workflow. Defines inputs, artifacts, loops, producer imports, connections, and collectors. |
-| **Producer** | A reusable module that invokes one or more AI models. Producers are referenced by blueprints via the `producers:` section. |
-| **Input** | A user-provided value. Mark `required: true` unless a sensible `default` exists. For producers, required and defaults are read from the input JSON schemas. |
-| **Artifact** | An output produced by a producer. Can be scalar (single value) or array (indexed by loops). |
-| **Loop** | A named iteration dimension that defines how many times a producer executes. Loops enable parallel processing of segments. |
-| **Connection** | A data flow edge that wires outputs to inputs across the workflow graph. |
-| **Collector** | Gathers multiple artifacts into a single collection for downstream aggregation (fan-in). |
-| **Canonical ID** | Fully qualified node identifier used throughout the system. Format: `Type:path.to.name[index]` |
+| Term             | Definition                                                                                                                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Blueprint**    | Top-level YAML that orchestrates a complete workflow. Defines inputs, artifacts, loops, producer imports, and connections.                                                                  |
+| **Producer**     | A reusable module that invokes one or more AI models. Producers are referenced by blueprints via the `producers:` section.                                                                  |
+| **Input**        | A user-provided value. Mark `required: true` unless a sensible `default` exists. For producers, required and defaults are read from the input JSON schemas.                                 |
+| **Artifact**     | An output produced by a producer. Can be scalar (single value) or array (indexed by loops).                                                                                                 |
+| **Loop**         | A named iteration dimension that defines how many times a producer executes. Loops enable parallel processing of segments.                                                                  |
+| **Connection**   | A data flow edge that wires outputs to inputs across the workflow graph.                                                                                                                    |
+| **Fan-In Input** | Producer input with `fanIn: true` that receives grouped upstream artifacts from matching connections.                                                                                       |
+| **Canonical ID** | Fully qualified node identifier used throughout the system. Format: `Type:path.to.name[index]`                                                                                              |
 | **System Input** | A well-known input that is automatically recognized by name without YAML declaration. Includes `Duration`, `NumOfSegments`, `SegmentDuration`, `MovieId`, `StorageRoot`, `StorageBasePath`. |
 
 ### System Inputs
@@ -99,14 +99,14 @@ System inputs are special inputs that Renku automatically recognizes by name. **
 
 #### Available System Inputs
 
-| System Input | Type | Description |
-|--------------|------|-------------|
-| `Duration` | `int` | Total duration of the movie in seconds. Provided in input YAML. |
-| `NumOfSegments` | `int` | Number of segments to generate. Provided in input YAML. |
-| `SegmentDuration` | `int` | Duration of each segment. **Auto-computed** as `Duration / NumOfSegments`. |
-| `MovieId` | `string` | Unique identifier for the movie. Auto-injected by the system. |
-| `StorageRoot` | `string` | Root directory for storage. Auto-injected from CLI config. |
-| `StorageBasePath` | `string` | Base path within storage root. Auto-injected from CLI config. |
+| System Input      | Type     | Description                                                                |
+| ----------------- | -------- | -------------------------------------------------------------------------- |
+| `Duration`        | `int`    | Total duration of the movie in seconds. Provided in input YAML.            |
+| `NumOfSegments`   | `int`    | Number of segments to generate. Provided in input YAML.                    |
+| `SegmentDuration` | `int`    | Duration of each segment. **Auto-computed** as `Duration / NumOfSegments`. |
+| `MovieId`         | `string` | Unique identifier for the movie. Auto-injected by the system.              |
+| `StorageRoot`     | `string` | Root directory for storage. Auto-injected from CLI config.                 |
+| `StorageBasePath` | `string` | Base path within storage root. Auto-injected from CLI config.              |
 
 #### How System Inputs Work
 
@@ -120,6 +120,7 @@ System inputs are special inputs that Renku automatically recognizes by name. **
 #### Example: Using System Inputs
 
 **Blueprint — do NOT declare system inputs, but DO wire them explicitly:**
+
 ```yaml
 inputs:
   # Only declare non-system inputs here
@@ -134,7 +135,7 @@ inputs:
 
 loops:
   - name: segment
-    countInput: NumOfSegments  # References system input directly
+    countInput: NumOfSegments # References system input directly
 
 connections:
   # System inputs must be explicitly wired to producers that need them
@@ -143,10 +144,11 @@ connections:
   - from: NumOfSegments
     to: ScriptProducer.NumOfSegments
   - from: SegmentDuration
-    to: ScriptProducer.SegmentDuration  # Auto-computed value, wired explicitly
+    to: ScriptProducer.SegmentDuration # Auto-computed value, wired explicitly
 ```
 
 **Prompt producer YAML — DO declare system inputs it consumes:**
+
 ```yaml
 inputs:
   - name: Duration
@@ -161,12 +163,13 @@ inputs:
 ```
 
 **Input YAML:**
+
 ```yaml
 inputs:
-  InquiryPrompt: "The history of space exploration"
-  Style: "Documentary"
-  Duration: 60        # System input - provided by user
-  NumOfSegments: 6    # System input - provided by user
+  InquiryPrompt: 'The history of space exploration'
+  Style: 'Documentary'
+  Duration: 60 # System input - provided by user
+  NumOfSegments: 6 # System input - provided by user
   # SegmentDuration is auto-computed as 60/6 = 10 seconds
 ```
 
@@ -180,12 +183,14 @@ inputs:
 ### Blueprint vs Producer
 
 **Blueprints** are workflow definitions that:
+
 - Define user-facing inputs and final artifacts
 - Import and connect multiple producers
 - Define loops for parallel execution
-- Specify collectors for fan-in aggregation
+- Connect looped artifacts into `fanIn: true` inputs (inference builds fan-in descriptors)
 
 **Producers** are execution units that:
+
 - Accept inputs and produce artifacts
 - Map inputs to specific AI model parameters
 - Support multiple model variants (e.g., different video providers)
@@ -217,79 +222,75 @@ ScriptProducer.NarrationScript[2] ──► AudioProducer[2].TextInput
 
 ```yaml
 meta:
-  name: <string>           # Human-readable name (required)
-  description: <string>    # Purpose and behavior
-  id: <string>             # Unique identifier in PascalCase (required)
-  version: <semver>        # Semantic version (e.g., 0.1.0)
-  author: <string>         # Creator name
-  license: <string>        # License type (e.g., MIT)
+  name: <string> # Human-readable name (required)
+  description: <string> # Purpose and behavior
+  id: <string> # Unique identifier in PascalCase (required)
+  version: <semver> # Semantic version (e.g., 0.1.0)
+  author: <string> # Creator name
+  license: <string> # License type (e.g., MIT)
 
 inputs:
-  - name: <string>         # Input identifier in PascalCase (required)
-    description: <string>  # Purpose and usage
-    type: <string>         # Data type (required)
-    required: <boolean>    # Whether mandatory (default: true)
+  - name: <string> # Input identifier in PascalCase (required)
+    description: <string> # Purpose and usage
+    type: <string> # Data type (required)
+    required: <boolean> # Whether mandatory (default: true)
 
 artifacts:
-  - name: <string>         # Artifact identifier in PascalCase (required)
-    description: <string>  # Purpose and content
-    type: <string>         # Output type (required)
-    itemType: <string>     # Element type for arrays
-    countInput: <string>   # Input that determines array size
+  - name: <string> # Artifact identifier in PascalCase (required)
+    description: <string> # Purpose and content
+    type: <string> # Output type (required)
+    itemType: <string> # Element type for arrays
+    countInput: <string> # Input that determines array size
     countInputOffset: <int> # Offset added to countInput value
 
 loops:
-  - name: <string>         # Loop identifier in lowercase (required)
-    description: <string>  # Purpose and behavior
-    countInput: <string>   # Input that determines iteration count (required)
+  - name: <string> # Loop identifier in lowercase (required)
+    description: <string> # Purpose and behavior
+    countInput: <string> # Input that determines iteration count (required)
     countInputOffset: <int> # Offset added to count
-    parent: <string>       # Parent loop for nesting
+    parent: <string> # Parent loop for nesting
 
 producers:
-  - name: <string>         # Producer instance name in PascalCase (required)
-    producer: <string>     # Qualified name: "category/name" (preferred)
-    path: <string>         # Relative path to producer YAML (legacy, for custom producers)
-    loop: <string>         # Loop dimension(s) (e.g., "segment" or "segment.image")
+  - name: <string> # Producer instance name in PascalCase (required)
+    producer: <string> # Qualified name: "category/name" (preferred)
+    path: <string> # Relative path to producer YAML (legacy, for custom producers)
+    loop: <string> # Loop dimension(s) (e.g., "segment" or "segment.image")
 
 connections:
-  - from: <string>         # Source reference (required)
-    to: <string>           # Target reference (required)
-    if: <string>           # Condition name for conditional execution
-    note: <string>         # Optional documentation
+  - from: <string> # Source reference (required)
+    to: <string> # Target reference (required)
+    if: <string> # Condition name for conditional execution
+    groupBy: <string> # Optional fan-in grouping dimension override
+    orderBy: <string> # Optional fan-in ordering dimension override
+    note: <string> # Optional documentation
 
 conditions:
   <conditionName>:
-    when: <string>         # Path to artifact field (e.g., Producer.Artifact.Field[dim])
-    is: <any>              # Equals this value
-    isNot: <any>           # Does not equal this value
-    contains: <string>     # String contains value
-    greaterThan: <number>  # Greater than
-    lessThan: <number>     # Less than
-    exists: <boolean>      # Field exists and is truthy
-    matches: <string>      # Regex pattern
-    all: <array>           # AND: all sub-conditions must pass
-    any: <array>           # OR: at least one sub-condition must pass
-
-collectors:
-  - name: <string>         # Collector identifier (required)
-    from: <string>         # Source artifact reference (required)
-    into: <string>         # Target input reference (required)
-    groupBy: <string>      # Loop dimension for grouping (required)
-    orderBy: <string>      # Loop dimension for ordering within groups
+    when: <string> # Path to artifact field (e.g., Producer.Artifact.Field[dim])
+    is: <any> # Equals this value
+    isNot: <any> # Does not equal this value
+    contains: <string> # String contains value
+    greaterThan: <number> # Greater than
+    lessThan: <number> # Less than
+    exists: <boolean> # Field exists and is truthy
+    matches: <string> # Regex pattern
+    all: <array> # AND: all sub-conditions must pass
+    any: <array> # OR: at least one sub-condition must pass
 ```
 
 ### Field Details
 
 #### `inputs`
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | Yes | Identifier in PascalCase |
-| `type` | string | Yes | `string`, `int`, `image`, `audio`, `video`, `json`, `collection` |
-| `required` | boolean | No | Default: `true` |
-| `description` | string | No | Documentation |
+| Field         | Type    | Required | Description                                                      |
+| ------------- | ------- | -------- | ---------------------------------------------------------------- |
+| `name`        | string  | Yes      | Identifier in PascalCase                                         |
+| `type`        | string  | Yes      | `string`, `int`, `image`, `audio`, `video`, `json`, `collection` |
+| `required`    | boolean | No       | Default: `true`                                                  |
+| `description` | string  | No       | Documentation                                                    |
 
 **Types:**
+
 - `string`: Text value
 - `int`: Integer number
 - `image`, `audio`, `video`: Media file reference
@@ -298,37 +299,38 @@ collectors:
 
 #### `artifacts`
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | Yes | Identifier in PascalCase |
-| `type` | string | Yes | `string`, `json`, `image`, `audio`, `video`, `array`, `multiDimArray` |
-| `itemType` | string | Conditional | Required for `array` and `multiDimArray` |
-| `countInput` | string | Conditional | Input name for array sizing |
-| `countInputOffset` | int | No | Non-negative offset added to size |
+| Field              | Type   | Required    | Description                                                           |
+| ------------------ | ------ | ----------- | --------------------------------------------------------------------- |
+| `name`             | string | Yes         | Identifier in PascalCase                                              |
+| `type`             | string | Yes         | `string`, `json`, `image`, `audio`, `video`, `array`, `multiDimArray` |
+| `itemType`         | string | Conditional | Required for `array` and `multiDimArray`                              |
+| `countInput`       | string | Conditional | Input name for array sizing                                           |
+| `countInputOffset` | int    | No          | Non-negative offset added to size                                     |
 
 **Array sizing:** The final size is `countInput + countInputOffset`.
 
 #### `loops`
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | Yes | Lowercase identifier (e.g., `segment`) |
-| `countInput` | string | Yes | Input that provides iteration count |
-| `countInputOffset` | int | No | Offset added to count |
-| `parent` | string | No | Parent loop for nesting |
+| Field              | Type   | Required | Description                            |
+| ------------------ | ------ | -------- | -------------------------------------- |
+| `name`             | string | Yes      | Lowercase identifier (e.g., `segment`) |
+| `countInput`       | string | Yes      | Input that provides iteration count    |
+| `countInputOffset` | int    | No       | Offset added to count                  |
+| `parent`           | string | No       | Parent loop for nesting                |
 
 #### `producers`
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | Yes | Instance alias in PascalCase |
-| `producer` | string | Conditional | Qualified name `category/name` - resolves from catalog |
-| `path` | string | Conditional | Relative path to producer YAML - for custom/local producers |
-| `loop` | string | No | Loop assignment (e.g., `segment`, `segment.image`) |
+| Field      | Type   | Required    | Description                                                 |
+| ---------- | ------ | ----------- | ----------------------------------------------------------- |
+| `name`     | string | Yes         | Instance alias in PascalCase                                |
+| `producer` | string | Conditional | Qualified name `category/name` - resolves from catalog      |
+| `path`     | string | Conditional | Relative path to producer YAML - for custom/local producers |
+| `loop`     | string | No          | Loop assignment (e.g., `segment`, `segment.image`)          |
 
 **Note:** Either `producer` or `path` must be provided. Use `producer` for catalog producers (preferred), `path` for custom local producers.
 
 **Producer Resolution:** When `producer: "category/name"` is specified:
+
 1. Tries: `{catalogRoot}/producers/{category}/{name}.yaml`
 2. Tries: `{catalogRoot}/producers/{category}/{name}/{name}.yaml`
 3. Error if not found
@@ -369,12 +371,12 @@ artifacts:
     description: Generated video for each narration segment.
     type: array
     itemType: video
-    countInput: NumOfSegments  # References system input
+    countInput: NumOfSegments # References system input
 
 loops:
   - name: segment
     description: Iterates over narration segments.
-    countInput: NumOfSegments  # References system input
+    countInput: NumOfSegments # References system input
 
 producers:
   - name: ScriptProducer
@@ -390,9 +392,9 @@ connections:
   - from: InquiryPrompt
     to: ScriptProducer.InquiryPrompt
   - from: Duration
-    to: ScriptProducer.Duration          # System input - no declaration needed
+    to: ScriptProducer.Duration # System input - no declaration needed
   - from: NumOfSegments
-    to: ScriptProducer.NumOfSegments     # System input - no declaration needed
+    to: ScriptProducer.NumOfSegments # System input - no declaration needed
 
   # Wire script outputs to VideoPromptProducer (looped)
   - from: ScriptProducer.NarrationScript[segment]
@@ -402,7 +404,7 @@ connections:
   - from: Style
     to: VideoPromptProducer[segment].Style
   - from: SegmentDuration
-    to: VideoPromptProducer[segment].SegmentDuration  # Auto-computed system input
+    to: VideoPromptProducer[segment].SegmentDuration # Auto-computed system input
 
   # Wire prompts to VideoProducer (looped)
   - from: VideoPromptProducer.VideoPrompt[segment]
@@ -412,7 +414,7 @@ connections:
   - from: AspectRatio
     to: VideoProducer[segment].AspectRatio
   - from: SegmentDuration
-    to: VideoProducer[segment].SegmentDuration  # Auto-computed system input
+    to: VideoProducer[segment].SegmentDuration # Auto-computed system input
 
   # Wire video output to blueprint artifact
   - from: VideoProducer[segment].SegmentVideo
@@ -497,8 +499,8 @@ meta:
   version: 0.1.0
   author: Renku
   license: MIT
-  promptFile: ./script.toml              # Prompt template for LLM
-  outputSchema: ./script-output.json     # JSON schema for structured output
+  promptFile: ./script.toml # Prompt template for LLM
+  outputSchema: ./script-output.json # JSON schema for structured output
 
 inputs:
   - name: InquiryPrompt
@@ -593,9 +595,9 @@ mappings:
       AspectRatio:
         field: image_size
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "1:1": square_hd
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '1:1': square_hd
       SegmentDuration:
         field: num_frames
         durationToFrames:
@@ -606,11 +608,11 @@ mappings:
 
 Video-generating producers (text-to-video, image-to-video, etc.) automatically support **derived artifacts** that are extracted from the generated video using ffmpeg:
 
-| Artifact | Type | Description |
-|----------|------|-------------|
+| Artifact     | Type  | Description                         |
+| ------------ | ----- | ----------------------------------- |
 | `FirstFrame` | image | The first frame of the video as PNG |
-| `LastFrame` | image | The last frame of the video as PNG |
-| `AudioTrack` | audio | The audio track extracted as WAV |
+| `LastFrame`  | image | The last frame of the video as PNG  |
+| `AudioTrack` | audio | The audio track extracted as WAV    |
 
 **How derived artifacts work:**
 
@@ -760,6 +762,7 @@ connections:
 ```
 
 This wires each element of `NarrationScript` to the corresponding `AudioProducer` instance:
+
 - `NarrationScript[0]` → `AudioProducer[0].TextInput`
 - `NarrationScript[1]` → `AudioProducer[1].TextInput`
 - etc.
@@ -774,14 +777,14 @@ loops:
   - name: segment
     countInput: NumOfSegments
   - name: image
-    parent: segment                    # image is nested inside segment
+    parent: segment # image is nested inside segment
     countInput: NumOfImagesPerNarrative
 
 # Producer runs for each segment × image combination
 producers:
   - name: ImageProducer
     producer: asset/text-to-image
-    loop: segment.image                # Dot notation for nested loops
+    loop: segment.image # Dot notation for nested loops
 
 # Connections use multiple indices
 connections:
@@ -793,14 +796,14 @@ connections:
 
 **How it expands:** If `NumOfSegments = 3` and `NumOfImagesPerNarrative = 2`, this creates 6 producer instances:
 
-| Instance | segment | image |
-|----------|---------|-------|
-| `ImageProducer[0][0]` | 0 | 0 |
-| `ImageProducer[0][1]` | 0 | 1 |
-| `ImageProducer[1][0]` | 1 | 0 |
-| `ImageProducer[1][1]` | 1 | 1 |
-| `ImageProducer[2][0]` | 2 | 0 |
-| `ImageProducer[2][1]` | 2 | 1 |
+| Instance              | segment | image |
+| --------------------- | ------- | ----- |
+| `ImageProducer[0][0]` | 0       | 0     |
+| `ImageProducer[0][1]` | 0       | 1     |
+| `ImageProducer[1][0]` | 1       | 0     |
+| `ImageProducer[1][1]` | 1       | 1     |
+| `ImageProducer[2][0]` | 2       | 0     |
+| `ImageProducer[2][1]` | 2       | 1     |
 
 **Important:** Both source and target must have matching dimension structure. You cannot connect `[segment][image]` to `[segment]` directly.
 
@@ -844,6 +847,7 @@ connections:
 ```
 
 This pattern is useful when:
+
 - A producer accepts multiple reference images as a collection
 - Each reference image comes from a different upstream producer
 - The same images should be used for all loop instances (broadcast + element binding)
@@ -880,10 +884,10 @@ connections:
 
 **Comparison with whole-collection binding:**
 
-| Pattern | Syntax | Use Case |
-|---------|--------|----------|
-| Whole-collection | `AllImages → ReferenceImages` | Connect an entire array artifact |
-| Element-level | `Image1 → ReferenceImages[0]`, `Image2 → ReferenceImages[1]` | Connect individual artifacts to specific indices |
+| Pattern          | Syntax                                                       | Use Case                                         |
+| ---------------- | ------------------------------------------------------------ | ------------------------------------------------ |
+| Whole-collection | `AllImages → ReferenceImages`                                | Connect an entire array artifact                 |
+| Element-level    | `Image1 → ReferenceImages[0]`, `Image2 → ReferenceImages[1]` | Connect individual artifacts to specific indices |
 
 Both patterns are supported and can be mixed depending on your workflow needs.
 
@@ -921,16 +925,16 @@ Define named conditions in the `conditions:` section of your blueprint:
 conditions:
   isImageNarration:
     when: DocProducer.VideoScript.Segments[segment].NarrationType
-    is: "ImageNarration"
+    is: 'ImageNarration'
   isAudioNeeded:
     any:
       - when: DocProducer.VideoScript.Segments[segment].NarrationType
-        is: "TalkingHead"
+        is: 'TalkingHead'
       - when: DocProducer.VideoScript.Segments[segment].UseNarrationAudio
         is: true
   isTalkingHead:
     when: DocProducer.VideoScript.Segments[segment].NarrationType
-    is: "TalkingHead"
+    is: 'TalkingHead'
 ```
 
 #### Condition Path Format
@@ -942,6 +946,7 @@ The `when` field references a path to a value in an upstream artifact:
 ```
 
 **Components:**
+
 - **Producer**: The producer that creates the artifact (e.g., `DocProducer`)
 - **Artifact**: The artifact name (e.g., `VideoScript`)
 - **FieldPath**: Dot-separated path to the field (e.g., `Segments[segment].NarrationType`)
@@ -951,17 +956,17 @@ The first two segments (`Producer.Artifact`) form the artifact ID. The remaining
 
 #### Condition Operators
 
-| Operator | Description | Example |
-|----------|-------------|---------|
-| `is` | Equals the specified value | `is: "ImageNarration"` |
-| `isNot` | Does not equal the specified value | `isNot: "Draft"` |
-| `contains` | String contains the value | `contains: "narration"` |
-| `greaterThan` | Greater than (numeric) | `greaterThan: 10` |
-| `lessThan` | Less than (numeric) | `lessThan: 100` |
-| `greaterOrEqual` | Greater than or equal (numeric) | `greaterOrEqual: 5` |
-| `lessOrEqual` | Less than or equal (numeric) | `lessOrEqual: 30` |
-| `exists` | Field exists and is truthy | `exists: true` |
-| `matches` | Matches a regular expression | `matches: "^video.*"` |
+| Operator         | Description                        | Example                 |
+| ---------------- | ---------------------------------- | ----------------------- |
+| `is`             | Equals the specified value         | `is: "ImageNarration"`  |
+| `isNot`          | Does not equal the specified value | `isNot: "Draft"`        |
+| `contains`       | String contains the value          | `contains: "narration"` |
+| `greaterThan`    | Greater than (numeric)             | `greaterThan: 10`       |
+| `lessThan`       | Less than (numeric)                | `lessThan: 100`         |
+| `greaterOrEqual` | Greater than or equal (numeric)    | `greaterOrEqual: 5`     |
+| `lessOrEqual`    | Less than or equal (numeric)       | `lessOrEqual: 30`       |
+| `exists`         | Field exists and is truthy         | `exists: true`          |
+| `matches`        | Matches a regular expression       | `matches: "^video.*"`   |
 
 #### Condition Groups
 
@@ -973,7 +978,7 @@ conditions:
   needsAudio:
     any:
       - when: DocProducer.VideoScript.Segments[segment].NarrationType
-        is: "TalkingHead"
+        is: 'TalkingHead'
       - when: DocProducer.VideoScript.Segments[segment].UseNarrationAudio
         is: true
 
@@ -981,7 +986,7 @@ conditions:
   isHighQualityLongSegment:
     all:
       - when: DocProducer.VideoScript.Segments[segment].Quality
-        is: "high"
+        is: 'high'
       - when: DocProducer.VideoScript.Segments[segment].Duration
         greaterThan: 10
 ```
@@ -1022,40 +1027,40 @@ When a condition is evaluated at runtime:
 
 Given 3 segments with `NarrationType` values: `["ImageNarration", "TalkingHead", "ImageNarration"]`
 
-| Producer | Index | Condition | Result |
-|----------|-------|-----------|--------|
-| `ImageProducer` | `[0][*]` | `isImageNarration` | ✅ Executes |
-| `ImageProducer` | `[1][*]` | `isImageNarration` | ❌ Skipped |
-| `ImageProducer` | `[2][*]` | `isImageNarration` | ✅ Executes |
-| `AudioProducer` | `[0]` | `isAudioNeeded` | Depends on `UseNarrationAudio` |
-| `AudioProducer` | `[1]` | `isAudioNeeded` | ✅ Executes (TalkingHead) |
-| `AudioProducer` | `[2]` | `isAudioNeeded` | Depends on `UseNarrationAudio` |
-| `VideoProducer` | `[0]` | `isTalkingHead` | ❌ Skipped |
-| `VideoProducer` | `[1]` | `isTalkingHead` | ✅ Executes |
-| `VideoProducer` | `[2]` | `isTalkingHead` | ❌ Skipped |
+| Producer        | Index    | Condition          | Result                         |
+| --------------- | -------- | ------------------ | ------------------------------ |
+| `ImageProducer` | `[0][*]` | `isImageNarration` | ✅ Executes                    |
+| `ImageProducer` | `[1][*]` | `isImageNarration` | ❌ Skipped                     |
+| `ImageProducer` | `[2][*]` | `isImageNarration` | ✅ Executes                    |
+| `AudioProducer` | `[0]`    | `isAudioNeeded`    | Depends on `UseNarrationAudio` |
+| `AudioProducer` | `[1]`    | `isAudioNeeded`    | ✅ Executes (TalkingHead)      |
+| `AudioProducer` | `[2]`    | `isAudioNeeded`    | Depends on `UseNarrationAudio` |
+| `VideoProducer` | `[0]`    | `isTalkingHead`    | ❌ Skipped                     |
+| `VideoProducer` | `[1]`    | `isTalkingHead`    | ✅ Executes                    |
+| `VideoProducer` | `[2]`    | `isTalkingHead`    | ❌ Skipped                     |
 
 #### Blueprint Schema Addition
 
 ```yaml
 conditions:
   <conditionName>:
-    when: <string>         # Path to artifact field
-    is: <any>              # Equals this value
-    isNot: <any>           # Does not equal this value
-    contains: <string>     # String contains value
-    greaterThan: <number>  # Greater than
-    lessThan: <number>     # Less than
-    greaterOrEqual: <number>  # Greater than or equal
-    lessOrEqual: <number>  # Less than or equal
-    exists: <boolean>      # Field exists and is truthy
-    matches: <string>      # Regex pattern
-    all: <array>           # AND: all sub-conditions must pass
-    any: <array>           # OR: at least one sub-condition must pass
+    when: <string> # Path to artifact field
+    is: <any> # Equals this value
+    isNot: <any> # Does not equal this value
+    contains: <string> # String contains value
+    greaterThan: <number> # Greater than
+    lessThan: <number> # Less than
+    greaterOrEqual: <number> # Greater than or equal
+    lessOrEqual: <number> # Less than or equal
+    exists: <boolean> # Field exists and is truthy
+    matches: <string> # Regex pattern
+    all: <array> # AND: all sub-conditions must pass
+    any: <array> # OR: at least one sub-condition must pass
 
 connections:
   - from: <string>
     to: <string>
-    if: <string>           # Optional: condition name
+    if: <string> # Optional: condition name
 ```
 
 ---
@@ -1099,6 +1104,7 @@ loops:
 ```
 
 This creates a two-dimensional iteration space. If `NumOfSegments = 3` and `NumOfImagesPerSegment = 2`, you get 6 instances:
+
 - `[0][0]`, `[0][1]`
 - `[1][0]`, `[1][1]`
 - `[2][0]`, `[2][1]`
@@ -1134,76 +1140,34 @@ The planner matches the `segment` dimension on both sides. If dimensions don't a
 
 ---
 
-## Collectors and Fan-In
+## Fan-In Inference and Edge Metadata
 
-Collectors aggregate multiple artifacts into a single collection for downstream processing.
+Fan-in is connection-driven. The parser rejects top-level `collectors:` sections.
 
-:::caution[Critical: Fan-In Requires BOTH Connection AND Collector]
-A common mistake is to define only a collector without a connection. **Fan-in inputs require BOTH:**
-
-1. A **connection** from the source artifact to the fan-in input
-2. A **collector** that defines how to group and order the items
+:::caution[Critical: Fan-In Uses Connections Only]
+Connect artifacts into producer inputs marked `fanIn: true`. Do not define `collectors:`.
 
 ```yaml
-# ❌ WRONG - Only collector, no connection (fan-in input will be empty!)
-collectors:
-  - name: TimelineImages
-    from: ImageProducer[segment][image].GeneratedImage
-    into: TimelineComposer.ImageSegments
-    groupBy: segment
-    orderBy: image
-
-# ✅ CORRECT - Both connection AND collector
+# ✅ Connection-driven fan-in (inferred)
 connections:
   - from: ImageProducer[segment][image].GeneratedImage
-    to: TimelineComposer.ImageSegments  # ← THIS IS REQUIRED!
+    to: TimelineComposer.ImageSegments
 
-collectors:
-  - name: TimelineImages
-    from: ImageProducer[segment][image].GeneratedImage
-    into: TimelineComposer.ImageSegments
+  # Optional explicit metadata when inference is ambiguous
+  - from: ImageProducer[segment][image].GeneratedImage
+    to: TimelineComposer.ImageSegments
     groupBy: segment
     orderBy: image
 ```
 
-**Why both are needed:**
-- The **connection** creates the data flow edge in the execution graph
-- The **collector** tells the runtime HOW to group and order the collected items
-
-Without the connection, the TimelineComposer won't have any edges pointing to its fan-in input, and the input will be empty at runtime.
 :::
 
-### Why Use Collectors?
+### Inference Rules
 
-Without collectors, connections are point-to-point. Collectors enable:
-- Gathering all segment videos into a timeline
-- Grouping images by segment for batch processing
-- Ordering items within groups
-
-### Basic Collector
-
-```yaml
-collectors:
-  - name: TimelineVideo
-    from: VideoProducer[segment].SegmentVideo
-    into: TimelineComposer.VideoSegments
-    groupBy: segment
-```
-
-This collects all `SegmentVideo` artifacts from `VideoProducer` instances and groups them by segment index.
-
-### Collector with Ordering
-
-```yaml
-collectors:
-  - name: TimelineImages
-    from: ImageProducer[segment][image].SegmentImage
-    into: TimelineComposer.ImageSegments
-    groupBy: segment
-    orderBy: image
-```
-
-This groups images by segment and orders them by image index within each group.
+- Single scalar source -> singleton fan-in group.
+- One source dimension -> `groupBy` inferred from that dimension.
+- Two source dimensions -> `groupBy` and `orderBy` inferred by position.
+- Ambiguous scalar multi-source fan-in -> fail fast unless explicit metadata is provided.
 
 ### Fan-In Inputs
 
@@ -1220,11 +1184,11 @@ inputs:
     fanIn: true
 ```
 
-**Critical:** Without `fanIn: true`, the collector has no target and the aggregator cannot resolve the collection.
+**Critical:** Without `fanIn: true`, the target input is treated as point-to-point and fan-in descriptors are not built.
 
-### What Collectors Produce
+### What Fan-In Produces
 
-A collector creates a `FanInDescriptor` with:
+A fan-in connection set creates a `FanInDescriptor` with:
 
 ```typescript
 {
@@ -1238,7 +1202,7 @@ A collector creates a `FanInDescriptor` with:
 }
 ```
 
-### Real Example: Image-to-Video with Collectors
+### Real Example: Image-to-Video Fan-In
 
 ```yaml
 # From image-to-video.yaml
@@ -1247,7 +1211,7 @@ loops:
     countInput: NumOfSegments
   - name: image
     countInput: NumOfSegments
-    countInputOffset: 1  # N+1 images for N segments
+    countInputOffset: 1 # N+1 images for N segments
 
 producers:
   - name: ImageProducer
@@ -1274,16 +1238,6 @@ connections:
     to: TimelineComposer.VideoSegments
   - from: AudioProducer[segment].SegmentAudio
     to: TimelineComposer.AudioSegments
-
-collectors:
-  - name: TimelineVideo
-    from: ImageToVideoProducer[segment].SegmentVideo
-    into: TimelineComposer.VideoSegments
-    groupBy: segment
-  - name: TimelineAudio
-    from: AudioProducer[segment].SegmentAudio
-    into: TimelineComposer.AudioSegments
-    groupBy: segment
 ```
 
 ---
@@ -1299,6 +1253,7 @@ Type:path.to.name[index0][index1]...
 ```
 
 **Components:**
+
 - **Type**: `Input:`, `Artifact:`, or `Producer:`
 - **Path**: Dot-separated namespace path
 - **Name**: Node name
@@ -1306,13 +1261,13 @@ Type:path.to.name[index0][index1]...
 
 ### Examples
 
-| ID | Description |
-|----|-------------|
-| `Input:InquiryPrompt` | Blueprint-level input |
-| `Input:ScriptProducer.Duration` | Input to ScriptProducer |
-| `Artifact:VideoProducer.SegmentVideo[0]` | First video artifact |
-| `Artifact:ImageProducer.SegmentImage[2][1]` | Image at segment 2, image 1 |
-| `Producer:AudioProducer[0]` | First AudioProducer instance |
+| ID                                          | Description                  |
+| ------------------------------------------- | ---------------------------- |
+| `Input:InquiryPrompt`                       | Blueprint-level input        |
+| `Input:ScriptProducer.Duration`             | Input to ScriptProducer      |
+| `Artifact:VideoProducer.SegmentVideo[0]`    | First video artifact         |
+| `Artifact:ImageProducer.SegmentImage[2][1]` | Image at segment 2, image 1  |
+| `Producer:AudioProducer[0]`                 | First AudioProducer instance |
 
 ### How Canonical IDs are Generated
 
@@ -1330,12 +1285,12 @@ Type:path.to.name[index0][index1]...
 ### Validation Functions
 
 ```typescript
-isCanonicalInputId(value)     // Returns true if valid Input ID
-isCanonicalArtifactId(value)  // Returns true if valid Artifact ID
-isCanonicalProducerId(value)  // Returns true if valid Producer ID
+isCanonicalInputId(value); // Returns true if valid Input ID
+isCanonicalArtifactId(value); // Returns true if valid Artifact ID
+isCanonicalProducerId(value); // Returns true if valid Producer ID
 
-parseCanonicalInputId(id)     // Returns { type, path, name }
-parseCanonicalArtifactId(id)  // Returns { type, path, name, indices }
+parseCanonicalInputId(id); // Returns { type, path, name }
+parseCanonicalArtifactId(id); // Returns { type, path, name, indices }
 ```
 
 ### Error Messages
@@ -1354,7 +1309,7 @@ parseCanonicalArtifactId(id)  // Returns { type, path, name, indices }
 The planner loads the blueprint and all producer imports recursively:
 
 ```typescript
-loadYamlBlueprintTree(blueprintPath)
+loadYamlBlueprintTree(blueprintPath);
 // Returns: BlueprintTree with root blueprint and all imported producers
 ```
 
@@ -1365,22 +1320,25 @@ Circular references are detected and rejected.
 Creates nodes for all inputs, artifacts, and producers:
 
 ```typescript
-buildCanonicalGraph(blueprintTree)
-// Returns: { nodes, edges, collectors }
+buildCanonicalGraph(blueprintTree);
+// Returns: { nodes, edges }
 ```
 
 #### 3. Dimension Resolution
 
 **Phase 1 - Explicit sizing:**
+
 - Reads `countInput` values from input file
 - Applies `countInputOffset` if present
 - Assigns sizes to dimension symbols
 
 **Phase 2 - Transitive derivation:**
+
 - Propagates sizes through edges
 - If edge has loop selector, target inherits source dimension size
 
 **Error:**
+
 ```
 Missing size for dimension "segment" on node "AudioProducer".
 Ensure the upstream artefact declares countInput or can derive this dimension from a loop.
@@ -1425,6 +1383,7 @@ Uses topological sort (Kahn's algorithm):
 4. Repeat until all jobs assigned
 
 **Error:**
+
 ```
 Producer graph contains a cycle. Unable to create execution plan.
 ```
@@ -1446,6 +1405,7 @@ Jobs in the same layer can theoretically run in parallel.
 #### 2. Artifact Resolution
 
 Before executing a job, the runner:
+
 1. Finds inbound edges from the plan
 2. Loads upstream artifact data from event log
 3. Adds to `job.context.extras.resolvedInputs`
@@ -1453,6 +1413,7 @@ Before executing a job, the runner:
 #### 3. Fan-In Materialization
 
 For fan-in inputs:
+
 1. Groups members by `groupBy` dimension
 2. Sorts each group by `orderBy` dimension (if present)
 3. Returns nested array structure
@@ -1535,6 +1496,7 @@ artifacts:
 ```
 
 The planner creates virtual artifacts like:
+
 - `Artifact:DocProducer.VideoScript.Segments[0].Script`
 - `Artifact:DocProducer.VideoScript.Segments[0].ImagePrompts[0]`
 - `Artifact:DocProducer.VideoScript.Segments[0].ImagePrompts[1]`
@@ -1547,12 +1509,13 @@ You can override individual virtual artifacts in your input file:
 
 ```yaml
 inputs:
-  InquiryPrompt: "The history of the moon landing"
+  InquiryPrompt: 'The history of the moon landing'
   # Override a specific image prompt
-  DocProducer.VideoScript.Segments[0].ImagePrompts[0]: "file:custom-prompt.txt"
+  DocProducer.VideoScript.Segments[0].ImagePrompts[0]: 'file:custom-prompt.txt'
 ```
 
 This triggers re-runs only for:
+
 - The `ImageProducer[0][0]` job that consumes that specific prompt
 - Any downstream jobs (like `TimelineComposer`)
 
@@ -1571,10 +1534,10 @@ inputs:
   <InputName>: <value>
 
 models:
-  - model: <modelId>           # Model identifier (required)
-    provider: <providerId>     # Provider name (required): openai, replicate, fal-ai, renku
+  - model: <modelId> # Model identifier (required)
+    provider: <providerId> # Provider name (required): openai, replicate, fal-ai, renku
     producerId: <ProducerName> # Which producer this model is for (required)
-    config: <object>           # Provider-specific configuration (optional)
+    config: <object> # Provider-specific configuration (optional)
 ```
 
 **Note:** Input-to-provider field mappings are defined in the producer YAML's `mappings:` section, not in the input template. This keeps input files simple - you only specify which model to use, not how inputs map to provider fields.
@@ -1586,16 +1549,16 @@ models:
 ```yaml
 inputs:
   # User-provided inputs (declared in blueprint)
-  InquiryPrompt: "Tell me about Darwin and Galapagos islands"
+  InquiryPrompt: 'Tell me about Darwin and Galapagos islands'
   VoiceId: Wise_Woman
   Emotion: neutral
-  AspectRatio: "16:9"
-  Resolution: "480p"
-  Style: "Ghibli"
+  AspectRatio: '16:9'
+  Resolution: '480p'
+  Style: 'Ghibli'
 
   # System inputs - provide here, no blueprint declaration needed
-  Duration: 30          # Total movie duration in seconds
-  NumOfSegments: 3      # Number of segments to generate
+  Duration: 30 # Total movie duration in seconds
+  NumOfSegments: 3 # Number of segments to generate
   # SegmentDuration is auto-computed as Duration/NumOfSegments (10 seconds)
   # Override if needed: SegmentDuration: 15
 ```
@@ -1631,6 +1594,7 @@ models:
 ```
 
 **Key fields:**
+
 - `config.text_format`: Use `json_schema` for structured output, `text` for plain text
 
 **Note:** The `promptFile` and `outputSchema` are defined in the producer YAML's `meta:` section. This keeps prompt configuration co-located with the producer logic.
@@ -1661,8 +1625,8 @@ models:
     producerId: TimelineComposer
     config:
       timeline:
-        tracks: ["Video", "Audio", "Music", "Transcription"]
-        masterTracks: ["Audio", "Video"]
+        tracks: ['Video', 'Audio', 'Music', 'Transcription']
+        masterTracks: ['Audio', 'Video']
         videoClip:
           artifact: VideoSegments
         audioClip:
@@ -1681,15 +1645,15 @@ models:
 ```yaml
 inputs:
   # User-provided inputs
-  InquiryPrompt: "Life of Napoleon Bonaparte"
+  InquiryPrompt: 'Life of Napoleon Bonaparte'
   NumOfImagesPerSegment: 2
-  Style: "Ghibli"
-  AspectRatio: "16:9"
-  Size: "1K"
+  Style: 'Ghibli'
+  AspectRatio: '16:9'
+  Size: '1K'
 
   # System inputs - provide here, no blueprint declaration needed
-  Duration: 20          # Total movie duration
-  NumOfSegments: 2      # Number of segments
+  Duration: 20 # Total movie duration
+  NumOfSegments: 2 # Number of segments
   # SegmentDuration auto-computed as 20/2 = 10 seconds
 
 models:
@@ -1705,8 +1669,8 @@ models:
     provider: renku
     producerId: TimelineComposer
     config:
-      tracks: ["Image"]
-      masterTracks: ["Image"]
+      tracks: ['Image']
+      masterTracks: ['Image']
       numTracks: 1
       imageClip:
         artifact: ImageSegments[Image]
@@ -1716,11 +1680,11 @@ models:
 
 ### Data Types
 
-| Type | YAML Syntax | Example |
-|------|-------------|---------|
-| `string` | Quoted text | `"Hello world"` |
-| `int` | Numeric | `42` |
-| `array` | YAML array | `["a", "b", "c"]` |
+| Type     | YAML Syntax | Example           |
+| -------- | ----------- | ----------------- |
+| `string` | Quoted text | `"Hello world"`   |
+| `int`    | Numeric     | `42`              |
+| `array`  | YAML array  | `["a", "b", "c"]` |
 
 ### Validation Rules
 
@@ -1736,60 +1700,61 @@ models:
 
 ### Blueprint Validation
 
-| Rule | Error Message |
-|------|---------------|
-| Meta section required | `Blueprint must have a meta section` |
-| Meta.id required | `Blueprint meta must have an id` |
-| Meta.name required | `Blueprint meta must have a name` |
-| At least one artifact | `Blueprint must declare at least one artifact` |
+| Rule                                | Error Message                                    |
+| ----------------------------------- | ------------------------------------------------ |
+| Meta section required               | `Blueprint must have a meta section`             |
+| Meta.id required                    | `Blueprint meta must have an id`                 |
+| Meta.name required                  | `Blueprint meta must have a name`                |
+| At least one artifact               | `Blueprint must declare at least one artifact`   |
 | Composite blueprints need producers | `Composite blueprint must have producer imports` |
 
 ### Input Validation
 
-| Rule | Error Message |
-|------|---------------|
+| Rule                          | Error Message                                           |
+| ----------------------------- | ------------------------------------------------------- |
 | Optional inputs need defaults | `Optional input "${name}" must declare a default value` |
-| Input name required | `Input must have a name` |
-| Input type required | `Input must have a type` |
+| Input name required           | `Input must have a name`                                |
+| Input type required           | `Input must have a type`                                |
 
 ### Loop Validation
 
-| Rule | Error Message |
-|------|---------------|
-| countInput required | `Loop "${name}" must declare countInput` |
-| countInputOffset requires countInput | `countInputOffset requires countInput` |
+| Rule                                  | Error Message                                     |
+| ------------------------------------- | ------------------------------------------------- |
+| countInput required                   | `Loop "${name}" must declare countInput`          |
+| countInputOffset requires countInput  | `countInputOffset requires countInput`            |
 | countInputOffset must be non-negative | `countInputOffset must be a non-negative integer` |
 
 ### Connection Validation
 
-| Rule | Error Message |
-|------|---------------|
-| References cannot be empty | `Connection reference cannot be empty` |
-| Valid dimension syntax | `Invalid dimension selector "${raw}". Expected "<loop>", "<loop>+<int>", "<loop>-<int>", or "<int>".` |
-| Unknown dimension | `Unknown loop symbol "${symbol}"` |
-| Dimension count mismatch | `Node "${id}" referenced with inconsistent dimension counts` |
+| Rule                       | Error Message                                                                                         |
+| -------------------------- | ----------------------------------------------------------------------------------------------------- |
+| References cannot be empty | `Connection reference cannot be empty`                                                                |
+| Valid dimension syntax     | `Invalid dimension selector "${raw}". Expected "<loop>", "<loop>+<int>", "<loop>-<int>", or "<int>".` |
+| Unknown dimension          | `Unknown loop symbol "${symbol}"`                                                                     |
+| Dimension count mismatch   | `Node "${id}" referenced with inconsistent dimension counts`                                          |
 
-### Collector Validation
+### Fan-In Metadata Validation
 
-| Rule | Error Message |
-|------|---------------|
-| groupBy references valid loop | `Collector groupBy "${dim}" is not a declared loop` |
-| orderBy references valid loop | `Collector orderBy "${dim}" is not a declared loop` |
+| Rule                          | Error Message                                          |
+| ----------------------------- | ------------------------------------------------------ |
+| groupBy references valid loop | `Connection groupBy "${dim}" is not a declared loop`   |
+| orderBy references valid loop | `Connection orderBy "${dim}" is not a declared loop`   |
+| orderBy requires groupBy      | `Connection orderBy requires groupBy on the same edge` |
 
 ### Graph Validation
 
-| Rule | Error Message |
-|------|---------------|
-| No cycles | `Producer graph contains a cycle. Unable to create execution plan.` |
-| Producer found | `Missing producer catalog entry for ${producerAlias}` |
-| Namespace exists | `Unknown sub-blueprint namespace "${path}"` |
+| Rule             | Error Message                                                       |
+| ---------------- | ------------------------------------------------------------------- |
+| No cycles        | `Producer graph contains a cycle. Unable to create execution plan.` |
+| Producer found   | `Missing producer catalog entry for ${producerAlias}`               |
+| Namespace exists | `Unknown sub-blueprint namespace "${path}"`                         |
 
 ### Dimension Resolution
 
-| Rule | Error Message |
-|------|---------------|
-| Size resolved | `Missing size for dimension "${label}" on node "${nodeId}". Ensure the upstream artefact declares countInput or can derive this dimension from a loop.` |
-| Consistent sizes | `Dimension "${symbol}" has conflicting sizes (${existing} vs ${size})` |
+| Rule             | Error Message                                                                                                                                           |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Size resolved    | `Missing size for dimension "${label}" on node "${nodeId}". Ensure the upstream artefact declares countInput or can derive this dimension from a loop.` |
+| Consistent sizes | `Dimension "${symbol}" has conflicting sizes (${existing} vs ${size})`                                                                                  |
 
 ---
 
@@ -1863,7 +1828,7 @@ loops:
     countInput: NumOfSegments
   - name: image
     countInput: NumOfSegments
-    countInputOffset: 1  # N+1 images for N segments
+    countInputOffset: 1 # N+1 images for N segments
 
 producers:
   - name: ImageProducer
@@ -1882,6 +1847,7 @@ connections:
 ```
 
 **Result:**
+
 - Segment 0: Image[0] → Image[1]
 - Segment 1: Image[1] → Image[2]
 - Segment 2: Image[2] → Image[3]
@@ -1918,20 +1884,6 @@ connections:
     to: TimelineComposer.Music
   - from: TimelineComposer.Timeline
     to: Timeline
-
-collectors:
-  - name: TimelineVideo
-    from: VideoProducer[segment].SegmentVideo
-    into: TimelineComposer.VideoSegments
-    groupBy: segment
-  - name: TimelineAudio
-    from: AudioProducer[segment].SegmentAudio
-    into: TimelineComposer.AudioSegments
-    groupBy: segment
-  - name: MusicTrack
-    from: MusicProducer.Music
-    into: TimelineComposer.Music
-    groupBy: segment  # Single group still needed for fan-in
 ```
 
 ---
@@ -1945,6 +1897,7 @@ renku blueprints:validate <path-to-blueprint.yaml>
 ```
 
 Expect clear errors for:
+
 - Invalid dimension selectors
 - Unknown loops
 - Invalid `countInputOffset` usage
@@ -1985,25 +1938,27 @@ cat <builds>/<movie>/runs/rev-0001-plan.json
 ```
 
 Confirm:
+
 - Inputs are present with canonical IDs
-- Fan-in entries are populated for collectors
+- Fan-in entries are populated from inbound connections to `fanIn: true` inputs
 - Loop dimensions align correctly
 - All connections are resolved
 
 ### Common Pitfalls
 
-| Problem | Cause | Solution |
-|---------|-------|----------|
-| TimelineProducer cannot resolve inputs | Missing `fanIn: true` on input | Add `fanIn: true` to collection inputs |
-| Fan-in descriptor is empty | No collector defined | Add collector from source to target |
-| Planner dimension error | Mismatched dimensions in connection | Verify dimensions match between source/target |
-| Blueprint validation error | `countInputOffset` without `countInput` | Add `countInput` to loop/artifact |
-| Invalid selector syntax | Typo in loop name | Check loop names in `loops:` section |
-| Missing artifacts | Generated files in wrong location | Use `dist/` per package builds |
+| Problem                                | Cause                                   | Solution                                      |
+| -------------------------------------- | --------------------------------------- | --------------------------------------------- |
+| TimelineProducer cannot resolve inputs | Missing `fanIn: true` on input          | Add `fanIn: true` to collection inputs        |
+| Fan-in descriptor is empty             | No inbound fan-in connection            | Add connection from source to fan-in input    |
+| Planner dimension error                | Mismatched dimensions in connection     | Verify dimensions match between source/target |
+| Blueprint validation error             | `countInputOffset` without `countInput` | Add `countInput` to loop/artifact             |
+| Invalid selector syntax                | Typo in loop name                       | Check loop names in `loops:` section          |
+| Missing artifacts                      | Generated files in wrong location       | Use `dist/` per package builds                |
 
 ### Debugging Steps
 
 1. **Validate blueprint structure:**
+
    ```bash
    renku blueprints:validate my-blueprint.yaml
    ```
@@ -2066,19 +2021,20 @@ catalog/
 ```
 
 **Producer Categories:**
+
 - `asset/` - Media generation: images, video, audio, music
 - `prompt/` - LLM-based script and prompt generation
 - `composition/` - Timeline composition and video export
 
 ### File Naming Conventions
 
-| Item | Convention | Example |
-|------|------------|---------|
-| Blueprint files | kebab-case | `image-to-video.yaml` |
-| Producer files | kebab-case | `script.yaml` |
-| Blueprint/Producer IDs | PascalCase | `id: ImageToVideo` |
-| Loop names | lowercase | `name: segment` |
-| Input/Artifact names | PascalCase | `name: InquiryPrompt` |
+| Item                   | Convention | Example               |
+| ---------------------- | ---------- | --------------------- |
+| Blueprint files        | kebab-case | `image-to-video.yaml` |
+| Producer files         | kebab-case | `script.yaml`         |
+| Blueprint/Producer IDs | PascalCase | `id: ImageToVideo`    |
+| Loop names             | lowercase  | `name: segment`       |
+| Input/Artifact names   | PascalCase | `name: InquiryPrompt` |
 
 ### Producer References
 
@@ -2088,9 +2044,9 @@ catalog/
 # Works from any location - resolves from catalog
 producers:
   - name: ScriptProducer
-    producer: prompt/script        # → catalog/producers/prompt/script/script.yaml
+    producer: prompt/script # → catalog/producers/prompt/script/script.yaml
   - name: VideoProducer
-    producer: asset/text-to-video  # → catalog/producers/asset/text-to-video.yaml
+    producer: asset/text-to-video # → catalog/producers/asset/text-to-video.yaml
 ```
 
 **Legacy: Relative paths** for custom local producers:
@@ -2099,7 +2055,7 @@ producers:
 # For custom producers not in the catalog
 producers:
   - name: MyCustomProducer
-    path: ./my-producers/custom.yaml  # Relative to blueprint file
+    path: ./my-producers/custom.yaml # Relative to blueprint file
 ```
 
 ---

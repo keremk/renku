@@ -1,0 +1,107 @@
+meta:
+  name: Celebrity Then Now Lite
+  description: Minimal conditional multi-source timeline fan-in blueprint.
+  id: CelebrityThenNowLite
+  version: 0.1.0
+
+inputs:
+  - name: Theme
+    type: string
+    required: true
+  - name: NumOfCharacters
+    type: int
+    required: true
+  - name: Duration
+    type: int
+    required: true
+  - name: MeetingDuration
+    type: int
+    required: true
+  - name: TransitionDuration
+    type: int
+    required: true
+  - name: AspectRatio
+    type: string
+    required: true
+  - name: Resolution
+    type: string
+    required: true
+
+artifacts:
+  - name: Timeline
+    type: json
+
+loops:
+  - name: character
+    countInput: NumOfCharacters
+
+producers:
+  - name: DirectorProducer
+    path: ./director/director.yaml
+  - name: MeetingVideoProducer
+    producer: asset/text-to-video
+    loop: character
+  - name: TransitionVideoProducer
+    producer: asset/text-to-video
+    loop: character
+  - name: MusicProducer
+    producer: asset/text-to-music
+  - name: TimelineComposer
+    producer: composition/timeline-composer
+
+conditions:
+  hasTransition:
+    when: DirectorProducer.Script.Characters[character].HasTransition
+    is: true
+
+connections:
+  - from: Theme
+    to: DirectorProducer.Theme
+  - from: NumOfCharacters
+    to: DirectorProducer.NumOfCharacters
+  - from: Duration
+    to: DirectorProducer.Duration
+  - from: MeetingDuration
+    to: DirectorProducer.MeetingDuration
+  - from: TransitionDuration
+    to: DirectorProducer.TransitionDuration
+
+  - from: DirectorProducer.Script.Characters[character].MeetingVideoPrompt
+    to: MeetingVideoProducer[character].Prompt
+  - from: MeetingDuration
+    to: MeetingVideoProducer[character].Duration
+  - from: AspectRatio
+    to: MeetingVideoProducer[character].AspectRatio
+  - from: Resolution
+    to: MeetingVideoProducer[character].Resolution
+
+  - from: DirectorProducer.Script.Characters[character].TransitionVideoPrompt
+    to: TransitionVideoProducer[character].Prompt
+    if: hasTransition
+  - from: TransitionDuration
+    to: TransitionVideoProducer[character].Duration
+    if: hasTransition
+  - from: AspectRatio
+    to: TransitionVideoProducer[character].AspectRatio
+    if: hasTransition
+  - from: Resolution
+    to: TransitionVideoProducer[character].Resolution
+    if: hasTransition
+
+  - from: MeetingVideoProducer[character].GeneratedVideo
+    to: TimelineComposer.VideoSegments
+  - from: TransitionVideoProducer[character].GeneratedVideo
+    to: TimelineComposer.VideoSegments
+    if: hasTransition
+
+  - from: DirectorProducer.Script.MusicPrompt
+    to: MusicProducer.Prompt
+  - from: Duration
+    to: MusicProducer.Duration
+  - from: MusicProducer.GeneratedMusic
+    to: TimelineComposer.Music
+
+  - from: Duration
+    to: TimelineComposer.Duration
+  - from: TimelineComposer.Timeline
+    to: Timeline

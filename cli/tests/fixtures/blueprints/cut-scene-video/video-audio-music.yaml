@@ -139,7 +139,7 @@ connections:
     to: SegmentAudio[segment]
   - from: AudioProducer[segment].GeneratedAudio
     to: TimelineComposer.AudioSegments
-  
+
   - from: ScriptProducer.MovieSummary
     to: MusicPromptProducer.MovieSummary
   - from: MusicalStyle
@@ -166,7 +166,7 @@ connections:
     to: TimelineComposer.Music
   - from: TimelineComposer.Timeline
     to: Timeline
-    
+
   - from: AudioProducer[segment].GeneratedAudio
     to: TimelineComposer.TranscriptionAudio
 
@@ -178,28 +178,3 @@ connections:
     to: VideoExporter.Transcription
   - from: VideoExporter.FinalVideo
     to: FinalVideo
-
-
-collectors:
-  - name: TimelineVideo
-    from: VideoProducer[segment].GeneratedVideo
-    into: TimelineComposer.VideoSegments
-    groupBy: segment
-  - name: TimelineAudio
-    from: AudioProducer[segment].GeneratedAudio
-    into: TimelineComposer.AudioSegments
-    groupBy: segment
-
-  - name: NarrationScript
-    from: ScriptProducer.NarrationScript
-    into: MusicPromptProducer.NarrationScript
-    groupBy: segment
-
-  - name: MusicTrack
-    from: MusicProducer.GeneratedMusic
-    into: TimelineComposer.Music
-    groupBy: segment
-  - name: TranscriptionAudio
-    from: AudioProducer[segment].GeneratedAudio
-    into: TimelineComposer.TranscriptionAudio
-    groupBy: segment

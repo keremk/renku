@@ -9,7 +9,10 @@ import type {
   ProducerConfig,
 } from '../types.js';
 import { SYSTEM_INPUTS } from '../types.js';
-import { parseDimensionSelector, type DimensionSelector } from '../parsing/dimension-selectors.js';
+import {
+  parseDimensionSelector,
+  type DimensionSelector,
+} from '../parsing/dimension-selectors.js';
 import { decomposeJsonSchema } from './schema-decomposition.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 
@@ -47,16 +50,10 @@ export interface BlueprintGraphEdge {
   from: BlueprintGraphEdgeEndpoint;
   to: BlueprintGraphEdgeEndpoint;
   note?: string;
+  groupBy?: string;
+  orderBy?: string;
   /** Conditions that must be satisfied for this edge to be active */
   conditions?: EdgeConditionDefinition;
-}
-
-export interface BlueprintGraphCollector {
-  name: string;
-  from: BlueprintGraphEdgeEndpoint;
-  to: BlueprintGraphEdgeEndpoint;
-  groupBy: string;
-  orderBy?: string;
 }
 
 export interface BlueprintGraph {
@@ -65,7 +62,6 @@ export interface BlueprintGraph {
   edges: BlueprintGraphEdge[];
   namespaceDimensions: Map<string, DimensionSymbol[]>;
   dimensionLineage: Map<string, string | null>;
-  collectors: BlueprintGraphCollector[];
   /** Loop definitions from all blueprints, keyed by namespace path */
   loops: Map<string, BlueprintLoopDefinition[]>;
 }
@@ -116,23 +112,27 @@ export function buildBlueprintGraph(root: BlueprintTreeNode): BlueprintGraph {
   const namespaceMembership = new Map<string, string>();
 
   const nodes: BlueprintGraphNode[] = [];
-  collectGraphNodes(root, namespaceDims, localDimsMap, nodes, namespaceMembership);
-  const nodeMap = new Map(nodes.map((node) => [node.id, node]));
+  collectGraphNodes(
+    root,
+    namespaceDims,
+    localDimsMap,
+    nodes,
+    namespaceMembership
+  );
 
   const edges: BlueprintGraphEdge[] = [];
   collectGraphEdges(root, namespaceDims, localDimsMap, edges, root);
-  const collectors: BlueprintGraphCollector[] = [];
-  collectGraphCollectors(root, namespaceDims, localDimsMap, collectors, root);
 
-  for (const collector of collectors) {
-    const target = nodeMap.get(collector.to.nodeId);
-    if (target?.type === 'InputSource' && target.input) {
-      target.input.fanIn = true;
-    }
-  }
-
-  resolveNamespaceDimensionParents(edges, namespaceMembership, namespaceParents);
-  const dimensionLineage = buildDimensionLineage(nodes, namespaceMembership, namespaceParents);
+  resolveNamespaceDimensionParents(
+    edges,
+    namespaceMembership,
+    namespaceParents
+  );
+  const dimensionLineage = buildDimensionLineage(
+    nodes,
+    namespaceMembership,
+    namespaceParents
+  );
 
   // Collect loop definitions from all tree nodes
   const loops = new Map<string, BlueprintLoopDefinition[]>();
@@ -144,14 +144,13 @@ export function buildBlueprintGraph(root: BlueprintTreeNode): BlueprintGraph {
     edges,
     namespaceDimensions: namespaceDims,
     dimensionLineage,
-    collectors,
     loops,
   };
 }
 
 function collectNamespaceDimensions(
   tree: BlueprintTreeNode,
-  namespaceDims: Map<string, DimensionSymbol[]>,
+  namespaceDims: Map<string, DimensionSymbol[]>
 ): void {
   for (const edge of tree.document.edges) {
     registerNamespaceDims(edge.from, tree.namespacePath, namespaceDims);
@@ -165,7 +164,7 @@ function collectNamespaceDimensions(
 function registerNamespaceDims(
   reference: string,
   currentNamespace: string[],
-  namespaceDims: Map<string, DimensionSymbol[]>,
+  namespaceDims: Map<string, DimensionSymbol[]>
 ): void {
   const parsed = parseReference(reference);
   let path: string[] = [...currentNamespace];
@@ -177,25 +176,38 @@ function registerNamespaceDims(
     const key = namespaceKey(path);
     const existing = namespaceDims.get(key);
     if (!existing) {
-      namespaceDims.set(key, createDimensionSymbols(segment.dimensions, `Namespace "${path.join('.')}"`));
+      namespaceDims.set(
+        key,
+        createDimensionSymbols(
+          segment.dimensions,
+          `Namespace "${path.join('.')}"`
+        )
+      );
       continue;
     }
     if (existing.length !== segment.dimensions.length) {
       throw createRuntimeError(
         RuntimeErrorCode.GRAPH_BUILD_ERROR,
-        `Namespace "${path.join('.')}" referenced with conflicting dimension counts (${existing.length} vs ${segment.dimensions.length}).`,
+        `Namespace "${path.join('.')}" referenced with conflicting dimension counts (${existing.length} vs ${segment.dimensions.length}).`
       );
     }
     for (let index = 0; index < existing.length; index += 1) {
       const raw = segment.dimensions[index] ?? '';
       const selector = parseDimensionSelector(raw);
-      if (selector.kind === 'loop' && existing[index]?.raw !== selector.symbol) {
+      if (
+        selector.kind === 'loop' &&
+        existing[index]?.raw !== selector.symbol
+      ) {
         throw createRuntimeError(
           RuntimeErrorCode.GRAPH_BUILD_ERROR,
-          `Namespace "${path.join('.')}" referenced with conflicting dimensions (${existing.map((entry) => entry.raw).join(', ')} vs ${segment.dimensions.map((entry) => {
-            const parsedSelector = parseDimensionSelector(entry);
-            return parsedSelector.kind === 'loop' ? parsedSelector.symbol : entry;
-          }).join(', ')}).`,
+          `Namespace "${path.join('.')}" referenced with conflicting dimensions (${existing.map((entry) => entry.raw).join(', ')} vs ${segment.dimensions
+            .map((entry) => {
+              const parsedSelector = parseDimensionSelector(entry);
+              return parsedSelector.kind === 'loop'
+                ? parsedSelector.symbol
+                : entry;
+            })
+            .join(', ')}).`
         );
       }
     }
@@ -204,7 +216,7 @@ function registerNamespaceDims(
 
 function collectLocalNodeDimensions(
   tree: BlueprintTreeNode,
-  map: Map<BlueprintTreeNode, LocalNodeDims>,
+  map: Map<BlueprintTreeNode, LocalNodeDims>
 ): void {
   const localDims = new Map<string, DimensionSymbol[]>();
   for (const edge of tree.document.edges) {
@@ -214,7 +226,11 @@ function collectLocalNodeDimensions(
   for (const artefact of tree.document.artefacts) {
     // Handle JSON artifacts with schema decomposition
     if (artefact.type === 'json' && artefact.schema && artefact.arrays) {
-      const decomposed = decomposeJsonSchema(artefact.schema, artefact.name, artefact.arrays);
+      const decomposed = decomposeJsonSchema(
+        artefact.schema,
+        artefact.name,
+        artefact.arrays
+      );
       for (const field of decomposed) {
         if (field.dimensions.length === 0) {
           continue;
@@ -224,7 +240,7 @@ function collectLocalNodeDimensions(
           // Use derived dimension names (e.g., "segment", "image") as dimension symbols
           localDims.set(
             field.path,
-            createDimensionSymbolsFromDerived(field.dimensions),
+            createDimensionSymbolsFromDerived(field.dimensions)
           );
         }
       }
@@ -232,7 +248,13 @@ function collectLocalNodeDimensions(
       // Handle regular artifacts with countInput
       const existing = localDims.get(artefact.name);
       if (!existing || existing.length === 0) {
-        localDims.set(artefact.name, createDimensionSymbols([artefact.countInput], `Artefact "${artefact.name}"`));
+        localDims.set(
+          artefact.name,
+          createDimensionSymbols(
+            [artefact.countInput],
+            `Artefact "${artefact.name}"`
+          )
+        );
       }
     }
   }
@@ -251,13 +273,16 @@ function registerLocalDims(reference: string, dimsMap: LocalNodeDims): void {
   const dims = parsed.node.dimensions;
   const existing = dimsMap.get(identifier);
   if (!existing) {
-    dimsMap.set(identifier, createDimensionSymbols(dims, `Node "${identifier}"`));
+    dimsMap.set(
+      identifier,
+      createDimensionSymbols(dims, `Node "${identifier}"`)
+    );
     return;
   }
   if (existing.length !== dims.length) {
     throw createRuntimeError(
       RuntimeErrorCode.GRAPH_BUILD_ERROR,
-      `Node "${identifier}" referenced with inconsistent dimension counts (${existing.length} vs ${dims.length}).`,
+      `Node "${identifier}" referenced with inconsistent dimension counts (${existing.length} vs ${dims.length}).`
     );
   }
   for (let index = 0; index < existing.length; index += 1) {
@@ -266,10 +291,14 @@ function registerLocalDims(reference: string, dimsMap: LocalNodeDims): void {
     if (selector.kind === 'loop' && existing[index]?.raw !== selector.symbol) {
       throw createRuntimeError(
         RuntimeErrorCode.GRAPH_BUILD_ERROR,
-        `Node "${identifier}" referenced with inconsistent dimensions (${existing.map((entry) => entry.raw).join(', ')} vs ${dims.map((entry) => {
-          const parsedSelector = parseDimensionSelector(entry);
-          return parsedSelector.kind === 'loop' ? parsedSelector.symbol : entry;
-        }).join(', ')}).`,
+        `Node "${identifier}" referenced with inconsistent dimensions (${existing.map((entry) => entry.raw).join(', ')} vs ${dims
+          .map((entry) => {
+            const parsedSelector = parseDimensionSelector(entry);
+            return parsedSelector.kind === 'loop'
+              ? parsedSelector.symbol
+              : entry;
+          })
+          .join(', ')}).`
       );
     }
   }
@@ -286,7 +315,7 @@ function registerLocalDims(reference: string, dimsMap: LocalNodeDims): void {
  */
 function collectConstantIndexedInputs(
   tree: BlueprintTreeNode,
-  localDimsMap: Map<BlueprintTreeNode, LocalNodeDims>,
+  localDimsMap: Map<BlueprintTreeNode, LocalNodeDims>
 ): void {
   // Process edges in this tree
   for (const edge of tree.document.edges) {
@@ -305,7 +334,7 @@ function collectConstantIndexedInputs(
 function registerConstantIndexedInput(
   reference: string,
   currentTree: BlueprintTreeNode,
-  localDimsMap: Map<BlueprintTreeNode, LocalNodeDims>,
+  localDimsMap: Map<BlueprintTreeNode, LocalNodeDims>
 ): void {
   // Only process cross-namespace references (those with dots)
   if (!reference.includes('.')) {
@@ -343,7 +372,7 @@ function registerConstantIndexedInput(
 
   // Check if the base input exists in the target tree
   const baseInputExists = targetTree.document.inputs.some(
-    (input) => input.name === finalSegment.name,
+    (input) => input.name === finalSegment.name
   );
 
   if (!baseInputExists) {
@@ -363,14 +392,17 @@ function registerConstantIndexedInput(
   }
 }
 
-function createDimensionSymbols(dims: string[], context: string): DimensionSymbol[] {
+function createDimensionSymbols(
+  dims: string[],
+  context: string
+): DimensionSymbol[] {
   return dims.map((raw, ordinal) => {
     const selector = parseDimensionSelector(raw);
     if (selector.kind === 'const') {
       throw createRuntimeError(
         RuntimeErrorCode.INVALID_DIMENSION_SELECTOR,
         `${context} uses a numeric index selector "[${raw}]" to declare a dimension. ` +
-        'Declare the dimension using a loop symbol (for example: "[segment]") and use numeric indices only when selecting an existing dimension.',
+          'Declare the dimension using a loop symbol (for example: "[segment]") and use numeric indices only when selecting an existing dimension.'
       );
     }
     return { raw: selector.symbol, ordinal };
@@ -427,7 +459,10 @@ function extractDimensionSourceKey(dimensionSymbol: string): string {
   return dimensionSymbol.slice(separatorIndex + 2);
 }
 
-function toLocalSlots(nodeId: string, symbols: DimensionSymbol[]): DimensionSlot[] {
+function toLocalSlots(
+  nodeId: string,
+  symbols: DimensionSymbol[]
+): DimensionSlot[] {
   const normalizedKey = normalizeDimensionSourceKey(nodeId);
   return symbols.map((symbol) => ({
     scope: 'local',
@@ -437,14 +472,18 @@ function toLocalSlots(nodeId: string, symbols: DimensionSymbol[]): DimensionSlot
   }));
 }
 
-function qualifyDimensionSlots(nodeId: string, slots: DimensionSlot[]): string[] {
+function qualifyDimensionSlots(
+  nodeId: string,
+  slots: DimensionSlot[]
+): string[] {
   return slots.map((slot) => formatDimensionSlot(nodeId, slot));
 }
 
 function formatDimensionSlot(nodeId: string, slot: DimensionSlot): string {
-  const scopeLabel = slot.scope === 'namespace'
-    ? `ns:${slot.scopeKey || '__root__'}`
-    : `local:${slot.scopeKey}`;
+  const scopeLabel =
+    slot.scope === 'namespace'
+      ? `ns:${slot.scopeKey || '__root__'}`
+      : `local:${slot.scopeKey}`;
   return `${nodeId}::${scopeLabel}:${slot.ordinal}:${slot.raw}`;
 }
 
@@ -460,10 +499,13 @@ function makeNamespaceSlot(entry: NamespaceDimensionEntry): DimensionSlot {
 function registerNamespaceSymbol(
   symbol: string,
   slot: DimensionSlot,
-  namespaceMembership: Map<string, string>,
+  namespaceMembership: Map<string, string>
 ): void {
   if (slot.scope === 'namespace') {
-    namespaceMembership.set(symbol, formatNamespaceParentKey(slot.scopeKey, slot.ordinal));
+    namespaceMembership.set(
+      symbol,
+      formatNamespaceParentKey(slot.scopeKey, slot.ordinal)
+    );
   }
 }
 
@@ -472,9 +514,12 @@ function collectGraphNodes(
   namespaceDims: Map<string, DimensionSymbol[]>,
   localDims: Map<BlueprintTreeNode, LocalNodeDims>,
   output: BlueprintGraphNode[],
-  namespaceMembership: Map<string, string>,
+  namespaceMembership: Map<string, string>
 ): void {
-  const namespaceSlots = collectNamespacePrefixDims(tree.namespacePath, namespaceDims);
+  const namespaceSlots = collectNamespacePrefixDims(
+    tree.namespacePath,
+    namespaceDims
+  );
   const local = localDims.get(tree) ?? new Map();
   // Create Input nodes from input definitions
   const inputNames = new Set(tree.document.inputs.map((input) => input.name));
@@ -482,7 +527,11 @@ function collectGraphNodes(
     const nodeKey = nodeId(tree.namespacePath, input.name);
     const namespaceQualified = qualifyDimensionSlots(nodeKey, namespaceSlots);
     namespaceQualified.forEach((symbol, index) => {
-      registerNamespaceSymbol(symbol, namespaceSlots[index]!, namespaceMembership);
+      registerNamespaceSymbol(
+        symbol,
+        namespaceSlots[index]!,
+        namespaceMembership
+      );
     });
     const localSymbols = toLocalSlots(nodeKey, local.get(input.name) ?? []);
     const localQualified = qualifyDimensionSlots(nodeKey, localSymbols);
@@ -510,14 +559,20 @@ function collectGraphNodes(
       continue;
     }
     // Find the base input definition
-    const baseInput = tree.document.inputs.find((input) => input.name === baseName);
+    const baseInput = tree.document.inputs.find(
+      (input) => input.name === baseName
+    );
     if (!baseInput) {
       continue;
     }
     const nodeKey = nodeId(tree.namespacePath, localName);
     const namespaceQualified = qualifyDimensionSlots(nodeKey, namespaceSlots);
     namespaceQualified.forEach((symbol, index) => {
-      registerNamespaceSymbol(symbol, namespaceSlots[index]!, namespaceMembership);
+      registerNamespaceSymbol(
+        symbol,
+        namespaceSlots[index]!,
+        namespaceMembership
+      );
     });
     const localSymbols = toLocalSlots(nodeKey, local.get(localName) ?? []);
     const localQualified = qualifyDimensionSlots(nodeKey, localSymbols);
@@ -533,16 +588,33 @@ function collectGraphNodes(
   for (const artefact of tree.document.artefacts) {
     // Handle JSON artifacts with schema decomposition
     if (artefact.type === 'json' && artefact.schema && artefact.arrays) {
-      const decomposed = decomposeJsonSchema(artefact.schema, artefact.name, artefact.arrays);
+      const decomposed = decomposeJsonSchema(
+        artefact.schema,
+        artefact.name,
+        artefact.arrays
+      );
       for (const field of decomposed) {
         const fieldNodeKey = nodeId(tree.namespacePath, field.path);
-        const namespaceQualified = qualifyDimensionSlots(fieldNodeKey, namespaceSlots);
+        const namespaceQualified = qualifyDimensionSlots(
+          fieldNodeKey,
+          namespaceSlots
+        );
         namespaceQualified.forEach((symbol, index) => {
-          registerNamespaceSymbol(symbol, namespaceSlots[index]!, namespaceMembership);
+          registerNamespaceSymbol(
+            symbol,
+            namespaceSlots[index]!,
+            namespaceMembership
+          );
         });
         // Use decomposed field's dimensions
-        const localSymbols = toLocalSlots(fieldNodeKey, local.get(field.path) ?? []);
-        const localQualified = qualifyDimensionSlots(fieldNodeKey, localSymbols);
+        const localSymbols = toLocalSlots(
+          fieldNodeKey,
+          local.get(field.path) ?? []
+        );
+        const localQualified = qualifyDimensionSlots(
+          fieldNodeKey,
+          localSymbols
+        );
         // Create artefact definition for this decomposed field
         const fieldArtefact: BlueprintArtefactDefinition = {
           name: field.path,
@@ -564,9 +636,16 @@ function collectGraphNodes(
       const nodeKey = nodeId(tree.namespacePath, artefact.name);
       const namespaceQualified = qualifyDimensionSlots(nodeKey, namespaceSlots);
       namespaceQualified.forEach((symbol, index) => {
-        registerNamespaceSymbol(symbol, namespaceSlots[index]!, namespaceMembership);
+        registerNamespaceSymbol(
+          symbol,
+          namespaceSlots[index]!,
+          namespaceMembership
+        );
       });
-      const localSymbols = toLocalSlots(nodeKey, local.get(artefact.name) ?? []);
+      const localSymbols = toLocalSlots(
+        nodeKey,
+        local.get(artefact.name) ?? []
+      );
       const localQualified = qualifyDimensionSlots(nodeKey, localSymbols);
       output.push({
         id: nodeKey,
@@ -582,7 +661,11 @@ function collectGraphNodes(
     const nodeKey = nodeId(tree.namespacePath, producer.name);
     const namespaceQualified = qualifyDimensionSlots(nodeKey, namespaceSlots);
     namespaceQualified.forEach((symbol, index) => {
-      registerNamespaceSymbol(symbol, namespaceSlots[index]!, namespaceMembership);
+      registerNamespaceSymbol(
+        symbol,
+        namespaceSlots[index]!,
+        namespaceMembership
+      );
     });
     const localSymbols = toLocalSlots(nodeKey, local.get(producer.name) ?? []);
     const localQualified = qualifyDimensionSlots(nodeKey, localSymbols);
@@ -596,7 +679,13 @@ function collectGraphNodes(
     });
   }
   for (const child of tree.children.values()) {
-    collectGraphNodes(child, namespaceDims, localDims, output, namespaceMembership);
+    collectGraphNodes(
+      child,
+      namespaceDims,
+      localDims,
+      output,
+      namespaceMembership
+    );
   }
 }
 
@@ -605,13 +694,21 @@ function collectGraphEdges(
   namespaceDims: Map<string, DimensionSymbol[]>,
   localDims: Map<BlueprintTreeNode, LocalNodeDims>,
   output: BlueprintGraphEdge[],
-  root: BlueprintTreeNode,
+  root: BlueprintTreeNode
 ): void {
   for (const edge of tree.document.edges) {
     output.push({
-      from: resolveEdgeEndpoint(edge.from, tree, namespaceDims, localDims, root),
+      from: resolveEdgeEndpoint(
+        edge.from,
+        tree,
+        namespaceDims,
+        localDims,
+        root
+      ),
       to: resolveEdgeEndpoint(edge.to, tree, namespaceDims, localDims, root),
       note: edge.note,
+      groupBy: edge.groupBy,
+      orderBy: edge.orderBy,
       conditions: edge.conditions,
     });
   }
@@ -620,30 +717,9 @@ function collectGraphEdges(
   }
 }
 
-function collectGraphCollectors(
-  tree: BlueprintTreeNode,
-  namespaceDims: Map<string, DimensionSymbol[]>,
-  localDims: Map<BlueprintTreeNode, LocalNodeDims>,
-  output: BlueprintGraphCollector[],
-  root: BlueprintTreeNode,
-): void {
-  if (Array.isArray(tree.document.collectors)) {
-    for (const collector of tree.document.collectors) {
-      output.push({
-        name: collector.name,
-        from: resolveEdgeEndpoint(collector.from, tree, namespaceDims, localDims, root),
-        to: resolveEdgeEndpoint(collector.into, tree, namespaceDims, localDims, root),
-        groupBy: collector.groupBy,
-        orderBy: collector.orderBy,
-      });
-    }
-  }
-  for (const child of tree.children.values()) {
-    collectGraphCollectors(child, namespaceDims, localDims, output, root);
-  }
-}
-
-function initializeNamespaceParentMap(namespaceDims: Map<string, DimensionSymbol[]>): Map<string, string | null> {
+function initializeNamespaceParentMap(
+  namespaceDims: Map<string, DimensionSymbol[]>
+): Map<string, string | null> {
   const parents = new Map<string, string | null>();
   for (const [key, dims] of namespaceDims.entries()) {
     if (!dims) {
@@ -659,10 +735,13 @@ function initializeNamespaceParentMap(namespaceDims: Map<string, DimensionSymbol
 function resolveNamespaceDimensionParents(
   edges: BlueprintGraphEdge[],
   namespaceMembership: Map<string, string>,
-  namespaceParents: Map<string, string | null>,
+  namespaceParents: Map<string, string | null>
 ): void {
   for (const edge of edges) {
-    const limit = Math.min(edge.from.dimensions.length, edge.to.dimensions.length);
+    const limit = Math.min(
+      edge.from.dimensions.length,
+      edge.to.dimensions.length
+    );
     for (let index = 0; index < limit; index += 1) {
       const targetSymbol = edge.to.dimensions[index];
       const namespaceKey = namespaceMembership.get(targetSymbol);
@@ -671,7 +750,8 @@ function resolveNamespaceDimensionParents(
       }
       const targetSelector = edge.to.selectors?.[index];
       const sourceSelector = edge.from.selectors?.[index];
-      const hasExplicitSelector = targetSelector !== undefined || sourceSelector !== undefined;
+      const hasExplicitSelector =
+        targetSelector !== undefined || sourceSelector !== undefined;
       if (hasExplicitSelector) {
         if (!targetSelector || !sourceSelector) {
           continue;
@@ -713,7 +793,7 @@ function resolveNamespaceDimensionParents(
         if (sourceLoopSymbol !== existingLoopSymbol) {
           throw createRuntimeError(
             RuntimeErrorCode.GRAPH_BUILD_ERROR,
-            `Namespace dimension "${namespaceKey}" derives from conflicting parents (${existing} vs ${sourceSymbol}).`,
+            `Namespace dimension "${namespaceKey}" derives from conflicting parents (${existing} vs ${sourceSymbol}).`
           );
         }
         // Same loop symbol - compatible, keep the first parent for lineage
@@ -725,7 +805,7 @@ function resolveNamespaceDimensionParents(
 function buildDimensionLineage(
   nodes: BlueprintGraphNode[],
   namespaceMembership: Map<string, string>,
-  namespaceParents: Map<string, string | null>,
+  namespaceParents: Map<string, string | null>
 ): Map<string, string | null> {
   const lineage = new Map<string, string | null>();
   for (const node of nodes) {
@@ -746,7 +826,7 @@ function resolveEdgeEndpoint(
   context: BlueprintTreeNode,
   namespaceDims: Map<string, DimensionSymbol[]>,
   localDims: Map<BlueprintTreeNode, LocalNodeDims>,
-  root: BlueprintTreeNode,
+  root: BlueprintTreeNode
 ): BlueprintGraphEdgeEndpoint {
   const parsed = parseReference(reference);
   const allSegments = [...parsed.namespaceSegments, parsed.node];
@@ -760,7 +840,10 @@ function resolveEdgeEndpoint(
   let nodeNameSegments: ParsedSegment[] = [];
 
   for (let splitIndex = allSegments.length - 1; splitIndex >= 0; splitIndex--) {
-    const candidatePath = [...context.namespacePath, ...allSegments.slice(0, splitIndex).map((s) => s.name)];
+    const candidatePath = [
+      ...context.namespacePath,
+      ...allSegments.slice(0, splitIndex).map((s) => s.name),
+    ];
     try {
       owner = findNodeByNamespace(root, candidatePath);
       targetPath = candidatePath;
@@ -786,7 +869,8 @@ function resolveEdgeEndpoint(
   // Then fall back to excluding final segment dimensions (for regular nodes)
   const fullNodeName = nodeNameSegments
     .map((seg) => {
-      const dims = seg.dimensions.length > 0 ? `[${seg.dimensions.join('][')}]` : '';
+      const dims =
+        seg.dimensions.length > 0 ? `[${seg.dimensions.join('][')}]` : '';
       return `${seg.name}${dims}`;
     })
     .join('.');
@@ -794,7 +878,8 @@ function resolveEdgeEndpoint(
   const strippedNodeName = nodeNameSegments
     .map((seg, index) => {
       if (index < nodeNameSegments.length - 1) {
-        const dims = seg.dimensions.length > 0 ? `[${seg.dimensions.join('][')}]` : '';
+        const dims =
+          seg.dimensions.length > 0 ? `[${seg.dimensions.join('][')}]` : '';
         return `${seg.name}${dims}`;
       }
       // For the last segment, only strip loop dimensions - keep constant indices
@@ -818,8 +903,14 @@ function resolveEdgeEndpoint(
   const targetNodeId = nodeId(targetPath, nodeName);
 
   // For decomposed artifacts, look up dimensions by the full path
-  const nodeDims = toLocalSlots(targetNodeId, ownerLocalDims.get(nodeName) ?? []);
-  const dimensions = qualifyDimensionSlots(targetNodeId, [...prefixDims, ...nodeDims]);
+  const nodeDims = toLocalSlots(
+    targetNodeId,
+    ownerLocalDims.get(nodeName) ?? []
+  );
+  const dimensions = qualifyDimensionSlots(targetNodeId, [
+    ...prefixDims,
+    ...nodeDims,
+  ]);
 
   // Collect all selectors from all segments
   // For the final segment, exclude constant indices as they are part of the node name
@@ -840,9 +931,14 @@ function resolveEdgeEndpoint(
     }
   }
 
-  const selectors = allSelectors.length > 0
-    ? parseAllSelectors(reference, allSelectors, prefixDims.length + nodeDims.length)
-    : undefined;
+  const selectors =
+    allSelectors.length > 0
+      ? parseAllSelectors(
+          reference,
+          allSelectors,
+          prefixDims.length + nodeDims.length
+        )
+      : undefined;
 
   return {
     nodeId: targetNodeId,
@@ -854,15 +950,21 @@ function resolveEdgeEndpoint(
 function parseAllSelectors(
   reference: string,
   rawSelectors: string[],
-  totalDimensions: number,
+  totalDimensions: number
 ): Array<DimensionSelector | undefined> | undefined {
   if (rawSelectors.length === 0) {
     return undefined;
   }
 
-  const selectors: Array<DimensionSelector | undefined> = new Array(totalDimensions).fill(undefined);
+  const selectors: Array<DimensionSelector | undefined> = new Array(
+    totalDimensions
+  ).fill(undefined);
 
-  for (let index = 0; index < rawSelectors.length && index < totalDimensions; index++) {
+  for (
+    let index = 0;
+    index < rawSelectors.length && index < totalDimensions;
+    index++
+  ) {
     const raw = rawSelectors[index];
     if (raw) {
       try {
@@ -871,7 +973,7 @@ function parseAllSelectors(
         const message = error instanceof Error ? error.message : String(error);
         throw createRuntimeError(
           RuntimeErrorCode.INVALID_DIMENSION_SELECTOR,
-          `Invalid dimension selector in reference "${reference}": ${message}`,
+          `Invalid dimension selector in reference "${reference}": ${message}`
         );
       }
     }
@@ -880,7 +982,10 @@ function parseAllSelectors(
   return selectors;
 }
 
-function findNodeByNamespace(tree: BlueprintTreeNode, namespacePath: string[]): BlueprintTreeNode {
+function findNodeByNamespace(
+  tree: BlueprintTreeNode,
+  namespacePath: string[]
+): BlueprintTreeNode {
   if (namespacePath.length === 0) {
     return tree;
   }
@@ -890,7 +995,7 @@ function findNodeByNamespace(tree: BlueprintTreeNode, namespacePath: string[]): 
     if (!current) {
       throw createRuntimeError(
         RuntimeErrorCode.UNKNOWN_NAMESPACE,
-        `Unknown sub-blueprint namespace "${namespacePath.join('.')}".`,
+        `Unknown sub-blueprint namespace "${namespacePath.join('.')}".`
       );
     }
   }
@@ -901,7 +1006,7 @@ function parseReference(reference: string): ParsedReference {
   if (typeof reference !== 'string' || reference.trim().length === 0) {
     throw createRuntimeError(
       RuntimeErrorCode.INVALID_REFERENCE,
-      `Invalid reference: "${reference}"`,
+      `Invalid reference: "${reference}"`
     );
   }
   const parts = reference.split('.');
@@ -910,7 +1015,7 @@ function parseReference(reference: string): ParsedReference {
   if (!node) {
     throw createRuntimeError(
       RuntimeErrorCode.INVALID_REFERENCE,
-      `Malformed reference: "${reference}"`,
+      `Malformed reference: "${reference}"`
     );
   }
   return {
@@ -926,7 +1031,7 @@ function parseSegment(segment: string): ParsedSegment {
   if (!name) {
     throw createRuntimeError(
       RuntimeErrorCode.INVALID_REFERENCE,
-      `Invalid segment "${segment}"`,
+      `Invalid segment "${segment}"`
     );
   }
   const dimMatches = segment.slice(name.length).match(/\[[^\]]*]/g) ?? [];
@@ -935,7 +1040,7 @@ function parseSegment(segment: string): ParsedSegment {
     if (!symbol) {
       throw createRuntimeError(
         RuntimeErrorCode.INVALID_DIMENSION_SELECTOR,
-        `Invalid dimension in "${segment}"`,
+        `Invalid dimension in "${segment}"`
       );
     }
     dims.push(symbol);
@@ -945,7 +1050,7 @@ function parseSegment(segment: string): ParsedSegment {
 
 function collectNamespacePrefixDims(
   namespacePath: string[],
-  namespaceDims: Map<string, DimensionSymbol[]>,
+  namespaceDims: Map<string, DimensionSymbol[]>
 ): DimensionSlot[] {
   const slots: DimensionSlot[] = [];
   for (let i = 1; i <= namespacePath.length; i += 1) {
@@ -955,7 +1060,13 @@ function collectNamespacePrefixDims(
       continue;
     }
     for (const symbol of dims) {
-      slots.push(makeNamespaceSlot({ namespaceKey: key, raw: symbol.raw, ordinal: symbol.ordinal }));
+      slots.push(
+        makeNamespaceSlot({
+          namespaceKey: key,
+          raw: symbol.raw,
+          ordinal: symbol.ordinal,
+        })
+      );
     }
   }
   return slots;
@@ -965,7 +1076,10 @@ function namespaceKey(path: string[]): string {
   return path.join('.');
 }
 
-function formatNamespaceParentKey(namespacePathKey: string, ordinal: number): string {
+function formatNamespaceParentKey(
+  namespacePathKey: string,
+  ordinal: number
+): string {
   const normalized = namespacePathKey === '' ? '__root__' : namespacePathKey;
   return `namespace:${normalized}#${ordinal}`;
 }
@@ -983,7 +1097,7 @@ function nodeId(namespacePath: string[], name: string): string {
  */
 function collectLoopDefinitions(
   tree: BlueprintTreeNode,
-  loops: Map<string, BlueprintLoopDefinition[]>,
+  loops: Map<string, BlueprintLoopDefinition[]>
 ): void {
   const key = tree.namespacePath.join('.');
   if (tree.document.loops && tree.document.loops.length > 0) {
@@ -1014,7 +1128,9 @@ function injectSystemInputsFromEdges(root: BlueprintTreeNode): void {
   }
 
   // Get existing input names
-  const existingInputNames = new Set(root.document.inputs.map((input) => input.name));
+  const existingInputNames = new Set(
+    root.document.inputs.map((input) => input.name)
+  );
 
   // Add synthetic input declarations for system inputs not already declared
   for (const systemInputName of referencedSystemInputs) {

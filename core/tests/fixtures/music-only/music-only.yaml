@@ -74,9 +74,3 @@ connections:
 
   - from: MusicProducer.GeneratedMusic
     to: Music
-
-collectors:
-  - name: NarrationScript 
-    from: ScriptProducer.NarrationScript
-    into: MusicPromptProducer.NarrationScript
-    groupBy: segment  

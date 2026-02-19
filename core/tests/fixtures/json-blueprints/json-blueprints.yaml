@@ -86,10 +86,3 @@ connections:
     to: TimelineComposer.Duration
   - from: TimelineComposer.Timeline
     to: Timeline
-
-collectors:
-  - name: TimelineImages
-    from: ImageProducer[segment][image].GeneratedImage
-    into: TimelineComposer.ImageSegments
-    groupBy: segment
-    orderBy: image

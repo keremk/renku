@@ -35,7 +35,7 @@ const SYSTEM_INPUT_NAMES = new Set<string>(Object.values(SYSTEM_INPUTS));
  */
 export function validateBlueprintTree(
   tree: BlueprintTreeNode,
-  options: ValidatorOptions = {},
+  options: ValidatorOptions = {}
 ): ValidationResult {
   const issues: ValidationIssue[] = [];
 
@@ -44,8 +44,6 @@ export function validateBlueprintTree(
   issues.push(...validateProducerInputOutput(tree));
   issues.push(...validateLoopCountInputs(tree));
   issues.push(...validateArtifactCountInputs(tree));
-  issues.push(...validateCollectors(tree));
-  issues.push(...validateCollectorConnections(tree));
   issues.push(...validateConditionPaths(tree));
   issues.push(...validateTypes(tree));
   issues.push(...validateProducerCycles(tree));
@@ -147,7 +145,10 @@ function isLocalReference(reference: string): boolean {
 /**
  * Checks if a reference targets a producer (starts with a producer name)
  */
-function targetsProducer(reference: string, producerNames: Set<string>): boolean {
+function targetsProducer(
+  reference: string,
+  producerNames: Set<string>
+): boolean {
   const { baseName } = parseReference(reference);
   return producerNames.has(baseName);
 }
@@ -164,7 +165,9 @@ function targetsProducer(reference: string, producerNames: Set<string>): boolean
  * - Input names exist in inputs[] or are system inputs
  * - Artifact names exist in artefacts[]
  */
-export function validateConnectionEndpoints(tree: BlueprintTreeNode): ValidationIssue[] {
+export function validateConnectionEndpoints(
+  tree: BlueprintTreeNode
+): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
   function validateTree(node: BlueprintTreeNode): void {
@@ -186,8 +189,8 @@ export function validateConnectionEndpoints(tree: BlueprintTreeNode): Validation
           inlineProducerNames,
           loopNames,
           node,
-          edge.to,
-        ),
+          edge.to
+        )
       );
 
       // Validate 'to' reference
@@ -201,8 +204,8 @@ export function validateConnectionEndpoints(tree: BlueprintTreeNode): Validation
           inlineProducerNames,
           loopNames,
           node,
-          edge.from,
-        ),
+          edge.from
+        )
       );
     }
 
@@ -228,7 +231,7 @@ function validateEndpoint(
   inlineProducerNames: Set<string>,
   loopNames: Set<string>,
   tree: BlueprintTreeNode,
-  otherEndpoint: string,
+  otherEndpoint: string
 ): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const { segments, baseName } = parseReference(reference);
@@ -238,7 +241,11 @@ function validateEndpoint(
     // Local reference - check inputs, artifacts, or inline producers
     if (direction === 'from') {
       // 'from' can be an input, artifact, or inline producer (for interface-only blueprints)
-      if (!inputNames.has(baseName) && !artifactNames.has(baseName) && !inlineProducerNames.has(baseName)) {
+      if (
+        !inputNames.has(baseName) &&
+        !artifactNames.has(baseName) &&
+        !inlineProducerNames.has(baseName)
+      ) {
         issues.push(
           createError(
             ValidationErrorCode.INPUT_NOT_FOUND,
@@ -248,13 +255,17 @@ function validateEndpoint(
               namespacePath: tree.namespacePath,
               context,
             },
-            `Check that "${baseName}" is declared in inputs[] or artifacts[], or is a system input (${Array.from(SYSTEM_INPUT_NAMES).join(', ')})`,
-          ),
+            `Check that "${baseName}" is declared in inputs[] or artifacts[], or is a system input (${Array.from(SYSTEM_INPUT_NAMES).join(', ')})`
+          )
         );
       }
     } else {
       // 'to' can be an artifact, input (for fan-in), or inline producer (for interface-only blueprints)
-      if (!artifactNames.has(baseName) && !inputNames.has(baseName) && !inlineProducerNames.has(baseName)) {
+      if (
+        !artifactNames.has(baseName) &&
+        !inputNames.has(baseName) &&
+        !inlineProducerNames.has(baseName)
+      ) {
         issues.push(
           createError(
             ValidationErrorCode.ARTIFACT_NOT_FOUND,
@@ -264,8 +275,8 @@ function validateEndpoint(
               namespacePath: tree.namespacePath,
               context,
             },
-            `Check that "${baseName}" is declared in artifacts[] or inputs[]`,
-          ),
+            `Check that "${baseName}" is declared in artifacts[] or inputs[]`
+          )
         );
       }
     }
@@ -281,8 +292,8 @@ function validateEndpoint(
             namespacePath: tree.namespacePath,
             context,
           },
-          `Check that "${baseName}" is listed in producers[] with a valid path or producer name`,
-        ),
+          `Check that "${baseName}" is listed in producers[] with a valid path or producer name`
+        )
       );
     }
 
@@ -303,8 +314,8 @@ function validateEndpoint(
                   namespacePath: tree.namespacePath,
                   context,
                 },
-                `Declare "${selector.symbol}" in loops[] or fix the dimension name`,
-              ),
+                `Declare "${selector.symbol}" in loops[] or fix the dimension name`
+              )
             );
           }
         } catch {
@@ -318,8 +329,8 @@ function validateEndpoint(
                 namespacePath: tree.namespacePath,
                 context,
               },
-              `Use valid dimension syntax like [segment], [0], or [segment+1]`,
-            ),
+              `Use valid dimension syntax like [segment], [0], or [segment+1]`
+            )
           );
         }
       }
@@ -340,7 +351,9 @@ function validateEndpoint(
  * - `to: SomeProducer.SomeInput` - SomeInput must be an input in SomeProducer's blueprint
  * - `from: SomeProducer.SomeOutput` - SomeOutput must be an artifact in SomeProducer's blueprint
  */
-export function validateProducerInputOutput(tree: BlueprintTreeNode): ValidationIssue[] {
+export function validateProducerInputOutput(
+  tree: BlueprintTreeNode
+): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
   function validateTree(node: BlueprintTreeNode): void {
@@ -348,7 +361,10 @@ export function validateProducerInputOutput(tree: BlueprintTreeNode): Validation
 
     for (const edge of node.document.edges) {
       // Validate 'from' - if it references a producer, check the output exists
-      if (!isLocalReference(edge.from) && targetsProducer(edge.from, producerNames)) {
+      if (
+        !isLocalReference(edge.from) &&
+        targetsProducer(edge.from, producerNames)
+      ) {
         const { baseName, segments } = parseReference(edge.from);
         const producerChild = node.children.get(baseName);
 
@@ -370,15 +386,18 @@ export function validateProducerInputOutput(tree: BlueprintTreeNode): Validation
                   namespacePath: node.namespacePath,
                   context: `connection from "${edge.from}" to "${edge.to}"`,
                 },
-                `Available artifacts in ${baseName}: ${Array.from(producerArtifacts).join(', ') || '(none)'}`,
-              ),
+                `Available artifacts in ${baseName}: ${Array.from(producerArtifacts).join(', ') || '(none)'}`
+              )
             );
           }
         }
       }
 
       // Validate 'to' - if it references a producer, check the input exists
-      if (!isLocalReference(edge.to) && targetsProducer(edge.to, producerNames)) {
+      if (
+        !isLocalReference(edge.to) &&
+        targetsProducer(edge.to, producerNames)
+      ) {
         const { baseName, segments } = parseReference(edge.to);
         const producerChild = node.children.get(baseName);
 
@@ -398,8 +417,12 @@ export function validateProducerInputOutput(tree: BlueprintTreeNode): Validation
                   namespacePath: node.namespacePath,
                   context: `connection from "${edge.from}" to "${edge.to}"`,
                 },
-                `Available inputs in ${baseName}: ${Array.from(producerInputs).filter((n) => !SYSTEM_INPUT_NAMES.has(n)).join(', ') || '(none)'}`,
-              ),
+                `Available inputs in ${baseName}: ${
+                  Array.from(producerInputs)
+                    .filter((n) => !SYSTEM_INPUT_NAMES.has(n))
+                    .join(', ') || '(none)'
+                }`
+              )
             );
           }
         }
@@ -423,7 +446,9 @@ export function validateProducerInputOutput(tree: BlueprintTreeNode): Validation
 /**
  * Validates that loop countInput references exist as inputs or system inputs.
  */
-export function validateLoopCountInputs(tree: BlueprintTreeNode): ValidationIssue[] {
+export function validateLoopCountInputs(
+  tree: BlueprintTreeNode
+): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
   function validateTree(node: BlueprintTreeNode): void {
@@ -440,8 +465,8 @@ export function validateLoopCountInputs(tree: BlueprintTreeNode): ValidationIssu
               namespacePath: node.namespacePath,
               context: `loop "${loop.name}"`,
             },
-            `Declare "${loop.countInput}" in inputs[] or use a system input (${Array.from(SYSTEM_INPUT_NAMES).join(', ')})`,
-          ),
+            `Declare "${loop.countInput}" in inputs[] or use a system input (${Array.from(SYSTEM_INPUT_NAMES).join(', ')})`
+          )
         );
       }
     }
@@ -463,7 +488,9 @@ export function validateLoopCountInputs(tree: BlueprintTreeNode): ValidationIssu
 /**
  * Validates that artifact countInput references exist as inputs or system inputs.
  */
-export function validateArtifactCountInputs(tree: BlueprintTreeNode): ValidationIssue[] {
+export function validateArtifactCountInputs(
+  tree: BlueprintTreeNode
+): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
   function validateTree(node: BlueprintTreeNode): void {
@@ -481,8 +508,8 @@ export function validateArtifactCountInputs(tree: BlueprintTreeNode): Validation
               namespacePath: node.namespacePath,
               context: `artifact "${artifact.name}"`,
             },
-            `Declare "${artifact.countInput}" in inputs[] or use a system input (${Array.from(SYSTEM_INPUT_NAMES).join(', ')})`,
-          ),
+            `Declare "${artifact.countInput}" in inputs[] or use a system input (${Array.from(SYSTEM_INPUT_NAMES).join(', ')})`
+          )
         );
       }
 
@@ -499,8 +526,8 @@ export function validateArtifactCountInputs(tree: BlueprintTreeNode): Validation
                   namespacePath: node.namespacePath,
                   context: `artifact "${artifact.name}" arrays[].countInput`,
                 },
-                `Declare "${arrayMapping.countInput}" in inputs[] or use a system input`,
-              ),
+                `Declare "${arrayMapping.countInput}" in inputs[] or use a system input`
+              )
             );
           }
         }
@@ -518,158 +545,27 @@ export function validateArtifactCountInputs(tree: BlueprintTreeNode): Validation
 }
 
 // ============================================================================
-// Collector Validation
-// ============================================================================
-
-/**
- * Validates collector from/into references.
- */
-export function validateCollectors(tree: BlueprintTreeNode): ValidationIssue[] {
-  const issues: ValidationIssue[] = [];
-
-  function validateTree(node: BlueprintTreeNode): void {
-    const producerNames = getProducerImportNames(node);
-
-    for (const collector of node.document.collectors ?? []) {
-      // Validate 'from' - should reference a producer output
-      if (!isLocalReference(collector.from)) {
-        const { baseName } = parseReference(collector.from);
-        if (!producerNames.has(baseName)) {
-          issues.push(
-            createError(
-              ValidationErrorCode.COLLECTOR_SOURCE_INVALID,
-              `Collector "${collector.name}" references unknown producer "${baseName}" in from: "${collector.from}"`,
-              {
-                filePath: node.sourcePath,
-                namespacePath: node.namespacePath,
-                context: `collector "${collector.name}"`,
-              },
-              `Check that "${baseName}" is listed in producers[]`,
-            ),
-          );
-        }
-      }
-
-      // Validate 'into' - should reference a producer input
-      if (!isLocalReference(collector.into)) {
-        const { baseName } = parseReference(collector.into);
-        if (!producerNames.has(baseName)) {
-          issues.push(
-            createError(
-              ValidationErrorCode.COLLECTOR_TARGET_INVALID,
-              `Collector "${collector.name}" references unknown producer "${baseName}" in into: "${collector.into}"`,
-              {
-                filePath: node.sourcePath,
-                namespacePath: node.namespacePath,
-                context: `collector "${collector.name}"`,
-              },
-              `Check that "${baseName}" is listed in producers[]`,
-            ),
-          );
-        }
-      }
-    }
-
-    // Recursively validate children
-    for (const child of node.children.values()) {
-      validateTree(child);
-    }
-  }
-
-  validateTree(tree);
-  return issues;
-}
-
-// ============================================================================
-// Collector Connection Validation
-// ============================================================================
-
-/**
- * Validates that each collector has a corresponding connection.
- *
- * A common mistake is to define only a collector without a connection.
- * Fan-in inputs require BOTH:
- * 1. A connection from the source artifact to the fan-in input (creates data flow)
- * 2. A collector that defines how to group and order the items
- *
- * Without the connection, the fan-in input will be empty at runtime.
- */
-export function validateCollectorConnections(tree: BlueprintTreeNode): ValidationIssue[] {
-  const issues: ValidationIssue[] = [];
-
-  function validateTree(node: BlueprintTreeNode): void {
-    const collectors = node.document.collectors ?? [];
-    const edges = node.document.edges;
-
-    for (const collector of collectors) {
-      // Normalize collector references (strip dimension brackets for comparison)
-      const collectorFrom = normalizeReference(collector.from);
-      const collectorInto = normalizeReference(collector.into);
-
-      // Look for a matching connection
-      // A connection matches if:
-      // - connection.from matches collector.from (same source)
-      // - connection.to matches collector.into (same target)
-      const hasMatchingConnection = edges.some((edge) => {
-        const edgeFrom = normalizeReference(edge.from);
-        const edgeTo = normalizeReference(edge.to);
-        return edgeFrom === collectorFrom && edgeTo === collectorInto;
-      });
-
-      if (!hasMatchingConnection) {
-        issues.push(
-          createError(
-            ValidationErrorCode.COLLECTOR_MISSING_CONNECTION,
-            `Collector "${collector.name}" has no corresponding connection. Fan-in inputs require both a connection AND a collector.`,
-            {
-              filePath: node.sourcePath,
-              namespacePath: node.namespacePath,
-              context: `collector "${collector.name}" (from: ${collector.from}, into: ${collector.into})`,
-            },
-            `Add a connection: { from: "${collector.from}", to: "${collector.into}" }`,
-          ),
-        );
-      }
-    }
-
-    // Recursively validate children
-    for (const child of node.children.values()) {
-      validateTree(child);
-    }
-  }
-
-  validateTree(tree);
-  return issues;
-}
-
-/**
- * Normalizes a reference by stripping dimension brackets for comparison.
- * This allows matching references with different dimension selectors.
- *
- * Examples:
- * - "ImageProducer[segment][image].GeneratedImage" -> "ImageProducer.GeneratedImage"
- * - "TimelineComposer.ImageSegments" -> "TimelineComposer.ImageSegments"
- */
-function normalizeReference(reference: string): string {
-  return reference.replace(/\[[^\]]*\]/g, '');
-}
-
-// ============================================================================
 // Condition Path Validation
 // ============================================================================
 
 /**
  * Validates condition 'when' paths reference valid artifacts.
  */
-export function validateConditionPaths(tree: BlueprintTreeNode): ValidationIssue[] {
+export function validateConditionPaths(
+  tree: BlueprintTreeNode
+): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
   function validateTree(node: BlueprintTreeNode): void {
     const producerNames = getProducerImportNames(node);
 
     // Validate named conditions
-    for (const [name, condition] of Object.entries(node.document.conditions ?? {})) {
-      issues.push(...validateConditionDef(condition, name, producerNames, node));
+    for (const [name, condition] of Object.entries(
+      node.document.conditions ?? {}
+    )) {
+      issues.push(
+        ...validateConditionDef(condition, name, producerNames, node)
+      );
     }
 
     // Validate inline conditions on edges
@@ -680,8 +576,8 @@ export function validateConditionPaths(tree: BlueprintTreeNode): ValidationIssue
             edge.conditions,
             `inline condition on edge ${edge.from} -> ${edge.to}`,
             producerNames,
-            node,
-          ),
+            node
+          )
         );
       }
     }
@@ -703,7 +599,7 @@ function validateConditionDef(
   condition: unknown,
   name: string,
   producerNames: Set<string>,
-  node: BlueprintTreeNode,
+  node: BlueprintTreeNode
 ): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
@@ -726,8 +622,8 @@ function validateConditionDef(
             namespacePath: node.namespacePath,
             context: `condition "${name}"`,
           },
-          `Check that "${baseName}" is listed in producers[]`,
-        ),
+          `Check that "${baseName}" is listed in producers[]`
+        )
       );
     }
   }
@@ -772,8 +668,8 @@ export function validateTypes(tree: BlueprintTreeNode): ValidationIssue[] {
               namespacePath: node.namespacePath,
               context: `input "${input.name}"`,
             },
-            `Valid input types: ${Array.from(VALID_INPUT_TYPES).join(', ')}`,
-          ),
+            `Valid input types: ${Array.from(VALID_INPUT_TYPES).join(', ')}`
+          )
         );
       }
     }
@@ -790,8 +686,8 @@ export function validateTypes(tree: BlueprintTreeNode): ValidationIssue[] {
               namespacePath: node.namespacePath,
               context: `artifact "${artifact.name}"`,
             },
-            `Valid artifact types: ${Array.from(VALID_ARTIFACT_TYPES).join(', ')}`,
-          ),
+            `Valid artifact types: ${Array.from(VALID_ARTIFACT_TYPES).join(', ')}`
+          )
         );
       }
 
@@ -806,8 +702,8 @@ export function validateTypes(tree: BlueprintTreeNode): ValidationIssue[] {
               namespacePath: node.namespacePath,
               context: `artifact "${artifact.name}"`,
             },
-            `Valid item types: ${Array.from(VALID_ITEM_TYPES).join(', ')}`,
-          ),
+            `Valid item types: ${Array.from(VALID_ITEM_TYPES).join(', ')}`
+          )
         );
       }
     }
@@ -832,13 +728,18 @@ export function validateTypes(tree: BlueprintTreeNode): ValidationIssue[] {
  * A cycle occurs when producers form a circular dependency chain,
  * e.g., A -> B -> C -> A. This makes execution impossible.
  */
-export function validateProducerCycles(tree: BlueprintTreeNode): ValidationIssue[] {
+export function validateProducerCycles(
+  tree: BlueprintTreeNode
+): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
   function validateTree(node: BlueprintTreeNode): void {
     const producerNames = getProducerImportNames(node);
     const inlineProducerNames = getInlineProducerNames(node);
-    const allProducerNames = new Set([...producerNames, ...inlineProducerNames]);
+    const allProducerNames = new Set([
+      ...producerNames,
+      ...inlineProducerNames,
+    ]);
 
     // Build adjacency list from edges (producer -> producer connections)
     const adjacency = new Map<string, Set<string>>();
@@ -847,8 +748,14 @@ export function validateProducerCycles(tree: BlueprintTreeNode): ValidationIssue
     }
 
     for (const edge of node.document.edges) {
-      const fromProducer = extractProducerFromReference(edge.from, allProducerNames);
-      const toProducer = extractProducerFromReference(edge.to, allProducerNames);
+      const fromProducer = extractProducerFromReference(
+        edge.from,
+        allProducerNames
+      );
+      const toProducer = extractProducerFromReference(
+        edge.to,
+        allProducerNames
+      );
 
       if (fromProducer && toProducer && fromProducer !== toProducer) {
         adjacency.get(fromProducer)?.add(toProducer);
@@ -895,8 +802,8 @@ export function validateProducerCycles(tree: BlueprintTreeNode): ValidationIssue
                 namespacePath: node.namespacePath,
                 context: 'producer dependencies',
               },
-              'Remove one of the connections to break the cycle',
-            ),
+              'Remove one of the connections to break the cycle'
+            )
           );
           break; // Report first cycle found
         }
@@ -918,7 +825,7 @@ export function validateProducerCycles(tree: BlueprintTreeNode): ValidationIssue
  */
 function extractProducerFromReference(
   reference: string,
-  producerNames: Set<string>,
+  producerNames: Set<string>
 ): string | null {
   const { baseName } = parseReference(reference);
   return producerNames.has(baseName) ? baseName : null;
@@ -935,35 +842,57 @@ function extractProducerFromReference(
  * - Dimension loss: source has dimensions that target doesn't have
  * - Dimension mismatch: source and target use different loop variables
  */
-export function validateDimensionConsistency(tree: BlueprintTreeNode): ValidationIssue[] {
+export function validateDimensionConsistency(
+  tree: BlueprintTreeNode
+): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
   function validateTree(node: BlueprintTreeNode): void {
     const producerNames = getProducerImportNames(node);
     const inlineProducerNames = getInlineProducerNames(node);
-    const allProducerNames = new Set([...producerNames, ...inlineProducerNames]);
-    const collectors = node.document.collectors ?? [];
+    const allProducerNames = new Set([
+      ...producerNames,
+      ...inlineProducerNames,
+    ]);
 
     for (const edge of node.document.edges) {
-      // Skip edges that have a matching collector (same source and target)
-      if (hasMatchingCollector(edge, collectors)) {
-        continue;
-      }
-
       const fromDims = extractLoopDimensions(edge.from);
       const toDims = extractLoopDimensions(edge.to);
 
       // Check if source references a producer (has output with dimensions)
-      const fromIsProducer = !isLocalReference(edge.from) &&
+      const fromIsProducer =
+        !isLocalReference(edge.from) &&
         extractProducerFromReference(edge.from, allProducerNames) !== null;
-      const toIsProducer = !isLocalReference(edge.to) &&
+      const toIsProducer =
+        !isLocalReference(edge.to) &&
         extractProducerFromReference(edge.to, allProducerNames) !== null;
+      const targetIsFanIn = targetsFanInInput(edge.to, node, allProducerNames);
+
+      if ((edge.groupBy || edge.orderBy) && !targetIsFanIn) {
+        issues.push(
+          createError(
+            ValidationErrorCode.DIMENSION_MISMATCH,
+            `Connection "${edge.from}" -> "${edge.to}" declares groupBy/orderBy, but the target is not a fanIn input.`,
+            {
+              filePath: node.sourcePath,
+              namespacePath: node.namespacePath,
+              context: `connection from "${edge.from}" to "${edge.to}"`,
+            },
+            'Use groupBy/orderBy only on connections targeting inputs declared with fanIn: true'
+          )
+        );
+      }
 
       // Only check producer-to-producer connections for dimension loss
-      // (more dimensions on source than target without a collector)
+      // (more dimensions on source than target)
       // Cross-dimension patterns (e.g., [image] -> [segment]) are intentionally allowed
       // as they're used for sliding window and other valid patterns.
-      if (fromIsProducer && toIsProducer && fromDims.length > toDims.length) {
+      if (
+        fromIsProducer &&
+        toIsProducer &&
+        !targetIsFanIn &&
+        fromDims.length > toDims.length
+      ) {
         issues.push(
           createError(
             ValidationErrorCode.DIMENSION_MISMATCH,
@@ -974,9 +903,24 @@ export function validateDimensionConsistency(tree: BlueprintTreeNode): Validatio
               context: `connection from "${edge.from}" to "${edge.to}"`,
             },
             toDims.length === 0
-              ? 'Use a collector for fan-in, or add matching dimensions to the target'
-              : 'Ensure source and target have consistent dimensions',
-          ),
+              ? 'Target input must either declare fanIn: true or use matching dimensions'
+              : 'Ensure source and target have consistent dimensions'
+          )
+        );
+      }
+
+      if (targetIsFanIn && !edge.groupBy && fromDims.length > 2) {
+        issues.push(
+          createError(
+            ValidationErrorCode.DIMENSION_MISMATCH,
+            `Connection "${edge.from}" -> "${edge.to}" uses ${fromDims.length} dimensions. Fan-in inference supports up to two dimensions without explicit metadata.`,
+            {
+              filePath: node.sourcePath,
+              namespacePath: node.namespacePath,
+              context: `connection from "${edge.from}" to "${edge.to}"`,
+            },
+            'Provide groupBy/orderBy on the connection for higher-dimensional fan-in.'
+          )
         );
       }
     }
@@ -1008,24 +952,29 @@ function extractLoopDimensions(reference: string): string[] {
   return dims;
 }
 
-/**
- * Checks if an edge has a matching collector that handles fan-in.
- *
- * Each producer that fans into a collector input needs its own collector
- * definition with matching source and target.
- */
-function hasMatchingCollector(
-  edge: { from: string; to: string },
-  collectors: Array<{ from: string; into: string }>,
+function targetsFanInInput(
+  reference: string,
+  node: BlueprintTreeNode,
+  producerNames: Set<string>
 ): boolean {
-  const edgeFrom = normalizeReference(edge.from);
-  const edgeTo = normalizeReference(edge.to);
-
-  return collectors.some((collector) => {
-    const collectorFrom = normalizeReference(collector.from);
-    const collectorInto = normalizeReference(collector.into);
-    return edgeFrom === collectorFrom && edgeTo === collectorInto;
-  });
+  if (
+    isLocalReference(reference) ||
+    !targetsProducer(reference, producerNames)
+  ) {
+    return false;
+  }
+  const { baseName, segments } = parseReference(reference);
+  if (segments.length < 2) {
+    return false;
+  }
+  const inputName = stripDimensions(segments[1]!);
+  const producerChild = node.children.get(baseName);
+  if (!producerChild) {
+    return false;
+  }
+  return producerChild.document.inputs.some(
+    (input) => input.name === inputName && input.fanIn === true
+  );
 }
 
 // ============================================================================
@@ -1076,8 +1025,8 @@ export function findUnusedInputs(tree: BlueprintTreeNode): ValidationIssue[] {
               namespacePath: node.namespacePath,
               context: `input "${input.name}"`,
             },
-            `Remove the input declaration or add a connection using it`,
-          ),
+            `Remove the input declaration or add a connection using it`
+          )
         );
       }
     }
@@ -1095,7 +1044,9 @@ export function findUnusedInputs(tree: BlueprintTreeNode): ValidationIssue[] {
 /**
  * Finds artifacts that are declared but never connected to.
  */
-export function findUnusedArtifacts(tree: BlueprintTreeNode): ValidationIssue[] {
+export function findUnusedArtifacts(
+  tree: BlueprintTreeNode
+): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
   function validateTree(node: BlueprintTreeNode): void {
@@ -1121,8 +1072,8 @@ export function findUnusedArtifacts(tree: BlueprintTreeNode): ValidationIssue[] 
               namespacePath: node.namespacePath,
               context: `artifact "${artifact.name}"`,
             },
-            `Remove the artifact declaration or add a connection to it`,
-          ),
+            `Remove the artifact declaration or add a connection to it`
+          )
         );
       }
     }
@@ -1140,7 +1091,9 @@ export function findUnusedArtifacts(tree: BlueprintTreeNode): ValidationIssue[] 
 /**
  * Finds producers that have no incoming connections.
  */
-export function findUnreachableProducers(tree: BlueprintTreeNode): ValidationIssue[] {
+export function findUnreachableProducers(
+  tree: BlueprintTreeNode
+): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
   function validateTree(node: BlueprintTreeNode): void {
@@ -1150,14 +1103,6 @@ export function findUnreachableProducers(tree: BlueprintTreeNode): ValidationIss
     for (const edge of node.document.edges) {
       if (!isLocalReference(edge.to)) {
         const { baseName } = parseReference(edge.to);
-        reachedProducers.add(baseName);
-      }
-    }
-
-    // Also check collectors
-    for (const collector of node.document.collectors ?? []) {
-      if (!isLocalReference(collector.into)) {
-        const { baseName } = parseReference(collector.into);
         reachedProducers.add(baseName);
       }
     }
@@ -1174,8 +1119,8 @@ export function findUnreachableProducers(tree: BlueprintTreeNode): ValidationIss
               namespacePath: node.namespacePath,
               context: `producer "${producerImport.name}"`,
             },
-            `Add connections to "${producerImport.name}" or remove it from producers[]`,
-          ),
+            `Add connections to "${producerImport.name}" or remove it from producers[]`
+          )
         );
       }
     }

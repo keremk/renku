@@ -206,15 +206,3 @@ connections:
     to: TimelineComposer.Duration
   - from: TimelineComposer.Timeline
     to: Timeline
-
-collectors:
-  # Collect videos for timeline
-  - name: TimelineVideos
-    from: SceneVideoProducer[segment].GeneratedVideo
-    into: TimelineComposer.VideoSegments
-    groupBy: segment
-  # Collect audio for timeline
-  - name: TimelineAudio
-    from: NarrationProducer[segment].GeneratedAudio
-    into: TimelineComposer.AudioSegments
-    groupBy: segment

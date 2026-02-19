@@ -1,0 +1,25 @@
+meta:
+  name: Celebrity Director
+  description: Produces prompts and transition flags per character.
+  id: CelebrityDirectorProducer
+  version: 0.1.0
+  outputSchema: ./director-output.json
+
+inputs:
+  - name: Theme
+    type: string
+  - name: NumOfCharacters
+    type: int
+  - name: Duration
+    type: int
+  - name: MeetingDuration
+    type: int
+  - name: TransitionDuration
+    type: int
+
+artifacts:
+  - name: Script
+    type: json
+    arrays:
+      - path: Characters
+        countInput: NumOfCharacters
