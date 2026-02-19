@@ -48,7 +48,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint:all": "pnpm lint && pnpm format:check",
-    "check": "pnpm type-check && pnpm test:typecheck",
+    "check": "pnpm type-check && pnpm test:typecheck && pnpm catalog:check",
     "bundle:viewer": "pnpm --filter viewer build && node scripts/prepare-viewer-bundle.mjs",
     "package:cli": "node scripts/package-cli.mjs",
     "bump": "bash scripts/bump-versions.sh",
@@ -60,7 +60,8 @@
     "release:ci": "bash scripts/bump-n-push.sh patch --non-interactive",
     "catalog:fetch-fal": "node scripts/fetch-fal-schema.mjs",
     "catalog:update-fal": "node scripts/update-fal-catalog.mjs catalog/models/fal-ai/fal-ai.yaml",
-    "bundle:catalog": "node scripts/prepare-catalog-bundle.mjs"
+    "bundle:catalog": "node scripts/prepare-catalog-bundle.mjs",
+    "catalog:check": "node scripts/check-catalog-sync.mjs"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.46.2",
