@@ -24,6 +24,7 @@ From a single inquiry like "Explain the water cycle for middle school students,"
 ### Manual Provider Juggling
 
 Without Renku, creating AI-generated video means:
+
 - Going to ChatGPT to generate a script
 - Copying prompts to Midjourney or DALL-E for images
 - Using ElevenLabs or another service for voiceover
@@ -55,7 +56,7 @@ Adding a new AI model to a custom script means rewriting code. Renku's producer 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                           Blueprint YAML                             │
-│  (Defines workflow: inputs, producers, connections, collectors)      │
+│  (Defines workflow: inputs, producers, connections)                  │
 └─────────────────────────────────────────────────────────────────────┘
                                    │
                                    ▼
@@ -72,7 +73,7 @@ Adding a new AI model to a custom script means rewriting code. Renku's producer 
 │                              Runner                                  │
 │  • Executes jobs layer by layer                                     │
 │  • Resolves inputs from upstream artifacts                          │
-│  • Materializes fan-in collections                                  │
+│  • Builds fan-in descriptors from connections                        │
 │  • Invokes AI providers via producer implementations                │
 │  • Stores artifacts and logs events                                 │
 └─────────────────────────────────────────────────────────────────────┘
@@ -102,6 +103,7 @@ Understanding these concepts will help you work effectively with Renku:
 ### Blueprint
 
 A YAML file that defines your complete video generation workflow. Blueprints specify:
+
 - What inputs the user provides (topic, duration, style, etc.)
 - What artifacts are produced (script, images, audio, video)
 - Which producers to use and how to connect them
@@ -112,6 +114,7 @@ Blueprints are the "recipe" for your video.
 ### Producer
 
 A reusable module that invokes AI models. Producers:
+
 - Accept inputs (prompts, configuration)
 - Call one or more AI provider APIs
 - Produce artifacts (text, images, audio, video)
@@ -121,6 +124,7 @@ Examples: `ScriptProducer`, `VideoProducer`, `AudioProducer`, `TimelineComposer`
 ### Artifact
 
 Any output produced by a producer:
+
 - Text (scripts, prompts)
 - Images (PNG, JPEG)
 - Audio (MP3, WAV)
@@ -136,6 +140,7 @@ A dimension that enables parallel execution. If you have 5 narration segments, a
 ### Connection
 
 Data flow edges that wire outputs to inputs. Connections define how artifacts flow from one producer to another:
+
 - Blueprint input → Producer input
 - Producer artifact → Another producer's input
 - Producer artifact → Blueprint artifact (final output)
@@ -147,6 +152,7 @@ An execution layer contains jobs that can run in parallel. The planner uses topo
 ### Workspace
 
 The directory structure where Renku stores:
+
 - Blueprint catalog
 - Build outputs (artifacts, manifests, logs)
 - Configuration

@@ -44,7 +44,7 @@ System inputs are special inputs that Renku automatically recognizes by name. **
 - Define user-facing inputs and final artifacts
 - Import and connect multiple producers
 - Define loops for parallel execution
-- Specify collectors for fan-in aggregation
+- Use connection-driven fan-in for collection inputs
 
 **Producers** are execution units that:
 
@@ -116,6 +116,8 @@ connections:
   - from: <string> # Source reference (required)
     to: <string> # Target reference (required)
     if: <string> # Condition name for conditional execution
+    groupBy: <string> # Optional fan-in grouping dimension override
+    orderBy: <string> # Optional fan-in ordering dimension override
 
 conditions:
   <conditionName>:
@@ -129,13 +131,6 @@ conditions:
     matches: <string> # Regex pattern
     all: <array> # AND: all sub-conditions must pass
     any: <array> # OR: at least one sub-condition must pass
-
-collectors:
-  - name: <string> # Collector identifier (required)
-    from: <string> # Source artifact reference (required)
-    into: <string> # Target input reference (required)
-    groupBy: <string> # Loop dimension for grouping (required)
-    orderBy: <string> # Loop dimension for ordering
 ```
 
 ### Input Types
@@ -476,6 +471,10 @@ connections:
   - from: AudioProducer[segment].GeneratedAudio
     to: TranscriptionProducer.AudioSegments
 
+  # Optional: feed a timeline transcription track from the same audio
+  - from: AudioProducer[segment].GeneratedAudio
+    to: TimelineComposer.TranscriptionAudio
+
   # Wire transcription to exporter
   - from: TranscriptionProducer.Transcription
     to: VideoExporter.Transcription
@@ -483,15 +482,6 @@ connections:
   # Wire timeline to exporter (required)
   - from: TimelineComposer.Timeline
     to: VideoExporter.Timeline
-
-collectors:
-  # ... existing collectors ...
-
-  # CRITICAL: Fan-in requires BOTH connection AND collector
-  - name: TranscriptionAudio
-    from: AudioProducer[segment].GeneratedAudio
-    into: TimelineComposer.TranscriptionAudio
-    groupBy: segment
 ```
 
 #### Karaoke Configuration
@@ -977,57 +967,34 @@ producers:
 
 ---
 
-## Collectors and Fan-In
+## Fan-In Inference and Edge Metadata
 
-Collectors aggregate multiple artifacts for downstream processing.
+Fan-in is connection-driven. The top-level `collectors:` section is no longer supported.
 
-:::caution[Critical: Fan-In Requires BOTH Connection AND Collector]
-A common mistake is defining only a collector. **Fan-in inputs require BOTH:**
+:::caution[Critical: Use Connections Only]
+To feed a fan-in input, connect upstream artifacts directly to the target input and ensure the target input is declared with `fanIn: true`.
 
 ```yaml
-# ❌ WRONG - Only collector (fan-in input will be empty!)
-collectors:
-  - name: TimelineImages
-    from: ImageProducer[segment][image].GeneratedImage
-    into: TimelineComposer.ImageSegments
-    groupBy: segment
-
-# ✅ CORRECT - Both connection AND collector
+# ✅ Connection-driven fan-in (inferred)
 connections:
   - from: ImageProducer[segment][image].GeneratedImage
-    to: TimelineComposer.ImageSegments  # ← REQUIRED!
+    to: TimelineComposer.ImageSegments
 
-collectors:
-  - name: TimelineImages
-    from: ImageProducer[segment][image].GeneratedImage
-    into: TimelineComposer.ImageSegments
+  # Optional explicit metadata when inference is ambiguous
+  - from: ImageProducer[segment][image].GeneratedImage
+    to: TimelineComposer.ImageSegments
     groupBy: segment
     orderBy: image
 ```
 
-**Why both?** The connection creates the data flow edge; the collector defines grouping/ordering.
 :::
 
-### Basic Collector
+### Inference Rules
 
-```yaml
-collectors:
-  - name: TimelineVideo
-    from: VideoProducer[segment].SegmentVideo
-    into: TimelineComposer.VideoSegments
-    groupBy: segment
-```
-
-### Collector with Ordering
-
-```yaml
-collectors:
-  - name: TimelineImages
-    from: ImageProducer[segment][image].SegmentImage
-    into: TimelineComposer.ImageSegments
-    groupBy: segment
-    orderBy: image
-```
+- Single scalar source -> singleton fan-in group
+- One source dimension -> `groupBy` inferred from that dimension
+- Two source dimensions -> `groupBy` and `orderBy` inferred by position
+- Ambiguous scalar multi-source fan-in -> planner fails fast unless edge metadata disambiguates
 
 ### Fan-In Inputs
 
@@ -1081,7 +1048,7 @@ Type:path.to.name[index0][index1]...
 
 1. **Execute layer by layer** - Jobs in same layer can run in parallel
 2. **Resolve artifacts** - Load upstream data for each job
-3. **Materialize fan-in** - Group and order collection items
+3. **Build fan-in descriptors** - Infer grouping from connection dimensions or edge metadata
 4. **Invoke providers** - Call AI APIs
 5. **Store artifacts** - Persist to blob storage
 
@@ -1257,15 +1224,11 @@ producers:
   - name: TimelineComposer
     producer: composition/timeline-composer
 
-collectors:
-  - name: TimelineVideo
-    from: VideoProducer[segment].SegmentVideo
-    into: TimelineComposer.VideoSegments
-    groupBy: segment
-  - name: TimelineAudio
-    from: AudioProducer[segment].SegmentAudio
-    into: TimelineComposer.AudioSegments
-    groupBy: segment
+connections:
+  - from: VideoProducer[segment].SegmentVideo
+    to: TimelineComposer.VideoSegments
+  - from: AudioProducer[segment].SegmentAudio
+    to: TimelineComposer.AudioSegments
 ```
 
 ---
@@ -1292,12 +1255,12 @@ cat {builds}/{movie}/runs/rev-0001-plan.json
 
 ### Common Issues
 
-| Problem              | Cause                 | Solution                              |
-| -------------------- | --------------------- | ------------------------------------- |
-| Fan-in empty         | Missing collector     | Add collector from source to target   |
-| Dimension error      | Mismatched dimensions | Verify source/target dimensions match |
-| Optional input error | Missing default       | Add `default:` to optional inputs     |
-| Missing artifacts    | Wrong build path      | Check `dist/` per package             |
+| Problem              | Cause                 | Solution                                   |
+| -------------------- | --------------------- | ------------------------------------------ |
+| Fan-in empty         | Missing inbound edge  | Add connection from source to fan-in input |
+| Dimension error      | Mismatched dimensions | Verify source/target dimensions match      |
+| Optional input error | Missing default       | Add `default:` to optional inputs          |
+| Missing artifacts    | Wrong build path      | Check `dist/` per package                  |
 
 ---
 
