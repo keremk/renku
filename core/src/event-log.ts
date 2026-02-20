@@ -1,25 +1,26 @@
 import type { StorageContext } from './storage.js';
-import type {
-  ArtefactEvent,
-  InputEvent,
-  RevisionId,
-} from './types.js';
-import {
-  hashArtefactOutput,
-  hashInputPayload,
-  hashInputs,
-} from './hashing.js';
+import type { ArtefactEvent, InputEvent, RevisionId } from './types.js';
+import { hashArtefactOutput, hashInputPayload } from './hashing.js';
 
 /* eslint-disable no-unused-vars */
 export interface EventLog {
-  streamInputs(movieId: string, sinceRevision?: RevisionId): AsyncIterable<InputEvent>;
-  streamArtefacts(movieId: string, sinceRevision?: RevisionId): AsyncIterable<ArtefactEvent>;
+  streamInputs(
+    movieId: string,
+    sinceRevision?: RevisionId
+  ): AsyncIterable<InputEvent>;
+  streamArtefacts(
+    movieId: string,
+    sinceRevision?: RevisionId
+  ): AsyncIterable<ArtefactEvent>;
   appendInput(movieId: string, event: InputEvent): Promise<void>;
   appendArtefact(movieId: string, event: ArtefactEvent): Promise<void>;
 }
 
 const JSONL_MIME = 'application/jsonl';
-const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+const collator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: 'base',
+});
 
 export function createEventLog(storage: StorageContext): EventLog {
   return {
@@ -42,7 +43,7 @@ export function createEventLog(storage: StorageContext): EventLog {
   };
 }
 
-export { hashInputPayload, hashArtefactOutput, hashInputs };
+export { hashInputPayload, hashArtefactOutput };
 
 async function* iterateEvents<T extends { revision: RevisionId }>(
   storage: StorageContext,
@@ -66,7 +67,11 @@ async function* iterateEvents<T extends { revision: RevisionId }>(
   }
 }
 
-async function appendEvent(storage: StorageContext, path: string, event: unknown): Promise<void> {
+async function appendEvent(
+  storage: StorageContext,
+  path: string,
+  event: unknown
+): Promise<void> {
   const serialized = JSON.stringify(event);
   const payload = serialized.endsWith('\n') ? serialized : `${serialized}\n`;
   const targetPayload = payload.endsWith('\n') ? payload : `${payload}\n`;

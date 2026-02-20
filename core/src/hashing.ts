@@ -23,11 +23,6 @@ export function hashArtefactOutput(output: ArtefactEventOutput): string {
   return hashPayload(output).hash;
 }
 
-export function hashInputs(inputs: readonly string[]): string {
-  const sorted = [...inputs].sort();
-  return hashPayload(sorted).hash;
-}
-
 /**
  * Compute a content-aware hash of a job's inputs.
  * For Input:* entries, uses the input's value hash from the manifest.
@@ -36,7 +31,10 @@ export function hashInputs(inputs: readonly string[]): string {
  */
 export function hashInputContents(
   inputs: readonly string[],
-  manifest: { inputs: Record<string, { hash: string }>; artefacts: Record<string, { hash: string }> },
+  manifest: {
+    inputs: Record<string, { hash: string }>;
+    artefacts: Record<string, { hash: string }>;
+  }
 ): string {
   const contentHashes: string[] = [];
   for (const id of [...inputs].sort()) {

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { canonicalStringify, hashInputs, hashPayload } from './hashing.js';
+import {
+  canonicalStringify,
+  hashInputContents,
+  hashPayload,
+} from './hashing.js';
 
 describe('hashing utilities', () => {
   it('produces stable hash for objects regardless of key order', () => {
@@ -21,9 +25,24 @@ describe('hashing utilities', () => {
     expect(result.canonical).toBe('[1,"two",{"three":true}]');
   });
 
-  it('hashes input ids deterministically', () => {
-    const hashA = hashInputs(['b', 'a', 'c']);
-    const hashB = hashInputs(['c', 'b', 'a']);
+  it('hashes input contents deterministically regardless of input order', () => {
+    const manifest = {
+      inputs: {
+        'Input:a': { hash: 'hash-a' },
+        'Input:b': { hash: 'hash-b' },
+      },
+      artefacts: {
+        'Artifact:c': { hash: 'hash-c' },
+      },
+    };
+    const hashA = hashInputContents(
+      ['Input:b', 'Artifact:c', 'Input:a'],
+      manifest
+    );
+    const hashB = hashInputContents(
+      ['Artifact:c', 'Input:a', 'Input:b'],
+      manifest
+    );
     expect(hashA).toBe(hashB);
   });
 

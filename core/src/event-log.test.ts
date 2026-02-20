@@ -6,7 +6,6 @@ import {
   createEventLog,
   hashArtefactOutput,
   hashInputPayload,
-  hashInputs,
 } from './event-log.js';
 import { createStorageContext, initializeMovieStorage } from './storage.js';
 import type { ArtefactEvent, InputEvent } from './types.js';
@@ -47,13 +46,17 @@ describe('EventLog', () => {
     await initializeMovieStorage(ctx, 'demo');
     const eventLog = createEventLog(ctx);
 
-    const eventFactory = (revision: 'rev-0001' | 'rev-0002' | 'rev-0003'): InputEvent => ({
+    const eventFactory = (
+      revision: 'rev-0001' | 'rev-0002' | 'rev-0003'
+    ): InputEvent => ({
       id: `input-${revision}`,
       revision,
       hash: hashInputPayload({ revision }),
       payload: { revision },
       editedBy: 'system',
-      createdAt: new Date(Date.now() + Number(revision.slice(-1))).toISOString(),
+      createdAt: new Date(
+        Date.now() + Number(revision.slice(-1))
+      ).toISOString(),
     });
 
     await eventLog.appendInput('demo', eventFactory('rev-0001'));
@@ -77,10 +80,12 @@ describe('EventLog', () => {
     const artefactEvent: ArtefactEvent = {
       artefactId: 'segment_script_0',
       revision: 'rev-0002',
-      inputsHash: hashInputs(['input:script_prompt', 'input:audience']),
+      inputsHash: 'inputs-hash-script-prompt-audience',
       output: {
         blob: {
-          hash: hashArtefactOutput({ blob: { hash: 'narration-hash', size: 48, mimeType: 'text/plain' } }),
+          hash: hashArtefactOutput({
+            blob: { hash: 'narration-hash', size: 48, mimeType: 'text/plain' },
+          }),
           size: 48,
           mimeType: 'text/plain',
         },
@@ -127,24 +132,27 @@ describe('EventLog', () => {
       await initializeMovieStorage(ctx, 'demo');
       const eventLog = createEventLog(ctx);
 
-      const artefacts: ArtefactEvent[] = Array.from({ length: 20 }, (_, index) => ({
-        artefactId: `segment_script_${index}`,
-        revision: `rev-${String(index + 1).padStart(4, '0')}`,
-        inputsHash: hashInputs([`input:${index}`]),
-        output: {
-          blob: {
-            hash: `payload-${index}-hash`,
-            size: `payload-${index}`.length,
-            mimeType: 'text/plain',
+      const artefacts: ArtefactEvent[] = Array.from(
+        { length: 20 },
+        (_, index) => ({
+          artefactId: `segment_script_${index}`,
+          revision: `rev-${String(index + 1).padStart(4, '0')}`,
+          inputsHash: `inputs-hash-${index}`,
+          output: {
+            blob: {
+              hash: `payload-${index}-hash`,
+              size: `payload-${index}`.length,
+              mimeType: 'text/plain',
+            },
           },
-        },
-        status: 'succeeded',
-        producedBy: 'script_producer',
-        createdAt: new Date(Date.now() + index).toISOString(),
-      }));
+          status: 'succeeded',
+          producedBy: 'script_producer',
+          createdAt: new Date(Date.now() + index).toISOString(),
+        })
+      );
 
       await Promise.all(
-        artefacts.map((event) => eventLog.appendArtefact('demo', event)),
+        artefacts.map((event) => eventLog.appendArtefact('demo', event))
       );
 
       const logPath = join(root, 'builds/demo/events/artefacts.log');
