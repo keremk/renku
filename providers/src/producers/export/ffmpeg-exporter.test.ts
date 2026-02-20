@@ -8,6 +8,9 @@ import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 
 const {
+  resolveOutputDimensions,
+  parseAspectRatio,
+  deriveDimensionsFromAspectRatio,
   mimeToExtension,
   collectAssetIds,
   detectOutputFormat,
@@ -16,6 +19,20 @@ const {
   formatDuration,
 } = __test__;
 const mockedExecFile = vi.mocked(execFile);
+
+function createInputsAccessor(source: Record<string, unknown> = {}) {
+  return {
+    all() {
+      return source;
+    },
+    get<T = unknown>(key: string) {
+      return source[key] as T | undefined;
+    },
+    getByNodeId<T = unknown>(canonicalId: string) {
+      return source[canonicalId] as T | undefined;
+    },
+  };
+}
 
 // Helper to load schema from catalog for tests
 const catalogRoot = path.resolve(
@@ -288,6 +305,67 @@ describe('ffmpeg-exporter', () => {
 
     it('formats hour-minute-second values', () => {
       expect(formatDuration(3671)).toBe('1:01:11');
+    });
+  });
+
+  describe('aspect-ratio output dimensions', () => {
+    it('parses valid aspect ratios', () => {
+      expect(parseAspectRatio('16:9')).toBeCloseTo(16 / 9, 5);
+      expect(parseAspectRatio('9:16')).toBeCloseTo(9 / 16, 5);
+      expect(parseAspectRatio('9:19.5')).toBeCloseTo(9 / 19.5, 5);
+    });
+
+    it('throws on invalid aspect ratio values', () => {
+      expect(() => parseAspectRatio('')).toThrow(/invalid aspect ratio/i);
+      expect(() => parseAspectRatio('foo')).toThrow(/invalid aspect ratio/i);
+      expect(() => parseAspectRatio('16:0')).toThrow(/invalid aspect ratio/i);
+      expect(() => parseAspectRatio('16:9:1')).toThrow(/invalid aspect ratio/i);
+    });
+
+    it('derives portrait dimensions for 9:16 when width and height are not configured', () => {
+      const dimensions = resolveOutputDimensions(
+        {},
+        createInputsAccessor({ 'Input:AspectRatio': '9:16' })
+      );
+
+      expect(dimensions).toEqual({ width: 1080, height: 1920 });
+    });
+
+    it('derives missing height from configured width and aspect ratio', () => {
+      const dimensions = resolveOutputDimensions(
+        { width: 1200 },
+        createInputsAccessor({ 'Input:AspectRatio': '9:16' })
+      );
+
+      expect(dimensions).toEqual({ width: 1200, height: 2134 });
+    });
+
+    it('keeps explicitly configured width and height without overriding from aspect ratio', () => {
+      const dimensions = resolveOutputDimensions(
+        { width: 1280, height: 720 },
+        createInputsAccessor({ 'Input:AspectRatio': '9:16' })
+      );
+
+      expect(dimensions).toEqual({ width: 1280, height: 720 });
+    });
+
+    it('keeps default dimensions when no aspect ratio is provided', () => {
+      const dimensions = resolveOutputDimensions({}, createInputsAccessor());
+
+      expect(dimensions).toEqual({ width: 1920, height: 1080 });
+    });
+
+    it('normalizes extreme ratios to stay within the max long edge', () => {
+      expect(deriveDimensionsFromAspectRatio(parseAspectRatio('21:9'))).toEqual(
+        {
+          width: 1920,
+          height: 824,
+        }
+      );
+      expect(deriveDimensionsFromAspectRatio(parseAspectRatio('1:2'))).toEqual({
+        width: 960,
+        height: 1920,
+      });
     });
   });
 

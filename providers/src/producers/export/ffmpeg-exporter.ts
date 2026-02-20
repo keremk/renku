@@ -24,6 +24,7 @@ const FFMPEG_PROGRESS_PERCENT_STEP = 5;
 const TIMELINE_ARTEFACT_ID = 'Artifact:TimelineComposer.Timeline';
 const TRANSCRIPTION_ARTEFACT_ID =
   'Artifact:TranscriptionProducer.Transcription';
+const ASPECT_RATIO_INPUT_ID = 'Input:AspectRatio';
 
 interface FfmpegProgressSnapshot {
   timeSeconds: number;
@@ -97,6 +98,10 @@ export function createFfmpegExporterHandler(): HandlerFactory {
 
         // Config is now validated, safe to use
         const config = rawConfig as FfmpegExporterConfig;
+        const outputDimensions = resolveOutputDimensions(
+          config,
+          runtime.inputs
+        );
         const produceId = request.produces[0];
 
         if (!produceId) {
@@ -219,8 +224,8 @@ export function createFfmpegExporterHandler(): HandlerFactory {
           await generateAssFile(
             transcription,
             {
-              width: config.width ?? FFMPEG_DEFAULTS.width,
-              height: config.height ?? FFMPEG_DEFAULTS.height,
+              width: outputDimensions.width,
+              height: outputDimensions.height,
               font: config.subtitles?.font,
               fontSize: config.subtitles?.fontSize,
               fontBaseColor: config.subtitles?.fontBaseColor,
@@ -242,8 +247,8 @@ export function createFfmpegExporterHandler(): HandlerFactory {
           timeline,
           assetPaths,
           {
-            width: config.width ?? FFMPEG_DEFAULTS.width,
-            height: config.height ?? FFMPEG_DEFAULTS.height,
+            width: outputDimensions.width,
+            height: outputDimensions.height,
             fps: config.fps ?? FFMPEG_DEFAULTS.fps,
             preset: config.preset ?? FFMPEG_DEFAULTS.preset,
             crf: config.crf ?? FFMPEG_DEFAULTS.crf,
@@ -334,6 +339,112 @@ export function createFfmpegExporterHandler(): HandlerFactory {
       },
     })(init); // Pass init to inner factory
   };
+}
+
+interface OutputDimensions {
+  width: number;
+  height: number;
+}
+
+function resolveOutputDimensions(
+  config: FfmpegExporterConfig,
+  inputs: ResolvedInputsAccessor
+): OutputDimensions {
+  const configuredWidth = config.width;
+  const configuredHeight = config.height;
+
+  if (configuredWidth !== undefined && configuredHeight !== undefined) {
+    return {
+      width: configuredWidth,
+      height: configuredHeight,
+    };
+  }
+
+  const aspectRatioValue = inputs.getByNodeId<string>(ASPECT_RATIO_INPUT_ID);
+  if (aspectRatioValue === undefined) {
+    return {
+      width: configuredWidth ?? FFMPEG_DEFAULTS.width,
+      height: configuredHeight ?? FFMPEG_DEFAULTS.height,
+    };
+  }
+
+  const aspectRatio = parseAspectRatio(aspectRatioValue);
+
+  if (configuredWidth !== undefined) {
+    return {
+      width: configuredWidth,
+      height: roundToEvenPositive(configuredWidth / aspectRatio),
+    };
+  }
+
+  if (configuredHeight !== undefined) {
+    return {
+      width: roundToEvenPositive(configuredHeight * aspectRatio),
+      height: configuredHeight,
+    };
+  }
+
+  return deriveDimensionsFromAspectRatio(aspectRatio);
+}
+
+function parseAspectRatio(rawAspectRatio: string): number {
+  const [widthRaw, heightRaw, ...extraParts] = rawAspectRatio.trim().split(':');
+  if (!widthRaw || !heightRaw || extraParts.length > 0) {
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      `Invalid aspect ratio "${rawAspectRatio}". Expected format "width:height" with positive numeric values.`,
+      { kind: 'user_input', causedByUser: true }
+    );
+  }
+
+  const width = Number(widthRaw);
+  const height = Number(heightRaw);
+  if (
+    !Number.isFinite(width) ||
+    !Number.isFinite(height) ||
+    width <= 0 ||
+    height <= 0
+  ) {
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      `Invalid aspect ratio "${rawAspectRatio}". Expected format "width:height" with positive numeric values.`,
+      { kind: 'user_input', causedByUser: true }
+    );
+  }
+
+  return width / height;
+}
+
+function deriveDimensionsFromAspectRatio(
+  aspectRatio: number
+): OutputDimensions {
+  const defaultShortEdge = Math.min(
+    FFMPEG_DEFAULTS.width,
+    FFMPEG_DEFAULTS.height
+  );
+  const maxLongEdge = Math.max(FFMPEG_DEFAULTS.width, FFMPEG_DEFAULTS.height);
+
+  let width =
+    aspectRatio >= 1 ? defaultShortEdge * aspectRatio : defaultShortEdge;
+  let height =
+    aspectRatio >= 1 ? defaultShortEdge : defaultShortEdge / aspectRatio;
+
+  const longEdge = Math.max(width, height);
+  if (longEdge > maxLongEdge) {
+    const scale = maxLongEdge / longEdge;
+    width *= scale;
+    height *= scale;
+  }
+
+  return {
+    width: roundToEvenPositive(width),
+    height: roundToEvenPositive(height),
+  };
+}
+
+function roundToEvenPositive(value: number): number {
+  const rounded = Math.max(2, Math.round(value));
+  return rounded % 2 === 0 ? rounded : rounded + 1;
 }
 
 function resolveMovieId(inputs: ResolvedInputsAccessor): string {
@@ -794,6 +905,9 @@ function isAbortError(error: unknown): boolean {
 }
 
 export const __test__ = {
+  resolveOutputDimensions,
+  parseAspectRatio,
+  deriveDimensionsFromAspectRatio,
   resolveMovieId,
   resolveStoragePaths,
   mimeToExtension,
