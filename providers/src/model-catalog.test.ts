@@ -10,10 +10,13 @@ import {
   type ModelDefinition,
   type NestedModelDeclaration,
 } from './model-catalog.js';
+import {
+  CATALOG_MODELS_ROOT,
+  CATALOG_PRODUCERS_ROOT,
+} from '../tests/test-catalog-paths.js';
 
-const CATALOG_ROOT = resolve(import.meta.dirname, '../../catalog');
-const MODELS_DIR = resolve(CATALOG_ROOT, 'models');
-const PRODUCERS_ASSET_DIR = resolve(CATALOG_ROOT, 'producers/asset');
+const MODELS_DIR = CATALOG_MODELS_ROOT;
+const PRODUCERS_ASSET_DIR = resolve(CATALOG_PRODUCERS_ROOT, 'asset');
 
 describe('model-catalog', () => {
   describe('loadModelCatalog', () => {
@@ -43,24 +46,48 @@ describe('model-catalog', () => {
       // fal-ai models with dots
       expect(lookupModel(catalog, 'fal-ai', 'veo3.1')).not.toBeNull();
       expect(lookupModel(catalog, 'fal-ai', 'gpt-image-1.5')).not.toBeNull();
-      expect(lookupModel(catalog, 'fal-ai', 'minimax/speech-2.6-hd')).not.toBeNull();
-      expect(lookupModel(catalog, 'fal-ai', 'veed/fabric-1.0/fast')).not.toBeNull();
+      expect(
+        lookupModel(catalog, 'fal-ai', 'minimax/speech-2.6-hd')
+      ).not.toBeNull();
+      expect(
+        lookupModel(catalog, 'fal-ai', 'veed/fabric-1.0/fast')
+      ).not.toBeNull();
 
       // replicate models with dots
-      expect(lookupModel(catalog, 'replicate', 'minimax/hailuo-2.3')).not.toBeNull();
-      expect(lookupModel(catalog, 'replicate', 'minimax/music-1.5')).not.toBeNull();
-      expect(lookupModel(catalog, 'replicate', 'bytedance/seedream-4.5')).not.toBeNull();
-      expect(lookupModel(catalog, 'replicate', 'google/veo-3.1-fast')).not.toBeNull();
+      expect(
+        lookupModel(catalog, 'replicate', 'minimax/hailuo-2.3')
+      ).not.toBeNull();
+      expect(
+        lookupModel(catalog, 'replicate', 'minimax/music-1.5')
+      ).not.toBeNull();
+      expect(
+        lookupModel(catalog, 'replicate', 'bytedance/seedream-4.5')
+      ).not.toBeNull();
+      expect(
+        lookupModel(catalog, 'replicate', 'google/veo-3.1-fast')
+      ).not.toBeNull();
     });
 
     it('should find models with slashes in path', async () => {
       const catalog = await loadModelCatalog(MODELS_DIR);
 
       // Models with multi-segment paths
-      expect(lookupModel(catalog, 'fal-ai', 'bytedance/seedance/v1.5/pro/text-to-video')).not.toBeNull();
-      expect(lookupModel(catalog, 'fal-ai', 'wan/v2.6/text-to-video')).not.toBeNull();
-      expect(lookupModel(catalog, 'fal-ai', 'kling-video/o1/image-to-video')).not.toBeNull();
-      expect(lookupModel(catalog, 'fal-ai', 'elevenlabs/tts/eleven-v3')).not.toBeNull();
+      expect(
+        lookupModel(
+          catalog,
+          'fal-ai',
+          'bytedance/seedance/v1.5/pro/text-to-video'
+        )
+      ).not.toBeNull();
+      expect(
+        lookupModel(catalog, 'fal-ai', 'wan/v2.6/text-to-video')
+      ).not.toBeNull();
+      expect(
+        lookupModel(catalog, 'fal-ai', 'kling-video/o1/image-to-video')
+      ).not.toBeNull();
+      expect(
+        lookupModel(catalog, 'fal-ai', 'elevenlabs/tts/eleven-v3')
+      ).not.toBeNull();
     });
 
     it('should return null for non-existent models', async () => {
@@ -68,7 +95,9 @@ describe('model-catalog', () => {
 
       // Non-existent models should return null
       expect(lookupModel(catalog, 'fal-ai', 'non-existent-model')).toBeNull();
-      expect(lookupModel(catalog, 'replicate', 'non-existent-model')).toBeNull();
+      expect(
+        lookupModel(catalog, 'replicate', 'non-existent-model')
+      ).toBeNull();
 
       // Wrong provider for existing model
       expect(lookupModel(catalog, 'replicate', 'veo3.1')).toBeNull();
@@ -82,7 +111,9 @@ describe('model-catalog', () => {
       expect(lookupModel(catalog, 'fal-ai', 'gpt-image-1-5')).toBeNull();
 
       // Using wrong path structure should fail
-      expect(lookupModel(catalog, 'fal-ai', 'wan-v2-6/text-to-video')).toBeNull();
+      expect(
+        lookupModel(catalog, 'fal-ai', 'wan-v2-6/text-to-video')
+      ).toBeNull();
     });
   });
 
@@ -150,7 +181,12 @@ describe('model-catalog', () => {
         type: 'audio',
         schema: 'tts_schema',
       };
-      const path = resolveSchemaPath('/catalog/models', 'elevenlabs', 'eleven_v3', modelDef);
+      const path = resolveSchemaPath(
+        '/catalog/models',
+        'elevenlabs',
+        'eleven_v3',
+        modelDef
+      );
       expect(path).toBe('/catalog/models/elevenlabs/audio/tts_schema.json');
     });
 
@@ -161,7 +197,12 @@ describe('model-catalog', () => {
         schema: 'shared_schema',
         inputSchema: 'custom/path.json',
       };
-      const path = resolveSchemaPath('/catalog/models', 'test-provider', 'test', modelDef);
+      const path = resolveSchemaPath(
+        '/catalog/models',
+        'test-provider',
+        'test',
+        modelDef
+      );
       expect(path).toBe('/catalog/models/test-provider/custom/path.json');
     });
 
@@ -170,7 +211,12 @@ describe('model-catalog', () => {
         name: 'my-model',
         type: 'video',
       };
-      const path = resolveSchemaPath('/catalog/models', 'provider', 'my-model', modelDef);
+      const path = resolveSchemaPath(
+        '/catalog/models',
+        'provider',
+        'my-model',
+        modelDef
+      );
       expect(path).toBe('/catalog/models/provider/video/my-model.json');
     });
 
@@ -179,8 +225,15 @@ describe('model-catalog', () => {
         name: 'bytedance/seedream-4',
         type: 'image',
       };
-      const path = resolveSchemaPath('/catalog/models', 'replicate', 'bytedance/seedream-4', modelDef);
-      expect(path).toBe('/catalog/models/replicate/image/bytedance-seedream-4.json');
+      const path = resolveSchemaPath(
+        '/catalog/models',
+        'replicate',
+        'bytedance/seedream-4',
+        modelDef
+      );
+      expect(path).toBe(
+        '/catalog/models/replicate/image/bytedance-seedream-4.json'
+      );
     });
 
     it('converts model name with dots to filename', () => {
@@ -188,8 +241,15 @@ describe('model-catalog', () => {
         name: 'minimax/speech-2.6-hd',
         type: 'audio',
       };
-      const path = resolveSchemaPath('/catalog/models', 'fal-ai', 'minimax/speech-2.6-hd', modelDef);
-      expect(path).toBe('/catalog/models/fal-ai/audio/minimax-speech-2-6-hd.json');
+      const path = resolveSchemaPath(
+        '/catalog/models',
+        'fal-ai',
+        'minimax/speech-2.6-hd',
+        modelDef
+      );
+      expect(path).toBe(
+        '/catalog/models/fal-ai/audio/minimax-speech-2-6-hd.json'
+      );
     });
   });
 
@@ -201,7 +261,11 @@ describe('model-catalog', () => {
       expect(eleven_v3).not.toBeNull();
       expect(eleven_v3!.schema).toBe('tts_schema');
 
-      const eleven_multilingual = lookupModel(catalog, 'elevenlabs', 'eleven_multilingual_v2');
+      const eleven_multilingual = lookupModel(
+        catalog,
+        'elevenlabs',
+        'eleven_multilingual_v2'
+      );
       expect(eleven_multilingual).not.toBeNull();
       expect(eleven_multilingual!.schema).toBe('tts_schema');
 

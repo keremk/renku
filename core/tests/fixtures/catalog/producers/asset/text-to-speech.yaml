@@ -1,0 +1,139 @@
+meta:
+  name: Text-to-Speech Generator
+  description: Convert text to speech using various AI voice models.
+  id: TextToSpeechProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Text
+    description: Text to convert to speech.
+    type: string
+  - name: GuidingPrompt
+    description: Optional text prompt to guide voice style/tone.
+    type: string  
+
+  # Voice selection (model-specific - no transformation possible)
+  - name: VoiceId
+    description: Voice identifier (model-specific, see model docs for available voices).
+    type: string
+  - name: ReferenceAudioUrl
+    description: Reference audio URL for voice cloning (supported by some models).
+    type: string
+
+  # Voice modulation
+  - name: Emotion
+    description: Emotional tone (happy, sad, angry, neutral, etc.).
+    type: string
+
+  # Language
+  - name: LanguageCode
+    description: ISO 639-1 language code or language name.
+    type: string
+
+artifacts:
+  - name: GeneratedAudio
+    description: The generated speech audio.
+    type: audio
+
+mappings:
+  fal-ai:
+    # ElevenLabs TTS
+    elevenlabs/tts/eleven-v3:
+      Text: text
+      VoiceId: voice
+      LanguageCode: language_code
+
+    # MiniMax Speech 02 HD
+    minimax/speech-02-hd:
+      Text: text
+      VoiceId: voice_setting.voice_id
+      Emotion: voice_setting.emotion
+
+    # MiniMax Speech 2.6 HD
+    minimax/speech-2.6-hd:
+      Text: prompt
+      VoiceId: voice_setting.voice_id
+      Emotion: voice_setting.emotion
+
+    # MiniMax Speech 2.8 HD
+    minimax/speech-2.8-hd:
+      Text: prompt
+      VoiceId: voice_setting.voice_id
+      Emotion: voice_setting.emotion
+
+    # MiniMax Speech 2.8 Turbo
+    minimax/speech-2.8-turbo:
+      Text: prompt
+      VoiceId: voice_setting.voice_id
+      Emotion: voice_setting.emotion
+
+    # Qwen 3 TTS 1.7B
+    qwen-3-tts/text-to-speech/1.7b:
+      Text: text
+      GuidingPrompt: prompt
+      VoiceId: voice
+      LanguageCode: language
+
+    # Chatterbox TTS
+    chatterbox/text-to-speech:
+      Text: text
+      ReferenceAudioUrl: audio_url
+
+  replicate:
+    # MiniMax Speech 02 HD
+    minimax/speech-02-hd:
+      Text: text
+      VoiceId: voice_id
+      Emotion: emotion
+
+    # MiniMax Speech 02 Turbo
+    minimax/speech-02-turbo:
+      Text: text
+      VoiceId: voice_id
+      Emotion: emotion
+
+    # MiniMax Speech 2.6 HD
+    minimax/speech-2.6-hd:
+      Text: text
+      VoiceId: voice_id
+      Emotion: emotion
+
+    # MiniMax Speech 2.6 Turbo
+    minimax/speech-2.6-turbo:
+      Text: text
+      VoiceId: voice_id
+      Emotion: emotion
+
+    # Resemble AI Chatterbox Turbo
+    resemble-ai/chatterbox-turbo:
+      Text: text
+      VoiceId: voice
+      ReferenceAudioUrl: reference_audio
+
+  elevenlabs:
+    # ElevenLabs Eleven V3 (latest, most expressive)
+    eleven_v3:
+      Text: text
+      VoiceId: voice
+      Speed:
+        field: voice_settings.speed
+      LanguageCode: language_code
+
+    # ElevenLabs Eleven Multilingual V2 (29 languages)
+    eleven_multilingual_v2:
+      Text: text
+      VoiceId: voice
+      Speed:
+        field: voice_settings.speed
+      LanguageCode: language_code
+
+    # ElevenLabs Eleven Turbo V2.5 (low latency)
+    eleven_turbo_v2_5:
+      Text: text
+      VoiceId: voice
+      Speed:
+        field: voice_settings.speed
+      LanguageCode: language_code

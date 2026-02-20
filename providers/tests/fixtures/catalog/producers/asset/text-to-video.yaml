@@ -1,0 +1,187 @@
+meta:
+  name: Text-to-Video Generator
+  description: Generate video from text prompts using various AI models.
+  id: TextToVideoProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Text description of the video to generate.
+    type: string
+
+  # Duration
+  - name: Duration
+    description: Video duration in seconds.
+    type: integer
+  - name: NumFrames
+    description: Number of frames (for frame-based models).
+    type: integer
+
+  # Sizing
+  - name: AspectRatio
+    description: "Aspect ratio (16:9, 9:16, 1:1, 4:3, 3:4, 21:9)."
+    type: string
+  - name: Resolution
+    description: "Resolution preset (480p, 720p, 1080p)."
+    type: string
+
+  # Audio
+  - name: GenerateAudio
+    description: Whether to generate audio for the video.
+    type: boolean
+  - name: AudioUrl
+    description: URL to background audio file.
+    type: string
+
+artifacts:
+  - name: GeneratedVideo
+    description: The generated video.
+    type: video
+  - name: FirstFrame
+    description: The first frame of the generated video.
+    type: image
+  - name: LastFrame
+    description: The last frame of the generated video.
+    type: image
+  - name: AudioTrack
+    description: The audio track of the generated video.
+    type: audio
+
+mappings:
+  fal-ai:
+    # Wan v2.6 Text-to-Video
+    wan/v2.6/text-to-video:
+      Prompt: prompt
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      AudioUrl: audio_url
+  
+    # Veo 3.1 Text-to-Video
+    veo3.1:
+      Prompt: prompt
+      Duration:
+        field: duration
+        intToSecondsString: true
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: generate_audio
+
+    # Veo 3.1 Fast
+    veo3.1/fast:
+      Prompt: prompt
+      Duration:
+        field: duration
+        intToSecondsString: true
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: generate_audio
+
+    # Sora 2 Text-to-Video
+    sora-2/text-to-video:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+
+    # ByteDance Seedance v1.5 Pro
+    bytedance/seedance/v1.5/pro/text-to-video:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: generate_audio
+
+    # ByteDance Seedance v1-Pro-Fast
+    bytedance/seedance/v1/pro/fast/text-to-video:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+
+    # XAI Grok Imagine Video Text-to-Video
+    xai/grok-imagine-video/text-to-video:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+
+    # LTX-2-19b Distilled Text-to-Video
+    ltx-2-19b/distilled/text-to-video:
+      Prompt: prompt
+      VideoSize:
+        field: video_size
+        combine:
+          inputs: [AspectRatio, Resolution]
+          table:
+            # With Resolution specified -> explicit dimensions
+            "16:9+480p": { width: 848, height: 480 }
+            "16:9+720p": { width: 1280, height: 720 }
+            "9:16+480p": { width: 480, height: 848 }
+            "9:16+720p": { width: 720, height: 1280 }
+            "4:3+480p": { width: 640, height: 480 }
+            "4:3+720p": { width: 960, height: 720 }
+            "3:4+480p": { width: 480, height: 640 }
+            "3:4+720p": { width: 720, height: 960 }
+            "1:1+480p": { width: 512, height: 512 }
+            "1:1+720p": { width: 720, height: 720 }
+            # With only AspectRatio -> preset strings (default ~720p resolution)
+            "16:9+": landscape_16_9
+            "9:16+": portrait_16_9
+            "4:3+": landscape_4_3
+            "3:4+": portrait_4_3
+            "1:1+": square_hd
+      Duration:
+        field: num_frames
+        durationToFrames:
+          fps: 25
+      GenerateAudio: generate_audio
+
+  replicate:
+    # ByteDance Seedance 1.5 Pro
+    bytedance/seedance-1.5-pro:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
+
+    # ByteDance Seedance 1-Pro-Fast
+    bytedance/seedance-1-pro-fast:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+
+    # ByteDance Seedance 1-Lite
+    bytedance/seedance-1-lite:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+
+    # Google Veo 3.1 Fast
+    google/veo-3.1-fast:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+
+    # MiniMax Hailuo 2.3
+    minimax/hailuo-2.3:
+      Prompt: prompt
+      Duration: duration
+      Resolution: resolution
+
+    # OpenAI Sora 2
+    openai/sora-2:
+      Prompt: prompt
+      Duration:
+        field: seconds
+      AspectRatio:
+        field: aspect_ratio
+        transform:
+          "16:9": "landscape"
+          "9:16": "portrait"

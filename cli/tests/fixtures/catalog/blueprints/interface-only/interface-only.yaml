@@ -1,0 +1,28 @@
+meta:
+  name: Interface Only Fixture
+  description: Fixture blueprint with only path-based, interface-only producers.
+  id: InterfaceOnlyFixture
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Prompt for generating a short text response.
+    type: string
+    required: true
+
+artifacts:
+  - name: GeneratedText
+    description: Generated plain text output.
+    type: string
+
+producers:
+  - name: ScriptProducer
+    path: ./script/script.yaml
+
+connections:
+  - from: Prompt
+    to: ScriptProducer.Prompt
+  - from: ScriptProducer.GeneratedText
+    to: GeneratedText

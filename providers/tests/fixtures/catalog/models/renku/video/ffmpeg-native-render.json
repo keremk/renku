@@ -1,0 +1,176 @@
+{
+  "input_schema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "rootFolder": {
+        "type": "string",
+        "description": "Root folder for storage (can also come from Input:StorageRoot)"
+      },
+      "width": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Output video width in pixels (default: 1920)"
+      },
+      "height": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Output video height in pixels (default: 1080)"
+      },
+      "fps": {
+        "type": "number",
+        "exclusiveMinimum": 0,
+        "description": "Frames per second (default: 30)"
+      },
+      "preset": {
+        "type": "string",
+        "enum": [
+          "ultrafast",
+          "superfast",
+          "veryfast",
+          "faster",
+          "fast",
+          "medium",
+          "slow",
+          "slower",
+          "veryslow"
+        ],
+        "description": "x264 encoding preset (default: medium)"
+      },
+      "crf": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 51,
+        "description": "Constant Rate Factor for quality, 0-51 (default: 23)"
+      },
+      "audioBitrate": {
+        "type": "string",
+        "pattern": "^\\d+k$",
+        "description": "Audio bitrate, e.g., '192k' (default: 192k)"
+      },
+      "ffmpegPath": {
+        "type": "string",
+        "description": "Custom FFmpeg binary path (default: 'ffmpeg' from PATH)"
+      },
+      "subtitles": {
+        "$ref": "#/SubtitleConfig"
+      },
+      "text": {
+        "$ref": "#/TextConfig"
+      }
+    },
+    "additionalProperties": false
+  },
+  "OverlayPosition": {
+    "type": "string",
+    "enum": [
+      "top-left",
+      "top-center",
+      "top-right",
+      "middle-left",
+      "middle-center",
+      "middle-right",
+      "bottom-left",
+      "bottom-center",
+      "bottom-right"
+    ]
+  },
+  "SubtitleConfig": {
+    "type": "object",
+    "description": "Configuration for subtitles with optional karaoke-style word highlighting",
+    "properties": {
+      "font": {
+        "type": "string",
+        "description": "Font name - uses system fonts (default: Arial)"
+      },
+      "fontSize": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Font size in pixels (default: 48)"
+      },
+      "fontBaseColor": {
+        "type": "string",
+        "pattern": "^#[0-9A-Fa-f]{6}$",
+        "description": "Default text color in hex format, e.g., '#FFFFFF' (default: white)"
+      },
+      "fontHighlightColor": {
+        "type": "string",
+        "pattern": "^#[0-9A-Fa-f]{6}$",
+        "description": "Highlight color for the currently spoken word (default: #FFD700 - gold)"
+      },
+      "backgroundColor": {
+        "type": "string",
+        "pattern": "^#[0-9A-Fa-f]{6}$",
+        "description": "Background box color in hex format (default: #000000)"
+      },
+      "backgroundOpacity": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "description": "Background box opacity 0-1, 0 = no box (default: 0)"
+      },
+      "position": {
+        "$ref": "#/OverlayPosition",
+        "description": "Subtitle anchor position (default: bottom-center)"
+      },
+      "edgePaddingPercent": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 100,
+        "description": "Distance from anchored edges as percentage of frame height (default: 8)"
+      },
+      "maxWordsPerLine": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Maximum words to display at once per line (default: 4)"
+      },
+      "highlightEffect": {
+        "type": "boolean",
+        "description": "Enable karaoke-style word highlighting (default: true)"
+      }
+    },
+    "additionalProperties": false
+  },
+  "TextConfig": {
+    "type": "object",
+    "description": "Configuration for timeline text overlays",
+    "properties": {
+      "font": {
+        "type": "string",
+        "description": "Font name - uses system fonts (default: Arial)"
+      },
+      "fontSize": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Font size in pixels (default: 56)"
+      },
+      "fontBaseColor": {
+        "type": "string",
+        "pattern": "^#[0-9A-Fa-f]{6}$",
+        "description": "Text color in hex format, e.g., '#FFFFFF'"
+      },
+      "backgroundColor": {
+        "type": "string",
+        "pattern": "^#[0-9A-Fa-f]{6}$",
+        "description": "Background box color in hex format, e.g., '#000000'"
+      },
+      "backgroundOpacity": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "description": "Background box opacity 0-1, 0 = no box (default: 0.35)"
+      },
+      "position": {
+        "$ref": "#/OverlayPosition",
+        "description": "Text anchor position (default: middle-center)"
+      },
+      "edgePaddingPercent": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 100,
+        "description": "Distance from anchored edges as percentage of frame height (default: 8)"
+      }
+    },
+    "additionalProperties": false
+  }
+}

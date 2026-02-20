@@ -1,0 +1,36 @@
+meta:
+  name: Video Exporter
+  description: Render the composed timeline into a final MP4.
+  id: VideoExporter
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Timeline
+    description: OrderedTimeline JSON manifest to render.
+    type: json
+  - name: Transcription
+    description: Optional word-level transcription for karaoke subtitles.
+    type: json
+    required: false
+  - name: AspectRatio
+    description: Optional output aspect ratio (for example 16:9 or 9:16).
+    type: string
+    required: false
+
+artifacts:
+  - name: FinalVideo
+    description: Final rendered MP4 video.
+    type: video
+
+# Model mappings for available renderers
+mappings:
+  renku:
+    ffmpeg/native-render:
+      Timeline: timeline
+      Transcription: transcription
+    remotion/docker-render:
+      Timeline: timeline
+      Transcription: transcription

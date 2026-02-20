@@ -1,0 +1,64 @@
+meta:
+  name: Reference-Video-to-Video Generator
+  description: Generate video using reference videos for subject consistency.
+  id: RefVideoToVideoProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Text description of the video.
+    type: string
+
+  # References
+  - name: ReferenceVideos
+    description: Reference videos for subject consistency.
+    type: collection
+    itemType: video
+
+  # Duration
+  - name: Duration
+    description: Video duration in seconds.
+    type: integer
+
+  # Sizing
+  - name: AspectRatio
+    description: "Aspect ratio (16:9, 9:16, 1:1, 4:3, 3:4)."
+    type: string
+  - name: Resolution
+    description: "Resolution preset (720p, 1080p)."
+    type: string
+
+  # Audio
+  - name: GenerateAudio
+    description: Whether to generate audio.
+    type: boolean
+
+artifacts:
+  - name: GeneratedVideo
+    description: The generated video.
+    type: video
+  - name: FirstFrame
+    description: The first frame of the generated video.
+    type: image
+  - name: LastFrame
+    description: The last frame of the generated video.
+    type: image
+  - name: AudioTrack
+    description: The audio track of the generated video.
+    type: audio
+
+mappings:
+  fal-ai:
+    # Wan v2.6 Reference-to-Video (uses video references)
+    wan/v2.6/reference-to-video:
+      Prompt: prompt
+      ReferenceVideos: video_urls
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+

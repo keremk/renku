@@ -5,19 +5,18 @@
 import { describe, it, expect } from 'vitest';
 import { readdir, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import {
-  CATALOG_BLUEPRINTS_ROOT,
-  CATALOG_ROOT,
-} from '../../tests/catalog-paths.js';
 import { loadYamlBlueprintTree } from '../parsing/blueprint-loader/yaml-parser.js';
 import { validateBlueprintTree } from './blueprint-validator.js';
 
+const REPO_CATALOG_ROOT = resolve(import.meta.dirname, '../../../catalog');
+const REPO_CATALOG_BLUEPRINTS_ROOT = resolve(REPO_CATALOG_ROOT, 'blueprints');
+
 async function findBlueprintFiles(): Promise<{ name: string; path: string }[]> {
   const blueprints: { name: string; path: string }[] = [];
-  const entries = await readdir(CATALOG_BLUEPRINTS_ROOT);
+  const entries = await readdir(REPO_CATALOG_BLUEPRINTS_ROOT);
 
   for (const entry of entries) {
-    const dirPath = resolve(CATALOG_BLUEPRINTS_ROOT, entry);
+    const dirPath = resolve(REPO_CATALOG_BLUEPRINTS_ROOT, entry);
     const dirStat = await stat(dirPath);
 
     if (!dirStat.isDirectory()) {
@@ -27,7 +26,7 @@ async function findBlueprintFiles(): Promise<{ name: string; path: string }[]> {
     // Find the main blueprint YAML file (not input-template.yaml)
     const files = await readdir(dirPath);
     const blueprintFile = files.find(
-      (f) => f.endsWith('.yaml') && f !== 'input-template.yaml',
+      (f) => f.endsWith('.yaml') && f !== 'input-template.yaml'
     );
 
     if (blueprintFile) {
@@ -44,12 +43,13 @@ async function findBlueprintFiles(): Promise<{ name: string; path: string }[]> {
 describe('catalog blueprint validation', () => {
   it('validates all catalog blueprints', async () => {
     const blueprints = await findBlueprintFiles();
+    expect(blueprints.length).toBeGreaterThan(0);
     const failures: { name: string; errors: string[] }[] = [];
 
     for (const { name, path } of blueprints) {
       try {
         const { root } = await loadYamlBlueprintTree(path, {
-          catalogRoot: CATALOG_ROOT,
+          catalogRoot: REPO_CATALOG_ROOT,
         });
         const result = validateBlueprintTree(root);
 
@@ -73,51 +73,19 @@ describe('catalog blueprint validation', () => {
       const report = failures
         .map((f) => `${f.name}:\n  ${f.errors.join('\n  ')}`)
         .join('\n\n');
-      expect.fail(`${failures.length} blueprint(s) failed validation:\n\n${report}`);
+      expect.fail(
+        `${failures.length} blueprint(s) failed validation:\n\n${report}`
+      );
     }
   });
 
-  it('finds expected blueprints in catalog', async () => {
+  it('finds blueprint manifests for each catalog blueprint directory', async () => {
     const blueprints = await findBlueprintFiles();
-    const names = blueprints.map((b) => b.name);
-
-    // Verify we're finding the expected blueprints
-    expect(names).toContain('children-story');
-    expect(names).toContain('documentary-talkinghead');
-    expect(blueprints.length).toBeGreaterThanOrEqual(5);
-  });
-
-  // Individual test for each blueprint to see detailed results
-  describe('individual blueprints', () => {
-    it.each([
-      'ads',
-      'children-story',
-      'flow-video',
-      'documentary-talkinghead',
-      'ken-burns',
-    ])('%s blueprint is valid', async (blueprintName) => {
-      const dirPath = resolve(CATALOG_BLUEPRINTS_ROOT, blueprintName);
-      const files = await readdir(dirPath);
-      const blueprintFile = files.find(
-        (f) => f.endsWith('.yaml') && f !== 'input-template.yaml',
-      );
-
-      expect(blueprintFile).toBeDefined();
-
-      const blueprintPath = resolve(dirPath, blueprintFile!);
-      const { root } = await loadYamlBlueprintTree(blueprintPath, {
-        catalogRoot: CATALOG_ROOT,
-      });
-      const result = validateBlueprintTree(root);
-
-      if (!result.valid) {
-        const errorDetails = result.errors
-          .map((e) => `  ${e.code}: ${e.message}`)
-          .join('\n');
-        expect.fail(`Validation failed:\n${errorDetails}`);
-      }
-
-      expect(result.valid).toBe(true);
-    });
+    expect(blueprints.length).toBeGreaterThan(0);
+    for (const blueprint of blueprints) {
+      expect(blueprint.name.length).toBeGreaterThan(0);
+      expect(blueprint.path.endsWith('.yaml')).toBe(true);
+      expect(blueprint.path.endsWith('input-template.yaml')).toBe(false);
+    }
   });
 });

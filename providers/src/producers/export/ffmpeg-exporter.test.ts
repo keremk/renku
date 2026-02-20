@@ -4,8 +4,8 @@ import type { TimelineDocument } from '@gorenku/compositions';
 import { mkdtemp, mkdir, writeFile, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
+import { CATALOG_MODELS_ROOT } from '../../../tests/test-catalog-paths.js';
 
 const {
   resolveOutputDimensions,
@@ -35,10 +35,7 @@ function createInputsAccessor(source: Record<string, unknown> = {}) {
 }
 
 // Helper to load schema from catalog for tests
-const catalogRoot = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '../../../../catalog/models'
-);
+const catalogRoot = CATALOG_MODELS_ROOT;
 
 async function mockGetModelSchema(
   provider: string,

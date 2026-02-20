@@ -18,7 +18,10 @@ import {
 	type RevisionId,
 	type FalRecoveryStatusResult,
 } from '@gorenku/core';
-import { CLI_FIXTURES_BLUEPRINTS } from '../../tests/test-catalog-paths.js';
+import {
+	CLI_FIXTURES_BLUEPRINTS,
+	CLI_FIXTURES_CATALOG,
+} from '../../tests/test-catalog-paths.js';
 
 const AUDIO_ONLY_BLUEPRINT_PATH = resolve(
 	CLI_FIXTURES_BLUEPRINTS,
@@ -94,10 +97,12 @@ describe('generatePlan recovery prepass', () => {
 			inputsPath: seed.inputsPath,
 			usingBlueprint: AUDIO_ONLY_BLUEPRINT_PATH,
 			recoveryDependencies: {
-				checkFalStatus: vi.fn(async (): Promise<FalRecoveryStatusResult> => ({
-					status: 'completed',
-					urls: ['https://cdn.example.com/recovered-audio.mp3'],
-				})),
+				checkFalStatus: vi.fn(
+					async (): Promise<FalRecoveryStatusResult> => ({
+						status: 'completed',
+						urls: ['https://cdn.example.com/recovered-audio.mp3'],
+					})
+				),
 				downloadBinary: vi.fn(async () => ({
 					data: Buffer.from('recovered-audio-data'),
 					mimeType: 'audio/mpeg',
@@ -136,7 +141,11 @@ describe('generatePlan recovery prepass', () => {
 			inputsPath: seed.inputsPath,
 			usingBlueprint: AUDIO_ONLY_BLUEPRINT_PATH,
 			recoveryDependencies: {
-				checkFalStatus: vi.fn(async (): Promise<FalRecoveryStatusResult> => ({ status: 'in_progress' })),
+				checkFalStatus: vi.fn(
+					async (): Promise<FalRecoveryStatusResult> => ({
+						status: 'in_progress',
+					})
+				),
 			},
 		});
 
@@ -233,7 +242,11 @@ async function createSeedMovie(prompt: string): Promise<SeedMovie> {
 	const cliConfigPath = join(root, 'cli-config.json');
 	process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
-	await runInit({ rootFolder: root, configPath: cliConfigPath });
+	await runInit({
+		rootFolder: root,
+		configPath: cliConfigPath,
+		catalogSourceRoot: CLI_FIXTURES_CATALOG,
+	});
 
 	const inputsPath = await createInputsFile({
 		root,

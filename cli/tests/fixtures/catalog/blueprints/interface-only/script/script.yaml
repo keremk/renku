@@ -1,0 +1,18 @@
+meta:
+  name: Interface Script Producer
+  description: Produces a generated text artifact from a single prompt input.
+  id: InterfaceScriptProducer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Prompt text to transform into generated copy.
+    type: string
+    required: true
+
+artifacts:
+  - name: GeneratedText
+    description: Generated text output.
+    type: string

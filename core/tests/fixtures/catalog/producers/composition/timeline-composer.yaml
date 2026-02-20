@@ -1,0 +1,63 @@
+meta:
+  name: Timeline Composer
+  description: Compose assets into a ReMotion timeline.
+  id: TimelineComposer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: ImageSegments
+    description: Collected image assets grouped per segment.
+    type: collection
+    itemType: image
+    dimensions: segment.image
+    fanIn: true
+  - name: VideoSegments
+    description: Collected video assets grouped per narration segment.
+    type: collection
+    itemType: video
+    dimensions: segment
+    fanIn: true
+  - name: AudioSegments
+    description: Narration audio clips grouped per segment (master track).
+    type: collection
+    itemType: audio
+    dimensions: segment
+    fanIn: true
+  - name: TranscriptionAudio
+    description: Audio clips to transcribe, grouped per segment.
+    type: collection
+    itemType: audio
+    dimensions: segment
+    fanIn: true
+  - name: TextSegments
+    description: Text snippets grouped per segment.
+    type: collection
+    itemType: string
+    dimensions: segment
+    fanIn: true
+  - name: Music
+    description: Background music clips that score the movie (looped as needed).
+    type: audio
+    fanIn: true
+  - name: Duration
+    description: Total duration of the movie in seconds.
+    type: int
+
+artifacts:
+  - name: Timeline
+    description: OrderedTimeline JSON manifest.
+    type: json
+
+# Model mappings for available timeline composers
+mappings:
+  renku:
+    timeline/ordered:
+      ImageSegments: imageSegments
+      VideoSegments: videoSegments
+      AudioSegments: audioSegments
+      TranscriptionAudio: transcriptionAudio
+      TextSegments: textSegments
+      Music: music

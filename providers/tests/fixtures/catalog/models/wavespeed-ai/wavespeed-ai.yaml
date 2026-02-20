@@ -1,0 +1,34 @@
+models:
+  # Image Models
+  - name: bytedance/seedream-v4.5
+    type: image
+    mime:
+      - image/png
+    price:
+      function: costByRun
+      price: 0.04
+
+  - name: elevenlabs/eleven-v3
+    type: audio
+    mime:
+      - audio/mp3
+    price:
+      function: costByRun
+      price: 0.1
+
+  # Video Models
+  - name: wavespeed-ai/video-upscaler-pro
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByRun
+      price: 0.161
+  - name: wavespeed-ai/infinitetalk
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByRun
+      price: 0.24192
+

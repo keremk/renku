@@ -1,0 +1,16 @@
+meta:
+  name: Prompt Script Producer Fixture
+  description: Catalog producer fixture for script generation.
+  id: PromptScriptProducerFixture
+  version: 0.1.0
+
+inputs:
+  - name: InquiryPrompt
+    description: Inquiry prompt for script generation.
+    type: string
+    required: true
+
+artifacts:
+  - name: NarrationScript
+    description: Generated narration script text.
+    type: string

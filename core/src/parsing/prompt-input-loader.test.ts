@@ -1,17 +1,23 @@
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { loadProducerPromptInputs, resolveAllPromptPaths } from './prompt-input-loader.js';
+import {
+  loadProducerPromptInputs,
+  resolveAllPromptPaths,
+} from './prompt-input-loader.js';
 import { loadYamlBlueprintTree } from './blueprint-loader/index.js';
+import { CATALOG_ROOT, TEST_FIXTURES_ROOT } from '../../tests/catalog-paths.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = resolve(__dirname, '..', '..', '..');
-const CATALOG_ROOT = resolve(REPO_ROOT, 'catalog');
-const AUDIO_ONLY_BLUEPRINT = resolve(__dirname, '../../tests/fixtures/audio-only/audio-only.yaml');
+const AUDIO_ONLY_BLUEPRINT = resolve(
+  TEST_FIXTURES_ROOT,
+  'audio-only',
+  'audio-only.yaml'
+);
 
 describe('resolveAllPromptPaths', () => {
   it('resolves prompt paths for producers with promptFile in meta', async () => {
-    const { root } = await loadYamlBlueprintTree(AUDIO_ONLY_BLUEPRINT, { catalogRoot: CATALOG_ROOT });
+    const { root } = await loadYamlBlueprintTree(AUDIO_ONLY_BLUEPRINT, {
+      catalogRoot: CATALOG_ROOT,
+    });
     const paths = await resolveAllPromptPaths(root);
 
     // ScriptProducer has a promptFile in its meta
@@ -26,7 +32,9 @@ describe('resolveAllPromptPaths', () => {
 
 describe('loadProducerPromptInputs', () => {
   it('loads TOML prompt values as canonical input IDs', async () => {
-    const { root } = await loadYamlBlueprintTree(AUDIO_ONLY_BLUEPRINT, { catalogRoot: CATALOG_ROOT });
+    const { root } = await loadYamlBlueprintTree(AUDIO_ONLY_BLUEPRINT, {
+      catalogRoot: CATALOG_ROOT,
+    });
     const inputs = await loadProducerPromptInputs(root);
 
     // ScriptProducer's script.toml has systemPrompt, userPrompt, and variables
@@ -40,12 +48,16 @@ describe('loadProducerPromptInputs', () => {
     expect(Array.isArray(inputs['Input:ScriptProducer.variables'])).toBe(true);
 
     // AudioProducer should have no prompt inputs
-    const audioKeys = Object.keys(inputs).filter((k) => k.includes('AudioProducer'));
+    const audioKeys = Object.keys(inputs).filter((k) =>
+      k.includes('AudioProducer')
+    );
     expect(audioKeys).toHaveLength(0);
   });
 
   it('returns empty record when no producers have promptFile', async () => {
-    const { root } = await loadYamlBlueprintTree(AUDIO_ONLY_BLUEPRINT, { catalogRoot: CATALOG_ROOT });
+    const { root } = await loadYamlBlueprintTree(AUDIO_ONLY_BLUEPRINT, {
+      catalogRoot: CATALOG_ROOT,
+    });
 
     // Create a minimal node with no children (no promptFile producers)
     const minimalNode = {

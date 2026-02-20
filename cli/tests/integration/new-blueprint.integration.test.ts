@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runNewBlueprint } from '../../src/commands/new-blueprint.js';
-import { CATALOG_ROOT } from '../test-catalog-paths.js';
+import { CLI_FIXTURES_CATALOG } from '../test-catalog-paths.js';
 import { isRenkuError, RuntimeErrorCode } from '@gorenku/core';
 
 describe('new:blueprint command', () => {
@@ -141,42 +141,42 @@ describe('new:blueprint command', () => {
 	describe('--using flag (copy from catalog)', () => {
 		it('copies blueprint from catalog with all files and renames blueprint YAML', async () => {
 			const result = await runNewBlueprint({
-				name: 'my-ken-burns',
+				name: 'my-cinematic-template',
 				outputDir: tempDir,
-				using: 'ken-burns',
-				catalogRoot: CATALOG_ROOT,
+				using: 'cinematic-template',
+				catalogRoot: CLI_FIXTURES_CATALOG,
 			});
 
 			expect(result.copiedFromCatalog).toBe(true);
-			expect(result.folderPath).toBe(join(tempDir, 'my-ken-burns'));
+			expect(result.folderPath).toBe(join(tempDir, 'my-cinematic-template'));
 
 			// Check folder was created
 			await expect(access(result.folderPath)).resolves.toBeUndefined();
 
-			// Check files exist (ken-burns has subdirectories)
+			// Check files exist (fixture template has subdirectories)
 			const files = await readdir(result.folderPath);
 			expect(files).toContain('input-template.yaml');
 
 			// Blueprint YAML should be renamed to match the new name
-			expect(files).toContain('my-ken-burns.yaml');
+			expect(files).toContain('my-cinematic-template.yaml');
 			expect(result.blueprintPath).toBe(
-				join(tempDir, 'my-ken-burns', 'my-ken-burns.yaml')
+				join(tempDir, 'my-cinematic-template', 'my-cinematic-template.yaml')
 			);
 
 			// Original file should not exist
-			expect(files).not.toContain('image-audio.yaml');
+			expect(files).not.toContain('cinematic-template.yaml');
 		});
 
 		it('copies subdirectories from catalog blueprint', async () => {
 			const result = await runNewBlueprint({
-				name: 'my-ken-burns',
+				name: 'my-cinematic-template',
 				outputDir: tempDir,
-				using: 'ken-burns',
-				catalogRoot: CATALOG_ROOT,
+				using: 'cinematic-template',
+				catalogRoot: CLI_FIXTURES_CATALOG,
 			});
 
 			const files = await readdir(result.folderPath);
-			// ken-burns has subdirectories like 'script' and 'image'
+			// Fixture template has subdirectories like 'script' and 'image'
 			expect(files).toContain('script');
 			expect(files).toContain('image');
 		});
@@ -187,7 +187,7 @@ describe('new:blueprint command', () => {
 					name: 'my-blueprint',
 					outputDir: tempDir,
 					using: 'non-existent-blueprint',
-					catalogRoot: CATALOG_ROOT,
+					catalogRoot: CLI_FIXTURES_CATALOG,
 				});
 				expect.fail('Should have thrown an error');
 			} catch (error) {
@@ -205,7 +205,7 @@ describe('new:blueprint command', () => {
 				runNewBlueprint({
 					name: 'my-blueprint',
 					outputDir: tempDir,
-					using: 'ken-burns',
+					using: 'cinematic-template',
 					// catalogRoot not provided
 				})
 			).rejects.toThrow('Catalog root is required');

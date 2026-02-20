@@ -1,0 +1,28 @@
+models:
+  # Internal Handlers
+  - name: timeline/ordered
+    type: json
+    mime: 
+      - application/json
+    handler: timeline
+    price: 0
+  - name: remotion/docker-render
+    type: video
+    mime:
+      - video/mp4
+    handler: mp4-exporter
+    price: 0
+  - name: ffmpeg/native-render
+    type: video
+    mime:
+      - video/mp4
+      - audio/mpeg
+    handler: ffmpeg-exporter
+    price: 0
+  - name: speech/transcription
+    type: json
+    mime:
+      - application/json
+    handler: transcription
+    schema: speech-transcription
+    price: 0

@@ -18,7 +18,10 @@ import { formatMovieId } from './execute.js';
 import { readCliConfig } from '../lib/cli-config.js';
 import { createInputsFile } from './__testutils__/inputs.js';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
-import { CLI_FIXTURES_BLUEPRINTS } from '../../tests/test-catalog-paths.js';
+import {
+	CLI_FIXTURES_BLUEPRINTS,
+	CLI_FIXTURES_CATALOG,
+} from '../../tests/test-catalog-paths.js';
 import { RuntimeErrorCode } from '@gorenku/core';
 
 // Use CLI fixtures for blueprints
@@ -84,7 +87,11 @@ describe('runGenerate (new runs)', () => {
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
-		await runInit({ rootFolder: root, configPath: cliConfigPath });
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
 
 		const inputsPath = await createInputsFile({
 			root,
@@ -149,7 +156,11 @@ describe('runGenerate (new runs)', () => {
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
-		await runInit({ rootFolder: root, configPath: cliConfigPath });
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
 
 		const inputsPath = await createInputsFile({
 			root,
@@ -178,7 +189,11 @@ describe('runGenerate (new runs)', () => {
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
-		await runInit({ rootFolder: root, configPath: cliConfigPath });
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
 
 		const inputsPath = await createInputsFile({
 			root,
@@ -206,7 +221,11 @@ describe('runGenerate (new runs)', () => {
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
-		await runInit({ rootFolder: root, configPath: cliConfigPath });
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
 
 		const inputsPath = await createInputsFile({
 			root,
@@ -231,7 +250,11 @@ describe('runGenerate (new runs)', () => {
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
-		await runInit({ rootFolder: root, configPath: cliConfigPath });
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
 
 		const inputsPath = await createInputsFile({
 			root,
@@ -258,7 +281,11 @@ describe('runGenerate (new runs)', () => {
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
-		await runInit({ rootFolder: root, configPath: cliConfigPath });
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
 
 		const baselineInputsPath = join(root, 'inputs-image.yaml');
 		await copyFile(
@@ -347,7 +374,11 @@ describe('runGenerate (new runs)', () => {
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
-		await runInit({ rootFolder: root, configPath: cliConfigPath });
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
 
 		const inputsPath = await createInputsFile({
 			root,
@@ -392,7 +423,11 @@ describe('runGenerate (new runs)', () => {
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
-		await runInit({ rootFolder: root, configPath: cliConfigPath });
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
 
 		const inputsPath = await createInputsFile({
 			root,
@@ -429,7 +464,11 @@ describe('runGenerate (new runs)', () => {
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
-		await runInit({ rootFolder: root, configPath: cliConfigPath });
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
 
 		const inputsPath = await createInputsFile({
 			root,
@@ -454,7 +493,11 @@ describe('runGenerate (new runs)', () => {
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
-		await runInit({ rootFolder: root, configPath: cliConfigPath });
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
 
 		const inputsPath = await createInputsFile({
 			root,
@@ -487,7 +530,11 @@ describe('runGenerate (new runs)', () => {
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
-		await runInit({ rootFolder: root, configPath: cliConfigPath });
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
 
 		const inputsPath = await createInputsFile({
 			root,
@@ -521,7 +568,11 @@ describe('runGenerate (new runs)', () => {
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
-		await runInit({ rootFolder: root, configPath: cliConfigPath });
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
 
 		const inputsPath = await createInputsFile({
 			root,
@@ -550,7 +601,11 @@ describe('runGenerate (new runs)', () => {
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
-		await runInit({ rootFolder: root, configPath: cliConfigPath });
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
 
 		const inputsPath = await createInputsFile({
 			root,
@@ -586,7 +641,11 @@ describe('runGenerate (new runs)', () => {
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
-		await runInit({ rootFolder: root, configPath: cliConfigPath });
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
 
 		const inputsPath = await createInputsFile({
 			root,
@@ -620,7 +679,11 @@ describe('runGenerate (new runs)', () => {
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
-		await runInit({ rootFolder: root, configPath: cliConfigPath });
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
 
 		const inputsPath = await createInputsFile({
 			root,
@@ -662,7 +725,11 @@ describe('runGenerate (new runs)', () => {
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
 
-		await runInit({ rootFolder: root, configPath: cliConfigPath });
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
 
 		const inputsPath = await createInputsFile({
 			root,

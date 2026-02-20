@@ -1,0 +1,259 @@
+models:
+  # Image Models
+  - name: bytedance/seedream-4
+    type: image
+    mime:
+      - image/png
+    price:
+      function: costByRun
+      price: 0.03
+  - name: bytedance/seedream-4.5
+    type: image
+    mime:
+      - image/png
+    price:
+      function: costByRun
+      price: 0.04
+  - name: google/imagen-4
+    type: image
+    mime:
+      - image/png
+      - image/jpg
+    price:
+      function: costByRun
+      price: 0.04
+  - name: google/nano-banana
+    type: image
+    price:
+      function: costByRun
+      price: 0.039
+  - name: google/nano-banana-pro
+    type: image
+    price:
+      function: costByImageAndResolution
+      inputs: [resolution]
+      prices:
+        - resolution: 1K
+          pricePerImage: 0.15
+        - resolution: 2K
+          pricePerImage: 0.15
+        - resolution: 4K
+          pricePerImage: 0.30
+  - name: qwen/qwen-image
+    type: image
+    mime:
+      - image/png
+      - image/jpg
+      - image/webp
+    price:
+      function: costByRun
+      price: 0.025
+  - name: prunaai/z-image-turbo
+    type: image
+    mime:
+      - image/png
+      - image/jpg
+      - image/webp
+    price:
+      function: costByResolution
+      inputs: [width, height]
+      prices:
+        - resolution: 0.5K
+          pricePerImage: 0.0025
+        - resolution: 1K
+          pricePerImage: 0.005
+        - resolution: 2K
+          pricePerImage: 0.01
+  - name: qwen/qwen-image-edit-2511
+    type: image
+    mime:
+      - image/png
+      - image/jpg
+      - image/webp
+    price:
+      function: costByRun
+      price: 0.03
+
+  # Audio Models (Speech)
+  - name: minimax/speech-2.6-hd
+    type: audio
+    mime:
+      - audio/mp3
+      - audio/wav
+      - audio/flac
+      - audio/pcm
+    price:
+      function: costByCharacters
+      inputs: [text]
+      pricePerCharacter: 0.0001
+  - name: minimax/speech-2.6-turbo
+    type: audio
+    mime:
+      - audio/mp3
+      - audio/wav
+      - audio/flac
+      - audio/pcm
+    price:
+      function: costByCharacters
+      inputs: [text]
+      pricePerCharacter: 0.00006
+  - name: minimax/speech-02-hd
+    type: audio
+    mime:
+      - audio/mp3
+      - audio/wav
+      - audio/flac
+      - audio/pcm
+    price:
+      function: costByCharacters
+      inputs: [text]
+      pricePerCharacter: 0.0001
+  - name: minimax/speech-02-turbo
+    type: audio
+    mime:
+      - audio/mp3
+      - audio/wav
+      - audio/flac
+      - audio/pcm
+    price:
+      function: costByCharacters
+      inputs: [text]
+      pricePerCharacter: 0.00006
+  - name: resemble-ai/chatterbox-turbo
+    type: audio
+    mime:
+      - audio/mp3
+    price:
+      function: costByCharacters
+      inputs: [text]
+      pricePerCharacter: 0.000025
+
+  # Music Models (also audio output)
+  - name: stability-ai/stable-audio-2.5
+    type: audio
+    mime:
+      - audio/mp3
+      - audio/wav
+      - audio/pcm
+    price:
+      function: costByRun
+      price: 0.20
+  - name: minimax/music-1.5
+    type: audio
+    mime:
+      - audio/mp3
+      - audio/wav
+      - audio/pcm
+    price:
+      function: costByRun
+      price: 0.03
+
+  # Video Models
+  - name: bytedance/seedance-1-lite
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 480p
+          pricePerSecond: 0.018
+        - resolution: 720p
+          pricePerSecond: 0.036
+        - resolution: 1080p
+          pricePerSecond: 0.072
+  - name: bytedance/seedance-1-pro-fast
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 480p
+          pricePerSecond: 0.015
+        - resolution: 720p
+          pricePerSecond: 0.025
+        - resolution: 1080p
+          pricePerSecond: 0.06
+  - name: google/veo-3.1-fast
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.15
+        - generate_audio: false
+          pricePerSecond: 0.10
+  - name: openai/sora-2
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.10
+  - name: minimax/hailuo-02
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 512p
+          pricePerSecond: 0.0166
+        - resolution: 768p
+          pricePerSecond: 0.045
+        - resolution: 1080p
+          pricePerSecond: 0.08
+  - name: minimax/hailuo-02-fast
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 512p
+          pricePerSecond: 0.0166
+  - name: minimax/hailuo-2.3
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 768p
+          pricePerSecond: 0.0466
+        - resolution: 1080p
+          pricePerSecond: 0.0816
+  - name: minimax/hailuo-2.3-fast
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 768p
+          pricePerSecond: 0.0316
+        - resolution: 1080p
+          pricePerSecond: 0.055
+  - name: bytedance/seedance-1.5-pro
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.052
+        - generate_audio: false
+          pricePerSecond: 0.026

@@ -1,0 +1,66 @@
+{
+  "input_schema": {
+    "title": "ElevenLabsMusicRequest",
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "description": "Text prompt describing the music to generate",
+        "minLength": 1,
+        "examples": [
+          "A relaxing acoustic guitar melody with soft piano accompaniment",
+          "Upbeat electronic dance music with heavy bass"
+        ]
+      },
+      "music_length_ms": {
+        "type": "integer",
+        "title": "Music Length (ms)",
+        "description": "Duration of the music in milliseconds (3000-600000)",
+        "minimum": 3000,
+        "maximum": 600000,
+        "default": 30000,
+        "examples": [
+          10000,
+          30000,
+          60000
+        ]
+      },
+      "output_format": {
+        "type": "string",
+        "title": "Output Format",
+        "description": "Audio output format (codec_samplerate_bitrate)",
+        "enum": [
+          "mp3_22050_32",
+          "mp3_24000_48",
+          "mp3_44100_32",
+          "mp3_44100_64",
+          "mp3_44100_96",
+          "mp3_44100_128",
+          "mp3_44100_192",
+          "pcm_16000",
+          "pcm_22050",
+          "pcm_24000",
+          "pcm_44100"
+        ],
+        "default": "mp3_44100_128"
+      },
+      "force_instrumental": {
+        "type": "boolean",
+        "title": "Force Instrumental",
+        "description": "Guarantee the generated music will be instrumental (no vocals)",
+        "default": false
+      }
+    },
+    "x-fal-order-properties": [
+      "prompt",
+      "music_length_ms",
+      "output_format",
+      "force_instrumental"
+    ],
+    "required": [
+      "prompt"
+    ]
+  },
+  "output_schema": {}
+}

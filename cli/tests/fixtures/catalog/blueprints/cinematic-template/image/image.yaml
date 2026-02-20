@@ -1,0 +1,18 @@
+meta:
+  name: Cinematic Image Producer Fixture
+  description: Produces an image artifact for each provided prompt.
+  id: CinematicImageProducerFixture
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Shot prompt used for image generation.
+    type: string
+    required: true
+
+artifacts:
+  - name: GeneratedImage
+    description: Generated shot image.
+    type: image

@@ -1,0 +1,11 @@
+inputs:
+  StoryPrompt: 'A time-traveling archivist restoring lost film reels.'
+  NumOfShots: 3
+
+models:
+  - model: gpt-5.2
+    provider: openai
+    producerId: ScriptProducer
+  - model: bytedance/seedream-4
+    provider: fal-ai
+    producerId: ImageProducer

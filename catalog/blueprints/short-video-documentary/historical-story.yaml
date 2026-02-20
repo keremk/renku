@@ -176,13 +176,15 @@ connections:
   - from: TimelineComposer.Timeline
     to: Timeline
 
+  # Wire audio to TimelineComposer for Transcription track
+  - from: NarrationProducer[segment].GeneratedAudio
+    to: TimelineComposer.TranscriptionAudio
+
   # ============================================
   # Wire to TranscriptionProducer
   # ============================================
   - from: TimelineComposer.Timeline
     to: TranscriptionProducer.Timeline
-  - from: NarrationProducer[segment].GeneratedAudio
-    to: TranscriptionProducer.AudioSegments
 
   # ============================================
   # Wire to VideoExporter

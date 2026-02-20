@@ -1,0 +1,46 @@
+meta:
+  name: Cinematic Template Fixture
+  description: Comprehensive fixture blueprint used by new:blueprint integration tests.
+  id: CinematicTemplateFixture
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: StoryPrompt
+    description: High-level story concept for generated shots.
+    type: string
+    required: true
+  - name: NumOfShots
+    description: Number of shots to generate.
+    type: int
+    required: true
+
+artifacts:
+  - name: ShotImage
+    description: Generated image per shot.
+    type: array
+    itemType: image
+    countInput: NumOfShots
+
+loops:
+  - name: shot
+    description: Iterates over generated shots.
+    countInput: NumOfShots
+
+producers:
+  - name: ScriptProducer
+    path: ./script/script.yaml
+  - name: ImageProducer
+    path: ./image/image.yaml
+    loop: shot
+
+connections:
+  - from: StoryPrompt
+    to: ScriptProducer.StoryPrompt
+  - from: NumOfShots
+    to: ScriptProducer.NumOfShots
+  - from: ScriptProducer.ImagePrompts[shot]
+    to: ImageProducer[shot].Prompt
+  - from: ImageProducer[shot].GeneratedImage
+    to: ShotImage[shot]

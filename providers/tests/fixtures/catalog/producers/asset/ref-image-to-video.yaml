@@ -1,0 +1,83 @@
+meta:
+  name: Reference-Image-to-Video Generator
+  description: Generate video using reference images for subject consistency.
+  id: ReferenceToVideoProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Text description of the video.
+    type: string
+
+  # References
+  - name: ReferenceImages
+    description: Reference images for consistent subject appearance.
+    type: collection
+    itemType: image
+
+  # Duration
+  - name: Duration
+    description: Video duration in seconds.
+    type: integer
+
+  # Sizing
+  - name: AspectRatio
+    description: "Aspect ratio (16:9, 9:16, 1:1, 4:3, 3:4)."
+    type: string
+  - name: Resolution
+    description: "Resolution preset (720p, 1080p)."
+    type: string
+
+  # Audio
+  - name: GenerateAudio
+    description: Whether to generate audio.
+    type: boolean
+
+artifacts:
+  - name: GeneratedVideo
+    description: The generated video.
+    type: video
+  - name: FirstFrame
+    description: The first frame of the generated video.
+    type: image
+  - name: LastFrame
+    description: The last frame of the generated video.
+    type: image
+  - name: AudioTrack
+    description: The audio track of the generated video.
+    type: audio
+
+
+mappings:
+  fal-ai:
+    # Veo 3.1 Reference-to-Video (uses image references)
+    veo3.1/reference-to-video:
+      Prompt: prompt
+      ReferenceImages: image_urls
+      Duration:
+        field: duration
+        intToSecondsString: true
+      Resolution: resolution
+      GenerateAudio: generate_audio
+      AutoFixPrompt: auto_fix
+
+    # Kling Video O1 Reference-to-Video
+    kling-video/o1/reference-to-video:
+      Prompt: prompt
+      ReferenceImages: image_urls
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+
+    # Kling Video O1 Standard Reference-to-Video
+    kling-video/o1/standard/reference-to-video:
+      Prompt: prompt
+      ReferenceImages: image_urls
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio

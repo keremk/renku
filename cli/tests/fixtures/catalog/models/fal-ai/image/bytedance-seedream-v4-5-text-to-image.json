@@ -1,0 +1,227 @@
+{
+  "input_schema": {
+    "x-fal-order-properties": [
+      "prompt",
+      "image_size",
+      "num_images",
+      "max_images",
+      "seed",
+      "sync_mode",
+      "enable_safety_checker"
+    ],
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "A selfie of a cat, with the cat as the protagonist. The setting is twilight at the Eiffel Tower. The cat is happy, holding a piece of baklava in its paw. The photo has a slight motion blur and is slightly overexposed. From a selfie angle, with a bit of motion blur, the overall image presents a sense of calm madness. The text \"Seedream 4.5 is on fal\" should be written on the picture at the top in clearly visible font and crisp lettering. The image has a 4:3 aspect ratio"
+        ],
+        "title": "Prompt",
+        "type": "string",
+        "description": "The text prompt used to generate the image"
+      },
+      "num_images": {
+        "minimum": 1,
+        "maximum": 6,
+        "type": "integer",
+        "description": "Number of separate model generations to be run with the prompt.",
+        "title": "Num Images",
+        "default": 1
+      },
+      "image_size": {
+        "anyOf": [
+          {
+            "$ref": "#/ImageSize"
+          },
+          {
+            "enum": [
+              "square_hd",
+              "square",
+              "portrait_4_3",
+              "portrait_16_9",
+              "landscape_4_3",
+              "landscape_16_9",
+              "auto_2K",
+              "auto_4K"
+            ],
+            "type": "string"
+          }
+        ],
+        "title": "Image Size",
+        "description": "The size of the generated image. Width and height must be between 1920 and 4096, or total number of pixels must be between 2560*1440 and 4096*4096.",
+        "examples": [
+          "auto_2K"
+        ],
+        "default": {
+          "height": 2048,
+          "width": 2048
+        }
+      },
+      "max_images": {
+        "minimum": 1,
+        "maximum": 6,
+        "type": "integer",
+        "description": "If set to a number greater than one, enables multi-image generation. The model will potentially return up to `max_images` images every generation, and in total, `num_images` generations will be carried out. In total, the number of images generated will be between `num_images` and `max_images*num_images`.",
+        "title": "Max Images",
+        "default": 1
+      },
+      "sync_mode": {
+        "description": "If `True`, the media will be returned as a data URI and the output data won't be available in the request history.",
+        "type": "boolean",
+        "title": "Sync Mode",
+        "default": false
+      },
+      "enable_safety_checker": {
+        "examples": [
+          true
+        ],
+        "title": "Enable Safety Checker",
+        "type": "boolean",
+        "description": "If set to true, the safety checker will be enabled.",
+        "default": true
+      },
+      "seed": {
+        "description": "Random seed to control the stochasticity of image generation.",
+        "type": "integer",
+        "title": "Seed"
+      }
+    },
+    "title": "SeedDream45T2IInput",
+    "required": [
+      "prompt"
+    ]
+  },
+  "output_schema": {
+    "x-fal-order-properties": [
+      "images",
+      "seed"
+    ],
+    "type": "object",
+    "properties": {
+      "images": {
+        "examples": [
+          [
+            {
+              "url": "https://storage.googleapis.com/falserverless/example_outputs/seedreamv45/seedream_v45_t2i_output.png"
+            }
+          ]
+        ],
+        "title": "Images",
+        "type": "array",
+        "description": "Generated images",
+        "items": {
+          "$ref": "#/Image"
+        }
+      },
+      "seed": {
+        "examples": [
+          42
+        ],
+        "title": "Seed",
+        "type": "integer",
+        "description": "Seed used for generation"
+      }
+    },
+    "title": "SeedDream45T2IOutput",
+    "required": [
+      "images",
+      "seed"
+    ]
+  },
+  "ImageSize": {
+    "x-fal-order-properties": [
+      "width",
+      "height"
+    ],
+    "type": "object",
+    "properties": {
+      "height": {
+        "maximum": 14142,
+        "type": "integer",
+        "description": "The height of the generated image.",
+        "title": "Height",
+        "exclusiveMinimum": 0,
+        "default": 512
+      },
+      "width": {
+        "maximum": 14142,
+        "type": "integer",
+        "description": "The width of the generated image.",
+        "title": "Width",
+        "exclusiveMinimum": 0,
+        "default": 512
+      }
+    },
+    "title": "ImageSize"
+  },
+  "Image": {
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data",
+      "width",
+      "height"
+    ],
+    "type": "object",
+    "description": "Represents an image file.",
+    "title": "Image",
+    "properties": {
+      "height": {
+        "examples": [
+          1024
+        ],
+        "title": "Height",
+        "type": "integer",
+        "description": "The height of the image in pixels."
+      },
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "title": "File Size",
+        "type": "integer",
+        "description": "The size of the file in bytes."
+      },
+      "url": {
+        "description": "The URL where the file can be downloaded from.",
+        "type": "string",
+        "title": "Url",
+        "format": "uri"
+      },
+      "width": {
+        "examples": [
+          1024
+        ],
+        "title": "Width",
+        "type": "integer",
+        "description": "The width of the image in pixels."
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name",
+        "type": "string",
+        "description": "The name of the file. It will be auto-generated if not provided."
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type",
+        "type": "string",
+        "description": "The mime type of the file."
+      },
+      "file_data": {
+        "format": "binary",
+        "description": "File data",
+        "type": "string",
+        "title": "File Data"
+      }
+    },
+    "required": [
+      "url"
+    ]
+  }
+}

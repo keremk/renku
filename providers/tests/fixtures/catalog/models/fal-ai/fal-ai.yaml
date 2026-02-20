@@ -1,0 +1,800 @@
+models:
+# Image Models
+  - name: bytedance/seedream/v4/text-to-image
+    type: image
+    mime:
+      - image/png
+    price:
+      function: costByRun
+      price: 0.03
+  - name: bytedance/seedream/v4/edit
+    type: image
+    mime:
+      - image/png
+    price:
+      function: costByRun
+      price: 0.03
+  - name: bytedance/seedream/v4.5/text-to-image
+    type: image
+    mime:
+      - image/png
+    price:
+      function: costByRun
+      price: 0.04
+  - name: bytedance/seedream/v4.5/edit
+    type: image
+    mime:
+      - image/png
+    price:
+      function: costByRun
+      price: 0.04
+  - name: gpt-image-1.5
+    type: image
+    mime: 
+      - image/png
+    price:
+      function: costByImageSizeAndQuality
+      inputs: [image_size, quality, num_images]
+      prices:
+        - quality: "low"
+          image_size: "1024x1024"
+          pricePerImage: 0.009
+        - quality: "low"
+          image_size: "1536x1024"
+          pricePerImage: 0.013
+        - quality: "low"
+          image_size: "1024x1536"
+          pricePerImage: 0.013
+        - quality: "medium"
+          image_size: "1024x1024"
+          pricePerImage: 0.034
+        - quality: "medium"
+          image_size: "1536x1024"
+          pricePerImage: 0.050
+        - quality: "medium"
+          image_size: "1024x1536"
+          pricePerImage: 0.051
+        - quality: "high"
+          image_size: "1024x1024"
+          pricePerImage: 0.133
+        - quality: "high"
+          image_size: "1536x1024"
+          pricePerImage: 0.199
+        - quality: "high"
+          image_size: "1024x1536"
+          pricePerImage: 0.2
+  - name: gpt-image-1.5/edit
+    type: image
+    mime: 
+      - image/png
+    price:
+      function: costByImageSizeAndQuality
+      inputs: [image_size, quality, num_images]
+      prices:
+        - quality: "low"
+          image_size: "1024x1024"
+          pricePerImage: 0.009
+        - quality: "low"
+          image_size: "1536x1024"
+          pricePerImage: 0.013
+        - quality: "low"
+          image_size: "1024x1536"
+          pricePerImage: 0.013
+        - quality: "medium"
+          image_size: "1024x1024"
+          pricePerImage: 0.034
+        - quality: "medium"
+          image_size: "1536x1024"
+          pricePerImage: 0.050
+        - quality: "medium"
+          image_size: "1024x1536"
+          pricePerImage: 0.051
+        - quality: "high"
+          image_size: "1024x1024"
+          pricePerImage: 0.133
+        - quality: "high"
+          image_size: "1536x1024"
+          pricePerImage: 0.199
+        - quality: "high"
+          image_size: "1024x1536"
+          pricePerImage: 0.2
+  - name: nano-banana-pro/edit
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByRun
+      price: 0.15
+  - name: nano-banana-pro
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByRun
+      price: 0.15
+  - name: wan/v2.6/text-to-image
+    subProvider: wan
+    type: image
+    mime:
+      - image/png
+    price:
+      function: costByRun
+      price: 0.03
+  - name: wan/v2.6/image-to-image
+    subProvider: wan
+    type: image
+    mime:
+      - image/png
+    price:
+      function: costByRun
+      price: 0.03
+  - name: qwen-image-edit-2511
+    type: image
+    mime:
+      - image/png
+      - image/jpg
+      - image/webp
+    price:
+      function: costByRun
+      price: 0.03
+  - name: qwen-image-2512
+    type: image
+    mime:
+      - image/png
+      - image/jpg
+      - image/webp
+    price:
+      function: costByRun
+      price: 0.02
+  - name: flux-pro/kontext/text-to-image
+    type: image
+    mime:
+      - image/jpeg
+      - image/png
+    price:
+      function: costByRun
+      price: 0.04
+  - name: flux-pro/kontext
+    type: image
+    mime:
+      - image/jpeg
+      - image/png
+    price:
+      function: costByRun
+      price: 0.04
+  - name: xai/grok-imagine-image
+    subProvider: xai
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByRun
+      price: 0.02    
+  - name: xai/grok-imagine-image/edit
+    subProvider: xai
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByRun
+      price: 0.022
+  - name: hunyuan-image/v3/instruct/text-to-image
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+    price:
+      function: costByImageMegapixels
+      inputs: [num_images, image_size]
+      pricePerMegapixel: 0.09
+  - name: hunyuan-image/v3/instruct/edit
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+    price:
+      function: costByImageMegapixels
+      inputs: [num_images, image_size]
+      pricePerMegapixel: 0.09
+
+# Audio Models
+  - name: elevenlabs/tts/eleven-v3
+    type: audio
+    mime: 
+      - audio/mp3
+    price:
+      function: costByCharacters
+      inputs: [text]
+      pricePerCharacter: 0.0001
+  - name: chatterbox/text-to-speech
+    type: audio
+    mime:
+      - audio/mp3
+    price:
+      function: costByCharacters
+      inputs: [text]
+      pricePerCharacter: 0.000025
+  - name: minimax/speech-2.6-hd
+    type: audio
+    mime:
+      - audio/mp3
+    price:
+      function: costByCharacters
+      inputs: [text]
+      pricePerCharacter: 0.0001
+  - name: minimax/speech-02-hd
+    type: audio
+    mime:
+      - audio/mp3
+    price:
+      function: costByCharacters
+      inputs: [text]
+      pricePerCharacter: 0.0001
+  - name: minimax/speech-2.8-hd
+    type: audio
+    mime:
+      - audio/mp3
+    price:
+      function: costByCharacters
+      inputs: [text]
+      pricePerCharacter: 0.0001
+  - name: minimax/speech-2.8-turbo
+    type: audio
+    mime:
+      - audio/mp3
+    price:
+      function: costByCharacters
+      inputs: [text]
+      pricePerCharacter: 0.00006
+  - name: qwen-3-tts/text-to-speech/1.7b
+    type: audio
+    mime:
+      - audio/mp3
+    price:
+      function: costByCharacters
+      inputs: [text]
+      pricePerCharacter: 0.00009
+  - name: maya/batch
+    type: audio
+    mime:
+      - audio/mp3
+    price:
+      function: costByAudioSeconds
+      inputs: [duration]
+      pricePerSecond: 0.002
+
+# Video Models
+  - name: veo3.1
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.15
+        - generate_audio: false
+          pricePerSecond: 0.10
+  - name: veo3.1/fast
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.15
+        - generate_audio: false
+          pricePerSecond: 0.10
+  - name: veo3.1/image-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.40
+        - generate_audio: false
+          pricePerSecond: 0.20
+  - name: veo3.1/fast/first-last-frame-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.40
+        - generate_audio: false
+          pricePerSecond: 0.20
+  - name: veo3.1/reference-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.40
+        - generate_audio: false
+          pricePerSecond: 0.20
+  # Kling Video Models
+  - name: kling-video/o1/image-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.20
+  - name: kling-video/v2.5-turbo/pro/image-to-video 
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.07
+  - name: kling-video/v2.6/pro/image-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.14
+        - generate_audio: false
+          pricePerSecond: 0.07
+  - name: kling-video/ai-avatar/v2/pro
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.115
+  - name: kling-video/ai-avatar/v2/standard
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.0562
+  - name: kling-video/o1/reference-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.112
+  - name: kling-video/o1/standard/reference-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.084
+  - name: kling-video/o3/standard/image-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.224
+        - generate_audio: false
+          pricePerSecond: 0.168
+  - name: kling-video/o3/standard/reference-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.224
+        - generate_audio: false
+          pricePerSecond: 0.168
+  - name: kling-video/o3/standard/text-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.224
+        - generate_audio: false
+          pricePerSecond: 0.168
+  - name: kling-video/o3/standard/video-to-video/reference
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.252
+  - name: kling-video/o3/pro/image-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.28
+        - generate_audio: false
+          pricePerSecond: 0.224
+  - name: kling-video/o3/pro/reference-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.28
+        - generate_audio: false
+          pricePerSecond: 0.224
+  - name: kling-video/o3/pro/video-to-video/reference
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.336
+  - name: kling-video/v3/pro/image-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.336
+        - generate_audio: false
+          pricePerSecond: 0.224
+  - name: kling-video/v3/pro/text-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.336
+        - generate_audio: false
+          pricePerSecond: 0.224
+  - name: kling-video/v3/standard/image-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.252
+        - generate_audio: false
+          pricePerSecond: 0.168
+  - name: kling-video/v3/standard/text-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndWithAudio
+      inputs: [duration, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerSecond: 0.252
+        - generate_audio: false
+          pricePerSecond: 0.168
+  # Sora 2 Models
+  - name: sora-2/text-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.1
+  - name: sora-2/image-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.1
+  - name: wan/v2.6/text-to-video
+    subProvider: wan
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 720p
+          pricePerSecond: 0.1
+        - resolution: 1080p
+          pricePerSecond: 0.15
+  - name: wan/v2.6/image-to-video
+    subProvider: wan
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 720p
+          pricePerSecond: 0.1
+        - resolution: 1080p
+          pricePerSecond: 0.15
+  - name: wan/v2.6/image-to-video/flash
+    subProvider: wan
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 720p
+          pricePerSecond: 0.05
+        - resolution: 1080p
+          pricePerSecond: 0.075
+  - name: wan/v2.6/reference-to-video
+    subProvider: wan
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 720p
+          pricePerSecond: 0.1
+        - resolution: 1080p
+          pricePerSecond: 0.15
+  
+  - name: bytedance/seedance/v1/pro/fast/text-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoPerMillionTokens
+      inputs: [duration, resolution, aspect_ratio]
+      price:
+        - pricePerMillionTokens: 1
+  - name: bytedance/seedance/v1/pro/fast/image-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoPerMillionTokens
+      inputs: [duration, resolution, aspect_ratio]
+      price:
+        - pricePerMillionTokens: 1
+  - name: bytedance/seedance/v1.5/pro/image-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoPerMillionTokens
+      inputs: [duration, resolution, aspect_ratio, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerMillionTokens: 2.4
+        - generate_audio: false
+          pricePerMillionTokens: 1.2
+  - name: bytedance/seedance/v1.5/pro/text-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoPerMillionTokens
+      inputs: [duration, resolution, aspect_ratio, generate_audio]
+      prices:
+        - generate_audio: true
+          pricePerMillionTokens: 2.4
+        - generate_audio: false
+          pricePerMillionTokens: 1.2
+  - name: bytedance/omnihuman/v1.5
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.16
+
+  - name: veed/fabric-1.0/fast
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution  
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 480p
+          pricePerSecond: 0.10
+        - resolution: 720p
+          pricePerSecond: 0.20
+  - name: veed/fabric-1.0/text
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution  
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 480p
+          pricePerSecond: 0.08
+        - resolution: 720p
+          pricePerSecond: 0.15
+  - name: creatify/aurora
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 480p
+          pricePerSecond: 0.10
+        - resolution: 720p
+          pricePerSecond: 0.14
+  - name: infinitalk/single-text
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 480p
+          pricePerSecond: 0.20
+        - resolution: 720p
+          pricePerSecond: 0.40
+  - name: infinitalk
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 480p
+          pricePerSecond: 0.20
+        - resolution: 720p
+          pricePerSecond: 0.40
+
+  - name: pixverse/lipsync
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.04
+
+  # LTX-2-19b Video Models
+  - name: ltx-2-19b/audio-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoMegapixels
+      inputs: [num_frames, video_size]
+      pricePerMegapixel: 0.0018
+
+  # LTX-2-19b Distilled Video Models
+  - name: ltx-2-19b/distilled/text-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoMegapixels
+      inputs: [num_frames, video_size]
+      pricePerMegapixel: 0.0008
+  - name: ltx-2-19b/distilled/image-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoMegapixels
+      inputs: [num_frames, video_size]
+      pricePerMegapixel: 0.0008
+  - name: ltx-2-19b/distilled/extend-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoMegapixels
+      inputs: [num_frames, video_size]
+      pricePerMegapixel: 0.0008
+  - name: ltx-2-19b/distilled/video-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoMegapixels
+      inputs: [num_frames, video_size]
+      pricePerMegapixel: 0.0008
+  - name: ltx-2-19b/distilled/audio-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoMegapixels
+      inputs: [num_frames, video_size]
+      pricePerMegapixel: 0.0008 
+
+  # XAI Video Models
+  - name: xai/grok-imagine-video/text-to-video
+    subProvider: xai
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.05
+  - name: xai/grok-imagine-video/image-to-video
+    subProvider: xai
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.05
+  - name: xai/grok-imagine-video/edit-video
+    subProvider: xai
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.06
+
+  # STT (Speech-to-Text) Models
+  - name: elevenlabs/speech-to-text
+    type: stt
+    mime:
+      - application/json
+    price:
+      function: costByAudioSeconds
+      inputs: [duration]
+      pricePerSecond: 0.0005

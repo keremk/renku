@@ -34,16 +34,24 @@ export interface ResolveBlueprintOptions {
 	cliRoot?: string;
 }
 
+export interface BundledCatalogAssetsOptions {
+	sourceRoot?: string;
+}
+
 export async function copyBundledCatalogAssets(
-	targetRoot: string
+	targetRoot: string,
+	options: BundledCatalogAssetsOptions = {}
 ): Promise<void> {
-	await copyDirectory(BUNDLED_CATALOG_ROOT, targetRoot);
+	const sourceRoot = options.sourceRoot ?? BUNDLED_CATALOG_ROOT;
+	await copyDirectory(sourceRoot, targetRoot);
 }
 
 export async function updateBundledCatalogAssets(
-	targetRoot: string
+	targetRoot: string,
+	options: BundledCatalogAssetsOptions = {}
 ): Promise<void> {
-	await copyDirectory(BUNDLED_CATALOG_ROOT, targetRoot, { overwrite: true });
+	const sourceRoot = options.sourceRoot ?? BUNDLED_CATALOG_ROOT;
+	await copyDirectory(sourceRoot, targetRoot, { overwrite: true });
 }
 
 export async function catalogExists(catalogRoot: string): Promise<boolean> {

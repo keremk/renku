@@ -1,0 +1,47 @@
+meta:
+  name: Text-to-Music Generator
+  description: Generate music from text prompts and lyrics.
+  id: TextToMusicProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Text prompt describing desired music style/mood.
+    type: string
+  - name: Lyrics
+    description: Song lyrics with section tags ([intro], [verse], [chorus], etc.).
+    type: string
+
+  # Duration
+  - name: Duration
+    description: Duration in seconds (for non-lyrics models).
+    type: integer
+
+artifacts:
+  - name: GeneratedMusic
+    description: The generated music audio.
+    type: audio
+
+mappings:
+  replicate:
+    # MiniMax Music 1.5
+    minimax/music-1.5:
+      Prompt: prompt
+      Lyrics: lyrics
+
+    # Stability AI Stable Audio 2.5
+    stability-ai/stable-audio-2.5:
+      Prompt: prompt
+      Duration: duration
+
+  elevenlabs:
+    # ElevenLabs Music V1
+    music_v1:
+      Prompt: prompt
+      Duration:
+        field: music_length_ms
+        durationToFrames:
+          fps: 1000

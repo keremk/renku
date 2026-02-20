@@ -1,0 +1,149 @@
+{
+  "input_schema": {
+    "title": "SpeechToTextRequest",
+    "type": "object",
+    "properties": {
+      "language_code": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Language Code",
+        "examples": [
+          "eng",
+          "spa",
+          "fra",
+          "deu",
+          "jpn"
+        ],
+        "description": "Language code of the audio"
+      },
+      "audio_url": {
+        "examples": [
+          "https://v3.fal.media/files/zebra/zJL_oRY8h5RWwjoK1w7tx_output.mp3"
+        ],
+        "title": "Audio Url",
+        "type": "string",
+        "description": "URL of the audio file to transcribe",
+        "format": "uri"
+      },
+      "diarize": {
+        "title": "Diarize",
+        "type": "boolean",
+        "description": "Whether to annotate who is speaking",
+        "default": true
+      },
+      "tag_audio_events": {
+        "title": "Tag Audio Events",
+        "type": "boolean",
+        "description": "Tag audio events like laughter, applause, etc.",
+        "default": true
+      }
+    },
+    "x-fal-order-properties": [
+      "audio_url",
+      "language_code",
+      "tag_audio_events",
+      "diarize"
+    ],
+    "required": [
+      "audio_url"
+    ]
+  },
+  "output_schema": {
+    "title": "TranscriptionOutput",
+    "type": "object",
+    "properties": {
+      "text": {
+        "title": "Text",
+        "type": "string",
+        "description": "The full transcribed text"
+      },
+      "language_probability": {
+        "title": "Language Probability",
+        "type": "number",
+        "description": "Confidence in language detection"
+      },
+      "language_code": {
+        "title": "Language Code",
+        "type": "string",
+        "description": "Detected or specified language code"
+      },
+      "words": {
+        "title": "Words",
+        "type": "array",
+        "description": "Word-level transcription details",
+        "items": {
+          "$ref": "#/TranscriptionWord"
+        }
+      }
+    },
+    "x-fal-order-properties": [
+      "text",
+      "language_code",
+      "language_probability",
+      "words"
+    ],
+    "required": [
+      "text",
+      "language_code",
+      "language_probability",
+      "words"
+    ]
+  },
+  "TranscriptionWord": {
+    "title": "TranscriptionWord",
+    "type": "object",
+    "properties": {
+      "text": {
+        "title": "Text",
+        "type": "string",
+        "description": "The transcribed word or audio event"
+      },
+      "start": {
+        "title": "Start",
+        "type": "number",
+        "description": "Start time in seconds"
+      },
+      "type": {
+        "title": "Type",
+        "type": "string",
+        "description": "Type of element (word, spacing, or audio_event)"
+      },
+      "end": {
+        "title": "End",
+        "type": "number",
+        "description": "End time in seconds"
+      },
+      "speaker_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Speaker Id",
+        "description": "Speaker identifier if diarization was enabled"
+      }
+    },
+    "x-fal-order-properties": [
+      "text",
+      "start",
+      "end",
+      "type",
+      "speaker_id"
+    ],
+    "required": [
+      "text",
+      "start",
+      "end",
+      "type"
+    ]
+  }
+}

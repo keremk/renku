@@ -1,0 +1,24 @@
+meta:
+  name: Cinematic Script Producer Fixture
+  description: Produces image prompts for each planned shot.
+  id: CinematicScriptProducerFixture
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: StoryPrompt
+    description: Story concept from which shot prompts are derived.
+    type: string
+    required: true
+  - name: NumOfShots
+    description: Number of image prompts to generate.
+    type: int
+    required: true
+
+artifacts:
+  - name: ImagePrompts
+    description: Prompt list for image generation.
+    type: array
+    itemType: string
+    countInput: NumOfShots

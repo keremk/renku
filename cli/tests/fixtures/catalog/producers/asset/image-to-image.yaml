@@ -1,0 +1,174 @@
+meta:
+  name: Image-to-Image Transformer
+  description: Edit, transform, or generate variations of existing images.
+  id: ImageToImageProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Text instruction for the transformation.
+    type: string
+  - name: SourceImages
+    description: Image(s) to edit or transform.
+    type: collection
+    itemType: image
+
+  # Optional mask for selective editing
+  - name: MaskImage
+    description: Mask image for selective region editing (white=edit, black=keep).
+    type: image
+
+  # Sizing
+  - name: AspectRatio
+    description: "Output aspect ratio."
+    type: string
+  - name: Resolution
+    description: "Output resolution preset (1K, 2K, 4K)."
+    type: string
+  - name: Width
+    description: Custom output width in pixels.
+    type: integer
+  - name: Height
+    description: Custom output height in pixels.
+    type: integer
+
+artifacts:
+  - name: TransformedImage
+    description: The edited/transformed image(s).
+    type: image
+
+mappings:
+  fal-ai:
+    bytedance/seedream/v4/edit:
+      Prompt: prompt
+      SourceImages: image_urls
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+          "3:2": landscape_4_3
+          "2:3": portrait_4_3
+
+    bytedance/seedream/v4.5/edit:
+      Prompt: prompt
+      SourceImages: image_urls
+      # AspectRatio + Resolution combine into image_size
+      ImageSize:
+        field: image_size
+        combine:
+          inputs: [AspectRatio, Resolution]
+          table:
+            # Resolution only (aspect determined by resolution)
+            "+2K": auto_2K
+            "+4K": auto_4K
+            # AspectRatio only (default resolution)
+            "16:9+": landscape_16_9
+            "9:16+": portrait_16_9
+            "4:3+": landscape_4_3
+            "3:4+": portrait_4_3
+            "1:1+": square_hd
+            # Both specified - prefer resolution auto modes
+            "16:9+2K": auto_2K
+            "16:9+4K": auto_4K
+            "1:1+2K": auto_2K
+            "1:1+4K": auto_4K
+
+    qwen-image-edit-2511:
+      Prompt: prompt
+      SourceImages: image_urls
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
+    gpt-image-1.5/edit:
+      Prompt: prompt
+      SourceImages: image_urls
+      MaskImage: mask_image_url
+      AspectRatio:
+        field: image_size
+        transform:
+          "1:1": "1024x1024"
+          "16:9": "1536x1024"
+          "9:16": "1024x1536"
+          "auto": "auto"
+
+    wan/v2.6/image-to-image:
+      Prompt: prompt
+      SourceImages: image_urls
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
+    flux-pro/kontext:
+      Prompt: prompt
+      SourceImages:
+        field: image_url
+        firstOf: true
+      AspectRatio: aspect_ratio
+
+    nano-banana-pro/edit:
+      Prompt: prompt
+      SourceImages: image_urls
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+    
+    hunyuan-image/v3/instruct/edit:
+      Prompt: prompt
+      # AspectRatio preset - only applied when Width is not provided
+      AspectRatio:
+        conditional:
+          when:
+            input: Width
+            empty: true
+          then:
+            field: image_size
+            transform:
+              "16:9": landscape_16_9
+              "9:16": portrait_16_9
+              "4:3": landscape_4_3
+              "3:4": portrait_4_3
+              "1:1": square_hd
+      # Custom dimensions via Width/Height (takes precedence over AspectRatio)
+      Width:
+        conditional:
+          when:
+            input: Width
+            notEmpty: true
+          then:
+            field: image_size.width
+      Height:
+        conditional:
+          when:
+            input: Width
+            notEmpty: true
+          then:
+            field: image_size.height
+    
+    xai/grok-imagine-image/edit:
+      Prompt: prompt
+      SourceImages:
+        field: image_url
+        firstOf: true
+
+  replicate:
+    qwen/qwen-image-edit-2511:
+      Prompt: prompt
+      SourceImages: image
+      AspectRatio: aspect_ratio
