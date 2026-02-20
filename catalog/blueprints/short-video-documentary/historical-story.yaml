@@ -1,0 +1,197 @@
+meta:
+  name: Historical Short Story
+  description: Generate short historical documentary videos (20-60s) with cut-scene transitions, narration, and thematic music
+  id: HistoricalShortStory
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Topic
+    description: The historical topic to narrate (e.g., "Opium Wars in 19th century China")
+    type: string
+    required: true
+  - name: CutScenesPerSegment
+    description: Number of cut-scenes per segment (2-3), used in video prompt [cut] markers
+    type: int
+    required: true
+  - name: VisualStyle
+    description: Visual/artistic style directions (e.g., cinematic documentary, painterly historical)
+    type: string
+    required: true
+  - name: NarratorTone
+    description: Tone for the narrator (e.g., authoritative, storytelling, dramatic)
+    type: string
+    required: true
+  - name: VoiceId
+    description: Voice identifier for narration
+    type: string
+    required: true
+  - name: AspectRatio
+    description: Aspect ratio for the video (e.g., 16:9, 9:16)
+    type: string
+    required: true
+  - name: Resolution
+    description: Video resolution (480p, 720p, 1080p)
+    type: string
+    required: true
+
+artifacts:
+  - name: InitialImage
+    description: The generated opening frame image
+    type: image
+  - name: SegmentVideos
+    description: Generated video clips per segment (each contains internal cut-scenes)
+    type: array
+    itemType: video
+    countInput: NumOfSegments
+  - name: SegmentAudios
+    description: Generated narration audio per segment
+    type: array
+    itemType: audio
+    countInput: NumOfSegments
+  - name: Music
+    description: Background music for the video
+    type: audio
+  - name: Timeline
+    description: Composed timeline JSON manifest
+    type: json
+  - name: Transcription
+    description: Word-level transcription with timestamps
+    type: json
+  - name: FinalVideo
+    description: Final rendered MP4 video
+    type: video
+
+loops:
+  - name: segment
+    description: Iterates over narrative segments
+    countInput: NumOfSegments
+
+producers:
+  - name: HistoryScriptwriter
+    path: ./history-scriptwriter/history-scriptwriter.yaml
+  - name: InitialImageProducer
+    producer: asset/text-to-image
+  - name: VideoProducer
+    producer: asset/image-to-video
+    loop: segment
+  - name: NarrationProducer
+    producer: asset/text-to-speech
+    loop: segment
+  - name: MusicProducer
+    producer: asset/text-to-music
+  - name: TimelineComposer
+    producer: composition/timeline-composer
+  - name: TranscriptionProducer
+    producer: asset/transcription
+  - name: VideoExporter
+    producer: composition/video-exporter
+
+connections:
+  # ============================================
+  # Wire inputs to HistoryScriptwriter
+  # ============================================
+  - from: Topic
+    to: HistoryScriptwriter.Topic
+  - from: Duration
+    to: HistoryScriptwriter.Duration
+  - from: NumOfSegments
+    to: HistoryScriptwriter.NumOfSegments
+  - from: SegmentDuration
+    to: HistoryScriptwriter.SegmentDuration
+  - from: CutScenesPerSegment
+    to: HistoryScriptwriter.CutScenesPerSegment
+  - from: VisualStyle
+    to: HistoryScriptwriter.VisualStyle
+  - from: NarratorTone
+    to: HistoryScriptwriter.NarratorTone
+
+  # ============================================
+  # Generate the initial opening image
+  # ============================================
+  - from: HistoryScriptwriter.InitialImagePrompt
+    to: InitialImageProducer.Prompt
+  - from: AspectRatio
+    to: InitialImageProducer.AspectRatio
+  - from: InitialImageProducer.GeneratedImage
+    to: InitialImage
+
+  # ============================================
+  # Wire prompts to VideoProducer (per segment)
+  # Video prompts contain [cut] markers for internal scene transitions
+  # ============================================
+  - from: HistoryScriptwriter.VideoPrompts[segment]
+    to: VideoProducer[segment].Prompt
+  - from: AspectRatio
+    to: VideoProducer[segment].AspectRatio
+  - from: Resolution
+    to: VideoProducer[segment].Resolution
+  - from: SegmentDuration
+    to: VideoProducer[segment].Duration
+
+  # First segment gets the initial generated image as StartImage
+  - from: InitialImageProducer.GeneratedImage
+    to: VideoProducer[0].StartImage
+
+  # Subsequent segments get LastFrame from previous segment (frame continuity)
+  - from: VideoProducer[segment-1].LastFrame
+    to: VideoProducer[segment].StartImage
+
+  # Output segment videos
+  - from: VideoProducer[segment].GeneratedVideo
+    to: SegmentVideos[segment]
+
+  # ============================================
+  # Wire narration to NarrationProducer (per segment)
+  # ============================================
+  - from: HistoryScriptwriter.NarrationScripts[segment]
+    to: NarrationProducer[segment].Text
+  - from: VoiceId
+    to: NarrationProducer[segment].VoiceId
+  - from: NarrationProducer[segment].GeneratedAudio
+    to: SegmentAudios[segment]
+
+  # ============================================
+  # Wire music prompt to MusicProducer
+  # ============================================
+  - from: HistoryScriptwriter.MusicPrompt
+    to: MusicProducer.Prompt
+  - from: Duration
+    to: MusicProducer.Duration
+  - from: MusicProducer.GeneratedMusic
+    to: Music
+
+  # ============================================
+  # Wire to TimelineComposer
+  # ============================================
+  - from: VideoProducer[segment].GeneratedVideo
+    to: TimelineComposer.VideoSegments
+  - from: NarrationProducer[segment].GeneratedAudio
+    to: TimelineComposer.AudioSegments
+  - from: MusicProducer.GeneratedMusic
+    to: TimelineComposer.Music
+  - from: Duration
+    to: TimelineComposer.Duration
+  - from: TimelineComposer.Timeline
+    to: Timeline
+
+  # ============================================
+  # Wire to TranscriptionProducer
+  # ============================================
+  - from: TimelineComposer.Timeline
+    to: TranscriptionProducer.Timeline
+  - from: NarrationProducer[segment].GeneratedAudio
+    to: TranscriptionProducer.AudioSegments
+
+  # ============================================
+  # Wire to VideoExporter
+  # ============================================
+  - from: TimelineComposer.Timeline
+    to: VideoExporter.Timeline
+  - from: TranscriptionProducer.Transcription
+    to: VideoExporter.Transcription
+  - from: VideoExporter.FinalVideo
+    to: FinalVideo
+  - from: TranscriptionProducer.Transcription
+    to: Transcription

@@ -1,0 +1,51 @@
+meta:
+  name: Historical Documentary Script Generation
+  description: Generate historically rich documentary scripts with narration, image prompts, text overlays, and music direction.
+  id: HistoricalScriptProducer
+  kind: blueprint
+  version: 0.1.0
+  author: Renku
+  license: MIT
+  promptFile: ./historical-script.toml
+  outputSchema: ./historical-script-output.json
+
+inputs:
+  - name: InquiryPrompt
+    description: The historical topic or narrative to explore.
+    type: string
+  - name: Duration
+    description: Total video duration in seconds.
+    type: int
+  - name: NumOfSegments
+    description: Number of narrative segments.
+    type: int
+  - name: NumOfImagesPerSegment
+    description: Number of images to generate per segment.
+    type: int
+  - name: SegmentDuration
+    description: Auto-calculated duration per segment in seconds.
+    type: int
+  - name: Style
+    description: Visual style for image generation.
+    type: string
+  - name: Audience
+    description: Target audience (e.g., adults, students, experts).
+    type: string
+  - name: Language
+    description: Narration language.
+    type: string
+
+artifacts:
+  - name: VideoScript
+    description: The generated documentary script with narration, image prompts, text overlays, and music direction.
+    type: json
+    arrays:
+      - path: Segments
+        countInput: NumOfSegments
+      - path: Segments.ImagePrompts
+        countInput: NumOfImagesPerSegment
+
+loops:
+  - name: segment
+    description: Iterates over narrative segments.
+    countInput: NumOfSegments

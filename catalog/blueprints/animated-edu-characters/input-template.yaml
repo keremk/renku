@@ -1,0 +1,60 @@
+inputs:
+  EducationalTopic: "the vital organs of the human body"
+  TargetAudience: "children ages 6-10"
+  AnimationStyle: "Pixar-style 3D animated, cute, colorful, expressive eyes, friendly face"
+  VoiceId: "iUqOXhMfiOIbBejNtfLR"
+  AspectRatio: "9:16"
+  Resolution: "720p"
+  Duration: 30
+  NumOfSegments: 3
+models:
+  - producerId: "EduScriptProducer"
+    provider: "openai"
+    model: "gpt-5.2"
+    config:
+      text_format: "json_schema"
+  - producerId: "CharacterImageProducer"
+    provider: "fal-ai"
+    model: "xai/grok-imagine-image"
+  - producerId: "NarrationAudioProducer"
+    provider: "elevenlabs"
+    model: "eleven_v3"
+  - producerId: "LipsyncVideoProducer"
+    provider: "fal-ai"
+    model: "ltx-2-19b/distilled/audio-to-video"
+  - producerId: "TimelineComposer"
+    provider: "renku"
+    model: "timeline/ordered"
+    config:
+      timeline:
+        tracks:
+          - "Video"
+          - "Transcription"
+        masterTracks:
+          - "Video"
+        videoClip:
+          artifact: "VideoSegments"
+        transcriptionClip:
+          artifact: "TranscriptionAudio"
+  - producerId: "TranscriptionProducer"
+    provider: "renku"
+    model: "speech/transcription"
+    config:
+      stt:
+        provider: "fal-ai"
+        model: "elevenlabs/speech-to-text"
+        diarize: false
+  - producerId: "VideoExporter"
+    provider: "renku"
+    model: "ffmpeg/native-render"
+    config:
+      subtitles:
+        font: "Arial"
+        fontSize: 48
+        fontBaseColor: "#FFFFFF"
+        fontHighlightColor: "#FFD700"
+        backgroundColor: "#000000"
+        backgroundOpacity: 0
+        bottomMarginPercent: 10
+        maxWordsPerLine: 4
+        highlightEffect: true

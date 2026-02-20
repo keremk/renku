@@ -1,0 +1,49 @@
+meta:
+  name: Storyboard Director
+  description: Generate storyboard grid prompt, video clip prompts, and music prompt from user scenario.
+  id: StoryboardDirector
+  version: 0.1.0
+  promptFile: ./storyboard-director.toml
+  outputSchema: ./storyboard-director-output.json
+
+inputs:
+  - name: InquiryPrompt
+    description: Main topic or scenario description for the video.
+    type: string
+  - name: GridStyle
+    description: Storyboard grid style (e.g., "3x3", "2x2", "2x3").
+    type: string
+  - name: PanelCount
+    description: Number of storyboard panels (9 for 3x3, 4 for 2x2).
+    type: int
+  - name: CharacterDefinitions
+    description: Detailed descriptions of characters/subjects.
+    type: string
+  - name: Styling
+    description: Visual/artistic style for the video.
+    type: string
+  - name: Lighting
+    description: Lighting instructions.
+    type: string
+  - name: Camera
+    description: Camera style instructions.
+    type: string
+  - name: NumOfClips
+    description: Number of video clips to generate (PanelCount - 1).
+    type: int
+  - name: ClipDuration
+    description: Duration of each video clip in seconds.
+    type: int
+
+artifacts:
+  - name: GridImagePrompt
+    description: Detailed prompt for generating the storyboard grid image.
+    type: string
+  - name: VideoPrompts
+    description: Array of video prompts for each clip transition.
+    type: array
+    itemType: string
+    countInput: NumOfClips
+  - name: MusicPrompt
+    description: Prompt for generating background music.
+    type: string

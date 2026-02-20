@@ -1,0 +1,82 @@
+inputs:
+  InquiryPrompt: "How tulips became more expensive than houses in 1630s Holland"
+  Duration: 60
+  NumOfSegments: 5
+  NumOfImagesPerSegment: 2
+  Style: "Oil painting, classical antiquity style, dramatic chiaroscuro lighting, muted earth tones with gold accents"
+  AspectRatio: "16:9"
+  Audience: "Adult history enthusiasts"
+  VoiceId: "iUqOXhMfiOIbBejNtfLR"
+  Emotion: "neutral"
+  Language: "en"
+  Size: "1K"
+models:
+  - producerId: "HistoricalScriptProducer"
+    provider: "openai"
+    model: "gpt-5.2"
+  - producerId: "ImageProducer"
+    provider: "fal-ai"
+    model: "xai/grok-imagine-image"
+  - producerId: "AudioProducer"
+    provider: "elevenlabs"
+    model: "eleven_v3"
+  - producerId: "MusicProducer"
+    provider: "elevenlabs"
+    model: "music_v1"
+    config:
+      force_instrumental: true
+  - producerId: "TimelineComposer"
+    provider: "renku"
+    model: "timeline/ordered"
+    config:
+      timeline:
+        tracks:
+          - "Image"
+          - "Audio"
+          - "Text"
+          - "Transcription"
+          - "Music"
+        masterTracks:
+          - "Audio"
+        imageClip:
+          artifact: "ImageSegments[Image]"
+        audioClip:
+          artifact: "AudioSegments"
+          volume: 0.9
+        textClip:
+          artifact: "TextSegments"
+          effect: "fade-in-out"
+        transcriptionClip:
+          artifact: "TranscriptionAudio"
+        musicClip:
+          artifact: "Music"
+          volume: 0.3
+  - producerId: "TranscriptionProducer"
+    provider: "renku"
+    model: "speech/transcription"
+    config:
+      stt:
+        provider: "fal-ai"
+        model: "elevenlabs/speech-to-text"
+        diarize: false
+  - producerId: "VideoExporter"
+    provider: "renku"
+    model: "ffmpeg/native-render"
+    config:
+      subtitles:
+        font: "Georgia"
+        fontSize: 52
+        fontBaseColor: "#FFFFFF"
+        fontHighlightColor: "#FFD700"
+        backgroundColor: "#000000"
+        backgroundOpacity: 0.5
+        maxWordsPerLine: 5
+        highlightEffect: true
+      text:
+        font: "Arial"
+        fontSize: 56
+        fontBaseColor: "#c2e2ff"
+        backgroundColor: "#000000"
+        backgroundOpacity: 0.35
+        position: "top-center"
+        edgePaddingPercent: 8

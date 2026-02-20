@@ -1,0 +1,44 @@
+meta:
+  name: Celebrity Then-Now Director
+  description: Generate image transformation prompts, video prompts, and music direction for a celebrity then-and-now retrospective video.
+  id: DirectorProducer
+  kind: blueprint
+  version: 0.1.0
+  promptFile: ./director.toml
+  outputSchema: ./director-output.json
+
+inputs:
+  - name: Theme
+    description: The overall theme or concept for the celebrity retrospective.
+    type: string
+  - name: EnvironmentDescription
+    description: Description of the environment/setting where celebrities will be placed.
+    type: string
+  - name: VisualStyle
+    description: Visual style for the video (e.g., cinematic, nostalgic, golden age).
+    type: string
+  - name: NumOfCharacters
+    description: Number of celebrities in the video.
+    type: int
+  - name: MeetingDuration
+    description: Duration of each meeting segment in seconds.
+    type: int
+  - name: TransitionDuration
+    description: Duration of each transition segment in seconds.
+    type: int
+  - name: Duration
+    description: Total video duration in seconds.
+    type: int
+
+artifacts:
+  - name: Script
+    description: Complete director script with image prompts, video prompts, and music direction.
+    type: json
+    arrays:
+      - path: Characters
+        countInput: NumOfCharacters
+
+loops:
+  - name: character
+    description: Iterates over celebrities.
+    countInput: NumOfCharacters

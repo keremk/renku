@@ -1,0 +1,92 @@
+inputs:
+  # Celebrity images - provide one "then" and one "now" image per celebrity
+  # Arrays must have the same length as NumOfCharacters
+  CelebrityThenImages:
+    - "file:./images/celebrity1-then.jpg"
+    - "file:./images/celebrity2-then.jpg"
+    - "file:./images/celebrity3-then.jpg"
+  CelebrityNowImages:
+    - "file:./images/celebrity1-now.jpg"
+    - "file:./images/celebrity2-now.jpg"
+    - "file:./images/celebrity3-now.jpg"
+
+  # Background/setting image
+  SettingImage: "file:./images/setting.jpg"
+
+  # Creative inputs
+  Theme: "Hollywood Icons Through Time"
+  EnvironmentDescription: "A nostalgic Hollywood movie set with vintage cameras, golden lighting, and classic film equipment"
+  VisualStyle: "Cinematic, nostalgic, warm golden tones"
+  MusicalStyle: "Nostalgic orchestral with soft strings and piano, building emotional arc"
+
+  # Timing
+  NumOfCharacters: 3
+  MeetingDuration: 10
+  TransitionDuration: 5
+
+  # Video settings
+  AspectRatio: "16:9"
+  Resolution: "720p"
+
+  # System inputs
+  # Total Duration = NumOfCharacters * MeetingDuration + (NumOfCharacters - 1) * TransitionDuration
+  # Example: 3 * 10 + 2 * 5 = 40 seconds
+  Duration: 40
+
+models:
+  # LLM for generating all prompts
+  - model: gpt-5-mini
+    provider: openai
+    producerId: DirectorProducer
+    config:
+      text_format: json_schema
+
+  # Image-to-image for consistent then images
+  - model: qwen-image-edit-2511
+    provider: fal-ai
+    producerId: ThenImageProducer
+
+  # Image-to-image for consistent now images
+  - model: qwen-image-edit-2511
+    provider: fal-ai
+    producerId: NowImageProducer
+
+  # Image-to-image for together (then+now side by side) images
+  - model: qwen-image-edit-2511
+    provider: fal-ai
+    producerId: TogetherImageProducer
+
+  # Image-to-video for meeting segments (Kling 2.5 Turbo - good start/end frame support)
+  - model: kling-video/v2.5-turbo/pro/image-to-video
+    provider: fal-ai
+    producerId: MeetingVideoProducer
+
+  # Image-to-video for transition segments (Kling 2.5 Turbo)
+  - model: kling-video/v2.5-turbo/pro/image-to-video
+    provider: fal-ai
+    producerId: TransitionVideoProducer
+
+  # Music generation
+  - model: stability-ai/stable-audio-2.5
+    provider: replicate
+    producerId: MusicProducer
+
+  # Timeline composition
+  - model: timeline/ordered
+    provider: renku
+    producerId: TimelineComposer
+    config:
+      timeline:
+        tracks: ["Video", "Music"]
+        masterTracks: ["Video"]
+        videoClip:
+          artifact: VideoSegments
+        musicClip:
+          artifact: Music
+          volume: 0.4
+          playStrategy: loop
+
+  # Video export
+  - model: ffmpeg/native-render
+    provider: renku
+    producerId: VideoExporter

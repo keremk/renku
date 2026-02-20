@@ -1,0 +1,173 @@
+meta:
+  name: Storyboard Panel Video
+  description: Generate video from a storyboard grid image where panels become start/end frames for video clips using sliding window interpolation.
+  id: StoryboardPanelVideo
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: InquiryPrompt
+    description: Main topic or scenario description for the video (e.g., music video concept, story idea).
+    type: string
+    required: true
+  - name: CharacterDefinitions
+    description: Detailed descriptions of characters/subjects that appear in the video.
+    type: string
+    required: true
+  - name: Styling
+    description: Visual/artistic style (e.g., 2000s music video aesthetic, cinematic, anime).
+    type: string
+    required: true
+  - name: Lighting
+    description: Lighting instructions (e.g., warm golden hour, neon accents).
+    type: string
+    required: true
+  - name: Camera
+    description: Camera style instructions (e.g., mix of wide-angle, fisheye, macro lenses).
+    type: string
+    required: true
+  - name: PanelCount
+    description: Number of storyboard panels (9 for 3x3 grid, 4 for 2x2 grid). Must equal NumOfSegments + 1.
+    type: int
+    required: true
+  - name: GridStyle
+    description: Storyboard grid style (e.g., "3x3", "2x2", "2x3").
+    type: string
+    required: true
+  - name: AspectRatio
+    description: Aspect ratio for the video (e.g., 16:9, 9:16, 1:1).
+    type: string
+    required: true
+  - name: Resolution
+    description: Video resolution (480p, 720p, 1080p).
+    type: string
+    required: true
+
+artifacts:
+  - name: StoryboardImage
+    description: The generated storyboard grid image.
+    type: image
+  - name: PanelImages
+    description: Individual panel images extracted from the storyboard.
+    type: array
+    itemType: image
+    countInput: PanelCount
+  - name: SegmentVideo
+    description: Generated video clips with panel interpolation.
+    type: array
+    itemType: video
+    countInput: NumOfSegments
+  - name: Music
+    description: Background music for the video.
+    type: audio
+  - name: Timeline
+    description: Composed timeline JSON manifest.
+    type: json
+  - name: FinalVideo
+    description: Final rendered MP4 video.
+    type: video
+
+loops:
+  - name: clip
+    description: Iterates over video clips (NumOfSegments items).
+    countInput: NumOfSegments
+  - name: panel
+    description: Iterates over panel images (NumOfSegments + 1 = PanelCount items).
+    countInput: NumOfSegments
+    countInputOffset: 1
+
+producers:
+  - name: StoryboardDirector
+    path: ./storyboard-director/storyboard-director.yaml
+  - name: StoryboardImageProducer
+    producer: asset/text-to-storyboard-image
+  - name: VideoProducer
+    producer: asset/image-to-video
+    loop: clip
+  - name: MusicProducer
+    producer: asset/text-to-music
+  - name: TimelineComposer
+    producer: composition/timeline-composer
+  - name: VideoExporter
+    producer: composition/video-exporter
+
+connections:
+  # Wire inputs to StoryboardDirector
+  - from: InquiryPrompt
+    to: StoryboardDirector.InquiryPrompt
+  - from: CharacterDefinitions
+    to: StoryboardDirector.CharacterDefinitions
+  - from: Styling
+    to: StoryboardDirector.Styling
+  - from: Lighting
+    to: StoryboardDirector.Lighting
+  - from: Camera
+    to: StoryboardDirector.Camera
+  - from: PanelCount
+    to: StoryboardDirector.PanelCount
+  - from: NumOfSegments
+    to: StoryboardDirector.NumOfClips
+  - from: GridStyle
+    to: StoryboardDirector.GridStyle
+  - from: SegmentDuration
+    to: StoryboardDirector.ClipDuration
+
+  # Wire to StoryboardImageProducer
+  - from: StoryboardDirector.GridImagePrompt
+    to: StoryboardImageProducer.Prompt
+  - from: GridStyle
+    to: StoryboardImageProducer.GridStyle
+  - from: PanelCount
+    to: StoryboardImageProducer.PanelCount
+  - from: AspectRatio
+    to: StoryboardImageProducer.AspectRatio
+
+  # Output storyboard artifacts
+  - from: StoryboardImageProducer.GeneratedImage
+    to: StoryboardImage
+  - from: StoryboardImageProducer.PanelImages[panel]
+    to: PanelImages[panel]
+
+  # Wire prompts to VideoProducer with sliding window for panels
+  - from: StoryboardDirector.VideoPrompts[clip]
+    to: VideoProducer[clip].Prompt
+  - from: StoryboardImageProducer.PanelImages[panel]
+    to: VideoProducer[clip].StartImage
+  - from: StoryboardImageProducer.PanelImages[panel+1]
+    to: VideoProducer[clip].EndImage
+  - from: AspectRatio
+    to: VideoProducer[clip].AspectRatio
+  - from: Resolution
+    to: VideoProducer[clip].Resolution
+  - from: SegmentDuration
+    to: VideoProducer[clip].Duration
+
+  # Output segment videos
+  - from: VideoProducer[clip].GeneratedVideo
+    to: SegmentVideo[clip]
+
+  # Wire music prompt to MusicProducer
+  - from: StoryboardDirector.MusicPrompt
+    to: MusicProducer.Prompt
+  - from: Duration
+    to: MusicProducer.Duration
+  - from: MusicProducer.GeneratedMusic
+    to: Music
+
+  # Wire to TimelineComposer
+  - from: VideoProducer[clip].GeneratedVideo
+    to: TimelineComposer.VideoSegments
+  - from: MusicProducer.GeneratedMusic
+    to: TimelineComposer.Music
+  - from: Duration
+    to: TimelineComposer.Duration
+  - from: TimelineComposer.Timeline
+    to: Timeline
+
+  # Wire to VideoExporter
+  - from: TimelineComposer.Timeline
+    to: VideoExporter.Timeline
+  - from: VideoExporter.FinalVideo
+    to: FinalVideo
+

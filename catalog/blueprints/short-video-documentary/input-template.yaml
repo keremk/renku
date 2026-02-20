@@ -1,0 +1,90 @@
+inputs:
+  # Historical topic to research and narrate
+  Topic: "The Opium Wars in 19th century China - the conflict between Britain and the Qing Dynasty over trade and sovereignty"
+
+  # Style directions
+  VisualStyle: "Cinematic documentary with painterly historical aesthetic, dramatic lighting, period-accurate details"
+  NarratorTone: "Authoritative yet storytelling, engaging and dramatic"
+
+  # Video settings
+  AspectRatio: "9:16"
+  Resolution: "720p"
+
+  # Voice settings for narration
+  VoiceId: "iUqOXhMfiOIbBejNtfLR"
+
+  # Duration and structure
+  # 40 seconds total, 4 segments of 10 seconds each
+  # Each segment has 2-3 cut-scenes via [cut] markers in video prompts
+  Duration: 30
+  NumOfSegments: 3
+  CutScenesPerSegment: 2
+
+models:
+  # LLM for historical research and script generation
+  - model: gpt-5.2
+    provider: openai
+    producerId: HistoryScriptwriter
+    config:
+      text_format: json_schema
+
+  # Image generation for initial opening frame
+  - model: bytedance/seedream-4.5
+    provider: replicate
+    producerId: InitialImageProducer
+
+  # Video generation with [cut] scene support and frame continuity
+  - model: kling-video/v2.5-turbo/pro/image-to-video
+    provider: fal-ai
+    producerId: VideoProducer
+
+  # Text-to-speech for narration
+  - model: eleven_v3
+    provider: elevenlabs
+    producerId: NarrationProducer
+
+  # Music generation for thematic background
+  - model: music_v1
+    provider: elevenlabs
+    producerId: MusicProducer
+
+  # Timeline composition
+  - model: timeline/ordered
+    provider: renku
+    producerId: TimelineComposer
+    config:
+      timeline:
+        masterTracks: ["Audio", "Video"]
+        videoClip:
+          artifact: VideoSegments
+        audioClip:
+          artifact: AudioSegments
+        musicClip:
+          artifact: Music
+          volume: 0.25
+        tracks: ["Video", "Audio", "Music", "Transcription"]
+
+  # Speech transcription for karaoke-style subtitles
+  - model: speech/transcription
+    provider: renku
+    producerId: TranscriptionProducer
+    config:
+      stt:
+        provider: "fal-ai"
+        model: "elevenlabs/speech-to-text"
+        diarize: false
+
+  # Final video export with historical documentary styling
+  - model: ffmpeg/native-render
+    provider: renku
+    producerId: VideoExporter
+    config:
+      subtitles:
+        font: "Georgia"
+        fontSize: 64
+        fontBaseColor: "#FFFFFF"
+        fontHighlightColor: "#D4AF37"
+        backgroundColor: "#1A1A1A"
+        backgroundOpacity: 0.6
+        maxWordsPerLine: 3
+        highlightEffect: true

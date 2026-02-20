@@ -1,0 +1,66 @@
+{
+  "name": "VideoScript",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "Title": {
+        "type": "string",
+        "description": "The title of the educational video"
+      },
+      "Summary": {
+        "type": "string",
+        "description": "A brief summary of what the video teaches"
+      },
+      "Characters": {
+        "type": "array",
+        "description": "Array of character segments",
+        "items": {
+          "type": "object",
+          "properties": {
+            "CharacterName": {
+              "type": "string",
+              "description": "The fun, memorable name of the character"
+            },
+            "RepresentsWhat": {
+              "type": "string",
+              "description": "What concept or object this character represents"
+            },
+            "CharacterImagePrompt": {
+              "type": "string",
+              "description": "Detailed prompt for generating the character image"
+            },
+            "PersonalityTraits": {
+              "type": "string",
+              "description": "The character's personality traits"
+            },
+            "NarrationScript": {
+              "type": "string",
+              "description": "The script spoken by this character"
+            },
+            "VoiceEmotion": {
+              "type": "string",
+              "description": "The emotion/tone for text-to-speech (e.g., cheerful, wise, energetic)"
+            },
+            "VideoPrompt": {
+              "type": "string",
+              "description": "Prompt describing the character's action for video generation (e.g., 'A cute animated heart character speaks expressively to the camera')"
+            }
+          },
+          "required": [
+            "CharacterName",
+            "RepresentsWhat",
+            "CharacterImagePrompt",
+            "PersonalityTraits",
+            "NarrationScript",
+            "VoiceEmotion",
+            "VideoPrompt"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": ["Title", "Summary", "Characters"],
+    "additionalProperties": false
+  }
+}

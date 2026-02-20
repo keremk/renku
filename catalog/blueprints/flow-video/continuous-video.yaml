@@ -168,6 +168,8 @@ connections:
   # Wire to VideoExporter
   - from: TimelineComposer.Timeline
     to: VideoExporter.Timeline
+  - from: AspectRatio
+    to: VideoExporter.AspectRatio
   - from: TimelineComposer.Timeline
     to: TranscriptionProducer.Timeline
   - from: TranscriptionProducer.Transcription

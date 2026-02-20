@@ -1,0 +1,37 @@
+{
+  "name": "HistoryScriptwriterOutput",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "MovieTitle": {
+        "type": "string",
+        "description": "A compelling title for the historical documentary (3-7 words)"
+      },
+      "InitialImagePrompt": {
+        "type": "string",
+        "description": "Prompt for generating the opening frame image that sets the historical scene"
+      },
+      "VideoPrompts": {
+        "type": "array",
+        "description": "Video prompts for each segment, containing [cut] markers for internal scene transitions",
+        "items": {
+          "type": "string"
+        }
+      },
+      "NarrationScripts": {
+        "type": "array",
+        "description": "Narration text for each segment to be spoken by the narrator",
+        "items": {
+          "type": "string"
+        }
+      },
+      "MusicPrompt": {
+        "type": "string",
+        "description": "Prompt describing the thematic background music for the entire video"
+      }
+    },
+    "required": ["MovieTitle", "InitialImagePrompt", "VideoPrompts", "NarrationScripts", "MusicPrompt"],
+    "additionalProperties": false
+  }
+}

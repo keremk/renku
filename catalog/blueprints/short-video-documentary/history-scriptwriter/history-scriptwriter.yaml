@@ -1,0 +1,51 @@
+meta:
+  name: History Scriptwriter
+  description: Research historical topics and generate compelling narratives with cut-scene video prompts for short documentary videos
+  id: HistoryScriptwriter
+  version: 0.1.0
+  promptFile: ./history-scriptwriter.toml
+  outputSchema: ./history-scriptwriter-output.json
+
+inputs:
+  - name: Topic
+    description: The historical topic to research and narrate (e.g., "Opium Wars in 19th century China")
+    type: string
+  - name: Duration
+    description: Total video duration in seconds (20-60)
+    type: int
+  - name: NumOfSegments
+    description: Number of narrative segments
+    type: int
+  - name: SegmentDuration
+    description: Duration of each segment in seconds
+    type: int
+  - name: CutScenesPerSegment
+    description: Number of cut-scenes per segment (2-3)
+    type: int
+  - name: VisualStyle
+    description: Visual/artistic style directions (e.g., cinematic documentary, painterly historical)
+    type: string
+  - name: NarratorTone
+    description: Tone for the narrator (e.g., authoritative, storytelling, dramatic)
+    type: string
+
+artifacts:
+  - name: MovieTitle
+    description: A compelling title for the historical video
+    type: string
+  - name: InitialImagePrompt
+    description: Prompt for generating the opening frame image
+    type: string
+  - name: VideoPrompts
+    description: Array of video prompts per segment (each contains [cut] markers for scene transitions)
+    type: array
+    itemType: string
+    countInput: NumOfSegments
+  - name: NarrationScripts
+    description: Array of narration text per segment
+    type: array
+    itemType: string
+    countInput: NumOfSegments
+  - name: MusicPrompt
+    description: Prompt for generating thematic background music
+    type: string

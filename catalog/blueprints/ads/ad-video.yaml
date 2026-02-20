@@ -212,6 +212,8 @@ connections:
   # === VideoExporter inputs ===
   - from: TimelineComposer.Timeline
     to: VideoExporter.Timeline
+  - from: AspectRatio
+    to: VideoExporter.AspectRatio
 
   # === VideoExporter outputs ===
   - from: VideoExporter.FinalVideo

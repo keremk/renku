@@ -1,0 +1,81 @@
+inputs:
+  # Main scenario description
+  InquiryPrompt: "A music video sequence inspired by Afroman's 'Because I Got High' featuring a trio on a sunny front porch discovering a new tech app."
+
+  # Character/subject definitions
+  CharacterDefinitions: |
+    * **Afroman:** A Black man with a large, iconic 70s-style Afro, wearing a green vest and a gold chain, often holding an acoustic guitar.
+    * **Jay:** A thin man with long, straight blonde hair, a backwards yellow baseball cap, and an oversized yellow windbreaker.
+    * **Silent Bob:** A man with a thick, dark beard and long hair, wearing a backwards black baseball cap and a heavy dark green trench coat.
+    * **The Device:** A modern smartphone with a glowing screen displaying a vibrant lime green background, the black squiggly Higgsfield "S" logo, and the bold text "I got Higgs."
+
+  # Visual style
+  Styling: "2000s music video aesthetic, high color saturation, heavy film grain, and slight motion blur."
+
+  # Lighting instructions
+  Lighting: "Warm, hazy golden hour sunlight; neon green accent lighting from the phone screen."
+
+  # Camera style
+  Camera: "Mix of Wide-Angle, Fisheye, and Macro lenses. Constant TechTV logo bug in the bottom right corner."
+
+  # Grid configuration
+  GridStyle: "3x3"
+  # For 3x3 grid: PanelCount = 9, NumOfSegments = 8
+  # For 2x2 grid: PanelCount = 4, NumOfSegments = 3
+  PanelCount: 9
+
+  # Video settings
+  AspectRatio: "16:9"
+  Resolution: "720p"
+
+  # System inputs
+  Duration: 40           # Total video duration in seconds
+  NumOfSegments: 8       # Number of video clips (PanelCount - 1)
+  # SegmentDuration is auto-computed as Duration/NumOfSegments = 5 seconds per clip
+
+models:
+  # LLM for generating prompts
+  - model: gpt-5.2
+    provider: openai
+    producerId: StoryboardDirector
+    config:
+      text_format: json_schema
+
+  # Storyboard image generation (NanoBanana Pro)
+  - model: nano-banana-pro
+    provider: fal-ai
+    producerId: StoryboardImageProducer
+
+  # Video generation with start/end frame interpolation
+  # Choose a model that supports both StartImage and EndImage:
+  # - veo3.1/fast/first-last-frame-to-video (fal-ai)
+  # - bytedance/seedance/v1.5/pro/image-to-video (fal-ai)
+  # - kling-video/o1/image-to-video (fal-ai)
+  # - kling-video/v2.5-turbo/pro/image-to-video (fal-ai)
+  - model: kling-video/v2.5-turbo/pro/image-to-video
+    provider: fal-ai
+    producerId: VideoProducer
+
+  # Music generation
+  - model: stability-ai/stable-audio-2.5
+    provider: replicate
+    producerId: MusicProducer
+
+  # Timeline composition
+  - model: timeline/ordered
+    provider: renku
+    producerId: TimelineComposer
+    config:
+      timeline:
+        masterTracks: ["Video"]
+        videoClip:
+          artifact: VideoSegments
+        musicClip:
+          artifact: Music
+          volume: 0.4
+        tracks: ["Video", "Music"]
+
+  # Video export
+  - model: ffmpeg/native-render
+    provider: renku
+    producerId: VideoExporter

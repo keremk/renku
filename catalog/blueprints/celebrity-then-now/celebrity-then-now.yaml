@@ -1,0 +1,292 @@
+meta:
+  name: Celebrity Then and Now
+  description: Generate a video showcasing celebrities' transformations over time. Alternates between meeting segments (young meets current self) and transition segments (smooth transition to the next character's young version). Uses start/end image-to-video for smooth visual transitions.
+  id: CelebrityThenNow
+  kind: blueprint
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  # User-provided images
+  - name: CelebrityThenImages
+    description: Array of celebrity "then" (young/early career) images - one per celebrity, matching order.
+    type: array
+    itemType: image
+    required: true
+  - name: CelebrityNowImages
+    description: Array of celebrity "now" (current) images - one per celebrity, matching order with ThenImages.
+    type: array
+    itemType: image
+    required: true
+  - name: SettingImage
+    description: Single background/setting image that establishes the environment for all segments (e.g., a movie set, iconic location).
+    type: image
+    required: true
+
+  # Creative inputs
+  - name: Theme
+    description: The overall theme or concept for the celebrity retrospective (e.g., "Hollywood Icons Through Time").
+    type: string
+    required: true
+  - name: EnvironmentDescription
+    description: Description of the environment suggested by the setting image (e.g., "a vintage Hollywood movie set with golden lighting").
+    type: string
+    required: true
+  - name: VisualStyle
+    description: Visual style for the video (e.g., cinematic, nostalgic, documentary).
+    type: string
+    required: true
+  - name: MusicalStyle
+    description: Style for background music (e.g., nostalgic orchestral, soft piano, retro jazz). Used as fallback if Director does not generate a music prompt.
+    type: string
+    required: false
+
+  # Timing
+  - name: NumOfCharacters
+    description: Number of celebrities in the video. Must match the length of CelebrityThenImages and CelebrityNowImages.
+    type: int
+    required: true
+  - name: MeetingDuration
+    description: Duration of each meeting segment in seconds (recommended 10).
+    type: int
+    required: true
+  - name: TransitionDuration
+    description: Duration of each transition segment in seconds (recommended 5).
+    type: int
+    required: true
+
+  # Video settings
+  - name: AspectRatio
+    description: Aspect ratio for the video (16:9, 9:16, 1:1).
+    type: string
+    required: true
+  - name: Resolution
+    description: Video resolution (480p, 720p, 1080p).
+    type: string
+    required: true
+
+artifacts:
+  - name: ConsistentThenImages
+    description: Generated consistent "then" images of celebrities placed in the setting.
+    type: array
+    itemType: image
+    countInput: NumOfCharacters
+  - name: ConsistentNowImages
+    description: Generated consistent "now" images of celebrities placed in the setting.
+    type: array
+    itemType: image
+    countInput: NumOfCharacters
+  - name: ConsistentTogetherImages
+    description: Generated images showing the "then" and "now" versions of each celebrity together side by side in the setting.
+    type: array
+    itemType: image
+    countInput: NumOfCharacters
+  - name: MeetingVideos
+    description: Generated meeting video segments (young meets now), one per celebrity.
+    type: array
+    itemType: video
+    countInput: NumOfCharacters
+  - name: TransitionVideos
+    description: Generated transition video segments between celebrities.
+    type: array
+    itemType: video
+    countInput: NumOfCharacters
+  - name: Music
+    description: Generated background music for the entire video.
+    type: audio
+  - name: Timeline
+    description: Composed timeline JSON manifest.
+    type: json
+  - name: FinalVideo
+    description: Final rendered video with all segments and music.
+    type: video
+
+loops:
+  - name: character
+    description: Iterates over celebrities.
+    countInput: NumOfCharacters
+
+producers:
+  # Script/prompt generation
+  - name: DirectorProducer
+    path: ./director/director.yaml
+
+  # Image transformation - create consistent images from user photos
+  - name: ThenImageProducer
+    producer: asset/image-to-image
+    loop: character
+  - name: NowImageProducer
+    producer: asset/image-to-image
+    loop: character
+  - name: TogetherImageProducer
+    producer: asset/image-to-image
+    loop: character
+
+  # Video generation - meeting and transition segments
+  - name: MeetingVideoProducer
+    producer: asset/image-to-video
+    loop: character
+  - name: TransitionVideoProducer
+    producer: asset/image-to-video
+    loop: character
+
+  # Music
+  - name: MusicProducer
+    producer: asset/text-to-music
+
+  # Composition
+  - name: TimelineComposer
+    producer: composition/timeline-composer
+  - name: VideoExporter
+    producer: composition/video-exporter
+
+conditions:
+  hasTransition:
+    when: DirectorProducer.Script.Characters[character].HasTransition
+    is: true
+
+connections:
+  # === DirectorProducer inputs ===
+  - from: Theme
+    to: DirectorProducer.Theme
+  - from: EnvironmentDescription
+    to: DirectorProducer.EnvironmentDescription
+  - from: VisualStyle
+    to: DirectorProducer.VisualStyle
+  - from: NumOfCharacters
+    to: DirectorProducer.NumOfCharacters
+  - from: MeetingDuration
+    to: DirectorProducer.MeetingDuration
+  - from: TransitionDuration
+    to: DirectorProducer.TransitionDuration
+  - from: Duration
+    to: DirectorProducer.Duration
+
+  # === ThenImageProducer inputs (looped over character) ===
+  - from: CelebrityThenImages[character]
+    to: ThenImageProducer[character].SourceImages[0]
+    note: User-provided young/then photo for this character
+  - from: SettingImage
+    to: ThenImageProducer[character].SourceImages[1]
+    note: Setting image for visual context
+  - from: DirectorProducer.Script.Characters[character].ThenImagePrompt
+    to: ThenImageProducer[character].Prompt
+  - from: AspectRatio
+    to: ThenImageProducer[character].AspectRatio
+
+  # === ThenImageProducer outputs ===
+  - from: ThenImageProducer[character].TransformedImage
+    to: ConsistentThenImages[character]
+
+  # === NowImageProducer inputs (looped over character) ===
+  - from: CelebrityNowImages[character]
+    to: NowImageProducer[character].SourceImages[0]
+    note: User-provided current/now photo for this character
+  - from: SettingImage
+    to: NowImageProducer[character].SourceImages[1]
+    note: Setting image for visual context
+  - from: DirectorProducer.Script.Characters[character].NowImagePrompt
+    to: NowImageProducer[character].Prompt
+  - from: AspectRatio
+    to: NowImageProducer[character].AspectRatio
+
+  # === NowImageProducer outputs ===
+  - from: NowImageProducer[character].TransformedImage
+    to: ConsistentNowImages[character]
+
+  # === TogetherImageProducer inputs (looped over character) ===
+  - from: ThenImageProducer[character].TransformedImage
+    to: TogetherImageProducer[character].SourceImages[0]
+    note: Consistent then image as first source
+  - from: NowImageProducer[character].TransformedImage
+    to: TogetherImageProducer[character].SourceImages[1]
+    note: Consistent now image as second source
+  - from: DirectorProducer.Script.Characters[character].TogetherImagePrompt
+    to: TogetherImageProducer[character].Prompt
+  - from: AspectRatio
+    to: TogetherImageProducer[character].AspectRatio
+
+  # === TogetherImageProducer outputs ===
+  - from: TogetherImageProducer[character].TransformedImage
+    to: ConsistentTogetherImages[character]
+
+  # === MeetingVideoProducer inputs (looped over character) ===
+  - from: ThenImageProducer[character].TransformedImage
+    to: MeetingVideoProducer[character].StartImage
+    note: Consistent then image as the start frame (young alone in setting)
+  - from: TogetherImageProducer[character].TransformedImage
+    to: MeetingVideoProducer[character].EndImage
+    note: Together image as the end frame (both side by side)
+  - from: DirectorProducer.Script.Characters[character].MeetingVideoPrompt
+    to: MeetingVideoProducer[character].Prompt
+  - from: AspectRatio
+    to: MeetingVideoProducer[character].AspectRatio
+  - from: Resolution
+    to: MeetingVideoProducer[character].Resolution
+  - from: MeetingDuration
+    to: MeetingVideoProducer[character].Duration
+
+  # === MeetingVideoProducer outputs ===
+  - from: MeetingVideoProducer[character].GeneratedVideo
+    to: MeetingVideos[character]
+
+  # === TransitionVideoProducer inputs (looped, conditional on hasTransition) ===
+  - from: TogetherImageProducer[character].TransformedImage
+    to: TransitionVideoProducer[character].StartImage
+    if: hasTransition
+    note: Together image as start frame (both side by side)
+  - from: ThenImageProducer[character+1].TransformedImage
+    to: TransitionVideoProducer[character].EndImage
+    if: hasTransition
+    note: Next character's consistent then image as end frame (offset +1)
+  - from: DirectorProducer.Script.Characters[character].TransitionVideoPrompt
+    to: TransitionVideoProducer[character].Prompt
+    if: hasTransition
+  - from: AspectRatio
+    to: TransitionVideoProducer[character].AspectRatio
+    if: hasTransition
+  - from: Resolution
+    to: TransitionVideoProducer[character].Resolution
+    if: hasTransition
+  - from: TransitionDuration
+    to: TransitionVideoProducer[character].Duration
+    if: hasTransition
+
+  # === TransitionVideoProducer outputs ===
+  - from: TransitionVideoProducer[character].GeneratedVideo
+    to: TransitionVideos[character]
+    if: hasTransition
+
+  # === MusicProducer inputs ===
+  - from: DirectorProducer.Script.MusicPrompt
+    to: MusicProducer.Prompt
+  - from: Duration
+    to: MusicProducer.Duration
+
+  # === MusicProducer outputs ===
+  - from: MusicProducer.GeneratedMusic
+    to: Music
+
+  # === TimelineComposer inputs ===
+  - from: Duration
+    to: TimelineComposer.Duration
+  - from: MeetingVideoProducer[character].GeneratedVideo
+    to: TimelineComposer.VideoSegments
+  - from: TransitionVideoProducer[character].GeneratedVideo
+    to: TimelineComposer.VideoSegments
+    if: hasTransition
+  - from: MusicProducer.GeneratedMusic
+    to: TimelineComposer.Music
+
+  # === TimelineComposer outputs ===
+  - from: TimelineComposer.Timeline
+    to: Timeline
+
+  # === VideoExporter inputs ===
+  - from: TimelineComposer.Timeline
+    to: VideoExporter.Timeline
+
+  # === VideoExporter outputs ===
+  - from: VideoExporter.FinalVideo
+    to: FinalVideo

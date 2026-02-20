@@ -1,0 +1,24 @@
+{
+  "name": "StoryboardDirectorOutput",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "GridImagePrompt": {
+        "type": "string",
+        "description": "Detailed prompt for generating the storyboard grid image with DIRECTIVE, SUBJECT/CHARACTER DEFINITIONS, PANELS & LAYOUT, and TECHNICAL SPECS sections."
+      },
+      "VideoPrompts": {
+        "type": "array",
+        "description": "Video prompts for each clip transition between consecutive panels.",
+        "items": { "type": "string" }
+      },
+      "MusicPrompt": {
+        "type": "string",
+        "description": "Prompt describing the background music for the entire video."
+      }
+    },
+    "required": ["GridImagePrompt", "VideoPrompts", "MusicPrompt"],
+    "additionalProperties": false
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "name": "DirectorOutput",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "MovieTitle": {
+        "type": "string",
+        "description": "A catchy title for the celebrity then-and-now video (3-8 words)."
+      },
+      "MusicPrompt": {
+        "type": "string",
+        "description": "Prompt for generating background music that fits the nostalgic, transformative theme of the video."
+      },
+      "Characters": {
+        "type": "array",
+        "description": "Array of character details, one per celebrity. Order matches the input images.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "CharacterName": {
+              "type": "string",
+              "description": "The celebrity's name or a descriptive label."
+            },
+            "ThenImagePrompt": {
+              "type": "string",
+              "description": "Prompt to transform the user-provided young/then photo into a consistent scene within the setting environment. Should instruct the AI to place the young person in the setting while preserving their identity and facial features."
+            },
+            "NowImagePrompt": {
+              "type": "string",
+              "description": "Prompt to transform the user-provided current/now photo into a consistent scene within the setting environment. Should instruct the AI to place the current person in the setting while preserving their identity and facial features."
+            },
+            "TogetherImagePrompt": {
+              "type": "string",
+              "description": "Prompt to compose both the young and current versions of the celebrity standing together side by side in the setting. The AI image editor receives the consistent then image as SourceImages[0] and the consistent now image as SourceImages[1]. Describe their pose (shoulder to shoulder, holding hands, etc.) appropriate to the character and context."
+            },
+            "MeetingVideoPrompt": {
+              "type": "string",
+              "description": "Video prompt for the meeting segment. The young version is visible alone in the setting first, then the current version appears, and they come together side by side. Describe specific camera movements. Start frame: consistent then image. End frame: consistent now image."
+            },
+            "TransitionVideoPrompt": {
+              "type": "string",
+              "description": "Video prompt for the transition segment. Camera moves away from the pair and travels through the setting to the next character's young version in a different part of the environment. Describe camera journey and environmental details. Empty string for the last character."
+            },
+            "HasTransition": {
+              "type": "boolean",
+              "description": "Structural flag. MUST be true for all characters except the last one. The last character (index N-1) MUST be false."
+            }
+          },
+          "required": ["CharacterName", "ThenImagePrompt", "NowImagePrompt", "TogetherImagePrompt", "MeetingVideoPrompt", "TransitionVideoPrompt", "HasTransition"],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": ["MovieTitle", "MusicPrompt", "Characters"],
+    "additionalProperties": false
+  }
+}

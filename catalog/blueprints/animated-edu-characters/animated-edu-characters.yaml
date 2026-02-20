@@ -1,0 +1,186 @@
+meta:
+  name: Animated Educational Characters
+  description: Generate fun educational videos with cute Pixar-style animated characters that are lipsynced to narration.
+  id: AnimatedEduCharacters
+  version: 0.1.0
+  author: User
+  license: MIT
+
+inputs:
+  - name: EducationalTopic
+    description: The educational topic to teach (e.g., "the vital organs of the human body").
+    type: text
+    required: true
+  - name: TargetAudience
+    description: Target audience for the content (e.g., "children ages 6-10").
+    type: string
+    required: true
+  - name: AnimationStyle
+    description: Animation style description (e.g., "Pixar-style 3D animated, cute, colorful").
+    type: text
+    required: true
+  - name: VoiceId
+    description: Voice identifier for text-to-speech narration.
+    type: string
+    required: true
+  - name: AspectRatio
+    description: Aspect ratio for images and videos (e.g., "16:9", "9:16", "1:1").
+    type: string
+    required: true
+  - name: Resolution
+    description: Video resolution (e.g., "480p", "720p").
+    type: string
+
+artifacts:
+  - name: CharacterImage
+    description: Generated character images for each segment.
+    type: array
+    itemType: image
+    countInput: NumOfSegments
+  - name: NarrationAudio
+    description: Generated narration audio for each segment.
+    type: array
+    itemType: audio
+    countInput: NumOfSegments
+  - name: LipsyncVideo
+    description: Generated lipsynced character videos for each segment.
+    type: array
+    itemType: video
+    countInput: NumOfSegments
+  - name: Timeline
+    description: Composed timeline of all video segments.
+    type: json
+  - name: Transcription
+    description: Word-level transcription for karaoke subtitles.
+    type: json
+  - name: FinalVideo
+    description: Final rendered video with karaoke subtitles.
+    type: video
+
+loops:
+  - name: segment
+    description: Iterates over character segments.
+    countInput: NumOfSegments
+
+producers:
+  # Script and character generation
+  - name: EduScriptProducer
+    path: ./edu-script/edu-script.yaml
+
+  # Character image generation (one per segment)
+  - name: CharacterImageProducer
+    producer: asset/text-to-image
+    loop: segment
+
+  # Narration audio generation (one per segment)
+  - name: NarrationAudioProducer
+    producer: asset/text-to-speech
+    loop: segment
+
+  # Lipsync video generation (character + audio = talking video)
+  - name: LipsyncVideoProducer
+    producer: asset/audio-to-video
+    loop: segment
+
+  # Timeline composition
+  - name: TimelineComposer
+    producer: composition/timeline-composer
+
+  # Transcription for karaoke subtitles
+  - name: TranscriptionProducer
+    producer: asset/transcription
+
+  # Final video export
+  - name: VideoExporter
+    producer: composition/video-exporter
+
+connections:
+  # ============================================================
+  # Wire inputs to EduScriptProducer
+  # ============================================================
+  - from: EducationalTopic
+    to: EduScriptProducer.EducationalTopic
+  - from: Duration
+    to: EduScriptProducer.Duration
+  - from: NumOfSegments
+    to: EduScriptProducer.NumOfSegments
+  - from: SegmentDuration
+    to: EduScriptProducer.SegmentDuration
+  - from: TargetAudience
+    to: EduScriptProducer.TargetAudience
+  - from: AnimationStyle
+    to: EduScriptProducer.AnimationStyle
+
+  # ============================================================
+  # Wire script outputs to CharacterImageProducer
+  # ============================================================
+  - from: EduScriptProducer.VideoScript.Characters[segment].CharacterImagePrompt
+    to: CharacterImageProducer[segment].Prompt
+  - from: AspectRatio
+    to: CharacterImageProducer[segment].AspectRatio
+  - from: CharacterImageProducer[segment].GeneratedImage
+    to: CharacterImage[segment]
+
+  # ============================================================
+  # Wire script outputs to NarrationAudioProducer
+  # ============================================================
+  - from: EduScriptProducer.VideoScript.Characters[segment].NarrationScript
+    to: NarrationAudioProducer[segment].Text
+  - from: VoiceId
+    to: NarrationAudioProducer[segment].VoiceId
+  - from: NarrationAudioProducer[segment].GeneratedAudio
+    to: NarrationAudio[segment]
+
+  # ============================================================
+  # Wire character images and audio to LipsyncVideoProducer
+  # ============================================================
+  - from: CharacterImageProducer[segment].GeneratedImage
+    to: LipsyncVideoProducer[segment].CharacterImage
+  - from: NarrationAudioProducer[segment].GeneratedAudio
+    to: LipsyncVideoProducer[segment].AudioUrl
+  - from: AspectRatio
+    to: LipsyncVideoProducer[segment].AspectRatio
+  - from: Resolution
+    to: LipsyncVideoProducer[segment].Resolution
+  - from: SegmentDuration
+    to: LipsyncVideoProducer[segment].Duration
+  - from: EduScriptProducer.VideoScript.Characters[segment].VideoPrompt
+    to: LipsyncVideoProducer[segment].Prompt
+  - from: LipsyncVideoProducer[segment].GeneratedVideo
+    to: LipsyncVideo[segment]
+
+  # ============================================================
+  # Wire videos to TimelineComposer (video already contains audio)
+  # ============================================================
+  - from: LipsyncVideoProducer[segment].GeneratedVideo
+    to: TimelineComposer.VideoSegments
+  - from: Duration
+    to: TimelineComposer.Duration
+  - from: TimelineComposer.Timeline
+    to: Timeline
+
+  # ============================================================
+  # Wire audio to TimelineComposer for Transcription track
+  # Use AudioTrack from LipsyncVideoProducer (extracted from generated video)
+  # ============================================================
+  - from: LipsyncVideoProducer[segment].AudioTrack
+    to: TimelineComposer.TranscriptionAudio
+
+  # ============================================================
+  # Wire to TranscriptionProducer for karaoke subtitles
+  # ============================================================
+  - from: TimelineComposer.Timeline
+    to: TranscriptionProducer.Timeline
+  - from: TranscriptionProducer.Transcription
+    to: Transcription
+
+  # ============================================================
+  # Wire to VideoExporter for final output
+  # ============================================================
+  - from: TimelineComposer.Timeline
+    to: VideoExporter.Timeline
+  - from: TranscriptionProducer.Transcription
+    to: VideoExporter.Transcription
+  - from: VideoExporter.FinalVideo
+    to: FinalVideo
+

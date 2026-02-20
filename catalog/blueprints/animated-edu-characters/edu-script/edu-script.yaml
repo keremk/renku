@@ -1,0 +1,42 @@
+meta:
+  name: Educational Character Script Generator
+  description: Generate scripts and character definitions for animated educational videos with Pixar-style characters.
+  id: EduScriptProducer
+  version: 0.1.0
+  author: User
+  license: MIT
+  promptFile: ./edu-script.toml
+  outputSchema: ./edu-script-output.json
+
+inputs:
+  - name: EducationalTopic
+    description: The educational topic to teach (e.g., "the vital organs of the human body").
+    type: string
+  - name: Duration
+    description: Total video duration in seconds.
+    type: int
+  - name: NumOfSegments
+    description: Number of character segments to produce.
+    type: int
+  - name: SegmentDuration
+    description: Duration of each segment in seconds (auto-calculated as Duration / NumOfSegments).
+    type: int
+  - name: TargetAudience
+    description: Target audience for the content (e.g., "children ages 6-10").
+    type: string
+  - name: AnimationStyle
+    description: Animation style description (e.g., "Pixar-style 3D animated").
+    type: string
+
+artifacts:
+  - name: VideoScript
+    description: The generated video script with character definitions.
+    type: json
+    arrays:
+      - path: Characters
+        countInput: NumOfSegments
+
+loops:
+  - name: segment
+    description: Iterates over character segments.
+    countInput: NumOfSegments
