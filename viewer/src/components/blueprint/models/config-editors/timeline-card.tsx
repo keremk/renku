@@ -33,7 +33,13 @@ import type { ConfigEditorProps } from './index';
 // Types
 // ============================================================================
 
-type TrackKind = 'Image' | 'Video' | 'Audio' | 'Music' | 'Text';
+type TrackKind =
+  | 'Image'
+  | 'Video'
+  | 'Audio'
+  | 'Music'
+  | 'Transcription'
+  | 'Text';
 
 interface ClipConfig {
   artifact: string;
@@ -49,6 +55,7 @@ export interface TimelineConfig {
   videoClip?: ClipConfig;
   audioClip?: ClipConfig;
   musicClip?: ClipConfig;
+  transcriptionClip?: ClipConfig;
   textClip?: ClipConfig;
 }
 
@@ -61,6 +68,7 @@ const ALL_TRACK_KINDS: TrackKind[] = [
   'Video',
   'Audio',
   'Music',
+  'Transcription',
   'Text',
 ];
 
@@ -71,6 +79,7 @@ const TRACK_TO_ARTIFACT: Record<TrackKind, string> = {
   Video: 'VideoSegments',
   Audio: 'AudioSegments',
   Music: 'Music',
+  Transcription: 'TranscriptionAudio',
   Text: 'TextSegments',
 };
 
@@ -79,6 +88,7 @@ const TRACK_TO_CLIP_KEY: Record<TrackKind, keyof TimelineConfig> = {
   Video: 'videoClip',
   Audio: 'audioClip',
   Music: 'musicClip',
+  Transcription: 'transcriptionClip',
   Text: 'textClip',
 };
 
@@ -87,6 +97,7 @@ const TRACK_COLORS: Record<TrackKind, string> = {
   Video: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
   Audio: 'bg-green-500/20 text-green-300 border-green-500/30',
   Music: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+  Transcription: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
   Text: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
 };
 

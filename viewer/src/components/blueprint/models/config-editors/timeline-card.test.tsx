@@ -1,29 +1,47 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi } from "vitest";
-import { render, waitFor } from "@testing-library/react";
-import { TimelineCard, type TimelineConfig } from "./timeline-card";
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
+import {
+  render,
+  waitFor,
+  screen,
+  fireEvent,
+  within,
+} from '@testing-library/react';
+import { TimelineCard, type TimelineConfig } from './timeline-card';
+
+const originalResizeObserver = globalThis.ResizeObserver;
+
+beforeAll(() => {
+  class ResizeObserverMock {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+
+  globalThis.ResizeObserver = ResizeObserverMock as typeof ResizeObserver;
+});
+
+afterAll(() => {
+  globalThis.ResizeObserver = originalResizeObserver;
+});
 
 const TIMELINE_DEFAULTS: TimelineConfig = {
-  tracks: ["Video", "Audio", "Music"],
-  masterTracks: ["Audio"],
-  audioClip: { artifact: "AudioSegments", volume: 1 },
-  videoClip: { artifact: "VideoSegments" },
-  musicClip: { artifact: "Music", volume: 0.3 },
+  tracks: ['Video', 'Audio', 'Music'],
+  masterTracks: ['Audio'],
+  audioClip: { artifact: 'AudioSegments', volume: 1 },
+  videoClip: { artifact: 'VideoSegments' },
+  musicClip: { artifact: 'Music', volume: 0.3 },
 };
 
-describe("TimelineCard", () => {
-  describe("Auto-persist defaults", () => {
-    it("calls onChange with defaults when value is undefined and isEditable is true", async () => {
+describe('TimelineCard', () => {
+  describe('Auto-persist defaults', () => {
+    it('calls onChange with defaults when value is undefined and isEditable is true', async () => {
       const onChange = vi.fn();
 
       render(
-        <TimelineCard
-          value={undefined}
-          isEditable={true}
-          onChange={onChange}
-        />
+        <TimelineCard value={undefined} isEditable={true} onChange={onChange} />
       );
 
       await waitFor(() => {
@@ -31,7 +49,7 @@ describe("TimelineCard", () => {
       });
     });
 
-    it("does not call onChange when value is undefined but isEditable is false", () => {
+    it('does not call onChange when value is undefined but isEditable is false', () => {
       const onChange = vi.fn();
 
       render(
@@ -45,11 +63,11 @@ describe("TimelineCard", () => {
       expect(onChange).not.toHaveBeenCalled();
     });
 
-    it("does not call onChange when value is already defined", () => {
+    it('does not call onChange when value is already defined', () => {
       const onChange = vi.fn();
       const customConfig: TimelineConfig = {
-        tracks: ["Image", "Audio"],
-        masterTracks: ["Audio"],
+        tracks: ['Image', 'Audio'],
+        masterTracks: ['Audio'],
       };
 
       render(
@@ -63,7 +81,7 @@ describe("TimelineCard", () => {
       expect(onChange).not.toHaveBeenCalled();
     });
 
-    it("does not call onChange when onChange is undefined", () => {
+    it('does not call onChange when onChange is undefined', () => {
       const { container } = render(
         <TimelineCard
           value={undefined}
@@ -76,53 +94,50 @@ describe("TimelineCard", () => {
     });
   });
 
-  describe("Rendering", () => {
-    it("renders track badges for configured tracks", () => {
+  describe('Rendering', () => {
+    it('renders track badges for configured tracks', () => {
       const { container } = render(
         <TimelineCard
           value={{
-            tracks: ["Video", "Audio", "Music"],
-            masterTracks: ["Audio"],
+            tracks: ['Video', 'Audio', 'Music'],
+            masterTracks: ['Audio'],
           }}
           isEditable={false}
         />
       );
 
-      expect(container.textContent).toContain("Video");
-      expect(container.textContent).toContain("Audio");
-      expect(container.textContent).toContain("Music");
+      expect(container.textContent).toContain('Video');
+      expect(container.textContent).toContain('Audio');
+      expect(container.textContent).toContain('Music');
     });
 
-    it("renders volume summary for clips with volume", () => {
+    it('renders volume summary for clips with volume', () => {
       const { container } = render(
         <TimelineCard
           value={{
-            tracks: ["Audio", "Music"],
-            masterTracks: ["Audio"],
-            audioClip: { artifact: "AudioSegments", volume: 1 },
-            musicClip: { artifact: "Music", volume: 0.3 },
+            tracks: ['Audio', 'Music'],
+            masterTracks: ['Audio'],
+            audioClip: { artifact: 'AudioSegments', volume: 1 },
+            musicClip: { artifact: 'Music', volume: 0.3 },
           }}
           isEditable={false}
         />
       );
 
-      expect(container.textContent).toContain("Audio: 100%");
-      expect(container.textContent).toContain("Music: 30%");
+      expect(container.textContent).toContain('Audio: 100%');
+      expect(container.textContent).toContain('Music: 30%');
     });
 
-    it("merges partial config with defaults", () => {
+    it('merges partial config with defaults', () => {
       const { container } = render(
-        <TimelineCard
-          value={{ tracks: ["Image"] }}
-          isEditable={false}
-        />
+        <TimelineCard value={{ tracks: ['Image'] }} isEditable={false} />
       );
 
       // Should show Image track from value
-      expect(container.textContent).toContain("Image");
+      expect(container.textContent).toContain('Image');
     });
 
-    it("shows edit button when isEditable is true", () => {
+    it('shows edit button when isEditable is true', () => {
       const { container } = render(
         <TimelineCard
           value={TIMELINE_DEFAULTS}
@@ -131,33 +146,76 @@ describe("TimelineCard", () => {
         />
       );
 
-      expect(container.textContent).toContain("Edit");
+      expect(container.textContent).toContain('Edit');
     });
 
-    it("hides edit button when isEditable is false", () => {
+    it('hides edit button when isEditable is false', () => {
       const { container } = render(
-        <TimelineCard
-          value={TIMELINE_DEFAULTS}
-          isEditable={false}
-        />
+        <TimelineCard value={TIMELINE_DEFAULTS} isEditable={false} />
       );
 
-      const buttons = container.querySelectorAll("button");
+      const buttons = container.querySelectorAll('button');
       const editButton = Array.from(buttons).find(
-        (b) => b.textContent === "Edit"
+        (b) => b.textContent === 'Edit'
       );
       expect(editButton).toBeUndefined();
     });
 
-    it("renders the Timeline footer label", () => {
+    it('renders the Timeline footer label', () => {
       const { container } = render(
+        <TimelineCard value={TIMELINE_DEFAULTS} isEditable={false} />
+      );
+
+      expect(container.textContent).toContain('Timeline');
+    });
+
+    it('shows Transcription as a track toggle in the edit dialog', async () => {
+      render(
         <TimelineCard
           value={TIMELINE_DEFAULTS}
-          isEditable={false}
+          isEditable={true}
+          onChange={vi.fn()}
         />
       );
 
-      expect(container.textContent).toContain("Timeline");
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+
+      expect(await screen.findByText('Transcription')).toBeTruthy();
+    });
+
+    it('saves Transcription track with transcriptionClip artifact', async () => {
+      const onChange = vi.fn();
+
+      render(
+        <TimelineCard
+          value={TIMELINE_DEFAULTS}
+          isEditable={true}
+          onChange={onChange}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+
+      const transcriptionLabel = await screen.findByText('Transcription');
+      const transcriptionRow = transcriptionLabel.closest('div');
+      expect(transcriptionRow).toBeTruthy();
+      const transcriptionSwitch = within(
+        transcriptionRow as HTMLElement
+      ).getByRole('switch');
+      fireEvent.click(transcriptionSwitch);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+      await waitFor(() => {
+        expect(onChange).toHaveBeenCalledWith(
+          expect.objectContaining({
+            tracks: ['Video', 'Audio', 'Music', 'Transcription'],
+            transcriptionClip: expect.objectContaining({
+              artifact: 'TranscriptionAudio',
+            }),
+          })
+        );
+      });
     });
   });
 });
