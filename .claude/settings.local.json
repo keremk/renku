@@ -79,7 +79,9 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(npx vitest run:*)",
       "WebFetch(domain:fal.ai)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "WebFetch(domain:api.replicate.com)",
+      "WebFetch(domain:replicate.com)"
     ],
     "deny": [],
     "ask": []
