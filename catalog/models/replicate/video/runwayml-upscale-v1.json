@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "title": "Input",
+  "required": [
+    "video"
+  ],
+  "properties": {
+    "video": {
+      "type": "string",
+      "title": "Video",
+      "format": "uri",
+      "description": "Video to upscale. Videos must be shorter than 40s, less than 4096px per side, and less than 16MB."
+    }
+  }
+}

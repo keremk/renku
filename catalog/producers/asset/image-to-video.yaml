@@ -1,6 +1,6 @@
 meta:
   name: Image-to-Video Generator
-  description: Generate video from start image and optionally end image.
+  description: Animate an image into video guided by a text prompt. Use this when you have a specific starting visual and want to bring it to life with motion. EndImage is optional. For guaranteed frame-to-frame interpolation, use start-end-frame-to-video instead.
   id: ImageToVideoProducer
   kind: producer
   version: 0.1.0
@@ -20,7 +20,7 @@ inputs:
     description: Starting frame image.
     type: image
   - name: EndImage
-    description: Ending frame image (for interpolation).
+    description: Ending frame image (optional, for interpolation).
     type: image
 
   # Duration
@@ -40,9 +40,6 @@ inputs:
   - name: GenerateAudio
     description: Whether to generate audio.
     type: boolean
-  - name: VoiceIds
-    description: Voice IDs for speech generation.
-    type: array
 
 artifacts:
   - name: GeneratedVideo
@@ -71,11 +68,10 @@ mappings:
       Resolution: resolution
       GenerateAudio: generate_audio
 
-    # Veo 3.1 Fast First-Last-Frame
-    veo3.1/fast/first-last-frame-to-video:
+    # Veo 3.1 Fast Image-to-Video
+    veo3.1/fast/image-to-video:
       Prompt: prompt
-      StartImage: first_frame_url
-      EndImage: last_frame_url
+      StartImage: image_url
       Duration:
         field: duration
         intToSecondsString: true
@@ -91,6 +87,14 @@ mappings:
       AspectRatio: aspect_ratio
       Resolution: resolution
 
+    # Sora 2 Image-to-Video Pro
+    sora-2/image-to-video/pro:
+      Prompt: prompt
+      StartImage: image_url
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+
     # Wan v2.6 Image-to-Video
     wan/v2.6/image-to-video:
       Prompt: prompt
@@ -100,33 +104,23 @@ mappings:
         intToString: true
       Resolution: resolution
 
-    # Kling Omni (Video o1) Image-to-Video
-    kling-video/o1/image-to-video:
-      Prompt: prompt
-      StartImage: start_image_url
-      EndImage: end_image_url
-      Duration:
-        field: duration
-        intToString: true
-
-    # Kling v2.5 Turbo Pro Image-to-Video
-    kling-video/v2.5-turbo/pro/image-to-video:
-      Prompt: prompt
-      StartImage: image_url
-      EndImage: tail_image_url
-      Duration: 
-        field: duration
-        intToString: true
-
-    # Kling v2.6 Pro Image-to-Video
-    kling-video/v2.6/pro/image-to-video:
+    # Wan v2.6 Image-to-Video Flash
+    wan/v2.6/image-to-video/flash:
       Prompt: prompt
       StartImage: image_url
       Duration:
         field: duration
         intToString: true
-      GenerateAudio: generate_audio
-      VoiceIds: voice_ids
+      Resolution: resolution
+
+    # Wan 2.5 Preview Image-to-Video
+    wan-25-preview/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      Duration:
+        field: duration
+        intToString: true
+      Resolution: resolution
 
     # ByteDance Seedance v1-Pro-Fast Image-to-Video
     bytedance/seedance/v1/pro/fast/image-to-video:
@@ -163,7 +157,6 @@ mappings:
         combine:
           inputs: [AspectRatio, Resolution]
           table:
-            # With Resolution specified -> explicit dimensions
             "16:9+480p": { width: 848, height: 480 }
             "16:9+720p": { width: 1280, height: 720 }
             "9:16+480p": { width: 480, height: 848 }
@@ -174,7 +167,6 @@ mappings:
             "3:4+720p": { width: 720, height: 960 }
             "1:1+480p": { width: 512, height: 512 }
             "1:1+720p": { width: 720, height: 720 }
-            # With only AspectRatio -> "auto" to use image dimensions
             "16:9+": auto
             "9:16+": auto
             "4:3+": auto
@@ -187,6 +179,62 @@ mappings:
           fps: 25
       GenerateAudio: generate_audio
 
+    # Kling v2.5 Turbo Pro Image-to-Video
+    kling-video/v2.5-turbo/pro/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      EndImage: tail_image_url
+      Duration:
+        field: duration
+        intToString: true
+
+    # Kling v2.6 Pro Image-to-Video
+    kling-video/v2.6/pro/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      Duration:
+        field: duration
+        intToString: true
+      GenerateAudio: generate_audio
+
+    # Kling V3 Standard Image-to-Video (single-prompt mode)
+    kling-video/v3/standard/image-to-video:
+      StartImage: frontal_image_url
+
+    # Kling V3 Pro Image-to-Video (single-prompt mode)
+    kling-video/v3/pro/image-to-video:
+      StartImage: frontal_image_url
+
+    # Pixverse V5 Image-to-Video
+    pixverse/v5/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      Duration: duration
+      Resolution: resolution
+
+    # Vidu Q3 Image-to-Video
+    vidu/q3/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      EndImage: end_image_url
+      Duration: duration
+      Resolution: resolution
+
+    # Vidu Q3 Image-to-Video Turbo
+    vidu/q3/image-to-video/turbo:
+      Prompt: prompt
+      StartImage: image_url
+      EndImage: end_image_url
+      Duration: duration
+      Resolution: resolution
+
+    # Decart Lucy 14B Image-to-Video
+    decart/lucy-14b/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+
   replicate:
     # Google Veo 3.1 Fast
     google/veo-3.1-fast:
@@ -198,10 +246,11 @@ mappings:
       Resolution: resolution
       GenerateAudio: generate_audio
 
-    # MiniMax Hailuo 2.3 Fast (image required)
-    minimax/hailuo-2.3-fast:
+    # MiniMax Hailuo 0.2 (flexible)
+    minimax/hailuo-02:
       Prompt: prompt
       StartImage: first_frame_image
+      EndImage: last_frame_image
       Duration: duration
       Resolution: resolution
 
@@ -213,15 +262,21 @@ mappings:
       Duration: duration
       Resolution: resolution
 
-    # MiniMax Hailuo 0.2 (flexible)
-    minimax/hailuo-02:
+    # MiniMax Hailuo 2.3 (with first_frame_image)
+    minimax/hailuo-2.3:
       Prompt: prompt
       StartImage: first_frame_image
-      EndImage: last_frame_image
       Duration: duration
       Resolution: resolution
 
-    # ByteDance Seedance (with image)
+    # MiniMax Hailuo 2.3 Fast (first_frame_image required)
+    minimax/hailuo-2.3-fast:
+      Prompt: prompt
+      StartImage: first_frame_image
+      Duration: duration
+      Resolution: resolution
+
+    # ByteDance Seedance 1.5 Pro (with image)
     bytedance/seedance-1.5-pro:
       Prompt: prompt
       StartImage: image
@@ -229,3 +284,75 @@ mappings:
       Duration: duration
       AspectRatio: aspect_ratio
       GenerateAudio: generate_audio
+
+    # ByteDance Seedance 1-Pro-Fast (with image)
+    bytedance/seedance-1-pro-fast:
+      Prompt: prompt
+      StartImage: image
+      Duration: duration
+      AspectRatio: aspect_ratio
+
+    # Pixverse V5.6 (with image)
+    pixverse/pixverse-v5-6:
+      Prompt: prompt
+      StartImage: image
+      EndImage: last_frame_image
+      Duration: duration
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio_switch
+
+    # RunwayML Gen 4.5 (with image)
+    runwayml/gen-4-5:
+      Prompt: prompt
+      StartImage: image
+      Duration: duration
+      AspectRatio: aspect_ratio
+
+    # XAI Grok Imagine Video (with image)
+    xai/grok-imagine-video:
+      Prompt: prompt
+      StartImage: image
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+
+    # Kwaivgi Kling v2.5 Turbo Pro (with start_image)
+    kwaivgi/kling-v2-5-turbo-pro:
+      Prompt: prompt
+      StartImage: start_image
+      EndImage: end_image
+      Duration: duration
+      AspectRatio: aspect_ratio
+
+    # Kwaivgi Kling V2.6 (with start_image)
+    kwaivgi/kling-v2-6:
+      Prompt: prompt
+      StartImage: start_image
+      Duration: duration
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
+
+    # Kwaivgi Kling V3 Video (with start_image)
+    kwaivgi/kling-v3-video:
+      Prompt: prompt
+      StartImage: start_image
+      EndImage: end_image
+      Duration: duration
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
+
+    # Wan Video WAN 2.6 Image-to-Video
+    wan-video/wan-2.6-i2v:
+      Prompt: prompt
+      StartImage: image
+      Duration: duration
+      Resolution: resolution
+      AudioUrl: audio
+
+    # Wan Video WAN 2.6 Image-to-Video Flash
+    wan-video/wan2.6-i2v-flash:
+      Prompt: prompt
+      StartImage: image
+      Duration: duration
+      Resolution: resolution
+      AudioUrl: audio

@@ -1,7 +1,7 @@
 meta:
-  name: Audio-to-Video Generator
-  description: Generate lip-synced video from audio and character image.
-  id: AudioToVideoProducer
+  name: Talking Head Generator
+  description: Generate lip-synced talking-head video from a character image and audio.
+  id: TalkingHeadProducer
   kind: producer
   version: 0.1.0
   author: Renku
@@ -49,7 +49,6 @@ artifacts:
     description: The audio track of the generated video.
     type: audio
 
-  
 mappings:
   fal-ai:
     # Creatify Aurora
@@ -72,7 +71,6 @@ mappings:
       Prompt: prompt
       CharacterImage: image_url
       AudioUrl: audio_url
-      # Duration in seconds → num_frames (at 24fps)
       Duration:
         field: num_frames
         durationToFrames:
@@ -84,26 +82,6 @@ mappings:
       CharacterImage: image_url
       AudioUrl: audio_url
       Duration: duration
-      Resolution: resolution
-
-    # Wan v2.6 Image-to-Video (with audio support)
-    wan/v2.6/image-to-video:
-      Prompt: prompt
-      CharacterImage: image_url
-      AudioUrl: audio_url
-      Duration:
-        field: duration
-        intToString: true
-      Resolution: resolution
-
-    # Wan v2.6 Image-to-Video Flash (with audio support)
-    wan/v2.6/image-to-video/flash:
-      Prompt: prompt
-      CharacterImage: image_url
-      AudioUrl: audio_url
-      Duration:
-        field: duration
-        intToString: true
       Resolution: resolution
 
     # LTX-2-19b Distilled Audio-to-Video

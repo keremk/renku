@@ -545,9 +545,9 @@ renku export --last --inputs=./export-config.yaml
 - **Music track** (`kind: Music`): Never transcribed - background music only
 - **Video track** with audio: Audio track extracted and transcribed
 
-### 2. Lipsync Video Workflows (Audio-to-Video)
+### 2. Lipsync Video Workflows (Talking Head)
 
-When using audio-to-video producers (e.g., `asset/audio-to-video`) for lipsync character videos:
+When using talking-head producers (e.g., `asset/talking-head`) for lipsync character videos:
 
 **Use the `AudioTrack` artifact from the video producer**, not the original narration audio:
 

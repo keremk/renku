@@ -1,6 +1,6 @@
 meta:
   name: Reference-Image-to-Video Generator
-  description: Generate video using reference images for subject consistency.
+  description: Generate video with subject consistency using reference images. Use this when you have reference photos of characters, products, or objects that must appear recognizable and consistent across generated video clips.
   id: ReferenceToVideoProducer
   kind: producer
   version: 0.1.0
@@ -50,7 +50,6 @@ artifacts:
     description: The audio track of the generated video.
     type: audio
 
-
 mappings:
   fal-ai:
     # Veo 3.1 Reference-to-Video (uses image references)
@@ -64,20 +63,10 @@ mappings:
       GenerateAudio: generate_audio
       AutoFixPrompt: auto_fix
 
-    # Kling Video O1 Reference-to-Video
-    kling-video/o1/reference-to-video:
+  replicate:
+    # ByteDance Seedance 1 Lite (has reference_images for character/environment consistency)
+    bytedance/seedance-1-lite:
       Prompt: prompt
-      ReferenceImages: image_urls
-      Duration:
-        field: duration
-        intToString: true
-      AspectRatio: aspect_ratio
-
-    # Kling Video O1 Standard Reference-to-Video
-    kling-video/o1/standard/reference-to-video:
-      Prompt: prompt
-      ReferenceImages: image_urls
-      Duration:
-        field: duration
-        intToString: true
+      ReferenceImages: reference_images
+      Duration: duration
       AspectRatio: aspect_ratio

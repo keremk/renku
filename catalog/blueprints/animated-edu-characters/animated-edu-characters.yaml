@@ -79,7 +79,7 @@ producers:
 
   # Lipsync video generation (character + audio = talking video)
   - name: LipsyncVideoProducer
-    producer: asset/audio-to-video
+    producer: asset/talking-head
     loop: segment
 
   # Timeline composition

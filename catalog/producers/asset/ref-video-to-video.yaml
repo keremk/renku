@@ -62,3 +62,13 @@ mappings:
       AspectRatio: aspect_ratio
       Resolution: resolution
 
+    # Wan v2.6 Reference-to-Video Flash
+    wan/v2.6/reference-to-video/flash:
+      Prompt: prompt
+      ReferenceVideos: video_urls
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+

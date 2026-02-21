@@ -1,0 +1,67 @@
+meta:
+  name: Video Upscaler
+  description: Upscale video resolution using AI enhancement. Use this as a post-processing step to increase the resolution of a generated video. This is a utility producer that enhances existing video quality.
+  id: VideoUpscaleProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: SourceVideo
+    description: URL of the source video to upscale.
+    type: string
+  - name: TargetResolution
+    description: Target resolution for upscaling (e.g., 2160p for 4K).
+    type: string
+  - name: TargetFps
+    description: Target frames per second for the output video.
+    type: integer
+  - name: UpscaleFactor
+    description: Upscale multiplier (e.g., 2 for 2x resolution).
+    type: integer
+
+artifacts:
+  - name: GeneratedVideo
+    description: The upscaled video.
+    type: video
+  - name: FirstFrame
+    description: The first frame of the upscaled video.
+    type: image
+  - name: LastFrame
+    description: The last frame of the upscaled video.
+    type: image
+  - name: AudioTrack
+    description: The audio track of the upscaled video.
+    type: audio
+
+mappings:
+  fal-ai:
+    # Topaz Upscale Video
+    topaz/upscale/video:
+      SourceVideo: video_url
+      UpscaleFactor: upscale_factor
+      TargetFps: target_fps
+
+    # ByteDance Upscaler
+    bytedance-upscaler/upscale/video:
+      SourceVideo: video_url
+      TargetResolution: target_resolution
+      TargetFps: target_fps
+
+  replicate:
+    # RunwayML Upscale V1
+    runwayml/upscale-v1:
+      SourceVideo: video
+
+    # TopazLabs Video Upscale
+    topazlabs/video-upscale:
+      SourceVideo: video
+      TargetResolution: target_resolution
+      TargetFps: target_fps
+
+  wavespeed-ai:
+    # WaveSpeed AI Video Upscaler Pro
+    wavespeed-ai/video-upscaler-pro:
+      SourceVideo: video
+      TargetResolution: target_resolution

@@ -111,6 +111,54 @@ mappings:
       AspectRatio: aspect_ratio
       Resolution: resolution
 
+    # Wan 2.5 Preview Text-to-Video
+    wan-25-preview/text-to-video:
+      Prompt: prompt
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+
+    # Kling V3 Standard Text-to-Video (single-prompt mode)
+    kling-video/v3/standard/text-to-video:
+      Prompt: prompt
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
+
+    # Kling V3 Pro Text-to-Video (single-prompt mode)
+    kling-video/v3/pro/text-to-video:
+      Prompt: prompt
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
+
+    # Pixverse V5 Text-to-Video
+    pixverse/v5/text-to-video:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+
+    # Vidu Q3 Text-to-Video
+    vidu/q3/text-to-video:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+
+    # Vidu Q3 Text-to-Video Turbo
+    vidu/q3/text-to-video/turbo:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+
     # LTX-2-19b Distilled Text-to-Video
     ltx-2-19b/distilled/text-to-video:
       Prompt: prompt
@@ -185,3 +233,43 @@ mappings:
         transform:
           "16:9": "landscape"
           "9:16": "portrait"
+
+    # Pixverse V5.6
+    pixverse/pixverse-v5-6:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio_switch
+
+    # RunwayML Gen 4.5
+    runwayml/gen-4-5:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+
+    # XAI Grok Imagine Video
+    xai/grok-imagine-video:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+
+    # Kwaivgi Kling V3 Video (single-prompt mode)
+    kwaivgi/kling-v3-video:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
+
+    # Wan Video WAN 2.6 Text-to-Video
+    wan-video/wan-2.6-t2v:
+      Prompt: prompt
+      Duration: duration
+      AudioUrl: audio
+
+    # Kwaivgi Kling V2.6
+    kwaivgi/kling-v2-6:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio

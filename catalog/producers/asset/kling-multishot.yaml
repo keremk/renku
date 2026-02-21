@@ -1,0 +1,284 @@
+meta:
+  name: Kling Multi-Shot Video Generator
+  description: Generate multi-shot video with per-shot prompts, character elements, and voice control using Kling advanced models. Use this when you need fine-grained shot-by-shot control, structured character references via elements, or voice integration.
+  id: KlingMultishotProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Text prompt for video generation. Either Prompt or MultiPrompt must be provided.
+    type: string
+
+  # Multi-shot
+  - name: MultiPrompt
+    description: List of per-shot prompts with individual durations for multi-shot video generation.
+    type: array
+  - name: ShotType
+    description: "Type of multi-shot generation: customize or intelligent."
+    type: string
+
+  # Images
+  - name: StartImage
+    description: Starting frame image.
+    type: image
+  - name: EndImage
+    description: Ending frame image.
+    type: image
+
+  # Elements (Kling-specific character/subject references)
+  - name: Elements
+    description: Structured character/subject elements with frontal and reference images.
+    type: array
+
+  # References
+  - name: ReferenceImages
+    description: Reference images for subject consistency.
+    type: collection
+    itemType: image
+  - name: ReferenceVideo
+    description: Reference video for style or motion transfer.
+    type: string
+
+  # Duration
+  - name: Duration
+    description: Video duration in seconds.
+    type: integer
+
+  # Sizing
+  - name: AspectRatio
+    description: "Aspect ratio (16:9, 9:16, 1:1)."
+    type: string
+
+  # Audio
+  - name: GenerateAudio
+    description: Whether to generate audio for the video.
+    type: boolean
+  - name: VoiceIds
+    description: Voice IDs for speech generation in video.
+    type: array
+  - name: KeepAudio
+    description: Whether to keep original audio from source video.
+    type: boolean
+
+  # Negative prompt
+  - name: NegativePrompt
+    description: What to avoid in the video.
+    type: string
+
+artifacts:
+  - name: GeneratedVideo
+    description: The generated video.
+    type: video
+  - name: FirstFrame
+    description: The first frame of the generated video.
+    type: image
+  - name: LastFrame
+    description: The last frame of the generated video.
+    type: image
+  - name: AudioTrack
+    description: The audio track of the generated video.
+    type: audio
+
+mappings:
+  fal-ai:
+    # --- Text-to-Video ---
+
+    # Kling V3 Standard Text-to-Video
+    kling-video/v3/standard/text-to-video:
+      Prompt: prompt
+      MultiPrompt: multi_prompt
+      ShotType: shot_type
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
+      VoiceIds: voice_ids
+      NegativePrompt: negative_prompt
+
+    # Kling V3 Pro Text-to-Video
+    kling-video/v3/pro/text-to-video:
+      Prompt: prompt
+      MultiPrompt: multi_prompt
+      ShotType: shot_type
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
+      VoiceIds: voice_ids
+      NegativePrompt: negative_prompt
+
+    # Kling O3 Standard Text-to-Video
+    kling-video/o3/standard/text-to-video:
+      Prompt: prompt
+      MultiPrompt: multi_prompt
+      ShotType: shot_type
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
+      VoiceIds: voice_ids
+
+    # --- Image-to-Video ---
+
+    # Kling V3 Standard Image-to-Video (element-based)
+    kling-video/v3/standard/image-to-video:
+      StartImage: frontal_image_url
+      ReferenceImages: reference_image_urls
+
+    # Kling V3 Pro Image-to-Video (element-based)
+    kling-video/v3/pro/image-to-video:
+      StartImage: frontal_image_url
+      ReferenceImages: reference_image_urls
+
+    # Kling O1 Image-to-Video
+    kling-video/o1/image-to-video:
+      Prompt: prompt
+      StartImage: start_image_url
+      EndImage: end_image_url
+      Duration:
+        field: duration
+        intToString: true
+
+    # Kling O3 Standard Image-to-Video
+    kling-video/o3/standard/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      EndImage: end_image_url
+      MultiPrompt: multi_prompt
+      ShotType: shot_type
+      Duration:
+        field: duration
+        intToString: true
+      GenerateAudio: generate_audio
+
+    # Kling O3 Pro Image-to-Video
+    kling-video/o3/pro/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      EndImage: end_image_url
+      MultiPrompt: multi_prompt
+      ShotType: shot_type
+      Duration:
+        field: duration
+        intToString: true
+      GenerateAudio: generate_audio
+
+    # --- Reference-to-Video ---
+
+    # Kling O1 Reference-to-Video
+    kling-video/o1/reference-to-video:
+      Prompt: prompt
+      ReferenceImages: image_urls
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+
+    # Kling O1 Standard Reference-to-Video
+    kling-video/o1/standard/reference-to-video:
+      Prompt: prompt
+      ReferenceImages: image_urls
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+
+    # Kling O3 Standard Reference-to-Video
+    kling-video/o3/standard/reference-to-video:
+      Prompt: prompt
+      MultiPrompt: multi_prompt
+      StartImage: start_image_url
+      EndImage: end_image_url
+      ReferenceImages: image_urls
+      Elements: elements
+      ShotType: shot_type
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
+
+    # Kling O3 Pro Reference-to-Video
+    kling-video/o3/pro/reference-to-video:
+      Prompt: prompt
+      MultiPrompt: multi_prompt
+      StartImage: start_image_url
+      EndImage: end_image_url
+      ReferenceImages: image_urls
+      Elements: elements
+      ShotType: shot_type
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
+
+    # --- Video-to-Video Reference ---
+
+    # Kling O3 Standard Video-to-Video Reference
+    kling-video/o3/standard/video-to-video-reference:
+      Prompt: prompt
+      ReferenceVideo: video_url
+      ReferenceImages: image_urls
+      Elements: elements
+      ShotType: shot_type
+      KeepAudio: keep_audio
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+
+    # Kling O3 Pro Video-to-Video Reference
+    kling-video/o3/pro/video-to-video-reference:
+      Prompt: prompt
+      ReferenceVideo: video_url
+      ReferenceImages: image_urls
+      Elements: elements
+      ShotType: shot_type
+      KeepAudio: keep_audio
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+
+  replicate:
+    # Kwaivgi Kling O1
+    kwaivgi/kling-o1:
+      Prompt: prompt
+      StartImage: start_image
+      EndImage: end_image
+      Duration: duration
+      AspectRatio: aspect_ratio
+      ReferenceVideo: reference_video
+      ReferenceImages: reference_images
+      KeepAudio: keep_original_sound
+
+    # Kwaivgi Kling V3 Video
+    kwaivgi/kling-v3-video:
+      Prompt: prompt
+      MultiPrompt: multi_prompt
+      StartImage: start_image
+      EndImage: end_image
+      Duration: duration
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
+      NegativePrompt: negative_prompt
+
+    # Kwaivgi Kling V3 Omni Video
+    kwaivgi/kling-v3-omni-video:
+      Prompt: prompt
+      MultiPrompt: multi_prompt
+      StartImage: start_image
+      EndImage: end_image
+      Duration: duration
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
+      ReferenceVideo: reference_video
+      ReferenceImages: reference_images
+      KeepAudio: keep_original_sound

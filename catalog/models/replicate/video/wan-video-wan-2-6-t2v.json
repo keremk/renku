@@ -1,0 +1,71 @@
+{
+  "type": "object",
+  "title": "Input",
+  "required": [
+    "prompt"
+  ],
+  "properties": {
+    "seed": {
+      "type": "integer",
+      "title": "Seed",
+      "x-order": 7,
+      "nullable": true,
+      "description": "Random seed for reproducible generation"
+    },
+    "size": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/size"
+        }
+      ],
+      "default": "1280*720",
+      "x-order": 3,
+      "description": "Video resolution and aspect ratio"
+    },
+    "audio": {
+      "type": "string",
+      "title": "Audio",
+      "format": "uri",
+      "x-order": 2,
+      "nullable": true,
+      "description": "Audio file (wav/mp3, 3-30s, ≤15MB) for voice/music synchronization"
+    },
+    "prompt": {
+      "type": "string",
+      "title": "Prompt",
+      "x-order": 0,
+      "description": "Text prompt for video generation"
+    },
+    "duration": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/duration"
+        }
+      ],
+      "default": 5,
+      "x-order": 4,
+      "description": "Duration of the generated video in seconds"
+    },
+    "multi_shots": {
+      "type": "boolean",
+      "title": "Multi Shots",
+      "default": false,
+      "x-order": 6,
+      "description": "Enable intelligent multi-shot segmentation (only active when enable_prompt_expansion is enabled). True enables multi-shot segmentation, false generates single-shot content."
+    },
+    "negative_prompt": {
+      "type": "string",
+      "title": "Negative Prompt",
+      "default": "",
+      "x-order": 1,
+      "description": "Negative prompt to avoid certain elements"
+    },
+    "enable_prompt_expansion": {
+      "type": "boolean",
+      "title": "Enable Prompt Expansion",
+      "default": true,
+      "x-order": 5,
+      "description": "If set to true, the prompt optimizer will be enabled"
+    }
+  }
+}

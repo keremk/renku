@@ -1,0 +1,166 @@
+{
+  "input_schema": {
+    "x-fal-order-properties": [
+      "prompt",
+      "resolution",
+      "duration",
+      "negative_prompt",
+      "style",
+      "seed",
+      "image_url"
+    ],
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "A woman warrior with her hammer walking with his glacier wolf."
+        ],
+        "title": "Prompt",
+        "type": "string"
+      },
+      "resolution": {
+        "enum": [
+          "360p",
+          "540p",
+          "720p",
+          "1080p"
+        ],
+        "title": "Resolution",
+        "type": "string",
+        "description": "The resolution of the generated video",
+        "default": "720p"
+      },
+      "duration": {
+        "enum": [
+          "5",
+          "8"
+        ],
+        "title": "Duration",
+        "type": "string",
+        "description": "The duration of the generated video in seconds. 8s videos cost double. 1080p videos are limited to 5 seconds",
+        "default": "5"
+      },
+      "style": {
+        "enum": [
+          "anime",
+          "3d_animation",
+          "clay",
+          "comic",
+          "cyberpunk"
+        ],
+        "title": "Style",
+        "type": "string",
+        "description": "The style of the generated video"
+      },
+      "image_url": {
+        "examples": [
+          "https://v3.fal.media/files/zebra/qL93Je8ezvzQgDOEzTjKF_KhGKZTEebZcDw6T5rwQPK_output.png"
+        ],
+        "title": "Image Url",
+        "type": "string",
+        "description": "URL of the image to use as the first frame",
+        "format": "uri"
+      },
+      "seed": {
+        "title": "Seed",
+        "type": "integer",
+        "description": "\n            The same seed and the same prompt given to the same version of the model\n            will output the same video every time.\n        "
+      },
+      "negative_prompt": {
+        "examples": [
+          "blurry, low quality, low resolution, pixelated, noisy, grainy, out of focus, poorly lit, poorly exposed, poorly composed, poorly framed, poorly cropped, poorly color corrected, poorly color graded"
+        ],
+        "title": "Negative Prompt",
+        "type": "string",
+        "description": "Negative prompt to be used for the generation",
+        "default": ""
+      }
+    },
+    "title": "ImageToVideoRequestV5",
+    "required": [
+      "prompt",
+      "image_url"
+    ]
+  },
+  "output_schema": {
+    "x-fal-order-properties": [
+      "video"
+    ],
+    "type": "object",
+    "properties": {
+      "video": {
+        "examples": [
+          {
+            "file_size": 6420765,
+            "file_name": "output.mp4",
+            "content_type": "video/mp4",
+            "url": "https://storage.googleapis.com/falserverless/model_tests/video_models/output-3.mp4"
+          }
+        ],
+        "title": "Video",
+        "description": "The generated video",
+        "allOf": [
+          {
+            "$ref": "#/File"
+          }
+        ]
+      }
+    },
+    "title": "I2VOutputV5",
+    "required": [
+      "video"
+    ]
+  },
+  "File": {
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data"
+    ],
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "title": "File Size",
+        "type": "integer",
+        "description": "The size of the file in bytes."
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name",
+        "type": "string",
+        "description": "The name of the file. It will be auto-generated if not provided."
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type",
+        "type": "string",
+        "description": "The mime type of the file."
+      },
+      "url": {
+        "title": "Url",
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
+      },
+      "file_data": {
+        "format": "binary",
+        "title": "File Data",
+        "type": "string",
+        "description": "File data"
+      }
+    },
+    "title": "File",
+    "required": [
+      "url"
+    ]
+  }
+}

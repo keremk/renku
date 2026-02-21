@@ -1,0 +1,169 @@
+{
+  "input_schema": {
+    "x-fal-order-properties": [
+      "prompt",
+      "aspect_ratio",
+      "resolution",
+      "duration",
+      "negative_prompt",
+      "style",
+      "seed"
+    ],
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "Epic low-cut camera capture of a girl clad in ultraviolet threads, Peter Max art style depiction, luminous diamond skin glistening under a vast moon's radiance, embodied in a superhuman flight among mystical ruins, symbolizing a deity's ritual ascent, hyper-detailed"
+        ],
+        "title": "Prompt",
+        "type": "string"
+      },
+      "aspect_ratio": {
+        "enum": [
+          "16:9",
+          "4:3",
+          "1:1",
+          "3:4",
+          "9:16"
+        ],
+        "title": "Aspect Ratio",
+        "type": "string",
+        "description": "The aspect ratio of the generated video",
+        "default": "16:9"
+      },
+      "resolution": {
+        "enum": [
+          "360p",
+          "540p",
+          "720p",
+          "1080p"
+        ],
+        "title": "Resolution",
+        "type": "string",
+        "description": "The resolution of the generated video",
+        "default": "720p"
+      },
+      "style": {
+        "enum": [
+          "anime",
+          "3d_animation",
+          "clay",
+          "comic",
+          "cyberpunk"
+        ],
+        "title": "Style",
+        "type": "string",
+        "description": "The style of the generated video"
+      },
+      "duration": {
+        "enum": [
+          "5",
+          "8"
+        ],
+        "title": "Duration",
+        "type": "string",
+        "description": "The duration of the generated video in seconds. 8s videos cost double. 1080p videos are limited to 5 seconds",
+        "default": "5"
+      },
+      "seed": {
+        "title": "Seed",
+        "type": "integer",
+        "description": "\n            The same seed and the same prompt given to the same version of the model\n            will output the same video every time.\n        "
+      },
+      "negative_prompt": {
+        "examples": [
+          "blurry, low quality, low resolution, pixelated, noisy, grainy, out of focus, poorly lit, poorly exposed, poorly composed, poorly framed, poorly cropped, poorly color corrected, poorly color graded"
+        ],
+        "title": "Negative Prompt",
+        "type": "string",
+        "description": "Negative prompt to be used for the generation",
+        "default": ""
+      }
+    },
+    "title": "TextToVideoRequest",
+    "required": [
+      "prompt"
+    ]
+  },
+  "output_schema": {
+    "x-fal-order-properties": [
+      "video"
+    ],
+    "type": "object",
+    "properties": {
+      "video": {
+        "examples": [
+          {
+            "file_size": 5485412,
+            "file_name": "output.mp4",
+            "content_type": "video/mp4",
+            "url": "https://storage.googleapis.com/falserverless/model_tests/video_models/output-4.mp4"
+          }
+        ],
+        "title": "Video",
+        "description": "The generated video",
+        "allOf": [
+          {
+            "$ref": "#/File"
+          }
+        ]
+      }
+    },
+    "title": "VideoOutputV5",
+    "required": [
+      "video"
+    ]
+  },
+  "File": {
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data"
+    ],
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "title": "File Size",
+        "type": "integer",
+        "description": "The size of the file in bytes."
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name",
+        "type": "string",
+        "description": "The name of the file. It will be auto-generated if not provided."
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type",
+        "type": "string",
+        "description": "The mime type of the file."
+      },
+      "url": {
+        "title": "Url",
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
+      },
+      "file_data": {
+        "format": "binary",
+        "title": "File Data",
+        "type": "string",
+        "description": "File data"
+      }
+    },
+    "title": "File",
+    "required": [
+      "url"
+    ]
+  }
+}

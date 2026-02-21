@@ -1,7 +1,7 @@
 meta:
-  name: Audio-to-Video Generator
-  description: Generate lip-synced video from audio and character image.
-  id: AudioToVideoProducer
+  name: Talking Head Generator
+  description: Generate lip-synced talking-head video from a character image and audio. Use this when you have pre-existing audio and a character/avatar image, and want the character to speak or move in sync with the audio. If you only have text (no audio file), use text-to-talking-head instead.
+  id: TalkingHeadProducer
   kind: producer
   version: 0.1.0
   author: Renku
@@ -49,7 +49,6 @@ artifacts:
     description: The audio track of the generated video.
     type: audio
 
-  
 mappings:
   fal-ai:
     # Creatify Aurora
@@ -72,13 +71,13 @@ mappings:
       Prompt: prompt
       CharacterImage: image_url
       AudioUrl: audio_url
-      # Duration in seconds → num_frames (at 24fps)
       Duration:
         field: num_frames
         durationToFrames:
           fps: 24
       Resolution: resolution
 
+    # ByteDance OmniHuman v1.5
     bytedance/omnihuman/v1.5:
       Prompt: prompt
       CharacterImage: image_url
@@ -86,25 +85,47 @@ mappings:
       Duration: duration
       Resolution: resolution
 
-    # Wan v2.6 Image-to-Video (with audio support)
-    wan/v2.6/image-to-video:
+    # Kling AI Avatar v2 Standard
+    kling-video/ai-avatar/v2/standard:
       Prompt: prompt
       CharacterImage: image_url
       AudioUrl: audio_url
-      Duration:
-        field: duration
-        intToString: true
-      Resolution: resolution
 
-    # Wan v2.6 Image-to-Video Flash (with audio support)
-    wan/v2.6/image-to-video/flash:
+    # Kling AI Avatar v2 Pro
+    kling-video/ai-avatar/v2/pro:
+      Prompt: prompt
+      CharacterImage: image_url
+      AudioUrl: audio_url
+
+    # LTX-2-19b Audio-to-Video
+    ltx-2-19b/audio-to-video:
       Prompt: prompt
       CharacterImage: image_url
       AudioUrl: audio_url
       Duration:
-        field: duration
-        intToString: true
-      Resolution: resolution
+        field: num_frames
+        durationToFrames:
+          fps: 25
+      VideoSize:
+        field: video_size
+        combine:
+          inputs: [AspectRatio, Resolution]
+          table:
+            "16:9+480p": { width: 848, height: 480 }
+            "16:9+720p": { width: 1280, height: 720 }
+            "9:16+480p": { width: 480, height: 848 }
+            "9:16+720p": { width: 720, height: 1280 }
+            "4:3+480p": { width: 640, height: 480 }
+            "4:3+720p": { width: 960, height: 720 }
+            "3:4+480p": { width: 480, height: 640 }
+            "3:4+720p": { width: 720, height: 960 }
+            "1:1+480p": { width: 512, height: 512 }
+            "1:1+720p": { width: 720, height: 720 }
+            "16:9+": landscape_16_9
+            "9:16+": portrait_16_9
+            "4:3+": landscape_4_3
+            "3:4+": portrait_4_3
+            "1:1+": square_hd
 
     # LTX-2-19b Distilled Audio-to-Video
     ltx-2-19b/distilled/audio-to-video:
@@ -136,7 +157,17 @@ mappings:
             "3:4+": portrait_4_3
             "1:1+": square_hd
 
-    kling-video/ai-avatar/v2/standard:
+  replicate:
+    # Kwaivgi Kling Avatar v2
+    kwaivgi/kling-avatar-v2:
       Prompt: prompt
-      CharacterImage: image_url
-      AudioUrl: audio_url
+      CharacterImage: image
+      AudioUrl: audio
+
+  wavespeed-ai:
+    # WaveSpeed AI InfiniTalk
+    wavespeed-ai/infinitetalk:
+      Prompt: prompt
+      CharacterImage: image
+      AudioUrl: audio
+      Resolution: resolution

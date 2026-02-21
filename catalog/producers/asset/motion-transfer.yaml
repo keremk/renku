@@ -1,0 +1,41 @@
+meta:
+  name: Motion Transfer Generator
+  description: Animate a character image using motion from a driving video. Use this when you have a reference video of someone performing actions or expressions, and want to transfer that motion onto a different character or avatar image.
+  id: MotionTransferProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: CharacterImage
+    description: Character/avatar image to animate.
+    type: image
+  - name: DrivingVideo
+    description: Reference video providing the motion and expressions to transfer.
+    type: string
+  - name: TrimFirstSecond
+    description: Whether to trim the first second of the driving video.
+    type: boolean
+
+artifacts:
+  - name: GeneratedVideo
+    description: The motion-transferred video.
+    type: video
+  - name: FirstFrame
+    description: The first frame of the generated video.
+    type: image
+  - name: LastFrame
+    description: The last frame of the generated video.
+    type: image
+  - name: AudioTrack
+    description: The audio track of the generated video.
+    type: audio
+
+mappings:
+  fal-ai:
+    # ByteDance DreamActor v2
+    bytedance/dreamactor/v2:
+      CharacterImage: image_url
+      DrivingVideo: video_url
+      TrimFirstSecond: trim_first_second

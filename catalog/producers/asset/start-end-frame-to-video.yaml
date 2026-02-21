@@ -1,0 +1,208 @@
+meta:
+  name: Start-End Frame to Video Generator
+  description: Generate video by interpolating between a required start and end frame. Use this when you need guaranteed smooth transitions or morphing between two specific images.
+  id: StartEndFrameToVideoProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Text description guiding the video generation.
+    type: string
+
+  # Images
+  - name: StartImage
+    description: Starting frame image (required).
+    type: image
+  - name: EndImage
+    description: Ending frame image (required).
+    type: image
+
+  # Duration
+  - name: Duration
+    description: Video duration in seconds.
+    type: integer
+
+  # Sizing
+  - name: AspectRatio
+    description: "Aspect ratio (16:9, 9:16, 1:1, 4:3, 3:4)."
+    type: string
+  - name: Resolution
+    description: "Resolution preset (480p, 720p, 1080p)."
+    type: string
+
+  # Audio
+  - name: GenerateAudio
+    description: Whether to generate audio for the video.
+    type: boolean
+
+artifacts:
+  - name: GeneratedVideo
+    description: The generated video.
+    type: video
+  - name: FirstFrame
+    description: The first frame of the generated video.
+    type: image
+  - name: LastFrame
+    description: The last frame of the generated video.
+    type: image
+  - name: AudioTrack
+    description: The audio track of the generated video.
+    type: audio
+
+mappings:
+  fal-ai:
+    # Veo 3.1 First-Last-Frame-to-Video
+    veo3.1/first-last-frame-to-video:
+      Prompt: prompt
+      StartImage: first_frame_url
+      EndImage: last_frame_url
+      Duration:
+        field: duration
+        intToSecondsString: true
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: generate_audio
+
+    # Veo 3.1 Fast First-Last-Frame-to-Video
+    veo3.1/fast/first-last-frame-to-video:
+      Prompt: prompt
+      StartImage: first_frame_url
+      EndImage: last_frame_url
+      Duration:
+        field: duration
+        intToSecondsString: true
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: generate_audio
+
+    # ByteDance Seedance v1.5 Pro Image-to-Video (supports end_image_url)
+    bytedance/seedance/v1.5/pro/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      EndImage: end_image_url
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: generate_audio
+
+    # LTX-2-19b Distilled Image-to-Video (supports end_image_url)
+    ltx-2-19b/distilled/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      EndImage: end_image_url
+      VideoSize:
+        field: video_size
+        combine:
+          inputs: [AspectRatio, Resolution]
+          table:
+            "16:9+480p": { width: 848, height: 480 }
+            "16:9+720p": { width: 1280, height: 720 }
+            "9:16+480p": { width: 480, height: 848 }
+            "9:16+720p": { width: 720, height: 1280 }
+            "4:3+480p": { width: 640, height: 480 }
+            "4:3+720p": { width: 960, height: 720 }
+            "3:4+480p": { width: 480, height: 640 }
+            "3:4+720p": { width: 720, height: 960 }
+            "1:1+480p": { width: 512, height: 512 }
+            "1:1+720p": { width: 720, height: 720 }
+            "16:9+": auto
+            "9:16+": auto
+            "4:3+": auto
+            "3:4+": auto
+            "1:1+": auto
+            "auto+": auto
+      Duration:
+        field: num_frames
+        durationToFrames:
+          fps: 25
+      GenerateAudio: generate_audio
+
+    # Vidu Q3 Image-to-Video (supports end_image_url)
+    vidu/q3/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      EndImage: end_image_url
+      Duration: duration
+      Resolution: resolution
+
+    # Vidu Q3 Image-to-Video Turbo (supports end_image_url)
+    vidu/q3/image-to-video/turbo:
+      Prompt: prompt
+      StartImage: image_url
+      EndImage: end_image_url
+      Duration: duration
+      Resolution: resolution
+
+    # Kling v2.5 Turbo Pro Image-to-Video (supports tail_image_url)
+    kling-video/v2.5-turbo/pro/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      EndImage: tail_image_url
+      Duration:
+        field: duration
+        intToString: true
+
+  replicate:
+    # Google Veo 3.1 Fast (with image + last_frame)
+    google/veo-3.1-fast:
+      Prompt: prompt
+      StartImage: image
+      EndImage: last_frame
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: generate_audio
+
+    # MiniMax Hailuo 0.2 (first_frame_image + last_frame_image)
+    minimax/hailuo-02:
+      Prompt: prompt
+      StartImage: first_frame_image
+      EndImage: last_frame_image
+      Duration: duration
+      Resolution: resolution
+
+    # MiniMax Hailuo 0.2 Fast (first_frame_image + last_frame_image)
+    minimax/hailuo-02-fast:
+      Prompt: prompt
+      StartImage: first_frame_image
+      EndImage: last_frame_image
+      Duration: duration
+      Resolution: resolution
+
+    # ByteDance Seedance 1.5 Pro (image + last_frame_image)
+    bytedance/seedance-1.5-pro:
+      Prompt: prompt
+      StartImage: image
+      EndImage: last_frame_image
+      Duration: duration
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
+
+    # Pixverse V5.6 (image + last_frame_image)
+    pixverse/pixverse-v5-6:
+      Prompt: prompt
+      StartImage: image
+      EndImage: last_frame_image
+      Duration: duration
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio_switch
+
+    # Kwaivgi Kling v2.5 Turbo Pro (start_image + end_image)
+    kwaivgi/kling-v2-5-turbo-pro:
+      Prompt: prompt
+      StartImage: start_image
+      EndImage: end_image
+      Duration: duration
+      AspectRatio: aspect_ratio
+
+    # Kwaivgi Kling V3 Video (start_image + end_image)
+    kwaivgi/kling-v3-video:
+      Prompt: prompt
+      StartImage: start_image
+      EndImage: end_image
+      Duration: duration
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio

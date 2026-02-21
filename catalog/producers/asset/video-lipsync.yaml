@@ -1,0 +1,47 @@
+meta:
+  name: Video Lip-Sync Generator
+  description: Apply lip synchronization to an existing video using audio or text. Use this when you already have a video of a person and want to change what they are saying by syncing their lips to new audio or text.
+  id: VideoLipsyncProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: SourceVideo
+    description: URL of the source video to apply lip-sync to.
+    type: string
+
+  # Audio/Text for lip-sync
+  - name: AudioUrl
+    description: URL to audio file for lip-sync.
+    type: string
+  - name: Text
+    description: Text to synthesize speech for lip-sync.
+    type: string
+  - name: VoiceId
+    description: Voice identifier for text-to-speech synthesis.
+    type: string
+
+artifacts:
+  - name: GeneratedVideo
+    description: The lip-synced video.
+    type: video
+  - name: FirstFrame
+    description: The first frame of the generated video.
+    type: image
+  - name: LastFrame
+    description: The last frame of the generated video.
+    type: image
+  - name: AudioTrack
+    description: The audio track of the generated video.
+    type: audio
+
+mappings:
+  fal-ai:
+    # Pixverse Lipsync
+    pixverse/lipsync:
+      SourceVideo: video_url
+      AudioUrl: audio_url
+      Text: text
+      VoiceId: voice_id

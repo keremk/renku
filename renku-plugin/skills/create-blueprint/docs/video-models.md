@@ -90,7 +90,7 @@ connections:
 ### Veo 3.1 (Google)
 
 **Provider:** fal-ai
-**ID:** `veo3.1`, `veo3.1/image-to-video`, `veo3.1/reference-to-video`, `veo3.1/fast/first-last-frame-to-video`
+**ID:** `veo3.1`, `veo3.1/image-to-video`, `veo3.1/fast/image-to-video`, `veo3.1/reference-to-video`, `veo3.1/first-last-frame-to-video`, `veo3.1/fast/first-last-frame-to-video`, `veo3.1/extend-video`, `veo3.1/fast/extend-video`
 
 **Strengths:**
 - Native audio generation (dialogue, ambient sounds)
@@ -148,24 +148,33 @@ connections:
 
 ### Kling (Kuaishou)
 
-**Provider:** fal-ai
+**Provider:** fal-ai, replicate
 **Versions:**
-- `kling-video/o1/image-to-video` - Supports end image
-- `kling-video/v2.6/pro/image-to-video` - Voice integration
+- `kling-video/v3/standard` and `kling-video/v3/pro` - Latest, multi-shot capable
+- `kling-video/o3/standard` and `kling-video/o3/pro` - Elements system, references
+- `kling-video/o1/image-to-video` - Supports end image (kling-multishot only)
+- `kling-video/v2.6/pro/image-to-video` - Audio generation
+- `kling-video/v2.5-turbo/pro/image-to-video` - End image support
+- Replicate: `kwaivgi/kling-v3-video`, `kwaivgi/kling-v3-omni-video`, `kwaivgi/kling-o1`, `kwaivgi/kling-v2-6`, `kwaivgi/kling-v2-5-turbo-pro`, `kwaivgi/kling-avatar-v2`
 
 **Strengths:**
 - Excellent motion quality
-- Good end image interpolation
-- Voice ID support (v2.6 Pro)
+- Multi-shot with per-shot prompts (V3, O3)
+- Elements system for structured character references (O3)
+- Voice ID support for speech in video
+- End image interpolation
 
 **Best for:**
+- Multi-shot narratives with per-shot control
+- Consistent character references via elements
+- Voice-integrated video generation
 - Smooth transitions between frames
-- Morphing effects
-- Video with consistent voice
 
 **Key inputs:**
-- `EndImage` - For interpolation (o1 version)
-- `VoiceIds` - For voice integration (v2.6 Pro)
+- `MultiPrompt` - Per-shot prompts (kling-multishot)
+- `Elements` - Structured character references (kling-multishot)
+- `VoiceIds` - Speech in video (kling-multishot)
+- `EndImage` - For interpolation
 
 ---
 
@@ -239,7 +248,7 @@ connections:
 
 #### Creatify Aurora
 **Provider:** fal-ai
-**Producer:** audio-to-video.yaml
+**Producer:** talking-head.yaml
 
 **Strengths:**
 - Full guidance control
@@ -277,53 +286,95 @@ connections:
 
 ### text-to-video.yaml
 
-| Model | Provider | Audio | Multi-shot |
-|-------|----------|-------|------------|
-| `wan/v2.6/text-to-video` | fal-ai | Via URL | Yes |
-| `veo3.1` | fal-ai | Yes | No |
-| `veo3.1/fast` | fal-ai | Yes | No |
-| `sora-2/text-to-video` | fal-ai | No | No |
-| `bytedance/seedance/v1.5/pro/text-to-video` | fal-ai | Yes | No |
-| `bytedance/seedance/v1/pro/fast/text-to-video` | fal-ai | No | No |
-| `bytedance/seedance-1.5-pro` | replicate | Yes | No |
-| `bytedance/seedance-1-pro-fast` | replicate | No | No |
-| `bytedance/seedance-1-lite` | replicate | No | No |
-| `google/veo-3.1-fast` | replicate | Yes | No |
-| `minimax/hailuo-2.3` | replicate | No | No |
-| `openai/sora-2` | replicate | No | No |
+| Model | Provider | Audio |
+|-------|----------|-------|
+| `wan/v2.6/text-to-video` | fal-ai | Via URL |
+| `wan-25-preview/text-to-video` | fal-ai | No |
+| `veo3.1` | fal-ai | Yes |
+| `veo3.1/fast` | fal-ai | Yes |
+| `sora-2/text-to-video` | fal-ai | No |
+| `bytedance/seedance/v1.5/pro/text-to-video` | fal-ai | Yes |
+| `bytedance/seedance/v1/pro/fast/text-to-video` | fal-ai | No |
+| `xai/grok-imagine-video/text-to-video` | fal-ai | No |
+| `ltx-2-19b/distilled/text-to-video` | fal-ai | Yes |
+| `kling-video/v3/standard/text-to-video` | fal-ai | Yes |
+| `kling-video/v3/pro/text-to-video` | fal-ai | Yes |
+| `bytedance/seedance-1.5-pro` | replicate | Yes |
+| `bytedance/seedance-1-pro-fast` | replicate | No |
+| `bytedance/seedance-1-lite` | replicate | No |
+| `google/veo-3.1-fast` | replicate | Yes |
+| `minimax/hailuo-2.3` | replicate | No |
+| `openai/sora-2` | replicate | No |
+| `pixverse/pixverse-v5-6` | replicate | Yes |
+| `runwayml/gen-4-5` | replicate | No |
+| `xai/grok-imagine-video` | replicate | No |
+| `kwaivgi/kling-v3-video` | replicate | Yes |
+| `kwaivgi/kling-v2-6` | replicate | Yes |
 
 ### image-to-video.yaml
 
 | Model | Provider | End Image | Audio |
 |-------|----------|-----------|-------|
 | `veo3.1/image-to-video` | fal-ai | No | Yes |
-| `veo3.1/fast/first-last-frame-to-video` | fal-ai | Yes | Yes |
+| `veo3.1/fast/image-to-video` | fal-ai | No | Yes |
 | `sora-2/image-to-video` | fal-ai | No | No |
+| `sora-2/image-to-video/pro` | fal-ai | No | No |
 | `wan/v2.6/image-to-video` | fal-ai | No | No |
-| `kling-video/o1/image-to-video` | fal-ai | Yes | No |
-| `kling-video/v2.6/pro/image-to-video` | fal-ai | No | Yes |
+| `wan/v2.6/image-to-video/flash` | fal-ai | No | No |
+| `wan-25-preview/image-to-video` | fal-ai | No | No |
 | `bytedance/seedance/v1/pro/fast/image-to-video` | fal-ai | No | No |
 | `bytedance/seedance/v1.5/pro/image-to-video` | fal-ai | Yes | Yes |
+| `xai/grok-imagine-video/image-to-video` | fal-ai | No | No |
+| `ltx-2-19b/distilled/image-to-video` | fal-ai | No | Yes |
+| `kling-video/v2.5-turbo/pro/image-to-video` | fal-ai | Yes | No |
+| `kling-video/v2.6/pro/image-to-video` | fal-ai | No | Yes |
+| `kling-video/v3/standard/image-to-video` | fal-ai | No | No |
+| `kling-video/v3/pro/image-to-video` | fal-ai | No | No |
 | `google/veo-3.1-fast` | replicate | Yes | Yes |
-| `minimax/hailuo-2.3-fast` | replicate | No | No |
-| `minimax/hailuo-02-fast` | replicate | Yes | No |
 | `minimax/hailuo-02` | replicate | Yes | No |
+| `minimax/hailuo-02-fast` | replicate | Yes | No |
+| `minimax/hailuo-2.3` | replicate | No | No |
+| `minimax/hailuo-2.3-fast` | replicate | No | No |
 | `bytedance/seedance-1.5-pro` | replicate | Yes | Yes |
+| `bytedance/seedance-1-pro-fast` | replicate | No | No |
+| `pixverse/pixverse-v5-6` | replicate | Yes | Yes |
+| `runwayml/gen-4-5` | replicate | No | No |
+| `xai/grok-imagine-video` | replicate | No | No |
+| `kwaivgi/kling-v2-5-turbo-pro` | replicate | Yes | No |
+| `kwaivgi/kling-v2-6` | replicate | No | Yes |
+| `kwaivgi/kling-v3-video` | replicate | Yes | Yes |
 
-### reference-to-video.yaml
+### start-end-frame-to-video.yaml
 
-| Model | Provider | Reference Type | Audio |
-|-------|----------|----------------|-------|
-| `wan/v2.6/reference-to-video` | fal-ai | Videos | No |
-| `veo3.1/reference-to-video` | fal-ai | Images | Yes |
+| Model | Provider | Notes |
+|-------|----------|-------|
+| `veo3.1/first-last-frame-to-video` | fal-ai | Audio, both frames required |
+| `veo3.1/fast/first-last-frame-to-video` | fal-ai | Audio, both frames required |
+| `bytedance/seedance/v1.5/pro/image-to-video` | fal-ai | Audio, end_image_url |
+| `ltx-2-19b/distilled/image-to-video` | fal-ai | Audio, end_image_url |
+| `kling-video/v2.5-turbo/pro/image-to-video` | fal-ai | tail_image_url |
+| `google/veo-3.1-fast` | replicate | Audio, last_frame |
+| `minimax/hailuo-02` | replicate | last_frame_image |
+| `minimax/hailuo-02-fast` | replicate | last_frame_image |
+| `bytedance/seedance-1.5-pro` | replicate | Audio, last_frame_image |
+| `pixverse/pixverse-v5-6` | replicate | Audio, last_frame_image |
+| `kwaivgi/kling-v2-5-turbo-pro` | replicate | end_image |
+| `kwaivgi/kling-v3-video` | replicate | Audio, end_image |
 
-### audio-to-video.yaml
+### talking-head.yaml
 
 | Model | Provider | Notes |
 |-------|----------|-------|
 | `creatify/aurora` | fal-ai | Full guidance control |
 | `veed/fabric-1.0/fast` | fal-ai | Simple, fast |
-| `infinitalk` | fal-ai | Duration in frames |
+| `infinitalk` | fal-ai | Duration in frames (24fps) |
+| `bytedance/omnihuman/v1.5` | fal-ai | High quality |
+| `kling-video/ai-avatar/v2/standard` | fal-ai | Kling avatar |
+| `kling-video/ai-avatar/v2/pro` | fal-ai | Kling avatar pro |
+| `ltx-2-19b/audio-to-video` | fal-ai | Audio + optional image |
+| `ltx-2-19b/distilled/audio-to-video` | fal-ai | Audio + optional image |
+| `kwaivgi/kling-avatar-v2` | replicate | Kling avatar |
+| `wavespeed-ai/infinitetalk` | wavespeed-ai | InfiniTalk |
 
 ### text-to-talking-head.yaml
 
@@ -331,3 +382,68 @@ connections:
 |-------|----------|-------|
 | `veed/fabric-1.0/text` | fal-ai | Voice description |
 | `infinitalk/single-text` | fal-ai | Voice ID, acceleration |
+
+### kling-multishot.yaml
+
+| Model | Provider | Mode | Notes |
+|-------|----------|------|-------|
+| `kling-video/v3/standard/text-to-video` | fal-ai | t2v | Multi-prompt, voice IDs |
+| `kling-video/v3/pro/text-to-video` | fal-ai | t2v | Multi-prompt, voice IDs |
+| `kling-video/o3/standard/text-to-video` | fal-ai | t2v | Multi-prompt, voice IDs |
+| `kling-video/v3/standard/image-to-video` | fal-ai | i2v | Element-based |
+| `kling-video/v3/pro/image-to-video` | fal-ai | i2v | Element-based |
+| `kling-video/o1/image-to-video` | fal-ai | i2v | Start + end image |
+| `kling-video/o3/standard/image-to-video` | fal-ai | i2v | Multi-prompt |
+| `kling-video/o3/pro/image-to-video` | fal-ai | i2v | Multi-prompt |
+| `kling-video/o1/reference-to-video` | fal-ai | ref | Reference images |
+| `kling-video/o1/standard/reference-to-video` | fal-ai | ref | Reference images |
+| `kling-video/o3/standard/reference-to-video` | fal-ai | ref | Elements, multi-prompt |
+| `kling-video/o3/pro/reference-to-video` | fal-ai | ref | Elements, multi-prompt |
+| `kling-video/o3/standard/video-to-video-reference` | fal-ai | v2v | Elements, keep audio |
+| `kling-video/o3/pro/video-to-video-reference` | fal-ai | v2v | Elements, keep audio |
+| `kwaivgi/kling-o1` | replicate | multi | Reference images/video |
+| `kwaivgi/kling-v3-video` | replicate | multi | Multi-prompt, end image |
+| `kwaivgi/kling-v3-omni-video` | replicate | multi | Full: multi-prompt, refs, end image |
+
+### video-to-video.yaml
+
+| Model | Provider | Notes |
+|-------|----------|-------|
+| `xai/grok-imagine-video/edit-video` | fal-ai | Video editing |
+| `ltx-2-19b/distilled/extend-video` | fal-ai | Extend video |
+| `ltx-2-19b/distilled/video-to-video` | fal-ai | Transform video |
+| `veo3.1/extend-video` | fal-ai | Extend, audio |
+| `veo3.1/fast/extend-video` | fal-ai | Fast extend, audio |
+| `xai/grok-imagine-video` | replicate | Video editing |
+
+### ref-image-to-video.yaml
+
+| Model | Provider | Notes |
+|-------|----------|-------|
+| `veo3.1/reference-to-video` | fal-ai | Image references, audio |
+| `bytedance/seedance-1-lite` | replicate | Reference images |
+
+### ref-video-to-video.yaml
+
+| Model | Provider | Notes |
+|-------|----------|-------|
+| `wan/v2.6/reference-to-video` | fal-ai | Video references |
+| `wan/v2.6/reference-to-video/flash` | fal-ai | Video references, fast |
+
+### video-lipsync.yaml
+
+| Model | Provider | Notes |
+|-------|----------|-------|
+| `pixverse/lipsync` | fal-ai | Audio or text input |
+
+### video-upscale.yaml
+
+| Model | Provider | Notes |
+|-------|----------|-------|
+| `wavespeed-ai/video-upscaler-pro` | wavespeed-ai | Resolution upscaling |
+
+### motion-transfer.yaml
+
+| Model | Provider | Notes |
+|-------|----------|-------|
+| `bytedance/dreamactor/v2` | fal-ai | Motion from driving video |

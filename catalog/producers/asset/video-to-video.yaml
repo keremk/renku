@@ -49,6 +49,39 @@ mappings:
       SourceVideo: video_url
       Resolution: resolution
 
+    # Decart Lucy Edit Pro
+    decart/lucy-edit/pro:
+      Prompt: prompt
+      SourceVideo: video_url
+      Resolution: resolution
+
+    # Decart Lucy Edit Fast
+    decart/lucy-edit/fast:
+      Prompt: prompt
+      SourceVideo: video_url
+
+    # Veo 3.1 Extend-Video
+    veo3.1/extend-video:
+      Prompt: prompt
+      SourceVideo: video_url
+      Duration:
+        field: duration
+        intToSecondsString: true
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: generate_audio
+
+    # Veo 3.1 Fast Extend-Video
+    veo3.1/fast/extend-video:
+      Prompt: prompt
+      SourceVideo: video_url
+      Duration:
+        field: duration
+        intToSecondsString: true
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: generate_audio
+
     # LTX-2-19b Distilled Extend-Video
     ltx-2-19b/distilled/extend-video:
       Prompt: prompt
@@ -114,3 +147,12 @@ mappings:
         durationToFrames:
           fps: 25
       GenerateAudio: generate_audio
+
+  replicate:
+    # XAI Grok Imagine Video (video editing mode)
+    xai/grok-imagine-video:
+      Prompt: prompt
+      SourceVideo: video
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution

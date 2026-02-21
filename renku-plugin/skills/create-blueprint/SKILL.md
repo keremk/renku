@@ -258,7 +258,7 @@ Use `docs/comprehensive-blueprint-guide.md` for a comprehensive explanation of t
 
 If the video includes narration or speech that should be displayed as subtitles, add transcription support using the TranscriptionProducer. This enables karaoke-style animated subtitles similar to Instagram and TikTok.
 
-> **IMPORTANT** When using audio-to-video producers (like `asset/audio-to-video` for lipsync), the producer exposes an `AudioTrack` artifact that extracts the audio from the generated video. This artifact is **only generated when connected to a downstream consumer**. For transcription of lipsync videos:
+> **IMPORTANT** When using talking-head producers (like `asset/talking-head` for lipsync), the producer exposes an `AudioTrack` artifact that extracts the audio from the generated video. This artifact is **only generated when connected to a downstream consumer**. For transcription of lipsync videos:
 >
 > - Wire `LipsyncVideoProducer[segment].AudioTrack` to `TimelineComposer.TranscriptionAudio` (NOT the original narration audio)
 > - The AudioTrack artifact ensures the timeline's audio clips align properly with the video segments

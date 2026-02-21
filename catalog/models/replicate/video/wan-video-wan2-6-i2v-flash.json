@@ -1,0 +1,86 @@
+{
+  "type": "object",
+  "title": "Input",
+  "required": [
+    "image",
+    "prompt"
+  ],
+  "properties": {
+    "seed": {
+      "type": "integer",
+      "title": "Seed",
+      "x-order": 9,
+      "nullable": true,
+      "description": "Random seed for reproducible generation"
+    },
+    "audio": {
+      "type": "string",
+      "title": "Audio",
+      "format": "uri",
+      "x-order": 3,
+      "nullable": true,
+      "description": "Audio file (wav/mp3, 3-30s, ≤15MB) for voice/music synchronization"
+    },
+    "image": {
+      "type": "string",
+      "title": "Image",
+      "format": "uri",
+      "x-order": 0,
+      "description": "Input image for video generation"
+    },
+    "prompt": {
+      "type": "string",
+      "title": "Prompt",
+      "x-order": 1,
+      "description": "Text prompt for video generation"
+    },
+    "duration": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/duration"
+        }
+      ],
+      "default": 5,
+      "x-order": 6,
+      "description": "Duration of the generated video in seconds"
+    },
+    "resolution": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/resolution"
+        }
+      ],
+      "default": "720p",
+      "x-order": 5,
+      "description": "Video resolution"
+    },
+    "multi_shots": {
+      "type": "boolean",
+      "title": "Multi Shots",
+      "default": false,
+      "x-order": 8,
+      "description": "Enable intelligent multi-shot segmentation (only active when enable_prompt_expansion is enabled). True enables multi-shot segmentation, false generates single-shot content."
+    },
+    "audio_enabled": {
+      "type": "boolean",
+      "title": "Audio Enabled",
+      "default": true,
+      "x-order": 4,
+      "description": "Whether to generate video with audio. When enabled, the model will auto-generate audio or use provided audio file. Disable for silent video output."
+    },
+    "negative_prompt": {
+      "type": "string",
+      "title": "Negative Prompt",
+      "default": "",
+      "x-order": 2,
+      "description": "Negative prompt to avoid certain elements"
+    },
+    "enable_prompt_expansion": {
+      "type": "boolean",
+      "title": "Enable Prompt Expansion",
+      "default": true,
+      "x-order": 7,
+      "description": "If set to true, the prompt optimizer will be enabled"
+    }
+  }
+}
