@@ -1,0 +1,171 @@
+{
+  "input_schema": {
+    "description": "Input for video extension/video-to-video generation.",
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "Continue the scene naturally, maintaining the same style and motion."
+        ],
+        "description": "The text prompt describing how the video should be extended",
+        "type": "string",
+        "title": "Prompt",
+        "maxLength": 20000
+      },
+      "duration": {
+        "enum": [
+          "7s"
+        ],
+        "description": "The duration of the generated video.",
+        "type": "string",
+        "title": "Duration",
+        "default": "7s"
+      },
+      "aspect_ratio": {
+        "enum": [
+          "auto",
+          "16:9",
+          "9:16"
+        ],
+        "description": "The aspect ratio of the generated video.",
+        "type": "string",
+        "title": "Aspect Ratio",
+        "default": "auto"
+      },
+      "generate_audio": {
+        "description": "Whether to generate audio for the video.",
+        "type": "boolean",
+        "title": "Generate Audio",
+        "default": true
+      },
+      "auto_fix": {
+        "description": "Whether to automatically attempt to fix prompts that fail content policy or other validation checks by rewriting them.",
+        "type": "boolean",
+        "title": "Auto Fix",
+        "default": false
+      },
+      "video_url": {
+        "examples": [
+          "https://v3b.fal.media/files/b/0a8670fe/pY8UGl4_C452wOm9XUBYO_9ae04df8771c4f3f979fa5cabeca6ada.mp4"
+        ],
+        "description": "URL of the video to extend. The video should be 720p or 1080p resolution in 16:9 or 9:16 aspect ratio.",
+        "type": "string",
+        "title": "Video URL",
+        "format": "uri"
+      },
+      "resolution": {
+        "enum": [
+          "720p"
+        ],
+        "description": "The resolution of the generated video.",
+        "type": "string",
+        "title": "Resolution",
+        "default": "720p"
+      },
+      "seed": {
+        "description": "The seed for the random number generator.",
+        "type": "integer",
+        "title": "Seed"
+      },
+      "negative_prompt": {
+        "description": "A negative prompt to guide the video generation.",
+        "type": "string",
+        "title": "Negative Prompt"
+      }
+    },
+    "x-fal-order-properties": [
+      "prompt",
+      "aspect_ratio",
+      "duration",
+      "negative_prompt",
+      "resolution",
+      "generate_audio",
+      "seed",
+      "auto_fix",
+      "video_url"
+    ],
+    "title": "Veo31VideoToVideoInput",
+    "required": [
+      "prompt",
+      "video_url"
+    ]
+  },
+  "output_schema": {
+    "x-fal-order-properties": [
+      "video"
+    ],
+    "type": "object",
+    "properties": {
+      "video": {
+        "examples": [
+          {
+            "url": "https://v3b.fal.media/files/b/0a86711b/B_Z96VS4X9Dfd4M5ArB4H_c666e63f729f4a8fa1145c6727cef97d.mp4"
+          }
+        ],
+        "description": "The extended video.",
+        "title": "Video",
+        "allOf": [
+          {
+            "$ref": "#/File"
+          }
+        ]
+      }
+    },
+    "title": "Veo31VideoToVideoOutput",
+    "required": [
+      "video"
+    ]
+  },
+  "File": {
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data"
+    ],
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "description": "The size of the file in bytes.",
+        "type": "integer",
+        "title": "File Size"
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "type": "string",
+        "title": "File Name"
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "description": "The mime type of the file.",
+        "type": "string",
+        "title": "Content Type"
+      },
+      "url": {
+        "description": "The URL where the file can be downloaded from.",
+        "type": "string",
+        "title": "Url",
+        "format": "uri"
+      },
+      "file_data": {
+        "format": "binary",
+        "description": "File data",
+        "type": "string",
+        "title": "File Data"
+      }
+    },
+    "title": "File",
+    "required": [
+      "url"
+    ]
+  }
+}

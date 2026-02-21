@@ -1,0 +1,231 @@
+{
+  "input_schema": {
+    "x-fal-order-properties": [
+      "prompt",
+      "audio_url",
+      "aspect_ratio",
+      "resolution",
+      "duration",
+      "negative_prompt",
+      "enable_prompt_expansion",
+      "seed",
+      "enable_safety_checker"
+    ],
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "The white dragon warrior stands still, eyes full of determination and strength. The camera slowly moves closer or circles around the warrior, highlighting the powerful presence and heroic spirit of the character."
+        ],
+        "title": "Prompt",
+        "minLength": 1,
+        "type": "string",
+        "description": "The text prompt for video generation. Supports Chinese and English, max 800 characters."
+      },
+      "resolution": {
+        "enum": [
+          "480p",
+          "720p",
+          "1080p"
+        ],
+        "title": "Resolution",
+        "type": "string",
+        "description": "Video resolution tier",
+        "default": "1080p"
+      },
+      "duration": {
+        "examples": [
+          "5",
+          "10"
+        ],
+        "title": "Duration",
+        "type": "string",
+        "enum": [
+          "5",
+          "10"
+        ],
+        "description": "Duration of the generated video in seconds. Choose between 5 or 10 seconds.",
+        "default": "5"
+      },
+      "aspect_ratio": {
+        "enum": [
+          "16:9",
+          "9:16",
+          "1:1"
+        ],
+        "title": "Aspect Ratio",
+        "type": "string",
+        "description": "The aspect ratio of the generated video",
+        "default": "16:9"
+      },
+      "enable_prompt_expansion": {
+        "title": "Enable Prompt Expansion",
+        "type": "boolean",
+        "description": "Whether to enable prompt rewriting using LLM. Improves results for short prompts but increases processing time.",
+        "default": true
+      },
+      "seed": {
+        "title": "Seed",
+        "type": "integer",
+        "description": "Random seed for reproducibility. If None, a random seed is chosen."
+      },
+      "audio_url": {
+        "title": "Audio Url",
+        "type": "string",
+        "description": "\nURL of the audio to use as the background music. Must be publicly accessible.\nLimit handling: If the audio duration exceeds the duration value (5 or 10 seconds),\nthe audio is truncated to the first 5 or 10 seconds, and the rest is discarded. If\nthe audio is shorter than the video, the remaining part of the video will be silent.\nFor example, if the audio is 3 seconds long and the video duration is 5 seconds, the\nfirst 3 seconds of the output video will have sound, and the last 2 seconds will be silent.\n- Format: WAV, MP3.\n- Duration: 3 to 30 s.\n- File size: Up to 15 MB.\n",
+        "format": "uri"
+      },
+      "negative_prompt": {
+        "examples": [
+          "low resolution, error, worst quality, low quality, defects"
+        ],
+        "title": "Negative Prompt",
+        "type": "string",
+        "description": "Negative prompt to describe content to avoid. Max 500 characters."
+      },
+      "enable_safety_checker": {
+        "examples": [
+          true
+        ],
+        "title": "Enable Safety Checker",
+        "type": "boolean",
+        "description": "If set to true, the safety checker will be enabled.",
+        "default": true
+      }
+    },
+    "title": "TextToVideoInput",
+    "description": "Input for text-to-video generation",
+    "required": [
+      "prompt"
+    ]
+  },
+  "output_schema": {
+    "x-fal-order-properties": [
+      "video",
+      "seed",
+      "actual_prompt"
+    ],
+    "type": "object",
+    "properties": {
+      "actual_prompt": {
+        "examples": [
+          "The white dragon warrior stands still in a grand cathedral-like structure, its glowing golden eyes fixed forward. The camera slowly moves closer, focusing on the warrior's armored chest and face. It then begins to circle around the warrior, capturing the intricate details of the white scale armor with gold accents. The warrior maintains a strong, determined posture. Ambient sounds and soft choral tones fill the background, enhancing the majestic atmosphere. The camera continues its slow circular motion, emphasizing the warrior's heroic presence before ending with a close-up of the face."
+        ],
+        "title": "Actual Prompt",
+        "type": "string",
+        "description": "The actual prompt used if prompt rewriting was enabled"
+      },
+      "seed": {
+        "examples": [
+          175932751
+        ],
+        "title": "Seed",
+        "type": "integer",
+        "description": "The seed used for generation"
+      },
+      "video": {
+        "examples": [
+          {
+            "content_type": "video/mp4",
+            "url": "https://storage.googleapis.com/falserverless/example_outputs/wan-25-i2v-output.mp4"
+          }
+        ],
+        "title": "Video",
+        "description": "The generated video file",
+        "allOf": [
+          {
+            "$ref": "#/VideoFile"
+          }
+        ]
+      }
+    },
+    "title": "VideoOutput",
+    "description": "Base output for video generation",
+    "required": [
+      "video",
+      "seed"
+    ]
+  },
+  "VideoFile": {
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data",
+      "width",
+      "height",
+      "fps",
+      "duration",
+      "num_frames"
+    ],
+    "type": "object",
+    "properties": {
+      "height": {
+        "title": "Height",
+        "type": "integer",
+        "description": "The height of the video"
+      },
+      "duration": {
+        "title": "Duration",
+        "type": "number",
+        "description": "The duration of the video"
+      },
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "title": "File Size",
+        "type": "integer",
+        "description": "The size of the file in bytes."
+      },
+      "url": {
+        "title": "Url",
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
+      },
+      "width": {
+        "title": "Width",
+        "type": "integer",
+        "description": "The width of the video"
+      },
+      "fps": {
+        "title": "Fps",
+        "type": "number",
+        "description": "The FPS of the video"
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name",
+        "type": "string",
+        "description": "The name of the file. It will be auto-generated if not provided."
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type",
+        "type": "string",
+        "description": "The mime type of the file."
+      },
+      "num_frames": {
+        "title": "Num Frames",
+        "type": "integer",
+        "description": "The number of frames in the video"
+      },
+      "file_data": {
+        "format": "binary",
+        "title": "File Data",
+        "type": "string",
+        "description": "File data"
+      }
+    },
+    "title": "VideoFile",
+    "required": [
+      "url"
+    ]
+  }
+}

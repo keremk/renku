@@ -1,0 +1,174 @@
+{
+  "input_schema": {
+    "x-fal-order-properties": [
+      "prompt",
+      "aspect_ratio",
+      "duration",
+      "negative_prompt",
+      "resolution",
+      "generate_audio",
+      "seed",
+      "auto_fix",
+      "image_url"
+    ],
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "A monkey and polar bear host a casual podcast about AI inference, bringing their unique perspectives from different environments (tropical vs. arctic) to discuss how AI systems make decisions and process information.\nSample Dialogue:\nMonkey (Banana): \"Welcome back to Bananas & Ice! I am Banana\"\nPolar Bear (Ice): \"And I'm Ice!\""
+        ],
+        "description": "The text prompt describing the video you want to generate",
+        "type": "string",
+        "title": "Prompt",
+        "maxLength": 20000
+      },
+      "duration": {
+        "enum": [
+          "4s",
+          "6s",
+          "8s"
+        ],
+        "description": "The duration of the generated video.",
+        "type": "string",
+        "title": "Duration",
+        "default": "8s"
+      },
+      "aspect_ratio": {
+        "enum": [
+          "auto",
+          "16:9",
+          "9:16"
+        ],
+        "description": "The aspect ratio of the generated video. Only 16:9 and 9:16 are supported.",
+        "type": "string",
+        "title": "Aspect Ratio",
+        "default": "auto"
+      },
+      "generate_audio": {
+        "description": "Whether to generate audio for the video.",
+        "type": "boolean",
+        "title": "Generate Audio",
+        "default": true
+      },
+      "auto_fix": {
+        "description": "Whether to automatically attempt to fix prompts that fail content policy or other validation checks by rewriting them.",
+        "type": "boolean",
+        "title": "Auto Fix",
+        "default": false
+      },
+      "resolution": {
+        "enum": [
+          "720p",
+          "1080p",
+          "4k"
+        ],
+        "description": "The resolution of the generated video.",
+        "type": "string",
+        "title": "Resolution",
+        "default": "720p"
+      },
+      "image_url": {
+        "examples": [
+          "https://storage.googleapis.com/falserverless/example_inputs/veo31_i2v_input.jpg"
+        ],
+        "description": "URL of the input image to animate. Should be 720p or higher resolution in 16:9 or 9:16 aspect ratio. If the image is not in 16:9 or 9:16 aspect ratio, it will be cropped to fit.",
+        "type": "string",
+        "title": "Image URL",
+        "format": "uri"
+      },
+      "seed": {
+        "description": "The seed for the random number generator.",
+        "type": "integer",
+        "title": "Seed"
+      },
+      "negative_prompt": {
+        "description": "A negative prompt to guide the video generation.",
+        "type": "string",
+        "title": "Negative Prompt"
+      }
+    },
+    "title": "Veo31ImageToVideoInput",
+    "required": [
+      "prompt",
+      "image_url"
+    ]
+  },
+  "output_schema": {
+    "x-fal-order-properties": [
+      "video"
+    ],
+    "type": "object",
+    "properties": {
+      "video": {
+        "examples": [
+          {
+            "url": "https://storage.googleapis.com/falserverless/model_tests/gallery/veo3-1-i2v.mp4"
+          }
+        ],
+        "description": "The generated video.",
+        "title": "Video",
+        "allOf": [
+          {
+            "$ref": "#/File"
+          }
+        ]
+      }
+    },
+    "title": "Veo31ImageToVideoOutput",
+    "required": [
+      "video"
+    ]
+  },
+  "File": {
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data"
+    ],
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "description": "The size of the file in bytes.",
+        "type": "integer",
+        "title": "File Size"
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "type": "string",
+        "title": "File Name"
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "description": "The mime type of the file.",
+        "type": "string",
+        "title": "Content Type"
+      },
+      "url": {
+        "description": "The URL where the file can be downloaded from.",
+        "type": "string",
+        "title": "Url",
+        "format": "uri"
+      },
+      "file_data": {
+        "format": "binary",
+        "description": "File data",
+        "type": "string",
+        "title": "File Data"
+      }
+    },
+    "title": "File",
+    "required": [
+      "url"
+    ]
+  }
+}

@@ -1,0 +1,277 @@
+{
+  "input_schema": {
+    "description": "Input for Wan 2.6 R2V Flash reference-to-video generation\n\nThe flash model is 10-20 seconds faster than the standard R2V model\nand supports generating videos with or without audio. It also supports\nboth images and videos as reference inputs.",
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "Dance battle between Character1 and Character2."
+        ],
+        "description": "Use Character1, Character2, etc. to reference subjects from your reference files. Works for people, animals, or objects. For multi-shot prompts: '[0-3s] Shot 1. [3-6s] Shot 2.' Max 1500 characters. Reference order: video_urls first, then image_urls.",
+        "type": "string",
+        "minLength": 1,
+        "title": "Prompt"
+      },
+      "aspect_ratio": {
+        "enum": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4"
+        ],
+        "description": "The aspect ratio of the generated video.",
+        "type": "string",
+        "title": "Aspect Ratio",
+        "default": "16:9"
+      },
+      "video_urls": {
+        "examples": [
+          [
+            "https://v3b.fal.media/files/b/0a8d6d47/FtSBJGfZuivKfBIrRuWxa_video.mp4"
+          ]
+        ],
+        "description": "Reference videos for subject consistency (0-3 videos). Videos' FPS must be at least 16 FPS. Combined with image_urls, total references cannot exceed 5. Reference order: video_urls are numbered first (Character1, Character2...), then image_urls continue the sequence.",
+        "type": "array",
+        "title": "Video Urls",
+        "items": {
+          "x-fal": {
+            "max_file_size": 104857600,
+            "timeout": 30,
+            "max_duration": 30,
+            "min_duration": 2
+          },
+          "type": "string",
+          "limit_description": "Max file size: 100.0MB, Min duration: 2s, Max duration: 30s, Timeout: 30.0s",
+          "format": "uri"
+        }
+      },
+      "multi_shots": {
+        "description": "When true (default), enables intelligent multi-shot segmentation for coherent narrative videos with multiple shots. When false, generates single continuous shot. Only active when enable_prompt_expansion is True.",
+        "type": "boolean",
+        "title": "Multi Shots",
+        "default": true
+      },
+      "resolution": {
+        "enum": [
+          "720p",
+          "1080p"
+        ],
+        "description": "Video resolution tier. R2V Flash only supports 720p and 1080p.",
+        "type": "string",
+        "title": "Resolution",
+        "default": "1080p"
+      },
+      "duration": {
+        "enum": [
+          "5",
+          "10"
+        ],
+        "description": "Duration of the generated video in seconds. R2V Flash supports only 5 or 10 seconds.",
+        "type": "string",
+        "examples": [
+          "5",
+          "10"
+        ],
+        "title": "Duration",
+        "default": "5"
+      },
+      "enable_audio": {
+        "description": "Whether to generate a video with audio. Set to false for silent video generation. Silent videos are faster and cost 25% of the audio version price.",
+        "type": "boolean",
+        "title": "Enable Audio",
+        "default": true
+      },
+      "enable_prompt_expansion": {
+        "description": "Whether to enable prompt rewriting using LLM.",
+        "type": "boolean",
+        "title": "Enable Prompt Expansion",
+        "default": true
+      },
+      "seed": {
+        "description": "Random seed for reproducibility. If None, a random seed is chosen.",
+        "type": "integer",
+        "title": "Seed"
+      },
+      "image_urls": {
+        "examples": [
+          [
+            "https://v3b.fal.media/files/b/0a8d6d49/4XDgJcWQHLgkmUOL2JlPt_iXGPlm9y.png"
+          ]
+        ],
+        "description": "Reference images for subject consistency (0-5 images). Combined with video_urls, total references cannot exceed 5. Formats: JPEG, JPG, PNG (no alpha), BMP, WEBP. Resolution: 240-5000px. Max 10MB each. Reference order: image_urls continue numbering after video_urls.",
+        "type": "array",
+        "title": "Image Urls",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        }
+      },
+      "negative_prompt": {
+        "examples": [
+          "low resolution, error, worst quality, low quality, defects"
+        ],
+        "description": "Negative prompt to describe content to avoid. Max 500 characters.",
+        "type": "string",
+        "title": "Negative Prompt",
+        "default": ""
+      },
+      "enable_safety_checker": {
+        "examples": [
+          true
+        ],
+        "description": "If set to true, the safety checker will be enabled.",
+        "type": "boolean",
+        "title": "Enable Safety Checker",
+        "default": true
+      }
+    },
+    "x-fal-order-properties": [
+      "prompt",
+      "video_urls",
+      "image_urls",
+      "aspect_ratio",
+      "resolution",
+      "duration",
+      "negative_prompt",
+      "enable_prompt_expansion",
+      "multi_shots",
+      "enable_audio",
+      "seed",
+      "enable_safety_checker"
+    ],
+    "title": "ReferenceToVideoFlashInput",
+    "required": [
+      "prompt"
+    ]
+  },
+  "output_schema": {
+    "description": "Output for reference-to-video generation",
+    "type": "object",
+    "properties": {
+      "actual_prompt": {
+        "examples": [
+          "Dance battle between Character1 and Character2, cinematic lighting, dynamic camera movement."
+        ],
+        "description": "The actual prompt used if prompt rewriting was enabled",
+        "type": "string",
+        "title": "Actual Prompt"
+      },
+      "seed": {
+        "examples": [
+          175932751
+        ],
+        "description": "The seed used for generation",
+        "type": "integer",
+        "title": "Seed"
+      },
+      "video": {
+        "examples": [
+          {
+            "content_type": "video/mp4",
+            "url": "https://v3b.fal.media/files/b/0a86762b/iDknfPkLFSFwWkyMgJi0U_QIzjwBDQ.mp4"
+          }
+        ],
+        "description": "The generated video file",
+        "title": "Video",
+        "allOf": [
+          {
+            "$ref": "#/VideoFile"
+          }
+        ]
+      }
+    },
+    "x-fal-order-properties": [
+      "video",
+      "seed",
+      "actual_prompt"
+    ],
+    "title": "ReferenceToVideoOutput",
+    "required": [
+      "video",
+      "seed"
+    ]
+  },
+  "VideoFile": {
+    "title": "VideoFile",
+    "type": "object",
+    "properties": {
+      "height": {
+        "title": "Height",
+        "type": "integer",
+        "description": "The height of the video"
+      },
+      "duration": {
+        "title": "Duration",
+        "type": "number",
+        "description": "The duration of the video"
+      },
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "title": "File Size",
+        "type": "integer",
+        "description": "The size of the file in bytes."
+      },
+      "url": {
+        "title": "Url",
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
+      },
+      "width": {
+        "title": "Width",
+        "type": "integer",
+        "description": "The width of the video"
+      },
+      "fps": {
+        "title": "Fps",
+        "type": "number",
+        "description": "The FPS of the video"
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name",
+        "type": "string",
+        "description": "The name of the file. It will be auto-generated if not provided."
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type",
+        "type": "string",
+        "description": "The mime type of the file."
+      },
+      "num_frames": {
+        "title": "Num Frames",
+        "type": "integer",
+        "description": "The number of frames in the video"
+      },
+      "file_data": {
+        "format": "binary",
+        "title": "File Data",
+        "type": "string",
+        "description": "File data"
+      }
+    },
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data",
+      "width",
+      "height",
+      "fps",
+      "duration",
+      "num_frames"
+    ],
+    "required": [
+      "url"
+    ]
+  }
+}
