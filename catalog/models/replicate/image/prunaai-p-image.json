@@ -1,0 +1,88 @@
+{
+  "type": "object",
+  "title": "Input",
+  "required": [
+    "prompt"
+  ],
+  "properties": {
+    "seed": {
+      "type": "integer",
+      "title": "Seed",
+      "x-order": 5,
+      "nullable": true,
+      "description": "Random seed. Set for reproducible generation."
+    },
+    "width": {
+      "type": "integer",
+      "title": "Width",
+      "maximum": 1440,
+      "minimum": 256,
+      "x-order": 2,
+      "nullable": true,
+      "description": "Width of the generated image. Only used when aspect_ratio=custom. Must be a multiple of 16."
+    },
+    "height": {
+      "type": "integer",
+      "title": "Height",
+      "maximum": 1440,
+      "minimum": 256,
+      "x-order": 3,
+      "nullable": true,
+      "description": "Height of the generated image. Only used when aspect_ratio=custom. Must be a multiple of 16."
+    },
+    "prompt": {
+      "type": "string",
+      "title": "Prompt",
+      "x-order": 0,
+      "description": "Text prompt for image generation."
+    },
+    "lora_scale": {
+      "type": "number",
+      "title": "Lora Scale",
+      "default": 0.5,
+      "maximum": 3,
+      "minimum": -1,
+      "x-order": 8,
+      "description": "Determines how strongly the main LoRA should be applied. 0.5 usually works well for most LoRAs."
+    },
+    "aspect_ratio": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/aspect_ratio"
+        }
+      ],
+      "default": "16:9",
+      "x-order": 1,
+      "description": "Aspect ratio for the generated image."
+    },
+    "hf_api_token": {
+      "type": "string",
+      "title": "Hf Api Token",
+      "format": "password",
+      "x-order": 9,
+      "writeOnly": true,
+      "description": "HuggingFace API token. If you're using a HuggingFace LoRAs that needs authentication, you'll need to provide an API token.",
+      "x-cog-secret": true
+    },
+    "lora_weights": {
+      "type": "string",
+      "title": "Lora Weights",
+      "x-order": 7,
+      "description": "Load LoRA weights. Supports HuggingFace URLs in the format huggingface.co/<owner>/<model-name>[/<lora-weights-file.safetensors>]. HuggingFace LoRAs may require an API token to access, which you can provide in the `hf_api_token` input."
+    },
+    "prompt_upsampling": {
+      "type": "boolean",
+      "title": "Prompt Upsampling",
+      "default": false,
+      "x-order": 4,
+      "description": "Upsample the prompt with an LLM."
+    },
+    "disable_safety_checker": {
+      "type": "boolean",
+      "title": "Disable Safety Checker",
+      "default": false,
+      "x-order": 6,
+      "description": "Disable safety checker for generated images."
+    }
+  }
+}

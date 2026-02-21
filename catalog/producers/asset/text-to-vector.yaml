@@ -1,0 +1,57 @@
+meta:
+  name: Text-to-Vector Generator
+  description: Generate SVG vector images from text prompts. Output is scalable vector graphics, fundamentally different from raster images. Use for logos, icons, illustrations, and design assets.
+  id: TextToVectorProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Text description of the vector image to generate.
+    type: string
+
+  # Sizing
+  - name: AspectRatio
+    description: "Aspect ratio (16:9, 9:16, 1:1, 4:3, 3:4)."
+    type: string
+
+artifacts:
+  - name: GeneratedVector
+    description: The generated SVG vector image.
+    type: image
+
+mappings:
+  fal-ai:
+    recraft/v4/text-to-vector:
+      Prompt: prompt
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
+    recraft/v4/pro/text-to-vector:
+      Prompt: prompt
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
+  replicate:
+    recraft-ai/recraft-v4-svg:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+      Resolution:
+        field: size
+        transform:
+          "1K": "1024x1024"
+          "2K": "2048x2048"

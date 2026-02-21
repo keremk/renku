@@ -1,0 +1,86 @@
+{
+  "type": "object",
+  "title": "Input",
+  "required": [
+    "prompt"
+  ],
+  "properties": {
+    "seed": {
+      "type": "integer",
+      "title": "Seed",
+      "x-order": 4,
+      "nullable": true,
+      "description": "Random seed. Set for reproducible generation"
+    },
+    "images": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      },
+      "title": "Images",
+      "default": [],
+      "x-order": 1,
+      "description": "List of input images for image-to-image generation. Maximum 5 images. Must be jpeg, png, gif, or webp."
+    },
+    "prompt": {
+      "type": "string",
+      "title": "Prompt",
+      "x-order": 0,
+      "description": "Text prompt for image generation."
+    },
+    "go_fast": {
+      "type": "boolean",
+      "title": "Go Fast",
+      "default": true,
+      "x-order": 5,
+      "description": "Run faster predictions with additional optimizations."
+    },
+    "megapixels": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/megapixels"
+        }
+      ],
+      "default": "1",
+      "x-order": 3,
+      "description": "Resolution in megapixels"
+    },
+    "aspect_ratio": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/aspect_ratio"
+        }
+      ],
+      "default": "1:1",
+      "x-order": 2,
+      "description": "Aspect ratio for the generated image. Use 'match_input_image' to match the aspect ratio of the first input image."
+    },
+    "output_format": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/output_format"
+        }
+      ],
+      "default": "jpg",
+      "x-order": 6,
+      "description": "Format of the output images"
+    },
+    "output_quality": {
+      "type": "integer",
+      "title": "Output Quality",
+      "default": 95,
+      "maximum": 100,
+      "minimum": 0,
+      "x-order": 7,
+      "description": "Quality when saving the output images, from 0 to 100. 100 is best quality, 0 is lowest quality. Not relevant for .png outputs."
+    },
+    "disable_safety_checker": {
+      "type": "boolean",
+      "title": "Disable Safety Checker",
+      "default": false,
+      "x-order": 8,
+      "description": "Disable safety checker for generated images."
+    }
+  }
+}

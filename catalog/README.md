@@ -76,9 +76,11 @@ Located in `producers/asset/`. Generate media assets from AI models.
 
 | Producer             | File                        | Description                           |
 | -------------------- | --------------------------- | ------------------------------------- |
-| Text-to-Image        | `text-to-image.yaml`        | Generate images from text prompts     |
-| Image-to-Image       | `image-to-image.yaml`       | Transform existing images             |
-| Image-Hybrid         | `image-hybrid.yaml`         | Combine reference images with prompts |
+| Text-to-Image        | `text-to-image.yaml`        | Generate raster images from text prompts |
+| Image Edit           | `image-edit.yaml`           | Edit/transform a single existing image   |
+| Image Compose        | `image-compose.yaml`        | Combine multiple images into a new image |
+| Text-to-Grid Images  | `text-to-grid-images.yaml`  | Generate multi-panel storyboard grids    |
+| Text-to-Vector       | `text-to-vector.yaml`       | Generate SVG vector images from text     |
 | Text-to-Video        | `text-to-video.yaml`        | Generate video from text              |
 | Image-to-Video       | `image-to-video.yaml`       | Animate images into video             |
 | Audio-to-Video       | `audio-to-video.yaml`       | Generate video synchronized to audio  |

@@ -61,7 +61,8 @@ export type CostFunctionName =
 	| 'costByImageSizeAndQuality'
 	| 'costByVideoPerMillionTokens'
 	| 'costByVideoMegapixels'
-	| 'costByImageMegapixels';
+	| 'costByImageMegapixels'
+	| 'costByVideoDurationResolutionAndFps';
 
 /**
  * Price entry for resolution-based pricing.
@@ -122,6 +123,15 @@ export interface VideoTokenAudioPriceEntry {
 }
 
 /**
+ * Price entry for resolution + fps based video upscaling pricing.
+ */
+export interface ResolutionFpsPriceEntry {
+	resolution: string;
+	fps: number;
+	pricePerSecond: number;
+}
+
+/**
  * Pricing configuration for a model.
  */
 export interface ModelPriceConfig {
@@ -134,7 +144,7 @@ export interface ModelPriceConfig {
 	pricePerCharacter?: number;
 	pricePerMillionTokens?: number;
 	pricePerMegapixel?: number;
-	prices?: Array<ResolutionPriceEntry | AudioFlagPriceEntry | ImageSizeQualityPriceEntry | VideoTokenPriceEntry | ModePriceEntry | ModeAudioPriceEntry>;
+	prices?: Array<ResolutionPriceEntry | AudioFlagPriceEntry | ImageSizeQualityPriceEntry | VideoTokenPriceEntry | ModePriceEntry | ModeAudioPriceEntry | ResolutionFpsPriceEntry>;
 	// Plan-based pricing for ElevenLabs
 	pricePerCharByPlan?: Record<string, number>;
 	defaultPlan?: string;
@@ -1287,6 +1297,67 @@ function costByVideoMegapixels(
 }
 
 /**
+ * Video upscaling: cost by output duration, target resolution, and target fps.
+ * Duration is always artefact-sourced (from input video), so always returns a range.
+ * Looks up pricePerSecond from a resolution+fps price table, choosing the closest
+ * documented fps tier when an exact match is not found.
+ */
+function costByVideoDurationResolutionAndFps(
+	config: ModelPriceConfig,
+	extracted: ExtractedCostInputs
+): CostEstimate {
+	const prices = config.prices as ResolutionFpsPriceEntry[] | undefined;
+	if (!prices || prices.length === 0) {
+		return { cost: 0, isPlaceholder: true, note: 'Missing resolution+fps prices' };
+	}
+
+	const inputs = config.inputs ?? [];
+	const resolutionField = inputs[0];
+	const fpsField = inputs[1];
+
+	const resolutionValue = resolutionField ? extracted.values[resolutionField] : undefined;
+	const fpsValue = fpsField ? extracted.values[fpsField] : undefined;
+
+	const resolution = normalizeResolution(resolutionValue as string | undefined);
+	const fps = fpsValue !== undefined && fpsValue !== null ? Number(fpsValue) : undefined;
+
+	// Find entries matching the resolved resolution
+	const resolutionEntries = prices.filter(p => p.resolution === resolution);
+	const lookupEntries = resolutionEntries.length > 0 ? resolutionEntries : prices;
+
+	// Find closest fps match
+	let match: ResolutionFpsPriceEntry;
+	if (fps !== undefined) {
+		match = lookupEntries.reduce((best, entry) =>
+			Math.abs(entry.fps - fps) < Math.abs(best.fps - fps) ? entry : best
+		);
+	} else {
+		// Default to first entry for the matched resolution
+		match = lookupEntries[0];
+	}
+
+	const pricePerSecond = match.pricePerSecond;
+
+	// Duration is always from the input video (artefact-sourced), so always return a range
+	const samples = [
+		{ label: '5s', cost: 5 * pricePerSecond },
+		{ label: '10s', cost: 10 * pricePerSecond },
+		{ label: '30s', cost: 30 * pricePerSecond },
+	];
+
+	return {
+		cost: 10 * pricePerSecond,
+		isPlaceholder: true,
+		note: 'Duration from input video',
+		range: {
+			min: samples[0].cost,
+			max: samples[2].cost,
+			samples,
+		},
+	};
+}
+
+/**
  * Calculate cost for a model using its pricing configuration.
  */
 export function calculateCost(
@@ -1332,6 +1403,8 @@ export function calculateCost(
 			return costByVideoMegapixels(priceConfig, extracted);
 		case 'costByImageMegapixels':
 			return costByImageMegapixels(priceConfig, extracted);
+		case 'costByVideoDurationResolutionAndFps':
+			return costByVideoDurationResolutionAndFps(priceConfig, extracted);
 		default:
 			return {
 				cost: 0,
@@ -1752,6 +1825,14 @@ export function formatPrice(price: ModelPriceConfig | number | undefined): strin
 			return price.pricePerMegapixel !== undefined
 				? `$${price.pricePerMegapixel.toFixed(4)}/MP/image`
 				: '-';
+
+		case 'costByVideoDurationResolutionAndFps': {
+			const entries = price.prices as ResolutionFpsPriceEntry[] | undefined;
+			if (!entries || entries.length === 0) { return '-'; }
+			const minRate = Math.min(...entries.map(e => e.pricePerSecond));
+			const maxRate = Math.max(...entries.map(e => e.pricePerSecond));
+			return `$${minRate.toFixed(4)}-$${maxRate.toFixed(4)}/s (res+fps)`;
+		}
 
 		default:
 			return '-';

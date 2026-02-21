@@ -112,15 +112,15 @@ producers:
   - name: DirectorProducer
     path: ./director/director.yaml
 
-  # Image transformation - create consistent images from user photos
+  # Image composition - create consistent images from user photos
   - name: ThenImageProducer
-    producer: asset/image-to-image
+    producer: asset/image-compose
     loop: character
   - name: NowImageProducer
-    producer: asset/image-to-image
+    producer: asset/image-compose
     loop: character
   - name: TogetherImageProducer
-    producer: asset/image-to-image
+    producer: asset/image-compose
     loop: character
 
   # Video generation - meeting and transition segments
@@ -176,7 +176,7 @@ connections:
     to: ThenImageProducer[character].AspectRatio
 
   # === ThenImageProducer outputs ===
-  - from: ThenImageProducer[character].TransformedImage
+  - from: ThenImageProducer[character].ComposedImage
     to: ConsistentThenImages[character]
 
   # === NowImageProducer inputs (looped over character) ===
@@ -192,14 +192,14 @@ connections:
     to: NowImageProducer[character].AspectRatio
 
   # === NowImageProducer outputs ===
-  - from: NowImageProducer[character].TransformedImage
+  - from: NowImageProducer[character].ComposedImage
     to: ConsistentNowImages[character]
 
   # === TogetherImageProducer inputs (looped over character) ===
-  - from: ThenImageProducer[character].TransformedImage
+  - from: ThenImageProducer[character].ComposedImage
     to: TogetherImageProducer[character].SourceImages[0]
     note: Consistent then image as first source
-  - from: NowImageProducer[character].TransformedImage
+  - from: NowImageProducer[character].ComposedImage
     to: TogetherImageProducer[character].SourceImages[1]
     note: Consistent now image as second source
   - from: DirectorProducer.Script.Characters[character].TogetherImagePrompt
@@ -208,14 +208,14 @@ connections:
     to: TogetherImageProducer[character].AspectRatio
 
   # === TogetherImageProducer outputs ===
-  - from: TogetherImageProducer[character].TransformedImage
+  - from: TogetherImageProducer[character].ComposedImage
     to: ConsistentTogetherImages[character]
 
   # === MeetingVideoProducer inputs (looped over character) ===
-  - from: ThenImageProducer[character].TransformedImage
+  - from: ThenImageProducer[character].ComposedImage
     to: MeetingVideoProducer[character].StartImage
     note: Consistent then image as the start frame (young alone in setting)
-  - from: TogetherImageProducer[character].TransformedImage
+  - from: TogetherImageProducer[character].ComposedImage
     to: MeetingVideoProducer[character].EndImage
     note: Together image as the end frame (both side by side)
   - from: DirectorProducer.Script.Characters[character].MeetingVideoPrompt
@@ -232,11 +232,11 @@ connections:
     to: MeetingVideos[character]
 
   # === TransitionVideoProducer inputs (looped, conditional on hasTransition) ===
-  - from: TogetherImageProducer[character].TransformedImage
+  - from: TogetherImageProducer[character].ComposedImage
     to: TransitionVideoProducer[character].StartImage
     if: hasTransition
     note: Together image as start frame (both side by side)
-  - from: ThenImageProducer[character+1].TransformedImage
+  - from: ThenImageProducer[character+1].ComposedImage
     to: TransitionVideoProducer[character].EndImage
     if: hasTransition
     note: Next character's consistent then image as end frame (offset +1)

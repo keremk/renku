@@ -205,6 +205,132 @@ models:
       inputs: [num_images, image_size]
       pricePerMegapixel: 0.09
 
+  # Flux.2 Models
+  - name: flux-2
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByImageMegapixels
+      inputs: [num_images, image_size]
+      pricePerMegapixel: 0.012
+  - name: flux-2/edit
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByImageMegapixels
+      inputs: [num_images, image_size]
+      pricePerMegapixel: 0.012
+  - name: flux-2/flash
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByImageMegapixels
+      inputs: [num_images, image_size]
+      pricePerMegapixel: 0.005
+  - name: flux-2/flash/edit
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByImageMegapixels
+      inputs: [num_images, image_size]
+      pricePerMegapixel: 0.005
+  - name: flux-2/turbo
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByImageMegapixels
+      inputs: [num_images, image_size]
+      pricePerMegapixel: 0.008
+  - name: flux-2/turbo/edit
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByImageMegapixels
+      inputs: [num_images, image_size]
+      pricePerMegapixel: 0.008
+
+  # Recraft v4 Models
+  - name: recraft/v4/text-to-image
+    type: image
+    mime:
+      - image/png
+      - image/webp
+    price:
+      function: costByRun
+      price: 0.04
+  - name: recraft/v4/pro/text-to-image
+    type: image
+    mime:
+      - image/png
+      - image/webp
+    price:
+      function: costByRun
+      price: 0.25
+  - name: recraft/v4/text-to-vector
+    type: image
+    mime:
+      - image/svg+xml
+    price:
+      function: costByRun
+      price: 0.08
+  - name: recraft/v4/pro/text-to-vector
+    type: image
+    mime:
+      - image/svg+xml
+    price:
+      function: costByRun
+      price: 0.30
+
+  # Bria Models
+  - name: bria/fibo-edit/edit
+    subProvider: bria
+    type: image
+    mime:
+      - image/png
+    price:
+      function: costByRun
+      price: 0.04
+
+  # Z-Image Models
+  - name: z-image/turbo
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByImageMegapixels
+      inputs: [num_images, image_size]
+      pricePerMegapixel: 0.005
+  - name: z-image/turbo/image-to-image
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByImageMegapixels
+      inputs: [num_images, image_size]
+      pricePerMegapixel: 0.005
+
 # Audio Models
   - name: elevenlabs/tts/eleven-v3
     type: audio
@@ -817,6 +943,40 @@ models:
       inputs: [duration]
       pricePerSecond: 0.04
 
+  # Pixverse v5 Models
+  - name: pixverse/v5/image-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 360p
+          pricePerSecond: 0.03
+        - resolution: 540p
+          pricePerSecond: 0.03
+        - resolution: 720p
+          pricePerSecond: 0.04
+        - resolution: 1080p
+          pricePerSecond: 0.08
+  - name: pixverse/v5/text-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 360p
+          pricePerSecond: 0.03
+        - resolution: 540p
+          pricePerSecond: 0.03
+        - resolution: 720p
+          pricePerSecond: 0.04
+        - resolution: 1080p
+          pricePerSecond: 0.08
+
   # LTX-2-19b Video Models
   - name: ltx-2-19b/audio-to-video
     type: video
@@ -897,6 +1057,152 @@ models:
       function: costByVideoDuration
       inputs: [duration]
       pricePerSecond: 0.06
+
+  # Vidu Q3 Models
+  - name: vidu/q3/image-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 360p
+          pricePerSecond: 0.07
+        - resolution: 540p
+          pricePerSecond: 0.07
+        - resolution: 720p
+          pricePerSecond: 0.154
+        - resolution: 1080p
+          pricePerSecond: 0.154
+  - name: vidu/q3/image-to-video/turbo
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 360p
+          pricePerSecond: 0.035
+        - resolution: 540p
+          pricePerSecond: 0.035
+        - resolution: 720p
+          pricePerSecond: 0.077
+        - resolution: 1080p
+          pricePerSecond: 0.077
+  - name: vidu/q3/text-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 360p
+          pricePerSecond: 0.07
+        - resolution: 540p
+          pricePerSecond: 0.07
+        - resolution: 720p
+          pricePerSecond: 0.154
+        - resolution: 1080p
+          pricePerSecond: 0.154
+  - name: vidu/q3/text-to-video/turbo
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 360p
+          pricePerSecond: 0.035
+        - resolution: 540p
+          pricePerSecond: 0.035
+        - resolution: 720p
+          pricePerSecond: 0.077
+        - resolution: 1080p
+          pricePerSecond: 0.077
+
+  # Decart Lucy Models
+  - name: decart/lucy-14b/image-to-video
+    subProvider: decart
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByRun
+      price: 0.40
+  - name: decart/lucy-edit/pro
+    subProvider: decart
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByRun
+      price: 0.75
+  - name: decart/lucy-edit/fast
+    subProvider: decart
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByRun
+      price: 0.20
+
+  # Video Upscale Models
+  - name: topaz/upscale/video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationResolutionAndFps
+      inputs: [resolution, target_fps]
+      prices:
+        - resolution: 720p
+          fps: 30
+          pricePerSecond: 0.01
+        - resolution: 720p
+          fps: 60
+          pricePerSecond: 0.02
+        - resolution: 1080p
+          fps: 30
+          pricePerSecond: 0.02
+        - resolution: 1080p
+          fps: 60
+          pricePerSecond: 0.04
+        - resolution: 4K
+          fps: 30
+          pricePerSecond: 0.08
+        - resolution: 4K
+          fps: 60
+          pricePerSecond: 0.16
+  - name: bytedance-upscaler/upscale/video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationResolutionAndFps
+      inputs: [target_resolution, target_fps]
+      prices:
+        - resolution: 1080p
+          fps: 30
+          pricePerSecond: 0.0072
+        - resolution: 1080p
+          fps: 60
+          pricePerSecond: 0.0144
+        - resolution: 2K
+          fps: 30
+          pricePerSecond: 0.0144
+        - resolution: 2K
+          fps: 60
+          pricePerSecond: 0.0288
+        - resolution: 4K
+          fps: 30
+          pricePerSecond: 0.0288
+        - resolution: 4K
+          fps: 60
+          pricePerSecond: 0.0576
 
   # STT (Speech-to-Text) Models
   - name: elevenlabs/speech-to-text

@@ -1,0 +1,325 @@
+meta:
+  name: Image Composer
+  description: Compose multiple images into a new image guided by a text prompt. Takes two or more source images and combines elements from each. Use this when you need to combine visual elements from multiple sources.
+  id: ImageComposeProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Text instruction describing how to compose the images together.
+    type: string
+  - name: SourceImages
+    description: Collection of images to compose together.
+    type: collection
+    itemType: image
+
+  # Optional mask for selective editing
+  - name: MaskImage
+    description: Mask image for selective region editing (white=edit, black=keep).
+    type: image
+
+  # Sizing
+  - name: AspectRatio
+    description: "Output aspect ratio."
+    type: string
+  - name: Resolution
+    description: "Output resolution preset (1K, 2K, 4K)."
+    type: string
+  - name: Width
+    description: Custom output width in pixels.
+    type: integer
+  - name: Height
+    description: Custom output height in pixels.
+    type: integer
+
+artifacts:
+  - name: ComposedImage
+    description: The composed image combining elements from all source images.
+    type: image
+
+mappings:
+  fal-ai:
+    bytedance/seedream/v4/edit:
+      Prompt: prompt
+      SourceImages: image_urls
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+          "3:2": landscape_4_3
+          "2:3": portrait_4_3
+
+    bytedance/seedream/v4.5/edit:
+      Prompt: prompt
+      SourceImages: image_urls
+      # AspectRatio + Resolution combine into image_size
+      ImageSize:
+        field: image_size
+        combine:
+          inputs: [AspectRatio, Resolution]
+          table:
+            "+2K": auto_2K
+            "+4K": auto_4K
+            "16:9+": landscape_16_9
+            "9:16+": portrait_16_9
+            "4:3+": landscape_4_3
+            "3:4+": portrait_4_3
+            "1:1+": square_hd
+            "16:9+2K": auto_2K
+            "16:9+4K": auto_4K
+            "1:1+2K": auto_2K
+            "1:1+4K": auto_4K
+
+    wan/v2.6/image-to-image:
+      Prompt: prompt
+      SourceImages: image_urls
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
+    flux-2/edit:
+      Prompt: prompt
+      SourceImages: image_urls
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
+    flux-2/flash/edit:
+      Prompt: prompt
+      SourceImages: image_urls
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
+    flux-2/turbo/edit:
+      Prompt: prompt
+      SourceImages: image_urls
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
+    gpt-image-1.5/edit:
+      Prompt: prompt
+      SourceImages: image_urls
+      MaskImage: mask_image_url
+      AspectRatio:
+        field: image_size
+        transform:
+          "1:1": "1024x1024"
+          "16:9": "1536x1024"
+          "9:16": "1024x1536"
+          "auto": "auto"
+
+    nano-banana-pro/edit:
+      Prompt: prompt
+      SourceImages: image_urls
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+
+    qwen-image-edit-2511:
+      Prompt: prompt
+      SourceImages: image_urls
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
+    hunyuan-image/v3/instruct/edit:
+      Prompt: prompt
+      SourceImages: image_urls
+      # AspectRatio preset - only applied when Width is not provided
+      AspectRatio:
+        conditional:
+          when:
+            input: Width
+            empty: true
+          then:
+            field: image_size
+            transform:
+              "16:9": landscape_16_9
+              "9:16": portrait_16_9
+              "4:3": landscape_4_3
+              "3:4": portrait_4_3
+              "1:1": square_hd
+      # Custom dimensions via Width/Height (takes precedence over AspectRatio)
+      Width:
+        conditional:
+          when:
+            input: Width
+            notEmpty: true
+          then:
+            field: image_size.width
+      Height:
+        conditional:
+          when:
+            input: Width
+            notEmpty: true
+          then:
+            field: image_size.height
+
+  replicate:
+    bytedance/seedream-4.5:
+      Prompt: prompt
+      SourceImages: image_input
+      AspectRatio: aspect_ratio
+      Resolution:
+        field: size
+        transform:
+          "1K": "2K"
+          "2K": "2K"
+          "4K": "4K"
+          "custom": "custom"
+      Width:
+        conditional:
+          when:
+            input: Resolution
+            equals: custom
+          then:
+            field: width
+      Height:
+        conditional:
+          when:
+            input: Resolution
+            equals: custom
+          then:
+            field: height
+
+    bytedance/seedream-4:
+      Prompt: prompt
+      SourceImages: image_input
+      AspectRatio: aspect_ratio
+      Resolution:
+        field: size
+        transform:
+          "1K": "1K"
+          "2K": "2K"
+          "4K": "4K"
+          "custom": "custom"
+      Width:
+        conditional:
+          when:
+            input: Resolution
+            equals: custom
+          then:
+            field: width
+      Height:
+        conditional:
+          when:
+            input: Resolution
+            equals: custom
+          then:
+            field: height
+
+    google/nano-banana-pro:
+      Prompt: prompt
+      SourceImages: image_input
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+
+    google/nano-banana:
+      Prompt: prompt
+      SourceImages: image_input
+      AspectRatio: aspect_ratio
+
+    qwen/qwen-image-edit-2511:
+      Prompt: prompt
+      SourceImages: image
+      AspectRatio: aspect_ratio
+
+    black-forest-labs/flux-2-pro:
+      Prompt: prompt
+      SourceImages: input_images
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      Width:
+        conditional:
+          when:
+            input: AspectRatio
+            equals: custom
+          then:
+            field: width
+      Height:
+        conditional:
+          when:
+            input: AspectRatio
+            equals: custom
+          then:
+            field: height
+
+    black-forest-labs/flux-2-max:
+      Prompt: prompt
+      SourceImages: input_images
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      Width:
+        conditional:
+          when:
+            input: AspectRatio
+            equals: custom
+          then:
+            field: width
+      Height:
+        conditional:
+          when:
+            input: AspectRatio
+            equals: custom
+          then:
+            field: height
+
+    black-forest-labs/flux-2-flex:
+      Prompt: prompt
+      SourceImages: input_images
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      Width:
+        conditional:
+          when:
+            input: AspectRatio
+            equals: custom
+          then:
+            field: width
+      Height:
+        conditional:
+          when:
+            input: AspectRatio
+            equals: custom
+          then:
+            field: height
+
+    black-forest-labs/flux-kontext-pro:
+      Prompt: prompt
+      SourceImages:
+        field: input_image
+        firstOf: true
+      AspectRatio: aspect_ratio

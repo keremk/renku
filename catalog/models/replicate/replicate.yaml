@@ -1,5 +1,88 @@
 models:
 # Image Models
+  - name: black-forest-labs/flux-kontext-pro
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByRun
+      price: 0.04
+  - name: black-forest-labs/flux-2-pro
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByImageAndResolution
+      inputs: [resolution]
+      prices:
+        - resolution: "0.5 MP"
+          pricePerImage: 0.0225
+        - resolution: "1 MP"
+          pricePerImage: 0.030
+        - resolution: "2 MP"
+          pricePerImage: 0.045
+        - resolution: "4 MP"
+          pricePerImage: 0.075
+  - name: black-forest-labs/flux-2-max
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByImageAndResolution
+      inputs: [resolution]
+      prices:
+        - resolution: "0.5 MP"
+          pricePerImage: 0.055
+        - resolution: "1 MP"
+          pricePerImage: 0.070
+        - resolution: "2 MP"
+          pricePerImage: 0.100
+        - resolution: "4 MP"
+          pricePerImage: 0.160
+  - name: black-forest-labs/flux-2-flex
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByImageAndResolution
+      inputs: [resolution]
+      prices:
+        - resolution: "0.5 MP"
+          pricePerImage: 0.030
+        - resolution: "1 MP"
+          pricePerImage: 0.060
+        - resolution: "2 MP"
+          pricePerImage: 0.120
+        - resolution: "4 MP"
+          pricePerImage: 0.240
+  - name: black-forest-labs/flux-2-klein-9b
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByImageAndResolution
+      inputs: [megapixels]
+      prices:
+        - resolution: "0.25"
+          pricePerImage: 0.00375
+        - resolution: "0.5"
+          pricePerImage: 0.0075
+        - resolution: "1"
+          pricePerImage: 0.015
+        - resolution: "2"
+          pricePerImage: 0.030
+        - resolution: "4"
+          pricePerImage: 0.060
   - name: bytedance/seedream-4
     type: image
     mime:
@@ -48,6 +131,24 @@ models:
     price:
       function: costByRun
       price: 0.025
+  - name: prunaai/p-image
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByRun
+      price: 0.005
+  - name: prunaai/flux-kontext-fast
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByRun
+      price: 0.01
   - name: prunaai/z-image-turbo
     type: image
     mime:
@@ -73,6 +174,31 @@ models:
     price:
       function: costByRun
       price: 0.03
+  - name: recraft-ai/recraft-v4
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByRun
+      price: 0.04
+  - name: recraft-ai/recraft-v4-svg
+    type: image
+    mime:
+      - image/svg+xml
+    price:
+      function: costByRun
+      price: 0.08
+  - name: xai/grok-imagine-image
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByRun
+      price: 0.02
 
 # Audio Models (Speech)
   - name: minimax/speech-2.6-hd
@@ -257,7 +383,7 @@ models:
           pricePerSecond: 0.052
         - generate_audio: false
           pricePerSecond: 0.026
-  - name: runwayml/gen-4.5  
+  - name: runwayml/gen-4.5
     type: video
     mime:
       - video/mp4
@@ -265,6 +391,76 @@ models:
       function: costByVideoDuration
       inputs: [duration]
       pricePerSecond: 0.12
+  - name: runwayml/upscale-v1
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.02
+  - name: topazlabs/video-upscale
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationResolutionAndFps
+      inputs: [target_resolution, target_fps]
+      prices:
+        - resolution: 720p
+          fps: 30
+          pricePerSecond: 0.0054
+        - resolution: 720p
+          fps: 60
+          pricePerSecond: 0.0106
+        - resolution: 1080p
+          fps: 30
+          pricePerSecond: 0.0186
+        - resolution: 1080p
+          fps: 60
+          pricePerSecond: 0.0374
+        - resolution: 4K
+          fps: 30
+          pricePerSecond: 0.0746
+        - resolution: 4K
+          fps: 60
+          pricePerSecond: 0.1494
+  - name: wan-video/wan2.6-i2v-flash
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 720p
+          pricePerSecond: 0.05
+        - resolution: 1080p
+          pricePerSecond: 0.075
+  - name: wan-video/wan-2.6-i2v
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 720p
+          pricePerSecond: 0.10
+        - resolution: 1080p
+          pricePerSecond: 0.15
+  - name: wan-video/wan-2.6-t2v
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, size]
+      prices:
+        - resolution: 720p
+          pricePerSecond: 0.10
+        - resolution: 1080p
+          pricePerSecond: 0.15
   - name: xai/grok-imagine-video
     type: video
     mime:

@@ -25,9 +25,11 @@ Located in `catalog/producers/asset/`:
 
 | Producer | Description | Key Inputs | Output |
 |----------|-------------|------------|--------|
-| **text-to-image** | Generate images from text | Prompt, AspectRatio, Resolution | image |
-| **image-to-image** | Transform existing images | Prompt, SourceImages, Strength | image |
-| **image-hybrid** | Combine reference images with prompts | Prompt, ReferenceImages, AspectRatio | image |
+| **text-to-image** | Generate raster images from text | Prompt, AspectRatio, Resolution | image |
+| **image-edit** | Edit/transform a single image | Prompt, SourceImage, MaskImage | image |
+| **image-compose** | Combine multiple images | Prompt, SourceImages, MaskImage | image |
+| **text-to-grid-images** | Generate multi-panel storyboard grids | Prompt, GridStyle, PanelCount | image |
+| **text-to-vector** | Generate SVG vector images | Prompt, AspectRatio | image |
 | **text-to-video** | Generate video from text | Prompt, Duration, AspectRatio | video |
 | **image-to-video** | Animate images into video | Prompt, StartImage, Duration | video |
 | **audio-to-video** | Generate lip-synced video | CharacterImage, AudioUrl, Duration | video |

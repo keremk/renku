@@ -171,6 +171,75 @@ mappings:
       Prompt: prompt
       AspectRatio: aspect_ratio
 
+    # Flux 2 family — image_size presets
+    flux-2:
+      Prompt: prompt
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
+    flux-2/flash:
+      Prompt: prompt
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
+    flux-2/turbo:
+      Prompt: prompt
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
+    # Recraft v4 — image_size presets
+    recraft/v4/text-to-image:
+      Prompt: prompt
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
+    recraft/v4/pro/text-to-image:
+      Prompt: prompt
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
+    # Z-Image Turbo — image_size presets
+    z-image/turbo:
+      Prompt: prompt
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
   replicate:
     # Bytedance Seedream 4
     bytedance/seedream-4:
@@ -221,3 +290,94 @@ mappings:
                 "1:1+1K": { width: 1024, height: 1024 }
                 "16:9+": { width: 1024, height: 576 }
                 "1:1+": { width: 1024, height: 1024 }
+
+    # Flux 2 Pro — aspect_ratio + resolution (megapixels)
+    black-forest-labs/flux-2-pro:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      Width:
+        conditional:
+          when:
+            input: AspectRatio
+            equals: custom
+          then:
+            field: width
+      Height:
+        conditional:
+          when:
+            input: AspectRatio
+            equals: custom
+          then:
+            field: height
+
+    # Flux 2 Max — same as Pro
+    black-forest-labs/flux-2-max:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      Width:
+        conditional:
+          when:
+            input: AspectRatio
+            equals: custom
+          then:
+            field: width
+      Height:
+        conditional:
+          when:
+            input: AspectRatio
+            equals: custom
+          then:
+            field: height
+
+    # Flux 2 Klein 9B — aspect_ratio + megapixels
+    black-forest-labs/flux-2-klein-9b:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+      Resolution: megapixels
+
+    # Recraft v4 — aspect_ratio + size
+    recraft-ai/recraft-v4:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+      Resolution:
+        field: size
+        transform:
+          "1K": "1024x1024"
+          "2K": "2048x2048"
+
+    # XAI Grok Imagine Image — aspect_ratio only
+    xai/grok-imagine-image:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+
+    # PrunaAI P-Image — aspect_ratio + width/height
+    prunaai/p-image:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+      Width:
+        conditional:
+          when:
+            input: AspectRatio
+            equals: custom
+          then:
+            field: width
+      Height:
+        conditional:
+          when:
+            input: AspectRatio
+            equals: custom
+          then:
+            field: height
+
+  wavespeed-ai:
+    # Bytedance SeedDream v4.5 — size as WxH string
+    bytedance/seedream-v4.5:
+      Prompt: prompt
+      Resolution:
+        field: size
+        transform:
+          "1K": "1024*1024"
+          "2K": "2048*2048"
+          "4K": "4096*4096"

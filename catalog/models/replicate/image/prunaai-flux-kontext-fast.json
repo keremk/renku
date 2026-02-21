@@ -1,0 +1,83 @@
+{
+  "type": "object",
+  "title": "Input",
+  "required": [
+    "prompt",
+    "img_cond_path"
+  ],
+  "properties": {
+    "seed": {
+      "type": "integer",
+      "title": "Seed",
+      "default": -1,
+      "description": "Seed"
+    },
+    "prompt": {
+      "type": "string",
+      "title": "Prompt",
+      "description": "Prompt"
+    },
+    "guidance": {
+      "type": "number",
+      "title": "Guidance",
+      "default": 3.5,
+      "description": "Guidance scale"
+    },
+    "image_size": {
+      "type": "integer",
+      "title": "Image Size",
+      "default": 1024,
+      "description": "Base image size (longest side)"
+    },
+    "speed_mode": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/speed_mode"
+        }
+      ],
+      "default": "Extra Juiced 🔥 (more speed)",
+      "x-order": 2,
+      "description": "Speed optimization level"
+    },
+    "aspect_ratio": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/aspect_ratio"
+        }
+      ],
+      "default": "match_input_image",
+      "x-order": 6,
+      "description": "Aspect ratio of the output image"
+    },
+    "img_cond_path": {
+      "type": "string",
+      "title": "Img Cond Path",
+      "format": "uri",
+      "description": "Input image for image to image mode. The aspect ratio of your output will match this image"
+    },
+    "output_format": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/output_format"
+        }
+      ],
+      "default": "jpg",
+      "x-order": 8,
+      "description": "Output format"
+    },
+    "output_quality": {
+      "type": "integer",
+      "title": "Output Quality",
+      "default": 80,
+      "maximum": 100,
+      "minimum": 1,
+      "description": "Output quality (for jpg and webp)"
+    },
+    "num_inference_steps": {
+      "type": "integer",
+      "title": "Num Inference Steps",
+      "default": 30,
+      "description": "Number of inference steps"
+    }
+  }
+}

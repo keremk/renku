@@ -81,7 +81,7 @@ producers:
   - name: StoryboardDirector
     path: ./storyboard-director/storyboard-director.yaml
   - name: StoryboardImageProducer
-    producer: asset/text-to-storyboard-image
+    producer: asset/text-to-grid-images
   - name: VideoProducer
     producer: asset/image-to-video
     loop: clip

@@ -82,7 +82,7 @@ This guide helps you choose the right image generation model based on your speci
 ### Flux Pro Kontext
 
 **Provider:** fal-ai
-**ID:** `flux-pro/kontext/text-to-image`, `flux-pro/kontext` (image-to-image)
+**ID:** `flux-pro/kontext/text-to-image`, `flux-pro/kontext` (image-edit)
 
 **Strengths:**
 - Simple API
@@ -108,7 +108,7 @@ This guide helps you choose the right image generation model based on your speci
 ### Qwen Image
 
 **Provider:** fal-ai, replicate
-**ID:** `qwen-image-2512` (text-to-image), `qwen-image-edit-2511` (image-to-image), `qwen/qwen-image` (hybrid)
+**ID:** `qwen-image-2512` (text-to-image), `qwen-image-edit-2511` (image-edit/image-compose), `qwen/qwen-image` (image-edit)
 
 **Strengths:**
 - Full editing support with masks
@@ -203,7 +203,7 @@ This guide helps you choose the right image generation model based on your speci
 ### WAN v2.6
 
 **Provider:** fal-ai
-**ID:** `wan/v2.6/text-to-image`, `wan/v2.6/image-to-image`
+**ID:** `wan/v2.6/text-to-image`, `wan/v2.6/image-to-image` (image-edit/image-compose)
 
 **Strengths:**
 - Prompt expansion
@@ -235,32 +235,87 @@ This guide helps you choose the right image generation model based on your speci
 | `nano-banana-pro` | fal-ai | Multiple | Multiple |
 | `qwen-image-2512` | fal-ai | Multiple | Quality |
 | `wan/v2.6/text-to-image` | fal-ai | Standard | Presets |
+| `hunyuan-image/v3/instruct/text-to-image` | fal-ai | Standard | Custom W/H |
+| `xai/grok-imagine-image` | fal-ai | Standard | N/A |
+| `flux-2` | fal-ai | Standard | Presets |
+| `flux-2/flash` | fal-ai | Standard | Fast |
+| `flux-2/turbo` | fal-ai | Standard | Fastest |
+| `recraft/v4/text-to-image` | fal-ai | Standard | Presets |
+| `recraft/v4/pro/text-to-image` | fal-ai | Standard | High quality |
+| `z-image/turbo` | fal-ai | Standard | Presets |
 | `bytedance/seedream-4` | replicate | Multiple | 1K-4K |
 | `bytedance/seedream-4.5` | replicate | Multiple | 2K-4K |
 | `google/nano-banana` | replicate | Multiple | N/A |
 | `google/imagen-4` | replicate | 5 options | N/A |
 | `prunaai/z-image-turbo` | replicate | Via W/H | Custom |
+| `black-forest-labs/flux-2-pro` | replicate | Standard | Megapixels |
+| `black-forest-labs/flux-2-max` | replicate | Standard | Megapixels |
+| `black-forest-labs/flux-2-klein-9b` | replicate | Standard | Megapixels |
+| `recraft-ai/recraft-v4` | replicate | Standard | Size enum |
+| `xai/grok-imagine-image` | replicate | Standard | N/A |
+| `prunaai/p-image` | replicate | Standard | Custom W/H |
+| `bytedance/seedream-v4.5` | wavespeed-ai | N/A | Size string |
 
-### image-to-image.yaml
+### image-edit.yaml
 
 | Model | Provider | Mask Support | Key Feature |
 |-------|----------|--------------|-------------|
-| `qwen-image-edit-2511` | fal-ai | No | Full editing |
+| `flux-pro/kontext` | fal-ai | No | Single image editing |
+| `xai/grok-imagine-image/edit` | fal-ai | No | Single image editing |
+| `z-image/turbo/image-to-image` | fal-ai | No | Fast single image edit |
+| `bria/fibo-edit/edit` | fal-ai | Yes | Instruction-based editing |
+| `flux-2/edit` | fal-ai | No | Edit via firstOf |
+| `flux-2/flash/edit` | fal-ai | No | Fast edit via firstOf |
+| `flux-2/turbo/edit` | fal-ai | No | Fastest edit via firstOf |
+| `bytedance/seedream/v4/edit` | fal-ai | No | Edit via firstOf |
+| `bytedance/seedream/v4.5/edit` | fal-ai | No | High quality edit |
 | `gpt-image-1.5/edit` | fal-ai | Yes | Background control |
-| `wan/v2.6/image-to-image` | fal-ai | No | Prompt expansion |
-| `flux-pro/kontext` | fal-ai | No | Simple editing |
 | `nano-banana-pro/edit` | fal-ai | No | Aspect + resolution |
-| `qwen/qwen-image-edit-2511` | replicate | No | Safety control |
+| `qwen-image-edit-2511` | fal-ai | No | Full editing |
+| `wan/v2.6/image-to-image` | fal-ai | No | Prompt expansion |
+| `hunyuan-image/v3/instruct/edit` | fal-ai | No | Custom dimensions |
+| `qwen/qwen-image` | replicate | No | Quality modes |
+| `prunaai/flux-kontext-fast` | replicate | No | Fast single edit |
+| `qwen/qwen-image-edit-2511` | replicate | No | Edit via firstOf |
 
-### image-hybrid.yaml
+### image-compose.yaml
 
-| Model | Provider | Reference Support | Key Feature |
-|-------|----------|-------------------|-------------|
-| `bytedance/seedream-4.5` | replicate | Yes | High resolution |
-| `bytedance/seedream-4` | replicate | Yes | Prompt enhancement |
-| `google/nano-banana-pro` | replicate | Yes | Aspect + resolution |
-| `google/nano-banana` | replicate | Yes | Simple |
-| `qwen/qwen-image` | replicate | First only | Quality modes |
+| Model | Provider | Max Images | Key Feature |
+|-------|----------|------------|-------------|
+| `bytedance/seedream/v4/edit` | fal-ai | 10 | Multi-image composition |
+| `bytedance/seedream/v4.5/edit` | fal-ai | 10 | High quality compose |
+| `wan/v2.6/image-to-image` | fal-ai | 3 | Order-aware composition |
+| `flux-2/edit` | fal-ai | 4 | Multi-image composition |
+| `flux-2/flash/edit` | fal-ai | 4 | Fast composition |
+| `flux-2/turbo/edit` | fal-ai | 4 | Fastest composition |
+| `gpt-image-1.5/edit` | fal-ai | Multiple | Mask + composition |
+| `nano-banana-pro/edit` | fal-ai | Multiple | Aspect + resolution |
+| `qwen-image-edit-2511` | fal-ai | Multiple | Full composition |
+| `hunyuan-image/v3/instruct/edit` | fal-ai | 2 | Custom dimensions |
+| `bytedance/seedream-4.5` | replicate | 14 | High resolution |
+| `bytedance/seedream-4` | replicate | 10 | Prompt enhancement |
+| `google/nano-banana-pro` | replicate | Multiple | Aspect + resolution |
+| `google/nano-banana` | replicate | Multiple | Simple |
+| `qwen/qwen-image-edit-2511` | replicate | Multiple | Safety control |
+| `black-forest-labs/flux-2-pro` | replicate | 8 | High quality |
+| `black-forest-labs/flux-2-max` | replicate | 8 | Maximum quality |
+| `black-forest-labs/flux-2-flex` | replicate | 10 | Multi-reference design |
+| `black-forest-labs/flux-kontext-pro` | replicate | 1 (firstOf) | Context-aware |
+
+### text-to-grid-images.yaml
+
+| Model | Provider | Key Feature |
+|-------|----------|-------------|
+| `nano-banana-pro` | fal-ai | Reliable grid layouts |
+| `gpt-image-1.5` | fal-ai | Reliable grid layouts |
+
+### text-to-vector.yaml
+
+| Model | Provider | Key Feature |
+|-------|----------|-------------|
+| `recraft/v4/text-to-vector` | fal-ai | SVG vector output |
+| `recraft/v4/pro/text-to-vector` | fal-ai | Higher quality SVG |
+| `recraft-ai/recraft-v4-svg` | replicate | SVG vector output |
 
 ---
 

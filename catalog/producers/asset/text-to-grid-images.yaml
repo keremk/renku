@@ -1,0 +1,60 @@
+meta:
+  name: Text-to-Grid Image Generator
+  description: Generate a single grid image from text and split it into individual panel images using ffmpeg locally. Specialized for multi-panel storyboard-style layouts. Only the most reliable grid generators are included.
+  id: TextToGridImagesProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Text description of the image to generate.
+    type: string
+  - name: GridStyle
+    description: "Storyboard grid style (e.g., '3x3', '2x2', '2x3')."
+    type: string
+  - name: PanelCount
+    description: "Number of panels in the storyboard grid (should equal cols x rows from GridStyle)."
+    type: integer
+
+  # Sizing
+  - name: AspectRatio
+    description: "Aspect ratio (16:9, 9:16, 1:1, 4:3, 3:4, 3:2, 2:3, 21:9, 4:5, 5:4)."
+    type: string
+  - name: Resolution
+    description: "Resolution preset (1K, 2K, 4K)."
+    type: string
+  - name: Width
+    description: Custom width in pixels.
+    type: integer
+  - name: Height
+    description: Custom height in pixels.
+    type: integer
+
+artifacts:
+  - name: GeneratedImage
+    description: The full grid image.
+    type: image
+  - name: PanelImages
+    description: Individual panel images extracted from the grid.
+    type: array
+    itemType: image
+    countInput: PanelCount
+
+mappings:
+  fal-ai:
+    # Only the most reliable grid generators are included
+    nano-banana-pro:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+
+    gpt-image-1.5:
+      Prompt: prompt
+      AspectRatio:
+        field: image_size
+        transform:
+          "1:1": "1024x1024"
+          "16:9": "1536x1024"
+          "9:16": "1024x1536"

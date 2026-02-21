@@ -1,0 +1,267 @@
+meta:
+  name: Image Editor
+  description: Edit or transform a single existing image. Takes one source image and applies prompt-guided modifications like style changes, object removal, relighting, or inpainting. Use this when you have one specific image you want to modify.
+  id: ImageEditProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Text instruction for the edit or transformation.
+    type: string
+  - name: SourceImage
+    description: The single image to edit or transform.
+    type: image
+
+  # Optional mask for selective editing
+  - name: MaskImage
+    description: Mask image for selective region editing (white=edit, black=keep).
+    type: image
+
+  # Sizing
+  - name: AspectRatio
+    description: "Output aspect ratio."
+    type: string
+  - name: Resolution
+    description: "Output resolution preset (1K, 2K, 4K)."
+    type: string
+  - name: Width
+    description: Custom output width in pixels.
+    type: integer
+  - name: Height
+    description: Custom output height in pixels.
+    type: integer
+
+artifacts:
+  - name: TransformedImage
+    description: The edited/transformed image.
+    type: image
+
+mappings:
+  fal-ai:
+    # --- Single-image-only models (ONLY in image-edit, NOT in image-compose) ---
+
+    flux-pro/kontext:
+      Prompt: prompt
+      SourceImage: image_url
+      AspectRatio: aspect_ratio
+
+    xai/grok-imagine-image/edit:
+      Prompt: prompt
+      SourceImage: image_url
+
+    z-image/turbo/image-to-image:
+      Prompt: prompt
+      SourceImage: image_url
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
+    bria/fibo-edit/edit:
+      Prompt:
+        field: instruction
+      SourceImage: image_url
+      MaskImage: mask_url
+
+    # --- Array-accepting models mapped with firstOf (also in image-compose) ---
+
+    flux-2/edit:
+      Prompt: prompt
+      SourceImage:
+        field: image_urls
+        firstOf: true
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
+    flux-2/flash/edit:
+      Prompt: prompt
+      SourceImage:
+        field: image_urls
+        firstOf: true
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
+    flux-2/turbo/edit:
+      Prompt: prompt
+      SourceImage:
+        field: image_urls
+        firstOf: true
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
+    bytedance/seedream/v4/edit:
+      Prompt: prompt
+      SourceImage:
+        field: image_urls
+        firstOf: true
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+          "3:2": landscape_4_3
+          "2:3": portrait_4_3
+
+    bytedance/seedream/v4.5/edit:
+      Prompt: prompt
+      SourceImage:
+        field: image_urls
+        firstOf: true
+      # AspectRatio + Resolution combine into image_size
+      ImageSize:
+        field: image_size
+        combine:
+          inputs: [AspectRatio, Resolution]
+          table:
+            "+2K": auto_2K
+            "+4K": auto_4K
+            "16:9+": landscape_16_9
+            "9:16+": portrait_16_9
+            "4:3+": landscape_4_3
+            "3:4+": portrait_4_3
+            "1:1+": square_hd
+            "16:9+2K": auto_2K
+            "16:9+4K": auto_4K
+            "1:1+2K": auto_2K
+            "1:1+4K": auto_4K
+
+    gpt-image-1.5/edit:
+      Prompt: prompt
+      SourceImage:
+        field: image_urls
+        firstOf: true
+      MaskImage: mask_image_url
+      AspectRatio:
+        field: image_size
+        transform:
+          "1:1": "1024x1024"
+          "16:9": "1536x1024"
+          "9:16": "1024x1536"
+          "auto": "auto"
+
+    nano-banana-pro/edit:
+      Prompt: prompt
+      SourceImage:
+        field: image_urls
+        firstOf: true
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+
+    qwen-image-edit-2511:
+      Prompt: prompt
+      SourceImage:
+        field: image_urls
+        firstOf: true
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
+    wan/v2.6/image-to-image:
+      Prompt: prompt
+      SourceImage:
+        field: image_urls
+        firstOf: true
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
+    hunyuan-image/v3/instruct/edit:
+      Prompt: prompt
+      SourceImage:
+        field: image_urls
+        firstOf: true
+      # AspectRatio preset - only applied when Width is not provided
+      AspectRatio:
+        conditional:
+          when:
+            input: Width
+            empty: true
+          then:
+            field: image_size
+            transform:
+              "16:9": landscape_16_9
+              "9:16": portrait_16_9
+              "4:3": landscape_4_3
+              "3:4": portrait_4_3
+              "1:1": square_hd
+      # Custom dimensions via Width/Height (takes precedence over AspectRatio)
+      Width:
+        conditional:
+          when:
+            input: Width
+            notEmpty: true
+          then:
+            field: image_size.width
+      Height:
+        conditional:
+          when:
+            input: Width
+            notEmpty: true
+          then:
+            field: image_size.height
+
+  replicate:
+    # --- Single-image-only models (ONLY in image-edit) ---
+
+    qwen/qwen-image:
+      Prompt: prompt
+      SourceImage: image
+      AspectRatio: aspect_ratio
+      Resolution:
+        field: image_size
+        transform:
+          "1K": optimize_for_speed
+          "2K": optimize_for_quality
+          "4K": optimize_for_quality
+
+    prunaai/flux-kontext-fast:
+      Prompt: prompt
+      SourceImage: img_cond_path
+      AspectRatio: aspect_ratio
+
+    # --- Array-accepting models mapped with firstOf (also in image-compose) ---
+
+    qwen/qwen-image-edit-2511:
+      Prompt: prompt
+      SourceImage:
+        field: image
+        firstOf: true
+      AspectRatio: aspect_ratio

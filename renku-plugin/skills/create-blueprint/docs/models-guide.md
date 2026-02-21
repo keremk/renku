@@ -74,22 +74,33 @@ For a comprehensive decision tree covering all 12 video producers, see [Video Pr
 
 ```
 What is your starting point?
-├── Text only → text-to-image.yaml
-│               Use cases:
-│               • Generate new images from descriptions
-│               • No reference images needed
+├── Text only → What kind of output?
+│               ├── Raster image → text-to-image.yaml
+│               │                  Use cases:
+│               │                  • Generate new images from descriptions
+│               │                  • No reference images needed
+│               │
+│               ├── SVG vector → text-to-vector.yaml
+│               │                Use cases:
+│               │                • Logos, icons, illustrations
+│               │                • Scalable design assets
+│               │
+│               └── Grid/storyboard → text-to-grid-images.yaml
+│                                     Use cases:
+│                                     • Multi-panel storyboard grids
+│                                     • Split into individual panel images
 │
-├── Existing image to edit → image-to-image.yaml
-│                            Use cases:
-│                            • Edit specific regions (with mask)
-│                            • Transform/stylize existing image
-│                            • Generate variations
+├── Single image to edit → image-edit.yaml
+│                          Use cases:
+│                          • Edit specific regions (with mask)
+│                          • Transform/stylize existing image
+│                          • Style changes, object removal, relighting
 │
-└── Text + optional style reference → image-hybrid.yaml
-                                      Use cases:
-                                      • Text prompt with optional style guide
-                                      • Flexible: works with or without references
-                                      • Style transfer with text guidance
+└── Multiple images to combine → image-compose.yaml
+                                 Use cases:
+                                 • Combine elements from multiple source images
+                                 • "Put person from image 1 in setting from image 2"
+                                 • Multi-reference composition
 ```
 
 ### Audio Generation
@@ -136,9 +147,11 @@ What type of audio do you need?
 
 | Producer | ID | Best For | Key Inputs |
 |----------|-----|----------|------------|
-| **text-to-image.yaml** | `TextToImageProducer` | New images from text | `Prompt`, `AspectRatio` |
-| **image-to-image.yaml** | `ImageToImageProducer` | Edit/transform existing images | `SourceImages`, `Prompt`, `MaskImage` (optional) |
-| **image-hybrid.yaml** | `ImageHybridProducer` | Text + optional reference images | `Prompt`, `ReferenceImages` (optional) |
+| **text-to-image.yaml** | `TextToImageProducer` | New raster images from text | `Prompt`, `AspectRatio` |
+| **image-edit.yaml** | `ImageEditProducer` | Edit/transform a single image | `SourceImage`, `Prompt`, `MaskImage` (optional) |
+| **image-compose.yaml** | `ImageComposeProducer` | Combine multiple images | `SourceImages`, `Prompt` |
+| **text-to-grid-images.yaml** | `TextToGridImagesProducer` | Multi-panel storyboard grids | `Prompt`, `GridStyle`, `PanelCount` |
+| **text-to-vector.yaml** | `TextToVectorProducer` | SVG vector images | `Prompt`, `AspectRatio` |
 
 ### Audio Producers
 
@@ -155,7 +168,8 @@ For detailed model comparisons and capabilities, see these specialized guides:
 
 - [Video Producer Guidance](./video-producer-guidance.md) - Decision tree for choosing the right video producer
 - [Video Models Guide](./video-models.md) - Veo, Seedance, Kling, Hailuo, WAN, Sora comparisons
-- [Image Models Guide](./image-models.md) - SeedDream, Flux Kontext, Qwen, Imagen comparisons
+- [Image Producer Guidance](./image-producer-guidance.md) - Decision tree for choosing the right image producer
+- [Image Models Guide](./image-models.md) - SeedDream, Flux, Recraft, Qwen, Imagen comparisons
 - [Audio Models Guide](./audio-models.md) - ElevenLabs, MiniMax Speech, Chatterbox, music models
 - [Prompting Templates](./prompting-templates.md) - Use-case specific prompting patterns
 
