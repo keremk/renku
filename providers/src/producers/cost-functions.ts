@@ -52,6 +52,8 @@ export type CostFunctionName =
 	| 'costByVideoDuration'
 	| 'costByVideoDurationAndResolution'
 	| 'costByVideoDurationAndWithAudio'
+	| 'costByVideoDurationAndMode'
+	| 'costByVideoDurationModeAndAudio'
 	| 'costByRun'
 	| 'costByCharacters'
 	| 'costByCharactersAndPlan'
@@ -88,6 +90,23 @@ export interface ImageSizeQualityPriceEntry {
 }
 
 /**
+ * Price entry for mode-based video pricing (e.g., standard/pro).
+ */
+export interface ModePriceEntry {
+	mode: string;
+	pricePerSecond: number;
+}
+
+/**
+ * Price entry for mode + audio flag video pricing.
+ */
+export interface ModeAudioPriceEntry {
+	mode: string;
+	generate_audio: boolean;
+	pricePerSecond: number;
+}
+
+/**
  * Price entry for video token-based pricing.
  */
 export interface VideoTokenPriceEntry {
@@ -115,7 +134,7 @@ export interface ModelPriceConfig {
 	pricePerCharacter?: number;
 	pricePerMillionTokens?: number;
 	pricePerMegapixel?: number;
-	prices?: Array<ResolutionPriceEntry | AudioFlagPriceEntry | ImageSizeQualityPriceEntry | VideoTokenPriceEntry>;
+	prices?: Array<ResolutionPriceEntry | AudioFlagPriceEntry | ImageSizeQualityPriceEntry | VideoTokenPriceEntry | ModePriceEntry | ModeAudioPriceEntry>;
 	// Plan-based pricing for ElevenLabs
 	pricePerCharByPlan?: Record<string, number>;
 	defaultPlan?: string;
@@ -538,6 +557,120 @@ function costByVideoDurationAndWithAudio(
 			cost: duration * (fallback?.pricePerSecond ?? 0),
 			isPlaceholder: true,
 			note: `No price for generate_audio=${generateAudio}`,
+		};
+	}
+	return { cost: duration * match.pricePerSecond, isPlaceholder: false };
+}
+
+function costByVideoDurationAndMode(
+	config: ModelPriceConfig,
+	extracted: ExtractedCostInputs
+): CostEstimate {
+	const prices = config.prices as ModePriceEntry[] | undefined;
+	if (!prices || prices.length === 0) {
+		return { cost: 0, isPlaceholder: true, note: 'Missing mode prices' };
+	}
+
+	const inputs = config.inputs ?? [];
+	const durationField = inputs[0];
+	const modeField = inputs[1];
+
+	const durationValue = durationField ? extracted.values[durationField] : undefined;
+	const duration = parseDurationValue(durationValue);
+
+	if (extracted.artefactSourcedFields.length > 0) {
+		if (duration === undefined) {
+			return { cost: 0, isPlaceholder: true, note: 'Missing duration, cannot calculate' };
+		}
+		const minRate = Math.min(...prices.map(p => p.pricePerSecond));
+		const maxRate = Math.max(...prices.map(p => p.pricePerSecond));
+		return {
+			cost: duration * (minRate + maxRate) / 2,
+			isPlaceholder: true,
+			note: `Some inputs from artefact: ${extracted.artefactSourcedFields.join(', ')}`,
+			range: {
+				min: duration * minRate,
+				max: duration * maxRate,
+				samples: prices.map(p => ({ label: `${duration}s @ ${p.mode}`, cost: duration * p.pricePerSecond })),
+			},
+		};
+	}
+
+	if (duration === undefined) {
+		return { cost: 0, isPlaceholder: true, note: 'Missing duration, cannot calculate' };
+	}
+
+	const modeValue = modeField ? (extracted.values[modeField] as string | undefined) : undefined;
+	const mode = modeValue ?? prices[0].mode;
+
+	const match = prices.find(p => p.mode === mode);
+	if (!match) {
+		const fallback = prices[0];
+		return {
+			cost: duration * fallback.pricePerSecond,
+			isPlaceholder: true,
+			note: `No price for mode=${mode}`,
+		};
+	}
+	return { cost: duration * match.pricePerSecond, isPlaceholder: false };
+}
+
+function costByVideoDurationModeAndAudio(
+	config: ModelPriceConfig,
+	extracted: ExtractedCostInputs
+): CostEstimate {
+	const prices = config.prices as ModeAudioPriceEntry[] | undefined;
+	if (!prices || prices.length === 0) {
+		return { cost: 0, isPlaceholder: true, note: 'Missing mode+audio prices' };
+	}
+
+	const inputs = config.inputs ?? [];
+	const durationField = inputs[0];
+	const modeField = inputs[1];
+	const audioField = inputs[2];
+
+	const durationValue = durationField ? extracted.values[durationField] : undefined;
+	const duration = parseDurationValue(durationValue);
+
+	if (extracted.artefactSourcedFields.length > 0) {
+		if (duration === undefined) {
+			return { cost: 0, isPlaceholder: true, note: 'Missing duration, cannot calculate' };
+		}
+		const minRate = Math.min(...prices.map(p => p.pricePerSecond));
+		const maxRate = Math.max(...prices.map(p => p.pricePerSecond));
+		return {
+			cost: duration * (minRate + maxRate) / 2,
+			isPlaceholder: true,
+			note: `Some inputs from artefact: ${extracted.artefactSourcedFields.join(', ')}`,
+			range: {
+				min: duration * minRate,
+				max: duration * maxRate,
+				samples: prices.map(p => ({
+					label: `${duration}s @ ${p.mode} ${p.generate_audio ? 'with' : 'without'} audio`,
+					cost: duration * p.pricePerSecond,
+				})),
+			},
+		};
+	}
+
+	if (duration === undefined) {
+		return { cost: 0, isPlaceholder: true, note: 'Missing duration, cannot calculate' };
+	}
+
+	const modeValue = modeField ? (extracted.values[modeField] as string | undefined) : undefined;
+	const mode = modeValue ?? prices[0].mode;
+	const audioValue = audioField ? extracted.values[audioField] : undefined;
+	const generateAudio = audioValue === true;
+
+	const match = prices.find(p => p.mode === mode && p.generate_audio === generateAudio);
+	if (!match) {
+		// Try matching mode only
+		const modeMatch = prices.find(p => p.mode === mode);
+		const fallback = modeMatch ?? prices[0];
+		return {
+			cost: duration * fallback.pricePerSecond,
+			isPlaceholder: true,
+			note: `No exact price for mode=${mode}, audio=${generateAudio}`,
 		};
 	}
 	return { cost: duration * match.pricePerSecond, isPlaceholder: false };
@@ -1179,6 +1312,10 @@ export function calculateCost(
 			return costByVideoDurationAndResolution(priceConfig, extracted);
 		case 'costByVideoDurationAndWithAudio':
 			return costByVideoDurationAndWithAudio(priceConfig, extracted);
+		case 'costByVideoDurationAndMode':
+			return costByVideoDurationAndMode(priceConfig, extracted);
+		case 'costByVideoDurationModeAndAudio':
+			return costByVideoDurationModeAndAudio(priceConfig, extracted);
 		case 'costByRun':
 			return costByRun(priceConfig, extracted);
 		case 'costByCharacters':
@@ -1533,6 +1670,26 @@ export function formatPrice(price: ModelPriceConfig | number | undefined): strin
 			}
 			return entries
 				.map((e) => `${e.generate_audio ? 'audio' : 'no-audio'}: $${e.pricePerSecond.toFixed(2)}/s`)
+				.join(', ');
+		}
+
+		case 'costByVideoDurationAndMode': {
+			const entries = price.prices as ModePriceEntry[] | undefined;
+			if (!entries || entries.length === 0) {
+				return '-';
+			}
+			return entries
+				.map((e) => `${e.mode}: $${e.pricePerSecond.toFixed(3)}/s`)
+				.join(', ');
+		}
+
+		case 'costByVideoDurationModeAndAudio': {
+			const entries = price.prices as ModeAudioPriceEntry[] | undefined;
+			if (!entries || entries.length === 0) {
+				return '-';
+			}
+			return entries
+				.map((e) => `${e.mode}${e.generate_audio ? '+audio' : ''}: $${e.pricePerSecond.toFixed(3)}/s`)
 				.join(', ');
 		}
 

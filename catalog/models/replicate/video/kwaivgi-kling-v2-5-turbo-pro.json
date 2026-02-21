@@ -1,0 +1,65 @@
+{
+  "type": "object",
+  "title": "Input",
+  "required": [
+    "prompt"
+  ],
+  "properties": {
+    "image": {
+      "type": "string",
+      "title": "Image",
+      "format": "uri",
+      "x-order": 6,
+      "nullable": true,
+      "deprecated": true,
+      "description": "Deprecated: Use start_image instead."
+    },
+    "prompt": {
+      "type": "string",
+      "title": "Prompt",
+      "x-order": 0,
+      "description": "Text prompt for video generation"
+    },
+    "duration": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/duration"
+        }
+      ],
+      "default": 5,
+      "x-order": 5,
+      "description": "Duration of the video in seconds"
+    },
+    "end_image": {
+      "type": "string",
+      "title": "End Image",
+      "format": "uri",
+      "x-order": 3,
+      "description": "Last frame of the video"
+    },
+    "start_image": {
+      "type": "string",
+      "title": "Start Image",
+      "format": "uri",
+      "x-order": 2,
+      "description": "First frame of the video"
+    },
+    "aspect_ratio": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/aspect_ratio"
+        }
+      ],
+      "default": "16:9",
+      "x-order": 4,
+      "description": "Aspect ratio of the video. Ignored if start_image is provided."
+    },
+    "negative_prompt": {
+      "type": "string",
+      "title": "Negative Prompt",
+      "default": "",
+      "x-order": 1,
+      "description": "Things you do not want to see in the video"
+    }
+  }
+}
