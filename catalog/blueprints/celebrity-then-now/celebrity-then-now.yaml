@@ -114,26 +114,26 @@ producers:
 
   # Image composition - create consistent images from user photos
   - name: ThenImageProducer
-    producer: asset/image-compose
+    producer: image/image-compose
     loop: character
   - name: NowImageProducer
-    producer: asset/image-compose
+    producer: image/image-compose
     loop: character
   - name: TogetherImageProducer
-    producer: asset/image-compose
+    producer: image/image-compose
     loop: character
 
   # Video generation - meeting and transition segments
   - name: MeetingVideoProducer
-    producer: asset/image-to-video
+    producer: video/image-to-video
     loop: character
   - name: TransitionVideoProducer
-    producer: asset/image-to-video
+    producer: video/image-to-video
     loop: character
 
   # Music
   - name: MusicProducer
-    producer: asset/text-to-music
+    producer: audio/text-to-music
 
   # Composition
   - name: TimelineComposer

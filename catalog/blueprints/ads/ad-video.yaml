@@ -85,17 +85,17 @@ producers:
   - name: AdScriptProducer
     path: ./ad-script/ad-script.yaml
   - name: CharacterImageProducer
-    producer: asset/text-to-image
+    producer: image/text-to-image
   - name: ProductImageProducer
-    producer: asset/text-to-image
+    producer: image/text-to-image
   - name: VideoProducer
-    producer: asset/ref-image-to-video
+    producer: video/ref-image-to-video
     loop: clip
   - name: AudioProducer
-    producer: asset/text-to-speech
+    producer: audio/text-to-speech
     loop: clip
   - name: MusicProducer
-    producer: asset/text-to-music
+    producer: audio/text-to-music
   - name: TimelineComposer
     producer: composition/timeline-composer
   - name: VideoExporter

@@ -95,19 +95,19 @@ producers:
   - name: DocProducer
     path: ./documentary-talkinghead/documentary-talkinghead.yaml
   - name: ImageProducer
-    producer: asset/text-to-image
+    producer: image/text-to-image
     loop: segment.image
   - name: AudioProducer
-    producer: asset/text-to-speech
+    producer: audio/text-to-speech
     loop: segment
   - name: VideoProducer
-    producer: asset/text-to-video
+    producer: video/text-to-video
     loop: segment
   - name: TalkingHeadImageProducer
-    producer: asset/text-to-image
+    producer: image/text-to-image
     loop: segment
   - name: TalkingHeadVideoProducer
-    producer: asset/text-to-talking-head
+    producer: video/text-to-talking-head
     loop: segment
   - name: TimelineComposer
     producer: composition/timeline-composer

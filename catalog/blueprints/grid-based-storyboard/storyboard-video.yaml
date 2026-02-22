@@ -81,12 +81,12 @@ producers:
   - name: StoryboardDirector
     path: ./storyboard-director/storyboard-director.yaml
   - name: StoryboardImageProducer
-    producer: asset/text-to-grid-images
+    producer: image/text-to-grid-images
   - name: VideoProducer
-    producer: asset/image-to-video
+    producer: video/image-to-video
     loop: clip
   - name: MusicProducer
-    producer: asset/text-to-music
+    producer: audio/text-to-music
   - name: TimelineComposer
     producer: composition/timeline-composer
   - name: VideoExporter

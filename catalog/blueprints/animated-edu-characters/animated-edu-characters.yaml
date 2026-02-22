@@ -69,17 +69,17 @@ producers:
 
   # Character image generation (one per segment)
   - name: CharacterImageProducer
-    producer: asset/text-to-image
+    producer: image/text-to-image
     loop: segment
 
   # Narration audio generation (one per segment)
   - name: NarrationAudioProducer
-    producer: asset/text-to-speech
+    producer: audio/text-to-speech
     loop: segment
 
   # Lipsync video generation (character + audio = talking video)
   - name: LipsyncVideoProducer
-    producer: asset/talking-head
+    producer: video/talking-head
     loop: segment
 
   # Timeline composition
@@ -88,7 +88,7 @@ producers:
 
   # Transcription for karaoke subtitles
   - name: TranscriptionProducer
-    producer: asset/transcription
+    producer: json/transcription
 
   # Final video export
   - name: VideoExporter

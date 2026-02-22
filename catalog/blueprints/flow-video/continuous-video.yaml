@@ -70,19 +70,19 @@ producers:
   - name: ScenarioPromptProducer
     path: ./scenario-prompt/scenario-prompt.yaml
   - name: InitialImageProducer
-    producer: asset/text-to-image
+    producer: image/text-to-image
   - name: VideoProducer
-    producer: asset/image-to-video
+    producer: video/image-to-video
     loop: segment
   - name: AudioProducer
-    producer: asset/text-to-speech
+    producer: audio/text-to-speech
     loop: segment
   - name: MusicProducer
-    producer: asset/text-to-music
+    producer: audio/text-to-music
   - name: TimelineComposer
     producer: composition/timeline-composer
   - name: TranscriptionProducer
-    producer: asset/transcription
+    producer: json/transcription
   - name: VideoExporter
     producer: composition/video-exporter
 
