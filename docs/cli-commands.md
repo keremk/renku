@@ -235,14 +235,14 @@ Create a new movie or continue an existing one.
 **Usage (new run):**
 
 ```bash
-renku generate [<inquiry-prompt>] --inputs=<path> --blueprint=<path> [--dry-run] [--non-interactive] [--up-to-layer=<n>] [--re-run-from=<n>]
+renku generate --inputs=<path> --blueprint=<path> [--dry-run] [--dry-run-profile=<path>|--profile=<path>] [--non-interactive] [--up-to-layer=<n>] [--re-run-from=<n>]
 ```
 
 **Usage (continue an existing movie):**
 
 ```bash
-renku generate --movie-id=<movie-id> --inputs=<path> [--dry-run] [--non-interactive] [--up-to-layer=<n>] [--re-run-from=<n>]
-renku generate --last --inputs=<path> [--dry-run] [--non-interactive] [--up-to-layer=<n>] [--re-run-from=<n>]
+renku generate --movie-id=<movie-id> --inputs=<path> [--dry-run] [--dry-run-profile=<path>|--profile=<path>] [--non-interactive] [--up-to-layer=<n>] [--re-run-from=<n>]
+renku generate --last --inputs=<path> [--dry-run] [--dry-run-profile=<path>|--profile=<path>] [--non-interactive] [--up-to-layer=<n>] [--re-run-from=<n>]
 ```
 
 **Usage (surgical regeneration of specific artifacts):**
@@ -266,6 +266,7 @@ renku generate --movie-id=<movie-id> --inputs=<path> --pin=<canonical-id> [--pin
 - `--movie-id` / `--id` (mutually exclusive with `--last`): Continue a specific movie
 - `--last` (mutually exclusive with `--movie-id`): Continue the most recent movie (fails if none recorded)
 - `--dry-run`: Execute a mocked run without calling providers
+- `--dry-run-profile` / `--profile`: Path to a dry-run profile file (requires `--dry-run`)
 - `--non-interactive`: Skip confirmation prompt
 - `--up-to-layer` / `--up`: Stop execution after the specified layer (live runs only)
 - `--re-run-from` / `--from`: Re-run from specified layer (0-indexed), skipping earlier layers
@@ -284,14 +285,20 @@ renku generate --movie-id=<movie-id> --inputs=<path> --pin=<canonical-id> [--pin
 **Examples:**
 
 ```bash
-# New run with inline prompt
-renku generate "Explain black holes" --inputs=~/inputs.yaml --blueprint=~/.renku/blueprints/audio-only.yaml
+# New run
+renku generate --inputs=~/inputs.yaml --blueprint=~/.renku/blueprints/audio-only.yaml
 
 # Continue a specific movie
 renku generate --movie-id=movie-q123456 --inputs=./inputs.yaml --up-to-layer=1
 
 # Continue the most recent movie
 renku generate --last --inputs=./inputs.yaml --dry-run
+
+# Generate a reusable dry-run profile
+renku blueprints:dry-run-profile ./blueprint.yaml
+
+# Dry-run with a profile file
+renku generate --last --inputs=./inputs.yaml --dry-run --profile=./blueprint.dry-run-profile.yaml
 
 # Re-run from layer 2 (skips layers 0-1, uses existing artifacts)
 renku generate --last --inputs=./inputs.yaml --from=2
@@ -633,6 +640,8 @@ AudioProducer (2 audio models)
 
 Validate blueprint structure and references.
 
+This command is static validation only (wiring/schema/graph). For simulated execution coverage, use `renku generate --dry-run`.
+
 **Usage:**
 
 ```bash
@@ -654,6 +663,118 @@ renku blueprints:validate <path-to-blueprint.yaml>
 
 ```bash
 renku blueprints:validate {rootFolder}/catalog/blueprints/image-audio.yaml
+```
+
+---
+
+### `renku blueprints:dry-run-profile`
+
+Generate a reusable dry-run profile file for simulation coverage.
+
+**Usage:**
+
+```bash
+renku blueprints:dry-run-profile <path-to-blueprint.yaml> [--output=<path>]
+```
+
+**Options:**
+
+- `--output` (optional): Output profile path (default: `<blueprint>.dry-run-profile.yaml`)
+
+**Behavior:**
+
+1. Analyzes blueprint condition fields
+2. Builds deterministic simulation cases
+3. Writes a profile file that can be reused with `renku generate --dry-run --profile=<path>`
+
+**Examples:**
+
+```bash
+# Generate profile next to blueprint
+renku blueprints:dry-run-profile ./my-blueprint.yaml
+
+# Generate profile to a custom location
+renku blueprints:dry-run-profile ./my-blueprint.yaml --output=./profiles/my-blueprint.profile.yaml
+
+# Run dry-run using the generated profile
+renku generate --inputs=./inputs.yaml --blueprint=./my-blueprint.yaml --dry-run --profile=./my-blueprint.dry-run-profile.yaml
+```
+
+---
+
+### Dry-Run Profile File (`*.dry-run-profile.yaml`)
+
+The dry-run profile file is a reusable simulation recipe for `renku generate --dry-run`.
+
+It defines the case matrix used in dry-run simulation so condition coverage is deterministic and reproducible.
+
+If you do **not** pass a profile, the CLI still runs dry-run validation and auto-derives cases from blueprint conditions in memory.
+
+**When a profile is provided:**
+
+1. The CLI parses and validates the profile structure
+2. If profile `blueprint` is set, it must match the `--blueprint` target
+3. If profile `inputs` is set, it must match the `--inputs` target
+4. Dry-run executes all cases and reports failures/coverage
+
+**Schema (version 1):**
+
+- `version` (required): must be `1`
+- `blueprint` (optional): blueprint path for profile-to-run consistency checks
+- `inputs` (optional): inputs path for profile-to-run consistency checks
+- `generator` (optional): metadata (`cases`, `seed`) used/generated by tooling
+- `cases` (optional): explicit simulation case list (generated profiles include this)
+
+**Case entry:**
+
+- `id` (required): case identifier in output summaries
+- `conditionHints` (optional): simulation controls for the case
+
+**`conditionHints` fields:**
+
+- `mode` (required): `first-value` | `alternating` | `comprehensive`
+- `varyingFields` (required): list of fields to vary
+
+**`varyingFields[]` fields:**
+
+- `artifactId` (required): canonical field artifact ID (for example `Artifact:StoryProducer.Storyboard.Scenes[scene].CharacterPresent[character]`)
+- `values` (required): value candidates for simulation
+- `dimension` (optional): preferred dimension to vary
+
+**Example profile:**
+
+```yaml
+version: 1
+blueprint: ./scene-character-presence.yaml
+inputs: ./input-template.yaml
+generator:
+  cases: 3
+  seed: 0
+cases:
+  - id: case-1
+    conditionHints:
+      mode: alternating
+      varyingFields:
+        - artifactId: Artifact:StoryProducer.Storyboard.Scenes[scene].CharacterPresent[character]
+          values: [true, false]
+          dimension: scene
+  - id: case-2
+    conditionHints:
+      mode: alternating
+      varyingFields:
+        - artifactId: Artifact:StoryProducer.Storyboard.Scenes[scene].CharacterPresent[character]
+          values: [false, true]
+          dimension: scene
+```
+
+**Workflow:**
+
+```bash
+# Generate profile
+renku blueprints:dry-run-profile ./my-blueprint.yaml
+
+# Reuse profile in dry-run
+renku generate --inputs=./inputs.yaml --blueprint=./my-blueprint.yaml --dry-run --profile=./my-blueprint.dry-run-profile.yaml
 ```
 
 ---
@@ -1063,10 +1184,15 @@ Pinning rules:
 
 Dry run mode executes a mocked workflow without calling providers.
 
+Dry-run simulation always runs comprehensive validation coverage. You can provide a reusable dry-run profile with `--dry-run-profile` (or `--profile`) to make the simulation matrix explicit and reproducible.
+
 **Usage:**
 
 ```bash
 renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml --dry-run
+
+# Use a reusable profile
+renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml --dry-run --profile=./audio-only.dry-run-profile.yaml
 ```
 
 **Behavior:**
@@ -1075,6 +1201,7 @@ renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml 
 - Generates execution plan
 - Creates movie directory
 - Generates mock artifacts (placeholder files)
+- Evaluates condition coverage across generated/profiled simulation cases
 - Does not call OpenAI, Replicate, or Renku APIs
 
 **Use Cases:**
@@ -1172,6 +1299,10 @@ renku producers:list --blueprint=my-blueprint.yaml
 
 ```bash
 renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml --dry-run
+
+# Generate and use a dry-run profile
+renku blueprints:dry-run-profile ./blueprints/audio-only.yaml
+renku generate --inputs=my-inputs.yaml --blueprint=./blueprints/audio-only.yaml --dry-run --profile=./blueprints/audio-only.dry-run-profile.yaml
 ```
 
 ---

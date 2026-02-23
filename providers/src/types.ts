@@ -136,14 +136,12 @@ export interface ProviderRegistry {
  * Used to exercise different conditional branches in dry-run mode.
  */
 export interface VaryingFieldHint {
-  /** Path to the field within the schema (e.g., "Segments.NarrationType") */
-  path: string;
+  /** Canonical field artifact ID (e.g., "Artifact:StoryProducer.Storyboard.Scenes[scene].CharacterPresent[character]") */
+  artifactId: string;
   /** Values to cycle through when generating array items */
   values: unknown[];
   /** Dimension name to vary on (e.g., "segment") - determines which array index to use for cycling */
   dimension?: string;
-  /** Artifact path for matching (e.g., "DocProducer.VideoScript") */
-  artifactPath: string;
 }
 
 /**

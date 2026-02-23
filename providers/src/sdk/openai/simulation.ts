@@ -90,12 +90,18 @@ function scopeConditionHintsToRequest(
   const hintedArtifactPaths = new Set<string>();
 
   for (const hint of hints.varyingFields) {
-    if (!hint.artifactPath || typeof hint.artifactPath !== 'string') {
+    if (!hint.artifactId || typeof hint.artifactId !== 'string') {
       throw new Error(
-        `Simulation condition hint is missing artifactPath for field "${hint.path}".`
+        'Simulation condition hint is missing canonical artifactId.'
       );
     }
-    hintedArtifactPaths.add(hint.artifactPath);
+    const artifactPath = extractHintArtifactPath(hint.artifactId);
+    if (!artifactPath) {
+      throw new Error(
+        `Simulation condition hint has invalid canonical artifactId: ${hint.artifactId}`
+      );
+    }
+    hintedArtifactPaths.add(artifactPath);
   }
 
   const matchingArtifactPaths = Array.from(hintedArtifactPaths).filter((path) =>
@@ -116,7 +122,7 @@ function scopeConditionHintsToRequest(
   return {
     ...hints,
     varyingFields: hints.varyingFields.filter(
-      (hint) => hint.artifactPath === targetArtifactPath
+      (hint) => extractHintArtifactPath(hint.artifactId) === targetArtifactPath
     ),
   };
 }
@@ -145,6 +151,44 @@ function extractArtifactPath(artifactId: string): string | undefined {
     return undefined;
   }
   return `${propertySegments[0]}.${propertySegments[1]}`;
+}
+
+function extractHintArtifactPath(artifactId: string): string | undefined {
+  return extractArtifactPath(artifactId);
+}
+
+function extractHintFieldPath(artifactId: string): string {
+  if (!artifactId.startsWith('Artifact:')) {
+    throw new Error(
+      `Simulation condition hint requires canonical artifactId with Artifact: prefix. Received: ${artifactId}`
+    );
+  }
+
+  const body = artifactId.slice('Artifact:'.length);
+  const segments = splitPathWithBrackets(body);
+  if (segments.length < 2) {
+    throw new Error(
+      `Simulation condition hint artifactId must include producer and artifact names. Received: ${artifactId}`
+    );
+  }
+
+  const fieldSegments = segments.slice(2);
+  if (fieldSegments.length === 0) {
+    return '';
+  }
+  let fieldPath = '';
+  for (const segment of fieldSegments) {
+    if (segment.startsWith('[')) {
+      fieldPath += segment;
+      continue;
+    }
+    if (fieldPath.length > 0) {
+      fieldPath += '.';
+    }
+    fieldPath += segment;
+  }
+
+  return fieldPath;
 }
 
 function splitPathWithBrackets(path: string): string[] {
@@ -309,7 +353,8 @@ function getVaryingValue(path: string[], context: GeneratorContext): unknown {
   const pathStr = path.join('.');
 
   for (const hint of hints.varyingFields) {
-    if (matchesVaryingPath(pathStr, hint.path)) {
+    const hintPath = extractHintFieldPath(hint.artifactId);
+    if (matchesVaryingPath(pathStr, hintPath)) {
       const index = resolveHintCycleIndex(hint, context);
 
       // Cycle through the hint values
@@ -323,7 +368,7 @@ function getVaryingValue(path: string[], context: GeneratorContext): unknown {
 }
 
 function resolveHintCycleIndex(
-  hint: { path: string; dimension?: string },
+  hint: { artifactId: string; dimension?: string },
   context: GeneratorContext
 ): number {
   const arrayIndices = context.arrayIndices ?? {};
@@ -335,7 +380,8 @@ function resolveHintCycleIndex(
     }
   }
 
-  const hintDimensionBindings = extractHintDimensionBindings(hint.path)
+  const hintPath = extractHintFieldPath(hint.artifactId);
+  const hintDimensionBindings = extractHintDimensionBindings(hintPath)
     .map((binding) => ({
       ...binding,
       index: arrayIndices[binding.propertyName],
@@ -418,7 +464,11 @@ function matchesVaryingPath(schemaPath: string, hintPath: string): boolean {
   const normalizedSchema = normalizePathForHintComparison(schemaPath);
   const normalizedHint = normalizePathForHintComparison(hintPath);
 
-  if (!normalizedSchema || !normalizedHint) {
+  if (normalizedHint.length === 0) {
+    return normalizedSchema.length === 0;
+  }
+
+  if (!normalizedSchema) {
     return false;
   }
 

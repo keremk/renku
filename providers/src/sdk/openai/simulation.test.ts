@@ -242,9 +242,8 @@ describe('simulateOpenAiGeneration', () => {
         conditionHints: {
           varyingFields: [
             {
-              path: 'Items.status',
+              artifactId: 'Artifact:Producer.Output.Items.status',
               values: ['active', 'inactive'],
-              artifactPath: 'Producer.Output',
             },
           ],
           mode: 'alternating',
@@ -287,14 +286,12 @@ describe('simulateOpenAiGeneration', () => {
         conditionHints: {
           varyingFields: [
             {
-              path: 'Items.status',
+              artifactId: 'Artifact:ProducerA.Output.Items.status',
               values: ['active', 'inactive'],
-              artifactPath: 'ProducerA.Output',
             },
             {
-              path: 'Items.status',
+              artifactId: 'Artifact:ProducerB.Output.Items.status',
               values: ['draft', 'final'],
-              artifactPath: 'ProducerB.Output',
             },
           ],
           mode: 'alternating',
@@ -336,14 +333,12 @@ describe('simulateOpenAiGeneration', () => {
         conditionHints: {
           varyingFields: [
             {
-              path: 'Items.status',
+              artifactId: 'Artifact:ProducerA.Output.Items.status',
               values: ['active', 'inactive'],
-              artifactPath: 'ProducerA.Output',
             },
             {
-              path: 'Items.status',
+              artifactId: 'Artifact:ProducerB.Output.Items.status',
               values: ['draft', 'final'],
-              artifactPath: 'ProducerB.Output',
             },
           ],
           mode: 'alternating',
@@ -384,10 +379,10 @@ describe('simulateOpenAiGeneration', () => {
         conditionHints: {
           varyingFields: [
             {
-              path: 'Scenes.[scene].CharacterPresent.[character]',
+              artifactId:
+                'Artifact:StoryProducer.Storyboard.Scenes[scene].CharacterPresent[character]',
               values: [true, false],
               dimension: 'scene',
-              artifactPath: 'StoryProducer.Storyboard',
             },
           ],
           mode: 'alternating',

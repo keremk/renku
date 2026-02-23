@@ -53,3 +53,23 @@ export {
   deriveStageStatuses,
   deriveStageStatusesFromDisplayInfo,
 } from './stage-range-validator.js';
+
+// Dry-run blueprint validation helpers
+export {
+  type BlueprintValidationConditionMode,
+  type BlueprintValidationConditionHints,
+  type BlueprintValidationScenarioCase,
+  type BlueprintValidationScenarioFile,
+  type BlueprintValidationFieldCoverage,
+  type BlueprintDryRunValidationCaseResult,
+  type BlueprintDryRunValidationResult,
+  type BlueprintValidationCaseExecution,
+  type BuildBlueprintValidationCasesOptions,
+  type RunBlueprintDryRunValidationOptions,
+  parseBlueprintValidationScenario,
+  stringifyBlueprintValidationScenario,
+  createBlueprintValidationScenarioFile,
+  buildBlueprintValidationCases,
+  runBlueprintDryRunValidation,
+  deriveConditionalUpToLayer,
+} from './blueprint-dry-run-validator.js';

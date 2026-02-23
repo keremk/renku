@@ -1,4 +1,5 @@
-import { resolve } from 'node:path';
+import { dirname, isAbsolute, resolve } from 'node:path';
+import { readFile } from 'node:fs/promises';
 import {
 	getDefaultCliConfigPath,
 	readCliConfig,
@@ -16,6 +17,13 @@ import { resolveBlueprintSpecifier } from '../lib/config-assets.js';
 import { resolveAndPersistConcurrency } from '../lib/concurrency.js';
 import { cleanupPartialRunDirectory } from '../lib/cleanup.js';
 import {
+	buildBlueprintValidationCases,
+	conditionAnalysisToVaryingHints,
+	parseBlueprintValidationScenario,
+	readBlobFromStorage,
+	runBlueprintDryRunValidation,
+	type BlueprintValidationScenarioFile,
+	type BlueprintDryRunValidationResult,
 	createRuntimeError,
 	createStorageContext,
 	createMovieMetadataService,
@@ -76,6 +84,9 @@ export interface ExecuteOptions {
 	/** Pin IDs (canonical Artifact:... or Producer:...). */
 	pinnedIds?: string[];
 
+	/** Optional dry-run profile path (alias: --profile). */
+	dryRunProfilePath?: string;
+
 	/** Logger instance */
 	logger: Logger;
 
@@ -108,6 +119,9 @@ export interface ExecuteResult {
 
 	/** Whether this was a dry-run execution */
 	isDryRun?: boolean;
+
+	/** Dry-run validation coverage summary (present for dry-runs). */
+	dryRunValidation?: BlueprintDryRunValidationResult;
 
 	/** Path to manifest file (if build succeeded) */
 	manifestPath?: string;
@@ -272,26 +286,39 @@ export async function runExecute(
 		await planResult.persist();
 	}
 
-	// Execute build (with dryRun parameter to control mode)
-	const buildResult = await executeBuild({
-		cliConfig,
-		movieId: storageMovieId,
-		plan: planResult.plan,
-		manifest: planResult.manifest,
-		manifestHash: planResult.manifestHash,
-		providerOptions: planResult.providerOptions,
-		resolvedInputs: planResult.resolvedInputs,
-		catalog: planResult.modelCatalog,
-		catalogModelsDir: planResult.catalogModelsDir,
-		logger,
-		concurrency,
-		upToLayer,
-		reRunFrom: options.dryRun ? undefined : options.reRunFrom,
-		targetArtifactIds: options.targetArtifactIds,
-		dryRun: options.dryRun,
-		// Pass condition hints for dry-run simulation
-		conditionHints: options.dryRun ? planResult.conditionHints : undefined,
-	});
+	const { buildResult, dryRunValidation } = options.dryRun
+		? await executeDryRunWithValidation({
+				cliConfig,
+				storageMovieId,
+				blueprintPath,
+				inputsPath,
+				planResult,
+				concurrency,
+				upToLayer,
+				targetArtifactIds: options.targetArtifactIds,
+				dryRunProfilePath: options.dryRunProfilePath,
+				logger,
+			})
+		: {
+				buildResult: await executeBuild({
+					cliConfig,
+					movieId: storageMovieId,
+					plan: planResult.plan,
+					manifest: planResult.manifest,
+					manifestHash: planResult.manifestHash,
+					providerOptions: planResult.providerOptions,
+					resolvedInputs: planResult.resolvedInputs,
+					catalog: planResult.modelCatalog,
+					catalogModelsDir: planResult.catalogModelsDir,
+					logger,
+					concurrency,
+					upToLayer,
+					reRunFrom: options.reRunFrom,
+					targetArtifactIds: options.targetArtifactIds,
+					dryRun: false,
+				}),
+				dryRunValidation: undefined,
+			};
 
 	return {
 		movieId: options.movieId ?? normalizePublicId(storageMovieId),
@@ -300,9 +327,203 @@ export async function runExecute(
 		targetRevision: planResult.targetRevision,
 		build: buildResult.summary,
 		isDryRun: buildResult.dryRun,
+		dryRunValidation,
 		manifestPath: buildResult.manifestPath,
 		storagePath: movieDir,
 	};
+}
+
+async function executeDryRunWithValidation(args: {
+	cliConfig: CliConfig;
+	storageMovieId: string;
+	blueprintPath: string;
+	inputsPath: string;
+	planResult: Awaited<ReturnType<typeof generatePlan>>;
+	concurrency: number;
+	upToLayer?: number;
+	targetArtifactIds?: string[];
+	dryRunProfilePath?: string;
+	logger: Logger;
+}): Promise<{
+	buildResult: Awaited<ReturnType<typeof executeBuild>>;
+	dryRunValidation: BlueprintDryRunValidationResult;
+}> {
+	const conditionAnalysis = args.planResult.conditionAnalysis;
+	if (!conditionAnalysis) {
+		throw new Error(
+			'Dry-run validation requires condition analysis, but none was generated for this plan.'
+		);
+	}
+
+	const loadedScenario = args.dryRunProfilePath
+		? await loadDryRunScenarioFile(args.dryRunProfilePath)
+		: undefined;
+
+	if (loadedScenario?.scenario.blueprint) {
+		const scenarioBlueprintPath = resolvePathFromInput(
+			loadedScenario.scenario.blueprint,
+			dirname(loadedScenario.path)
+		);
+		if (resolve(scenarioBlueprintPath) !== resolve(args.blueprintPath)) {
+			throw new Error(
+				`Dry-run profile blueprint path mismatch. Expected ${args.blueprintPath}, received ${scenarioBlueprintPath}.`
+			);
+		}
+	}
+
+	if (loadedScenario?.scenario.inputs) {
+		const scenarioInputsPath = resolvePathFromInput(
+			loadedScenario.scenario.inputs,
+			dirname(loadedScenario.path)
+		);
+		if (resolve(scenarioInputsPath) !== resolve(args.inputsPath)) {
+			throw new Error(
+				`Dry-run profile inputs path mismatch. Expected ${args.inputsPath}, received ${scenarioInputsPath}.`
+			);
+		}
+	}
+
+	const varyingHints = conditionAnalysisToVaryingHints(conditionAnalysis);
+	const cases = buildBlueprintValidationCases({
+		scenario: loadedScenario?.scenario,
+		baseVaryingHints: varyingHints,
+	});
+
+	let manifestHashCursor = args.planResult.manifestHash;
+	let primaryBuildResult: Awaited<ReturnType<typeof executeBuild>> | undefined;
+
+	const storage = createStorageContext({
+		kind: 'local',
+		rootDir: args.cliConfig.storage.root,
+		basePath: args.cliConfig.storage.basePath,
+	});
+
+	const dryRunValidation = await runBlueprintDryRunValidation({
+		conditionAnalysis,
+		cases,
+		sourceTestFilePath: loadedScenario?.path,
+		executeCase: async ({ caseDefinition, caseIndex }) => {
+			const buildResult = await executeBuild({
+				cliConfig: args.cliConfig,
+				movieId: args.storageMovieId,
+				plan: args.planResult.plan,
+				manifest: args.planResult.manifest,
+				manifestHash: manifestHashCursor,
+				providerOptions: args.planResult.providerOptions,
+				resolvedInputs: args.planResult.resolvedInputs,
+				catalog: args.planResult.modelCatalog,
+				catalogModelsDir: args.planResult.catalogModelsDir,
+				logger: args.logger,
+				concurrency: args.concurrency,
+				upToLayer: args.upToLayer,
+				reRunFrom: undefined,
+				targetArtifactIds: args.targetArtifactIds,
+				dryRun: true,
+				conditionHints:
+					caseDefinition.conditionHints ?? args.planResult.conditionHints,
+			});
+
+			manifestHashCursor = buildResult.manifestHash;
+			if (caseIndex === 0) {
+				primaryBuildResult = buildResult;
+			}
+
+			return {
+				movieId: args.storageMovieId,
+				failedJobs: collectFailedJobsFromSummary(buildResult.summary),
+				artifactIds: Object.keys(buildResult.manifest.artefacts),
+				readArtifactText: async (artifactId: string): Promise<string> => {
+					const entry = buildResult.manifest.artefacts[artifactId];
+					if (!entry) {
+						throw new Error(
+							`Missing manifest artifact ${artifactId} in dry-run case ${caseDefinition.id}.`
+						);
+					}
+					if (!entry.blob) {
+						throw new Error(
+							`Expected blob content for ${artifactId} in dry-run case ${caseDefinition.id}.`
+						);
+					}
+
+					const blob = await readBlobFromStorage(
+						storage,
+						args.storageMovieId,
+						entry.blob
+					);
+					return Buffer.from(blob.data).toString('utf8');
+				},
+			};
+		},
+	});
+
+	if (cases.length > 1) {
+		const baselineCase = cases[0]!;
+		const baselineBuildResult = await executeBuild({
+			cliConfig: args.cliConfig,
+			movieId: args.storageMovieId,
+			plan: args.planResult.plan,
+			manifest: args.planResult.manifest,
+			manifestHash: manifestHashCursor,
+			providerOptions: args.planResult.providerOptions,
+			resolvedInputs: args.planResult.resolvedInputs,
+			catalog: args.planResult.modelCatalog,
+			catalogModelsDir: args.planResult.catalogModelsDir,
+			logger: args.logger,
+			concurrency: args.concurrency,
+			upToLayer: args.upToLayer,
+			reRunFrom: undefined,
+			targetArtifactIds: args.targetArtifactIds,
+			dryRun: true,
+			conditionHints:
+				baselineCase.conditionHints ?? args.planResult.conditionHints,
+		});
+
+		manifestHashCursor = baselineBuildResult.manifestHash;
+		primaryBuildResult = baselineBuildResult;
+	}
+
+	if (!primaryBuildResult) {
+		throw new Error('Dry-run validation did not execute a primary case.');
+	}
+
+	if (
+		dryRunValidation.failures.length > 0 ||
+		dryRunValidation.failedCases > 0
+	) {
+		primaryBuildResult.summary.status = 'failed';
+	}
+
+	return {
+		buildResult: primaryBuildResult,
+		dryRunValidation,
+	};
+}
+
+async function loadDryRunScenarioFile(profilePath: string): Promise<{
+	path: string;
+	scenario: BlueprintValidationScenarioFile;
+}> {
+	const path = resolvePathFromInput(profilePath);
+	const contents = await readFile(path, 'utf8');
+	const scenario = parseBlueprintValidationScenario(contents, path);
+	return {
+		path,
+		scenario,
+	};
+}
+
+function collectFailedJobsFromSummary(summary: BuildSummary): string[] {
+	return (summary.jobs ?? [])
+		.filter((job) => job.status === 'failed')
+		.map((job) => `${job.producer} (${job.jobId})`);
+}
+
+function resolvePathFromInput(inputPath: string, baseDir?: string): string {
+	const expanded = expandPath(inputPath);
+	if (isAbsolute(expanded)) {
+		return resolve(expanded);
+	}
+	return resolve(baseDir ?? process.cwd(), expanded);
 }
 
 // ============================================================================

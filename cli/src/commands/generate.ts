@@ -15,7 +15,11 @@ import {
 } from '../lib/artifacts-view.js';
 import crypto from 'node:crypto';
 import { resolve } from 'node:path';
-import { isCanonicalArtifactId, type LogLevel } from '@gorenku/core';
+import {
+	isCanonicalArtifactId,
+	type BlueprintDryRunValidationResult,
+	type LogLevel,
+} from '@gorenku/core';
 import { createCliLogger } from '../lib/logger.js';
 
 /**
@@ -55,6 +59,8 @@ export interface GenerateOptions {
 	artifactIds?: string[];
 	/** Pin IDs (canonical Artifact:... or Producer:...). */
 	pinIds?: string[];
+	/** Optional path to a dry-run profile file. */
+	dryRunProfilePath?: string;
 }
 
 export interface GenerateResult {
@@ -66,6 +72,8 @@ export interface GenerateResult {
 	build?: ExecuteResult['build'];
 	/** Whether this was a dry-run execution */
 	isDryRun?: boolean;
+	/** Dry-run validation coverage summary (present for dry-runs). */
+	dryRunValidation?: BlueprintDryRunValidationResult;
 	manifestPath?: string;
 	storagePath: string;
 	/** Path to artifacts folder (symlinks to build outputs) */
@@ -100,6 +108,12 @@ export async function runGenerate(
 	const usingLast = Boolean(options.useLast);
 	if (usingLast && options.movieId) {
 		throw new Error('Use either --last or --movie-id/--id, not both.');
+	}
+
+	if (options.dryRunProfilePath && !options.dryRun) {
+		throw new Error(
+			'--dry-run-profile/--profile requires --dry-run. Remove the profile flag or run in dry-run mode.'
+		);
 	}
 
 	// Validate --artifact-id/--aid requirements
@@ -187,6 +201,7 @@ export async function runGenerate(
 			reRunFrom: options.reRunFrom,
 			targetArtifactIds,
 			pinnedIds: options.pinIds,
+			dryRunProfilePath: options.dryRunProfilePath,
 			logger,
 			cliConfig: activeConfig,
 		});
@@ -218,6 +233,7 @@ export async function runGenerate(
 			targetRevision: editResult.targetRevision,
 			build: editResult.build,
 			isDryRun: editResult.isDryRun,
+			dryRunValidation: editResult.dryRunValidation,
 			manifestPath: editResult.manifestPath,
 			storagePath: editResult.storagePath,
 			artifactsRoot,
@@ -264,6 +280,7 @@ export async function runGenerate(
 		concurrency,
 		upToLayer,
 		pinnedIds: options.pinIds,
+		dryRunProfilePath: options.dryRunProfilePath,
 		logger,
 		cliConfig: activeConfig,
 	});
@@ -300,6 +317,7 @@ export async function runGenerate(
 		targetRevision: queryResult.targetRevision,
 		build: queryResult.build,
 		isDryRun: queryResult.isDryRun,
+		dryRunValidation: queryResult.dryRunValidation,
 		manifestPath: queryResult.manifestPath,
 		storagePath: queryResult.storagePath,
 		artifactsRoot,

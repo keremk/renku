@@ -1,0 +1,20 @@
+inputs:
+  StoryPrompt: 'A young inventor and a robot explore floating islands while searching for a lost energy crystal.'
+  CharacterVisualStyle: 'stylized animated adventure'
+  NumOfCharacters: 3
+  NumOfScenes: 3
+  AspectRatio: '16:9'
+  Resolution: '720p'
+
+models:
+  - model: gpt-5.2
+    provider: openai
+    producerId: StoryProducer
+    config:
+      text_format: json_schema
+  - model: nano-banana-pro
+    provider: fal-ai
+    producerId: CharacterImageProducer
+  - model: veo3.1/reference-to-video
+    provider: fal-ai
+    producerId: SceneVideoProducer

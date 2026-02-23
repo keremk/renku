@@ -17,6 +17,8 @@ import type {
  * Information about a field that affects conditional branches.
  */
 export interface ConditionFieldInfo {
+  /** Canonical field artifact ID (e.g., "Artifact:DocProducer.VideoScript.Segments[segment].NarrationType") */
+  artifactId: string;
   /** Full artifact path (e.g., "DocProducer.VideoScript") */
   artifactPath: string;
   /** Path within the artifact to the field (e.g., ["Segments", "[segment]", "NarrationType"]) */
@@ -50,7 +52,9 @@ export interface ConditionAnalysis {
  * @param blueprint - The blueprint document to analyze
  * @returns Analysis of condition-affecting fields
  */
-export function analyzeConditions(blueprint: BlueprintDocument): ConditionAnalysis {
+export function analyzeConditions(
+  blueprint: BlueprintDocument
+): ConditionAnalysis {
   const conditionFields: ConditionFieldInfo[] = [];
   const conditionalProducersSet = new Set<string>();
   const namedConditions: string[] = [];
@@ -111,7 +115,7 @@ export function analyzeConditions(blueprint: BlueprintDocument): ConditionAnalys
  * Extracts condition fields from a named condition definition.
  */
 function extractFieldsFromCondition(
-  condition: EdgeConditionClause | EdgeConditionGroup,
+  condition: EdgeConditionClause | EdgeConditionGroup
 ): ConditionFieldInfo[] {
   if ('all' in condition || 'any' in condition) {
     return extractFieldsFromGroup(condition as EdgeConditionGroup);
@@ -123,7 +127,7 @@ function extractFieldsFromCondition(
  * Extracts condition fields from a full condition definition (which can be an array).
  */
 function extractFieldsFromConditionDefinition(
-  definition: EdgeConditionDefinition,
+  definition: EdgeConditionDefinition
 ): ConditionFieldInfo[] {
   if (Array.isArray(definition)) {
     return definition.flatMap((item) => extractFieldsFromCondition(item));
@@ -134,7 +138,9 @@ function extractFieldsFromConditionDefinition(
 /**
  * Extracts condition fields from a condition group.
  */
-function extractFieldsFromGroup(group: EdgeConditionGroup): ConditionFieldInfo[] {
+function extractFieldsFromGroup(
+  group: EdgeConditionGroup
+): ConditionFieldInfo[] {
   const fields: ConditionFieldInfo[] = [];
 
   if (group.all) {
@@ -155,12 +161,21 @@ function extractFieldsFromGroup(group: EdgeConditionGroup): ConditionFieldInfo[]
 /**
  * Extracts condition field info from a single clause.
  */
-function extractFieldsFromClause(clause: EdgeConditionClause): ConditionFieldInfo[] {
-  const { artifactPath, fieldPath, dimensions } = parseConditionPath(clause.when);
+function extractFieldsFromClause(
+  clause: EdgeConditionClause
+): ConditionFieldInfo[] {
+  const { artifactPath, fieldPath, dimensions } = parseConditionPath(
+    clause.when
+  );
   const { operator, values } = extractOperatorAndValues(clause);
+  const artifactId = formatConditionFieldArtifactId({
+    artifactPath,
+    fieldPath,
+  });
 
   return [
     {
+      artifactId,
       artifactPath,
       fieldPath,
       expectedValues: values,
@@ -254,9 +269,10 @@ function splitPathWithBrackets(path: string): string[] {
 /**
  * Extracts the operator and expected values from a clause.
  */
-function extractOperatorAndValues(
-  clause: EdgeConditionClause,
-): { operator: ConditionOperator; values: unknown[] } {
+function extractOperatorAndValues(clause: EdgeConditionClause): {
+  operator: ConditionOperator;
+  values: unknown[];
+} {
   if (clause.is !== undefined) {
     return { operator: 'is', values: [clause.is] };
   }
@@ -301,12 +317,12 @@ function extractProducerFromEdge(to: string): string | null {
 /**
  * Checks if a field already exists in the array.
  */
-function hasField(fields: ConditionFieldInfo[], field: ConditionFieldInfo): boolean {
+function hasField(
+  fields: ConditionFieldInfo[],
+  field: ConditionFieldInfo
+): boolean {
   return fields.some(
-    (f) =>
-      f.artifactPath === field.artifactPath &&
-      f.fieldPath.join('.') === field.fieldPath.join('.') &&
-      f.operator === field.operator,
+    (f) => f.artifactId === field.artifactId && f.operator === field.operator
   );
 }
 
@@ -317,7 +333,7 @@ function dedupeFields(fields: ConditionFieldInfo[]): ConditionFieldInfo[] {
   const seen = new Map<string, ConditionFieldInfo>();
 
   for (const field of fields) {
-    const key = `${field.artifactPath}|${field.fieldPath.join('.')}|${field.operator}`;
+    const key = `${field.artifactId}|${field.operator}`;
     const existing = seen.get(key);
     if (existing) {
       // Merge expected values
@@ -375,7 +391,10 @@ function deepEqual(a: unknown, b: unknown): boolean {
   }
 
   return keysA.every((key) =>
-    deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]),
+    deepEqual(
+      (a as Record<string, unknown>)[key],
+      (b as Record<string, unknown>)[key]
+    )
   );
 }
 
@@ -386,21 +405,12 @@ function deepEqual(a: unknown, b: unknown): boolean {
  * @returns Hints for varying field values during simulation
  */
 export function conditionAnalysisToVaryingHints(
-  analysis: ConditionAnalysis,
+  analysis: ConditionAnalysis
 ): VaryingFieldHint[] {
   const hints: VaryingFieldHint[] = [];
 
   for (const field of analysis.conditionFields) {
-    // Build the full path (excluding artifact path prefix)
-    const pathStr = field.fieldPath
-      .map((seg) => {
-        // Keep dimension placeholders as-is
-        if (seg.startsWith('[') && !seg.match(/^\[\d+\]$/)) {
-          return seg;
-        }
-        return seg;
-      })
-      .join('.');
+    const artifactId = field.artifactId;
 
     // For 'is' conditions, we want to alternate between the expected value
     // and something different to test both branches
@@ -408,22 +418,23 @@ export function conditionAnalysisToVaryingHints(
       const primaryValue = field.expectedValues[0];
 
       // Generate alternative values based on type
-      const alternativeValues = generateAlternatives(primaryValue, field.expectedValues);
+      const alternativeValues = generateAlternatives(
+        primaryValue,
+        field.expectedValues
+      );
 
       hints.push({
-        path: pathStr,
+        artifactId,
         values: [primaryValue, ...alternativeValues],
         dimension: field.dimensions[0],
-        artifactPath: field.artifactPath,
       });
     } else if (field.operator === 'isNot' && field.expectedValues.length > 0) {
       // For isNot, we want to sometimes use the forbidden value to skip
       const forbiddenValue = field.expectedValues[0];
       hints.push({
-        path: pathStr,
+        artifactId,
         values: [forbiddenValue, generateDifferent(forbiddenValue)],
         dimension: field.dimensions[0],
-        artifactPath: field.artifactPath,
       });
     }
   }
@@ -435,20 +446,46 @@ export function conditionAnalysisToVaryingHints(
  * Varying field hint for simulation.
  */
 export interface VaryingFieldHint {
-  /** Path to the field within the artifact (e.g., "Segments.[segment].NarrationType") */
-  path: string;
+  /** Canonical field artifact ID (e.g., "Artifact:DocProducer.VideoScript.Segments[segment].NarrationType") */
+  artifactId: string;
   /** Values to cycle through */
   values: unknown[];
   /** Dimension to vary on (e.g., "segment") */
   dimension?: string;
-  /** Full artifact path for matching */
+}
+
+function formatConditionFieldArtifactId(field: {
   artifactPath: string;
+  fieldPath: string[];
+}): string {
+  const suffix = joinFieldPathSegments(field.fieldPath);
+  return suffix.length > 0
+    ? `Artifact:${field.artifactPath}.${suffix}`
+    : `Artifact:${field.artifactPath}`;
+}
+
+function joinFieldPathSegments(segments: string[]): string {
+  let result = '';
+  for (const segment of segments) {
+    if (segment.startsWith('[') && segment.endsWith(']')) {
+      result += segment;
+      continue;
+    }
+    if (result.length > 0) {
+      result += '.';
+    }
+    result += segment;
+  }
+  return result;
 }
 
 /**
  * Generates alternative values different from the primary value.
  */
-function generateAlternatives(primaryValue: unknown, expectedValues: unknown[]): unknown[] {
+function generateAlternatives(
+  primaryValue: unknown,
+  expectedValues: unknown[]
+): unknown[] {
   if (typeof primaryValue === 'boolean') {
     return [!primaryValue];
   }

@@ -6,7 +6,9 @@ import {
 } from './condition-analyzer.js';
 import type { BlueprintDocument } from '../types.js';
 
-function createMinimalBlueprint(overrides: Partial<BlueprintDocument> = {}): BlueprintDocument {
+function createMinimalBlueprint(
+  overrides: Partial<BlueprintDocument> = {}
+): BlueprintDocument {
   return {
     meta: { id: 'test', name: 'Test Blueprint' },
     inputs: [],
@@ -37,7 +39,11 @@ describe('analyzeConditions', () => {
 
       const field = result.conditionFields[0]!;
       expect(field.artifactPath).toBe('DocProducer.VideoScript');
-      expect(field.fieldPath).toEqual(['Segments', '[segment]', 'NarrationType']);
+      expect(field.fieldPath).toEqual([
+        'Segments',
+        '[segment]',
+        'NarrationType',
+      ]);
       expect(field.operator).toBe('is');
       expect(field.expectedValues).toEqual(['ImageNarration']);
       expect(field.dimensions).toEqual(['segment']);
@@ -109,7 +115,11 @@ describe('analyzeConditions', () => {
           },
         },
         edges: [
-          { from: 'Input:Prompt', to: 'ImageProducer.Prompt', if: 'isImageNarration' },
+          {
+            from: 'Input:Prompt',
+            to: 'ImageProducer.Prompt',
+            if: 'isImageNarration',
+          },
           { from: 'Input:Text', to: 'TextProducer.Text' },
         ],
       });
@@ -239,6 +249,8 @@ describe('conditionAnalysisToVaryingHints', () => {
     const analysis = {
       conditionFields: [
         {
+          artifactId:
+            'Artifact:DocProducer.VideoScript.Segments[segment].NarrationType',
           artifactPath: 'DocProducer.VideoScript',
           fieldPath: ['Segments', '[segment]', 'NarrationType'],
           expectedValues: ['ImageNarration'],
@@ -253,17 +265,19 @@ describe('conditionAnalysisToVaryingHints', () => {
     const hints = conditionAnalysisToVaryingHints(analysis);
 
     expect(hints.length).toBe(1);
-    expect(hints[0]!.path).toBe('Segments.[segment].NarrationType');
+    expect(hints[0]!.artifactId).toBe(
+      'Artifact:DocProducer.VideoScript.Segments[segment].NarrationType'
+    );
     expect(hints[0]!.values).toContain('ImageNarration');
     expect(hints[0]!.values).toContain('NOT_ImageNarration');
     expect(hints[0]!.dimension).toBe('segment');
-    expect(hints[0]!.artifactPath).toBe('DocProducer.VideoScript');
   });
 
   it('generates varying hints for is conditions with boolean values', () => {
     const analysis = {
       conditionFields: [
         {
+          artifactId: 'Artifact:Producer.Output.Enabled',
           artifactPath: 'Producer.Output',
           fieldPath: ['Enabled'],
           expectedValues: [true],
@@ -285,6 +299,7 @@ describe('conditionAnalysisToVaryingHints', () => {
     const analysis = {
       conditionFields: [
         {
+          artifactId: 'Artifact:Producer.Output.Type',
           artifactPath: 'Producer.Output',
           fieldPath: ['Type'],
           expectedValues: ['Forbidden'],
@@ -307,6 +322,7 @@ describe('conditionAnalysisToVaryingHints', () => {
     const analysis = {
       conditionFields: [
         {
+          artifactId: 'Artifact:Producer.Output.Count',
           artifactPath: 'Producer.Output',
           fieldPath: ['Count'],
           expectedValues: [5],
@@ -328,6 +344,7 @@ describe('conditionAnalysisToVaryingHints', () => {
     const analysis = {
       conditionFields: [
         {
+          artifactId: 'Artifact:Producer.Output.Type',
           artifactPath: 'Producer.Output',
           fieldPath: ['Type'],
           expectedValues: ['TypeA', 'TypeB', 'TypeC'],
