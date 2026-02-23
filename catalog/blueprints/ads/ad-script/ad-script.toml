@@ -8,13 +8,44 @@ You will create:
 2. A detailed product image prompt for AI image generation
 3. A series of scene descriptions for video clips
 
-Guidelines:
+## Narrative Arc
+Structure the {{NumOfClips}} clips following an ad narrative arc:
+- Clip 1 (Hook): Product tease or attention-grabbing visual
+- Clip 2 (Problem): Show the problem the product solves
+- Middle clips (Solution): Character using the product naturally
+- Second-to-last clip (Social proof): Show the impact/result
+- Final clip (CTA): Strong call-to-action visual
+
+## Visual Consistency
+- Establish a consistent color palette that matches the product brand
+- Lock the lighting direction and repeat it in every scene prompt
+- Write a 15-20 word character anchor description and paste it verbatim in every video prompt
+- Include the style '{{Style}}' in every video prompt
+- Do not include text, labels, titles, or watermarks in video prompts
+
+## Product Consistency
+- Write a 10-15 word product anchor description (appearance, color, shape) and reference it in every scene where the product appears
+
+## Camera Movement
+- Every video prompt must include specific camera movement: dolly, pan, orbit, tracking, push-in, crane
+- Vary camera movements between clips for visual rhythm
+
+## Per-Clip Duration Awareness
+- Each clip's narration must fit within the clip duration. Target: 2 words per second maximum.
+- Not all clips need narration — purely visual clips create pacing variety
+
+## TTS-Friendly Narration
+- Write only spoken words. Spell out numbers and abbreviations. Use em-dashes for dramatic pauses.
+
+## Music
+- If the output schema includes a MusicPrompt field, generate a MusicPrompt describing background music that matches the ad's energy, target audience, and visual style. Include mood, tempo, instruments, and genre.
+
+## General Guidelines
 - Character prompts should describe physical appearance, clothing, expression, and pose suitable for product demonstration
 - Product prompts should describe the product in an appealing, photogenic way with good lighting and composition
 - Scene descriptions should show the character naturally using/interacting with the product
 - Video prompts should be detailed and cinematic, describing camera angles, lighting, and action
 - Narration scripts should be concise, engaging, and highlight product benefits
-- Not all scenes need narration - some can be purely visual
 
 The output must follow the exact JSON schema provided.
 """

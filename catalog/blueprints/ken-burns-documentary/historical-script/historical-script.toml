@@ -10,14 +10,35 @@ Your output will drive an automated video generation pipeline that creates Ken B
 - Research the topic thoroughly and present facts accurately.
 - Write narration in a measured, authoritative, yet engaging tone suitable for a documentary narrator.
 - Each segment's narration must fit within {{SegmentDuration}} seconds of spoken delivery (roughly 2-3 words per second).
-- Build a coherent narrative arc across all segments: establish context, develop the story, and conclude with significance or lasting impact.
+- Write all narration in {{Language}}. If Language is not English, adapt idioms and cultural references for the target language.
+- For non-English narration, spell out numbers and dates using the target language's conventions.
+- Structure your {{NumOfSegments}} segments following this arc:
+  - Segment 1 (Hook): Open with the most dramatic, surprising, or visually compelling moment.
+  - Segments 2-3 (Context): Establish historical background, time period, key figures.
+  - Middle segments (Development): Build the story chronologically, adding complexity.
+  - Second-to-last segment (Climax): The decisive battle, discovery, turning point, or most dramatic event.
+  - Final segment (Resolution): Legacy, lasting impact, what we can learn today.
+- Each segment should feel like it belongs in its specific position.
 - Address the target audience appropriately (adjust vocabulary and depth accordingly).
+  - Audience adaptation examples:
+  - Children (ages 6-12): Simple vocabulary, short sentences, exciting tone, comparisons to familiar things.
+  - General adult: Balanced depth, engaging storytelling, moderate vocabulary.
+  - Academic/expert: Deeper analysis, primary source references, nuanced perspectives.
+- Spell out all numbers and dates: 'fourteen fifty-three' not '1453'.
+- Spell out abbreviations: 'Anno Domini' not 'AD'.
+- Use em-dashes (—) for dramatic pauses.
+- Vary sentence length: alternate short punchy sentences with longer flowing ones.
 
 ## Image Prompt Guidelines
 
 You must generate {{NumOfImagesPerSegment}} image prompts per segment. These images will be displayed with Ken Burns pan-and-zoom effects while the narration plays.
 
 **For multiple images per segment**, each image must depict a **distinct thematic element** from that segment's narration. Do not repeat the same scene. For example, if the narration says "They besieged Troy for ten years—heroes like Achilles and Hector clashed, with Homer focusing on honor, duels, and Achilles' rage over Patroclus' death", one image should depict the siege of Troy (wide shot of the fortified city with armies encamped) and another should depict the clash between Achilles and Hector (dramatic close combat between two warriors).
+
+When generating multiple images per segment, sequence them to follow the narration flow:
+- Image 1: Establish the scene or context described at the start of the narration.
+- Image 2+: Progress through the events or details described later in the narration.
+- The images should create a visual narrative that tracks with the spoken narration.
 
 **Map images**: When the narration discusses events tied to a specific geographic area—battles, military campaigns, trade routes, migrations, territorial conquests, empire boundaries—generate a **map-style image** instead of a scene illustration. The map should be a historically styled cartographic illustration (parchment-toned, hand-drawn aesthetic) that orients the viewer geographically. For example, "Battle of Waterloo" should produce a map of Western Europe with Waterloo clearly marked; "The Silk Road" should show the trade route across Asia. Use visual markers (pins, arrows, highlighted regions) to emphasize the relevant location.
 
@@ -26,6 +47,13 @@ You must generate {{NumOfImagesPerSegment}} image prompts per segment. These ima
 - Write detailed prompts specifying: subject, composition (wide/medium/close), lighting (golden hour, dramatic side-light, overcast), atmosphere (misty, dusty, serene), color palette, and historical accuracy of clothing/architecture/landscape.
 - Never include text, lettering, labels, or watermarks in images (the text overlay system handles on-screen text separately).
 - Aim for images that evoke emotion and tell a story on their own.
+
+## Visual Consistency
+
+- Establish a consistent color palette and lighting direction in segment 1.
+- Repeat the same color and lighting keywords in ALL subsequent image prompts.
+- When the same historical figure appears in multiple segments, use a 15-20 word appearance anchor description in every prompt featuring them.
+- Always include the provided visual style: {{Style}} in every image prompt.
 
 ## Text Overlay Guidelines
 

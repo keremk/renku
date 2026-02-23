@@ -244,8 +244,9 @@ connections:
 - `Duration` - Total video duration in seconds
 - `NumOfSegments` - Number of segments
 - `SegmentDuration` - Duration per segment (computed)
-- `AspectRatio` - Video aspect ratio
-- `Resolution` - Video resolution
+- `MovieId` - Unique movie identifier
+- `StorageRoot` - Root storage path
+- `StorageBasePath` - Base storage path
 
 **Fix:** Either declare the input or use a system input:
 

@@ -13,6 +13,14 @@ First, draw on your knowledge to identify:
 3. Key facts that will resonate with viewers
 4. The emotional arc of the story
 
+# Visual Consistency
+
+1. Establish a consistent color palette and lighting direction in your first video prompt
+2. Repeat the same color and lighting keywords in ALL subsequent video prompts
+3. When the same historical figure or character appears in multiple segments, use a 15-20 word appearance anchor description and paste it verbatim in every prompt featuring them
+4. Always include the visual style '{{VisualStyle}}' in every image and video prompt
+5. Do not include text, labels, titles, or watermarks in any visual prompt
+
 # Narrative Structure
 
 Create a narrative that:
@@ -20,6 +28,8 @@ Create a narrative that:
 2. Progresses through key moments chronologically or thematically
 3. Builds tension and emotional engagement
 4. Concludes with impact - a lesson, consequence, or reflection
+5. Structure your segments as: Hook (segment 1) → Context (segments 2-3) → Development (middle) → Climax (second-to-last) → Resolution (final)
+6. Each segment should feel like it belongs in its specific position — segments should NOT be interchangeable
 
 # Guidelines for Initial Image Prompt (Opening Frame)
 
@@ -36,7 +46,9 @@ Wide establishing shot of 1840s Canton harbor at dawn, golden light on water, Br
 
 # Guidelines for Video Prompts with [cut] Markers
 
-Each video prompt represents ONE segment containing MULTIPLE cut-scenes as defined by the user. Use the [cut] marker to define new scenes within a single video and make sure to define the camera movement/transition between each cut at the beginning. There will be one less [cut] maker than the number of scenes in the segment as the initial image input sets the first scene.
+Each video prompt represents ONE segment containing MULTIPLE cut-scenes as defined by the user. Use the [cut] marker to define new scenes within a single video and make sure to define the camera movement/transition between each cut at the beginning. There will be one less [cut] marker than the number of scenes in the segment as the initial image input sets the first scene.
+
+**First scene rule:** The first scene in each video segment inherits its visual from the input image. Do NOT re-describe the static image. Instead, describe how the camera begins to MOVE and what ACTION begins from that starting frame. Then use [cut] markers for subsequent scenes.
 
 **Format:**
 ```
@@ -69,13 +81,30 @@ Start the scene with the initial image with slow dolly forward moving camera and
 
 Each segment has ONE narration script that spans all its cut-scenes:
 1. Write narration that complements the visual scenes
-2. The narration timing should match the segment duration ({{SegmentDuration}} seconds)
-3. Use the specified narrator tone consistently
-4. Write in active voice with vivid, accessible language
-5. Include specific dates, names, and facts
-6. Create emotional engagement through storytelling
-7. Each narration should be self-contained yet flow to the next
-8. Write ONLY spoken text - no stage directions or descriptions
+2. Use the specified narrator tone consistently
+3. Write in active voice with vivid, accessible language
+4. Include specific dates, names, and facts
+5. Create emotional engagement through storytelling
+6. Each narration should be self-contained yet flow to the next
+
+## TTS-Friendly Narration Rules
+- Write ONLY spoken words — no stage directions, no parenthetical descriptions, no annotations
+- Spell out all numbers and dates: 'eighteen forty' not '1840', 'three hundred thousand' not '300,000'
+- Use em-dashes for dramatic pauses — let the silence build tension
+- Avoid abbreviations: 'United States' not 'U.S.', 'versus' not 'vs.'
+
+## Timing Enforcement
+- Each segment's narration must fit within {{SegmentDuration}} seconds of spoken delivery
+- Target: 2 words per second maximum
+- Count the words in every narration segment. If over the limit, rewrite shorter.
+- Calibration example: For a 10-second segment, narration must be 20 words or fewer. For an 8-second segment, 16 words or fewer.
+
+# Character Consistency Across Segments
+
+When a historical figure appears in multiple segments, describe them consistently:
+1. Use the same clothing, same physical details, same era-appropriate appearance in every mention
+2. Use the 15-20 word anchor description from the Visual Consistency rules
+3. Paste the anchor description verbatim in every video prompt featuring that character
 
 # Guidelines for Music Prompt
 

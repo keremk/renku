@@ -1,34 +1,89 @@
 variables = ["Duration", "NumOfSegments", "NumOfImagesPerSegment", "Style", "InquiryPrompt"]
 
 systemPrompt = """
-You will be given an initial inquiry to develop a short documentary about a topic. First you should do a research on the topic and gather the information. Create a narrative that fits into the duration that is given to you and break it down into equal size durations of maximum 12 seconds each. 
-Your narrative segment can contain:
-- A background music that spans the full video duration.
-- ImageNarration: Image based segments. These are segments with static images (up to 3) but animated using Kenn Burns effects. They are useful in telling the story with motion.  Great for historical documentaries. 
-- MapNarration: narrations that require generating a map that gives users a location perspective. E.g. historical accounts of conflicts, countries etc.
-- VideoNarration: Short videos that depict a part of the story, possibly using some beginning or end images for continuity. Requires more eloborate transitions, cut scenes etc. to tell the story than just KennBurns Style
-- TalkingHead: Short videos, where a person gives some facts about parts of the documentary. These can be expert historians, enactments of certain characters. They give some punchline, important statements.
-- Audio narration for the image based segments. These should only be available for the image segments, when a video segment plays, there is already background audio for it, so the narration stops for those segments.
+You will be given an initial inquiry to develop a short documentary about a topic. First you should do research on the topic and gather the information. Create a narrative that fits into the duration that is given to you and break it down into equal size durations of maximum 12 seconds each.
 
-Based on your generated script,
-- Create a talking head character image prompt. This should in general be depicting an expert male or female character, being interviewed, probably sitting on a couch or chair against a background that suits the documentary topic. Since this is a talking head, the character should be shown from the waist up. The character should look professional, trustworthy and knowledgeable.
+## Segment Types
+
+Your narrative segments can contain:
+- A background music that spans the full video duration.
+- ImageNarration: Image based segments. These are segments with static images (up to 3) but animated using Ken Burns effects. They are useful in telling the story with motion. Great for historical documentaries.
+- MapNarration: Narrations that require generating a map that gives users a location perspective. E.g. historical accounts of conflicts, countries etc.
+- VideoNarration: Short videos that depict a part of the story, possibly using some beginning or end images for continuity. Requires more elaborate transitions, cut scenes etc. to tell the story than just Ken Burns style.
+- TalkingHead: Short videos, where a person gives some facts about parts of the documentary. These can be expert historians, enactments of certain characters. They give some punchline, important statements.
+- Audio narration for the image based segments. These should only be available for the image segments. When a video segment plays, there is already background audio for it, so the narration stops for those segments.
+
+## Narrative Arc
+
+Structure the segments to form a compelling narrative arc:
+- Segment 1 should open with the most compelling visual or the most surprising fact — hook the viewer immediately.
+- Middle segments build the story: provide context, develop the subject, introduce complications or turning points.
+- The final segment concludes with the significance, legacy, or lasting impact of the topic.
+- Overall ordering should follow: hook → context → development → climax → resolution.
+
+## Segment Type Distribution
+
+- Vary segment types for pacing. Do not create more than 2 consecutive segments of the same type.
+- Use TalkingHead segments for key facts, revelations, or expert opinions — typically 1-2 per video.
+- Alternate between ImageNarration and VideoNarration to keep the visual rhythm engaging.
+
+## Visual Consistency
+
+- In the first segment, establish a color palette (e.g. "warm amber tones", "cool steel blue and slate gray"). Repeat the same color keywords in ALL image and video prompts throughout every segment.
+- Lock a lighting direction in the first segment (e.g. "soft golden-hour side lighting from the left") and repeat it in every visual prompt.
+- For the talking head character, write a 15-20 word anchor description (e.g. "a middle-aged female historian with silver-streaked dark hair, wearing a navy blazer, seated in a leather armchair") and paste it verbatim in every TalkingHeadPrompt.
+- Include {{Style}} in every image and video prompt.
+- Do not include text, labels, titles, or watermarks in image or video prompts.
+
+## Narration Writing Rules
+
+- Write only spoken words. Do not include stage directions, parentheticals, or action notes.
+- Spell out all numbers as words (e.g. "nineteen forty-five" not "1945", "three hundred" not "300").
+- Spell out abbreviations (e.g. "United States" not "U.S.", "Doctor" not "Dr.").
+- Use em-dashes for dramatic pauses — they signal the TTS engine to insert a brief silence.
+- Vary sentence length: mix short punchy sentences with longer flowing ones for natural rhythm.
+
+## Timing Enforcement
+
+- Each segment is approximately 12 seconds. At approximately 2 words per second maximum, that means a maximum of 24 words per narration or TalkingHeadText segment.
+- Count the words in every Script and TalkingHeadText segment. If any segment exceeds 24 words, rewrite it shorter.
+- Calibration example of a correctly-timed 12-second narration (24 words): "In nineteen sixty-nine — three astronauts left Earth behind — and for the first time — human beings set foot on the Moon."
+
+## Camera Movement Instructions
+
+- For VideoNarration segments, always specify camera movements in the VideoPrompt: dolly, pan, tilt, crane, tracking, orbit, or static.
+- Do not include text or audio descriptions in video prompts — video prompts are visual only.
+
+## Output Requirements
+
+Based on your generated script:
+- Create a talking head character image prompt. This should in general be depicting an expert male or female character, being interviewed, probably sitting on a couch or chair against a background that suits the documentary topic. Since this is a talking head, the character should be shown from the waist up. The character should look professional, trustworthy and knowledgeable. Write a 15-20 word anchor description for this character and reuse it verbatim in every TalkingHeadPrompt.
 - Create a summary and title.
 - A prompt that suits for an instrumental background music.
 
-Then you are tasked to decide and create prompts/content for each segment.  Create an array of segments, where each segment:
+Then you are tasked to decide and create prompts/content for each segment. Create an array of segments, where each segment has:
 - NarrationType: ImageNarration, TalkingHead, VideoNarration, MapNarration
 - UseNarrationAudio: Decide if background narration audio is needed. If the video is going to have its own audio, it should be false, but if the video is without audio yes probably.
-- Script: If UseNarrationAudio is true, then a script to be read by a narrator which fits in 12 seconds max.
-- ImagePrompts: Based on NumImagesPerSegment or the images you may want to use as reference or begin/end images in the VideoNarration, prompts for those images.
-- VideoPrompt: If the segment is a VideoNarration, creates a prompt to describe the setup of the scene, camera movements, cut scenes etc. to tell the story.
-- TalkingHeadText: If the segment is a TalkingHead, create the text that the character will say in this segment. This text should be concise and fit within 12 seconds of speech.
-- TalkingHeadPrompt: If the segment is a TalkingHead, create a prompt that describes the character, their tone and the setting for the talking head video segment.
+- Script: If UseNarrationAudio is true, then a script to be read by a narrator. Maximum 24 words (approximately 12 seconds at 2 words per second).
+- ImagePrompts: Based on NumImagesPerSegment or the images you may want to use as reference or begin/end images in the VideoNarration, prompts for those images. Include {{Style}} and the established color palette and lighting in every prompt.
+- VideoPrompt: If the segment is a VideoNarration, creates a prompt to describe the setup of the scene, camera movements (dolly, pan, tilt, crane, tracking, orbit), and visual composition. Include {{Style}} and the established color palette and lighting. Do not include text, audio descriptions, labels, or watermarks.
+- TalkingHeadText: If the segment is a TalkingHead, create the text that the character will say. Maximum 24 words. Follow the narration writing rules above.
+- TalkingHeadPrompt: If the segment is a TalkingHead, create a prompt that describes the character using the anchor description verbatim, their tone, and the setting. Include {{Style}} and the established color palette and lighting.
 
- **Important**
-- Make sure to include the style provided to you in the image and video prompts. 
-- The script should be able to be narrated within a max of 12 seconds, and each segment should not exceed that.  
+## Conditional Field Handling
+
+- If NarrationType is ImageNarration or VideoNarration: set TalkingHeadText to empty string and TalkingHeadPrompt to empty string. Do NOT write "N/A" or placeholder text — use empty string.
+- If NarrationType is MapNarration: set TalkingHeadText to empty string, TalkingHeadPrompt to empty string, and VideoPrompt to empty string.
+- If NarrationType is TalkingHead: ImagePrompts should still contain at least one image prompt to use as visual reference. Set VideoPrompt to empty string.
+- Do NOT write "N/A", "none", or any placeholder text for unused fields — always use empty string.
+
+## Important Reminders
+
+- Make sure to include {{Style}} in every image and video prompt.
+- Count words in every Script and TalkingHeadText. Maximum 24 words per segment (approximately 12 seconds at 2 words per second). If over the limit, rewrite shorter.
 - Always take into account the duration provided to you to ensure the right amount of coverage of the topic.
-- When you create TalkingHead segments, in your prompt make sure the text you ask the character speak does not exceed 12 seconds.
+- When you create TalkingHead segments, make sure the TalkingHeadText does not exceed 24 words.
+- Do not include text, labels, titles, or watermarks in any image or video prompt.
 """
 
 userPrompt = """

@@ -8,6 +8,39 @@ Your task is to generate three types of content:
 2. Video prompts for each clip transition between panels
 3. A background music prompt
 
+## CRITICAL: Clip Count Validation
+
+The number of video clips is {{NumOfClips}}, which equals {{PanelCount}} - 1 (one transition per consecutive panel pair). Generate exactly {{NumOfClips}} video prompts.
+
+Examples:
+- If PanelCount = 4, generate 3 video clips.
+- If PanelCount = 9, generate 8 video clips.
+
+Do NOT generate more or fewer video prompts than {{NumOfClips}}. This is a hard requirement.
+
+## Narrative Continuity
+
+The panels must tell a coherent sequential story, not just random scenes.
+- Each panel should visually follow from the previous one.
+- Actions or movements should be mid-flow between panels — like freeze frames from a continuous sequence.
+- Maintain character consistency: same clothing, appearance, and proportions across all panels.
+- Think of the panels as keyframes extracted from a single continuous film — the viewer should feel the motion between them.
+
+## Emotional Arc
+
+Structure the panels to follow a narrative arc:
+- Opening panels: Establish character and setting. Ground the viewer in the world.
+- Middle panels: Build action or tension. Escalate stakes or introduce conflict.
+- Final panels: Climax and resolution. Deliver the payoff and conclude the story.
+
+## Visual Consistency
+
+- Maintain a consistent color palette across all panels.
+- Lock the lighting direction and repeat it in every panel description.
+- Character appearance must be identical across all panels — use a 15-20 word anchor description that you repeat verbatim in every panel and video prompt.
+- Include '{{Styling}}' in the grid image prompt and every video prompt to ensure stylistic coherence.
+- Do not include text, labels, or watermarks in visual prompts.
+
 # Storyboard Grid Image Prompt Guidelines
 
 The grid image prompt should follow this exact structure:
@@ -25,7 +58,7 @@ The grid image prompt should follow this exact structure:
 - Style: [Visual style]
 - Lighting: [Lighting setup]
 - Camera: [Camera style/lens choices]
-- Any watermarks, logos, or overlays
+- No text, labels, watermarks, or overlays
 
 Important for Grid Prompts:
 - Each panel should tell part of a sequential story
@@ -42,9 +75,14 @@ For each transition between consecutive panels, create a video prompt that:
 3. Maintains visual continuity with the storyboard style
 4. Is 2-3 sentences, focused on movement and action
 5. Does NOT include music or audio instructions
-6. Incorporates the specified visual style
+6. Incorporates the specified visual style — always include '{{Styling}}' in each video prompt
+7. Includes the character anchor description for consistency
 
-Remember: For N panels, you generate N-1 video clips.
+Vary camera movements between clips for visual rhythm. Do not use the same camera movement for every clip.
+Example pattern: Clip 1 (dolly forward) → Clip 2 (pan right) → Clip 3 (crane up) → Clip 4 (tracking shot).
+Mix movements such as: dolly in/out, pan left/right, tilt up/down, crane/boom, tracking/steadicam, push-in, pull-back, orbital, and static holds.
+
+Remember: For N panels, you generate N-1 video clips — exactly {{NumOfClips}} clips total.
 - Clip 0: Transition from Panel 1 to Panel 2
 - Clip 1: Transition from Panel 2 to Panel 3
 - Continue until the final transition...

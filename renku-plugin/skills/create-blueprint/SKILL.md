@@ -1,172 +1,196 @@
 ---
 name: create-blueprint
-description: Create Renku blueprints for video generation workflows. Use when users want to define custom video generation pipeline using prompt producers, asset producers and compose them into a video.
-allowed-tools: Read, Grep, Glob, AskUserQuestion
+description: Create Renku blueprints for video generation workflows. Use when users say "create a video", "build a video pipeline", "make a documentary", "generate a video workflow", "design a blueprint", "create an ad video", "educational video", "talking head video", or want to define custom video generation pipelines composing prompt producers, asset producers, and timeline composers.
+allowed-tools: Read, Grep, Glob, Bash, Write, Edit, AskUserQuestion
 ---
 
 # Blueprint Creation Skill
 
-This skill helps you create Renku blueprints - YAML files that define video generation workflows. Blueprints compose multiple asset generators and prompt generators using AI models into a dependency graph that generates media files and assembles them into final videos.
+Create Renku blueprints — YAML files that define video generation workflows by composing prompt producers, asset producers, and timeline composers into a dependency graph.
+
+## Critical Rules
+
+1. **Never modify catalog files.** Catalog is read-only reference. Always create new projects with `renku new:blueprint`.
+2. **Never run `renku generate` without `--dry-run`.** Full runs cost money and the user will be charged.
+3. **System inputs are NOT declared in `inputs:`.** `Duration`, `NumOfSegments`, `SegmentDuration`, `MovieId`, `StorageRoot`, `StorageBasePath` are automatic — but MUST be wired in `connections:` where needed.
+4. **Kebab-case project names, PascalCase IDs.** Project: `history-video`. Blueprint ID: `HistoryVideo`.
+5. **Use relative paths.** In producer imports use the `producer` keyword. For prompt producers use relative paths within the project folder.
+6. **Minimal inputs.** Most producer inputs have sensible defaults. Only expose what the user needs to configure.
+7. **No legacy `collectors:` blocks.** Fan-in is connection-driven. See [Common Errors Guide](./references/common-errors-guide.md).
+8. **Quality over speed for the director prompt.** The director prompt producer is the highest-leverage file — it generates ALL downstream prompts. The director-prompt-engineer subagent has full guidance on this.
+9. **Delegate specialized work.** Use the Task tool to spawn subagents for model selection (model-picker) and director prompt creation (director-prompt-engineer) at the appropriate steps.
 
 ## Prerequisites
 
-Before creating blueprints, ensure Renku is initialized:
-
 1. Check if `~/.config/renku/cli-config.json` exists
 2. If not, run `renku init --root=~/renku-workspace`
-3. The config file contains the `catalog` path where blueprints and producers are installed
+3. Read the config to find the **catalog** path for locating producers and models
 
-Read `~/.config/renku/cli-config.json` to find the **catalog** path, you will be using this to locate the producers and models for the blueprint.
+## Blueprint Creation Workflow
 
-```bash
-cat ~/.config/renku/cli-config.json
-```
-
-## Where to Create Blueprints
-
-Each user blueprint should be within a project folder. Project folders are under the root folder.
-
-> **IMPORTANT** Do not create new blueprints or prompt producer files under the catalog. Always use `renku new:blueprint` to create blueprints.
-
-### Creating a New Blueprint Project
-
-**Always use the `new:blueprint` command** to create blueprint projects:
+### Step 0: Scaffold the Project
 
 ```bash
 renku new:blueprint <project-name>
 ```
 
-**Naming Requirements:**
-
-- Project names **must be in kebab-case** (lowercase letters, numbers, and hyphens only)
-- Must start with a lowercase letter
-- Examples: `history-video`, `my-documentary`, `ad-campaign-v2`
-- Invalid: `HistoryVideo`, `my_documentary`, `123-video`
-
-**Examples:**
-
-```bash
-renku new:blueprint history-video
-renku new:blueprint my-documentary
-renku new:blueprint product-ad
+This creates:
+```
+<project-name>/
+├── <project-name>.yaml          # Blueprint file (scaffold)
+└── input-template.yaml          # Input template
 ```
 
-This creates the following structure:
-
+When adding custom prompt producers, create subfolders:
 ```
-Root
-├── catalog     (reference only - do NOT modify)
-|
-├── <project-name>
-      ├── <project-name>.yaml          # Blueprint file (scaffold)
-      └── input-template.yaml          # Input template
-```
-
-When you need to add custom prompt producers, create subfolders within your project:
-
-```
-<project-name>
+<project-name>/
 ├── <project-name>.yaml
 ├── input-template.yaml
-└── <prompt-producer-name>
-      ├── output-schema.json
-      ├── producer.yaml
-      └── prompts.toml
+└── <prompt-producer-name>/
+    ├── output-schema.json
+    ├── producer.yaml
+    └── prompts.toml
 ```
 
-- **IMPORTANT** Do not use hardcoded paths but use relative ones. In blueprint producer import declarations, use the "producer" keyword so you don't need to provide a specific path. For prompt producers, use relative paths within the project folder to import the JSON schema and TOML prompts file.
+### Step 1: Gather Requirements
 
-## How to Create Blueprints
+Understand from the user:
+- What type of video (documentary, ad, educational, music video, storyboard, etc.)
+- What media types are needed (images, videos, talking heads, narration, music)
+- How they compose into the final timeline (which tracks, segment structure)
 
-### Step 0: Create the Blueprint Project
+If anything is unclear, use **AskUserQuestion** to clarify.
 
-Before starting the planning process, create the blueprint project using the CLI:
+See [Requirement Examples](./references/requirement-examples.md) for detailed analysis of common use cases.
+
+### Step 2: Identify Implicit Requirements
+
+Always include inputs for these even if the user doesn't mention them:
+- **Style/VisualStyle** — Visual aesthetic (cinematic, anime, photorealistic)
+- **Duration structure** — Duration, NumOfSegments (system inputs), NumOfImagesPerSegment (if applicable)
+- **Audience** — Target demographic (when it affects tone/content)
+
+### Step 3: Select Producers and Models
+
+**Delegate to the model-picker subagent** using the Task tool. Provide:
+- The use case type and required media types
+- Any user preferences for specific models (e.g., "use Kling Video 3.1") or providers (e.g., "use fal-ai")
+- Budget or quality/cost trade-offs
+
+If the user specified a model, the subagent will find compatible producers for it. If the user specified a provider, the subagent will only select models from that provider. The subagent returns producer + model + provider selections for use in `input-template.yaml`.
+
+Key rules:
+- For cut-scene videos, use ONE video producer per segment with `[cut]` markers — not nested video producer groups
+- The blueprint does NOT specify models — models go in `input-template.yaml`
+
+### Step 4: Design the Director Prompt Producer
+
+**Delegate to the director-prompt-engineer subagent** using the Task tool. Provide:
+- The use case, selected producers and their inputs
+- The project path and any style preferences
+- The output schema requirements
+
+The subagent creates the complete prompt producer files (TOML, JSON schema, YAML).
+
+The director MUST:
+- [ ] Define a narrative arc (hook → development → resolution)
+- [ ] Establish visual consistency rules (color palette, lighting, style keywords)
+- [ ] Include camera movement instructions in all video prompts
+- [ ] Follow TTS-friendly writing guidelines for narration
+- [ ] Enforce word count limits: SegmentDuration × 2 words max per segment
+- [ ] Handle conditional fields explicitly (empty strings for unused fields)
+- [ ] Specify "no text/labels/watermarks" in all image prompts
+- [ ] Include concrete prompt examples in the system prompt
+- [ ] Test timing math: count words in example narrations
+
+### Step 5: Determine Inputs and Artifacts
+
+Based on the selected producers and director output schema, define:
+- **inputs:** — User-configurable parameters (PascalCase names, minimal set)
+- **artifacts:** — Blueprint outputs (arrays with countInput for looped outputs)
+- **loops:** — Iteration dimensions (segment, image, clip, etc.)
+
+Remember: system inputs (`Duration`, `NumOfSegments`, `SegmentDuration`) are automatic — don't declare them in `inputs:`.
+
+### Step 6: Wire the Connection Graph
+
+Build the `connections:` section that routes data between producers. This is the mechanical step that follows from the producer graph and director output schema.
+
+**Connection patterns:**
+- **Direct:** `Input:Style → ImageProducer.Style` — broadcast a single value to a producer input
+- **Looped:** `Director.Segments[segment].NarrationScript → TTS[segment].TextInput` — per-iteration wiring
+- **Broadcast:** `Input:Style → VideoProducer[segment].Style` — same value to every loop iteration
+- **Fan-in:** `ImageProducer[segment].Image → TimelineComposer.ImageSegments` — collect loop outputs into an array
+- **Offset:** `ImageProducer[i].Image → VideoProducer[segment].SourceImage` — index shift between loops
+- **Conditional:** `Input:NarrationType → condition → different producer wiring` — route based on input value
+
+**Audio routing rule:** If audio is only used as video input (e.g., lipsync), do NOT route it as a separate audio track to the timeline. For transcription of lipsync videos, wire `AudioTrack` from the talking-head producer, not the original narration audio.
+
+**Timeline composer configuration:**
+- Define `masterTracks` in the timeline composer's config — which artifact arrays map to which track types (video, audio, subtitle)
+- Track types: `video` (image sequences or video clips), `audio` (narration, music), `subtitle` (karaoke text)
+- Set export config: resolution, FPS, codec
+
+See [Comprehensive Blueprint Guide](./references/comprehensive-blueprint-guide.md) for full connection syntax. See [Timeline Composer Config](./references/timeline-composer-config.md) for track setup and export configuration.
+
+### Step 7: Add Transcription and Karaoke Subtitles (Optional)
+
+If the video includes narration or speech that should be displayed as subtitles, add the TranscriptionProducer.
+
+See [Transcription and Karaoke Guide](./references/transcription-karaoke-guide.md) for wiring and configuration.
+
+### Step 8: Validate Blueprint Structure
 
 ```bash
-renku new:blueprint <project-name>
+renku blueprints:validate <path-to-blueprint.yaml>
 ```
 
-**Remember:**
+Fix any errors before proceeding. See [Common Errors Guide](./references/common-errors-guide.md) for error reference.
 
-- Use kebab-case for the project name (e.g., `history-video`, `my-documentary`)
-- This creates a scaffold blueprint that you will customize based on the user's requirements
-- You can reference catalog blueprints as examples, but always create a new project for the user
+| Error Code | Quick Fix |
+|------------|-----------|
+| E003 | Add producer to `producers[]` |
+| E004 | Declare in `inputs[]` or use system input |
+| E006 | Check loop names in `loops[]` |
+| E007 | Use fan-in target or align dimensions |
+| E010 | Check producer's available inputs |
+| E021 | Remove circular dependency |
+| P053 | Remove `collectors:` — use connection-driven fan-in |
 
-### Step 1: Essential Questions for Requirements
+### Step 9: Test with Dry Run
 
-The workflow and type of video needs to be clearly stated in natural language. It includes what the expected type of output video is, the types of artifacts (different types of media) that will be used in creating it and how they are supposed to come together in the final video.
+Create a minimal inputs file with required values and model selections (from producer YAML `mappings` sections):
 
-Below are some examples and what you can deduce:
+```yaml
+inputs:
+  InquiryPrompt: 'Test prompt'
+  Duration: 30
+  NumOfSegments: 2
 
-> **IMPORTANT** If you cannot deduce or have doubts, always use the **AskUserQuestion** tool to clarify.
+models:
+  - model: gpt-5-mini
+    provider: openai
+    producerId: ScriptProducer
+```
 
-**Example 1**
-User Prompt: I want to build short documentary style videos. The video will optionally contain KenBurns style image transitions, video clips for richer presentation, optional video clips where an expert talks about some facts, a background audio narrative for the images and videos and a background music.
+```bash
+renku generate --blueprint=<path> --inputs=<path> --dry-run
+```
 
-With the above user provided summary, you know:
+Fix any runtime errors and iterate.
 
-- The end video is a documentary style video, which will help in generating the necessary prompts.
-- What kind of artifacts you will need to be producing to put together the final video. This includes:
-  - Image generations (possibly multiple per segment),
-  - Video generations for richer video depiction where Ken Burns style images are not sufficient,
-  - Video generations with audio, where a person is talking and giving information,
-  - Background audio narrative, which means some text script and text-to-speech audio generation for segments,
-  - Background music to give a relevant ambience to the overall narrative
-- Your final composition will be composed of 4 tracks and a user configurable number of segments.
-  - Track 1: Audio for narrative
-  - Track 2: Video for video clips and talking head videos
-  - Track 3: Image for images to be used with KenBurns style effects.
-  - Track 4: Music for background music
-- The initial prompt producer (director of the video), will determine the script, what type of segments to generate, what type of media to include for the best results in each segment and prompts for each of those generation and text for the narrative scripts.
+### Step 10: Review and Deliver
 
-In catalog, we have an example of this blueprint: `catalog/blueprints/documentary-talkinghead`
+- Verify the blueprint produces the expected structure in dry-run output
+- Walk the user through the blueprint: inputs they'll configure, producers used, expected output
+- Remind them to select models for each producer when running real generation
 
-**Example 2**
-User Prompt: I want to create Ad videos. We will have a character in various video clips using a product. The character and product shot should be generated. The ad should also
-have a background music. The video clips will have audio, so we want to be able to provide a written script to each one.
-
-With the above user provided summary, you know:
-
-- The end video is a commercial that depicts a character using a product and a narrative that sells the product.
-- What kind of artifacts you will need to be producing to put together the final video. This includes:
-  - Image generation to generate a character image which will be used in the videos as the hero character using the product
-  - Image generation to generate the product image which will be advertised and the character will use it in different situations
-  - An audio narrative that sells the product, a text-to-speech generated audio
-  - Background music that fits the tone and style of the commercial
-- Your final composition will be composed of 3 tracks and a user configurable number of clips.
-  - Track 1: Video (the generated video clips)
-  - Track 2: Audio (narration)
-  - Track 3: Music (background music)
-- The initial prompt producer (director of the video), will determine the script, what type of segments to generate, what type of media to include for the best results in each segment and prompts for each of those generation and text for the narrative scripts.
-
-In catalog, we have an example of this blueprint: `catalog/blueprints/ads`
-
-### Step 2: Implicit Requirements
-
-These are requirements that the user does not specify everytime, but you should always include as inputs to the blueprint. The end users using the blueprint to generate videos will always want to configure these:
-
-**Duration and structure?**
-
-- Total video length in seconds
-- Number of segments
-- Images per segment (if applicable)
-
-**Visual style?**
-
-- Cinematic, anime, photorealistic, etc.
-- Aspect ratio (16:9, 9:16, 1:1)
-- Resolution (480p, 720p, 1080p)
-
-### Step 3: Understand the Blueprint Structure
-
-A blueprint has these sections, you will need to be filling these as you go along the process. This will serve as your planning to make sure you correctly created a blueprint that uses this structure
-
-> **IMPORTANT** Do not immediately fill in the blueprint, you need to understand your inputs and what producers (with what models) you will be using first. The graph structure will be dependent on that understanding.
+## Blueprint Schema Reference
 
 ```yaml
 meta:
   name: <Human-readable name>
-  description: <Purpose and behavior>
+  description: <Purpose>
   id: <PascalCase identifier>
   version: 0.1.0
 
@@ -178,7 +202,6 @@ inputs:
 
 artifacts:
   - name: <PascalCase>
-    description: <Output description>
     type: <string|array|image|audio|video|json>
     itemType: <for arrays>
     countInput: <input name for array size>
@@ -190,7 +213,8 @@ loops:
 
 producers:
   - name: <PascalCase alias>
-    path: <relative path to producer.yaml>
+    producer: <type/name>            # catalog producer (e.g., image/text-to-image)
+    path: <relative path>            # OR local prompt producer (e.g., ./my-director/producer.yaml)
     loop: <loop name or nested like segment.image>
 
 connections:
@@ -198,198 +222,40 @@ connections:
     to: <target>
     if: <optional condition name>
 
-# Connection patterns:
-# - Direct: InquiryPrompt → ScriptProducer.InquiryPrompt
-# - Looped: Script[segment] → AudioProducer[segment].TextInput
-# - Broadcast: Style → VideoProducer[segment].Style
-# - Offset: Image[i] → Video[segment].Start, Image[i+1] → Video[segment].End
-# - Indexed collection: CharacterImage → VideoProducer[clip].ReferenceImages[0]
-#                       ProductImage → VideoProducer[clip].ReferenceImages[1]
-# - Multi-index (nested loops): ImagePrompt[segment][image] → ImageProducer[segment][image].Prompt
-# - Fan-in (connection-driven):
-#     Inferred 1D: ImageProducer[segment].GeneratedImage → TimelineComposer.ImageSegments
-#     Inferred 2D: ImageProducer[segment][image].GeneratedImage → TimelineComposer.ImageSegments
-#     Explicit metadata (optional):
-#       from: ImageProducer[segment][image].GeneratedImage
-#       to: TimelineComposer.ImageSegments
-#       groupBy: segment
-#       orderBy: image
-
 conditions:
   <conditionName>:
     when: <artifact path>
     is: <value>
 ```
 
-### Step 4: Determine the Inputs and Artifacts
+Connection patterns: Direct (`Input → Producer.Input`), Looped (`Script[segment] → Audio[segment].Text`), Broadcast (`Style → Video[segment].Style`), Offset (`Image[i] → Video[segment].Start`), Indexed collection (`CharImage → Video[clip].RefImages[0]`), Multi-index (`Prompt[seg][img] → Image[seg][img].Prompt`), Fan-in (`Image[seg].Out → Timeline.ImageSegments`).
 
-Based on the requirements gathering and the selected producers, determine what inputs will be needed from the user to do the full video generation.
+## End-to-End Example: Simple Documentary
 
-> **IMPORTANT** Minimal set of required inputs, various producers and models have default values that are already good enough. Do not overwhelm the user to specify all of those inputs and rely on the defaults when they make sense.
-
-### Step 5: Determine which Asset Producers to Use
-
-You can use the `docs\models-guide.md` document to decide which asset producers you will need to generate the types of assets. This document gives the necessary background to decide on what asset producers to pick for media generation.
-
-> **IMPORTANT** When asked to create cut-scene videos, you should not be creating a nested group of video producers that is a lot of videos and cost a lot and be slow as hell. So instead you should be using one video producer per segment, prompt the video producer to create cutscenes. The video producers when prompted with [cut] followed by the scene description can create cut scenes.
-
-### Step 6: Create the Initial Prompt Producer (aka the Director)
-
-You can use the `docs\prompt-producer-guide.md` to understand what files are needed and how to generate the prompt producers. The output of this file will be a JSON structured output, which you will be using to connect to various media producers in the blueprint.
-
-> **IMPORTANT** System inputs (`Duration`, `NumOfSegments`, `SegmentDuration`) must NOT be declared in the blueprint's `inputs:` section — they are automatically recognized by the system. However, they MUST be explicitly wired in the blueprint's `connections:` section wherever a producer needs them. Prompt producers that use `SegmentDuration` (auto-computed as `Duration / NumOfSegments`) must declare it in their own inputs and reference it in their TOML template variables. See `catalog/blueprints/flow-video/continuous-video.yaml` for the correct pattern.
-
-> **IMPORTANT** If you are creating a cut scenes video with an initial frame image, the initial frame is your first cut and the cut you define is the second cut the video will transition into. If the user specified 2 cut-scenes per segment, then there should only be one [cut] description as the first frame defined the first cut. Video prompt should add additional camera instructions for this scene:
-> Use smooth camera transitions between the cuts. For example from the end of first cut scene, you can dolly the camera across by morphing the image as it transitions. Feel free to adopt other similar smooth transition styles.
-> Start the scene with the initial image with slow dolly forward moving camera.
-> [cut] Medium close shot of Chinese sampan crews and British sailors unloading heavy wooden chests stamped with foreign seals, camera panning across faces and weathered hands, dramatic side lighting emphasizing texture and worn cloth garments.
-> **IMPORTANT** For video prompts, make sure you instruct the prompt producer to specify the camera movements and/or transition effects by giving examples to it. You can give an example such as below:
-> Use smooth camera transitions between the cuts. For example from the end of first cut scene, you can dolly the camera across by morphing the image as it transitions. Feel free to adopt other similar smooth transition styles.
-> [cut] Wide establishing shot of Canton waterfront in the 1830s at first light: bustling wharves of timber and tiled roofs, junks with battened sails, a hulking British frigate beyond, slow dolly forward, painterly historical aesthetic with low golden rim light.
-> [cut] Medium close shot of Chinese sampan crews and British sailors unloading heavy wooden chests stamped with foreign seals, camera panning across faces and weathered hands, dramatic side lighting emphasizing texture and worn cloth garments.
-
-### Step 7: Create the Connection Graph
-
-Use `docs/comprehensive-blueprint-guide.md` for a comprehensive explanation of the blueprints and how to connect nodes based on the prompt producer you created and the asset producers you identified. You can also always use some examples from the catalog.
-
-> **IMPORTANT** If you are generating audio but only using it as an input to a video (for lipsync etc.), then you should not be routing the audio as an audio track to the timeline composer, it will create an unnecessary secondary audio track to what is available in the video track.
-
-### Step 8: Add Transcription and Karaoke Subtitles (Optional)
-
-If the video includes narration or speech that should be displayed as subtitles, add transcription support using the TranscriptionProducer. This enables karaoke-style animated subtitles similar to Instagram and TikTok.
-
-> **IMPORTANT** When using talking-head producers (like `asset/talking-head` for lipsync), the producer exposes an `AudioTrack` artifact that extracts the audio from the generated video. This artifact is **only generated when connected to a downstream consumer**. For transcription of lipsync videos:
->
-> - Wire `LipsyncVideoProducer[segment].AudioTrack` to `TimelineComposer.TranscriptionAudio` (NOT the original narration audio)
-> - The AudioTrack artifact ensures the timeline's audio clips align properly with the video segments
-> - Do NOT use the original `NarrationAudioProducer.GeneratedAudio` for transcription when using lipsync videos, as the timing may differ from the final video
-
-For detailed guidance, see: **[Transcription and Karaoke Subtitles Guide](./docs/transcription-karaoke-guide.md)**
-
-### Step 9: Validate Blueprint Structure
-
-This validates that the blueprint can be parsed and structurally connect, but it does not validate that it will be sending the right inputs to the producers, the producer input routing is validated by doing a dry-run.
-
-```bash
-renku blueprints:validate <path-to-blueprint.yaml>
-```
-
-Expected output:
-
-- `valid: true` - Blueprint structure is correct
-- Node and edge counts
-- Error messages if invalid
-
-If you receive errors, address them here before moving on by carefully reading the error and if necessary consulting the `./docs/comprehensive-blueprint-guide.md`
-
-### Step 10: Test with Dry Run
-
-Create a minimal inputs file (based on the requirements and also what the producers expect). At this stage you will also need to pick some models for the dry-run. These models should be selected from each of the producer YAML file's mappings section (which identifies which models are compatible with that producer)
-
-For detailed model information:
-
-- [video-models.md](./docs/video-models.md) - Video model comparisons (Veo, Seedance, Kling, etc.)
-- [image-models.md](./docs/image-models.md) - Image model comparisons (SeedDream, Flux, Qwen, etc.)
-- [audio-models.md](./docs/audio-models.md) - Audio/speech/music model comparisons
-
-> **IMPORTANT** Producers specify a lot of possible inputs for completeness, but most of them have default values. DO NOT PROVIDE VALUES for those defaults.
-> **IMPORTANT** Models will be picked by end user when generating a video, in the dry-run just pick one of the models in the list of supported models for that producer (in the YAML file).
-
-```yaml
-inputs:
-  InquiryPrompt: 'Test prompt'
-  Duration: 30
-  NumOfSegments: 2
-  # ... other required inputs
-
-models:
-  - model: gpt-5-mini
-    provider: openai
-    producerId: ScriptProducer
-  # ... other model selections
-```
-
-Save this again in the root folder of the workspace.
-
-Run dry-run:
-
-> **IMPORTANT** Always use --dry-run, running them full will cost money as they will be calling the providers and the user will be charged and very UPSET!
-
-```bash
-renku generate --blueprint=<path> --inputs=<path> --dry-run
-```
-
-## Common Errors and Fixes
-
-For a comprehensive guide to all validation errors, runtime errors, and their fixes, see:
-
-- **[Common Errors Guide](./docs/common-errors-guide.md)** - Full error reference with examples and solutions
-
-### Quick Reference
-
-| Error Code | Description                    | Quick Fix                                              |
-| ---------- | ------------------------------ | ------------------------------------------------------ |
-| E003       | Producer not found             | Add producer to `producers[]` section                  |
-| E004       | Input not found                | Declare in `inputs[]` or use system input              |
-| E006       | Unknown loop dimension         | Check loop names in `loops[]` section                  |
-| E007       | Dimension mismatch             | Use fan-in target or align source/target dimensions    |
-| E010       | Producer input mismatch        | Check producer's available inputs                      |
-| E021       | Producer cycle detected        | Remove circular dependency                             |
-| P053       | Legacy collectors section used | Remove `collectors:` and keep fan-in on `connections:` |
-
-### Critical: Fan-In Pattern
-
-**Most common mistake:** writing legacy `collectors:` blocks. Fan-in is now connection-driven:
-
-```yaml
-# CORRECT - Connection only (inference handles fan-in)
-connections:
-  - from: ImageProducer[segment][image].GeneratedImage
-    to: TimelineComposer.ImageSegments
-
-  # Optional explicit metadata on the edge for disambiguation
-  - from: ImageProducer[segment][image].GeneratedImage
-    to: TimelineComposer.ImageSegments
-    groupBy: segment
-    orderBy: image
-```
-
-See the [Common Errors Guide](./docs/common-errors-guide.md) for fan-in troubleshooting details.
-
-## Examples
-
-For examples, find the catalog path in `~/.config/renku/cli-config.json` and explore:
-
-- `<catalog>/blueprints/` - Blueprint examples (use as reference when building new blueprints)
-- `<catalog>/producers/` - Producer definitions
-- `<catalog>/models/` - Model definitions together with their input JSON schemas
-
-**Remember:** Never directly use or modify blueprints in the catalog. Always create a new blueprint project with `renku new:blueprint <project-name>` and use catalog blueprints only as reference.
+1. User says: "Create a Ken Burns documentary about the Silk Road"
+2. Scaffold: `renku new:blueprint silk-road-documentary`
+3. Requirements: Images with KenBurns effects, narration, background music, text overlays
+4. Producers: `prompt/generic` (director), `image/text-to-image` (images), `audio/text-to-speech` (narration), `audio/text-to-music` (music), `composition/timeline-composer`
+5. Director creates per-segment: image prompts, narration scripts, text overlays, plus a music prompt
+6. Wire: InquiryPrompt → Director → [segment] image/narration/text outputs → asset producers → TimelineComposer
+7. Validate: `renku blueprints:validate silk-road-documentary/silk-road-documentary.yaml`
+8. Dry-run: `renku generate --blueprint=... --inputs=... --dry-run`
 
 ## CLI Commands Reference
 
 ```bash
-# Initialize Renku workspace
-renku init --root=<path>
-
-# Create a new blueprint project (use kebab-case name)
-renku new:blueprint <project-name>
-
-# Validate blueprint structure
-renku blueprints:validate <blueprint.yaml>
-
-# Browse available blueprints in catalog (for reference only)
-ls ./catalog/blueprints/
-
-# List available models for producers
-renku producers:list --blueprint=<path>
-
-# Test with dry run (no API calls)
-renku generate --blueprint=<path> --inputs=<path> --dry-run
-
-# Estimate costs
-renku generate --blueprint=<path> --inputs=<path> --costs-only
-
-# Full generation (costs money)
-renku generate --blueprint=<path> --inputs=<path> --non-interactive
+renku init --root=<path>                                    # Initialize workspace
+renku new:blueprint <project-name>                          # Scaffold blueprint project
+renku blueprints:validate <blueprint.yaml>                  # Validate structure
+renku producers:list --blueprint=<path>                     # List available producers
+renku generate --blueprint=<path> --inputs=<path> --dry-run # Test without API calls
+renku generate --blueprint=<path> --inputs=<path> --costs-only # Estimate costs
 ```
+
+## Reference Documents
+
+- [Comprehensive Blueprint Guide](./references/comprehensive-blueprint-guide.md) — Full YAML schema, connections, loops, fan-in
+- [Timeline Composer Config](./references/timeline-composer-config.md) — Track setup and export config
+- [Common Errors Guide](./references/common-errors-guide.md) — Validation and runtime error reference
+- [Transcription and Karaoke Guide](./references/transcription-karaoke-guide.md) — Subtitle configuration
+- [Requirement Examples](./references/requirement-examples.md) — Detailed use case analysis

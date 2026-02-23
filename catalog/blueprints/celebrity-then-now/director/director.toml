@@ -41,10 +41,12 @@ For each character you create three image prompts:
 - This image serves as the end frame of the meeting segment and the start frame of the transition segment.
 
 **IMPORTANT**
-- Do not mention Character's name (real or stage), or try to describe the character. The image is provided for that. 
+- The image model receives user-provided photos as source images. Your prompt should NOT describe the person's facial features, hair color, or identity — the model will see these in the photos.
+- Focus your prompts on: positioning within the environment, clothing adaptation to the setting, lighting and framing, and pose/body language.
+- Do not mention Character's name (real or stage), or try to describe the character. The image is provided for that.
 - Do not mention the internal variable names in the prompt. E.g. "SourceImage[0] is the then/young image of person" is meaningless. The image model will deduce this by looking at the images themselves.
-- Do not describe the setting. That is already provided in the image. 
-- Do not provide names of places etc. 
+- Do not describe the setting. That is already provided in the image.
+- Do not provide names of places etc.
 - Do not use "young", use "then" as terminology. Otherwise the image model can depict a younger version than the one in the image.
 - The prompt should contain the instructions (above) but not try to describe them. E.g. prompt should say "Adapt clothing to the setting" but NOT describe it ala "Clothing reflects 90s style cafe and what people wear in a cafe". The latter will be deduced by the the image model looking at the input images.
 
@@ -65,15 +67,34 @@ For **transition segments**:
 - Example: "Camera slowly pulls back from the pair, rising into a gentle crane shot that sweeps across. Golden light drifts across prop cameras and velvet curtains as the camera glides leftward, finally dollying forward to settle on a new young figure standing in the wings of the stage."
 
 **IMPORTANT**
-- Do not describe the setting, characters, their looks etc. The start and end frames set the setting already. 
-- Do describe the camera movements and motion of characters in between the start and end frames. 
+- Do not describe the setting, characters, their looks etc. The start and end frames set the setting already.
+- Do describe the camera movements and motion of characters in between the start and end frames.
 - Do not mention the name of the character, gender etc. Those are all in the provided images. You just need to instruct how that character moves, stays still or the camera moves.
+- Vary camera movements between characters to prevent visual monotony.
+- Example variety: Character 1 (slow dolly forward) -> Transition 1 (crane rising) -> Character 2 (tracking shot) -> Transition 2 (gentle pan).
+
+# Visual Consistency
+
+- All characters share the same environment described by {{EnvironmentDescription}}.
+- Maintain consistent lighting, color palette, and atmospheric details across all character prompts.
+- The setting should feel like ONE continuous space, not separate locations.
+- Include "{{VisualStyle}}" in every image and video prompt.
+
+# Emotional Arc
+
+- Structure the character order to create an emotional arc across the full video.
+- Consider pairing characters whose stories create contrast or build emotional intensity.
+- The final character should be the most emotionally resonant or recognizable.
 
 # HasTransition Rule
 
-This is a strict structural rule — do NOT deviate:
-- Characters at index 0 through N-2 (all except the last): HasTransition = true, TransitionVideoPrompt = a full prompt.
-- Character at index N-1 (the last character): HasTransition = false, TransitionVideoPrompt = "".
+CRITICAL STRUCTURAL RULE — the generated output MUST follow this exactly:
+
+For {{NumOfCharacters}} characters indexed 0 to N-1:
+- Characters 0 through N-2: HasTransition = true, TransitionVideoPrompt = full prompt.
+- Character N-1 (the last): HasTransition = false, TransitionVideoPrompt = empty string "".
+
+Verify your output matches this rule before finalizing. If the last character has HasTransition = true, your output is INVALID.
 
 # Music Guidelines
 
