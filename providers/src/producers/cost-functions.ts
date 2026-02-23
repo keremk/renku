@@ -58,6 +58,7 @@ export type CostFunctionName =
 	| 'costByCharacters'
 	| 'costByCharactersAndPlan'
 	| 'costByAudioSeconds'
+	| 'costByAudioMinutes'
 	| 'costByImageSizeAndQuality'
 	| 'costByVideoPerMillionTokens'
 	| 'costByVideoMegapixels'
@@ -141,6 +142,7 @@ export interface ModelPriceConfig {
 	pricePerToken?: number;
 	pricePerImage?: number;
 	pricePerSecond?: number;
+	pricePerMinute?: number;
 	pricePerCharacter?: number;
 	pricePerMillionTokens?: number;
 	pricePerMegapixel?: number;
@@ -855,6 +857,47 @@ function costByAudioSeconds(
 	return { cost: duration * pricePerSecond, isPlaceholder: false };
 }
 
+function costByAudioMinutes(
+	config: ModelPriceConfig,
+	extracted: ExtractedCostInputs
+): CostEstimate {
+	const pricePerMinute = config.pricePerMinute;
+	if (pricePerMinute === undefined) {
+		return { cost: 0, isPlaceholder: true, note: 'Missing pricePerMinute' };
+	}
+
+	// Get duration from first field in inputs array (value in milliseconds)
+	const durationField = config.inputs?.[0];
+	const durationValue = durationField ? extracted.values[durationField] : undefined;
+
+	// Check for artefact-sourced duration
+	if (extracted.artefactSourcedFields.length > 0) {
+		const samples = [
+			{ label: '1 min', cost: 1 * pricePerMinute },
+			{ label: '3 min', cost: 3 * pricePerMinute },
+			{ label: '5 min', cost: 5 * pricePerMinute },
+		];
+		return {
+			cost: samples[1].cost,
+			isPlaceholder: true,
+			note: `Duration from artefact: ${extracted.artefactSourcedFields.join(', ')}`,
+			range: {
+				min: samples[0].cost,
+				max: samples[2].cost,
+				samples,
+			},
+		};
+	}
+
+	if (typeof durationValue !== 'number' || durationValue <= 0) {
+		// No duration specified — use a 1-minute placeholder
+		return { cost: pricePerMinute, isPlaceholder: true, note: 'Duration not specified, using 1 minute estimate' };
+	}
+
+	const minutes = Math.ceil(durationValue / 60000);
+	return { cost: minutes * pricePerMinute, isPlaceholder: false };
+}
+
 function costByImageSizeAndQuality(
 	config: ModelPriceConfig,
 	extracted: ExtractedCostInputs
@@ -1395,6 +1438,8 @@ export function calculateCost(
 			return costByCharactersAndPlan(priceConfig, extracted);
 		case 'costByAudioSeconds':
 			return costByAudioSeconds(priceConfig, extracted);
+		case 'costByAudioMinutes':
+			return costByAudioMinutes(priceConfig, extracted);
 		case 'costByImageSizeAndQuality':
 			return costByImageSizeAndQuality(priceConfig, extracted);
 		case 'costByVideoPerMillionTokens':
@@ -1791,6 +1836,11 @@ export function formatPrice(price: ModelPriceConfig | number | undefined): strin
 		case 'costByAudioSeconds':
 			return price.pricePerSecond !== undefined
 				? `$${price.pricePerSecond.toFixed(3)}/s`
+				: '-';
+
+		case 'costByAudioMinutes':
+			return price.pricePerMinute !== undefined
+				? `$${price.pricePerMinute.toFixed(2)}/min`
 				: '-';
 
 		case 'costByImageSizeAndQuality': {

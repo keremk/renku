@@ -1,0 +1,144 @@
+{
+  "input_schema": {
+    "title": "TextToAudioInput",
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "A beautiful piano arpeggio grows into a grand orchestral climax"
+        ],
+        "description": "The prompt to generate audio from",
+        "type": "string",
+        "title": "Prompt"
+      },
+      "sync_mode": {
+        "description": "If `True`, the media will be returned as a data URI and the output data won't be available in the request history.",
+        "type": "boolean",
+        "title": "Sync Mode",
+        "default": false
+      },
+      "seconds_total": {
+        "minimum": 1,
+        "maximum": 190,
+        "type": "integer",
+        "title": "Seconds Total",
+        "description": "The duration of the audio clip to generate",
+        "default": 190
+      },
+      "num_inference_steps": {
+        "minimum": 4,
+        "maximum": 8,
+        "type": "integer",
+        "title": "Num Inference Steps",
+        "description": "The number of steps to denoise the audio for",
+        "default": 8
+      },
+      "guidance_scale": {
+        "minimum": 1,
+        "maximum": 25,
+        "type": "integer",
+        "title": "Guidance Scale",
+        "description": "How strictly the diffusion process adheres to the prompt text (higher values make your audio closer to your prompt).",
+        "default": 1
+      },
+      "seed": {
+        "title": "Seed",
+        "type": "integer"
+      }
+    },
+    "x-fal-order-properties": [
+      "prompt",
+      "seconds_total",
+      "num_inference_steps",
+      "guidance_scale",
+      "sync_mode",
+      "seed"
+    ],
+    "required": [
+      "prompt"
+    ]
+  },
+  "output_schema": {
+    "title": "TextToAudioOutput",
+    "type": "object",
+    "properties": {
+      "seed": {
+        "description": "The random seed used for generation",
+        "type": "integer",
+        "title": "Seed"
+      },
+      "audio": {
+        "examples": [
+          "https://v3.fal.media/files/zebra/lGob9bN7VHfFXG4R1btQn_tmpabwhgi6n.wav"
+        ],
+        "description": "The generated audio clip",
+        "title": "Audio",
+        "allOf": [
+          {
+            "$ref": "#/File"
+          }
+        ]
+      }
+    },
+    "x-fal-order-properties": [
+      "audio",
+      "seed"
+    ],
+    "required": [
+      "audio",
+      "seed"
+    ]
+  },
+  "File": {
+    "title": "File",
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "description": "The size of the file in bytes.",
+        "type": "integer",
+        "title": "File Size"
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "type": "string",
+        "title": "File Name"
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "description": "The mime type of the file.",
+        "type": "string",
+        "title": "Content Type"
+      },
+      "url": {
+        "description": "The URL where the file can be downloaded from.",
+        "type": "string",
+        "title": "Url",
+        "format": "uri"
+      },
+      "file_data": {
+        "format": "binary",
+        "description": "File data",
+        "type": "string",
+        "title": "File Data"
+      }
+    },
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "file_data"
+    ],
+    "required": [
+      "url"
+    ]
+  }
+}

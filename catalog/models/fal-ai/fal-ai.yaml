@@ -396,6 +396,28 @@ models:
       function: costByAudioSeconds
       inputs: [duration]
       pricePerSecond: 0.002
+  - name: elevenlabs/music
+    type: audio
+    mime:
+      - audio/mp3
+    price:
+      function: costByAudioMinutes
+      inputs: [music_length_ms]
+      pricePerMinute: 0.8
+  - name: lyria2
+    type: audio
+    mime:
+      - audio/mp3
+    price:
+      function: costByRun
+      price: 0.1
+  - name: stable-audio-25/text-to-audio
+    type: audio
+    mime:
+      - audio/mp3
+    price:
+      function: costByRun
+      price: 0.2
 
 # Video Models
   - name: veo3.1

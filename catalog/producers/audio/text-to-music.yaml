@@ -37,6 +37,24 @@ mappings:
       Prompt: prompt
       Duration: duration
 
+  fal-ai:
+    # ElevenLabs Music
+    elevenlabs/music:
+      Prompt: prompt
+      Duration:
+        field: music_length_ms
+        durationToFrames:
+          fps: 1000
+
+    # Google Lyria2
+    lyria2:
+      Prompt: prompt
+
+    # Stability AI Stable Audio 2.5
+    stable-audio-25/text-to-audio:
+      Prompt: prompt
+      Duration: seconds_total
+
   elevenlabs:
     # ElevenLabs Music V1
     music_v1:
