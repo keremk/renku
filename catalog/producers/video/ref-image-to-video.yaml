@@ -63,9 +63,73 @@ mappings:
       GenerateAudio: generate_audio
       AutoFixPrompt: auto_fix
 
+    # Kling Video O1 Reference-to-Video
+    kling-video/o1/reference-to-video:
+      Prompt: prompt
+      ReferenceImages: image_urls
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+
+    # Kling Video O1 Standard Reference-to-Video
+    kling-video/o1/standard/reference-to-video:
+      Prompt: prompt
+      ReferenceImages: image_urls
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+
+    # Kling Video O3 Standard Reference-to-Video
+    kling-video/o3/standard/reference-to-video:
+      Prompt: prompt
+      ReferenceImages: image_urls
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
+
+    # Kling Video O3 Pro Reference-to-Video
+    kling-video/o3/pro/reference-to-video:
+      Prompt: prompt
+      ReferenceImages: image_urls
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
+
+    # Wan 2.6 Reference-to-Video Flash
+    wan/v2.6/reference-to-video/flash:
+      Prompt: prompt
+      ReferenceImages: image_urls
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: enable_audio
+
   replicate:
     # ByteDance Seedance 1 Lite (has reference_images for character/environment consistency)
     bytedance/seedance-1-lite:
+      Prompt: prompt
+      ReferenceImages: reference_images
+      Duration: duration
+      AspectRatio: aspect_ratio
+
+    # Kling V3 Omni Video (reference_images for elements/scenes/styles)
+    kwaivgi/kling-v3-omni-video:
+      Prompt: prompt
+      ReferenceImages: reference_images
+      Duration: duration
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
+
+    # Kling O1 (reference_images for elements/scenes/styles)
+    kwaivgi/kling-o1:
       Prompt: prompt
       ReferenceImages: reference_images
       Duration: duration
