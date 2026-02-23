@@ -15,23 +15,37 @@ describe('buildBlueprintGraph', () => {
     const bundle = createFixtureTree();
     const graph = buildBlueprintGraph(bundle);
 
-    const producerNode = graph.nodes.find((node) => node.id.endsWith('TextToImageProducer'));
+    const producerNode = graph.nodes.find((node) =>
+      node.id.endsWith('TextToImageProducer')
+    );
     expect(producerNode?.dimensions).toHaveLength(2);
     expect(new Set(producerNode?.dimensions ?? []).size).toBe(2);
 
-    const artefactNode = graph.nodes.find((node) => node.id.endsWith('NarrationScript'));
+    const artefactNode = graph.nodes.find((node) =>
+      node.id.endsWith('NarrationScript')
+    );
     expect(artefactNode?.dimensions).toHaveLength(1);
 
-    const promptNode = graph.nodes.find((node) => node.id.endsWith('ImagePrompt'));
+    const promptNode = graph.nodes.find((node) =>
+      node.id.endsWith('ImagePrompt')
+    );
     expect(promptNode?.dimensions).toHaveLength(2);
     expect(new Set(promptNode?.dimensions ?? []).size).toBe(2);
 
-    const finalEdge = graph.edges.find((edge) => edge.to.nodeId === 'SegmentImage');
+    const finalEdge = graph.edges.find(
+      (edge) => edge.to.nodeId === 'SegmentImage'
+    );
     expect(finalEdge?.from.dimensions).toHaveLength(2);
     expect(finalEdge?.to.dimensions).toHaveLength(2);
 
-    expect(readNamespaceSymbols(graph.namespaceDimensions.get('ImageGenerator'))).toEqual(['i', 'j']);
-    expect(readNamespaceSymbols(graph.namespaceDimensions.get('ImagePromptGenerator'))).toEqual(['i']);
+    expect(
+      readNamespaceSymbols(graph.namespaceDimensions.get('ImageGenerator'))
+    ).toEqual(['i', 'j']);
+    expect(
+      readNamespaceSymbols(
+        graph.namespaceDimensions.get('ImagePromptGenerator')
+      )
+    ).toEqual(['i']);
   });
 });
 
@@ -43,7 +57,7 @@ describe('collectLoopDefinitions', () => {
       [{ name: 'Script', type: 'array', countInput: 'NumOfSegments' }],
       [],
       [],
-      [{ name: 'i', countInput: 'NumOfSegments' }],
+      [{ name: 'i', countInput: 'NumOfSegments' }]
     );
 
     const tree = makeTreeNode(doc, []);
@@ -64,7 +78,7 @@ describe('collectLoopDefinitions', () => {
       [{ name: 'Item', type: 'array', countInput: 'Count' }],
       [],
       [],
-      [{ name: 'j', countInput: 'Count' }],
+      [{ name: 'j', countInput: 'Count' }]
     );
 
     const rootDoc = makeBlueprintDocument(
@@ -72,12 +86,14 @@ describe('collectLoopDefinitions', () => {
       [{ name: 'RootInput', type: 'string', required: true }],
       [],
       [],
-      [],
+      []
     );
 
-    const tree = makeTreeNode(rootDoc, [], new Map([
-      ['ChildBlueprint', makeTreeNode(childDoc, ['ChildBlueprint'])],
-    ]));
+    const tree = makeTreeNode(
+      rootDoc,
+      [],
+      new Map([['ChildBlueprint', makeTreeNode(childDoc, ['ChildBlueprint'])]])
+    );
 
     const graph = buildBlueprintGraph(tree);
 
@@ -96,7 +112,7 @@ describe('collectLoopDefinitions', () => {
       [],
       [],
       [],
-      [{ name: 'k', countInput: 'ImageCount' }],
+      [{ name: 'k', countInput: 'ImageCount' }]
     );
 
     const childDoc = makeBlueprintDocument(
@@ -105,7 +121,7 @@ describe('collectLoopDefinitions', () => {
       [],
       [],
       [],
-      [{ name: 'j', countInput: 'SegmentCount' }],
+      [{ name: 'j', countInput: 'SegmentCount' }]
     );
 
     const rootDoc = makeBlueprintDocument(
@@ -114,7 +130,7 @@ describe('collectLoopDefinitions', () => {
       [],
       [],
       [],
-      [{ name: 'i', countInput: 'ChapterCount' }],
+      [{ name: 'i', countInput: 'ChapterCount' }]
     );
 
     const grandchildNode = makeTreeNode(grandchildDoc, ['Child', 'Grandchild']);
@@ -149,7 +165,7 @@ describe('collectLoopDefinitions', () => {
       [{ name: 'Input', type: 'string', required: true }],
       [],
       [],
-      [],
+      []
     );
 
     const tree = makeTreeNode(doc, []);
@@ -172,7 +188,7 @@ describe('collectLoopDefinitions', () => {
       [
         { name: 'i', countInput: 'SegmentCount' },
         { name: 'j', countInput: 'ImageCount' },
-      ],
+      ]
     );
 
     const tree = makeTreeNode(doc, []);
@@ -192,7 +208,7 @@ describe('collectLoopDefinitions', () => {
       [],
       [],
       [],
-      [{ name: 'i', countInput: 'Count', countInputOffset: 1 }],
+      [{ name: 'i', countInput: 'Count', countInputOffset: 1 }]
     );
 
     const tree = makeTreeNode(doc, []);
@@ -204,7 +220,9 @@ describe('collectLoopDefinitions', () => {
   });
 });
 
-function readNamespaceSymbols(entries: Array<{ raw: string }> | undefined): string[] | undefined {
+function readNamespaceSymbols(
+  entries: Array<{ raw: string }> | undefined
+): string[] | undefined {
   return entries?.map((entry) => entry.raw);
 }
 
@@ -219,15 +237,13 @@ function createFixtureTree(): BlueprintTreeNode {
       { name: 'NarrationScript', type: 'array', countInput: 'NumOfSegments' },
       { name: 'MovieSummary', type: 'string' },
     ],
-    [
-      { name: 'ScriptProducer', provider: 'openai', model: 'gpt' },
-    ],
+    [{ name: 'ScriptProducer', provider: 'openai', model: 'gpt' }],
     [
       { from: 'InquiryPrompt', to: 'ScriptProducer' },
       { from: 'NumOfSegments', to: 'ScriptProducer' },
       { from: 'ScriptProducer', to: 'NarrationScript[i]' },
       { from: 'ScriptProducer', to: 'MovieSummary' },
-    ],
+    ]
   );
 
   const imagePromptBlueprint = makeBlueprintDocument(
@@ -238,17 +254,19 @@ function createFixtureTree(): BlueprintTreeNode {
       { name: 'NumOfImagesPerNarrative', type: 'int', required: true },
     ],
     [
-      { name: 'ImagePrompt', type: 'array', countInput: 'NumOfImagesPerNarrative' },
+      {
+        name: 'ImagePrompt',
+        type: 'array',
+        countInput: 'NumOfImagesPerNarrative',
+      },
     ],
-    [
-      { name: 'ImagePromptProducer', provider: 'openai', model: 'gpt' },
-    ],
+    [{ name: 'ImagePromptProducer', provider: 'openai', model: 'gpt' }],
     [
       { from: 'NarrativeText', to: 'ImagePromptProducer' },
       { from: 'OverallSummary', to: 'ImagePromptProducer' },
       { from: 'NumOfImagesPerNarrative', to: 'ImagePromptProducer' },
       { from: 'ImagePromptProducer', to: 'ImagePrompt[j]' },
-    ],
+    ]
   );
 
   const imageGeneratorBlueprint = makeBlueprintDocument(
@@ -257,17 +275,13 @@ function createFixtureTree(): BlueprintTreeNode {
       { name: 'Prompt', type: 'string', required: true },
       { name: 'Size', type: 'string', required: false },
     ],
-    [
-      { name: 'SegmentImage', type: 'image' },
-    ],
-    [
-      { name: 'TextToImageProducer', provider: 'replicate', model: 'xyz' },
-    ],
+    [{ name: 'SegmentImage', type: 'image' }],
+    [{ name: 'TextToImageProducer', provider: 'replicate', model: 'xyz' }],
     [
       { from: 'Prompt', to: 'TextToImageProducer' },
       { from: 'Size', to: 'TextToImageProducer' },
       { from: 'TextToImageProducer', to: 'SegmentImage' },
-    ],
+    ]
   );
 
   const rootDocument = makeBlueprintDocument(
@@ -278,27 +292,47 @@ function createFixtureTree(): BlueprintTreeNode {
       { name: 'NumOfImagesPerNarrative', type: 'int', required: true },
       { name: 'Size', type: 'string', required: false },
     ],
-    [
-      { name: 'SegmentImage', type: 'array' },
-    ],
+    [{ name: 'SegmentImage', type: 'array' }],
     [],
     [
       { from: 'InquiryPrompt', to: 'ScriptGenerator.InquiryPrompt' },
       { from: 'NumOfSegments', to: 'ScriptGenerator.NumOfSegments' },
-      { from: 'ScriptGenerator.NarrationScript[i]', to: 'ImagePromptGenerator[i].NarrativeText' },
-      { from: 'ScriptGenerator.MovieSummary', to: 'ImagePromptGenerator[i].OverallSummary' },
-      { from: 'NumOfImagesPerNarrative', to: 'ImagePromptGenerator[i].NumOfImagesPerNarrative' },
-      { from: 'ImagePromptGenerator[i].ImagePrompt[j]', to: 'ImageGenerator[i][j].Prompt' },
+      {
+        from: 'ScriptGenerator.NarrationScript[i]',
+        to: 'ImagePromptGenerator[i].NarrativeText',
+      },
+      {
+        from: 'ScriptGenerator.MovieSummary',
+        to: 'ImagePromptGenerator[i].OverallSummary',
+      },
+      {
+        from: 'NumOfImagesPerNarrative',
+        to: 'ImagePromptGenerator[i].NumOfImagesPerNarrative',
+      },
+      {
+        from: 'ImagePromptGenerator[i].ImagePrompt[j]',
+        to: 'ImageGenerator[i][j].Prompt',
+      },
       { from: 'Size', to: 'ImageGenerator[i][j].Size' },
       { from: 'ImageGenerator[i][j].SegmentImage', to: 'SegmentImage[i][j]' },
-    ],
+    ]
   );
 
-  return makeTreeNode(rootDocument, [], new Map<string, BlueprintTreeNode>([
-    ['ScriptGenerator', makeTreeNode(scriptBlueprint, ['ScriptGenerator'])],
-    ['ImagePromptGenerator', makeTreeNode(imagePromptBlueprint, ['ImagePromptGenerator'])],
-    ['ImageGenerator', makeTreeNode(imageGeneratorBlueprint, ['ImageGenerator'])],
-  ]));
+  return makeTreeNode(
+    rootDocument,
+    [],
+    new Map<string, BlueprintTreeNode>([
+      ['ScriptGenerator', makeTreeNode(scriptBlueprint, ['ScriptGenerator'])],
+      [
+        'ImagePromptGenerator',
+        makeTreeNode(imagePromptBlueprint, ['ImagePromptGenerator']),
+      ],
+      [
+        'ImageGenerator',
+        makeTreeNode(imageGeneratorBlueprint, ['ImageGenerator']),
+      ],
+    ])
+  );
 }
 
 function makeBlueprintDocument(
@@ -307,7 +341,7 @@ function makeBlueprintDocument(
   artefacts: BlueprintArtefactDefinition[],
   producers: ProducerConfig[],
   edges: BlueprintEdgeDefinition[],
-  loops?: BlueprintLoopDefinition[],
+  loops?: BlueprintLoopDefinition[]
 ): BlueprintDocument {
   return {
     meta: { id, name: id },
@@ -323,7 +357,7 @@ function makeBlueprintDocument(
 function makeTreeNode(
   document: BlueprintDocument,
   namespacePath: string[],
-  children: Map<string, BlueprintTreeNode> = new Map(),
+  children: Map<string, BlueprintTreeNode> = new Map()
 ): BlueprintTreeNode {
   return {
     id: document.meta.id,
@@ -336,13 +370,7 @@ function makeTreeNode(
 
 describe('edge cases', () => {
   it('handles empty blueprint with no nodes', () => {
-    const doc = makeBlueprintDocument(
-      'Empty',
-      [],
-      [],
-      [],
-      [],
-    );
+    const doc = makeBlueprintDocument('Empty', [], [], [], []);
 
     const tree = makeTreeNode(doc, []);
     const graph = buildBlueprintGraph(tree);
@@ -355,11 +383,9 @@ describe('edge cases', () => {
     const doc = makeBlueprintDocument(
       'ArtefactsOnly',
       [],
-      [
-        { name: 'Output', type: 'string' },
-      ],
+      [{ name: 'Output', type: 'string' }],
       [],
-      [],
+      []
     );
 
     const tree = makeTreeNode(doc, []);
@@ -380,7 +406,7 @@ describe('edge cases', () => {
         { from: 'L2Count', to: 'L2Producer' },
         { from: 'L2Producer', to: 'L2Output[k]' },
       ],
-      [{ name: 'k', countInput: 'L2Count' }],
+      [{ name: 'k', countInput: 'L2Count' }]
     );
 
     const level1Doc = makeBlueprintDocument(
@@ -389,7 +415,7 @@ describe('edge cases', () => {
       [],
       [],
       [],
-      [{ name: 'j', countInput: 'L1Count' }],
+      [{ name: 'j', countInput: 'L1Count' }]
     );
 
     const rootDoc = makeBlueprintDocument(
@@ -398,7 +424,7 @@ describe('edge cases', () => {
       [],
       [],
       [],
-      [{ name: 'i', countInput: 'RootCount' }],
+      [{ name: 'i', countInput: 'RootCount' }]
     );
 
     const level2Node = makeTreeNode(level2Doc, ['Level1', 'Level2']);
@@ -428,14 +454,16 @@ describe('edge cases', () => {
       [
         { from: 'Prompt', to: 'Producer' },
         { from: 'Producer', to: 'Summary' },
-      ],
+      ]
     );
 
     const tree = makeTreeNode(doc, []);
     const graph = buildBlueprintGraph(tree);
 
     // Check that artifact nodes exist (using endsWith for flexible ID format)
-    const summaryNode = graph.nodes.find((n) => n.type === 'Artifact' && n.id.endsWith('Summary'));
+    const summaryNode = graph.nodes.find(
+      (n) => n.type === 'Artifact' && n.id.endsWith('Summary')
+    );
     expect(summaryNode).toBeDefined();
     expect(summaryNode?.type).toBe('Artifact');
     expect(summaryNode?.dimensions).toHaveLength(0); // string artifacts have no dimensions
@@ -451,7 +479,7 @@ describe('edge cases', () => {
       [
         { from: 'ChildInput', to: 'ChildProducer' },
         { from: 'ChildProducer', to: 'ChildOutput' },
-      ],
+      ]
     );
 
     const rootDoc = makeBlueprintDocument(
@@ -462,7 +490,7 @@ describe('edge cases', () => {
       [
         { from: 'RootInput', to: 'Child.ChildInput' },
         { from: 'Child.ChildOutput', to: 'FinalOutput' },
-      ],
+      ]
     );
 
     const tree: BlueprintTreeNode = {
@@ -479,7 +507,8 @@ describe('edge cases', () => {
     expect(edgeToChild).toBeDefined();
 
     const edgeFromChild = graph.edges.find(
-      (e) => e.from.nodeId === 'Child.ChildOutput' && e.to.nodeId === 'FinalOutput'
+      (e) =>
+        e.from.nodeId === 'Child.ChildOutput' && e.to.nodeId === 'FinalOutput'
     );
     expect(edgeFromChild).toBeDefined();
   });
@@ -499,7 +528,7 @@ describe('edge cases', () => {
         { from: 'Producer', to: 'Current[i]' },
         { from: 'Current[i]', to: 'Next[i+1]' },
       ],
-      [{ name: 'i', countInput: 'Count' }],
+      [{ name: 'i', countInput: 'Count' }]
     );
 
     const tree = makeTreeNode(doc, []);
@@ -534,7 +563,7 @@ describe('edge cases', () => {
         { from: 'Producer', to: 'Output1' },
         { from: 'Producer', to: 'Output2' },
         { from: 'Producer', to: 'Output3' },
-      ],
+      ]
     );
 
     const tree = makeTreeNode(doc, []);
@@ -544,7 +573,9 @@ describe('edge cases', () => {
     expect(graph.nodes.filter((n) => n.type === 'Artifact')).toHaveLength(3);
 
     // All three edges from producer to outputs should exist
-    const producerEdges = graph.edges.filter((e) => e.from.nodeId === 'Producer');
+    const producerEdges = graph.edges.filter(
+      (e) => e.from.nodeId === 'Producer'
+    );
     expect(producerEdges).toHaveLength(3);
   });
 
@@ -555,9 +586,7 @@ describe('edge cases', () => {
         { name: 'Rows', type: 'int', required: true },
         { name: 'Cols', type: 'int', required: true },
       ],
-      [
-        { name: 'Grid', type: 'array', countInput: 'Cols' },
-      ],
+      [{ name: 'Grid', type: 'array', countInput: 'Cols' }],
       [{ name: 'Producer', provider: 'openai', model: 'gpt' }],
       [
         { from: 'Rows', to: 'Producer' },
@@ -567,14 +596,16 @@ describe('edge cases', () => {
       [
         { name: 'i', countInput: 'Rows' },
         { name: 'j', countInput: 'Cols' },
-      ],
+      ]
     );
 
     const tree = makeTreeNode(doc, []);
     const graph = buildBlueprintGraph(tree);
 
     // Grid artifact should have 2 dimensions
-    const gridNode = graph.nodes.find((n) => n.type === 'Artifact' && n.id.endsWith('Grid'));
+    const gridNode = graph.nodes.find(
+      (n) => n.type === 'Artifact' && n.id.endsWith('Grid')
+    );
     expect(gridNode).toBeDefined();
     expect(gridNode?.dimensions).toHaveLength(2);
   });
@@ -591,7 +622,7 @@ describe('edge cases', () => {
         { from: 'IterativeProducer', to: 'Result' },
         // This edge creates a potential cycle
         { from: 'Result', to: 'IterativeProducer' },
-      ],
+      ]
     );
 
     const tree = makeTreeNode(doc, []);
@@ -621,7 +652,7 @@ describe('edge cases', () => {
         { from: 'Prompt', to: 'VideoGenerator' },
         { from: 'ReferenceImages', to: 'VideoGenerator' },
         { from: 'VideoGenerator', to: 'GeneratedVideo' },
-      ],
+      ]
     );
 
     const imageProducerDoc = makeBlueprintDocument(
@@ -632,7 +663,7 @@ describe('edge cases', () => {
       [
         { from: 'Prompt', to: 'ImageGenerator' },
         { from: 'ImageGenerator', to: 'GeneratedImage' },
-      ],
+      ]
     );
 
     const rootDoc = makeBlueprintDocument(
@@ -652,12 +683,18 @@ describe('edge cases', () => {
         // Video producer gets its prompts (for each clip)
         { from: 'VideoPrompt', to: 'VideoProducer[clip].Prompt' },
         // Constant-indexed connections: different artifacts to different collection elements
-        { from: 'CharacterImage.GeneratedImage', to: 'VideoProducer[clip].ReferenceImages[0]' },
-        { from: 'ProductImage.GeneratedImage', to: 'VideoProducer[clip].ReferenceImages[1]' },
+        {
+          from: 'CharacterImage.GeneratedImage',
+          to: 'VideoProducer[clip].ReferenceImages[0]',
+        },
+        {
+          from: 'ProductImage.GeneratedImage',
+          to: 'VideoProducer[clip].ReferenceImages[1]',
+        },
         // Output
         { from: 'VideoProducer[clip].GeneratedVideo', to: 'FinalVideo[clip]' },
       ],
-      [{ name: 'clip', countInput: 'NumClips' }],
+      [{ name: 'clip', countInput: 'NumClips' }]
     );
 
     const tree: BlueprintTreeNode = {
@@ -677,27 +714,115 @@ describe('edge cases', () => {
     );
 
     // Should have separate nodes for ReferenceImages[0] and ReferenceImages[1]
-    const node0 = refImagesNodes.find((n) => n.id.includes('ReferenceImages[0]'));
-    const node1 = refImagesNodes.find((n) => n.id.includes('ReferenceImages[1]'));
+    const node0 = refImagesNodes.find((n) =>
+      n.id.includes('ReferenceImages[0]')
+    );
+    const node1 = refImagesNodes.find((n) =>
+      n.id.includes('ReferenceImages[1]')
+    );
     expect(node0).toBeDefined();
     expect(node1).toBeDefined();
 
     // Verify edges target the correct constant-indexed nodes
     const edgeToRef0 = graph.edges.find(
-      (e) => e.from.nodeId.includes('CharacterImage.GeneratedImage') &&
-             e.to.nodeId.includes('ReferenceImages[0]')
+      (e) =>
+        e.from.nodeId.includes('CharacterImage.GeneratedImage') &&
+        e.to.nodeId.includes('ReferenceImages[0]')
     );
     const edgeToRef1 = graph.edges.find(
-      (e) => e.from.nodeId.includes('ProductImage.GeneratedImage') &&
-             e.to.nodeId.includes('ReferenceImages[1]')
+      (e) =>
+        e.from.nodeId.includes('ProductImage.GeneratedImage') &&
+        e.to.nodeId.includes('ReferenceImages[1]')
     );
     expect(edgeToRef0).toBeDefined();
     expect(edgeToRef1).toBeDefined();
 
     // The constant indices should NOT be in the selectors (they're part of the node name)
     // So the selectors should only contain the [clip] dimension selector
-    expect(edgeToRef0?.to.selectors?.filter((s) => s?.kind === 'const')).toHaveLength(0);
-    expect(edgeToRef1?.to.selectors?.filter((s) => s?.kind === 'const')).toHaveLength(0);
+    expect(
+      edgeToRef0?.to.selectors?.filter((s) => s?.kind === 'const')
+    ).toHaveLength(0);
+    expect(
+      edgeToRef1?.to.selectors?.filter((s) => s?.kind === 'const')
+    ).toHaveLength(0);
+  });
+
+  it('captures symbolic collection selectors for cross-dimension indexed inputs', () => {
+    const videoProducerDoc = makeBlueprintDocument(
+      'VideoProducer',
+      [
+        { name: 'ReferenceImages', type: 'collection', required: false },
+        { name: 'Prompt', type: 'string', required: true },
+      ],
+      [{ name: 'GeneratedVideo', type: 'video' }],
+      [{ name: 'VideoGenerator', provider: 'fal-ai', model: 'video' }],
+      [
+        { from: 'Prompt', to: 'VideoGenerator' },
+        { from: 'ReferenceImages', to: 'VideoGenerator' },
+        { from: 'VideoGenerator', to: 'GeneratedVideo' },
+      ]
+    );
+
+    const imageProducerDoc = makeBlueprintDocument(
+      'ImageProducer',
+      [{ name: 'Prompt', type: 'string', required: true }],
+      [{ name: 'GeneratedImage', type: 'image' }],
+      [{ name: 'ImageGenerator', provider: 'fal-ai', model: 'image' }],
+      [
+        { from: 'Prompt', to: 'ImageGenerator' },
+        { from: 'ImageGenerator', to: 'GeneratedImage' },
+      ]
+    );
+
+    const rootDoc = makeBlueprintDocument(
+      'Root',
+      [
+        { name: 'CharacterPrompt', type: 'string', required: true },
+        { name: 'VideoPrompt', type: 'string', required: true },
+        { name: 'NumClips', type: 'int', required: true },
+        { name: 'NumCharacters', type: 'int', required: true },
+      ],
+      [{ name: 'FinalVideo', type: 'video' }],
+      [],
+      [
+        { from: 'CharacterPrompt', to: 'CharacterImage.Prompt' },
+        { from: 'VideoPrompt', to: 'VideoProducer[clip].Prompt' },
+        {
+          from: 'CharacterImage[character].GeneratedImage',
+          to: 'VideoProducer[clip].ReferenceImages[character]',
+        },
+        { from: 'VideoProducer[clip].GeneratedVideo', to: 'FinalVideo[clip]' },
+      ],
+      [
+        { name: 'clip', countInput: 'NumClips' },
+        { name: 'character', countInput: 'NumCharacters' },
+      ]
+    );
+
+    const tree: BlueprintTreeNode = {
+      ...makeTreeNode(rootDoc, []),
+      children: new Map([
+        ['CharacterImage', makeTreeNode(imageProducerDoc, ['CharacterImage'])],
+        ['VideoProducer', makeTreeNode(videoProducerDoc, ['VideoProducer'])],
+      ]),
+    };
+
+    const graph = buildBlueprintGraph(tree);
+    const crossDimensionEdge = graph.edges.find(
+      (edge) =>
+        edge.from.nodeId.includes('CharacterImage.GeneratedImage') &&
+        edge.to.nodeId.includes('VideoProducer.ReferenceImages')
+    );
+
+    expect(crossDimensionEdge).toBeDefined();
+    expect(crossDimensionEdge?.to.selectors?.[0]).toEqual({
+      kind: 'loop',
+      symbol: 'clip',
+      offset: 0,
+    });
+    expect(crossDimensionEdge?.to.collectionSelectors).toEqual([
+      { kind: 'loop', symbol: 'character', offset: 0 },
+    ]);
   });
 
   it('injects synthetic input declarations for system inputs referenced in edges', () => {
@@ -715,7 +840,7 @@ describe('edge cases', () => {
         { from: 'Prompt', to: 'VideoGenerator' },
         { from: 'Duration', to: 'VideoGenerator' },
         { from: 'VideoGenerator', to: 'GeneratedVideo' },
-      ],
+      ]
     );
 
     const rootDoc = makeBlueprintDocument(
@@ -733,7 +858,7 @@ describe('edge cases', () => {
         { from: 'SegmentDuration', to: 'VideoProducer.Duration' },
         { from: 'Prompt', to: 'VideoProducer.Prompt' },
         { from: 'VideoProducer.GeneratedVideo', to: 'FinalVideo' },
-      ],
+      ]
     );
 
     const tree: BlueprintTreeNode = {
@@ -778,7 +903,7 @@ describe('edge cases', () => {
         { from: 'StorageRoot', to: 'VideoExporter' },
         { from: 'StorageBasePath', to: 'VideoExporter' },
         { from: 'VideoExporter', to: 'FinalVideo' },
-      ],
+      ]
     );
 
     const rootDoc = makeBlueprintDocument(
@@ -796,7 +921,7 @@ describe('edge cases', () => {
         { from: 'StorageRoot', to: 'Exporter.StorageRoot' },
         { from: 'StorageBasePath', to: 'Exporter.StorageBasePath' },
         { from: 'Exporter.FinalVideo', to: 'Output' },
-      ],
+      ]
     );
 
     const tree: BlueprintTreeNode = {
@@ -829,9 +954,15 @@ describe('edge cases', () => {
     expect(storageBasePathNode?.input?.required).toBe(false);
 
     // Verify edges exist from each system input
-    const edgeFromMovieId = graph.edges.find((e) => e.from.nodeId === 'MovieId');
-    const edgeFromStorageRoot = graph.edges.find((e) => e.from.nodeId === 'StorageRoot');
-    const edgeFromStorageBasePath = graph.edges.find((e) => e.from.nodeId === 'StorageBasePath');
+    const edgeFromMovieId = graph.edges.find(
+      (e) => e.from.nodeId === 'MovieId'
+    );
+    const edgeFromStorageRoot = graph.edges.find(
+      (e) => e.from.nodeId === 'StorageRoot'
+    );
+    const edgeFromStorageBasePath = graph.edges.find(
+      (e) => e.from.nodeId === 'StorageBasePath'
+    );
 
     expect(edgeFromMovieId).toBeDefined();
     expect(edgeFromStorageRoot).toBeDefined();
@@ -845,14 +976,19 @@ describe('edge cases', () => {
       'Root',
       [
         // Duration is explicitly declared with custom settings
-        { name: 'Duration', type: 'int', required: true, description: 'User-defined duration' },
+        {
+          name: 'Duration',
+          type: 'int',
+          required: true,
+          description: 'User-defined duration',
+        },
       ],
       [{ name: 'Output', type: 'string' }],
       [{ name: 'Producer', provider: 'openai', model: 'gpt' }],
       [
         { from: 'Duration', to: 'Producer' },
         { from: 'Producer', to: 'Output' },
-      ],
+      ]
     );
 
     const tree = makeTreeNode(rootDoc, []);
@@ -887,7 +1023,7 @@ describe('edge cases', () => {
         { from: 'StorageRoot', to: 'Producer' },
         { from: 'StorageBasePath', to: 'Producer' },
         { from: 'Producer', to: 'Output' },
-      ],
+      ]
     );
 
     const tree = makeTreeNode(rootDoc, []);
@@ -943,7 +1079,7 @@ describe('edge cases', () => {
         { from: 'Prompt', to: 'LLM' },
         { from: 'Duration', to: 'LLM' },
         { from: 'LLM', to: 'Script' },
-      ],
+      ]
     );
 
     const rootDoc = makeBlueprintDocument(
@@ -959,7 +1095,7 @@ describe('edge cases', () => {
         // Route SegmentDuration (system input) to producer's Duration input
         { from: 'SegmentDuration', to: 'ScriptProducer.Duration' },
         { from: 'ScriptProducer.Script', to: 'Output' },
-      ],
+      ]
     );
 
     const tree: BlueprintTreeNode = {
@@ -973,27 +1109,38 @@ describe('edge cases', () => {
 
     // Verify: SegmentDuration is auto-injected at ROOT level (system input)
     const segmentDurationNode = graph.nodes.find(
-      (n) => n.type === 'InputSource' && n.name === 'SegmentDuration' && n.namespacePath.length === 0
+      (n) =>
+        n.type === 'InputSource' &&
+        n.name === 'SegmentDuration' &&
+        n.namespacePath.length === 0
     );
     expect(segmentDurationNode).toBeDefined();
     expect(segmentDurationNode?.input?.required).toBe(false); // System inputs are optional
 
     // Verify: Producer's Duration is a regular input (declared in producer YAML)
     const producerDurationNode = graph.nodes.find(
-      (n) => n.type === 'InputSource' && n.name === 'Duration' && n.namespacePath.includes('ScriptProducer')
+      (n) =>
+        n.type === 'InputSource' &&
+        n.name === 'Duration' &&
+        n.namespacePath.includes('ScriptProducer')
     );
     expect(producerDurationNode).toBeDefined();
     expect(producerDurationNode?.input?.required).toBe(true); // As declared in producer YAML
 
     // Verify: Edge connects root-level SegmentDuration to producer's Duration
     const edgeFromSegmentDuration = graph.edges.find(
-      (e) => e.from.nodeId === 'SegmentDuration' && e.to.nodeId === 'ScriptProducer.Duration'
+      (e) =>
+        e.from.nodeId === 'SegmentDuration' &&
+        e.to.nodeId === 'ScriptProducer.Duration'
     );
     expect(edgeFromSegmentDuration).toBeDefined();
 
     // Verify: There is NO root-level Duration node (it was not referenced in root edges)
     const rootDurationNode = graph.nodes.find(
-      (n) => n.type === 'InputSource' && n.name === 'Duration' && n.namespacePath.length === 0
+      (n) =>
+        n.type === 'InputSource' &&
+        n.name === 'Duration' &&
+        n.namespacePath.length === 0
     );
     expect(rootDurationNode).toBeUndefined();
   });
@@ -1015,7 +1162,7 @@ describe('edge cases', () => {
         { from: 'Prompt', to: 'Generator' },
         { from: 'Duration', to: 'Generator' },
         { from: 'Generator', to: 'Video' },
-      ],
+      ]
     );
 
     // First: Blueprint routes Duration (full duration) to producer
@@ -1028,7 +1175,7 @@ describe('edge cases', () => {
         { from: 'Prompt', to: 'VideoProducer.Prompt' },
         { from: 'Duration', to: 'VideoProducer.Duration' }, // Route Duration system input
         { from: 'VideoProducer.Video', to: 'Output' },
-      ],
+      ]
     );
 
     const treeWithDuration: BlueprintTreeNode = {
@@ -1042,12 +1189,16 @@ describe('edge cases', () => {
 
     // Verify: Duration system input is injected and routed to producer
     const durationNode = graphWithDuration.nodes.find(
-      (n) => n.type === 'InputSource' && n.name === 'Duration' && n.namespacePath.length === 0
+      (n) =>
+        n.type === 'InputSource' &&
+        n.name === 'Duration' &&
+        n.namespacePath.length === 0
     );
     expect(durationNode).toBeDefined();
 
     const edgeFromDuration = graphWithDuration.edges.find(
-      (e) => e.from.nodeId === 'Duration' && e.to.nodeId === 'VideoProducer.Duration'
+      (e) =>
+        e.from.nodeId === 'Duration' && e.to.nodeId === 'VideoProducer.Duration'
     );
     expect(edgeFromDuration).toBeDefined();
 
@@ -1061,7 +1212,7 @@ describe('edge cases', () => {
         { from: 'Prompt', to: 'VideoProducer.Prompt' },
         { from: 'SegmentDuration', to: 'VideoProducer.Duration' }, // Route SegmentDuration instead
         { from: 'VideoProducer.Video', to: 'Output' },
-      ],
+      ]
     );
 
     const treeWithSegmentDuration: BlueprintTreeNode = {
@@ -1071,16 +1222,23 @@ describe('edge cases', () => {
       ]),
     };
 
-    const graphWithSegmentDuration = buildBlueprintGraph(treeWithSegmentDuration);
+    const graphWithSegmentDuration = buildBlueprintGraph(
+      treeWithSegmentDuration
+    );
 
     // Verify: SegmentDuration system input is injected and routed to producer
     const segmentDurationNode = graphWithSegmentDuration.nodes.find(
-      (n) => n.type === 'InputSource' && n.name === 'SegmentDuration' && n.namespacePath.length === 0
+      (n) =>
+        n.type === 'InputSource' &&
+        n.name === 'SegmentDuration' &&
+        n.namespacePath.length === 0
     );
     expect(segmentDurationNode).toBeDefined();
 
     const edgeFromSegmentDuration = graphWithSegmentDuration.edges.find(
-      (e) => e.from.nodeId === 'SegmentDuration' && e.to.nodeId === 'VideoProducer.Duration'
+      (e) =>
+        e.from.nodeId === 'SegmentDuration' &&
+        e.to.nodeId === 'VideoProducer.Duration'
     );
     expect(edgeFromSegmentDuration).toBeDefined();
   });
@@ -1101,7 +1259,7 @@ describe('edge cases', () => {
         { from: 'NumImages', to: 'ImageProducer' },
         { from: 'ImageProducer', to: 'GeneratedImages[i]' },
       ],
-      [{ name: 'i', countInput: 'NumImages' }],
+      [{ name: 'i', countInput: 'NumImages' }]
     );
 
     const videoProducerDoc = makeBlueprintDocument(
@@ -1116,7 +1274,7 @@ describe('edge cases', () => {
         { from: 'Prompt', to: 'VideoGenerator' },
         { from: 'ReferenceImages', to: 'VideoGenerator' },
         { from: 'VideoGenerator', to: 'GeneratedVideo' },
-      ],
+      ]
     );
 
     const rootDoc = makeBlueprintDocument(
@@ -1133,12 +1291,15 @@ describe('edge cases', () => {
         { from: 'ImagePrompts', to: 'ImageGenerator.Prompts' },
         { from: 'NumImages', to: 'ImageGenerator.NumImages' },
         // Whole-collection binding: entire array artifact to collection input
-        { from: 'ImageGenerator.GeneratedImages', to: 'VideoProducer.ReferenceImages' },
+        {
+          from: 'ImageGenerator.GeneratedImages',
+          to: 'VideoProducer.ReferenceImages',
+        },
         // Video producer prompt
         { from: 'VideoPrompt', to: 'VideoProducer.Prompt' },
         // Output
         { from: 'VideoProducer.GeneratedVideo', to: 'FinalVideo' },
-      ],
+      ]
     );
 
     const tree: BlueprintTreeNode = {
@@ -1153,14 +1314,18 @@ describe('edge cases', () => {
 
     // Verify that the collection Input node exists (non-indexed)
     const refImagesNode = graph.nodes.find(
-      (n) => n.type === 'InputSource' && n.id.includes('ReferenceImages') && !n.id.includes('[')
+      (n) =>
+        n.type === 'InputSource' &&
+        n.id.includes('ReferenceImages') &&
+        !n.id.includes('[')
     );
     expect(refImagesNode).toBeDefined();
 
     // Verify that an edge exists from the array artifact to the collection input
     const edgeToRefImages = graph.edges.find(
-      (e) => e.from.nodeId.includes('ImageGenerator.GeneratedImages') &&
-             e.to.nodeId.includes('ReferenceImages')
+      (e) =>
+        e.from.nodeId.includes('ImageGenerator.GeneratedImages') &&
+        e.to.nodeId.includes('ReferenceImages')
     );
     expect(edgeToRefImages).toBeDefined();
 

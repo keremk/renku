@@ -1,0 +1,44 @@
+{
+	"name": "Storyboard",
+	"strict": true,
+	"schema": {
+		"type": "object",
+		"properties": {
+			"CharacterImagePrompts": {
+				"type": "array",
+				"description": "Character reference prompts ordered by character index.",
+				"items": {
+					"type": "string"
+				}
+			},
+			"Scenes": {
+				"type": "array",
+				"description": "Scene prompts with per-character presence masks.",
+				"items": {
+					"type": "object",
+					"properties": {
+						"SceneNumber": {
+							"type": "integer",
+							"description": "One-based scene index."
+						},
+						"VideoPrompt": {
+							"type": "string",
+							"description": "Prompt for the video model for this scene."
+						},
+						"CharacterPresent": {
+							"type": "array",
+							"description": "Boolean mask aligned with CharacterImagePrompts order.",
+							"items": {
+								"type": "boolean"
+							}
+						}
+					},
+					"required": ["SceneNumber", "VideoPrompt", "CharacterPresent"],
+					"additionalProperties": false
+				}
+			}
+		},
+		"required": ["CharacterImagePrompts", "Scenes"],
+		"additionalProperties": false
+	}
+}

@@ -1,18 +1,25 @@
 import { describe, it, expect } from 'vitest';
-import { applyMapping, setNestedValue, collectElementBindings, type TransformContext } from './transforms.js';
+import {
+  applyMapping,
+  setNestedValue,
+  collectElementBindings,
+  type TransformContext,
+} from './transforms.js';
 import { SdkErrorCode, type MappingFieldDefinition } from '@gorenku/core';
 
 describe('transforms', () => {
   // Helper to create a basic context
   function createContext(
     inputs: Record<string, unknown>,
-    bindings?: Record<string, string>,
+    bindings?: Record<string, string>
   ): TransformContext {
-    const inputBindings = bindings ?? Object.fromEntries(
-      Object.keys(inputs).map((key) => [key, `Input:${key}`]),
-    );
+    const inputBindings =
+      bindings ??
+      Object.fromEntries(
+        Object.keys(inputs).map((key) => [key, `Input:${key}`])
+      );
     const resolvedInputs = Object.fromEntries(
-      Object.entries(inputs).map(([key, value]) => [`Input:${key}`, value]),
+      Object.entries(inputs).map(([key, value]) => [`Input:${key}`, value])
     );
     return { inputs: resolvedInputs, inputBindings };
   }
@@ -29,11 +36,16 @@ describe('transforms', () => {
 
     it('handles nested dot notation paths', () => {
       const context = createContext({ VoiceId: 'en-US-female' });
-      const mapping: MappingFieldDefinition = { field: 'voice_setting.voice_id' };
+      const mapping: MappingFieldDefinition = {
+        field: 'voice_setting.voice_id',
+      };
 
       const result = applyMapping('VoiceId', mapping, context);
 
-      expect(result).toEqual({ field: 'voice_setting.voice_id', value: 'en-US-female' });
+      expect(result).toEqual({
+        field: 'voice_setting.voice_id',
+        value: 'en-US-female',
+      });
     });
 
     it('returns undefined for missing input', () => {
@@ -84,7 +96,10 @@ describe('transforms', () => {
 
       const result = applyMapping('EnhancePrompt', mapping, context);
 
-      expect(result).toEqual({ field: 'enhance_prompt_mode', value: 'standard' });
+      expect(result).toEqual({
+        field: 'enhance_prompt_mode',
+        value: 'standard',
+      });
     });
 
     it('returns original value when no matching transform', () => {
@@ -353,7 +368,9 @@ describe('transforms', () => {
 
   describe('firstOf transform (array to single)', () => {
     it('extracts first element from array', () => {
-      const context = createContext({ Images: ['img1.png', 'img2.png', 'img3.png'] });
+      const context = createContext({
+        Images: ['img1.png', 'img2.png', 'img3.png'],
+      });
       const mapping: MappingFieldDefinition = { field: 'image', firstOf: true };
 
       const result = applyMapping('Images', mapping, context);
@@ -383,7 +400,10 @@ describe('transforms', () => {
   describe('invert transform (boolean flip)', () => {
     it('flips true to false', () => {
       const context = createContext({ Enabled: true });
-      const mapping: MappingFieldDefinition = { field: 'disabled', invert: true };
+      const mapping: MappingFieldDefinition = {
+        field: 'disabled',
+        invert: true,
+      };
 
       const result = applyMapping('Enabled', mapping, context);
 
@@ -392,7 +412,10 @@ describe('transforms', () => {
 
     it('flips false to true', () => {
       const context = createContext({ Enabled: false });
-      const mapping: MappingFieldDefinition = { field: 'disabled', invert: true };
+      const mapping: MappingFieldDefinition = {
+        field: 'disabled',
+        invert: true,
+      };
 
       const result = applyMapping('Enabled', mapping, context);
 
@@ -401,7 +424,10 @@ describe('transforms', () => {
 
     it('treats truthy non-boolean as true', () => {
       const context = createContext({ Value: 'some string' });
-      const mapping: MappingFieldDefinition = { field: 'inverted', invert: true };
+      const mapping: MappingFieldDefinition = {
+        field: 'inverted',
+        invert: true,
+      };
 
       const result = applyMapping('Value', mapping, context);
 
@@ -410,7 +436,10 @@ describe('transforms', () => {
 
     it('treats falsy non-boolean as false', () => {
       const context = createContext({ Value: 0 });
-      const mapping: MappingFieldDefinition = { field: 'inverted', invert: true };
+      const mapping: MappingFieldDefinition = {
+        field: 'inverted',
+        invert: true,
+      };
 
       const result = applyMapping('Value', mapping, context);
 
@@ -421,7 +450,10 @@ describe('transforms', () => {
   describe('intToString transform', () => {
     it('converts integer to string', () => {
       const context = createContext({ Duration: 10 });
-      const mapping: MappingFieldDefinition = { field: 'duration', intToString: true };
+      const mapping: MappingFieldDefinition = {
+        field: 'duration',
+        intToString: true,
+      };
 
       const result = applyMapping('Duration', mapping, context);
 
@@ -430,7 +462,10 @@ describe('transforms', () => {
 
     it('converts float to string', () => {
       const context = createContext({ Duration: 10.5 });
-      const mapping: MappingFieldDefinition = { field: 'duration', intToString: true };
+      const mapping: MappingFieldDefinition = {
+        field: 'duration',
+        intToString: true,
+      };
 
       const result = applyMapping('Duration', mapping, context);
 
@@ -439,7 +474,10 @@ describe('transforms', () => {
 
     it('leaves string as-is', () => {
       const context = createContext({ Duration: '10' });
-      const mapping: MappingFieldDefinition = { field: 'duration', intToString: true };
+      const mapping: MappingFieldDefinition = {
+        field: 'duration',
+        intToString: true,
+      };
 
       const result = applyMapping('Duration', mapping, context);
 
@@ -450,7 +488,10 @@ describe('transforms', () => {
   describe('intToSecondsString transform', () => {
     it('converts integer to string with "s" suffix', () => {
       const context = createContext({ Duration: 8 });
-      const mapping: MappingFieldDefinition = { field: 'duration', intToSecondsString: true };
+      const mapping: MappingFieldDefinition = {
+        field: 'duration',
+        intToSecondsString: true,
+      };
 
       const result = applyMapping('Duration', mapping, context);
 
@@ -459,7 +500,10 @@ describe('transforms', () => {
 
     it('converts float to string with "s" suffix', () => {
       const context = createContext({ Duration: 10.5 });
-      const mapping: MappingFieldDefinition = { field: 'duration', intToSecondsString: true };
+      const mapping: MappingFieldDefinition = {
+        field: 'duration',
+        intToSecondsString: true,
+      };
 
       const result = applyMapping('Duration', mapping, context);
 
@@ -468,7 +512,10 @@ describe('transforms', () => {
 
     it('leaves string as-is', () => {
       const context = createContext({ Duration: '8s' });
-      const mapping: MappingFieldDefinition = { field: 'duration', intToSecondsString: true };
+      const mapping: MappingFieldDefinition = {
+        field: 'duration',
+        intToSecondsString: true,
+      };
 
       const result = applyMapping('Duration', mapping, context);
 
@@ -528,7 +575,9 @@ describe('transforms', () => {
 
   describe('expand transform', () => {
     it('expands object value into payload', () => {
-      const context = createContext({ ImageSize: { width: 1920, height: 1080 } });
+      const context = createContext({
+        ImageSize: { width: 1920, height: 1080 },
+      });
       const mapping: MappingFieldDefinition = { expand: true };
 
       const result = applyMapping('ImageSize', mapping, context);
@@ -541,7 +590,7 @@ describe('transforms', () => {
       const mapping: MappingFieldDefinition = { expand: true };
 
       expect(() => applyMapping('Value', mapping, context)).toThrow(
-        /Cannot expand non-object value/,
+        /Cannot expand non-object value/
       );
     });
 
@@ -550,7 +599,7 @@ describe('transforms', () => {
       const mapping: MappingFieldDefinition = { expand: true };
 
       expect(() => applyMapping('Value', mapping, context)).toThrow(
-        /Cannot expand non-object value/,
+        /Cannot expand non-object value/
       );
     });
   });
@@ -660,7 +709,7 @@ describe('transforms', () => {
         'Foo[0]': 'artifact1',
         'Foo[1]': 'artifact2',
         'FooBar[0]': 'artifact3', // Should NOT match "Foo"
-        'Bar': 'artifact4',
+        Bar: 'artifact4',
       };
 
       const result = collectElementBindings('Foo', bindings);
@@ -690,7 +739,7 @@ describe('transforms', () => {
     it('returns empty array when no matches', () => {
       const bindings = {
         'Other[0]': 'artifact1',
-        'Different': 'artifact2',
+        Different: 'artifact2',
       };
 
       const result = collectElementBindings('Foo', bindings);
@@ -733,7 +782,10 @@ describe('transforms', () => {
 
       expect(result).toEqual({
         field: 'image_urls',
-        value: ['http://example.com/image1.jpg', 'http://example.com/image2.jpg'],
+        value: [
+          'http://example.com/image1.jpg',
+          'http://example.com/image2.jpg',
+        ],
       });
     });
 
@@ -756,6 +808,30 @@ describe('transforms', () => {
       });
     });
 
+    it('reconstructs compact array from sparse element bindings', () => {
+      const context: TransformContext = {
+        inputs: {
+          'Artifact:Image0': 'http://example.com/image0.jpg',
+          'Artifact:Image2': 'http://example.com/image2.jpg',
+        },
+        inputBindings: {
+          'ReferenceImages[0]': 'Artifact:Image0',
+          'ReferenceImages[2]': 'Artifact:Image2',
+        },
+      };
+
+      const mapping = { field: 'image_urls' };
+      const result = applyMapping('ReferenceImages', mapping, context);
+
+      expect(result).toEqual({
+        field: 'image_urls',
+        value: [
+          'http://example.com/image0.jpg',
+          'http://example.com/image2.jpg',
+        ],
+      });
+    });
+
     it('returns undefined when no bindings exist', () => {
       const context: TransformContext = {
         inputs: {},
@@ -771,10 +847,13 @@ describe('transforms', () => {
     it('whole collection binding still works', () => {
       const context: TransformContext = {
         inputs: {
-          'Artifact:AllImages': ['http://example.com/1.jpg', 'http://example.com/2.jpg'],
+          'Artifact:AllImages': [
+            'http://example.com/1.jpg',
+            'http://example.com/2.jpg',
+          ],
         },
         inputBindings: {
-          'ReferenceImages': 'Artifact:AllImages',
+          ReferenceImages: 'Artifact:AllImages',
         },
       };
 
@@ -795,7 +874,7 @@ describe('transforms', () => {
           'Artifact:Image2': 'element2.jpg',
         },
         inputBindings: {
-          'ReferenceImages': 'Artifact:AllImages',
+          ReferenceImages: 'Artifact:AllImages',
           'ReferenceImages[0]': 'Artifact:Image1',
           'ReferenceImages[1]': 'Artifact:Image2',
         },
@@ -819,7 +898,7 @@ describe('transforms', () => {
           'Artifact:Image2': 'element2.jpg',
         },
         inputBindings: {
-          'ReferenceImages': 'Input:Unresolved', // Points to unresolved input
+          ReferenceImages: 'Input:Unresolved', // Points to unresolved input
           'ReferenceImages[0]': 'Artifact:Image1',
           'ReferenceImages[1]': 'Artifact:Image2',
         },
@@ -893,7 +972,9 @@ describe('transforms', () => {
         expect.fail('Expected applyMapping to throw for out-of-bounds index');
       } catch (error) {
         const providerError = error as { code?: string; message?: string };
-        expect(providerError.code).toBe(SdkErrorCode.INVALID_INDEXED_INPUT_ACCESS);
+        expect(providerError.code).toBe(
+          SdkErrorCode.INVALID_INDEXED_INPUT_ACCESS
+        );
         expect(providerError.message).toContain('index 2 is out of bounds');
       }
     });
@@ -912,10 +993,14 @@ describe('transforms', () => {
 
       try {
         applyMapping('SourceImages', mapping, context);
-        expect.fail('Expected applyMapping to throw when indexed parent is not an array');
+        expect.fail(
+          'Expected applyMapping to throw when indexed parent is not an array'
+        );
       } catch (error) {
         const providerError = error as { code?: string; message?: string };
-        expect(providerError.code).toBe(SdkErrorCode.INVALID_INDEXED_INPUT_ACCESS);
+        expect(providerError.code).toBe(
+          SdkErrorCode.INVALID_INDEXED_INPUT_ACCESS
+        );
         expect(providerError.message).toContain('is not an array');
       }
     });
@@ -1006,7 +1091,7 @@ describe('transforms', () => {
       };
 
       expect(() => applyMapping('VideoSize', mapping, context)).toThrow(
-        /Combine transform requires 'field' unless using 'expand'/,
+        /Combine transform requires 'field' unless using 'expand'/
       );
     });
 

@@ -1,0 +1,94 @@
+meta:
+  name: Scene Character Presence Test
+  description: Verifies scene-aware reference image bindings using CharacterPresent masks from a director output.
+  id: SceneCharacterPresenceTest
+  version: 0.1.0
+
+inputs:
+  - name: StoryPrompt
+    description: Story request for storyboard generation.
+    type: string
+    required: true
+  - name: CharacterVisualStyle
+    description: Visual style keywords for character references.
+    type: string
+    required: true
+  - name: NumOfCharacters
+    description: Number of characters in the story.
+    type: int
+    required: true
+  - name: NumOfScenes
+    description: Number of scenes to generate.
+    type: int
+    required: true
+  - name: AspectRatio
+    description: Aspect ratio for generated media.
+    type: string
+    required: true
+  - name: Resolution
+    description: Resolution for generated media.
+    type: string
+    required: true
+
+artifacts:
+  - name: CharacterImages
+    description: Generated character reference images.
+    type: array
+    itemType: image
+    countInput: NumOfCharacters
+  - name: SceneVideos
+    description: Generated scene videos.
+    type: array
+    itemType: video
+    countInput: NumOfScenes
+
+loops:
+  - name: character
+    countInput: NumOfCharacters
+  - name: scene
+    countInput: NumOfScenes
+
+conditions:
+  characterInScene:
+    when: StoryProducer.Storyboard.Scenes[scene].CharacterPresent[character]
+    is: true
+
+producers:
+  - name: StoryProducer
+    path: ./storyboard-director/storyboard-director.yaml
+  - name: CharacterImageProducer
+    producer: asset/text-to-image
+    loop: character
+  - name: SceneVideoProducer
+    producer: asset/ref-image-to-video
+    loop: scene
+
+connections:
+  - from: StoryPrompt
+    to: StoryProducer.StoryPrompt
+  - from: CharacterVisualStyle
+    to: StoryProducer.CharacterVisualStyle
+  - from: NumOfCharacters
+    to: StoryProducer.NumOfCharacters
+  - from: NumOfScenes
+    to: StoryProducer.NumOfScenes
+
+  - from: StoryProducer.Storyboard.CharacterImagePrompts[character]
+    to: CharacterImageProducer[character].Prompt
+  - from: AspectRatio
+    to: CharacterImageProducer[character].AspectRatio
+
+  - from: StoryProducer.Storyboard.Scenes[scene].VideoPrompt
+    to: SceneVideoProducer[scene].Prompt
+  - from: CharacterImageProducer[character].GeneratedImage
+    to: SceneVideoProducer[scene].ReferenceImages[character]
+    if: characterInScene
+  - from: AspectRatio
+    to: SceneVideoProducer[scene].AspectRatio
+  - from: Resolution
+    to: SceneVideoProducer[scene].Resolution
+
+  - from: CharacterImageProducer[character].GeneratedImage
+    to: CharacterImages[character]
+  - from: SceneVideoProducer[scene].GeneratedVideo
+    to: SceneVideos[scene]

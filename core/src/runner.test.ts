@@ -707,6 +707,175 @@ describe('createRunner', () => {
     expect(result.status).toBe('skipped');
   });
 
+  it('filters unsatisfied conditional collection bindings before producer invocation', async () => {
+    const storage = createStorageContext({ kind: 'memory' });
+    await initializeMovieStorage(storage, 'movie-conditional-bindings');
+    const eventLog = createEventLog(storage);
+    const manifestService = createManifestService(storage);
+
+    const appendArtifact = async (
+      artefactId: string,
+      data: string,
+      mimeType: string
+    ) => {
+      const hash = `${artefactId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 40)}hash`;
+      const blobRef: ArtefactEvent['output']['blob'] = {
+        hash,
+        size: data.length,
+        mimeType,
+      };
+      const dir = storage.resolve(
+        'movie-conditional-bindings',
+        'blobs',
+        hash.slice(0, 2)
+      );
+      await storage.storage.createDirectory(dir, {});
+      const blobPath = storage.resolve(
+        'movie-conditional-bindings',
+        'blobs',
+        hash.slice(0, 2),
+        formatBlobFileName(hash, mimeType)
+      );
+      await storage.storage.write(blobPath, Buffer.from(data), { mimeType });
+
+      await eventLog.appendArtefact('movie-conditional-bindings', {
+        artefactId,
+        revision: 'rev-0001',
+        inputsHash: 'hash',
+        output: { blob: blobRef },
+        status: 'succeeded',
+        producedBy: 'Producer:Upstream',
+        createdAt: new Date().toISOString(),
+      });
+    };
+
+    await appendArtifact(
+      'Artifact:StoryProducer.Storyboard',
+      JSON.stringify({
+        Scenes: [
+          { CharacterPresent: [true, false, true] },
+          { CharacterPresent: [true, true, true] },
+        ],
+      }),
+      'application/json'
+    );
+    await appendArtifact(
+      'Artifact:CharacterImageProducer.GeneratedImage[0]',
+      'img-0',
+      'text/plain'
+    );
+    await appendArtifact(
+      'Artifact:CharacterImageProducer.GeneratedImage[1]',
+      'img-1',
+      'text/plain'
+    );
+    await appendArtifact(
+      'Artifact:CharacterImageProducer.GeneratedImage[2]',
+      'img-2',
+      'text/plain'
+    );
+
+    let observedInputBindings: Record<string, string> | undefined;
+
+    const runner = createRunner({
+      produce: async (request) => {
+        observedInputBindings = request.job.context?.inputBindings;
+        return {
+          jobId: request.job.jobId,
+          status: 'succeeded',
+          artefacts: [],
+        };
+      },
+    });
+
+    const job: JobDescriptor = {
+      jobId: 'job-scene-video-0',
+      producer: 'SceneVideoProducer',
+      inputs: [
+        'Input:SceneVideoProducer.ReferenceImages[0]',
+        'Artifact:CharacterImageProducer.GeneratedImage[0]',
+        'Artifact:CharacterImageProducer.GeneratedImage[1]',
+        'Artifact:CharacterImageProducer.GeneratedImage[2]',
+      ],
+      produces: ['Artifact:SceneVideoProducer.GeneratedVideo[0]'],
+      provider: 'fal-ai',
+      providerModel: 'veo3.1/reference-to-video',
+      rateKey: 'video:reference',
+      context: {
+        namespacePath: [],
+        indices: { scene: 0 },
+        producerAlias: 'SceneVideoProducer',
+        inputs: [
+          'Input:SceneVideoProducer.ReferenceImages[0]',
+          'Artifact:CharacterImageProducer.GeneratedImage[0]',
+          'Artifact:CharacterImageProducer.GeneratedImage[1]',
+          'Artifact:CharacterImageProducer.GeneratedImage[2]',
+        ],
+        produces: ['Artifact:SceneVideoProducer.GeneratedVideo[0]'],
+        inputBindings: {
+          ReferenceImages: 'Input:SceneVideoProducer.ReferenceImages[0]',
+          'ReferenceImages[0]':
+            'Artifact:CharacterImageProducer.GeneratedImage[0]',
+          'ReferenceImages[1]':
+            'Artifact:CharacterImageProducer.GeneratedImage[1]',
+          'ReferenceImages[2]':
+            'Artifact:CharacterImageProducer.GeneratedImage[2]',
+        },
+        inputConditions: {
+          'Artifact:CharacterImageProducer.GeneratedImage[0]': {
+            condition: {
+              when: 'StoryProducer.Storyboard.Scenes[scene].CharacterPresent[character]',
+              is: true,
+            },
+            indices: { scene: 0, character: 0 },
+          },
+          'Artifact:CharacterImageProducer.GeneratedImage[1]': {
+            condition: {
+              when: 'StoryProducer.Storyboard.Scenes[scene].CharacterPresent[character]',
+              is: true,
+            },
+            indices: { scene: 0, character: 1 },
+          },
+          'Artifact:CharacterImageProducer.GeneratedImage[2]': {
+            condition: {
+              when: 'StoryProducer.Storyboard.Scenes[scene].CharacterPresent[character]',
+              is: true,
+            },
+            indices: { scene: 0, character: 2 },
+          },
+        },
+      },
+    };
+
+    const manifest: Manifest = {
+      revision: 'rev-0001',
+      baseRevision: null,
+      createdAt: new Date().toISOString(),
+      inputs: {},
+      artefacts: {},
+    };
+
+    const result = await runner.executeJob(job, {
+      movieId: 'movie-conditional-bindings',
+      storage,
+      eventLog,
+      manifest,
+      manifestService,
+      layerIndex: 0,
+      attempt: 1,
+      revision: 'rev-0002',
+    });
+
+    expect(result.status).toBe('succeeded');
+    expect(observedInputBindings?.['ReferenceImages[0]']).toBe(
+      'Artifact:CharacterImageProducer.GeneratedImage[0]'
+    );
+    expect(observedInputBindings?.['ReferenceImages[2]']).toBe(
+      'Artifact:CharacterImageProducer.GeneratedImage[2]'
+    );
+    expect(observedInputBindings?.['ReferenceImages[1]']).toBeUndefined();
+  });
+
   it('provides fan-in artefact blobs to downstream jobs', async () => {
     const storage = createStorageContext({ kind: 'memory' });
     await initializeMovieStorage(storage, 'movie-fanin-assets');

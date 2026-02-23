@@ -40,6 +40,8 @@ export interface CanonicalEdgeInstance {
   note?: string;
   groupBy?: string;
   orderBy?: string;
+  /** Input alias override used for dynamic collection element bindings. */
+  bindingAlias?: string;
   /** Conditions that must be satisfied for this edge to be active (evaluated at runtime) */
   conditions?: EdgeConditionDefinition;
   /** The dimension indices for this edge instance (for resolving condition paths) */
@@ -428,6 +430,7 @@ function expandEdges(
           note: edge.note,
           groupBy: edge.groupBy,
           orderBy: edge.orderBy,
+          bindingAlias: resolveBindingAlias(edge, fromNode, toNode),
           conditions: edge.conditions,
           indices: mergedIndices,
         });
@@ -704,12 +707,93 @@ function edgeInstancesAlign(
     const fromOffset = fromSelector?.kind === 'loop' ? fromSelector.offset : 0;
     const toOffset = toSelector?.kind === 'loop' ? toSelector.offset : 0;
 
+    const fromReference = getSelectorReferenceLabel(fromSymbol, fromSelector);
+    const toReference = getSelectorReferenceLabel(toSymbol, toSelector);
+    if (
+      fromReference !== toReference &&
+      edge.to.collectionSelectors &&
+      edge.to.collectionSelectors.length > 0
+    ) {
+      continue;
+    }
+
     if (fromIndex - fromOffset !== toIndex - toOffset) {
       return false;
     }
   }
 
   return true;
+}
+
+function getSelectorReferenceLabel(
+  symbol: string | undefined,
+  selector:
+    | {
+        kind: 'loop';
+        symbol: string;
+        offset: number;
+      }
+    | {
+        kind: 'const';
+        value: number;
+      }
+    | undefined
+): string | undefined {
+  if (!symbol) {
+    return undefined;
+  }
+  if (selector?.kind === 'loop') {
+    return selector.symbol;
+  }
+  return extractDimensionLabel(symbol);
+}
+
+function resolveBindingAlias(
+  edge: BlueprintGraphEdge,
+  fromNode: CanonicalNodeInstance,
+  toNode: CanonicalNodeInstance
+): string | undefined {
+  const selectors = edge.to.collectionSelectors;
+  if (!selectors || selectors.length === 0) {
+    return undefined;
+  }
+
+  const resolvedIndices = selectors.map((selector) => {
+    if (selector.kind === 'const') {
+      return selector.value;
+    }
+    const value = resolveSelectorLoopIndex(selector.symbol, fromNode, toNode);
+    const indexed = value + selector.offset;
+    if (!Number.isInteger(indexed) || indexed < 0) {
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
+        `Collection selector "${selector.symbol}${selector.offset >= 0 ? `+${selector.offset}` : selector.offset}" on input ${toNode.id} resolved to invalid index ${indexed}.`
+      );
+    }
+    return indexed;
+  });
+
+  const suffix = resolvedIndices.map((index) => `[${index}]`).join('');
+  return `${toNode.name}${suffix}`;
+}
+
+function resolveSelectorLoopIndex(
+  label: string,
+  fromNode: CanonicalNodeInstance,
+  toNode: CanonicalNodeInstance
+): number {
+  const toValue = getDimensionIndex(toNode, label);
+  if (toValue !== undefined) {
+    return toValue;
+  }
+  const fromValue = getDimensionIndex(fromNode, label);
+  if (fromValue !== undefined) {
+    return fromValue;
+  }
+  throw createRuntimeError(
+    RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
+    `Collection selector "${label}" on input ${toNode.id} does not exist on source ${fromNode.id} or target ${toNode.id}.`
+  );
 }
 
 function getDimensionValue(
@@ -770,6 +854,13 @@ function collapseInputNodes(
       return id;
     }
     if (inboundEdges.length > 1) {
+      const hasDynamicCollectionBindings = inboundEdges.some(
+        (edge) => !!edge.bindingAlias
+      );
+      if (hasDynamicCollectionBindings) {
+        aliasCache.set(id, id);
+        return id;
+      }
       const parents = inboundEdges.map((edge) => edge.from).join(', ');
       throw createRuntimeError(
         RuntimeErrorCode.MULTIPLE_UPSTREAM_INPUTS,
@@ -844,7 +935,7 @@ function collapseInputNodes(
         continue;
       }
       if (targetNode.type === 'Producer') {
-        recordBinding(targetNode.id, alias, canonicalId);
+        recordBinding(targetNode.id, edge.bindingAlias ?? alias, canonicalId);
         continue;
       }
       if (targetNode.type === 'Input') {
@@ -862,20 +953,21 @@ function collapseInputNodes(
   // when Input nodes are collapsed. Key = input node ID, Value = conditions from inbound edge
   const conditionsFromInbound = new Map<
     string,
-    {
+    Array<{
       conditions: CanonicalEdgeInstance['conditions'];
       indices: CanonicalEdgeInstance['indices'];
-    }
+    }>
   >();
   for (const edge of edges) {
     if (edge.conditions) {
       const targetNode = nodeById.get(edge.to);
       if (targetNode?.type === 'Input') {
-        // Store conditions from the inbound edge to this Input node
-        conditionsFromInbound.set(edge.to, {
+        const inherited = conditionsFromInbound.get(edge.to) ?? [];
+        inherited.push({
           conditions: edge.conditions,
           indices: edge.indices,
         });
+        conditionsFromInbound.set(edge.to, inherited);
       }
     }
   }
@@ -903,9 +995,9 @@ function collapseInputNodes(
         // The source Input node was collapsed (aliased to something else)
         // Check if it had inbound conditions that should propagate
         const inherited = conditionsFromInbound.get(edge.from);
-        if (inherited) {
-          edgeConditions = inherited.conditions;
-          edgeIndices = inherited.indices ?? edgeIndices;
+        if (inherited && inherited.length === 1) {
+          edgeConditions = inherited[0]?.conditions;
+          edgeIndices = inherited[0]?.indices ?? edgeIndices;
         }
       }
     }
@@ -916,6 +1008,7 @@ function collapseInputNodes(
       note: edge.note,
       groupBy: edge.groupBy,
       orderBy: edge.orderBy,
+      bindingAlias: edge.bindingAlias,
       conditions: edgeConditions,
       indices: edgeIndices,
     });
@@ -937,6 +1030,24 @@ function collapseInputNodes(
       list.push(node);
       elementInputsByBase.set(baseKey, list);
     }
+  }
+
+  const dynamicBindingsByInput = new Map<
+    string,
+    Array<{ alias: string; canonicalId: string }>
+  >();
+  for (const edge of edges) {
+    if (!edge.bindingAlias) {
+      continue;
+    }
+    const targetNode = nodeById.get(edge.to);
+    if (targetNode?.type !== 'Input') {
+      continue;
+    }
+    const canonicalId = normalizeId(edge.from);
+    const list = dynamicBindingsByInput.get(edge.to) ?? [];
+    list.push({ alias: edge.bindingAlias, canonicalId });
+    dynamicBindingsByInput.set(edge.to, list);
   }
 
   for (const node of nodes) {
@@ -973,6 +1084,18 @@ function collapseInputNodes(
             elementVisited
           );
         }
+      }
+    }
+
+    const dynamicBindings = dynamicBindingsByInput.get(node.id);
+    if (dynamicBindings && dynamicBindings.length > 0) {
+      for (const dynamicBinding of dynamicBindings) {
+        propagateAlias(
+          node.id,
+          dynamicBinding.alias,
+          dynamicBinding.canonicalId,
+          new Set<string>()
+        );
       }
     }
   }

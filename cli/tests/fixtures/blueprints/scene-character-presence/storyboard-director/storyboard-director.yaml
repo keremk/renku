@@ -1,0 +1,39 @@
+meta:
+  name: Scene Character Storyboard Director
+  description: Produces scene prompts, character prompts, and per-scene character presence masks.
+  id: SceneCharacterStoryboardDirector
+  version: 0.1.0
+  promptFile: ./storyboard-director.toml
+  outputSchema: ./storyboard-director-output.json
+
+inputs:
+  - name: StoryPrompt
+    description: Story request to transform into a storyboard.
+    type: string
+  - name: CharacterVisualStyle
+    description: Visual style guidance for character references.
+    type: string
+  - name: NumOfCharacters
+    description: Number of character slots.
+    type: int
+  - name: NumOfScenes
+    description: Number of scenes to produce.
+    type: int
+
+artifacts:
+  - name: Storyboard
+    description: Storyboard with character prompts and scene character presence masks.
+    type: json
+    arrays:
+      - path: CharacterImagePrompts
+        countInput: NumOfCharacters
+      - path: Scenes
+        countInput: NumOfScenes
+      - path: Scenes.CharacterPresent
+        countInput: NumOfCharacters
+
+loops:
+  - name: character
+    countInput: NumOfCharacters
+  - name: scene
+    countInput: NumOfScenes

@@ -409,20 +409,18 @@ async function executeJob(
         };
       }
 
-      // Filter out unsatisfied conditional inputs from the job
-      const satisfiedInputs = job.inputs.filter((inputId) => {
-        if (!conditionalInputIds.has(inputId)) {
-          return true; // Unconditional inputs always included
+      const satisfiedConditionalIds = new Set<string>();
+      for (const [inputId, result] of conditionResults.entries()) {
+        if (result.satisfied) {
+          satisfiedConditionalIds.add(inputId);
         }
-        const result = conditionResults.get(inputId);
-        return result?.satisfied ?? false;
-      });
+      }
 
-      // Update job with filtered inputs
-      job = {
-        ...job,
-        inputs: satisfiedInputs,
-      };
+      job = applyConditionalInputFiltering(
+        job,
+        conditionalInputIds,
+        satisfiedConditionalIds
+      );
     }
 
     // Merge resolved artifacts into job context
@@ -821,6 +819,87 @@ function materializeFanInValue(
     groupBy: descriptor.groupBy,
     orderBy: descriptor.orderBy,
     groups: collection,
+  };
+}
+
+function applyConditionalInputFiltering(
+  job: JobDescriptor,
+  conditionalInputIds: Set<string>,
+  satisfiedConditionalIds: Set<string>
+): JobDescriptor {
+  const filteredInputs = job.inputs.filter((inputId) => {
+    if (!conditionalInputIds.has(inputId)) {
+      return true;
+    }
+    return satisfiedConditionalIds.has(inputId);
+  });
+
+  const baseJob: JobDescriptor = {
+    ...job,
+    inputs: filteredInputs,
+  };
+
+  if (!job.context) {
+    return baseJob;
+  }
+
+  const filteredBindings = job.context.inputBindings
+    ? Object.fromEntries(
+        Object.entries(job.context.inputBindings).filter(([, canonicalId]) => {
+          if (!conditionalInputIds.has(canonicalId)) {
+            return true;
+          }
+          return satisfiedConditionalIds.has(canonicalId);
+        })
+      )
+    : undefined;
+
+  const filteredFanIn = job.context.fanIn
+    ? Object.fromEntries(
+        Object.entries(job.context.fanIn).map(([inputId, descriptor]) => [
+          inputId,
+          {
+            ...descriptor,
+            members: descriptor.members.filter((member) => {
+              if (!conditionalInputIds.has(member.id)) {
+                return true;
+              }
+              return satisfiedConditionalIds.has(member.id);
+            }),
+          },
+        ])
+      )
+    : undefined;
+
+  const filteredConditions = job.context.inputConditions
+    ? Object.fromEntries(
+        Object.entries(job.context.inputConditions).filter(([inputId]) => {
+          if (!conditionalInputIds.has(inputId)) {
+            return true;
+          }
+          return satisfiedConditionalIds.has(inputId);
+        })
+      )
+    : undefined;
+
+  return {
+    ...baseJob,
+    context: {
+      ...job.context,
+      inputs: filteredInputs,
+      inputBindings:
+        filteredBindings && Object.keys(filteredBindings).length > 0
+          ? filteredBindings
+          : undefined,
+      fanIn:
+        filteredFanIn && Object.keys(filteredFanIn).length > 0
+          ? filteredFanIn
+          : undefined,
+      inputConditions:
+        filteredConditions && Object.keys(filteredConditions).length > 0
+          ? filteredConditions
+          : undefined,
+    },
   };
 }
 

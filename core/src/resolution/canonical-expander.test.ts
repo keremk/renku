@@ -880,6 +880,138 @@ describe('expandBlueprintGraph', () => {
     );
   });
 
+  it('aliases symbolic cross-dimension collection inputs to upstream artifacts', () => {
+    const videoProducerDoc: BlueprintDocument = {
+      meta: { id: 'VideoProducer', name: 'VideoProducer' },
+      inputs: [
+        { name: 'Prompt', type: 'string', required: true },
+        { name: 'ReferenceImages', type: 'collection', required: false },
+      ],
+      artefacts: [{ name: 'GeneratedVideo', type: 'video' }],
+      producers: [
+        { name: 'VideoGenerator', provider: 'fal-ai', model: 'video' },
+      ],
+      producerImports: [],
+      edges: [
+        { from: 'Prompt', to: 'VideoGenerator' },
+        { from: 'ReferenceImages', to: 'VideoGenerator' },
+        { from: 'VideoGenerator', to: 'GeneratedVideo' },
+      ],
+    };
+
+    const imageProducerDoc: BlueprintDocument = {
+      meta: { id: 'ImageProducer', name: 'ImageProducer' },
+      inputs: [{ name: 'Prompt', type: 'string', required: true }],
+      artefacts: [{ name: 'GeneratedImage', type: 'image' }],
+      producers: [
+        { name: 'ImageGenerator', provider: 'fal-ai', model: 'image' },
+      ],
+      producerImports: [],
+      edges: [
+        { from: 'Prompt', to: 'ImageGenerator' },
+        { from: 'ImageGenerator', to: 'GeneratedImage' },
+      ],
+    };
+
+    const rootDoc: BlueprintDocument = {
+      meta: { id: 'ROOT', name: 'ROOT' },
+      inputs: [
+        { name: 'CharacterPrompt', type: 'string', required: true },
+        { name: 'VideoPrompt', type: 'string', required: true },
+        { name: 'NumScenes', type: 'int', required: true },
+        { name: 'NumCharacters', type: 'int', required: true },
+      ],
+      artefacts: [
+        {
+          name: 'SceneVideos',
+          type: 'array',
+          itemType: 'video',
+          countInput: 'NumScenes',
+        },
+      ],
+      producers: [],
+      producerImports: [],
+      loops: [
+        { name: 'scene', countInput: 'NumScenes' },
+        { name: 'character', countInput: 'NumCharacters' },
+      ],
+      edges: [
+        { from: 'CharacterPrompt', to: 'CharacterImage[character].Prompt' },
+        { from: 'VideoPrompt', to: 'SceneVideo[scene].Prompt' },
+        {
+          from: 'CharacterImage[character].GeneratedImage',
+          to: 'SceneVideo[scene].ReferenceImages[character]',
+        },
+        { from: 'SceneVideo[scene].GeneratedVideo', to: 'SceneVideos[scene]' },
+      ],
+    };
+
+    const tree: BlueprintTreeNode = {
+      id: 'ROOT',
+      namespacePath: [],
+      document: rootDoc,
+      children: new Map([
+        [
+          'CharacterImage',
+          {
+            id: 'CharacterImage',
+            namespacePath: ['CharacterImage'],
+            document: imageProducerDoc,
+            children: new Map(),
+            sourcePath: '/test/mock-blueprint.yaml',
+          },
+        ],
+        [
+          'SceneVideo',
+          {
+            id: 'SceneVideo',
+            namespacePath: ['SceneVideo'],
+            document: videoProducerDoc,
+            children: new Map(),
+            sourcePath: '/test/mock-blueprint.yaml',
+          },
+        ],
+      ]),
+      sourcePath: '/test/mock-blueprint.yaml',
+    };
+
+    const graph = buildBlueprintGraph(tree);
+    const inputSources = buildInputSourceMapFromCanonical(graph);
+    const canonicalInputs = normalizeInputValues(
+      {
+        'Input:CharacterPrompt': 'character prompt',
+        'Input:VideoPrompt': 'scene prompt',
+        'Input:NumScenes': 3,
+        'Input:NumCharacters': 3,
+      },
+      inputSources
+    );
+
+    const expanded = expandBlueprintGraph(graph, canonicalInputs, inputSources);
+    const sceneVideoNodes = expanded.nodes
+      .filter(
+        (node) =>
+          node.type === 'Producer' && node.id.startsWith('Producer:SceneVideo')
+      )
+      .sort((a, b) => a.id.localeCompare(b.id));
+
+    expect(sceneVideoNodes).toHaveLength(3);
+
+    for (const sceneNode of sceneVideoNodes) {
+      const bindings = expanded.inputBindings[sceneNode.id];
+      expect(bindings).toBeDefined();
+      expect(bindings?.['ReferenceImages[0]']).toBe(
+        'Artifact:CharacterImage.GeneratedImage[0]'
+      );
+      expect(bindings?.['ReferenceImages[1]']).toBe(
+        'Artifact:CharacterImage.GeneratedImage[1]'
+      );
+      expect(bindings?.['ReferenceImages[2]']).toBe(
+        'Artifact:CharacterImage.GeneratedImage[2]'
+      );
+    }
+  });
+
   it('keeps array-input element bindings aligned with loop instance', () => {
     const producerDoc: BlueprintDocument = {
       meta: { id: 'ThenImageProducer', name: 'ThenImageProducer' },

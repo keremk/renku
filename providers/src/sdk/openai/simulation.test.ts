@@ -1,9 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { simulateOpenAiGeneration, type SimulationSizeHints } from './simulation.js';
+import {
+  simulateOpenAiGeneration,
+  type SimulationSizeHints,
+} from './simulation.js';
 import type { ProviderJobContext } from '../../types.js';
 import type { OpenAiLlmConfig } from './config.js';
 
-function createBasicRequest(produces: string[] = ['Artifact:Producer.Output']): ProviderJobContext {
+function createBasicRequest(
+  produces: string[] = ['Artifact:Producer.Output']
+): ProviderJobContext {
   return {
     jobId: 'test-job',
     provider: 'openai',
@@ -42,8 +47,12 @@ describe('simulateOpenAiGeneration', () => {
       const result = simulateOpenAiGeneration({ request, config });
 
       expect(result.data).toBeDefined();
-      expect(typeof (result.data as Record<string, unknown>).title).toBe('string');
-      expect(typeof (result.data as Record<string, unknown>).count).toBe('number');
+      expect(typeof (result.data as Record<string, unknown>).title).toBe(
+        'string'
+      );
+      expect(typeof (result.data as Record<string, unknown>).count).toBe(
+        'number'
+      );
     });
 
     it('returns simulated text for non-json response format', () => {
@@ -219,7 +228,10 @@ describe('simulateOpenAiGeneration', () => {
             items: {
               type: 'object',
               properties: {
-                status: { type: 'string', enum: ['active', 'inactive', 'pending'] },
+                status: {
+                  type: 'string',
+                  enum: ['active', 'inactive', 'pending'],
+                },
               },
             },
           },
@@ -261,7 +273,10 @@ describe('simulateOpenAiGeneration', () => {
             items: {
               type: 'object',
               properties: {
-                status: { type: 'string', enum: ['active', 'inactive', 'draft', 'final'] },
+                status: {
+                  type: 'string',
+                  enum: ['active', 'inactive', 'draft', 'final'],
+                },
               },
             },
           },
@@ -307,7 +322,10 @@ describe('simulateOpenAiGeneration', () => {
             items: {
               type: 'object',
               properties: {
-                status: { type: 'string', enum: ['active', 'inactive', 'draft', 'final'] },
+                status: {
+                  type: 'string',
+                  enum: ['active', 'inactive', 'draft', 'final'],
+                },
               },
             },
           },
@@ -332,9 +350,75 @@ describe('simulateOpenAiGeneration', () => {
         },
       };
 
-      expect(() => simulateOpenAiGeneration({ request, config, sizeHints })).toThrow(
-        'Simulation condition hints are ambiguous',
+      expect(() =>
+        simulateOpenAiGeneration({ request, config, sizeHints })
+      ).toThrow('Simulation condition hints are ambiguous');
+    });
+
+    it('generates varied nested boolean matrices for multi-dimensional hints', () => {
+      const request = createBasicRequest(['Artifact:StoryProducer.Storyboard']);
+      const config = createJsonSchemaConfig({
+        type: 'object',
+        properties: {
+          Scenes: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                CharacterPresent: {
+                  type: 'array',
+                  items: { type: 'boolean' },
+                },
+              },
+              required: ['CharacterPresent'],
+            },
+          },
+        },
+        required: ['Scenes'],
+      });
+      const sizeHints: SimulationSizeHints = {
+        arrayLengths: {
+          Scenes: [3],
+          CharacterPresent: [3],
+        },
+        conditionHints: {
+          varyingFields: [
+            {
+              path: 'Scenes.[scene].CharacterPresent.[character]',
+              values: [true, false],
+              dimension: 'scene',
+              artifactPath: 'StoryProducer.Storyboard',
+            },
+          ],
+          mode: 'alternating',
+        },
+      };
+
+      const result = simulateOpenAiGeneration({ request, config, sizeHints });
+      const data = result.data as {
+        Scenes: Array<{
+          CharacterPresent: boolean[];
+        }>;
+      };
+
+      const matrix = data.Scenes.map((scene) => scene.CharacterPresent);
+      expect(matrix).toHaveLength(3);
+      expect(matrix.every((row) => row.length === 3)).toBe(true);
+
+      const flattened = matrix.flat();
+      expect(flattened.some((value) => value)).toBe(true);
+      expect(flattened.some((value) => !value)).toBe(true);
+
+      const uniqueRows = new Set(
+        matrix.map((row) => row.map((value) => (value ? '1' : '0')).join(''))
       );
+      expect(uniqueRows.size).toBeGreaterThan(1);
+
+      for (let characterIndex = 0; characterIndex < 3; characterIndex += 1) {
+        const column = matrix.map((row) => row[characterIndex]!);
+        expect(column.some((value) => value)).toBe(true);
+        expect(column.some((value) => !value)).toBe(true);
+      }
     });
   });
 

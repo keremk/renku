@@ -16,7 +16,9 @@ interface SimulationOptions {
   sizeHints?: SimulationSizeHints;
 }
 
-export function simulateOpenAiGeneration(options: SimulationOptions): GenerationResult {
+export function simulateOpenAiGeneration(
+  options: SimulationOptions
+): GenerationResult {
   const { request, config, sizeHints: externalHints } = options;
   const responseMeta = {
     id: `simulated-openai-${request.jobId}`,
@@ -24,14 +26,18 @@ export function simulateOpenAiGeneration(options: SimulationOptions): Generation
     createdAt: new Date().toISOString(),
   } satisfies Record<string, unknown>;
 
-  const responseFormat = config.responseFormat as OpenAiResponseFormat | undefined;
+  const responseFormat = config.responseFormat as
+    | OpenAiResponseFormat
+    | undefined;
   if (responseFormat?.type === 'json_schema') {
     if (!responseFormat.schema) {
-      throw new Error('Simulation requires a JSON schema for json_schema response format.');
+      throw new Error(
+        'Simulation requires a JSON schema for json_schema response format.'
+      );
     }
     const scopedConditionHints = scopeConditionHintsToRequest(
       request,
-      externalHints?.conditionHints,
+      externalHints?.conditionHints
     );
 
     // Merge external hints with derived hints (external takes precedence)
@@ -41,7 +47,9 @@ export function simulateOpenAiGeneration(options: SimulationOptions): Generation
       conditionHints: scopedConditionHints,
     };
     // Normalize schema to unwrap nested schema structure (e.g., { name, strict, schema: {...} })
-    const normalizedSchema = normalizeJsonSchema(responseFormat.schema as JSONSchema7);
+    const normalizedSchema = normalizeJsonSchema(
+      responseFormat.schema as JSONSchema7
+    );
     const data = generateFromSchema(normalizedSchema, {
       sizeHints,
     }) as Record<string, unknown>;
@@ -72,7 +80,7 @@ interface GeneratorContext {
 
 function scopeConditionHintsToRequest(
   request: ProviderJobContext,
-  hints: ConditionHints | undefined,
+  hints: ConditionHints | undefined
 ): ConditionHints | undefined {
   if (!hints || hints.varyingFields.length === 0) {
     return hints;
@@ -84,14 +92,14 @@ function scopeConditionHintsToRequest(
   for (const hint of hints.varyingFields) {
     if (!hint.artifactPath || typeof hint.artifactPath !== 'string') {
       throw new Error(
-        `Simulation condition hint is missing artifactPath for field "${hint.path}".`,
+        `Simulation condition hint is missing artifactPath for field "${hint.path}".`
       );
     }
     hintedArtifactPaths.add(hint.artifactPath);
   }
 
   const matchingArtifactPaths = Array.from(hintedArtifactPaths).filter((path) =>
-    producedArtifactPaths.has(path),
+    producedArtifactPaths.has(path)
   );
 
   if (matchingArtifactPaths.length === 0) {
@@ -100,7 +108,7 @@ function scopeConditionHintsToRequest(
 
   if (matchingArtifactPaths.length > 1) {
     throw new Error(
-      `Simulation condition hints are ambiguous for job "${request.jobId}". Matching artifact paths: ${matchingArtifactPaths.join(', ')}`,
+      `Simulation condition hints are ambiguous for job "${request.jobId}". Matching artifact paths: ${matchingArtifactPaths.join(', ')}`
     );
   }
 
@@ -108,7 +116,7 @@ function scopeConditionHintsToRequest(
   return {
     ...hints,
     varyingFields: hints.varyingFields.filter(
-      (hint) => hint.artifactPath === targetArtifactPath,
+      (hint) => hint.artifactPath === targetArtifactPath
     ),
   };
 }
@@ -130,7 +138,9 @@ function extractArtifactPath(artifactId: string): string | undefined {
   }
   const body = artifactId.slice('Artifact:'.length);
   const segments = splitPathWithBrackets(body);
-  const propertySegments = segments.filter((segment) => !segment.startsWith('['));
+  const propertySegments = segments.filter(
+    (segment) => !segment.startsWith('[')
+  );
   if (propertySegments.length < 2) {
     return undefined;
   }
@@ -176,11 +186,13 @@ function generateFromSchema(
   schema: JSONSchema7,
   context: GeneratorContext,
   propertyName?: string,
-  activeLengths?: number[],
+  activeLengths?: number[]
 ): unknown {
   const resolvedType = resolveType(schema);
   const currentPath = context.currentPath ?? [];
-  const pathWithProperty = propertyName ? [...currentPath, propertyName] : currentPath;
+  const pathWithProperty = propertyName
+    ? [...currentPath, propertyName]
+    : currentPath;
 
   if (resolvedType === 'object' || (schema.properties && !resolvedType)) {
     const obj: Record<string, unknown> = {};
@@ -191,7 +203,7 @@ function generateFromSchema(
         value as JSONSchema7,
         { ...context, currentPath: pathWithProperty },
         key,
-        lengths,
+        lengths
       );
     }
     return obj;
@@ -200,16 +212,22 @@ function generateFromSchema(
   if (resolvedType === 'array' || schema.items) {
     const length = resolveArrayLength(propertyName, activeLengths);
     const itemSchema = (schema.items as JSONSchema7) ?? {};
-    const nextLengths = activeLengths && activeLengths.length > 1 ? activeLengths.slice(1) : [];
+    const nextLengths =
+      activeLengths && activeLengths.length > 1 ? activeLengths.slice(1) : [];
     return Array.from({ length }, (_, index) => {
-      const itemName = propertyName ? `${propertyName} segment ${index + 1}` : `item_${index}`;
+      const itemName = propertyName
+        ? `${propertyName} segment ${index + 1}`
+        : `item_${index}`;
       // Track the array index for this property (used for cycling values)
-      const newIndices = { ...(context.arrayIndices ?? {}), [propertyName ?? 'root']: index };
+      const newIndices = {
+        ...(context.arrayIndices ?? {}),
+        [propertyName ?? 'root']: index,
+      };
       return generateFromSchema(
         itemSchema,
         { ...context, currentPath: pathWithProperty, arrayIndices: newIndices },
         itemName,
-        nextLengths.length > 0 ? nextLengths : undefined,
+        nextLengths.length > 0 ? nextLengths : undefined
       );
     });
   }
@@ -240,7 +258,10 @@ function generateFromSchema(
   if (schema.enum && schema.enum.length > 0) {
     // Check for varying field hint first
     const varyingValue = getVaryingValue(pathWithProperty, context);
-    if (varyingValue !== undefined && schema.enum.some((e) => e === varyingValue)) {
+    if (
+      varyingValue !== undefined &&
+      schema.enum.some((e) => e === varyingValue)
+    ) {
       return varyingValue;
     }
     // Use cycling pattern for enums in alternating mode
@@ -289,10 +310,7 @@ function getVaryingValue(path: string[], context: GeneratorContext): unknown {
 
   for (const hint of hints.varyingFields) {
     if (matchesVaryingPath(pathStr, hint.path)) {
-      // Get the index to use for cycling
-      const index = hint.dimension
-        ? context.arrayIndices?.[hint.dimension] ?? getEffectiveArrayIndex(context)
-        : getEffectiveArrayIndex(context);
+      const index = resolveHintCycleIndex(hint, context);
 
       // Cycle through the hint values
       if (hint.values.length > 0) {
@@ -304,17 +322,134 @@ function getVaryingValue(path: string[], context: GeneratorContext): unknown {
   return undefined;
 }
 
+function resolveHintCycleIndex(
+  hint: { path: string; dimension?: string },
+  context: GeneratorContext
+): number {
+  const arrayIndices = context.arrayIndices ?? {};
+
+  if (hint.dimension) {
+    const directIndex = arrayIndices[hint.dimension];
+    if (typeof directIndex === 'number') {
+      return directIndex;
+    }
+  }
+
+  const hintDimensionBindings = extractHintDimensionBindings(hint.path)
+    .map((binding) => ({
+      ...binding,
+      index: arrayIndices[binding.propertyName],
+    }))
+    .filter(
+      (
+        binding
+      ): binding is {
+        dimension: string;
+        propertyName: string;
+        index: number;
+      } => typeof binding.index === 'number'
+    );
+
+  if (hint.dimension) {
+    const requestedDimensionBinding = hintDimensionBindings.find(
+      (binding) => binding.dimension === hint.dimension
+    );
+    if (requestedDimensionBinding) {
+      if (hintDimensionBindings.length === 1) {
+        return requestedDimensionBinding.index;
+      }
+      return combineHintIndices(
+        hintDimensionBindings.map((binding) => binding.index)
+      );
+    }
+  }
+
+  if (hintDimensionBindings.length === 1) {
+    return hintDimensionBindings[0]!.index;
+  }
+  if (hintDimensionBindings.length > 1) {
+    return combineHintIndices(
+      hintDimensionBindings.map((binding) => binding.index)
+    );
+  }
+
+  return getEffectiveArrayIndex(context);
+}
+
+function extractHintDimensionBindings(path: string): Array<{
+  dimension: string;
+  propertyName: string;
+}> {
+  const segments = splitPathWithBrackets(path);
+  const bindings: Array<{ dimension: string; propertyName: string }> = [];
+
+  for (let index = 1; index < segments.length; index += 1) {
+    const segment = segments[index]!;
+    const match = /^\[([A-Za-z_][A-Za-z0-9_]*)\]$/.exec(segment);
+    if (!match) {
+      continue;
+    }
+    const propertyName = segments[index - 1]!;
+    if (propertyName.startsWith('[')) {
+      continue;
+    }
+    bindings.push({
+      dimension: match[1]!,
+      propertyName,
+    });
+  }
+
+  return bindings;
+}
+
+function combineHintIndices(indices: number[]): number {
+  let combined = 0;
+  for (const index of indices) {
+    combined = combined * 31 + index;
+  }
+  return Math.abs(combined);
+}
+
 /**
  * Checks if a schema path matches a varying field hint path.
  * The hint path may contain dimension placeholders like "[segment]".
  */
 function matchesVaryingPath(schemaPath: string, hintPath: string): boolean {
-  // Normalize both paths by removing dimension placeholders
-  const normalizedSchema = schemaPath.replace(/\s+segment\s+\d+/g, '');
-  const normalizedHint = hintPath.replace(/\.\[\w+\]/g, '').replace(/\[\w+\]\./g, '');
+  const normalizedSchema = normalizePathForHintComparison(schemaPath);
+  const normalizedHint = normalizePathForHintComparison(hintPath);
 
-  // Check if the schema path ends with the hint path
-  return normalizedSchema.endsWith(normalizedHint) || normalizedSchema === normalizedHint;
+  if (!normalizedSchema || !normalizedHint) {
+    return false;
+  }
+
+  return (
+    normalizedSchema === normalizedHint ||
+    normalizedSchema.endsWith(`.${normalizedHint}`)
+  );
+}
+
+function normalizePathForHintComparison(path: string): string {
+  const segments = splitPathWithBrackets(path);
+  const normalizedSegments: string[] = [];
+
+  for (const segment of segments) {
+    if (/^\[[A-Za-z_][A-Za-z0-9_]*\]$/.test(segment)) {
+      continue;
+    }
+
+    const cleaned = segment.replace(/\s+segment\s+\d+/g, '').trim();
+    if (!cleaned) {
+      continue;
+    }
+
+    if (normalizedSegments[normalizedSegments.length - 1] === cleaned) {
+      continue;
+    }
+
+    normalizedSegments.push(cleaned);
+  }
+
+  return normalizedSegments.join('.');
 }
 
 function resolveType(schema: JSONSchema7): JSONSchema7['type'] | undefined {
@@ -326,17 +461,19 @@ function resolveType(schema: JSONSchema7): JSONSchema7['type'] | undefined {
 
 function resolveArrayLength(
   propertyName: string | undefined,
-  lengths: number[] | undefined,
+  lengths: number[] | undefined
 ): number {
   if (lengths && lengths.length > 0 && Number.isFinite(lengths[0])) {
     return Math.max(0, Math.floor(lengths[0]!));
   }
   throw new Error(
-    `Simulation missing array length for field "${propertyName ?? 'root'}". Provide loop-derived ordinals or explicit hints.`,
+    `Simulation missing array length for field "${propertyName ?? 'root'}". Provide loop-derived ordinals or explicit hints.`
   );
 }
 
-function deriveArrayLengthsFromProduces(request: ProviderJobContext): Record<string, number[]> {
+function deriveArrayLengthsFromProduces(
+  request: ProviderJobContext
+): Record<string, number[]> {
   const lengths = new Map<string, number[]>();
   const namespaceOrdinalDepth = countBracketSegments(request.jobId);
 
@@ -344,7 +481,10 @@ function deriveArrayLengthsFromProduces(request: ProviderJobContext): Record<str
     // Extract array fields with their ordinals from the artifact path
     // For "Artifact:DocProducer.VideoScript.Segments[0].UseNarrationAudio"
     // we need to associate ordinal [0] with field "Segments", not "UseNarrationAudio"
-    const arrayFields = extractArrayFieldsFromPath(artefactId, namespaceOrdinalDepth);
+    const arrayFields = extractArrayFieldsFromPath(
+      artefactId,
+      namespaceOrdinalDepth
+    );
 
     for (const { fieldName, ordinals } of arrayFields) {
       const existing = lengths.get(fieldName) ?? [];
@@ -383,7 +523,7 @@ function deriveArrayLengthsFromProduces(request: ProviderJobContext): Record<str
  */
 function extractArrayFieldsFromPath(
   artefactId: string,
-  skipOrdinalCount: number,
+  skipOrdinalCount: number
 ): Array<{ fieldName: string; ordinals: number[] }> {
   if (!artefactId.startsWith('Artifact:')) {
     return [];

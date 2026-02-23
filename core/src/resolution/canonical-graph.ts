@@ -44,6 +44,16 @@ export interface BlueprintGraphEdgeEndpoint {
   nodeId: string;
   dimensions: string[];
   selectors?: Array<DimensionSelector | undefined>;
+  /**
+   * Additional selectors that target collection elements on the endpoint node.
+   *
+   * Example:
+   * - Reference: "SceneVideoProducer[scene].ReferenceImages[character]"
+   * - Node dimensions: [scene]
+   * - selectors: [scene]
+   * - collectionSelectors: [character]
+   */
+  collectionSelectors?: DimensionSelector[];
 }
 
 export interface BlueprintGraphEdge {
@@ -931,7 +941,7 @@ function resolveEdgeEndpoint(
     }
   }
 
-  const selectors =
+  const parsedSelectors =
     allSelectors.length > 0
       ? parseAllSelectors(
           reference,
@@ -943,7 +953,8 @@ function resolveEdgeEndpoint(
   return {
     nodeId: targetNodeId,
     dimensions,
-    selectors,
+    selectors: parsedSelectors?.selectors,
+    collectionSelectors: parsedSelectors?.collectionSelectors,
   };
 }
 
@@ -951,7 +962,12 @@ function parseAllSelectors(
   reference: string,
   rawSelectors: string[],
   totalDimensions: number
-): Array<DimensionSelector | undefined> | undefined {
+):
+  | {
+      selectors?: Array<DimensionSelector | undefined>;
+      collectionSelectors?: DimensionSelector[];
+    }
+  | undefined {
   if (rawSelectors.length === 0) {
     return undefined;
   }
@@ -959,27 +975,34 @@ function parseAllSelectors(
   const selectors: Array<DimensionSelector | undefined> = new Array(
     totalDimensions
   ).fill(undefined);
+  const collectionSelectors: DimensionSelector[] = [];
 
-  for (
-    let index = 0;
-    index < rawSelectors.length && index < totalDimensions;
-    index++
-  ) {
+  for (let index = 0; index < rawSelectors.length; index++) {
     const raw = rawSelectors[index];
-    if (raw) {
-      try {
-        selectors[index] = parseDimensionSelector(raw);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        throw createRuntimeError(
-          RuntimeErrorCode.INVALID_DIMENSION_SELECTOR,
-          `Invalid dimension selector in reference "${reference}": ${message}`
-        );
+    if (!raw) {
+      continue;
+    }
+    try {
+      const parsed = parseDimensionSelector(raw);
+      if (index < totalDimensions) {
+        selectors[index] = parsed;
+      } else {
+        collectionSelectors.push(parsed);
       }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw createRuntimeError(
+        RuntimeErrorCode.INVALID_DIMENSION_SELECTOR,
+        `Invalid dimension selector in reference "${reference}": ${message}`
+      );
     }
   }
 
-  return selectors;
+  return {
+    selectors,
+    collectionSelectors:
+      collectionSelectors.length > 0 ? collectionSelectors : undefined,
+  };
 }
 
 function findNodeByNamespace(
