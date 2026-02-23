@@ -197,13 +197,27 @@ mappings:
         intToString: true
       GenerateAudio: generate_audio
 
-    # Kling V3 Standard Image-to-Video (single-prompt mode)
+    # Kling V3 Standard Image-to-Video
     kling-video/v3/standard/image-to-video:
-      StartImage: frontal_image_url
+      Prompt: prompt
+      StartImage: start_image_url
+      EndImage: end_image_url
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
 
-    # Kling V3 Pro Image-to-Video (single-prompt mode)
+    # Kling V3 Pro Image-to-Video
     kling-video/v3/pro/image-to-video:
-      StartImage: frontal_image_url
+      Prompt: prompt
+      StartImage: start_image_url
+      EndImage: end_image_url
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
 
     # Pixverse V5 Image-to-Video
     pixverse/v5/image-to-video:

@@ -126,15 +126,37 @@ mappings:
 
     # --- Image-to-Video ---
 
-    # Kling V3 Standard Image-to-Video (element-based)
+    # Kling V3 Standard Image-to-Video
     kling-video/v3/standard/image-to-video:
-      StartImage: frontal_image_url
-      ReferenceImages: reference_image_urls
+      Prompt: prompt
+      MultiPrompt: multi_prompt
+      ShotType: shot_type
+      StartImage: start_image_url
+      EndImage: end_image_url
+      Elements: elements
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
+      VoiceIds: voice_ids
+      NegativePrompt: negative_prompt
 
-    # Kling V3 Pro Image-to-Video (element-based)
+    # Kling V3 Pro Image-to-Video
     kling-video/v3/pro/image-to-video:
-      StartImage: frontal_image_url
-      ReferenceImages: reference_image_urls
+      Prompt: prompt
+      MultiPrompt: multi_prompt
+      ShotType: shot_type
+      StartImage: start_image_url
+      EndImage: end_image_url
+      Elements: elements
+      Duration:
+        field: duration
+        intToString: true
+      AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
+      VoiceIds: voice_ids
+      NegativePrompt: negative_prompt
 
     # Kling O1 Image-to-Video
     kling-video/o1/image-to-video:

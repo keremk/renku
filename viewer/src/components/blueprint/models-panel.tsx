@@ -110,6 +110,9 @@ export function ModelsPanel({
       // Prompt producers always show (they have prompts)
       if (info.category === "prompt") return true;
 
+      // Asset producers always show (they need the model selector dropdown)
+      if (info.category === "asset") return true;
+
       // Check if producer has displayable config
       const hasDisplayableConfig = configProps.some((prop) => {
         // Primitive types are always displayable
@@ -125,11 +128,6 @@ export function ModelsPanel({
 
       // Hide producers that have ONLY unhandled complex properties
       if (hasOnlyUnhandledComplex) return false;
-
-      // Asset producers: show if they have displayable config OR no config (for model selection)
-      if (info.category === "asset") {
-        return hasDisplayableConfig || configProps.length === 0;
-      }
 
       // Composition producers: show only if they have displayable config
       // (no model selection needed, so nothing to show if no config)
