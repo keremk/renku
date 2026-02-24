@@ -501,6 +501,12 @@ describe('validateTypes', () => {
           itemType: 'image',
           required: true,
         },
+        {
+          name: 'TextArrayArtifact',
+          type: 'array',
+          itemType: 'text',
+          required: true,
+        },
       ],
     });
     const tree = createTreeNode(doc);

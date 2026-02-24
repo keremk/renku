@@ -103,6 +103,18 @@ describe('getInputCategory', () => {
     expect(getInputCategory(makeInput('test', 'text'))).toBe('text');
   });
 
+  it('returns textArray for array with text itemType', () => {
+    expect(getInputCategory(makeInput('test', 'array', 'text'))).toBe(
+      'textArray'
+    );
+  });
+
+  it('returns stringArray for array with string itemType', () => {
+    expect(getInputCategory(makeInput('test', 'array', 'string'))).toBe(
+      'stringArray'
+    );
+  });
+
   it('returns other for string type', () => {
     expect(getInputCategory(makeInput('test', 'string'))).toBe('other');
   });
@@ -132,6 +144,8 @@ describe('categorizeInputs', () => {
 
     expect(result.media).toHaveLength(3);
     expect(result.text).toHaveLength(0);
+    expect(result.textArray).toHaveLength(0);
+    expect(result.stringArray).toHaveLength(0);
     expect(result.other).toHaveLength(0);
   });
 
@@ -145,6 +159,10 @@ describe('categorizeInputs', () => {
 
     expect(result.media).toHaveLength(2);
     expect(result.media.map((i) => i.name)).toEqual(['images', 'videos']);
+    expect(result.text).toHaveLength(0);
+    expect(result.textArray).toHaveLength(0);
+    expect(result.stringArray).toHaveLength(0);
+    expect(result.other).toHaveLength(0);
   });
 
   it('categorizes type=text as text', () => {
@@ -157,6 +175,38 @@ describe('categorizeInputs', () => {
 
     expect(result.text).toHaveLength(2);
     expect(result.media).toHaveLength(0);
+    expect(result.textArray).toHaveLength(0);
+    expect(result.stringArray).toHaveLength(0);
+    expect(result.other).toHaveLength(0);
+  });
+
+  it('categorizes array with text itemType as textArray', () => {
+    const inputs = [
+      makeInput('narration', 'array', 'text'),
+      makeInput('prompts', 'array', 'text'),
+    ];
+
+    const result = categorizeInputs(inputs);
+
+    expect(result.textArray).toHaveLength(2);
+    expect(result.textArray.map((i) => i.name)).toEqual([
+      'narration',
+      'prompts',
+    ]);
+    expect(result.media).toHaveLength(0);
+    expect(result.text).toHaveLength(0);
+    expect(result.stringArray).toHaveLength(0);
+    expect(result.other).toHaveLength(0);
+  });
+
+  it('categorizes array with string itemType as stringArray', () => {
+    const result = categorizeInputs([makeInput('tags', 'array', 'string')]);
+
+    expect(result.stringArray).toHaveLength(1);
+    expect(result.stringArray[0]?.name).toBe('tags');
+    expect(result.media).toHaveLength(0);
+    expect(result.text).toHaveLength(0);
+    expect(result.textArray).toHaveLength(0);
     expect(result.other).toHaveLength(0);
   });
 
@@ -173,6 +223,8 @@ describe('categorizeInputs', () => {
     expect(result.other).toHaveLength(4);
     expect(result.media).toHaveLength(0);
     expect(result.text).toHaveLength(0);
+    expect(result.textArray).toHaveLength(0);
+    expect(result.stringArray).toHaveLength(0);
   });
 
   it('handles empty inputs array', () => {
@@ -180,6 +232,8 @@ describe('categorizeInputs', () => {
 
     expect(result.media).toHaveLength(0);
     expect(result.text).toHaveLength(0);
+    expect(result.textArray).toHaveLength(0);
+    expect(result.stringArray).toHaveLength(0);
     expect(result.other).toHaveLength(0);
   });
 
@@ -198,6 +252,8 @@ describe('categorizeInputs', () => {
     expect(result.media.map((i) => i.name)).toEqual(['profileImage', 'photos']);
     expect(result.text).toHaveLength(1);
     expect(result.text[0].name).toBe('bio');
+    expect(result.textArray).toHaveLength(0);
+    expect(result.stringArray).toHaveLength(0);
     expect(result.other).toHaveLength(2);
     expect(result.other.map((i) => i.name)).toEqual(['username', 'age']);
   });
@@ -318,11 +374,9 @@ describe('getInputCategory edge cases', () => {
     expect(getInputCategory(makeInput('test', 'custom'))).toBe('other');
   });
 
-  it('returns other for array with non-media itemType', () => {
-    expect(getInputCategory(makeInput('test', 'array', 'string'))).toBe(
-      'other'
-    );
+  it('returns other for array with unknown/non-supported itemType', () => {
     expect(getInputCategory(makeInput('test', 'array', 'int'))).toBe('other');
+    expect(getInputCategory(makeInput('test', 'array', 'json'))).toBe('other');
   });
 });
 

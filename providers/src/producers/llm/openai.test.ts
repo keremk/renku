@@ -9,7 +9,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@ai-sdk/openai', async () => {
-  const actual = await vi.importActual<typeof import('@ai-sdk/openai')>('@ai-sdk/openai');
+  const actual =
+    await vi.importActual<typeof import('@ai-sdk/openai')>('@ai-sdk/openai');
   return {
     ...actual,
     createOpenAI: mocks.createOpenAI,
@@ -24,7 +25,9 @@ vi.mock('ai', async () => {
   };
 });
 
-const secretResolver = vi.fn<(key: string) => Promise<string>>(async () => 'test-key');
+const secretResolver = vi.fn<(key: string) => Promise<string>>(
+  async () => 'test-key'
+);
 
 function buildHandler(): ReturnType<HandlerFactory> {
   const factory = createOpenAiLlmHandler();
@@ -44,7 +47,9 @@ function buildHandler(): ReturnType<HandlerFactory> {
   });
 }
 
-function createJobContext(overrides: Partial<ProviderJobContext> = {}): ProviderJobContext {
+function createJobContext(
+  overrides: Partial<ProviderJobContext> = {}
+): ProviderJobContext {
   const baseContext: ProviderJobContext = {
     jobId: 'job-base',
     provider: 'openai',
@@ -68,12 +73,21 @@ function createJobContext(overrides: Partial<ProviderJobContext> = {}): Provider
     },
   };
 
-  const overrideContext: Partial<ProviderJobContext['context']> = overrides.context ?? {};
-  const baseExtras = (baseContext.context.extras ?? {}) as Record<string, unknown>;
-  const overrideExtras = (overrideContext.extras ?? {}) as Record<string, unknown>;
-  const baseResolvedInputs = (baseExtras.resolvedInputs as Record<string, unknown> | undefined) ?? {};
+  const overrideContext: Partial<ProviderJobContext['context']> =
+    overrides.context ?? {};
+  const baseExtras = (baseContext.context.extras ?? {}) as Record<
+    string,
+    unknown
+  >;
+  const overrideExtras = (overrideContext.extras ?? {}) as Record<
+    string,
+    unknown
+  >;
+  const baseResolvedInputs =
+    (baseExtras.resolvedInputs as Record<string, unknown> | undefined) ?? {};
   const overrideResolvedInputs =
-    (overrideExtras.resolvedInputs as Record<string, unknown> | undefined) ?? {};
+    (overrideExtras.resolvedInputs as Record<string, unknown> | undefined) ??
+    {};
 
   return {
     ...baseContext,
@@ -89,7 +103,8 @@ function createJobContext(overrides: Partial<ProviderJobContext> = {}): Provider
         overrideContext.rawAttachments ?? baseContext.context.rawAttachments,
       observability:
         overrideContext.observability ?? baseContext.context.observability,
-      environment: overrideContext.environment ?? baseContext.context.environment,
+      environment:
+        overrideContext.environment ?? baseContext.context.environment,
       extras: {
         ...baseExtras,
         ...overrideExtras,
@@ -150,7 +165,7 @@ describe('createOpenAiLlmHandler', () => {
     });
 
     await expect(handler.invoke(request)).rejects.toThrow(
-      'OpenAI provider configuration must be an object.',
+      'OpenAI provider configuration must be an object.'
     );
   });
 
@@ -219,7 +234,10 @@ describe('createOpenAiLlmHandler', () => {
     expect(mocks.modelFn).toHaveBeenCalledWith('openai/gpt5');
 
     expect(mocks.generateText).toHaveBeenCalledTimes(1);
-    const callArgs = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+    const callArgs = mocks.generateText.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
     expect(callArgs.prompt).toContain('Topic: space travel');
     expect(callArgs.model).toBe('mock-model');
     expect(callArgs.system).toBe('Write for children');
@@ -307,16 +325,24 @@ describe('createOpenAiLlmHandler', () => {
     expect(result.status).toBe('succeeded');
     expect(result.artefacts).toHaveLength(4);
 
-    const title = result.artefacts.find((a) => a.artefactId === 'Artifact:MovieTitle');
+    const title = result.artefacts.find(
+      (a) => a.artefactId === 'Artifact:MovieTitle'
+    );
     expect(title?.blob?.data).toBe('The Great War');
 
-    const seg0 = result.artefacts.find((a) => a.artefactId === 'Artifact:NarrationScript[segment=0]');
+    const seg0 = result.artefacts.find(
+      (a) => a.artefactId === 'Artifact:NarrationScript[segment=0]'
+    );
     expect(seg0?.blob?.data).toBe('Segment zero');
 
-    const seg1 = result.artefacts.find((a) => a.artefactId === 'Artifact:NarrationScript[segment=1]');
+    const seg1 = result.artefacts.find(
+      (a) => a.artefactId === 'Artifact:NarrationScript[segment=1]'
+    );
     expect(seg1?.blob?.data).toBe('Segment one');
 
-    const seg2 = result.artefacts.find((a) => a.artefactId === 'Artifact:NarrationScript[segment=2]');
+    const seg2 = result.artefacts.find(
+      (a) => a.artefactId === 'Artifact:NarrationScript[segment=2]'
+    );
     expect(seg2?.blob?.data).toBe('Segment two');
   });
 
@@ -349,8 +375,10 @@ describe('createOpenAiLlmHandler', () => {
                 ['Artifact:ScriptGenerator.NarrationScript[segment=1]'],
               ],
             },
-            'Artifact:ScriptGenerator.NarrationScript[segment=0]': 'Intro section',
-            'Artifact:ScriptGenerator.NarrationScript[segment=1]': 'Conflict section',
+            'Artifact:ScriptGenerator.NarrationScript[segment=0]':
+              'Intro section',
+            'Artifact:ScriptGenerator.NarrationScript[segment=1]':
+              'Conflict section',
           },
           jobContext: {
             inputBindings: {
@@ -364,7 +392,10 @@ describe('createOpenAiLlmHandler', () => {
     await handler.invoke(request);
 
     expect(mocks.generateText).toHaveBeenCalledTimes(1);
-    const callArgs = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+    const callArgs = mocks.generateText.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
     expect(typeof callArgs.prompt).toBe('string');
     expect(callArgs.prompt).toContain('- Intro section');
     expect(callArgs.prompt).toContain('- Conflict section');
@@ -446,10 +477,58 @@ describe('createOpenAiLlmHandler', () => {
     expect(result.status).toBe('succeeded');
     expect(result.artefacts[0]?.blob?.data).toBe('Plain response text');
 
-    const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+    const args = mocks.generateText.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
     expect(args.prompt).toBe('Summarise the ocean');
     expect(args.model).toBe('mock-model');
     expect(args.system).toBe('Summarise the ocean');
+  });
+
+  it('formats array prompt variables as numbered lists', async () => {
+    mocks.generateText.mockResolvedValueOnce({
+      text: 'Prompt response',
+      usage: { inputTokens: 12, outputTokens: 22, totalTokens: 34 },
+      warnings: [],
+      response: { id: 'resp-array', model: 'openai/gpt5', createdAt: '' },
+    });
+
+    const handler = buildHandler();
+    await handler.warmStart?.({ logger: undefined });
+
+    const request = createJobContext({
+      produces: ['Artifact:Storyboard'],
+      context: {
+        providerConfig: {
+          systemPrompt: 'Build storyboard',
+          userPrompt: 'Character descriptions:\n{{CharacterDescriptions}}',
+          variables: ['CharacterDescriptions'],
+          responseFormat: { type: 'text' },
+        },
+        extras: {
+          resolvedInputs: {
+            CharacterDescriptions: [
+              'Hero: brave fox, determined leader.',
+              'Villain: shadow king, manipulative strategist.',
+            ],
+          },
+        },
+      },
+    });
+
+    await handler.invoke(request);
+
+    expect(mocks.generateText).toHaveBeenCalledTimes(1);
+    const args = mocks.generateText.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(typeof args.prompt).toBe('string');
+    expect(args.prompt).toContain('1. Hero: brave fox, determined leader.');
+    expect(args.prompt).toContain(
+      '2. Villain: shadow king, manipulative strategist.'
+    );
   });
 
   it('substitutes prompt variables via input bindings when only canonical inputs exist', async () => {
@@ -472,7 +551,9 @@ describe('createOpenAiLlmHandler', () => {
     await handler.warmStart?.({ logger: undefined });
 
     const request = createJobContext({
-      produces: ['Artifact:ImagePromptGenerator.ImagePrompt[segment=0][image=0]'],
+      produces: [
+        'Artifact:ImagePromptGenerator.ImagePrompt[segment=0][image=0]',
+      ],
       context: {
         providerConfig: {
           systemPrompt: 'System prompt',
@@ -486,7 +567,8 @@ describe('createOpenAiLlmHandler', () => {
           },
           jobContext: {
             inputBindings: {
-              NumOfImagesPerNarrative: 'Input:ImagePromptGenerator.NumOfImagesPerNarrative',
+              NumOfImagesPerNarrative:
+                'Input:ImagePromptGenerator.NumOfImagesPerNarrative',
             },
           },
         },
@@ -497,7 +579,10 @@ describe('createOpenAiLlmHandler', () => {
     expect(result.status).toBe('succeeded');
     expect(result.artefacts).toHaveLength(1);
 
-    const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+    const args = mocks.generateText.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
     expect(args.prompt).toContain('Generate 2 prompts.');
     expect(args.system).toBe('System prompt');
   });
@@ -571,12 +656,14 @@ describe('createOpenAiLlmHandler', () => {
 
     // The simulated data is generated based on the schema
     const title = result.artefacts.find(
-      (artefact) => artefact.artefactId === 'Artifact:ScriptGenerator.MovieTitle',
+      (artefact) =>
+        artefact.artefactId === 'Artifact:ScriptGenerator.MovieTitle'
     );
     expect(title?.blob?.data).toContain('Simulated MovieTitle');
 
     const segmentOne = result.artefacts.find(
-      (artefact) => artefact.artefactId === 'Artifact:ScriptGenerator.NarrationScript[0]',
+      (artefact) =>
+        artefact.artefactId === 'Artifact:ScriptGenerator.NarrationScript[0]'
     );
     expect(segmentOne?.blob?.data).toContain('segment 1');
   });
@@ -648,21 +735,34 @@ describe('createOpenAiLlmHandler', () => {
     expect(result.status).toBe('succeeded');
     expect(result.artefacts).toHaveLength(2);
 
-    const title = result.artefacts.find((artefact) => artefact.artefactId === 'Artifact:MovieTitle');
+    const title = result.artefacts.find(
+      (artefact) => artefact.artefactId === 'Artifact:MovieTitle'
+    );
     expect(title?.blob?.data).toBe('The Battle');
 
-    const summary = result.artefacts.find((artefact) => artefact.artefactId === 'Artifact:MovieSummary');
+    const summary = result.artefacts.find(
+      (artefact) => artefact.artefactId === 'Artifact:MovieSummary'
+    );
     expect(summary?.blob?.data).toBe('A historic event');
 
-    const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+    const args = mocks.generateText.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
     expect(typeof args.system).toBe('string');
-    expect((args.system as string) ?? '').toContain('Teach kids about English history.');
+    expect((args.system as string) ?? '').toContain(
+      'Teach kids about English history.'
+    );
   });
 
   it('fails warm start when secret is missing', async () => {
     const failingHandlerFactory = createOpenAiLlmHandler();
     const handler = failingHandlerFactory({
-      descriptor: { provider: 'openai', model: 'openai/gpt5', environment: 'local' },
+      descriptor: {
+        provider: 'openai',
+        model: 'openai/gpt5',
+        environment: 'local',
+      },
       mode: 'live',
       secretResolver: {
         async getSecret() {
@@ -672,7 +772,9 @@ describe('createOpenAiLlmHandler', () => {
       logger: undefined,
     });
 
-    await expect(handler.warmStart?.({ logger: undefined })).rejects.toThrowError(/OPENAI_API_KEY/);
+    await expect(
+      handler.warmStart?.({ logger: undefined })
+    ).rejects.toThrowError(/OPENAI_API_KEY/);
   });
 
   it('passes call settings (temperature, maxOutputTokens, penalties) to AI SDK', async () => {
@@ -703,7 +805,10 @@ describe('createOpenAiLlmHandler', () => {
     await handler.invoke(request);
 
     expect(mocks.generateText).toHaveBeenCalledTimes(1);
-    const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+    const args = mocks.generateText.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
     expect(args.temperature).toBe(0.7);
     expect(args.maxOutputTokens).toBe(1000);
     expect(args.presencePenalty).toBe(0.5);
@@ -728,14 +833,20 @@ describe('createOpenAiLlmHandler', () => {
           systemPrompt: 'Analyze this',
           responseFormat: {
             type: 'json_schema',
-            schema: { type: 'object', properties: { Result: { type: 'string' } } },
+            schema: {
+              type: 'object',
+              properties: { Result: { type: 'string' } },
+            },
           },
           reasoning: 'high',
         },
         extras: {
           resolvedInputs: {},
           schema: {
-            output: JSON.stringify({ type: 'object', properties: { Result: { type: 'string' } } }),
+            output: JSON.stringify({
+              type: 'object',
+              properties: { Result: { type: 'string' } },
+            }),
           },
         },
       },
@@ -744,13 +855,20 @@ describe('createOpenAiLlmHandler', () => {
     await handler.invoke(request);
 
     expect(mocks.generateText).toHaveBeenCalledTimes(1);
-    const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
-    const providerOpts = args.providerOptions as Record<string, Record<string, unknown>> | undefined;
+    const args = mocks.generateText.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
+    const providerOpts = args.providerOptions as
+      | Record<string, Record<string, unknown>>
+      | undefined;
     expect(providerOpts?.openai?.reasoningEffort).toBe('high');
   });
 
   it('propagates errors when generateText with structured output fails', async () => {
-    mocks.generateText.mockRejectedValueOnce(new Error('API rate limit exceeded'));
+    mocks.generateText.mockRejectedValueOnce(
+      new Error('API rate limit exceeded')
+    );
 
     const handler = buildHandler();
     await handler.warmStart?.({ logger: undefined });
@@ -762,19 +880,27 @@ describe('createOpenAiLlmHandler', () => {
           systemPrompt: 'Test',
           responseFormat: {
             type: 'json_schema',
-            schema: { type: 'object', properties: { Output: { type: 'string' } } },
+            schema: {
+              type: 'object',
+              properties: { Output: { type: 'string' } },
+            },
           },
         },
         extras: {
           resolvedInputs: {},
           schema: {
-            output: JSON.stringify({ type: 'object', properties: { Output: { type: 'string' } } }),
+            output: JSON.stringify({
+              type: 'object',
+              properties: { Output: { type: 'string' } },
+            }),
           },
         },
       },
     });
 
-    await expect(handler.invoke(request)).rejects.toThrow('API rate limit exceeded');
+    await expect(handler.invoke(request)).rejects.toThrow(
+      'API rate limit exceeded'
+    );
   });
 
   it('propagates errors when generateText fails', async () => {
@@ -799,7 +925,11 @@ describe('createOpenAiLlmHandler', () => {
   it('simulates text responses in dry-run mode', async () => {
     const factory = createOpenAiLlmHandler();
     const handler = factory({
-      descriptor: { provider: 'openai', model: 'openai/gpt5', environment: 'local' },
+      descriptor: {
+        provider: 'openai',
+        model: 'openai/gpt5',
+        environment: 'local',
+      },
       mode: 'simulated',
       secretResolver: {
         async getSecret() {
@@ -868,7 +998,10 @@ describe('createOpenAiLlmHandler', () => {
           systemPrompt: 'Generate a movie title',
           responseFormat: {
             type: 'json_schema',
-            schema: { type: 'object', properties: { Title: { type: 'string' } } },
+            schema: {
+              type: 'object',
+              properties: { Title: { type: 'string' } },
+            },
             name: 'MovieSchema',
             description: 'Schema for movie data',
           },
@@ -890,7 +1023,10 @@ describe('createOpenAiLlmHandler', () => {
     await handler.invoke(request);
 
     expect(mocks.generateText).toHaveBeenCalledTimes(1);
-    const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+    const args = mocks.generateText.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
     // With Output.object(), name and description are passed via the output option
     expect(args.output).toBeDefined();
   });
@@ -898,7 +1034,11 @@ describe('createOpenAiLlmHandler', () => {
   it('requires API key during warmStart in simulated mode (same as live)', async () => {
     const factory = createOpenAiLlmHandler();
     const handler = factory({
-      descriptor: { provider: 'openai', model: 'openai/gpt5', environment: 'local' },
+      descriptor: {
+        provider: 'openai',
+        model: 'openai/gpt5',
+        environment: 'local',
+      },
       mode: 'simulated',
       secretResolver: {
         async getSecret() {
@@ -910,7 +1050,9 @@ describe('createOpenAiLlmHandler', () => {
 
     // Simulated mode requires API key just like live mode
     // This ensures dry-run catches configuration errors
-    await expect(handler.warmStart?.({ logger: undefined })).rejects.toThrowError(/OPENAI_API_KEY/);
+    await expect(
+      handler.warmStart?.({ logger: undefined })
+    ).rejects.toThrowError(/OPENAI_API_KEY/);
   });
 
   it('includes usage and response metadata in diagnostics', async () => {
@@ -918,7 +1060,11 @@ describe('createOpenAiLlmHandler', () => {
       output: { Title: 'Test' },
       usage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 },
       warnings: ['Some warning about token usage'],
-      response: { id: 'resp-123', model: 'gpt-4o', createdAt: '2025-01-01T00:00:00Z' },
+      response: {
+        id: 'resp-123',
+        model: 'gpt-4o',
+        createdAt: '2025-01-01T00:00:00Z',
+      },
     });
 
     const handler = buildHandler();
@@ -931,13 +1077,19 @@ describe('createOpenAiLlmHandler', () => {
           systemPrompt: 'Generate',
           responseFormat: {
             type: 'json_schema',
-            schema: { type: 'object', properties: { Title: { type: 'string' } } },
+            schema: {
+              type: 'object',
+              properties: { Title: { type: 'string' } },
+            },
           },
         },
         extras: {
           resolvedInputs: {},
           schema: {
-            output: JSON.stringify({ type: 'object', properties: { Title: { type: 'string' } } }),
+            output: JSON.stringify({
+              type: 'object',
+              properties: { Title: { type: 'string' } },
+            }),
           },
         },
       },
@@ -950,14 +1102,19 @@ describe('createOpenAiLlmHandler', () => {
       outputTokens: 50,
       totalTokens: 150,
     });
-    expect(result.diagnostics?.warnings).toEqual(['Some warning about token usage']);
+    expect(result.diagnostics?.warnings).toEqual([
+      'Some warning about token usage',
+    ]);
     expect(result.diagnostics?.response).toMatchObject({ id: 'resp-123' });
   });
 
   describe('auto-derive responseFormat from outputSchema', () => {
     it('automatically uses structured output when outputSchema is present in request extras', async () => {
       mocks.generateText.mockResolvedValueOnce({
-        output: { MovieTitle: 'Auto-derived Title', MovieSummary: 'Auto-derived summary' },
+        output: {
+          MovieTitle: 'Auto-derived Title',
+          MovieSummary: 'Auto-derived summary',
+        },
         usage: { inputTokens: 50, outputTokens: 100, totalTokens: 150 },
         warnings: [],
         response: { id: 'resp-auto', model: 'openai/gpt5', createdAt: '' },
@@ -1001,7 +1158,10 @@ describe('createOpenAiLlmHandler', () => {
       expect(result.artefacts).toHaveLength(2);
 
       // Verify output option was passed (contains schema)
-      const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+      const args = mocks.generateText.mock.calls[0]?.[0] as Record<
+        string,
+        unknown
+      >;
       expect(args.output).toBeDefined();
     });
 
@@ -1042,7 +1202,10 @@ describe('createOpenAiLlmHandler', () => {
 
       // outputSchema always wins — structured output is used
       expect(mocks.generateText).toHaveBeenCalledTimes(1);
-      const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+      const args = mocks.generateText.mock.calls[0]?.[0] as Record<
+        string,
+        unknown
+      >;
       expect(args.output).toBeDefined(); // Structured output from schema
       expect(result.status).toBe('succeeded');
     });
@@ -1076,7 +1239,10 @@ describe('createOpenAiLlmHandler', () => {
 
       // Should default to generateText without output option (text mode)
       expect(mocks.generateText).toHaveBeenCalledTimes(1);
-      const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+      const args = mocks.generateText.mock.calls[0]?.[0] as Record<
+        string,
+        unknown
+      >;
       expect(args.output).toBeUndefined(); // No structured output
       expect(result.status).toBe('succeeded');
     });
@@ -1116,7 +1282,10 @@ describe('createOpenAiLlmHandler', () => {
 
       // Should use generateText with output option (structured output)
       expect(mocks.generateText).toHaveBeenCalledTimes(1);
-      const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+      const args = mocks.generateText.mock.calls[0]?.[0] as Record<
+        string,
+        unknown
+      >;
       expect(args.output).toBeDefined();
     });
 
@@ -1154,7 +1323,10 @@ describe('createOpenAiLlmHandler', () => {
 
       // Should use generateText with output option (structured output)
       expect(mocks.generateText).toHaveBeenCalledTimes(1);
-      const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+      const args = mocks.generateText.mock.calls[0]?.[0] as Record<
+        string,
+        unknown
+      >;
       expect(args.output).toBeDefined();
     });
   });

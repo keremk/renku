@@ -3,7 +3,12 @@ import type { BlueprintInputDef } from '@/types/blueprint-graph';
 /**
  * Input category types.
  */
-export type InputCategory = 'media' | 'text' | 'other';
+export type InputCategory =
+  | 'media'
+  | 'text'
+  | 'textArray'
+  | 'stringArray'
+  | 'other';
 
 /**
  * Inputs grouped by category.
@@ -11,8 +16,12 @@ export type InputCategory = 'media' | 'text' | 'other';
 export interface CategorizedInputs {
   /** Image, video, audio inputs (including arrays of these types) */
   media: BlueprintInputDef[];
-  /** Text type inputs (long-form content) */
+  /** Scalar text type inputs (long-form content) */
   text: BlueprintInputDef[];
+  /** Array inputs containing long-form text items (itemType=text) */
+  textArray: BlueprintInputDef[];
+  /** Array inputs containing short string items (itemType=string) */
+  stringArray: BlueprintInputDef[];
   /** All other inputs (string, int, enum, boolean, etc.) */
   other: BlueprintInputDef[];
 }
@@ -79,9 +88,19 @@ export function getInputCategory(input: BlueprintInputDef): InputCategory {
     return 'media';
   }
 
-  // Check for text type (long-form content)
+  // Check for scalar text type (long-form content)
   if (input.type === 'text') {
     return 'text';
+  }
+
+  // Check for long-form text arrays
+  if (input.type === 'array' && input.itemType === 'text') {
+    return 'textArray';
+  }
+
+  // Check for short-form string arrays
+  if (input.type === 'array' && input.itemType === 'string') {
+    return 'stringArray';
   }
 
   // Log warning for unknown types in development
@@ -99,7 +118,8 @@ export function getInputCategory(input: BlueprintInputDef): InputCategory {
 }
 
 /**
- * Categorizes an array of input definitions into media, text, and other groups.
+ * Categorizes input definitions into media, text, text arrays, string arrays,
+ * and all remaining input groups.
  */
 export function categorizeInputs(
   inputs: BlueprintInputDef[]
@@ -107,6 +127,8 @@ export function categorizeInputs(
   const result: CategorizedInputs = {
     media: [],
     text: [],
+    textArray: [],
+    stringArray: [],
     other: [],
   };
 

@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Loader2 } from 'lucide-react';
+import { FileText, Loader2, Maximize2, Plus, Trash2 } from 'lucide-react';
 import type { BlueprintInputDef } from '@/types/blueprint-graph';
 import {
   CollapsibleSection,
+  MediaCard,
   MediaGrid,
   PropertyRow,
   TextCard,
+  TextEditorDialog,
   VideoCard,
   AudioCard,
   ImageCard,
@@ -30,6 +32,7 @@ import {
   toMediaInputType,
   isValidFileRef,
 } from '@/lib/panel-utils';
+import { Input } from '@/components/ui/input';
 
 interface InputValue {
   name: string;
@@ -192,6 +195,38 @@ export function InputsPanel({
         </CollapsibleSection>
       )}
 
+      {/* Long-form text arrays (itemType=text) - one section per input */}
+      {categorized.textArray.length > 0 && (
+        <div className='space-y-6'>
+          {categorized.textArray.map((input) => (
+            <TextArrayInputSection
+              key={input.name}
+              input={input}
+              value={getValue(input.name)}
+              onChange={(value) => handleValueChange(input.name, value)}
+              isEditable={isEditable}
+              isSelected={selectedInputName === input.name}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Short-form string arrays (itemType=string) - one section per input */}
+      {categorized.stringArray.length > 0 && (
+        <div className='space-y-6'>
+          {categorized.stringArray.map((input) => (
+            <StringArrayInputSection
+              key={input.name}
+              input={input}
+              value={getValue(input.name)}
+              onChange={(value) => handleValueChange(input.name, value)}
+              isEditable={isEditable}
+              isSelected={selectedInputName === input.name}
+            />
+          ))}
+        </div>
+      )}
+
       {/* Other inputs - single section for all */}
       {categorized.other.length > 0 && (
         <CollapsibleSection
@@ -250,8 +285,12 @@ function MediaInputSection({
   const [addDialogOpen, setAddDialogOpen] = useState(false);
 
   const isArray = input.type === 'array';
-  const mediaType =
-    getMediaTypeFromInput(input.type, input.itemType) ?? 'image';
+  const mediaType = getMediaTypeFromInput(input.type, input.itemType);
+  if (!mediaType) {
+    throw new Error(
+      `Expected media input type for "${input.name}" but received type="${input.type}" itemType="${input.itemType ?? 'undefined'}".`
+    );
+  }
 
   // Get array items or single item
   const items = useMemo(() => {
@@ -530,6 +569,289 @@ function AddMediaPlaceholder({
       onClick={onAdd}
       disabled={disabled}
     />
+  );
+}
+
+// ============================================================================
+// Text Array Input Section (itemType=text)
+// ============================================================================
+
+function toEditableStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.map((item) =>
+    typeof item === 'string' ? item : String(item ?? '')
+  );
+}
+
+interface TextArrayInputSectionProps {
+  input: BlueprintInputDef;
+  value: unknown;
+  onChange: (value: unknown) => void;
+  isEditable: boolean;
+  isSelected: boolean;
+}
+
+function TextArrayInputSection({
+  input,
+  value,
+  onChange,
+  isEditable,
+  isSelected,
+}: TextArrayInputSectionProps) {
+  const items = useMemo(() => toEditableStringArray(value), [value]);
+
+  const handleItemChange = useCallback(
+    (index: number, nextValue: string) => {
+      const current = toEditableStringArray(value);
+      current[index] = nextValue;
+      onChange(current);
+    },
+    [value, onChange]
+  );
+
+  const handleRemoveItem = useCallback(
+    (index: number) => {
+      const current = toEditableStringArray(value);
+      current.splice(index, 1);
+      onChange(current);
+    },
+    [value, onChange]
+  );
+
+  const handleAddItem = useCallback(
+    (nextValue: string) => {
+      const current = toEditableStringArray(value);
+      onChange([...current, nextValue]);
+    },
+    [value, onChange]
+  );
+
+  return (
+    <CollapsibleSection
+      title={input.name}
+      count={items.length}
+      description={input.description}
+      defaultOpen
+      className={getSectionHighlightStyles(isSelected, 'primary')}
+    >
+      <MediaGrid>
+        {items.map((itemValue, index) => (
+          <TextArrayItemCard
+            key={`${input.name}-${index}`}
+            label={`${input.name}[${index}]`}
+            value={itemValue}
+            description={input.description}
+            isEditable={isEditable}
+            onChange={(nextValue) => handleItemChange(index, nextValue)}
+            onRemove={() => handleRemoveItem(index)}
+          />
+        ))}
+
+        {isEditable && (
+          <TextCard
+            label='text'
+            value=''
+            onChange={handleAddItem}
+            isEditable={true}
+            sizing='aspect'
+          />
+        )}
+      </MediaGrid>
+    </CollapsibleSection>
+  );
+}
+
+interface TextArrayItemCardProps {
+  label: string;
+  value: string;
+  description?: string;
+  isEditable: boolean;
+  onChange: (value: string) => void;
+  onRemove: () => void;
+}
+
+function TextArrayItemCard({
+  label,
+  value,
+  description,
+  isEditable,
+  onChange,
+  onRemove,
+}: TextArrayItemCardProps) {
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const preview = useMemo(() => {
+    const max = 5000;
+    if (value.length <= max) {
+      return value;
+    }
+    return `${value.slice(0, max)}...`;
+  }, [value]);
+
+  const handleSave = useCallback(
+    (nextValue: string) => {
+      onChange(nextValue);
+      setDialogOpen(false);
+    },
+    [onChange]
+  );
+
+  const footer = (
+    <InputCardFooter
+      label={label}
+      description={description}
+      onEdit={isEditable ? () => setDialogOpen(true) : undefined}
+      onRemove={isEditable ? onRemove : undefined}
+      canRemove={true}
+      disabled={!isEditable}
+    />
+  );
+
+  return (
+    <>
+      <MediaCard footer={footer}>
+        <button
+          type='button'
+          onClick={() => setDialogOpen(true)}
+          className='w-full aspect-video bg-muted/30 p-4 text-left overflow-hidden group relative'
+        >
+          {value.length > 0 ? (
+            <pre className='text-xs text-muted-foreground font-mono whitespace-pre-wrap overflow-hidden h-full max-h-full'>
+              {preview}
+            </pre>
+          ) : (
+            <div className='h-full flex flex-col items-center justify-center gap-2 text-muted-foreground'>
+              <FileText className='size-6' />
+              <span className='text-xs'>No content</span>
+            </div>
+          )}
+          <div className='absolute inset-0 bg-linear-to-t from-card to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center'>
+            <Maximize2 className='size-8 text-foreground' />
+          </div>
+        </button>
+      </MediaCard>
+
+      <TextEditorDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        title={isEditable ? `Edit ${label}` : label}
+        content={value}
+        language='markdown'
+        onSave={isEditable ? handleSave : undefined}
+      />
+    </>
+  );
+}
+
+// ============================================================================
+// String Array Input Section (itemType=string)
+// ============================================================================
+
+interface StringArrayInputSectionProps {
+  input: BlueprintInputDef;
+  value: unknown;
+  onChange: (value: unknown) => void;
+  isEditable: boolean;
+  isSelected: boolean;
+}
+
+function StringArrayInputSection({
+  input,
+  value,
+  onChange,
+  isEditable,
+  isSelected,
+}: StringArrayInputSectionProps) {
+  const items = useMemo(() => toEditableStringArray(value), [value]);
+
+  const handleItemChange = useCallback(
+    (index: number, nextValue: string) => {
+      const current = toEditableStringArray(value);
+      current[index] = nextValue;
+      onChange(current);
+    },
+    [value, onChange]
+  );
+
+  const handleRemoveItem = useCallback(
+    (index: number) => {
+      const current = toEditableStringArray(value);
+      current.splice(index, 1);
+      onChange(current);
+    },
+    [value, onChange]
+  );
+
+  const handleAddItem = useCallback(() => {
+    const current = toEditableStringArray(value);
+    onChange([...current, '']);
+  }, [value, onChange]);
+
+  return (
+    <CollapsibleSection
+      title={input.name}
+      count={items.length}
+      description={input.description}
+      defaultOpen
+      className={getSectionHighlightStyles(isSelected, 'primary')}
+    >
+      <div className='space-y-2'>
+        {!isEditable && items.length === 0 && (
+          <div className='text-xs text-muted-foreground italic'>No values</div>
+        )}
+
+        {items.map((itemValue, index) => (
+          <div
+            key={`${input.name}-${index}`}
+            className='flex items-center gap-2 rounded-md border border-border/50 bg-muted/20 p-2'
+          >
+            <span className='text-[11px] font-mono text-muted-foreground min-w-[120px]'>
+              {`${input.name}[${index}]`}
+            </span>
+
+            {isEditable ? (
+              <Input
+                value={itemValue}
+                onChange={(event) =>
+                  handleItemChange(index, event.target.value)
+                }
+                placeholder={`Enter ${input.name}[${index}]...`}
+                className='h-8 text-xs font-mono bg-background border-border/50'
+              />
+            ) : (
+              <div className='flex-1 text-xs font-mono text-foreground truncate'>
+                {itemValue.length > 0 ? itemValue : 'not provided'}
+              </div>
+            )}
+
+            {isEditable && (
+              <button
+                type='button'
+                onClick={() => handleRemoveItem(index)}
+                className='size-8 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors'
+                aria-label={`Remove ${input.name}[${index}]`}
+                title='Remove item'
+              >
+                <Trash2 className='size-4' />
+              </button>
+            )}
+          </div>
+        ))}
+
+        {isEditable && (
+          <button
+            type='button'
+            onClick={handleAddItem}
+            className='w-full h-9 border border-dashed border-border rounded-md text-xs text-muted-foreground hover:text-foreground hover:border-primary hover:bg-primary/5 transition-colors inline-flex items-center justify-center gap-2'
+          >
+            <Plus className='size-4' />
+            <span>Add item</span>
+          </button>
+        )}
+      </div>
+    </CollapsibleSection>
   );
 }
 

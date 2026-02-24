@@ -149,6 +149,7 @@ export const VALID_ARTIFACT_TYPES = new Set([
  */
 export const VALID_ITEM_TYPES = new Set([
   'string',
+  'text',
   'image',
   'video',
   'audio',

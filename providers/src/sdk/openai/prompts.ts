@@ -24,10 +24,12 @@ export interface RenderedPrompts {
 export function renderPrompts(
   config: OpenAiLlmConfig,
   inputs: Record<string, unknown>,
-  logger?: ProviderLogger,
+  logger?: ProviderLogger
 ): RenderedPrompts {
   const system = substituteVariables(config.systemPrompt, inputs, logger);
-  const user = config.userPrompt ? substituteVariables(config.userPrompt, inputs, logger) : undefined;
+  const user = config.userPrompt
+    ? substituteVariables(config.userPrompt, inputs, logger)
+    : undefined;
 
   return { system, user };
 }
@@ -39,7 +41,7 @@ export function renderPrompts(
 function substituteVariables(
   template: string,
   inputs: Record<string, unknown>,
-  logger?: ProviderLogger,
+  logger?: ProviderLogger
 ): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, varName: string) => {
     const value = inputs[varName];
@@ -47,8 +49,44 @@ function substituteVariables(
       logger?.warn?.('openai.prompts.missingInput', { variable: varName });
       return '';
     }
-    return String(value);
+    return formatPromptVariable(value);
   });
+}
+
+function formatPromptVariable(value: unknown): string {
+  if (Array.isArray(value)) {
+    return formatPromptArray(value);
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    typeof value === 'bigint'
+  ) {
+    return String(value);
+  }
+  if (value && typeof value === 'object') {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+
+function formatPromptArray(values: unknown[]): string {
+  if (values.length === 0) {
+    return '';
+  }
+  return values
+    .map((entry, index) => `${index + 1}. ${formatPromptArrayEntry(entry)}`)
+    .join('\n\n');
+}
+
+function formatPromptArrayEntry(value: unknown): string {
+  if (Array.isArray(value) || (value && typeof value === 'object')) {
+    return JSON.stringify(value);
+  }
+  return String(value ?? '');
 }
 
 /**

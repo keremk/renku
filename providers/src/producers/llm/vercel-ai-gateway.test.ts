@@ -327,6 +327,51 @@ describe('createVercelAiGatewayHandler', () => {
     expect(args.system).toBe('Summarise the ocean');
   });
 
+  it('formats array prompt variables as numbered lists', async () => {
+    mocks.generateText.mockResolvedValueOnce({
+      text: 'Prompt response',
+      usage: { inputTokens: 11, outputTokens: 21, totalTokens: 32 },
+      warnings: [],
+      response: { id: 'resp-array', model: 'claude-sonnet-4', createdAt: '' },
+    });
+
+    const handler = buildHandler();
+    await handler.warmStart?.({ logger: undefined });
+
+    const request = createJobContext({
+      produces: ['Artifact:Storyboard'],
+      context: {
+        providerConfig: {
+          systemPrompt: 'Build storyboard',
+          userPrompt: 'Character descriptions:\n{{CharacterDescriptions}}',
+          variables: ['CharacterDescriptions'],
+          responseFormat: { type: 'text' },
+        },
+        extras: {
+          resolvedInputs: {
+            CharacterDescriptions: [
+              'Hero: brave fox, determined leader.',
+              'Villain: shadow king, manipulative strategist.',
+            ],
+          },
+        },
+      },
+    });
+
+    await handler.invoke(request);
+
+    expect(mocks.generateText).toHaveBeenCalledTimes(1);
+    const args = mocks.generateText.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(typeof args.prompt).toBe('string');
+    expect(args.prompt).toContain('1. Hero: brave fox, determined leader.');
+    expect(args.prompt).toContain(
+      '2. Villain: shadow king, manipulative strategist.'
+    );
+  });
+
   it('simulates responses in dry-run mode without calling the AI provider', async () => {
     const factory = createVercelAiGatewayHandler();
     const handler = factory({
@@ -618,7 +663,10 @@ describe('createVercelAiGatewayHandler', () => {
   describe('auto-derive responseFormat from outputSchema', () => {
     it('automatically uses structured output when outputSchema is present in request extras', async () => {
       mocks.generateText.mockResolvedValueOnce({
-        output: { MovieTitle: 'Auto-derived Title', MovieSummary: 'Auto-derived summary' },
+        output: {
+          MovieTitle: 'Auto-derived Title',
+          MovieSummary: 'Auto-derived summary',
+        },
         usage: { inputTokens: 50, outputTokens: 100, totalTokens: 150 },
         warnings: [],
         response: { id: 'resp-auto', model: 'claude-sonnet-4', createdAt: '' },
@@ -662,7 +710,10 @@ describe('createVercelAiGatewayHandler', () => {
       expect(result.artefacts).toHaveLength(2);
 
       // Verify the call includes the output option for structured output
-      const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+      const args = mocks.generateText.mock.calls[0]?.[0] as Record<
+        string,
+        unknown
+      >;
       expect(args.output).toBeDefined();
     });
 
@@ -671,7 +722,11 @@ describe('createVercelAiGatewayHandler', () => {
         output: { Title: 'From schema' },
         usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
         warnings: [],
-        response: { id: 'resp-explicit', model: 'claude-sonnet-4', createdAt: '' },
+        response: {
+          id: 'resp-explicit',
+          model: 'claude-sonnet-4',
+          createdAt: '',
+        },
       });
 
       const handler = buildHandler();
@@ -703,7 +758,10 @@ describe('createVercelAiGatewayHandler', () => {
 
       // outputSchema always wins — structured output is used
       expect(mocks.generateText).toHaveBeenCalledTimes(1);
-      const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+      const args = mocks.generateText.mock.calls[0]?.[0] as Record<
+        string,
+        unknown
+      >;
       expect(args.output).toBeDefined(); // Structured output from schema
       expect(result.status).toBe('succeeded');
     });
@@ -713,7 +771,11 @@ describe('createVercelAiGatewayHandler', () => {
         text: 'Default text response',
         usage: { inputTokens: 5, outputTokens: 10, totalTokens: 15 },
         warnings: [],
-        response: { id: 'resp-default', model: 'claude-sonnet-4', createdAt: '' },
+        response: {
+          id: 'resp-default',
+          model: 'claude-sonnet-4',
+          createdAt: '',
+        },
       });
 
       const handler = buildHandler();
@@ -740,7 +802,10 @@ describe('createVercelAiGatewayHandler', () => {
       expect(result.status).toBe('succeeded');
 
       // Verify the call does NOT include the output option
-      const args = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+      const args = mocks.generateText.mock.calls[0]?.[0] as Record<
+        string,
+        unknown
+      >;
       expect(args.output).toBeUndefined();
     });
   });
