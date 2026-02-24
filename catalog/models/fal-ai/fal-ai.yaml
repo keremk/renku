@@ -28,6 +28,20 @@ models:
     price:
       function: costByRun
       price: 0.04
+  - name: bytedance/seedream/v5/lite/text-to-image
+    type: image
+    mime:
+      - image/png
+    price:
+      function: costByRun
+      price: 0.035
+  - name: bytedance/seedream/v5/lite/edit
+    type: image
+    mime:
+      - image/png
+    price:
+      function: costByRun
+      price: 0.035
   - name: gpt-image-1.5
     type: image
     mime: 

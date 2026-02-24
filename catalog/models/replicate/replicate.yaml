@@ -97,6 +97,13 @@ models:
     price:
       function: costByRun
       price: 0.04
+  - name: bytedance/seedream-5-lite
+    type: image
+    mime:
+      - image/png
+    price:
+      function: costByRun
+      price: 0.035
   - name: google/imagen-4
     type: image
     mime:

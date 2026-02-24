@@ -57,6 +57,29 @@ mappings:
             "1:1+2K": auto_2K
             "1:1+4K": auto_4K
 
+    bytedance/seedream/v5/lite/text-to-image:
+      Prompt: prompt
+      # AspectRatio + Resolution combine into image_size
+      ImageSize:
+        field: image_size
+        combine:
+          inputs: [AspectRatio, Resolution]
+          table:
+            # Resolution only (aspect determined by resolution)
+            "+2K": auto_2K
+            "+4K": auto_3K
+            # AspectRatio only (default resolution)
+            "16:9+": landscape_16_9
+            "9:16+": portrait_16_9
+            "4:3+": landscape_4_3
+            "3:4+": portrait_4_3
+            "1:1+": square_hd
+            # Both specified - prefer resolution auto modes
+            "16:9+2K": auto_2K
+            "16:9+4K": auto_3K
+            "1:1+2K": auto_2K
+            "1:1+4K": auto_3K
+
     bytedance/seedream/v4/text-to-image:
       Prompt: prompt
       AspectRatio:
@@ -256,6 +279,12 @@ mappings:
       Resolution: size
       Width: width
       Height: height
+
+    # Bytedance Seedream 5 Lite
+    bytedance/seedream-5-lite:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+      Resolution: size
 
     # Google Nano Banana
     google/nano-banana:

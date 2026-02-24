@@ -153,6 +153,29 @@ mappings:
             "1:1+2K": auto_2K
             "1:1+4K": auto_4K
 
+    bytedance/seedream/v5/lite/edit:
+      Prompt: prompt
+      SourceImage:
+        field: image_urls
+        firstOf: true
+      # AspectRatio + Resolution combine into image_size
+      ImageSize:
+        field: image_size
+        combine:
+          inputs: [AspectRatio, Resolution]
+          table:
+            "+2K": auto_2K
+            "+4K": auto_3K
+            "16:9+": landscape_16_9
+            "9:16+": portrait_16_9
+            "4:3+": landscape_4_3
+            "3:4+": portrait_4_3
+            "1:1+": square_hd
+            "16:9+2K": auto_2K
+            "16:9+4K": auto_3K
+            "1:1+2K": auto_2K
+            "1:1+4K": auto_3K
+
     gpt-image-1.5/edit:
       Prompt: prompt
       SourceImage:
@@ -258,6 +281,14 @@ mappings:
       AspectRatio: aspect_ratio
 
     # --- Array-accepting models mapped with firstOf (also in image-compose) ---
+
+    bytedance/seedream-5-lite:
+      Prompt: prompt
+      SourceImage:
+        field: image_input
+        firstOf: true
+      AspectRatio: aspect_ratio
+      Resolution: size
 
     qwen/qwen-image-edit-2511:
       Prompt: prompt
