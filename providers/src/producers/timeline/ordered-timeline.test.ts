@@ -422,6 +422,69 @@ describe('TimelineProducer', () => {
     expect(videoTrack?.clips[1]?.properties.fitStrategy).toBe('stretch');
   });
 
+  it('prefers SegmentDuration for video primary master timing', async () => {
+    const handler = createHandler();
+    const request = makeRequest();
+    const resolvedInputs = request.context.extras?.resolvedInputs as Record<
+      string,
+      unknown
+    >;
+    const config = request.context.providerConfig as {
+      config: {
+        timeline: {
+          clips: Array<Record<string, unknown>>;
+          numTracks: number;
+          tracks: string[];
+          masterTracks: string[];
+        };
+      };
+    };
+
+    config.config.timeline.clips.push({
+      kind: 'Video',
+      inputs: 'VideoSegments',
+    });
+    config.config.timeline.numTracks = 3;
+    config.config.timeline.tracks = ['Image', 'Audio', 'Video'];
+    config.config.timeline.masterTracks = ['Video', 'Audio'];
+    request.inputs.push('Input:TimelineComposer.VideoSegments');
+
+    const videoFanIn = {
+      groupBy: 'segment',
+      groups: [['Artifact:Video[0]'], ['Artifact:Video[1]']],
+    };
+    resolvedInputs['Input:TimelineComposer.VideoSegments'] = videoFanIn;
+    resolvedInputs['TimelineComposer.VideoSegments'] = videoFanIn;
+    resolvedInputs.VideoSegments = videoFanIn.groups;
+    resolvedInputs['Artifact:Video[0]'] = createAssetPayload(8);
+    resolvedInputs['Artifact:Video[1]'] = createAssetPayload(8);
+    resolvedInputs['Input:SegmentDuration'] = 10;
+    resolvedInputs['SegmentDuration'] = 10;
+
+    const result = await handler.invoke(request);
+    const timelinePayload = result.artefacts[0]?.blob?.data;
+    const timeline = JSON.parse(
+      typeof timelinePayload === 'string' ? timelinePayload : '{}'
+    ) as {
+      duration: number;
+      tracks: Array<{
+        kind: string;
+        clips: Array<{ startTime: number; duration: number }>;
+      }>;
+    };
+
+    expect(timeline.duration).toBeCloseTo(20);
+
+    const videoTrack = timeline.tracks.find((track) => track.kind === 'Video');
+    expect(videoTrack?.clips[0]?.duration).toBeCloseTo(10);
+    expect(videoTrack?.clips[1]?.duration).toBeCloseTo(10);
+
+    const audioTrack = timeline.tracks.find((track) => track.kind === 'Audio');
+    expect(audioTrack?.clips[0]?.duration).toBeCloseTo(10);
+    expect(audioTrack?.clips[1]?.duration).toBeCloseTo(10);
+    expect(audioTrack?.clips[1]?.startTime).toBeCloseTo(10);
+  });
+
   it('filters clips based on tracks configuration', async () => {
     const handler = createHandler();
     const request = makeRequest();

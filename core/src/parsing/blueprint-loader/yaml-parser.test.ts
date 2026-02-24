@@ -54,6 +54,22 @@ describe('parseYamlBlueprintFile', () => {
     expect(document.meta.outputSchema).toBeUndefined();
   });
 
+  it('parses intToSecondsString mapping transforms in producer catalogs', async () => {
+    const modulePath = resolve(
+      catalogRoot,
+      'producers/asset/image-to-video.yaml'
+    );
+    const document = await parseYamlBlueprintFile(modulePath);
+
+    const durationMapping =
+      document.mappings?.['fal-ai']?.['veo3.1/image-to-video']?.Duration;
+
+    expect(durationMapping).toEqual({
+      field: 'duration',
+      intToSecondsString: true,
+    });
+  });
+
   it('parses countInputOffset for array artefacts', async () => {
     const modulePath = resolve(
       TEST_FIXTURES_ROOT,

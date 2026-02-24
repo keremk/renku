@@ -27,10 +27,10 @@ inputs:
 
   # Sizing
   - name: AspectRatio
-    description: "Aspect ratio (16:9, 9:16, 1:1, 4:3, 3:4)."
+    description: 'Aspect ratio (16:9, 9:16, 1:1, 4:3, 3:4).'
     type: string
   - name: Resolution
-    description: "Resolution preset (480p, 720p, 1080p)."
+    description: 'Resolution preset (480p, 720p, 1080p).'
     type: string
 
   # Audio
@@ -83,7 +83,9 @@ mappings:
       Prompt: prompt
       StartImage: image_url
       EndImage: end_image_url
-      Duration: duration
+      Duration:
+        field: duration
+        intToString: true
       AspectRatio: aspect_ratio
       Resolution: resolution
       GenerateAudio: generate_audio
@@ -98,22 +100,22 @@ mappings:
         combine:
           inputs: [AspectRatio, Resolution]
           table:
-            "16:9+480p": { width: 848, height: 480 }
-            "16:9+720p": { width: 1280, height: 720 }
-            "9:16+480p": { width: 480, height: 848 }
-            "9:16+720p": { width: 720, height: 1280 }
-            "4:3+480p": { width: 640, height: 480 }
-            "4:3+720p": { width: 960, height: 720 }
-            "3:4+480p": { width: 480, height: 640 }
-            "3:4+720p": { width: 720, height: 960 }
-            "1:1+480p": { width: 512, height: 512 }
-            "1:1+720p": { width: 720, height: 720 }
-            "16:9+": auto
-            "9:16+": auto
-            "4:3+": auto
-            "3:4+": auto
-            "1:1+": auto
-            "auto+": auto
+            '16:9+480p': { width: 848, height: 480 }
+            '16:9+720p': { width: 1280, height: 720 }
+            '9:16+480p': { width: 480, height: 848 }
+            '9:16+720p': { width: 720, height: 1280 }
+            '4:3+480p': { width: 640, height: 480 }
+            '4:3+720p': { width: 960, height: 720 }
+            '3:4+480p': { width: 480, height: 640 }
+            '3:4+720p': { width: 720, height: 960 }
+            '1:1+480p': { width: 512, height: 512 }
+            '1:1+720p': { width: 720, height: 720 }
+            '16:9+': auto
+            '9:16+': auto
+            '4:3+': auto
+            '3:4+': auto
+            '1:1+': auto
+            'auto+': auto
       Duration:
         field: num_frames
         durationToFrames:

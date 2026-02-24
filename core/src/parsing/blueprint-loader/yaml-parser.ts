@@ -1277,6 +1277,9 @@ function parseMappingValue(raw: unknown, context: string): MappingValue {
   if (obj.intToString === true) {
     result.intToString = true;
   }
+  if (obj.intToSecondsString === true) {
+    result.intToSecondsString = true;
+  }
   if (obj.expand === true) {
     result.expand = true;
   }

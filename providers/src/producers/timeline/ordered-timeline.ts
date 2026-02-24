@@ -304,6 +304,13 @@ async function buildMasterTrackContext(args: {
   }
 
   const resolvedInputs = inputs.all();
+  const preferredSegmentDuration =
+    primaryClip.kind === 'Video'
+      ? readOptionalPositiveNumber(resolvedInputs, [
+          'Input:SegmentDuration',
+          'SegmentDuration',
+        ])
+      : undefined;
 
   for (let groupIndex = 0; groupIndex < groupCount; groupIndex++) {
     const groupAssets = primaryGroups[groupIndex] ?? [];
@@ -316,17 +323,18 @@ async function buildMasterTrackContext(args: {
       segmentToGroup.push(groupIndex);
       segmentIndices.push(segmentIndex);
 
-      // Determine duration using fallback chain
-      const duration = await determineDurationForSegment({
-        groupIndex,
-        masterClipsByKind,
-        masterKinds,
-        groupCount,
-        expandedSegmentCount,
-        inputs,
-        durationCache,
-        resolvedInputs,
-      });
+      const duration =
+        preferredSegmentDuration ??
+        (await determineDurationForSegment({
+          groupIndex,
+          masterClipsByKind,
+          masterKinds,
+          groupCount,
+          expandedSegmentCount,
+          inputs,
+          durationCache,
+          resolvedInputs,
+        }));
       segmentDurations.push(duration);
     } else {
       // Each item in the group becomes a segment
@@ -338,8 +346,10 @@ async function buildMasterTrackContext(args: {
         // Get duration from this specific asset
         let duration: number | undefined;
 
-        // For master tracks with native duration, use the asset's actual duration
-        if (TRACK_KINDS_WITH_NATIVE_DURATION.has(primaryClip.kind)) {
+        if (preferredSegmentDuration !== undefined) {
+          duration = preferredSegmentDuration;
+        } else if (TRACK_KINDS_WITH_NATIVE_DURATION.has(primaryClip.kind)) {
+          // For master tracks with native duration, use the asset's actual duration
           duration = await tryLoadAssetDuration({
             assetId,
             inputs,

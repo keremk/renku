@@ -7,7 +7,10 @@ import { SdkErrorCode } from '@gorenku/core';
 function createTestJobContext(
   resolvedInputs: Record<string, unknown>,
   inputBindings: Record<string, string>,
-  sdkMapping: Record<string, { field: string; transform?: Record<string, unknown>; expand?: boolean }>,
+  sdkMapping: Record<
+    string,
+    { field: string; transform?: Record<string, unknown>; expand?: boolean }
+  >
 ): ProviderJobContext {
   return {
     jobId: 'test-job',
@@ -44,7 +47,7 @@ describe('createProducerRuntime', () => {
               '2K': { width: 2048, height: 2048 },
             },
           },
-        },
+        }
       );
 
       const runtime = createProducerRuntime({
@@ -74,7 +77,7 @@ describe('createProducerRuntime', () => {
               '4K': 'auto_4K',
             },
           },
-        },
+        }
       );
 
       const runtime = createProducerRuntime({
@@ -103,7 +106,7 @@ describe('createProducerRuntime', () => {
               '2K': 'auto_2K',
             },
           },
-        },
+        }
       );
 
       const runtime = createProducerRuntime({
@@ -129,7 +132,7 @@ describe('createProducerRuntime', () => {
             field: 'prompt',
             // No transform
           },
-        },
+        }
       );
 
       const runtime = createProducerRuntime({
@@ -159,7 +162,7 @@ describe('createProducerRuntime', () => {
               '3': 'high',
             },
           },
-        },
+        }
       );
 
       const runtime = createProducerRuntime({
@@ -199,7 +202,7 @@ describe('createProducerRuntime', () => {
             },
           },
           Style: { field: 'style' },
-        },
+        }
       );
 
       const runtime = createProducerRuntime({
@@ -234,7 +237,7 @@ describe('createProducerRuntime', () => {
             },
             expand: true,
           },
-        },
+        }
       );
 
       const runtime = createProducerRuntime({
@@ -260,13 +263,13 @@ describe('createProducerRuntime', () => {
           Quality: {
             field: '',
             transform: {
-              'low': { quality: 50, compression: 'fast' },
-              'medium': { quality: 75, compression: 'balanced' },
-              'high': { quality: 100, compression: 'slow', optimize: true },
+              low: { quality: 50, compression: 'fast' },
+              medium: { quality: 75, compression: 'balanced' },
+              high: { quality: 100, compression: 'slow', optimize: true },
             },
             expand: true,
           },
-        },
+        }
       );
 
       const runtime = createProducerRuntime({
@@ -305,7 +308,7 @@ describe('createProducerRuntime', () => {
             },
             expand: true,
           },
-        },
+        }
       );
 
       const runtime = createProducerRuntime({
@@ -336,7 +339,7 @@ describe('createProducerRuntime', () => {
             },
             expand: true,
           },
-        },
+        }
       );
 
       const runtime = createProducerRuntime({
@@ -346,9 +349,9 @@ describe('createProducerRuntime', () => {
         mode: 'live',
       });
 
-      await expect(runtime.sdk.buildPayload(undefined, undefined)).rejects.toThrow(
-        'Cannot expand non-object value for "Size"',
-      );
+      await expect(
+        runtime.sdk.buildPayload(undefined, undefined)
+      ).rejects.toThrow('Cannot expand non-object value for "Size"');
     });
 
     it('throws error when expand is true but value is an array', async () => {
@@ -359,11 +362,11 @@ describe('createProducerRuntime', () => {
           Size: {
             field: '',
             transform: {
-              'arr': [1, 2, 3],
+              arr: [1, 2, 3],
             },
             expand: true,
           },
-        },
+        }
       );
 
       const runtime = createProducerRuntime({
@@ -373,9 +376,9 @@ describe('createProducerRuntime', () => {
         mode: 'live',
       });
 
-      await expect(runtime.sdk.buildPayload(undefined, undefined)).rejects.toThrow(
-        'Cannot expand non-object value for "Size"',
-      );
+      await expect(
+        runtime.sdk.buildPayload(undefined, undefined)
+      ).rejects.toThrow('Cannot expand non-object value for "Size"');
     });
 
     it('resolves indexed canonical input IDs from parent array values', async () => {
@@ -384,7 +387,7 @@ describe('createProducerRuntime', () => {
         { Text: 'Input:NarrationScript[1]' },
         {
           Text: { field: 'text' },
-        },
+        }
       );
 
       const runtime = createProducerRuntime({
@@ -404,7 +407,7 @@ describe('createProducerRuntime', () => {
         { Text: 'Input:NarrationScript[2]' },
         {
           Text: { field: 'text' },
-        },
+        }
       );
 
       const runtime = createProducerRuntime({
@@ -416,10 +419,14 @@ describe('createProducerRuntime', () => {
 
       try {
         await runtime.sdk.buildPayload(undefined, undefined);
-        expect.fail('Expected buildPayload to throw for out-of-bounds indexed input access');
+        expect.fail(
+          'Expected buildPayload to throw for out-of-bounds indexed input access'
+        );
       } catch (error) {
         const providerError = error as { code?: string; message?: string };
-        expect(providerError.code).toBe(SdkErrorCode.INVALID_INDEXED_INPUT_ACCESS);
+        expect(providerError.code).toBe(
+          SdkErrorCode.INVALID_INDEXED_INPUT_ACCESS
+        );
         expect(providerError.message).toContain('index 2 is out of bounds');
       }
     });
@@ -433,7 +440,7 @@ describe('createProducerRuntime', () => {
         {
           Prompt: { field: 'prompt' },
           Style: { field: 'style' },
-        },
+        }
       );
 
       const runtime = createProducerRuntime({
@@ -453,7 +460,7 @@ describe('createProducerRuntime', () => {
       });
 
       await expect(runtime.sdk.buildPayload(undefined, schema)).rejects.toThrow(
-        'Missing required input "Input:Prompt" for field "prompt"',
+        'Missing required input "Input:Prompt" for field "prompt"'
       );
     });
 
@@ -464,7 +471,7 @@ describe('createProducerRuntime', () => {
         {
           Prompt: { field: 'prompt' },
           Style: { field: 'style' },
-        },
+        }
       );
 
       const runtime = createProducerRuntime({
@@ -497,7 +504,7 @@ describe('createProducerRuntime', () => {
         {
           Prompt: { field: 'prompt' },
           Style: { field: 'style' },
-        },
+        }
       );
 
       const runtime = createProducerRuntime({
@@ -528,7 +535,7 @@ describe('createProducerRuntime', () => {
               '1K': { width: 1024, height: 1024 },
             },
           },
-        },
+        }
       );
 
       const runtime = createProducerRuntime({
@@ -564,7 +571,7 @@ describe('createProducerRuntime', () => {
         {
           Prompt: { field: 'prompt' },
           Style: { field: 'style' },
-        },
+        }
       );
 
       const runtime = createProducerRuntime({
@@ -595,7 +602,7 @@ describe('createProducerRuntime', () => {
         {
           Prompt: { field: 'prompt' },
           Style: { field: 'style' },
-        },
+        }
       );
 
       const runtime = createProducerRuntime({
@@ -630,7 +637,7 @@ describe('createProducerRuntime', () => {
         {
           Prompt: { field: 'prompt' },
           Style: { field: 'style' },
-        },
+        }
       );
 
       const runtime = createProducerRuntime({
@@ -650,20 +657,25 @@ describe('createProducerRuntime', () => {
       });
 
       await expect(runtime.sdk.buildPayload(undefined, schema)).rejects.toThrow(
-        'No schema default available',
+        'No schema default available'
       );
     });
 
     it('skips multiple required fields that all have schema defaults', async () => {
       const request = createTestJobContext(
         { 'Input:Prompt': 'test prompt' }, // Missing 'style', 'quality', 'format' - all required with defaults
-        { Prompt: 'Input:Prompt', Style: 'Input:Style', Quality: 'Input:Quality', Format: 'Input:Format' },
+        {
+          Prompt: 'Input:Prompt',
+          Style: 'Input:Style',
+          Quality: 'Input:Quality',
+          Format: 'Input:Format',
+        },
         {
           Prompt: { field: 'prompt' },
           Style: { field: 'style' },
           Quality: { field: 'quality' },
           Format: { field: 'format' },
-        },
+        }
       );
 
       const runtime = createProducerRuntime({
@@ -690,6 +702,95 @@ describe('createProducerRuntime', () => {
       expect(payload).toEqual({
         prompt: 'test prompt',
       });
+    });
+  });
+
+  describe('sdk.buildPayload enum normalization', () => {
+    it('normalizes numeric duration to string enum value', async () => {
+      const request = createTestJobContext(
+        { 'Input:Duration': 10 },
+        { Duration: 'Input:Duration' },
+        {
+          Duration: { field: 'duration' },
+        }
+      );
+
+      const runtime = createProducerRuntime({
+        descriptor: { provider: 'test', model: 'test', environment: 'local' },
+        domain: 'media',
+        request,
+        mode: 'live',
+      });
+
+      const schema = JSON.stringify({
+        type: 'object',
+        properties: {
+          duration: {
+            type: 'string',
+            enum: ['4', '5', '6', '7', '8', '9', '10', '11', '12'],
+          },
+        },
+      });
+
+      const payload = await runtime.sdk.buildPayload(undefined, schema);
+
+      expect(payload).toEqual({ duration: '10' });
+    });
+
+    it('snaps numeric duration to nearest allowed enum value', async () => {
+      const request = createTestJobContext(
+        { 'Input:Duration': 10 },
+        { Duration: 'Input:Duration' },
+        {
+          Duration: { field: 'duration' },
+        }
+      );
+
+      const runtime = createProducerRuntime({
+        descriptor: { provider: 'test', model: 'test', environment: 'local' },
+        domain: 'media',
+        request,
+        mode: 'live',
+      });
+
+      const schema = JSON.stringify({
+        type: 'object',
+        properties: {
+          duration: { type: 'string', enum: ['4s', '6s', '8s'] },
+        },
+      });
+
+      const payload = await runtime.sdk.buildPayload(undefined, schema);
+
+      expect(payload).toEqual({ duration: '8s' });
+    });
+
+    it('normalizes string numeric input to integer enum value', async () => {
+      const request = createTestJobContext(
+        { 'Input:Duration': '8' },
+        { Duration: 'Input:Duration' },
+        {
+          Duration: { field: 'duration' },
+        }
+      );
+
+      const runtime = createProducerRuntime({
+        descriptor: { provider: 'test', model: 'test', environment: 'local' },
+        domain: 'media',
+        request,
+        mode: 'live',
+      });
+
+      const schema = JSON.stringify({
+        type: 'object',
+        properties: {
+          duration: { type: 'integer', enum: [4, 8, 12] },
+        },
+      });
+
+      const payload = await runtime.sdk.buildPayload(undefined, schema);
+
+      expect(payload).toEqual({ duration: 8 });
     });
   });
 });
