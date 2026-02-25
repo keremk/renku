@@ -12,6 +12,8 @@ export type {
   EndpointType,
   EndpointInfo,
   EdgeEndpoints,
+  BlueprintListItem,
+  BlueprintListResponse,
 } from "./types.js";
 
 // Graph conversion
@@ -33,4 +35,5 @@ export {
 } from "./producer-models.js";
 export { parseInputsFile } from "./inputs-handler.js";
 export { streamBuildBlob } from "./blob-handler.js";
+export { listBlueprints } from "./list-handler.js";
 export { handleBlueprintRequest } from "./blueprint-handler.js";

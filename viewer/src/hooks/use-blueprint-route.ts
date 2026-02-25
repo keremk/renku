@@ -63,6 +63,34 @@ export function isBlueprintRoute(): boolean {
 }
 
 /**
+ * Switches to a different blueprint by updating the URL.
+ * Sets last=1 so the most recent build is auto-selected once builds load.
+ * Clears build, movie, and inputs params since they belong to the previous blueprint.
+ */
+export function switchBlueprint(name: string): void {
+  const url = new URL(window.location.href);
+  url.searchParams.set("bp", name);
+  url.searchParams.set("last", "1");
+  url.searchParams.delete("build");
+  url.searchParams.delete("movie");
+  url.searchParams.delete("in");
+  window.history.pushState({}, "", url.toString());
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+/**
+ * Clears the `last=1` URL flag without triggering a popstate event.
+ * Used after auto-selecting the most recent build so the flag is consumed once.
+ */
+export function clearLastFlag(): void {
+  const url = new URL(window.location.href);
+  if (url.searchParams.has("last")) {
+    url.searchParams.delete("last");
+    window.history.replaceState({}, "", url.toString());
+  }
+}
+
+/**
  * Updates the blueprint route URL with a new build ID.
  * Uses history.pushState to avoid full page reload.
  */

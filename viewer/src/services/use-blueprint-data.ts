@@ -44,12 +44,14 @@ export function useBlueprintData(
 
     let cancelled = false;
 
-    startTransition(() => {
-      setState((prev) => ({
-        ...prev,
-        status: "loading",
-        error: null,
-      }));
+    // Synchronous full reset — must clear stale resolvedPaths immediately
+    // so downstream hooks (useBuildsList) don't see the previous blueprint's folder.
+    setState({
+      graph: null,
+      inputs: null,
+      resolvedPaths: null,
+      status: "loading",
+      error: null,
     });
 
     const loadData = async () => {

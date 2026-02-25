@@ -21,6 +21,7 @@ import { getProducerModelsFromBlueprint } from './producer-models.js';
 import { getProducerConfigSchemas } from './config-schemas-handler.js';
 import { parseInputsFile } from './inputs-handler.js';
 import { streamBuildBlob, streamBuildAsset } from './blob-handler.js';
+import { listBlueprints } from './list-handler.js';
 
 /**
  * Handles blueprint API requests.
@@ -33,6 +34,7 @@ import { streamBuildBlob, streamBuildAsset } from './blob-handler.js';
  *   GET  /blueprints/timeline?folder=...&movieId=...
  *   GET  /blueprints/asset?folder=...&movieId=...&assetId=...
  *   GET  /blueprints/blob?folder=...&movieId=...&hash=...
+ *   GET  /blueprints/list
  *   GET  /blueprints/resolve?name=...
  *   GET  /blueprints/producer-models?path=...&catalog=...
  *   GET  /blueprints/producer-config-schemas?path=...&catalog=...
@@ -244,6 +246,19 @@ export async function handleBlueprintRequest(
       }
       await streamInputFile(req, res, folder, movieId, filename);
       return true;
+    }
+
+    case 'list': {
+      try {
+        const listData = await listBlueprints();
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify(listData));
+        return true;
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Failed to list blueprints';
+        return respondBadRequest(res, message);
+      }
     }
 
     default:

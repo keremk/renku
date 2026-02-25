@@ -65,3 +65,17 @@ export interface EdgeEndpoints {
   targetType: EndpointType;
   targetProducer?: string;
 }
+
+/**
+ * A blueprint entry in the list response.
+ */
+export interface BlueprintListItem {
+  name: string;
+}
+
+/**
+ * Response from GET /blueprints/list
+ */
+export interface BlueprintListResponse {
+  blueprints: BlueprintListItem[];
+}

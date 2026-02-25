@@ -22,6 +22,27 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 /**
+ * A blueprint entry returned by the list endpoint.
+ */
+export interface BlueprintListItem {
+  name: string;
+}
+
+/**
+ * Response from GET /blueprints/list.
+ */
+export interface BlueprintListResponse {
+  blueprints: BlueprintListItem[];
+}
+
+/**
+ * Lists all blueprints in the storage root.
+ */
+export function fetchBlueprintsList(): Promise<BlueprintListResponse> {
+  return fetchJson<BlueprintListResponse>(`${API_BASE}/blueprints/list`);
+}
+
+/**
  * Resolved blueprint paths from the server.
  */
 export interface ResolvedBlueprintPaths {

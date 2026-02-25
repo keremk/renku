@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { DetailPanel } from "./detail-panel";
 import { BuildsListSidebar } from "./builds-list-sidebar";
 import { RunButton } from "./run-button";
+import { SwitchBlueprintDialog } from "./switch-blueprint-dialog";
 import { PlanDialog } from "./plan-dialog";
 import { CompletionDialog } from "./completion-dialog";
 import { BottomTabbedPanel } from "./bottom-tabbed-panel";
@@ -282,9 +283,12 @@ function WorkspaceLayoutInner({
   // Determine effective movie ID - use selected build or passed movieId
   const effectiveMovieId = selectedBuildId ?? movieId;
 
-  // Create the Run button to pass to DetailPanel
+  // Create action buttons (Switch + Run) to pass to DetailPanel
   const runButton = (
-    <RunButton blueprintName={blueprintName} movieId={effectiveMovieId ?? undefined} />
+    <>
+      <SwitchBlueprintDialog currentBlueprintName={blueprintName} />
+      <RunButton blueprintName={blueprintName} movieId={effectiveMovieId ?? undefined} />
+    </>
   );
 
   // Check if we have execution logs to show
