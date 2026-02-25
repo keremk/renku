@@ -5,7 +5,7 @@
  * Features:
  * - Syntax highlighting for JSON and Markdown
  * - Optional variables panel for prompt templates
- * - Size variants to preserve existing dialog dimensions
+ * - Semantic layout presets per panel context
  * - Dark/light mode support with Gruvbox theme
  */
 
@@ -54,11 +54,56 @@ export interface TextEditorDialogProps {
   onSave?: (content: string) => void;
   /** Whether save is in progress */
   isSaving?: boolean;
-  /** Dialog size variant - preserves exact existing dialog dimensions */
+  /** Semantic layout preset to avoid cross-panel sizing collisions */
+  preset?: TextEditorDialogPreset;
+  /**
+   * Legacy size variant.
+   * Prefer `preset` for new call sites; kept for backwards compatibility.
+   */
   size?: 'compact' | 'default' | 'large';
   /** Whether to show language badge in title (default: true) */
   showLanguageBadge?: boolean;
 }
+
+export type TextEditorDialogPreset =
+  | 'input-edit'
+  | 'prompt-authoring'
+  | 'output-edit'
+  | 'inline-compact';
+
+type DialogPresetConfig = {
+  dialogClasses: string;
+  editorSizingClass: string;
+};
+
+const PRESET_CONFIGS: Record<TextEditorDialogPreset, DialogPresetConfig> = {
+  'inline-compact': {
+    dialogClasses:
+      'w-[40vw] max-w-xl max-h-[50vh] flex flex-col overflow-hidden',
+    editorSizingClass: 'min-h-[120px]',
+  },
+  'input-edit': {
+    dialogClasses: 'w-[46vw] max-w-3xl h-[40vh] flex flex-col overflow-hidden',
+    editorSizingClass: 'min-h-0',
+  },
+  'prompt-authoring': {
+    dialogClasses: 'w-[72vw] max-w-6xl h-[84vh] flex flex-col overflow-hidden',
+    editorSizingClass: 'min-h-0',
+  },
+  'output-edit': {
+    dialogClasses: 'w-[42vw] max-w-3xl h-[46vh] flex flex-col overflow-hidden',
+    editorSizingClass: 'min-h-0',
+  },
+};
+
+const LEGACY_SIZE_PRESET: Record<
+  'compact' | 'default' | 'large',
+  TextEditorDialogPreset
+> = {
+  compact: 'inline-compact',
+  default: 'input-edit',
+  large: 'prompt-authoring',
+};
 
 /**
  * Get prism-react-editor language from MIME type.
@@ -76,10 +121,11 @@ function getLanguageFromMimeType(mimeType: string): 'json' | 'markdown' {
  * Unified text editor dialog for displaying and editing text content.
  * Consolidates TextCardDialog, PromptEditDialog, and ArtifactTextEditDialog.
  *
- * Size variants:
- * - "compact": w-[40vw] max-w-xl max-h-[50vh], editor min-h-[120px] (Short text)
- * - "default": w-[60vw] max-w-5xl h-[80vh], editor min-h-[300px] (TextCard, Prompt)
- * - "large": w-[60vw] max-w-7xl h-[90vh], editor min-h-[400px] (Artifact)
+ * Presets:
+ * - "prompt-authoring": larger workspace for long prompts in Models panel
+ * - "output-edit": compact editor for prompt artifacts in Outputs panel
+ * - "input-edit": medium dialog for Inputs panel editing
+ * - "inline-compact": compact quick-edit dialog for inline properties
  */
 export function TextEditorDialog({
   open,
@@ -91,6 +137,7 @@ export function TextEditorDialog({
   variables,
   onSave,
   isSaving = false,
+  preset,
   size = 'default',
   showLanguageBadge = true,
 }: TextEditorDialogProps) {
@@ -142,17 +189,8 @@ export function TextEditorDialog({
     navigator.clipboard.writeText(`{{${variable}}}`);
   }, []);
 
-  // Size variant classes
-  const dialogClasses =
-    size === 'compact'
-      ? 'w-[40vw] max-w-xl max-h-[50vh] flex flex-col overflow-hidden'
-      : size === 'large'
-        ? 'w-[60vw] max-w-7xl h-[90vh] flex flex-col overflow-hidden'
-        : 'w-[60vw] max-w-5xl h-[30vh] flex flex-col overflow-hidden';
-
-  // Keep compact dialogs readable, but allow larger dialogs to shrink
-  // so actions stay inside the modal when height is reduced.
-  const editorSizingClass = size === 'compact' ? 'min-h-[120px]' : 'min-h-0';
+  const resolvedPreset = preset ?? LEGACY_SIZE_PRESET[size];
+  const { dialogClasses, editorSizingClass } = PRESET_CONFIGS[resolvedPreset];
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

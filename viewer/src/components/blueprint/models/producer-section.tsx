@@ -1,12 +1,17 @@
-import { useCallback, useMemo } from "react";
-import { CollapsibleSection, MediaGrid, TextCard, PropertyRow } from "../shared";
-import { ModelSelector } from "./model-selector";
-import { NestedModelSelector } from "./nested-model-selector";
-import { ConfigPropertiesEditor } from "./config-properties-editor";
-import { hasRegisteredEditor } from "./config-editors";
-import { isComplexProperty } from "./config-utils";
-import { getNestedModelSelection } from "./stt-helpers";
-import { getSectionHighlightStyles } from "@/lib/panel-utils";
+import { useCallback, useMemo } from 'react';
+import {
+  CollapsibleSection,
+  MediaGrid,
+  TextCard,
+  PropertyRow,
+} from '../shared';
+import { ModelSelector } from './model-selector';
+import { NestedModelSelector } from './nested-model-selector';
+import { ConfigPropertiesEditor } from './config-properties-editor';
+import { hasRegisteredEditor } from './config-editors';
+import { isComplexProperty } from './config-utils';
+import { getNestedModelSelection } from './stt-helpers';
+import { getSectionHighlightStyles } from '@/lib/panel-utils';
 import type {
   AvailableModelOption,
   ModelSelectionValue,
@@ -14,7 +19,7 @@ import type {
   PromptData,
   ConfigProperty,
   NestedModelConfigSchema,
-} from "@/types/blueprint-graph";
+} from '@/types/blueprint-graph';
 
 interface ProducerSectionProps {
   /** Producer identifier */
@@ -82,7 +87,7 @@ export function ProducerSection({
       if (!promptData || !onPromptChange) return;
       const updatedPrompts: PromptData = {
         ...promptData,
-        source: "build",
+        source: 'build',
         systemPrompt: content,
       };
       await Promise.resolve(onPromptChange(updatedPrompts));
@@ -96,7 +101,7 @@ export function ProducerSection({
       if (!promptData || !onPromptChange) return;
       const updatedPrompts: PromptData = {
         ...promptData,
-        source: "build",
+        source: 'build',
         userPrompt: content,
       };
       await Promise.resolve(onPromptChange(updatedPrompts));
@@ -106,13 +111,19 @@ export function ProducerSection({
 
   // Handle nested model selection change
   const handleNestedModelChange = useCallback(
-    (nestedSchema: NestedModelConfigSchema, provider: string, model: string) => {
+    (
+      nestedSchema: NestedModelConfigSchema,
+      provider: string,
+      model: string
+    ) => {
       if (!currentSelection) return;
 
-      const { configPath, providerField, modelField } = nestedSchema.declaration;
+      const { configPath, providerField, modelField } =
+        nestedSchema.declaration;
 
       // Update the nested model config while preserving other properties
-      const existingNestedConfig = (currentSelection.config?.[configPath] ?? {}) as Record<string, unknown>;
+      const existingNestedConfig = (currentSelection.config?.[configPath] ??
+        {}) as Record<string, unknown>;
       const updatedConfig = {
         ...currentSelection.config,
         [configPath]: {
@@ -136,7 +147,7 @@ export function ProducerSection({
   // For composition producers, filter to only show properties with registered editors
   // (e.g., subtitles) - don't show primitive config like width, height, fps, etc.
   const compositionConfigProperties = useMemo(() => {
-    if (category !== "composition" || !configProperties) return [];
+    if (category !== 'composition' || !configProperties) return [];
     return configProperties.filter(
       (prop) => isComplexProperty(prop) && hasRegisteredEditor(prop.key)
     );
@@ -144,16 +155,16 @@ export function ProducerSection({
 
   // Count items based on category
   const itemCount = useMemo(() => {
-    if (category === "prompt" && promptData) {
+    if (category === 'prompt' && promptData) {
       let count = 0;
       if (promptData.systemPrompt !== undefined) count++;
       if (promptData.userPrompt !== undefined) count++;
       return count;
     }
-    if (category === "composition") {
+    if (category === 'composition') {
       return compositionConfigProperties.length || undefined;
     }
-    if (category === "asset" && configProperties) {
+    if (category === 'asset' && configProperties) {
       return configProperties.length;
     }
     return undefined;
@@ -161,7 +172,7 @@ export function ProducerSection({
 
   // For composition producers with displayable config, show collapsible section
   // For composition producers without displayable config, show simple non-collapsible section
-  if (category === "composition") {
+  if (category === 'composition') {
     // If there are displayable config properties, render with ConfigPropertiesEditor
     if (compositionConfigProperties.length > 0) {
       return (
@@ -170,7 +181,7 @@ export function ProducerSection({
           count={compositionConfigProperties.length}
           description={description}
           defaultOpen={false}
-          className={getSectionHighlightStyles(isSelected, "primary")}
+          className={getSectionHighlightStyles(isSelected, 'primary')}
         >
           <ConfigPropertiesEditor
             properties={compositionConfigProperties}
@@ -184,12 +195,18 @@ export function ProducerSection({
 
     // No displayable config properties - render simple view
     return (
-      <div className={`rounded-lg px-2 py-1.5 ${getSectionHighlightStyles(isSelected, "primary")}`}>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-foreground">{producerId}</span>
+      <div
+        className={`rounded-lg px-2 py-1.5 ${getSectionHighlightStyles(isSelected, 'primary')}`}
+      >
+        <div className='flex items-center gap-2'>
+          <span className='text-sm font-medium text-foreground'>
+            {producerId}
+          </span>
         </div>
         {description && (
-          <p className="text-xs text-muted-foreground mt-0.5 ml-0">{description}</p>
+          <p className='text-xs text-muted-foreground mt-0.5 ml-0'>
+            {description}
+          </p>
         )}
       </div>
     );
@@ -201,13 +218,13 @@ export function ProducerSection({
       count={itemCount}
       description={description}
       defaultOpen={false}
-      className={getSectionHighlightStyles(isSelected, "primary")}
+      className={getSectionHighlightStyles(isSelected, 'primary')}
     >
       {/* Prompt producers: show model row then prompt cards */}
-      {category === "prompt" && promptData && (
-        <div className="space-y-5">
+      {category === 'prompt' && promptData && (
+        <div className='space-y-5'>
           {/* Model selection row */}
-          <PropertyRow name="Model" type="select" required>
+          <PropertyRow name='Model' type='select' required>
             <ModelSelector
               producerId={producerId}
               availableModels={availableModels}
@@ -218,25 +235,27 @@ export function ProducerSection({
           </PropertyRow>
 
           {/* Prompt cards */}
-          <MediaGrid className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2">
+          <MediaGrid className='grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2'>
             {promptData.systemPrompt !== undefined && (
               <TextCard
-                label="System Prompt"
+                label='System Prompt'
                 value={promptData.systemPrompt}
                 onChange={handleSaveSystemPrompt}
                 isEditable={isEditable}
-                language="markdown"
+                language='markdown'
                 variables={promptData.variables}
+                dialogPreset='prompt-authoring'
               />
             )}
             {promptData.userPrompt !== undefined && (
               <TextCard
-                label="User Prompt"
+                label='User Prompt'
                 value={promptData.userPrompt}
                 onChange={handleSaveUserPrompt}
                 isEditable={isEditable}
-                language="markdown"
+                language='markdown'
                 variables={promptData.variables}
+                dialogPreset='prompt-authoring'
               />
             )}
           </MediaGrid>
@@ -244,8 +263,8 @@ export function ProducerSection({
       )}
 
       {/* Asset producers: show config properties editor with model selection */}
-      {category === "asset" && (
-        schemaError ? (
+      {category === 'asset' &&
+        (schemaError ? (
           <ConfigPropertiesEditor
             properties={[]}
             values={{}}
@@ -254,7 +273,7 @@ export function ProducerSection({
             schemaError={schemaError}
           />
         ) : configProperties && configProperties.length > 0 ? (
-          <div className="space-y-4">
+          <div className='space-y-4'>
             <ConfigPropertiesEditor
               properties={configProperties}
               values={configValues}
@@ -269,9 +288,9 @@ export function ProducerSection({
             />
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className='space-y-3'>
             {/* Model selection row for asset producers without config */}
-            <PropertyRow name="Model" type="select" required>
+            <PropertyRow name='Model' type='select' required>
               <ModelSelector
                 producerId={producerId}
                 availableModels={availableModels}
@@ -281,33 +300,37 @@ export function ProducerSection({
               />
             </PropertyRow>
             {/* Render nested model selectors if present (even without top-level config) */}
-            {nestedModelSchemas && nestedModelSchemas.length > 0 && nestedModelSchemas.map((nestedSchema) => {
-              const nestedSel = getNestedModelSelection(
-                currentSelection,
-                nestedSchema.declaration.configPath
-              );
-              return (
-                <PropertyRow
-                  key={nestedSchema.declaration.name}
-                  name={nestedSchema.declaration.description ?? nestedSchema.declaration.name}
-                  type="select"
-                  required={nestedSchema.declaration.required}
-                >
-                  <NestedModelSelector
-                    nestedSchema={nestedSchema}
-                    currentProvider={nestedSel?.provider}
-                    currentModel={nestedSel?.model}
-                    isEditable={isEditable}
-                    onChange={(provider, model) =>
-                      handleNestedModelChange(nestedSchema, provider, model)
+            {nestedModelSchemas &&
+              nestedModelSchemas.length > 0 &&
+              nestedModelSchemas.map((nestedSchema) => {
+                const nestedSel = getNestedModelSelection(
+                  currentSelection,
+                  nestedSchema.declaration.configPath
+                );
+                return (
+                  <PropertyRow
+                    key={nestedSchema.declaration.name}
+                    name={
+                      nestedSchema.declaration.description ??
+                      nestedSchema.declaration.name
                     }
-                  />
-                </PropertyRow>
-              );
-            })}
+                    type='select'
+                    required={nestedSchema.declaration.required}
+                  >
+                    <NestedModelSelector
+                      nestedSchema={nestedSchema}
+                      currentProvider={nestedSel?.provider}
+                      currentModel={nestedSel?.model}
+                      isEditable={isEditable}
+                      onChange={(provider, model) =>
+                        handleNestedModelChange(nestedSchema, provider, model)
+                      }
+                    />
+                  </PropertyRow>
+                );
+              })}
           </div>
-        )
-      )}
+        ))}
     </CollapsibleSection>
   );
 }

@@ -9,12 +9,13 @@
  * - Variables panel for prompt templates
  */
 
-import { useState, useMemo, useCallback } from "react";
-import { FileText, Plus, Maximize2, Pencil } from "lucide-react";
-import { MediaCard } from "./media-card";
-import { TextEditorDialog } from "./text-editor-dialog";
-import { CardActionsFooter, type CardAction } from "./card-actions-footer";
-import { cn } from "@/lib/utils";
+import { useState, useMemo, useCallback } from 'react';
+import { FileText, Plus, Maximize2, Pencil } from 'lucide-react';
+import { MediaCard } from './media-card';
+import { TextEditorDialog } from './text-editor-dialog';
+import type { TextEditorDialogPreset } from './text-editor-dialog';
+import { CardActionsFooter, type CardAction } from './card-actions-footer';
+import { cn } from '@/lib/utils';
 
 export interface TextCardProps {
   /** Card label shown in footer */
@@ -30,11 +31,13 @@ export interface TextCardProps {
   /** Callback when value changes (edit mode) */
   onChange?: (value: string) => void;
   /** Language for syntax highlighting (json, markdown). Defaults to markdown */
-  language?: "json" | "markdown";
+  language?: 'json' | 'markdown';
   /** Variables available for prompt templates */
   variables?: string[];
   /** Content area sizing: "fixed" (h-[200px]) or "aspect" (aspect-video). Defaults to "fixed" */
-  sizing?: "fixed" | "aspect";
+  sizing?: 'fixed' | 'aspect';
+  /** Dialog preset for editing/expanding text content */
+  dialogPreset?: TextEditorDialogPreset;
 }
 
 /** Safety limit for preview to avoid DOM performance issues with very large text */
@@ -51,9 +54,10 @@ export function TextCard({
   isEditable = false,
   isSelected = false,
   onChange,
-  language = "markdown",
+  language = 'markdown',
   variables,
-  sizing = "fixed",
+  sizing = 'fixed',
+  dialogPreset,
 }: TextCardProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -68,8 +72,8 @@ export function TextCard({
 
   // Format JSON for display if needed (CSS handles visual clipping)
   const formattedPreview = useMemo(() => {
-    if (!previewText) return "";
-    if (language === "json") {
+    if (!previewText) return '';
+    if (language === 'json') {
       try {
         const parsed = JSON.parse(value);
         const formatted = JSON.stringify(parsed, null, 2);
@@ -98,8 +102,8 @@ export function TextCard({
 
     if (isEditable) {
       actions.push({
-        id: "edit",
-        label: "Edit",
+        id: 'edit',
+        label: 'Edit',
         icon: Pencil,
         onClick: () => setDialogOpen(true),
       });
@@ -109,24 +113,24 @@ export function TextCard({
   }, [isEditable]);
 
   // Sizing classes
-  const contentSizeClass = sizing === "aspect" ? "aspect-video" : "h-[200px]";
-  const emptyMinHeight = sizing === "aspect" ? "aspect-video" : "min-h-[120px]";
+  const contentSizeClass = sizing === 'aspect' ? 'aspect-video' : 'h-[200px]';
+  const emptyMinHeight = sizing === 'aspect' ? 'aspect-video' : 'min-h-[120px]';
 
   // Empty state - non-editable
   if (isEmpty && !isEditable) {
     return (
       <MediaCard
         isSelected={isSelected}
-        footer={
-          <CardActionsFooter
-            label={label}
-            description={description}
-          />
-        }
+        footer={<CardActionsFooter label={label} description={description} />}
       >
-        <div className={cn("bg-muted/30 flex flex-col items-center justify-center gap-3 p-6 text-muted-foreground", emptyMinHeight)}>
-          <FileText className="size-8" />
-          <span className="text-xs">No content</span>
+        <div
+          className={cn(
+            'bg-muted/30 flex flex-col items-center justify-center gap-3 p-6 text-muted-foreground',
+            emptyMinHeight
+          )}
+        >
+          <FileText className='size-8' />
+          <span className='text-xs'>No content</span>
         </div>
       </MediaCard>
     );
@@ -137,21 +141,21 @@ export function TextCard({
     return (
       <>
         <button
-          type="button"
+          type='button'
           onClick={() => setDialogOpen(true)}
           className={cn(
-            "w-full rounded-xl border-2 border-dashed transition-all",
+            'w-full rounded-xl border-2 border-dashed transition-all',
             emptyMinHeight,
-            "flex flex-col items-center justify-center gap-3",
-            "bg-muted/30 text-muted-foreground",
-            "hover:border-primary hover:bg-primary/10 hover:text-foreground hover:shadow-lg hover:-translate-y-1 cursor-pointer"
+            'flex flex-col items-center justify-center gap-3',
+            'bg-muted/30 text-muted-foreground',
+            'hover:border-primary hover:bg-primary/10 hover:text-foreground hover:shadow-lg hover:-translate-y-1 cursor-pointer'
           )}
         >
-          <div className="w-14 h-14 rounded-full bg-muted/50 flex items-center justify-center">
-            <FileText className="size-7" />
+          <div className='w-14 h-14 rounded-full bg-muted/50 flex items-center justify-center'>
+            <FileText className='size-7' />
           </div>
-          <div className="flex items-center gap-1.5 text-xs font-medium">
-            <Plus className="size-3.5" />
+          <div className='flex items-center gap-1.5 text-xs font-medium'>
+            <Plus className='size-3.5' />
             <span>Add {label}</span>
           </div>
         </button>
@@ -160,10 +164,11 @@ export function TextCard({
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           title={`Add ${label}`}
-          content=""
+          content=''
           language={language}
           variables={variables}
           onSave={handleSave}
+          preset={dialogPreset}
         />
       </>
     );
@@ -185,15 +190,18 @@ export function TextCard({
         }
       >
         <button
-          type="button"
+          type='button'
           onClick={() => setDialogOpen(true)}
-          className={cn("w-full bg-muted/30 p-4 text-left overflow-hidden group relative", contentSizeClass)}
+          className={cn(
+            'w-full bg-muted/30 p-4 text-left overflow-hidden group relative',
+            contentSizeClass
+          )}
         >
-          <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap overflow-hidden h-full max-h-full">
+          <pre className='text-xs text-muted-foreground font-mono whitespace-pre-wrap overflow-hidden h-full max-h-full'>
             {formattedPreview}
           </pre>
-          <div className="absolute inset-0 bg-linear-to-t from-card to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-            <Maximize2 className="size-8 text-foreground" />
+          <div className='absolute inset-0 bg-linear-to-t from-card to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center'>
+            <Maximize2 className='size-8 text-foreground' />
           </div>
         </button>
       </MediaCard>
@@ -206,6 +214,7 @@ export function TextCard({
         language={language}
         variables={variables}
         onSave={isEditable ? handleSave : undefined}
+        preset={dialogPreset}
       />
     </>
   );

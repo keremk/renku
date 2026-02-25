@@ -189,6 +189,7 @@ export function InputsPanel({
                 onChange={(value) => handleValueChange(input.name, value)}
                 isEditable={isEditable}
                 sizing='aspect'
+                dialogPreset='input-edit'
               />
             ))}
           </MediaGrid>
@@ -656,6 +657,7 @@ function TextArrayInputSection({
             onChange={handleAddItem}
             isEditable={true}
             sizing='aspect'
+            dialogPreset='input-edit'
           />
         )}
       </MediaGrid>
@@ -740,6 +742,7 @@ function TextArrayItemCard({
         content={value}
         language='markdown'
         onSave={isEditable ? handleSave : undefined}
+        preset='input-edit'
       />
     </>
   );

@@ -213,13 +213,6 @@ function ContentCard({
     ? formatJson(content)
     : content.slice(0, 500) + (content.length > 500 ? '...' : '');
 
-  const dialogSize =
-    content.length < 200
-      ? ('compact' as const)
-      : content.length < 2000
-        ? ('default' as const)
-        : ('large' as const);
-
   const handleSaveEdit = useCallback(
     async (newContent: string) => {
       setIsSaving(true);
@@ -288,7 +281,7 @@ function ContentCard({
         mimeType={artifact.mimeType}
         onSave={handleSaveEdit}
         isSaving={isSaving}
-        size={dialogSize}
+        preset='output-edit'
       />
     </>
   );

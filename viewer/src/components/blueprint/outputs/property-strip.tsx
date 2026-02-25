@@ -4,16 +4,13 @@
  * No per-item action dropdowns — actions live at the producer level.
  */
 
-import { useState, useCallback } from "react";
-import { Switch } from "@/components/ui/switch";
-import { EditedBadge } from "./edited-badge";
-import { TextEditorDialog } from "../shared";
-import {
-  editArtifactText,
-  restoreArtifact,
-} from "@/data/blueprint-client";
-import { RotateCcw } from "lucide-react";
-import type { ArtifactDisplayType } from "@/lib/artifact-content-type";
+import { useState, useCallback } from 'react';
+import { Switch } from '@/components/ui/switch';
+import { EditedBadge } from './edited-badge';
+import { TextEditorDialog } from '../shared';
+import { editArtifactText, restoreArtifact } from '@/data/blueprint-client';
+import { RotateCcw } from 'lucide-react';
+import type { ArtifactDisplayType } from '@/lib/artifact-content-type';
 
 export interface PropertyStripItem {
   artifactId: string;
@@ -40,7 +37,7 @@ export function PropertyStrip({
   if (items.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-1.5 px-4 py-3 bg-muted/30 rounded-lg border border-border/40 mb-3">
+    <div className='flex flex-col gap-1.5 px-4 py-3 bg-muted/30 rounded-lg border border-border/40 mb-3'>
       {items.map((item) => (
         <PropertyItem
           key={item.artifactId}
@@ -65,7 +62,7 @@ function PropertyItem({
   movieId: string;
   onArtifactUpdated?: () => void;
 }) {
-  if (item.displayType === "boolean") {
+  if (item.displayType === 'boolean') {
     return (
       <BooleanPropertyItem
         item={item}
@@ -97,7 +94,7 @@ function BooleanPropertyItem({
   movieId: string;
   onArtifactUpdated?: () => void;
 }) {
-  const value = item.content.trim() === "true";
+  const value = item.content.trim() === 'true';
 
   const handleToggle = useCallback(
     async (checked: boolean) => {
@@ -111,10 +108,16 @@ function BooleanPropertyItem({
         );
         onArtifactUpdated?.();
       } catch (error) {
-        console.error("[PropertyStrip] Boolean toggle failed:", error);
+        console.error('[PropertyStrip] Boolean toggle failed:', error);
       }
     },
-    [blueprintFolder, movieId, item.artifactId, item.mimeType, onArtifactUpdated]
+    [
+      blueprintFolder,
+      movieId,
+      item.artifactId,
+      item.mimeType,
+      onArtifactUpdated,
+    ]
   );
 
   const handleRestore = useCallback(async () => {
@@ -122,23 +125,23 @@ function BooleanPropertyItem({
       await restoreArtifact(blueprintFolder, movieId, item.artifactId);
       onArtifactUpdated?.();
     } catch (error) {
-      console.error("[PropertyStrip] Restore failed:", error);
+      console.error('[PropertyStrip] Restore failed:', error);
     }
   }, [blueprintFolder, movieId, item.artifactId, onArtifactUpdated]);
 
   return (
-    <div className="flex items-center gap-2 text-xs">
-      <span className="text-muted-foreground font-medium">{item.label}</span>
-      <Switch checked={value} onCheckedChange={handleToggle} size="sm" />
+    <div className='flex items-center gap-2 text-xs'>
+      <span className='text-muted-foreground font-medium'>{item.label}</span>
+      <Switch checked={value} onCheckedChange={handleToggle} size='sm' />
       {item.isEdited && <EditedBadge />}
       {item.isEdited && (
         <button
-          type="button"
+          type='button'
           onClick={handleRestore}
-          className="p-0.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-          title="Restore original"
+          className='p-0.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground'
+          title='Restore original'
         >
-          <RotateCcw className="size-3" />
+          <RotateCcw className='size-3' />
         </button>
       )}
     </div>
@@ -173,12 +176,18 @@ function CompactPropertyItem({
         setIsEditDialogOpen(false);
         onArtifactUpdated?.();
       } catch (error) {
-        console.error("[PropertyStrip] Save failed:", error);
+        console.error('[PropertyStrip] Save failed:', error);
       } finally {
         setIsSaving(false);
       }
     },
-    [blueprintFolder, movieId, item.artifactId, item.mimeType, onArtifactUpdated]
+    [
+      blueprintFolder,
+      movieId,
+      item.artifactId,
+      item.mimeType,
+      onArtifactUpdated,
+    ]
   );
 
   const handleRestore = useCallback(async () => {
@@ -186,18 +195,18 @@ function CompactPropertyItem({
       await restoreArtifact(blueprintFolder, movieId, item.artifactId);
       onArtifactUpdated?.();
     } catch (error) {
-      console.error("[PropertyStrip] Restore failed:", error);
+      console.error('[PropertyStrip] Restore failed:', error);
     }
   }, [blueprintFolder, movieId, item.artifactId, onArtifactUpdated]);
 
   return (
     <>
-      <div className="flex items-center gap-2 text-xs">
-        <span className="text-muted-foreground font-medium">{item.label}</span>
+      <div className='flex items-center gap-2 text-xs'>
+        <span className='text-muted-foreground font-medium'>{item.label}</span>
         <button
-          type="button"
+          type='button'
           onClick={() => setIsEditDialogOpen(true)}
-          className="bg-muted/60 text-foreground px-2 py-0.5 rounded truncate max-w-[200px] hover:bg-muted transition-colors"
+          className='bg-muted/60 text-foreground px-2 py-0.5 rounded truncate max-w-[200px] hover:bg-muted transition-colors'
           title={`Click to edit: ${item.content.trim()}`}
         >
           {item.content.trim()}
@@ -205,12 +214,12 @@ function CompactPropertyItem({
         {item.isEdited && <EditedBadge />}
         {item.isEdited && (
           <button
-            type="button"
+            type='button'
             onClick={handleRestore}
-            className="p-0.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-            title="Restore original"
+            className='p-0.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground'
+            title='Restore original'
           >
-            <RotateCcw className="size-3" />
+            <RotateCcw className='size-3' />
           </button>
         )}
       </div>
@@ -223,7 +232,7 @@ function CompactPropertyItem({
         mimeType={item.mimeType}
         onSave={handleSaveEdit}
         isSaving={isSaving}
-        size="compact"
+        preset='inline-compact'
       />
     </>
   );

@@ -4,7 +4,6 @@ import {
   ExternalLink,
   Copy,
   File,
-  Maximize2,
   RefreshCw,
   Square,
   CheckSquare,
@@ -582,7 +581,6 @@ interface ArtifactCardFooterProps {
   downloadName: string;
   url: string;
   isEdited?: boolean;
-  onExpand?: () => void;
   onEdit?: () => void;
   onRestore?: () => void;
 }
@@ -593,7 +591,6 @@ function ArtifactCardFooter({
   downloadName,
   url,
   isEdited,
-  onExpand,
   onEdit,
   onRestore,
 }: ArtifactCardFooterProps) {
@@ -675,23 +672,12 @@ function ArtifactCardFooter({
       ),
     });
 
-    // Add separator before file actions
-    if (onExpand) {
-      result.push({
-        id: 'expand',
-        label: 'Expand',
-        icon: Maximize2,
-        onClick: onExpand,
-        separator: true,
-      });
-    }
-
     result.push({
       id: 'download',
       label: 'Download',
       icon: Download,
       onClick: handleDownload,
-      separator: !onExpand,
+      separator: true,
     });
 
     result.push({
@@ -713,7 +699,6 @@ function ArtifactCardFooter({
     onEdit,
     isEdited,
     onRestore,
-    onExpand,
     handleToggleRegeneration,
     handleTogglePin,
     handleDownload,
@@ -853,7 +838,6 @@ function TextArtifactSmartCard({
   subGroup?: ArtifactSubGroup;
   useSimplifiedFooter?: boolean;
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [content, setContent] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -922,14 +906,6 @@ function TextArtifactSmartCard({
     ? formatJson(content)
     : content.slice(0, 500) + (content.length > 500 ? '...' : '');
 
-  // Content-based dialog sizing
-  const dialogSize =
-    content.length < 200
-      ? 'compact'
-      : content.length < 2000
-        ? 'default'
-        : 'large';
-
   const handleEdit = () => setIsEditDialogOpen(true);
 
   const handleRestore = async () => {
@@ -974,7 +950,6 @@ function TextArtifactSmartCard({
       downloadName={artifact.name}
       url={url}
       isEdited={isEdited}
-      onExpand={() => setIsExpanded(true)}
       onEdit={handleEdit}
       onRestore={isEdited ? handleRestore : undefined}
     />
@@ -985,11 +960,7 @@ function TextArtifactSmartCard({
       <MediaCard isSelected={isSelected} isPinned={isPinned} footer={footer}>
         <button
           type='button'
-          onClick={() =>
-            useSimplifiedFooter
-              ? setIsEditDialogOpen(true)
-              : setIsExpanded(true)
-          }
+          onClick={() => setIsEditDialogOpen(true)}
           className='min-h-[100px] max-h-[180px] w-full bg-muted/30 p-3 text-left overflow-hidden group relative'
         >
           <pre className='text-xs text-muted-foreground font-mono whitespace-pre-wrap overflow-hidden h-full'>
@@ -997,23 +968,11 @@ function TextArtifactSmartCard({
           </pre>
           {!useSimplifiedFooter && (
             <div className='absolute inset-0 bg-linear-to-t from-muted/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center'>
-              <Maximize2 className='size-8 text-foreground' />
+              <Pencil className='size-8 text-foreground' />
             </div>
           )}
         </button>
       </MediaCard>
-
-      {!useSimplifiedFooter && (
-        <TextEditorDialog
-          key={isExpanded ? `view-${artifact.hash}` : 'closed-view'}
-          open={isExpanded}
-          onOpenChange={setIsExpanded}
-          title={displayName}
-          content={content}
-          mimeType={artifact.mimeType}
-          size='large'
-        />
-      )}
 
       <TextEditorDialog
         key={isEditDialogOpen ? `edit-${artifact.hash}` : 'closed'}
@@ -1024,7 +983,7 @@ function TextArtifactSmartCard({
         mimeType={artifact.mimeType}
         onSave={handleSaveEdit}
         isSaving={isSaving}
-        size={dialogSize}
+        preset='output-edit'
       />
     </>
   );
