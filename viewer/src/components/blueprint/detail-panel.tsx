@@ -221,6 +221,7 @@ export function DetailPanel({
             blueprintFolder={blueprintFolder}
             artifacts={artifacts}
             graphData={graphData}
+            producerModels={producerModels}
             onArtifactUpdated={onArtifactUpdated}
           />
         )}

@@ -21,7 +21,12 @@ import {
   shortenArtifactDisplayName,
   groupArtifactsByProducer,
   sortProducersByTopology,
+  classifyAndGroupArtifacts,
+  getArtifactLabel,
+  getBlobUrl,
+  type ArtifactSubGroup,
 } from '@/lib/artifact-utils';
+import { ObjectArraySection } from './outputs/object-array-section';
 import { getOutputNameFromNodeId } from '@/lib/panel-utils';
 import { useExecution } from '@/contexts/execution-context';
 import {
@@ -46,6 +51,7 @@ import {
 import type {
   BlueprintOutputDef,
   BlueprintGraphData,
+  ProducerModelInfo,
 } from '@/types/blueprint-graph';
 import type { ArtifactInfo } from '@/types/builds';
 
@@ -56,6 +62,7 @@ interface OutputsPanelProps {
   blueprintFolder: string | null;
   artifacts: ArtifactInfo[];
   graphData?: BlueprintGraphData;
+  producerModels?: Record<string, ProducerModelInfo>;
   /** Callback when an artifact is edited or restored */
   onArtifactUpdated?: () => void;
 }
@@ -67,6 +74,7 @@ export function OutputsPanel({
   blueprintFolder,
   artifacts,
   graphData,
+  producerModels,
   onArtifactUpdated,
 }: OutputsPanelProps) {
   const selectedOutputName = getOutputNameFromNodeId(selectedNodeId);
@@ -86,6 +94,7 @@ export function OutputsPanel({
         blueprintFolder={blueprintFolder}
         movieId={movieId}
         graphData={graphData}
+        producerModels={producerModels}
         onArtifactUpdated={onArtifactUpdated}
       />
     );
@@ -160,12 +169,14 @@ function ArtifactGallery({
   blueprintFolder,
   movieId,
   graphData,
+  producerModels,
   onArtifactUpdated,
 }: {
   artifacts: ArtifactInfo[];
   blueprintFolder: string;
   movieId: string;
   graphData?: BlueprintGraphData;
+  producerModels?: Record<string, ProducerModelInfo>;
   onArtifactUpdated?: () => void;
 }) {
   const {
@@ -244,6 +255,10 @@ function ArtifactGallery({
           }
         };
 
+        const subGroups = classifyAndGroupArtifacts(producerArtifacts);
+        const isPromptProducer =
+          producerModels?.[producerName]?.category === 'prompt';
+
         return (
           <ProducerArtifactSection
             key={producerName}
@@ -262,23 +277,18 @@ function ArtifactGallery({
             skipReason={primarySkipReason}
             defaultOpen
           >
-            <MediaGrid>
-              {producerArtifacts.map((artifact) => {
-                const isSelected = isArtifactSelected(artifact.id);
-                const isPinned = isArtifactPinned(artifact.id);
-                return (
-                  <ArtifactCardRenderer
-                    key={artifact.id}
-                    artifact={artifact}
-                    blueprintFolder={blueprintFolder}
-                    movieId={movieId}
-                    isSelected={isSelected}
-                    isPinned={isPinned}
-                    onArtifactUpdated={onArtifactUpdated}
-                  />
-                );
-              })}
-            </MediaGrid>
+            <div className='space-y-5'>
+              {subGroups.map((subGroup) => (
+                <SubGroupSection
+                  key={subGroup.sortKey}
+                  subGroup={subGroup}
+                  blueprintFolder={blueprintFolder}
+                  movieId={movieId}
+                  isPromptProducer={isPromptProducer}
+                  onArtifactUpdated={onArtifactUpdated}
+                />
+              ))}
+            </div>
           </ProducerArtifactSection>
         );
       })}
@@ -297,6 +307,8 @@ function ArtifactCardRenderer({
   isSelected,
   isPinned,
   onArtifactUpdated,
+  subGroup,
+  useSimplifiedTextFooter,
 }: {
   artifact: ArtifactInfo;
   blueprintFolder: string;
@@ -304,6 +316,8 @@ function ArtifactCardRenderer({
   isSelected: boolean;
   isPinned: boolean;
   onArtifactUpdated?: () => void;
+  subGroup?: ArtifactSubGroup;
+  useSimplifiedTextFooter?: boolean;
 }) {
   // Handle failed or skipped artifacts first
   if (artifact.status === 'failed' || artifact.status === 'skipped') {
@@ -354,13 +368,15 @@ function ArtifactCardRenderer({
     artifact.mimeType === 'application/json'
   ) {
     return (
-      <ArtifactTextCard
+      <TextArtifactSmartCard
         artifact={artifact}
         blueprintFolder={blueprintFolder}
         movieId={movieId}
         isSelected={isSelected}
         isPinned={isPinned}
         onArtifactUpdated={onArtifactUpdated}
+        subGroup={subGroup}
+        useSimplifiedFooter={useSimplifiedTextFooter}
       />
     );
   }
@@ -482,6 +498,77 @@ function ProducerArtifactSection({
     >
       {children}
     </CollapsibleSection>
+  );
+}
+
+// ============================================================================
+// Sub-Group Section (renders a sub-group with optional header)
+// ============================================================================
+
+function SubGroupHeader({ label }: { label: string }) {
+  return (
+    <div className='flex items-center gap-3 mb-3 mt-4'>
+      <span className='text-sm font-semibold text-foreground whitespace-nowrap'>
+        {label}
+      </span>
+      <div className='h-px flex-1 bg-border/60' />
+    </div>
+  );
+}
+
+function SubGroupSection({
+  subGroup,
+  blueprintFolder,
+  movieId,
+  isPromptProducer,
+  onArtifactUpdated,
+}: {
+  subGroup: ArtifactSubGroup;
+  blueprintFolder: string;
+  movieId: string;
+  isPromptProducer: boolean;
+  onArtifactUpdated?: () => void;
+}) {
+  const { isArtifactSelected, isArtifactPinned } = useExecution();
+
+  // Object-array sub-groups get the two-zone layout
+  if (subGroup.type === 'object-array') {
+    return (
+      <div>
+        {subGroup.label && <SubGroupHeader label={subGroup.label} />}
+        <ObjectArraySection
+          subGroup={subGroup}
+          blueprintFolder={blueprintFolder}
+          movieId={movieId}
+          onArtifactUpdated={onArtifactUpdated}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {subGroup.label && <SubGroupHeader label={subGroup.label} />}
+      <MediaGrid>
+        {subGroup.artifacts.map((artifact) => {
+          const isSelected = isArtifactSelected(artifact.id);
+          const isPinned = isArtifactPinned(artifact.id);
+          return (
+            <ArtifactCardRenderer
+              key={artifact.id}
+              artifact={artifact}
+              blueprintFolder={blueprintFolder}
+              movieId={movieId}
+              isSelected={isSelected}
+              isPinned={isPinned}
+              onArtifactUpdated={onArtifactUpdated}
+              subGroup={subGroup}
+              useSimplifiedTextFooter={isPromptProducer}
+            />
+          );
+        })}
+      </MediaGrid>
+    </div>
   );
 }
 
@@ -744,16 +831,18 @@ function MediaArtifactCard({
 }
 
 // ============================================================================
-// Artifact Text Card (fetches content from blob URL, has save/restore)
+// Text Artifact Smart Card (dispatches to boolean, compact, or text card)
 // ============================================================================
 
-function ArtifactTextCard({
+function TextArtifactSmartCard({
   artifact,
   blueprintFolder,
   movieId,
   isSelected,
   isPinned,
   onArtifactUpdated,
+  subGroup,
+  useSimplifiedFooter = false,
 }: {
   artifact: ArtifactInfo;
   blueprintFolder: string;
@@ -761,6 +850,8 @@ function ArtifactTextCard({
   isSelected: boolean;
   isPinned: boolean;
   onArtifactUpdated?: () => void;
+  subGroup?: ArtifactSubGroup;
+  useSimplifiedFooter?: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -768,7 +859,7 @@ function ArtifactTextCard({
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const url = getBlobUrl(blueprintFolder, movieId, artifact.hash);
-  const displayName = shortenArtifactDisplayName(artifact.id);
+  const displayName = getArtifactLabel(artifact.id, subGroup);
   const isEdited = artifact.editedBy === 'user';
 
   useEffect(() => {
@@ -798,7 +889,14 @@ function ArtifactTextCard({
     };
   }, [url]);
 
-  const handleEdit = () => setIsEditDialogOpen(true);
+  // While loading, show a compact skeleton placeholder
+  if (isLoading || content === null) {
+    return (
+      <div className='rounded-xl border border-border bg-card px-4 py-3 animate-pulse'>
+        <div className='h-4 bg-muted/50 rounded w-3/4' />
+      </div>
+    );
+  }
 
   const handleSaveEdit = async (newContent: string) => {
     setIsSaving(true);
@@ -819,6 +917,21 @@ function ArtifactTextCard({
     }
   };
 
+  const isJson = artifact.mimeType === 'application/json';
+  const displayContent = isJson
+    ? formatJson(content)
+    : content.slice(0, 500) + (content.length > 500 ? '...' : '');
+
+  // Content-based dialog sizing
+  const dialogSize =
+    content.length < 200
+      ? 'compact'
+      : content.length < 2000
+        ? 'default'
+        : 'large';
+
+  const handleEdit = () => setIsEditDialogOpen(true);
+
   const handleRestore = async () => {
     try {
       await restoreArtifact(blueprintFolder, movieId, artifact.id);
@@ -828,73 +941,90 @@ function ArtifactTextCard({
     }
   };
 
-  const isJson = artifact.mimeType === 'application/json';
-  const displayContent = content
-    ? isJson
-      ? formatJson(content)
-      : content.slice(0, 500) + (content.length > 500 ? '...' : '')
-    : '';
+  const simplifiedFooter = (
+    <>
+      <div className='flex items-center gap-1.5 flex-1 min-w-0'>
+        <span className='text-xs text-foreground truncate' title={displayName}>
+          {displayName}
+        </span>
+        {isEdited && <EditedBadge />}
+      </div>
+      {isEdited && (
+        <button
+          type='button'
+          onClick={(e) => {
+            e.stopPropagation();
+            handleRestore();
+          }}
+          className='p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground'
+          title='Restore original'
+        >
+          <RotateCcw className='size-3.5' />
+        </button>
+      )}
+    </>
+  );
+
+  const footer = useSimplifiedFooter ? (
+    simplifiedFooter
+  ) : (
+    <ArtifactCardFooter
+      artifactId={artifact.id}
+      displayName={displayName}
+      downloadName={artifact.name}
+      url={url}
+      isEdited={isEdited}
+      onExpand={() => setIsExpanded(true)}
+      onEdit={handleEdit}
+      onRestore={isEdited ? handleRestore : undefined}
+    />
+  );
 
   return (
     <>
-      <MediaCard
-        isSelected={isSelected}
-        isPinned={isPinned}
-        footer={
-          <ArtifactCardFooter
-            artifactId={artifact.id}
-            displayName={displayName}
-            downloadName={artifact.name}
-            url={url}
-            isEdited={isEdited}
-            onExpand={() => setIsExpanded(true)}
-            onEdit={handleEdit}
-            onRestore={isEdited ? handleRestore : undefined}
-          />
-        }
-      >
+      <MediaCard isSelected={isSelected} isPinned={isPinned} footer={footer}>
         <button
           type='button'
-          onClick={() => setIsExpanded(true)}
-          className='aspect-video w-full bg-muted/30 p-3 text-left overflow-hidden group relative'
+          onClick={() =>
+            useSimplifiedFooter
+              ? setIsEditDialogOpen(true)
+              : setIsExpanded(true)
+          }
+          className='min-h-[100px] max-h-[180px] w-full bg-muted/30 p-3 text-left overflow-hidden group relative'
         >
-          {isLoading ? (
-            <div className='flex items-center justify-center h-full'>
-              <span className='text-muted-foreground text-sm'>Loading...</span>
+          <pre className='text-xs text-muted-foreground font-mono whitespace-pre-wrap overflow-hidden h-full'>
+            {displayContent}
+          </pre>
+          {!useSimplifiedFooter && (
+            <div className='absolute inset-0 bg-linear-to-t from-muted/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center'>
+              <Maximize2 className='size-8 text-foreground' />
             </div>
-          ) : (
-            <>
-              <pre className='text-xs text-muted-foreground font-mono whitespace-pre-wrap overflow-hidden h-full'>
-                {displayContent}
-              </pre>
-              <div className='absolute inset-0 bg-linear-to-t from-muted/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center'>
-                <Maximize2 className='size-8 text-foreground' />
-              </div>
-            </>
           )}
         </button>
       </MediaCard>
 
-      <TextEditorDialog
-        key={isExpanded ? `view-${artifact.hash}` : 'closed-view'}
-        open={isExpanded}
-        onOpenChange={setIsExpanded}
-        title={displayName}
-        content={content ?? ''}
-        mimeType={artifact.mimeType}
-        size='large'
-      />
+      {!useSimplifiedFooter && (
+        <TextEditorDialog
+          key={isExpanded ? `view-${artifact.hash}` : 'closed-view'}
+          open={isExpanded}
+          onOpenChange={setIsExpanded}
+          title={displayName}
+          content={content}
+          mimeType={artifact.mimeType}
+          size='large'
+        />
+      )}
 
       <TextEditorDialog
         key={isEditDialogOpen ? `edit-${artifact.hash}` : 'closed'}
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         title={displayName}
-        content={content ?? ''}
+        content={content}
         mimeType={artifact.mimeType}
         onSave={handleSaveEdit}
         isSaving={isSaving}
-        size='large'
+        size={dialogSize}
       />
     </>
   );
@@ -1063,26 +1193,6 @@ function FailedArtifactCard({
 // ============================================================================
 // Utilities
 // ============================================================================
-
-function getBlobUrl(
-  blueprintFolder: string,
-  movieId: string,
-  hash: string
-): string {
-  if (!blueprintFolder || !movieId || !hash) {
-    console.warn('[getBlobUrl] Missing required parameters:', {
-      blueprintFolder: !!blueprintFolder,
-      movieId: !!movieId,
-      hash: !!hash,
-    });
-  }
-  const params = new URLSearchParams({
-    folder: blueprintFolder,
-    movieId,
-    hash,
-  });
-  return `/viewer-api/blueprints/blob?${params.toString()}`;
-}
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
