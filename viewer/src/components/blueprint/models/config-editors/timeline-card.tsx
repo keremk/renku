@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
-import { Film, Layers, Volume2, Settings, Crown } from 'lucide-react';
+import { Film, Layers, Volume2, Crown } from 'lucide-react';
 
 import { MediaCard } from '../../shared/media-card';
 import {
@@ -76,6 +76,10 @@ const ALL_TRACK_KINDS: TrackKind[] = [
 
 const TRACKS_WITH_NATIVE_DURATION: TrackKind[] = ['Video', 'Audio', 'Music'];
 
+const TRACKS_WITH_VOLUME: TrackKind[] = ['Video', 'Audio', 'Music'];
+
+const TRACKS_WITH_EFFECT: TrackKind[] = ['Image', 'Text'];
+
 const TRACK_TO_ARTIFACT: Record<TrackKind, string> = {
   Image: 'ImageSegments',
   Video: 'VideoSegments',
@@ -117,6 +121,45 @@ const TEXT_EFFECT_OPTIONS = [
   { value: 'slide-in-out-right', label: 'Slide In + Out (Right)' },
   { value: 'spring-in-out', label: 'Spring In + Out' },
 ];
+
+type TimingRole = 'none' | 'primary' | 'fallback';
+
+function getInitialSelectedTrack(config: TimelineConfig): TrackKind {
+  const firstEnabledTrack = config.tracks?.[0];
+  return firstEnabledTrack ?? ALL_TRACK_KINDS[0];
+}
+
+function getTimingRole(
+  kind: TrackKind,
+  masterTracks?: TrackKind[]
+): TimingRole {
+  if (masterTracks?.[0] === kind) return 'primary';
+  if (masterTracks?.[1] === kind) return 'fallback';
+  return 'none';
+}
+
+function createDefaultClip(kind: TrackKind): ClipConfig {
+  const clip: ClipConfig = { artifact: TRACK_TO_ARTIFACT[kind] };
+
+  if (kind === 'Video' || kind === 'Audio') {
+    clip.volume = 1;
+  }
+
+  if (kind === 'Music') {
+    clip.volume = 0.3;
+    clip.playStrategy = 'loop';
+  }
+
+  if (kind === 'Image') {
+    clip.effect = 'KennBurns';
+  }
+
+  if (kind === 'Text') {
+    clip.effect = 'fade-in-out';
+  }
+
+  return clip;
+}
 
 // ============================================================================
 // Main Component
@@ -305,11 +348,15 @@ function TimelineEditDialog({
   readOnly = false,
 }: TimelineEditDialogProps) {
   const [formState, setFormState] = useState<TimelineConfig>(config);
+  const [selectedTrack, setSelectedTrack] = useState<TrackKind>(() =>
+    getInitialSelectedTrack(config)
+  );
 
   const handleOpenChange = useCallback(
     (isOpen: boolean) => {
       if (isOpen) {
         setFormState(config);
+        setSelectedTrack(getInitialSelectedTrack(config));
       }
       onOpenChange(isOpen);
     },
@@ -348,22 +395,11 @@ function TimelineEditDialog({
 
       if (enabled) {
         currentTracks.add(kind);
-        // Create default clip config
         const clipKey = TRACK_TO_CLIP_KEY[kind];
-        const defaultClip: ClipConfig = {
-          artifact: TRACK_TO_ARTIFACT[kind],
-        };
-        if (kind === 'Audio') defaultClip.volume = 1;
-        if (kind === 'Music') {
-          defaultClip.volume = 0.3;
-          defaultClip.playStrategy = 'loop';
-        }
-        if (kind === 'Image') defaultClip.effect = 'KennBurns';
-        if (kind === 'Text') defaultClip.effect = 'fade-in-out';
         return {
           ...prev,
           tracks: ALL_TRACK_KINDS.filter((k) => currentTracks.has(k)),
-          [clipKey]: defaultClip,
+          [clipKey]: createDefaultClip(kind),
         };
       } else {
         currentTracks.delete(kind);
@@ -380,15 +416,55 @@ function TimelineEditDialog({
     });
   }, []);
 
-  const updateMasterTrack = useCallback((index: number, value: string) => {
+  const updateTrackRole = useCallback((kind: TrackKind, role: TimingRole) => {
     setFormState((prev) => {
-      const masters = [...(prev.masterTracks ?? [])];
-      if (value === 'none') {
-        masters.splice(index, 1);
-      } else {
-        masters[index] = value as TrackKind;
+      const primary = prev.masterTracks?.[0];
+      const fallback = prev.masterTracks?.[1];
+
+      let nextPrimary = primary;
+      let nextFallback = fallback;
+
+      if (nextPrimary === kind) {
+        nextPrimary = undefined;
       }
-      return { ...prev, masterTracks: masters };
+
+      if (nextFallback === kind) {
+        nextFallback = undefined;
+      }
+
+      if (role === 'primary') {
+        if (primary && primary !== kind) {
+          nextFallback = primary;
+        }
+        nextPrimary = kind;
+      }
+
+      if (role === 'fallback') {
+        if (!primary || primary === kind) {
+          throw new Error(
+            `Cannot assign ${kind} as fallback without a different primary track.`
+          );
+        }
+        nextPrimary = primary;
+        nextFallback = kind;
+      }
+
+      if (nextPrimary && nextFallback && nextPrimary === nextFallback) {
+        nextFallback = undefined;
+      }
+
+      const masters: TrackKind[] = [];
+      if (nextPrimary) {
+        masters.push(nextPrimary);
+      }
+      if (nextFallback) {
+        masters.push(nextFallback);
+      }
+
+      return {
+        ...prev,
+        masterTracks: masters,
+      };
     });
   }, []);
 
@@ -396,9 +472,8 @@ function TimelineEditDialog({
     (kind: TrackKind, field: keyof ClipConfig, value: unknown) => {
       const clipKey = TRACK_TO_CLIP_KEY[kind];
       setFormState((prev) => {
-        const clip = (prev[clipKey] as ClipConfig | undefined) ?? {
-          artifact: TRACK_TO_ARTIFACT[kind],
-        };
+        const clip =
+          (prev[clipKey] as ClipConfig | undefined) ?? createDefaultClip(kind);
         return {
           ...prev,
           [clipKey]: { ...clip, [field]: value },
@@ -408,23 +483,44 @@ function TimelineEditDialog({
     []
   );
 
-  // Eligible master tracks: enabled tracks with native duration
-  const eligibleMasters = useMemo(
-    () => TRACKS_WITH_NATIVE_DURATION.filter((k) => enabledTracks.has(k)),
-    [enabledTracks]
-  );
-
   const primaryMaster = formState.masterTracks?.[0];
-  const fallbackMaster = formState.masterTracks?.[1];
+  const selectedTrackEnabled = enabledTracks.has(selectedTrack);
+  const selectedTrackRole = getTimingRole(
+    selectedTrack,
+    formState.masterTracks
+  );
+  const selectedTrackClip = formState[TRACK_TO_CLIP_KEY[selectedTrack]] as
+    | ClipConfig
+    | undefined;
+  const selectedTrackDefaults = createDefaultClip(selectedTrack);
+  const selectedTrackSupportsTiming =
+    TRACKS_WITH_NATIVE_DURATION.includes(selectedTrack);
+  const selectedTrackSupportsVolume =
+    TRACKS_WITH_VOLUME.includes(selectedTrack);
+  const selectedTrackSupportsPlayStrategy = selectedTrack === 'Music';
+  const selectedTrackSupportsEffect =
+    TRACKS_WITH_EFFECT.includes(selectedTrack);
+
+  const selectedVolume =
+    selectedTrackClip?.volume ?? selectedTrackDefaults.volume ?? 1;
+
+  const selectedPlayStrategy =
+    selectedTrackClip?.playStrategy ?? selectedTrackDefaults.playStrategy;
+
+  const selectedEffect =
+    selectedTrackClip?.effect ?? selectedTrackDefaults.effect;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className='sm:max-w-[500px]'>
-        <DialogHeader>
+      <DialogContent className='sm:max-w-[620px] gap-0 p-0 overflow-hidden'>
+        <DialogHeader className='border-b px-6 pt-6 pb-4'>
           <DialogTitle className='flex items-center gap-2'>
             <Film className='size-5' />
             {readOnly ? 'Timeline Settings' : 'Edit Timeline'}
           </DialogTitle>
+          <p className='text-xs text-muted-foreground'>
+            Select a track to edit its behavior without leaving this dialog.
+          </p>
           <DialogDescription className='sr-only'>
             {readOnly
               ? 'Review timeline tracks, master tracks, and clip settings.'
@@ -432,194 +528,188 @@ function TimelineEditDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className='space-y-6 py-4'>
-          {/* Tracks Section */}
-          <FormSection icon={Layers} label='Tracks'>
-            <div className='grid grid-cols-2 gap-3'>
-              {ALL_TRACK_KINDS.map((kind) => (
-                <div
-                  key={kind}
-                  className='flex items-center justify-between rounded-md border border-border/50 px-3 py-2'
-                >
-                  <span className='text-xs text-foreground'>{kind}</span>
-                  <Switch
-                    checked={enabledTracks.has(kind)}
-                    onCheckedChange={(checked) => toggleTrack(kind, checked)}
-                    disabled={readOnly}
-                    size='sm'
-                  />
-                </div>
-              ))}
+        <div className='px-6 py-4'>
+          <div className='grid h-[286px] grid-cols-[184px_minmax(0,1fr)] grid-rows-[40px_minmax(0,1fr)] overflow-hidden rounded-lg border border-border/70 bg-muted/10'>
+            <div className='flex items-center border-r border-b border-border/60 px-3.5'>
+              <p className='text-xs font-medium uppercase tracking-wide text-muted-foreground'>
+                Tracks
+              </p>
             </div>
-          </FormSection>
 
-          {/* Master Tracks Section */}
-          <FormSection icon={Crown} label='Master Tracks'>
-            <div className='space-y-3'>
-              <FormRow label='Primary'>
-                <Select
-                  value={primaryMaster ?? ''}
-                  onValueChange={(v) => updateMasterTrack(0, v)}
+            <div className='flex items-center justify-between gap-4 border-b border-border/60 px-4'>
+              <p className='text-sm font-semibold text-foreground'>
+                {selectedTrack}
+              </p>
+
+              <div className='flex items-center gap-2'>
+                <span className='text-xs text-muted-foreground'>Enabled</span>
+                <Switch
+                  checked={selectedTrackEnabled}
+                  onCheckedChange={(checked) =>
+                    toggleTrack(selectedTrack, checked)
+                  }
                   disabled={readOnly}
-                >
-                  <SelectTrigger className='h-8 text-xs'>
-                    <SelectValue placeholder='Select...' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {eligibleMasters.map((kind) => (
-                      <SelectItem key={kind} value={kind} className='text-xs'>
-                        {kind}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormRow>
-              <FormRow label='Fallback'>
-                <Select
-                  value={fallbackMaster ?? 'none'}
-                  onValueChange={(v) => updateMasterTrack(1, v)}
-                  disabled={readOnly}
-                >
-                  <SelectTrigger className='h-8 text-xs'>
-                    <SelectValue placeholder='None' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='none' className='text-xs'>
-                      None
-                    </SelectItem>
-                    {eligibleMasters
-                      .filter((k) => k !== primaryMaster)
-                      .map((kind) => (
-                        <SelectItem key={kind} value={kind} className='text-xs'>
-                          {kind}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </FormRow>
+                  size='sm'
+                />
+              </div>
             </div>
-            <p className='text-[10px] text-muted-foreground mt-2'>
-              Only tracks with native duration (Audio, Video, Music) can be
-              masters.
-            </p>
-          </FormSection>
 
-          {/* Clip Settings Section */}
-          <FormSection icon={Settings} label='Clip Settings'>
-            <div className='space-y-4'>
-              {ALL_TRACK_KINDS.filter((kind) => enabledTracks.has(kind)).map(
-                (kind) => {
-                  const clipKey = TRACK_TO_CLIP_KEY[kind];
-                  const clip = formState[clipKey] as ClipConfig | undefined;
-                  const hasVolume =
-                    kind === 'Audio' || kind === 'Video' || kind === 'Music';
-                  const hasPlayStrategy = kind === 'Music';
-                  const hasEffect = kind === 'Image' || kind === 'Text';
+            <aside className='min-h-0 overflow-y-auto border-r border-border/60 p-2'>
+              <div className='space-y-1'>
+                {ALL_TRACK_KINDS.map((kind) => {
+                  const isSelected = selectedTrack === kind;
+                  const isEnabled = enabledTracks.has(kind);
 
                   return (
-                    <div key={kind} className='space-y-2'>
-                      <span
-                        className={cn(
-                          'inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium',
-                          TRACK_COLORS[kind]
-                        )}
-                      >
-                        {kind}
-                      </span>
-
-                      {hasVolume && (
-                        <FormRow label='Volume'>
-                          <div className='flex items-center gap-3'>
-                            <Slider
-                              value={[
-                                clip?.volume ?? (kind === 'Music' ? 0.3 : 1),
-                              ]}
-                              onValueChange={([v]) =>
-                                updateClipField(kind, 'volume', v)
-                              }
-                              min={0}
-                              max={1}
-                              step={0.05}
-                              disabled={readOnly}
-                              className='flex-1'
-                            />
-                            <span className='text-xs font-mono text-muted-foreground w-10 text-right'>
-                              {(
-                                clip?.volume ?? (kind === 'Music' ? 0.3 : 1)
-                              ).toFixed(2)}
-                            </span>
-                          </div>
-                        </FormRow>
+                    <button
+                      key={kind}
+                      type='button'
+                      onClick={() => setSelectedTrack(kind)}
+                      className={cn(
+                        'w-full rounded-md px-2.5 py-1.5 text-left text-sm font-medium transition-colors',
+                        isSelected
+                          ? 'bg-primary/85 text-primary-foreground'
+                          : 'text-foreground hover:bg-accent/40',
+                        !isEnabled && 'text-muted-foreground'
                       )}
-
-                      {hasPlayStrategy && (
-                        <FormRow label='Play Strategy'>
-                          <Select
-                            value={clip?.playStrategy ?? 'loop'}
-                            onValueChange={(v) =>
-                              updateClipField(kind, 'playStrategy', v)
-                            }
-                            disabled={readOnly}
-                          >
-                            <SelectTrigger className='h-8 text-xs'>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {PLAY_STRATEGY_OPTIONS.map((opt) => (
-                                <SelectItem
-                                  key={opt.value}
-                                  value={opt.value}
-                                  className='text-xs'
-                                >
-                                  {opt.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </FormRow>
-                      )}
-
-                      {hasEffect && (
-                        <FormRow label='Effect'>
-                          <Select
-                            value={
-                              clip?.effect ??
-                              (kind === 'Image' ? 'KennBurns' : 'fade-in-out')
-                            }
-                            onValueChange={(v) =>
-                              updateClipField(kind, 'effect', v)
-                            }
-                            disabled={readOnly}
-                          >
-                            <SelectTrigger className='h-8 text-xs'>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(kind === 'Image'
-                                ? IMAGE_EFFECT_OPTIONS
-                                : TEXT_EFFECT_OPTIONS
-                              ).map((opt) => (
-                                <SelectItem
-                                  key={opt.value}
-                                  value={opt.value}
-                                  className='text-xs'
-                                >
-                                  {opt.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </FormRow>
-                      )}
-                    </div>
+                    >
+                      {kind}
+                    </button>
                   );
-                }
-              )}
-            </div>
-          </FormSection>
+                })}
+              </div>
+            </aside>
+
+            <section className='min-w-0 overflow-y-auto px-4 py-3'>
+              <div className='w-[344px] max-w-full space-y-3'>
+                {selectedTrackSupportsTiming && (
+                  <div className='grid grid-cols-[104px_minmax(0,1fr)] items-center gap-x-4'>
+                    <label className='text-xs text-muted-foreground'>
+                      Timing role
+                    </label>
+                    <Select
+                      value={selectedTrackRole}
+                      onValueChange={(value) =>
+                        updateTrackRole(selectedTrack, value as TimingRole)
+                      }
+                      disabled={readOnly || !selectedTrackEnabled}
+                    >
+                      <SelectTrigger className='h-8 w-full text-xs'>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value='none' className='text-xs'>
+                          None
+                        </SelectItem>
+                        <SelectItem value='primary' className='text-xs'>
+                          Primary
+                        </SelectItem>
+                        <SelectItem
+                          value='fallback'
+                          className='text-xs'
+                          disabled={
+                            !primaryMaster || primaryMaster === selectedTrack
+                          }
+                        >
+                          Fallback
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {selectedTrackEnabled && selectedTrackSupportsVolume && (
+                  <div className='grid grid-cols-[104px_minmax(0,1fr)] gap-x-4 gap-y-1.5'>
+                    <label className='self-end text-xs text-muted-foreground'>
+                      Volume
+                    </label>
+                    <span className='w-full text-right font-mono text-xs text-muted-foreground'>
+                      {selectedVolume.toFixed(2)}
+                    </span>
+                    <div className='col-start-2'>
+                      <Slider
+                        className='w-full'
+                        value={[selectedVolume]}
+                        onValueChange={([v]) =>
+                          updateClipField(selectedTrack, 'volume', v)
+                        }
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        disabled={readOnly}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {selectedTrackEnabled && selectedTrackSupportsPlayStrategy && (
+                  <div className='grid grid-cols-[104px_minmax(0,1fr)] items-center gap-x-4'>
+                    <label className='text-xs text-muted-foreground'>
+                      Play strategy
+                    </label>
+                    <Select
+                      value={selectedPlayStrategy}
+                      onValueChange={(value) =>
+                        updateClipField(selectedTrack, 'playStrategy', value)
+                      }
+                      disabled={readOnly}
+                    >
+                      <SelectTrigger className='h-8 w-full text-xs'>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PLAY_STRATEGY_OPTIONS.map((opt) => (
+                          <SelectItem
+                            key={opt.value}
+                            value={opt.value}
+                            className='text-xs'
+                          >
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {selectedTrackEnabled && selectedTrackSupportsEffect && (
+                  <div className='grid grid-cols-[104px_minmax(0,1fr)] items-center gap-x-4'>
+                    <label className='text-xs text-muted-foreground'>
+                      Effect
+                    </label>
+                    <Select
+                      value={selectedEffect}
+                      onValueChange={(value) =>
+                        updateClipField(selectedTrack, 'effect', value)
+                      }
+                      disabled={readOnly}
+                    >
+                      <SelectTrigger className='h-8 w-full text-xs'>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(selectedTrack === 'Image'
+                          ? IMAGE_EFFECT_OPTIONS
+                          : TEXT_EFFECT_OPTIONS
+                        ).map((opt) => (
+                          <SelectItem
+                            key={opt.value}
+                            value={opt.value}
+                            className='text-xs'
+                          >
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className='border-t px-6 py-4'>
           {readOnly ? (
             <Button variant='outline' onClick={handleCancel}>
               Close
@@ -635,41 +725,5 @@ function TimelineEditDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-// ============================================================================
-// Form Helper Components
-// ============================================================================
-
-interface FormSectionProps {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  children: React.ReactNode;
-}
-
-function FormSection({ icon: Icon, label, children }: FormSectionProps) {
-  return (
-    <div className='space-y-3'>
-      <div className='flex items-center gap-2 text-sm font-medium text-foreground'>
-        <Icon className='size-4' />
-        {label}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-interface FormRowProps {
-  label: string;
-  children: React.ReactNode;
-}
-
-function FormRow({ label, children }: FormRowProps) {
-  return (
-    <div className='space-y-1.5'>
-      <label className='text-xs text-muted-foreground'>{label}</label>
-      {children}
-    </div>
   );
 }
