@@ -31,7 +31,7 @@ function materializeSchemaDefault(schema: SchemaProperty | undefined): unknown {
   return undefined;
 }
 
-export function resolveObjectDefaults<T extends Record<string, unknown>>(
+export function resolveObjectDefaults<T extends object>(
   schema: SchemaProperty | undefined
 ): T {
   const defaults = materializeSchemaDefault(schema);

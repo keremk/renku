@@ -107,6 +107,19 @@ describe('TextCard', () => {
   });
 
   describe('Rendering', () => {
+    it('renders safely when schema has no defaults', () => {
+      const { container } = render(
+        <TextCard
+          value={undefined}
+          schema={{ type: 'object' }}
+          isEditable={false}
+        />
+      );
+
+      expect(container.textContent).toContain('Text Overlay');
+      expect(container.textContent).toContain('Middle Center');
+    });
+
     it('renders the text preview with merged config', () => {
       const { container } = render(
         <TextCard

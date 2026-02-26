@@ -60,43 +60,45 @@ export function ObjectArraySection({
 
     const loadAndClassify = async () => {
       setIsLoading(true);
-      const results = await Promise.all(
-        subGroup.artifacts.map(async (artifact) => {
-          const label = getArtifactLabel(artifact.id, subGroup);
+      const results: ClassifiedArtifact[] = await Promise.all(
+        subGroup.artifacts.map(
+          async (artifact): Promise<ClassifiedArtifact> => {
+            const label = getArtifactLabel(artifact.id, subGroup);
 
-          // Non-text artifacts go to content grid
-          const isText =
-            artifact.mimeType.startsWith('text/') ||
-            artifact.mimeType === 'application/json';
+            // Non-text artifacts go to content grid
+            const isText =
+              artifact.mimeType.startsWith('text/') ||
+              artifact.mimeType === 'application/json';
 
-          if (
-            !isText ||
-            artifact.status === 'failed' ||
-            artifact.status === 'skipped'
-          ) {
-            return {
-              artifact,
-              content: '',
-              displayType: null,
-              label,
-            };
+            if (
+              !isText ||
+              artifact.status === 'failed' ||
+              artifact.status === 'skipped'
+            ) {
+              return {
+                artifact,
+                content: '',
+                displayType: null,
+                label,
+              };
+            }
+
+            const url = getBlobUrl(blueprintFolder, movieId, artifact.hash);
+            try {
+              const res = await fetch(url);
+              const text = await res.text();
+              const displayType = inferDisplayType(text);
+              return { artifact, content: text, displayType, label };
+            } catch {
+              return {
+                artifact,
+                content: 'Failed to load',
+                displayType: 'text',
+                label,
+              };
+            }
           }
-
-          const url = getBlobUrl(blueprintFolder, movieId, artifact.hash);
-          try {
-            const res = await fetch(url);
-            const text = await res.text();
-            const displayType = inferDisplayType(text);
-            return { artifact, content: text, displayType, label };
-          } catch {
-            return {
-              artifact,
-              content: 'Failed to load',
-              displayType: 'text',
-              label,
-            };
-          }
-        })
+        )
       );
 
       if (!cancelled) {

@@ -1,9 +1,9 @@
-import { useSyncExternalStore } from "react";
+import { useSyncExternalStore } from 'react';
 
 function subscribe(callback: () => void) {
-  window.addEventListener("popstate", callback);
+  window.addEventListener('popstate', callback);
   return () => {
-    window.removeEventListener("popstate", callback);
+    window.removeEventListener('popstate', callback);
   };
 }
 
@@ -27,15 +27,15 @@ export interface BlueprintRouteParams {
 function parseBlueprintRoute(href: string): BlueprintRouteParams | null {
   try {
     const url = new URL(href);
-    if (!url.pathname.startsWith("/blueprints")) {
+    if (!url.pathname.startsWith('/blueprints')) {
       return null;
     }
 
-    const blueprintName = url.searchParams.get("bp");
-    const inputsFilename = url.searchParams.get("in");
-    const movieId = url.searchParams.get("movie");
-    const selectedBuildId = url.searchParams.get("build");
-    const useLast = url.searchParams.get("last") === "1";
+    const blueprintName = url.searchParams.get('bp');
+    const inputsFilename = url.searchParams.get('in');
+    const movieId = url.searchParams.get('movie');
+    const selectedBuildId = url.searchParams.get('build');
+    const useLast = url.searchParams.get('last') === '1';
 
     if (!blueprintName) {
       return null;
@@ -54,28 +54,28 @@ function parseBlueprintRoute(href: string): BlueprintRouteParams | null {
 }
 
 export function useBlueprintRoute(): BlueprintRouteParams | null {
-  const href = useSyncExternalStore(subscribe, getSnapshot, () => "");
+  const href = useSyncExternalStore(subscribe, getSnapshot, () => '');
   return parseBlueprintRoute(href);
 }
 
 export function isBlueprintRoute(): boolean {
-  return window.location.pathname.startsWith("/blueprints");
+  return window.location.pathname.startsWith('/blueprints');
 }
 
 /**
  * Switches to a different blueprint by updating the URL.
- * Sets last=1 so the most recent build is auto-selected once builds load.
  * Clears build, movie, and inputs params since they belong to the previous blueprint.
+ * Build selection is intentionally left empty to avoid cross-blueprint side effects.
  */
 export function switchBlueprint(name: string): void {
   const url = new URL(window.location.href);
-  url.searchParams.set("bp", name);
-  url.searchParams.set("last", "1");
-  url.searchParams.delete("build");
-  url.searchParams.delete("movie");
-  url.searchParams.delete("in");
-  window.history.pushState({}, "", url.toString());
-  window.dispatchEvent(new PopStateEvent("popstate"));
+  url.searchParams.set('bp', name);
+  url.searchParams.delete('last');
+  url.searchParams.delete('build');
+  url.searchParams.delete('movie');
+  url.searchParams.delete('in');
+  window.history.pushState({}, '', url.toString());
+  window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
 /**
@@ -84,9 +84,9 @@ export function switchBlueprint(name: string): void {
  */
 export function clearLastFlag(): void {
   const url = new URL(window.location.href);
-  if (url.searchParams.has("last")) {
-    url.searchParams.delete("last");
-    window.history.replaceState({}, "", url.toString());
+  if (url.searchParams.has('last')) {
+    url.searchParams.delete('last');
+    window.history.replaceState({}, '', url.toString());
   }
 }
 
@@ -97,11 +97,11 @@ export function clearLastFlag(): void {
 export function updateBlueprintRoute(buildId: string | null): void {
   const url = new URL(window.location.href);
   if (buildId) {
-    url.searchParams.set("build", buildId);
+    url.searchParams.set('build', buildId);
   } else {
-    url.searchParams.delete("build");
+    url.searchParams.delete('build');
   }
-  window.history.pushState({}, "", url.toString());
+  window.history.pushState({}, '', url.toString());
   // Dispatch popstate to trigger re-render
-  window.dispatchEvent(new PopStateEvent("popstate"));
+  window.dispatchEvent(new PopStateEvent('popstate'));
 }

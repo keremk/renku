@@ -1,10 +1,10 @@
-import { useMemo } from "react";
+import { useMemo } from 'react';
 import type {
   ConfigProperty,
   ModelSelectionValue,
   NestedModelConfigSchema,
   ProducerConfigSchemas,
-} from "@/types/blueprint-graph";
+} from '@/types/blueprint-graph';
 
 export interface UseProducerConfigStateOptions {
   /** Config schemas from API */
@@ -19,7 +19,34 @@ export interface UseProducerConfigStateResult {
   /** Config values for each producer from current selections */
   configValuesByProducer: Record<string, Record<string, unknown>>;
   /** Get nested model schemas for a producer (if any) */
-  getNestedModelSchemas: (producerId: string) => NestedModelConfigSchema[] | undefined;
+  getNestedModelSchemas: (
+    producerId: string
+  ) => NestedModelConfigSchema[] | undefined;
+}
+
+const LEGACY_TIMELINE_CONFIG_KEYS = [
+  'tracks',
+  'masterTracks',
+  'imageClip',
+  'videoClip',
+  'audioClip',
+  'musicClip',
+  'transcriptionClip',
+  'textClip',
+] as const;
+
+function extractLegacyTimelineConfig(
+  config: Record<string, unknown>
+): Record<string, unknown> | null {
+  const timeline: Record<string, unknown> = {};
+
+  for (const key of LEGACY_TIMELINE_CONFIG_KEYS) {
+    if (config[key] !== undefined) {
+      timeline[key] = config[key];
+    }
+  }
+
+  return Object.keys(timeline).length > 0 ? timeline : null;
 }
 
 /**
@@ -37,12 +64,16 @@ export function useProducerConfigState(
   const { configSchemas, currentSelections } = options;
 
   // Compute config properties for each producer based on current model selection
-  const configPropertiesByProducer = useMemo<Record<string, ConfigProperty[]>>(() => {
+  const configPropertiesByProducer = useMemo<
+    Record<string, ConfigProperty[]>
+  >(() => {
     const result: Record<string, ConfigProperty[]> = {};
 
     for (const [producerId, schemas] of Object.entries(configSchemas)) {
       // Find current model selection for this producer
-      const selection = currentSelections.find((s) => s.producerId === producerId);
+      const selection = currentSelections.find(
+        (s) => s.producerId === producerId
+      );
       if (!selection) {
         continue;
       }
@@ -58,17 +89,17 @@ export function useProducerConfigState(
 
         for (const nestedModel of schemas.nestedModels) {
           // Get nested provider/model from selection config
-          const nestedConfig = selection.config?.[nestedModel.declaration.configPath] as
-            | Record<string, unknown>
-            | undefined;
+          const nestedConfig = selection.config?.[
+            nestedModel.declaration.configPath
+          ] as Record<string, unknown> | undefined;
 
           if (nestedConfig) {
-            const nestedProvider = nestedConfig[nestedModel.declaration.providerField] as
-              | string
-              | undefined;
-            const nestedModelName = nestedConfig[nestedModel.declaration.modelField] as
-              | string
-              | undefined;
+            const nestedProvider = nestedConfig[
+              nestedModel.declaration.providerField
+            ] as string | undefined;
+            const nestedModelName = nestedConfig[
+              nestedModel.declaration.modelField
+            ] as string | undefined;
 
             if (nestedProvider && nestedModelName) {
               // Look up nested model schema
@@ -99,7 +130,9 @@ export function useProducerConfigState(
   }, [configSchemas, currentSelections]);
 
   // Compute config values for each producer from model selection configs
-  const configValuesByProducer = useMemo<Record<string, Record<string, unknown>>>(() => {
+  const configValuesByProducer = useMemo<
+    Record<string, Record<string, unknown>>
+  >(() => {
     const result: Record<string, Record<string, unknown>> = {};
 
     for (const selection of currentSelections) {
@@ -111,14 +144,21 @@ export function useProducerConfigState(
       const flatConfig: Record<string, unknown> = {};
 
       for (const [key, value] of Object.entries(selection.config)) {
-        if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+        if (
+          typeof value === 'object' &&
+          value !== null &&
+          !Array.isArray(value)
+        ) {
           // Check if this is a nested model config (has provider/model)
           const nested = value as Record<string, unknown>;
-          if (typeof nested.provider === "string" && typeof nested.model === "string") {
+          if (
+            typeof nested.provider === 'string' &&
+            typeof nested.model === 'string'
+          ) {
             // This is a nested model config - flatten its properties
             for (const [nestedKey, nestedValue] of Object.entries(nested)) {
               // Skip provider/model - these are displayed separately in the nested model selector
-              if (nestedKey === "provider" || nestedKey === "model") {
+              if (nestedKey === 'provider' || nestedKey === 'model') {
                 continue;
               }
               flatConfig[`${key}.${nestedKey}`] = nestedValue;
@@ -132,13 +172,27 @@ export function useProducerConfigState(
         }
       }
 
+      const producerSchemas = configSchemas[selection.producerId];
+      const modelKey = `${selection.provider}/${selection.model}`;
+      const modelSchema = producerSchemas?.modelSchemas[modelKey];
+      const hasTimelineProperty =
+        modelSchema?.properties.some((prop) => prop.key === 'timeline') ??
+        false;
+
+      if (hasTimelineProperty && flatConfig.timeline === undefined) {
+        const legacyTimeline = extractLegacyTimelineConfig(selection.config);
+        if (legacyTimeline) {
+          flatConfig.timeline = legacyTimeline;
+        }
+      }
+
       if (Object.keys(flatConfig).length > 0) {
         result[selection.producerId] = flatConfig;
       }
     }
 
     return result;
-  }, [currentSelections]);
+  }, [currentSelections, configSchemas]);
 
   // Function to get nested model schemas for a producer
   const getNestedModelSchemas = useMemo(() => {

@@ -28,6 +28,14 @@ export function reconcileBuildSelection({
   }
 
   if (!selectedBuildId) {
+    if (builds.length > 0) {
+      return {
+        nextBuildId: latestBuildId,
+        shouldUpdateSelection: true,
+        clearLastFlag: false,
+      };
+    }
+
     return {
       nextBuildId: null,
       shouldUpdateSelection: false,

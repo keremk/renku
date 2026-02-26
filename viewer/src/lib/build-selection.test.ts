@@ -56,7 +56,7 @@ describe('reconcileBuildSelection', () => {
     });
   });
 
-  it('preserves manual deselection when no build is selected and last flag is not set', () => {
+  it('auto-selects latest build when no build is selected and last flag is not set', () => {
     const result = reconcileBuildSelection({
       builds: [makeBuild('movie-latest')],
       selectedBuildId: null,
@@ -64,8 +64,22 @@ describe('reconcileBuildSelection', () => {
     });
 
     expect(result).toEqual({
-      nextBuildId: null,
-      shouldUpdateSelection: false,
+      nextBuildId: 'movie-latest',
+      shouldUpdateSelection: true,
+      clearLastFlag: false,
+    });
+  });
+
+  it('auto-selects latest when multiple builds exist and no selection', () => {
+    const result = reconcileBuildSelection({
+      builds: [makeBuild('movie-latest'), makeBuild('movie-older')],
+      selectedBuildId: null,
+      useLast: false,
+    });
+
+    expect(result).toEqual({
+      nextBuildId: 'movie-latest',
+      shouldUpdateSelection: true,
       clearLastFlag: false,
     });
   });

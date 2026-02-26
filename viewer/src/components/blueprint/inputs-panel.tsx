@@ -79,11 +79,17 @@ export function InputsPanel({
   );
   const [internalValues, setInternalValues] =
     useState<Record<string, unknown>>(initialValueMap);
+  const [hasUserChanges, setHasUserChanges] = useState(false);
+
+  const saveScopeKey = useMemo(() => {
+    return `${blueprintFolder ?? 'no-folder'}:${movieId ?? 'no-movie'}`;
+  }, [blueprintFolder, movieId]);
 
   // Reset internal state when initialValueMap changes
   // Using the serialized key as dependency ensures we only reset on actual data changes
   useEffect(() => {
     setInternalValues(initialValueMap);
+    setHasUserChanges(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialValueKey]);
 
@@ -102,8 +108,10 @@ export function InputsPanel({
     data: internalValues,
     onSave: handleSave,
     debounceMs: 1000,
-    enabled: isEditable && !!onSave,
+    enabled: isEditable && !!onSave && hasUserChanges,
     initialData: initialValueMap,
+    resetKey: saveScopeKey,
+    saveOnUnmount: false,
   });
 
   // Get the current value for an input
@@ -116,6 +124,7 @@ export function InputsPanel({
 
   // Handle value change
   const handleValueChange = useCallback((name: string, value: unknown) => {
+    setHasUserChanges(true);
     setInternalValues((prev) => ({
       ...prev,
       [name]: value,

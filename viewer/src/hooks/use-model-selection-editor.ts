@@ -1,5 +1,16 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import type { ModelSelectionValue } from "@/types/blueprint-graph";
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import type { ModelSelectionValue } from '@/types/blueprint-graph';
+
+const LEGACY_TIMELINE_CONFIG_KEYS = [
+  'tracks',
+  'masterTracks',
+  'imageClip',
+  'videoClip',
+  'audioClip',
+  'musicClip',
+  'transcriptionClip',
+  'textClip',
+] as const;
 
 export interface UseModelSelectionEditorOptions {
   /** The saved/persisted model selections (from API) */
@@ -125,10 +136,20 @@ export function useModelSelectionEditor({
 
         if (!existing) return prev;
 
+        const existingConfig = {
+          ...(existing.config ?? {}),
+        };
+
+        if (key === 'timeline') {
+          for (const legacyKey of LEGACY_TIMELINE_CONFIG_KEYS) {
+            delete existingConfig[legacyKey];
+          }
+        }
+
         const updated: ModelSelectionValue = {
           ...existing,
           config: {
-            ...(existing.config ?? {}),
+            ...existingConfig,
             [key]: value,
           },
         };
@@ -170,9 +191,7 @@ export function useModelSelectionEditor({
       }
     } catch (error) {
       if (isMountedRef.current) {
-        setLastError(
-          error instanceof Error ? error : new Error(String(error))
-        );
+        setLastError(error instanceof Error ? error : new Error(String(error)));
       }
     } finally {
       if (isMountedRef.current) {

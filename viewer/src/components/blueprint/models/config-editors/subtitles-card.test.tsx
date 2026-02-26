@@ -129,6 +129,19 @@ describe('SubtitlesCard', () => {
   });
 
   describe('Rendering', () => {
+    it('renders safely when schema has no defaults', () => {
+      const { container } = render(
+        <SubtitlesCard
+          value={undefined}
+          schema={{ type: 'object' }}
+          isEditable={false}
+        />
+      );
+
+      expect(container.textContent).toContain('Subtitles');
+      expect(container.textContent).toContain('Bottom Center');
+    });
+
     it('renders the subtitle preview with merged config', () => {
       const { container } = render(
         <SubtitlesCard

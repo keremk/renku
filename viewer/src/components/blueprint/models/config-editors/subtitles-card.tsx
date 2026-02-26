@@ -91,6 +91,19 @@ const POSITION_OPTIONS: Array<{ value: OverlayPosition; label: string }> = [
   { value: 'bottom-right', label: 'Bottom Right' },
 ];
 
+const FALLBACK_SUBTITLE_CONFIG: Required<SubtitleConfig> = {
+  font: 'Arial',
+  fontSize: 48,
+  fontBaseColor: '#FFFFFF',
+  fontHighlightColor: '#FFD700',
+  backgroundColor: '#000000',
+  backgroundOpacity: 0,
+  position: 'bottom-center',
+  edgePaddingPercent: 8,
+  maxWordsPerLine: 4,
+  highlightEffect: true,
+};
+
 export type SubtitlesCardProps = ConfigEditorProps<SubtitleConfig>;
 
 /**
@@ -111,7 +124,11 @@ export function SubtitlesCard({
   );
 
   const config = useMemo(() => {
-    return { ...defaultConfig, ...value };
+    return {
+      ...FALLBACK_SUBTITLE_CONFIG,
+      ...defaultConfig,
+      ...value,
+    };
   }, [defaultConfig, value]);
 
   const handleSave = useCallback(
@@ -228,20 +245,23 @@ function SubtitlesPreview({ config }: SubtitlesPreviewProps) {
 
 interface ColorSwatchProps {
   label: string;
-  color: string;
+  color?: string;
   opacity?: number;
 }
 
 function ColorSwatch({ label, color, opacity }: ColorSwatchProps) {
-  const displayOpacity = opacity !== undefined ? opacity : 1;
-  const hexDisplay = color.toUpperCase();
+  const displayOpacity = opacity ?? 1;
+  const swatchColor =
+    typeof color === 'string' && color.length > 0 ? color : '#000000';
+  const hexDisplay =
+    typeof color === 'string' && color.length > 0 ? color.toUpperCase() : 'N/A';
 
   return (
     <div className='flex items-center gap-1.5 bg-muted/50 rounded px-2 py-1'>
       <div
         className='size-4 rounded border border-border/50'
         style={{
-          backgroundColor: color,
+          backgroundColor: swatchColor,
           opacity: displayOpacity,
         }}
       />
@@ -621,7 +641,10 @@ function ColorPickerRow({ value, onChange, disabled }: ColorPickerRowProps) {
   );
 }
 
-function formatPositionLabel(value: OverlayPosition): string {
+function formatPositionLabel(value: OverlayPosition | undefined): string {
+  if (!value) {
+    return 'Unspecified';
+  }
   return value
     .split('-')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))

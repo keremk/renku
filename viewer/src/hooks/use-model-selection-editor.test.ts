@@ -1,22 +1,22 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
-import { useModelSelectionEditor } from "./use-model-selection-editor";
-import type { ModelSelectionValue } from "@/types/blueprint-graph";
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderHook, act } from '@testing-library/react';
+import { useModelSelectionEditor } from './use-model-selection-editor';
+import type { ModelSelectionValue } from '@/types/blueprint-graph';
 
 // Test data factory
 function makeSelection(
   producerId: string,
-  provider = "openai",
-  model = "gpt-4",
+  provider = 'openai',
+  model = 'gpt-4',
   config?: Record<string, unknown>
 ): ModelSelectionValue {
   return { producerId, provider, model, config };
 }
 
-describe("useModelSelectionEditor", () => {
+describe('useModelSelectionEditor', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -26,9 +26,9 @@ describe("useModelSelectionEditor", () => {
     vi.restoreAllMocks();
   });
 
-  describe("initial state", () => {
-    it("returns savedSelections as currentSelections initially", () => {
-      const saved = [makeSelection("producer1"), makeSelection("producer2")];
+  describe('initial state', () => {
+    it('returns savedSelections as currentSelections initially', () => {
+      const saved = [makeSelection('producer1'), makeSelection('producer2')];
       const onSave = vi.fn();
 
       const { result } = renderHook(() =>
@@ -41,8 +41,8 @@ describe("useModelSelectionEditor", () => {
       expect(result.current.lastError).toBeNull();
     });
 
-    it("starts with isDirty false", () => {
-      const saved = [makeSelection("producer1")];
+    it('starts with isDirty false', () => {
+      const saved = [makeSelection('producer1')];
       const onSave = vi.fn();
 
       const { result } = renderHook(() =>
@@ -53,9 +53,9 @@ describe("useModelSelectionEditor", () => {
     });
   });
 
-  describe("updateSelection", () => {
-    it("updates currentSelections immediately", () => {
-      const saved = [makeSelection("producer1", "openai", "gpt-4")];
+  describe('updateSelection', () => {
+    it('updates currentSelections immediately', () => {
+      const saved = [makeSelection('producer1', 'openai', 'gpt-4')];
       const onSave = vi.fn();
 
       const { result } = renderHook(() =>
@@ -64,16 +64,16 @@ describe("useModelSelectionEditor", () => {
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
-      expect(result.current.currentSelections[0].provider).toBe("anthropic");
-      expect(result.current.currentSelections[0].model).toBe("claude-3");
+      expect(result.current.currentSelections[0].provider).toBe('anthropic');
+      expect(result.current.currentSelections[0].model).toBe('claude-3');
     });
 
-    it("sets isDirty to true after update", () => {
-      const saved = [makeSelection("producer1")];
+    it('sets isDirty to true after update', () => {
+      const saved = [makeSelection('producer1')];
       const onSave = vi.fn();
 
       const { result } = renderHook(() =>
@@ -84,17 +84,17 @@ describe("useModelSelectionEditor", () => {
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
       expect(result.current.isDirty).toBe(true);
     });
 
-    it("preserves other selections when updating one", () => {
+    it('preserves other selections when updating one', () => {
       const saved = [
-        makeSelection("producer1", "openai", "gpt-4"),
-        makeSelection("producer2", "replicate", "llama"),
+        makeSelection('producer1', 'openai', 'gpt-4'),
+        makeSelection('producer2', 'replicate', 'llama'),
       ];
       const onSave = vi.fn();
 
@@ -104,17 +104,17 @@ describe("useModelSelectionEditor", () => {
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
-      expect(result.current.currentSelections[0].provider).toBe("anthropic");
-      expect(result.current.currentSelections[1].provider).toBe("replicate");
+      expect(result.current.currentSelections[0].provider).toBe('anthropic');
+      expect(result.current.currentSelections[1].provider).toBe('replicate');
     });
 
-    it("clears config when model changes", () => {
+    it('clears config when model changes', () => {
       const saved = [
-        makeSelection("producer1", "openai", "dall-e-3", { quality: "hd" }),
+        makeSelection('producer1', 'openai', 'dall-e-3', { quality: 'hd' }),
       ];
       const onSave = vi.fn();
 
@@ -124,7 +124,7 @@ describe("useModelSelectionEditor", () => {
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "replicate", "sdxl", {})
+          makeSelection('producer1', 'replicate', 'sdxl', {})
         );
       });
 
@@ -132,9 +132,9 @@ describe("useModelSelectionEditor", () => {
     });
   });
 
-  describe("updateConfig", () => {
-    it("updates config property in currentSelections", () => {
-      const saved = [makeSelection("producer1", "openai", "dall-e-3")];
+  describe('updateConfig', () => {
+    it('updates config property in currentSelections', () => {
+      const saved = [makeSelection('producer1', 'openai', 'dall-e-3')];
       const onSave = vi.fn();
 
       const { result } = renderHook(() =>
@@ -142,17 +142,17 @@ describe("useModelSelectionEditor", () => {
       );
 
       act(() => {
-        result.current.updateConfig("producer1", "quality", "hd");
+        result.current.updateConfig('producer1', 'quality', 'hd');
       });
 
-      expect(result.current.currentSelections[0].config?.quality).toBe("hd");
+      expect(result.current.currentSelections[0].config?.quality).toBe('hd');
     });
 
-    it("preserves other config properties", () => {
+    it('preserves other config properties', () => {
       const saved = [
-        makeSelection("producer1", "openai", "dall-e-3", {
-          quality: "standard",
-          size: "1024x1024",
+        makeSelection('producer1', 'openai', 'dall-e-3', {
+          quality: 'standard',
+          size: '1024x1024',
         }),
       ];
       const onSave = vi.fn();
@@ -162,17 +162,24 @@ describe("useModelSelectionEditor", () => {
       );
 
       act(() => {
-        result.current.updateConfig("producer1", "quality", "hd");
+        result.current.updateConfig('producer1', 'quality', 'hd');
       });
 
       expect(result.current.currentSelections[0].config).toEqual({
-        quality: "hd",
-        size: "1024x1024",
+        quality: 'hd',
+        size: '1024x1024',
       });
     });
 
-    it("sets isDirty to true after config change", () => {
-      const saved = [makeSelection("producer1")];
+    it('removes legacy timeline root keys when timeline config is updated', () => {
+      const saved = [
+        makeSelection('TimelineComposer', 'renku', 'timeline/ordered', {
+          tracks: ['Video', 'Audio'],
+          masterTracks: ['Audio'],
+          videoClip: { artifact: 'VideoSegments' },
+          musicClip: { artifact: 'Music', volume: 0.4 },
+        }),
+      ];
       const onSave = vi.fn();
 
       const { result } = renderHook(() =>
@@ -180,14 +187,41 @@ describe("useModelSelectionEditor", () => {
       );
 
       act(() => {
-        result.current.updateConfig("producer1", "temperature", 0.7);
+        result.current.updateConfig('TimelineComposer', 'timeline', {
+          tracks: ['Video', 'Music'],
+          masterTracks: ['Video'],
+          videoClip: { artifact: 'VideoSegments' },
+          musicClip: { artifact: 'Music', volume: 0.3 },
+        });
+      });
+
+      expect(result.current.currentSelections[0].config).toEqual({
+        timeline: {
+          tracks: ['Video', 'Music'],
+          masterTracks: ['Video'],
+          videoClip: { artifact: 'VideoSegments' },
+          musicClip: { artifact: 'Music', volume: 0.3 },
+        },
+      });
+    });
+
+    it('sets isDirty to true after config change', () => {
+      const saved = [makeSelection('producer1')];
+      const onSave = vi.fn();
+
+      const { result } = renderHook(() =>
+        useModelSelectionEditor({ savedSelections: saved, onSave })
+      );
+
+      act(() => {
+        result.current.updateConfig('producer1', 'temperature', 0.7);
       });
 
       expect(result.current.isDirty).toBe(true);
     });
 
-    it("works when producer has existing edits", () => {
-      const saved = [makeSelection("producer1", "openai", "gpt-4")];
+    it('works when producer has existing edits', () => {
+      const saved = [makeSelection('producer1', 'openai', 'gpt-4')];
       const onSave = vi.fn();
 
       const { result } = renderHook(() =>
@@ -197,21 +231,21 @@ describe("useModelSelectionEditor", () => {
       // First update model
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
       // Then update config
       act(() => {
-        result.current.updateConfig("producer1", "temperature", 0.5);
+        result.current.updateConfig('producer1', 'temperature', 0.5);
       });
 
-      expect(result.current.currentSelections[0].provider).toBe("anthropic");
+      expect(result.current.currentSelections[0].provider).toBe('anthropic');
       expect(result.current.currentSelections[0].config?.temperature).toBe(0.5);
     });
 
-    it("ignores update for unknown producer", () => {
-      const saved = [makeSelection("producer1")];
+    it('ignores update for unknown producer', () => {
+      const saved = [makeSelection('producer1')];
       const onSave = vi.fn();
 
       const { result } = renderHook(() =>
@@ -219,7 +253,7 @@ describe("useModelSelectionEditor", () => {
       );
 
       act(() => {
-        result.current.updateConfig("unknown", "key", "value");
+        result.current.updateConfig('unknown', 'key', 'value');
       });
 
       // Should not crash, selections unchanged
@@ -228,9 +262,9 @@ describe("useModelSelectionEditor", () => {
     });
   });
 
-  describe("save", () => {
-    it("calls onSave with merged selections", async () => {
-      const saved = [makeSelection("producer1", "openai", "gpt-4")];
+  describe('save', () => {
+    it('calls onSave with merged selections', async () => {
+      const saved = [makeSelection('producer1', 'openai', 'gpt-4')];
       const onSave = vi.fn().mockResolvedValue(undefined);
 
       const { result } = renderHook(() =>
@@ -239,7 +273,7 @@ describe("useModelSelectionEditor", () => {
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -248,17 +282,17 @@ describe("useModelSelectionEditor", () => {
       });
 
       expect(onSave).toHaveBeenCalledWith([
-        expect.objectContaining({ provider: "anthropic", model: "claude-3" }),
+        expect.objectContaining({ provider: 'anthropic', model: 'claude-3' }),
       ]);
     });
 
-    it("sets isSaving during save", async () => {
+    it('sets isSaving during save', async () => {
       let resolvePromise: () => void;
       const savePromise = new Promise<void>((resolve) => {
         resolvePromise = resolve;
       });
       const onSave = vi.fn().mockReturnValue(savePromise);
-      const saved = [makeSelection("producer1")];
+      const saved = [makeSelection('producer1')];
 
       const { result } = renderHook(() =>
         useModelSelectionEditor({ savedSelections: saved, onSave })
@@ -266,7 +300,7 @@ describe("useModelSelectionEditor", () => {
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -287,8 +321,8 @@ describe("useModelSelectionEditor", () => {
       expect(result.current.isSaving).toBe(false);
     });
 
-    it("clears edits after successful save", async () => {
-      const saved = [makeSelection("producer1", "openai", "gpt-4")];
+    it('clears edits after successful save', async () => {
+      const saved = [makeSelection('producer1', 'openai', 'gpt-4')];
       const onSave = vi.fn().mockResolvedValue(undefined);
 
       const { result } = renderHook(() =>
@@ -297,7 +331,7 @@ describe("useModelSelectionEditor", () => {
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -310,10 +344,10 @@ describe("useModelSelectionEditor", () => {
       expect(result.current.isDirty).toBe(false);
     });
 
-    it("sets lastError on save failure", async () => {
-      const saveError = new Error("Save failed");
+    it('sets lastError on save failure', async () => {
+      const saveError = new Error('Save failed');
       const onSave = vi.fn().mockRejectedValue(saveError);
-      const saved = [makeSelection("producer1")];
+      const saved = [makeSelection('producer1')];
 
       const { result } = renderHook(() =>
         useModelSelectionEditor({ savedSelections: saved, onSave })
@@ -321,7 +355,7 @@ describe("useModelSelectionEditor", () => {
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -333,9 +367,9 @@ describe("useModelSelectionEditor", () => {
       expect(result.current.isDirty).toBe(true); // Still dirty after failure
     });
 
-    it("handles non-Error thrown values", async () => {
-      const onSave = vi.fn().mockRejectedValue("string error");
-      const saved = [makeSelection("producer1")];
+    it('handles non-Error thrown values', async () => {
+      const onSave = vi.fn().mockRejectedValue('string error');
+      const saved = [makeSelection('producer1')];
 
       const { result } = renderHook(() =>
         useModelSelectionEditor({ savedSelections: saved, onSave })
@@ -343,7 +377,7 @@ describe("useModelSelectionEditor", () => {
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -352,13 +386,13 @@ describe("useModelSelectionEditor", () => {
       });
 
       expect(result.current.lastError).toBeInstanceOf(Error);
-      expect(result.current.lastError?.message).toBe("string error");
+      expect(result.current.lastError?.message).toBe('string error');
     });
   });
 
-  describe("reset", () => {
-    it("clears all edits", () => {
-      const saved = [makeSelection("producer1", "openai", "gpt-4")];
+  describe('reset', () => {
+    it('clears all edits', () => {
+      const saved = [makeSelection('producer1', 'openai', 'gpt-4')];
       const onSave = vi.fn();
 
       const { result } = renderHook(() =>
@@ -367,7 +401,7 @@ describe("useModelSelectionEditor", () => {
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -381,9 +415,9 @@ describe("useModelSelectionEditor", () => {
       expect(result.current.currentSelections).toEqual(saved);
     });
 
-    it("clears lastError", async () => {
-      const onSave = vi.fn().mockRejectedValue(new Error("fail"));
-      const saved = [makeSelection("producer1")];
+    it('clears lastError', async () => {
+      const onSave = vi.fn().mockRejectedValue(new Error('fail'));
+      const saved = [makeSelection('producer1')];
 
       const { result } = renderHook(() =>
         useModelSelectionEditor({ savedSelections: saved, onSave })
@@ -391,7 +425,7 @@ describe("useModelSelectionEditor", () => {
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -410,21 +444,22 @@ describe("useModelSelectionEditor", () => {
     });
   });
 
-  describe("savedSelections change", () => {
-    it("resets edits when savedSelections changes", () => {
-      const saved1 = [makeSelection("producer1", "openai", "gpt-4")];
-      const saved2 = [makeSelection("producer1", "replicate", "llama")];
+  describe('savedSelections change', () => {
+    it('resets edits when savedSelections changes', () => {
+      const saved1 = [makeSelection('producer1', 'openai', 'gpt-4')];
+      const saved2 = [makeSelection('producer1', 'replicate', 'llama')];
       const onSave = vi.fn();
 
       const { result, rerender } = renderHook(
-        ({ saved }) => useModelSelectionEditor({ savedSelections: saved, onSave }),
+        ({ saved }) =>
+          useModelSelectionEditor({ savedSelections: saved, onSave }),
         { initialProps: { saved: saved1 } }
       );
 
       // Make an edit
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -437,19 +472,20 @@ describe("useModelSelectionEditor", () => {
       expect(result.current.currentSelections).toEqual(saved2);
     });
 
-    it("does not reset edits when savedSelections is same value", () => {
-      const saved = [makeSelection("producer1", "openai", "gpt-4")];
+    it('does not reset edits when savedSelections is same value', () => {
+      const saved = [makeSelection('producer1', 'openai', 'gpt-4')];
       const onSave = vi.fn();
 
       const { result, rerender } = renderHook(
-        ({ saved }) => useModelSelectionEditor({ savedSelections: saved, onSave }),
+        ({ saved }) =>
+          useModelSelectionEditor({ savedSelections: saved, onSave }),
         { initialProps: { saved } }
       );
 
       // Make an edit
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -458,18 +494,18 @@ describe("useModelSelectionEditor", () => {
 
       // Edit should still be preserved
       expect(result.current.isDirty).toBe(true);
-      expect(result.current.currentSelections[0].provider).toBe("anthropic");
+      expect(result.current.currentSelections[0].provider).toBe('anthropic');
     });
   });
 
-  describe("unmount behavior", () => {
-    it("does not update state after unmount", async () => {
+  describe('unmount behavior', () => {
+    it('does not update state after unmount', async () => {
       let resolvePromise: () => void;
       const savePromise = new Promise<void>((resolve) => {
         resolvePromise = resolve;
       });
       const onSave = vi.fn().mockReturnValue(savePromise);
-      const saved = [makeSelection("producer1")];
+      const saved = [makeSelection('producer1')];
 
       const { result, unmount } = renderHook(() =>
         useModelSelectionEditor({ savedSelections: saved, onSave })
@@ -477,7 +513,7 @@ describe("useModelSelectionEditor", () => {
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -498,9 +534,9 @@ describe("useModelSelectionEditor", () => {
     });
   });
 
-  describe("isDirty edge cases", () => {
-    it("isDirty is false after editing back to original value", () => {
-      const saved = [makeSelection("producer1", "openai", "gpt-4")];
+  describe('isDirty edge cases', () => {
+    it('isDirty is false after editing back to original value', () => {
+      const saved = [makeSelection('producer1', 'openai', 'gpt-4')];
       const onSave = vi.fn();
 
       const { result } = renderHook(() =>
@@ -510,7 +546,7 @@ describe("useModelSelectionEditor", () => {
       // Edit to different value
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -519,7 +555,7 @@ describe("useModelSelectionEditor", () => {
       // Edit back to original
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "openai", "gpt-4")
+          makeSelection('producer1', 'openai', 'gpt-4')
         );
       });
 
@@ -527,19 +563,23 @@ describe("useModelSelectionEditor", () => {
     });
   });
 
-  describe("auto-save", () => {
-    it("triggers save after debounce period", async () => {
-      const saved = [makeSelection("producer1", "openai", "gpt-4")];
+  describe('auto-save', () => {
+    it('triggers save after debounce period', async () => {
+      const saved = [makeSelection('producer1', 'openai', 'gpt-4')];
       const onSave = vi.fn().mockResolvedValue(undefined);
 
       const { result } = renderHook(() =>
-        useModelSelectionEditor({ savedSelections: saved, onSave, debounceMs: 500 })
+        useModelSelectionEditor({
+          savedSelections: saved,
+          onSave,
+          debounceMs: 500,
+        })
       );
 
       // Make an edit
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -560,12 +600,12 @@ describe("useModelSelectionEditor", () => {
 
       expect(onSave).toHaveBeenCalledTimes(1);
       expect(onSave).toHaveBeenCalledWith([
-        expect.objectContaining({ provider: "anthropic", model: "claude-3" }),
+        expect.objectContaining({ provider: 'anthropic', model: 'claude-3' }),
       ]);
     });
 
-    it("uses default debounceMs of 1000", async () => {
-      const saved = [makeSelection("producer1", "openai", "gpt-4")];
+    it('uses default debounceMs of 1000', async () => {
+      const saved = [makeSelection('producer1', 'openai', 'gpt-4')];
       const onSave = vi.fn().mockResolvedValue(undefined);
 
       const { result } = renderHook(() =>
@@ -574,7 +614,7 @@ describe("useModelSelectionEditor", () => {
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -593,18 +633,22 @@ describe("useModelSelectionEditor", () => {
       expect(onSave).toHaveBeenCalledTimes(1);
     });
 
-    it("debounces multiple rapid updates into single save", async () => {
-      const saved = [makeSelection("producer1", "openai", "gpt-4")];
+    it('debounces multiple rapid updates into single save', async () => {
+      const saved = [makeSelection('producer1', 'openai', 'gpt-4')];
       const onSave = vi.fn().mockResolvedValue(undefined);
 
       const { result } = renderHook(() =>
-        useModelSelectionEditor({ savedSelections: saved, onSave, debounceMs: 500 })
+        useModelSelectionEditor({
+          savedSelections: saved,
+          onSave,
+          debounceMs: 500,
+        })
       );
 
       // Make multiple rapid edits
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -614,7 +658,7 @@ describe("useModelSelectionEditor", () => {
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "replicate", "llama")
+          makeSelection('producer1', 'replicate', 'llama')
         );
       });
 
@@ -624,7 +668,7 @@ describe("useModelSelectionEditor", () => {
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "openai", "gpt-4o")
+          makeSelection('producer1', 'openai', 'gpt-4o')
         );
       });
 
@@ -639,21 +683,25 @@ describe("useModelSelectionEditor", () => {
       // Only one save call with final value
       expect(onSave).toHaveBeenCalledTimes(1);
       expect(onSave).toHaveBeenCalledWith([
-        expect.objectContaining({ provider: "openai", model: "gpt-4o" }),
+        expect.objectContaining({ provider: 'openai', model: 'gpt-4o' }),
       ]);
     });
 
-    it("manual save() cancels pending auto-save", async () => {
-      const saved = [makeSelection("producer1", "openai", "gpt-4")];
+    it('manual save() cancels pending auto-save', async () => {
+      const saved = [makeSelection('producer1', 'openai', 'gpt-4')];
       const onSave = vi.fn().mockResolvedValue(undefined);
 
       const { result } = renderHook(() =>
-        useModelSelectionEditor({ savedSelections: saved, onSave, debounceMs: 500 })
+        useModelSelectionEditor({
+          savedSelections: saved,
+          onSave,
+          debounceMs: 500,
+        })
       );
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -674,17 +722,21 @@ describe("useModelSelectionEditor", () => {
       expect(onSave).toHaveBeenCalledTimes(1);
     });
 
-    it("reset() cancels pending auto-save", async () => {
-      const saved = [makeSelection("producer1", "openai", "gpt-4")];
+    it('reset() cancels pending auto-save', async () => {
+      const saved = [makeSelection('producer1', 'openai', 'gpt-4')];
       const onSave = vi.fn().mockResolvedValue(undefined);
 
       const { result } = renderHook(() =>
-        useModelSelectionEditor({ savedSelections: saved, onSave, debounceMs: 500 })
+        useModelSelectionEditor({
+          savedSelections: saved,
+          onSave,
+          debounceMs: 500,
+        })
       );
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -706,20 +758,24 @@ describe("useModelSelectionEditor", () => {
       expect(onSave).not.toHaveBeenCalled();
     });
 
-    it("cancels pending auto-save when savedSelections changes", async () => {
-      const saved1 = [makeSelection("producer1", "openai", "gpt-4")];
-      const saved2 = [makeSelection("producer1", "replicate", "llama")];
+    it('cancels pending auto-save when savedSelections changes', async () => {
+      const saved1 = [makeSelection('producer1', 'openai', 'gpt-4')];
+      const saved2 = [makeSelection('producer1', 'replicate', 'llama')];
       const onSave = vi.fn().mockResolvedValue(undefined);
 
       const { result, rerender } = renderHook(
         ({ saved }) =>
-          useModelSelectionEditor({ savedSelections: saved, onSave, debounceMs: 500 }),
+          useModelSelectionEditor({
+            savedSelections: saved,
+            onSave,
+            debounceMs: 500,
+          }),
         { initialProps: { saved: saved1 } }
       );
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -740,17 +796,21 @@ describe("useModelSelectionEditor", () => {
       expect(onSave).not.toHaveBeenCalled();
     });
 
-    it("cancels pending auto-save on unmount", async () => {
-      const saved = [makeSelection("producer1", "openai", "gpt-4")];
+    it('cancels pending auto-save on unmount', async () => {
+      const saved = [makeSelection('producer1', 'openai', 'gpt-4')];
       const onSave = vi.fn().mockResolvedValue(undefined);
 
       const { result, unmount } = renderHook(() =>
-        useModelSelectionEditor({ savedSelections: saved, onSave, debounceMs: 500 })
+        useModelSelectionEditor({
+          savedSelections: saved,
+          onSave,
+          debounceMs: 500,
+        })
       );
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -771,18 +831,22 @@ describe("useModelSelectionEditor", () => {
       expect(onSave).not.toHaveBeenCalled();
     });
 
-    it("does not auto-save when editing back to original value", async () => {
-      const saved = [makeSelection("producer1", "openai", "gpt-4")];
+    it('does not auto-save when editing back to original value', async () => {
+      const saved = [makeSelection('producer1', 'openai', 'gpt-4')];
       const onSave = vi.fn().mockResolvedValue(undefined);
 
       const { result } = renderHook(() =>
-        useModelSelectionEditor({ savedSelections: saved, onSave, debounceMs: 500 })
+        useModelSelectionEditor({
+          savedSelections: saved,
+          onSave,
+          debounceMs: 500,
+        })
       );
 
       // Edit to different value
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -793,7 +857,7 @@ describe("useModelSelectionEditor", () => {
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "openai", "gpt-4")
+          makeSelection('producer1', 'openai', 'gpt-4')
         );
       });
 
@@ -806,17 +870,21 @@ describe("useModelSelectionEditor", () => {
       expect(onSave).not.toHaveBeenCalled();
     });
 
-    it("clears edits after successful auto-save", async () => {
-      const saved = [makeSelection("producer1", "openai", "gpt-4")];
+    it('clears edits after successful auto-save', async () => {
+      const saved = [makeSelection('producer1', 'openai', 'gpt-4')];
       const onSave = vi.fn().mockResolvedValue(undefined);
 
       const { result } = renderHook(() =>
-        useModelSelectionEditor({ savedSelections: saved, onSave, debounceMs: 500 })
+        useModelSelectionEditor({
+          savedSelections: saved,
+          onSave,
+          debounceMs: 500,
+        })
       );
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -830,18 +898,22 @@ describe("useModelSelectionEditor", () => {
       expect(result.current.isDirty).toBe(false);
     });
 
-    it("sets lastError on auto-save failure", async () => {
-      const saved = [makeSelection("producer1", "openai", "gpt-4")];
-      const saveError = new Error("Auto-save failed");
+    it('sets lastError on auto-save failure', async () => {
+      const saved = [makeSelection('producer1', 'openai', 'gpt-4')];
+      const saveError = new Error('Auto-save failed');
       const onSave = vi.fn().mockRejectedValue(saveError);
 
       const { result } = renderHook(() =>
-        useModelSelectionEditor({ savedSelections: saved, onSave, debounceMs: 500 })
+        useModelSelectionEditor({
+          savedSelections: saved,
+          onSave,
+          debounceMs: 500,
+        })
       );
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -854,21 +926,25 @@ describe("useModelSelectionEditor", () => {
       expect(result.current.isDirty).toBe(true); // Still dirty after failure
     });
 
-    it("sets isSaving during auto-save", async () => {
+    it('sets isSaving during auto-save', async () => {
       let resolvePromise: () => void;
       const savePromise = new Promise<void>((resolve) => {
         resolvePromise = resolve;
       });
       const onSave = vi.fn().mockReturnValue(savePromise);
-      const saved = [makeSelection("producer1", "openai", "gpt-4")];
+      const saved = [makeSelection('producer1', 'openai', 'gpt-4')];
 
       const { result } = renderHook(() =>
-        useModelSelectionEditor({ savedSelections: saved, onSave, debounceMs: 500 })
+        useModelSelectionEditor({
+          savedSelections: saved,
+          onSave,
+          debounceMs: 500,
+        })
       );
 
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -887,16 +963,20 @@ describe("useModelSelectionEditor", () => {
       expect(result.current.isSaving).toBe(false);
     });
 
-    it("auto-saves config changes", async () => {
-      const saved = [makeSelection("producer1", "openai", "gpt-4")];
+    it('auto-saves config changes', async () => {
+      const saved = [makeSelection('producer1', 'openai', 'gpt-4')];
       const onSave = vi.fn().mockResolvedValue(undefined);
 
       const { result } = renderHook(() =>
-        useModelSelectionEditor({ savedSelections: saved, onSave, debounceMs: 500 })
+        useModelSelectionEditor({
+          savedSelections: saved,
+          onSave,
+          debounceMs: 500,
+        })
       );
 
       act(() => {
-        result.current.updateConfig("producer1", "temperature", 0.7);
+        result.current.updateConfig('producer1', 'temperature', 0.7);
       });
 
       // Trigger auto-save
@@ -906,20 +986,23 @@ describe("useModelSelectionEditor", () => {
 
       expect(onSave).toHaveBeenCalledWith([
         expect.objectContaining({
-          producerId: "producer1",
+          producerId: 'producer1',
           config: { temperature: 0.7 },
         }),
       ]);
     });
   });
 
-  describe("custom isEqual", () => {
-    it("uses custom equality function for dirty check", () => {
-      const saved = [makeSelection("producer1", "openai", "gpt-4")];
+  describe('custom isEqual', () => {
+    it('uses custom equality function for dirty check', () => {
+      const saved = [makeSelection('producer1', 'openai', 'gpt-4')];
       const onSave = vi.fn();
 
       // Custom equality that only checks provider
-      const customIsEqual = (a: ModelSelectionValue[], b: ModelSelectionValue[]) => {
+      const customIsEqual = (
+        a: ModelSelectionValue[],
+        b: ModelSelectionValue[]
+      ) => {
         if (a.length !== b.length) return false;
         return a.every((sel, i) => sel.provider === b[i].provider);
       };
@@ -935,7 +1018,7 @@ describe("useModelSelectionEditor", () => {
       // Change model but keep provider - should not be dirty with custom equality
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "openai", "gpt-4-turbo")
+          makeSelection('producer1', 'openai', 'gpt-4-turbo')
         );
       });
 
@@ -944,20 +1027,23 @@ describe("useModelSelectionEditor", () => {
       // Change provider - should be dirty
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
       expect(result.current.isDirty).toBe(true);
     });
 
-    it("uses custom equality function for savedSelections change detection", () => {
-      const saved1 = [makeSelection("producer1", "openai", "gpt-4")];
-      const saved2 = [makeSelection("producer1", "openai", "gpt-4-turbo")];
+    it('uses custom equality function for savedSelections change detection', () => {
+      const saved1 = [makeSelection('producer1', 'openai', 'gpt-4')];
+      const saved2 = [makeSelection('producer1', 'openai', 'gpt-4-turbo')];
       const onSave = vi.fn();
 
       // Custom equality that only checks provider
-      const customIsEqual = (a: ModelSelectionValue[], b: ModelSelectionValue[]) => {
+      const customIsEqual = (
+        a: ModelSelectionValue[],
+        b: ModelSelectionValue[]
+      ) => {
         if (a.length !== b.length) return false;
         return a.every((sel, i) => sel.provider === b[i].provider);
       };
@@ -975,7 +1061,7 @@ describe("useModelSelectionEditor", () => {
       // Make an edit
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
       });
 
@@ -987,32 +1073,36 @@ describe("useModelSelectionEditor", () => {
 
       // Edit should still be preserved
       expect(result.current.isDirty).toBe(true);
-      expect(result.current.currentSelections[0].provider).toBe("anthropic");
+      expect(result.current.currentSelections[0].provider).toBe('anthropic');
     });
   });
 
-  describe("multiple producers", () => {
-    it("handles edits to multiple producers correctly", async () => {
+  describe('multiple producers', () => {
+    it('handles edits to multiple producers correctly', async () => {
       const saved = [
-        makeSelection("producer1", "openai", "gpt-4"),
-        makeSelection("producer2", "replicate", "llama"),
-        makeSelection("producer3", "anthropic", "claude-3"),
+        makeSelection('producer1', 'openai', 'gpt-4'),
+        makeSelection('producer2', 'replicate', 'llama'),
+        makeSelection('producer3', 'anthropic', 'claude-3'),
       ];
       const onSave = vi.fn().mockResolvedValue(undefined);
 
       const { result } = renderHook(() =>
-        useModelSelectionEditor({ savedSelections: saved, onSave, debounceMs: 500 })
+        useModelSelectionEditor({
+          savedSelections: saved,
+          onSave,
+          debounceMs: 500,
+        })
       );
 
       // Edit two producers
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3.5")
+          makeSelection('producer1', 'anthropic', 'claude-3.5')
         );
       });
 
       act(() => {
-        result.current.updateConfig("producer2", "max_tokens", 1000);
+        result.current.updateConfig('producer2', 'max_tokens', 1000);
       });
 
       // Trigger auto-save
@@ -1021,16 +1111,25 @@ describe("useModelSelectionEditor", () => {
       });
 
       expect(onSave).toHaveBeenCalledWith([
-        expect.objectContaining({ producerId: "producer1", provider: "anthropic" }),
-        expect.objectContaining({ producerId: "producer2", config: { max_tokens: 1000 } }),
-        expect.objectContaining({ producerId: "producer3", provider: "anthropic" }),
+        expect.objectContaining({
+          producerId: 'producer1',
+          provider: 'anthropic',
+        }),
+        expect.objectContaining({
+          producerId: 'producer2',
+          config: { max_tokens: 1000 },
+        }),
+        expect.objectContaining({
+          producerId: 'producer3',
+          provider: 'anthropic',
+        }),
       ]);
     });
 
-    it("reset clears edits for all producers", () => {
+    it('reset clears edits for all producers', () => {
       const saved = [
-        makeSelection("producer1", "openai", "gpt-4"),
-        makeSelection("producer2", "replicate", "llama"),
+        makeSelection('producer1', 'openai', 'gpt-4'),
+        makeSelection('producer2', 'replicate', 'llama'),
       ];
       const onSave = vi.fn();
 
@@ -1041,10 +1140,10 @@ describe("useModelSelectionEditor", () => {
       // Edit both producers
       act(() => {
         result.current.updateSelection(
-          makeSelection("producer1", "anthropic", "claude-3")
+          makeSelection('producer1', 'anthropic', 'claude-3')
         );
         result.current.updateSelection(
-          makeSelection("producer2", "openai", "dall-e-3")
+          makeSelection('producer2', 'openai', 'dall-e-3')
         );
       });
 
@@ -1059,8 +1158,8 @@ describe("useModelSelectionEditor", () => {
     });
   });
 
-  describe("empty selections", () => {
-    it("handles empty savedSelections array", () => {
+  describe('empty selections', () => {
+    it('handles empty savedSelections array', () => {
       const onSave = vi.fn();
 
       const { result } = renderHook(() =>
@@ -1071,7 +1170,7 @@ describe("useModelSelectionEditor", () => {
       expect(result.current.isDirty).toBe(false);
     });
 
-    it("updateConfig does nothing with empty savedSelections", () => {
+    it('updateConfig does nothing with empty savedSelections', () => {
       const onSave = vi.fn();
 
       const { result } = renderHook(() =>
@@ -1079,7 +1178,7 @@ describe("useModelSelectionEditor", () => {
       );
 
       act(() => {
-        result.current.updateConfig("nonexistent", "key", "value");
+        result.current.updateConfig('nonexistent', 'key', 'value');
       });
 
       expect(result.current.currentSelections).toEqual([]);

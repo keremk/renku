@@ -1,14 +1,14 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { DetailPanel } from "./detail-panel";
-import { BuildsListSidebar } from "./builds-list-sidebar";
-import { RunButton } from "./run-button";
-import { SwitchBlueprintDialog } from "./switch-blueprint-dialog";
-import { PlanDialog } from "./plan-dialog";
-import { CompletionDialog } from "./completion-dialog";
-import { BottomTabbedPanel } from "./bottom-tabbed-panel";
-import { ExecutionProvider, useExecution } from "@/contexts/execution-context";
-import { computeBlueprintLayerCount } from "@/lib/blueprint-layout";
-import { enableBuildEditing } from "@/data/blueprint-client";
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { DetailPanel } from './detail-panel';
+import { BuildsListSidebar } from './builds-list-sidebar';
+import { RunButton } from './run-button';
+import { SwitchBlueprintDialog } from './switch-blueprint-dialog';
+import { PlanDialog } from './plan-dialog';
+import { CompletionDialog } from './completion-dialog';
+import { BottomTabbedPanel } from './bottom-tabbed-panel';
+import { ExecutionProvider, useExecution } from '@/contexts/execution-context';
+import { computeBlueprintLayerCount } from '@/lib/blueprint-layout';
+import { enableBuildEditing } from '@/data/blueprint-client';
 import {
   useBuildInputs,
   useProducerModels,
@@ -19,16 +19,16 @@ import {
   useBottomPanelTabs,
   usePreviewPlayback,
   useModelSelectionEditor,
-} from "@/hooks";
-import { useMovieTimeline } from "@/services/use-movie-timeline";
+} from '@/hooks';
+import { useMovieTimeline } from '@/services/use-movie-timeline';
 import type {
   BlueprintGraphData,
   InputTemplateData,
   ModelSelectionValue,
-} from "@/types/blueprint-graph";
-import type { BuildInfo, BuildManifestResponse } from "@/types/builds";
+} from '@/types/blueprint-graph';
+import type { BuildInfo, BuildManifestResponse } from '@/types/builds';
 
-type DetailPanelTab = "inputs" | "models" | "outputs" | "preview";
+type DetailPanelTab = 'inputs' | 'models' | 'outputs' | 'preview';
 
 interface WorkspaceLayoutProps {
   graphData: BlueprintGraphData;
@@ -80,17 +80,19 @@ function WorkspaceLayoutInner({
   onManifestRefresh,
 }: WorkspaceLayoutProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [detailPanelTab, setDetailPanelTab] = useState<DetailPanelTab>("inputs");
+  const [detailPanelTab, setDetailPanelTab] =
+    useState<DetailPanelTab>('inputs');
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { state, initializeFromManifest, setTotalLayers } = useExecution();
   const isExecuting = state.status === 'executing';
 
   // Tab state management with auto-switching
-  const { activeTab: bottomActiveTab, setActiveTab: setBottomActiveTab } = useBottomPanelTabs({
-    isExecuting,
-    bottomPanelVisible: state.bottomPanelVisible,
-  });
+  const { activeTab: bottomActiveTab, setActiveTab: setBottomActiveTab } =
+    useBottomPanelTabs({
+      isExecuting,
+      bottomPanelVisible: state.bottomPanelVisible,
+    });
 
   // Find the selected build to check if it has inputs
   const selectedBuild = useMemo(
@@ -113,6 +115,7 @@ function WorkspaceLayoutInner({
     inputs: buildInputs,
     models: buildModels,
     isLoading: buildInputsLoading,
+    hasLoadedInputs,
     saveInputs: handleSaveInputs,
     saveModels: handleSaveModels,
   } = useBuildInputs({
@@ -151,7 +154,10 @@ function WorkspaceLayoutInner({
     if (!buildInputs || Object.keys(buildInputs).length === 0) return null;
 
     // Create a map of input definitions from graph for type/required info
-    const inputDefMap = new Map<string, { type: string; required: boolean; description?: string }>();
+    const inputDefMap = new Map<
+      string,
+      { type: string; required: boolean; description?: string }
+    >();
     for (const inputDef of graphData.inputs) {
       inputDefMap.set(inputDef.name, {
         type: inputDef.type,
@@ -161,14 +167,14 @@ function WorkspaceLayoutInner({
     }
 
     // Convert server response to InputTemplateData format
-    const inputs: InputTemplateData["inputs"] = [];
+    const inputs: InputTemplateData['inputs'] = [];
     for (const [name, value] of Object.entries(buildInputs)) {
       // Get type info from input definitions, with fallback
       const def = inputDefMap.get(name);
       inputs.push({
         name,
         value,
-        type: def?.type ?? "string",
+        type: def?.type ?? 'string',
         required: def?.required ?? false,
         description: def?.description,
       });
@@ -197,54 +203,82 @@ function WorkspaceLayoutInner({
 
   // Merge input data from build inputs or manifest
   const effectiveInputData = useMemo<InputTemplateData | null>(() => {
-    // Priority: build inputs file > manifest inputs > template inputs
-    if (parsedBuildInputs) {
+    const selectedBuildHasInputs = selectedBuild?.hasInputsFile ?? false;
+
+    // For editable builds, never fall back to manifest/template values.
+    // Wait until build inputs are loaded to avoid writing fallback/template content.
+    if (selectedBuildHasInputs) {
+      if (!hasLoadedInputs) {
+        return null;
+      }
       return parsedBuildInputs;
     }
+
     // If we have a selected build manifest with inputs, use those
-    if (selectedBuildManifest?.inputs && Object.keys(selectedBuildManifest.inputs).length > 0) {
-      const manifestInputs = Object.entries(selectedBuildManifest.inputs).map(([name, value]) => ({
-        name,
-        value,
-        type: typeof value === 'string' ? 'string' :
-              typeof value === 'number' ? 'number' :
-              typeof value === 'boolean' ? 'boolean' : 'unknown',
-        required: true,
-      }));
+    if (
+      selectedBuildManifest?.inputs &&
+      Object.keys(selectedBuildManifest.inputs).length > 0
+    ) {
+      const manifestInputs = Object.entries(selectedBuildManifest.inputs).map(
+        ([name, value]) => ({
+          name,
+          value,
+          type:
+            typeof value === 'string'
+              ? 'string'
+              : typeof value === 'number'
+                ? 'number'
+                : typeof value === 'boolean'
+                  ? 'boolean'
+                  : 'unknown',
+          required: true,
+        })
+      );
       return { inputs: manifestInputs };
     }
     // Fall back to the input data from file
     return inputData;
-  }, [inputData, selectedBuildManifest, parsedBuildInputs]);
+  }, [
+    inputData,
+    selectedBuild,
+    selectedBuildManifest,
+    parsedBuildInputs,
+    hasLoadedInputs,
+  ]);
 
   // Check if inputs are editable (has build with inputs file selected)
   const isInputsEditable = Boolean(
-    blueprintFolder && selectedBuildId && selectedBuild?.hasInputsFile
+    blueprintFolder &&
+      selectedBuildId &&
+      selectedBuild?.hasInputsFile &&
+      hasLoadedInputs
   );
 
   // Check if editing can be enabled (build selected but no inputs file)
   const canEnableEditing = Boolean(
-    blueprintFolder && selectedBuildId && selectedBuild && !selectedBuild.hasInputsFile
+    blueprintFolder &&
+      selectedBuildId &&
+      selectedBuild &&
+      !selectedBuild.hasInputsFile
   );
 
   // Fetch prompts for prompt-type producers (only when editing is enabled)
-  const {
-    promptDataByProducer,
-    savePrompt: handleSavePrompt,
-  } = useProducerPrompts({
-    blueprintFolder,
-    blueprintPath,
-    movieId: selectedBuildId,
-    producerModels,
-    catalogRoot,
-    enabled: isInputsEditable,
-  });
+  const { promptDataByProducer, savePrompt: handleSavePrompt } =
+    useProducerPrompts({
+      blueprintFolder,
+      blueprintPath,
+      movieId: selectedBuildId,
+      producerModels,
+      catalogRoot,
+      enabled: isInputsEditable,
+    });
 
   // Compute config properties and values using the dedicated hook
-  const { configPropertiesByProducer, configValuesByProducer } = useProducerConfigState({
-    configSchemas,
-    currentSelections: modelEditor.currentSelections,
-  });
+  const { configPropertiesByProducer, configValuesByProducer } =
+    useProducerConfigState({
+      configSchemas,
+      currentSelections: modelEditor.currentSelections,
+    });
 
   // Handle enabling editing for a build
   const handleEnableEditing = useCallback(async () => {
@@ -287,7 +321,10 @@ function WorkspaceLayoutInner({
   const runButton = (
     <>
       <SwitchBlueprintDialog currentBlueprintName={blueprintName} />
-      <RunButton blueprintName={blueprintName} movieId={effectiveMovieId ?? undefined} />
+      <RunButton
+        blueprintName={blueprintName}
+        movieId={effectiveMovieId ?? undefined}
+      />
     </>
   );
 
@@ -299,40 +336,51 @@ function WorkspaceLayoutInner({
     const artefacts = selectedBuildManifest?.artefacts;
     if (!artefacts) return false;
     // Check for timeline artifact (id contains "Timeline")
-    return artefacts.some((a) => a.id.includes("Timeline"));
+    return artefacts.some((a) => a.id.includes('Timeline'));
   }, [selectedBuildManifest?.artefacts]);
 
   // Lift timeline and playback state for syncing between Preview and Timeline panels
-  const { timeline, status: timelineStatus, error: timelineError } = useMovieTimeline(
+  const {
+    timeline,
+    status: timelineStatus,
+    error: timelineError,
+  } = useMovieTimeline(
     hasTimeline ? blueprintFolder : null,
     hasTimeline ? effectiveMovieId : null
   );
-  const { currentTime, isPlaying, play, pause, seek, reset } = usePreviewPlayback(effectiveMovieId);
+  const { currentTime, isPlaying, play, pause, seek, reset } =
+    usePreviewPlayback(effectiveMovieId);
 
   // Handle bottom panel tab changes with coordination to detail panel
-  const handleBottomTabChange = useCallback((tab: typeof bottomActiveTab) => {
-    setBottomActiveTab(tab);
-    // When switching to Timeline tab, also switch detail panel to Preview
-    if (tab === 'timeline') {
-      setDetailPanelTab('preview');
-    }
-  }, [setBottomActiveTab]);
+  const handleBottomTabChange = useCallback(
+    (tab: typeof bottomActiveTab) => {
+      setBottomActiveTab(tab);
+      // When switching to Timeline tab, also switch detail panel to Preview
+      if (tab === 'timeline') {
+        setDetailPanelTab('preview');
+      }
+    },
+    [setBottomActiveTab]
+  );
 
   return (
     <div
-      className="h-screen w-screen bg-background text-foreground p-4 flex flex-col"
-      style={{ userSelect: isDragging ? "none" : "auto" }}
+      className='h-screen w-screen bg-background text-foreground p-4 flex flex-col'
+      style={{ userSelect: isDragging ? 'none' : 'auto' }}
     >
       {/* Resizable panels wrapper */}
-      <div ref={containerRef} className="flex-1 min-h-0 flex flex-col">
+      <div ref={containerRef} className='flex-1 min-h-0 flex flex-col'>
         {/* Top Panel: Sidebar + Detail Panel */}
         <div
-          className="shrink-0 min-h-0 overflow-hidden flex gap-4"
-          style={{ flexBasis: `${inputsPanelPercent}%`, maxHeight: `${inputsPanelPercent}%` }}
+          className='shrink-0 min-h-0 overflow-hidden flex gap-4'
+          style={{
+            flexBasis: `${inputsPanelPercent}%`,
+            maxHeight: `${inputsPanelPercent}%`,
+          }}
         >
           {/* Builds Sidebar (fixed width) */}
           {showSidebar && (
-            <div className="w-64 shrink-0">
+            <div className='w-64 shrink-0'>
               <BuildsListSidebar
                 builds={builds}
                 selectedBuildId={selectedBuildId}
@@ -344,7 +392,7 @@ function WorkspaceLayoutInner({
           )}
 
           {/* Detail Panel (flexible width) */}
-          <div className="flex-1 min-w-0">
+          <div className='flex-1 min-w-0'>
             <DetailPanel
               graphData={graphData}
               inputData={effectiveInputData}
@@ -385,20 +433,23 @@ function WorkspaceLayoutInner({
 
         {/* Resize Handle */}
         <div
-          className="shrink-0 h-2 flex items-center justify-center cursor-row-resize group"
+          className='shrink-0 h-2 flex items-center justify-center cursor-row-resize group'
           onMouseDown={handleMouseDown}
         >
-          <div className={`w-16 h-1 rounded-full transition-colors ${
-            isDragging
-              ? "bg-primary"
-              : "bg-border/60 group-hover:bg-border"
-          }`} />
+          <div
+            className={`w-16 h-1 rounded-full transition-colors ${
+              isDragging ? 'bg-primary' : 'bg-border/60 group-hover:bg-border'
+            }`}
+          />
         </div>
 
         {/* Bottom Panel with Tabs (Blueprint Flow, Execution, or Timeline) */}
         <div
-          className="shrink-0 min-h-0 rounded-xl border border-border/40 overflow-hidden relative flex flex-col"
-          style={{ flexBasis: `${blueprintFlowPercent}%`, maxHeight: `${blueprintFlowPercent}%` }}
+          className='shrink-0 min-h-0 rounded-xl border border-border/40 overflow-hidden relative flex flex-col'
+          style={{
+            flexBasis: `${blueprintFlowPercent}%`,
+            maxHeight: `${blueprintFlowPercent}%`,
+          }}
         >
           <BottomTabbedPanel
             activeTab={bottomActiveTab}

@@ -136,15 +136,23 @@ export async function handleBuildsSubRoute(
             'Missing folder, movieId, or blueprintPath parameter'
           );
         }
-        const result = await getBuildInputs(
-          folder,
-          movieId,
-          blueprintPath,
-          catalogRoot
-        );
-        res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify(result));
-        return true;
+        try {
+          const result = await getBuildInputs(
+            folder,
+            movieId,
+            blueprintPath,
+            catalogRoot
+          );
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(result));
+          return true;
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : 'Failed to load build inputs';
+          return respondBadRequest(res, message);
+        }
       }
       if (req.method === 'PUT') {
         const body = await parseJsonBody<BuildInputsRequest>(req);
@@ -159,15 +167,23 @@ export async function handleBuildsSubRoute(
             'Missing blueprintFolder, movieId, inputs, or models'
           );
         }
-        await saveBuildInputs(
-          body.blueprintFolder,
-          body.movieId,
-          body.inputs,
-          body.models
-        );
-        res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify({ success: true }));
-        return true;
+        try {
+          await saveBuildInputs(
+            body.blueprintFolder,
+            body.movieId,
+            body.inputs,
+            body.models
+          );
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ success: true }));
+          return true;
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : 'Failed to save build inputs';
+          return respondBadRequest(res, message);
+        }
       }
       return respondMethodNotAllowed(res);
     }

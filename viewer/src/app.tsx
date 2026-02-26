@@ -47,7 +47,7 @@ function BlueprintApp() {
   // Reconcile build selection for the current blueprint.
   // - `last=1` always selects newest build (or clears when no builds exist)
   // - stale `build` URL params are repaired to newest build (or cleared when no builds exist)
-  // - manual deselection (`build` absent) is preserved unless `last=1` is present
+  // - when `build` is absent, newest build is auto-selected if available
   useEffect(() => {
     if (!blueprintRoute?.blueprintName || buildsStatus !== 'success') return;
     if (!resolvedPaths?.blueprintFolder) return;
