@@ -118,6 +118,11 @@ mappings:
       Resolution: resolution
       # Both pass through directly
 
+    nano-banana-2:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+
     # Pattern 4: image_size presets
     qwen-image-2512:
       Prompt: prompt
@@ -290,6 +295,12 @@ mappings:
     google/nano-banana:
       Prompt: prompt
       AspectRatio: aspect_ratio
+
+    # Google Nano Banana 2
+    google/nano-banana-2:
+      Prompt: prompt
+      AspectRatio: aspect_ratio
+      Resolution: resolution
 
     # Pattern 1: aspect_ratio only
     google/imagen-4:

@@ -130,6 +130,38 @@ models:
     price:
       function: costByRun
       price: 0.15
+  - name: nano-banana-2
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByImageAndResolution
+      inputs: [resolution]
+      prices:
+        - resolution: "1K"
+          pricePerImage: 0.08
+        - resolution: "2K"
+          pricePerImage: 0.12
+        - resolution: "4K"
+          pricePerImage: 0.16
+  - name: nano-banana-2/edit
+    type: image
+    mime:
+      - image/png
+      - image/jpeg
+      - image/webp
+    price:
+      function: costByImageAndResolution
+      inputs: [resolution]
+      prices:
+        - resolution: "1K"
+          pricePerImage: 0.08
+        - resolution: "2K"
+          pricePerImage: 0.12
+        - resolution: "4K"
+          pricePerImage: 0.16
   - name: wan/v2.6/text-to-image
     subProvider: wan
     type: image

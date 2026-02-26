@@ -164,6 +164,12 @@ mappings:
       AspectRatio: aspect_ratio
       Resolution: resolution
 
+    nano-banana-2/edit:
+      Prompt: prompt
+      SourceImages: image_urls
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+
     qwen-image-edit-2511:
       Prompt: prompt
       SourceImages: image_urls
@@ -283,6 +289,12 @@ mappings:
       Prompt: prompt
       SourceImages: image_input
       AspectRatio: aspect_ratio
+
+    google/nano-banana-2:
+      Prompt: prompt
+      SourceImages: image_input
+      AspectRatio: aspect_ratio
+      Resolution: resolution
 
     qwen/qwen-image-edit-2511:
       Prompt: prompt

@@ -117,6 +117,14 @@ models:
     price:
       function: costByRun
       price: 0.039
+  - name: google/nano-banana-2
+    type: image
+    mime:
+      - image/png
+      - image/jpg
+    price:
+      function: costByRun
+      price: 0.039
   - name: google/nano-banana-pro
     type: image
     price:
