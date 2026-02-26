@@ -35,18 +35,21 @@ const TIMELINE_DEFAULTS: TimelineConfig = {
   musicClip: { artifact: 'Music', volume: 0.3 },
 };
 
+const TIMELINE_SCHEMA = {
+  type: 'object',
+  default: TIMELINE_DEFAULTS,
+};
+
 describe('TimelineCard', () => {
-  describe('Auto-persist defaults', () => {
-    it('calls onChange with defaults when value is undefined and isEditable is true', async () => {
+  describe('Default persistence', () => {
+    it('does not call onChange on mount when value is undefined and isEditable is true', () => {
       const onChange = vi.fn();
 
       render(
         <TimelineCard value={undefined} isEditable={true} onChange={onChange} />
       );
 
-      await waitFor(() => {
-        expect(onChange).toHaveBeenCalledWith(TIMELINE_DEFAULTS);
-      });
+      expect(onChange).not.toHaveBeenCalled();
     });
 
     it('does not call onChange when value is undefined but isEditable is false', () => {
@@ -91,6 +94,62 @@ describe('TimelineCard', () => {
       );
 
       expect(container).toBeTruthy();
+    });
+
+    it('persists defaults only after explicit Save', async () => {
+      const onChange = vi.fn();
+
+      render(
+        <TimelineCard
+          value={undefined}
+          schema={TIMELINE_SCHEMA}
+          isEditable={true}
+          onChange={onChange}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+      await waitFor(() => {
+        expect(onChange).toHaveBeenCalledWith(TIMELINE_DEFAULTS);
+      });
+    });
+
+    it('does not persist defaults when cancelled', () => {
+      const onChange = vi.fn();
+
+      render(
+        <TimelineCard
+          value={undefined}
+          schema={TIMELINE_SCHEMA}
+          isEditable={true}
+          onChange={onChange}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('does not persist defaults when dismissed with Escape', () => {
+      const onChange = vi.fn();
+
+      render(
+        <TimelineCard
+          value={undefined}
+          schema={TIMELINE_SCHEMA}
+          isEditable={true}
+          onChange={onChange}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      expect(onChange).not.toHaveBeenCalled();
     });
   });
 

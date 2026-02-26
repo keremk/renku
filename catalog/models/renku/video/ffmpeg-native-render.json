@@ -10,16 +10,19 @@
       "width": {
         "type": "integer",
         "minimum": 1,
+        "default": 1920,
         "description": "Output video width in pixels (default: 1920)"
       },
       "height": {
         "type": "integer",
         "minimum": 1,
+        "default": 1080,
         "description": "Output video height in pixels (default: 1080)"
       },
       "fps": {
         "type": "number",
         "exclusiveMinimum": 0,
+        "default": 30,
         "description": "Frames per second (default: 30)"
       },
       "preset": {
@@ -35,21 +38,25 @@
           "slower",
           "veryslow"
         ],
+        "default": "medium",
         "description": "x264 encoding preset (default: medium)"
       },
       "crf": {
         "type": "integer",
         "minimum": 0,
         "maximum": 51,
+        "default": 23,
         "description": "Constant Rate Factor for quality, 0-51 (default: 23)"
       },
       "audioBitrate": {
         "type": "string",
         "pattern": "^\\d+k$",
+        "default": "192k",
         "description": "Audio bitrate, e.g., '192k' (default: 192k)"
       },
       "ffmpegPath": {
         "type": "string",
+        "default": "ffmpeg",
         "description": "Custom FFmpeg binary path (default: 'ffmpeg' from PATH)"
       },
       "subtitles": {
@@ -81,53 +88,75 @@
     "properties": {
       "font": {
         "type": "string",
+        "default": "Arial",
         "description": "Font name - uses system fonts (default: Arial)"
       },
       "fontSize": {
         "type": "integer",
         "minimum": 1,
+        "default": 48,
         "description": "Font size in pixels (default: 48)"
       },
       "fontBaseColor": {
         "type": "string",
         "pattern": "^#[0-9A-Fa-f]{6}$",
+        "default": "#FFFFFF",
         "description": "Default text color in hex format, e.g., '#FFFFFF' (default: white)"
       },
       "fontHighlightColor": {
         "type": "string",
         "pattern": "^#[0-9A-Fa-f]{6}$",
+        "default": "#FFD700",
         "description": "Highlight color for the currently spoken word (default: #FFD700 - gold)"
       },
       "backgroundColor": {
         "type": "string",
         "pattern": "^#[0-9A-Fa-f]{6}$",
+        "default": "#000000",
         "description": "Background box color in hex format (default: #000000)"
       },
       "backgroundOpacity": {
         "type": "number",
         "minimum": 0,
         "maximum": 1,
+        "default": 0,
         "description": "Background box opacity 0-1, 0 = no box (default: 0)"
       },
       "position": {
         "$ref": "#/OverlayPosition",
+        "default": "bottom-center",
         "description": "Subtitle anchor position (default: bottom-center)"
       },
       "edgePaddingPercent": {
         "type": "number",
         "minimum": 0,
         "maximum": 100,
+        "default": 8,
         "description": "Distance from anchored edges as percentage of frame height (default: 8)"
       },
       "maxWordsPerLine": {
         "type": "integer",
         "minimum": 1,
+        "default": 4,
         "description": "Maximum words to display at once per line (default: 4)"
       },
       "highlightEffect": {
         "type": "boolean",
+        "default": true,
         "description": "Enable karaoke-style word highlighting (default: true)"
       }
+    },
+    "default": {
+      "font": "Arial",
+      "fontSize": 48,
+      "fontBaseColor": "#FFFFFF",
+      "fontHighlightColor": "#FFD700",
+      "backgroundColor": "#000000",
+      "backgroundOpacity": 0,
+      "position": "bottom-center",
+      "edgePaddingPercent": 8,
+      "maxWordsPerLine": 4,
+      "highlightEffect": true
     },
     "additionalProperties": false
   },
@@ -137,39 +166,55 @@
     "properties": {
       "font": {
         "type": "string",
+        "default": "Arial",
         "description": "Font name - uses system fonts (default: Arial)"
       },
       "fontSize": {
         "type": "integer",
         "minimum": 1,
+        "default": 56,
         "description": "Font size in pixels (default: 56)"
       },
       "fontBaseColor": {
         "type": "string",
         "pattern": "^#[0-9A-Fa-f]{6}$",
+        "default": "#FFFFFF",
         "description": "Text color in hex format, e.g., '#FFFFFF'"
       },
       "backgroundColor": {
         "type": "string",
         "pattern": "^#[0-9A-Fa-f]{6}$",
+        "default": "#000000",
         "description": "Background box color in hex format, e.g., '#000000'"
       },
       "backgroundOpacity": {
         "type": "number",
         "minimum": 0,
         "maximum": 1,
+        "default": 0.35,
         "description": "Background box opacity 0-1, 0 = no box (default: 0.35)"
       },
       "position": {
         "$ref": "#/OverlayPosition",
+        "default": "middle-center",
         "description": "Text anchor position (default: middle-center)"
       },
       "edgePaddingPercent": {
         "type": "number",
         "minimum": 0,
         "maximum": 100,
+        "default": 8,
         "description": "Distance from anchored edges as percentage of frame height (default: 8)"
       }
+    },
+    "default": {
+      "font": "Arial",
+      "fontSize": 56,
+      "fontBaseColor": "#FFFFFF",
+      "backgroundColor": "#000000",
+      "backgroundOpacity": 0.35,
+      "position": "middle-center",
+      "edgePaddingPercent": 8
     },
     "additionalProperties": false
   }

@@ -32,6 +32,9 @@ export interface SchemaProperty {
   enum?: unknown[];
   minimum?: number;
   maximum?: number;
+  properties?: Record<string, SchemaProperty>;
+  required?: string[];
+  additionalProperties?: boolean;
   items?: SchemaProperty;
   /** JSON Schema $ref for referencing other schema definitions */
   $ref?: string;
@@ -103,6 +106,65 @@ const EXCLUDED_PROPERTIES = new Set([
   'user',
 ]);
 
+function parseLocalSchemaRef(ref: string): string | undefined {
+  const directMatch = ref.match(/^#\/([A-Za-z_][A-Za-z0-9_]*)$/);
+  if (directMatch) {
+    return directMatch[1];
+  }
+  const defsMatch = ref.match(/^#\/\$defs\/([A-Za-z_][A-Za-z0-9_]*)$/);
+  if (defsMatch) {
+    return defsMatch[1];
+  }
+  return undefined;
+}
+
+function resolveSchemaProperty(
+  schema: SchemaProperty,
+  definitions: Record<string, unknown>,
+  seenRefs: Set<string> = new Set()
+): SchemaProperty {
+  if (typeof schema.$ref === 'string') {
+    const refName = parseLocalSchemaRef(schema.$ref);
+    if (refName && !seenRefs.has(refName)) {
+      const resolved = definitions[refName];
+      if (
+        resolved &&
+        typeof resolved === 'object' &&
+        !Array.isArray(resolved)
+      ) {
+        const merged: SchemaProperty = {
+          ...(resolved as SchemaProperty),
+          ...schema,
+        };
+        delete merged.$ref;
+        const nextSeen = new Set(seenRefs);
+        nextSeen.add(refName);
+        return resolveSchemaProperty(merged, definitions, nextSeen);
+      }
+    }
+  }
+
+  const next: SchemaProperty = { ...schema };
+
+  if (next.items && typeof next.items === 'object') {
+    next.items = resolveSchemaProperty(next.items, definitions, seenRefs);
+  }
+
+  if (next.properties) {
+    const resolvedProperties: Record<string, SchemaProperty> = {};
+    for (const [key, value] of Object.entries(next.properties)) {
+      resolvedProperties[key] = resolveSchemaProperty(
+        value,
+        definitions,
+        seenRefs
+      );
+    }
+    next.properties = resolvedProperties;
+  }
+
+  return next;
+}
+
 /**
  * Determines which schema properties are NOT mapped (i.e., config properties).
  * A property is considered "mapped" if it appears as a target field in the producer's mappings.
@@ -131,9 +193,14 @@ function getUnmappedProperties(
       continue;
     }
 
+    const resolvedSchema = resolveSchemaProperty(
+      schema,
+      schemaFile.definitions as Record<string, unknown>
+    );
+
     configProperties.push({
       key,
-      schema,
+      schema: resolvedSchema,
       required: required.has(key),
     });
   }

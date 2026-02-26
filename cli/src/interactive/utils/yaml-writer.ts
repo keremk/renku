@@ -8,46 +8,46 @@ import type { ProducerInputsYamlData } from '../types/producer-mode.js';
  * Model selection to be written to the inputs YAML.
  */
 export interface ModelSelectionInput {
-  producerId: string;
-  provider: string;
-  model: string;
-  config?: Record<string, unknown>;
+	producerId: string;
+	provider: string;
+	model: string;
+	config?: Record<string, unknown>;
 }
 
 /**
- * Composition producer model entry with timeline config template.
+ * Composition producer model entry with schema-derived config defaults.
  */
 export interface CompositionModelInput {
-  producerId: string;
-  model: string;
-  provider: string;
-  config: Record<string, unknown>;
+	producerId: string;
+	model: string;
+	provider: string;
+	config: Record<string, unknown>;
 }
 
 /**
  * Complete inputs data structure for the YAML file.
  */
 export interface InputsYamlData {
-  /** Blueprint input values */
-  inputs: Record<string, unknown>;
-  /** Model selections for producers */
-  models: ModelSelectionInput[];
-  /** Composition producer entries with timeline config templates */
-  compositionModels?: CompositionModelInput[];
+	/** Blueprint input values */
+	inputs: Record<string, unknown>;
+	/** Model selections for producers */
+	models: ModelSelectionInput[];
+	/** Composition producer entries with schema-derived config defaults */
+	compositionModels?: CompositionModelInput[];
 }
 
 /**
  * Options for generating the inputs file name.
  */
 export interface InputsFileNameOptions {
-  /** Blueprint ID used for filename (e.g., "Documentary" → "documentary-inputs.yaml") */
-  blueprintId: string;
-  /** Blueprint name used in header comment */
-  blueprintName: string;
-  /** Output directory (defaults to current working directory) */
-  outputDir?: string;
-  /** All blueprint field definitions - ensures all fields appear in template */
-  blueprintFields?: FormFieldConfig[];
+	/** Blueprint ID used for filename (e.g., "Documentary" → "documentary-inputs.yaml") */
+	blueprintId: string;
+	/** Blueprint name used in header comment */
+	blueprintName: string;
+	/** Output directory (defaults to current working directory) */
+	outputDir?: string;
+	/** All blueprint field definitions - ensures all fields appear in template */
+	blueprintFields?: FormFieldConfig[];
 }
 
 /**
@@ -57,18 +57,18 @@ export interface InputsFileNameOptions {
  * @returns Sanitized filename like "documentary-inputs.yaml"
  */
 export function generateInputsFileName(blueprintId: string): string {
-  // Sanitize: lowercase, replace spaces/underscores with hyphens, remove special chars
-  let name = blueprintId
-    .toLowerCase()
-    .replace(/[\s_]+/g, '-')
-    .replace(/[^a-z0-9-]/g, '');
+	// Sanitize: lowercase, replace spaces/underscores with hyphens, remove special chars
+	let name = blueprintId
+		.toLowerCase()
+		.replace(/[\s_]+/g, '-')
+		.replace(/[^a-z0-9-]/g, '');
 
-  // Ensure non-empty
-  if (!name) {
-    name = 'inputs';
-  }
+	// Ensure non-empty
+	if (!name) {
+		name = 'inputs';
+	}
 
-  return `${name}-inputs.yaml`;
+	return `${name}-inputs.yaml`;
 }
 
 /**
@@ -79,103 +79,82 @@ export function generateInputsFileName(blueprintId: string): string {
  * @returns The full path to the written file
  */
 export async function writeInputsYaml(
-  data: InputsYamlData,
-  options: InputsFileNameOptions,
+	data: InputsYamlData,
+	options: InputsFileNameOptions
 ): Promise<string> {
-  const outputDir = options.outputDir ?? process.cwd();
-  const filename = generateInputsFileName(options.blueprintId);
-  const filepath = resolve(outputDir, filename);
+	const outputDir = options.outputDir ?? process.cwd();
+	const filename = generateInputsFileName(options.blueprintId);
+	const filepath = resolve(outputDir, filename);
 
-  // Build the YAML structure
-  const yamlData: Record<string, unknown> = {};
+	// Build the YAML structure
+	const yamlData: Record<string, unknown> = {};
 
-  // Build inputs section - include ALL fields (this is a template)
-  const inputs: Record<string, unknown> = {};
+	// Build inputs section - include ALL fields (this is a template)
+	const inputs: Record<string, unknown> = {};
 
-  if (options.blueprintFields && options.blueprintFields.length > 0) {
-    // Initialize all fields with their values or empty defaults
-    for (const field of options.blueprintFields) {
-      const value = data.inputs[field.name];
-      // Use the value if set, otherwise use empty string for template
-      inputs[field.name] = value !== undefined ? value : '';
-    }
-  } else {
-    // Fallback to original behavior - only include fields with values
-    Object.assign(inputs, data.inputs);
-  }
+	if (options.blueprintFields && options.blueprintFields.length > 0) {
+		// Initialize all fields with their values or empty defaults
+		for (const field of options.blueprintFields) {
+			const value = data.inputs[field.name];
+			// Use the value if set, otherwise use empty string for template
+			inputs[field.name] = value !== undefined ? value : '';
+		}
+	} else {
+		// Fallback to original behavior - only include fields with values
+		Object.assign(inputs, data.inputs);
+	}
 
-  // Always include inputs section in template (even if all empty)
-  if (Object.keys(inputs).length > 0) {
-    yamlData.inputs = inputs;
-  }
+	// Always include inputs section in template (even if all empty)
+	if (Object.keys(inputs).length > 0) {
+		yamlData.inputs = inputs;
+	}
 
-  // Add models section
-  const allModels: Record<string, unknown>[] = [];
+	// Add models section
+	const allModels: Record<string, unknown>[] = [];
 
-  // Add regular models
-  for (const selection of data.models) {
-    const entry: Record<string, unknown> = {
-      producerId: selection.producerId,
-      provider: selection.provider,
-      model: selection.model,
-    };
-    if (selection.config && Object.keys(selection.config).length > 0) {
-      entry.config = selection.config;
-    }
-    allModels.push(entry);
-  }
+	// Add regular models
+	for (const selection of data.models) {
+		const entry: Record<string, unknown> = {
+			producerId: selection.producerId,
+			provider: selection.provider,
+			model: selection.model,
+		};
+		if (selection.config && Object.keys(selection.config).length > 0) {
+			entry.config = selection.config;
+		}
+		allModels.push(entry);
+	}
 
-  // Add composition models with timeline config templates
-  if (data.compositionModels) {
-    for (const composition of data.compositionModels) {
-      allModels.push({
-        model: composition.model,
-        provider: composition.provider,
-        producerId: composition.producerId,
-        config: composition.config,
-      });
-    }
-  }
+	// Add composition models with schema-derived defaults
+	if (data.compositionModels) {
+		for (const composition of data.compositionModels) {
+			allModels.push({
+				model: composition.model,
+				provider: composition.provider,
+				producerId: composition.producerId,
+				config: composition.config,
+			});
+		}
+	}
 
-  if (allModels.length > 0) {
-    yamlData.models = allModels;
-  }
+	if (allModels.length > 0) {
+		yamlData.models = allModels;
+	}
 
-  // Convert to YAML string with nice formatting
-  const content = stringify(yamlData, {
-    indent: 2,
-    lineWidth: 0, // Don't wrap lines
-    defaultKeyType: 'PLAIN',
-    defaultStringType: 'QUOTE_DOUBLE',
-  });
+	// Convert to YAML string with nice formatting
+	const content = stringify(yamlData, {
+		indent: 2,
+		lineWidth: 0, // Don't wrap lines
+		defaultKeyType: 'PLAIN',
+		defaultStringType: 'QUOTE_DOUBLE',
+	});
 
-  // Add header comment
-  const header = `# Generated inputs file for blueprint: ${options.blueprintName}\n# Generated at: ${new Date().toISOString()}\n\n`;
+	// Add header comment
+	const header = `# Generated inputs file for blueprint: ${options.blueprintName}\n# Generated at: ${new Date().toISOString()}\n\n`;
 
-  await writeFile(filepath, header + content, 'utf8');
+	await writeFile(filepath, header + content, 'utf8');
 
-  return filepath;
-}
-
-/**
- * Generate a blank timeline configuration template.
- * Users need to fill in artifact names based on their blueprint outputs.
- */
-export function generateTimelineConfigTemplate(): Record<string, unknown> {
-  return {
-    masterTracks: [],
-    videoClip: {
-      artifact: '',
-    },
-    audioClip: {
-      artifact: '',
-    },
-    musicClip: {
-      artifact: '',
-      volume: 0.5,
-    },
-    tracks: [],
-  };
+	return filepath;
 }
 
 /**
@@ -183,62 +162,62 @@ export function generateTimelineConfigTemplate(): Record<string, unknown> {
  * Useful for showing confirmation before saving.
  */
 export function formatInputsPreview(
-  data: InputsYamlData,
-  blueprintFields?: FormFieldConfig[],
+	data: InputsYamlData,
+	blueprintFields?: FormFieldConfig[]
 ): string {
-  const yamlData: Record<string, unknown> = {};
+	const yamlData: Record<string, unknown> = {};
 
-  // Build inputs section - include ALL fields (this is a template)
-  const inputs: Record<string, unknown> = {};
+	// Build inputs section - include ALL fields (this is a template)
+	const inputs: Record<string, unknown> = {};
 
-  if (blueprintFields && blueprintFields.length > 0) {
-    for (const field of blueprintFields) {
-      const value = data.inputs[field.name];
-      inputs[field.name] = value !== undefined ? value : '';
-    }
-  } else {
-    Object.assign(inputs, data.inputs);
-  }
+	if (blueprintFields && blueprintFields.length > 0) {
+		for (const field of blueprintFields) {
+			const value = data.inputs[field.name];
+			inputs[field.name] = value !== undefined ? value : '';
+		}
+	} else {
+		Object.assign(inputs, data.inputs);
+	}
 
-  if (Object.keys(inputs).length > 0) {
-    yamlData.inputs = inputs;
-  }
+	if (Object.keys(inputs).length > 0) {
+		yamlData.inputs = inputs;
+	}
 
-  const allModels: Record<string, unknown>[] = [];
+	const allModels: Record<string, unknown>[] = [];
 
-  for (const selection of data.models) {
-    const entry: Record<string, unknown> = {
-      producerId: selection.producerId,
-      provider: selection.provider,
-      model: selection.model,
-    };
-    if (selection.config && Object.keys(selection.config).length > 0) {
-      entry.config = selection.config;
-    }
-    allModels.push(entry);
-  }
+	for (const selection of data.models) {
+		const entry: Record<string, unknown> = {
+			producerId: selection.producerId,
+			provider: selection.provider,
+			model: selection.model,
+		};
+		if (selection.config && Object.keys(selection.config).length > 0) {
+			entry.config = selection.config;
+		}
+		allModels.push(entry);
+	}
 
-  if (data.compositionModels) {
-    for (const composition of data.compositionModels) {
-      allModels.push({
-        model: composition.model,
-        provider: composition.provider,
-        producerId: composition.producerId,
-        config: composition.config,
-      });
-    }
-  }
+	if (data.compositionModels) {
+		for (const composition of data.compositionModels) {
+			allModels.push({
+				model: composition.model,
+				provider: composition.provider,
+				producerId: composition.producerId,
+				config: composition.config,
+			});
+		}
+	}
 
-  if (allModels.length > 0) {
-    yamlData.models = allModels;
-  }
+	if (allModels.length > 0) {
+		yamlData.models = allModels;
+	}
 
-  return stringify(yamlData, {
-    indent: 2,
-    lineWidth: 0,
-    defaultKeyType: 'PLAIN',
-    defaultStringType: 'QUOTE_DOUBLE',
-  });
+	return stringify(yamlData, {
+		indent: 2,
+		lineWidth: 0,
+		defaultKeyType: 'PLAIN',
+		defaultStringType: 'QUOTE_DOUBLE',
+	});
 }
 
 // --- Producer mode YAML writing ---
@@ -247,25 +226,25 @@ export function formatInputsPreview(
  * Options for generating the producer inputs file.
  */
 export interface ProducerInputsFileOptions {
-  /** Producer ID (used for filename and producerId in models array) */
-  producerId: string;
-  /** Producer name (used in header) */
-  producerName: string;
-  /** Output directory (defaults to current working directory) */
-  outputDir?: string;
-  /** Field configurations for identifying file fields */
-  inputFields?: FormFieldConfig[];
+	/** Producer ID (used for filename and producerId in models array) */
+	producerId: string;
+	/** Producer name (used in header) */
+	producerName: string;
+	/** Output directory (defaults to current working directory) */
+	outputDir?: string;
+	/** Field configurations for identifying file fields */
+	inputFields?: FormFieldConfig[];
 }
 
 /**
  * Format a file value with the file: prefix.
  */
 export function formatFileValue(value: string): string {
-  // Don't add prefix if already has it
-  if (value.startsWith('file:')) {
-    return value;
-  }
-  return `file:${value}`;
+	// Don't add prefix if already has it
+	if (value.startsWith('file:')) {
+		return value;
+	}
+	return `file:${value}`;
 }
 
 /**
@@ -276,40 +255,40 @@ export function formatFileValue(value: string): string {
  * @returns Formatted input values with file: prefix for file fields
  */
 export function formatInputsWithFilePrefix(
-  inputs: Record<string, unknown>,
-  fields?: FormFieldConfig[]
+	inputs: Record<string, unknown>,
+	fields?: FormFieldConfig[]
 ): Record<string, unknown> {
-  if (!fields || fields.length === 0) {
-    return inputs;
-  }
+	if (!fields || fields.length === 0) {
+		return inputs;
+	}
 
-  // Create a set of file field names
-  const fileFieldNames = new Set(
-    fields
-      .filter((f) => f.type === 'file' || f.type === 'file-collection')
-      .map((f) => f.name)
-  );
+	// Create a set of file field names
+	const fileFieldNames = new Set(
+		fields
+			.filter((f) => f.type === 'file' || f.type === 'file-collection')
+			.map((f) => f.name)
+	);
 
-  const formatted: Record<string, unknown> = {};
+	const formatted: Record<string, unknown> = {};
 
-  for (const [key, value] of Object.entries(inputs)) {
-    if (fileFieldNames.has(key) && value !== undefined && value !== '') {
-      // Format file values with file: prefix
-      if (Array.isArray(value)) {
-        formatted[key] = value.map((v) =>
-          typeof v === 'string' ? formatFileValue(v) : v
-        );
-      } else if (typeof value === 'string') {
-        formatted[key] = formatFileValue(value);
-      } else {
-        formatted[key] = value;
-      }
-    } else {
-      formatted[key] = value;
-    }
-  }
+	for (const [key, value] of Object.entries(inputs)) {
+		if (fileFieldNames.has(key) && value !== undefined && value !== '') {
+			// Format file values with file: prefix
+			if (Array.isArray(value)) {
+				formatted[key] = value.map((v) =>
+					typeof v === 'string' ? formatFileValue(v) : v
+				);
+			} else if (typeof value === 'string') {
+				formatted[key] = formatFileValue(value);
+			} else {
+				formatted[key] = value;
+			}
+		} else {
+			formatted[key] = value;
+		}
+	}
 
-  return formatted;
+	return formatted;
 }
 
 /**
@@ -319,18 +298,18 @@ export function formatInputsWithFilePrefix(
  * @returns Sanitized filename like "text-to-video-producer-inputs.yaml"
  */
 export function generateProducerInputsFileName(producerId: string): string {
-  // Sanitize: lowercase, replace spaces/underscores with hyphens, remove special chars
-  let name = producerId
-    .toLowerCase()
-    .replace(/[\s_]+/g, '-')
-    .replace(/[^a-z0-9-]/g, '');
+	// Sanitize: lowercase, replace spaces/underscores with hyphens, remove special chars
+	let name = producerId
+		.toLowerCase()
+		.replace(/[\s_]+/g, '-')
+		.replace(/[^a-z0-9-]/g, '');
 
-  // Ensure non-empty
-  if (!name) {
-    name = 'producer';
-  }
+	// Ensure non-empty
+	if (!name) {
+		name = 'producer';
+	}
 
-  return `${name}-inputs.yaml`;
+	return `${name}-inputs.yaml`;
 }
 
 /**
@@ -344,93 +323,96 @@ export function generateProducerInputsFileName(producerId: string): string {
  * @returns The full path to the written file
  */
 export async function writeProducerInputsYaml(
-  data: ProducerInputsYamlData,
-  options: ProducerInputsFileOptions,
+	data: ProducerInputsYamlData,
+	options: ProducerInputsFileOptions
 ): Promise<string> {
-  const outputDir = options.outputDir ?? process.cwd();
-  const filename = generateProducerInputsFileName(options.producerId);
-  const filepath = resolve(outputDir, filename);
+	const outputDir = options.outputDir ?? process.cwd();
+	const filename = generateProducerInputsFileName(options.producerId);
+	const filepath = resolve(outputDir, filename);
 
-  // Build the YAML structure matching blueprint input format
-  const yamlData: Record<string, unknown> = {};
+	// Build the YAML structure matching blueprint input format
+	const yamlData: Record<string, unknown> = {};
 
-  // Format inputs, adding file: prefix for file fields
-  const formattedInputs = formatInputsWithFilePrefix(data.inputs, options.inputFields);
+	// Format inputs, adding file: prefix for file fields
+	const formattedInputs = formatInputsWithFilePrefix(
+		data.inputs,
+		options.inputFields
+	);
 
-  // Add inputs section at top level (if any)
-  if (Object.keys(formattedInputs).length > 0) {
-    yamlData.inputs = formattedInputs;
-  }
+	// Add inputs section at top level (if any)
+	if (Object.keys(formattedInputs).length > 0) {
+		yamlData.inputs = formattedInputs;
+	}
 
-  // Add models array with the selected model
-  const modelEntry: Record<string, unknown> = {
-    model: data.model,
-    provider: data.provider,
-    producerId: options.producerId,
-  };
+	// Add models array with the selected model
+	const modelEntry: Record<string, unknown> = {
+		model: data.model,
+		provider: data.provider,
+		producerId: options.producerId,
+	};
 
-  // Add config only if there are config values
-  if (Object.keys(data.config).length > 0) {
-    modelEntry.config = data.config;
-  }
+	// Add config only if there are config values
+	if (Object.keys(data.config).length > 0) {
+		modelEntry.config = data.config;
+	}
 
-  yamlData.models = [modelEntry];
+	yamlData.models = [modelEntry];
 
-  // Convert to YAML string with nice formatting
-  const content = stringify(yamlData, {
-    indent: 2,
-    lineWidth: 0, // Don't wrap lines
-    defaultKeyType: 'PLAIN',
-    defaultStringType: 'QUOTE_DOUBLE',
-  });
+	// Convert to YAML string with nice formatting
+	const content = stringify(yamlData, {
+		indent: 2,
+		lineWidth: 0, // Don't wrap lines
+		defaultKeyType: 'PLAIN',
+		defaultStringType: 'QUOTE_DOUBLE',
+	});
 
-  // Add header comment
-  const header = [
-    `# Producer input template for: ${options.producerName}`,
-    `# Model: ${data.provider}/${data.model}`,
-    `# Generated at: ${new Date().toISOString()}`,
-    '',
-    '',
-  ].join('\n');
+	// Add header comment
+	const header = [
+		`# Producer input template for: ${options.producerName}`,
+		`# Model: ${data.provider}/${data.model}`,
+		`# Generated at: ${new Date().toISOString()}`,
+		'',
+		'',
+	].join('\n');
 
-  await writeFile(filepath, header + content, 'utf8');
+	await writeFile(filepath, header + content, 'utf8');
 
-  return filepath;
+	return filepath;
 }
 
 /**
  * Format a preview of the producer inputs YAML content.
  */
 export function formatProducerInputsPreview(
-  data: ProducerInputsYamlData,
-  producerId: string,
-  inputFields?: FormFieldConfig[],
+	data: ProducerInputsYamlData,
+	producerId: string,
+	inputFields?: FormFieldConfig[]
 ): string {
-  const yamlData: Record<string, unknown> = {};
+	const yamlData: Record<string, unknown> = {};
 
-  // Format inputs, adding file: prefix for file fields
-  const formattedInputs = formatInputsWithFilePrefix(data.inputs, inputFields);
+	// Format inputs, adding file: prefix for file fields
+	const formattedInputs = formatInputsWithFilePrefix(data.inputs, inputFields);
 
-  if (Object.keys(formattedInputs).length > 0) {
-    yamlData.inputs = formattedInputs;
-  }
+	if (Object.keys(formattedInputs).length > 0) {
+		yamlData.inputs = formattedInputs;
+	}
 
-  const modelEntry: Record<string, unknown> = {
-    model: data.model,
-    provider: data.provider,
-    producerId,
-  };
+	const modelEntry: Record<string, unknown> = {
+		model: data.model,
+		provider: data.provider,
+		producerId,
+	};
 
-  if (Object.keys(data.config).length > 0) {
-    modelEntry.config = data.config;
-  }
+	if (Object.keys(data.config).length > 0) {
+		modelEntry.config = data.config;
+	}
 
-  yamlData.models = [modelEntry];
+	yamlData.models = [modelEntry];
 
-  return stringify(yamlData, {
-    indent: 2,
-    lineWidth: 0,
-    defaultKeyType: 'PLAIN',
-    defaultStringType: 'QUOTE_DOUBLE',
-  });
+	return stringify(yamlData, {
+		indent: 2,
+		lineWidth: 0,
+		defaultKeyType: 'PLAIN',
+		defaultStringType: 'QUOTE_DOUBLE',
+	});
 }

@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { render, waitFor, screen, fireEvent } from '@testing-library/react';
 import { TextCard, type TextConfig } from './text-card';
 
 const TEXT_DEFAULTS: Required<TextConfig> = {
@@ -15,25 +15,38 @@ const TEXT_DEFAULTS: Required<TextConfig> = {
   edgePaddingPercent: 8,
 };
 
+const TEXT_SCHEMA = {
+  type: 'object',
+  default: TEXT_DEFAULTS,
+};
+
 describe('TextCard', () => {
-  describe('Auto-persist defaults', () => {
-    it('calls onChange with defaults when value is undefined and isEditable is true', async () => {
+  describe('Default persistence', () => {
+    it('does not call onChange on mount when value is undefined and isEditable is true', () => {
       const onChange = vi.fn();
 
       render(
-        <TextCard value={undefined} isEditable={true} onChange={onChange} />
+        <TextCard
+          value={undefined}
+          schema={TEXT_SCHEMA}
+          isEditable={true}
+          onChange={onChange}
+        />
       );
 
-      await waitFor(() => {
-        expect(onChange).toHaveBeenCalledWith(TEXT_DEFAULTS);
-      });
+      expect(onChange).not.toHaveBeenCalled();
     });
 
     it('does not call onChange when value is undefined but isEditable is false', () => {
       const onChange = vi.fn();
 
       render(
-        <TextCard value={undefined} isEditable={false} onChange={onChange} />
+        <TextCard
+          value={undefined}
+          schema={TEXT_SCHEMA}
+          isEditable={false}
+          onChange={onChange}
+        />
       );
 
       expect(onChange).not.toHaveBeenCalled();
@@ -45,10 +58,49 @@ describe('TextCard', () => {
       render(
         <TextCard
           value={{ font: 'Helvetica', position: 'top-center' }}
+          schema={TEXT_SCHEMA}
           isEditable={true}
           onChange={onChange}
         />
       );
+
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('persists defaults only after explicit Save', async () => {
+      const onChange = vi.fn();
+
+      render(
+        <TextCard
+          value={undefined}
+          schema={TEXT_SCHEMA}
+          isEditable={true}
+          onChange={onChange}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+      await waitFor(() => {
+        expect(onChange).toHaveBeenCalledWith(TEXT_DEFAULTS);
+      });
+    });
+
+    it('does not persist defaults when cancelled', () => {
+      const onChange = vi.fn();
+
+      render(
+        <TextCard
+          value={undefined}
+          schema={TEXT_SCHEMA}
+          isEditable={true}
+          onChange={onChange}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
       expect(onChange).not.toHaveBeenCalled();
     });
@@ -57,7 +109,11 @@ describe('TextCard', () => {
   describe('Rendering', () => {
     it('renders the text preview with merged config', () => {
       const { container } = render(
-        <TextCard value={{ font: 'Helvetica' }} isEditable={false} />
+        <TextCard
+          value={{ font: 'Helvetica' }}
+          schema={TEXT_SCHEMA}
+          isEditable={false}
+        />
       );
 
       expect(container.textContent).toContain('Helvetica');

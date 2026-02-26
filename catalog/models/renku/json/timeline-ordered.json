@@ -10,8 +10,16 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["Image", "Audio", "Music", "Video", "Text"]
-          }
+            "enum": [
+              "Image",
+              "Audio",
+              "Music",
+              "Video",
+              "Transcription",
+              "Text"
+            ]
+          },
+          "default": ["Video", "Audio", "Music"]
         },
         "masterTracks": {
           "type": "array",
@@ -26,13 +34,18 @@
           "type": "object",
           "properties": {
             "artifact": {
-              "type": "string"
+              "type": "string",
+              "default": "ImageSegments"
             },
             "effect": {
               "type": "string",
               "enum": ["KennBurns"],
               "default": "KennBurns"
             }
+          },
+          "default": {
+            "artifact": "ImageSegments",
+            "effect": "KennBurns"
           },
           "required": ["artifact"],
           "additionalProperties": true
@@ -41,14 +54,18 @@
           "type": "object",
           "properties": {
             "artifact": {
-              "type": "string"
+              "type": "string",
+              "default": "VideoSegments"
             },
             "volume": {
               "type": "number",
               "minimum": 0.0,
               "maximum": 1.0,
-              "default": 0.0
+              "default": 1.0
             }
+          },
+          "default": {
+            "artifact": "VideoSegments"
           },
           "required": ["artifact"],
           "additionalProperties": true
@@ -57,14 +74,19 @@
           "type": "object",
           "properties": {
             "artifact": {
-              "type": "string"
+              "type": "string",
+              "default": "AudioSegments"
             },
             "volume": {
               "type": "number",
               "minimum": 0.0,
               "maximum": 1.0,
-              "default": 0.0
+              "default": 1.0
             }
+          },
+          "default": {
+            "artifact": "AudioSegments",
+            "volume": 1.0
           },
           "required": ["artifact"],
           "additionalProperties": true
@@ -73,19 +95,39 @@
           "type": "object",
           "properties": {
             "artifact": {
-              "type": "string"
+              "type": "string",
+              "default": "Music"
             },
             "volume": {
               "type": "number",
               "minimum": 0.0,
               "maximum": 1.0,
-              "default": 0.0
+              "default": 0.3
             },
             "playStrategy": {
               "type": "string",
               "enum": ["loop", "stopWhenFinished"],
               "default": "loop"
             }
+          },
+          "default": {
+            "artifact": "Music",
+            "volume": 0.3,
+            "playStrategy": "loop"
+          },
+          "required": ["artifact"],
+          "additionalProperties": true
+        },
+        "transcriptionClip": {
+          "type": "object",
+          "properties": {
+            "artifact": {
+              "type": "string",
+              "default": "TranscriptionAudio"
+            }
+          },
+          "default": {
+            "artifact": "TranscriptionAudio"
           },
           "required": ["artifact"],
           "additionalProperties": true
@@ -94,7 +136,8 @@
           "type": "object",
           "properties": {
             "artifact": {
-              "type": "string"
+              "type": "string",
+              "default": "TextSegments"
             },
             "effect": {
               "type": "string",
@@ -108,8 +151,28 @@
               "default": "fade-in-out"
             }
           },
+          "default": {
+            "artifact": "TextSegments",
+            "effect": "fade-in-out"
+          },
           "required": ["artifact"],
           "additionalProperties": true
+        }
+      },
+      "default": {
+        "tracks": ["Video", "Audio", "Music"],
+        "masterTracks": ["Audio"],
+        "videoClip": {
+          "artifact": "VideoSegments"
+        },
+        "audioClip": {
+          "artifact": "AudioSegments",
+          "volume": 1.0
+        },
+        "musicClip": {
+          "artifact": "Music",
+          "volume": 0.3,
+          "playStrategy": "loop"
         }
       },
       "additionalProperties": true

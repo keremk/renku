@@ -30,6 +30,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -204,6 +205,11 @@ export function TextEditorDialog({
               </span>
             )}
           </DialogTitle>
+          <DialogDescription className='sr-only'>
+            {readOnly
+              ? 'Review text content in the editor dialog.'
+              : 'Edit text content in the editor dialog and save changes.'}
+          </DialogDescription>
         </DialogHeader>
 
         <div className='flex-1 min-h-0 flex flex-col gap-4'>

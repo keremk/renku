@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { render, waitFor, screen, fireEvent } from '@testing-library/react';
 import { SubtitlesCard, type SubtitleConfig } from './subtitles-card';
 
 // Default values for subtitle configuration (must match the component)
@@ -19,23 +19,26 @@ const SUBTITLE_DEFAULTS: Required<SubtitleConfig> = {
   highlightEffect: true,
 };
 
+const SUBTITLE_SCHEMA = {
+  type: 'object',
+  default: SUBTITLE_DEFAULTS,
+};
+
 describe('SubtitlesCard', () => {
-  describe('Auto-persist defaults', () => {
-    it('calls onChange with defaults when value is undefined and isEditable is true', async () => {
+  describe('Default persistence', () => {
+    it('does not call onChange on mount when value is undefined and isEditable is true', () => {
       const onChange = vi.fn();
 
       render(
         <SubtitlesCard
           value={undefined}
+          schema={SUBTITLE_SCHEMA}
           isEditable={true}
           onChange={onChange}
         />
       );
 
-      // The useEffect should fire and call onChange with defaults
-      await waitFor(() => {
-        expect(onChange).toHaveBeenCalledWith(SUBTITLE_DEFAULTS);
-      });
+      expect(onChange).not.toHaveBeenCalled();
     });
 
     it('does not call onChange when value is undefined but isEditable is false', () => {
@@ -44,6 +47,7 @@ describe('SubtitlesCard', () => {
       render(
         <SubtitlesCard
           value={undefined}
+          schema={SUBTITLE_SCHEMA}
           isEditable={false}
           onChange={onChange}
         />
@@ -60,6 +64,7 @@ describe('SubtitlesCard', () => {
       render(
         <SubtitlesCard
           value={customConfig}
+          schema={SUBTITLE_SCHEMA}
           isEditable={true}
           onChange={onChange}
         />
@@ -74,6 +79,7 @@ describe('SubtitlesCard', () => {
       const { container } = render(
         <SubtitlesCard
           value={undefined}
+          schema={SUBTITLE_SCHEMA}
           isEditable={true}
           onChange={undefined}
         />
@@ -82,12 +88,54 @@ describe('SubtitlesCard', () => {
       // Component should render without errors
       expect(container).toBeTruthy();
     });
+
+    it('persists defaults only after explicit Save', async () => {
+      const onChange = vi.fn();
+
+      render(
+        <SubtitlesCard
+          value={undefined}
+          schema={SUBTITLE_SCHEMA}
+          isEditable={true}
+          onChange={onChange}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+      await waitFor(() => {
+        expect(onChange).toHaveBeenCalledWith(SUBTITLE_DEFAULTS);
+      });
+    });
+
+    it('does not persist defaults when cancelled', () => {
+      const onChange = vi.fn();
+
+      render(
+        <SubtitlesCard
+          value={undefined}
+          schema={SUBTITLE_SCHEMA}
+          isEditable={true}
+          onChange={onChange}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      expect(onChange).not.toHaveBeenCalled();
+    });
   });
 
   describe('Rendering', () => {
     it('renders the subtitle preview with merged config', () => {
       const { container } = render(
-        <SubtitlesCard value={{ font: 'Helvetica' }} isEditable={false} />
+        <SubtitlesCard
+          value={{ font: 'Helvetica' }}
+          schema={SUBTITLE_SCHEMA}
+          isEditable={false}
+        />
       );
 
       // Check that the component renders
@@ -99,6 +147,7 @@ describe('SubtitlesCard', () => {
       const { container } = render(
         <SubtitlesCard
           value={{ font: 'Arial' }}
+          schema={SUBTITLE_SCHEMA}
           isEditable={true}
           onChange={vi.fn()}
         />
@@ -109,7 +158,11 @@ describe('SubtitlesCard', () => {
 
     it('hides edit button when isEditable is false', () => {
       const { container } = render(
-        <SubtitlesCard value={{ font: 'Arial' }} isEditable={false} />
+        <SubtitlesCard
+          value={{ font: 'Arial' }}
+          schema={SUBTITLE_SCHEMA}
+          isEditable={false}
+        />
       );
 
       // Should not have an Edit button

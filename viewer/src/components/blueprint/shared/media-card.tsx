@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils';
 
 interface MediaCardProps {
   /** Card content (media preview area) */
@@ -27,27 +27,40 @@ export function MediaCard({
   isPinned = false,
   onClick,
 }: MediaCardProps) {
-  const Wrapper = onClick ? "button" : "div";
+  const isClickable = Boolean(onClick);
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!onClick) {
+      return;
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onClick();
+    }
+  };
 
   return (
-    <Wrapper
-      type={onClick ? "button" : undefined}
+    <div
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
       onClick={onClick}
+      onKeyDown={isClickable ? handleKeyDown : undefined}
       className={cn(
-        "rounded-xl border bg-card overflow-hidden flex flex-col transition-all text-left w-full shadow-lg",
+        'rounded-xl border bg-card overflow-hidden flex flex-col transition-all text-left w-full shadow-lg',
         isPinned
-          ? "border-amber-500 ring-2 ring-amber-500/40 shadow-xl -translate-y-1"
+          ? 'border-amber-500 ring-2 ring-amber-500/40 shadow-xl -translate-y-1'
           : isSelected
-            ? "border-primary ring-2 ring-primary/40 shadow-xl -translate-y-1"
-            : "border-border",
-        onClick && "hover:border-primary/70 hover:shadow-xl hover:-translate-y-1 cursor-pointer",
+            ? 'border-primary ring-2 ring-primary/40 shadow-xl -translate-y-1'
+            : 'border-border',
+        onClick &&
+          'hover:border-primary/70 hover:shadow-xl hover:-translate-y-1 cursor-pointer',
         className
       )}
     >
-      <div className="flex-1 min-h-0">{children}</div>
-      <div className="border-t border-border/60 bg-muted/50 px-4 py-3 flex items-center justify-between gap-2">
+      <div className='flex-1 min-h-0'>{children}</div>
+      <div className='border-t border-border/60 bg-muted/50 px-4 py-3 flex items-center justify-between gap-2'>
         {footer}
       </div>
-    </Wrapper>
+    </div>
   );
 }

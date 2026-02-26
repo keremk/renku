@@ -11,13 +11,16 @@ import type { ComponentType } from 'react';
 import { SubtitlesCard, type SubtitlesCardProps } from './subtitles-card';
 import { TimelineCard, type TimelineCardProps } from './timeline-card';
 import { TextCard, type TextCardProps } from './text-card';
+import type { SchemaProperty } from '@/types/blueprint-graph';
 
 /**
  * Props that all config editor components receive.
  */
 export interface ConfigEditorProps<T = unknown> {
-  /** Current value of the config property (undefined triggers auto-persist of defaults) */
+  /** Current value of the config property */
   value: T | undefined;
+  /** JSON schema for this config property */
+  schema?: SchemaProperty;
   /** Whether editing is enabled */
   isEditable?: boolean;
   /** Whether this card is selected/highlighted */

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Type, Palette, Layout } from 'lucide-react';
 import { Sketch } from '@uiw/react-color';
 
@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,7 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import type { ConfigEditorProps } from './index';
+import { resolveObjectDefaults } from './schema-defaults';
 
 export type OverlayPosition =
   | 'top-left'
@@ -47,16 +49,6 @@ export interface TextConfig {
   position?: OverlayPosition;
   edgePaddingPercent?: number;
 }
-
-const TEXT_DEFAULTS: Required<TextConfig> = {
-  font: 'Arial',
-  fontSize: 56,
-  fontBaseColor: '#FFFFFF',
-  backgroundColor: '#000000',
-  backgroundOpacity: 0.35,
-  position: 'middle-center',
-  edgePaddingPercent: 8,
-};
 
 const FONT_OPTIONS = [
   'Arial',
@@ -86,21 +78,21 @@ export type TextCardProps = ConfigEditorProps<TextConfig>;
 
 export function TextCard({
   value,
+  schema,
   isEditable = false,
   isSelected = false,
   onChange,
 }: TextCardProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const config = useMemo(() => {
-    return { ...TEXT_DEFAULTS, ...value };
-  }, [value]);
+  const defaultConfig = useMemo(
+    () => resolveObjectDefaults<Required<TextConfig>>(schema),
+    [schema]
+  );
 
-  useEffect(() => {
-    if (value === undefined && isEditable && onChange) {
-      onChange(TEXT_DEFAULTS);
-    }
-  }, [value, isEditable, onChange]);
+  const config = useMemo(() => {
+    return { ...defaultConfig, ...value };
+  }, [defaultConfig, value]);
 
   const handleSave = useCallback(
     (newConfig: TextConfig) => {
@@ -290,6 +282,11 @@ function TextEditDialog({
             <Type className='size-5' />
             {readOnly ? 'Text Overlay Settings' : 'Edit Text Overlay Settings'}
           </DialogTitle>
+          <DialogDescription className='sr-only'>
+            {readOnly
+              ? 'Review text overlay font, color, and layout settings.'
+              : 'Configure text overlay font, color, and layout settings.'}
+          </DialogDescription>
         </DialogHeader>
 
         <div className='space-y-6 py-4'>
@@ -318,7 +315,10 @@ function TextEditDialog({
                   type='number'
                   value={formState.fontSize}
                   onChange={(e) =>
-                    updateField('fontSize', parseInt(e.target.value) || 56)
+                    updateField(
+                      'fontSize',
+                      parseInt(e.target.value) || config.fontSize
+                    )
                   }
                   disabled={readOnly}
                   className='h-8 text-xs'
@@ -352,7 +352,13 @@ function TextEditDialog({
                   onChange={(e) =>
                     updateField(
                       'backgroundOpacity',
-                      Math.min(1, Math.max(0, parseFloat(e.target.value) || 0))
+                      Math.min(
+                        1,
+                        Math.max(
+                          0,
+                          parseFloat(e.target.value) || config.backgroundOpacity
+                        )
+                      )
                     )
                   }
                   disabled={readOnly}
@@ -398,7 +404,7 @@ function TextEditDialog({
                   onChange={(e) =>
                     updateField(
                       'edgePaddingPercent',
-                      parseInt(e.target.value) || 8
+                      parseInt(e.target.value) || config.edgePaddingPercent
                     )
                   }
                   disabled={readOnly}

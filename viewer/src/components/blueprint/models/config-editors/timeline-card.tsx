@@ -5,7 +5,7 @@
  * Follows the same pattern as SubtitlesCard.
  */
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Film, Layers, Volume2, Settings, Crown } from 'lucide-react';
 
 import { MediaCard } from '../../shared/media-card';
@@ -14,6 +14,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import type { ConfigEditorProps } from './index';
+import { resolveObjectDefaults } from './schema-defaults';
 
 // ============================================================================
 // Types
@@ -116,14 +118,6 @@ const TEXT_EFFECT_OPTIONS = [
   { value: 'spring-in-out', label: 'Spring In + Out' },
 ];
 
-const TIMELINE_DEFAULTS: TimelineConfig = {
-  tracks: ['Video', 'Audio', 'Music'],
-  masterTracks: ['Audio'],
-  audioClip: { artifact: 'AudioSegments', volume: 1 },
-  videoClip: { artifact: 'VideoSegments' },
-  musicClip: { artifact: 'Music', volume: 0.3 },
-};
-
 // ============================================================================
 // Main Component
 // ============================================================================
@@ -132,22 +126,21 @@ export type TimelineCardProps = ConfigEditorProps<TimelineConfig>;
 
 export function TimelineCard({
   value,
+  schema,
   isEditable = false,
   isSelected = false,
   onChange,
 }: TimelineCardProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const config = useMemo(() => {
-    return { ...TIMELINE_DEFAULTS, ...value };
-  }, [value]);
+  const defaultConfig = useMemo(
+    () => resolveObjectDefaults<TimelineConfig>(schema),
+    [schema]
+  );
 
-  // Auto-emit defaults when value is undefined and editable
-  useEffect(() => {
-    if (value === undefined && isEditable && onChange) {
-      onChange(TIMELINE_DEFAULTS);
-    }
-  }, [value, isEditable, onChange]);
+  const config = useMemo(() => {
+    return { ...defaultConfig, ...value };
+  }, [defaultConfig, value]);
 
   const handleSave = useCallback(
     (newConfig: TimelineConfig) => {
@@ -432,6 +425,11 @@ function TimelineEditDialog({
             <Film className='size-5' />
             {readOnly ? 'Timeline Settings' : 'Edit Timeline'}
           </DialogTitle>
+          <DialogDescription className='sr-only'>
+            {readOnly
+              ? 'Review timeline tracks, master tracks, and clip settings.'
+              : 'Configure timeline tracks, master tracks, and clip settings.'}
+          </DialogDescription>
         </DialogHeader>
 
         <div className='space-y-6 py-4'>

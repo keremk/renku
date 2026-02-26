@@ -5,7 +5,7 @@
  * Uses @uiw/react-color Sketch picker for color selection.
  */
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Subtitles, Type, Palette, Layout, Sparkles } from 'lucide-react';
 import { Sketch } from '@uiw/react-color';
 
@@ -15,6 +15,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,7 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import type { ConfigEditorProps } from './index';
+import { resolveObjectDefaults } from './schema-defaults';
 
 /**
  * Subtitle configuration structure (matches SubtitleConfig from providers).
@@ -61,22 +63,6 @@ type OverlayPosition =
   | 'bottom-left'
   | 'bottom-center'
   | 'bottom-right';
-
-/**
- * Default values for subtitle configuration.
- */
-const SUBTITLE_DEFAULTS: Required<SubtitleConfig> = {
-  font: 'Arial',
-  fontSize: 48,
-  fontBaseColor: '#FFFFFF',
-  fontHighlightColor: '#FFD700',
-  backgroundColor: '#000000',
-  backgroundOpacity: 0,
-  position: 'bottom-center',
-  edgePaddingPercent: 8,
-  maxWordsPerLine: 4,
-  highlightEffect: true,
-};
 
 /**
  * Common fonts for subtitle display.
@@ -112,24 +98,21 @@ export type SubtitlesCardProps = ConfigEditorProps<SubtitleConfig>;
  */
 export function SubtitlesCard({
   value,
+  schema,
   isEditable = false,
   isSelected = false,
   onChange,
 }: SubtitlesCardProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Merge value with defaults for display
-  const config = useMemo(() => {
-    return { ...SUBTITLE_DEFAULTS, ...value };
-  }, [value]);
+  const defaultConfig = useMemo(
+    () => resolveObjectDefaults<Required<SubtitleConfig>>(schema),
+    [schema]
+  );
 
-  // Auto-emit defaults when value is undefined and editable
-  // This ensures defaults are persisted on first render
-  useEffect(() => {
-    if (value === undefined && isEditable && onChange) {
-      onChange(SUBTITLE_DEFAULTS);
-    }
-  }, [value, isEditable, onChange]);
+  const config = useMemo(() => {
+    return { ...defaultConfig, ...value };
+  }, [defaultConfig, value]);
 
   const handleSave = useCallback(
     (newConfig: SubtitleConfig) => {
@@ -363,6 +346,11 @@ function SubtitlesEditDialog({
             <Subtitles className='size-5' />
             {readOnly ? 'Subtitle Settings' : 'Edit Subtitle Settings'}
           </DialogTitle>
+          <DialogDescription className='sr-only'>
+            {readOnly
+              ? 'Review subtitle font, color, layout, and effect settings.'
+              : 'Configure subtitle font, color, layout, and effect settings.'}
+          </DialogDescription>
         </DialogHeader>
 
         <div className='space-y-6 py-4'>
@@ -392,7 +380,10 @@ function SubtitlesEditDialog({
                   type='number'
                   value={formState.fontSize}
                   onChange={(e) =>
-                    updateField('fontSize', parseInt(e.target.value) || 48)
+                    updateField(
+                      'fontSize',
+                      parseInt(e.target.value) || config.fontSize
+                    )
                   }
                   disabled={readOnly}
                   className='h-8 text-xs'
@@ -434,7 +425,13 @@ function SubtitlesEditDialog({
                   onChange={(e) =>
                     updateField(
                       'backgroundOpacity',
-                      Math.min(1, Math.max(0, parseFloat(e.target.value) || 0))
+                      Math.min(
+                        1,
+                        Math.max(
+                          0,
+                          parseFloat(e.target.value) || config.backgroundOpacity
+                        )
+                      )
                     )
                   }
                   disabled={readOnly}
@@ -481,7 +478,7 @@ function SubtitlesEditDialog({
                   onChange={(e) =>
                     updateField(
                       'edgePaddingPercent',
-                      parseInt(e.target.value) || 8
+                      parseInt(e.target.value) || config.edgePaddingPercent
                     )
                   }
                   disabled={readOnly}
@@ -503,7 +500,7 @@ function SubtitlesEditDialog({
                   onChange={(e) =>
                     updateField(
                       'maxWordsPerLine',
-                      parseInt(e.target.value) || 4
+                      parseInt(e.target.value) || config.maxWordsPerLine
                     )
                   }
                   disabled={readOnly}

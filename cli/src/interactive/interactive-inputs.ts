@@ -2,61 +2,67 @@ import React from 'react';
 import { render } from 'ink';
 import { resolve } from 'node:path';
 import {
-  loadModelCatalog,
-  loadModelSchemaFile,
-  createProviderRegistry,
-  type LoadedModelCatalog,
+	loadModelCatalog,
+	loadModelSchemaFile,
+	createProviderRegistry,
+	type LoadedModelCatalog,
 } from '@gorenku/providers';
 import type { BlueprintTreeNode, Logger } from '@gorenku/core';
 import { loadBlueprintBundle } from '../lib/blueprint-loader/index.js';
 import { resolveBlueprintSpecifier } from '../lib/config-assets.js';
 import type { CliConfig } from '../lib/cli-config.js';
 import {
-  extractProducers,
-  extractCompositionProducers,
-  type ExtractedCompositionProducer,
+	extractProducers,
+	extractCompositionProducers,
+	type ExtractedCompositionProducer,
 } from './utils/producer-extractor.js';
-import { loadAllAssetModels, type AssetModelOption } from './utils/asset-model-loader.js';
+import {
+	loadAllAssetModels,
+	type AssetModelOption,
+} from './utils/asset-model-loader.js';
 import { detectAvailableProviders } from './utils/api-key-detector.js';
 import {
-  writeInputsYaml,
-  writeProducerInputsYaml,
-  generateTimelineConfigTemplate,
-  type InputsYamlData,
-  type CompositionModelInput,
+	writeInputsYaml,
+	writeProducerInputsYaml,
+	type InputsYamlData,
+	type CompositionModelInput,
 } from './utils/yaml-writer.js';
 import type { ProducerInputsYamlData } from './types/producer-mode.js';
 import { blueprintInputsToFields } from './utils/schema-to-fields.js';
+import { extractInputSchemaDefaults } from './utils/schema-defaults.js';
 import { InteractiveApp } from './components/interactive-app.js';
 import { ProducerApp } from './components/producer-app.js';
-import { loadProducerDocument, type ProducerDocument } from './utils/producer-loader.js';
+import {
+	loadProducerDocument,
+	type ProducerDocument,
+} from './utils/producer-loader.js';
 
 /**
  * Options for running interactive input gathering.
  */
 export interface InteractiveInputsOptions {
-  /** Blueprint specifier (path or catalog reference) */
-  blueprint: string;
-  /** CLI configuration */
-  cliConfig: CliConfig;
-  /** Logger instance */
-  logger: Logger;
-  /** Output directory for the generated file (defaults to cwd) */
-  outputDir?: string;
+	/** Blueprint specifier (path or catalog reference) */
+	blueprint: string;
+	/** CLI configuration */
+	cliConfig: CliConfig;
+	/** Logger instance */
+	logger: Logger;
+	/** Output directory for the generated file (defaults to cwd) */
+	outputDir?: string;
 }
 
 /**
  * Result of interactive input gathering.
  */
 export interface InteractiveInputsResult {
-  /** Whether the operation was successful */
-  success: boolean;
-  /** Path to the generated inputs file (if successful) */
-  inputsPath?: string;
-  /** Whether the user cancelled */
-  cancelled?: boolean;
-  /** Error message (if failed) */
-  error?: string;
+	/** Whether the operation was successful */
+	success: boolean;
+	/** Path to the generated inputs file (if successful) */
+	inputsPath?: string;
+	/** Whether the user cancelled */
+	cancelled?: boolean;
+	/** Error message (if failed) */
+	error?: string;
 }
 
 /**
@@ -72,187 +78,267 @@ export interface InteractiveInputsResult {
  * @returns Result with success status and file path
  */
 export async function runInteractiveInputs(
-  options: InteractiveInputsOptions,
+	options: InteractiveInputsOptions
 ): Promise<InteractiveInputsResult> {
-  const { blueprint: blueprintSpecifier, cliConfig, logger } = options;
+	const { blueprint: blueprintSpecifier, cliConfig, logger } = options;
 
-  try {
-    // 1. Resolve and load blueprint
-    logger.info('Loading blueprint...');
-    const blueprintPath = await resolveBlueprintSpecifier(blueprintSpecifier, {
-      cliRoot: cliConfig.storage.root,
-    });
+	try {
+		// 1. Resolve and load blueprint
+		logger.info('Loading blueprint...');
+		const blueprintPath = await resolveBlueprintSpecifier(blueprintSpecifier, {
+			cliRoot: cliConfig.storage.root,
+		});
 
-    const { root: blueprintRoot } = await loadBlueprintBundle(blueprintPath, {
-      catalogRoot: cliConfig.catalog?.root,
-    });
+		const { root: blueprintRoot } = await loadBlueprintBundle(blueprintPath, {
+			catalogRoot: cliConfig.catalog?.root,
+		});
 
-    // 2. Load model catalog
-    logger.info('Loading model catalog...');
-    const catalogModelsDir = cliConfig.catalog?.root
-      ? resolve(cliConfig.catalog.root, 'models')
-      : undefined;
+		// 2. Load model catalog
+		logger.info('Loading model catalog...');
+		const catalogModelsDir = cliConfig.catalog?.root
+			? resolve(cliConfig.catalog.root, 'models')
+			: undefined;
 
-    let modelCatalog: LoadedModelCatalog | undefined;
-    if (catalogModelsDir) {
-      modelCatalog = await loadModelCatalog(catalogModelsDir);
-    }
+		let modelCatalog: LoadedModelCatalog | undefined;
+		if (catalogModelsDir) {
+			modelCatalog = await loadModelCatalog(catalogModelsDir);
+		}
 
-    // 3. Create provider registry and detect available providers
-    logger.info('Checking available providers...');
-    const registry = createProviderRegistry({ mode: 'live', catalog: modelCatalog });
+		// 3. Create provider registry and detect available providers
+		logger.info('Checking available providers...');
+		const registry = createProviderRegistry({
+			mode: 'live',
+			catalog: modelCatalog,
+		});
 
-    let availableProviders = new Set<string>();
-    if (modelCatalog) {
-      const availability = await detectAvailableProviders(modelCatalog, registry);
-      availableProviders = availability.availableProviders;
+		let availableProviders = new Set<string>();
+		if (modelCatalog) {
+			const availability = await detectAvailableProviders(
+				modelCatalog,
+				registry
+			);
+			availableProviders = availability.availableProviders;
 
-      // Log info about available providers
-      if (availableProviders.size > 0) {
-        logger.info(`Available providers: ${[...availableProviders].join(', ')}`);
-      } else {
-        logger.warn('No providers available. Check your API keys in .env file.');
-      }
+			// Log info about available providers
+			if (availableProviders.size > 0) {
+				logger.info(
+					`Available providers: ${[...availableProviders].join(', ')}`
+				);
+			} else {
+				logger.warn(
+					'No providers available. Check your API keys in .env file.'
+				);
+			}
 
-      // Log warnings for unavailable providers (these explain why each failed)
-      for (const [provider, reason] of availability.unavailableReasons) {
-        logger.warn(`Provider ${provider} not available: ${reason}`);
-      }
-    } else {
-      logger.warn('No model catalog found. Check your catalog configuration.');
-    }
+			// Log warnings for unavailable providers (these explain why each failed)
+			for (const [provider, reason] of availability.unavailableReasons) {
+				logger.warn(`Provider ${provider} not available: ${reason}`);
+			}
+		} else {
+			logger.warn('No model catalog found. Check your catalog configuration.');
+		}
 
-    // 4. Extract producers from blueprint
-    const producers = extractProducers(blueprintRoot);
-    const compositionProducers = extractCompositionProducers(blueprintRoot);
+		// 4. Extract producers from blueprint
+		const producers = extractProducers(blueprintRoot);
+		const compositionProducers = extractCompositionProducers(blueprintRoot);
 
-    // 5. Load asset models for asset producers
-    const catalogRoot = cliConfig.catalog?.root ?? '';
-    const assetProducerRefs = producers
-      .filter((p) => p.category === 'asset')
-      .map((p) => p.producerRef);
-    const assetModels = await loadAllAssetModels(assetProducerRefs, catalogRoot);
+		// 5. Load asset models for asset producers
+		const catalogRoot = cliConfig.catalog?.root ?? '';
+		const assetProducerRefs = producers
+			.filter((p) => p.category === 'asset')
+			.map((p) => p.producerRef);
+		const assetModels = await loadAllAssetModels(
+			assetProducerRefs,
+			catalogRoot
+		);
 
-    // 6. Get blueprint input field configurations
-    const blueprintInputs = blueprintRoot.document.inputs ?? [];
-    const blueprintFields = blueprintInputsToFields(blueprintInputs);
+		// 6. Get blueprint input field configurations
+		const blueprintInputs = blueprintRoot.document.inputs ?? [];
+		const blueprintFields = blueprintInputsToFields(blueprintInputs);
 
-    // 7. Run the interactive application
-    return await runInteractiveApp({
-      blueprint: blueprintRoot,
-      producers,
-      compositionProducers,
-      modelCatalog,
-      availableProviders,
-      assetModels,
-      blueprintFields,
-      blueprintId: blueprintRoot.document.meta.id,
-      blueprintName: blueprintRoot.document.meta.name ?? blueprintRoot.document.meta.id,
-      logger,
-      outputDir: options.outputDir,
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    logger.error(`Failed to start interactive mode: ${message}`);
-    return {
-      success: false,
-      error: message,
-    };
-  }
+		// 7. Run the interactive application
+		return await runInteractiveApp({
+			blueprint: blueprintRoot,
+			producers,
+			compositionProducers,
+			modelCatalog,
+			catalogModelsDir,
+			availableProviders,
+			assetModels,
+			blueprintFields,
+			blueprintId: blueprintRoot.document.meta.id,
+			blueprintName:
+				blueprintRoot.document.meta.name ?? blueprintRoot.document.meta.id,
+			logger,
+			outputDir: options.outputDir,
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		logger.error(`Failed to start interactive mode: ${message}`);
+		return {
+			success: false,
+			error: message,
+		};
+	}
+}
+
+const RENKU_COMPOSITION_MODELS: Record<string, string> = {
+	'composition/timeline-composer': 'timeline/ordered',
+	'composition/video-exporter': 'ffmpeg/native-render',
+};
+
+function resolveRenkuCompositionModel(producerRef: string): string {
+	const model = RENKU_COMPOSITION_MODELS[producerRef];
+	if (model) {
+		return model;
+	}
+	throw new Error(
+		`Unsupported composition producer "${producerRef}". Add an explicit renku model mapping before generating input-template defaults.`
+	);
+}
+
+async function buildRenkuCompositionModels(params: {
+	compositionProducers: ExtractedCompositionProducer[];
+	modelCatalog?: LoadedModelCatalog;
+	catalogModelsDir?: string;
+}): Promise<CompositionModelInput[]> {
+	const { compositionProducers, modelCatalog, catalogModelsDir } = params;
+
+	if (compositionProducers.length === 0) {
+		return [];
+	}
+
+	if (!modelCatalog || !catalogModelsDir) {
+		throw new Error(
+			'Cannot generate schema defaults for renku composition producers without a local catalog. Run "renku init" and "renku update" first.'
+		);
+	}
+
+	const models: CompositionModelInput[] = [];
+
+	for (const producer of compositionProducers) {
+		const model = resolveRenkuCompositionModel(producer.producerRef);
+		const schemaFile = await loadModelSchemaFile(
+			catalogModelsDir,
+			modelCatalog,
+			'renku',
+			model
+		);
+
+		if (!schemaFile) {
+			throw new Error(
+				`Missing schema file for renku/${model}. Cannot generate defaults for ${producer.alias}.`
+			);
+		}
+
+		const configDefaults = extractInputSchemaDefaults(schemaFile);
+		if (Object.keys(configDefaults).length === 0) {
+			throw new Error(
+				`Schema defaults are empty for renku/${model}. Add explicit defaults before generating input-template values for ${producer.alias}.`
+			);
+		}
+
+		models.push({
+			producerId: producer.alias,
+			provider: 'renku',
+			model,
+			config: configDefaults,
+		});
+	}
+
+	return models;
 }
 
 /**
  * Internal function to render and manage the Ink application.
  */
 async function runInteractiveApp(options: {
-  blueprint: BlueprintTreeNode;
-  producers: ReturnType<typeof extractProducers>;
-  compositionProducers: ExtractedCompositionProducer[];
-  modelCatalog?: LoadedModelCatalog;
-  availableProviders: Set<string>;
-  assetModels: Map<string, AssetModelOption[]>;
-  blueprintFields: ReturnType<typeof blueprintInputsToFields>;
-  blueprintId: string;
-  blueprintName: string;
-  logger: Logger;
-  outputDir?: string;
+	blueprint: BlueprintTreeNode;
+	producers: ReturnType<typeof extractProducers>;
+	compositionProducers: ExtractedCompositionProducer[];
+	modelCatalog?: LoadedModelCatalog;
+	catalogModelsDir?: string;
+	availableProviders: Set<string>;
+	assetModels: Map<string, AssetModelOption[]>;
+	blueprintFields: ReturnType<typeof blueprintInputsToFields>;
+	blueprintId: string;
+	blueprintName: string;
+	logger: Logger;
+	outputDir?: string;
 }): Promise<InteractiveInputsResult> {
-  const {
-    blueprint,
-    producers,
-    compositionProducers,
-    modelCatalog,
-    availableProviders,
-    assetModels,
-    blueprintFields,
-    blueprintId,
-    blueprintName,
-    logger,
-    outputDir,
-  } = options;
+	const {
+		blueprint,
+		producers,
+		compositionProducers,
+		modelCatalog,
+		catalogModelsDir,
+		availableProviders,
+		assetModels,
+		blueprintFields,
+		blueprintId,
+		blueprintName,
+		logger,
+		outputDir,
+	} = options;
 
-  return new Promise((resolvePromise) => {
-    let result: InteractiveInputsResult = { success: false, cancelled: true };
+	return new Promise((resolvePromise) => {
+		let result: InteractiveInputsResult = { success: false, cancelled: true };
 
-    const handleComplete = async (data: InputsYamlData) => {
-      try {
-        logger.info('Saving inputs file...');
+		const handleComplete = async (data: InputsYamlData) => {
+			try {
+				logger.info('Saving inputs file...');
 
-        // Create composition model entries with timeline config templates
-        const compositionModels: CompositionModelInput[] = compositionProducers.map(
-          (producer) => ({
-            producerId: producer.alias,
-            model: 'timeline/ordered',
-            provider: 'renku',
-            config: generateTimelineConfigTemplate(),
-          }),
-        );
+				const compositionModels = await buildRenkuCompositionModels({
+					compositionProducers,
+					modelCatalog,
+					catalogModelsDir,
+				});
 
-        const filePath = await writeInputsYaml(
-          {
-            ...data,
-            compositionModels,
-          },
-          {
-            blueprintId,
-            blueprintName,
-            outputDir,
-            blueprintFields, // Include all fields in template
-          },
-        );
-        logger.info(`Inputs saved to: ${filePath}`);
-        result = { success: true, inputsPath: filePath };
-        instance.unmount();
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        logger.error(`Failed to save inputs: ${message}`);
-        result = { success: false, error: message };
-        instance.unmount();
-      }
-    };
+				const filePath = await writeInputsYaml(
+					{
+						...data,
+						compositionModels,
+					},
+					{
+						blueprintId,
+						blueprintName,
+						outputDir,
+						blueprintFields, // Include all fields in template
+					}
+				);
+				logger.info(`Inputs saved to: ${filePath}`);
+				result = { success: true, inputsPath: filePath };
+				instance.unmount();
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				logger.error(`Failed to save inputs: ${message}`);
+				result = { success: false, error: message };
+				instance.unmount();
+			}
+		};
 
-    const handleCancel = () => {
-      result = { success: false, cancelled: true };
-      instance.unmount();
-    };
+		const handleCancel = () => {
+			result = { success: false, cancelled: true };
+			instance.unmount();
+		};
 
-    const instance = render(
-      React.createElement(InteractiveApp, {
-        blueprint,
-        producers,
-        modelCatalog,
-        availableProviders,
-        assetModels,
-        blueprintFields,
-        onComplete: handleComplete,
-        onCancel: handleCancel,
-      }),
-    );
+		const instance = render(
+			React.createElement(InteractiveApp, {
+				blueprint,
+				producers,
+				modelCatalog,
+				availableProviders,
+				assetModels,
+				blueprintFields,
+				onComplete: handleComplete,
+				onCancel: handleCancel,
+			})
+		);
 
-    instance.waitUntilExit().then(() => {
-      resolvePromise(result);
-    });
-  });
+		instance.waitUntilExit().then(() => {
+			resolvePromise(result);
+		});
+	});
 }
 
 // --- Producer mode ---
@@ -261,14 +347,14 @@ async function runInteractiveApp(options: {
  * Options for running producer interactive input gathering.
  */
 export interface ProducerInteractiveInputsOptions {
-  /** Path to the producer YAML file */
-  producerPath: string;
-  /** CLI configuration */
-  cliConfig: CliConfig;
-  /** Logger instance */
-  logger: Logger;
-  /** Output directory for the generated file (defaults to cwd) */
-  outputDir?: string;
+	/** Path to the producer YAML file */
+	producerPath: string;
+	/** CLI configuration */
+	cliConfig: CliConfig;
+	/** Logger instance */
+	logger: Logger;
+	/** Output directory for the generated file (defaults to cwd) */
+	outputDir?: string;
 }
 
 /**
@@ -285,136 +371,145 @@ export interface ProducerInteractiveInputsOptions {
  * @returns Result with success status and file path
  */
 export async function runProducerInteractiveInputs(
-  options: ProducerInteractiveInputsOptions,
+	options: ProducerInteractiveInputsOptions
 ): Promise<InteractiveInputsResult> {
-  const { producerPath, cliConfig, logger } = options;
+	const { producerPath, cliConfig, logger } = options;
 
-  try {
-    // 1. Load producer document
-    logger.info('Loading producer...');
-    const producer = await loadProducerDocument(producerPath);
+	try {
+		// 1. Load producer document
+		logger.info('Loading producer...');
+		const producer = await loadProducerDocument(producerPath);
 
-    // 2. Load model catalog
-    logger.info('Loading model catalog...');
-    const catalogModelsDir = cliConfig.catalog?.root
-      ? resolve(cliConfig.catalog.root, 'models')
-      : undefined;
+		// 2. Load model catalog
+		logger.info('Loading model catalog...');
+		const catalogModelsDir = cliConfig.catalog?.root
+			? resolve(cliConfig.catalog.root, 'models')
+			: undefined;
 
-    if (!catalogModelsDir) {
-      return {
-        success: false,
-        error: 'No catalog models directory configured. Check your CLI configuration.',
-      };
-    }
+		if (!catalogModelsDir) {
+			return {
+				success: false,
+				error:
+					'No catalog models directory configured. Check your CLI configuration.',
+			};
+		}
 
-    const modelCatalog = await loadModelCatalog(catalogModelsDir);
+		const modelCatalog = await loadModelCatalog(catalogModelsDir);
 
-    // 3. Create provider registry and detect available providers
-    logger.info('Checking available providers...');
-    const registry = createProviderRegistry({ mode: 'live', catalog: modelCatalog });
-    const availability = await detectAvailableProviders(modelCatalog, registry);
-    const availableProviders = availability.availableProviders;
+		// 3. Create provider registry and detect available providers
+		logger.info('Checking available providers...');
+		const registry = createProviderRegistry({
+			mode: 'live',
+			catalog: modelCatalog,
+		});
+		const availability = await detectAvailableProviders(modelCatalog, registry);
+		const availableProviders = availability.availableProviders;
 
-    // Log info about available providers
-    if (availableProviders.size > 0) {
-      logger.info(`Available providers: ${[...availableProviders].join(', ')}`);
-    } else {
-      logger.warn('No providers available. Check your API keys in .env file.');
-    }
+		// Log info about available providers
+		if (availableProviders.size > 0) {
+			logger.info(`Available providers: ${[...availableProviders].join(', ')}`);
+		} else {
+			logger.warn('No providers available. Check your API keys in .env file.');
+		}
 
-    // Log warnings for unavailable providers
-    for (const [provider, reason] of availability.unavailableReasons) {
-      logger.warn(`Provider ${provider} not available: ${reason}`);
-    }
+		// Log warnings for unavailable providers
+		for (const [provider, reason] of availability.unavailableReasons) {
+			logger.warn(`Provider ${provider} not available: ${reason}`);
+		}
 
-    // 4. Run the producer interactive application
-    return await runProducerInteractiveApp({
-      producer,
-      modelCatalog,
-      catalogModelsDir,
-      availableProviders,
-      logger,
-      outputDir: options.outputDir,
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    logger.error(`Failed to start producer interactive mode: ${message}`);
-    return {
-      success: false,
-      error: message,
-    };
-  }
+		// 4. Run the producer interactive application
+		return await runProducerInteractiveApp({
+			producer,
+			modelCatalog,
+			catalogModelsDir,
+			availableProviders,
+			logger,
+			outputDir: options.outputDir,
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		logger.error(`Failed to start producer interactive mode: ${message}`);
+		return {
+			success: false,
+			error: message,
+		};
+	}
 }
 
 /**
  * Internal function to render and manage the producer Ink application.
  */
 async function runProducerInteractiveApp(options: {
-  producer: ProducerDocument;
-  modelCatalog: LoadedModelCatalog;
-  catalogModelsDir: string;
-  availableProviders: Set<string>;
-  logger: Logger;
-  outputDir?: string;
+	producer: ProducerDocument;
+	modelCatalog: LoadedModelCatalog;
+	catalogModelsDir: string;
+	availableProviders: Set<string>;
+	logger: Logger;
+	outputDir?: string;
 }): Promise<InteractiveInputsResult> {
-  const {
-    producer,
-    modelCatalog,
-    catalogModelsDir,
-    availableProviders,
-    logger,
-    outputDir,
-  } = options;
+	const {
+		producer,
+		modelCatalog,
+		catalogModelsDir,
+		availableProviders,
+		logger,
+		outputDir,
+	} = options;
 
-  return new Promise((resolvePromise) => {
-    let result: InteractiveInputsResult = { success: false, cancelled: true };
+	return new Promise((resolvePromise) => {
+		let result: InteractiveInputsResult = { success: false, cancelled: true };
 
-    // Schema loader function
-    const loadSchemaFile = async (provider: string, model: string) => {
-      return loadModelSchemaFile(catalogModelsDir, modelCatalog, provider, model);
-    };
+		// Schema loader function
+		const loadSchemaFile = async (provider: string, model: string) => {
+			return loadModelSchemaFile(
+				catalogModelsDir,
+				modelCatalog,
+				provider,
+				model
+			);
+		};
 
-    const handleComplete = async (data: ProducerInputsYamlData) => {
-      try {
-        logger.info('Saving producer inputs file...');
+		const handleComplete = async (data: ProducerInputsYamlData) => {
+			try {
+				logger.info('Saving producer inputs file...');
 
-        const filePath = await writeProducerInputsYaml(data, {
-          producerId: producer.meta.id,
-          producerName: producer.meta.name,
-          outputDir,
-          inputFields: data.inputFields,
-        });
+				const filePath = await writeProducerInputsYaml(data, {
+					producerId: producer.meta.id,
+					producerName: producer.meta.name,
+					outputDir,
+					inputFields: data.inputFields,
+				});
 
-        logger.info(`Producer inputs saved to: ${filePath}`);
-        result = { success: true, inputsPath: filePath };
-        instance.unmount();
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        logger.error(`Failed to save producer inputs: ${message}`);
-        result = { success: false, error: message };
-        instance.unmount();
-      }
-    };
+				logger.info(`Producer inputs saved to: ${filePath}`);
+				result = { success: true, inputsPath: filePath };
+				instance.unmount();
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				logger.error(`Failed to save producer inputs: ${message}`);
+				result = { success: false, error: message };
+				instance.unmount();
+			}
+		};
 
-    const handleCancel = () => {
-      result = { success: false, cancelled: true };
-      instance.unmount();
-    };
+		const handleCancel = () => {
+			result = { success: false, cancelled: true };
+			instance.unmount();
+		};
 
-    const instance = render(
-      React.createElement(ProducerApp, {
-        producer,
-        modelCatalog,
-        catalogModelsDir,
-        availableProviders,
-        loadSchemaFile,
-        onComplete: handleComplete,
-        onCancel: handleCancel,
-      }),
-    );
+		const instance = render(
+			React.createElement(ProducerApp, {
+				producer,
+				modelCatalog,
+				catalogModelsDir,
+				availableProviders,
+				loadSchemaFile,
+				onComplete: handleComplete,
+				onCancel: handleCancel,
+			})
+		);
 
-    instance.waitUntilExit().then(() => {
-      resolvePromise(result);
-    });
-  });
+		instance.waitUntilExit().then(() => {
+			resolvePromise(result);
+		});
+	});
 }
