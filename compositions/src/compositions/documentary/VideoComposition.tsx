@@ -1,4 +1,4 @@
-import { AbsoluteFill, Audio, Sequence, useVideoConfig } from "remotion";
+import { AbsoluteFill, Audio, Sequence, useVideoConfig } from 'remotion';
 import type {
   AssetMap,
   AudioTrack,
@@ -7,9 +7,9 @@ import type {
   TimelineDocument,
   TimelineTrack,
   VideoTrack,
-} from "../../types/timeline.js";
-import { KenBurnsClip } from "./KenBurnsClip.js";
-import { VideoClipSequence } from "./VideoClipSequence.js";
+} from '../../types/timeline.js';
+import { KenBurnsClip } from './KenBurnsClip.js';
+import { VideoClipSequence } from './VideoClipSequence.js';
 
 export interface DocumentaryCompositionProps {
   timeline: TimelineDocument;
@@ -19,13 +19,19 @@ export interface DocumentaryCompositionProps {
   fps?: number;
 }
 
-const secondsToFrames = (seconds: number, fps: number) => Math.max(1, Math.round(seconds * fps));
+const secondsToStartFrame = (seconds: number, fps: number) =>
+  Math.max(0, Math.round(seconds * fps));
+const secondsToDurationFrames = (seconds: number, fps: number) =>
+  Math.max(1, Math.round(seconds * fps));
 
-export const DocumentaryComposition = ({ timeline, assets }: DocumentaryCompositionProps) => {
+export const DocumentaryComposition = ({
+  timeline,
+  assets,
+}: DocumentaryCompositionProps) => {
   const { fps } = useVideoConfig();
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "black" }}>
+    <AbsoluteFill style={{ backgroundColor: 'black' }}>
       {timeline.tracks.map((track) => renderTrack(track, assets, fps))}
     </AbsoluteFill>
   );
@@ -48,31 +54,27 @@ function renderTrack(track: TimelineTrack, assets: AssetMap, fps: number) {
 }
 
 function isImageTrack(track: TimelineTrack): track is ImageTrack {
-  return track.kind === "Image";
+  return track.kind === 'Image';
 }
 
 function isAudioTrack(track: TimelineTrack): track is AudioTrack {
-  return track.kind === "Audio";
+  return track.kind === 'Audio';
 }
 
 function isMusicTrack(track: TimelineTrack): track is MusicTrack {
-  return track.kind === "Music";
+  return track.kind === 'Music';
 }
 
 function isVideoTrack(track: TimelineTrack): track is VideoTrack {
-  return track.kind === "Video";
+  return track.kind === 'Video';
 }
 
 function renderImageTrack(track: ImageTrack, assets: AssetMap, fps: number) {
   return track.clips.map((clip) => {
-    const from = secondsToFrames(clip.startTime, fps);
-    const durationInFrames = secondsToFrames(clip.duration, fps);
+    const from = secondsToStartFrame(clip.startTime, fps);
+    const durationInFrames = secondsToDurationFrames(clip.duration, fps);
     return (
-      <Sequence
-        key={clip.id}
-        from={from}
-        durationInFrames={durationInFrames}
-      >
+      <Sequence key={clip.id} from={from} durationInFrames={durationInFrames}>
         <KenBurnsClip clip={clip} assets={assets} />
       </Sequence>
     );
@@ -86,8 +88,8 @@ function renderAudioTrack(track: AudioTrack, assets: AssetMap, fps: number) {
     if (!assetId || !src) {
       return null;
     }
-    const from = secondsToFrames(clip.startTime, fps);
-    const durationInFrames = secondsToFrames(clip.duration, fps);
+    const from = secondsToStartFrame(clip.startTime, fps);
+    const durationInFrames = secondsToDurationFrames(clip.duration, fps);
     const volume = clip.properties.volume ?? 1;
     const premountFor = Math.max(1, Math.round(fps * 0.5));
 
@@ -111,8 +113,8 @@ function renderMusicTrack(track: MusicTrack, assets: AssetMap, fps: number) {
     if (!assetId || !src) {
       return null;
     }
-    const from = secondsToFrames(clip.startTime, fps);
-    const durationInFrames = secondsToFrames(clip.duration, fps);
+    const from = secondsToStartFrame(clip.startTime, fps);
+    const durationInFrames = secondsToDurationFrames(clip.duration, fps);
     const volume = clip.properties.volume ?? 1;
     const premountFor = Math.max(1, Math.round(fps * 0.5));
 
@@ -131,8 +133,8 @@ function renderMusicTrack(track: MusicTrack, assets: AssetMap, fps: number) {
 
 function renderVideoTrack(track: VideoTrack, assets: AssetMap, fps: number) {
   return track.clips.map((clip) => {
-    const from = secondsToFrames(clip.startTime, fps);
-    const durationInFrames = secondsToFrames(clip.duration, fps);
+    const from = secondsToStartFrame(clip.startTime, fps);
+    const durationInFrames = secondsToDurationFrames(clip.duration, fps);
     const premountFor = Math.max(1, Math.round(fps * 0.5));
     return (
       <VideoClipSequence

@@ -3,6 +3,7 @@ import {
   Player,
   type PlayerRef,
   type CallbackListener,
+  type RenderPoster,
 } from '@remotion/player';
 import type { TimelineDocument, AssetMap } from '@gorenku/compositions/browser';
 import { DocumentaryComposition } from '@gorenku/compositions/browser';
@@ -30,6 +31,7 @@ interface RemotionPreviewProps {
 
 const FPS = 30;
 const DIMENSION_DETECTION_TIMEOUT_MS = 5000;
+const POSTER_CAPTURE_TIMEOUT_MS = 10000;
 
 export const RemotionPreview = ({
   movieId,
@@ -50,6 +52,8 @@ export const RemotionPreview = ({
   const onPauseRef = useRef(onPause);
   const [detectedVisualDimensions, setDetectedVisualDimensions] =
     useState<DetectedVisualDimensions | null>(null);
+  const [posterSrc, setPosterSrc] = useState<string | null>(null);
+  const [hasPreviewInteracted, setHasPreviewInteracted] = useState(false);
   const [viewportDimensions, setViewportDimensions] =
     useState<PreviewDimensions>({
       width: 0,
@@ -137,6 +141,65 @@ export const RemotionPreview = ({
 
   const firstVisualAssetId = visualAssetIds[0] ?? null;
 
+  const firstVisualDescriptor = useMemo(() => {
+    let earliest: {
+      assetId: string;
+      kind: 'Image' | 'Video';
+      startTime: number;
+    } | null = null;
+
+    for (const track of timeline.tracks ?? []) {
+      if (track.kind === 'Video') {
+        for (const clip of track.clips ?? []) {
+          const props = (clip as { properties?: Record<string, unknown> })
+            .properties;
+          const assetId = props?.assetId;
+          if (typeof assetId !== 'string' || assetId.length === 0) {
+            continue;
+          }
+
+          if (!earliest || clip.startTime < earliest.startTime) {
+            earliest = {
+              assetId,
+              kind: 'Video',
+              startTime: clip.startTime,
+            };
+          }
+        }
+      }
+
+      if (track.kind === 'Image') {
+        for (const clip of track.clips ?? []) {
+          const props = (clip as { properties?: Record<string, unknown> })
+            .properties;
+          const effects = props?.effects;
+          if (!Array.isArray(effects) || effects.length === 0) {
+            continue;
+          }
+
+          const firstEffectAssetId = (effects[0] as { assetId?: string })
+            .assetId;
+          if (
+            typeof firstEffectAssetId !== 'string' ||
+            firstEffectAssetId.length === 0
+          ) {
+            continue;
+          }
+
+          if (!earliest || clip.startTime < earliest.startTime) {
+            earliest = {
+              assetId: firstEffectAssetId,
+              kind: 'Image',
+              startTime: clip.startTime,
+            };
+          }
+        }
+      }
+    }
+
+    return earliest;
+  }, [timeline.tracks]);
+
   const compositionDimensions = useMemo<PreviewDimensions>(() => {
     return resolveCompositionDimensions({
       explicitAspectDimensions,
@@ -185,6 +248,67 @@ export const RemotionPreview = ({
       cancelled = true;
     };
   }, [explicitAspectDimensions, firstVisualAssetId, getAssetUrl]);
+
+  useEffect(() => {
+    if (!firstVisualDescriptor) {
+      setPosterSrc(null);
+      return;
+    }
+
+    const sourceUrl = getAssetUrl(firstVisualDescriptor.assetId);
+    if (firstVisualDescriptor.kind === 'Image') {
+      setPosterSrc(sourceUrl);
+      return;
+    }
+
+    let cancelled = false;
+    void captureVideoPosterFrame(sourceUrl)
+      .then((capturedPosterSrc) => {
+        if (!cancelled) {
+          setPosterSrc(capturedPosterSrc);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPosterSrc(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [firstVisualDescriptor, getAssetUrl]);
+
+  const renderPoster = useMemo<RenderPoster | undefined>(() => {
+    if (!posterSrc) {
+      return undefined;
+    }
+
+    return () => (
+      <img
+        src={posterSrc}
+        alt=''
+        className='w-full h-full object-cover'
+        draggable={false}
+      />
+    );
+  }, [posterSrc]);
+
+  useEffect(() => {
+    setHasPreviewInteracted(false);
+    lastTimeRef.current = 0;
+  }, [movieId, timeline.id]);
+
+  useEffect(() => {
+    if (isPlaying || safeCurrentTime > 1 / FPS) {
+      setHasPreviewInteracted(true);
+    }
+  }, [isPlaying, safeCurrentTime]);
+
+  const shouldShowPosterWhenUnplayed =
+    Boolean(renderPoster) &&
+    !hasPreviewInteracted &&
+    safeCurrentTime <= 1 / FPS;
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -272,9 +396,12 @@ export const RemotionPreview = ({
     if (!playerRef.current) {
       return;
     }
-    if (Math.abs(safeCurrentTime - lastTimeRef.current) > 0.05) {
-      playerRef.current.seekTo(Math.round(safeCurrentTime * FPS));
-      lastTimeRef.current = safeCurrentTime;
+    const targetFrame = Math.round(safeCurrentTime * FPS);
+    const lastFrame = Math.round(lastTimeRef.current * FPS);
+
+    if (targetFrame !== lastFrame) {
+      playerRef.current.seekTo(targetFrame);
+      lastTimeRef.current = targetFrame / FPS;
     }
   }, [safeCurrentTime]);
 
@@ -298,7 +425,10 @@ export const RemotionPreview = ({
 
       const handleFrameUpdate: CallbackListener<'frameupdate'> = (event) => {
         const time = event.detail.frame / FPS;
-        if (onSeekRef.current && Math.abs(time - lastTimeRef.current) > 0.01) {
+        const frameChanged =
+          Math.round(time * FPS) !== Math.round(lastTimeRef.current * FPS);
+
+        if (onSeekRef.current && frameChanged) {
           lastTimeRef.current = time;
           onSeekRef.current(time);
         }
@@ -357,6 +487,8 @@ export const RemotionPreview = ({
         loop={false}
         showVolumeControls={false}
         numberOfSharedAudioTags={0}
+        renderPoster={renderPoster}
+        showPosterWhenUnplayed={shouldShowPosterWhenUnplayed}
         acknowledgeRemotionLicense
       />
     </div>
@@ -450,5 +582,65 @@ function readImageDimensions(url: string): Promise<PreviewDimensions> {
     };
 
     image.src = url;
+  });
+}
+
+function captureVideoPosterFrame(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.preload = 'auto';
+    video.muted = true;
+    video.playsInline = true;
+
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error(`Timed out loading video for poster: ${url}`));
+    }, POSTER_CAPTURE_TIMEOUT_MS);
+
+    const cleanup = () => {
+      clearTimeout(timeout);
+      video.removeEventListener('loadeddata', handleLoadedData);
+      video.removeEventListener('error', handleError);
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+    };
+
+    const handleLoadedData = () => {
+      const width = video.videoWidth;
+      const height = video.videoHeight;
+
+      if (width <= 0 || height <= 0) {
+        cleanup();
+        reject(new Error(`Invalid video dimensions for poster: ${url}`));
+        return;
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d');
+
+      if (!context) {
+        cleanup();
+        reject(new Error('Could not create canvas context for video poster'));
+        return;
+      }
+
+      context.drawImage(video, 0, 0, width, height);
+      const posterDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      cleanup();
+      resolve(posterDataUrl);
+    };
+
+    const handleError = () => {
+      cleanup();
+      reject(new Error(`Failed loading video for poster: ${url}`));
+    };
+
+    video.addEventListener('loadeddata', handleLoadedData);
+    video.addEventListener('error', handleError);
+    video.src = url;
+    video.load();
   });
 }

@@ -82,6 +82,8 @@ function WorkspaceLayoutInner({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [detailPanelTab, setDetailPanelTab] =
     useState<DetailPanelTab>('inputs');
+  const [hasSyncedPreviewTimelineTabs, setHasSyncedPreviewTimelineTabs] =
+    useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { state, initializeFromManifest, setTotalLayers } = useExecution();
@@ -317,6 +319,10 @@ function WorkspaceLayoutInner({
   // Determine effective movie ID - use selected build or passed movieId
   const effectiveMovieId = selectedBuildId ?? movieId;
 
+  useEffect(() => {
+    setHasSyncedPreviewTimelineTabs(false);
+  }, [effectiveMovieId]);
+
   // Create action buttons (Switch + Run) to pass to DetailPanel
   const runButton = (
     <>
@@ -351,16 +357,27 @@ function WorkspaceLayoutInner({
   const { currentTime, isPlaying, play, pause, seek, reset } =
     usePreviewPlayback(effectiveMovieId);
 
+  const handleDetailTabChange = useCallback(
+    (tab: DetailPanelTab) => {
+      setDetailPanelTab(tab);
+      if (tab === 'preview' && !hasSyncedPreviewTimelineTabs) {
+        setBottomActiveTab('timeline');
+        setHasSyncedPreviewTimelineTabs(true);
+      }
+    },
+    [hasSyncedPreviewTimelineTabs, setBottomActiveTab]
+  );
+
   // Handle bottom panel tab changes with coordination to detail panel
   const handleBottomTabChange = useCallback(
     (tab: typeof bottomActiveTab) => {
       setBottomActiveTab(tab);
-      // When switching to Timeline tab, also switch detail panel to Preview
-      if (tab === 'timeline') {
+      if (tab === 'timeline' && !hasSyncedPreviewTimelineTabs) {
         setDetailPanelTab('preview');
+        setHasSyncedPreviewTimelineTabs(true);
       }
     },
-    [setBottomActiveTab]
+    [hasSyncedPreviewTimelineTabs, setBottomActiveTab]
   );
 
   return (
@@ -416,7 +433,7 @@ function WorkspaceLayoutInner({
               modelEditor={modelEditor}
               hasTimeline={hasTimeline}
               activeTab={detailPanelTab}
-              onTabChange={setDetailPanelTab}
+              onTabChange={handleDetailTabChange}
               timeline={timeline}
               timelineStatus={timelineStatus}
               timelineError={timelineError}
@@ -463,6 +480,7 @@ function WorkspaceLayoutInner({
             timeline={timeline}
             timelineStatus={timelineStatus}
             timelineError={timelineError}
+            blueprintFolder={blueprintFolder}
             currentTime={currentTime}
             isPlaying={isPlaying}
             onPlay={play}

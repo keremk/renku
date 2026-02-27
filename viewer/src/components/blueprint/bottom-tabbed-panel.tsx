@@ -13,7 +13,7 @@ import type { BlueprintGraphData } from '@/types/blueprint-graph';
 import type { ExecutionLogEntry, ProducerStatusMap } from '@/types/generation';
 import type { TimelineDocument } from '@/types/timeline';
 
-type TimelineStatus = "idle" | "loading" | "success" | "error";
+type TimelineStatus = 'idle' | 'loading' | 'success' | 'error';
 
 interface BottomTabbedPanelProps {
   activeTab: BottomPanelTab;
@@ -30,6 +30,7 @@ interface BottomTabbedPanelProps {
   timeline: TimelineDocument | null;
   timelineStatus: TimelineStatus;
   timelineError: Error | null;
+  blueprintFolder: string | null;
   currentTime: number;
   isPlaying: boolean;
   onPlay: () => void;
@@ -49,24 +50,26 @@ interface TabButtonProps {
 function TabButton({ label, isActive, onClick, indicator }: TabButtonProps) {
   return (
     <button
-      type="button"
+      type='button'
       onClick={onClick}
       className={`px-4 py-2 text-sm font-medium transition-colors relative flex items-center gap-2 ${
-        isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+        isActive
+          ? 'text-foreground'
+          : 'text-muted-foreground hover:text-foreground'
       }`}
     >
       {label}
       {indicator === 'executing' && (
-        <span className="flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-blue-400 opacity-75" />
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+        <span className='flex h-2 w-2'>
+          <span className='animate-ping absolute inline-flex h-2 w-2 rounded-full bg-blue-400 opacity-75' />
+          <span className='relative inline-flex rounded-full h-2 w-2 bg-blue-500' />
         </span>
       )}
       {indicator === 'has-logs' && (
-        <span className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+        <span className='w-2 h-2 rounded-full bg-muted-foreground/50' />
       )}
       {isActive && (
-        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+        <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-primary' />
       )}
     </button>
   );
@@ -80,22 +83,28 @@ interface TabHeaderProps {
   hasTimeline: boolean;
 }
 
-function TabHeader({ activeTab, onTabChange, isExecuting, hasLogs, hasTimeline }: TabHeaderProps) {
+function TabHeader({
+  activeTab,
+  onTabChange,
+  isExecuting,
+  hasLogs,
+  hasTimeline,
+}: TabHeaderProps) {
   return (
-    <div className="flex items-center border-b border-border/40 bg-card/30 shrink-0">
+    <div className='flex items-center border-b border-border/40 bg-card/30 shrink-0'>
       <TabButton
-        label="Blueprint"
+        label='Blueprint'
         isActive={activeTab === 'blueprint'}
         onClick={() => onTabChange('blueprint')}
       />
       <TabButton
-        label="Execution"
+        label='Execution'
         isActive={activeTab === 'execution'}
         onClick={() => onTabChange('execution')}
         indicator={isExecuting ? 'executing' : hasLogs ? 'has-logs' : undefined}
       />
       <TabButton
-        label="Timeline"
+        label='Timeline'
         isActive={activeTab === 'timeline'}
         onClick={() => onTabChange('timeline')}
         indicator={hasTimeline ? 'has-logs' : undefined}
@@ -116,6 +125,7 @@ export function BottomTabbedPanel({
   timeline,
   timelineStatus,
   timelineError,
+  blueprintFolder,
   currentTime,
   isPlaying,
   onPlay,
@@ -125,7 +135,7 @@ export function BottomTabbedPanel({
   movieId,
 }: BottomTabbedPanelProps) {
   return (
-    <div className="flex-1 min-h-0 flex flex-col">
+    <div className='flex-1 min-h-0 flex flex-col'>
       {/* Tab Header */}
       <TabHeader
         activeTab={activeTab}
@@ -136,7 +146,7 @@ export function BottomTabbedPanel({
       />
 
       {/* Tab Content */}
-      <div className="flex-1 min-h-0 relative">
+      <div className='flex-1 min-h-0 relative'>
         {activeTab === 'blueprint' && (
           <ReactFlowProvider>
             <BlueprintViewer
@@ -157,6 +167,7 @@ export function BottomTabbedPanel({
             timeline={timeline}
             status={timelineStatus}
             error={timelineError}
+            blueprintFolder={blueprintFolder}
             currentTime={currentTime}
             isPlaying={isPlaying}
             onPlay={onPlay}

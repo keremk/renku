@@ -1,5 +1,5 @@
-import { AbsoluteFill, OffthreadVideo, Sequence } from "remotion";
-import type { AssetMap, VideoClip } from "../../types/timeline.js";
+import { AbsoluteFill, OffthreadVideo, Sequence } from 'remotion';
+import type { AssetMap, VideoClip } from '../../types/timeline.js';
 
 interface VideoClipSequenceProps {
   clip: VideoClip;
@@ -27,7 +27,8 @@ export const VideoClipSequence = ({
   }
 
   const sourceUrl = `${assetSrc}#disable`;
-  const volume = typeof clip.properties.volume === "number" ? clip.properties.volume : 0;
+  const volume =
+    typeof clip.properties.volume === 'number' ? clip.properties.volume : 1;
   const originalDuration = clip.properties.originalDuration ?? clip.duration;
 
   // Always stretch video to match the master track (audio) duration
@@ -37,14 +38,18 @@ export const VideoClipSequence = ({
       : 1;
 
   return (
-    <Sequence from={from} durationInFrames={durationInFrames} premountFor={premountFor}>
+    <Sequence
+      from={from}
+      durationInFrames={durationInFrames}
+      premountFor={premountFor}
+    >
       <AbsoluteFill>
         <OffthreadVideo
           src={sourceUrl}
           muted={volume === 0}
           volume={volume}
           playbackRate={playbackRate}
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
         />
       </AbsoluteFill>
     </Sequence>

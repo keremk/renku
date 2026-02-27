@@ -1,13 +1,16 @@
-import { Layers } from "lucide-react";
-import { TimelineEditor } from "@/components/timeline/timeline-editor";
-import type { TimelineDocument } from "@/types/timeline";
+import { useCallback } from 'react';
+import { Layers } from 'lucide-react';
+import { TimelineEditor } from '@/components/timeline/timeline-editor';
+import { buildBlueprintAssetUrl } from '@/data/blueprint-client';
+import type { TimelineDocument } from '@/types/timeline';
 
-type TimelineStatus = "idle" | "loading" | "success" | "error";
+type TimelineStatus = 'idle' | 'loading' | 'success' | 'error';
 
 interface TimelinePanelProps {
   timeline: TimelineDocument | null;
   status: TimelineStatus;
   error: Error | null;
+  blueprintFolder: string | null;
   currentTime: number;
   isPlaying: boolean;
   onPlay: () => void;
@@ -21,6 +24,7 @@ export function TimelinePanel({
   timeline,
   status,
   error,
+  blueprintFolder,
   currentTime,
   isPlaying,
   onPlay,
@@ -33,8 +37,8 @@ export function TimelinePanel({
   if (!movieId) {
     return (
       <EmptyState
-        title="No Build Selected"
-        description="Select a build from the sidebar to view the timeline."
+        title='No Build Selected'
+        description='Select a build from the sidebar to view the timeline.'
       />
     );
   }
@@ -43,34 +47,51 @@ export function TimelinePanel({
   if (!hasTimeline) {
     return (
       <EmptyState
-        title="No Timeline Available"
-        description="Run the pipeline fully to generate a timeline."
+        title='No Timeline Available'
+        description='Run the pipeline fully to generate a timeline.'
       />
     );
   }
 
-  // Loading state
-  if (status === "loading") {
+  if (!blueprintFolder) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-muted-foreground text-sm">Loading timeline...</div>
+      <EmptyState
+        title='Configuration Error'
+        description='Blueprint folder is not available. Please reselect the build.'
+      />
+    );
+  }
+
+  const resolveAssetUrl = useCallback(
+    (assetId: string) =>
+      buildBlueprintAssetUrl(blueprintFolder, movieId, assetId),
+    [blueprintFolder, movieId]
+  );
+
+  // Loading state
+  if (status === 'loading') {
+    return (
+      <div className='flex items-center justify-center h-full'>
+        <div className='text-muted-foreground text-sm'>Loading timeline...</div>
       </div>
     );
   }
 
   // Error state
-  if (status === "error" || !timeline) {
+  if (status === 'error' || !timeline) {
     return (
       <EmptyState
-        title="Failed to Load Timeline"
-        description={error?.message ?? "An error occurred while loading the timeline."}
+        title='Failed to Load Timeline'
+        description={
+          error?.message ?? 'An error occurred while loading the timeline.'
+        }
       />
     );
   }
 
   // Success state - show timeline editor
   return (
-    <div className="h-full p-4 overflow-auto">
+    <div className='h-full p-4 overflow-auto'>
       <TimelineEditor
         timeline={timeline}
         currentTime={currentTime}
@@ -78,19 +99,28 @@ export function TimelinePanel({
         onPlay={onPlay}
         onPause={onPause}
         onSeek={onSeek}
+        resolveAssetUrl={resolveAssetUrl}
       />
     </div>
   );
 }
 
-function EmptyState({ title, description }: { title: string; description: string }) {
+function EmptyState({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center px-8">
-      <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
-        <Layers className="size-8 text-muted-foreground" />
+    <div className='flex flex-col items-center justify-center h-full text-center px-8'>
+      <div className='w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-4'>
+        <Layers className='size-8 text-muted-foreground' />
       </div>
-      <h3 className="text-sm font-medium text-foreground mb-1">{title}</h3>
-      <p className="text-xs text-muted-foreground max-w-[280px]">{description}</p>
+      <h3 className='text-sm font-medium text-foreground mb-1'>{title}</h3>
+      <p className='text-xs text-muted-foreground max-w-[280px]'>
+        {description}
+      </p>
     </div>
   );
 }
