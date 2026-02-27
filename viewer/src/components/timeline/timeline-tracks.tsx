@@ -524,7 +524,7 @@ function renderClipVisual(args: {
   }
 
   if (trackKind === 'Audio' || trackKind === 'Music') {
-    const pointCount = getWaveformPointCount(clipWidthPx, trackKind);
+    const pointCount = getWaveformPointCount(clipWidthPx, trackKind === 'Music');
     const sampledPeaks = sampleWaveformForClip(
       waveformData,
       clip,
@@ -534,11 +534,10 @@ function renderClipVisual(args: {
 
     return (
       <div className='absolute inset-0 px-1.5 py-1'>
-        {trackKind === 'Music' ? (
-          <MusicWaveform peaks={sampledPeaks} />
-        ) : (
-          <NarrationWaveform peaks={sampledPeaks} clipId={clip.id} />
-        )}
+        <AudioWaveform
+          peaks={sampledPeaks}
+          variant={trackKind === 'Music' ? 'music' : 'speech'}
+        />
       </div>
     );
   }
@@ -613,54 +612,18 @@ function VideoFrameThumbnail({
   );
 }
 
-function MusicWaveform({ peaks }: { peaks: number[] }) {
-  const enhancedPeaks = emphasizeMusicPeaks(peaks);
-
-  return (
-    <svg
-      className='w-full h-full'
-      viewBox={`0 0 ${enhancedPeaks.length} 100`}
-      preserveAspectRatio='none'
-      aria-hidden='true'
-    >
-      <line
-        x1={0}
-        x2={Math.max(0, enhancedPeaks.length)}
-        y1={50}
-        y2={50}
-        stroke='rgba(255, 255, 255, 0.2)'
-        strokeWidth={0.7}
-      />
-      {enhancedPeaks.map((peak, index) => {
-        const amplitude = 6 + peak * 43;
-        const yTop = 50 - amplitude;
-        const yBottom = 50 + amplitude;
-        const x = index + 0.5;
-
-        return (
-          <line
-            key={`music-wave-${index}`}
-            x1={x}
-            x2={x}
-            y1={yTop}
-            y2={yBottom}
-            stroke='rgba(255, 255, 255, 0.92)'
-            strokeWidth={0.72}
-            strokeLinecap='round'
-          />
-        );
-      })}
-    </svg>
-  );
-}
-
-function NarrationWaveform({
+function AudioWaveform({
   peaks,
-  clipId,
+  variant,
 }: {
   peaks: number[];
-  clipId: string;
+  variant: 'speech' | 'music';
 }) {
+  // Music: thin bars so gaps are visible between them (strokeWidth 0.35 out of
+  // 1-unit spacing ≈ 35% fill). Speech keeps fat bars — silence gaps already
+  // provide visual separation.
+  const strokeWidth = variant === 'music' ? 0.35 : 0.9;
+
   return (
     <svg
       className='w-full h-full'
@@ -668,21 +631,32 @@ function NarrationWaveform({
       preserveAspectRatio='none'
       aria-hidden='true'
     >
+      {variant === 'music' && (
+        <line
+          x1={0}
+          x2={peaks.length}
+          y1={50}
+          y2={50}
+          stroke='rgba(255, 255, 255, 0.2)'
+          strokeWidth={0.7}
+        />
+      )}
       {peaks.map((peak, index) => {
-        const amplitude = 5 + peak * 40;
+        const amplitude =
+          variant === 'music' ? peak * 45 : 5 + peak * 40;
         const yTop = 50 - amplitude;
         const yBottom = 50 + amplitude;
         const x = index + 0.5;
 
         return (
           <line
-            key={`${clipId}-wave-${index}`}
+            key={`wave-${index}`}
             x1={x}
             x2={x}
             y1={yTop}
             y2={yBottom}
-            stroke='rgba(255, 255, 255, 0.9)'
-            strokeWidth={0.9}
+            stroke={variant === 'music' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.55)'}
+            strokeWidth={strokeWidth}
             strokeLinecap='round'
           />
         );
@@ -822,13 +796,13 @@ function getThumbnailLeftPercent(
   return clamp(unclampedPercent, 0, 100 - thumbnailWidthPercent);
 }
 
-function getWaveformPointCount(clipWidthPx: number, trackKind: string): number {
-  if (trackKind === 'Music') {
-    return Math.max(40, Math.min(180, Math.round(clipWidthPx / 4)));
+function getWaveformPointCount(clipWidthPx: number, isMusic: boolean): number {
+  if (isMusic) {
+    return Math.max(140, Math.min(1300, Math.round(clipWidthPx / 0.56)));
   }
-
   return Math.max(28, Math.min(260, Math.round(clipWidthPx / 2.8)));
 }
+
 
 function sampleWaveformPeaks(peaks: number[], barCount: number): number[] {
   if (barCount <= 0) {
@@ -878,6 +852,11 @@ function sampleWaveformForClip(
     trackKind === 'Music' &&
     (clip.properties as { play?: 'loop' | 'no-loop' }).play === 'loop';
 
+  const sourcePeaks =
+    trackKind === 'Music'
+      ? boostMusicContrast(waveform.peaks, 12)
+      : waveform.peaks;
+
   const mappedPeaks = Array.from({ length: pointCount }, (_, pointIndex) => {
     const clipRatio = pointCount <= 1 ? 0 : pointIndex / (pointCount - 1);
     const clipTime = clipRatio * clipDuration;
@@ -893,7 +872,7 @@ function sampleWaveformForClip(
     }
 
     const sourceRatio = clamp(sourceTime / sourceDuration, 0, 1);
-    return samplePeakAtRatio(waveform.peaks, sourceRatio);
+    return samplePeakAtRatio(sourcePeaks, sourceRatio);
   });
 
   return sampleWaveformPeaks(mappedPeaks, pointCount);
@@ -917,21 +896,6 @@ function samplePeakAtRatio(peaks: number[], ratio: number): number {
   const mix = position - lowerIndex;
 
   return lower + (upper - lower) * mix;
-}
-
-function emphasizeMusicPeaks(peaks: number[]): number[] {
-  if (peaks.length <= 2) {
-    return peaks;
-  }
-
-  return peaks.map((peak, index) => {
-    const previous = peaks[index - 1] ?? peak;
-    const next = peaks[index + 1] ?? peak;
-    const localAverage = (previous + peak + next) / 3;
-    const localDelta = Math.abs(peak - localAverage);
-    const boosted = peak * 0.7 + localDelta * 1.9;
-    return clamp(boosted, 0, 1);
-  });
 }
 
 function getHoverPreviewStyle(hoverPreview: HoverPreviewState | null) {
@@ -1162,6 +1126,25 @@ function buildWaveformPeaks(
 
   const maxPeak = Math.max(...smoothedPeaks, 0.0001);
   return smoothedPeaks.map((peak) => Math.max(0.05, peak / maxPeak));
+}
+
+function boostMusicContrast(peaks: number[], windowRadius: number): number[] {
+  return peaks.map((peak, i) => {
+    const start = Math.max(0, i - windowRadius);
+    const end = Math.min(peaks.length, i + windowRadius + 1);
+
+    let localMin = 1;
+    let localMax = 0;
+    for (let j = start; j < end; j++) {
+      if (peaks[j] < localMin) localMin = peaks[j];
+      if (peaks[j] > localMax) localMax = peaks[j];
+    }
+
+    const localRange = localMax - localMin;
+    if (localRange < 0.01) return 0.5;
+
+    return (peak - localMin) / localRange;
+  });
 }
 
 const getClipColor = (kind: string) => {
