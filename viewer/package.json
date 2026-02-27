@@ -37,6 +37,7 @@
     "dotenv": "^17.2.3",
     "lucide-react": "^0.556.0",
     "prism-react-editor": "^3.0.1",
+    "radix-ui": "^1.4.3",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-dropzone": "^14.3.8",

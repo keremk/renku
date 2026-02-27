@@ -17,6 +17,12 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   shortenArtifactDisplayName,
   groupArtifactsByProducer,
   sortProducersByTopology,
@@ -26,7 +32,10 @@ import {
   type ArtifactSubGroup,
 } from '@/lib/artifact-utils';
 import { ObjectArraySection } from './outputs/object-array-section';
-import { getOutputNameFromNodeId } from '@/lib/panel-utils';
+import {
+  getOutputNameFromNodeId,
+  formatProducerDisplayName,
+} from '@/lib/panel-utils';
 import { useExecution } from '@/contexts/execution-context';
 import {
   MediaCard,
@@ -92,6 +101,7 @@ export function OutputsPanel({
         artifacts={artifacts}
         blueprintFolder={blueprintFolder}
         movieId={movieId}
+        selectedNodeId={selectedNodeId}
         graphData={graphData}
         producerModels={producerModels}
         onArtifactUpdated={onArtifactUpdated}
@@ -167,6 +177,7 @@ function ArtifactGallery({
   artifacts,
   blueprintFolder,
   movieId,
+  selectedNodeId,
   graphData,
   producerModels,
   onArtifactUpdated,
@@ -174,6 +185,7 @@ function ArtifactGallery({
   artifacts: ArtifactInfo[];
   blueprintFolder: string;
   movieId: string;
+  selectedNodeId: string | null;
   graphData?: BlueprintGraphData;
   producerModels?: Record<string, ProducerModelInfo>;
   onArtifactUpdated?: () => void;
@@ -197,14 +209,19 @@ function ArtifactGallery({
     return { groupedByProducer: grouped, orderedProducers: ordered };
   }, [artifacts, graphData]);
 
-  return (
-    <div className='space-y-6'>
-      {orderedProducers.map((producerName) => {
+  const selectedProducerFromNode =
+    selectedNodeId?.startsWith('Producer:') === true
+      ? selectedNodeId.replace('Producer:', '')
+      : null;
+
+  const producerSections = useMemo(
+    () =>
+      orderedProducers.map((producerName) => {
         const producerArtifacts = groupedByProducer.get(producerName) ?? [];
-        const artifactIds = producerArtifacts.map((a) => a.id);
+        const artifactIds = producerArtifacts.map((artifact) => artifact.id);
         const generatedIds = producerArtifacts
-          .filter((a) => a.status === 'succeeded')
-          .map((a) => a.id);
+          .filter((artifact) => artifact.status === 'succeeded')
+          .map((artifact) => artifact.id);
 
         const selectedCount = artifactIds.filter((id) =>
           isArtifactSelected(id)
@@ -221,77 +238,259 @@ function ArtifactGallery({
           pinnedCount === generatedIds.length && generatedIds.length > 0;
         const somePinned = pinnedCount > 0 && pinnedCount < generatedIds.length;
 
-        // Compute skip/failure status for section header
         const skippedArtifacts = producerArtifacts.filter(
-          (a) => a.status === 'skipped'
+          (artifact) => artifact.status === 'skipped'
         );
         const failedArtifacts = producerArtifacts.filter(
-          (a) => a.status === 'failed'
+          (artifact) => artifact.status === 'failed'
         );
         const allSkipped = skippedArtifacts.length === producerArtifacts.length;
         const allFailed = failedArtifacts.length === producerArtifacts.length;
         const hasSkippedOrFailed =
           skippedArtifacts.length > 0 || failedArtifacts.length > 0;
-
-        // Determine primary skip reason for badge
-        const primarySkipReason =
+        const skipReason =
           skippedArtifacts[0]?.failureReason ??
           failedArtifacts[0]?.failureReason;
 
-        const handleSelectAll = () => {
-          if (allSelected) {
-            deselectProducerArtifacts(artifactIds);
-          } else {
-            selectProducerArtifacts(artifactIds);
-          }
+        return {
+          producerName,
+          producerArtifacts,
+          artifactIds,
+          generatedIds,
+          allSelected,
+          someSelected,
+          allPinned,
+          somePinned,
+          allSkipped,
+          allFailed,
+          hasSkippedOrFailed,
+          skipReason,
+          hasGenerated: generatedIds.length > 0,
+          subGroups: classifyAndGroupArtifacts(producerArtifacts),
+          isPromptProducer:
+            producerModels?.[producerName]?.category === 'prompt',
         };
+      }),
+    [
+      groupedByProducer,
+      isArtifactPinned,
+      isArtifactSelected,
+      orderedProducers,
+      producerModels,
+    ]
+  );
 
-        const handlePinAll = () => {
-          if (allPinned) {
-            unpinProducerArtifacts(generatedIds);
-          } else {
-            pinProducerArtifacts(generatedIds);
-          }
-        };
+  const [manualActiveProducerName, setManualActiveProducerName] = useState<
+    string | null
+  >(null);
 
-        const subGroups = classifyAndGroupArtifacts(producerArtifacts);
-        const isPromptProducer =
-          producerModels?.[producerName]?.category === 'prompt';
+  const activeSection = useMemo(() => {
+    if (manualActiveProducerName) {
+      const manualSection = producerSections.find(
+        (section) => section.producerName === manualActiveProducerName
+      );
+      if (manualSection) {
+        return manualSection;
+      }
+    }
 
-        return (
-          <ProducerArtifactSection
-            key={producerName}
-            producerName={producerName}
-            count={producerArtifacts.length}
-            allSelected={allSelected}
-            someSelected={someSelected}
-            onSelectAll={handleSelectAll}
-            allPinned={allPinned}
-            somePinned={somePinned}
-            hasGenerated={generatedIds.length > 0}
-            onPinAll={handlePinAll}
-            allSkipped={allSkipped}
-            allFailed={allFailed}
-            hasSkippedOrFailed={hasSkippedOrFailed}
-            skipReason={primarySkipReason}
-            defaultOpen
-          >
-            <div className='space-y-5'>
-              {subGroups.map((subGroup) => (
-                <SubGroupSection
-                  key={subGroup.sortKey}
-                  subGroup={subGroup}
-                  blueprintFolder={blueprintFolder}
-                  movieId={movieId}
-                  isPromptProducer={isPromptProducer}
-                  onArtifactUpdated={onArtifactUpdated}
-                />
-              ))}
+    if (selectedProducerFromNode) {
+      const sectionFromNode = producerSections.find(
+        (section) => section.producerName === selectedProducerFromNode
+      );
+      if (sectionFromNode) {
+        return sectionFromNode;
+      }
+    }
+
+    return producerSections[0];
+  }, [producerSections, selectedProducerFromNode, manualActiveProducerName]);
+
+  return (
+    <TooltipProvider>
+      <div className='flex h-full min-h-0 gap-4'>
+        <aside className='w-72 shrink-0 bg-muted/40 rounded-xl border border-border/40 overflow-hidden flex flex-col'>
+          <div className='px-4 py-3 border-b border-border/40'>
+            <h3 className='text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground'>
+              Producers
+            </h3>
+          </div>
+
+          <div className='flex-1 overflow-y-auto p-2'>
+            <div className='space-y-1.5'>
+              {producerSections.map((section) => {
+                const isActive =
+                  section.producerName === activeSection?.producerName;
+
+                return (
+                  <div
+                    key={section.producerName}
+                    className={cn(
+                      'group flex items-center gap-2 rounded-lg border p-2.5 transition-colors',
+                      isActive
+                        ? 'bg-primary/10 border-primary/30'
+                        : 'bg-background/30 border-transparent hover:bg-muted/50 hover:border-border/50'
+                    )}
+                  >
+                    <button
+                      type='button'
+                      onClick={() =>
+                        setManualActiveProducerName(section.producerName)
+                      }
+                      aria-label={`Select producer ${section.producerName}`}
+                      aria-current={isActive ? 'true' : undefined}
+                      className='min-w-0 flex-1 self-stretch text-left'
+                    >
+                      <span className='flex h-full items-center text-sm font-medium text-foreground truncate'>
+                        {formatProducerDisplayName(section.producerName)}
+                      </span>
+                    </button>
+
+                    <div className='flex items-center gap-1'>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type='button'
+                            onClick={() => {
+                              if (!section.hasGenerated) {
+                                return;
+                              }
+                              if (section.allPinned) {
+                                unpinProducerArtifacts(section.generatedIds);
+                              } else {
+                                pinProducerArtifacts(section.generatedIds);
+                              }
+                            }}
+                            className={cn(
+                              'size-7 inline-flex items-center justify-center rounded-md transition-colors hover:bg-muted/70',
+                              !section.hasGenerated &&
+                                'text-muted-foreground/40 cursor-not-allowed',
+                              section.hasGenerated &&
+                                section.allPinned &&
+                                'text-amber-500',
+                              section.hasGenerated &&
+                                section.somePinned &&
+                                'text-amber-500/70',
+                              section.hasGenerated &&
+                                !section.allPinned &&
+                                !section.somePinned &&
+                                'text-muted-foreground'
+                            )}
+                            aria-label='Keep'
+                            disabled={!section.hasGenerated}
+                          >
+                            <Pin className='size-4' />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side='top'>Keep</TooltipContent>
+                      </Tooltip>
+
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type='button'
+                            onClick={() => {
+                              if (section.allSelected) {
+                                deselectProducerArtifacts(section.artifactIds);
+                              } else {
+                                selectProducerArtifacts(section.artifactIds);
+                              }
+                            }}
+                            className={cn(
+                              'size-7 inline-flex items-center justify-center rounded-md transition-colors hover:bg-muted/70',
+                              section.allSelected && 'text-primary',
+                              section.someSelected &&
+                                !section.allSelected &&
+                                'text-primary/70',
+                              !section.allSelected &&
+                                !section.someSelected &&
+                                'text-muted-foreground'
+                            )}
+                            aria-label='Generate Again'
+                          >
+                            <RefreshCw className='size-4' />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side='top'>
+                          Generate Again
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </ProducerArtifactSection>
-        );
-      })}
-    </div>
+          </div>
+        </aside>
+
+        <section className='min-w-0 flex-1 bg-muted/40 rounded-xl border border-border/40 overflow-hidden flex flex-col'>
+          {activeSection ? (
+            <>
+              <div className='px-4 py-3 border-b border-border/40'>
+                <div className='flex items-center gap-2'>
+                  <h3 className='text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground'>
+                    {formatProducerDisplayName(activeSection.producerName)}
+                  </h3>
+                  {(activeSection.allSkipped || activeSection.allFailed) &&
+                    activeSection.skipReason && (
+                      <SkippedBadge reason={activeSection.skipReason} />
+                    )}
+                </div>
+              </div>
+
+              <div className='flex-1 overflow-y-auto p-4'>
+                <ProducerArtifactSection
+                  producerName={activeSection.producerName}
+                  count={activeSection.producerArtifacts.length}
+                  allSelected={activeSection.allSelected}
+                  someSelected={activeSection.someSelected}
+                  onSelectAll={() => {
+                    if (activeSection.allSelected) {
+                      deselectProducerArtifacts(activeSection.artifactIds);
+                    } else {
+                      selectProducerArtifacts(activeSection.artifactIds);
+                    }
+                  }}
+                  allPinned={activeSection.allPinned}
+                  somePinned={activeSection.somePinned}
+                  hasGenerated={activeSection.hasGenerated}
+                  onPinAll={() => {
+                    if (activeSection.allPinned) {
+                      unpinProducerArtifacts(activeSection.generatedIds);
+                    } else {
+                      pinProducerArtifacts(activeSection.generatedIds);
+                    }
+                  }}
+                  allSkipped={activeSection.allSkipped}
+                  allFailed={activeSection.allFailed}
+                  hasSkippedOrFailed={activeSection.hasSkippedOrFailed}
+                  skipReason={activeSection.skipReason}
+                  hideActions
+                  flat
+                >
+                  <div className='space-y-5'>
+                    {activeSection.subGroups.map((subGroup) => (
+                      <SubGroupSection
+                        key={subGroup.sortKey}
+                        subGroup={subGroup}
+                        blueprintFolder={blueprintFolder}
+                        movieId={movieId}
+                        isPromptProducer={activeSection.isPromptProducer}
+                        onArtifactUpdated={onArtifactUpdated}
+                      />
+                    ))}
+                  </div>
+                </ProducerArtifactSection>
+              </div>
+            </>
+          ) : (
+            <div className='h-full min-h-[220px] flex items-center justify-center text-sm text-muted-foreground'>
+              No producer outputs available.
+            </div>
+          )}
+        </section>
+      </div>
+    </TooltipProvider>
   );
 }
 
@@ -407,6 +606,8 @@ function ProducerArtifactSection({
   hasSkippedOrFailed: _hasSkippedOrFailed = false,
   skipReason,
   defaultOpen = true,
+  hideActions = false,
+  flat = false,
   children,
 }: {
   producerName: string;
@@ -423,6 +624,8 @@ function ProducerArtifactSection({
   hasSkippedOrFailed?: boolean;
   skipReason?: import('@/types/builds').ArtifactFailureReason;
   defaultOpen?: boolean;
+  hideActions?: boolean;
+  flat?: boolean;
   children: React.ReactNode;
 }) {
   const handleCheckboxClick = (e: React.MouseEvent) => {
@@ -435,7 +638,7 @@ function ProducerArtifactSection({
     onPinAll?.();
   };
 
-  const actions = (
+  const actions = hideActions ? undefined : (
     <div className='flex items-center gap-1'>
       {hasGenerated && onPinAll && (
         <button
@@ -487,6 +690,10 @@ function ProducerArtifactSection({
       )}
     </div>
   );
+
+  if (flat) {
+    return <>{children}</>;
+  }
 
   return (
     <CollapsibleSection

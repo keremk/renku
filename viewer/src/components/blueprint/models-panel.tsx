@@ -1,15 +1,17 @@
-import { useState, useCallback, useMemo } from "react";
-import { EnableEditingBanner } from "./shared";
-import { ProducerSection } from "./models/producer-section";
-import { hasRegisteredEditor } from "./models/config-editors";
-import { isComplexProperty } from "./models/config-utils";
+import { useState, useCallback, useMemo } from 'react';
+import { EnableEditingBanner } from './shared';
+import { ProducerSection } from './models/producer-section';
+import { hasRegisteredEditor } from './models/config-editors';
+import { isComplexProperty } from './models/config-utils';
+import { formatProducerDisplayName } from '@/lib/panel-utils';
+import { cn } from '@/lib/utils';
 import type {
   ModelSelectionValue,
   ProducerModelInfo,
   ProducerConfigSchemas,
   PromptData,
   ConfigProperty,
-} from "@/types/blueprint-graph";
+} from '@/types/blueprint-graph';
 
 interface ModelsPanelProps {
   /** Available models per producer from API */
@@ -31,7 +33,10 @@ interface ModelsPanelProps {
   /** Prompt data per producer (for prompt producers) */
   promptDataByProducer?: Record<string, PromptData>;
   /** Callback when prompts change (immediate save) */
-  onPromptChange?: (producerId: string, prompts: PromptData) => void | Promise<void>;
+  onPromptChange?: (
+    producerId: string,
+    prompts: PromptData
+  ) => void | Promise<void>;
   /** Config properties per producer */
   configPropertiesByProducer?: Record<string, ConfigProperty[]>;
   /** Config values per producer */
@@ -97,8 +102,8 @@ export function ModelsPanel({
   );
 
   // Determine which producer is selected based on node ID
-  const selectedProducerId = selectedNodeId?.startsWith("Producer:")
-    ? selectedNodeId.replace("Producer:", "")
+  const selectedProducerId = selectedNodeId?.startsWith('Producer:')
+    ? selectedNodeId.replace('Producer:', '')
     : null;
 
   // Get list of producer IDs, filtering out producers with only unhandled complex properties
@@ -108,10 +113,10 @@ export function ModelsPanel({
       const configProps = configPropertiesByProducer[producerId] ?? [];
 
       // Prompt producers always show (they have prompts)
-      if (info.category === "prompt") return true;
+      if (info.category === 'prompt') return true;
 
       // Asset producers always show (they need the model selector dropdown)
-      if (info.category === "asset") return true;
+      if (info.category === 'asset') return true;
 
       // Check if producer has displayable config
       const hasDisplayableConfig = configProps.some((prop) => {
@@ -124,14 +129,15 @@ export function ModelsPanel({
       });
 
       // Check if producer has ONLY unhandled complex properties (no displayable content)
-      const hasOnlyUnhandledComplex = configProps.length > 0 && !hasDisplayableConfig;
+      const hasOnlyUnhandledComplex =
+        configProps.length > 0 && !hasDisplayableConfig;
 
       // Hide producers that have ONLY unhandled complex properties
       if (hasOnlyUnhandledComplex) return false;
 
       // Composition producers: show only if they have displayable config
       // (no model selection needed, so nothing to show if no config)
-      if (info.category === "composition") {
+      if (info.category === 'composition') {
         return hasDisplayableConfig;
       }
 
@@ -140,17 +146,38 @@ export function ModelsPanel({
     });
   }, [producerModels, configPropertiesByProducer]);
 
+  const [manualActiveProducerId, setManualActiveProducerId] = useState<
+    string | null
+  >(null);
+
+  const activeProducerId = useMemo(() => {
+    if (
+      manualActiveProducerId &&
+      producerIds.includes(manualActiveProducerId)
+    ) {
+      return manualActiveProducerId;
+    }
+
+    if (selectedProducerId && producerIds.includes(selectedProducerId)) {
+      return selectedProducerId;
+    }
+
+    return producerIds[0] ?? null;
+  }, [producerIds, selectedProducerId, manualActiveProducerId]);
+
+  const activeProducerInfo =
+    activeProducerId !== null ? producerModels[activeProducerId] : undefined;
+
   if (producerIds.length === 0) {
     return (
-      <div className="text-muted-foreground text-sm">
+      <div className='text-muted-foreground text-sm'>
         No producers with configurable models in this blueprint.
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      {/* Enable Editing banner for read-only builds */}
+    <div className='flex h-full min-h-0 flex-col gap-4'>
       {canEnableEditing && !isEditable && (
         <EnableEditingBanner
           isEnabling={isEnabling}
@@ -158,33 +185,103 @@ export function ModelsPanel({
         />
       )}
 
-      {producerIds.map((producerId) => {
-        const info = producerModels[producerId];
-        const selection = getSelection(producerId);
-        const isSelected = selectedProducerId === producerId;
-        const schemas = configSchemasByProducer[producerId];
+      <div className='flex-1 min-h-0 flex gap-4'>
+        <aside className='w-72 shrink-0 bg-muted/40 rounded-xl border border-border/40 overflow-hidden flex flex-col'>
+          <div className='px-4 py-3 border-b border-border/40'>
+            <h3 className='text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground'>
+              Producers
+            </h3>
+          </div>
 
-        return (
-          <ProducerSection
-            key={producerId}
-            producerId={producerId}
-            producerType={info.producerType}
-            description={info.description}
-            category={info.category}
-            availableModels={info.availableModels}
-            currentSelection={selection}
-            isSelected={isSelected}
-            isEditable={isEditable}
-            onModelChange={handleSelectionChange}
-            promptData={promptDataByProducer[producerId]}
-            onPromptChange={onPromptChange ? (prompts) => onPromptChange(producerId, prompts) : undefined}
-            configProperties={configPropertiesByProducer[producerId]}
-            configValues={configValuesByProducer[producerId]}
-            onConfigChange={onConfigChange ? (key, value) => onConfigChange(producerId, key, value) : undefined}
-            nestedModelSchemas={schemas?.nestedModels}
-          />
-        );
-      })}
+          <div className='flex-1 overflow-y-auto p-2'>
+            <div className='space-y-1.5'>
+              {producerIds.map((producerId) => {
+                const isActive = activeProducerId === producerId;
+                const isNodeSelected = selectedProducerId === producerId;
+
+                return (
+                  <button
+                    key={producerId}
+                    type='button'
+                    onClick={() => setManualActiveProducerId(producerId)}
+                    aria-label={`Select producer ${producerId}`}
+                    aria-current={isActive ? 'true' : undefined}
+                    className={cn(
+                      'group flex w-full items-center gap-2 rounded-lg border p-2.5 text-left transition-colors',
+                      isActive
+                        ? 'bg-primary/10 border-primary/30'
+                        : 'bg-background/30 border-transparent hover:bg-muted/50 hover:border-border/50',
+                      isNodeSelected && !isActive && 'ring-1 ring-primary/20'
+                    )}
+                  >
+                    <span className='min-w-0 flex-1 text-sm font-medium text-foreground truncate'>
+                      {formatProducerDisplayName(producerId)}
+                    </span>
+
+                    <span
+                      className='flex items-center gap-1 opacity-0'
+                      aria-hidden='true'
+                    >
+                      <span className='size-7 inline-flex rounded-md' />
+                      <span className='size-7 inline-flex rounded-md' />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </aside>
+
+        <section className='min-w-0 flex-1 bg-muted/40 rounded-xl border border-border/40 overflow-hidden flex flex-col'>
+          {activeProducerId && activeProducerInfo ? (
+            <>
+              <div className='px-4 py-3 border-b border-border/40'>
+                <h3 className='text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground'>
+                  {formatProducerDisplayName(activeProducerId)}
+                </h3>
+              </div>
+
+              <div className='flex-1 overflow-y-auto p-4'>
+                <ProducerSection
+                  producerId={activeProducerId}
+                  producerType={activeProducerInfo.producerType}
+                  description={activeProducerInfo.description}
+                  category={activeProducerInfo.category}
+                  availableModels={activeProducerInfo.availableModels}
+                  currentSelection={getSelection(activeProducerId)}
+                  isSelected={selectedProducerId === activeProducerId}
+                  isEditable={isEditable}
+                  onModelChange={handleSelectionChange}
+                  promptData={promptDataByProducer[activeProducerId]}
+                  onPromptChange={
+                    onPromptChange
+                      ? (prompts) => onPromptChange(activeProducerId, prompts)
+                      : undefined
+                  }
+                  configProperties={
+                    configPropertiesByProducer[activeProducerId]
+                  }
+                  configValues={configValuesByProducer[activeProducerId]}
+                  onConfigChange={
+                    onConfigChange
+                      ? (key, value) =>
+                          onConfigChange(activeProducerId, key, value)
+                      : undefined
+                  }
+                  nestedModelSchemas={
+                    configSchemasByProducer[activeProducerId]?.nestedModels
+                  }
+                  hideSectionContainer
+                />
+              </div>
+            </>
+          ) : (
+            <div className='h-full min-h-[220px] flex items-center justify-center text-sm text-muted-foreground'>
+              Select a producer to view model settings.
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

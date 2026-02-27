@@ -54,6 +54,10 @@ interface ProducerSectionProps {
   schemaError?: string | null;
   /** Nested model schemas (if this producer has nested model declarations) */
   nestedModelSchemas?: NestedModelConfigSchema[];
+  /** Whether section starts open */
+  defaultOpen?: boolean;
+  /** Render content without collapsible wrapper */
+  hideSectionContainer?: boolean;
 }
 
 /**
@@ -80,6 +84,8 @@ export function ProducerSection({
   onConfigChange,
   schemaError,
   nestedModelSchemas,
+  defaultOpen = false,
+  hideSectionContainer = false,
 }: ProducerSectionProps) {
   // Handle saving system prompt
   const handleSaveSystemPrompt = useCallback(
@@ -175,25 +181,44 @@ export function ProducerSection({
   if (category === 'composition') {
     // If there are displayable config properties, render with ConfigPropertiesEditor
     if (compositionConfigProperties.length > 0) {
+      const compositionContent = (
+        <ConfigPropertiesEditor
+          properties={compositionConfigProperties}
+          values={configValues}
+          isEditable={isEditable}
+          onChange={(key, value) => onConfigChange?.(key, value)}
+        />
+      );
+
+      if (hideSectionContainer) {
+        return compositionContent;
+      }
+
       return (
         <CollapsibleSection
           title={sectionTitle}
           count={compositionConfigProperties.length}
           description={description}
-          defaultOpen={false}
+          defaultOpen={defaultOpen}
           className={getSectionHighlightStyles(isSelected, 'primary')}
         >
-          <ConfigPropertiesEditor
-            properties={compositionConfigProperties}
-            values={configValues}
-            isEditable={isEditable}
-            onChange={(key, value) => onConfigChange?.(key, value)}
-          />
+          {compositionContent}
         </CollapsibleSection>
       );
     }
 
     // No displayable config properties - render simple view
+    if (hideSectionContainer) {
+      if (description) {
+        return <p className='text-xs text-muted-foreground'>{description}</p>;
+      }
+      return (
+        <p className='text-xs text-muted-foreground'>
+          No configurable properties for this producer.
+        </p>
+      );
+    }
+
     return (
       <div
         className={`rounded-lg px-2 py-1.5 ${getSectionHighlightStyles(isSelected, 'primary')}`}
@@ -212,14 +237,8 @@ export function ProducerSection({
     );
   }
 
-  return (
-    <CollapsibleSection
-      title={sectionTitle}
-      count={itemCount}
-      description={description}
-      defaultOpen={false}
-      className={getSectionHighlightStyles(isSelected, 'primary')}
-    >
+  const sectionContent = (
+    <>
       {/* Prompt producers: show model row then prompt cards */}
       {category === 'prompt' && promptData && (
         <div className='space-y-5'>
@@ -331,6 +350,22 @@ export function ProducerSection({
               })}
           </div>
         ))}
+    </>
+  );
+
+  if (hideSectionContainer) {
+    return sectionContent;
+  }
+
+  return (
+    <CollapsibleSection
+      title={sectionTitle}
+      count={itemCount}
+      description={description}
+      defaultOpen={defaultOpen}
+      className={getSectionHighlightStyles(isSelected, 'primary')}
+    >
+      {sectionContent}
     </CollapsibleSection>
   );
 }

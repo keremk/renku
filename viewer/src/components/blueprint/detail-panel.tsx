@@ -140,6 +140,13 @@ export function DetailPanel({
     [modelEditor]
   );
 
+  const contentContainerClassName =
+    activeTab === 'preview'
+      ? 'flex-1 overflow-hidden'
+      : activeTab === 'models' || activeTab === 'outputs'
+        ? 'flex-1 min-h-0 overflow-hidden p-4'
+        : 'flex-1 overflow-auto p-4';
+
   return (
     <div className='flex flex-col h-full bg-card rounded-xl border border-border/60 overflow-hidden'>
       {/* Tab buttons */}
@@ -181,9 +188,7 @@ export function DetailPanel({
       </div>
 
       {/* Tab content */}
-      <div
-        className={`flex-1 ${activeTab === 'preview' ? 'overflow-hidden' : 'overflow-auto p-4'}`}
-      >
+      <div className={contentContainerClassName}>
         {activeTab === 'inputs' && (
           <InputsPanel
             inputs={graphData.inputs}

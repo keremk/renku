@@ -248,6 +248,19 @@ export function getOutputNameFromNodeId(
   return parsed.name;
 }
 
+/**
+ * Converts producer IDs from PascalCase/camelCase into spaced words.
+ * Example: "VideoExporter" -> "Video Exporter"
+ */
+export function formatProducerDisplayName(producerId: string): string {
+  return producerId
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // ============================================================================
 // Selection Styling Utilities
 // ============================================================================

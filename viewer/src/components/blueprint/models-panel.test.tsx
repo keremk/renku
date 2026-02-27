@@ -13,7 +13,9 @@ import type {
 // Test Data Factories
 // =============================================================================
 
-function createRegularSelection(overrides: Partial<ModelSelectionValue> = {}): ModelSelectionValue {
+function createRegularSelection(
+  overrides: Partial<ModelSelectionValue> = {}
+): ModelSelectionValue {
   return {
     producerId: 'ImageProducer',
     provider: 'fal-ai',
@@ -22,7 +24,9 @@ function createRegularSelection(overrides: Partial<ModelSelectionValue> = {}): M
   };
 }
 
-function createNestedSttSelection(overrides: Partial<ModelSelectionValue> = {}): ModelSelectionValue {
+function createNestedSttSelection(
+  overrides: Partial<ModelSelectionValue> = {}
+): ModelSelectionValue {
   return {
     producerId: 'TranscriptionProducer',
     provider: 'renku',
@@ -45,7 +49,9 @@ function createSpeechSelectionWithoutConfig(): ModelSelectionValue {
   };
 }
 
-function createProducerModelInfo(overrides: Partial<ProducerModelInfo> = {}): ProducerModelInfo {
+function createProducerModelInfo(
+  overrides: Partial<ProducerModelInfo> = {}
+): ProducerModelInfo {
   return {
     category: 'asset',
     producerType: 'asset/text-to-image',
@@ -82,7 +88,7 @@ describe('ModelsPanel', () => {
     it('displays regular selection correctly', () => {
       const selections = [createRegularSelection()];
 
-      const { container } = render(
+      render(
         <ModelsPanel
           producerModels={defaultProducerModels}
           modelSelections={selections}
@@ -90,18 +96,14 @@ describe('ModelsPanel', () => {
         />
       );
 
-      // Panels start collapsed, so we need to expand the ImageProducer panel first
-      const imageProducerButton = screen.getByRole('button', { name: /ImageProducer/i });
-      fireEvent.click(imageProducerButton);
-
       // The display shows "fal-ai/flux-pro/text-to-image"
-      expect(container.textContent).toContain('fal-ai/flux-pro/text-to-image');
+      expect(screen.getByText('fal-ai/flux-pro/text-to-image')).toBeTruthy();
     });
 
     it('displays nested STT selection with top-level values when no schema provided', () => {
       const selections = [createNestedSttSelection()];
 
-      const { container } = render(
+      render(
         <ModelsPanel
           producerModels={defaultProducerModels}
           modelSelections={selections}
@@ -109,22 +111,20 @@ describe('ModelsPanel', () => {
         />
       );
 
-      // Panels start collapsed, so we need to expand the TranscriptionProducer panel first
-      const transcriptionButton = screen.getByRole('button', { name: /TranscriptionProducer/i });
+      const transcriptionButton = screen.getByRole('button', {
+        name: 'Select producer TranscriptionProducer',
+      });
       fireEvent.click(transcriptionButton);
 
       // Without schema, displays the top-level selection (renku/speech/transcription)
       // The nested extraction now requires schema-driven detection
-      expect(container.textContent).toContain('renku/speech/transcription');
+      expect(screen.getByText('renku/speech/transcription')).toBeTruthy();
     });
 
     it('displays multiple selections correctly', () => {
-      const selections = [
-        createRegularSelection(),
-        createNestedSttSelection(),
-      ];
+      const selections = [createRegularSelection(), createNestedSttSelection()];
 
-      const { container } = render(
+      render(
         <ModelsPanel
           producerModels={defaultProducerModels}
           modelSelections={selections}
@@ -132,16 +132,21 @@ describe('ModelsPanel', () => {
         />
       );
 
-      // Panels start collapsed, so we need to expand them first
-      const imageProducerButton = screen.getByRole('button', { name: /ImageProducer/i });
+      const imageProducerButton = screen.getByRole('button', {
+        name: 'Select producer ImageProducer',
+      });
       fireEvent.click(imageProducerButton);
-      const transcriptionButton = screen.getByRole('button', { name: /TranscriptionProducer/i });
+
+      // Regular selection shows full model when ImageProducer is active
+      expect(screen.getByText('fal-ai/flux-pro/text-to-image')).toBeTruthy();
+
+      const transcriptionButton = screen.getByRole('button', {
+        name: 'Select producer TranscriptionProducer',
+      });
       fireEvent.click(transcriptionButton);
 
-      // Regular selection shows full model
-      expect(container.textContent).toContain('flux-pro/text-to-image');
       // Nested selection shows top-level values without schema
-      expect(container.textContent).toContain('renku/speech/transcription');
+      expect(screen.getByText('renku/speech/transcription')).toBeTruthy();
     });
   });
 
@@ -164,8 +169,8 @@ describe('ModelsPanel', () => {
       );
 
       // Should render producer sections for editable mode
-      expect(container.textContent).toContain('ImageProducer');
-      expect(container.textContent).toContain('TranscriptionProducer');
+      expect(container.textContent).toContain('Image Producer');
+      expect(container.textContent).toContain('Transcription Producer');
     });
 
     it('displays nested STT selection value in dropdown', () => {
@@ -181,8 +186,9 @@ describe('ModelsPanel', () => {
         />
       );
 
-      // Panels start collapsed, so we need to expand the TranscriptionProducer panel first
-      const transcriptionButton = screen.getByRole('button', { name: /TranscriptionProducer/i });
+      const transcriptionButton = screen.getByRole('button', {
+        name: 'Select producer TranscriptionProducer',
+      });
       fireEvent.click(transcriptionButton);
 
       // The dropdown should show the extracted STT values
@@ -228,7 +234,9 @@ describe('ModelsPanel', () => {
         />
       );
 
-      expect(container.textContent).toContain('No producers with configurable models');
+      expect(container.textContent).toContain(
+        'No producers with configurable models'
+      );
     });
   });
 
@@ -240,18 +248,15 @@ describe('ModelsPanel', () => {
         <ModelsPanel
           producerModels={defaultProducerModels}
           modelSelections={selections}
-          selectedNodeId="Producer:ImageProducer"
+          selectedNodeId='Producer:ImageProducer'
         />
       );
 
-      // Find the section container with ring styling (using getSectionHighlightStyles)
-      const sections = document.querySelectorAll('.rounded-lg');
-      // Find the section containing ImageProducer
-      const imageProducerSection = Array.from(sections).find(section =>
-        section.textContent?.includes('ImageProducer')
-      );
-      // The highlight style uses ring-1 ring-primary/30 from getSectionHighlightStyles
-      expect(imageProducerSection?.className).toContain('ring-primary/30');
+      const imageProducerSelector = screen.getByRole('button', {
+        name: 'Select producer ImageProducer',
+      });
+
+      expect(imageProducerSelector.getAttribute('aria-current')).toBe('true');
     });
   });
 });
