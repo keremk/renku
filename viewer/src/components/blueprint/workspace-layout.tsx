@@ -462,7 +462,7 @@ function WorkspaceLayoutInner({
 
         {/* Bottom Panel with Tabs (Blueprint Flow, Execution, or Timeline) */}
         <div
-          className='shrink-0 min-h-0 rounded-xl border border-border/40 overflow-hidden relative flex flex-col'
+          className='shrink-0 min-h-0 rounded-[var(--radius-panel)] border border-sidebar-border overflow-hidden relative flex flex-col bg-sidebar-bg'
           style={{
             flexBasis: `${blueprintFlowPercent}%`,
             maxHeight: `${blueprintFlowPercent}%`,

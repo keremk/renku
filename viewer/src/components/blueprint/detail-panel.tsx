@@ -148,10 +148,10 @@ export function DetailPanel({
         : 'flex-1 overflow-auto p-4';
 
   return (
-    <div className='flex flex-col h-full bg-card rounded-xl border border-border/60 overflow-hidden'>
+    <div className='flex flex-col h-full bg-sidebar-bg rounded-[var(--radius-panel)] border border-panel-border overflow-hidden'>
       {/* Tab buttons */}
-      <div className='flex items-center border-b border-border/40'>
-        <div className='flex'>
+      <div className='flex items-center h-[45px] border-b border-border/40 bg-sidebar-header-bg shrink-0'>
+        <div className='flex h-full'>
           <TabButton
             label='Inputs'
             active={activeTab === 'inputs'}
@@ -265,15 +265,18 @@ function TabButton({
       type='button'
       onClick={onClick}
       className={`
-        px-4 py-2 text-sm font-medium transition-colors
+        relative flex items-center gap-2 px-4 h-full text-[11px] uppercase tracking-[0.12em] font-semibold transition-colors
         ${
           active
-            ? 'text-foreground border-b-2 border-primary bg-primary/5'
-            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+            ? 'text-foreground bg-item-active-bg'
+            : 'text-muted-foreground hover:text-foreground hover:bg-item-hover-bg'
         }
       `}
     >
       {label}
+      {active && (
+        <div className='absolute bottom-0 left-0 right-0 h-[2px] bg-primary' />
+      )}
     </button>
   );
 }

@@ -187,7 +187,7 @@ export function ModelsPanel({
 
       <div className='flex-1 min-h-0 flex gap-4'>
         <aside className='w-72 shrink-0 bg-muted/40 rounded-xl border border-border/40 overflow-hidden flex flex-col'>
-          <div className='px-4 py-3 border-b border-border/40'>
+          <div className='px-4 py-3 border-b border-border/40 bg-panel-header-bg'>
             <h3 className='text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground'>
               Producers
             </h3>
@@ -197,7 +197,6 @@ export function ModelsPanel({
             <div className='space-y-1.5'>
               {producerIds.map((producerId) => {
                 const isActive = activeProducerId === producerId;
-                const isNodeSelected = selectedProducerId === producerId;
 
                 return (
                   <button
@@ -209,9 +208,8 @@ export function ModelsPanel({
                     className={cn(
                       'group flex w-full items-center gap-2 rounded-lg border p-2.5 text-left transition-colors',
                       isActive
-                        ? 'bg-primary/10 border-primary/30'
-                        : 'bg-background/30 border-transparent hover:bg-muted/50 hover:border-border/50',
-                      isNodeSelected && !isActive && 'ring-1 ring-primary/20'
+                        ? 'bg-item-active-bg border-item-active-border'
+                        : 'bg-background/30 border-transparent hover:bg-item-hover-bg hover:border-border/50'
                     )}
                   >
                     <span className='min-w-0 flex-1 text-sm font-medium text-foreground truncate'>
@@ -235,7 +233,7 @@ export function ModelsPanel({
         <section className='min-w-0 flex-1 bg-muted/40 rounded-xl border border-border/40 overflow-hidden flex flex-col'>
           {activeProducerId && activeProducerInfo ? (
             <>
-              <div className='px-4 py-3 border-b border-border/40'>
+              <div className='px-4 py-3 border-b border-border/40 bg-panel-header-bg'>
                 <h3 className='text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground'>
                   {formatProducerDisplayName(activeProducerId)}
                 </h3>

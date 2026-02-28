@@ -52,11 +52,14 @@ function TabButton({ label, isActive, onClick, indicator }: TabButtonProps) {
     <button
       type='button'
       onClick={onClick}
-      className={`px-4 py-2 text-sm font-medium transition-colors relative flex items-center gap-2 ${
-        isActive
-          ? 'text-foreground'
-          : 'text-muted-foreground hover:text-foreground'
-      }`}
+      className={`
+        relative flex items-center gap-2 px-4 h-full text-[11px] uppercase tracking-[0.12em] font-semibold transition-colors
+        ${
+          isActive
+            ? 'text-foreground bg-item-active-bg'
+            : 'text-muted-foreground hover:text-foreground hover:bg-item-hover-bg'
+        }
+      `}
     >
       {label}
       {indicator === 'executing' && (
@@ -69,7 +72,7 @@ function TabButton({ label, isActive, onClick, indicator }: TabButtonProps) {
         <span className='w-2 h-2 rounded-full bg-muted-foreground/50' />
       )}
       {isActive && (
-        <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-primary' />
+        <div className='absolute bottom-0 left-0 right-0 h-[2px] bg-primary' />
       )}
     </button>
   );
@@ -91,7 +94,7 @@ function TabHeader({
   hasTimeline,
 }: TabHeaderProps) {
   return (
-    <div className='flex items-center border-b border-border/40 bg-card/30 shrink-0'>
+    <div className='flex items-center h-[45px] border-b border-border/40 bg-sidebar-header-bg shrink-0'>
       <TabButton
         label='Blueprint'
         isActive={activeTab === 'blueprint'}

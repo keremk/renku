@@ -79,7 +79,7 @@ export function SwitchBlueprintDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-1.5">
+        <Button variant="outline" className="h-auto gap-1.5 px-4 py-1.5 text-sm font-medium">
           <FolderOpen className="w-4 h-4" />
           Switch
         </Button>

@@ -7,7 +7,6 @@ import {
   waitFor,
   screen,
   fireEvent,
-  within,
 } from '@testing-library/react';
 import { TimelineCard, type TimelineConfig } from './timeline-card';
 
@@ -256,12 +255,15 @@ describe('TimelineCard', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
 
       const transcriptionLabel = await screen.findByText('Transcription');
-      const transcriptionRow = transcriptionLabel.closest('div');
-      expect(transcriptionRow).toBeTruthy();
-      const transcriptionSwitch = within(
-        transcriptionRow as HTMLElement
-      ).getByRole('switch');
-      fireEvent.click(transcriptionSwitch);
+      
+      // The switch is physically in the header section above the sidebar
+      // We know Transcription is selected when we click the label
+      fireEvent.click(transcriptionLabel);
+      
+      // Now the switch in the header becomes the toggle for Transcription
+      const switchControl = document.querySelector('[data-slot="switch"]');
+      expect(switchControl).toBeTruthy();
+      fireEvent.click(switchControl as Element);
 
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 

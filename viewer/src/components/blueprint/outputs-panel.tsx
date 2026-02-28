@@ -144,8 +144,8 @@ function OutputDefinitionCard({
       className={cn(
         'p-4 rounded-xl border transition-all shadow-lg',
         isSelected
-          ? 'border-primary bg-primary/10 ring-2 ring-primary/40 shadow-xl -translate-y-0.5'
-          : 'bg-card border-border hover:border-primary/70 hover:shadow-xl hover:-translate-y-0.5'
+          ? 'border-item-active-border bg-item-active-bg ring-2 ring-primary/40 shadow-xl -translate-y-0.5'
+          : 'bg-panel-bg border-panel-border hover:border-primary/70 hover:shadow-xl hover:-translate-y-0.5'
       )}
     >
       <div className='flex items-center gap-2 mb-1'>
@@ -310,7 +310,7 @@ function ArtifactGallery({
     <TooltipProvider>
       <div className='flex h-full min-h-0 gap-4'>
         <aside className='w-72 shrink-0 bg-muted/40 rounded-xl border border-border/40 overflow-hidden flex flex-col'>
-          <div className='px-4 py-3 border-b border-border/40'>
+          <div className='px-4 py-3 border-b border-border/40 bg-panel-header-bg'>
             <h3 className='text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground'>
               Producers
             </h3>
@@ -328,8 +328,8 @@ function ArtifactGallery({
                     className={cn(
                       'group flex items-center gap-2 rounded-lg border p-2.5 transition-colors',
                       isActive
-                        ? 'bg-primary/10 border-primary/30'
-                        : 'bg-background/30 border-transparent hover:bg-muted/50 hover:border-border/50'
+                        ? 'bg-item-active-bg border-item-active-border'
+                        : 'bg-background/30 border-transparent hover:bg-item-hover-bg hover:border-border/50'
                     )}
                   >
                     <button
@@ -426,7 +426,7 @@ function ArtifactGallery({
         <section className='min-w-0 flex-1 bg-muted/40 rounded-xl border border-border/40 overflow-hidden flex flex-col'>
           {activeSection ? (
             <>
-              <div className='px-4 py-3 border-b border-border/40'>
+              <div className='px-4 py-3 border-b border-border/40 bg-panel-header-bg'>
                 <div className='flex items-center gap-2'>
                   <h3 className='text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground'>
                     {formatProducerDisplayName(activeSection.producerName)}

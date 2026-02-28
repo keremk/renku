@@ -109,12 +109,12 @@ export function BuildsListSidebar({
   }, [blueprintFolder, deletingBuild, selectedBuildId, onRefresh]);
 
   return (
-    <div className="flex flex-col h-full bg-card/50 rounded-xl border border-border/40 overflow-hidden">
+    <div className="flex flex-col h-full bg-sidebar-bg rounded-[var(--radius-panel)] border border-sidebar-border overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
-        <h2 className="text-sm font-semibold text-foreground">Builds</h2>
+      <div className="flex items-center justify-between px-4 h-[45px] border-b border-border/40 bg-sidebar-header-bg shrink-0">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Builds</h2>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full">
+          <span className="text-[10px] text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full font-medium">
             {builds.length}
           </span>
           {blueprintFolder && (
@@ -325,11 +325,11 @@ function BuildCard({
       type="button"
       onClick={isEditing ? undefined : onSelect}
       className={`
-        group/card relative w-full text-left p-3 rounded-lg transition-colors
+        group/card relative w-full text-left p-3 rounded-lg border transition-colors
         ${
           isSelected
-            ? "bg-primary/10 border border-primary/30"
-            : "bg-background/50 border border-transparent hover:bg-muted/50 hover:border-border/50"
+            ? "bg-item-active-bg border-item-active-border"
+            : "bg-transparent border-transparent hover:bg-item-hover-bg hover:border-border/50"
         }
       `}
     >

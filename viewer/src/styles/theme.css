@@ -1,99 +1,159 @@
 :root {
+  /* Level 0: App Background */
   --background: hsl(60 51% 91%);
-  --foreground: hsl(45 62% 21%);
+  
+  /* Level 1: Sidebars (Historically darker anchoring surface) */
+  --sidebar-bg: hsl(46 52% 88%);
+  --sidebar-header-bg: hsl(46 52% 88%);
+  
+  /* Level 2: Main Content Area (Behind panels) */
+  --panel-bg: var(--background);
+  --panel-header-bg: var(--background);
+  
+  /* Level 3: Cards & Interactive Surfaces */
   --card: hsl(50 100% 93%);
   --card-foreground: hsl(0 0% 20%);
-  --popover: hsl(50 100% 93%);
-  --popover-foreground: hsl(0 0% 20%);
+  
+  /* Level 4: Hover & Active States */
+  --item-hover-bg: hsl(60 35% 87%);
+  --item-active-bg: hsl(45 44% 83%);
+  --item-active-border: hsl(42 60% 48% / 0.4);
+
+  /* Primary Text & Accents */
+  --foreground: hsl(45 62% 21%);
   --primary: hsl(42 58% 50%);
   --primary-foreground: hsl(0 0% 0%);
+  
+  /* Secondary/Muted Elements */
   --secondary: hsl(30 45% 48%);
   --secondary-foreground: hsl(0 0% 100%);
   --muted: hsl(60 35% 87%);
   --muted-foreground: hsl(0 0% 45%);
+  
+  /* Borders - Soft contrast */
+  --border: hsl(0 0% 78%);
+  --panel-border: hsl(0 0% 78%);
+  --sidebar-border: hsl(40 52% 70%);
+
+  /* Other Theme Primitives */
   --accent: hsl(45 65% 52%);
   --accent-foreground: hsl(0 0% 20%);
   --destructive: hsl(9 100% 64%);
-  --border: hsl(0 0% 78%);
   --input: hsl(0 0% 82%);
   --ring: hsl(42 60% 48% / 0.4);
+  
+  /* Sidebar base (internal shadcn structure) */
+  --sidebar: var(--sidebar-bg);
+  --sidebar-foreground: hsl(32 60% 22%);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: hsl(32 60% 22%);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: hsl(32 60% 22%);
+  --sidebar-ring: var(--ring);
+  
+  /* Popovers */
+  --popover: hsl(50 100% 93%);
+  --popover-foreground: hsl(0 0% 20%);
+
+  /* Typography */
+  --font-sans: Montserrat, sans-serif;
+  --font-serif: Geist, Geist Fallback, sans-serif;
+  --font-mono: Geist Mono, Geist Mono Fallback, monospace;
+
+  /* Spacing & Radii */
+  --radius: 0.625rem;
+
+  /* Charts */
   --chart-1: hsl(50 100% 54%);
   --chart-2: hsl(30 61% 51%);
   --chart-3: hsl(42 82% 39%);
   --chart-4: hsl(44 82% 47%);
   --chart-5: hsl(46 65% 52%);
-  --sidebar: hsl(46 52% 88%);
-  --sidebar-foreground: hsl(32 60% 22%);
-  --sidebar-primary: hsl(42 58% 50%);
-  --sidebar-primary-foreground: hsl(32 60% 22%);
-  --sidebar-accent: hsl(45 65% 52%);
-  --sidebar-accent-foreground: hsl(32 60% 22%);
-  --sidebar-border: hsl(40 52% 70%);
-  --sidebar-active-bg: hsl(45 44% 83%);
-  --surface-elevated: hsl(44 60% 90%);
-  --surface-border: hsl(40 36% 72%);
-  --sidebar-ring: hsl(42 60% 48% / 0.4);
 
-  --font-sans: Montserrat, sans-serif;
-  --font-serif: Geist, Geist Fallback, sans-serif;
-  --font-mono: Geist Mono, Geist Mono Fallback, monospace;
-
-  --radius: 0.625rem;
-
-  --shadow-2xs: 0px 1px 2px 0px hsl(30 20% 20% / 0.12);
-  --shadow-xs: 0px 1px 3px 0px hsl(30 20% 20% / 0.15);
-  --shadow-sm: 0px 2px 4px 0px hsl(30 20% 20% / 0.15), 0px 1px 2px 0px hsl(30 20% 20% / 0.12);
-  --shadow: 0px 3px 6px 0px hsl(30 20% 20% / 0.18), 0px 2px 4px 0px hsl(30 20% 20% / 0.12);
-  --shadow-md: 0px 6px 12px -2px hsl(30 20% 20% / 0.2), 0px 3px 6px -2px hsl(30 20% 20% / 0.15);
-  --shadow-lg: 0px 12px 24px -4px hsl(30 20% 20% / 0.22), 0px 6px 12px -4px hsl(30 20% 20% / 0.15);
-  --shadow-xl: 0px 24px 48px -8px hsl(30 20% 20% / 0.25), 0px 12px 24px -8px hsl(30 20% 20% / 0.15);
-  --shadow-2xl: 0px 32px 64px -12px hsl(30 20% 20% / 0.35);
+  /* Shadows */
+  --shadow-2xs: 0px 1px 2px 0px hsl(30 20% 20% / 0.05);
+  --shadow-xs: 0px 1px 3px 0px hsl(30 20% 20% / 0.08);
+  --shadow-sm: 0px 2px 4px 0px hsl(30 20% 20% / 0.08), 0px 1px 2px 0px hsl(30 20% 20% / 0.05);
+  --shadow: 0px 3px 6px 0px hsl(30 20% 20% / 0.1), 0px 2px 4px 0px hsl(30 20% 20% / 0.08);
+  --shadow-md: 0px 6px 12px -2px hsl(30 20% 20% / 0.12), 0px 3px 6px -2px hsl(30 20% 20% / 0.08);
+  --shadow-lg: 0px 12px 24px -4px hsl(30 20% 20% / 0.15), 0px 6px 12px -4px hsl(30 20% 20% / 0.08);
+  --shadow-xl: 0px 24px 48px -8px hsl(30 20% 20% / 0.18), 0px 12px 24px -8px hsl(30 20% 20% / 0.08);
+  --shadow-2xl: 0px 32px 64px -12px hsl(30 20% 20% / 0.25);
 }
 
 .dark {
+  /* Level 0: App Background */
   --background: hsl(0 0% 20%);
-  --foreground: hsl(60 51% 91%);
+  
+  /* Level 1: Sidebars (Historically darker anchoring surface) */
+  --sidebar-bg: hsl(0 0% 16%);
+  --sidebar-header-bg: hsl(0 0% 16%);
+  
+  /* Level 2: Main Content Area */
+  --panel-bg: var(--background);
+  --panel-header-bg: var(--background);
+  
+  /* Level 3: Cards & Interactive Surfaces */
   --card: hsl(0 0% 29%);
   --card-foreground: hsl(60 51% 91%);
-  --popover: hsl(0 0% 29%);
-  --popover-foreground: hsl(60 51% 91%);
+  
+  /* Level 4: Hover & Active States */
+  --item-hover-bg: hsl(0 0% 32%);
+  --item-active-bg: hsl(42 65% 45% / 0.2);
+  --item-active-border: hsl(42 65% 45% / 0.5);
+
+  /* Primary Text & Accents */
+  --foreground: hsl(60 51% 91%);
   --primary: hsl(42 75% 48%);
   --primary-foreground: hsl(0 0% 0%);
+  
+  /* Secondary/Muted Elements */
   --secondary: hsl(25 45% 35%);
   --secondary-foreground: hsl(60 51% 91%);
   --muted: hsl(0 0% 32%);
   --muted-foreground: hsl(0 0% 65%);
+  
+  /* Borders - Soft subtle contrast */
+  --border: hsl(0 0% 35%);
+  --panel-border: hsl(0 0% 26%);
+  --sidebar-border: hsl(0 0% 28%);
+
+  /* Other Theme Primitives */
   --accent: hsl(42 60% 42%);
   --accent-foreground: hsl(60 51% 91%);
   --destructive: hsl(16 100% 50%);
-  --border: hsl(0 0% 35%);
   --input: hsl(0 0% 32%);
   --ring: hsl(42 65% 45% / 0.5);
+  
+  /* Sidebar base (internal shadcn structure) */
+  --sidebar: var(--sidebar-bg);
+  --sidebar-foreground: hsl(40 55% 85%);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: hsl(40 55% 85%);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: hsl(40 55% 85%);
+  --sidebar-ring: var(--ring);
+
+  /* Popovers */
+  --popover: hsl(0 0% 29%);
+  --popover-foreground: hsl(60 51% 91%);
+
+  /* Charts */
   --chart-1: hsl(44 82% 47%);
   --chart-2: hsl(25 74% 31%);
   --chart-3: hsl(42 82% 39%);
   --chart-4: hsl(44 82% 47%);
   --chart-5: hsl(42 82% 39%);
-  --sidebar: hsl(0 0% 16%);
-  --sidebar-foreground: hsl(40 55% 85%);
-  --sidebar-primary: hsl(42 70% 45%);
-  --sidebar-primary-foreground: hsl(40 55% 85%);
-  --sidebar-accent: hsl(42 70% 45%);
-  --sidebar-accent-foreground: hsl(40 55% 85%);
-  --sidebar-border: hsl(0 0% 28%);
-  --sidebar-active-bg: hsl(0 0% 22%);
-  --surface-elevated: hsl(0 0% 14%);
-  --surface-border: hsl(0 0% 26%);
-  --sidebar-ring: hsl(42 65% 45% / 0.5);
 
-  --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.25);
-  --shadow-xs: 0px 1px 3px 0px hsl(0 0% 0% / 0.3);
-  --shadow-sm: 0px 2px 4px 0px hsl(0 0% 0% / 0.35), 0px 1px 2px 0px hsl(0 0% 0% / 0.25);
-  --shadow: 0px 3px 6px 0px hsl(0 0% 0% / 0.4), 0px 2px 4px 0px hsl(0 0% 0% / 0.25);
-  --shadow-md: 0px 6px 12px -2px hsl(0 0% 0% / 0.45), 0px 3px 6px -2px hsl(0 0% 0% / 0.3);
-  --shadow-lg: 0px 12px 24px -4px hsl(0 0% 0% / 0.5), 0px 6px 12px -4px hsl(0 0% 0% / 0.3);
-  --shadow-xl: 0px 24px 48px -8px hsl(0 0% 0% / 0.55), 0px 12px 24px -8px hsl(0 0% 0% / 0.3);
-  --shadow-2xl: 0px 32px 64px -12px hsl(0 0% 0% / 0.7);
+  /* Shadows - Dramatically darker for dark mode */
+  --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.5);
+  --shadow-xs: 0px 1px 3px 0px hsl(0 0% 0% / 0.6);
+  --shadow-sm: 0px 2px 4px 0px hsl(0 0% 0% / 0.65), 0px 1px 2px 0px hsl(0 0% 0% / 0.5);
+  --shadow: 0px 3px 6px 0px hsl(0 0% 0% / 0.7), 0px 2px 4px 0px hsl(0 0% 0% / 0.5);
+  --shadow-md: 0px 6px 12px -2px hsl(0 0% 0% / 0.75), 0px 3px 6px -2px hsl(0 0% 0% / 0.6);
+  --shadow-lg: 0px 12px 24px -4px hsl(0 0% 0% / 0.8), 0px 6px 12px -4px hsl(0 0% 0% / 0.6);
+  --shadow-xl: 0px 24px 48px -8px hsl(0 0% 0% / 0.85), 0px 12px 24px -8px hsl(0 0% 0% / 0.6);
+  --shadow-2xl: 0px 32px 64px -12px hsl(0 0% 0% / 0.9);
 }
 
 @theme inline {
@@ -120,6 +180,7 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -129,6 +190,19 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
+  /* Semantic UI Colors (Flat references to distinct HSL variables) */
+  --color-panel-bg: var(--panel-bg);
+  --color-panel-header-bg: var(--panel-header-bg);
+  --color-panel-border: var(--panel-border);
+  
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-header-bg: var(--sidebar-header-bg);
+  --color-sidebar-border: var(--sidebar-border);
+
+  --color-item-hover-bg: var(--item-hover-bg);
+  --color-item-active-bg: var(--item-active-bg);
+  --color-item-active-border: var(--item-active-border);
+
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);
@@ -137,6 +211,7 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-panel: var(--radius-xl);
 
   --shadow-2xs: var(--shadow-2xs);
   --shadow-xs: var(--shadow-xs);
