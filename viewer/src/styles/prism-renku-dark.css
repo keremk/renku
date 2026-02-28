@@ -1,0 +1,128 @@
+/**
+ * Renku dark theme for prism-react-editor
+ *
+ * A warm, amber-toned syntax theme designed to harmonize with the
+ * Renku viewer's dark mode palette. Derived from the app's --editor-bg
+ * and --primary color variables.
+ *
+ * Scoped to .prism-dark parent for theme switching.
+ */
+
+/* prism-react-editor CSS custom properties */
+.prism-dark .prism-code-editor {
+	--pce-bg: var(--editor-bg, hsl(30 5% 16%));
+	--pce-cursor: #e0d4b8;
+	--pce-selection: #4a4038;
+	--pce-bg-highlight: #3a342e1a;
+	--pce-selection-match: #5a504566;
+	--pce-line-number: #5a5045;
+	--pce-scrollbar: 30, 7%, 35%;
+	--pce-guide-indent: #e0d4b826;
+	--pce-bg-fold: #8a7e6a;
+	--pce-widget-border: #4a4038;
+	--pce-widget-bg: hsl(30 5% 18%);
+	--pce-widget-color: #e0d4b8;
+	--pce-widget-color-active: #f0e8d0;
+	--pce-widget-color-options: #8a7e6a;
+	--pce-widget-bg-input: var(--editor-bg, hsl(30 5% 16%));
+	--pce-widget-bg-hover: #4a4038;
+	--pce-widget-bg-active: #9c6b1e66;
+	--pce-widget-focus: #d4a84a;
+	--pce-search-match: #d4a84a40;
+	--pce-widget-bg-error: #8f5a2c33;
+	--pce-widget-error: #d4a574;
+	color-scheme: dark;
+}
+
+/* Active line and search match overrides */
+.prism-dark .pce-match {
+	--pce-search-match: #5a5045;
+}
+
+.prism-dark .active-line {
+	--pce-line-number: #e0d4b8;
+}
+
+.prism-dark .active-indent {
+	--pce-guide-indent: #e0d4b880;
+}
+
+/* Token colors — warm amber palette */
+.prism-dark .token.comment,
+.prism-dark .token.prolog,
+.prism-dark .token.cdata {
+	color: #8a7e6a; /* muted warm gray */
+}
+
+.prism-dark .token.delimiter,
+.prism-dark .token.boolean,
+.prism-dark .token.keyword,
+.prism-dark .token.selector,
+.prism-dark .token.important,
+.prism-dark .token.atrule {
+	color: #d4a574; /* warm amber */
+}
+
+.prism-dark .token.operator,
+.prism-dark .token.punctuation,
+.prism-dark .token.attr-name {
+	color: #9e9484; /* neutral warm */
+}
+
+.prism-dark .token.tag,
+.prism-dark .token.tag .punctuation,
+.prism-dark .token.doctype,
+.prism-dark .token.builtin {
+	color: #d4a84a; /* golden amber */
+}
+
+.prism-dark .token.entity,
+.prism-dark .token.number,
+.prism-dark .token.symbol {
+	color: #c49e80; /* warm clay */
+}
+
+.prism-dark .token.property,
+.prism-dark .token.constant,
+.prism-dark .token.variable {
+	color: #c8956a; /* warm terracotta */
+}
+
+.prism-dark .token.string,
+.prism-dark .token.char {
+	color: #a3b06a; /* muted olive */
+}
+
+.prism-dark .token.attr-value,
+.prism-dark .token.attr-value .punctuation {
+	color: #9e9484; /* neutral warm */
+}
+
+.prism-dark .token.url {
+	color: #a3b06a; /* muted olive */
+	text-decoration: underline;
+}
+
+.prism-dark .token.function {
+	color: #d4a84a; /* golden amber */
+}
+
+.prism-dark .token.regex {
+	background: #a3b06a33; /* muted olive with opacity */
+}
+
+.prism-dark .token.bold {
+	font-weight: bold;
+}
+
+.prism-dark .token.italic {
+	font-style: italic;
+}
+
+.prism-dark .token.inserted {
+	background: #8a7e6a33; /* muted warm gray */
+}
+
+.prism-dark .token.deleted {
+	background: #d4a57433; /* warm amber */
+}

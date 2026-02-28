@@ -512,8 +512,8 @@ function TimelineEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className='sm:max-w-[620px] gap-0 p-0 overflow-hidden'>
-        <DialogHeader className='border-b px-6 pt-6 pb-4'>
+      <DialogContent className='sm:max-w-[620px] p-0 gap-0 overflow-hidden'>
+        <DialogHeader>
           <DialogTitle className='flex items-center gap-2'>
             <Film className='size-5' />
             {readOnly ? 'Timeline Settings' : 'Edit Timeline'}
@@ -709,7 +709,7 @@ function TimelineEditDialog({
           </div>
         </div>
 
-        <DialogFooter className='border-t px-6 py-4'>
+        <DialogFooter>
           {readOnly ? (
             <Button variant='outline' onClick={handleCancel}>
               Close

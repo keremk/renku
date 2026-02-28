@@ -41,7 +41,14 @@
   --destructive: hsl(9 100% 64%);
   --input: hsl(0 0% 82%);
   --ring: hsl(42 60% 48% / 0.4);
-  
+
+  /* Code editor */
+  --editor-bg: hsl(47 55% 88%);
+  --editor-fg: hsl(30 25% 25%);
+
+  /* Dialog anatomy */
+  --dialog-footer-bg: hsl(48 40% 89% / 0.5);
+
   /* Sidebar base (internal shadcn structure) */
   --sidebar: var(--sidebar-bg);
   --sidebar-foreground: hsl(32 60% 22%);
@@ -124,7 +131,14 @@
   --destructive: hsl(16 100% 50%);
   --input: hsl(0 0% 32%);
   --ring: hsl(42 65% 45% / 0.5);
-  
+
+  /* Code editor */
+  --editor-bg: hsl(30 5% 16%);
+  --editor-fg: hsl(48 45% 88%);
+
+  /* Dialog anatomy */
+  --dialog-footer-bg: hsl(0 0% 18% / 0.6);
+
   /* Sidebar base (internal shadcn structure) */
   --sidebar: var(--sidebar-bg);
   --sidebar-foreground: hsl(40 55% 85%);
@@ -202,6 +216,10 @@
   --color-item-hover-bg: var(--item-hover-bg);
   --color-item-active-bg: var(--item-active-bg);
   --color-item-active-border: var(--item-active-border);
+
+  --color-editor-bg: var(--editor-bg);
+  --color-editor-fg: var(--editor-fg);
+  --color-dialog-footer-bg: var(--dialog-footer-bg);
 
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);

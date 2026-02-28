@@ -18,8 +18,8 @@ export function OutputNode({ data, selected }: OutputNodeProps) {
       className={`
         flex items-center justify-center
         w-16 h-16 rounded-full
-        bg-purple-500/20 border-2
-        ${selected ? "border-purple-400 ring-2 ring-purple-400/30" : "border-purple-500/50"}
+        bg-purple-500/20 dark:bg-purple-500/35 border-2
+        ${selected ? "border-purple-400 ring-2 ring-purple-400/30" : "border-purple-500/50 dark:border-purple-400/60"}
         text-purple-200 text-xs font-medium
         transition-all duration-200
       `}

@@ -6,7 +6,7 @@
  * - Syntax highlighting for JSON and Markdown
  * - Optional variables panel for prompt templates
  * - Semantic layout presets per panel context
- * - Dark/light mode support with Gruvbox theme
+ * - Dark/light mode support with Renku theme
  */
 
 import { useState, useCallback, useRef } from 'react';
@@ -21,9 +21,9 @@ import 'prism-react-editor/prism/languages/markdown';
 import 'prism-react-editor/layout.css';
 import 'prism-react-editor/search.css';
 
-// Gruvbox theme
-import '@/styles/prism-gruvbox-dark.css';
-import '@/styles/prism-gruvbox-light.css';
+// Renku editor theme (warm amber palette)
+import '@/styles/prism-renku-dark.css';
+import '@/styles/prism-renku-light.css';
 
 import {
   Dialog,
@@ -31,6 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -80,19 +81,19 @@ type DialogPresetConfig = {
 const PRESET_CONFIGS: Record<TextEditorDialogPreset, DialogPresetConfig> = {
   'inline-compact': {
     dialogClasses:
-      'w-[40vw] max-w-xl max-h-[50vh] flex flex-col overflow-hidden',
+      'w-[40vw] max-w-xl max-h-[50vh] flex flex-col overflow-hidden p-0 gap-0',
     editorSizingClass: 'min-h-[120px]',
   },
   'input-edit': {
-    dialogClasses: 'w-[46vw] max-w-3xl h-[40vh] flex flex-col overflow-hidden',
+    dialogClasses: 'w-[46vw] max-w-3xl h-[40vh] flex flex-col overflow-hidden p-0 gap-0',
     editorSizingClass: 'min-h-0',
   },
   'prompt-authoring': {
-    dialogClasses: 'w-[72vw] max-w-6xl h-[84vh] flex flex-col overflow-hidden',
+    dialogClasses: 'w-[72vw] max-w-6xl h-[84vh] flex flex-col overflow-hidden p-0 gap-0',
     editorSizingClass: 'min-h-0',
   },
   'output-edit': {
-    dialogClasses: 'w-[42vw] max-w-3xl h-[46vh] flex flex-col overflow-hidden',
+    dialogClasses: 'w-[42vw] max-w-3xl h-[46vh] flex flex-col overflow-hidden p-0 gap-0',
     editorSizingClass: 'min-h-0',
   },
 };
@@ -197,7 +198,7 @@ export function TextEditorDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className={dialogClasses}>
         <DialogHeader>
-          <DialogTitle className='flex items-center gap-2'>
+          <DialogTitle className='flex items-center gap-2 text-[11px] uppercase tracking-[0.12em]'>
             <span className='truncate'>{title}</span>
             {showLanguageBadge && (
               <span className='text-xs font-normal text-muted-foreground bg-muted px-1.5 py-0.5 rounded'>
@@ -212,7 +213,7 @@ export function TextEditorDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className='flex-1 min-h-0 flex flex-col gap-4'>
+        <div className='flex-1 min-h-0 flex flex-col gap-4 px-6 pt-6 pb-4'>
           {/* Variables panel */}
           {showVariables && (
             <div>
@@ -239,7 +240,7 @@ export function TextEditorDialog({
             className={cn(
               'relative flex-1 min-h-0 rounded-lg border overflow-hidden',
               editorSizingClass,
-              isDark ? 'bg-[#1d2021] prism-dark' : 'bg-[#fbf1c7] prism-light'
+              isDark ? 'bg-editor-bg prism-dark' : 'bg-editor-bg prism-light'
             )}
           >
             <Editor
@@ -258,28 +259,28 @@ export function TextEditorDialog({
               <BasicSetup />
             </Editor>
           </div>
-
-          <div className='flex justify-end gap-2 shrink-0'>
-            {readOnly ? (
-              <Button variant='outline' onClick={handleCancel}>
-                Close
-              </Button>
-            ) : (
-              <>
-                <Button
-                  variant='outline'
-                  onClick={handleCancel}
-                  disabled={isSaving}
-                >
-                  Cancel
-                </Button>
-                <Button onClick={handleSaveAndClose} disabled={isSaving}>
-                  {isSaving ? 'Saving...' : 'Save'}
-                </Button>
-              </>
-            )}
-          </div>
         </div>
+
+        <DialogFooter>
+          {readOnly ? (
+            <Button variant='outline' onClick={handleCancel}>
+              Close
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant='outline'
+                onClick={handleCancel}
+                disabled={isSaving}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleSaveAndClose} disabled={isSaving}>
+                {isSaving ? 'Saving...' : 'Save'}
+              </Button>
+            </>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

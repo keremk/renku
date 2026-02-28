@@ -293,7 +293,7 @@ function TextEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className='sm:max-w-[500px]'>
+      <DialogContent className='sm:max-w-[500px] p-0 gap-0 overflow-hidden'>
         <DialogHeader>
           <DialogTitle className='flex items-center gap-2'>
             <Type className='size-5' />
@@ -306,7 +306,7 @@ function TextEditDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className='space-y-6 py-4'>
+        <div className='space-y-6 px-6 py-6'>
           <FormSection icon={Type} label='Font'>
             <div className='grid grid-cols-2 gap-4'>
               <FormRow label='Family'>

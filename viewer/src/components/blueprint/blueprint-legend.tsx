@@ -23,7 +23,7 @@ export function BlueprintLegend() {
     <div className="flex flex-wrap items-center gap-6 text-xs text-muted-foreground px-4 py-2 border-t border-border/30 shrink-0">
       <div className="flex flex-wrap items-center gap-6">
         <LegendItem
-          icon={<div className="w-4 h-4 rounded-full bg-blue-500/30 border border-blue-500/50" />}
+          icon={<div className="w-4 h-4 rounded-full bg-blue-500/30 dark:bg-blue-500/45 border border-blue-500/50 dark:border-blue-400/60" />}
           label="Input"
         />
         <LegendItem
@@ -31,7 +31,7 @@ export function BlueprintLegend() {
           label="Producer"
         />
         <LegendItem
-          icon={<div className="w-4 h-4 rounded-full bg-purple-500/30 border border-purple-500/50" />}
+          icon={<div className="w-4 h-4 rounded-full bg-purple-500/30 dark:bg-purple-500/45 border border-purple-500/50 dark:border-purple-400/60" />}
           label="Output"
         />
         <LegendItem

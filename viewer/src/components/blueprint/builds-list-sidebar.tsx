@@ -167,11 +167,11 @@ export function BuildsListSidebar({
 
       {/* Create Build Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[400px] p-0 gap-0 overflow-hidden">
           <DialogHeader>
             <DialogTitle>Create New Build</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
+          <div className="px-6 py-6">
             <label className="text-sm font-medium text-foreground">
               Display Name (optional)
             </label>
@@ -220,7 +220,7 @@ export function BuildsListSidebar({
           setDeletingBuild(null);
         }
       }}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[400px] p-0 gap-0 overflow-hidden">
           <DialogHeader>
             <DialogTitle>Delete Build</DialogTitle>
             <DialogDescription>

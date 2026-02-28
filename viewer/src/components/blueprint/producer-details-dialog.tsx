@@ -58,14 +58,14 @@ function formatStatusLabel(status: ProducerStatus): string {
 function getEndpointTypeCardClasses(endpointType: ProducerBinding["sourceType"]): string {
   switch (endpointType) {
     case "input":
-      return "border-l-sky-500 bg-background/85 dark:bg-background/70";
+      return "border-l-sky-500 bg-item-hover-bg";
     case "producer":
-      return "border-l-emerald-500 bg-background/85 dark:bg-background/70";
+      return "border-l-emerald-500 bg-item-hover-bg";
     case "output":
-      return "border-l-fuchsia-500 bg-background/85 dark:bg-background/70";
+      return "border-l-fuchsia-500 bg-item-hover-bg";
     case "unknown":
     default:
-      return "border-l-border/60 bg-background/85 dark:bg-background/70";
+      return "border-l-muted bg-item-hover-bg";
   }
 }
 
@@ -161,13 +161,16 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+      className={`relative flex items-center px-4 h-full text-[11px] uppercase tracking-[0.12em] font-semibold transition-colors ${
         active
-          ? "bg-primary text-primary-foreground"
-          : "bg-transparent text-muted-foreground hover:bg-muted/35 hover:text-foreground"
+          ? "text-foreground"
+          : "text-muted-foreground hover:text-foreground hover:bg-item-hover-bg"
       }`}
     >
       {label}
+      {active && (
+        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary" />
+      )}
     </button>
   );
 }
@@ -185,9 +188,9 @@ function ConnectionRow({
   const toSummary = summarizeReference(binding.to, currentProducerLabel);
 
   return (
-    <li className="rounded-lg border border-border/45 bg-background/65 px-3 py-2.5 dark:border-border/30 dark:bg-background/35">
+    <li className="rounded-lg bg-muted px-3 py-2.5">
       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-        <div className={`min-w-0 rounded-md border border-border/50 border-l-2 px-2.5 py-2 dark:border-border/35 ${getEndpointTypeCardClasses(binding.sourceType)}`}>
+        <div className={`min-w-0 rounded-md border-l-2 px-2.5 py-2 ${getEndpointTypeCardClasses(binding.sourceType)}`}>
           <div className="flex items-start gap-2">
             <span className={`mt-1 inline-block h-1.5 w-1.5 shrink-0 rounded-full ${getEndpointTypeDotClasses(binding.sourceType)}`} />
             <div className="min-w-0">
@@ -211,7 +214,7 @@ function ConnectionRow({
             </div>
           </div>
           {showRawRefs && (
-            <p className="mt-1 truncate border-t border-border/30 pt-1 font-mono text-[11px] text-muted-foreground" title={binding.from}>
+            <p className="mt-1 truncate pt-1 font-mono text-[11px] text-muted-foreground/70" title={binding.from}>
               {binding.from}
             </p>
           )}
@@ -219,7 +222,7 @@ function ConnectionRow({
 
         <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/80" aria-hidden="true" />
 
-        <div className={`min-w-0 rounded-md border border-border/50 border-l-2 px-2.5 py-2 dark:border-border/35 ${getEndpointTypeCardClasses(binding.targetType)}`}>
+        <div className={`min-w-0 rounded-md border-l-2 px-2.5 py-2 ${getEndpointTypeCardClasses(binding.targetType)}`}>
           <div className="flex items-start gap-2">
             <span className={`mt-1 inline-block h-1.5 w-1.5 shrink-0 rounded-full ${getEndpointTypeDotClasses(binding.targetType)}`} />
             <div className="min-w-0">
@@ -243,7 +246,7 @@ function ConnectionRow({
             </div>
           </div>
           {showRawRefs && (
-            <p className="mt-1 truncate border-t border-border/30 pt-1 font-mono text-[11px] text-muted-foreground" title={binding.to}>
+            <p className="mt-1 truncate pt-1 font-mono text-[11px] text-muted-foreground/70" title={binding.to}>
               {binding.to}
             </p>
           )}
@@ -276,18 +279,18 @@ function ConnectionsPanel({
   currentProducerLabel: string;
 }) {
   return (
-    <section className="flex h-full flex-col rounded-xl border border-border/45 bg-background/72 p-4 dark:border-border/35 dark:bg-background/45">
+    <section className="flex h-full flex-col rounded-xl bg-card p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-          <span className="rounded-full border border-border/45 bg-background/80 px-2 py-0.5 text-xs text-muted-foreground dark:border-border/35 dark:bg-background/70">
+          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
             {bindings.length}
           </span>
         </div>
         <button
           type="button"
           onClick={onToggleRawRefs}
-          className="rounded-md border border-border/50 px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="rounded-md bg-muted px-2 py-1 text-[11px] text-muted-foreground hover:bg-item-hover-bg hover:text-foreground transition-colors"
         >
           {showRawRefs ? "Hide raw refs" : "Show raw refs"}
         </button>
@@ -339,27 +342,26 @@ function ProducerDetailsDialogBody({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl overflow-hidden bg-card p-0">
-        <DialogHeader className="border-b border-border/45 px-6 py-5 dark:border-border/30">
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${getStatusBadgeClasses(producer.status)}`}>
+      <DialogContent className="max-w-2xl overflow-hidden p-0 gap-0 flex flex-col">
+        <DialogHeader>
+          <div className="flex items-center gap-2">
+            <DialogTitle className="text-sm normal-case tracking-normal">
+              {producer.label}
+            </DialogTitle>
+            <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium ${getStatusBadgeClasses(producer.status)}`}>
               {formatStatusLabel(producer.status)}
             </span>
-            <span className="rounded-md border border-border/60 bg-background/70 px-2 py-1 font-mono text-[11px] text-muted-foreground">
-              {producer.nodeId}
-            </span>
           </div>
-          <DialogTitle className="text-xl">{producer.label}</DialogTitle>
           <DialogDescription className="sr-only">
             Producer inputs, outputs, and latest execution status.
           </DialogDescription>
-          <p className="text-left text-sm text-muted-foreground">
+          <p className="text-left text-xs text-muted-foreground">
             {producer.description ?? "Producer wiring and run status."}
           </p>
         </DialogHeader>
 
-        <div className="border-b border-border/40 px-6 py-3 dark:border-border/25">
-          <div className="flex items-center gap-2">
+        <div className="border-b border-border/40 h-[40px] flex items-center px-2 shrink-0 dark:border-border/25">
+          <div className="flex items-center h-full">
             <TabButton
               label="Overview"
               active={activeTab === "overview"}
@@ -378,14 +380,14 @@ function ProducerDetailsDialogBody({
           </div>
         </div>
 
-        <div className="h-[430px] px-6 pb-6 pt-4">
+        <div className="h-[430px] px-6 pb-6 pt-4 overflow-y-auto">
           {activeTab === "overview" && (
             <div className="h-full space-y-4">
               <div className="grid grid-cols-3 gap-3">
                 {summaryItems.map((item) => (
                   <div
                     key={item.label}
-                    className="rounded-lg border border-border/45 bg-background/60 px-3 py-2.5 dark:border-border/35 dark:bg-background/45"
+                    className="rounded-lg bg-card px-3 py-2.5"
                   >
                     <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
                       {item.label}
@@ -394,7 +396,7 @@ function ProducerDetailsDialogBody({
                   </div>
                 ))}
               </div>
-              <div className="rounded-lg border border-border/45 bg-background/60 p-3 text-sm text-muted-foreground dark:border-border/35 dark:bg-background/45">
+              <div className="rounded-lg bg-card p-3 text-sm text-muted-foreground">
                 {producer.producerType && (
                   <p>
                     <span className="text-foreground/90">Type:</span> {producer.producerType}

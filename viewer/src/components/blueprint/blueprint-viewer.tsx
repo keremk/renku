@@ -22,6 +22,7 @@ import { ProducerDetailsDialog, type ProducerDetails } from "./producer-details-
 import { layoutBlueprintGraph } from "@/lib/blueprint-layout";
 import type { BlueprintGraphData, ProducerBinding } from "@/types/blueprint-graph";
 import type { ProducerStatusMap, ProducerStatus } from "@/types/generation";
+import { useDarkMode } from "@/hooks/use-dark-mode";
 
 const nodeTypes: NodeTypes = {
   inputNode: InputNode,
@@ -95,6 +96,7 @@ export function BlueprintViewer({
   onNodeSelect,
   producerStatuses,
 }: BlueprintViewerProps) {
+  const isDark = useDarkMode();
   const { nodes: initialNodes, edges: initialEdges } = useMemo(
     () => layoutBlueprintGraph(graphData, undefined, producerStatuses),
     [graphData, producerStatuses]
@@ -175,7 +177,7 @@ export function BlueprintViewer({
         proOptions={{ hideAttribution: true }}
         className="bg-background"
       >
-        <Background color="#333" gap={20} />
+        <Background color={isDark ? "#666" : "#ccc"} gap={20} />
         <Controls
           className="!bg-card !border-border/60 !shadow-lg"
           showInteractive={false}

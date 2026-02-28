@@ -106,12 +106,12 @@ export function FileUploadDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 px-6 py-6">
           {/* Dropzone */}
           <DropzoneArea
             mediaType={mediaType}

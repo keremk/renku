@@ -1,0 +1,128 @@
+/**
+ * Renku light theme for prism-react-editor
+ *
+ * A warm, parchment-toned syntax theme designed to harmonize with the
+ * Renku viewer's light mode palette. Derived from the app's --editor-bg
+ * and --primary color variables.
+ *
+ * Scoped to .prism-light parent for theme switching.
+ */
+
+/* prism-react-editor CSS custom properties */
+.prism-light .prism-code-editor {
+	--pce-bg: var(--editor-bg, hsl(47 55% 88%));
+	--pce-cursor: #4a3f35;
+	--pce-selection: #d8c9a8;
+	--pce-bg-highlight: #c8b8901a;
+	--pce-selection-match: #c0b09066;
+	--pce-line-number: #b0a090;
+	--pce-scrollbar: 40, 15%, 60%;
+	--pce-guide-indent: #4a3f3526;
+	--pce-bg-fold: #8a7e72;
+	--pce-widget-border: #d0c0a0;
+	--pce-widget-bg: hsl(47 45% 85%);
+	--pce-widget-color: #4a3f35;
+	--pce-widget-color-active: #3a3025;
+	--pce-widget-color-options: #8a7e72;
+	--pce-widget-bg-input: var(--editor-bg, hsl(47 55% 88%));
+	--pce-widget-bg-hover: #d0c0a0;
+	--pce-widget-bg-active: #9c6b1e44;
+	--pce-widget-focus: #7a5220;
+	--pce-search-match: #9c6b1e40;
+	--pce-widget-bg-error: #8f5a2c22;
+	--pce-widget-error: #8f5a2c;
+	color-scheme: light;
+}
+
+/* Active line and search match overrides */
+.prism-light .pce-match {
+	--pce-search-match: #c0b090;
+}
+
+.prism-light .active-line {
+	--pce-line-number: #4a3f35;
+}
+
+.prism-light .active-indent {
+	--pce-guide-indent: #4a3f3580;
+}
+
+/* Token colors — warm earth palette */
+.prism-light .token.comment,
+.prism-light .token.prolog,
+.prism-light .token.cdata {
+	color: #9c8e7c; /* muted taupe */
+}
+
+.prism-light .token.delimiter,
+.prism-light .token.boolean,
+.prism-light .token.keyword,
+.prism-light .token.selector,
+.prism-light .token.important,
+.prism-light .token.atrule {
+	color: #8f5a2c; /* deep amber-brown */
+}
+
+.prism-light .token.operator,
+.prism-light .token.punctuation,
+.prism-light .token.attr-name {
+	color: #8a7e72; /* neutral warm gray */
+}
+
+.prism-light .token.tag,
+.prism-light .token.tag .punctuation,
+.prism-light .token.doctype,
+.prism-light .token.builtin {
+	color: #9c6b1e; /* deep golden */
+}
+
+.prism-light .token.entity,
+.prism-light .token.number,
+.prism-light .token.symbol {
+	color: #8a6550; /* warm sienna */
+}
+
+.prism-light .token.property,
+.prism-light .token.constant,
+.prism-light .token.variable {
+	color: #7a5236; /* earth brown */
+}
+
+.prism-light .token.string,
+.prism-light .token.char {
+	color: #6b7a3d; /* olive green */
+}
+
+.prism-light .token.attr-value,
+.prism-light .token.attr-value .punctuation {
+	color: #8a7e72; /* neutral warm gray */
+}
+
+.prism-light .token.url {
+	color: #6b7a3d; /* olive green */
+	text-decoration: underline;
+}
+
+.prism-light .token.function {
+	color: #9c6b1e; /* deep golden */
+}
+
+.prism-light .token.regex {
+	background: #6b7a3d33; /* olive green with opacity */
+}
+
+.prism-light .token.bold {
+	font-weight: bold;
+}
+
+.prism-light .token.italic {
+	font-style: italic;
+}
+
+.prism-light .token.inserted {
+	background: #8a7e7233; /* neutral warm gray */
+}
+
+.prism-light .token.deleted {
+	background: #8f5a2c33; /* deep amber-brown */
+}

@@ -43,7 +43,7 @@ export function MediaExpandDialog({
 }: MediaExpandDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='max-w-5xl max-h-[90vh] p-0 overflow-hidden'>
+      <DialogContent className='max-w-5xl max-h-[90vh] p-0 gap-0 overflow-hidden' showCloseButton={false}>
         <DialogHeader className='sr-only'>
           <DialogTitle>Media Preview</DialogTitle>
           <DialogDescription>
@@ -54,7 +54,7 @@ export function MediaExpandDialog({
           <button
             type='button'
             onClick={() => onOpenChange(false)}
-            className='absolute top-4 right-4 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors'
+            className='absolute top-4 right-4 z-10 p-2 rounded-full bg-background/80 hover:bg-background text-foreground border border-border/40 shadow-sm backdrop-blur-sm transition-colors'
           >
             <X className='size-5' />
           </button>
@@ -75,9 +75,6 @@ export function MediaExpandDialog({
                 Your browser does not support the video tag.
               </video>
             )}
-          </div>
-          <div className='px-4 pb-4'>
-            <p className='text-sm text-muted-foreground truncate'>{title}</p>
           </div>
         </div>
       </DialogContent>

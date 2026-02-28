@@ -9,6 +9,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -84,7 +85,7 @@ export function SwitchBlueprintDialog({
           Switch
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden">
         <DialogHeader>
           <DialogTitle>Switch Blueprint</DialogTitle>
           <DialogDescription>
@@ -92,7 +93,7 @@ export function SwitchBlueprintDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="max-h-80 overflow-y-auto">
+        <div className="max-h-80 overflow-y-auto px-4 py-2">
           {isLoading && (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -146,6 +147,11 @@ export function SwitchBlueprintDialog({
               );
             })}
         </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
