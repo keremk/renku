@@ -16,6 +16,10 @@ export type { MediaExpandDialogProps } from "./media-expand-dialog";
 export { CardActionsFooter } from "./card-actions-footer";
 export type { CardActionsFooterProps, CardAction } from "./card-actions-footer";
 
+// Syntax-highlighted preview for card content areas
+export { SyntaxPreview } from "./syntax-preview";
+export type { SyntaxPreviewProps } from "./syntax-preview";
+
 // Shared media card components
 export { VideoCard } from "./video-card";
 export type { VideoCardProps } from "./video-card";

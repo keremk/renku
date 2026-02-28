@@ -81,7 +81,8 @@
       "WebFetch(domain:fal.ai)",
       "Bash(git log:*)",
       "WebFetch(domain:api.replicate.com)",
-      "WebFetch(domain:replicate.com)"
+      "WebFetch(domain:replicate.com)",
+      "Bash(npx eslint:*)"
     ],
     "deny": [],
     "ask": []

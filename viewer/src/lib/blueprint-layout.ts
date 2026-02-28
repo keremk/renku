@@ -13,7 +13,7 @@ const defaultConfig: LayoutConfig = {
   nodeWidth: 180,
   nodeHeight: 60,
   horizontalSpacing: 250,
-  verticalSpacing: 80,
+  verticalSpacing: 100,
 };
 
 export interface LayoutResult {

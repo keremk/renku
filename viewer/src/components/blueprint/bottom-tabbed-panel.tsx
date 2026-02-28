@@ -91,7 +91,6 @@ function TabHeader({
   onTabChange,
   isExecuting,
   hasLogs,
-  hasTimeline,
 }: TabHeaderProps) {
   return (
     <div className='flex items-center h-[45px] border-b border-border/40 bg-sidebar-header-bg shrink-0'>
@@ -110,7 +109,6 @@ function TabHeader({
         label='Timeline'
         isActive={activeTab === 'timeline'}
         onClick={() => onTabChange('timeline')}
-        indicator={hasTimeline ? 'has-logs' : undefined}
       />
     </div>
   );

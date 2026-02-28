@@ -43,6 +43,7 @@ import {
   CollapsibleSection,
   CardActionsFooter,
   TextEditorDialog,
+  SyntaxPreview,
   VideoCard,
   AudioCard,
   ImageCard,
@@ -532,6 +533,7 @@ function ArtifactCardRenderer({
         isPinned={isPinned}
         onArtifactUpdated={onArtifactUpdated}
         mediaType='video'
+        subGroup={subGroup}
       />
     );
   }
@@ -545,6 +547,7 @@ function ArtifactCardRenderer({
         isPinned={isPinned}
         onArtifactUpdated={onArtifactUpdated}
         mediaType='audio'
+        subGroup={subGroup}
       />
     );
   }
@@ -558,6 +561,7 @@ function ArtifactCardRenderer({
         isPinned={isPinned}
         onArtifactUpdated={onArtifactUpdated}
         mediaType='image'
+        subGroup={subGroup}
       />
     );
   }
@@ -938,6 +942,7 @@ function MediaArtifactCard({
   isPinned,
   onArtifactUpdated,
   mediaType,
+  subGroup,
 }: {
   artifact: ArtifactInfo;
   blueprintFolder: string;
@@ -946,10 +951,11 @@ function MediaArtifactCard({
   isPinned: boolean;
   onArtifactUpdated?: () => void;
   mediaType: MediaType;
+  subGroup?: ArtifactSubGroup;
 }) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const url = getBlobUrl(blueprintFolder, movieId, artifact.hash);
-  const displayName = shortenArtifactDisplayName(artifact.id);
+  const displayName = getArtifactLabel(artifact.id, subGroup);
   const isEdited = artifact.editedBy === 'user';
 
   const handleEdit = () => setIsEditDialogOpen(true);
@@ -1170,9 +1176,17 @@ function TextArtifactSmartCard({
           onClick={() => setIsEditDialogOpen(true)}
           className='min-h-[100px] max-h-[180px] w-full bg-muted/30 p-3 text-left overflow-hidden group relative'
         >
-          <pre className='text-xs text-muted-foreground font-mono whitespace-pre-wrap overflow-hidden h-full'>
-            {displayContent}
-          </pre>
+          {isJson ? (
+            <SyntaxPreview
+              content={displayContent}
+              language='json'
+              className='h-full pointer-events-none'
+            />
+          ) : (
+            <pre className='text-xs text-muted-foreground font-mono whitespace-pre-wrap overflow-hidden h-full'>
+              {displayContent}
+            </pre>
+          )}
           {!useSimplifiedFooter && (
             <div className='absolute inset-0 bg-linear-to-t from-muted/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center'>
               <Pencil className='size-8 text-foreground' />

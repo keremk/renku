@@ -33,6 +33,14 @@ export function TimelinePanel({
   hasTimeline,
   movieId,
 }: TimelinePanelProps) {
+  const resolveAssetUrl = useCallback(
+    (assetId: string) => {
+      if (!blueprintFolder || !movieId) return '';
+      return buildBlueprintAssetUrl(blueprintFolder, movieId, assetId);
+    },
+    [blueprintFolder, movieId]
+  );
+
   // No build selected
   if (!movieId) {
     return (
@@ -61,12 +69,6 @@ export function TimelinePanel({
       />
     );
   }
-
-  const resolveAssetUrl = useCallback(
-    (assetId: string) =>
-      buildBlueprintAssetUrl(blueprintFolder, movieId, assetId),
-    [blueprintFolder, movieId]
-  );
 
   // Loading state
   if (status === 'loading') {
