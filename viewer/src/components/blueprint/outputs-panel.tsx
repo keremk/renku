@@ -759,7 +759,7 @@ function SubGroupSection({
   return (
     <div>
       {subGroup.label && <SubGroupHeader label={subGroup.label} />}
-      <MediaGrid>
+      <MediaGrid className='!grid-cols-[repeat(auto-fill,minmax(20rem,20rem))] justify-start'>
         {subGroup.artifacts.map((artifact) => {
           const isSelected = isArtifactSelected(artifact.id);
           const isPinned = isArtifactPinned(artifact.id);
