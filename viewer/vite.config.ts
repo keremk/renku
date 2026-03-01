@@ -64,7 +64,7 @@ export default defineConfig(({ mode }) => {
 function resolveCliRootFromConfig(): string | null {
   const configPath =
     process.env.RENKU_CLI_CONFIG ??
-    path.join(os.homedir(), ".renku", "cli-config.json")
+    path.join(os.homedir(), ".config", "renku", "cli-config.json")
   try {
     const data = JSON.parse(fs.readFileSync(configPath, "utf8")) as {
       storage?: { root?: string }

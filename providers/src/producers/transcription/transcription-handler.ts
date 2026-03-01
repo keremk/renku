@@ -185,7 +185,7 @@ export function createTranscriptionHandler(): HandlerFactory {
             throw createProviderError(
               SdkErrorCode.BLOB_INPUT_NO_STORAGE,
               'Transcription producer requires cloud storage for uploading audio. ' +
-                'Set S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, and S3_BUCKET_NAME environment variables.',
+                'Set S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, and S3_BUCKET environment variables.',
               { kind: 'user_input', causedByUser: true },
             );
           }

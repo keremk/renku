@@ -254,7 +254,7 @@ function createSdkHelper(
         throw createProviderError(
           SdkErrorCode.BLOB_INPUT_NO_STORAGE,
           'Blob inputs (file: references) require cloud storage configuration. ' +
-            'Set S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, and S3_BUCKET_NAME environment variables.',
+            'Set S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, and S3_BUCKET environment variables.',
           { kind: 'user_input', causedByUser: true }
         );
       }
