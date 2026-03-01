@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { WorkspaceLayout } from '@/components/blueprint/workspace-layout';
+import { ViewerHomePage } from '@/components/home/viewer-home-page';
 import {
   useBlueprintRoute,
   updateBlueprintRoute,
@@ -84,17 +85,7 @@ function BlueprintApp() {
   ]);
 
   if (!blueprintRoute?.blueprintName) {
-    return (
-      <LandingLayout>
-        <h1 className='text-3xl font-semibold'>Blueprint Viewer</h1>
-        <p className='text-muted-foreground'>
-          No blueprint provided. Use the CLI:
-        </p>
-        <code className='text-sm bg-muted/50 p-2 rounded'>
-          renku viewer ./path/to/blueprint.yaml
-        </code>
-      </LandingLayout>
-    );
+    return <ViewerHomePage />;
   }
 
   if (status === 'loading' || status === 'idle') {

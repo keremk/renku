@@ -1,13 +1,11 @@
+import { access, mkdir, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import {
-	access,
-	copyFile,
-	mkdir,
-	readdir,
-	rename,
-	writeFile,
-} from 'node:fs/promises';
-import { join, resolve } from 'node:path';
-import { createRuntimeError, RuntimeErrorCode } from '@gorenku/core';
+	assertValidBlueprintName,
+	createBlueprintFromTemplate,
+	createRuntimeError,
+	RuntimeErrorCode,
+} from '@gorenku/core';
 
 export interface NewBlueprintOptions {
 	/** The name of the blueprint (e.g., "history-video") */
@@ -102,118 +100,13 @@ models:
 `;
 }
 
-/**
- * Recursively copies a directory.
- */
-async function copyDirectory(source: string, target: string): Promise<void> {
-	await mkdir(target, { recursive: true });
-	const entries = await readdir(source, { withFileTypes: true });
-	for (const entry of entries) {
-		const sourcePath = join(source, entry.name);
-		const targetPath = join(target, entry.name);
-		if (entry.isDirectory()) {
-			await copyDirectory(sourcePath, targetPath);
-		} else if (entry.isFile()) {
-			await copyFile(sourcePath, targetPath);
-		}
-	}
-}
-
-/**
- * Finds a blueprint folder in the catalog by exact name match.
- */
-async function findCatalogBlueprint(
-	catalogRoot: string,
-	blueprintName: string
-): Promise<string | null> {
-	const blueprintsDir = resolve(catalogRoot, 'blueprints');
-	const blueprintPath = resolve(blueprintsDir, blueprintName);
-
-	try {
-		const stat = await readdir(blueprintPath);
-		// Folder exists and is readable
-		if (stat.length > 0) {
-			return blueprintPath;
-		}
-		return null;
-	} catch {
-		return null;
-	}
-}
-
-/**
- * Lists available blueprints in the catalog for error suggestions.
- */
-async function listAvailableCatalogBlueprints(
-	catalogRoot: string
-): Promise<string[]> {
-	const blueprintsDir = resolve(catalogRoot, 'blueprints');
-	try {
-		const entries = await readdir(blueprintsDir, { withFileTypes: true });
-		return entries
-			.filter((entry) => entry.isDirectory())
-			.map((entry) => entry.name);
-	} catch {
-		return [];
-	}
-}
-
-/**
- * Finds the main blueprint YAML file in the copied folder.
- * Returns the path to the first .yaml file that isn't input-template.yaml.
- */
-async function findBlueprintYamlFile(
-	folderPath: string
-): Promise<string | null> {
-	const entries = await readdir(folderPath);
-	const yamlFiles = entries.filter(
-		(entry) => entry.endsWith('.yaml') && entry !== 'input-template.yaml'
-	);
-	if (yamlFiles.length > 0) {
-		return resolve(folderPath, yamlFiles[0]);
-	}
-	return null;
-}
-
-/**
- * Renames the blueprint YAML file to match the new blueprint name.
- */
-async function renameBlueprintYamlFile(
-	folderPath: string,
-	newName: string
-): Promise<string> {
-	const oldPath = await findBlueprintYamlFile(folderPath);
-	const newPath = resolve(folderPath, `${newName}.yaml`);
-
-	if (oldPath && oldPath !== newPath) {
-		await rename(oldPath, newPath);
-	}
-
-	return newPath;
-}
-
 export async function runNewBlueprint(
 	options: NewBlueprintOptions
 ): Promise<NewBlueprintResult> {
 	const { name, outputDir, using, catalogRoot } = options;
+	const normalizedName = name.trim();
 
-	if (!name || name.trim() === '') {
-		throw createRuntimeError(
-			RuntimeErrorCode.MISSING_REQUIRED_INPUT,
-			'Blueprint name is required.',
-			{ suggestion: 'Provide a blueprint name as the first argument.' }
-		);
-	}
-
-	// Validate name format (should be kebab-case or simple alphanumeric)
-	if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(name)) {
-		throw createRuntimeError(
-			RuntimeErrorCode.INVALID_INPUT_VALUE,
-			'Blueprint name must be in kebab-case (e.g., "history-video", "my-blueprint"). ' +
-				'Start with a lowercase letter, use only lowercase letters, numbers, and hyphens.',
-			{ suggestion: 'Use a name like "my-blueprint" or "history-video".' }
-		);
-	}
+	assertValidBlueprintName(normalizedName);
 
 	// Validate --using requires catalog root
 	if (using && !catalogRoot) {
@@ -225,14 +118,14 @@ export async function runNewBlueprint(
 	}
 
 	const baseDir = outputDir ?? process.cwd();
-	const folderPath = resolve(baseDir, name);
+	const folderPath = resolve(baseDir, normalizedName);
 
 	// Check if folder already exists
 	try {
 		await access(folderPath);
 		throw createRuntimeError(
 			RuntimeErrorCode.STORAGE_PATH_ESCAPE,
-			`Folder "${name}" already exists at ${folderPath}.`,
+			`Folder "${normalizedName}" already exists at ${folderPath}.`,
 			{ suggestion: 'Choose a different name or remove the existing folder.' }
 		);
 	} catch (error) {
@@ -244,33 +137,17 @@ export async function runNewBlueprint(
 
 	// If using a catalog blueprint, copy it
 	if (using && catalogRoot) {
-		const sourcePath = await findCatalogBlueprint(catalogRoot, using);
-		if (!sourcePath) {
-			const availableBlueprints =
-				await listAvailableCatalogBlueprints(catalogRoot);
-			const suggestion =
-				availableBlueprints.length > 0
-					? `Available blueprints: ${availableBlueprints.join(', ')}`
-					: 'No blueprints found in the catalog. Run "renku update" to sync the catalog.';
-
-			throw createRuntimeError(
-				RuntimeErrorCode.CATALOG_BLUEPRINT_NOT_FOUND,
-				`Blueprint "${using}" not found in the catalog.`,
-				{ suggestion }
-			);
-		}
-
-		// Copy the entire blueprint folder
-		await copyDirectory(sourcePath, folderPath);
-
-		// Rename the blueprint YAML file to match the new name
-		const blueprintPath = await renameBlueprintYamlFile(folderPath, name);
-		const inputTemplatePath = resolve(folderPath, 'input-template.yaml');
+		const created = await createBlueprintFromTemplate({
+			blueprintName: normalizedName,
+			templateName: using,
+			outputDir: baseDir,
+			catalogRoot,
+		});
 
 		return {
-			folderPath,
-			blueprintPath,
-			inputTemplatePath,
+			folderPath: created.folderPath,
+			blueprintPath: created.blueprintPath,
+			inputTemplatePath: created.inputTemplatePath,
 			copiedFromCatalog: true,
 		};
 	}
@@ -279,8 +156,8 @@ export async function runNewBlueprint(
 	await mkdir(folderPath, { recursive: true });
 
 	// Create the blueprint YAML file
-	const blueprintPath = resolve(folderPath, `${name}.yaml`);
-	const blueprintContent = generateBlueprintYaml(name);
+	const blueprintPath = resolve(folderPath, `${normalizedName}.yaml`);
+	const blueprintContent = generateBlueprintYaml(normalizedName);
 	await writeFile(blueprintPath, blueprintContent, 'utf8');
 
 	// Create the input-template.yaml file

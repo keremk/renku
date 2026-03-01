@@ -45,3 +45,4 @@ export {
 } from './env-loader.js';
 export * from './model-selection-extractor.js';
 export * from './export/index.js';
+export * from './catalog-blueprints.js';

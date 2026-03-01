@@ -4,6 +4,7 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
+  parseJsonBody,
   respondNotFound,
   respondBadRequest,
   respondMethodNotAllowed,
@@ -22,6 +23,11 @@ import { getProducerConfigSchemas } from './config-schemas-handler.js';
 import { parseInputsFile } from './inputs-handler.js';
 import { streamBuildBlob, streamBuildAsset } from './blob-handler.js';
 import { listBlueprints } from './list-handler.js';
+import {
+  listCatalogTemplates,
+  createBlueprintFromCatalogTemplate,
+} from './templates-handler.js';
+import type { CreateBlueprintFromTemplateRequest } from './types.js';
 
 /**
  * Handles blueprint API requests.
@@ -35,6 +41,8 @@ import { listBlueprints } from './list-handler.js';
  *   GET  /blueprints/asset?folder=...&movieId=...&assetId=...
  *   GET  /blueprints/blob?folder=...&movieId=...&hash=...
  *   GET  /blueprints/list
+ *   GET  /blueprints/templates
+ *   POST /blueprints/templates/create
  *   GET  /blueprints/resolve?name=...
  *   GET  /blueprints/producer-models?path=...&catalog=...
  *   GET  /blueprints/producer-config-schemas?path=...&catalog=...
@@ -59,6 +67,62 @@ export async function handleBlueprintRequest(
   // Handle builds sub-routes that support POST/PUT
   if (action === 'builds' && subAction) {
     return handleBuildsSubRoute(req, res, url, subAction, segments.slice(1));
+  }
+
+  // Handle template routes (list + create)
+  if (action === 'templates') {
+    if (!subAction) {
+      if (req.method !== 'GET') {
+        return respondMethodNotAllowed(res);
+      }
+      try {
+        const templates = await listCatalogTemplates();
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify(templates));
+        return true;
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Failed to list catalog templates';
+        return respondBadRequest(res, message);
+      }
+    }
+
+    if (subAction === 'create') {
+      if (req.method !== 'POST') {
+        return respondMethodNotAllowed(res);
+      }
+
+      let body: CreateBlueprintFromTemplateRequest;
+      try {
+        body = await parseJsonBody<CreateBlueprintFromTemplateRequest>(req);
+      } catch {
+        return respondBadRequest(res, 'Invalid JSON body');
+      }
+
+      if (!body.templateName || !body.blueprintName) {
+        return respondBadRequest(res, 'Missing templateName or blueprintName');
+      }
+
+      try {
+        const created = await createBlueprintFromCatalogTemplate(
+          body.templateName,
+          body.blueprintName
+        );
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify(created));
+        return true;
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Failed to create blueprint from template';
+        return respondBadRequest(res, message);
+      }
+    }
+
+    return respondNotFound(res);
   }
 
   // All other routes require GET

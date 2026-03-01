@@ -69,6 +69,7 @@ export function isBlueprintRoute(): boolean {
  */
 export function switchBlueprint(name: string): void {
   const url = new URL(window.location.href);
+  url.pathname = '/blueprints';
   url.searchParams.set('bp', name);
   url.searchParams.delete('last');
   url.searchParams.delete('build');

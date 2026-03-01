@@ -13,7 +13,7 @@ export interface AvailableModelOption {
 /**
  * Producer category types.
  */
-export type ProducerCategory = "asset" | "prompt" | "composition";
+export type ProducerCategory = 'asset' | 'prompt' | 'composition';
 
 /**
  * Producer model information.
@@ -46,7 +46,7 @@ export interface ResolvedBlueprintInfo {
 /**
  * Endpoint type classification for edge resolution.
  */
-export type EndpointType = "input" | "producer" | "output" | "unknown";
+export type EndpointType = 'input' | 'producer' | 'output' | 'unknown';
 
 /**
  * Endpoint resolution result.
@@ -78,4 +78,41 @@ export interface BlueprintListItem {
  */
 export interface BlueprintListResponse {
   blueprints: BlueprintListItem[];
+}
+
+/**
+ * A catalog blueprint template entry.
+ */
+export interface CatalogTemplateItem {
+  /** Template folder name in catalog/blueprints */
+  name: string;
+  /** Human title from blueprint meta.name */
+  title: string;
+  /** Description from blueprint meta.description */
+  description: string;
+}
+
+/**
+ * Response from GET /blueprints/templates
+ */
+export interface CatalogTemplateListResponse {
+  templates: CatalogTemplateItem[];
+}
+
+/**
+ * Request for POST /blueprints/templates/create
+ */
+export interface CreateBlueprintFromTemplateRequest {
+  templateName: string;
+  blueprintName: string;
+}
+
+/**
+ * Response from POST /blueprints/templates/create
+ */
+export interface CreateBlueprintFromTemplateResponse {
+  name: string;
+  blueprintPath: string;
+  blueprintFolder: string;
+  inputTemplatePath: string;
 }

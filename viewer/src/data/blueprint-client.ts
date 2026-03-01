@@ -6,16 +6,16 @@ import type {
   ProducerPromptsResponse,
   PromptData,
   ModelSelectionValue,
-} from "@/types/blueprint-graph";
-import type { BuildsListResponse, BuildManifestResponse } from "@/types/builds";
-import type { TimelineDocument } from "@/types/timeline";
+} from '@/types/blueprint-graph';
+import type { BuildsListResponse, BuildManifestResponse } from '@/types/builds';
+import type { TimelineDocument } from '@/types/timeline';
 
-const API_BASE = "/viewer-api";
+const API_BASE = '/viewer-api';
 
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
   if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
+    const errorText = await response.text().catch(() => 'Unknown error');
     throw new Error(`Request failed (${response.status}): ${errorText}`);
   }
   return response.json() as Promise<T>;
@@ -36,10 +36,64 @@ export interface BlueprintListResponse {
 }
 
 /**
+ * A catalog template entry returned by the templates endpoint.
+ */
+export interface CatalogTemplateItem {
+  name: string;
+  title: string;
+  description: string;
+}
+
+/**
+ * Response from GET /blueprints/templates.
+ */
+export interface CatalogTemplateListResponse {
+  templates: CatalogTemplateItem[];
+}
+
+/**
+ * Response from POST /blueprints/templates/create.
+ */
+export interface CreateBlueprintFromTemplateResponse {
+  name: string;
+  blueprintPath: string;
+  blueprintFolder: string;
+  inputTemplatePath: string;
+}
+
+/**
  * Lists all blueprints in the storage root.
  */
 export function fetchBlueprintsList(): Promise<BlueprintListResponse> {
   return fetchJson<BlueprintListResponse>(`${API_BASE}/blueprints/list`);
+}
+
+/**
+ * Lists catalog templates from catalog/blueprints.
+ */
+export function fetchCatalogTemplates(): Promise<CatalogTemplateListResponse> {
+  return fetchJson<CatalogTemplateListResponse>(
+    `${API_BASE}/blueprints/templates`
+  );
+}
+
+/**
+ * Creates a new blueprint in storage from a catalog template.
+ */
+export async function createBlueprintFromTemplate(
+  templateName: string,
+  blueprintName: string
+): Promise<CreateBlueprintFromTemplateResponse> {
+  const response = await fetch(`${API_BASE}/blueprints/templates/create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ templateName, blueprintName }),
+  });
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    throw new Error(`Failed to create blueprint from template: ${errorText}`);
+  }
+  return response.json() as Promise<CreateBlueprintFromTemplateResponse>;
 }
 
 /**
@@ -56,9 +110,11 @@ export interface ResolvedBlueprintPaths {
 /**
  * Resolves a blueprint name to full paths using CLI config on the server.
  */
-export function resolveBlueprintName(name: string): Promise<ResolvedBlueprintPaths> {
+export function resolveBlueprintName(
+  name: string
+): Promise<ResolvedBlueprintPaths> {
   const url = new URL(`${API_BASE}/blueprints/resolve`, window.location.origin);
-  url.searchParams.set("name", name);
+  url.searchParams.set('name', name);
   return fetchJson<ResolvedBlueprintPaths>(url.toString());
 }
 
@@ -67,14 +123,16 @@ export function fetchBlueprintGraph(
   catalogRoot?: string | null
 ): Promise<BlueprintGraphData> {
   const url = new URL(`${API_BASE}/blueprints/parse`, window.location.origin);
-  url.searchParams.set("path", blueprintPath);
+  url.searchParams.set('path', blueprintPath);
   if (catalogRoot) {
-    url.searchParams.set("catalog", catalogRoot);
+    url.searchParams.set('catalog', catalogRoot);
   }
   return fetchJson<BlueprintGraphData>(url.toString());
 }
 
-export function fetchInputTemplate(inputsPath: string): Promise<InputTemplateData> {
+export function fetchInputTemplate(
+  inputsPath: string
+): Promise<InputTemplateData> {
   return fetchJson<InputTemplateData>(
     `${API_BASE}/blueprints/inputs?path=${encodeURIComponent(inputsPath)}`
   );
@@ -88,10 +146,13 @@ export function fetchProducerModels(
   blueprintPath: string,
   catalogRoot?: string | null
 ): Promise<ProducerModelsResponse> {
-  const url = new URL(`${API_BASE}/blueprints/producer-models`, window.location.origin);
-  url.searchParams.set("path", blueprintPath);
+  const url = new URL(
+    `${API_BASE}/blueprints/producer-models`,
+    window.location.origin
+  );
+  url.searchParams.set('path', blueprintPath);
   if (catalogRoot) {
-    url.searchParams.set("catalog", catalogRoot);
+    url.searchParams.set('catalog', catalogRoot);
   }
   return fetchJson<ProducerModelsResponse>(url.toString());
 }
@@ -104,17 +165,22 @@ export function fetchProducerConfigSchemas(
   blueprintPath: string,
   catalogRoot?: string | null
 ): Promise<ProducerConfigSchemasResponse> {
-  const url = new URL(`${API_BASE}/blueprints/producer-config-schemas`, window.location.origin);
-  url.searchParams.set("path", blueprintPath);
+  const url = new URL(
+    `${API_BASE}/blueprints/producer-config-schemas`,
+    window.location.origin
+  );
+  url.searchParams.set('path', blueprintPath);
   if (catalogRoot) {
-    url.searchParams.set("catalog", catalogRoot);
+    url.searchParams.set('catalog', catalogRoot);
   }
   return fetchJson<ProducerConfigSchemasResponse>(url.toString());
 }
 
-export function fetchBuildsList(blueprintFolder: string): Promise<BuildsListResponse> {
+export function fetchBuildsList(
+  blueprintFolder: string
+): Promise<BuildsListResponse> {
   const url = new URL(`${API_BASE}/blueprints/builds`, window.location.origin);
-  url.searchParams.set("folder", blueprintFolder);
+  url.searchParams.set('folder', blueprintFolder);
   return fetchJson<BuildsListResponse>(url.toString());
 }
 
@@ -122,9 +188,12 @@ export function fetchBuildManifest(
   blueprintFolder: string,
   movieId: string
 ): Promise<BuildManifestResponse> {
-  const url = new URL(`${API_BASE}/blueprints/manifest`, window.location.origin);
-  url.searchParams.set("folder", blueprintFolder);
-  url.searchParams.set("movieId", movieId);
+  const url = new URL(
+    `${API_BASE}/blueprints/manifest`,
+    window.location.origin
+  );
+  url.searchParams.set('folder', blueprintFolder);
+  url.searchParams.set('movieId', movieId);
   return fetchJson<BuildManifestResponse>(url.toString());
 }
 
@@ -153,12 +222,12 @@ export async function createBuild(
   displayName?: string
 ): Promise<CreateBuildResponse> {
   const response = await fetch(`${API_BASE}/blueprints/builds/create`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ blueprintFolder, displayName }),
   });
   if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
+    const errorText = await response.text().catch(() => 'Unknown error');
     throw new Error(`Failed to create build: ${errorText}`);
   }
   return response.json() as Promise<CreateBuildResponse>;
@@ -172,14 +241,17 @@ export function fetchBuildInputs(
   blueprintFolder: string,
   movieId: string,
   blueprintPath: string,
-  catalogRoot?: string | null,
+  catalogRoot?: string | null
 ): Promise<BuildInputsResponse> {
-  const url = new URL(`${API_BASE}/blueprints/builds/inputs`, window.location.origin);
-  url.searchParams.set("folder", blueprintFolder);
-  url.searchParams.set("movieId", movieId);
-  url.searchParams.set("blueprintPath", blueprintPath);
+  const url = new URL(
+    `${API_BASE}/blueprints/builds/inputs`,
+    window.location.origin
+  );
+  url.searchParams.set('folder', blueprintFolder);
+  url.searchParams.set('movieId', movieId);
+  url.searchParams.set('blueprintPath', blueprintPath);
   if (catalogRoot) {
-    url.searchParams.set("catalog", catalogRoot);
+    url.searchParams.set('catalog', catalogRoot);
   }
   return fetchJson<BuildInputsResponse>(url.toString());
 }
@@ -193,15 +265,21 @@ export async function saveBuildInputs(
   blueprintPath: string,
   movieId: string,
   inputs: Record<string, unknown>,
-  models: ModelSelectionValue[],
+  models: ModelSelectionValue[]
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/blueprints/builds/inputs`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ blueprintFolder, blueprintPath, movieId, inputs, models }),
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      blueprintFolder,
+      blueprintPath,
+      movieId,
+      inputs,
+      models,
+    }),
   });
   if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
+    const errorText = await response.text().catch(() => 'Unknown error');
     throw new Error(`Failed to save inputs: ${errorText}`);
   }
 }
@@ -215,12 +293,12 @@ export async function updateBuildMetadata(
   displayName: string
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/blueprints/builds/metadata`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ blueprintFolder, movieId, displayName }),
   });
   if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
+    const errorText = await response.text().catch(() => 'Unknown error');
     throw new Error(`Failed to update metadata: ${errorText}`);
   }
 }
@@ -233,12 +311,12 @@ export async function enableBuildEditing(
   movieId: string
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/blueprints/builds/enable-editing`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ blueprintFolder, movieId }),
   });
   if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
+    const errorText = await response.text().catch(() => 'Unknown error');
     throw new Error(`Failed to enable editing: ${errorText}`);
   }
 }
@@ -250,9 +328,12 @@ export function fetchBuildTimeline(
   blueprintFolder: string,
   movieId: string
 ): Promise<TimelineDocument> {
-  const url = new URL(`${API_BASE}/blueprints/timeline`, window.location.origin);
-  url.searchParams.set("folder", blueprintFolder);
-  url.searchParams.set("movieId", movieId);
+  const url = new URL(
+    `${API_BASE}/blueprints/timeline`,
+    window.location.origin
+  );
+  url.searchParams.set('folder', blueprintFolder);
+  url.searchParams.set('movieId', movieId);
   return fetchJson<TimelineDocument>(url.toString());
 }
 
@@ -265,9 +346,9 @@ export function buildBlueprintAssetUrl(
   assetId: string
 ): string {
   const url = new URL(`${API_BASE}/blueprints/asset`, window.location.origin);
-  url.searchParams.set("folder", blueprintFolder);
-  url.searchParams.set("movieId", movieId);
-  url.searchParams.set("assetId", assetId);
+  url.searchParams.set('folder', blueprintFolder);
+  url.searchParams.set('movieId', movieId);
+  url.searchParams.set('assetId', assetId);
   return url.toString();
 }
 
@@ -276,15 +357,15 @@ export function buildBlueprintAssetUrl(
  */
 export async function deleteBuild(
   blueprintFolder: string,
-  movieId: string,
+  movieId: string
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/blueprints/builds/delete`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ blueprintFolder, movieId }),
   });
   if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
+    const errorText = await response.text().catch(() => 'Unknown error');
     throw new Error(`Failed to delete build: ${errorText}`);
   }
 }
@@ -313,7 +394,7 @@ export interface UploadFilesResponse {
 /**
  * Supported media types for file inputs.
  */
-export type MediaInputType = "image" | "video" | "audio";
+export type MediaInputType = 'image' | 'video' | 'audio';
 
 /**
  * Uploads input files for a specific build.
@@ -323,27 +404,30 @@ export async function uploadInputFiles(
   blueprintFolder: string,
   movieId: string,
   files: File[],
-  inputType?: MediaInputType,
+  inputType?: MediaInputType
 ): Promise<UploadFilesResponse> {
-  const url = new URL(`${API_BASE}/blueprints/builds/upload`, window.location.origin);
-  url.searchParams.set("folder", blueprintFolder);
-  url.searchParams.set("movieId", movieId);
+  const url = new URL(
+    `${API_BASE}/blueprints/builds/upload`,
+    window.location.origin
+  );
+  url.searchParams.set('folder', blueprintFolder);
+  url.searchParams.set('movieId', movieId);
   if (inputType) {
-    url.searchParams.set("inputType", inputType);
+    url.searchParams.set('inputType', inputType);
   }
 
   const formData = new FormData();
   for (const file of files) {
-    formData.append("files", file);
+    formData.append('files', file);
   }
 
   const response = await fetch(url.toString(), {
-    method: "POST",
+    method: 'POST',
     body: formData,
   });
 
   if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
+    const errorText = await response.text().catch(() => 'Unknown error');
     let errorMessage = `Upload failed (${response.status})`;
     try {
       const errorJson = JSON.parse(errorText);
@@ -365,12 +449,15 @@ export async function uploadInputFiles(
 export function buildInputFileUrl(
   blueprintFolder: string,
   movieId: string,
-  filename: string,
+  filename: string
 ): string {
-  const url = new URL(`${API_BASE}/blueprints/input-file`, window.location.origin);
-  url.searchParams.set("folder", blueprintFolder);
-  url.searchParams.set("movieId", movieId);
-  url.searchParams.set("filename", filename);
+  const url = new URL(
+    `${API_BASE}/blueprints/input-file`,
+    window.location.origin
+  );
+  url.searchParams.set('folder', blueprintFolder);
+  url.searchParams.set('movieId', movieId);
+  url.searchParams.set('filename', filename);
   return url.toString();
 }
 
@@ -379,7 +466,7 @@ export function buildInputFileUrl(
  * Returns null if the value is not a valid file reference.
  */
 export function parseFileRef(value: unknown): string | null {
-  if (typeof value !== "string") return null;
+  if (typeof value !== 'string') return null;
   const match = value.match(/^file:\.\/input-files\/(.+)$/);
   return match ? match[1] : null;
 }
@@ -393,7 +480,7 @@ export interface ArtifactEditResponse {
   success: boolean;
   newHash: string;
   originalHash?: string;
-  editedBy: "user";
+  editedBy: 'user';
 }
 
 /**
@@ -411,23 +498,26 @@ export async function editArtifactFile(
   blueprintFolder: string,
   movieId: string,
   artifactId: string,
-  file: File,
+  file: File
 ): Promise<ArtifactEditResponse> {
-  const url = new URL(`${API_BASE}/blueprints/builds/artifacts/edit`, window.location.origin);
-  url.searchParams.set("folder", blueprintFolder);
-  url.searchParams.set("movieId", movieId);
-  url.searchParams.set("artifactId", artifactId);
+  const url = new URL(
+    `${API_BASE}/blueprints/builds/artifacts/edit`,
+    window.location.origin
+  );
+  url.searchParams.set('folder', blueprintFolder);
+  url.searchParams.set('movieId', movieId);
+  url.searchParams.set('artifactId', artifactId);
 
   const formData = new FormData();
-  formData.append("file", file);
+  formData.append('file', file);
 
   const response = await fetch(url.toString(), {
-    method: "POST",
+    method: 'POST',
     body: formData,
   });
 
   if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
+    const errorText = await response.text().catch(() => 'Unknown error');
     let errorMessage = `Edit failed (${response.status})`;
     try {
       const errorJson = JSON.parse(errorText);
@@ -451,22 +541,25 @@ export async function editArtifactText(
   movieId: string,
   artifactId: string,
   content: string,
-  mimeType: string,
+  mimeType: string
 ): Promise<ArtifactEditResponse> {
-  const response = await fetch(`${API_BASE}/blueprints/builds/artifacts/edit-text`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      blueprintFolder,
-      movieId,
-      artifactId,
-      content,
-      mimeType,
-    }),
-  });
+  const response = await fetch(
+    `${API_BASE}/blueprints/builds/artifacts/edit-text`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        blueprintFolder,
+        movieId,
+        artifactId,
+        content,
+        mimeType,
+      }),
+    }
+  );
 
   if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
+    const errorText = await response.text().catch(() => 'Unknown error');
     throw new Error(`Edit failed: ${errorText}`);
   }
 
@@ -479,20 +572,23 @@ export async function editArtifactText(
 export async function restoreArtifact(
   blueprintFolder: string,
   movieId: string,
-  artifactId: string,
+  artifactId: string
 ): Promise<ArtifactRestoreResponse> {
-  const response = await fetch(`${API_BASE}/blueprints/builds/artifacts/restore`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      blueprintFolder,
-      movieId,
-      artifactId,
-    }),
-  });
+  const response = await fetch(
+    `${API_BASE}/blueprints/builds/artifacts/restore`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        blueprintFolder,
+        movieId,
+        artifactId,
+      }),
+    }
+  );
 
   if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
+    const errorText = await response.text().catch(() => 'Unknown error');
     throw new Error(`Restore failed: ${errorText}`);
   }
 
@@ -503,8 +599,8 @@ export async function restoreArtifact(
  * Response from artifact recheck operation.
  */
 export interface ArtifactRecheckResponse {
-  status: "recovered" | "still_pending" | "failed" | "not_recoverable";
-  artifact?: import("@/types/builds").ArtifactInfo;
+  status: 'recovered' | 'still_pending' | 'failed' | 'not_recoverable';
+  artifact?: import('@/types/builds').ArtifactInfo;
   message: string;
 }
 
@@ -516,20 +612,23 @@ export interface ArtifactRecheckResponse {
 export async function recheckArtifact(
   blueprintFolder: string,
   movieId: string,
-  artifactId: string,
+  artifactId: string
 ): Promise<ArtifactRecheckResponse> {
-  const response = await fetch(`${API_BASE}/blueprints/builds/artifacts/recheck`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      blueprintFolder,
-      movieId,
-      artifactId,
-    }),
-  });
+  const response = await fetch(
+    `${API_BASE}/blueprints/builds/artifacts/recheck`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        blueprintFolder,
+        movieId,
+        artifactId,
+      }),
+    }
+  );
 
   if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
+    const errorText = await response.text().catch(() => 'Unknown error');
     throw new Error(`Recheck failed: ${errorText}`);
   }
 
@@ -547,15 +646,18 @@ export function fetchProducerPrompts(
   movieId: string,
   blueprintPath: string,
   producerId: string,
-  catalogRoot?: string | null,
+  catalogRoot?: string | null
 ): Promise<ProducerPromptsResponse> {
-  const url = new URL(`${API_BASE}/blueprints/builds/prompts`, window.location.origin);
-  url.searchParams.set("folder", blueprintFolder);
-  url.searchParams.set("movieId", movieId);
-  url.searchParams.set("blueprintPath", blueprintPath);
-  url.searchParams.set("producerId", producerId);
+  const url = new URL(
+    `${API_BASE}/blueprints/builds/prompts`,
+    window.location.origin
+  );
+  url.searchParams.set('folder', blueprintFolder);
+  url.searchParams.set('movieId', movieId);
+  url.searchParams.set('blueprintPath', blueprintPath);
+  url.searchParams.set('producerId', producerId);
   if (catalogRoot) {
-    url.searchParams.set("catalog", catalogRoot);
+    url.searchParams.set('catalog', catalogRoot);
   }
   return fetchJson<ProducerPromptsResponse>(url.toString());
 }
@@ -568,11 +670,11 @@ export async function saveProducerPrompts(
   movieId: string,
   blueprintPath: string,
   producerId: string,
-  prompts: PromptData,
+  prompts: PromptData
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/blueprints/builds/prompts`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       blueprintFolder,
       movieId,
@@ -583,7 +685,7 @@ export async function saveProducerPrompts(
   });
 
   if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
+    const errorText = await response.text().catch(() => 'Unknown error');
     throw new Error(`Failed to save prompts: ${errorText}`);
   }
 }
@@ -594,20 +696,23 @@ export async function saveProducerPrompts(
 export async function restoreProducerPrompts(
   blueprintFolder: string,
   movieId: string,
-  producerId: string,
+  producerId: string
 ): Promise<void> {
-  const response = await fetch(`${API_BASE}/blueprints/builds/prompts/restore`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      blueprintFolder,
-      movieId,
-      producerId,
-    }),
-  });
+  const response = await fetch(
+    `${API_BASE}/blueprints/builds/prompts/restore`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        blueprintFolder,
+        movieId,
+        producerId,
+      }),
+    }
+  );
 
   if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
+    const errorText = await response.text().catch(() => 'Unknown error');
     throw new Error(`Failed to restore prompts: ${errorText}`);
   }
 }

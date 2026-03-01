@@ -22,4 +22,14 @@ describe('switchBlueprint', () => {
     expect(url.searchParams.has('in')).toBe(false);
     expect(url.searchParams.has('last')).toBe(false);
   });
+
+  it('navigates to /blueprints when called from root path', () => {
+    window.history.replaceState({}, '', '/');
+
+    switchBlueprint('catalog-video');
+
+    const url = new URL(window.location.href);
+    expect(url.pathname).toBe('/blueprints');
+    expect(url.searchParams.get('bp')).toBe('catalog-video');
+  });
 });

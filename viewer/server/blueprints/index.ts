@@ -14,7 +14,11 @@ export type {
   EdgeEndpoints,
   BlueprintListItem,
   BlueprintListResponse,
-} from "./types.js";
+  CatalogTemplateItem,
+  CatalogTemplateListResponse,
+  CreateBlueprintFromTemplateRequest,
+  CreateBlueprintFromTemplateResponse,
+} from './types.js';
 
 // Graph conversion
 export {
@@ -23,17 +27,21 @@ export {
   normalizeProducerName,
   resolveEdgeEndpoints,
   resolveEndpoint,
-} from "./graph-converter.js";
+} from './graph-converter.js';
 
 // Handlers
-export { parseBlueprintToGraph } from "./parse-handler.js";
-export { resolveBlueprintName } from "./resolve-handler.js";
+export { parseBlueprintToGraph } from './parse-handler.js';
+export { resolveBlueprintName } from './resolve-handler.js';
 export {
   detectProducerCategory,
   getLlmModelsFromCatalog,
   getProducerModelsFromBlueprint,
-} from "./producer-models.js";
-export { parseInputsFile } from "./inputs-handler.js";
-export { streamBuildBlob } from "./blob-handler.js";
-export { listBlueprints } from "./list-handler.js";
-export { handleBlueprintRequest } from "./blueprint-handler.js";
+} from './producer-models.js';
+export { parseInputsFile } from './inputs-handler.js';
+export { streamBuildBlob } from './blob-handler.js';
+export { listBlueprints } from './list-handler.js';
+export {
+  listCatalogTemplates,
+  createBlueprintFromCatalogTemplate,
+} from './templates-handler.js';
+export { handleBlueprintRequest } from './blueprint-handler.js';
