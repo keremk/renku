@@ -71,12 +71,15 @@ describe("ImageCard", () => {
     expect(card?.className).toContain("border-border");
   });
 
-  it("expand dialog shows correct title", async () => {
+  it("expand dialog shows correct title in description", async () => {
     render(<ImageCard {...defaultProps} />);
     fireEvent.click(screen.getByRole("button"));
 
     await waitFor(() => {
-      expect(screen.getByText("Test Image")).toBeTruthy();
+      expect(screen.getByRole("dialog")).toBeTruthy();
+      expect(
+        screen.getByText(/Test Image/, { exact: false })
+      ).toBeTruthy();
     });
   });
 

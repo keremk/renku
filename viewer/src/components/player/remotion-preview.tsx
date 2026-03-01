@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Player,
   type PlayerRef,
@@ -29,6 +29,11 @@ interface RemotionPreviewProps {
   blueprintFolder: string;
 }
 
+interface VideoPosterState {
+  assetId: string;
+  src: string;
+}
+
 const FPS = 30;
 const DIMENSION_DETECTION_TIMEOUT_MS = 5000;
 const POSTER_CAPTURE_TIMEOUT_MS = 10000;
@@ -50,15 +55,22 @@ export const RemotionPreview = ({
   const onSeekRef = useRef(onSeek);
   const onPlayRef = useRef(onPlay);
   const onPauseRef = useRef(onPause);
+  const interactionKey = `${movieId}:${timeline.id}`;
   const [detectedVisualDimensions, setDetectedVisualDimensions] =
     useState<DetectedVisualDimensions | null>(null);
-  const [posterSrc, setPosterSrc] = useState<string | null>(null);
-  const [hasPreviewInteracted, setHasPreviewInteracted] = useState(false);
+  const [interactedForKey, setInteractedForKey] = useState<string | null>(null);
+  const [videoPoster, setVideoPoster] = useState<VideoPosterState | null>(null);
   const [viewportDimensions, setViewportDimensions] =
     useState<PreviewDimensions>({
       width: 0,
       height: 0,
     });
+
+  const markInteractedForCurrentKey = useCallback(() => {
+    setInteractedForKey((previous) => {
+      return previous === interactionKey ? previous : interactionKey;
+    });
+  }, [interactionKey]);
 
   useEffect(() => {
     onSeekRef.current = onSeek;
@@ -211,11 +223,11 @@ export const RemotionPreview = ({
   const { width, height } = compositionDimensions;
 
   // Build asset URL using the blueprints API
-  const getAssetUrl = useMemo(() => {
-    return (assetId: string) => {
-      return buildBlueprintAssetUrl(blueprintFolder, movieId, assetId);
-    };
-  }, [blueprintFolder, movieId]);
+  const getAssetUrl = useCallback(
+    (assetId: string) =>
+      buildBlueprintAssetUrl(blueprintFolder, movieId, assetId),
+    [blueprintFolder, movieId]
+  );
 
   const assetMap = useMemo<AssetMap>(() => {
     const map: AssetMap = {};
@@ -249,35 +261,57 @@ export const RemotionPreview = ({
     };
   }, [explicitAspectDimensions, firstVisualAssetId, getAssetUrl]);
 
-  useEffect(() => {
-    if (!firstVisualDescriptor) {
-      setPosterSrc(null);
-      return;
-    }
-
-    const sourceUrl = getAssetUrl(firstVisualDescriptor.assetId);
+  // Derive poster src synchronously for images; fetch asynchronously for video
+  const syncPosterSrc = useMemo(() => {
+    if (!firstVisualDescriptor) return null;
     if (firstVisualDescriptor.kind === 'Image') {
-      setPosterSrc(sourceUrl);
+      return getAssetUrl(firstVisualDescriptor.assetId);
+    }
+    return null;
+  }, [firstVisualDescriptor, getAssetUrl]);
+
+  const videoDescriptorAssetId =
+    firstVisualDescriptor?.kind === 'Video'
+      ? firstVisualDescriptor.assetId
+      : null;
+
+  useEffect(() => {
+    if (!videoDescriptorAssetId) {
       return;
     }
 
     let cancelled = false;
+    const sourceUrl = getAssetUrl(videoDescriptorAssetId);
     void captureVideoPosterFrame(sourceUrl)
       .then((capturedPosterSrc) => {
         if (!cancelled) {
-          setPosterSrc(capturedPosterSrc);
+          setVideoPoster({
+            assetId: videoDescriptorAssetId,
+            src: capturedPosterSrc,
+          });
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setPosterSrc(null);
+          setVideoPoster((previous) => {
+            if (!previous || previous.assetId === videoDescriptorAssetId) {
+              return null;
+            }
+            return previous;
+          });
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [firstVisualDescriptor, getAssetUrl]);
+  }, [videoDescriptorAssetId, getAssetUrl]);
+
+  const activeVideoPosterSrc =
+    videoDescriptorAssetId && videoPoster?.assetId === videoDescriptorAssetId
+      ? videoPoster.src
+      : null;
+  const posterSrc = syncPosterSrc ?? activeVideoPosterSrc;
 
   const renderPoster = useMemo<RenderPoster | undefined>(() => {
     if (!posterSrc) {
@@ -294,16 +328,12 @@ export const RemotionPreview = ({
     );
   }, [posterSrc]);
 
-  useEffect(() => {
-    setHasPreviewInteracted(false);
-    lastTimeRef.current = 0;
-  }, [movieId, timeline.id]);
+  const hasPreviewInteracted = interactedForKey === interactionKey;
 
+  // Reset lastTimeRef when movie/timeline changes
   useEffect(() => {
-    if (isPlaying || safeCurrentTime > 1 / FPS) {
-      setHasPreviewInteracted(true);
-    }
-  }, [isPlaying, safeCurrentTime]);
+    lastTimeRef.current = 0;
+  }, [interactionKey]);
 
   const shouldShowPosterWhenUnplayed =
     Boolean(renderPoster) &&
@@ -428,6 +458,10 @@ export const RemotionPreview = ({
         const frameChanged =
           Math.round(time * FPS) !== Math.round(lastTimeRef.current * FPS);
 
+        if (event.detail.frame > 1) {
+          markInteractedForCurrentKey();
+        }
+
         if (onSeekRef.current && frameChanged) {
           lastTimeRef.current = time;
           onSeekRef.current(time);
@@ -435,6 +469,7 @@ export const RemotionPreview = ({
       };
 
       const handlePlay = () => {
+        markInteractedForCurrentKey();
         onPlayRef.current?.();
       };
 
@@ -466,7 +501,7 @@ export const RemotionPreview = ({
     }, 100);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [markInteractedForCurrentKey]);
 
   return (
     <div

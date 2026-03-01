@@ -82,8 +82,9 @@ function WorkspaceLayoutInner({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [detailPanelTab, setDetailPanelTab] =
     useState<DetailPanelTab>('inputs');
-  const [hasSyncedPreviewTimelineTabs, setHasSyncedPreviewTimelineTabs] =
-    useState(false);
+  const [syncedForMovieId, setSyncedForMovieId] = useState<
+    string | null | undefined
+  >(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { state, initializeFromManifest, setTotalLayers } = useExecution();
@@ -319,10 +320,6 @@ function WorkspaceLayoutInner({
   // Determine effective movie ID - use selected build or passed movieId
   const effectiveMovieId = selectedBuildId ?? movieId;
 
-  useEffect(() => {
-    setHasSyncedPreviewTimelineTabs(false);
-  }, [effectiveMovieId]);
-
   // Create action buttons (Switch + Run) to pass to DetailPanel
   const runButton = (
     <>
@@ -360,24 +357,24 @@ function WorkspaceLayoutInner({
   const handleDetailTabChange = useCallback(
     (tab: DetailPanelTab) => {
       setDetailPanelTab(tab);
-      if (tab === 'preview' && !hasSyncedPreviewTimelineTabs) {
+      if (tab === 'preview' && syncedForMovieId !== effectiveMovieId) {
         setBottomActiveTab('timeline');
-        setHasSyncedPreviewTimelineTabs(true);
+        setSyncedForMovieId(effectiveMovieId);
       }
     },
-    [hasSyncedPreviewTimelineTabs, setBottomActiveTab]
+    [syncedForMovieId, effectiveMovieId, setBottomActiveTab]
   );
 
   // Handle bottom panel tab changes with coordination to detail panel
   const handleBottomTabChange = useCallback(
     (tab: typeof bottomActiveTab) => {
       setBottomActiveTab(tab);
-      if (tab === 'timeline' && !hasSyncedPreviewTimelineTabs) {
+      if (tab === 'timeline' && syncedForMovieId !== effectiveMovieId) {
         setDetailPanelTab('preview');
-        setHasSyncedPreviewTimelineTabs(true);
+        setSyncedForMovieId(effectiveMovieId);
       }
     },
-    [hasSyncedPreviewTimelineTabs, setBottomActiveTab]
+    [syncedForMovieId, effectiveMovieId, setBottomActiveTab]
   );
 
   return (
