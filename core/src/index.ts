@@ -46,3 +46,4 @@ export {
 export * from './model-selection-extractor.js';
 export * from './export/index.js';
 export * from './catalog-blueprints.js';
+export * from './workspace.js';

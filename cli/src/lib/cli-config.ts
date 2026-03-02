@@ -1,90 +1,22 @@
 /* eslint-env node */
 import process from 'node:process';
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
-import os from 'node:os';
+import { access, mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+import os from 'node:os';
+import {
+  getDefaultCliConfigPath as coreGetDefaultCliConfigPath,
+  readCliConfig as coreReadCliConfig,
+  writeCliConfig as coreWriteCliConfig,
+  type CliConfig,
+} from '@gorenku/core';
 
-export interface CliConfig {
-  storage: {
-    root: string;
-    basePath: string;
-  };
-  catalog?: {
-    root: string;
-  };
-  concurrency?: number;
-  lastMovieId?: string;
-  lastGeneratedAt?: string;
-  viewer?: {
-    port?: number;
-    host?: string;
-  };
-}
-
-export function getDefaultCliConfigPath(): string {
-  const envPath = process.env.RENKU_CLI_CONFIG;
-  if (envPath) {
-    return resolve(envPath);
-  }
-  return resolve(os.homedir(), '.config', 'renku', 'cli-config.json');
-}
-
-export async function readCliConfig(configPath?: string): Promise<CliConfig | null> {
-  const targetPath = resolve(configPath ?? getDefaultCliConfigPath());
-  try {
-    const contents = await readFile(targetPath, 'utf8');
-    const parsed = JSON.parse(contents) as Partial<CliConfig>;
-    if (!parsed.storage) {
-      return null;
-    }
-    return {
-      storage: parsed.storage,
-      catalog: parsed.catalog,
-      concurrency: normalizeConcurrency(parsed.concurrency),
-      lastMovieId: parsed.lastMovieId,
-      lastGeneratedAt: parsed.lastGeneratedAt,
-      viewer: parsed.viewer,
-    };
-  } catch {
-    return null;
-  }
-}
-
-export async function writeCliConfig(config: CliConfig, configPath?: string): Promise<string> {
-  const targetPath = resolve(configPath ?? getDefaultCliConfigPath());
-  await mkdir(dirname(targetPath), { recursive: true });
-  await writeFile(
-    targetPath,
-    JSON.stringify(
-      {
-        ...config,
-        concurrency: normalizeConcurrency(config.concurrency),
-      },
-      null,
-      2,
-    ),
-    'utf8',
-  );
-  return targetPath;
-}
-
+// Re-export shared types and functions from core
+export type { CliConfig };
+export { coreGetDefaultCliConfigPath as getDefaultCliConfigPath };
+export { coreReadCliConfig as readCliConfig };
+export { coreWriteCliConfig as writeCliConfig };
 
 export const DEFAULT_CONCURRENCY = 1;
-
-export async function persistLastMovieId(movieId: string, configPath?: string): Promise<CliConfig> {
-  const targetPath = resolve(configPath ?? getDefaultCliConfigPath());
-  const existing = await readCliConfig(targetPath);
-  if (!existing) {
-    throw new Error('Renku CLI is not initialized. Run "renku init" first.');
-  }
-  const updated: CliConfig = {
-    ...existing,
-    lastMovieId: movieId,
-    lastGeneratedAt: new Date().toISOString(),
-  };
-  await writeCliConfig(updated, targetPath);
-  return updated;
-}
 
 export function normalizeConcurrency(value: number | undefined): number {
   if (value === undefined) {
@@ -105,6 +37,21 @@ export function getProjectLocalStorage(): { root: string; basePath: string } {
     root: process.cwd(),
     basePath: 'builds',
   };
+}
+
+export async function persistLastMovieId(movieId: string, configPath?: string): Promise<CliConfig> {
+  const targetPath = resolve(configPath ?? coreGetDefaultCliConfigPath());
+  const existing = await coreReadCliConfig(targetPath);
+  if (!existing) {
+    throw new Error('Renku CLI is not initialized. Run "renku init" first.');
+  }
+  const updated: CliConfig = {
+    ...existing,
+    lastMovieId: movieId,
+    lastGeneratedAt: new Date().toISOString(),
+  };
+  await coreWriteCliConfig(updated, targetPath);
+  return updated;
 }
 
 export function getDefaultEnvFilePath(): string {

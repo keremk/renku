@@ -9,12 +9,12 @@ export * from './types.js';
 export {
   type CliConfig,
   DEFAULT_CONCURRENCY,
-  getDefaultCliConfigPath,
   readCliConfig,
   requireCliConfig,
   normalizeConcurrency,
   getCatalogModelsDir,
 } from './config.js';
+export { getDefaultCliConfigPath } from '@gorenku/core';
 
 // Path resolution
 export {

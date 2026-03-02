@@ -9,6 +9,7 @@ export interface ViewerServerOptions {
   distPath: string;
   host?: string;
   port?: number;
+  catalogPath?: string;
   log?: (message: string) => void;
 }
 
@@ -29,7 +30,7 @@ export async function startViewerServer(options: ViewerServerOptions): Promise<V
     throw new Error(`Viewer assets not found at ${distDir}`);
   }
 
-  const apiHandler = createViewerApiHandler();
+  const apiHandler = createViewerApiHandler({ catalogPath: options.catalogPath });
 
   const server = createServer(async (req, res) => {
     if (!req.url) {

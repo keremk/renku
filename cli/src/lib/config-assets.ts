@@ -18,6 +18,11 @@ const REQUIRED_CATALOG_DIRECTORIES = [
 
 const BUNDLED_CATALOG_ROOT = resolveBundledCatalogRoot();
 
+/** Returns the path to the bundled catalog included in this CLI package. */
+export function getBundledCatalogRoot(): string {
+  return BUNDLED_CATALOG_ROOT;
+}
+
 export function getCliConfigRoot(cliRoot: string): string {
 	return resolve(expandPath(cliRoot), 'config');
 }

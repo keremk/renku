@@ -1,24 +1,7 @@
-import { access, mkdir, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import {
-	getDefaultCliConfigPath,
-	writeCliConfig,
-	writeEnvTemplate,
-	type CliConfig,
-} from '../lib/cli-config.js';
+import { initWorkspace } from '@gorenku/core';
+import { getDefaultCliConfigPath, writeEnvTemplate } from '../lib/cli-config.js';
 import { expandPath } from '../lib/path.js';
-import {
-	catalogExists,
-	copyBundledCatalogAssets,
-	getCliCatalogRoot,
-} from '../lib/config-assets.js';
-
-const GITIGNORE_CONTENT = `# Renku build data (large binary files)
-**/builds/
-
-# Artifact symlinks (only work locally, useless without builds)
-**/artifacts/
-`;
+import { catalogExists, getBundledCatalogRoot, getCliCatalogRoot } from '../lib/config-assets.js';
 
 export interface InitOptions {
 	rootFolder: string;
@@ -55,48 +38,22 @@ export async function runInit(options: InitOptions): Promise<InitResult> {
 		);
 	}
 
-	const cliConfigPath = options.configPath ?? getDefaultCliConfigPath();
+	const configPath = options.configPath ?? getDefaultCliConfigPath();
+	const catalogSourceRoot = options.catalogSourceRoot ?? getBundledCatalogRoot();
 
-	await mkdir(rootFolder, { recursive: true });
-	await copyBundledCatalogAssets(catalogRoot, {
-		sourceRoot: options.catalogSourceRoot,
+	const result = await initWorkspace({
+		rootFolder,
+		catalogSourceRoot,
+		configPath,
 	});
-
-	// Generate .gitignore (only if it doesn't exist)
-	const gitignorePath = resolve(rootFolder, '.gitignore');
-	const gitignoreCreated = await writeGitignore(gitignorePath);
-
-	const cliConfig: CliConfig = {
-		storage: {
-			root: rootFolder,
-			basePath: 'builds',
-		},
-		catalog: {
-			root: catalogRoot,
-		},
-		concurrency: 1,
-	};
-	await writeCliConfig(cliConfig, cliConfigPath);
 
 	const envResult = await writeEnvTemplate(options.envPath);
 
 	return {
-		rootFolder,
-		cliConfigPath,
+		rootFolder: result.rootFolder,
+		cliConfigPath: result.cliConfigPath,
 		envFilePath: envResult.path,
 		envFileCreated: envResult.created,
-		gitignoreCreated,
+		gitignoreCreated: result.gitignoreCreated,
 	};
-}
-
-async function writeGitignore(path: string): Promise<boolean> {
-	try {
-		await access(path);
-		// File exists, don't overwrite
-		return false;
-	} catch {
-		// File doesn't exist, create it
-		await writeFile(path, GITIGNORE_CONTENT, 'utf8');
-		return true;
-	}
 }

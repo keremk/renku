@@ -9,9 +9,9 @@ import {
   requireCliConfig,
   normalizeConcurrency,
   getCatalogModelsDir,
-  getDefaultCliConfigPath,
   DEFAULT_CONCURRENCY,
 } from './config.js';
+import { getDefaultCliConfigPath } from '@gorenku/core';
 import type { CliConfig } from './config.js';
 
 // Mock fs/promises
@@ -89,15 +89,16 @@ describe('readCliConfig', () => {
     expect(result).toBeNull();
   });
 
-  it('normalizes concurrency value', async () => {
+  it('returns null when concurrency is invalid (strict validation)', async () => {
     const config = {
       storage: { root: '/test', basePath: 'movies' },
       concurrency: -5,
     };
     vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(config));
 
+    // Core's readCliConfig throws on invalid concurrency, caught and returns null
     const result = await readCliConfig('/test/config.json');
-    expect(result?.concurrency).toBe(DEFAULT_CONCURRENCY);
+    expect(result).toBeNull();
   });
 });
 

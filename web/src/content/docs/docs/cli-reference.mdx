@@ -770,6 +770,7 @@ renku viewer [path/to/blueprint.yaml]
 
 - Auto-detects blueprints in the current directory if no path is provided
 - Starts the viewer server in background if not running
+- If `--viewerHost` / `--viewerPort` are provided, they take precedence and a mismatched running server is not reused
 - Opens the blueprint viewer in your browser
 
 **Examples:**
@@ -780,6 +781,45 @@ renku viewer
 
 # Open a specific blueprint
 renku viewer ./my-blueprint.yaml
+
+# Force a specific viewer port
+renku viewer --viewerPort=4321
+```
+
+---
+
+### renku launch
+
+Open Renku home without requiring a pre-initialized workspace.
+
+**Usage:**
+
+```bash
+renku launch
+```
+
+**Options:**
+
+| Option         | Description                     |
+| -------------- | ------------------------------- |
+| `--viewerHost` | Override viewer host (optional) |
+| `--viewerPort` | Override viewer port (optional) |
+
+**Behavior:**
+
+- Starts the viewer server in background if not running
+- Opens the Renku home page (`/`)
+- Shows onboarding automatically when workspace setup is incomplete
+- Uses the bundled catalog for onboarding setup
+
+**Examples:**
+
+```bash
+# Open Renku home
+renku launch
+
+# Open on a specific host/port
+renku launch --viewerHost=127.0.0.1 --viewerPort=4321
 ```
 
 ---
@@ -820,6 +860,7 @@ The CLI checks for `.env` files in:
 
 1. Current working directory
 2. CLI installation directory
+3. `~/.config/renku/.env`
 
 ### Provider-Specific Notes
 

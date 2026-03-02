@@ -6,22 +6,23 @@ import type { CliConfig } from '../lib/cli-config.js';
 import { getProjectLocalStorage, readCliConfig } from '../lib/cli-config.js';
 import { resolveViewerBundlePaths } from '../lib/viewer-bundle.js';
 import {
-  getViewerStatePath,
-  readViewerState,
-  removeViewerState,
-  writeViewerState,
+	getViewerStatePath,
+	readViewerState,
+	removeViewerState,
+	writeViewerState,
 } from '../lib/viewer-state.js';
 import { detectBlueprintInDirectory } from '../lib/blueprint-detection.js';
+import { getBundledCatalogRoot } from '../lib/config-assets.js';
 import type { Logger } from '@gorenku/core';
 import {
-  ensureViewerNetworkConfig,
-  isViewerServerRunning,
+	ensureViewerNetworkConfig,
+	isViewerServerRunning,
 } from '../lib/viewer-network.js';
 
 export interface ViewerOptions {
-  host?: string;
-  port?: number;
-  logger?: Logger;
+	host?: string;
+	port?: number;
+	logger?: Logger;
 }
 
 /**
@@ -30,251 +31,283 @@ export interface ViewerOptions {
  * Auto-starts the viewer server if not already running.
  */
 export async function runViewer(
-  blueprintPath?: string,
-  options: ViewerOptions = {},
+	blueprintPath?: string,
+	options: ViewerOptions = {}
 ): Promise<void> {
-  const logger = options.logger ?? globalThis.console;
+	const logger = options.logger ?? globalThis.console;
+	const hasExplicitHost = options.host !== undefined;
+	const hasExplicitPort = options.port !== undefined;
 
-  const cliConfig = await ensureInitializedConfig(logger);
-  if (!cliConfig) {
-    return;
-  }
+	const cliConfig = await ensureInitializedConfig(logger);
+	if (!cliConfig) {
+		return;
+	}
 
-  // Resolve blueprint path - auto-detect if not provided
-  let resolvedBlueprintPath = blueprintPath;
-  let blueprintFolder: string | undefined;
+	// Resolve blueprint path - auto-detect if not provided
+	let resolvedBlueprintPath = blueprintPath;
+	let blueprintFolder: string | undefined;
 
-  if (!resolvedBlueprintPath) {
-    const detected = await detectBlueprintInDirectory();
-    if (!detected) {
-      logger.error?.(
-        'No blueprint found in the current directory. Provide a blueprint path: renku viewer ./path/to/blueprint.yaml',
-      );
-      process.exitCode = 1;
-      return;
-    }
-    resolvedBlueprintPath = detected.blueprintPath;
-    blueprintFolder = detected.blueprintFolder;
-    logger.info?.(`Auto-detected blueprint: ${resolvedBlueprintPath}`);
-  } else {
-    // Derive folder from blueprint path
-    blueprintFolder = dirname(resolvedBlueprintPath);
-  }
+	if (!resolvedBlueprintPath) {
+		const detected = await detectBlueprintInDirectory();
+		if (!detected) {
+			logger.error?.(
+				'No blueprint found in the current directory. Provide a blueprint path: renku viewer ./path/to/blueprint.yaml'
+			);
+			process.exitCode = 1;
+			return;
+		}
+		resolvedBlueprintPath = detected.blueprintPath;
+		blueprintFolder = detected.blueprintFolder;
+		logger.info?.(`Auto-detected blueprint: ${resolvedBlueprintPath}`);
+	} else {
+		// Derive folder from blueprint path
+		blueprintFolder = dirname(resolvedBlueprintPath);
+	}
 
-  const bundle = resolveViewerBundleOrExit(logger);
-  if (!bundle) {
-    return;
-  }
-  const network = await ensureViewerNetworkConfig(cliConfig, options);
-  const statePath = getViewerStatePath(cliConfig);
-  let activeHost = network.host;
-  let activePort = network.port;
+	const bundle = resolveViewerBundleOrExit(logger);
+	if (!bundle) {
+		return;
+	}
+	const network = await ensureViewerNetworkConfig(cliConfig, options);
+	const statePath = getViewerStatePath();
+	let activeHost = network.host;
+	let activePort = network.port;
 
-  const recordedState = await readViewerState(statePath);
-  if (recordedState) {
-    const alive = await isViewerServerRunning(recordedState.host, recordedState.port);
-    if (alive) {
-      activeHost = recordedState.host;
-      activePort = recordedState.port;
-    } else {
-      await removeViewerState(statePath);
-    }
-  }
+	const recordedState = await readViewerState(statePath);
+	if (recordedState) {
+		const alive = await isViewerServerRunning(
+			recordedState.host,
+			recordedState.port
+		);
+		const hostMatches = recordedState.host === network.host;
+		const portMatches = recordedState.port === network.port;
+		const canReuseRecordedState =
+			(!hasExplicitHost || hostMatches) && (!hasExplicitPort || portMatches);
 
-  if (!(await isViewerServerRunning(activeHost, activePort))) {
-    logger.info?.('Viewer server is not running. Launching background instance...');
-    const projectStorage = getProjectLocalStorage();
-    await launchViewerServer({
-      bundle,
-      rootFolder: projectStorage.root,
-      host: network.host,
-      port: network.port,
-      mode: 'background',
-      statePath,
-    });
-    activeHost = network.host;
-    activePort = network.port;
-    const ready = await waitForViewerServer(activeHost, activePort);
-    if (!ready) {
-      await removeViewerState(statePath);
-      logger.error?.('Viewer server failed to start in time.');
-      process.exitCode = 1;
-      return;
-    }
-  }
+		if (alive && canReuseRecordedState) {
+			activeHost = recordedState.host;
+			activePort = recordedState.port;
+		} else {
+			if (!alive) {
+				await removeViewerState(statePath);
+			}
+		}
+	}
 
-  // Extract blueprint name from folder path (last segment)
-  // e.g., "/path/to/blueprints/my-blueprint" -> "my-blueprint"
-  const blueprintName = blueprintFolder
-    ? basename(blueprintFolder)
-    : basename(dirname(resolvedBlueprintPath));
+	if (!(await isViewerServerRunning(activeHost, activePort))) {
+		logger.info?.(
+			'Viewer server is not running. Launching background instance...'
+		);
+		const projectStorage = getProjectLocalStorage();
+		await launchViewerServer({
+			bundle,
+			rootFolder: projectStorage.root,
+			host: network.host,
+			port: network.port,
+			mode: 'background',
+			statePath,
+			catalogPath: getBundledCatalogRoot(),
+		});
+		activeHost = network.host;
+		activePort = network.port;
+		const ready = await waitForViewerServer(activeHost, activePort);
+		if (!ready) {
+			await removeViewerState(statePath);
+			logger.error?.('Viewer server failed to start in time.');
+			process.exitCode = 1;
+			return;
+		}
+	}
 
-  // Build the URL with query parameters - use blueprint name, not full path
-  const url = new URL(`http://${activeHost}:${activePort}/blueprints`);
-  url.searchParams.set('bp', blueprintName);
+	// Extract blueprint name from folder path (last segment)
+	// e.g., "/path/to/blueprints/my-blueprint" -> "my-blueprint"
+	const blueprintName = blueprintFolder
+		? basename(blueprintFolder)
+		: basename(dirname(resolvedBlueprintPath));
 
-  logger.info?.(`Opening blueprint viewer at ${url.toString()}`);
-  void openBrowser(url.toString());
+	// Build the URL with query parameters - use blueprint name, not full path
+	const url = new URL(`http://${activeHost}:${activePort}/blueprints`);
+	url.searchParams.set('bp', blueprintName);
+
+	logger.info?.(`Opening blueprint viewer at ${url.toString()}`);
+	void openBrowser(url.toString());
 }
 
-export async function runViewerStop(options: { logger?: Logger } = {}): Promise<void> {
-  const logger = options.logger ?? globalThis.console;
-  const cliConfig = await readCliConfig();
-  if (!cliConfig?.storage?.root) {
-    logger.error?.('Renku viewer requires a configured root. Run "renku init" first.');
-    process.exitCode = 1;
-    return;
-  }
-  const statePath = getViewerStatePath(cliConfig);
-  const state = await readViewerState(statePath);
-  if (!state) {
-    logger.info?.('No background viewer server found.');
-    return;
-  }
+export async function runViewerStop(
+	options: { logger?: Logger } = {}
+): Promise<void> {
+	const logger = options.logger ?? globalThis.console;
+	const statePath = getViewerStatePath();
+	const state = await readViewerState(statePath);
+	if (!state) {
+		logger.info?.('No background viewer server found.');
+		return;
+	}
 
-  const alive = await isViewerServerRunning(state.host, state.port);
-  if (!alive) {
-    await removeViewerState(statePath);
-    logger.info?.('Viewer server was not running. Cleaned up stale state.');
-    return;
-  }
+	const alive = await isViewerServerRunning(state.host, state.port);
+	if (!alive) {
+		await removeViewerState(statePath);
+		logger.info?.('Viewer server was not running. Cleaned up stale state.');
+		return;
+	}
 
-  try {
-    process.kill(state.pid, 'SIGTERM');
-  } catch (error) {
-    logger.error?.(
-      `Unable to stop viewer server (pid ${state.pid}): ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
-    process.exitCode = 1;
-    return;
-  }
+	try {
+		process.kill(state.pid, 'SIGTERM');
+	} catch (error) {
+		logger.error?.(
+			`Unable to stop viewer server (pid ${state.pid}): ${
+				error instanceof Error ? error.message : String(error)
+			}`
+		);
+		process.exitCode = 1;
+		return;
+	}
 
-  const stopped = await waitForProcessExit(state.pid);
-  await removeViewerState(statePath);
-  if (stopped) {
-    logger.info?.('Viewer server stopped.');
-  } else {
-    logger.warn?.('Viewer server did not exit cleanly. It may still be running.');
-  }
+	const stopped = await waitForProcessExit(state.pid);
+	await removeViewerState(statePath);
+	if (stopped) {
+		logger.info?.('Viewer server stopped.');
+	} else {
+		logger.warn?.(
+			'Viewer server did not exit cleanly. It may still be running.'
+		);
+	}
 }
 
-async function ensureInitializedConfig(logger: Logger): Promise<CliConfig | null> {
-  const cliConfig = await readCliConfig();
-  if (!cliConfig?.storage?.root) {
-    logger.error?.('Renku viewer requires a configured root. Run "renku init" first.');
-    process.exitCode = 1;
-    return null;
-  }
-  return cliConfig;
+async function ensureInitializedConfig(
+	logger: Logger
+): Promise<CliConfig | null> {
+	const cliConfig = await readCliConfig();
+	if (!cliConfig?.storage?.root) {
+		logger.error?.(
+			'Renku viewer requires a configured root. Run "renku init" first.'
+		);
+		process.exitCode = 1;
+		return null;
+	}
+	return cliConfig;
 }
 
-async function launchViewerServer({
-  bundle,
-  rootFolder,
-  host,
-  port,
-  mode,
-  statePath,
+export async function launchViewerServer({
+	bundle,
+	rootFolder,
+	host,
+	port,
+	mode,
+	statePath,
+	catalogPath,
 }: {
-  bundle: ReturnType<typeof resolveViewerBundlePaths>;
-  rootFolder: string;
-  host: string;
-  port: number;
-  mode: 'foreground' | 'background';
-  statePath?: string;
+	bundle: ReturnType<typeof resolveViewerBundlePaths>;
+	rootFolder: string;
+	host: string;
+	port: number;
+	mode: 'foreground' | 'background';
+	statePath?: string;
+	catalogPath?: string;
 }): Promise<void> {
-  const args = [
-    bundle.serverEntry,
-    `--root=${rootFolder}`,
-    `--dist=${bundle.assetsDir}`,
-    `--host=${host}`,
-    `--port=${port}`,
-  ];
+	const args = [
+		bundle.serverEntry,
+		`--root=${rootFolder}`,
+		`--dist=${bundle.assetsDir}`,
+		`--host=${host}`,
+		`--port=${port}`,
+	];
+	if (catalogPath) {
+		args.push(`--catalog=${catalogPath}`);
+	}
 
-  const child = spawn(process.execPath, args, {
-    stdio: mode === 'foreground' ? 'inherit' : 'ignore',
-    env: {
-      ...process.env,
-      RENKU_VIEWER_ROOT: rootFolder,
-    },
-    detached: mode === 'background',
-  });
+	const child = spawn(process.execPath, args, {
+		stdio: mode === 'foreground' ? 'inherit' : 'ignore',
+		env: {
+			...process.env,
+			RENKU_VIEWER_ROOT: rootFolder,
+		},
+		detached: mode === 'background',
+	});
 
-  if (mode === 'foreground') {
-    await new Promise<void>((resolve) => {
-      child.on('exit', (code) => {
-        process.exitCode = code ?? 0;
-        resolve();
-      });
-    });
-    return;
-  }
+	if (mode === 'foreground') {
+		await new Promise<void>((resolve) => {
+			child.on('exit', (code) => {
+				process.exitCode = code ?? 0;
+				resolve();
+			});
+		});
+		return;
+	}
 
-  if (!child.pid) {
-    throw new Error('Failed to start viewer server in background (missing pid).');
-  }
+	if (!child.pid) {
+		throw new Error(
+			'Failed to start viewer server in background (missing pid).'
+		);
+	}
 
-  if (!statePath) {
-    throw new Error('Missing statePath for background viewer launch.');
-  }
+	if (!statePath) {
+		throw new Error('Missing statePath for background viewer launch.');
+	}
 
-  child.unref();
-  await writeViewerState(statePath, {
-    pid: child.pid,
-    port,
-    host,
-    startedAt: new Date().toISOString(),
-  });
+	child.unref();
+	await writeViewerState(statePath, {
+		pid: child.pid,
+		port,
+		host,
+		startedAt: new Date().toISOString(),
+	});
 }
 
-async function waitForViewerServer(host: string, port: number): Promise<boolean> {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    if (await isViewerServerRunning(host, port)) {
-      return true;
-    }
-    await delay(250);
-  }
-  return false;
+export async function waitForViewerServer(
+	host: string,
+	port: number
+): Promise<boolean> {
+	for (let attempt = 0; attempt < 20; attempt += 1) {
+		if (await isViewerServerRunning(host, port)) {
+			return true;
+		}
+		await delay(250);
+	}
+	return false;
 }
 
-async function waitForProcessExit(pid: number, timeoutMs = 5000): Promise<boolean> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (!isProcessAlive(pid)) {
-      return true;
-    }
-    await delay(200);
-  }
-  return !isProcessAlive(pid);
+async function waitForProcessExit(
+	pid: number,
+	timeoutMs = 5000
+): Promise<boolean> {
+	const deadline = Date.now() + timeoutMs;
+	while (Date.now() < deadline) {
+		if (!isProcessAlive(pid)) {
+			return true;
+		}
+		await delay(200);
+	}
+	return !isProcessAlive(pid);
 }
 
 function isProcessAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
-function resolveViewerBundleOrExit(logger: Logger): ReturnType<typeof resolveViewerBundlePaths> | null {
-  try {
-    return resolveViewerBundlePaths();
-  } catch (error) {
-    logger.error?.(
-      `Unable to locate the bundled viewer. Build the viewer project or set RENKU_VIEWER_BUNDLE_ROOT. ${
-        error instanceof Error ? error.message : error
-      }`,
-    );
-    process.exitCode = 1;
-    return null;
-  }
+export function resolveViewerBundleOrExit(
+	logger: Logger
+): ReturnType<typeof resolveViewerBundlePaths> | null {
+	try {
+		return resolveViewerBundlePaths();
+	} catch (error) {
+		logger.error?.(
+			`Unable to locate the bundled viewer. Build the viewer project or set RENKU_VIEWER_BUNDLE_ROOT. ${
+				error instanceof Error ? error.message : error
+			}`
+		);
+		process.exitCode = 1;
+		return null;
+	}
 }
 
 function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    globalThis.setTimeout(resolve, ms);
-  });
+	return new Promise((resolve) => {
+		globalThis.setTimeout(resolve, ms);
+	});
 }

@@ -1,6 +1,9 @@
 import { useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 import { WorkspaceLayout } from '@/components/blueprint/workspace-layout';
 import { ViewerHomePage } from '@/components/home/viewer-home-page';
+import { OnboardingPage } from '@/components/onboarding/onboarding-page';
+import { Button } from '@/components/ui/button';
 import {
   useBlueprintRoute,
   updateBlueprintRoute,
@@ -10,6 +13,7 @@ import { reconcileBuildSelection } from '@/lib/build-selection';
 import { useBlueprintData } from '@/services/use-blueprint-data';
 import { useBuildsList } from '@/services/use-builds-list';
 import { useBuildManifest } from '@/services/use-build-manifest';
+import { useInitializationStatus } from '@/services/use-initialization-status';
 
 function getFolderName(folderPath: string): string {
   const normalizedPath = folderPath.replace(/\\/g, '/').replace(/\/+$/, '');
@@ -22,6 +26,12 @@ function App() {
 }
 
 function BlueprintApp() {
+  const {
+    initialized,
+    isLoading: initLoading,
+    error: initError,
+    recheck,
+  } = useInitializationStatus();
   const blueprintRoute = useBlueprintRoute();
 
   // Load blueprint data by name - this resolves the name to paths and fetches data
@@ -84,6 +94,30 @@ function BlueprintApp() {
     resolvedPaths?.blueprintFolder,
   ]);
 
+  if (initLoading) {
+    return (
+      <LandingLayout>
+        <Loader2 className='w-5 h-5 animate-spin text-muted-foreground' />
+      </LandingLayout>
+    );
+  }
+
+  if (initError) {
+    return (
+      <LandingLayout>
+        <h1 className='text-xl font-semibold'>Unable to check setup status</h1>
+        <p className='text-sm text-muted-foreground text-center'>{initError}</p>
+        <Button variant='outline' onClick={recheck}>
+          Retry
+        </Button>
+      </LandingLayout>
+    );
+  }
+
+  if (initialized === false) {
+    return <OnboardingPage onComplete={recheck} />;
+  }
+
   if (!blueprintRoute?.blueprintName) {
     return <ViewerHomePage />;
   }
@@ -128,7 +162,7 @@ function BlueprintApp() {
 
 const LandingLayout = ({ children }: { children: React.ReactNode }) => (
   <div className='min-h-screen flex items-center justify-center bg-background text-foreground px-6'>
-    <div className='max-w-xl w-full rounded-2xl border border-border/50 bg-card/60 p-8 shadow-lg flex flex-col gap-4'>
+    <div className='max-w-xl w-full rounded-2xl border border-border/50 bg-card/60 p-8 shadow-lg flex flex-col gap-4 items-center'>
       {children}
     </div>
   </div>

@@ -2,6 +2,7 @@ import { config as dotenvConfig } from 'dotenv';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
+import os from 'node:os';
 
 export interface EnvLoaderOptions {
   verbose?: boolean;
@@ -61,6 +62,19 @@ export function loadEnv(callerUrl: string, options: EnvLoaderOptions = {}): EnvL
       loaded.push(cwdEnvPath);
       if (options.verbose) {
         console.log(`[env] Loaded (fallback): ${cwdEnvPath}`);
+      }
+    }
+  }
+
+  // 3. Load from ~/.config/renku/.env (user Renku config, for distributed npm install)
+  //    Won't override vars already set by monorepo root or CWD .env
+  const userRenkuEnvPath = resolve(os.homedir(), '.config', 'renku', '.env');
+  if (!loaded.includes(userRenkuEnvPath) && existsSync(userRenkuEnvPath)) {
+    const result = dotenvConfig({ path: userRenkuEnvPath, override: false });
+    if (result.parsed) {
+      loaded.push(userRenkuEnvPath);
+      if (options.verbose) {
+        console.log(`[env] Loaded (user renku config): ${userRenkuEnvPath}`);
       }
     }
   }

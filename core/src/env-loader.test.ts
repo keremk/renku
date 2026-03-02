@@ -53,9 +53,13 @@ describe('loadEnv', () => {
   });
 
   it('should load cwd .env as fallback when monorepo root not found', () => {
-    // No pnpm-workspace.yaml found
+    // No pnpm-workspace.yaml found, no user renku .env, but cwd .env exists
     mockExistsSync.mockImplementation((path) => {
       if (typeof path === 'string' && path.endsWith('pnpm-workspace.yaml')) {
+        return false;
+      }
+      // Exclude the user renku config env file
+      if (typeof path === 'string' && path.includes('.config') && path.includes('renku')) {
         return false;
       }
       // But cwd .env exists
@@ -73,6 +77,30 @@ describe('loadEnv', () => {
     expect(mockDotenvConfig).toHaveBeenCalledWith(
       expect.objectContaining({ override: false }),
     );
+  });
+
+  it('should load user renku .env as third source when it exists', () => {
+    // No monorepo root, no cwd .env, but user renku .env exists
+    mockExistsSync.mockImplementation((path) => {
+      if (typeof path === 'string' && path.endsWith('pnpm-workspace.yaml')) {
+        return false;
+      }
+      if (typeof path === 'string' && path.includes('.config') && path.includes('renku') && path.endsWith('.env')) {
+        return true;
+      }
+      if (typeof path === 'string' && !path.includes('.config')) {
+        return false; // cwd .env not found
+      }
+      return false;
+    });
+
+    mockDotenvConfig.mockReturnValue({ parsed: { USER_KEY: 'value' } });
+
+    const result = loadEnv(import.meta.url);
+
+    expect(result.loaded.length).toBe(1);
+    expect(result.loaded[0]).toContain('.config');
+    expect(result.loaded[0]).toContain('renku');
   });
 
   it('should not duplicate cwd path in loaded array if same as root', () => {

@@ -33,12 +33,9 @@ export async function detectViewerAddress(
   args: DetectViewerAddressArgs = {},
 ): Promise<{ address: ViewerAddress; source: 'state' | 'config' } | null> {
   const config = args.config ?? (await readCliConfig());
-  if (!config?.storage?.root) {
-    return null;
-  }
 
   const requireRunning = args.requireRunning ?? false;
-  const statePath = getViewerStatePath(config);
+  const statePath = getViewerStatePath();
   const state = await readViewerState(statePath);
   if (state) {
     if (!requireRunning || (await isViewerServerRunning(state.host, state.port))) {
@@ -46,8 +43,8 @@ export async function detectViewerAddress(
     }
   }
 
-  const host = config.viewer?.host;
-  const port = config.viewer?.port;
+  const host = config?.viewer?.host;
+  const port = config?.viewer?.port;
   if (host && typeof port === 'number') {
     if (!requireRunning || (await isViewerServerRunning(host, port))) {
       return { address: { host, port }, source: 'config' };

@@ -1,0 +1,303 @@
+/**
+ * Workspace initialization and configuration management.
+ *
+ * Shared between CLI and viewer server — no external dependencies beyond Node.js built-ins.
+ */
+
+import {
+  access,
+  copyFile,
+  mkdir,
+  readdir,
+  readFile,
+  writeFile,
+} from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
+import os from 'node:os';
+import process from 'node:process';
+
+// ---------------------------------------------------------------------------
+// Config type
+// ---------------------------------------------------------------------------
+
+export interface CliConfig {
+  storage: {
+    root: string;
+    basePath: string;
+  };
+  catalog?: {
+    root: string;
+  };
+  concurrency?: number;
+  lastMovieId?: string;
+  lastGeneratedAt?: string;
+  viewer?: {
+    port?: number;
+    host?: string;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Config path helpers
+// ---------------------------------------------------------------------------
+
+export function getDefaultCliConfigPath(): string {
+  const envPath = process.env.RENKU_CLI_CONFIG;
+  if (envPath) {
+    return resolve(envPath);
+  }
+  return resolve(os.homedir(), '.config', 'renku', 'cli-config.json');
+}
+
+// ---------------------------------------------------------------------------
+// Read / write config
+// ---------------------------------------------------------------------------
+
+function normalizeConcurrency(value: number | undefined): number {
+  if (value === undefined) {
+    return 1;
+  }
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error('Concurrency must be a positive integer.');
+  }
+  return value;
+}
+
+export async function readCliConfig(
+  configPath?: string
+): Promise<CliConfig | null> {
+  const targetPath = resolve(configPath ?? getDefaultCliConfigPath());
+  try {
+    const contents = await readFile(targetPath, 'utf8');
+    const parsed = JSON.parse(contents) as Partial<CliConfig>;
+    if (!parsed.storage) {
+      return null;
+    }
+    return {
+      storage: parsed.storage,
+      catalog: parsed.catalog,
+      concurrency: normalizeConcurrency(parsed.concurrency),
+      lastMovieId: parsed.lastMovieId,
+      lastGeneratedAt: parsed.lastGeneratedAt,
+      viewer: parsed.viewer,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function writeCliConfig(
+  config: CliConfig,
+  configPath?: string
+): Promise<string> {
+  const targetPath = resolve(configPath ?? getDefaultCliConfigPath());
+  await mkdir(dirname(targetPath), { recursive: true });
+  await writeFile(
+    targetPath,
+    JSON.stringify(
+      {
+        ...config,
+        concurrency: normalizeConcurrency(config.concurrency),
+      },
+      null,
+      2
+    ),
+    'utf8'
+  );
+  return targetPath;
+}
+
+// ---------------------------------------------------------------------------
+// Initialization check
+// ---------------------------------------------------------------------------
+
+export async function isWorkspaceInitialized(
+  configPath?: string
+): Promise<boolean> {
+  const config = await readCliConfig(configPath);
+  if (!config) {
+    return false;
+  }
+  const catalogRoot = config.catalog?.root;
+  if (!catalogRoot) {
+    return false;
+  }
+  try {
+    await access(catalogRoot);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Workspace init
+// ---------------------------------------------------------------------------
+
+const GITIGNORE_CONTENT = `# Renku build data (large binary files)
+**/builds/
+
+# Artifact symlinks (only work locally, useless without builds)
+**/artifacts/
+`;
+
+export interface InitWorkspaceOptions {
+  rootFolder: string;
+  catalogSourceRoot: string;
+  configPath?: string;
+}
+
+export interface InitWorkspaceResult {
+  rootFolder: string;
+  cliConfigPath: string;
+  gitignoreCreated: boolean;
+}
+
+export async function initWorkspace(
+  options: InitWorkspaceOptions
+): Promise<InitWorkspaceResult> {
+  const { rootFolder, catalogSourceRoot, configPath } = options;
+  const catalogRoot = resolve(rootFolder, 'catalog');
+
+  // 1. mkdir(rootFolder, recursive)
+  await mkdir(rootFolder, { recursive: true });
+
+  // 2. copy catalogSourceRoot → rootFolder/catalog/ (recursive fs copy, skip existing)
+  await copyDirectory(catalogSourceRoot, catalogRoot, { overwrite: false });
+
+  // 3. write cli-config.json
+  const cliConfig: CliConfig = {
+    storage: {
+      root: rootFolder,
+      basePath: 'builds',
+    },
+    catalog: {
+      root: catalogRoot,
+    },
+    concurrency: 1,
+  };
+  const cliConfigPath = await writeCliConfig(cliConfig, configPath);
+
+  // 4. write .gitignore (if not exists)
+  const gitignorePath = resolve(rootFolder, '.gitignore');
+  const gitignoreCreated = await writeFileIfMissing(
+    gitignorePath,
+    GITIGNORE_CONTENT
+  );
+
+  return { rootFolder, cliConfigPath, gitignoreCreated };
+}
+
+async function writeFileIfMissing(
+  filePath: string,
+  content: string
+): Promise<boolean> {
+  try {
+    await access(filePath);
+    return false;
+  } catch {
+    await writeFile(filePath, content, 'utf8');
+    return true;
+  }
+}
+
+interface CopyDirectoryOptions {
+  overwrite: boolean;
+}
+
+async function copyDirectory(
+  source: string,
+  target: string,
+  options: CopyDirectoryOptions
+): Promise<void> {
+  await mkdir(target, { recursive: true });
+  const entries = await readdir(source, { withFileTypes: true });
+  for (const entry of entries) {
+    const sourcePath = resolve(source, entry.name);
+    const targetPath = resolve(target, entry.name);
+    if (entry.isDirectory()) {
+      await copyDirectory(sourcePath, targetPath, options);
+    } else if (entry.isFile()) {
+      if (!options.overwrite) {
+        try {
+          await access(targetPath);
+          continue; // skip existing
+        } catch {
+          // target doesn't exist, proceed with copy
+        }
+      }
+      await copyFile(sourcePath, targetPath);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// API key env file
+// ---------------------------------------------------------------------------
+
+export interface ApiKeyValues {
+  FAL_KEY?: string;
+  REPLICATE_API_TOKEN?: string;
+  ELEVENLABS_API_KEY?: string;
+  OPENAI_API_KEY?: string;
+  AI_GATEWAY_API_KEY?: string;
+}
+
+export function getUserEnvFilePath(): string {
+  return resolve(os.homedir(), '.config', 'renku', '.env');
+}
+
+export async function writeApiKeysEnvFile(
+  keys: ApiKeyValues,
+  envFilePath?: string
+): Promise<string> {
+  const targetPath = resolve(envFilePath ?? getUserEnvFilePath());
+  await mkdir(dirname(targetPath), { recursive: true });
+
+  // Read existing content if file exists
+  let existingContent = '';
+  try {
+    existingContent = await readFile(targetPath, 'utf8');
+  } catch {
+    // File doesn't exist, start fresh
+  }
+
+  const lines = existingContent === '' ? [] : existingContent.split('\n');
+  if (lines[lines.length - 1] === '') {
+    lines.pop();
+  }
+
+  const keyLineIndex = new Map<string, number>();
+  const keyPrefix = new Map<string, string>();
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = /^(\s*(?:export\s+)?)?([A-Z_][A-Z0-9_]*)=(.*)$/.exec(
+      lines[index]
+    );
+    if (!match) {
+      continue;
+    }
+    keyLineIndex.set(match[2], index);
+    keyPrefix.set(match[2], match[1] ?? '');
+  }
+
+  for (const [key, value] of Object.entries(keys)) {
+    if (value === undefined || value === '') {
+      continue;
+    }
+
+    const line = `${keyPrefix.get(key) ?? ''}${key}=${value}`;
+    const index = keyLineIndex.get(key);
+    if (index === undefined) {
+      keyLineIndex.set(key, lines.length);
+      lines.push(line);
+    } else {
+      lines[index] = line;
+    }
+
+    process.env[key] = value;
+  }
+
+  const content = lines.length > 0 ? `${lines.join('\n')}\n` : '';
+  await writeFile(targetPath, content, 'utf8');
+  return targetPath;
+}

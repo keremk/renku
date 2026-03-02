@@ -1,7 +1,6 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import { dirname, join } from 'node:path';
-import type { CliConfig } from './cli-config.js';
-import { getCliConfigRoot } from './config-assets.js';
 
 export interface ViewerServerState {
   pid: number;
@@ -10,9 +9,9 @@ export interface ViewerServerState {
   startedAt: string;
 }
 
-export function getViewerStatePath(config: CliConfig): string {
-  const configRoot = getCliConfigRoot(config.storage.root);
-  return join(configRoot, 'viewer-server.json');
+/** Always returns the global viewer state path: ~/.config/renku/viewer-server.json */
+export function getViewerStatePath(): string {
+  return join(os.homedir(), '.config', 'renku', 'viewer-server.json');
 }
 
 export async function readViewerState(path: string): Promise<ViewerServerState | null> {

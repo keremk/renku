@@ -801,6 +801,7 @@ renku viewer [path/to/blueprint.yaml]
 
 - Auto-detects blueprints in the current directory if no path is provided.
 - Starts the bundled viewer server in background if not running.
+- If `--viewerHost` / `--viewerPort` are provided, they take precedence and a mismatched running server is not reused.
 - Opens the blueprint viewer in your browser.
 - Displays the blueprint graph, builds, and timeline preview.
 
@@ -812,11 +813,48 @@ renku viewer
 
 # Open a specific blueprint
 renku viewer ./path/to/my-blueprint.yaml
+
+# Force a specific viewer port
+renku viewer --viewerPort=4321
 ```
 
 **Related commands:**
 
+- `renku launch` — open Renku home and onboarding flow.
 - `renku viewer:stop` — stop the background server.
+
+---
+
+### `renku launch`
+
+Open Renku home without requiring a pre-initialized workspace.
+
+**Usage:**
+
+```bash
+renku launch
+```
+
+**Options:**
+
+- `--viewerHost`, `--viewerPort` (optional): Override host/port
+
+**Behavior:**
+
+- Starts the bundled viewer server in background if not running.
+- Opens Renku home (`/`) in your browser.
+- Shows onboarding automatically when workspace setup is incomplete.
+- Uses the bundled catalog for onboarding setup.
+
+**Examples:**
+
+```bash
+# Open Renku home
+renku launch
+
+# Open on a specific host/port
+renku launch --viewerHost=127.0.0.1 --viewerPort=4321
+```
 
 ---
 
@@ -919,6 +957,7 @@ The CLI reads credentials from `.env` files in:
 
 1. CLI directory (`cli/.env`)
 2. Current working directory (`.env`)
+3. User config directory (`~/.config/renku/.env`)
 
 **Required Variables:**
 

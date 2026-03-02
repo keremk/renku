@@ -18,6 +18,7 @@ import {
   handleCancelRequest,
   sendMethodNotAllowed,
 } from './generation/index.js';
+import { handleOnboardingRequest } from './onboarding/index.js';
 
 // Re-export shared types for backward compatibility
 export type {
@@ -34,10 +35,14 @@ export type ViewerApiHandler = (
   res: ServerResponse
 ) => Promise<boolean>;
 
+export interface ViewerApiOptions {
+  catalogPath?: string;
+}
+
 /**
  * Creates the main viewer API handler.
  */
-export function createViewerApiHandler(): ViewerApiHandler {
+export function createViewerApiHandler(options: ViewerApiOptions = {}): ViewerApiHandler {
   return async (req, res) => {
     if (!req.url) {
       return false;
@@ -63,6 +68,9 @@ export function createViewerApiHandler(): ViewerApiHandler {
 
         case 'generate':
           return await handleGenerateRequest(req, res, segments.slice(1));
+
+        case 'onboarding':
+          return await handleOnboardingRequest(req, res, url, segments.slice(1), options.catalogPath);
 
         default:
           return respondNotFound(res);

@@ -53,6 +53,7 @@ import { runCreateInputTemplate } from './commands/create-input-template.js';
 import { runNewBlueprint } from './commands/new-blueprint.js';
 import { formatPrice, type ProducerModelEntry } from '@gorenku/providers';
 import { runViewer, runViewerStop } from './commands/viewer.js';
+import { runLaunch } from './commands/launch.js';
 import { runExplain } from './commands/explain.js';
 import { runBlueprintsValidate } from './commands/blueprints-validate.js';
 import { runBlueprintsDryRunProfile } from './commands/blueprints-dry-run-profile.js';
@@ -73,7 +74,7 @@ import { detectViewerAddress } from './lib/viewer-network.js';
 const cli = meow(
 	`\nUsage\n  $ renku <command> [options]\n\nCommands\n  install             Guided setup (alias for init)\n  init                Initialize a new Renku workspace (requires --root)\n  update              Update the catalog in the active workspace\n  use                 Switch to an existing workspace (requires --root)\n  generate            Create or continue a movie generation\n  new:blueprint       Create a new blueprint folder with scaffold files\n  create:input-template  Create an inputs YAML template for a blueprint\n  export              Export a movie to MP4/MP3 (--exporter=remotion|ffmpeg)\n  export:davinci      Export timeline to OTIO format for DaVinci Resolve\n  explain             Explain why jobs were scheduled in a saved plan
   clean               Remove dry-run builds (--all to include completed builds)
-  list                List builds in current project (shows dry-run vs completed)\n  viewer [path]       Open the blueprint viewer (auto-detects blueprint in cwd)\n  viewer:stop         Stop the background viewer server\n  producers:list      List all available models for producers in a blueprint\n  blueprints:validate <path>  Validate a blueprint YAML file\n  blueprints:dry-run-profile <path>  Generate a dry-run profile file\n  mcp                 Run the Renku MCP server over stdio\n\nExamples\n  $ renku init --root=~/media/renku\n  $ renku update                             # Update catalog in active workspace\n  $ renku use --root=~/media/other-workspace # Switch to another workspace\n  $ renku new:blueprint history-video      # Create a new blueprint folder\n  $ renku new:blueprint my-video --using=ken-burns  # Copy from catalog blueprint\n  $ renku create:input-template --blueprint=documentary-talking-head.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml --concurrency=3\n  $ renku generate --last --up-to-layer=1
+  list                List builds in current project (shows dry-run vs completed)\n  viewer [path]       Open the blueprint viewer (auto-detects blueprint in cwd)\n  launch              Open Renku home with onboarding if needed\n  viewer:stop         Stop the background viewer server\n  producers:list      List all available models for producers in a blueprint\n  blueprints:validate <path>  Validate a blueprint YAML file\n  blueprints:dry-run-profile <path>  Generate a dry-run profile file\n  mcp                 Run the Renku MCP server over stdio\n\nExamples\n  $ renku init --root=~/media/renku\n  $ renku update                             # Update catalog in active workspace\n  $ renku use --root=~/media/other-workspace # Switch to another workspace\n  $ renku new:blueprint history-video      # Create a new blueprint folder\n  $ renku new:blueprint my-video --using=ken-burns  # Copy from catalog blueprint\n  $ renku create:input-template --blueprint=documentary-talking-head.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml --concurrency=3\n  $ renku generate --last --up-to-layer=1
   $ renku generate --last --re-run-from=2
   $ renku generate --movie-id=abc123 --from=1
   $ renku generate --last --artifact-id=Artifact:AudioProducer.GeneratedAudio[0] --inputs=./inputs.yaml
@@ -84,7 +85,7 @@ const cli = meow(
   $ renku explain --movie-id=movie-abc123    # Explain a specific movie's plan\n  $ renku export --movie-id=abc123\n  $ renku export --last --width=1920 --height=1080 --fps=30\n  $ renku export --last --exporter=ffmpeg\n  $ renku export:davinci --last              # Export to OTIO for DaVinci Resolve\n  $ renku export:davinci --id=abc123 --fps=24 # Export specific movie at 24fps\n  $ renku producers:list --blueprint=image-audio.yaml\n  $ renku blueprints:validate image-audio.yaml\n  $ renku blueprints:dry-run-profile image-audio.yaml\n  $ renku generate --inputs=./inputs.yaml --blueprint=image-audio.yaml --dry-run --profile=./image-audio.dry-run-profile.yaml\n  $ renku list                           # List builds in current project
   $ renku clean                          # Clean dry-run builds only
   $ renku clean --all                    # Clean all builds including completed
-  $ renku clean --movie-id=movie-q123456 # Clean specific movie\n  $ renku viewer                         # Auto-detect blueprint in cwd\n  $ renku viewer ./path/to/blueprint.yaml  # Open specific blueprint\n  $ renku mcp --defaultBlueprint=image-audio.yaml\n`,
+  $ renku clean --movie-id=movie-q123456 # Clean specific movie\n  $ renku viewer                         # Auto-detect blueprint in cwd\n  $ renku viewer ./path/to/blueprint.yaml  # Open specific blueprint\n  $ renku launch                         # Open home + onboarding flow\n  $ renku mcp --defaultBlueprint=image-audio.yaml\n`,
 	{
 		importMeta: import.meta,
 		flags: {
@@ -784,6 +785,14 @@ async function main(): Promise<void> {
 		}
 		case 'viewer:stop': {
 			await runViewerStop({ logger });
+			return;
+		}
+		case 'launch': {
+			await runLaunch({
+				host: flags.viewerHost,
+				port: flags.viewerPort,
+				logger,
+			});
 			return;
 		}
 		case 'mcp': {

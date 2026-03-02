@@ -3,7 +3,7 @@ import process from "node:process";
 import { loadEnv } from "@gorenku/core";
 import { startViewerServer } from "./runtime.js";
 
-// Load .env from monorepo root
+// Load .env from monorepo root and ~/.config/renku/.env
 loadEnv(import.meta.url);
 
 interface CliOptions {
@@ -11,6 +11,7 @@ interface CliOptions {
   dist: string;
   host?: string;
   port?: number;
+  catalog?: string;
 }
 
 function parseArguments(argv: string[]): CliOptions {
@@ -35,6 +36,10 @@ function parseArguments(argv: string[]): CliOptions {
       }
       continue;
     }
+    if (arg.startsWith("--catalog=")) {
+      options.catalog = arg.slice("--catalog=".length);
+      continue;
+    }
   }
 
   if (!options.root) {
@@ -55,6 +60,7 @@ async function main() {
       distPath: options.dist,
       host: options.host,
       port: options.port,
+      catalogPath: options.catalog,
       log: (message: string) => {
         console.log(message);
       },
