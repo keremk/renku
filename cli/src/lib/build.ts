@@ -4,8 +4,7 @@ import {
   createManifestService,
   createStorageContext,
   initializeMovieStorage,
-  loadCloudStorageEnv,
-  createCloudStorageContext,
+  resolveExecutionCloudStorage,
   resolveBlobRefsToInputs,
   injectAllSystemInputs,
   executePlanWithConcurrency,
@@ -14,7 +13,6 @@ import {
   type RunResult,
   type RunConfig,
   type Logger,
-  type StorageContext,
 } from '@gorenku/core';
 import {
   createProviderRegistry,
@@ -105,17 +103,12 @@ export async function executeBuild(options: ExecuteBuildOptions): Promise<Execut
   const eventLog = createEventLog(storage);
   const manifestService = createManifestService(storage);
 
-  // Cloud storage: Real for live, stubbed for dry-run (no S3 uploads)
-  const cloudStorageEnv = loadCloudStorageEnv();
-  const cloudStorage = dryRun
-    ? createDryRunCloudStorage(
-        options.cliConfig.storage.root,
-        options.cliConfig.storage.basePath,
-        options.movieId,
-      )
-    : cloudStorageEnv.isConfigured
-      ? createCloudStorageContext(cloudStorageEnv.config!)
-      : undefined;
+  const cloudStorage = resolveExecutionCloudStorage({
+    dryRun,
+    rootDir: options.cliConfig.storage.root,
+    basePath: options.cliConfig.storage.basePath,
+    movieId: options.movieId,
+  });
 
   // Provider registry: mode differs based on dryRun flag
   const registry = createProviderRegistry({
@@ -282,45 +275,3 @@ function summarizeRun(run: RunResult, manifestPath: string, plan: ExecutionPlan)
   };
 }
 
-/**
- * Creates a stubbed cloud storage context for dry-run mode.
- * Uses local storage for blob writes but returns fake URLs instead of uploading to S3.
- * This validates the code path (blob key generation) without actual S3 uploads.
- *
- * IMPORTANT: The uploadBlobAndGetUrl() function in providers/src/sdk/runtime.ts
- * writes directly to `cloudStorage.storage.write(key)` with a path like "blobs/ab/hash.ext".
- * This bypasses the StorageContext.resolve() method entirely, writing relative to the
- * storage adapter's rootDir. To ensure blobs land inside the movie directory, we must
- * configure the storage adapter with rootDir pointing to the movie folder itself.
- *
- * @param rootDir - The root directory for storage (e.g., "/home/user/movies")
- * @param basePath - The base path within root (e.g., "builds")
- * @param movieId - The movie ID to scope blob writes to (e.g., "movie-abc123")
- */
-function createDryRunCloudStorage(
-  rootDir: string,
-  basePath: string,
-  movieId: string,
-): StorageContext {
-  // Create storage with rootDir pointing directly to the movie folder.
-  // This is necessary because uploadBlobAndGetUrl() writes directly to storage.write()
-  // with paths like "blobs/ab/hash.ext", bypassing resolve().
-  // By setting rootDir to the movie folder, these writes land in the correct location.
-  const movieRootDir = `${rootDir}/${basePath}/${movieId}`;
-  const movieScopedStorage = createStorageContext({
-    kind: 'local',
-    rootDir: movieRootDir,
-    basePath: '', // No additional basePath needed since rootDir is already scoped
-  });
-
-  return {
-    ...movieScopedStorage,
-    temporaryUrl: async (path: string) => {
-      // Validate path format to catch bugs in blob key generation
-      if (!path.startsWith('blobs/')) {
-        throw new Error(`Invalid blob path for dry-run: ${path}`);
-      }
-      return `https://dry-run.invalid/${path}`;
-    },
-  };
-}

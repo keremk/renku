@@ -3,7 +3,8 @@ import {
   type CloudStorageConfig,
   type StorageContext,
 } from './storage.js';
-import process  from 'process';
+import process from 'process';
+import { resolve as resolvePath } from 'node:path';
 
 /**
  * Result of checking for cloud storage configuration in environment variables.
@@ -79,4 +80,63 @@ export function createCloudStorageContext(
     cloudConfig: config,
     basePath,
   });
+}
+
+export interface ResolveExecutionCloudStorageOptions {
+  dryRun: boolean;
+  rootDir: string;
+  basePath: string;
+  movieId: string;
+}
+
+/**
+ * Resolve cloud storage context for execution.
+ *
+ * - dry-run mode: returns a local stub that writes blobs under the movie folder and
+ *   generates deterministic fake URLs.
+ * - live mode: returns cloud storage only when all required env vars are configured.
+ */
+export function resolveExecutionCloudStorage(
+  options: ResolveExecutionCloudStorageOptions
+): StorageContext | undefined {
+  if (options.dryRun) {
+    return createDryRunCloudStorageContext(
+      options.rootDir,
+      options.basePath,
+      options.movieId
+    );
+  }
+
+  const cloudStorageEnv = loadCloudStorageEnv();
+  if (!cloudStorageEnv.isConfigured) {
+    return undefined;
+  }
+
+  return createCloudStorageContext(cloudStorageEnv.config!);
+}
+
+/**
+ * Creates a stubbed cloud storage context for dry-run mode.
+ */
+export function createDryRunCloudStorageContext(
+  rootDir: string,
+  basePath: string,
+  movieId: string
+): StorageContext {
+  const movieRootDir = resolvePath(rootDir, basePath, movieId);
+  const movieScopedStorage = createStorageContext({
+    kind: 'local',
+    rootDir: movieRootDir,
+    basePath: '',
+  });
+
+  return {
+    ...movieScopedStorage,
+    temporaryUrl: async (relativePath: string) => {
+      if (!relativePath.startsWith('blobs/')) {
+        throw new Error(`Invalid blob path for dry-run: ${relativePath}`);
+      }
+      return `https://dry-run.invalid/${relativePath}`;
+    },
+  };
 }

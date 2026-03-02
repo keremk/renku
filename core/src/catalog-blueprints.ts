@@ -283,11 +283,11 @@ async function buildCatalogTemplateSuggestion(
       .map((entry) => entry.name)
       .sort((a, b) => a.localeCompare(b));
     if (names.length === 0) {
-      return 'No templates found in catalog/blueprints. Run "renku update" to sync the catalog.';
+      return 'No blueprints found in catalog/blueprints. Run "renku update" to sync the catalog.';
     }
-    return `Available templates: ${names.join(', ')}`;
+    return `Available blueprints: ${names.join(', ')}`;
   } catch {
-    return `Expected templates under: ${blueprintsRoot}`;
+    return `Expected blueprints under: ${blueprintsRoot}`;
   }
 }
 

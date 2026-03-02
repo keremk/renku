@@ -10,15 +10,13 @@ import {
   createManifestService,
   createStorageContext,
   initializeMovieStorage,
-  loadCloudStorageEnv,
-  createCloudStorageContext,
+  resolveExecutionCloudStorage,
   resolveBlobRefsToInputs,
   injectAllSystemInputs,
   executePlanWithConcurrency,
   isRenkuError,
   createLogger,
   createNotificationBus,
-  type StorageContext,
   type ExecutionPlan,
   type Manifest,
   type RunConfig,
@@ -230,17 +228,12 @@ async function executeJobAsync(
     const eventLog = createEventLog(storage);
     const manifestService = createManifestService(storage);
 
-    // Cloud storage: Real for live, stubbed for dry-run
-    const cloudStorageEnv = loadCloudStorageEnv();
-    const cloudStorage = dryRun
-      ? createDryRunCloudStorage(
-          cliConfig.storage.root,
-          cachedPlan.basePath,
-          cachedPlan.movieId
-        )
-      : cloudStorageEnv.isConfigured
-        ? createCloudStorageContext(cloudStorageEnv.config!)
-        : undefined;
+    const cloudStorage = resolveExecutionCloudStorage({
+      dryRun,
+      rootDir: cliConfig.storage.root,
+      basePath: cachedPlan.basePath,
+      movieId: cachedPlan.movieId,
+    });
 
     // Load model catalog if available
     const modelCatalog = cachedPlan.catalogModelsDir
@@ -530,31 +523,5 @@ function summarizeRun(
     counts,
     manifestRevision: run.revision,
     manifestPath,
-  };
-}
-
-/**
- * Creates a stubbed cloud storage context for dry-run mode.
- */
-function createDryRunCloudStorage(
-  rootDir: string,
-  basePath: string,
-  movieId: string
-): StorageContext {
-  const movieRootDir = `${rootDir}/${basePath}/${movieId}`;
-  const movieScopedStorage = createStorageContext({
-    kind: 'local',
-    rootDir: movieRootDir,
-    basePath: '',
-  });
-
-  return {
-    ...movieScopedStorage,
-    temporaryUrl: async (path: string) => {
-      if (!path.startsWith('blobs/')) {
-        throw new Error(`Invalid blob path for dry-run: ${path}`);
-      }
-      return `https://dry-run.invalid/${path}`;
-    },
   };
 }
