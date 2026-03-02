@@ -96,7 +96,7 @@ export function OutputsPanel({
     );
   }
 
-  if (artifacts.length > 0 && blueprintFolder && movieId) {
+  if (blueprintFolder && movieId) {
     return (
       <ArtifactGallery
         artifacts={artifacts}
@@ -203,10 +203,14 @@ function ArtifactGallery({
   // Group artifacts by producer and sort by topological order
   const { groupedByProducer, orderedProducers } = useMemo(() => {
     const grouped = groupArtifactsByProducer(artifacts);
-    const ordered = sortProducersByTopology(
-      Array.from(grouped.keys()),
-      graphData
+    const graphProducerNames =
+      graphData?.nodes
+        .filter((node) => node.type === 'producer')
+        .map((node) => node.label) ?? [];
+    const producerNames = Array.from(
+      new Set([...graphProducerNames, ...Array.from(grouped.keys())])
     );
+    const ordered = sortProducersByTopology(producerNames, graphData);
     return { groupedByProducer: grouped, orderedProducers: ordered };
   }, [artifacts, graphData]);
 
@@ -469,18 +473,24 @@ function ArtifactGallery({
                   hideActions
                   flat
                 >
-                  <div className='space-y-5'>
-                    {activeSection.subGroups.map((subGroup) => (
-                      <SubGroupSection
-                        key={subGroup.sortKey}
-                        subGroup={subGroup}
-                        blueprintFolder={blueprintFolder}
-                        movieId={movieId}
-                        isPromptProducer={activeSection.isPromptProducer}
-                        onArtifactUpdated={onArtifactUpdated}
-                      />
-                    ))}
-                  </div>
+                  {activeSection.producerArtifacts.length === 0 ? (
+                    <div className='rounded-lg border border-dashed border-border/60 bg-background/40 px-4 py-6 text-sm text-muted-foreground'>
+                      No artifacts generated yet for this producer.
+                    </div>
+                  ) : (
+                    <div className='space-y-5'>
+                      {activeSection.subGroups.map((subGroup) => (
+                        <SubGroupSection
+                          key={subGroup.sortKey}
+                          subGroup={subGroup}
+                          blueprintFolder={blueprintFolder}
+                          movieId={movieId}
+                          isPromptProducer={activeSection.isPromptProducer}
+                          onArtifactUpdated={onArtifactUpdated}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </ProducerArtifactSection>
               </div>
             </>
