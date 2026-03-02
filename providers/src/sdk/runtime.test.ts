@@ -705,6 +705,43 @@ describe('createProducerRuntime', () => {
     });
   });
 
+  describe('sdk.buildPayload with blob inputs', () => {
+    it('keeps blob values untouched for URI fields (resolution happens later)', async () => {
+      const blobInput = {
+        data: Buffer.from('image-bytes'),
+        mimeType: 'image/png',
+      };
+
+      const request = createTestJobContext(
+        { 'Input:Image': blobInput },
+        { Image: 'Input:Image' },
+        {
+          Image: { field: 'image_url' },
+        }
+      );
+
+      const runtime = createProducerRuntime({
+        descriptor: { provider: 'test', model: 'test', environment: 'local' },
+        domain: 'media',
+        request,
+        mode: 'live',
+      });
+
+      const schema = JSON.stringify({
+        type: 'object',
+        properties: {
+          image_url: { type: 'string', format: 'uri' },
+        },
+      });
+
+      const payload = await runtime.sdk.buildPayload(undefined, schema);
+
+      expect(payload).toEqual({
+        image_url: blobInput,
+      });
+    });
+  });
+
   describe('sdk.buildPayload enum normalization', () => {
     it('normalizes numeric duration to string enum value', async () => {
       const request = createTestJobContext(

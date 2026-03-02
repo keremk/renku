@@ -375,4 +375,107 @@ describe('createUnifiedHandler', () => {
 
     await expect(handler.invoke(request)).rejects.toThrow(/Missing required input/);
   });
+
+  it('resolves blob URI inputs before validation and invocation in live mode', async () => {
+    const invokeSpy = vi.fn().mockResolvedValue({});
+    const uploadInputFile = vi
+      .fn()
+      .mockResolvedValue('https://provider.example.com/uploaded-image.png');
+
+    const adapter: ProviderAdapter = {
+      name: 'blob-provider',
+      secretKey: 'BLOB_KEY',
+      async createClient(): Promise<ProviderClient> {
+        return { configured: true };
+      },
+      formatModelIdentifier: (m) => `blob/${m}`,
+      invoke: invokeSpy,
+      uploadInputFile,
+      normalizeOutput: () => ['https://mock.example.com/output.png'],
+    };
+
+    const handler = createUnifiedHandler({ adapter, outputMimeType: 'image/png' })(
+      createMockInitContext({ mode: 'live' }),
+    );
+
+    const request = createMockRequest();
+    const extras = request.context.extras as TestExtras;
+    extras.resolvedInputs = {
+      'Input:ImageUrl': {
+        data: Buffer.from('image-bytes'),
+        mimeType: 'image/png',
+      },
+    };
+    extras.jobContext.inputBindings = {
+      ImageUrl: 'Input:ImageUrl',
+    };
+    extras.jobContext.sdkMapping = {
+      ImageUrl: { field: 'image_url', required: true },
+    };
+    extras.schema.input = JSON.stringify({
+      type: 'object',
+      properties: {
+        image_url: { type: 'string', format: 'uri' },
+      },
+      required: ['image_url'],
+    });
+
+    await handler.invoke(request);
+
+    expect(uploadInputFile).toHaveBeenCalledTimes(1);
+    expect(invokeSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      { image_url: 'https://provider.example.com/uploaded-image.png' },
+    );
+  });
+
+  it('uses simulated file URLs without calling provider upload in simulated mode', async () => {
+    const invokeSpy = vi.fn().mockResolvedValue({});
+    const uploadInputFile = vi.fn();
+
+    const adapter: ProviderAdapter = {
+      name: 'blob-provider',
+      secretKey: 'BLOB_KEY',
+      async createClient(): Promise<ProviderClient> {
+        return { configured: true };
+      },
+      formatModelIdentifier: (m) => `blob/${m}`,
+      invoke: invokeSpy,
+      uploadInputFile,
+      normalizeOutput: () => ['https://mock.example.com/output.png'],
+    };
+
+    const handler = createUnifiedHandler({ adapter, outputMimeType: 'image/png' })(
+      createMockInitContext({ mode: 'simulated' }),
+    );
+
+    const request = createMockRequest();
+    const extras = request.context.extras as TestExtras;
+    extras.resolvedInputs = {
+      'Input:ImageUrl': {
+        data: Buffer.from('image-bytes'),
+        mimeType: 'image/png',
+      },
+    };
+    extras.jobContext.inputBindings = {
+      ImageUrl: 'Input:ImageUrl',
+    };
+    extras.jobContext.sdkMapping = {
+      ImageUrl: { field: 'image_url', required: true },
+    };
+    extras.schema.input = JSON.stringify({
+      type: 'object',
+      properties: {
+        image_url: { type: 'string', format: 'uri' },
+      },
+      required: ['image_url'],
+    });
+
+    const result = await handler.invoke(request);
+
+    expect(result.status).toBe('succeeded');
+    expect(uploadInputFile).not.toHaveBeenCalled();
+    expect(invokeSpy).not.toHaveBeenCalled();
+  });
 });

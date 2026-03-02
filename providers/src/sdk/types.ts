@@ -7,7 +7,7 @@ import type {
   ProviderLogger,
   ProviderMode,
 } from '../types.js';
-import type { BlueprintProducerSdkMappingField, StorageContext } from '@gorenku/core';
+import type { BlueprintProducerSdkMappingField } from '@gorenku/core';
 
 export type ProducerDomain = 'prompt' | 'media' | 'transcription';
 
@@ -22,7 +22,9 @@ export interface ProducerInvokeArgs {
   runtime: ProducerRuntime;
 }
 
-export type ProducerInvokeFn = (args: ProducerInvokeArgs) => Promise<ProviderResult>;
+export type ProducerInvokeFn = (
+  args: ProducerInvokeArgs
+) => Promise<ProviderResult>;
 
 export interface ProducerWarmStartArgs {
   handler: ProducerHandler;
@@ -30,7 +32,9 @@ export interface ProducerWarmStartArgs {
   notifications?: import('@gorenku/core').NotificationBus;
 }
 
-export type ProducerWarmStartFn = (args: ProducerWarmStartArgs) => Promise<void>;
+export type ProducerWarmStartFn = (
+  args: ProducerWarmStartArgs
+) => Promise<void>;
 
 export interface ProducerRuntimeConfig {
   raw: unknown;
@@ -52,7 +56,7 @@ export interface ResolvedInputsAccessor {
 export interface RuntimeSdkHelpers {
   buildPayload(
     sdkMapping?: Record<string, BlueprintProducerSdkMappingField>,
-    inputSchema?: string,
+    inputSchema?: string
   ): Promise<Record<string, unknown>>;
 }
 
@@ -71,6 +75,4 @@ export interface ProducerRuntime {
   artefacts: ArtefactRegistry;
   logger?: ProviderLogger;
   notifications?: import('@gorenku/core').NotificationBus;
-  /** Cloud storage context for uploading blob inputs (optional). */
-  cloudStorage?: StorageContext;
 }

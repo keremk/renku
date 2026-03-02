@@ -2,6 +2,7 @@ export { createUnifiedHandler, type UnifiedHandlerOptions } from './schema-first
 export type {
   ProviderAdapter,
   ProviderClient,
+  ProviderInputFile,
   ClientOptions,
   RetryWrapper,
   RetryWrapperOptions,

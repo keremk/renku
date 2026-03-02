@@ -20,11 +20,12 @@ export interface CreateProducerHandlerFactoryOptions {
 }
 
 export function createProducerHandlerFactory(
-  options: CreateProducerHandlerFactoryOptions,
+  options: CreateProducerHandlerFactoryOptions
 ): HandlerFactory {
   return (init: HandlerFactoryInit): ProducerHandler => {
     const { descriptor } = init;
-    const notificationKey = options.notificationKey ?? `${descriptor.provider}/${descriptor.model}`;
+    const notificationKey =
+      options.notificationKey ?? `${descriptor.provider}/${descriptor.model}`;
     const handler: ProducerHandler = {
       provider: descriptor.provider,
       model: descriptor.model,
@@ -53,7 +54,6 @@ export function createProducerHandlerFactory(
           configValidator: options.configValidator,
           mode: init.mode,
           notifications: init.notifications,
-          cloudStorage: init.cloudStorage,
         });
         return options.invoke({
           request,

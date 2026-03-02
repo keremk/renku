@@ -1,5 +1,6 @@
 import { fal } from '@fal-ai/client';
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { Blob } from 'node:buffer';
 import type {
   ProviderAdapter,
   ClientOptions,
@@ -7,6 +8,7 @@ import type {
   ModelContext,
   RetryWrapperOptions,
   RetryWrapper,
+  ProviderInputFile,
 } from '../unified/provider-adapter.js';
 import { normalizeFalOutput } from './output.js';
 import {
@@ -108,6 +110,15 @@ export const falAdapter: ProviderAdapter = {
       }
       throw error;
     }
+  },
+
+  async uploadInputFile(
+    client: ProviderClient,
+    file: ProviderInputFile
+  ): Promise<string> {
+    const falClient = client as typeof fal;
+    const blob = new Blob([file.data], { type: file.mimeType });
+    return falClient.storage.upload(blob);
   },
 
   normalizeOutput(response: unknown): string[] {

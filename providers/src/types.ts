@@ -6,7 +6,6 @@ import type {
   ProviderAttachment,
   RevisionId,
   Logger,
-  StorageContext,
 } from '@gorenku/core';
 import type { SchemaRegistry } from './schema-registry.js';
 
@@ -80,8 +79,6 @@ export interface HandlerFactoryInit {
   logger?: ProviderLogger;
   schemaRegistry?: SchemaRegistry;
   notifications?: import('@gorenku/core').NotificationBus;
-  /** Cloud storage context for uploading blob inputs (optional). */
-  cloudStorage?: StorageContext;
   /**
    * Handler resolver function allowing internal handlers to resolve and invoke
    * other handlers from the registry. Used for delegation patterns where one
@@ -113,8 +110,6 @@ export interface ProviderRegistryOptions {
   secretResolver?: SecretResolver;
   schemaRegistry?: SchemaRegistry;
   notifications?: import('@gorenku/core').NotificationBus;
-  /** Cloud storage context for uploading blob inputs to S3-compatible storage. */
-  cloudStorage?: StorageContext;
 }
 
 export interface ResolvedProviderHandler {

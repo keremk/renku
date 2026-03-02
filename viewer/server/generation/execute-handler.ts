@@ -10,7 +10,6 @@ import {
   createManifestService,
   createStorageContext,
   initializeMovieStorage,
-  resolveExecutionCloudStorage,
   resolveBlobRefsToInputs,
   injectAllSystemInputs,
   executePlanWithConcurrency,
@@ -228,13 +227,6 @@ async function executeJobAsync(
     const eventLog = createEventLog(storage);
     const manifestService = createManifestService(storage);
 
-    const cloudStorage = resolveExecutionCloudStorage({
-      dryRun,
-      rootDir: cliConfig.storage.root,
-      basePath: cachedPlan.basePath,
-      movieId: cachedPlan.movieId,
-    });
-
     // Load model catalog if available
     const modelCatalog = cachedPlan.catalogModelsDir
       ? await loadModelCatalog(cachedPlan.catalogModelsDir)
@@ -245,7 +237,6 @@ async function executeJobAsync(
       mode: dryRun ? 'simulated' : 'live',
       logger,
       notifications,
-      cloudStorage,
       catalog: modelCatalog,
       catalogModelsDir: cachedPlan.catalogModelsDir,
     });

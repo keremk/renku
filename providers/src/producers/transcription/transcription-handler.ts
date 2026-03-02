@@ -1,12 +1,10 @@
 import { Buffer } from 'node:buffer';
 import { readFile } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
 import { createProviderError, SdkErrorCode } from '../../sdk/errors.js';
 import type { HandlerFactory, HandlerFactoryInit, ProviderJobContext } from '../../types.js';
 import type { TimelineDocument, TranscriptionClip, TranscriptionTrack } from '@gorenku/compositions';
-import type { StorageContext } from '@gorenku/core';
 import { concatenateWithSilence } from './audio-concatenator.js';
 import { alignTranscriptionToTimeline } from './timestamp-aligner.js';
 import type {
@@ -172,27 +170,8 @@ export function createTranscriptionHandler(): HandlerFactory {
           environment: 'local',
         });
 
-        // Get audio URL - either from cloud upload (live) or placeholder (simulated)
-        let audioUrl: string;
-        if (runtime.mode === 'simulated') {
-          audioUrl = 'https://simulated.example.com/audio.wav';
-          notify('progress', 'Using placeholder audio URL (simulated mode)');
-        } else {
-          notify('progress', 'Concatenating audio segments...');
-          const concatenatedAudio = await concatenateWithSilence(audioSegments, timeline.duration);
-
-          if (!runtime.cloudStorage) {
-            throw createProviderError(
-              SdkErrorCode.BLOB_INPUT_NO_STORAGE,
-              'Transcription producer requires cloud storage for uploading audio. ' +
-                'Set S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, and S3_BUCKET environment variables.',
-              { kind: 'user_input', causedByUser: true },
-            );
-          }
-
-          notify('progress', 'Uploading audio to cloud storage...');
-          audioUrl = await uploadAudioAndGetUrl(concatenatedAudio, runtime.cloudStorage);
-        }
+        notify('progress', 'Concatenating audio segments...');
+        const concatenatedAudio = await concatenateWithSilence(audioSegments, timeline.duration);
 
         // Delegate STT call to the configured provider's handler
         notify('progress', `Calling speech-to-text API (${config.stt.provider}/${config.stt.model})...`);
@@ -212,7 +191,10 @@ export function createTranscriptionHandler(): HandlerFactory {
             providerConfig: {},
             extras: {
               resolvedInputs: {
-                audio_url: audioUrl,
+                audio_url: {
+                  data: concatenatedAudio,
+                  mimeType: 'audio/wav',
+                },
                 language_code: languageCode,
                 ...sttConfigProps,
               },
@@ -415,33 +397,8 @@ async function loadAudioSegmentsFromTranscriptionTrack(
   return segments;
 }
 
-/**
- * Upload audio buffer to cloud storage and return a signed URL.
- */
-async function uploadAudioAndGetUrl(
-  audioBuffer: Buffer,
-  cloudStorage: StorageContext,
-): Promise<string> {
-  const hash = createHash('sha256').update(audioBuffer).digest('hex');
-  const prefix = hash.slice(0, 2);
-  const key = `blobs/${prefix}/${hash}.wav`;
-
-  await cloudStorage.storage.write(key, audioBuffer, { mimeType: 'audio/wav' });
-
-  if (!cloudStorage.temporaryUrl) {
-    throw createProviderError(
-      SdkErrorCode.CLOUD_STORAGE_URL_FAILED,
-      'Cloud storage does not support temporaryUrl - ensure you are using cloud storage kind.',
-      { kind: 'user_input', causedByUser: true },
-    );
-  }
-
-  return cloudStorage.temporaryUrl(key, 3600);
-}
-
 // Export for testing
 export const __test__ = {
   parseTranscriptionConfig,
   loadAudioSegmentsFromTranscriptionTrack,
-  uploadAudioAndGetUrl,
 };

@@ -1,5 +1,12 @@
 import Replicate from 'replicate';
-import type { ProviderAdapter, ClientOptions, ProviderClient, ModelContext } from '../unified/provider-adapter.js';
+import { Blob } from 'node:buffer';
+import type {
+  ProviderAdapter,
+  ClientOptions,
+  ProviderClient,
+  ModelContext,
+  ProviderInputFile,
+} from '../unified/provider-adapter.js';
 import { normalizeReplicateOutput } from './output.js';
 import { createReplicateRetryWrapper } from './retry.js';
 
@@ -35,6 +42,20 @@ export const replicateAdapter: ProviderAdapter = {
   async invoke(client: ProviderClient, model: string, input: Record<string, unknown>): Promise<unknown> {
     const replicate = client as Replicate;
     return replicate.run(model as `${string}/${string}` | `${string}/${string}:${string}`, { input });
+  },
+
+  async uploadInputFile(
+    client: ProviderClient,
+    file: ProviderInputFile
+  ): Promise<string> {
+    const replicate = client as Replicate;
+    const blob = new Blob([file.data], { type: file.mimeType });
+    const uploaded = await replicate.files.create(blob);
+    const url = uploaded.urls?.get;
+    if (typeof url !== 'string' || url.length === 0) {
+      throw new Error('Replicate file upload did not return a downloadable file URL.');
+    }
+    return url;
   },
 
   normalizeOutput(response: unknown): string[] {

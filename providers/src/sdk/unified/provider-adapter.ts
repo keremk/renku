@@ -10,6 +10,14 @@ export interface ModelContext {
 }
 
 /**
+ * Canonical file payload used for provider-native uploads.
+ */
+export interface ProviderInputFile {
+  data: Uint8Array | Buffer;
+  mimeType: string;
+}
+
+/**
  * Provider adapter interface for unified handler.
  * Each provider (replicate, fal-ai, wavespeed-ai) implements this interface
  * to handle provider-specific API invocation and output parsing.
@@ -29,6 +37,15 @@ export interface ProviderAdapter {
 
   /** Execute the API call and return raw output */
   invoke(client: ProviderClient, model: string, input: Record<string, unknown>): Promise<unknown>;
+
+  /**
+   * Optional native upload capability.
+   * When defined, unified handlers will use this for file-based inputs before invoke().
+   */
+  uploadInputFile?: (
+    client: ProviderClient,
+    file: ProviderInputFile
+  ) => Promise<string>;
 
   /** Extract URLs from provider-specific response structure */
   normalizeOutput(response: unknown): string[];

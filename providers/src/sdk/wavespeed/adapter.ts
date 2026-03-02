@@ -1,7 +1,14 @@
-import type { ProviderAdapter, ClientOptions, ProviderClient, ModelContext } from '../unified/provider-adapter.js';
+import type {
+  ProviderAdapter,
+  ClientOptions,
+  ProviderClient,
+  ModelContext,
+  ProviderInputFile,
+} from '../unified/provider-adapter.js';
 import { normalizeWavespeedOutput } from './output.js';
 import { pollForCompletion } from './polling.js';
 import type { WavespeedResult } from './client.js';
+import { Blob } from 'node:buffer';
 
 const BASE_URL = 'https://api.wavespeed.ai/api/v3';
 
@@ -30,7 +37,9 @@ export const wavespeedAdapter: ProviderAdapter = {
 
     const key = await options.secretResolver.getSecret('WAVESPEED_API_KEY');
     if (!key) {
-      throw new Error('WAVESPEED_API_KEY is required to use the wavespeed-ai provider.');
+      throw new Error(
+        'WAVESPEED_API_KEY is required to use the wavespeed-ai provider.'
+      );
     }
     return {
       apiKey: key,
@@ -43,7 +52,11 @@ export const wavespeedAdapter: ProviderAdapter = {
     return model;
   },
 
-  async invoke(client: ProviderClient, model: string, input: Record<string, unknown>): Promise<unknown> {
+  async invoke(
+    client: ProviderClient,
+    model: string,
+    input: Record<string, unknown>
+  ): Promise<unknown> {
     const wavespeedClient = client as WavespeedClient;
 
     // Submit task
@@ -51,7 +64,7 @@ export const wavespeedAdapter: ProviderAdapter = {
     const submitResponse = await fetch(submitUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${wavespeedClient.apiKey}`,
+        Authorization: `Bearer ${wavespeedClient.apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(input),
@@ -59,10 +72,14 @@ export const wavespeedAdapter: ProviderAdapter = {
 
     if (!submitResponse.ok) {
       const errorText = await submitResponse.text();
-      throw new Error(`Wavespeed API error (${submitResponse.status}): ${errorText}`);
+      throw new Error(
+        `Wavespeed API error (${submitResponse.status}): ${errorText}`
+      );
     }
 
-    const submitResult = await submitResponse.json() as { data: { id: string } };
+    const submitResult = (await submitResponse.json()) as {
+      data: { id: string };
+    };
     const requestId = submitResult.data.id;
 
     // Poll for completion
@@ -74,21 +91,63 @@ export const wavespeedAdapter: ProviderAdapter = {
           const response = await fetch(pollUrl, {
             method: 'GET',
             headers: {
-              'Authorization': `Bearer ${wavespeedClient.apiKey}`,
+              Authorization: `Bearer ${wavespeedClient.apiKey}`,
             },
           });
           if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`Wavespeed API error (${response.status}): ${errorText}`);
+            throw new Error(
+              `Wavespeed API error (${response.status}): ${errorText}`
+            );
           }
-          return await response.json() as WavespeedResult;
+          return (await response.json()) as WavespeedResult;
         },
       },
       requestId,
-      { logger: wavespeedClient.logger },
+      { logger: wavespeedClient.logger }
     );
 
     return result;
+  },
+
+  async uploadInputFile(
+    client: ProviderClient,
+    file: ProviderInputFile
+  ): Promise<string> {
+    const wavespeedClient = client as WavespeedClient;
+    const formData = new FormData();
+    formData.set(
+      'file',
+      new Blob([file.data], { type: file.mimeType }),
+      buildUploadFilename(file.mimeType)
+    );
+
+    const uploadResponse = await fetch(`${BASE_URL}/media/upload/binary`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${wavespeedClient.apiKey}`,
+      },
+      body: formData,
+    });
+
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      throw new Error(
+        `Wavespeed media upload failed (${uploadResponse.status}): ${errorText}`
+      );
+    }
+
+    const uploadResult = (await uploadResponse.json()) as {
+      data?: { download_url?: unknown };
+    };
+    const downloadUrl = uploadResult.data?.download_url;
+    if (typeof downloadUrl !== 'string' || downloadUrl.length === 0) {
+      throw new Error(
+        'Wavespeed media upload did not return data.download_url.'
+      );
+    }
+
+    return downloadUrl;
   },
 
   normalizeOutput(response: unknown): string[] {
@@ -106,8 +165,14 @@ function createSimulatedStub(): ProviderClient {
     invoke() {
       throw new Error(
         'Wavespeed stub client was called in simulated mode. ' +
-        'This indicates a bug - the unified handler should generate output from schema.'
+          'This indicates a bug - the unified handler should generate output from schema.'
       );
     },
   } as unknown as ProviderClient;
+}
+
+function buildUploadFilename(mimeType: string): string {
+  const [, subtype = 'bin'] = mimeType.split('/');
+  const extension = subtype.split('+')[0] || 'bin';
+  return `input.${extension}`;
 }

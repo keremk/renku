@@ -13,7 +13,6 @@ import {
 	type ProduceFn,
 	type ProduceRequest,
 	type ProduceResult,
-	type StorageContext,
 } from '@gorenku/core';
 import {
 	createProviderProduce,
@@ -95,29 +94,6 @@ function extractBoundCharacterIndices(
 		indices.push(characterIndex);
 	}
 	return indices.sort((a, b) => a - b);
-}
-
-function createDryRunCloudStorage(
-	rootDir: string,
-	basePath: string,
-	movieId: string
-): StorageContext {
-	const movieRootDir = resolve(rootDir, basePath, movieId);
-	const movieScopedStorage = createStorageContext({
-		kind: 'local',
-		rootDir: movieRootDir,
-		basePath: '',
-	});
-
-	return {
-		...movieScopedStorage,
-		temporaryUrl: async (path: string) => {
-			if (!path.startsWith('blobs/')) {
-				throw new Error(`Invalid blob path for dry-run: ${path}`);
-			}
-			return `https://dry-run.invalid/${path}`;
-		},
-	};
 }
 
 describe('end-to-end: scene character presence', () => {
@@ -207,16 +183,9 @@ describe('end-to-end: scene character presence', () => {
 		const eventLog = createEventLog(storage);
 		const manifestService = createManifestService(storage);
 
-		const cloudStorage = createDryRunCloudStorage(
-			cliConfig.storage.root,
-			cliConfig.storage.basePath,
-			storageMovieId
-		);
-
 		const registry = createProviderRegistry({
 			mode: 'simulated',
 			logger,
-			cloudStorage,
 			catalog: planResult.modelCatalog,
 			catalogModelsDir: planResult.catalogModelsDir,
 		});

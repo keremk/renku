@@ -15,13 +15,10 @@ import type {
   ArtefactRegistry,
 } from './types.js';
 import {
-  inferBlobExtension,
   type BlueprintProducerSdkMappingField,
   type MappingFieldDefinition,
   type NotificationBus,
-  type StorageContext,
 } from '@gorenku/core';
-import { createHash } from 'node:crypto';
 import {
   applyMapping,
   setNestedValue,
@@ -47,8 +44,6 @@ interface RuntimeInit {
   configValidator?: ConfigValidator;
   mode: ProviderMode;
   notifications?: NotificationBus;
-  /** Cloud storage context for uploading blob inputs (optional). */
-  cloudStorage?: StorageContext;
 }
 
 export function createProducerRuntime(init: RuntimeInit): ProducerRuntime {
@@ -63,7 +58,7 @@ export function createProducerRuntime(init: RuntimeInit): ProducerRuntime {
   const resolvedInputs = resolveInputs(request.context.extras);
   const jobContext = extractJobContext(request.context.extras);
   const inputs = createInputsAccessor(resolvedInputs);
-  const sdk = createSdkHelper(inputs, jobContext, init.cloudStorage, logger);
+  const sdk = createSdkHelper(inputs, jobContext, logger);
   const artefacts = createArtefactRegistry(request.produces);
 
   return {
@@ -77,7 +72,6 @@ export function createProducerRuntime(init: RuntimeInit): ProducerRuntime {
     artefacts,
     logger,
     notifications: init.notifications,
-    cloudStorage: init.cloudStorage,
   };
 }
 
@@ -162,7 +156,6 @@ function createInputsAccessor(
 function createSdkHelper(
   inputs: ResolvedInputsAccessor,
   jobContext?: SerializedJobContext,
-  cloudStorage?: StorageContext,
   logger?: ProviderLogger
 ): RuntimeSdkHelpers {
   return {
@@ -240,69 +233,6 @@ function createSdkHelper(
 
       if (parsedInputSchema) {
         coercePayloadEnumValues(payload, parsedInputSchema, logger);
-      }
-
-      // Process blob inputs for fields with format: "uri" in schema
-      // First, check if any blob inputs exist in the payload
-      const hasBlobInputs = Object.values(payload).some(
-        (value) =>
-          isBlobInput(value) ||
-          (Array.isArray(value) && value.some((item) => isBlobInput(item)))
-      );
-
-      if (hasBlobInputs && !cloudStorage) {
-        throw createProviderError(
-          SdkErrorCode.BLOB_INPUT_NO_STORAGE,
-          'Blob inputs (file: references) require cloud storage configuration. ' +
-            'Set S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, and S3_BUCKET environment variables.',
-          { kind: 'user_input', causedByUser: true }
-        );
-      }
-
-      if (cloudStorage && inputSchema) {
-        const parsedSchema =
-          parsedInputSchema ??
-          (JSON.parse(inputSchema) as Record<string, unknown>);
-        const schemaProperties = readSchemaProperties(parsedSchema);
-        for (const [key, value] of Object.entries(payload)) {
-          const fieldSchema = schemaProperties?.[key];
-          const fieldFormat =
-            typeof fieldSchema?.format === 'string'
-              ? fieldSchema.format
-              : undefined;
-
-          // Check for direct format: "uri" field
-          const isUriField = fieldFormat === 'uri';
-          if (isUriField && isBlobInput(value)) {
-            const url = await uploadBlobAndGetUrl(value, cloudStorage);
-            payload[key] = url;
-            continue;
-          }
-
-          // Check for array with items.format: "uri"
-          const itemsSchema =
-            fieldSchema &&
-            typeof fieldSchema.items === 'object' &&
-            fieldSchema.items !== null &&
-            !Array.isArray(fieldSchema.items)
-              ? (fieldSchema.items as Record<string, unknown>)
-              : undefined;
-          const isArrayOfUris =
-            fieldSchema?.type === 'array' && itemsSchema?.format === 'uri';
-          if (isArrayOfUris && Array.isArray(value)) {
-            const uploadedUrls: string[] = [];
-            for (const item of value) {
-              if (isBlobInput(item)) {
-                const url = await uploadBlobAndGetUrl(item, cloudStorage);
-                uploadedUrls.push(url);
-              } else if (typeof item === 'string') {
-                // Already a URL, keep as-is
-                uploadedUrls.push(item);
-              }
-            }
-            payload[key] = uploadedUrls;
-          }
-        }
       }
 
       return payload;
@@ -523,65 +453,6 @@ function pickNearestEnumCandidate(
   }
 
   return nearest;
-}
-
-/** Blob input can be Uint8Array or an object with data and mimeType. */
-interface BlobInput {
-  data: Uint8Array | Buffer;
-  mimeType: string;
-}
-
-function isBlobInput(value: unknown): value is Uint8Array | BlobInput {
-  // Check if value is Uint8Array/Buffer
-  if (value instanceof Uint8Array || Buffer.isBuffer(value)) {
-    return true;
-  }
-  // Check if value has blob-like structure { data, mimeType }
-  if (
-    typeof value === 'object' &&
-    value !== null &&
-    'data' in value &&
-    'mimeType' in value
-  ) {
-    const obj = value as { data: unknown; mimeType: unknown };
-    return (
-      (obj.data instanceof Uint8Array || Buffer.isBuffer(obj.data)) &&
-      typeof obj.mimeType === 'string'
-    );
-  }
-  return false;
-}
-
-async function uploadBlobAndGetUrl(
-  blob: Uint8Array | BlobInput,
-  cloudStorage: StorageContext
-): Promise<string> {
-  const data =
-    blob instanceof Uint8Array || Buffer.isBuffer(blob) ? blob : blob.data;
-  const mimeType =
-    blob instanceof Uint8Array || Buffer.isBuffer(blob)
-      ? 'application/octet-stream'
-      : blob.mimeType;
-
-  // Generate content-addressed key
-  const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
-  const hash = createHash('sha256').update(buffer).digest('hex');
-  const prefix = hash.slice(0, 2);
-  const ext = inferBlobExtension(mimeType);
-  const key = `blobs/${prefix}/${hash}${ext ? '.' + ext : ''}`;
-
-  // Upload to cloud storage (content-addressed, so overwriting is safe)
-  await cloudStorage.storage.write(key, buffer, { mimeType });
-
-  // Get signed URL (default 1 hour expiry)
-  if (!cloudStorage.temporaryUrl) {
-    throw createProviderError(
-      SdkErrorCode.CLOUD_STORAGE_URL_FAILED,
-      'Cloud storage does not support temporaryUrl - ensure you are using cloud storage kind.',
-      { kind: 'user_input', causedByUser: true }
-    );
-  }
-  return cloudStorage.temporaryUrl(key, 3600);
 }
 
 function createArtefactRegistry(produces: string[]): ArtefactRegistry {

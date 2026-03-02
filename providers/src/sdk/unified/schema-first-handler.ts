@@ -13,6 +13,7 @@ import type {
   ProviderClient,
   ModelContext,
 } from './provider-adapter.js';
+import { resolveProviderFileInputs } from './file-input-resolution.js';
 import {
   parseSchemaFile,
   resolveSchemaRefs,
@@ -109,8 +110,15 @@ export function createUnifiedHandler(
           undefined,
           inputSchemaString
         );
-        validatePayload(inputSchemaString, sdkPayload, 'input');
-        const input = { ...sdkPayload };
+        const resolvedPayload = await resolveProviderFileInputs({
+          payload: sdkPayload,
+          inputSchema: inputSchemaString,
+          adapter,
+          client,
+          mode: init.mode,
+        });
+        validatePayload(inputSchemaString, resolvedPayload, 'input');
+        const input = { ...resolvedPayload };
 
         const modelIdentifier = adapter.formatModelIdentifier(
           request.model,

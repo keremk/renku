@@ -10,7 +10,10 @@ import type {
   ResolvedProviderHandler,
   SecretResolver,
 } from './types.js';
-import { loadModelInputSchema, type LoadedModelCatalog } from './model-catalog.js';
+import {
+  loadModelInputSchema,
+  type LoadedModelCatalog,
+} from './model-catalog.js';
 import { generateProviderImplementations } from './registry-generator.js';
 import { createMockProducerHandler } from './mock-producers.js';
 import { createTimelineProducerHandler } from './producers/timeline/ordered-timeline.js';
@@ -37,7 +40,9 @@ export interface CreateProviderRegistryOptions extends ProviderRegistryOptions {
  * When no catalog is provided (e.g., in unit tests), the registry uses mock mode
  * by default and will return mock handlers for all requests via the mock fallback.
  */
-export function createProviderRegistry(options: CreateProviderRegistryOptions = {}): ProviderRegistry {
+export function createProviderRegistry(
+  options: CreateProviderRegistryOptions = {}
+): ProviderRegistry {
   const mode: ProviderMode = options.mode ?? 'mock';
   const logger = options.logger;
   const notifications = options.notifications;
@@ -56,26 +61,37 @@ export function createProviderRegistry(options: CreateProviderRegistryOptions = 
       return cached;
     }
 
-    const implementation = findImplementation(implementations, descriptor, mode);
+    const implementation = findImplementation(
+      implementations,
+      descriptor,
+      mode
+    );
     if (!implementation) {
       // Provide helpful error message with guidance on how to fix
-      const errorMessage = mode === 'mock'
-        ? `No provider handler registered for ${descriptor.provider}/${descriptor.model} (${descriptor.environment}) in ${mode} mode.`
-        : `No handler configured for ${descriptor.provider}/${descriptor.model}. ` +
-          `Add the model to catalog/models/${descriptor.provider}.yaml with a 'type' field:\n\n` +
-          `  - name: ${descriptor.model}\n` +
-          `    type: video  # or image, audio, llm, internal\n` +
-          `    price:\n` +
-          `      function: costByImage\n` +
-          `      pricePerImage: 0.03\n`;
+      const errorMessage =
+        mode === 'mock'
+          ? `No provider handler registered for ${descriptor.provider}/${descriptor.model} (${descriptor.environment}) in ${mode} mode.`
+          : `No handler configured for ${descriptor.provider}/${descriptor.model}. ` +
+            `Add the model to catalog/models/${descriptor.provider}.yaml with a 'type' field:\n\n` +
+            `  - name: ${descriptor.model}\n` +
+            `    type: video  # or image, audio, llm, internal\n` +
+            `    price:\n` +
+            `      function: costByImage\n` +
+            `      pricePerImage: 0.03\n`;
       throw new Error(errorMessage);
     }
 
     // Create schema loader function if catalog is available
-    const getModelSchema = options.catalog && options.catalogModelsDir
-      ? async (provider: string, model: string) =>
-          loadModelInputSchema(options.catalogModelsDir!, options.catalog!, provider, model)
-      : undefined;
+    const getModelSchema =
+      options.catalog && options.catalogModelsDir
+        ? async (provider: string, model: string) =>
+            loadModelInputSchema(
+              options.catalogModelsDir!,
+              options.catalog!,
+              provider,
+              model
+            )
+        : undefined;
 
     const handler = implementation.factory({
       descriptor,
@@ -84,7 +100,6 @@ export function createProviderRegistry(options: CreateProviderRegistryOptions = 
       logger,
       schemaRegistry: options.schemaRegistry,
       notifications,
-      cloudStorage: options.cloudStorage,
       // Allow internal handlers to resolve and invoke other handlers
       handlerResolver: (subDescriptor) => resolve(subDescriptor),
       // Allow internal handlers to load schemas for delegation
@@ -94,7 +109,9 @@ export function createProviderRegistry(options: CreateProviderRegistryOptions = 
     return handler;
   }
 
-  function resolveMany(descriptors: ProviderDescriptor[]): ResolvedProviderHandler[] {
+  function resolveMany(
+    descriptors: ProviderDescriptor[]
+  ): ResolvedProviderHandler[] {
     return descriptors.map((descriptor) => ({
       descriptor,
       handler: resolve(descriptor),
@@ -122,10 +139,12 @@ export function createProviderRegistry(options: CreateProviderRegistryOptions = 
 function findImplementation(
   implementations: ProviderImplementation[],
   descriptor: ProviderDescriptor,
-  mode: ProviderMode,
+  mode: ProviderMode
 ): ProviderImplementation | undefined {
   return implementations.find(
-    (implementation) => implementation.mode === mode && matchesDescriptor(descriptor, implementation.match),
+    (implementation) =>
+      implementation.mode === mode &&
+      matchesDescriptor(descriptor, implementation.match)
   );
 }
 
@@ -133,14 +152,22 @@ function findImplementation(
  * Check if a descriptor matches an implementation's match pattern.
  * Wildcards ('*') match any value.
  */
-function matchesDescriptor(descriptor: ProviderDescriptor, match: ProviderVariantMatch): boolean {
-  const providerMatches = match.provider === '*' || match.provider === descriptor.provider;
+function matchesDescriptor(
+  descriptor: ProviderDescriptor,
+  match: ProviderVariantMatch
+): boolean {
+  const providerMatches =
+    match.provider === '*' || match.provider === descriptor.provider;
   const modelMatches = match.model === '*' || match.model === descriptor.model;
-  const environmentMatches = match.environment === '*' || match.environment === descriptor.environment;
+  const environmentMatches =
+    match.environment === '*' || match.environment === descriptor.environment;
   return providerMatches && modelMatches && environmentMatches;
 }
 
-function toCacheKey(mode: ProviderMode, descriptor: ProviderDescriptor): string {
+function toCacheKey(
+  mode: ProviderMode,
+  descriptor: ProviderDescriptor
+): string {
   return [
     mode,
     descriptor.provider,
@@ -168,7 +195,11 @@ function getMinimalDefaultImplementations(): ProviderImplementation[] {
   return [
     // Timeline handler for mock mode (used in registry.test.ts)
     {
-      match: { provider: 'renku', model: 'OrderedTimeline', environment: wildcard },
+      match: {
+        provider: 'renku',
+        model: 'OrderedTimeline',
+        environment: wildcard,
+      },
       mode: 'mock' as ProviderMode,
       factory: createTimelineProducerHandler(),
     },
