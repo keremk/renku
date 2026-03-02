@@ -110,6 +110,10 @@ mappings:
           "3:4": portrait_4_3
           "1:1": square_hd
 
+    xai/grok-imagine-image/edit:
+      Prompt: prompt
+      SourceImages: image_urls
+
     flux-2/edit:
       Prompt: prompt
       SourceImages: image_urls

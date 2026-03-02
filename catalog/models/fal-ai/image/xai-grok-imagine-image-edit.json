@@ -1,23 +1,29 @@
 {
   "input_schema": {
-    "title": "XAIImageEditInput",
+    "x-fal-order-properties": [
+      "prompt",
+      "num_images",
+      "output_format",
+      "sync_mode",
+      "image_urls"
+    ],
     "type": "object",
     "properties": {
       "prompt": {
         "examples": [
           "Make this scene more realistic but still keep the game vibes"
         ],
-        "maxLength": 8000,
+        "title": "Prompt",
         "type": "string",
-        "description": "Text description of the desired image.",
-        "title": "Prompt"
+        "maxLength": 8000,
+        "description": "Text description of the desired image."
       },
       "num_images": {
         "minimum": 1,
         "title": "Number of Images",
         "type": "integer",
-        "description": "Number of images to generate.",
         "maximum": 4,
+        "description": "Number of images to generate.",
         "default": 1
       },
       "sync_mode": {
@@ -37,30 +43,31 @@
         "description": "The format of the generated image.",
         "default": "jpeg"
       },
-      "image_url": {
+      "image_urls": {
         "examples": [
-          "https://v3b.fal.media/files/b/0a8b911d/Abk8vStrvmSPlzUqI_NN3_image_043.png"
+          [
+            "https://v3b.fal.media/files/b/0a8b911d/Abk8vStrvmSPlzUqI_NN3_image_043.png"
+          ]
         ],
-        "title": "Image URL",
-        "type": "string",
-        "description": "URL of the image to edit.",
-        "format": "uri"
+        "title": "Image URLs",
+        "type": "array",
+        "description": "List of URLs of the images to edit. A maximum of 3 images are supported.",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        }
       }
     },
-    "x-fal-order-properties": [
-      "prompt",
-      "num_images",
-      "output_format",
-      "sync_mode",
-      "image_url"
-    ],
+    "title": "XAIImageEditInput",
     "required": [
-      "prompt",
-      "image_url"
+      "prompt"
     ]
   },
   "output_schema": {
-    "title": "XAIImageEditOutput",
+    "x-fal-order-properties": [
+      "images",
+      "revised_prompt"
+    ],
     "type": "object",
     "properties": {
       "images": {
@@ -84,31 +91,79 @@
         "description": "The enhanced prompt that was used to generate the image."
       }
     },
-    "x-fal-order-properties": [
-      "images",
-      "revised_prompt"
-    ],
+    "title": "XAIImageEditOutput",
     "required": [
       "images",
       "revised_prompt"
     ]
   },
   "ImageFile": {
-    "title": "ImageFile",
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "width",
+      "height"
+    ],
     "type": "object",
     "properties": {
+      "height": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Height",
+        "description": "The height of the image"
+      },
       "file_size": {
         "examples": [
           4404019
         ],
         "title": "File Size",
-        "type": "integer",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
         "description": "The size of the file in bytes."
       },
-      "height": {
-        "title": "Height",
-        "type": "integer",
-        "description": "The height of the image"
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The name of the file. It will be auto-generated if not provided."
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The mime type of the file."
       },
       "url": {
         "title": "Url",
@@ -117,42 +172,19 @@
         "format": "uri"
       },
       "width": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
         "title": "Width",
-        "type": "integer",
         "description": "The width of the image"
-      },
-      "file_name": {
-        "examples": [
-          "z9RV14K95DvU.png"
-        ],
-        "title": "File Name",
-        "type": "string",
-        "description": "The name of the file. It will be auto-generated if not provided."
-      },
-      "content_type": {
-        "examples": [
-          "image/png"
-        ],
-        "title": "Content Type",
-        "type": "string",
-        "description": "The mime type of the file."
-      },
-      "file_data": {
-        "format": "binary",
-        "title": "File Data",
-        "type": "string",
-        "description": "File data"
       }
     },
-    "x-fal-order-properties": [
-      "url",
-      "content_type",
-      "file_name",
-      "file_size",
-      "file_data",
-      "width",
-      "height"
-    ],
+    "title": "ImageFile",
     "required": [
       "url"
     ]

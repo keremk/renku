@@ -164,7 +164,7 @@ mappings:
     xai/grok-imagine-image/edit:
       Prompt: prompt
       SourceImages:
-        field: image_url
+        field: image_urls
         firstOf: true
 
   replicate:

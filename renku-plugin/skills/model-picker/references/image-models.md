@@ -261,7 +261,7 @@ This guide helps you choose the right image generation model based on your speci
 | Model | Provider | Mask Support | Key Feature |
 |-------|----------|--------------|-------------|
 | `flux-pro/kontext` | fal-ai | No | Single image editing |
-| `xai/grok-imagine-image/edit` | fal-ai | No | Single image editing |
+| `xai/grok-imagine-image/edit` | fal-ai | No | Edit via firstOf (also in compose) |
 | `z-image/turbo/image-to-image` | fal-ai | No | Fast single image edit |
 | `bria/fibo-edit/edit` | fal-ai | Yes | Instruction-based editing |
 | `flux-2/edit` | fal-ai | No | Edit via firstOf |
@@ -291,6 +291,7 @@ This guide helps you choose the right image generation model based on your speci
 | `gpt-image-1.5/edit` | fal-ai | Multiple | Mask + composition |
 | `nano-banana-pro/edit` | fal-ai | Multiple | Aspect + resolution |
 | `qwen-image-edit-2511` | fal-ai | Multiple | Full composition |
+| `xai/grok-imagine-image/edit` | fal-ai | 3 | Multi-image composition |
 | `hunyuan-image/v3/instruct/edit` | fal-ai | 2 | Custom dimensions |
 | `bytedance/seedream-4.5` | replicate | 14 | High resolution |
 | `bytedance/seedream-4` | replicate | 10 | Prompt enhancement |
