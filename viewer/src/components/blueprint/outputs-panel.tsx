@@ -31,6 +31,7 @@ import {
   getBlobUrl,
   type ArtifactSubGroup,
 } from '@/lib/artifact-utils';
+import { resolvePromptArtifactForMedia } from '@/lib/artifact-prompt-resolver';
 import { ObjectArraySection } from './outputs/object-array-section';
 import {
   getOutputNameFromNodeId,
@@ -483,6 +484,8 @@ function ArtifactGallery({
                         <SubGroupSection
                           key={subGroup.sortKey}
                           subGroup={subGroup}
+                          artifacts={artifacts}
+                          graphData={graphData}
                           blueprintFolder={blueprintFolder}
                           movieId={movieId}
                           isPromptProducer={activeSection.isPromptProducer}
@@ -511,6 +514,8 @@ function ArtifactGallery({
 
 function ArtifactCardRenderer({
   artifact,
+  artifacts,
+  graphData,
   blueprintFolder,
   movieId,
   isSelected,
@@ -520,6 +525,8 @@ function ArtifactCardRenderer({
   useSimplifiedTextFooter,
 }: {
   artifact: ArtifactInfo;
+  artifacts: ArtifactInfo[];
+  graphData?: BlueprintGraphData;
   blueprintFolder: string;
   movieId: string;
   isSelected: boolean;
@@ -537,6 +544,8 @@ function ArtifactCardRenderer({
     return (
       <MediaArtifactCard
         artifact={artifact}
+        artifacts={artifacts}
+        graphData={graphData}
         blueprintFolder={blueprintFolder}
         movieId={movieId}
         isSelected={isSelected}
@@ -551,6 +560,8 @@ function ArtifactCardRenderer({
     return (
       <MediaArtifactCard
         artifact={artifact}
+        artifacts={artifacts}
+        graphData={graphData}
         blueprintFolder={blueprintFolder}
         movieId={movieId}
         isSelected={isSelected}
@@ -565,6 +576,8 @@ function ArtifactCardRenderer({
     return (
       <MediaArtifactCard
         artifact={artifact}
+        artifacts={artifacts}
+        graphData={graphData}
         blueprintFolder={blueprintFolder}
         movieId={movieId}
         isSelected={isSelected}
@@ -738,12 +751,16 @@ function SubGroupHeader({ label }: { label: string }) {
 
 function SubGroupSection({
   subGroup,
+  artifacts,
+  graphData,
   blueprintFolder,
   movieId,
   isPromptProducer,
   onArtifactUpdated,
 }: {
   subGroup: ArtifactSubGroup;
+  artifacts: ArtifactInfo[];
+  graphData?: BlueprintGraphData;
   blueprintFolder: string;
   movieId: string;
   isPromptProducer: boolean;
@@ -758,6 +775,8 @@ function SubGroupSection({
         {subGroup.label && <SubGroupHeader label={subGroup.label} />}
         <ObjectArraySection
           subGroup={subGroup}
+          artifacts={artifacts}
+          graphData={graphData}
           blueprintFolder={blueprintFolder}
           movieId={movieId}
           onArtifactUpdated={onArtifactUpdated}
@@ -777,6 +796,8 @@ function SubGroupSection({
             <ArtifactCardRenderer
               key={artifact.id}
               artifact={artifact}
+              artifacts={artifacts}
+              graphData={graphData}
               blueprintFolder={blueprintFolder}
               movieId={movieId}
               isSelected={isSelected}
@@ -946,6 +967,8 @@ type MediaType = 'video' | 'audio' | 'image';
 
 function MediaArtifactCard({
   artifact,
+  artifacts,
+  graphData,
   blueprintFolder,
   movieId,
   isSelected,
@@ -955,6 +978,8 @@ function MediaArtifactCard({
   subGroup,
 }: {
   artifact: ArtifactInfo;
+  artifacts: ArtifactInfo[];
+  graphData?: BlueprintGraphData;
   blueprintFolder: string;
   movieId: string;
   isSelected: boolean;
@@ -965,6 +990,17 @@ function MediaArtifactCard({
 }) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const url = getBlobUrl(blueprintFolder, movieId, artifact.hash);
+  const promptArtifact = resolvePromptArtifactForMedia({
+    mediaArtifactId: artifact.id,
+    artifacts,
+    graphData,
+  });
+  const promptLabel = promptArtifact
+    ? `Prompt (${shortenArtifactDisplayName(promptArtifact.id)})`
+    : 'Prompt';
+  const promptUrl = promptArtifact
+    ? getBlobUrl(blueprintFolder, movieId, promptArtifact.hash)
+    : undefined;
   const displayName = getArtifactLabel(artifact.id, subGroup);
   const isEdited = artifact.editedBy === 'user';
 
@@ -1005,6 +1041,9 @@ function MediaArtifactCard({
           title={displayName}
           isSelected={isSelected}
           isPinned={isPinned}
+          expandable
+          promptTitle={promptLabel}
+          promptUrl={promptUrl}
           footer={footer}
         />
       )}
@@ -1014,6 +1053,9 @@ function MediaArtifactCard({
           title={displayName}
           isSelected={isSelected}
           isPinned={isPinned}
+          expandable
+          promptTitle={promptLabel}
+          promptUrl={promptUrl}
           footer={footer}
         />
       )}
@@ -1023,6 +1065,8 @@ function MediaArtifactCard({
           title={displayName}
           isSelected={isSelected}
           isPinned={isPinned}
+          promptTitle={promptLabel}
+          promptUrl={promptUrl}
           footer={footer}
         />
       )}

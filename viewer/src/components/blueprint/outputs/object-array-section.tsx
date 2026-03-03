@@ -12,8 +12,10 @@ import { RotateCcw, AlertCircle, Clock, File } from 'lucide-react';
 import {
   getArtifactLabel,
   getBlobUrl,
+  shortenArtifactDisplayName,
   type ArtifactSubGroup,
 } from '@/lib/artifact-utils';
+import { resolvePromptArtifactForMedia } from '@/lib/artifact-prompt-resolver';
 import { inferDisplayType } from '@/lib/artifact-content-type';
 import type { ArtifactDisplayType } from '@/lib/artifact-content-type';
 import { PropertyStrip, type PropertyStripItem } from './property-strip';
@@ -29,9 +31,12 @@ import {
 import { useExecution } from '@/contexts/execution-context';
 import { editArtifactText, restoreArtifact } from '@/data/blueprint-client';
 import type { ArtifactInfo } from '@/types/builds';
+import type { BlueprintGraphData } from '@/types/blueprint-graph';
 
 interface ObjectArraySectionProps {
   subGroup: ArtifactSubGroup;
+  artifacts: ArtifactInfo[];
+  graphData?: BlueprintGraphData;
   blueprintFolder: string;
   movieId: string;
   onArtifactUpdated?: () => void;
@@ -46,6 +51,8 @@ interface ClassifiedArtifact {
 
 export function ObjectArraySection({
   subGroup,
+  artifacts,
+  graphData,
   blueprintFolder,
   movieId,
   onArtifactUpdated,
@@ -170,6 +177,8 @@ export function ObjectArraySection({
               <NonTextArtifactCard
                 key={item.artifact.id}
                 artifact={item.artifact}
+                artifacts={artifacts}
+                graphData={graphData}
                 label={item.label}
                 blueprintFolder={blueprintFolder}
                 movieId={movieId}
@@ -291,12 +300,16 @@ function ContentCard({
 
 function NonTextArtifactCard({
   artifact,
+  artifacts,
+  graphData,
   label,
   blueprintFolder,
   movieId,
   onArtifactUpdated,
 }: {
   artifact: ArtifactInfo;
+  artifacts: ArtifactInfo[];
+  graphData?: BlueprintGraphData;
   label: string;
   blueprintFolder: string;
   movieId: string;
@@ -317,6 +330,17 @@ function NonTextArtifactCard({
   }
 
   const url = getBlobUrl(blueprintFolder, movieId, artifact.hash);
+  const promptArtifact = resolvePromptArtifactForMedia({
+    mediaArtifactId: artifact.id,
+    artifacts,
+    graphData,
+  });
+  const promptLabel = promptArtifact
+    ? `Prompt (${shortenArtifactDisplayName(promptArtifact.id)})`
+    : 'Prompt';
+  const promptUrl = promptArtifact
+    ? getBlobUrl(blueprintFolder, movieId, promptArtifact.hash)
+    : undefined;
   const isEdited = artifact.editedBy === 'user';
 
   const handleRestore = async () => {
@@ -343,6 +367,9 @@ function NonTextArtifactCard({
         title={label}
         isSelected={isSelected}
         isPinned={isPinned}
+        expandable
+        promptTitle={promptLabel}
+        promptUrl={promptUrl}
         footer={footer}
       />
     );
@@ -355,6 +382,9 @@ function NonTextArtifactCard({
         title={label}
         isSelected={isSelected}
         isPinned={isPinned}
+        expandable
+        promptTitle={promptLabel}
+        promptUrl={promptUrl}
         footer={footer}
       />
     );
@@ -367,6 +397,8 @@ function NonTextArtifactCard({
         title={label}
         isSelected={isSelected}
         isPinned={isPinned}
+        promptTitle={promptLabel}
+        promptUrl={promptUrl}
         footer={footer}
       />
     );
