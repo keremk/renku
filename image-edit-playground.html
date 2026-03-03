@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Renku Image Edit Dialog — Playground</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: hsl(0 0% 13%);
+    --surface-0: hsl(0 0% 16%);
+    --surface-1: hsl(0 0% 20%);
+    --surface-2: hsl(0 0% 24%);
+    --amber: hsl(42 90% 55%);
+    --amber-dim: hsl(42 70% 40%);
+    --amber-glow: hsl(42 90% 55% / 0.15);
+    --amber-ring: hsl(42 90% 55% / 0.3);
+    --amber-fg: hsl(30 10% 10%);
+    --fg: hsl(60 51% 91%);
+    --fg-muted: hsl(0 0% 55%);
+    --fg-dim: hsl(0 0% 42%);
+    --border: hsl(0 0% 100% / 0.1);
+    --border-soft: hsl(0 0% 100% / 0.06);
+    --destructive: hsl(15 80% 55%);
+    --radius: 10px;
+    --radius-lg: 14px;
+    --shadow-dialog: 0 25px 50px -12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05);
+  }
+
+  body {
+    font-family: 'Montserrat', system-ui, sans-serif;
+    background: var(--bg); color: var(--fg);
+    min-height: 100vh; display: flex; overflow: hidden;
+  }
+
+  /* ── Controls sidebar ── */
+  .controls {
+    width: 300px; min-width: 300px;
+    background: var(--surface-0); border-right: 1px solid var(--border);
+    height: 100vh; overflow-y: auto; padding: 16px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .controls h1 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; color: var(--amber); }
+  .controls h2 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; color: var(--fg-muted); margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid var(--border-soft); }
+  .control-group { display: flex; flex-direction: column; gap: 8px; }
+  label.ctrl { display: flex; flex-direction: column; gap: 3px; font-size: 10px; color: var(--fg-muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; }
+  select { background: var(--surface-1); border: 1px solid var(--border); color: var(--fg); font-family: inherit; font-size: 11px; padding: 5px 8px; border-radius: 6px; outline: none; }
+  select:focus { border-color: var(--amber-dim); }
+  input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; background: var(--surface-2); border-radius: 2px; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--amber); cursor: pointer; border: 2px solid var(--surface-0); }
+  .range-row { display: flex; align-items: center; gap: 8px; }
+  .range-row input[type="range"] { flex: 1; }
+  .range-val { font-size: 11px; font-weight: 600; color: var(--fg); min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--fg); }
+  .toggle-row input[type="checkbox"] { accent-color: var(--amber); width: 15px; height: 15px; }
+  .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .preset-btn { background: var(--surface-1); border: 1px solid var(--border); color: var(--fg); font-family: inherit; font-size: 10px; font-weight: 500; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+  .preset-btn:hover { background: var(--surface-2); border-color: hsl(42 90% 55% / 0.5); }
+  .preset-btn.active { background: var(--amber-glow); border-color: var(--amber-dim); color: var(--amber); }
+
+  /* ── Preview area ── */
+  .preview-area {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 24px; padding-bottom: 80px; overflow: auto;
+    background: radial-gradient(circle at 30% 50%, hsl(42 30% 15% / 0.1), transparent 60%), var(--bg);
+  }
+
+  /* ── Dialog ── */
+  .dialog-overlay {
+    display: flex; flex-direction: column;
+    background: var(--surface-0); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-dialog); overflow: hidden;
+  }
+
+  /* Header */
+  .dialog-header {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 42px; padding: 0 16px;
+    border-bottom: 1px solid hsl(0 0% 100% / 0.08);
+    background: hsl(0 0% 14%); flex-shrink: 0;
+  }
+  .dialog-header h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; color: var(--fg); }
+  .dialog-close { width: 24px; height: 24px; border-radius: 6px; border: none; background: transparent; color: var(--fg-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .dialog-close:hover { background: var(--surface-2); color: var(--fg); }
+
+  /* Tabs */
+  .tab-bar { display: flex; border-bottom: 1px solid hsl(0 0% 100% / 0.08); background: hsl(0 0% 14%); flex-shrink: 0; padding: 0 12px; }
+  .tab-btn { position: relative; padding: 0 14px; height: 38px; border: none; background: transparent; color: var(--fg-muted); font-family: inherit; font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+  .tab-btn:hover { color: var(--fg); }
+  .tab-btn.active { color: var(--fg); background: hsl(42 90% 55% / 0.08); }
+  .tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 6px; right: 6px; height: 2px; background: var(--amber); border-radius: 1px 1px 0 0; }
+
+  /* Body */
+  .dialog-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+  .tab-panel { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+  .tab-panel.active { display: flex; }
+
+  /* ═══ Generate: Left col (image + prompt) | Right col (tools full height) ═══ */
+  .gen-layout {
+    display: flex; flex: 1; overflow: hidden; min-height: 0;
+  }
+
+  /* Left column: image on top, prompt on bottom */
+  .left-col {
+    flex: 1; display: flex; flex-direction: column;
+    border-right: 1px solid var(--border-soft); min-width: 0; overflow: hidden;
+  }
+  .image-frame {
+    flex: 1; margin: 10px; border-radius: var(--radius);
+    overflow: hidden; background: var(--surface-1);
+    display: flex; align-items: center; justify-content: center; min-height: 80px;
+  }
+  .image-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  .prompt-section {
+    border-top: 1px solid var(--border-soft);
+    padding: 10px 12px; flex-shrink: 0;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .prompt-section-header { display: flex; align-items: center; justify-content: space-between; }
+  .prompt-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; color: var(--fg-muted); }
+  .prompt-char-count { font-size: 9px; color: var(--fg-dim); font-variant-numeric: tabular-nums; }
+  .prompt-textarea {
+    width: 100%; resize: none;
+    background: var(--surface-1); border: 1px solid var(--border);
+    color: var(--fg); font-family: inherit; font-size: 11px;
+    line-height: 1.55; padding: 8px 10px; border-radius: 8px; outline: none;
+    overflow-y: auto;
+  }
+  .prompt-textarea:focus { border-color: var(--amber-dim); box-shadow: 0 0 0 2px var(--amber-ring); }
+
+  /* ═══ Manual tab: single column, image + prompt + actions ═══ */
+  .manual-layout {
+    flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0;
+  }
+  .manual-layout .image-frame { flex: 1; }
+  .manual-layout .prompt-section { border-top: 1px solid var(--border-soft); }
+  .manual-actions {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border-top: 1px solid var(--border-soft); flex-shrink: 0;
+  }
+  .manual-actions .model-select { flex-shrink: 0; }
+  .manual-actions .btn-regen { margin-left: auto; }
+
+  /* Camera tab regenerate button: full width like old Apply */
+  .cam-regen-btn { width: 100%; justify-content: center; text-transform: uppercase; letter-spacing: 0.1em; font-size: 10px; }
+
+  /* Camera tab: left col image fills full height (no prompt below) */
+  #panel-camera .left-col .image-frame { margin-bottom: 10px; }
+
+  /* Right column: tools, full height, scrollable container */
+  .right-col {
+    display: flex; flex-direction: column; overflow-y: auto;
+    min-width: 0;
+  }
+  .right-col-inner {
+    padding: 10px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .cam-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; color: var(--fg-muted); display: flex; align-items: center; gap: 6px; }
+  .cam-title .ci { font-size: 14px; }
+
+  /* 3D Canvas — FIXED SIZE */
+  .cam-vis-wrap {
+    width: 100%; border-radius: 8px; overflow: hidden;
+    background: hsl(225 20% 11%); position: relative; flex-shrink: 0;
+    cursor: pointer;
+  }
+  .cam-canvas { display: block; width: 100%; }
+
+  /* Sliders */
+  .slider-stack { display: flex; flex-direction: column; gap: 6px; }
+  .slider-group { display: flex; flex-direction: column; gap: 1px; }
+  .slider-label { display: flex; justify-content: space-between; align-items: center; font-size: 10px; }
+  .slider-label-text { color: var(--fg-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+  .slider-label-val { font-size: 10px; font-weight: 600; color: var(--fg); font-variant-numeric: tabular-nums; background: var(--surface-2); padding: 1px 5px; border-radius: 3px; }
+  .slider-hints { font-size: 8px; color: var(--fg-dim); display: flex; justify-content: space-between; }
+
+  .cam-output-row { display: flex; align-items: center; gap: 6px; }
+  .cam-output-tag { font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-dim); font-weight: 600; white-space: nowrap; }
+  .cam-output-text { flex: 1; font-size: 10px; color: var(--amber); font-family: 'SF Mono','Menlo',monospace; background: var(--surface-1); border: 1px solid var(--border); border-radius: 5px; padding: 4px 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+
+  /* Upload tab */
+  .upload-content { flex: 1; display: flex; align-items: center; justify-content: center; padding: 32px; }
+  .upload-dropzone { width: 100%; max-width: 400px; border: 2px dashed hsl(0 0% 100% / 0.12); border-radius: var(--radius); padding: 40px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; cursor: pointer; background: var(--surface-1); }
+  .upload-dropzone:hover { border-color: var(--amber-dim); background: var(--amber-glow); }
+  .upload-dropzone svg { opacity: 0.5; }
+  .upload-title { font-size: 13px; font-weight: 600; }
+  .upload-sub { font-size: 11px; color: var(--fg-muted); }
+  .upload-or { font-size: 10px; color: var(--fg-dim); text-transform: uppercase; letter-spacing: 0.15em; }
+  .upload-browse-btn { padding: 6px 16px; border: 1px solid var(--border); background: var(--surface-2); color: var(--fg); font-family: inherit; font-size: 11px; font-weight: 500; border-radius: 6px; cursor: pointer; }
+
+  /* Footer */
+  .dialog-footer { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 8px 16px; border-top: 1px solid hsl(0 0% 100% / 0.08); background: hsl(0 0% 12% / 0.8); flex-shrink: 0; }
+  .btn { padding: 0 14px; height: 34px; border-radius: 8px; font-family: inherit; font-size: 11px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 5px; border: none; }
+  .btn:active { transform: scale(0.98); }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--fg-muted); }
+  .btn-ghost:hover { background: var(--surface-2); color: var(--fg); }
+  .btn-primary { background: var(--amber); color: var(--amber-fg); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+  .btn-primary:hover { background: hsl(42 90% 60%); }
+  .btn-regen { background: var(--amber-glow); color: var(--amber); border: 1px solid var(--amber-dim); font-weight: 600; }
+  .btn-regen:hover { background: hsl(42 90% 55% / 0.25); border-color: var(--amber); }
+  .model-select { background: var(--surface-1); border: 1px solid var(--border); color: var(--fg); font-family: inherit; font-size: 11px; padding: 0 8px; height: 34px; border-radius: 8px; outline: none; cursor: pointer; }
+
+  /* ── Playground output bar ── */
+  .pg-output {
+    position: fixed; bottom: 0; left: 300px; right: 0;
+    background: var(--surface-0); border-top: 1px solid var(--border);
+    padding: 8px 16px; display: flex; flex-direction: column; gap: 4px; z-index: 100;
+  }
+  .pg-output-header { display: flex; align-items: center; justify-content: space-between; }
+  .pg-output-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; color: var(--amber); }
+  .copy-btn { padding: 3px 10px; border: 1px solid var(--border); background: var(--surface-1); color: var(--fg-muted); font-family: inherit; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; border-radius: 4px; cursor: pointer; }
+  .copy-btn:hover { background: var(--surface-2); color: var(--fg); }
+  .copy-btn.copied { background: var(--amber-glow); color: var(--amber); border-color: var(--amber-dim); }
+  .pg-output-text { font-size: 11px; line-height: 1.4; color: var(--fg-muted); max-height: 44px; overflow-y: auto; }
+
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: hsl(0 0% 30%); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ── Controls ── -->
+<div class="controls">
+  <div>
+    <h1>Image Edit Dialog</h1>
+    <div style="font-size:10px;color:var(--fg-dim);margin-top:3px;">Explore the editing dialog layout, camera tool, and interaction patterns.</div>
+  </div>
+
+  <div class="control-group">
+    <h2>Presets</h2>
+    <div class="preset-grid">
+      <button class="preset-btn active" onclick="applyPreset('default',this)">Default</button>
+      <button class="preset-btn" onclick="applyPreset('wide',this)">Wide</button>
+      <button class="preset-btn" onclick="applyPreset('compact',this)">Compact</button>
+      <button class="preset-btn" onclick="applyPreset('tall',this)">Tall</button>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <h2>Dialog Size</h2>
+    <label class="ctrl">Width
+      <div class="range-row"><input type="range" id="dlgW" min="600" max="1100" value="820" oninput="u()"><span class="range-val" id="dlgWV">820</span></div>
+    </label>
+    <label class="ctrl">Height
+      <div class="range-row"><input type="range" id="dlgH" min="400" max="800" value="560" oninput="u()"><span class="range-val" id="dlgHV">560</span></div>
+    </label>
+  </div>
+
+  <div class="control-group">
+    <h2>Column Split</h2>
+    <label class="ctrl">Tools Column Width
+      <div class="range-row"><input type="range" id="toolW" min="220" max="380" value="280" oninput="u()"><span class="range-val" id="toolWV">280</span></div>
+    </label>
+  </div>
+
+  <div class="control-group">
+    <h2>Prompt</h2>
+    <label class="ctrl">Prompt Height
+      <div class="range-row"><input type="range" id="promptH" min="50" max="180" value="80" oninput="u()"><span class="range-val" id="promptHV">80</span></div>
+    </label>
+  </div>
+
+  <div class="control-group">
+    <h2>Camera Visual</h2>
+    <label class="ctrl">Canvas Height
+      <div class="range-row"><input type="range" id="camH" min="140" max="280" value="200" oninput="u()"><span class="range-val" id="camHV">200</span></div>
+    </label>
+    <label class="ctrl">Subject Card Faces
+      <select id="cardFacing" onchange="u()">
+        <option value="z">Along X-axis (faces front/Z)</option>
+        <option value="x">Along Z-axis (faces right/X)</option>
+      </select>
+    </label>
+    <label class="ctrl">Elevation Arc Position (azimuth °)
+      <div class="range-row"><input type="range" id="arcPos" min="0" max="315" step="45" value="315" oninput="u()"><span class="range-val" id="arcPosV">315</span></div>
+    </label>
+    <label class="ctrl">View Rotation (spin scene)
+      <div class="range-row"><input type="range" id="viewRot" min="0" max="360" step="5" value="0" oninput="u()"><span class="range-val" id="viewRotV">0</span></div>
+    </label>
+    <label class="ctrl">View Tilt (flatten / steepen)
+      <div class="range-row"><input type="range" id="viewTilt" min="15" max="45" step="1" value="30" oninput="u()"><span class="range-val" id="viewTiltV">30</span></div>
+    </label>
+    <label class="ctrl">View Scale
+      <div class="range-row"><input type="range" id="viewScale" min="15" max="45" step="1" value="27" oninput="u()"><span class="range-val" id="viewScaleV">27</span></div>
+    </label>
+  </div>
+
+  <div class="control-group">
+    <h2>Features</h2>
+    <div class="toggle-row"><span>Show 3D camera visual</span><input type="checkbox" id="showVis" checked onchange="u()"></div>
+    <div class="toggle-row"><span>Camera "Regenerate" button</span><input type="checkbox" id="showApply" checked onchange="u()"></div>
+    <div class="toggle-row"><span>Model selector (Manual)</span><input type="checkbox" id="showModel" checked onchange="u()"></div>
+    <div class="toggle-row"><span>Regenerate button (Manual)</span><input type="checkbox" id="showRegen" checked onchange="u()"></div>
+  </div>
+
+  <div class="control-group">
+    <h2>Spacing</h2>
+    <label class="ctrl">Inner Padding
+      <div class="range-row"><input type="range" id="innerPad" min="6" max="20" value="10" oninput="u()"><span class="range-val" id="innerPadV">10</span></div>
+    </label>
+    <label class="ctrl">Image Border Radius
+      <div class="range-row"><input type="range" id="imgRad" min="0" max="20" value="10" oninput="u()"><span class="range-val" id="imgRadV">10</span></div>
+    </label>
+  </div>
+</div>
+
+<!-- ── Preview ── -->
+<div class="preview-area">
+  <div class="dialog-overlay" id="dlg">
+
+    <div class="dialog-header">
+      <h3>Edit Image &mdash; Scene #1</h3>
+      <button class="dialog-close">&times;</button>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="manual" onclick="switchTab('manual')"><span style="font-size:13px">&#9998;</span> Manual</button>
+      <button class="tab-btn" data-tab="camera" onclick="switchTab('camera')"><span style="font-size:13px">&#127909;</span> Camera</button>
+      <button class="tab-btn" data-tab="upload" onclick="switchTab('upload')"><span style="font-size:13px">&#8593;</span> Upload</button>
+    </div>
+
+    <div class="dialog-body">
+
+      <!-- Manual: image + prompt + model + regenerate, single column -->
+      <div class="tab-panel active" id="panel-manual">
+        <div class="manual-layout">
+          <div class="image-frame" id="imgFrame">
+            <img src="https://images.unsplash.com/photo-1608889175123-8ee362201f81?w=600&h=500&fit=crop" alt="Preview" style="opacity:.85">
+          </div>
+          <div class="prompt-section">
+            <div class="prompt-section-header">
+              <span class="prompt-label">Prompt</span>
+              <span class="prompt-char-count" id="charCnt">0</span>
+            </div>
+            <textarea class="prompt-textarea" id="promptTA" oninput="onPrompt()"
+              placeholder="Describe the image...">Enchanted forest glade at twilight, bioluminescent mushrooms and floating fireflies, ancient roots forming a natural pedestal, mist hugging the ground, warm amber tones with deep forest greens and golden highlights, dramatic warm side-lighting from the left with soft blue fill from the right, Pixar 3D style.</textarea>
+          </div>
+          <div class="manual-actions">
+            <select class="model-select" id="modelSel"><option>FLUX.1 [dev]</option><option>FLUX.1 [schnell]</option><option>Stable Diffusion XL</option><option>DALL-E 3</option></select>
+            <button class="btn btn-regen" id="regenBtn">&#8635; Regenerate</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Camera: image (left) + camera tool (right, full height) -->
+      <div class="tab-panel" id="panel-camera">
+        <div class="gen-layout">
+
+          <!-- LEFT: image only (no prompt) -->
+          <div class="left-col" id="leftCol">
+            <div class="image-frame" id="imgFrameCam">
+              <img src="https://images.unsplash.com/photo-1608889175123-8ee362201f81?w=600&h=500&fit=crop" alt="Preview" style="opacity:.85">
+            </div>
+          </div>
+
+          <!-- RIGHT: camera tool, full height -->
+          <div class="right-col" id="rightCol">
+            <div class="right-col-inner" id="toolInner">
+              <div class="cam-title"><span class="ci">&#127909;</span> Camera Control</div>
+
+              <div class="cam-vis-wrap" id="camWrap">
+                <canvas id="camCvs" class="cam-canvas"></canvas>
+              </div>
+
+              <div class="slider-stack">
+                <div class="slider-group">
+                  <div class="slider-label"><span class="slider-label-text">Azimuth</span><span class="slider-label-val" id="sAzV">0&deg;</span></div>
+                  <input type="range" min="0" max="360" step="1" value="0" id="sAz" oninput="camChanged()">
+                  <div class="slider-hints"><span>front</span><span>right</span><span>back</span><span>left</span></div>
+                </div>
+                <div class="slider-group">
+                  <div class="slider-label"><span class="slider-label-text">Elevation</span><span class="slider-label-val" id="sElV">0&deg;</span></div>
+                  <input type="range" min="-30" max="60" step="1" value="0" id="sEl" oninput="camChanged()">
+                  <div class="slider-hints"><span>low</span><span>eye level</span><span>high</span></div>
+                </div>
+                <div class="slider-group">
+                  <div class="slider-label"><span class="slider-label-text">Distance</span><span class="slider-label-val" id="sDistV">1.0</span></div>
+                  <input type="range" min="0.6" max="1.4" step="0.05" value="1" id="sDist" oninput="camChanged()">
+                  <div class="slider-hints"><span>close-up</span><span>medium</span><span>wide</span></div>
+                </div>
+              </div>
+
+              <div class="cam-output-row">
+                <span class="cam-output-tag">Prompt:</span>
+                <div class="cam-output-text" id="camOut">front view eye-level shot medium shot</div>
+              </div>
+
+              <button class="btn btn-regen cam-regen-btn" id="applyBtn" onclick="camRegenerate()">&#8635; Regenerate</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upload -->
+      <div class="tab-panel" id="panel-upload">
+        <div class="upload-content">
+          <div class="upload-dropzone">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <div class="upload-title">Drop image here</div>
+            <div class="upload-or">or</div>
+            <button class="upload-browse-btn">Browse Files</button>
+            <div class="upload-sub">PNG, JPG, WebP up to 10 MB</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dialog-footer">
+      <button class="btn btn-ghost">Cancel</button>
+      <button class="btn btn-primary">Update</button>
+    </div>
+  </div>
+</div>
+
+<!-- Playground output -->
+<div class="pg-output">
+  <div class="pg-output-header">
+    <span class="pg-output-label">Playground Output</span>
+    <button class="copy-btn" id="copyBtn" onclick="copyOut()">Copy</button>
+  </div>
+  <div class="pg-output-text" id="pgOut">Adjust controls...</div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+
+/* ── Camera state ── */
+let camAz = 0, camEl = 0, camDist = 1;
+
+/* ── Presets ── */
+const presets = {
+  'default': { dlgW:820, dlgH:560, toolW:280, promptH:80, camH:200, showVis:true, showApply:true, showModel:true, showRegen:true, innerPad:10, imgRad:10 },
+  wide:      { dlgW:1050, dlgH:560, toolW:320, promptH:90, camH:220, showVis:true, showApply:true, showModel:true, showRegen:true, innerPad:12, imgRad:10 },
+  compact:   { dlgW:680, dlgH:460, toolW:240, promptH:60, camH:160, showVis:true, showApply:true, showModel:true, showRegen:true, innerPad:8, imgRad:8 },
+  tall:      { dlgW:780, dlgH:700, toolW:280, promptH:120, camH:240, showVis:true, showApply:true, showModel:true, showRegen:true, innerPad:10, imgRad:10 },
+};
+
+function applyPreset(name, btn) {
+  const p = presets[name];
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  Object.entries(p).forEach(([k,v]) => {
+    const el = document.getElementById(k);
+    if(!el)return;
+    if(el.type==='checkbox') el.checked=v; else el.value=v;
+  });
+  u();
+}
+
+function switchTab(t) {
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id==='panel-'+t));
+  // Redraw camera canvas when switching to camera tab
+  if (t === 'camera') setTimeout(drawCam, 10);
+}
+
+/* ── Render ── */
+function u() {
+  const dlgW=+$('#dlgW').value, dlgH=+$('#dlgH').value, toolW=+$('#toolW').value;
+  const promptH=+$('#promptH').value, camH=+$('#camH').value;
+  const pad=+$('#innerPad').value, imgR=+$('#imgRad').value;
+
+  // Display vals
+  $('#dlgWV').textContent=dlgW; $('#dlgHV').textContent=dlgH;
+  $('#toolWV').textContent=toolW; $('#promptHV').textContent=promptH;
+  $('#camHV').textContent=camH; $('#innerPadV').textContent=pad; $('#imgRadV').textContent=imgR;
+
+  // Dialog size
+  const d=$('#dlg'); d.style.width=dlgW+'px'; d.style.height=dlgH+'px';
+
+  // Columns
+  $('#rightCol').style.width=toolW+'px'; $('#rightCol').style.minWidth=toolW+'px';
+
+  // Prompt & canvas height
+  $('#promptTA').style.height=promptH+'px';
+  $('#camWrap').style.height=camH+'px';
+
+  // Padding
+  $('#toolInner').style.padding=pad+'px';
+  // Manual tab image: top/left/right padding, no bottom (prompt is below)
+  const manualImgFrame = $('#imgFrame');
+  if (manualImgFrame) { manualImgFrame.style.margin = pad+'px '+pad+'px 0 '+pad+'px'; manualImgFrame.style.borderRadius=imgR+'px'; }
+
+  // Toggles
+  $('#camWrap').style.display=$('#showVis').checked?'':'none';
+  $('#applyBtn').style.display=$('#showApply').checked?'':'none';
+  $('#modelSel').style.display=$('#showModel').checked?'':'none';
+  $('#regenBtn').style.display=$('#showRegen').checked?'':'none';
+
+  // Manual tab image frame
+  const manualImg = document.querySelector('.manual-layout .image-frame');
+  if (manualImg) { manualImg.style.borderRadius = imgR + 'px'; }
+  // Camera tab image frame
+  const camImg = $('#imgFrameCam');
+  if (camImg) { camImg.style.margin = pad + 'px'; camImg.style.borderRadius = imgR + 'px'; }
+
+  camChanged();
+  onPrompt();
+  pgOutput();
+}
+
+/* ── Camera sliders ── */
+const AZ_LABELS = {0:'front view',45:'front-right view',90:'right view',135:'back-right view',180:'back view',225:'back-left view',270:'left view',315:'front-left view'};
+
+function camChanged() {
+  camAz=+$('#sAz').value; camEl=+$('#sEl').value; camDist=+$('#sDist').value;
+  $('#sAzV').textContent=camAz+'\u00B0';
+  $('#sElV').textContent=camEl+'\u00B0';
+  $('#sDistV').textContent=camDist.toFixed(2);
+
+  // Snap to nearest 45 for label
+  const snap = Math.round(camAz/45)*45 % 360;
+  const azLabel = AZ_LABELS[snap] || snap+'\u00B0 view';
+  let elLabel='eye-level shot';
+  if(camEl<=-15) elLabel='low-angle shot';
+  else if(camEl<0) elLabel='slightly low shot';
+  else if(camEl>=45) elLabel='overhead shot';
+  else if(camEl>=15) elLabel='high-angle shot';
+  let distLabel='medium shot';
+  if(camDist<=0.7) distLabel='extreme close-up';
+  else if(camDist<=0.85) distLabel='close-up';
+  else if(camDist>=1.3) distLabel='wide shot';
+  else if(camDist>=1.15) distLabel='full shot';
+
+  $('#camOut').textContent=`${azLabel} ${elLabel} ${distLabel}`;
+  drawCam();
+  pgOutput();
+}
+
+function camRegenerate() {
+  const b=$('#applyBtn');
+  b.innerHTML='\u2714 Regenerating...';
+  b.style.background='hsl(140 50% 30%/.3)'; b.style.borderColor='hsl(140 50% 50%)'; b.style.color='hsl(140 50% 70%)';
+  setTimeout(()=>{ b.innerHTML='&#8635; Regenerate'; b.style.background=''; b.style.borderColor=''; b.style.color=''; },1200);
+  pgOutput();
+}
+
+function onPrompt() { $('#charCnt').textContent=($('#promptTA').value||'').length+' chars'; }
+
+/* ══════════════════════════════════════════════════════════
+   ISOMETRIC 3D CAMERA VISUAL — with draggable handles
+   ══════════════════════════════════════════════════════════
+
+   ISOMETRIC PROJECTION: All three axes are equally foreshortened.
+   Parallel lines STAY parallel — no vanishing points, no convergence.
+   Each axis is 120° apart on screen. A 1-unit segment along any axis
+   has the same screen length.
+
+   World axes: X = right, Y = up, Z = towards viewer (front).
+   Screen mapping:
+     screen_x = (X - Z) * cos(30°)
+     screen_y = -(X + Z) * sin(30°) - Y
+*/
+
+// Isometric with configurable rotation and tilt.
+// viewRot spins the XZ plane before projecting.
+// viewTilt controls the angle (default 30° = true isometric).
+let isoRotRad = 0;    // rotation of scene around Y axis
+let isoTiltRad = Math.PI / 6; // tilt angle
+
+function iso(wx, wy, wz, cx, cy, S) {
+  // Rotate world XZ by viewRot
+  const cosR = Math.cos(isoRotRad), sinR = Math.sin(isoRotRad);
+  const rx = wx * cosR - wz * sinR;
+  const rz = wx * sinR + wz * cosR;
+  // Axonometric projection with configurable tilt
+  const cosT2 = Math.cos(isoTiltRad), sinT2 = Math.sin(isoTiltRad);
+  const sx = (rx - rz) * cosT2 * S;
+  const sy = -(rx + rz) * sinT2 * S - wy * S;
+  return [cx + sx, cy + sy];
+}
+
+// Handle screen positions for hit-testing
+let handlePositions = { az: null, el: null, dist: null };
+
+function drawCam() {
+  const canvas = $('#camCvs');
+  if (!canvas) return;
+  const wrap = canvas.parentElement;
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const cx = W * 0.5, cy = H * 0.55;
+  const viewScaleVal = +($('#viewScale') || {}).value || 27;
+  const S = Math.min(W, H) * (viewScaleVal / 100);
+
+  // Read view orientation controls
+  const viewRotDeg = +($('#viewRot') || {}).value || 0;
+  const viewTiltDeg = +($('#viewTilt') || {}).value || 30;
+  isoRotRad = (viewRotDeg * Math.PI) / 180;
+  isoTiltRad = (viewTiltDeg * Math.PI) / 180;
+
+  // Update display vals
+  if ($('#viewRotV')) $('#viewRotV').textContent = viewRotDeg + '\u00B0';
+  if ($('#viewTiltV')) $('#viewTiltV').textContent = viewTiltDeg + '\u00B0';
+  if ($('#viewScaleV')) $('#viewScaleV').textContent = viewScaleVal;
+  if ($('#arcPosV')) $('#arcPosV').textContent = +($('#arcPos') || {}).value || 315;
+
+  const cardFacing = ($('#cardFacing') || {}).value || 'z';
+  const arcAzDeg = +($('#arcPos') || {}).value || 315;
+  const arcAzRad = (arcAzDeg * Math.PI) / 180;
+
+  // Background
+  ctx.fillStyle = 'hsl(225 20% 11%)';
+  ctx.fillRect(0, 0, W, H);
+
+  // ─── Ground grid ───
+  ctx.save();
+  ctx.globalAlpha = 0.055;
+  ctx.strokeStyle = '#8af';
+  ctx.lineWidth = 0.5;
+  const gN = 7, gS = 0.45;
+  for (let i = -gN; i <= gN; i++) {
+    const v = i * gS;
+    let [x1, y1] = iso(-gN * gS, 0, v, cx, cy, S);
+    let [x2, y2] = iso(gN * gS, 0, v, cx, cy, S);
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    [x1, y1] = iso(v, 0, -gN * gS, cx, cy, S);
+    [x2, y2] = iso(v, 0, gN * gS, cx, cy, S);
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  }
+  ctx.restore();
+
+  // ─── Faint coordinate axes ───
+  ctx.save(); ctx.globalAlpha = 0.12; ctx.lineWidth = 1;
+  const axL = 2.8;
+  const [o0, o1] = iso(0, 0, 0, cx, cy, S);
+  ctx.strokeStyle = '#f66'; // X
+  let [a2, b2] = iso(axL, 0, 0, cx, cy, S);
+  ctx.beginPath(); ctx.moveTo(o0, o1); ctx.lineTo(a2, b2); ctx.stroke();
+  ctx.strokeStyle = '#66f'; // Z
+  [a2, b2] = iso(0, 0, axL, cx, cy, S);
+  ctx.beginPath(); ctx.moveTo(o0, o1); ctx.lineTo(a2, b2); ctx.stroke();
+  ctx.strokeStyle = '#6f6'; // Y (up)
+  [a2, b2] = iso(0, axL, 0, cx, cy, S);
+  ctx.beginPath(); ctx.moveTo(o0, o1); ctx.lineTo(a2, b2); ctx.stroke();
+  ctx.restore();
+
+  // ─── Orbit ring (circle on ground XZ plane) ───
+  const R = 1.8;
+  ctx.strokeStyle = 'hsl(175 85% 55% / 0.45)';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  for (let i = 0; i <= 80; i++) {
+    const a = (i / 80) * Math.PI * 2;
+    const [sx, sy] = iso(Math.sin(a) * R, 0, Math.cos(a) * R, cx, cy, S);
+    i === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
+  }
+  ctx.closePath(); ctx.stroke();
+
+  // ─── Subject card (solid dark rectangle standing upright) ───
+  const cW = 0.8, cH = 0.95;
+  let corners;
+  if (cardFacing === 'z') {
+    // Card stretches along X axis, stands in Y, faces Z
+    corners = [
+      [-cW / 2, 0, 0], [cW / 2, 0, 0],
+      [cW / 2, cH, 0], [-cW / 2, cH, 0],
+    ];
+  } else {
+    // Card stretches along Z axis, stands in Y, faces X
+    corners = [
+      [0, 0, -cW / 2], [0, 0, cW / 2],
+      [0, cH, cW / 2], [0, cH, -cW / 2],
+    ];
+  }
+  const c2d = corners.map(c => iso(c[0], c[1], c[2], cx, cy, S));
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.beginPath();
+  const sw = cW * 0.6;
+  let shd;
+  if (cardFacing === 'z') {
+    shd = [[-sw, 0, 0.3], [sw, 0, 0.3], [sw, 0, -0.15], [-sw, 0, -0.15]];
+  } else {
+    shd = [[0.3, 0, -sw], [0.3, 0, sw], [-0.15, 0, sw], [-0.15, 0, -sw]];
+  }
+  const shd2d = shd.map(c => iso(c[0], c[1], c[2], cx, cy, S));
+  ctx.moveTo(shd2d[0][0], shd2d[0][1]);
+  for (let i = 1; i < 4; i++) ctx.lineTo(shd2d[i][0], shd2d[i][1]);
+  ctx.closePath(); ctx.fill();
+
+  // Card border
+  ctx.fillStyle = 'hsl(240 12% 24%)';
+  ctx.beginPath();
+  ctx.moveTo(c2d[0][0], c2d[0][1]);
+  for (let i = 1; i < 4; i++) ctx.lineTo(c2d[i][0], c2d[i][1]);
+  ctx.closePath(); ctx.fill();
+
+  // Card inner
+  const ins = 0.06;
+  let inner;
+  if (cardFacing === 'z') {
+    inner = [
+      [-cW / 2 + ins, ins, 0], [cW / 2 - ins, ins, 0],
+      [cW / 2 - ins, cH - ins, 0], [-cW / 2 + ins, cH - ins, 0],
+    ];
+  } else {
+    inner = [
+      [0, ins, -cW / 2 + ins], [0, ins, cW / 2 - ins],
+      [0, cH - ins, cW / 2 - ins], [0, cH - ins, -cW / 2 + ins],
+    ];
+  }
+  const in2d = inner.map(c => iso(c[0], c[1], c[2], cx, cy, S));
+  ctx.fillStyle = 'hsl(225 15% 15%)';
+  ctx.beginPath();
+  ctx.moveTo(in2d[0][0], in2d[0][1]);
+  for (let i = 1; i < 4; i++) ctx.lineTo(in2d[i][0], in2d[i][1]);
+  ctx.closePath(); ctx.fill();
+
+  // ─── Azimuth: green dot on orbit ring ───
+  const azRad = (camAz * Math.PI) / 180;
+  const d = camDist * R;
+  const azWx = Math.sin(azRad) * d;
+  const azWz = Math.cos(azRad) * d;
+  const [azSx, azSy] = iso(azWx, 0, azWz, cx, cy, S);
+
+  ctx.fillStyle = 'hsl(160 85% 42%)';
+  ctx.beginPath(); ctx.arc(azSx, azSy, 8, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'hsl(160 85% 65%)';
+  ctx.beginPath(); ctx.arc(azSx, azSy, 4.5, 0, Math.PI * 2); ctx.fill();
+  handlePositions.az = [azSx, azSy];
+
+  // ─── Elevation arc: FIXED at arcAzDeg, always visible ───
+  const arcR = R; // arc at orbit radius
+  const arcBaseWx = Math.sin(arcAzRad) * arcR;
+  const arcBaseWz = Math.cos(arcAzRad) * arcR;
+  const minElDeg = -30, maxElDeg = 60;
+  const minElRad = (minElDeg * Math.PI) / 180;
+  const maxElRad = (maxElDeg * Math.PI) / 180;
+
+  // The arc is a vertical semicircle at the fixed azimuth position
+  // It sweeps from minEl to maxEl. At elevation=0 it touches ground (orbit ring).
+  // Points on arc: ground radius shrinks by cos(el), height = sin(el)*arcR
+  ctx.strokeStyle = 'hsl(330 80% 65% / 0.6)';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  const nArc = 40;
+  for (let i = 0; i <= nArc; i++) {
+    const t = i / nArc;
+    const elA = minElRad + t * (maxElRad - minElRad);
+    const aH = Math.sin(elA) * arcR;
+    const aR = Math.cos(elA) * arcR;
+    const aWx = Math.sin(arcAzRad) * aR;
+    const aWz = Math.cos(arcAzRad) * aR;
+    const [sx, sy] = iso(aWx, aH, aWz, cx, cy, S);
+    i === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
+  }
+  ctx.stroke();
+
+  // Pink dot on the arc at current elevation
+  const elRad = (camEl * Math.PI) / 180;
+  const elH = Math.sin(elRad) * arcR;
+  const elGR = Math.cos(elRad) * arcR;
+  const elWx = Math.sin(arcAzRad) * elGR;
+  const elWz = Math.cos(arcAzRad) * elGR;
+  const [elSx, elSy] = iso(elWx, elH, elWz, cx, cy, S);
+
+  ctx.fillStyle = 'hsl(330 80% 65%)';
+  ctx.beginPath(); ctx.arc(elSx, elSy, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'hsl(330 80% 82%)';
+  ctx.beginPath(); ctx.arc(elSx, elSy, 3.5, 0, Math.PI * 2); ctx.fill();
+  handlePositions.el = [elSx, elSy];
+
+  // ─── Distance: dashed line from subject to azimuth dot, gold handle ───
+  const [oSx, oSy] = iso(0, cH * 0.45, 0, cx, cy, S);
+  ctx.strokeStyle = 'hsl(42 80% 55% / 0.25)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(oSx, oSy); ctx.lineTo(azSx, azSy); ctx.stroke();
+  ctx.setLineDash([]);
+
+  const dHx = (oSx + azSx) / 2, dHy = (oSy + azSy) / 2;
+  ctx.fillStyle = 'hsl(42 85% 55%)';
+  ctx.beginPath(); ctx.arc(dHx, dHy, 5.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'hsl(42 85% 78%)';
+  ctx.beginPath(); ctx.arc(dHx, dHy, 2.5, 0, Math.PI * 2); ctx.fill();
+  handlePositions.dist = [dHx, dHy];
+
+  // ─── Axis labels ───
+  ctx.font = '600 8px Montserrat, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'hsl(0 0% 45%)';
+  const [fLx, fLy] = iso(0, 0, R + 0.55, cx, cy, S); ctx.fillText('front', fLx, fLy);
+  const [bLx, bLy] = iso(0, 0, -R - 0.55, cx, cy, S); ctx.fillText('back', bLx, bLy);
+  const [rLx, rLy] = iso(R + 0.55, 0, 0, cx, cy, S); ctx.fillText('R', rLx, rLy);
+  const [lLx, lLy] = iso(-R - 0.55, 0, 0, cx, cy, S); ctx.fillText('L', lLx, lLy);
+
+  // ─── Legend ───
+  ctx.font = '600 7px Montserrat, sans-serif';
+  ctx.textAlign = 'left';
+  const legY = H - 8;
+  ctx.fillStyle = 'hsl(160 85% 55%)'; ctx.fillText('\u25CF', 6, legY);
+  ctx.fillStyle = 'hsl(0 0% 50%)'; ctx.fillText('Azimuth', 16, legY);
+  ctx.fillStyle = 'hsl(330 80% 65%)'; ctx.fillText('\u25CF', 60, legY);
+  ctx.fillStyle = 'hsl(0 0% 50%)'; ctx.fillText('Elevation', 70, legY);
+  ctx.fillStyle = 'hsl(42 85% 55%)'; ctx.fillText('\u25CF', 118, legY);
+  ctx.fillStyle = 'hsl(0 0% 50%)'; ctx.fillText('Distance', 128, legY);
+}
+
+/* ── Canvas drag interaction ── */
+let dragging = null;
+let dragStart = null;
+
+function canvasCoords(e) {
+  const r = $('#camCvs').getBoundingClientRect();
+  return [e.clientX - r.left, e.clientY - r.top];
+}
+
+function hitTest(mx, my) {
+  const thresh = 16;
+  for (const key of ['az', 'el', 'dist']) {
+    const p = handlePositions[key];
+    if (!p) continue;
+    const dx = mx - p[0], dy = my - p[1];
+    if (Math.sqrt(dx * dx + dy * dy) < thresh) return key;
+  }
+  return null;
+}
+
+$('#camCvs').addEventListener('mousedown', e => {
+  const [mx, my] = canvasCoords(e);
+  const hit = hitTest(mx, my);
+  if (hit) { dragging = hit; dragStart = [mx, my]; e.preventDefault(); }
+});
+
+window.addEventListener('mousemove', e => {
+  if (!dragging) {
+    const cvs = $('#camCvs');
+    const r = cvs.getBoundingClientRect();
+    const mx = e.clientX - r.left, my = e.clientY - r.top;
+    if (mx >= 0 && mx <= r.width && my >= 0 && my <= r.height) {
+      cvs.style.cursor = hitTest(mx, my) ? 'grab' : 'default';
+    }
+    return;
+  }
+  const [mx, my] = canvasCoords(e);
+  const dx = mx - dragStart[0], dy = my - dragStart[1];
+
+  if (dragging === 'az') {
+    camAz = ((camAz + dx * 0.8) % 360 + 360) % 360;
+    $('#sAz').value = Math.round(camAz);
+  } else if (dragging === 'el') {
+    // Drag along the arc: upward = increase elevation
+    camEl = Math.max(-30, Math.min(60, camEl - dy * 0.5));
+    $('#sEl').value = Math.round(camEl);
+  } else if (dragging === 'dist') {
+    camDist = Math.max(0.6, Math.min(1.4, camDist + dx * 0.004));
+    $('#sDist').value = camDist.toFixed(2);
+  }
+
+  dragStart = [mx, my];
+  camChanged();
+  $('#camCvs').style.cursor = 'grabbing';
+});
+
+window.addEventListener('mouseup', () => {
+  dragging = null;
+  $('#camCvs').style.cursor = 'default';
+});
+
+/* ── Prompt ── */
+function onPrompt() { $('#charCnt').textContent = ($('#promptTA').value||'').length + ' chars'; }
+
+/* ── Playground output ── */
+function pgOutput() {
+  const parts = [];
+  const dlgW=+$('#dlgW').value, dlgH=+$('#dlgH').value, toolW=+$('#toolW').value;
+  const promptH=+$('#promptH').value, camH=+$('#camH').value;
+  const pad=+$('#innerPad').value, imgR=+$('#imgRad').value;
+
+  if(dlgW!==820||dlgH!==560) parts.push(`Dialog: ${dlgW}\u00D7${dlgH}px`);
+  if(toolW!==280) parts.push(`Tools column: ${toolW}px wide`);
+  if(promptH!==80) parts.push(`Prompt height: ${promptH}px`);
+  if(camH!==200) parts.push(`Camera visual: ${camH}px tall`);
+  if(pad!==10) parts.push(`Inner padding: ${pad}px`);
+  if(imgR!==10) parts.push(`Image border-radius: ${imgR}px`);
+  if(!$('#showVis').checked) parts.push('Hide 3D camera visual');
+  if(!$('#showApply').checked) parts.push('No separate Apply button');
+  if(!$('#showModel').checked) parts.push('Hide model selector');
+  if(!$('#showRegen').checked) parts.push('Hide Regenerate button');
+
+  const out = parts.length > 0
+    ? `Image edit dialog:\n${parts.map(p=>'\u2022 '+p).join('\n')}\n\nTabs: Manual (image + prompt + model + regenerate) | Camera (image + camera tool + regenerate) | Upload. Footer: cancel + update.`
+    : 'Default layout. Manual tab: image + prompt + model selector + regenerate. Camera tab: image (left) + camera tool (right, full height) + regenerate. Footer: cancel + update.';
+  $('#pgOut').textContent = out;
+}
+
+function copyOut() {
+  navigator.clipboard.writeText($('#pgOut').textContent).then(()=>{
+    const b=$('#copyBtn'); b.textContent='Copied!'; b.classList.add('copied');
+    setTimeout(()=>{ b.textContent='Copy'; b.classList.remove('copied'); },1200);
+  });
+}
+
+/* ── Init ── */
+window.addEventListener('load', () => {
+  u();
+  const camWrap = $('#camWrap');
+  if (camWrap) new ResizeObserver(()=>drawCam()).observe(camWrap);
+});
+</script>
+</body>
+</html>

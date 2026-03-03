@@ -82,7 +82,8 @@
       "Bash(git log:*)",
       "WebFetch(domain:api.replicate.com)",
       "WebFetch(domain:replicate.com)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(open /Users/keremk/Projects/aitinkerbox/renku/image-edit-playground.html)"
     ],
     "deny": [],
     "ask": []

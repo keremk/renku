@@ -152,6 +152,28 @@ mappings:
                 "1:1+1K": { width: 1024, height: 1024 }
                 "1:1+2K": { width: 2048, height: 2048 }
 
+    qwen-image-2/pro/text-to-image:
+      Prompt: prompt
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
+    qwen-image-2/text-to-image:
+      Prompt: prompt
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
     wan/v2.6/text-to-image:
       Prompt: prompt
       AspectRatio:

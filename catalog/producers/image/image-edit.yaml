@@ -222,6 +222,34 @@ mappings:
           "3:4": portrait_4_3
           "1:1": square_hd
 
+    qwen-image-2/pro/edit:
+      Prompt: prompt
+      SourceImage:
+        field: image_urls
+        firstOf: true
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
+    qwen-image-2/edit:
+      Prompt: prompt
+      SourceImage:
+        field: image_urls
+        firstOf: true
+      AspectRatio:
+        field: image_size
+        transform:
+          "16:9": landscape_16_9
+          "9:16": portrait_16_9
+          "4:3": landscape_4_3
+          "3:4": portrait_4_3
+          "1:1": square_hd
+
     wan/v2.6/image-to-image:
       Prompt: prompt
       SourceImage:

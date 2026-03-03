@@ -1,0 +1,253 @@
+{
+  "input_schema": {
+    "x-fal-order-properties": [
+      "prompt",
+      "negative_prompt",
+      "image_size",
+      "enable_prompt_expansion",
+      "seed",
+      "enable_safety_checker",
+      "sync_mode",
+      "num_images",
+      "output_format"
+    ],
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "# 1930s Luxury Automobile Manufacturing – 11-Stage Infographic\n## LAYOUT\n- 3 rows, flowchart with arrows left→right, curving down between rows\n- Row 1: Stages 1–3 | Row 2: Stages 4–6 | Row 3: Stages 7–11\n- Style: hand-drawn sketch, watercolor coloring. Car color: deep burgundy/cream accents\n- Car style: 1930s grand tourer (long hood, flowing fenders, wire wheels, art deco chrome)\n---\n## ROW 1\n### STAGE 1 – DESIGN & COACHBUILDING PLANNING\n- Isometric design studio with wooden drafting tables\n- 3 designers in waistcoats: one drawing side-profile with French curves, one sculpting a cream clay scale model on turntable, one reviewing a full-size blueprint on wall\n- Art Deco posters on walls, inkwells, callipers, blackboard with chassis dimensions\n### STAGE 2 – SUPPLY CHAIN & RAW MATERIALS\n- Components spread out with label lines:\n  - **STEEL INGOTS & BILLETS** – dark gray blocks, warm foundry glow\n  - **ALUMINUM SHEETS** – silver sheets on wooden pallet\n  - **ASH WOOD TIMBER** – honey-brown planks bundled (for body frame)\n  - **LEATHER HIDES** – rolled cognac-brown full-grain hides\n  - **WIRE SPOKES & HUB CASTINGS** – bundled steel spokes, gray castings\n  - **GLASS PANES** – transparent sheets in straw-packed crates\n  - **CHROME & BRASS FITTINGS** – shiny strips, handles, hood ornament blanks\n- Background: foundry/tannery silhouettes with smoking chimneys\n### STAGE 3 – PART FABRICATION (METALWORK & WOODWORK)\nTwo bordered sub-boxes:\n**Top – \"METALWORK & FORGING\":**\nSteel billets → **DROP FORGE** (hammer press, glowing orange part) → **PRECISION LATHE** (belt-driven, machinist in flat cap) → **HAND GAUGING** (micrometers, go/no-go gauges on wooden bench)\n**Bottom – \"COACHWORK FRAME & PANEL BEATING\":**\n**ASH CUTTING** (bandsaw, sawdust) → **FRAME JIG ASSEMBLY** (skeletal wooden body on jig, car shape visible) → **HAND PANEL BEATING** (craftsman hammering aluminum over wooden buck) → **ENGLISH WHEEL** (rolling panel for smooth curves)\n---\n## ROW 2\n### STAGE 4 – CHASSIS & MECHANICAL ASSEMBLY\n- **LADDER CHASSIS** – dark steel twin rails + cross-members on trestles, riveted. Workers fitting braces\n- **FRONT AXLE & LEAF SPRINGS** – beam axle with semi-elliptic springs, worker with wrench\n- **REAR AXLE & DIFFERENTIAL** – live axle with pumpkin-shaped housing\n- **DRUM BRAKES** – cable-operated assemblies at each wheel position\n- **STEERING GEARBOX** – worm-and-sector box, drag link to front axle\n### STAGE 5 – ENGINE BUILDING & INSTALLATION\n- Left: **ENGINE BENCH** – inline-8 block (dark green/gray), forged crankshaft being lowered in, pistons in a row, twin brass carburetors, magneto ignition, cylinder head being torqued. Oil cans, rags, hand tools\n- Right: **ENGINE DROP-IN** – completed engine lowered by chain hoist on A-frame crane into chassis. Two workers guiding. Transmission bell housing visible\n### STAGE 6 – BODY MOUNTING\n- Bare aluminum body shell (silver, on wooden frame) lowered by overhead gantry onto rolling chassis\n- 4–5 workers guiding body down. Red alignment lines between mount points\n- Labels: \"Body mount bolts\", \"Firewall alignment\", \"Running board brackets\"\n- Full car silhouette now recognizable: long hood, set-back cabin, swept tail\n---\n## ROW 3\n### STAGE 7 – PAINTING & FINISHING\n- Painter in white coveralls spraying with gun: gray primer on rear half, deep burgundy lacquer on front half\n- Second worker wet-sanding between coats\n- Labels: \"Lead filler & primer\", \"Nitrocellulose lacquer\", \"Hand rubbing & polishing\"\n### STAGE 8 – INTERIOR TRIMMING\n- Cabin cutaway showing: hand-stitched diamond-tufted cognac leather seats, burled walnut dashboard with round gauge holes and chrome bezels, leather door panels with chrome cranks, dark maroon wool carpet, cream cloth headliner\n### STAGE 9 – CHROME & BRIGHTWORK\n- Vignettes: chrome bumpers bolted on, art deco hood ornament (leaping figurine) on radiator cap, round chrome headlamps on fenders, tall vertical-bar radiator grille, trim strips and door handles. Worker polishing fender to mirror shine\n### STAGE 10 – MECHANICAL TESTING\n- Completed burgundy car with cream fenders and full chrome\n- Labels: \"Ignition timing & carburetor tuning\" (mechanic with timing light), \"Brake balance test\", \"Wheel alignment\" (string method), \"Electrical check\" (lights glowing), \"Fluid fill & leak check\"\n- Handwritten checklist on clipboard resting on fender\n### STAGE 11 – ROAD TEST & DELIVERY\n- Left: car in motion on country road, dust trail, driver in goggles/leather cap. Green hills in watercolor background\n- Right: car at Art Deco showroom entrance. Factory director in three-piece suit, client in top hat receiving leather key fob, chauffeur in uniform by driver's door\n---\n## STYLE GUIDE\n- **Colors:** Burgundy body (#6B1024), cream accents (#F5E6C8), dark steel chassis, silver aluminum, honey-brown ash wood, cognac leather, bright chrome highlights\n- **Typography:** Bold uppercase sans-serif titles (\"STAGE [#] – [NAME]\"), smaller labels with thin connector lines\n- **Style:** Ink outlines, watercolor flat fill, isometric/3/4 view, period-correct details (belt-driven machines, chain hoists, flat caps, Art Deco flourishes)\n- **Arrows:** Thin black, left→right, curving down between rows\n- **Proportions:** Landscape ~3:1, 3 equal rows, Stage 3 taller, Row 3 has 5 narrower stages"
+        ],
+        "description": "Text prompt describing the desired image. Supports Chinese and English;.",
+        "minLength": 1,
+        "title": "Prompt",
+        "type": "string"
+      },
+      "num_images": {
+        "minimum": 1,
+        "description": "The number of images to generate.",
+        "type": "integer",
+        "title": "Num Images",
+        "maximum": 4,
+        "default": 1
+      },
+      "image_size": {
+        "anyOf": [
+          {
+            "$ref": "#/ImageSize"
+          },
+          {
+            "enum": [
+              "square_hd",
+              "square",
+              "portrait_4_3",
+              "portrait_16_9",
+              "landscape_4_3",
+              "landscape_16_9"
+            ],
+            "type": "string"
+          }
+        ],
+        "description": "The size of the generated image. Total number of pixels must be between 512x512 and 2048x2048.",
+        "title": "Image Size",
+        "examples": [
+          {
+            "height": 2048,
+            "width": 2048
+          }
+        ],
+        "default": "square_hd"
+      },
+      "output_format": {
+        "enum": [
+          "jpeg",
+          "png",
+          "webp"
+        ],
+        "description": "The format of the generated image.",
+        "type": "string",
+        "title": "Output Format",
+        "default": "png"
+      },
+      "sync_mode": {
+        "description": "If `True`, the media will be returned as a data URI and the output data won't be available in the request history.",
+        "type": "boolean",
+        "title": "Sync Mode",
+        "default": false
+      },
+      "enable_safety_checker": {
+        "description": "Enable content moderation for input and output.",
+        "type": "boolean",
+        "title": "Enable Safety Checker",
+        "default": true
+      },
+      "seed": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Random seed for reproducibility (0-2147483647).",
+        "title": "Seed"
+      },
+      "enable_prompt_expansion": {
+        "description": "Enable LLM prompt optimization for better results.",
+        "type": "boolean",
+        "title": "Enable Prompt Expansion",
+        "default": true
+      },
+      "negative_prompt": {
+        "anyOf": [
+          {
+            "maxLength": 500,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Content to avoid in the generated image. Max 500 characters.",
+        "title": "Negative Prompt",
+        "examples": [
+          "low resolution, error, worst quality, low quality, deformed"
+        ],
+        "default": ""
+      }
+    },
+    "title": "QwenImage2ProTextToImageInput",
+    "required": [
+      "prompt"
+    ]
+  },
+  "output_schema": {
+    "x-fal-order-properties": [
+      "images",
+      "seed"
+    ],
+    "type": "object",
+    "properties": {
+      "images": {
+        "examples": [
+          [
+            {
+              "url": "https://v3b.fal.media/files/b/0a90b238/SBKPCfmygQb1BivJjt6Ck_zvpXi8Qy.png"
+            }
+          ]
+        ],
+        "description": "Generated images",
+        "type": "array",
+        "title": "Images",
+        "items": {
+          "$ref": "#/File"
+        }
+      },
+      "seed": {
+        "examples": [
+          42
+        ],
+        "description": "The seed used for generation",
+        "type": "integer",
+        "title": "Seed"
+      }
+    },
+    "title": "QwenImage2ProTextToImageOutput",
+    "required": [
+      "images",
+      "seed"
+    ]
+  },
+  "ImageSize": {
+    "x-fal-order-properties": [
+      "width",
+      "height"
+    ],
+    "type": "object",
+    "properties": {
+      "height": {
+        "description": "The height of the generated image.",
+        "type": "integer",
+        "title": "Height",
+        "maximum": 14142,
+        "exclusiveMinimum": 0,
+        "default": 512
+      },
+      "width": {
+        "description": "The width of the generated image.",
+        "type": "integer",
+        "title": "Width",
+        "maximum": 14142,
+        "exclusiveMinimum": 0,
+        "default": 512
+      }
+    },
+    "title": "ImageSize"
+  },
+  "File": {
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size"
+    ],
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The size of the file in bytes.",
+        "title": "File Size",
+        "examples": [
+          4404019
+        ]
+      },
+      "file_name": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "title": "File Name",
+        "examples": [
+          "z9RV14K95DvU.png"
+        ]
+      },
+      "content_type": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The mime type of the file.",
+        "title": "Content Type",
+        "examples": [
+          "image/png"
+        ]
+      },
+      "url": {
+        "description": "The URL where the file can be downloaded from.",
+        "type": "string",
+        "title": "Url",
+        "format": "uri"
+      }
+    },
+    "title": "File",
+    "required": [
+      "url"
+    ]
+  }
+}
