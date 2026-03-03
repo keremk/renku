@@ -29,6 +29,7 @@ import {
   classifyAndGroupArtifacts,
   getArtifactLabel,
   getBlobUrl,
+  extractProducerFromArtifactId,
   type ArtifactSubGroup,
 } from '@/lib/artifact-utils';
 import { resolvePromptArtifactForMedia } from '@/lib/artifact-prompt-resolver';
@@ -48,6 +49,7 @@ import {
   VideoCard,
   AudioCard,
   ImageCard,
+  ImageEditDialog,
   type CardAction,
 } from './shared';
 import { EditedBadge } from './outputs/edited-badge';
@@ -489,6 +491,7 @@ function ArtifactGallery({
                           blueprintFolder={blueprintFolder}
                           movieId={movieId}
                           isPromptProducer={activeSection.isPromptProducer}
+                          producerModels={producerModels}
                           onArtifactUpdated={onArtifactUpdated}
                         />
                       ))}
@@ -520,6 +523,7 @@ function ArtifactCardRenderer({
   movieId,
   isSelected,
   isPinned,
+  producerModels,
   onArtifactUpdated,
   subGroup,
   useSimplifiedTextFooter,
@@ -531,6 +535,7 @@ function ArtifactCardRenderer({
   movieId: string;
   isSelected: boolean;
   isPinned: boolean;
+  producerModels?: Record<string, ProducerModelInfo>;
   onArtifactUpdated?: () => void;
   subGroup?: ArtifactSubGroup;
   useSimplifiedTextFooter?: boolean;
@@ -582,6 +587,7 @@ function ArtifactCardRenderer({
         movieId={movieId}
         isSelected={isSelected}
         isPinned={isPinned}
+        producerModels={producerModels}
         onArtifactUpdated={onArtifactUpdated}
         mediaType='image'
         subGroup={subGroup}
@@ -756,6 +762,7 @@ function SubGroupSection({
   blueprintFolder,
   movieId,
   isPromptProducer,
+  producerModels,
   onArtifactUpdated,
 }: {
   subGroup: ArtifactSubGroup;
@@ -764,6 +771,7 @@ function SubGroupSection({
   blueprintFolder: string;
   movieId: string;
   isPromptProducer: boolean;
+  producerModels?: Record<string, ProducerModelInfo>;
   onArtifactUpdated?: () => void;
 }) {
   const { isArtifactSelected, isArtifactPinned } = useExecution();
@@ -802,6 +810,7 @@ function SubGroupSection({
               movieId={movieId}
               isSelected={isSelected}
               isPinned={isPinned}
+              producerModels={producerModels}
               onArtifactUpdated={onArtifactUpdated}
               subGroup={subGroup}
               useSimplifiedTextFooter={isPromptProducer}
@@ -973,6 +982,7 @@ function MediaArtifactCard({
   movieId,
   isSelected,
   isPinned,
+  producerModels,
   onArtifactUpdated,
   mediaType,
   subGroup,
@@ -984,6 +994,7 @@ function MediaArtifactCard({
   movieId: string;
   isSelected: boolean;
   isPinned: boolean;
+  producerModels?: Record<string, ProducerModelInfo>;
   onArtifactUpdated?: () => void;
   mediaType: MediaType;
   subGroup?: ArtifactSubGroup;
@@ -1071,13 +1082,29 @@ function MediaArtifactCard({
         />
       )}
 
-      <FileUploadDialog
-        open={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
-        mediaType={mediaType}
-        multiple={false}
-        onConfirm={handleFileUpload}
-      />
+      {mediaType === 'image' ? (
+        <ImageEditDialog
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          imageUrl={url}
+          title={`Edit Image \u2014 ${displayName}`}
+          availableModels={
+            producerModels?.[
+              extractProducerFromArtifactId(artifact.id) ?? ''
+            ]?.availableModels ?? []
+          }
+          promptUrl={promptUrl}
+          onFileUpload={handleFileUpload}
+        />
+      ) : (
+        <FileUploadDialog
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          mediaType={mediaType}
+          multiple={false}
+          onConfirm={handleFileUpload}
+        />
+      )}
     </>
   );
 }

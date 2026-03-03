@@ -27,3 +27,9 @@ export { AudioCard } from "./audio-card";
 export type { AudioCardProps } from "./audio-card";
 export { ImageCard } from "./image-card";
 export type { ImageCardProps } from "./image-card";
+
+// Image editing dialog with camera control
+export { ImageEditDialog } from "./image-edit-dialog";
+export type { ImageEditDialogProps } from "./image-edit-dialog";
+export { CameraControl } from "./camera-control";
+export type { CameraControlProps, CameraParams } from "./camera-control";
