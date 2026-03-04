@@ -19,13 +19,13 @@ export interface CameraParams {
 
 const AZ_LABELS: Record<number, string> = {
   0: 'front view',
-  45: 'front-right view',
-  90: 'right view',
-  135: 'back-right view',
+  45: 'front-left view',
+  90: 'left view',
+  135: 'back-left view',
   180: 'back view',
-  225: 'back-left view',
-  270: 'left view',
-  315: 'front-left view',
+  225: 'back-right view',
+  270: 'right view',
+  315: 'front-right view',
 };
 
 export function generateShotDescription(

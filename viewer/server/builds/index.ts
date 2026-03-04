@@ -18,33 +18,49 @@ export type {
   UploadedFileInfo,
   UploadFilesResponse,
   MediaInputType,
-} from "./types.js";
+} from './types.js';
 // Re-export MovieMetadata from core for convenience
-export { type MovieMetadata } from "@gorenku/core";
+export { type MovieMetadata } from '@gorenku/core';
 
 // Handlers
-export { generateMovieId, createBuild } from "./create-handler.js";
-export { getBuildInputs, saveBuildInputs } from "./inputs-handler.js";
-export { updateBuildMetadata } from "./metadata-handler.js";
-export { enableBuildEditing } from "./enable-editing-handler.js";
-export { listBuilds } from "./list-handler.js";
-export { getBuildManifest, getBuildTimeline } from "./manifest-handler.js";
-export { handleBuildsSubRoute } from "./builds-handler.js";
-export { handleFileUpload, streamInputFile } from "./upload-handler.js";
+export { generateMovieId, createBuild } from './create-handler.js';
+export { getBuildInputs, saveBuildInputs } from './inputs-handler.js';
+export { updateBuildMetadata } from './metadata-handler.js';
+export { enableBuildEditing } from './enable-editing-handler.js';
+export { listBuilds } from './list-handler.js';
+export { getBuildManifest, getBuildTimeline } from './manifest-handler.js';
+export { handleBuildsSubRoute } from './builds-handler.js';
+export { handleFileUpload, streamInputFile } from './upload-handler.js';
 export {
   handleArtifactFileEdit,
   handleArtifactTextEdit,
   handleArtifactRestore,
+  applyArtifactEditFromBuffer,
+  readLatestArtifactEvent,
+  type ArtefactEvent,
   type ArtifactEditResponse,
   type ArtifactRestoreResponse,
   type TextArtifactEditRequest,
   type ArtifactRestoreRequest,
-} from "./artifact-edit-handler.js";
+} from './artifact-edit-handler.js';
+export {
+  handleArtifactPreviewGenerate,
+  handleArtifactPreviewEstimate,
+  handleArtifactPreviewApply,
+  handleArtifactPreviewDelete,
+  handleArtifactPreviewFile,
+  type ArtifactPreviewGenerateRequest,
+  type ArtifactPreviewGenerateResponse,
+  type ArtifactPreviewEstimateRequest,
+  type ArtifactPreviewEstimateResponse,
+  type ArtifactPreviewApplyRequest,
+  type ArtifactPreviewDeleteRequest,
+} from './artifact-preview-handler.js';
 export {
   handleArtifactRecheck,
   type ArtifactRecheckRequest,
   type ArtifactRecheckResponse,
-} from "./artifact-recheck-handler.js";
+} from './artifact-recheck-handler.js';
 export {
   getProducerPrompts,
   saveProducerPrompts,
@@ -52,6 +68,6 @@ export {
   type ProducerPromptsResponse,
   type SavePromptsRequest,
   type RestorePromptsRequest,
-} from "./prompts-handler.js";
+} from './prompts-handler.js';
 // Re-export PromptFileData from core for convenience
-export { type PromptFileData } from "@gorenku/core";
+export { type PromptFileData } from '@gorenku/core';

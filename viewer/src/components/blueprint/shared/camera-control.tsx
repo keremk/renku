@@ -289,19 +289,25 @@ function drawCanvas(
 
   // Azimuth handle (green dot) — ALWAYS on the orbit ring at radius R, ground plane
   const azRad = (azimuth * Math.PI) / 180;
-  const azWx = Math.sin(azRad) * R;
-  const azWz = Math.cos(azRad) * R;
+  const azWx = -Math.cos(azRad) * R;
+  const azWz = Math.sin(azRad) * R;
   const [azSx, azSy] = iso(azWx, 0, azWz, cx, cy, S);
 
   drawHandle(
-    ctx, azSx, azSy, 8, 4.5,
-    'hsl(160 85% 42%)', 'hsl(160 85% 65%)',
+    ctx,
+    azSx,
+    azSy,
+    8,
+    4.5,
+    'hsl(160 85% 42%)',
+    'hsl(160 85% 65%)',
     hovering === 'az'
   );
   handles.az = [azSx, azSy];
 
-  // Elevation arc (fixed at arcAzDeg)
+  // Elevation arc (fixed at arcAzDeg), centered on eye-level (card center)
   const arcR = R;
+  const eyeLevelY = cH / 2;
   const minElRad = (-30 * Math.PI) / 180;
   const maxElRad = (60 * Math.PI) / 180;
 
@@ -312,7 +318,7 @@ function drawCanvas(
   for (let i = 0; i <= nArc; i++) {
     const t = i / nArc;
     const elA = minElRad + t * (maxElRad - minElRad);
-    const aH = Math.sin(elA) * arcR;
+    const aH = eyeLevelY + Math.sin(elA) * arcR;
     const aR = Math.cos(elA) * arcR;
     const aWx = Math.sin(ARC_AZ_RAD) * aR;
     const aWz = Math.cos(ARC_AZ_RAD) * aR;
@@ -323,15 +329,20 @@ function drawCanvas(
 
   // Elevation handle (pink dot on arc)
   const elRad = (elevation * Math.PI) / 180;
-  const elH = Math.sin(elRad) * arcR;
+  const elH = eyeLevelY + Math.sin(elRad) * arcR;
   const elGR = Math.cos(elRad) * arcR;
   const elWx = Math.sin(ARC_AZ_RAD) * elGR;
   const elWz = Math.cos(ARC_AZ_RAD) * elGR;
   const [elSx, elSy] = iso(elWx, elH, elWz, cx, cy, S);
 
   drawHandle(
-    ctx, elSx, elSy, 7, 3.5,
-    'hsl(330 80% 65%)', 'hsl(330 80% 82%)',
+    ctx,
+    elSx,
+    elSy,
+    7,
+    3.5,
+    'hsl(330 80% 65%)',
+    'hsl(330 80% 82%)',
     hovering === 'el'
   );
   handles.el = [elSx, elSy];
@@ -340,9 +351,9 @@ function drawCanvas(
   // Camera orbits around the card center (0, cH/2, 0) at distance d
   const d = distance * R;
   const camGroundR = d * Math.cos(elRad); // horizontal distance shrinks with elevation
-  const camWx = Math.sin(azRad) * camGroundR;
+  const camWx = -Math.cos(azRad) * camGroundR;
   const camWy = cH / 2 + d * Math.sin(elRad); // rises/dips with elevation
-  const camWz = Math.cos(azRad) * camGroundR;
+  const camWz = Math.sin(azRad) * camGroundR;
   const [camSx, camSy] = iso(camWx, camWy, camWz, cx, cy, S);
 
   // Subject center — target the camera always points at
@@ -385,8 +396,13 @@ function drawCanvas(
 
   // Distance handle (gold dot — the camera lens)
   drawHandle(
-    ctx, camSx, camSy, 6, 2.8,
-    'hsl(42 85% 55%)', 'hsl(42 85% 78%)',
+    ctx,
+    camSx,
+    camSy,
+    6,
+    2.8,
+    'hsl(42 85% 55%)',
+    'hsl(42 85% 78%)',
     hovering === 'dist'
   );
   handles.dist = [camSx, camSy];
@@ -396,13 +412,13 @@ function drawCanvas(
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = colors.labelFill;
-  const [fLx, fLy] = iso(0, 0, R + 0.55, cx, cy, S);
+  const [fLx, fLy] = iso(-R - 0.55, 0, 0, cx, cy, S);
   ctx.fillText('front', fLx, fLy);
-  const [bLx, bLy] = iso(0, 0, -R - 0.55, cx, cy, S);
+  const [bLx, bLy] = iso(R + 0.55, 0, 0, cx, cy, S);
   ctx.fillText('back', bLx, bLy);
-  const [rLx, rLy] = iso(R + 0.55, 0, 0, cx, cy, S);
+  const [rLx, rLy] = iso(0, 0, -R - 0.55, cx, cy, S);
   ctx.fillText('R', rLx, rLy);
-  const [lLx, lLy] = iso(-R - 0.55, 0, 0, cx, cy, S);
+  const [lLx, lLy] = iso(0, 0, R + 0.55, cx, cy, S);
   ctx.fillText('L', lLx, lLy);
 
   // Legend
@@ -445,7 +461,7 @@ function CameraSlider({
   max: number;
   step: number;
   displayValue: string;
-  hints: [string, string, string];
+  hints: string[];
   onChange: (value: number) => void;
 }) {
   return (
@@ -467,10 +483,25 @@ function CameraSlider({
         onChange={(e) => onChange(Number(e.target.value))}
         className='w-full h-1 bg-muted/60 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-background'
       />
-      <div className='flex justify-between text-[8px] text-muted-foreground/60'>
-        <span>{hints[0]}</span>
-        <span>{hints[1]}</span>
-        <span>{hints[2]}</span>
+      <div
+        className='grid text-[8px] text-muted-foreground/60'
+        style={{
+          gridTemplateColumns: `repeat(${hints.length}, minmax(0, 1fr))`,
+        }}
+      >
+        {hints.map((hint, index) => {
+          let alignClass = 'text-center';
+          if (index === 0) {
+            alignClass = 'text-left';
+          } else if (index === hints.length - 1) {
+            alignClass = 'text-right';
+          }
+          return (
+            <span key={`${label}-${hint}-${index}`} className={alignClass}>
+              {hint}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
@@ -488,7 +519,11 @@ export function CameraControl({
   const isDark = useDarkMode();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const handlesRef = useRef<HandlePositions>({ az: null, el: null, dist: null });
+  const handlesRef = useRef<HandlePositions>({
+    az: null,
+    el: null,
+    dist: null,
+  });
   const [dragging, setDragging] = useState<HandleKey | null>(null);
   const [hovering, setHovering] = useState<HandleKey | null>(null);
   const dragStartRef = useRef<[number, number] | null>(null);
@@ -539,30 +574,24 @@ export function CameraControl({
   }, [redraw]);
 
   // Canvas coordinate helper
-  const canvasCoords = useCallback(
-    (e: MouseEvent): [number, number] => {
-      if (!canvasRef.current) return [0, 0];
-      const r = canvasRef.current.getBoundingClientRect();
-      return [e.clientX - r.left, e.clientY - r.top];
-    },
-    []
-  );
+  const canvasCoords = useCallback((e: MouseEvent): [number, number] => {
+    if (!canvasRef.current) return [0, 0];
+    const r = canvasRef.current.getBoundingClientRect();
+    return [e.clientX - r.left, e.clientY - r.top];
+  }, []);
 
   // Hit test for handle dragging — test dist first to handle overlap with az at distance≈1.0
-  const hitTest = useCallback(
-    (mx: number, my: number): HandleKey | null => {
-      const thresh = 16;
-      for (const key of ['dist', 'el', 'az'] as const) {
-        const p = handlesRef.current[key];
-        if (!p) continue;
-        const dx = mx - p[0];
-        const dy = my - p[1];
-        if (Math.sqrt(dx * dx + dy * dy) < thresh) return key;
-      }
-      return null;
-    },
-    []
-  );
+  const hitTest = useCallback((mx: number, my: number): HandleKey | null => {
+    const thresh = 16;
+    for (const key of ['dist', 'el', 'az'] as const) {
+      const p = handlesRef.current[key];
+      if (!p) continue;
+      const dx = mx - p[0];
+      const dy = my - p[1];
+      if (Math.sqrt(dx * dx + dy * dy) < thresh) return key;
+    }
+    return null;
+  }, []);
 
   // Hover tracking — update when mouse moves over canvas (skip while dragging)
   const handleCanvasMouseMove = useCallback(
@@ -637,7 +666,8 @@ export function CameraControl({
         if (angleDelta < -Math.PI) angleDelta += 2 * Math.PI;
 
         // Positive screen angle delta (clockwise with Y-down) = increasing azimuth
-        newAz = ((p.azimuth + (angleDelta * 180) / Math.PI) % 360 + 360) % 360;
+        newAz =
+          (((p.azimuth + (angleDelta * 180) / Math.PI) % 360) + 360) % 360;
         prevScreenAngleRef.current = currAngle;
       } else if (dragging === 'el') {
         const dy = my - start[1];
@@ -651,11 +681,12 @@ export function CameraControl({
         const prevR = Math.sqrt(
           (start[0] - centerX) ** 2 + (start[1] - centerY) ** 2
         );
-        const currR = Math.sqrt(
-          (mx - centerX) ** 2 + (my - centerY) ** 2
-        );
+        const currR = Math.sqrt((mx - centerX) ** 2 + (my - centerY) ** 2);
         const radialDelta = currR - prevR;
-        newDist = Math.max(0.6, Math.min(1.4, p.distance + radialDelta * 0.005));
+        newDist = Math.max(
+          0.6,
+          Math.min(1.4, p.distance + radialDelta * 0.005)
+        );
       }
 
       dragStartRef.current = [mx, my];
@@ -737,7 +768,7 @@ export function CameraControl({
           max={360}
           step={1}
           displayValue={`${params.azimuth}\u00B0`}
-          hints={['front', 'right', 'back']}
+          hints={['front', 'left', 'back', 'right', 'front']}
           onChange={(v) => updateParam('azimuth', v)}
         />
         <CameraSlider

@@ -32,6 +32,17 @@ import {
   type ArtifactRestoreRequest,
 } from './artifact-edit-handler.js';
 import {
+  handleArtifactPreviewGenerate,
+  handleArtifactPreviewEstimate,
+  handleArtifactPreviewApply,
+  handleArtifactPreviewDelete,
+  handleArtifactPreviewFile,
+  type ArtifactPreviewGenerateRequest,
+  type ArtifactPreviewEstimateRequest,
+  type ArtifactPreviewApplyRequest,
+  type ArtifactPreviewDeleteRequest,
+} from './artifact-preview-handler.js';
+import {
   handleArtifactRecheck,
   type ArtifactRecheckRequest,
 } from './artifact-recheck-handler.js';
@@ -60,6 +71,11 @@ const MOVIE_ID_PATTERN = /^movie-[a-z0-9][a-z0-9-]*$/;
  *   POST /blueprints/builds/artifacts/edit?folder=...&movieId=...&artifactId=... (multipart for media)
  *   POST /blueprints/builds/artifacts/edit-text (JSON body for text)
  *   POST /blueprints/builds/artifacts/restore (JSON body)
+ *   POST /blueprints/builds/artifacts/preview-generate (JSON body)
+ *   POST /blueprints/builds/artifacts/preview-estimate (JSON body)
+ *   POST /blueprints/builds/artifacts/preview-apply (JSON body)
+ *   POST /blueprints/builds/artifacts/preview-delete (JSON body)
+ *   GET  /blueprints/builds/artifacts/preview-file?folder=...&movieId=...&tempId=...
  *   GET  /blueprints/builds/prompts?folder=...&movieId=...&blueprintPath=...&producerId=...
  *   PUT  /blueprints/builds/prompts (JSON body)
  *   POST /blueprints/builds/prompts/restore (JSON body)
@@ -240,8 +256,8 @@ export async function handleBuildsSubRoute(
     }
 
     case 'artifacts': {
-      // Handle artifacts sub-routes: edit, edit-text, restore
-      // segments[0] = "artifacts", segments[1] = "edit"/"edit-text"/"restore"
+      // Handle artifacts sub-routes: edit, edit-text, restore, preview-*
+      // segments[0] = "artifacts", segments[1] = action
       const artifactsSubAction = segments[1];
       if (artifactsSubAction === 'edit' && req.method === 'POST') {
         // Multipart file upload for media artifacts
@@ -279,6 +295,63 @@ export async function handleBuildsSubRoute(
           );
         }
         await handleArtifactRestore(res, body);
+        return true;
+      }
+      if (artifactsSubAction === 'preview-generate' && req.method === 'POST') {
+        const body = await parseJsonBody<ArtifactPreviewGenerateRequest>(req);
+        if (!body.blueprintFolder || !body.movieId || !body.artifactId) {
+          return respondBadRequest(
+            res,
+            'Missing blueprintFolder, movieId, or artifactId'
+          );
+        }
+        await handleArtifactPreviewGenerate(res, body);
+        return true;
+      }
+      if (artifactsSubAction === 'preview-estimate' && req.method === 'POST') {
+        const body = await parseJsonBody<ArtifactPreviewEstimateRequest>(req);
+        if (!body.blueprintFolder || !body.movieId || !body.artifactId) {
+          return respondBadRequest(
+            res,
+            'Missing blueprintFolder, movieId, or artifactId'
+          );
+        }
+        await handleArtifactPreviewEstimate(res, body);
+        return true;
+      }
+      if (artifactsSubAction === 'preview-apply' && req.method === 'POST') {
+        const body = await parseJsonBody<ArtifactPreviewApplyRequest>(req);
+        if (!body.blueprintFolder || !body.movieId || !body.artifactId) {
+          return respondBadRequest(
+            res,
+            'Missing blueprintFolder, movieId, or artifactId'
+          );
+        }
+        await handleArtifactPreviewApply(res, body);
+        return true;
+      }
+      if (artifactsSubAction === 'preview-delete' && req.method === 'POST') {
+        const body = await parseJsonBody<ArtifactPreviewDeleteRequest>(req);
+        if (!body.blueprintFolder || !body.movieId || !body.tempId) {
+          return respondBadRequest(
+            res,
+            'Missing blueprintFolder, movieId, or tempId'
+          );
+        }
+        await handleArtifactPreviewDelete(res, body);
+        return true;
+      }
+      if (artifactsSubAction === 'preview-file' && req.method === 'GET') {
+        const folder = url.searchParams.get('folder');
+        const movieId = url.searchParams.get('movieId');
+        const tempId = url.searchParams.get('tempId');
+        if (!folder || !movieId || !tempId) {
+          return respondBadRequest(
+            res,
+            'Missing folder, movieId, or tempId parameter'
+          );
+        }
+        await handleArtifactPreviewFile(req, res, folder, movieId, tempId);
         return true;
       }
       if (artifactsSubAction === 'recheck' && req.method === 'POST') {

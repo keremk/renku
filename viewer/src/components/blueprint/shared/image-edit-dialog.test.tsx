@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ImageEditDialog } from './image-edit-dialog';
 import type { ImageEditDialogProps } from './image-edit-dialog';
@@ -59,6 +59,10 @@ const defaultProps: ImageEditDialogProps = {
 };
 
 describe('ImageEditDialog', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('renders dialog when open', () => {
     render(<ImageEditDialog {...defaultProps} />);
     expect(screen.getByRole('dialog')).toBeTruthy();
@@ -78,11 +82,13 @@ describe('ImageEditDialog', () => {
 
   it('renders three tab buttons', () => {
     render(<ImageEditDialog {...defaultProps} />);
-    const tabs = screen.getAllByRole('button').filter((btn) =>
-      ['manual', 'camera', 'upload'].includes(
-        btn.getAttribute('data-tab') ?? ''
-      )
-    );
+    const tabs = screen
+      .getAllByRole('button')
+      .filter((btn) =>
+        ['manual', 'camera', 'upload'].includes(
+          btn.getAttribute('data-tab') ?? ''
+        )
+      );
     expect(tabs).toHaveLength(3);
   });
 
@@ -96,7 +102,9 @@ describe('ImageEditDialog', () => {
 
   it('shows prompt textarea in Manual tab', () => {
     render(<ImageEditDialog {...defaultProps} />);
-    expect(screen.getByPlaceholderText('Describe the image edit...')).toBeTruthy();
+    expect(
+      screen.getByPlaceholderText('Describe the image edit...')
+    ).toBeTruthy();
   });
 
   it('shows model selector in Manual tab with available models', () => {
@@ -152,9 +160,7 @@ describe('ImageEditDialog', () => {
     fireEvent.click(uploadTab!);
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/drag and drop/i)
-      ).toBeTruthy();
+      expect(screen.getByText(/drag and drop/i)).toBeTruthy();
     });
   });
 
@@ -178,9 +184,7 @@ describe('ImageEditDialog', () => {
   });
 
   it('hides model selector when no models available', () => {
-    render(
-      <ImageEditDialog {...defaultProps} availableModels={[]} />
-    );
+    render(<ImageEditDialog {...defaultProps} availableModels={[]} />);
     expect(document.body.querySelector('[role="dialog"] select')).toBeNull();
   });
 
@@ -192,6 +196,197 @@ describe('ImageEditDialog', () => {
     await waitFor(() => {
       const dialog = screen.getByRole('dialog');
       expect(dialog.textContent).toContain('11 chars');
+    });
+  });
+
+  it('shows estimated cost before regenerate and updates on model change', async () => {
+    const onEstimateCost = vi
+      .fn()
+      .mockResolvedValueOnce({
+        cost: 0.03,
+        minCost: 0.03,
+        maxCost: 0.03,
+        isPlaceholder: false,
+      })
+      .mockResolvedValueOnce({
+        cost: 0.01,
+        minCost: 0.01,
+        maxCost: 0.01,
+        isPlaceholder: false,
+      });
+
+    render(
+      <ImageEditDialog {...defaultProps} onEstimateCost={onEstimateCost} />
+    );
+
+    await waitFor(() => {
+      expect(onEstimateCost).toHaveBeenCalledWith({
+        mode: 'manual',
+        prompt: '',
+        model: mockModels[0],
+      });
+      expect(screen.getByText('Estimated cost: $0.03')).toBeTruthy();
+    });
+
+    const select = document.body.querySelector('select');
+    fireEvent.change(select!, { target: { value: '1' } });
+
+    await waitFor(() => {
+      expect(onEstimateCost).toHaveBeenCalledWith({
+        mode: 'manual',
+        prompt: '',
+        model: mockModels[1],
+      });
+      expect(screen.getByText('Estimated cost: $0.01')).toBeTruthy();
+    });
+  });
+
+  it('shows camera cost after switching tabs without regenerating', async () => {
+    const onEstimateCost = vi
+      .fn()
+      .mockResolvedValueOnce({
+        cost: 0.03,
+        minCost: 0.03,
+        maxCost: 0.03,
+        isPlaceholder: false,
+      })
+      .mockResolvedValueOnce({
+        cost: 0.12,
+        minCost: 0.12,
+        maxCost: 0.12,
+        isPlaceholder: false,
+      });
+
+    render(
+      <ImageEditDialog {...defaultProps} onEstimateCost={onEstimateCost} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Estimated cost: $0.03')).toBeTruthy();
+    });
+
+    const cameraTab = screen
+      .getAllByRole('button')
+      .find((btn) => btn.getAttribute('data-tab') === 'camera');
+    fireEvent.click(cameraTab!);
+
+    await waitFor(() => {
+      expect(onEstimateCost).toHaveBeenCalledWith(
+        expect.objectContaining({ mode: 'camera', prompt: '' })
+      );
+      expect(screen.getByText('Estimated cost: $0.12')).toBeTruthy();
+    });
+  });
+
+  it('regenerates preview in manual mode and shows estimated cost', async () => {
+    const onRegenerate = vi.fn().mockResolvedValue({
+      previewUrl: 'https://example.com/generated.png',
+      tempId: 'tmp-123',
+      estimatedCost: {
+        cost: 0.0123,
+        minCost: 0.01,
+        maxCost: 0.02,
+        isPlaceholder: false,
+      },
+    });
+
+    render(<ImageEditDialog {...defaultProps} onRegenerate={onRegenerate} />);
+
+    const textarea = screen.getByPlaceholderText('Describe the image edit...');
+    fireEvent.change(textarea, { target: { value: 'add a soft sunset glow' } });
+    fireEvent.click(screen.getByRole('button', { name: 'REGENERATE' }));
+
+    await waitFor(() => {
+      expect(onRegenerate).toHaveBeenCalledWith({
+        mode: 'manual',
+        prompt: 'add a soft sunset glow',
+        model: mockModels[0],
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('img').getAttribute('src')).toBe(
+        'https://example.com/generated.png'
+      );
+      expect(screen.getByText('Estimated cost: $0.01-$0.02')).toBeTruthy();
+      expect(
+        screen.getByRole('button', { name: 'Update' }).hasAttribute('disabled')
+      ).toBe(false);
+    });
+  });
+
+  it('applies generated preview on Update and closes dialog', async () => {
+    const onRegenerate = vi.fn().mockResolvedValue({
+      previewUrl: 'https://example.com/generated.png',
+      tempId: 'tmp-apply-1',
+      estimatedCost: {
+        cost: 0.02,
+        minCost: 0.02,
+        maxCost: 0.02,
+        isPlaceholder: false,
+      },
+    });
+    const onApplyGenerated = vi.fn().mockResolvedValue(undefined);
+    const onCleanupGenerated = vi.fn().mockResolvedValue(undefined);
+    const onOpenChange = vi.fn();
+
+    render(
+      <ImageEditDialog
+        {...defaultProps}
+        onOpenChange={onOpenChange}
+        onRegenerate={onRegenerate}
+        onApplyGenerated={onApplyGenerated}
+        onCleanupGenerated={onCleanupGenerated}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'REGENERATE' }));
+    await waitFor(() => {
+      expect(onRegenerate).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Update' }));
+
+    await waitFor(() => {
+      expect(onApplyGenerated).toHaveBeenCalledWith('tmp-apply-1');
+      expect(onCleanupGenerated).toHaveBeenCalledWith('tmp-apply-1');
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+  });
+
+  it('cleans up generated preview when Cancel is clicked', async () => {
+    const onRegenerate = vi.fn().mockResolvedValue({
+      previewUrl: 'https://example.com/generated.png',
+      tempId: 'tmp-cancel-1',
+      estimatedCost: {
+        cost: 0.01,
+        minCost: 0.01,
+        maxCost: 0.01,
+        isPlaceholder: false,
+      },
+    });
+    const onCleanupGenerated = vi.fn().mockResolvedValue(undefined);
+    const onOpenChange = vi.fn();
+
+    render(
+      <ImageEditDialog
+        {...defaultProps}
+        onOpenChange={onOpenChange}
+        onRegenerate={onRegenerate}
+        onCleanupGenerated={onCleanupGenerated}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'REGENERATE' }));
+    await waitFor(() => {
+      expect(onRegenerate).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(onCleanupGenerated).toHaveBeenCalledWith('tmp-cancel-1');
+      expect(onOpenChange).toHaveBeenCalledWith(false);
     });
   });
 });

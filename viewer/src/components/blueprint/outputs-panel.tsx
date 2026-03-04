@@ -1,4 +1,10 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  type ComponentProps,
+} from 'react';
 import {
   Download,
   ExternalLink,
@@ -56,8 +62,12 @@ import { EditedBadge } from './outputs/edited-badge';
 import { SkippedBadge } from './outputs/skipped-badge';
 import { FileUploadDialog } from './inputs/file-upload-dialog';
 import {
+  applyArtifactPreview,
+  deleteArtifactPreview,
   editArtifactFile,
   editArtifactText,
+  estimateArtifactPreview,
+  generateArtifactPreview,
   restoreArtifact,
 } from '@/data/blueprint-client';
 import type {
@@ -1032,6 +1042,48 @@ function MediaArtifactCard({
     }
   };
 
+  const handlePreviewRegenerate = async (
+    params: Parameters<
+      NonNullable<ComponentProps<typeof ImageEditDialog>['onRegenerate']>
+    >[0]
+  ) => {
+    return generateArtifactPreview(blueprintFolder, movieId, artifact.id, {
+      mode: params.mode,
+      prompt: params.prompt,
+      model: params.model,
+      cameraParams: params.cameraParams,
+    });
+  };
+
+  const handlePreviewEstimate = async (
+    params: Parameters<
+      NonNullable<ComponentProps<typeof ImageEditDialog>['onEstimateCost']>
+    >[0]
+  ) => {
+    const response = await estimateArtifactPreview(
+      blueprintFolder,
+      movieId,
+      artifact.id,
+      {
+        mode: params.mode,
+        prompt: params.prompt,
+        model: params.model,
+        cameraParams: params.cameraParams,
+      }
+    );
+
+    return response.estimatedCost;
+  };
+
+  const handlePreviewApply = async (tempId: string) => {
+    await applyArtifactPreview(blueprintFolder, movieId, artifact.id, tempId);
+    onArtifactUpdated?.();
+  };
+
+  const handlePreviewCleanup = async (tempId: string) => {
+    await deleteArtifactPreview(blueprintFolder, movieId, tempId);
+  };
+
   const footer = (
     <ArtifactCardFooter
       artifactId={artifact.id}
@@ -1089,12 +1141,15 @@ function MediaArtifactCard({
           imageUrl={url}
           title={`Edit Image \u2014 ${displayName}`}
           availableModels={
-            producerModels?.[
-              extractProducerFromArtifactId(artifact.id) ?? ''
-            ]?.availableModels ?? []
+            producerModels?.[extractProducerFromArtifactId(artifact.id) ?? '']
+              ?.availableModels ?? []
           }
           promptUrl={promptUrl}
           onFileUpload={handleFileUpload}
+          onEstimateCost={handlePreviewEstimate}
+          onRegenerate={handlePreviewRegenerate}
+          onApplyGenerated={handlePreviewApply}
+          onCleanupGenerated={handlePreviewCleanup}
         />
       ) : (
         <FileUploadDialog

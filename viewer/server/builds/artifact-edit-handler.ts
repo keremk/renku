@@ -3,35 +3,34 @@
  * Handles editing artifacts (replacing content) and restoring originals.
  */
 
-import { existsSync } from "node:fs";
-import { promises as fs } from "node:fs";
-import type { IncomingMessage, ServerResponse } from "node:http";
-import path from "node:path";
-import { createHash } from "node:crypto";
-import busboy from "busboy";
+import { existsSync } from 'node:fs';
+import { promises as fs } from 'node:fs';
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import path from 'node:path';
+import { createHash } from 'node:crypto';
+import busboy from 'busboy';
 
 /** Maximum file size for artifact uploads (100MB) */
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
 
-
 /** MIME type to file extension mapping */
 const EXTENSION_MAP: Record<string, string> = {
-  "audio/mpeg": "mp3",
-  "audio/mp3": "mp3",
-  "audio/wav": "wav",
-  "audio/x-wav": "wav",
-  "audio/webm": "webm",
-  "audio/ogg": "ogg",
-  "video/mp4": "mp4",
-  "video/webm": "webm",
-  "video/quicktime": "mov",
-  "image/png": "png",
-  "image/jpeg": "jpg",
-  "image/jpg": "jpg",
-  "image/webp": "webp",
-  "image/gif": "gif",
-  "text/plain": "txt",
-  "application/json": "json",
+  'audio/mpeg': 'mp3',
+  'audio/mp3': 'mp3',
+  'audio/wav': 'wav',
+  'audio/x-wav': 'wav',
+  'audio/webm': 'webm',
+  'audio/ogg': 'ogg',
+  'video/mp4': 'mp4',
+  'video/webm': 'webm',
+  'video/quicktime': 'mov',
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+  'text/plain': 'txt',
+  'application/json': 'json',
 };
 
 /**
@@ -41,7 +40,7 @@ export interface ArtifactEditResponse {
   success: boolean;
   newHash: string;
   originalHash?: string;
-  editedBy: "user";
+  editedBy: 'user';
 }
 
 /**
@@ -75,7 +74,7 @@ export interface ArtifactRestoreRequest {
 /**
  * ArtefactEvent structure matching core types.
  */
-interface ArtefactEvent {
+export interface ArtefactEvent {
   artefactId: string;
   revision: string;
   inputsHash: string;
@@ -86,11 +85,11 @@ interface ArtefactEvent {
       mimeType: string;
     };
   };
-  status: "succeeded" | "failed" | "skipped";
+  status: 'succeeded' | 'failed' | 'skipped';
   producedBy: string;
   diagnostics?: Record<string, unknown>;
   createdAt: string;
-  editedBy?: "producer" | "user";
+  editedBy?: 'producer' | 'user';
   originalHash?: string;
 }
 
@@ -98,14 +97,14 @@ interface ArtefactEvent {
  * Get the blobs directory path for a build.
  */
 function getBlobsDir(blueprintFolder: string, movieId: string): string {
-  return path.join(blueprintFolder, "builds", movieId, "blobs");
+  return path.join(blueprintFolder, 'builds', movieId, 'blobs');
 }
 
 /**
  * Get the events directory path for a build.
  */
 function getEventsDir(blueprintFolder: string, movieId: string): string {
-  return path.join(blueprintFolder, "builds", movieId, "events");
+  return path.join(blueprintFolder, 'builds', movieId, 'events');
 }
 
 /**
@@ -130,32 +129,35 @@ function formatBlobFileName(hash: string, mimeType?: string): string {
 function isPathWithinDirectory(filePath: string, directory: string): boolean {
   const resolvedFile = path.resolve(filePath);
   const resolvedDir = path.resolve(directory);
-  return resolvedFile.startsWith(resolvedDir + path.sep) || resolvedFile === resolvedDir;
+  return (
+    resolvedFile.startsWith(resolvedDir + path.sep) ||
+    resolvedFile === resolvedDir
+  );
 }
 
 /**
  * Read the latest artefact event for a specific artifact ID from the event log.
  */
-async function readLatestArtifactEvent(
+export async function readLatestArtifactEvent(
   blueprintFolder: string,
   movieId: string,
-  artifactId: string,
+  artifactId: string
 ): Promise<ArtefactEvent | null> {
   const eventsDir = getEventsDir(blueprintFolder, movieId);
-  const logPath = path.join(eventsDir, "artefacts.log");
+  const logPath = path.join(eventsDir, 'artefacts.log');
 
   if (!existsSync(logPath)) {
     return null;
   }
 
-  const content = await fs.readFile(logPath, "utf8");
+  const content = await fs.readFile(logPath, 'utf8');
   const lines = content.split(/\r?\n/).filter((line) => line.trim());
 
   let latest: ArtefactEvent | null = null;
   for (const line of lines) {
     try {
       const event = JSON.parse(line) as ArtefactEvent;
-      if (event.artefactId === artifactId && event.status === "succeeded") {
+      if (event.artefactId === artifactId && event.status === 'succeeded') {
         latest = event;
       }
     } catch {
@@ -172,15 +174,15 @@ async function readLatestArtifactEvent(
 async function appendArtefactEvent(
   blueprintFolder: string,
   movieId: string,
-  event: ArtefactEvent,
+  event: ArtefactEvent
 ): Promise<void> {
   const eventsDir = getEventsDir(blueprintFolder, movieId);
-  const logPath = path.join(eventsDir, "artefacts.log");
+  const logPath = path.join(eventsDir, 'artefacts.log');
 
   await fs.mkdir(eventsDir, { recursive: true });
 
-  const serialized = JSON.stringify(event) + "\n";
-  await fs.appendFile(logPath, serialized, "utf8");
+  const serialized = JSON.stringify(event) + '\n';
+  await fs.appendFile(logPath, serialized, 'utf8');
 }
 
 /**
@@ -191,9 +193,9 @@ async function persistBlob(
   blueprintFolder: string,
   movieId: string,
   data: Buffer,
-  mimeType: string,
+  mimeType: string
 ): Promise<{ hash: string; size: number }> {
-  const hash = createHash("sha256").update(data).digest("hex");
+  const hash = createHash('sha256').update(data).digest('hex');
   const prefix = hash.slice(0, 2);
   const fileName = formatBlobFileName(hash, mimeType);
   const blobsDir = getBlobsDir(blueprintFolder, movieId);
@@ -231,12 +233,12 @@ export async function handleArtifactFileEdit(
   res: ServerResponse,
   blueprintFolder: string,
   movieId: string,
-  artifactId: string,
+  artifactId: string
 ): Promise<void> {
   // Validate parameters
   if (!blueprintFolder || !movieId || !artifactId) {
     res.statusCode = 400;
-    res.end(JSON.stringify({ error: "Missing required parameters" }));
+    res.end(JSON.stringify({ error: 'Missing required parameters' }));
     return;
   }
 
@@ -244,14 +246,16 @@ export async function handleArtifactFileEdit(
   const blobsDir = getBlobsDir(blueprintFolder, movieId);
   if (!isPathWithinDirectory(blobsDir, blueprintFolder)) {
     res.statusCode = 400;
-    res.end(JSON.stringify({ error: "Invalid path" }));
+    res.end(JSON.stringify({ error: 'Invalid path' }));
     return;
   }
 
-  const contentType = req.headers["content-type"];
-  if (!contentType || !contentType.includes("multipart/form-data")) {
+  const contentType = req.headers['content-type'];
+  if (!contentType || !contentType.includes('multipart/form-data')) {
     res.statusCode = 400;
-    res.end(JSON.stringify({ error: "Content-Type must be multipart/form-data" }));
+    res.end(
+      JSON.stringify({ error: 'Content-Type must be multipart/form-data' })
+    );
     return;
   }
 
@@ -270,35 +274,35 @@ export async function handleArtifactFileEdit(
     let parseError: string | null = null;
 
     const filePromise = new Promise<void>((resolve, reject) => {
-      bb.on("file", (_fieldname, file, info) => {
+      bb.on('file', (_fieldname, file, info) => {
         fileMimeType = info.mimeType;
         const chunks: Buffer[] = [];
 
-        file.on("data", (data: Buffer) => {
+        file.on('data', (data: Buffer) => {
           chunks.push(data);
         });
 
-        file.on("limit", () => {
+        file.on('limit', () => {
           truncated = true;
         });
 
-        file.on("end", () => {
+        file.on('end', () => {
           if (!truncated) {
             fileData = Buffer.concat(chunks);
           }
         });
 
-        file.on("error", (err: Error) => {
+        file.on('error', (err: Error) => {
           reject(err);
         });
       });
 
-      bb.on("error", (err: Error) => {
+      bb.on('error', (err: Error) => {
         parseError = err.message;
         reject(err);
       });
 
-      bb.on("close", () => {
+      bb.on('close', () => {
         resolve();
       });
 
@@ -309,33 +313,41 @@ export async function handleArtifactFileEdit(
 
     if (truncated) {
       res.statusCode = 400;
-      res.end(JSON.stringify({ error: `File exceeds maximum size of ${MAX_FILE_SIZE / (1024 * 1024)}MB` }));
+      res.end(
+        JSON.stringify({
+          error: `File exceeds maximum size of ${MAX_FILE_SIZE / (1024 * 1024)}MB`,
+        })
+      );
       return;
     }
 
     if (!fileData || !fileMimeType) {
       res.statusCode = 400;
-      res.end(JSON.stringify({ error: parseError ?? "No file uploaded" }));
+      res.end(JSON.stringify({ error: parseError ?? 'No file uploaded' }));
       return;
     }
 
     // Process the edit
-    const result = await processArtifactEdit(
+    const result = await applyArtifactEditFromBuffer(
       blueprintFolder,
       movieId,
       artifactId,
       fileData,
-      fileMimeType,
+      fileMimeType
     );
 
     res.statusCode = 200;
-    res.setHeader("Content-Type", "application/json");
+    res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify(result));
   } catch (error) {
-    console.error("[artifact-edit-handler] Error:", error);
+    console.error('[artifact-edit-handler] Error:', error);
     res.statusCode = 500;
-    res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify({ error: error instanceof Error ? error.message : "Edit failed" }));
+    res.setHeader('Content-Type', 'application/json');
+    res.end(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : 'Edit failed',
+      })
+    );
   }
 }
 
@@ -345,14 +357,20 @@ export async function handleArtifactFileEdit(
 export async function handleArtifactTextEdit(
   _req: IncomingMessage,
   res: ServerResponse,
-  body: TextArtifactEditRequest,
+  body: TextArtifactEditRequest
 ): Promise<void> {
   const { blueprintFolder, movieId, artifactId, content, mimeType } = body;
 
   // Validate parameters
-  if (!blueprintFolder || !movieId || !artifactId || content === undefined || !mimeType) {
+  if (
+    !blueprintFolder ||
+    !movieId ||
+    !artifactId ||
+    content === undefined ||
+    !mimeType
+  ) {
     res.statusCode = 400;
-    res.end(JSON.stringify({ error: "Missing required parameters" }));
+    res.end(JSON.stringify({ error: 'Missing required parameters' }));
     return;
   }
 
@@ -360,43 +378,51 @@ export async function handleArtifactTextEdit(
   const blobsDir = getBlobsDir(blueprintFolder, movieId);
   if (!isPathWithinDirectory(blobsDir, blueprintFolder)) {
     res.statusCode = 400;
-    res.end(JSON.stringify({ error: "Invalid path" }));
+    res.end(JSON.stringify({ error: 'Invalid path' }));
     return;
   }
 
   try {
-    const data = Buffer.from(content, "utf8");
-    const result = await processArtifactEdit(
+    const data = Buffer.from(content, 'utf8');
+    const result = await applyArtifactEditFromBuffer(
       blueprintFolder,
       movieId,
       artifactId,
       data,
-      mimeType,
+      mimeType
     );
 
     res.statusCode = 200;
-    res.setHeader("Content-Type", "application/json");
+    res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify(result));
   } catch (error) {
-    console.error("[artifact-edit-handler] Error:", error);
+    console.error('[artifact-edit-handler] Error:', error);
     res.statusCode = 500;
-    res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify({ error: error instanceof Error ? error.message : "Edit failed" }));
+    res.setHeader('Content-Type', 'application/json');
+    res.end(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : 'Edit failed',
+      })
+    );
   }
 }
 
 /**
  * Process an artifact edit - save blob and create event.
  */
-async function processArtifactEdit(
+export async function applyArtifactEditFromBuffer(
   blueprintFolder: string,
   movieId: string,
   artifactId: string,
   data: Buffer,
-  mimeType: string,
+  mimeType: string
 ): Promise<ArtifactEditResponse> {
   // Read the latest event for this artifact to get originalHash
-  const latestEvent = await readLatestArtifactEvent(blueprintFolder, movieId, artifactId);
+  const latestEvent = await readLatestArtifactEvent(
+    blueprintFolder,
+    movieId,
+    artifactId
+  );
 
   // Determine the originalHash:
   // - If latest event has originalHash, preserve it (already edited before)
@@ -411,13 +437,18 @@ async function processArtifactEdit(
   }
 
   // Save the new blob
-  const { hash: newHash, size } = await persistBlob(blueprintFolder, movieId, data, mimeType);
+  const { hash: newHash, size } = await persistBlob(
+    blueprintFolder,
+    movieId,
+    data,
+    mimeType
+  );
 
   // Create new artifact event
   const event: ArtefactEvent = {
     artefactId: artifactId,
     revision: generateRevisionId(),
-    inputsHash: latestEvent?.inputsHash ?? "user-edit",
+    inputsHash: latestEvent?.inputsHash ?? 'user-edit',
     output: {
       blob: {
         hash: newHash,
@@ -425,10 +456,10 @@ async function processArtifactEdit(
         mimeType,
       },
     },
-    status: "succeeded",
-    producedBy: latestEvent?.producedBy ?? "user",
+    status: 'succeeded',
+    producedBy: latestEvent?.producedBy ?? 'user',
     createdAt: new Date().toISOString(),
-    editedBy: "user",
+    editedBy: 'user',
     originalHash,
   };
 
@@ -439,7 +470,7 @@ async function processArtifactEdit(
     success: true,
     newHash,
     originalHash,
-    editedBy: "user",
+    editedBy: 'user',
   };
 }
 
@@ -448,41 +479,46 @@ async function processArtifactEdit(
  */
 export async function handleArtifactRestore(
   res: ServerResponse,
-  body: ArtifactRestoreRequest,
+  body: ArtifactRestoreRequest
 ): Promise<void> {
   const { blueprintFolder, movieId, artifactId } = body;
 
   // Validate parameters
   if (!blueprintFolder || !movieId || !artifactId) {
     res.statusCode = 400;
-    res.end(JSON.stringify({ error: "Missing required parameters" }));
+    res.end(JSON.stringify({ error: 'Missing required parameters' }));
     return;
   }
 
   try {
     // Read the latest event to get originalHash
-    const latestEvent = await readLatestArtifactEvent(blueprintFolder, movieId, artifactId);
+    const latestEvent = await readLatestArtifactEvent(
+      blueprintFolder,
+      movieId,
+      artifactId
+    );
 
     if (!latestEvent) {
       res.statusCode = 404;
-      res.end(JSON.stringify({ error: "Artifact not found" }));
+      res.end(JSON.stringify({ error: 'Artifact not found' }));
       return;
     }
 
     if (!latestEvent.originalHash) {
       res.statusCode = 400;
-      res.end(JSON.stringify({ error: "Artifact has not been edited" }));
+      res.end(JSON.stringify({ error: 'Artifact has not been edited' }));
       return;
     }
 
     // Find the original blob info - we need to find the original mimeType
     // Read through events to find the one with the originalHash
     const eventsDir = getEventsDir(blueprintFolder, movieId);
-    const logPath = path.join(eventsDir, "artefacts.log");
-    const content = await fs.readFile(logPath, "utf8");
+    const logPath = path.join(eventsDir, 'artefacts.log');
+    const content = await fs.readFile(logPath, 'utf8');
     const lines = content.split(/\r?\n/).filter((line) => line.trim());
 
-    let originalMimeType = latestEvent.output.blob?.mimeType ?? "application/octet-stream";
+    let originalMimeType =
+      latestEvent.output.blob?.mimeType ?? 'application/octet-stream';
     let originalSize = latestEvent.output.blob?.size ?? 0;
 
     // Find the original event with the originalHash to get correct mimeType/size
@@ -514,7 +550,7 @@ export async function handleArtifactRestore(
           mimeType: originalMimeType,
         },
       },
-      status: "succeeded",
+      status: 'succeeded',
       producedBy: latestEvent.producedBy,
       createdAt: new Date().toISOString(),
       // No editedBy or originalHash - restored to producer state
@@ -529,12 +565,16 @@ export async function handleArtifactRestore(
     };
 
     res.statusCode = 200;
-    res.setHeader("Content-Type", "application/json");
+    res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify(response));
   } catch (error) {
-    console.error("[artifact-edit-handler] Restore error:", error);
+    console.error('[artifact-edit-handler] Restore error:', error);
     res.statusCode = 500;
-    res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify({ error: error instanceof Error ? error.message : "Restore failed" }));
+    res.setHeader('Content-Type', 'application/json');
+    res.end(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : 'Restore failed',
+      })
+    );
   }
 }

@@ -3,8 +3,6 @@
  * Manual: image preview + prompt textarea + model selector + regenerate.
  * Camera: image preview (left) + isometric camera tool (right) + regenerate.
  * Upload: dropzone for replacing the image file.
- *
- * AI generation is stubbed for now — the focus is on the UX.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -16,6 +14,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -31,9 +30,22 @@ import type { AvailableModelOption } from '@/types/blueprint-graph';
 // ============================================================================
 
 export interface RegenerateParams {
+  mode: 'manual' | 'camera';
   prompt: string;
-  model: AvailableModelOption;
+  model?: AvailableModelOption;
   cameraParams?: CameraParams;
+}
+
+export interface RegenerateResult {
+  previewUrl: string;
+  tempId: string;
+  estimatedCost: {
+    cost: number;
+    minCost: number;
+    maxCost: number;
+    isPlaceholder: boolean;
+    note?: string;
+  };
 }
 
 export interface ImageEditDialogProps {
@@ -44,7 +56,12 @@ export interface ImageEditDialogProps {
   availableModels: AvailableModelOption[];
   promptUrl?: string;
   onFileUpload: (files: File[]) => Promise<void>;
-  onRegenerate?: (params: RegenerateParams) => Promise<void>;
+  onEstimateCost?: (
+    params: RegenerateParams
+  ) => Promise<RegenerateResult['estimatedCost']>;
+  onRegenerate?: (params: RegenerateParams) => Promise<RegenerateResult>;
+  onApplyGenerated?: (tempId: string) => Promise<void>;
+  onCleanupGenerated?: (tempId: string) => Promise<void>;
 }
 
 // ============================================================================
@@ -59,6 +76,23 @@ const TABS: { id: TabId; label: string; icon: typeof Pencil }[] = [
   { id: 'upload', label: 'Upload', icon: Upload },
 ];
 
+function formatCurrency(value: number): string {
+  if (value === 0) return '$0.00';
+  if (value < 0.01) return `$${value.toFixed(4)}`;
+  return `$${value.toFixed(2)}`;
+}
+
+function formatEstimatedCost(
+  estimatedCost: RegenerateResult['estimatedCost']
+): string {
+  const min = estimatedCost.minCost;
+  const max = estimatedCost.maxCost;
+  if (min !== max) {
+    return `${formatCurrency(min)}-${formatCurrency(max)}`;
+  }
+  return formatCurrency(estimatedCost.cost);
+}
+
 // ============================================================================
 // Regenerate Button
 // ============================================================================
@@ -66,17 +100,19 @@ const TABS: { id: TabId; label: string; icon: typeof Pencil }[] = [
 function RegenerateButton({
   onClick,
   isRegenerating,
+  disabled,
   className,
 }: {
   onClick: () => void;
   isRegenerating: boolean;
+  disabled?: boolean;
   className?: string;
 }) {
   return (
     <button
       type='button'
       onClick={onClick}
-      disabled={isRegenerating}
+      disabled={isRegenerating || disabled}
       className={cn(
         'bg-primary/15 text-primary border border-primary/50',
         'font-semibold text-[10px] uppercase tracking-[0.1em]',
@@ -144,6 +180,7 @@ function ManualTab({
   selectedModel,
   onModelChange,
   isRegenerating,
+  canRegenerate,
   onRegenerate,
 }: {
   imageUrl: string;
@@ -154,6 +191,7 @@ function ManualTab({
   selectedModel: number;
   onModelChange: (index: number) => void;
   isRegenerating: boolean;
+  canRegenerate: boolean;
   onRegenerate: () => void;
 }) {
   return (
@@ -211,6 +249,7 @@ function ManualTab({
         <RegenerateButton
           onClick={onRegenerate}
           isRegenerating={isRegenerating}
+          disabled={!canRegenerate}
           className='ml-auto'
         />
       </div>
@@ -228,6 +267,7 @@ function CameraTab({
   cameraParams,
   onCameraChange,
   isRegenerating,
+  canRegenerate,
   onRegenerate,
 }: {
   imageUrl: string;
@@ -235,6 +275,7 @@ function CameraTab({
   cameraParams: CameraParams;
   onCameraChange: (params: CameraParams) => void;
   isRegenerating: boolean;
+  canRegenerate: boolean;
   onRegenerate: () => void;
 }) {
   return (
@@ -258,6 +299,7 @@ function CameraTab({
           <RegenerateButton
             onClick={onRegenerate}
             isRegenerating={isRegenerating}
+            disabled={!canRegenerate}
             className='w-full justify-center'
           />
         </div>
@@ -338,7 +380,10 @@ export function ImageEditDialog({
   availableModels,
   promptUrl,
   onFileUpload,
-  onRegenerate: _onRegenerate,
+  onEstimateCost,
+  onRegenerate,
+  onApplyGenerated,
+  onCleanupGenerated,
 }: ImageEditDialogProps) {
   // Tab state
   const [activeTab, setActiveTab] = useState<TabId>('manual');
@@ -357,8 +402,16 @@ export function ImageEditDialog({
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Shared state
+  const [previewImageUrl, setPreviewImageUrl] = useState(imageUrl);
+  const [generatedTempId, setGeneratedTempId] = useState<string | null>(null);
+  const [estimatedCost, setEstimatedCost] = useState<
+    RegenerateResult['estimatedCost'] | null
+  >(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [isEstimatingCost, setIsEstimatingCost] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isApplyingGenerated, setIsApplyingGenerated] = useState(false);
 
   // Load initial prompt from upstream artifact
   const { promptText } = useMediaPrompt(promptUrl, open);
@@ -379,16 +432,148 @@ export function ImageEditDialog({
       setCameraParams(DEFAULT_CAMERA_PARAMS);
       setSelectedFiles([]);
       setUploadError(null);
+      setPreviewImageUrl(imageUrl);
+      setGeneratedTempId(null);
+      setEstimatedCost(null);
+      setGenerationError(null);
+      setIsEstimatingCost(false);
       setIsRegenerating(false);
       setIsUploading(false);
+      setIsApplyingGenerated(false);
     }
-  }, [open]);
+  }, [open, imageUrl]);
 
-  // Stubbed regeneration
-  const handleRegenerate = useCallback(() => {
+  useEffect(() => {
+    if (!open || generatedTempId) {
+      return;
+    }
+    setPreviewImageUrl(imageUrl);
+  }, [open, generatedTempId, imageUrl]);
+
+  useEffect(() => {
+    if (!open || activeTab === 'upload' || !onEstimateCost) {
+      setIsEstimatingCost(false);
+      return;
+    }
+
+    let params: RegenerateParams;
+    if (activeTab === 'manual') {
+      const selectedModel = availableModels[selectedModelIndex];
+      if (!selectedModel) {
+        setEstimatedCost(null);
+        setIsEstimatingCost(false);
+        return;
+      }
+      params = {
+        mode: 'manual',
+        prompt: '',
+        model: selectedModel,
+      };
+    } else {
+      params = {
+        mode: 'camera',
+        prompt: '',
+        cameraParams: DEFAULT_CAMERA_PARAMS,
+      };
+    }
+
+    let cancelled = false;
+    setIsEstimatingCost(true);
+
+    const estimateCost = async () => {
+      try {
+        const nextEstimatedCost = await onEstimateCost(params);
+        if (cancelled) {
+          return;
+        }
+        setEstimatedCost(nextEstimatedCost);
+      } catch {
+        if (cancelled) {
+          return;
+        }
+        setEstimatedCost(null);
+      } finally {
+        if (!cancelled) {
+          setIsEstimatingCost(false);
+        }
+      }
+    };
+
+    void estimateCost();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, availableModels, onEstimateCost, open, selectedModelIndex]);
+
+  const handleRegenerate = useCallback(async () => {
+    if (!onRegenerate) {
+      return;
+    }
+
+    if (activeTab === 'manual' && availableModels.length === 0) {
+      setGenerationError('No models are available for manual regeneration.');
+      return;
+    }
+
     setIsRegenerating(true);
-    setTimeout(() => setIsRegenerating(false), 1200);
-  }, []);
+    setGenerationError(null);
+
+    try {
+      if (generatedTempId) {
+        if (!onCleanupGenerated) {
+          throw new Error(
+            'Cannot regenerate because preview cleanup is not configured.'
+          );
+        }
+        await onCleanupGenerated(generatedTempId);
+        setGeneratedTempId(null);
+        setPreviewImageUrl(imageUrl);
+      }
+
+      let params: RegenerateParams;
+      if (activeTab === 'manual') {
+        const selectedModel = availableModels[selectedModelIndex];
+        if (!selectedModel) {
+          throw new Error('Selected model is not available.');
+        }
+        params = {
+          mode: 'manual',
+          prompt,
+          model: selectedModel,
+        };
+      } else {
+        params = {
+          mode: 'camera',
+          prompt,
+          cameraParams,
+        };
+      }
+
+      const result = await onRegenerate(params);
+      setPreviewImageUrl(result.previewUrl);
+      setGeneratedTempId(result.tempId);
+      setEstimatedCost(result.estimatedCost);
+    } catch (error) {
+      setPreviewImageUrl(imageUrl);
+      setGeneratedTempId(null);
+      setGenerationError(
+        error instanceof Error ? error.message : 'Regeneration failed'
+      );
+    } finally {
+      setIsRegenerating(false);
+    }
+  }, [
+    activeTab,
+    availableModels,
+    cameraParams,
+    generatedTempId,
+    imageUrl,
+    onCleanupGenerated,
+    onRegenerate,
+    prompt,
+    selectedModelIndex,
+  ]);
 
   // Upload handlers
   const handleFilesSelected = useCallback((files: File[]) => {
@@ -409,27 +594,108 @@ export function ImageEditDialog({
       setIsUploading(true);
       setUploadError(null);
       try {
+        if (generatedTempId) {
+          if (!onCleanupGenerated) {
+            throw new Error(
+              'Cannot upload while generated preview cleanup is unavailable.'
+            );
+          }
+          await onCleanupGenerated(generatedTempId);
+          setGeneratedTempId(null);
+        }
         await onFileUpload(selectedFiles);
         setSelectedFiles([]);
         onOpenChange(false);
       } catch (err) {
-        setUploadError(
-          err instanceof Error ? err.message : 'Upload failed'
-        );
+        setUploadError(err instanceof Error ? err.message : 'Upload failed');
       } finally {
         setIsUploading(false);
       }
+      return;
     }
-  }, [activeTab, selectedFiles, onFileUpload, onOpenChange]);
+
+    if ((activeTab === 'manual' || activeTab === 'camera') && generatedTempId) {
+      setIsApplyingGenerated(true);
+      setGenerationError(null);
+      try {
+        if (!onApplyGenerated) {
+          throw new Error('Generated preview apply handler is not configured.');
+        }
+        await onApplyGenerated(generatedTempId);
+        if (onCleanupGenerated) {
+          await onCleanupGenerated(generatedTempId);
+        }
+        setGeneratedTempId(null);
+        onOpenChange(false);
+      } catch (error) {
+        setGenerationError(
+          error instanceof Error ? error.message : 'Failed to apply preview'
+        );
+      } finally {
+        setIsApplyingGenerated(false);
+      }
+    }
+  }, [
+    activeTab,
+    generatedTempId,
+    onApplyGenerated,
+    onCleanupGenerated,
+    onFileUpload,
+    onOpenChange,
+    selectedFiles,
+  ]);
 
   const handleClose = useCallback(() => {
-    if (!isUploading) {
-      onOpenChange(false);
+    if (isUploading || isApplyingGenerated) {
+      return;
     }
-  }, [isUploading, onOpenChange]);
+
+    const closeWithCleanup = async () => {
+      try {
+        if (generatedTempId) {
+          if (!onCleanupGenerated) {
+            throw new Error(
+              'Cannot close with pending preview because cleanup is not configured.'
+            );
+          }
+          await onCleanupGenerated(generatedTempId);
+          setGeneratedTempId(null);
+          setPreviewImageUrl(imageUrl);
+        }
+        onOpenChange(false);
+      } catch (error) {
+        setGenerationError(
+          error instanceof Error ? error.message : 'Failed to clean up preview'
+        );
+      }
+    };
+
+    void closeWithCleanup();
+  }, [
+    generatedTempId,
+    imageUrl,
+    isApplyingGenerated,
+    isUploading,
+    onCleanupGenerated,
+    onOpenChange,
+  ]);
+
+  const canRegenerateManual =
+    Boolean(onRegenerate) &&
+    availableModels.length > 0 &&
+    !isApplyingGenerated &&
+    !isUploading;
+
+  const canRegenerateCamera =
+    Boolean(onRegenerate) && !isApplyingGenerated && !isUploading;
 
   const isUpdateDisabled =
-    activeTab === 'upload' && (selectedFiles.length === 0 || isUploading);
+    activeTab === 'upload'
+      ? selectedFiles.length === 0 || isUploading || isApplyingGenerated
+      : generatedTempId === null ||
+        isRegenerating ||
+        isApplyingGenerated ||
+        isUploading;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -441,6 +707,10 @@ export function ImageEditDialog({
       >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
+          <DialogDescription className='sr-only'>
+            Edit this image manually, with camera controls, or by uploading a
+            replacement file.
+          </DialogDescription>
         </DialogHeader>
 
         {/* Tab bar */}
@@ -477,7 +747,7 @@ export function ImageEditDialog({
         <div className='flex-1 flex flex-col overflow-hidden min-h-0'>
           {activeTab === 'manual' && (
             <ManualTab
-              imageUrl={imageUrl}
+              imageUrl={previewImageUrl}
               title={title}
               prompt={prompt}
               onPromptChange={setPrompt}
@@ -485,16 +755,18 @@ export function ImageEditDialog({
               selectedModel={selectedModelIndex}
               onModelChange={setSelectedModelIndex}
               isRegenerating={isRegenerating}
+              canRegenerate={canRegenerateManual}
               onRegenerate={handleRegenerate}
             />
           )}
           {activeTab === 'camera' && (
             <CameraTab
-              imageUrl={imageUrl}
+              imageUrl={previewImageUrl}
               title={title}
               cameraParams={cameraParams}
               onCameraChange={setCameraParams}
               isRegenerating={isRegenerating}
+              canRegenerate={canRegenerateCamera}
               onRegenerate={handleRegenerate}
             />
           )}
@@ -509,20 +781,48 @@ export function ImageEditDialog({
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant='ghost' onClick={handleClose} disabled={isUploading}>
-            Cancel
-          </Button>
-          <Button onClick={handleUpdate} disabled={isUpdateDisabled}>
-            {isUploading ? (
-              <>
-                <Loader2 className='size-4 animate-spin' />
-                Uploading...
-              </>
-            ) : (
-              'Update'
-            )}
-          </Button>
+        {activeTab !== 'upload' && generationError && (
+          <div className='px-3 pb-2'>
+            <div className='bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2 text-xs text-destructive'>
+              {generationError}
+            </div>
+          </div>
+        )}
+
+        <DialogFooter className='justify-between'>
+          <div className='text-[11px] text-muted-foreground min-h-[1rem]'>
+            {activeTab !== 'upload'
+              ? estimatedCost
+                ? `Estimated cost: ${formatEstimatedCost(estimatedCost)}`
+                : isEstimatingCost
+                  ? 'Estimating cost...'
+                  : 'Estimated cost unavailable'
+              : ''}
+          </div>
+          <div className='flex items-center gap-2'>
+            <Button
+              variant='ghost'
+              onClick={handleClose}
+              disabled={isUploading || isApplyingGenerated}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleUpdate} disabled={isUpdateDisabled}>
+              {isUploading ? (
+                <>
+                  <Loader2 className='size-4 animate-spin' />
+                  Uploading...
+                </>
+              ) : isApplyingGenerated ? (
+                <>
+                  <Loader2 className='size-4 animate-spin' />
+                  Updating...
+                </>
+              ) : (
+                'Update'
+              )}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

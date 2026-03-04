@@ -6,6 +6,7 @@ import type {
   ProducerPromptsResponse,
   PromptData,
   ModelSelectionValue,
+  AvailableModelOption,
 } from '@/types/blueprint-graph';
 import type { BuildsListResponse, BuildManifestResponse } from '@/types/builds';
 import type { TimelineDocument } from '@/types/timeline';
@@ -492,6 +493,89 @@ export interface ArtifactRestoreResponse {
 }
 
 /**
+ * Estimated generation cost for a single image preview request.
+ */
+export interface ArtifactPreviewCostEstimate {
+  cost: number;
+  minCost: number;
+  maxCost: number;
+  isPlaceholder: boolean;
+  note?: string;
+}
+
+/**
+ * Camera controls passed to preview generation.
+ */
+export interface ImagePreviewCameraParams {
+  azimuth: number;
+  elevation: number;
+  distance: number;
+  shotDescription: string;
+}
+
+export type ImagePreviewMode = 'manual' | 'camera';
+
+/**
+ * Request payload for temporary image preview generation.
+ */
+export interface GenerateArtifactPreviewRequest {
+  mode: ImagePreviewMode;
+  prompt: string;
+  model?: AvailableModelOption;
+  cameraParams?: ImagePreviewCameraParams;
+}
+
+/**
+ * Response payload for temporary image preview generation.
+ */
+export interface GenerateArtifactPreviewResponse {
+  success: true;
+  tempId: string;
+  previewUrl: string;
+  mimeType: string;
+  estimatedCost: ArtifactPreviewCostEstimate;
+}
+
+/**
+ * Response payload for image preview cost estimation.
+ */
+export interface EstimateArtifactPreviewResponse {
+  success: true;
+  estimatedCost: ArtifactPreviewCostEstimate;
+}
+
+/**
+ * Estimates the generation cost for an image preview request without generating an image.
+ */
+export async function estimateArtifactPreview(
+  blueprintFolder: string,
+  movieId: string,
+  artifactId: string,
+  request: GenerateArtifactPreviewRequest
+): Promise<EstimateArtifactPreviewResponse> {
+  const response = await fetch(
+    `${API_BASE}/blueprints/builds/artifacts/preview-estimate`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        blueprintFolder,
+        movieId,
+        artifactId,
+        ...request,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    throw new Error(`Preview cost estimation failed: ${errorText}`);
+  }
+
+  return response.json() as Promise<EstimateArtifactPreviewResponse>;
+}
+
+/**
  * Edits an artifact by uploading a new file (for media artifacts).
  */
 export async function editArtifactFile(
@@ -593,6 +677,95 @@ export async function restoreArtifact(
   }
 
   return response.json() as Promise<ArtifactRestoreResponse>;
+}
+
+/**
+ * Generates a temporary AI-edited image preview for an artifact.
+ */
+export async function generateArtifactPreview(
+  blueprintFolder: string,
+  movieId: string,
+  artifactId: string,
+  request: GenerateArtifactPreviewRequest
+): Promise<GenerateArtifactPreviewResponse> {
+  const response = await fetch(
+    `${API_BASE}/blueprints/builds/artifacts/preview-generate`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        blueprintFolder,
+        movieId,
+        artifactId,
+        ...request,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    throw new Error(`Preview generation failed: ${errorText}`);
+  }
+
+  return response.json() as Promise<GenerateArtifactPreviewResponse>;
+}
+
+/**
+ * Applies a generated temporary preview to the artifact event log.
+ */
+export async function applyArtifactPreview(
+  blueprintFolder: string,
+  movieId: string,
+  artifactId: string,
+  tempId: string
+): Promise<ArtifactEditResponse> {
+  const response = await fetch(
+    `${API_BASE}/blueprints/builds/artifacts/preview-apply`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        blueprintFolder,
+        movieId,
+        artifactId,
+        tempId,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    throw new Error(`Applying preview failed: ${errorText}`);
+  }
+
+  return response.json() as Promise<ArtifactEditResponse>;
+}
+
+/**
+ * Deletes a temporary generated preview.
+ */
+export async function deleteArtifactPreview(
+  blueprintFolder: string,
+  movieId: string,
+  tempId: string
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE}/blueprints/builds/artifacts/preview-delete`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        blueprintFolder,
+        movieId,
+        tempId,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    throw new Error(`Deleting preview failed: ${errorText}`);
+  }
 }
 
 /**

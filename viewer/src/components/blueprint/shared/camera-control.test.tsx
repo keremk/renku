@@ -33,10 +33,10 @@ describe('generateShotDescription', () => {
       'front view eye-level shot medium shot'
     );
     expect(generateShotDescription(46, 0, 1)).toBe(
-      'front-right view eye-level shot medium shot'
+      'front-left view eye-level shot medium shot'
     );
     expect(generateShotDescription(90, 0, 1)).toBe(
-      'right view eye-level shot medium shot'
+      'left view eye-level shot medium shot'
     );
   });
 
@@ -58,7 +58,7 @@ describe('generateShotDescription', () => {
 
   it('combines all three labels', () => {
     const desc = generateShotDescription(270, 30, 0.7);
-    expect(desc).toBe('left view high-angle shot extreme close-up');
+    expect(desc).toBe('right view high-angle shot extreme close-up');
   });
 
   it('handles 360 degree azimuth (wraps to 0)', () => {

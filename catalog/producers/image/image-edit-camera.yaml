@@ -19,18 +19,18 @@ inputs:
 
   # Camera controls
   - name: CameraAzimuth
-    description: "Horizontal rotation angle around the object in degrees. 0°=front view, 90°=right side, 180°=back view, 270°=left side."
+    description: 'Horizontal rotation angle around the object in degrees. 0°=front view, 90°=right side, 180°=back view, 270°=left side.'
     type: number
   - name: CameraElevation
     description: "Vertical camera angle in degrees. -30°=low-angle shot (looking up), 0°=eye-level, 30°=elevated, 90°=bird's-eye view (looking down)."
     type: number
   - name: CameraZoom
-    description: "Camera zoom/distance. 0=wide shot (far away), 5=medium shot (normal), 10=close-up (very close)."
+    description: 'Camera zoom/distance. 0=wide shot (far away), 5=medium shot (normal), 10=close-up (very close).'
     type: number
 
   # Sizing
   - name: AspectRatio
-    description: "Output aspect ratio."
+    description: 'Output aspect ratio.'
     type: string
   - name: Width
     description: Custom output width in pixels.
@@ -49,7 +49,6 @@ mappings:
     qwen-image-edit-2511-multiple-angles:
       SourceImage:
         field: image_urls
-        firstOf: true
       Prompt: additional_prompt
       CameraAzimuth: horizontal_angle
       CameraElevation: vertical_angle
@@ -63,11 +62,11 @@ mappings:
           then:
             field: image_size
             transform:
-              "16:9": landscape_16_9
-              "9:16": portrait_16_9
-              "4:3": landscape_4_3
-              "3:4": portrait_4_3
-              "1:1": square_hd
+              '16:9': landscape_16_9
+              '9:16': portrait_16_9
+              '4:3': landscape_4_3
+              '3:4': portrait_4_3
+              '1:1': square_hd
       # Custom dimensions via Width/Height (takes precedence over AspectRatio)
       Width:
         conditional:
