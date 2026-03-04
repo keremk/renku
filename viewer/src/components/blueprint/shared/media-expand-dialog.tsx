@@ -57,7 +57,7 @@ export function MediaExpandDialog({
   const mediaContainerClassName =
     mediaType === 'audio'
       ? 'min-h-[260px]'
-      : 'max-h-[60vh] sm:max-h-[68vh] min-h-[220px]';
+      : 'h-[60vh] sm:h-[68vh] min-h-[220px]';
 
   const dialogSizeClassName =
     mediaType === 'audio'
