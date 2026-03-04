@@ -305,10 +305,12 @@ function drawCanvas(
   );
   handles.az = [azSx, azSy];
 
-  // Elevation arc (fixed at arcAzDeg), centered on eye-level (card center)
+  const subjectCenterY = cH / 2;
+
+  // Elevation arc (fixed at arcAzDeg), centered on eye-level
   const arcR = R;
-  const eyeLevelY = cH / 2;
-  const minElRad = (-30 * Math.PI) / 180;
+  const eyeLevelY = subjectCenterY;
+  const minElRad = (-60 * Math.PI) / 180;
   const maxElRad = (60 * Math.PI) / 180;
 
   ctx.strokeStyle = 'hsl(330 80% 65% / 0.6)';
@@ -352,12 +354,12 @@ function drawCanvas(
   const d = distance * R;
   const camGroundR = d * Math.cos(elRad); // horizontal distance shrinks with elevation
   const camWx = -Math.cos(azRad) * camGroundR;
-  const camWy = cH / 2 + d * Math.sin(elRad); // rises/dips with elevation
+  const camWy = subjectCenterY + d * Math.sin(elRad); // rises/dips with elevation
   const camWz = Math.sin(azRad) * camGroundR;
   const [camSx, camSy] = iso(camWx, camWy, camWz, cx, cy, S);
 
   // Subject center — target the camera always points at
-  const [subjectCx, subjectCy] = iso(0, cH / 2, 0, cx, cy, S);
+  const [subjectCx, subjectCy] = iso(0, subjectCenterY, 0, cx, cy, S);
 
   // Dashed line from card center to camera position
   ctx.strokeStyle = colors.distanceLine;
@@ -461,7 +463,7 @@ function CameraSlider({
   max: number;
   step: number;
   displayValue: string;
-  hints: string[];
+  hints: Array<{ label: string; value: number }>;
   onChange: (value: number) => void;
 }) {
   return (
@@ -481,24 +483,30 @@ function CameraSlider({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className='w-full h-1 bg-muted/60 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-background'
+        className='w-full h-1 bg-muted/60 rounded-full appearance-none cursor-pointer outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-background'
       />
-      <div
-        className='grid text-[8px] text-muted-foreground/60'
-        style={{
-          gridTemplateColumns: `repeat(${hints.length}, minmax(0, 1fr))`,
-        }}
-      >
+      <div className='relative h-3 text-[8px] text-muted-foreground/60'>
         {hints.map((hint, index) => {
-          let alignClass = 'text-center';
+          const ratio = max === min ? 0 : (hint.value - min) / (max - min);
+          const clampedRatio = Math.max(0, Math.min(1, ratio));
+
+          let translateX = '-50%';
           if (index === 0) {
-            alignClass = 'text-left';
+            translateX = '0%';
           } else if (index === hints.length - 1) {
-            alignClass = 'text-right';
+            translateX = '-100%';
           }
+
           return (
-            <span key={`${label}-${hint}-${index}`} className={alignClass}>
-              {hint}
+            <span
+              key={`${label}-${hint.label}-${index}`}
+              className='absolute top-0 whitespace-nowrap'
+              style={{
+                left: `${(clampedRatio * 100).toFixed(2)}%`,
+                transform: `translateX(${translateX})`,
+              }}
+            >
+              {hint.label}
             </span>
           );
         })}
@@ -671,7 +679,7 @@ export function CameraControl({
         prevScreenAngleRef.current = currAngle;
       } else if (dragging === 'el') {
         const dy = my - start[1];
-        newEl = Math.max(-30, Math.min(60, p.elevation - dy * 0.5));
+        newEl = Math.max(-60, Math.min(60, p.elevation - dy * 0.5));
       } else if (dragging === 'dist' && canvasRef.current) {
         // Radial tracking: moving mouse outward from center increases distance
         const W = canvasRef.current.clientWidth;
@@ -738,7 +746,7 @@ export function CameraControl({
   else if (hovering) cursor = 'grab';
 
   return (
-    <div className={cn('flex flex-col gap-2.5', className)}>
+    <div className={cn('flex flex-col gap-3.5', className)}>
       <div className='text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground flex items-center gap-1.5'>
         <span className='text-sm'>&#127909;</span> Camera Control
       </div>
@@ -760,7 +768,7 @@ export function CameraControl({
       </div>
 
       {/* Sliders */}
-      <div className='flex flex-col gap-1.5'>
+      <div className='flex flex-col gap-2.5'>
         <CameraSlider
           label='Azimuth'
           value={params.azimuth}
@@ -768,17 +776,27 @@ export function CameraControl({
           max={360}
           step={1}
           displayValue={`${params.azimuth}\u00B0`}
-          hints={['front', 'left', 'back', 'right', 'front']}
+          hints={[
+            { label: 'front', value: 0 },
+            { label: 'left', value: 90 },
+            { label: 'back', value: 180 },
+            { label: 'right', value: 270 },
+            { label: 'front', value: 360 },
+          ]}
           onChange={(v) => updateParam('azimuth', v)}
         />
         <CameraSlider
           label='Elevation'
           value={params.elevation}
-          min={-30}
+          min={-60}
           max={60}
           step={1}
           displayValue={`${params.elevation}\u00B0`}
-          hints={['low', 'eye level', 'high']}
+          hints={[
+            { label: 'low', value: -60 },
+            { label: 'eye level', value: 0 },
+            { label: 'high', value: 60 },
+          ]}
           onChange={(v) => updateParam('elevation', v)}
         />
         <CameraSlider
@@ -788,13 +806,17 @@ export function CameraControl({
           max={1.4}
           step={0.05}
           displayValue={params.distance.toFixed(2)}
-          hints={['close-up', 'medium', 'wide']}
+          hints={[
+            { label: 'close-up', value: 0.6 },
+            { label: 'medium', value: 1.0 },
+            { label: 'wide', value: 1.4 },
+          ]}
           onChange={(v) => updateParam('distance', v)}
         />
       </div>
 
       {/* Shot description output */}
-      <div className='flex items-center gap-1.5'>
+      <div className='mt-1 flex items-center gap-1.5'>
         <span className='text-[9px] uppercase tracking-[0.06em] text-muted-foreground/60 font-semibold whitespace-nowrap'>
           Prompt:
         </span>

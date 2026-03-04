@@ -292,9 +292,9 @@ function CameraTab({
       {/* Right: camera tool */}
       <div
         className='flex flex-col overflow-y-auto border-l border-border/40'
-        style={{ width: 300, minWidth: 300 }}
+        style={{ width: 350, minWidth: 300 }}
       >
-        <div className='p-2.5 flex flex-col gap-2.5 flex-1'>
+        <div className='p-3 flex flex-col gap-3.5 flex-1'>
           <CameraControl params={cameraParams} onChange={onCameraChange} />
           <RegenerateButton
             onClick={onRegenerate}
@@ -701,7 +701,7 @@ export function ImageEditDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent
         className={cn(
-          'w-[860px] h-[700px] max-w-[860px] max-h-[700px]',
+          'w-[880px] h-[800px] max-w-[880px] max-h-[900px]',
           'p-0 gap-0 overflow-hidden flex flex-col'
         )}
       >
