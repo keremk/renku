@@ -8,7 +8,7 @@ import path from 'node:path';
 import { getProducerMappings, loadYamlBlueprintTree } from '@gorenku/core';
 import { requireCliConfig } from '../generation/config.js';
 import { streamFileWithRange } from '../shared/stream-utils.js';
-import { applyArtifactEditFromBuffer } from './artifact-edit-handler.js';
+import { applyArtifactEditWithDerivedArtifactsFromBuffer } from './artifact-edit-handler.js';
 import {
   type ArtifactPreviewApplyRequest,
   type ArtifactPreviewDeleteRequest,
@@ -22,6 +22,10 @@ import {
   estimateEditOrCameraPreview,
   generateEditOrCameraPreview,
 } from './preview/edit-camera-preview.js';
+import {
+  estimateClipPreview,
+  generateClipPreview,
+} from './preview/clip-preview.js';
 import { readImageDimensions } from './preview/image-dimensions.js';
 import {
   estimateRerunPreview,
@@ -61,14 +65,14 @@ export async function handleArtifactPreviewGenerate(
 
     await cleanupStaleTempPreviews(body.blueprintFolder, body.movieId);
 
-    const generationResult =
-      body.mode === 'rerun'
-        ? await generateRerunPreview(body)
-        : await generateEditOrCameraPreview(body);
+    const generationResult = await generatePreviewForMode(body);
 
-    if (!generationResult.mimeType.startsWith('image/')) {
+    if (
+      !generationResult.mimeType.startsWith('image/') &&
+      !generationResult.mimeType.startsWith('video/')
+    ) {
       throw new Error(
-        `Preview produced non-image MIME type: ${generationResult.mimeType}.`
+        `Preview produced unsupported MIME type: ${generationResult.mimeType}.`
       );
     }
 
@@ -112,10 +116,7 @@ export async function handleArtifactPreviewEstimate(
   try {
     validatePreviewRequest(body, { allowEmptyPrompt: true });
 
-    const estimatedCost =
-      body.mode === 'rerun'
-        ? await estimateRerunPreview(body)
-        : await estimateEditOrCameraPreview(body);
+    const estimatedCost = await estimatePreviewForMode(body);
 
     const response: ArtifactPreviewEstimateResponse = {
       success: true,
@@ -133,6 +134,32 @@ export async function handleArtifactPreviewEstimate(
       '[artifact-preview-handler] Estimate error:'
     );
   }
+}
+
+async function generatePreviewForMode(body: ArtifactPreviewGenerateRequest) {
+  if (body.mode === 'rerun') {
+    return generateRerunPreview(body);
+  }
+  if (body.mode === 'edit' || body.mode === 'camera') {
+    return generateEditOrCameraPreview(body);
+  }
+  if (body.mode === 'clip') {
+    return generateClipPreview(body);
+  }
+  throw new Error(`Unsupported preview mode: ${body.mode}.`);
+}
+
+async function estimatePreviewForMode(body: ArtifactPreviewEstimateRequest) {
+  if (body.mode === 'rerun') {
+    return estimateRerunPreview(body);
+  }
+  if (body.mode === 'edit' || body.mode === 'camera') {
+    return estimateEditOrCameraPreview(body);
+  }
+  if (body.mode === 'clip') {
+    return estimateClipPreview(body);
+  }
+  throw new Error(`Unsupported preview mode: ${body.mode}.`);
 }
 
 export async function handleArtifactPreviewEditModels(
@@ -227,7 +254,7 @@ export async function handleArtifactPreviewApply(
     }
 
     const data = await fs.readFile(temp.filePath);
-    const result = await applyArtifactEditFromBuffer(
+    const result = await applyArtifactEditWithDerivedArtifactsFromBuffer(
       body.blueprintFolder,
       body.movieId,
       body.artifactId,

@@ -35,5 +35,12 @@ export type {
   RegenerateParams,
   RegenerateResult,
 } from './image-edit-dialog';
+export { VideoEditDialog } from './video-edit-dialog';
+export type {
+  VideoClipParams,
+  VideoEditDialogProps,
+  VideoRegenerateParams,
+  VideoRegenerateResult,
+} from './video-edit-dialog';
 export { CameraControl } from './camera-control';
 export type { CameraControlProps, CameraParams } from './camera-control';

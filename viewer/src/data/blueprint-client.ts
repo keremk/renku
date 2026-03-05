@@ -513,7 +513,12 @@ export interface ImagePreviewCameraParams {
   shotDescription: string;
 }
 
-export type ImagePreviewMode = 'rerun' | 'edit' | 'camera';
+export interface ArtifactPreviewClipParams {
+  startTimeSeconds: number;
+  endTimeSeconds: number;
+}
+
+export type ImagePreviewMode = 'rerun' | 'edit' | 'camera' | 'clip';
 
 /**
  * Request payload for temporary image preview generation.
@@ -524,6 +529,8 @@ export interface GenerateArtifactPreviewRequest {
   promptArtifactId?: string;
   model?: AvailableModelOption;
   cameraParams?: ImagePreviewCameraParams;
+  clipParams?: ArtifactPreviewClipParams;
+  sourceTempId?: string;
 }
 
 /**

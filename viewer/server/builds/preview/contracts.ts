@@ -1,10 +1,15 @@
-export type ImagePreviewMode = 'rerun' | 'edit' | 'camera';
+export type ImagePreviewMode = 'rerun' | 'edit' | 'camera' | 'clip';
 
 export interface CameraParams {
   azimuth: number;
   elevation: number;
   distance: number;
   shotDescription: string;
+}
+
+export interface ClipParams {
+  startTimeSeconds: number;
+  endTimeSeconds: number;
 }
 
 export interface ArtifactPreviewGenerateRequest {
@@ -19,6 +24,8 @@ export interface ArtifactPreviewGenerateRequest {
     model: string;
   };
   cameraParams?: CameraParams;
+  clipParams?: ClipParams;
+  sourceTempId?: string;
 }
 
 export interface ArtifactPreviewGenerateResponse {
@@ -41,6 +48,8 @@ export interface ArtifactPreviewEstimateRequest {
     model: string;
   };
   cameraParams?: CameraParams;
+  clipParams?: ClipParams;
+  sourceTempId?: string;
 }
 
 export interface ArtifactPreviewEstimateResponse {

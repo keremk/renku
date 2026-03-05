@@ -22,7 +22,10 @@ import {
   loadYamlBlueprintTree,
   loadInputs,
   persistArtifactOverrideBlobs,
+  formatProducerScopedInputId,
+  parseQualifiedProducerName,
   resolveBlobRefsToInputs,
+  resolveMappingsForModel,
   resolveMovieInputsPath,
   resolveStorageBasePathForBlueprint,
   sliceExecutionPlanThroughLayer,
@@ -260,6 +263,16 @@ async function prepareRerunSurgicalPreviewContext(
     buildsDir,
   });
 
+  await applyRerunModelOverride({
+    request: body,
+    blueprintTree,
+    providerOptions,
+    resolvedInputs: inputValues,
+    blueprintFolder: body.blueprintFolder,
+    movieId: body.movieId,
+    artifactId: body.artifactId,
+  });
+
   const persistedOverrides = await persistArtifactOverrideBlobs(
     artifactOverrides,
     memoryStorageContext,
@@ -335,6 +348,102 @@ async function prepareRerunSurgicalPreviewContext(
     storageRoot: cliConfig.storage.root,
     storageBasePath,
   };
+}
+
+async function applyRerunModelOverride(args: {
+  request: ArtifactPreviewGenerateRequest | ArtifactPreviewEstimateRequest;
+  blueprintTree: import('@gorenku/core').BlueprintTreeNode;
+  providerOptions: ProducerOptionsMap;
+  resolvedInputs: Record<string, unknown>;
+  blueprintFolder: string;
+  movieId: string;
+  artifactId: string;
+}): Promise<void> {
+  const {
+    request,
+    blueprintTree,
+    providerOptions,
+    resolvedInputs,
+    blueprintFolder,
+    movieId,
+    artifactId,
+  } = args;
+
+  if (request.mode !== 'rerun' || !request.model) {
+    return;
+  }
+
+  const latestTargetEvent = await readLatestArtifactEvent(
+    blueprintFolder,
+    movieId,
+    artifactId
+  );
+  const sourceJobId = latestTargetEvent?.producedBy;
+  if (!sourceJobId) {
+    throw new Error(
+      `Cannot apply rerun model override because artifact ${artifactId} has no source producer event.`
+    );
+  }
+
+  const producerAlias = parseProducerAliasFromJobId(sourceJobId);
+  const currentEntries = providerOptions.get(producerAlias);
+  if (!currentEntries || currentEntries.length === 0) {
+    throw new Error(
+      `Provider options are missing for producer ${producerAlias}.`
+    );
+  }
+
+  const sdkMapping = resolveMappingsForModel(blueprintTree, {
+    provider: request.model.provider,
+    model: request.model.model,
+    producerId: producerAlias,
+  });
+  if (!sdkMapping || Object.keys(sdkMapping).length === 0) {
+    throw new Error(
+      `Model ${request.model.provider}/${request.model.model} is not mapped for producer ${producerAlias}.`
+    );
+  }
+
+  const currentPrimary = currentEntries[0]!;
+  const updatedPrimary = {
+    ...currentPrimary,
+    provider: request.model.provider,
+    model: request.model.model,
+    sdkMapping,
+  };
+  providerOptions.set(producerAlias, [
+    updatedPrimary,
+    ...currentEntries.slice(1),
+  ]);
+
+  const { namespacePath, producerName } =
+    parseQualifiedProducerName(producerAlias);
+  const providerInputId = formatProducerScopedInputId(
+    namespacePath,
+    producerName,
+    'provider'
+  );
+  const modelInputId = formatProducerScopedInputId(
+    namespacePath,
+    producerName,
+    'model'
+  );
+  resolvedInputs[providerInputId] = request.model.provider;
+  resolvedInputs[modelInputId] = request.model.model;
+}
+
+function parseProducerAliasFromJobId(jobId: string): string {
+  if (!jobId.startsWith('Producer:')) {
+    throw new Error(`Expected producer job id, got ${jobId}.`);
+  }
+
+  const jobBody = jobId.slice('Producer:'.length);
+  const alias = jobBody.replace(/\[[^\]]+\]/g, '');
+  if (alias.length === 0) {
+    throw new Error(`Producer alias is empty in job id ${jobId}.`);
+  }
+
+  return alias;
 }
 
 async function buildRerunPromptOverrideDraft(args: {

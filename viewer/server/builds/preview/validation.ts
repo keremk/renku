@@ -15,13 +15,40 @@ export function validatePreviewRequest(
       'Missing blueprintFolder, movieId, or artifactId.'
     );
   }
-  if (body.mode !== 'rerun' && body.mode !== 'edit' && body.mode !== 'camera') {
+  if (
+    body.mode !== 'rerun' &&
+    body.mode !== 'edit' &&
+    body.mode !== 'camera' &&
+    body.mode !== 'clip'
+  ) {
     throw new PreviewRequestValidationError(
       `Unsupported preview mode: ${String(body.mode)}.`
     );
   }
   if (typeof body.prompt !== 'string') {
     throw new PreviewRequestValidationError('Prompt must be a string.');
+  }
+  if (body.model) {
+    if (!body.model.provider || !body.model.model) {
+      throw new PreviewRequestValidationError(
+        'Model selection requires both provider and model.'
+      );
+    }
+  }
+  if (body.sourceTempId !== undefined) {
+    if (
+      typeof body.sourceTempId !== 'string' ||
+      body.sourceTempId.trim().length === 0
+    ) {
+      throw new PreviewRequestValidationError(
+        'sourceTempId must be a non-empty string when provided.'
+      );
+    }
+    if (body.mode !== 'clip') {
+      throw new PreviewRequestValidationError(
+        'sourceTempId is only supported in clip preview mode.'
+      );
+    }
   }
   if (body.mode === 'edit') {
     if (!body.model?.provider || !body.model.model) {
@@ -34,11 +61,6 @@ export function validatePreviewRequest(
         'Edit preview prompt cannot be empty.'
       );
     }
-  }
-  if (body.mode === 'rerun' && body.model) {
-    throw new PreviewRequestValidationError(
-      'Re-run preview mode does not accept model selection.'
-    );
   }
   if (body.mode === 'rerun' && body.prompt.trim().length > 0) {
     if (!body.promptArtifactId) {
@@ -56,5 +78,32 @@ export function validatePreviewRequest(
     throw new PreviewRequestValidationError(
       'Camera preview mode requires cameraParams.'
     );
+  }
+  if (body.mode === 'clip') {
+    if (!body.clipParams) {
+      throw new PreviewRequestValidationError(
+        'Clip preview mode requires clipParams.'
+      );
+    }
+
+    const { startTimeSeconds, endTimeSeconds } = body.clipParams;
+    if (
+      !Number.isFinite(startTimeSeconds) ||
+      !Number.isFinite(endTimeSeconds)
+    ) {
+      throw new PreviewRequestValidationError(
+        'Clip preview start/end times must be finite numbers.'
+      );
+    }
+    if (startTimeSeconds < 0) {
+      throw new PreviewRequestValidationError(
+        'Clip preview start time must be >= 0.'
+      );
+    }
+    if (endTimeSeconds <= startTimeSeconds) {
+      throw new PreviewRequestValidationError(
+        'Clip preview end time must be greater than start time.'
+      );
+    }
   }
 }

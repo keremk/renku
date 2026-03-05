@@ -36,6 +36,7 @@ export {
   handleArtifactTextEdit,
   handleArtifactRestore,
   applyArtifactEditFromBuffer,
+  applyArtifactEditWithDerivedArtifactsFromBuffer,
   readLatestArtifactEvent,
   type ArtefactEvent,
   type ArtifactEditResponse,

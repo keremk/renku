@@ -80,6 +80,19 @@ describe('validatePreviewRequest', () => {
     ).not.toThrow();
   });
 
+  it('accepts rerun with explicit model selection', () => {
+    expect(() =>
+      validatePreviewRequest(
+        createEstimateRequest({
+          model: { provider: 'fal-ai', model: 'veo3.1' },
+        }),
+        {
+          allowEmptyPrompt: true,
+        }
+      )
+    ).not.toThrow();
+  });
+
   it('rejects rerun prompt override when promptArtifactId is missing', () => {
     expect(() =>
       validatePreviewRequest(
@@ -105,6 +118,68 @@ describe('validatePreviewRequest', () => {
         }
       )
     ).toThrow('Re-run preview promptArtifactId must be canonical');
+  });
+
+  it('rejects clip mode when clipParams are missing', () => {
+    expect(() =>
+      validatePreviewRequest(
+        createEstimateRequest({
+          mode: 'clip',
+        }),
+        {
+          allowEmptyPrompt: true,
+        }
+      )
+    ).toThrow('Clip preview mode requires clipParams.');
+  });
+
+  it('accepts clip mode with valid trim bounds', () => {
+    expect(() =>
+      validatePreviewRequest(
+        createEstimateRequest({
+          mode: 'clip',
+          clipParams: {
+            startTimeSeconds: 1,
+            endTimeSeconds: 3.5,
+          },
+        }),
+        {
+          allowEmptyPrompt: true,
+        }
+      )
+    ).not.toThrow();
+  });
+
+  it('accepts clip mode with sourceTempId', () => {
+    expect(() =>
+      validatePreviewRequest(
+        createEstimateRequest({
+          mode: 'clip',
+          clipParams: {
+            startTimeSeconds: 1,
+            endTimeSeconds: 3.5,
+          },
+          sourceTempId: 'tmp-clip-preview',
+        }),
+        {
+          allowEmptyPrompt: true,
+        }
+      )
+    ).not.toThrow();
+  });
+
+  it('rejects sourceTempId outside clip mode', () => {
+    expect(() =>
+      validatePreviewRequest(
+        createEstimateRequest({
+          mode: 'rerun',
+          sourceTempId: 'tmp-clip-preview',
+        }),
+        {
+          allowEmptyPrompt: true,
+        }
+      )
+    ).toThrow('sourceTempId is only supported in clip preview mode.');
   });
 });
 

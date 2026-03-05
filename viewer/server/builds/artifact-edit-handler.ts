@@ -9,6 +9,10 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import busboy from 'busboy';
+import {
+  detectRequiredExtractions,
+  extractDerivedArtefacts,
+} from '@gorenku/providers';
 
 /** Maximum file size for artifact uploads (100MB) */
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
@@ -32,6 +36,12 @@ const EXTENSION_MAP: Record<string, string> = {
   'text/plain': 'txt',
   'application/json': 'json',
 };
+
+const DERIVED_VIDEO_ARTIFACT_BASE_NAMES = new Set([
+  'FirstFrame',
+  'LastFrame',
+  'AudioTrack',
+]);
 
 /**
  * Response from artifact edit operation.
@@ -166,6 +176,147 @@ export async function readLatestArtifactEvent(
   }
 
   return latest;
+}
+
+async function readLatestSucceededArtifactEvents(
+  blueprintFolder: string,
+  movieId: string
+): Promise<Map<string, ArtefactEvent>> {
+  const eventsDir = getEventsDir(blueprintFolder, movieId);
+  const logPath = path.join(eventsDir, 'artefacts.log');
+
+  const latest = new Map<string, ArtefactEvent>();
+  if (!existsSync(logPath)) {
+    return latest;
+  }
+
+  const content = await fs.readFile(logPath, 'utf8');
+  const lines = content.split(/\r?\n/).filter((line) => line.trim());
+
+  for (const line of lines) {
+    try {
+      const event = JSON.parse(line) as ArtefactEvent;
+      if (event.status === 'succeeded') {
+        latest.set(event.artefactId, event);
+      }
+    } catch {
+      // Skip malformed lines
+    }
+  }
+
+  return latest;
+}
+
+function extractArtifactBaseName(artifactId: string): string {
+  const withoutPrefix = artifactId.startsWith('Artifact:')
+    ? artifactId.slice('Artifact:'.length)
+    : artifactId;
+  const withoutBrackets = withoutPrefix.replace(/\[[^\]]+\]/g, '');
+  const segments = withoutBrackets.split('.');
+  return segments[segments.length - 1] ?? withoutBrackets;
+}
+
+function collectDerivedVideoArtifactIdsForFamily(
+  artifactId: string,
+  sourceProducedBy: string,
+  latestEvents: Map<string, ArtefactEvent>
+): string[] {
+  const derivedIds: string[] = [];
+
+  for (const [candidateArtifactId, event] of latestEvents) {
+    if (candidateArtifactId === artifactId) {
+      continue;
+    }
+    if (event.producedBy !== sourceProducedBy) {
+      continue;
+    }
+
+    const baseName = extractArtifactBaseName(candidateArtifactId);
+    if (!DERIVED_VIDEO_ARTIFACT_BASE_NAMES.has(baseName)) {
+      continue;
+    }
+
+    derivedIds.push(candidateArtifactId);
+  }
+
+  const sortOrder = ['FirstFrame', 'LastFrame', 'AudioTrack'];
+  return derivedIds.sort((a, b) => {
+    const baseA = extractArtifactBaseName(a);
+    const baseB = extractArtifactBaseName(b);
+    const orderA = sortOrder.indexOf(baseA);
+    const orderB = sortOrder.indexOf(baseB);
+
+    if (orderA !== orderB) {
+      return orderA - orderB;
+    }
+    return a.localeCompare(b);
+  });
+}
+
+async function extractDerivedVideoBuffers(args: {
+  videoBuffer: Buffer;
+  primaryArtifactId: string;
+  derivedArtifactIds: string[];
+}): Promise<Map<string, { data: Buffer; mimeType: string }>> {
+  const { videoBuffer, primaryArtifactId, derivedArtifactIds } = args;
+  const produces = [primaryArtifactId, ...derivedArtifactIds];
+  const requiredExtractions = detectRequiredExtractions(produces);
+
+  const extracted = await extractDerivedArtefacts({
+    videoBuffer,
+    primaryArtifactId,
+    produces,
+    mode: 'live',
+  });
+
+  const derivedBuffers = new Map<string, { data: Buffer; mimeType: string }>();
+
+  const register = (
+    artifactId: string | null,
+    key: 'firstFrame' | 'lastFrame' | 'audioTrack'
+  ) => {
+    if (!artifactId) {
+      return;
+    }
+
+    const artifact = extracted[key];
+    if (!artifact) {
+      throw new Error(
+        `Derived artifact ${artifactId} extraction returned no result for ${key}.`
+      );
+    }
+    if (artifact.status !== 'succeeded') {
+      const diagnostic =
+        artifact.diagnostics && typeof artifact.diagnostics === 'object'
+          ? JSON.stringify(artifact.diagnostics)
+          : String(artifact.diagnostics ?? 'none');
+      throw new Error(
+        `Derived artifact ${artifactId} extraction failed with status ${artifact.status}. diagnostics=${diagnostic}`
+      );
+    }
+    if (!artifact.blob) {
+      throw new Error(`Derived artifact ${artifactId} has no blob output.`);
+    }
+    if (typeof artifact.blob.data === 'string') {
+      throw new Error(
+        `Derived artifact ${artifactId} returned string data, expected binary.`
+      );
+    }
+
+    const data = Buffer.isBuffer(artifact.blob.data)
+      ? artifact.blob.data
+      : Buffer.from(artifact.blob.data);
+    derivedBuffers.set(artifactId, {
+      data,
+      mimeType: artifact.blob.mimeType,
+    });
+  };
+
+  register(requiredExtractions.firstFrameId, 'firstFrame');
+  register(requiredExtractions.lastFrameId, 'lastFrame');
+  register(requiredExtractions.audioTrackId, 'audioTrack');
+
+  return derivedBuffers;
 }
 
 /**
@@ -328,7 +479,7 @@ export async function handleArtifactFileEdit(
     }
 
     // Process the edit
-    const result = await applyArtifactEditFromBuffer(
+    const result = await applyArtifactEditWithDerivedArtifactsFromBuffer(
       blueprintFolder,
       movieId,
       artifactId,
@@ -475,6 +626,175 @@ export async function applyArtifactEditFromBuffer(
 }
 
 /**
+ * Process an artifact edit and keep derived video artifacts in sync.
+ *
+ * For non-video artifacts this delegates to applyArtifactEditFromBuffer.
+ * For video artifacts, this regenerates FirstFrame/LastFrame/AudioTrack siblings
+ * with the same source producer and applies those edits first.
+ */
+export async function applyArtifactEditWithDerivedArtifactsFromBuffer(
+  blueprintFolder: string,
+  movieId: string,
+  artifactId: string,
+  data: Buffer,
+  mimeType: string
+): Promise<ArtifactEditResponse> {
+  const latestEvent = await readLatestArtifactEvent(
+    blueprintFolder,
+    movieId,
+    artifactId
+  );
+  const latestMimeType = latestEvent?.output.blob?.mimeType;
+
+  if (!latestMimeType?.startsWith('video/')) {
+    return applyArtifactEditFromBuffer(
+      blueprintFolder,
+      movieId,
+      artifactId,
+      data,
+      mimeType
+    );
+  }
+
+  if (!mimeType.startsWith('video/')) {
+    throw new Error(
+      `Artifact ${artifactId} is a video artifact and must be replaced with video MIME type. Received ${mimeType}.`
+    );
+  }
+
+  if (!latestEvent) {
+    throw new Error(`Artifact ${artifactId} not found`);
+  }
+
+  const producedBy = latestEvent.producedBy;
+  const latestEvents = await readLatestSucceededArtifactEvents(
+    blueprintFolder,
+    movieId
+  );
+  const derivedArtifactIds = collectDerivedVideoArtifactIdsForFamily(
+    artifactId,
+    producedBy,
+    latestEvents
+  );
+
+  if (derivedArtifactIds.length === 0) {
+    return applyArtifactEditFromBuffer(
+      blueprintFolder,
+      movieId,
+      artifactId,
+      data,
+      mimeType
+    );
+  }
+
+  const derivedBuffers = await extractDerivedVideoBuffers({
+    videoBuffer: data,
+    primaryArtifactId: artifactId,
+    derivedArtifactIds,
+  });
+
+  for (const derivedArtifactId of derivedArtifactIds) {
+    const derived = derivedBuffers.get(derivedArtifactId);
+    if (!derived) {
+      throw new Error(
+        `Missing regenerated data for derived artifact ${derivedArtifactId}.`
+      );
+    }
+
+    await applyArtifactEditFromBuffer(
+      blueprintFolder,
+      movieId,
+      derivedArtifactId,
+      derived.data,
+      derived.mimeType
+    );
+  }
+
+  return applyArtifactEditFromBuffer(
+    blueprintFolder,
+    movieId,
+    artifactId,
+    data,
+    mimeType
+  );
+}
+
+async function restoreArtifactToOriginalHash(args: {
+  blueprintFolder: string;
+  movieId: string;
+  artifactId: string;
+  failIfNotEdited: boolean;
+}): Promise<{ restoredHash: string } | null> {
+  const { blueprintFolder, movieId, artifactId, failIfNotEdited } = args;
+
+  const latestEvent = await readLatestArtifactEvent(
+    blueprintFolder,
+    movieId,
+    artifactId
+  );
+  if (!latestEvent) {
+    if (failIfNotEdited) {
+      throw new Error(`Artifact ${artifactId} not found`);
+    }
+    return null;
+  }
+
+  if (!latestEvent.originalHash) {
+    if (failIfNotEdited) {
+      throw new Error(`Artifact ${artifactId} has not been edited`);
+    }
+    return null;
+  }
+
+  const eventsDir = getEventsDir(blueprintFolder, movieId);
+  const logPath = path.join(eventsDir, 'artefacts.log');
+  const content = await fs.readFile(logPath, 'utf8');
+  const lines = content.split(/\r?\n/).filter((line) => line.trim());
+
+  let originalMimeType =
+    latestEvent.output.blob?.mimeType ?? 'application/octet-stream';
+  let originalSize = latestEvent.output.blob?.size ?? 0;
+
+  for (const line of lines) {
+    try {
+      const event = JSON.parse(line) as ArtefactEvent;
+      if (
+        event.artefactId === artifactId &&
+        event.output.blob?.hash === latestEvent.originalHash
+      ) {
+        originalMimeType = event.output.blob.mimeType;
+        originalSize = event.output.blob.size;
+        break;
+      }
+    } catch {
+      // Skip malformed lines
+    }
+  }
+
+  const event: ArtefactEvent = {
+    artefactId: artifactId,
+    revision: generateRevisionId(),
+    inputsHash: latestEvent.inputsHash,
+    output: {
+      blob: {
+        hash: latestEvent.originalHash,
+        size: originalSize,
+        mimeType: originalMimeType,
+      },
+    },
+    status: 'succeeded',
+    producedBy: latestEvent.producedBy,
+    createdAt: new Date().toISOString(),
+  };
+
+  await appendArtefactEvent(blueprintFolder, movieId, event);
+
+  return {
+    restoredHash: latestEvent.originalHash,
+  };
+}
+
+/**
  * Handle artifact restore to original.
  */
 export async function handleArtifactRestore(
@@ -491,7 +811,6 @@ export async function handleArtifactRestore(
   }
 
   try {
-    // Read the latest event to get originalHash
     const latestEvent = await readLatestArtifactEvent(
       blueprintFolder,
       movieId,
@@ -510,58 +829,46 @@ export async function handleArtifactRestore(
       return;
     }
 
-    // Find the original blob info - we need to find the original mimeType
-    // Read through events to find the one with the originalHash
-    const eventsDir = getEventsDir(blueprintFolder, movieId);
-    const logPath = path.join(eventsDir, 'artefacts.log');
-    const content = await fs.readFile(logPath, 'utf8');
-    const lines = content.split(/\r?\n/).filter((line) => line.trim());
+    const latestEvents = await readLatestSucceededArtifactEvents(
+      blueprintFolder,
+      movieId
+    );
 
-    let originalMimeType =
-      latestEvent.output.blob?.mimeType ?? 'application/octet-stream';
-    let originalSize = latestEvent.output.blob?.size ?? 0;
+    const derivedArtifactIds = latestEvent.output.blob?.mimeType?.startsWith(
+      'video/'
+    )
+      ? collectDerivedVideoArtifactIdsForFamily(
+          artifactId,
+          latestEvent.producedBy,
+          latestEvents
+        )
+      : [];
 
-    // Find the original event with the originalHash to get correct mimeType/size
-    for (const line of lines) {
-      try {
-        const event = JSON.parse(line) as ArtefactEvent;
-        if (
-          event.artefactId === artifactId &&
-          event.output.blob?.hash === latestEvent.originalHash
-        ) {
-          originalMimeType = event.output.blob.mimeType;
-          originalSize = event.output.blob.size;
-          break;
-        }
-      } catch {
-        // Skip malformed lines
-      }
+    for (const derivedArtifactId of derivedArtifactIds) {
+      await restoreArtifactToOriginalHash({
+        blueprintFolder,
+        movieId,
+        artifactId: derivedArtifactId,
+        failIfNotEdited: false,
+      });
     }
 
-    // Create restore event - points back to original hash with no editedBy/originalHash
-    const event: ArtefactEvent = {
-      artefactId: artifactId,
-      revision: generateRevisionId(),
-      inputsHash: latestEvent.inputsHash,
-      output: {
-        blob: {
-          hash: latestEvent.originalHash,
-          size: originalSize,
-          mimeType: originalMimeType,
-        },
-      },
-      status: 'succeeded',
-      producedBy: latestEvent.producedBy,
-      createdAt: new Date().toISOString(),
-      // No editedBy or originalHash - restored to producer state
-    };
+    const restoredMain = await restoreArtifactToOriginalHash({
+      blueprintFolder,
+      movieId,
+      artifactId,
+      failIfNotEdited: true,
+    });
 
-    // Append to event log
-    await appendArtefactEvent(blueprintFolder, movieId, event);
+    if (!restoredMain) {
+      throw new Error(
+        `Restore result for artifact ${artifactId} is unexpectedly empty.`
+      );
+    }
 
     const response: ArtifactRestoreResponse = {
       success: true,
-      restoredHash: latestEvent.originalHash,
+      restoredHash: restoredMain.restoredHash,
     };
 
     res.statusCode = 200;

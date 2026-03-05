@@ -29,6 +29,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import {
+  extractProducerFromArtifactId,
   shortenArtifactDisplayName,
   groupArtifactsByProducer,
   sortProducersByTopology,
@@ -55,6 +56,7 @@ import {
   AudioCard,
   ImageCard,
   ImageEditDialog,
+  VideoEditDialog,
   type CardAction,
 } from './shared';
 import { EditedBadge } from './outputs/edited-badge';
@@ -528,6 +530,7 @@ function ArtifactGallery({
                           blueprintFolder={blueprintFolder}
                           movieId={movieId}
                           isPromptProducer={activeSection.isPromptProducer}
+                          producerModels={producerModels}
                           availableEditModels={availableEditModels}
                           onArtifactUpdated={onArtifactUpdated}
                         />
@@ -560,6 +563,7 @@ function ArtifactCardRenderer({
   movieId,
   isSelected,
   isPinned,
+  producerModels,
   availableEditModels,
   onArtifactUpdated,
   subGroup,
@@ -572,6 +576,7 @@ function ArtifactCardRenderer({
   movieId: string;
   isSelected: boolean;
   isPinned: boolean;
+  producerModels?: Record<string, ProducerModelInfo>;
   availableEditModels?: AvailableModelOption[];
   onArtifactUpdated?: () => void;
   subGroup?: ArtifactSubGroup;
@@ -592,6 +597,7 @@ function ArtifactCardRenderer({
         movieId={movieId}
         isSelected={isSelected}
         isPinned={isPinned}
+        producerModels={producerModels}
         onArtifactUpdated={onArtifactUpdated}
         mediaType='video'
         subGroup={subGroup}
@@ -608,6 +614,7 @@ function ArtifactCardRenderer({
         movieId={movieId}
         isSelected={isSelected}
         isPinned={isPinned}
+        producerModels={producerModels}
         onArtifactUpdated={onArtifactUpdated}
         mediaType='audio'
         subGroup={subGroup}
@@ -624,6 +631,7 @@ function ArtifactCardRenderer({
         movieId={movieId}
         isSelected={isSelected}
         isPinned={isPinned}
+        producerModels={producerModels}
         availableEditModels={availableEditModels}
         onArtifactUpdated={onArtifactUpdated}
         mediaType='image'
@@ -799,6 +807,7 @@ function SubGroupSection({
   blueprintFolder,
   movieId,
   isPromptProducer,
+  producerModels,
   availableEditModels,
   onArtifactUpdated,
 }: {
@@ -808,6 +817,7 @@ function SubGroupSection({
   blueprintFolder: string;
   movieId: string;
   isPromptProducer: boolean;
+  producerModels?: Record<string, ProducerModelInfo>;
   availableEditModels?: AvailableModelOption[];
   onArtifactUpdated?: () => void;
 }) {
@@ -847,6 +857,7 @@ function SubGroupSection({
               movieId={movieId}
               isSelected={isSelected}
               isPinned={isPinned}
+              producerModels={producerModels}
               availableEditModels={availableEditModels}
               onArtifactUpdated={onArtifactUpdated}
               subGroup={subGroup}
@@ -1019,6 +1030,7 @@ function MediaArtifactCard({
   movieId,
   isSelected,
   isPinned,
+  producerModels,
   availableEditModels,
   onArtifactUpdated,
   mediaType,
@@ -1031,6 +1043,7 @@ function MediaArtifactCard({
   movieId: string;
   isSelected: boolean;
   isPinned: boolean;
+  producerModels?: Record<string, ProducerModelInfo>;
   availableEditModels?: AvailableModelOption[];
   onArtifactUpdated?: () => void;
   mediaType: MediaType;
@@ -1051,6 +1064,10 @@ function MediaArtifactCard({
     : undefined;
   const displayName = getArtifactLabel(artifact.id, subGroup);
   const isEdited = artifact.editedBy === 'user';
+  const artifactProducerAlias = extractProducerFromArtifactId(artifact.id);
+  const availableVideoRerunModels = artifactProducerAlias
+    ? (producerModels?.[artifactProducerAlias]?.availableModels ?? [])
+    : [];
 
   const handleEdit = () => setIsEditDialogOpen(true);
 
@@ -1069,7 +1086,7 @@ function MediaArtifactCard({
     }
   };
 
-  const handlePreviewRegenerate = async (
+  const handleImagePreviewRegenerate = async (
     params: Parameters<
       NonNullable<ComponentProps<typeof ImageEditDialog>['onRegenerate']>
     >[0]
@@ -1084,7 +1101,7 @@ function MediaArtifactCard({
     });
   };
 
-  const handlePreviewEstimate = async (
+  const handleImagePreviewEstimate = async (
     params: Parameters<
       NonNullable<ComponentProps<typeof ImageEditDialog>['onEstimateCost']>
     >[0]
@@ -1100,6 +1117,44 @@ function MediaArtifactCard({
           params.mode === 'rerun' ? promptArtifact?.id : undefined,
         model: params.model,
         cameraParams: params.cameraParams,
+      }
+    );
+
+    return response.estimatedCost;
+  };
+
+  const handleVideoPreviewRegenerate = async (
+    params: Parameters<
+      NonNullable<ComponentProps<typeof VideoEditDialog>['onRegenerate']>
+    >[0]
+  ) => {
+    return generateArtifactPreview(blueprintFolder, movieId, artifact.id, {
+      mode: params.mode,
+      prompt: params.prompt,
+      promptArtifactId:
+        params.mode === 'rerun' ? promptArtifact?.id : undefined,
+      model: params.model,
+      clipParams: params.clipParams,
+      sourceTempId: params.sourceTempId,
+    });
+  };
+
+  const handleVideoPreviewEstimate = async (
+    params: Parameters<
+      NonNullable<ComponentProps<typeof VideoEditDialog>['onEstimateCost']>
+    >[0]
+  ) => {
+    const response = await estimateArtifactPreview(
+      blueprintFolder,
+      movieId,
+      artifact.id,
+      {
+        mode: params.mode,
+        prompt: params.prompt,
+        promptArtifactId:
+          params.mode === 'rerun' ? promptArtifact?.id : undefined,
+        model: params.model,
+        clipParams: params.clipParams,
       }
     );
 
@@ -1174,8 +1229,22 @@ function MediaArtifactCard({
           availableModels={availableEditModels ?? []}
           promptUrl={promptUrl}
           onFileUpload={handleFileUpload}
-          onEstimateCost={handlePreviewEstimate}
-          onRegenerate={handlePreviewRegenerate}
+          onEstimateCost={handleImagePreviewEstimate}
+          onRegenerate={handleImagePreviewRegenerate}
+          onApplyGenerated={handlePreviewApply}
+          onCleanupGenerated={handlePreviewCleanup}
+        />
+      ) : mediaType === 'video' ? (
+        <VideoEditDialog
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          videoUrl={url}
+          title={`Edit Video — ${displayName}`}
+          availableModels={availableVideoRerunModels}
+          promptUrl={promptUrl}
+          onFileUpload={handleFileUpload}
+          onEstimateCost={handleVideoPreviewEstimate}
+          onRegenerate={handleVideoPreviewRegenerate}
           onApplyGenerated={handlePreviewApply}
           onCleanupGenerated={handlePreviewCleanup}
         />
