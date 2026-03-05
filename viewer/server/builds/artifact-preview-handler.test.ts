@@ -217,6 +217,55 @@ describe('preview request validation status codes', () => {
   });
 });
 
+describe('inputOverrides validation', () => {
+  it('accepts rerun with valid inputOverrides', () => {
+    expect(() =>
+      validatePreviewRequest(
+        createEstimateRequest({
+          inputOverrides: { VoiceId: 'Rachel', Emotion: 'happy' },
+        }),
+        { allowEmptyPrompt: true }
+      )
+    ).not.toThrow();
+  });
+
+  it('rejects inputOverrides outside rerun mode', () => {
+    expect(() =>
+      validatePreviewRequest(
+        createEstimateRequest({
+          mode: 'edit',
+          model: { provider: 'openai', model: 'gpt-image-1' },
+          prompt: 'test',
+          inputOverrides: { VoiceId: 'Rachel' },
+        }),
+        { allowEmptyPrompt: false }
+      )
+    ).toThrow('inputOverrides is only supported in rerun preview mode.');
+  });
+
+  it('rejects non-object inputOverrides', () => {
+    expect(() =>
+      validatePreviewRequest(
+        createEstimateRequest({
+          inputOverrides: 'invalid' as unknown as Record<string, string>,
+        }),
+        { allowEmptyPrompt: true }
+      )
+    ).toThrow('inputOverrides must be a plain object');
+  });
+
+  it('rejects inputOverrides with non-string values', () => {
+    expect(() =>
+      validatePreviewRequest(
+        createEstimateRequest({
+          inputOverrides: { VoiceId: 123 as unknown as string },
+        }),
+        { allowEmptyPrompt: true }
+      )
+    ).toThrow('inputOverrides must have string keys and string values.');
+  });
+});
+
 describe('readImageDimensions', () => {
   it('uses image signature when mime type and bytes do not match', () => {
     const jpeg = createMinimalJpegBuffer(48, 96);

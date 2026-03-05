@@ -531,6 +531,7 @@ export interface GenerateArtifactPreviewRequest {
   cameraParams?: ImagePreviewCameraParams;
   clipParams?: ArtifactPreviewClipParams;
   sourceTempId?: string;
+  inputOverrides?: Record<string, string>;
 }
 
 /**

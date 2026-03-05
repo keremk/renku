@@ -1,5 +1,7 @@
 import path from 'node:path';
 import {
+  buildBlueprintGraph,
+  buildInputSourceMapFromCanonical,
   buildProducerCatalog,
   buildProviderMetadata,
   copyLatestSucceededArtifactBlobsToMemory,
@@ -13,14 +15,19 @@ import {
   createNotificationBus,
   createPlanningService,
   createStorageContext,
+  createProducerGraph,
   executePlanWithConcurrency,
+  expandBlueprintGraph,
   findLatestSucceededArtifactEvent,
   findSurgicalTargetLayer,
   formatBlobFileName,
   injectAllSystemInputs,
   initializeMovieStorage,
+  isCanonicalArtifactId,
+  isCanonicalInputId,
   loadYamlBlueprintTree,
   loadInputs,
+  normalizeInputValues,
   persistArtifactOverrideBlobs,
   formatProducerScopedInputId,
   parseQualifiedProducerName,
@@ -47,6 +54,7 @@ import {
   requireCliConfig,
 } from '../../generation/config.js';
 import { readLatestArtifactEvent } from '../artifact-edit-handler.js';
+import { resolveInputOverrideTargets } from './input-override-resolver.js';
 import type {
   ArtifactPreviewEstimateRequest,
   ArtifactPreviewGenerateRequest,
@@ -144,7 +152,24 @@ export async function generateRerunPreview(
     );
 
     if (run.status !== 'succeeded') {
-      throw new Error('Re-run preview execution failed.');
+      const failedJobs = run.jobs.filter((job) => job.status === 'failed');
+      const failureDetails = failedJobs
+        .map((job) => {
+          const reason =
+            job.error?.message ??
+            (typeof job.diagnostics?.reason === 'string'
+              ? job.diagnostics.reason
+              : 'unknown_error');
+          return `${job.jobId} (${reason})`;
+        })
+        .join('; ');
+      throw new Error(
+        `Re-run preview execution failed.${
+          failureDetails.length > 0
+            ? ` Failed jobs: ${failureDetails}`
+            : ' Failed jobs were reported without diagnostics.'
+        }`
+      );
     }
 
     const targetArtifact = findLatestSucceededArtifactEvent(
@@ -263,7 +288,7 @@ async function prepareRerunSurgicalPreviewContext(
     buildsDir,
   });
 
-  await applyRerunModelOverride({
+  const rerunTarget = await applyRerunModelOverride({
     request: body,
     blueprintTree,
     providerOptions,
@@ -272,6 +297,14 @@ async function prepareRerunSurgicalPreviewContext(
     movieId: body.movieId,
     artifactId: body.artifactId,
   });
+
+  const modelCatalog = await loadModelCatalog(catalogModelsDir);
+  const providerMetadata = await buildProviderMetadata(
+    providerOptions,
+    { catalogModelsDir, modelCatalog },
+    loadModelInputSchema as Parameters<typeof buildProviderMetadata>[2]
+  );
+  const providerCatalog = buildProducerCatalog(providerOptions);
 
   const persistedOverrides = await persistArtifactOverrideBlobs(
     artifactOverrides,
@@ -290,17 +323,24 @@ async function prepareRerunSurgicalPreviewContext(
     pendingArtefacts.push(promptOverrideDraft);
   }
 
-  const modelCatalog = await loadModelCatalog(catalogModelsDir);
-  const providerMetadata = await buildProviderMetadata(
-    providerOptions,
-    { catalogModelsDir, modelCatalog },
-    loadModelInputSchema as Parameters<typeof buildProviderMetadata>[2]
-  );
+  const inputOverrideDrafts = await applyRerunInputOverrides({
+    request: body,
+    sourceJobId: rerunTarget?.sourceJobId,
+    blueprintTree,
+    providerCatalog,
+    providerMetadata,
+    inputValues,
+    storage: memoryStorageContext,
+    blueprintFolder: body.blueprintFolder,
+    movieId: body.movieId,
+  });
+  if (inputOverrideDrafts.length > 0) {
+    pendingArtefacts.push(...inputOverrideDrafts);
+  }
 
   const planningService = createPlanningService();
   const manifestService = createManifestService(memoryStorageContext);
   const eventLog = createEventLog(memoryStorageContext);
-  const providerCatalog = buildProducerCatalog(providerOptions);
 
   const planResult = await planningService.generatePlan({
     movieId: body.movieId,
@@ -358,7 +398,7 @@ async function applyRerunModelOverride(args: {
   blueprintFolder: string;
   movieId: string;
   artifactId: string;
-}): Promise<void> {
+}): Promise<{ producerAlias: string; sourceJobId: string } | null> {
   const {
     request,
     blueprintTree,
@@ -369,8 +409,8 @@ async function applyRerunModelOverride(args: {
     artifactId,
   } = args;
 
-  if (request.mode !== 'rerun' || !request.model) {
-    return;
+  if (request.mode !== 'rerun') {
+    return null;
   }
 
   const latestTargetEvent = await readLatestArtifactEvent(
@@ -386,6 +426,10 @@ async function applyRerunModelOverride(args: {
   }
 
   const producerAlias = parseProducerAliasFromJobId(sourceJobId);
+
+  if (!request.model) {
+    return { producerAlias, sourceJobId };
+  }
   const currentEntries = providerOptions.get(producerAlias);
   if (!currentEntries || currentEntries.length === 0) {
     throw new Error(
@@ -430,6 +474,141 @@ async function applyRerunModelOverride(args: {
   );
   resolvedInputs[providerInputId] = request.model.provider;
   resolvedInputs[modelInputId] = request.model.model;
+
+  return { producerAlias, sourceJobId };
+}
+
+async function applyRerunInputOverrides(args: {
+  request: ArtifactPreviewGenerateRequest | ArtifactPreviewEstimateRequest;
+  sourceJobId: string | undefined;
+  blueprintTree: import('@gorenku/core').BlueprintTreeNode;
+  providerCatalog: ReturnType<typeof buildProducerCatalog>;
+  providerMetadata: Awaited<ReturnType<typeof buildProviderMetadata>>;
+  inputValues: Record<string, unknown>;
+  storage: ReturnType<typeof createStorageContext>;
+  blueprintFolder: string;
+  movieId: string;
+}): Promise<PendingArtefactDraft[]> {
+  const {
+    request,
+    sourceJobId,
+    blueprintTree,
+    providerCatalog,
+    providerMetadata,
+    inputValues,
+    storage,
+    blueprintFolder,
+    movieId,
+  } = args;
+
+  if (
+    request.mode !== 'rerun' ||
+    !request.inputOverrides ||
+    Object.keys(request.inputOverrides).length === 0
+  ) {
+    return [];
+  }
+
+  if (!sourceJobId) {
+    throw new Error(
+      'Cannot apply rerun input overrides because source producer job id is missing.'
+    );
+  }
+
+  const blueprintGraph = buildBlueprintGraph(blueprintTree);
+  const inputSources = buildInputSourceMapFromCanonical(blueprintGraph);
+  const normalizedInputs = normalizeInputValues(inputValues, inputSources);
+  const canonicalBlueprint = expandBlueprintGraph(
+    blueprintGraph,
+    normalizedInputs,
+    inputSources
+  );
+  const producerGraph = createProducerGraph(
+    canonicalBlueprint,
+    providerCatalog,
+    providerMetadata
+  );
+
+  const resolvedTargets = resolveInputOverrideTargets({
+    sourceJobId,
+    producerGraph,
+    inputOverrides: request.inputOverrides,
+  });
+
+  const artifactOverrides: import('@gorenku/core').ArtifactOverride[] = [];
+  const artifactEventMeta = new Map<
+    string,
+    { producedBy: string; inputsHash: string }
+  >();
+
+  for (const target of resolvedTargets) {
+    if (isCanonicalInputId(target.canonicalId)) {
+      inputValues[target.canonicalId] = target.value;
+      continue;
+    }
+
+    if (isCanonicalArtifactId(target.canonicalId)) {
+      if (artifactEventMeta.has(target.canonicalId)) {
+        throw new Error(
+          `Input overrides map multiple fields to source artifact ${target.canonicalId}.`
+        );
+      }
+
+      const latestSourceEvent = await readLatestArtifactEvent(
+        blueprintFolder,
+        movieId,
+        target.canonicalId
+      );
+      if (!latestSourceEvent?.output.blob?.mimeType) {
+        throw new Error(
+          `Cannot apply input override "${target.inputName}" because source artifact ${target.canonicalId} has no latest blob metadata.`
+        );
+      }
+
+      artifactEventMeta.set(target.canonicalId, {
+        producedBy: latestSourceEvent.producedBy,
+        inputsHash: latestSourceEvent.inputsHash,
+      });
+      artifactOverrides.push({
+        artifactId: target.canonicalId,
+        blob: {
+          data: Buffer.from(target.value, 'utf8'),
+          mimeType: latestSourceEvent.output.blob.mimeType,
+        },
+      });
+      continue;
+    }
+
+    throw new Error(
+      `Override binding for "${target.inputName}" resolved to unsupported id "${target.canonicalId}".`
+    );
+  }
+
+  if (artifactOverrides.length === 0) {
+    return [];
+  }
+
+  const persisted = await persistArtifactOverrideBlobs(
+    artifactOverrides,
+    storage,
+    movieId
+  );
+  const drafts = convertArtifactOverridesToDrafts(persisted);
+
+  return drafts.map((draft) => {
+    const meta = artifactEventMeta.get(draft.artefactId);
+    if (!meta) {
+      throw new Error(
+        `Missing source event metadata for overridden artifact ${draft.artefactId}.`
+      );
+    }
+
+    return {
+      ...draft,
+      producedBy: meta.producedBy,
+      inputsHash: meta.inputsHash,
+    };
+  });
 }
 
 function parseProducerAliasFromJobId(jobId: string): string {

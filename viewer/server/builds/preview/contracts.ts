@@ -26,6 +26,7 @@ export interface ArtifactPreviewGenerateRequest {
   cameraParams?: CameraParams;
   clipParams?: ClipParams;
   sourceTempId?: string;
+  inputOverrides?: Record<string, string>;
 }
 
 export interface ArtifactPreviewGenerateResponse {
@@ -50,6 +51,7 @@ export interface ArtifactPreviewEstimateRequest {
   cameraParams?: CameraParams;
   clipParams?: ClipParams;
   sourceTempId?: string;
+  inputOverrides?: Record<string, string>;
 }
 
 export interface ArtifactPreviewEstimateResponse {

@@ -23,7 +23,7 @@ export type { SyntaxPreviewProps } from './syntax-preview';
 // Shared media card components
 export { VideoCard } from './video-card';
 export type { VideoCardProps } from './video-card';
-export { AudioCard } from './audio-card';
+export { AudioCard, AudioPlayerSurface } from './audio-card';
 export type { AudioCardProps } from './audio-card';
 export { ImageCard } from './image-card';
 export type { ImageCardProps } from './image-card';
@@ -35,6 +35,12 @@ export type {
   RegenerateParams,
   RegenerateResult,
 } from './image-edit-dialog';
+export { AudioEditDialog } from './audio-edit-dialog';
+export type {
+  AudioEditDialogProps,
+  AudioRegenerateParams,
+  AudioRegenerateResult,
+} from './audio-edit-dialog';
 export { VideoEditDialog } from './video-edit-dialog';
 export type {
   VideoClipParams,

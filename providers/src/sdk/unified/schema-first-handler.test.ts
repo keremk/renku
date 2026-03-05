@@ -13,7 +13,7 @@ type TestExtras = {
   resolvedInputs: Record<string, unknown>;
   jobContext: {
     inputBindings: Record<string, string>;
-    sdkMapping: Record<string, { field: string; required?: boolean }>;
+    sdkMapping: Record<string, { field: string; required?: boolean; asArray?: boolean }>;
   };
   plannerContext: Record<string, unknown>;
   schema: { input: string };

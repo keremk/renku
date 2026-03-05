@@ -38,6 +38,7 @@ import {
   getBlobUrl,
   type ArtifactSubGroup,
 } from '@/lib/artifact-utils';
+import { resolveAudioInputBindingSource } from '@/lib/audio-input-binding-resolver';
 import { resolvePromptArtifactForMedia } from '@/lib/artifact-prompt-resolver';
 import { ObjectArraySection } from './outputs/object-array-section';
 import {
@@ -57,11 +58,11 @@ import {
   ImageCard,
   ImageEditDialog,
   VideoEditDialog,
+  AudioEditDialog,
   type CardAction,
 } from './shared';
 import { EditedBadge } from './outputs/edited-badge';
 import { SkippedBadge } from './outputs/skipped-badge';
-import { FileUploadDialog } from './inputs/file-upload-dialog';
 import {
   applyArtifactPreview,
   deleteArtifactPreview,
@@ -88,6 +89,8 @@ interface OutputsPanelProps {
   artifacts: ArtifactInfo[];
   graphData?: BlueprintGraphData;
   producerModels?: Record<string, ProducerModelInfo>;
+  /** Resolved build inputs (keyed by canonical input IDs like Input:Producer.Key) */
+  buildInputs?: Record<string, unknown> | null;
   /** Callback when an artifact is edited or restored */
   onArtifactUpdated?: () => void;
 }
@@ -100,6 +103,7 @@ export function OutputsPanel({
   artifacts,
   graphData,
   producerModels,
+  buildInputs,
   onArtifactUpdated,
 }: OutputsPanelProps) {
   const selectedOutputName = getOutputNameFromNodeId(selectedNodeId);
@@ -121,6 +125,7 @@ export function OutputsPanel({
         selectedNodeId={selectedNodeId}
         graphData={graphData}
         producerModels={producerModels}
+        buildInputs={buildInputs}
         onArtifactUpdated={onArtifactUpdated}
       />
     );
@@ -197,6 +202,7 @@ function ArtifactGallery({
   selectedNodeId,
   graphData,
   producerModels,
+  buildInputs,
   onArtifactUpdated,
 }: {
   artifacts: ArtifactInfo[];
@@ -205,6 +211,7 @@ function ArtifactGallery({
   selectedNodeId: string | null;
   graphData?: BlueprintGraphData;
   producerModels?: Record<string, ProducerModelInfo>;
+  buildInputs?: Record<string, unknown> | null;
   onArtifactUpdated?: () => void;
 }) {
   const {
@@ -532,6 +539,7 @@ function ArtifactGallery({
                           isPromptProducer={activeSection.isPromptProducer}
                           producerModels={producerModels}
                           availableEditModels={availableEditModels}
+                          buildInputs={buildInputs}
                           onArtifactUpdated={onArtifactUpdated}
                         />
                       ))}
@@ -565,6 +573,7 @@ function ArtifactCardRenderer({
   isPinned,
   producerModels,
   availableEditModels,
+  buildInputs,
   onArtifactUpdated,
   subGroup,
   useSimplifiedTextFooter,
@@ -578,6 +587,7 @@ function ArtifactCardRenderer({
   isPinned: boolean;
   producerModels?: Record<string, ProducerModelInfo>;
   availableEditModels?: AvailableModelOption[];
+  buildInputs?: Record<string, unknown> | null;
   onArtifactUpdated?: () => void;
   subGroup?: ArtifactSubGroup;
   useSimplifiedTextFooter?: boolean;
@@ -615,6 +625,7 @@ function ArtifactCardRenderer({
         isSelected={isSelected}
         isPinned={isPinned}
         producerModels={producerModels}
+        buildInputs={buildInputs}
         onArtifactUpdated={onArtifactUpdated}
         mediaType='audio'
         subGroup={subGroup}
@@ -809,6 +820,7 @@ function SubGroupSection({
   isPromptProducer,
   producerModels,
   availableEditModels,
+  buildInputs,
   onArtifactUpdated,
 }: {
   subGroup: ArtifactSubGroup;
@@ -819,6 +831,7 @@ function SubGroupSection({
   isPromptProducer: boolean;
   producerModels?: Record<string, ProducerModelInfo>;
   availableEditModels?: AvailableModelOption[];
+  buildInputs?: Record<string, unknown> | null;
   onArtifactUpdated?: () => void;
 }) {
   const { isArtifactSelected, isArtifactPinned } = useExecution();
@@ -859,6 +872,7 @@ function SubGroupSection({
               isPinned={isPinned}
               producerModels={producerModels}
               availableEditModels={availableEditModels}
+              buildInputs={buildInputs}
               onArtifactUpdated={onArtifactUpdated}
               subGroup={subGroup}
               useSimplifiedTextFooter={isPromptProducer}
@@ -1022,6 +1036,17 @@ function ArtifactCardFooter({
 
 type MediaType = 'video' | 'audio' | 'image';
 
+function readStringInputValue(
+  buildInputs: Record<string, unknown> | null | undefined,
+  key: string | undefined
+): string | undefined {
+  if (!buildInputs || !key) {
+    return undefined;
+  }
+  const value = buildInputs[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
 function MediaArtifactCard({
   artifact,
   artifacts,
@@ -1032,6 +1057,7 @@ function MediaArtifactCard({
   isPinned,
   producerModels,
   availableEditModels,
+  buildInputs,
   onArtifactUpdated,
   mediaType,
   subGroup,
@@ -1045,6 +1071,7 @@ function MediaArtifactCard({
   isPinned: boolean;
   producerModels?: Record<string, ProducerModelInfo>;
   availableEditModels?: AvailableModelOption[];
+  buildInputs?: Record<string, unknown> | null;
   onArtifactUpdated?: () => void;
   mediaType: MediaType;
   subGroup?: ArtifactSubGroup;
@@ -1065,9 +1092,90 @@ function MediaArtifactCard({
   const displayName = getArtifactLabel(artifact.id, subGroup);
   const isEdited = artifact.editedBy === 'user';
   const artifactProducerAlias = extractProducerFromArtifactId(artifact.id);
-  const availableVideoRerunModels = artifactProducerAlias
+  const availableRerunModels = artifactProducerAlias
     ? (producerModels?.[artifactProducerAlias]?.availableModels ?? [])
     : [];
+
+  const voiceSource =
+    mediaType === 'audio'
+      ? resolveAudioInputBindingSource({
+          audioArtifactId: artifact.id,
+          inputName: 'VoiceId',
+          graphData,
+        })
+      : null;
+  const emotionSource =
+    mediaType === 'audio'
+      ? resolveAudioInputBindingSource({
+          audioArtifactId: artifact.id,
+          inputName: 'Emotion',
+          graphData,
+        })
+      : null;
+
+  const [emotionFromArtifact, setEmotionFromArtifact] = useState<
+    string | undefined
+  >(undefined);
+
+  const emotionSourceArtifact =
+    mediaType === 'audio' && emotionSource?.kind === 'artifact'
+      ? artifacts.find((candidate) => candidate.id === emotionSource.artifactId)
+      : undefined;
+  const emotionSourceArtifactHash = emotionSourceArtifact?.hash;
+
+  useEffect(() => {
+    if (mediaType !== 'audio' || !emotionSourceArtifactHash) {
+      setEmotionFromArtifact(undefined);
+      return;
+    }
+
+    let cancelled = false;
+    const emotionUrl = getBlobUrl(
+      blueprintFolder,
+      movieId,
+      emotionSourceArtifactHash
+    );
+
+    const loadEmotion = async () => {
+      try {
+        const response = await fetch(emotionUrl);
+        if (!response.ok) {
+          throw new Error(
+            `Failed to load emotion source (${response.status} ${response.statusText})`
+          );
+        }
+        const text = await response.text();
+        if (!cancelled) {
+          setEmotionFromArtifact(text.trim());
+        }
+      } catch {
+        if (!cancelled) {
+          setEmotionFromArtifact(undefined);
+        }
+      }
+    };
+
+    void loadEmotion();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [blueprintFolder, emotionSourceArtifactHash, mediaType, movieId]);
+
+  const initialVoiceId =
+    mediaType === 'audio' && voiceSource?.kind === 'input'
+      ? readStringInputValue(buildInputs, voiceSource.inputName)
+      : undefined;
+
+  const emotionFromInput =
+    mediaType === 'audio' && emotionSource?.kind === 'input'
+      ? readStringInputValue(buildInputs, emotionSource.inputName)
+      : undefined;
+
+  const initialEmotion =
+    mediaType === 'audio'
+      ? (emotionFromArtifact ?? emotionFromInput)
+      : undefined;
 
   const handleEdit = () => setIsEditDialogOpen(true);
 
@@ -1161,6 +1269,41 @@ function MediaArtifactCard({
     return response.estimatedCost;
   };
 
+  const handleAudioPreviewRegenerate = async (
+    params: Parameters<
+      NonNullable<ComponentProps<typeof AudioEditDialog>['onRegenerate']>
+    >[0]
+  ) => {
+    return generateArtifactPreview(blueprintFolder, movieId, artifact.id, {
+      mode: params.mode,
+      prompt: params.prompt,
+      promptArtifactId: promptArtifact?.id,
+      model: params.model,
+      inputOverrides: params.inputOverrides,
+    });
+  };
+
+  const handleAudioPreviewEstimate = async (
+    params: Parameters<
+      NonNullable<ComponentProps<typeof AudioEditDialog>['onEstimateCost']>
+    >[0]
+  ) => {
+    const response = await estimateArtifactPreview(
+      blueprintFolder,
+      movieId,
+      artifact.id,
+      {
+        mode: params.mode,
+        prompt: params.prompt,
+        promptArtifactId: promptArtifact?.id,
+        model: params.model,
+        inputOverrides: params.inputOverrides,
+      }
+    );
+
+    return response.estimatedCost;
+  };
+
   const handlePreviewApply = async (tempId: string) => {
     await applyArtifactPreview(blueprintFolder, movieId, artifact.id, tempId);
     onArtifactUpdated?.();
@@ -1240,7 +1383,7 @@ function MediaArtifactCard({
           onOpenChange={setIsEditDialogOpen}
           videoUrl={url}
           title={`Edit Video — ${displayName}`}
-          availableModels={availableVideoRerunModels}
+          availableModels={availableRerunModels}
           promptUrl={promptUrl}
           onFileUpload={handleFileUpload}
           onEstimateCost={handleVideoPreviewEstimate}
@@ -1249,12 +1392,20 @@ function MediaArtifactCard({
           onCleanupGenerated={handlePreviewCleanup}
         />
       ) : (
-        <FileUploadDialog
+        <AudioEditDialog
           open={isEditDialogOpen}
           onOpenChange={setIsEditDialogOpen}
-          mediaType={mediaType}
-          multiple={false}
-          onConfirm={handleFileUpload}
+          audioUrl={url}
+          title={`Edit Audio — ${displayName}`}
+          availableModels={availableRerunModels}
+          promptUrl={promptUrl}
+          initialVoiceId={initialVoiceId}
+          initialEmotion={initialEmotion}
+          onFileUpload={handleFileUpload}
+          onEstimateCost={handleAudioPreviewEstimate}
+          onRegenerate={handleAudioPreviewRegenerate}
+          onApplyGenerated={handlePreviewApply}
+          onCleanupGenerated={handlePreviewCleanup}
         />
       )}
     </>

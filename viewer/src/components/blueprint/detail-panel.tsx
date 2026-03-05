@@ -39,6 +39,8 @@ interface DetailPanelProps {
   canEnableEditing?: boolean;
   /** Callback to enable editing for this build */
   onEnableEditing?: () => Promise<void>;
+  /** Resolved build inputs (keyed by canonical input IDs) */
+  buildInputs?: Record<string, unknown> | null;
   /** Available models per producer from API */
   producerModels?: Record<string, ProducerModelInfo>;
   /** Current model selections (merged saved + edits from hook) */
@@ -88,6 +90,7 @@ export function DetailPanel({
   onSaveInputs,
   canEnableEditing = false,
   onEnableEditing,
+  buildInputs,
   producerModels = {},
   modelSelections = [],
   promptDataByProducer = {},
@@ -227,6 +230,7 @@ export function DetailPanel({
             artifacts={artifacts}
             graphData={graphData}
             producerModels={producerModels}
+            buildInputs={buildInputs}
             onArtifactUpdated={onArtifactUpdated}
           />
         )}

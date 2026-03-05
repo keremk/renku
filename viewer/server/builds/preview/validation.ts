@@ -74,6 +74,29 @@ export function validatePreviewRequest(
       );
     }
   }
+  if (body.inputOverrides !== undefined) {
+    if (body.mode !== 'rerun') {
+      throw new PreviewRequestValidationError(
+        'inputOverrides is only supported in rerun preview mode.'
+      );
+    }
+    if (
+      typeof body.inputOverrides !== 'object' ||
+      body.inputOverrides === null ||
+      Array.isArray(body.inputOverrides)
+    ) {
+      throw new PreviewRequestValidationError(
+        'inputOverrides must be a plain object with string keys and values.'
+      );
+    }
+    for (const [key, value] of Object.entries(body.inputOverrides)) {
+      if (typeof key !== 'string' || typeof value !== 'string') {
+        throw new PreviewRequestValidationError(
+          'inputOverrides must have string keys and string values.'
+        );
+      }
+    }
+  }
   if (body.mode === 'camera' && !body.cameraParams) {
     throw new PreviewRequestValidationError(
       'Camera preview mode requires cameraParams.'

@@ -69,7 +69,8 @@ export async function handleArtifactPreviewGenerate(
 
     if (
       !generationResult.mimeType.startsWith('image/') &&
-      !generationResult.mimeType.startsWith('video/')
+      !generationResult.mimeType.startsWith('video/') &&
+      !generationResult.mimeType.startsWith('audio/')
     ) {
       throw new Error(
         `Preview produced unsupported MIME type: ${generationResult.mimeType}.`

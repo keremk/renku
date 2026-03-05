@@ -419,6 +419,7 @@ function WorkspaceLayoutInner({
               onSaveInputs={handleSaveInputs}
               canEnableEditing={canEnableEditing}
               onEnableEditing={handleEnableEditing}
+              buildInputs={buildInputs}
               producerModels={producerModels}
               modelSelections={modelEditor.currentSelections}
               promptDataByProducer={promptDataByProducer}

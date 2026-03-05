@@ -42,7 +42,7 @@ function formatTime(seconds: number): string {
 /**
  * Audio player surface used both in card and expanded dialog.
  */
-function AudioPlayerSurface({
+export function AudioPlayerSurface({
   url,
   title,
   interactive = true,
