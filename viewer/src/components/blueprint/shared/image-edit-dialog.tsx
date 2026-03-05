@@ -160,23 +160,23 @@ function UploadTab({
   error: string | null;
 }) {
   return (
-    <div className='flex-1 flex flex-col items-center justify-center px-8 py-6 gap-4'>
+    <div className='flex flex-col gap-3'>
       <DropzoneArea
         mediaType='image'
         multiple={false}
         onFilesSelected={onFilesSelected}
         onFilesRejected={onFilesRejected}
-        className='max-w-[400px] w-full'
+        className='w-full'
       />
 
       {error && (
-        <div className='bg-destructive/10 border border-destructive/30 rounded-lg p-3 text-sm text-destructive max-w-[400px] w-full'>
+        <div className='bg-destructive/10 border border-destructive/30 rounded-lg p-3 text-sm text-destructive'>
           {error}
         </div>
       )}
 
       {selectedFiles.length > 0 && (
-        <div className='max-w-[400px] w-full space-y-2'>
+        <div className='space-y-2'>
           <p className='text-sm text-muted-foreground'>
             Selected files ({selectedFiles.length}):
           </p>
@@ -230,6 +230,9 @@ export function ImageEditDialog({
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isApplyingGenerated, setIsApplyingGenerated] = useState(false);
+  const [selectedUploadPreviewUrl, setSelectedUploadPreviewUrl] = useState<
+    string | null
+  >(null);
 
   const { promptText } = useMediaPrompt(promptUrl, open);
 
@@ -258,8 +261,23 @@ export function ImageEditDialog({
       setIsRegenerating(false);
       setIsUploading(false);
       setIsApplyingGenerated(false);
+      setSelectedUploadPreviewUrl(null);
     }
   }, [open, imageUrl]);
+
+  useEffect(() => {
+    if (selectedFiles.length === 0) {
+      setSelectedUploadPreviewUrl(null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(selectedFiles[0]!);
+    setSelectedUploadPreviewUrl(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [selectedFiles]);
 
   useEffect(() => {
     if (!open || generatedTempId) {
@@ -553,6 +571,11 @@ export function ImageEditDialog({
 
   const showPrompt = activeTab === 'rerun' || activeTab === 'edit';
 
+  const displayedPreviewUrl =
+    activeTab === 'upload' && selectedUploadPreviewUrl
+      ? selectedUploadPreviewUrl
+      : previewImageUrl;
+
   const costText = useMemo(() => {
     if (activeTab === 'upload') {
       return '';
@@ -611,21 +634,21 @@ export function ImageEditDialog({
         </div>
 
         <div className='flex-1 flex min-h-0 overflow-hidden'>
-          {activeTab === 'upload' ? (
-            <UploadTab
-              selectedFiles={selectedFiles}
-              onFilesSelected={handleFilesSelected}
-              onFilesRejected={handleFilesRejected}
-              onRemoveFile={handleRemoveFile}
-              error={uploadError}
-            />
-          ) : (
-            <>
-              <div className='flex-1 p-3 min-w-0 flex'>
-                <ImagePreview url={previewImageUrl} title={title} />
-              </div>
+          <div className='flex-1 p-3 min-w-0 flex'>
+            <ImagePreview url={displayedPreviewUrl} title={title} />
+          </div>
 
-              <aside className='w-[340px] shrink-0 border-l border-border/40 p-3 flex flex-col gap-3 overflow-y-auto'>
+          <aside className='w-[340px] shrink-0 border-l border-border/40 p-3 flex flex-col gap-3 overflow-y-auto'>
+            {activeTab === 'upload' ? (
+              <UploadTab
+                selectedFiles={selectedFiles}
+                onFilesSelected={handleFilesSelected}
+                onFilesRejected={handleFilesRejected}
+                onRemoveFile={handleRemoveFile}
+                error={uploadError}
+              />
+            ) : (
+              <>
                 {activeTab === 'camera' && (
                   <div className='rounded-lg border border-border/40 p-2.5 bg-muted/20'>
                     <CameraControl
@@ -707,9 +730,9 @@ export function ImageEditDialog({
                   disabled={!canRegenerate}
                   className='w-full'
                 />
-              </aside>
-            </>
-          )}
+              </>
+            )}
+          </aside>
         </div>
 
         {activeTab !== 'upload' && generationError && (

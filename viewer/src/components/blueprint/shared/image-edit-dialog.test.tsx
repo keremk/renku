@@ -118,6 +118,9 @@ describe('ImageEditDialog', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/drag and drop/i)).toBeTruthy();
+      expect(screen.getByRole('img').getAttribute('src')).toBe(
+        'https://example.com/image.png'
+      );
     });
   });
 
