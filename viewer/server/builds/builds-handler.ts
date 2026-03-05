@@ -32,6 +32,7 @@ import {
   type ArtifactRestoreRequest,
 } from './artifact-edit-handler.js';
 import {
+  handleArtifactPreviewEditModels,
   handleArtifactPreviewGenerate,
   handleArtifactPreviewEstimate,
   handleArtifactPreviewApply,
@@ -75,6 +76,7 @@ const MOVIE_ID_PATTERN = /^movie-[a-z0-9][a-z0-9-]*$/;
  *   POST /blueprints/builds/artifacts/preview-estimate (JSON body)
  *   POST /blueprints/builds/artifacts/preview-apply (JSON body)
  *   POST /blueprints/builds/artifacts/preview-delete (JSON body)
+ *   GET  /blueprints/builds/artifacts/preview-edit-models
  *   GET  /blueprints/builds/artifacts/preview-file?folder=...&movieId=...&tempId=...
  *   GET  /blueprints/builds/prompts?folder=...&movieId=...&blueprintPath=...&producerId=...
  *   PUT  /blueprints/builds/prompts (JSON body)
@@ -339,6 +341,13 @@ export async function handleBuildsSubRoute(
           );
         }
         await handleArtifactPreviewDelete(res, body);
+        return true;
+      }
+      if (
+        artifactsSubAction === 'preview-edit-models' &&
+        req.method === 'GET'
+      ) {
+        await handleArtifactPreviewEditModels(res);
         return true;
       }
       if (artifactsSubAction === 'preview-file' && req.method === 'GET') {

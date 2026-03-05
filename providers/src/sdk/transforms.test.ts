@@ -397,6 +397,48 @@ describe('transforms', () => {
     });
   });
 
+  describe('asArray transform (single to array)', () => {
+    it('wraps scalar value in single-element array', () => {
+      const context = createContext({ Image: 'single.png' });
+      const mapping: MappingFieldDefinition = {
+        field: 'image_urls',
+        asArray: true,
+      };
+
+      const result = applyMapping('Image', mapping, context);
+
+      expect(result).toEqual({ field: 'image_urls', value: ['single.png'] });
+    });
+
+    it('passes through arrays unchanged', () => {
+      const context = createContext({ Images: ['img1.png', 'img2.png'] });
+      const mapping: MappingFieldDefinition = {
+        field: 'image_urls',
+        asArray: true,
+      };
+
+      const result = applyMapping('Images', mapping, context);
+
+      expect(result).toEqual({
+        field: 'image_urls',
+        value: ['img1.png', 'img2.png'],
+      });
+    });
+
+    it('supports firstOf followed by asArray', () => {
+      const context = createContext({ Images: ['img1.png', 'img2.png'] });
+      const mapping: MappingFieldDefinition = {
+        field: 'image_urls',
+        firstOf: true,
+        asArray: true,
+      };
+
+      const result = applyMapping('Images', mapping, context);
+
+      expect(result).toEqual({ field: 'image_urls', value: ['img1.png'] });
+    });
+  });
+
   describe('invert transform (boolean flip)', () => {
     it('flips true to false', () => {
       const context = createContext({ Enabled: true });

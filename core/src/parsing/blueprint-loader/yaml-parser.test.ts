@@ -70,6 +70,22 @@ describe('parseYamlBlueprintFile', () => {
     });
   });
 
+  it('parses asArray mapping transforms in producer catalogs', async () => {
+    const modulePath = resolve(
+      catalogRoot,
+      'producers/asset/mapping-as-array.yaml'
+    );
+    const document = await parseYamlBlueprintFile(modulePath);
+
+    const sourceImageMapping =
+      document.mappings?.['fal-ai']?.['fixture/model']?.SourceImage;
+
+    expect(sourceImageMapping).toEqual({
+      field: 'image_urls',
+      asArray: true,
+    });
+  });
+
   it('parses countInputOffset for array artefacts', async () => {
     const modulePath = resolve(
       TEST_FIXTURES_ROOT,

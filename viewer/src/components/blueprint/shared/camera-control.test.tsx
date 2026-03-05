@@ -181,6 +181,6 @@ describe('CameraControl', () => {
     const { container } = render(
       <CameraControl params={defaultParams} onChange={vi.fn()} />
     );
-    expect(container.textContent).toContain('Prompt:');
+    expect(container.textContent).toContain('Prompt');
   });
 });

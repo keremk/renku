@@ -1,12 +1,12 @@
-/**
- * Image editing dialog with three tabs: Manual, Camera, and Upload.
- * Manual: image preview + prompt textarea + model selector + regenerate.
- * Camera: image preview (left) + isometric camera tool (right) + regenerate.
- * Upload: dropzone for replacing the image file.
- */
-
-import { useState, useEffect, useCallback } from 'react';
-import { Pencil, Video, Upload, Loader2, RefreshCw } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  RotateCcw,
+  Pencil,
+  Video,
+  Upload,
+  Loader2,
+  RefreshCw,
+} from 'lucide-react';
 import type { FileRejection } from 'react-dropzone';
 import { cn } from '@/lib/utils';
 import {
@@ -25,12 +25,8 @@ import { CameraControl } from './camera-control';
 import { generateShotDescription, type CameraParams } from './camera-utils';
 import type { AvailableModelOption } from '@/types/blueprint-graph';
 
-// ============================================================================
-// Types
-// ============================================================================
-
 export interface RegenerateParams {
-  mode: 'manual' | 'camera';
+  mode: 'rerun' | 'edit' | 'camera';
   prompt: string;
   model?: AvailableModelOption;
   cameraParams?: CameraParams;
@@ -64,17 +60,21 @@ export interface ImageEditDialogProps {
   onCleanupGenerated?: (tempId: string) => Promise<void>;
 }
 
-// ============================================================================
-// Tab Definitions
-// ============================================================================
+type TabId = 'rerun' | 'edit' | 'camera' | 'upload';
 
-type TabId = 'manual' | 'camera' | 'upload';
-
-const TABS: { id: TabId; label: string; icon: typeof Pencil }[] = [
-  { id: 'manual', label: 'Manual', icon: Pencil },
-  { id: 'camera', label: 'Camera', icon: Video },
+const TABS: { id: TabId; label: string; icon: typeof RotateCcw }[] = [
+  { id: 'rerun', label: 'Re-run', icon: RotateCcw },
+  { id: 'edit', label: 'Edit', icon: Pencil },
+  { id: 'camera', label: 'Reframe', icon: Video },
   { id: 'upload', label: 'Upload', icon: Upload },
 ];
+
+const DEFAULT_CAMERA_PARAMS: CameraParams = {
+  azimuth: 0,
+  elevation: 0,
+  distance: 1,
+  shotDescription: generateShotDescription(0, 0, 1),
+};
 
 function formatCurrency(value: number): string {
   if (value === 0) return '$0.00';
@@ -92,10 +92,6 @@ function formatEstimatedCost(
   }
   return formatCurrency(estimatedCost.cost);
 }
-
-// ============================================================================
-// Regenerate Button
-// ============================================================================
 
 function RegenerateButton({
   onClick,
@@ -117,7 +113,7 @@ function RegenerateButton({
         'bg-primary/15 text-primary border border-primary/50',
         'font-semibold text-[10px] uppercase tracking-[0.1em]',
         'hover:bg-primary/25 transition-colors',
-        'px-3.5 h-[34px] rounded-lg flex items-center gap-1.5',
+        'px-3.5 h-[34px] rounded-lg flex items-center gap-1.5 justify-center',
         'disabled:opacity-50 disabled:cursor-not-allowed',
         className
       )}
@@ -137,26 +133,9 @@ function RegenerateButton({
   );
 }
 
-// ============================================================================
-// Image Preview
-// ============================================================================
-
-function ImagePreview({
-  url,
-  title,
-  className,
-}: {
-  url: string;
-  title: string;
-  className?: string;
-}) {
+function ImagePreview({ url, title }: { url: string; title: string }) {
   return (
-    <div
-      className={cn(
-        'rounded-xl bg-muted/30 dark:bg-black/50 overflow-hidden flex items-center justify-center',
-        className
-      )}
-    >
+    <div className='flex-1 rounded-xl bg-muted/30 dark:bg-black/50 overflow-hidden flex items-center justify-center min-h-[120px]'>
       <img
         src={url}
         alt={title}
@@ -166,151 +145,6 @@ function ImagePreview({
     </div>
   );
 }
-
-// ============================================================================
-// Manual Tab
-// ============================================================================
-
-function ManualTab({
-  imageUrl,
-  title,
-  prompt,
-  onPromptChange,
-  availableModels,
-  selectedModel,
-  onModelChange,
-  isRegenerating,
-  canRegenerate,
-  onRegenerate,
-}: {
-  imageUrl: string;
-  title: string;
-  prompt: string;
-  onPromptChange: (value: string) => void;
-  availableModels: AvailableModelOption[];
-  selectedModel: number;
-  onModelChange: (index: number) => void;
-  isRegenerating: boolean;
-  canRegenerate: boolean;
-  onRegenerate: () => void;
-}) {
-  return (
-    <div className='flex-1 flex flex-col overflow-hidden min-h-0'>
-      {/* Image preview */}
-      <ImagePreview
-        url={imageUrl}
-        title={title}
-        className='flex-1 m-2.5 mb-0 min-h-[80px]'
-      />
-
-      {/* Prompt section */}
-      <div className='border-t border-border/40 px-3 py-2.5 flex-shrink-0 flex flex-col gap-1'>
-        <div className='flex items-center justify-between'>
-          <span className='text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground'>
-            Prompt
-          </span>
-          <span className='text-[9px] text-muted-foreground/60 tabular-nums'>
-            {prompt.length} chars
-          </span>
-        </div>
-        <textarea
-          value={prompt}
-          onChange={(e) => onPromptChange(e.target.value)}
-          placeholder='Describe the image edit...'
-          className={cn(
-            'w-full resize-none bg-muted/30 border border-border/40 text-foreground',
-            'font-[inherit] text-[11px] leading-relaxed px-2.5 py-2 rounded-lg outline-none',
-            'focus:border-primary/50 focus:ring-2 focus:ring-primary/20',
-            'overflow-y-auto'
-          )}
-          style={{ height: 80 }}
-        />
-      </div>
-
-      {/* Actions bar */}
-      <div className='flex items-center gap-2 px-3 py-2 border-t border-border/40 flex-shrink-0'>
-        {availableModels.length > 0 && (
-          <select
-            value={selectedModel}
-            onChange={(e) => onModelChange(Number(e.target.value))}
-            className={cn(
-              'bg-muted/30 border border-border/40 text-foreground',
-              'font-[inherit] text-[11px] px-2 h-[34px] rounded-lg outline-none cursor-pointer',
-              'focus:border-primary/50'
-            )}
-          >
-            {availableModels.map((model, idx) => (
-              <option key={`${model.provider}/${model.model}`} value={idx}>
-                {model.model}
-              </option>
-            ))}
-          </select>
-        )}
-        <RegenerateButton
-          onClick={onRegenerate}
-          isRegenerating={isRegenerating}
-          disabled={!canRegenerate}
-          className='ml-auto'
-        />
-      </div>
-    </div>
-  );
-}
-
-// ============================================================================
-// Camera Tab
-// ============================================================================
-
-function CameraTab({
-  imageUrl,
-  title,
-  cameraParams,
-  onCameraChange,
-  isRegenerating,
-  canRegenerate,
-  onRegenerate,
-}: {
-  imageUrl: string;
-  title: string;
-  cameraParams: CameraParams;
-  onCameraChange: (params: CameraParams) => void;
-  isRegenerating: boolean;
-  canRegenerate: boolean;
-  onRegenerate: () => void;
-}) {
-  return (
-    <div className='flex-1 flex overflow-hidden min-h-0'>
-      {/* Left: image preview (full height) */}
-      <div className='flex-1 flex flex-col min-w-0 overflow-hidden'>
-        <ImagePreview
-          url={imageUrl}
-          title={title}
-          className='flex-1 m-2.5 min-h-[80px]'
-        />
-      </div>
-
-      {/* Right: camera tool */}
-      <div
-        className='flex flex-col overflow-y-auto border-l border-border/40'
-        style={{ width: 350, minWidth: 300 }}
-      >
-        <div className='p-3 flex flex-col gap-3.5 flex-1'>
-          <CameraControl params={cameraParams} onChange={onCameraChange} />
-          <RegenerateButton
-            onClick={onRegenerate}
-            isRegenerating={isRegenerating}
-            disabled={!canRegenerate}
-            className='w-full justify-center'
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================================
-// Upload Tab
-// ============================================================================
 
 function UploadTab({
   selectedFiles,
@@ -361,17 +195,6 @@ function UploadTab({
   );
 }
 
-// ============================================================================
-// Main Dialog
-// ============================================================================
-
-const DEFAULT_CAMERA_PARAMS: CameraParams = {
-  azimuth: 0,
-  elevation: 0,
-  distance: 1,
-  shotDescription: generateShotDescription(0, 0, 1),
-};
-
 export function ImageEditDialog({
   open,
   onOpenChange,
@@ -385,23 +208,18 @@ export function ImageEditDialog({
   onApplyGenerated,
   onCleanupGenerated,
 }: ImageEditDialogProps) {
-  // Tab state
-  const [activeTab, setActiveTab] = useState<TabId>('manual');
+  const [activeTab, setActiveTab] = useState<TabId>('rerun');
 
-  // Manual tab state
-  const [prompt, setPrompt] = useState('');
+  const [rerunPrompt, setRerunPrompt] = useState('');
+  const [editPrompt, setEditPrompt] = useState('');
   const [selectedModelIndex, setSelectedModelIndex] = useState(0);
-
-  // Camera tab state
   const [cameraParams, setCameraParams] = useState<CameraParams>(
     DEFAULT_CAMERA_PARAMS
   );
 
-  // Upload tab state
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  // Shared state
   const [previewImageUrl, setPreviewImageUrl] = useState(imageUrl);
   const [generatedTempId, setGeneratedTempId] = useState<string | null>(null);
   const [estimatedCost, setEstimatedCost] = useState<
@@ -413,21 +231,21 @@ export function ImageEditDialog({
   const [isUploading, setIsUploading] = useState(false);
   const [isApplyingGenerated, setIsApplyingGenerated] = useState(false);
 
-  // Load initial prompt from upstream artifact
   const { promptText } = useMediaPrompt(promptUrl, open);
 
-  // Seed prompt textarea when loaded
   useEffect(() => {
-    if (promptText && prompt === '') {
-      setPrompt(promptText);
+    if (!promptText) {
+      return;
     }
-  }, [promptText, prompt]);
 
-  // Reset all state when dialog opens
+    setRerunPrompt((prev) => (prev === '' ? promptText : prev));
+  }, [promptText]);
+
   useEffect(() => {
     if (open) {
-      setActiveTab('manual');
-      setPrompt('');
+      setActiveTab('rerun');
+      setRerunPrompt('');
+      setEditPrompt('');
       setSelectedModelIndex(0);
       setCameraParams(DEFAULT_CAMERA_PARAMS);
       setSelectedFiles([]);
@@ -450,31 +268,87 @@ export function ImageEditDialog({
     setPreviewImageUrl(imageUrl);
   }, [open, generatedTempId, imageUrl]);
 
+  const getParamsForTab = useCallback(
+    (tab: Exclude<TabId, 'upload'>): RegenerateParams | null => {
+      if (tab === 'rerun') {
+        return {
+          mode: 'rerun',
+          prompt: rerunPrompt,
+        };
+      }
+
+      if (tab === 'edit') {
+        const selectedModel = availableModels[selectedModelIndex];
+        if (!selectedModel) {
+          return null;
+        }
+        return {
+          mode: 'edit',
+          prompt: editPrompt,
+          model: selectedModel,
+        };
+      }
+
+      return {
+        mode: 'camera',
+        prompt: '',
+        cameraParams,
+      };
+    },
+    [availableModels, cameraParams, editPrompt, rerunPrompt, selectedModelIndex]
+  );
+
+  const getEstimateParamsForTab = useCallback(
+    (tab: Exclude<TabId, 'upload'>): RegenerateParams | null => {
+      if (tab === 'rerun') {
+        return {
+          mode: 'rerun',
+          prompt: '',
+        };
+      }
+
+      if (tab === 'edit') {
+        const selectedModel = availableModels[selectedModelIndex];
+        if (!selectedModel) {
+          return null;
+        }
+        return {
+          mode: 'edit',
+          prompt: '',
+          model: selectedModel,
+        };
+      }
+
+      return {
+        mode: 'camera',
+        prompt: '',
+        cameraParams: DEFAULT_CAMERA_PARAMS,
+      };
+    },
+    [availableModels, selectedModelIndex]
+  );
+
+  const currentPrompt = activeTab === 'rerun' ? rerunPrompt : editPrompt;
+
+  const setCurrentPrompt = (value: string) => {
+    if (activeTab === 'rerun') {
+      setRerunPrompt(value);
+      return;
+    }
+    setEditPrompt(value);
+  };
+
   useEffect(() => {
     if (!open || activeTab === 'upload' || !onEstimateCost) {
       setIsEstimatingCost(false);
       return;
     }
 
-    let params: RegenerateParams;
-    if (activeTab === 'manual') {
-      const selectedModel = availableModels[selectedModelIndex];
-      if (!selectedModel) {
-        setEstimatedCost(null);
-        setIsEstimatingCost(false);
-        return;
-      }
-      params = {
-        mode: 'manual',
-        prompt: '',
-        model: selectedModel,
-      };
-    } else {
-      params = {
-        mode: 'camera',
-        prompt: '',
-        cameraParams: DEFAULT_CAMERA_PARAMS,
-      };
+    const params = getEstimateParamsForTab(activeTab);
+    if (!params) {
+      setEstimatedCost(null);
+      setIsEstimatingCost(false);
+      return;
     }
 
     let cancelled = false;
@@ -488,10 +362,9 @@ export function ImageEditDialog({
         }
         setEstimatedCost(nextEstimatedCost);
       } catch {
-        if (cancelled) {
-          return;
+        if (!cancelled) {
+          setEstimatedCost(null);
         }
-        setEstimatedCost(null);
       } finally {
         if (!cancelled) {
           setIsEstimatingCost(false);
@@ -504,15 +377,21 @@ export function ImageEditDialog({
     return () => {
       cancelled = true;
     };
-  }, [activeTab, availableModels, onEstimateCost, open, selectedModelIndex]);
+  }, [activeTab, getEstimateParamsForTab, onEstimateCost, open]);
 
   const handleRegenerate = useCallback(async () => {
-    if (!onRegenerate) {
+    if (!onRegenerate || activeTab === 'upload') {
       return;
     }
 
-    if (activeTab === 'manual' && availableModels.length === 0) {
-      setGenerationError('No models are available for manual regeneration.');
+    if (activeTab === 'edit' && availableModels.length === 0) {
+      setGenerationError('No models are available for edit preview.');
+      return;
+    }
+
+    const params = getParamsForTab(activeTab);
+    if (!params) {
+      setGenerationError('Could not resolve preview parameters.');
       return;
     }
 
@@ -531,25 +410,6 @@ export function ImageEditDialog({
         setPreviewImageUrl(imageUrl);
       }
 
-      let params: RegenerateParams;
-      if (activeTab === 'manual') {
-        const selectedModel = availableModels[selectedModelIndex];
-        if (!selectedModel) {
-          throw new Error('Selected model is not available.');
-        }
-        params = {
-          mode: 'manual',
-          prompt,
-          model: selectedModel,
-        };
-      } else {
-        params = {
-          mode: 'camera',
-          prompt,
-          cameraParams,
-        };
-      }
-
       const result = await onRegenerate(params);
       setPreviewImageUrl(result.previewUrl);
       setGeneratedTempId(result.tempId);
@@ -565,17 +425,14 @@ export function ImageEditDialog({
     }
   }, [
     activeTab,
-    availableModels,
-    cameraParams,
+    availableModels.length,
     generatedTempId,
+    getParamsForTab,
     imageUrl,
     onCleanupGenerated,
     onRegenerate,
-    prompt,
-    selectedModelIndex,
   ]);
 
-  // Upload handlers
   const handleFilesSelected = useCallback((files: File[]) => {
     setUploadError(null);
     setSelectedFiles(files.slice(0, 1));
@@ -614,7 +471,7 @@ export function ImageEditDialog({
       return;
     }
 
-    if ((activeTab === 'manual' || activeTab === 'camera') && generatedTempId) {
+    if (activeTab !== 'upload' && generatedTempId) {
       setIsApplyingGenerated(true);
       setGenerationError(null);
       try {
@@ -680,14 +537,11 @@ export function ImageEditDialog({
     onOpenChange,
   ]);
 
-  const canRegenerateManual =
+  const canRegenerate =
     Boolean(onRegenerate) &&
-    availableModels.length > 0 &&
     !isApplyingGenerated &&
-    !isUploading;
-
-  const canRegenerateCamera =
-    Boolean(onRegenerate) && !isApplyingGenerated && !isUploading;
+    !isUploading &&
+    (activeTab !== 'edit' || availableModels.length > 0);
 
   const isUpdateDisabled =
     activeTab === 'upload'
@@ -697,23 +551,36 @@ export function ImageEditDialog({
         isApplyingGenerated ||
         isUploading;
 
+  const showPrompt = activeTab === 'rerun' || activeTab === 'edit';
+
+  const costText = useMemo(() => {
+    if (activeTab === 'upload') {
+      return '';
+    }
+    if (estimatedCost) {
+      return `Estimated cost: ${formatEstimatedCost(estimatedCost)}`;
+    }
+    if (isEstimatingCost) {
+      return 'Estimating cost...';
+    }
+    return 'Estimated cost unavailable';
+  }, [activeTab, estimatedCost, isEstimatingCost]);
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent
         className={cn(
-          'w-[880px] h-[800px] max-w-[880px] max-h-[900px]',
+          'w-[960px] h-[800px] max-w-[960px] max-h-[900px]',
           'p-0 gap-0 overflow-hidden flex flex-col'
         )}
       >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription className='sr-only'>
-            Edit this image manually, with camera controls, or by uploading a
-            replacement file.
+            Re-run, edit, reframe, or upload a replacement image.
           </DialogDescription>
         </DialogHeader>
 
-        {/* Tab bar */}
         <div className='flex border-b border-border/40 bg-panel-header-bg shrink-0 px-3'>
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
@@ -743,34 +610,8 @@ export function ImageEditDialog({
           })}
         </div>
 
-        {/* Tab panels */}
-        <div className='flex-1 flex flex-col overflow-hidden min-h-0'>
-          {activeTab === 'manual' && (
-            <ManualTab
-              imageUrl={previewImageUrl}
-              title={title}
-              prompt={prompt}
-              onPromptChange={setPrompt}
-              availableModels={availableModels}
-              selectedModel={selectedModelIndex}
-              onModelChange={setSelectedModelIndex}
-              isRegenerating={isRegenerating}
-              canRegenerate={canRegenerateManual}
-              onRegenerate={handleRegenerate}
-            />
-          )}
-          {activeTab === 'camera' && (
-            <CameraTab
-              imageUrl={previewImageUrl}
-              title={title}
-              cameraParams={cameraParams}
-              onCameraChange={setCameraParams}
-              isRegenerating={isRegenerating}
-              canRegenerate={canRegenerateCamera}
-              onRegenerate={handleRegenerate}
-            />
-          )}
-          {activeTab === 'upload' && (
+        <div className='flex-1 flex min-h-0 overflow-hidden'>
+          {activeTab === 'upload' ? (
             <UploadTab
               selectedFiles={selectedFiles}
               onFilesSelected={handleFilesSelected}
@@ -778,6 +619,96 @@ export function ImageEditDialog({
               onRemoveFile={handleRemoveFile}
               error={uploadError}
             />
+          ) : (
+            <>
+              <div className='flex-1 p-3 min-w-0 flex'>
+                <ImagePreview url={previewImageUrl} title={title} />
+              </div>
+
+              <aside className='w-[340px] shrink-0 border-l border-border/40 p-3 flex flex-col gap-3 overflow-y-auto'>
+                {activeTab === 'camera' && (
+                  <div className='rounded-lg border border-border/40 p-2.5 bg-muted/20'>
+                    <CameraControl
+                      params={cameraParams}
+                      onChange={setCameraParams}
+                    />
+                  </div>
+                )}
+
+                {showPrompt && (
+                  <div className='flex flex-col gap-1.5'>
+                    <div className='flex items-center justify-between'>
+                      <span className='text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground'>
+                        Prompt
+                      </span>
+                      <span className='text-[9px] text-muted-foreground/60 tabular-nums'>
+                        {currentPrompt.length} chars
+                      </span>
+                    </div>
+                    <textarea
+                      value={currentPrompt}
+                      onChange={(e) => setCurrentPrompt(e.target.value)}
+                      placeholder={
+                        activeTab === 'rerun'
+                          ? 'Optional prompt tweak before re-running...'
+                          : 'Describe only the changes you want to apply to the current image (for example: "add warm sunset lighting").'
+                      }
+                      className={cn(
+                        'w-full resize-none bg-muted/30 border border-border/40 text-foreground',
+                        'font-[inherit] text-[11px] leading-relaxed px-2.5 py-2 rounded-lg outline-none',
+                        'focus:border-primary/50 focus:ring-2 focus:ring-primary/20',
+                        'overflow-y-auto min-h-[120px]'
+                      )}
+                    />
+                  </div>
+                )}
+
+                {activeTab === 'edit' && (
+                  <div className='flex flex-col gap-1.5'>
+                    <span className='text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground'>
+                      Model
+                    </span>
+                    {availableModels.length > 0 ? (
+                      <select
+                        value={selectedModelIndex}
+                        onChange={(e) =>
+                          setSelectedModelIndex(Number(e.target.value))
+                        }
+                        className={cn(
+                          'bg-muted/30 border border-border/40 text-foreground',
+                          'font-[inherit] text-[11px] px-2 h-[34px] rounded-lg outline-none cursor-pointer',
+                          'focus:border-primary/50'
+                        )}
+                      >
+                        {availableModels.map((model, idx) => (
+                          <option
+                            key={`${model.provider}/${model.model}`}
+                            value={idx}
+                          >
+                            {model.model}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className='text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded-lg px-2.5 py-2'>
+                        No image edit models available.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className='text-[11px] text-muted-foreground min-h-[1rem]'>
+                  {costText}
+                </div>
+
+                <RegenerateButton
+                  onClick={handleRegenerate}
+                  isRegenerating={isRegenerating}
+                  disabled={!canRegenerate}
+                  className='w-full'
+                />
+              </aside>
+            </>
           )}
         </div>
 
@@ -789,16 +720,7 @@ export function ImageEditDialog({
           </div>
         )}
 
-        <DialogFooter className='justify-between'>
-          <div className='text-[11px] text-muted-foreground min-h-[1rem]'>
-            {activeTab !== 'upload'
-              ? estimatedCost
-                ? `Estimated cost: ${formatEstimatedCost(estimatedCost)}`
-                : isEstimatingCost
-                  ? 'Estimating cost...'
-                  : 'Estimated cost unavailable'
-              : ''}
-          </div>
+        <DialogFooter className='justify-end'>
           <div className='flex items-center gap-2'>
             <Button
               variant='ghost'

@@ -22,10 +22,10 @@ inputs:
 
   # Sizing
   - name: AspectRatio
-    description: "Output aspect ratio."
+    description: 'Output aspect ratio.'
     type: string
   - name: Resolution
-    description: "Output resolution preset (1K, 2K, 4K)."
+    description: 'Output resolution preset (1K, 2K, 4K).'
     type: string
   - name: Width
     description: Custom output width in pixels.
@@ -54,11 +54,11 @@ mappings:
       AspectRatio:
         field: image_size
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "4:3": landscape_4_3
-          "3:4": portrait_4_3
-          "1:1": square_hd
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
 
     bria/fibo-edit/edit:
       Prompt:
@@ -66,137 +66,137 @@ mappings:
       SourceImage: image_url
       MaskImage: mask_url
 
-    # --- Array-accepting models mapped with firstOf (also in image-compose) ---
+    # --- Array-accepting models mapped with asArray (also in image-compose) ---
 
     xai/grok-imagine-image/edit:
       Prompt: prompt
       SourceImage:
         field: image_urls
-        firstOf: true
+        asArray: true
 
     flux-2/edit:
       Prompt: prompt
       SourceImage:
         field: image_urls
-        firstOf: true
+        asArray: true
       AspectRatio:
         field: image_size
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "4:3": landscape_4_3
-          "3:4": portrait_4_3
-          "1:1": square_hd
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
 
     flux-2/flash/edit:
       Prompt: prompt
       SourceImage:
         field: image_urls
-        firstOf: true
+        asArray: true
       AspectRatio:
         field: image_size
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "4:3": landscape_4_3
-          "3:4": portrait_4_3
-          "1:1": square_hd
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
 
     flux-2/turbo/edit:
       Prompt: prompt
       SourceImage:
         field: image_urls
-        firstOf: true
+        asArray: true
       AspectRatio:
         field: image_size
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "4:3": landscape_4_3
-          "3:4": portrait_4_3
-          "1:1": square_hd
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
 
     bytedance/seedream/v4/edit:
       Prompt: prompt
       SourceImage:
         field: image_urls
-        firstOf: true
+        asArray: true
       AspectRatio:
         field: image_size
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "4:3": landscape_4_3
-          "3:4": portrait_4_3
-          "1:1": square_hd
-          "3:2": landscape_4_3
-          "2:3": portrait_4_3
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
+          '3:2': landscape_4_3
+          '2:3': portrait_4_3
 
     bytedance/seedream/v4.5/edit:
       Prompt: prompt
       SourceImage:
         field: image_urls
-        firstOf: true
+        asArray: true
       # AspectRatio + Resolution combine into image_size
       ImageSize:
         field: image_size
         combine:
           inputs: [AspectRatio, Resolution]
           table:
-            "+2K": auto_2K
-            "+4K": auto_4K
-            "16:9+": landscape_16_9
-            "9:16+": portrait_16_9
-            "4:3+": landscape_4_3
-            "3:4+": portrait_4_3
-            "1:1+": square_hd
-            "16:9+2K": auto_2K
-            "16:9+4K": auto_4K
-            "1:1+2K": auto_2K
-            "1:1+4K": auto_4K
+            '+2K': auto_2K
+            '+4K': auto_4K
+            '16:9+': landscape_16_9
+            '9:16+': portrait_16_9
+            '4:3+': landscape_4_3
+            '3:4+': portrait_4_3
+            '1:1+': square_hd
+            '16:9+2K': auto_2K
+            '16:9+4K': auto_4K
+            '1:1+2K': auto_2K
+            '1:1+4K': auto_4K
 
     bytedance/seedream/v5/lite/edit:
       Prompt: prompt
       SourceImage:
         field: image_urls
-        firstOf: true
+        asArray: true
       # AspectRatio + Resolution combine into image_size
       ImageSize:
         field: image_size
         combine:
           inputs: [AspectRatio, Resolution]
           table:
-            "+2K": auto_2K
-            "+4K": auto_3K
-            "16:9+": landscape_16_9
-            "9:16+": portrait_16_9
-            "4:3+": landscape_4_3
-            "3:4+": portrait_4_3
-            "1:1+": square_hd
-            "16:9+2K": auto_2K
-            "16:9+4K": auto_3K
-            "1:1+2K": auto_2K
-            "1:1+4K": auto_3K
+            '+2K': auto_2K
+            '+4K': auto_3K
+            '16:9+': landscape_16_9
+            '9:16+': portrait_16_9
+            '4:3+': landscape_4_3
+            '3:4+': portrait_4_3
+            '1:1+': square_hd
+            '16:9+2K': auto_2K
+            '16:9+4K': auto_3K
+            '1:1+2K': auto_2K
+            '1:1+4K': auto_3K
 
     gpt-image-1.5/edit:
       Prompt: prompt
       SourceImage:
         field: image_urls
-        firstOf: true
+        asArray: true
       MaskImage: mask_image_url
       AspectRatio:
         field: image_size
         transform:
-          "1:1": "1024x1024"
-          "16:9": "1536x1024"
-          "9:16": "1024x1536"
-          "auto": "auto"
+          '1:1': '1024x1024'
+          '16:9': '1536x1024'
+          '9:16': '1024x1536'
+          'auto': 'auto'
 
     nano-banana-pro/edit:
       Prompt: prompt
       SourceImage:
         field: image_urls
-        firstOf: true
+        asArray: true
       AspectRatio: aspect_ratio
       Resolution: resolution
 
@@ -204,7 +204,7 @@ mappings:
       Prompt: prompt
       SourceImage:
         field: image_urls
-        firstOf: true
+        asArray: true
       AspectRatio: aspect_ratio
       Resolution: resolution
 
@@ -212,63 +212,63 @@ mappings:
       Prompt: prompt
       SourceImage:
         field: image_urls
-        firstOf: true
+        asArray: true
       AspectRatio:
         field: image_size
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "4:3": landscape_4_3
-          "3:4": portrait_4_3
-          "1:1": square_hd
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
 
     qwen-image-2/pro/edit:
       Prompt: prompt
       SourceImage:
         field: image_urls
-        firstOf: true
+        asArray: true
       AspectRatio:
         field: image_size
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "4:3": landscape_4_3
-          "3:4": portrait_4_3
-          "1:1": square_hd
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
 
     qwen-image-2/edit:
       Prompt: prompt
       SourceImage:
         field: image_urls
-        firstOf: true
+        asArray: true
       AspectRatio:
         field: image_size
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "4:3": landscape_4_3
-          "3:4": portrait_4_3
-          "1:1": square_hd
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
 
     wan/v2.6/image-to-image:
       Prompt: prompt
       SourceImage:
         field: image_urls
-        firstOf: true
+        asArray: true
       AspectRatio:
         field: image_size
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "4:3": landscape_4_3
-          "3:4": portrait_4_3
-          "1:1": square_hd
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
 
     hunyuan-image/v3/instruct/edit:
       Prompt: prompt
       SourceImage:
         field: image_urls
-        firstOf: true
+        asArray: true
       # AspectRatio preset - only applied when Width is not provided
       AspectRatio:
         conditional:
@@ -278,11 +278,11 @@ mappings:
           then:
             field: image_size
             transform:
-              "16:9": landscape_16_9
-              "9:16": portrait_16_9
-              "4:3": landscape_4_3
-              "3:4": portrait_4_3
-              "1:1": square_hd
+              '16:9': landscape_16_9
+              '9:16': portrait_16_9
+              '4:3': landscape_4_3
+              '3:4': portrait_4_3
+              '1:1': square_hd
       # Custom dimensions via Width/Height (takes precedence over AspectRatio)
       Width:
         conditional:
@@ -309,22 +309,22 @@ mappings:
       Resolution:
         field: image_size
         transform:
-          "1K": optimize_for_speed
-          "2K": optimize_for_quality
-          "4K": optimize_for_quality
+          '1K': optimize_for_speed
+          '2K': optimize_for_quality
+          '4K': optimize_for_quality
 
     prunaai/flux-kontext-fast:
       Prompt: prompt
       SourceImage: img_cond_path
       AspectRatio: aspect_ratio
 
-    # --- Array-accepting models mapped with firstOf (also in image-compose) ---
+    # --- Array-accepting models mapped with asArray (also in image-compose) ---
 
     bytedance/seedream-5-lite:
       Prompt: prompt
       SourceImage:
         field: image_input
-        firstOf: true
+        asArray: true
       AspectRatio: aspect_ratio
       Resolution: size
 
@@ -332,7 +332,7 @@ mappings:
       Prompt: prompt
       SourceImage:
         field: image_input
-        firstOf: true
+        asArray: true
       AspectRatio: aspect_ratio
       Resolution: resolution
 
@@ -340,5 +340,5 @@ mappings:
       Prompt: prompt
       SourceImage:
         field: image
-        firstOf: true
+        asArray: true
       AspectRatio: aspect_ratio

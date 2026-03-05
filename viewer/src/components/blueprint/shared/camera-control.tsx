@@ -816,11 +816,11 @@ export function CameraControl({
       </div>
 
       {/* Shot description output */}
-      <div className='mt-1 flex items-center gap-1.5'>
-        <span className='text-[9px] uppercase tracking-[0.06em] text-muted-foreground/60 font-semibold whitespace-nowrap'>
-          Prompt:
+      <div className='mt-1 flex flex-col gap-1'>
+        <span className='text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold'>
+          Prompt
         </span>
-        <div className='flex-1 text-[10px] text-primary font-mono bg-muted/30 border border-border/40 rounded-[5px] px-2 py-1 truncate'>
+        <div className='text-[11px] leading-relaxed text-foreground bg-muted/30 border border-border/40 rounded-lg px-2.5 py-2 whitespace-pre-wrap break-words'>
           {params.shotDescription}
         </div>
       </div>

@@ -6,6 +6,7 @@ const {
   parseJsonBodyMock,
   handleArtifactPreviewGenerateMock,
   handleArtifactPreviewEstimateMock,
+  handleArtifactPreviewEditModelsMock,
   handleArtifactPreviewApplyMock,
   handleArtifactPreviewDeleteMock,
   handleArtifactPreviewFileMock,
@@ -13,6 +14,7 @@ const {
   parseJsonBodyMock: vi.fn(),
   handleArtifactPreviewGenerateMock: vi.fn(),
   handleArtifactPreviewEstimateMock: vi.fn(),
+  handleArtifactPreviewEditModelsMock: vi.fn(),
   handleArtifactPreviewApplyMock: vi.fn(),
   handleArtifactPreviewDeleteMock: vi.fn(),
   handleArtifactPreviewFileMock: vi.fn(),
@@ -29,6 +31,7 @@ vi.mock('../http-utils.js', async () => {
 vi.mock('./artifact-preview-handler.js', () => ({
   handleArtifactPreviewGenerate: handleArtifactPreviewGenerateMock,
   handleArtifactPreviewEstimate: handleArtifactPreviewEstimateMock,
+  handleArtifactPreviewEditModels: handleArtifactPreviewEditModelsMock,
   handleArtifactPreviewApply: handleArtifactPreviewApplyMock,
   handleArtifactPreviewDelete: handleArtifactPreviewDeleteMock,
   handleArtifactPreviewFile: handleArtifactPreviewFileMock,
@@ -50,7 +53,7 @@ describe('handleBuildsSubRoute artifacts preview routes', () => {
       blueprintFolder: '/tmp/blueprint',
       movieId: 'movie-abc',
       artifactId: 'Artifact:Image.Output',
-      mode: 'manual',
+      mode: 'edit',
       prompt: 'new prompt',
       model: { provider: 'fal-ai', model: 'flux-dev' },
     });
@@ -71,7 +74,7 @@ describe('handleBuildsSubRoute artifacts preview routes', () => {
       blueprintFolder: '/tmp/blueprint',
       movieId: 'movie-abc',
       artifactId: 'Artifact:Image.Output',
-      mode: 'manual',
+      mode: 'edit',
       prompt: 'new prompt',
       model: { provider: 'fal-ai', model: 'flux-dev' },
     });
@@ -106,9 +109,8 @@ describe('handleBuildsSubRoute artifacts preview routes', () => {
       blueprintFolder: '/tmp/blueprint',
       movieId: 'movie-abc',
       artifactId: 'Artifact:Image.Output',
-      mode: 'manual',
+      mode: 'rerun',
       prompt: '',
-      model: { provider: 'fal-ai', model: 'flux-dev' },
     });
 
     const req = createReq('POST');
@@ -127,10 +129,25 @@ describe('handleBuildsSubRoute artifacts preview routes', () => {
       blueprintFolder: '/tmp/blueprint',
       movieId: 'movie-abc',
       artifactId: 'Artifact:Image.Output',
-      mode: 'manual',
+      mode: 'rerun',
       prompt: '',
-      model: { provider: 'fal-ai', model: 'flux-dev' },
     });
+  });
+
+  it('routes preview-edit-models to handler', async () => {
+    const req = createReq('GET');
+    const res = createMockResponse();
+    const url = new URL(
+      'http://localhost/viewer-api/blueprints/builds/artifacts/preview-edit-models'
+    );
+
+    const handled = await handleBuildsSubRoute(req, res, url, 'artifacts', [
+      'artifacts',
+      'preview-edit-models',
+    ]);
+
+    expect(handled).toBe(true);
+    expect(handleArtifactPreviewEditModelsMock).toHaveBeenCalledWith(res);
   });
 
   it('routes preview-delete to handler', async () => {

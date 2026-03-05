@@ -505,6 +505,36 @@ describe('YAML Mapping Transforms Integration', () => {
     });
   });
 
+  describe('asArray - scalar to single-element array', () => {
+    it('wraps scalar input as single-item array', async () => {
+      const mapping: Record<string, MappingFieldDefinition> = {
+        Image: {
+          field: 'image_urls',
+          asArray: true,
+        },
+      };
+      const payload = await buildTransformedPayload(
+        { Image: 'single-image.png' },
+        mapping
+      );
+      expect(payload.image_urls).toEqual(['single-image.png']);
+    });
+
+    it('passes arrays through unchanged', async () => {
+      const mapping: Record<string, MappingFieldDefinition> = {
+        Images: {
+          field: 'image_urls',
+          asArray: true,
+        },
+      };
+      const payload = await buildTransformedPayload(
+        { Images: ['image1.png', 'image2.png'] },
+        mapping
+      );
+      expect(payload.image_urls).toEqual(['image1.png', 'image2.png']);
+    });
+  });
+
   /**
    * Chained transforms - Multiple transforms applied in sequence
    */
@@ -535,10 +565,7 @@ describe('YAML Mapping Transforms Integration', () => {
           durationToFrames: { fps: 25 },
         },
       };
-      const payload = await buildTransformedPayload(
-        { Duration: 5 },
-        mapping
-      );
+      const payload = await buildTransformedPayload({ Duration: 5 }, mapping);
       expect(payload.num_frames).toBe(125);
     });
   });
@@ -564,10 +591,7 @@ describe('YAML Mapping Transforms Integration', () => {
       const mapping: Record<string, MappingFieldDefinition> = {
         Speed: { field: 'config.audio.voice.speed' },
       };
-      const payload = await buildTransformedPayload(
-        { Speed: 1.5 },
-        mapping
-      );
+      const payload = await buildTransformedPayload({ Speed: 1.5 }, mapping);
       expect(payload).toEqual({
         config: { audio: { voice: { speed: 1.5 } } },
       });
@@ -696,10 +720,7 @@ describe('YAML Mapping Transforms Integration', () => {
       const mapping: Record<string, MappingFieldDefinition> = {
         Steps: { field: 'num_inference_steps' },
       };
-      const payload = await buildTransformedPayload(
-        { Steps: 50 },
-        mapping
-      );
+      const payload = await buildTransformedPayload({ Steps: 50 }, mapping);
       expect(payload.num_inference_steps).toBe(50);
     });
   });

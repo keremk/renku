@@ -2,7 +2,7 @@
  * Temporary image preview generation + apply/cleanup handlers.
  *
  * These handlers power the image edit dialog's AI preview flow:
- * - generate preview via provider pipeline (manual/camera)
+ * - generate preview via provider pipeline (re-run/edit/camera)
  * - store preview as temporary file
  * - apply preview to artifact event log on Update
  * - delete temporary previews on cancel/regenerate
@@ -14,16 +14,39 @@ import { promises as fs } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import path from 'node:path';
 import {
+  buildProducerCatalog,
   buildProviderMetadata,
   buildProducerOptionsFromBlueprint,
+  convertArtifactOverridesToDrafts,
+  copyEventsToMemory,
+  copyManifestToMemory,
+  createEventLog,
   createLogger,
+  createManifestService,
+  createMovieMetadataService,
   createNotificationBus,
+  createPlanningService,
+  createStorageContext,
+  executePlanWithConcurrency,
+  formatBlobFileName,
+  getProducerMappings,
+  injectAllSystemInputs,
+  initializeMovieStorage,
+  isCanonicalArtifactId,
   loadYamlBlueprintTree,
+  loadInputs,
+  persistArtifactOverrideBlobs,
+  resolveBlobRefsToInputs,
   type BlobInput,
+  type ArtefactEvent,
   type ExecutionPlan,
   type JobDescriptor,
+  type JobResult,
+  type Manifest,
   type MappingFieldDefinition,
   type ModelSelection,
+  type PendingArtefactDraft,
+  type ProducerOptionsMap,
 } from '@gorenku/core';
 import {
   createProviderProduce,
@@ -52,7 +75,7 @@ const TEMP_ID_PATTERN = /^[a-z0-9-]+$/;
 const IMAGE_EDIT_PRODUCER_ID = 'ImageEditProducer';
 const IMAGE_EDIT_CAMERA_PRODUCER_ID = 'ImageEditCameraProducer';
 
-type ImagePreviewMode = 'manual' | 'camera';
+type ImagePreviewMode = 'rerun' | 'edit' | 'camera';
 
 interface ProducerSpec {
   producerId: string;
@@ -89,9 +112,7 @@ interface SourceArtifactImage {
 }
 
 interface PreparedPreviewContext {
-  producerOptions: Awaited<
-    ReturnType<typeof buildProducerOptionsFromBlueprint>
-  >;
+  producerOptions: ProducerOptionsMap;
   modelCatalog: Awaited<ReturnType<typeof loadModelCatalog>>;
   catalogModelsDir: string;
   job: JobDescriptor;
@@ -100,12 +121,43 @@ interface PreparedPreviewContext {
   estimatedCost: GenerationCostEstimate;
 }
 
+interface PreparedRerunPreviewContext {
+  localStorageContext: ReturnType<typeof createStorageContext>;
+  memoryStorageContext: ReturnType<typeof createStorageContext>;
+  manifestService: ReturnType<typeof createManifestService>;
+  eventLog: ReturnType<typeof createEventLog>;
+  producerOptions: ProducerOptionsMap;
+  modelCatalog: Awaited<ReturnType<typeof loadModelCatalog>>;
+  catalogModelsDir: string;
+  plan: ExecutionPlan;
+  manifest: Manifest;
+  resolvedInputs: Record<string, unknown>;
+  targetLayerIndex: number;
+  estimatedCost: GenerationCostEstimate;
+  storageRoot: string;
+  storageBasePath: string;
+}
+
+interface RerunPreviewExecutionResult {
+  previewData: Buffer;
+  mimeType: string;
+  estimatedCost: GenerationCostEstimate;
+}
+
+interface PreviewModelOption {
+  provider: string;
+  model: string;
+}
+
+class PreviewRequestValidationError extends Error {}
+
 export interface ArtifactPreviewGenerateRequest {
   blueprintFolder: string;
   movieId: string;
   artifactId: string;
   mode: ImagePreviewMode;
   prompt: string;
+  promptArtifactId?: string;
   model?: {
     provider: string;
     model: string;
@@ -132,6 +184,7 @@ export interface ArtifactPreviewEstimateRequest {
   artifactId: string;
   mode: ImagePreviewMode;
   prompt: string;
+  promptArtifactId?: string;
   model?: {
     provider: string;
     model: string;
@@ -147,6 +200,11 @@ export interface ArtifactPreviewEstimateRequest {
 export interface ArtifactPreviewEstimateResponse {
   success: true;
   estimatedCost: GenerationCostEstimate;
+}
+
+export interface ArtifactPreviewEditModelsResponse {
+  success: true;
+  models: PreviewModelOption[];
 }
 
 export interface ArtifactPreviewApplyRequest {
@@ -170,6 +228,40 @@ export async function handleArtifactPreviewGenerate(
     validatePreviewRequest(body, { allowEmptyPrompt: false });
 
     await cleanupStaleTempPreviews(body.blueprintFolder, body.movieId);
+
+    if (body.mode === 'rerun') {
+      const rerunResult = await generateRerunPreviewCandidate(body);
+      if (!rerunResult.mimeType.startsWith('image/')) {
+        throw new Error(
+          `Re-run preview produced non-image MIME type: ${rerunResult.mimeType}.`
+        );
+      }
+
+      const temp = await createTempPreview(
+        body.blueprintFolder,
+        body.movieId,
+        body.artifactId,
+        rerunResult.previewData,
+        rerunResult.mimeType
+      );
+
+      const response: ArtifactPreviewGenerateResponse = {
+        success: true,
+        tempId: temp.metadata.tempId,
+        previewUrl: buildPreviewUrl(
+          body.blueprintFolder,
+          body.movieId,
+          temp.metadata.tempId
+        ),
+        mimeType: rerunResult.mimeType,
+        estimatedCost: rerunResult.estimatedCost,
+      };
+
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(response));
+      return;
+    }
 
     const {
       producerOptions,
@@ -291,14 +383,11 @@ export async function handleArtifactPreviewGenerate(
     res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify(response));
   } catch (error) {
-    console.error('[artifact-preview-handler] Generate error:', error);
-    res.statusCode = 500;
-    res.setHeader('Content-Type', 'application/json');
-    res.end(
-      JSON.stringify({
-        error:
-          error instanceof Error ? error.message : 'Preview generation failed',
-      })
+    respondPreviewError(
+      res,
+      error,
+      'Preview generation failed',
+      '[artifact-preview-handler] Generate error:'
     );
   }
 }
@@ -309,6 +398,19 @@ export async function handleArtifactPreviewEstimate(
 ): Promise<void> {
   try {
     validatePreviewRequest(body, { allowEmptyPrompt: true });
+
+    if (body.mode === 'rerun') {
+      const rerunContext = await prepareRerunSurgicalPreviewContext(body);
+      const response: ArtifactPreviewEstimateResponse = {
+        success: true,
+        estimatedCost: rerunContext.estimatedCost,
+      };
+
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(response));
+      return;
+    }
 
     const { estimatedCost } = await preparePreviewContext(body);
 
@@ -321,12 +423,72 @@ export async function handleArtifactPreviewEstimate(
     res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify(response));
   } catch (error) {
-    console.error('[artifact-preview-handler] Estimate error:', error);
+    respondPreviewError(
+      res,
+      error,
+      'Cost estimate failed',
+      '[artifact-preview-handler] Estimate error:'
+    );
+  }
+}
+
+export async function handleArtifactPreviewEditModels(
+  res: ServerResponse
+): Promise<void> {
+  try {
+    const cliConfig = await requireCliConfig();
+    const catalogRoot = cliConfig.catalog?.root;
+    if (!catalogRoot) {
+      throw new Error(
+        'Renku catalog root is not configured. Run "renku init" first.'
+      );
+    }
+
+    const producerPath = path.join(
+      catalogRoot,
+      'producers',
+      'image',
+      'image-edit.yaml'
+    );
+    if (!existsSync(producerPath)) {
+      throw new Error(`Producer file not found: ${producerPath}`);
+    }
+
+    const { root: producerTree } = await loadYamlBlueprintTree(producerPath, {
+      catalogRoot,
+    });
+    const mappings = getProducerMappings(producerTree, IMAGE_EDIT_PRODUCER_ID);
+    if (!mappings) {
+      throw new Error(
+        `Producer mappings are missing for ${IMAGE_EDIT_PRODUCER_ID}.`
+      );
+    }
+
+    const models: PreviewModelOption[] = [];
+    for (const [provider, providerModels] of Object.entries(mappings)) {
+      for (const model of Object.keys(providerModels)) {
+        models.push({ provider, model });
+      }
+    }
+
+    const response: ArtifactPreviewEditModelsResponse = {
+      success: true,
+      models,
+    };
+
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(response));
+  } catch (error) {
+    console.error('[artifact-preview-handler] Edit models error:', error);
     res.statusCode = 500;
     res.setHeader('Content-Type', 'application/json');
     res.end(
       JSON.stringify({
-        error: error instanceof Error ? error.message : 'Cost estimate failed',
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to load image edit models',
       })
     );
   }
@@ -452,35 +614,68 @@ export async function handleArtifactPreviewFile(
   }
 }
 
-function validatePreviewRequest(
+export function validatePreviewRequest(
   body: ArtifactPreviewGenerateRequest | ArtifactPreviewEstimateRequest,
   options: { allowEmptyPrompt: boolean }
 ): void {
   if (!body.blueprintFolder || !body.movieId || !body.artifactId) {
-    throw new Error('Missing blueprintFolder, movieId, or artifactId.');
+    throw new PreviewRequestValidationError(
+      'Missing blueprintFolder, movieId, or artifactId.'
+    );
   }
-  if (body.mode !== 'manual' && body.mode !== 'camera') {
-    throw new Error(`Unsupported preview mode: ${String(body.mode)}.`);
+  if (body.mode !== 'rerun' && body.mode !== 'edit' && body.mode !== 'camera') {
+    throw new PreviewRequestValidationError(
+      `Unsupported preview mode: ${String(body.mode)}.`
+    );
   }
   if (typeof body.prompt !== 'string') {
-    throw new Error('Prompt must be a string.');
+    throw new PreviewRequestValidationError('Prompt must be a string.');
   }
-  if (body.mode === 'manual') {
+  if (body.mode === 'edit') {
     if (!body.model?.provider || !body.model.model) {
-      throw new Error('Manual preview mode requires provider/model selection.');
+      throw new PreviewRequestValidationError(
+        'Edit preview mode requires provider/model selection.'
+      );
     }
     if (!options.allowEmptyPrompt && body.prompt.trim().length === 0) {
-      throw new Error('Manual preview prompt cannot be empty.');
+      throw new PreviewRequestValidationError(
+        'Edit preview prompt cannot be empty.'
+      );
+    }
+  }
+  if (body.mode === 'rerun' && body.model) {
+    throw new PreviewRequestValidationError(
+      'Re-run preview mode does not accept model selection.'
+    );
+  }
+  if (body.mode === 'rerun' && body.prompt.trim().length > 0) {
+    if (!body.promptArtifactId) {
+      throw new PreviewRequestValidationError(
+        'Re-run preview prompt override requires promptArtifactId.'
+      );
+    }
+    if (!isCanonicalArtifactId(body.promptArtifactId)) {
+      throw new PreviewRequestValidationError(
+        `Re-run preview promptArtifactId must be canonical, got ${body.promptArtifactId}.`
+      );
     }
   }
   if (body.mode === 'camera' && !body.cameraParams) {
-    throw new Error('Camera preview mode requires cameraParams.');
+    throw new PreviewRequestValidationError(
+      'Camera preview mode requires cameraParams.'
+    );
   }
 }
 
 async function preparePreviewContext(
   body: ArtifactPreviewGenerateRequest | ArtifactPreviewEstimateRequest
 ): Promise<PreparedPreviewContext> {
+  if (body.mode !== 'edit' && body.mode !== 'camera') {
+    throw new Error(
+      `preparePreviewContext does not support mode ${body.mode}.`
+    );
+  }
+
   const cliConfig = await requireCliConfig();
   const catalogRoot = cliConfig.catalog?.root;
   if (!catalogRoot) {
@@ -495,6 +690,31 @@ async function preparePreviewContext(
       'Renku catalog models directory is not configured. Run "renku init" first.'
     );
   }
+
+  const modelCatalog = await loadModelCatalog(catalogModelsDir);
+
+  return prepareEditOrCameraPreviewContext(body, {
+    catalogRoot,
+    catalogModelsDir,
+    modelCatalog,
+  });
+}
+
+async function prepareEditOrCameraPreviewContext(
+  body: ArtifactPreviewGenerateRequest | ArtifactPreviewEstimateRequest,
+  context: {
+    catalogRoot: string;
+    catalogModelsDir: string;
+    modelCatalog: Awaited<ReturnType<typeof loadModelCatalog>>;
+  }
+): Promise<PreparedPreviewContext> {
+  if (body.mode !== 'edit' && body.mode !== 'camera') {
+    throw new Error(
+      `prepareEditOrCameraPreviewContext does not support mode ${body.mode}.`
+    );
+  }
+
+  const { catalogRoot, catalogModelsDir, modelCatalog } = context;
 
   const producerSpec = resolveProducerSpec(body);
   const sourceImage = await loadSourceArtifactBlob(
@@ -528,7 +748,6 @@ async function preparePreviewContext(
     [modelSelection]
   );
 
-  const modelCatalog = await loadModelCatalog(catalogModelsDir);
   const providerMetadata = await buildProviderMetadata(
     producerOptions,
     { catalogModelsDir, modelCatalog },
@@ -594,6 +813,507 @@ async function preparePreviewContext(
   };
 }
 
+async function generateRerunPreviewCandidate(
+  body: ArtifactPreviewGenerateRequest
+): Promise<RerunPreviewExecutionResult> {
+  const rerunContext = await prepareRerunSurgicalPreviewContext(body);
+
+  const logger = createLogger({
+    level: 'info',
+    prefix: '[viewer-rerun-preview]',
+  });
+  const notifications = createNotificationBus();
+
+  try {
+    const registry = createProviderRegistry({
+      mode: 'live',
+      logger,
+      notifications,
+      catalog: rerunContext.modelCatalog,
+      catalogModelsDir: rerunContext.catalogModelsDir,
+    });
+
+    const preResolved = prepareProviderHandlers(
+      registry,
+      rerunContext.plan,
+      rerunContext.producerOptions
+    );
+    await registry.warmStart?.(preResolved);
+
+    const resolvedInputsWithBlobs = (await resolveBlobRefsToInputs(
+      rerunContext.memoryStorageContext,
+      body.movieId,
+      rerunContext.resolvedInputs
+    )) as Record<string, unknown>;
+
+    const resolvedInputsWithSystem = injectAllSystemInputs(
+      resolvedInputsWithBlobs,
+      body.movieId,
+      rerunContext.storageRoot,
+      rerunContext.storageBasePath
+    );
+
+    const produce = createProviderProduce(
+      registry,
+      rerunContext.producerOptions,
+      resolvedInputsWithSystem,
+      preResolved,
+      logger,
+      notifications
+    );
+
+    const run = await executePlanWithConcurrency(
+      rerunContext.plan,
+      {
+        movieId: body.movieId,
+        manifest: rerunContext.manifest,
+        storage: rerunContext.memoryStorageContext,
+        eventLog: rerunContext.eventLog,
+        manifestService: rerunContext.manifestService,
+        produce,
+        logger,
+      },
+      {
+        concurrency: 1,
+        upToLayer: rerunContext.targetLayerIndex,
+      }
+    );
+
+    if (run.status !== 'succeeded') {
+      throw new Error('Re-run preview execution failed.');
+    }
+
+    const targetArtifact = findLatestSucceededArtifactEvent(
+      run.jobs,
+      body.artifactId
+    );
+    if (!targetArtifact?.output.blob) {
+      throw new Error(
+        `Re-run preview did not produce succeeded output for artifact ${body.artifactId}.`
+      );
+    }
+
+    const blobRef = targetArtifact.output.blob;
+    const prefix = blobRef.hash.slice(0, 2);
+    const fileName = formatBlobFileName(blobRef.hash, blobRef.mimeType);
+    const blobPath = rerunContext.memoryStorageContext.resolve(
+      body.movieId,
+      'blobs',
+      prefix,
+      fileName
+    );
+    const raw =
+      await rerunContext.memoryStorageContext.storage.readToUint8Array(
+        blobPath
+      );
+
+    return {
+      previewData: Buffer.from(raw),
+      mimeType: blobRef.mimeType,
+      estimatedCost: rerunContext.estimatedCost,
+    };
+  } finally {
+    notifications.complete();
+  }
+}
+
+async function prepareRerunSurgicalPreviewContext(
+  body: ArtifactPreviewGenerateRequest | ArtifactPreviewEstimateRequest
+): Promise<PreparedRerunPreviewContext> {
+  const cliConfig = await requireCliConfig();
+  const catalogRoot = cliConfig.catalog?.root;
+  if (!catalogRoot) {
+    throw new Error(
+      'Renku catalog root is not configured. Run "renku init" first.'
+    );
+  }
+
+  const catalogModelsDir = getCatalogModelsDir(cliConfig);
+  if (!catalogModelsDir) {
+    throw new Error(
+      'Renku catalog models directory is not configured. Run "renku init" first.'
+    );
+  }
+
+  const storageBasePath = resolveStorageBasePath(
+    cliConfig.storage.root,
+    body.blueprintFolder
+  );
+  const localStorageContext = createStorageContext({
+    kind: 'local',
+    rootDir: cliConfig.storage.root,
+    basePath: storageBasePath,
+  });
+  const memoryStorageContext = createStorageContext({
+    kind: 'memory',
+    basePath: storageBasePath,
+  });
+
+  await initializeMovieStorage(memoryStorageContext, body.movieId);
+  await copyManifestToMemory(
+    localStorageContext,
+    memoryStorageContext,
+    body.movieId
+  );
+  await copyEventsToMemory(
+    localStorageContext,
+    memoryStorageContext,
+    body.movieId
+  );
+  await copyLatestSucceededBlobsToMemory(
+    body.blueprintFolder,
+    localStorageContext,
+    memoryStorageContext,
+    body.movieId
+  );
+
+  const metadata = await createMovieMetadataService(localStorageContext).read(
+    body.movieId
+  );
+  if (!metadata?.blueprintPath) {
+    throw new Error(
+      `Build ${body.movieId} metadata is missing blueprintPath. Cannot run Re-run preview.`
+    );
+  }
+
+  const inputsPath = await resolveInputsPathForRerun(
+    body.blueprintFolder,
+    body.movieId,
+    metadata.lastInputsPath
+  );
+
+  const { root: blueprintTree } = await loadYamlBlueprintTree(
+    metadata.blueprintPath,
+    {
+      catalogRoot,
+    }
+  );
+
+  const buildsDir = path.join(body.blueprintFolder, 'builds', body.movieId);
+  const {
+    values: inputValues,
+    providerOptions,
+    artifactOverrides,
+  } = await loadInputs({
+    yamlPath: inputsPath,
+    blueprintTree,
+    buildsDir,
+  });
+
+  const persistedOverrides = await persistArtifactOverrideBlobs(
+    artifactOverrides,
+    memoryStorageContext,
+    body.movieId
+  );
+  const pendingArtefacts = convertArtifactOverridesToDrafts(persistedOverrides);
+
+  const promptOverrideDraft = await buildRerunPromptOverrideDraft({
+    request: body,
+    blueprintFolder: body.blueprintFolder,
+    movieId: body.movieId,
+    storage: memoryStorageContext,
+  });
+  if (promptOverrideDraft) {
+    pendingArtefacts.push(promptOverrideDraft);
+  }
+
+  const modelCatalog = await loadModelCatalog(catalogModelsDir);
+  const providerMetadata = await buildProviderMetadata(
+    providerOptions,
+    { catalogModelsDir, modelCatalog },
+    loadModelInputSchema as Parameters<typeof buildProviderMetadata>[2]
+  );
+
+  const planningService = createPlanningService();
+  const manifestService = createManifestService(memoryStorageContext);
+  const eventLog = createEventLog(memoryStorageContext);
+  const providerCatalog = buildProducerCatalog(providerOptions);
+
+  const planResult = await planningService.generatePlan({
+    movieId: body.movieId,
+    blueprintTree,
+    inputValues,
+    providerCatalog,
+    providerOptions: providerMetadata,
+    storage: memoryStorageContext,
+    manifestService,
+    eventLog,
+    pendingArtefacts:
+      pendingArtefacts.length > 0 ? pendingArtefacts : undefined,
+    targetArtifactIds: [body.artifactId],
+  });
+
+  const targetLayerIndex = findTargetArtifactLayer(
+    planResult.plan,
+    body.artifactId
+  );
+
+  const previewPlan: ExecutionPlan = {
+    ...planResult.plan,
+    layers: planResult.plan.layers.map((layer, layerIndex) =>
+      layerIndex <= targetLayerIndex ? layer : []
+    ),
+  };
+
+  const pricingCatalog = await loadPricingCatalog(catalogModelsDir);
+  const costSummary = estimatePlanCosts(
+    previewPlan,
+    pricingCatalog,
+    planResult.resolvedInputs
+  );
+
+  return {
+    localStorageContext,
+    memoryStorageContext,
+    manifestService,
+    eventLog,
+    producerOptions: providerOptions,
+    modelCatalog,
+    catalogModelsDir,
+    plan: previewPlan,
+    manifest: planResult.manifest,
+    resolvedInputs: planResult.resolvedInputs,
+    targetLayerIndex,
+    estimatedCost: toPlanCostEstimate(costSummary),
+    storageRoot: cliConfig.storage.root,
+    storageBasePath,
+  };
+}
+
+async function buildRerunPromptOverrideDraft(args: {
+  request: ArtifactPreviewGenerateRequest | ArtifactPreviewEstimateRequest;
+  blueprintFolder: string;
+  movieId: string;
+  storage: ReturnType<typeof createStorageContext>;
+}): Promise<PendingArtefactDraft | null> {
+  const { request, blueprintFolder, movieId, storage } = args;
+  const trimmedPrompt = request.prompt.trim();
+  if (request.mode !== 'rerun' || trimmedPrompt.length === 0) {
+    return null;
+  }
+
+  if (!request.promptArtifactId) {
+    throw new Error('Re-run prompt override requires promptArtifactId.');
+  }
+
+  const latestPromptEvent = await readLatestArtifactEvent(
+    blueprintFolder,
+    movieId,
+    request.promptArtifactId
+  );
+  if (!latestPromptEvent?.output.blob?.mimeType) {
+    throw new Error(
+      `Prompt artifact ${request.promptArtifactId} has no latest blob metadata for Re-run override.`
+    );
+  }
+
+  const blob = await persistArtifactOverrideBlobs(
+    [
+      {
+        artifactId: request.promptArtifactId,
+        blob: {
+          data: Buffer.from(request.prompt, 'utf8'),
+          mimeType: latestPromptEvent.output.blob.mimeType,
+        },
+      },
+    ],
+    storage,
+    movieId
+  );
+
+  const [draft] = convertArtifactOverridesToDrafts(blob);
+  if (!draft) {
+    throw new Error(
+      'Failed to create prompt override draft for Re-run preview.'
+    );
+  }
+
+  return {
+    ...draft,
+    producedBy: latestPromptEvent.producedBy,
+    inputsHash: latestPromptEvent.inputsHash,
+  };
+}
+
+async function copyLatestSucceededBlobsToMemory(
+  blueprintFolder: string,
+  localStorageContext: ReturnType<typeof createStorageContext>,
+  memoryStorageContext: ReturnType<typeof createStorageContext>,
+  movieId: string
+): Promise<void> {
+  const localEventLog = createEventLog(localStorageContext);
+  const latestBlobs = new Map<string, { hash: string; mimeType: string }>();
+
+  for await (const event of localEventLog.streamArtefacts(movieId)) {
+    if (
+      event.status === 'succeeded' &&
+      event.output.blob?.hash &&
+      event.output.blob.mimeType
+    ) {
+      latestBlobs.set(event.artefactId, {
+        hash: event.output.blob.hash,
+        mimeType: event.output.blob.mimeType,
+      });
+    }
+  }
+
+  const copiedBlobs = new Set<string>();
+  const buildsRoot = path.join(blueprintFolder, 'builds');
+
+  for (const blob of latestBlobs.values()) {
+    const blobKey = `${blob.hash}:${blob.mimeType}`;
+    if (copiedBlobs.has(blobKey)) {
+      continue;
+    }
+
+    const sourcePath = await resolveExistingBlobPath(
+      buildsRoot,
+      movieId,
+      blob.hash,
+      blob.mimeType
+    );
+    const payload = await fs.readFile(sourcePath);
+
+    const prefix = blob.hash.slice(0, 2);
+    const fileName = formatBlobFileName(blob.hash, blob.mimeType);
+    const destinationPath = memoryStorageContext.resolve(
+      movieId,
+      'blobs',
+      prefix,
+      fileName
+    );
+    await memoryStorageContext.storage.write(destinationPath, payload, {
+      mimeType: blob.mimeType,
+    });
+
+    copiedBlobs.add(blobKey);
+  }
+}
+
+export function findTargetArtifactLayer(
+  plan: ExecutionPlan,
+  artifactId: string
+): number {
+  const matchingLayers: number[] = [];
+
+  for (let layerIndex = 0; layerIndex < plan.layers.length; layerIndex += 1) {
+    const layer = plan.layers[layerIndex] ?? [];
+    if (layer.some((job) => job.produces.includes(artifactId))) {
+      matchingLayers.push(layerIndex);
+    }
+  }
+
+  if (matchingLayers.length === 0) {
+    throw new Error(
+      `Surgical plan does not include a producer job for artifact ${artifactId}.`
+    );
+  }
+  if (matchingLayers.length > 1) {
+    throw new Error(
+      `Surgical plan contains multiple producer layers for artifact ${artifactId}.`
+    );
+  }
+
+  return matchingLayers[0]!;
+}
+
+function findLatestSucceededArtifactEvent(
+  jobs: JobResult[],
+  artifactId: string
+): ArtefactEvent | null {
+  for (let jobIndex = jobs.length - 1; jobIndex >= 0; jobIndex -= 1) {
+    const artefacts = jobs[jobIndex]?.artefacts ?? [];
+    for (
+      let artefactIndex = artefacts.length - 1;
+      artefactIndex >= 0;
+      artefactIndex -= 1
+    ) {
+      const event = artefacts[artefactIndex];
+      if (event.artefactId === artifactId && event.status === 'succeeded') {
+        return event;
+      }
+    }
+  }
+  return null;
+}
+
+function resolveStorageBasePath(
+  storageRoot: string,
+  blueprintFolder: string
+): string {
+  const buildsFolder = path.join(blueprintFolder, 'builds');
+  const basePath = path.relative(storageRoot, buildsFolder);
+  if (basePath.startsWith('..') || path.isAbsolute(basePath)) {
+    throw new Error(
+      `Blueprint folder ${blueprintFolder} is outside configured storage root ${storageRoot}.`
+    );
+  }
+
+  return basePath;
+}
+
+export async function resolveInputsPathForRerun(
+  blueprintFolder: string,
+  movieId: string,
+  lastInputsPath?: string
+): Promise<string> {
+  const buildInputsPath = path.join(
+    blueprintFolder,
+    'builds',
+    movieId,
+    'inputs.yaml'
+  );
+  if (existsSync(buildInputsPath)) {
+    return buildInputsPath;
+  }
+
+  if (lastInputsPath && existsSync(lastInputsPath)) {
+    return lastInputsPath;
+  }
+  throw new Error(
+    `Could not resolve inputs file for build ${movieId}. Expected build inputs at ${buildInputsPath} or a valid metadata.lastInputsPath.`
+  );
+}
+
+function respondPreviewError(
+  res: ServerResponse,
+  error: unknown,
+  fallbackMessage: string,
+  logPrefix: string
+): void {
+  const isValidationError = error instanceof PreviewRequestValidationError;
+  if (!isValidationError) {
+    console.error(logPrefix, error);
+  }
+
+  res.statusCode = isValidationError ? 400 : 500;
+  res.setHeader('Content-Type', 'application/json');
+  res.end(
+    JSON.stringify({
+      error: error instanceof Error ? error.message : fallbackMessage,
+    })
+  );
+}
+
+function toPlanCostEstimate(summary: {
+  totalCost: number;
+  minTotalCost: number;
+  maxTotalCost: number;
+  hasPlaceholders: boolean;
+  missingProviders: string[];
+}): GenerationCostEstimate {
+  return {
+    cost: summary.totalCost,
+    minCost: summary.minTotalCost,
+    maxCost: summary.maxTotalCost,
+    isPlaceholder: summary.hasPlaceholders,
+    note:
+      summary.missingProviders.length > 0
+        ? `Missing provider pricing: ${summary.missingProviders.join(', ')}`
+        : undefined,
+  };
+}
+
 function normalizePreviewSdkMapping(
   mode: ImagePreviewMode,
   sdkMapping: Record<string, MappingFieldDefinition>
@@ -606,6 +1326,7 @@ function normalizePreviewSdkMapping(
   if (!sourceImageMapping) {
     throw new Error('Camera preview is missing SourceImage SDK mapping.');
   }
+
   if (sourceImageMapping.field !== 'image_urls') {
     throw new Error(
       `Camera preview expects SourceImage to map to image_urls, got ${sourceImageMapping.field ?? 'undefined'}.`
@@ -635,13 +1356,19 @@ function normalizePreviewSdkMapping(
 function resolveProducerSpec(
   body: ArtifactPreviewGenerateRequest | ArtifactPreviewEstimateRequest
 ): ProducerSpec {
-  if (body.mode === 'manual') {
+  if (body.mode === 'edit') {
     return {
       producerId: IMAGE_EDIT_PRODUCER_ID,
       producerFileName: 'image-edit.yaml',
       provider: body.model!.provider,
       model: body.model!.model,
     };
+  }
+
+  if (body.mode === 'rerun') {
+    throw new Error(
+      'Re-run preview mode does not use ImageEdit producer spec.'
+    );
   }
 
   return {
@@ -694,7 +1421,17 @@ async function loadSourceArtifactBlob(
   };
 }
 
-function readImageDimensions(data: Buffer, mimeType: string): ImageDimensions {
+type SupportedImageFormat = 'png' | 'jpeg' | 'webp';
+
+export function readImageDimensions(
+  data: Buffer,
+  mimeType: string
+): ImageDimensions {
+  const detectedFormat = detectImageFormat(data);
+  if (detectedFormat) {
+    return readImageDimensionsByFormat(data, detectedFormat);
+  }
+
   const normalizedMimeType = mimeType.toLowerCase();
   if (normalizedMimeType === 'image/png') {
     return readPngDimensions(data);
@@ -711,6 +1448,58 @@ function readImageDimensions(data: Buffer, mimeType: string): ImageDimensions {
 
   throw new Error(
     `Cannot estimate image dimensions for MIME type ${mimeType}. Expected image/png, image/jpeg, or image/webp.`
+  );
+}
+
+function detectImageFormat(data: Buffer): SupportedImageFormat | null {
+  if (isPngSignature(data)) {
+    return 'png';
+  }
+  if (isJpegSignature(data)) {
+    return 'jpeg';
+  }
+  if (isWebpSignature(data)) {
+    return 'webp';
+  }
+  return null;
+}
+
+function readImageDimensionsByFormat(
+  data: Buffer,
+  format: SupportedImageFormat
+): ImageDimensions {
+  if (format === 'png') {
+    return readPngDimensions(data);
+  }
+  if (format === 'jpeg') {
+    return readJpegDimensions(data);
+  }
+  return readWebpDimensions(data);
+}
+
+function isPngSignature(data: Buffer): boolean {
+  return (
+    data.byteLength >= 8 &&
+    data[0] === 0x89 &&
+    data[1] === 0x50 &&
+    data[2] === 0x4e &&
+    data[3] === 0x47 &&
+    data[4] === 0x0d &&
+    data[5] === 0x0a &&
+    data[6] === 0x1a &&
+    data[7] === 0x0a
+  );
+}
+
+function isJpegSignature(data: Buffer): boolean {
+  return data.byteLength >= 2 && data[0] === 0xff && data[1] === 0xd8;
+}
+
+function isWebpSignature(data: Buffer): boolean {
+  return (
+    data.byteLength >= 12 &&
+    data.toString('ascii', 0, 4) === 'RIFF' &&
+    data.toString('ascii', 8, 12) === 'WEBP'
   );
 }
 
@@ -893,18 +1682,15 @@ function buildPreviewInputs(params: {
     sourceImageDimensions,
   } = params;
 
-  const sourceImageInputValue =
-    mode === 'camera' ? [sourceImageBlob] : sourceImageBlob;
-
   const resolvedInputs: Record<string, unknown> = {
-    [artifactId]: sourceImageInputValue,
+    [artifactId]: sourceImageBlob,
   };
 
   const inputBindings: Record<string, string> = {
     SourceImage: artifactId,
   };
 
-  if (mode === 'manual') {
+  if (mode === 'edit') {
     const promptInputId = `Input:${producerId}.Prompt`;
     inputBindings.Prompt = promptInputId;
     resolvedInputs[promptInputId] = prompt;

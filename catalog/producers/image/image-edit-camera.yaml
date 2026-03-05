@@ -49,6 +49,7 @@ mappings:
     qwen-image-edit-2511-multiple-angles:
       SourceImage:
         field: image_urls
+        asArray: true
       Prompt: additional_prompt
       CameraAzimuth: horizontal_angle
       CameraElevation: vertical_angle

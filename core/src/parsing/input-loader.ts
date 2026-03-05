@@ -2,9 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, extname } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { resolveFileReferences } from './file-input-resolver.js';
-import {
-  parseOutputs,
-} from './blueprint-loader/yaml-parser.js';
+import { parseOutputs } from './blueprint-loader/yaml-parser.js';
 import {
   createInputIdResolver,
   type CanonicalInputEntry,
@@ -58,7 +56,7 @@ export interface LoadedInputs {
 
 export async function loadInputsFromYaml(
   filePath: string,
-  blueprint: BlueprintTreeNode,
+  blueprint: BlueprintTreeNode
 ): Promise<LoadedInputs> {
   validateYamlExtension(filePath);
   const contents = await readFile(filePath, 'utf8');
@@ -67,10 +65,15 @@ export async function loadInputsFromYaml(
 
   // Extract potential artifact override keys BEFORE canonicalization
   // (they would fail validation since they're not inputs)
-  const { regularInputs, potentialArtifactOverrides } = separateArtifactOverrideKeys(rawInputs);
+  const { regularInputs, potentialArtifactOverrides } =
+    separateArtifactOverrideKeys(rawInputs);
 
   const producerIndex = indexProducers(blueprint);
-  const modelSelections = resolveModelSelections(parsed.models, producerIndex, regularInputs);
+  const modelSelections = resolveModelSelections(
+    parsed.models,
+    producerIndex,
+    regularInputs
+  );
   const selectionEntries = collectSelectionEntries(modelSelections);
   const syntheticInputs = [
     ...collectProducerScopedInputs(blueprint),
@@ -85,7 +88,9 @@ export async function loadInputsFromYaml(
 
   if (!isProducer) {
     const missingRequired = resolver.entries
-      .filter((entry) => entry.namespacePath.length === 0 && entry.definition.required)
+      .filter(
+        (entry) => entry.namespacePath.length === 0 && entry.definition.required
+      )
       .filter((entry) => values[entry.canonicalId] === undefined)
       .map((entry) => entry.canonicalId);
 
@@ -93,7 +98,7 @@ export async function loadInputsFromYaml(
       throw createParserError(
         ParserErrorCode.MISSING_INPUTS_MAPPING,
         `Input file missing required fields: ${missingRequired.join(', ')}`,
-        { filePath },
+        { filePath }
       );
     }
   }
@@ -108,7 +113,10 @@ export async function loadInputsFromYaml(
   const resolvedValues = await resolveAllFileReferences(values, fileContext);
 
   // Resolve file: references in artifact override values and convert to ArtifactOverride[]
-  const artifactOverrides = await resolveArtifactOverrides(potentialArtifactOverrides, fileContext);
+  const artifactOverrides = await resolveArtifactOverrides(
+    potentialArtifactOverrides,
+    fileContext
+  );
 
   return { values: resolvedValues, modelSelections, artifactOverrides };
 }
@@ -121,7 +129,7 @@ function validateYamlExtension(filePath: string): void {
   throw createParserError(
     ParserErrorCode.INVALID_INPUT_FILE_EXTENSION,
     `Input files must be YAML (*.yaml or *.yml). Received: ${filePath}`,
-    { filePath },
+    { filePath }
   );
 }
 
@@ -145,27 +153,41 @@ export interface DisplayInputs {
  * This is different from loadInputsFromYaml() which resolves file references
  * to BlobInput objects for execution purposes.
  */
-export async function parseInputsForDisplay(filePath: string): Promise<DisplayInputs> {
+export async function parseInputsForDisplay(
+  filePath: string
+): Promise<DisplayInputs> {
   validateYamlExtension(filePath);
   const content = await readFile(filePath, 'utf8');
   const parsed = parseYaml(content) as {
     inputs?: Record<string, unknown>;
-    models?: Array<{ producerId: string; provider: string; model: string; config?: Record<string, unknown> }>;
+    models?: Array<{
+      producerId: string;
+      provider: string;
+      model: string;
+      config?: Record<string, unknown>;
+    }>;
   };
 
   const inputs = parsed.inputs ?? {};
-  const models: SerializableModelSelection[] = (parsed.models ?? []).map((m) => ({
-    producerId: m.producerId,
-    provider: m.provider,
-    model: m.model,
-    config: m.config,
-  }));
+  const models: SerializableModelSelection[] = (parsed.models ?? []).map(
+    (m) => ({
+      producerId: m.producerId,
+      provider: m.provider,
+      model: m.model,
+      config: m.config,
+    })
+  );
 
   return { inputs, models };
 }
 
 function resolveInputSection(raw: RawInputsFile): Record<string, unknown> {
-  if (raw && typeof raw === 'object' && raw.inputs && typeof raw.inputs === 'object') {
+  if (
+    raw &&
+    typeof raw === 'object' &&
+    raw.inputs &&
+    typeof raw.inputs === 'object'
+  ) {
     return { ...(raw.inputs as Record<string, unknown>) };
   }
   if (raw && typeof raw === 'object') {
@@ -173,13 +195,13 @@ function resolveInputSection(raw: RawInputsFile): Record<string, unknown> {
   }
   throw createParserError(
     ParserErrorCode.MISSING_INPUTS_MAPPING,
-    'Input file must define an inputs mapping with key/value pairs.',
+    'Input file must define an inputs mapping with key/value pairs.'
   );
 }
 
 function canonicalizeInputs(
   raw: Record<string, unknown>,
-  resolver: ReturnType<typeof createInputIdResolver>,
+  resolver: ReturnType<typeof createInputIdResolver>
 ): Record<string, unknown> {
   const resolved: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(raw)) {
@@ -188,7 +210,7 @@ function canonicalizeInputs(
     if (resolved[canonical] !== undefined) {
       throw createParserError(
         ParserErrorCode.DUPLICATE_INPUT_KEY,
-        `Duplicate input value for "${canonical}".`,
+        `Duplicate input value for "${canonical}".`
       );
     }
     resolved[canonical] = value;
@@ -197,15 +219,24 @@ function canonicalizeInputs(
 }
 
 interface ProducerIndex {
-  byAlias: Map<string, { namespacePath: string[]; producerName: string; producerAlias: string }>;
+  byAlias: Map<
+    string,
+    { namespacePath: string[]; producerName: string; producerAlias: string }
+  >;
 }
 
 function indexProducers(tree: BlueprintTreeNode): ProducerIndex {
-  const byAlias = new Map<string, { namespacePath: string[]; producerName: string; producerAlias: string }>();
+  const byAlias = new Map<
+    string,
+    { namespacePath: string[]; producerName: string; producerAlias: string }
+  >();
 
   const visit = (node: BlueprintTreeNode) => {
     for (const producer of node.document.producers) {
-      const producerAlias = formatProducerAlias(node.namespacePath, producer.name);
+      const producerAlias = formatProducerAlias(
+        node.namespacePath,
+        producer.name
+      );
       byAlias.set(producerAlias, {
         namespacePath: node.namespacePath,
         producerName: producer.name,
@@ -223,7 +254,7 @@ function indexProducers(tree: BlueprintTreeNode): ProducerIndex {
 
 function resolveProducerName(
   authored: string,
-  index: ProducerIndex,
+  index: ProducerIndex
 ): { namespacePath: string[]; producerAlias: string; producerName: string } {
   const direct = index.byAlias.get(authored);
   if (direct) {
@@ -231,36 +262,117 @@ function resolveProducerName(
   }
   throw createParserError(
     ParserErrorCode.UNKNOWN_PRODUCER_IN_MODELS,
-    `Unknown producer "${authored}" in models selection.`,
+    `Unknown producer "${authored}" in models selection.`
   );
 }
 
-function applyModelSelectionsToInputs(values: Record<string, unknown>, selections: ModelSelection[]): void {
+function resolveNestedModelSelectionTarget(
+  authored: string,
+  index: ProducerIndex
+): {
+  producerAlias: string;
+  namespacePath: string[];
+  nestedPath: string;
+} | null {
+  let bestMatch: {
+    producerAlias: string;
+    namespacePath: string[];
+    nestedPath: string;
+  } | null = null;
+
+  for (const [producerAlias, entry] of index.byAlias) {
+    const prefix = `${producerAlias}.`;
+    if (!authored.startsWith(prefix)) {
+      continue;
+    }
+
+    const nestedPath = authored.slice(prefix.length);
+    if (nestedPath.length === 0) {
+      continue;
+    }
+
+    if (!bestMatch || producerAlias.length > bestMatch.producerAlias.length) {
+      bestMatch = {
+        producerAlias,
+        namespacePath: entry.namespacePath,
+        nestedPath,
+      };
+    }
+  }
+
+  return bestMatch;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function mergeConfigRecords(
+  base: Record<string, unknown>,
+  patch: Record<string, unknown>
+): Record<string, unknown> {
+  const merged: Record<string, unknown> = { ...base };
+
+  for (const [key, patchValue] of Object.entries(patch)) {
+    const current = merged[key];
+    if (isRecord(current) && isRecord(patchValue)) {
+      merged[key] = mergeConfigRecords(current, patchValue);
+      continue;
+    }
+    merged[key] = patchValue;
+  }
+
+  return merged;
+}
+
+function applyModelSelectionsToInputs(
+  values: Record<string, unknown>,
+  selections: ModelSelection[]
+): void {
   for (const selection of selections) {
     const namespacePath = selection.namespacePath ?? [];
     const { producerName } = parseQualifiedProducerName(selection.producerId);
-    const providerId = formatProducerScopedInputId(namespacePath, producerName, 'provider');
-    const modelId = formatProducerScopedInputId(namespacePath, producerName, 'model');
+    const providerId = formatProducerScopedInputId(
+      namespacePath,
+      producerName,
+      'provider'
+    );
+    const modelId = formatProducerScopedInputId(
+      namespacePath,
+      producerName,
+      'model'
+    );
     values[providerId] = selection.provider;
     values[modelId] = selection.model;
     if (selection.config && typeof selection.config === 'object') {
       const flattened = flattenConfigValues(selection.config);
       for (const [key, value] of Object.entries(flattened)) {
-        const canonicalKey = formatProducerScopedInputId(namespacePath, producerName, key);
+        const canonicalKey = formatProducerScopedInputId(
+          namespacePath,
+          producerName,
+          key
+        );
         values[canonicalKey] = value;
       }
     }
   }
 }
 
-
 function collectProducerScopedInputs(
-  tree: BlueprintTreeNode,
+  tree: BlueprintTreeNode
 ): CanonicalInputEntry[] {
   const entries: Map<string, CanonicalInputEntry> = new Map();
 
-  const addEntry = (namespacePath: string[], producerName: string, name: string) => {
-    const canonicalId = formatProducerScopedInputId(namespacePath, producerName, name);
+  const addEntry = (
+    namespacePath: string[],
+    producerName: string,
+    name: string
+  ) => {
+    const canonicalId = formatProducerScopedInputId(
+      namespacePath,
+      producerName,
+      name
+    );
     if (!entries.has(canonicalId)) {
       entries.set(canonicalId, {
         canonicalId,
@@ -286,15 +398,17 @@ function collectProducerScopedInputs(
       const variants: ProducerModelVariant[] = Array.isArray(producer.models)
         ? producer.models
         : producer.provider && producer.model
-          ? [{
-            provider: producer.provider,
-            model: producer.model,
-            config: producer.config,
-            systemPrompt: producer.systemPrompt,
-            userPrompt: producer.userPrompt,
-            textFormat: producer.textFormat,
-            variables: producer.variables,
-          }]
+          ? [
+              {
+                provider: producer.provider,
+                model: producer.model,
+                config: producer.config,
+                systemPrompt: producer.systemPrompt,
+                userPrompt: producer.userPrompt,
+                textFormat: producer.textFormat,
+                variables: producer.variables,
+              },
+            ]
           : [];
 
       const addFlattenedConfig = (variant: ProducerModelVariant) => {
@@ -311,7 +425,8 @@ function collectProducerScopedInputs(
         if (variant.variables) {
           addEntry(namespacePath, producerName, 'variables');
         }
-        const legacyFormat = (variant as unknown as Record<string, unknown>).text_format;
+        const legacyFormat = (variant as unknown as Record<string, unknown>)
+          .text_format;
         if (variant.textFormat || legacyFormat) {
           addEntry(namespacePath, producerName, 'text_format');
           addEntry(namespacePath, producerName, 'textFormat');
@@ -336,23 +451,37 @@ function collectProducerScopedInputs(
 
 /** Keys recognized as core model-selection properties; everything else is folded into config. */
 const MODEL_SELECTION_KEYS = new Set([
-  'producerId', 'provider', 'model', 'config', 'outputs',
-  'promptFile', 'outputSchema', 'inputs',
+  'producerId',
+  'provider',
+  'model',
+  'config',
+  'outputs',
+  'promptFile',
+  'outputSchema',
+  'inputs',
 ]);
 
 function resolveModelSelections(
   raw: unknown,
   index: ProducerIndex,
-  rawInputs?: Record<string, unknown>,
+  rawInputs?: Record<string, unknown>
 ): ModelSelection[] {
   const selections = new Map<string, ModelSelection>();
+  const nestedSelectionPatches = new Map<
+    string,
+    {
+      config: Record<string, unknown>;
+      namespacePath: string[];
+      authoredEntries: string[];
+    }
+  >();
 
   if (Array.isArray(raw)) {
     for (const entry of raw) {
       if (!entry || typeof entry !== 'object') {
         throw createParserError(
           ParserErrorCode.INVALID_MODEL_ENTRY,
-          `Invalid model entry in inputs file: ${JSON.stringify(entry)}`,
+          `Invalid model entry in inputs file: ${JSON.stringify(entry)}`
         );
       }
       const record = entry as Record<string, unknown>;
@@ -362,35 +491,95 @@ function resolveModelSelections(
       const outputs = parseOutputs(record.outputs);
 
       // Start with explicit config section
-      const baseConfig: Record<string, unknown> = record.config && typeof record.config === 'object'
-        ? { ...(record.config as Record<string, unknown>) }
-        : {};
+      const baseConfig: Record<string, unknown> =
+        record.config && typeof record.config === 'object'
+          ? { ...(record.config as Record<string, unknown>) }
+          : {};
 
       // Fold ALL unrecognized top-level keys into config (provider-agnostic).
       // Explicit config section takes precedence over top-level shorthand.
       for (const [key, value] of Object.entries(record)) {
-        if (!MODEL_SELECTION_KEYS.has(key) && value !== undefined && !(key in baseConfig)) {
+        if (
+          !MODEL_SELECTION_KEYS.has(key) &&
+          value !== undefined &&
+          !(key in baseConfig)
+        ) {
           baseConfig[key] = value;
         }
       }
 
-      const config = Object.keys(baseConfig).length > 0 ? baseConfig : undefined;
+      const config =
+        Object.keys(baseConfig).length > 0 ? baseConfig : undefined;
 
-      const resolved = resolveProducerName(producerId, index);
-      selections.set(resolved.producerAlias, {
-        producerId: resolved.producerAlias,
-        provider,
-        model,
-        config,
-        namespacePath: resolved.namespacePath,
-        outputs,
+      try {
+        const resolved = resolveProducerName(producerId, index);
+        selections.set(resolved.producerAlias, {
+          producerId: resolved.producerAlias,
+          provider,
+          model,
+          config,
+          namespacePath: resolved.namespacePath,
+          outputs,
+        });
+        continue;
+      } catch {
+        const nestedTarget = resolveNestedModelSelectionTarget(
+          producerId,
+          index
+        );
+        if (!nestedTarget) {
+          throw createParserError(
+            ParserErrorCode.UNKNOWN_PRODUCER_IN_MODELS,
+            `Unknown producer "${producerId}" in models selection.`
+          );
+        }
+
+        const patch = nestedSelectionPatches.get(
+          nestedTarget.producerAlias
+        ) ?? {
+          config: {},
+          namespacePath: nestedTarget.namespacePath,
+          authoredEntries: [],
+        };
+        const nestedConfig = mergeConfigRecords(
+          { provider, model },
+          config ?? {}
+        );
+        assignNestedConfig(patch.config, nestedTarget.nestedPath, nestedConfig);
+        patch.authoredEntries.push(producerId);
+        nestedSelectionPatches.set(nestedTarget.producerAlias, patch);
+      }
+    }
+
+    for (const [producerAlias, patch] of nestedSelectionPatches) {
+      const existing = selections.get(producerAlias);
+      if (!existing) {
+        const authored =
+          patch.authoredEntries[0] ?? `${producerAlias}.<nested>`;
+        throw createParserError(
+          ParserErrorCode.UNKNOWN_PRODUCER_IN_MODELS,
+          `Nested model selection "${authored}" requires parent producer "${producerAlias}" in models selection.`
+        );
+      }
+
+      const mergedConfig = mergeConfigRecords(
+        existing.config ?? {},
+        patch.config
+      );
+      selections.set(producerAlias, {
+        ...existing,
+        config: Object.keys(mergedConfig).length > 0 ? mergedConfig : undefined,
       });
     }
   }
 
-    if (rawInputs && typeof rawInputs === 'object') {
-      mergeSelectionsFromInputs(rawInputs as Record<string, unknown>, index, selections);
-    }
+  if (rawInputs && typeof rawInputs === 'object') {
+    mergeSelectionsFromInputs(
+      rawInputs as Record<string, unknown>,
+      index,
+      selections
+    );
+  }
 
   return Array.from(selections.values());
 }
@@ -398,18 +587,23 @@ function resolveModelSelections(
 function mergeSelectionsFromInputs(
   rawInputs: Record<string, unknown>,
   index: ProducerIndex,
-  selections: Map<string, ModelSelection>,
+  selections: Map<string, ModelSelection>
 ): void {
-  const pending = new Map<string, {
-    producerId: string;
-    namespacePath: string[];
-    provider?: string;
-    model?: string;
-    config?: Record<string, unknown>;
-  }>();
+  const pending = new Map<
+    string,
+    {
+      producerId: string;
+      namespacePath: string[];
+      provider?: string;
+      model?: string;
+      config?: Record<string, unknown>;
+    }
+  >();
 
   for (const [rawKey, value] of Object.entries(rawInputs)) {
-    const body = isCanonicalInputId(rawKey) ? rawKey.slice('Input:'.length) : rawKey;
+    const body = isCanonicalInputId(rawKey)
+      ? rawKey.slice('Input:'.length)
+      : rawKey;
     const match = matchProducerScopedKey(body, index);
     if (!match) {
       continue;
@@ -434,7 +628,11 @@ function mergeSelectionsFromInputs(
       }
       entry.model = value;
     } else {
-      assignNestedConfig(entry.config as Record<string, unknown>, match.keyPath, value);
+      assignNestedConfig(
+        entry.config as Record<string, unknown>,
+        match.keyPath,
+        value
+      );
     }
     pending.set(match.producerId, entry);
   }
@@ -448,14 +646,15 @@ function mergeSelectionsFromInputs(
       namespacePath: entry.namespacePath,
       provider: entry.provider,
       model: entry.model,
-      config: Object.keys(entry.config ?? {}).length > 0 ? entry.config : undefined,
+      config:
+        Object.keys(entry.config ?? {}).length > 0 ? entry.config : undefined,
     });
   }
 }
 
 function matchProducerScopedKey(
   body: string,
-  index: ProducerIndex,
+  index: ProducerIndex
 ): { producerId: string; namespacePath: string[]; keyPath: string } | null {
   for (const [alias, entry] of index.byAlias) {
     if (body.startsWith(`${alias}.`)) {
@@ -469,7 +668,11 @@ function matchProducerScopedKey(
   return null;
 }
 
-function assignNestedConfig(target: Record<string, unknown>, path: string, value: unknown): void {
+function assignNestedConfig(
+  target: Record<string, unknown>,
+  path: string,
+  value: unknown
+): void {
   const segments = path.split('.').filter((segment) => segment.length > 0);
   if (segments.length === 0) {
     return;
@@ -489,14 +692,22 @@ function assignNestedConfig(target: Record<string, unknown>, path: string, value
   }
 }
 
-function collectSelectionEntries(selections: ModelSelection[]): CanonicalInputEntry[] {
+function collectSelectionEntries(
+  selections: ModelSelection[]
+): CanonicalInputEntry[] {
   const entries: Map<string, CanonicalInputEntry> = new Map();
   for (const selection of selections) {
     const namespacePath = selection.namespacePath ?? [];
-    const { producerName: producer } = parseQualifiedProducerName(selection.producerId);
+    const { producerName: producer } = parseQualifiedProducerName(
+      selection.producerId
+    );
     const flattened = flattenConfigValues(selection.config ?? {});
     for (const key of Object.keys(flattened)) {
-      const canonicalId = formatProducerScopedInputId(namespacePath, producer, key);
+      const canonicalId = formatProducerScopedInputId(
+        namespacePath,
+        producer,
+        key
+      );
       if (!entries.has(canonicalId)) {
         entries.set(canonicalId, {
           canonicalId,
@@ -521,13 +732,13 @@ function readString(source: Record<string, unknown>, key: string): string {
   }
   throw createParserError(
     ParserErrorCode.MISSING_REQUIRED_FIELD,
-    `Expected string for "${key}" in models entry`,
+    `Expected string for "${key}" in models entry`
   );
 }
 
 async function resolveAllFileReferences(
   values: Record<string, unknown>,
-  context: { baseDir: string },
+  context: { baseDir: string }
 ): Promise<Record<string, unknown>> {
   const resolved: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(values)) {
@@ -546,7 +757,9 @@ async function resolveAllFileReferences(
  */
 function isArtifactOverrideKey(key: string): boolean {
   // Strip the "Artifact:" prefix if present
-  const body = key.startsWith('Artifact:') ? key.slice('Artifact:'.length) : key;
+  const body = key.startsWith('Artifact:')
+    ? key.slice('Artifact:'.length)
+    : key;
 
   // Must have at least one numeric index like [0], [1], etc.
   if (!/\[\d+\]/.test(body)) {
@@ -582,9 +795,10 @@ function toCanonicalArtifactId(key: string): string {
  * Separate artifact override keys from regular input keys.
  * Artifact overrides have the pattern ProducerName.ArtifactName[index].
  */
-function separateArtifactOverrideKeys(
-  rawInputs: Record<string, unknown>,
-): { regularInputs: Record<string, unknown>; potentialArtifactOverrides: Record<string, unknown> } {
+function separateArtifactOverrideKeys(rawInputs: Record<string, unknown>): {
+  regularInputs: Record<string, unknown>;
+  potentialArtifactOverrides: Record<string, unknown>;
+} {
   const regularInputs: Record<string, unknown> = {};
   const potentialArtifactOverrides: Record<string, unknown> = {};
 
@@ -605,7 +819,7 @@ function separateArtifactOverrideKeys(
  */
 async function resolveArtifactOverrides(
   potentialOverrides: Record<string, unknown>,
-  fileContext: { baseDir: string },
+  fileContext: { baseDir: string }
 ): Promise<ArtifactOverride[]> {
   const overrides: ArtifactOverride[] = [];
 
@@ -624,7 +838,7 @@ async function resolveArtifactOverrides(
       throw createParserError(
         ParserErrorCode.INVALID_ARTIFACT_OVERRIDE,
         `Artifact override "${key}" must be a file reference (file:...). ` +
-        `Got: ${typeof resolved === 'string' ? resolved : typeof resolved}`,
+          `Got: ${typeof resolved === 'string' ? resolved : typeof resolved}`
       );
     }
   }

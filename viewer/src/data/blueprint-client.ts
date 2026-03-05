@@ -513,7 +513,7 @@ export interface ImagePreviewCameraParams {
   shotDescription: string;
 }
 
-export type ImagePreviewMode = 'manual' | 'camera';
+export type ImagePreviewMode = 'rerun' | 'edit' | 'camera';
 
 /**
  * Request payload for temporary image preview generation.
@@ -521,6 +521,7 @@ export type ImagePreviewMode = 'manual' | 'camera';
 export interface GenerateArtifactPreviewRequest {
   mode: ImagePreviewMode;
   prompt: string;
+  promptArtifactId?: string;
   model?: AvailableModelOption;
   cameraParams?: ImagePreviewCameraParams;
 }
@@ -542,6 +543,30 @@ export interface GenerateArtifactPreviewResponse {
 export interface EstimateArtifactPreviewResponse {
   success: true;
   estimatedCost: ArtifactPreviewCostEstimate;
+}
+
+/**
+ * Response payload for listing available image-edit models.
+ */
+export interface ArtifactPreviewEditModelsResponse {
+  success: true;
+  models: AvailableModelOption[];
+}
+
+/**
+ * Fetches image-edit models available for the edit tab.
+ */
+export async function fetchArtifactPreviewEditModels(): Promise<ArtifactPreviewEditModelsResponse> {
+  const response = await fetch(
+    `${API_BASE}/blueprints/builds/artifacts/preview-edit-models`
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    throw new Error(`Loading image edit models failed: ${errorText}`);
+  }
+
+  return response.json() as Promise<ArtifactPreviewEditModelsResponse>;
 }
 
 /**

@@ -297,6 +297,10 @@ export interface BlueprintProducerSdkMappingField {
    * results in payload.width = 1024 and payload.height = 1024
    */
   expand?: boolean;
+  /** Take first element from array input */
+  firstOf?: boolean;
+  /** Wrap scalar value as single-element array (arrays pass through unchanged) */
+  asArray?: boolean;
 }
 
 export interface BlueprintProducerOutputDefinition {
@@ -819,7 +823,7 @@ export interface DurationToFramesConfig {
 
 /**
  * SDK mapping field definition with all transform types.
- * Supports: simple (string), transform, combine, conditional, firstOf, invert, intToString, intToSecondsString, durationToFrames.
+ * Supports: simple (string), transform, combine, conditional, firstOf, asArray, invert, intToString, intToSecondsString, durationToFrames.
  */
 export interface MappingFieldDefinition {
   /** Target API field name (supports dot notation for nested: "voice_setting.voice_id") */
@@ -836,6 +840,8 @@ export interface MappingFieldDefinition {
   conditional?: ConditionalTransform;
   /** Take first element from array input */
   firstOf?: boolean;
+  /** Wrap scalar value as single-element array (arrays pass through unchanged) */
+  asArray?: boolean;
   /** Invert boolean value */
   invert?: boolean;
   /** Convert integer to string */

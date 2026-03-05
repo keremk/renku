@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createUnifiedHandler } from './schema-first-handler.js';
-import type { ProviderAdapter, ClientOptions, ProviderClient } from './provider-adapter.js';
+import type {
+  ProviderAdapter,
+  ClientOptions,
+  ProviderClient,
+} from './provider-adapter.js';
 import type { HandlerFactoryInit, ProviderJobContext } from '../../types.js';
 import { createProviderError, SdkErrorCode } from '../errors.js';
 
@@ -21,7 +25,11 @@ function createMockAdapter(options?: {
   normalizedUrls?: string[];
   shouldThrow?: boolean;
 }): ProviderAdapter {
-  const { invokeResult = {}, normalizedUrls = ['https://mock.example.com/output.png'], shouldThrow = false } = options ?? {};
+  const {
+    invokeResult = {},
+    normalizedUrls = ['https://mock.example.com/output.png'],
+    shouldThrow = false,
+  } = options ?? {};
 
   return {
     name: 'mock-provider',
@@ -35,7 +43,11 @@ function createMockAdapter(options?: {
       return `mock/${model}`;
     },
 
-    async invoke(_client: ProviderClient, _model: string, _input: Record<string, unknown>): Promise<unknown> {
+    async invoke(
+      _client: ProviderClient,
+      _model: string,
+      _input: Record<string, unknown>
+    ): Promise<unknown> {
       if (shouldThrow) {
         throw new Error('Mock API error');
       }
@@ -49,7 +61,9 @@ function createMockAdapter(options?: {
 }
 
 // Mock adapter with invoke spy for verifying input payloads
-function createMockAdapterWithSpy(invokeSpy: ReturnType<typeof vi.fn>): ProviderAdapter {
+function createMockAdapterWithSpy(
+  invokeSpy: ReturnType<typeof vi.fn>
+): ProviderAdapter {
   return {
     name: 'mock-provider',
     secretKey: 'MOCK_API_KEY',
@@ -62,7 +76,9 @@ function createMockAdapterWithSpy(invokeSpy: ReturnType<typeof vi.fn>): Provider
   };
 }
 
-function createMockInitContext(overrides?: Partial<HandlerFactoryInit>): HandlerFactoryInit {
+function createMockInitContext(
+  overrides?: Partial<HandlerFactoryInit>
+): HandlerFactoryInit {
   return {
     descriptor: {
       provider: 'mock-provider',
@@ -79,7 +95,9 @@ function createMockInitContext(overrides?: Partial<HandlerFactoryInit>): Handler
   };
 }
 
-function createMockRequest(overrides?: Partial<ProviderJobContext>): ProviderJobContext {
+function createMockRequest(
+  overrides?: Partial<ProviderJobContext>
+): ProviderJobContext {
   const schema = JSON.stringify({
     type: 'object',
     properties: {
@@ -126,7 +144,10 @@ describe('createUnifiedHandler', () => {
 
   it('creates a handler factory', () => {
     const adapter = createMockAdapter();
-    const factory = createUnifiedHandler({ adapter, outputMimeType: 'image/png' });
+    const factory = createUnifiedHandler({
+      adapter,
+      outputMimeType: 'image/png',
+    });
     expect(typeof factory).toBe('function');
   });
 
@@ -134,7 +155,10 @@ describe('createUnifiedHandler', () => {
     const adapter = createMockAdapter({
       normalizedUrls: ['https://mock.example.com/output.png'],
     });
-    const factory = createUnifiedHandler({ adapter, outputMimeType: 'image/png' });
+    const factory = createUnifiedHandler({
+      adapter,
+      outputMimeType: 'image/png',
+    });
     const handler = factory(createMockInitContext());
 
     const result = await handler.invoke(createMockRequest());
@@ -147,7 +171,9 @@ describe('createUnifiedHandler', () => {
   it('handler invoke calls adapter methods in correct order (live mode)', async () => {
     const createClientSpy = vi.fn().mockResolvedValue({ configured: true });
     const invokeSpy = vi.fn().mockResolvedValue({});
-    const normalizeOutputSpy = vi.fn().mockReturnValue(['https://example.com/out.png']);
+    const normalizeOutputSpy = vi
+      .fn()
+      .mockReturnValue(['https://example.com/out.png']);
 
     const adapter: ProviderAdapter = {
       name: 'spy-provider',
@@ -158,7 +184,10 @@ describe('createUnifiedHandler', () => {
       normalizeOutput: normalizeOutputSpy,
     };
 
-    const factory = createUnifiedHandler({ adapter, outputMimeType: 'image/png' });
+    const factory = createUnifiedHandler({
+      adapter,
+      outputMimeType: 'image/png',
+    });
     // Use live mode to test actual adapter invocation
     const handler = factory(createMockInitContext({ mode: 'live' }));
 
@@ -172,7 +201,9 @@ describe('createUnifiedHandler', () => {
   it('handler invoke generates output from schema in simulated mode', async () => {
     const createClientSpy = vi.fn().mockResolvedValue({ configured: true });
     const invokeSpy = vi.fn().mockResolvedValue({});
-    const normalizeOutputSpy = vi.fn().mockReturnValue(['https://example.com/out.png']);
+    const normalizeOutputSpy = vi
+      .fn()
+      .mockReturnValue(['https://example.com/out.png']);
 
     const adapter: ProviderAdapter = {
       name: 'spy-provider',
@@ -183,7 +214,10 @@ describe('createUnifiedHandler', () => {
       normalizeOutput: normalizeOutputSpy,
     };
 
-    const factory = createUnifiedHandler({ adapter, outputMimeType: 'image/png' });
+    const factory = createUnifiedHandler({
+      adapter,
+      outputMimeType: 'image/png',
+    });
     // Use simulated mode - should NOT call adapter.invoke()
     const handler = factory(createMockInitContext({ mode: 'simulated' }));
 
@@ -200,7 +234,10 @@ describe('createUnifiedHandler', () => {
 
   it('throws error when input schema is missing', async () => {
     const adapter = createMockAdapter();
-    const factory = createUnifiedHandler({ adapter, outputMimeType: 'image/png' });
+    const factory = createUnifiedHandler({
+      adapter,
+      outputMimeType: 'image/png',
+    });
     const handler = factory(createMockInitContext());
 
     const request = createMockRequest({
@@ -218,23 +255,30 @@ describe('createUnifiedHandler', () => {
       },
     });
 
-    await expect(handler.invoke(request)).rejects.toThrow(/Missing input schema/);
+    await expect(handler.invoke(request)).rejects.toThrow(
+      /Missing input schema/
+    );
   });
 
   it('throws error when adapter invoke fails (live mode)', async () => {
     const adapter = createMockAdapter({ shouldThrow: true });
-    const factory = createUnifiedHandler({ adapter, outputMimeType: 'image/png' });
+    const factory = createUnifiedHandler({
+      adapter,
+      outputMimeType: 'image/png',
+    });
     // Use live mode to test error propagation from adapter
     const handler = factory(createMockInitContext({ mode: 'live' }));
 
-    await expect(handler.invoke(createMockRequest())).rejects.toThrow(/Mock API error/);
+    await expect(handler.invoke(createMockRequest())).rejects.toThrow(
+      /Mock API error/
+    );
   });
 
   it('rethrows structured ProviderError from adapter without rewrapping', async () => {
     const providerError = createProviderError(
       SdkErrorCode.MISSING_REQUIRED_INPUT,
       'Structured provider validation failure',
-      { kind: 'user_input', retryable: false, causedByUser: true },
+      { kind: 'user_input', retryable: false, causedByUser: true }
     );
     const adapter: ProviderAdapter = {
       name: 'structured-provider',
@@ -248,7 +292,10 @@ describe('createUnifiedHandler', () => {
       },
       normalizeOutput: () => ['https://mock.example.com/output.png'],
     };
-    const factory = createUnifiedHandler({ adapter, outputMimeType: 'image/png' });
+    const factory = createUnifiedHandler({
+      adapter,
+      outputMimeType: 'image/png',
+    });
     const handler = factory(createMockInitContext({ mode: 'live' }));
 
     await expect(handler.invoke(createMockRequest())).rejects.toMatchObject({
@@ -261,7 +308,10 @@ describe('createUnifiedHandler', () => {
 
   it('returns failed status when no output URLs', async () => {
     const adapter = createMockAdapter({ normalizedUrls: [] });
-    const factory = createUnifiedHandler({ adapter, outputMimeType: 'image/png' });
+    const factory = createUnifiedHandler({
+      adapter,
+      outputMimeType: 'image/png',
+    });
     const handler = factory(createMockInitContext());
 
     const result = await handler.invoke(createMockRequest());
@@ -273,7 +323,10 @@ describe('createUnifiedHandler', () => {
 
   it('includes diagnostics in result', async () => {
     const adapter = createMockAdapter();
-    const factory = createUnifiedHandler({ adapter, outputMimeType: 'image/png' });
+    const factory = createUnifiedHandler({
+      adapter,
+      outputMimeType: 'image/png',
+    });
     const handler = factory(createMockInitContext());
 
     const result = await handler.invoke(createMockRequest());
@@ -288,15 +341,19 @@ describe('createUnifiedHandler', () => {
   it('builds input strictly from sdk mapping and schema', async () => {
     const invokeSpy = vi.fn().mockResolvedValue({});
     const adapter = createMockAdapterWithSpy(invokeSpy);
-    const handler = createUnifiedHandler({ adapter, outputMimeType: 'image/png' })(
-      createMockInitContext({ mode: 'live' }),
-    );
+    const handler = createUnifiedHandler({
+      adapter,
+      outputMimeType: 'image/png',
+    })(createMockInitContext({ mode: 'live' }));
 
     const request = createMockRequest();
     const extras = request.context.extras as TestExtras;
     extras.resolvedInputs['Input:AspectRatio'] = '16:9';
     extras.jobContext.inputBindings.AspectRatio = 'Input:AspectRatio';
-    extras.jobContext.sdkMapping.AspectRatio = { field: 'aspect_ratio', required: false };
+    extras.jobContext.sdkMapping.AspectRatio = {
+      field: 'aspect_ratio',
+      required: false,
+    };
 
     // Update schema to include aspect_ratio
     extras.schema.input = JSON.stringify({
@@ -310,44 +367,55 @@ describe('createUnifiedHandler', () => {
 
     await handler.invoke(request);
 
-    expect(invokeSpy).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
-      prompt: 'test prompt',
-      aspect_ratio: '16:9',
-    });
+    expect(invokeSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      {
+        prompt: 'test prompt',
+        aspect_ratio: '16:9',
+      }
+    );
   });
 
   it('fails fast when required mapped input is absent', async () => {
     const adapter = createMockAdapter();
-    const handler = createUnifiedHandler({ adapter, outputMimeType: 'image/png' })(
-      createMockInitContext({ mode: 'live' }),
-    );
+    const handler = createUnifiedHandler({
+      adapter,
+      outputMimeType: 'image/png',
+    })(createMockInitContext({ mode: 'live' }));
 
     const request = createMockRequest();
     const extras = request.context.extras as TestExtras;
     delete extras.resolvedInputs['Input:Prompt'];
 
-    await expect(handler.invoke(request)).rejects.toThrow(/Missing required input/);
+    await expect(handler.invoke(request)).rejects.toThrow(
+      /Missing required input/
+    );
   });
 
   it('fails when payload violates the input schema', async () => {
     const adapter = createMockAdapter();
-    const handler = createUnifiedHandler({ adapter, outputMimeType: 'image/png' })(
-      createMockInitContext({ mode: 'live' }),
-    );
+    const handler = createUnifiedHandler({
+      adapter,
+      outputMimeType: 'image/png',
+    })(createMockInitContext({ mode: 'live' }));
 
     const request = createMockRequest();
     const extras = request.context.extras as TestExtras;
     extras.resolvedInputs['Input:Prompt'] = 12345; // Wrong type - should be string
 
-    await expect(handler.invoke(request)).rejects.toThrow(/Invalid input payload/);
+    await expect(handler.invoke(request)).rejects.toThrow(
+      /Invalid input payload/
+    );
   });
 
   it('ignores providerConfig defaults and customAttributes', async () => {
     const invokeSpy = vi.fn().mockResolvedValue({});
     const adapter = createMockAdapterWithSpy(invokeSpy);
-    const handler = createUnifiedHandler({ adapter, outputMimeType: 'image/png' })(
-      createMockInitContext({ mode: 'live' }),
-    );
+    const handler = createUnifiedHandler({
+      adapter,
+      outputMimeType: 'image/png',
+    })(createMockInitContext({ mode: 'live' }));
 
     const request = createMockRequest();
     request.context.providerConfig = {
@@ -358,22 +426,29 @@ describe('createUnifiedHandler', () => {
     await handler.invoke(request);
 
     // Verify providerConfig values are NOT in the input
-    expect(invokeSpy).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
-      prompt: 'test prompt', // Only sdk-mapped values
-    });
+    expect(invokeSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      {
+        prompt: 'test prompt', // Only sdk-mapped values
+      }
+    );
   });
 
   it('validates required inputs in simulated mode', async () => {
     const adapter = createMockAdapter();
-    const handler = createUnifiedHandler({ adapter, outputMimeType: 'image/png' })(
-      createMockInitContext({ mode: 'simulated' }),
-    );
+    const handler = createUnifiedHandler({
+      adapter,
+      outputMimeType: 'image/png',
+    })(createMockInitContext({ mode: 'simulated' }));
 
     const request = createMockRequest();
     const extras = request.context.extras as TestExtras;
     delete extras.resolvedInputs['Input:Prompt'];
 
-    await expect(handler.invoke(request)).rejects.toThrow(/Missing required input/);
+    await expect(handler.invoke(request)).rejects.toThrow(
+      /Missing required input/
+    );
   });
 
   it('resolves blob URI inputs before validation and invocation in live mode', async () => {
@@ -394,9 +469,10 @@ describe('createUnifiedHandler', () => {
       normalizeOutput: () => ['https://mock.example.com/output.png'],
     };
 
-    const handler = createUnifiedHandler({ adapter, outputMimeType: 'image/png' })(
-      createMockInitContext({ mode: 'live' }),
-    );
+    const handler = createUnifiedHandler({
+      adapter,
+      outputMimeType: 'image/png',
+    })(createMockInitContext({ mode: 'live' }));
 
     const request = createMockRequest();
     const extras = request.context.extras as TestExtras;
@@ -426,7 +502,67 @@ describe('createUnifiedHandler', () => {
     expect(invokeSpy).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
-      { image_url: 'https://provider.example.com/uploaded-image.png' },
+      { image_url: 'https://provider.example.com/uploaded-image.png' }
+    );
+  });
+
+  it('resolves blob URI inputs for array URI fields when mapping uses asArray', async () => {
+    const invokeSpy = vi.fn().mockResolvedValue({});
+    const uploadInputFile = vi
+      .fn()
+      .mockResolvedValue('https://provider.example.com/uploaded-image.png');
+
+    const adapter: ProviderAdapter = {
+      name: 'blob-provider',
+      secretKey: 'BLOB_KEY',
+      async createClient(): Promise<ProviderClient> {
+        return { configured: true };
+      },
+      formatModelIdentifier: (m) => `blob/${m}`,
+      invoke: invokeSpy,
+      uploadInputFile,
+      normalizeOutput: () => ['https://mock.example.com/output.png'],
+    };
+
+    const handler = createUnifiedHandler({
+      adapter,
+      outputMimeType: 'image/png',
+    })(createMockInitContext({ mode: 'live' }));
+
+    const request = createMockRequest();
+    const extras = request.context.extras as TestExtras;
+    extras.resolvedInputs = {
+      'Input:SourceImage': {
+        data: Buffer.from('image-bytes'),
+        mimeType: 'image/png',
+      },
+    };
+    extras.jobContext.inputBindings = {
+      SourceImage: 'Input:SourceImage',
+    };
+    extras.jobContext.sdkMapping = {
+      SourceImage: { field: 'image_urls', asArray: true, required: true },
+    };
+    extras.schema.input = JSON.stringify({
+      type: 'object',
+      properties: {
+        image_urls: {
+          type: 'array',
+          items: { type: 'string', format: 'uri' },
+        },
+      },
+      required: ['image_urls'],
+    });
+
+    await handler.invoke(request);
+
+    expect(uploadInputFile).toHaveBeenCalledTimes(1);
+    expect(invokeSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      {
+        image_urls: ['https://provider.example.com/uploaded-image.png'],
+      }
     );
   });
 
@@ -446,9 +582,10 @@ describe('createUnifiedHandler', () => {
       normalizeOutput: () => ['https://mock.example.com/output.png'],
     };
 
-    const handler = createUnifiedHandler({ adapter, outputMimeType: 'image/png' })(
-      createMockInitContext({ mode: 'simulated' }),
-    );
+    const handler = createUnifiedHandler({
+      adapter,
+      outputMimeType: 'image/png',
+    })(createMockInitContext({ mode: 'simulated' }));
 
     const request = createMockRequest();
     const extras = request.context.extras as TestExtras;

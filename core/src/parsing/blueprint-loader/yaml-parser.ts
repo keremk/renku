@@ -899,6 +899,8 @@ export function parseSdkMapping(
       type: typeof fieldConfig.type === 'string' ? fieldConfig.type : undefined,
       transform: parseTransform(fieldConfig.transform),
       expand: isExpand ? true : undefined,
+      firstOf: fieldConfig.firstOf === true ? true : undefined,
+      asArray: fieldConfig.asArray === true ? true : undefined,
     };
   }
   return Object.keys(mapping).length ? mapping : undefined;
@@ -1270,6 +1272,9 @@ function parseMappingValue(raw: unknown, context: string): MappingValue {
   // Parse boolean flags
   if (obj.firstOf === true) {
     result.firstOf = true;
+  }
+  if (obj.asArray === true) {
+    result.asArray = true;
   }
   if (obj.invert === true) {
     result.invert = true;

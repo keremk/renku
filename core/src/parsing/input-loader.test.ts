@@ -6,7 +6,11 @@ import { describe, expect, it } from 'vitest';
 import { stringify as stringifyYaml } from 'yaml';
 import { loadInputsFromYaml, parseInputsForDisplay } from './input-loader.js';
 import { loadYamlBlueprintTree } from './blueprint-loader/yaml-parser.js';
-import { CATALOG_BLUEPRINTS_ROOT, CATALOG_ROOT, TEST_FIXTURES_ROOT } from '../../tests/catalog-paths.js';
+import {
+  CATALOG_BLUEPRINTS_ROOT,
+  CATALOG_ROOT,
+  TEST_FIXTURES_ROOT,
+} from '../../tests/catalog-paths.js';
 import type { BlueprintTreeNode } from '../types.js';
 
 const BLUEPRINT_ROOT = CATALOG_BLUEPRINTS_ROOT;
@@ -23,12 +27,8 @@ function createTestBlueprintTree(): BlueprintTreeNode {
         { name: 'Topic', type: 'string', required: true },
         { name: 'NumOfSegments', type: 'int', required: false },
       ],
-      artefacts: [
-        { name: 'VideoScript', type: 'json' },
-      ],
-      producers: [
-        { name: 'DocProducer' },
-      ],
+      artefacts: [{ name: 'VideoScript', type: 'json' }],
+      producers: [{ name: 'DocProducer' }],
       producerImports: [],
       edges: [],
     },
@@ -40,8 +40,14 @@ function createTestBlueprintTree(): BlueprintTreeNode {
 describe('parsing/input-loader', () => {
   it('canonicalizes inputs and derives model selections from producer-scoped keys', async () => {
     const workdir = await mkdtemp(join(tmpdir(), 'renku-inputs-'));
-    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
-    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
+    const blueprintPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'audio-only',
+      'audio-only.yaml'
+    );
+    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, {
+      catalogRoot,
+    });
     const savedPath = join(workdir, 'inputs.yaml');
 
     await writeFile(
@@ -56,28 +62,41 @@ describe('parsing/input-loader', () => {
           'Input:AudioProducer.model': 'elevenlabs/v3',
         },
       }),
-      'utf8',
+      'utf8'
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
-    expect(loaded.modelSelections.find((sel) => sel.producerId.endsWith('AudioProducer'))?.model).toBe(
-      'elevenlabs/v3',
-    );
+    expect(
+      loaded.modelSelections.find((sel) =>
+        sel.producerId.endsWith('AudioProducer')
+      )?.model
+    ).toBe('elevenlabs/v3');
     expect(loaded.values['Input:AudioProducer.provider']).toBe('replicate');
   });
 
   it('rejects unknown inputs with a clear error', async () => {
-    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
-    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
-    const invalidPath = join(await mkdtemp(join(tmpdir(), 'renku-inputs-')), 'inputs.yaml');
+    const blueprintPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'audio-only',
+      'audio-only.yaml'
+    );
+    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, {
+      catalogRoot,
+    });
+    const invalidPath = join(
+      await mkdtemp(join(tmpdir(), 'renku-inputs-')),
+      'inputs.yaml'
+    );
     await writeFile(
       invalidPath,
       stringifyYaml({
         inputs: { UnknownKey: 'x' },
       }),
-      'utf8',
+      'utf8'
     );
-    await expect(loadInputsFromYaml(invalidPath, blueprint)).rejects.toThrow(/Unknown input "UnknownKey"/);
+    await expect(loadInputsFromYaml(invalidPath, blueprint)).rejects.toThrow(
+      /Unknown input "UnknownKey"/
+    );
   });
 });
 
@@ -99,7 +118,7 @@ describe('artifact override detection', () => {
           'DocProducer.VideoScript[0]': `file:${overrideFile}`,
         },
       }),
-      'utf8',
+      'utf8'
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
@@ -109,7 +128,9 @@ describe('artifact override detection', () => {
 
     // Artifact override should be in artifactOverrides, not values
     expect(loaded.artifactOverrides).toHaveLength(1);
-    expect(loaded.artifactOverrides[0].artifactId).toBe('Artifact:DocProducer.VideoScript[0]');
+    expect(loaded.artifactOverrides[0].artifactId).toBe(
+      'Artifact:DocProducer.VideoScript[0]'
+    );
     expect(loaded.artifactOverrides[0].blob.mimeType).toBe('text/plain');
   });
 
@@ -129,13 +150,15 @@ describe('artifact override detection', () => {
           'DocProducer.VideoScript.Segments[0].ImagePrompts[0]': `file:${overrideFile}`,
         },
       }),
-      'utf8',
+      'utf8'
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
 
     expect(loaded.artifactOverrides).toHaveLength(1);
-    expect(loaded.artifactOverrides[0].artifactId).toBe('Artifact:DocProducer.VideoScript.Segments[0].ImagePrompts[0]');
+    expect(loaded.artifactOverrides[0].artifactId).toBe(
+      'Artifact:DocProducer.VideoScript.Segments[0].ImagePrompts[0]'
+    );
   });
 
   it('handles multiple artifact overrides', async () => {
@@ -157,15 +180,19 @@ describe('artifact override detection', () => {
           'DocProducer.VideoScript.Segments[0].ImagePrompts[0]': `file:${override2}`,
         },
       }),
-      'utf8',
+      'utf8'
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
 
     expect(loaded.artifactOverrides).toHaveLength(2);
     const artifactIds = loaded.artifactOverrides.map((o) => o.artifactId);
-    expect(artifactIds).toContain('Artifact:DocProducer.VideoScript.Segments[0].Script');
-    expect(artifactIds).toContain('Artifact:DocProducer.VideoScript.Segments[0].ImagePrompts[0]');
+    expect(artifactIds).toContain(
+      'Artifact:DocProducer.VideoScript.Segments[0].Script'
+    );
+    expect(artifactIds).toContain(
+      'Artifact:DocProducer.VideoScript.Segments[0].ImagePrompts[0]'
+    );
   });
 
   it('handles artifact override keys with Artifact: prefix', async () => {
@@ -184,13 +211,15 @@ describe('artifact override detection', () => {
           'Artifact:DocProducer.VideoScript[0]': `file:${overrideFile}`,
         },
       }),
-      'utf8',
+      'utf8'
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
 
     expect(loaded.artifactOverrides).toHaveLength(1);
-    expect(loaded.artifactOverrides[0].artifactId).toBe('Artifact:DocProducer.VideoScript[0]');
+    expect(loaded.artifactOverrides[0].artifactId).toBe(
+      'Artifact:DocProducer.VideoScript[0]'
+    );
   });
 
   it('rejects artifact overrides without file: prefix', async () => {
@@ -206,16 +235,24 @@ describe('artifact override detection', () => {
           'DocProducer.VideoScript[0]': 'plain string value',
         },
       }),
-      'utf8',
+      'utf8'
     );
 
-    await expect(loadInputsFromYaml(savedPath, blueprint)).rejects.toThrow(/must be a file reference/);
+    await expect(loadInputsFromYaml(savedPath, blueprint)).rejects.toThrow(
+      /must be a file reference/
+    );
   });
 
   it('does not treat qualified names without indices as artifact overrides', async () => {
     const workdir = await mkdtemp(join(tmpdir(), 'renku-qualified-input-'));
-    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
-    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
+    const blueprintPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'audio-only',
+      'audio-only.yaml'
+    );
+    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, {
+      catalogRoot,
+    });
     const savedPath = join(workdir, 'inputs.yaml');
 
     await writeFile(
@@ -229,7 +266,7 @@ describe('artifact override detection', () => {
           'AudioProducer.provider': 'replicate',
         },
       }),
-      'utf8',
+      'utf8'
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
@@ -247,15 +284,73 @@ describe('artifact override detection', () => {
 
     // Create a minimal PNG file (1x1 transparent pixel)
     const pngData = Buffer.from([
-      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, // PNG signature
-      0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
-      0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-      0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
-      0x89, 0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41, // IDAT chunk
-      0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
-      0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00,
-      0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, // IEND chunk
-      0x42, 0x60, 0x82,
+      0x89,
+      0x50,
+      0x4e,
+      0x47,
+      0x0d,
+      0x0a,
+      0x1a,
+      0x0a, // PNG signature
+      0x00,
+      0x00,
+      0x00,
+      0x0d,
+      0x49,
+      0x48,
+      0x44,
+      0x52, // IHDR chunk
+      0x00,
+      0x00,
+      0x00,
+      0x01,
+      0x00,
+      0x00,
+      0x00,
+      0x01,
+      0x08,
+      0x06,
+      0x00,
+      0x00,
+      0x00,
+      0x1f,
+      0x15,
+      0xc4,
+      0x89,
+      0x00,
+      0x00,
+      0x00,
+      0x0a,
+      0x49,
+      0x44,
+      0x41, // IDAT chunk
+      0x54,
+      0x78,
+      0x9c,
+      0x63,
+      0x00,
+      0x01,
+      0x00,
+      0x00,
+      0x05,
+      0x00,
+      0x01,
+      0x0d,
+      0x0a,
+      0x2d,
+      0xb4,
+      0x00,
+      0x00,
+      0x00,
+      0x00,
+      0x49,
+      0x45,
+      0x4e,
+      0x44,
+      0xae, // IEND chunk
+      0x42,
+      0x60,
+      0x82,
     ]);
     await writeFile(imageFile, pngData);
 
@@ -267,13 +362,15 @@ describe('artifact override detection', () => {
           'ImageProducer.SegmentImage[0][1]': `file:${imageFile}`,
         },
       }),
-      'utf8',
+      'utf8'
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
 
     expect(loaded.artifactOverrides).toHaveLength(1);
-    expect(loaded.artifactOverrides[0].artifactId).toBe('Artifact:ImageProducer.SegmentImage[0][1]');
+    expect(loaded.artifactOverrides[0].artifactId).toBe(
+      'Artifact:ImageProducer.SegmentImage[0][1]'
+    );
     expect(loaded.artifactOverrides[0].blob.mimeType).toBe('image/png');
   });
 });
@@ -287,7 +384,13 @@ function createMinimalBlueprintTree(): BlueprintTreeNode {
       meta: { id: 'MinimalBlueprint', name: 'Minimal Blueprint' },
       inputs: [],
       artefacts: [],
-      producers: [{ name: 'AudioProducer' }, { name: 'ImageProducer' }, { name: 'ScriptProducer' }, { name: 'ChatProducer' }, { name: 'ImageToVideoProducer' }],
+      producers: [
+        { name: 'AudioProducer' },
+        { name: 'ImageProducer' },
+        { name: 'ScriptProducer' },
+        { name: 'ChatProducer' },
+        { name: 'ImageToVideoProducer' },
+      ],
       producerImports: [],
       edges: [],
     },
@@ -320,11 +423,13 @@ describe('model selection SDK mapping parsing', () => {
           },
         ],
       }),
-      'utf8',
+      'utf8'
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
-    const selection = loaded.modelSelections.find((s) => s.producerId === 'AudioProducer');
+    const selection = loaded.modelSelections.find(
+      (s) => s.producerId === 'AudioProducer'
+    );
 
     expect(selection).toBeDefined();
     // SDK mappings no longer come from input YAML - ModelSelection.inputs was removed
@@ -363,11 +468,13 @@ describe('model selection SDK mapping parsing', () => {
           },
         ],
       }),
-      'utf8',
+      'utf8'
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
-    const selection = loaded.modelSelections.find((s) => s.producerId === 'ImageProducer');
+    const selection = loaded.modelSelections.find(
+      (s) => s.producerId === 'ImageProducer'
+    );
 
     expect(selection).toBeDefined();
     // SDK mappings no longer come from input YAML
@@ -400,11 +507,13 @@ describe('model selection SDK mapping parsing', () => {
           },
         ],
       }),
-      'utf8',
+      'utf8'
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
-    const selection = loaded.modelSelections.find((s) => s.producerId === 'ImageToVideoProducer');
+    const selection = loaded.modelSelections.find(
+      (s) => s.producerId === 'ImageToVideoProducer'
+    );
 
     expect(selection).toBeDefined();
     // SDK mappings no longer come from input YAML
@@ -433,11 +542,13 @@ describe('model selection SDK mapping parsing', () => {
           },
         ],
       }),
-      'utf8',
+      'utf8'
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
-    const selection = loaded.modelSelections.find((s) => s.producerId === 'ScriptProducer');
+    const selection = loaded.modelSelections.find(
+      (s) => s.producerId === 'ScriptProducer'
+    );
 
     expect(selection).toBeDefined();
     // Note: promptFile and outputSchema are now defined in producer YAML meta section, not input templates
@@ -465,29 +576,124 @@ describe('model selection SDK mapping parsing', () => {
           },
         ],
       }),
-      'utf8',
+      'utf8'
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
-    const selection = loaded.modelSelections.find((s) => s.producerId === 'ChatProducer');
+    const selection = loaded.modelSelections.find(
+      (s) => s.producerId === 'ChatProducer'
+    );
 
     expect(selection).toBeDefined();
     // Top-level keys are now folded into config
-    expect(selection?.config?.systemPrompt).toBe('You are a helpful assistant.');
-    expect(selection?.config?.userPrompt).toBe('Answer the following: {{question}}');
+    expect(selection?.config?.systemPrompt).toBe(
+      'You are a helpful assistant.'
+    );
+    expect(selection?.config?.userPrompt).toBe(
+      'Answer the following: {{question}}'
+    );
     expect(selection?.config?.textFormat).toBe('text');
     expect(selection?.config?.variables).toEqual(['question']);
   });
 
+  it('merges nested model selection entries into parent producer config', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-nested-model-entry-'));
+    const savedPath = join(workdir, 'inputs.yaml');
+    const blueprint = createMinimalBlueprintTree();
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {},
+        models: [
+          {
+            producerId: 'AudioProducer',
+            provider: 'renku',
+            model: 'speech/transcription',
+            config: {
+              stt: {
+                confidenceThreshold: 0.5,
+              },
+            },
+          },
+          {
+            producerId: 'AudioProducer.stt',
+            provider: 'fal-ai',
+            model: 'elevenlabs/speech-to-text',
+            config: {
+              language: 'en',
+            },
+          },
+        ],
+      }),
+      'utf8'
+    );
+
+    const loaded = await loadInputsFromYaml(savedPath, blueprint);
+    expect(loaded.modelSelections).toHaveLength(1);
+
+    const selection = loaded.modelSelections.find(
+      (s) => s.producerId === 'AudioProducer'
+    );
+    expect(selection).toBeDefined();
+    expect(selection?.config).toEqual({
+      stt: {
+        confidenceThreshold: 0.5,
+        provider: 'fal-ai',
+        model: 'elevenlabs/speech-to-text',
+        language: 'en',
+      },
+    });
+  });
+
+  it('fails nested model selection entry when parent producer selection is missing', async () => {
+    const workdir = await mkdtemp(
+      join(tmpdir(), 'renku-nested-model-missing-')
+    );
+    const savedPath = join(workdir, 'inputs.yaml');
+    const blueprint = createMinimalBlueprintTree();
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {},
+        models: [
+          {
+            producerId: 'AudioProducer.stt',
+            provider: 'fal-ai',
+            model: 'elevenlabs/speech-to-text',
+          },
+        ],
+      }),
+      'utf8'
+    );
+
+    await expect(loadInputsFromYaml(savedPath, blueprint)).rejects.toThrow(
+      'Nested model selection "AudioProducer.stt" requires parent producer "AudioProducer" in models selection.'
+    );
+  });
+
   it('loads input template from catalog (SDK mappings come from producer YAML)', async () => {
-    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
-    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
-    const inputPath = resolve(TEST_FIXTURES_ROOT, 'audio-only', 'input-template.yaml');
+    const blueprintPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'audio-only',
+      'audio-only.yaml'
+    );
+    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, {
+      catalogRoot,
+    });
+    const inputPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'audio-only',
+      'input-template.yaml'
+    );
 
     const loaded = await loadInputsFromYaml(inputPath, blueprint);
 
     // AudioProducer selection - SDK mappings now come from producer YAML, not input template
-    const audioSelection = loaded.modelSelections.find((s) => s.producerId.endsWith('AudioProducer'));
+    const audioSelection = loaded.modelSelections.find((s) =>
+      s.producerId.endsWith('AudioProducer')
+    );
     expect(audioSelection).toBeDefined();
     expect(audioSelection?.provider).toBe('replicate');
     expect(audioSelection?.model).toBe('minimax/speech-2.6-hd');
@@ -496,14 +702,26 @@ describe('model selection SDK mapping parsing', () => {
   });
 
   it('loads input template from catalog with provider/model selection', async () => {
-    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'image-only', 'image-only.yaml');
-    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
-    const inputPath = resolve(TEST_FIXTURES_ROOT, 'image-only', 'input-template.yaml');
+    const blueprintPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'image-only',
+      'image-only.yaml'
+    );
+    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, {
+      catalogRoot,
+    });
+    const inputPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'image-only',
+      'input-template.yaml'
+    );
 
     const loaded = await loadInputsFromYaml(inputPath, blueprint);
 
     // ImageProducer selection - SDK mappings now come from producer YAML
-    const imageSelection = loaded.modelSelections.find((s) => s.producerId.endsWith('ImageProducer'));
+    const imageSelection = loaded.modelSelections.find((s) =>
+      s.producerId.endsWith('ImageProducer')
+    );
     expect(imageSelection).toBeDefined();
     expect(imageSelection?.provider).toBeDefined();
     expect(imageSelection?.model).toBeDefined();
@@ -512,28 +730,46 @@ describe('model selection SDK mapping parsing', () => {
 
     // ImagePromptProducer should have LLM config
     // Note: promptFile and outputSchema are now defined in producer YAML meta section
-    const imagePromptSelection = loaded.modelSelections.find((s) => s.producerId.endsWith('ImagePromptProducer'));
+    const imagePromptSelection = loaded.modelSelections.find((s) =>
+      s.producerId.endsWith('ImagePromptProducer')
+    );
     expect(imagePromptSelection).toBeDefined();
-    expect(imagePromptSelection?.config).toEqual({ text_format: 'json_schema' });
+    expect(imagePromptSelection?.config).toEqual({
+      text_format: 'json_schema',
+    });
   });
 
   it('loads input template with LLM config from catalog', async () => {
-    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
-    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
-    const inputPath = resolve(TEST_FIXTURES_ROOT, 'audio-only', 'input-template.yaml');
+    const blueprintPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'audio-only',
+      'audio-only.yaml'
+    );
+    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, {
+      catalogRoot,
+    });
+    const inputPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'audio-only',
+      'input-template.yaml'
+    );
 
     const loaded = await loadInputsFromYaml(inputPath, blueprint);
 
     // ScriptProducer selection should have LLM config
     // Note: promptFile and outputSchema are now defined in producer YAML meta section, not input template
-    const scriptSelection = loaded.modelSelections.find((s) => s.producerId.endsWith('ScriptProducer'));
+    const scriptSelection = loaded.modelSelections.find((s) =>
+      s.producerId.endsWith('ScriptProducer')
+    );
     expect(scriptSelection).toBeDefined();
     expect(scriptSelection?.provider).toBe('openai');
     expect(scriptSelection?.model).toBe('gpt-5.2');
     expect(scriptSelection?.config).toEqual({ text_format: 'json_schema' });
 
     // AudioProducer should have SDK mappings
-    const audioSelection = loaded.modelSelections.find((s) => s.producerId.endsWith('AudioProducer'));
+    const audioSelection = loaded.modelSelections.find((s) =>
+      s.producerId.endsWith('AudioProducer')
+    );
     expect(audioSelection).toBeDefined();
     expect(audioSelection?.provider).toBe('replicate');
     expect(audioSelection?.model).toBe('minimax/speech-2.6-hd');
@@ -551,7 +787,7 @@ describe('input-loader edge cases', () => {
       stringifyYaml({
         inputs: {},
       }),
-      'utf8',
+      'utf8'
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
@@ -591,7 +827,7 @@ describe('input-loader edge cases', () => {
           FloatInput: 3.14,
         },
       }),
-      'utf8',
+      'utf8'
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
@@ -603,8 +839,14 @@ describe('input-loader edge cases', () => {
 
   it('handles nested blueprint with producer-scoped inputs', async () => {
     const workdir = await mkdtemp(join(tmpdir(), 'renku-nested-'));
-    const blueprintPath = resolve(TEST_FIXTURES_ROOT, 'audio-only', 'audio-only.yaml');
-    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
+    const blueprintPath = resolve(
+      TEST_FIXTURES_ROOT,
+      'audio-only',
+      'audio-only.yaml'
+    );
+    const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, {
+      catalogRoot,
+    });
     const savedPath = join(workdir, 'inputs.yaml');
 
     await writeFile(
@@ -620,7 +862,7 @@ describe('input-loader edge cases', () => {
           'ScriptProducer.model': 'claude-sonnet',
         },
       }),
-      'utf8',
+      'utf8'
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
@@ -630,7 +872,9 @@ describe('input-loader edge cases', () => {
     expect(loaded.values['Input:NumOfSegments']).toBe(5);
 
     // Verify producer-scoped inputs are handled
-    const scriptSelection = loaded.modelSelections.find((s) => s.producerId.endsWith('ScriptProducer'));
+    const scriptSelection = loaded.modelSelections.find((s) =>
+      s.producerId.endsWith('ScriptProducer')
+    );
     expect(scriptSelection?.provider).toBe('anthropic');
     expect(scriptSelection?.model).toBe('claude-sonnet');
   });
@@ -642,9 +886,7 @@ describe('input-loader edge cases', () => {
       namespacePath: [],
       document: {
         meta: { id: 'ArrayBlueprint', name: 'Array Blueprint' },
-        inputs: [
-          { name: 'Tags', type: 'array', required: true },
-        ],
+        inputs: [{ name: 'Tags', type: 'array', required: true }],
         artefacts: [],
         producers: [],
         producerImports: [],
@@ -662,7 +904,7 @@ describe('input-loader edge cases', () => {
           Tags: ['tag1', 'tag2', 'tag3'],
         },
       }),
-      'utf8',
+      'utf8'
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
@@ -683,7 +925,7 @@ describe('parseInputsForDisplay', () => {
           Image: 'file:./input-files/image.png',
         },
       }),
-      'utf8',
+      'utf8'
     );
 
     const result = await parseInputsForDisplay(savedPath);
@@ -711,7 +953,7 @@ describe('parseInputsForDisplay', () => {
           },
         ],
       }),
-      'utf8',
+      'utf8'
     );
 
     const result = await parseInputsForDisplay(savedPath);
@@ -727,11 +969,7 @@ describe('parseInputsForDisplay', () => {
     const workdir = await mkdtemp(join(tmpdir(), 'renku-display-empty-'));
     const savedPath = join(workdir, 'inputs.yaml');
 
-    await writeFile(
-      savedPath,
-      stringifyYaml({}),
-      'utf8',
-    );
+    await writeFile(savedPath, stringifyYaml({}), 'utf8');
 
     const result = await parseInputsForDisplay(savedPath);
 
@@ -754,7 +992,7 @@ describe('parseInputsForDisplay', () => {
           Tags: ['tag1', 'tag2'],
         },
       }),
-      'utf8',
+      'utf8'
     );
 
     const result = await parseInputsForDisplay(savedPath);
@@ -782,7 +1020,7 @@ describe('parseInputsForDisplay', () => {
           },
         },
       }),
-      'utf8',
+      'utf8'
     );
 
     const result = await parseInputsForDisplay(savedPath);
@@ -798,7 +1036,9 @@ describe('parseInputsForDisplay', () => {
     const workdir = await mkdtemp(join(tmpdir(), 'renku-display-invalid-'));
     const invalidPath = join(workdir, 'inputs.json');
 
-    await expect(parseInputsForDisplay(invalidPath)).rejects.toThrow(/must be YAML/);
+    await expect(parseInputsForDisplay(invalidPath)).rejects.toThrow(
+      /must be YAML/
+    );
   });
 });
 
@@ -821,11 +1061,13 @@ describe('model selection config folding', () => {
           },
         ],
       }),
-      'utf8',
+      'utf8'
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
-    expect(loaded.values['Input:ChatProducer.systemPrompt']).toBe('You are a helpful assistant.');
+    expect(loaded.values['Input:ChatProducer.systemPrompt']).toBe(
+      'You are a helpful assistant.'
+    );
   });
 
   it('top-level userPrompt appears in inputValues', async () => {
@@ -846,11 +1088,13 @@ describe('model selection config folding', () => {
           },
         ],
       }),
-      'utf8',
+      'utf8'
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
-    expect(loaded.values['Input:ChatProducer.userPrompt']).toBe('Tell me about {{topic}}');
+    expect(loaded.values['Input:ChatProducer.userPrompt']).toBe(
+      'Tell me about {{topic}}'
+    );
   });
 
   it('top-level variables appears in inputValues', async () => {
@@ -871,11 +1115,14 @@ describe('model selection config folding', () => {
           },
         ],
       }),
-      'utf8',
+      'utf8'
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
-    expect(loaded.values['Input:ChatProducer.variables']).toEqual(['topic', 'style']);
+    expect(loaded.values['Input:ChatProducer.variables']).toEqual([
+      'topic',
+      'style',
+    ]);
   });
 
   it('custom top-level key (temperature) appears in inputValues', async () => {
@@ -896,7 +1143,7 @@ describe('model selection config folding', () => {
           },
         ],
       }),
-      'utf8',
+      'utf8'
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
@@ -922,12 +1169,16 @@ describe('model selection config folding', () => {
           },
         ],
       }),
-      'utf8',
+      'utf8'
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
-    expect(loaded.values['Input:ScriptProducer.text_format']).toBe('json_schema');
-    expect(loaded.values['Input:ScriptProducer.systemPrompt']).toBe('Write a story.');
+    expect(loaded.values['Input:ScriptProducer.text_format']).toBe(
+      'json_schema'
+    );
+    expect(loaded.values['Input:ScriptProducer.systemPrompt']).toBe(
+      'Write a story.'
+    );
   });
 
   it('config section takes precedence over top-level for same key', async () => {
@@ -949,11 +1200,13 @@ describe('model selection config folding', () => {
           },
         ],
       }),
-      'utf8',
+      'utf8'
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
     // Explicit config takes precedence over top-level shorthand
-    expect(loaded.values['Input:ChatProducer.systemPrompt']).toBe('config prompt');
+    expect(loaded.values['Input:ChatProducer.systemPrompt']).toBe(
+      'config prompt'
+    );
   });
 });

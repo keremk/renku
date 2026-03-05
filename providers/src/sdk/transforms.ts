@@ -31,10 +31,11 @@ export type MappingResult =
  * 1. Check conditional -> skip if condition not met
  * 2. Apply combine -> merge multiple inputs
  * 3. Apply firstOf -> extract first from array
- * 4. Apply invert -> flip boolean
- * 5. Apply intToString -> convert to string
- * 6. Apply durationToFrames -> multiply by fps
- * 7. Apply transform -> value lookup
+ * 4. Apply asArray -> wrap scalar as single-element array
+ * 5. Apply invert -> flip boolean
+ * 6. Apply intToString -> convert to string
+ * 7. Apply durationToFrames -> multiply by fps
+ * 8. Apply transform -> value lookup
  *
  * @param inputAlias - The producer input name (e.g., "AspectRatio")
  * @param mapping - The mapping field definition
@@ -44,7 +45,7 @@ export type MappingResult =
 export function applyMapping(
   inputAlias: string,
   mapping: MappingFieldDefinition,
-  context: TransformContext,
+  context: TransformContext
 ): MappingResult {
   // 1. Check conditional - skip if condition not met
   if (mapping.conditional) {
@@ -63,14 +64,18 @@ export function applyMapping(
       return undefined;
     }
     // Combined values may produce objects for expand
-    if (mapping.expand && typeof combinedValue === 'object' && combinedValue !== null) {
+    if (
+      mapping.expand &&
+      typeof combinedValue === 'object' &&
+      combinedValue !== null
+    ) {
       return { expand: combinedValue as Record<string, unknown> };
     }
     if (!mapping.field) {
       throw createProviderError(
         SdkErrorCode.COMBINE_REQUIRES_FIELD,
         `Combine transform requires 'field' unless using 'expand'`,
-        { kind: 'user_input', causedByUser: true },
+        { kind: 'user_input', causedByUser: true }
       );
     }
     return { field: mapping.field, value: combinedValue };
@@ -90,11 +95,14 @@ export function applyMapping(
   // 1. Collection inputs are bound element-by-element (e.g., ReferenceImages[0], ReferenceImages[1])
   // 2. Direct binding points to an unresolved Input node (e.g., "Input:VideoProducer.ReferenceImages[0]")
   if (value === undefined) {
-    const elementBindings = collectElementBindings(inputAlias, context.inputBindings);
+    const elementBindings = collectElementBindings(
+      inputAlias,
+      context.inputBindings
+    );
     if (elementBindings.length > 0) {
       // Reconstruct array from element bindings, filtering out undefined values
       const elements = elementBindings.map((binding) =>
-        resolveInputValue(binding.canonicalId, context.inputs),
+        resolveInputValue(binding.canonicalId, context.inputs)
       );
       // Only return if we have at least one valid element
       if (elements.some((element) => element !== undefined)) {
@@ -115,27 +123,32 @@ export function applyMapping(
     }
   }
 
-  // 4. Apply invert - flip boolean value
+  // 4. Apply asArray - wrap scalar values as single-element arrays
+  if (mapping.asArray) {
+    value = applyAsArray(value);
+  }
+
+  // 5. Apply invert - flip boolean value
   if (mapping.invert) {
     value = applyInvert(value);
   }
 
-  // 5. Apply intToString - convert integer to string
+  // 6. Apply intToString - convert integer to string
   if (mapping.intToString) {
     value = applyIntToString(value);
   }
 
-  // 5b. Apply intToSecondsString - convert integer to string with "s" suffix
+  // 6b. Apply intToSecondsString - convert integer to string with "s" suffix
   if (mapping.intToSecondsString) {
     value = applyIntToSecondsString(value);
   }
 
-  // 6. Apply durationToFrames - convert seconds to frame count
+  // 7. Apply durationToFrames - convert seconds to frame count
   if (mapping.durationToFrames) {
     value = applyDurationToFrames(value, mapping.durationToFrames.fps);
   }
 
-  // 7. Apply transform - value lookup table
+  // 8. Apply transform - value lookup table
   if (mapping.transform) {
     value = applyValueTransform(value, mapping.transform);
   }
@@ -149,7 +162,7 @@ export function applyMapping(
       SdkErrorCode.CANNOT_EXPAND_NON_OBJECT,
       `Cannot expand non-object value for "${inputAlias}". ` +
         `expand:true requires the value to be an object, got ${typeof value}.`,
-      { kind: 'user_input', causedByUser: true },
+      { kind: 'user_input', causedByUser: true }
     );
   }
 
@@ -158,7 +171,7 @@ export function applyMapping(
     throw createProviderError(
       SdkErrorCode.MISSING_FIELD_PROPERTY,
       `Mapping for "${inputAlias}" requires 'field' property`,
-      { kind: 'user_input', causedByUser: true },
+      { kind: 'user_input', causedByUser: true }
     );
   }
   return { field: mapping.field, value };
@@ -175,14 +188,18 @@ export function applyMapping(
 export function setNestedValue(
   payload: Record<string, unknown>,
   path: string,
-  value: unknown,
+  value: unknown
 ): void {
   const parts = path.split('.');
   let current: Record<string, unknown> = payload;
 
   for (let i = 0; i < parts.length - 1; i++) {
     const part = parts[i];
-    if (!(part in current) || typeof current[part] !== 'object' || current[part] === null) {
+    if (
+      !(part in current) ||
+      typeof current[part] !== 'object' ||
+      current[part] === null
+    ) {
       current[part] = {};
     }
     current = current[part] as Record<string, unknown>;
@@ -196,9 +213,14 @@ export function setNestedValue(
  * Evaluates a condition against the transform context.
  * @throws Error if condition has no valid operator (equals, notEmpty, empty)
  */
-function evaluateCondition(condition: MappingCondition, context: TransformContext): boolean {
+function evaluateCondition(
+  condition: MappingCondition,
+  context: TransformContext
+): boolean {
   const canonicalId = context.inputBindings[condition.input];
-  const value = canonicalId ? resolveInputValue(canonicalId, context.inputs) : undefined;
+  const value = canonicalId
+    ? resolveInputValue(canonicalId, context.inputs)
+    : undefined;
 
   // Check equals condition
   if ('equals' in condition) {
@@ -220,7 +242,7 @@ function evaluateCondition(condition: MappingCondition, context: TransformContex
     SdkErrorCode.INVALID_CONDITION_CONFIG,
     `Invalid condition for input "${condition.input}": ` +
       `must specify one of "equals", "notEmpty", or "empty".`,
-    { kind: 'user_input', causedByUser: true },
+    { kind: 'user_input', causedByUser: true }
   );
 }
 
@@ -230,7 +252,7 @@ function evaluateCondition(condition: MappingCondition, context: TransformContex
  */
 function applyCombineTransform(
   combine: CombineTransform,
-  context: TransformContext,
+  context: TransformContext
 ): unknown {
   // Build composite key from input values
   const keyParts: string[] = [];
@@ -238,7 +260,9 @@ function applyCombineTransform(
 
   for (const inputName of combine.inputs) {
     const canonicalId = context.inputBindings[inputName];
-    const value = canonicalId ? resolveInputValue(canonicalId, context.inputs) : undefined;
+    const value = canonicalId
+      ? resolveInputValue(canonicalId, context.inputs)
+      : undefined;
 
     if (value !== undefined && value !== null && value !== '') {
       keyParts.push(String(value));
@@ -273,6 +297,16 @@ function applyFirstOf(value: unknown): unknown {
   }
   // If not an array, return as-is
   return value;
+}
+
+/**
+ * Applies asArray transform - wraps scalar values as single-element arrays.
+ */
+function applyAsArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  return [value];
 }
 
 /**
@@ -322,7 +356,7 @@ function applyDurationToFrames(value: unknown, fps: number): unknown {
  */
 function applyValueTransform(
   value: unknown,
-  transform: Record<string, unknown>,
+  transform: Record<string, unknown>
 ): unknown {
   // Convert value to string for lookup (supports numbers, booleans, strings)
   const key = String(value);
@@ -351,7 +385,7 @@ function applyValueTransform(
  */
 export function collectElementBindings(
   baseAlias: string,
-  inputBindings: Record<string, string>,
+  inputBindings: Record<string, string>
 ): Array<{ index: number; canonicalId: string }> {
   // Escape special regex characters in the base alias
   const escapedAlias = baseAlias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -376,7 +410,7 @@ interface IndexedInputAccess {
 
 function resolveInputValue(
   canonicalId: string,
-  inputs: Record<string, unknown>,
+  inputs: Record<string, unknown>
 ): unknown {
   if (canonicalId in inputs) {
     return inputs[canonicalId];
@@ -401,14 +435,14 @@ function resolveInputValue(
       throw createProviderError(
         SdkErrorCode.INVALID_INDEXED_INPUT_ACCESS,
         `Invalid indexed input access "${canonicalId}": "${currentPath}" is not an array.`,
-        { kind: 'user_input', causedByUser: true },
+        { kind: 'user_input', causedByUser: true }
       );
     }
     if (index >= currentValue.length) {
       throw createProviderError(
         SdkErrorCode.INVALID_INDEXED_INPUT_ACCESS,
         `Invalid indexed input access "${canonicalId}": index ${index} is out of bounds for "${currentPath}" (length ${currentValue.length}).`,
-        { kind: 'user_input', causedByUser: true },
+        { kind: 'user_input', causedByUser: true }
       );
     }
 
@@ -419,7 +453,7 @@ function resolveInputValue(
       throw createProviderError(
         SdkErrorCode.INVALID_INDEXED_INPUT_ACCESS,
         `Invalid indexed input access "${canonicalId}": "${currentPath}" cannot be indexed further because it is undefined.`,
-        { kind: 'user_input', causedByUser: true },
+        { kind: 'user_input', causedByUser: true }
       );
     }
   }
@@ -427,7 +461,9 @@ function resolveInputValue(
   return currentValue;
 }
 
-function parseIndexedInputAccess(canonicalId: string): IndexedInputAccess | undefined {
+function parseIndexedInputAccess(
+  canonicalId: string
+): IndexedInputAccess | undefined {
   if (!canonicalId.startsWith('Input:')) {
     return undefined;
   }

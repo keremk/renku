@@ -44,6 +44,7 @@ export {
   type ArtifactRestoreRequest,
 } from './artifact-edit-handler.js';
 export {
+  handleArtifactPreviewEditModels,
   handleArtifactPreviewGenerate,
   handleArtifactPreviewEstimate,
   handleArtifactPreviewApply,
@@ -53,6 +54,7 @@ export {
   type ArtifactPreviewGenerateResponse,
   type ArtifactPreviewEstimateRequest,
   type ArtifactPreviewEstimateResponse,
+  type ArtifactPreviewEditModelsResponse,
   type ArtifactPreviewApplyRequest,
   type ArtifactPreviewDeleteRequest,
 } from './artifact-preview-handler.js';
