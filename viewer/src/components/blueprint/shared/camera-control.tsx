@@ -754,7 +754,7 @@ export function CameraControl({
       {/* Canvas */}
       <div
         ref={wrapRef}
-        className='w-full rounded-lg overflow-hidden flex-shrink-0'
+        className='w-full rounded-lg overflow-hidden shrink-0'
         style={{ height: 200, background: canvasBg }}
       >
         <canvas
@@ -820,7 +820,7 @@ export function CameraControl({
         <span className='text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold'>
           Prompt
         </span>
-        <div className='text-[11px] leading-relaxed text-foreground bg-muted/30 border border-border/40 rounded-lg px-2.5 py-2 whitespace-pre-wrap break-words'>
+        <div className='text-[11px] leading-relaxed text-foreground bg-muted/30 border border-border/40 rounded-lg px-2.5 py-2 whitespace-pre-wrap wrap-break-word'>
           {params.shotDescription}
         </div>
       </div>

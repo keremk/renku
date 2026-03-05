@@ -1,4 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import {
   RotateCcw,
   Pencil,
@@ -18,6 +25,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DropzoneArea, formatRejectionErrors } from '../inputs/dropzone-area';
 import { SelectedFilePreview } from '../inputs/file-preview';
 import { useMediaPrompt } from './use-media-prompt';
@@ -111,7 +119,7 @@ function RegenerateButton({
       disabled={isRegenerating || disabled}
       className={cn(
         'bg-primary/15 text-primary border border-primary/50',
-        'font-semibold text-[10px] uppercase tracking-[0.1em]',
+        'font-semibold text-[10px] uppercase tracking-widest',
         'hover:bg-primary/25 transition-colors',
         'px-3.5 h-[34px] rounded-lg flex items-center gap-1.5 justify-center',
         'disabled:opacity-50 disabled:cursor-not-allowed',
@@ -195,6 +203,120 @@ function UploadTab({
   );
 }
 
+function useSelectedFilePreview(file: File | null): string | null {
+  const previewUrl = useMemo(() => {
+    if (!file) {
+      return null;
+    }
+
+    return URL.createObjectURL(file);
+  }, [file]);
+
+  useEffect(() => {
+    if (!previewUrl) {
+      return;
+    }
+
+    return () => {
+      URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  return previewUrl;
+}
+
+function useRegenerationCostEstimate({
+  open,
+  activeTab,
+  availableModels,
+  selectedModelIndex,
+  onEstimateCost,
+  setEstimatedCost,
+  setIsEstimatingCost,
+}: {
+  open: boolean;
+  activeTab: TabId;
+  availableModels: AvailableModelOption[];
+  selectedModelIndex: number;
+  onEstimateCost?: (
+    params: RegenerateParams
+  ) => Promise<RegenerateResult['estimatedCost']>;
+  setEstimatedCost: Dispatch<
+    SetStateAction<RegenerateResult['estimatedCost'] | null>
+  >;
+  setIsEstimatingCost: Dispatch<SetStateAction<boolean>>;
+}) {
+  useEffect(() => {
+    if (!open || activeTab === 'upload' || !onEstimateCost) {
+      setIsEstimatingCost(false);
+      return;
+    }
+
+    let params: RegenerateParams | null = null;
+
+    if (activeTab === 'rerun') {
+      params = {
+        mode: 'rerun',
+        prompt: '',
+      };
+    } else if (activeTab === 'edit') {
+      const selectedModel = availableModels[selectedModelIndex];
+      if (!selectedModel) {
+        setEstimatedCost(null);
+        setIsEstimatingCost(false);
+        return;
+      }
+
+      params = {
+        mode: 'edit',
+        prompt: '',
+        model: selectedModel,
+      };
+    } else {
+      params = {
+        mode: 'camera',
+        prompt: '',
+        cameraParams: DEFAULT_CAMERA_PARAMS,
+      };
+    }
+
+    let cancelled = false;
+    setIsEstimatingCost(true);
+
+    const estimateCost = async () => {
+      try {
+        const nextEstimatedCost = await onEstimateCost(params);
+        if (cancelled) {
+          return;
+        }
+        setEstimatedCost(nextEstimatedCost);
+      } catch {
+        if (!cancelled) {
+          setEstimatedCost(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsEstimatingCost(false);
+        }
+      }
+    };
+
+    void estimateCost();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeTab,
+    availableModels,
+    onEstimateCost,
+    open,
+    selectedModelIndex,
+    setEstimatedCost,
+    setIsEstimatingCost,
+  ]);
+}
+
 export function ImageEditDialog({
   open,
   onOpenChange,
@@ -220,7 +342,9 @@ export function ImageEditDialog({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const [previewImageUrl, setPreviewImageUrl] = useState(imageUrl);
+  const [generatedPreviewUrl, setGeneratedPreviewUrl] = useState<string | null>(
+    null
+  );
   const [generatedTempId, setGeneratedTempId] = useState<string | null>(null);
   const [estimatedCost, setEstimatedCost] = useState<
     RegenerateResult['estimatedCost'] | null
@@ -230,9 +354,6 @@ export function ImageEditDialog({
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isApplyingGenerated, setIsApplyingGenerated] = useState(false);
-  const [selectedUploadPreviewUrl, setSelectedUploadPreviewUrl] = useState<
-    string | null
-  >(null);
 
   const { promptText } = useMediaPrompt(promptUrl, open);
 
@@ -245,46 +366,40 @@ export function ImageEditDialog({
   }, [promptText]);
 
   useEffect(() => {
-    if (open) {
-      setActiveTab('rerun');
-      setRerunPrompt('');
-      setEditPrompt('');
-      setSelectedModelIndex(0);
-      setCameraParams(DEFAULT_CAMERA_PARAMS);
-      setSelectedFiles([]);
-      setUploadError(null);
-      setPreviewImageUrl(imageUrl);
-      setGeneratedTempId(null);
-      setEstimatedCost(null);
-      setGenerationError(null);
-      setIsEstimatingCost(false);
-      setIsRegenerating(false);
-      setIsUploading(false);
-      setIsApplyingGenerated(false);
-      setSelectedUploadPreviewUrl(null);
-    }
-  }, [open, imageUrl]);
-
-  useEffect(() => {
-    if (selectedFiles.length === 0) {
-      setSelectedUploadPreviewUrl(null);
+    if (!open) {
       return;
     }
 
-    const objectUrl = URL.createObjectURL(selectedFiles[0]!);
-    setSelectedUploadPreviewUrl(objectUrl);
+    setActiveTab('rerun');
+    setRerunPrompt('');
+    setEditPrompt('');
+    setSelectedModelIndex(0);
+    setCameraParams(DEFAULT_CAMERA_PARAMS);
+    setSelectedFiles([]);
+    setUploadError(null);
+    setGeneratedPreviewUrl(null);
+    setGeneratedTempId(null);
+    setEstimatedCost(null);
+    setGenerationError(null);
+    setIsEstimatingCost(false);
+    setIsRegenerating(false);
+    setIsUploading(false);
+    setIsApplyingGenerated(false);
+  }, [imageUrl, open]);
 
-    return () => {
-      URL.revokeObjectURL(objectUrl);
-    };
-  }, [selectedFiles]);
+  const selectedUploadPreviewUrl = useSelectedFilePreview(
+    selectedFiles[0] ?? null
+  );
 
-  useEffect(() => {
-    if (!open || generatedTempId) {
-      return;
-    }
-    setPreviewImageUrl(imageUrl);
-  }, [open, generatedTempId, imageUrl]);
+  useRegenerationCostEstimate({
+    open,
+    activeTab,
+    availableModels,
+    selectedModelIndex,
+    onEstimateCost,
+    setEstimatedCost,
+    setIsEstimatingCost,
+  });
 
   const getParamsForTab = useCallback(
     (tab: Exclude<TabId, 'upload'>): RegenerateParams | null => {
@@ -316,86 +431,18 @@ export function ImageEditDialog({
     [availableModels, cameraParams, editPrompt, rerunPrompt, selectedModelIndex]
   );
 
-  const getEstimateParamsForTab = useCallback(
-    (tab: Exclude<TabId, 'upload'>): RegenerateParams | null => {
-      if (tab === 'rerun') {
-        return {
-          mode: 'rerun',
-          prompt: '',
-        };
-      }
-
-      if (tab === 'edit') {
-        const selectedModel = availableModels[selectedModelIndex];
-        if (!selectedModel) {
-          return null;
-        }
-        return {
-          mode: 'edit',
-          prompt: '',
-          model: selectedModel,
-        };
-      }
-
-      return {
-        mode: 'camera',
-        prompt: '',
-        cameraParams: DEFAULT_CAMERA_PARAMS,
-      };
-    },
-    [availableModels, selectedModelIndex]
-  );
-
   const currentPrompt = activeTab === 'rerun' ? rerunPrompt : editPrompt;
 
-  const setCurrentPrompt = (value: string) => {
-    if (activeTab === 'rerun') {
-      setRerunPrompt(value);
-      return;
-    }
-    setEditPrompt(value);
-  };
-
-  useEffect(() => {
-    if (!open || activeTab === 'upload' || !onEstimateCost) {
-      setIsEstimatingCost(false);
-      return;
-    }
-
-    const params = getEstimateParamsForTab(activeTab);
-    if (!params) {
-      setEstimatedCost(null);
-      setIsEstimatingCost(false);
-      return;
-    }
-
-    let cancelled = false;
-    setIsEstimatingCost(true);
-
-    const estimateCost = async () => {
-      try {
-        const nextEstimatedCost = await onEstimateCost(params);
-        if (cancelled) {
-          return;
-        }
-        setEstimatedCost(nextEstimatedCost);
-      } catch {
-        if (!cancelled) {
-          setEstimatedCost(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsEstimatingCost(false);
-        }
+  const setCurrentPrompt = useCallback(
+    (value: string) => {
+      if (activeTab === 'rerun') {
+        setRerunPrompt(value);
+        return;
       }
-    };
-
-    void estimateCost();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeTab, getEstimateParamsForTab, onEstimateCost, open]);
+      setEditPrompt(value);
+    },
+    [activeTab]
+  );
 
   const handleRegenerate = useCallback(async () => {
     if (!onRegenerate || activeTab === 'upload') {
@@ -425,15 +472,15 @@ export function ImageEditDialog({
         }
         await onCleanupGenerated(generatedTempId);
         setGeneratedTempId(null);
-        setPreviewImageUrl(imageUrl);
+        setGeneratedPreviewUrl(null);
       }
 
       const result = await onRegenerate(params);
-      setPreviewImageUrl(result.previewUrl);
+      setGeneratedPreviewUrl(result.previewUrl);
       setGeneratedTempId(result.tempId);
       setEstimatedCost(result.estimatedCost);
     } catch (error) {
-      setPreviewImageUrl(imageUrl);
+      setGeneratedPreviewUrl(null);
       setGeneratedTempId(null);
       setGenerationError(
         error instanceof Error ? error.message : 'Regeneration failed'
@@ -446,7 +493,6 @@ export function ImageEditDialog({
     availableModels.length,
     generatedTempId,
     getParamsForTab,
-    imageUrl,
     onCleanupGenerated,
     onRegenerate,
   ]);
@@ -477,6 +523,7 @@ export function ImageEditDialog({
           }
           await onCleanupGenerated(generatedTempId);
           setGeneratedTempId(null);
+          setGeneratedPreviewUrl(null);
         }
         await onFileUpload(selectedFiles);
         setSelectedFiles([]);
@@ -501,6 +548,7 @@ export function ImageEditDialog({
           await onCleanupGenerated(generatedTempId);
         }
         setGeneratedTempId(null);
+        setGeneratedPreviewUrl(null);
         onOpenChange(false);
       } catch (error) {
         setGenerationError(
@@ -535,7 +583,7 @@ export function ImageEditDialog({
           }
           await onCleanupGenerated(generatedTempId);
           setGeneratedTempId(null);
-          setPreviewImageUrl(imageUrl);
+          setGeneratedPreviewUrl(null);
         }
         onOpenChange(false);
       } catch (error) {
@@ -548,7 +596,6 @@ export function ImageEditDialog({
     void closeWithCleanup();
   }, [
     generatedTempId,
-    imageUrl,
     isApplyingGenerated,
     isUploading,
     onCleanupGenerated,
@@ -570,6 +617,8 @@ export function ImageEditDialog({
         isUploading;
 
   const showPrompt = activeTab === 'rerun' || activeTab === 'edit';
+
+  const previewImageUrl = generatedPreviewUrl ?? imageUrl;
 
   const displayedPreviewUrl =
     activeTab === 'upload' && selectedUploadPreviewUrl
@@ -604,34 +653,44 @@ export function ImageEditDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className='flex border-b border-border/40 bg-panel-header-bg shrink-0 px-3'>
-          {TABS.map((tab) => {
-            const isActive = activeTab === tab.id;
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                type='button'
-                data-tab={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  'relative px-3.5 h-[38px] border-none bg-transparent',
-                  'font-[inherit] text-[10px] uppercase tracking-[0.12em] font-semibold',
-                  'cursor-pointer flex items-center gap-1.5 transition-colors',
-                  isActive
-                    ? 'text-foreground bg-primary/[0.08]'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                <Icon className='size-3.5' />
-                {tab.label}
-                {isActive && (
-                  <span className='absolute bottom-0 left-1.5 right-1.5 h-0.5 bg-primary rounded-t-sm' />
-                )}
-              </button>
-            );
-          })}
-        </div>
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as TabId)}
+          className='gap-0'
+        >
+          <TabsList
+            variant='line'
+            className='flex w-full h-auto shrink-0 items-stretch justify-start rounded-none text-inherit border-b border-border/40 bg-panel-header-bg px-3 py-0 gap-0'
+          >
+            {TABS.map((tab) => {
+              const isActive = activeTab === tab.id;
+              const Icon = tab.icon;
+              return (
+                <TabsTrigger
+                  key={tab.id}
+                  value={tab.id}
+                  data-tab={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    'relative px-3.5 h-[38px] border-none bg-transparent rounded-none flex-none',
+                    'font-[inherit] text-[10px] uppercase tracking-[0.12em] font-semibold',
+                    'cursor-pointer flex items-center gap-1.5 transition-colors',
+                    'text-muted-foreground hover:text-foreground',
+                    'data-[state=active]:text-foreground data-[state=active]:bg-primary/8',
+                    'data-[state=active]:border-none dark:data-[state=active]:border-none dark:data-[state=active]:bg-primary/8',
+                    'focus-visible:ring-0 focus-visible:border-none focus-visible:outline-none shadow-none after:hidden'
+                  )}
+                >
+                  <Icon className='size-3.5' />
+                  {tab.label}
+                  {isActive && (
+                    <span className='absolute bottom-0 left-1.5 right-1.5 h-0.5 bg-primary rounded-t-sm' />
+                  )}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </Tabs>
 
         <div className='flex-1 flex min-h-0 overflow-hidden'>
           <div className='flex-1 p-3 min-w-0 flex'>
@@ -720,7 +779,7 @@ export function ImageEditDialog({
                   </div>
                 )}
 
-                <div className='text-[11px] text-muted-foreground min-h-[1rem]'>
+                <div className='text-[11px] text-muted-foreground min-h-4'>
                   {costText}
                 </div>
 

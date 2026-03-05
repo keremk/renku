@@ -60,31 +60,24 @@ describe('ImageEditDialog', () => {
     vi.clearAllMocks();
   });
 
+  const getTab = (tabId: string) =>
+    document.body.querySelector(`[data-tab="${tabId}"]`) as HTMLElement | null;
+
   it('renders all four tab buttons', () => {
     render(<ImageEditDialog {...defaultProps} />);
-    const tabs = screen
-      .getAllByRole('button')
-      .filter((btn) =>
-        ['rerun', 'edit', 'camera', 'upload'].includes(
-          btn.getAttribute('data-tab') ?? ''
-        )
-      );
+    const tabs = document.body.querySelectorAll('[data-tab]');
     expect(tabs).toHaveLength(4);
   });
 
   it('Re-run tab is active by default', () => {
     render(<ImageEditDialog {...defaultProps} />);
-    const rerunTab = screen
-      .getAllByRole('button')
-      .find((btn) => btn.getAttribute('data-tab') === 'rerun');
+    const rerunTab = getTab('rerun');
     expect(rerunTab?.className).toContain('text-foreground');
   });
 
   it('switches to Edit tab and shows model selector', async () => {
     render(<ImageEditDialog {...defaultProps} />);
-    const editTab = screen
-      .getAllByRole('button')
-      .find((btn) => btn.getAttribute('data-tab') === 'edit');
+    const editTab = getTab('edit');
     fireEvent.click(editTab!);
 
     await waitFor(() => {
@@ -98,9 +91,7 @@ describe('ImageEditDialog', () => {
 
   it('switches to Reframe tab and shows camera control', async () => {
     render(<ImageEditDialog {...defaultProps} />);
-    const cameraTab = screen
-      .getAllByRole('button')
-      .find((btn) => btn.getAttribute('data-tab') === 'camera');
+    const cameraTab = getTab('camera');
     fireEvent.click(cameraTab!);
 
     await waitFor(() => {
@@ -111,9 +102,7 @@ describe('ImageEditDialog', () => {
 
   it('switches to Upload tab', async () => {
     render(<ImageEditDialog {...defaultProps} />);
-    const uploadTab = screen
-      .getAllByRole('button')
-      .find((btn) => btn.getAttribute('data-tab') === 'upload');
+    const uploadTab = getTab('upload');
     fireEvent.click(uploadTab!);
 
     await waitFor(() => {
@@ -213,9 +202,7 @@ describe('ImageEditDialog', () => {
       expect(onEstimateCost).toHaveBeenCalledTimes(1);
     });
 
-    const editTab = screen
-      .getAllByRole('button')
-      .find((btn) => btn.getAttribute('data-tab') === 'edit');
+    const editTab = getTab('edit');
     fireEvent.click(editTab!);
 
     await waitFor(() => {
@@ -256,9 +243,7 @@ describe('ImageEditDialog', () => {
       expect(onEstimateCost).toHaveBeenCalledTimes(1);
     });
 
-    const cameraTab = screen
-      .getAllByRole('button')
-      .find((btn) => btn.getAttribute('data-tab') === 'camera');
+    const cameraTab = getTab('camera');
     fireEvent.click(cameraTab!);
 
     await waitFor(() => {
@@ -287,9 +272,7 @@ describe('ImageEditDialog', () => {
 
     render(<ImageEditDialog {...defaultProps} onRegenerate={onRegenerate} />);
 
-    const editTab = screen
-      .getAllByRole('button')
-      .find((btn) => btn.getAttribute('data-tab') === 'edit');
+    const editTab = getTab('edit');
     fireEvent.click(editTab!);
 
     fireEvent.change(
@@ -325,9 +308,7 @@ describe('ImageEditDialog', () => {
 
     render(<ImageEditDialog {...defaultProps} onRegenerate={onRegenerate} />);
 
-    const cameraTab = screen
-      .getAllByRole('button')
-      .find((btn) => btn.getAttribute('data-tab') === 'camera');
+    const cameraTab = getTab('camera');
     fireEvent.click(cameraTab!);
     expect(
       screen.queryByPlaceholderText(
