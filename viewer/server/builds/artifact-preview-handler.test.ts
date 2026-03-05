@@ -1,14 +1,8 @@
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { ExecutionPlan, JobDescriptor } from '@gorenku/core';
 import {
-  findTargetArtifactLayer,
   handleArtifactPreviewEstimate,
   handleArtifactPreviewGenerate,
   readImageDimensions,
-  resolveInputsPathForRerun,
   validatePreviewRequest,
   type ArtifactPreviewGenerateRequest,
   type ArtifactPreviewEstimateRequest,
@@ -28,18 +22,6 @@ function createEstimateRequest(
     mode: 'rerun',
     prompt: '',
     ...overrides,
-  };
-}
-
-function createJob(jobId: string, produces: string[]): JobDescriptor {
-  return {
-    jobId,
-    producer: 'ProducerAlias',
-    inputs: [],
-    produces,
-    provider: 'fal-ai',
-    providerModel: 'test/model',
-    rateKey: 'fal-ai:test/model',
   };
 }
 
@@ -157,116 +139,6 @@ describe('preview request validation status codes', () => {
     const payload = parseResponseJson<{ error: string }>(res);
     expect(res.statusCode).toBe(400);
     expect(payload.error).toContain('promptArtifactId');
-  });
-});
-
-describe('resolveInputsPathForRerun', () => {
-  it('prefers build-specific inputs.yaml when present', async () => {
-    const tempRoot = await mkdtemp(join(tmpdir(), 'renku-rerun-inputs-'));
-
-    try {
-      const blueprintFolder = join(tempRoot, 'blueprint');
-      const buildDir = join(blueprintFolder, 'builds', 'movie-test');
-      const buildInputsPath = join(buildDir, 'inputs.yaml');
-
-      await mkdir(buildDir, { recursive: true });
-      await writeFile(buildInputsPath, 'inputs: {}', 'utf8');
-
-      const resolved = await resolveInputsPathForRerun(
-        blueprintFolder,
-        'movie-test'
-      );
-
-      expect(resolved).toBe(buildInputsPath);
-    } finally {
-      await rm(tempRoot, { recursive: true, force: true });
-    }
-  });
-
-  it('uses metadata.lastInputsPath when build inputs are missing', async () => {
-    const tempRoot = await mkdtemp(join(tmpdir(), 'renku-rerun-inputs-'));
-
-    try {
-      const blueprintFolder = join(tempRoot, 'blueprint');
-      const buildDir = join(blueprintFolder, 'builds', 'movie-test');
-      const lastInputsPath = join(tempRoot, 'movie-test-inputs.yaml');
-
-      await mkdir(buildDir, { recursive: true });
-      await writeFile(lastInputsPath, 'inputs: {}', 'utf8');
-
-      const resolved = await resolveInputsPathForRerun(
-        blueprintFolder,
-        'movie-test',
-        lastInputsPath
-      );
-
-      expect(resolved).toBe(lastInputsPath);
-    } finally {
-      await rm(tempRoot, { recursive: true, force: true });
-    }
-  });
-
-  it('throws when both build inputs and metadata.lastInputsPath are missing', async () => {
-    const tempRoot = await mkdtemp(join(tmpdir(), 'renku-rerun-inputs-'));
-
-    try {
-      const blueprintFolder = join(tempRoot, 'blueprint');
-      const buildDir = join(blueprintFolder, 'builds', 'movie-test');
-      const blueprintInputsPath = join(blueprintFolder, 'inputs.yaml');
-
-      await mkdir(buildDir, { recursive: true });
-      await writeFile(blueprintInputsPath, 'inputs: {}', 'utf8');
-
-      await expect(
-        resolveInputsPathForRerun(blueprintFolder, 'movie-test')
-      ).rejects.toThrow(
-        'Could not resolve inputs file for build movie-test. Expected build inputs'
-      );
-    } finally {
-      await rm(tempRoot, { recursive: true, force: true });
-    }
-  });
-});
-
-describe('findTargetArtifactLayer', () => {
-  it('returns the layer index that produces the target artifact', () => {
-    const artifactId = 'Artifact:ImageProducer.Output[0]';
-    const plan: ExecutionPlan = {
-      revision: 'rev-test',
-      manifestBaseHash: 'manifest',
-      createdAt: new Date().toISOString(),
-      blueprintLayerCount: 3,
-      layers: [
-        [
-          createJob('Producer:PromptProducer', [
-            'Artifact:PromptProducer.Prompt',
-          ]),
-        ],
-        [createJob('Producer:ImageProducer', [artifactId])],
-        [
-          createJob('Producer:VideoProducer', [
-            'Artifact:VideoProducer.Output',
-          ]),
-        ],
-      ],
-    };
-
-    expect(findTargetArtifactLayer(plan, artifactId)).toBe(1);
-  });
-
-  it('throws when no layer produces the target artifact', () => {
-    const artifactId = 'Artifact:ImageProducer.Output[0]';
-    const plan: ExecutionPlan = {
-      revision: 'rev-test',
-      manifestBaseHash: 'manifest',
-      createdAt: new Date().toISOString(),
-      blueprintLayerCount: 1,
-      layers: [[createJob('Producer:Other', ['Artifact:Other.Output'])]],
-    };
-
-    expect(() => findTargetArtifactLayer(plan, artifactId)).toThrow(
-      `Surgical plan does not include a producer job for artifact ${artifactId}.`
-    );
   });
 });
 

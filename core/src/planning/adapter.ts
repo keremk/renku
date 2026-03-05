@@ -9,6 +9,7 @@ import type {
   Manifest,
   ProducerGraph,
   RevisionId,
+  SurgicalRegenerationScope,
 } from '../types.js';
 import type { PlanExplanation } from './explanation.js';
 
@@ -25,6 +26,8 @@ export interface PlanAdapterArgs {
   reRunFrom?: number;
   /** Surgical artifact regeneration configs - regenerate only the target artifacts and downstream dependencies. */
   artifactRegenerations?: ArtifactRegenerationConfig[];
+  /** Scope for surgical artifact regeneration when artifactRegenerations is set. */
+  surgicalRegenerationScope?: SurgicalRegenerationScope;
   /** Limit plan to layers 0 through upToLayer (0-indexed). Jobs in later layers are excluded from the plan. */
   upToLayer?: number;
   /** If true, collect explanation data for why jobs are scheduled */

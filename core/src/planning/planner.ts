@@ -9,6 +9,7 @@ import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import { hashPayload, hashInputContents } from '../hashing.js';
 import { deriveArtefactHash } from '../manifest.js';
 import { computeTopologyLayers } from '../topology/index.js';
+import { normalizeSurgicalRegenerationScope } from '../orchestration/surgical-regeneration.js';
 import {
   type ArtifactRegenerationConfig,
   type Clock,
@@ -23,6 +24,7 @@ import {
   type ResolvedEdgeCondition,
   type ResolvedEdgeConditionGroup,
   type RevisionId,
+  type SurgicalRegenerationScope,
 } from '../types.js';
 import type { Logger } from '../logger.js';
 import type { NotificationBus } from '../notifications.js';
@@ -49,6 +51,8 @@ interface ComputePlanArgs {
   reRunFrom?: number;
   /** Surgical artifact regeneration - regenerate only the target artifacts and downstream dependencies. */
   artifactRegenerations?: ArtifactRegenerationConfig[];
+  /** Scope mode for surgical artifact regeneration when artifactRegenerations is set. */
+  surgicalRegenerationScope?: SurgicalRegenerationScope;
   /** Limit plan to layers 0 through upToLayer (0-indexed). Jobs in later layers are excluded from the plan. */
   upToLayer?: number;
   /** If true, collect explanation data for why jobs are scheduled (overrides options) */
@@ -138,6 +142,10 @@ export function createPlanner(options: PlannerOptions = {}) {
       let propagatedJobs: string[] = [];
 
       if (args.artifactRegenerations && args.artifactRegenerations.length > 0) {
+        const surgicalRegenerationScope = normalizeSurgicalRegenerationScope(
+          args.surgicalRegenerationScope
+        );
+
         // Surgical mode: source jobs + downstream dependencies
         const sourceJobIds = args.artifactRegenerations.map(
           (r) => r.sourceJobId
@@ -168,8 +176,13 @@ export function createPlanner(options: PlannerOptions = {}) {
             args.resolvedConditionArtifacts
           );
 
-        // Union: surgical targets + missing/dirty artifacts
-        jobsToInclude = new Set([...surgicalJobs, ...propagatedDirty]);
+        // Scope-based inclusion:
+        // - lineage-plus-dirty: surgical targets + missing/dirty artifacts
+        // - lineage-strict: surgical targets only
+        jobsToInclude =
+          surgicalRegenerationScope === 'lineage-strict'
+            ? new Set(surgicalJobs)
+            : new Set([...surgicalJobs, ...propagatedDirty]);
 
         if (collectExplanation) {
           jobReasons = [...initialReasons, ...propagatedReasons];
@@ -181,6 +194,7 @@ export function createPlanner(options: PlannerOptions = {}) {
 
         logger.debug?.('planner.surgical.jobs', {
           movieId: args.movieId,
+          surgicalRegenerationScope,
           sourceJobIds,
           targetArtifactIds: args.artifactRegenerations.map(
             (r) => r.targetArtifactId

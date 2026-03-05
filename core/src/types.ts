@@ -592,6 +592,14 @@ export interface ArtifactRegenerationConfig {
 }
 
 /**
+ * Scope mode for surgical regeneration planning.
+ *
+ * - lineage-plus-dirty: include target lineage and any other jobs that are currently dirty/missing.
+ * - lineage-strict: include only target lineage jobs.
+ */
+export type SurgicalRegenerationScope = 'lineage-plus-dirty' | 'lineage-strict';
+
+/**
  * Configuration options used when running a generation.
  * Stored in the manifest to record how a run was invoked.
  */

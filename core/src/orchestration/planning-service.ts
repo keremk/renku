@@ -42,6 +42,7 @@ import type {
   Manifest,
   ProducerCatalog,
   RevisionId,
+  SurgicalRegenerationScope,
 } from '../types.js';
 
 export type ProviderOptionEntry = {
@@ -78,6 +79,8 @@ export interface GeneratePlanArgs {
   reRunFrom?: number;
   /** Target artifact IDs for surgical regeneration. When provided, only these artifacts and their downstream dependencies will be regenerated. */
   targetArtifactIds?: string[];
+  /** Scope mode for surgical regeneration targeting. Defaults to lineage-plus-dirty. */
+  surgicalRegenerationScope?: SurgicalRegenerationScope;
   /** Limit plan to layers 0 through upToLayer (0-indexed). Jobs in later layers are excluded from the plan. */
   upToLayer?: number;
   /** If true, collect explanation data for why jobs are scheduled */
@@ -239,6 +242,7 @@ export function createPlanningService(
         resolvedConditionArtifacts,
         reRunFrom: args.reRunFrom,
         artifactRegenerations,
+        surgicalRegenerationScope: args.surgicalRegenerationScope,
         upToLayer: args.upToLayer,
         collectExplanation: args.collectExplanation,
         pinnedArtifactIds:

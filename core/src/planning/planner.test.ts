@@ -1968,6 +1968,92 @@ describe('planner', () => {
 
       assertTopological(plan, graph);
     });
+
+    it('lineage-strict surgical mode excludes unrelated ambient dirty jobs', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseRevision = 'rev-0001';
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        baseRevision
+      );
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+
+      // Ambient dirty state: SegmentAudio[1] is missing.
+      const artefactCreatedAt = new Date().toISOString();
+      const manifest: Manifest = {
+        revision: baseRevision,
+        baseRevision: null,
+        createdAt: artefactCreatedAt,
+        inputs: Object.fromEntries(
+          baseline.map((event) => [
+            event.id,
+            {
+              hash: event.hash,
+              payloadDigest: hashPayload(event.payload).canonical,
+              createdAt: event.createdAt,
+            },
+          ])
+        ),
+        artefacts: {
+          'Artifact:NarrationScript[0]': {
+            hash: 'h0',
+            producedBy: 'Producer:ScriptProducer',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+          },
+          'Artifact:NarrationScript[1]': {
+            hash: 'h1',
+            producedBy: 'Producer:ScriptProducer',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+          },
+          'Artifact:SegmentAudio[0]': {
+            hash: 'h2',
+            producedBy: 'Producer:AudioProducer[0]',
+            status: 'succeeded',
+            createdAt: artefactCreatedAt,
+          },
+          // Artifact:SegmentAudio[1] is intentionally missing.
+        },
+        timeline: {},
+      };
+
+      const { plan } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: [],
+        artifactRegenerations: [
+          {
+            targetArtifactId: 'Artifact:SegmentAudio[0]',
+            sourceJobId: 'Producer:AudioProducer[0]',
+          },
+        ],
+        surgicalRegenerationScope: 'lineage-strict',
+      });
+
+      const jobIds = plan.layers.flat().map((job) => job.jobId);
+
+      // Target lineage from AudioProducer[0]: source + downstream TimelineAssembler.
+      expect(jobIds).toContain('Producer:AudioProducer[0]');
+      expect(jobIds).toContain('Producer:TimelineAssembler');
+
+      // Unrelated ambient dirty sibling should be excluded in strict mode.
+      expect(jobIds).not.toContain('Producer:AudioProducer[1]');
+      expect(jobIds).not.toContain('Producer:ScriptProducer');
+
+      expect(jobIds.length).toBe(2);
+      assertTopological(plan, graph);
+    });
   });
 
   describe('upToLayer', () => {
