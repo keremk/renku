@@ -58,6 +58,7 @@ export interface ImageEditDialogProps {
   imageUrl: string;
   title: string;
   availableModels: AvailableModelOption[];
+  initialModel?: AvailableModelOption;
   promptUrl?: string;
   onFileUpload: (files: File[]) => Promise<void>;
   onEstimateCost?: (
@@ -255,9 +256,11 @@ function useRegenerationCostEstimate({
     let params: RegenerateParams | null = null;
 
     if (activeTab === 'rerun') {
+      const selectedModel = availableModels[selectedModelIndex];
       params = {
         mode: 'rerun',
         prompt: '',
+        ...(selectedModel ? { model: selectedModel } : {}),
       };
     } else if (activeTab === 'edit') {
       const selectedModel = availableModels[selectedModelIndex];
@@ -323,6 +326,7 @@ export function ImageEditDialog({
   imageUrl,
   title,
   availableModels,
+  initialModel,
   promptUrl,
   onFileUpload,
   onEstimateCost,
@@ -373,7 +377,14 @@ export function ImageEditDialog({
     setActiveTab('rerun');
     setRerunPrompt('');
     setEditPrompt('');
-    setSelectedModelIndex(0);
+    const matchingModelIndex = initialModel
+      ? availableModels.findIndex(
+          (model) =>
+            model.provider === initialModel.provider &&
+            model.model === initialModel.model
+        )
+      : -1;
+    setSelectedModelIndex(matchingModelIndex >= 0 ? matchingModelIndex : 0);
     setCameraParams(DEFAULT_CAMERA_PARAMS);
     setSelectedFiles([]);
     setUploadError(null);
@@ -385,7 +396,7 @@ export function ImageEditDialog({
     setIsRegenerating(false);
     setIsUploading(false);
     setIsApplyingGenerated(false);
-  }, [imageUrl, open]);
+  }, [imageUrl, open, availableModels, initialModel]);
 
   const selectedUploadPreviewUrl = useSelectedFilePreview(
     selectedFiles[0] ?? null
@@ -404,9 +415,11 @@ export function ImageEditDialog({
   const getParamsForTab = useCallback(
     (tab: Exclude<TabId, 'upload'>): RegenerateParams | null => {
       if (tab === 'rerun') {
+        const selectedModel = availableModels[selectedModelIndex];
         return {
           mode: 'rerun',
           prompt: rerunPrompt,
+          ...(selectedModel ? { model: selectedModel } : {}),
         };
       }
 
@@ -745,7 +758,7 @@ export function ImageEditDialog({
                   </div>
                 )}
 
-                {activeTab === 'edit' && (
+                {(activeTab === 'rerun' || activeTab === 'edit') && (
                   <div className='flex flex-col gap-1.5'>
                     <span className='text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground'>
                       Model
@@ -773,7 +786,7 @@ export function ImageEditDialog({
                       </select>
                     ) : (
                       <div className='text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded-lg px-2.5 py-2'>
-                        No image edit models available.
+                        No image models available.
                       </div>
                     )}
                   </div>

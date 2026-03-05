@@ -78,6 +78,7 @@ import type {
   BlueprintGraphData,
   ProducerModelInfo,
   AvailableModelOption,
+  ModelSelectionValue,
 } from '@/types/blueprint-graph';
 import type { ArtifactInfo } from '@/types/builds';
 
@@ -89,6 +90,7 @@ interface OutputsPanelProps {
   artifacts: ArtifactInfo[];
   graphData?: BlueprintGraphData;
   producerModels?: Record<string, ProducerModelInfo>;
+  modelSelections?: ModelSelectionValue[];
   /** Resolved build inputs (keyed by canonical input IDs like Input:Producer.Key) */
   buildInputs?: Record<string, unknown> | null;
   /** Callback when an artifact is edited or restored */
@@ -103,6 +105,7 @@ export function OutputsPanel({
   artifacts,
   graphData,
   producerModels,
+  modelSelections,
   buildInputs,
   onArtifactUpdated,
 }: OutputsPanelProps) {
@@ -125,6 +128,7 @@ export function OutputsPanel({
         selectedNodeId={selectedNodeId}
         graphData={graphData}
         producerModels={producerModels}
+        modelSelections={modelSelections}
         buildInputs={buildInputs}
         onArtifactUpdated={onArtifactUpdated}
       />
@@ -202,6 +206,7 @@ function ArtifactGallery({
   selectedNodeId,
   graphData,
   producerModels,
+  modelSelections,
   buildInputs,
   onArtifactUpdated,
 }: {
@@ -211,6 +216,7 @@ function ArtifactGallery({
   selectedNodeId: string | null;
   graphData?: BlueprintGraphData;
   producerModels?: Record<string, ProducerModelInfo>;
+  modelSelections?: ModelSelectionValue[];
   buildInputs?: Record<string, unknown> | null;
   onArtifactUpdated?: () => void;
 }) {
@@ -538,6 +544,7 @@ function ArtifactGallery({
                           movieId={movieId}
                           isPromptProducer={activeSection.isPromptProducer}
                           producerModels={producerModels}
+                          modelSelections={modelSelections}
                           availableEditModels={availableEditModels}
                           buildInputs={buildInputs}
                           onArtifactUpdated={onArtifactUpdated}
@@ -572,6 +579,7 @@ function ArtifactCardRenderer({
   isSelected,
   isPinned,
   producerModels,
+  modelSelections,
   availableEditModels,
   buildInputs,
   onArtifactUpdated,
@@ -586,6 +594,7 @@ function ArtifactCardRenderer({
   isSelected: boolean;
   isPinned: boolean;
   producerModels?: Record<string, ProducerModelInfo>;
+  modelSelections?: ModelSelectionValue[];
   availableEditModels?: AvailableModelOption[];
   buildInputs?: Record<string, unknown> | null;
   onArtifactUpdated?: () => void;
@@ -608,6 +617,7 @@ function ArtifactCardRenderer({
         isSelected={isSelected}
         isPinned={isPinned}
         producerModels={producerModels}
+        modelSelections={modelSelections}
         onArtifactUpdated={onArtifactUpdated}
         mediaType='video'
         subGroup={subGroup}
@@ -625,6 +635,7 @@ function ArtifactCardRenderer({
         isSelected={isSelected}
         isPinned={isPinned}
         producerModels={producerModels}
+        modelSelections={modelSelections}
         buildInputs={buildInputs}
         onArtifactUpdated={onArtifactUpdated}
         mediaType='audio'
@@ -643,6 +654,7 @@ function ArtifactCardRenderer({
         isSelected={isSelected}
         isPinned={isPinned}
         producerModels={producerModels}
+        modelSelections={modelSelections}
         availableEditModels={availableEditModels}
         onArtifactUpdated={onArtifactUpdated}
         mediaType='image'
@@ -819,6 +831,7 @@ function SubGroupSection({
   movieId,
   isPromptProducer,
   producerModels,
+  modelSelections,
   availableEditModels,
   buildInputs,
   onArtifactUpdated,
@@ -830,6 +843,7 @@ function SubGroupSection({
   movieId: string;
   isPromptProducer: boolean;
   producerModels?: Record<string, ProducerModelInfo>;
+  modelSelections?: ModelSelectionValue[];
   availableEditModels?: AvailableModelOption[];
   buildInputs?: Record<string, unknown> | null;
   onArtifactUpdated?: () => void;
@@ -871,6 +885,7 @@ function SubGroupSection({
               isSelected={isSelected}
               isPinned={isPinned}
               producerModels={producerModels}
+              modelSelections={modelSelections}
               availableEditModels={availableEditModels}
               buildInputs={buildInputs}
               onArtifactUpdated={onArtifactUpdated}
@@ -1056,6 +1071,7 @@ function MediaArtifactCard({
   isSelected,
   isPinned,
   producerModels,
+  modelSelections,
   availableEditModels,
   buildInputs,
   onArtifactUpdated,
@@ -1070,6 +1086,7 @@ function MediaArtifactCard({
   isSelected: boolean;
   isPinned: boolean;
   producerModels?: Record<string, ProducerModelInfo>;
+  modelSelections?: ModelSelectionValue[];
   availableEditModels?: AvailableModelOption[];
   buildInputs?: Record<string, unknown> | null;
   onArtifactUpdated?: () => void;
@@ -1095,6 +1112,17 @@ function MediaArtifactCard({
   const availableRerunModels = artifactProducerAlias
     ? (producerModels?.[artifactProducerAlias]?.availableModels ?? [])
     : [];
+  const currentModelSelection = artifactProducerAlias
+    ? modelSelections?.find(
+        (selection) => selection.producerId === artifactProducerAlias
+      )
+    : undefined;
+  const initialModel = currentModelSelection
+    ? {
+        provider: currentModelSelection.provider,
+        model: currentModelSelection.model,
+      }
+    : undefined;
 
   const voiceSource =
     mediaType === 'audio'
@@ -1370,6 +1398,7 @@ function MediaArtifactCard({
           imageUrl={url}
           title={`Edit Image \u2014 ${displayName}`}
           availableModels={availableEditModels ?? []}
+          initialModel={initialModel}
           promptUrl={promptUrl}
           onFileUpload={handleFileUpload}
           onEstimateCost={handleImagePreviewEstimate}
@@ -1384,6 +1413,7 @@ function MediaArtifactCard({
           videoUrl={url}
           title={`Edit Video — ${displayName}`}
           availableModels={availableRerunModels}
+          initialModel={initialModel}
           promptUrl={promptUrl}
           onFileUpload={handleFileUpload}
           onEstimateCost={handleVideoPreviewEstimate}
@@ -1398,6 +1428,7 @@ function MediaArtifactCard({
           audioUrl={url}
           title={`Edit Audio — ${displayName}`}
           availableModels={availableRerunModels}
+          initialModel={initialModel}
           promptUrl={promptUrl}
           initialVoiceId={initialVoiceId}
           initialEmotion={initialEmotion}

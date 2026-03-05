@@ -60,6 +60,7 @@ export interface VideoEditDialogProps {
   videoUrl: string;
   title: string;
   availableModels: AvailableModelOption[];
+  initialModel?: AvailableModelOption;
   promptUrl?: string;
   onFileUpload: (files: File[]) => Promise<void>;
   onEstimateCost?: (
@@ -377,6 +378,7 @@ export function VideoEditDialog({
   videoUrl,
   title,
   availableModels,
+  initialModel,
   promptUrl,
   onFileUpload,
   onEstimateCost,
@@ -477,7 +479,14 @@ export function VideoEditDialog({
 
     setActiveTab('rerun');
     setRerunPrompt('');
-    setSelectedModelIndex(0);
+    const matchingModelIndex = initialModel
+      ? availableModels.findIndex(
+          (model) =>
+            model.provider === initialModel.provider &&
+            model.model === initialModel.model
+        )
+      : -1;
+    setSelectedModelIndex(matchingModelIndex >= 0 ? matchingModelIndex : 0);
     setClipStartSeconds(0);
     setClipEndSeconds(0);
     setSelectedFiles([]);
@@ -493,7 +502,7 @@ export function VideoEditDialog({
     clipBoundsRef.current = { start: 0, end: 0 };
     previousClipRangeRef.current = null;
     stopClipPlaybackLoop();
-  }, [open, stopClipPlaybackLoop, videoUrl]);
+  }, [open, stopClipPlaybackLoop, videoUrl, availableModels, initialModel]);
 
   useEffect(() => {
     if (!promptText) {

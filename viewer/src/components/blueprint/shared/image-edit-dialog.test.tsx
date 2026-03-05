@@ -73,6 +73,8 @@ describe('ImageEditDialog', () => {
     render(<ImageEditDialog {...defaultProps} />);
     const rerunTab = getTab('rerun');
     expect(rerunTab?.className).toContain('text-foreground');
+    const select = document.body.querySelector('select');
+    expect(select).toBeTruthy();
   });
 
   it('switches to Edit tab and shows model selector', async () => {
@@ -149,14 +151,30 @@ describe('ImageEditDialog', () => {
       expect(onEstimateCost).toHaveBeenCalledWith({
         mode: 'rerun',
         prompt: '',
+        model: mockModels[0],
       });
       expect(onRegenerate).toHaveBeenCalledWith({
         mode: 'rerun',
         prompt: 'slightly more dramatic lighting',
+        model: mockModels[0],
       });
       expect(screen.getByRole('img').getAttribute('src')).toBe(
         'https://example.com/generated-rerun.png'
       );
+    });
+  });
+
+  it('pre-selects provided initial model on rerun tab', async () => {
+    render(
+      <ImageEditDialog
+        {...defaultProps}
+        initialModel={{ provider: 'fal-ai', model: 'flux-schnell' }}
+      />
+    );
+
+    await waitFor(() => {
+      const select = document.body.querySelector('select') as HTMLSelectElement;
+      expect(select.value).toBe('1');
     });
   });
 

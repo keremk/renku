@@ -230,6 +230,7 @@ export function DetailPanel({
             artifacts={artifacts}
             graphData={graphData}
             producerModels={producerModels}
+            modelSelections={modelSelections}
             buildInputs={buildInputs}
             onArtifactUpdated={onArtifactUpdated}
           />

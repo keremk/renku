@@ -49,6 +49,7 @@ export interface AudioEditDialogProps {
   audioUrl: string;
   title: string;
   availableModels: AvailableModelOption[];
+  initialModel?: AvailableModelOption;
   promptUrl?: string;
   initialVoiceId?: string;
   initialEmotion?: string;
@@ -283,6 +284,7 @@ export function AudioEditDialog({
   audioUrl,
   title,
   availableModels,
+  initialModel,
   promptUrl,
   initialVoiceId,
   initialEmotion,
@@ -327,7 +329,14 @@ export function AudioEditDialog({
     setRerunPrompt('');
     setVoiceId(initialVoiceId ?? '');
     setEmotion(initialEmotion ?? '');
-    setSelectedModelIndex(0);
+    const matchingModelIndex = initialModel
+      ? availableModels.findIndex(
+          (model) =>
+            model.provider === initialModel.provider &&
+            model.model === initialModel.model
+        )
+      : -1;
+    setSelectedModelIndex(matchingModelIndex >= 0 ? matchingModelIndex : 0);
     setSelectedFiles([]);
     setUploadError(null);
     setGeneratedPreviewUrl(null);
@@ -338,7 +347,14 @@ export function AudioEditDialog({
     setIsRegenerating(false);
     setIsUploading(false);
     setIsApplyingGenerated(false);
-  }, [open, audioUrl, initialVoiceId, initialEmotion]);
+  }, [
+    open,
+    audioUrl,
+    initialVoiceId,
+    initialEmotion,
+    availableModels,
+    initialModel,
+  ]);
 
   useEffect(() => {
     if (!promptText) {
