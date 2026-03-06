@@ -9,7 +9,8 @@
     "compositions",
     "providers",
     "viewer",
-    "web"
+    "web",
+    "desktop"
   ],
   "scripts": {
     "dev:core": "pnpm --filter @gorenku/core dev",
@@ -61,7 +62,10 @@
     "catalog:fetch-fal": "node scripts/fetch-fal-schema.mjs",
     "catalog:update-fal": "node scripts/update-fal-catalog.mjs catalog/models/fal-ai/fal-ai.yaml",
     "bundle:catalog": "node scripts/prepare-catalog-bundle.mjs",
-    "catalog:check": "node scripts/check-catalog-sync.mjs"
+    "catalog:check": "node scripts/check-catalog-sync.mjs",
+    "build:desktop": "pnpm build && node scripts/prepare-desktop-bundle.mjs && pnpm --filter renku-desktop build",
+    "package:desktop": "pnpm build:desktop && pnpm --filter renku-desktop package",
+    "dev:desktop": "pnpm --filter renku-desktop dev"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.46.2",
@@ -74,5 +78,16 @@
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "bufferutil",
+      "esbuild",
+      "sharp",
+      "electron",
+      "ffmpeg-static",
+      "workerd",
+      "electron-winstaller"
+    ]
   }
 }

@@ -1,0 +1,45 @@
+appId: com.gorenku.renku
+productName: Renku
+copyright: Copyright (c) 2024 Kerem Karatal
+
+directories:
+  output: release
+
+mac:
+  category: public.app-category.video
+  target:
+    - dmg
+    - zip
+  icon: build/icon.png
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+
+dmg:
+  title: Renku
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+files:
+  - dist/**/*
+  - "!dist/**/*.map"
+
+extraResources:
+  - from: resources/viewer-dist
+    to: viewer-dist
+  - from: resources/viewer-server
+    to: viewer-server
+  - from: resources/catalog
+    to: catalog
+  - from: resources/cli
+    to: cli
+  - from: scripts/renku-wrapper.sh
+    to: renku-wrapper.sh
+
+asarUnpack:
+  - node_modules/ffmpeg-static/**/*

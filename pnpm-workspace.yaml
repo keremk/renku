@@ -5,3 +5,4 @@ packages:
   - 'providers'
   - 'viewer'
   - 'web'
+  - 'desktop'
