@@ -27,7 +27,7 @@ const LOCAL_CLIP_COST_ESTIMATE: GenerationCostEstimate = {
 export async function estimateClipPreview(
   body: ArtifactPreviewEstimateRequest
 ): Promise<GenerationCostEstimate> {
-  const source = await loadSourceVideoContext(body);
+  const source = await loadSourceMediaContext(body);
   assertClipRangeWithinDuration(body, source.durationSeconds);
   return LOCAL_CLIP_COST_ESTIMATE;
 }
@@ -35,7 +35,7 @@ export async function estimateClipPreview(
 export async function generateClipPreview(
   body: ArtifactPreviewGenerateRequest
 ): Promise<PreviewGenerationResult> {
-  const source = await loadSourceVideoContext(body);
+  const source = await loadSourceMediaContext(body);
   assertClipRangeWithinDuration(body, source.durationSeconds);
 
   const clipParams = body.clipParams;
@@ -44,44 +44,74 @@ export async function generateClipPreview(
   }
 
   const tempDir = path.join(tmpdir(), `renku-clip-preview-${randomUUID()}`);
-  const outputPath = path.join(tempDir, 'preview.mp4');
+  const outputPath = path.join(
+    tempDir,
+    source.mediaKind === 'video' ? 'preview.mp4' : 'preview.mp3'
+  );
 
   await fs.mkdir(tempDir, { recursive: true });
 
   try {
-    await runCommand(
-      'ffmpeg',
-      [
-        '-hide_banner',
-        '-loglevel',
-        'error',
-        '-y',
-        '-ss',
-        toFfmpegTimestamp(clipParams.startTimeSeconds),
-        '-to',
-        toFfmpegTimestamp(clipParams.endTimeSeconds),
-        '-i',
-        source.filePath,
-        '-map',
-        '0',
-        '-c:v',
-        'libx264',
-        '-pix_fmt',
-        'yuv420p',
-        '-c:a',
-        'aac',
-        '-movflags',
-        '+faststart',
-        outputPath,
-      ],
-      FFMPEG_TIMEOUT_MS
-    );
+    if (source.mediaKind === 'video') {
+      await runCommand(
+        'ffmpeg',
+        [
+          '-hide_banner',
+          '-loglevel',
+          'error',
+          '-y',
+          '-ss',
+          toFfmpegTimestamp(clipParams.startTimeSeconds),
+          '-to',
+          toFfmpegTimestamp(clipParams.endTimeSeconds),
+          '-i',
+          source.filePath,
+          '-map',
+          '0',
+          '-c:v',
+          'libx264',
+          '-pix_fmt',
+          'yuv420p',
+          '-c:a',
+          'aac',
+          '-movflags',
+          '+faststart',
+          outputPath,
+        ],
+        FFMPEG_TIMEOUT_MS
+      );
+    } else {
+      await runCommand(
+        'ffmpeg',
+        [
+          '-hide_banner',
+          '-loglevel',
+          'error',
+          '-y',
+          '-ss',
+          toFfmpegTimestamp(clipParams.startTimeSeconds),
+          '-to',
+          toFfmpegTimestamp(clipParams.endTimeSeconds),
+          '-i',
+          source.filePath,
+          '-map',
+          '0:a:0',
+          '-vn',
+          '-c:a',
+          'libmp3lame',
+          '-b:a',
+          '192k',
+          outputPath,
+        ],
+        FFMPEG_TIMEOUT_MS
+      );
+    }
 
     const previewData = await fs.readFile(outputPath);
 
     return {
       previewData,
-      mimeType: 'video/mp4',
+      mimeType: source.mediaKind === 'video' ? 'video/mp4' : 'audio/mpeg',
       estimatedCost: LOCAL_CLIP_COST_ESTIMATE,
     };
   } finally {
@@ -89,9 +119,13 @@ export async function generateClipPreview(
   }
 }
 
-async function loadSourceVideoContext(
+async function loadSourceMediaContext(
   body: ArtifactPreviewGenerateRequest | ArtifactPreviewEstimateRequest
-): Promise<{ filePath: string; durationSeconds: number }> {
+): Promise<{
+  filePath: string;
+  durationSeconds: number;
+  mediaKind: 'video' | 'audio';
+}> {
   if (body.sourceTempId) {
     const temp = await readTempPreview(
       body.blueprintFolder,
@@ -104,14 +138,23 @@ async function loadSourceVideoContext(
         `Preview ${body.sourceTempId} does not belong to artifact ${body.artifactId}.`
       );
     }
-    if (!temp.metadata.mimeType.startsWith('video/')) {
+    if (
+      !temp.metadata.mimeType.startsWith('video/') &&
+      !temp.metadata.mimeType.startsWith('audio/')
+    ) {
       throw new Error(
-        `Clip preview source ${body.sourceTempId} is not a video (${temp.metadata.mimeType}).`
+        `Clip preview source ${body.sourceTempId} must be audio or video (${temp.metadata.mimeType}).`
       );
     }
 
-    const durationSeconds = await probeVideoDurationSeconds(temp.filePath);
-    return { filePath: temp.filePath, durationSeconds };
+    const durationSeconds = await probeMediaDurationSeconds(temp.filePath);
+    return {
+      filePath: temp.filePath,
+      durationSeconds,
+      mediaKind: temp.metadata.mimeType.startsWith('video/')
+        ? 'video'
+        : 'audio',
+    };
   }
 
   const latestEvent = await readLatestArtifactEvent(
@@ -126,9 +169,12 @@ async function loadSourceVideoContext(
       `Artifact ${body.artifactId} has no succeeded blob output in the event log.`
     );
   }
-  if (!blob.mimeType.startsWith('video/')) {
+  if (
+    !blob.mimeType.startsWith('video/') &&
+    !blob.mimeType.startsWith('audio/')
+  ) {
     throw new Error(
-      `Clip preview requires a video artifact, got ${blob.mimeType}.`
+      `Clip preview requires an audio or video artifact, got ${blob.mimeType}.`
     );
   }
 
@@ -140,9 +186,13 @@ async function loadSourceVideoContext(
     blob.mimeType
   );
 
-  const durationSeconds = await probeVideoDurationSeconds(filePath);
+  const durationSeconds = await probeMediaDurationSeconds(filePath);
 
-  return { filePath, durationSeconds };
+  return {
+    filePath,
+    durationSeconds,
+    mediaKind: blob.mimeType.startsWith('video/') ? 'video' : 'audio',
+  };
 }
 
 function assertClipRangeWithinDuration(
@@ -156,7 +206,7 @@ function assertClipRangeWithinDuration(
   const { startTimeSeconds, endTimeSeconds } = body.clipParams;
 
   if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
-    throw new Error('Source video duration is invalid for clip preview.');
+    throw new Error('Source media duration is invalid for clip preview.');
   }
 
   if (startTimeSeconds >= durationSeconds) {
@@ -172,7 +222,7 @@ function assertClipRangeWithinDuration(
   }
 }
 
-async function probeVideoDurationSeconds(filePath: string): Promise<number> {
+async function probeMediaDurationSeconds(filePath: string): Promise<number> {
   const stdout = await runCommand(
     'ffprobe',
     [
@@ -190,7 +240,7 @@ async function probeVideoDurationSeconds(filePath: string): Promise<number> {
   const duration = Number.parseFloat(stdout.trim());
   if (!Number.isFinite(duration) || duration <= 0) {
     throw new Error(
-      `Could not parse video duration from ffprobe output: ${stdout.trim()}`
+      `Could not parse media duration from ffprobe output: ${stdout.trim()}`
     );
   }
 

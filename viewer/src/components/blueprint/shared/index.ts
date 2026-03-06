@@ -48,5 +48,12 @@ export type {
   VideoRegenerateParams,
   VideoRegenerateResult,
 } from './video-edit-dialog';
+export { MusicEditDialog } from './music-edit-dialog';
+export type {
+  MusicClipParams,
+  MusicEditDialogProps,
+  MusicRegenerateParams,
+  MusicRegenerateResult,
+} from './music-edit-dialog';
 export { CameraControl } from './camera-control';
 export type { CameraControlProps, CameraParams } from './camera-control';

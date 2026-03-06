@@ -59,6 +59,7 @@ import {
   ImageEditDialog,
   VideoEditDialog,
   AudioEditDialog,
+  MusicEditDialog,
   type CardAction,
 } from './shared';
 import { EditedBadge } from './outputs/edited-badge';
@@ -625,6 +626,12 @@ function ArtifactCardRenderer({
     );
   }
   if (artifact.mimeType.startsWith('audio/')) {
+    const mediaType = resolveAudioMediaTypeForArtifact({
+      artifact,
+      graphData,
+      producerModels,
+    });
+
     return (
       <MediaArtifactCard
         artifact={artifact}
@@ -638,7 +645,7 @@ function ArtifactCardRenderer({
         modelSelections={modelSelections}
         buildInputs={buildInputs}
         onArtifactUpdated={onArtifactUpdated}
-        mediaType='audio'
+        mediaType={mediaType}
         subGroup={subGroup}
       />
     );
@@ -1049,7 +1056,39 @@ function ArtifactCardFooter({
 // Media Artifact Card (unified component for video, audio, and image artifacts)
 // ============================================================================
 
-type MediaType = 'video' | 'audio' | 'image';
+type MediaType = 'video' | 'audio' | 'music' | 'image';
+
+function resolveAudioMediaTypeForArtifact(args: {
+  artifact: ArtifactInfo;
+  graphData?: BlueprintGraphData;
+  producerModels?: Record<string, ProducerModelInfo>;
+}): 'audio' | 'music' {
+  const { artifact, graphData, producerModels } = args;
+  const artifactProducerAlias = extractProducerFromArtifactId(artifact.id);
+
+  if (!artifactProducerAlias) {
+    return 'audio';
+  }
+
+  const producerTypeFromModels =
+    producerModels?.[artifactProducerAlias]?.producerType;
+  if (producerTypeFromModels === 'audio/text-to-music') {
+    return 'music';
+  }
+
+  const producerTypeFromGraph = graphData?.nodes.find(
+    (node) =>
+      node.type === 'producer' &&
+      (node.id === `Producer:${artifactProducerAlias}` ||
+        node.label === artifactProducerAlias)
+  )?.producerType;
+
+  if (producerTypeFromGraph === 'audio/text-to-music') {
+    return 'music';
+  }
+
+  return 'audio';
+}
 
 function readStringInputValue(
   buildInputs: Record<string, unknown> | null | undefined,
@@ -1332,6 +1371,44 @@ function MediaArtifactCard({
     return response.estimatedCost;
   };
 
+  const handleMusicPreviewRegenerate = async (
+    params: Parameters<
+      NonNullable<ComponentProps<typeof MusicEditDialog>['onRegenerate']>
+    >[0]
+  ) => {
+    return generateArtifactPreview(blueprintFolder, movieId, artifact.id, {
+      mode: params.mode,
+      prompt: params.prompt,
+      promptArtifactId:
+        params.mode === 'rerun' ? promptArtifact?.id : undefined,
+      model: params.model,
+      clipParams: params.clipParams,
+      sourceTempId: params.sourceTempId,
+    });
+  };
+
+  const handleMusicPreviewEstimate = async (
+    params: Parameters<
+      NonNullable<ComponentProps<typeof MusicEditDialog>['onEstimateCost']>
+    >[0]
+  ) => {
+    const response = await estimateArtifactPreview(
+      blueprintFolder,
+      movieId,
+      artifact.id,
+      {
+        mode: params.mode,
+        prompt: params.prompt,
+        promptArtifactId:
+          params.mode === 'rerun' ? promptArtifact?.id : undefined,
+        model: params.model,
+        clipParams: params.clipParams,
+      }
+    );
+
+    return response.estimatedCost;
+  };
+
   const handlePreviewApply = async (tempId: string) => {
     await applyArtifactPreview(blueprintFolder, movieId, artifact.id, tempId);
     onArtifactUpdated?.();
@@ -1367,7 +1444,7 @@ function MediaArtifactCard({
           footer={footer}
         />
       )}
-      {mediaType === 'audio' && (
+      {(mediaType === 'audio' || mediaType === 'music') && (
         <AudioCard
           url={url}
           title={displayName}
@@ -1418,6 +1495,21 @@ function MediaArtifactCard({
           onFileUpload={handleFileUpload}
           onEstimateCost={handleVideoPreviewEstimate}
           onRegenerate={handleVideoPreviewRegenerate}
+          onApplyGenerated={handlePreviewApply}
+          onCleanupGenerated={handlePreviewCleanup}
+        />
+      ) : mediaType === 'music' ? (
+        <MusicEditDialog
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          musicUrl={url}
+          title={`Edit Music — ${displayName}`}
+          availableModels={availableRerunModels}
+          initialModel={initialModel}
+          promptUrl={promptUrl}
+          onFileUpload={handleFileUpload}
+          onEstimateCost={handleMusicPreviewEstimate}
+          onRegenerate={handleMusicPreviewRegenerate}
           onApplyGenerated={handlePreviewApply}
           onCleanupGenerated={handlePreviewCleanup}
         />
