@@ -83,7 +83,9 @@
       "WebFetch(domain:api.replicate.com)",
       "WebFetch(domain:replicate.com)",
       "Bash(npx eslint:*)",
-      "Bash(open /Users/keremk/Projects/aitinkerbox/renku/image-edit-playground.html)"
+      "Bash(open /Users/keremk/Projects/aitinkerbox/renku/image-edit-playground.html)",
+      "Bash(chmod +x /Users/keremk/Projects/aitinkerbox/renku/.claude/worktrees/unruffled-lumiere/desktop/scripts/renku-wrapper.sh)",
+      "Bash(git -C /Users/keremk/Projects/aitinkerbox/renku/.claude/worktrees/unruffled-lumiere diff --name-only main)"
     ],
     "deny": [],
     "ask": []
