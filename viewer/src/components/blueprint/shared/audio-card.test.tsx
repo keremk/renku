@@ -103,14 +103,14 @@ describe('AudioCard', () => {
   });
 
   it('opens expand dialog in expandable mode', async () => {
-    const { container } = render(
-      <AudioCard {...defaultProps} expandable={true} />
-    );
+    render(<AudioCard {...defaultProps} expandable={true} />);
 
-    const expandButton = container.querySelector('button.w-full.group');
+    const expandButton = screen.getByRole('button', {
+      name: 'Expand audio preview',
+    });
     expect(expandButton).toBeTruthy();
 
-    fireEvent.click(expandButton!);
+    fireEvent.click(expandButton);
 
     await waitFor(() => {
       expect(screen.getByRole('dialog')).toBeTruthy();

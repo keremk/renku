@@ -293,18 +293,17 @@ export function AudioCard({
     return (
       <>
         <MediaCard isSelected={isSelected} isPinned={isPinned} footer={footer}>
-          <button
-            type='button'
-            onClick={() => setIsExpanded(true)}
-            className='w-full group relative overflow-hidden text-left'
-          >
-            <div className='pointer-events-none'>
-              <AudioPlayerSurface url={url} title={title} interactive={false} />
-            </div>
-            <div className='absolute inset-0 bg-black/0 group-hover:bg-black/12 transition-colors flex items-center justify-center'>
-              <Maximize2 className='size-8 text-white drop-shadow-md opacity-0 group-hover:opacity-100 transition-opacity' />
-            </div>
-          </button>
+          <div className='relative group'>
+            <AudioPlayerSurface url={url} title={title} interactive />
+            <button
+              type='button'
+              onClick={() => setIsExpanded(true)}
+              className='absolute top-3 right-3 z-10 rounded-full border border-border/40 bg-background/80 p-2 text-foreground shadow-sm backdrop-blur-sm opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity'
+              aria-label='Expand audio preview'
+            >
+              <Maximize2 className='size-4' />
+            </button>
+          </div>
         </MediaCard>
 
         <MediaExpandDialog
