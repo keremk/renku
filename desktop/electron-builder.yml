@@ -11,23 +11,33 @@ mac:
     - dmg
     - zip
   icon: build/icon.png
-  hardenedRuntime: true
-  entitlements: build/entitlements.mac.plist
-  entitlementsInherit: build/entitlements.mac.plist
+  # Uncomment below when Apple Developer code signing is set up:
+  # hardenedRuntime: true
+  # entitlements: build/entitlements.mac.plist
+  # entitlementsInherit: build/entitlements.mac.plist
 
 dmg:
   title: Renku
+  window:
+    width: 660
+    height: 440
+  iconSize: 100
   contents:
-    - x: 130
-      y: 220
-    - x: 410
-      y: 220
+    - x: 190
+      y: 255
+    - x: 470
+      y: 255
       type: link
       path: /Applications
+
+afterSign: build/afterSign.cjs
+
+npmRebuild: false
 
 files:
   - dist/**/*
   - "!dist/**/*.map"
+  - "!node_modules"
 
 extraResources:
   - from: resources/viewer-dist
@@ -38,8 +48,9 @@ extraResources:
     to: catalog
   - from: resources/cli
     to: cli
+  - from: resources/ffmpeg
+    to: ffmpeg
+  - from: resources/ffprobe
+    to: ffprobe
   - from: scripts/renku-wrapper.sh
     to: renku-wrapper.sh
-
-asarUnpack:
-  - node_modules/ffmpeg-static/**/*

@@ -6,19 +6,17 @@
   "type": "module",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "tsc && electron dist/main.js",
+    "dev": "tsc && electron .",
     "build": "tsc",
     "package": "electron-builder --mac",
     "package:dir": "electron-builder --mac --dir"
-  },
-  "dependencies": {
-    "@gorenku/core": "workspace:*",
-    "ffmpeg-static": "^5.2.0"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
     "electron": "^35.0.0",
     "electron-builder": "^26.0.0",
+    "ffmpeg-static": "^5.2.0",
+    "ffprobe-static": "^3.1.0",
     "typescript": "~5.9.3"
   }
 }

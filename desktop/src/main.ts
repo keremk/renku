@@ -10,30 +10,20 @@ import { installCli, isCliInstalled } from './cli-install.js';
 // ---------------------------------------------------------------------------
 
 function setupFfmpegPath(): void {
-  // ffmpeg-static is asarUnpacked, resolve the binary path
-  const ffmpegStatic = path.join(
-    app.getAppPath(),
-    'node_modules',
-    'ffmpeg-static',
-    'ffmpeg',
-  );
+  // In production, the ffmpeg binary is in extraResources
+  // In dev, it's in desktop/resources/ffmpeg (copied by prepare-desktop-bundle)
+  // Fall back to desktop/node_modules/ffmpeg-static/ffmpeg for dev without bundling
+  const candidates = [
+    getResourcePath('ffmpeg'),
+    path.join(app.getAppPath(), 'node_modules', 'ffmpeg-static', 'ffmpeg'),
+  ];
 
-  // Also check the unpacked location inside the app bundle
-  const ffmpegUnpacked = path.join(
-    app.getAppPath().replace('app.asar', 'app.asar.unpacked'),
-    'node_modules',
-    'ffmpeg-static',
-    'ffmpeg',
-  );
-
-  const ffmpegDir = existsSync(ffmpegUnpacked)
-    ? path.dirname(ffmpegUnpacked)
-    : existsSync(ffmpegStatic)
-      ? path.dirname(ffmpegStatic)
-      : null;
-
-  if (ffmpegDir) {
-    process.env.PATH = `${ffmpegDir}${path.delimiter}${process.env.PATH ?? ''}`;
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      const ffmpegDir = path.dirname(candidate);
+      process.env.PATH = `${ffmpegDir}${path.delimiter}${process.env.PATH ?? ''}`;
+      return;
+    }
   }
 }
 
@@ -123,7 +113,7 @@ interface ViewerServerInstance {
 
 async function startServer(rootFolder: string): Promise<ViewerServerInstance> {
   // Import the viewer server from bundled resources
-  const serverPath = getResourcePath('viewer-server', 'runtime.js');
+  const serverPath = getResourcePath('viewer-server', 'runtime.mjs');
   const { startViewerServer } = await import(serverPath);
 
   return await startViewerServer({
