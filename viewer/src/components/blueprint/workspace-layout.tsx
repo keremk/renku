@@ -347,9 +347,11 @@ function WorkspaceLayoutInner({
     timeline,
     status: timelineStatus,
     error: timelineError,
+    retry: retryTimeline,
   } = useMovieTimeline(
     hasTimeline ? blueprintFolder : null,
-    hasTimeline ? effectiveMovieId : null
+    hasTimeline ? effectiveMovieId : null,
+    hasTimeline ? (selectedBuildManifest?.revision ?? null) : null
   );
   const { currentTime, isPlaying, play, pause, seek, reset } =
     usePreviewPlayback(effectiveMovieId);
@@ -441,6 +443,7 @@ function WorkspaceLayoutInner({
               onPause={pause}
               onSeek={seek}
               onReset={reset}
+              onRetryTimeline={retryTimeline}
               onArtifactUpdated={onManifestRefresh}
             />
           </div>
@@ -486,6 +489,7 @@ function WorkspaceLayoutInner({
             onSeek={seek}
             hasTimeline={hasTimeline}
             movieId={effectiveMovieId}
+            onRetryTimeline={retryTimeline}
           />
         </div>
       </div>

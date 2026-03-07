@@ -1,10 +1,10 @@
-import { Play, Pause, RotateCcw, Film } from "lucide-react";
-import { RemotionPreview } from "@/components/player/remotion-preview";
-import { useMovieTimeline } from "@/services/use-movie-timeline";
-import { usePreviewPlayback } from "@/hooks";
-import type { TimelineDocument } from "@/types/timeline";
+import { Play, Pause, RotateCcw, Film } from 'lucide-react';
+import { RemotionPreview } from '@/components/player/remotion-preview';
+import { useMovieTimeline } from '@/services/use-movie-timeline';
+import { usePreviewPlayback } from '@/hooks';
+import type { TimelineDocument } from '@/types/timeline';
 
-type TimelineStatus = "idle" | "loading" | "success" | "error";
+type TimelineStatus = 'idle' | 'loading' | 'success' | 'error';
 
 interface PreviewPanelProps {
   movieId: string | null;
@@ -20,6 +20,7 @@ interface PreviewPanelProps {
   onPause?: () => void;
   onSeek?: (time: number) => void;
   onReset?: () => void;
+  onRetryTimeline?: () => void;
 }
 
 export function PreviewPanel({
@@ -35,6 +36,7 @@ export function PreviewPanel({
   onPause: externalOnPause,
   onSeek: externalOnSeek,
   onReset: externalOnReset,
+  onRetryTimeline: externalOnRetryTimeline,
 }: PreviewPanelProps) {
   // Determine if we're in controlled mode (external state provided)
   const isControlled = externalTimeline !== undefined;
@@ -47,22 +49,29 @@ export function PreviewPanel({
   const internalPlayback = usePreviewPlayback(!isControlled ? movieId : null);
 
   // Use external or internal state
-  const timeline = isControlled ? externalTimeline : internalTimelineState.timeline;
-  const status = isControlled ? (externalStatus ?? "idle") : internalTimelineState.status;
-  const error = isControlled ? (externalError ?? null) : internalTimelineState.error;
+  const timeline = isControlled
+    ? externalTimeline
+    : internalTimelineState.timeline;
+  const status = isControlled
+    ? (externalStatus ?? 'idle')
+    : internalTimelineState.status;
+  const error = isControlled
+    ? (externalError ?? null)
+    : internalTimelineState.error;
   const currentTime = externalCurrentTime ?? internalPlayback.currentTime;
   const isPlaying = externalIsPlaying ?? internalPlayback.isPlaying;
   const play = externalOnPlay ?? internalPlayback.play;
   const pause = externalOnPause ?? internalPlayback.pause;
   const seek = externalOnSeek ?? internalPlayback.seek;
   const reset = externalOnReset ?? internalPlayback.reset;
+  const retryTimeline = externalOnRetryTimeline ?? internalTimelineState.retry;
 
   // No build selected
   if (!movieId) {
     return (
       <EmptyState
-        title="No Build Selected"
-        description="Select a build from the sidebar to preview your movie."
+        title='No Build Selected'
+        description='Select a build from the sidebar to preview your movie.'
       />
     );
   }
@@ -71,27 +80,31 @@ export function PreviewPanel({
   if (!hasTimeline) {
     return (
       <EmptyState
-        title="No Preview Available"
-        description="Run the pipeline fully to generate a timeline and preview your movie."
+        title='No Preview Available'
+        description='Run the pipeline fully to generate a timeline and preview your movie.'
       />
     );
   }
 
   // Loading state
-  if (status === "loading") {
+  if (status === 'loading') {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-muted-foreground text-sm">Loading timeline...</div>
+      <div className='flex items-center justify-center h-full'>
+        <div className='text-muted-foreground text-sm'>Loading timeline...</div>
       </div>
     );
   }
 
   // Error state
-  if (status === "error" || !timeline) {
+  if (status === 'error' || !timeline) {
     return (
       <EmptyState
-        title="Failed to Load Timeline"
-        description={error?.message ?? "An error occurred while loading the timeline."}
+        title='Failed to Load Timeline'
+        description={
+          error?.message ?? 'An error occurred while loading the timeline.'
+        }
+        actionLabel='Retry'
+        onAction={retryTimeline}
       />
     );
   }
@@ -101,8 +114,8 @@ export function PreviewPanel({
   if (!blueprintFolder) {
     return (
       <EmptyState
-        title="Configuration Error"
-        description="Blueprint folder is not available. Please try selecting the build again."
+        title='Configuration Error'
+        description='Blueprint folder is not available. Please try selecting the build again.'
       />
     );
   }
@@ -110,37 +123,41 @@ export function PreviewPanel({
   const duration = timeline.duration ?? 0;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className='flex flex-col h-full'>
       {/* Playback controls */}
-      <div className="flex items-center gap-3 px-3 py-2 border-b border-border/40 bg-muted/30">
+      <div className='flex items-center gap-3 px-3 py-2 border-b border-border/40 bg-muted/30'>
         {/* Play/Pause button */}
         <button
-          type="button"
+          type='button'
           onClick={isPlaying ? pause : play}
-          className="p-1.5 rounded-md hover:bg-muted transition-colors text-foreground"
-          title={isPlaying ? "Pause" : "Play"}
+          className='p-1.5 rounded-md hover:bg-muted transition-colors text-foreground'
+          title={isPlaying ? 'Pause' : 'Play'}
         >
-          {isPlaying ? <Pause className="size-4" /> : <Play className="size-4" />}
+          {isPlaying ? (
+            <Pause className='size-4' />
+          ) : (
+            <Play className='size-4' />
+          )}
         </button>
 
         {/* Reset button */}
         <button
-          type="button"
+          type='button'
           onClick={reset}
-          className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-          title="Reset"
+          className='p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground'
+          title='Reset'
         >
-          <RotateCcw className="size-4" />
+          <RotateCcw className='size-4' />
         </button>
 
         {/* Time display */}
-        <div className="text-xs text-muted-foreground font-mono">
+        <div className='text-xs text-muted-foreground font-mono'>
           {formatTime(currentTime)} / {formatTime(duration)}
         </div>
       </div>
 
       {/* Player */}
-      <div className="flex-1 min-h-0">
+      <div className='flex-1 min-h-0'>
         <RemotionPreview
           movieId={movieId}
           timeline={timeline}
@@ -156,14 +173,35 @@ export function PreviewPanel({
   );
 }
 
-function EmptyState({ title, description }: { title: string; description: string }) {
+function EmptyState({
+  title,
+  description,
+  actionLabel,
+  onAction,
+}: {
+  title: string;
+  description: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center px-8">
-      <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
-        <Film className="size-8 text-muted-foreground" />
+    <div className='flex flex-col items-center justify-center h-full text-center px-8'>
+      <div className='w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-4'>
+        <Film className='size-8 text-muted-foreground' />
       </div>
-      <h3 className="text-sm font-medium text-foreground mb-1">{title}</h3>
-      <p className="text-xs text-muted-foreground max-w-[280px]">{description}</p>
+      <h3 className='text-sm font-medium text-foreground mb-1'>{title}</h3>
+      <p className='text-xs text-muted-foreground max-w-[280px]'>
+        {description}
+      </p>
+      {actionLabel && onAction && (
+        <button
+          type='button'
+          onClick={onAction}
+          className='mt-4 inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90'
+        >
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
 }
@@ -171,5 +209,5 @@ function EmptyState({ title, description }: { title: string; description: string
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
-  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }

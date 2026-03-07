@@ -38,6 +38,7 @@ interface BottomTabbedPanelProps {
   onSeek: (time: number) => void;
   hasTimeline: boolean;
   movieId: string | null;
+  onRetryTimeline?: () => void;
 }
 
 interface TabButtonProps {
@@ -134,6 +135,7 @@ export function BottomTabbedPanel({
   onSeek,
   hasTimeline,
   movieId,
+  onRetryTimeline,
 }: BottomTabbedPanelProps) {
   return (
     <div className='flex-1 min-h-0 flex flex-col'>
@@ -176,6 +178,7 @@ export function BottomTabbedPanel({
             onSeek={onSeek}
             hasTimeline={hasTimeline}
             movieId={movieId}
+            onRetryTimeline={onRetryTimeline}
           />
         )}
       </div>

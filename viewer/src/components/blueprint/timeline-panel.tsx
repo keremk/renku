@@ -18,6 +18,7 @@ interface TimelinePanelProps {
   onSeek: (time: number) => void;
   hasTimeline: boolean;
   movieId: string | null;
+  onRetryTimeline?: () => void;
 }
 
 export function TimelinePanel({
@@ -32,6 +33,7 @@ export function TimelinePanel({
   onSeek,
   hasTimeline,
   movieId,
+  onRetryTimeline,
 }: TimelinePanelProps) {
   const resolveAssetUrl = useCallback(
     (assetId: string) => {
@@ -87,6 +89,8 @@ export function TimelinePanel({
         description={
           error?.message ?? 'An error occurred while loading the timeline.'
         }
+        actionLabel='Retry'
+        onAction={onRetryTimeline}
       />
     );
   }
@@ -110,9 +114,13 @@ export function TimelinePanel({
 function EmptyState({
   title,
   description,
+  actionLabel,
+  onAction,
 }: {
   title: string;
   description: string;
+  actionLabel?: string;
+  onAction?: () => void;
 }) {
   return (
     <div className='flex flex-col items-center justify-center h-full text-center px-8'>
@@ -123,6 +131,15 @@ function EmptyState({
       <p className='text-xs text-muted-foreground max-w-[280px]'>
         {description}
       </p>
+      {actionLabel && onAction && (
+        <button
+          type='button'
+          onClick={onAction}
+          className='mt-4 inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90'
+        >
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
 }

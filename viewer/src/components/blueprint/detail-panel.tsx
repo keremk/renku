@@ -74,6 +74,7 @@ interface DetailPanelProps {
   onPause?: () => void;
   onSeek?: (time: number) => void;
   onReset?: () => void;
+  onRetryTimeline?: () => void;
   /** Callback when an artifact is edited or restored */
   onArtifactUpdated?: () => void;
 }
@@ -112,6 +113,7 @@ export function DetailPanel({
   onPause,
   onSeek,
   onReset,
+  onRetryTimeline,
   onArtifactUpdated,
 }: DetailPanelProps) {
   // Support both controlled and uncontrolled tab state
@@ -249,6 +251,7 @@ export function DetailPanel({
             onPause={onPause}
             onSeek={onSeek}
             onReset={onReset}
+            onRetryTimeline={onRetryTimeline}
           />
         )}
       </div>
