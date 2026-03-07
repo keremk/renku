@@ -6,14 +6,14 @@
  * This preserves MediaCard's justify-between layout.
  */
 
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu';
 
 export interface CardAction {
   /** Unique identifier for the action */
@@ -67,9 +67,9 @@ export function CardActionsFooter({
 
   return (
     <>
-      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+      <div className='flex items-center gap-1.5 flex-1 min-w-0'>
         <span
-          className="text-xs text-foreground truncate"
+          className='text-xs text-foreground truncate'
           title={description ?? label}
         >
           {label}
@@ -80,13 +80,14 @@ export function CardActionsFooter({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              type="button"
-              className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+              type='button'
+              aria-label='Card actions'
+              className='p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground'
             >
-              <MoreHorizontal className="size-4" />
+              <MoreHorizontal className='size-4' />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align='end'>
             {actions.map((action, index) => (
               <CardActionItem
                 key={action.id}
@@ -115,10 +116,16 @@ function CardActionItem({
       {showSeparator && <DropdownMenuSeparator />}
       <DropdownMenuItem
         onClick={action.onClick}
-        className={action.destructive ? "text-destructive focus:text-destructive" : undefined}
+        className={
+          action.destructive
+            ? 'text-destructive focus:text-destructive'
+            : undefined
+        }
       >
-        <Icon className="size-4" />
-        <span className={action.suffix ? "flex-1" : undefined}>{action.label}</span>
+        <Icon className='size-4' />
+        <span className={action.suffix ? 'flex-1' : undefined}>
+          {action.label}
+        </span>
         {action.suffix}
       </DropdownMenuItem>
     </>

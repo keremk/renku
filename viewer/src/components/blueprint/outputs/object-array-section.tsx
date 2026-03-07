@@ -7,39 +7,28 @@
  * - MediaGrid for content items (text cards, media cards, and failure cards)
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { RotateCcw, AlertCircle, Clock, File } from 'lucide-react';
+import { Fragment, useState, useEffect, useCallback } from 'react';
+import { RotateCcw } from 'lucide-react';
 import {
   getArtifactLabel,
   getBlobUrl,
-  shortenArtifactDisplayName,
   type ArtifactSubGroup,
 } from '@/lib/artifact-utils';
-import { resolvePromptArtifactForMedia } from '@/lib/artifact-prompt-resolver';
 import { inferDisplayType } from '@/lib/artifact-content-type';
 import type { ArtifactDisplayType } from '@/lib/artifact-content-type';
 import { PropertyStrip, type PropertyStripItem } from './property-strip';
 import { EditedBadge } from './edited-badge';
-import {
-  MediaCard,
-  MediaGrid,
-  TextEditorDialog,
-  VideoCard,
-  AudioCard,
-  ImageCard,
-} from '../shared';
+import { MediaCard, MediaGrid, TextEditorDialog } from '../shared';
 import { useExecution } from '@/contexts/execution-context';
 import { editArtifactText, restoreArtifact } from '@/data/blueprint-client';
 import type { ArtifactInfo } from '@/types/builds';
-import type { BlueprintGraphData } from '@/types/blueprint-graph';
 
 interface ObjectArraySectionProps {
   subGroup: ArtifactSubGroup;
-  artifacts: ArtifactInfo[];
-  graphData?: BlueprintGraphData;
   blueprintFolder: string;
   movieId: string;
   onArtifactUpdated?: () => void;
+  renderArtifactCard: (artifact: ArtifactInfo) => React.ReactNode;
 }
 
 interface ClassifiedArtifact {
@@ -51,11 +40,10 @@ interface ClassifiedArtifact {
 
 export function ObjectArraySection({
   subGroup,
-  artifacts,
-  graphData,
   blueprintFolder,
   movieId,
   onArtifactUpdated,
+  renderArtifactCard,
 }: ObjectArraySectionProps) {
   const [classified, setClassified] = useState<ClassifiedArtifact[] | null>(
     null
@@ -174,16 +162,9 @@ export function ObjectArraySection({
                 onArtifactUpdated={onArtifactUpdated}
               />
             ) : (
-              <NonTextArtifactCard
-                key={item.artifact.id}
-                artifact={item.artifact}
-                artifacts={artifacts}
-                graphData={graphData}
-                label={item.label}
-                blueprintFolder={blueprintFolder}
-                movieId={movieId}
-                onArtifactUpdated={onArtifactUpdated}
-              />
+              <Fragment key={item.artifact.id}>
+                {renderArtifactCard(item.artifact)}
+              </Fragment>
             )
           )}
         </MediaGrid>
@@ -298,178 +279,6 @@ function ContentCard({
   );
 }
 
-function NonTextArtifactCard({
-  artifact,
-  artifacts,
-  graphData,
-  label,
-  blueprintFolder,
-  movieId,
-  onArtifactUpdated,
-}: {
-  artifact: ArtifactInfo;
-  artifacts: ArtifactInfo[];
-  graphData?: BlueprintGraphData;
-  label: string;
-  blueprintFolder: string;
-  movieId: string;
-  onArtifactUpdated?: () => void;
-}) {
-  const { isArtifactSelected, isArtifactPinned } = useExecution();
-  const isSelected = isArtifactSelected(artifact.id);
-  const isPinned = isArtifactPinned(artifact.id);
-
-  if (artifact.status === 'failed' || artifact.status === 'skipped') {
-    return (
-      <FailedArtifactCard
-        artifact={artifact}
-        label={label}
-        isSelected={isSelected}
-      />
-    );
-  }
-
-  const url = getBlobUrl(blueprintFolder, movieId, artifact.hash);
-  const promptArtifact = resolvePromptArtifactForMedia({
-    mediaArtifactId: artifact.id,
-    artifacts,
-    graphData,
-  });
-  const promptLabel = promptArtifact
-    ? `Prompt (${shortenArtifactDisplayName(promptArtifact.id)})`
-    : 'Prompt';
-  const promptUrl = promptArtifact
-    ? getBlobUrl(blueprintFolder, movieId, promptArtifact.hash)
-    : undefined;
-  const isEdited = artifact.editedBy === 'user';
-
-  const handleRestore = async () => {
-    try {
-      await restoreArtifact(blueprintFolder, movieId, artifact.id);
-      onArtifactUpdated?.();
-    } catch (error) {
-      console.error('[ObjectArraySection] Restore failed:', error);
-    }
-  };
-
-  const footer = (
-    <ObjectArrayCardFooter
-      label={label}
-      isEdited={isEdited}
-      onRestore={isEdited ? handleRestore : undefined}
-    />
-  );
-
-  if (artifact.mimeType.startsWith('video/')) {
-    return (
-      <VideoCard
-        url={url}
-        title={label}
-        isSelected={isSelected}
-        isPinned={isPinned}
-        expandable
-        promptTitle={promptLabel}
-        promptUrl={promptUrl}
-        footer={footer}
-      />
-    );
-  }
-
-  if (artifact.mimeType.startsWith('audio/')) {
-    return (
-      <AudioCard
-        url={url}
-        title={label}
-        isSelected={isSelected}
-        isPinned={isPinned}
-        expandable
-        promptTitle={promptLabel}
-        promptUrl={promptUrl}
-        footer={footer}
-      />
-    );
-  }
-
-  if (artifact.mimeType.startsWith('image/')) {
-    return (
-      <ImageCard
-        url={url}
-        title={label}
-        isSelected={isSelected}
-        isPinned={isPinned}
-        promptTitle={promptLabel}
-        promptUrl={promptUrl}
-        footer={footer}
-      />
-    );
-  }
-
-  return (
-    <MediaCard isSelected={isSelected} isPinned={isPinned} footer={footer}>
-      <div className='aspect-video bg-muted/30 flex flex-col items-center justify-center gap-2 p-4'>
-        <File className='size-12 text-muted-foreground' />
-        <div className='text-xs text-muted-foreground'>
-          {formatFileSize(artifact.size)}
-        </div>
-        <div className='text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded'>
-          {artifact.mimeType}
-        </div>
-      </div>
-    </MediaCard>
-  );
-}
-
-function FailedArtifactCard({
-  artifact,
-  label,
-  isSelected,
-}: {
-  artifact: ArtifactInfo;
-  label: string;
-  isSelected: boolean;
-}) {
-  const isConditionalSkip = artifact.failureReason === 'conditions_not_met';
-  const Icon = isConditionalSkip ? Clock : AlertCircle;
-  const iconClass = isConditionalSkip
-    ? 'text-muted-foreground'
-    : 'text-destructive';
-  const borderClass = isConditionalSkip
-    ? 'border-muted'
-    : 'border-destructive/50';
-
-  let failureMessage = '';
-  if (artifact.skipMessage) {
-    failureMessage = artifact.skipMessage;
-  } else if (artifact.failureReason === 'timeout') {
-    failureMessage = 'Request timed out';
-  } else if (artifact.failureReason === 'connection_error') {
-    failureMessage = 'Connection failed';
-  } else if (artifact.failureReason === 'upstream_failure') {
-    failureMessage = 'Dependency failed';
-  } else if (artifact.failureReason === 'conditions_not_met') {
-    failureMessage = 'Conditions not met';
-  } else if (artifact.status === 'failed') {
-    failureMessage = 'Generation failed';
-  } else {
-    failureMessage = 'Skipped';
-  }
-
-  return (
-    <MediaCard
-      isSelected={isSelected}
-      className={borderClass}
-      footer={<span className='text-xs text-foreground truncate'>{label}</span>}
-    >
-      <div className='aspect-video bg-muted/30 flex flex-col items-center justify-center gap-2 p-4'>
-        <Icon className={`size-10 ${iconClass}`} />
-        <div className={`text-xs text-center ${iconClass}`}>
-          {failureMessage}
-        </div>
-      </div>
-    </MediaCard>
-  );
-}
-
 function ObjectArrayCardFooter({
   label,
   isEdited,
@@ -502,14 +311,6 @@ function ObjectArrayCardFooter({
       )}
     </>
   );
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024)
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
 function formatJson(content: string): string {

@@ -3,10 +3,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { OutputsPanel } from './outputs-panel';
 import { ExecutionProvider } from '@/contexts/execution-context';
 import type { BlueprintGraphData } from '@/types/blueprint-graph';
+import type { ArtifactInfo } from '@/types/builds';
 
 const graphData: BlueprintGraphData = {
   meta: {
@@ -28,6 +29,23 @@ const graphData: BlueprintGraphData = {
       type: 'string',
     },
   ],
+};
+
+const imageProducerGraphData: BlueprintGraphData = {
+  meta: {
+    id: 'test-blueprint-image',
+    name: 'Test Blueprint Image',
+  },
+  nodes: [
+    {
+      id: 'Producer:ImageProducer',
+      type: 'producer',
+      label: 'ImageProducer',
+    },
+  ],
+  edges: [],
+  inputs: [],
+  outputs: [],
 };
 
 describe('OutputsPanel', () => {
@@ -68,5 +86,37 @@ describe('OutputsPanel', () => {
 
     expect(screen.getByText('Root.Script')).toBeTruthy();
     expect(screen.queryByText('Producers')).toBeNull();
+  });
+
+  it('shows card actions for object-array image artifacts', async () => {
+    const artifacts: ArtifactInfo[] = [
+      {
+        id: 'Artifact:ImageProducer.GeneratedImage[0][0]',
+        name: 'GeneratedImage-0-0.png',
+        hash: 'hash-image-0-0',
+        size: 1024,
+        mimeType: 'image/png',
+        status: 'succeeded',
+        createdAt: '2026-03-07T00:00:00.000Z',
+      },
+    ];
+
+    render(
+      <ExecutionProvider>
+        <OutputsPanel
+          outputs={[]}
+          selectedNodeId='Producer:ImageProducer'
+          movieId='movie-1'
+          blueprintFolder='test-blueprint'
+          artifacts={artifacts}
+          graphData={imageProducerGraphData}
+        />
+      </ExecutionProvider>
+    );
+
+    const actionsButton = await screen.findByLabelText('Card actions');
+    fireEvent.pointerDown(actionsButton);
+
+    expect(await screen.findByRole('menuitem', { name: 'Edit' })).toBeTruthy();
   });
 });

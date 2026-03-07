@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useState,
   useEffect,
   useMemo,
@@ -857,6 +858,47 @@ function SubGroupSection({
 }) {
   const { isArtifactSelected, isArtifactPinned } = useExecution();
 
+  const renderArtifactCard = useCallback(
+    (artifact: ArtifactInfo) => {
+      const isSelected = isArtifactSelected(artifact.id);
+      const isPinned = isArtifactPinned(artifact.id);
+
+      return (
+        <ArtifactCardRenderer
+          artifact={artifact}
+          artifacts={artifacts}
+          graphData={graphData}
+          blueprintFolder={blueprintFolder}
+          movieId={movieId}
+          isSelected={isSelected}
+          isPinned={isPinned}
+          producerModels={producerModels}
+          modelSelections={modelSelections}
+          availableEditModels={availableEditModels}
+          buildInputs={buildInputs}
+          onArtifactUpdated={onArtifactUpdated}
+          subGroup={subGroup}
+          useSimplifiedTextFooter={isPromptProducer}
+        />
+      );
+    },
+    [
+      artifacts,
+      availableEditModels,
+      blueprintFolder,
+      buildInputs,
+      graphData,
+      isArtifactPinned,
+      isArtifactSelected,
+      isPromptProducer,
+      modelSelections,
+      movieId,
+      onArtifactUpdated,
+      producerModels,
+      subGroup,
+    ]
+  );
+
   // Object-array sub-groups get the two-zone layout
   if (subGroup.type === 'object-array') {
     return (
@@ -864,11 +906,10 @@ function SubGroupSection({
         {subGroup.label && <SubGroupHeader label={subGroup.label} />}
         <ObjectArraySection
           subGroup={subGroup}
-          artifacts={artifacts}
-          graphData={graphData}
           blueprintFolder={blueprintFolder}
           movieId={movieId}
           onArtifactUpdated={onArtifactUpdated}
+          renderArtifactCard={renderArtifactCard}
         />
       </div>
     );
@@ -879,26 +920,10 @@ function SubGroupSection({
       {subGroup.label && <SubGroupHeader label={subGroup.label} />}
       <MediaGrid className='!grid-cols-[repeat(auto-fill,minmax(20rem,20rem))] justify-start'>
         {subGroup.artifacts.map((artifact) => {
-          const isSelected = isArtifactSelected(artifact.id);
-          const isPinned = isArtifactPinned(artifact.id);
           return (
-            <ArtifactCardRenderer
-              key={artifact.id}
-              artifact={artifact}
-              artifacts={artifacts}
-              graphData={graphData}
-              blueprintFolder={blueprintFolder}
-              movieId={movieId}
-              isSelected={isSelected}
-              isPinned={isPinned}
-              producerModels={producerModels}
-              modelSelections={modelSelections}
-              availableEditModels={availableEditModels}
-              buildInputs={buildInputs}
-              onArtifactUpdated={onArtifactUpdated}
-              subGroup={subGroup}
-              useSimplifiedTextFooter={isPromptProducer}
-            />
+            <Fragment key={artifact.id}>
+              {renderArtifactCard(artifact)}
+            </Fragment>
           );
         })}
       </MediaGrid>
