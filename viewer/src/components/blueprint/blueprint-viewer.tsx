@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useEffect, useState } from "react";
+import { useCallback, useMemo, useEffect, useState } from 'react';
 import {
   ReactFlow,
   Background,
   Controls,
+  ViewportPortal,
   // MiniMap,
   useNodesState,
   useEdgesState,
@@ -11,18 +12,27 @@ import {
   type Node,
   type NodeTypes,
   type EdgeTypes,
-} from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 
-import { InputNode } from "./nodes/input-node";
-import { ProducerNode } from "./nodes/producer-node";
-import { OutputNode } from "./nodes/output-node";
-import { ConditionalEdge } from "./edges/conditional-edge";
-import { ProducerDetailsDialog, type ProducerDetails } from "./producer-details-dialog";
-import { layoutBlueprintGraph } from "@/lib/blueprint-layout";
-import type { BlueprintGraphData, ProducerBinding } from "@/types/blueprint-graph";
-import type { ProducerStatusMap, ProducerStatus } from "@/types/generation";
-import { useDarkMode } from "@/hooks/use-dark-mode";
+import { InputNode } from './nodes/input-node';
+import { ProducerNode } from './nodes/producer-node';
+import { OutputNode } from './nodes/output-node';
+import { ConditionalEdge } from './edges/conditional-edge';
+import {
+  ProducerDetailsDialog,
+  type ProducerDetails,
+} from './producer-details-dialog';
+import {
+  defaultBlueprintLayoutConfig,
+  layoutBlueprintGraph,
+} from '@/lib/blueprint-layout';
+import type {
+  BlueprintGraphData,
+  ProducerBinding,
+} from '@/types/blueprint-graph';
+import type { ProducerStatusMap, ProducerStatus } from '@/types/generation';
+import { useDarkMode } from '@/hooks/use-dark-mode';
 
 const nodeTypes: NodeTypes = {
   inputNode: InputNode,
@@ -36,6 +46,8 @@ const edgeTypes: EdgeTypes = {
 
 interface BlueprintViewerProps {
   graphData: BlueprintGraphData;
+  selectedUpToLayer?: number | null;
+  onLayerSelect?: (layerIndex: number) => void;
   onNodeSelect?: (nodeId: string | null) => void;
   producerStatuses?: ProducerStatusMap;
 }
@@ -51,22 +63,201 @@ interface ProducerNodeData {
 }
 
 const validProducerStatuses: ProducerStatus[] = [
-  "success",
-  "error",
-  "not-run-yet",
-  "skipped",
-  "running",
-  "pending",
+  'success',
+  'error',
+  'not-run-yet',
+  'skipped',
+  'running',
+  'pending',
 ];
 
+interface LayerGuide {
+  key: string;
+  layerIndex: number;
+  label: string;
+  bandX: number;
+  bandTop: number;
+  bandWidth: number;
+  bandHeight: number;
+  headerX: number;
+  headerY: number;
+  included: boolean;
+}
+
+const layerGuideConfig = {
+  horizontalPadding: 26,
+  minHorizontalPadding: 8,
+  interLayerGap: 10,
+  verticalPadding: 16,
+  headerWidth: 120,
+  headerHeight: 24,
+  headerOffset: 10,
+  nodeWidthAllowance: 24,
+  nodeHeightAllowance: 30,
+} as const;
+
+function buildLayerGuides(
+  graphData: BlueprintGraphData,
+  layoutNodes: Node[],
+  selectedUpToLayer: number | null
+): LayerGuide[] {
+  const layerCount = graphData.layerCount ?? 0;
+  if (layerCount <= 1) {
+    return [];
+  }
+
+  const layerNodeBounds = new Map<
+    number,
+    {
+      minX: number;
+      maxX: number;
+      minY: number;
+      maxY: number;
+    }
+  >();
+
+  const fallbackNodeWidth =
+    defaultBlueprintLayoutConfig.nodeWidth +
+    layerGuideConfig.nodeWidthAllowance;
+  const fallbackNodeHeight =
+    defaultBlueprintLayoutConfig.nodeHeight +
+    layerGuideConfig.nodeHeightAllowance;
+
+  for (const node of layoutNodes) {
+    if (node.type !== 'producerNode') {
+      continue;
+    }
+    const layer = graphData.layerAssignments?.[node.id] ?? 0;
+    const bounds = layerNodeBounds.get(layer);
+    const measuredWidth =
+      typeof node.measured?.width === 'number' ? node.measured.width : null;
+    const measuredHeight =
+      typeof node.measured?.height === 'number' ? node.measured.height : null;
+    const width = measuredWidth ?? fallbackNodeWidth;
+    const height = measuredHeight ?? fallbackNodeHeight;
+    const x = node.position.x;
+    const y = node.position.y;
+    const right = x + width;
+    const bottom = y + height;
+
+    if (!bounds) {
+      layerNodeBounds.set(layer, {
+        minX: x,
+        maxX: right,
+        minY: y,
+        maxY: bottom,
+      });
+      continue;
+    }
+
+    bounds.minX = Math.min(bounds.minX, x);
+    bounds.maxX = Math.max(bounds.maxX, right);
+    bounds.minY = Math.min(bounds.minY, y);
+    bounds.maxY = Math.max(bounds.maxY, bottom);
+  }
+
+  const layerBounds = Array.from({ length: layerCount }, (_, layerIndex) => {
+    const bounds = layerNodeBounds.get(layerIndex);
+    const fallbackX =
+      (layerIndex + 1) * defaultBlueprintLayoutConfig.horizontalSpacing;
+
+    return {
+      minX: bounds?.minX ?? fallbackX,
+      maxX: bounds?.maxX ?? fallbackX + fallbackNodeWidth,
+      minY: bounds?.minY ?? 0,
+      maxY: bounds?.maxY ?? fallbackNodeHeight,
+    };
+  });
+
+  const horizontalBands = layerBounds.map((bounds) => ({
+    left: bounds.minX - layerGuideConfig.horizontalPadding,
+    right: bounds.maxX + layerGuideConfig.horizontalPadding,
+    maxLeft: bounds.minX - layerGuideConfig.minHorizontalPadding,
+    minRight: bounds.maxX + layerGuideConfig.minHorizontalPadding,
+  }));
+
+  for (let i = 0; i < horizontalBands.length - 1; i += 1) {
+    const current = horizontalBands[i];
+    const next = horizontalBands[i + 1];
+    const existingGap = next.left - current.right;
+
+    if (existingGap >= layerGuideConfig.interLayerGap) {
+      continue;
+    }
+
+    let gapDeficit = layerGuideConfig.interLayerGap - existingGap;
+
+    const currentShrinkCapacity = current.right - current.minRight;
+    const nextShrinkCapacity = next.maxLeft - next.left;
+    const totalCapacity = currentShrinkCapacity + nextShrinkCapacity;
+
+    if (totalCapacity <= 0) {
+      continue;
+    }
+
+    const currentShare = (currentShrinkCapacity / totalCapacity) * gapDeficit;
+    const currentApplied = Math.min(currentShare, currentShrinkCapacity);
+    current.right -= currentApplied;
+    gapDeficit -= currentApplied;
+
+    const nextApplied = Math.min(gapDeficit, nextShrinkCapacity);
+    next.left += nextApplied;
+    gapDeficit -= nextApplied;
+
+    if (gapDeficit > 0) {
+      const extraCurrent = current.right - current.minRight;
+      const extraCurrentApplied = Math.min(gapDeficit, extraCurrent);
+      current.right -= extraCurrentApplied;
+      gapDeficit -= extraCurrentApplied;
+
+      if (gapDeficit > 0) {
+        const extraNext = next.maxLeft - next.left;
+        const extraNextApplied = Math.min(gapDeficit, extraNext);
+        next.left += extraNextApplied;
+      }
+    }
+  }
+
+  return Array.from({ length: layerCount }, (_, layerIndex) => {
+    const bounds = layerBounds[layerIndex];
+    const horizontalBand = horizontalBands[layerIndex];
+    const minY = bounds.minY;
+    const maxY = bounds.maxY;
+
+    const bandX = horizontalBand.left;
+    const bandTop = minY - layerGuideConfig.verticalPadding;
+    const bandWidth = horizontalBand.right - horizontalBand.left;
+    const bandHeight = maxY - minY + layerGuideConfig.verticalPadding * 2;
+    const headerCenterX = (horizontalBand.left + horizontalBand.right) / 2;
+    const headerX = headerCenterX - layerGuideConfig.headerWidth / 2;
+    const headerY =
+      bandTop - layerGuideConfig.headerHeight - layerGuideConfig.headerOffset;
+
+    return {
+      key: `layer-${layerIndex}`,
+      layerIndex,
+      label: `Layer ${layerIndex + 1}`,
+      bandX,
+      bandTop,
+      bandWidth,
+      bandHeight,
+      headerX,
+      headerY,
+      included: selectedUpToLayer === null || layerIndex <= selectedUpToLayer,
+    };
+  });
+}
+
 function parseProducerNodeData(node: Node): ProducerDetails {
-  if (node.type !== "producerNode") {
-    throw new Error(`Expected producer node type, received: ${String(node.type)}`);
+  if (node.type !== 'producerNode') {
+    throw new Error(
+      `Expected producer node type, received: ${String(node.type)}`
+    );
   }
 
   const data = node.data as Partial<ProducerNodeData>;
 
-  if (typeof data.label !== "string" || data.label.length === 0) {
+  if (typeof data.label !== 'string' || data.label.length === 0) {
     throw new Error(`Producer node ${node.id} is missing a label`);
   }
   if (!Array.isArray(data.inputBindings)) {
@@ -75,7 +266,10 @@ function parseProducerNodeData(node: Node): ProducerDetails {
   if (!Array.isArray(data.outputBindings)) {
     throw new Error(`Producer node ${node.id} is missing output bindings`);
   }
-  if (typeof data.status !== "string" || !validProducerStatuses.includes(data.status as ProducerStatus)) {
+  if (
+    typeof data.status !== 'string' ||
+    !validProducerStatuses.includes(data.status as ProducerStatus)
+  ) {
     throw new Error(`Producer node ${node.id} has an invalid status`);
   }
 
@@ -93,6 +287,8 @@ function parseProducerNodeData(node: Node): ProducerDetails {
 
 export function BlueprintViewer({
   graphData,
+  selectedUpToLayer,
+  onLayerSelect,
   onNodeSelect,
   producerStatuses,
 }: BlueprintViewerProps) {
@@ -104,7 +300,14 @@ export function BlueprintViewer({
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [dialogProducer, setDialogProducer] = useState<ProducerDetails | null>(null);
+  const [dialogProducer, setDialogProducer] = useState<ProducerDetails | null>(
+    null
+  );
+
+  const layerGuides = useMemo(
+    () => buildLayerGuides(graphData, nodes, selectedUpToLayer ?? null),
+    [graphData, nodes, selectedUpToLayer]
+  );
 
   // Synchronize nodes and edges when layout changes (new build selected, graph changes, etc.)
   useEffect(() => {
@@ -121,7 +324,7 @@ export function BlueprintViewer({
 
       // Find selection changes
       for (const change of changes) {
-        if (change.type === "select") {
+        if (change.type === 'select') {
           if (change.selected) {
             onNodeSelect?.(change.id);
           }
@@ -140,7 +343,7 @@ export function BlueprintViewer({
     (_event, node) => {
       onNodeSelect?.(node.id);
 
-      if (node.type === "producerNode") {
+      if (node.type === 'producerNode') {
         setDialogProducer(parseProducerNodeData(node));
         return;
       }
@@ -157,7 +360,7 @@ export function BlueprintViewer({
   }, []);
 
   return (
-    <div className="absolute inset-0">
+    <div className='absolute inset-0'>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -175,11 +378,63 @@ export function BlueprintViewer({
         minZoom={0.1}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
-        className="bg-background"
+        className='bg-background'
       >
-        <Background color={isDark ? "#666" : "#ccc"} gap={20} />
+        <Background color={isDark ? '#666' : '#ccc'} gap={20} />
+        {layerGuides.length > 0 && (
+          <ViewportPortal>
+            <>
+              {layerGuides.map((guide) => (
+                <div
+                  key={`${guide.key}-band`}
+                  className={`
+                    pointer-events-none absolute rounded-xl border transition-colors duration-200
+                    ${
+                      guide.included
+                        ? 'border-item-active-border/60 bg-item-active-bg/45'
+                        : 'border-border/35 bg-muted/20'
+                    }
+                  `}
+                  style={{
+                    left: guide.bandX,
+                    top: guide.bandTop,
+                    width: guide.bandWidth,
+                    height: guide.bandHeight,
+                  }}
+                />
+              ))}
+              {layerGuides.map((guide) => (
+                <button
+                  key={`${guide.key}-header`}
+                  type='button'
+                  onClick={() => onLayerSelect?.(guide.layerIndex)}
+                  disabled={onLayerSelect === undefined}
+                  className={`
+                    absolute flex items-center justify-center rounded-md border
+                    px-2 text-[11px] uppercase tracking-[0.12em] font-semibold transition-colors duration-200
+                    ${onLayerSelect ? 'cursor-pointer pointer-events-auto' : 'pointer-events-none'}
+                    ${
+                      guide.included
+                        ? 'border-item-active-border/70 bg-item-active-bg/85 text-foreground shadow-xs'
+                        : 'border-border/40 bg-sidebar-header-bg/90 text-muted-foreground'
+                    }
+                  `}
+                  title={`Set scope through ${guide.label}`}
+                  style={{
+                    left: guide.headerX,
+                    top: guide.headerY,
+                    width: layerGuideConfig.headerWidth,
+                    height: layerGuideConfig.headerHeight,
+                  }}
+                >
+                  {guide.label}
+                </button>
+              ))}
+            </>
+          </ViewportPortal>
+        )}
         <Controls
-          className="!bg-card !border-border/60 !shadow-lg"
+          className='!bg-card !border-border/60 !shadow-lg'
           showInteractive={false}
         />
         {/* <MiniMap

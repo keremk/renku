@@ -226,16 +226,32 @@ describe('ExecutionContext', () => {
       expect(result.current.state.totalLayers).toBe(5);
     });
 
+    it('clamps selected layer range when layer count shrinks', () => {
+      const { result } = renderHook(() => useExecution(), {
+        wrapper: createWrapper(),
+      });
+
+      act(() => {
+        result.current.setLayerRange({ upToLayer: 4 });
+        result.current.setTotalLayers(3);
+      });
+
+      expect(result.current.state.totalLayers).toBe(3);
+      expect(result.current.state.layerRange).toEqual({ upToLayer: 2 });
+    });
+
     it('handles zero layers', () => {
       const { result } = renderHook(() => useExecution(), {
         wrapper: createWrapper(),
       });
 
       act(() => {
+        result.current.setLayerRange({ upToLayer: 2 });
         result.current.setTotalLayers(0);
       });
 
       expect(result.current.state.totalLayers).toBe(0);
+      expect(result.current.state.layerRange).toEqual({ upToLayer: null });
     });
   });
 
@@ -1125,6 +1141,10 @@ describe('ExecutionContext', () => {
         await result.current.requestPlan('test-blueprint');
       });
 
+      act(() => {
+        result.current.setLayerRange({ upToLayer: 1 });
+      });
+
       // After requestPlan, totalLayers is set from blueprintLayers (3)
       expect(result.current.state.totalLayers).toBe(3);
       expect(result.current.state.status).toBe('confirming');
@@ -1137,6 +1157,7 @@ describe('ExecutionContext', () => {
       expect(result.current.state.planInfo).toBeNull();
       // These should be preserved after reset
       expect(result.current.state.totalLayers).toBe(3); // Preserved from before reset
+      expect(result.current.state.layerRange).toEqual({ upToLayer: 1 });
       expect(result.current.state.bottomPanelVisible).toBe(true);
       expect(
         result.current.state.selectedForRegeneration.has('artifact-1')

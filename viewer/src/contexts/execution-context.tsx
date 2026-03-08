@@ -139,7 +139,20 @@ function executionReducer(
       return { ...state, layerRange: action.range };
 
     case 'SET_TOTAL_LAYERS':
-      return { ...state, totalLayers: action.totalLayers };
+      return {
+        ...state,
+        totalLayers: action.totalLayers,
+        layerRange: {
+          ...state.layerRange,
+          upToLayer:
+            action.totalLayers <= 0
+              ? null
+              : state.layerRange.upToLayer !== null &&
+                  state.layerRange.upToLayer > action.totalLayers - 1
+                ? action.totalLayers - 1
+                : state.layerRange.upToLayer,
+        },
+      };
 
     case 'START_PLANNING':
       return {
@@ -233,6 +246,7 @@ function executionReducer(
         ...initialState,
         producerStatuses: state.producerStatuses,
         totalLayers: state.totalLayers,
+        layerRange: state.layerRange,
         bottomPanelVisible: state.bottomPanelVisible,
         selectedForRegeneration: state.selectedForRegeneration,
         pinnedArtifacts: state.pinnedArtifacts,

@@ -1,6 +1,6 @@
-import type { Node, Edge } from "@xyflow/react";
-import type { BlueprintGraphData } from "@/types/blueprint-graph";
-import type { ProducerStatusMap } from "@/types/generation";
+import type { Node, Edge } from '@xyflow/react';
+import type { BlueprintGraphData } from '@/types/blueprint-graph';
+import type { ProducerStatusMap } from '@/types/generation';
 
 export interface LayoutConfig {
   nodeWidth: number;
@@ -9,7 +9,7 @@ export interface LayoutConfig {
   verticalSpacing: number;
 }
 
-const defaultConfig: LayoutConfig = {
+export const defaultBlueprintLayoutConfig: LayoutConfig = {
   nodeWidth: 180,
   nodeHeight: 60,
   horizontalSpacing: 250,
@@ -23,15 +23,15 @@ export interface LayoutResult {
 
 export function layoutBlueprintGraph(
   data: BlueprintGraphData,
-  config: LayoutConfig = defaultConfig,
+  config: LayoutConfig = defaultBlueprintLayoutConfig,
   producerStatuses?: ProducerStatusMap
 ): LayoutResult {
   const { nodes: graphNodes, edges: graphEdges } = data;
 
   // Separate nodes by type
-  const inputNodes = graphNodes.filter((n) => n.type === "input");
-  const producerNodes = graphNodes.filter((n) => n.type === "producer");
-  const outputNodes = graphNodes.filter((n) => n.type === "output");
+  const inputNodes = graphNodes.filter((n) => n.type === 'input');
+  const producerNodes = graphNodes.filter((n) => n.type === 'producer');
+  const outputNodes = graphNodes.filter((n) => n.type === 'output');
 
   // Use pre-computed layer assignments from server
   const producerLayers: Map<string, number> = new Map(
@@ -45,7 +45,7 @@ export function layoutBlueprintGraph(
   inputNodes.forEach((node, index) => {
     nodes.push({
       id: node.id,
-      type: "inputNode",
+      type: 'inputNode',
       position: {
         x: 0,
         y: index * config.verticalSpacing,
@@ -81,7 +81,7 @@ export function layoutBlueprintGraph(
 
     nodes.push({
       id: node.id,
-      type: "producerNode",
+      type: 'producerNode',
       position: {
         x: (layer + 1) * config.horizontalSpacing,
         y: layerIndex * config.verticalSpacing,
@@ -105,7 +105,7 @@ export function layoutBlueprintGraph(
   outputNodes.forEach((node, index) => {
     nodes.push({
       id: node.id,
-      type: "outputNode",
+      type: 'outputNode',
       position: {
         x: (maxLayer + 2) * config.horizontalSpacing,
         y: index * config.verticalSpacing,
@@ -122,14 +122,14 @@ export function layoutBlueprintGraph(
     id: edge.id,
     source: edge.source,
     target: edge.target,
-    type: edge.isConditional ? "conditionalEdge" : "default",
+    type: edge.isConditional ? 'conditionalEdge' : 'default',
     data: {
       conditionName: edge.conditionName,
       isConditional: edge.isConditional,
     },
     animated: edge.isConditional,
     style: edge.isConditional
-      ? { strokeDasharray: "5,5", stroke: "#888" }
+      ? { strokeDasharray: '5,5', stroke: '#888' }
       : undefined,
   }));
 

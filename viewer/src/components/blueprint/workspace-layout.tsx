@@ -87,7 +87,8 @@ function WorkspaceLayoutInner({
   >(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { state, initializeFromManifest, setTotalLayers } = useExecution();
+  const { state, initializeFromManifest, setTotalLayers, setLayerRange } =
+    useExecution();
   const isExecuting = state.status === 'executing';
 
   // Tab state management with auto-switching
@@ -317,6 +318,13 @@ function WorkspaceLayoutInner({
     setSelectedNodeId(nodeId);
   }, []);
 
+  const handleLayerSelect = useCallback(
+    (layerIndex: number) => {
+      setLayerRange({ upToLayer: layerIndex });
+    },
+    [setLayerRange]
+  );
+
   // Determine effective movie ID - use selected build or passed movieId
   const effectiveMovieId = selectedBuildId ?? movieId;
 
@@ -475,6 +483,8 @@ function WorkspaceLayoutInner({
             isExecuting={isExecuting}
             hasLogs={hasExecutionLogs}
             graphData={graphData}
+            selectedUpToLayer={state.layerRange.upToLayer}
+            onLayerSelect={handleLayerSelect}
             onNodeSelect={handleNodeSelect}
             producerStatuses={state.producerStatuses}
             executionLogs={state.executionLogs}
