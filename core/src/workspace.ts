@@ -8,11 +8,14 @@ import {
   access,
   copyFile,
   mkdir,
+  rename,
   readdir,
   readFile,
+  rm,
+  stat,
   writeFile,
 } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { dirname, parse, resolve } from 'node:path';
 import os from 'node:os';
 import process from 'node:process';
 
@@ -153,6 +156,22 @@ export interface InitWorkspaceResult {
   gitignoreCreated: boolean;
 }
 
+const REQUIRED_CATALOG_DIRECTORIES = [
+  'blueprints',
+  'models',
+  'producers',
+] as const;
+
+export interface UpdateWorkspaceCatalogOptions {
+  rootFolder: string;
+  catalogSourceRoot: string;
+  configuredCatalogRoot?: string;
+}
+
+export interface UpdateWorkspaceCatalogResult {
+  catalogRoot: string;
+}
+
 export async function initWorkspace(
   options: InitWorkspaceOptions
 ): Promise<InitWorkspaceResult> {
@@ -188,6 +207,67 @@ export async function initWorkspace(
   return { rootFolder, cliConfigPath, gitignoreCreated };
 }
 
+export async function updateWorkspaceCatalog(
+  options: UpdateWorkspaceCatalogOptions
+): Promise<UpdateWorkspaceCatalogResult> {
+  const rootFolder = resolve(options.rootFolder);
+  assertSafeWorkspaceRoot(rootFolder);
+
+  const catalogSourceRoot = resolve(options.catalogSourceRoot);
+  await assertValidCatalogSourceRoot(catalogSourceRoot);
+
+  const canonicalCatalogRoot = resolve(rootFolder, 'catalog');
+  if (options.configuredCatalogRoot !== undefined) {
+    const configuredCatalogRoot = resolve(options.configuredCatalogRoot);
+    if (configuredCatalogRoot !== canonicalCatalogRoot) {
+      throw new Error(
+        `Configured catalog root "${configuredCatalogRoot}" does not match canonical workspace catalog root "${canonicalCatalogRoot}".`
+      );
+    }
+  }
+
+  await mkdir(rootFolder, { recursive: true });
+
+  const operationId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const stagingCatalogRoot = resolve(
+    rootFolder,
+    `.renku-catalog-update-staging-${operationId}`
+  );
+  const backupCatalogRoot = resolve(
+    rootFolder,
+    `.renku-catalog-update-backup-${operationId}`
+  );
+
+  await copyDirectory(catalogSourceRoot, stagingCatalogRoot, {
+    overwrite: false,
+  });
+
+  const hadExistingCatalog = await pathExists(canonicalCatalogRoot);
+  if (hadExistingCatalog) {
+    await rename(canonicalCatalogRoot, backupCatalogRoot);
+  }
+
+  try {
+    await rename(stagingCatalogRoot, canonicalCatalogRoot);
+  } catch (error) {
+    await rollbackCatalogSwap({
+      canonicalCatalogRoot,
+      backupCatalogRoot,
+      stagingCatalogRoot,
+      hadExistingCatalog,
+    });
+    throw new Error(
+      `Failed to replace catalog at "${canonicalCatalogRoot}": ${getErrorMessage(error)}`
+    );
+  }
+
+  if (hadExistingCatalog) {
+    await rm(backupCatalogRoot, { recursive: true, force: true });
+  }
+
+  return { catalogRoot: canonicalCatalogRoot };
+}
+
 async function writeFileIfMissing(
   filePath: string,
   content: string
@@ -203,6 +283,13 @@ async function writeFileIfMissing(
 
 interface CopyDirectoryOptions {
   overwrite: boolean;
+}
+
+interface RollbackCatalogSwapOptions {
+  canonicalCatalogRoot: string;
+  backupCatalogRoot: string;
+  stagingCatalogRoot: string;
+  hadExistingCatalog: boolean;
 }
 
 async function copyDirectory(
@@ -229,6 +316,84 @@ async function copyDirectory(
       await copyFile(sourcePath, targetPath);
     }
   }
+}
+
+async function assertValidCatalogSourceRoot(sourceRoot: string): Promise<void> {
+  const missingDirectories: string[] = [];
+  for (const requiredDirectory of REQUIRED_CATALOG_DIRECTORIES) {
+    const candidate = resolve(sourceRoot, requiredDirectory);
+    if (!(await directoryExists(candidate))) {
+      missingDirectories.push(requiredDirectory);
+    }
+  }
+
+  if (missingDirectories.length > 0) {
+    throw new Error(
+      `Invalid catalog source root "${sourceRoot}". Missing required directories: ${missingDirectories.join(', ')}.`
+    );
+  }
+}
+
+function assertSafeWorkspaceRoot(rootFolder: string): void {
+  const rootPath = parse(rootFolder).root;
+  if (rootFolder === rootPath) {
+    throw new Error(
+      `Refusing to update catalog for workspace root "${rootFolder}" because it is a filesystem root.`
+    );
+  }
+}
+
+async function rollbackCatalogSwap(
+  options: RollbackCatalogSwapOptions
+): Promise<void> {
+  const {
+    canonicalCatalogRoot,
+    backupCatalogRoot,
+    stagingCatalogRoot,
+    hadExistingCatalog,
+  } = options;
+
+  if (hadExistingCatalog) {
+    const backupExists = await pathExists(backupCatalogRoot);
+    const canonicalExists = await pathExists(canonicalCatalogRoot);
+    if (backupExists && !canonicalExists) {
+      await rename(backupCatalogRoot, canonicalCatalogRoot);
+    }
+    if (backupExists && canonicalExists) {
+      throw new Error(
+        `Rollback aborted: both backup "${backupCatalogRoot}" and catalog "${canonicalCatalogRoot}" exist.`
+      );
+    }
+  }
+
+  if (await pathExists(stagingCatalogRoot)) {
+    await rm(stagingCatalogRoot, { recursive: true, force: true });
+  }
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function directoryExists(path: string): Promise<boolean> {
+  try {
+    const entry = await stat(path);
+    return entry.isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
 }
 
 // ---------------------------------------------------------------------------

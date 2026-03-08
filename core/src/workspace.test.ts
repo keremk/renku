@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, readFile, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join, parse, resolve } from 'node:path';
 import {
   readCliConfig,
   writeCliConfig,
   isWorkspaceInitialized,
   initWorkspace,
+  updateWorkspaceCatalog,
   writeApiKeysEnvFile,
   getUserEnvFilePath,
   getDefaultCliConfigPath,
@@ -226,6 +227,98 @@ describe('initWorkspace', () => {
       'utf8'
     );
     expect(content).toBe('# existing');
+  });
+});
+
+describe('updateWorkspaceCatalog', () => {
+  let tempDir: string;
+  let sourceDir: string;
+
+  beforeEach(async () => {
+    tempDir = await makeTempDir();
+    sourceDir = await makeTempDir();
+    await mkdir(join(sourceDir, 'blueprints'), { recursive: true });
+    await mkdir(join(sourceDir, 'models'), { recursive: true });
+    await mkdir(join(sourceDir, 'producers'), { recursive: true });
+    await writeFile(
+      join(sourceDir, 'blueprints', 'sample.yaml'),
+      'name: sample-v2',
+      'utf8'
+    );
+  });
+
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+    await rm(sourceDir, { recursive: true, force: true });
+  });
+
+  it('replaces existing catalog and removes stale files', async () => {
+    const rootFolder = join(tempDir, 'workspace-update');
+    const catalogRoot = join(rootFolder, 'catalog');
+    const staleDir = join(catalogRoot, 'obsolete');
+    const staleFile = join(staleDir, 'old.txt');
+
+    await mkdir(staleDir, { recursive: true });
+    await writeFile(staleFile, 'stale', 'utf8');
+    await mkdir(join(catalogRoot, 'blueprints'), { recursive: true });
+    await writeFile(
+      join(catalogRoot, 'blueprints', 'sample.yaml'),
+      'name: stale-v1',
+      'utf8'
+    );
+
+    const result = await updateWorkspaceCatalog({
+      rootFolder,
+      catalogSourceRoot: sourceDir,
+      configuredCatalogRoot: catalogRoot,
+    });
+
+    expect(result.catalogRoot).toBe(catalogRoot);
+    await expect(readFile(staleFile, 'utf8')).rejects.toThrow();
+    const blueprint = await readFile(
+      join(catalogRoot, 'blueprints', 'sample.yaml'),
+      'utf8'
+    );
+    expect(blueprint).toBe('name: sample-v2');
+  });
+
+  it('throws when configured catalog root is not canonical', async () => {
+    const rootFolder = join(tempDir, 'workspace-invalid-catalog-root');
+    const nonCanonicalCatalogRoot = join(rootFolder, 'custom-catalog');
+
+    await expect(
+      updateWorkspaceCatalog({
+        rootFolder,
+        catalogSourceRoot: sourceDir,
+        configuredCatalogRoot: nonCanonicalCatalogRoot,
+      })
+    ).rejects.toThrow(/does not match canonical workspace catalog root/);
+  });
+
+  it('throws when catalog source root is missing required directories', async () => {
+    const rootFolder = join(tempDir, 'workspace-invalid-source');
+    const invalidSourceRoot = join(tempDir, 'invalid-source');
+
+    await mkdir(join(invalidSourceRoot, 'blueprints'), { recursive: true });
+    await mkdir(join(invalidSourceRoot, 'models'), { recursive: true });
+
+    await expect(
+      updateWorkspaceCatalog({
+        rootFolder,
+        catalogSourceRoot: invalidSourceRoot,
+      })
+    ).rejects.toThrow(/Missing required directories: producers/);
+  });
+
+  it('throws when workspace root is a filesystem root', async () => {
+    const filesystemRoot = parse(tempDir).root;
+
+    await expect(
+      updateWorkspaceCatalog({
+        rootFolder: filesystemRoot,
+        catalogSourceRoot: sourceDir,
+      })
+    ).rejects.toThrow(/because it is a filesystem root/);
   });
 });
 

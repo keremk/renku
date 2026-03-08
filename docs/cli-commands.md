@@ -123,7 +123,7 @@ renku update
 **Behavior:**
 
 - Reads the active workspace from CLI config
-- Copies bundled catalog files, overwriting existing ones
+- Replaces the workspace catalog with the bundled catalog contents
 - Users can revert changes using git
 
 **Example:**

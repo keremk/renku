@@ -53,7 +53,7 @@ renku init --root=/Users/alice/renku-projects
 
 ### renku update
 
-Update the catalog in the active workspace by copying the latest bundled catalog files (models, producers, and example blueprints).
+Update the catalog in the active workspace by replacing it with the latest bundled catalog (models, producers, and example blueprints).
 
 **Usage:**
 
@@ -64,7 +64,8 @@ renku update
 **Behavior:**
 
 - Reads the active workspace from the CLI config
-- Copies bundled catalog files (models, producers, example blueprints), overwriting existing ones
+- Replaces the workspace `catalog/` contents from the bundled catalog (stale files are removed)
+- Fails fast if the configured catalog path is not the canonical `{workspaceRoot}/catalog` path
 - Users can revert changes using git if needed
 
 **Example:**

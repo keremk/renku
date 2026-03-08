@@ -1,7 +1,8 @@
+import { updateWorkspaceCatalog } from '@gorenku/core';
 import { readCliConfig } from '../lib/cli-config.js';
 import {
+	getBundledCatalogRoot,
 	getCliCatalogRoot,
-	updateBundledCatalogAssets,
 } from '../lib/config-assets.js';
 
 export interface UpdateOptions {
@@ -23,10 +24,14 @@ export async function runUpdate(
 		throw new Error('Renku CLI is not initialized. Run "renku init" first.');
 	}
 
-	const catalogRoot =
-		cliConfig.catalog?.root ?? getCliCatalogRoot(cliConfig.storage.root);
-	await updateBundledCatalogAssets(catalogRoot, {
-		sourceRoot: options.catalogSourceRoot,
+	const catalogRoot = getCliCatalogRoot(cliConfig.storage.root);
+	const catalogSourceRoot =
+		options.catalogSourceRoot ?? getBundledCatalogRoot();
+
+	await updateWorkspaceCatalog({
+		rootFolder: cliConfig.storage.root,
+		catalogSourceRoot,
+		configuredCatalogRoot: cliConfig.catalog?.root,
 	});
 
 	return { catalogRoot };
