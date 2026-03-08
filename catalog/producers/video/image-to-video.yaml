@@ -152,6 +152,24 @@ mappings:
       AspectRatio: aspect_ratio
       Resolution: resolution
 
+    # LTX-2.3 Image-to-Video
+    ltx-2.3/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: generate_audio
+
+    # LTX-2.3 Image-to-Video Fast
+    ltx-2.3/image-to-video/fast:
+      Prompt: prompt
+      StartImage: image_url
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: generate_audio
+
     # LTX-2-19b Distilled Image-to-Video
     ltx-2-19b/distilled/image-to-video:
       Prompt: prompt
@@ -366,6 +384,24 @@ mappings:
       Duration: duration
       Resolution: resolution
       AudioUrl: audio
+
+    # Lightricks LTX 2.3 Pro (with image)
+    lightricks/ltx-2.3-pro:
+      Prompt: prompt
+      StartImage: image
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: generate_audio
+
+    # Lightricks LTX 2.3 Fast (with image)
+    lightricks/ltx-2.3-fast:
+      Prompt: prompt
+      StartImage: image
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: generate_audio
 
     # Wan Video WAN 2.6 Image-to-Video Flash
     wan-video/wan2.6-i2v-flash:

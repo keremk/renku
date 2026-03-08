@@ -1,0 +1,219 @@
+{
+  "input_schema": {
+    "x-fal-order-properties": [
+      "video_url",
+      "prompt",
+      "start_time",
+      "duration",
+      "retake_mode"
+    ],
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "Change flower to red rose"
+        ],
+        "title": "Prompt",
+        "type": "string",
+        "maxLength": 5000,
+        "description": "The prompt to retake the video with",
+        "minLength": 1
+      },
+      "duration": {
+        "description": "The duration of the video to retake in seconds",
+        "type": "number",
+        "minimum": 2,
+        "title": "Duration",
+        "maximum": 20,
+        "default": 5
+      },
+      "video_url": {
+        "examples": [
+          "https://v3b.fal.media/files/b/0a90e00e/eNWXGtaGyZO--e6KcJh-3_171_video.mp4"
+        ],
+        "title": "Video URL",
+        "type": "string",
+        "description": "The URL of the video to retake",
+        "format": "uri"
+      },
+      "start_time": {
+        "description": "The start time of the video to retake in seconds",
+        "type": "number",
+        "minimum": 0,
+        "title": "Start Time",
+        "maximum": 20,
+        "default": 0
+      },
+      "retake_mode": {
+        "enum": [
+          "replace_audio",
+          "replace_video",
+          "replace_audio_and_video"
+        ],
+        "title": "Retake Mode",
+        "type": "string",
+        "description": "The retake mode to use for the retake",
+        "default": "replace_audio_and_video"
+      }
+    },
+    "title": "LTXV23RetakeVideoRequest",
+    "required": [
+      "video_url",
+      "prompt"
+    ]
+  },
+  "output_schema": {
+    "x-fal-order-properties": [
+      "video"
+    ],
+    "type": "object",
+    "properties": {
+      "video": {
+        "examples": [
+          {
+            "file_name": "xvl9SlF6b7a8327wKJDvm_JW6crfr3.mp4",
+            "content_type": "video/mp4",
+            "url": "https://v3b.fal.media/files/b/0a90e00f/xvl9SlF6b7a8327wKJDvm_JW6crfr3.mp4"
+          }
+        ],
+        "description": "The generated video file",
+        "$ref": "#/VideoFile"
+      }
+    },
+    "title": "LTXV23RetakeVideoResponse",
+    "required": [
+      "video"
+    ]
+  },
+  "VideoFile": {
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "width",
+      "height",
+      "fps",
+      "duration",
+      "num_frames"
+    ],
+    "type": "object",
+    "properties": {
+      "height": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Height",
+        "description": "The height of the video"
+      },
+      "duration": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Duration",
+        "description": "The duration of the video"
+      },
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "title": "File Size",
+        "description": "The size of the file in bytes.",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "url": {
+        "title": "Url",
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
+      },
+      "width": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Width",
+        "description": "The width of the video"
+      },
+      "fps": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Fps",
+        "description": "The FPS of the video"
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name",
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "num_frames": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Num Frames",
+        "description": "The number of frames in the video"
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type",
+        "description": "The mime type of the file.",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "title": "VideoFile",
+    "required": [
+      "url"
+    ]
+  }
+}

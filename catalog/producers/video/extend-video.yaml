@@ -1,0 +1,115 @@
+meta:
+  name: Video Extension Generator
+  description: Extend an existing video by generating new frames at the beginning or end. Use this when you want to make a video longer while maintaining visual continuity.
+  id: ExtendVideoProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Text description guiding the extension content.
+    type: string
+  - name: SourceVideo
+    description: URL of the video to extend.
+    type: string
+
+  # Duration
+  - name: Duration
+    description: Duration in seconds to extend the video.
+    type: integer
+
+  # Extension direction
+  - name: Mode
+    description: "Where to extend: 'end' (default) or 'start'."
+    type: string
+
+  # Sizing
+  - name: AspectRatio
+    description: "Aspect ratio (16:9, 9:16, 1:1, 4:3, 3:4, auto)."
+    type: string
+  - name: Resolution
+    description: "Resolution preset (480p, 720p, 1080p)."
+    type: string
+
+  # Audio
+  - name: GenerateAudio
+    description: Whether to generate audio.
+    type: boolean
+
+artifacts:
+  - name: GeneratedVideo
+    description: The extended video.
+    type: video
+  - name: FirstFrame
+    description: The first frame of the extended video.
+    type: image
+  - name: LastFrame
+    description: The last frame of the extended video.
+    type: image
+  - name: AudioTrack
+    description: The audio track of the extended video.
+    type: audio
+
+mappings:
+  fal-ai:
+    # Veo 3.1 Extend-Video
+    veo3.1/extend-video:
+      Prompt: prompt
+      SourceVideo: video_url
+      Duration:
+        field: duration
+        intToSecondsString: true
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: generate_audio
+
+    # Veo 3.1 Fast Extend-Video
+    veo3.1/fast/extend-video:
+      Prompt: prompt
+      SourceVideo: video_url
+      Duration:
+        field: duration
+        intToSecondsString: true
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: generate_audio
+
+    # LTX-2.3 Extend-Video
+    ltx-2.3/extend-video:
+      Prompt: prompt
+      SourceVideo: video_url
+      Duration: duration
+      Mode: mode
+
+    # LTX-2-19b Distilled Extend-Video
+    ltx-2-19b/distilled/extend-video:
+      Prompt: prompt
+      SourceVideo: video_url
+      VideoSize:
+        field: video_size
+        combine:
+          inputs: [AspectRatio, Resolution]
+          table:
+            "16:9+480p": { width: 848, height: 480 }
+            "16:9+720p": { width: 1280, height: 720 }
+            "9:16+480p": { width: 480, height: 848 }
+            "9:16+720p": { width: 720, height: 1280 }
+            "4:3+480p": { width: 640, height: 480 }
+            "4:3+720p": { width: 960, height: 720 }
+            "3:4+480p": { width: 480, height: 640 }
+            "3:4+720p": { width: 720, height: 960 }
+            "1:1+480p": { width: 512, height: 512 }
+            "1:1+720p": { width: 720, height: 720 }
+            "16:9+": auto
+            "9:16+": auto
+            "4:3+": auto
+            "3:4+": auto
+            "1:1+": auto
+            "auto+": auto
+      Duration:
+        field: num_frames
+        durationToFrames:
+          fps: 25
+      GenerateAudio: generate_audio

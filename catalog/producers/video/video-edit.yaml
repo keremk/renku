@@ -1,0 +1,83 @@
+meta:
+  name: Video Edit Generator
+  description: Edit or retake a portion of an existing video. Use this when you want to regenerate a specific section of a video with new content, audio, or both while keeping the rest intact.
+  id: VideoEditProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: Prompt
+    description: Text description guiding the edit or retake.
+    type: string
+  - name: SourceVideo
+    description: URL of the video to edit.
+    type: string
+
+  # Timing
+  - name: Duration
+    description: Duration in seconds of the section to retake.
+    type: integer
+  - name: StartTime
+    description: Start time in seconds of the section to retake.
+    type: number
+
+  # Edit mode
+  - name: RetakeMode
+    description: "What to replace: 'replace_audio', 'replace_video', or 'replace_audio_and_video'."
+    type: string
+
+  # Sizing
+  - name: Resolution
+    description: "Resolution preset (480p, 720p, 1080p)."
+    type: string
+
+artifacts:
+  - name: GeneratedVideo
+    description: The edited video.
+    type: video
+  - name: FirstFrame
+    description: The first frame of the edited video.
+    type: image
+  - name: LastFrame
+    description: The last frame of the edited video.
+    type: image
+  - name: AudioTrack
+    description: The audio track of the edited video.
+    type: audio
+
+mappings:
+  fal-ai:
+    # XAI Grok Imagine Video Edit-Video
+    xai/grok-imagine-video/edit-video:
+      Prompt: prompt
+      SourceVideo: video_url
+      Resolution: resolution
+
+    # Decart Lucy Edit Pro
+    decart/lucy-edit/pro:
+      Prompt: prompt
+      SourceVideo: video_url
+      Resolution: resolution
+
+    # Decart Lucy Edit Fast
+    decart/lucy-edit/fast:
+      Prompt: prompt
+      SourceVideo: video_url
+
+    # LTX-2.3 Retake-Video
+    ltx-2.3/retake-video:
+      Prompt: prompt
+      SourceVideo: video_url
+      Duration: duration
+      StartTime: start_time
+      RetakeMode: retake_mode
+
+  replicate:
+    # XAI Grok Imagine Video (video editing mode)
+    xai/grok-imagine-video:
+      Prompt: prompt
+      SourceVideo: video
+      Duration: duration
+      Resolution: resolution

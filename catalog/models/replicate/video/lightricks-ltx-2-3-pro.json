@@ -1,0 +1,146 @@
+{
+  "type": "object",
+  "title": "Input",
+  "required": [
+    "prompt"
+  ],
+  "properties": {
+    "fps": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/fps"
+        }
+      ],
+      "default": 25,
+      "x-order": 9,
+      "description": "Frame rate in frames per second"
+    },
+    "task": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/task"
+        }
+      ],
+      "default": "text_to_video",
+      "x-order": 0,
+      "description": "The generation task to perform"
+    },
+    "audio": {
+      "type": "string",
+      "title": "Audio",
+      "format": "uri",
+      "x-order": 4,
+      "description": "Input audio file for audio_to_video task"
+    },
+    "image": {
+      "type": "string",
+      "title": "Image",
+      "format": "uri",
+      "x-order": 2,
+      "description": "First frame image for image-to-video generation"
+    },
+    "video": {
+      "type": "string",
+      "title": "Video",
+      "format": "uri",
+      "x-order": 5,
+      "description": "Input video for retake or extend tasks"
+    },
+    "prompt": {
+      "type": "string",
+      "title": "Prompt",
+      "x-order": 1,
+      "description": "Text prompt describing the video to generate"
+    },
+    "duration": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/duration"
+        }
+      ],
+      "default": 6,
+      "x-order": 7,
+      "description": "Duration of the video in seconds"
+    },
+    "resolution": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/resolution"
+        }
+      ],
+      "default": "1080p",
+      "x-order": 6,
+      "description": "Resolution quality of the generated video. Only 1080p is supported for audio_to_video, retake, and extend tasks."
+    },
+    "extend_mode": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/extend_mode"
+        }
+      ],
+      "default": "end",
+      "x-order": 15,
+      "description": "Where to extend the video. Used for extend task."
+    },
+    "retake_mode": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/retake_mode"
+        }
+      ],
+      "default": "replace_audio_and_video",
+      "x-order": 14,
+      "description": "What to replace in the retake section. Used for retake task."
+    },
+    "aspect_ratio": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/aspect_ratio"
+        }
+      ],
+      "default": "16:9",
+      "x-order": 8,
+      "description": "Aspect ratio of the generated video"
+    },
+    "camera_motion": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/camera_motion"
+        }
+      ],
+      "default": "none",
+      "x-order": 10,
+      "description": "Camera motion effect to apply to the generated video. Use 'none' for no camera motion."
+    },
+    "generate_audio": {
+      "type": "boolean",
+      "title": "Generate Audio",
+      "default": true,
+      "x-order": 11,
+      "description": "Generate audio for the video. Used for text_to_video and image_to_video tasks."
+    },
+    "retake_duration": {
+      "type": "number",
+      "title": "Retake Duration",
+      "default": 2,
+      "minimum": 2,
+      "x-order": 13,
+      "description": "Duration in seconds of the section to edit. Must be at least 2 seconds. Used for retake task."
+    },
+    "last_frame_image": {
+      "type": "string",
+      "title": "Last Frame Image",
+      "format": "uri",
+      "x-order": 3,
+      "description": "Last frame image for image-to-video generation. When provided, the video interpolates between the first frame and this last frame."
+    },
+    "retake_start_time": {
+      "type": "number",
+      "title": "Retake Start Time",
+      "default": 0,
+      "minimum": 0,
+      "x-order": 12,
+      "description": "Start time in seconds of the section to edit. Used for retake task."
+    }
+  }
+}

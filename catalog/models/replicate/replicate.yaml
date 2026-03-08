@@ -500,6 +500,35 @@ models:
           pricePerSecond: 0.09
         - resolution: 1080p
           pricePerSecond: 0.15
+  # Lightricks LTX Video Models
+  - name: lightricks/ltx-2.3-pro
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 1080p
+          pricePerSecond: 0.06
+        - resolution: 2k
+          pricePerSecond: 0.12
+        - resolution: 4k
+          pricePerSecond: 0.24
+  - name: lightricks/ltx-2.3-fast
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 1080p
+          pricePerSecond: 0.04
+        - resolution: 2k
+          pricePerSecond: 0.08
+        - resolution: 4k
+          pricePerSecond: 0.16
   # Kling Video Models
   - name: kwaivgi/kling-v3-video
     type: video

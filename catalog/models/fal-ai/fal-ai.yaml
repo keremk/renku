@@ -1141,7 +1141,75 @@ models:
     price:
       function: costByVideoMegapixels
       inputs: [num_frames, video_size]
-      pricePerMegapixel: 0.0008 
+      pricePerMegapixel: 0.0008
+
+  # LTX-2.3 Video Models
+  - name: ltx-2.3/text-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 1080p
+          pricePerSecond: 0.06
+        - resolution: 1440p
+          pricePerSecond: 0.12
+        - resolution: 2160p
+          pricePerSecond: 0.24
+  - name: ltx-2.3/image-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 1080p
+          pricePerSecond: 0.06
+        - resolution: 1440p
+          pricePerSecond: 0.12
+        - resolution: 2160p
+          pricePerSecond: 0.24
+  - name: ltx-2.3/image-to-video/fast
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 1080p
+          pricePerSecond: 0.04
+        - resolution: 1440p
+          pricePerSecond: 0.08
+        - resolution: 2160p
+          pricePerSecond: 0.16
+  - name: ltx-2.3/audio-to-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.10
+  - name: ltx-2.3/extend-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.10
+  - name: ltx-2.3/retake-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.10
 
   # XAI Video Models
   - name: xai/grok-imagine-video/text-to-video

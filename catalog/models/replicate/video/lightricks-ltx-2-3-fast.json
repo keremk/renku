@@ -1,0 +1,86 @@
+{
+  "type": "object",
+  "title": "Input",
+  "required": [
+    "prompt"
+  ],
+  "properties": {
+    "fps": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/fps"
+        }
+      ],
+      "default": 25,
+      "x-order": 6,
+      "description": "Frame rate in frames per second"
+    },
+    "image": {
+      "type": "string",
+      "title": "Image",
+      "format": "uri",
+      "x-order": 1,
+      "description": "First frame image for image-to-video generation"
+    },
+    "prompt": {
+      "type": "string",
+      "title": "Prompt",
+      "x-order": 0,
+      "description": "Text prompt describing the video to generate"
+    },
+    "duration": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/duration"
+        }
+      ],
+      "default": 6,
+      "x-order": 4,
+      "description": "Duration of the video in seconds. Durations longer than 10 seconds are only available with 1080p resolution at 24 or 25 FPS."
+    },
+    "resolution": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/resolution"
+        }
+      ],
+      "default": "1080p",
+      "x-order": 3,
+      "description": "Resolution quality of the generated video. Only 1080p is supported for audio_to_video, retake, and extend tasks."
+    },
+    "aspect_ratio": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/aspect_ratio"
+        }
+      ],
+      "default": "16:9",
+      "x-order": 5,
+      "description": "Aspect ratio of the generated video"
+    },
+    "camera_motion": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/camera_motion"
+        }
+      ],
+      "default": "none",
+      "x-order": 7,
+      "description": "Camera motion effect to apply to the generated video. Use 'none' for no camera motion."
+    },
+    "generate_audio": {
+      "type": "boolean",
+      "title": "Generate Audio",
+      "default": true,
+      "x-order": 8,
+      "description": "Generate audio for the video. Used for text_to_video and image_to_video tasks."
+    },
+    "last_frame_image": {
+      "type": "string",
+      "title": "Last Frame Image",
+      "format": "uri",
+      "x-order": 2,
+      "description": "Last frame image for image-to-video generation. When provided, the video interpolates between the first frame and this last frame."
+    }
+  }
+}

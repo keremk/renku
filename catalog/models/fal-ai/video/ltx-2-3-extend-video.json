@@ -1,0 +1,229 @@
+{
+  "input_schema": {
+    "x-fal-order-properties": [
+      "video_url",
+      "prompt",
+      "duration",
+      "mode",
+      "context"
+    ],
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "Continue the motion smoothly"
+        ],
+        "title": "Prompt",
+        "description": "Description of what should happen in the extended portion of the video.",
+        "anyOf": [
+          {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "duration": {
+        "description": "Duration in seconds to extend the video. Maximum 20 seconds.",
+        "type": "number",
+        "minimum": 1,
+        "title": "Duration",
+        "maximum": 20,
+        "default": 5
+      },
+      "context": {
+        "anyOf": [
+          {
+            "minimum": 0,
+            "maximum": 20,
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Context",
+        "description": "Number of seconds from the input video to use as context for the extension (maximum 20 seconds). If not provided, defaults to maximize available context within the 505 frame limit."
+      },
+      "mode": {
+        "enum": [
+          "start",
+          "end"
+        ],
+        "title": "Mode",
+        "type": "string",
+        "description": "Where to extend the video: 'end' extends at the end, 'start' extends at the beginning.",
+        "default": "end"
+      },
+      "video_url": {
+        "examples": [
+          "https://v3b.fal.media/files/b/0a90e01f/SWYdQyTBCPWYOLgfg5Jw2_004_video.mp4"
+        ],
+        "title": "Video URL",
+        "type": "string",
+        "description": "The URL of the video to extend",
+        "format": "uri"
+      }
+    },
+    "title": "LTXV23ExtendVideoRequest",
+    "required": [
+      "video_url"
+    ]
+  },
+  "output_schema": {
+    "x-fal-order-properties": [
+      "video"
+    ],
+    "type": "object",
+    "properties": {
+      "video": {
+        "examples": [
+          {
+            "file_name": "sQT2ORTL4ISEeLv3mRdF0_rGO62gwz.mp4",
+            "content_type": "video/mp4",
+            "url": "https://v3b.fal.media/files/b/0a90e020/sQT2ORTL4ISEeLv3mRdF0_rGO62gwz.mp4"
+          }
+        ],
+        "description": "The extended video file",
+        "$ref": "#/VideoFile"
+      }
+    },
+    "title": "LTXV23ExtendVideoResponse",
+    "required": [
+      "video"
+    ]
+  },
+  "VideoFile": {
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "width",
+      "height",
+      "fps",
+      "duration",
+      "num_frames"
+    ],
+    "type": "object",
+    "properties": {
+      "height": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Height",
+        "description": "The height of the video"
+      },
+      "duration": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Duration",
+        "description": "The duration of the video"
+      },
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "title": "File Size",
+        "description": "The size of the file in bytes.",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "url": {
+        "title": "Url",
+        "type": "string",
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
+      },
+      "width": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Width",
+        "description": "The width of the video"
+      },
+      "fps": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Fps",
+        "description": "The FPS of the video"
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name",
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "num_frames": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Num Frames",
+        "description": "The number of frames in the video"
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type",
+        "description": "The mime type of the file.",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "title": "VideoFile",
+    "required": [
+      "url"
+    ]
+  }
+}

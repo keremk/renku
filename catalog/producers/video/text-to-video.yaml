@@ -163,6 +163,14 @@ mappings:
       AspectRatio: aspect_ratio
       Resolution: resolution
 
+    # LTX-2.3 Text-to-Video
+    ltx-2.3/text-to-video:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: generate_audio
+
     # LTX-2-19b Distilled Text-to-Video
     ltx-2-19b/distilled/text-to-video:
       Prompt: prompt
@@ -263,6 +271,22 @@ mappings:
       Prompt: prompt
       Duration: duration
       AspectRatio: aspect_ratio
+      GenerateAudio: generate_audio
+
+    # Lightricks LTX 2.3 Pro
+    lightricks/ltx-2.3-pro:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: generate_audio
+
+    # Lightricks LTX 2.3 Fast
+    lightricks/ltx-2.3-fast:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
       GenerateAudio: generate_audio
 
     # Wan Video WAN 2.6 Text-to-Video

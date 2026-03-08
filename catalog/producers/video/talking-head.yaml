@@ -97,6 +97,12 @@ mappings:
       CharacterImage: image_url
       AudioUrl: audio_url
 
+    # LTX-2.3 Audio-to-Video
+    ltx-2.3/audio-to-video:
+      Prompt: prompt
+      CharacterImage: image_url
+      AudioUrl: audio_url
+
     # LTX-2-19b Audio-to-Video
     ltx-2-19b/audio-to-video:
       Prompt: prompt
