@@ -14,6 +14,9 @@ const {
   title = 'Build Tool For AI-Generated Videos',
   tagline = 'Go beyond the 10 seconds. Create videos using AI generative models, with automatic prompt generation, and cost effective incremental builds.',
 } = Astro.props;
+
+const desktopDownloadUrl =
+  'https://downloads.gorenku.com/desktop/stable/darwin/arm64/Renku-latest-arm64.dmg';
 ---
 
 <section class="hero-section">
@@ -52,8 +55,12 @@ const {
 
     <!-- CTA Buttons -->
     <div class="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up delay-300">
-      <a href="/docs/" class="hero-btn-primary">
-        Get Started
+      <a href={desktopDownloadUrl} class="hero-btn-primary" target="_blank" rel="noreferrer">
+        Download for macOS
+        <IconArrowRight class="ml-2 h-5 w-5" />
+      </a>
+      <a href="/docs/" class="hero-btn-secondary">
+        Read Docs
         <IconArrowRight class="ml-2 h-5 w-5" />
       </a>
       <a href="#github" class="hero-btn-secondary">

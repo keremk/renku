@@ -92,9 +92,7 @@ export function ViewerHomePage() {
               className='h-10 w-10 rounded-md object-contain'
             />
             <div className='min-w-0'>
-              <p className='text-sm font-semibold tracking-[0.02em]'>
-                Renku
-              </p>
+              <p className='text-sm font-semibold tracking-[0.02em]'>Renku</p>
               <p className='text-[11px] uppercase tracking-[0.12em] text-muted-foreground font-semibold'>
                 Blueprint Home
               </p>
@@ -206,7 +204,7 @@ export function ViewerHomePage() {
                 <HomeEmptyState
                   icon={LayoutTemplate}
                   title='No catalog templates available'
-                  description='Run renku update to sync templates from the catalog.'
+                  description='Use Renku > Update Catalog Templates... in desktop, or run renku update in CLI, to sync templates from the bundled catalog.'
                 />
               )}
 

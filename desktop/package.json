@@ -8,8 +8,14 @@
   "scripts": {
     "dev": "tsc && electron .",
     "build": "tsc",
-    "package": "electron-builder --mac",
-    "package:dir": "electron-builder --mac --dir"
+    "package": "RENKU_DESKTOP_SIGN=0 electron-builder --mac -c.publish.provider=generic -c.publish.url=https://downloads.gorenku.com/desktop/stable/darwin/arm64 -c.publish.channel=latest",
+    "package:dev": "RENKU_DESKTOP_SIGN=0 electron-builder --mac -c.publish.provider=generic -c.publish.url=https://updates-dev.gorenku.com/desktop/dev/darwin/arm64 -c.publish.channel=dev",
+    "package:prod": "RENKU_DESKTOP_SIGN=1 electron-builder --mac -c.publish.provider=generic -c.publish.url=https://downloads.gorenku.com/desktop/stable/darwin/arm64 -c.publish.channel=latest -c.mac.hardenedRuntime=true -c.mac.entitlements=build/entitlements.mac.plist -c.mac.entitlementsInherit=build/entitlements.mac.plist",
+    "package:dir": "RENKU_DESKTOP_SIGN=0 electron-builder --mac --dir",
+    "package:prod:dir": "RENKU_DESKTOP_SIGN=1 electron-builder --mac --dir -c.mac.hardenedRuntime=true -c.mac.entitlements=build/entitlements.mac.plist -c.mac.entitlementsInherit=build/entitlements.mac.plist"
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

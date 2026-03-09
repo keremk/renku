@@ -4,6 +4,8 @@ import { readFile } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import { installCli, isCliInstalled } from './cli-install.js';
+import { DesktopUpdater } from './updater.js';
+import { CatalogSyncManager } from './catalog-sync.js';
 
 // ---------------------------------------------------------------------------
 // FFmpeg PATH setup
@@ -46,7 +48,12 @@ interface CliConfig {
 }
 
 async function readCliConfig(): Promise<CliConfig | null> {
-  const configPath = path.resolve(os.homedir(), '.config', 'renku', 'cli-config.json');
+  const configPath = path.resolve(
+    os.homedir(),
+    '.config',
+    'renku',
+    'cli-config.json'
+  );
   try {
     const contents = await readFile(configPath, 'utf8');
     const parsed = JSON.parse(contents) as Partial<CliConfig>;
@@ -77,7 +84,10 @@ function loadUserEnv(): void {
       const eqIndex = trimmed.indexOf('=');
       if (eqIndex === -1) continue;
       const key = trimmed.slice(0, eqIndex).trim();
-      const value = trimmed.slice(eqIndex + 1).trim().replace(/^["']|["']$/g, '');
+      const value = trimmed
+        .slice(eqIndex + 1)
+        .trim()
+        .replace(/^["']|["']$/g, '');
       if (!process.env[key]) {
         process.env[key] = value;
       }
@@ -145,7 +155,8 @@ function createAppMenu(mainWindow: BrowserWindow): void {
               const result = await dialog.showMessageBox(mainWindow, {
                 type: 'info',
                 message: 'renku CLI is already installed',
-                detail: 'The renku command is available in your terminal at /usr/local/bin/renku.',
+                detail:
+                  'The renku command is available in your terminal at /usr/local/bin/renku.',
                 buttons: ['OK', 'Reinstall'],
               });
               if (result.response === 0) return;
@@ -156,7 +167,8 @@ function createAppMenu(mainWindow: BrowserWindow): void {
               await dialog.showMessageBox(mainWindow, {
                 type: 'info',
                 message: 'renku CLI installed',
-                detail: 'You can now use the "renku" command in your terminal. Open a new terminal window to get started.',
+                detail:
+                  'You can now use the "renku" command in your terminal. Open a new terminal window to get started.',
               });
             } catch (error) {
               await dialog.showMessageBox(mainWindow, {
@@ -165,6 +177,45 @@ function createAppMenu(mainWindow: BrowserWindow): void {
                 detail: error instanceof Error ? error.message : String(error),
               });
             }
+          },
+        },
+        { type: 'separator' },
+        {
+          id: 'check-for-updates',
+          label: 'Check for Updates...',
+          click: async () => {
+            if (!updater) {
+              await dialog.showMessageBox(mainWindow, {
+                type: 'info',
+                message: 'Updater is not ready yet',
+                detail: 'Please try again in a moment.',
+              });
+              return;
+            }
+            await updater.checkForUpdatesManually();
+          },
+        },
+        {
+          id: 'restart-to-update',
+          label: 'Restart to Install Update',
+          enabled: false,
+          click: () => {
+            updater?.quitAndInstall();
+          },
+        },
+        {
+          id: 'update-catalog',
+          label: 'Update Catalog Templates...',
+          click: async () => {
+            if (!catalogSyncManager) {
+              await dialog.showMessageBox(mainWindow, {
+                type: 'info',
+                message: 'Catalog sync is not ready yet',
+                detail: 'Please try again in a moment.',
+              });
+              return;
+            }
+            await catalogSyncManager.syncManually(mainWindow);
           },
         },
         { type: 'separator' },
@@ -215,11 +266,25 @@ function createAppMenu(mainWindow: BrowserWindow): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+function setRestartToUpdateEnabled(enabled: boolean): void {
+  const menu = Menu.getApplicationMenu();
+  if (!menu) {
+    return;
+  }
+  const menuItem = menu.getMenuItemById('restart-to-update');
+  if (!menuItem) {
+    return;
+  }
+  menuItem.enabled = enabled;
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
 let server: ViewerServerInstance | null = null;
+let updater: DesktopUpdater | null = null;
+let catalogSyncManager: CatalogSyncManager | null = null;
 
 async function createWindow(): Promise<void> {
   // Load user environment variables
@@ -250,8 +315,20 @@ async function createWindow(): Promise<void> {
     },
   });
 
+  catalogSyncManager = new CatalogSyncManager(server.url);
+  updater = new DesktopUpdater({
+    mainWindow,
+    onUpdateReadyChanged: (ready) => {
+      setRestartToUpdateEnabled(ready);
+    },
+  });
+
   // Set up the application menu
   createAppMenu(mainWindow);
+  updater.start();
+
+  // Ensure catalog is synchronized once per installed app version
+  await catalogSyncManager.syncOnStartupForCurrentVersion();
 
   // Load the viewer
   await mainWindow.loadURL(server.url);
@@ -276,6 +353,12 @@ if (!gotTheLock) {
   app.whenReady().then(createWindow);
 
   app.on('window-all-closed', () => {
+    if (updater) {
+      updater.dispose();
+      updater = null;
+    }
+    catalogSyncManager = null;
+
     if (server) {
       server.stop().catch(console.error);
       server = null;

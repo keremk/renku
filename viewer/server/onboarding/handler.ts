@@ -5,6 +5,7 @@
  *   GET  /viewer-api/onboarding/status        - Check if workspace is initialized
  *   POST /viewer-api/onboarding/browse-folder - Open native folder picker
  *   POST /viewer-api/onboarding/setup         - Initialize workspace + write API keys
+ *   POST /viewer-api/onboarding/catalog-sync  - Sync workspace catalog from bundled catalog
  */
 
 import { spawn } from 'node:child_process';
@@ -13,17 +14,26 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
   isWorkspaceInitialized,
   initWorkspace,
+  readCliConfig,
+  updateWorkspaceCatalog,
   writeApiKeysEnvFile,
   type ApiKeyValues,
 } from '@gorenku/core';
-import { parseJsonBody, sendJson, sendError } from '../generation/http-utils.js';
+import {
+  parseJsonBody,
+  sendJson,
+  sendError,
+} from '../generation/http-utils.js';
 import { respondNotFound, respondMethodNotAllowed } from '../http-utils.js';
 
 // ---------------------------------------------------------------------------
 // GET /viewer-api/onboarding/status
 // ---------------------------------------------------------------------------
 
-async function handleStatus(_req: IncomingMessage, res: ServerResponse): Promise<boolean> {
+async function handleStatus(
+  _req: IncomingMessage,
+  res: ServerResponse
+): Promise<boolean> {
   const initialized = await isWorkspaceInitialized();
   sendJson(res, { initialized });
   return true;
@@ -33,7 +43,10 @@ async function handleStatus(_req: IncomingMessage, res: ServerResponse): Promise
 // POST /viewer-api/onboarding/browse-folder
 // ---------------------------------------------------------------------------
 
-async function handleBrowseFolder(_req: IncomingMessage, res: ServerResponse): Promise<boolean> {
+async function handleBrowseFolder(
+  _req: IncomingMessage,
+  res: ServerResponse
+): Promise<boolean> {
   const folderPath = await openNativeFolderPicker();
   sendJson(res, { path: folderPath });
   return true;
@@ -60,14 +73,26 @@ async function openNativeFolderPicker(): Promise<string | null> {
   }
 
   // Linux: try zenity first, then kdialog
-  const zenity = await spawnPickerProcess('zenity', ['--file-selection', '--directory', '--title=Select Renku storage folder']);
+  const zenity = await spawnPickerProcess('zenity', [
+    '--file-selection',
+    '--directory',
+    '--title=Select Renku storage folder',
+  ]);
   if (zenity !== null) {
     return zenity;
   }
-  return await spawnPickerProcess('kdialog', ['--getexistingdirectory', '/', '--title', 'Select Renku storage folder']);
+  return await spawnPickerProcess('kdialog', [
+    '--getexistingdirectory',
+    '/',
+    '--title',
+    'Select Renku storage folder',
+  ]);
 }
 
-async function spawnPickerProcess(cmd: string, args: string[]): Promise<string | null> {
+async function spawnPickerProcess(
+  cmd: string,
+  args: string[]
+): Promise<string | null> {
   return new Promise((resolve) => {
     const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'ignore'] });
     let output = '';
@@ -108,7 +133,7 @@ interface OnboardingSetupBody {
 async function handleSetup(
   req: IncomingMessage,
   res: ServerResponse,
-  catalogPath: string | undefined,
+  catalogPath: string | undefined
 ): Promise<boolean> {
   let body: OnboardingSetupBody;
   try {
@@ -125,7 +150,11 @@ async function handleSetup(
   }
 
   if (!catalogPath) {
-    sendError(res, 500, 'Server has no catalog path configured. Restart using "renku launch".');
+    sendError(
+      res,
+      500,
+      'Server has no catalog path configured. Restart using "renku launch".'
+    );
     return true;
   }
 
@@ -135,7 +164,11 @@ async function handleSetup(
       catalogSourceRoot: catalogPath,
     });
   } catch (error) {
-    sendError(res, 500, error instanceof Error ? error.message : 'Failed to initialize workspace');
+    sendError(
+      res,
+      500,
+      error instanceof Error ? error.message : 'Failed to initialize workspace'
+    );
     return true;
   }
 
@@ -150,12 +183,63 @@ async function handleSetup(
   try {
     await writeApiKeysEnvFile(keys);
   } catch (error) {
-    sendError(res, 500, error instanceof Error ? error.message : 'Failed to write API keys');
+    sendError(
+      res,
+      500,
+      error instanceof Error ? error.message : 'Failed to write API keys'
+    );
     return true;
   }
 
   sendJson(res, { ok: true });
   return true;
+}
+
+// ---------------------------------------------------------------------------
+// POST /viewer-api/onboarding/catalog-sync
+// ---------------------------------------------------------------------------
+
+async function handleCatalogSync(
+  _req: IncomingMessage,
+  res: ServerResponse,
+  catalogPath: string | undefined
+): Promise<boolean> {
+  if (!catalogPath) {
+    sendError(
+      res,
+      500,
+      'Server has no catalog path configured. Restart using "renku launch".'
+    );
+    return true;
+  }
+
+  const cliConfig = await readCliConfig();
+  if (!cliConfig || !cliConfig.catalog?.root) {
+    sendError(
+      res,
+      409,
+      'Workspace is not initialized. Finish onboarding first.'
+    );
+    return true;
+  }
+
+  try {
+    const result = await updateWorkspaceCatalog({
+      rootFolder: cliConfig.storage.root,
+      catalogSourceRoot: catalogPath,
+      configuredCatalogRoot: cliConfig.catalog.root,
+    });
+
+    sendJson(res, { ok: true, catalogRoot: result.catalogRoot });
+    return true;
+  } catch (error) {
+    sendError(
+      res,
+      500,
+      error instanceof Error ? error.message : 'Failed to sync catalog'
+    );
+    return true;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -166,7 +250,7 @@ export async function handleOnboardingEndpoint(
   req: IncomingMessage,
   res: ServerResponse,
   action: string,
-  catalogPath: string | undefined,
+  catalogPath: string | undefined
 ): Promise<boolean> {
   switch (action) {
     case 'status': {
@@ -188,6 +272,13 @@ export async function handleOnboardingEndpoint(
         return respondMethodNotAllowed(res);
       }
       return handleSetup(req, res, catalogPath);
+    }
+
+    case 'catalog-sync': {
+      if (req.method !== 'POST') {
+        return respondMethodNotAllowed(res);
+      }
+      return handleCatalogSync(req, res, catalogPath);
     }
 
     default:

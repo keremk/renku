@@ -8,10 +8,15 @@ directories:
 mac:
   category: public.app-category.video
   target:
-    - dmg
-    - zip
+    - target: dmg
+      arch:
+        - arm64
+    - target: zip
+      arch:
+        - arm64
   icon: build/icon.png
-  # Uncomment below when Apple Developer code signing is set up:
+  # Production signing settings are applied by package:prod script.
+  # Keep these off for local unsigned/ad-hoc builds.
   # hardenedRuntime: true
   # entitlements: build/entitlements.mac.plist
   # entitlementsInherit: build/entitlements.mac.plist
@@ -36,8 +41,8 @@ npmRebuild: false
 
 files:
   - dist/**/*
-  - "!dist/**/*.map"
-  - "!node_modules"
+  - node_modules/**/*
+  - '!dist/**/*.map'
 
 extraResources:
   - from: resources/viewer-dist
