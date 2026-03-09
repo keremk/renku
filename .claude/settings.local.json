@@ -86,7 +86,10 @@
       "Bash(open /Users/keremk/Projects/aitinkerbox/renku/image-edit-playground.html)",
       "Bash(chmod +x /Users/keremk/Projects/aitinkerbox/renku/.claude/worktrees/unruffled-lumiere/desktop/scripts/renku-wrapper.sh)",
       "Bash(git -C /Users/keremk/Projects/aitinkerbox/renku/.claude/worktrees/unruffled-lumiere diff --name-only main)",
-      "Bash(magick:*)"
+      "Bash(magick:*)",
+      "WebFetch(domain:developers.cloudflare.com)",
+      "Bash(chmod +x /Users/keremk/Projects/aitinkerbox/renku/scripts/deploy-desktop.sh)",
+      "Bash(npx wrangler r2 object put --help)"
     ],
     "deny": [],
     "ask": []

@@ -42,10 +42,10 @@ pnpm package:desktop:prod
 
 ## Cloudflare R2 layout
 
-Use a single R2 bucket with custom domains and channel paths:
+Single R2 bucket **`renku-downloads`** (Western Europe / WEUR) with two custom domains:
 
-- Stable: `https://downloads.gorenku.com/desktop/stable/darwin/arm64`
-- Dev: `https://updates-dev.gorenku.com/desktop/dev/darwin/arm64`
+- Stable (public): `https://downloads.gorenku.com/desktop/stable/darwin/arm64`
+- Dev (restricted): `https://updates-dev.gorenku.com/desktop/dev/darwin/arm64`
 
 Recommended objects for each release:
 
@@ -53,31 +53,84 @@ Recommended objects for each release:
 - `Renku-<version>-arm64-mac.zip`
 - `Renku-<version>-arm64-mac.zip.blockmap`
 - `Renku-<version>-arm64.dmg.blockmap`
-- `latest-mac.yml`
+- Stable channel: `latest-mac.yml`
+- Dev channel: `dev-mac.yml`
 
-For the website download button, maintain a stable alias object:
+For the website download button, maintain a stable alias object (production only):
 
 - `Renku-latest-arm64.dmg`
 
 ## Cloudflare setup checklist
 
-1. Create the R2 bucket (for example `renku-downloads`).
-2. Attach custom domains:
-   - public: `downloads.gorenku.com`
-   - private/internal: `updates-dev.gorenku.com`
-3. Disable `r2.dev` public access after custom domains are active.
-4. Configure cache behavior:
-   - binaries (`.dmg`, `.zip`, `.blockmap`): long immutable cache
-   - metadata (`latest-mac.yml`): `no-cache, must-revalidate`
-5. Upload order for every release:
+1. Create R2 bucket `renku-downloads`.
+2. Attach custom domains (bucket Settings > Custom Domains):
+   - `downloads.gorenku.com` (public, stable channel)
+   - `updates-dev.gorenku.com` (restricted via Zero Trust)
+3. Disable the `r2.dev` public development URL to prevent bypassing access controls.
+4. Subscribe to the Zero Trust Free plan (required for Access applications).
+5. Create a Service Token under Access Controls > Service Credentials:
+   - Name: `renku-desktop-updater`
+6. Create an Access Application under Access Controls > Applications:
+   - Type: Self-hosted
+   - Name: `Renku Dev Updates`
+   - Domain: `updates-dev.gorenku.com`
+   - Policy action: Service Auth with Service Token selector
+7. Configure cache rules (zone-level: gorenku.com > Caching > Cache Rules):
+   - **Cache Renku Binaries**: matches `.dmg`, `.zip`, `.blockmap` on both domains.
+     Edge TTL = 1 year (ignore origin cache-control).
+   - **Bypass Cache Update Metadata**: matches `.yml` on both domains. Bypass cache
+     so the updater always fetches fresh version metadata.
+8. Upload order for every release:
    - upload binaries first
    - upload `latest-mac.yml` last
 
+### Verifying the setup
+
+```bash
+# Public stable -- should return content
+curl https://downloads.gorenku.com/desktop/stable/darwin/arm64/latest-mac.yml
+
+# Dev without auth -- should return 403
+curl https://updates-dev.gorenku.com/desktop/dev/darwin/arm64/latest-mac.yml
+
+# Dev with service token -- should return content
+curl -H "CF-Access-Client-Id: <id>" \
+     -H "CF-Access-Client-Secret: <secret>" \
+     https://updates-dev.gorenku.com/desktop/dev/darwin/arm64/latest-mac.yml
+```
+
+## Deploying releases
+
+Use the deploy script from the repo root:
+
+```bash
+# Build + upload to stable (production) channel
+pnpm build-deploy-app
+
+# Build + upload to dev (internal) channel
+pnpm build-deploy-app:dev
+
+# Upload only (skip build, reuse existing artifacts in desktop/release/)
+bash scripts/deploy-desktop.sh --internal --skip-build
+```
+
+Required environment variables in `.env`:
+
+```dotenv
+CLOUDFLARE_TOKEN=<your-api-token>
+CLOUDFLARE_ACCOUNT_ID=<your-account-id>
+```
+
+The script uploads binaries first and metadata (`latest-mac.yml` or `dev-mac.yml`) last,
+so the updater never sees stale references to files that haven't been uploaded yet.
+
 ## Restricting dev channel access
 
-Use Cloudflare Access (Service Auth) on `updates-dev.gorenku.com`.
+The dev channel is protected by a Cloudflare Access application (`Renku Dev Updates`)
+using Service Auth. Only requests with valid service token headers are allowed through.
 
-Renku desktop supports optional headers via environment values loaded from:
+The desktop app sends these headers automatically when the environment values are present.
+Values are loaded from:
 
 - `~/.config/renku/.env`
 

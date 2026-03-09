@@ -67,3 +67,5 @@ release/
 cli/viewer-bundle/
 cli/catalog/
 cli/undefined
+
+.wrangler

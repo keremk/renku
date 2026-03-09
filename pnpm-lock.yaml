@@ -29,6 +29,9 @@ importers:
       prettier:
         specifier: ^3.6.2
         version: 3.6.2
+      wrangler:
+        specifier: ^4.19.1
+        version: 4.56.0(bufferutil@4.0.9)
       yaml:
         specifier: ^2.8.1
         version: 2.8.1
