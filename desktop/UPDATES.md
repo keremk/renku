@@ -101,7 +101,35 @@ curl -H "CF-Access-Client-Id: <id>" \
 
 ## Deploying releases
 
-Use the deploy script from the repo root:
+> **Important:** electron-updater compares the version in `dev-mac.yml` (from the server)
+> against `app.getVersion()` (from the running app). If they match, no update is detected.
+> Always bump the version before building a new release.
+
+### Full release workflow
+
+1. **Bump versions** (all packages including desktop):
+
+```bash
+pnpm bump           # patch bump (0.1.4 → 0.1.5)
+pnpm bump:minor     # minor bump (0.1.4 → 0.2.0)
+```
+
+Or use the full release flow (bump + commit + tag + push):
+
+```bash
+pnpm release        # interactive: bump, commit, tag, push
+```
+
+2. **Build + deploy**:
+
+```bash
+pnpm build-deploy-app:dev      # dev channel
+pnpm build-deploy-app          # production channel
+```
+
+3. **Test the update** on a second macOS user account (see Manual verification flow below).
+
+### Deploy script options
 
 ```bash
 # Build + upload to stable (production) channel
@@ -112,9 +140,14 @@ pnpm build-deploy-app:dev
 
 # Upload only (skip build, reuse existing artifacts in desktop/release/)
 bash scripts/deploy-desktop.sh --internal --skip-build
+
+# Validate everything without uploading
+bash scripts/deploy-desktop.sh --internal --dry-run
 ```
 
-Required environment variables in `.env`:
+### Required environment variables
+
+In the repo root `.env`:
 
 ```dotenv
 CLOUDFLARE_TOKEN=<your-api-token>

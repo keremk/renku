@@ -25,7 +25,7 @@ echo -e "${BLUE}Bumping all package versions: $BUMP_TYPE${NC}"
 echo ""
 
 # Array of packages to bump (directory names)
-PACKAGES=("core" "compositions" "providers" "cli" "viewer")
+PACKAGES=("core" "compositions" "providers" "cli" "viewer" "desktop")
 
 # Function to bump version
 bump_version() {
@@ -78,6 +78,7 @@ echo "  - @gorenku/compositions@$(node -p "require('./compositions/package.json'
 echo "  - @gorenku/providers@$(node -p "require('./providers/package.json').version")"
 echo "  - @gorenku/cli@$CLI_VERSION"
 echo "  - viewer@$(node -p "require('./viewer/package.json').version") (private)"
+echo "  - renku-desktop@$(node -p "require('./desktop/package.json').version") (private)"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
 echo -e "  1. Review changes: ${BLUE}git diff */package.json${NC}"
