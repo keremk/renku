@@ -91,12 +91,12 @@ For the website download button, maintain a stable alias object (production only
 curl https://downloads.gorenku.com/desktop/stable/darwin/arm64/latest-mac.yml
 
 # Dev without auth -- should return 403
-curl https://updates-dev.gorenku.com/desktop/dev/darwin/arm64/latest-mac.yml
+curl https://updates-dev.gorenku.com/desktop/dev/darwin/arm64/dev-mac.yml
 
 # Dev with service token -- should return content
 curl -H "CF-Access-Client-Id: <id>" \
      -H "CF-Access-Client-Secret: <secret>" \
-     https://updates-dev.gorenku.com/desktop/dev/darwin/arm64/latest-mac.yml
+     https://updates-dev.gorenku.com/desktop/dev/darwin/arm64/dev-mac.yml
 ```
 
 ## Deploying releases
@@ -130,18 +130,22 @@ The dev channel is protected by a Cloudflare Access application (`Renku Dev Upda
 using Service Auth. Only requests with valid service token headers are allowed through.
 
 The desktop app sends these headers automatically when the environment values are present.
-Values are loaded from:
-
-- `~/.config/renku/.env`
+Values are loaded from `~/.config/renku/.env` on each user account that needs dev channel access.
 
 Set both values together:
 
 ```dotenv
-RENKU_UPDATER_CF_ACCESS_CLIENT_ID=<client-id>
+RENKU_UPDATER_CF_ACCESS_CLIENT_ID=<client-id>.access
 RENKU_UPDATER_CF_ACCESS_CLIENT_SECRET=<client-secret>
 ```
 
+> **Important:** These env var names use underscores and the `RENKU_UPDATER_` prefix.
+> Do NOT use `CF-ACCESS-CLIENT-ID` (hyphens, no prefix) — those are the Cloudflare
+> dashboard names, not what the app expects.
+
 If only one value is set, the updater throws and fails fast.
+If neither is set, the updater logs a warning and skips auth headers
+(which is fine for stable channel, but will cause 403 errors on the dev channel).
 
 ## Onboarding edge case behavior
 

@@ -141,6 +141,10 @@ export class DesktopUpdater {
     const clientSecret = process.env.RENKU_UPDATER_CF_ACCESS_CLIENT_SECRET;
 
     if (!clientId && !clientSecret) {
+      this.log(
+        'No CF-Access headers configured ' +
+          '(RENKU_UPDATER_CF_ACCESS_CLIENT_ID / RENKU_UPDATER_CF_ACCESS_CLIENT_SECRET not set in ~/.config/renku/.env).'
+      );
       return;
     }
 
@@ -154,6 +158,7 @@ export class DesktopUpdater {
       'CF-Access-Client-Id': clientId,
       'CF-Access-Client-Secret': clientSecret,
     };
+    this.log('CF-Access headers configured for update requests.');
   }
 
   private registerEvents(): void {
@@ -235,7 +240,7 @@ export class DesktopUpdater {
       await dialog.showMessageBox(this.mainWindow, {
         type: 'error',
         message: 'Failed to check for updates',
-        detail: error.message,
+        detail: sanitizeErrorDetail(error.message),
       });
     }
   };
@@ -259,12 +264,13 @@ export class DesktopUpdater {
       this.checking = false;
       if (source === 'manual') {
         this.manualCheckPending = false;
-        const message =
+        const rawMessage =
           error instanceof Error ? error.message : 'Unknown updater error';
+        this.log(`Update check error: ${rawMessage}`);
         await dialog.showMessageBox(this.mainWindow, {
           type: 'error',
           message: 'Failed to check for updates',
-          detail: message,
+          detail: sanitizeErrorDetail(rawMessage),
         });
       }
     } finally {
@@ -289,4 +295,49 @@ export class DesktopUpdater {
 function getAutoUpdater(): AppUpdater {
   const { autoUpdater } = electronUpdater;
   return autoUpdater;
+}
+
+const MAX_ERROR_DETAIL_LENGTH = 500;
+
+/**
+ * Prevent oversized error dialogs (e.g. Cloudflare Access 403 pages that
+ * contain an entire HTML document).  Strips HTML, extracts the first
+ * meaningful line, and truncates to a displayable length.
+ */
+function sanitizeErrorDetail(raw: string): string {
+  if (!raw) return 'An unknown error occurred.';
+
+  const isHtml =
+    raw.includes('<!DOCTYPE') || raw.includes('<html') || raw.includes('<HTML');
+
+  if (isHtml) {
+    // Try to extract a useful status from the HTML (e.g. "Forbidden", "403")
+    const titleMatch = raw.match(/<title[^>]*>(.*?)<\/title>/i);
+    const h1Match = raw.match(/<h1[^>]*>(.*?)<\/h1>/i);
+
+    const title = titleMatch?.[1]?.trim();
+    const heading = h1Match?.[1]?.trim();
+
+    const parts: string[] = [];
+    if (title) parts.push(title);
+    if (heading && heading !== title) parts.push(heading);
+
+    const summary =
+      parts.length > 0
+        ? parts.join(' — ')
+        : 'The server returned an HTML error page.';
+
+    return (
+      `${summary}\n\n` +
+      'This usually means the update server rejected the request. ' +
+      'If this is a dev channel build, make sure RENKU_UPDATER_CF_ACCESS_CLIENT_ID ' +
+      'and RENKU_UPDATER_CF_ACCESS_CLIENT_SECRET are set in ~/.config/renku/.env'
+    );
+  }
+
+  if (raw.length > MAX_ERROR_DETAIL_LENGTH) {
+    return raw.slice(0, MAX_ERROR_DETAIL_LENGTH) + '…\n\n(truncated)';
+  }
+
+  return raw;
 }
