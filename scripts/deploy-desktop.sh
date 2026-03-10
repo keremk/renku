@@ -130,26 +130,57 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 3: Detect version
+# Step 3: Resolve release artifacts from update metadata
 # ---------------------------------------------------------------------------
 
-DMG=$(find "$RELEASE_DIR" -maxdepth 1 -name "Renku-*-arm64.dmg" ! -name "Renku-latest-*" | head -1)
-
-if [[ -z "$DMG" ]]; then
-  echo -e "${RED}Error:${NC} No Renku-*-arm64.dmg found in $RELEASE_DIR"
+YML_PATH="$RELEASE_DIR/$YML_FILE"
+if [[ ! -f "$YML_PATH" ]]; then
+  echo -e "${RED}Error:${NC} Missing update metadata: $YML_PATH"
   exit 1
 fi
 
-VERSION=$(basename "$DMG" | sed 's/Renku-\(.*\)-arm64\.dmg/\1/')
+VERSION=$(awk '/^version:[[:space:]]+/ { print $2; exit }' "$YML_PATH")
+ZIP_FILE=$(awk '/^path:[[:space:]]+/ { print $2; exit }' "$YML_PATH")
+
+if [[ -z "$VERSION" ]]; then
+  echo -e "${RED}Error:${NC} Could not parse version from $YML_PATH"
+  exit 1
+fi
+
+if [[ -z "$ZIP_FILE" ]]; then
+  echo -e "${RED}Error:${NC} Could not parse zip path from $YML_PATH"
+  exit 1
+fi
+
+EXPECTED_ZIP="Renku-${VERSION}-arm64-mac.zip"
+EXPECTED_DMG="Renku-${VERSION}-arm64.dmg"
+
+if [[ "$ZIP_FILE" != "$EXPECTED_ZIP" ]]; then
+  echo -e "${RED}Error:${NC} Metadata mismatch in $YML_PATH"
+  echo "    version=$VERSION implies zip=$EXPECTED_ZIP"
+  echo "    but path in metadata is: $ZIP_FILE"
+  exit 1
+fi
+
+if ! grep -q "url: $EXPECTED_DMG" "$YML_PATH"; then
+  echo -e "${RED}Error:${NC} Metadata mismatch in $YML_PATH"
+  echo "    Expected DMG entry not found: $EXPECTED_DMG"
+  exit 1
+fi
+
+ZIP_BLOCKMAP="${ZIP_FILE}.blockmap"
+DMG_FILE="$EXPECTED_DMG"
+DMG_BLOCKMAP="${DMG_FILE}.blockmap"
+
 echo ""
-echo "==> Detected version: $VERSION"
+echo "==> Detected version from $YML_FILE: $VERSION"
 
 # Validate expected files exist
 EXPECTED_FILES=(
-  "Renku-${VERSION}-arm64.dmg"
-  "Renku-${VERSION}-arm64.dmg.blockmap"
-  "Renku-${VERSION}-arm64-mac.zip"
-  "Renku-${VERSION}-arm64-mac.zip.blockmap"
+  "$DMG_FILE"
+  "$DMG_BLOCKMAP"
+  "$ZIP_FILE"
+  "$ZIP_BLOCKMAP"
   "$YML_FILE"
 )
 
@@ -160,7 +191,7 @@ for f in "${EXPECTED_FILES[@]}"; do
   fi
 done
 
-echo -e "    ${GREEN}✓${NC} All expected files present."
+echo -e "    ${GREEN}✓${NC} All metadata-referenced files present."
 
 # ---------------------------------------------------------------------------
 # Step 4: Upload to R2
@@ -213,23 +244,23 @@ upload() {
 echo ""
 echo "==> Uploading binaries to R2 ($R2_PREFIX)..."
 
-upload "$RELEASE_DIR/Renku-${VERSION}-arm64.dmg" \
-       "$R2_PREFIX/Renku-${VERSION}-arm64.dmg"
+upload "$RELEASE_DIR/$DMG_FILE" \
+       "$R2_PREFIX/$DMG_FILE"
 
-upload "$RELEASE_DIR/Renku-${VERSION}-arm64.dmg.blockmap" \
-       "$R2_PREFIX/Renku-${VERSION}-arm64.dmg.blockmap"
+upload "$RELEASE_DIR/$DMG_BLOCKMAP" \
+       "$R2_PREFIX/$DMG_BLOCKMAP"
 
-upload "$RELEASE_DIR/Renku-${VERSION}-arm64-mac.zip" \
-       "$R2_PREFIX/Renku-${VERSION}-arm64-mac.zip"
+upload "$RELEASE_DIR/$ZIP_FILE" \
+       "$R2_PREFIX/$ZIP_FILE"
 
-upload "$RELEASE_DIR/Renku-${VERSION}-arm64-mac.zip.blockmap" \
-       "$R2_PREFIX/Renku-${VERSION}-arm64-mac.zip.blockmap"
+upload "$RELEASE_DIR/$ZIP_BLOCKMAP" \
+       "$R2_PREFIX/$ZIP_BLOCKMAP"
 
 # Production: create stable alias for website download button
 if [[ "$CHANNEL" == "production" ]]; then
   echo ""
   echo "==> Creating stable download alias..."
-  upload "$RELEASE_DIR/Renku-${VERSION}-arm64.dmg" \
+  upload "$RELEASE_DIR/$DMG_FILE" \
          "$R2_PREFIX/Renku-latest-arm64.dmg"
 fi
 

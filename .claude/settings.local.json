@@ -89,7 +89,8 @@
       "Bash(magick:*)",
       "WebFetch(domain:developers.cloudflare.com)",
       "Bash(chmod +x /Users/keremk/Projects/aitinkerbox/renku/scripts/deploy-desktop.sh)",
-      "Bash(npx wrangler r2 object put --help)"
+      "Bash(npx wrangler r2 object put --help)",
+      "WebFetch(domain:www.codejam.info)"
     ],
     "deny": [],
     "ask": []
