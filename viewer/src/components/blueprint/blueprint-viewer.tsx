@@ -3,6 +3,7 @@ import {
   ReactFlow,
   Background,
   Controls,
+  ControlButton,
   ViewportPortal,
   // MiniMap,
   useNodesState,
@@ -14,6 +15,7 @@ import {
   type EdgeTypes,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { Eye, EyeOff } from 'lucide-react';
 
 import { InputNode } from './nodes/input-node';
 import { ProducerNode } from './nodes/producer-node';
@@ -303,6 +305,7 @@ export function BlueprintViewer({
   const [dialogProducer, setDialogProducer] = useState<ProducerDetails | null>(
     null
   );
+  const [showConnectionArrows, setShowConnectionArrows] = useState(false);
 
   const layerGuides = useMemo(
     () => buildLayerGuides(graphData, nodes, selectedUpToLayer ?? null),
@@ -363,7 +366,7 @@ export function BlueprintViewer({
     <div className='absolute inset-0'>
       <ReactFlow
         nodes={nodes}
-        edges={edges}
+        edges={showConnectionArrows ? edges : []}
         onNodesChange={handleNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={handleNodeClick}
@@ -436,7 +439,27 @@ export function BlueprintViewer({
         <Controls
           className='!bg-card !border-border/60 !shadow-lg'
           showInteractive={false}
-        />
+        >
+          <ControlButton
+            onClick={() => setShowConnectionArrows((value) => !value)}
+            aria-label={
+              showConnectionArrows
+                ? 'Hide producer connection arrows'
+                : 'Show producer connection arrows'
+            }
+            title={
+              showConnectionArrows
+                ? 'Hide producer connection arrows'
+                : 'Show producer connection arrows'
+            }
+          >
+            {showConnectionArrows ? (
+              <Eye className='size-4' />
+            ) : (
+              <EyeOff className='size-4' />
+            )}
+          </ControlButton>
+        </Controls>
         {/* <MiniMap
           className="!bg-card !border-border/60"
           nodeColor={(node: Node) => {
