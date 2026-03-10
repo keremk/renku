@@ -3,6 +3,7 @@
  * Used across Inputs panel (media inputs) and Outputs panel (media artifacts).
  */
 
+import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -54,10 +55,19 @@ export function MediaExpandDialog({
   isPromptLoading = false,
   promptError,
 }: MediaExpandDialogProps) {
+  const [imageAspectRatio, setImageAspectRatio] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (mediaType !== 'image' || !open) {
+      return;
+    }
+    setImageAspectRatio(null);
+  }, [mediaType, open, url]);
+
   const mediaContainerClassName =
     mediaType === 'audio'
       ? 'min-h-[260px]'
-      : 'h-[60vh] sm:h-[68vh] min-h-[220px]';
+      : 'h-[calc(92vh-14rem)] sm:h-[calc(92vh-16rem)] min-h-[220px]';
 
   const dialogSizeClassName =
     mediaType === 'audio'
@@ -70,12 +80,29 @@ export function MediaExpandDialog({
     }
 
     if (mediaType === 'image') {
+      const imageFrameStyle =
+        imageAspectRatio === null
+          ? { width: '100%', height: '100%' }
+          : imageAspectRatio >= 1
+            ? { width: '100%', aspectRatio: String(imageAspectRatio) }
+            : { height: '100%', aspectRatio: String(imageAspectRatio) };
+
       return (
-        <img
-          src={url}
-          alt={alt ?? title}
-          className='w-full h-full object-contain rounded-lg'
-        />
+        <div className='w-full h-full flex items-center justify-center'>
+          <div className='max-w-full max-h-full' style={imageFrameStyle}>
+            <img
+              src={url}
+              alt={alt ?? title}
+              onLoad={(event) => {
+                const { naturalWidth, naturalHeight } = event.currentTarget;
+                if (naturalWidth > 0 && naturalHeight > 0) {
+                  setImageAspectRatio(naturalWidth / naturalHeight);
+                }
+              }}
+              className='w-full h-full object-contain rounded-lg'
+            />
+          </div>
+        </div>
       );
     }
 
@@ -100,7 +127,7 @@ export function MediaExpandDialog({
       <DialogContent
         className={cn(
           dialogSizeClassName,
-          'w-[92vw] p-0 gap-0 overflow-hidden'
+          'w-[92vw] p-0 gap-0 overflow-hidden flex flex-col'
         )}
       >
         <DialogHeader>
@@ -110,7 +137,7 @@ export function MediaExpandDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className='flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-5'>
+        <div className='flex-1 min-h-0 overflow-y-auto px-6 py-5 flex flex-col gap-5'>
           <div
             className={cn(
               'rounded-xl border border-border/40 bg-muted/30 p-3 flex items-center justify-center overflow-hidden',
@@ -120,26 +147,26 @@ export function MediaExpandDialog({
             {renderMedia()}
           </div>
 
-          <section className='space-y-2'>
+          <section className='space-y-2 shrink-0'>
             <div className='text-[11px] uppercase tracking-[0.12em] font-semibold text-muted-foreground'>
               {promptTitle ?? 'Prompt'}
             </div>
             <div className='rounded-lg border border-border/40 bg-background/70 p-3'>
               {isPromptLoading ? (
-                <div className='flex items-center gap-2 text-xs text-muted-foreground min-h-[4.5rem]'>
+                <div className='flex items-center gap-2 text-xs text-muted-foreground h-[4.75rem]'>
                   <Loader2 className='size-4 animate-spin' />
                   <span>Loading prompt...</span>
                 </div>
               ) : promptError ? (
-                <div className='text-xs text-destructive whitespace-pre-wrap min-h-[4.5rem]'>
+                <div className='text-xs text-destructive whitespace-pre-wrap h-[4.75rem] overflow-y-auto'>
                   {promptError}
                 </div>
               ) : promptText ? (
-                <pre className='text-xs text-foreground/90 font-mono whitespace-pre-wrap leading-relaxed min-h-[4.5rem] max-h-[28vh] overflow-y-auto'>
+                <pre className='text-xs text-foreground/90 font-mono whitespace-pre-wrap leading-relaxed h-[4.75rem] overflow-y-auto'>
                   {promptText}
                 </pre>
               ) : (
-                <div className='text-xs text-muted-foreground min-h-[4.5rem] whitespace-pre-wrap'>
+                <div className='text-xs text-muted-foreground h-[4.75rem] overflow-y-auto whitespace-pre-wrap'>
                   No upstream prompt artifact is available for this output.
                 </div>
               )}
