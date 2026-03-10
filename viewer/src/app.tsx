@@ -3,9 +3,11 @@ import { Loader2 } from 'lucide-react';
 import { WorkspaceLayout } from '@/components/blueprint/workspace-layout';
 import { ViewerHomePage } from '@/components/home/viewer-home-page';
 import { OnboardingPage } from '@/components/onboarding/onboarding-page';
+import { SettingsPage } from '@/components/settings/settings-page';
 import { Button } from '@/components/ui/button';
 import {
   useBlueprintRoute,
+  useViewerPathname,
   updateBlueprintRoute,
   clearLastFlag,
 } from '@/hooks/use-blueprint-route';
@@ -33,6 +35,7 @@ function BlueprintApp() {
     recheck,
   } = useInitializationStatus();
   const blueprintRoute = useBlueprintRoute();
+  const viewerPathname = useViewerPathname();
 
   // Load blueprint data by name - this resolves the name to paths and fetches data
   const { graph, inputs, resolvedPaths, status, error } = useBlueprintData(
@@ -116,6 +119,10 @@ function BlueprintApp() {
 
   if (initialized === false) {
     return <OnboardingPage onComplete={recheck} />;
+  }
+
+  if (viewerPathname === '/settings') {
+    return <SettingsPage />;
   }
 
   if (!blueprintRoute?.blueprintName) {

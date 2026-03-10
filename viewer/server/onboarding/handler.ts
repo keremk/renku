@@ -16,8 +16,6 @@ import {
   initWorkspace,
   readCliConfig,
   updateWorkspaceCatalog,
-  writeApiKeysEnvFile,
-  type ApiKeyValues,
 } from '@gorenku/core';
 import {
   parseJsonBody,
@@ -25,6 +23,10 @@ import {
   sendError,
 } from '../generation/http-utils.js';
 import { respondNotFound, respondMethodNotAllowed } from '../http-utils.js';
+import {
+  persistProviderTokenPayload,
+  type ProviderTokenPayload,
+} from '../settings/api-tokens.js';
 
 // ---------------------------------------------------------------------------
 // GET /viewer-api/onboarding/status
@@ -117,17 +119,8 @@ async function spawnPickerProcess(
 // POST /viewer-api/onboarding/setup
 // ---------------------------------------------------------------------------
 
-interface OnboardingSetupBody {
+interface OnboardingSetupBody extends ProviderTokenPayload {
   storageRoot?: string;
-  providers?: {
-    fal?: { apiKey?: string };
-    replicate?: { apiKey?: string };
-    elevenlabs?: { apiKey?: string };
-  };
-  promptProviders?: {
-    openai?: { apiKey?: string };
-    vercelGateway?: { apiKey?: string };
-  };
 }
 
 async function handleSetup(
@@ -172,16 +165,8 @@ async function handleSetup(
     return true;
   }
 
-  const keys: ApiKeyValues = {
-    FAL_KEY: providers?.fal?.apiKey,
-    REPLICATE_API_TOKEN: providers?.replicate?.apiKey,
-    ELEVENLABS_API_KEY: providers?.elevenlabs?.apiKey,
-    OPENAI_API_KEY: promptProviders?.openai?.apiKey,
-    AI_GATEWAY_API_KEY: promptProviders?.vercelGateway?.apiKey,
-  };
-
   try {
-    await writeApiKeysEnvFile(keys);
+    await persistProviderTokenPayload({ providers, promptProviders });
   } catch (error) {
     sendError(
       res,

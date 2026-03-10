@@ -8,6 +8,7 @@ import {
   isWorkspaceInitialized,
   initWorkspace,
   updateWorkspaceCatalog,
+  readApiKeysEnvFile,
   writeApiKeysEnvFile,
   getUserEnvFilePath,
   getDefaultCliConfigPath,
@@ -393,13 +394,21 @@ describe('writeApiKeysEnvFile', () => {
     expect(content).toContain('export OPENAI_API_KEY=new');
   });
 
-  it('skips empty values', async () => {
+  it('removes existing key when empty value is provided', async () => {
     const envPath = join(tempDir, '.env');
+    await writeFile(
+      envPath,
+      ['FAL_KEY=existing-fal', 'OPENAI_API_KEY=sk-test'].join('\n') + '\n',
+      'utf8'
+    );
+
     await writeApiKeysEnvFile(
       { FAL_KEY: '', OPENAI_API_KEY: 'sk-test' },
       envPath
     );
+
     const content = await readFile(envPath, 'utf8');
+    expect(content).not.toContain('FAL_KEY=existing-fal');
     expect(content).not.toContain('FAL_KEY=');
     expect(content).toContain('OPENAI_API_KEY=sk-test');
   });
@@ -418,6 +427,68 @@ describe('writeApiKeysEnvFile', () => {
       envPath
     );
     expect(returnedPath).toBe(resolve(envPath));
+  });
+});
+
+describe('readApiKeysEnvFile', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await makeTempDir();
+  });
+
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('returns empty object when env file does not exist', async () => {
+    const envPath = join(tempDir, '.env');
+    const result = await readApiKeysEnvFile(envPath);
+    expect(result).toEqual({});
+  });
+
+  it('throws for read errors other than missing file', async () => {
+    const envPath = join(tempDir, 'not-a-file');
+    await mkdir(envPath, { recursive: true });
+
+    await expect(readApiKeysEnvFile(envPath)).rejects.toThrow();
+  });
+
+  it('returns only known API key fields', async () => {
+    const envPath = join(tempDir, '.env');
+    await writeFile(
+      envPath,
+      [
+        'FAL_KEY=fal-token',
+        'REPLICATE_API_TOKEN=rep-token',
+        'CUSTOM_KEY=ignore-me',
+      ].join('\n') + '\n',
+      'utf8'
+    );
+
+    const result = await readApiKeysEnvFile(envPath);
+    expect(result).toEqual({
+      FAL_KEY: 'fal-token',
+      REPLICATE_API_TOKEN: 'rep-token',
+    });
+  });
+
+  it('parses export-prefixed and quoted values', async () => {
+    const envPath = join(tempDir, '.env');
+    await writeFile(
+      envPath,
+      [
+        'export OPENAI_API_KEY="sk-123"',
+        "AI_GATEWAY_API_KEY='gateway-456'",
+      ].join('\n') + '\n',
+      'utf8'
+    );
+
+    const result = await readApiKeysEnvFile(envPath);
+    expect(result).toEqual({
+      OPENAI_API_KEY: 'sk-123',
+      AI_GATEWAY_API_KEY: 'gateway-456',
+    });
   });
 });
 

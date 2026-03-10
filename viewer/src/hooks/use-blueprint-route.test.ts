@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { switchBlueprint } from './use-blueprint-route';
+import { navigateToPath, switchBlueprint } from './use-blueprint-route';
 
 describe('switchBlueprint', () => {
   it('clears build-specific params without forcing last build selection', () => {
@@ -31,5 +31,21 @@ describe('switchBlueprint', () => {
     const url = new URL(window.location.href);
     expect(url.pathname).toBe('/blueprints');
     expect(url.searchParams.get('bp')).toBe('catalog-video');
+  });
+});
+
+describe('navigateToPath', () => {
+  it('navigates to a new path and clears existing search params', () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/blueprints?bp=old-blueprint&build=123'
+    );
+
+    navigateToPath('/settings');
+
+    const url = new URL(window.location.href);
+    expect(url.pathname).toBe('/settings');
+    expect(url.search).toBe('');
   });
 });

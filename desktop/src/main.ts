@@ -141,6 +141,29 @@ async function startServer(rootFolder: string): Promise<ViewerServerInstance> {
 // Application menu
 // ---------------------------------------------------------------------------
 
+async function navigateMainWindowToPath(
+  mainWindow: BrowserWindow,
+  pathname: string
+): Promise<void> {
+  const currentUrl = mainWindow.webContents.getURL();
+
+  if (currentUrl && currentUrl.trim() !== '') {
+    const url = new URL(currentUrl);
+    url.pathname = pathname;
+    url.search = '';
+    url.hash = '';
+    await mainWindow.loadURL(url.toString());
+    return;
+  }
+
+  if (!server) {
+    throw new Error('Viewer server is not running.');
+  }
+
+  const fallbackUrl = new URL(pathname, server.url).toString();
+  await mainWindow.loadURL(fallbackUrl);
+}
+
 function createAppMenu(mainWindow: BrowserWindow): void {
   const template: Electron.MenuItemConstructorOptions[] = [
     {
@@ -174,6 +197,22 @@ function createAppMenu(mainWindow: BrowserWindow): void {
               await dialog.showMessageBox(mainWindow, {
                 type: 'error',
                 message: 'Failed to install renku CLI',
+                detail: error instanceof Error ? error.message : String(error),
+              });
+            }
+          },
+        },
+        { type: 'separator' },
+        {
+          label: 'Settings...',
+          accelerator: 'CmdOrCtrl+,',
+          click: async () => {
+            try {
+              await navigateMainWindowToPath(mainWindow, '/settings');
+            } catch (error) {
+              await dialog.showMessageBox(mainWindow, {
+                type: 'error',
+                message: 'Failed to open Settings',
                 detail: error instanceof Error ? error.message : String(error),
               });
             }

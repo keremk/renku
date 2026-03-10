@@ -19,6 +19,7 @@ import {
   sendMethodNotAllowed,
 } from './generation/index.js';
 import { handleOnboardingRequest } from './onboarding/index.js';
+import { handleSettingsRequest } from './settings/index.js';
 
 // Re-export shared types for backward compatibility
 export type {
@@ -42,7 +43,9 @@ export interface ViewerApiOptions {
 /**
  * Creates the main viewer API handler.
  */
-export function createViewerApiHandler(options: ViewerApiOptions = {}): ViewerApiHandler {
+export function createViewerApiHandler(
+  options: ViewerApiOptions = {}
+): ViewerApiHandler {
   return async (req, res) => {
     if (!req.url) {
       return false;
@@ -70,7 +73,21 @@ export function createViewerApiHandler(options: ViewerApiOptions = {}): ViewerAp
           return await handleGenerateRequest(req, res, segments.slice(1));
 
         case 'onboarding':
-          return await handleOnboardingRequest(req, res, url, segments.slice(1), options.catalogPath);
+          return await handleOnboardingRequest(
+            req,
+            res,
+            url,
+            segments.slice(1),
+            options.catalogPath
+          );
+
+        case 'settings':
+          return await handleSettingsRequest(
+            req,
+            res,
+            segments.slice(1),
+            options.catalogPath
+          );
 
         default:
           return respondNotFound(res);

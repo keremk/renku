@@ -396,6 +396,19 @@ function getErrorMessage(error: unknown): string {
   return String(error);
 }
 
+function getErrorCode(error: unknown): string | undefined {
+  if (typeof error !== 'object' || error === null || !('code' in error)) {
+    return undefined;
+  }
+
+  const code = (error as { code?: unknown }).code;
+  if (typeof code !== 'string') {
+    return undefined;
+  }
+
+  return code;
+}
+
 // ---------------------------------------------------------------------------
 // API key env file
 // ---------------------------------------------------------------------------
@@ -408,8 +421,54 @@ export interface ApiKeyValues {
   AI_GATEWAY_API_KEY?: string;
 }
 
+const API_KEY_NAMES = [
+  'FAL_KEY',
+  'REPLICATE_API_TOKEN',
+  'ELEVENLABS_API_KEY',
+  'OPENAI_API_KEY',
+  'AI_GATEWAY_API_KEY',
+] as const;
+
+type ApiKeyName = (typeof API_KEY_NAMES)[number];
+
 export function getUserEnvFilePath(): string {
   return resolve(os.homedir(), '.config', 'renku', '.env');
+}
+
+export async function readApiKeysEnvFile(
+  envFilePath?: string
+): Promise<ApiKeyValues> {
+  const targetPath = resolve(envFilePath ?? getUserEnvFilePath());
+
+  let existingContent = '';
+  try {
+    existingContent = await readFile(targetPath, 'utf8');
+  } catch (error) {
+    if (getErrorCode(error) === 'ENOENT') {
+      return {};
+    }
+    throw error;
+  }
+
+  const keySet = new Set<ApiKeyName>(API_KEY_NAMES);
+  const values: ApiKeyValues = {};
+
+  for (const line of existingContent.split('\n')) {
+    const match = /^(?:\s*export\s+)?([A-Z_][A-Z0-9_]*)=(.*)$/.exec(line);
+    if (!match) {
+      continue;
+    }
+
+    const key = match[1];
+    if (!keySet.has(key as ApiKeyName)) {
+      continue;
+    }
+
+    const value = match[2].trim().replace(/^["']|["']$/g, '');
+    values[key as ApiKeyName] = value;
+  }
+
+  return values;
 }
 
 export async function writeApiKeysEnvFile(
@@ -434,27 +493,45 @@ export async function writeApiKeysEnvFile(
 
   const keyLineIndex = new Map<string, number>();
   const keyPrefix = new Map<string, string>();
-  for (let index = 0; index < lines.length; index += 1) {
-    const match = /^(\s*(?:export\s+)?)?([A-Z_][A-Z0-9_]*)=(.*)$/.exec(
-      lines[index]
-    );
-    if (!match) {
-      continue;
+
+  const rebuildKeyIndexes = () => {
+    keyLineIndex.clear();
+    keyPrefix.clear();
+
+    for (let index = 0; index < lines.length; index += 1) {
+      const match = /^(\s*(?:export\s+)?)?([A-Z_][A-Z0-9_]*)=(.*)$/.exec(
+        lines[index]
+      );
+      if (!match) {
+        continue;
+      }
+      keyLineIndex.set(match[2], index);
+      keyPrefix.set(match[2], match[1] ?? '');
     }
-    keyLineIndex.set(match[2], index);
-    keyPrefix.set(match[2], match[1] ?? '');
-  }
+  };
+
+  rebuildKeyIndexes();
 
   for (const [key, value] of Object.entries(keys)) {
-    if (value === undefined || value === '') {
+    if (value === undefined) {
+      continue;
+    }
+
+    const index = keyLineIndex.get(key);
+    if (value === '') {
+      if (index !== undefined) {
+        lines.splice(index, 1);
+        rebuildKeyIndexes();
+      }
+
+      delete process.env[key];
       continue;
     }
 
     const line = `${keyPrefix.get(key) ?? ''}${key}=${value}`;
-    const index = keyLineIndex.get(key);
     if (index === undefined) {
-      keyLineIndex.set(key, lines.length);
       lines.push(line);
+      keyLineIndex.set(key, lines.length - 1);
     } else {
       lines[index] = line;
     }

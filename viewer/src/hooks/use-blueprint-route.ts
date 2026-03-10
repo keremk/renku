@@ -11,6 +11,14 @@ function getSnapshot() {
   return window.location.href;
 }
 
+function getPathname(href: string): string {
+  try {
+    return new URL(href).pathname;
+  } catch {
+    return '/';
+  }
+}
+
 export interface BlueprintRouteParams {
   /** Blueprint name (folder name, e.g., "my-blueprint") */
   blueprintName: string | null;
@@ -56,6 +64,11 @@ function parseBlueprintRoute(href: string): BlueprintRouteParams | null {
 export function useBlueprintRoute(): BlueprintRouteParams | null {
   const href = useSyncExternalStore(subscribe, getSnapshot, () => '');
   return parseBlueprintRoute(href);
+}
+
+export function useViewerPathname(): string {
+  const href = useSyncExternalStore(subscribe, getSnapshot, () => '');
+  return getPathname(href);
 }
 
 export function isBlueprintRoute(): boolean {
@@ -104,5 +117,14 @@ export function updateBlueprintRoute(buildId: string | null): void {
   }
   window.history.pushState({}, '', url.toString());
   // Dispatch popstate to trigger re-render
+  window.dispatchEvent(new PopStateEvent('popstate'));
+}
+
+export function navigateToPath(pathname: string): void {
+  const url = new URL(window.location.href);
+  url.pathname = pathname;
+  url.search = '';
+  url.hash = '';
+  window.history.pushState({}, '', url.toString());
   window.dispatchEvent(new PopStateEvent('popstate'));
 }

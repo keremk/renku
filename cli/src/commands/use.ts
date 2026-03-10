@@ -1,56 +1,64 @@
-import {
-  readCliConfig,
-  writeCliConfig,
-  type CliConfig,
-} from '../lib/cli-config.js';
+import { createWorkspaceService, type CliConfig } from '@gorenku/core';
+import { readCliConfig, writeCliConfig } from '../lib/cli-config.js';
 import { expandPath } from '../lib/path.js';
 import {
-  getCliCatalogRoot,
-  isValidWorkspace,
+	getBundledCatalogRoot,
+	getCliCatalogRoot,
+	isValidWorkspace,
 } from '../lib/config-assets.js';
 
 export interface UseOptions {
-  rootFolder: string;
-  /** Optional config path override (used in tests) */
-  configPath?: string;
+	rootFolder: string;
+	/** Optional config path override (used in tests) */
+	configPath?: string;
 }
 
 export interface UseResult {
-  rootFolder: string;
-  catalogRoot: string;
+	rootFolder: string;
+	catalogRoot: string;
 }
 
 export async function runUse(options: UseOptions): Promise<UseResult> {
-  if (!options.rootFolder || options.rootFolder.trim() === '') {
-    throw new Error('--root is required. Please specify the workspace root directory.');
-  }
+	if (!options.rootFolder || options.rootFolder.trim() === '') {
+		throw new Error(
+			'--root is required. Please specify the workspace root directory.'
+		);
+	}
 
-  const rootFolder = expandPath(options.rootFolder);
+	const rootFolder = expandPath(options.rootFolder);
 
-  // Check if it's a valid Renku workspace
-  if (!(await isValidWorkspace(rootFolder))) {
-    throw new Error(
-      `Not a valid Renku workspace at "${rootFolder}". Run "renku init --root=${options.rootFolder}" first.`,
-    );
-  }
+	if (!(await isValidWorkspace(rootFolder))) {
+		throw new Error(
+			`Not a valid Renku workspace at "${rootFolder}". Run "renku init --root=${options.rootFolder}" first.`
+		);
+	}
 
-  const catalogRoot = getCliCatalogRoot(rootFolder);
+	const existingConfig = await readCliConfig(options.configPath);
+	if (!existingConfig) {
+		const catalogRoot = getCliCatalogRoot(rootFolder);
+		const cliConfig: CliConfig = {
+			storage: {
+				root: rootFolder,
+				basePath: 'builds',
+			},
+			catalog: {
+				root: catalogRoot,
+			},
+		};
 
-  // Read existing config to preserve other settings (like viewer preferences)
-  const existingConfig = await readCliConfig(options.configPath);
+		await writeCliConfig(cliConfig, options.configPath);
+		return { rootFolder, catalogRoot };
+	}
 
-  const cliConfig: CliConfig = {
-    ...existingConfig,
-    storage: {
-      root: rootFolder,
-      basePath: existingConfig?.storage.basePath ?? 'builds',
-    },
-    catalog: {
-      root: catalogRoot,
-    },
-  };
+	const workspaceService = createWorkspaceService();
+	const result = await workspaceService.switchWorkspaceRoot({
+		targetRootFolder: rootFolder,
+		catalogSourceRoot: getBundledCatalogRoot(),
+		configPath: options.configPath,
+		migrateContent: false,
+		requireExistingWorkspace: true,
+		syncCatalog: false,
+	});
 
-  await writeCliConfig(cliConfig, options.configPath);
-
-  return { rootFolder, catalogRoot };
+	return { rootFolder: result.rootFolder, catalogRoot: result.catalogRoot };
 }
