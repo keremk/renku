@@ -30,7 +30,9 @@ describe('SwitchBlueprintDialog', () => {
 
   it('renders the switch button', () => {
     render(<SwitchBlueprintDialog currentBlueprintName='my-project' />);
-    expect(screen.getByText('Switch')).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: 'Switch Blueprints' })
+    ).toBeTruthy();
   });
 
   it('opens dialog and loads blueprints on button click', async () => {
@@ -40,7 +42,7 @@ describe('SwitchBlueprintDialog', () => {
 
     render(<SwitchBlueprintDialog currentBlueprintName='alpha-project' />);
 
-    fireEvent.click(screen.getByText('Switch'));
+    fireEvent.click(screen.getByRole('button', { name: 'Switch Blueprints' }));
 
     await waitFor(() => {
       expect(screen.getByText('Switch Blueprint')).toBeTruthy();
@@ -58,7 +60,7 @@ describe('SwitchBlueprintDialog', () => {
     });
 
     render(<SwitchBlueprintDialog currentBlueprintName='current-bp' />);
-    fireEvent.click(screen.getByText('Switch'));
+    fireEvent.click(screen.getByRole('button', { name: 'Switch Blueprints' }));
 
     await waitFor(() => {
       expect(screen.getByText('Current Bp')).toBeTruthy();
@@ -79,7 +81,7 @@ describe('SwitchBlueprintDialog', () => {
     });
 
     render(<SwitchBlueprintDialog currentBlueprintName='current-bp' />);
-    fireEvent.click(screen.getByText('Switch'));
+    fireEvent.click(screen.getByRole('button', { name: 'Switch Blueprints' }));
 
     await waitFor(() => {
       expect(screen.getByText('Other Bp')).toBeTruthy();
@@ -99,7 +101,7 @@ describe('SwitchBlueprintDialog', () => {
     vi.mocked(fetchBlueprintsList).mockReturnValue(new Promise(() => {}));
 
     render(<SwitchBlueprintDialog currentBlueprintName='my-bp' />);
-    fireEvent.click(screen.getByText('Switch'));
+    fireEvent.click(screen.getByRole('button', { name: 'Switch Blueprints' }));
 
     await waitFor(() => {
       expect(screen.getByText('Switch Blueprint')).toBeTruthy();
@@ -112,7 +114,7 @@ describe('SwitchBlueprintDialog', () => {
     );
 
     render(<SwitchBlueprintDialog currentBlueprintName='my-bp' />);
-    fireEvent.click(screen.getByText('Switch'));
+    fireEvent.click(screen.getByRole('button', { name: 'Switch Blueprints' }));
 
     await waitFor(() => {
       expect(screen.getByText('Network error')).toBeTruthy();
@@ -125,7 +127,7 @@ describe('SwitchBlueprintDialog', () => {
     });
 
     render(<SwitchBlueprintDialog currentBlueprintName='my-bp' />);
-    fireEvent.click(screen.getByText('Switch'));
+    fireEvent.click(screen.getByRole('button', { name: 'Switch Blueprints' }));
 
     await waitFor(() => {
       expect(screen.getByText('No blueprints found.')).toBeTruthy();

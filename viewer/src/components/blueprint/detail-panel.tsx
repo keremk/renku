@@ -4,7 +4,6 @@ import { ModelsPanel } from './models-panel';
 import { OutputsPanel } from './outputs-panel';
 import { PreviewPanel } from './preview-panel';
 import { ReadOnlyIndicator } from './shared';
-import { ThemeToggle } from '@/components/ui/theme-toggle';
 import type {
   BlueprintGraphData,
   InputTemplateData,
@@ -179,7 +178,7 @@ export function DetailPanel({
           />
         </div>
 
-        {/* Right side: read-only indicator, action button, and theme toggle */}
+        {/* Right side: read-only indicator and action button */}
         <div className='ml-auto flex items-center gap-2 pr-3'>
           {showReadOnlyIndicator && (
             <ReadOnlyIndicator
@@ -188,7 +187,6 @@ export function DetailPanel({
             />
           )}
           {actionButton}
-          <ThemeToggle />
         </div>
       </div>
 

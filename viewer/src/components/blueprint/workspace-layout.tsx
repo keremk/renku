@@ -6,8 +6,10 @@ import { SwitchBlueprintDialog } from './switch-blueprint-dialog';
 import { PlanDialog } from './plan-dialog';
 import { CompletionDialog } from './completion-dialog';
 import { BottomTabbedPanel } from './bottom-tabbed-panel';
+import { ViewerPageHeader } from '@/components/layout/viewer-page-header';
 import { ExecutionProvider, useExecution } from '@/contexts/execution-context';
 import { computeBlueprintLayerCount } from '@/lib/blueprint-layout';
+import { cn } from '@/lib/utils';
 import { enableBuildEditing } from '@/data/blueprint-client';
 import {
   useBuildInputs,
@@ -60,6 +62,12 @@ interface WorkspaceLayoutProps {
 const MIN_BLUEPRINT_FLOW_PERCENT = 30;
 const MAX_BLUEPRINT_FLOW_PERCENT = 70;
 const DEFAULT_BLUEPRINT_FLOW_PERCENT = 30;
+const HEADER_RESERVED_SPACE_PX = 62;
+const HEADER_REVEAL_TRIGGER_Y_PX = 8;
+const TOUCH_HEADER_REVEAL_TRIGGER_Y_PX = 24;
+const HEADER_HIDE_THRESHOLD_Y_PX = 96;
+const HEADER_ANIMATION_CLASS =
+  'transition-[transform,opacity,padding-top] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]';
 
 /**
  * Inner component that uses the execution context.
@@ -85,6 +93,8 @@ function WorkspaceLayoutInner({
   const [syncedForMovieId, setSyncedForMovieId] = useState<
     string | null | undefined
   >(undefined);
+  const [isHeaderPinned, setIsHeaderPinned] = useState(true);
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { state, initializeFromManifest, setTotalLayers, setLayerRange } =
@@ -146,6 +156,60 @@ function WorkspaceLayoutInner({
     const layerCount = computeBlueprintLayerCount(graphData);
     setTotalLayers(layerCount);
   }, [graphData, setTotalLayers]);
+
+  useEffect(() => {
+    setIsHeaderVisible(isHeaderPinned);
+  }, [isHeaderPinned]);
+
+  useEffect(() => {
+    if (isHeaderPinned) {
+      return;
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      if (event.pointerType !== 'mouse') {
+        return;
+      }
+
+      if (event.clientY <= HEADER_REVEAL_TRIGGER_Y_PX) {
+        setIsHeaderVisible((previous) => (previous ? previous : true));
+        return;
+      }
+
+      if (event.clientY > HEADER_HIDE_THRESHOLD_Y_PX) {
+        setIsHeaderVisible((previous) => (previous ? false : previous));
+      }
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.pointerType === 'mouse') {
+        return;
+      }
+
+      if (event.clientY <= TOUCH_HEADER_REVEAL_TRIGGER_Y_PX) {
+        setIsHeaderVisible((previous) => (previous ? previous : true));
+        return;
+      }
+
+      if (event.clientY > HEADER_HIDE_THRESHOLD_Y_PX) {
+        setIsHeaderVisible((previous) => (previous ? false : previous));
+      }
+    };
+
+    const handleMouseLeave = () => {
+      setIsHeaderVisible(false);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('mouseleave', handleMouseLeave);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }, [isHeaderPinned]);
 
   // Inputs panel is the inverse of blueprint flow
   const inputsPanelPercent = 100 - blueprintFlowPercent;
@@ -318,6 +382,10 @@ function WorkspaceLayoutInner({
     setSelectedNodeId(nodeId);
   }, []);
 
+  const handleToggleHeaderPin = useCallback(() => {
+    setIsHeaderPinned((previous) => !previous);
+  }, []);
+
   const handleLayerSelect = useCallback(
     (layerIndex: number) => {
       setLayerRange({ upToLayer: layerIndex });
@@ -328,15 +396,12 @@ function WorkspaceLayoutInner({
   // Determine effective movie ID - use selected build or passed movieId
   const effectiveMovieId = selectedBuildId ?? movieId;
 
-  // Create action buttons (Switch + Run) to pass to DetailPanel
+  // Create action button to pass to DetailPanel
   const runButton = (
-    <>
-      <SwitchBlueprintDialog currentBlueprintName={blueprintName} />
-      <RunButton
-        blueprintName={blueprintName}
-        movieId={effectiveMovieId ?? undefined}
-      />
-    </>
+    <RunButton
+      blueprintName={blueprintName}
+      movieId={effectiveMovieId ?? undefined}
+    />
   );
 
   // Check if we have execution logs to show
@@ -387,120 +452,153 @@ function WorkspaceLayoutInner({
     [syncedForMovieId, effectiveMovieId, setBottomActiveTab]
   );
 
+  const showHeader = isHeaderPinned || isHeaderVisible;
+
   return (
     <div
-      className='h-screen w-screen bg-background text-foreground p-4 flex flex-col'
+      className='h-screen w-screen bg-background text-foreground p-3 flex flex-col'
       style={{ userSelect: isDragging ? 'none' : 'auto' }}
     >
-      {/* Resizable panels wrapper */}
-      <div ref={containerRef} className='flex-1 min-h-0 flex flex-col'>
-        {/* Top Panel: Sidebar + Detail Panel */}
+      <div className='relative flex-1 min-h-0'>
         <div
-          className='shrink-0 min-h-0 overflow-hidden flex gap-4'
-          style={{
-            flexBasis: `${inputsPanelPercent}%`,
-            maxHeight: `${inputsPanelPercent}%`,
-          }}
+          className={cn(
+            'absolute inset-x-0 top-0 z-30',
+            HEADER_ANIMATION_CLASS,
+            showHeader
+              ? 'translate-y-0 opacity-100'
+              : '-translate-y-[calc(100%+14px)] opacity-0 pointer-events-none'
+          )}
         >
-          {/* Builds Sidebar (fixed width) */}
-          {showSidebar && (
-            <div className='w-64 shrink-0'>
-              <BuildsListSidebar
-                builds={builds}
-                selectedBuildId={selectedBuildId}
-                isLoading={buildsLoading || buildInputsLoading}
-                blueprintFolder={blueprintFolder}
-                onRefresh={onBuildsRefresh}
+          <ViewerPageHeader
+            subtitle='Workspace'
+            showSettingsButton
+            showPinButton
+            isPinned={isHeaderPinned}
+            onPinToggle={handleToggleHeaderPin}
+            beforeThemeContent={
+              <SwitchBlueprintDialog currentBlueprintName={blueprintName} />
+            }
+            className={cn(!isHeaderPinned && 'shadow-xl')}
+          />
+        </div>
+
+        <div
+          className={cn('h-full min-h-0', HEADER_ANIMATION_CLASS)}
+          style={{ paddingTop: isHeaderPinned ? HEADER_RESERVED_SPACE_PX : 0 }}
+        >
+          {/* Resizable panels wrapper */}
+          <div ref={containerRef} className='h-full min-h-0 flex flex-col'>
+            {/* Top Panel: Sidebar + Detail Panel */}
+            <div
+              className='shrink-0 min-h-0 overflow-hidden flex gap-4'
+              style={{
+                flexBasis: `${inputsPanelPercent}%`,
+                maxHeight: `${inputsPanelPercent}%`,
+              }}
+            >
+              {/* Builds Sidebar (fixed width) */}
+              {showSidebar && (
+                <div className='w-64 shrink-0'>
+                  <BuildsListSidebar
+                    builds={builds}
+                    selectedBuildId={selectedBuildId}
+                    isLoading={buildsLoading || buildInputsLoading}
+                    blueprintFolder={blueprintFolder}
+                    onRefresh={onBuildsRefresh}
+                  />
+                </div>
+              )}
+
+              {/* Detail Panel (flexible width) */}
+              <div className='flex-1 min-w-0'>
+                <DetailPanel
+                  graphData={graphData}
+                  inputData={effectiveInputData}
+                  selectedNodeId={selectedNodeId}
+                  movieId={effectiveMovieId}
+                  blueprintFolder={blueprintFolder}
+                  artifacts={selectedBuildManifest?.artefacts ?? []}
+                  actionButton={runButton}
+                  isInputsEditable={isInputsEditable}
+                  onSaveInputs={handleSaveInputs}
+                  canEnableEditing={canEnableEditing}
+                  onEnableEditing={handleEnableEditing}
+                  buildInputs={buildInputs}
+                  producerModels={producerModels}
+                  modelSelections={modelEditor.currentSelections}
+                  promptDataByProducer={promptDataByProducer}
+                  onPromptChange={handleSavePrompt}
+                  configPropertiesByProducer={configPropertiesByProducer}
+                  configValuesByProducer={configValuesByProducer}
+                  configSchemasByProducer={configSchemas}
+                  onConfigChange={handleConfigChange}
+                  modelEditor={modelEditor}
+                  hasTimeline={hasTimeline}
+                  activeTab={detailPanelTab}
+                  onTabChange={handleDetailTabChange}
+                  timeline={timeline}
+                  timelineStatus={timelineStatus}
+                  timelineError={timelineError}
+                  currentTime={currentTime}
+                  isPlaying={isPlaying}
+                  onPlay={play}
+                  onPause={pause}
+                  onSeek={seek}
+                  onReset={reset}
+                  onRetryTimeline={retryTimeline}
+                  onArtifactUpdated={onManifestRefresh}
+                />
+              </div>
+            </div>
+
+            {/* Resize Handle */}
+            <div
+              className='shrink-0 h-2 flex items-center justify-center cursor-row-resize group'
+              onMouseDown={handleMouseDown}
+            >
+              <div
+                className={`w-16 h-1 rounded-full transition-colors ${
+                  isDragging
+                    ? 'bg-primary'
+                    : 'bg-border/60 group-hover:bg-border'
+                }`}
               />
             </div>
-          )}
 
-          {/* Detail Panel (flexible width) */}
-          <div className='flex-1 min-w-0'>
-            <DetailPanel
-              graphData={graphData}
-              inputData={effectiveInputData}
-              selectedNodeId={selectedNodeId}
-              movieId={effectiveMovieId}
-              blueprintFolder={blueprintFolder}
-              artifacts={selectedBuildManifest?.artefacts ?? []}
-              actionButton={runButton}
-              isInputsEditable={isInputsEditable}
-              onSaveInputs={handleSaveInputs}
-              canEnableEditing={canEnableEditing}
-              onEnableEditing={handleEnableEditing}
-              buildInputs={buildInputs}
-              producerModels={producerModels}
-              modelSelections={modelEditor.currentSelections}
-              promptDataByProducer={promptDataByProducer}
-              onPromptChange={handleSavePrompt}
-              configPropertiesByProducer={configPropertiesByProducer}
-              configValuesByProducer={configValuesByProducer}
-              configSchemasByProducer={configSchemas}
-              onConfigChange={handleConfigChange}
-              modelEditor={modelEditor}
-              hasTimeline={hasTimeline}
-              activeTab={detailPanelTab}
-              onTabChange={handleDetailTabChange}
-              timeline={timeline}
-              timelineStatus={timelineStatus}
-              timelineError={timelineError}
-              currentTime={currentTime}
-              isPlaying={isPlaying}
-              onPlay={play}
-              onPause={pause}
-              onSeek={seek}
-              onReset={reset}
-              onRetryTimeline={retryTimeline}
-              onArtifactUpdated={onManifestRefresh}
-            />
+            {/* Bottom Panel with Tabs (Blueprint Flow, Execution, or Timeline) */}
+            <div
+              className='shrink-0 min-h-0 rounded-[var(--radius-panel)] border border-sidebar-border overflow-hidden relative flex flex-col bg-sidebar-bg'
+              style={{
+                flexBasis: `${blueprintFlowPercent}%`,
+                maxHeight: `${blueprintFlowPercent}%`,
+              }}
+            >
+              <BottomTabbedPanel
+                activeTab={bottomActiveTab}
+                onTabChange={handleBottomTabChange}
+                isExecuting={isExecuting}
+                hasLogs={hasExecutionLogs}
+                graphData={graphData}
+                selectedUpToLayer={state.layerRange.upToLayer}
+                onLayerSelect={handleLayerSelect}
+                onNodeSelect={handleNodeSelect}
+                producerStatuses={state.producerStatuses}
+                executionLogs={state.executionLogs}
+                timeline={timeline}
+                timelineStatus={timelineStatus}
+                timelineError={timelineError}
+                blueprintFolder={blueprintFolder}
+                currentTime={currentTime}
+                isPlaying={isPlaying}
+                onPlay={play}
+                onPause={pause}
+                onSeek={seek}
+                hasTimeline={hasTimeline}
+                movieId={effectiveMovieId}
+                onRetryTimeline={retryTimeline}
+              />
+            </div>
           </div>
-        </div>
-
-        {/* Resize Handle */}
-        <div
-          className='shrink-0 h-2 flex items-center justify-center cursor-row-resize group'
-          onMouseDown={handleMouseDown}
-        >
-          <div
-            className={`w-16 h-1 rounded-full transition-colors ${
-              isDragging ? 'bg-primary' : 'bg-border/60 group-hover:bg-border'
-            }`}
-          />
-        </div>
-
-        {/* Bottom Panel with Tabs (Blueprint Flow, Execution, or Timeline) */}
-        <div
-          className='shrink-0 min-h-0 rounded-[var(--radius-panel)] border border-sidebar-border overflow-hidden relative flex flex-col bg-sidebar-bg'
-          style={{
-            flexBasis: `${blueprintFlowPercent}%`,
-            maxHeight: `${blueprintFlowPercent}%`,
-          }}
-        >
-          <BottomTabbedPanel
-            activeTab={bottomActiveTab}
-            onTabChange={handleBottomTabChange}
-            isExecuting={isExecuting}
-            hasLogs={hasExecutionLogs}
-            graphData={graphData}
-            selectedUpToLayer={state.layerRange.upToLayer}
-            onLayerSelect={handleLayerSelect}
-            onNodeSelect={handleNodeSelect}
-            producerStatuses={state.producerStatuses}
-            executionLogs={state.executionLogs}
-            timeline={timeline}
-            timelineStatus={timelineStatus}
-            timelineError={timelineError}
-            blueprintFolder={blueprintFolder}
-            currentTime={currentTime}
-            isPlaying={isPlaying}
-            onPlay={play}
-            onPause={pause}
-            onSeek={seek}
-            hasTimeline={hasTimeline}
-            movieId={effectiveMovieId}
-            onRetryTimeline={retryTimeline}
-          />
         </div>
       </div>
 

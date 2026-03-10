@@ -6,6 +6,12 @@ import { useState, useCallback } from 'react';
 import { FolderOpen, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -68,80 +74,92 @@ export function SwitchBlueprintDialog({
   );
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button
-          variant='outline'
-          className='h-7 gap-1.5 px-3 text-xs font-medium'
-        >
-          <FolderOpen className='w-4 h-4' />
-          Switch
-        </Button>
-      </DialogTrigger>
-      <DialogContent className='sm:max-w-md p-0 gap-0 overflow-hidden'>
-        <DialogHeader>
-          <DialogTitle>Switch Blueprint</DialogTitle>
-          <DialogDescription>Select a blueprint to open.</DialogDescription>
-        </DialogHeader>
+    <TooltipProvider>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DialogTrigger asChild>
+              <Button
+                variant='outline'
+                size='icon'
+                className='h-7 w-7 bg-background/35 border-border/50 hover:bg-accent hover:text-accent-foreground'
+                aria-label='Switch Blueprints'
+              >
+                <FolderOpen className='w-3.5 h-3.5' />
+              </Button>
+            </DialogTrigger>
+          </TooltipTrigger>
+          <TooltipContent side='bottom' sideOffset={8}>
+            Switch Blueprint
+          </TooltipContent>
+        </Tooltip>
+        <DialogContent className='sm:max-w-md p-0 gap-0 overflow-hidden'>
+          <DialogHeader>
+            <DialogTitle>Switch Blueprint</DialogTitle>
+            <DialogDescription>Select a blueprint to open.</DialogDescription>
+          </DialogHeader>
 
-        <div className='max-h-80 overflow-y-auto px-4 py-2'>
-          {isLoading && (
-            <div className='flex items-center justify-center py-8'>
-              <Loader2 className='w-5 h-5 animate-spin text-muted-foreground' />
-            </div>
-          )}
+          <div className='max-h-80 overflow-y-auto px-4 py-2'>
+            {isLoading && (
+              <div className='flex items-center justify-center py-8'>
+                <Loader2 className='w-5 h-5 animate-spin text-muted-foreground' />
+              </div>
+            )}
 
-          {error && (
-            <p className='text-sm text-destructive text-center py-4'>{error}</p>
-          )}
+            {error && (
+              <p className='text-sm text-destructive text-center py-4'>
+                {error}
+              </p>
+            )}
 
-          {!isLoading && !error && blueprints.length === 0 && (
-            <p className='text-sm text-muted-foreground text-center py-4'>
-              No blueprints found.
-            </p>
-          )}
+            {!isLoading && !error && blueprints.length === 0 && (
+              <p className='text-sm text-muted-foreground text-center py-4'>
+                No blueprints found.
+              </p>
+            )}
 
-          {!isLoading &&
-            !error &&
-            blueprints.map((bp) => {
-              const isCurrent = bp.name === currentBlueprintName;
-              return (
-                <button
-                  key={bp.name}
-                  onClick={() => handleSelect(bp.name)}
-                  disabled={isCurrent}
-                  className={`
-                    w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-left
-                    transition-colors
-                    ${
-                      isCurrent
-                        ? 'bg-primary/10 cursor-default'
-                        : 'hover:bg-muted/50 cursor-pointer'
-                    }
-                  `}
-                >
-                  <FolderOpen className='w-4 h-4 shrink-0 text-muted-foreground' />
-                  <div className='flex-1 min-w-0'>
-                    <p className='text-sm font-medium truncate'>
-                      {prettifyBlueprintName(bp.name)}
-                    </p>
-                    <p className='text-xs text-muted-foreground truncate'>
-                      {bp.name}
-                    </p>
-                  </div>
-                  {isCurrent && (
-                    <Check className='w-4 h-4 shrink-0 text-primary' />
-                  )}
-                </button>
-              );
-            })}
-        </div>
-        <DialogFooter>
-          <Button variant='outline' onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            {!isLoading &&
+              !error &&
+              blueprints.map((bp) => {
+                const isCurrent = bp.name === currentBlueprintName;
+                return (
+                  <button
+                    key={bp.name}
+                    onClick={() => handleSelect(bp.name)}
+                    disabled={isCurrent}
+                    className={`
+                     w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-left
+                     transition-colors
+                     ${
+                       isCurrent
+                         ? 'bg-primary/10 cursor-default'
+                         : 'hover:bg-muted/50 cursor-pointer'
+                     }
+                   `}
+                  >
+                    <FolderOpen className='w-4 h-4 shrink-0 text-muted-foreground' />
+                    <div className='flex-1 min-w-0'>
+                      <p className='text-sm font-medium truncate'>
+                        {prettifyBlueprintName(bp.name)}
+                      </p>
+                      <p className='text-xs text-muted-foreground truncate'>
+                        {bp.name}
+                      </p>
+                    </div>
+                    {isCurrent && (
+                      <Check className='w-4 h-4 shrink-0 text-primary' />
+                    )}
+                  </button>
+                );
+              })}
+          </div>
+          <DialogFooter>
+            <Button variant='outline' onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </TooltipProvider>
   );
 }
