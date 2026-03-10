@@ -40,11 +40,16 @@ const nodeTypes: NodeTypes = {
   inputNode: InputNode,
   producerNode: ProducerNode,
   outputNode: OutputNode,
+  fitBoundsAnchor: FitBoundsAnchor,
 };
 
 const edgeTypes: EdgeTypes = {
   conditionalEdge: ConditionalEdge,
 };
+
+function FitBoundsAnchor() {
+  return <div className='size-px pointer-events-none opacity-0' />;
+}
 
 interface BlueprintViewerProps {
   graphData: BlueprintGraphData;
@@ -96,6 +101,11 @@ const layerGuideConfig = {
   headerOffset: 10,
   nodeWidthAllowance: 24,
   nodeHeightAllowance: 30,
+} as const;
+
+const fitBoundsAnchorIds = {
+  left: '__fit-bounds-anchor-left',
+  right: '__fit-bounds-anchor-right',
 } as const;
 
 function buildLayerGuides(
@@ -312,6 +322,48 @@ export function BlueprintViewer({
     [graphData, nodes, selectedUpToLayer]
   );
 
+  const nodesForRender = useMemo(() => {
+    if (layerGuides.length === 0) {
+      return nodes;
+    }
+
+    const minHeaderX = Math.min(...layerGuides.map((guide) => guide.headerX));
+    const minHeaderY = Math.min(...layerGuides.map((guide) => guide.headerY));
+    const maxHeaderX = Math.max(
+      ...layerGuides.map(
+        (guide) => guide.headerX + layerGuideConfig.headerWidth
+      )
+    );
+
+    return [
+      ...nodes,
+      {
+        id: fitBoundsAnchorIds.left,
+        type: 'fitBoundsAnchor',
+        position: {
+          x: minHeaderX,
+          y: minHeaderY,
+        },
+        data: {},
+        draggable: false,
+        selectable: false,
+        focusable: false,
+      },
+      {
+        id: fitBoundsAnchorIds.right,
+        type: 'fitBoundsAnchor',
+        position: {
+          x: maxHeaderX,
+          y: minHeaderY,
+        },
+        data: {},
+        draggable: false,
+        selectable: false,
+        focusable: false,
+      },
+    ];
+  }, [layerGuides, nodes]);
+
   // Synchronize nodes and edges when layout changes (new build selected, graph changes, etc.)
   useEffect(() => {
     setNodes(initialNodes);
@@ -365,7 +417,7 @@ export function BlueprintViewer({
   return (
     <div className='absolute inset-0'>
       <ReactFlow
-        nodes={nodes}
+        nodes={nodesForRender}
         edges={showConnectionArrows ? edges : []}
         onNodesChange={handleNodesChange}
         onEdgesChange={onEdgesChange}
