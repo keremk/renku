@@ -1,14 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { readCliConfig, writeCliConfig, type CliConfig } from './workspace.js';
+import {
+  initWorkspace,
+  readCliConfig,
+  writeCliConfig,
+  type CliConfig,
+} from './workspace.js';
 import {
   mapProviderTokenPayloadToApiKeyValues,
   persistProviderTokenPayload,
   readSettingsApiTokens,
   readSettingsSnapshot,
   updateWorkspaceConcurrency,
+  updateWorkspaceStorageRoot,
 } from './settings-service.js';
 
 async function makeTempDir(): Promise<string> {
@@ -124,5 +130,129 @@ describe('settings-service', () => {
     expect(concurrency).toBe(10);
     const updated = await readCliConfig(configPath);
     expect(updated?.concurrency).toBe(10);
+  });
+
+  it('resolves catalog source from current config when catalogPath is omitted', async () => {
+    const configPath = join(tempDir, 'cli-config.json');
+    const currentRoot = join(tempDir, 'workspace-a');
+    const nextRoot = join(tempDir, 'workspace-b');
+    const catalogSource = join(tempDir, 'catalog-source');
+
+    await mkdir(join(catalogSource, 'blueprints'), { recursive: true });
+    await mkdir(join(catalogSource, 'models'), { recursive: true });
+    await mkdir(join(catalogSource, 'producers'), { recursive: true });
+    await writeFile(
+      join(catalogSource, 'blueprints', 'sample.yaml'),
+      'name: sample',
+      'utf8'
+    );
+
+    await initWorkspace({
+      rootFolder: currentRoot,
+      catalogSourceRoot: catalogSource,
+      configPath,
+    });
+
+    const result = await updateWorkspaceStorageRoot({
+      storageRoot: nextRoot,
+      migrateContent: false,
+      configPath,
+    });
+
+    expect(result.storageRoot).toBe(nextRoot);
+
+    const updated = await readCliConfig(configPath);
+    expect(updated?.storage.root).toBe(nextRoot);
+  });
+
+  it('falls back to storageRoot/catalog when config catalog root is absent', async () => {
+    const configPath = join(tempDir, 'cli-config.json');
+    const currentRoot = join(tempDir, 'workspace-a');
+    const nextRoot = join(tempDir, 'workspace-b');
+    const catalogSource = join(tempDir, 'catalog-source');
+
+    await mkdir(join(catalogSource, 'blueprints'), { recursive: true });
+    await mkdir(join(catalogSource, 'models'), { recursive: true });
+    await mkdir(join(catalogSource, 'producers'), { recursive: true });
+    await writeFile(
+      join(catalogSource, 'blueprints', 'sample.yaml'),
+      'name: sample',
+      'utf8'
+    );
+
+    await initWorkspace({
+      rootFolder: currentRoot,
+      catalogSourceRoot: catalogSource,
+      configPath,
+    });
+
+    await writeCliConfig(
+      {
+        storage: { root: currentRoot, basePath: 'builds' },
+      },
+      configPath
+    );
+
+    const result = await updateWorkspaceStorageRoot({
+      storageRoot: nextRoot,
+      migrateContent: false,
+      configPath,
+    });
+
+    expect(result.storageRoot).toBe(nextRoot);
+  });
+
+  it('switches between initialized workspaces after adopting a non-empty folder', async () => {
+    const configPath = join(tempDir, 'cli-config.json');
+    const workspaceA = join(tempDir, 'workspace-a');
+    const workspaceB = join(tempDir, 'workspace-b');
+    const catalogSource = join(tempDir, 'catalog-source');
+
+    await mkdir(join(catalogSource, 'blueprints'), { recursive: true });
+    await mkdir(join(catalogSource, 'models'), { recursive: true });
+    await mkdir(join(catalogSource, 'producers'), { recursive: true });
+    await writeFile(
+      join(catalogSource, 'blueprints', 'sample.yaml'),
+      'name: sample',
+      'utf8'
+    );
+
+    await initWorkspace({
+      rootFolder: workspaceA,
+      catalogSourceRoot: catalogSource,
+      configPath,
+    });
+
+    await mkdir(workspaceB, { recursive: true });
+    await writeFile(join(workspaceB, 'README.md'), 'keep-me', 'utf8');
+
+    const firstSwitch = await updateWorkspaceStorageRoot({
+      storageRoot: workspaceB,
+      migrateContent: false,
+      allowNonEmptyTarget: true,
+      configPath,
+    });
+
+    expect(firstSwitch.mode).toBe('initialized');
+
+    const adoptedCatalog = await readFile(
+      join(workspaceB, 'catalog', 'blueprints', 'sample.yaml'),
+      'utf8'
+    );
+    expect(adoptedCatalog).toBe('name: sample');
+
+    const preservedFile = await readFile(join(workspaceB, 'README.md'), 'utf8');
+    expect(preservedFile).toBe('keep-me');
+
+    const secondSwitch = await updateWorkspaceStorageRoot({
+      storageRoot: workspaceA,
+      migrateContent: false,
+      configPath,
+    });
+
+    expect(secondSwitch.mode).toBe('switched-existing');
+
+    const updated = await readCliConfig(configPath);
+    expect(updated?.storage.root).toBe(workspaceA);
   });
 });

@@ -11,6 +11,8 @@ const {
   handleStreamRequestMock,
   handleCancelRequestMock,
   sendMethodNotAllowedMock,
+  handleOnboardingRequestMock,
+  handleSettingsRequestMock,
 } = vi.hoisted(() => ({
   handleBlueprintRequestMock: vi.fn(),
   handlePlanRequestMock: vi.fn(),
@@ -20,6 +22,8 @@ const {
   handleStreamRequestMock: vi.fn(),
   handleCancelRequestMock: vi.fn(),
   sendMethodNotAllowedMock: vi.fn(),
+  handleOnboardingRequestMock: vi.fn(),
+  handleSettingsRequestMock: vi.fn(),
 }));
 
 vi.mock('./blueprints/index.js', () => ({
@@ -36,7 +40,18 @@ vi.mock('./generation/index.js', () => ({
   sendMethodNotAllowed: sendMethodNotAllowedMock,
 }));
 
-import { createViewerApiHandler } from './viewer-api.js';
+vi.mock('./onboarding/index.js', () => ({
+  handleOnboardingRequest: handleOnboardingRequestMock,
+}));
+
+vi.mock('./settings/index.js', () => ({
+  handleSettingsRequest: handleSettingsRequestMock,
+}));
+
+import {
+  createViewerApiHandler,
+  createViewerApiMiddleware,
+} from './viewer-api.js';
 
 function createMockApiRequest(url: string, method = 'GET'): IncomingMessage {
   return { url, method } as IncomingMessage;
@@ -85,5 +100,42 @@ describe('createViewerApiHandler', () => {
     expect(consoleSpy).toHaveBeenCalledWith('[viewer-api]', expect.any(Error));
 
     consoleSpy.mockRestore();
+  });
+
+  it('passes configured catalog path to settings requests', async () => {
+    handleSettingsRequestMock.mockResolvedValueOnce(true);
+
+    const handler = createViewerApiHandler({ catalogPath: '/catalog' });
+    const req = createMockApiRequest('/viewer-api/settings', 'GET');
+    const res = createMockResponse();
+
+    const handled = await handler(req, res);
+
+    expect(handled).toBe(true);
+    expect(handleSettingsRequestMock).toHaveBeenCalledWith(
+      req,
+      res,
+      [],
+      '/catalog'
+    );
+  });
+
+  it('passes middleware catalog options into API handler', async () => {
+    handleSettingsRequestMock.mockResolvedValueOnce(true);
+
+    const middleware = createViewerApiMiddleware({ catalogPath: '/catalog' });
+    const req = createMockApiRequest('/viewer-api/settings', 'GET');
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await middleware(req, res, next);
+
+    expect(handleSettingsRequestMock).toHaveBeenCalledWith(
+      req,
+      res,
+      [],
+      '/catalog'
+    );
+    expect(next).not.toHaveBeenCalled();
   });
 });

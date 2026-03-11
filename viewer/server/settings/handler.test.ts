@@ -110,6 +110,7 @@ describe('handleSettingsEndpoint', () => {
     expect(updateViewerStorageRootMock).toHaveBeenCalledWith({
       storageRoot: '/Users/test/NewRenku',
       migrateContent: true,
+      allowNonEmptyTarget: false,
       catalogPath: '/catalog',
     });
     expect(JSON.parse(res.body)).toEqual({
@@ -117,6 +118,39 @@ describe('handleSettingsEndpoint', () => {
       storageRoot: '/Users/test/NewRenku',
       catalogRoot: '/Users/test/NewRenku/catalog',
       mode: 'migrated',
+    });
+  });
+
+  it('updates storage root even when server catalogPath is undefined', async () => {
+    updateViewerStorageRootMock.mockResolvedValue({
+      storageRoot: '/Users/test/NewRenku',
+      catalogRoot: '/Users/test/NewRenku/catalog',
+      mode: 'initialized',
+    });
+
+    const req = createMockRequest(
+      {
+        storageRoot: '/Users/test/NewRenku',
+        migrateContent: false,
+      },
+      'POST'
+    );
+    const res = createMockResponse();
+
+    const handled = await handleSettingsEndpoint(
+      req,
+      res,
+      'storage-root',
+      undefined
+    );
+
+    expect(handled).toBe(true);
+    expect(res.statusCode).toBe(200);
+    expect(updateViewerStorageRootMock).toHaveBeenCalledWith({
+      storageRoot: '/Users/test/NewRenku',
+      migrateContent: false,
+      allowNonEmptyTarget: false,
+      catalogPath: undefined,
     });
   });
 
@@ -141,6 +175,38 @@ describe('handleSettingsEndpoint', () => {
     expect(updateViewerStorageRootMock).not.toHaveBeenCalled();
     expect(JSON.parse(res.body)).toEqual({
       error: 'migrateContent must be a boolean',
+    });
+  });
+
+  it('returns 409 when switching to non-empty target requires confirmation', async () => {
+    const confirmationError = Object.assign(
+      new Error('Target folder has existing files.'),
+      { code: 'WORKSPACE_SWITCH_CONFIRMATION_REQUIRED' }
+    );
+
+    updateViewerStorageRootMock.mockRejectedValue(confirmationError);
+
+    const req = createMockRequest(
+      {
+        storageRoot: '/Users/test/NewRenku',
+        migrateContent: false,
+      },
+      'POST'
+    );
+    const res = createMockResponse();
+
+    const handled = await handleSettingsEndpoint(
+      req,
+      res,
+      'storage-root',
+      '/catalog'
+    );
+
+    expect(handled).toBe(true);
+    expect(res.statusCode).toBe(409);
+    expect(JSON.parse(res.body)).toEqual({
+      error: 'Target folder has existing files.',
+      code: 'WORKSPACE_SWITCH_CONFIRMATION_REQUIRED',
     });
   });
 

@@ -47,7 +47,8 @@ export interface SettingsSnapshot {
 export interface UpdateWorkspaceStorageRootOptions {
   storageRoot: string;
   migrateContent: boolean;
-  catalogPath: string;
+  allowNonEmptyTarget?: boolean;
+  catalogPath?: string;
   configPath?: string;
 }
 
@@ -131,20 +132,16 @@ export async function updateWorkspaceStorageRoot(
     throw new Error('storageRoot is required');
   }
 
-  const catalogPath = options.catalogPath.trim();
-  if (catalogPath === '') {
-    throw new Error(
-      'Server has no catalog path configured. Restart using "renku launch".'
-    );
-  }
+  const catalogSourceRoot = await resolveCatalogSourceRoot(options);
 
   const result = await workspaceService.switchWorkspaceRoot({
     targetRootFolder: storageRoot,
-    catalogSourceRoot: catalogPath,
+    catalogSourceRoot,
     configPath: options.configPath,
     migrateContent: options.migrateContent,
+    allowNonEmptyTarget: options.allowNonEmptyTarget,
     requireExistingWorkspace: false,
-    syncCatalog: true,
+    syncCatalog: false,
   });
 
   return {
@@ -152,6 +149,37 @@ export async function updateWorkspaceStorageRoot(
     catalogRoot: result.catalogRoot,
     mode: result.mode,
   };
+}
+
+async function resolveCatalogSourceRoot(
+  options: UpdateWorkspaceStorageRootOptions
+): Promise<string> {
+  if (options.catalogPath !== undefined) {
+    const explicitCatalogPath = options.catalogPath.trim();
+    if (explicitCatalogPath !== '') {
+      return explicitCatalogPath;
+    }
+  }
+
+  const cliConfig = await readCliConfig(options.configPath);
+  if (!cliConfig) {
+    throw new Error('Renku CLI is not initialized. Run "renku init" first.');
+  }
+
+  const configuredCatalogRoot = cliConfig.catalog?.root;
+  if (
+    typeof configuredCatalogRoot === 'string' &&
+    configuredCatalogRoot.trim() !== ''
+  ) {
+    return configuredCatalogRoot;
+  }
+
+  const storageRoot = cliConfig.storage.root;
+  if (storageRoot.trim() === '') {
+    throw new Error('CLI config is invalid: storage.root must be set.');
+  }
+
+  return path.resolve(storageRoot, 'catalog');
 }
 
 export async function updateWorkspaceArtifactsSettings(

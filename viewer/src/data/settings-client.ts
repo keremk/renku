@@ -43,22 +43,52 @@ export interface UpdateConcurrencySettingsResponse {
   concurrency: number;
 }
 
-async function readErrorMessage(response: Response): Promise<string> {
+interface SettingsErrorPayload {
+  error?: string;
+  code?: string;
+}
+
+interface SettingsRequestError extends Error {
+  status: number;
+  code?: string;
+}
+
+async function readErrorDetails(
+  response: Response
+): Promise<{ message: string; code?: string }> {
   try {
-    const body = (await response.json()) as { error?: string };
+    const body = (await response.json()) as SettingsErrorPayload;
     if (body.error && body.error.trim().length > 0) {
-      return body.error;
+      return {
+        message: body.error,
+        code: body.code,
+      };
     }
   } catch {
     // Ignore JSON parse failures and use status text fallback.
   }
-  return response.statusText || 'Unknown error';
+
+  return {
+    message: response.statusText || 'Unknown error',
+  };
+}
+
+async function createRequestError(
+  response: Response
+): Promise<SettingsRequestError> {
+  const { message, code } = await readErrorDetails(response);
+  const error = new Error(message) as SettingsRequestError;
+  error.status = response.status;
+  if (code) {
+    error.code = code;
+  }
+  return error;
 }
 
 export async function fetchViewerSettings(): Promise<ViewerSettingsSnapshot> {
   const response = await fetch('/viewer-api/settings');
   if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
+    throw await createRequestError(response);
   }
   return response.json() as Promise<ViewerSettingsSnapshot>;
 }
@@ -66,6 +96,7 @@ export async function fetchViewerSettings(): Promise<ViewerSettingsSnapshot> {
 export async function updateViewerStorageRoot(options: {
   storageRoot: string;
   migrateContent: boolean;
+  allowNonEmptyTarget?: boolean;
 }): Promise<UpdateStorageRootResponse> {
   const response = await fetch('/viewer-api/settings/storage-root', {
     method: 'POST',
@@ -73,7 +104,7 @@ export async function updateViewerStorageRoot(options: {
     body: JSON.stringify(options),
   });
   if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
+    throw await createRequestError(response);
   }
   return response.json() as Promise<UpdateStorageRootResponse>;
 }
@@ -98,7 +129,7 @@ export async function updateViewerApiTokens(
   });
 
   if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
+    throw await createRequestError(response);
   }
 }
 
@@ -112,7 +143,7 @@ export async function updateViewerArtifactsSettings(options: {
     body: JSON.stringify(options),
   });
   if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
+    throw await createRequestError(response);
   }
   return response.json() as Promise<UpdateArtifactsSettingsResponse>;
 }
@@ -127,7 +158,7 @@ export async function updateViewerConcurrency(options: {
   });
 
   if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
+    throw await createRequestError(response);
   }
   return response.json() as Promise<UpdateConcurrencySettingsResponse>;
 }

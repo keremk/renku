@@ -19,7 +19,8 @@ export type ViewerArtifactsSettings = CliArtifactsConfig;
 export interface UpdateViewerStorageRootOptions {
   storageRoot: string;
   migrateContent: boolean;
-  catalogPath: string;
+  allowNonEmptyTarget: boolean;
+  catalogPath?: string;
 }
 
 export interface UpdateViewerStorageRootResult {
@@ -49,6 +50,7 @@ export async function updateViewerStorageRoot(
       storageRoot: options.storageRoot,
       catalogPath: options.catalogPath,
       migrateContent: options.migrateContent,
+      allowNonEmptyTarget: options.allowNonEmptyTarget,
     });
 
   return {

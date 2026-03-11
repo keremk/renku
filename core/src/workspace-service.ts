@@ -8,17 +8,39 @@ import {
   type CliConfig,
 } from './workspace.js';
 
+const EMPTY_DIRECTORY_PLACEHOLDER_FILES = new Set([
+  '.gitignore',
+  '.gitkeep',
+  '.DS_Store',
+  'Thumbs.db',
+]);
+
 const REQUIRED_CATALOG_DIRECTORIES = [
   'blueprints',
   'models',
   'producers',
 ] as const;
 
+export const WORKSPACE_SWITCH_CONFIRMATION_REQUIRED_CODE =
+  'WORKSPACE_SWITCH_CONFIRMATION_REQUIRED';
+
+export class WorkspaceSwitchConfirmationRequiredError extends Error {
+  readonly code = WORKSPACE_SWITCH_CONFIRMATION_REQUIRED_CODE;
+
+  constructor(path: string) {
+    super(
+      `Target folder "${path}" contains existing files. Confirm this change to keep existing files and replace the catalog folder with Renku catalog contents.`
+    );
+    this.name = 'WorkspaceSwitchConfirmationRequiredError';
+  }
+}
+
 export interface SwitchWorkspaceRootOptions {
   targetRootFolder: string;
   catalogSourceRoot: string;
   configPath?: string;
   migrateContent: boolean;
+  allowNonEmptyTarget?: boolean;
   requireExistingWorkspace: boolean;
   syncCatalog: boolean;
 }
@@ -67,6 +89,7 @@ export function createWorkspaceService(): WorkspaceService {
       const targetRoot = resolve(targetRootFolder);
       const targetCatalogRoot = resolve(targetRoot, 'catalog');
       const catalogSourceRoot = resolve(catalogSourceRootInput);
+      const allowNonEmptyTarget = options.allowNonEmptyTarget === true;
 
       assertSafeWorkspaceRoot(targetRoot);
 
@@ -105,19 +128,17 @@ export function createWorkspaceService(): WorkspaceService {
 
       if (options.migrateContent) {
         assertRootsDoNotOverlap(currentRootFolder, targetRoot);
-        await ensureMissingOrEmptyDirectory(targetRoot);
+        await ensureTargetDirectoryReady(targetRoot, allowNonEmptyTarget);
 
         await copyDirectory(currentRootFolder, targetRoot, {
           overwrite: false,
         });
 
-        if (options.syncCatalog) {
-          await updateWorkspaceCatalog({
-            rootFolder: targetRoot,
-            catalogSourceRoot,
-            configuredCatalogRoot: targetCatalogRoot,
-          });
-        }
+        await updateWorkspaceCatalog({
+          rootFolder: targetRoot,
+          catalogSourceRoot,
+          configuredCatalogRoot: targetCatalogRoot,
+        });
 
         await writeCliConfig(
           buildUpdatedCliConfig(existingConfig, targetRoot),
@@ -131,7 +152,7 @@ export function createWorkspaceService(): WorkspaceService {
         };
       }
 
-      await ensureMissingOrEmptyDirectory(targetRoot);
+      await ensureTargetDirectoryReady(targetRoot, allowNonEmptyTarget);
 
       await initWorkspace({
         rootFolder: targetRoot,
@@ -223,7 +244,10 @@ async function isExistingWorkspaceRoot(rootFolder: string): Promise<boolean> {
   return true;
 }
 
-async function ensureMissingOrEmptyDirectory(path: string): Promise<void> {
+async function ensureTargetDirectoryReady(
+  path: string,
+  allowNonEmptyTarget: boolean
+): Promise<void> {
   if (!(await pathExists(path))) {
     return;
   }
@@ -234,10 +258,12 @@ async function ensureMissingOrEmptyDirectory(path: string): Promise<void> {
   }
 
   const entries = await readdir(path);
-  if (entries.length > 0) {
-    throw new Error(
-      `Target folder "${path}" is not empty and is not a valid Renku workspace. Choose an empty folder, or select an existing Renku workspace.`
-    );
+  const nonPlaceholderEntries = entries.filter(
+    (entry) => !EMPTY_DIRECTORY_PLACEHOLDER_FILES.has(entry)
+  );
+
+  if (nonPlaceholderEntries.length > 0 && !allowNonEmptyTarget) {
+    throw new WorkspaceSwitchConfirmationRequiredError(path);
   }
 }
 

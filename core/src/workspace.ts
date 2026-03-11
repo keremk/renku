@@ -232,8 +232,12 @@ export async function initWorkspace(
   // 1. mkdir(rootFolder, recursive)
   await mkdir(rootFolder, { recursive: true });
 
-  // 2. copy catalogSourceRoot → rootFolder/catalog/ (recursive fs copy, skip existing)
-  await copyDirectory(catalogSourceRoot, catalogRoot, { overwrite: false });
+  // 2. replace workspace catalog using canonical update flow
+  await updateWorkspaceCatalog({
+    rootFolder,
+    catalogSourceRoot,
+    configuredCatalogRoot: catalogRoot,
+  });
 
   // 3. write cli-config.json
   const cliConfig: CliConfig = {

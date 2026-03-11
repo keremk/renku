@@ -111,16 +111,22 @@ export function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [storageRootDraft, setStorageRootDraft] = useState('');
-  const [isBrowsingStorageRoot, setIsBrowsingStorageRoot] = useState(false);
   const [isSavingStorageRoot, setIsSavingStorageRoot] = useState(false);
   const [storageFeedback, setStorageFeedback] = useState<string | null>(null);
-  const [storageError, setStorageError] = useState<string | null>(null);
+  const [dialogStorageError, setDialogStorageError] = useState<string | null>(
+    null
+  );
 
   const [confirmStorageChangeOpen, setConfirmStorageChangeOpen] =
     useState(false);
   const [dialogStorageRoot, setDialogStorageRoot] = useState('');
   const [dialogMigrateContent, setDialogMigrateContent] = useState(false);
+  const [dialogAllowNonEmptyTarget, setDialogAllowNonEmptyTarget] =
+    useState(false);
+  const [
+    dialogRequiresNonEmptyTargetConfirmation,
+    setDialogRequiresNonEmptyTargetConfirmation,
+  ] = useState(false);
   const [isBrowsingDialogStorageRoot, setIsBrowsingDialogStorageRoot] =
     useState(false);
 
@@ -161,7 +167,6 @@ export function SettingsPage() {
     try {
       const snapshot = await fetchViewerSettings();
       setSettings(snapshot);
-      setStorageRootDraft(snapshot.storageRoot);
       setApiTokensDraft(snapshot.apiTokens);
       setArtifactsDraft(snapshot.artifacts);
       setConcurrencyDraft(snapshot.concurrency);
@@ -296,34 +301,21 @@ export function SettingsPage() {
     return nextRoot !== '' && nextRoot !== settings.storageRoot;
   }, [dialogStorageRoot, settings]);
 
-  async function handleBrowseStorageRoot(): Promise<void> {
-    setIsBrowsingStorageRoot(true);
-    setStorageError(null);
-    setStorageFeedback(null);
-
-    try {
-      const result = await browseFolder();
-      if (result.path) {
-        setStorageRootDraft(result.path);
-      }
-    } catch (error) {
-      setStorageError(
-        error instanceof Error ? error.message : 'Failed to open folder browser'
-      );
-    } finally {
-      setIsBrowsingStorageRoot(false);
-    }
-  }
-
   async function handleBrowseDialogStorageRoot(): Promise<void> {
     setIsBrowsingDialogStorageRoot(true);
+    setDialogStorageError(null);
+
     try {
       const result = await browseFolder();
       if (result.path) {
         setDialogStorageRoot(result.path);
+        setDialogAllowNonEmptyTarget(false);
+        setDialogRequiresNonEmptyTargetConfirmation(false);
       }
-    } catch {
-      // Error display is handled on submit for consistency.
+    } catch (error) {
+      setDialogStorageError(
+        error instanceof Error ? error.message : 'Failed to open folder browser'
+      );
     } finally {
       setIsBrowsingDialogStorageRoot(false);
     }
@@ -334,30 +326,35 @@ export function SettingsPage() {
       return;
     }
 
-    const normalizedDraft = storageRootDraft.trim();
-    setDialogStorageRoot(
-      normalizedDraft.length > 0 ? normalizedDraft : settings.storageRoot
-    );
+    setDialogStorageRoot(settings.storageRoot);
     setDialogMigrateContent(false);
+    setDialogAllowNonEmptyTarget(false);
+    setDialogRequiresNonEmptyTargetConfirmation(false);
+    setDialogStorageError(null);
     setConfirmStorageChangeOpen(true);
   }
 
   async function handleConfirmStorageChange(): Promise<void> {
     setIsSavingStorageRoot(true);
-    setStorageError(null);
+    setDialogStorageError(null);
     setStorageFeedback(null);
 
     try {
       const result = await updateViewerStorageRoot({
         storageRoot: dialogStorageRoot.trim(),
         migrateContent: dialogMigrateContent,
+        allowNonEmptyTarget: dialogAllowNonEmptyTarget,
       });
 
       setConfirmStorageChangeOpen(false);
       await loadSettings();
       setStorageFeedback(buildStorageSuccessMessage(result.mode));
     } catch (error) {
-      setStorageError(
+      if (getErrorStatus(error) === 409) {
+        setDialogRequiresNonEmptyTargetConfirmation(true);
+      }
+
+      setDialogStorageError(
         error instanceof Error ? error.message : 'Failed to update storage root'
       );
     } finally {
@@ -498,10 +495,8 @@ export function SettingsPage() {
                         <div className={SETTINGS_CONTROL_ROW_NOWRAP_CLASS}>
                           <Input
                             id='settings-storage-root'
-                            value={storageRootDraft}
-                            onChange={(event) =>
-                              setStorageRootDraft(event.target.value)
-                            }
+                            value={settings.storageRoot}
+                            readOnly
                             placeholder='/Users/you/Renku'
                             className={cn(
                               SETTINGS_INPUT_CLASS,
@@ -510,27 +505,11 @@ export function SettingsPage() {
                           />
                           <div className='flex items-center gap-2 shrink-0'>
                             <Button
-                              variant='outline'
-                              className='h-8'
-                              onClick={() => void handleBrowseStorageRoot()}
-                              disabled={
-                                isBrowsingStorageRoot || isSavingStorageRoot
-                              }
-                            >
-                              {isBrowsingStorageRoot ? (
-                                <Loader2 className='w-4 h-4 animate-spin' />
-                              ) : (
-                                <FolderOpen className='w-4 h-4' />
-                              )}
-                              <span className='ml-1.5'>Select</span>
-                            </Button>
-                            <Button
                               className='h-8'
                               onClick={openStorageConfirmDialog}
                               disabled={isSavingStorageRoot}
                             >
-                              <Save className='w-4 h-4 mr-1.5' />
-                              Save
+                              Change
                             </Button>
                           </div>
                         </div>
@@ -638,12 +617,6 @@ export function SettingsPage() {
                     {storageFeedback && (
                       <p className='text-sm text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3'>
                         {storageFeedback}
-                      </p>
-                    )}
-
-                    {storageError && (
-                      <p className='text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-lg p-3'>
-                        {storageError}
                       </p>
                     )}
 
@@ -762,7 +735,12 @@ export function SettingsPage() {
                 <Input
                   id='confirm-storage-root'
                   value={dialogStorageRoot}
-                  onChange={(event) => setDialogStorageRoot(event.target.value)}
+                  onChange={(event) => {
+                    setDialogStorageRoot(event.target.value);
+                    setDialogAllowNonEmptyTarget(false);
+                    setDialogRequiresNonEmptyTargetConfirmation(false);
+                    setDialogStorageError(null);
+                  }}
                   placeholder='/Users/you/Renku'
                   className='h-9 font-mono text-sm bg-background/35'
                 />
@@ -799,6 +777,32 @@ export function SettingsPage() {
                 disabled={isSavingStorageRoot}
               />
             </div>
+
+            {dialogRequiresNonEmptyTargetConfirmation && (
+              <div className='rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 flex items-center justify-between gap-4'>
+                <div className='space-y-1'>
+                  <p className='text-sm font-medium'>
+                    Allow existing target content
+                  </p>
+                  <p className='text-xs text-muted-foreground'>
+                    Keep existing files in the selected folder and replace only
+                    the `catalog` folder using Renku catalog contents.
+                  </p>
+                </div>
+                <Switch
+                  aria-label='Allow existing target content'
+                  checked={dialogAllowNonEmptyTarget}
+                  onCheckedChange={setDialogAllowNonEmptyTarget}
+                  disabled={isSavingStorageRoot}
+                />
+              </div>
+            )}
+
+            {dialogStorageError && (
+              <p className='text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-lg p-3'>
+                {dialogStorageError}
+              </p>
+            )}
           </div>
 
           <DialogFooter>
@@ -811,7 +815,12 @@ export function SettingsPage() {
             </Button>
             <Button
               onClick={() => void handleConfirmStorageChange()}
-              disabled={!hasDialogStorageChange || isSavingStorageRoot}
+              disabled={
+                !hasDialogStorageChange ||
+                isSavingStorageRoot ||
+                (dialogRequiresNonEmptyTargetConfirmation &&
+                  !dialogAllowNonEmptyTarget)
+              }
             >
               {isSavingStorageRoot ? (
                 <>
@@ -831,12 +840,25 @@ export function SettingsPage() {
 
 function buildStorageSuccessMessage(mode: StorageRootUpdateMode): string {
   if (mode === 'migrated') {
-    return 'Storage root updated. Existing workspace content was copied and catalog templates were refreshed.';
+    return 'Storage root updated. Existing workspace content was copied and catalog templates were synced from Renku.';
   }
 
   if (mode === 'initialized') {
-    return 'Storage root updated. A new workspace was initialized and catalog templates were copied.';
+    return 'Storage root updated. A new workspace was initialized and catalog templates were synced from Renku.';
   }
 
-  return 'Storage root updated. Existing workspace was selected and catalog templates were refreshed.';
+  return 'Storage root updated. Existing workspace is now active.';
+}
+
+function getErrorStatus(error: unknown): number | undefined {
+  if (!(error instanceof Error)) {
+    return undefined;
+  }
+
+  const status = (error as Error & { status?: unknown }).status;
+  if (typeof status !== 'number') {
+    return undefined;
+  }
+
+  return status;
 }

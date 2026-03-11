@@ -17,9 +17,13 @@ import type {
   ProviderTokenPayload,
 } from '@gorenku/core';
 
+const NON_EMPTY_TARGET_CONFIRMATION_CODE =
+  'WORKSPACE_SWITCH_CONFIRMATION_REQUIRED';
+
 interface UpdateStorageRootBody {
   storageRoot?: string;
   migrateContent?: boolean;
+  allowNonEmptyTarget?: boolean;
 }
 
 interface UpdateArtifactsBody {
@@ -72,12 +76,11 @@ async function handleUpdateStorageRoot(
     return true;
   }
 
-  if (!catalogPath) {
-    sendError(
-      res,
-      500,
-      'Server has no catalog path configured. Restart using "renku launch".'
-    );
+  if (
+    body.allowNonEmptyTarget !== undefined &&
+    typeof body.allowNonEmptyTarget !== 'boolean'
+  ) {
+    sendError(res, 400, 'allowNonEmptyTarget must be a boolean');
     return true;
   }
 
@@ -85,6 +88,7 @@ async function handleUpdateStorageRoot(
     const result = await updateViewerStorageRoot({
       storageRoot: body.storageRoot,
       migrateContent: body.migrateContent,
+      allowNonEmptyTarget: body.allowNonEmptyTarget === true,
       catalogPath,
     });
 
@@ -96,6 +100,18 @@ async function handleUpdateStorageRoot(
     });
     return true;
   } catch (error) {
+    if (getErrorCode(error) === NON_EMPTY_TARGET_CONFIRMATION_CODE) {
+      sendError(
+        res,
+        409,
+        error instanceof Error
+          ? error.message
+          : 'Storage root change requires explicit confirmation',
+        NON_EMPTY_TARGET_CONFIRMATION_CODE
+      );
+      return true;
+    }
+
     sendError(
       res,
       500,
@@ -252,4 +268,17 @@ export async function handleSettingsEndpoint(
     default:
       return respondNotFound(res);
   }
+}
+
+function getErrorCode(error: unknown): string | undefined {
+  if (!(error instanceof Error)) {
+    return undefined;
+  }
+
+  const code = (error as Error & { code?: unknown }).code;
+  if (typeof code !== 'string') {
+    return undefined;
+  }
+
+  return code;
 }

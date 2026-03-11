@@ -221,6 +221,7 @@ describe('initWorkspace', () => {
     // Create a minimal catalog source
     await mkdir(join(sourceDir, 'blueprints'), { recursive: true });
     await mkdir(join(sourceDir, 'models'), { recursive: true });
+    await mkdir(join(sourceDir, 'producers'), { recursive: true });
     await writeFile(
       join(sourceDir, 'blueprints', 'sample.yaml'),
       'name: sample',
@@ -281,7 +282,7 @@ describe('initWorkspace', () => {
     expect(gitignore).toBe('# custom');
   });
 
-  it('does not overwrite existing catalog files', async () => {
+  it('replaces existing catalog files using catalog update flow', async () => {
     const rootFolder = join(tempDir, 'workspace3');
     const configPath = join(tempDir, 'cli-config3.json');
     const catalogBlueprints = join(rootFolder, 'catalog', 'blueprints');
@@ -302,7 +303,7 @@ describe('initWorkspace', () => {
       join(catalogBlueprints, 'sample.yaml'),
       'utf8'
     );
-    expect(content).toBe('# existing');
+    expect(content).toBe('name: sample');
   });
 });
 

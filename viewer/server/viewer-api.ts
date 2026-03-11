@@ -108,8 +108,10 @@ export function createViewerApiHandler(
 /**
  * Creates a Vite middleware adapter for the viewer API.
  */
-export function createViewerApiMiddleware(): Connect.NextHandleFunction {
-  const handler = createViewerApiHandler();
+export function createViewerApiMiddleware(
+  options: ViewerApiOptions = {}
+): Connect.NextHandleFunction {
+  const handler = createViewerApiHandler(options);
   return async (req, res, next) => {
     if (!req || !req.url || !req.url.startsWith('/viewer-api')) {
       next();
