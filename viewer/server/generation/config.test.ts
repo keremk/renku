@@ -89,16 +89,15 @@ describe('readCliConfig', () => {
     expect(result).toBeNull();
   });
 
-  it('returns null when concurrency is invalid (strict validation)', async () => {
+  it('clips concurrency to minimum when config value is below range', async () => {
     const config = {
       storage: { root: '/test', basePath: 'movies' },
       concurrency: -5,
     };
     vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(config));
 
-    // Core's readCliConfig throws on invalid concurrency, caught and returns null
     const result = await readCliConfig('/test/config.json');
-    expect(result).toBeNull();
+    expect(result?.concurrency).toBe(1);
   });
 });
 
@@ -159,13 +158,17 @@ describe('normalizeConcurrency', () => {
     expect(normalizeConcurrency(-100)).toBe(DEFAULT_CONCURRENCY);
   });
 
-  it('returns DEFAULT_CONCURRENCY when value is not an integer', () => {
-    expect(normalizeConcurrency(1.5)).toBe(DEFAULT_CONCURRENCY);
-    expect(normalizeConcurrency(2.9)).toBe(DEFAULT_CONCURRENCY);
+  it('throws when value is not an integer', () => {
+    expect(() => normalizeConcurrency(1.5)).toThrow(
+      'Concurrency must be an integer.'
+    );
+    expect(() => normalizeConcurrency(2.9)).toThrow(
+      'Concurrency must be an integer.'
+    );
   });
 
-  it('accepts large positive integers', () => {
-    expect(normalizeConcurrency(100)).toBe(100);
+  it('clips large positive integers to max', () => {
+    expect(normalizeConcurrency(100)).toBe(10);
   });
 });
 

@@ -1,6 +1,7 @@
 import pLimit from 'p-limit';
 import { createRunner, accumulateArtifacts } from '../runner.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
+import { MAX_CLI_CONCURRENCY, MIN_CLI_CONCURRENCY } from '../concurrency.js';
 import type {
   ExecutionPlan,
   JobResult,
@@ -302,11 +303,17 @@ function validateOptions(
 ): void {
   const { concurrency, upToLayer: layerLimit, reRunFrom } = options;
 
-  if (!Number.isInteger(concurrency) || concurrency <= 0) {
+  if (
+    !Number.isInteger(concurrency) ||
+    concurrency < MIN_CLI_CONCURRENCY ||
+    concurrency > MAX_CLI_CONCURRENCY
+  ) {
     throw createRuntimeError(
       RuntimeErrorCode.INVALID_CONCURRENCY_VALUE,
-      'Concurrency must be a positive integer.',
-      { suggestion: 'Provide a concurrency value of 1 or greater.' }
+      `Concurrency must be an integer between ${MIN_CLI_CONCURRENCY} and ${MAX_CLI_CONCURRENCY}.`,
+      {
+        suggestion: `Provide a concurrency value between ${MIN_CLI_CONCURRENCY} and ${MAX_CLI_CONCURRENCY}.`,
+      }
     );
   }
 

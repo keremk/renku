@@ -18,6 +18,17 @@ import {
 import { dirname, parse, resolve } from 'node:path';
 import os from 'node:os';
 import process from 'node:process';
+import {
+  DEFAULT_CLI_CONCURRENCY,
+  normalizeCliConcurrency,
+} from './concurrency.js';
+
+export {
+  DEFAULT_CLI_CONCURRENCY,
+  MAX_CLI_CONCURRENCY,
+  MIN_CLI_CONCURRENCY,
+  normalizeCliConcurrency,
+} from './concurrency.js';
 
 // ---------------------------------------------------------------------------
 // Config type
@@ -69,16 +80,6 @@ export function getDefaultCliConfigPath(): string {
 // Read / write config
 // ---------------------------------------------------------------------------
 
-function normalizeConcurrency(value: number | undefined): number {
-  if (value === undefined) {
-    return 1;
-  }
-  if (!Number.isInteger(value) || value <= 0) {
-    throw new Error('Concurrency must be a positive integer.');
-  }
-  return value;
-}
-
 function normalizeArtifactMaterializationMode(
   value: string | undefined
 ): ArtifactMaterializationMode {
@@ -128,7 +129,7 @@ export async function readCliConfig(
       storage: parsed.storage,
       artifacts: normalizeCliArtifactsConfig(parsed.artifacts),
       catalog: parsed.catalog,
-      concurrency: normalizeConcurrency(parsed.concurrency),
+      concurrency: normalizeCliConcurrency(parsed.concurrency),
       lastMovieId: parsed.lastMovieId,
       lastGeneratedAt: parsed.lastGeneratedAt,
       viewer: parsed.viewer,
@@ -150,7 +151,7 @@ export async function writeCliConfig(
       {
         ...config,
         artifacts: normalizeCliArtifactsConfig(config.artifacts),
-        concurrency: normalizeConcurrency(config.concurrency),
+        concurrency: normalizeCliConcurrency(config.concurrency),
       },
       null,
       2
@@ -246,7 +247,7 @@ export async function initWorkspace(
     catalog: {
       root: catalogRoot,
     },
-    concurrency: 1,
+    concurrency: DEFAULT_CLI_CONCURRENCY,
   };
   const cliConfigPath = await writeCliConfig(cliConfig, configPath);
 

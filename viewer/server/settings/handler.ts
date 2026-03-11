@@ -9,10 +9,13 @@ import {
   readViewerSettingsSnapshot,
   updateViewerApiTokens,
   updateViewerArtifactsSettings,
+  updateViewerConcurrency,
   updateViewerStorageRoot,
 } from './service.js';
-import type { ProviderTokenPayload } from './api-tokens.js';
-import type { ArtifactMaterializationMode } from '@gorenku/core';
+import type {
+  ArtifactMaterializationMode,
+  ProviderTokenPayload,
+} from '@gorenku/core';
 
 interface UpdateStorageRootBody {
   storageRoot?: string;
@@ -22,6 +25,10 @@ interface UpdateStorageRootBody {
 interface UpdateArtifactsBody {
   enabled?: boolean;
   mode?: ArtifactMaterializationMode;
+}
+
+interface UpdateConcurrencyBody {
+  concurrency?: number;
 }
 
 async function handleReadSettings(
@@ -165,6 +172,41 @@ async function handleUpdateArtifacts(
   }
 }
 
+async function handleUpdateConcurrency(
+  req: IncomingMessage,
+  res: ServerResponse
+): Promise<boolean> {
+  let body: UpdateConcurrencyBody;
+  try {
+    body = await parseJsonBody<UpdateConcurrencyBody>(req);
+  } catch {
+    sendError(res, 400, 'Invalid JSON body');
+    return true;
+  }
+
+  const concurrency = body.concurrency;
+
+  if (concurrency === undefined || !Number.isInteger(concurrency)) {
+    sendError(res, 400, 'concurrency must be an integer');
+    return true;
+  }
+
+  try {
+    const savedConcurrency = await updateViewerConcurrency({
+      concurrency,
+    });
+    sendJson(res, { ok: true, concurrency: savedConcurrency });
+    return true;
+  } catch (error) {
+    sendError(
+      res,
+      500,
+      error instanceof Error ? error.message : 'Failed to update concurrency'
+    );
+    return true;
+  }
+}
+
 export async function handleSettingsEndpoint(
   req: IncomingMessage,
   res: ServerResponse,
@@ -198,6 +240,13 @@ export async function handleSettingsEndpoint(
         return respondMethodNotAllowed(res);
       }
       return handleUpdateArtifacts(req, res);
+    }
+
+    case 'concurrency': {
+      if (req.method !== 'POST') {
+        return respondMethodNotAllowed(res);
+      }
+      return handleUpdateConcurrency(req, res);
     }
 
     default:

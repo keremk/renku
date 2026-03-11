@@ -10,11 +10,13 @@ const {
   updateViewerStorageRootMock,
   updateViewerApiTokensMock,
   updateViewerArtifactsSettingsMock,
+  updateViewerConcurrencyMock,
 } = vi.hoisted(() => ({
   readViewerSettingsSnapshotMock: vi.fn(),
   updateViewerStorageRootMock: vi.fn(),
   updateViewerApiTokensMock: vi.fn(),
   updateViewerArtifactsSettingsMock: vi.fn(),
+  updateViewerConcurrencyMock: vi.fn(),
 }));
 
 vi.mock('./service.js', () => ({
@@ -22,6 +24,7 @@ vi.mock('./service.js', () => ({
   updateViewerStorageRoot: updateViewerStorageRootMock,
   updateViewerApiTokens: updateViewerApiTokensMock,
   updateViewerArtifactsSettings: updateViewerArtifactsSettingsMock,
+  updateViewerConcurrency: updateViewerConcurrencyMock,
 }));
 
 import { handleSettingsEndpoint } from './handler.js';
@@ -50,6 +53,7 @@ describe('handleSettingsEndpoint', () => {
         enabled: true,
         mode: 'copy',
       },
+      concurrency: 1,
     });
 
     const req = createRequest('GET');
@@ -74,6 +78,7 @@ describe('handleSettingsEndpoint', () => {
         enabled: true,
         mode: 'copy',
       },
+      concurrency: 1,
     });
   });
 
@@ -209,6 +214,88 @@ describe('handleSettingsEndpoint', () => {
         enabled: false,
         mode: 'symlink',
       },
+    });
+  });
+
+  it('updates concurrency setting', async () => {
+    updateViewerConcurrencyMock.mockResolvedValue(4);
+
+    const req = createMockRequest(
+      {
+        concurrency: 4,
+      },
+      'POST'
+    );
+    const res = createMockResponse();
+
+    const handled = await handleSettingsEndpoint(
+      req,
+      res,
+      'concurrency',
+      '/catalog'
+    );
+
+    expect(handled).toBe(true);
+    expect(res.statusCode).toBe(200);
+    expect(updateViewerConcurrencyMock).toHaveBeenCalledWith({
+      concurrency: 4,
+    });
+    expect(JSON.parse(res.body)).toEqual({
+      ok: true,
+      concurrency: 4,
+    });
+  });
+
+  it('returns normalized concurrency when out-of-range value is provided', async () => {
+    updateViewerConcurrencyMock.mockResolvedValue(10);
+
+    const req = createMockRequest(
+      {
+        concurrency: 13,
+      },
+      'POST'
+    );
+    const res = createMockResponse();
+
+    const handled = await handleSettingsEndpoint(
+      req,
+      res,
+      'concurrency',
+      '/catalog'
+    );
+
+    expect(handled).toBe(true);
+    expect(res.statusCode).toBe(200);
+    expect(updateViewerConcurrencyMock).toHaveBeenCalledWith({
+      concurrency: 13,
+    });
+    expect(JSON.parse(res.body)).toEqual({
+      ok: true,
+      concurrency: 10,
+    });
+  });
+
+  it('rejects non-integer concurrency', async () => {
+    const req = createMockRequest(
+      {
+        concurrency: 1.5,
+      },
+      'POST'
+    );
+    const res = createMockResponse();
+
+    const handled = await handleSettingsEndpoint(
+      req,
+      res,
+      'concurrency',
+      '/catalog'
+    );
+
+    expect(handled).toBe(true);
+    expect(res.statusCode).toBe(400);
+    expect(updateViewerConcurrencyMock).not.toHaveBeenCalled();
+    expect(JSON.parse(res.body)).toEqual({
+      error: 'concurrency must be an integer',
     });
   });
 });

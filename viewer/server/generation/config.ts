@@ -5,6 +5,8 @@
 
 import { resolve } from 'node:path';
 import {
+  DEFAULT_CLI_CONCURRENCY,
+  normalizeCliConcurrency,
   readCliConfig,
   type CliConfig,
   createRuntimeError,
@@ -18,13 +20,15 @@ export { readCliConfig };
 /**
  * Default concurrency for job execution.
  */
-export const DEFAULT_CONCURRENCY = 1;
+export const DEFAULT_CONCURRENCY = DEFAULT_CLI_CONCURRENCY;
 
 /**
  * Reads the CLI config, throwing an error if not found or invalid.
  * Use this when the config is required (e.g., for generation).
  */
-export async function requireCliConfig(configPath?: string): Promise<CliConfig> {
+export async function requireCliConfig(
+  configPath?: string
+): Promise<CliConfig> {
   const config = await readCliConfig(configPath);
   if (!config) {
     throw createRuntimeError(
@@ -42,13 +46,7 @@ export async function requireCliConfig(configPath?: string): Promise<CliConfig> 
  * Normalizes concurrency value to a positive integer.
  */
 export function normalizeConcurrency(value: number | undefined): number {
-  if (value === undefined) {
-    return DEFAULT_CONCURRENCY;
-  }
-  if (!Number.isInteger(value) || value <= 0) {
-    return DEFAULT_CONCURRENCY;
-  }
-  return value;
+  return normalizeCliConcurrency(value);
 }
 
 /**

@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FolderOpen, House, Loader2, Save } from 'lucide-react';
 import { ViewerPageHeader } from '@/components/layout/viewer-page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import {
   Select,
@@ -27,6 +28,7 @@ import {
   fetchViewerSettings,
   updateViewerApiTokens,
   updateViewerArtifactsSettings,
+  updateViewerConcurrency,
   updateViewerStorageRoot,
   type ViewerArtifactsSettings,
   type SettingsApiTokens,
@@ -99,6 +101,9 @@ const SETTINGS_ACTION_ROW_CLASS = 'pt-1 flex justify-end';
 const SETTINGS_PROVIDER_LABEL_CLASS = 'text-sm font-semibold text-foreground';
 const SETTINGS_ARTIFACT_PATH_CLASS =
   'font-mono text-[11px] text-muted-foreground mt-1 block';
+const CONCURRENCY_MIN = 1;
+const CONCURRENCY_MAX = 10;
+const CONCURRENCY_DEBOUNCE_MS = 700;
 
 export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
@@ -139,6 +144,16 @@ export function SettingsPage() {
   );
   const [artifactsError, setArtifactsError] = useState<string | null>(null);
 
+  const [concurrencyDraft, setConcurrencyDraft] =
+    useState<number>(CONCURRENCY_MIN);
+  const [isSavingConcurrency, setIsSavingConcurrency] = useState(false);
+  const [concurrencyFeedback, setConcurrencyFeedback] = useState<string | null>(
+    null
+  );
+  const [concurrencyError, setConcurrencyError] = useState<string | null>(null);
+  const concurrencySaveRequestRef = useRef(0);
+  const savedConcurrencyRef = useRef(CONCURRENCY_MIN);
+
   const loadSettings = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
@@ -149,6 +164,8 @@ export function SettingsPage() {
       setStorageRootDraft(snapshot.storageRoot);
       setApiTokensDraft(snapshot.apiTokens);
       setArtifactsDraft(snapshot.artifacts);
+      setConcurrencyDraft(snapshot.concurrency);
+      savedConcurrencyRef.current = snapshot.concurrency;
     } catch (error) {
       setLoadError(
         error instanceof Error ? error.message : 'Failed to load settings'
@@ -175,6 +192,86 @@ export function SettingsPage() {
       window.clearTimeout(timeout);
     };
   }, [artifactsFeedback]);
+
+  useEffect(() => {
+    if (!concurrencyFeedback) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setConcurrencyFeedback(null);
+    }, 1600);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [concurrencyFeedback]);
+
+  const persistConcurrency = useCallback(
+    async (targetConcurrency: number, requestId: number): Promise<void> => {
+      setIsSavingConcurrency(true);
+      setConcurrencyError(null);
+
+      try {
+        const response = await updateViewerConcurrency({
+          concurrency: targetConcurrency,
+        });
+
+        if (requestId !== concurrencySaveRequestRef.current) {
+          return;
+        }
+
+        savedConcurrencyRef.current = response.concurrency;
+        setSettings((current) =>
+          current
+            ? {
+                ...current,
+                concurrency: response.concurrency,
+              }
+            : current
+        );
+        setConcurrencyFeedback('Saved');
+      } catch (error) {
+        if (requestId !== concurrencySaveRequestRef.current) {
+          return;
+        }
+
+        setConcurrencyDraft(savedConcurrencyRef.current);
+        setConcurrencyError(
+          error instanceof Error
+            ? error.message
+            : 'Failed to save concurrency setting'
+        );
+      } finally {
+        if (requestId === concurrencySaveRequestRef.current) {
+          setIsSavingConcurrency(false);
+        }
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!settings) {
+      return;
+    }
+
+    if (concurrencyDraft === settings.concurrency) {
+      return;
+    }
+
+    const requestId = concurrencySaveRequestRef.current + 1;
+    concurrencySaveRequestRef.current = requestId;
+    setConcurrencyFeedback(null);
+
+    const timeout = window.setTimeout(() => {
+      void persistConcurrency(concurrencyDraft, requestId);
+    }, CONCURRENCY_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [concurrencyDraft, settings, persistConcurrency]);
 
   const hasApiTokenChanges = useMemo(() => {
     if (!settings) {
@@ -490,6 +587,52 @@ export function SettingsPage() {
                           )}
                         </div>
                       </PropertyRow>
+
+                      <PropertyRow
+                        name='Concurrency'
+                        description='Maximum number of producer jobs running in parallel.'
+                        className={SETTINGS_PROPERTY_ROW_CLASS}
+                      >
+                        <div className='space-y-1.5'>
+                          <div className='flex items-center gap-3'>
+                            <Slider
+                              min={CONCURRENCY_MIN}
+                              max={CONCURRENCY_MAX}
+                              step={1}
+                              value={[concurrencyDraft]}
+                              onValueChange={(values) => {
+                                const next = values[0];
+                                if (next === undefined) {
+                                  throw new Error(
+                                    'Concurrency slider did not return a value.'
+                                  );
+                                }
+                                setConcurrencyError(null);
+                                setConcurrencyFeedback(null);
+                                setConcurrencyDraft(next);
+                              }}
+                              aria-label='Concurrency'
+                              className='w-full max-w-[230px]'
+                            />
+                            <span className='w-6 text-right font-mono text-xs text-muted-foreground'>
+                              {concurrencyDraft}
+                            </span>
+                            {isSavingConcurrency && (
+                              <span className={SETTINGS_STATUS_MUTED_CLASS}>
+                                Saving...
+                              </span>
+                            )}
+                            {!isSavingConcurrency && concurrencyFeedback && (
+                              <span className={SETTINGS_STATUS_SUCCESS_CLASS}>
+                                {concurrencyFeedback}
+                              </span>
+                            )}
+                          </div>
+                          <p className='text-[11px] text-muted-foreground'>
+                            Range {CONCURRENCY_MIN}-{CONCURRENCY_MAX}
+                          </p>
+                        </div>
+                      </PropertyRow>
                     </div>
 
                     {storageFeedback && (
@@ -507,6 +650,12 @@ export function SettingsPage() {
                     {artifactsError && (
                       <p className='text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-lg p-3'>
                         {artifactsError}
+                      </p>
+                    )}
+
+                    {concurrencyError && (
+                      <p className='text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-lg p-3'>
+                        {concurrencyError}
                       </p>
                     )}
                   </div>

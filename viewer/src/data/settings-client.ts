@@ -11,6 +11,7 @@ export interface ViewerSettingsSnapshot {
   storageFolderName: string;
   apiTokens: SettingsApiTokens;
   artifacts: ViewerArtifactsSettings;
+  concurrency: number;
 }
 
 export type ArtifactMaterializationMode = 'copy' | 'symlink';
@@ -35,6 +36,11 @@ export interface UpdateStorageRootResponse {
 export interface UpdateArtifactsSettingsResponse {
   ok: true;
   artifacts: ViewerArtifactsSettings;
+}
+
+export interface UpdateConcurrencySettingsResponse {
+  ok: true;
+  concurrency: number;
 }
 
 async function readErrorMessage(response: Response): Promise<string> {
@@ -109,4 +115,19 @@ export async function updateViewerArtifactsSettings(options: {
     throw new Error(await readErrorMessage(response));
   }
   return response.json() as Promise<UpdateArtifactsSettingsResponse>;
+}
+
+export async function updateViewerConcurrency(options: {
+  concurrency: number;
+}): Promise<UpdateConcurrencySettingsResponse> {
+  const response = await fetch('/viewer-api/settings/concurrency', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(options),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+  return response.json() as Promise<UpdateConcurrencySettingsResponse>;
 }

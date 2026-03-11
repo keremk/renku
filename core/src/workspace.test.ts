@@ -60,6 +60,51 @@ describe('readCliConfig', () => {
     });
   });
 
+  it('clips concurrency to max when config is hand-edited above range', async () => {
+    const configPath = join(tempDir, 'cli-config.json');
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        storage: { root: '/some/root', basePath: 'builds' },
+        concurrency: 13,
+      }),
+      'utf8'
+    );
+
+    const result = await readCliConfig(configPath);
+    expect(result?.concurrency).toBe(10);
+  });
+
+  it('clips concurrency to min when config is hand-edited below range', async () => {
+    const configPath = join(tempDir, 'cli-config.json');
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        storage: { root: '/some/root', basePath: 'builds' },
+        concurrency: 0,
+      }),
+      'utf8'
+    );
+
+    const result = await readCliConfig(configPath);
+    expect(result?.concurrency).toBe(1);
+  });
+
+  it('returns null when concurrency is not an integer', async () => {
+    const configPath = join(tempDir, 'cli-config.json');
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        storage: { root: '/some/root', basePath: 'builds' },
+        concurrency: 2.5,
+      }),
+      'utf8'
+    );
+
+    const result = await readCliConfig(configPath);
+    expect(result).toBeNull();
+  });
+
   it('returns null when artifacts mode is invalid', async () => {
     const configPath = join(tempDir, 'cli-config.json');
     await writeFile(
@@ -107,6 +152,20 @@ describe('writeCliConfig', () => {
     await writeCliConfig(config, configPath);
     const contents = await readFile(configPath, 'utf8');
     expect(JSON.parse(contents).storage.root).toBe('/root');
+  });
+
+  it('clips concurrency to max when writing config', async () => {
+    const configPath = join(tempDir, 'cli-config.json');
+    const config: CliConfig = {
+      storage: { root: '/root', basePath: 'builds' },
+      concurrency: 99,
+    };
+
+    await writeCliConfig(config, configPath);
+
+    const contents = await readFile(configPath, 'utf8');
+    const parsed = JSON.parse(contents);
+    expect(parsed.concurrency).toBe(10);
   });
 });
 

@@ -14,8 +14,10 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
   isWorkspaceInitialized,
   initWorkspace,
+  persistProviderTokenPayload,
   readCliConfig,
   updateWorkspaceCatalog,
+  type ProviderTokenPayload,
 } from '@gorenku/core';
 import {
   parseJsonBody,
@@ -23,11 +25,6 @@ import {
   sendError,
 } from '../generation/http-utils.js';
 import { respondNotFound, respondMethodNotAllowed } from '../http-utils.js';
-import {
-  persistProviderTokenPayload,
-  type ProviderTokenPayload,
-} from '../settings/api-tokens.js';
-
 // ---------------------------------------------------------------------------
 // GET /viewer-api/onboarding/status
 // ---------------------------------------------------------------------------
