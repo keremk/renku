@@ -10,6 +10,14 @@ export interface ViewerSettingsSnapshot {
   storageRoot: string;
   storageFolderName: string;
   apiTokens: SettingsApiTokens;
+  artifacts: ViewerArtifactsSettings;
+}
+
+export type ArtifactMaterializationMode = 'copy' | 'symlink';
+
+export interface ViewerArtifactsSettings {
+  enabled: boolean;
+  mode: ArtifactMaterializationMode;
 }
 
 export type StorageRootUpdateMode =
@@ -22,6 +30,11 @@ export interface UpdateStorageRootResponse {
   storageRoot: string;
   catalogRoot: string;
   mode: StorageRootUpdateMode;
+}
+
+export interface UpdateArtifactsSettingsResponse {
+  ok: true;
+  artifacts: ViewerArtifactsSettings;
 }
 
 async function readErrorMessage(response: Response): Promise<string> {
@@ -81,4 +94,19 @@ export async function updateViewerApiTokens(
   if (!response.ok) {
     throw new Error(await readErrorMessage(response));
   }
+}
+
+export async function updateViewerArtifactsSettings(options: {
+  enabled: boolean;
+  mode: ArtifactMaterializationMode;
+}): Promise<UpdateArtifactsSettingsResponse> {
+  const response = await fetch('/viewer-api/settings/artifacts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(options),
+  });
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+  return response.json() as Promise<UpdateArtifactsSettingsResponse>;
 }

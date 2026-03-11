@@ -17,6 +17,8 @@ export interface MovieMetadata {
   lastInputsPath?: string;
   /** User-friendly display name for the build. */
   displayName?: string;
+  /** Stable folder name used under blueprint/artifacts for this movie. */
+  artifactFolderName?: string;
   /** ISO timestamp when the build was created. */
   createdAt?: string;
 }
@@ -45,7 +47,10 @@ export interface MovieMetadataService {
    * @param updates - Partial metadata to merge
    * @returns The merged metadata
    */
-  merge(movieId: string, updates: Partial<MovieMetadata>): Promise<MovieMetadata>;
+  merge(
+    movieId: string,
+    updates: Partial<MovieMetadata>
+  ): Promise<MovieMetadata>;
 }
 
 /** New canonical filename for metadata. */
@@ -64,7 +69,9 @@ const LEGACY_METADATA_FILE = 'movie-metadata.json';
  * @param storage - The storage context to use
  * @returns A MovieMetadataService instance
  */
-export function createMovieMetadataService(storage: StorageContext): MovieMetadataService {
+export function createMovieMetadataService(
+  storage: StorageContext
+): MovieMetadataService {
   return {
     async read(movieId: string): Promise<MovieMetadata | null> {
       // Try new filename first
@@ -87,10 +94,15 @@ export function createMovieMetadataService(storage: StorageContext): MovieMetada
     async write(movieId: string, metadata: MovieMetadata): Promise<void> {
       const path = storage.resolve(movieId, METADATA_FILE);
       const contents = JSON.stringify(metadata, null, 2);
-      await storage.storage.write(path, contents, { mimeType: 'application/json' });
+      await storage.storage.write(path, contents, {
+        mimeType: 'application/json',
+      });
     },
 
-    async merge(movieId: string, updates: Partial<MovieMetadata>): Promise<MovieMetadata> {
+    async merge(
+      movieId: string,
+      updates: Partial<MovieMetadata>
+    ): Promise<MovieMetadata> {
       const current = (await this.read(movieId)) ?? {};
       const next: MovieMetadata = { ...current, ...updates };
       await this.write(movieId, next);

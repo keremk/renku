@@ -50,3 +50,4 @@ export * from './export/index.js';
 export * from './catalog-blueprints.js';
 export * from './workspace.js';
 export * from './workspace-service.js';
+export * from './artifact-materialization.js';

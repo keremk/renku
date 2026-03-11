@@ -56,7 +56,23 @@ describe('readCliConfig', () => {
       storage: { root: '/some/root', basePath: 'builds' },
       catalog: { root: '/some/root/catalog' },
       concurrency: 2,
+      artifacts: { enabled: true, mode: 'copy' },
     });
+  });
+
+  it('returns null when artifacts mode is invalid', async () => {
+    const configPath = join(tempDir, 'cli-config.json');
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        storage: { root: '/some/root', basePath: 'builds' },
+        artifacts: { enabled: true, mode: 'hardlink' },
+      }),
+      'utf8'
+    );
+
+    const result = await readCliConfig(configPath);
+    expect(result).toBeNull();
   });
 });
 

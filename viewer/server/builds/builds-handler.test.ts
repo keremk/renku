@@ -10,6 +10,7 @@ const {
   handleArtifactPreviewApplyMock,
   handleArtifactPreviewDeleteMock,
   handleArtifactPreviewFileMock,
+  handleOpenArtifactsProducerFolderMock,
 } = vi.hoisted(() => ({
   parseJsonBodyMock: vi.fn(),
   handleArtifactPreviewGenerateMock: vi.fn(),
@@ -18,6 +19,7 @@ const {
   handleArtifactPreviewApplyMock: vi.fn(),
   handleArtifactPreviewDeleteMock: vi.fn(),
   handleArtifactPreviewFileMock: vi.fn(),
+  handleOpenArtifactsProducerFolderMock: vi.fn(),
 }));
 
 vi.mock('../http-utils.js', async () => {
@@ -35,6 +37,10 @@ vi.mock('./artifact-preview-handler.js', () => ({
   handleArtifactPreviewApply: handleArtifactPreviewApplyMock,
   handleArtifactPreviewDelete: handleArtifactPreviewDeleteMock,
   handleArtifactPreviewFile: handleArtifactPreviewFileMock,
+}));
+
+vi.mock('./artifact-open-folder-handler.js', () => ({
+  handleOpenArtifactsProducerFolder: handleOpenArtifactsProducerFolderMock,
 }));
 
 import { handleBuildsSubRoute } from './builds-handler.js';
@@ -196,5 +202,31 @@ describe('handleBuildsSubRoute artifacts preview routes', () => {
       'movie-abc',
       'tmp-file-1'
     );
+  });
+
+  it('routes open-folder to handler', async () => {
+    parseJsonBodyMock.mockResolvedValueOnce({
+      blueprintFolder: '/tmp/blueprint',
+      movieId: 'movie-abc',
+      producerName: 'CharacterImageProducer',
+    });
+
+    const req = createReq('POST');
+    const res = createMockResponse();
+    const url = new URL(
+      'http://localhost/viewer-api/blueprints/builds/artifacts/open-folder'
+    );
+
+    const handled = await handleBuildsSubRoute(req, res, url, 'artifacts', [
+      'artifacts',
+      'open-folder',
+    ]);
+
+    expect(handled).toBe(true);
+    expect(handleOpenArtifactsProducerFolderMock).toHaveBeenCalledWith(res, {
+      blueprintFolder: '/tmp/blueprint',
+      movieId: 'movie-abc',
+      producerName: 'CharacterImageProducer',
+    });
   });
 });

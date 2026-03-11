@@ -10,6 +10,7 @@ import {
   Download,
   ExternalLink,
   Copy,
+  FolderOpen,
   File,
   RefreshCw,
   Square,
@@ -73,6 +74,7 @@ import {
   estimateArtifactPreview,
   fetchArtifactPreviewEditModels,
   generateArtifactPreview,
+  openArtifactsProducerFolder,
   restoreArtifact,
 } from '@/data/blueprint-client';
 import type {
@@ -222,6 +224,8 @@ function ArtifactGallery({
   buildInputs?: Record<string, unknown> | null;
   onArtifactUpdated?: () => void;
 }) {
+  const PRODUCER_LIST_PANEL_WIDTH_CLASS = 'w-[19rem]';
+
   const {
     isArtifactSelected,
     selectProducerArtifacts,
@@ -319,9 +323,32 @@ function ArtifactGallery({
   const [manualActiveProducerName, setManualActiveProducerName] = useState<
     string | null
   >(null);
+  const [openingProducerName, setOpeningProducerName] = useState<string | null>(
+    null
+  );
   const [availableEditModels, setAvailableEditModels] = useState<
     AvailableModelOption[]
   >([]);
+
+  const handleOpenProducerFolder = useCallback(
+    async (producerName: string) => {
+      setOpeningProducerName(producerName);
+      try {
+        await openArtifactsProducerFolder(
+          blueprintFolder,
+          movieId,
+          producerName
+        );
+      } catch (error) {
+        console.error('[outputs-panel] Failed to open producer folder', error);
+      } finally {
+        setOpeningProducerName((current) =>
+          current === producerName ? null : current
+        );
+      }
+    },
+    [blueprintFolder, movieId]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -371,7 +398,12 @@ function ArtifactGallery({
   return (
     <TooltipProvider>
       <div className='flex h-full min-h-0 gap-4'>
-        <aside className='w-72 shrink-0 bg-muted/40 rounded-xl border border-border/40 overflow-hidden flex flex-col'>
+        <aside
+          className={cn(
+            PRODUCER_LIST_PANEL_WIDTH_CLASS,
+            'shrink-0 bg-muted/40 rounded-xl border border-border/40 overflow-hidden flex flex-col'
+          )}
+        >
           <div className='px-4 py-3 border-b border-border/40 bg-panel-header-bg'>
             <h3 className='text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground'>
               Producers
@@ -409,6 +441,34 @@ function ArtifactGallery({
                     </button>
 
                     <div className='flex items-center gap-1'>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type='button'
+                            onClick={() => {
+                              void handleOpenProducerFolder(
+                                section.producerName
+                              );
+                            }}
+                            className={cn(
+                              'size-7 inline-flex items-center justify-center rounded-md transition-colors hover:bg-muted/70',
+                              openingProducerName === section.producerName
+                                ? 'text-primary'
+                                : 'text-muted-foreground'
+                            )}
+                            aria-label='Open in Finder'
+                            disabled={
+                              openingProducerName === section.producerName
+                            }
+                          >
+                            <FolderOpen className='size-4' />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side='top'>
+                          Open in Finder
+                        </TooltipContent>
+                      </Tooltip>
+
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button

@@ -4,6 +4,13 @@ import { ViewerPageHeader } from '@/components/layout/viewer-page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
@@ -13,12 +20,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { PropertyRow } from '@/components/blueprint/shared/property-row';
 import { cn } from '@/lib/utils';
 import { browseFolder } from '@/data/onboarding-client';
 import {
   fetchViewerSettings,
   updateViewerApiTokens,
+  updateViewerArtifactsSettings,
   updateViewerStorageRoot,
+  type ViewerArtifactsSettings,
   type SettingsApiTokens,
   type StorageRootUpdateMode,
   type ViewerSettingsSnapshot,
@@ -34,6 +44,61 @@ const EMPTY_TOKENS: SettingsApiTokens = {
 };
 
 type SettingsTab = 'general' | 'tokens';
+type ArtifactOutputOption = 'disabled' | 'copy' | 'symlink';
+
+interface ProviderTokenField {
+  key: keyof SettingsApiTokens;
+  label: string;
+  description: string;
+}
+
+const ARTIFACT_OUTPUT_PATH_PATTERN =
+  '<blueprint>/artifacts/<friendly-name-or-movieId>/...';
+
+const PROVIDER_TOKEN_FIELDS: ProviderTokenField[] = [
+  {
+    key: 'fal',
+    label: 'Fal',
+    description: 'Used for Fal provided models.',
+  },
+  {
+    key: 'replicate',
+    label: 'Replicate',
+    description: 'Used for Replicate provided models.',
+  },
+  {
+    key: 'elevenlabs',
+    label: 'ElevenLabs',
+    description: 'Used for ElevenLabs provided models.',
+  },
+  {
+    key: 'openai',
+    label: 'OpenAI',
+    description: 'Used for OpenAI provided models for creating prompts.',
+  },
+  {
+    key: 'vercelGateway',
+    label: 'Vercel AI Gateway',
+    description: 'Used for Vercel AI Gateway provided models.',
+  },
+];
+
+const SETTINGS_CONTENT_WIDTH_CLASS = 'mx-auto w-full max-w-4xl space-y-4';
+const SETTINGS_ROWS_STACK_CLASS = 'space-y-4';
+const SETTINGS_PROPERTY_ROW_CLASS = 'max-w-none w-full';
+const SETTINGS_CONTROL_ROW_NOWRAP_CLASS = 'flex items-center gap-2';
+const SETTINGS_CONTROL_ROW_CLASS = 'flex flex-wrap items-center gap-2';
+const SETTINGS_INPUT_CLASS =
+  'h-8 text-xs font-mono bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50';
+const SETTINGS_SELECT_TRIGGER_CLASS =
+  'h-8 w-full max-w-[230px] text-xs font-mono bg-muted/30 border-border/50 focus:bg-background focus:border-primary/50';
+const SETTINGS_STATUS_MUTED_CLASS = 'text-xs text-muted-foreground';
+const SETTINGS_STATUS_SUCCESS_CLASS =
+  'text-xs text-emerald-700 dark:text-emerald-300';
+const SETTINGS_ACTION_ROW_CLASS = 'pt-1 flex justify-end';
+const SETTINGS_PROVIDER_LABEL_CLASS = 'text-sm font-semibold text-foreground';
+const SETTINGS_ARTIFACT_PATH_CLASS =
+  'font-mono text-[11px] text-muted-foreground mt-1 block';
 
 export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
@@ -62,6 +127,18 @@ export function SettingsPage() {
   );
   const [apiTokensError, setApiTokensError] = useState<string | null>(null);
 
+  const [artifactsDraft, setArtifactsDraft] = useState<ViewerArtifactsSettings>(
+    {
+      enabled: true,
+      mode: 'copy',
+    }
+  );
+  const [isSavingArtifacts, setIsSavingArtifacts] = useState(false);
+  const [artifactsFeedback, setArtifactsFeedback] = useState<string | null>(
+    null
+  );
+  const [artifactsError, setArtifactsError] = useState<string | null>(null);
+
   const loadSettings = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
@@ -71,6 +148,7 @@ export function SettingsPage() {
       setSettings(snapshot);
       setStorageRootDraft(snapshot.storageRoot);
       setApiTokensDraft(snapshot.apiTokens);
+      setArtifactsDraft(snapshot.artifacts);
     } catch (error) {
       setLoadError(
         error instanceof Error ? error.message : 'Failed to load settings'
@@ -83,6 +161,20 @@ export function SettingsPage() {
   useEffect(() => {
     void loadSettings();
   }, [loadSettings]);
+
+  useEffect(() => {
+    if (!artifactsFeedback) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setArtifactsFeedback(null);
+    }, 1600);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [artifactsFeedback]);
 
   const hasApiTokenChanges = useMemo(() => {
     if (!settings) {
@@ -194,6 +286,64 @@ export function SettingsPage() {
     }
   }
 
+  function handleApiTokenDraftChange(
+    key: keyof SettingsApiTokens,
+    value: string
+  ): void {
+    setApiTokensDraft((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
+  async function handleArtifactOutputChange(
+    nextValue: ArtifactOutputOption
+  ): Promise<void> {
+    const previous = artifactsDraft;
+    const next: ViewerArtifactsSettings =
+      nextValue === 'disabled'
+        ? {
+            enabled: false,
+            mode: previous.mode,
+          }
+        : {
+            enabled: true,
+            mode: nextValue,
+          };
+
+    if (next.enabled === previous.enabled && next.mode === previous.mode) {
+      return;
+    }
+
+    setArtifactsDraft(next);
+    setIsSavingArtifacts(true);
+    setArtifactsError(null);
+    setArtifactsFeedback(null);
+
+    try {
+      const response = await updateViewerArtifactsSettings(next);
+      setArtifactsDraft(response.artifacts);
+      setSettings((current) =>
+        current
+          ? {
+              ...current,
+              artifacts: response.artifacts,
+            }
+          : current
+      );
+      setArtifactsFeedback('Saved');
+    } catch (error) {
+      setArtifactsDraft(previous);
+      setArtifactsError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to save artifact output settings'
+      );
+    } finally {
+      setIsSavingArtifacts(false);
+    }
+  }
+
   return (
     <div className='h-screen w-screen bg-background text-foreground p-4 flex flex-col gap-4'>
       <ViewerPageHeader subtitle='Settings' />
@@ -241,16 +391,14 @@ export function SettingsPage() {
                 </TabsList>
 
                 <TabsContent value='general' className='flex-1 min-h-0 p-6'>
-                  <div className='mx-auto w-full max-w-4xl space-y-4'>
-                    <div className='rounded-xl border border-border/40 bg-panel-bg p-4 shadow-sm'>
-                      <div className='space-y-1.5'>
-                        <label
-                          htmlFor='settings-storage-root'
-                          className='text-xs text-muted-foreground'
-                        >
-                          New storage location
-                        </label>
-                        <div className='flex flex-col gap-2 lg:flex-row lg:items-center'>
+                  <div className={SETTINGS_CONTENT_WIDTH_CLASS}>
+                    <div className={SETTINGS_ROWS_STACK_CLASS}>
+                      <PropertyRow
+                        name='Storage location'
+                        description='Workspace root for blueprints, builds, and artifacts.'
+                        className={SETTINGS_PROPERTY_ROW_CLASS}
+                      >
+                        <div className={SETTINGS_CONTROL_ROW_NOWRAP_CLASS}>
                           <Input
                             id='settings-storage-root'
                             value={storageRootDraft}
@@ -258,12 +406,15 @@ export function SettingsPage() {
                               setStorageRootDraft(event.target.value)
                             }
                             placeholder='/Users/you/Renku'
-                            className='h-9 font-mono text-sm bg-background/35'
+                            className={cn(
+                              SETTINGS_INPUT_CLASS,
+                              'flex-1 min-w-0'
+                            )}
                           />
                           <div className='flex items-center gap-2 shrink-0'>
                             <Button
                               variant='outline'
-                              className='h-9'
+                              className='h-8'
                               onClick={() => void handleBrowseStorageRoot()}
                               disabled={
                                 isBrowsingStorageRoot || isSavingStorageRoot
@@ -274,24 +425,71 @@ export function SettingsPage() {
                               ) : (
                                 <FolderOpen className='w-4 h-4' />
                               )}
-                              <span className='ml-1.5'>Select Folder</span>
+                              <span className='ml-1.5'>Select</span>
                             </Button>
                             <Button
+                              className='h-8'
                               onClick={openStorageConfirmDialog}
                               disabled={isSavingStorageRoot}
                             >
                               <Save className='w-4 h-4 mr-1.5' />
-                              Save Storage Location
+                              Save
                             </Button>
                           </div>
                         </div>
-                      </div>
+                      </PropertyRow>
 
-                      <p className='text-xs text-muted-foreground mt-3'>
-                        If the selected folder already contains a Renku
-                        workspace, Renku switches to it and refreshes its
-                        catalog templates only.
-                      </p>
+                      <PropertyRow
+                        name='Artifact output'
+                        description={
+                          <>
+                            <span>
+                              Materialize generated files for external editors.
+                            </span>
+                            <code className={SETTINGS_ARTIFACT_PATH_CLASS}>
+                              {ARTIFACT_OUTPUT_PATH_PATTERN}
+                            </code>
+                          </>
+                        }
+                        className={SETTINGS_PROPERTY_ROW_CLASS}
+                      >
+                        <div className={SETTINGS_CONTROL_ROW_CLASS}>
+                          <Select
+                            value={
+                              artifactsDraft.enabled
+                                ? artifactsDraft.mode
+                                : 'disabled'
+                            }
+                            onValueChange={(value: ArtifactOutputOption) =>
+                              void handleArtifactOutputChange(value)
+                            }
+                            disabled={isSavingArtifacts}
+                          >
+                            <SelectTrigger
+                              className={SETTINGS_SELECT_TRIGGER_CLASS}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value='disabled'>Disabled</SelectItem>
+                              <SelectItem value='copy'>Copy</SelectItem>
+                              <SelectItem value='symlink'>Symlink</SelectItem>
+                            </SelectContent>
+                          </Select>
+
+                          {isSavingArtifacts && (
+                            <span className={SETTINGS_STATUS_MUTED_CLASS}>
+                              Saving...
+                            </span>
+                          )}
+
+                          {!isSavingArtifacts && artifactsFeedback && (
+                            <span className={SETTINGS_STATUS_SUCCESS_CLASS}>
+                              {artifactsFeedback}
+                            </span>
+                          )}
+                        </div>
+                      </PropertyRow>
                     </div>
 
                     {storageFeedback && (
@@ -305,63 +503,47 @@ export function SettingsPage() {
                         {storageError}
                       </p>
                     )}
+
+                    {artifactsError && (
+                      <p className='text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-lg p-3'>
+                        {artifactsError}
+                      </p>
+                    )}
                   </div>
                 </TabsContent>
 
                 <TabsContent value='tokens' className='flex-1 min-h-0 p-6'>
-                  <div className='mx-auto w-full max-w-4xl space-y-4'>
-                    <div className='rounded-xl border border-border/40 bg-panel-bg overflow-hidden shadow-sm'>
-                      <TokenTableRow
-                        label='FAL_KEY'
-                        value={apiTokensDraft.fal}
-                        onChange={(value) =>
-                          setApiTokensDraft((prev) => ({ ...prev, fal: value }))
-                        }
-                      />
-                      <TokenTableRow
-                        label='REPLICATE_API_TOKEN'
-                        value={apiTokensDraft.replicate}
-                        onChange={(value) =>
-                          setApiTokensDraft((prev) => ({
-                            ...prev,
-                            replicate: value,
-                          }))
-                        }
-                      />
-                      <TokenTableRow
-                        label='ELEVENLABS_API_KEY'
-                        value={apiTokensDraft.elevenlabs}
-                        onChange={(value) =>
-                          setApiTokensDraft((prev) => ({
-                            ...prev,
-                            elevenlabs: value,
-                          }))
-                        }
-                      />
-                      <TokenTableRow
-                        label='OPENAI_API_KEY'
-                        value={apiTokensDraft.openai}
-                        onChange={(value) =>
-                          setApiTokensDraft((prev) => ({
-                            ...prev,
-                            openai: value,
-                          }))
-                        }
-                      />
-                      <TokenTableRow
-                        label='AI_GATEWAY_API_KEY'
-                        value={apiTokensDraft.vercelGateway}
-                        onChange={(value) =>
-                          setApiTokensDraft((prev) => ({
-                            ...prev,
-                            vercelGateway: value,
-                          }))
-                        }
-                        isLast
-                      />
+                  <div className={SETTINGS_CONTENT_WIDTH_CLASS}>
+                    <div className={SETTINGS_ROWS_STACK_CLASS}>
+                      {PROVIDER_TOKEN_FIELDS.map((provider) => (
+                        <PropertyRow
+                          key={provider.key}
+                          name={
+                            <span className={SETTINGS_PROVIDER_LABEL_CLASS}>
+                              {provider.label}
+                            </span>
+                          }
+                          description={provider.description}
+                          className={SETTINGS_PROPERTY_ROW_CLASS}
+                        >
+                          <Input
+                            type='text'
+                            value={apiTokensDraft[provider.key]}
+                            onChange={(event) =>
+                              handleApiTokenDraftChange(
+                                provider.key,
+                                event.target.value
+                              )
+                            }
+                            placeholder='Paste token'
+                            className={SETTINGS_INPUT_CLASS}
+                            autoComplete='off'
+                          />
+                        </PropertyRow>
+                      ))}
                     </div>
 
-                    <div className='flex justify-end'>
+                    <div className={SETTINGS_ACTION_ROW_CLASS}>
                       <Button
                         onClick={() => void handleSaveApiTokens()}
                         disabled={!hasApiTokenChanges || isSavingApiTokens}
@@ -494,43 +676,6 @@ export function SettingsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-function TokenTableRow({
-  label,
-  value,
-  onChange,
-  isLast = false,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  isLast?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        'grid grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)] border-b border-border/30',
-        isLast && 'border-b-0'
-      )}
-    >
-      <div className='px-4 py-3 bg-sidebar-header-bg/80 flex items-center'>
-        <span className='text-xs font-medium text-muted-foreground'>
-          {label}
-        </span>
-      </div>
-      <div className='px-4 py-2'>
-        <Input
-          type='text'
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder='Paste API token'
-          className='h-9 font-mono text-sm bg-background/35'
-          autoComplete='off'
-        />
-      </div>
     </div>
   );
 }

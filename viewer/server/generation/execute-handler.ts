@@ -8,11 +8,15 @@ import { resolve as resolvePath } from 'node:path';
 import {
   createEventLog,
   createManifestService,
+  createMovieMetadataService,
   createStorageContext,
   initializeMovieStorage,
   resolveBlobRefsToInputs,
   injectAllSystemInputs,
   executePlanWithConcurrency,
+  getCliArtifactsConfig,
+  materializeManifestArtifacts,
+  resolveArtifactsMovieFolderName,
   isRenkuError,
   createLogger,
   createNotificationBus,
@@ -423,6 +427,27 @@ async function executeJobAsync(
       previousHash: cachedPlan.manifestHash,
       clock: { now: () => new Date().toISOString() },
     });
+
+    if (!dryRun) {
+      const artifactsConfig = getCliArtifactsConfig(cliConfig);
+      if (artifactsConfig.enabled) {
+        const metadataService = createMovieMetadataService(storage);
+        const artifactsMovieFolderName = await resolveArtifactsMovieFolderName({
+          movieId: cachedPlan.movieId,
+          metadataService,
+        });
+
+        await materializeManifestArtifacts({
+          storageRoot: cliConfig.storage.root,
+          storageBasePath: cachedPlan.basePath,
+          movieId: cachedPlan.movieId,
+          artifactsMovieFolderName,
+          manifest,
+          mode: artifactsConfig.mode,
+          logger,
+        });
+      }
+    }
 
     if (jobManager.isJobCancelled(jobId)) {
       jobManager.finalizeCancelledJob(jobId);

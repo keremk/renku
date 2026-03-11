@@ -28,6 +28,7 @@ export interface CliConfig {
     root: string;
     basePath: string;
   };
+  artifacts?: CliArtifactsConfig;
   catalog?: {
     root: string;
   };
@@ -39,6 +40,18 @@ export interface CliConfig {
     host?: string;
   };
 }
+
+export type ArtifactMaterializationMode = 'copy' | 'symlink';
+
+export interface CliArtifactsConfig {
+  enabled: boolean;
+  mode: ArtifactMaterializationMode;
+}
+
+export const DEFAULT_CLI_ARTIFACTS_CONFIG: CliArtifactsConfig = {
+  enabled: true,
+  mode: 'copy',
+};
 
 // ---------------------------------------------------------------------------
 // Config path helpers
@@ -66,6 +79,41 @@ function normalizeConcurrency(value: number | undefined): number {
   return value;
 }
 
+function normalizeArtifactMaterializationMode(
+  value: string | undefined
+): ArtifactMaterializationMode {
+  if (value === undefined) {
+    return DEFAULT_CLI_ARTIFACTS_CONFIG.mode;
+  }
+  if (value !== 'copy' && value !== 'symlink') {
+    throw new Error(
+      `Artifacts mode must be "copy" or "symlink", got "${value}".`
+    );
+  }
+  return value;
+}
+
+export function normalizeCliArtifactsConfig(
+  value: Partial<CliArtifactsConfig> | undefined
+): CliArtifactsConfig {
+  if (value === undefined) {
+    return { ...DEFAULT_CLI_ARTIFACTS_CONFIG };
+  }
+
+  if (value.enabled !== undefined && typeof value.enabled !== 'boolean') {
+    throw new Error('Artifacts enabled flag must be a boolean.');
+  }
+
+  return {
+    enabled: value.enabled ?? DEFAULT_CLI_ARTIFACTS_CONFIG.enabled,
+    mode: normalizeArtifactMaterializationMode(value.mode),
+  };
+}
+
+export function getCliArtifactsConfig(config: CliConfig): CliArtifactsConfig {
+  return normalizeCliArtifactsConfig(config.artifacts);
+}
+
 export async function readCliConfig(
   configPath?: string
 ): Promise<CliConfig | null> {
@@ -78,6 +126,7 @@ export async function readCliConfig(
     }
     return {
       storage: parsed.storage,
+      artifacts: normalizeCliArtifactsConfig(parsed.artifacts),
       catalog: parsed.catalog,
       concurrency: normalizeConcurrency(parsed.concurrency),
       lastMovieId: parsed.lastMovieId,
@@ -100,6 +149,7 @@ export async function writeCliConfig(
     JSON.stringify(
       {
         ...config,
+        artifacts: normalizeCliArtifactsConfig(config.artifacts),
         concurrency: normalizeConcurrency(config.concurrency),
       },
       null,
@@ -189,6 +239,9 @@ export async function initWorkspace(
     storage: {
       root: rootFolder,
       basePath: 'builds',
+    },
+    artifacts: {
+      ...DEFAULT_CLI_ARTIFACTS_CONFIG,
     },
     catalog: {
       root: catalogRoot,

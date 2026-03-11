@@ -1,8 +1,12 @@
 import path from 'node:path';
 import {
   createWorkspaceService,
+  getCliArtifactsConfig,
+  normalizeCliArtifactsConfig,
   readCliConfig,
+  writeCliConfig,
   type SwitchWorkspaceRootMode,
+  type ArtifactMaterializationMode,
 } from '@gorenku/core';
 import {
   persistProviderTokenPayload,
@@ -15,6 +19,12 @@ export interface ViewerSettingsSnapshot {
   storageRoot: string;
   storageFolderName: string;
   apiTokens: SettingsApiTokens;
+  artifacts: ViewerArtifactsSettings;
+}
+
+export interface ViewerArtifactsSettings {
+  enabled: boolean;
+  mode: ArtifactMaterializationMode;
 }
 
 export interface UpdateViewerStorageRootOptions {
@@ -27,6 +37,11 @@ export interface UpdateViewerStorageRootResult {
   storageRoot: string;
   catalogRoot: string;
   mode: SwitchWorkspaceRootMode;
+}
+
+export interface UpdateViewerArtifactsSettingsOptions {
+  enabled: boolean;
+  mode: ArtifactMaterializationMode;
 }
 
 const workspaceService = createWorkspaceService();
@@ -43,6 +58,7 @@ export async function readViewerSettingsSnapshot(): Promise<ViewerSettingsSnapsh
     storageRoot: cliConfig.storage.root,
     storageFolderName: getStorageFolderName(cliConfig.storage.root),
     apiTokens,
+    artifacts: getCliArtifactsConfig(cliConfig),
   };
 }
 
@@ -80,6 +96,23 @@ export async function updateViewerApiTokens(
   payload: ProviderTokenPayload
 ): Promise<string> {
   return persistProviderTokenPayload(payload);
+}
+
+export async function updateViewerArtifactsSettings(
+  options: UpdateViewerArtifactsSettingsOptions
+): Promise<ViewerArtifactsSettings> {
+  const cliConfig = await readCliConfig();
+  if (!cliConfig) {
+    throw new Error('Renku CLI is not initialized. Run "renku init" first.');
+  }
+
+  const artifacts = normalizeCliArtifactsConfig({
+    enabled: options.enabled,
+    mode: options.mode,
+  });
+
+  await writeCliConfig({ ...cliConfig, artifacts });
+  return artifacts;
 }
 
 function getStorageFolderName(storageRoot: string): string {

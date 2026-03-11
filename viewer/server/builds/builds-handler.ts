@@ -48,6 +48,10 @@ import {
   type ArtifactRecheckRequest,
 } from './artifact-recheck-handler.js';
 import {
+  handleOpenArtifactsProducerFolder,
+  type OpenArtifactsProducerFolderRequest,
+} from './artifact-open-folder-handler.js';
+import {
   getProducerPrompts,
   saveProducerPrompts,
   restoreProducerPrompts,
@@ -78,6 +82,7 @@ const MOVIE_ID_PATTERN = /^movie-[a-z0-9][a-z0-9-]*$/;
  *   POST /blueprints/builds/artifacts/preview-delete (JSON body)
  *   GET  /blueprints/builds/artifacts/preview-edit-models
  *   GET  /blueprints/builds/artifacts/preview-file?folder=...&movieId=...&tempId=...
+ *   POST /blueprints/builds/artifacts/open-folder (JSON body)
  *   GET  /blueprints/builds/prompts?folder=...&movieId=...&blueprintPath=...&producerId=...
  *   PUT  /blueprints/builds/prompts (JSON body)
  *   POST /blueprints/builds/prompts/restore (JSON body)
@@ -373,6 +378,26 @@ export async function handleBuildsSubRoute(
           );
         }
         await handleArtifactRecheck(res, body);
+        return true;
+      }
+      if (artifactsSubAction === 'open-folder' && req.method === 'POST') {
+        const body =
+          await parseJsonBody<OpenArtifactsProducerFolderRequest>(req);
+        if (!body.blueprintFolder || !body.movieId || !body.producerName) {
+          return respondBadRequest(
+            res,
+            'Missing blueprintFolder, movieId, or producerName'
+          );
+        }
+        try {
+          await handleOpenArtifactsProducerFolder(res, body);
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : 'Failed to open producer artifacts folder';
+          return respondBadRequest(res, message);
+        }
         return true;
       }
       return respondNotFound(res);

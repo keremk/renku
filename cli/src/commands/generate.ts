@@ -16,6 +16,7 @@ import {
 import crypto from 'node:crypto';
 import { resolve } from 'node:path';
 import {
+	getCliArtifactsConfig,
 	isCanonicalArtifactId,
 	type BlueprintDryRunValidationResult,
 	type LogLevel,
@@ -151,6 +152,7 @@ export async function runGenerate(
 	const targetArtifactIds = normalizeTargetArtifactIds(options.artifactIds);
 
 	const upToLayer = options.upToLayer;
+	const artifactsConfig = getCliArtifactsConfig(activeConfig);
 
 	if (options.movieId || usingLast) {
 		const storageMovieId = await resolveTargetMovieId({
@@ -179,12 +181,14 @@ export async function runGenerate(
 			);
 		});
 
-		const preflight = await prepareArtifactsPreflight({
-			cliConfig: activeConfig,
-			movieId: storageMovieId,
-			manifest,
-			allowShardedBlobs: true,
-		});
+		const preflight = artifactsConfig.enabled
+			? await prepareArtifactsPreflight({
+					cliConfig: activeConfig,
+					movieId: storageMovieId,
+					manifest,
+					allowShardedBlobs: true,
+				})
+			: { pendingArtefacts: [] };
 
 		const editResult = await runExecute({
 			storageMovieId,
@@ -208,7 +212,7 @@ export async function runGenerate(
 
 		let artifactsRoot: string | undefined;
 		let finalOutputPath: string | undefined;
-		if (!options.dryRun && editResult.build) {
+		if (!options.dryRun && editResult.build && artifactsConfig.enabled) {
 			const { manifest: nextManifest } = await loadCurrentManifest(
 				activeConfig,
 				storageMovieId
@@ -287,7 +291,7 @@ export async function runGenerate(
 
 	let artifactsRoot: string | undefined;
 	let finalOutputPath: string | undefined;
-	if (!options.dryRun && queryResult.build) {
+	if (!options.dryRun && queryResult.build && artifactsConfig.enabled) {
 		// Try to load manifest and build artifacts view, but don't fail if manifest doesn't exist
 		// (can happen if build failed before manifest was saved)
 		try {

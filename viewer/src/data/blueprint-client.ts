@@ -802,6 +802,29 @@ export async function deleteArtifactPreview(
 }
 
 /**
+ * Opens the materialized artifact folder for a specific producer in the OS file manager.
+ */
+export async function openArtifactsProducerFolder(
+  blueprintFolder: string,
+  movieId: string,
+  producerName: string
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE}/blueprints/builds/artifacts/open-folder`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ blueprintFolder, movieId, producerName }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    throw new Error(`Opening artifact folder failed: ${errorText}`);
+  }
+}
+
+/**
  * Response from artifact recheck operation.
  */
 export interface ArtifactRecheckResponse {

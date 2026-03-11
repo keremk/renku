@@ -9,16 +9,19 @@ const {
   readViewerSettingsSnapshotMock,
   updateViewerStorageRootMock,
   updateViewerApiTokensMock,
+  updateViewerArtifactsSettingsMock,
 } = vi.hoisted(() => ({
   readViewerSettingsSnapshotMock: vi.fn(),
   updateViewerStorageRootMock: vi.fn(),
   updateViewerApiTokensMock: vi.fn(),
+  updateViewerArtifactsSettingsMock: vi.fn(),
 }));
 
 vi.mock('./service.js', () => ({
   readViewerSettingsSnapshot: readViewerSettingsSnapshotMock,
   updateViewerStorageRoot: updateViewerStorageRootMock,
   updateViewerApiTokens: updateViewerApiTokensMock,
+  updateViewerArtifactsSettings: updateViewerArtifactsSettingsMock,
 }));
 
 import { handleSettingsEndpoint } from './handler.js';
@@ -43,6 +46,10 @@ describe('handleSettingsEndpoint', () => {
         openai: 'openai-token',
         vercelGateway: '',
       },
+      artifacts: {
+        enabled: true,
+        mode: 'copy',
+      },
     });
 
     const req = createRequest('GET');
@@ -62,6 +69,10 @@ describe('handleSettingsEndpoint', () => {
         elevenlabs: '',
         openai: 'openai-token',
         vercelGateway: '',
+      },
+      artifacts: {
+        enabled: true,
+        mode: 'copy',
       },
     });
   });
@@ -162,5 +173,42 @@ describe('handleSettingsEndpoint', () => {
       },
     });
     expect(JSON.parse(res.body)).toEqual({ ok: true });
+  });
+
+  it('updates artifact settings', async () => {
+    updateViewerArtifactsSettingsMock.mockResolvedValue({
+      enabled: false,
+      mode: 'symlink',
+    });
+
+    const req = createMockRequest(
+      {
+        enabled: false,
+        mode: 'symlink',
+      },
+      'POST'
+    );
+    const res = createMockResponse();
+
+    const handled = await handleSettingsEndpoint(
+      req,
+      res,
+      'artifacts',
+      '/catalog'
+    );
+
+    expect(handled).toBe(true);
+    expect(res.statusCode).toBe(200);
+    expect(updateViewerArtifactsSettingsMock).toHaveBeenCalledWith({
+      enabled: false,
+      mode: 'symlink',
+    });
+    expect(JSON.parse(res.body)).toEqual({
+      ok: true,
+      artifacts: {
+        enabled: false,
+        mode: 'symlink',
+      },
+    });
   });
 });
