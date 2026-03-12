@@ -240,6 +240,24 @@ mappings:
       Resolution: resolution
       GenerateAudio: generate_audio
 
+    # Vidu Q3 Pro (start_image + end_image)
+    vidu/q3-pro:
+      Prompt: prompt
+      StartImage: start_image
+      EndImage: end_image
+      Duration: duration
+      Resolution: resolution
+      GenerateAudio: audio
+
+    # Vidu Q3 Turbo (start_image + end_image)
+    vidu/q3-turbo:
+      Prompt: prompt
+      StartImage: start_image
+      EndImage: end_image
+      Duration: duration
+      Resolution: resolution
+      GenerateAudio: audio
+
     # Kwaivgi Kling V3 Video (start_image + end_image)
     kwaivgi/kling-v3-video:
       Prompt: prompt

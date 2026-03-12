@@ -403,6 +403,24 @@ mappings:
       Resolution: resolution
       GenerateAudio: generate_audio
 
+    # Vidu Q3 Pro (with image)
+    vidu/q3-pro:
+      Prompt: prompt
+      StartImage: start_image
+      EndImage: end_image
+      Duration: duration
+      Resolution: resolution
+      GenerateAudio: audio
+
+    # Vidu Q3 Turbo (with image)
+    vidu/q3-turbo:
+      Prompt: prompt
+      StartImage: start_image
+      EndImage: end_image
+      Duration: duration
+      Resolution: resolution
+      GenerateAudio: audio
+
     # Wan Video WAN 2.6 Image-to-Video Flash
     wan-video/wan2.6-i2v-flash:
       Prompt: prompt

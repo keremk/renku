@@ -440,6 +440,35 @@ models:
         - resolution: 4K
           fps: 60
           pricePerSecond: 0.1494
+  # Vidu Video Models
+  - name: vidu/q3-pro
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 540p
+          pricePerSecond: 0.07
+        - resolution: 720p
+          pricePerSecond: 0.15
+        - resolution: 1080p
+          pricePerSecond: 0.16
+  - name: vidu/q3-turbo
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 540p
+          pricePerSecond: 0.04
+        - resolution: 720p
+          pricePerSecond: 0.06
+        - resolution: 1080p
+          pricePerSecond: 0.08
   - name: wan-video/wan2.6-i2v-flash
     type: video
     mime:

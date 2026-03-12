@@ -289,6 +289,22 @@ mappings:
       Resolution: resolution
       GenerateAudio: generate_audio
 
+    # Vidu Q3 Pro
+    vidu/q3-pro:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: audio
+
+    # Vidu Q3 Turbo
+    vidu/q3-turbo:
+      Prompt: prompt
+      Duration: duration
+      AspectRatio: aspect_ratio
+      Resolution: resolution
+      GenerateAudio: audio
+
     # Wan Video WAN 2.6 Text-to-Video
     wan-video/wan-2.6-t2v:
       Prompt: prompt
