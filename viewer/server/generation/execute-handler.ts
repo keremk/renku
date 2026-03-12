@@ -63,6 +63,11 @@ export async function handleExecuteRequest(
       return true;
     }
 
+    if (body.concurrency !== undefined && !Number.isInteger(body.concurrency)) {
+      sendError(res, 400, 'concurrency must be an integer');
+      return true;
+    }
+
     // Load CLI config
     const cliConfig = await requireCliConfig();
 
