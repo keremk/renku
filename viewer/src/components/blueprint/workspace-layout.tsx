@@ -90,9 +90,6 @@ function WorkspaceLayoutInner({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [detailPanelTab, setDetailPanelTab] =
     useState<DetailPanelTab>('inputs');
-  const [syncedForMovieId, setSyncedForMovieId] = useState<
-    string | null | undefined
-  >(undefined);
   const [isHeaderPinned, setIsHeaderPinned] = useState(true);
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -432,24 +429,22 @@ function WorkspaceLayoutInner({
   const handleDetailTabChange = useCallback(
     (tab: DetailPanelTab) => {
       setDetailPanelTab(tab);
-      if (tab === 'preview' && syncedForMovieId !== effectiveMovieId) {
+      if (tab === 'preview') {
         setBottomActiveTab('timeline');
-        setSyncedForMovieId(effectiveMovieId);
       }
     },
-    [syncedForMovieId, effectiveMovieId, setBottomActiveTab]
+    [setBottomActiveTab]
   );
 
   // Handle bottom panel tab changes with coordination to detail panel
   const handleBottomTabChange = useCallback(
     (tab: typeof bottomActiveTab) => {
       setBottomActiveTab(tab);
-      if (tab === 'timeline' && syncedForMovieId !== effectiveMovieId) {
+      if (tab === 'timeline') {
         setDetailPanelTab('preview');
-        setSyncedForMovieId(effectiveMovieId);
       }
     },
-    [syncedForMovieId, effectiveMovieId, setBottomActiveTab]
+    [setBottomActiveTab]
   );
 
   const showHeader = isHeaderPinned || isHeaderVisible;
