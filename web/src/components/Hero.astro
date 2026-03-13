@@ -1,113 +1,137 @@
 ---
-import heroImageLight from '../assets/hero-image-light.png';
-import heroImageDark from '../assets/hero-image-dark.png';
 import IconArrowRight from './icons/IconArrowRight.astro';
-import IconGitHub from './icons/IconGitHub.astro';
-import IconChevronDown from './icons/IconChevronDown.astro';
 
 interface Props {
   title?: string;
   tagline?: string;
+  videoUrl?: string;
 }
 
 const {
   title = 'Build Tool For AI-Generated Videos',
   tagline = 'Go beyond the 10 seconds. Create videos using AI generative models, with automatic prompt generation, and cost effective incremental builds.',
+  videoUrl = 'https://videos.gorenku.com/videos/renku-hero-v1.mp4',
 } = Astro.props;
+
+const titleParts = title.split(' ');
+const gradientTitle = titleParts.slice(0, 3).join(' ');
+const solidTitle = titleParts.slice(3).join(' ');
 
 const desktopDownloadUrl =
   'https://downloads.gorenku.com/desktop/stable/darwin/arm64/Renku-latest-arm64.dmg';
 ---
 
 <section class="hero-section">
-  <!-- Animated gradient background -->
   <div class="hero-bg"></div>
-
-  <!-- Geometric accent shapes -->
-  <div
-    class="hero-shape"
-    style="top: 5rem; left: 2.5rem; width: 8rem; height: 8rem; background: var(--color-accent-400); opacity: 0.3;"
-  ></div>
-  <div
-    class="hero-shape"
-    style="bottom: 8rem; right: 2.5rem; width: 12rem; height: 12rem; background: var(--color-accent-500); opacity: 0.2; animation-delay: 1s;"
-  ></div>
-  <div
-    class="hero-shape"
-    style="top: 33%; right: 25%; width: 6rem; height: 6rem; background: var(--color-accent-300); opacity: 0.4; animation-delay: 2s;"
-  ></div>
-
-  <!-- Decorative grid lines -->
   <div class="hero-grid"></div>
 
-  <div class="relative z-10 max-w-5xl mx-auto">
-    <!-- Title with gradient text -->
-    <h1 class="hero-title animate-fade-in-up delay-100">
-      <span class="hero-title-gradient">{title.split(' ').slice(0, 3).join(' ')}</span>
-      <br />
-      <span class="hero-title-solid">{title.split(' ').slice(3).join(' ')}</span>
-    </h1>
-
-    <!-- Tagline -->
-    <p class="hero-tagline animate-fade-in-up delay-200">
-      {tagline}
-    </p>
-
-    <!-- CTA Buttons -->
-    <div class="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up delay-300">
-      <a href={desktopDownloadUrl} class="hero-btn-primary" target="_blank" rel="noreferrer">
-        Download for macOS
-        <IconArrowRight class="ml-2 h-5 w-5" />
-      </a>
-      <a href="/docs/" class="hero-btn-secondary">
-        Read Docs
-        <IconArrowRight class="ml-2 h-5 w-5" />
-      </a>
-      <a href="#github" class="hero-btn-secondary">
-        <IconGitHub class="mr-2 h-5 w-5" />
-        View on GitHub
-      </a>
+  <div class="hero-layout" data-hero-section>
+    <div class="hero-media-shell">
+      <div class="hero-video-frame">
+        <video
+          data-hero-video
+          class="hero-video"
+          muted
+          loop
+          playsinline
+          preload="none"
+          aria-label="Renku product video"
+        >
+          <source src={videoUrl} type="video/mp4" />
+        </video>
+      </div>
     </div>
 
-    <!-- Hero Image -->
-    <div class="mt-12 max-w-full relative animate-fade-in-up delay-400">
-      <img
-        src={heroImageLight.src}
-        alt="Renku AI Movie Generation"
-        class="max-w-full h-auto rounded-2xl shadow-2xl block dark:hidden"
-      />
-      <img
-        src={heroImageDark.src}
-        alt="Renku AI Movie Generation"
-        class="max-w-full h-auto rounded-2xl shadow-2xl hidden dark:block"
-      />
-    </div>
-  </div>
+    <div class="hero-copy">
+      <!-- Title with gradient text -->
+      <h1 class="hero-title">
+        <span class="hero-title-gradient">{gradientTitle}</span>
+        <br />
+        <span class="hero-title-solid">{solidTitle}</span>
+      </h1>
 
-  <!-- Scroll indicator -->
-  <div class="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce" style="color: var(--color-accent-600);">
-    <IconChevronDown class="w-6 h-6" />
+      <!-- Tagline -->
+      <p class="hero-tagline">
+        {tagline}
+      </p>
+
+      <!-- CTA Buttons -->
+      <div class="hero-actions">
+        <a href={desktopDownloadUrl} class="hero-btn-primary" target="_blank" rel="noreferrer">
+          Download for macOS
+          <IconArrowRight class="ml-2 h-5 w-5" />
+        </a>
+      </div>
+    </div>
   </div>
 </section>
 
-<style>
-  /* Dark mode shape overrides - need scoped styles for inline style overrides */
-  :global(.dark) .hero-shape:nth-child(2) {
-    background: var(--color-accent-500) !important;
-    opacity: 0.15 !important;
-  }
+<script lang="ts">
+  const heroSection = document.querySelector('[data-hero-section]');
+  const heroVideo = heroSection?.querySelector('[data-hero-video]');
 
-  :global(.dark) .hero-shape:nth-child(3) {
-    background: var(--color-accent-400) !important;
-    opacity: 0.1 !important;
-  }
+  if (heroSection instanceof HTMLElement && heroVideo instanceof HTMLVideoElement) {
+    heroVideo.defaultMuted = true;
+    heroVideo.muted = true;
 
-  :global(.dark) .hero-shape:nth-child(4) {
-    background: var(--color-accent-600) !important;
-    opacity: 0.15 !important;
-  }
+    let inViewport = false;
 
-  :global(.dark) .animate-bounce {
-    color: var(--color-accent-400);
+    const ensureLoadStarted = () => {
+      if (heroVideo.networkState === HTMLMediaElement.NETWORK_EMPTY) {
+        heroVideo.load();
+      }
+    };
+
+    const syncPlayback = async () => {
+      if (!inViewport || document.hidden) {
+        heroVideo.pause();
+        return;
+      }
+
+      ensureLoadStarted();
+
+      try {
+        await heroVideo.play();
+      } catch {
+        heroVideo.pause();
+      }
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (!entry) {
+          return;
+        }
+
+        inViewport = entry.isIntersecting && entry.intersectionRatio > 0.05;
+        void syncPlayback();
+      },
+      {
+        threshold: [0, 0.05],
+      },
+    );
+
+    observer.observe(heroSection);
+
+    const initialBounds = heroSection.getBoundingClientRect();
+    inViewport = initialBounds.top < window.innerHeight && initialBounds.bottom > 0;
+    void syncPlayback();
+
+    document.addEventListener('visibilitychange', () => {
+      void syncPlayback();
+    });
+
+    heroVideo.addEventListener('canplay', () => {
+      void syncPlayback();
+    });
+
+    window.addEventListener('pageshow', () => {
+      void syncPlayback();
+    });
+
+    window.addEventListener('pagehide', () => {
+      heroVideo.pause();
+    });
   }
-</style>
+</script>
