@@ -21,25 +21,25 @@
   --color-accent-200: hsl(46 95% 78%);
   --color-accent-300: hsl(44 90% 68%);
   --color-accent-400: hsl(43 80% 58%);
-  --color-accent-500: hsl(42 58% 50%);
-  --color-accent-600: hsl(38 65% 44%);
+  --color-accent-500: hsl(42 75% 48%);
+  --color-accent-600: hsl(38 75% 42%);
   --color-accent-700: hsl(34 70% 38%);
   --color-accent-800: hsl(30 75% 30%);
   --color-accent-900: hsl(26 80% 22%);
   --color-accent-950: hsl(22 85% 14%);
 
-  /* Gray scale - warm neutrals (11 shades required) */
-  --color-gray-50: hsl(60 30% 96%);
-  --color-gray-100: hsl(55 25% 92%);
-  --color-gray-200: hsl(50 20% 85%);
-  --color-gray-300: hsl(45 15% 75%);
-  --color-gray-400: hsl(40 12% 60%);
-  --color-gray-500: hsl(35 10% 45%);
-  --color-gray-600: hsl(30 12% 35%);
-  --color-gray-700: hsl(25 15% 25%);
-  --color-gray-800: hsl(22 18% 18%);
-  --color-gray-900: hsl(20 20% 12%);
-  --color-gray-950: hsl(18 22% 8%);
+  /* Gray scale - neutral grays (11 shades required, matches viewer) */
+  --color-gray-50: hsl(0 0% 96%);
+  --color-gray-100: hsl(0 0% 92%);
+  --color-gray-200: hsl(0 0% 85%);
+  --color-gray-300: hsl(0 0% 75%);
+  --color-gray-400: hsl(0 0% 60%);
+  --color-gray-500: hsl(0 0% 45%);
+  --color-gray-600: hsl(0 0% 35%);
+  --color-gray-700: hsl(0 0% 25%);
+  --color-gray-800: hsl(0 0% 18%);
+  --color-gray-900: hsl(0 0% 12%);
+  --color-gray-950: hsl(0 0% 8%);
 
   /* Typography */
   --font-sans:
@@ -69,14 +69,14 @@
 :root.dark,
 .dark,
 [data-theme='dark'] {
-  --color-background: hsl(20 18% 10%);
-  --color-foreground: hsl(50 20% 92%);
-  --color-card: hsl(22 15% 15%);
-  --color-card-foreground: hsl(50 20% 92%);
-  --color-muted: hsl(25 12% 22%);
-  --color-muted-foreground: hsl(40 10% 60%);
-  --color-border: hsl(25 12% 25%);
-  --color-surface-elevated: hsl(22 14% 13%);
+  --color-background: hsl(0 0% 16%);
+  --color-foreground: hsl(60 51% 91%);
+  --color-card: hsl(0 0% 22%);
+  --color-card-foreground: hsl(60 51% 91%);
+  --color-muted: hsl(0 0% 26%);
+  --color-muted-foreground: hsl(0 0% 65%);
+  --color-border: hsl(0 0% 28%);
+  --color-surface-elevated: hsl(0 0% 14%);
 }
 
 /* ==========================================================================
@@ -284,7 +284,7 @@
   }
 
   .dark .site-header {
-    background: rgba(30, 25, 22, 0.85);
+    background: rgba(41, 41, 41, 0.85);
   }
 
   /* Nav Link */
@@ -586,7 +586,7 @@
   }
 
   .dark .site-footer {
-    background: rgba(30, 25, 22, 0.5);
+    background: rgba(41, 41, 41, 0.5);
   }
 
   /* CTA Card */
@@ -650,9 +650,9 @@
 
 /* Dark mode overrides for Starlight */
 [data-theme='dark'] {
-  --sl-color-bg: hsl(20 18% 10%);
-  --sl-color-bg-nav: hsl(20 18% 10% / 0.85);
-  --sl-color-bg-sidebar: hsl(20 18% 10%);
+  --sl-color-bg: hsl(0 0% 16%);
+  --sl-color-bg-nav: hsl(0 0% 16% / 0.85);
+  --sl-color-bg-sidebar: hsl(0 0% 16%);
 }
 
 /* Header height and styling to match landing page (4rem) */
