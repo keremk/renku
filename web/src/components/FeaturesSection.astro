@@ -1,0 +1,443 @@
+---
+interface BentoFeature {
+  id: string;
+  title: string;
+  description: string;
+  imageBase: string;
+  gridClass: string;
+}
+
+const features: BentoFeature[] = [
+  {
+    id: 'blueprint',
+    title: 'Blueprints',
+    description:
+      'Define how every stage of production connects through declarations and dependencies.',
+    imageBase: 'blueprint',
+    gridClass: 'bento-blueprint',
+  },
+  {
+    id: 'blueprint-yaml',
+    title: 'YAML-Based',
+    description:
+      'Human-readable definitions you can author by hand or generate with AI tools like Codex and Claude.',
+    imageBase: 'blueprint-yaml',
+    gridClass: 'bento-yaml',
+  },
+  {
+    id: 'tweak',
+    title: 'Tweak',
+    description:
+      'Refine any asset with hand-crafted prompts, direct edits, or upload your own images.',
+    imageBase: 'edit',
+    gridClass: 'bento-tweak',
+  },
+  {
+    id: 'full-control',
+    title: 'Full Control',
+    description:
+      'Pin assets you love, selectively regenerate the rest. Nothing changes unless you say so.',
+    imageBase: 'pin-regenerate',
+    gridClass: 'bento-control',
+  },
+  {
+    id: 'rich-previews',
+    title: 'Rich Previews',
+    description:
+      'Browse every generated asset at a glance \u2014 play back audio, video, and inspect images.',
+    imageBase: 'rich-previews',
+    gridClass: 'bento-previews',
+  },
+  {
+    id: 'karaoke-subtitles',
+    title: 'Karaoke Subtitles',
+    description:
+      'Configure rich karaoke-style subtitles that highlight word by word as narration plays.',
+    imageBase: 'subtitles',
+    gridClass: 'bento-subtitles',
+  },
+  {
+    id: 'preview-movies',
+    title: 'Preview Movies',
+    description:
+      'Watch your movie come together with full playback and live subtitle rendering.',
+    imageBase: 'play',
+    gridClass: 'bento-play',
+  },
+  {
+    id: 'timeline',
+    title: 'Multi-Track Timeline',
+    description:
+      'Inspect video, narration, and music tracks on a multi-track timeline you can scrub and interact with.',
+    imageBase: 'timeline',
+    gridClass: 'bento-timeline',
+  },
+  {
+    id: 'build-plan',
+    title: 'View Build Plan',
+    description:
+      'Review the execution plan, choose how far to generate, and see estimated costs per stage before you run.',
+    imageBase: 'run-plan',
+    gridClass: 'bento-plan',
+  },
+];
+---
+
+<section id="features" class="py-20 px-4 max-w-7xl mx-auto">
+  <div class="text-center mb-16">
+    <span class="section-badge">Features</span>
+    <h2 class="section-title">Everything you need to create AI videos</h2>
+    <p class="section-description">
+      A complete toolkit for AI-powered video generation, from blueprint to
+      final render.
+    </p>
+  </div>
+
+  <div class="bento-grid">
+    {
+      features.map((feature, index) => (
+        <div
+          class={`bento-card ${feature.gridClass}`}
+          style={`animation: fade-in-up 0.6s ease-out ${index * 80}ms forwards; opacity: 0;`}
+        >
+          <div class="bento-text">
+            <h3 class="bento-title">{feature.title}</h3>
+            <p class="bento-desc">{feature.description}</p>
+          </div>
+          <div class="bento-image">
+            <img
+              src={`/features/${feature.imageBase}-light.png`}
+              alt={feature.title}
+              class="bento-img-light"
+              loading="lazy"
+              decoding="async"
+            />
+            <img
+              src={`/features/${feature.imageBase}-dark.png`}
+              alt={feature.title}
+              class="bento-img-dark"
+              loading="lazy"
+              decoding="async"
+            />
+          </div>
+        </div>
+      ))
+    }
+
+    <!-- CLI card with playful logos -->
+    <div
+      class="bento-card bento-cli"
+      style={`animation: fade-in-up 0.6s ease-out ${features.length * 80}ms forwards; opacity: 0;`}
+    >
+      <div class="bento-text">
+        <h3 class="bento-title">CLI</h3>
+        <p class="bento-desc">
+          Every feature is accessible through the CLI. Plug it into your
+          favorite AI coding tool.
+        </p>
+      </div>
+      <div class="cli-grid">
+        <div class="cli-cell"><img src="/logos/claude.svg" alt="Claude" /></div>
+        <div class="cli-cell"><img src="/logos/gemini.svg" alt="Gemini" /></div>
+        <div class="cli-cell"><img src="/logos/codex.svg" alt="Codex" /></div>
+        <div class="cli-cell"><img src="/logos/openclaw.svg" alt="OpenClaw" /></div>
+        <div class="cli-cell cli-cell-wide">
+          <img src="/logos/opencode.svg" alt="OpenCode" class="bento-img-light" />
+          <img src="/logos/opencode-dark.svg" alt="OpenCode" class="bento-img-dark" />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* ===== Grid ===== */
+  .bento-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 768px) {
+    .bento-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .bento-grid {
+      grid-template-columns: repeat(12, 1fr);
+      gap: 1.125rem;
+    }
+  }
+
+  /* ===== Grid placement (desktop) ===== */
+  @media (min-width: 1024px) {
+    .bento-blueprint {
+      grid-column: 1 / 8;
+      grid-row: 1;
+    }
+    .bento-yaml {
+      grid-column: 8 / 13;
+      grid-row: 1 / 3;
+    }
+    .bento-tweak {
+      grid-column: 1 / 5;
+      grid-row: 2;
+    }
+    .bento-control {
+      grid-column: 5 / 8;
+      grid-row: 2;
+    }
+    .bento-previews {
+      grid-column: 1 / 5;
+      grid-row: 3;
+    }
+    .bento-subtitles {
+      grid-column: 5 / 9;
+      grid-row: 3;
+    }
+    .bento-plan {
+      grid-column: 9 / 13;
+      grid-row: 3;
+    }
+    .bento-timeline {
+      grid-column: 1 / 13;
+      grid-row: 4;
+    }
+    .bento-play {
+      grid-column: 1 / 5;
+      grid-row: 5;
+    }
+    .bento-cli {
+      grid-column: 5 / 13;
+      grid-row: 5;
+    }
+  }
+
+  /* ===== Grid placement (tablet) ===== */
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .bento-blueprint {
+      grid-column: 1 / -1;
+    }
+    .bento-timeline {
+      grid-column: 1 / -1;
+    }
+    .bento-cli {
+      grid-column: 1 / -1;
+    }
+  }
+
+  /* ===== Card ===== */
+  .bento-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: 1rem;
+    overflow: hidden;
+    transition:
+      border-color 0.3s,
+      box-shadow 0.3s,
+      transform 0.3s;
+  }
+
+  .bento-card:hover {
+    border-color: var(--color-accent-300);
+    box-shadow: 0 8px 32px -8px rgba(180, 130, 50, 0.15);
+    transform: translateY(-3px);
+  }
+
+  :global(.dark) .bento-card:hover {
+    border-color: var(--color-accent-700);
+    box-shadow: 0 8px 32px -8px rgba(180, 130, 50, 0.1);
+  }
+
+  /* ===== Text ===== */
+  .bento-text {
+    padding: 1.25rem 1.25rem 0;
+  }
+
+  .bento-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-foreground);
+    margin: 0 0 0.25rem;
+  }
+
+  .bento-desc {
+    font-size: 0.875rem;
+    line-height: 1.55;
+    color: var(--color-muted-foreground);
+    margin: 0;
+  }
+
+  /* ===== Image ===== */
+  .bento-image {
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+    padding: 1rem 1rem 0;
+    min-height: 0;
+  }
+
+  .bento-image img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 0.5rem 0.5rem 0 0;
+    object-fit: contain;
+    object-position: bottom;
+  }
+
+  /* ===== Theme-aware image switching ===== */
+  .bento-image img.bento-img-dark,
+  .cli-cell img.bento-img-dark {
+    display: none;
+  }
+
+  :global(.dark) .bento-image img.bento-img-dark,
+  :global(.dark) .cli-cell img.bento-img-dark {
+    display: block;
+  }
+  :global(.dark) .bento-image img.bento-img-light,
+  :global(.dark) .cli-cell img.bento-img-light {
+    display: none;
+  }
+
+  /* ===== Card-specific tweaks ===== */
+
+  /* Ultra-wide cards: constrain image height so they don't look too thin */
+  .bento-blueprint .bento-image,
+  .bento-timeline .bento-image {
+    padding: 1rem;
+    align-items: center;
+  }
+
+  .bento-blueprint .bento-image img,
+  .bento-timeline .bento-image img {
+    border-radius: 0.5rem;
+    object-fit: contain;
+  }
+
+  /* Tall YAML card spanning 2 rows needs the image to fill vertical space */
+  @media (min-width: 1024px) {
+    .bento-yaml {
+      min-height: 0;
+    }
+
+    .bento-yaml .bento-image {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .bento-yaml .bento-image img {
+      height: 100%;
+      object-fit: cover;
+      object-position: top left;
+    }
+  }
+
+  /* Preview Movies: constrain height in last row */
+  .bento-play .bento-image {
+    overflow: hidden;
+  }
+
+  .bento-play .bento-image img {
+    border-radius: 0.5rem 0.5rem 0 0;
+    object-fit: cover;
+    object-position: top center;
+  }
+
+  @media (min-width: 1024px) {
+    .bento-play {
+      max-height: 20rem;
+    }
+  }
+
+  /* ===== CLI card ===== */
+  .cli-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 1px;
+    margin: 0.75rem 1.25rem 1.25rem;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+  }
+
+  .cli-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+    background: transparent;
+    border-right: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+    transition: background 0.2s, transform 0.25s;
+  }
+
+  .cli-cell:nth-child(4) {
+    border-right: none;
+  }
+
+  .cli-cell:nth-child(n+5) {
+    border-bottom: none;
+  }
+
+  .cli-cell:hover {
+    background: var(--color-muted);
+  }
+
+  .cli-cell img {
+    display: block;
+    width: 2.5rem;
+    height: 2.5rem;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    cursor: pointer;
+  }
+
+  .cli-cell:hover img {
+    transform: scale(1.1);
+  }
+
+  .cli-cell.cli-bounce img {
+    animation: cli-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes cli-pop {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.35); }
+    50% { transform: scale(0.9); }
+    70% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+  }
+
+  /* OpenCode logo is wide text, needs different sizing */
+  .cli-cell-wide img {
+    width: auto;
+    height: 1.75rem;
+  }
+
+  /* Last row: 4 cells on top, 1 wide cell spanning remaining on bottom-left,
+     rest stays empty via the grid */
+  .cli-cell-wide {
+    grid-column: 1 / -1;
+    border-right: none;
+  }
+</style>
+
+<script>
+  document.querySelectorAll('.cli-cell').forEach((cell) => {
+    cell.addEventListener('click', () => {
+      cell.classList.remove('cli-bounce');
+      void (cell as HTMLElement).offsetWidth;
+      cell.classList.add('cli-bounce');
+    });
+    cell.addEventListener('animationend', () => {
+      cell.classList.remove('cli-bounce');
+    });
+  });
+</script>

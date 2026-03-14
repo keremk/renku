@@ -1,36 +1,10 @@
 ---
 import LandingLayout from '../layouts/LandingLayout.astro';
 import Hero from '../components/Hero.astro';
-import IconSparkles from '../components/icons/IconSparkles.astro';
-import IconTemplate from '../components/icons/IconTemplate.astro';
-import IconPlug from '../components/icons/IconPlug.astro';
-import IconTerminal from '../components/icons/IconTerminal.astro';
+import FeaturesSection from '../components/FeaturesSection.astro';
 import IconArrowRight from '../components/icons/IconArrowRight.astro';
 import IconGitHub from '../components/icons/IconGitHub.astro';
 import HowItWorksPipeline from '../components/HowItWorksPipeline.astro';
-
-const features = [
-  {
-    title: 'AI-Powered Generation',
-    description: 'Leverage cutting-edge AI models to generate stunning video content from simple text prompts.',
-    icon: 'sparkles',
-  },
-  {
-    title: 'Blueprint System',
-    description: 'Define your video structure with flexible blueprints that guide the AI generation process.',
-    icon: 'template',
-  },
-  {
-    title: 'Multiple Providers',
-    description: 'Choose from various AI providers including OpenAI, Replicate, and ElevenLabs for different capabilities.',
-    icon: 'plug',
-  },
-  {
-    title: 'CLI & SDK',
-    description: 'Integrate video generation into your workflow with our powerful CLI and comprehensive SDK.',
-    icon: 'terminal',
-  },
-];
 ---
 
 <LandingLayout title="AI-Powered Movie Generation">
@@ -38,34 +12,7 @@ const features = [
   <Hero />
 
   <!-- Features Section -->
-  <section id="features" class="py-20 px-4 max-w-6xl mx-auto">
-    <div class="max-w-6xl mx-auto">
-      <div class="text-center mb-16">
-        <span class="section-badge">Features</span>
-        <h2 class="section-title">
-          Everything you need to create AI videos
-        </h2>
-        <p class="section-description">
-          Renku provides a complete toolkit for AI-powered video generation, from ideation to final render.
-        </p>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {features.map((feature, index) => (
-          <div class="feature-card" style={`animation-delay: ${index * 100}ms`}>
-            <div class="feature-icon-wrapper">
-              {feature.icon === 'sparkles' && <IconSparkles class="feature-icon" />}
-              {feature.icon === 'template' && <IconTemplate class="feature-icon" />}
-              {feature.icon === 'plug' && <IconPlug class="feature-icon" />}
-              {feature.icon === 'terminal' && <IconTerminal class="feature-icon" />}
-            </div>
-            <h3 class="text-xl font-semibold mb-3" style="color: var(--color-foreground);">{feature.title}</h3>
-            <p class="leading-relaxed" style="color: var(--color-muted-foreground);">{feature.description}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  </section>
+  <FeaturesSection />
 
   <!-- How It Works Section -->
   <HowItWorksPipeline />

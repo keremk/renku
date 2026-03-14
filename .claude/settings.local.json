@@ -90,7 +90,8 @@
       "WebFetch(domain:developers.cloudflare.com)",
       "Bash(chmod +x /Users/keremk/Projects/aitinkerbox/renku/scripts/deploy-desktop.sh)",
       "Bash(npx wrangler r2 object put --help)",
-      "WebFetch(domain:www.codejam.info)"
+      "WebFetch(domain:www.codejam.info)",
+      "Bash(sips -g pixelWidth -g pixelHeight /Users/keremk/Projects/aitinkerbox/renku/web/public/features/*.png)"
     ],
     "deny": [],
     "ask": []
