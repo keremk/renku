@@ -323,17 +323,23 @@
 
   /* Hero Section */
   .hero-section {
-    @apply relative overflow-hidden px-4 grid;
-    align-items: center;
+    @apply relative overflow-hidden;
+    display: flex;
+    flex-direction: column;
     --header-height: 4rem;
     min-height: calc(100vh - var(--header-height));
     min-height: calc(100dvh - var(--header-height));
-    padding-block: 1.5rem;
+    padding-inline: clamp(1rem, 5vw, 5rem);
   }
 
   .hero-layout {
-    @apply relative z-10 w-full mx-auto grid items-center gap-8;
-    max-width: min(94rem, calc(100vw - 2.5rem));
+    @apply relative z-10 w-full mx-auto;
+    display: grid;
+    align-items: center;
+    align-content: center;
+    flex: 1;
+    gap: 2rem;
+    max-width: 94rem;
   }
 
   @media (min-width: 1024px) {
@@ -346,7 +352,6 @@
   @media (max-width: 1023px) {
     .hero-section {
       min-height: calc(100svh - 4rem);
-      padding-block: 2rem;
     }
   }
 
@@ -479,6 +484,65 @@
     .hero-tagline {
       margin-inline: 0;
     }
+  }
+
+  /* Scroll-down hint */
+  .hero-scroll-hint {
+    display: flex;
+    justify-content: center;
+    position: relative;
+    z-index: 10;
+    flex-shrink: 0;
+    transition: opacity 0.35s ease;
+  }
+
+  .scroll-indicator {
+    width: 6.5rem;
+    height: 3.5rem;
+    border-radius: 3.25rem 3.25rem 0 0;
+    border: 2px dashed hsl(42 50% 45% / 0.35);
+    border-bottom: none;
+    background: hsl(50 30% 90%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 0.25rem;
+    transition: border-color 0.3s;
+  }
+
+  .scroll-indicator:hover {
+    border-color: hsl(42 50% 45% / 0.55);
+  }
+
+  .dark .scroll-indicator {
+    border-color: hsl(42 50% 50% / 0.45);
+    background: hsl(0 0% 23%);
+  }
+
+  .dark .scroll-indicator:hover {
+    border-color: hsl(42 50% 48% / 0.5);
+  }
+
+  .scroll-indicator svg {
+    color: hsl(42 55% 40% / 0.5);
+    animation: scroll-hint-arrow 2s ease-in-out infinite;
+  }
+
+  .scroll-indicator:hover svg {
+    color: hsl(42 55% 40% / 0.7);
+  }
+
+  .dark .scroll-indicator svg {
+    color: hsl(42 65% 55% / 0.5);
+  }
+
+  .dark .scroll-indicator:hover svg {
+    color: hsl(42 65% 55% / 0.7);
+  }
+
+  @keyframes scroll-hint-arrow {
+    0%, 100% { transform: translateY(-2px); }
+    50% { transform: translateY(3px); }
   }
 
   /* Hero Buttons (larger than regular buttons) */

@@ -64,6 +64,14 @@ const desktopDownloadUrl =
       </div>
     </div>
   </div>
+
+  <div class="hero-scroll-hint" data-scroll-hint aria-hidden="true">
+    <a href="#features" class="scroll-indicator">
+      <svg width="22" height="12" viewBox="0 0 14 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M1 1l6 6 6-6"/>
+      </svg>
+    </a>
+  </div>
 </section>
 
 <script lang="ts">
@@ -134,4 +142,30 @@ const desktopDownloadUrl =
       heroVideo.pause();
     });
   }
+</script>
+
+<script is:inline>
+  (function() {
+    var hint = document.querySelector('[data-scroll-hint]');
+    if (!hint) return;
+
+    var fadeEnd = 100;
+
+    function update() {
+      var y = window.pageYOffset || document.documentElement.scrollTop;
+      if (y <= 0) {
+        hint.style.opacity = '1';
+        hint.style.pointerEvents = '';
+      } else if (y >= fadeEnd) {
+        hint.style.opacity = '0';
+        hint.style.pointerEvents = 'none';
+      } else {
+        hint.style.opacity = String(1 - y / fadeEnd);
+        hint.style.pointerEvents = '';
+      }
+    }
+
+    window.addEventListener('scroll', update, { passive: true });
+    update();
+  })();
 </script>
