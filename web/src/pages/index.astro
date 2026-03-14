@@ -7,6 +7,7 @@ import IconPlug from '../components/icons/IconPlug.astro';
 import IconTerminal from '../components/icons/IconTerminal.astro';
 import IconArrowRight from '../components/icons/IconArrowRight.astro';
 import IconGitHub from '../components/icons/IconGitHub.astro';
+import HowItWorksPipeline from '../components/HowItWorksPipeline.astro';
 
 const features = [
   {
@@ -67,40 +68,7 @@ const features = [
   </section>
 
   <!-- How It Works Section -->
-  <section class="py-20 px-4 how-it-works-bg">
-    <div class="max-w-6xl mx-auto">
-      <div class="text-center mb-16">
-        <span class="section-badge">How It Works</span>
-        <h2 class="section-title">
-          From idea to video in three steps
-        </h2>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div class="text-center">
-          <div class="step-number">1</div>
-          <h3 class="text-xl font-semibold mb-3" style="color: var(--color-foreground);">Create a Blueprint</h3>
-          <p style="color: var(--color-muted-foreground);">
-            Define your video structure, scenes, and creative direction using our intuitive blueprint system.
-          </p>
-        </div>
-        <div class="text-center">
-          <div class="step-number">2</div>
-          <h3 class="text-xl font-semibold mb-3" style="color: var(--color-foreground);">Generate Content</h3>
-          <p style="color: var(--color-muted-foreground);">
-            Let AI providers create visuals, voiceovers, and music based on your specifications.
-          </p>
-        </div>
-        <div class="text-center">
-          <div class="step-number">3</div>
-          <h3 class="text-xl font-semibold mb-3" style="color: var(--color-foreground);">Render & Export</h3>
-          <p style="color: var(--color-muted-foreground);">
-            Preview your video in real-time and export it in various formats for any platform.
-          </p>
-        </div>
-      </div>
-    </div>
-  </section>
+  <HowItWorksPipeline />
 
   <!-- CTA Section -->
   <section class="py-20 px-4 max-w-6xl mx-auto">
@@ -133,33 +101,3 @@ const features = [
   </section>
 </LandingLayout>
 
-<style>
-  /* Step number - specific pattern not worth adding to global */
-  .step-number {
-    width: 4rem;
-    height: 4rem;
-    border-radius: 1rem;
-    color: white;
-    font-size: 1.5rem;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 1.5rem;
-    background: var(--color-accent-500);
-    box-shadow: 0 10px 25px -5px rgba(180, 130, 50, 0.25);
-  }
-
-  :global(.dark) .step-number {
-    box-shadow: 0 10px 25px -5px rgba(180, 130, 50, 0.15);
-  }
-
-  /* How it works background gradient */
-  .how-it-works-bg {
-    background: linear-gradient(180deg, transparent 0%, rgba(180, 130, 50, 0.05) 50%, transparent 100%);
-  }
-
-  :global(.dark) .how-it-works-bg {
-    background: linear-gradient(180deg, transparent 0%, rgba(180, 130, 50, 0.03) 50%, transparent 100%);
-  }
-</style>

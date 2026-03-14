@@ -1,0 +1,926 @@
+---
+/* HowItWorksPipeline.astro — canvas-animated DAG pipeline */
+---
+
+<section class="py-20 px-4">
+  <div class="max-w-6xl mx-auto">
+    <div class="text-center mb-12">
+      <span class="section-badge">How It Works</span>
+      <h2 class="section-title">From prompt to movie, automatically</h2>
+    </div>
+
+    <div class="pipeline-card" data-pipeline>
+      <div class="pause-indicator" data-pause-indicator aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <rect x="4" y="3" width="4" height="14" rx="1"/>
+          <rect x="12" y="3" width="4" height="14" rx="1"/>
+        </svg>
+      </div>
+
+      <div class="pipeline-inner" data-inner>
+        <canvas class="pipeline-canvas" data-canvas></canvas>
+
+        <div class="pipeline-row" data-row>
+          <!-- Prompt -->
+          <div class="pl-node pl-endpoint" data-node="prompt">
+            <div class="node-circle" data-box="prompt">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+              </svg>
+            </div>
+            <span class="node-text">Prompt</span>
+          </div>
+
+          <!-- Story -->
+          <div class="pl-node pl-stage" data-node="story">
+            <div class="stage-box" data-box="story">
+              <svg class="stage-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+              </svg>
+              <span class="stage-label">Story</span>
+            </div>
+            <div class="prov-area">
+              <div class="prov-line-v"></div>
+              <div class="prov-row" data-provarea="story">
+                <img src="/OpenAI_Logo.svg" alt="OpenAI" class="prov-img" width="52" height="14"/>
+                <img src="/Vercel_logo_black.svg" alt="Vercel" class="prov-img" width="48" height="12"/>
+              </div>
+            </div>
+          </div>
+
+          <!-- Image + Audio split -->
+          <div class="pl-split">
+            <!-- Image providers ABOVE -->
+            <div class="prov-area prov-area-above">
+              <div class="prov-row" data-provarea="image">
+                <img src="/replicate-seeklogo.svg" alt="Replicate" class="prov-img" width="52" height="12"/>
+                <img src="/fal-ai-seeklogo.svg" alt="fal.ai" class="prov-img prov-img-fal" width="36" height="14"/>
+              </div>
+              <div class="prov-line-v prov-line-stretch"></div>
+            </div>
+            <!-- Image (on the spine) -->
+            <div class="pl-node pl-stage" data-node="image">
+              <div class="stage-box" data-box="image">
+                <svg class="stage-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                </svg>
+                <span class="stage-label">Image</span>
+              </div>
+            </div>
+            <div class="split-gap"></div>
+            <!-- Audio (below spine) -->
+            <div class="pl-node pl-stage" data-node="audio">
+              <div class="stage-box" data-box="audio">
+                <svg class="stage-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+                </svg>
+                <span class="stage-label">Audio</span>
+              </div>
+            </div>
+            <!-- Audio providers BELOW -->
+            <div class="prov-area prov-area-below">
+              <div class="prov-line-v prov-line-tall"></div>
+              <div class="prov-row" data-provarea="audio">
+                <img src="/elevenlabs-seeklogo.svg" alt="ElevenLabs" class="prov-img" width="56" height="12"/>
+              </div>
+            </div>
+          </div>
+
+          <!-- Video -->
+          <div class="pl-node pl-stage" data-node="video">
+            <div class="stage-box" data-box="video">
+              <svg class="stage-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+              </svg>
+              <span class="stage-label">Video</span>
+            </div>
+            <div class="prov-area">
+              <div class="prov-line-v"></div>
+              <div class="prov-row" data-provarea="video">
+                <img src="/replicate-seeklogo.svg" alt="Replicate" class="prov-img" width="52" height="12"/>
+                <img src="/fal-ai-seeklogo.svg" alt="fal.ai" class="prov-img prov-img-fal" width="36" height="14"/>
+              </div>
+            </div>
+          </div>
+
+          <!-- Composer -->
+          <div class="pl-node pl-stage pl-internal" data-node="composer">
+            <div class="stage-box stage-dashed" data-box="composer">
+              <svg class="stage-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/>
+              </svg>
+              <span class="stage-label">Compose</span>
+            </div>
+          </div>
+
+          <!-- Movie -->
+          <div class="pl-node pl-endpoint" data-node="movie">
+            <div class="node-circle" data-box="movie">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+            </div>
+            <span class="node-text">Movie</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-bar" data-phase-bar>
+      <div class="phase-dots">
+        <button class="phase-dot active" data-phase-dot="0" aria-label="Phase 1"></button>
+        <button class="phase-dot" data-phase-dot="1" aria-label="Phase 2"></button>
+        <button class="phase-dot" data-phase-dot="2" aria-label="Phase 3"></button>
+        <button class="phase-dot" data-phase-dot="3" aria-label="Phase 4"></button>
+        <button class="phase-dot" data-phase-dot="4" aria-label="Phase 5"></button>
+        <button class="phase-dot" data-phase-dot="5" aria-label="Phase 6"></button>
+      </div>
+      <p class="phase-text" data-phase-text>AI writes your story from a simple prompt</p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .pipeline-card {
+    position: relative;
+    background: hsl(220 20% 10%);
+    border: 1px solid hsl(220 15% 18%);
+    border-radius: 1.25rem;
+    padding: 1.5rem 1rem 1.25rem;
+    cursor: pointer; overflow: hidden;
+    user-select: none; -webkit-user-select: none;
+  }
+  @media (min-width: 768px) { .pipeline-card { padding: 2rem 1.5rem 1.5rem; } }
+  .pipeline-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 30% 20%, hsl(42 58% 50% / 0.06) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .pause-indicator {
+    position: absolute; top: 0.75rem; right: 0.75rem;
+    color: hsl(0 0% 100% / 0.45); opacity: 0;
+    transition: opacity 0.3s; z-index: 10; pointer-events: none;
+  }
+  .pipeline-card.paused .pause-indicator { opacity: 1; }
+
+  .pipeline-inner { position: relative; }
+  .pipeline-canvas {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    z-index: 1; pointer-events: none;
+  }
+
+  /* ── Row layout ── */
+  .pipeline-row {
+    --spine-offset: 5rem;
+    position: relative; z-index: 2;
+    display: flex; flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between; gap: 0;
+  }
+
+  /* ── Nodes ── */
+  .pl-node {
+    display: flex; flex-direction: column; align-items: center;
+    flex-shrink: 0;
+    padding-top: var(--spine-offset);
+  }
+  .pl-split { padding-top: 0; }
+  .pl-split .pl-node { padding-top: 0; }
+
+  /* ── Endpoint ── */
+  .node-circle {
+    width: 2.75rem; height: 2.75rem; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    border: 1.5px solid hsl(220 15% 25%);
+    background: hsl(220 18% 13%); color: hsl(0 0% 55%);
+    transition: all 0.4s;
+  }
+  .node-text {
+    font-size: 0.6rem; font-weight: 700; color: hsl(0 0% 42%);
+    margin-top: 0.3rem; text-transform: uppercase;
+    letter-spacing: 0.06em; transition: color 0.4s;
+  }
+  .pl-endpoint { padding-top: calc(var(--spine-offset) + 0.35rem); }
+  .pl-node.active .node-circle {
+    border-color: hsl(42 58% 50%);
+    box-shadow: 0 0 18px hsl(42 58% 50% / 0.3);
+    color: hsl(42 80% 70%); background: hsl(42 30% 14%);
+  }
+  .pl-node.active .node-text { color: hsl(42 60% 70%); }
+  .pl-node.burst .node-circle {
+    border-color: hsl(42 75% 55%);
+    box-shadow: 0 0 28px hsl(42 75% 55% / 0.5), 0 0 56px hsl(42 75% 55% / 0.15);
+    color: hsl(42 90% 80%); background: hsl(42 40% 17%);
+  }
+
+  /* ── Stage box ── */
+  .stage-box {
+    width: 5.8rem; height: 3.5rem; border-radius: 0.6rem;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 0.2rem;
+    border: 1.5px solid hsl(220 15% 25%);
+    background: hsl(220 18% 13%);
+    transition: all 0.4s; position: relative;
+  }
+  .stage-dashed { border-style: dashed; border-color: hsl(220 15% 20%); }
+  .stage-icon { color: hsl(0 0% 55%); transition: color 0.4s; }
+  .stage-label {
+    font-size: 0.58rem; font-weight: 600; color: hsl(0 0% 42%);
+    white-space: nowrap; transition: color 0.4s; letter-spacing: 0.01em;
+  }
+  .pl-node.active .stage-box {
+    border-color: hsl(42 58% 50%);
+    box-shadow: 0 0 20px hsl(42 58% 50% / 0.25), 0 0 40px hsl(42 58% 50% / 0.08);
+    background: hsl(42 30% 14%);
+  }
+  .pl-node.active .stage-dashed {
+    border-color: hsl(42 58% 50%);
+    box-shadow: 0 0 14px hsl(42 58% 50% / 0.18);
+  }
+  .pl-node.active .stage-icon { color: hsl(42 80% 70%); }
+  .pl-node.active .stage-label { color: hsl(42 60% 70%); }
+
+  /* Editing pencil */
+  .pl-node.editing .stage-box::after {
+    content: '✎'; position: absolute; top: -0.5rem; right: -0.5rem;
+    width: 1.1rem; height: 1.1rem;
+    background: hsl(42 58% 50%); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.55rem; color: hsl(220 20% 10%);
+    animation: edit-pop 0.35s ease-out;
+  }
+  @keyframes edit-pop {
+    0% { transform: scale(0); } 70% { transform: scale(1.15); } 100% { transform: scale(1); }
+  }
+
+  /* ── Split column ── */
+  .pl-split {
+    display: flex; flex-direction: column; align-items: center;
+    flex-shrink: 0;
+  }
+  .split-gap { height: 0.4rem; }
+
+  /* ── Provider areas ── */
+  .prov-area { display: flex; flex-direction: column; align-items: center; }
+
+  /* ABOVE: fixed height = spine-offset, logos at top, line stretches to bottom */
+  .prov-area-above {
+    display: flex; flex-direction: column; align-items: center;
+    height: var(--spine-offset);
+    justify-content: space-between;
+  }
+  .prov-area-below {
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .prov-line-v { height: 2.5rem; }
+  .prov-line-tall { height: 3.5rem; }
+  .prov-line-stretch { flex: 1; min-height: 2rem; }
+  .prov-row {
+    display: flex; gap: 0.3rem; align-items: center; padding: 0.1rem 0;
+  }
+  .prov-img {
+    filter: brightness(0) invert(1);
+    opacity: 0.15; transition: opacity 0.4s;
+    height: 10px; width: auto;
+  }
+  .prov-img-fal { height: 14px; }
+  .pl-node.active .prov-img { opacity: 0.65; }
+  .prov-img.flash-error {
+    filter: brightness(0) invert(1) sepia(1) saturate(8) hue-rotate(-20deg) !important;
+    opacity: 0.9 !important;
+  }
+  .pl-split:has(.pl-node[data-node="image"].active) .prov-area-above .prov-img { opacity: 0.65; }
+  .pl-split:has(.pl-node[data-node="audio"].active) .prov-area-below .prov-img { opacity: 0.65; }
+
+  @media (max-width: 767px) {
+    .pipeline-card { padding: 1rem 0.5rem 0.75rem; }
+    .pipeline-row { --spine-offset: 3rem; }
+    .stage-box { width: 3.2rem; height: 2rem; border-radius: 0.35rem; gap: 0.1rem; }
+    .stage-icon { width: 12px; height: 12px; }
+    .stage-label { font-size: 0.42rem; }
+    .node-circle { width: 1.6rem; height: 1.6rem; }
+    .node-circle svg { width: 11px; height: 11px; }
+    .node-text { font-size: 0.42rem; margin-top: 0.12rem; }
+    .pl-endpoint { padding-top: calc(var(--spine-offset) + 0.15rem); }
+    .split-gap { height: 0.08rem; }
+    .prov-img { height: 7px; }
+    .prov-img-fal { height: 10px; }
+    .prov-line-v { height: 1.5rem; }
+    .prov-line-tall { height: 2rem; }
+    .prov-line-stretch { min-height: 1rem; }
+    .prov-row { gap: 0.2rem; }
+  }
+
+  /* ── Phase bar ── */
+  .phase-bar { text-align: center; margin-top: 1.5rem; }
+  .phase-dots { display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+  .phase-dot {
+    width: 0.5rem; height: 0.5rem; border-radius: 50%;
+    border: none; padding: 0;
+    background: var(--color-muted-foreground); cursor: pointer; transition: all 0.3s;
+    opacity: 0.4;
+  }
+  .phase-dot.active {
+    background: var(--color-accent-500); opacity: 1;
+    box-shadow: 0 0 8px hsl(42 58% 50% / 0.4); transform: scale(1.3);
+  }
+  :root:not(.dark) .phase-dot.active {
+    box-shadow: 0 0 10px hsl(42 58% 50% / 0.6);
+  }
+  .phase-dot:hover:not(.active) { background: var(--color-accent-300); opacity: 0.7; }
+  .phase-text {
+    font-size: 1.15rem; font-weight: 500;
+    color: var(--color-foreground);
+    min-height: 2rem; transition: opacity 0.3s;
+  }
+
+  /* ── Light theme ── */
+  :root:not(.dark) .pipeline-card {
+    background: var(--color-card);
+    border-color: var(--color-border);
+    box-shadow: 0 1px 16px rgba(0,0,0,0.05);
+  }
+  :root:not(.dark) .pipeline-card::before {
+    background: radial-gradient(ellipse at 30% 20%, hsl(42 58% 50% / 0.04) 0%, transparent 60%);
+  }
+  :root:not(.dark) .pause-indicator { color: hsl(0 0% 30% / 0.45); }
+  :root:not(.dark) .node-circle {
+    background: hsl(50 20% 97%);
+    border-color: var(--color-border);
+    color: var(--color-muted-foreground);
+  }
+  :root:not(.dark) .node-text { color: var(--color-muted-foreground); }
+  :root:not(.dark) .stage-box {
+    background: hsl(50 20% 97%);
+    border-color: var(--color-border);
+  }
+  :root:not(.dark) .stage-dashed { border-color: var(--color-border); }
+  :root:not(.dark) .stage-icon { color: var(--color-muted-foreground); }
+  :root:not(.dark) .stage-label { color: var(--color-muted-foreground); }
+  :root:not(.dark) .pl-node.active .node-circle {
+    border-color: hsl(42 58% 50%);
+    box-shadow: 0 0 14px hsl(42 58% 50% / 0.2);
+    color: hsl(42 60% 35%); background: hsl(48 55% 94%);
+  }
+  :root:not(.dark) .pl-node.active .node-text { color: hsl(42 45% 30%); }
+  :root:not(.dark) .pl-node.burst .node-circle {
+    border-color: hsl(42 75% 50%);
+    box-shadow: 0 0 22px hsl(42 75% 50% / 0.3), 0 0 44px hsl(42 75% 50% / 0.08);
+    color: hsl(42 70% 30%); background: hsl(48 65% 92%);
+  }
+  :root:not(.dark) .pl-node.active .stage-box {
+    border-color: hsl(42 58% 50%);
+    box-shadow: 0 0 14px hsl(42 58% 50% / 0.15), 0 0 28px hsl(42 58% 50% / 0.05);
+    background: hsl(48 55% 94%);
+  }
+  :root:not(.dark) .pl-node.active .stage-dashed {
+    border-color: hsl(42 58% 50%);
+    box-shadow: 0 0 10px hsl(42 58% 50% / 0.12);
+  }
+  :root:not(.dark) .pl-node.active .stage-icon { color: hsl(42 60% 35%); }
+  :root:not(.dark) .pl-node.active .stage-label { color: hsl(42 45% 30%); }
+  :root:not(.dark) .pl-node.editing .stage-box::after { color: white; }
+  :root:not(.dark) .prov-img {
+    filter: brightness(0); opacity: 0.25;
+  }
+  :root:not(.dark) .pl-node.active .prov-img { opacity: 0.7; }
+  :root:not(.dark) .pl-split:has(.pl-node[data-node="image"].active) .prov-area-above .prov-img { opacity: 0.7; }
+  :root:not(.dark) .pl-split:has(.pl-node[data-node="audio"].active) .prov-area-below .prov-img { opacity: 0.7; }
+  :root:not(.dark) .prov-img.flash-error {
+    filter: brightness(0) sepia(1) saturate(8) hue-rotate(-20deg) !important;
+  }
+
+  /* ── Reduced motion / mobile static ── */
+  @media (prefers-reduced-motion: reduce) {
+    .pipeline-canvas { display: none; }
+    .pl-node .node-circle, .pl-node .stage-box { border-color: hsl(42 58% 50% / 0.4) !important; }
+    .pl-node .stage-icon { color: hsl(42 80% 70%) !important; }
+    .pl-node .stage-label, .pl-node .node-text { color: hsl(42 60% 70% / 0.8) !important; }
+    .pl-node .prov-img { opacity: 0.5 !important; }
+  }
+</style>
+
+<script>
+  // ─── Types ───
+  type Asset = 'prompt' | 'story' | 'image' | 'audio' | 'video' | 'movie';
+  interface AColor { bg: string; glow: string; text: string; }
+  interface BPath { x1:number; y1:number; cx1:number; cy1:number; cx2:number; cy2:number; x2:number; y2:number; }
+  interface PTrack { x:number; yBox:number; yProv:number; }
+  interface Pill { conn:number; asset:Asset; elapsed:number; dur:number; type:'normal'|'error'|'edit'; trail:{x:number;y:number}[]; tt:number; }
+  interface PPill { stage:string; dir:'req'|'res'; asset:Asset; elapsed:number; dur:number; variant?:'error'|'success'; trail:{x:number;y:number}[]; tt:number; }
+  interface Burst { x:number;y:number;vx:number;vy:number;life:number;decay:number;color:string;r:number; }
+  interface SPill { asset:Asset; x:number; y:number; alpha:number; fading:boolean; merging?:boolean; origX?:number; origY?:number; targX?:number; targY?:number; mergeElapsed?:number; }
+
+  const COLORS: Record<Asset, AColor> = {
+    prompt: { bg:'#a8a8a8', glow:'rgba(168,168,168,0.5)', text:'#1a1a1a' },
+    story:  { bg:'#5a9cf0', glow:'rgba(90,156,240,0.5)',  text:'#fff' },
+    image:  { bg:'#3ec07a', glow:'rgba(62,192,122,0.5)',  text:'#fff' },
+    audio:  { bg:'#a464dc', glow:'rgba(164,100,220,0.5)', text:'#fff' },
+    video:  { bg:'#ea8840', glow:'rgba(234,136,64,0.5)',  text:'#fff' },
+    movie:  { bg:'#d4a843', glow:'rgba(212,168,67,0.6)',  text:'#1a1a1a' },
+  };
+  const ERROR_C: AColor = { bg:'#e84545', glow:'rgba(232,69,69,0.5)', text:'#fff' };
+  const LABELS: Record<Asset,string> = { prompt:'Prompt', story:'Story', image:'Image', audio:'Audio', video:'Video', movie:'Movie' };
+
+  const CONNS = [
+    { from:'prompt', to:'story' },    // 0
+    { from:'story',  to:'image' },    // 1
+    { from:'story',  to:'audio' },    // 2
+    { from:'image',  to:'video' },    // 3
+    { from:'audio',  to:'composer' }, // 4
+    { from:'video',  to:'composer' }, // 5
+    { from:'composer',to:'movie' },   // 6
+  ];
+
+  interface PhPill { t:number; conn:number; asset:Asset; dur:number; type?:'normal'|'error'|'edit'; }
+  interface PhProv { t:number; stage:string; dir:'req'|'res'; asset:Asset; dur:number; variant?:'error'|'success'; }
+  interface Phase {
+    desc:string; dur:number;
+    nodes:string[]; conns:number[];
+    pills:PhPill[]; provs:PhProv[];
+    completed?:boolean; editNode?:string; burstT?:number;
+    mergeT?:number; preStack?:Asset[];
+  }
+
+  const PHASES: Phase[] = [
+    // 1: Prompt → Story
+    { desc:'AI writes your story from a simple prompt', dur:3000,
+      nodes:['prompt','story'], conns:[0],
+      pills:[{ t:200, conn:0, asset:'prompt', dur:1.0 }],
+      provs:[
+        { t:1200, stage:'story', dir:'req', asset:'prompt', dur:0.7 },
+        { t:2000, stage:'story', dir:'res', asset:'story',  dur:0.7 },
+      ],
+    },
+    // 2: Story branches to Image & Audio
+    { desc:'Story branches into parallel image and audio generation', dur:2800,
+      nodes:['story','image','audio'], conns:[1,2],
+      pills:[
+        { t:200, conn:1, asset:'prompt', dur:1.0 },
+        { t:500, conn:2, asset:'prompt', dur:1.0 },
+      ],
+      provs:[],
+    },
+    // 3: Providers generate Image & Audio
+    { desc:'AI providers generate images and audio concurrently', dur:4500,
+      nodes:['image','audio'], conns:[3,4],
+      pills:[
+        { t:2400, conn:3, asset:'image', dur:1.0 },
+        { t:2400, conn:4, asset:'audio', dur:1.2 },
+      ],
+      provs:[
+        { t:200,  stage:'image', dir:'req', asset:'prompt', dur:0.8 },
+        { t:300,  stage:'audio', dir:'req', asset:'prompt', dur:0.8 },
+        { t:1200, stage:'image', dir:'res', asset:'image',  dur:0.8 },
+        { t:1300, stage:'audio', dir:'res', asset:'audio',  dur:0.8 },
+      ],
+    },
+    // 4: Video + Compose — pills merge then movie emerges
+    { desc:'Assets are assembled and composed into a movie', dur:5600,
+      nodes:['video','composer','movie'], conns:[5,6],
+      pills:[
+        { t:1800, conn:5, asset:'video', dur:1.0 },
+        { t:3800, conn:6, asset:'movie', dur:0.8 },
+      ],
+      provs:[
+        { t:200,  stage:'video', dir:'req', asset:'image', dur:0.7 },
+        { t:1000, stage:'video', dir:'res', asset:'video', dur:0.7 },
+      ],
+      preStack:['audio'],
+      mergeT:3200,
+      burstT:5000,
+    },
+    // 5: Auto-retry
+    { desc:'Failed API calls are automatically retried', dur:4200,
+      nodes:['image'], conns:[3],
+      pills:[{ t:3500, conn:3, asset:'image', dur:0.6 }],
+      provs:[
+        { t:100,  stage:'image', dir:'req', asset:'prompt', dur:0.8 },
+        { t:1000, stage:'image', dir:'res', asset:'image',  dur:0.8, variant:'error' },
+        { t:2000, stage:'image', dir:'req', asset:'prompt', dur:0.8 },
+        { t:2800, stage:'image', dir:'res', asset:'image',  dur:0.8 },
+      ],
+    },
+    // 6: Surgical editing
+    { desc:'Re-generate one asset without re-running the pipeline', dur:4000,
+      nodes:['image'], conns:[3],
+      pills:[{ t:3000, conn:3, asset:'image', dur:0.8 }],
+      provs:[
+        { t:1000, stage:'image', dir:'req', asset:'prompt', dur:0.8 },
+        { t:1900, stage:'image', dir:'res', asset:'image',  dur:0.8 },
+      ],
+      completed:true, editNode:'image',
+    },
+  ];
+
+  function easeIO(t:number):number { return t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2; }
+  function bpt(t:number,p:BPath):{x:number;y:number} {
+    const u=1-t;
+    return { x:u*u*u*p.x1+3*u*u*t*p.cx1+3*u*t*t*p.cx2+t*t*t*p.x2, y:u*u*u*p.y1+3*u*u*t*p.cy1+3*u*t*t*p.cy2+t*t*t*p.y2 };
+  }
+  function crisp(v:number):number { return Math.round(v)+0.5; }
+
+  // ─── Animator ───
+  class PipelineAnimator {
+    private card:HTMLElement; private inner:HTMLElement;
+    private canvas:HTMLCanvasElement; private ctx:CanvasRenderingContext2D;
+    private nodeEls = new Map<string,HTMLElement>();
+    private boxEls = new Map<string,HTMLElement>();
+    private provEls = new Map<string,HTMLElement>();
+    private boxR = new Map<string,{left:number;right:number;top:number;bottom:number;cx:number;cy:number}>();
+    private connPaths:(BPath|null)[] = [];
+    private provTracks = new Map<string,PTrack>();
+    private pills:Pill[] = []; private pPills:PPill[] = [];
+    private bursts:Burst[] = []; private stacked:SPill[] = [];
+    private dpr=1; private w=0; private h=0; private isDesktop=false; private isDark=true;
+    private phase=0; private phaseT=0;
+    private paused=false; private inView=false;
+    private spawned = new Set<string>(); private burstFired=false; private mergeFired=false;
+    private dots:HTMLElement[]; private pText:HTMLElement;
+    private raf=0; private lt=0; private ro:ResizeObserver;
+
+    constructor(card:HTMLElement) {
+      this.card=card;
+      this.inner=card.querySelector('[data-inner]')!;
+      this.canvas=card.querySelector('[data-canvas]')!;
+      this.ctx=this.canvas.getContext('2d')!;
+      this.isDesktop=matchMedia('(min-width:768px)').matches;
+      card.querySelectorAll<HTMLElement>('[data-node]').forEach(e=>this.nodeEls.set(e.dataset.node!,e));
+      card.querySelectorAll<HTMLElement>('[data-box]').forEach(e=>this.boxEls.set(e.dataset.box!,e));
+      card.querySelectorAll<HTMLElement>('[data-provarea]').forEach(e=>this.provEls.set(e.dataset.provarea!,e));
+      this.dots=Array.from(document.querySelectorAll<HTMLElement>('[data-phase-dot]'));
+      this.pText=document.querySelector('[data-phase-text]')!;
+      this.ro=new ResizeObserver(()=>{
+        this.isDesktop=matchMedia('(min-width:768px)').matches;
+        this.setupCanvas(); this.measure();
+      });
+      this.init();
+    }
+
+    private init() {
+      this.isDark=document.documentElement.classList.contains('dark');
+      new MutationObserver(()=>{this.isDark=document.documentElement.classList.contains('dark');}).observe(document.documentElement,{attributes:true,attributeFilter:['class']});
+      if(matchMedia('(prefers-reduced-motion:reduce)').matches){
+        this.nodeEls.forEach(n=>n.classList.add('active'));
+        this.uiPhase(0); return;
+      }
+      this.ro.observe(this.inner);
+      this.setupCanvas(); this.measure();
+      new IntersectionObserver(es=>{
+        const e=es[0]; if(!e) return;
+        this.inView=e.isIntersecting&&e.intersectionRatio>0.1;
+        if(this.inView&&!this.paused&&!this.raf) this.go();
+        if(!this.inView) this.stop();
+      },{threshold:[0,0.1]}).observe(this.card);
+      this.card.addEventListener('click',()=>{
+        this.paused=!this.paused;
+        this.card.classList.toggle('paused',this.paused);
+        if(!this.paused&&this.inView) this.go();
+        if(this.paused) this.stop();
+      });
+      this.dots.forEach((d,i)=>d.addEventListener('click',e=>{
+        e.stopPropagation(); this.paused=false;
+        this.card.classList.remove('paused');
+        this.enter(i); if(!this.raf) this.go();
+      }));
+      document.addEventListener('visibilitychange',()=>{
+        if(document.hidden) this.stop();
+        else if(this.inView&&!this.paused) this.go();
+      });
+      const r=this.card.getBoundingClientRect();
+      this.inView=r.top<innerHeight&&r.bottom>0;
+      if(this.inView){this.enter(0);this.go();}
+    }
+
+    private setupCanvas() {
+      this.dpr=devicePixelRatio||1;
+      const r=this.inner.getBoundingClientRect();
+      this.w=r.width; this.h=r.height;
+      this.canvas.width=this.w*this.dpr;
+      this.canvas.height=this.h*this.dpr;
+      this.canvas.style.width=this.w+'px';
+      this.canvas.style.height=this.h+'px';
+      this.ctx.setTransform(this.dpr,0,0,this.dpr,0,0);
+    }
+
+    private measure() {
+      const ir=this.inner.getBoundingClientRect();
+      this.boxR.clear();
+      this.boxEls.forEach((el,id)=>{
+        const r=el.getBoundingClientRect();
+        this.boxR.set(id,{
+          left:r.left-ir.left, right:r.right-ir.left,
+          top:r.top-ir.top, bottom:r.bottom-ir.top,
+          cx:r.left+r.width/2-ir.left, cy:r.top+r.height/2-ir.top,
+        });
+      });
+      // Connection bezier paths
+      this.connPaths=[];
+      for(const c of CONNS){
+        const a=this.boxR.get(c.from), b=this.boxR.get(c.to);
+        if(!a||!b){this.connPaths.push(null);continue;}
+        const x1=a.right, y1=a.cy, x2=b.left, y2=b.cy, dx=x2-x1;
+        this.connPaths.push({x1,y1,cx1:x1+dx*0.38,cy1:y1,cx2:x2-dx*0.38,cy2:y2,x2,y2});
+      }
+      // Provider tracks
+      this.provTracks.clear();
+      for(const sid of ['story','video']){
+        const box=this.boxR.get(sid), pEl=this.provEls.get(sid);
+        if(!box||!pEl) continue;
+        const pr=pEl.getBoundingClientRect();
+        this.provTracks.set(sid,{x:box.cx,yBox:box.bottom,yProv:pr.top+pr.height/2-ir.top});
+      }
+      const imgBox=this.boxR.get('image'), imgProv=this.provEls.get('image');
+      if(imgBox&&imgProv){
+        const pr=imgProv.getBoundingClientRect();
+        this.provTracks.set('image',{x:imgBox.cx,yBox:imgBox.top,yProv:pr.top+pr.height/2-ir.top});
+      }
+      const audBox=this.boxR.get('audio'), audProv=this.provEls.get('audio');
+      if(audBox&&audProv){
+        const pr=audProv.getBoundingClientRect();
+        this.provTracks.set('audio',{x:audBox.cx,yBox:audBox.bottom,yProv:pr.top+pr.height/2-ir.top});
+      }
+    }
+
+    private go() { if(this.raf) return; this.lt=performance.now(); const tick=(now:number)=>{const dt=Math.min((now-this.lt)/1000,0.08);this.lt=now;this.update(dt);this.draw();this.raf=requestAnimationFrame(tick);}; this.raf=requestAnimationFrame(tick); }
+    private stop() { if(this.raf){cancelAnimationFrame(this.raf);this.raf=0;} }
+
+    // ── Update ──
+    private update(dt:number) {
+      this.phaseT+=dt*1000;
+      const ph=PHASES[this.phase]; if(!ph) return;
+
+      // Spawn connection pills
+      for(const s of ph.pills){
+        const k=`p${this.phase}-${s.t}-${s.asset}-${s.conn}`;
+        if(this.phaseT>=s.t&&!this.spawned.has(k)){
+          this.spawned.add(k);
+          this.pills.push({conn:s.conn,asset:s.asset,elapsed:0,dur:s.dur,type:s.type||'normal',trail:[],tt:0});
+        }
+      }
+      // Spawn provider pills
+      for(const p of ph.provs){
+        const k=`pp${this.phase}-${p.t}-${p.stage}-${p.dir}-${p.asset}`;
+        if(this.phaseT>=p.t&&!this.spawned.has(k)){
+          this.spawned.add(k);
+          this.pPills.push({stage:p.stage,dir:p.dir,asset:p.asset,elapsed:0,dur:p.dur,variant:p.variant,trail:[],tt:0});
+          if(p.variant==='error'){
+            const area=this.provEls.get(p.stage);
+            if(area){const l=area.querySelector('.prov-img');if(l){l.classList.add('flash-error');setTimeout(()=>l.classList.remove('flash-error'),600);}}
+          }
+        }
+      }
+      // Burst
+      if(ph.burstT&&this.phaseT>=ph.burstT&&!this.burstFired){
+        this.burstFired=true;
+        const lp=this.connPaths[6];
+        if(lp){this.spawnBurst(lp.x2,lp.y2,'#d4a843');
+          const mn=this.nodeEls.get('movie');mn?.classList.add('burst');
+          setTimeout(()=>mn?.classList.remove('burst'),1200);
+        }
+      }
+
+      // Update connection pills
+      for(const p of this.pills){
+        p.elapsed+=dt; p.tt+=dt;
+        if(p.tt>0.016){
+          const pos=this.pillPos(p);
+          if(pos) p.trail.unshift({x:pos.x,y:pos.y});
+          if(p.trail.length>16) p.trail.pop();
+          p.tt=0;
+        }
+      }
+      // Stacking at composer
+      for(const p of this.pills){
+        if(p.elapsed>=p.dur){
+          const c=CONNS[p.conn];
+          if(c&&c.to==='composer'){
+            const cr=this.boxR.get('composer');
+            if(cr){
+              const idx=this.stacked.length;
+              this.stacked.push({asset:p.asset,x:cr.right+22,y:cr.cy-12+idx*22,alpha:0,fading:false});
+            }
+          }
+        }
+      }
+      this.pills=this.pills.filter(p=>p.elapsed<p.dur);
+
+      // Update provider pills
+      for(const pp of this.pPills){
+        pp.elapsed+=dt; pp.tt+=dt;
+        if(pp.tt>0.016){
+          const pos=this.provPillPos(pp);
+          if(pos) pp.trail.unshift({x:pos.x,y:pos.y});
+          if(pp.trail.length>12) pp.trail.pop();
+          pp.tt=0;
+        }
+      }
+      this.pPills=this.pPills.filter(pp=>pp.elapsed<pp.dur);
+
+      // Bursts
+      for(const b of this.bursts){b.x+=b.vx*dt;b.y+=b.vy*dt;b.vx*=0.97;b.vy*=0.97;b.life-=b.decay*dt;}
+      this.bursts=this.bursts.filter(b=>b.life>0);
+
+      // Merge stacked pills into composer
+      if(ph.mergeT&&this.phaseT>=ph.mergeT&&!this.mergeFired){
+        this.mergeFired=true;
+        const cr=this.boxR.get('composer');
+        if(cr){for(const s of this.stacked){s.merging=true;s.origX=s.x;s.origY=s.y;s.targX=cr.cx;s.targY=cr.cy;s.mergeElapsed=0;}}
+      }
+      if(ph.mergeT&&this.phaseT>=ph.mergeT+400&&!this.spawned.has('merge-burst')){
+        this.spawned.add('merge-burst');
+        const cr=this.boxR.get('composer');
+        if(cr){for(let i=0;i<8;i++){const a=Math.PI*2*i/8+(Math.random()-0.5)*0.5;const sp=15+Math.random()*20;this.bursts.push({x:cr.cx,y:cr.cy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,decay:1.5+Math.random()*0.5,color:'#d4a843',r:1+Math.random()*1.5});}}
+      }
+      // Stacked pills
+      for(const s of this.stacked){
+        if(s.merging){s.mergeElapsed!+=dt;const t=easeIO(Math.min(s.mergeElapsed!/0.4,1));s.x=s.origX!+(s.targX!-s.origX!)*t;s.y=s.origY!+(s.targY!-s.origY!)*t;s.alpha=0.85*(1-t);}
+        else if(s.fading) s.alpha-=dt*2;
+        else s.alpha=Math.min(s.alpha+dt*2.5,0.85);
+      }
+      this.stacked=this.stacked.filter(s=>s.alpha>0);
+
+      if(this.phaseT>=ph.dur) this.enter((this.phase+1)%PHASES.length);
+    }
+
+    private pillPos(p:Pill):{x:number;y:number}|null {
+      const path=this.connPaths[p.conn]; if(!path) return null;
+      return bpt(easeIO(Math.min(p.elapsed/p.dur,1)),path);
+    }
+
+    private provPillPos(pp:PPill):{x:number;y:number}|null {
+      const tk=this.provTracks.get(pp.stage); if(!tk) return null;
+      const t=easeIO(Math.min(pp.elapsed/pp.dur,1));
+      const y=pp.dir==='req' ? tk.yBox+(tk.yProv-tk.yBox)*t : tk.yProv+(tk.yBox-tk.yProv)*t;
+      return {x:tk.x, y};
+    }
+
+    // ── Draw ──
+    private draw() {
+      const ctx=this.ctx;
+      ctx.clearRect(0,0,this.w,this.h);
+      const ph=PHASES[this.phase]; if(!ph) return;
+
+      // Connection lines (bezier curves)
+      for(let i=0;i<this.connPaths.length;i++){
+        const p=this.connPaths[i]; if(!p) continue;
+        const active=ph.conns.includes(i);
+        ctx.beginPath(); ctx.moveTo(p.x1,p.y1);
+        ctx.bezierCurveTo(p.cx1,p.cy1,p.cx2,p.cy2,p.x2,p.y2);
+        ctx.strokeStyle=active?'rgba(212,168,67,0.35)':(this.isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.1)');
+        ctx.lineWidth=active?2:1; ctx.stroke();
+      }
+
+      // Provider track dashed lines
+      ctx.save(); ctx.setLineDash([4,4]);
+      for(const [sid,tk] of this.provTracks){
+        const active=ph.nodes.includes(sid);
+        ctx.beginPath();
+        ctx.moveTo(crisp(tk.x),crisp(tk.yBox));
+        ctx.lineTo(crisp(tk.x),crisp(tk.yProv));
+        ctx.strokeStyle=active?'rgba(212,168,67,0.2)':(this.isDark?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.08)');
+        ctx.lineWidth=1; ctx.stroke();
+      }
+      ctx.setLineDash([]); ctx.restore();
+
+      // Completed static pills
+      if(ph.completed) this.drawCompleted(ph.editNode);
+
+      // Stacked pills at composer
+      for(const s of this.stacked){
+        ctx.save(); ctx.globalAlpha=Math.max(0,s.alpha);
+        this.drawPillShape(s.x,s.y,LABELS[s.asset],COLORS[s.asset]);
+        ctx.restore();
+      }
+
+      // Connection pills + trails
+      for(const p of this.pills) this.drawConnPill(p);
+
+      // Provider pills + trails
+      for(const pp of this.pPills) this.drawProvPill(pp);
+
+      // Bursts
+      if(this.bursts.length){
+        ctx.save();
+        for(const b of this.bursts){
+          ctx.globalAlpha=Math.max(0,b.life*0.7);
+          ctx.beginPath(); ctx.arc(b.x,b.y,b.r*Math.max(0,b.life),0,Math.PI*2);
+          ctx.fillStyle=b.color; ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+
+    private drawConnPill(p:Pill) {
+      const pos=this.pillPos(p); if(!pos) return;
+      const c=COLORS[p.asset];
+      this.drawTrail(p.trail,c.bg);
+      this.drawPillShape(pos.x,pos.y,LABELS[p.asset],c);
+    }
+
+    private drawProvPill(pp:PPill) {
+      const pos=this.provPillPos(pp); if(!pos) return;
+      const c=pp.variant==='error' ? ERROR_C : COLORS[pp.asset];
+      this.drawTrail(pp.trail,c.bg);
+      this.drawPillShape(pos.x,pos.y,LABELS[pp.asset],c);
+    }
+
+    private drawTrail(trail:{x:number;y:number}[],color:string) {
+      const ctx=this.ctx;
+      const s=this.isDesktop?1:0.6;
+      ctx.save();
+      for(let i=0;i<trail.length;i++){
+        const tr=trail[i]!;
+        const f=1-(i+1)/trail.length;
+        ctx.globalAlpha=f*0.3;
+        ctx.beginPath(); ctx.arc(tr.x,tr.y,(1.5+f*2)*s,0,Math.PI*2);
+        ctx.fillStyle=color; ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    private drawPillShape(x:number,y:number,label:string,c:AColor) {
+      const ctx=this.ctx;
+      ctx.save();
+      if(!this.isDesktop){
+        ctx.shadowColor=c.glow; ctx.shadowBlur=6;
+        ctx.beginPath(); ctx.arc(x,y,3.5,0,Math.PI*2);
+        ctx.fillStyle=c.bg; ctx.fill();
+        ctx.restore(); return;
+      }
+      ctx.font='bold 9px system-ui,-apple-system,sans-serif';
+      const tw=ctx.measureText(label).width;
+      const pw=tw+14, ph=18, rx=x-pw/2, ry=y-ph/2;
+      ctx.shadowColor=c.glow; ctx.shadowBlur=14;
+      ctx.beginPath(); ctx.roundRect(rx,ry,pw,ph,ph/2);
+      ctx.fillStyle=c.bg; ctx.fill();
+      ctx.shadowBlur=0;
+      ctx.fillStyle=c.text; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(label,x,y+0.5);
+      ctx.restore();
+    }
+
+    private drawCompleted(editNode?:string) {
+      const statics:{conn:number;asset:Asset}[] = [
+        {conn:0,asset:'prompt'},{conn:1,asset:'prompt'},{conn:2,asset:'prompt'},
+        {conn:4,asset:'audio'},{conn:5,asset:'video'},{conn:6,asset:'movie'},
+      ];
+      const ctx=this.ctx;
+      for(const s of statics){
+        const p=this.connPaths[s.conn]; if(!p) continue;
+        const mid=bpt(0.5,p);
+        ctx.save(); ctx.globalAlpha=0.15;
+        this.drawPillShape(mid.x,mid.y,LABELS[s.asset],COLORS[s.asset]);
+        ctx.restore();
+      }
+      if(editNode==='image'){
+        const p=this.connPaths[3]; if(p){
+          const mid=bpt(0.5,p);
+          ctx.save(); ctx.globalAlpha=0.45;
+          this.drawPillShape(mid.x,mid.y,LABELS.image,COLORS.image);
+          ctx.restore();
+        }
+      }
+    }
+
+    private spawnBurst(x:number,y:number,color:string) {
+      for(let i=0;i<12;i++){
+        const a=Math.PI*2*i/12+(Math.random()-0.5)*0.4;
+        const s=28+Math.random()*40;
+        this.bursts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,decay:1.1+Math.random()*0.6,color,r:1.5+Math.random()*2.5});
+      }
+    }
+
+    private enter(i:number) {
+      this.phase=i; this.phaseT=0;
+      this.spawned.clear(); this.pills=[]; this.pPills=[];
+      this.bursts=[]; this.stacked=[]; this.burstFired=false; this.mergeFired=false;
+      const ph=PHASES[i]; if(!ph) return;
+      this.nodeEls.forEach(n=>n.classList.remove('active','editing','burst'));
+      for(const id of ph.nodes) this.nodeEls.get(id)?.classList.add('active');
+      if(ph.editNode) this.nodeEls.get(ph.editNode)?.classList.add('editing');
+      // Pre-stack pills from previous stages
+      if(ph.preStack){
+        const cr=this.boxR.get('composer');
+        if(cr){
+          for(let j=0;j<ph.preStack.length;j++){
+            this.stacked.push({asset:ph.preStack[j]!,x:cr.right+22,y:cr.cy-12+j*22,alpha:0.8,fading:false});
+          }
+        }
+      }
+      this.uiPhase(i);
+    }
+
+    private uiPhase(i:number) {
+      const ph=PHASES[i]; if(!ph) return;
+      this.dots.forEach((d,j)=>d.classList.toggle('active',j===i));
+      if(this.pText){
+        this.pText.style.opacity='0';
+        setTimeout(()=>{this.pText.textContent=ph.desc;this.pText.style.opacity='1';},140);
+      }
+    }
+  }
+
+  const card=document.querySelector<HTMLElement>('[data-pipeline]');
+  if(card) new PipelineAnimator(card);
+</script>
