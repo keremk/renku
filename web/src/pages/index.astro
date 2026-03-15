@@ -3,7 +3,6 @@ import LandingLayout from '../layouts/LandingLayout.astro';
 import Hero from '../components/Hero.astro';
 import FeaturesSection from '../components/FeaturesSection.astro';
 import IconArrowRight from '../components/icons/IconArrowRight.astro';
-import IconGitHub from '../components/icons/IconGitHub.astro';
 import HowItWorksPipeline from '../components/HowItWorksPipeline.astro';
 ---
 
@@ -21,25 +20,21 @@ import HowItWorksPipeline from '../components/HowItWorksPipeline.astro';
   <section class="py-20 px-4 max-w-6xl mx-auto">
     <div class="max-w-6xl mx-auto">
       <div class="cta-card">
-        <!-- Decorative elements -->
-        <div class="absolute rounded-full top-0 right-0 w-64 h-64 translate-x-1/2 -translate-y-1/2" style="background: rgba(255, 255, 255, 0.1); filter: blur(40px);"></div>
-        <div class="absolute rounded-full bottom-0 left-0 w-48 h-48 -translate-x-1/2 translate-y-1/2" style="background: rgba(255, 255, 255, 0.1); filter: blur(40px);"></div>
-
         <div class="relative z-10">
-          <h2 class="font-bold text-white mb-4" style="font-size: clamp(1.5rem, 4vw, 2.5rem);">
+          <h2 class="font-extrabold mb-4" style="font-size: clamp(2rem, 5vw, 3rem); letter-spacing: -0.02em; line-height: 1.15; color: var(--color-foreground);">
             Ready to create amazing videos?
           </h2>
-          <p class="text-lg max-w-xl mx-auto mb-8" style="color: rgba(255, 255, 255, 0.8);">
-            Start creating AI-powered videos today. Check out our documentation to learn more about what's possible.
+          <p class="text-lg max-w-xl mx-auto mb-8" style="color: var(--color-muted-foreground);">
+            Download the app and start creating AI-powered videos today.
           </p>
           <div class="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="/docs/" class="cta-btn-primary">
-              Read the Docs
+            <a href="https://downloads.gorenku.com/desktop/stable/darwin/arm64/Renku-latest-arm64.dmg" class="cta-btn-primary">
+              Download for macOS
               <IconArrowRight class="ml-2 w-5 h-5" />
             </a>
-            <a href="#github" class="cta-btn-secondary">
-              <IconGitHub class="mr-2 w-5 h-5" />
-              Star on GitHub
+            <a href="/docs/" class="cta-btn-secondary">
+              Read the Docs
+              <IconArrowRight class="ml-2 w-5 h-5" />
             </a>
           </div>
         </div>

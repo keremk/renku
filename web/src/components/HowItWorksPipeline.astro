@@ -2,9 +2,9 @@
 /* HowItWorksPipeline.astro — canvas-animated DAG pipeline */
 ---
 
-<section class="py-20 px-4">
-  <div class="max-w-6xl mx-auto">
-    <div class="text-center mb-12">
+<section id="how-it-works" class="py-20 px-4">
+  <div class="max-w-7xl mx-auto">
+    <div class="section-header">
       <span class="section-badge">How It Works</span>
       <h2 class="section-title">From prompt to movie, automatically</h2>
     </div>
@@ -34,7 +34,7 @@
           <!-- Story -->
           <div class="pl-node pl-stage" data-node="story">
             <div class="stage-box" data-box="story">
-              <svg class="stage-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg class="stage-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
               </svg>
               <span class="stage-label">Story</span>
@@ -61,7 +61,7 @@
             <!-- Image (on the spine) -->
             <div class="pl-node pl-stage" data-node="image">
               <div class="stage-box" data-box="image">
-                <svg class="stage-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg class="stage-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
                 </svg>
                 <span class="stage-label">Image</span>
@@ -71,7 +71,7 @@
             <!-- Audio (below spine) -->
             <div class="pl-node pl-stage" data-node="audio">
               <div class="stage-box" data-box="audio">
-                <svg class="stage-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg class="stage-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
                 </svg>
                 <span class="stage-label">Audio</span>
@@ -89,7 +89,7 @@
           <!-- Video -->
           <div class="pl-node pl-stage" data-node="video">
             <div class="stage-box" data-box="video">
-              <svg class="stage-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg class="stage-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
               </svg>
               <span class="stage-label">Video</span>
@@ -106,7 +106,7 @@
           <!-- Composer -->
           <div class="pl-node pl-stage pl-internal" data-node="composer">
             <div class="stage-box stage-dashed" data-box="composer">
-              <svg class="stage-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg class="stage-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/>
               </svg>
               <span class="stage-label">Compose</span>
@@ -150,7 +150,7 @@
     cursor: pointer; overflow: hidden;
     user-select: none; -webkit-user-select: none;
   }
-  @media (min-width: 768px) { .pipeline-card { padding: 2rem 1.5rem 1.5rem; } }
+  @media (min-width: 768px) { .pipeline-card { padding: 2.5rem 2rem 2rem; } }
   .pipeline-card::before {
     content: ''; position: absolute; inset: 0;
     background: radial-gradient(ellipse at 30% 20%, hsl(42 58% 50% / 0.06) 0%, transparent 60%);
@@ -171,7 +171,7 @@
 
   /* ── Row layout ── */
   .pipeline-row {
-    --spine-offset: 5rem;
+    --spine-offset: 6rem;
     position: relative; z-index: 2;
     display: flex; flex-direction: row;
     align-items: flex-start;
@@ -189,14 +189,14 @@
 
   /* ── Endpoint ── */
   .node-circle {
-    width: 2.75rem; height: 2.75rem; border-radius: 50%;
+    width: 3.25rem; height: 3.25rem; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     border: 1.5px solid hsl(0 0% 28%);
     background: hsl(0 0% 14%); color: hsl(0 0% 55%);
     transition: all 0.4s;
   }
   .node-text {
-    font-size: 0.6rem; font-weight: 700; color: hsl(0 0% 42%);
+    font-size: 0.7rem; font-weight: 700; color: hsl(0 0% 42%);
     margin-top: 0.3rem; text-transform: uppercase;
     letter-spacing: 0.06em; transition: color 0.4s;
   }
@@ -215,7 +215,7 @@
 
   /* ── Stage box ── */
   .stage-box {
-    width: 5.8rem; height: 3.5rem; border-radius: 0.6rem;
+    width: 7rem; height: 4.2rem; border-radius: 0.6rem;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 0.2rem;
     border: 1.5px solid hsl(0 0% 28%);
@@ -223,9 +223,9 @@
     transition: all 0.4s; position: relative;
   }
   .stage-dashed { border-style: dashed; border-color: hsl(0 0% 22%); }
-  .stage-icon { color: hsl(0 0% 55%); transition: color 0.4s; }
+  .stage-icon { color: hsl(0 0% 55%); transition: color 0.4s; width: 22px; height: 22px; }
   .stage-label {
-    font-size: 0.58rem; font-weight: 600; color: hsl(0 0% 42%);
+    font-size: 0.7rem; font-weight: 600; color: hsl(0 0% 42%);
     white-space: nowrap; transition: color 0.4s; letter-spacing: 0.01em;
   }
   .pl-node.active .stage-box {
@@ -329,9 +329,10 @@
   }
   .phase-dot:hover:not(.active) { background: var(--color-accent-300); opacity: 0.7; }
   .phase-text {
-    font-size: 1.15rem; font-weight: 500;
+    font-size: 1.4rem; font-weight: 600;
     color: var(--color-foreground);
     min-height: 2rem; transition: opacity 0.3s;
+    letter-spacing: -0.01em;
   }
 
   /* ── Light theme ── */

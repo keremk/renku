@@ -84,6 +84,10 @@
    ========================================================================== */
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
   a {
     text-decoration: none;
   }
@@ -566,30 +570,38 @@
     background: var(--color-accent-400);
   }
 
+  /* Section Header Block */
+  .section-header {
+    @apply text-center mb-16;
+  }
+
   /* Section Badge */
   .section-badge {
-    @apply inline-block px-4 py-1.5 rounded-full text-sm font-medium mb-4;
+    @apply inline-block px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest mb-5;
+    letter-spacing: 0.15em;
     background: var(--color-accent-100);
     color: var(--color-accent-700);
   }
 
   .dark .section-badge {
-    background: rgba(180, 130, 50, 0.2);
+    background: rgba(180, 130, 50, 0.15);
     color: var(--color-accent-300);
   }
 
   /* Section Title */
   .section-title {
-    @apply font-bold mb-4;
-    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    @apply font-extrabold mb-5;
+    font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1.15;
     color: var(--color-foreground);
+    letter-spacing: -0.02em;
   }
 
   /* Section Description */
   .section-description {
-    @apply text-lg mx-auto;
+    @apply text-lg mx-auto leading-relaxed;
     color: var(--color-muted-foreground);
-    max-width: 36rem;
+    max-width: 38rem;
   }
 
   /* Feature Card */
@@ -655,43 +667,53 @@
 
   /* CTA Card */
   .cta-card {
-    @apply relative overflow-hidden rounded-3xl p-12 text-center;
-    background: linear-gradient(
-      135deg,
-      var(--color-accent-500) 0%,
-      var(--color-accent-600) 50%,
-      var(--color-accent-700) 100%
-    );
+    @apply relative overflow-hidden text-center;
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: 1.5rem;
+    padding: 3rem;
+  }
+
+  .cta-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 40%, hsl(42 58% 50% / 0.06) 0%, transparent 60%);
+    pointer-events: none;
   }
 
   @media (min-width: 768px) {
     .cta-card {
-      @apply p-16;
+      padding: 4rem;
     }
   }
 
   /* CTA Buttons */
   .cta-btn-primary {
-    @apply inline-flex items-center justify-center px-8 py-4 rounded-xl font-semibold no-underline transition-all duration-200;
-    background: white;
-    color: var(--color-accent-600);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    @apply inline-flex items-center justify-center px-8 py-4 rounded-xl font-semibold no-underline transition-all duration-200 text-white;
+    background: var(--color-accent-500);
+    box-shadow: 0 10px 25px -5px rgba(180, 130, 50, 0.3);
   }
 
   .cta-btn-primary:hover {
-    background: rgba(255, 255, 255, 0.9);
+    background: var(--color-accent-600);
     transform: translateY(-2px);
+    box-shadow: 0 15px 30px -5px rgba(180, 130, 50, 0.4);
+  }
+
+  .dark .cta-btn-primary:hover {
+    background: var(--color-accent-400);
   }
 
   .cta-btn-secondary {
     @apply inline-flex items-center justify-center px-8 py-4 rounded-xl font-semibold no-underline transition-all duration-200 border;
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
-    border-color: rgba(255, 255, 255, 0.3);
+    background: transparent;
+    color: var(--color-foreground);
+    border-color: var(--color-border);
   }
 
   .cta-btn-secondary:hover {
-    background: rgba(255, 255, 255, 0.3);
+    background: var(--color-muted);
     transform: translateY(-2px);
   }
 }
