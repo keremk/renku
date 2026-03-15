@@ -91,7 +91,9 @@
       "Bash(chmod +x /Users/keremk/Projects/aitinkerbox/renku/scripts/deploy-desktop.sh)",
       "Bash(npx wrangler r2 object put --help)",
       "WebFetch(domain:www.codejam.info)",
-      "Bash(sips -g pixelWidth -g pixelHeight /Users/keremk/Projects/aitinkerbox/renku/web/public/features/*.png)"
+      "Bash(sips -g pixelWidth -g pixelHeight /Users/keremk/Projects/aitinkerbox/renku/web/public/features/*.png)",
+      "Bash(cd /Users/keremk/Projects/aitinkerbox/renku/web && npx astro check 2>&1)",
+      "Bash(npx astro:*)"
     ],
     "deny": [],
     "ask": []

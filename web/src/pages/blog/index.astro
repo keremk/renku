@@ -1,9 +1,9 @@
 ---
-import { getCollection } from 'astro:content';
+import { getCollection, type CollectionEntry } from 'astro:content';
 import LandingLayout from '../../layouts/LandingLayout.astro';
 
 const posts = (await getCollection('blog')).sort(
-  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+  (a: CollectionEntry<'blog'>, b: CollectionEntry<'blog'>) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
 );
 
 const formatDate = (date: Date) => {
@@ -24,7 +24,7 @@ const formatDate = (date: Date) => {
       </p>
 
       <div class="space-y-8">
-        {posts.map((post) => (
+        {posts.map((post: CollectionEntry<'blog'>) => (
           <article class="group">
             <a
               href={`/blog/${post.slug}/`}
@@ -39,7 +39,7 @@ const formatDate = (date: Date) => {
                 </time>
                 {post.data.tags && (
                   <div class="flex gap-2">
-                    {post.data.tags.slice(0, 3).map((tag) => (
+                    {post.data.tags.slice(0, 3).map((tag: string) => (
                       <span class="text-xs px-2 py-1 rounded-full bg-accent-100 dark:bg-accent-900/30 text-accent-700 dark:text-accent-300">
                         {tag}
                       </span>

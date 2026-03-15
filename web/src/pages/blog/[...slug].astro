@@ -1,16 +1,16 @@
 ---
-import { getCollection, render } from 'astro:content';
+import { getCollection, render, type CollectionEntry } from 'astro:content';
 import LandingLayout from '../../layouts/LandingLayout.astro';
 
 export async function getStaticPaths() {
   const posts = await getCollection('blog');
-  return posts.map((post) => ({
+  return posts.map((post: CollectionEntry<'blog'>) => ({
     params: { slug: post.slug },
-    props: post,
+    props: { post },
   }));
 }
 
-const post = Astro.props;
+const { post } = Astro.props as { post: CollectionEntry<'blog'> };
 const { Content } = await render(post);
 
 const formatDate = (date: Date) => {
@@ -62,7 +62,7 @@ const formatDate = (date: Date) => {
         </p>
         {post.data.tags && (
           <div class="flex flex-wrap gap-2 mt-4">
-            {post.data.tags.map((tag) => (
+            {post.data.tags.map((tag: string) => (
               <span class="text-xs px-2 py-1 rounded-full bg-accent-100 dark:bg-accent-900/30 text-accent-700 dark:text-accent-300">
                 {tag}
               </span>

@@ -108,8 +108,9 @@
       });
 
       // Handle keyboard
-      toggle?.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
+      toggle?.addEventListener('keydown', (e: Event) => {
+        const ke = e as KeyboardEvent;
+        if (ke.key === 'Enter' || ke.key === ' ') {
           e.preventDefault();
           const isDark = document.documentElement.dataset.theme === 'dark';
           setTheme(isDark ? 'light' : 'dark');
