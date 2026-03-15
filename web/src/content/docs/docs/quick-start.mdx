@@ -3,6 +3,8 @@ title: Quick Start
 description: Install Renku and generate your first AI video in minutes
 ---
 
+import { Aside, Steps } from '@astrojs/starlight/components';
+
 This guide will help you install Renku, set up your workspace, configure API keys, and generate your first AI-powered video.
 
 ## Prerequisites
@@ -11,7 +13,7 @@ Before installing Renku, ensure you have:
 
 - **Node.js 18+** - Download from [nodejs.org](https://nodejs.org)
 - **pnpm** - Install with `npm install -g pnpm`
-- **FFmpeg** (optional) - For native video export without Docker. Download from [ffmpeg.org](https://ffmpeg.org/download.html)
+- **FFmpeg & FFprobe** - For native video export and other local video processing. Download from [ffmpeg.org](https://ffmpeg.org/download.html)
 
 ## Installation
 
@@ -42,6 +44,7 @@ renku init --root=~/my-creations
 ```
 
 This creates:
+
 - `~/.config/renku/cli-config.json` - Configuration file
 - `{workspace}/.gitignore` - Ignores `**/builds/` and `**/artifacts/`
 - `{workspace}/catalog/` containing:
@@ -49,7 +52,11 @@ This creates:
   - `producers/` - Supported producer definitions
   - `blueprints/` - Example blueprints to get started
 
-**Note:** Builds and artifacts are created in your **current working directory** when running `renku generate`, not in the workspace root. This supports project-based workflows.
+<Aside>
+  Builds and artifacts are created in your **current working directory** when
+  running `renku generate`, not in the workspace root. This supports
+  project-based workflows.
+</Aside>
 
 ## Configure API Keys
 
@@ -59,27 +66,27 @@ Renku uses multiple AI providers. You'll need API keys for the providers used by
 
 Depending on the blueprint and the models you select, you may need keys for the following providers:
 
-| Provider | Purpose | Get API Key |
-|----------|---------|-------------|
-| **OpenAI** | Script generation, prompt creation | [platform.openai.com](https://platform.openai.com) |
-| **Replicate** | Video, audio, image generation | [replicate.com](https://replicate.com) |
-| **fal.ai** | Video, audio, image generation | [fal.ai](https://fal.ai) |
-| **Wavespeed AI** | Video, audio, image generation | [wavespeed.ai](https://wavespeed.ai) |
+| Provider                                                      | What it does                                              | Key name              |
+| ------------------------------------------------------------- | --------------------------------------------------------- | --------------------- |
+| **[fal.ai](https://fal.ai/)**                                 | Audio, Image, Video generation                            | `FAL_KEY`             |
+| **[Replicate](https://replicate.com/account/api-tokens)**     | Audio, Image, Video generation                            | `REPLICATE_API_TOKEN` |
+| **[ElevenLabs](https://elevenlabs.io/app/settings/api-keys)** | AI voice and audio generation                             | `ELEVENLABS_API_KEY`  |
+| **[OpenAI](https://platform.openai.com/api-keys)**            | LLM models for story board and prompt generation          | `OPENAI_API_KEY`      |
+| **[Vercel AI Gateway](https://vercel.com/dashboard/ai)**      | Unified gateway to Claude, Gemini, and open-source models | `AI_GATEWAY_API_KEY`  |
 
 ### Set Environment Variables
 
-When you run `renku init`, a placeholder script named `env.sh` is created in `~/.config/renku/`. Edit this file to add your API keys:
+For the npm-installed CLI and the desktop/viewer flow, Renku reads API keys from `~/.config/renku/.env`.
+
+Create or edit this file and add your keys:
 
 ```bash
-# Renku API Keys Configuration
-# Replace the placeholder values with your actual API keys
-# Then source this file: source ~/.config/renku/env.sh
-
-export REPLICATE_API_TOKEN="your-replicate-api-token-here"
-export FAL_KEY="your-fal-api-key-here"
-export WAVESPEED_API_KEY="your-wavespeed-api-key-here"
-export OPENAI_API_KEY="your-openai-api-key-here"
+REPLICATE_API_TOKEN=your-replicate-api-token-here
+FAL_KEY=your-fal-api-key-here
+OPENAI_API_KEY=your-openai-api-key-here
 ```
+
+You can also provide keys through exported shell variables or a project-local `.env` in your current working directory.
 
 ## Run Your First Blueprint
 
@@ -104,6 +111,7 @@ renku new:blueprint my-first-video --using=ken-burns
 ```
 
 This creates a `my-first-video/` folder with:
+
 - `my-first-video.yaml` - Your blueprint file (copied and renamed from the catalog)
 - `input-template.yaml` - Template for inputs configuration
 - Any additional files (prompt producers, schemas, etc.)
@@ -122,15 +130,15 @@ Here's an example configuration which will generate a 20-second video about the 
 
 ```yaml
 inputs:
-  InquiryPrompt: "Tell me about the history of the Eiffel Tower."
+  InquiryPrompt: 'Tell me about the history of the Eiffel Tower.'
   Duration: 20
   NumOfSegments: 2
   NumOfImagesPerNarrative: 1
-  Style: "Ghibli"
-  Size: "1K"
-  AspectRatio: "16:9"
-  Audience: "Adult"
-  VoiceId: "Wise_Woman"
+  Style: 'Ghibli'
+  Size: '1K'
+  AspectRatio: '16:9'
+  Audience: 'Adult'
+  VoiceId: 'Wise_Woman'
   Emotion: neutral
 
 models:
@@ -154,8 +162,8 @@ models:
     provider: renku
     producerId: TimelineComposer
     config:
-      tracks: ["Image", "Audio"]
-      masterTracks: ["Audio"]
+      tracks: ['Image', 'Audio']
+      masterTracks: ['Audio']
       numTracks: 2
       audioClip:
         artifact: AudioSegments
@@ -176,6 +184,7 @@ renku generate \
 ```
 
 The dry run:
+
 - Validates your blueprint and inputs
 - Shows the execution plan
 - Creates mock artifacts (no API calls)
@@ -191,6 +200,7 @@ renku generate \
 ```
 
 Watch as Renku:
+
 1. Generates a narration script using OpenAI
 2. Creates audio for each segment using your chosen voice
 3. Saves all artifacts to the build director.
@@ -272,6 +282,7 @@ Once installed, you can use the `create-blueprint` skill to have Claude help you
 ```
 
 The skill guides you through:
+
 - Understanding your video requirements
 - Selecting appropriate producers and models
 - Creating the blueprint YAML structure
@@ -283,6 +294,7 @@ This is especially useful for complex blueprints with multiple producers and cus
 ### Learn the Workflow
 
 Read the [Usage Guide](/docs/usage-guide) to learn:
+
 - How to edit and iterate on generated content
 - Using layer-by-layer generation for cost control
 - Browsing available models and producers
@@ -290,6 +302,7 @@ Read the [Usage Guide](/docs/usage-guide) to learn:
 ### Deep Dive
 
 For advanced users:
+
 - [CLI Reference](/docs/cli-reference) - Complete command documentation
 - [Blueprint Authoring](/docs/blueprint-authoring) - Create custom workflows
 
@@ -301,7 +314,7 @@ For advanced users:
 Error: OPENAI_API_KEY not found
 ```
 
-**Solution:** Export your API key or add it to a `.env` file in your workspace.
+**Solution:** Export your API key, or add it to `~/.config/renku/.env` (or a project-local `.env` in your current working directory).
 
 ### Blueprint Not Found
 
@@ -318,6 +331,7 @@ The providers have rate limits that may depend on your tier or how much you load
 ### Dry Run Works, Real Run Fails
 
 Check that:
+
 1. All required API keys are set
 2. Check your provider logs to diagnose issues. Sometimes you may be hitting rate limits or safety filters.
 3. Your API accounts have sufficient credits

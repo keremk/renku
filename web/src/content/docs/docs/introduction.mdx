@@ -3,65 +3,17 @@ title: Introduction to Renku
 description: Learn what Renku is, the problems it solves, and how it works
 ---
 
-Renku is a workflow orchestration system for generating long-form video content using AI. Think of it as a build system for video production—like Make or Bazel, but for AI-generated multimedia content.
-
-## What is Renku?
-
-Renku coordinates multiple AI providers (OpenAI, Replicate, fal.ai, ElevenLabs, and more) to produce narrated documentaries, educational videos, and other multimedia content from simple text prompts.
-
-From a single inquiry like "Explain the water cycle for middle school students," Renku can:
-
-1. Generate a structured script with narration segments
-2. Create image or video prompts for each segment
-3. Generate visual content (images, videos) for each segment
-4. Synthesize voiceover audio for the narration
-5. Compose background music
-6. Assemble everything into a playable timeline
-7. Export the final video
-
-## Problems Renku Solves
-
-### Manual Provider Juggling
-
-Without Renku, creating AI-generated video means:
-
-- Going to ChatGPT to generate a script
-- Copying prompts to Midjourney or DALL-E for images
-- Using ElevenLabs or another service for voiceover
-- Downloading everything manually
-- Stitching it together in video editing software
-
-Renku automates this entire pipeline with a single command.
-
-### Specialized Prompting
-
-Each AI model works best with specific prompting techniques. Renku uses specialized prompt templates per model, ensuring you get optimal results without becoming an expert in every provider's quirks.
-
-### No State Tracking
-
-Hand-built scripts regenerate everything from scratch. Changed the voiceover style? You'd rebuild all audio, even segments that didn't change.
-
-Renku tracks the state of every artifact. It knows which inputs changed and only regenerates what's needed—saving time and API costs.
-
-### Serial Execution
-
-Generating 10 video segments one after another is slow. Renku analyzes dependencies and runs independent tasks in parallel across execution layers.
-
-### Hard to Extend
-
-Adding a new AI model to a custom script means rewriting code. Renku's producer architecture lets you add new models through YAML configuration.
-
 ## Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                           Blueprint YAML                             │
-│  (Defines workflow: inputs, producers, connections)                  │
+│                           Blueprint YAML                            │
+│  • Defines workflow: inputs, producers, connections                 │
 └─────────────────────────────────────────────────────────────────────┘
                                    │
                                    ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                              Planner                                 │
+│                              Planner                                │
 │  • Loads blueprint tree (blueprints + producers)                    │
 │  • Resolves dimensions and expands loops                            │
 │  • Builds execution graph with canonical IDs                        │
@@ -70,20 +22,20 @@ Adding a new AI model to a custom script means rewriting code. Renku's producer 
                                    │
                                    ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                              Runner                                  │
+│                              Runner                                 │
 │  • Executes jobs layer by layer                                     │
 │  • Resolves inputs from upstream artifacts                          │
-│  • Builds fan-in descriptors from connections                        │
+│  • Builds fan-in descriptors from connections                       │
 │  • Invokes AI providers via producer implementations                │
 │  • Stores artifacts and logs events                                 │
 └─────────────────────────────────────────────────────────────────────┘
                                    │
                                    ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                            Providers                                 │
+│                            Providers                                │
 │  • OpenAI (text generation, structured output)                      │
-│  • Replicate (video, audio, image models)                          │
-│  • fal.ai (video, audio, image models)                             │
+│  • Replicate (video, audio, image models)                           │
+│  • fal.ai (video, audio, image models)                              │
 │  • Renku (timeline composition, video export)                       │
 └─────────────────────────────────────────────────────────────────────┘
 ```

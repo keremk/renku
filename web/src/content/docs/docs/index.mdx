@@ -2,41 +2,89 @@
 title: Welcome to Renku
 description: AI-powered video generation from simple prompts
 ---
+import { Aside } from '@astrojs/starlight/components';
 
-Renku is a powerful workflow orchestration system for generating long-form video content using AI. It coordinates multiple AI providers to produce narrated documentaries, educational videos, and other multimedia content from simple text prompts.
+Renku is a powerful workflow orchestration and build system for generating long-form video content using AI. It coordinates multiple AI providers to produce narrated documentaries, educational videos, and other multimedia content from simple text prompts.
 
 ## Getting Started
 
-New to Renku? Start here:
+If you want to use the app mainly:
+- **[Quick Start - Renku App](/docs/quick-start-app)** - Get up and running in minutes with the downloadable app
+- **[Quick Start - Setting Up Skills](/docs/quick-start-skills)** - Set up the AI skills to create blueprints
 
-- **[Introduction](/docs/introduction)** - Learn what Renku is and the problems it solves
+If you are interested in the CLI and manually creating blueprints:
 - **[Quick Start](/docs/quick-start)** - Get up and running in minutes
 - **[Usage Guide](/docs/usage-guide)** - Master the common workflows
 
-## Reference
+## CLI & Blueprint Reference
 
 - **[CLI Reference](/docs/cli-reference)** - Complete command documentation
 - **[Blueprint Authoring](/docs/blueprint-authoring)** - Create custom video generation workflows
 
-## Key Features
+## What is Renku?
 
-### Build System for Video
+Renku coordinates multiple AI providers (OpenAI, Replicate, fal.ai, ElevenLabs, and more) to produce narrated documentaries, educational videos, and other multimedia content from simple text prompts.
 
-Like software build tools, Renku tracks dependencies and only regenerates what's needed. Change an input, and only affected artifacts are rebuilt.
+From a single inquiry like "Explain the water cycle for middle school students," Renku can:
 
-### Multi-Provider Orchestration
+1. Generate a structured storyboard with narration segments
+2. Create image or video prompts for each segment
+3. Generate visual content (images, videos) for each segment
+4. Generate voiceover audio for the narration
+5. Compose background music
+6. Assemble everything into a playable timeline
+7. Export the final video
 
-Coordinate OpenAI, Replicate, fal.ai, ElevenLabs, and more in a single workflow. Each provider handles what it does best.
+## Problems Renku Solve
 
-### Declarative Blueprints
+### Manual Provider Juggling
+Without Renku, creating AI-generated video means:
 
-Define your video generation workflow in YAML. Blueprints are reusable, shareable, and version-controllable.
+- Going to ChatGPT to generate a script
+- Copying prompts to provide it to image models like Nano Banana etc. for image generation
+- Using ElevenLabs or another service for voiceover
+- Downloading everything manually
+- Stitching it together in video editing software
 
-### Parallel Execution
+Renku automates this entire pipeline.
 
-Generate multiple video segments simultaneously. Renku automatically parallelizes independent tasks across execution layers.
+### Models Require Good Prompting
+Good prompts are essential for getting the best results from AI models. Renku helps you craft effective prompts for each stage of the video generation process. For example, it can take a simple user input like "Explain the water cycle for middle school students" and generate detailed prompts for image generation that include best practices for composition, style, and content.
 
-### Extensible Architecture
+### Different Models have Different Strengths
+Some models are great at some things and not so much at others. They also have different pricings and latencies. So picking the right model for the right task is important. Renku lets you orchestrate multiple providers in a single workflow, so you can use the best tool for each job.
+
+### No State & Dependency Tracking
+Hand-built scripts regenerate everything from scratch. Changed the voiceover style? You'd rebuild all audio, even segments that didn't change.
+
+Renku tracks the state of every artifact. It knows which inputs changed and only regenerates what's needed—saving time and API costs. Like software build tools, Renku tracks dependencies and only regenerates what's needed. Change an input, and only affected artifacts are rebuilt.
+
+### Stitching Everything Together is a Pain
+Tools that give advanced support to hand connect inputs and outputs between providers are complex and have a steep learning curve. 
+
+Renku's skills and YAML based blueprint system allows you to use AI agents (Claude, Codex, ...) to quickly generate new blueprints by simply describing the workflow you want in natural language. The AI agent takes care of structuring the blueprint, connecting inputs and outputs, and following best practices for prompt engineering. 
+
+### Serial Execution
+Generating 10 video segments one after another is slow. Renku analyzes dependencies, creates execution layers, and runs independent tasks in parallel.
+<Aside>
+The providers we integrate with (OpenAI, Replicate, fal.ai, ElevenLabs) do have rate limits based on your account tiering etc. So parallel execution may not always be possible.
+</Aside>
+
+### Handling Errors and Iteration
+AI generation can be unpredictable. Renku's build system detects failures, surfaces errors, and allows you to fix issues and retry without starting over. You can also surgically regenerate specific segments while keeping unaffected parts intact.
+
+### Generating Multiple Segment Video Can be Expensive
+Renku's intelligent caching and parallel execution help optimize costs by only regenerating what's necessary and running tasks simultaneously when possible. You can also choose which providers to use for each task based on your budget and quality requirements. 
+
+You will be able to see estimated costs for each provider and task in the app, so you can make informed decisions about your video generation workflow.
+
+### Automation is a Must for Repetitive Video Generation
+For content creators who need to produce videos of a certain style/genre (e.g., history videos, explainers, ads, ...), automation is essential. Renku lets you define reusable blueprints that can be easily customized with different inputs to generate new videos without manual effort. 
+
+You can also repurpose the same story for different formats (e.g. 9x16 for TikTok, 16x9 for YouTube) by simply changing the aspect ratio input and letting Renku handle the rest.
+
+### Hard to Extend
+Adding a new AI model to a custom script means rewriting code. Renku's producer architecture lets you add new models through YAML configuration.
 
 Add new AI models, providers, and producers as the ecosystem evolves. The plugin architecture makes extension straightforward.
 

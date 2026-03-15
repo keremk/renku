@@ -1,0 +1,121 @@
+---
+title: Using Skills
+description: Set up AI coding assistant skills to generate Renku blueprints
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Renku skills teach AI coding assistants how to generate valid Renku blueprints (inputs, producers, bindings, loops, and output wiring) without you having to write everything from scratch.
+
+The skills are maintained in a separate repository: [github.com/keremk/renku-skills](https://github.com/keremk/renku-skills).
+
+## Before You Start
+
+Make sure Renku is already installed and working.
+
+```bash
+renku --version
+```
+
+If you are setting up for the first time:
+
+```bash
+renku init --root=~/renku-workspace
+```
+
+<Aside>
+  Skills are an assistant layer on top of Renku. They are not useful unless the
+  Renku CLI and workspace are already configured.
+</Aside>
+
+## 1) Get the Skills Repository
+
+Clone the skills repository locally:
+
+```bash
+git clone https://github.com/keremk/renku-skills.git
+cd renku-skills
+```
+
+## 2) Use in Claude Code (CLI + Desktop)
+
+Claude Code supports two approaches: a quick session-only load or a persistent plugin install.
+
+### Option A: Session-only load
+
+Start Claude Code with the plugin directory:
+
+```bash
+claude --plugin-dir /absolute/path/to/renku-skills
+```
+
+### Option B: Installed plugin (recommended)
+
+Inside a Claude Code session (CLI or Desktop), run:
+
+```text
+/plugin marketplace add /absolute/path/to/renku-skills
+/plugin install renku-plugin@renku-skills
+/reload-plugins
+```
+
+Then invoke the blueprint skill with:
+
+```text
+/renku-plugin:create-blueprint
+```
+
+<Aside>
+  Claude Code Desktop uses the same plugin system and slash commands as Claude
+  Code CLI.
+</Aside>
+
+## 3) Use in Codex (App)
+
+Codex reads skills from `~/.agents/skills` (user scope) and `.agents/skills` (repo scope). The provided installer script links all Renku skills into the user scope.
+
+From the `renku-skills` repo root:
+
+```bash
+./scripts/install-codex-skills.sh
+```
+
+Restart Codex App, then open the **Skills** panel to confirm the skills are loaded.
+
+You can also verify from Codex chat/command input:
+
+```text
+/skills
+```
+
+Invoke a skill directly:
+
+```text
+$create-blueprint
+```
+
+To remove the symlinks created by the installer later:
+
+```bash
+./scripts/uninstall-codex-skills.sh
+```
+
+## Typical Workflow
+
+<Steps>
+
+1. Open your Renku workspace in Claude Code or Codex.
+
+2. Run the blueprint skill (`/renku-plugin:create-blueprint` in Claude Code, or `$create-blueprint` in Codex).
+
+3. Describe the movie pipeline you want (storyboard style, producer choices, expected outputs).
+
+4. Review the generated blueprint in your workspace, then run it with Renku.
+
+</Steps>
+
+## Compatibility Notes
+
+- **Claude Code** consumes this repo as a plugin (`.claude-plugin`, `agents/`, `skills/`).
+- **Codex App** consumes skill folders from `~/.agents/skills`.
+- The same core skill content is shared between both tools.

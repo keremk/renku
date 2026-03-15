@@ -24,12 +24,23 @@ export default defineConfig({
       ],
       sidebar: [
         { label: 'Welcome', slug: 'docs' },
-        { label: 'Introduction', slug: 'docs/introduction' },
-        { label: 'Quick Start', slug: 'docs/quick-start' },
-        { label: 'Usage Guide', slug: 'docs/usage-guide' },
-        { label: 'CLI Reference', slug: 'docs/cli-reference' },
-        { label: 'Blueprint Authoring', slug: 'docs/blueprint-authoring' },
-        { label: 'Asset Producers', slug: 'docs/asset-producers' },
+        { label: 'Quick Start', slug: 'docs/app-quick-start' },
+        { label: 'Usage Guide', slug: 'docs/app-usage-guide' },
+        { label: 'Using Skills', slug: 'docs/app-using-skills' },
+        {
+          label: 'CLI (Advanced)',
+          items: [
+            { label: 'Introduction', slug: 'docs/introduction' },
+            { label: 'Quick Start', slug: 'docs/quick-start' },
+            { label: 'Usage Guide', slug: 'docs/usage-guide' },
+            { label: 'CLI Reference', slug: 'docs/cli-reference' },
+            {
+              label: 'Blueprint Authoring',
+              slug: 'docs/blueprint-authoring',
+            },
+            { label: 'Asset Producers', slug: 'docs/asset-producers' },
+          ],
+        },
       ],
       customCss: ['./src/styles/global.css'],
       components: {

@@ -799,3 +799,15 @@ header.header > .header {
   width: 1.25rem !important;
   height: 1.25rem !important;
 }
+
+/* ==========================================================================
+   Theme-aware image utilities for docs
+   ========================================================================== */
+
+:root:not([data-theme='dark']) .dark-only {
+  display: none !important;
+}
+
+[data-theme='dark'] .light-only {
+  display: none !important;
+}
