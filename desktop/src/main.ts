@@ -164,7 +164,10 @@ async function navigateMainWindowToPath(
   await mainWindow.loadURL(fallbackUrl);
 }
 
-function createAppMenu(mainWindow: BrowserWindow): void {
+function createAppMenu(
+  mainWindow: BrowserWindow,
+  buildModeLabel: string
+): void {
   const template: Electron.MenuItemConstructorOptions[] = [
     {
       label: app.name,
@@ -219,6 +222,14 @@ function createAppMenu(mainWindow: BrowserWindow): void {
           },
         },
         { type: 'separator' },
+        {
+          id: 'build-mode',
+          label: buildModeLabel,
+          enabled: false,
+        },
+        {
+          type: 'separator',
+        },
         {
           id: 'check-for-updates',
           label: 'Check for Updates...',
@@ -361,9 +372,11 @@ async function createWindow(): Promise<void> {
       setRestartToUpdateEnabled(ready);
     },
   });
+  const buildModeLabel = updater.getBuildModeLabel();
+  console.log(`[desktop] ${buildModeLabel}`);
 
   // Set up the application menu
-  createAppMenu(mainWindow);
+  createAppMenu(mainWindow, buildModeLabel);
   updater.start();
 
   // Ensure catalog is synchronized once per installed app version

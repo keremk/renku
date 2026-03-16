@@ -136,6 +136,18 @@ export class DesktopUpdater {
     }, STARTUP_CHECK_DELAY_MS);
   }
 
+  getBuildModeLabel(): string {
+    const version = app.getVersion();
+
+    if (!this.availability.enabled) {
+      return `Build: v${version} | updater disabled`;
+    }
+
+    const channel = this.updateChannel ?? 'unknown';
+    const strategy = describeInstallStrategy(this.installStrategy);
+    return `Build: v${version} | ${strategy} | channel ${channel}`;
+  }
+
   dispose(): void {
     if (this.startupTimer !== null) {
       clearTimeout(this.startupTimer);
