@@ -25,21 +25,39 @@ import HowItWorksPipeline from '../components/HowItWorksPipeline.astro';
             Ready to create amazing videos?
           </h2>
           <p class="text-lg max-w-xl mx-auto mb-8" style="color: var(--color-muted-foreground);">
-            Download the app and start creating AI-powered videos today.
+            Get started on your platform with the macOS app or CLI + local viewer workflow.
           </p>
-          <div class="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="https://downloads.gorenku.com/desktop/stable/darwin/arm64/Renku-latest-arm64.dmg" class="cta-btn-primary">
+          <div class="hidden sm:flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="https://downloads.gorenku.com/desktop/stable/darwin/arm64/Renku-latest-arm64.dmg" class="cta-btn-primary" target="_blank" rel="noreferrer">
               Download for macOS
               <IconArrowRight class="ml-2 w-5 h-5" />
             </a>
-            <a href="/docs/" class="cta-btn-secondary">
-              Read the Docs
+            <a href="/install/" class="cta-btn-secondary">
+              Install on Linux/Windows
               <IconArrowRight class="ml-2 w-5 h-5" />
             </a>
+          </div>
+          <p class="hidden sm:block mt-4 text-sm" style="color: var(--color-muted-foreground);">
+            macOS app supports Apple Silicon only. Intel Macs can use the CLI + local viewer.
+          </p>
+
+          <div class="sm:hidden space-y-4">
+            <p class="landing-mobile-note">
+              Renku runs on desktop platforms. Use the install guide for macOS, Linux, and Windows with WSL.
+            </p>
+            <div class="flex flex-col gap-3">
+              <a href="/install/" class="cta-btn-primary">
+                View install options
+                <IconArrowRight class="ml-2 w-5 h-5" />
+              </a>
+              <a href="/docs/" class="cta-btn-secondary">
+                Read the Docs
+                <IconArrowRight class="ml-2 w-5 h-5" />
+              </a>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </section>
 </LandingLayout>
-

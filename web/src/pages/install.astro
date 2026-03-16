@@ -1,0 +1,78 @@
+---
+import LandingLayout from '../layouts/LandingLayout.astro';
+import IconArrowRight from '../components/icons/IconArrowRight.astro';
+
+const macDownloadUrl =
+  'https://downloads.gorenku.com/desktop/stable/darwin/arm64/Renku-latest-arm64.dmg';
+---
+
+<LandingLayout
+  title="Install Renku"
+  description="Install Renku on macOS, Linux, or Windows (via WSL)"
+>
+  <section class="install-page">
+    <div class="install-shell">
+      <div class="install-hero">
+        <span class="install-kicker">Install Renku</span>
+        <h1 class="install-title">Choose your platform and start building videos</h1>
+        <p class="install-subtitle">
+          Renku ships as a native app for macOS Apple Silicon and as a cross-platform CLI + local
+          browser viewer workflow for Linux and Windows (through WSL). Pick the setup that matches
+          your machine.
+        </p>
+      </div>
+
+      <div class="install-grid">
+        <article class="install-card install-card-apple">
+          <span class="install-status">Native app</span>
+          <h2 class="install-card-title">macOS (Apple Silicon)</h2>
+          <p class="install-card-copy">
+            Use the one-click installer for the full desktop app experience, including onboarding,
+            blueprint browsing, generation, and timeline editing.
+          </p>
+          <a href={macDownloadUrl} class="cta-btn-primary" target="_blank" rel="noreferrer">
+            Download for macOS
+            <IconArrowRight class="ml-2 w-5 h-5" />
+          </a>
+          <p class="install-note">Apple Silicon only (M1/M2/M3/M4). Intel Macs are not supported yet.</p>
+        </article>
+
+        <article class="install-card">
+          <span class="install-status">CLI + Browser Viewer</span>
+          <h2 class="install-card-title">Linux</h2>
+          <p class="install-card-copy">
+            Install Renku globally with npm, initialize a workspace, then launch the local viewer in
+            your browser. You get the same generation and editing workflow as the app.
+          </p>
+          <code class="install-command">npm install -g @gorenku/cli</code>
+          <code class="install-command">renku init --root=~/renku-workspace</code>
+          <code class="install-command">renku launch</code>
+          <p class="install-note">Requires Node.js 18+ and FFmpeg/FFprobe.</p>
+        </article>
+
+        <article class="install-card">
+          <span class="install-status">CLI + Browser Viewer</span>
+          <h2 class="install-card-title">Windows (via WSL2)</h2>
+          <p class="install-card-copy">
+            Use WSL2 with a Linux distro, then run the same npm-based CLI setup. The viewer runs
+            locally in your default browser.
+          </p>
+          <code class="install-command">wsl --install -d Ubuntu</code>
+          <code class="install-command">npm install -g @gorenku/cli</code>
+          <code class="install-command">renku init --root=~/renku-workspace</code>
+          <code class="install-command">renku launch</code>
+          <p class="install-note">Install Node.js and FFmpeg inside WSL before running Renku commands.</p>
+        </article>
+      </div>
+
+      <div class="install-help">
+        <h2 class="install-help-title">Need full setup instructions?</h2>
+        <p class="install-help-copy">
+          Follow the <a href="/docs/app-quick-start">App Quick Start</a> for macOS onboarding, or
+          use the <a href="/docs/quick-start">CLI Quick Start</a> for Linux and Windows (WSL)
+          details including API keys, workspace setup, and your first generation run.
+        </p>
+      </div>
+    </div>
+  </section>
+</LandingLayout>

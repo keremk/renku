@@ -7,22 +7,34 @@ import { Aside, Steps } from '@astrojs/starlight/components';
 
 This guide walks you through downloading the Renku app, completing the initial setup, and picking your first blueprint.
 
+## Platform Support
+
+| Platform              | Recommended setup           | Notes                      |
+| --------------------- | --------------------------- | -------------------------- |
+| macOS (Apple Silicon) | Desktop app                 | Native installer available |
+| macOS (Intel)         | CLI + browser viewer        | No native installer yet    |
+| Linux                 | CLI + browser viewer        | Install with npm           |
+| Windows               | CLI + browser viewer (WSL2) | Use a Linux distro in WSL2 |
+
+Choose your path from the [Install Page](/install).
+
 ## Download and Install
 
 <Steps>
 
-1. **Download the app** from the [Renku website](https://gorenku.com). 
+1. **Open the [Install Page](/install)** and choose **macOS (Apple Silicon)**.
 
-2. **Install the app:**
+2. **Download Renku.dmg** and move Renku into your Applications folder.
 
 3. **Launch Renku** from your Applications folder (macOS). On first launch the onboarding wizard will guide you through the remaining setup.
 
 </Steps>
 
 <Aside>
-Currently the app is only available for macOS Apple Silicon. We are working on Windows and Linux versions, so stay tuned!
+The native desktop app is currently available for macOS Apple Silicon only.
 
-Alternatively, you can start using Renku through the CLI, which is cross-platform. See the [CLI Quick Start](/docs/quick-start) guide for instructions.
+If you are on Linux, macOS Intel, or Windows, use the CLI + local browser viewer flow instead. See the [CLI Quick Start](/docs/quick-start) guide.
+
 </Aside>
 ## Onboarding
 
@@ -35,35 +47,38 @@ The welcome screen introduces Renku and shows how many steps remain. Click **Nex
 ### Step 2 — Storage Setup
 
 Choose a folder where Renku will store your blueprints, generated artifacts, and build outputs. You can type a path directly or click **Browse** to pick one. This folder becomes your **workspace root**. Renku will also copy the catalog of built-in blueprints, and supported models definitions in this folder.
+
 <Aside type="caution">
-The application copies the blueprint out of the catalog folder to your workspace. Never modify the contents of the catalog folder directly, as your changes will be lost on the next update. 
+The application copies the blueprint out of the catalog folder to your workspace. Never modify the contents of the catalog folder directly, as your changes will be lost on the next update.
 
 Always copy the blueprint to your workspace and modify it there if you do it manually.
+
 </Aside>
 
 ### Step 3 — API Keys - Media Generation Providers
 
 Select at least one media-generation provider and enter its API key. Available providers:
 
-| Provider | What it does | Key name |
-|---|---|---|
-| **[fal.ai](https://fal.ai/)** | Audio, Image, Video generation | `FAL_KEY` |
-| **[Replicate](https://replicate.com/account/api-tokens)** | Audio, Image, Video generation | `REPLICATE_API_TOKEN` |
-| **[ElevenLabs](https://elevenlabs.io/app/settings/api-keys)** | AI voice and audio generation | `ELEVENLABS_API_KEY` |
+| Provider                                                      | What it does                   | Key name              |
+| ------------------------------------------------------------- | ------------------------------ | --------------------- |
+| **[fal.ai](https://fal.ai/)**                                 | Audio, Image, Video generation | `FAL_KEY`             |
+| **[Replicate](https://replicate.com/account/api-tokens)**     | Audio, Image, Video generation | `REPLICATE_API_TOKEN` |
+| **[ElevenLabs](https://elevenlabs.io/app/settings/api-keys)** | AI voice and audio generation  | `ELEVENLABS_API_KEY`  |
 
 Each provider card has a **Get API key** link that takes you to the provider's dashboard where you can create a key.
 
-<Aside type="caution">
-Using some image editing capabilities such as camera positioning requires the fal.ai provider.
+<Aside type='caution'>
+  Using some image editing capabilities such as camera positioning requires the
+  fal.ai provider.
 </Aside>
 
 ### Step 4 — API Keys - LLM Providers
 
 Select at least one prompt/LLM provider and enter its API key:
 
-| Provider | What it does | Key name |
-|---|---|---|
-| **[OpenAI](https://platform.openai.com/api-keys)** | LLM models for story board and prompt generation | `OPENAI_API_KEY` |
+| Provider                                                 | What it does                                              | Key name             |
+| -------------------------------------------------------- | --------------------------------------------------------- | -------------------- |
+| **[OpenAI](https://platform.openai.com/api-keys)**       | LLM models for story board and prompt generation          | `OPENAI_API_KEY`     |
 | **[Vercel AI Gateway](https://vercel.com/dashboard/ai)** | Unified gateway to Claude, Gemini, and open-source models | `AI_GATEWAY_API_KEY` |
 
 Click **Finish** to save your configuration. The app stores your API keys locally in `~/.config/renku/.env`.
@@ -76,14 +91,22 @@ A summary screen confirms your workspace path and lists every provider you confi
 
 After onboarding you land on the home screen, which shows the **blueprint library** — a collection of ready-made video generation workflows.
 
-<div class="light-only">
-  <img src="/docs/home-page-light.png" alt="Renku home screen showing the blueprint library" style="border-radius: 0.75rem; border: 1px solid var(--color-border);" />
+<div class='light-only'>
+  <img
+    src='/docs/home-page-light.png'
+    alt='Renku home screen showing the blueprint library'
+    style='border-radius: 0.75rem; border: 1px solid var(--color-border);'
+  />
 </div>
-<div class="dark-only">
-  <img src="/docs/home-page-dark.png" alt="Renku home screen showing the blueprint library" style="border-radius: 0.75rem; border: 1px solid var(--color-border);" />
+<div class='dark-only'>
+  <img
+    src='/docs/home-page-dark.png'
+    alt='Renku home screen showing the blueprint library'
+    style='border-radius: 0.75rem; border: 1px solid var(--color-border);'
+  />
 </div>
 
-Browse the library and select a blueprint to get started. Each blueprint defines a complete video generation workflow — from storyboard generation through media creation to final composition. 
+Browse the library and select a blueprint to get started. Each blueprint defines a complete video generation workflow — from storyboard generation through media creation to final composition.
 
 ## Building Your Own Blueprints
 

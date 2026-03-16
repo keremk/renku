@@ -7,6 +7,17 @@ import { Aside, Steps } from '@astrojs/starlight/components';
 
 This guide will help you install Renku, set up your workspace, configure API keys, and generate your first AI-powered video.
 
+## Platform Support
+
+| Platform              | Recommended setup           | Notes                                     |
+| --------------------- | --------------------------- | ----------------------------------------- |
+| macOS (Apple Silicon) | Desktop app or CLI          | Native app installer is available         |
+| macOS (Intel)         | CLI + browser viewer        | Native app installer is not available yet |
+| Linux                 | CLI + browser viewer        | Fully supported through npm installation  |
+| Windows               | CLI + browser viewer (WSL2) | Use a Linux distro in WSL2                |
+
+For platform-specific install options, see the [Install Page](/install).
+
 ## Prerequisites
 
 Before installing Renku, ensure you have:
@@ -17,7 +28,7 @@ Before installing Renku, ensure you have:
 
 ## Installation
 
-Install the Renku CLI globally:
+Install the Renku CLI globally (Linux, macOS, and Windows via WSL):
 
 ```bash
 npm install -g @gorenku/cli

@@ -19,6 +19,7 @@ const solidTitle = titleParts.slice(3).join(' ');
 
 const desktopDownloadUrl =
   'https://downloads.gorenku.com/desktop/stable/darwin/arm64/Renku-latest-arm64.dmg';
+const installPageUrl = '/install/';
 ---
 
 <section class="hero-section">
@@ -56,11 +57,35 @@ const desktopDownloadUrl =
       </p>
 
       <!-- CTA Buttons -->
-      <div class="hero-actions">
+      <div class="hero-actions hero-actions-desktop">
         <a href={desktopDownloadUrl} class="hero-btn-primary" target="_blank" rel="noreferrer">
           Download for macOS
           <IconArrowRight class="ml-2 h-5 w-5" />
         </a>
+        <a href={installPageUrl} class="hero-btn-secondary">
+          Install on Linux/Windows
+          <IconArrowRight class="ml-2 h-5 w-5" />
+        </a>
+      </div>
+
+      <p class="hero-platform-note">
+        macOS app supports Apple Silicon only. For Linux and Windows (WSL), use the CLI + local viewer setup.
+      </p>
+
+      <div class="hero-mobile-cta">
+        <p class="hero-mobile-note">
+          Renku runs on desktop. Use install instructions for macOS, Linux, and Windows with WSL.
+        </p>
+        <div class="hero-actions hero-actions-mobile">
+          <a href={installPageUrl} class="hero-btn-primary">
+            View install options
+            <IconArrowRight class="ml-2 h-5 w-5" />
+          </a>
+          <a href="/docs/" class="hero-btn-secondary">
+            Read the docs
+            <IconArrowRight class="ml-2 h-5 w-5" />
+          </a>
+        </div>
       </div>
     </div>
   </div>
