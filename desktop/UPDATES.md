@@ -107,6 +107,14 @@ curl -H "CF-Access-Client-Id: <id>" \
 
 ### Full release workflow
 
+Use the root release pipeline for a full product release (npm + desktop + GitHub Release):
+
+```bash
+pnpm release
+```
+
+For desktop-only channel testing or ad hoc uploads:
+
 1. **Bump versions** (all packages including desktop):
 
 ```bash
@@ -114,13 +122,7 @@ pnpm bump           # patch bump (0.1.4 → 0.1.5)
 pnpm bump:minor     # minor bump (0.1.4 → 0.2.0)
 ```
 
-Or use the full release flow (bump + commit + tag + push):
-
-```bash
-pnpm release        # interactive: bump, commit, tag, push
-```
-
-2. **Build + deploy**:
+2. **Build + deploy desktop artifacts**:
 
 ```bash
 pnpm build-deploy-app:dev      # dev channel

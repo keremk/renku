@@ -18,13 +18,14 @@ Renku is a powerful build system for generating video content using AI models. I
 Unlike monolithic AI video tools, Renku gives you fine-grained control over every step of the generation process through **blueprints** - declarative YAML workflows that define how content flows from text prompts to final rendered videos. The system handles dependency resolution, parallel execution, state tracking, and artifact versioning automatically, letting you focus on creative direction rather than infrastructure.
 
 Key features include:
+
 - **Multi-provider orchestration**: Mix and match AI services (text, image, audio, video) in a single workflow
 - **Incremental generation**: Layer-by-layer execution with dirty checking - only regenerate what changed
 - **State management**: Built-in manifest system tracks all artifacts and their dependencies
 - **Parallel execution**: Automatic job parallelization within dependency layers
 - **Local-first**: All artifacts stored locally with optional S3 cloud storage support
 - **Video composition**: Uses [Remotion](https://www.remotion.dev/) to compose the final video with multiple tracks and segments per track from the AI generated artifacts.
-- **MP4 export**: Exports your generated final video to MP4, so you can upload to anywhere you want.  
+- **MP4 export**: Exports your generated final video to MP4, so you can upload to anywhere you want.
 
 ## Packages
 
@@ -133,10 +134,11 @@ Full documentation is available at [gorenku.com](https://gorenku.com/):
 - [CLI Reference](https://gorenku.com/docs/cli-reference) - Complete command documentation
 - [Blueprint Authoring](https://gorenku.com/docs/blueprint-authoring) - Create custom workflows
 - [Usage Guide](https://gorenku.com/docs/usage-guide) - Advanced features and tips
+- [Maintainer Deploy Guide](./deploy.md) - Product and website release lanes
 
 ## Contributing
 
-We are not yet open for contributions, but it will be coming very soon. 
+We are not yet open for contributions, but it will be coming very soon.
 
 ## License
 

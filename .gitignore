@@ -64,6 +64,8 @@ providers/tmp/
 tmp-root/
 
 release/
+!scripts/release/
+!scripts/release/**
 cli/viewer-bundle/
 cli/catalog/
 cli/undefined

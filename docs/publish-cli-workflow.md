@@ -1,5 +1,10 @@
 # Publishing Renku Packages to npm - Complete Guide
 
+> **Legacy guide notice**
+>
+> The current maintainer release flow is documented in `deploy.md` at the repo root.
+> This document describes the older `cli-v*` GitHub Actions-centric workflow and is kept for historical context.
+
 This guide walks you through publishing the Renku CLI and its dependencies to npm. **It's written for someone who has never published to npm before**, so every step is explained in detail.
 
 ## Table of Contents
@@ -24,6 +29,7 @@ Renku uses a **monorepo** with multiple packages. We publish 4 packages to npm:
 - `@gorenku/cli` - CLI with bundled viewer (depends on core & providers)
 
 **Key architectural decisions:**
+
 - Separate packages for reusability (client can use core/providers)
 - Viewer is bundled into CLI (not published separately)
 - Zero impact on development workflow
@@ -47,6 +53,7 @@ Renku uses a **monorepo** with multiple packages. We publish 4 packages to npm:
 ```
 
 **What users install:**
+
 ```bash
 npm install -g @gorenku/cli
 ```
@@ -54,6 +61,7 @@ npm install -g @gorenku/cli
 npm automatically installs the dependencies (core, providers, compositions).
 
 **For development:**
+
 ```bash
 pnpm install  # Monorepo stays unchanged
 pnpm dev      # Hot reloading works as before
@@ -111,6 +119,7 @@ npm login
 ```
 
 You'll be prompted for:
+
 - **Username**: Your npm username
 - **Password**: Your npm password
 - **Email**: Your email (this is public)
@@ -123,6 +132,7 @@ After successful login, npm stores your credentials locally.
 npm requires packages to exist before you can configure GitHub Actions OIDC. So we publish manually first.
 
 **Important:**
+
 - Make sure all packages are built before publishing!
 - Use `pnpm publish` (not `npm publish`) to handle `workspace:*` references
 
@@ -161,15 +171,18 @@ cd ..
 
 **Why pnpm publish?**
 The packages use `workspace:*` references (e.g., `"@gorenku/core": "workspace:*"`).
+
 - `pnpm publish` automatically converts these to actual version numbers
 - `npm publish` does NOT handle this and will fail when users try to install
 
 **What to expect:**
+
 - You'll be prompted for an OTP (from authenticator app) for each publish
 - Each publish takes ~5-10 seconds
 - You'll see output like: `+ @gorenku/core@0.1.4`
 
 **Verify on npm:**
+
 1. Visit [npmjs.com/package/@gorenku/cli](https://www.npmjs.com/package/@gorenku/cli)
 2. You should see your package!
 3. Repeat for core, providers, compositions
@@ -201,6 +214,7 @@ Now that packages exist, configure GitHub Actions to publish automatically.
 - [npmjs.com/package/@gorenku/cli/access](https://www.npmjs.com/package/@gorenku/cli/access)
 
 **What does this do?**
+
 - npm trusts your GitHub repository
 - When GitHub Actions runs, it proves its identity via OIDC
 - npm allows publishing without long-lived tokens
@@ -226,6 +240,7 @@ This script handles everything: bumping versions, committing, tagging, and pushi
 ```
 
 The script will:
+
 1. Bump versions in all 5 packages (core, compositions, providers, cli, viewer)
 2. Show you the changes for review
 3. Ask for confirmation before committing
@@ -237,11 +252,13 @@ The script will:
 If you prefer manual control:
 
 **1. Bump versions:**
+
 ```bash
 ./scripts/bump-versions.sh patch
 ```
 
 **2. Review and commit:**
+
 ```bash
 git diff */package.json
 git add */package.json
@@ -249,6 +266,7 @@ git commit -m "release: bump to 0.1.4"
 ```
 
 **3. Tag and push:**
+
 ```bash
 git tag cli-v0.1.4
 git push origin main cli-v0.1.4
@@ -267,17 +285,20 @@ git push origin main cli-v0.1.4
 #### Verify on npm and GitHub
 
 **Check npm packages:**
+
 - [npmjs.com/package/@gorenku/cli](https://www.npmjs.com/package/@gorenku/cli)
 - [npmjs.com/package/@gorenku/core](https://www.npmjs.com/package/@gorenku/core)
 - [npmjs.com/package/@gorenku/providers](https://www.npmjs.com/package/@gorenku/providers)
 - [npmjs.com/package/@gorenku/compositions](https://www.npmjs.com/package/@gorenku/compositions)
 
 You should see:
+
 - New version number
 - "Provenance" badge (shows it was published by GitHub Actions)
 - Updated timestamp
 
 **Check GitHub Release:**
+
 - Go to your repo -> Releases tab
 - You should see a new release for `cli-v0.1.4`
 - Contains auto-generated release notes from commits
@@ -300,6 +321,7 @@ cd ~ && rm -rf /tmp/cli-test
 ```
 
 Or use npx for a quick test:
+
 ```bash
 npx @gorenku/cli --help
 ```
@@ -320,11 +342,13 @@ This runs the entire pipeline but skips `npm publish`. Great for testing changes
 ## How Trusted Publishing Works
 
 Traditional npm publishing uses **automation tokens** (long-lived secrets stored in GitHub):
+
 - Tokens can leak or be stolen
 - Tokens need manual rotation
 - Difficult to audit who published
 
 **Trusted publishing** uses **OIDC** (OpenID Connect):
+
 - No secrets in GitHub (more secure)
 - GitHub proves its identity to npm via cryptographic tokens
 - Short-lived tokens (expire in minutes)
@@ -351,6 +375,7 @@ Traditional npm publishing uses **automation tokens** (long-lived secrets stored
 6. npm allows publishing and adds provenance signature
 
 **The provenance signature proves:**
+
 - Which GitHub repo published it
 - Which commit/tag was used
 - Which workflow file ran
@@ -371,6 +396,7 @@ Traditional npm publishing uses **automation tokens** (long-lived secrets stored
 **Cause:** You tagged a commit from a feature branch, not from main.
 
 **Solution:**
+
 1. Check which branch your tag is on: `git branch --contains <tag-name>`
 2. If not on main, delete the tag: `git tag -d cli-v0.1.4 && git push origin :refs/tags/cli-v0.1.4`
 3. Switch to main: `git checkout main`
@@ -382,6 +408,7 @@ Traditional npm publishing uses **automation tokens** (long-lived secrets stored
 **Cause:** The git tag version doesn't match the CLI package.json version.
 
 **Solution:**
+
 1. Delete the incorrect tag: `git tag -d cli-v0.1.5`
 2. Use the bump scripts to ensure versions are in sync:
    ```bash
@@ -396,6 +423,7 @@ Traditional npm publishing uses **automation tokens** (long-lived secrets stored
 **Cause:** TypeScript errors in one or more packages.
 
 **Solution:**
+
 1. Run type check locally: `pnpm check`
 2. Fix all TypeScript errors
 3. Commit fixes: `git commit -am "fix: type errors"`
@@ -406,6 +434,7 @@ Traditional npm publishing uses **automation tokens** (long-lived secrets stored
 **Cause:** You don't have permission to publish this package.
 
 **Solutions:**
+
 1. If first time: Package name might be taken by someone else
 2. If trusted publishing: Check npm package settings -> Publishing access
 3. If missing OIDC config: Repeat Step 3 of Initial Setup
@@ -415,6 +444,7 @@ Traditional npm publishing uses **automation tokens** (long-lived secrets stored
 **Cause:** OIDC authentication failed.
 
 **Solutions:**
+
 1. Check workflow has `id-token: write` permission (our workflow has this)
 2. Verify GitHub Actions is added as publisher on npm (Step 3)
 3. Check repository name matches exactly: `your-username/renku`
@@ -426,6 +456,7 @@ Traditional npm publishing uses **automation tokens** (long-lived secrets stored
 **Cause:** Used `npm publish` instead of `pnpm publish`.
 
 **Solution:** Always use `pnpm publish` which automatically converts:
+
 - Before: `"@gorenku/core": "workspace:*"`
 - After: `"@gorenku/core": "0.1.4"`
 
@@ -434,6 +465,7 @@ Traditional npm publishing uses **automation tokens** (long-lived secrets stored
 **Symptom:** `renku viewer:start` fails with "viewer bundle not found"
 
 **Check:**
+
 1. The CLI's prepack script should bundle the viewer automatically
 2. Verify `cli/package.json` includes `"files": ["dist", "viewer-bundle", "catalog"]`
 3. Check that `pnpm --filter viewer build` runs before publish
@@ -483,12 +515,12 @@ mkdir /tmp/cli-test && cd /tmp/cli-test && npm init -y && npm install @gorenku/c
 
 All packages are kept in sync for simplicity:
 
-| Package               | Published |
-|-----------------------|-----------|
-| @gorenku/core         | Yes       |
-| @gorenku/compositions | Yes       |
-| @gorenku/providers    | Yes       |
-| @gorenku/cli          | Yes       |
+| Package               | Published                      |
+| --------------------- | ------------------------------ |
+| @gorenku/core         | Yes                            |
+| @gorenku/compositions | Yes                            |
+| @gorenku/providers    | Yes                            |
+| @gorenku/cli          | Yes                            |
 | viewer                | No (private, bundled into CLI) |
 
 ### GitHub Actions Workflow
@@ -496,10 +528,12 @@ All packages are kept in sync for simplicity:
 **File:** `.github/workflows/publish-packages.yml`
 
 **Triggers:**
+
 - Push tag: `cli-v*` (e.g., `cli-v0.1.4`)
 - Manual: "Run workflow" with optional dry run
 
 **Steps:**
+
 1. Verify tag commit is on main branch
 2. Install dependencies
 3. Type check all packages
@@ -522,12 +556,14 @@ All packages are kept in sync for simplicity:
 ## Support
 
 If you encounter issues:
+
 1. Check [Troubleshooting](#troubleshooting) section
 2. Review GitHub Actions logs for error messages
 3. Check npm package settings -> Publishing access
 4. Verify OIDC configuration is correct
 
 **Remember:** The initial setup is the hardest part. Once configured, publishing is just:
+
 1. Run `./scripts/bump-n-push.sh patch`
 2. Confirm the prompts
 3. Done!

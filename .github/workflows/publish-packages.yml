@@ -1,48 +1,45 @@
-name: Publish Renku Packages
+name: Publish Renku Packages (Manual)
 
 on:
-  push:
-    tags:
-      - "cli-v*"
   workflow_dispatch:
     inputs:
       tag:
-        description: "Optional tag/ref to publish (e.g., cli-v1.0.1). If empty, use the checked-out ref."
-        required: false
-        default: ""
+        description: 'Release tag to publish (format: vX.Y.Z)'
+        required: true
+        type: string
       dry_run:
-        description: "When true, run the full pipeline but skip npm publish."
+        description: 'When true, run full pipeline but skip npm publish'
         required: false
         type: boolean
         default: false
 
 permissions:
-  id-token: write  # Required for npm provenance via OIDC
-  contents: write  # Required for creating GitHub releases
+  id-token: write
+  contents: read
 
 jobs:
   publish-packages:
     name: Build and publish Renku packages
     runs-on: ubuntu-latest
     env:
-      NODE_VERSION: "20"
-      PNPM_VERSION: "10.15.0"
+      NODE_VERSION: '20'
+      PNPM_VERSION: '10.15.0'
 
     steps:
-      - name: Checkout
+      - name: Validate tag format
+        run: |
+          if [[ ! "${{ inputs.tag }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Tag must match vX.Y.Z, got: ${{ inputs.tag }}"
+            exit 1
+          fi
+
+      - name: Checkout tag
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          ref: ${{ inputs.tag }}
           fetch-depth: 0
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-          run_install: false
-
       - name: Verify tag commit is on main branch
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/cli-v')
         run: |
           git fetch origin main --depth=1
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
@@ -50,6 +47,12 @@ jobs:
             exit 1
           fi
           echo "✅ Tag commit is on main branch"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
 
       - name: Setup Node.js with npm registry
         uses: actions/setup-node@v4
@@ -65,34 +68,28 @@ jobs:
         run: pnpm type-check
 
       - name: Verify tag matches package versions
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/cli-v')
         run: |
-          TAG="${GITHUB_REF##*/}"
-          TAG_VERSION="${TAG#cli-v}"
+          TAG_VERSION="${{ inputs.tag }}"
+          TAG_VERSION="${TAG_VERSION#v}"
 
-          echo "Tag version: $TAG_VERSION"
-
-          # Check CLI version (this is the primary package)
           CLI_VERSION=$(node -p "require('./cli/package.json').version")
-          echo "CLI package.json version: $CLI_VERSION"
-
-          if [ "$CLI_VERSION" != "$TAG_VERSION" ]; then
-            echo "❌ Tag cli-v$TAG_VERSION does not match CLI package.json version $CLI_VERSION"
-            exit 1
-          fi
-
-          # Optionally verify other packages are in sync (recommended)
           CORE_VERSION=$(node -p "require('./core/package.json').version")
           COMPOSITIONS_VERSION=$(node -p "require('./compositions/package.json').version")
           PROVIDERS_VERSION=$(node -p "require('./providers/package.json').version")
+          DESKTOP_VERSION=$(node -p "require('./desktop/package.json').version")
 
-          echo "Package versions:"
-          echo "  - @gorenku/core: $CORE_VERSION"
-          echo "  - @gorenku/compositions: $COMPOSITIONS_VERSION"
-          echo "  - @gorenku/providers: $PROVIDERS_VERSION"
-          echo "  - @gorenku/cli: $CLI_VERSION"
+          if [ "$CLI_VERSION" != "$TAG_VERSION" ]; then
+            echo "❌ Tag v$TAG_VERSION does not match cli/package.json ($CLI_VERSION)"
+            exit 1
+          fi
 
-          echo "✅ Tag matches CLI version"
+          if [ "$CORE_VERSION" != "$TAG_VERSION" ] || [ "$COMPOSITIONS_VERSION" != "$TAG_VERSION" ] || [ "$PROVIDERS_VERSION" != "$TAG_VERSION" ] || [ "$DESKTOP_VERSION" != "$TAG_VERSION" ]; then
+            echo "❌ Package versions are not in sync with tag v$TAG_VERSION"
+            echo "core=$CORE_VERSION compositions=$COMPOSITIONS_VERSION providers=$PROVIDERS_VERSION cli=$CLI_VERSION desktop=$DESKTOP_VERSION"
+            exit 1
+          fi
+
+          echo "✅ Tag and package versions are synchronized"
 
       - name: Build all publishable packages
         run: |
@@ -102,21 +99,15 @@ jobs:
           pnpm --filter @gorenku/cli build
 
       - name: Publish renku-core
-        if: >
-          (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) ||
-          (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/cli-v'))
+        if: ${{ inputs.dry_run == false }}
         run: npm publish ./core --provenance --access public
 
       - name: Publish renku-compositions
-        if: >
-          (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) ||
-          (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/cli-v'))
+        if: ${{ inputs.dry_run == false }}
         run: npm publish ./compositions --provenance --access public
 
       - name: Publish renku-providers
-        if: >
-          (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) ||
-          (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/cli-v'))
+        if: ${{ inputs.dry_run == false }}
         run: npm publish ./providers --provenance --access public
 
       - name: Bundle viewer assets into CLI
@@ -128,9 +119,10 @@ jobs:
       - name: Locate packaged CLI tarball
         id: tarball
         run: |
-          TARBALL=$(ls release/renku-cli-*.tgz | head -n 1)
+          TARBALL=$(ls release/gorenku-cli-*.tgz)
           if [ -z "$TARBALL" ]; then
-            echo "No packaged tarball found in release/"; exit 1;
+            echo "No packaged tarball found in release/"
+            exit 1
           fi
           echo "path=$TARBALL" >> "$GITHUB_OUTPUT"
 
@@ -143,9 +135,7 @@ jobs:
         run: node cli/dist/cli.js --help
 
       - name: Publish renku CLI
-        if: >
-          (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) ||
-          (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/cli-v'))
+        if: ${{ inputs.dry_run == false }}
         run: npm publish "${{ steps.tarball.outputs.path }}" --provenance --access public
 
       - name: Upload CLI tarball artifact
@@ -154,36 +144,18 @@ jobs:
           name: renku-cli-tarball
           path: ${{ steps.tarball.outputs.path }}
 
-      - name: Create GitHub Release
-        if: >
-          github.event_name == 'push' &&
-          startsWith(github.ref, 'refs/tags/cli-v') &&
-          (inputs.dry_run == false || inputs.dry_run == '')
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          generate_release_notes: true
-          draft: false
-          prerelease: false
-          files: |
-            release/renku-cli-*.tgz
-
       - name: Summary
         if: always()
         run: |
-          echo "## Publishing Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Publishing Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Tag: ${{ inputs.tag }}" >> "$GITHUB_STEP_SUMMARY"
           if [ "${{ inputs.dry_run }}" == "true" ]; then
-            echo "✅ Dry run completed - no packages were published" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Dry run completed - no packages were published" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "📦 Published packages:" >> $GITHUB_STEP_SUMMARY
-            echo "- @gorenku/core" >> $GITHUB_STEP_SUMMARY
-            echo "- @gorenku/compositions" >> $GITHUB_STEP_SUMMARY
-            echo "- @gorenku/providers" >> $GITHUB_STEP_SUMMARY
-            echo "- @gorenku/cli (with bundled viewer)" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            if [ "${{ github.event_name }}" == "push" ]; then
-              echo "🎉 GitHub Release created: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-            fi
+            echo "📦 Published packages:" >> "$GITHUB_STEP_SUMMARY"
+            echo "- @gorenku/core" >> "$GITHUB_STEP_SUMMARY"
+            echo "- @gorenku/compositions" >> "$GITHUB_STEP_SUMMARY"
+            echo "- @gorenku/providers" >> "$GITHUB_STEP_SUMMARY"
+            echo "- @gorenku/cli (with bundled viewer)" >> "$GITHUB_STEP_SUMMARY"
           fi
