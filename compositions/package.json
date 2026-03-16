@@ -1,6 +1,6 @@
 {
   "name": "@gorenku/compositions",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "Shared Remotion compositions and renderers for Renku",
   "license": "MIT",
   "publishConfig": {

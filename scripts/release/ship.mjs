@@ -8,6 +8,7 @@ function parseArgs(argv) {
     desktopChannel: 'production',
     deployWeb: false,
     skipCheck: false,
+    skipDesktopSign: false,
   };
 
   let bumpTypeSet = false;
@@ -38,6 +39,11 @@ function parseArgs(argv) {
 
     if (arg === '--skip-check') {
       options.skipCheck = true;
+      continue;
+    }
+
+    if (arg === '--skip-desktop-sign') {
+      options.skipDesktopSign = true;
       continue;
     }
 
@@ -79,6 +85,9 @@ function main() {
   ];
   if (options.skipCheck) {
     prepareArgs.push('--skip-check');
+  }
+  if (options.skipDesktopSign) {
+    prepareArgs.push('--skip-desktop-sign');
   }
 
   runCommand('node', prepareArgs);

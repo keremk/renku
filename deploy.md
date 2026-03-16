@@ -80,6 +80,9 @@ pnpm release:preflight -- --allow-non-main --allow-dirty
 # Patch release, production desktop channel, no web deploy
 pnpm release
 
+# Patch release with unsigned desktop build (skip signing/notarization path)
+pnpm release:unsigned
+
 # Minor / major variants
 pnpm release:minor
 pnpm release:major
@@ -99,6 +102,9 @@ node scripts/release/ship.mjs patch --deploy-web
 
 # publish desktop artifacts to internal/dev updater channel
 node scripts/release/ship.mjs patch --desktop-channel internal
+
+# keep production channel but skip desktop signing/notarization
+node scripts/release/ship.mjs patch --skip-desktop-sign
 ```
 
 ### Staged flow (for control or future CD)
@@ -131,6 +137,8 @@ pnpm release:prepare:major
 7. Collects desktop artifacts and verifies metadata version matches release version.
 8. Writes release manifest + SHA256 checksums under `release/vX.Y.Z/`.
 9. Creates commit `release: vX.Y.Z` and tag `vX.Y.Z`.
+
+If signing/notarization is not ready, pass `--skip-desktop-sign` to use the unsigned production desktop packaging path.
 
 ## What `release:publish` does
 

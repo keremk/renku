@@ -1,7 +1,10 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+export const repoRoot = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../..'
+);
 
 export const versionedPackages = [
   { dir: 'core', npmName: '@gorenku/core' },
@@ -13,7 +16,12 @@ export const versionedPackages = [
 ];
 
 export const npmPublishPackages = [
-  { dir: 'core', filter: '@gorenku/core', npmName: '@gorenku/core', tarballBase: 'gorenku-core' },
+  {
+    dir: 'core',
+    filter: '@gorenku/core',
+    npmName: '@gorenku/core',
+    tarballBase: 'gorenku-core',
+  },
   {
     dir: 'compositions',
     filter: '@gorenku/compositions',
@@ -26,13 +34,19 @@ export const npmPublishPackages = [
     npmName: '@gorenku/providers',
     tarballBase: 'gorenku-providers',
   },
-  { dir: 'cli', filter: '@gorenku/cli', npmName: '@gorenku/cli', tarballBase: 'gorenku-cli' },
+  {
+    dir: 'cli',
+    filter: '@gorenku/cli',
+    npmName: '@gorenku/cli',
+    tarballBase: 'gorenku-cli',
+  },
 ];
 
 export const desktopChannels = {
   production: {
     name: 'production',
     packageScript: 'package:desktop:prod',
+    packageScriptUnsigned: 'package:desktop',
     deployFlag: '--production',
     metadataFile: 'latest-mac.yml',
   },

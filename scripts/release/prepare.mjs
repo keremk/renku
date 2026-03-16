@@ -31,6 +31,7 @@ function parseArgs(argv) {
     bumpType: 'patch',
     desktopChannel: 'production',
     skipCheck: false,
+    skipDesktopSign: false,
   };
 
   let bumpTypeFromPositional = false;
@@ -56,6 +57,11 @@ function parseArgs(argv) {
 
     if (arg === '--skip-check') {
       options.skipCheck = true;
+      continue;
+    }
+
+    if (arg === '--skip-desktop-sign') {
+      options.skipDesktopSign = true;
       continue;
     }
 
@@ -125,6 +131,16 @@ async function writeChecksums(releaseDir, filePaths) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const desktopChannel = desktopChannels[options.desktopChannel];
+  const desktopPackageScript =
+    options.skipDesktopSign && desktopChannel.name === 'production'
+      ? desktopChannel.packageScriptUnsigned
+      : desktopChannel.packageScript;
+
+  if (!desktopPackageScript) {
+    throw new Error(
+      `Desktop package script is not configured for channel ${desktopChannel.name}`
+    );
+  }
 
   ensureCommandAvailable('git');
   ensureCommandAvailable('pnpm');
@@ -149,8 +165,14 @@ async function main() {
     runCommand('pnpm', ['check']);
   }
 
-  printStep(`Packaging desktop artifacts (${desktopChannel.name})`);
-  runCommand('pnpm', [desktopChannel.packageScript]);
+  printStep(
+    `Packaging desktop artifacts (${desktopChannel.name}${
+      options.skipDesktopSign && desktopChannel.name === 'production'
+        ? ', unsigned'
+        : ''
+    })`
+  );
+  runCommand('pnpm', [desktopPackageScript]);
 
   const releaseDir = resolve(repoRoot, 'release', tag);
   const npmArtifactsDir = join(releaseDir, 'npm');

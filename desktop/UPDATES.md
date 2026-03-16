@@ -113,6 +113,12 @@ Use the root release pipeline for a full product release (npm + desktop + GitHub
 pnpm release
 ```
 
+If signing/notarization is not configured yet, use the unsigned variant:
+
+```bash
+pnpm release:unsigned
+```
+
 For desktop-only channel testing or ad hoc uploads:
 
 1. **Bump versions** (all packages including desktop):

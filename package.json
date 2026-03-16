@@ -57,6 +57,7 @@
     "bump:minor": "bash scripts/bump-versions.sh minor",
     "bump:major": "bash scripts/bump-versions.sh major",
     "release": "pnpm release:ship",
+    "release:unsigned": "node scripts/release/ship.mjs patch --skip-desktop-sign",
     "release:minor": "pnpm release:ship:minor",
     "release:major": "pnpm release:ship:major",
     "release:ci": "pnpm release:ship",
