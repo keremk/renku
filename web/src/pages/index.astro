@@ -25,20 +25,27 @@ import HowItWorksPipeline from '../components/HowItWorksPipeline.astro';
             Ready to create amazing videos?
           </h2>
           <p class="text-lg max-w-xl mx-auto mb-8" style="color: var(--color-muted-foreground);">
-            Get started on your platform with the macOS app or CLI + local viewer workflow.
+            Get started on your platform with the install flow for macOS, Linux, and Windows (WSL).
           </p>
           <div class="hidden sm:flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="https://downloads.gorenku.com/desktop/stable/darwin/arm64/Renku-latest-arm64.dmg" class="cta-btn-primary" target="_blank" rel="noreferrer">
-              Download for macOS
+            <a href="/install/" class="cta-btn-primary">
+              Install
               <IconArrowRight class="ml-2 w-5 h-5" />
             </a>
-            <a href="/install/" class="cta-btn-secondary">
-              Install on Linux/Windows
+            <!--
+              Temporary while DMG signing is unavailable:
+              <a href="https://downloads.gorenku.com/desktop/stable/darwin/arm64/Renku-latest-arm64.dmg" class="cta-btn-primary" target="_blank" rel="noreferrer">
+                Download for macOS
+                <IconArrowRight class="ml-2 w-5 h-5" />
+              </a>
+            -->
+            <a href="/docs/app-quick-start" class="cta-btn-secondary">
+              Open Quick Start
               <IconArrowRight class="ml-2 w-5 h-5" />
             </a>
           </div>
           <p class="hidden sm:block mt-4 text-sm" style="color: var(--color-muted-foreground);">
-            macOS app supports Apple Silicon only. Intel Macs can use the CLI + local viewer.
+            Run <code>renku launch</code> after install to open onboarding and the viewer experience.
           </p>
 
           <div class="sm:hidden space-y-4">

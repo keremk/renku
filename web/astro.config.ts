@@ -31,7 +31,7 @@ export default defineConfig({
           label: 'CLI (Advanced)',
           items: [
             { label: 'Introduction', slug: 'docs/introduction' },
-            { label: 'Quick Start', slug: 'docs/quick-start' },
+            { label: 'CLI Quick Start', slug: 'docs/quick-start' },
             { label: 'Usage Guide', slug: 'docs/usage-guide' },
             { label: 'CLI Reference', slug: 'docs/cli-reference' },
             {

@@ -1,41 +1,48 @@
 ---
 title: Quick Start
-description: Download, install, and configure the Renku app to generate your first AI video
+description: Install Renku, run onboarding with renku launch, and generate your first AI video
 ---
 
-import { Aside, Steps } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
 
-This guide walks you through downloading the Renku app, completing the initial setup, and picking your first blueprint.
+This guide walks you through installing Renku, running onboarding with `renku launch`, and picking your first blueprint.
 
 ## Platform Support
 
-| Platform              | Recommended setup           | Notes                      |
-| --------------------- | --------------------------- | -------------------------- |
-| macOS (Apple Silicon) | Desktop app                 | Native installer available |
-| macOS (Intel)         | CLI + browser viewer        | No native installer yet    |
-| Linux                 | CLI + browser viewer        | Install with npm           |
-| Windows               | CLI + browser viewer (WSL2) | Use a Linux distro in WSL2 |
+| Platform              | Recommended setup           | Notes                           |
+| --------------------- | --------------------------- | ------------------------------- |
+| macOS (Apple Silicon) | CLI + browser viewer        | Full onboarding and UI workflow |
+| macOS (Intel)         | CLI + browser viewer        | Full onboarding and UI workflow |
+| Linux                 | CLI + browser viewer        | Full onboarding and UI workflow |
+| Windows               | CLI + browser viewer (WSL2) | Use a Linux distro in WSL2      |
 
 Choose your path from the [Install Page](/install).
 
-## Download and Install
-
-<Steps>
-
-1. **Open the [Install Page](/install)** and choose **macOS (Apple Silicon)**.
-
-2. **Download Renku.dmg** and move Renku into your Applications folder.
-
-3. **Launch Renku** from your Applications folder (macOS). On first launch the onboarding wizard will guide you through the remaining setup.
-
-</Steps>
-
+## Install and Launch
 <Aside>
-The native desktop app is currently available for macOS Apple Silicon only.
+You need to install these prerequisites manually before running Renku:
 
-If you are on Linux, macOS Intel, or Windows, use the CLI + local browser viewer flow instead. See the [CLI Quick Start](/docs/quick-start) guide.
+- **Node.js**
+- **FFmpeg + FFprobe**
+
+On Windows, these must be installed inside WSL2. On macOS and Linux, install them on the host system.
 
 </Aside>
+
+1. **Install Renku CLI globally**:
+
+```bash
+npm install -g @gorenku/cli
+```
+
+2. **Launch Renku UI flow**:
+
+```bash
+renku launch
+```
+
+If your CLI config does not exist yet (for example `~/.config/renku/cli-config.json` is missing), Renku automatically opens the onboarding wizard instead of failing.
+
 ## Onboarding
 
 When you open Renku for the first time, a five-step wizard walks you through the essential configuration.

@@ -5,6 +5,57 @@ description: Master the common workflows for generating and editing AI video con
 
 This guide covers the day-to-day workflows for using Renku: specifying inputs, discovering blueprints and models, testing with dry runs, generating content, and iterating on your creations.
 
+## Setup (CLI Alternative to UI Onboarding)
+
+If you use the UI onboarding flow via `renku launch`, these setup steps are already handled. This section is for users who prefer configuring the CLI workspace manually.
+
+### Create a Workspace
+
+Initialize a new Renku workspace:
+
+```bash
+renku init --root=/path/to/your/workspace
+```
+
+For example:
+
+```bash
+renku init --root=~/my-creations
+```
+
+This creates:
+
+- `~/.config/renku/cli-config.json` - Configuration file
+- `{workspace}/.gitignore` - Ignores `**/builds/` and `**/artifacts/`
+- `{workspace}/catalog/` containing:
+  - `models/` - Supported model configurations
+  - `producers/` - Supported producer definitions
+  - `blueprints/` - Example blueprints to get started
+
+### Configure API Keys
+
+Renku uses multiple AI providers. Depending on the blueprint and model selections, you may need keys for:
+
+| Provider                                                      | What it does                                              | Key name              |
+| ------------------------------------------------------------- | --------------------------------------------------------- | --------------------- |
+| **[fal.ai](https://fal.ai/)**                                 | Audio, Image, Video generation                            | `FAL_KEY`             |
+| **[Replicate](https://replicate.com/account/api-tokens)**     | Audio, Image, Video generation                            | `REPLICATE_API_TOKEN` |
+| **[ElevenLabs](https://elevenlabs.io/app/settings/api-keys)** | AI voice and audio generation                             | `ELEVENLABS_API_KEY`  |
+| **[OpenAI](https://platform.openai.com/api-keys)**            | LLM models for story board and prompt generation          | `OPENAI_API_KEY`      |
+| **[Vercel AI Gateway](https://vercel.com/dashboard/ai)**      | Unified gateway to Claude, Gemini, and open-source models | `AI_GATEWAY_API_KEY`  |
+
+For CLI and viewer workflows, Renku reads keys from `~/.config/renku/.env`.
+
+Create or edit this file and add your keys:
+
+```bash
+REPLICATE_API_TOKEN=your-replicate-api-token-here
+FAL_KEY=your-fal-api-key-here
+OPENAI_API_KEY=your-openai-api-key-here
+```
+
+You can also provide keys through exported shell variables or a project-local `.env` in your current working directory.
+
 ## Specifying Inputs
 
 Every blueprint requires an inputs file that provides the configuration for your video generation.

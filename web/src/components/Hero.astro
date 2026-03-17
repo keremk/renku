@@ -17,8 +17,6 @@ const titleParts = title.split(' ');
 const gradientTitle = titleParts.slice(0, 3).join(' ');
 const solidTitle = titleParts.slice(3).join(' ');
 
-const desktopDownloadUrl =
-  'https://downloads.gorenku.com/desktop/stable/darwin/arm64/Renku-latest-arm64.dmg';
 const installPageUrl = '/install/';
 ---
 
@@ -58,18 +56,25 @@ const installPageUrl = '/install/';
 
       <!-- CTA Buttons -->
       <div class="hero-actions hero-actions-desktop">
-        <a href={desktopDownloadUrl} class="hero-btn-primary" target="_blank" rel="noreferrer">
-          Download for macOS
+        <a href={installPageUrl} class="hero-btn-primary">
+          Install
           <IconArrowRight class="ml-2 h-5 w-5" />
         </a>
-        <a href={installPageUrl} class="hero-btn-secondary">
-          Install on Linux/Windows
+        <!--
+          Temporary while DMG signing is unavailable:
+          <a href="https://downloads.gorenku.com/desktop/stable/darwin/arm64/Renku-latest-arm64.dmg" class="hero-btn-primary" target="_blank" rel="noreferrer">
+            Download for macOS
+            <IconArrowRight class="ml-2 h-5 w-5" />
+          </a>
+        -->
+        <a href="/docs/app-quick-start" class="hero-btn-secondary">
+          Open Quick Start
           <IconArrowRight class="ml-2 h-5 w-5" />
         </a>
       </div>
 
       <p class="hero-platform-note">
-        macOS app supports Apple Silicon only. For Linux and Windows (WSL), use the CLI + local viewer setup.
+        Run <code>renku launch</code> after install to open onboarding and the local viewer experience.
       </p>
 
       <div class="hero-mobile-cta">

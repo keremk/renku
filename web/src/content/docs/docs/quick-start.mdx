@@ -1,46 +1,23 @@
 ---
-title: Quick Start
-description: Install Renku and generate your first AI video in minutes
+title: CLI Quick Start
+description: Set up the Renku CLI workflow and generate your first AI video
 ---
 
-import { Aside, Steps } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
 
-This guide will help you install Renku, set up your workspace, configure API keys, and generate your first AI-powered video.
+This guide is for CLI users. It covers workspace setup, API keys, and your first generation run.
 
-## Platform Support
+For installation instructions, see the [Install Page](/install).
 
-| Platform              | Recommended setup           | Notes                                     |
-| --------------------- | --------------------------- | ----------------------------------------- |
-| macOS (Apple Silicon) | Desktop app or CLI          | Native app installer is available         |
-| macOS (Intel)         | CLI + browser viewer        | Native app installer is not available yet |
-| Linux                 | CLI + browser viewer        | Fully supported through npm installation  |
-| Windows               | CLI + browser viewer (WSL2) | Use a Linux distro in WSL2                |
+## Setup
 
-For platform-specific install options, see the [Install Page](/install).
+<Aside>
+  If you already completed onboarding through the UI using `renku launch`, you
+  can skip this setup section and jump to [Run Your First
+  Blueprint](#run-your-first-blueprint).
+</Aside>
 
-## Prerequisites
-
-Before installing Renku, ensure you have:
-
-- **Node.js 18+** - Download from [nodejs.org](https://nodejs.org)
-- **pnpm** - Install with `npm install -g pnpm`
-- **FFmpeg & FFprobe** - For native video export and other local video processing. Download from [ffmpeg.org](https://ffmpeg.org/download.html)
-
-## Installation
-
-Install the Renku CLI globally (Linux, macOS, and Windows via WSL):
-
-```bash
-npm install -g @gorenku/cli
-```
-
-Verify the installation:
-
-```bash
-renku --version
-```
-
-## Create a Workspace
+### Create a Workspace
 
 Initialize a new Renku workspace:
 
@@ -69,7 +46,7 @@ This creates:
   project-based workflows.
 </Aside>
 
-## Configure API Keys
+### Configure API Keys
 
 Renku uses multiple AI providers. You'll need API keys for the providers used by your chosen blueprint.
 
@@ -87,7 +64,7 @@ Depending on the blueprint and the models you select, you may need keys for the 
 
 ### Set Environment Variables
 
-For the npm-installed CLI and the desktop/viewer flow, Renku reads API keys from `~/.config/renku/.env`.
+For CLI and viewer workflows, Renku reads API keys from `~/.config/renku/.env`.
 
 Create or edit this file and add your keys:
 
