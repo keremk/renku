@@ -485,6 +485,10 @@
     .hero-section {
       min-height: calc(100svh - 4rem);
     }
+
+    .hero-media-shell {
+      margin-top: clamp(0.875rem, 2.5vw, 1.5rem);
+    }
   }
 
   .hero-copy {
