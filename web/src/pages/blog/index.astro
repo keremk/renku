@@ -29,6 +29,8 @@ const formatDate = (date: Date) => {
             <a
               href={`/blog/${post.slug}/`}
               class="block p-6 -m-6 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+              data-ph-capture="blog_post_opened_from_list"
+              data-ph-props={JSON.stringify({ location: 'blog_index', post_slug: post.slug })}
             >
               <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-2">
                 <time
@@ -66,3 +68,14 @@ const formatDate = (date: Date) => {
     </div>
   </section>
 </LandingLayout>
+
+<script is:inline>
+  document.querySelectorAll('[data-ph-capture]').forEach(function(el) {
+    el.addEventListener('click', function() {
+      var event = el.getAttribute('data-ph-capture');
+      var propsStr = el.getAttribute('data-ph-props');
+      var props = propsStr ? JSON.parse(propsStr) : {};
+      window.posthog?.capture(event, props);
+    });
+  });
+</script>

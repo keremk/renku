@@ -65,6 +65,16 @@ const { slug } = Astro.props;
 <script>
   function initCopyButtons() {
     document.querySelectorAll('.copy-page-btn').forEach((button) => {
+      if (!(button instanceof HTMLButtonElement)) {
+        return;
+      }
+
+      if (button.dataset.copyBound === 'true') {
+        return;
+      }
+
+      button.dataset.copyBound = 'true';
+
       button.addEventListener('click', async () => {
         const btn = button as HTMLButtonElement;
         const slug = btn.dataset.slug;
@@ -91,6 +101,11 @@ const { slug } = Astro.props;
           }
 
           await navigator.clipboard.writeText(markdown);
+
+          window.posthog?.capture('docs_copy_page_clicked', {
+            slug: slug,
+            location: 'docs_page_title',
+          });
 
           // Show success feedback
           btn.classList.add('copied');

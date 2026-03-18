@@ -97,10 +97,20 @@ const footerLinks = {
       <p class="text-sm" style="color: var(--color-muted-foreground);">
         &copy; {currentYear} Renku. All rights reserved.
       </p>
-      <div class="flex items-center gap-1 text-sm" style="color: var(--color-muted-foreground);">
-        <span>Built with</span>
-        <IconHeart class="w-4 h-4" style="color: var(--color-accent-500);" />
-        <span>and AI</span>
+      <div class="flex items-center gap-4 text-sm" style="color: var(--color-muted-foreground);">
+        <div class="flex items-center gap-1">
+          <span>Built with</span>
+          <IconHeart class="w-4 h-4" style="color: var(--color-accent-500);" />
+          <span>and AI</span>
+        </div>
+        <button
+          type="button"
+          class="cookie-settings-trigger"
+          data-cookie-settings-trigger
+          style="background: none; border: none; color: var(--color-muted-foreground); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 3px;"
+        >
+          Cookie settings
+        </button>
       </div>
     </div>
   </div>

@@ -1,11 +1,91 @@
 ---
-// PostHog analytics snippet
-// Uses is:inline to prevent Astro from processing the script
+const apiKey = import.meta.env.PUBLIC_POSTHOG_PROJECT_TOKEN;
+const apiHost = import.meta.env.PUBLIC_POSTHOG_HOST;
+
+if (!apiKey) {
+  throw new Error('Missing PUBLIC_POSTHOG_PROJECT_TOKEN');
+}
+
+if (!apiHost) {
+  throw new Error('Missing PUBLIC_POSTHOG_HOST');
+}
 ---
-<script is:inline define:vars={{ apiKey: import.meta.env.PUBLIC_POSTHOG_PROJECT_TOKEN, apiHost: import.meta.env.PUBLIC_POSTHOG_HOST }}>
-  !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys getNextSurveyStep onSessionId".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
-  posthog.init(apiKey || '', {
-    api_host: apiHost || '',
-    defaults: '2026-01-30'
-  })
+<script is:inline define:vars={{ apiKey, apiHost }}>
+  (function() {
+    var consentStorageKey = 'renku_cookie_consent_v1';
+
+    function isValidConsent(value) {
+      return value === 'accepted' || value === 'rejected';
+    }
+
+    function getStoredConsent() {
+      var value = localStorage.getItem(consentStorageKey);
+      return isValidConsent(value) ? value : null;
+    }
+
+    function applyConsentToPostHog(consent) {
+      if (!window.posthog) {
+        return;
+      }
+
+      if (consent === 'accepted') {
+        window.posthog.opt_in_capturing();
+        return;
+      }
+
+      if (consent === 'rejected') {
+        window.posthog.opt_out_capturing();
+      }
+    }
+
+    function setConsent(consent) {
+      if (!isValidConsent(consent)) {
+        throw new Error('Invalid cookie consent value: ' + consent);
+      }
+
+      var previousConsent = getStoredConsent();
+      localStorage.setItem(consentStorageKey, consent);
+      applyConsentToPostHog(consent);
+
+      window.dispatchEvent(
+        new CustomEvent('renku:cookie-consent-updated', {
+          detail: { consent: consent },
+        }),
+      );
+
+      if (consent === 'accepted') {
+        if (previousConsent === null) {
+          window.posthog.capture('$pageview');
+        }
+
+        window.posthog.capture('cookie_consent_accepted', { source: 'banner' });
+      }
+    }
+
+    window.renkuCookieConsent = {
+      getConsent: getStoredConsent,
+      setConsent: setConsent,
+      openBanner: function() {
+        window.dispatchEvent(new Event('renku:cookie-consent-open'));
+      },
+    };
+
+    if (window.__renkuPosthogInitialized) {
+      applyConsentToPostHog(getStoredConsent());
+      return;
+    }
+
+    window.__renkuPosthogInitialized = true;
+
+    !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys getNextSurveyStep onSessionId".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+
+    window.posthog.init(apiKey, {
+      api_host: apiHost,
+      defaults: '2026-01-30',
+      capture_pageview: 'history_change',
+      cookieless_mode: 'on_reject',
+    });
+
+    applyConsentToPostHog(getStoredConsent());
+  })();
 </script>

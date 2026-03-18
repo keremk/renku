@@ -48,5 +48,25 @@
     "event": "pipeline_paused",
     "description": "User clicked the pipeline card to pause or resume the animation",
     "file": "src/components/HowItWorksPipeline.astro"
+  },
+  {
+    "event": "cookie_consent_accepted",
+    "description": "Visitor accepted analytics cookies from the consent banner",
+    "file": "src/components/posthog.astro"
+  },
+  {
+    "event": "content_scroll_depth",
+    "description": "Visitor reached a scroll depth milestone on landing, docs, or blog pages",
+    "file": "src/components/ScrollDepthTracker.astro"
+  },
+  {
+    "event": "blog_post_opened_from_list",
+    "description": "Visitor clicked a blog post link from the blog index list",
+    "file": "src/pages/blog/index.astro"
+  },
+  {
+    "event": "docs_copy_page_clicked",
+    "description": "Visitor copied a docs page as markdown using the Copy Page button",
+    "file": "src/components/CopyPageButton.astro"
   }
 ]

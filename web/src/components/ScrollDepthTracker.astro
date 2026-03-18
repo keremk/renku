@@ -1,0 +1,121 @@
+<script is:inline>
+  (function() {
+    if (window.__renkuScrollDepthInitialized) {
+      return;
+    }
+
+    window.__renkuScrollDepthInitialized = true;
+
+    var thresholds = [25, 50, 75, 90];
+    var currentPath = window.location.pathname;
+    var sentDepths = new Set();
+    var rafId = null;
+
+    function normalizePath(pathname) {
+      return pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+    }
+
+    function getPageContext(pathname) {
+      var path = normalizePath(pathname);
+
+      if (path === '/') {
+        return { page_type: 'landing_home', slug: 'home' };
+      }
+
+      if (path === '/install') {
+        return { page_type: 'install', slug: 'install' };
+      }
+
+      if (path === '/blog') {
+        return { page_type: 'blog_index', slug: 'blog' };
+      }
+
+      if (path.startsWith('/blog/')) {
+        return {
+          page_type: 'blog_post',
+          slug: path.replace('/blog/', ''),
+        };
+      }
+
+      if (path === '/docs') {
+        return { page_type: 'docs', slug: 'index' };
+      }
+
+      if (path.startsWith('/docs/')) {
+        return {
+          page_type: 'docs',
+          slug: path.replace('/docs/', ''),
+        };
+      }
+
+      return {
+        page_type: 'site_other',
+        slug: path.replace(/^\//, '') || 'unknown',
+      };
+    }
+
+    var context = getPageContext(currentPath);
+
+    function getScrollDepth() {
+      var scrollTop = window.scrollY || document.documentElement.scrollTop || 0;
+      var maxScrollable = document.documentElement.scrollHeight - window.innerHeight;
+
+      if (maxScrollable <= 0) {
+        return 100;
+      }
+
+      return Math.min(100, Math.round((scrollTop / maxScrollable) * 100));
+    }
+
+    function sendDepthEvents() {
+      var depth = getScrollDepth();
+
+      thresholds.forEach(function(threshold) {
+        if (depth < threshold || sentDepths.has(threshold)) {
+          return;
+        }
+
+        sentDepths.add(threshold);
+
+        window.posthog?.capture('content_scroll_depth', {
+          page_type: context.page_type,
+          slug: context.slug,
+          path: currentPath,
+          depth: threshold,
+        });
+      });
+    }
+
+    function requestDepthCheck() {
+      if (rafId !== null) {
+        return;
+      }
+
+      rafId = window.requestAnimationFrame(function() {
+        rafId = null;
+        sendDepthEvents();
+      });
+    }
+
+    function resetForCurrentPath() {
+      currentPath = window.location.pathname;
+      context = getPageContext(currentPath);
+      sentDepths = new Set();
+      requestDepthCheck();
+    }
+
+    function syncAfterNavigation() {
+      if (window.location.pathname !== currentPath) {
+        resetForCurrentPath();
+      }
+    }
+
+    window.addEventListener('scroll', requestDepthCheck, { passive: true });
+    window.addEventListener('resize', requestDepthCheck, { passive: true });
+    window.addEventListener('load', requestDepthCheck);
+    window.addEventListener('popstate', syncAfterNavigation);
+    document.addEventListener('astro:page-load', resetForCurrentPath);
+
+    requestDepthCheck();
+  })();
+</script>

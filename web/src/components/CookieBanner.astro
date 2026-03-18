@@ -1,0 +1,100 @@
+<aside id="renku-cookie-banner" class="cookie-consent-banner" hidden aria-live="polite" role="region" aria-label="Cookie consent">
+  <p class="cookie-consent-copy">
+    We use analytics to understand usage, and to improve docs. Accept or reject analytics cookies.
+  </p>
+  <div class="cookie-consent-actions">
+    <button type="button" class="cookie-consent-btn cookie-consent-btn-secondary" data-cookie-consent="rejected">
+      Reject
+    </button>
+    <button type="button" class="cookie-consent-btn cookie-consent-btn-primary" data-cookie-consent="accepted">
+      Accept
+    </button>
+  </div>
+</aside>
+
+<script is:inline>
+  (function() {
+    function getConsentController() {
+      if (!window.renkuCookieConsent) {
+        throw new Error('Cookie consent controller not initialized');
+      }
+
+      return window.renkuCookieConsent;
+    }
+
+    function getBannerElement() {
+      var banner = document.getElementById('renku-cookie-banner');
+      if (banner instanceof HTMLElement) {
+        return banner;
+      }
+
+      return null;
+    }
+
+    function showBanner() {
+      var banner = getBannerElement();
+      if (!banner) {
+        return;
+      }
+
+      banner.hidden = false;
+      banner.classList.add('cookie-consent-visible');
+    }
+
+    function hideBanner() {
+      var banner = getBannerElement();
+      if (!banner) {
+        return;
+      }
+
+      banner.hidden = true;
+      banner.classList.remove('cookie-consent-visible');
+    }
+
+    function syncVisibility() {
+      var consent = getConsentController().getConsent();
+
+      if (consent === null) {
+        showBanner();
+        return;
+      }
+
+      hideBanner();
+    }
+
+    if (!window.__renkuCookieBannerInitialized) {
+      document.addEventListener('click', function(event) {
+        if (!(event.target instanceof Element)) {
+          return;
+        }
+
+        var consentButton = event.target.closest('[data-cookie-consent]');
+        if (consentButton) {
+          var value = consentButton.getAttribute('data-cookie-consent');
+          if (value !== 'accepted' && value !== 'rejected') {
+            throw new Error('Invalid cookie consent action: ' + value);
+          }
+
+          getConsentController().setConsent(value);
+          return;
+        }
+
+        var trigger = event.target.closest('[data-cookie-settings-trigger]');
+        if (!trigger) {
+          return;
+        }
+
+        event.preventDefault();
+        showBanner();
+      });
+
+      window.addEventListener('renku:cookie-consent-open', showBanner);
+      window.addEventListener('renku:cookie-consent-updated', syncVisibility);
+      document.addEventListener('astro:page-load', syncVisibility);
+
+      window.__renkuCookieBannerInitialized = true;
+    }
+
+    syncVisibility();
+  })();
+</script>
