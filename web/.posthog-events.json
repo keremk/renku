@@ -1,0 +1,52 @@
+[
+  {
+    "event": "install_cta_clicked",
+    "description": "User clicked the primary Install CTA button in the hero section",
+    "file": "src/components/Hero.astro"
+  },
+  {
+    "event": "quickstart_cta_clicked",
+    "description": "User clicked the 'Open Quick Start' CTA button in the hero section",
+    "file": "src/components/Hero.astro"
+  },
+  {
+    "event": "cta_section_install_clicked",
+    "description": "User clicked the Install button in the bottom CTA section on the landing page",
+    "file": "src/pages/index.astro"
+  },
+  {
+    "event": "cta_section_quickstart_clicked",
+    "description": "User clicked the 'Open Quick Start' button in the bottom CTA section on the landing page",
+    "file": "src/pages/index.astro"
+  },
+  {
+    "event": "github_link_clicked",
+    "description": "User clicked the GitHub social link in the header",
+    "file": "src/components/Header.astro"
+  },
+  {
+    "event": "discord_link_clicked",
+    "description": "User clicked the Discord social link in the header",
+    "file": "src/components/Header.astro"
+  },
+  {
+    "event": "mobile_menu_opened",
+    "description": "User opened the mobile navigation menu",
+    "file": "src/components/Header.astro"
+  },
+  {
+    "event": "install_platform_viewed",
+    "description": "User viewed an install platform card on the install page (macOS, Linux, Windows)",
+    "file": "src/pages/install.astro"
+  },
+  {
+    "event": "pipeline_phase_navigated",
+    "description": "User clicked a phase dot to navigate the pipeline animation",
+    "file": "src/components/HowItWorksPipeline.astro"
+  },
+  {
+    "event": "pipeline_paused",
+    "description": "User clicked the pipeline card to pause or resume the animation",
+    "file": "src/components/HowItWorksPipeline.astro"
+  }
+]

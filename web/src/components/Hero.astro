@@ -56,7 +56,7 @@ const installPageUrl = '/install/';
 
       <!-- CTA Buttons -->
       <div class="hero-actions hero-actions-desktop">
-        <a href={installPageUrl} class="hero-btn-primary">
+        <a href={installPageUrl} class="hero-btn-primary" data-ph-capture="install_cta_clicked" data-ph-props='{"location":"hero"}'>
           Install
           <IconArrowRight class="ml-2 h-5 w-5" />
         </a>
@@ -67,7 +67,7 @@ const installPageUrl = '/install/';
             <IconArrowRight class="ml-2 h-5 w-5" />
           </a>
         -->
-        <a href="/docs/app-quick-start" class="hero-btn-secondary">
+        <a href="/docs/app-quick-start" class="hero-btn-secondary" data-ph-capture="quickstart_cta_clicked" data-ph-props='{"location":"hero"}'>
           Open Quick Start
           <IconArrowRight class="ml-2 h-5 w-5" />
         </a>
@@ -82,11 +82,11 @@ const installPageUrl = '/install/';
           Renku runs on desktop. Use install instructions for macOS, Linux, and Windows with WSL.
         </p>
         <div class="hero-actions hero-actions-mobile">
-          <a href={installPageUrl} class="hero-btn-primary">
+          <a href={installPageUrl} class="hero-btn-primary" data-ph-capture="install_cta_clicked" data-ph-props='{"location":"hero_mobile"}'>
             View install options
             <IconArrowRight class="ml-2 h-5 w-5" />
           </a>
-          <a href="/docs/" class="hero-btn-secondary">
+          <a href="/docs/" class="hero-btn-secondary" data-ph-capture="quickstart_cta_clicked" data-ph-props='{"location":"hero_mobile","destination":"docs"}'>
             Read the docs
             <IconArrowRight class="ml-2 h-5 w-5" />
           </a>
@@ -198,4 +198,15 @@ const installPageUrl = '/install/';
     window.addEventListener('scroll', update, { passive: true });
     update();
   })();
+</script>
+
+<script is:inline>
+  document.querySelectorAll('[data-ph-capture]').forEach(function(el) {
+    el.addEventListener('click', function() {
+      var event = el.getAttribute('data-ph-capture');
+      var propsStr = el.getAttribute('data-ph-props');
+      var props = propsStr ? JSON.parse(propsStr) : {};
+      window.posthog?.capture(event, props);
+    });
+  });
 </script>

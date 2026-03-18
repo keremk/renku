@@ -6,3 +6,4 @@ dist/
 
 # Dependencies
 node_modules/
+.env

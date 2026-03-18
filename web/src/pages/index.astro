@@ -28,7 +28,7 @@ import HowItWorksPipeline from '../components/HowItWorksPipeline.astro';
             Get started on your platform with the install flow for macOS, Linux, and Windows (WSL).
           </p>
           <div class="hidden sm:flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="/install/" class="cta-btn-primary">
+            <a href="/install/" class="cta-btn-primary" data-ph-capture="cta_section_install_clicked" data-ph-props='{"location":"cta_section"}'>
               Install
               <IconArrowRight class="ml-2 w-5 h-5" />
             </a>
@@ -39,7 +39,7 @@ import HowItWorksPipeline from '../components/HowItWorksPipeline.astro';
                 <IconArrowRight class="ml-2 w-5 h-5" />
               </a>
             -->
-            <a href="/docs/app-quick-start" class="cta-btn-secondary">
+            <a href="/docs/app-quick-start" class="cta-btn-secondary" data-ph-capture="cta_section_quickstart_clicked" data-ph-props='{"location":"cta_section"}'>
               Open Quick Start
               <IconArrowRight class="ml-2 w-5 h-5" />
             </a>
@@ -53,11 +53,11 @@ import HowItWorksPipeline from '../components/HowItWorksPipeline.astro';
               Renku runs on desktop platforms. Use the install guide for macOS, Linux, and Windows with WSL.
             </p>
             <div class="flex flex-col gap-3">
-              <a href="/install/" class="cta-btn-primary">
+              <a href="/install/" class="cta-btn-primary" data-ph-capture="cta_section_install_clicked" data-ph-props='{"location":"cta_section_mobile"}'>
                 View install options
                 <IconArrowRight class="ml-2 w-5 h-5" />
               </a>
-              <a href="/docs/" class="cta-btn-secondary">
+              <a href="/docs/" class="cta-btn-secondary" data-ph-capture="cta_section_quickstart_clicked" data-ph-props='{"location":"cta_section_mobile","destination":"docs"}'>
                 Read the Docs
                 <IconArrowRight class="ml-2 w-5 h-5" />
               </a>
@@ -68,3 +68,14 @@ import HowItWorksPipeline from '../components/HowItWorksPipeline.astro';
     </div>
   </section>
 </LandingLayout>
+
+<script is:inline>
+  document.querySelectorAll('[data-ph-capture]').forEach(function(el) {
+    el.addEventListener('click', function() {
+      var event = el.getAttribute('data-ph-capture');
+      var propsStr = el.getAttribute('data-ph-props');
+      var props = propsStr ? JSON.parse(propsStr) : {};
+      window.posthog?.capture(event, props);
+    });
+  });
+</script>

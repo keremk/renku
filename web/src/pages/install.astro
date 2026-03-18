@@ -18,7 +18,7 @@ import LandingLayout from '../layouts/LandingLayout.astro';
       </div>
 
       <div class="install-grid">
-        <article class="install-card install-card-apple">
+        <article class="install-card install-card-apple" data-install-platform="macos">
           <span class="install-status">CLI + Browser Viewer</span>
           <h2 class="install-card-title">macOS (Apple Silicon)</h2>
           <p class="install-card-copy">
@@ -37,7 +37,7 @@ import LandingLayout from '../layouts/LandingLayout.astro';
           <p class="install-note">Requires Node.js 18+ and FFmpeg/FFprobe.</p>
         </article>
 
-        <article class="install-card">
+        <article class="install-card" data-install-platform="linux">
           <span class="install-status">CLI + Browser Viewer</span>
           <h2 class="install-card-title">Linux</h2>
           <p class="install-card-copy">
@@ -49,7 +49,7 @@ import LandingLayout from '../layouts/LandingLayout.astro';
           <p class="install-note">Requires Node.js 18+ and FFmpeg/FFprobe.</p>
         </article>
 
-        <article class="install-card">
+        <article class="install-card" data-install-platform="windows_wsl">
           <span class="install-status">CLI + Browser Viewer</span>
           <h2 class="install-card-title">Windows (via WSL2)</h2>
           <p class="install-card-copy">
@@ -73,3 +73,12 @@ import LandingLayout from '../layouts/LandingLayout.astro';
     </div>
   </section>
 </LandingLayout>
+
+<script is:inline>
+  document.querySelectorAll('[data-install-platform]').forEach(function(el) {
+    el.addEventListener('click', function() {
+      var platform = el.getAttribute('data-install-platform');
+      window.posthog?.capture('install_platform_viewed', { platform: platform });
+    });
+  });
+</script>

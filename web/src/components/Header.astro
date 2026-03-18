@@ -51,7 +51,13 @@ const socialLinks = [
 
         <div class="hidden sm:flex items-center gap-2">
           {socialLinks.map((link) => (
-            <a href={link.href} class="social-link" aria-label={link.label}>
+            <a
+              href={link.href}
+              class="social-link"
+              aria-label={link.label}
+              data-ph-capture={link.icon === 'github' ? 'github_link_clicked' : 'discord_link_clicked'}
+              data-ph-props={JSON.stringify({ location: 'header' })}
+            >
               {link.icon === 'github' && <IconGitHub />}
               {link.icon === 'discord' && <IconDiscord />}
             </a>
@@ -99,6 +105,21 @@ const socialLinks = [
   const mobileMenu = document.getElementById('mobile-menu');
 
   mobileMenuButton?.addEventListener('click', () => {
+    const isOpening = mobileMenu?.classList.contains('hidden');
     mobileMenu?.classList.toggle('hidden');
+    if (isOpening) {
+      window.posthog?.capture('mobile_menu_opened');
+    }
+  });
+</script>
+
+<script is:inline>
+  document.querySelectorAll('[data-ph-capture]').forEach(function(el) {
+    el.addEventListener('click', function() {
+      var event = el.getAttribute('data-ph-capture');
+      var propsStr = el.getAttribute('data-ph-props');
+      var props = propsStr ? JSON.parse(propsStr) : {};
+      window.posthog?.capture(event, props);
+    });
   });
 </script>
