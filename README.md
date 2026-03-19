@@ -2,7 +2,8 @@
 
 > AI-powered build system for video content generation
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT (core/compositions/providers)](https://img.shields.io/badge/License-MIT-yellow.svg)](./core/LICENSE)
+[![License: Source-Available (cli/viewer/web/desktop)](https://img.shields.io/badge/License-Source--Available-blue.svg)](./cli/LICENSE)
 [![Node Version](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
 
 <div align="center">
@@ -29,13 +30,25 @@ Key features include:
 
 ## Packages
 
-### User-Facing
+### Applications
 
 - **[@gorenku/cli](./cli/README.md)** - Command-line interface for video generation
 
   The main user-facing tool. Install globally to start generating AI videos from your terminal. Includes workspace management, blueprint execution, and a built-in viewer for previewing results.
 
-### Developer Packages
+- **[renku-desktop](./desktop/README.md)** - Desktop application (macOS)
+
+  Electron-based desktop app that wraps the CLI and viewer into a native macOS application. Packages the full Renku experience — generation, viewing, and workspace management — without requiring a terminal.
+
+- **[@gorenku/web](./web/README.md)** - Documentation and marketing website
+
+  The [gorenku.com](https://gorenku.com) website, built with Astro and Starlight. Hosts product documentation, quick-start guides, CLI reference, and blueprint authoring docs.
+
+- **[viewer](./viewer/README.md)** - Blueprint workspace and generation IDE
+
+  The primary graphical interface for Renku. Browse blueprints and catalog templates, manage builds, edit inputs and model selections, plan and run generation with real-time streaming logs, inspect and edit generated artifacts, and preview the final video with the Remotion Player. Bundled with the CLI (served via `renku viewer`) and embedded in the desktop app.
+
+### Open-Source Libraries
 
 - **[@gorenku/core](./core/README.md)** - Core workflow orchestration engine
 
@@ -48,10 +61,6 @@ Key features include:
 - **[@gorenku/compositions](./compositions/README.md)** - Remotion video compositions
 
   Remotion-based video rendering components and timeline document format. Supports both browser and Node.js environments for video playback and export.
-
-- **[viewer](./viewer/README.md)** - Browser-based content viewer
-
-  React + Remotion viewer application for inspecting generated content. Bundled with the CLI and served via `renku viewer` commands.
 
 ## Quick Start
 
@@ -142,4 +151,9 @@ We are not yet open for contributions, but it will be coming very soon.
 
 ## License
 
-MIT
+This repository uses multiple licenses:
+
+- **MIT License** — [`/core`](./core/LICENSE), [`/compositions`](./compositions/LICENSE), [`/providers`](./providers/LICENSE)
+- **Renku Source-Available License** — [`/cli`](./cli/LICENSE), [`/viewer`](./viewer/LICENSE), [`/web`](./web/LICENSE), [`/desktop`](./desktop/LICENSE)
+
+The Renku name, logos, icons, and brand assets are reserved trademarks. See [TRADEMARKS.md](./TRADEMARKS.md) for details.

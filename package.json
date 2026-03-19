@@ -2,7 +2,7 @@
   "name": "renku-monorepo",
   "version": "1.0.0",
   "type": "module",
-  "license": "MIT",
+  "license": "SEE LICENSE IN each package directory",
   "workspaces": [
     "core",
     "cli",

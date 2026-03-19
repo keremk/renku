@@ -1,0 +1,47 @@
+Renku Source-Available License
+Version 1.0
+Copyright (c) 2026 Kerem Karatal
+
+TERMS AND CONDITIONS
+
+1. DEFINITIONS
+
+   "Software" means the source code, documentation, and associated files in this package directory.
+   "You" means the individual or entity exercising rights under this License.
+   "Official Build" means a compiled or packaged version of the Software distributed by the copyright holder.
+
+2. GRANT OF RIGHTS
+
+   Subject to the terms of this License, the copyright holder grants You a limited,
+   non-exclusive, non-transferable, non-sublicensable right to:
+   (a) View and read the source code for personal evaluation or internal reference.
+   (b) Modify the source code for personal or internal use only.
+
+3. RESTRICTIONS
+
+   You may NOT, without prior written permission from the copyright holder:
+   (a) Redistribute, publish, or make available the source code or any portion thereof to third parties.
+   (b) Distribute, sell, offer for sale, or make available compiled builds, binaries, or packaged
+       versions of the Software.
+   (c) Host or offer the Software or any of its functionality as a service to third parties.
+   (d) Sublicense, resell, rent, or transfer your rights under this License.
+   (e) Use the Renku name, "gorenku", logos, icons, trademarks, or brand assets in any derivative
+       work, fork, distribution, or service.
+   (f) Remove or obscure any copyright, trademark, or attribution notices in the Software.
+
+4. COMMERCIAL AND REDISTRIBUTION RIGHTS
+
+   Any use beyond personal evaluation or internal use — including commercial use, public distribution,
+   or third-party hosting — requires a separate written license agreement from the copyright holder.
+
+5. DISCLAIMER OF WARRANTIES
+
+   THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+   BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
+   NON-INFRINGEMENT. THE COPYRIGHT HOLDER SHALL NOT BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+   LIABILITY ARISING FROM USE OF THIS SOFTWARE.
+
+6. TERMINATION
+
+   This License terminates automatically and immediately if You fail to comply with any of its terms.
+   Upon termination, You must destroy all copies of the Software in your possession.
