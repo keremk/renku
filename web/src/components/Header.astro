@@ -5,14 +5,15 @@ import IconDiscord from './icons/IconDiscord.astro';
 import IconMenu from './icons/IconMenu.astro';
 
 const currentPath = Astro.url.pathname;
+const isLandingSection = currentPath === '/' || currentPath === '';
 
 const navItems = [
-  { label: 'Features', href: '#features' },
-  { label: 'Pipeline', href: '#how-it-works' },
+  { label: 'Features', href: '#features', landingOnly: true },
+  { label: 'Pipeline', href: '#how-it-works', landingOnly: true },
   { label: 'Install', href: '/install/' },
   { label: 'Docs', href: '/docs/' },
   { label: 'Blog', href: '/blog/' },
-];
+].filter(item => !item.landingOnly || isLandingSection);
 
 const socialLinks = [
   { icon: 'github', href: 'https://github.com/keremk/renku', label: 'GitHub' },
