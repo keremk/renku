@@ -1,0 +1,225 @@
+---
+interface FAQItem {
+  question: string;
+  answer: string;
+}
+
+const faqs: FAQItem[] = [
+  {
+    question: 'Is Renku open source?',
+    answer:
+      'The core, providers, and compositions packages are MIT licensed. The other packages — including the website branding, CLI, UI, and desktop app — are source available.',
+  },
+  {
+    question: 'Is Renku free?',
+    answer:
+      'Renku itself is free to use. Generating videos requires signing up with AI providers of your choice, who charge according to their own pricing plans. You enroll with them directly and supply the API keys you receive.',
+  },
+  {
+    question: 'Can I use Renku on Windows?',
+    answer:
+      'Yes, but you need to <a href="https://learn.microsoft.com/en-us/windows/wsl/install" target="_blank" rel="noreferrer">enable WSL2</a> and run the Renku CLI inside a Linux shell.',
+  },
+  {
+    question: 'Why do I need Renku?',
+    answer:
+      'Generating a compelling video longer than 10–20 seconds typically requires assembling shorter clips through many iterations, along with consistent images, audio, and model-specific prompts. Renku lets you define an orchestration pipeline and track dependencies between generated assets, so only what actually changed gets regenerated — saving time and cost as you iterate. It also helps you craft prompts, generate character images, and assemble everything into a multi-track timeline with video, narration, music, and subtitles. See the <a href="https://gorenku.com/docs/" target="_blank" rel="noreferrer">docs</a> for more.',
+  },
+  {
+    question: 'Can I use DaVinci Resolve, CapCut, or other tools alongside Renku?',
+    answer:
+      'Absolutely. Renku saves all generated media assets to a folder you can open directly in any video editing application.',
+  },
+  {
+    question: 'Does Renku produce AI slop?',
+    answer:
+      'Renku is not a generative AI model. It helps you select and work with the best models for your use case, and gives you the controls to iterate and refine their output. The creative quality is in your hands.',
+  },
+  {
+    question: 'Can I use Renku for long-form videos?',
+    answer:
+      'Renku is currently best tuned for videos in the 6–20 segment range, roughly under 5 minutes. There is no hard limit, so feel free to experiment with longer videos — your feedback helps us improve the experience.',
+  },
+  {
+    question: 'Do I need to write YAML to create new blueprints?',
+    answer:
+      'YAML is the internal representation format, but you will rarely need to write it from scratch. We provide <a href="https://gorenku.com/docs/app-using-skills/" target="_blank" rel="noreferrer">skills for AI tools</a> like Claude and Codex that do an excellent job of generating the right YAML for your use case.',
+  },
+];
+---
+
+<section id="faq" class="py-20 px-4 max-w-4xl mx-auto">
+  <div class="section-header">
+    <span class="section-badge">FAQ</span>
+    <h2 class="section-title">Frequently asked questions</h2>
+    <p class="section-description">
+      Everything you need to know about Renku.
+    </p>
+  </div>
+
+  <div class="faq-list">
+    {
+      faqs.map((item, index) => (
+        <details class="faq-item" data-faq-index={index}>
+          <summary class="faq-summary">
+            <span class="faq-question-text">{item.question}</span>
+            <span class="faq-chevron" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path
+                  d="M5 7.5L10 12.5L15 7.5"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+          </summary>
+          <div class="faq-answer" set:html={item.answer} />
+        </details>
+      ))
+    }
+  </div>
+</section>
+
+<style>
+  .faq-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+  }
+
+  .faq-item {
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: 0.875rem;
+    overflow: hidden;
+    transition:
+      border-color 200ms ease,
+      box-shadow 200ms ease;
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  .faq-item.faq-visible {
+    opacity: 1;
+    transform: translateY(0);
+    transition:
+      opacity 400ms ease,
+      transform 400ms ease,
+      border-color 200ms ease,
+      box-shadow 200ms ease;
+  }
+
+  .faq-item:hover {
+    border-color: var(--color-accent-300);
+  }
+
+  :global(.dark) .faq-item:hover {
+    border-color: var(--color-accent-700);
+  }
+
+  .faq-item[open] {
+    border-color: var(--color-accent-300);
+    box-shadow: 0 4px 24px -4px hsl(42 65% 40% / 0.12);
+  }
+
+  :global(.dark) .faq-item[open] {
+    border-color: var(--color-accent-700);
+    box-shadow: 0 4px 24px -4px hsl(42 65% 40% / 0.08);
+  }
+
+  .faq-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+
+  .faq-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .faq-summary:focus-visible {
+    outline: 2px solid var(--color-accent-500);
+    outline-offset: -2px;
+    border-radius: 0.75rem;
+  }
+
+  .faq-question-text {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--color-foreground);
+    line-height: 1.4;
+  }
+
+  .faq-chevron {
+    flex-shrink: 0;
+    color: var(--color-accent-500);
+    transition: transform 250ms ease;
+  }
+
+  .faq-item[open] .faq-chevron {
+    transform: rotate(180deg);
+  }
+
+  .faq-answer {
+    padding: 0 1.5rem 1.25rem;
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    color: var(--color-muted-foreground);
+    border-top: 1px solid var(--color-border);
+    margin-top: 0;
+    padding-top: 1rem;
+  }
+
+  .faq-answer :global(a) {
+    color: var(--color-accent-600);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    transition: color 150ms ease;
+  }
+
+  .faq-answer :global(a):hover {
+    color: var(--color-accent-700);
+  }
+
+  :global(.dark) .faq-answer :global(a) {
+    color: var(--color-accent-400);
+  }
+
+  :global(.dark) .faq-answer :global(a):hover {
+    color: var(--color-accent-300);
+  }
+</style>
+
+<script is:inline>
+  (function () {
+    var items = document.querySelectorAll('.faq-item');
+    if (!items.length) return;
+
+    var observer = new IntersectionObserver(
+      function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            var el = entry.target;
+            var idx = parseInt(el.getAttribute('data-faq-index') || '0', 10);
+            setTimeout(function () {
+              el.classList.add('faq-visible');
+            }, idx * 60);
+            observer.unobserve(el);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+    );
+
+    items.forEach(function (item) {
+      observer.observe(item);
+    });
+  })();
+</script>
