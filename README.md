@@ -7,7 +7,7 @@
   [![License: Source-Available (cli/viewer/web/desktop)](https://img.shields.io/badge/License-Source--Available-blue.svg)](./cli/LICENSE)
   [![Node Version](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
 
-  **[Documentation](https://gorenku.com/docs/introduction)** · **[Quick Start](https://gorenku.com/docs/quick-start)** · **[Examples](./catalog)**
+  **[Documentation](https://gorenku.com/docs/)** · **[Quick Start](https://gorenku.com/docs/app-quick-start/)** · **[Examples](./catalog)**
 
   <br>
 
@@ -18,7 +18,7 @@
 
 ## What is Renku?
 
-Renku is a powerful build system for generating video content using AI models. It enables you to create narrated documentaries, educational videos, and multimedia presentations from simple text prompts by orchestrating multiple AI providers (OpenAI, Replicate, fal.ai, ElevenLabs) into cohesive production pipelines.
+Renku is a powerful build system for generating video content using AI models. It enables you to create narrated documentaries, educational videos, social media reels from simple text prompts by orchestrating multiple AI providers (OpenAI, Replicate, fal.ai, ElevenLabs) into cohesive production pipelines.
 
 Unlike monolithic AI video tools, Renku gives you fine-grained control over every step of the generation process through **blueprints** - declarative YAML workflows that define how content flows from text prompts to final rendered videos. The system handles dependency resolution, parallel execution, state tracking, and artifact versioning automatically, letting you focus on creative direction rather than infrastructure.
 
@@ -29,7 +29,7 @@ Key features include:
 - **State management**: Built-in manifest system tracks all artifacts and their dependencies
 - **Parallel execution**: Automatic job parallelization within dependency layers
 - **Local-first**: All artifacts stored locally with optional S3 cloud storage support
-- **Video composition**: Uses [Remotion](https://www.remotion.dev/) to compose the final video with multiple tracks and segments per track from the AI generated artifacts.
+- **Video composition**: Uses ffmpeg for simple composition and subtitles. It also uses [Remotion](https://www.remotion.dev/) to compose preview videos inside the app with multiple tracks and segments per track from the AI generated artifacts.
 - **MP4 export**: Exports your generated final video to MP4, so you can upload to anywhere you want.
 
 ## Packages
