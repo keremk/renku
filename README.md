@@ -1,16 +1,20 @@
-# Renku
-
-> AI-powered build system for video content generation
-
-[![License: MIT (core/compositions/providers)](https://img.shields.io/badge/License-MIT-yellow.svg)](./core/LICENSE)
-[![License: Source-Available (cli/viewer/web/desktop)](https://img.shields.io/badge/License-Source--Available-blue.svg)](./cli/LICENSE)
-[![Node Version](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
-
 <div align="center">
-  <img src="./web/public/logo.svg" alt="Renku Logo" width="300">
+  <img src="./web/public/logo.svg" alt="Renku Logo" width="96"><br><br>
+  <h1>Renku</h1>
+  <p><strong>AI-powered build system for video content generation</strong></p>
+
+  [![License: MIT (core/compositions/providers)](https://img.shields.io/badge/License-MIT-yellow.svg)](./core/LICENSE)
+  [![License: Source-Available (cli/viewer/web/desktop)](https://img.shields.io/badge/License-Source--Available-blue.svg)](./cli/LICENSE)
+  [![Node Version](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
+
+  **[Documentation](https://gorenku.com/docs/introduction)** · **[Quick Start](https://gorenku.com/docs/quick-start)** · **[Examples](./catalog)**
+
+  <br>
+
+  <img src="./web/public/renku-screenshot.png" alt="Renku in action" width="90%">
 </div>
 
-**[Documentation](https://gorenku.com/)** • **[Quick Start](https://gorenku.com/docs/quick-start)** • **[Examples](./catalog)**
+<br>
 
 ## What is Renku?
 
@@ -64,86 +68,17 @@ Key features include:
 
 ## Quick Start
 
-Install the Renku CLI globally:
-
-```bash
-npm install -g @gorenku/cli
-```
-
-Initialize a workspace:
-
-```bash
-renku init --root=~/my-videos
-```
-
-Configure your API keys:
-
-```bash
-# Edit the generated env.sh file
-vim ~/.config/renku/env.sh
-
-# Source the API keys
-source ~/.config/renku/env.sh
-```
-
-Run your first blueprint:
-
-```bash
-cd ~/my-videos
-
-# Copy an input template
-cp ./catalog/blueprints/kenn-burns/input-template.yaml ./my-inputs.yaml
-
-# Edit inputs with your desired parameters
-vim ./my-inputs.yaml
-
-# Generate content
-renku generate \
-  --inputs=./my-inputs.yaml \
-  --blueprint=./catalog/blueprints/kenn-burns/image-audio.yaml
-```
-
-View the results:
-
-```bash
-renku viewer
-```
-
-For more detailed instructions, see the [full quick start guide](https://gorenku.com/docs/quick-start).
-
-## Development
-
-This is a pnpm workspace monorepo. To contribute:
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/renku.git
-cd renku
-
-# Install dependencies
-pnpm install
-
-# Build all packages
-pnpm build
-
-# Run tests
-pnpm test
-
-# Type checking
-pnpm check
-```
-
-See [CLAUDE.md](./CLAUDE.md) for detailed development conventions, architecture notes, and coding standards.
+For full installation and setup instructions, see the [Quick Start Guide](https://gorenku.com/docs/quick-start).
 
 ## Documentation
 
 Full documentation is available at [gorenku.com](https://gorenku.com/):
 
+- [Introduction](https://gorenku.com/docs/introduction) - Learn what Renku is and how it works
 - [Quick Start Guide](https://gorenku.com/docs/quick-start) - Get up and running in minutes
 - [CLI Reference](https://gorenku.com/docs/cli-reference) - Complete command documentation
 - [Blueprint Authoring](https://gorenku.com/docs/blueprint-authoring) - Create custom workflows
 - [Usage Guide](https://gorenku.com/docs/usage-guide) - Advanced features and tips
-- [Maintainer Deploy Guide](./deploy.md) - Product and website release lanes
 
 ## Contributing
 
