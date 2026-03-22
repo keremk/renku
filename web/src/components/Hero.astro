@@ -1,5 +1,6 @@
 ---
 import IconArrowRight from './icons/IconArrowRight.astro';
+import IconDownload from './icons/IconDownload.astro';
 
 interface Props {
   title?: string;
@@ -58,17 +59,17 @@ const installPageUrl = '/install/';
       <div class="hero-actions hero-actions-desktop">
         <a href={installPageUrl} class="hero-btn-primary" data-ph-capture="install_cta_clicked" data-ph-props='{"location":"hero"}'>
           Install
-          <IconArrowRight class="ml-2 h-5 w-5" />
+          <IconDownload class="ml-2 h-5 w-5" />
         </a>
         <!--
           Temporary while DMG signing is unavailable:
           <a href="https://downloads.gorenku.com/desktop/stable/darwin/arm64/Renku-latest-arm64.dmg" class="hero-btn-primary" target="_blank" rel="noreferrer">
             Download for macOS
-            <IconArrowRight class="ml-2 h-5 w-5" />
+            <IconDownload class="ml-2 h-5 w-5" />
           </a>
         -->
-        <a href="/docs/app-quick-start" class="hero-btn-secondary" data-ph-capture="quickstart_cta_clicked" data-ph-props='{"location":"hero"}'>
-          Open Quick Start
+        <a href="https://discord.gg/fYceuVcv" class="hero-btn-secondary" data-ph-capture="quickstart_cta_clicked" data-ph-props='{"location":"hero"}' target="_blank" rel="noreferrer">
+          Join Our Community
           <IconArrowRight class="ml-2 h-5 w-5" />
         </a>
       </div>

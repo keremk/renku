@@ -3,6 +3,7 @@ import LandingLayout from '../layouts/LandingLayout.astro';
 import Hero from '../components/Hero.astro';
 import FeaturesSection from '../components/FeaturesSection.astro';
 import IconArrowRight from '../components/icons/IconArrowRight.astro';
+import IconDownload from '../components/icons/IconDownload.astro';
 import HowItWorksPipeline from '../components/HowItWorksPipeline.astro';
 import FAQSection from '../components/FAQSection.astro';
 ---
@@ -34,17 +35,17 @@ import FAQSection from '../components/FAQSection.astro';
           <div class="hidden sm:flex flex-col sm:flex-row gap-4 justify-center">
             <a href="/install/" class="cta-btn-primary" data-ph-capture="cta_section_install_clicked" data-ph-props='{"location":"cta_section"}'>
               Install
-              <IconArrowRight class="ml-2 w-5 h-5" />
+              <IconDownload class="ml-2 w-5 h-5" />
             </a>
             <!--
               Temporary while DMG signing is unavailable:
               <a href="https://downloads.gorenku.com/desktop/stable/darwin/arm64/Renku-latest-arm64.dmg" class="cta-btn-primary" target="_blank" rel="noreferrer">
                 Download for macOS
-                <IconArrowRight class="ml-2 w-5 h-5" />
+                <IconDownload class="ml-2 w-5 h-5" />
               </a>
             -->
-            <a href="/docs/app-quick-start" class="cta-btn-secondary" data-ph-capture="cta_section_quickstart_clicked" data-ph-props='{"location":"cta_section"}'>
-              Open Quick Start
+            <a href="https://discord.gg/fYceuVcv" class="cta-btn-secondary" data-ph-capture="cta_section_quickstart_clicked" data-ph-props='{"location":"cta_section"}' target="_blank" rel="noreferrer">
+              Join Our Community
               <IconArrowRight class="ml-2 w-5 h-5" />
             </a>
           </div>
