@@ -74,6 +74,7 @@
     "catalog:update-fal": "node scripts/update-fal-catalog.mjs catalog/models/fal-ai/fal-ai.yaml",
     "bundle:catalog": "node scripts/prepare-catalog-bundle.mjs",
     "catalog:check": "node scripts/check-catalog-sync.mjs",
+    "catalog:audit-mappings": "node scripts/audit-producer-mappings.mjs",
     "build:desktop": "pnpm build:workspace && node scripts/prepare-desktop-bundle.mjs && pnpm --filter renku-desktop build",
     "package:desktop": "pnpm build:desktop && pnpm --filter renku-desktop package",
     "package:desktop:dev": "pnpm build:desktop && pnpm --filter renku-desktop package:dev",

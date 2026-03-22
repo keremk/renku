@@ -61,7 +61,6 @@ mappings:
         intToSecondsString: true
       Resolution: resolution
       GenerateAudio: generate_audio
-      AutoFixPrompt: auto_fix
 
     # Kling Video O1 Reference-to-Video
     kling-video/o1/reference-to-video:

@@ -383,7 +383,6 @@ mappings:
       StartImage: image
       Duration: duration
       Resolution: resolution
-      AudioUrl: audio
 
     # Lightricks LTX 2.3 Pro (with image)
     lightricks/ltx-2.3-pro:
@@ -427,4 +426,3 @@ mappings:
       StartImage: image
       Duration: duration
       Resolution: resolution
-      AudioUrl: audio
