@@ -9,7 +9,6 @@ import { loadYamlBlueprintTree } from './blueprint-loader/yaml-parser.js';
 import {
   CATALOG_BLUEPRINTS_ROOT,
   CATALOG_ROOT,
-  REPO_ROOT,
   TEST_FIXTURES_ROOT,
 } from '../../tests/catalog-paths.js';
 import type { BlueprintTreeNode } from '../types.js';
@@ -17,13 +16,8 @@ import type { BlueprintTreeNode } from '../types.js';
 const BLUEPRINT_ROOT = CATALOG_BLUEPRINTS_ROOT;
 const catalogRoot = CATALOG_ROOT;
 const SHARED_AUDIO_ONLY_INPUT_TEMPLATE = resolve(
-  REPO_ROOT,
-  'cli',
-  'tests',
-  'fixtures',
-  'blueprints',
-  'pipeline-orchestration',
-  'audio-narration-loop',
+  TEST_FIXTURES_ROOT,
+  'audio-only',
   'input-template.yaml'
 );
 

@@ -1,0 +1,18 @@
+inputs:
+  InquiryPrompt: "History of the Guiness Brewery"
+  Duration: 20
+  NumOfSegments: 2
+  Audience: "Adult"
+  VoiceId: "Wise_Woman"
+  Emotion: neutral
+
+models:
+  - model: gpt-5.2
+    provider: openai
+    producerId: ScriptProducer
+    config:
+      text_format: json_schema
+  - model: minimax/speech-2.6-hd
+    provider: replicate
+    producerId: AudioProducer
+    # SDK mappings now come from producer YAML mappings section

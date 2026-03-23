@@ -50,9 +50,9 @@ loops:
 
 producers:
   - name: ScriptProducer
-    path: ../../../../cli/tests/fixtures/blueprints/_shared/script/script.yaml
+    path: ../_shared/script/script.yaml
   - name: ImagePromptProducer
-    path: ../../../../cli/tests/fixtures/blueprints/_shared/image/image.yaml
+    path: ../_shared/image/image.yaml
     loop: segment
   - name: ImageProducer
     producer: asset/text-to-image

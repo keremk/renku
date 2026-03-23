@@ -24,13 +24,10 @@ export const SHARED_TEST_CATALOG_ROOT = resolve(
   'catalog'
 );
 
-/** Shared blueprint producer modules hosted in CLI fixtures */
+/** Shared blueprint producer modules hosted in core test fixtures */
 export const SHARED_BLUEPRINT_MODULES_ROOT = resolve(
-  REPO_ROOT,
-  'cli',
-  'tests',
+  __dirname,
   'fixtures',
-  'blueprints',
   '_shared'
 );
 

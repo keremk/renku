@@ -1,0 +1,14 @@
+{
+  "schema": {
+    "type": "object",
+    "properties": {
+      "ImagePrompt": {
+        "type": "array",
+        "description": "Provide an image prompt for the image generator per segment.",
+        "items": { "type": "string" }
+      }
+    },
+    "required": ["ImagePrompt"],
+    "additionalProperties": false
+  }
+}
