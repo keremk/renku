@@ -17,7 +17,6 @@ import type {
   BlobInput,
   BlueprintProducerOutputDefinition,
   BlueprintTreeNode,
-  ProducerModelVariant,
 } from '../types.js';
 import { isBlobInput } from '../types.js';
 import type { SerializableModelSelection } from './input-serializer.js';
@@ -438,51 +437,6 @@ function collectProducerScopedInputs(
 
       addEntry(namespacePath, producerName, 'provider');
       addEntry(namespacePath, producerName, 'model');
-
-      const variants: ProducerModelVariant[] = Array.isArray(producer.models)
-        ? producer.models
-        : producer.provider && producer.model
-          ? [
-              {
-                provider: producer.provider,
-                model: producer.model,
-                config: producer.config,
-                systemPrompt: producer.systemPrompt,
-                userPrompt: producer.userPrompt,
-                textFormat: producer.textFormat,
-                variables: producer.variables,
-              },
-            ]
-          : [];
-
-      const addFlattenedConfig = (variant: ProducerModelVariant) => {
-        const flattened = flattenConfigValues(variant.config ?? {});
-        for (const key of Object.keys(flattened)) {
-          addEntry(namespacePath, producerName, key);
-        }
-        if (variant.systemPrompt) {
-          addEntry(namespacePath, producerName, 'systemPrompt');
-        }
-        if (variant.userPrompt) {
-          addEntry(namespacePath, producerName, 'userPrompt');
-        }
-        if (variant.variables) {
-          addEntry(namespacePath, producerName, 'variables');
-        }
-        const legacyFormat = (variant as unknown as Record<string, unknown>)
-          .text_format;
-        if (variant.textFormat || legacyFormat) {
-          addEntry(namespacePath, producerName, 'text_format');
-          addEntry(namespacePath, producerName, 'textFormat');
-        }
-        if (variant.outputSchema) {
-          addEntry(namespacePath, producerName, 'responseFormat');
-        }
-      };
-
-      for (const variant of variants) {
-        addFlattenedConfig(variant);
-      }
     }
     for (const child of node.children.values()) {
       visit(child);

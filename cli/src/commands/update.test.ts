@@ -4,7 +4,10 @@ import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { runUpdate } from './update.js';
 import { runInit } from './init.js';
-import { getCliBlueprintsRoot } from '../lib/config-assets.js';
+import {
+	getCliBlueprintsRoot,
+	getCliCatalogRoot,
+} from '../lib/config-assets.js';
 import { CLI_FIXTURES_CATALOG } from '../../tests/test-catalog-paths.js';
 
 const tmpRoots: string[] = [];
@@ -39,13 +42,14 @@ describe('runUpdate', () => {
 		});
 
 		// Modify a catalog file to verify it gets overwritten
-		const blueprintPath = join(
-			getCliBlueprintsRoot(root),
-			'interface-only',
-			'interface-only.yaml'
+		const catalogModelPath = join(
+			getCliCatalogRoot(root),
+			'models',
+			'openai',
+			'openai.yaml'
 		);
-		const originalContent = await readFile(blueprintPath, 'utf8');
-		await writeFile(blueprintPath, '# Modified content', 'utf8');
+		const originalContent = await readFile(catalogModelPath, 'utf8');
+		await writeFile(catalogModelPath, '# Modified content', 'utf8');
 
 		// Add stale entries that should be removed
 		const staleFilePath = join(getCliBlueprintsRoot(root), 'stale.yaml');
@@ -69,7 +73,7 @@ describe('runUpdate', () => {
 		expect(result.catalogRoot).toBe(join(root, 'catalog'));
 
 		// Verify the file was overwritten
-		const updatedContent = await readFile(blueprintPath, 'utf8');
+		const updatedContent = await readFile(catalogModelPath, 'utf8');
 		expect(updatedContent).toBe(originalContent);
 
 		// Verify stale entries are removed

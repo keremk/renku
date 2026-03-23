@@ -32,7 +32,7 @@ describe('producer options', () => {
 		);
 		expect(scriptProducerNode!.sourcePath).toContain('script.yaml');
 
-		// Selections provide model configuration since producers are interface-only
+		// Selections provide model configuration for producer blueprints
 		// Note: 'inputs' field was removed from ModelSelection - SDK mappings now come from producer YAML
 		const selections: ModelSelection[] = [
 			{

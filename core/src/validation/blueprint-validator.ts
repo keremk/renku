@@ -95,7 +95,7 @@ function getProducerImportNames(tree: BlueprintTreeNode): Set<string> {
 }
 
 /**
- * Gets the names of inline producers (interface-only producer blueprints)
+ * Gets producer names declared directly on this blueprint node.
  */
 function getInlineProducerNames(tree: BlueprintTreeNode): Set<string> {
   return new Set<string>(tree.document.producers.map((p) => p.name));
@@ -238,9 +238,9 @@ function validateEndpoint(
   const context = `connection ${direction === 'from' ? 'from' : 'to'} "${reference}" (${direction === 'from' ? `to ${otherEndpoint}` : `from ${otherEndpoint}`})`;
 
   if (isLocalReference(reference)) {
-    // Local reference - check inputs, artifacts, or inline producers
+    // Local reference - check inputs, artifacts, or local producer names.
     if (direction === 'from') {
-      // 'from' can be an input, artifact, or inline producer (for interface-only blueprints)
+      // 'from' can be an input, artifact, or local producer name.
       if (
         !inputNames.has(baseName) &&
         !artifactNames.has(baseName) &&
@@ -260,7 +260,7 @@ function validateEndpoint(
         );
       }
     } else {
-      // 'to' can be an artifact, input (for fan-in), or inline producer (for interface-only blueprints)
+      // 'to' can be an artifact, input (for fan-in), or local producer name.
       if (
         !artifactNames.has(baseName) &&
         !inputNames.has(baseName) &&

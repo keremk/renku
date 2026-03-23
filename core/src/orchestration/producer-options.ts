@@ -1,7 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
-import { flattenConfigKeys, flattenConfigValues, deepMergeConfig } from './config-utils.js';
+import {
+  flattenConfigKeys,
+  flattenConfigValues,
+  deepMergeConfig,
+} from './config-utils.js';
 import { loadPromptFile, type PromptFileData } from './prompt-file.js';
 import type {
   BlueprintMeta,
@@ -10,7 +14,6 @@ import type {
   ProducerCatalog,
   ProducerCatalogEntry,
   ProducerConfig,
-  ProducerModelVariant,
   BlueprintProducerOutputDefinition,
   ProviderAttachment,
   ProviderEnvironment,
@@ -74,14 +77,21 @@ export async function buildProducerOptionsFromBlueprint(
   blueprint: BlueprintTreeNode,
   selections: ModelSelection[] = [],
   allowAmbiguousDefault = false,
-  context?: BuildProducerOptionsContext,
+  context?: BuildProducerOptionsContext
 ): Promise<ProducerOptionsMap> {
   const map: ProducerOptionsMap = new Map();
   const selectionMap = new Map<string, ModelSelection>();
   for (const selection of selections) {
     selectionMap.set(selection.producerId, selection);
   }
-  await collectProducers(blueprint, blueprint, map, selectionMap, allowAmbiguousDefault, context?.resolvedPromptPaths);
+  await collectProducers(
+    blueprint,
+    blueprint,
+    map,
+    selectionMap,
+    allowAmbiguousDefault,
+    context?.resolvedPromptPaths
+  );
   return map;
 }
 
@@ -91,10 +101,13 @@ async function collectProducers(
   map: ProducerOptionsMap,
   selectionMap: Map<string, ModelSelection>,
   allowAmbiguousDefault: boolean,
-  resolvedPromptPaths?: Map<string, string>,
+  resolvedPromptPaths?: Map<string, string>
 ): Promise<void> {
   for (const producer of node.document.producers) {
-    const namespacedName = formatProducerAlias(node.namespacePath, producer.name);
+    const namespacedName = formatProducerAlias(
+      node.namespacePath,
+      producer.name
+    );
     const selection = selectionMap.get(namespacedName);
     const variants = collectVariants(producer);
     // Pass the producer's meta and source path for loading promptFile/outputSchema
@@ -106,20 +119,27 @@ async function collectProducers(
       node.document.meta,
       node.sourcePath,
       rootBlueprint,
-      resolvedPromptPaths,
+      resolvedPromptPaths
     );
     const option = toLoadedOption(namespacedName, chosen, selection);
     registerProducerOption(map, namespacedName, option);
   }
   for (const child of node.children.values()) {
-    await collectProducers(child, rootBlueprint, map, selectionMap, allowAmbiguousDefault, resolvedPromptPaths);
+    await collectProducers(
+      child,
+      rootBlueprint,
+      map,
+      selectionMap,
+      allowAmbiguousDefault,
+      resolvedPromptPaths
+    );
   }
 }
 
 function registerProducerOption(
   map: ProducerOptionsMap,
   key: string,
-  option: LoadedProducerOption,
+  option: LoadedProducerOption
 ): void {
   const existing = map.get(key);
   if (existing) {
@@ -142,12 +162,20 @@ function toLoadedOption(
     configInputPaths: string[];
     configDefaults: Record<string, unknown>;
   },
-  selection?: ModelSelection,
+  selection?: ModelSelection
 ): LoadedProducerOption {
-  const mergedConfig = deepMergeConfig(variant.config ?? {}, selection?.config ?? {});
-  const configPayload = Object.keys(mergedConfig).length > 0 ? mergedConfig : undefined;
-  const selectionConfigPaths = selection?.config ? flattenConfigKeys(selection.config) : [];
-  const configInputPaths = Array.from(new Set([...(variant.configInputPaths ?? []), ...selectionConfigPaths]));
+  const mergedConfig = deepMergeConfig(
+    variant.config ?? {},
+    selection?.config ?? {}
+  );
+  const configPayload =
+    Object.keys(mergedConfig).length > 0 ? mergedConfig : undefined;
+  const selectionConfigPaths = selection?.config
+    ? flattenConfigKeys(selection.config)
+    : [];
+  const configInputPaths = Array.from(
+    new Set([...(variant.configInputPaths ?? []), ...selectionConfigPaths])
+  );
 
   return {
     priority: 'main',
@@ -159,35 +187,15 @@ function toLoadedOption(
     sourcePath: namespacedName,
     customAttributes: undefined,
     sdkMapping: variant.sdkMapping,
-    outputs: variant.outputs as Record<string, BlueprintProducerOutputDefinition> | undefined,
+    outputs: variant.outputs as
+      | Record<string, BlueprintProducerOutputDefinition>
+      | undefined,
     inputSchema: variant.inputSchema,
     outputSchema: variant.outputSchema,
     selectionInputKeys: ['provider', 'model'],
     configInputPaths,
     configDefaults: variant.configDefaults,
   };
-}
-
-/** Keys on ProducerModelVariant that are structural (not config values). */
-const VARIANT_STRUCTURAL_KEYS = new Set([
-  'provider', 'model', 'promptFile', 'inputSchema', 'outputSchema',
-  'outputSchemaParsed', 'inputs', 'outputs', 'config',
-]);
-
-/**
- * Build a flat config dict from a variant. Merges variant.config with any
- * top-level non-structural fields (e.g., systemPrompt, userPrompt, variables).
- * This is provider-agnostic — it doesn't hardcode knowledge of specific fields.
- */
-function buildVariantConfig(variant: ProducerModelVariant): Record<string, unknown> {
-  const base: Record<string, unknown> = { ...(variant.config ?? {}) };
-  for (const [key, value] of Object.entries(variant)) {
-    if (VARIANT_STRUCTURAL_KEYS.has(key) || value === undefined) {
-      continue;
-    }
-    base[key] = value;
-  }
-  return base;
 }
 
 /**
@@ -207,43 +215,13 @@ export interface CollectedVariant {
 
 /**
  * Collect all model variants from a producer configuration.
- * Returns all available variants without selecting one.
- * For interface-only producers (no models section), returns an empty array.
+ *
+ * Producer/model selection is defined in inputs.yaml (models section), so
+ * blueprint producer declarations do not carry embedded model variants.
  */
-export function collectVariants(producer: ProducerConfig): CollectedVariant[] {
-  if (Array.isArray(producer.models) && producer.models.length > 0) {
-    return producer.models.map((variant) => ({
-      provider: variant.provider,
-      model: variant.model,
-      config: buildVariantConfig(variant),
-      sdkMapping: variant.inputs as Record<string, MappingFieldDefinition> | undefined,
-      outputs: variant.outputs as Record<string, BlueprintProducerOutputDefinition> | undefined,
-      inputSchema: variant.inputSchema,
-      outputSchema: variant.outputSchema,
-      configInputPaths: flattenConfigKeys(buildVariantConfig(variant)),
-      configDefaults: flattenConfigValues(buildVariantConfig(variant)),
-    }));
-  }
-  // If producer has inline provider/model (legacy support)
-  if (producer.provider && producer.model) {
-    const producerConfig = producer.config as Record<string, unknown> | undefined;
-    return [
-      {
-        provider: producer.provider,
-        model: producer.model,
-        config: producerConfig,
-        sdkMapping: producer.sdkMapping as Record<string, MappingFieldDefinition> | undefined,
-        outputs: producer.outputs,
-        inputSchema: producer.jsonSchema,
-        configInputPaths: flattenConfigKeys(producerConfig ?? {}),
-        configDefaults: flattenConfigValues(producerConfig ?? {}),
-      },
-    ];
-  }
-  // Interface-only producer - no models defined, must come from selection
+export function collectVariants(_producer: ProducerConfig): CollectedVariant[] {
   return [];
 }
-
 
 /**
  * Load JSON schema from a file path.
@@ -257,21 +235,24 @@ async function loadJsonSchema(schemaPath: string): Promise<string> {
 
 /**
  * Convert a ModelSelection into a CollectedVariant.
- * Used when the selection provides all the model configuration (interface-only producers).
+ * Used when the selection provides all model configuration for a producer.
  * Loads promptFile and outputSchema from the producer's meta section (not from ModelSelection).
  */
 async function selectionToVariant(
   selection: ModelSelection,
   producerMeta: BlueprintMeta,
   producerSourcePath: string,
-  resolvedPath?: string,
+  resolvedPath?: string
 ): Promise<CollectedVariant> {
   const producerDir = dirname(producerSourcePath);
 
   let promptConfig: PromptConfig = { config: {} };
   // Use pre-resolved path if available (builds folder > blueprint template)
-  const promptPath = resolvedPath
-    ?? (producerMeta.promptFile ? resolve(producerDir, producerMeta.promptFile) : undefined);
+  const promptPath =
+    resolvedPath ??
+    (producerMeta.promptFile
+      ? resolve(producerDir, producerMeta.promptFile)
+      : undefined);
   if (promptPath) {
     const promptData = await loadPromptFile(promptPath);
     promptConfig = promptFileToConfig(promptData);
@@ -279,7 +260,9 @@ async function selectionToVariant(
 
   let outputSchemaContent: string | undefined;
   if (producerMeta.outputSchema) {
-    outputSchemaContent = await loadJsonSchema(resolve(producerDir, producerMeta.outputSchema));
+    outputSchemaContent = await loadJsonSchema(
+      resolve(producerDir, producerMeta.outputSchema)
+    );
   }
 
   // Deep merge: prompt file defaults, then selection overrides
@@ -290,7 +273,11 @@ async function selectionToVariant(
     model: selection.model,
     config: Object.keys(config).length > 0 ? config : undefined,
     sdkMapping: undefined,
-    outputs: selection.outputs ?? (promptConfig.outputs as Record<string, BlueprintProducerOutputDefinition> | undefined),
+    outputs:
+      selection.outputs ??
+      (promptConfig.outputs as
+        | Record<string, BlueprintProducerOutputDefinition>
+        | undefined),
     inputSchema: undefined,
     outputSchema: outputSchemaContent,
     configInputPaths: flattenConfigKeys(config),
@@ -306,25 +293,30 @@ async function chooseVariant(
   producerMeta: BlueprintMeta,
   producerSourcePath: string,
   rootBlueprint: BlueprintTreeNode,
-  resolvedPromptPaths?: Map<string, string>,
+  resolvedPromptPaths?: Map<string, string>
 ): Promise<CollectedVariant> {
-  // If producer has no variants (interface-only), must have selection
+  // Producers are selection-driven: variants are supplied via inputs.yaml.
   if (variants.length === 0) {
     if (!selection) {
       throw createRuntimeError(
         RuntimeErrorCode.NO_PRODUCER_OPTIONS,
         `Producer "${producerName}" has no model configuration. ` +
-        `Provide model selection in input template.`,
+          `Provide model selection in input template.`
       );
     }
     // Convert selection directly to a variant, loading promptFile/outputSchema from producer meta
     // Also resolve SDK mapping from producer YAML
-    const variant = await selectionToVariant(selection, producerMeta, producerSourcePath, resolvedPromptPaths?.get(producerName));
+    const variant = await selectionToVariant(
+      selection,
+      producerMeta,
+      producerSourcePath,
+      resolvedPromptPaths?.get(producerName)
+    );
     const resolvedMapping = resolveSdkMappingFromProducer(
       rootBlueprint,
       producerName,
       selection.provider,
-      selection.model,
+      selection.model
     );
     return {
       ...variant,
@@ -337,7 +329,7 @@ async function chooseVariant(
     const match = variants.find(
       (variant) =>
         variant.provider.toLowerCase() === selection.provider.toLowerCase() &&
-        variant.model === selection.model,
+        variant.model === selection.model
     );
     if (match) {
       // Resolve SDK mapping from producer YAML mappings section
@@ -345,7 +337,7 @@ async function chooseVariant(
         rootBlueprint,
         producerName,
         selection.provider,
-        selection.model,
+        selection.model
       );
       return {
         ...match,
@@ -356,12 +348,17 @@ async function chooseVariant(
       };
     }
     // Selection specifies a model not in producer's variants - use selection directly
-    const variant = await selectionToVariant(selection, producerMeta, producerSourcePath, resolvedPromptPaths?.get(producerName));
+    const variant = await selectionToVariant(
+      selection,
+      producerMeta,
+      producerSourcePath,
+      resolvedPromptPaths?.get(producerName)
+    );
     const resolvedMapping = resolveSdkMappingFromProducer(
       rootBlueprint,
       producerName,
       selection.provider,
-      selection.model,
+      selection.model
     );
     return {
       ...variant,
@@ -375,7 +372,7 @@ async function chooseVariant(
       rootBlueprint,
       producerName,
       variant.provider,
-      variant.model,
+      variant.model
     );
     return {
       ...variant,
@@ -388,18 +385,20 @@ async function chooseVariant(
       rootBlueprint,
       producerName,
       variant.provider,
-      variant.model,
+      variant.model
     );
     return {
       ...variant,
       sdkMapping: resolvedMapping ?? variant.sdkMapping,
     };
   }
-  const available = variants.map((variant) => `${variant.provider}/${variant.model}`).join(', ');
+  const available = variants
+    .map((variant) => `${variant.provider}/${variant.model}`)
+    .join(', ');
   throw createRuntimeError(
     RuntimeErrorCode.AMBIGUOUS_MODEL_SELECTION,
     `Multiple model variants defined for ${producerName}. Select one in inputs.yaml. Available: ${available}`,
-    { context: producerName },
+    { context: producerName }
   );
 }
 
@@ -411,7 +410,7 @@ function resolveSdkMappingFromProducer(
   rootBlueprint: BlueprintTreeNode,
   producerId: string,
   provider: string,
-  model: string,
+  model: string
 ): Record<string, MappingFieldDefinition> | undefined {
   const resolved = resolveMappingsForModel(rootBlueprint, {
     provider,
@@ -422,7 +421,7 @@ function resolveSdkMappingFromProducer(
 }
 
 export function buildProducerCatalog(
-  options: ProducerOptionsMap,
+  options: ProducerOptionsMap
 ): ProducerCatalog {
   const catalog: Record<string, ProducerCatalogEntry> = {};
   for (const [producer, entries] of options) {
@@ -430,7 +429,7 @@ export function buildProducerCatalog(
       throw createRuntimeError(
         RuntimeErrorCode.NO_PRODUCER_OPTIONS,
         `No producer options defined for "${producer}".`,
-        { context: producer },
+        { context: producer }
       );
     }
     const primary = entries[0]!;
@@ -446,4 +445,3 @@ function toCatalogEntry(option: LoadedProducerOption): ProducerCatalogEntry {
     rateKey: `${option.provider}:${option.model}`,
   };
 }
-

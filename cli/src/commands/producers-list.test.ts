@@ -2,13 +2,15 @@
 import process from 'node:process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runInit } from './init.js';
 import { runProducersList } from './producers-list.js';
 import { readCliConfig } from '../lib/cli-config.js';
-import { getCliBlueprintsRoot } from '../lib/config-assets.js';
-import { CLI_FIXTURES_CATALOG } from '../../tests/test-catalog-paths.js';
+import {
+	CLI_FIXTURES_BLUEPRINTS,
+	CLI_FIXTURES_CATALOG,
+} from '../../tests/test-catalog-paths.js';
 
 const tmpRoots: string[] = [];
 const originalEnv = { ...process.env };
@@ -42,7 +44,7 @@ async function createTempRoot(): Promise<string> {
 }
 
 describe('runProducersList', () => {
-	it('returns empty entries for interface-only producers', async () => {
+	it('returns empty entries for selection-driven producer blueprints', async () => {
 		const root = await createTempRoot();
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
@@ -55,16 +57,16 @@ describe('runProducersList', () => {
 		const cliConfig = await readCliConfig(cliConfigPath);
 		expect(cliConfig).not.toBeNull();
 
-		// Use fixture blueprint with only interface/path-based producers.
-		const blueprintPath = join(
-			getCliBlueprintsRoot(root),
-			'interface-only',
-			'interface-only.yaml'
+		// Use CLI fixture blueprint with local producer modules (no embedded model variants).
+		const blueprintPath = resolve(
+			CLI_FIXTURES_BLUEPRINTS,
+			'input-binding-dimensions',
+			'sibling-dimension-unification',
+			'sibling-dimension-unification.yaml'
 		);
 		const result = await runProducersList({ blueprintPath });
 
-		// Interface-only producers have no models defined, so entries are empty
-		// Models are now specified in input templates, not in producer definitions
+		// Producer/model selection is defined in input templates, not producer declarations.
 		expect(result.entries).toEqual([]);
 
 		// missingTokens should still be a Map

@@ -55,6 +55,18 @@ class NodeFilesystemReader implements BlueprintResourceReader {
 
 const defaultReader = new NodeFilesystemReader();
 
+const ALLOWED_TOP_LEVEL_BLUEPRINT_SECTIONS = new Set([
+  'meta',
+  'inputs',
+  'artifacts',
+  'loops',
+  'producers',
+  'connections',
+  'collectors',
+  'conditions',
+  'mappings',
+]);
+
 export function createFlyStorageBlueprintReader(
   storage: FileStorage,
   rootDir: string
@@ -91,6 +103,7 @@ export async function parseYamlBlueprintFile(
       { filePath }
     );
   }
+  assertKnownTopLevelSections(raw as Record<string, unknown>, filePath);
   const meta = parseMeta(raw.meta, filePath);
 
   const inputs = Array.isArray(raw.inputs)
@@ -120,21 +133,13 @@ export async function parseYamlBlueprintFile(
   const producers: ProducerConfig[] = [];
   const isProducerBlueprint = producerImports.length === 0;
   if (isProducerBlueprint) {
-    // Interface-only producer - models will be provided in input template
-    // Just create a producer entry with the name from meta
+    // Producer blueprint/module: model selection comes from inputs.yaml.
     producers.push({
       name: meta.id,
-      // No provider, model, or models - these come from input template's model selection
     });
     if (edges.length === 0) {
       edges = inferProducerEdges(inputs, artefacts, meta.id);
     }
-  } else if (Array.isArray(raw.models) && raw.models.length > 0) {
-    throw createParserError(
-      ParserErrorCode.INVALID_PRODUCER_ENTRY,
-      `Blueprint YAML at ${filePath} defines producers and models. Only producer leaf blueprints should declare models.`,
-      { filePath }
-    );
   }
   if (raw.collectors !== undefined) {
     throw createParserError(
@@ -297,11 +302,31 @@ interface RawBlueprint {
   producers?: unknown[];
   connections?: unknown[];
   collectors?: unknown[];
-  models?: unknown[];
   /** Named condition definitions for reuse across edges */
   conditions?: Record<string, unknown>;
   /** Provider/model-specific SDK mappings */
   mappings?: unknown;
+}
+
+function assertKnownTopLevelSections(
+  raw: Record<string, unknown>,
+  filePath: string
+): void {
+  const unknownSections = Object.keys(raw).filter(
+    (key) => !ALLOWED_TOP_LEVEL_BLUEPRINT_SECTIONS.has(key)
+  );
+  if (unknownSections.length === 0) {
+    return;
+  }
+
+  throw createParserError(
+    ParserErrorCode.INVALID_YAML_DOCUMENT,
+    `Blueprint YAML at ${filePath} contains unknown top-level section(s): ${unknownSections.join(', ')}.`,
+    {
+      filePath,
+      suggestion: `Allowed sections: ${Array.from(ALLOWED_TOP_LEVEL_BLUEPRINT_SECTIONS).join(', ')}`,
+    }
+  );
 }
 
 function parseMeta(raw: unknown, filePath: string): BlueprintDocument['meta'] {

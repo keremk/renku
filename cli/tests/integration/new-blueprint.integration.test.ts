@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runNewBlueprint } from '../../src/commands/new-blueprint.js';
-import { CLI_FIXTURES_CATALOG } from '../test-catalog-paths.js';
+import { CLI_TEST_FIXTURES_ROOT } from '../test-catalog-paths.js';
 import { isRenkuError, RuntimeErrorCode } from '@gorenku/core';
 
 describe('new:blueprint command', () => {
@@ -141,14 +141,14 @@ describe('new:blueprint command', () => {
 	describe('--using flag (copy from catalog)', () => {
 		it('copies blueprint from catalog with all files and renames blueprint YAML', async () => {
 			const result = await runNewBlueprint({
-				name: 'my-cinematic-template',
+				name: 'my-conditional-template',
 				outputDir: tempDir,
-				using: 'cinematic-template',
-				catalogRoot: CLI_FIXTURES_CATALOG,
+				using: 'conditional-logic/conditional-multi-source-fanin',
+				catalogRoot: CLI_TEST_FIXTURES_ROOT,
 			});
 
 			expect(result.copiedFromCatalog).toBe(true);
-			expect(result.folderPath).toBe(join(tempDir, 'my-cinematic-template'));
+			expect(result.folderPath).toBe(join(tempDir, 'my-conditional-template'));
 
 			// Check folder was created
 			await expect(access(result.folderPath)).resolves.toBeUndefined();
@@ -158,27 +158,26 @@ describe('new:blueprint command', () => {
 			expect(files).toContain('input-template.yaml');
 
 			// Blueprint YAML should be renamed to match the new name
-			expect(files).toContain('my-cinematic-template.yaml');
+			expect(files).toContain('my-conditional-template.yaml');
 			expect(result.blueprintPath).toBe(
-				join(tempDir, 'my-cinematic-template', 'my-cinematic-template.yaml')
+				join(tempDir, 'my-conditional-template', 'my-conditional-template.yaml')
 			);
 
 			// Original file should not exist
-			expect(files).not.toContain('cinematic-template.yaml');
+			expect(files).not.toContain('conditional-multi-source-fanin.yaml');
 		});
 
 		it('copies subdirectories from catalog blueprint', async () => {
 			const result = await runNewBlueprint({
-				name: 'my-cinematic-template',
+				name: 'my-conditional-template',
 				outputDir: tempDir,
-				using: 'cinematic-template',
-				catalogRoot: CLI_FIXTURES_CATALOG,
+				using: 'conditional-logic/conditional-multi-source-fanin',
+				catalogRoot: CLI_TEST_FIXTURES_ROOT,
 			});
 
 			const files = await readdir(result.folderPath);
-			// Fixture template has subdirectories like 'script' and 'image'
-			expect(files).toContain('script');
-			expect(files).toContain('image');
+			// Fixture template has a producer subdirectory.
+			expect(files).toContain('director');
 		});
 
 		it('throws error when blueprint not found in catalog', async () => {
@@ -187,7 +186,7 @@ describe('new:blueprint command', () => {
 					name: 'my-blueprint',
 					outputDir: tempDir,
 					using: 'non-existent-blueprint',
-					catalogRoot: CLI_FIXTURES_CATALOG,
+					catalogRoot: CLI_TEST_FIXTURES_ROOT,
 				});
 				expect.fail('Should have thrown an error');
 			} catch (error) {
@@ -205,7 +204,7 @@ describe('new:blueprint command', () => {
 				runNewBlueprint({
 					name: 'my-blueprint',
 					outputDir: tempDir,
-					using: 'cinematic-template',
+					using: 'conditional-logic/conditional-multi-source-fanin',
 					// catalogRoot not provided
 				})
 			).rejects.toThrow('Catalog root is required');

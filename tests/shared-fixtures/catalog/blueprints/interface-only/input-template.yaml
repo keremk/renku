@@ -1,7 +1,0 @@
-inputs:
-  Prompt: 'Write one concise paragraph about cinematic storytelling.'
-
-models:
-  - model: gpt-5.2
-    provider: openai
-    producerId: ScriptProducer

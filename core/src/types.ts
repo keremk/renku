@@ -165,24 +165,15 @@ export interface SubBlueprintRef {
 }
 
 /**
- * Producer configuration (inline in blueprint).
- * All properties beyond the core ones are provider-specific and passed through as-is.
+ * Producer configuration entry in a loaded blueprint tree.
+ *
+ * Producer/model selection is authored in `inputs.yaml` under `models`, not in
+ * blueprint YAML producer declarations.
  */
 export interface ProducerConfig {
   name: string; // Must match ProducerKind
-  // Legacy single-model fields (kept for backward compatibility)
-  provider?: ProviderName;
-  model?: string;
-  systemPrompt?: string;
-  userPrompt?: string;
-  jsonSchema?: string;
-  textFormat?: string;
-  variables?: string[];
   sdkMapping?: Record<string, BlueprintProducerSdkMappingField>;
   outputs?: Record<string, BlueprintProducerOutputDefinition>;
-  config?: Record<string, unknown>;
-  // Preferred multi-model definition
-  models?: ProducerModelVariant[];
   // Any other provider-specific attributes
   [key: string]: unknown;
 }
@@ -311,23 +302,6 @@ export interface BlueprintProducerSdkMappingField {
 export interface BlueprintProducerOutputDefinition {
   type: string;
   mimeType?: string;
-}
-
-export interface ProducerModelVariant {
-  provider: ProviderName;
-  model: string;
-  promptFile?: string;
-  inputSchema?: string;
-  outputSchema?: string;
-  /** Parsed JSON schema for structured output (if outputSchema is provided) */
-  outputSchemaParsed?: JsonSchemaDefinition;
-  inputs?: Record<string, BlueprintProducerSdkMappingField>;
-  outputs?: Record<string, BlueprintProducerOutputDefinition>;
-  config?: Record<string, unknown>;
-  systemPrompt?: string;
-  userPrompt?: string;
-  textFormat?: string;
-  variables?: string[];
 }
 
 export interface BlueprintEdgeDefinition {

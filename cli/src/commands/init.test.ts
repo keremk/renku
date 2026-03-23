@@ -42,14 +42,8 @@ describe('runInit', () => {
 		expect(gitignoreStats.isFile()).toBe(true);
 		expect(result.gitignoreCreated).toBe(true);
 
-		const blueprintStats = await stat(
-			join(
-				getCliBlueprintsRoot(result.rootFolder),
-				'interface-only',
-				'interface-only.yaml'
-			)
-		);
-		expect(blueprintStats.isFile()).toBe(true);
+		const blueprintsStats = await stat(getCliBlueprintsRoot(result.rootFolder));
+		expect(blueprintsStats.isDirectory()).toBe(true);
 		const modelStats = await stat(
 			join(
 				getCliCatalogRoot(result.rootFolder),

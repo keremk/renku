@@ -20,7 +20,28 @@ const catalogRoot = CATALOG_ROOT;
 const yamlRoot = CATALOG_BLUEPRINTS_ROOT;
 
 describe('parseYamlBlueprintFile', () => {
-  it('parses interface-only producer with meta, inputs, and artifacts', async () => {
+  it('rejects unknown top-level sections', async () => {
+    const reader = {
+      readFile: async () => `
+meta:
+  id: InvalidBlueprint
+  name: Invalid Blueprint
+artifacts:
+  - name: Output
+    type: string
+models:
+  - producerId: ScriptProducer
+    provider: openai
+    model: gpt-5-mini
+`,
+    };
+
+    await expect(
+      parseYamlBlueprintFile('/virtual/invalid.yaml', { reader })
+    ).rejects.toThrow(/unknown top-level section/i);
+  });
+
+  it('parses producer blueprint with meta, inputs, and artifacts', async () => {
     const modulePath = resolve(
       SHARED_BLUEPRINT_MODULES_ROOT,
       'script',
@@ -31,9 +52,6 @@ describe('parseYamlBlueprintFile', () => {
     expect(document.producers).toHaveLength(1);
     const producer = document.producers[0];
     expect(producer.name).toBe('ScriptProducer');
-    // Interface-only producers have no model definitions - those come from input templates
-    expect(producer.model).toBeUndefined();
-    expect(producer.models).toBeUndefined();
   });
 
   it('parses promptFile and outputSchema from producer meta section', async () => {
