@@ -5,6 +5,7 @@ import { LocalStorageAdapter } from '@flystorage/local-fs';
 import {
   createFlyStorageBlueprintReader,
   loadYamlBlueprintTree,
+  parseMappingsSection,
   parseYamlBlueprintFile,
 } from './yaml-parser.js';
 import {
@@ -84,6 +85,75 @@ describe('parseYamlBlueprintFile', () => {
       field: 'image_urls',
       asArray: true,
     });
+  });
+
+  it('parses mapping input overrides and resolution transforms', async () => {
+    const mappings = parseMappingsSection({
+      'fal-ai': {
+        'veo3.1/extend-video': {
+          Resolution: {
+            expand: true,
+            resolution: {
+              mode: 'aspectRatioAndPresetObject',
+              aspectRatioField: 'aspect_ratio',
+              presetField: 'resolution',
+            },
+          },
+        },
+        'ltx-2-19b/distilled/extend-video': {
+          Resolution: {
+            field: 'video_size',
+          },
+        },
+      },
+    });
+
+    const veoResolutionMapping =
+      mappings?.['fal-ai']?.['veo3.1/extend-video']?.Resolution;
+    const ltxResolutionMapping =
+      mappings?.['fal-ai']?.['ltx-2-19b/distilled/extend-video']?.Resolution;
+
+    expect(veoResolutionMapping).toEqual({
+      expand: true,
+      resolution: {
+        mode: 'aspectRatioAndPresetObject',
+        aspectRatioField: 'aspect_ratio',
+        presetField: 'resolution',
+      },
+    });
+    expect(ltxResolutionMapping).toEqual({
+      field: 'video_size',
+    });
+  });
+
+  it('rejects invalid resolution transform modes', () => {
+    expect(() =>
+      parseMappingsSection({
+        'fal-ai': {
+          'fixture/model': {
+            Size: {
+              field: 'size',
+              resolution: { mode: 'bogusMode' },
+            },
+          },
+        },
+      })
+    ).toThrow(/Invalid resolution transform mode/);
+  });
+
+  it('rejects aspectRatioAndPresetObject without required fields', () => {
+    expect(() =>
+      parseMappingsSection({
+        'fal-ai': {
+          'fixture/model': {
+            Resolution: {
+              expand: true,
+              resolution: { mode: 'aspectRatioAndPresetObject' },
+            },
+          },
+        },
+      })
+    ).toThrow(/requires aspectRatioField and presetField/);
   });
 
   it('parses countInputOffset for array artefacts', async () => {

@@ -23,6 +23,7 @@ import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 const SYSTEM_INPUT_NAMES = new Set<string>([
   SYSTEM_INPUTS.DURATION,
   SYSTEM_INPUTS.NUM_OF_SEGMENTS,
+  SYSTEM_INPUTS.RESOLUTION,
   SYSTEM_INPUTS.SEGMENT_DURATION,
   SYSTEM_INPUTS.MOVIE_ID,
   SYSTEM_INPUTS.STORAGE_ROOT,
@@ -1196,11 +1197,16 @@ function getSystemInputType(name: string): string {
     case SYSTEM_INPUTS.NUM_OF_SEGMENTS:
     case SYSTEM_INPUTS.SEGMENT_DURATION:
       return 'number';
+    case SYSTEM_INPUTS.RESOLUTION:
+      return 'resolution';
     case SYSTEM_INPUTS.MOVIE_ID:
     case SYSTEM_INPUTS.STORAGE_ROOT:
     case SYSTEM_INPUTS.STORAGE_BASE_PATH:
       return 'string';
     default:
-      return 'any';
+      throw createRuntimeError(
+        RuntimeErrorCode.GRAPH_BUILD_ERROR,
+        `Unknown system input "${name}".`
+      );
   }
 }

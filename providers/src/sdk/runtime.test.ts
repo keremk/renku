@@ -1,16 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { createProducerRuntime } from './runtime.js';
 import type { ProviderJobContext } from '../types.js';
-import { SdkErrorCode } from '@gorenku/core';
+import { SdkErrorCode, type MappingFieldDefinition } from '@gorenku/core';
 
 // Helper to create a minimal job context for testing
 function createTestJobContext(
   resolvedInputs: Record<string, unknown>,
   inputBindings: Record<string, string>,
-  sdkMapping: Record<
-    string,
-    { field: string; transform?: Record<string, unknown>; expand?: boolean }
-  >
+  sdkMapping: Record<string, MappingFieldDefinition>
 ): ProviderJobContext {
   return {
     jobId: 'test-job',
@@ -146,6 +143,37 @@ describe('createProducerRuntime', () => {
 
       expect(payload).toEqual({
         prompt: 'test prompt',
+      });
+    });
+
+    it('supports one Resolution mapping projected to multiple payload fields', async () => {
+      const request = createTestJobContext(
+        { 'Input:Resolution': { width: 1280, height: 720 } },
+        { Resolution: 'Input:Resolution' },
+        {
+          Resolution: {
+            expand: true,
+            resolution: {
+              mode: 'aspectRatioAndPresetObject',
+              aspectRatioField: 'aspect_ratio',
+              presetField: 'resolution',
+            },
+          },
+        }
+      );
+
+      const runtime = createProducerRuntime({
+        descriptor: { provider: 'test', model: 'test', environment: 'local' },
+        domain: 'media',
+        request,
+        mode: 'live',
+      });
+
+      const payload = await runtime.sdk.buildPayload(undefined, undefined);
+
+      expect(payload).toEqual({
+        aspect_ratio: '16:9',
+        resolution: '720p',
       });
     });
 

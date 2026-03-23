@@ -886,11 +886,12 @@ describe('edge cases', () => {
 
   it('injects all system inputs when referenced in edges without declaration', () => {
     // Test scenario: Blueprint references all system inputs without declaring them
-    // System inputs: Duration, NumOfSegments, SegmentDuration, MovieId, StorageRoot, StorageBasePath
+    // System inputs: Duration, NumOfSegments, Resolution, SegmentDuration, MovieId, StorageRoot, StorageBasePath
     const exporterDoc = makeBlueprintDocument(
       'Exporter',
       [
         { name: 'Timeline', type: 'json', required: true },
+        { name: 'Resolution', type: 'resolution', required: true },
         { name: 'MovieId', type: 'string', required: true },
         { name: 'StorageRoot', type: 'string', required: true },
         { name: 'StorageBasePath', type: 'string', required: true },
@@ -899,6 +900,7 @@ describe('edge cases', () => {
       [{ name: 'VideoExporter', provider: 'renku', model: 'export' }],
       [
         { from: 'Timeline', to: 'VideoExporter' },
+        { from: 'Resolution', to: 'VideoExporter' },
         { from: 'MovieId', to: 'VideoExporter' },
         { from: 'StorageRoot', to: 'VideoExporter' },
         { from: 'StorageBasePath', to: 'VideoExporter' },
@@ -917,6 +919,7 @@ describe('edge cases', () => {
       [
         { from: 'Timeline', to: 'Exporter.Timeline' },
         // Reference system inputs without declaring them
+        { from: 'Resolution', to: 'Exporter.Resolution' },
         { from: 'MovieId', to: 'Exporter.MovieId' },
         { from: 'StorageRoot', to: 'Exporter.StorageRoot' },
         { from: 'StorageBasePath', to: 'Exporter.StorageBasePath' },
@@ -937,6 +940,9 @@ describe('edge cases', () => {
     const movieIdNode = graph.nodes.find(
       (n) => n.type === 'InputSource' && n.name === 'MovieId'
     );
+    const resolutionNode = graph.nodes.find(
+      (n) => n.type === 'InputSource' && n.name === 'Resolution'
+    );
     const storageRootNode = graph.nodes.find(
       (n) => n.type === 'InputSource' && n.name === 'StorageRoot'
     );
@@ -945,17 +951,22 @@ describe('edge cases', () => {
     );
 
     expect(movieIdNode).toBeDefined();
+    expect(resolutionNode).toBeDefined();
     expect(storageRootNode).toBeDefined();
     expect(storageBasePathNode).toBeDefined();
 
     // All should be marked as optional (system inputs)
     expect(movieIdNode?.input?.required).toBe(false);
+    expect(resolutionNode?.input?.required).toBe(false);
     expect(storageRootNode?.input?.required).toBe(false);
     expect(storageBasePathNode?.input?.required).toBe(false);
 
     // Verify edges exist from each system input
     const edgeFromMovieId = graph.edges.find(
       (e) => e.from.nodeId === 'MovieId'
+    );
+    const edgeFromResolution = graph.edges.find(
+      (e) => e.from.nodeId === 'Resolution'
     );
     const edgeFromStorageRoot = graph.edges.find(
       (e) => e.from.nodeId === 'StorageRoot'
@@ -965,6 +976,7 @@ describe('edge cases', () => {
     );
 
     expect(edgeFromMovieId).toBeDefined();
+    expect(edgeFromResolution).toBeDefined();
     expect(edgeFromStorageRoot).toBeDefined();
     expect(edgeFromStorageBasePath).toBeDefined();
   });
@@ -1018,6 +1030,7 @@ describe('edge cases', () => {
         // Reference various system inputs to trigger injection
         { from: 'Duration', to: 'Producer' },
         { from: 'NumOfSegments', to: 'Producer' },
+        { from: 'Resolution', to: 'Producer' },
         { from: 'SegmentDuration', to: 'Producer' },
         { from: 'MovieId', to: 'Producer' },
         { from: 'StorageRoot', to: 'Producer' },
@@ -1039,10 +1052,14 @@ describe('edge cases', () => {
     const segmentDurationNode = graph.nodes.find(
       (n) => n.type === 'InputSource' && n.name === 'SegmentDuration'
     );
+    const resolutionNode = graph.nodes.find(
+      (n) => n.type === 'InputSource' && n.name === 'Resolution'
+    );
 
     expect(durationNode?.input?.type).toBe('number');
     expect(numOfSegmentsNode?.input?.type).toBe('number');
     expect(segmentDurationNode?.input?.type).toBe('number');
+    expect(resolutionNode?.input?.type).toBe('resolution');
 
     // Verify types for string system inputs
     const movieIdNode = graph.nodes.find(

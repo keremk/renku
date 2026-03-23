@@ -3,7 +3,7 @@ import { SYSTEM_INPUTS } from '../types.js';
 export type SystemInputName =
   (typeof SYSTEM_INPUTS)[keyof typeof SYSTEM_INPUTS];
 export type SystemInputKind = 'user' | 'derived' | 'runtime';
-export type SystemInputValueType = 'number' | 'string';
+export type SystemInputValueType = 'number' | 'string' | 'resolution';
 
 interface SystemInputMetadata {
   type: SystemInputValueType;
@@ -29,6 +29,12 @@ export const SYSTEM_INPUT_DEFINITIONS = {
     kind: 'user',
     userSupplied: true,
     description: 'System input: NumOfSegments',
+  },
+  [SYSTEM_INPUTS.RESOLUTION]: {
+    type: 'resolution',
+    kind: 'user',
+    userSupplied: true,
+    description: 'System input: Resolution',
   },
   [SYSTEM_INPUTS.SEGMENT_DURATION]: {
     type: 'number',
@@ -87,6 +93,7 @@ export function listSystemInputDefinitions(): SystemInputDefinition[] {
 export const SYSTEM_INPUT_IDS = {
   DURATION: `Input:${SYSTEM_INPUTS.DURATION}`,
   NUM_OF_SEGMENTS: `Input:${SYSTEM_INPUTS.NUM_OF_SEGMENTS}`,
+  RESOLUTION: `Input:${SYSTEM_INPUTS.RESOLUTION}`,
   SEGMENT_DURATION: `Input:${SYSTEM_INPUTS.SEGMENT_DURATION}`,
   MOVIE_ID: `Input:${SYSTEM_INPUTS.MOVIE_ID}`,
   STORAGE_ROOT: `Input:${SYSTEM_INPUTS.STORAGE_ROOT}`,

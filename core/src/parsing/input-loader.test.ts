@@ -910,6 +910,74 @@ describe('input-loader edge cases', () => {
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
     expect(loaded.values['Input:Tags']).toEqual(['tag1', 'tag2', 'tag3']);
   });
+
+  it('accepts resolution inputs as width/height objects', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-resolution-input-'));
+    const blueprint: BlueprintTreeNode = {
+      id: 'ResolutionBlueprint',
+      namespacePath: [],
+      document: {
+        meta: { id: 'ResolutionBlueprint', name: 'Resolution Blueprint' },
+        inputs: [{ name: 'Resolution', type: 'resolution', required: true }],
+        artefacts: [],
+        producers: [],
+        producerImports: [],
+        edges: [],
+      },
+      children: new Map(),
+      sourcePath: '/test/resolution-blueprint.yaml',
+    };
+    const savedPath = join(workdir, 'inputs.yaml');
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {
+          Resolution: { width: 1920, height: 1080 },
+        },
+      }),
+      'utf8'
+    );
+
+    const loaded = await loadInputsFromYaml(savedPath, blueprint);
+    expect(loaded.values['Input:Resolution']).toEqual({
+      width: 1920,
+      height: 1080,
+    });
+  });
+
+  it('rejects invalid resolution inputs', async () => {
+    const workdir = await mkdtemp(join(tmpdir(), 'renku-resolution-invalid-'));
+    const blueprint: BlueprintTreeNode = {
+      id: 'ResolutionBlueprint',
+      namespacePath: [],
+      document: {
+        meta: { id: 'ResolutionBlueprint', name: 'Resolution Blueprint' },
+        inputs: [{ name: 'Resolution', type: 'resolution', required: true }],
+        artefacts: [],
+        producers: [],
+        producerImports: [],
+        edges: [],
+      },
+      children: new Map(),
+      sourcePath: '/test/resolution-blueprint.yaml',
+    };
+    const savedPath = join(workdir, 'inputs.yaml');
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {
+          Resolution: '1080p',
+        },
+      }),
+      'utf8'
+    );
+
+    await expect(loadInputsFromYaml(savedPath, blueprint)).rejects.toThrow(
+      /must be an object with positive integer width and height/
+    );
+  });
 });
 
 describe('parseInputsForDisplay', () => {

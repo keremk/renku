@@ -81,6 +81,7 @@ export async function loadInputsFromYaml(
   ];
   const resolver = createInputIdResolver(blueprint, syntheticInputs);
   const values = canonicalizeInputs(regularInputs, resolver);
+  validateResolutionInputValues(values, resolver.entries, filePath);
 
   // Skip YAML-based required validation for producers
   // (JSON schema from model is the source of truth for producers)
@@ -119,6 +120,49 @@ export async function loadInputsFromYaml(
   );
 
   return { values: resolvedValues, modelSelections, artifactOverrides };
+}
+
+function validateResolutionInputValues(
+  values: Record<string, unknown>,
+  entries: CanonicalInputEntry[],
+  filePath: string
+): void {
+  for (const entry of entries) {
+    if (entry.definition.type.toLowerCase() !== 'resolution') {
+      continue;
+    }
+
+    const value = values[entry.canonicalId];
+    if (value === undefined) {
+      continue;
+    }
+
+    if (!isResolutionInputValue(value)) {
+      throw createParserError(
+        ParserErrorCode.INVALID_INPUT_ENTRY,
+        `Input "${entry.canonicalId}" must be an object with positive integer width and height.`,
+        { filePath }
+      );
+    }
+  }
+}
+
+function isResolutionInputValue(
+  value: unknown
+): value is { width: number; height: number } {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.width === 'number' &&
+    Number.isInteger(record.width) &&
+    record.width > 0 &&
+    typeof record.height === 'number' &&
+    Number.isInteger(record.height) &&
+    record.height > 0
+  );
 }
 
 function validateYamlExtension(filePath: string): void {

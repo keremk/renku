@@ -8,6 +8,7 @@ export const SYSTEM_INPUTS = {
   // User-provided system inputs
   DURATION: 'Duration',
   NUM_OF_SEGMENTS: 'NumOfSegments',
+  RESOLUTION: 'Resolution',
 
   // Auto-computed system inputs
   SEGMENT_DURATION: 'SegmentDuration',
@@ -280,6 +281,8 @@ export interface BlueprintArtefactDefinition {
 }
 
 export interface BlueprintProducerSdkMappingField {
+  /** Source producer input alias. Defaults to the mapping key when omitted. */
+  input?: string;
   /** Target API field name. Optional when using expand:true */
   field?: string;
   type?: string;
@@ -301,6 +304,8 @@ export interface BlueprintProducerSdkMappingField {
   firstOf?: boolean;
   /** Wrap scalar value as single-element array (arrays pass through unchanged) */
   asArray?: boolean;
+  /** Apply typed projection for Resolution inputs */
+  resolution?: ResolutionTransformConfig;
 }
 
 export interface BlueprintProducerOutputDefinition {
@@ -830,10 +835,42 @@ export interface DurationToFramesConfig {
 }
 
 /**
+ * Resolution transform configuration.
+ *
+ * Applies typed projections to inputs declared as `type: resolution`.
+ */
+export interface ResolutionTransformConfig {
+  /**
+   * Projection mode.
+   * - aspectRatio: "16:9"
+   * - preset: "720p" (derived from short edge)
+   * - sizeToken: "1K"/"2K"/"3K"/"4K" (derived from long edge)
+   * - aspectRatioAndPreset: "16:9+720p"
+   * - aspectRatioAndPresetObject: { [aspectRatioField]: "16:9", [presetField]: "720p" }
+   * - width: numeric width
+   * - height: numeric height
+   */
+  mode:
+    | 'aspectRatio'
+    | 'preset'
+    | 'sizeToken'
+    | 'aspectRatioAndPreset'
+    | 'aspectRatioAndPresetObject'
+    | 'width'
+    | 'height';
+  /** Required when mode is aspectRatioAndPresetObject */
+  aspectRatioField?: string;
+  /** Required when mode is aspectRatioAndPresetObject */
+  presetField?: string;
+}
+
+/**
  * SDK mapping field definition with all transform types.
  * Supports: simple (string), transform, combine, conditional, firstOf, asArray, invert, intToString, intToSecondsString, durationToFrames.
  */
 export interface MappingFieldDefinition {
+  /** Source producer input alias. Defaults to the mapping key when omitted. */
+  input?: string;
   /** Target API field name (supports dot notation for nested: "voice_setting.voice_id") */
   field?: string;
   /** Type hint for the field */
@@ -858,6 +895,8 @@ export interface MappingFieldDefinition {
   intToSecondsString?: boolean;
   /** Convert duration (seconds) to frame count */
   durationToFrames?: DurationToFramesConfig;
+  /** Apply typed projection for Resolution inputs */
+  resolution?: ResolutionTransformConfig;
 }
 
 /**

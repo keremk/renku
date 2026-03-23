@@ -28,6 +28,7 @@ import type {
   ProducerConfig,
   ProducerImportDefinition,
   ProducerMappings,
+  ResolutionTransformConfig,
 } from '../../types.js';
 import { parseDimensionSelector } from '../dimension-selectors.js';
 import { deriveDimensionName } from '../../resolution/schema-decomposition.js';
@@ -895,12 +896,15 @@ export function parseSdkMapping(
       );
     }
     mapping[key] = {
+      input:
+        typeof fieldConfig.input === 'string' ? fieldConfig.input : undefined,
       field,
       type: typeof fieldConfig.type === 'string' ? fieldConfig.type : undefined,
       transform: parseTransform(fieldConfig.transform),
       expand: isExpand ? true : undefined,
       firstOf: fieldConfig.firstOf === true ? true : undefined,
       asArray: fieldConfig.asArray === true ? true : undefined,
+      resolution: parseResolutionTransform(fieldConfig.resolution, key),
     };
   }
   return Object.keys(mapping).length ? mapping : undefined;
@@ -1248,6 +1252,10 @@ function parseMappingValue(raw: unknown, context: string): MappingValue {
     result.field = obj.field;
   }
 
+  if (typeof obj.input === 'string') {
+    result.input = obj.input;
+  }
+
   // Parse transform (value lookup table)
   if (obj.transform !== undefined) {
     if (typeof obj.transform !== 'object' || obj.transform === null) {
@@ -1310,6 +1318,10 @@ function parseMappingValue(raw: unknown, context: string): MappingValue {
     result.durationToFrames = { fps: dtf.fps };
   }
 
+  if (obj.resolution !== undefined) {
+    result.resolution = parseResolutionTransform(obj.resolution, context);
+  }
+
   // Validate: mapping must have at least one of: field, expand, combine, or conditional
   // (combine and conditional implicitly provide output targets)
   const hasOutputTarget =
@@ -1326,6 +1338,83 @@ function parseMappingValue(raw: unknown, context: string): MappingValue {
   }
 
   return result;
+}
+
+function parseResolutionTransform(
+  raw: unknown,
+  context: string
+): ResolutionTransformConfig | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw createParserError(
+      ParserErrorCode.INVALID_MAPPING_VALUE,
+      `Invalid resolution transform at "${context}": expected object with mode.`
+    );
+  }
+
+  const value = raw as Record<string, unknown>;
+  const mode = value.mode;
+  if (typeof mode !== 'string') {
+    throw createParserError(
+      ParserErrorCode.INVALID_MAPPING_VALUE,
+      `Invalid resolution transform at "${context}": missing string mode.`
+    );
+  }
+
+  const validModes = new Set([
+    'aspectRatio',
+    'preset',
+    'sizeToken',
+    'aspectRatioAndPreset',
+    'aspectRatioAndPresetObject',
+    'width',
+    'height',
+  ]);
+
+  if (!validModes.has(mode)) {
+    throw createParserError(
+      ParserErrorCode.INVALID_MAPPING_VALUE,
+      `Invalid resolution transform mode "${mode}" at "${context}".`
+    );
+  }
+
+  const parsed: ResolutionTransformConfig = {
+    mode: mode as ResolutionTransformConfig['mode'],
+  };
+
+  if (value.aspectRatioField !== undefined) {
+    if (typeof value.aspectRatioField !== 'string') {
+      throw createParserError(
+        ParserErrorCode.INVALID_MAPPING_VALUE,
+        `Invalid resolution transform at "${context}": aspectRatioField must be a string.`
+      );
+    }
+    parsed.aspectRatioField = value.aspectRatioField;
+  }
+
+  if (value.presetField !== undefined) {
+    if (typeof value.presetField !== 'string') {
+      throw createParserError(
+        ParserErrorCode.INVALID_MAPPING_VALUE,
+        `Invalid resolution transform at "${context}": presetField must be a string.`
+      );
+    }
+    parsed.presetField = value.presetField;
+  }
+
+  if (parsed.mode === 'aspectRatioAndPresetObject') {
+    if (!parsed.aspectRatioField || !parsed.presetField) {
+      throw createParserError(
+        ParserErrorCode.INVALID_MAPPING_VALUE,
+        `Invalid resolution transform at "${context}": aspectRatioAndPresetObject requires aspectRatioField and presetField.`
+      );
+    }
+  }
+
+  return parsed;
 }
 
 /**

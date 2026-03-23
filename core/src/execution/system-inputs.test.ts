@@ -35,11 +35,20 @@ describe('execution/system-inputs', () => {
   it('recognizes known system input names', () => {
     expect(isSystemInputName('Duration')).toBe(true);
     expect(isSystemInputName('NumOfSegments')).toBe(true);
+    expect(isSystemInputName('Resolution')).toBe(true);
     expect(isSystemInputName('SegmentDuration')).toBe(true);
     expect(isSystemInputName('MovieId')).toBe(true);
     expect(isSystemInputName('StorageRoot')).toBe(true);
     expect(isSystemInputName('StorageBasePath')).toBe(true);
     expect(isSystemInputName('Topic')).toBe(false);
+  });
+
+  it('marks Resolution as user-supplied resolution type', () => {
+    const resolution = getSystemInputDefinition(SYSTEM_INPUTS.RESOLUTION);
+
+    expect(resolution.kind).toBe('user');
+    expect(resolution.userSupplied).toBe(true);
+    expect(resolution.type).toBe('resolution');
   });
 
   it('injects derived SegmentDuration when missing', () => {

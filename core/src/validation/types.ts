@@ -129,6 +129,7 @@ export const VALID_INPUT_TYPES = new Set([
   'video',
   'audio',
   'json',
+  'resolution',
 ]);
 
 /**
@@ -154,6 +155,7 @@ export const VALID_ITEM_TYPES = new Set([
   'video',
   'audio',
   'json',
+  'resolution',
   'number',
   'integer',
   'boolean',

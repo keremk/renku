@@ -65,6 +65,89 @@ describe('transforms', () => {
 
       expect(result).toBeUndefined();
     });
+
+    it('supports mapping.input source override', () => {
+      const context = createContext({
+        Resolution: { width: 1920, height: 1080 },
+      });
+      const mapping: MappingFieldDefinition = {
+        input: 'Resolution',
+        field: 'aspect_ratio',
+        resolution: { mode: 'aspectRatio' },
+      };
+
+      const result = applyMapping('AspectRatio', mapping, context);
+
+      expect(result).toEqual({ field: 'aspect_ratio', value: '16:9' });
+    });
+  });
+
+  describe('resolution transform', () => {
+    it('projects preset from resolution object', () => {
+      const context = createContext({
+        Resolution: { width: 1920, height: 1080 },
+      });
+      const mapping: MappingFieldDefinition = {
+        field: 'resolution',
+        resolution: { mode: 'preset' },
+      };
+
+      const result = applyMapping('Resolution', mapping, context);
+      expect(result).toEqual({ field: 'resolution', value: '1080p' });
+    });
+
+    it('projects aspect ratio and preset into an expandable object', () => {
+      const context = createContext({
+        Resolution: { width: 1920, height: 1080 },
+      });
+      const mapping: MappingFieldDefinition = {
+        expand: true,
+        resolution: {
+          mode: 'aspectRatioAndPresetObject',
+          aspectRatioField: 'aspect_ratio',
+          presetField: 'resolution',
+        },
+      };
+
+      const result = applyMapping('Resolution', mapping, context);
+      expect(result).toEqual({
+        expand: {
+          aspect_ratio: '16:9',
+          resolution: '1080p',
+        },
+      });
+    });
+
+    it('projects aspectRatioAndPreset then transform lookup', () => {
+      const context = createContext({
+        Resolution: { width: 1280, height: 720 },
+      });
+      const mapping: MappingFieldDefinition = {
+        field: 'video_size',
+        resolution: { mode: 'aspectRatioAndPreset' },
+        transform: {
+          '16:9+720p': { width: 1280, height: 720 },
+        },
+      };
+
+      const result = applyMapping('Resolution', mapping, context);
+      expect(result).toEqual({
+        field: 'video_size',
+        value: { width: 1280, height: 720 },
+      });
+    });
+
+    it('throws when resolution object is invalid', () => {
+      const context = createContext({ Resolution: '1080p' });
+      const mapping: MappingFieldDefinition = {
+        field: 'resolution',
+        resolution: { mode: 'preset' },
+      };
+
+      expect(() => applyMapping('Resolution', mapping, context)).toThrow(
+        /requires an object with width and height/
+      );
+    });
   });
 
   describe('transform (value lookup table)', () => {

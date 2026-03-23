@@ -1,0 +1,1504 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Resolution Transform Playground</title>
+    <style>
+      :root {
+        --bg: #0d1117;
+        --panel: #161b22;
+        --panel-2: #1f2630;
+        --text: #e6edf3;
+        --muted: #9aa7b3;
+        --border: #2d3745;
+        --accent: #4da3ff;
+        --warning: #f2c94c;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: radial-gradient(circle at top, #101926, var(--bg) 45%);
+        color: var(--text);
+        font-family:
+          ui-sans-serif,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+      }
+
+      .app {
+        max-width: 1180px;
+        margin: 28px auto;
+        padding: 0 16px 40px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 24px;
+      }
+
+      .subtitle {
+        margin-top: 8px;
+        color: var(--muted);
+      }
+
+      .panel {
+        margin-top: 18px;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.02),
+          rgba(255, 255, 255, 0.01)
+        );
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      @media (max-width: 900px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      label {
+        font-size: 13px;
+        color: var(--muted);
+        display: block;
+      }
+
+      select,
+      input[type='number'] {
+        margin-top: 6px;
+        width: 100%;
+        height: 40px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--panel-2);
+        color: var(--text);
+        padding: 0 10px;
+        font-size: 14px;
+      }
+
+      .input-row {
+        display: flex;
+        align-items: end;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .input-row .preset-wrap {
+        flex: 1.9;
+      }
+
+      .input-row .dim-wrap {
+        flex: 0.75;
+      }
+
+      .x {
+        color: var(--muted);
+        font-size: 21px;
+        line-height: 40px;
+        margin-bottom: 2px;
+      }
+
+      .mode {
+        margin-top: 12px;
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .mode label {
+        color: var(--text);
+        font-size: 13px;
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .mode input {
+        margin: 0;
+      }
+
+      .options {
+        margin-top: 12px;
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .options label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text);
+      }
+
+      button {
+        border: 1px solid #3c7ed4;
+        background: linear-gradient(180deg, #2b7bd7, #266abc);
+        color: #ffffff;
+        border-radius: 8px;
+        height: 40px;
+        padding: 0 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .summary-grid {
+        margin-top: 12px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      @media (max-width: 900px) {
+        .summary-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .summary-card {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px;
+      }
+
+      .summary-card h3 {
+        margin: 0 0 6px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: #0b1118;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px;
+        min-height: 86px;
+        font-size: 13px;
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      .warn {
+        color: var(--warning);
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .chip {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: rgba(77, 163, 255, 0.12);
+        color: #cfe7ff;
+        font-size: 12px;
+        margin-right: 6px;
+        margin-top: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <h1>Resolution Transform Playground</h1>
+      <p class="subtitle">
+        Select a producer and model, then choose either enum preset mode or
+        custom width x height. The app shows the model payload fragment produced
+        by the proposed transform functions.
+      </p>
+
+      <div class="panel">
+        <div class="grid">
+          <label>
+            Producer
+            <select id="producerSelect"></select>
+          </label>
+          <label>
+            Model
+            <select id="modelSelect"></select>
+          </label>
+        </div>
+
+        <div class="mode">
+          <label
+            ><input type="radio" name="inputMode" value="enum" checked /> Use
+            enum preset</label
+          >
+          <label
+            ><input type="radio" name="inputMode" value="custom" /> Use custom
+            width x height</label
+          >
+        </div>
+
+        <div class="input-row">
+          <div class="preset-wrap">
+            <label>
+              Enumerated Preset
+              <select id="presetSelect"></select>
+            </label>
+          </div>
+          <div class="dim-wrap">
+            <label>
+              Width
+              <input id="widthInput" type="number" min="1" step="1" />
+            </label>
+          </div>
+          <div class="x">x</div>
+          <div class="dim-wrap">
+            <label>
+              Height
+              <input id="heightInput" type="number" min="1" step="1" />
+            </label>
+          </div>
+        </div>
+
+        <div class="options">
+          <label
+            ><input id="preferAuto" type="checkbox" checked /> Prefer
+            <code>auto</code> fallback when available</label
+          >
+          <button id="runButton" type="button">Transform</button>
+        </div>
+      </div>
+
+      <div class="summary-grid">
+        <section class="summary-card">
+          <h3>Model Metadata</h3>
+          <div id="metaText" class="muted"></div>
+          <div id="schemaFields"></div>
+          <div id="mappingRules" class="muted" style="margin-top: 10px"></div>
+        </section>
+
+        <section class="summary-card">
+          <h3>Transform Output Payload Fragment</h3>
+          <pre id="payloadOut">{}</pre>
+          <div style="margin-top: 8px" class="muted">
+            Function(s): <span id="functionOut">-</span>
+          </div>
+          <div style="margin-top: 8px" class="muted">
+            Case: <span id="caseOut">-</span>
+          </div>
+        </section>
+      </div>
+
+      <div class="panel">
+        <h3 style="margin: 0 0 8px; font-size: 13px; color: var(--muted)">
+          Warnings
+        </h3>
+        <div id="warningsOut" class="muted">No warnings.</div>
+      </div>
+    </div>
+
+    <script src="./resolution-transform-playground-data.js"></script>
+    <script>
+      (() => {
+        const data = window.RESOLUTION_TOOL_DATA;
+        if (!data || !Array.isArray(data.producers)) {
+          alert('Missing resolution-transform-playground-data.js');
+          return;
+        }
+
+        const functionByCase = {
+          CASE_A_ASPECT_PLUS_PRESET: ['TF003_resolutionToAspectPlusPreset'],
+          CASE_B_RESOLUTION_PRESET_ONLY: ['TF002_resolutionToPresetEnum'],
+          CASE_C_SIZE_OBJECT: ['TF004_resolutionToSizeObject'],
+          CASE_D_IMAGE_SIZE_TOKEN: ['TF005_resolutionToImageSizeToken'],
+          CASE_E_SIZE_DIMENSION_STRING: ['TF006_resolutionToDimensionString'],
+          CASE_E_SIZE_TOKEN_OR_DIM_UNRESOLVED: [
+            'TF011_resolutionToSizeTokenOrDimensionEnum',
+          ],
+          CASE_F_WIDTH_HEIGHT_FIELDS: ['TF007_resolutionToWidthHeight'],
+          CASE_G_ASPECT_ONLY: ['TF001_resolutionToAspectRatioEnum'],
+          CASE_H_NO_SIZE_FIELD: ['TF010_ignoreResolutionWithWarning'],
+          CASE_I_SCHEMA_UNRESOLVED: ['UNMAPPED_MANUAL'],
+          CASE_J_MEGAPIXELS_WITH_ASPECT: [
+            'TF008_resolutionToMegapixelsEnum',
+            'TF001_resolutionToAspectRatioEnum',
+          ],
+          CASE_J_MEGAPIXELS_ONLY: ['TF008_resolutionToMegapixelsEnum'],
+          CASE_K_LONGEST_SIDE_INTEGER: ['TF009_resolutionToLongestSideInteger'],
+          CASE_Z_UNCLASSIFIED: ['UNMAPPED_MANUAL'],
+        };
+
+        const defaultPresetOptions = [
+          {
+            key: 'portrait_9_16',
+            label: 'Portrait 9:16',
+            width: 576,
+            height: 1024,
+          },
+          {
+            key: 'landscape_16_9',
+            label: 'Landscape 16:9',
+            width: 1024,
+            height: 576,
+          },
+          { key: 'square_1_1', label: 'Square 1:1', width: 1024, height: 1024 },
+          {
+            key: 'landscape_4_3',
+            label: 'Landscape 4:3',
+            width: 1024,
+            height: 768,
+          },
+          {
+            key: 'portrait_3_4',
+            label: 'Portrait 3:4',
+            width: 768,
+            height: 1024,
+          },
+          {
+            key: 'landscape_21_9',
+            label: 'Landscape 21:9',
+            width: 1344,
+            height: 576,
+          },
+        ];
+
+        const tokenRatioMap = new Map([
+          ['landscape_16_9', [16, 9]],
+          ['portrait_16_9', [9, 16]],
+          ['landscape_4_3', [4, 3]],
+          ['portrait_4_3', [3, 4]],
+          ['landscape_3_4', [3, 4]],
+          ['portrait_3_4', [3, 4]],
+          ['landscape_9_16', [16, 9]],
+          ['portrait_9_16', [9, 16]],
+          ['square_hd', [1, 1]],
+          ['square', [1, 1]],
+          ['landscape', [16, 9]],
+          ['portrait', [9, 16]],
+        ]);
+
+        const presetShortEdgeMap = new Map([
+          ['360p', 360],
+          ['480p', 480],
+          ['540p', 540],
+          ['720p', 720],
+          ['1080p', 1080],
+          ['1440p', 1440],
+          ['2160p', 2160],
+          ['4k', 2160],
+          ['1k', 1024],
+          ['2k', 2048],
+          ['3k', 3072],
+          ['4k_square', 4096],
+        ]);
+
+        const producerSelect = document.getElementById('producerSelect');
+        const modelSelect = document.getElementById('modelSelect');
+        const presetSelect = document.getElementById('presetSelect');
+        const widthInput = document.getElementById('widthInput');
+        const heightInput = document.getElementById('heightInput');
+        const preferAuto = document.getElementById('preferAuto');
+        const runButton = document.getElementById('runButton');
+
+        const payloadOut = document.getElementById('payloadOut');
+        const warningsOut = document.getElementById('warningsOut');
+        const functionOut = document.getElementById('functionOut');
+        const caseOut = document.getElementById('caseOut');
+        const metaText = document.getElementById('metaText');
+        const schemaFields = document.getElementById('schemaFields');
+        const mappingRules = document.getElementById('mappingRules');
+
+        const modeInputs = Array.from(
+          document.querySelectorAll('input[name="inputMode"]')
+        );
+
+        const sortedProducers = [...data.producers].sort((a, b) =>
+          a.name.localeCompare(b.name)
+        );
+
+        let currentPresetOptions = [];
+
+        function getCurrentMode() {
+          const selected = modeInputs.find((input) => input.checked);
+          return selected ? selected.value : 'enum';
+        }
+
+        function getCurrentProducer() {
+          const id = producerSelect.value;
+          return sortedProducers.find((producer) => producer.id === id) ?? null;
+        }
+
+        function getCurrentRow() {
+          const producer = getCurrentProducer();
+          if (!producer) {
+            return null;
+          }
+          return (
+            producer.rows.find((row) => row.id === modelSelect.value) ?? null
+          );
+        }
+
+        function gcd(a, b) {
+          let x = Math.abs(a);
+          let y = Math.abs(b);
+          while (y !== 0) {
+            const t = x % y;
+            x = y;
+            y = t;
+          }
+          return x || 1;
+        }
+
+        function reducedRatioString(width, height) {
+          const d = gcd(width, height);
+          return `${Math.round(width / d)}:${Math.round(height / d)}`;
+        }
+
+        function parseRatio(value) {
+          if (typeof value !== 'string') {
+            return null;
+          }
+          const trimmed = value.trim();
+          const ratioMatch = trimmed.match(/^(\d+)\s*:\s*(\d+)$/);
+          if (ratioMatch) {
+            const left = Number(ratioMatch[1]);
+            const right = Number(ratioMatch[2]);
+            if (left > 0 && right > 0) {
+              return { ratio: left / right, text: `${left}:${right}` };
+            }
+          }
+          const token = trimmed.toLowerCase();
+          if (tokenRatioMap.has(token)) {
+            const [left, right] = tokenRatioMap.get(token);
+            return { ratio: left / right, text: `${left}:${right}` };
+          }
+          return null;
+        }
+
+        function parsePresetShortEdge(value) {
+          if (typeof value !== 'string') {
+            return null;
+          }
+          const token = value.trim().toLowerCase();
+          if (presetShortEdgeMap.has(token)) {
+            return presetShortEdgeMap.get(token);
+          }
+          const match = token.match(/^(\d+)p$/);
+          if (match) {
+            return Number(match[1]);
+          }
+          if (token === '4k') {
+            return 2160;
+          }
+          return null;
+        }
+
+        function parseDimensionString(value) {
+          if (typeof value !== 'string') {
+            return null;
+          }
+          const match = value.trim().match(/^(\d+)\s*[x*]\s*(\d+)$/i);
+          if (!match) {
+            return null;
+          }
+          const width = Number(match[1]);
+          const height = Number(match[2]);
+          if (width <= 0 || height <= 0) {
+            return null;
+          }
+          return { width, height };
+        }
+
+        function getFieldMeta(row, fieldName) {
+          if (!row || !row.sizeFields) {
+            return null;
+          }
+          return row.sizeFields[fieldName] ?? null;
+        }
+
+        function getFieldEnums(row, fieldName) {
+          const field = getFieldMeta(row, fieldName);
+          if (!field || !Array.isArray(field.stringEnums)) {
+            return [];
+          }
+          return field.stringEnums;
+        }
+
+        function hasAutoEnum(enums) {
+          return enums.some(
+            (value) =>
+              typeof value === 'string' && value.toLowerCase() === 'auto'
+          );
+        }
+
+        function nearestByDistance(target, candidates, valueSelector) {
+          let best = null;
+          for (const candidate of candidates) {
+            const candidateValue = valueSelector(candidate);
+            const distance = Math.abs(candidateValue - target);
+            if (!best) {
+              best = { candidate, distance, candidateValue };
+              continue;
+            }
+            if (distance < best.distance) {
+              best = { candidate, distance, candidateValue };
+              continue;
+            }
+            if (
+              distance === best.distance &&
+              candidateValue < best.candidateValue
+            ) {
+              best = { candidate, distance, candidateValue };
+            }
+          }
+          return best ? best.candidate : null;
+        }
+
+        function pickAspectEnum(width, height, enums, preferAutoFallback) {
+          const warnings = [];
+          if (!Array.isArray(enums) || enums.length === 0) {
+            return {
+              value: null,
+              warnings: ['No aspect_ratio enum exposed by schema.'],
+            };
+          }
+
+          const target = width / height;
+          const exactText = reducedRatioString(width, height);
+          const parsed = enums
+            .map((value) => ({ value, parsed: parseRatio(value) }))
+            .filter((entry) => entry.parsed);
+
+          const exact = parsed.find((entry) => entry.parsed.text === exactText);
+          if (exact) {
+            return { value: exact.value, warnings };
+          }
+
+          if (preferAutoFallback && hasAutoEnum(enums)) {
+            warnings.push(
+              `Aspect ratio ${exactText} is not an exact enum match. Falling back to auto.`
+            );
+            return { value: 'auto', warnings };
+          }
+
+          if (parsed.length === 0) {
+            const fallback = enums[0];
+            warnings.push(
+              `No parseable aspect ratios in schema enum. Falling back to first value ${fallback}.`
+            );
+            return { value: fallback, warnings };
+          }
+
+          const nearest = nearestByDistance(
+            target,
+            parsed,
+            (entry) => entry.parsed.ratio
+          );
+          warnings.push(
+            `Aspect ratio ${exactText} is not exact. Selected nearest enum value ${nearest.value}.`
+          );
+          return { value: nearest.value, warnings };
+        }
+
+        function pickPresetEnum(width, height, enums, preferAutoFallback) {
+          const warnings = [];
+          if (!Array.isArray(enums) || enums.length === 0) {
+            return {
+              value: null,
+              warnings: ['No resolution enum exposed by schema.'],
+            };
+          }
+
+          const targetShortEdge = Math.min(width, height);
+          const parsed = enums
+            .map((value) => ({ value, shortEdge: parsePresetShortEdge(value) }))
+            .filter((entry) => typeof entry.shortEdge === 'number');
+
+          const exact = parsed.find(
+            (entry) => entry.shortEdge === targetShortEdge
+          );
+          if (exact) {
+            return { value: exact.value, warnings };
+          }
+
+          if (preferAutoFallback && hasAutoEnum(enums)) {
+            warnings.push(
+              `Resolution short edge ${targetShortEdge}px is not an exact enum match. Falling back to auto.`
+            );
+            return { value: 'auto', warnings };
+          }
+
+          if (parsed.length === 0) {
+            const fallback = enums[0];
+            warnings.push(
+              `No parseable resolution presets in enum. Falling back to first value ${fallback}.`
+            );
+            return { value: fallback, warnings };
+          }
+
+          const nearest = nearestByDistance(
+            targetShortEdge,
+            parsed,
+            (entry) => entry.shortEdge
+          );
+          warnings.push(
+            `Resolution short edge ${targetShortEdge}px is not exact. Selected nearest enum value ${nearest.value}.`
+          );
+          return { value: nearest.value, warnings };
+        }
+
+        function parseMegapixelValue(value) {
+          if (typeof value === 'number' && Number.isFinite(value)) {
+            return value;
+          }
+          if (typeof value !== 'string') {
+            return null;
+          }
+          const match = value.match(/(\d+(?:\.\d+)?)/);
+          if (!match) {
+            return null;
+          }
+          return Number(match[1]);
+        }
+
+        function applyNumericConstraints(rawValue, fieldMeta, fieldLabel) {
+          const warnings = [];
+          let value = Math.round(rawValue);
+
+          const minimum =
+            typeof fieldMeta?.minimum === 'number' ? fieldMeta.minimum : null;
+          const maximum =
+            typeof fieldMeta?.maximum === 'number' ? fieldMeta.maximum : null;
+          const exclusiveMinimum =
+            typeof fieldMeta?.exclusiveMinimum === 'number'
+              ? fieldMeta.exclusiveMinimum
+              : null;
+          const exclusiveMaximum =
+            typeof fieldMeta?.exclusiveMaximum === 'number'
+              ? fieldMeta.exclusiveMaximum
+              : null;
+          const multipleOf =
+            typeof fieldMeta?.multipleOf === 'number'
+              ? fieldMeta.multipleOf
+              : null;
+
+          if (exclusiveMinimum !== null && value <= exclusiveMinimum) {
+            value = Math.floor(exclusiveMinimum + 1);
+            warnings.push(
+              `${fieldLabel} clamped above exclusive minimum ${exclusiveMinimum}.`
+            );
+          }
+          if (exclusiveMaximum !== null && value >= exclusiveMaximum) {
+            value = Math.ceil(exclusiveMaximum - 1);
+            warnings.push(
+              `${fieldLabel} clamped below exclusive maximum ${exclusiveMaximum}.`
+            );
+          }
+          if (minimum !== null && value < minimum) {
+            value = minimum;
+            warnings.push(`${fieldLabel} clamped to minimum ${minimum}.`);
+          }
+          if (maximum !== null && value > maximum) {
+            value = maximum;
+            warnings.push(`${fieldLabel} clamped to maximum ${maximum}.`);
+          }
+          if (multipleOf && multipleOf > 0) {
+            const snapped = Math.round(value / multipleOf) * multipleOf;
+            if (snapped !== value) {
+              value = snapped;
+              warnings.push(
+                `${fieldLabel} snapped to multipleOf ${multipleOf}.`
+              );
+            }
+          }
+
+          return { value, warnings };
+        }
+
+        function dimensionsFromRatioAndShortEdge(ratioText, shortEdge) {
+          const parsed = parseRatio(ratioText);
+          if (!parsed || !shortEdge) {
+            return null;
+          }
+
+          if (parsed.ratio >= 1) {
+            return {
+              width: Math.round(shortEdge * parsed.ratio),
+              height: Math.round(shortEdge),
+            };
+          }
+
+          return {
+            width: Math.round(shortEdge),
+            height: Math.round(shortEdge / parsed.ratio),
+          };
+        }
+
+        function nearestDimensions(width, height, candidates) {
+          const targetRatio = width / height;
+          const targetArea = width * height;
+
+          let best = null;
+          for (const candidate of candidates) {
+            const candidateRatio = candidate.width / candidate.height;
+            const candidateArea = candidate.width * candidate.height;
+            const ratioDistance = Math.abs(targetRatio - candidateRatio);
+            const areaDistance =
+              Math.abs(targetArea - candidateArea) / Math.max(targetArea, 1);
+            const score = ratioDistance * 100 + areaDistance;
+            if (!best || score < best.score) {
+              best = { candidate, score };
+            }
+          }
+          return best ? best.candidate : null;
+        }
+
+        function inferDelimiter(fieldMeta) {
+          if (typeof fieldMeta?.default === 'string') {
+            if (fieldMeta.default.includes('*')) {
+              return '*';
+            }
+            if (fieldMeta.default.includes('x')) {
+              return 'x';
+            }
+          }
+          return 'x';
+        }
+
+        function resolveFieldsForCaseA(row) {
+          const tf003Rule = row.mappingRules.find(
+            (rule) =>
+              rule.resolutionMode === 'aspectRatioAndPresetObject' &&
+              rule.expand
+          );
+
+          const aspectField =
+            tf003Rule?.aspectRatioField ||
+            (row.sizeFields.aspect_ratio ? 'aspect_ratio' : null);
+          const presetField =
+            tf003Rule?.presetField ||
+            (row.sizeFields.resolution ? 'resolution' : null);
+
+          return { aspectField, presetField };
+        }
+
+        function mapToImageSizeToken(width, height, enums, preferAutoFallback) {
+          const warnings = [];
+          if (!Array.isArray(enums) || enums.length === 0) {
+            return {
+              value: null,
+              warnings: ['No image_size token enum exposed by schema.'],
+            };
+          }
+
+          const dimensionEnums = enums
+            .map((value) => ({ value, dims: parseDimensionString(value) }))
+            .filter((entry) => entry.dims);
+          if (dimensionEnums.length > 0) {
+            const nearest = nearestDimensions(
+              width,
+              height,
+              dimensionEnums.map((entry) => ({
+                ...entry.dims,
+                value: entry.value,
+              }))
+            );
+            if (!nearest) {
+              return { value: dimensionEnums[0].value, warnings };
+            }
+            if (nearest.width !== width || nearest.height !== height) {
+              warnings.push(
+                `Image size ${width}x${height} not available as exact dimension enum. Selected ${nearest.value}.`
+              );
+            }
+            return { value: nearest.value, warnings };
+          }
+
+          const ratioCandidates = enums
+            .map((value) => ({ value, parsed: parseRatio(value) }))
+            .filter((entry) => entry.parsed);
+          if (ratioCandidates.length > 0) {
+            const targetRatio = width / height;
+            const nearest = nearestByDistance(
+              targetRatio,
+              ratioCandidates,
+              (entry) => entry.parsed.ratio
+            );
+            if (!nearest) {
+              return { value: ratioCandidates[0].value, warnings };
+            }
+            const targetText = reducedRatioString(width, height);
+            if (nearest.parsed.text !== targetText) {
+              warnings.push(
+                `Aspect ratio ${targetText} has no exact token. Selected nearest token ${nearest.value}.`
+              );
+            }
+            return { value: nearest.value, warnings };
+          }
+
+          if (preferAutoFallback && hasAutoEnum(enums)) {
+            warnings.push('Falling back to auto image_size token.');
+            return { value: 'auto', warnings };
+          }
+
+          warnings.push(
+            `No parseable token strategy found. Falling back to first enum value ${enums[0]}.`
+          );
+          return { value: enums[0], warnings };
+        }
+
+        function mapToDimensionString(width, height, fieldMeta) {
+          const warnings = [];
+          const enums = Array.isArray(fieldMeta?.stringEnums)
+            ? fieldMeta.stringEnums
+            : [];
+
+          const dimEnums = enums
+            .map((value) => ({ value, dims: parseDimensionString(value) }))
+            .filter((entry) => entry.dims)
+            .map((entry) => ({ ...entry.dims, value: entry.value }));
+
+          if (dimEnums.length > 0) {
+            const nearest = nearestDimensions(width, height, dimEnums);
+            if (nearest.width !== width || nearest.height !== height) {
+              warnings.push(
+                `Size ${width}x${height} not in enum allowlist. Selected nearest value ${nearest.value}.`
+              );
+            }
+            return { value: nearest.value, warnings };
+          }
+
+          const delimiter = inferDelimiter(fieldMeta);
+          warnings.push(
+            'Size enum details are incomplete. Using direct dimension string fallback.'
+          );
+          return {
+            value: `${Math.round(width)}${delimiter}${Math.round(height)}`,
+            warnings,
+          };
+        }
+
+        function buildPresetOptions(row) {
+          const options = [];
+
+          const addOption = (option) => {
+            if (
+              !option ||
+              typeof option.width !== 'number' ||
+              typeof option.height !== 'number'
+            ) {
+              return;
+            }
+            if (option.width <= 0 || option.height <= 0) {
+              return;
+            }
+            options.push(option);
+          };
+
+          const pushDefaultOptions = () => {
+            for (const preset of defaultPresetOptions) {
+              addOption({ ...preset });
+            }
+          };
+
+          if (!row || row.schemaStatus !== 'OK') {
+            pushDefaultOptions();
+            return options;
+          }
+
+          if (row.caseId === 'CASE_A_ASPECT_PLUS_PRESET') {
+            const { aspectField, presetField } = resolveFieldsForCaseA(row);
+            const aspectEnums = getFieldEnums(row, aspectField);
+            const presetEnums = getFieldEnums(row, presetField);
+
+            for (const aspect of aspectEnums) {
+              const parsedAspect = parseRatio(aspect);
+              if (!parsedAspect) {
+                continue;
+              }
+              for (const preset of presetEnums) {
+                const shortEdge = parsePresetShortEdge(preset);
+                if (!shortEdge) {
+                  continue;
+                }
+                const dims = dimensionsFromRatioAndShortEdge(aspect, shortEdge);
+                if (!dims) {
+                  continue;
+                }
+                addOption({
+                  key: `${aspect}|${preset}`,
+                  label: `${aspect} + ${preset}`,
+                  width: dims.width,
+                  height: dims.height,
+                });
+              }
+            }
+          } else if (row.caseId === 'CASE_B_RESOLUTION_PRESET_ONLY') {
+            const enums = getFieldEnums(row, 'resolution');
+            for (const preset of enums) {
+              const shortEdge = parsePresetShortEdge(preset);
+              if (!shortEdge) {
+                continue;
+              }
+              const dims = dimensionsFromRatioAndShortEdge('16:9', shortEdge);
+              if (!dims) {
+                continue;
+              }
+              addOption({
+                key: preset,
+                label: `16:9 @ ${preset}`,
+                width: dims.width,
+                height: dims.height,
+              });
+            }
+          } else if (row.caseId === 'CASE_G_ASPECT_ONLY') {
+            const enums = getFieldEnums(row, 'aspect_ratio');
+            for (const aspect of enums) {
+              const dims = dimensionsFromRatioAndShortEdge(aspect, 1024);
+              if (!dims) {
+                continue;
+              }
+              addOption({
+                key: aspect,
+                label: `${aspect} @ 1K short-edge`,
+                width: dims.width,
+                height: dims.height,
+              });
+            }
+          } else if (
+            row.caseId === 'CASE_D_IMAGE_SIZE_TOKEN' ||
+            row.caseId === 'CASE_C_SIZE_OBJECT'
+          ) {
+            const enums = getFieldEnums(row, 'image_size');
+            for (const token of enums) {
+              const dim = parseDimensionString(token);
+              if (dim) {
+                addOption({
+                  key: token,
+                  label: `${token}`,
+                  width: dim.width,
+                  height: dim.height,
+                });
+                continue;
+              }
+              const parsed = parseRatio(token);
+              if (parsed) {
+                const dims = dimensionsFromRatioAndShortEdge(parsed.text, 1024);
+                addOption({
+                  key: token,
+                  label: `${token}`,
+                  width: dims.width,
+                  height: dims.height,
+                });
+              }
+            }
+          } else if (
+            row.caseId === 'CASE_E_SIZE_DIMENSION_STRING' ||
+            row.caseId === 'CASE_E_SIZE_TOKEN_OR_DIM_UNRESOLVED'
+          ) {
+            const enums = getFieldEnums(row, 'size');
+            for (const size of enums) {
+              const dim = parseDimensionString(size);
+              if (!dim) {
+                continue;
+              }
+              addOption({
+                key: size,
+                label: `${size}`,
+                width: dim.width,
+                height: dim.height,
+              });
+            }
+          }
+
+          if (options.length === 0) {
+            pushDefaultOptions();
+          }
+
+          const seen = new Set();
+          return options.filter((option) => {
+            const key = `${option.width}x${option.height}`;
+            if (seen.has(key)) {
+              return false;
+            }
+            seen.add(key);
+            return true;
+          });
+        }
+
+        function populateProducers() {
+          producerSelect.innerHTML = '';
+          for (const producer of sortedProducers) {
+            const option = document.createElement('option');
+            option.value = producer.id;
+            option.textContent = `${producer.name} (${producer.id})`;
+            producerSelect.appendChild(option);
+          }
+        }
+
+        function populateModels() {
+          const producer = getCurrentProducer();
+          modelSelect.innerHTML = '';
+          if (!producer) {
+            return;
+          }
+
+          const sortedRows = [...producer.rows].sort((a, b) =>
+            a.id.localeCompare(b.id)
+          );
+          for (const row of sortedRows) {
+            const option = document.createElement('option');
+            option.value = row.id;
+            option.textContent = `${row.provider} / ${row.model}`;
+            modelSelect.appendChild(option);
+          }
+        }
+
+        function populatePresetOptions() {
+          const row = getCurrentRow();
+          currentPresetOptions = buildPresetOptions(row);
+          presetSelect.innerHTML = '';
+          for (const optionData of currentPresetOptions) {
+            const option = document.createElement('option');
+            option.value = optionData.key;
+            option.textContent = `${optionData.label} (${optionData.width}x${optionData.height})`;
+            presetSelect.appendChild(option);
+          }
+          if (currentPresetOptions.length > 0) {
+            const first = currentPresetOptions[0];
+            widthInput.value = String(first.width);
+            heightInput.value = String(first.height);
+          }
+        }
+
+        function refreshModeState() {
+          const mode = getCurrentMode();
+          const enumMode = mode === 'enum';
+          presetSelect.disabled = !enumMode;
+          widthInput.disabled = false;
+          heightInput.disabled = false;
+        }
+
+        function renderRowMetadata(row) {
+          if (!row) {
+            metaText.textContent = 'No model selected.';
+            schemaFields.innerHTML = '';
+            mappingRules.innerHTML = '';
+            return;
+          }
+
+          const functionNames = functionByCase[row.caseId] || [
+            'UNMAPPED_MANUAL',
+          ];
+          metaText.innerHTML = [
+            `<div><strong>Schema:</strong> ${row.schemaPath || '-'}</div>`,
+            `<div><strong>Status:</strong> ${row.schemaStatus}</div>`,
+            `<div><strong>Case:</strong> ${row.caseId} - ${row.caseSummary}</div>`,
+            `<div><strong>Functions:</strong> ${functionNames.join(', ')}</div>`,
+          ].join('');
+
+          const fieldEntries = Object.entries(row.sizeFields || {});
+          if (fieldEntries.length === 0) {
+            schemaFields.innerHTML =
+              '<span class="muted">No size-related schema fields found.</span>';
+          } else {
+            schemaFields.innerHTML = fieldEntries
+              .map(([fieldName, fieldMeta]) => {
+                const enumText =
+                  Array.isArray(fieldMeta.stringEnums) &&
+                  fieldMeta.stringEnums.length > 0
+                    ? `enum=[${fieldMeta.stringEnums.join(', ')}]`
+                    : 'enum=[]';
+                return `<span class="chip">${fieldName}: ${fieldMeta.type || 'unknown'}, ${enumText}</span>`;
+              })
+              .join(' ');
+          }
+
+          if (
+            !Array.isArray(row.mappingRules) ||
+            row.mappingRules.length === 0
+          ) {
+            mappingRules.innerHTML =
+              '<strong>Current resolution mapping rules:</strong> none';
+          } else {
+            mappingRules.innerHTML =
+              '<strong>Current resolution mapping rules:</strong><ul>' +
+              row.mappingRules.map((rule) => `<li>${rule.text}</li>`).join('') +
+              '</ul>';
+          }
+        }
+
+        function transformForRow(row, width, height, preferAutoFallback) {
+          const warnings = [];
+          const payload = {};
+
+          if (!row) {
+            return { payload, warnings: ['No model selected.'] };
+          }
+
+          if (row.schemaStatus !== 'OK') {
+            return {
+              payload,
+              warnings: [
+                `Schema unresolved for this model (${row.schemaStatus}). Manual mapping required.`,
+              ],
+            };
+          }
+
+          const caseId = row.caseId;
+
+          if (caseId === 'CASE_A_ASPECT_PLUS_PRESET') {
+            const { aspectField, presetField } = resolveFieldsForCaseA(row);
+            if (!aspectField || !presetField) {
+              warnings.push('Could not resolve aspect/preset field names.');
+              return { payload, warnings };
+            }
+
+            const aspectResult = pickAspectEnum(
+              width,
+              height,
+              getFieldEnums(row, aspectField),
+              preferAutoFallback
+            );
+            const presetResult = pickPresetEnum(
+              width,
+              height,
+              getFieldEnums(row, presetField),
+              preferAutoFallback
+            );
+
+            warnings.push(...aspectResult.warnings, ...presetResult.warnings);
+            if (aspectResult.value !== null) {
+              payload[aspectField] = aspectResult.value;
+            }
+            if (presetResult.value !== null) {
+              payload[presetField] = presetResult.value;
+            }
+
+            if (payload[aspectField] === 'auto' && presetField in payload) {
+              delete payload[presetField];
+              warnings.push(
+                'Using auto aspect fallback: omitting explicit preset field.'
+              );
+            }
+
+            return { payload, warnings };
+          }
+
+          if (caseId === 'CASE_B_RESOLUTION_PRESET_ONLY') {
+            const fieldName = row.sizeFields.resolution
+              ? 'resolution'
+              : 'resolution';
+            const presetResult = pickPresetEnum(
+              width,
+              height,
+              getFieldEnums(row, fieldName),
+              preferAutoFallback
+            );
+            warnings.push(...presetResult.warnings);
+            if (presetResult.value !== null) {
+              payload[fieldName] = presetResult.value;
+            }
+            return { payload, warnings };
+          }
+
+          if (caseId === 'CASE_C_SIZE_OBJECT') {
+            const targetField = row.sizeFields.video_size
+              ? 'video_size'
+              : row.sizeFields.image_size
+                ? 'image_size'
+                : null;
+            if (!targetField) {
+              warnings.push('No object size field found in schema.');
+              return { payload, warnings };
+            }
+
+            const widthMeta = getFieldMeta(row, 'width');
+            const heightMeta = getFieldMeta(row, 'height');
+            const clampedWidth = applyNumericConstraints(
+              width,
+              widthMeta,
+              'width'
+            );
+            const clampedHeight = applyNumericConstraints(
+              height,
+              heightMeta,
+              'height'
+            );
+            warnings.push(...clampedWidth.warnings, ...clampedHeight.warnings);
+            payload[targetField] = {
+              width: clampedWidth.value,
+              height: clampedHeight.value,
+            };
+            return { payload, warnings };
+          }
+
+          if (caseId === 'CASE_D_IMAGE_SIZE_TOKEN') {
+            const fieldName = 'image_size';
+            const tokenResult = mapToImageSizeToken(
+              width,
+              height,
+              getFieldEnums(row, fieldName),
+              preferAutoFallback
+            );
+            warnings.push(...tokenResult.warnings);
+            if (tokenResult.value !== null) {
+              payload[fieldName] = tokenResult.value;
+            }
+            return { payload, warnings };
+          }
+
+          if (caseId === 'CASE_E_SIZE_DIMENSION_STRING') {
+            const fieldName = 'size';
+            const fieldMeta = getFieldMeta(row, fieldName);
+            const sizeResult = mapToDimensionString(width, height, fieldMeta);
+            warnings.push(...sizeResult.warnings);
+            payload[fieldName] = sizeResult.value;
+            return { payload, warnings };
+          }
+
+          if (caseId === 'CASE_E_SIZE_TOKEN_OR_DIM_UNRESOLVED') {
+            const fieldName = 'size';
+            const fieldMeta = getFieldMeta(row, fieldName);
+            const sizeResult = mapToDimensionString(width, height, fieldMeta);
+            warnings.push(...sizeResult.warnings);
+            warnings.push(
+              'Schema size enum is unresolved via $ref. Result is best-effort fallback.'
+            );
+            payload[fieldName] = sizeResult.value;
+            return { payload, warnings };
+          }
+
+          if (caseId === 'CASE_F_WIDTH_HEIGHT_FIELDS') {
+            const widthResult = applyNumericConstraints(
+              width,
+              getFieldMeta(row, 'width'),
+              'width'
+            );
+            const heightResult = applyNumericConstraints(
+              height,
+              getFieldMeta(row, 'height'),
+              'height'
+            );
+            warnings.push(...widthResult.warnings, ...heightResult.warnings);
+            payload.width = widthResult.value;
+            payload.height = heightResult.value;
+            return { payload, warnings };
+          }
+
+          if (caseId === 'CASE_G_ASPECT_ONLY') {
+            const fieldName = 'aspect_ratio';
+            const aspectResult = pickAspectEnum(
+              width,
+              height,
+              getFieldEnums(row, fieldName),
+              preferAutoFallback
+            );
+            warnings.push(...aspectResult.warnings);
+            if (aspectResult.value !== null) {
+              payload[fieldName] = aspectResult.value;
+            }
+            return { payload, warnings };
+          }
+
+          if (caseId === 'CASE_H_NO_SIZE_FIELD') {
+            warnings.push(
+              'Selected model exposes no size-related input fields. Resolution is ignored.'
+            );
+            return { payload, warnings };
+          }
+
+          if (
+            caseId === 'CASE_J_MEGAPIXELS_WITH_ASPECT' ||
+            caseId === 'CASE_J_MEGAPIXELS_ONLY'
+          ) {
+            const areaMP = (width * height) / 1_000_000;
+            const mpField = row.sizeFields.megapixels
+              ? 'megapixels'
+              : 'resolution';
+            const mpEnums = getFieldEnums(row, mpField);
+
+            if (mpEnums.length > 0) {
+              const parsed = mpEnums
+                .map((value) => ({ value, mp: parseMegapixelValue(value) }))
+                .filter(
+                  (entry) =>
+                    typeof entry.mp === 'number' && Number.isFinite(entry.mp)
+                );
+              if (parsed.length > 0) {
+                const nearest = nearestByDistance(
+                  areaMP,
+                  parsed,
+                  (entry) => entry.mp
+                );
+                if (nearest.value !== mpEnums[0]) {
+                  warnings.push(
+                    `Megapixel target ${areaMP.toFixed(2)}MP not exact. Selected nearest enum ${nearest.value}.`
+                  );
+                }
+                payload[mpField] = nearest.value;
+              } else {
+                payload[mpField] = mpEnums[0];
+                warnings.push(
+                  'Megapixel enum could not be numerically parsed. Using first enum value.'
+                );
+              }
+            } else {
+              payload[mpField] =
+                `${Math.max(1, Math.round(areaMP * 10) / 10)} MP`;
+              warnings.push(
+                'Megapixel enum unavailable. Using computed MP string fallback.'
+              );
+            }
+
+            if (caseId === 'CASE_J_MEGAPIXELS_WITH_ASPECT') {
+              const aspectResult = pickAspectEnum(
+                width,
+                height,
+                getFieldEnums(row, 'aspect_ratio'),
+                preferAutoFallback
+              );
+              warnings.push(...aspectResult.warnings);
+              if (aspectResult.value !== null) {
+                payload.aspect_ratio = aspectResult.value;
+              }
+            }
+            return { payload, warnings };
+          }
+
+          if (caseId === 'CASE_K_LONGEST_SIDE_INTEGER') {
+            const fieldName = 'image_size';
+            const longest = Math.max(width, height);
+            const clamped = applyNumericConstraints(
+              longest,
+              getFieldMeta(row, fieldName),
+              'image_size'
+            );
+            warnings.push(...clamped.warnings);
+            payload[fieldName] = clamped.value;
+            return { payload, warnings };
+          }
+
+          warnings.push(
+            'Case is unclassified. Manual transform function required.'
+          );
+          return { payload, warnings };
+        }
+
+        function getSelectedDimensions() {
+          const mode = getCurrentMode();
+          if (mode === 'enum') {
+            const selected = currentPresetOptions.find(
+              (option) => option.key === presetSelect.value
+            );
+            if (selected) {
+              widthInput.value = String(selected.width);
+              heightInput.value = String(selected.height);
+            }
+          }
+
+          const width = Number(widthInput.value);
+          const height = Number(heightInput.value);
+          if (
+            !Number.isFinite(width) ||
+            !Number.isFinite(height) ||
+            width <= 0 ||
+            height <= 0
+          ) {
+            return null;
+          }
+          return { width: Math.round(width), height: Math.round(height) };
+        }
+
+        function runTransform() {
+          const row = getCurrentRow();
+          renderRowMetadata(row);
+
+          const dimensions = getSelectedDimensions();
+          if (!dimensions) {
+            payloadOut.textContent = '{}';
+            warningsOut.innerHTML =
+              '<span class="warn">Please provide valid width and height values.</span>';
+            functionOut.textContent = '-';
+            caseOut.textContent = row
+              ? `${row.caseId} - ${row.caseSummary}`
+              : '-';
+            return;
+          }
+
+          const result = transformForRow(
+            row,
+            dimensions.width,
+            dimensions.height,
+            preferAuto.checked
+          );
+
+          payloadOut.textContent = JSON.stringify(result.payload, null, 2);
+          const functions = row
+            ? functionByCase[row.caseId] || ['UNMAPPED_MANUAL']
+            : ['-'];
+          functionOut.textContent = functions.join(', ');
+          caseOut.textContent = row
+            ? `${row.caseId} - ${row.caseSummary}`
+            : '-';
+
+          if (!result.warnings || result.warnings.length === 0) {
+            warningsOut.textContent = 'No warnings.';
+          } else {
+            warningsOut.innerHTML =
+              '<ul class="warn">' +
+              result.warnings.map((warning) => `<li>${warning}</li>`).join('') +
+              '</ul>';
+          }
+        }
+
+        function onProducerChanged() {
+          populateModels();
+          populatePresetOptions();
+          refreshModeState();
+          runTransform();
+        }
+
+        function onModelChanged() {
+          populatePresetOptions();
+          refreshModeState();
+          runTransform();
+        }
+
+        producerSelect.addEventListener('change', onProducerChanged);
+        modelSelect.addEventListener('change', onModelChanged);
+        presetSelect.addEventListener('change', runTransform);
+        widthInput.addEventListener('input', runTransform);
+        heightInput.addEventListener('input', runTransform);
+        preferAuto.addEventListener('change', runTransform);
+        runButton.addEventListener('click', runTransform);
+
+        for (const input of modeInputs) {
+          input.addEventListener('change', () => {
+            refreshModeState();
+            runTransform();
+          });
+        }
+
+        populateProducers();
+        onProducerChanged();
+      })();
+    </script>
+  </body>
+</html>

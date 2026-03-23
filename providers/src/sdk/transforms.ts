@@ -47,6 +47,8 @@ export function applyMapping(
   mapping: MappingFieldDefinition,
   context: TransformContext
 ): MappingResult {
+  const sourceAlias = mapping.input ?? inputAlias;
+
   // 1. Check conditional - skip if condition not met
   if (mapping.conditional) {
     const conditionMet = evaluateCondition(mapping.conditional.when, context);
@@ -54,7 +56,7 @@ export function applyMapping(
       return undefined;
     }
     // Recurse with the "then" mapping
-    return applyMapping(inputAlias, mapping.conditional.then, context);
+    return applyMapping(sourceAlias, mapping.conditional.then, context);
   }
 
   // 2. Apply combine - merge multiple inputs into one value
@@ -82,7 +84,7 @@ export function applyMapping(
   }
 
   // Get the raw input value
-  const canonicalId = context.inputBindings[inputAlias];
+  const canonicalId = context.inputBindings[sourceAlias];
   let value: unknown;
 
   if (canonicalId) {
@@ -96,7 +98,7 @@ export function applyMapping(
   // 2. Direct binding points to an unresolved Input node (e.g., "Input:VideoProducer.ReferenceImages[0]")
   if (value === undefined) {
     const elementBindings = collectElementBindings(
-      inputAlias,
+      sourceAlias,
       context.inputBindings
     );
     if (elementBindings.length > 0) {
@@ -146,6 +148,11 @@ export function applyMapping(
   // 7. Apply durationToFrames - convert seconds to frame count
   if (mapping.durationToFrames) {
     value = applyDurationToFrames(value, mapping.durationToFrames.fps);
+  }
+
+  // 7b. Apply resolution projection
+  if (mapping.resolution) {
+    value = applyResolutionTransform(value, mapping.resolution, sourceAlias);
   }
 
   // 8. Apply transform - value lookup table
@@ -365,6 +372,159 @@ function applyValueTransform(
   }
   // No matching transform, return original value
   return value;
+}
+
+function applyResolutionTransform(
+  value: unknown,
+  config: NonNullable<MappingFieldDefinition['resolution']>,
+  inputAlias: string
+): unknown {
+  const resolution = parseResolutionValue(value, inputAlias);
+
+  switch (config.mode) {
+    case 'aspectRatio':
+      return toAspectRatio(resolution.width, resolution.height);
+    case 'preset':
+      return toPreset(resolution.width, resolution.height, inputAlias);
+    case 'sizeToken':
+      return toSizeToken(resolution.width, resolution.height, inputAlias);
+    case 'aspectRatioAndPreset':
+      return `${toAspectRatio(resolution.width, resolution.height)}+${toPreset(
+        resolution.width,
+        resolution.height,
+        inputAlias
+      )}`;
+    case 'aspectRatioAndPresetObject':
+      return toAspectRatioAndPresetObject(resolution, config, inputAlias);
+    case 'width':
+      return resolution.width;
+    case 'height':
+      return resolution.height;
+  }
+}
+
+function toAspectRatioAndPresetObject(
+  resolution: { width: number; height: number },
+  config: NonNullable<MappingFieldDefinition['resolution']>,
+  inputAlias: string
+): Record<string, string> {
+  if (
+    typeof config.aspectRatioField !== 'string' ||
+    typeof config.presetField !== 'string'
+  ) {
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      `Resolution transform mode "aspectRatioAndPresetObject" for "${inputAlias}" requires aspectRatioField and presetField.`,
+      { kind: 'user_input', causedByUser: true }
+    );
+  }
+
+  return {
+    [config.aspectRatioField]: toAspectRatio(
+      resolution.width,
+      resolution.height
+    ),
+    [config.presetField]: toPreset(
+      resolution.width,
+      resolution.height,
+      inputAlias
+    ),
+  };
+}
+
+function parseResolutionValue(
+  value: unknown,
+  inputAlias: string
+): { width: number; height: number } {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      `Resolution transform for "${inputAlias}" requires an object with width and height.`,
+      { kind: 'user_input', causedByUser: true }
+    );
+  }
+
+  const record = value as Record<string, unknown>;
+  const width = record.width;
+  const height = record.height;
+
+  if (
+    typeof width !== 'number' ||
+    !Number.isInteger(width) ||
+    width <= 0 ||
+    typeof height !== 'number' ||
+    !Number.isInteger(height) ||
+    height <= 0
+  ) {
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      `Resolution transform for "${inputAlias}" requires positive integer width and height.`,
+      { kind: 'user_input', causedByUser: true }
+    );
+  }
+
+  return { width, height };
+}
+
+function toAspectRatio(width: number, height: number): string {
+  const divisor = greatestCommonDivisor(width, height);
+  return `${width / divisor}:${height / divisor}`;
+}
+
+function toPreset(width: number, height: number, inputAlias: string): string {
+  const shortEdge = Math.min(width, height);
+  const presets = new Map<number, string>([
+    [480, '480p'],
+    [720, '720p'],
+    [1080, '1080p'],
+    [1440, '1440p'],
+    [2160, '2160p'],
+  ]);
+
+  const preset = presets.get(shortEdge);
+  if (!preset) {
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      `Resolution preset transform for "${inputAlias}" does not support short edge ${shortEdge}.`,
+      { kind: 'user_input', causedByUser: true }
+    );
+  }
+  return preset;
+}
+
+function toSizeToken(
+  width: number,
+  height: number,
+  inputAlias: string
+): string {
+  const longEdge = Math.max(width, height);
+  const tokens = new Map<number, string>([
+    [1024, '1K'],
+    [2048, '2K'],
+    [3072, '3K'],
+    [4096, '4K'],
+  ]);
+
+  const token = tokens.get(longEdge);
+  if (!token) {
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      `Resolution sizeToken transform for "${inputAlias}" does not support long edge ${longEdge}.`,
+      { kind: 'user_input', causedByUser: true }
+    );
+  }
+  return token;
+}
+
+function greatestCommonDivisor(a: number, b: number): number {
+  let left = a;
+  let right = b;
+  while (right !== 0) {
+    const next = left % right;
+    left = right;
+    right = next;
+  }
+  return left;
 }
 
 /**

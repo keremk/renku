@@ -729,6 +729,31 @@ describe('YAML Mapping Transforms Integration', () => {
    * Real-world patterns from actual YAML files
    */
   describe('real-world YAML patterns', () => {
+    it('extend-video pattern projects one Resolution input into multiple fields', async () => {
+      const mapping: Record<string, MappingFieldDefinition> = {
+        Resolution: {
+          expand: true,
+          resolution: {
+            mode: 'aspectRatioAndPresetObject',
+            aspectRatioField: 'aspect_ratio',
+            presetField: 'resolution',
+          },
+        },
+      };
+
+      const payload = await buildTransformedPayload(
+        {
+          Resolution: { width: 1920, height: 1080 },
+        },
+        mapping
+      );
+
+      expect(payload).toEqual({
+        aspect_ratio: '16:9',
+        resolution: '1080p',
+      });
+    });
+
     it('text-to-image model pattern with aspect ratio transform', async () => {
       // Pattern from text-to-image.yaml for fal-ai models
       const mapping: Record<string, MappingFieldDefinition> = {
