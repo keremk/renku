@@ -68,7 +68,7 @@ loops:
 
 producers:
   - name: ScriptProducer
-    path: ./script/script.yaml
+    path: ../_shared/script/script.yaml
   - name: ImagePromptProducer
     path: ./image/image.yaml
     loop: segment

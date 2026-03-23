@@ -11,6 +11,19 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 /** Repository root directory */
 export const REPO_ROOT = resolve(__dirname, '..', '..');
 
+/** Shared test fixtures root used across packages */
+export const SHARED_TEST_FIXTURES_ROOT = resolve(
+  REPO_ROOT,
+  'tests',
+  'shared-fixtures'
+);
+
+/** Shared media fixtures used by CLI and providers tests */
+export const SHARED_TEST_MEDIA_ROOT = resolve(
+  SHARED_TEST_FIXTURES_ROOT,
+  'media'
+);
+
 /** Providers test fixtures directory */
 export const TEST_FIXTURES_ROOT = resolve(__dirname, 'fixtures');
 

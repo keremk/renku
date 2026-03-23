@@ -46,7 +46,7 @@ loops:
 
 producers:
   - name: DocProducer
-    path: ./documentary/documentary.yaml
+    path: ../_shared/documentary/documentary.yaml
   - name: ImageProducer
     producer: asset/text-to-image
     loop: segment.image

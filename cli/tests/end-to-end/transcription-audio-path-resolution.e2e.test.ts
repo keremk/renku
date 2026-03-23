@@ -28,7 +28,7 @@ import { createLoggerRecorder, findJob, setupTempCliConfig } from './helpers.js'
 import {
   CATALOG_MODELS_ROOT,
   CLI_FIXTURES_BLUEPRINTS,
-  CLI_FIXTURES_MEDIA,
+  SHARED_TEST_MEDIA_ROOT,
 } from '../test-catalog-paths.js';
 
 interface ScenarioOptions {
@@ -127,7 +127,7 @@ async function runTranscriptionPathScenario(
     logger,
   );
 
-  const audioFixture = await readFile(resolve(CLI_FIXTURES_MEDIA, 'audio-fixture.mp3'));
+  const audioFixture = await readFile(resolve(SHARED_TEST_MEDIA_ROOT, 'audio-fixture.mp3'));
   let capturedAssetBlobPaths: Record<string, string> | undefined;
 
   const produce: ProduceFn = async (request: ProduceRequest): Promise<ProduceResult> => {

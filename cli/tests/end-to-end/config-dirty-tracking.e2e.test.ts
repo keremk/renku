@@ -129,8 +129,11 @@ describe('end-to-end: config dirty tracking', () => {
   it('TOML systemPrompt change triggers re-run + downstream propagation', async () => {
     // Copy blueprint to temp directory so we can safely modify TOML
     const sourceBlueprint = resolve(CLI_FIXTURES_BLUEPRINTS, 'audio-only');
+    const sourceSharedBlueprints = resolve(CLI_FIXTURES_BLUEPRINTS, '_shared');
     const tempBlueprintDir = join(tempRoot, 'audio-only');
+    const tempSharedBlueprintDir = join(tempRoot, '_shared');
     await cp(sourceBlueprint, tempBlueprintDir, { recursive: true });
+    await cp(sourceSharedBlueprints, tempSharedBlueprintDir, { recursive: true });
 
     const blueprintPath = resolve(tempBlueprintDir, 'audio-only.yaml');
     const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'audio-only-inputs.yaml');
@@ -148,7 +151,7 @@ describe('end-to-end: config dirty tracking', () => {
     expect(phase1.allJobs.length).toBeGreaterThanOrEqual(4); // 1 script + 3 audio
 
     // Modify the script.toml in the temp copy (simulates user editing the TOML)
-    const scriptTomlPath = resolve(tempBlueprintDir, 'script', 'script.toml');
+    const scriptTomlPath = resolve(tempSharedBlueprintDir, 'script', 'script.toml');
     const { loadPromptFile } = await import('@gorenku/core');
     const originalPrompts = await loadPromptFile(scriptTomlPath);
 
@@ -288,7 +291,7 @@ describe('end-to-end: config dirty tracking', () => {
     const { saveProducerPrompts, loadPromptFile } = await import('@gorenku/core');
 
     // Load original prompts
-    const originalTomlPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'audio-only', 'script', 'script.toml');
+    const originalTomlPath = resolve(CLI_FIXTURES_BLUEPRINTS, '_shared', 'script', 'script.toml');
     const originalPrompts = await loadPromptFile(originalTomlPath);
 
     // Save modified version to builds folder

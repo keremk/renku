@@ -25,7 +25,7 @@ import {
   readPlan,
   setupTempCliConfig,
 } from './helpers.js';
-import { CLI_FIXTURES_BLUEPRINTS, CLI_FIXTURES_INPUTS, CLI_FIXTURES_MEDIA } from '../test-catalog-paths.js';
+import { CLI_FIXTURES_BLUEPRINTS, CLI_FIXTURES_INPUTS, SHARED_TEST_MEDIA_ROOT } from '../test-catalog-paths.js';
 
 describe('end-to-end: derived panel images', () => {
   let restoreEnv: () => void = () => {};
@@ -130,7 +130,7 @@ describe('end-to-end: derived panel images', () => {
 });
 
 describe('end-to-end: real ffmpeg panel extraction', () => {
-  const GRID_IMAGE_FIXTURE_PATH = resolve(CLI_FIXTURES_MEDIA, 'grid-image-fixture.jpeg');
+  const GRID_IMAGE_FIXTURE_PATH = resolve(SHARED_TEST_MEDIA_ROOT, 'grid-image-fixture.jpeg');
 
   beforeEach(() => {
     resetFfmpegCache();

@@ -1,8 +1,8 @@
 import { Buffer } from 'node:buffer';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it, beforeAll } from 'vitest';
+import { SHARED_TEST_MEDIA_ROOT } from '../../../tests/test-catalog-paths.js';
 import {
   concatenateWithSilence,
   buildMixCommand,
@@ -10,9 +10,6 @@ import {
   convertToWav,
 } from './audio-concatenator.js';
 import type { AudioSegment } from './types.js';
-
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const FIXTURES_DIR = join(__dirname, '../../../tests/fixtures');
 
 /**
  * These tests require ffmpeg to be installed on the system.
@@ -23,7 +20,7 @@ describe('integration: audio-concatenator', () => {
 
   beforeAll(async () => {
     // Load the test audio fixture
-    audioFixture = await readFile(join(FIXTURES_DIR, 'audio-fixture.mp3'));
+    audioFixture = await readFile(join(SHARED_TEST_MEDIA_ROOT, 'audio-fixture.mp3'));
     expect(audioFixture.length).toBeGreaterThan(0);
   });
 

@@ -22,6 +22,20 @@ import {
 } from './helpers.js';
 import { CLI_FIXTURES_BLUEPRINTS, CLI_FIXTURES_INPUTS } from '../test-catalog-paths.js';
 
+const SHARED_DOCUMENTARY_PROMPT_PATH = resolve(
+  CLI_FIXTURES_BLUEPRINTS,
+  '_shared',
+  'documentary',
+  'documentary.toml',
+);
+
+const SHARED_DOCUMENTARY_OUTPUT_SCHEMA_PATH = resolve(
+  CLI_FIXTURES_BLUEPRINTS,
+  '_shared',
+  'documentary',
+  'documentary-output.json',
+);
+
 describe('end-to-end: JSON virtual artifact blueprint', () => {
   let tempRoot = '';
   let restoreEnv: () => void = () => {};
@@ -239,8 +253,8 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
             provider: 'openai',
             producerId: 'DocProducer',
             // Include outputSchema so virtual artifact edges are created
-            promptFile: resolve(CLI_FIXTURES_BLUEPRINTS, 'json-blueprints', 'documentary', 'documentary.toml'),
-            outputSchema: resolve(CLI_FIXTURES_BLUEPRINTS, 'json-blueprints', 'documentary', 'documentary-output.json'),
+            promptFile: SHARED_DOCUMENTARY_PROMPT_PATH,
+            outputSchema: SHARED_DOCUMENTARY_OUTPUT_SCHEMA_PATH,
             config: { text_format: 'json_schema' },
           },
           {
@@ -412,8 +426,8 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
             model: 'gpt-5.2',
             provider: 'openai',
             producerId: 'DocProducer',
-            promptFile: resolve(CLI_FIXTURES_BLUEPRINTS, 'json-blueprints', 'documentary', 'documentary.toml'),
-            outputSchema: resolve(CLI_FIXTURES_BLUEPRINTS, 'json-blueprints', 'documentary', 'documentary-output.json'),
+            promptFile: SHARED_DOCUMENTARY_PROMPT_PATH,
+            outputSchema: SHARED_DOCUMENTARY_OUTPUT_SCHEMA_PATH,
             config: { text_format: 'json_schema' },
           },
           {

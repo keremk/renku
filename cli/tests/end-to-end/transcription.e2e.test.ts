@@ -31,8 +31,8 @@ import {
 import {
   CLI_FIXTURES_BLUEPRINTS,
   CLI_FIXTURES_INPUTS,
-  CLI_FIXTURES_MEDIA,
   CLI_FIXTURES_SCHEMAS,
+  SHARED_TEST_MEDIA_ROOT,
 } from '../test-catalog-paths.js';
 
 /**
@@ -47,7 +47,7 @@ async function loadTranscriptionFixture(): Promise<STTOutput> {
  * Load the audio-fixture.mp3 as a buffer.
  */
 async function loadAudioFixture(): Promise<Buffer> {
-  return readFile(resolve(CLI_FIXTURES_MEDIA, 'audio-fixture.mp3'));
+  return readFile(resolve(SHARED_TEST_MEDIA_ROOT, 'audio-fixture.mp3'));
 }
 
 describe('end-to-end: transcription producer plan validation', () => {

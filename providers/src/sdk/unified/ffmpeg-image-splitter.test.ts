@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, it, expect, beforeEach } from 'vitest';
+import { SHARED_TEST_MEDIA_ROOT } from '../../../tests/test-catalog-paths.js';
 import {
   parseGridStyle,
   detectPanelExtractions,
@@ -250,10 +251,8 @@ describe('extractPanelImages', () => {
   });
 
   describe('live mode with fixture', () => {
-    const fixtureDir = join(__dirname, '../../../tests/fixtures');
-
     it('extracts panels from real 3x3 grid image', async () => {
-      const imageBuffer = await readFile(join(fixtureDir, 'grid-image-fixture.jpeg'));
+      const imageBuffer = await readFile(join(SHARED_TEST_MEDIA_ROOT, 'grid-image-fixture.jpeg'));
 
       // Request just 3 panels for faster test
       const produces = [
@@ -286,7 +285,7 @@ describe('extractPanelImages', () => {
     });
 
     it('includes correct diagnostics for panel positions', async () => {
-      const imageBuffer = await readFile(join(fixtureDir, 'grid-image-fixture.jpeg'));
+      const imageBuffer = await readFile(join(SHARED_TEST_MEDIA_ROOT, 'grid-image-fixture.jpeg'));
       const produces = ['Artifact:PanelImages[4]']; // Center panel of 3x3
 
       const result = await extractPanelImages({
@@ -306,7 +305,7 @@ describe('extractPanelImages', () => {
     });
 
     it('handles panel index out of range', async () => {
-      const imageBuffer = await readFile(join(fixtureDir, 'grid-image-fixture.jpeg'));
+      const imageBuffer = await readFile(join(SHARED_TEST_MEDIA_ROOT, 'grid-image-fixture.jpeg'));
       const produces = ['Artifact:PanelImages[99]']; // Out of range for 3x3
 
       const result = await extractPanelImages({

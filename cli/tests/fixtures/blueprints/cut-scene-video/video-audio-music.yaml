@@ -72,7 +72,7 @@ loops:
 
 producers:
   - name: ScriptProducer
-    path: ./script/script.yaml
+    path: ../_shared/script/script.yaml
   - name: VideoPromptProducer
     path: ./video/video.yaml
     loop: segment
