@@ -23,11 +23,17 @@ export const SHARED_TEST_MEDIA_ROOT = resolve(
 	'media'
 );
 
+/** Shared test catalog used across packages */
+export const SHARED_TEST_CATALOG_ROOT = resolve(
+	SHARED_TEST_FIXTURES_ROOT,
+	'catalog'
+);
+
 /** CLI test fixtures directory */
 export const CLI_TEST_FIXTURES_ROOT = resolve(__dirname, 'fixtures');
 
-/** Fully decoupled catalog snapshot used by CLI tests */
-export const CLI_FIXTURES_CATALOG = resolve(CLI_TEST_FIXTURES_ROOT, 'catalog');
+/** Shared catalog snapshot used by CLI tests */
+export const CLI_FIXTURES_CATALOG = SHARED_TEST_CATALOG_ROOT;
 
 /** Catalog root consumed by CLI tests */
 export const CATALOG_ROOT = CLI_FIXTURES_CATALOG;
@@ -45,6 +51,10 @@ export const CATALOG_PRODUCERS_ROOT = resolve(CATALOG_ROOT, 'producers');
 export const CLI_FIXTURES_BLUEPRINTS = resolve(
 	CLI_TEST_FIXTURES_ROOT,
 	'blueprints'
+);
+export const CLI_FIXTURES_BLUEPRINT_MODULES = resolve(
+	CLI_FIXTURES_BLUEPRINTS,
+	'_shared'
 );
 export const CLI_FIXTURES_INPUTS = resolve(CLI_TEST_FIXTURES_ROOT, 'inputs');
 export const CLI_FIXTURES_MEDIA = resolve(CLI_TEST_FIXTURES_ROOT, 'media');

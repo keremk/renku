@@ -1,29 +1,29 @@
 inputs:
-  InquiryPrompt: "Test transcription pipeline"
+  InquiryPrompt: 'Test transcription pipeline'
   Duration: 10
   NumOfSegments: 2
   SegmentDuration: 5
-  Audience: "Adult"
-  Language: "en"
-  Style: "Documentary realism"
-  AspectRatio: "16:9"
-  Resolution: "720p"
-  VoiceId: "Wise_Woman"
+  Audience: 'Adult'
+  Language: 'en'
+  Style: 'Documentary realism'
+  AspectRatio: '16:9'
+  Resolution: '720p'
+  VoiceId: 'Wise_Woman'
   Emotion: neutral
-  MusicalStyle: "Cinematic orchestral score"
+  MusicalStyle: 'Cinematic orchestral score'
 
 models:
   - model: gpt-5-mini
     provider: openai
     producerId: ScriptProducer
-    promptFile: ../../../../catalog/producers/prompt/script/script.toml
-    outputSchema: ../../../../catalog/producers/prompt/script/script-output.json
+    promptFile: ../../../../tests/shared-fixtures/catalog/producers/prompt/script/script.toml
+    outputSchema: ../../../../tests/shared-fixtures/catalog/producers/prompt/script/script-output.json
     config:
       text_format: json_schema
   - model: gpt-5-mini
     provider: openai
     producerId: VideoPromptProducer
-    promptFile: ../../../../catalog/producers/prompt/video/video.toml
+    promptFile: ../../../../tests/shared-fixtures/catalog/producers/prompt/video/video.toml
     config:
       text_format: text
   - model: bytedance/seedance-1-pro-fast
@@ -35,7 +35,7 @@ models:
   - model: gpt-5-mini
     provider: openai
     producerId: MusicPromptProducer
-    promptFile: ../../../../catalog/producers/prompt/music/music.toml
+    promptFile: ../../../../tests/shared-fixtures/catalog/producers/prompt/music/music.toml
     config:
       text_format: text
   - model: stability-ai/stable-audio-2.5
@@ -48,8 +48,8 @@ models:
     producerId: TimelineComposer
     config:
       timeline:
-        masterTracks: ["Audio"]
-        tracks: ["Video", "Audio", "Transcription", "Music"]
+        masterTracks: ['Audio']
+        tracks: ['Video', 'Audio', 'Transcription', 'Music']
         videoClip:
           artifact: VideoSegments
         audioClip:

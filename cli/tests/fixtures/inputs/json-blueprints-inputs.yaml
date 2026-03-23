@@ -1,18 +1,18 @@
 inputs:
-  InquiryPrompt: "The history of the moon landing"
+  InquiryPrompt: 'The history of the moon landing'
   Duration: 30
   NumOfSegments: 2
   NumOfImagesPerSegment: 2
-  Style: "Photorealistic documentary style"
-  AspectRatio: "16:9"
-  Size: "1K"
+  Style: 'Photorealistic documentary style'
+  AspectRatio: '16:9'
+  Size: '1K'
 
 models:
   - model: gpt-5.2
     provider: openai
     producerId: DocProducer
-    promptFile: ../../../../catalog/producers/prompt/documentary/documentary.toml
-    outputSchema: ../../../../catalog/producers/prompt/documentary/documentary-output.json
+    promptFile: ../blueprints/_shared/documentary/documentary.toml
+    outputSchema: ../blueprints/_shared/documentary/documentary-output.json
     config:
       text_format: json_schema
   - model: bytedance/seedream-4
@@ -26,8 +26,8 @@ models:
     producerId: TimelineComposer
     config:
       timeline:
-        tracks: ["Image"]
-        masterTracks: ["Image"]
+        tracks: ['Image']
+        masterTracks: ['Image']
         numTracks: 1
         imageClip:
           artifact: ImageSegments[Image]

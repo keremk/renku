@@ -11,6 +11,7 @@ import {
 import {
   CATALOG_ROOT,
   CATALOG_BLUEPRINTS_ROOT,
+  SHARED_BLUEPRINT_MODULES_ROOT,
   TEST_FIXTURES_ROOT,
 } from '../../../tests/catalog-paths.js';
 import type { EdgeConditionClause, EdgeConditionGroup } from '../../types.js';
@@ -21,8 +22,9 @@ const yamlRoot = CATALOG_BLUEPRINTS_ROOT;
 describe('parseYamlBlueprintFile', () => {
   it('parses interface-only producer with meta, inputs, and artifacts', async () => {
     const modulePath = resolve(
-      TEST_FIXTURES_ROOT,
-      'audio-only/script/script.yaml'
+      SHARED_BLUEPRINT_MODULES_ROOT,
+      'script',
+      'script.yaml'
     );
     const document = await parseYamlBlueprintFile(modulePath);
     expect(document.meta.id).toBe('ScriptProducer');
@@ -36,8 +38,9 @@ describe('parseYamlBlueprintFile', () => {
 
   it('parses promptFile and outputSchema from producer meta section', async () => {
     const modulePath = resolve(
-      TEST_FIXTURES_ROOT,
-      'audio-only/script/script.yaml'
+      SHARED_BLUEPRINT_MODULES_ROOT,
+      'script',
+      'script.yaml'
     );
     const document = await parseYamlBlueprintFile(modulePath);
     expect(document.meta.promptFile).toBe('./script.toml');
@@ -158,8 +161,9 @@ describe('parseYamlBlueprintFile', () => {
 
   it('parses countInputOffset for array artefacts', async () => {
     const modulePath = resolve(
-      TEST_FIXTURES_ROOT,
-      'flow-video/flow-video.yaml'
+      SHARED_BLUEPRINT_MODULES_ROOT,
+      'flow-video',
+      'flow-video.yaml'
     );
     const document = await parseYamlBlueprintFile(modulePath);
     const imagePrompts = document.artefacts.find(
@@ -758,8 +762,9 @@ describe('yaml-parser edge cases', () => {
 
   it('parses producer definition', async () => {
     const blueprintPath = resolve(
-      TEST_FIXTURES_ROOT,
-      'audio-only/script/script.yaml'
+      SHARED_BLUEPRINT_MODULES_ROOT,
+      'script',
+      'script.yaml'
     );
     const document = await parseYamlBlueprintFile(blueprintPath);
 

@@ -9,12 +9,22 @@ import { loadYamlBlueprintTree } from './blueprint-loader/yaml-parser.js';
 import {
   CATALOG_BLUEPRINTS_ROOT,
   CATALOG_ROOT,
+  REPO_ROOT,
   TEST_FIXTURES_ROOT,
 } from '../../tests/catalog-paths.js';
 import type { BlueprintTreeNode } from '../types.js';
 
 const BLUEPRINT_ROOT = CATALOG_BLUEPRINTS_ROOT;
 const catalogRoot = CATALOG_ROOT;
+const SHARED_AUDIO_ONLY_INPUT_TEMPLATE = resolve(
+  REPO_ROOT,
+  'cli',
+  'tests',
+  'fixtures',
+  'blueprints',
+  'audio-only',
+  'input-template.yaml'
+);
 
 // Helper to create a minimal blueprint tree for testing artifact override detection
 function createTestBlueprintTree(): BlueprintTreeNode {
@@ -682,11 +692,7 @@ describe('model selection SDK mapping parsing', () => {
     const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, {
       catalogRoot,
     });
-    const inputPath = resolve(
-      TEST_FIXTURES_ROOT,
-      'audio-only',
-      'input-template.yaml'
-    );
+    const inputPath = SHARED_AUDIO_ONLY_INPUT_TEMPLATE;
 
     const loaded = await loadInputsFromYaml(inputPath, blueprint);
 
@@ -748,11 +754,7 @@ describe('model selection SDK mapping parsing', () => {
     const { root: blueprint } = await loadYamlBlueprintTree(blueprintPath, {
       catalogRoot,
     });
-    const inputPath = resolve(
-      TEST_FIXTURES_ROOT,
-      'audio-only',
-      'input-template.yaml'
-    );
+    const inputPath = SHARED_AUDIO_ONLY_INPUT_TEMPLATE;
 
     const loaded = await loadInputsFromYaml(inputPath, blueprint);
 

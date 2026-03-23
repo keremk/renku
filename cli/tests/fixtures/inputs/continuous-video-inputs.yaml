@@ -2,22 +2,22 @@ inputs:
   InquiryPrompt: "Sketch an expedition to Europa's ice oceans"
   Duration: 20
   NumOfSegments: 2
-  SegmentDuration: "10"
-  Audience: "Adult"
-  Language: "en"
-  Style: "Illustrated sci-fi field notes"
-  AspectRatio: "16:9"
-  Resolution: "720p"
-  Size: "1K"
-  VoiceId: "Wise_Woman"
+  SegmentDuration: '10'
+  Audience: 'Adult'
+  Language: 'en'
+  Style: 'Illustrated sci-fi field notes'
+  AspectRatio: '16:9'
+  Resolution: '720p'
+  Size: '1K'
+  VoiceId: 'Wise_Woman'
   Emotion: neutral
 
 models:
   - model: gpt-5-mini
     provider: openai
     producerId: FlowVideoPromptProducer
-    promptFile: ../blueprints/continuous-video/flow-video/flow-video.toml
-    outputSchema: ../blueprints/continuous-video/flow-video/flow-video-output.json
+    promptFile: ../blueprints/_shared/flow-video/flow-video.toml
+    outputSchema: ../blueprints/_shared/flow-video/flow-video-output.json
     config:
       text_format: json_schema
   - model: google/nano-banana
@@ -34,8 +34,8 @@ models:
     producerId: TimelineComposer
     config:
       timeline:
-        tracks: ["Video", "Audio"]
-        masterTracks: ["Audio"]
+        tracks: ['Video', 'Audio']
+        masterTracks: ['Audio']
         numTracks: 2
         videoClip:
           artifact: VideoSegments

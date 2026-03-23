@@ -5,7 +5,7 @@ meta:
   version: 0.1.0
   author: Renku
   license: MIT
-  promptFile: ./music.toml
+  promptFile: ../../../../../../tests/shared-fixtures/catalog/producers/prompt/music/music.toml
 
 inputs:
   - name: MovieSummary

@@ -84,7 +84,11 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 			fixtureRoot,
 			'scene-character-presence-typed.yaml'
 		);
-		const inputsPath = resolve(fixtureRoot, 'input-template.yaml');
+		const inputsPath = resolve(
+			CLI_FIXTURES_BLUEPRINTS,
+			'scene-character-presence',
+			'input-template.yaml'
+		);
 
 		const tempDir = await mkdtemp(join(tmpdir(), 'renku-dry-run-profile-'));
 		const profilePath = join(tempDir, 'scene-profile.yaml');

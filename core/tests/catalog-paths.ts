@@ -11,11 +11,34 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 /** Repository root directory */
 export const REPO_ROOT = resolve(__dirname, '..', '..');
 
+/** Shared test fixtures root used across packages */
+export const SHARED_TEST_FIXTURES_ROOT = resolve(
+  REPO_ROOT,
+  'tests',
+  'shared-fixtures'
+);
+
+/** Shared test catalog used across packages */
+export const SHARED_TEST_CATALOG_ROOT = resolve(
+  SHARED_TEST_FIXTURES_ROOT,
+  'catalog'
+);
+
+/** Shared blueprint producer modules hosted in CLI fixtures */
+export const SHARED_BLUEPRINT_MODULES_ROOT = resolve(
+  REPO_ROOT,
+  'cli',
+  'tests',
+  'fixtures',
+  'blueprints',
+  '_shared'
+);
+
 /** Test fixtures directory */
 export const TEST_FIXTURES_ROOT = resolve(__dirname, 'fixtures');
 
-/** Fully decoupled catalog snapshot used by core tests */
-export const CATALOG_ROOT = resolve(TEST_FIXTURES_ROOT, 'catalog');
+/** Fully decoupled shared catalog snapshot used by core tests */
+export const CATALOG_ROOT = SHARED_TEST_CATALOG_ROOT;
 
 /** Blueprints directory within the catalog */
 export const CATALOG_BLUEPRINTS_ROOT = resolve(CATALOG_ROOT, 'blueprints');

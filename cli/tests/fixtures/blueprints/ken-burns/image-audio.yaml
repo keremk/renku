@@ -70,7 +70,7 @@ producers:
   - name: ScriptProducer
     path: ../_shared/script/script.yaml
   - name: ImagePromptProducer
-    path: ./image/image.yaml
+    path: ../_shared/image/image.yaml
     loop: segment
   - name: ImageProducer
     producer: asset/text-to-image
