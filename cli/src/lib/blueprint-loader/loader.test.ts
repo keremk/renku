@@ -5,7 +5,7 @@ import { CATALOG_ROOT, CLI_FIXTURES_BLUEPRINTS } from '../../../tests/test-catal
 
 describe('loadBlueprintBundle', () => {
   it('loads root and nested sub-blueprints', async () => {
-    const bundlePath = resolve(CLI_FIXTURES_BLUEPRINTS, 'cut-scene-video', 'video-audio-music.yaml');
+    const bundlePath = resolve(CLI_FIXTURES_BLUEPRINTS, 'pipeline-orchestration', 'video-audio-music-timeline', 'video-audio-music-timeline.yaml');
     const bundle = await loadBlueprintBundle(bundlePath, { catalogRoot: CATALOG_ROOT });
     expect(bundle.root.id).toBe('VideoAudioMusic');
     expect(bundle.root.children.size).toBeGreaterThan(0);

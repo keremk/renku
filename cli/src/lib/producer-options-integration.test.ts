@@ -2,68 +2,84 @@ import { describe, expect, it } from 'vitest';
 import { resolve } from 'node:path';
 import { loadBlueprintBundle } from './blueprint-loader/index.js';
 import {
-  buildProducerOptionsFromBlueprint,
-  type ModelSelection,
+	buildProducerOptionsFromBlueprint,
+	type ModelSelection,
 } from '@gorenku/core';
-import { CATALOG_ROOT, CLI_FIXTURES_BLUEPRINTS } from '../../tests/test-catalog-paths.js';
+import {
+	CATALOG_ROOT,
+	CLI_FIXTURES_BLUEPRINTS,
+} from '../../tests/test-catalog-paths.js';
 
 describe('producer options', () => {
-  it('builds options with SDK mappings from producer YAML (not from selection)', async () => {
-    // Use CLI fixtures for audio-only blueprint
-    const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'audio-only', 'audio-only.yaml');
-    const { root: blueprint } = await loadBlueprintBundle(blueprintPath, { catalogRoot: CATALOG_ROOT });
+	it('builds options with SDK mappings from producer YAML (not from selection)', async () => {
+		// Use CLI fixtures for audio-narration-loop blueprint
+		const blueprintPath = resolve(
+			CLI_FIXTURES_BLUEPRINTS,
+			'pipeline-orchestration',
+			'audio-narration-loop',
+			'audio-narration-loop.yaml'
+		);
+		const { root: blueprint } = await loadBlueprintBundle(blueprintPath, {
+			catalogRoot: CATALOG_ROOT,
+		});
 
-    // Verify the ScriptProducer child node has the expected meta with promptFile/outputSchema
-    const scriptProducerNode = blueprint.children.get('ScriptProducer');
-    expect(scriptProducerNode).toBeDefined();
-    expect(scriptProducerNode!.document.meta.promptFile).toBe('./script.toml');
-    expect(scriptProducerNode!.document.meta.outputSchema).toBe('./script-output.json');
-    expect(scriptProducerNode!.sourcePath).toContain('script.yaml');
+		// Verify the ScriptProducer child node has the expected meta with promptFile/outputSchema
+		const scriptProducerNode = blueprint.children.get('ScriptProducer');
+		expect(scriptProducerNode).toBeDefined();
+		expect(scriptProducerNode!.document.meta.promptFile).toBe('./script.toml');
+		expect(scriptProducerNode!.document.meta.outputSchema).toBe(
+			'./script-output.json'
+		);
+		expect(scriptProducerNode!.sourcePath).toContain('script.yaml');
 
-    // Selections provide model configuration since producers are interface-only
-    // Note: 'inputs' field was removed from ModelSelection - SDK mappings now come from producer YAML
-    const selections: ModelSelection[] = [
-      {
-        producerId: 'ScriptProducer',
-        provider: 'openai',
-        model: 'gpt-5-mini',
-        config: { text_format: 'json_schema' },
-      },
-      {
-        producerId: 'AudioProducer',
-        provider: 'replicate',
-        model: 'minimax/speech-2.6-hd',
-        // SDK mappings now come from producer YAML mappings section, not from selection
-      },
-    ];
+		// Selections provide model configuration since producers are interface-only
+		// Note: 'inputs' field was removed from ModelSelection - SDK mappings now come from producer YAML
+		const selections: ModelSelection[] = [
+			{
+				producerId: 'ScriptProducer',
+				provider: 'openai',
+				model: 'gpt-5-mini',
+				config: { text_format: 'json_schema' },
+			},
+			{
+				producerId: 'AudioProducer',
+				provider: 'replicate',
+				model: 'minimax/speech-2.6-hd',
+				// SDK mappings now come from producer YAML mappings section, not from selection
+			},
+		];
 
-    const options = await buildProducerOptionsFromBlueprint(blueprint, selections, true);
+		const options = await buildProducerOptionsFromBlueprint(
+			blueprint,
+			selections,
+			true
+		);
 
-    // AudioProducer - SDK mappings come from producer YAML mappings section
-    const audioOptions = options.get('AudioProducer');
-    expect(audioOptions).toBeDefined();
-    expect(audioOptions![0].provider).toBe('replicate');
-    expect(audioOptions![0].model).toBe('minimax/speech-2.6-hd');
-    // sdkMapping is populated from the producer YAML's mappings section
-    expect(audioOptions![0].sdkMapping).toBeDefined();
-    expect(audioOptions![0].sdkMapping?.Text).toEqual({ field: 'text' });
-    expect(audioOptions![0].sdkMapping?.VoiceId).toEqual({ field: 'voice_id' });
-    expect(audioOptions![0].sdkMapping?.Emotion).toEqual({ field: 'emotion' });
+		// AudioProducer - SDK mappings come from producer YAML mappings section
+		const audioOptions = options.get('AudioProducer');
+		expect(audioOptions).toBeDefined();
+		expect(audioOptions![0].provider).toBe('replicate');
+		expect(audioOptions![0].model).toBe('minimax/speech-2.6-hd');
+		// sdkMapping is populated from the producer YAML's mappings section
+		expect(audioOptions![0].sdkMapping).toBeDefined();
+		expect(audioOptions![0].sdkMapping?.Text).toEqual({ field: 'text' });
+		expect(audioOptions![0].sdkMapping?.VoiceId).toEqual({ field: 'voice_id' });
+		expect(audioOptions![0].sdkMapping?.Emotion).toEqual({ field: 'emotion' });
 
-    // ScriptProducer should have LLM config loaded from promptFile (defined in producer meta)
-    const scriptOptions = options.get('ScriptProducer');
-    expect(scriptOptions).toBeDefined();
-    expect(scriptOptions![0].provider).toBe('openai');
-    // outputSchema should be the loaded JSON content from producer meta's outputSchema path
-    expect(scriptOptions![0].outputSchema).toBeDefined();
-    expect(scriptOptions![0].config).toMatchObject({
-      text_format: 'json_schema',
-      systemPrompt: expect.stringContaining('documentary'),
-    });
-  });
+		// ScriptProducer should have LLM config loaded from promptFile (defined in producer meta)
+		const scriptOptions = options.get('ScriptProducer');
+		expect(scriptOptions).toBeDefined();
+		expect(scriptOptions![0].provider).toBe('openai');
+		// outputSchema should be the loaded JSON content from producer meta's outputSchema path
+		expect(scriptOptions![0].outputSchema).toBeDefined();
+		expect(scriptOptions![0].config).toMatchObject({
+			text_format: 'json_schema',
+			systemPrompt: expect.stringContaining('documentary'),
+		});
+	});
 
-  // Note: The test "throws when a json_schema variant is missing outputSchema" was removed.
-  // This error was intentionally removed as part of the auto-derive responseFormat feature.
-  // The provider now auto-derives responseFormat from outputSchema in request context,
-  // rather than requiring textFormat and outputSchema to be paired in core.
+	// Note: The test "throws when a json_schema variant is missing outputSchema" was removed.
+	// This error was intentionally removed as part of the auto-derive responseFormat feature.
+	// The provider now auto-derives responseFormat from outputSchema in request context,
+	// rather than requiring textFormat and outputSchema to be paired in core.
 });

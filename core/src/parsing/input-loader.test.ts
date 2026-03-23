@@ -22,7 +22,8 @@ const SHARED_AUDIO_ONLY_INPUT_TEMPLATE = resolve(
   'tests',
   'fixtures',
   'blueprints',
-  'audio-only',
+  'pipeline-orchestration',
+  'audio-narration-loop',
   'input-template.yaml'
 );
 

@@ -5,7 +5,10 @@ import { describe, expect, it } from 'vitest';
 import { generatePlan } from './planner.js';
 import type { CliConfig } from './cli-config.js';
 import { createCliLogger } from './logger.js';
-import { CATALOG_ROOT, CLI_FIXTURES_BLUEPRINTS } from '../../tests/test-catalog-paths.js';
+import {
+	CATALOG_ROOT,
+	CLI_FIXTURES_BLUEPRINTS,
+} from '../../tests/test-catalog-paths.js';
 
 const catalogRoot = CATALOG_ROOT;
 
@@ -16,9 +19,19 @@ describe('planner provider inputs', () => {
 			storage: { root: tempRoot, basePath: 'builds' },
 			catalog: { root: catalogRoot },
 		};
-		// Use CLI fixtures (condition-example has ImageProducer)
-		const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'condition-example', 'condition-example.yaml');
-		const inputsPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'condition-example', 'input-template.yaml');
+		// Use CLI fixtures (conditional-narration-routing has ImageProducer)
+		const blueprintPath = resolve(
+			CLI_FIXTURES_BLUEPRINTS,
+			'conditional-logic',
+			'conditional-narration-routing',
+			'conditional-narration-routing.yaml'
+		);
+		const inputsPath = resolve(
+			CLI_FIXTURES_BLUEPRINTS,
+			'conditional-logic',
+			'conditional-narration-routing',
+			'input-template.yaml'
+		);
 
 		try {
 			const { plan } = await generatePlan({
@@ -38,9 +51,7 @@ describe('planner provider inputs', () => {
 				.filter((job) => job.producer === 'ImageProducer');
 			expect(imageJobs.length).toBeGreaterThan(0);
 			for (const job of imageJobs) {
-				expect(job.inputs).toContain(
-					'Input:ImageProducer.provider'
-				);
+				expect(job.inputs).toContain('Input:ImageProducer.provider');
 				expect(job.inputs).toContain('Input:ImageProducer.model');
 			}
 		} finally {

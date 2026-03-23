@@ -25,20 +25,14 @@ import {
 import { RuntimeErrorCode } from '@gorenku/core';
 
 // Use CLI fixtures for blueprints
-const VIDEO_AUDIO_MUSIC_BLUEPRINT_PATH = resolve(
-	CLI_FIXTURES_BLUEPRINTS,
-	'cut-scene-video',
-	'video-audio-music.yaml'
+const VIDEO_AUDIO_MUSIC_BLUEPRINT_PATH = resolve(CLI_FIXTURES_BLUEPRINTS, 'pipeline-orchestration', 'video-audio-music-timeline',
+	'video-audio-music-timeline.yaml'
 );
-const AUDIO_ONLY_BLUEPRINT_PATH = resolve(
-	CLI_FIXTURES_BLUEPRINTS,
-	'audio-only',
-	'audio-only.yaml'
+const AUDIO_ONLY_BLUEPRINT_PATH = resolve(CLI_FIXTURES_BLUEPRINTS, 'pipeline-orchestration', 'audio-narration-loop',
+	'audio-narration-loop.yaml'
 );
-const IMAGE_AUDIO_BLUEPRINT_PATH = resolve(
-	CLI_FIXTURES_BLUEPRINTS,
-	'ken-burns',
-	'image-audio.yaml'
+const IMAGE_AUDIO_BLUEPRINT_PATH = resolve(CLI_FIXTURES_BLUEPRINTS, 'pipeline-orchestration', 'image-narration-timeline',
+	'image-narration-timeline.yaml'
 );
 const AUDIO_ONLY_MODELS = [
 	{ producerId: 'ScriptProducer', provider: 'openai', model: 'gpt-5-mini' },
@@ -289,7 +283,7 @@ describe('runGenerate (new runs)', () => {
 
 		const baselineInputsPath = join(root, 'inputs-image.yaml');
 		await copyFile(
-			resolve(CLI_FIXTURES_BLUEPRINTS, 'ken-burns', 'input-template.yaml'),
+			resolve(CLI_FIXTURES_BLUEPRINTS, 'pipeline-orchestration', 'image-narration-timeline', 'input-template.yaml'),
 			baselineInputsPath
 		);
 

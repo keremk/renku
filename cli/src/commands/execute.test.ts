@@ -15,10 +15,8 @@ import {
 	CLI_FIXTURES_CATALOG,
 } from '../../tests/test-catalog-paths.js';
 
-const AUDIO_ONLY_BLUEPRINT_PATH = resolve(
-	CLI_FIXTURES_BLUEPRINTS,
-	'audio-only',
-	'audio-only.yaml'
+const AUDIO_ONLY_BLUEPRINT_PATH = resolve(CLI_FIXTURES_BLUEPRINTS, 'pipeline-orchestration', 'audio-narration-loop',
+	'audio-narration-loop.yaml'
 );
 const AUDIO_ONLY_MODELS = [
 	{ producerId: 'ScriptProducer', provider: 'openai', model: 'gpt-5-mini' },

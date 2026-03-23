@@ -5,7 +5,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { generatePlan } from '../../src/lib/planner.js';
 import { writeCliConfig, type CliConfig } from '../../src/lib/cli-config.js';
 import { createCliLogger } from '../../src/lib/logger.js';
-import { CATALOG_ROOT, CLI_FIXTURES_BLUEPRINTS } from '../test-catalog-paths.js';
+import {
+	CATALOG_ROOT,
+	CLI_FIXTURES_BLUEPRINTS,
+} from '../test-catalog-paths.js';
 
 describe('integration: canonical inputs persist across query/edit', () => {
 	let originalApiKey: string | undefined;
@@ -42,9 +45,19 @@ describe('integration: canonical inputs persist across query/edit', () => {
 		};
 		process.env.RENKU_CLI_CONFIG = configPath;
 		await writeCliConfig(cliConfig, configPath);
-		// Use audio-only blueprint from CLI fixtures
-		const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'audio-only', 'audio-only.yaml');
-		const inputsPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'audio-only', 'input-template.yaml');
+		// Use audio-narration-loop blueprint from CLI fixtures
+		const blueprintPath = resolve(
+			CLI_FIXTURES_BLUEPRINTS,
+			'pipeline-orchestration',
+			'audio-narration-loop',
+			'audio-narration-loop.yaml'
+		);
+		const inputsPath = resolve(
+			CLI_FIXTURES_BLUEPRINTS,
+			'pipeline-orchestration',
+			'audio-narration-loop',
+			'input-template.yaml'
+		);
 		const logger = createCliLogger({
 			level: 'debug',
 		});
@@ -74,12 +87,12 @@ describe('integration: canonical inputs persist across query/edit', () => {
 		const inputEvents = inputsLogContent
 			.split('\n')
 			.filter(Boolean)
-			.map(line => JSON.parse(line) as { id: string; payload: unknown });
+			.map((line) => JSON.parse(line) as { id: string; payload: unknown });
 
 		// Verify some canonical inputs were persisted
 		expect(inputEvents.length).toBeGreaterThan(0);
 		const inquiryEvent = inputEvents.find(
-			e => e.id === 'Input:InquiryPrompt'
+			(e) => e.id === 'Input:InquiryPrompt'
 		);
 		expect(inquiryEvent).toBeDefined();
 

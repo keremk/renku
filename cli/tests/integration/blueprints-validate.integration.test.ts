@@ -61,11 +61,8 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 	});
 
 	it('keeps blueprints:validate as static wiring validation', async () => {
-		const fixtureRoot = resolve(
-			CLI_FIXTURES_BLUEPRINTS,
-			'scene-character-presence'
-		);
-		const blueprintPath = resolve(fixtureRoot, 'scene-character-presence.yaml');
+		const fixtureRoot = resolve(CLI_FIXTURES_BLUEPRINTS, 'conditional-logic', 'scene-character-reference-routing');
+		const blueprintPath = resolve(fixtureRoot, 'scene-character-reference-routing.yaml');
 
 		const result = await runBlueprintsValidate({ blueprintPath });
 
@@ -76,17 +73,12 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 	});
 
 	it('generates dry-run profile files with boolean/enum/number hints and uses them with generate --dry-run', async () => {
-		const fixtureRoot = resolve(
-			CLI_FIXTURES_BLUEPRINTS,
-			'scene-character-presence-typed'
-		);
+		const fixtureRoot = resolve(CLI_FIXTURES_BLUEPRINTS, 'conditional-logic', 'scene-character-reference-routing');
 		const blueprintPath = resolve(
 			fixtureRoot,
-			'scene-character-presence-typed.yaml'
+			'scene-character-reference-routing.yaml'
 		);
-		const inputsPath = resolve(
-			CLI_FIXTURES_BLUEPRINTS,
-			'scene-character-presence',
+		const inputsPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'conditional-logic', 'scene-character-reference-routing',
 			'input-template.yaml'
 		);
 
@@ -230,11 +222,8 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 	});
 
 	it('auto-generates dry-run validation cases when no profile is provided', async () => {
-		const fixtureRoot = resolve(
-			CLI_FIXTURES_BLUEPRINTS,
-			'scene-character-presence'
-		);
-		const blueprintPath = resolve(fixtureRoot, 'scene-character-presence.yaml');
+		const fixtureRoot = resolve(CLI_FIXTURES_BLUEPRINTS, 'conditional-logic', 'scene-character-reference-routing');
+		const blueprintPath = resolve(fixtureRoot, 'scene-character-reference-routing.yaml');
 		const inputsPath = resolve(fixtureRoot, 'input-template.yaml');
 
 		const tempDir = await mkdtemp(join(tmpdir(), 'renku-dry-run-auto-'));
@@ -261,11 +250,8 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 	});
 
 	it('rejects dry-run profile usage without --dry-run', async () => {
-		const fixtureRoot = resolve(
-			CLI_FIXTURES_BLUEPRINTS,
-			'scene-character-presence'
-		);
-		const blueprintPath = resolve(fixtureRoot, 'scene-character-presence.yaml');
+		const fixtureRoot = resolve(CLI_FIXTURES_BLUEPRINTS, 'conditional-logic', 'scene-character-reference-routing');
+		const blueprintPath = resolve(fixtureRoot, 'scene-character-reference-routing.yaml');
 		const inputsPath = resolve(fixtureRoot, 'input-template.yaml');
 
 		await expect(
@@ -280,8 +266,8 @@ describe('integration: blueprint validation and dry-run profiles', () => {
 	});
 
 	it('applies explicit profile definitions when fed to generate --dry-run', async () => {
-		const fixtureRoot = resolve(CLI_FIXTURES_BLUEPRINTS, 'condition-example');
-		const blueprintPath = resolve(fixtureRoot, 'condition-example.yaml');
+		const fixtureRoot = resolve(CLI_FIXTURES_BLUEPRINTS, 'conditional-logic', 'conditional-narration-routing');
+		const blueprintPath = resolve(fixtureRoot, 'conditional-narration-routing.yaml');
 		const inputsPath = resolve(fixtureRoot, 'input-template.yaml');
 
 		const tempDir = await mkdtemp(
