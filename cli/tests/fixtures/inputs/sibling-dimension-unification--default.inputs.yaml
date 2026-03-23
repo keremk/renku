@@ -6,8 +6,6 @@ models:
   - model: gpt-test
     provider: openai
     producerId: ContentGenerator
-    config:
-      text_format: json_schema
   - model: test-image-model
     provider: replicate
     producerId: ImageGenerator

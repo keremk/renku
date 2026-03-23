@@ -10,8 +10,6 @@ models:
   - model: gpt-5.2
     provider: openai
     producerId: StoryProducer
-    config:
-      text_format: json_schema
   - model: nano-banana-pro
     provider: fal-ai
     producerId: CharacterImageProducer

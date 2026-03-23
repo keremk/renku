@@ -1,16 +1,16 @@
 inputs:
   # Scenario and style
-  InquiryPrompt: "A person in a canoe paddling through a serene lake at sunset, an exciting narrative audio describing the adventure."
-  CameraStyle: "Tracking shot following the canoe"
-  VisualStyle: "Cinematic, photorealistic"
+  InquiryPrompt: 'A person in a canoe paddling through a serene lake at sunset, an exciting narrative audio describing the adventure.'
+  CameraStyle: 'Tracking shot following the canoe'
+  VisualStyle: 'Cinematic, photorealistic'
 
   # Video settings
-  AspectRatio: "16:9"
-  Resolution: "720p"
+  AspectRatio: '16:9'
+  Resolution: '720p'
 
   # Voice settings for narration
-  VoiceId: "Wise_Woman"
-  Emotion: "neutral"
+  VoiceId: 'Wise_Woman'
+  Emotion: 'neutral'
 
   # System inputs
   Duration: 20
@@ -21,8 +21,6 @@ models:
   - model: gpt-5.2
     provider: openai
     producerId: ScenarioPromptProducer
-    config:
-      text_format: json_schema
 
   # Image generation for initial frame
   - model: bytedance/seedream-4.5
@@ -30,7 +28,7 @@ models:
     producerId: InitialImageProducer
 
   # Video generation with image-to-video (supports variable duration)
-  - model: kling-video/v2.5-turbo/pro/image-to-video 
+  - model: kling-video/v2.5-turbo/pro/image-to-video
     provider: fal-ai
     producerId: VideoProducer
 
@@ -50,7 +48,7 @@ models:
     producerId: TimelineComposer
     config:
       timeline:
-        masterTracks: ["Audio", "Video"]
+        masterTracks: ['Audio', 'Video']
         videoClip:
           artifact: VideoSegments
         audioClip:
@@ -60,7 +58,7 @@ models:
         musicClip:
           artifact: Music
           volume: 0.3
-        tracks: ["Video", "Audio", "Transcription", "Music"]
+        tracks: ['Video', 'Audio', 'Transcription', 'Music']
 
   # Speech transcription for karaoke subtitles
   - model: speech/transcription
@@ -75,11 +73,11 @@ models:
     producerId: VideoExporter
     config:
       subtitles:
-        font: "Arial"
+        font: 'Arial'
         fontSize: 72
-        fontBaseColor: "#FFFFFF"
-        fontHighlightColor: "#ED1EE0"
-        backgroundColor: "#000000"
+        fontBaseColor: '#FFFFFF'
+        fontHighlightColor: '#ED1EE0'
+        backgroundColor: '#000000'
         backgroundOpacity: 0.5
         maxWordsPerLine: 4
         highlightEffect: true

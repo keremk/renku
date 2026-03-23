@@ -39,7 +39,6 @@ describe('producer options', () => {
 				producerId: 'ScriptProducer',
 				provider: 'openai',
 				model: 'gpt-5-mini',
-				config: { text_format: 'json_schema' },
 			},
 			{
 				producerId: 'AudioProducer',
@@ -73,13 +72,11 @@ describe('producer options', () => {
 		// outputSchema should be the loaded JSON content from producer meta's outputSchema path
 		expect(scriptOptions![0].outputSchema).toBeDefined();
 		expect(scriptOptions![0].config).toMatchObject({
-			text_format: 'json_schema',
 			systemPrompt: expect.stringContaining('documentary'),
 		});
 	});
 
 	// Note: The test "throws when a json_schema variant is missing outputSchema" was removed.
 	// This error was intentionally removed as part of the auto-derive responseFormat feature.
-	// The provider now auto-derives responseFormat from outputSchema in request context,
-	// rather than requiring textFormat and outputSchema to be paired in core.
+	// The provider now auto-derives responseFormat from outputSchema in request context.
 });

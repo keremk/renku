@@ -527,8 +527,10 @@ describe('model selection SDK mapping parsing', () => {
     expect('inputs' in (selection ?? {})).toBe(false);
   });
 
-  it('parses LLM config with text_format config', async () => {
-    const workdir = await mkdtemp(join(tmpdir(), 'renku-llm-config-'));
+  it('rejects deprecated text_format config in model selections', async () => {
+    const workdir = await mkdtemp(
+      join(tmpdir(), 'renku-llm-config-deprecated-')
+    );
     const savedPath = join(workdir, 'inputs.yaml');
     const blueprint = createMinimalBlueprintTree();
 
@@ -550,14 +552,90 @@ describe('model selection SDK mapping parsing', () => {
       'utf8'
     );
 
-    const loaded = await loadInputsFromYaml(savedPath, blueprint);
-    const selection = loaded.modelSelections.find(
-      (s) => s.producerId === 'ScriptProducer'
+    await expect(loadInputsFromYaml(savedPath, blueprint)).rejects.toThrow(
+      /config\.text_format/
+    );
+  });
+
+  it('rejects deprecated promptFile/outputSchema in model selections', async () => {
+    const workdir = await mkdtemp(
+      join(tmpdir(), 'renku-llm-config-legacy-meta-')
+    );
+    const savedPath = join(workdir, 'inputs.yaml');
+    const blueprint = createMinimalBlueprintTree();
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {},
+        models: [
+          {
+            producerId: 'ScriptProducer',
+            provider: 'openai',
+            model: 'gpt-5-mini',
+            promptFile: './script.toml',
+            outputSchema: './script-output.json',
+          },
+        ],
+      }),
+      'utf8'
     );
 
-    expect(selection).toBeDefined();
-    // Note: promptFile and outputSchema are now defined in producer YAML meta section, not input templates
-    expect(selection?.config).toEqual({ text_format: 'json_schema' });
+    await expect(loadInputsFromYaml(savedPath, blueprint)).rejects.toThrow(
+      /promptFile/
+    );
+  });
+
+  it('rejects deprecated textFormat shorthand in model selections', async () => {
+    const workdir = await mkdtemp(
+      join(tmpdir(), 'renku-llm-config-deprecated-shorthand-')
+    );
+    const savedPath = join(workdir, 'inputs.yaml');
+    const blueprint = createMinimalBlueprintTree();
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {},
+        models: [
+          {
+            producerId: 'ScriptProducer',
+            provider: 'openai',
+            model: 'gpt-5-mini',
+            textFormat: 'text',
+          },
+        ],
+      }),
+      'utf8'
+    );
+
+    await expect(loadInputsFromYaml(savedPath, blueprint)).rejects.toThrow(
+      /textFormat/
+    );
+  });
+
+  it('rejects deprecated producer-scoped response-format inputs', async () => {
+    const workdir = await mkdtemp(
+      join(tmpdir(), 'renku-scoped-deprecated-format-')
+    );
+    const savedPath = join(workdir, 'inputs.yaml');
+    const blueprint = createMinimalBlueprintTree();
+
+    await writeFile(
+      savedPath,
+      stringifyYaml({
+        inputs: {
+          'ScriptProducer.provider': 'openai',
+          'ScriptProducer.model': 'gpt-5-mini',
+          'ScriptProducer.text_format': 'json_schema',
+        },
+      }),
+      'utf8'
+    );
+
+    await expect(loadInputsFromYaml(savedPath, blueprint)).rejects.toThrow(
+      /ScriptProducer\.text_format/
+    );
   });
 
   it('parses inline LLM config with systemPrompt and userPrompt', async () => {
@@ -576,7 +654,6 @@ describe('model selection SDK mapping parsing', () => {
             model: 'gpt-4o',
             systemPrompt: 'You are a helpful assistant.',
             userPrompt: 'Answer the following: {{question}}',
-            textFormat: 'text',
             variables: ['question'],
           },
         ],
@@ -597,7 +674,6 @@ describe('model selection SDK mapping parsing', () => {
     expect(selection?.config?.userPrompt).toBe(
       'Answer the following: {{question}}'
     );
-    expect(selection?.config?.textFormat).toBe('text');
     expect(selection?.config?.variables).toEqual(['question']);
   });
 
@@ -729,15 +805,12 @@ describe('model selection SDK mapping parsing', () => {
     // inputs property was removed from ModelSelection
     expect('inputs' in (imageSelection ?? {})).toBe(false);
 
-    // ImagePromptProducer should have LLM config
-    // Note: promptFile and outputSchema are now defined in producer YAML meta section
+    // ImagePromptProducer is configured by producer meta (promptFile/outputSchema)
     const imagePromptSelection = loaded.modelSelections.find((s) =>
       s.producerId.endsWith('ImagePromptProducer')
     );
     expect(imagePromptSelection).toBeDefined();
-    expect(imagePromptSelection?.config).toEqual({
-      text_format: 'json_schema',
-    });
+    expect(imagePromptSelection?.config).toBeUndefined();
   });
 
   it('loads input template with LLM config from catalog', async () => {
@@ -753,15 +826,14 @@ describe('model selection SDK mapping parsing', () => {
 
     const loaded = await loadInputsFromYaml(inputPath, blueprint);
 
-    // ScriptProducer selection should have LLM config
-    // Note: promptFile and outputSchema are now defined in producer YAML meta section, not input template
+    // ScriptProducer selection should be provider/model only.
     const scriptSelection = loaded.modelSelections.find((s) =>
       s.producerId.endsWith('ScriptProducer')
     );
     expect(scriptSelection).toBeDefined();
     expect(scriptSelection?.provider).toBe('openai');
     expect(scriptSelection?.model).toBe('gpt-5.2');
-    expect(scriptSelection?.config).toEqual({ text_format: 'json_schema' });
+    expect(scriptSelection?.config).toBeUndefined();
 
     // AudioProducer should have SDK mappings
     const audioSelection = loaded.modelSelections.find((s) =>
@@ -1230,7 +1302,7 @@ describe('model selection config folding', () => {
             provider: 'openai',
             model: 'gpt-5.2',
             systemPrompt: 'Write a story.',
-            config: { text_format: 'json_schema' },
+            config: { temperature: 0.3 },
           },
         ],
       }),
@@ -1238,9 +1310,7 @@ describe('model selection config folding', () => {
     );
 
     const loaded = await loadInputsFromYaml(savedPath, blueprint);
-    expect(loaded.values['Input:ScriptProducer.text_format']).toBe(
-      'json_schema'
-    );
+    expect(loaded.values['Input:ScriptProducer.temperature']).toBe(0.3);
     expect(loaded.values['Input:ScriptProducer.systemPrompt']).toBe(
       'Write a story.'
     );

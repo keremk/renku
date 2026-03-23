@@ -240,7 +240,7 @@ describe('end-to-end: config dirty tracking', () => {
 		const movieId = 'e2e-yaml-config-dirty';
 		const storageMovieId = formatMovieId(movieId);
 
-		// Phase 1: fresh run with text_format: json_schema
+		// Phase 1: fresh run
 		const phase1 = await runPhase({
 			movieId,
 			storageMovieId,
@@ -250,7 +250,7 @@ describe('end-to-end: config dirty tracking', () => {
 		});
 		expect(phase1.allJobs.length).toBeGreaterThanOrEqual(4);
 
-		// Phase 2: change text_format to "text" in inputs
+		// Phase 2: change a supported producer config value in inputs
 		const modifiedInputsPath = join(tempRoot, 'modified-inputs.yaml');
 		await writeInputsFile(inputsPath, modifiedInputsPath, {
 			models: [
@@ -258,7 +258,7 @@ describe('end-to-end: config dirty tracking', () => {
 					model: 'gpt-5.2',
 					provider: 'openai',
 					producerId: 'ScriptProducer',
-					config: { text_format: 'text' },
+					config: { temperature: 0.3 },
 				},
 				{
 					model: 'minimax/speech-2.6-hd',
@@ -434,7 +434,6 @@ describe('end-to-end: config dirty tracking', () => {
 					model: 'claude-sonnet-4-5-20250929',
 					provider: 'anthropic',
 					producerId: 'ScriptProducer',
-					config: { text_format: 'json_schema' },
 				},
 				{
 					model: 'minimax/speech-2.6-hd',

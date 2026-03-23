@@ -2,22 +2,22 @@ inputs:
   # Celebrity images - provide one "then" and one "now" image per celebrity
   # Arrays must have the same length as NumOfCharacters
   CelebrityThenImages:
-    - "file:./images/celebrity1-then.jpg"
-    - "file:./images/celebrity2-then.jpg"
-    - "file:./images/celebrity3-then.jpg"
+    - 'file:./images/celebrity1-then.jpg'
+    - 'file:./images/celebrity2-then.jpg'
+    - 'file:./images/celebrity3-then.jpg'
   CelebrityNowImages:
-    - "file:./images/celebrity1-now.jpg"
-    - "file:./images/celebrity2-now.jpg"
-    - "file:./images/celebrity3-now.jpg"
+    - 'file:./images/celebrity1-now.jpg'
+    - 'file:./images/celebrity2-now.jpg'
+    - 'file:./images/celebrity3-now.jpg'
 
   # Background/setting image
-  SettingImage: "file:./images/setting.jpg"
+  SettingImage: 'file:./images/setting.jpg'
 
   # Creative inputs
-  Theme: "Hollywood Icons Through Time"
-  EnvironmentDescription: "A nostalgic Hollywood movie set with vintage cameras, golden lighting, and classic film equipment"
-  VisualStyle: "Cinematic, nostalgic, warm golden tones"
-  MusicalStyle: "Nostalgic orchestral with soft strings and piano, building emotional arc"
+  Theme: 'Hollywood Icons Through Time'
+  EnvironmentDescription: 'A nostalgic Hollywood movie set with vintage cameras, golden lighting, and classic film equipment'
+  VisualStyle: 'Cinematic, nostalgic, warm golden tones'
+  MusicalStyle: 'Nostalgic orchestral with soft strings and piano, building emotional arc'
 
   # Timing
   NumOfCharacters: 3
@@ -25,8 +25,8 @@ inputs:
   TransitionDuration: 5
 
   # Video settings
-  AspectRatio: "16:9"
-  Resolution: "720p"
+  AspectRatio: '16:9'
+  Resolution: '720p'
 
   # System inputs
   # Total Duration = NumOfCharacters * MeetingDuration + (NumOfCharacters - 1) * TransitionDuration
@@ -38,8 +38,6 @@ models:
   - model: gpt-5-mini
     provider: openai
     producerId: DirectorProducer
-    config:
-      text_format: json_schema
 
   # Image-to-image for consistent then images
   - model: qwen-image-edit-2511
@@ -77,8 +75,8 @@ models:
     producerId: TimelineComposer
     config:
       timeline:
-        tracks: ["Video", "Music"]
-        masterTracks: ["Video"]
+        tracks: ['Video', 'Music']
+        masterTracks: ['Video']
         videoClip:
           artifact: VideoSegments
         musicClip:

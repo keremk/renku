@@ -10,27 +10,27 @@ inputs:
     * **The Device:** A modern smartphone with a glowing screen displaying a vibrant lime green background, the black squiggly Higgsfield "S" logo, and the bold text "I got Higgs."
 
   # Visual style
-  Styling: "2000s music video aesthetic, high color saturation, heavy film grain, and slight motion blur."
+  Styling: '2000s music video aesthetic, high color saturation, heavy film grain, and slight motion blur.'
 
   # Lighting instructions
-  Lighting: "Warm, hazy golden hour sunlight; neon green accent lighting from the phone screen."
+  Lighting: 'Warm, hazy golden hour sunlight; neon green accent lighting from the phone screen.'
 
   # Camera style
-  Camera: "Mix of Wide-Angle, Fisheye, and Macro lenses. Constant TechTV logo bug in the bottom right corner."
+  Camera: 'Mix of Wide-Angle, Fisheye, and Macro lenses. Constant TechTV logo bug in the bottom right corner.'
 
   # Grid configuration
-  GridStyle: "3x3"
+  GridStyle: '3x3'
   # For 3x3 grid: PanelCount = 9, NumOfSegments = 8
   # For 2x2 grid: PanelCount = 4, NumOfSegments = 3
   PanelCount: 9
 
   # Video settings
-  AspectRatio: "16:9"
-  Resolution: "720p"
+  AspectRatio: '16:9'
+  Resolution: '720p'
 
   # System inputs
-  Duration: 40           # Total video duration in seconds
-  NumOfSegments: 8       # Number of video clips (PanelCount - 1)
+  Duration: 40 # Total video duration in seconds
+  NumOfSegments: 8 # Number of video clips (PanelCount - 1)
   # SegmentDuration is auto-computed as Duration/NumOfSegments = 5 seconds per clip
 
 models:
@@ -38,8 +38,6 @@ models:
   - model: gpt-5.2
     provider: openai
     producerId: StoryboardDirector
-    config:
-      text_format: json_schema
 
   # Storyboard image generation (NanoBanana Pro)
   - model: nano-banana-pro
@@ -67,13 +65,13 @@ models:
     producerId: TimelineComposer
     config:
       timeline:
-        masterTracks: ["Video"]
+        masterTracks: ['Video']
         videoClip:
           artifact: VideoSegments
         musicClip:
           artifact: Music
           volume: 0.4
-        tracks: ["Video", "Music"]
+        tracks: ['Video', 'Music']
 
   # Video export
   - model: ffmpeg/native-render

@@ -11,8 +11,6 @@ models:
   - model: gpt-5-mini
     provider: openai
     producerId: DirectorProducer
-    config:
-      text_format: json_schema
   - model: bytedance/seedance-1-pro-fast
     provider: replicate
     producerId: MeetingVideoProducer

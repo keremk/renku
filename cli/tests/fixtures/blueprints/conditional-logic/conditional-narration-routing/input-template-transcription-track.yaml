@@ -23,8 +23,6 @@ models:
   - model: gpt-5-mini
     provider: openai
     producerId: DocProducer
-    config:
-      text_format: json_schema
   - model: timeline/ordered
     provider: renku
     producerId: TimelineComposer

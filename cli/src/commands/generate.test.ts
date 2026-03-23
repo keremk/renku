@@ -25,13 +25,22 @@ import {
 import { RuntimeErrorCode } from '@gorenku/core';
 
 // Use CLI fixtures for blueprints
-const VIDEO_AUDIO_MUSIC_BLUEPRINT_PATH = resolve(CLI_FIXTURES_BLUEPRINTS, 'pipeline-orchestration', 'video-audio-music-timeline',
+const VIDEO_AUDIO_MUSIC_BLUEPRINT_PATH = resolve(
+	CLI_FIXTURES_BLUEPRINTS,
+	'pipeline-orchestration',
+	'video-audio-music-timeline',
 	'video-audio-music-timeline.yaml'
 );
-const AUDIO_ONLY_BLUEPRINT_PATH = resolve(CLI_FIXTURES_BLUEPRINTS, 'pipeline-orchestration', 'audio-narration-loop',
+const AUDIO_ONLY_BLUEPRINT_PATH = resolve(
+	CLI_FIXTURES_BLUEPRINTS,
+	'pipeline-orchestration',
+	'audio-narration-loop',
 	'audio-narration-loop.yaml'
 );
-const IMAGE_AUDIO_BLUEPRINT_PATH = resolve(CLI_FIXTURES_BLUEPRINTS, 'pipeline-orchestration', 'image-narration-timeline',
+const IMAGE_AUDIO_BLUEPRINT_PATH = resolve(
+	CLI_FIXTURES_BLUEPRINTS,
+	'pipeline-orchestration',
+	'image-narration-timeline',
 	'image-narration-timeline.yaml'
 );
 const AUDIO_ONLY_MODELS = [
@@ -283,7 +292,12 @@ describe('runGenerate (new runs)', () => {
 
 		const baselineInputsPath = join(root, 'inputs-image.yaml');
 		await copyFile(
-			resolve(CLI_FIXTURES_BLUEPRINTS, 'pipeline-orchestration', 'image-narration-timeline', 'input-template.yaml'),
+			resolve(
+				CLI_FIXTURES_BLUEPRINTS,
+				'pipeline-orchestration',
+				'image-narration-timeline',
+				'input-template.yaml'
+			),
 			baselineInputsPath
 		);
 
@@ -302,11 +316,6 @@ describe('runGenerate (new runs)', () => {
 				// Add inline prompts for LLM producers
 				model.systemPrompt = 'You are a helpful assistant for testing.';
 				model.userPrompt = 'Process this: {{InquiryPrompt}}';
-				// If text_format was json_schema, change to text since we removed outputSchema
-				const config = model.config as Record<string, unknown> | undefined;
-				if (config?.text_format === 'json_schema') {
-					config.text_format = 'text';
-				}
 			}
 		}
 

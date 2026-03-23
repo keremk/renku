@@ -11,7 +11,6 @@ import {
 	setupTempCliConfig,
 } from '../helpers.js';
 import {
-	CATALOG_PRODUCERS_ROOT,
 	CLI_FIXTURES_BLUEPRINTS,
 	CLI_FIXTURES_INPUTS,
 } from '../../test-catalog-paths.js';
@@ -31,7 +30,10 @@ describe('end-to-end: video-audio-music dry runs', () => {
 	});
 
 	it('runs query and edit dry-runs with canonical bindings and artefacts', async () => {
-		const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'pipeline-orchestration', 'video-audio-music-timeline',
+		const blueprintPath = resolve(
+			CLI_FIXTURES_BLUEPRINTS,
+			'pipeline-orchestration',
+			'video-audio-music-timeline',
 			'video-audio-music-timeline.yaml'
 		);
 		const inputsPath = resolve(
@@ -188,7 +190,6 @@ describe('end-to-end: video-audio-music dry runs', () => {
 		);
 
 		// Prepare edited inputs to force re-run
-		// When copying to temp directory, convert relative promptFile paths to absolute paths
 		const editedInputsPath = join(tempRoot, 'edited-inputs.yaml');
 		const originalContent = await readFile(inputsPath, 'utf8');
 		const doc = parseYaml(originalContent) as {
@@ -197,27 +198,6 @@ describe('end-to-end: video-audio-music dry runs', () => {
 		};
 		doc.inputs = doc.inputs ?? {};
 		doc.inputs.InquiryPrompt = 'Chronicle deep-sea exploration technology';
-		// Convert relative promptFile/outputSchema paths to absolute paths
-		for (const model of doc.models ?? []) {
-			if (typeof model.promptFile === 'string') {
-				model.promptFile = resolve(
-					CATALOG_PRODUCERS_ROOT,
-					model.promptFile.replace(
-						/^(\.\.\/)*(?:tests\/shared-fixtures\/)?catalog\/producers\//,
-						''
-					)
-				);
-			}
-			if (typeof model.outputSchema === 'string') {
-				model.outputSchema = resolve(
-					CATALOG_PRODUCERS_ROOT,
-					model.outputSchema.replace(
-						/^(\.\.\/)*(?:tests\/shared-fixtures\/)?catalog\/producers\//,
-						''
-					)
-				);
-			}
-		}
 		await writeFile(editedInputsPath, stringifyYaml(doc), 'utf8');
 
 		const editResult = await runExecute({

@@ -454,10 +454,91 @@ const MODEL_SELECTION_KEYS = new Set([
   'model',
   'config',
   'outputs',
+  // Legacy keys kept here so they are not folded into config.
   'promptFile',
   'outputSchema',
   'inputs',
 ]);
+
+const LEGACY_MODEL_SELECTION_META_KEYS = new Set([
+  'promptFile',
+  'outputSchema',
+]);
+const FORBIDDEN_MODEL_SELECTION_CONFIG_KEYS = new Set([
+  'text_format',
+  'textFormat',
+  'responseFormat',
+  'jsonSchema',
+]);
+
+function assertNoDeprecatedModelSelectionKeys(
+  record: Record<string, unknown>,
+  producerId: string
+): void {
+  for (const key of LEGACY_MODEL_SELECTION_META_KEYS) {
+    if (record[key] === undefined) {
+      continue;
+    }
+    throw createParserError(
+      ParserErrorCode.INVALID_MODEL_ENTRY,
+      `models entry for "${producerId}" contains "${key}", which is no longer supported. ` +
+        `Define "${key}" in the producer YAML meta section instead.`
+    );
+  }
+
+  for (const key of Object.keys(record)) {
+    if (!FORBIDDEN_MODEL_SELECTION_CONFIG_KEYS.has(key)) {
+      continue;
+    }
+    throw createParserError(
+      ParserErrorCode.INVALID_MODEL_ENTRY,
+      `models entry for "${producerId}" contains "${key}", which is no longer supported. ` +
+        'Response format is auto-derived from producer meta.outputSchema.'
+    );
+  }
+
+  if (record.config === undefined) {
+    return;
+  }
+  if (!isRecord(record.config)) {
+    throw createParserError(
+      ParserErrorCode.INVALID_MODEL_ENTRY,
+      `models entry for "${producerId}" has invalid "config": expected an object.`
+    );
+  }
+  for (const key of Object.keys(record.config)) {
+    if (!FORBIDDEN_MODEL_SELECTION_CONFIG_KEYS.has(key)) {
+      continue;
+    }
+    throw createParserError(
+      ParserErrorCode.INVALID_MODEL_ENTRY,
+      `models entry for "${producerId}" uses config.${key}, which is no longer supported. ` +
+        'Response format is auto-derived from producer meta.outputSchema.'
+    );
+  }
+}
+
+function assertNoDeprecatedProducerScopedInputKey(
+  producerId: string,
+  keyPath: string
+): void {
+  const rootKey = keyPath.split('.')[0] ?? keyPath;
+  if (LEGACY_MODEL_SELECTION_META_KEYS.has(rootKey)) {
+    throw createParserError(
+      ParserErrorCode.INVALID_INPUT_KEY,
+      `Input "${producerId}.${keyPath}" is no longer supported. ` +
+        `Define "${rootKey}" in the producer YAML meta section instead.`
+    );
+  }
+  if (!FORBIDDEN_MODEL_SELECTION_CONFIG_KEYS.has(rootKey)) {
+    return;
+  }
+  throw createParserError(
+    ParserErrorCode.INVALID_INPUT_KEY,
+    `Input "${producerId}.${keyPath}" is no longer supported. ` +
+      'Response format is auto-derived from producer meta.outputSchema.'
+  );
+}
 
 function resolveModelSelections(
   raw: unknown,
@@ -486,6 +567,7 @@ function resolveModelSelections(
       const producerId = readString(record, 'producerId');
       const provider = readString(record, 'provider');
       const model = readString(record, 'model');
+      assertNoDeprecatedModelSelectionKeys(record, producerId);
       const outputs = parseOutputs(record.outputs);
 
       // Start with explicit config section
@@ -606,6 +688,7 @@ function mergeSelectionsFromInputs(
     if (!match) {
       continue;
     }
+    assertNoDeprecatedProducerScopedInputKey(match.producerId, match.keyPath);
     const existing = selections.get(match.producerId);
     if (existing) {
       continue;

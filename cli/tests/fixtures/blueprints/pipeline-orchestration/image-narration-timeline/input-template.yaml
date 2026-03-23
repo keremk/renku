@@ -3,24 +3,20 @@ inputs:
   Duration: 20
   NumOfSegments: 2
   NumOfImagesPerNarrative: 1
-  Style: "Ghibli"
-  Size: "1K"
-  AspectRatio: "16:9"
-  Audience: "Adult"
-  VoiceId: "Wise_Woman"
+  Style: 'Ghibli'
+  Size: '1K'
+  AspectRatio: '16:9'
+  Audience: 'Adult'
+  VoiceId: 'Wise_Woman'
   Emotion: neutral
 
 models:
   - model: gpt-5-mini
     provider: openai
     producerId: ScriptProducer
-    config:
-      text_format: json_schema
   - model: gpt-5-mini
     provider: openai
     producerId: ImagePromptProducer
-    config:
-      text_format: json_schema
   - model: google/nano-banana
     provider: replicate
     producerId: ImageProducer
@@ -34,8 +30,8 @@ models:
     producerId: TimelineComposer
     config:
       timeline:
-        tracks: ["Image", "Audio"]
-        masterTracks: ["Audio"]
+        tracks: ['Image', 'Audio']
+        masterTracks: ['Audio']
         numTracks: 2
         imageClip:
           artifact: ImageSegments[Image]

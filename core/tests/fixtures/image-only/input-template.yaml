@@ -3,21 +3,17 @@ inputs:
   Duration: 20
   NumOfSegments: 2
   NumOfImagesPerNarrative: 2
-  Style: "Ghibli"
-  Audience: "Adult"
-  Size: "1K"
+  Style: 'Ghibli'
+  Audience: 'Adult'
+  Size: '1K'
 
 models:
   - model: gpt-5-mini
     provider: openai
     producerId: ScriptProducer
-    config:
-      text_format: json_schema
   - model: gpt-5-mini
     provider: openai
     producerId: ImagePromptProducer
-    config:
-      text_format: json_schema
   - model: google/nano-banana
     provider: replicate
     producerId: ImageProducer

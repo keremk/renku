@@ -25,21 +25,8 @@ import {
 } from '../helpers.js';
 import {
 	CLI_FIXTURES_BLUEPRINTS,
-	CLI_FIXTURES_BLUEPRINT_MODULES,
 	CLI_FIXTURES_INPUTS,
 } from '../../test-catalog-paths.js';
-
-const SHARED_DOCUMENTARY_PROMPT_PATH = resolve(
-	CLI_FIXTURES_BLUEPRINT_MODULES,
-	'documentary',
-	'documentary.toml'
-);
-
-const SHARED_DOCUMENTARY_OUTPUT_SCHEMA_PATH = resolve(
-	CLI_FIXTURES_BLUEPRINT_MODULES,
-	'documentary',
-	'documentary-output.json'
-);
 
 describe('end-to-end: JSON virtual artifact blueprint', () => {
 	let tempRoot = '';
@@ -56,7 +43,10 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 	});
 
 	it('dry-run generates correct jobs with virtual artifact connections', async () => {
-		const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'artifacts-and-derivations', 'virtual-json-artifacts',
+		const blueprintPath = resolve(
+			CLI_FIXTURES_BLUEPRINTS,
+			'artifacts-and-derivations',
+			'virtual-json-artifacts',
 			'virtual-json-artifacts.yaml'
 		);
 		const inputsPath = resolve(
@@ -155,7 +145,10 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 	});
 
 	it('re-runs only affected ImageProducer when virtual artifact is overridden', async () => {
-		const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'artifacts-and-derivations', 'virtual-json-artifacts',
+		const blueprintPath = resolve(
+			CLI_FIXTURES_BLUEPRINTS,
+			'artifacts-and-derivations',
+			'virtual-json-artifacts',
 			'virtual-json-artifacts.yaml'
 		);
 		const inputsPath = resolve(
@@ -300,10 +293,6 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 						model: 'gpt-5.2',
 						provider: 'openai',
 						producerId: 'DocProducer',
-						// Include outputSchema so virtual artifact edges are created
-						promptFile: SHARED_DOCUMENTARY_PROMPT_PATH,
-						outputSchema: SHARED_DOCUMENTARY_OUTPUT_SCHEMA_PATH,
-						config: { text_format: 'json_schema' },
 					},
 					{
 						model: 'bytedance/seedream-4',
@@ -402,7 +391,10 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 	});
 
 	it('re-runs different ImageProducer when different virtual artifact is overridden', async () => {
-		const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'artifacts-and-derivations', 'virtual-json-artifacts',
+		const blueprintPath = resolve(
+			CLI_FIXTURES_BLUEPRINTS,
+			'artifacts-and-derivations',
+			'virtual-json-artifacts',
 			'virtual-json-artifacts.yaml'
 		);
 		const inputsPath = resolve(
@@ -507,9 +499,6 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 						model: 'gpt-5.2',
 						provider: 'openai',
 						producerId: 'DocProducer',
-						promptFile: SHARED_DOCUMENTARY_PROMPT_PATH,
-						outputSchema: SHARED_DOCUMENTARY_OUTPUT_SCHEMA_PATH,
-						config: { text_format: 'json_schema' },
 					},
 					{
 						model: 'bytedance/seedream-4',

@@ -140,8 +140,8 @@ export function createPlanningService(
         targetRevision
       );
 
-      // Apply output schemas from provider options to JSON artifacts
-      // This enables virtual artifact decomposition for producers with outputSchema in input templates
+      // Apply output schemas from provider options to JSON artifacts.
+      // This enables virtual artifact decomposition for producers with outputSchema in producer metadata.
       applyOutputSchemasToBlueprintTree(
         args.blueprintTree,
         args.providerOptions
@@ -434,7 +434,7 @@ async function transformInputBlobsToRefs(
 /**
  * Apply output schemas from provider options to JSON artifacts in the blueprint tree.
  * This enables virtual artifact decomposition for producers with outputSchema defined
- * in input templates (after the migration from inline models).
+ * in producer metadata and loaded into provider options.
  */
 export function applyOutputSchemasToBlueprintTree(
   tree: BlueprintTreeNode,

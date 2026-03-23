@@ -16,10 +16,6 @@ models:
   - model: gpt-5-mini
     provider: openai
     producerId: FlowVideoPromptProducer
-    promptFile: ../blueprints/_shared/flow-video/flow-video.toml
-    outputSchema: ../blueprints/_shared/flow-video/flow-video-output.json
-    config:
-      text_format: json_schema
   - model: google/nano-banana
     provider: replicate
     producerId: ImageProducer

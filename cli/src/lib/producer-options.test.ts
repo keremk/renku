@@ -86,7 +86,6 @@ describe('buildProducerOptionsFromBlueprint', () => {
 				provider: 'openai',
 				model: 'gpt-5-mini',
 				config: {
-					text_format: 'json_schema',
 					systemPrompt: 'You are a script writer.',
 				},
 			},
@@ -103,7 +102,6 @@ describe('buildProducerOptionsFromBlueprint', () => {
 		expect(options![0].provider).toBe('openai');
 		expect(options![0].model).toBe('gpt-5-mini');
 		expect(options![0].config).toMatchObject({
-			text_format: 'json_schema',
 			systemPrompt: 'You are a script writer.',
 		});
 	});
@@ -122,7 +120,6 @@ describe('buildProducerOptionsFromBlueprint', () => {
 				config: {
 					systemPrompt: 'You are a helpful assistant.',
 					userPrompt: 'Answer: {{question}}',
-					textFormat: 'text',
 					variables: ['question'],
 				},
 			},

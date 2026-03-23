@@ -34,13 +34,11 @@ describe('integration: provider config merging', () => {
 					producerId: 'ScriptProducer',
 					provider: 'openai',
 					model: 'gpt-5-mini',
-					config: { text_format: 'json_schema' },
 				},
 				{
 					producerId: 'ImagePromptProducer',
 					provider: 'openai',
 					model: 'gpt-5-mini',
-					config: { text_format: 'json_schema' },
 				},
 				{
 					producerId: 'ImageProducer',
