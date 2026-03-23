@@ -1,6 +1,6 @@
 /**
  * Test utility for resolving catalog paths.
- * Tests should use these paths to stay decoupled from the production catalog.
+ * Tests should use these paths for stable catalog and fixture resolution.
  */
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -32,11 +32,11 @@ export const SHARED_TEST_CATALOG_ROOT = resolve(
 /** CLI test fixtures directory */
 export const CLI_TEST_FIXTURES_ROOT = resolve(__dirname, 'fixtures');
 
-/** Shared catalog snapshot used by CLI tests */
-export const CLI_FIXTURES_CATALOG = SHARED_TEST_CATALOG_ROOT;
-
 /** Catalog root consumed by CLI tests */
-export const CATALOG_ROOT = CLI_FIXTURES_CATALOG;
+export const CATALOG_ROOT = resolve(REPO_ROOT, 'catalog');
+
+/** Catalog source copied by CLI init/update tests */
+export const CLI_FIXTURES_CATALOG = CATALOG_ROOT;
 
 /** Blueprints directory within the catalog */
 export const CATALOG_BLUEPRINTS_ROOT = resolve(CATALOG_ROOT, 'blueprints');

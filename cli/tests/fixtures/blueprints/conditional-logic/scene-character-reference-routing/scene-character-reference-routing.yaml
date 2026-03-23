@@ -57,10 +57,10 @@ producers:
   - name: StoryProducer
     path: ./storyboard-director/storyboard-director.yaml
   - name: CharacterImageProducer
-    producer: asset/text-to-image
+    producer: image/text-to-image
     loop: character
   - name: SceneVideoProducer
-    producer: asset/ref-image-to-video
+    producer: video/ref-image-to-video
     loop: scene
 
 connections:

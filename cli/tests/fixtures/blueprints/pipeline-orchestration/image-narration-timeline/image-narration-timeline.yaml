@@ -73,10 +73,10 @@ producers:
     path: ../../_shared/image/image.yaml
     loop: segment
   - name: ImageProducer
-    producer: asset/text-to-image
+    producer: image/text-to-image
     loop: segment.image
   - name: AudioProducer
-    producer: asset/text-to-speech
+    producer: audio/text-to-speech
     loop: segment
   - name: TimelineComposer
     producer: composition/timeline-composer

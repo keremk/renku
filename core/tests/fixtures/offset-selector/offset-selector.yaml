@@ -32,10 +32,10 @@ loops:
 
 producers:
   - name: ImageProducer
-    producer: asset/text-to-image
+    producer: image/text-to-image
     loop: image
   - name: VideoProducer
-    producer: asset/image-to-video
+    producer: video/image-to-video
     loop: segment
 
 connections:

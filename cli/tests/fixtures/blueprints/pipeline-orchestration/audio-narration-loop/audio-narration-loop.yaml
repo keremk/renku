@@ -44,7 +44,7 @@ producers:
   - name: ScriptProducer
     path: ../../_shared/script/script.yaml
   - name: AudioProducer
-    producer: asset/text-to-speech
+    producer: audio/text-to-speech
     loop: segment
 
 connections:

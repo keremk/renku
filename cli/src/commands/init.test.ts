@@ -57,7 +57,7 @@ describe('runInit', () => {
 			join(
 				getCliCatalogRoot(result.rootFolder),
 				'producers',
-				'asset',
+				'audio',
 				'text-to-speech.yaml'
 			)
 		);

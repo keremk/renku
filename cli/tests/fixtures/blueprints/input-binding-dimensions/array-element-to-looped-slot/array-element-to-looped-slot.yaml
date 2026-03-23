@@ -36,7 +36,7 @@ loops:
 
 producers:
   - name: ThenImageProducer
-    producer: asset/image-to-image
+    producer: image/image-compose
     loop: character
 
 connections:
@@ -46,5 +46,5 @@ connections:
     to: ThenImageProducer[character].SourceImages[0]
   - from: SettingImage
     to: ThenImageProducer[character].SourceImages[1]
-  - from: ThenImageProducer[character].TransformedImage
+  - from: ThenImageProducer[character].ComposedImage
     to: OutputImages[character]

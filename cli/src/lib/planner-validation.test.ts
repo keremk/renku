@@ -10,13 +10,13 @@ import { CATALOG_ROOT } from '../../tests/test-catalog-paths.js';
 const catalogRoot = CATALOG_ROOT;
 
 describe('planner blueprint validation', () => {
-  it('throws validation error for invalid blueprint with missing artifact', async () => {
-    const tempRoot = await mkdtemp(resolve(tmpdir(), 'renku-validation-'));
-    const blueprintDir = resolve(tempRoot, 'blueprints');
-    await mkdir(blueprintDir, { recursive: true });
+	it('throws validation error for invalid blueprint with missing artifact', async () => {
+		const tempRoot = await mkdtemp(resolve(tmpdir(), 'renku-validation-'));
+		const blueprintDir = resolve(tempRoot, 'blueprints');
+		await mkdir(blueprintDir, { recursive: true });
 
-    // Create an invalid blueprint that references a non-existent artifact
-    const invalidBlueprint = `
+		// Create an invalid blueprint that references a non-existent artifact
+		const invalidBlueprint = `
 meta:
   name: Invalid Blueprint
   id: InvalidBlueprint
@@ -32,7 +32,7 @@ artifacts:
 
 producers:
   - name: TestProducer
-    producer: asset/text-to-speech
+    producer: audio/text-to-speech
 
 connections:
   - from: TestInput
@@ -41,41 +41,41 @@ connections:
     to: NonExistentArtifact
 `;
 
-    const blueprintPath = resolve(blueprintDir, 'invalid.yaml');
-    await writeFile(blueprintPath, invalidBlueprint);
+		const blueprintPath = resolve(blueprintDir, 'invalid.yaml');
+		await writeFile(blueprintPath, invalidBlueprint);
 
-    // Create minimal inputs file
-    const inputsPath = resolve(blueprintDir, 'inputs.yaml');
-    await writeFile(inputsPath, 'inputs:\n  TestInput: "test value"\n');
+		// Create minimal inputs file
+		const inputsPath = resolve(blueprintDir, 'inputs.yaml');
+		await writeFile(inputsPath, 'inputs:\n  TestInput: "test value"\n');
 
-    const cliConfig: CliConfig = {
-      storage: { root: tempRoot, basePath: 'builds' },
-      catalog: { root: catalogRoot },
-    };
+		const cliConfig: CliConfig = {
+			storage: { root: tempRoot, basePath: 'builds' },
+			catalog: { root: catalogRoot },
+		};
 
-    try {
-      await expect(
-        generatePlan({
-          cliConfig,
-          movieId: 'movie-test',
-          isNew: true,
-          inputsPath,
-          usingBlueprint: blueprintPath,
-          logger: createCliLogger({ level: 'info' }),
-        }),
-      ).rejects.toThrow(/Blueprint validation failed/);
-    } finally {
-      await rm(tempRoot, { recursive: true, force: true });
-    }
-  });
+		try {
+			await expect(
+				generatePlan({
+					cliConfig,
+					movieId: 'movie-test',
+					isNew: true,
+					inputsPath,
+					usingBlueprint: blueprintPath,
+					logger: createCliLogger({ level: 'info' }),
+				})
+			).rejects.toThrow(/Blueprint validation failed/);
+		} finally {
+			await rm(tempRoot, { recursive: true, force: true });
+		}
+	});
 
-  it('throws validation error for blueprint with invalid producer input', async () => {
-    const tempRoot = await mkdtemp(resolve(tmpdir(), 'renku-validation-'));
-    const blueprintDir = resolve(tempRoot, 'blueprints');
-    await mkdir(blueprintDir, { recursive: true });
+	it('throws validation error for blueprint with invalid producer input', async () => {
+		const tempRoot = await mkdtemp(resolve(tmpdir(), 'renku-validation-'));
+		const blueprintDir = resolve(tempRoot, 'blueprints');
+		await mkdir(blueprintDir, { recursive: true });
 
-    // Create an invalid blueprint that connects to a non-existent producer input
-    const invalidBlueprint = `
+		// Create an invalid blueprint that connects to a non-existent producer input
+		const invalidBlueprint = `
 meta:
   name: Invalid Blueprint
   id: InvalidBlueprint
@@ -91,7 +91,7 @@ artifacts:
 
 producers:
   - name: TestProducer
-    producer: asset/text-to-speech
+    producer: audio/text-to-speech
 
 connections:
   - from: TestInput
@@ -100,41 +100,41 @@ connections:
     to: Output
 `;
 
-    const blueprintPath = resolve(blueprintDir, 'invalid.yaml');
-    await writeFile(blueprintPath, invalidBlueprint);
+		const blueprintPath = resolve(blueprintDir, 'invalid.yaml');
+		await writeFile(blueprintPath, invalidBlueprint);
 
-    // Create minimal inputs file
-    const inputsPath = resolve(blueprintDir, 'inputs.yaml');
-    await writeFile(inputsPath, 'inputs:\n  TestInput: "test value"\n');
+		// Create minimal inputs file
+		const inputsPath = resolve(blueprintDir, 'inputs.yaml');
+		await writeFile(inputsPath, 'inputs:\n  TestInput: "test value"\n');
 
-    const cliConfig: CliConfig = {
-      storage: { root: tempRoot, basePath: 'builds' },
-      catalog: { root: catalogRoot },
-    };
+		const cliConfig: CliConfig = {
+			storage: { root: tempRoot, basePath: 'builds' },
+			catalog: { root: catalogRoot },
+		};
 
-    try {
-      await expect(
-        generatePlan({
-          cliConfig,
-          movieId: 'movie-test',
-          isNew: true,
-          inputsPath,
-          usingBlueprint: blueprintPath,
-          logger: createCliLogger({ level: 'info' }),
-        }),
-      ).rejects.toThrow(/Blueprint validation failed/);
-    } finally {
-      await rm(tempRoot, { recursive: true, force: true });
-    }
-  });
+		try {
+			await expect(
+				generatePlan({
+					cliConfig,
+					movieId: 'movie-test',
+					isNew: true,
+					inputsPath,
+					usingBlueprint: blueprintPath,
+					logger: createCliLogger({ level: 'info' }),
+				})
+			).rejects.toThrow(/Blueprint validation failed/);
+		} finally {
+			await rm(tempRoot, { recursive: true, force: true });
+		}
+	});
 
-  it('includes error code in validation error message', async () => {
-    const tempRoot = await mkdtemp(resolve(tmpdir(), 'renku-validation-'));
-    const blueprintDir = resolve(tempRoot, 'blueprints');
-    await mkdir(blueprintDir, { recursive: true });
+	it('includes error code in validation error message', async () => {
+		const tempRoot = await mkdtemp(resolve(tmpdir(), 'renku-validation-'));
+		const blueprintDir = resolve(tempRoot, 'blueprints');
+		await mkdir(blueprintDir, { recursive: true });
 
-    // Create an invalid blueprint
-    const invalidBlueprint = `
+		// Create an invalid blueprint
+		const invalidBlueprint = `
 meta:
   name: Invalid Blueprint
   id: InvalidBlueprint
@@ -150,7 +150,7 @@ artifacts:
 
 producers:
   - name: TestProducer
-    producer: asset/text-to-speech
+    producer: audio/text-to-speech
 
 connections:
   - from: TestInput
@@ -159,30 +159,30 @@ connections:
     to: MissingArtifact
 `;
 
-    const blueprintPath = resolve(blueprintDir, 'invalid.yaml');
-    await writeFile(blueprintPath, invalidBlueprint);
+		const blueprintPath = resolve(blueprintDir, 'invalid.yaml');
+		await writeFile(blueprintPath, invalidBlueprint);
 
-    const inputsPath = resolve(blueprintDir, 'inputs.yaml');
-    await writeFile(inputsPath, 'inputs:\n  TestInput: "test value"\n');
+		const inputsPath = resolve(blueprintDir, 'inputs.yaml');
+		await writeFile(inputsPath, 'inputs:\n  TestInput: "test value"\n');
 
-    const cliConfig: CliConfig = {
-      storage: { root: tempRoot, basePath: 'builds' },
-      catalog: { root: catalogRoot },
-    };
+		const cliConfig: CliConfig = {
+			storage: { root: tempRoot, basePath: 'builds' },
+			catalog: { root: catalogRoot },
+		};
 
-    try {
-      await expect(
-        generatePlan({
-          cliConfig,
-          movieId: 'movie-test',
-          isNew: true,
-          inputsPath,
-          usingBlueprint: blueprintPath,
-          logger: createCliLogger({ level: 'info' }),
-        }),
-      ).rejects.toThrow(/V\d{3}:/); // Validation error codes like V001, V005, etc.
-    } finally {
-      await rm(tempRoot, { recursive: true, force: true });
-    }
-  });
+		try {
+			await expect(
+				generatePlan({
+					cliConfig,
+					movieId: 'movie-test',
+					isNew: true,
+					inputsPath,
+					usingBlueprint: blueprintPath,
+					logger: createCliLogger({ level: 'info' }),
+				})
+			).rejects.toThrow(/V\d{3}:/); // Validation error codes like V001, V005, etc.
+		} finally {
+			await rm(tempRoot, { recursive: true, force: true });
+		}
+	});
 });

@@ -50,11 +50,11 @@ loops:
 
 producers:
   - name: CharacterImageProducer
-    producer: asset/text-to-image
+    producer: image/text-to-image
   - name: ProductImageProducer
-    producer: asset/text-to-image
+    producer: image/text-to-image
   - name: VideoProducer
-    producer: asset/ref-image-to-video
+    producer: video/ref-image-to-video
     loop: clip
 
 connections:

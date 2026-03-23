@@ -70,7 +70,7 @@ async function buildTransformedPayload(
 describe('YAML Mapping Transforms Integration', () => {
   /**
    * 1. transform - Value mapping using lookup table
-   * Mirrors: catalog/producers/asset/text-to-image.yaml (seedream/v4)
+   * Mirrors: catalog/producers/image/text-to-image.yaml (seedream/v4)
    */
   describe('transform - value mapping', () => {
     const enhancePromptMapping: Record<string, MappingFieldDefinition> = {
@@ -136,7 +136,7 @@ describe('YAML Mapping Transforms Integration', () => {
 
   /**
    * 2. combine - Multi-input combination
-   * Mirrors: catalog/producers/asset/text-to-video.yaml (LTX models)
+   * Mirrors: catalog/producers/video/text-to-video.yaml (LTX models)
    */
   describe('combine - multi-input combination', () => {
     const videoSizeMapping: Record<string, MappingFieldDefinition> = {
@@ -192,7 +192,7 @@ describe('YAML Mapping Transforms Integration', () => {
 
   /**
    * 3. conditional - Conditional transforms
-   * Mirrors: catalog/producers/asset/text-to-image.yaml (qwen models)
+   * Mirrors: catalog/producers/image/text-to-image.yaml (qwen models)
    */
   describe('conditional - conditional transforms', () => {
     const conditionalMapping: Record<string, MappingFieldDefinition> = {
@@ -283,7 +283,7 @@ describe('YAML Mapping Transforms Integration', () => {
 
   /**
    * 4. durationToFrames - Duration conversion
-   * Mirrors: catalog/producers/asset/text-to-video.yaml
+   * Mirrors: catalog/producers/video/text-to-video.yaml
    */
   describe('durationToFrames - duration conversion', () => {
     const durationMapping: Record<string, MappingFieldDefinition> = {

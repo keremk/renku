@@ -234,7 +234,7 @@ function resolveProducerImportPath(
     return resolve(dirname(parentFile), producerImport.path);
   }
 
-  // Qualified name resolution (e.g., "prompt/script", "asset/text-to-speech")
+  // Qualified name resolution (e.g., "prompt/script", "audio/text-to-speech")
   if (producerImport.producer && options.catalogRoot) {
     const producersRoot = resolve(options.catalogRoot, 'producers');
     const resolved = findProducerByQualifiedName(
@@ -270,14 +270,14 @@ function resolveProducerImportPath(
 /**
  * Finds a producer by qualified name in the producers directory.
  * Tries two patterns:
- * 1. {producersRoot}/{qualifiedName}.yaml (e.g., producers/asset/text-to-speech.yaml)
+ * 1. {producersRoot}/{qualifiedName}.yaml (e.g., producers/audio/text-to-speech.yaml)
  * 2. {producersRoot}/{qualifiedName}/{name}.yaml (e.g., producers/prompt/script/script.yaml)
  */
 function findProducerByQualifiedName(
   producersRoot: string,
   qualifiedName: string
 ): string | null {
-  // Try: producers/asset/text-to-speech.yaml
+  // Try: producers/audio/text-to-speech.yaml
   const directPath = resolve(producersRoot, `${qualifiedName}.yaml`);
   if (existsSync(directPath)) {
     return directPath;

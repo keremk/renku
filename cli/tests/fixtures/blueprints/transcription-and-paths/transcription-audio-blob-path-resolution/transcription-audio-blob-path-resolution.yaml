@@ -50,12 +50,12 @@ loops:
 
 producers:
   - name: AudioProducer
-    producer: asset/text-to-speech
+    producer: audio/text-to-speech
     loop: segment
   - name: TimelineComposer
     producer: composition/timeline-composer
   - name: TranscriptionProducer
-    producer: asset/transcription
+    producer: json/transcription
 
 connections:
   - from: NarrationScript[segment]

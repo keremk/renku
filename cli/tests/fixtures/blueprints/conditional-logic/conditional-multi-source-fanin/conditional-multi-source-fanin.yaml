@@ -39,13 +39,13 @@ producers:
   - name: DirectorProducer
     path: ./director/director.yaml
   - name: MeetingVideoProducer
-    producer: asset/text-to-video
+    producer: video/text-to-video
     loop: character
   - name: TransitionVideoProducer
-    producer: asset/text-to-video
+    producer: video/text-to-video
     loop: character
   - name: MusicProducer
-    producer: asset/text-to-music
+    producer: audio/text-to-music
   - name: TimelineComposer
     producer: composition/timeline-composer
 

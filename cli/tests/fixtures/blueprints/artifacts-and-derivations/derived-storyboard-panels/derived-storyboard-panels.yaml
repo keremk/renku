@@ -22,7 +22,7 @@ inputs:
   - name: AspectRatio
     description: Aspect ratio for the image.
     type: string
-    default: "16:9"
+    default: '16:9'
 
 artifacts:
   - name: StoryboardImage
@@ -41,7 +41,7 @@ loops:
 
 producers:
   - name: ImageGenerator
-    producer: asset/text-to-storyboard-image
+    producer: image/text-to-grid-images
 
 connections:
   # Generate storyboard image

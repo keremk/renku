@@ -69,7 +69,7 @@ models:
     // text-to-music producer has no LLM config files
     const modulePath = resolve(
       catalogRoot,
-      'producers/asset/text-to-music.yaml'
+      'producers/audio/text-to-music.yaml'
     );
     const document = await parseYamlBlueprintFile(modulePath);
     expect(document.meta.promptFile).toBeUndefined();
@@ -79,7 +79,7 @@ models:
   it('parses intToSecondsString mapping transforms in producer catalogs', async () => {
     const modulePath = resolve(
       catalogRoot,
-      'producers/asset/image-to-video.yaml'
+      'producers/video/image-to-video.yaml'
     );
     const document = await parseYamlBlueprintFile(modulePath);
 
@@ -94,8 +94,9 @@ models:
 
   it('parses asArray mapping transforms in producer catalogs', async () => {
     const modulePath = resolve(
-      catalogRoot,
-      'producers/asset/mapping-as-array.yaml'
+      TEST_FIXTURES_ROOT,
+      'mapping-as-array',
+      'mapping-as-array.yaml'
     );
     const document = await parseYamlBlueprintFile(modulePath);
 
@@ -475,7 +476,7 @@ describe('condition parsing', () => {
 });
 
 describe('producer resolution by qualified name', () => {
-  it('resolves producer with direct file path (asset/text-to-speech.yaml)', async () => {
+  it('resolves producer with direct file path (audio/text-to-speech.yaml)', async () => {
     // Create a minimal blueprint with producer: syntax
     const mockBlueprint = `
 meta:
@@ -489,7 +490,7 @@ artifacts:
     type: string
 producers:
   - name: AudioProducer
-    producer: asset/text-to-speech
+    producer: audio/text-to-speech
 `;
     const reader = {
       readFile: async (path: string) => {
@@ -557,7 +558,7 @@ artifacts:
     type: string
 producers:
   - name: AudioProducer
-    producer: asset/text-to-speech
+    producer: audio/text-to-speech
 `;
     const reader = {
       readFile: async (path: string) => {
@@ -589,8 +590,8 @@ artifacts:
     type: string
 producers:
   - name: AudioProducer
-    path: ../../producers/asset/text-to-speech.yaml
-    producer: asset/text-to-speech
+    path: ../../producers/audio/text-to-speech.yaml
+    producer: audio/text-to-speech
 `;
     const reader = {
       readFile: async (path: string) => {

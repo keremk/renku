@@ -48,7 +48,7 @@ producers:
   - name: DocProducer
     path: ../../_shared/documentary/documentary.yaml
   - name: ImageProducer
-    producer: asset/text-to-image
+    producer: image/text-to-image
     loop: segment.image
   - name: TimelineComposer
     producer: composition/timeline-composer

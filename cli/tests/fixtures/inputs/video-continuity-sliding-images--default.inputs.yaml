@@ -19,7 +19,7 @@ models:
   - model: google/nano-banana
     provider: replicate
     producerId: ImageProducer
-  - model: kling-video/o1/image-to-video
+  - model: kling-video/v2.5-turbo/pro/image-to-video
     provider: fal-ai
     producerId: ImageToVideoProducer
   - model: minimax/speech-2.6-hd

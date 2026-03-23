@@ -39,9 +39,9 @@ artifacts:
 
 producers:
   - name: FirstVideoProducer
-    producer: asset/text-to-video
+    producer: video/text-to-video
   - name: SecondVideoProducer
-    producer: asset/image-to-video
+    producer: video/image-to-video
 
 connections:
   # First video generation

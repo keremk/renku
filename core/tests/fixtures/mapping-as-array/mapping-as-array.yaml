@@ -1,0 +1,25 @@
+meta:
+  name: Mapping As Array Fixture
+  description: Fixture producer used to validate asArray mapping parsing.
+  id: MappingAsArrayFixtureProducer
+  kind: producer
+  version: 0.1.0
+  author: Renku
+  license: MIT
+
+inputs:
+  - name: SourceImage
+    description: Source image input.
+    type: image
+
+artifacts:
+  - name: OutputImage
+    description: Output image artifact.
+    type: image
+
+mappings:
+  fal-ai:
+    fixture/model:
+      SourceImage:
+        field: image_urls
+        asArray: true

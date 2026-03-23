@@ -74,7 +74,7 @@ loops:
 producers:
   # Define producers here
   # - name: ProducerName
-  #   producer: asset/text-to-image
+  #   producer: image/text-to-image
 
 connections:
   # Wire inputs and outputs between producers.

@@ -1,7 +1,6 @@
 /**
  * Test utility for resolving catalog paths.
- * Tests should use this instead of importing from CLI to avoid cross-package dependencies
- * and keep test runs decoupled from the production catalog.
+ * Tests should use this instead of importing from CLI to avoid cross-package dependencies.
  */
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,8 +33,8 @@ export const SHARED_BLUEPRINT_MODULES_ROOT = resolve(
 /** Test fixtures directory */
 export const TEST_FIXTURES_ROOT = resolve(__dirname, 'fixtures');
 
-/** Fully decoupled shared catalog snapshot used by core tests */
-export const CATALOG_ROOT = SHARED_TEST_CATALOG_ROOT;
+/** Repository catalog root consumed by core tests */
+export const CATALOG_ROOT = resolve(REPO_ROOT, 'catalog');
 
 /** Blueprints directory within the catalog */
 export const CATALOG_BLUEPRINTS_ROOT = resolve(CATALOG_ROOT, 'blueprints');
