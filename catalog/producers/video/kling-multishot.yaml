@@ -17,7 +17,7 @@ inputs:
     description: List of per-shot prompts with individual durations for multi-shot video generation.
     type: array
   - name: ShotType
-    description: "Type of multi-shot generation: customize or intelligent."
+    description: 'Type of multi-shot generation: customize or intelligent.'
     type: string
 
   # Images
@@ -49,7 +49,7 @@ inputs:
 
   # Sizing
   - name: AspectRatio
-    description: "Aspect ratio (16:9, 9:16, 1:1)."
+    description: 'Aspect ratio (16:9, 9:16, 1:1).'
     type: string
 
   # Audio
@@ -244,7 +244,7 @@ mappings:
     # --- Video-to-Video Reference ---
 
     # Kling O3 Standard Video-to-Video Reference
-    kling-video/o3/standard/video-to-video-reference:
+    kling-video/o3/standard/video-to-video/reference:
       Prompt: prompt
       ReferenceVideo: video_url
       ReferenceImages: image_urls
@@ -257,7 +257,7 @@ mappings:
       AspectRatio: aspect_ratio
 
     # Kling O3 Pro Video-to-Video Reference
-    kling-video/o3/pro/video-to-video-reference:
+    kling-video/o3/pro/video-to-video/reference:
       Prompt: prompt
       ReferenceVideo: video_url
       ReferenceImages: image_urls

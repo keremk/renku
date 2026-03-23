@@ -247,14 +247,14 @@ mappings:
           '9:16': 'portrait'
 
     # Pixverse V5.6
-    pixverse/pixverse-v5-6:
+    pixverse/pixverse-v5.6:
       Prompt: prompt
       Duration: duration
       AspectRatio: aspect_ratio
       GenerateAudio: generate_audio_switch
 
     # RunwayML Gen 4.5
-    runwayml/gen-4-5:
+    runwayml/gen-4.5:
       Prompt: prompt
       Duration: duration
       AspectRatio: aspect_ratio
@@ -312,7 +312,7 @@ mappings:
       AudioUrl: audio
 
     # Kwaivgi Kling V2.6
-    kwaivgi/kling-v2-6:
+    kwaivgi/kling-v2.6:
       Prompt: prompt
       Duration: duration
       AspectRatio: aspect_ratio

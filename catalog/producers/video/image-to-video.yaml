@@ -329,7 +329,7 @@ mappings:
       AspectRatio: aspect_ratio
 
     # Pixverse V5.6 (with image)
-    pixverse/pixverse-v5-6:
+    pixverse/pixverse-v5.6:
       Prompt: prompt
       StartImage: image
       EndImage: last_frame_image
@@ -338,7 +338,7 @@ mappings:
       GenerateAudio: generate_audio_switch
 
     # RunwayML Gen 4.5 (with image)
-    runwayml/gen-4-5:
+    runwayml/gen-4.5:
       Prompt: prompt
       StartImage: image
       Duration: duration
@@ -353,7 +353,7 @@ mappings:
       Resolution: resolution
 
     # Kwaivgi Kling v2.5 Turbo Pro (with start_image)
-    kwaivgi/kling-v2-5-turbo-pro:
+    kwaivgi/kling-v2.5-turbo-pro:
       Prompt: prompt
       StartImage: start_image
       EndImage: end_image
@@ -361,7 +361,7 @@ mappings:
       AspectRatio: aspect_ratio
 
     # Kwaivgi Kling V2.6 (with start_image)
-    kwaivgi/kling-v2-6:
+    kwaivgi/kling-v2.6:
       Prompt: prompt
       StartImage: start_image
       Duration: duration

@@ -16,16 +16,6 @@ const CATALOG_ROOT = resolve(REPO_ROOT, 'catalog');
 const MODELS_DIR = resolve(CATALOG_ROOT, 'models');
 const PRODUCERS_DIR = resolve(CATALOG_ROOT, 'producers');
 
-// TODO: Remove this allowlist once model catalog entries are added for these producer mappings.
-const KNOWN_CATALOG_MODEL_MISMATCHES = new Set([
-  'replicate/pixverse/pixverse-v5-6',
-  'replicate/runwayml/gen-4-5',
-  'replicate/kwaivgi/kling-v2-5-turbo-pro',
-  'replicate/kwaivgi/kling-v2-6',
-  'fal-ai/kling-video/o3/standard/video-to-video-reference',
-  'fal-ai/kling-video/o3/pro/video-to-video-reference',
-]);
-
 async function collectProducerYamlFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
   const files: string[] = [];
@@ -177,10 +167,6 @@ describe('model-catalog', () => {
           for (const modelName of Object.keys(models)) {
             const found = lookupModel(catalog, provider, modelName);
             if (!found) {
-              const mismatchKey = `${provider}/${modelName}`;
-              if (KNOWN_CATALOG_MODEL_MISMATCHES.has(mismatchKey)) {
-                continue;
-              }
               mismatches.push({
                 file,
                 provider,

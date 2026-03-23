@@ -204,7 +204,7 @@ mappings:
       GenerateAudio: generate_audio
 
     # Pixverse V5.6 (image + last_frame_image)
-    pixverse/pixverse-v5-6:
+    pixverse/pixverse-v5.6:
       Prompt: prompt
       StartImage: image
       EndImage: last_frame_image
@@ -213,7 +213,7 @@ mappings:
       GenerateAudio: generate_audio_switch
 
     # Kwaivgi Kling v2.5 Turbo Pro (start_image + end_image)
-    kwaivgi/kling-v2-5-turbo-pro:
+    kwaivgi/kling-v2.5-turbo-pro:
       Prompt: prompt
       StartImage: start_image
       EndImage: end_image
