@@ -209,9 +209,9 @@ Compatibility UX:
 
 ### Phase 7 - Clean up tests and fixtures
 
-1. Reduce the number of fixtures used in tests without reducing test quality. 
-2. Migrate blueprints/producers from canonical `AspectRatio`/`Size` assumptions to canonical `Resolution` input plus projections.
-
+1. Identify tests where Resolution (and prior Size and AspectRatio) was an important part of the test (e.g. asserting on them or fundemantal to the test being able to run confidently). These are the tests we need to modify, not all tests
+2. Migrate identified tests and their fixtures (blueprints and if exists test producer and models, though these should be cleaned by now) to use Resolution.
+3. Identify new end to end tests (in cli package) that uses the new Resolution system property and resolution typed properties. Ensure the correct behavior is asserted without any mocking.
 
 ### Phase 8 - Catalog migration (**LATER DO NOT BUILD THIS YET**)
 
