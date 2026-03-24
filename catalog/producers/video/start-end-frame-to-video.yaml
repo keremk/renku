@@ -110,11 +110,10 @@ mappings:
       Resolution: resolution
       GenerateAudio: generate_audio
 
-    # LTX-2-19b Distilled Image-to-Video (supports end_image_url)
+    # LTX-2-19b Distilled Image-to-Video
     ltx-2-19b/distilled/image-to-video:
       Prompt: prompt
       StartImage: image_url
-      EndImage: end_image_url
       VideoSize:
         field: video_size
         combine:

@@ -136,14 +136,14 @@ mappings:
           "1:1": square_hd
           "3:2": landscape_4_3
           "2:3": portrait_4_3
-      # Resolution: use image_size object form (expands width/height into payload)
+      # Resolution: use image_size object form
       ImageSize:
         conditional:
           when:
             input: Resolution
             notEmpty: true
           then:
-            expand: true
+            field: image_size
             combine:
               inputs: [AspectRatio, Resolution]
               table:

@@ -359,6 +359,134 @@ describe('producer mapping contracts', () => {
 
     expect(failures).toHaveLength(0);
   });
+
+  it('mutation guard fails full validation on real catalog case', async () => {
+    const catalog = await loadModelCatalog(CATALOG_MODELS_ROOT);
+    const producerCases = await collectProducerModelCases();
+
+    const sourceCase = producerCases.find(
+      (entry) =>
+        entry.producerId === 'ImageComposeProducer' &&
+        entry.provider === 'fal-ai' &&
+        entry.model === 'bytedance/seedream/v4/edit'
+    );
+    expect(sourceCase).toBeDefined();
+
+    const mutatedCase = cloneProducerCase(sourceCase!);
+    const aspectRatioMapping = mutatedCase.sdkMapping.AspectRatio;
+    expect(aspectRatioMapping).toBeDefined();
+
+    mutatedCase.sdkMapping.AspectRatio = {
+      ...aspectRatioMapping,
+      field: 'imag_size',
+    };
+
+    const failures = await validateProducerCaseWithCurrentPipeline(
+      catalog,
+      mutatedCase
+    );
+
+    expect(
+      failures.some(
+        (failure) =>
+          failure.includes('Mapping target validation failed') &&
+          failure.includes('imag_size')
+      )
+    ).toBe(true);
+  });
+
+  it('fails when mapping targets unknown schema fields', () => {
+    const mapping: Record<string, MappingFieldDefinition> = {
+      AspectRatio: {
+        field: 'imag_size',
+        transform: {
+          '16:9': 'landscape_16_9',
+        },
+      },
+    };
+
+    const schema: JSONSchema7 = {
+      type: 'object',
+      properties: {
+        image_size: { type: 'string' },
+      },
+    };
+
+    const errors = validateMappingTargetsAgainstSchema(mapping, schema);
+    expect(errors).toContain(
+      'target field "imag_size" is missing from input schema'
+    );
+  });
+
+  it('covers Width/Height conditional branch when Width is provided', () => {
+    const producerCase: ProducerModelCase = {
+      producerPath: 'synthetic',
+      producerId: 'Synthetic',
+      provider: 'fal-ai',
+      model: 'synthetic/model',
+      inputsByAlias: new Map([
+        ['AspectRatio', { name: 'AspectRatio', type: 'string' }],
+        ['Width', { name: 'Width', type: 'integer' }],
+        ['Height', { name: 'Height', type: 'integer' }],
+      ]),
+      sdkMapping: {
+        AspectRatio: {
+          conditional: {
+            when: { input: 'Width', empty: true },
+            then: {
+              field: 'image_size',
+              transform: {
+                '16:9': 'landscape_16_9',
+              },
+            },
+          },
+        },
+        Width: {
+          conditional: {
+            when: { input: 'Width', notEmpty: true },
+            then: { field: 'image_size.width' },
+          },
+        },
+        Height: {
+          conditional: {
+            when: { input: 'Width', notEmpty: true },
+            then: { field: 'image_size.height' },
+          },
+        },
+      },
+    };
+
+    const schema: JSONSchema7 = {
+      type: 'object',
+      properties: {
+        image_size: {
+          anyOf: [
+            { type: 'string' },
+            {
+              type: 'object',
+              properties: {
+                width: { type: 'integer' },
+                height: { type: 'integer' },
+              },
+            },
+          ],
+        },
+      },
+    };
+
+    const resolvedInputs = buildResolvedInputs({
+      producerCase,
+      inputSchema: schema,
+      scenario: {
+        name: 'condition:Width:notEmpty:true',
+        overrides: { Width: 'present-value' },
+      },
+    });
+
+    expect(resolvedInputs['Input:Width']).toBe(8);
+    expect(typeof resolvedInputs['Input:Height']).toBe('number');
+    expect((resolvedInputs['Input:Height'] as number) > 0).toBe(true);
+  });
 });
 
 async function collectProducerModelCases(): Promise<ProducerModelCase[]> {
@@ -424,6 +552,198 @@ function normalizeSdkMapping(
     sdkMapping[alias] = typeof value === 'string' ? { field: value } : value;
   }
   return sdkMapping;
+}
+
+function cloneProducerCase(source: ProducerModelCase): ProducerModelCase {
+  return {
+    producerPath: source.producerPath,
+    producerId: source.producerId,
+    provider: source.provider,
+    model: source.model,
+    inputsByAlias: new Map(source.inputsByAlias),
+    sdkMapping: JSON.parse(JSON.stringify(source.sdkMapping)) as Record<
+      string,
+      MappingFieldDefinition
+    >,
+  };
+}
+
+async function validateProducerCaseWithCurrentPipeline(
+  catalog: LoadedModelCatalog,
+  producerCase: ProducerModelCase
+): Promise<string[]> {
+  const failures: string[] = [];
+  const casePrefix = `${producerCase.producerId} (${relative(REPO_ROOT, producerCase.producerPath)}) -> ${producerCase.provider}/${producerCase.model}`;
+
+  const modelDef = lookupModel(
+    catalog,
+    producerCase.provider,
+    producerCase.model
+  );
+  if (!modelDef) {
+    failures.push(`${casePrefix}\n  Model not found in catalog.`);
+    return failures;
+  }
+
+  if (typeof modelDef.handler === 'string' && modelDef.handler.length > 0) {
+    return failures;
+  }
+
+  let schemaContext: SchemaContext;
+  try {
+    schemaContext = await getSchemaContext(
+      catalog,
+      producerCase.provider,
+      producerCase.model
+    );
+  } catch (error) {
+    failures.push(
+      `${casePrefix}\n  Schema lookup failed: ${formatError(error)}`
+    );
+    return failures;
+  }
+
+  let contractValidator: ValidateFunction;
+  try {
+    contractValidator = getContractValidator(schemaContext.inputSchemaText);
+  } catch (error) {
+    failures.push(
+      `${casePrefix}\n  Schema compilation failed: ${formatError(error)}`
+    );
+    return failures;
+  }
+
+  const scenarios = buildValidationScenarios(producerCase.sdkMapping);
+  const bindingAliases = collectInputBindingAliases(producerCase.sdkMapping);
+  const mappedTopLevelFields = collectMappedTopLevelFields(
+    producerCase.sdkMapping
+  );
+
+  const mappingSourceErrors = validateMappingSourcesDeclared(
+    producerCase.sdkMapping,
+    producerCase.inputsByAlias
+  );
+  if (mappingSourceErrors.length > 0) {
+    failures.push(
+      `${casePrefix}\n  Mapping source validation failed: ${mappingSourceErrors.join('; ')}`
+    );
+    return failures;
+  }
+
+  const mappingTransformErrors = validateMappingTransformCompatibility(
+    producerCase.sdkMapping,
+    schemaContext.inputSchema
+  );
+  if (mappingTransformErrors.length > 0) {
+    failures.push(
+      `${casePrefix}\n  Mapping transform validation failed: ${mappingTransformErrors.join('; ')}`
+    );
+    return failures;
+  }
+
+  const mappingTargetErrors = validateMappingTargetsAgainstSchema(
+    producerCase.sdkMapping,
+    schemaContext.inputSchema
+  );
+  if (mappingTargetErrors.length > 0) {
+    failures.push(
+      `${casePrefix}\n  Mapping target validation failed: ${mappingTargetErrors.join('; ')}`
+    );
+    return failures;
+  }
+
+  const coverageTargets = collectCoverageTargetPaths(producerCase.sdkMapping);
+  const coveredTargets = new Set<string>();
+
+  for (const scenario of scenarios) {
+    const resolvedInputs = buildResolvedInputs({
+      producerCase,
+      inputSchema: schemaContext.inputSchema,
+      scenario,
+    });
+
+    const inputBindings = Object.fromEntries(
+      [...bindingAliases].map((alias) => [alias, `Input:${alias}`])
+    );
+
+    const request: ProviderJobContext = {
+      jobId: 'producer-mapping-contract',
+      provider: producerCase.provider,
+      model: producerCase.model,
+      revision: 'rev-1',
+      layerIndex: 0,
+      attempt: 1,
+      inputs: Object.values(inputBindings),
+      produces: ['Artifact:Output[index=0]'],
+      context: {
+        providerConfig: {},
+        extras: {
+          resolvedInputs,
+          jobContext: {
+            inputBindings,
+            sdkMapping: producerCase.sdkMapping,
+          },
+        },
+      },
+    };
+
+    const runtime = createProducerRuntime({
+      descriptor: {
+        provider: producerCase.provider,
+        model: producerCase.model,
+        environment: 'local',
+      },
+      domain: 'media',
+      request,
+      mode: 'live',
+    });
+
+    let payload: Record<string, unknown>;
+    try {
+      payload = await runtime.sdk.buildPayload(
+        undefined,
+        schemaContext.inputSchemaText
+      );
+    } catch (error) {
+      failures.push(
+        `${casePrefix}\n  Scenario: ${scenario.name}\n  Payload build failed: ${formatError(error)}`
+      );
+      continue;
+    }
+
+    const payloadWithPassThrough = addRequiredPassThroughFields({
+      payload,
+      inputSchema: schemaContext.inputSchema,
+      mappedTopLevelFields,
+    });
+
+    markCoveredTargets(payloadWithPassThrough, coverageTargets, coveredTargets);
+
+    const isValid = contractValidator(payloadWithPassThrough);
+    if (!isValid) {
+      const errors = (contractValidator.errors ?? [])
+        .map((entry) =>
+          `${entry.instancePath || '/'} ${entry.message ?? ''}`.trim()
+        )
+        .join('; ');
+      failures.push(
+        `${casePrefix}\n  Scenario: ${scenario.name}\n  Schema validation failed: ${errors}`
+      );
+    }
+  }
+
+  const missingCoverage = [...coverageTargets].filter(
+    (path) => !coveredTargets.has(path)
+  );
+  if (missingCoverage.length > 0) {
+    failures.push(
+      `${casePrefix}\n  Mapping coverage failed: ${missingCoverage
+        .map((path) => `target "${path}" never materialized in any scenario`)
+        .join('; ')}`
+    );
+  }
+
+  return failures;
 }
 
 async function getSchemaContext(
@@ -576,6 +896,12 @@ function buildResolvedInputs(args: {
   const aliasValues: Record<string, unknown> = {};
 
   const conditionStats = collectConditionStats(producerCase.sdkMapping);
+
+  applyScenarioOverrides(
+    aliasValues,
+    scenario.overrides,
+    producerCase.inputsByAlias
+  );
 
   for (const [alias, mapping] of Object.entries(producerCase.sdkMapping)) {
     seedAliasForMapping({

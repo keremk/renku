@@ -56,14 +56,12 @@ mappings:
       Prompt: prompt
       CharacterImage: image_url
       AudioUrl: audio_url
-      Duration: duration
       Resolution: resolution
 
     # VEED Fabric 1.0 Fast
     veed/fabric-1.0/fast:
       CharacterImage: image_url
       AudioUrl: audio_url
-      Duration: duration
       Resolution: resolution
 
     # InfiniTalk (Audio-driven)
@@ -82,7 +80,6 @@ mappings:
       Prompt: prompt
       CharacterImage: image_url
       AudioUrl: audio_url
-      Duration: duration
       Resolution: resolution
 
     # Kling AI Avatar v2 Standard
