@@ -1,17 +1,17 @@
 inputs:
-  Topic: "Test topic for multi-looped inputs"
+  Topic: 'Test topic for multi-looped inputs'
   NumOfSegments: 3
 
 models:
-  - model: gpt-test
+  - model: gpt-5-mini
     provider: openai
     producerId: ContentGenerator
-  - model: test-image-model
+  - model: bytedance/seedream-4
     provider: replicate
     producerId: ImageGenerator
     inputs:
       Prompt: prompt
-  - model: test-video-model
+  - model: bytedance/seedance-1-pro-fast
     provider: replicate
     producerId: VideoGenerator
     inputs:

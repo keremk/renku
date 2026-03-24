@@ -101,7 +101,8 @@ models:
     const document = await parseYamlBlueprintFile(modulePath);
 
     const sourceImageMapping =
-      document.mappings?.['fal-ai']?.['fixture/model']?.SourceImage;
+      document.mappings?.['fal-ai']?.['bytedance/seedream/v4/text-to-image']
+        ?.SourceImage;
 
     expect(sourceImageMapping).toEqual({
       field: 'image_urls',
@@ -152,7 +153,7 @@ models:
     expect(() =>
       parseMappingsSection({
         'fal-ai': {
-          'fixture/model': {
+          'bytedance/seedream/v4/text-to-image': {
             Size: {
               field: 'size',
               resolution: { mode: 'bogusMode' },
@@ -167,7 +168,7 @@ models:
     expect(() =>
       parseMappingsSection({
         'fal-ai': {
-          'fixture/model': {
+          'bytedance/seedream/v4/text-to-image': {
             Resolution: {
               expand: true,
               resolution: { mode: 'aspectRatioAndPresetObject' },

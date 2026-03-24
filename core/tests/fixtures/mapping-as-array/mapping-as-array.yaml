@@ -19,7 +19,7 @@ artifacts:
 
 mappings:
   fal-ai:
-    fixture/model:
+    bytedance/seedream/v4/text-to-image:
       SourceImage:
         field: image_urls
         asArray: true
