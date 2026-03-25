@@ -14,10 +14,10 @@ inputs:
 
   # Sizing
   - name: AspectRatio
-    description: "Aspect ratio (16:9, 9:16, 1:1, 4:3, 3:4, 3:2, 2:3, 21:9, 4:5, 5:4)."
+    description: 'Aspect ratio (16:9, 9:16, 1:1, 4:3, 3:4, 3:2, 2:3, 21:9, 4:5, 5:4).'
     type: string
   - name: Resolution
-    description: "Resolution preset (1K, 2K, 4K)."
+    description: 'Resolution preset (1K, 2K, 4K).'
     type: string
   - name: Width
     description: Custom width in pixels.
@@ -43,19 +43,19 @@ mappings:
           inputs: [AspectRatio, Resolution]
           table:
             # Resolution only (aspect determined by resolution)
-            "+2K": auto_2K
-            "+4K": auto_4K
+            '+2K': auto_2K
+            '+4K': auto_4K
             # AspectRatio only (default resolution)
-            "16:9+": landscape_16_9
-            "9:16+": portrait_16_9
-            "4:3+": landscape_4_3
-            "3:4+": portrait_4_3
-            "1:1+": square_hd
+            '16:9+': landscape_16_9
+            '9:16+': portrait_16_9
+            '4:3+': landscape_4_3
+            '3:4+': portrait_4_3
+            '1:1+': square_hd
             # Both specified - prefer resolution auto modes
-            "16:9+2K": auto_2K
-            "16:9+4K": auto_4K
-            "1:1+2K": auto_2K
-            "1:1+4K": auto_4K
+            '16:9+2K': auto_2K
+            '16:9+4K': auto_4K
+            '1:1+2K': auto_2K
+            '1:1+4K': auto_4K
 
     bytedance/seedream/v5/lite/text-to-image:
       Prompt: prompt
@@ -66,32 +66,32 @@ mappings:
           inputs: [AspectRatio, Resolution]
           table:
             # Resolution only (aspect determined by resolution)
-            "+2K": auto_2K
-            "+4K": auto_3K
+            '+2K': auto_2K
+            '+4K': auto_3K
             # AspectRatio only (default resolution)
-            "16:9+": landscape_16_9
-            "9:16+": portrait_16_9
-            "4:3+": landscape_4_3
-            "3:4+": portrait_4_3
-            "1:1+": square_hd
+            '16:9+': landscape_16_9
+            '9:16+': portrait_16_9
+            '4:3+': landscape_4_3
+            '3:4+': portrait_4_3
+            '1:1+': square_hd
             # Both specified - prefer resolution auto modes
-            "16:9+2K": auto_2K
-            "16:9+4K": auto_3K
-            "1:1+2K": auto_2K
-            "1:1+4K": auto_3K
+            '16:9+2K': auto_2K
+            '16:9+4K': auto_3K
+            '1:1+2K': auto_2K
+            '1:1+4K': auto_3K
 
     bytedance/seedream/v4/text-to-image:
       Prompt: prompt
       AspectRatio:
         field: image_size
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "4:3": landscape_4_3
-          "3:4": portrait_4_3
-          "1:1": square_hd
-          "3:2": landscape_4_3
-          "2:3": portrait_4_3
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
+          '3:2': landscape_4_3
+          '2:3': portrait_4_3
 
     # Pattern 1: aspect_ratio only
     flux-pro/kontext/text-to-image:
@@ -105,9 +105,9 @@ mappings:
       AspectRatio:
         field: image_size
         transform:
-          "1:1": "1024x1024"
-          "16:9": "1536x1024"
-          "9:16": "1024x1536"
+          '1:1': '1024x1024'
+          '16:9': '1536x1024'
+          '9:16': '1024x1536'
           # Other ratios not supported - error or default
       # Resolution ignored - only fixed sizes
 
@@ -129,13 +129,13 @@ mappings:
       AspectRatio:
         field: image_size
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "4:3": landscape_4_3
-          "3:4": portrait_4_3
-          "1:1": square_hd
-          "3:2": landscape_4_3
-          "2:3": portrait_4_3
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
+          '3:2': landscape_4_3
+          '2:3': portrait_4_3
       # Resolution: use image_size object form
       ImageSize:
         conditional:
@@ -147,43 +147,43 @@ mappings:
             combine:
               inputs: [AspectRatio, Resolution]
               table:
-                "16:9+1K": { width: 1920, height: 1080 }
-                "16:9+2K": { width: 2560, height: 1440 }
-                "1:1+1K": { width: 1024, height: 1024 }
-                "1:1+2K": { width: 2048, height: 2048 }
+                '16:9+1K': { width: 1920, height: 1080 }
+                '16:9+2K': { width: 2560, height: 1440 }
+                '1:1+1K': { width: 1024, height: 1024 }
+                '1:1+2K': { width: 2048, height: 2048 }
 
     qwen-image-2/pro/text-to-image:
       Prompt: prompt
       AspectRatio:
         field: image_size
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "4:3": landscape_4_3
-          "3:4": portrait_4_3
-          "1:1": square_hd
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
 
     qwen-image-2/text-to-image:
       Prompt: prompt
       AspectRatio:
         field: image_size
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "4:3": landscape_4_3
-          "3:4": portrait_4_3
-          "1:1": square_hd
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
 
     wan/v2.6/text-to-image:
       Prompt: prompt
       AspectRatio:
         field: image_size
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "4:3": landscape_4_3
-          "3:4": portrait_4_3
-          "1:1": square_hd
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
 
     hunyuan-image/v3/instruct/text-to-image:
       Prompt: prompt
@@ -196,11 +196,11 @@ mappings:
           then:
             field: image_size
             transform:
-              "16:9": landscape_16_9
-              "9:16": portrait_16_9
-              "4:3": landscape_4_3
-              "3:4": portrait_4_3
-              "1:1": square_hd
+              '16:9': landscape_16_9
+              '9:16': portrait_16_9
+              '4:3': landscape_4_3
+              '3:4': portrait_4_3
+              '1:1': square_hd
       # Custom dimensions via Width/Height (takes precedence over AspectRatio)
       Width:
         conditional:
@@ -220,6 +220,16 @@ mappings:
     xai/grok-imagine-image:
       Prompt: prompt
       AspectRatio: aspect_ratio
+      ResolutionAspectRatio:
+        conditional:
+          when:
+            input: AspectRatio
+            empty: true
+          then:
+            input: Resolution
+            field: aspect_ratio
+            resolution:
+              mode: aspectRatio
 
     # Flux 2 family — image_size presets
     flux-2:
@@ -227,33 +237,33 @@ mappings:
       AspectRatio:
         field: image_size
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "4:3": landscape_4_3
-          "3:4": portrait_4_3
-          "1:1": square_hd
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
 
     flux-2/flash:
       Prompt: prompt
       AspectRatio:
         field: image_size
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "4:3": landscape_4_3
-          "3:4": portrait_4_3
-          "1:1": square_hd
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
 
     flux-2/turbo:
       Prompt: prompt
       AspectRatio:
         field: image_size
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "4:3": landscape_4_3
-          "3:4": portrait_4_3
-          "1:1": square_hd
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
 
     # Recraft v4 — image_size presets
     recraft/v4/text-to-image:
@@ -261,22 +271,22 @@ mappings:
       AspectRatio:
         field: image_size
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "4:3": landscape_4_3
-          "3:4": portrait_4_3
-          "1:1": square_hd
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
 
     recraft/v4/pro/text-to-image:
       Prompt: prompt
       AspectRatio:
         field: image_size
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "4:3": landscape_4_3
-          "3:4": portrait_4_3
-          "1:1": square_hd
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
 
     # Z-Image Turbo — image_size presets
     z-image/turbo:
@@ -284,11 +294,11 @@ mappings:
       AspectRatio:
         field: image_size
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "4:3": landscape_4_3
-          "3:4": portrait_4_3
-          "1:1": square_hd
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
 
   replicate:
     # Bytedance Seedream 4
@@ -328,6 +338,16 @@ mappings:
     google/imagen-4:
       Prompt: prompt
       AspectRatio: aspect_ratio
+      ResolutionAspectRatio:
+        conditional:
+          when:
+            input: AspectRatio
+            empty: true
+          then:
+            input: Resolution
+            field: aspect_ratio
+            resolution:
+              mode: aspectRatio
       # Only supports: 1:1, 9:16, 16:9, 3:4, 4:3
       # Resolution ignored
 
@@ -347,11 +367,11 @@ mappings:
             combine:
               inputs: [AspectRatio, Resolution]
               table:
-                "16:9+1K": { width: 1024, height: 576 }
-                "9:16+1K": { width: 576, height: 1024 }
-                "1:1+1K": { width: 1024, height: 1024 }
-                "16:9+": { width: 1024, height: 576 }
-                "1:1+": { width: 1024, height: 1024 }
+                '16:9+1K': { width: 1024, height: 576 }
+                '9:16+1K': { width: 576, height: 1024 }
+                '1:1+1K': { width: 1024, height: 1024 }
+                '16:9+': { width: 1024, height: 576 }
+                '1:1+': { width: 1024, height: 1024 }
 
     # Flux 2 Pro — aspect_ratio + resolution (megapixels)
     black-forest-labs/flux-2-pro:
@@ -406,13 +426,23 @@ mappings:
       Resolution:
         field: size
         transform:
-          "1K": "1024x1024"
-          "2K": "2048x2048"
+          '1K': '1024x1024'
+          '2K': '2048x2048'
 
     # XAI Grok Imagine Image — aspect_ratio only
     xai/grok-imagine-image:
       Prompt: prompt
       AspectRatio: aspect_ratio
+      ResolutionAspectRatio:
+        conditional:
+          when:
+            input: AspectRatio
+            empty: true
+          then:
+            input: Resolution
+            field: aspect_ratio
+            resolution:
+              mode: aspectRatio
 
     # PrunaAI P-Image — aspect_ratio + width/height
     prunaai/p-image:
@@ -440,6 +470,6 @@ mappings:
       Resolution:
         field: size
         transform:
-          "1K": "1024*1024"
-          "2K": "2048*2048"
-          "4K": "4096*4096"
+          '1K': '1024*1024'
+          '2K': '2048*2048'
+          '4K': '4096*4096'

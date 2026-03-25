@@ -100,4 +100,24 @@ describe('InputsPanel array input rendering', () => {
     expect(screen.getByText('Add audio')).toBeTruthy();
     expect(screen.getByText('Add video')).toBeTruthy();
   });
+
+  it('renders Resolution editor controls for resolution-type inputs', () => {
+    render(
+      <InputsPanel
+        inputs={[makeInput('Resolution', 'resolution')]}
+        inputValues={[
+          {
+            name: 'Resolution',
+            value: { width: 1280, height: 720 },
+          },
+        ]}
+        selectedNodeId={null}
+        isEditable={true}
+      />
+    );
+
+    expect(screen.getByText('Other Inputs')).toBeTruthy();
+    expect(screen.getByLabelText('Resolution width')).toBeTruthy();
+    expect(screen.getByLabelText('Resolution height')).toBeTruthy();
+  });
 });

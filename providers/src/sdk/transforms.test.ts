@@ -137,6 +137,19 @@ describe('transforms', () => {
       });
     });
 
+    it('projects nearest size token from long edge', () => {
+      const context = createContext({
+        Resolution: { width: 1280, height: 720 },
+      });
+      const mapping: MappingFieldDefinition = {
+        field: 'size',
+        resolution: { mode: 'sizeTokenNearest' },
+      };
+
+      const result = applyMapping('Resolution', mapping, context);
+      expect(result).toEqual({ field: 'size', value: '1K' });
+    });
+
     it('throws when resolution object is invalid', () => {
       const context = createContext({ Resolution: '1080p' });
       const mapping: MappingFieldDefinition = {

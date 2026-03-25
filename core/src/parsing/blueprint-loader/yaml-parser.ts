@@ -1393,6 +1393,7 @@ function parseResolutionTransform(
     'aspectRatio',
     'preset',
     'sizeToken',
+    'sizeTokenNearest',
     'aspectRatioAndPreset',
     'aspectRatioAndPresetObject',
     'width',

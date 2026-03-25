@@ -352,6 +352,43 @@ describe('ffmpeg-exporter', () => {
       expect(dimensions).toEqual({ width: 1920, height: 1080 });
     });
 
+    it('prefers typed Input:Resolution over aspect ratio defaults', () => {
+      const dimensions = resolveOutputDimensions(
+        {},
+        createInputsAccessor({
+          'Input:Resolution': { width: 720, height: 1280 },
+          'Input:AspectRatio': '16:9',
+        })
+      );
+
+      expect(dimensions).toEqual({ width: 720, height: 1280 });
+    });
+
+    it('keeps legacy aspect-ratio behavior when Input:Resolution is a non-object value', () => {
+      const dimensions = resolveOutputDimensions(
+        {},
+        createInputsAccessor({
+          'Input:Resolution': '720p',
+          'Input:AspectRatio': '9:16',
+        })
+      );
+
+      expect(dimensions).toEqual({ width: 1080, height: 1920 });
+    });
+
+    it('throws when typed Input:Resolution is malformed', () => {
+      expect(() =>
+        resolveOutputDimensions(
+          {},
+          createInputsAccessor({
+            'Input:Resolution': { width: '720', height: 1280 },
+          })
+        )
+      ).toThrow(
+        'Input:Resolution must be an object with positive integer width and height.'
+      );
+    });
+
     it('normalizes extreme ratios to stay within the max long edge', () => {
       expect(deriveDimensionsFromAspectRatio(parseAspectRatio('21:9'))).toEqual(
         {

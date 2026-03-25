@@ -23,13 +23,9 @@ inputs:
     description: Voice identifier for text-to-speech narration.
     type: string
     required: true
-  - name: AspectRatio
-    description: Aspect ratio for images and videos (e.g., "16:9", "9:16", "1:1").
-    type: string
-    required: true
   - name: Resolution
-    description: Video resolution (e.g., "480p", "720p").
-    type: string
+    description: Video resolution in pixel dimensions.
+    type: resolution
 
 artifacts:
   - name: CharacterImage
@@ -116,8 +112,8 @@ connections:
   # ============================================================
   - from: EduScriptProducer.VideoScript.Characters[segment].CharacterImagePrompt
     to: CharacterImageProducer[segment].Prompt
-  - from: AspectRatio
-    to: CharacterImageProducer[segment].AspectRatio
+  - from: Resolution
+    to: CharacterImageProducer[segment].Resolution
   - from: CharacterImageProducer[segment].GeneratedImage
     to: CharacterImage[segment]
 
@@ -138,8 +134,6 @@ connections:
     to: LipsyncVideoProducer[segment].CharacterImage
   - from: NarrationAudioProducer[segment].GeneratedAudio
     to: LipsyncVideoProducer[segment].AudioUrl
-  - from: AspectRatio
-    to: LipsyncVideoProducer[segment].AspectRatio
   - from: Resolution
     to: LipsyncVideoProducer[segment].Resolution
   - from: SegmentDuration
@@ -183,4 +177,3 @@ connections:
     to: VideoExporter.Transcription
   - from: VideoExporter.FinalVideo
     to: FinalVideo
-

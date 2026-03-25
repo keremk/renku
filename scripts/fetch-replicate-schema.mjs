@@ -2,6 +2,7 @@
 import { writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { enrichSchemaWithRenkuConstraints } from './schema-constraints.mjs';
 
 /**
  * Fetch input schema from Replicate API for a single model.
@@ -50,7 +51,7 @@ export async function fetchReplicateInputSchema(modelName) {
   if (!token) {
     throw new Error(
       'REPLICATE_API_TOKEN environment variable is required. ' +
-      'Get your token at https://replicate.com/account/api-tokens'
+        'Get your token at https://replicate.com/account/api-tokens'
     );
   }
 
@@ -60,12 +61,14 @@ export async function fetchReplicateInputSchema(modelName) {
 
   const response = await fetch(url, {
     headers: {
-      'Authorization': `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
     },
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch model: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Failed to fetch model: ${response.status} ${response.statusText}`
+    );
   }
 
   const model = await response.json();
@@ -76,11 +79,11 @@ export async function fetchReplicateInputSchema(modelName) {
   if (!inputSchema) {
     throw new Error(
       `No input schema found for ${modelName}. ` +
-      'The model may not have a latest_version or openapi_schema.'
+        'The model may not have a latest_version or openapi_schema.'
     );
   }
 
-  return inputSchema;
+  return enrichSchemaWithRenkuConstraints(inputSchema);
 }
 
 async function main() {
@@ -94,12 +97,20 @@ async function main() {
 
   if (positionalArgs.length < 1) {
     console.error('Usage:');
-    console.error('  node scripts/fetch-replicate-schema.mjs <owner/model-name> <output-path>');
-    console.error('  node scripts/fetch-replicate-schema.mjs <owner/model-name> --type=audio|video|image');
+    console.error(
+      '  node scripts/fetch-replicate-schema.mjs <owner/model-name> <output-path>'
+    );
+    console.error(
+      '  node scripts/fetch-replicate-schema.mjs <owner/model-name> --type=audio|video|image'
+    );
     console.error('');
     console.error('Examples:');
-    console.error('  node scripts/fetch-replicate-schema.mjs openai/sora-2 --type=video');
-    console.error('  node scripts/fetch-replicate-schema.mjs minimax/speech-02-hd --type=audio');
+    console.error(
+      '  node scripts/fetch-replicate-schema.mjs openai/sora-2 --type=video'
+    );
+    console.error(
+      '  node scripts/fetch-replicate-schema.mjs minimax/speech-02-hd --type=audio'
+    );
     console.error('');
     console.error('Requires REPLICATE_API_TOKEN environment variable.');
     process.exit(1);
@@ -111,15 +122,26 @@ async function main() {
   let outputPath;
   if (type) {
     if (!['audio', 'video', 'image', 'json'].includes(type)) {
-      console.error(`[fetch-replicate] Invalid type: ${type}. Must be one of: audio, video, image, json`);
+      console.error(
+        `[fetch-replicate] Invalid type: ${type}. Must be one of: audio, video, image, json`
+      );
       process.exit(1);
     }
     const filename = modelNameToFilename(modelName);
-    outputPath = resolve(repoRoot, 'catalog', 'models', 'replicate', type, filename);
+    outputPath = resolve(
+      repoRoot,
+      'catalog',
+      'models',
+      'replicate',
+      type,
+      filename
+    );
   } else if (positionalArgs.length >= 2) {
     outputPath = positionalArgs[1];
   } else {
-    console.error('[fetch-replicate] Error: Either provide an output path or use --type=audio|video|image');
+    console.error(
+      '[fetch-replicate] Error: Either provide an output path or use --type=audio|video|image'
+    );
     process.exit(1);
   }
 
@@ -133,7 +155,10 @@ async function main() {
 const isMainModule = import.meta.url === `file://${process.argv[1]}`;
 if (isMainModule) {
   main().catch((error) => {
-    console.error('[fetch-replicate] Error:', error instanceof Error ? error.message : error);
+    console.error(
+      '[fetch-replicate] Error:',
+      error instanceof Error ? error.message : error
+    );
     process.exit(1);
   });
 }

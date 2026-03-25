@@ -857,5 +857,137 @@ describe('createProducerRuntime', () => {
 
       expect(payload).toEqual({ duration: 8 });
     });
+
+    it('normalizes SegmentDuration-bound duration to nearest enum value', async () => {
+      const request = createTestJobContext(
+        { 'Input:SegmentDuration': 10 },
+        { Duration: 'Input:SegmentDuration' },
+        {
+          Duration: { field: 'duration' },
+        }
+      );
+
+      const runtime = createProducerRuntime({
+        descriptor: { provider: 'test', model: 'test', environment: 'local' },
+        domain: 'media',
+        request,
+        mode: 'live',
+      });
+
+      const schema = JSON.stringify({
+        type: 'object',
+        properties: {
+          duration: { type: 'string', enum: ['4s', '6s', '8s'] },
+        },
+      });
+
+      const payload = await runtime.sdk.buildPayload(undefined, schema);
+
+      expect(payload).toEqual({ duration: '8s' });
+    });
+
+    it('normalizes using x-renku-constraints when schema enum is absent', async () => {
+      const request = createTestJobContext(
+        { 'Input:SegmentDuration': 9 },
+        { Duration: 'Input:SegmentDuration' },
+        {
+          Duration: { field: 'duration' },
+        }
+      );
+
+      const runtime = createProducerRuntime({
+        descriptor: { provider: 'test', model: 'test', environment: 'local' },
+        domain: 'media',
+        request,
+        mode: 'live',
+      });
+
+      const schema = JSON.stringify({
+        type: 'object',
+        properties: {
+          duration: {
+            type: 'string',
+            description: 'Duration in seconds.',
+          },
+        },
+        'x-renku-constraints': {
+          fields: {
+            duration: {
+              enum: {
+                values: ['5s', '10s'],
+                source: 'inferred',
+                confidence: 'medium',
+              },
+            },
+          },
+        },
+      });
+
+      const payload = await runtime.sdk.buildPayload(undefined, schema);
+
+      expect(payload).toEqual({ duration: '10s' });
+    });
+
+    it('snaps derived aspect ratio strings to nearest allowed enum value', async () => {
+      const request = createTestJobContext(
+        { 'Input:AspectRatio': '455:256' },
+        { AspectRatio: 'Input:AspectRatio' },
+        {
+          AspectRatio: { field: 'aspect_ratio' },
+        }
+      );
+
+      const runtime = createProducerRuntime({
+        descriptor: { provider: 'test', model: 'test', environment: 'local' },
+        domain: 'media',
+        request,
+        mode: 'live',
+      });
+
+      const schema = JSON.stringify({
+        type: 'object',
+        properties: {
+          aspect_ratio: {
+            type: 'string',
+            enum: ['1:1', '4:3', '16:9', '9:16'],
+          },
+        },
+      });
+
+      const payload = await runtime.sdk.buildPayload(undefined, schema);
+
+      expect(payload).toEqual({ aspect_ratio: '16:9' });
+    });
+
+    it('fails fast when schema enum constraints cannot be satisfied', async () => {
+      const request = createTestJobContext(
+        { 'Input:AspectRatio': 'hello-world' },
+        { AspectRatio: 'Input:AspectRatio' },
+        {
+          AspectRatio: { field: 'aspect_ratio' },
+        }
+      );
+
+      const runtime = createProducerRuntime({
+        descriptor: { provider: 'test', model: 'test', environment: 'local' },
+        domain: 'media',
+        request,
+        mode: 'live',
+      });
+
+      const schema = JSON.stringify({
+        type: 'object',
+        properties: {
+          aspect_ratio: {
+            type: 'string',
+            enum: ['1:1', '4:3', '16:9', '9:16'],
+          },
+        },
+      });
+
+      await expect(runtime.sdk.buildPayload(undefined, schema)).rejects.toThrow(
+        'incompatible with model constraints'
+      );
+    });
   });
 });

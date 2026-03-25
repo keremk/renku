@@ -388,6 +388,8 @@ function applyResolutionTransform(
       return toPreset(resolution.width, resolution.height, inputAlias);
     case 'sizeToken':
       return toSizeToken(resolution.width, resolution.height, inputAlias);
+    case 'sizeTokenNearest':
+      return toSizeTokenNearest(resolution.width, resolution.height);
     case 'aspectRatioAndPreset':
       return `${toAspectRatio(resolution.width, resolution.height)}+${toPreset(
         resolution.width,
@@ -514,6 +516,37 @@ function toSizeToken(
     );
   }
   return token;
+}
+
+function toSizeTokenNearest(width: number, height: number): string {
+  const longEdge = Math.max(width, height);
+  const tokens: Array<{ edge: number; token: string }> = [
+    { edge: 1024, token: '1K' },
+    { edge: 2048, token: '2K' },
+    { edge: 3072, token: '3K' },
+    { edge: 4096, token: '4K' },
+  ];
+
+  let nearest = tokens[0]!;
+  let nearestDistance = Math.abs(longEdge - nearest.edge);
+
+  for (const candidate of tokens.slice(1)) {
+    const candidateDistance = Math.abs(longEdge - candidate.edge);
+    if (candidateDistance < nearestDistance) {
+      nearest = candidate;
+      nearestDistance = candidateDistance;
+      continue;
+    }
+
+    if (
+      candidateDistance === nearestDistance &&
+      candidate.edge < nearest.edge
+    ) {
+      nearest = candidate;
+    }
+  }
+
+  return nearest.token;
 }
 
 function greatestCommonDivisor(a: number, b: number): number {

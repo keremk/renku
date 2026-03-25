@@ -29,11 +29,8 @@ inputs:
 
   # Sizing
   - name: Resolution
-    description: "Resolution preset (480p, 720p)."
-    type: string
-  - name: AspectRatio
-    description: "Aspect ratio (16:9, 9:16, 4:3, 3:4, 1:1)."
-    type: string
+    description: Output resolution as pixel dimensions.
+    type: resolution
 
 artifacts:
   - name: GeneratedVideo
@@ -56,13 +53,19 @@ mappings:
       Prompt: prompt
       CharacterImage: image_url
       AudioUrl: audio_url
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
 
     # VEED Fabric 1.0 Fast
     veed/fabric-1.0/fast:
       CharacterImage: image_url
       AudioUrl: audio_url
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
 
     # InfiniTalk (Audio-driven)
     infinitalk:
@@ -73,14 +76,20 @@ mappings:
         field: num_frames
         durationToFrames:
           fps: 24
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
 
     # ByteDance OmniHuman v1.5
     bytedance/omnihuman/v1.5:
       Prompt: prompt
       CharacterImage: image_url
       AudioUrl: audio_url
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
 
     # Kling AI Avatar v2 Standard
     kling-video/ai-avatar/v2/standard:
@@ -110,25 +119,31 @@ mappings:
         durationToFrames:
           fps: 25
       VideoSize:
+        input: Resolution
         field: video_size
-        combine:
-          inputs: [AspectRatio, Resolution]
-          table:
-            "16:9+480p": { width: 848, height: 480 }
-            "16:9+720p": { width: 1280, height: 720 }
-            "9:16+480p": { width: 480, height: 848 }
-            "9:16+720p": { width: 720, height: 1280 }
-            "4:3+480p": { width: 640, height: 480 }
-            "4:3+720p": { width: 960, height: 720 }
-            "3:4+480p": { width: 480, height: 640 }
-            "3:4+720p": { width: 720, height: 960 }
-            "1:1+480p": { width: 512, height: 512 }
-            "1:1+720p": { width: 720, height: 720 }
-            "16:9+": landscape_16_9
-            "9:16+": portrait_16_9
-            "4:3+": landscape_4_3
-            "3:4+": portrait_4_3
-            "1:1+": square_hd
+        resolution:
+          mode: aspectRatioAndPreset
+        transform:
+          '16:9+480p': { width: 848, height: 480 }
+          '16:9+720p': { width: 1280, height: 720 }
+          '16:9+1080p': { width: 1920, height: 1080 }
+          '9:16+480p': { width: 480, height: 848 }
+          '9:16+720p': { width: 720, height: 1280 }
+          '9:16+1080p': { width: 1080, height: 1920 }
+          '4:3+480p': { width: 640, height: 480 }
+          '4:3+720p': { width: 960, height: 720 }
+          '4:3+1080p': { width: 1440, height: 1080 }
+          '3:4+480p': { width: 480, height: 640 }
+          '3:4+720p': { width: 720, height: 960 }
+          '3:4+1080p': { width: 1080, height: 1440 }
+          '1:1+480p': { width: 512, height: 512 }
+          '1:1+720p': { width: 720, height: 720 }
+          '1:1+1080p': { width: 1080, height: 1080 }
+          '16:9+': landscape_16_9
+          '9:16+': portrait_16_9
+          '4:3+': landscape_4_3
+          '3:4+': portrait_4_3
+          '1:1+': square_hd
 
     # LTX-2-19b Distilled Audio-to-Video
     ltx-2-19b/distilled/audio-to-video:
@@ -140,25 +155,31 @@ mappings:
         durationToFrames:
           fps: 25
       VideoSize:
+        input: Resolution
         field: video_size
-        combine:
-          inputs: [AspectRatio, Resolution]
-          table:
-            "16:9+480p": { width: 848, height: 480 }
-            "16:9+720p": { width: 1280, height: 720 }
-            "9:16+480p": { width: 480, height: 848 }
-            "9:16+720p": { width: 720, height: 1280 }
-            "4:3+480p": { width: 640, height: 480 }
-            "4:3+720p": { width: 960, height: 720 }
-            "3:4+480p": { width: 480, height: 640 }
-            "3:4+720p": { width: 720, height: 960 }
-            "1:1+480p": { width: 512, height: 512 }
-            "1:1+720p": { width: 720, height: 720 }
-            "16:9+": landscape_16_9
-            "9:16+": portrait_16_9
-            "4:3+": landscape_4_3
-            "3:4+": portrait_4_3
-            "1:1+": square_hd
+        resolution:
+          mode: aspectRatioAndPreset
+        transform:
+          '16:9+480p': { width: 848, height: 480 }
+          '16:9+720p': { width: 1280, height: 720 }
+          '16:9+1080p': { width: 1920, height: 1080 }
+          '9:16+480p': { width: 480, height: 848 }
+          '9:16+720p': { width: 720, height: 1280 }
+          '9:16+1080p': { width: 1080, height: 1920 }
+          '4:3+480p': { width: 640, height: 480 }
+          '4:3+720p': { width: 960, height: 720 }
+          '4:3+1080p': { width: 1440, height: 1080 }
+          '3:4+480p': { width: 480, height: 640 }
+          '3:4+720p': { width: 720, height: 960 }
+          '3:4+1080p': { width: 1080, height: 1440 }
+          '1:1+480p': { width: 512, height: 512 }
+          '1:1+720p': { width: 720, height: 720 }
+          '1:1+1080p': { width: 1080, height: 1080 }
+          '16:9+': landscape_16_9
+          '9:16+': portrait_16_9
+          '4:3+': landscape_4_3
+          '3:4+': portrait_4_3
+          '1:1+': square_hd
 
   replicate:
     # Kwaivgi Kling Avatar v2
@@ -173,4 +194,7 @@ mappings:
       Prompt: prompt
       CharacterImage: image
       AudioUrl: audio
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset

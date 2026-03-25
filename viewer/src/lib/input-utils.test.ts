@@ -130,6 +130,10 @@ describe('getInputCategory', () => {
   it('returns other for boolean type', () => {
     expect(getInputCategory(makeInput('test', 'boolean'))).toBe('other');
   });
+
+  it('returns other for resolution type', () => {
+    expect(getInputCategory(makeInput('test', 'resolution'))).toBe('other');
+  });
 });
 
 describe('categorizeInputs', () => {

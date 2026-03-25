@@ -2,6 +2,7 @@
 import { writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { enrichSchemaWithRenkuConstraints } from './schema-constraints.mjs';
 
 /**
  * Fetch and transform OpenAPI schema from fal.ai for a single model.
@@ -140,9 +141,7 @@ function findPrimarySchemaNames(openapi) {
 
     // Output from response (may be QueueStatus for queued endpoints)
     const outputRef =
-      post?.responses?.['200']?.content?.['application/json']?.schema?.[
-        '$ref'
-      ];
+      post?.responses?.['200']?.content?.['application/json']?.schema?.['$ref'];
     if (outputRef) {
       const name = outputRef.replace('#/components/schemas/', '');
       if (name !== 'QueueStatus') {
@@ -190,7 +189,9 @@ export async function fetchAndTransformSchema(modelName, subProvider) {
 
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Failed to fetch schema: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Failed to fetch schema: ${response.status} ${response.statusText}`
+    );
   }
 
   const openapi = await response.json();
@@ -232,6 +233,15 @@ export async function fetchAndTransformSchema(modelName, subProvider) {
   // Add format: uri to URL fields
   const withUriFormat = addUriFormat(withFixedRefs);
 
+  if (
+    withUriFormat &&
+    typeof withUriFormat === 'object' &&
+    withUriFormat.input_schema &&
+    typeof withUriFormat.input_schema === 'object'
+  ) {
+    enrichSchemaWithRenkuConstraints(withUriFormat.input_schema);
+  }
+
   return withUriFormat;
 }
 
@@ -249,13 +259,23 @@ async function main() {
 
   if (positionalArgs.length < 1) {
     console.error('Usage:');
-    console.error('  node scripts/fetch-fal-schema.mjs <model-name> <output-path>');
-    console.error('  node scripts/fetch-fal-schema.mjs <model-name> --type=audio|video|image [--subprovider=<name>]');
+    console.error(
+      '  node scripts/fetch-fal-schema.mjs <model-name> <output-path>'
+    );
+    console.error(
+      '  node scripts/fetch-fal-schema.mjs <model-name> --type=audio|video|image [--subprovider=<name>]'
+    );
     console.error('');
     console.error('Examples:');
-    console.error('  node scripts/fetch-fal-schema.mjs minimax/speech-02-hd --type=audio');
-    console.error('  node scripts/fetch-fal-schema.mjs fal-ai/veo3.1 --type=video');
-    console.error('  node scripts/fetch-fal-schema.mjs wan/v2.6/image-to-image --type=image --subprovider=wan');
+    console.error(
+      '  node scripts/fetch-fal-schema.mjs minimax/speech-02-hd --type=audio'
+    );
+    console.error(
+      '  node scripts/fetch-fal-schema.mjs fal-ai/veo3.1 --type=video'
+    );
+    console.error(
+      '  node scripts/fetch-fal-schema.mjs wan/v2.6/image-to-image --type=image --subprovider=wan'
+    );
     process.exit(1);
   }
 
@@ -266,15 +286,26 @@ async function main() {
   let outputPath;
   if (type) {
     if (!['audio', 'video', 'image', 'json'].includes(type)) {
-      console.error(`[fetch-fal] Invalid type: ${type}. Must be one of: audio, video, image, json`);
+      console.error(
+        `[fetch-fal] Invalid type: ${type}. Must be one of: audio, video, image, json`
+      );
       process.exit(1);
     }
     const filename = modelNameToFilename(normalizedName);
-    outputPath = resolve(repoRoot, 'catalog', 'models', 'fal-ai', type, filename);
+    outputPath = resolve(
+      repoRoot,
+      'catalog',
+      'models',
+      'fal-ai',
+      type,
+      filename
+    );
   } else if (positionalArgs.length >= 2) {
     outputPath = positionalArgs[1];
   } else {
-    console.error('[fetch-fal] Error: Either provide an output path or use --type=audio|video|image');
+    console.error(
+      '[fetch-fal] Error: Either provide an output path or use --type=audio|video|image'
+    );
     process.exit(1);
   }
 
@@ -288,7 +319,10 @@ async function main() {
 const isMainModule = import.meta.url === `file://${process.argv[1]}`;
 if (isMainModule) {
   main().catch((error) => {
-    console.error('[fetch-fal] Error:', error instanceof Error ? error.message : error);
+    console.error(
+      '[fetch-fal] Error:',
+      error instanceof Error ? error.message : error
+    );
     process.exit(1);
   });
 }

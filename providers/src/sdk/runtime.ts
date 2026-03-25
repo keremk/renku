@@ -25,6 +25,11 @@ import {
   type TransformContext,
 } from './transforms.js';
 import { createProviderError, SdkErrorCode } from './errors.js';
+import {
+  evaluateAndNormalizePayloadCompatibility,
+  parseInputSchema,
+  readSchemaProperties,
+} from './compatibility.js';
 
 interface SerializedJobContext {
   inputBindings?: Record<string, string>;
@@ -232,227 +237,53 @@ function createSdkHelper(
       }
 
       if (parsedInputSchema) {
-        coercePayloadEnumValues(payload, parsedInputSchema, logger);
+        const compatibility = evaluateAndNormalizePayloadCompatibility(
+          payload,
+          parsedInputSchema
+        );
+        for (const issue of compatibility.issues) {
+          if (issue.reason === 'normalized') {
+            logger?.debug?.('providers.sdk.payload.enum-normalized', {
+              field: issue.field,
+              requested: issue.requested,
+              normalized: issue.normalized,
+              source: issue.source,
+            });
+            if (
+              issue.source === 'x-renku-constraints' &&
+              issue.confidence === 'medium'
+            ) {
+              logger?.warn?.('providers.sdk.payload.constraint-normalized', {
+                field: issue.field,
+                requested: issue.requested,
+                normalized: issue.normalized,
+                source: issue.source,
+                confidence: issue.confidence,
+              });
+            }
+            continue;
+          }
+
+          if (issue.severity === 'error') {
+            throw createProviderError(
+              SdkErrorCode.INVALID_CONFIG,
+              `Input for field "${issue.field}" is incompatible with model constraints and cannot be normalized safely. Requested value: ${JSON.stringify(issue.requested)}.`,
+              { kind: 'user_input', causedByUser: true }
+            );
+          }
+
+          logger?.warn?.('providers.sdk.payload.constraint-unsupported', {
+            field: issue.field,
+            requested: issue.requested,
+            source: issue.source,
+            confidence: issue.confidence,
+          });
+        }
       }
 
       return payload;
     },
   };
-}
-
-function parseInputSchema(
-  inputSchema: string | undefined
-): Record<string, unknown> | undefined {
-  if (!inputSchema) {
-    return undefined;
-  }
-
-  try {
-    const parsed = JSON.parse(inputSchema);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return undefined;
-    }
-    return parsed as Record<string, unknown>;
-  } catch {
-    return undefined;
-  }
-}
-
-function readSchemaProperties(
-  schema: Record<string, unknown>
-): Record<string, Record<string, unknown>> | undefined {
-  const rawProperties = schema.properties;
-  if (
-    !rawProperties ||
-    typeof rawProperties !== 'object' ||
-    Array.isArray(rawProperties)
-  ) {
-    return undefined;
-  }
-
-  const properties: Record<string, Record<string, unknown>> = {};
-  for (const [key, value] of Object.entries(rawProperties)) {
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
-      properties[key] = value as Record<string, unknown>;
-    }
-  }
-
-  return properties;
-}
-
-function coercePayloadEnumValues(
-  payload: Record<string, unknown>,
-  schema: Record<string, unknown>,
-  logger?: ProviderLogger,
-  fieldPrefix = ''
-): void {
-  const properties = readSchemaProperties(schema);
-  if (!properties) {
-    return;
-  }
-
-  for (const [fieldName, value] of Object.entries(payload)) {
-    const propertySchema = properties[fieldName];
-    if (!propertySchema) {
-      continue;
-    }
-
-    const fieldPath = fieldPrefix ? `${fieldPrefix}.${fieldName}` : fieldName;
-    const normalized = normalizeEnumValue(value, propertySchema);
-    if (normalized.changed) {
-      payload[fieldName] = normalized.value;
-      logger?.debug?.('providers.sdk.payload.enum-normalized', {
-        field: fieldPath,
-        requested: value,
-        normalized: normalized.value,
-      });
-    }
-
-    const currentValue = payload[fieldName];
-    if (
-      currentValue &&
-      typeof currentValue === 'object' &&
-      !Array.isArray(currentValue)
-    ) {
-      coercePayloadEnumValues(
-        currentValue as Record<string, unknown>,
-        propertySchema,
-        logger,
-        fieldPath
-      );
-    }
-  }
-}
-
-interface EnumNormalizationResult {
-  value: unknown;
-  changed: boolean;
-}
-
-function normalizeEnumValue(
-  value: unknown,
-  schema: Record<string, unknown>
-): EnumNormalizationResult {
-  const enumValues = Array.isArray(schema.enum) ? schema.enum : undefined;
-  if (!enumValues || enumValues.length === 0) {
-    return { value, changed: false };
-  }
-
-  if (enumValues.some((enumValue) => Object.is(enumValue, value))) {
-    return { value, changed: false };
-  }
-
-  if (typeof value === 'number') {
-    const asStringMatch = enumValues.find(
-      (enumValue) =>
-        typeof enumValue === 'string' && enumValue === String(value)
-    );
-    if (asStringMatch !== undefined) {
-      return { value: asStringMatch, changed: true };
-    }
-  }
-
-  if (typeof value === 'string') {
-    const parsedNumericValue = Number(value);
-    if (Number.isFinite(parsedNumericValue)) {
-      const numericMatch = enumValues.find(
-        (enumValue) =>
-          typeof enumValue === 'number' &&
-          Object.is(enumValue, parsedNumericValue)
-      );
-      if (numericMatch !== undefined) {
-        return { value: numericMatch, changed: true };
-      }
-    }
-  }
-
-  const incomingNumeric = parseNumericEnumValue(value);
-  if (incomingNumeric === undefined) {
-    return { value, changed: false };
-  }
-
-  const numericCandidates = enumValues
-    .map((enumValue) => {
-      const parsed = parseNumericEnumValue(enumValue);
-      if (parsed === undefined) {
-        return undefined;
-      }
-      return {
-        raw: enumValue,
-        numeric: parsed,
-      };
-    })
-    .filter(
-      (
-        candidate
-      ): candidate is {
-        raw: unknown;
-        numeric: number;
-      } => candidate !== undefined
-    );
-
-  if (numericCandidates.length === 0) {
-    return { value, changed: false };
-  }
-
-  const nearestCandidate = pickNearestEnumCandidate(
-    incomingNumeric,
-    numericCandidates
-  );
-  if (
-    nearestCandidate === undefined ||
-    Object.is(nearestCandidate.raw, value)
-  ) {
-    return { value, changed: false };
-  }
-
-  return { value: nearestCandidate.raw, changed: true };
-}
-
-function parseNumericEnumValue(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-
-  if (typeof value !== 'string') {
-    return undefined;
-  }
-
-  const trimmed = value.trim();
-  const match = trimmed.match(/^(-?\d+(?:\.\d+)?)(?:[a-zA-Z%]*)$/);
-  if (!match) {
-    return undefined;
-  }
-
-  const parsed = Number.parseFloat(match[1]);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function pickNearestEnumCandidate(
-  target: number,
-  candidates: Array<{ raw: unknown; numeric: number }>
-): { raw: unknown; numeric: number } | undefined {
-  let nearest: { raw: unknown; numeric: number } | undefined;
-  let nearestDistance = Number.POSITIVE_INFINITY;
-
-  for (const candidate of candidates) {
-    const distance = Math.abs(candidate.numeric - target);
-    if (distance < nearestDistance) {
-      nearest = candidate;
-      nearestDistance = distance;
-      continue;
-    }
-
-    if (
-      distance === nearestDistance &&
-      nearest &&
-      candidate.numeric < nearest.numeric
-    ) {
-      nearest = candidate;
-    }
-  }
-
-  return nearest;
 }
 
 function createArtefactRegistry(produces: string[]): ArtefactRegistry {

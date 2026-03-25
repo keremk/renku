@@ -4,6 +4,7 @@ export * from './artefacts.js';
 export * from './errors.js';
 export * from './handler-factory.js';
 export * from './transforms.js';
+export * from './compatibility.js';
 
 // FFmpeg extraction exports
 export {

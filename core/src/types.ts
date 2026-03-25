@@ -819,6 +819,7 @@ export interface ResolutionTransformConfig {
    * - aspectRatio: "16:9"
    * - preset: "720p" (derived from short edge)
    * - sizeToken: "1K"/"2K"/"3K"/"4K" (derived from long edge)
+   * - sizeTokenNearest: nearest "1K"/"2K"/"3K"/"4K" (derived from long edge)
    * - aspectRatioAndPreset: "16:9+720p"
    * - aspectRatioAndPresetObject: { [aspectRatioField]: "16:9", [presetField]: "720p" }
    * - width: numeric width
@@ -828,6 +829,7 @@ export interface ResolutionTransformConfig {
     | 'aspectRatio'
     | 'preset'
     | 'sizeToken'
+    | 'sizeTokenNearest'
     | 'aspectRatioAndPreset'
     | 'aspectRatioAndPresetObject'
     | 'width'

@@ -12,6 +12,7 @@ import {
 	type RunResult,
 	type RunConfig,
 	type Logger,
+	type ProducerOptionsMap,
 } from '@gorenku/core';
 import {
 	createProviderRegistry,
@@ -22,7 +23,6 @@ import {
 } from '@gorenku/providers';
 import type { CliConfig } from './cli-config.js';
 import { normalizeConcurrency } from './cli-config.js';
-import type { ProducerOptionsMap } from '@gorenku/core';
 import chalk from 'chalk';
 
 export interface ExecuteBuildOptions {

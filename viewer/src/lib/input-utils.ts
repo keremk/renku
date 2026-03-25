@@ -49,6 +49,7 @@ const KNOWN_INPUT_TYPES = new Set([
   'audio',
   'json',
   'enum',
+  'resolution',
 ]);
 
 /**

@@ -13,6 +13,7 @@ import {
   ImageCard,
 } from './shared';
 import { DefaultTextEditor } from './inputs/default-text-editor';
+import { ResolutionEditor } from './inputs/resolution-editor';
 import { InputCardFooter } from './inputs/input-card-footer';
 import { EmptyMediaPlaceholder } from './inputs/empty-media-placeholder';
 import { FileUploadDialog } from './inputs/file-upload-dialog';
@@ -901,7 +902,11 @@ function OtherInputCard({
       required={input.required}
       isSelected={isSelected}
     >
-      <DefaultTextEditor {...editorProps} />
+      {input.type === 'resolution' ? (
+        <ResolutionEditor {...editorProps} />
+      ) : (
+        <DefaultTextEditor {...editorProps} />
+      )}
     </PropertyRow>
   );
 }

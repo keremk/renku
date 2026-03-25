@@ -25,6 +25,7 @@ const TIMELINE_ARTEFACT_ID = 'Artifact:TimelineComposer.Timeline';
 const TRANSCRIPTION_ARTEFACT_ID =
   'Artifact:TranscriptionProducer.Transcription';
 const ASPECT_RATIO_INPUT_ID = 'Input:AspectRatio';
+const RESOLUTION_INPUT_ID = 'Input:Resolution';
 
 interface FfmpegProgressSnapshot {
   timeSeconds: number;
@@ -360,6 +361,33 @@ function resolveOutputDimensions(
     };
   }
 
+  const resolutionInput = parseResolutionInput(
+    inputs.getByNodeId<unknown>(RESOLUTION_INPUT_ID)
+  );
+  if (resolutionInput) {
+    const resolutionAspectRatio =
+      resolutionInput.width / resolutionInput.height;
+
+    if (configuredWidth !== undefined) {
+      return {
+        width: configuredWidth,
+        height: roundToEvenPositive(configuredWidth / resolutionAspectRatio),
+      };
+    }
+
+    if (configuredHeight !== undefined) {
+      return {
+        width: roundToEvenPositive(configuredHeight * resolutionAspectRatio),
+        height: configuredHeight,
+      };
+    }
+
+    return {
+      width: roundToEvenPositive(resolutionInput.width),
+      height: roundToEvenPositive(resolutionInput.height),
+    };
+  }
+
   const aspectRatioValue = inputs.getByNodeId<string>(ASPECT_RATIO_INPUT_ID);
   if (aspectRatioValue === undefined) {
     return {
@@ -385,6 +413,38 @@ function resolveOutputDimensions(
   }
 
   return deriveDimensionsFromAspectRatio(aspectRatio);
+}
+
+function parseResolutionInput(
+  value: unknown
+): { width: number; height: number } | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  const width = record.width;
+  const height = record.height;
+  if (
+    typeof width !== 'number' ||
+    !Number.isInteger(width) ||
+    width <= 0 ||
+    typeof height !== 'number' ||
+    !Number.isInteger(height) ||
+    height <= 0
+  ) {
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      'Input:Resolution must be an object with positive integer width and height.',
+      { kind: 'user_input', causedByUser: true }
+    );
+  }
+
+  return { width, height };
 }
 
 function parseAspectRatio(rawAspectRatio: string): number {

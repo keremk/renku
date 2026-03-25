@@ -3,8 +3,9 @@ inputs:
   TargetAudience: 'children ages 6-10'
   AnimationStyle: 'Pixar-style 3D animated, cute, colorful, expressive eyes, friendly face'
   VoiceId: 'iUqOXhMfiOIbBejNtfLR'
-  AspectRatio: '9:16'
-  Resolution: '720p'
+  Resolution:
+    width: 720
+    height: 1280
   Duration: 30
   NumOfSegments: 3
 models:
