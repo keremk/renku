@@ -11,6 +11,7 @@ import type {
   ProducerConfigSchemas,
   PromptData,
   ConfigProperty,
+  ProducerSdkPreviewEntry,
 } from '@/types/blueprint-graph';
 
 interface ModelsPanelProps {
@@ -45,6 +46,8 @@ interface ModelsPanelProps {
   onConfigChange?: (producerId: string, key: string, value: unknown) => void;
   /** Config schemas per producer (for nested model detection) */
   configSchemasByProducer?: Record<string, ProducerConfigSchemas>;
+  /** SDK preview values per producer (resolution/aspect/size mappings) */
+  sdkPreviewByProducer?: Record<string, ProducerSdkPreviewEntry>;
 }
 
 export function ModelsPanel({
@@ -62,6 +65,7 @@ export function ModelsPanel({
   configValuesByProducer = {},
   onConfigChange,
   configSchemasByProducer = {},
+  sdkPreviewByProducer = {},
 }: ModelsPanelProps) {
   const [isEnabling, setIsEnabling] = useState(false);
 
@@ -269,6 +273,7 @@ export function ModelsPanel({
                   nestedModelSchemas={
                     configSchemasByProducer[activeProducerId]?.nestedModels
                   }
+                  sdkPreview={sdkPreviewByProducer[activeProducerId]?.fields}
                   hideSectionContainer
                 />
               </div>

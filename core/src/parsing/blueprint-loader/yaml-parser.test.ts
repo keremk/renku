@@ -149,6 +149,32 @@ models:
     });
   });
 
+  it('parses aspectRatioAndSizeTokenObject resolution transforms', () => {
+    const mappings = parseMappingsSection({
+      'fal-ai': {
+        'nano-banana-2': {
+          Resolution: {
+            expand: true,
+            resolution: {
+              mode: 'aspectRatioAndSizeTokenObject',
+              aspectRatioField: 'aspect_ratio',
+              sizeTokenField: 'resolution',
+            },
+          },
+        },
+      },
+    });
+
+    expect(mappings?.['fal-ai']?.['nano-banana-2']?.Resolution).toEqual({
+      expand: true,
+      resolution: {
+        mode: 'aspectRatioAndSizeTokenObject',
+        aspectRatioField: 'aspect_ratio',
+        sizeTokenField: 'resolution',
+      },
+    });
+  });
+
   it('rejects invalid resolution transform modes', () => {
     expect(() =>
       parseMappingsSection({
@@ -177,6 +203,21 @@ models:
         },
       })
     ).toThrow(/requires aspectRatioField and presetField/);
+  });
+
+  it('rejects aspectRatioAndSizeTokenObject without required fields', () => {
+    expect(() =>
+      parseMappingsSection({
+        'fal-ai': {
+          'bytedance/seedream/v4/text-to-image': {
+            Resolution: {
+              expand: true,
+              resolution: { mode: 'aspectRatioAndSizeTokenObject' },
+            },
+          },
+        },
+      })
+    ).toThrow(/requires aspectRatioField and sizeTokenField/);
   });
 
   it('parses countInputOffset for array artefacts', async () => {

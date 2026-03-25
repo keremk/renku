@@ -6,11 +6,9 @@ import {
   PropertyRow,
 } from '../shared';
 import { ModelSelector } from './model-selector';
-import { NestedModelSelector } from './nested-model-selector';
 import { ConfigPropertiesEditor } from './config-properties-editor';
 import { hasRegisteredEditor } from './config-editors';
 import { isComplexProperty } from './config-utils';
-import { getNestedModelSelection } from './stt-helpers';
 import { getSectionHighlightStyles } from '@/lib/panel-utils';
 import type {
   AvailableModelOption,
@@ -19,6 +17,7 @@ import type {
   PromptData,
   ConfigProperty,
   NestedModelConfigSchema,
+  SdkPreviewField,
 } from '@/types/blueprint-graph';
 
 interface ProducerSectionProps {
@@ -54,6 +53,8 @@ interface ProducerSectionProps {
   schemaError?: string | null;
   /** Nested model schemas (if this producer has nested model declarations) */
   nestedModelSchemas?: NestedModelConfigSchema[];
+  /** SDK preview rows for mapped resolution/aspect/size fields */
+  sdkPreview?: SdkPreviewField[];
   /** Whether section starts open */
   defaultOpen?: boolean;
   /** Render content without collapsible wrapper */
@@ -84,6 +85,7 @@ export function ProducerSection({
   onConfigChange,
   schemaError,
   nestedModelSchemas,
+  sdkPreview,
   defaultOpen = false,
   hideSectionContainer = false,
 }: ProducerSectionProps) {
@@ -291,10 +293,10 @@ export function ProducerSection({
             onChange={() => {}}
             schemaError={schemaError}
           />
-        ) : configProperties && configProperties.length > 0 ? (
+        ) : (
           <div className='space-y-4'>
             <ConfigPropertiesEditor
-              properties={configProperties}
+              properties={configProperties ?? []}
               values={configValues}
               isEditable={isEditable}
               onChange={(key, value) => onConfigChange?.(key, value)}
@@ -304,50 +306,8 @@ export function ProducerSection({
               onModelChange={onModelChange}
               nestedModelSchemas={nestedModelSchemas}
               onNestedModelChange={handleNestedModelChange}
+              sdkPreview={sdkPreview}
             />
-          </div>
-        ) : (
-          <div className='space-y-3'>
-            {/* Model selection row for asset producers without config */}
-            <PropertyRow name='Model' type='select' required>
-              <ModelSelector
-                producerId={producerId}
-                availableModels={availableModels}
-                currentSelection={currentSelection}
-                isEditable={isEditable}
-                onChange={onModelChange}
-              />
-            </PropertyRow>
-            {/* Render nested model selectors if present (even without top-level config) */}
-            {nestedModelSchemas &&
-              nestedModelSchemas.length > 0 &&
-              nestedModelSchemas.map((nestedSchema) => {
-                const nestedSel = getNestedModelSelection(
-                  currentSelection,
-                  nestedSchema.declaration.configPath
-                );
-                return (
-                  <PropertyRow
-                    key={nestedSchema.declaration.name}
-                    name={
-                      nestedSchema.declaration.description ??
-                      nestedSchema.declaration.name
-                    }
-                    type='select'
-                    required={nestedSchema.declaration.required}
-                  >
-                    <NestedModelSelector
-                      nestedSchema={nestedSchema}
-                      currentProvider={nestedSel?.provider}
-                      currentModel={nestedSel?.model}
-                      isEditable={isEditable}
-                      onChange={(provider, model) =>
-                        handleNestedModelChange(nestedSchema, provider, model)
-                      }
-                    />
-                  </PropertyRow>
-                );
-              })}
           </div>
         ))}
     </>

@@ -118,6 +118,28 @@ describe('transforms', () => {
       });
     });
 
+    it('projects aspect ratio and size token into an expandable object', () => {
+      const context = createContext({
+        Resolution: { width: 1280, height: 720 },
+      });
+      const mapping: MappingFieldDefinition = {
+        expand: true,
+        resolution: {
+          mode: 'aspectRatioAndSizeTokenObject',
+          aspectRatioField: 'aspect_ratio',
+          sizeTokenField: 'resolution',
+        },
+      };
+
+      const result = applyMapping('Resolution', mapping, context);
+      expect(result).toEqual({
+        expand: {
+          aspect_ratio: '16:9',
+          resolution: '1K',
+        },
+      });
+    });
+
     it('projects aspectRatioAndPreset then transform lookup', () => {
       const context = createContext({
         Resolution: { width: 1280, height: 720 },
@@ -148,6 +170,32 @@ describe('transforms', () => {
 
       const result = applyMapping('Resolution', mapping, context);
       expect(result).toEqual({ field: 'size', value: '1K' });
+    });
+
+    it('maps near ratios to a known aspect ratio', () => {
+      const context = createContext({
+        Resolution: { width: 1918, height: 1080 },
+      });
+      const mapping: MappingFieldDefinition = {
+        field: 'aspect_ratio',
+        resolution: { mode: 'aspectRatio' },
+      };
+
+      const result = applyMapping('Resolution', mapping, context);
+      expect(result).toEqual({ field: 'aspect_ratio', value: '16:9' });
+    });
+
+    it('maps to nearest known ratio when outside tolerance', () => {
+      const context = createContext({
+        Resolution: { width: 1000, height: 700 },
+      });
+      const mapping: MappingFieldDefinition = {
+        field: 'aspect_ratio',
+        resolution: { mode: 'aspectRatio' },
+      };
+
+      const result = applyMapping('Resolution', mapping, context);
+      expect(result).toEqual({ field: 'aspect_ratio', value: '3:2' });
     });
 
     it('throws when resolution object is invalid', () => {

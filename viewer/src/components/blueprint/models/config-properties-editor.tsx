@@ -16,6 +16,7 @@ import { PropertyRow, MediaGrid } from '../shared';
 import type {
   ConfigProperty,
   NestedModelConfigSchema,
+  SdkPreviewField,
 } from '@/types/blueprint-graph';
 import type {
   AvailableModelOption,
@@ -51,6 +52,8 @@ interface ConfigPropertiesEditorProps {
     provider: string,
     model: string
   ) => void;
+  /** SDK preview rows for mapped resolution/aspect/size fields */
+  sdkPreview?: SdkPreviewField[];
 }
 
 /**
@@ -71,10 +74,12 @@ export function ConfigPropertiesEditor({
   onModelChange,
   nestedModelSchemas,
   onNestedModelChange,
+  sdkPreview = [],
 }: ConfigPropertiesEditorProps) {
   // Categorize properties into primitive, object-with-editor, and unhandled
   const { primitiveProps, objectPropsWithEditor, unhandledComplexCount } =
     useMemo(() => {
+      const sdkPreviewFields = new Set(sdkPreview.map((field) => field.field));
       const required: ConfigProperty[] = [];
       const optional: ConfigProperty[] = [];
       const withEditor: Array<{
@@ -84,6 +89,9 @@ export function ConfigPropertiesEditor({
       let unhandled = 0;
 
       for (const prop of properties) {
+        if (sdkPreviewFields.has(prop.key)) {
+          continue;
+        }
         if (isComplexProperty(prop)) {
           // Check if there's a registered editor for this property
           const Editor = getEditorComponent(prop.key);
@@ -110,7 +118,7 @@ export function ConfigPropertiesEditor({
         objectPropsWithEditor: withEditor,
         unhandledComplexCount: unhandled,
       };
-    }, [properties]);
+    }, [properties, sdkPreview]);
 
   // Show error state when schema failed to load
   if (schemaError) {
@@ -131,10 +139,16 @@ export function ConfigPropertiesEditor({
 
   // Check if there's any displayable content
   const hasDisplayableContent =
-    primitiveProps.length > 0 || objectPropsWithEditor.length > 0;
+    primitiveProps.length > 0 ||
+    objectPropsWithEditor.length > 0 ||
+    sdkPreview.length > 0;
 
   // No displayable content and no model selection - render nothing
-  if (properties.length === 0 && !showModelSelection) {
+  if (
+    properties.length === 0 &&
+    sdkPreview.length === 0 &&
+    !showModelSelection
+  ) {
     return null;
   }
 
@@ -161,6 +175,42 @@ export function ConfigPropertiesEditor({
           />
         </PropertyRow>
       )}
+
+      {sdkPreview.map((preview) => {
+        const messages = [...preview.errors, ...preview.warnings];
+        const indicatorClass =
+          preview.status === 'error'
+            ? 'bg-destructive'
+            : preview.status === 'warning'
+              ? 'bg-amber-500'
+              : null;
+
+        const renderedValue = formatPreviewValue(preview.value);
+
+        return (
+          <PropertyRow
+            key={`sdk-preview:${preview.field}`}
+            name={
+              <span className='inline-flex items-center gap-2'>
+                <span>{preview.field}</span>
+                {indicatorClass && (
+                  <span
+                    className={`inline-flex size-2.5 rounded-full ${indicatorClass}`}
+                    title={messages.join(' ')}
+                    aria-label={preview.status}
+                  />
+                )}
+              </span>
+            }
+            type={preview.schemaType}
+            description={messages.length > 0 ? messages.join(' ') : undefined}
+          >
+            <span className='text-muted-foreground text-right block'>
+              {renderedValue}
+            </span>
+          </PropertyRow>
+        );
+      })}
 
       {/* Nested model selectors (after main Model row) */}
       {nestedModelSchemas &&
@@ -220,5 +270,42 @@ export function ConfigPropertiesEditor({
         </MediaGrid>
       )}
     </div>
+  );
+}
+
+function formatPreviewValue(value: unknown): string {
+  if (value === undefined) {
+    return '—';
+  }
+
+  if (isDimensionObject(value)) {
+    return `${value.width} x ${value.height}`;
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  if (Array.isArray(value) || (value && typeof value === 'object')) {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+
+function isDimensionObject(
+  value: unknown
+): value is { width: number; height: number } {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.width === 'number' &&
+    Number.isFinite(candidate.width) &&
+    typeof candidate.height === 'number' &&
+    Number.isFinite(candidate.height)
   );
 }

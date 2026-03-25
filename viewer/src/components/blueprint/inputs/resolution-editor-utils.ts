@@ -14,15 +14,8 @@ export function inferPresetKey(
   height: number,
   presets: RatioPreset[]
 ): string {
-  const divisor = greatestCommonDivisor(width, height);
-  const normalizedWidth = width / divisor;
-  const normalizedHeight = height / divisor;
-
   for (const preset of presets) {
-    if (
-      preset.width === normalizedWidth &&
-      preset.height === normalizedHeight
-    ) {
+    if (width * preset.height === height * preset.width) {
       return preset.key;
     }
   }
@@ -58,15 +51,4 @@ function roundToEven(value: number): number {
     return rounded;
   }
   return rounded + 1;
-}
-
-function greatestCommonDivisor(a: number, b: number): number {
-  let left = a;
-  let right = b;
-  while (right !== 0) {
-    const next = left % right;
-    left = right;
-    right = next;
-  }
-  return left;
 }

@@ -29,12 +29,9 @@ inputs:
     type: integer
 
   # Sizing
-  - name: AspectRatio
-    description: 'Aspect ratio (auto, 16:9, 9:16, 1:1).'
-    type: string
   - name: Resolution
-    description: 'Resolution preset (480p, 720p, 1080p).'
-    type: string
+    description: Resolution as width/height pixel dimensions.
+    type: resolution
 
   # Audio
   - name: GenerateAudio
@@ -129,8 +126,12 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
 
     # ByteDance Seedance v1.5 Pro Image-to-Video
     bytedance/seedance/v1.5/pro/image-to-video:
@@ -140,8 +141,12 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
       GenerateAudio: generate_audio
 
     # XAI Grok Imagine Video Image-to-Video

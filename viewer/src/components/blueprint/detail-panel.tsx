@@ -12,6 +12,7 @@ import type {
   PromptData,
   ConfigProperty,
   ProducerConfigSchemas,
+  ProducerSdkPreviewEntry,
 } from '@/types/blueprint-graph';
 import type { UseModelSelectionEditorResult } from '@/hooks';
 import type { ArtifactInfo } from '@/types/builds';
@@ -54,6 +55,8 @@ interface DetailPanelProps {
   configValuesByProducer?: Record<string, Record<string, unknown>>;
   /** Config schemas per producer (for nested model detection) */
   configSchemasByProducer?: Record<string, ProducerConfigSchemas>;
+  /** Resolution/aspect/size SDK preview values per producer */
+  sdkPreviewByProducer?: Record<string, ProducerSdkPreviewEntry>;
   /** Callback when config values change */
   onConfigChange?: (producerId: string, key: string, value: unknown) => void;
   /** Model selection editor (manages state and auto-save) */
@@ -98,6 +101,7 @@ export function DetailPanel({
   configPropertiesByProducer = {},
   configValuesByProducer = {},
   configSchemasByProducer = {},
+  sdkPreviewByProducer = {},
   onConfigChange,
   modelEditor,
   hasTimeline = false,
@@ -218,6 +222,7 @@ export function DetailPanel({
             configPropertiesByProducer={configPropertiesByProducer}
             configValuesByProducer={configValuesByProducer}
             configSchemasByProducer={configSchemasByProducer}
+            sdkPreviewByProducer={sdkPreviewByProducer}
             onConfigChange={onConfigChange}
           />
         )}

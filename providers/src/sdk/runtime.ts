@@ -19,17 +19,8 @@ import {
   type MappingFieldDefinition,
   type NotificationBus,
 } from '@gorenku/core';
-import {
-  applyMapping,
-  setNestedValue,
-  type TransformContext,
-} from './transforms.js';
+import { buildSdkPayload } from './payload-builder.js';
 import { createProviderError, SdkErrorCode } from './errors.js';
-import {
-  evaluateAndNormalizePayloadCompatibility,
-  parseInputSchema,
-  readSchemaProperties,
-} from './compatibility.js';
 
 interface SerializedJobContext {
   inputBindings?: Record<string, string>;
@@ -166,122 +157,15 @@ function createSdkHelper(
   return {
     async buildPayload(mapping, inputSchema) {
       const effectiveMapping = mapping ?? jobContext?.sdkMapping;
-      if (!effectiveMapping) {
-        return {};
-      }
-
-      // Parse schema to get required fields AND defaults (for validation only)
-      // We don't apply defaults ourselves - provider APIs use their own defaults
-      const schemaRequired = new Set<string>();
-      const schemaDefaults = new Set<string>(); // Track which fields have defaults
-      const parsedInputSchema = parseInputSchema(inputSchema);
-      if (parsedInputSchema) {
-        const required = parsedInputSchema.required;
-        if (Array.isArray(required)) {
-          for (const value of required) {
-            if (typeof value === 'string') {
-              schemaRequired.add(value);
-            }
-          }
-        }
-
-        const properties = readSchemaProperties(parsedInputSchema);
-        if (properties) {
-          for (const [field, propertySchema] of Object.entries(properties)) {
-            if ('default' in propertySchema) {
-              schemaDefaults.add(field);
-            }
-          }
-        }
-      }
-
-      // Build transform context for the new transform engine
-      const transformContext: TransformContext = {
-        inputs: inputs.all(),
+      const result = buildSdkPayload({
+        mapping: effectiveMapping,
+        resolvedInputs: inputs.all(),
         inputBindings: jobContext?.inputBindings ?? {},
-      };
+        inputSchema,
+        logger,
+      });
 
-      const payload: Record<string, unknown> = {};
-      for (const [alias, fieldDef] of Object.entries(effectiveMapping)) {
-        // Cast to MappingFieldDefinition (BlueprintProducerSdkMappingField is a subset)
-        const mapping = fieldDef as MappingFieldDefinition;
-
-        // Use the transform engine for all mappings
-        const result = applyMapping(alias, mapping, transformContext);
-        if (result === undefined) {
-          // Transform returned undefined - check if this is a required field
-          const isExpandField = mapping.expand === true;
-          const fieldName = mapping.field ?? '';
-          const isRequiredBySchema =
-            inputSchema && !isExpandField && schemaRequired.has(fieldName);
-          const hasSchemaDefault = schemaDefaults.has(fieldName);
-
-          if (isRequiredBySchema && !hasSchemaDefault) {
-            const canonicalId = jobContext?.inputBindings?.[alias] ?? alias;
-            throw createProviderError(
-              SdkErrorCode.MISSING_REQUIRED_INPUT,
-              `Missing required input "${canonicalId}" for field "${fieldName}" (requested "${alias}"). No schema default available.`,
-              { kind: 'user_input', causedByUser: true }
-            );
-          }
-          // Skip field - provider will use its default if one exists
-          continue;
-        }
-
-        if ('expand' in result) {
-          Object.assign(payload, result.expand);
-        } else {
-          // Use setNestedValue to handle dot notation paths
-          setNestedValue(payload, result.field, result.value);
-        }
-      }
-
-      if (parsedInputSchema) {
-        const compatibility = evaluateAndNormalizePayloadCompatibility(
-          payload,
-          parsedInputSchema
-        );
-        for (const issue of compatibility.issues) {
-          if (issue.reason === 'normalized') {
-            logger?.debug?.('providers.sdk.payload.enum-normalized', {
-              field: issue.field,
-              requested: issue.requested,
-              normalized: issue.normalized,
-              source: issue.source,
-            });
-            if (
-              issue.source === 'x-renku-constraints' &&
-              issue.confidence === 'medium'
-            ) {
-              logger?.warn?.('providers.sdk.payload.constraint-normalized', {
-                field: issue.field,
-                requested: issue.requested,
-                normalized: issue.normalized,
-                source: issue.source,
-                confidence: issue.confidence,
-              });
-            }
-            continue;
-          }
-
-          if (issue.severity === 'error') {
-            throw createProviderError(
-              SdkErrorCode.INVALID_CONFIG,
-              `Input for field "${issue.field}" is incompatible with model constraints and cannot be normalized safely. Requested value: ${JSON.stringify(issue.requested)}.`,
-              { kind: 'user_input', causedByUser: true }
-            );
-          }
-
-          logger?.warn?.('providers.sdk.payload.constraint-unsupported', {
-            field: issue.field,
-            requested: issue.requested,
-            source: issue.source,
-            confidence: issue.confidence,
-          });
-        }
-      }
-
-      return payload;
+      return result.payload;
     },
   };
 }

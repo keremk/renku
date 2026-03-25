@@ -1396,6 +1396,7 @@ function parseResolutionTransform(
     'sizeTokenNearest',
     'aspectRatioAndPreset',
     'aspectRatioAndPresetObject',
+    'aspectRatioAndSizeTokenObject',
     'width',
     'height',
   ]);
@@ -1431,11 +1432,30 @@ function parseResolutionTransform(
     parsed.presetField = value.presetField;
   }
 
+  if (value.sizeTokenField !== undefined) {
+    if (typeof value.sizeTokenField !== 'string') {
+      throw createParserError(
+        ParserErrorCode.INVALID_MAPPING_VALUE,
+        `Invalid resolution transform at "${context}": sizeTokenField must be a string.`
+      );
+    }
+    parsed.sizeTokenField = value.sizeTokenField;
+  }
+
   if (parsed.mode === 'aspectRatioAndPresetObject') {
     if (!parsed.aspectRatioField || !parsed.presetField) {
       throw createParserError(
         ParserErrorCode.INVALID_MAPPING_VALUE,
         `Invalid resolution transform at "${context}": aspectRatioAndPresetObject requires aspectRatioField and presetField.`
+      );
+    }
+  }
+
+  if (parsed.mode === 'aspectRatioAndSizeTokenObject') {
+    if (!parsed.aspectRatioField || !parsed.sizeTokenField) {
+      throw createParserError(
+        ParserErrorCode.INVALID_MAPPING_VALUE,
+        `Invalid resolution transform at "${context}": aspectRatioAndSizeTokenObject requires aspectRatioField and sizeTokenField.`
       );
     }
   }

@@ -20,6 +20,10 @@ import { parseBlueprintToGraph } from './parse-handler.js';
 import { resolveBlueprintName } from './resolve-handler.js';
 import { getProducerModelsFromBlueprint } from './producer-models.js';
 import { getProducerConfigSchemas } from './config-schemas-handler.js';
+import {
+  getProducerSdkPreview,
+  type ProducerSdkPreviewRequest,
+} from './sdk-preview-handler.js';
 import { parseInputsFile } from './inputs-handler.js';
 import { streamBuildBlob, streamBuildAsset } from './blob-handler.js';
 import { listBlueprints } from './list-handler.js';
@@ -46,6 +50,7 @@ import type { CreateBlueprintFromTemplateRequest } from './types.js';
  *   GET  /blueprints/resolve?name=...
  *   GET  /blueprints/producer-models?path=...&catalog=...
  *   GET  /blueprints/producer-config-schemas?path=...&catalog=...
+ *   POST /blueprints/producer-sdk-preview
  *   GET  /blueprints/input-file?folder=...&movieId=...&filename=...
  *   POST /blueprints/builds/create
  *   GET  /blueprints/builds/inputs?folder=...&movieId=...&blueprintPath=...
@@ -67,6 +72,46 @@ export async function handleBlueprintRequest(
   // Handle builds sub-routes that support POST/PUT
   if (action === 'builds' && subAction) {
     return handleBuildsSubRoute(req, res, url, subAction, segments.slice(1));
+  }
+
+  if (action === 'producer-sdk-preview') {
+    if (req.method !== 'POST') {
+      return respondMethodNotAllowed(res);
+    }
+
+    let body: ProducerSdkPreviewRequest;
+    try {
+      body = await parseJsonBody<ProducerSdkPreviewRequest>(req);
+    } catch {
+      return respondBadRequest(res, 'Invalid JSON body');
+    }
+
+    if (!body.blueprintPath) {
+      return respondBadRequest(res, 'Missing blueprintPath');
+    }
+    if (
+      !body.inputs ||
+      typeof body.inputs !== 'object' ||
+      Array.isArray(body.inputs)
+    ) {
+      return respondBadRequest(res, 'inputs must be an object');
+    }
+    if (!Array.isArray(body.models)) {
+      return respondBadRequest(res, 'models must be an array');
+    }
+
+    try {
+      const preview = await getProducerSdkPreview(body);
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(preview));
+      return true;
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to resolve producer sdk preview';
+      return respondBadRequest(res, message);
+    }
   }
 
   // Handle template routes (list + create)

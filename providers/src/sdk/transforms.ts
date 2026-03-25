@@ -5,6 +5,32 @@ import type {
 } from '@gorenku/core';
 import { createProviderError, SdkErrorCode } from './errors.js';
 
+interface KnownAspectRatio {
+  label: string;
+  value: number;
+}
+
+export interface AspectRatioProjection {
+  label: string;
+  errorPercent: number;
+  outsideTolerance: boolean;
+}
+
+export const ASPECT_RATIO_MATCH_TOLERANCE_PERCENT = 2;
+
+const KNOWN_ASPECT_RATIOS: KnownAspectRatio[] = [
+  { label: '21:9', value: 21 / 9 },
+  { label: '16:9', value: 16 / 9 },
+  { label: '4:3', value: 4 / 3 },
+  { label: '3:2', value: 3 / 2 },
+  { label: '1:1', value: 1 },
+  { label: '2:3', value: 2 / 3 },
+  { label: '3:4', value: 3 / 4 },
+  { label: '4:5', value: 4 / 5 },
+  { label: '5:4', value: 5 / 4 },
+  { label: '9:16', value: 9 / 16 },
+];
+
 /**
  * Context for applying transforms.
  * Contains all resolved inputs and their bindings.
@@ -398,6 +424,8 @@ function applyResolutionTransform(
       )}`;
     case 'aspectRatioAndPresetObject':
       return toAspectRatioAndPresetObject(resolution, config, inputAlias);
+    case 'aspectRatioAndSizeTokenObject':
+      return toAspectRatioAndSizeTokenObject(resolution, config, inputAlias);
     case 'width':
       return resolution.width;
     case 'height':
@@ -430,6 +458,34 @@ function toAspectRatioAndPresetObject(
       resolution.width,
       resolution.height,
       inputAlias
+    ),
+  };
+}
+
+function toAspectRatioAndSizeTokenObject(
+  resolution: { width: number; height: number },
+  config: NonNullable<MappingFieldDefinition['resolution']>,
+  inputAlias: string
+): Record<string, string> {
+  if (
+    typeof config.aspectRatioField !== 'string' ||
+    typeof config.sizeTokenField !== 'string'
+  ) {
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      `Resolution transform mode "aspectRatioAndSizeTokenObject" for "${inputAlias}" requires aspectRatioField and sizeTokenField.`,
+      { kind: 'user_input', causedByUser: true }
+    );
+  }
+
+  return {
+    [config.aspectRatioField]: toAspectRatio(
+      resolution.width,
+      resolution.height
+    ),
+    [config.sizeTokenField]: toSizeTokenNearest(
+      resolution.width,
+      resolution.height
     ),
   };
 }
@@ -469,8 +525,34 @@ function parseResolutionValue(
 }
 
 function toAspectRatio(width: number, height: number): string {
-  const divisor = greatestCommonDivisor(width, height);
-  return `${width / divisor}:${height / divisor}`;
+  return projectAspectRatio(width, height).label;
+}
+
+export function projectAspectRatio(
+  width: number,
+  height: number
+): AspectRatioProjection {
+  const ratio = width / height;
+  let best = KNOWN_ASPECT_RATIOS[0];
+  let bestError = percentError(ratio, best.value);
+
+  for (const candidate of KNOWN_ASPECT_RATIOS) {
+    const error = percentError(ratio, candidate.value);
+    if (error < bestError) {
+      best = candidate;
+      bestError = error;
+    }
+  }
+
+  return {
+    label: best.label,
+    errorPercent: bestError,
+    outsideTolerance: bestError > ASPECT_RATIO_MATCH_TOLERANCE_PERCENT,
+  };
+}
+
+function percentError(actual: number, expected: number): number {
+  return (Math.abs(actual - expected) / expected) * 100;
 }
 
 function toPreset(width: number, height: number, inputAlias: string): string {
@@ -547,17 +629,6 @@ function toSizeTokenNearest(width: number, height: number): string {
   }
 
   return nearest.token;
-}
-
-function greatestCommonDivisor(a: number, b: number): number {
-  let left = a;
-  let right = b;
-  while (right !== 0) {
-    const next = left % right;
-    left = right;
-    right = next;
-  }
-  return left;
 }
 
 /**

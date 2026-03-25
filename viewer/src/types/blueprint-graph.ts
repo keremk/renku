@@ -239,6 +239,29 @@ export interface ProducerConfigSchemasResponse {
   producers: Record<string, ProducerConfigSchemas>;
 }
 
+export type SdkPreviewStatus = 'ok' | 'warning' | 'error';
+
+export interface SdkPreviewField {
+  field: string;
+  value: unknown;
+  status: SdkPreviewStatus;
+  warnings: string[];
+  errors: string[];
+  connected: boolean;
+  sourceAliases: string[];
+  schemaType?: string;
+  enumOptions?: unknown[];
+}
+
+export interface ProducerSdkPreviewEntry {
+  producerId: string;
+  fields: SdkPreviewField[];
+}
+
+export interface ProducerSdkPreviewResponse {
+  producers: Record<string, ProducerSdkPreviewEntry>;
+}
+
 // ============================================================================
 // Prompts Types
 // ============================================================================

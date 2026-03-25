@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -34,6 +34,9 @@ const COMMON_WIDTH_OPTIONS = [
 const COMMON_HEIGHT_OPTIONS = [
   480, 640, 720, 768, 960, 1080, 1280, 1440, 1920, 2560, 3840,
 ];
+
+const ASPECT_RATIO_SELECT_WIDTH_CLASS = 'w-[140px]';
+const DIMENSION_CONTROL_WIDTH_CLASS = 'w-[72px] min-w-[72px] max-w-[72px]';
 
 const RATIO_PRESETS: RatioPreset[] = [
   {
@@ -111,6 +114,29 @@ export function ResolutionEditor({
   const currentResolution = resolution ?? DEFAULT_RESOLUTION;
   const [forceCustomMode, setForceCustomMode] = useState(false);
 
+  const inferredPreset = inferPresetKey(
+    currentResolution.width,
+    currentResolution.height,
+    RATIO_PRESETS
+  );
+  const selectedPreset = forceCustomMode ? ASPECT_CUSTOM_KEY : inferredPreset;
+  const selectedRatioPreset =
+    selectedPreset === ASPECT_CUSTOM_KEY
+      ? undefined
+      : RATIO_PRESETS.find((entry) => entry.key === selectedPreset);
+  const isCustomMode = selectedPreset === ASPECT_CUSTOM_KEY;
+
+  const widthOptions = useMemo(() => {
+    return buildDimensionOptions(COMMON_WIDTH_OPTIONS, currentResolution.width);
+  }, [currentResolution.width]);
+
+  const heightOptions = useMemo(() => {
+    return buildDimensionOptions(
+      COMMON_HEIGHT_OPTIONS,
+      currentResolution.height
+    );
+  }, [currentResolution.height]);
+
   if (!isEditable) {
     if (!resolution) {
       return (
@@ -126,41 +152,6 @@ export function ResolutionEditor({
       </div>
     );
   }
-
-  const inferredPreset = inferPresetKey(
-    currentResolution.width,
-    currentResolution.height,
-    RATIO_PRESETS
-  );
-  const selectedPreset = forceCustomMode ? ASPECT_CUSTOM_KEY : inferredPreset;
-  const selectedRatioPreset =
-    selectedPreset === ASPECT_CUSTOM_KEY
-      ? undefined
-      : RATIO_PRESETS.find((entry) => entry.key === selectedPreset);
-  const isCustomMode = selectedPreset === ASPECT_CUSTOM_KEY;
-
-  const [customWidthDraft, setCustomWidthDraft] = useState(
-    String(currentResolution.width)
-  );
-  const [customHeightDraft, setCustomHeightDraft] = useState(
-    String(currentResolution.height)
-  );
-
-  useEffect(() => {
-    setCustomWidthDraft(String(currentResolution.width));
-    setCustomHeightDraft(String(currentResolution.height));
-  }, [currentResolution.width, currentResolution.height]);
-
-  const widthOptions = useMemo(() => {
-    return buildDimensionOptions(COMMON_WIDTH_OPTIONS, currentResolution.width);
-  }, [currentResolution.width]);
-
-  const heightOptions = useMemo(() => {
-    return buildDimensionOptions(
-      COMMON_HEIGHT_OPTIONS,
-      currentResolution.height
-    );
-  }, [currentResolution.height]);
 
   const handlePresetChange = (presetKey: string) => {
     if (presetKey === ASPECT_CUSTOM_KEY) {
@@ -221,37 +212,39 @@ export function ResolutionEditor({
     });
   };
 
-  const commitCustomWidth = () => {
-    const nextWidth = parsePositiveInteger(customWidthDraft.trim());
+  const commitCustomWidth = (rawWidth: string): boolean => {
+    const nextWidth = parsePositiveInteger(rawWidth.trim());
     if (!nextWidth) {
-      setCustomWidthDraft(String(currentResolution.width));
-      return;
+      return false;
     }
 
     onChange({
       width: nextWidth,
       height: currentResolution.height,
     });
+    return true;
   };
 
-  const commitCustomHeight = () => {
-    const nextHeight = parsePositiveInteger(customHeightDraft.trim());
+  const commitCustomHeight = (rawHeight: string): boolean => {
+    const nextHeight = parsePositiveInteger(rawHeight.trim());
     if (!nextHeight) {
-      setCustomHeightDraft(String(currentResolution.height));
-      return;
+      return false;
     }
 
     onChange({
       width: currentResolution.width,
       height: nextHeight,
     });
+    return true;
   };
 
   return (
     <div className='space-y-2 min-w-0'>
       <div className='flex items-center gap-1.5 min-w-0'>
         <Select value={selectedPreset} onValueChange={handlePresetChange}>
-          <SelectTrigger className='h-9 w-[136px] text-xs bg-background/90'>
+          <SelectTrigger
+            className={`h-9 ${ASPECT_RATIO_SELECT_WIDTH_CLASS} text-xs bg-background/90`}
+          >
             <SelectValue placeholder='Aspect ratio' />
           </SelectTrigger>
           <SelectContent>
@@ -272,9 +265,9 @@ export function ResolutionEditor({
 
         {isCustomMode ? (
           <DimensionInput
+            key={`resolution-width-${currentResolution.width}`}
             ariaLabel='Resolution width'
-            value={customWidthDraft}
-            onValueChange={setCustomWidthDraft}
+            defaultValue={String(currentResolution.width)}
             onCommit={commitCustomWidth}
           />
         ) : (
@@ -292,9 +285,9 @@ export function ResolutionEditor({
 
         {isCustomMode ? (
           <DimensionInput
+            key={`resolution-height-${currentResolution.height}`}
             ariaLabel='Resolution height'
-            value={customHeightDraft}
-            onValueChange={setCustomHeightDraft}
+            defaultValue={String(currentResolution.height)}
             onCommit={commitCustomHeight}
           />
         ) : (
@@ -312,31 +305,36 @@ export function ResolutionEditor({
 
 interface DimensionInputProps {
   ariaLabel: string;
-  value: string;
-  onValueChange: (value: string) => void;
-  onCommit: () => void;
+  defaultValue: string;
+  onCommit: (value: string) => boolean;
 }
 
 function DimensionInput({
   ariaLabel,
-  value,
-  onValueChange,
+  defaultValue,
   onCommit,
 }: DimensionInputProps) {
+  const [draftValue, setDraftValue] = useState(defaultValue);
+
   return (
     <Input
       type='text'
       inputMode='numeric'
       pattern='[0-9]*'
-      value={value}
-      onChange={(event) => onValueChange(event.target.value)}
-      onBlur={onCommit}
+      value={draftValue}
+      onChange={(event) => setDraftValue(event.target.value)}
+      onBlur={() => {
+        const ok = onCommit(draftValue);
+        if (!ok) {
+          setDraftValue(defaultValue);
+        }
+      }}
       onKeyDown={(event) => {
         if (event.key === 'Enter') {
           event.currentTarget.blur();
         }
       }}
-      className='h-9 w-[84px] min-w-[84px] max-w-[84px] px-2 text-xs font-mono bg-background/90'
+      className={`h-9 ${DIMENSION_CONTROL_WIDTH_CLASS} px-2 text-xs font-mono bg-background/90`}
       aria-label={ariaLabel}
     />
   );
@@ -359,7 +357,7 @@ function DimensionSelect({
     <Select value={String(value)} onValueChange={onValueSelect}>
       <SelectTrigger
         aria-label={ariaLabel}
-        className='h-9 w-[84px] min-w-[84px] max-w-[84px] px-2 text-xs font-mono bg-background/90'
+        className={`h-9 ${DIMENSION_CONTROL_WIDTH_CLASS} px-2 text-xs font-mono bg-background/90`}
       >
         <SelectValue placeholder='Select size' />
       </SelectTrigger>

@@ -22,12 +22,9 @@ inputs:
     type: image
 
   # Sizing
-  - name: AspectRatio
-    description: 'Output aspect ratio.'
-    type: string
   - name: Resolution
-    description: 'Output resolution preset (1K, 2K, 4K).'
-    type: string
+    description: Output resolution as width/height pixel dimensions.
+    type: resolution
   - name: Width
     description: Custom output width in pixels.
     type: integer
@@ -59,44 +56,12 @@ mappings:
     bytedance/seedream/v4.5/edit:
       Prompt: prompt
       SourceImages: image_urls
-      # AspectRatio + Resolution combine into image_size
-      ImageSize:
-        field: image_size
-        combine:
-          inputs: [AspectRatio, Resolution]
-          table:
-            '+2K': auto_2K
-            '+4K': auto_4K
-            '16:9+': landscape_16_9
-            '9:16+': portrait_16_9
-            '4:3+': landscape_4_3
-            '3:4+': portrait_4_3
-            '1:1+': square_hd
-            '16:9+2K': auto_2K
-            '16:9+4K': auto_4K
-            '1:1+2K': auto_2K
-            '1:1+4K': auto_4K
+      Resolution: image_size
 
     bytedance/seedream/v5/lite/edit:
       Prompt: prompt
       SourceImages: image_urls
-      # AspectRatio + Resolution combine into image_size
-      ImageSize:
-        field: image_size
-        combine:
-          inputs: [AspectRatio, Resolution]
-          table:
-            '+2K': auto_2K
-            '+4K': auto_3K
-            '16:9+': landscape_16_9
-            '9:16+': portrait_16_9
-            '4:3+': landscape_4_3
-            '3:4+': portrait_4_3
-            '1:1+': square_hd
-            '16:9+2K': auto_2K
-            '16:9+4K': auto_3K
-            '1:1+2K': auto_2K
-            '1:1+4K': auto_3K
+      Resolution: image_size
 
     wan/v2.6/image-to-image:
       Prompt: prompt
@@ -165,14 +130,22 @@ mappings:
     nano-banana-pro/edit:
       Prompt: prompt
       SourceImages: image_urls
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndSizeTokenObject
+          aspectRatioField: aspect_ratio
+          sizeTokenField: resolution
 
     nano-banana-2/edit:
       Prompt: prompt
       SourceImages: image_urls
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndSizeTokenObject
+          aspectRatioField: aspect_ratio
+          sizeTokenField: resolution
 
     qwen-image-edit-2511:
       Prompt: prompt

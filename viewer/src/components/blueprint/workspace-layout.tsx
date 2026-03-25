@@ -21,6 +21,7 @@ import {
   useBottomPanelTabs,
   usePreviewPlayback,
   useModelSelectionEditor,
+  useProducerSdkPreview,
 } from '@/hooks';
 import { useMovieTimeline } from '@/services/use-movie-timeline';
 import type {
@@ -345,6 +346,29 @@ function WorkspaceLayoutInner({
       currentSelections: modelEditor.currentSelections,
     });
 
+  const previewInputs = useMemo<Record<string, unknown>>(() => {
+    if (!effectiveInputData) {
+      return {};
+    }
+
+    const values: Record<string, unknown> = {};
+    for (const entry of effectiveInputData.inputs) {
+      if (entry.value === undefined) {
+        continue;
+      }
+      values[entry.name] = entry.value;
+    }
+    return values;
+  }, [effectiveInputData]);
+
+  const { sdkPreviewByProducer } = useProducerSdkPreview({
+    blueprintPath,
+    catalogRoot,
+    inputs: previewInputs,
+    modelSelections: modelEditor.currentSelections,
+    enabled: modelEditor.currentSelections.length > 0,
+  });
+
   // Handle enabling editing for a build
   const handleEnableEditing = useCallback(async () => {
     if (!blueprintFolder || !selectedBuildId) return;
@@ -526,6 +550,7 @@ function WorkspaceLayoutInner({
                   configPropertiesByProducer={configPropertiesByProducer}
                   configValuesByProducer={configValuesByProducer}
                   configSchemasByProducer={configSchemas}
+                  sdkPreviewByProducer={sdkPreviewByProducer}
                   onConfigChange={handleConfigChange}
                   modelEditor={modelEditor}
                   hasTimeline={hasTimeline}

@@ -3,6 +3,7 @@ import type {
   InputTemplateData,
   ProducerModelsResponse,
   ProducerConfigSchemasResponse,
+  ProducerSdkPreviewResponse,
   ProducerPromptsResponse,
   PromptData,
   ModelSelectionValue,
@@ -175,6 +176,34 @@ export function fetchProducerConfigSchemas(
     url.searchParams.set('catalog', catalogRoot);
   }
   return fetchJson<ProducerConfigSchemasResponse>(url.toString());
+}
+
+/**
+ * Computes SDK preview values (resolution/aspect/size mappings) for selected models.
+ */
+export async function fetchProducerSdkPreview(args: {
+  blueprintPath: string;
+  catalogRoot?: string | null;
+  inputs: Record<string, unknown>;
+  models: Array<{ producerId: string; provider: string; model: string }>;
+}): Promise<ProducerSdkPreviewResponse> {
+  const response = await fetch(`${API_BASE}/blueprints/producer-sdk-preview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      blueprintPath: args.blueprintPath,
+      catalogRoot: args.catalogRoot ?? undefined,
+      inputs: args.inputs,
+      models: args.models,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    throw new Error(`Failed to load producer sdk preview: ${errorText}`);
+  }
+
+  return response.json() as Promise<ProducerSdkPreviewResponse>;
 }
 
 export function fetchBuildsList(
