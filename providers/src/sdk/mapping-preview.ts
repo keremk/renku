@@ -240,18 +240,20 @@ export function evaluateResolutionMappingPreview(
   }
 
   for (const [field, preview] of byField.entries()) {
-    const missingAliases = Array.from(preview.sourceAliases).filter(
-      (alias) => !isAliasConnected(alias, args.connectedAliases)
-    );
+    if (preview.errors.size === 0) {
+      const missingAliases = Array.from(preview.sourceAliases).filter(
+        (alias) => !isAliasConnected(alias, args.connectedAliases)
+      );
 
-    if (missingAliases.length === preview.sourceAliases.size) {
-      preview.warnings.add(
-        `No graph connection provides values for this SDK field mapping.`
-      );
-    } else if (missingAliases.length > 0) {
-      preview.warnings.add(
-        `Missing graph connections for mapped source aliases: ${missingAliases.join(', ')}.`
-      );
+      if (missingAliases.length === preview.sourceAliases.size) {
+        preview.warnings.add(
+          `No graph connection provides values for this SDK field mapping.`
+        );
+      } else if (missingAliases.length > 0) {
+        preview.warnings.add(
+          `Missing graph connections for mapped source aliases: ${missingAliases.join(', ')}.`
+        );
+      }
     }
 
     if (schema) {

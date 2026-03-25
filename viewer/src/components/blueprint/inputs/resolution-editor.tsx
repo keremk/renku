@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -10,17 +10,18 @@ import {
 import type { InputEditorProps } from './input-registry';
 import {
   ASPECT_CUSTOM_KEY,
+  buildDimensionOptions,
+  getAspectMode,
+  getPresetByKey,
   inferPresetKey,
   parsePositiveInteger,
-  resolveHeightForWidth,
-  resolveWidthForHeight,
+  resolutionFromHeightSelection,
+  resolutionFromPreset,
+  resolutionFromWidthSelection,
+  sanitizeNumericInput,
   type RatioPreset,
+  type ResolutionValue,
 } from './resolution-editor-utils';
-
-interface ResolutionValue {
-  width: number;
-  height: number;
-}
 
 const DEFAULT_RESOLUTION: ResolutionValue = {
   width: 1280,
@@ -112,30 +113,25 @@ export function ResolutionEditor({
 }: InputEditorProps) {
   const resolution = isResolutionValue(value) ? value : undefined;
   const currentResolution = resolution ?? DEFAULT_RESOLUTION;
-  const [forceCustomMode, setForceCustomMode] = useState(false);
-
-  const inferredPreset = inferPresetKey(
-    currentResolution.width,
-    currentResolution.height,
-    RATIO_PRESETS
+  const [selectedPresetKey, setSelectedPresetKey] = useState(() =>
+    inferPresetKey(
+      currentResolution.width,
+      currentResolution.height,
+      RATIO_PRESETS
+    )
   );
-  const selectedPreset = forceCustomMode ? ASPECT_CUSTOM_KEY : inferredPreset;
-  const selectedRatioPreset =
-    selectedPreset === ASPECT_CUSTOM_KEY
-      ? undefined
-      : RATIO_PRESETS.find((entry) => entry.key === selectedPreset);
-  const isCustomMode = selectedPreset === ASPECT_CUSTOM_KEY;
 
-  const widthOptions = useMemo(() => {
-    return buildDimensionOptions(COMMON_WIDTH_OPTIONS, currentResolution.width);
-  }, [currentResolution.width]);
+  const selectedPreset = getPresetByKey(selectedPresetKey, RATIO_PRESETS);
+  const aspectMode = getAspectMode(selectedPresetKey, RATIO_PRESETS);
 
-  const heightOptions = useMemo(() => {
-    return buildDimensionOptions(
-      COMMON_HEIGHT_OPTIONS,
-      currentResolution.height
-    );
-  }, [currentResolution.height]);
+  const widthOptions = buildDimensionOptions(
+    COMMON_WIDTH_OPTIONS,
+    currentResolution.width
+  );
+  const heightOptions = buildDimensionOptions(
+    COMMON_HEIGHT_OPTIONS,
+    currentResolution.height
+  );
 
   if (!isEditable) {
     if (!resolution) {
@@ -153,63 +149,56 @@ export function ResolutionEditor({
     );
   }
 
-  const handlePresetChange = (presetKey: string) => {
-    if (presetKey === ASPECT_CUSTOM_KEY) {
-      setForceCustomMode(true);
+  const handlePresetChange = (nextKey: string) => {
+    setSelectedPresetKey(nextKey);
+    if (nextKey === ASPECT_CUSTOM_KEY) {
       return;
     }
 
-    const preset = RATIO_PRESETS.find((entry) => entry.key === presetKey);
-    if (!preset) {
-      return;
-    }
-
-    setForceCustomMode(false);
-
-    onChange({
-      width: preset.defaultWidth,
-      height: preset.defaultHeight,
-    });
+    const nextResolution = resolutionFromPreset(
+      nextKey,
+      currentResolution,
+      RATIO_PRESETS
+    );
+    onChange(nextResolution);
   };
 
-  const handleWidthPresetChange = (rawWidth: string) => {
+  const handleWidthSelect = (rawWidth: string) => {
     const nextWidth = parsePositiveInteger(rawWidth);
-    if (!nextWidth) {
+    if (
+      !nextWidth ||
+      !selectedPreset ||
+      aspectMode === 'portrait' ||
+      aspectMode === 'custom'
+    ) {
       return;
     }
 
-    if (!selectedRatioPreset) {
-      onChange({
-        width: nextWidth,
-        height: currentResolution.height,
-      });
-      return;
-    }
-
-    onChange({
-      width: nextWidth,
-      height: resolveHeightForWidth(nextWidth, selectedRatioPreset),
-    });
+    const nextResolution = resolutionFromWidthSelection(
+      selectedPreset,
+      aspectMode,
+      nextWidth
+    );
+    onChange(nextResolution);
   };
 
-  const handleHeightPresetChange = (rawHeight: string) => {
+  const handleHeightSelect = (rawHeight: string) => {
     const nextHeight = parsePositiveInteger(rawHeight);
-    if (!nextHeight) {
+    if (
+      !nextHeight ||
+      !selectedPreset ||
+      aspectMode === 'landscape' ||
+      aspectMode === 'custom'
+    ) {
       return;
     }
 
-    if (!selectedRatioPreset) {
-      onChange({
-        width: currentResolution.width,
-        height: nextHeight,
-      });
-      return;
-    }
-
-    onChange({
-      width: resolveWidthForHeight(nextHeight, selectedRatioPreset),
-      height: nextHeight,
-    });
+    const nextResolution = resolutionFromHeightSelection(
+      selectedPreset,
+      aspectMode,
+      nextHeight
+    );
+    onChange(nextResolution);
   };
 
   const commitCustomWidth = (rawWidth: string): boolean => {
@@ -241,8 +230,9 @@ export function ResolutionEditor({
   return (
     <div className='space-y-2 min-w-0'>
       <div className='flex items-center gap-1.5 min-w-0'>
-        <Select value={selectedPreset} onValueChange={handlePresetChange}>
+        <Select value={selectedPresetKey} onValueChange={handlePresetChange}>
           <SelectTrigger
+            aria-label='Aspect ratio'
             className={`h-9 ${ASPECT_RATIO_SELECT_WIDTH_CLASS} text-xs bg-background/90`}
           >
             <SelectValue placeholder='Aspect ratio' />
@@ -263,19 +253,25 @@ export function ResolutionEditor({
           </SelectContent>
         </Select>
 
-        {isCustomMode ? (
+        {aspectMode === 'custom' ? (
           <DimensionInput
             key={`resolution-width-${currentResolution.width}`}
             ariaLabel='Resolution width'
             defaultValue={String(currentResolution.width)}
             onCommit={commitCustomWidth}
           />
+        ) : aspectMode === 'portrait' ? (
+          <DimensionValue
+            ariaLabel='Resolution width value'
+            value={currentResolution.width}
+            testId='resolution-width-value'
+          />
         ) : (
           <DimensionSelect
             ariaLabel='Resolution width'
             value={currentResolution.width}
             options={widthOptions}
-            onValueSelect={handleWidthPresetChange}
+            onValueSelect={handleWidthSelect}
           />
         )}
 
@@ -283,19 +279,25 @@ export function ResolutionEditor({
           x
         </span>
 
-        {isCustomMode ? (
+        {aspectMode === 'custom' ? (
           <DimensionInput
             key={`resolution-height-${currentResolution.height}`}
             ariaLabel='Resolution height'
             defaultValue={String(currentResolution.height)}
             onCommit={commitCustomHeight}
           />
+        ) : aspectMode === 'landscape' ? (
+          <DimensionValue
+            ariaLabel='Resolution height value'
+            value={currentResolution.height}
+            testId='resolution-height-value'
+          />
         ) : (
           <DimensionSelect
             ariaLabel='Resolution height'
             value={currentResolution.height}
             options={heightOptions}
-            onValueSelect={handleHeightPresetChange}
+            onValueSelect={handleHeightSelect}
           />
         )}
       </div>
@@ -322,7 +324,9 @@ function DimensionInput({
       inputMode='numeric'
       pattern='[0-9]*'
       value={draftValue}
-      onChange={(event) => setDraftValue(event.target.value)}
+      onChange={(event) =>
+        setDraftValue(sanitizeNumericInput(event.target.value))
+      }
       onBlur={() => {
         const ok = onCommit(draftValue);
         if (!ok) {
@@ -376,22 +380,22 @@ function DimensionSelect({
   );
 }
 
-function buildDimensionOptions(options: number[], current: number): number[] {
-  const values = dedupePositiveIntegers([current, ...options]);
-  return [...values].sort((left, right) => left - right);
-}
-
-function dedupePositiveIntegers(values: number[]): number[] {
-  const seen = new Set<number>();
-  const result: number[] = [];
-
-  for (const value of values) {
-    if (!Number.isInteger(value) || value <= 0 || seen.has(value)) {
-      continue;
-    }
-    seen.add(value);
-    result.push(value);
-  }
-
-  return result;
+function DimensionValue({
+  ariaLabel,
+  value,
+  testId,
+}: {
+  ariaLabel: string;
+  value: number;
+  testId: string;
+}) {
+  return (
+    <div
+      aria-label={ariaLabel}
+      data-testid={testId}
+      className={`h-9 ${DIMENSION_CONTROL_WIDTH_CLASS} px-2 text-xs font-mono bg-background/60 border border-border/60 rounded-md flex items-center justify-center text-muted-foreground`}
+    >
+      {value}
+    </div>
+  );
 }

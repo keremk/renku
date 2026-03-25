@@ -239,6 +239,35 @@ describe('evaluateResolutionMappingPreview', () => {
     expect(fields[0]?.errors.join(' ')).toContain('requires an object');
   });
 
+  it('does not add graph-connection warning when field already has an error', () => {
+    const fields = evaluate({
+      mapping: {
+        Resolution: {
+          field: 'resolution',
+          resolution: { mode: 'preset' },
+        },
+      },
+      context: {
+        inputs: {
+          'Input:Resolution': '720p',
+        },
+        inputBindings: {
+          Resolution: 'Input:Resolution',
+        },
+      },
+      connectedAliases: new Set(),
+    });
+
+    expect(fields).toEqual([
+      expect.objectContaining({
+        field: 'resolution',
+        status: 'error',
+      }),
+    ]);
+    expect(fields[0]?.errors.join(' ')).toContain('requires an object');
+    expect(fields[0]?.warnings.join(' ')).not.toContain('graph connection');
+  });
+
   it('applies compatibility normalization warnings from schema enums', () => {
     const fields = evaluate({
       mapping: {
