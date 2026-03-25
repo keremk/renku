@@ -13,9 +13,9 @@ inputs:
     type: string
 
   # Sizing
-  - name: AspectRatio
-    description: "Aspect ratio (16:9, 9:16, 1:1, 4:3, 3:4)."
-    type: string
+  - name: Resolution
+    description: Resolution as width/height pixel dimensions.
+    type: resolution
 
 artifacts:
   - name: GeneratedVector
@@ -26,32 +26,34 @@ mappings:
   fal-ai:
     recraft/v4/text-to-vector:
       Prompt: prompt
-      AspectRatio:
+      Resolution:
         field: image_size
+        resolution:
+          mode: aspectRatio
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "4:3": landscape_4_3
-          "3:4": portrait_4_3
-          "1:1": square_hd
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
 
     recraft/v4/pro/text-to-vector:
       Prompt: prompt
-      AspectRatio:
+      Resolution:
         field: image_size
+        resolution:
+          mode: aspectRatio
         transform:
-          "16:9": landscape_16_9
-          "9:16": portrait_16_9
-          "4:3": landscape_4_3
-          "3:4": portrait_4_3
-          "1:1": square_hd
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
 
   replicate:
     recraft-ai/recraft-v4-svg:
       Prompt: prompt
-      AspectRatio: aspect_ratio
       Resolution:
-        field: size
-        transform:
-          "1K": "1024x1024"
-          "2K": "2048x2048"
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio

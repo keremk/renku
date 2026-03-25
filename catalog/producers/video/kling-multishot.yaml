@@ -48,9 +48,9 @@ inputs:
     type: integer
 
   # Sizing
-  - name: AspectRatio
-    description: 'Aspect ratio (16:9, 9:16, 1:1).'
-    type: string
+  - name: Resolution
+    description: Resolution as width/height pixel dimensions.
+    type: resolution
 
   # Audio
   - name: GenerateAudio
@@ -94,7 +94,10 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio
       VoiceIds: voice_ids
       NegativePrompt: negative_prompt
@@ -107,7 +110,10 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio
       VoiceIds: voice_ids
       NegativePrompt: negative_prompt
@@ -120,7 +126,10 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio
       VoiceIds: voice_ids
 
@@ -137,7 +146,10 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio
       VoiceIds: voice_ids
       NegativePrompt: negative_prompt
@@ -153,7 +165,10 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio
       VoiceIds: voice_ids
       NegativePrompt: negative_prompt
@@ -200,7 +215,10 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
 
     # Kling O1 Standard Reference-to-Video
     kling-video/o1/standard/reference-to-video:
@@ -209,7 +227,10 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
 
     # Kling O3 Standard Reference-to-Video
     kling-video/o3/standard/reference-to-video:
@@ -223,7 +244,10 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio
 
     # Kling O3 Pro Reference-to-Video
@@ -238,7 +262,10 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio
 
     # --- Video-to-Video Reference ---
@@ -254,7 +281,10 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
 
     # Kling O3 Pro Video-to-Video Reference
     kling-video/o3/pro/video-to-video/reference:
@@ -267,7 +297,10 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
 
   replicate:
     # Kwaivgi Kling O1
@@ -276,7 +309,10 @@ mappings:
       StartImage: start_image
       EndImage: end_image
       Duration: duration
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       ReferenceVideo: reference_video
       ReferenceImages: reference_images
       KeepAudio: keep_original_sound
@@ -288,7 +324,10 @@ mappings:
       StartImage: start_image
       EndImage: end_image
       Duration: duration
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio
       NegativePrompt: negative_prompt
 
@@ -299,7 +338,10 @@ mappings:
       StartImage: start_image
       EndImage: end_image
       Duration: duration
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio
       ReferenceVideo: reference_video
       ReferenceImages: reference_images

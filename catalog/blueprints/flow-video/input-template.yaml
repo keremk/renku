@@ -5,8 +5,9 @@ inputs:
   VisualStyle: 'Cinematic, photorealistic'
 
   # Video settings
-  AspectRatio: '16:9'
-  Resolution: '720p'
+  Resolution:
+    width: 1280
+    height: 720
 
   # Voice settings for narration
   VoiceId: 'Wise_Woman'
@@ -65,8 +66,9 @@ models:
     provider: renku
     producerId: TranscriptionProducer
     config:
-      sttProvider: fal-ai
-      sttModel: elevenlabs/speech-to-text
+      stt:
+        provider: fal-ai
+        model: elevenlabs/speech-to-text
 
   - model: ffmpeg/native-render
     provider: renku

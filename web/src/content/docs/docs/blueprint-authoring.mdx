@@ -327,10 +327,8 @@ meta:
 inputs:
   - name: Prompt
     type: string
-  - name: AspectRatio
-    type: string
   - name: Resolution
-    type: string
+    type: resolution
 
 artifacts:
   - name: SegmentVideo
@@ -340,16 +338,25 @@ mappings:
   replicate:
     bytedance/seedance-1-pro-fast:
       Prompt: prompt
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
     google/veo-3.1-fast:
       Prompt: prompt
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
   fal-ai:
     bytedance/seedream/v4.5/text-to-image:
       Prompt: prompt
-      AspectRatio:
+      Resolution:
         field: image_size
+        resolution:
+          mode: aspectRatio
         transform:
           '16:9': landscape_16_9
           '9:16': portrait_16_9
@@ -1073,7 +1080,9 @@ inputs:
   # User-provided inputs
   InquiryPrompt: 'Your topic here'
   Style: 'Documentary'
-  AspectRatio: '16:9'
+  Resolution:
+    width: 1280
+    height: 720
 
   # System inputs - provide values here, no blueprint declaration needed
   Duration: 60 # Total movie duration in seconds

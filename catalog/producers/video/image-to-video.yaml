@@ -61,8 +61,12 @@ mappings:
       Duration:
         field: duration
         intToSecondsString: true
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
       GenerateAudio: generate_audio
 
     # Veo 3.1 Fast Image-to-Video
@@ -72,8 +76,12 @@ mappings:
       Duration:
         field: duration
         intToSecondsString: true
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
       GenerateAudio: generate_audio
 
     # Sora 2 Image-to-Video
@@ -81,16 +89,24 @@ mappings:
       Prompt: prompt
       StartImage: image_url
       Duration: duration
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
 
     # Sora 2 Image-to-Video Pro
     sora-2/image-to-video/pro:
       Prompt: prompt
       StartImage: image_url
       Duration: duration
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
 
     # Wan v2.6 Image-to-Video
     wan/v2.6/image-to-video:
@@ -99,7 +115,10 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
 
     # Wan v2.6 Image-to-Video Flash
     wan/v2.6/image-to-video/flash:
@@ -108,7 +127,10 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
 
     # Wan 2.5 Preview Image-to-Video
     wan-25-preview/image-to-video:
@@ -117,7 +139,10 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
 
     # ByteDance Seedance v1-Pro-Fast Image-to-Video
     bytedance/seedance/v1/pro/fast/image-to-video:
@@ -154,16 +179,24 @@ mappings:
       Prompt: prompt
       StartImage: image_url
       Duration: duration
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
 
     # LTX-2.3 Image-to-Video
     ltx-2.3/image-to-video:
       Prompt: prompt
       StartImage: image_url
       Duration: duration
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
       GenerateAudio: generate_audio
 
     # LTX-2.3 Image-to-Video Fast
@@ -171,8 +204,12 @@ mappings:
       Prompt: prompt
       StartImage: image_url
       Duration: duration
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
       GenerateAudio: generate_audio
 
     # LTX-2-19b Distilled Image-to-Video
@@ -180,26 +217,8 @@ mappings:
       Prompt: prompt
       StartImage: image_url
       VideoSize:
+        input: Resolution
         field: video_size
-        combine:
-          inputs: [AspectRatio, Resolution]
-          table:
-            '16:9+480p': { width: 848, height: 480 }
-            '16:9+720p': { width: 1280, height: 720 }
-            '9:16+480p': { width: 480, height: 848 }
-            '9:16+720p': { width: 720, height: 1280 }
-            '4:3+480p': { width: 640, height: 480 }
-            '4:3+720p': { width: 960, height: 720 }
-            '3:4+480p': { width: 480, height: 640 }
-            '3:4+720p': { width: 720, height: 960 }
-            '1:1+480p': { width: 512, height: 512 }
-            '1:1+720p': { width: 720, height: 720 }
-            '16:9+': auto
-            '9:16+': auto
-            '4:3+': auto
-            '3:4+': auto
-            '1:1+': auto
-            'auto+': auto
       Duration:
         field: num_frames
         durationToFrames:
@@ -232,7 +251,10 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio
 
     # Kling V3 Pro Image-to-Video
@@ -243,7 +265,10 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio
 
     # Pixverse V5 Image-to-Video
@@ -251,7 +276,10 @@ mappings:
       Prompt: prompt
       StartImage: image_url
       Duration: duration
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
 
     # Vidu Q3 Image-to-Video
     vidu/q3/image-to-video:
@@ -259,7 +287,10 @@ mappings:
       StartImage: image_url
       EndImage: end_image_url
       Duration: duration
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
 
     # Vidu Q3 Image-to-Video Turbo
     vidu/q3/image-to-video/turbo:
@@ -267,14 +298,21 @@ mappings:
       StartImage: image_url
       EndImage: end_image_url
       Duration: duration
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
 
     # Decart Lucy 14B Image-to-Video
     decart/lucy-14b/image-to-video:
       Prompt: prompt
       StartImage: image_url
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
 
   replicate:
     # Google Veo 3.1 Fast
@@ -283,8 +321,12 @@ mappings:
       StartImage: image
       EndImage: last_frame
       Duration: duration
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
       GenerateAudio: generate_audio
 
     # MiniMax Hailuo 0.2 (flexible)
@@ -293,7 +335,10 @@ mappings:
       StartImage: first_frame_image
       EndImage: last_frame_image
       Duration: duration
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
 
     # MiniMax Hailuo 0.2 Fast (with interpolation)
     minimax/hailuo-02-fast:
@@ -301,21 +346,30 @@ mappings:
       StartImage: first_frame_image
       EndImage: last_frame_image
       Duration: duration
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
 
     # MiniMax Hailuo 2.3 (with first_frame_image)
     minimax/hailuo-2.3:
       Prompt: prompt
       StartImage: first_frame_image
       Duration: duration
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
 
     # MiniMax Hailuo 2.3 Fast (first_frame_image required)
     minimax/hailuo-2.3-fast:
       Prompt: prompt
       StartImage: first_frame_image
       Duration: duration
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
 
     # ByteDance Seedance 1.5 Pro (with image)
     bytedance/seedance-1.5-pro:
@@ -323,7 +377,10 @@ mappings:
       StartImage: image
       EndImage: last_frame_image
       Duration: duration
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio
 
     # ByteDance Seedance 1-Pro-Fast (with image)
@@ -331,7 +388,10 @@ mappings:
       Prompt: prompt
       StartImage: image
       Duration: duration
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
 
     # Pixverse V5.6 (with image)
     pixverse/pixverse-v5.6:
@@ -339,7 +399,10 @@ mappings:
       StartImage: image
       EndImage: last_frame_image
       Duration: duration
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio_switch
 
     # RunwayML Gen 4.5 (with image)
@@ -347,15 +410,22 @@ mappings:
       Prompt: prompt
       StartImage: image
       Duration: duration
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
 
     # XAI Grok Imagine Video (with image)
     xai/grok-imagine-video:
       Prompt: prompt
       StartImage: image
       Duration: duration
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
 
     # Kwaivgi Kling v2.5 Turbo Pro (with start_image)
     kwaivgi/kling-v2.5-turbo-pro:
@@ -363,14 +433,20 @@ mappings:
       StartImage: start_image
       EndImage: end_image
       Duration: duration
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
 
     # Kwaivgi Kling V2.6 (with start_image)
     kwaivgi/kling-v2.6:
       Prompt: prompt
       StartImage: start_image
       Duration: duration
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio
 
     # Kwaivgi Kling V3 Video (with start_image)
@@ -379,7 +455,10 @@ mappings:
       StartImage: start_image
       EndImage: end_image
       Duration: duration
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio
 
     # Wan Video WAN 2.6 Image-to-Video
@@ -387,15 +466,22 @@ mappings:
       Prompt: prompt
       StartImage: image
       Duration: duration
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
 
     # Lightricks LTX 2.3 Pro (with image)
     lightricks/ltx-2.3-pro:
       Prompt: prompt
       StartImage: image
       Duration: duration
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
       GenerateAudio: generate_audio
 
     # Lightricks LTX 2.3 Fast (with image)
@@ -403,8 +489,12 @@ mappings:
       Prompt: prompt
       StartImage: image
       Duration: duration
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
       GenerateAudio: generate_audio
 
     # Vidu Q3 Pro (with image)
@@ -413,7 +503,10 @@ mappings:
       StartImage: start_image
       EndImage: end_image
       Duration: duration
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
       GenerateAudio: audio
 
     # Vidu Q3 Turbo (with image)
@@ -422,7 +515,10 @@ mappings:
       StartImage: start_image
       EndImage: end_image
       Duration: duration
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
       GenerateAudio: audio
 
     # Wan Video WAN 2.6 Image-to-Video Flash
@@ -430,4 +526,7 @@ mappings:
       Prompt: prompt
       StartImage: image
       Duration: duration
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset

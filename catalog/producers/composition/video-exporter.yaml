@@ -15,10 +15,6 @@ inputs:
     description: Optional word-level transcription for karaoke subtitles.
     type: json
     required: false
-  - name: AspectRatio
-    description: Optional output aspect ratio (for example 16:9 or 9:16).
-    type: string
-    required: false
   - name: Resolution
     description: Optional output resolution as pixel dimensions.
     type: resolution

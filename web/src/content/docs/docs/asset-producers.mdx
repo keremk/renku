@@ -10,7 +10,7 @@ Asset producers are reusable execution units that generate media assets from AI 
 Producers abstract the complexity of working with different AI providers:
 
 ```
-User Inputs (AspectRatio, Duration, Prompt)
+User Inputs (Resolution, Duration, Prompt)
     │
     │  Producer mappings apply transforms
     ↓
@@ -23,30 +23,30 @@ Provider API Fields (image_size, num_frames, prompt)
 
 Located in `catalog/producers/asset/`:
 
-| Producer | Description | Key Inputs | Output |
-|----------|-------------|------------|--------|
-| **text-to-image** | Generate raster images from text | Prompt, AspectRatio, Resolution | image |
-| **image-edit** | Edit/transform a single image | Prompt, SourceImage, MaskImage | image |
-| **image-compose** | Combine multiple images | Prompt, SourceImages, MaskImage | image |
-| **text-to-grid-images** | Generate multi-panel storyboard grids | Prompt, GridStyle, PanelCount | image |
-| **text-to-vector** | Generate SVG vector images | Prompt, AspectRatio | image |
-| **text-to-video** | Generate video from text | Prompt, Duration, AspectRatio | video |
-| **image-to-video** | Animate images into video | Prompt, StartImage, Duration | video |
-| **audio-to-video** | Generate lip-synced video | CharacterImage, AudioUrl, Duration | video |
-| **reference-to-video** | Video using reference images | Prompt, ReferenceImages, Duration | video |
-| **text-to-talking-head** | Generate talking head videos | Prompt, CharacterImage, Duration | video |
-| **text-to-speech** | Convert text to speech | Text, VoiceId, Speed | audio |
-| **text-to-music** | Generate music from prompts | Prompt, Duration | audio |
-| **transcription** | Transcribe audio to text | AudioUrl | json |
+| Producer                 | Description                           | Key Inputs                         | Output |
+| ------------------------ | ------------------------------------- | ---------------------------------- | ------ |
+| **text-to-image**        | Generate raster images from text      | Prompt, Resolution                 | image  |
+| **image-edit**           | Edit/transform a single image         | Prompt, SourceImage, MaskImage     | image  |
+| **image-compose**        | Combine multiple images               | Prompt, SourceImages, MaskImage    | image  |
+| **text-to-grid-images**  | Generate multi-panel storyboard grids | Prompt, GridStyle, PanelCount      | image  |
+| **text-to-vector**       | Generate SVG vector images            | Prompt, Resolution                 | image  |
+| **text-to-video**        | Generate video from text              | Prompt, Duration, Resolution       | video  |
+| **image-to-video**       | Animate images into video             | Prompt, StartImage, Duration       | video  |
+| **audio-to-video**       | Generate lip-synced video             | CharacterImage, AudioUrl, Duration | video  |
+| **reference-to-video**   | Video using reference images          | Prompt, ReferenceImages, Duration  | video  |
+| **text-to-talking-head** | Generate talking head videos          | Prompt, CharacterImage, Duration   | video  |
+| **text-to-speech**       | Convert text to speech                | Text, VoiceId, Speed               | audio  |
+| **text-to-music**        | Generate music from prompts           | Prompt, Duration                   | audio  |
+| **transcription**        | Transcribe audio to text              | AudioUrl                           | json   |
 
 ## Composition Producers
 
 Located in `catalog/producers/composition/`:
 
-| Producer | Description |
-|----------|-------------|
-| **timeline-composer** | Compose multiple video segments with audio tracks |
-| **video-exporter** | Export final video output with configurable settings |
+| Producer              | Description                                          |
+| --------------------- | ---------------------------------------------------- |
+| **timeline-composer** | Compose multiple video segments with audio tracks    |
+| **video-exporter**    | Export final video output with configurable settings |
 
 ## Mapping System
 
@@ -85,27 +85,32 @@ Transforms convert values when producer inputs don't directly match provider API
 Maps producer values to provider-specific values using a lookup table.
 
 **Syntax:**
+
 ```yaml
 ProducerInput:
   field: provider_field
   transform:
-    "producer_value1": provider_value1
-    "producer_value2": provider_value2
+    'producer_value1': provider_value1
+    'producer_value2': provider_value2
 ```
 
-**Example:** Map aspect ratio strings to provider presets:
+**Example:** Project `Resolution` to provider presets:
+
 ```yaml
 # From text-to-image.yaml - bytedance/seedream/v4
-AspectRatio:
+Resolution:
   field: image_size
+  resolution:
+    mode: aspectRatio
   transform:
-    "16:9": landscape_16_9
-    "9:16": portrait_16_9
-    "4:3": landscape_4_3
-    "1:1": square_hd
+    '16:9': landscape_16_9
+    '9:16': portrait_16_9
+    '4:3': landscape_4_3
+    '1:1': square_hd
 ```
 
 **Example:** Map boolean to provider enum:
+
 ```yaml
 EnhancePrompt:
   field: enhance_prompt_mode
@@ -119,34 +124,30 @@ EnhancePrompt:
 Merges multiple producer inputs into one provider field using composite keys.
 
 **Syntax:**
+
 ```yaml
 OutputField:
   combine:
     inputs: [Input1, Input2]
     table:
-      "value1+value2": result_value
-      "value1+": result_when_only_first
-      "+value2": result_when_only_second
+      'value1+value2': result_value
+      'value1+': result_when_only_first
+      '+value2': result_when_only_second
 ```
 
 **Key format:** `"{Input1Value}+{Input2Value}"` - empty values allowed.
 
-**Example:** Combine AspectRatio and Resolution:
+**Example:** Combine two generic inputs:
+
 ```yaml
-# From text-to-image.yaml - bytedance/seedream/v4.5
-ImageSize:
+# Example only (generic)
+CodecPreset:
   combine:
-    inputs: [AspectRatio, Resolution]
+    inputs: [Codec, Quality]
     table:
-      # Resolution only
-      "+2K": auto_2K
-      "+4K": auto_4K
-      # AspectRatio only
-      "16:9+": landscape_16_9
-      "1:1+": square_hd
-      # Both specified
-      "16:9+2K": auto_2K
-      "1:1+4K": auto_4K
+      'h264+fast': h264_fast
+      'h264+quality': h264_quality
+      'prores+quality': prores_hq
 ```
 
 ### 3. conditional - Include When Condition Met
@@ -154,40 +155,35 @@ ImageSize:
 Includes field only when a specific condition is satisfied.
 
 **Syntax:**
+
 ```yaml
 ProducerInput:
   conditional:
     when:
       input: OtherInput
-      equals: value        # OR
-      notEmpty: true       # OR
+      equals: value # OR
+      notEmpty: true # OR
       empty: true
     then:
       field: provider_field
       # OR nested transform
 ```
 
-**Example:** Only include width/height when Resolution is "custom":
-```yaml
-# From image-hybrid.yaml - bytedance/seedream-4.5
-Width:
-  conditional:
-    when:
-      input: Resolution
-      equals: custom
-    then:
-      field: width
+**Example:** Only include a field when another input is present:
 
-Height:
+```yaml
+# Generic conditional example
+WatermarkText:
   conditional:
     when:
-      input: Resolution
-      equals: custom
+      input: BrandingText
+      notEmpty: true
     then:
-      field: height
+      field: watermark
 ```
 
 **Condition types:**
+
 - `equals: value` - Input equals specific value
 - `notEmpty: true` - Input is provided (not null/undefined/empty)
 - `empty: true` - Input is not provided
@@ -197,6 +193,7 @@ Height:
 Takes first element from an array input when provider expects a single value.
 
 **Syntax:**
+
 ```yaml
 ProducerInput:
   field: provider_field
@@ -204,6 +201,7 @@ ProducerInput:
 ```
 
 **Example:** Single image from collection:
+
 ```yaml
 # From image-hybrid.yaml - qwen/qwen-image
 ReferenceImages:
@@ -216,6 +214,7 @@ ReferenceImages:
 Flips boolean value for providers using inverted logic.
 
 **Syntax:**
+
 ```yaml
 ProducerInput:
   field: provider_field
@@ -223,6 +222,7 @@ ProducerInput:
 ```
 
 **Example:** EnableSafetyChecker to disable_safety_checker:
+
 ```yaml
 # From image-hybrid.yaml - qwen/qwen-image
 EnableSafetyChecker:
@@ -235,6 +235,7 @@ EnableSafetyChecker:
 Converts integer to string for providers expecting string enums.
 
 **Syntax:**
+
 ```yaml
 ProducerInput:
   field: provider_field
@@ -242,6 +243,7 @@ ProducerInput:
 ```
 
 **Example:** Duration as string:
+
 ```yaml
 # Duration 5 becomes "5"
 Duration:
@@ -254,6 +256,7 @@ Duration:
 Converts integer to string with "s" suffix.
 
 **Syntax:**
+
 ```yaml
 ProducerInput:
   field: provider_field
@@ -261,6 +264,7 @@ ProducerInput:
 ```
 
 **Example:** Duration with seconds suffix:
+
 ```yaml
 # From image-to-video.yaml - veo3.1/image-to-video
 # Duration 8 becomes "8s"
@@ -274,6 +278,7 @@ Duration:
 Converts duration in seconds to frame count based on fps.
 
 **Syntax:**
+
 ```yaml
 ProducerInput:
   field: provider_field
@@ -282,6 +287,7 @@ ProducerInput:
 ```
 
 **Example:** Duration to num_frames at 24fps:
+
 ```yaml
 # From audio-to-video.yaml - infinitalk
 # Duration 5 seconds becomes 120 frames
@@ -296,17 +302,18 @@ Duration:
 When a transform produces an object, spread its properties directly into the payload instead of nesting under a field name.
 
 **Syntax:**
+
 ```yaml
 OutputField:
-  combine:
-    inputs: [AspectRatio, Resolution]
-    table:
-      "16:9+1K": { width: 1024, height: 576 }
-      "1:1+1K": { width: 1024, height: 1024 }
+  input: Resolution
+  resolution:
+    mode: aspectRatioAndPresetObject
+    aspectRatioField: aspect_ratio
+    presetField: resolution
   expand: true
 ```
 
-With `expand: true`, the object `{ width: 1024, height: 576 }` spreads into the payload as separate `width` and `height` fields rather than being nested.
+With `expand: true`, the generated object is spread directly into the payload instead of nesting it under `OutputField`.
 
 ---
 
@@ -341,7 +348,7 @@ inputs:
   - name: InputName
     description: What this input does
     type: string | integer | number | boolean | image | video | audio | collection
-    itemType: image  # For collection types
+    itemType: image # For collection types
 
 artifacts:
   - name: OutputName

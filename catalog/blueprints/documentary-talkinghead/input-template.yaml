@@ -4,9 +4,9 @@ inputs:
   NumOfImagesPerSegment: 2
   Duration: 30
   VoiceId: Wise_Woman
-  AspectRatio: '16:9'
-  Resolution: '480p'
-  Size: '1K'
+  Resolution:
+    width: 1280
+    height: 720
   Style: 'Ultra Realistic'
   TalkingHeadVoiceId: 'Aria'
 
@@ -17,7 +17,7 @@ models:
   - model: bytedance/seedance-1-pro-fast
     provider: replicate
     producerId: VideoProducer
-  - model: infinitalk
+  - model: infinitalk/single-text
     provider: fal-ai
     producerId: TalkingHeadVideoProducer
   - model: bytedance/seedream/v4/text-to-image

@@ -30,8 +30,8 @@ inputs:
 
   # Sizing
   - name: Resolution
-    description: "Resolution preset (480p, 720p, 1080p)."
-    type: string
+    description: Resolution as width/height pixel dimensions.
+    type: resolution
 
 artifacts:
   - name: GeneratedVideo
@@ -53,13 +53,19 @@ mappings:
     xai/grok-imagine-video/edit-video:
       Prompt: prompt
       SourceVideo: video_url
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
 
     # Decart Lucy Edit Pro
     decart/lucy-edit/pro:
       Prompt: prompt
       SourceVideo: video_url
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
 
     # Decart Lucy Edit Fast
     decart/lucy-edit/fast:
@@ -80,4 +86,7 @@ mappings:
       Prompt: prompt
       SourceVideo: video
       Duration: duration
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset

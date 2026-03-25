@@ -25,8 +25,9 @@ inputs:
   PanelCount: 9
 
   # Video settings
-  AspectRatio: '16:9'
-  Resolution: '720p'
+  Resolution:
+    width: 1280
+    height: 720
 
   # System inputs
   Duration: 40 # Total video duration in seconds

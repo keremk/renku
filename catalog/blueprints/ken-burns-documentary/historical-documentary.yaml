@@ -20,13 +20,9 @@ inputs:
     description: Visual style for image generation (e.g., "Oil painting, Renaissance style", "Photorealistic historical recreation").
     type: string
     required: true
-  - name: Size
-    description: Image resolution (1K, 2K, 4K, or custom).
-    type: string
-    required: false
-  - name: AspectRatio
-    description: Aspect ratio (16:9, 9:16, 1:1, 4:3, etc.).
-    type: string
+  - name: Resolution
+    description: Image and video resolution as width/height pixel dimensions.
+    type: resolution
     required: false
   - name: Audience
     description: Target audience (e.g., adults, students, history enthusiasts).
@@ -118,10 +114,8 @@ connections:
   # --- Image generation ---
   - from: HistoricalScriptProducer.VideoScript.Segments[segment].ImagePrompts[image]
     to: ImageProducer[segment][image].Prompt
-  - from: Size
+  - from: Resolution
     to: ImageProducer[segment][image].Resolution
-  - from: AspectRatio
-    to: ImageProducer[segment][image].AspectRatio
   - from: ImageProducer[segment][image].GeneratedImage
     to: SegmentImage[segment][image]
   - from: ImageProducer[segment][image].GeneratedImage
@@ -173,8 +167,8 @@ connections:
     to: TranscriptionProducer.LanguageCode
   - from: TimelineComposer.Timeline
     to: VideoExporter.Timeline
-  - from: AspectRatio
-    to: VideoExporter.AspectRatio
+  - from: Resolution
+    to: VideoExporter.Resolution
   - from: TranscriptionProducer.Transcription
     to: VideoExporter.Transcription
   - from: VideoExporter.FinalVideo

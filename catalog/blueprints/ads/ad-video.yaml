@@ -28,13 +28,9 @@ inputs:
     description: Visual style for the ad (e.g., cinematic, modern, playful).
     type: string
     required: true
-  - name: AspectRatio
-    description: Aspect ratio for generated media (e.g., 16:9, 9:16).
-    type: string
-    required: true
   - name: Resolution
-    description: Resolution for generated media (480p, 720p, 1080p).
-    type: string
+    description: Resolution for generated media as width/height pixel dimensions.
+    type: resolution
     required: true
   - name: VoiceId
     description: Voice identifier for narration.
@@ -126,8 +122,6 @@ connections:
   # === CharacterImageProducer inputs ===
   - from: AdScriptProducer.AdScript.CharacterImagePrompt
     to: CharacterImageProducer.Prompt
-  - from: AspectRatio
-    to: CharacterImageProducer.AspectRatio
   - from: Resolution
     to: CharacterImageProducer.Resolution
 
@@ -138,8 +132,6 @@ connections:
   # === ProductImageProducer inputs ===
   - from: AdScriptProducer.AdScript.ProductImagePrompt
     to: ProductImageProducer.Prompt
-  - from: AspectRatio
-    to: ProductImageProducer.AspectRatio
   - from: Resolution
     to: ProductImageProducer.Resolution
 
@@ -156,8 +148,6 @@ connections:
     note: Same product image broadcast to all video clips
   - from: AdScriptProducer.AdScript.Scenes[clip].VideoPrompt
     to: VideoProducer[clip].Prompt
-  - from: AspectRatio
-    to: VideoProducer[clip].AspectRatio
   - from: Resolution
     to: VideoProducer[clip].Resolution
   - from: SegmentDuration
@@ -212,8 +202,8 @@ connections:
   # === VideoExporter inputs ===
   - from: TimelineComposer.Timeline
     to: VideoExporter.Timeline
-  - from: AspectRatio
-    to: VideoExporter.AspectRatio
+  - from: Resolution
+    to: VideoExporter.Resolution
 
   # === VideoExporter outputs ===
   - from: VideoExporter.FinalVideo

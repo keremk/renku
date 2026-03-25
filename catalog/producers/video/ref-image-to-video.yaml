@@ -24,12 +24,9 @@ inputs:
     type: integer
 
   # Sizing
-  - name: AspectRatio
-    description: "Aspect ratio (16:9, 9:16, 1:1, 4:3, 3:4)."
-    type: string
   - name: Resolution
-    description: "Resolution preset (720p, 1080p)."
-    type: string
+    description: Resolution as width/height pixel dimensions.
+    type: resolution
 
   # Audio
   - name: GenerateAudio
@@ -59,7 +56,10 @@ mappings:
       Duration:
         field: duration
         intToSecondsString: true
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
       GenerateAudio: generate_audio
 
     # Kling Video O1 Reference-to-Video
@@ -69,7 +69,10 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
 
     # Kling Video O1 Standard Reference-to-Video
     kling-video/o1/standard/reference-to-video:
@@ -78,7 +81,10 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
 
     # Kling Video O3 Standard Reference-to-Video
     kling-video/o3/standard/reference-to-video:
@@ -87,7 +93,10 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio
 
     # Kling Video O3 Pro Reference-to-Video
@@ -97,7 +106,10 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio
 
     # Wan 2.6 Reference-to-Video Flash
@@ -107,8 +119,12 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
       GenerateAudio: enable_audio
 
   replicate:
@@ -117,14 +133,20 @@ mappings:
       Prompt: prompt
       ReferenceImages: reference_images
       Duration: duration
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
 
     # Kling V3 Omni Video (reference_images for elements/scenes/styles)
     kwaivgi/kling-v3-omni-video:
       Prompt: prompt
       ReferenceImages: reference_images
       Duration: duration
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio
 
     # Kling O1 (reference_images for elements/scenes/styles)
@@ -132,4 +154,7 @@ mappings:
       Prompt: prompt
       ReferenceImages: reference_images
       Duration: duration
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio

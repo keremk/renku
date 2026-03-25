@@ -57,13 +57,9 @@ inputs:
     required: true
 
   # Video settings
-  - name: AspectRatio
-    description: Aspect ratio for the video (16:9, 9:16, 1:1).
-    type: string
-    required: true
   - name: Resolution
-    description: Video resolution (480p, 720p, 1080p).
-    type: string
+    description: Video resolution as width/height pixel dimensions.
+    type: resolution
     required: true
 
 artifacts:
@@ -172,8 +168,8 @@ connections:
     note: Setting image for visual context
   - from: DirectorProducer.Script.Characters[character].ThenImagePrompt
     to: ThenImageProducer[character].Prompt
-  - from: AspectRatio
-    to: ThenImageProducer[character].AspectRatio
+  - from: Resolution
+    to: ThenImageProducer[character].Resolution
 
   # === ThenImageProducer outputs ===
   - from: ThenImageProducer[character].ComposedImage
@@ -188,8 +184,8 @@ connections:
     note: Setting image for visual context
   - from: DirectorProducer.Script.Characters[character].NowImagePrompt
     to: NowImageProducer[character].Prompt
-  - from: AspectRatio
-    to: NowImageProducer[character].AspectRatio
+  - from: Resolution
+    to: NowImageProducer[character].Resolution
 
   # === NowImageProducer outputs ===
   - from: NowImageProducer[character].ComposedImage
@@ -204,8 +200,8 @@ connections:
     note: Consistent now image as second source
   - from: DirectorProducer.Script.Characters[character].TogetherImagePrompt
     to: TogetherImageProducer[character].Prompt
-  - from: AspectRatio
-    to: TogetherImageProducer[character].AspectRatio
+  - from: Resolution
+    to: TogetherImageProducer[character].Resolution
 
   # === TogetherImageProducer outputs ===
   - from: TogetherImageProducer[character].ComposedImage
@@ -220,8 +216,6 @@ connections:
     note: Together image as the end frame (both side by side)
   - from: DirectorProducer.Script.Characters[character].MeetingVideoPrompt
     to: MeetingVideoProducer[character].Prompt
-  - from: AspectRatio
-    to: MeetingVideoProducer[character].AspectRatio
   - from: Resolution
     to: MeetingVideoProducer[character].Resolution
   - from: MeetingDuration
@@ -242,9 +236,6 @@ connections:
     note: Next character's consistent then image as end frame (offset +1)
   - from: DirectorProducer.Script.Characters[character].TransitionVideoPrompt
     to: TransitionVideoProducer[character].Prompt
-    if: hasTransition
-  - from: AspectRatio
-    to: TransitionVideoProducer[character].AspectRatio
     if: hasTransition
   - from: Resolution
     to: TransitionVideoProducer[character].Resolution

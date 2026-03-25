@@ -373,11 +373,11 @@ describe('producer mapping contracts', () => {
     expect(sourceCase).toBeDefined();
 
     const mutatedCase = cloneProducerCase(sourceCase!);
-    const aspectRatioMapping = mutatedCase.sdkMapping.AspectRatio;
-    expect(aspectRatioMapping).toBeDefined();
+    const resolutionMapping = mutatedCase.sdkMapping.Resolution;
+    expect(resolutionMapping).toBeDefined();
 
-    mutatedCase.sdkMapping.AspectRatio = {
-      ...aspectRatioMapping,
+    mutatedCase.sdkMapping.Resolution = {
+      ...resolutionMapping,
       field: 'imag_size',
     };
 

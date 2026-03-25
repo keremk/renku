@@ -25,12 +25,6 @@ inputs:
   - name: Resolution
     description: Output resolution as width/height pixel dimensions.
     type: resolution
-  - name: Width
-    description: Custom output width in pixels.
-    type: integer
-  - name: Height
-    description: Custom output height in pixels.
-    type: integer
 
 artifacts:
   - name: ComposedImage
@@ -42,8 +36,10 @@ mappings:
     bytedance/seedream/v4/edit:
       Prompt: prompt
       SourceImages: image_urls
-      AspectRatio:
+      Resolution:
         field: image_size
+        resolution:
+          mode: aspectRatio
         transform:
           '16:9': landscape_16_9
           '9:16': portrait_16_9
@@ -66,8 +62,10 @@ mappings:
     wan/v2.6/image-to-image:
       Prompt: prompt
       SourceImages: image_urls
-      AspectRatio:
+      Resolution:
         field: image_size
+        resolution:
+          mode: aspectRatio
         transform:
           '16:9': landscape_16_9
           '9:16': portrait_16_9
@@ -82,8 +80,10 @@ mappings:
     flux-2/edit:
       Prompt: prompt
       SourceImages: image_urls
-      AspectRatio:
+      Resolution:
         field: image_size
+        resolution:
+          mode: aspectRatio
         transform:
           '16:9': landscape_16_9
           '9:16': portrait_16_9
@@ -94,8 +94,10 @@ mappings:
     flux-2/flash/edit:
       Prompt: prompt
       SourceImages: image_urls
-      AspectRatio:
+      Resolution:
         field: image_size
+        resolution:
+          mode: aspectRatio
         transform:
           '16:9': landscape_16_9
           '9:16': portrait_16_9
@@ -106,8 +108,10 @@ mappings:
     flux-2/turbo/edit:
       Prompt: prompt
       SourceImages: image_urls
-      AspectRatio:
+      Resolution:
         field: image_size
+        resolution:
+          mode: aspectRatio
         transform:
           '16:9': landscape_16_9
           '9:16': portrait_16_9
@@ -119,8 +123,10 @@ mappings:
       Prompt: prompt
       SourceImages: image_urls
       MaskImage: mask_image_url
-      AspectRatio:
+      Resolution:
         field: image_size
+        resolution:
+          mode: aspectRatio
         transform:
           '1:1': '1024x1024'
           '16:9': '1536x1024'
@@ -150,8 +156,10 @@ mappings:
     qwen-image-edit-2511:
       Prompt: prompt
       SourceImages: image_urls
-      AspectRatio:
+      Resolution:
         field: image_size
+        resolution:
+          mode: aspectRatio
         transform:
           '16:9': landscape_16_9
           '9:16': portrait_16_9
@@ -162,8 +170,10 @@ mappings:
     qwen-image-2/pro/edit:
       Prompt: prompt
       SourceImages: image_urls
-      AspectRatio:
+      Resolution:
         field: image_size
+        resolution:
+          mode: aspectRatio
         transform:
           '16:9': landscape_16_9
           '9:16': portrait_16_9
@@ -174,8 +184,10 @@ mappings:
     qwen-image-2/edit:
       Prompt: prompt
       SourceImages: image_urls
-      AspectRatio:
+      Resolution:
         field: image_size
+        resolution:
+          mode: aspectRatio
         transform:
           '16:9': landscape_16_9
           '9:16': portrait_16_9
@@ -186,201 +198,183 @@ mappings:
     hunyuan-image/v3/instruct/edit:
       Prompt: prompt
       SourceImages: image_urls
-      # AspectRatio preset - only applied when Width is not provided
-      AspectRatio:
-        conditional:
-          when:
-            input: Width
-            empty: true
-          then:
-            field: image_size
-            transform:
-              '16:9': landscape_16_9
-              '9:16': portrait_16_9
-              '4:3': landscape_4_3
-              '3:4': portrait_4_3
-              '1:1': square_hd
-      # Custom dimensions via Width/Height (takes precedence over AspectRatio)
-      Width:
-        conditional:
-          when:
-            input: Width
-            notEmpty: true
-          then:
-            field: image_size.width
-      Height:
-        conditional:
-          when:
-            input: Width
-            notEmpty: true
-          then:
-            field: image_size.height
+      Resolution:
+        field: image_size
+        resolution:
+          mode: aspectRatio
+        transform:
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
 
   replicate:
     bytedance/seedream-5-lite:
       Prompt: prompt
       SourceImages: image_input
-      AspectRatio: aspect_ratio
       Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
+      ModelSize:
+        input: Resolution
         field: size
+        resolution:
+          mode: sizeTokenNearest
         transform:
           '1K': '2K'
           '2K': '2K'
+          '3K': '3K'
           '4K': '3K'
 
     bytedance/seedream-4.5:
       Prompt: prompt
       SourceImages: image_input
-      AspectRatio: aspect_ratio
-      ResolutionAspectRatio:
-        conditional:
-          when:
-            input: AspectRatio
-            empty: true
-          then:
-            input: Resolution
-            field: aspect_ratio
-            resolution:
-              mode: aspectRatio
       Resolution:
-        conditional:
-          when:
-            input: AspectRatio
-            notEmpty: true
-          then:
-            field: size
-            transform:
-              '1K': '2K'
-              '2K': '2K'
-              '4K': '4K'
-              'custom': 'custom'
-      ResolutionSize:
-        conditional:
-          when:
-            input: AspectRatio
-            empty: true
-          then:
-            input: Resolution
-            field: size
-            resolution:
-              mode: preset
-            transform:
-              '480p': '2K'
-              '720p': '2K'
-              '1080p': '4K'
-              '1440p': '4K'
-              '2160p': '4K'
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
+      ModelSize:
+        input: Resolution
+        field: size
+        resolution:
+          mode: sizeTokenNearest
+        transform:
+          '1K': '2K'
+          '2K': '2K'
+          '3K': '4K'
+          '4K': '4K'
     bytedance/seedream-4:
       Prompt: prompt
       SourceImages: image_input
-      AspectRatio: aspect_ratio
       Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
+      ModelSize:
+        input: Resolution
         field: size
+        resolution:
+          mode: sizeTokenNearest
         transform:
           '1K': '1K'
           '2K': '2K'
+          '3K': '4K'
           '4K': '4K'
-          'custom': 'custom'
-      Width:
-        conditional:
-          when:
-            input: Resolution
-            equals: custom
-          then:
-            field: width
-      Height:
-        conditional:
-          when:
-            input: Resolution
-            equals: custom
-          then:
-            field: height
+      ResolutionWidth:
+        input: Resolution
+        field: width
+        resolution:
+          mode: width
+      ResolutionHeight:
+        input: Resolution
+        field: height
+        resolution:
+          mode: height
 
     google/nano-banana-pro:
       Prompt: prompt
       SourceImages: image_input
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndSizeTokenObject
+          aspectRatioField: aspect_ratio
+          sizeTokenField: resolution
 
     google/nano-banana:
       Prompt: prompt
       SourceImages: image_input
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
 
     google/nano-banana-2:
       Prompt: prompt
       SourceImages: image_input
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndSizeTokenObject
+          aspectRatioField: aspect_ratio
+          sizeTokenField: resolution
 
     qwen/qwen-image-edit-2511:
       Prompt: prompt
       SourceImages: image
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
 
     black-forest-labs/flux-2-pro:
       Prompt: prompt
       SourceImages: input_images
-      AspectRatio: aspect_ratio
-      Resolution: resolution
-      Width:
-        conditional:
-          when:
-            input: AspectRatio
-            equals: custom
-          then:
-            field: width
-      Height:
-        conditional:
-          when:
-            input: AspectRatio
-            equals: custom
-          then:
-            field: height
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndSizeTokenObject
+          aspectRatioField: aspect_ratio
+          sizeTokenField: resolution
+      ResolutionWidth:
+        input: Resolution
+        field: width
+        resolution:
+          mode: width
+      ResolutionHeight:
+        input: Resolution
+        field: height
+        resolution:
+          mode: height
 
     black-forest-labs/flux-2-max:
       Prompt: prompt
       SourceImages: input_images
-      AspectRatio: aspect_ratio
-      Resolution: resolution
-      Width:
-        conditional:
-          when:
-            input: AspectRatio
-            equals: custom
-          then:
-            field: width
-      Height:
-        conditional:
-          when:
-            input: AspectRatio
-            equals: custom
-          then:
-            field: height
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndSizeTokenObject
+          aspectRatioField: aspect_ratio
+          sizeTokenField: resolution
+      ResolutionWidth:
+        input: Resolution
+        field: width
+        resolution:
+          mode: width
+      ResolutionHeight:
+        input: Resolution
+        field: height
+        resolution:
+          mode: height
 
     black-forest-labs/flux-2-flex:
       Prompt: prompt
       SourceImages: input_images
-      AspectRatio: aspect_ratio
-      Resolution: resolution
-      Width:
-        conditional:
-          when:
-            input: AspectRatio
-            equals: custom
-          then:
-            field: width
-      Height:
-        conditional:
-          when:
-            input: AspectRatio
-            equals: custom
-          then:
-            field: height
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndSizeTokenObject
+          aspectRatioField: aspect_ratio
+          sizeTokenField: resolution
+      ResolutionWidth:
+        input: Resolution
+        field: width
+        resolution:
+          mode: width
+      ResolutionHeight:
+        input: Resolution
+        field: height
+        resolution:
+          mode: height
 
     black-forest-labs/flux-kontext-pro:
       Prompt: prompt
       SourceImages:
         field: input_image
         firstOf: true
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio

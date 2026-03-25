@@ -35,13 +35,9 @@ inputs:
     description: Storyboard grid style (e.g., "3x3", "2x2", "2x3").
     type: string
     required: true
-  - name: AspectRatio
-    description: Aspect ratio for the video (e.g., 16:9, 9:16, 1:1).
-    type: string
-    required: true
   - name: Resolution
-    description: Video resolution (480p, 720p, 1080p).
-    type: string
+    description: Video resolution as width/height pixel dimensions.
+    type: resolution
     required: true
 
 artifacts:
@@ -120,8 +116,8 @@ connections:
     to: StoryboardImageProducer.GridStyle
   - from: PanelCount
     to: StoryboardImageProducer.PanelCount
-  - from: AspectRatio
-    to: StoryboardImageProducer.AspectRatio
+  - from: Resolution
+    to: StoryboardImageProducer.Resolution
 
   # Output storyboard artifacts
   - from: StoryboardImageProducer.GeneratedImage
@@ -136,8 +132,6 @@ connections:
     to: VideoProducer[clip].StartImage
   - from: StoryboardImageProducer.PanelImages[panel+1]
     to: VideoProducer[clip].EndImage
-  - from: AspectRatio
-    to: VideoProducer[clip].AspectRatio
   - from: Resolution
     to: VideoProducer[clip].Resolution
   - from: SegmentDuration
@@ -170,4 +164,3 @@ connections:
     to: VideoExporter.Timeline
   - from: VideoExporter.FinalVideo
     to: FinalVideo
-

@@ -7,8 +7,9 @@ inputs:
   NarratorTone: 'Authoritative yet storytelling, engaging and dramatic'
 
   # Video settings
-  AspectRatio: '9:16'
-  Resolution: '720p'
+  Resolution:
+    width: 720
+    height: 1280
 
   # Voice settings for narration
   VoiceId: 'iUqOXhMfiOIbBejNtfLR'
@@ -60,6 +61,8 @@ models:
         musicClip:
           artifact: Music
           volume: 0.25
+        transcriptionClip:
+          artifact: TranscriptionAudio
         tracks: ['Video', 'Audio', 'Music', 'Transcription']
 
   # Speech transcription for karaoke-style subtitles

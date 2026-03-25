@@ -20,13 +20,9 @@ inputs:
     description: Visual/artistic style (e.g., cinematic, anime, photorealistic, Ghibli).
     type: string
     required: true
-  - name: AspectRatio
-    description: Aspect ratio for the video (e.g., 16:9, 9:16, 1:1).
-    type: string
-    required: true
   - name: Resolution
-    description: Video resolution (480p, 720p, 1080p).
-    type: string
+    description: Video resolution as width/height pixel dimensions.
+    type: resolution
     required: true
   - name: VoiceId
     description: Voice identifier for narration.
@@ -104,16 +100,14 @@ connections:
   # Generate the initial starting image
   - from: ScenarioPromptProducer.InitialImagePrompt
     to: InitialImageProducer.Prompt
-  - from: AspectRatio
-    to: InitialImageProducer.AspectRatio
+  - from: Resolution
+    to: InitialImageProducer.Resolution
   - from: InitialImageProducer.GeneratedImage
     to: InitialImage
 
   # Wire prompts to VideoProducer (all segments)
   - from: ScenarioPromptProducer.VideoPrompts[segment]
     to: VideoProducer[segment].Prompt
-  - from: AspectRatio
-    to: VideoProducer[segment].AspectRatio
   - from: Resolution
     to: VideoProducer[segment].Resolution
   - from: SegmentDuration
@@ -168,8 +162,8 @@ connections:
   # Wire to VideoExporter
   - from: TimelineComposer.Timeline
     to: VideoExporter.Timeline
-  - from: AspectRatio
-    to: VideoExporter.AspectRatio
+  - from: Resolution
+    to: VideoExporter.Resolution
   - from: TimelineComposer.Timeline
     to: TranscriptionProducer.Timeline
   - from: TranscriptionProducer.Transcription

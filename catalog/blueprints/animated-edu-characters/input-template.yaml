@@ -46,14 +46,3 @@ models:
   - producerId: 'VideoExporter'
     provider: 'renku'
     model: 'ffmpeg/native-render'
-    config:
-      subtitles:
-        font: 'Arial'
-        fontSize: 48
-        fontBaseColor: '#FFFFFF'
-        fontHighlightColor: '#FFD700'
-        backgroundColor: '#000000'
-        backgroundOpacity: 0
-        bottomMarginPercent: 10
-        maxWordsPerLine: 4
-        highlightEffect: true

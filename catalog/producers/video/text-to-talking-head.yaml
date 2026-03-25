@@ -35,9 +35,8 @@ inputs:
 
   # Sizing
   - name: Resolution
-    description: "Resolution preset (480p, 720p)."
-    type: string
-
+    description: Resolution as width/height pixel dimensions.
+    type: resolution
 
 artifacts:
   - name: GeneratedVideo
@@ -53,7 +52,6 @@ artifacts:
     description: The audio track of the generated video.
     type: audio
 
-
 mappings:
   fal-ai:
     # VEED Fabric 1.0 Text
@@ -61,7 +59,10 @@ mappings:
       CharacterImage: image_url
       NarrativeText: text
       VoiceDescription: voice_description
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
 
     # InfiniTalk Single Text
     infinitalk/single-text:
@@ -74,4 +75,7 @@ mappings:
         field: num_frames
         durationToFrames:
           fps: 24
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset

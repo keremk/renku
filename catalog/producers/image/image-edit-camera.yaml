@@ -29,15 +29,9 @@ inputs:
     type: number
 
   # Sizing
-  - name: AspectRatio
-    description: 'Output aspect ratio.'
-    type: string
-  - name: Width
-    description: Custom output width in pixels.
-    type: integer
-  - name: Height
-    description: Custom output height in pixels.
-    type: integer
+  - name: Resolution
+    description: Output resolution as width/height pixel dimensions.
+    type: resolution
 
 artifacts:
   - name: TransformedImage
@@ -54,32 +48,13 @@ mappings:
       CameraAzimuth: horizontal_angle
       CameraElevation: vertical_angle
       CameraZoom: zoom
-      # AspectRatio preset — only applied when Width is not provided
-      AspectRatio:
-        conditional:
-          when:
-            input: Width
-            empty: true
-          then:
-            field: image_size
-            transform:
-              '16:9': landscape_16_9
-              '9:16': portrait_16_9
-              '4:3': landscape_4_3
-              '3:4': portrait_4_3
-              '1:1': square_hd
-      # Custom dimensions via Width/Height (takes precedence over AspectRatio)
-      Width:
-        conditional:
-          when:
-            input: Width
-            notEmpty: true
-          then:
-            field: image_size.width
-      Height:
-        conditional:
-          when:
-            input: Width
-            notEmpty: true
-          then:
-            field: image_size.height
+      Resolution:
+        field: image_size
+        resolution:
+          mode: aspectRatio
+        transform:
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd

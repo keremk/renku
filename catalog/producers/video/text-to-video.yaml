@@ -21,12 +21,9 @@ inputs:
     type: integer
 
   # Sizing
-  - name: AspectRatio
-    description: 'Aspect ratio (16:9, 9:16, 1:1, 4:3, 3:4, 21:9).'
-    type: string
   - name: Resolution
-    description: 'Resolution preset (480p, 720p, 1080p).'
-    type: string
+    description: Resolution as width/height pixel dimensions.
+    type: resolution
 
   # Audio
   - name: GenerateAudio
@@ -58,8 +55,12 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
       AudioUrl: audio_url
 
     # Veo 3.1 Text-to-Video
@@ -68,8 +69,12 @@ mappings:
       Duration:
         field: duration
         intToSecondsString: true
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
       GenerateAudio: generate_audio
 
     # Veo 3.1 Fast
@@ -78,16 +83,24 @@ mappings:
       Duration:
         field: duration
         intToSecondsString: true
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
       GenerateAudio: generate_audio
 
     # Sora 2 Text-to-Video
     sora-2/text-to-video:
       Prompt: prompt
       Duration: duration
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
 
     # ByteDance Seedance v1.5 Pro
     bytedance/seedance/v1.5/pro/text-to-video:
@@ -95,8 +108,12 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
       GenerateAudio: generate_audio
 
     # ByteDance Seedance v1-Pro-Fast
@@ -105,15 +122,23 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
 
     # XAI Grok Imagine Video Text-to-Video
     xai/grok-imagine-video/text-to-video:
       Prompt: prompt
       Duration: duration
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
 
     # Wan 2.5 Preview Text-to-Video
     wan-25-preview/text-to-video:
@@ -121,8 +146,12 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
 
     # Kling V3 Standard Text-to-Video (single-prompt mode)
     kling-video/v3/standard/text-to-video:
@@ -130,7 +159,10 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio
 
     # Kling V3 Pro Text-to-Video (single-prompt mode)
@@ -139,63 +171,63 @@ mappings:
       Duration:
         field: duration
         intToString: true
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio
 
     # Pixverse V5 Text-to-Video
     pixverse/v5/text-to-video:
       Prompt: prompt
       Duration: duration
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
 
     # Vidu Q3 Text-to-Video
     vidu/q3/text-to-video:
       Prompt: prompt
       Duration: duration
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
 
     # Vidu Q3 Text-to-Video Turbo
     vidu/q3/text-to-video/turbo:
       Prompt: prompt
       Duration: duration
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
 
     # LTX-2.3 Text-to-Video
     ltx-2.3/text-to-video:
       Prompt: prompt
       Duration: duration
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
       GenerateAudio: generate_audio
 
     # LTX-2-19b Distilled Text-to-Video
     ltx-2-19b/distilled/text-to-video:
       Prompt: prompt
       VideoSize:
+        input: Resolution
         field: video_size
-        combine:
-          inputs: [AspectRatio, Resolution]
-          table:
-            # With Resolution specified -> explicit dimensions
-            '16:9+480p': { width: 848, height: 480 }
-            '16:9+720p': { width: 1280, height: 720 }
-            '9:16+480p': { width: 480, height: 848 }
-            '9:16+720p': { width: 720, height: 1280 }
-            '4:3+480p': { width: 640, height: 480 }
-            '4:3+720p': { width: 960, height: 720 }
-            '3:4+480p': { width: 480, height: 640 }
-            '3:4+720p': { width: 720, height: 960 }
-            '1:1+480p': { width: 512, height: 512 }
-            '1:1+720p': { width: 720, height: 720 }
-            # With only AspectRatio -> preset strings (default ~720p resolution)
-            '16:9+': landscape_16_9
-            '9:16+': portrait_16_9
-            '4:3+': landscape_4_3
-            '3:4+': portrait_4_3
-            '1:1+': square_hd
       Duration:
         field: num_frames
         durationToFrames:
@@ -207,41 +239,59 @@ mappings:
     bytedance/seedance-1.5-pro:
       Prompt: prompt
       Duration: duration
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio
 
     # ByteDance Seedance 1-Pro-Fast
     bytedance/seedance-1-pro-fast:
       Prompt: prompt
       Duration: duration
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
 
     # ByteDance Seedance 1-Lite
     bytedance/seedance-1-lite:
       Prompt: prompt
       Duration: duration
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
 
     # Google Veo 3.1 Fast
     google/veo-3.1-fast:
       Prompt: prompt
       Duration: duration
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
 
     # MiniMax Hailuo 2.3
     minimax/hailuo-2.3:
       Prompt: prompt
       Duration: duration
-      Resolution: resolution
+      Resolution:
+        field: resolution
+        resolution:
+          mode: preset
 
     # OpenAI Sora 2
     openai/sora-2:
       Prompt: prompt
       Duration:
         field: seconds
-      AspectRatio:
+      Resolution:
         field: aspect_ratio
+        resolution:
+          mode: aspectRatio
         transform:
           '16:9': 'landscape'
           '9:16': 'portrait'
@@ -250,59 +300,88 @@ mappings:
     pixverse/pixverse-v5.6:
       Prompt: prompt
       Duration: duration
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio_switch
 
     # RunwayML Gen 4.5
     runwayml/gen-4.5:
       Prompt: prompt
       Duration: duration
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
 
     # XAI Grok Imagine Video
     xai/grok-imagine-video:
       Prompt: prompt
       Duration: duration
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
 
     # Kwaivgi Kling V3 Video (single-prompt mode)
     kwaivgi/kling-v3-video:
       Prompt: prompt
       Duration: duration
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio
 
     # Lightricks LTX 2.3 Pro
     lightricks/ltx-2.3-pro:
       Prompt: prompt
       Duration: duration
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
       GenerateAudio: generate_audio
 
     # Lightricks LTX 2.3 Fast
     lightricks/ltx-2.3-fast:
       Prompt: prompt
       Duration: duration
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
       GenerateAudio: generate_audio
 
     # Vidu Q3 Pro
     vidu/q3-pro:
       Prompt: prompt
       Duration: duration
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
       GenerateAudio: audio
 
     # Vidu Q3 Turbo
     vidu/q3-turbo:
       Prompt: prompt
       Duration: duration
-      AspectRatio: aspect_ratio
-      Resolution: resolution
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
       GenerateAudio: audio
 
     # Wan Video WAN 2.6 Text-to-Video
@@ -315,5 +394,8 @@ mappings:
     kwaivgi/kling-v2.6:
       Prompt: prompt
       Duration: duration
-      AspectRatio: aspect_ratio
+      Resolution:
+        field: aspect_ratio
+        resolution:
+          mode: aspectRatio
       GenerateAudio: generate_audio

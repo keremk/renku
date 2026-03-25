@@ -6,10 +6,11 @@ inputs:
   Duration: 24
   Audience: 'Young professionals aged 25-35'
   Style: 'Modern, cinematic, warm lighting'
-  AspectRatio: '16:9'
-  Resolution: '720p'
+  Resolution:
+    width: 1280
+    height: 720
   VoiceId: 'Wise_Woman'
-  Emotion: 'confident'
+  Emotion: 'neutral'
   MusicalStyle: 'Modern ambient electronic with subtle beats, inspiring and uplifting mood'
 
 models:

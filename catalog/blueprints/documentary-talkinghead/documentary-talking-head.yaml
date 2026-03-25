@@ -17,14 +17,8 @@ inputs:
     type: int
     required: true
   - name: Resolution
-    description: Video resolution such as 480p, 720p, or 1080p. Model default varies.
-    type: string
-  - name: Size
-    description: Image resolution (1K, 2K, 4K, or custom). Model default varies.
-    type: string
-  - name: AspectRatio
-    description: Aspect ratio such as 16:9 or 3:2. Model default varies.
-    type: string
+    description: Video and image resolution as width/height pixel dimensions.
+    type: resolution
   - name: Style
     description: Image style.
     type: string
@@ -129,10 +123,7 @@ connections:
   - from: DocProducer.VideoScript.Segments[segment].ImagePrompts[image]
     to: ImageProducer[segment][image].Prompt
     if: isImageNarration
-  - from: AspectRatio
-    to: ImageProducer[segment][image].AspectRatio
-    if: isImageNarration
-  - from: Size
+  - from: Resolution
     to: ImageProducer[segment][image].Resolution
     if: isImageNarration
   - from: ImageProducer[segment][image].GeneratedImage
@@ -154,11 +145,8 @@ connections:
   - from: DocProducer.VideoScript.Segments[segment].TalkingHeadCharacterPrompt
     to: TalkingHeadImageProducer[segment].Prompt
     if: isTalkingHead
-  - from: Size
+  - from: Resolution
     to: TalkingHeadImageProducer[segment].Resolution
-    if: isTalkingHead
-  - from: AspectRatio
-    to: TalkingHeadImageProducer[segment].AspectRatio
     if: isTalkingHead
   - from: TalkingHeadImageProducer[segment].GeneratedImage
     to: TalkingHeadCharacterImage[segment]
@@ -177,7 +165,7 @@ connections:
   - from: DocProducer.VideoScript.Segments[segment].TalkingHeadPrompt
     to: TalkingHeadVideoProducer[segment].Prompt
     if: isTalkingHead
-  - from: TalkingHeadCharacterImage[segment]
+  - from: TalkingHeadImageProducer[segment].GeneratedImage
     to: TalkingHeadVideoProducer[segment].CharacterImage
     if: isTalkingHead
   - from: TalkingHeadVoiceId
@@ -196,9 +184,6 @@ connections:
     if: isVideoNarration
   - from: Resolution
     to: VideoProducer[segment].Resolution
-    if: isVideoNarration
-  - from: AspectRatio
-    to: VideoProducer[segment].AspectRatio
     if: isVideoNarration
   - from: VideoProducer[segment].GeneratedVideo
     to: SegmentVideo[segment]
