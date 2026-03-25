@@ -38,7 +38,10 @@
           }
         ],
         "title": "Image Size",
-        "examples": ["square_hd", "landscape_16_9"],
+        "examples": [
+          "square_hd",
+          "landscape_16_9"
+        ],
         "description": "Output image size. If not set: matches input image size (up to 1280*1280). Use presets like 'square_hd', 'landscape_16_9', or specify exact dimensions."
       },
       "max_images": {
@@ -78,10 +81,34 @@
     },
     "description": "Input for Wan 2.6 text-to-image or mixed text-and-image generation (enable_interleave=true)",
     "title": "TextToImageWanInput",
-    "required": ["prompt"]
+    "required": [
+      "prompt"
+    ],
+    "x-renku-constraints": {
+      "fields": {
+        "image_size": {
+          "enum": {
+            "values": [
+              "square_hd",
+              "square",
+              "portrait_4_3",
+              "portrait_16_9",
+              "landscape_4_3",
+              "landscape_16_9"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        }
+      }
+    }
   },
   "output_schema": {
-    "x-fal-order-properties": ["images", "generated_text", "seed"],
+    "x-fal-order-properties": [
+      "images",
+      "generated_text",
+      "seed"
+    ],
     "type": "object",
     "properties": {
       "images": {
@@ -102,7 +129,9 @@
         }
       },
       "seed": {
-        "examples": [175932751],
+        "examples": [
+          175932751
+        ],
         "title": "Seed",
         "type": "integer",
         "description": "The seed used for generation"
@@ -115,10 +144,16 @@
     },
     "description": "Output for Wan 2.6 text-to-image (can include generated text in mixed mode)",
     "title": "TextToImageWanOutput",
-    "required": ["images", "seed"]
+    "required": [
+      "images",
+      "seed"
+    ]
   },
   "ImageSize": {
-    "x-fal-order-properties": ["width", "height"],
+    "x-fal-order-properties": [
+      "width",
+      "height"
+    ],
     "type": "object",
     "properties": {
       "height": {
@@ -151,19 +186,25 @@
     "type": "object",
     "properties": {
       "file_size": {
-        "examples": [4404019],
+        "examples": [
+          4404019
+        ],
         "title": "File Size",
         "type": "integer",
         "description": "The size of the file in bytes."
       },
       "file_name": {
-        "examples": ["z9RV14K95DvU.png"],
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
         "title": "File Name",
         "type": "string",
         "description": "The name of the file. It will be auto-generated if not provided."
       },
       "content_type": {
-        "examples": ["image/png"],
+        "examples": [
+          "image/png"
+        ],
         "title": "Content Type",
         "type": "string",
         "description": "The mime type of the file."
@@ -182,6 +223,8 @@
       }
     },
     "title": "File",
-    "required": ["url"]
+    "required": [
+      "url"
+    ]
   }
 }

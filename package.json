@@ -73,6 +73,7 @@
     "release:web": "pnpm deploy:web",
     "catalog:fetch-fal": "node scripts/fetch-fal-schema.mjs",
     "catalog:update-fal": "node scripts/update-fal-catalog.mjs catalog/models/fal-ai/fal-ai.yaml",
+    "catalog:migrate-schema-constraints": "node scripts/migrate-schema-constraints.mjs",
     "bundle:catalog": "node scripts/prepare-catalog-bundle.mjs",
     "catalog:check": "node scripts/check-catalog-sync.mjs",
     "catalog:audit-mappings": "node scripts/audit-producer-mappings.mjs",

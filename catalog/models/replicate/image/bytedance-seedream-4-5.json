@@ -90,5 +90,37 @@
       "default": "disabled",
       "x-order": 6
     }
+  },
+  "x-renku-constraints": {
+    "fields": {
+      "size": {
+        "enum": {
+          "values": [
+            "2K",
+            "4K",
+            "custom"
+          ],
+          "source": "explicit",
+          "confidence": "high"
+        }
+      },
+      "aspect_ratio": {
+        "enum": {
+          "values": [
+            "match_input_image",
+            "1:1",
+            "4:3",
+            "3:4",
+            "16:9",
+            "9:16",
+            "3:2",
+            "2:3",
+            "21:9"
+          ],
+          "source": "explicit",
+          "confidence": "high"
+        }
+      }
+    }
   }
 }

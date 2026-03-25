@@ -57,7 +57,30 @@
     "required": [
       "prompt",
       "image_url"
-    ]
+    ],
+    "x-renku-constraints": {
+      "fields": {
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "9:16",
+              "16:9"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "resolution": {
+          "enum": {
+            "values": [
+              "720p"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        }
+      }
+    }
   },
   "output_schema": {
     "x-fal-order-properties": [

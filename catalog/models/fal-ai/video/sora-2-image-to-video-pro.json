@@ -73,7 +73,44 @@
     "required": [
       "prompt",
       "image_url"
-    ]
+    ],
+    "x-renku-constraints": {
+      "fields": {
+        "resolution": {
+          "enum": {
+            "values": [
+              "auto",
+              "720p",
+              "1080p"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "auto",
+              "9:16",
+              "16:9"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "duration": {
+          "enum": {
+            "values": [
+              4,
+              8,
+              12
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        }
+      }
+    }
   },
   "output_schema": {
     "title": "ProImageToVideoOutput",

@@ -97,7 +97,43 @@
     "description": "Input for text-to-video generation",
     "required": [
       "prompt"
-    ]
+    ],
+    "x-renku-constraints": {
+      "fields": {
+        "resolution": {
+          "enum": {
+            "values": [
+              "480p",
+              "720p",
+              "1080p"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "duration": {
+          "enum": {
+            "values": [
+              "5",
+              "10"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "16:9",
+              "9:16",
+              "1:1"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        }
+      }
+    }
   },
   "output_schema": {
     "x-fal-order-properties": [

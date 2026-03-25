@@ -1,7 +1,9 @@
 {
   "type": "object",
   "title": "Input",
-  "required": ["prompt"],
+  "required": [
+    "prompt"
+  ],
   "properties": {
     "seed": {
       "type": "integer",
@@ -25,7 +27,12 @@
       "description": "Text prompt for video generation"
     },
     "quality": {
-      "enum": ["360p", "540p", "720p", "1080p"],
+      "enum": [
+        "360p",
+        "540p",
+        "720p",
+        "1080p"
+      ],
       "type": "string",
       "title": "quality",
       "description": "Resolution of the video. Higher resolutions cost more. See pricing for details.",
@@ -33,7 +40,11 @@
       "x-order": 3
     },
     "duration": {
-      "enum": [5, 8, 10],
+      "enum": [
+        5,
+        8,
+        10
+      ],
       "type": "integer",
       "title": "duration",
       "description": "Duration of the video in seconds. 10 second videos are only available for 360p, 540p, and 720p.",
@@ -41,7 +52,11 @@
       "x-order": 5
     },
     "aspect_ratio": {
-      "enum": ["16:9", "9:16", "1:1"],
+      "enum": [
+        "16:9",
+        "9:16",
+        "1:1"
+      ],
       "type": "string",
       "title": "aspect_ratio",
       "description": "Aspect ratio of the video",
@@ -49,7 +64,11 @@
       "x-order": 4
     },
     "thinking_type": {
-      "enum": ["disabled", "enabled", "auto"],
+      "enum": [
+        "disabled",
+        "enabled",
+        "auto"
+      ],
       "type": "string",
       "title": "thinking_type",
       "description": "Prompt reasoning enhancement. Controls whether the system enhances your prompt with internal reasoning and optimization.",
@@ -77,6 +96,32 @@
       "default": false,
       "x-order": 8,
       "description": "Enable AI-generated audio including BGM, SFX, and character dialogues"
+    }
+  },
+  "x-renku-constraints": {
+    "fields": {
+      "duration": {
+        "enum": {
+          "values": [
+            5,
+            8,
+            10
+          ],
+          "source": "explicit",
+          "confidence": "high"
+        }
+      },
+      "aspect_ratio": {
+        "enum": {
+          "values": [
+            "16:9",
+            "9:16",
+            "1:1"
+          ],
+          "source": "explicit",
+          "confidence": "high"
+        }
+      }
     }
   }
 }

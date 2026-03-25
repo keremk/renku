@@ -119,5 +119,21 @@
       "x-order": 8,
       "description": "Automatically modify the prompt for more creative generation"
     }
+  },
+  "x-renku-constraints": {
+    "fields": {
+      "resolution": {
+        "enum": {
+          "values": [
+            "4MP",
+            "2MP",
+            "2048x2048",
+            "1:1"
+          ],
+          "source": "inferred",
+          "confidence": "medium"
+        }
+      }
+    }
   }
 }

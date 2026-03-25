@@ -70,7 +70,20 @@
     "title": "LTXV23ExtendVideoRequest",
     "required": [
       "video_url"
-    ]
+    ],
+    "x-renku-constraints": {
+      "fields": {
+        "duration": {
+          "enum": {
+            "values": [
+              "20seconds"
+            ],
+            "source": "inferred",
+            "confidence": "medium"
+          }
+        }
+      }
+    }
   },
   "output_schema": {
     "x-fal-order-properties": [

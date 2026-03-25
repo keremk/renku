@@ -186,10 +186,7 @@ function coercePayloadEnumValues(
         source: normalized.source,
         confidence: normalized.confidence,
         severity:
-          normalized.source === 'x-renku-constraints' &&
-          normalized.confidence === 'medium'
-            ? 'warning'
-            : 'error',
+          normalized.source === 'x-renku-constraints' ? 'warning' : 'error',
         reason: 'unsupported',
       });
     }
@@ -261,6 +258,10 @@ function normalizeEnumValue(
       ? 'high'
       : 'medium';
 
+  if (source === 'x-renku-constraints' && isComplexValue(value)) {
+    return { status: 'not-applicable', value, source, confidence };
+  }
+
   if (!enumValues || enumValues.length === 0) {
     return { status: 'not-applicable', value, source, confidence };
   }
@@ -275,12 +276,13 @@ function normalizeEnumValue(
         typeof enumValue === 'string' && enumValue === String(value)
     );
     if (asStringMatch !== undefined) {
-      return {
-        status: 'normalized',
-        value: asStringMatch,
+      return buildNormalizedResult(
+        value,
+        asStringMatch,
+        schema,
         source,
-        confidence,
-      };
+        confidence
+      );
     }
   }
 
@@ -309,12 +311,13 @@ function normalizeEnumValue(
           aspectRatioCandidates
         );
         if (nearestAspectRatio !== undefined) {
-          return {
-            status: 'normalized',
-            value: nearestAspectRatio.raw,
+          return buildNormalizedResult(
+            value,
+            nearestAspectRatio.raw,
+            schema,
             source,
-            confidence,
-          };
+            confidence
+          );
         }
       }
     }
@@ -327,12 +330,13 @@ function normalizeEnumValue(
           Object.is(enumValue, parsedNumericValue)
       );
       if (numericMatch !== undefined) {
-        return {
-          status: 'normalized',
-          value: numericMatch,
+        return buildNormalizedResult(
+          value,
+          numericMatch,
+          schema,
           source,
-          confidence,
-        };
+          confidence
+        );
       }
     }
   }
@@ -374,12 +378,135 @@ function normalizeEnumValue(
     return { status: 'unsupported', value, source, confidence };
   }
 
+  return buildNormalizedResult(
+    value,
+    nearestCandidate.raw,
+    schema,
+    source,
+    confidence
+  );
+}
+
+function buildNormalizedResult(
+  originalValue: unknown,
+  candidateValue: unknown,
+  schema: Record<string, unknown>,
+  source: 'schema-enum' | 'x-renku-constraints',
+  confidence: 'high' | 'medium'
+): EnumNormalizationResult {
+  if (
+    source === 'x-renku-constraints' &&
+    !isConstraintNormalizationApplicable(originalValue, candidateValue, schema)
+  ) {
+    return {
+      status: 'not-applicable',
+      value: originalValue,
+      source,
+      confidence,
+    };
+  }
+
   return {
     status: 'normalized',
-    value: nearestCandidate.raw,
+    value: candidateValue,
     source,
     confidence,
   };
+}
+
+function isConstraintNormalizationApplicable(
+  originalValue: unknown,
+  candidateValue: unknown,
+  schema: Record<string, unknown>
+): boolean {
+  const declaredTypes = readDeclaredTypes(schema);
+  if (declaredTypes.size > 0) {
+    return valueMatchesDeclaredTypes(candidateValue, declaredTypes);
+  }
+
+  return valuesShareRuntimeType(originalValue, candidateValue);
+}
+
+function readDeclaredTypes(schema: Record<string, unknown>): Set<string> {
+  const types = new Set<string>();
+  const rawType = schema.type;
+
+  if (typeof rawType === 'string') {
+    types.add(rawType);
+    return types;
+  }
+
+  if (Array.isArray(rawType)) {
+    for (const entry of rawType) {
+      if (typeof entry === 'string') {
+        types.add(entry);
+      }
+    }
+  }
+
+  return types;
+}
+
+function valueMatchesDeclaredTypes(
+  value: unknown,
+  types: Set<string>
+): boolean {
+  if (value === null) {
+    return types.has('null');
+  }
+
+  if (typeof value === 'string') {
+    return types.has('string');
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    if (Number.isInteger(value) && types.has('integer')) {
+      return true;
+    }
+    return types.has('number');
+  }
+
+  if (typeof value === 'boolean') {
+    return types.has('boolean');
+  }
+
+  if (Array.isArray(value)) {
+    return types.has('array');
+  }
+
+  if (value && typeof value === 'object') {
+    return types.has('object');
+  }
+
+  return false;
+}
+
+function valuesShareRuntimeType(left: unknown, right: unknown): boolean {
+  if (left === null || right === null) {
+    return left === null && right === null;
+  }
+
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return Array.isArray(left) && Array.isArray(right);
+  }
+
+  if (typeof left === 'number' && typeof right === 'number') {
+    return true;
+  }
+
+  if (left && typeof left === 'object') {
+    return false;
+  }
+
+  if (right && typeof right === 'object') {
+    return false;
+  }
+
+  return typeof left === typeof right;
+}
+
+function isComplexValue(value: unknown): boolean {
+  return Boolean(value && typeof value === 'object');
 }
 
 function parseNumericEnumValue(value: unknown): number | undefined {

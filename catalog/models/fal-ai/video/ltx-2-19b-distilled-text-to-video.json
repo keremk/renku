@@ -188,7 +188,25 @@
     ],
     "required": [
       "prompt"
-    ]
+    ],
+    "x-renku-constraints": {
+      "fields": {
+        "video_size": {
+          "enum": {
+            "values": [
+              "square_hd",
+              "square",
+              "portrait_4_3",
+              "portrait_16_9",
+              "landscape_4_3",
+              "landscape_16_9"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        }
+      }
+    }
   },
   "output_schema": {
     "title": "LTX2TextToVideoOutput",

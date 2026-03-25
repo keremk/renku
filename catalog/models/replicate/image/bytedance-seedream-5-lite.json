@@ -71,5 +71,19 @@
       "x-order": 4,
       "description": "Group image generation mode. 'disabled' generates a single image. 'auto' lets the model decide whether to generate multiple related images (e.g., story scenes, character variations)."
     }
+  },
+  "x-renku-constraints": {
+    "fields": {
+      "size": {
+        "enum": {
+          "values": [
+            "2K",
+            "3K"
+          ],
+          "source": "inferred",
+          "confidence": "medium"
+        }
+      }
+    }
   }
 }

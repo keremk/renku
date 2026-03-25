@@ -52,5 +52,30 @@
       "nullable": true,
       "description": "An optional image to use as the first frame of the video. The image must be the same aspect ratio as the video."
     }
+  },
+  "x-renku-constraints": {
+    "fields": {
+      "seconds": {
+        "enum": {
+          "values": [
+            4,
+            8,
+            12
+          ],
+          "source": "explicit",
+          "confidence": "high"
+        }
+      },
+      "aspect_ratio": {
+        "enum": {
+          "values": [
+            "portrait",
+            "landscape"
+          ],
+          "source": "explicit",
+          "confidence": "high"
+        }
+      }
+    }
   }
 }

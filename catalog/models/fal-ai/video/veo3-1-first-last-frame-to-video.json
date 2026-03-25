@@ -102,7 +102,44 @@
       "prompt",
       "first_frame_url",
       "last_frame_url"
-    ]
+    ],
+    "x-renku-constraints": {
+      "fields": {
+        "duration": {
+          "enum": {
+            "values": [
+              "4s",
+              "6s",
+              "8s"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "auto",
+              "16:9",
+              "9:16"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "resolution": {
+          "enum": {
+            "values": [
+              "720p",
+              "1080p",
+              "4k"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        }
+      }
+    }
   },
   "output_schema": {
     "x-fal-order-properties": [

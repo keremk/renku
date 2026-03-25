@@ -1,7 +1,9 @@
 {
   "type": "object",
   "title": "Input",
-  "required": ["prompt"],
+  "required": [
+    "prompt"
+  ],
   "properties": {
     "image": {
       "type": "string",
@@ -33,7 +35,10 @@
       "description": "Duration of the video in seconds (1-15). Ignored when editing a video."
     },
     "resolution": {
-      "enum": ["720p", "480p"],
+      "enum": [
+        "720p",
+        "480p"
+      ],
       "type": "string",
       "title": "resolution",
       "description": "Resolution of the video. Ignored when editing a video.",
@@ -41,12 +46,49 @@
       "x-order": 5
     },
     "aspect_ratio": {
-      "enum": ["16:9", "4:3", "1:1", "9:16", "3:4", "3:2", "2:3"],
+      "enum": [
+        "16:9",
+        "4:3",
+        "1:1",
+        "9:16",
+        "3:4",
+        "3:2",
+        "2:3"
+      ],
       "type": "string",
       "title": "aspect_ratio",
       "description": "Aspect ratio of the video. Ignored when editing a video or when providing an input image.",
       "default": "16:9",
       "x-order": 4
+    }
+  },
+  "x-renku-constraints": {
+    "fields": {
+      "resolution": {
+        "enum": {
+          "values": [
+            "720p",
+            "480p"
+          ],
+          "source": "explicit",
+          "confidence": "high"
+        }
+      },
+      "aspect_ratio": {
+        "enum": {
+          "values": [
+            "16:9",
+            "4:3",
+            "1:1",
+            "9:16",
+            "3:4",
+            "3:2",
+            "2:3"
+          ],
+          "source": "explicit",
+          "confidence": "high"
+        }
+      }
     }
   }
 }

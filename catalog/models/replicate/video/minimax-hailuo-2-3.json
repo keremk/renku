@@ -44,5 +44,29 @@
       "format": "uri",
       "description": "First frame image for video generation. The output video will have the same aspect ratio as this image."
     }
+  },
+  "x-renku-constraints": {
+    "fields": {
+      "duration": {
+        "enum": {
+          "values": [
+            6,
+            10
+          ],
+          "source": "explicit",
+          "confidence": "high"
+        }
+      },
+      "resolution": {
+        "enum": {
+          "values": [
+            "768p",
+            "1080p"
+          ],
+          "source": "explicit",
+          "confidence": "high"
+        }
+      }
+    }
   }
 }

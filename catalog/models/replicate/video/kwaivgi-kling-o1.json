@@ -89,5 +89,20 @@
       "x-order": 5,
       "description": "How to use the reference video: 'feature' for style/camera reference, 'base' for video editing."
     }
+  },
+  "x-renku-constraints": {
+    "fields": {
+      "duration": {
+        "enum": {
+          "values": [
+            "5",
+            "10",
+            "3"
+          ],
+          "source": "inferred",
+          "confidence": "medium"
+        }
+      }
+    }
   }
 }

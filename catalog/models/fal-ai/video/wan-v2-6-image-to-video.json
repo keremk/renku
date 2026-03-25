@@ -105,7 +105,32 @@
     "required": [
       "prompt",
       "image_url"
-    ]
+    ],
+    "x-renku-constraints": {
+      "fields": {
+        "resolution": {
+          "enum": {
+            "values": [
+              "720p",
+              "1080p"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "duration": {
+          "enum": {
+            "values": [
+              "5",
+              "10",
+              "15"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        }
+      }
+    }
   },
   "output_schema": {
     "title": "ImageToVideoOutput",

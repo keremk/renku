@@ -99,7 +99,44 @@
     "required": [
       "prompt",
       "image_url"
-    ]
+    ],
+    "x-renku-constraints": {
+      "fields": {
+        "duration": {
+          "enum": {
+            "values": [
+              6,
+              8,
+              10
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "auto",
+              "16:9",
+              "9:16"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "resolution": {
+          "enum": {
+            "values": [
+              "1080p",
+              "1440p",
+              "2160p"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        }
+      }
+    }
   },
   "output_schema": {
     "x-fal-order-properties": [

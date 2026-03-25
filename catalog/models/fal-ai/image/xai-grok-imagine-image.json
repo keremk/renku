@@ -68,7 +68,32 @@
     ],
     "required": [
       "prompt"
-    ]
+    ],
+    "x-renku-constraints": {
+      "fields": {
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "2:1",
+              "20:9",
+              "19.5:9",
+              "16:9",
+              "4:3",
+              "3:2",
+              "1:1",
+              "2:3",
+              "3:4",
+              "9:16",
+              "9:19.5",
+              "9:20",
+              "1:2"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        }
+      }
+    }
   },
   "output_schema": {
     "title": "XAIImageOutput",

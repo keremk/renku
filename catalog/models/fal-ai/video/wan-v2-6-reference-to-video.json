@@ -123,7 +123,44 @@
     "required": [
       "prompt",
       "video_urls"
-    ]
+    ],
+    "x-renku-constraints": {
+      "fields": {
+        "resolution": {
+          "enum": {
+            "values": [
+              "720p",
+              "1080p"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "16:9",
+              "9:16",
+              "1:1",
+              "4:3",
+              "3:4"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "duration": {
+          "enum": {
+            "values": [
+              "5",
+              "10"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        }
+      }
+    }
   },
   "output_schema": {
     "description": "Output for reference-to-video generation",

@@ -80,7 +80,33 @@
     "required": [
       "prompt",
       "image_url"
-    ]
+    ],
+    "x-renku-constraints": {
+      "fields": {
+        "resolution": {
+          "enum": {
+            "values": [
+              "360p",
+              "540p",
+              "720p",
+              "1080p"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "duration": {
+          "enum": {
+            "values": [
+              "5",
+              "8"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        }
+      }
+    }
   },
   "output_schema": {
     "x-fal-order-properties": [

@@ -111,7 +111,32 @@
     "description": "Single-shot image-to-video input for O3 model.",
     "required": [
       "image_url"
-    ]
+    ],
+    "x-renku-constraints": {
+      "fields": {
+        "duration": {
+          "enum": {
+            "values": [
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "11",
+              "12",
+              "13",
+              "14",
+              "15"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        }
+      }
+    }
   },
   "output_schema": {
     "x-fal-order-properties": [

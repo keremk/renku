@@ -3,7 +3,12 @@
     "target_resolution": {
       "default": "1080p",
       "description": "Target resolution to upscale to.",
-      "enum": ["720p", "1080p", "2k", "4k"],
+      "enum": [
+        "720p",
+        "1080p",
+        "2k",
+        "4k"
+      ],
       "type": "string",
       "x-ui-component": "select"
     },
@@ -13,7 +18,28 @@
       "format": "uri"
     }
   },
-  "required": ["video"],
+  "required": [
+    "video"
+  ],
   "type": "object",
-  "x-order-properties": ["video", "target_resolution"]
+  "x-order-properties": [
+    "video",
+    "target_resolution"
+  ],
+  "x-renku-constraints": {
+    "fields": {
+      "target_resolution": {
+        "enum": {
+          "values": [
+            "720p",
+            "1080p",
+            "2k",
+            "4k"
+          ],
+          "source": "explicit",
+          "confidence": "high"
+        }
+      }
+    }
+  }
 }

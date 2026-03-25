@@ -22,7 +22,10 @@
     "resolution": {
       "default": "480p",
       "description": "The resolution of the output video.",
-      "enum": ["480p", "720p"],
+      "enum": [
+        "480p",
+        "720p"
+      ],
       "type": "string",
       "x-ui-component": "select"
     },
@@ -32,7 +35,10 @@
       "type": "integer"
     }
   },
-  "required": ["audio", "image"],
+  "required": [
+    "audio",
+    "image"
+  ],
   "type": "object",
   "x-order-properties": [
     "audio",
@@ -41,5 +47,19 @@
     "prompt",
     "resolution",
     "seed"
-  ]
+  ],
+  "x-renku-constraints": {
+    "fields": {
+      "resolution": {
+        "enum": {
+          "values": [
+            "480p",
+            "720p"
+          ],
+          "source": "explicit",
+          "confidence": "high"
+        }
+      }
+    }
+  }
 }

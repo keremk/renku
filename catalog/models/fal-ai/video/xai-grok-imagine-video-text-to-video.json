@@ -54,7 +54,36 @@
     ],
     "required": [
       "prompt"
-    ]
+    ],
+    "x-renku-constraints": {
+      "fields": {
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "16:9",
+              "4:3",
+              "3:2",
+              "1:1",
+              "2:3",
+              "3:4",
+              "9:16"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "resolution": {
+          "enum": {
+            "values": [
+              "480p",
+              "720p"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        }
+      }
+    }
   },
   "output_schema": {
     "title": "XAITextToVideoOutput",

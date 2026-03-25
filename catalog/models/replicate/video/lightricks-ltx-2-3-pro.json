@@ -142,5 +142,18 @@
       "x-order": 12,
       "description": "Start time in seconds of the section to edit. Used for retake task."
     }
+  },
+  "x-renku-constraints": {
+    "fields": {
+      "resolution": {
+        "enum": {
+          "values": [
+            "1080p"
+          ],
+          "source": "inferred",
+          "confidence": "medium"
+        }
+      }
+    }
   }
 }

@@ -165,7 +165,43 @@
         "format": "uri"
       }
     },
-    "title": "O3StandardReferenceVideoI2VInput"
+    "title": "O3StandardReferenceVideoI2VInput",
+    "x-renku-constraints": {
+      "fields": {
+        "duration": {
+          "enum": {
+            "values": [
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "11",
+              "12",
+              "13",
+              "14",
+              "15"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "16:9",
+              "9:16",
+              "1:1"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        }
+      }
+    }
   },
   "output_schema": {
     "x-fal-order-properties": [

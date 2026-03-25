@@ -147,5 +147,34 @@
       "default": false,
       "description": "Disable safety checker for generated images."
     }
+  },
+  "x-renku-constraints": {
+    "fields": {
+      "image_size": {
+        "enum": {
+          "values": [
+            "optimize_for_quality",
+            "optimize_for_speed"
+          ],
+          "source": "explicit",
+          "confidence": "high"
+        }
+      },
+      "aspect_ratio": {
+        "enum": {
+          "values": [
+            "1:1",
+            "16:9",
+            "9:16",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3"
+          ],
+          "source": "explicit",
+          "confidence": "high"
+        }
+      }
+    }
   }
 }

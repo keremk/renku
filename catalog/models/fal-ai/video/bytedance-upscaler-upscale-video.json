@@ -41,7 +41,22 @@
     "title": "UpscaleInput",
     "required": [
       "video_url"
-    ]
+    ],
+    "x-renku-constraints": {
+      "fields": {
+        "target_resolution": {
+          "enum": {
+            "values": [
+              "1080p",
+              "2k",
+              "4k"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        }
+      }
+    }
   },
   "output_schema": {
     "x-fal-order-properties": [

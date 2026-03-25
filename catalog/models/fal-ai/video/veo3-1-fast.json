@@ -78,7 +78,42 @@
     "title": "Veo31TextToVideoInput",
     "required": [
       "prompt"
-    ]
+    ],
+    "x-renku-constraints": {
+      "fields": {
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "16:9",
+              "9:16"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "duration": {
+          "enum": {
+            "values": [
+              "4s",
+              "6s",
+              "8s"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "resolution": {
+          "enum": {
+            "values": [
+              "720p",
+              "1080p"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        }
+      }
+    }
   },
   "output_schema": {
     "x-fal-order-properties": [

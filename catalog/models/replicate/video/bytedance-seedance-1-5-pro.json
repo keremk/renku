@@ -1,10 +1,14 @@
 {
   "type": "object",
   "title": "Input",
-  "required": ["prompt"],
+  "required": [
+    "prompt"
+  ],
   "properties": {
     "fps": {
-      "enum": [24],
+      "enum": [
+        24
+      ],
       "type": "integer",
       "title": "fps",
       "description": "Frame rate (frames per second)",
@@ -42,7 +46,15 @@
       "description": "Video duration in seconds"
     },
     "aspect_ratio": {
-      "enum": ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9", "9:21"],
+      "enum": [
+        "16:9",
+        "4:3",
+        "1:1",
+        "3:4",
+        "9:16",
+        "21:9",
+        "9:21"
+      ],
       "type": "string",
       "title": "aspect_ratio",
       "description": "Video aspect ratio. Ignored if an image is used.",
@@ -70,6 +82,25 @@
       "x-order": 2,
       "nullable": true,
       "description": "Input image for last frame generation. This only works if an image start frame is given too."
+    }
+  },
+  "x-renku-constraints": {
+    "fields": {
+      "aspect_ratio": {
+        "enum": {
+          "values": [
+            "16:9",
+            "4:3",
+            "1:1",
+            "3:4",
+            "9:16",
+            "21:9",
+            "9:21"
+          ],
+          "source": "explicit",
+          "confidence": "high"
+        }
+      }
     }
   }
 }

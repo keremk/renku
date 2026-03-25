@@ -82,5 +82,18 @@
       "x-order": 2,
       "description": "Last frame image for image-to-video generation. When provided, the video interpolates between the first frame and this last frame."
     }
+  },
+  "x-renku-constraints": {
+    "fields": {
+      "resolution": {
+        "enum": {
+          "values": [
+            "1080p"
+          ],
+          "source": "inferred",
+          "confidence": "medium"
+        }
+      }
+    }
   }
 }

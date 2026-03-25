@@ -93,35 +93,6 @@ function parseResolutionTokens(description) {
   return tokens;
 }
 
-function parseDurationTokens(description) {
-  const tokens = [];
-
-  for (const value of collectMatches(
-    description,
-    /\b\d+(?:\.\d+)?\s*(?:s|sec|secs|second|seconds)\b/gi
-  )) {
-    pushUnique(tokens, value.toLowerCase().replace(/\s+/g, ''));
-  }
-
-  const pairRegex = /\b(\d+(?:\.\d+)?)\s*(?:or|\/)\s*(\d+(?:\.\d+)?)\b/gi;
-  let pairMatch = pairRegex.exec(description);
-  while (pairMatch) {
-    pushUnique(tokens, pairMatch[1]);
-    pushUnique(tokens, pairMatch[2]);
-    pairMatch = pairRegex.exec(description);
-  }
-
-  const rangeRegex = /\b(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\b/g;
-  let rangeMatch = rangeRegex.exec(description);
-  while (rangeMatch) {
-    pushUnique(tokens, rangeMatch[1]);
-    pushUnique(tokens, rangeMatch[2]);
-    rangeMatch = rangeRegex.exec(description);
-  }
-
-  return tokens;
-}
-
 function inferValuesFromDescription(fieldName, description) {
   if (typeof description !== 'string' || description.trim().length === 0) {
     return [];
@@ -134,7 +105,7 @@ function inferValuesFromDescription(fieldName, description) {
   }
 
   if (normalizedField === 'duration' || normalizedField === 'seconds') {
-    return parseDurationTokens(description);
+    return [];
   }
 
   if (

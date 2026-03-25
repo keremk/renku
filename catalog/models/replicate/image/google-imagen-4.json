@@ -48,5 +48,22 @@
       "default": "block_only_high",
       "x-order": 2
     }
+  },
+  "x-renku-constraints": {
+    "fields": {
+      "aspect_ratio": {
+        "enum": {
+          "values": [
+            "1:1",
+            "9:16",
+            "16:9",
+            "3:4",
+            "4:3"
+          ],
+          "source": "explicit",
+          "confidence": "high"
+        }
+      }
+    }
   }
 }

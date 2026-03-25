@@ -82,5 +82,40 @@
       "nullable": true,
       "description": "Description of what to exclude from the generated video"
     }
+  },
+  "x-renku-constraints": {
+    "fields": {
+      "duration": {
+        "enum": {
+          "values": [
+            4,
+            6,
+            8
+          ],
+          "source": "explicit",
+          "confidence": "high"
+        }
+      },
+      "resolution": {
+        "enum": {
+          "values": [
+            "720p",
+            "1080p"
+          ],
+          "source": "explicit",
+          "confidence": "high"
+        }
+      },
+      "aspect_ratio": {
+        "enum": {
+          "values": [
+            "16:9",
+            "9:16"
+          ],
+          "source": "explicit",
+          "confidence": "high"
+        }
+      }
+    }
   }
 }

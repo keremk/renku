@@ -120,7 +120,23 @@
     "required": [
       "prompt",
       "image_urls"
-    ]
+    ],
+    "x-renku-constraints": {
+      "fields": {
+        "image_size": {
+          "enum": {
+            "values": [
+              "auto",
+              "1024x1024",
+              "1536x1024",
+              "1024x1536"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        }
+      }
+    }
   },
   "output_schema": {
     "x-fal-order-properties": [

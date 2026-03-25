@@ -20,6 +20,7 @@ function ResolutionHarness({
           name: 'Resolution',
           description: 'Resolution',
           type: 'resolution',
+          required: true,
         }}
         value={value}
         onChange={setValue}

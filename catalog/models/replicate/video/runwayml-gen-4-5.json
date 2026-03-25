@@ -1,7 +1,9 @@
 {
   "type": "object",
   "title": "Input",
-  "required": ["prompt"],
+  "required": [
+    "prompt"
+  ],
   "properties": {
     "seed": {
       "type": "integer",
@@ -25,7 +27,10 @@
       "description": "Text prompt for video generation"
     },
     "duration": {
-      "enum": [5, 10],
+      "enum": [
+        5,
+        10
+      ],
       "type": "integer",
       "title": "duration",
       "description": "Duration of the output video in seconds",
@@ -33,12 +38,47 @@
       "x-order": 3
     },
     "aspect_ratio": {
-      "enum": ["16:9", "9:16", "4:3", "3:4", "1:1", "21:9"],
+      "enum": [
+        "16:9",
+        "9:16",
+        "4:3",
+        "3:4",
+        "1:1",
+        "21:9"
+      ],
       "type": "string",
       "title": "aspect_ratio",
       "description": "Video aspect ratio",
       "default": "16:9",
       "x-order": 2
+    }
+  },
+  "x-renku-constraints": {
+    "fields": {
+      "duration": {
+        "enum": {
+          "values": [
+            5,
+            10
+          ],
+          "source": "explicit",
+          "confidence": "high"
+        }
+      },
+      "aspect_ratio": {
+        "enum": {
+          "values": [
+            "16:9",
+            "9:16",
+            "4:3",
+            "3:4",
+            "1:1",
+            "21:9"
+          ],
+          "source": "explicit",
+          "confidence": "high"
+        }
+      }
     }
   }
 }

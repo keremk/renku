@@ -94,5 +94,21 @@
       "x-order": 6,
       "description": "Safety tolerance, 1 is most strict and 5 is most permissive"
     }
+  },
+  "x-renku-constraints": {
+    "fields": {
+      "resolution": {
+        "enum": {
+          "values": [
+            "4MP",
+            "2MP",
+            "2048x2048",
+            "1:1"
+          ],
+          "source": "inferred",
+          "confidence": "medium"
+        }
+      }
+    }
   }
 }
