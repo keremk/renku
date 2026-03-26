@@ -1,19 +1,21 @@
 :root {
+  color-scheme: light;
+
   /* Level 0: App Background */
   --background: hsl(60 51% 91%);
-  
+
   /* Level 1: Sidebars (Historically darker anchoring surface) */
   --sidebar-bg: hsl(46 52% 88%);
   --sidebar-header-bg: hsl(46 52% 88%);
-  
+
   /* Level 2: Main Content Area (Behind panels) */
   --panel-bg: var(--background);
   --panel-header-bg: var(--background);
-  
+
   /* Level 3: Cards & Interactive Surfaces */
   --card: hsl(50 100% 93%);
   --card-foreground: hsl(0 0% 20%);
-  
+
   /* Level 4: Hover & Active States */
   --item-hover-bg: hsl(60 35% 87%);
   --item-active-bg: hsl(45 44% 83%);
@@ -23,13 +25,13 @@
   --foreground: hsl(45 62% 21%);
   --primary: hsl(42 58% 50%);
   --primary-foreground: hsl(0 0% 0%);
-  
+
   /* Secondary/Muted Elements */
   --secondary: hsl(30 45% 48%);
   --secondary-foreground: hsl(0 0% 100%);
   --muted: hsl(60 35% 87%);
   --muted-foreground: hsl(0 0% 45%);
-  
+
   /* Borders - Soft contrast */
   --border: hsl(0 0% 78%);
   --panel-border: hsl(0 0% 78%);
@@ -57,7 +59,7 @@
   --sidebar-accent: var(--accent);
   --sidebar-accent-foreground: hsl(32 60% 22%);
   --sidebar-ring: var(--ring);
-  
+
   /* Popovers */
   --popover: hsl(50 100% 93%);
   --popover-foreground: hsl(0 0% 20%);
@@ -80,30 +82,42 @@
   /* Shadows */
   --shadow-2xs: 0px 1px 2px 0px hsl(30 20% 20% / 0.05);
   --shadow-xs: 0px 1px 3px 0px hsl(30 20% 20% / 0.08);
-  --shadow-sm: 0px 2px 4px 0px hsl(30 20% 20% / 0.08), 0px 1px 2px 0px hsl(30 20% 20% / 0.05);
-  --shadow: 0px 3px 6px 0px hsl(30 20% 20% / 0.1), 0px 2px 4px 0px hsl(30 20% 20% / 0.08);
-  --shadow-md: 0px 6px 12px -2px hsl(30 20% 20% / 0.12), 0px 3px 6px -2px hsl(30 20% 20% / 0.08);
-  --shadow-lg: 0px 12px 24px -4px hsl(30 20% 20% / 0.15), 0px 6px 12px -4px hsl(30 20% 20% / 0.08);
-  --shadow-xl: 0px 24px 48px -8px hsl(30 20% 20% / 0.18), 0px 12px 24px -8px hsl(30 20% 20% / 0.08);
+  --shadow-sm:
+    0px 2px 4px 0px hsl(30 20% 20% / 0.08),
+    0px 1px 2px 0px hsl(30 20% 20% / 0.05);
+  --shadow:
+    0px 3px 6px 0px hsl(30 20% 20% / 0.1),
+    0px 2px 4px 0px hsl(30 20% 20% / 0.08);
+  --shadow-md:
+    0px 6px 12px -2px hsl(30 20% 20% / 0.12),
+    0px 3px 6px -2px hsl(30 20% 20% / 0.08);
+  --shadow-lg:
+    0px 12px 24px -4px hsl(30 20% 20% / 0.15),
+    0px 6px 12px -4px hsl(30 20% 20% / 0.08);
+  --shadow-xl:
+    0px 24px 48px -8px hsl(30 20% 20% / 0.18),
+    0px 12px 24px -8px hsl(30 20% 20% / 0.08);
   --shadow-2xl: 0px 32px 64px -12px hsl(30 20% 20% / 0.25);
 }
 
 .dark {
+  color-scheme: dark;
+
   /* Level 0: App Background */
   --background: hsl(0 0% 20%);
-  
+
   /* Level 1: Sidebars (Historically darker anchoring surface) */
   --sidebar-bg: hsl(0 0% 16%);
   --sidebar-header-bg: hsl(0 0% 16%);
-  
+
   /* Level 2: Main Content Area */
   --panel-bg: var(--background);
   --panel-header-bg: var(--background);
-  
+
   /* Level 3: Cards & Interactive Surfaces */
   --card: hsl(0 0% 29%);
   --card-foreground: hsl(60 51% 91%);
-  
+
   /* Level 4: Hover & Active States */
   --item-hover-bg: hsl(0 0% 32%);
   --item-active-bg: hsl(42 65% 45% / 0.2);
@@ -113,13 +127,13 @@
   --foreground: hsl(60 51% 91%);
   --primary: hsl(42 75% 48%);
   --primary-foreground: hsl(0 0% 0%);
-  
+
   /* Secondary/Muted Elements */
   --secondary: hsl(25 45% 35%);
   --secondary-foreground: hsl(60 51% 91%);
   --muted: hsl(0 0% 32%);
   --muted-foreground: hsl(0 0% 65%);
-  
+
   /* Borders - Soft subtle contrast */
   --border: hsl(0 0% 35%);
   --panel-border: hsl(0 0% 26%);
@@ -162,11 +176,17 @@
   /* Shadows - Dramatically darker for dark mode */
   --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.5);
   --shadow-xs: 0px 1px 3px 0px hsl(0 0% 0% / 0.6);
-  --shadow-sm: 0px 2px 4px 0px hsl(0 0% 0% / 0.65), 0px 1px 2px 0px hsl(0 0% 0% / 0.5);
-  --shadow: 0px 3px 6px 0px hsl(0 0% 0% / 0.7), 0px 2px 4px 0px hsl(0 0% 0% / 0.5);
-  --shadow-md: 0px 6px 12px -2px hsl(0 0% 0% / 0.75), 0px 3px 6px -2px hsl(0 0% 0% / 0.6);
-  --shadow-lg: 0px 12px 24px -4px hsl(0 0% 0% / 0.8), 0px 6px 12px -4px hsl(0 0% 0% / 0.6);
-  --shadow-xl: 0px 24px 48px -8px hsl(0 0% 0% / 0.85), 0px 12px 24px -8px hsl(0 0% 0% / 0.6);
+  --shadow-sm:
+    0px 2px 4px 0px hsl(0 0% 0% / 0.65), 0px 1px 2px 0px hsl(0 0% 0% / 0.5);
+  --shadow:
+    0px 3px 6px 0px hsl(0 0% 0% / 0.7), 0px 2px 4px 0px hsl(0 0% 0% / 0.5);
+  --shadow-md:
+    0px 6px 12px -2px hsl(0 0% 0% / 0.75), 0px 3px 6px -2px hsl(0 0% 0% / 0.6);
+  --shadow-lg:
+    0px 12px 24px -4px hsl(0 0% 0% / 0.8), 0px 6px 12px -4px hsl(0 0% 0% / 0.6);
+  --shadow-xl:
+    0px 24px 48px -8px hsl(0 0% 0% / 0.85),
+    0px 12px 24px -8px hsl(0 0% 0% / 0.6);
   --shadow-2xl: 0px 32px 64px -12px hsl(0 0% 0% / 0.9);
 }
 
@@ -194,7 +214,7 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
-  
+
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -208,7 +228,7 @@
   --color-panel-bg: var(--panel-bg);
   --color-panel-header-bg: var(--panel-header-bg);
   --color-panel-border: var(--panel-border);
-  
+
   --color-sidebar-bg: var(--sidebar-bg);
   --color-sidebar-header-bg: var(--sidebar-header-bg);
   --color-sidebar-border: var(--sidebar-border);
