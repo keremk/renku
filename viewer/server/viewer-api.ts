@@ -40,6 +40,18 @@ export interface ViewerApiOptions {
   catalogPath?: string;
 }
 
+interface ViewerHealthResponse {
+  ok: true;
+  app: 'renku-viewer';
+  launchRoute: '/blueprints';
+}
+
+const VIEWER_HEALTH_RESPONSE: ViewerHealthResponse = {
+  ok: true,
+  app: 'renku-viewer',
+  launchRoute: '/blueprints',
+};
+
 /**
  * Creates the main viewer API handler.
  */
@@ -132,7 +144,7 @@ function handleHealthCheck(req: IncomingMessage, res: ServerResponse): boolean {
     return respondMethodNotAllowed(res);
   }
   res.setHeader('Content-Type', 'application/json');
-  res.end(JSON.stringify({ ok: true }));
+  res.end(JSON.stringify(VIEWER_HEALTH_RESPONSE));
   return true;
 }
 

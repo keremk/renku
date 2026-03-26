@@ -62,6 +62,22 @@ describe('createViewerApiHandler', () => {
     vi.clearAllMocks();
   });
 
+  it('returns viewer compatibility metadata from the health endpoint', async () => {
+    const handler = createViewerApiHandler();
+    const req = createMockApiRequest('/viewer-api/health', 'GET');
+    const res = createMockResponse();
+
+    const handled = await handler(req, res);
+
+    expect(handled).toBe(true);
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({
+      ok: true,
+      app: 'renku-viewer',
+      launchRoute: '/blueprints',
+    });
+  });
+
   it('handles async blueprint route errors without crashing', async () => {
     handleBlueprintRequestMock.mockRejectedValueOnce(new Error('parse failed'));
 

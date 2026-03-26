@@ -93,7 +93,7 @@ export async function runLaunch(options: LaunchOptions = {}): Promise<void> {
 		}
 	}
 
-	const url = `http://${activeHost}:${activePort}/`;
+	const url = `http://${activeHost}:${activePort}/blueprints`;
 	logger.info?.(`Opening Renku at ${url}`);
 	void openBrowser(url);
 }
