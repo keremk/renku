@@ -13,12 +13,6 @@ interface DetectViewerAddressArgs {
 	requireRunning?: boolean;
 }
 
-interface ViewerHealthResponse {
-	ok: true;
-	app: 'renku-viewer';
-	launchRoute: '/blueprints';
-}
-
 export async function ensureViewerNetworkConfig(
 	config: CliConfig,
 	overrides: { host?: string; port?: number }
@@ -79,23 +73,7 @@ export async function isViewerServerRunning(
 			`http://${host}:${port}/viewer-api/health`,
 			1500
 		);
-		if (response.statusCode !== 200) {
-			return false;
-		}
-		return isCompatibleViewerHealth(response.body);
-	} catch {
-		return false;
-	}
-}
-
-function isCompatibleViewerHealth(body: string): boolean {
-	try {
-		const parsed = JSON.parse(body) as Partial<ViewerHealthResponse>;
-		return (
-			parsed.ok === true &&
-			parsed.app === 'renku-viewer' &&
-			parsed.launchRoute === '/blueprints'
-		);
+		return response.statusCode === 200;
 	} catch {
 		return false;
 	}

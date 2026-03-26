@@ -13,41 +13,28 @@ describe('isViewerServerRunning', () => {
 		vi.clearAllMocks();
 	});
 
-	it('returns true for a compatible viewer health response', async () => {
-		simpleGetMock.mockResolvedValueOnce({
-			statusCode: 200,
-			body: JSON.stringify({
-				ok: true,
-				app: 'renku-viewer',
-				launchRoute: '/blueprints',
-			}),
-		});
-
-		await expect(isViewerServerRunning('127.0.0.1', 5300)).resolves.toBe(true);
-	});
-
-	it('returns false when health payload is from an incompatible server', async () => {
+	it('returns true when health endpoint responds with status 200', async () => {
 		simpleGetMock.mockResolvedValueOnce({
 			statusCode: 200,
 			body: JSON.stringify({ ok: true }),
 		});
 
-		await expect(isViewerServerRunning('127.0.0.1', 5300)).resolves.toBe(false);
+		await expect(isViewerServerRunning('127.0.0.1', 5300)).resolves.toBe(true);
+	});
+
+	it('returns true for any body when status is 200', async () => {
+		simpleGetMock.mockResolvedValueOnce({
+			statusCode: 200,
+			body: 'not-json',
+		});
+
+		await expect(isViewerServerRunning('127.0.0.1', 5300)).resolves.toBe(true);
 	});
 
 	it('returns false when health status is non-200', async () => {
 		simpleGetMock.mockResolvedValueOnce({
 			statusCode: 503,
 			body: '',
-		});
-
-		await expect(isViewerServerRunning('127.0.0.1', 5300)).resolves.toBe(false);
-	});
-
-	it('returns false when health payload is invalid JSON', async () => {
-		simpleGetMock.mockResolvedValueOnce({
-			statusCode: 200,
-			body: 'not-json',
 		});
 
 		await expect(isViewerServerRunning('127.0.0.1', 5300)).resolves.toBe(false);
