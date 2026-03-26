@@ -19,6 +19,7 @@ This guide walks you through installing Renku, running onboarding with `renku la
 Choose your path from the [Install Page](/install).
 
 ## Install and Launch
+
 <Aside>
 You need to install these prerequisites manually before running Renku:
 
@@ -42,6 +43,42 @@ renku launch
 ```
 
 If your CLI config does not exist yet (for example `~/.config/renku/cli-config.json` is missing), Renku automatically opens the onboarding wizard instead of failing.
+
+## Update Renku CLI
+
+When you publish a new Renku release, update your Linux machine with:
+
+```bash
+npm install -g @gorenku/cli@latest
+```
+
+If you want a specific version instead of latest, pin it explicitly:
+
+```bash
+npm install -g @gorenku/cli@0.1.17
+```
+
+Then verify the installed version:
+
+```bash
+renku --version
+```
+
+## Uninstall Renku CLI
+
+To remove the global CLI binary:
+
+```bash
+npm uninstall -g @gorenku/cli
+```
+
+Optional full cleanup (removes your local Renku config and data folders):
+
+```bash
+rm -rf ~/.config/renku
+```
+
+Remove your chosen workspace root as well if you want to delete generated builds and blueprint copies.
 
 ## Onboarding
 
