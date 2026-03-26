@@ -10,6 +10,27 @@ export interface BrowseFolderResult {
   path: string | null;
 }
 
+interface OnboardingErrorPayload {
+  error?: string;
+}
+
+async function readOnboardingError(response: Response): Promise<string> {
+  try {
+    const body = (await response.json()) as OnboardingErrorPayload;
+    if (body.error && body.error.trim().length > 0) {
+      return body.error;
+    }
+  } catch {
+    // Ignore JSON parse failures and fall back to status text.
+  }
+
+  if (response.statusText && response.statusText.trim().length > 0) {
+    return response.statusText;
+  }
+
+  return 'Unknown error';
+}
+
 export interface OnboardingSetupData {
   storageRoot: string;
   providers: {
@@ -36,19 +57,23 @@ export async function browseFolder(): Promise<BrowseFolderResult> {
     method: 'POST',
   });
   if (!response.ok) {
-    throw new Error(`Failed to open folder browser: ${response.statusText}`);
+    throw new Error(await readOnboardingError(response));
   }
   return response.json() as Promise<BrowseFolderResult>;
 }
 
-export async function setupOnboarding(data: OnboardingSetupData): Promise<void> {
+export async function setupOnboarding(
+  data: OnboardingSetupData
+): Promise<void> {
   const response = await fetch('/viewer-api/onboarding/setup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
   if (!response.ok) {
-    const body = await response.json().catch(() => ({ error: response.statusText })) as { error?: string };
+    const body = (await response
+      .json()
+      .catch(() => ({ error: response.statusText }))) as { error?: string };
     throw new Error(body.error ?? response.statusText);
   }
 }

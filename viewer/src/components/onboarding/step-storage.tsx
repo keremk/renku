@@ -11,14 +11,20 @@ interface StepStorageProps {
 
 export function StepStorage({ value, onChange }: StepStorageProps) {
   const [isBrowsing, setIsBrowsing] = useState(false);
+  const [browseError, setBrowseError] = useState<string | null>(null);
 
   async function handleBrowse() {
     setIsBrowsing(true);
+    setBrowseError(null);
     try {
       const result = await browseFolder();
       if (result.path) {
         onChange(result.path);
       }
+    } catch (error) {
+      setBrowseError(
+        error instanceof Error ? error.message : 'Failed to open folder picker'
+      );
     } finally {
       setIsBrowsing(false);
     }
@@ -58,10 +64,19 @@ export function StepStorage({ value, onChange }: StepStorageProps) {
         </div>
       </div>
 
+      {browseError && (
+        <p className='text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded-md p-2'>
+          {browseError}
+        </p>
+      )}
+
       <p className='text-xs text-muted-foreground'>
-        The catalog of built-in blueprints will be copied into this folder.
-        You can change this location later by running{' '}
-        <code className='text-xs bg-muted px-1 py-0.5 rounded'>renku init --root=&lt;path&gt;</code>.
+        The catalog of built-in blueprints will be copied into this folder. You
+        can change this location later by running{' '}
+        <code className='text-xs bg-muted px-1 py-0.5 rounded'>
+          renku init --root=&lt;path&gt;
+        </code>
+        .
       </p>
     </div>
   );
