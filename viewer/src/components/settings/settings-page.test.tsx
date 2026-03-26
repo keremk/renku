@@ -26,6 +26,7 @@ const {
   updateViewerArtifactsSettingsMock,
   updateViewerConcurrencyMock,
   browseFolderMock,
+  getBrowseFolderSupportMock,
 } = vi.hoisted(() => ({
   fetchViewerSettingsMock: vi.fn(),
   updateViewerStorageRootMock: vi.fn(),
@@ -33,6 +34,7 @@ const {
   updateViewerArtifactsSettingsMock: vi.fn(),
   updateViewerConcurrencyMock: vi.fn(),
   browseFolderMock: vi.fn(),
+  getBrowseFolderSupportMock: vi.fn(),
 }));
 
 vi.mock('@/components/layout/viewer-page-header', () => ({
@@ -55,6 +57,7 @@ vi.mock('@/data/settings-client', () => ({
 
 vi.mock('@/data/onboarding-client', () => ({
   browseFolder: browseFolderMock,
+  getBrowseFolderSupport: getBrowseFolderSupportMock,
 }));
 
 import { SettingsPage } from './settings-page';
@@ -122,6 +125,7 @@ describe('SettingsPage storage location controls', () => {
       concurrency: 1,
     });
     browseFolderMock.mockResolvedValue({ path: null });
+    getBrowseFolderSupportMock.mockResolvedValue({ supported: true });
   });
 
   it('shows only the Change action in the main storage row', async () => {
@@ -222,5 +226,27 @@ describe('SettingsPage storage location controls', () => {
         allowNonEmptyTarget: true,
       });
     });
+  });
+
+  it('hides folder picker action when native picker is unavailable', async () => {
+    getBrowseFolderSupportMock.mockResolvedValueOnce({
+      supported: false,
+      reason: 'xdg-desktop-portal unavailable',
+    });
+
+    render(<SettingsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Change' })).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Native folder picker is unavailable on this system/i)
+      ).toBeTruthy();
+    });
+    expect(screen.queryByRole('button', { name: 'Select Folder' })).toBeNull();
   });
 });

@@ -5,12 +5,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-const { browseFolderMock } = vi.hoisted(() => ({
+const { browseFolderMock, getBrowseFolderSupportMock } = vi.hoisted(() => ({
   browseFolderMock: vi.fn(),
+  getBrowseFolderSupportMock: vi.fn(),
 }));
 
 vi.mock('@/data/onboarding-client', () => ({
   browseFolder: browseFolderMock,
+  getBrowseFolderSupport: getBrowseFolderSupportMock,
 }));
 
 import { StepStorage } from './step-storage';
@@ -18,6 +20,7 @@ import { StepStorage } from './step-storage';
 describe('StepStorage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getBrowseFolderSupportMock.mockResolvedValue({ supported: true });
   });
 
   it('updates the storage path when browsing succeeds', async () => {
@@ -26,7 +29,10 @@ describe('StepStorage', () => {
 
     render(<StepStorage value='' onChange={onChange} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Browse...' }));
+    const browseButton = await screen.findByRole('button', {
+      name: 'Browse...',
+    });
+    fireEvent.click(browseButton);
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalledWith('/tmp/renku-workspace');
@@ -41,11 +47,30 @@ describe('StepStorage', () => {
 
     render(<StepStorage value='' onChange={onChange} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Browse...' }));
+    const browseButton = await screen.findByRole('button', {
+      name: 'Browse...',
+    });
+    fireEvent.click(browseButton);
 
     await waitFor(() => {
       expect(screen.getByText(errorMessage)).toBeTruthy();
     });
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('hides browse button when native picker support is unavailable', async () => {
+    getBrowseFolderSupportMock.mockResolvedValueOnce({
+      supported: false,
+      reason: 'org.freedesktop.portal.Desktop not available',
+    });
+
+    render(<StepStorage value='' onChange={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Native folder picker is unavailable on this system/i)
+      ).toBeTruthy();
+    });
+    expect(screen.queryByRole('button', { name: 'Browse...' })).toBeNull();
   });
 });

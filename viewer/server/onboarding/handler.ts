@@ -3,6 +3,7 @@
  *
  * Provides endpoints for the first-time setup flow:
  *   GET  /viewer-api/onboarding/status        - Check if workspace is initialized
+ *   GET  /viewer-api/onboarding/browse-folder-support - Check native picker availability
  *   POST /viewer-api/onboarding/browse-folder - Open native folder picker
  *   POST /viewer-api/onboarding/setup         - Initialize workspace + write API keys
  *   POST /viewer-api/onboarding/catalog-sync  - Sync workspace catalog from bundled catalog
@@ -63,11 +64,25 @@ async function handleBrowseFolder(
   return true;
 }
 
+async function handleBrowseFolderSupport(
+  _req: IncomingMessage,
+  res: ServerResponse
+): Promise<boolean> {
+  const support = await getFolderPickerSupport();
+  sendJson(res, support);
+  return true;
+}
+
 type FolderPickerResult =
   | { status: 'selected'; path: string }
   | { status: 'cancelled' }
   | { status: 'unavailable'; reason: string }
   | { status: 'failed'; reason: string };
+
+interface FolderPickerSupport {
+  supported: boolean;
+  reason?: string;
+}
 
 interface CommandCaptureSuccess {
   status: 'ok';
@@ -89,7 +104,8 @@ type CommandCaptureResult =
   | CommandCaptureUnavailable
   | CommandCaptureFailure;
 
-const PORTAL_RESPONSE_TIMEOUT_MS = 120_000;
+const PORTAL_RESPONSE_TIMEOUT_MS = 20_000;
+const MIN_FILE_CHOOSER_PORTAL_VERSION = 3;
 
 async function openNativeFolderPicker(): Promise<FolderPickerResult> {
   const platform = process.platform;
@@ -114,35 +130,208 @@ async function openNativeFolderPicker(): Promise<FolderPickerResult> {
   return openLinuxFolderPicker();
 }
 
+async function getFolderPickerSupport(): Promise<FolderPickerSupport> {
+  const platform = process.platform;
+
+  if (platform === 'darwin' || platform === 'win32') {
+    return { supported: true };
+  }
+
+  const linuxSupport = await getLinuxFolderPickerSupport();
+  if (
+    linuxSupport.portalAvailable ||
+    linuxSupport.zenityAvailable ||
+    linuxSupport.kdialogAvailable
+  ) {
+    return { supported: true };
+  }
+
+  const failures: string[] = [];
+  if (linuxSupport.portalReason) {
+    failures.push(`xdg-desktop-portal: ${linuxSupport.portalReason}`);
+  }
+  failures.push('zenity: zenity is not installed.');
+  failures.push('kdialog: kdialog is not installed.');
+
+  return {
+    supported: false,
+    reason: buildLinuxPickerFailureMessage(failures),
+  };
+}
+
+interface LinuxFolderPickerSupport {
+  portalAvailable: boolean;
+  portalReason?: string;
+  zenityAvailable: boolean;
+  kdialogAvailable: boolean;
+}
+
+async function getLinuxFolderPickerSupport(): Promise<LinuxFolderPickerSupport> {
+  const portalSupport = await checkXdgDesktopPortalSupport();
+  const zenityAvailable = await isCommandInstalled('zenity', ['--version']);
+  const kdialogAvailable = await isCommandInstalled('kdialog', ['--version']);
+
+  return {
+    portalAvailable: portalSupport.supported,
+    portalReason: portalSupport.reason,
+    zenityAvailable,
+    kdialogAvailable,
+  };
+}
+
+async function checkXdgDesktopPortalSupport(): Promise<FolderPickerSupport> {
+  const hasOwnerResult = await runCommandCapture('gdbus', [
+    'call',
+    '--session',
+    '--dest',
+    'org.freedesktop.DBus',
+    '--object-path',
+    '/org/freedesktop/DBus',
+    '--method',
+    'org.freedesktop.DBus.NameHasOwner',
+    'org.freedesktop.portal.Desktop',
+  ]);
+
+  if (hasOwnerResult.status === 'unavailable') {
+    return {
+      supported: false,
+      reason: 'gdbus is not installed.',
+    };
+  }
+
+  if (hasOwnerResult.status === 'failed') {
+    return {
+      supported: false,
+      reason: hasOwnerResult.reason,
+    };
+  }
+
+  const hasOwner = parseDbusNameHasOwner(hasOwnerResult.stdout);
+  if (!hasOwner) {
+    return {
+      supported: false,
+      reason:
+        'org.freedesktop.portal.Desktop was not provided by any service files.',
+    };
+  }
+
+  const versionResult = await runCommandCapture('gdbus', [
+    'call',
+    '--session',
+    '--dest',
+    'org.freedesktop.portal.Desktop',
+    '--object-path',
+    '/org/freedesktop/portal/desktop',
+    '--method',
+    'org.freedesktop.DBus.Properties.Get',
+    'org.freedesktop.portal.FileChooser',
+    'version',
+  ]);
+
+  if (versionResult.status === 'unavailable') {
+    return {
+      supported: false,
+      reason: 'gdbus is not installed.',
+    };
+  }
+
+  if (versionResult.status === 'failed') {
+    return {
+      supported: false,
+      reason: versionResult.reason,
+    };
+  }
+
+  const version = parsePortalInterfaceVersion(versionResult.stdout);
+  if (version === null) {
+    return {
+      supported: false,
+      reason: 'Could not parse xdg-desktop-portal FileChooser version.',
+    };
+  }
+
+  if (version < MIN_FILE_CHOOSER_PORTAL_VERSION) {
+    return {
+      supported: false,
+      reason: `xdg-desktop-portal FileChooser version ${version} is too old. Requires ${MIN_FILE_CHOOSER_PORTAL_VERSION}+ for directory selection.`,
+    };
+  }
+
+  return { supported: true };
+}
+
+function parseDbusNameHasOwner(output: string): boolean {
+  const match = /\(\s*(true|false)\s*,?\s*\)/.exec(output);
+  if (!match || !match[1]) {
+    return false;
+  }
+  return match[1] === 'true';
+}
+
+function parsePortalInterfaceVersion(output: string): number | null {
+  const match = /uint32\s+(\d+)/.exec(output);
+  if (!match || !match[1]) {
+    return null;
+  }
+
+  const version = Number.parseInt(match[1], 10);
+  if (Number.isNaN(version)) {
+    return null;
+  }
+
+  return version;
+}
+
+async function isCommandInstalled(
+  cmd: string,
+  args: string[]
+): Promise<boolean> {
+  const result = await runCommandCapture(cmd, args);
+  return result.status !== 'unavailable';
+}
+
 async function openLinuxFolderPicker(): Promise<FolderPickerResult> {
+  const support = await getLinuxFolderPickerSupport();
   const failures: string[] = [];
 
-  const portal = await openFolderWithXdgDesktopPortal();
-  if (portal.status === 'selected' || portal.status === 'cancelled') {
-    return portal;
+  if (support.portalAvailable) {
+    const portal = await openFolderWithXdgDesktopPortal();
+    if (portal.status === 'selected' || portal.status === 'cancelled') {
+      return portal;
+    }
+    failures.push(`xdg-desktop-portal: ${portal.reason}`);
+  } else if (support.portalReason) {
+    failures.push(`xdg-desktop-portal: ${support.portalReason}`);
   }
-  failures.push(`xdg-desktop-portal: ${portal.reason}`);
 
-  const zenity = await runCommandFolderPicker('zenity', [
-    '--file-selection',
-    '--directory',
-    '--title=Select Renku storage folder',
-  ]);
-  if (zenity.status === 'selected' || zenity.status === 'cancelled') {
-    return zenity;
+  if (support.zenityAvailable) {
+    const zenity = await runCommandFolderPicker('zenity', [
+      '--file-selection',
+      '--directory',
+      '--title=Select Renku storage folder',
+    ]);
+    if (zenity.status === 'selected' || zenity.status === 'cancelled') {
+      return zenity;
+    }
+    failures.push(`zenity: ${zenity.reason}`);
+  } else {
+    failures.push('zenity: zenity is not installed.');
   }
-  failures.push(`zenity: ${zenity.reason}`);
 
-  const kdialog = await runCommandFolderPicker('kdialog', [
-    '--getexistingdirectory',
-    '/',
-    '--title',
-    'Select Renku storage folder',
-  ]);
-  if (kdialog.status === 'selected' || kdialog.status === 'cancelled') {
-    return kdialog;
+  if (support.kdialogAvailable) {
+    const kdialog = await runCommandFolderPicker('kdialog', [
+      '--getexistingdirectory',
+      '/',
+      '--title',
+      'Select Renku storage folder',
+    ]);
+    if (kdialog.status === 'selected' || kdialog.status === 'cancelled') {
+      return kdialog;
+    }
+    failures.push(`kdialog: ${kdialog.reason}`);
+  } else {
+    failures.push('kdialog: kdialog is not installed.');
   }
-  failures.push(`kdialog: ${kdialog.reason}`);
 
   return {
     status: 'failed',
@@ -246,7 +435,7 @@ async function waitForPortalResponse(
 
     monitor.stdout.on('data', (chunk: Buffer) => {
       stdout += chunk.toString();
-      const parsed = parsePortalMonitorOutput(stdout);
+      const parsed = parsePortalMonitorOutput(stdout, { final: false });
       if (parsed) {
         finish(parsed);
       }
@@ -276,7 +465,7 @@ async function waitForPortalResponse(
         return;
       }
 
-      const parsed = parsePortalMonitorOutput(stdout);
+      const parsed = parsePortalMonitorOutput(stdout, { final: true });
       if (parsed) {
         finish(parsed);
         return;
@@ -296,15 +485,23 @@ async function waitForPortalResponse(
   });
 }
 
-function parsePortalMonitorOutput(output: string): FolderPickerResult | null {
-  const responseMatch = /Response\s+\(uint32\s+(\d+),\s+\{([\s\S]*?)\}\)/m.exec(
-    output
-  );
-  if (!responseMatch) {
+interface ParsePortalMonitorOptions {
+  final: boolean;
+}
+
+function parsePortalMonitorOutput(
+  output: string,
+  options: ParsePortalMonitorOptions
+): FolderPickerResult | null {
+  if (!hasPortalResponseSignal(output)) {
     return null;
   }
 
-  const responseCode = Number.parseInt(responseMatch[1] ?? '', 10);
+  const responseCode = parsePortalResponseCode(output);
+  if (responseCode === null) {
+    return null;
+  }
+
   if (Number.isNaN(responseCode)) {
     return {
       status: 'failed',
@@ -323,9 +520,12 @@ function parsePortalMonitorOutput(output: string): FolderPickerResult | null {
     };
   }
 
-  const responseBody = responseMatch[2] ?? '';
-  const fileUriMatch = /file:\/\/[^'"\]\s,>]+/.exec(responseBody);
+  const fileUriMatch = /file:\/\/[^'"\]\s,>]+/.exec(output);
   if (!fileUriMatch || !fileUriMatch[0]) {
+    if (!options.final) {
+      return null;
+    }
+
     return {
       status: 'failed',
       reason: 'xdg-desktop-portal did not return a selected folder path.',
@@ -346,6 +546,33 @@ function parsePortalMonitorOutput(output: string): FolderPickerResult | null {
           : 'Failed to parse xdg-desktop-portal folder URI.',
     };
   }
+}
+
+function hasPortalResponseSignal(output: string): boolean {
+  return (
+    output.includes('member=Response') ||
+    output.includes('org.freedesktop.portal.Request.Response')
+  );
+}
+
+function parsePortalResponseCode(output: string): number | null {
+  const inlineMatch = /Response\s*\(\s*uint32\s+(\d+)/m.exec(output);
+  if (inlineMatch && inlineMatch[1]) {
+    return Number.parseInt(inlineMatch[1], 10);
+  }
+
+  const memberIndex = output.lastIndexOf('member=Response');
+  if (memberIndex < 0) {
+    return null;
+  }
+
+  const memberSection = output.slice(memberIndex);
+  const multilineMatch = /\n\s*uint32\s+(\d+)/m.exec(memberSection);
+  if (!multilineMatch || !multilineMatch[1]) {
+    return null;
+  }
+
+  return Number.parseInt(multilineMatch[1], 10);
 }
 
 async function runCommandCapture(
@@ -622,6 +849,13 @@ export async function handleOnboardingEndpoint(
         return respondMethodNotAllowed(res);
       }
       return handleBrowseFolder(req, res);
+    }
+
+    case 'browse-folder-support': {
+      if (req.method !== 'GET') {
+        return respondMethodNotAllowed(res);
+      }
+      return handleBrowseFolderSupport(req, res);
     }
 
     case 'setup': {

@@ -23,7 +23,11 @@ import {
 } from '@/components/ui/dialog';
 import { PropertyRow } from '@/components/blueprint/shared/property-row';
 import { cn } from '@/lib/utils';
-import { browseFolder } from '@/data/onboarding-client';
+import {
+  browseFolder,
+  getBrowseFolderSupport,
+  type BrowseFolderSupport,
+} from '@/data/onboarding-client';
 import {
   fetchViewerSettings,
   updateViewerApiTokens,
@@ -129,6 +133,8 @@ export function SettingsPage() {
   ] = useState(false);
   const [isBrowsingDialogStorageRoot, setIsBrowsingDialogStorageRoot] =
     useState(false);
+  const [browseFolderSupport, setBrowseFolderSupport] =
+    useState<BrowseFolderSupport | null>(null);
 
   const [apiTokensDraft, setApiTokensDraft] =
     useState<SettingsApiTokens>(EMPTY_TOKENS);
@@ -211,6 +217,35 @@ export function SettingsPage() {
       window.clearTimeout(timeout);
     };
   }, [concurrencyFeedback]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    async function loadBrowseFolderSupport() {
+      try {
+        const support = await getBrowseFolderSupport();
+        if (!disposed) {
+          setBrowseFolderSupport(support);
+        }
+      } catch (error) {
+        if (!disposed) {
+          setBrowseFolderSupport({
+            supported: false,
+            reason:
+              error instanceof Error
+                ? error.message
+                : 'Native folder picker support check failed.',
+          });
+        }
+      }
+    }
+
+    void loadBrowseFolderSupport();
+
+    return () => {
+      disposed = true;
+    };
+  }, []);
 
   const persistConcurrency = useCallback(
     async (targetConcurrency: number, requestId: number): Promise<void> => {
@@ -444,7 +479,7 @@ export function SettingsPage() {
 
       <main className='flex-1 min-h-0 flex'>
         <div className='w-full max-w-[1080px] mx-auto min-h-0 flex flex-col'>
-          <section className='flex-1 min-h-0 bg-sidebar-bg rounded-[var(--radius-panel)] border border-panel-border overflow-hidden flex flex-col'>
+          <section className='flex-1 min-h-0 bg-sidebar-bg rounded-(--radius-panel) border border-panel-border overflow-hidden flex flex-col'>
             {isLoading && (
               <div className='flex-1 min-h-0 flex items-center justify-center text-sm text-muted-foreground gap-2'>
                 <Loader2 className='w-4 h-4 animate-spin' />
@@ -744,20 +779,30 @@ export function SettingsPage() {
                   placeholder='/Users/you/Renku'
                   className='h-9 font-mono text-sm bg-background/35'
                 />
-                <Button
-                  variant='outline'
-                  className='h-9 shrink-0'
-                  onClick={() => void handleBrowseDialogStorageRoot()}
-                  disabled={isBrowsingDialogStorageRoot || isSavingStorageRoot}
-                >
-                  {isBrowsingDialogStorageRoot ? (
-                    <Loader2 className='w-4 h-4 animate-spin' />
-                  ) : (
-                    <FolderOpen className='w-4 h-4' />
-                  )}
-                  <span className='ml-1.5'>Select Folder</span>
-                </Button>
+                {browseFolderSupport?.supported && (
+                  <Button
+                    variant='outline'
+                    className='h-9 shrink-0'
+                    onClick={() => void handleBrowseDialogStorageRoot()}
+                    disabled={
+                      isBrowsingDialogStorageRoot || isSavingStorageRoot
+                    }
+                  >
+                    {isBrowsingDialogStorageRoot ? (
+                      <Loader2 className='w-4 h-4 animate-spin' />
+                    ) : (
+                      <FolderOpen className='w-4 h-4' />
+                    )}
+                    <span className='ml-1.5'>Select Folder</span>
+                  </Button>
+                )}
               </div>
+              {browseFolderSupport && !browseFolderSupport.supported && (
+                <p className='text-xs text-muted-foreground'>
+                  Native folder picker is unavailable on this system. Enter the
+                  path manually.
+                </p>
+              )}
             </div>
 
             <div className='rounded-lg border border-border/40 bg-panel-bg px-4 py-3 flex items-center justify-between gap-4'>

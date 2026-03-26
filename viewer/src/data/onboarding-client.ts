@@ -10,6 +10,11 @@ export interface BrowseFolderResult {
   path: string | null;
 }
 
+export interface BrowseFolderSupport {
+  supported: boolean;
+  reason?: string;
+}
+
 interface OnboardingErrorPayload {
   error?: string;
 }
@@ -60,6 +65,14 @@ export async function browseFolder(): Promise<BrowseFolderResult> {
     throw new Error(await readOnboardingError(response));
   }
   return response.json() as Promise<BrowseFolderResult>;
+}
+
+export async function getBrowseFolderSupport(): Promise<BrowseFolderSupport> {
+  const response = await fetch('/viewer-api/onboarding/browse-folder-support');
+  if (!response.ok) {
+    throw new Error(await readOnboardingError(response));
+  }
+  return response.json() as Promise<BrowseFolderSupport>;
 }
 
 export async function setupOnboarding(

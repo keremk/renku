@@ -1,8 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FolderOpen, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { browseFolder } from '@/data/onboarding-client';
+import {
+  browseFolder,
+  getBrowseFolderSupport,
+  type BrowseFolderSupport,
+} from '@/data/onboarding-client';
 
 interface StepStorageProps {
   value: string;
@@ -12,6 +16,37 @@ interface StepStorageProps {
 export function StepStorage({ value, onChange }: StepStorageProps) {
   const [isBrowsing, setIsBrowsing] = useState(false);
   const [browseError, setBrowseError] = useState<string | null>(null);
+  const [browseSupport, setBrowseSupport] =
+    useState<BrowseFolderSupport | null>(null);
+
+  useEffect(() => {
+    let disposed = false;
+
+    async function loadBrowseSupport() {
+      try {
+        const support = await getBrowseFolderSupport();
+        if (!disposed) {
+          setBrowseSupport(support);
+        }
+      } catch (error) {
+        if (!disposed) {
+          setBrowseSupport({
+            supported: false,
+            reason:
+              error instanceof Error
+                ? error.message
+                : 'Native folder picker support check failed.',
+          });
+        }
+      }
+    }
+
+    void loadBrowseSupport();
+
+    return () => {
+      disposed = true;
+    };
+  }, []);
 
   async function handleBrowse() {
     setIsBrowsing(true);
@@ -47,22 +82,31 @@ export function StepStorage({ value, onChange }: StepStorageProps) {
             placeholder='/Users/you/renku-workspace'
             className='h-9 flex-1 font-mono text-sm'
           />
-          <Button
-            variant='outline'
-            size='sm'
-            className='h-9 shrink-0'
-            onClick={() => void handleBrowse()}
-            disabled={isBrowsing}
-          >
-            {isBrowsing ? (
-              <Loader2 className='w-4 h-4 animate-spin' />
-            ) : (
-              <FolderOpen className='w-4 h-4' />
-            )}
-            <span className='ml-1.5'>Browse...</span>
-          </Button>
+          {browseSupport?.supported && (
+            <Button
+              variant='outline'
+              size='sm'
+              className='h-9 shrink-0'
+              onClick={() => void handleBrowse()}
+              disabled={isBrowsing}
+            >
+              {isBrowsing ? (
+                <Loader2 className='w-4 h-4 animate-spin' />
+              ) : (
+                <FolderOpen className='w-4 h-4' />
+              )}
+              <span className='ml-1.5'>Browse...</span>
+            </Button>
+          )}
         </div>
       </div>
+
+      {browseSupport && !browseSupport.supported && (
+        <p className='text-xs text-muted-foreground'>
+          Native folder picker is unavailable on this system. Enter the path
+          manually.
+        </p>
+      )}
 
       {browseError && (
         <p className='text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded-md p-2'>
