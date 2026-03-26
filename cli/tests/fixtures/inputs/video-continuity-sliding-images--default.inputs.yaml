@@ -6,9 +6,9 @@ inputs:
   Audience: 'Adult'
   Language: 'en'
   Style: 'Illustrated sci-fi field notes'
-  AspectRatio: '16:9'
-  Resolution: '720p'
-  Size: '1K'
+  Resolution:
+    width: 1280
+    height: 720
   VoiceId: 'Wise_Woman'
   Emotion: neutral
 

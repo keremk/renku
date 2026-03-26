@@ -23,13 +23,9 @@ inputs:
     description: Style hint fed into the video prompt generator.
     type: string
     required: true
-  - name: AspectRatio
-    description: Aspect ratio for generated video clips (e.g., 16:9).
-    type: string
-    required: true
   - name: Resolution
-    description: Target resolution (480p, 720p, 1080p) for generated videos.
-    type: string
+    description: Target resolution as width/height pixel dimensions for generated videos.
+    type: resolution
     required: true
   - name: VoiceId
     description: Voice identifier used for narration.
@@ -118,8 +114,6 @@ connections:
 
   - from: VideoPromptProducer.VideoPrompt[segment]
     to: VideoProducer[segment].Prompt
-  - from: AspectRatio
-    to: VideoProducer[segment].AspectRatio
   - from: Resolution
     to: VideoProducer[segment].Resolution
   - from: SegmentDuration

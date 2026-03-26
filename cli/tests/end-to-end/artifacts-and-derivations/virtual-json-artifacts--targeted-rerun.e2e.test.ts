@@ -283,8 +283,7 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 					NumOfSegments: 2,
 					NumOfImagesPerSegment: 2,
 					Style: 'Photorealistic documentary style',
-					AspectRatio: '16:9',
-					Size: '1K',
+					Resolution: { width: 1280, height: 720 },
 					// Override virtual artifact: Segments[0].ImagePrompts[0]
 					'DocProducer.VideoScript.Segments[0].ImagePrompts[0]': `file:${overridePromptPath}`,
 				},
@@ -298,7 +297,6 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 						model: 'bytedance/seedream-4',
 						provider: 'replicate',
 						producerId: 'ImageProducer',
-						inputs: { Prompt: 'prompt', AspectRatio: 'aspect_ratio' },
 					},
 					{
 						model: 'timeline/ordered',
@@ -489,8 +487,7 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 					NumOfSegments: 2,
 					NumOfImagesPerSegment: 2,
 					Style: 'Photorealistic documentary style',
-					AspectRatio: '16:9',
-					Size: '1K',
+					Resolution: { width: 1280, height: 720 },
 					// Override DIFFERENT virtual artifact: Segments[1].ImagePrompts[1]
 					'DocProducer.VideoScript.Segments[1].ImagePrompts[1]': `file:${overridePromptPath}`,
 				},
@@ -504,7 +501,6 @@ describe('end-to-end: JSON virtual artifact blueprint', () => {
 						model: 'bytedance/seedream-4',
 						provider: 'replicate',
 						producerId: 'ImageProducer',
-						inputs: { Prompt: 'prompt', AspectRatio: 'aspect_ratio' },
 					},
 					{
 						model: 'timeline/ordered',

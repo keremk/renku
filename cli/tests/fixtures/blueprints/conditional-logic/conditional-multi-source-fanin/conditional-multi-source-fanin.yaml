@@ -20,11 +20,8 @@ inputs:
   - name: TransitionDuration
     type: int
     required: true
-  - name: AspectRatio
-    type: string
-    required: true
   - name: Resolution
-    type: string
+    type: resolution
     required: true
 
 artifacts:
@@ -70,8 +67,6 @@ connections:
     to: MeetingVideoProducer[character].Prompt
   - from: MeetingDuration
     to: MeetingVideoProducer[character].Duration
-  - from: AspectRatio
-    to: MeetingVideoProducer[character].AspectRatio
   - from: Resolution
     to: MeetingVideoProducer[character].Resolution
 
@@ -80,9 +75,6 @@ connections:
     if: hasTransition
   - from: TransitionDuration
     to: TransitionVideoProducer[character].Duration
-    if: hasTransition
-  - from: AspectRatio
-    to: TransitionVideoProducer[character].AspectRatio
     if: hasTransition
   - from: Resolution
     to: TransitionVideoProducer[character].Resolution

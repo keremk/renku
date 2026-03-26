@@ -24,17 +24,9 @@ inputs:
     type: string
     required: true
   - name: Resolution
-    description: The video resolution in 480p, 720p, 1080p
-    type: string
+    description: Video and image resolution as width/height pixel dimensions.
+    type: resolution
     required: true
-  - name: AspectRatio
-    description: Aspect ratio such as 16:9 or 3:2.
-    type: string
-    required: true
-  - name: Size
-    description: Enumerated values such as 1K, 2K, 4K, or custom describing the image size to use.
-    type: string
-    required: false
   - name: VoiceId
     description: The voice identifier to feed into audio generation.
     type: string
@@ -96,10 +88,8 @@ connections:
 
   - from: FlowVideoPromptProducer.ImagePrompts[image]
     to: ImageProducer[image].Prompt
-  - from: Size
+  - from: Resolution
     to: ImageProducer[image].Resolution
-  - from: AspectRatio
-    to: ImageProducer[image].AspectRatio
 
   - from: FlowVideoPromptProducer.VideoPrompts[segment]
     to: ImageToVideoProducer[segment].Prompt
@@ -107,8 +97,6 @@ connections:
     to: ImageToVideoProducer[segment].StartImage
   - from: ImageProducer[image+1].GeneratedImage
     to: ImageToVideoProducer[segment].EndImage
-  - from: AspectRatio
-    to: ImageToVideoProducer[segment].AspectRatio
   - from: Resolution
     to: ImageToVideoProducer[segment].Resolution
   - from: SegmentDuration

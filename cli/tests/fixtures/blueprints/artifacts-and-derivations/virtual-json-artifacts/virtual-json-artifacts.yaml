@@ -19,13 +19,9 @@ inputs:
     description: Image style description.
     type: string
     required: true
-  - name: AspectRatio
-    description: Image aspect ratio.
-    type: string
-    required: false
-  - name: Size
-    description: Image resolution (1K, 2K, 4K).
-    type: string
+  - name: Resolution
+    description: Image resolution as width/height pixel dimensions.
+    type: resolution
     required: false
 
 artifacts:
@@ -69,9 +65,7 @@ connections:
   # Wire JSON virtual artifacts to ImageProducer
   - from: DocProducer.VideoScript.Segments[segment].ImagePrompts[image]
     to: ImageProducer[segment][image].Prompt
-  - from: AspectRatio
-    to: ImageProducer[segment][image].AspectRatio
-  - from: Size
+  - from: Resolution
     to: ImageProducer[segment][image].Resolution
 
   # Wire ImageProducer outputs to TimelineComposer

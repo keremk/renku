@@ -5,9 +5,9 @@ inputs:
   Duration: 40
   SegmentDuration: 10
   VoiceId: Wise_Woman
-  AspectRatio: '16:9'
-  Resolution: '480p'
-  Size: '1K'
+  Resolution:
+    width: 1280
+    height: 720
   Style: 'Ghibli'
 
 models:
@@ -28,8 +28,8 @@ models:
     producerId: TimelineComposer
     config:
       timeline:
-        tracks: ["Image", "Audio", "Video", "Transcription"]
-        masterTracks: ["Audio", "Video"]
+        tracks: ['Image', 'Audio', 'Video', 'Transcription']
+        masterTracks: ['Audio', 'Video']
         numTracks: 4
         imageClip:
           artifact: ImageSegments[Image]

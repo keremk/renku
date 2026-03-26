@@ -3,12 +3,13 @@ inputs:
   Duration: 20
   NumOfSegments: 2
   NumOfImagesPerNarrative: 3
-  Style: "Illustrated sci-fi field notes"
-  Size: "1K"
-  AspectRatio: "16:9"
-  Audience: "Adult"
-  Language: "en"
-  VoiceId: "Wise_Woman"
+  Style: 'Illustrated sci-fi field notes'
+  Resolution:
+    width: 1280
+    height: 720
+  Audience: 'Adult'
+  Language: 'en'
+  VoiceId: 'Wise_Woman'
   Emotion: neutral
 
 models:
@@ -31,8 +32,8 @@ models:
     producerId: TimelineComposer
     config:
       timeline:
-        tracks: ["Image", "Audio"]
-        masterTracks: ["Audio"]
+        tracks: ['Image', 'Audio']
+        masterTracks: ['Audio']
         numTracks: 2
         imageClip:
           artifact: ImageSegments[Image]

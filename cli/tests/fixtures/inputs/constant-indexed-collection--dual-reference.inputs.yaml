@@ -1,10 +1,11 @@
 inputs:
-  CharacterPrompt: "A young professional woman in stylish casual attire"
-  ProductPrompt: "Premium wireless headphones with leather cushions"
-  VideoPrompt: "Professional woman using headphones in a modern office"
+  CharacterPrompt: 'A young professional woman in stylish casual attire'
+  ProductPrompt: 'Premium wireless headphones with leather cushions'
+  VideoPrompt: 'Professional woman using headphones in a modern office'
   NumOfClips: 2
-  AspectRatio: "16:9"
-  Resolution: "720p"
+  Resolution:
+    width: 1280
+    height: 720
 
 models:
   - model: bytedance/seedream/v4.5/text-to-image

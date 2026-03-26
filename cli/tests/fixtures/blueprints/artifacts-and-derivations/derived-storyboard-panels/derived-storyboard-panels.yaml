@@ -19,10 +19,10 @@ inputs:
     description: Number of panels in the grid.
     type: integer
     required: true
-  - name: AspectRatio
-    description: Aspect ratio for the image.
-    type: string
-    default: '16:9'
+  - name: Resolution
+    description: Resolution for the image as width/height pixel dimensions.
+    type: resolution
+    required: true
 
 artifacts:
   - name: StoryboardImage
@@ -51,8 +51,8 @@ connections:
     to: ImageGenerator.GridStyle
   - from: PanelCount
     to: ImageGenerator.PanelCount
-  - from: AspectRatio
-    to: ImageGenerator.AspectRatio
+  - from: Resolution
+    to: ImageGenerator.Resolution
 
   # Output the primary image
   - from: ImageGenerator.GeneratedImage

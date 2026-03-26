@@ -21,13 +21,9 @@ inputs:
     description: Number of video clips to generate.
     type: int
     required: true
-  - name: AspectRatio
-    description: Aspect ratio for generated media.
-    type: string
-    required: true
   - name: Resolution
     description: Resolution for generated media.
-    type: string
+    type: resolution
     required: true
 
 artifacts:
@@ -61,8 +57,6 @@ connections:
   # === CharacterImageProducer inputs ===
   - from: CharacterPrompt
     to: CharacterImageProducer.Prompt
-  - from: AspectRatio
-    to: CharacterImageProducer.AspectRatio
   - from: Resolution
     to: CharacterImageProducer.Resolution
 
@@ -73,8 +67,6 @@ connections:
   # === ProductImageProducer inputs ===
   - from: ProductPrompt
     to: ProductImageProducer.Prompt
-  - from: AspectRatio
-    to: ProductImageProducer.AspectRatio
   - from: Resolution
     to: ProductImageProducer.Resolution
 
@@ -92,8 +84,6 @@ connections:
     to: VideoProducer[clip].ReferenceImages[1]
   - from: VideoPrompt
     to: VideoProducer[clip].Prompt
-  - from: AspectRatio
-    to: VideoProducer[clip].AspectRatio
   - from: Resolution
     to: VideoProducer[clip].Resolution
 

@@ -118,6 +118,6 @@ describe('InputsPanel array input rendering', () => {
 
     expect(screen.getByText('Other Inputs')).toBeTruthy();
     expect(screen.getByLabelText('Resolution width')).toBeTruthy();
-    expect(screen.getByLabelText('Resolution height')).toBeTruthy();
+    expect(screen.getByLabelText('Resolution height value')).toBeTruthy();
   });
 });

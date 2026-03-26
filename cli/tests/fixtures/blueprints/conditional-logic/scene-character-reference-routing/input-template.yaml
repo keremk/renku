@@ -3,8 +3,9 @@ inputs:
   CharacterVisualStyle: 'stylized animated adventure'
   NumOfCharacters: 3
   NumOfScenes: 3
-  AspectRatio: '16:9'
-  Resolution: '720p'
+  Resolution:
+    width: 1280
+    height: 720
 
 models:
   - model: gpt-5.2

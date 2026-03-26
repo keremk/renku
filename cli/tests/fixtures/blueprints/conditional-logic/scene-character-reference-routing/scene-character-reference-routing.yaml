@@ -21,13 +21,9 @@ inputs:
     description: Number of scenes to generate.
     type: int
     required: true
-  - name: AspectRatio
-    description: Aspect ratio for generated media.
-    type: string
-    required: true
   - name: Resolution
     description: Resolution for generated media.
-    type: string
+    type: resolution
     required: true
 
 artifacts:
@@ -75,16 +71,14 @@ connections:
 
   - from: StoryProducer.Storyboard.CharacterImagePrompts[character]
     to: CharacterImageProducer[character].Prompt
-  - from: AspectRatio
-    to: CharacterImageProducer[character].AspectRatio
+  - from: Resolution
+    to: CharacterImageProducer[character].Resolution
 
   - from: StoryProducer.Storyboard.Scenes[scene].VideoPrompt
     to: SceneVideoProducer[scene].Prompt
   - from: CharacterImageProducer[character].GeneratedImage
     to: SceneVideoProducer[scene].ReferenceImages[character]
     if: characterInScene
-  - from: AspectRatio
-    to: SceneVideoProducer[scene].AspectRatio
   - from: Resolution
     to: SceneVideoProducer[scene].Resolution
 

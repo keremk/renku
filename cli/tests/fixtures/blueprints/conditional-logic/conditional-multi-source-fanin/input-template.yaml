@@ -4,8 +4,9 @@ inputs:
   Duration: 45
   MeetingDuration: 10
   TransitionDuration: 5
-  AspectRatio: '16:9'
-  Resolution: '480p'
+  Resolution:
+    width: 1280
+    height: 720
 
 models:
   - model: gpt-5-mini

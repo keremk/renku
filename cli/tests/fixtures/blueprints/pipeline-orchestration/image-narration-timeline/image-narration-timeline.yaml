@@ -19,13 +19,9 @@ inputs:
     description: Text describing the image style to be used.
     type: string
     required: true
-  - name: Size
-    description: Enumerated values such as 1K, 2K, 4K, or custom describing the image size to use.
-    type: string
-    required: false
-  - name: AspectRatio
-    description: Enumerated values (1:1, 4:3, 3:4, 16:9, 9:16, 3:2, 2:3, 21:9, match_input_image).
-    type: string
+  - name: Resolution
+    description: Image resolution as width/height pixel dimensions.
+    type: resolution
     required: false
   - name: Audience
     description: The target audience for the movie (e.g., children, adults, experts).
@@ -106,10 +102,8 @@ connections:
 
   - from: ImagePromptProducer.ImagePrompt[segment][image]
     to: ImageProducer[segment][image].Prompt
-  - from: Size
+  - from: Resolution
     to: ImageProducer[segment][image].Resolution
-  - from: AspectRatio
-    to: ImageProducer[segment][image].AspectRatio
   - from: ImageProducer[segment][image].GeneratedImage
     to: SegmentImage[segment][image]
   - from: ImageProducer[segment][image].GeneratedImage

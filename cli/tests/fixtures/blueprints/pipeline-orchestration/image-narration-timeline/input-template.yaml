@@ -4,8 +4,9 @@ inputs:
   NumOfSegments: 2
   NumOfImagesPerNarrative: 1
   Style: 'Ghibli'
-  Size: '1K'
-  AspectRatio: '16:9'
+  Resolution:
+    width: 1280
+    height: 720
   Audience: 'Adult'
   VoiceId: 'Wise_Woman'
   Emotion: neutral

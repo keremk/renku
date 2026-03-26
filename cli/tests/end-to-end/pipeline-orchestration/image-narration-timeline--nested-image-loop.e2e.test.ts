@@ -2,132 +2,194 @@ import { resolve } from 'node:path';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { runExecute, formatMovieId } from '../../../src/commands/execute.js';
 import {
-  createLoggerRecorder,
-  expectFileExists,
-  findJob,
-  readPlan,
-  setupTempCliConfig,
+	createLoggerRecorder,
+	expectFileExists,
+	findJob,
+	readPlan,
+	setupTempCliConfig,
 } from '../helpers.js';
-import { CLI_FIXTURES_BLUEPRINTS, CLI_FIXTURES_INPUTS } from '../../test-catalog-paths.js';
+import {
+	CLI_FIXTURES_BLUEPRINTS,
+	CLI_FIXTURES_INPUTS,
+} from '../../test-catalog-paths.js';
 
 describe('end-to-end: image-audio dry runs', () => {
-  let tempRoot = '';
-  let restoreEnv: () => void = () => {};
+	let tempRoot = '';
+	let restoreEnv: () => void = () => {};
 
-  beforeEach(async () => {
-    const config = await setupTempCliConfig();
-    tempRoot = config.tempRoot;
-    restoreEnv = config.restoreEnv;
-  });
+	beforeEach(async () => {
+		const config = await setupTempCliConfig();
+		tempRoot = config.tempRoot;
+		restoreEnv = config.restoreEnv;
+	});
 
-  afterEach(() => {
-    restoreEnv();
-  });
+	afterEach(() => {
+		restoreEnv();
+	});
 
-  it('runs image/audio dry-run with three images per narration', async () => {
-    const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'pipeline-orchestration', 'image-narration-timeline', 'image-narration-timeline.yaml');
-    const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'image-narration-timeline--three-images.inputs.yaml');
+	it('runs image/audio dry-run with three images per narration', async () => {
+		const blueprintPath = resolve(
+			CLI_FIXTURES_BLUEPRINTS,
+			'pipeline-orchestration',
+			'image-narration-timeline',
+			'image-narration-timeline.yaml'
+		);
+		const inputsPath = resolve(
+			CLI_FIXTURES_INPUTS,
+			'image-narration-timeline--three-images.inputs.yaml'
+		);
 
-    const { logger, warnings, errors } = createLoggerRecorder();
-    const movieId = 'e2e-image';
-    const storageMovieId = formatMovieId(movieId);
+		const { logger, warnings, errors } = createLoggerRecorder();
+		const movieId = 'e2e-image';
+		const storageMovieId = formatMovieId(movieId);
 
-    const queryResult = await runExecute({
-      storageMovieId,
-      movieId,
-      isNew: true,
-      inputsPath,
-      blueprintSpecifier: blueprintPath,
-      dryRun: true,
-      nonInteractive: true,
-      logger,
-    });
+		const queryResult = await runExecute({
+			storageMovieId,
+			movieId,
+			isNew: true,
+			inputsPath,
+			blueprintSpecifier: blueprintPath,
+			dryRun: true,
+			nonInteractive: true,
+			logger,
+		});
 
-    if (queryResult.build?.status !== 'succeeded') {
-      throw new Error(`dryRun failed: ${JSON.stringify(queryResult.build, null, 2)}`);
-    }
-    expect(queryResult.build?.jobCount).toBe(12);
-    expect(queryResult.build?.counts.failed).toBe(0);
-    expect(queryResult.build?.jobs?.every((job) => job.status === 'succeeded')).toBe(true);
-    if (warnings.length > 0 || errors.length > 0) {
-      // eslint-disable-next-line no-console
-      console.error('warnings', warnings, 'errors', errors);
-    }
-    expect(warnings).toHaveLength(0);
-    expect(errors).toHaveLength(0);
-    await expectFileExists(queryResult.planPath);
-    await expectFileExists(queryResult.storagePath);
-    await expectFileExists(resolve(queryResult.storagePath, 'runs', `${queryResult.targetRevision}-plan.json`));
-    await expectFileExists(resolve(queryResult.storagePath, 'events', 'inputs.log'));
+		if (queryResult.build?.status !== 'succeeded') {
+			throw new Error(
+				`dryRun failed: ${JSON.stringify(queryResult.build, null, 2)}`
+			);
+		}
+		expect(queryResult.build?.jobCount).toBe(12);
+		expect(queryResult.build?.counts.failed).toBe(0);
+		expect(
+			queryResult.build?.jobs?.every((job) => job.status === 'succeeded')
+		).toBe(true);
+		if (warnings.length > 0 || errors.length > 0) {
+			// eslint-disable-next-line no-console
+			console.error('warnings', warnings, 'errors', errors);
+		}
+		expect(warnings).toHaveLength(0);
+		expect(errors).toHaveLength(0);
+		await expectFileExists(queryResult.planPath);
+		await expectFileExists(queryResult.storagePath);
+		await expectFileExists(
+			resolve(
+				queryResult.storagePath,
+				'runs',
+				`${queryResult.targetRevision}-plan.json`
+			)
+		);
+		await expectFileExists(
+			resolve(queryResult.storagePath, 'events', 'inputs.log')
+		);
 
-    const plan = await readPlan(queryResult.planPath);
+		const plan = await readPlan(queryResult.planPath);
 
-    const scriptJob = findJob(plan, 'ScriptProducer');
-    expect(scriptJob?.context?.inputBindings?.NumOfSegments).toBe('Input:NumOfSegments');
-    expect(scriptJob?.context?.inputBindings?.InquiryPrompt).toBe('Input:InquiryPrompt');
-    expect(scriptJob?.context?.inputBindings?.Language).toBe('Input:Language');
-    expect(scriptJob?.produces?.length).toBeGreaterThanOrEqual(3);
+		const scriptJob = findJob(plan, 'ScriptProducer');
+		expect(scriptJob?.context?.inputBindings?.NumOfSegments).toBe(
+			'Input:NumOfSegments'
+		);
+		expect(scriptJob?.context?.inputBindings?.InquiryPrompt).toBe(
+			'Input:InquiryPrompt'
+		);
+		expect(scriptJob?.context?.inputBindings?.Language).toBe('Input:Language');
+		expect(scriptJob?.produces?.length).toBeGreaterThanOrEqual(3);
 
-    const imagePromptJobs = plan.layers.flat().filter((job: any) => job.producer === 'ImagePromptProducer');
-    expect(imagePromptJobs).toHaveLength(2);
-    for (const job of imagePromptJobs) {
-      expect(job.context?.inputBindings?.NumOfImagesPerNarrative).toBe('Input:NumOfImagesPerNarrative');
-      expect(job.context?.inputBindings?.NarrativeText).toMatch(/^Artifact:ScriptProducer\.NarrationScript\[\d+]/);
-      expect(job.inputs.some((input: string) => input.startsWith('Artifact:ScriptProducer.NarrationScript'))).toBe(
-        true,
-      );
-    }
+		const imagePromptJobs = plan.layers
+			.flat()
+			.filter((job: any) => job.producer === 'ImagePromptProducer');
+		expect(imagePromptJobs).toHaveLength(2);
+		for (const job of imagePromptJobs) {
+			expect(job.context?.inputBindings?.NumOfImagesPerNarrative).toBe(
+				'Input:NumOfImagesPerNarrative'
+			);
+			expect(job.context?.inputBindings?.NarrativeText).toMatch(
+				/^Artifact:ScriptProducer\.NarrationScript\[\d+]/
+			);
+			expect(
+				job.inputs.some((input: string) =>
+					input.startsWith('Artifact:ScriptProducer.NarrationScript')
+				)
+			).toBe(true);
+		}
 
-    const imageJobs = plan.layers.flat().filter((job: any) => job.producer === 'ImageProducer');
-    expect(imageJobs).toHaveLength(6);
-    const firstImageJob = imageJobs.at(0);
-    expect(firstImageJob).toBeDefined();
-    if (!firstImageJob) {
-      throw new Error('ImageProducer job missing from plan');
-    }
-    expect(firstImageJob.context?.inputBindings?.Prompt).toMatch(
-      /^Artifact:ImagePromptProducer\.ImagePrompt\[\d+]\[\d+]/,
-    );
-    expect(firstImageJob.context?.inputBindings?.Size).toBe('Input:Size');
-    expect(firstImageJob.context?.inputBindings?.AspectRatio).toBe('Input:AspectRatio');
-    expect(
-      firstImageJob.inputs.some((input: string) => input.startsWith('Artifact:ImagePromptProducer.ImagePrompt')),
-    ).toBe(true);
-    expect(
-      firstImageJob.inputs.some((input: string) => input === 'Input:Size' || input === 'Input:AspectRatio'),
-    ).toBe(true);
+		const imageJobs = plan.layers
+			.flat()
+			.filter((job: any) => job.producer === 'ImageProducer');
+		expect(imageJobs).toHaveLength(6);
+		const firstImageJob = imageJobs.at(0);
+		expect(firstImageJob).toBeDefined();
+		if (!firstImageJob) {
+			throw new Error('ImageProducer job missing from plan');
+		}
+		expect(firstImageJob.context?.inputBindings?.Prompt).toMatch(
+			/^Artifact:ImagePromptProducer\.ImagePrompt\[\d+]\[\d+]/
+		);
+		expect(firstImageJob.context?.inputBindings?.Resolution).toBe(
+			'Input:Resolution'
+		);
+		expect(
+			firstImageJob.inputs.some((input: string) =>
+				input.startsWith('Artifact:ImagePromptProducer.ImagePrompt')
+			)
+		).toBe(true);
+		expect(firstImageJob.inputs).toContain('Input:Resolution');
 
-    const audioJobs = plan.layers.flat().filter((job: any) => job.producer === 'AudioProducer');
-    expect(audioJobs).toHaveLength(2);
-    const firstAudioJob = audioJobs.at(0);
-    expect(firstAudioJob).toBeDefined();
-    if (!firstAudioJob) {
-      throw new Error('AudioProducer job missing from plan');
-    }
-    expect(firstAudioJob.context?.inputBindings?.Text).toMatch(
-      /^Artifact:ScriptProducer\.NarrationScript\[\d+]/,
-    );
-    expect(firstAudioJob.inputs).toEqual(expect.arrayContaining(['Input:VoiceId', 'Input:Emotion']));
+		const audioJobs = plan.layers
+			.flat()
+			.filter((job: any) => job.producer === 'AudioProducer');
+		expect(audioJobs).toHaveLength(2);
+		const firstAudioJob = audioJobs.at(0);
+		expect(firstAudioJob).toBeDefined();
+		if (!firstAudioJob) {
+			throw new Error('AudioProducer job missing from plan');
+		}
+		expect(firstAudioJob.context?.inputBindings?.Text).toMatch(
+			/^Artifact:ScriptProducer\.NarrationScript\[\d+]/
+		);
+		expect(firstAudioJob.inputs).toEqual(
+			expect.arrayContaining(['Input:VoiceId', 'Input:Emotion'])
+		);
 
-    const timelineJob = findJob(plan, 'TimelineComposer');
-    expect(timelineJob).toBeDefined();
-    if (!timelineJob) {
-      throw new Error('TimelineComposer job missing from plan');
-    }
-    expect(timelineJob.inputs).toEqual(
-      expect.arrayContaining([
-        'Input:TimelineComposer.ImageSegments',
-        'Input:TimelineComposer.AudioSegments',
-        'Input:Duration',
-      ]),
-    );
-    expect(timelineJob.context?.fanIn?.['Input:TimelineComposer.ImageSegments']?.members?.length).toBe(6);
-    expect(timelineJob.context?.fanIn?.['Input:TimelineComposer.AudioSegments']?.members?.length).toBe(2);
-    const imageMembers = timelineJob.context?.fanIn?.['Input:TimelineComposer.ImageSegments']?.members ?? [];
-    expect(imageMembers.filter((member: any) => member.group === 0).map((m: any) => m.order)).toEqual([0, 1, 2]);
-    expect(imageMembers.filter((member: any) => member.group === 1).map((m: any) => m.order)).toEqual([0, 1, 2]);
-    const audioMembers = timelineJob.context?.fanIn?.['Input:TimelineComposer.AudioSegments']?.members ?? [];
-    expect(audioMembers.map((member: any) => member.group)).toEqual([0, 1]);
-    expect(timelineJob.context?.fanIn?.['Input:TimelineComposer.Music']).toBeUndefined();
-  });
+		const timelineJob = findJob(plan, 'TimelineComposer');
+		expect(timelineJob).toBeDefined();
+		if (!timelineJob) {
+			throw new Error('TimelineComposer job missing from plan');
+		}
+		expect(timelineJob.inputs).toEqual(
+			expect.arrayContaining([
+				'Input:TimelineComposer.ImageSegments',
+				'Input:TimelineComposer.AudioSegments',
+				'Input:Duration',
+			])
+		);
+		expect(
+			timelineJob.context?.fanIn?.['Input:TimelineComposer.ImageSegments']
+				?.members?.length
+		).toBe(6);
+		expect(
+			timelineJob.context?.fanIn?.['Input:TimelineComposer.AudioSegments']
+				?.members?.length
+		).toBe(2);
+		const imageMembers =
+			timelineJob.context?.fanIn?.['Input:TimelineComposer.ImageSegments']
+				?.members ?? [];
+		expect(
+			imageMembers
+				.filter((member: any) => member.group === 0)
+				.map((m: any) => m.order)
+		).toEqual([0, 1, 2]);
+		expect(
+			imageMembers
+				.filter((member: any) => member.group === 1)
+				.map((m: any) => m.order)
+		).toEqual([0, 1, 2]);
+		const audioMembers =
+			timelineJob.context?.fanIn?.['Input:TimelineComposer.AudioSegments']
+				?.members ?? [];
+		expect(audioMembers.map((member: any) => member.group)).toEqual([0, 1]);
+		expect(
+			timelineJob.context?.fanIn?.['Input:TimelineComposer.Music']
+		).toBeUndefined();
+	});
 });
