@@ -18,7 +18,10 @@ import {
   handleCancelRequest,
   sendMethodNotAllowed,
 } from './generation/index.js';
-import { handleOnboardingRequest } from './onboarding/index.js';
+import {
+  handleOnboardingRequest,
+  type OnboardingPickerOptions,
+} from './onboarding/index.js';
 import { handleSettingsRequest } from './settings/index.js';
 
 // Re-export shared types for backward compatibility
@@ -36,7 +39,7 @@ export type ViewerApiHandler = (
   res: ServerResponse
 ) => Promise<boolean>;
 
-export interface ViewerApiOptions {
+export interface ViewerApiOptions extends OnboardingPickerOptions {
   catalogPath?: string;
 }
 
@@ -78,7 +81,11 @@ export function createViewerApiHandler(
             res,
             url,
             segments.slice(1),
-            options.catalogPath
+            options.catalogPath,
+            {
+              isDesktopRuntime: options.isDesktopRuntime,
+              openDesktopFolderPicker: options.openDesktopFolderPicker,
+            }
           );
 
         case 'settings':

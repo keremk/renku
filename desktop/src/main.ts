@@ -130,6 +130,24 @@ async function startServer(rootFolder: string): Promise<ViewerServerInstance> {
     rootFolder,
     distPath: getResourcePath('viewer-dist'),
     catalogPath: getResourcePath('catalog'),
+    isDesktopRuntime: true,
+    openDesktopFolderPicker: async () => {
+      const result = await dialog.showOpenDialog({
+        title: 'Select Renku storage folder',
+        properties: ['openDirectory'],
+      });
+
+      if (result.canceled) {
+        return null;
+      }
+
+      const selectedPath = result.filePaths[0];
+      if (!selectedPath) {
+        return null;
+      }
+
+      return selectedPath;
+    },
     port: 0,
     log: (message: string) => {
       console.log(`[viewer-server] ${message}`);

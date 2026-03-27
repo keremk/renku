@@ -1,90 +1,146 @@
-import { describe, expect, it } from 'vitest';
-import { onboardingHandlerTestUtils } from './handler.js';
+import type { IncomingMessage } from 'node:http';
+import { describe, expect, it, vi } from 'vitest';
+import { createMockResponse } from '../generation/test-utils.js';
+import {
+  handleOnboardingEndpoint,
+  onboardingHandlerTestUtils,
+} from './handler.js';
 
-const {
-  parsePortalRequestPath,
-  parsePortalMonitorOutput,
-  parsePortalResponseCode,
-} = onboardingHandlerTestUtils;
+function createRequest(method: string): IncomingMessage {
+  return { method } as IncomingMessage;
+}
 
-describe('onboarding folder picker portal parsing', () => {
-  it('parses request object path from quoted gdbus output', () => {
-    const output =
-      "(objectpath '/org/freedesktop/portal/desktop/request/1_220/renkuabc123',)";
+describe('onboarding folder picker support matrix', () => {
+  it('uses desktop mode on Linux when running in desktop runtime', () => {
+    const strategy = onboardingHandlerTestUtils.resolveFolderPickerStrategy({
+      platform: 'linux',
+      isDesktopRuntime: true,
+      isWsl: false,
+    });
 
-    expect(parsePortalRequestPath(output)).toBe(
-      '/org/freedesktop/portal/desktop/request/1_220/renkuabc123'
+    expect(strategy).toEqual({ mode: 'desktop' });
+  });
+
+  it('uses macOS script mode outside desktop on macOS', () => {
+    const strategy = onboardingHandlerTestUtils.resolveFolderPickerStrategy({
+      platform: 'darwin',
+      isDesktopRuntime: false,
+      isWsl: false,
+    });
+
+    expect(strategy).toEqual({ mode: 'macos-script' });
+  });
+
+  it('disables picker outside desktop on Linux', () => {
+    const strategy = onboardingHandlerTestUtils.resolveFolderPickerStrategy({
+      platform: 'linux',
+      isDesktopRuntime: false,
+      isWsl: false,
+    });
+
+    expect(strategy).toEqual({
+      mode: 'unsupported',
+      reason:
+        'Native folder picker is available on Linux only in Renku Desktop. Enter the path manually.',
+    });
+  });
+
+  it('disables picker outside desktop on WSL', () => {
+    const strategy = onboardingHandlerTestUtils.resolveFolderPickerStrategy({
+      platform: 'linux',
+      isDesktopRuntime: false,
+      isWsl: true,
+    });
+
+    expect(strategy).toEqual({
+      mode: 'unsupported',
+      reason:
+        'Native folder picker is unavailable in WSL outside Renku Desktop. Enter the path manually.',
+    });
+  });
+
+  it('disables picker outside desktop on Windows', () => {
+    const strategy = onboardingHandlerTestUtils.resolveFolderPickerStrategy({
+      platform: 'win32',
+      isDesktopRuntime: false,
+      isWsl: false,
+    });
+
+    expect(strategy).toEqual({
+      mode: 'unsupported',
+      reason:
+        'Native folder picker is available on Windows only in Renku Desktop. Enter the path manually.',
+    });
+  });
+});
+
+describe('onboarding browse-folder endpoint with desktop picker bridge', () => {
+  it('returns selected path from desktop picker callback', async () => {
+    const req = createRequest('POST');
+    const res = createMockResponse();
+    const openDesktopFolderPicker = vi
+      .fn<() => Promise<string | null>>()
+      .mockResolvedValue('/tmp/renku-workspace');
+
+    const handled = await handleOnboardingEndpoint(
+      req,
+      res,
+      'browse-folder',
+      undefined,
+      {
+        isDesktopRuntime: true,
+        openDesktopFolderPicker,
+      }
     );
+
+    expect(handled).toBe(true);
+    expect(openDesktopFolderPicker).toHaveBeenCalledTimes(1);
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({ path: '/tmp/renku-workspace' });
   });
 
-  it('parses request object path from unquoted gdbus output', () => {
-    const output =
-      '(objectpath /org/freedesktop/portal/desktop/request/1_220/renkuabc123,)';
+  it('returns null path when desktop picker is cancelled', async () => {
+    const req = createRequest('POST');
+    const res = createMockResponse();
+    const openDesktopFolderPicker = vi
+      .fn<() => Promise<string | null>>()
+      .mockResolvedValue(null);
 
-    expect(parsePortalRequestPath(output)).toBe(
-      '/org/freedesktop/portal/desktop/request/1_220/renkuabc123'
+    const handled = await handleOnboardingEndpoint(
+      req,
+      res,
+      'browse-folder',
+      undefined,
+      {
+        isDesktopRuntime: true,
+        openDesktopFolderPicker,
+      }
     );
+
+    expect(handled).toBe(true);
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({ path: null });
   });
 
-  it('parses Arch-style compact Response signal with selected folder', () => {
-    const output = [
-      'Monitoring signals on object /org/freedesktop/portal/desktop/request/1_220/renkuabc123 owned by org.freedesktop.portal.Desktop',
-      'The name org.freedesktop.portal.Desktop is owned by :1.91',
-      "/org/freedesktop/portal/desktop/request/1_220/renkuabc123: org.freedesktop.portal.Request.Response (0, {'uris': <['file:///home/test-user/Renku%20Workspace']>})",
-    ].join('\n');
+  it('reports unsupported support state if desktop picker bridge is missing', async () => {
+    const req = createRequest('GET');
+    const res = createMockResponse();
 
-    expect(parsePortalResponseCode(output)).toBe(0);
-    expect(parsePortalMonitorOutput(output, { final: false })).toEqual({
-      status: 'selected',
-      path: '/home/test-user/Renku Workspace',
-    });
-  });
+    const handled = await handleOnboardingEndpoint(
+      req,
+      res,
+      'browse-folder-support',
+      undefined,
+      {
+        isDesktopRuntime: true,
+      }
+    );
 
-  it('parses cancellation from compact Response signal', () => {
-    const output =
-      '/org/freedesktop/portal/desktop/request/1_220/renkuabc123: org.freedesktop.portal.Request.Response (1, {})';
-
-    expect(parsePortalResponseCode(output)).toBe(1);
-    expect(parsePortalMonitorOutput(output, { final: false })).toEqual({
-      status: 'cancelled',
-    });
-  });
-
-  it('parses member=Response multiline output with selected folder', () => {
-    const output = [
-      'signal time=1774513368.104 sender=:1.89 -> destination=(null destination) serial=38 path=/org/freedesktop/portal/desktop/request/1_220/renkuabc123; interface=org.freedesktop.portal.Request; member=Response',
-      '   uint32 0',
-      '   array [',
-      '      dict entry(',
-      '         string "uris"',
-      '         variant             array [',
-      '               string "file:///home/test-user/renku-workspace"',
-      '            ]',
-      '      )',
-      '   ]',
-    ].join('\n');
-
-    expect(parsePortalResponseCode(output)).toBe(0);
-    expect(parsePortalMonitorOutput(output, { final: false })).toEqual({
-      status: 'selected',
-      path: '/home/test-user/renku-workspace',
-    });
-  });
-
-  it('keeps waiting for path when response is partial and final=false', () => {
-    const output =
-      '/org/freedesktop/portal/desktop/request/1_220/renkuabc123: org.freedesktop.portal.Request.Response (0, {})';
-
-    expect(parsePortalMonitorOutput(output, { final: false })).toBeNull();
-  });
-
-  it('fails when response has no path and final=true', () => {
-    const output =
-      '/org/freedesktop/portal/desktop/request/1_220/renkuabc123: org.freedesktop.portal.Request.Response (0, {})';
-
-    expect(parsePortalMonitorOutput(output, { final: true })).toEqual({
-      status: 'failed',
-      reason: 'xdg-desktop-portal did not return a selected folder path.',
+    expect(handled).toBe(true);
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({
+      supported: false,
+      reason: 'Desktop folder picker is not configured.',
     });
   });
 });

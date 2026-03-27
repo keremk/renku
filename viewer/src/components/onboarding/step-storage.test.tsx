@@ -2,8 +2,14 @@
  * @vitest-environment jsdom
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 
 const { browseFolderMock, getBrowseFolderSupportMock } = vi.hoisted(() => ({
   browseFolderMock: vi.fn(),
@@ -18,6 +24,10 @@ vi.mock('@/data/onboarding-client', () => ({
 import { StepStorage } from './step-storage';
 
 describe('StepStorage', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     getBrowseFolderSupportMock.mockResolvedValue({ supported: true });

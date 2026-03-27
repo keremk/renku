@@ -4,6 +4,7 @@
 
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -12,6 +13,7 @@ import {
   vi,
 } from 'vitest';
 import {
+  cleanup,
   fireEvent,
   render,
   screen,
@@ -86,6 +88,10 @@ const SETTINGS_SNAPSHOT = {
 const originalResizeObserver = globalThis.ResizeObserver;
 
 describe('SettingsPage storage location controls', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeAll(() => {
     class ResizeObserverMock {
       observe() {}
