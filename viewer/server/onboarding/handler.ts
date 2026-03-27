@@ -388,7 +388,7 @@ async function openFolderWithXdgDesktopPortal(): Promise<FolderPickerResult> {
 }
 
 function parsePortalRequestPath(output: string): string | null {
-  const match = /objectpath ['"]([^'"]+)['"]/.exec(output);
+  const match = /objectpath\s+['"]?([^'"\s,)]+)['"]?/.exec(output);
   return match?.[1] ?? null;
 }
 
@@ -556,24 +556,50 @@ function hasPortalResponseSignal(output: string): boolean {
 }
 
 function parsePortalResponseCode(output: string): number | null {
-  const inlineMatch = /Response\s*\(\s*uint32\s+(\d+)/m.exec(output);
+  const responseSection = getLatestPortalResponseSection(output);
+  if (!responseSection) {
+    return null;
+  }
+
+  const inlineMatch = /Response\s*\(\s*(?:uint32\s+)?(\d+)/m.exec(
+    responseSection
+  );
   if (inlineMatch && inlineMatch[1]) {
     return Number.parseInt(inlineMatch[1], 10);
   }
 
-  const memberIndex = output.lastIndexOf('member=Response');
-  if (memberIndex < 0) {
+  const memberMatch = /member=Response[\s\S]*?\n\s*(?:uint32\s+)?(\d+)/m.exec(
+    responseSection
+  );
+  if (!memberMatch || !memberMatch[1]) {
     return null;
   }
 
-  const memberSection = output.slice(memberIndex);
-  const multilineMatch = /\n\s*uint32\s+(\d+)/m.exec(memberSection);
-  if (!multilineMatch || !multilineMatch[1]) {
-    return null;
-  }
-
-  return Number.parseInt(multilineMatch[1], 10);
+  return Number.parseInt(memberMatch[1], 10);
 }
+
+function getLatestPortalResponseSection(output: string): string | null {
+  const memberIndex = output.lastIndexOf('member=Response');
+  const signalIndex = output.lastIndexOf(
+    'org.freedesktop.portal.Request.Response'
+  );
+  const responseIndex = Math.max(memberIndex, signalIndex);
+
+  if (responseIndex < 0) {
+    return null;
+  }
+
+  return output.slice(responseIndex);
+}
+
+/**
+ * @internal Exported for testing
+ */
+export const onboardingHandlerTestUtils = {
+  parsePortalRequestPath,
+  parsePortalMonitorOutput,
+  parsePortalResponseCode,
+};
 
 async function runCommandCapture(
   cmd: string,
