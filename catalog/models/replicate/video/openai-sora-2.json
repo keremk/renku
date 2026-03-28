@@ -1,80 +1,288 @@
 {
-  "type": "object",
-  "title": "Input",
-  "required": [
-    "prompt"
-  ],
-  "properties": {
-    "prompt": {
-      "type": "string",
-      "title": "Prompt",
-      "x-order": 1,
-      "description": "A text description of the video to generate"
-    },
-    "seconds": {
-      "enum": [
-        4,
-        8,
-        12
-      ],
-      "type": "integer",
-      "title": "seconds",
-      "description": "Duration of the video in seconds",
-      "default": 4,
-      "x-order": 3
-    },
-    "aspect_ratio": {
-      "enum": [
-        "portrait",
-        "landscape"
-      ],
-      "type": "string",
-      "title": "aspect_ratio",
-      "description": "Aspect ratio of the video. Portrait is 720x1280, landscape is 1280x720",
-      "default": "portrait",
-      "x-order": 4
-    },
-    "openai_api_key": {
-      "type": "string",
-      "title": "Openai Api Key",
-      "format": "password",
-      "x-order": 0,
-      "nullable": true,
-      "writeOnly": true,
-      "description": "Optional: Your OpenAI API key. If you use your own OpenAI API key, you will be charged directly by OpenAI.",
-      "x-cog-secret": true
-    },
-    "input_reference": {
-      "type": "string",
-      "title": "Input Reference",
-      "format": "uri",
-      "x-order": 2,
-      "nullable": true,
-      "description": "An optional image to use as the first frame of the video. The image must be the same aspect ratio as the video."
-    }
-  },
-  "x-renku-constraints": {
-    "fields": {
+  "input_schema": {
+    "type": "object",
+    "title": "Input",
+    "required": [
+      "prompt"
+    ],
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "x-order": 1,
+        "description": "A text description of the video to generate"
+      },
       "seconds": {
-        "enum": {
-          "values": [
-            4,
-            8,
-            12
-          ],
-          "source": "explicit",
-          "confidence": "high"
-        }
+        "allOf": [
+          {
+            "$ref": "#/seconds"
+          }
+        ],
+        "default": 4,
+        "x-order": 3,
+        "description": "Duration of the video in seconds"
       },
       "aspect_ratio": {
-        "enum": {
-          "values": [
-            "portrait",
-            "landscape"
-          ],
-          "source": "explicit",
-          "confidence": "high"
+        "allOf": [
+          {
+            "$ref": "#/aspect_ratio"
+          }
+        ],
+        "default": "portrait",
+        "x-order": 4,
+        "description": "Aspect ratio of the video. Portrait is 720x1280, landscape is 1280x720"
+      },
+      "openai_api_key": {
+        "type": "string",
+        "title": "Openai Api Key",
+        "format": "password",
+        "x-order": 0,
+        "nullable": true,
+        "writeOnly": true,
+        "description": "Optional: Your OpenAI API key. If you use your own OpenAI API key, you will be charged directly by OpenAI.",
+        "x-cog-secret": true
+      },
+      "input_reference": {
+        "type": "string",
+        "title": "Input Reference",
+        "format": "uri",
+        "x-order": 2,
+        "nullable": true,
+        "description": "An optional image to use as the first frame of the video. The image must be the same aspect ratio as the video."
+      }
+    },
+    "x-renku-constraints": {
+      "fields": {
+        "seconds": {
+          "enum": {
+            "values": [
+              4,
+              8,
+              12
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "portrait",
+              "landscape"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
         }
+      }
+    }
+  },
+  "output_schema": {
+    "type": "string",
+    "title": "Output",
+    "format": "uri"
+  },
+  "Status": {
+    "enum": [
+      "starting",
+      "processing",
+      "succeeded",
+      "canceled",
+      "failed"
+    ],
+    "type": "string",
+    "title": "Status",
+    "description": "An enumeration."
+  },
+  "seconds": {
+    "enum": [
+      4,
+      8,
+      12
+    ],
+    "type": "integer",
+    "title": "seconds",
+    "description": "An enumeration."
+  },
+  "WebhookEvent": {
+    "enum": [
+      "start",
+      "output",
+      "logs",
+      "completed"
+    ],
+    "type": "string",
+    "title": "WebhookEvent",
+    "description": "An enumeration."
+  },
+  "aspect_ratio": {
+    "enum": [
+      "portrait",
+      "landscape"
+    ],
+    "type": "string",
+    "title": "aspect_ratio",
+    "description": "An enumeration."
+  },
+  "ValidationError": {
+    "type": "object",
+    "title": "ValidationError",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "properties": {
+      "loc": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      }
+    }
+  },
+  "PredictionRequest": {
+    "type": "object",
+    "title": "PredictionRequest",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "context": {
+        "type": "object",
+        "title": "Context",
+        "nullable": true,
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "webhook": {
+        "type": "string",
+        "title": "Webhook",
+        "format": "uri",
+        "nullable": true,
+        "maxLength": 65536,
+        "minLength": 1
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "output_file_prefix": {
+        "type": "string",
+        "title": "Output File Prefix",
+        "nullable": true
+      },
+      "webhook_events_filter": {
+        "type": "array",
+        "items": {
+          "$ref": "#/WebhookEvent"
+        },
+        "default": [
+          "start",
+          "output",
+          "logs",
+          "completed"
+        ],
+        "nullable": true
+      }
+    }
+  },
+  "PredictionResponse": {
+    "type": "object",
+    "title": "PredictionResponse",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "logs": {
+        "type": "string",
+        "title": "Logs",
+        "default": ""
+      },
+      "error": {
+        "type": "string",
+        "title": "Error",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "output": {
+        "$ref": "#/Output"
+      },
+      "status": {
+        "$ref": "#/Status",
+        "nullable": true
+      },
+      "metrics": {
+        "type": "object",
+        "title": "Metrics",
+        "nullable": true,
+        "additionalProperties": true
+      },
+      "version": {
+        "type": "string",
+        "title": "Version",
+        "nullable": true
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "started_at": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "completed_at": {
+        "type": "string",
+        "title": "Completed At",
+        "format": "date-time",
+        "nullable": true
+      }
+    }
+  },
+  "HTTPValidationError": {
+    "type": "object",
+    "title": "HTTPValidationError",
+    "properties": {
+      "detail": {
+        "type": "array",
+        "items": {
+          "$ref": "#/ValidationError"
+        },
+        "title": "Detail"
       }
     }
   }

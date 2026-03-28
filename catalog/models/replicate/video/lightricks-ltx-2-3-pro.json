@@ -1,158 +1,460 @@
 {
-  "type": "object",
-  "title": "Input",
-  "required": [
-    "prompt"
-  ],
-  "properties": {
-    "fps": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/fps"
+  "fps": {
+    "enum": [
+      24,
+      25,
+      48,
+      50
+    ],
+    "type": "integer",
+    "title": "fps",
+    "description": "An enumeration."
+  },
+  "task": {
+    "enum": [
+      "text_to_video",
+      "image_to_video",
+      "audio_to_video",
+      "retake",
+      "extend"
+    ],
+    "type": "string",
+    "title": "task",
+    "description": "An enumeration."
+  },
+  "input_schema": {
+    "type": "object",
+    "title": "Input",
+    "required": [
+      "prompt"
+    ],
+    "properties": {
+      "fps": {
+        "allOf": [
+          {
+            "$ref": "#/fps"
+          }
+        ],
+        "default": 25,
+        "x-order": 9,
+        "description": "Frame rate in frames per second"
+      },
+      "task": {
+        "allOf": [
+          {
+            "$ref": "#/task"
+          }
+        ],
+        "default": "text_to_video",
+        "x-order": 0,
+        "description": "The generation task to perform"
+      },
+      "audio": {
+        "type": "string",
+        "title": "Audio",
+        "format": "uri",
+        "x-order": 4,
+        "description": "Input audio file for audio_to_video task"
+      },
+      "image": {
+        "type": "string",
+        "title": "Image",
+        "format": "uri",
+        "x-order": 2,
+        "description": "First frame image for image-to-video generation"
+      },
+      "video": {
+        "type": "string",
+        "title": "Video",
+        "format": "uri",
+        "x-order": 5,
+        "description": "Input video for retake or extend tasks"
+      },
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "x-order": 1,
+        "description": "Text prompt describing the video to generate"
+      },
+      "duration": {
+        "allOf": [
+          {
+            "$ref": "#/duration"
+          }
+        ],
+        "default": 6,
+        "x-order": 7,
+        "description": "Duration of the video in seconds"
+      },
+      "resolution": {
+        "allOf": [
+          {
+            "$ref": "#/resolution"
+          }
+        ],
+        "default": "1080p",
+        "x-order": 6,
+        "description": "Resolution quality of the generated video. Only 1080p is supported for audio_to_video, retake, and extend tasks."
+      },
+      "extend_mode": {
+        "allOf": [
+          {
+            "$ref": "#/extend_mode"
+          }
+        ],
+        "default": "end",
+        "x-order": 15,
+        "description": "Where to extend the video. Used for extend task."
+      },
+      "retake_mode": {
+        "allOf": [
+          {
+            "$ref": "#/retake_mode"
+          }
+        ],
+        "default": "replace_audio_and_video",
+        "x-order": 14,
+        "description": "What to replace in the retake section. Used for retake task."
+      },
+      "aspect_ratio": {
+        "allOf": [
+          {
+            "$ref": "#/aspect_ratio"
+          }
+        ],
+        "default": "16:9",
+        "x-order": 8,
+        "description": "Aspect ratio of the generated video"
+      },
+      "camera_motion": {
+        "allOf": [
+          {
+            "$ref": "#/camera_motion"
+          }
+        ],
+        "default": "none",
+        "x-order": 10,
+        "description": "Camera motion effect to apply to the generated video. Use 'none' for no camera motion."
+      },
+      "generate_audio": {
+        "type": "boolean",
+        "title": "Generate Audio",
+        "default": true,
+        "x-order": 11,
+        "description": "Generate audio for the video. Used for text_to_video and image_to_video tasks."
+      },
+      "retake_duration": {
+        "type": "number",
+        "title": "Retake Duration",
+        "default": 2,
+        "minimum": 2,
+        "x-order": 13,
+        "description": "Duration in seconds of the section to edit. Must be at least 2 seconds. Used for retake task."
+      },
+      "last_frame_image": {
+        "type": "string",
+        "title": "Last Frame Image",
+        "format": "uri",
+        "x-order": 3,
+        "description": "Last frame image for image-to-video generation. When provided, the video interpolates between the first frame and this last frame."
+      },
+      "retake_start_time": {
+        "type": "number",
+        "title": "Retake Start Time",
+        "default": 0,
+        "minimum": 0,
+        "x-order": 12,
+        "description": "Start time in seconds of the section to edit. Used for retake task."
+      }
+    },
+    "x-renku-constraints": {
+      "fields": {
+        "duration": {
+          "enum": {
+            "values": [
+              6,
+              8,
+              10
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "resolution": {
+          "enum": {
+            "values": [
+              "1080p",
+              "2k",
+              "4k"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "16:9",
+              "9:16"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
         }
-      ],
-      "default": 25,
-      "x-order": 9,
-      "description": "Frame rate in frames per second"
-    },
-    "task": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/task"
-        }
-      ],
-      "default": "text_to_video",
-      "x-order": 0,
-      "description": "The generation task to perform"
-    },
-    "audio": {
-      "type": "string",
-      "title": "Audio",
-      "format": "uri",
-      "x-order": 4,
-      "description": "Input audio file for audio_to_video task"
-    },
-    "image": {
-      "type": "string",
-      "title": "Image",
-      "format": "uri",
-      "x-order": 2,
-      "description": "First frame image for image-to-video generation"
-    },
-    "video": {
-      "type": "string",
-      "title": "Video",
-      "format": "uri",
-      "x-order": 5,
-      "description": "Input video for retake or extend tasks"
-    },
-    "prompt": {
-      "type": "string",
-      "title": "Prompt",
-      "x-order": 1,
-      "description": "Text prompt describing the video to generate"
-    },
-    "duration": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/duration"
-        }
-      ],
-      "default": 6,
-      "x-order": 7,
-      "description": "Duration of the video in seconds"
-    },
-    "resolution": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/resolution"
-        }
-      ],
-      "default": "1080p",
-      "x-order": 6,
-      "description": "Resolution quality of the generated video. Only 1080p is supported for audio_to_video, retake, and extend tasks."
-    },
-    "extend_mode": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/extend_mode"
-        }
-      ],
-      "default": "end",
-      "x-order": 15,
-      "description": "Where to extend the video. Used for extend task."
-    },
-    "retake_mode": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/retake_mode"
-        }
-      ],
-      "default": "replace_audio_and_video",
-      "x-order": 14,
-      "description": "What to replace in the retake section. Used for retake task."
-    },
-    "aspect_ratio": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/aspect_ratio"
-        }
-      ],
-      "default": "16:9",
-      "x-order": 8,
-      "description": "Aspect ratio of the generated video"
-    },
-    "camera_motion": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/camera_motion"
-        }
-      ],
-      "default": "none",
-      "x-order": 10,
-      "description": "Camera motion effect to apply to the generated video. Use 'none' for no camera motion."
-    },
-    "generate_audio": {
-      "type": "boolean",
-      "title": "Generate Audio",
-      "default": true,
-      "x-order": 11,
-      "description": "Generate audio for the video. Used for text_to_video and image_to_video tasks."
-    },
-    "retake_duration": {
-      "type": "number",
-      "title": "Retake Duration",
-      "default": 2,
-      "minimum": 2,
-      "x-order": 13,
-      "description": "Duration in seconds of the section to edit. Must be at least 2 seconds. Used for retake task."
-    },
-    "last_frame_image": {
-      "type": "string",
-      "title": "Last Frame Image",
-      "format": "uri",
-      "x-order": 3,
-      "description": "Last frame image for image-to-video generation. When provided, the video interpolates between the first frame and this last frame."
-    },
-    "retake_start_time": {
-      "type": "number",
-      "title": "Retake Start Time",
-      "default": 0,
-      "minimum": 0,
-      "x-order": 12,
-      "description": "Start time in seconds of the section to edit. Used for retake task."
+      }
     }
   },
-  "x-renku-constraints": {
-    "fields": {
-      "resolution": {
-        "enum": {
-          "values": [
-            "1080p"
-          ],
-          "source": "inferred",
-          "confidence": "medium"
+  "output_schema": {
+    "type": "string",
+    "title": "Output",
+    "format": "uri"
+  },
+  "Status": {
+    "enum": [
+      "starting",
+      "processing",
+      "succeeded",
+      "canceled",
+      "failed"
+    ],
+    "type": "string",
+    "title": "Status",
+    "description": "An enumeration."
+  },
+  "duration": {
+    "enum": [
+      6,
+      8,
+      10
+    ],
+    "type": "integer",
+    "title": "duration",
+    "description": "An enumeration."
+  },
+  "resolution": {
+    "enum": [
+      "1080p",
+      "2k",
+      "4k"
+    ],
+    "type": "string",
+    "title": "resolution",
+    "description": "An enumeration."
+  },
+  "extend_mode": {
+    "enum": [
+      "start",
+      "end"
+    ],
+    "type": "string",
+    "title": "extend_mode",
+    "description": "An enumeration."
+  },
+  "retake_mode": {
+    "enum": [
+      "replace_audio",
+      "replace_video",
+      "replace_audio_and_video"
+    ],
+    "type": "string",
+    "title": "retake_mode",
+    "description": "An enumeration."
+  },
+  "WebhookEvent": {
+    "enum": [
+      "start",
+      "output",
+      "logs",
+      "completed"
+    ],
+    "type": "string",
+    "title": "WebhookEvent",
+    "description": "An enumeration."
+  },
+  "aspect_ratio": {
+    "enum": [
+      "16:9",
+      "9:16"
+    ],
+    "type": "string",
+    "title": "aspect_ratio",
+    "description": "An enumeration."
+  },
+  "camera_motion": {
+    "enum": [
+      "none",
+      "dolly_in",
+      "dolly_out",
+      "dolly_left",
+      "dolly_right",
+      "jib_up",
+      "jib_down",
+      "static",
+      "focus_shift"
+    ],
+    "type": "string",
+    "title": "camera_motion",
+    "description": "An enumeration."
+  },
+  "ValidationError": {
+    "type": "object",
+    "title": "ValidationError",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "properties": {
+      "loc": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      }
+    }
+  },
+  "PredictionRequest": {
+    "type": "object",
+    "title": "PredictionRequest",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "context": {
+        "type": "object",
+        "title": "Context",
+        "nullable": true,
+        "additionalProperties": {
+          "type": "string"
         }
+      },
+      "webhook": {
+        "type": "string",
+        "title": "Webhook",
+        "format": "uri",
+        "nullable": true,
+        "maxLength": 65536,
+        "minLength": 1
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "output_file_prefix": {
+        "type": "string",
+        "title": "Output File Prefix",
+        "nullable": true
+      },
+      "webhook_events_filter": {
+        "type": "array",
+        "items": {
+          "$ref": "#/WebhookEvent"
+        },
+        "default": [
+          "start",
+          "output",
+          "logs",
+          "completed"
+        ],
+        "nullable": true
+      }
+    }
+  },
+  "PredictionResponse": {
+    "type": "object",
+    "title": "PredictionResponse",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "logs": {
+        "type": "string",
+        "title": "Logs",
+        "default": ""
+      },
+      "error": {
+        "type": "string",
+        "title": "Error",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "output": {
+        "$ref": "#/Output"
+      },
+      "status": {
+        "$ref": "#/Status",
+        "nullable": true
+      },
+      "metrics": {
+        "type": "object",
+        "title": "Metrics",
+        "nullable": true,
+        "additionalProperties": true
+      },
+      "version": {
+        "type": "string",
+        "title": "Version",
+        "nullable": true
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "started_at": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "completed_at": {
+        "type": "string",
+        "title": "Completed At",
+        "format": "date-time",
+        "nullable": true
+      }
+    }
+  },
+  "HTTPValidationError": {
+    "type": "object",
+    "title": "HTTPValidationError",
+    "properties": {
+      "detail": {
+        "type": "array",
+        "items": {
+          "$ref": "#/ValidationError"
+        },
+        "title": "Detail"
       }
     }
   }

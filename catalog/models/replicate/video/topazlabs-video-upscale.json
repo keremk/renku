@@ -1,35 +1,228 @@
 {
-  "type": "object",
-  "title": "Input",
-  "required": [
-    "video"
-  ],
-  "properties": {
-    "video": {
-      "type": "string",
-      "title": "Video",
-      "format": "uri",
-      "x-order": 0,
-      "description": "Video file to upscale"
+  "input_schema": {
+    "type": "object",
+    "title": "Input",
+    "required": [
+      "video"
+    ],
+    "properties": {
+      "video": {
+        "type": "string",
+        "title": "Video",
+        "format": "uri",
+        "x-order": 0,
+        "description": "Video file to upscale"
+      },
+      "target_fps": {
+        "type": "integer",
+        "title": "Target Fps",
+        "default": 60,
+        "maximum": 120,
+        "minimum": 15,
+        "x-order": 2,
+        "description": "Target FPS (choose from 15fps to 120fps)"
+      },
+      "target_resolution": {
+        "allOf": [
+          {
+            "$ref": "#/target_resolution"
+          }
+        ],
+        "default": "1080p",
+        "x-order": 1,
+        "description": "Target resolution"
+      }
     },
-    "target_fps": {
-      "type": "integer",
-      "title": "Target Fps",
-      "default": 60,
-      "maximum": 120,
-      "minimum": 15,
-      "x-order": 2,
-      "description": "Target FPS (choose from 15fps to 120fps)"
-    },
-    "target_resolution": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/target_resolution"
+    "x-renku-constraints": {
+      "fields": {
+        "target_resolution": {
+          "enum": {
+            "values": [
+              "720p",
+              "1080p",
+              "4k"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
         }
-      ],
-      "default": "1080p",
-      "x-order": 1,
-      "description": "Target resolution"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "string",
+    "title": "Output",
+    "format": "uri"
+  },
+  "Status": {
+    "enum": [
+      "starting",
+      "processing",
+      "succeeded",
+      "canceled",
+      "failed"
+    ],
+    "type": "string",
+    "title": "Status",
+    "description": "An enumeration."
+  },
+  "WebhookEvent": {
+    "enum": [
+      "start",
+      "output",
+      "logs",
+      "completed"
+    ],
+    "type": "string",
+    "title": "WebhookEvent",
+    "description": "An enumeration."
+  },
+  "ValidationError": {
+    "type": "object",
+    "title": "ValidationError",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "properties": {
+      "loc": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      }
+    }
+  },
+  "PredictionRequest": {
+    "type": "object",
+    "title": "PredictionRequest",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "input": {
+        "$ref": "#/Input"
+      },
+      "webhook": {
+        "type": "string",
+        "title": "Webhook",
+        "format": "uri",
+        "maxLength": 65536,
+        "minLength": 1
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time"
+      },
+      "output_file_prefix": {
+        "type": "string",
+        "title": "Output File Prefix"
+      },
+      "webhook_events_filter": {
+        "type": "array",
+        "items": {
+          "$ref": "#/WebhookEvent"
+        },
+        "default": [
+          "start",
+          "output",
+          "logs",
+          "completed"
+        ]
+      }
+    }
+  },
+  "target_resolution": {
+    "enum": [
+      "720p",
+      "1080p",
+      "4k"
+    ],
+    "type": "string",
+    "title": "target_resolution",
+    "description": "An enumeration."
+  },
+  "PredictionResponse": {
+    "type": "object",
+    "title": "PredictionResponse",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "logs": {
+        "type": "string",
+        "title": "Logs",
+        "default": ""
+      },
+      "error": {
+        "type": "string",
+        "title": "Error"
+      },
+      "input": {
+        "$ref": "#/Input"
+      },
+      "output": {
+        "$ref": "#/Output"
+      },
+      "status": {
+        "$ref": "#/Status"
+      },
+      "metrics": {
+        "type": "object",
+        "title": "Metrics"
+      },
+      "version": {
+        "type": "string",
+        "title": "Version"
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time"
+      },
+      "started_at": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time"
+      },
+      "completed_at": {
+        "type": "string",
+        "title": "Completed At",
+        "format": "date-time"
+      }
+    }
+  },
+  "HTTPValidationError": {
+    "type": "object",
+    "title": "HTTPValidationError",
+    "properties": {
+      "detail": {
+        "type": "array",
+        "items": {
+          "$ref": "#/ValidationError"
+        },
+        "title": "Detail"
+      }
     }
   }
 }

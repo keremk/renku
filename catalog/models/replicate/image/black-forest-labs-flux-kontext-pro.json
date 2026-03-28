@@ -1,61 +1,309 @@
 {
-  "type": "object",
-  "title": "Input",
-  "required": [
-    "prompt"
-  ],
-  "properties": {
-    "seed": {
-      "type": "integer",
-      "title": "Seed",
-      "nullable": true,
-      "description": "Random seed. Set for reproducible generation"
+  "input_schema": {
+    "type": "object",
+    "title": "Input",
+    "required": [
+      "prompt"
+    ],
+    "properties": {
+      "seed": {
+        "type": "integer",
+        "title": "Seed",
+        "nullable": true,
+        "description": "Random seed. Set for reproducible generation"
+      },
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "description": "Text description of what you want to generate, or the instruction on how to edit the given image."
+      },
+      "input_image": {
+        "type": "string",
+        "title": "Input Image",
+        "format": "uri",
+        "nullable": true,
+        "description": "Image to use as reference. Must be jpeg, png, gif, or webp."
+      },
+      "aspect_ratio": {
+        "allOf": [
+          {
+            "$ref": "#/aspect_ratio"
+          }
+        ],
+        "default": "match_input_image",
+        "x-order": 2,
+        "description": "Aspect ratio of the generated image. Use 'match_input_image' to match the aspect ratio of the input image."
+      },
+      "output_format": {
+        "allOf": [
+          {
+            "$ref": "#/output_format"
+          }
+        ],
+        "default": "png",
+        "x-order": 5,
+        "description": "Output format for the generated image"
+      },
+      "safety_tolerance": {
+        "type": "integer",
+        "title": "Safety Tolerance",
+        "default": 2,
+        "maximum": 6,
+        "minimum": 0,
+        "description": "Safety tolerance, 0 is most strict and 6 is most permissive. 2 is currently the maximum allowed when input images are used."
+      },
+      "prompt_upsampling": {
+        "type": "boolean",
+        "title": "Prompt Upsampling",
+        "default": false,
+        "description": "Automatic prompt improvement"
+      }
     },
-    "prompt": {
-      "type": "string",
-      "title": "Prompt",
-      "description": "Text description of what you want to generate, or the instruction on how to edit the given image."
-    },
-    "input_image": {
-      "type": "string",
-      "title": "Input Image",
-      "format": "uri",
-      "nullable": true,
-      "description": "Image to use as reference. Must be jpeg, png, gif, or webp."
-    },
-    "aspect_ratio": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/aspect_ratio"
+    "x-renku-constraints": {
+      "fields": {
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "match_input_image",
+              "1:1",
+              "16:9",
+              "9:16",
+              "4:3",
+              "3:4",
+              "3:2",
+              "2:3",
+              "4:5",
+              "5:4",
+              "21:9",
+              "9:21",
+              "2:1",
+              "1:2"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
         }
-      ],
-      "default": "match_input_image",
-      "x-order": 2,
-      "description": "Aspect ratio of the generated image. Use 'match_input_image' to match the aspect ratio of the input image."
-    },
-    "output_format": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/output_format"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "string",
+    "title": "Output",
+    "format": "uri"
+  },
+  "Status": {
+    "enum": [
+      "starting",
+      "processing",
+      "succeeded",
+      "canceled",
+      "failed"
+    ],
+    "type": "string",
+    "title": "Status",
+    "description": "An enumeration."
+  },
+  "WebhookEvent": {
+    "enum": [
+      "start",
+      "output",
+      "logs",
+      "completed"
+    ],
+    "type": "string",
+    "title": "WebhookEvent",
+    "description": "An enumeration."
+  },
+  "aspect_ratio": {
+    "enum": [
+      "match_input_image",
+      "1:1",
+      "16:9",
+      "9:16",
+      "4:3",
+      "3:4",
+      "3:2",
+      "2:3",
+      "4:5",
+      "5:4",
+      "21:9",
+      "9:21",
+      "2:1",
+      "1:2"
+    ],
+    "type": "string",
+    "title": "aspect_ratio",
+    "description": "An enumeration."
+  },
+  "output_format": {
+    "enum": [
+      "jpg",
+      "png"
+    ],
+    "type": "string",
+    "title": "output_format",
+    "description": "An enumeration."
+  },
+  "ValidationError": {
+    "type": "object",
+    "title": "ValidationError",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "properties": {
+      "loc": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      }
+    }
+  },
+  "PredictionRequest": {
+    "type": "object",
+    "title": "PredictionRequest",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "context": {
+        "type": "object",
+        "title": "Context",
+        "nullable": true,
+        "additionalProperties": {
+          "type": "string"
         }
-      ],
-      "default": "png",
-      "x-order": 5,
-      "description": "Output format for the generated image"
-    },
-    "safety_tolerance": {
-      "type": "integer",
-      "title": "Safety Tolerance",
-      "default": 2,
-      "maximum": 6,
-      "minimum": 0,
-      "description": "Safety tolerance, 0 is most strict and 6 is most permissive. 2 is currently the maximum allowed when input images are used."
-    },
-    "prompt_upsampling": {
-      "type": "boolean",
-      "title": "Prompt Upsampling",
-      "default": false,
-      "description": "Automatic prompt improvement"
+      },
+      "webhook": {
+        "type": "string",
+        "title": "Webhook",
+        "format": "uri",
+        "nullable": true,
+        "maxLength": 65536,
+        "minLength": 1
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "output_file_prefix": {
+        "type": "string",
+        "title": "Output File Prefix",
+        "nullable": true
+      },
+      "webhook_events_filter": {
+        "type": "array",
+        "items": {
+          "$ref": "#/WebhookEvent"
+        },
+        "default": [
+          "start",
+          "output",
+          "logs",
+          "completed"
+        ],
+        "nullable": true
+      }
+    }
+  },
+  "PredictionResponse": {
+    "type": "object",
+    "title": "PredictionResponse",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "logs": {
+        "type": "string",
+        "title": "Logs",
+        "default": ""
+      },
+      "error": {
+        "type": "string",
+        "title": "Error",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "output": {
+        "$ref": "#/Output"
+      },
+      "status": {
+        "$ref": "#/Status",
+        "nullable": true
+      },
+      "metrics": {
+        "type": "object",
+        "title": "Metrics",
+        "nullable": true,
+        "additionalProperties": true
+      },
+      "version": {
+        "type": "string",
+        "title": "Version",
+        "nullable": true
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "started_at": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "completed_at": {
+        "type": "string",
+        "title": "Completed At",
+        "format": "date-time",
+        "nullable": true
+      }
+    }
+  },
+  "HTTPValidationError": {
+    "type": "object",
+    "title": "HTTPValidationError",
+    "properties": {
+      "detail": {
+        "type": "array",
+        "items": {
+          "$ref": "#/ValidationError"
+        },
+        "title": "Detail"
+      }
     }
   }
 }

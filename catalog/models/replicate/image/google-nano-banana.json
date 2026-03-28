@@ -1,79 +1,287 @@
 {
-  "type": "object",
-  "title": "Input",
-  "required": [
-    "prompt"
-  ],
-  "properties": {
-    "prompt": {
-      "type": "string",
-      "title": "Prompt",
-      "x-order": 0,
-      "description": "A text description of the image you want to generate"
-    },
-    "image_input": {
-      "type": "array",
-      "items": {
+  "input_schema": {
+    "type": "object",
+    "title": "Input",
+    "required": [
+      "prompt"
+    ],
+    "properties": {
+      "prompt": {
         "type": "string",
-        "format": "uri"
+        "title": "Prompt",
+        "x-order": 0,
+        "description": "A text description of the image you want to generate"
       },
-      "title": "Image Input",
-      "default": [],
-      "x-order": 1,
-      "description": "Input images to transform or use as reference (supports multiple images)"
+      "image_input": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "title": "Image Input",
+        "default": [],
+        "x-order": 1,
+        "description": "Input images to transform or use as reference (supports multiple images)"
+      },
+      "aspect_ratio": {
+        "allOf": [
+          {
+            "$ref": "#/aspect_ratio"
+          }
+        ],
+        "default": "match_input_image",
+        "x-order": 2,
+        "description": "Aspect ratio of the generated image"
+      },
+      "output_format": {
+        "allOf": [
+          {
+            "$ref": "#/output_format"
+          }
+        ],
+        "default": "jpg",
+        "x-order": 3,
+        "description": "Format of the output image"
+      }
     },
-    "aspect_ratio": {
-      "enum": [
-        "match_input_image",
-        "1:1",
-        "2:3",
-        "3:2",
-        "3:4",
-        "4:3",
-        "4:5",
-        "5:4",
-        "9:16",
-        "16:9",
-        "21:9"
-      ],
-      "type": "string",
-      "title": "aspect_ratio",
-      "description": "Aspect ratio of the generated image",
-      "default": "match_input_image",
-      "x-order": 2
-    },
-    "output_format": {
-      "enum": [
-        "jpg",
-        "png"
-      ],
-      "type": "string",
-      "title": "output_format",
-      "description": "Format of the output image",
-      "default": "jpg",
-      "x-order": 3
+    "x-renku-constraints": {
+      "fields": {
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "match_input_image",
+              "1:1",
+              "2:3",
+              "3:2",
+              "3:4",
+              "4:3",
+              "4:5",
+              "5:4",
+              "9:16",
+              "16:9",
+              "21:9"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        }
+      }
     }
   },
-  "x-renku-constraints": {
-    "fields": {
-      "aspect_ratio": {
-        "enum": {
-          "values": [
-            "match_input_image",
-            "1:1",
-            "2:3",
-            "3:2",
-            "3:4",
-            "4:3",
-            "4:5",
-            "5:4",
-            "9:16",
-            "16:9",
-            "21:9"
-          ],
-          "source": "explicit",
-          "confidence": "high"
+  "output_schema": {
+    "type": "string",
+    "title": "Output",
+    "format": "uri"
+  },
+  "Status": {
+    "enum": [
+      "starting",
+      "processing",
+      "succeeded",
+      "canceled",
+      "failed"
+    ],
+    "type": "string",
+    "title": "Status",
+    "description": "An enumeration."
+  },
+  "WebhookEvent": {
+    "enum": [
+      "start",
+      "output",
+      "logs",
+      "completed"
+    ],
+    "type": "string",
+    "title": "WebhookEvent",
+    "description": "An enumeration."
+  },
+  "aspect_ratio": {
+    "enum": [
+      "match_input_image",
+      "1:1",
+      "2:3",
+      "3:2",
+      "3:4",
+      "4:3",
+      "4:5",
+      "5:4",
+      "9:16",
+      "16:9",
+      "21:9"
+    ],
+    "type": "string",
+    "title": "aspect_ratio",
+    "description": "An enumeration."
+  },
+  "output_format": {
+    "enum": [
+      "jpg",
+      "png"
+    ],
+    "type": "string",
+    "title": "output_format",
+    "description": "An enumeration."
+  },
+  "ValidationError": {
+    "type": "object",
+    "title": "ValidationError",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "properties": {
+      "loc": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      }
+    }
+  },
+  "PredictionRequest": {
+    "type": "object",
+    "title": "PredictionRequest",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "context": {
+        "type": "object",
+        "title": "Context",
+        "nullable": true,
+        "additionalProperties": {
+          "type": "string"
         }
+      },
+      "webhook": {
+        "type": "string",
+        "title": "Webhook",
+        "format": "uri",
+        "nullable": true,
+        "maxLength": 65536,
+        "minLength": 1
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "output_file_prefix": {
+        "type": "string",
+        "title": "Output File Prefix",
+        "nullable": true
+      },
+      "webhook_events_filter": {
+        "type": "array",
+        "items": {
+          "$ref": "#/WebhookEvent"
+        },
+        "default": [
+          "start",
+          "output",
+          "logs",
+          "completed"
+        ],
+        "nullable": true
+      }
+    }
+  },
+  "PredictionResponse": {
+    "type": "object",
+    "title": "PredictionResponse",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "logs": {
+        "type": "string",
+        "title": "Logs",
+        "default": ""
+      },
+      "error": {
+        "type": "string",
+        "title": "Error",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "output": {
+        "$ref": "#/Output"
+      },
+      "status": {
+        "$ref": "#/Status",
+        "nullable": true
+      },
+      "metrics": {
+        "type": "object",
+        "title": "Metrics",
+        "nullable": true,
+        "additionalProperties": true
+      },
+      "version": {
+        "type": "string",
+        "title": "Version",
+        "nullable": true
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "started_at": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "completed_at": {
+        "type": "string",
+        "title": "Completed At",
+        "format": "date-time",
+        "nullable": true
+      }
+    }
+  },
+  "HTTPValidationError": {
+    "type": "object",
+    "title": "HTTPValidationError",
+    "properties": {
+      "detail": {
+        "type": "array",
+        "items": {
+          "$ref": "#/ValidationError"
+        },
+        "title": "Detail"
       }
     }
   }

@@ -1,122 +1,346 @@
 {
-  "type": "object",
-  "title": "Input",
-  "required": [
-    "prompt"
-  ],
-  "properties": {
-    "mode": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/mode"
-        }
-      ],
-      "default": "pro",
-      "x-order": 8,
-      "description": "'standard' generates 720p, 'pro' generates 1080p."
-    },
-    "prompt": {
-      "type": "string",
-      "title": "Prompt",
-      "x-order": 0,
-      "description": "Text prompt for video generation. Supports <<<image_1>>>, <<<video_1>>> template references. Max 2500 characters."
-    },
-    "duration": {
-      "type": "integer",
-      "title": "Duration",
-      "default": 5,
-      "maximum": 15,
-      "minimum": 3,
-      "x-order": 10,
-      "description": "Video duration in seconds (3-15). Ignored for video editing (base)."
-    },
-    "end_image": {
-      "type": "string",
-      "title": "End Image",
-      "format": "uri",
-      "x-order": 2,
-      "description": "Last frame image. Requires start_image. Supports .jpg/.jpeg/.png, max 10MB, min 300px."
-    },
-    "start_image": {
-      "type": "string",
-      "title": "Start Image",
-      "format": "uri",
-      "x-order": 1,
-      "description": "First frame image. Supports .jpg/.jpeg/.png, max 10MB, min 300px, aspect ratio 1:2.5 to 2.5:1."
-    },
-    "aspect_ratio": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/aspect_ratio"
-        }
-      ],
-      "default": "16:9",
-      "x-order": 9,
-      "description": "Aspect ratio. Required when not using start frame or video editing."
-    },
-    "multi_prompt": {
-      "type": "string",
-      "title": "Multi Prompt",
-      "x-order": 11,
-      "description": "JSON array of shot definitions for multi-shot mode. Each shot: {\"prompt\": \"...\", \"duration\": N}. Max 6 shots, min duration 1s per shot, total must equal duration. Example: [{\"prompt\":\"A cat jumps\",\"duration\":3},{\"prompt\":\"It lands\",\"duration\":2}]"
-    },
-    "generate_audio": {
-      "type": "boolean",
-      "title": "Generate Audio",
-      "default": false,
-      "x-order": 7,
-      "description": "Generate native audio. Mutually exclusive with reference video."
-    },
-    "reference_video": {
-      "type": "string",
-      "title": "Reference Video",
-      "format": "uri",
-      "x-order": 4,
-      "nullable": true,
-      "description": "Reference video (.mp4/.mov). Duration 3-10s, resolution 720-2160px per side, max 200MB."
-    },
-    "reference_images": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "anyOf": [],
-        "format": "uri"
-      },
-      "title": "Reference Images",
-      "x-order": 3,
-      "nullable": true,
-      "description": "Reference images for elements, scenes, or styles. Supports .jpg/.jpeg/.png. Max 7 without video, 4 with video."
-    },
-    "keep_original_sound": {
-      "type": "boolean",
-      "title": "Keep Original Sound",
-      "default": true,
-      "x-order": 6,
-      "description": "Keep original sound from reference video."
-    },
-    "video_reference_type": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/video_reference_type"
-        }
-      ],
-      "default": "feature",
-      "x-order": 5,
-      "description": "How to use reference video: 'feature' for style/camera reference, 'base' for video editing."
-    }
+  "mode": {
+    "enum": [
+      "standard",
+      "pro"
+    ],
+    "type": "string",
+    "title": "mode",
+    "description": "An enumeration."
   },
-  "x-renku-constraints": {
-    "fields": {
+  "input_schema": {
+    "type": "object",
+    "title": "Input",
+    "required": [
+      "prompt"
+    ],
+    "properties": {
+      "mode": {
+        "allOf": [
+          {
+            "$ref": "#/mode"
+          }
+        ],
+        "default": "pro",
+        "x-order": 8,
+        "description": "'standard' generates 720p, 'pro' generates 1080p."
+      },
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "x-order": 0,
+        "description": "Text prompt for video generation. Supports <<<image_1>>>, <<<video_1>>> template references. Max 2500 characters."
+      },
       "duration": {
-        "enum": {
-          "values": [
-            "3",
-            "15"
-          ],
-          "source": "inferred",
-          "confidence": "medium"
+        "type": "integer",
+        "title": "Duration",
+        "default": 5,
+        "maximum": 15,
+        "minimum": 3,
+        "x-order": 10,
+        "description": "Video duration in seconds (3-15). Ignored for video editing (base)."
+      },
+      "end_image": {
+        "type": "string",
+        "title": "End Image",
+        "format": "uri",
+        "x-order": 2,
+        "nullable": true,
+        "description": "Last frame image. Requires start_image. Supports .jpg/.jpeg/.png, max 10MB, min 300px."
+      },
+      "start_image": {
+        "type": "string",
+        "title": "Start Image",
+        "format": "uri",
+        "x-order": 1,
+        "nullable": true,
+        "description": "First frame image. Supports .jpg/.jpeg/.png, max 10MB, min 300px, aspect ratio 1:2.5 to 2.5:1."
+      },
+      "aspect_ratio": {
+        "allOf": [
+          {
+            "$ref": "#/aspect_ratio"
+          }
+        ],
+        "default": "16:9",
+        "x-order": 9,
+        "description": "Aspect ratio. Required when not using start frame or video editing."
+      },
+      "multi_prompt": {
+        "type": "string",
+        "title": "Multi Prompt",
+        "x-order": 11,
+        "nullable": true,
+        "description": "JSON array of shot definitions for multi-shot mode. Each shot: {\"prompt\": \"...\", \"duration\": N}. Max 6 shots, min duration 1s per shot, total must equal duration. Example: [{\"prompt\":\"A cat jumps\",\"duration\":3},{\"prompt\":\"It lands\",\"duration\":2}]"
+      },
+      "generate_audio": {
+        "type": "boolean",
+        "title": "Generate Audio",
+        "default": false,
+        "x-order": 7,
+        "description": "Generate native audio. Mutually exclusive with reference video."
+      },
+      "reference_video": {
+        "type": "string",
+        "title": "Reference Video",
+        "format": "uri",
+        "x-order": 4,
+        "nullable": true,
+        "description": "Reference video (.mp4/.mov). Duration 3-10s, resolution 720-2160px per side, max 200MB."
+      },
+      "reference_images": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "anyOf": [],
+          "format": "uri"
+        },
+        "title": "Reference Images",
+        "x-order": 3,
+        "nullable": true,
+        "description": "Reference images for elements, scenes, or styles. Supports .jpg/.jpeg/.png. Max 7 without video, 4 with video."
+      },
+      "keep_original_sound": {
+        "type": "boolean",
+        "title": "Keep Original Sound",
+        "default": true,
+        "x-order": 6,
+        "description": "Keep original sound from reference video."
+      },
+      "video_reference_type": {
+        "allOf": [
+          {
+            "$ref": "#/video_reference_type"
+          }
+        ],
+        "default": "feature",
+        "x-order": 5,
+        "description": "How to use reference video: 'feature' for style/camera reference, 'base' for video editing."
+      }
+    },
+    "x-renku-constraints": {
+      "fields": {
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "16:9",
+              "9:16",
+              "1:1"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
         }
       }
     }
+  },
+  "output_schema": {
+    "type": "string",
+    "title": "Output",
+    "format": "uri"
+  },
+  "Status": {
+    "enum": [
+      "starting",
+      "processing",
+      "succeeded",
+      "canceled",
+      "failed"
+    ],
+    "type": "string",
+    "title": "Status",
+    "description": "An enumeration."
+  },
+  "WebhookEvent": {
+    "enum": [
+      "start",
+      "output",
+      "logs",
+      "completed"
+    ],
+    "type": "string",
+    "title": "WebhookEvent",
+    "description": "An enumeration."
+  },
+  "aspect_ratio": {
+    "enum": [
+      "16:9",
+      "9:16",
+      "1:1"
+    ],
+    "type": "string",
+    "title": "aspect_ratio",
+    "description": "An enumeration."
+  },
+  "ValidationError": {
+    "type": "object",
+    "title": "ValidationError",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "properties": {
+      "loc": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      }
+    }
+  },
+  "PredictionRequest": {
+    "type": "object",
+    "title": "PredictionRequest",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "context": {
+        "type": "object",
+        "title": "Context",
+        "nullable": true,
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "webhook": {
+        "type": "string",
+        "title": "Webhook",
+        "format": "uri",
+        "nullable": true,
+        "maxLength": 65536,
+        "minLength": 1
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "output_file_prefix": {
+        "type": "string",
+        "title": "Output File Prefix",
+        "nullable": true
+      },
+      "webhook_events_filter": {
+        "type": "array",
+        "items": {
+          "$ref": "#/WebhookEvent"
+        },
+        "default": [
+          "start",
+          "output",
+          "logs",
+          "completed"
+        ],
+        "nullable": true
+      }
+    }
+  },
+  "PredictionResponse": {
+    "type": "object",
+    "title": "PredictionResponse",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "logs": {
+        "type": "string",
+        "title": "Logs",
+        "default": ""
+      },
+      "error": {
+        "type": "string",
+        "title": "Error",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "output": {
+        "$ref": "#/Output"
+      },
+      "status": {
+        "$ref": "#/Status",
+        "nullable": true
+      },
+      "metrics": {
+        "type": "object",
+        "title": "Metrics",
+        "nullable": true,
+        "additionalProperties": true
+      },
+      "version": {
+        "type": "string",
+        "title": "Version",
+        "nullable": true
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "started_at": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "completed_at": {
+        "type": "string",
+        "title": "Completed At",
+        "format": "date-time",
+        "nullable": true
+      }
+    }
+  },
+  "HTTPValidationError": {
+    "type": "object",
+    "title": "HTTPValidationError",
+    "properties": {
+      "detail": {
+        "type": "array",
+        "items": {
+          "$ref": "#/ValidationError"
+        },
+        "title": "Detail"
+      }
+    }
+  },
+  "video_reference_type": {
+    "enum": [
+      "feature",
+      "base"
+    ],
+    "type": "string",
+    "title": "video_reference_type",
+    "description": "An enumeration."
   }
 }

@@ -1,126 +1,269 @@
 {
-  "type": "object",
-  "title": "Input",
-  "required": [
-    "prompt"
-  ],
-  "properties": {
-    "size": {
-      "enum": [
-        "2K",
-        "4K",
-        "custom"
-      ],
-      "type": "string",
-      "title": "size",
-      "description": "Image resolution: 2K (2048px), 4K (4096px), or 'custom' for specific dimensions. Note: 1K resolution is not supported in Seedream 4.5.",
-      "default": "2K",
-      "x-order": 2
-    },
-    "width": {
-      "type": "integer",
-      "title": "Width",
-      "default": 2048,
-      "maximum": 4096,
-      "minimum": 1024,
-      "x-order": 4,
-      "description": "Custom image width (only used when size='custom'). Range: 1024-4096 pixels."
-    },
-    "height": {
-      "type": "integer",
-      "title": "Height",
-      "default": 2048,
-      "maximum": 4096,
-      "minimum": 1024,
-      "x-order": 5,
-      "description": "Custom image height (only used when size='custom'). Range: 1024-4096 pixels."
-    },
-    "prompt": {
-      "type": "string",
-      "title": "Prompt",
-      "x-order": 0,
-      "description": "Text prompt for image generation"
-    },
-    "max_images": {
-      "type": "integer",
-      "title": "Max Images",
-      "default": 1,
-      "maximum": 15,
-      "minimum": 1,
-      "x-order": 7,
-      "description": "Maximum number of images to generate when sequential_image_generation='auto'. Range: 1-15. Total images (input + generated) cannot exceed 15."
-    },
-    "image_input": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "format": "uri"
-      },
-      "title": "Image Input",
-      "default": [],
-      "x-order": 1,
-      "description": "Input image(s) for image-to-image generation. List of 1-14 images for single or multi-reference generation."
-    },
-    "aspect_ratio": {
-      "enum": [
-        "match_input_image",
-        "1:1",
-        "4:3",
-        "3:4",
-        "16:9",
-        "9:16",
-        "3:2",
-        "2:3",
-        "21:9"
-      ],
-      "type": "string",
-      "title": "aspect_ratio",
-      "description": "Image aspect ratio. Only used when size is not 'custom'. Use 'match_input_image' to automatically match the input image's aspect ratio.",
-      "default": "match_input_image",
-      "x-order": 3
-    },
-    "sequential_image_generation": {
-      "enum": [
-        "disabled",
-        "auto"
-      ],
-      "type": "string",
-      "title": "sequential_image_generation",
-      "description": "Group image generation mode. 'disabled' generates a single image. 'auto' lets the model decide whether to generate multiple related images (e.g., story scenes, character variations).",
-      "default": "disabled",
-      "x-order": 6
-    }
+  "size": {
+    "enum": [
+      "2K",
+      "4K"
+    ],
+    "type": "string",
+    "title": "size",
+    "description": "An enumeration."
   },
-  "x-renku-constraints": {
-    "fields": {
+  "input_schema": {
+    "type": "object",
+    "title": "Input",
+    "required": [
+      "prompt"
+    ],
+    "properties": {
       "size": {
-        "enum": {
-          "values": [
-            "2K",
-            "4K",
-            "custom"
-          ],
-          "source": "explicit",
-          "confidence": "high"
-        }
+        "allOf": [
+          {
+            "$ref": "#/size"
+          }
+        ],
+        "default": "2K",
+        "x-order": 2,
+        "description": "Image resolution: 2K (2048px) or 4K (4096px). Note: 1K resolution is not supported in Seedream 4.5."
+      },
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "x-order": 0,
+        "description": "Text prompt for image generation"
+      },
+      "max_images": {
+        "type": "integer",
+        "title": "Max Images",
+        "default": 1,
+        "maximum": 15,
+        "minimum": 1,
+        "x-order": 5,
+        "description": "Maximum number of images to generate when sequential_image_generation='auto'. Range: 1-15. Total images (input + generated) cannot exceed 15."
+      },
+      "image_input": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "title": "Image Input",
+        "default": [],
+        "x-order": 1,
+        "description": "Input image(s) for image-to-image generation. List of 1-14 images for single or multi-reference generation."
       },
       "aspect_ratio": {
-        "enum": {
-          "values": [
-            "match_input_image",
-            "1:1",
-            "4:3",
-            "3:4",
-            "16:9",
-            "9:16",
-            "3:2",
-            "2:3",
-            "21:9"
-          ],
-          "source": "explicit",
-          "confidence": "high"
+        "allOf": [
+          {
+            "$ref": "#/aspect_ratio"
+          }
+        ],
+        "default": "match_input_image",
+        "x-order": 3,
+        "description": "Image aspect ratio. Only used when size is not 'custom'. Use 'match_input_image' to automatically match the input image's aspect ratio."
+      },
+      "disable_safety_checker": {
+        "type": "boolean",
+        "title": "Disable Safety Checker",
+        "default": false,
+        "x-order": 6,
+        "description": "Disable the safety checker for generated images. When enabled, input moderation is relaxed to only block illegal content (CSAM). Use responsibly."
+      },
+      "sequential_image_generation": {
+        "allOf": [
+          {
+            "$ref": "#/sequential_image_generation"
+          }
+        ],
+        "default": "disabled",
+        "x-order": 4,
+        "description": "Group image generation mode. 'disabled' generates a single image. 'auto' lets the model decide whether to generate multiple related images (e.g., story scenes, character variations)."
+      }
+    },
+    "x-renku-constraints": {
+      "fields": {
+        "size": {
+          "enum": {
+            "values": [
+              "2K",
+              "4K"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "match_input_image",
+              "1:1",
+              "4:3",
+              "3:4",
+              "16:9",
+              "9:16",
+              "3:2",
+              "2:3",
+              "21:9"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
         }
       }
     }
+  },
+  "output_schema": {
+    "type": "array",
+    "items": {
+      "type": "string",
+      "format": "uri"
+    },
+    "title": "Output"
+  },
+  "Status": {
+    "enum": [
+      "starting",
+      "processing",
+      "succeeded",
+      "canceled",
+      "failed"
+    ],
+    "type": "string",
+    "title": "Status",
+    "description": "An enumeration."
+  },
+  "aspect_ratio": {
+    "enum": [
+      "match_input_image",
+      "1:1",
+      "4:3",
+      "3:4",
+      "16:9",
+      "9:16",
+      "3:2",
+      "2:3",
+      "21:9"
+    ],
+    "type": "string",
+    "title": "aspect_ratio",
+    "description": "An enumeration."
+  },
+  "ValidationError": {
+    "type": "object",
+    "title": "ValidationError",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "properties": {
+      "loc": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      }
+    }
+  },
+  "PredictionRequest": {
+    "type": "object",
+    "title": "PredictionRequest",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "input": {
+        "$ref": "#/Input"
+      }
+    }
+  },
+  "PredictionResponse": {
+    "type": "object",
+    "title": "PredictionResponse",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "logs": {
+        "type": "string",
+        "title": "Logs"
+      },
+      "error": {
+        "type": "string",
+        "title": "Error"
+      },
+      "input": {
+        "$ref": "#/Input"
+      },
+      "output": {
+        "$ref": "#/Output"
+      },
+      "status": {
+        "type": "string",
+        "title": "Status"
+      },
+      "metrics": {
+        "type": "object",
+        "title": "Metrics"
+      },
+      "version": {
+        "type": "string",
+        "title": "Version"
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time"
+      },
+      "started_at": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time"
+      },
+      "completed_at": {
+        "type": "string",
+        "title": "Completed At",
+        "format": "date-time"
+      }
+    }
+  },
+  "HTTPValidationError": {
+    "type": "object",
+    "title": "HTTPValidationError",
+    "properties": {
+      "detail": {
+        "type": "array",
+        "items": {
+          "$ref": "#/ValidationError"
+        },
+        "title": "Detail"
+      }
+    }
+  },
+  "sequential_image_generation": {
+    "enum": [
+      "disabled",
+      "auto"
+    ],
+    "type": "string",
+    "title": "sequential_image_generation",
+    "description": "An enumeration."
   }
 }

@@ -1,79 +1,286 @@
 {
-  "type": "object",
-  "title": "Input",
-  "required": [
-    "prompt"
-  ],
-  "properties": {
-    "seed": {
-      "type": "integer",
-      "title": "Seed",
-      "x-order": 5,
-      "nullable": true,
-      "description": "Random seed. Set for reproducible generation"
-    },
-    "width": {
-      "type": "integer",
-      "title": "Width",
-      "default": 1024,
-      "maximum": 1440,
-      "minimum": 64,
-      "x-order": 2,
-      "description": "Width of the generated image"
-    },
-    "height": {
-      "type": "integer",
-      "title": "Height",
-      "default": 1024,
-      "maximum": 1440,
-      "minimum": 64,
-      "x-order": 1,
-      "description": "Height of the generated image"
-    },
-    "prompt": {
-      "type": "string",
-      "title": "Prompt",
-      "x-order": 0,
-      "description": "Text prompt for image generation"
-    },
-    "output_format": {
-      "enum": [
-        "png",
-        "jpg",
-        "webp"
-      ],
-      "type": "string",
-      "title": "output_format",
-      "description": "Format of the output images",
-      "default": "jpg",
-      "x-order": 6
-    },
-    "guidance_scale": {
-      "type": "number",
-      "title": "Guidance Scale",
-      "default": 0,
-      "maximum": 20,
-      "minimum": 0,
-      "x-order": 4,
-      "description": "Guidance scale. Should be 0 for Turbo models"
-    },
-    "output_quality": {
-      "type": "integer",
-      "title": "Output Quality",
-      "default": 80,
-      "maximum": 100,
-      "minimum": 0,
-      "x-order": 7,
-      "description": "Quality when saving the output images, from 0 to 100. 100 is best quality, 0 is lowest quality. Not relevant for .png outputs"
-    },
-    "num_inference_steps": {
-      "type": "integer",
-      "title": "Num Inference Steps",
-      "default": 8,
-      "maximum": 50,
-      "minimum": 1,
-      "x-order": 3,
-      "description": "Number of inference steps. This actually results in (num_inference_steps - 1) DiT forwards"
+  "input_schema": {
+    "type": "object",
+    "title": "Input",
+    "required": [
+      "prompt"
+    ],
+    "properties": {
+      "seed": {
+        "type": "integer",
+        "title": "Seed",
+        "x-order": 5,
+        "nullable": true,
+        "description": "Random seed. Set for reproducible generation"
+      },
+      "width": {
+        "type": "integer",
+        "title": "Width",
+        "default": 1024,
+        "maximum": 2048,
+        "minimum": 64,
+        "x-order": 2,
+        "description": "Width of the generated image"
+      },
+      "height": {
+        "type": "integer",
+        "title": "Height",
+        "default": 1024,
+        "maximum": 2048,
+        "minimum": 64,
+        "x-order": 1,
+        "description": "Height of the generated image"
+      },
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "x-order": 0,
+        "description": "Text prompt for image generation"
+      },
+      "go_fast": {
+        "type": "boolean",
+        "title": "Go Fast",
+        "default": false,
+        "x-order": 6,
+        "description": "Apply additional optimizations for faster generation"
+      },
+      "output_format": {
+        "allOf": [
+          {
+            "$ref": "#/output_format"
+          }
+        ],
+        "default": "jpg",
+        "x-order": 7,
+        "description": "Format of the output images"
+      },
+      "guidance_scale": {
+        "type": "number",
+        "title": "Guidance Scale",
+        "default": 0,
+        "maximum": 20,
+        "minimum": 0,
+        "x-order": 4,
+        "description": "Guidance scale. Should be 0 for Turbo models"
+      },
+      "output_quality": {
+        "type": "integer",
+        "title": "Output Quality",
+        "default": 80,
+        "maximum": 100,
+        "minimum": 0,
+        "x-order": 8,
+        "description": "Quality when saving the output images, from 0 to 100. 100 is best quality, 0 is lowest quality. Not relevant for .png outputs"
+      },
+      "num_inference_steps": {
+        "type": "integer",
+        "title": "Num Inference Steps",
+        "default": 8,
+        "maximum": 50,
+        "minimum": 1,
+        "x-order": 3,
+        "description": "Number of inference steps."
+      }
+    }
+  },
+  "output_schema": {
+    "type": "string",
+    "title": "Output",
+    "format": "uri"
+  },
+  "Status": {
+    "enum": [
+      "starting",
+      "processing",
+      "succeeded",
+      "canceled",
+      "failed"
+    ],
+    "type": "string",
+    "title": "Status",
+    "description": "An enumeration."
+  },
+  "WebhookEvent": {
+    "enum": [
+      "start",
+      "output",
+      "logs",
+      "completed"
+    ],
+    "type": "string",
+    "title": "WebhookEvent",
+    "description": "An enumeration."
+  },
+  "output_format": {
+    "enum": [
+      "png",
+      "jpg",
+      "webp"
+    ],
+    "type": "string",
+    "title": "output_format",
+    "description": "An enumeration."
+  },
+  "ValidationError": {
+    "type": "object",
+    "title": "ValidationError",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "properties": {
+      "loc": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      }
+    }
+  },
+  "PredictionRequest": {
+    "type": "object",
+    "title": "PredictionRequest",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "context": {
+        "type": "object",
+        "title": "Context",
+        "nullable": true,
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "webhook": {
+        "type": "string",
+        "title": "Webhook",
+        "format": "uri",
+        "nullable": true,
+        "maxLength": 65536,
+        "minLength": 1
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "output_file_prefix": {
+        "type": "string",
+        "title": "Output File Prefix",
+        "nullable": true
+      },
+      "webhook_events_filter": {
+        "type": "array",
+        "items": {
+          "$ref": "#/WebhookEvent"
+        },
+        "default": [
+          "start",
+          "output",
+          "logs",
+          "completed"
+        ],
+        "nullable": true
+      }
+    }
+  },
+  "PredictionResponse": {
+    "type": "object",
+    "title": "PredictionResponse",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "logs": {
+        "type": "string",
+        "title": "Logs",
+        "default": ""
+      },
+      "error": {
+        "type": "string",
+        "title": "Error",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "output": {
+        "$ref": "#/Output"
+      },
+      "status": {
+        "$ref": "#/Status",
+        "nullable": true
+      },
+      "metrics": {
+        "type": "object",
+        "title": "Metrics",
+        "nullable": true,
+        "additionalProperties": true
+      },
+      "version": {
+        "type": "string",
+        "title": "Version",
+        "nullable": true
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "started_at": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "completed_at": {
+        "type": "string",
+        "title": "Completed At",
+        "format": "date-time",
+        "nullable": true
+      }
+    }
+  },
+  "HTTPValidationError": {
+    "type": "object",
+    "title": "HTTPValidationError",
+    "properties": {
+      "detail": {
+        "type": "array",
+        "items": {
+          "$ref": "#/ValidationError"
+        },
+        "title": "Detail"
+      }
     }
   }
 }

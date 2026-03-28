@@ -1,179 +1,419 @@
 {
-  "type": "object",
-  "title": "Input",
-  "required": [
-    "text"
-  ],
-  "properties": {
-    "text": {
-      "type": "string",
-      "title": "Text",
-      "description": "Text to narrate (max 10,000 characters). Use markers like <#0.5#> to insert pauses in seconds."
-    },
-    "pitch": {
-      "type": "integer",
-      "title": "Pitch",
-      "default": 0,
-      "maximum": 12,
-      "minimum": -12,
-      "description": "Semitone offset applied to the voice (−12 to +12)."
-    },
-    "speed": {
-      "type": "number",
-      "title": "Speed",
-      "default": 1,
-      "maximum": 2,
-      "minimum": 0.5,
-      "description": "Speech speed multiplier (0.5–2.0). Lower is slower, higher is faster."
-    },
-    "volume": {
-      "type": "number",
-      "title": "Volume",
-      "default": 1,
-      "maximum": 10,
-      "minimum": 0,
-      "description": "Relative loudness. 1.0 is default MiniMax gain. Range 0–10."
-    },
-    "bitrate": {
-      "enum": [
-        32000,
-        64000,
-        128000,
-        256000
-      ],
-      "type": "integer",
-      "title": "bitrate",
-      "description": "MP3 bitrate in bits per second. Only used when audio_format is mp3.",
-      "default": 128000,
-      "x-order": 8
-    },
-    "channel": {
-      "enum": [
-        "mono",
-        "stereo"
-      ],
-      "type": "string",
-      "title": "channel",
-      "description": "mono for 1 channel (default), stereo for 2 channels.",
-      "default": "mono",
-      "x-order": 10
-    },
-    "emotion": {
-      "enum": [
-        "auto",
-        "happy",
-        "sad",
-        "angry",
-        "fearful",
-        "disgusted",
-        "surprised",
-        "calm",
-        "fluent",
-        "neutral"
-      ],
-      "type": "string",
-      "title": "emotion",
-      "description": "Desired delivery style. Use auto to let MiniMax choose, or pick a specific emotion.",
-      "default": "auto",
-      "x-order": 5
-    },
-    "voice_id": {
-      "type": "string",
-      "title": "Voice Id",
-      "default": "Wise_Woman",
-      "description": "Voice to synthesize. Pick any MiniMax system voice or a voice_id returned by https://replicate.com/minimax/voice-cloning."
-    },
-    "sample_rate": {
-      "enum": [
-        8000,
-        16000,
-        22050,
-        24000,
-        32000,
-        44100
-      ],
-      "type": "integer",
-      "title": "sample_rate",
-      "description": "Audio sample rate in Hz.",
-      "default": 32000,
-      "x-order": 7
-    },
-    "audio_format": {
-      "enum": [
-        "mp3",
-        "wav",
-        "flac",
-        "pcm"
-      ],
-      "type": "string",
-      "title": "audio_format",
-      "description": "File format for the generated audio. Choose mp3 for general use, wav/flac for lossless, or pcm for raw bytes.",
-      "default": "mp3",
-      "x-order": 9
-    },
-    "language_boost": {
-      "enum": [
-        "None",
-        "Automatic",
-        "Chinese",
-        "Chinese,Yue",
-        "Cantonese",
-        "English",
-        "Arabic",
-        "Russian",
-        "Spanish",
-        "French",
-        "Portuguese",
-        "German",
-        "Turkish",
-        "Dutch",
-        "Ukrainian",
-        "Vietnamese",
-        "Indonesian",
-        "Japanese",
-        "Italian",
-        "Korean",
-        "Thai",
-        "Polish",
-        "Romanian",
-        "Greek",
-        "Czech",
-        "Finnish",
-        "Hindi",
-        "Bulgarian",
-        "Danish",
-        "Hebrew",
-        "Malay",
-        "Persian",
-        "Slovak",
-        "Swedish",
-        "Croatian",
-        "Filipino",
-        "Hungarian",
-        "Norwegian",
-        "Slovenian",
-        "Catalan",
-        "Nynorsk",
-        "Tamil",
-        "Afrikaans"
-      ],
-      "type": "string",
-      "title": "language_boost",
-      "description": "Optional language hint. Choose Automatic to let MiniMax detect the language, or pick a specific locale.",
-      "default": "None",
-      "x-order": 12
-    },
-    "subtitle_enable": {
-      "type": "boolean",
-      "title": "Subtitle Enable",
-      "default": false,
-      "description": "Return MiniMax subtitle metadata with sentence timestamps (non-streaming only)."
-    },
-    "english_normalization": {
-      "type": "boolean",
-      "title": "English Normalization",
-      "default": false,
-      "description": "Improve number/date reading for English text (adds a small amount of latency)."
+  "input_schema": {
+    "type": "object",
+    "title": "Input",
+    "required": [
+      "text"
+    ],
+    "properties": {
+      "text": {
+        "type": "string",
+        "title": "Text",
+        "description": "Text to narrate (max 10,000 characters). Use markers like <#0.5#> to insert pauses in seconds."
+      },
+      "pitch": {
+        "type": "integer",
+        "title": "Pitch",
+        "default": 0,
+        "maximum": 12,
+        "minimum": -12,
+        "description": "Semitone offset applied to the voice (−12 to +12)."
+      },
+      "speed": {
+        "type": "number",
+        "title": "Speed",
+        "default": 1,
+        "maximum": 2,
+        "minimum": 0.5,
+        "description": "Speech speed multiplier (0.5–2.0). Lower is slower, higher is faster."
+      },
+      "volume": {
+        "type": "number",
+        "title": "Volume",
+        "default": 1,
+        "maximum": 10,
+        "minimum": 0,
+        "description": "Relative loudness. 1.0 is default MiniMax gain. Range 0–10."
+      },
+      "bitrate": {
+        "allOf": [
+          {
+            "$ref": "#/bitrate"
+          }
+        ],
+        "default": 128000,
+        "x-order": 8,
+        "description": "MP3 bitrate in bits per second. Only used when audio_format is mp3."
+      },
+      "channel": {
+        "allOf": [
+          {
+            "$ref": "#/channel"
+          }
+        ],
+        "default": "mono",
+        "x-order": 10,
+        "description": "mono for 1 channel (default), stereo for 2 channels."
+      },
+      "emotion": {
+        "allOf": [
+          {
+            "$ref": "#/emotion"
+          }
+        ],
+        "default": "auto",
+        "x-order": 5,
+        "description": "Desired delivery style. Use auto to let MiniMax choose, or pick a specific emotion."
+      },
+      "voice_id": {
+        "type": "string",
+        "title": "Voice Id",
+        "default": "Wise_Woman",
+        "description": "Voice to synthesize. Pick any MiniMax system voice or a voice_id returned by https://replicate.com/minimax/voice-cloning."
+      },
+      "sample_rate": {
+        "allOf": [
+          {
+            "$ref": "#/sample_rate"
+          }
+        ],
+        "default": 32000,
+        "x-order": 7,
+        "description": "Audio sample rate in Hz."
+      },
+      "audio_format": {
+        "allOf": [
+          {
+            "$ref": "#/audio_format"
+          }
+        ],
+        "default": "mp3",
+        "x-order": 9,
+        "description": "File format for the generated audio. Choose mp3 for general use, wav/flac for lossless, or pcm for raw bytes."
+      },
+      "language_boost": {
+        "allOf": [
+          {
+            "$ref": "#/language_boost"
+          }
+        ],
+        "default": "None",
+        "x-order": 12,
+        "description": "Optional language hint. Choose Automatic to let MiniMax detect the language, or pick a specific locale."
+      },
+      "subtitle_enable": {
+        "type": "boolean",
+        "title": "Subtitle Enable",
+        "default": false,
+        "description": "Return MiniMax subtitle metadata with sentence timestamps (non-streaming only)."
+      },
+      "english_normalization": {
+        "type": "boolean",
+        "title": "English Normalization",
+        "default": false,
+        "description": "Improve number/date reading for English text (adds a small amount of latency)."
+      }
+    }
+  },
+  "output_schema": {
+    "type": "string",
+    "title": "Output",
+    "format": "uri"
+  },
+  "Status": {
+    "enum": [
+      "starting",
+      "processing",
+      "succeeded",
+      "canceled",
+      "failed"
+    ],
+    "type": "string",
+    "title": "Status",
+    "description": "An enumeration."
+  },
+  "bitrate": {
+    "enum": [
+      32000,
+      64000,
+      128000,
+      256000
+    ],
+    "type": "integer",
+    "title": "bitrate",
+    "description": "An enumeration."
+  },
+  "channel": {
+    "enum": [
+      "mono",
+      "stereo"
+    ],
+    "type": "string",
+    "title": "channel",
+    "description": "An enumeration."
+  },
+  "emotion": {
+    "enum": [
+      "auto",
+      "happy",
+      "sad",
+      "angry",
+      "fearful",
+      "disgusted",
+      "surprised",
+      "calm",
+      "fluent",
+      "neutral"
+    ],
+    "type": "string",
+    "title": "emotion",
+    "description": "An enumeration."
+  },
+  "sample_rate": {
+    "enum": [
+      8000,
+      16000,
+      22050,
+      24000,
+      32000,
+      44100
+    ],
+    "type": "integer",
+    "title": "sample_rate",
+    "description": "An enumeration."
+  },
+  "WebhookEvent": {
+    "enum": [
+      "start",
+      "output",
+      "logs",
+      "completed"
+    ],
+    "type": "string",
+    "title": "WebhookEvent",
+    "description": "An enumeration."
+  },
+  "audio_format": {
+    "enum": [
+      "mp3",
+      "wav",
+      "flac",
+      "pcm"
+    ],
+    "type": "string",
+    "title": "audio_format",
+    "description": "An enumeration."
+  },
+  "language_boost": {
+    "enum": [
+      "None",
+      "Automatic",
+      "Chinese",
+      "Chinese,Yue",
+      "Cantonese",
+      "English",
+      "Arabic",
+      "Russian",
+      "Spanish",
+      "French",
+      "Portuguese",
+      "German",
+      "Turkish",
+      "Dutch",
+      "Ukrainian",
+      "Vietnamese",
+      "Indonesian",
+      "Japanese",
+      "Italian",
+      "Korean",
+      "Thai",
+      "Polish",
+      "Romanian",
+      "Greek",
+      "Czech",
+      "Finnish",
+      "Hindi",
+      "Bulgarian",
+      "Danish",
+      "Hebrew",
+      "Malay",
+      "Persian",
+      "Slovak",
+      "Swedish",
+      "Croatian",
+      "Filipino",
+      "Hungarian",
+      "Norwegian",
+      "Slovenian",
+      "Catalan",
+      "Nynorsk",
+      "Tamil",
+      "Afrikaans"
+    ],
+    "type": "string",
+    "title": "language_boost",
+    "description": "An enumeration."
+  },
+  "ValidationError": {
+    "type": "object",
+    "title": "ValidationError",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "properties": {
+      "loc": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      }
+    }
+  },
+  "PredictionRequest": {
+    "type": "object",
+    "title": "PredictionRequest",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "context": {
+        "type": "object",
+        "title": "Context",
+        "nullable": true,
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "webhook": {
+        "type": "string",
+        "title": "Webhook",
+        "format": "uri",
+        "nullable": true,
+        "maxLength": 65536,
+        "minLength": 1
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "output_file_prefix": {
+        "type": "string",
+        "title": "Output File Prefix",
+        "nullable": true
+      },
+      "webhook_events_filter": {
+        "type": "array",
+        "items": {
+          "$ref": "#/WebhookEvent"
+        },
+        "default": [
+          "start",
+          "output",
+          "logs",
+          "completed"
+        ],
+        "nullable": true
+      }
+    }
+  },
+  "PredictionResponse": {
+    "type": "object",
+    "title": "PredictionResponse",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "logs": {
+        "type": "string",
+        "title": "Logs",
+        "default": ""
+      },
+      "error": {
+        "type": "string",
+        "title": "Error",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "output": {
+        "$ref": "#/Output"
+      },
+      "status": {
+        "$ref": "#/Status",
+        "nullable": true
+      },
+      "metrics": {
+        "type": "object",
+        "title": "Metrics",
+        "nullable": true,
+        "additionalProperties": true
+      },
+      "version": {
+        "type": "string",
+        "title": "Version",
+        "nullable": true
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "started_at": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "completed_at": {
+        "type": "string",
+        "title": "Completed At",
+        "format": "date-time",
+        "nullable": true
+      }
+    }
+  },
+  "HTTPValidationError": {
+    "type": "object",
+    "title": "HTTPValidationError",
+    "properties": {
+      "detail": {
+        "type": "array",
+        "items": {
+          "$ref": "#/ValidationError"
+        },
+        "title": "Detail"
+      }
     }
   }
 }

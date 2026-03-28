@@ -1,71 +1,279 @@
 {
-  "type": "object",
-  "title": "Input",
-  "required": [
-    "prompt"
-  ],
-  "properties": {
-    "prompt": {
-      "type": "string",
-      "title": "Prompt",
-      "description": "Text prompt for generation"
-    },
-    "duration": {
-      "enum": [
-        6,
-        10
-      ],
-      "type": "integer",
-      "title": "duration",
-      "description": "Duration of the video in seconds. 10 seconds is only available for 768p resolution.",
-      "default": 6,
-      "x-order": 2
-    },
-    "resolution": {
-      "enum": [
-        "768p",
-        "1080p"
-      ],
-      "type": "string",
-      "title": "resolution",
-      "description": "Pick between 768p or 1080p resolution. 1080p supports only 6-second duration.",
-      "default": "768p",
-      "x-order": 3
-    },
-    "prompt_optimizer": {
-      "type": "boolean",
-      "title": "Prompt Optimizer",
-      "default": true,
-      "description": "Use prompt optimizer"
-    },
-    "first_frame_image": {
-      "type": "string",
-      "title": "First Frame Image",
-      "format": "uri",
-      "description": "First frame image for video generation. The output video will have the same aspect ratio as this image."
-    }
-  },
-  "x-renku-constraints": {
-    "fields": {
+  "input_schema": {
+    "type": "object",
+    "title": "Input",
+    "required": [
+      "prompt"
+    ],
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "description": "Text prompt for generation"
+      },
       "duration": {
-        "enum": {
-          "values": [
-            6,
-            10
-          ],
-          "source": "explicit",
-          "confidence": "high"
-        }
+        "allOf": [
+          {
+            "$ref": "#/duration"
+          }
+        ],
+        "default": 6,
+        "x-order": 2,
+        "description": "Duration of the video in seconds. 10 seconds is only available for 768p resolution."
       },
       "resolution": {
-        "enum": {
-          "values": [
-            "768p",
-            "1080p"
-          ],
-          "source": "explicit",
-          "confidence": "high"
+        "allOf": [
+          {
+            "$ref": "#/resolution"
+          }
+        ],
+        "default": "768p",
+        "x-order": 3,
+        "description": "Pick between 768p or 1080p resolution. 1080p supports only 6-second duration."
+      },
+      "prompt_optimizer": {
+        "type": "boolean",
+        "title": "Prompt Optimizer",
+        "default": true,
+        "description": "Use prompt optimizer"
+      },
+      "first_frame_image": {
+        "type": "string",
+        "title": "First Frame Image",
+        "format": "uri",
+        "description": "First frame image for video generation. The output video will have the same aspect ratio as this image."
+      }
+    },
+    "x-renku-constraints": {
+      "fields": {
+        "duration": {
+          "enum": {
+            "values": [
+              6,
+              10
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "resolution": {
+          "enum": {
+            "values": [
+              "768p",
+              "1080p"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
         }
+      }
+    }
+  },
+  "output_schema": {
+    "type": "string",
+    "title": "Output",
+    "format": "uri"
+  },
+  "Status": {
+    "enum": [
+      "starting",
+      "processing",
+      "succeeded",
+      "canceled",
+      "failed"
+    ],
+    "type": "string",
+    "title": "Status",
+    "description": "An enumeration."
+  },
+  "duration": {
+    "enum": [
+      6,
+      10
+    ],
+    "type": "integer",
+    "title": "duration",
+    "description": "An enumeration."
+  },
+  "resolution": {
+    "enum": [
+      "768p",
+      "1080p"
+    ],
+    "type": "string",
+    "title": "resolution",
+    "description": "An enumeration."
+  },
+  "WebhookEvent": {
+    "enum": [
+      "start",
+      "output",
+      "logs",
+      "completed"
+    ],
+    "type": "string",
+    "title": "WebhookEvent",
+    "description": "An enumeration."
+  },
+  "ValidationError": {
+    "type": "object",
+    "title": "ValidationError",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "properties": {
+      "loc": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      }
+    }
+  },
+  "PredictionRequest": {
+    "type": "object",
+    "title": "PredictionRequest",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "context": {
+        "type": "object",
+        "title": "Context",
+        "nullable": true,
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "webhook": {
+        "type": "string",
+        "title": "Webhook",
+        "format": "uri",
+        "nullable": true,
+        "maxLength": 65536,
+        "minLength": 1
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "output_file_prefix": {
+        "type": "string",
+        "title": "Output File Prefix",
+        "nullable": true
+      },
+      "webhook_events_filter": {
+        "type": "array",
+        "items": {
+          "$ref": "#/WebhookEvent"
+        },
+        "default": [
+          "start",
+          "output",
+          "logs",
+          "completed"
+        ],
+        "nullable": true
+      }
+    }
+  },
+  "PredictionResponse": {
+    "type": "object",
+    "title": "PredictionResponse",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "logs": {
+        "type": "string",
+        "title": "Logs",
+        "default": ""
+      },
+      "error": {
+        "type": "string",
+        "title": "Error",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "output": {
+        "$ref": "#/Output"
+      },
+      "status": {
+        "$ref": "#/Status",
+        "nullable": true
+      },
+      "metrics": {
+        "type": "object",
+        "title": "Metrics",
+        "nullable": true,
+        "additionalProperties": true
+      },
+      "version": {
+        "type": "string",
+        "title": "Version",
+        "nullable": true
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "started_at": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "completed_at": {
+        "type": "string",
+        "title": "Completed At",
+        "format": "date-time",
+        "nullable": true
+      }
+    }
+  },
+  "HTTPValidationError": {
+    "type": "object",
+    "title": "HTTPValidationError",
+    "properties": {
+      "detail": {
+        "type": "array",
+        "items": {
+          "$ref": "#/ValidationError"
+        },
+        "title": "Detail"
       }
     }
   }

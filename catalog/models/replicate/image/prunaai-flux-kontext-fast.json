@@ -1,83 +1,340 @@
 {
-  "type": "object",
-  "title": "Input",
-  "required": [
-    "prompt",
-    "img_cond_path"
-  ],
-  "properties": {
-    "seed": {
-      "type": "integer",
-      "title": "Seed",
-      "default": -1,
-      "description": "Seed"
+  "input_schema": {
+    "type": "object",
+    "title": "Input",
+    "required": [
+      "prompt",
+      "img_cond_path"
+    ],
+    "properties": {
+      "seed": {
+        "type": "integer",
+        "title": "Seed",
+        "default": -1,
+        "description": "Seed"
+      },
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "description": "Prompt"
+      },
+      "guidance": {
+        "type": "number",
+        "title": "Guidance",
+        "default": 3.5,
+        "description": "Guidance scale"
+      },
+      "image_size": {
+        "type": "integer",
+        "title": "Image Size",
+        "default": 1024,
+        "description": "Base image size (longest side)"
+      },
+      "speed_mode": {
+        "allOf": [
+          {
+            "$ref": "#/speed_mode"
+          }
+        ],
+        "default": "Extra Juiced 🔥 (more speed)",
+        "x-order": 2,
+        "description": "Speed optimization level"
+      },
+      "aspect_ratio": {
+        "allOf": [
+          {
+            "$ref": "#/aspect_ratio"
+          }
+        ],
+        "default": "match_input_image",
+        "x-order": 6,
+        "description": "Aspect ratio of the output image"
+      },
+      "img_cond_path": {
+        "type": "string",
+        "title": "Img Cond Path",
+        "format": "uri",
+        "description": "Input image for image to image mode. The aspect ratio of your output will match this image"
+      },
+      "output_format": {
+        "allOf": [
+          {
+            "$ref": "#/output_format"
+          }
+        ],
+        "default": "jpg",
+        "x-order": 8,
+        "description": "Output format"
+      },
+      "output_quality": {
+        "type": "integer",
+        "title": "Output Quality",
+        "default": 80,
+        "maximum": 100,
+        "minimum": 1,
+        "description": "Output quality (for jpg and webp)"
+      },
+      "num_inference_steps": {
+        "type": "integer",
+        "title": "Num Inference Steps",
+        "default": 30,
+        "description": "Number of inference steps"
+      }
     },
-    "prompt": {
-      "type": "string",
-      "title": "Prompt",
-      "description": "Prompt"
-    },
-    "guidance": {
-      "type": "number",
-      "title": "Guidance",
-      "default": 3.5,
-      "description": "Guidance scale"
-    },
-    "image_size": {
-      "type": "integer",
-      "title": "Image Size",
-      "default": 1024,
-      "description": "Base image size (longest side)"
-    },
-    "speed_mode": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/speed_mode"
+    "x-renku-constraints": {
+      "fields": {
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "match_input_image",
+              "1:1",
+              "16:9",
+              "21:9",
+              "3:2",
+              "2:3",
+              "4:5",
+              "5:4",
+              "3:4",
+              "4:3",
+              "9:16",
+              "9:21"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
         }
-      ],
-      "default": "Extra Juiced 🔥 (more speed)",
-      "x-order": 2,
-      "description": "Speed optimization level"
-    },
-    "aspect_ratio": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/aspect_ratio"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "string",
+    "title": "Output",
+    "format": "uri"
+  },
+  "Status": {
+    "enum": [
+      "starting",
+      "processing",
+      "succeeded",
+      "canceled",
+      "failed"
+    ],
+    "type": "string",
+    "title": "Status",
+    "description": "An enumeration."
+  },
+  "speed_mode": {
+    "enum": [
+      "Lightly Juiced 🍊 (more consistent)",
+      "Juiced 🔥 (default)",
+      "Extra Juiced 🔥 (more speed)",
+      "Blink of an eye 👁️",
+      "Real Time"
+    ],
+    "type": "string",
+    "title": "speed_mode",
+    "description": "An enumeration."
+  },
+  "WebhookEvent": {
+    "enum": [
+      "start",
+      "output",
+      "logs",
+      "completed"
+    ],
+    "type": "string",
+    "title": "WebhookEvent",
+    "description": "An enumeration."
+  },
+  "aspect_ratio": {
+    "enum": [
+      "match_input_image",
+      "1:1",
+      "16:9",
+      "21:9",
+      "3:2",
+      "2:3",
+      "4:5",
+      "5:4",
+      "3:4",
+      "4:3",
+      "9:16",
+      "9:21"
+    ],
+    "type": "string",
+    "title": "aspect_ratio",
+    "description": "An enumeration."
+  },
+  "output_format": {
+    "enum": [
+      "png",
+      "jpg",
+      "webp"
+    ],
+    "type": "string",
+    "title": "output_format",
+    "description": "An enumeration."
+  },
+  "ValidationError": {
+    "type": "object",
+    "title": "ValidationError",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "properties": {
+      "loc": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      }
+    }
+  },
+  "PredictionRequest": {
+    "type": "object",
+    "title": "PredictionRequest",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "context": {
+        "type": "object",
+        "title": "Context",
+        "nullable": true,
+        "additionalProperties": {
+          "type": "string"
         }
-      ],
-      "default": "match_input_image",
-      "x-order": 6,
-      "description": "Aspect ratio of the output image"
-    },
-    "img_cond_path": {
-      "type": "string",
-      "title": "Img Cond Path",
-      "format": "uri",
-      "description": "Input image for image to image mode. The aspect ratio of your output will match this image"
-    },
-    "output_format": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/output_format"
-        }
-      ],
-      "default": "jpg",
-      "x-order": 8,
-      "description": "Output format"
-    },
-    "output_quality": {
-      "type": "integer",
-      "title": "Output Quality",
-      "default": 80,
-      "maximum": 100,
-      "minimum": 1,
-      "description": "Output quality (for jpg and webp)"
-    },
-    "num_inference_steps": {
-      "type": "integer",
-      "title": "Num Inference Steps",
-      "default": 30,
-      "description": "Number of inference steps"
+      },
+      "webhook": {
+        "type": "string",
+        "title": "Webhook",
+        "format": "uri",
+        "nullable": true,
+        "maxLength": 65536,
+        "minLength": 1
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "output_file_prefix": {
+        "type": "string",
+        "title": "Output File Prefix",
+        "nullable": true
+      },
+      "webhook_events_filter": {
+        "type": "array",
+        "items": {
+          "$ref": "#/WebhookEvent"
+        },
+        "default": [
+          "start",
+          "output",
+          "logs",
+          "completed"
+        ],
+        "nullable": true
+      }
+    }
+  },
+  "PredictionResponse": {
+    "type": "object",
+    "title": "PredictionResponse",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "logs": {
+        "type": "string",
+        "title": "Logs",
+        "default": ""
+      },
+      "error": {
+        "type": "string",
+        "title": "Error",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "output": {
+        "$ref": "#/Output"
+      },
+      "status": {
+        "$ref": "#/Status",
+        "nullable": true
+      },
+      "metrics": {
+        "type": "object",
+        "title": "Metrics",
+        "nullable": true,
+        "additionalProperties": true
+      },
+      "version": {
+        "type": "string",
+        "title": "Version",
+        "nullable": true
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "started_at": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "completed_at": {
+        "type": "string",
+        "title": "Completed At",
+        "format": "date-time",
+        "nullable": true
+      }
+    }
+  },
+  "HTTPValidationError": {
+    "type": "object",
+    "title": "HTTPValidationError",
+    "properties": {
+      "detail": {
+        "type": "array",
+        "items": {
+          "$ref": "#/ValidationError"
+        },
+        "title": "Detail"
+      }
     }
   }
 }

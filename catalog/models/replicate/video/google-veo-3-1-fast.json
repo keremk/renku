@@ -1,120 +1,336 @@
 {
-  "type": "object",
-  "title": "Input",
-  "required": [
-    "prompt"
-  ],
-  "properties": {
-    "seed": {
-      "type": "integer",
-      "title": "Seed",
-      "x-order": 8,
-      "nullable": true,
-      "description": "Random seed. Omit for random generations"
-    },
-    "image": {
-      "type": "string",
-      "title": "Image",
-      "format": "uri",
-      "x-order": 3,
-      "nullable": true,
-      "description": "Input image to start generating from. Ideal images are 16:9 or 9:16 and 1280x720 or 720x1280, depending on the aspect ratio you choose."
-    },
-    "prompt": {
-      "type": "string",
-      "title": "Prompt",
-      "x-order": 0,
-      "description": "Text prompt for video generation"
-    },
-    "duration": {
-      "enum": [
-        4,
-        6,
-        8
-      ],
-      "type": "integer",
-      "title": "duration",
-      "description": "Video duration in seconds",
-      "default": 8,
-      "x-order": 2
-    },
-    "last_frame": {
-      "type": "string",
-      "title": "Last Frame",
-      "format": "uri",
-      "x-order": 4,
-      "nullable": true,
-      "description": "Ending image for interpolation. When provided with an input image, creates a transition between the two images."
-    },
-    "resolution": {
-      "enum": [
-        "720p",
-        "1080p"
-      ],
-      "type": "string",
-      "title": "resolution",
-      "description": "Resolution of the generated video",
-      "default": "1080p",
-      "x-order": 6
-    },
-    "aspect_ratio": {
-      "enum": [
-        "16:9",
-        "9:16"
-      ],
-      "type": "string",
-      "title": "aspect_ratio",
-      "description": "Video aspect ratio",
-      "default": "16:9",
-      "x-order": 1
-    },
-    "generate_audio": {
-      "type": "boolean",
-      "title": "Generate Audio",
-      "default": true,
-      "x-order": 7,
-      "description": "Generate audio with the video"
-    },
-    "negative_prompt": {
-      "type": "string",
-      "title": "Negative Prompt",
-      "x-order": 5,
-      "nullable": true,
-      "description": "Description of what to exclude from the generated video"
-    }
-  },
-  "x-renku-constraints": {
-    "fields": {
+  "input_schema": {
+    "type": "object",
+    "title": "Input",
+    "required": [
+      "prompt"
+    ],
+    "properties": {
+      "seed": {
+        "type": "integer",
+        "title": "Seed",
+        "x-order": 8,
+        "nullable": true,
+        "description": "Random seed. Omit for random generations"
+      },
+      "image": {
+        "type": "string",
+        "title": "Image",
+        "format": "uri",
+        "x-order": 3,
+        "nullable": true,
+        "description": "Input image to start generating from. Ideal images are 16:9 or 9:16 and 1280x720 or 720x1280, depending on the aspect ratio you choose."
+      },
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "x-order": 0,
+        "description": "Text prompt for video generation"
+      },
       "duration": {
-        "enum": {
-          "values": [
-            4,
-            6,
-            8
-          ],
-          "source": "explicit",
-          "confidence": "high"
-        }
+        "allOf": [
+          {
+            "$ref": "#/duration"
+          }
+        ],
+        "default": 8,
+        "x-order": 2,
+        "description": "Video duration in seconds"
+      },
+      "last_frame": {
+        "type": "string",
+        "title": "Last Frame",
+        "format": "uri",
+        "x-order": 4,
+        "nullable": true,
+        "description": "Ending image for interpolation. When provided with an input image, creates a transition between the two images."
       },
       "resolution": {
-        "enum": {
-          "values": [
-            "720p",
-            "1080p"
-          ],
-          "source": "explicit",
-          "confidence": "high"
-        }
+        "allOf": [
+          {
+            "$ref": "#/resolution"
+          }
+        ],
+        "default": "1080p",
+        "x-order": 6,
+        "description": "Resolution of the generated video"
       },
       "aspect_ratio": {
-        "enum": {
-          "values": [
-            "16:9",
-            "9:16"
-          ],
-          "source": "explicit",
-          "confidence": "high"
+        "allOf": [
+          {
+            "$ref": "#/aspect_ratio"
+          }
+        ],
+        "default": "16:9",
+        "x-order": 1,
+        "description": "Video aspect ratio"
+      },
+      "generate_audio": {
+        "type": "boolean",
+        "title": "Generate Audio",
+        "default": true,
+        "x-order": 7,
+        "description": "Generate audio with the video"
+      },
+      "negative_prompt": {
+        "type": "string",
+        "title": "Negative Prompt",
+        "x-order": 5,
+        "nullable": true,
+        "description": "Description of what to exclude from the generated video"
+      }
+    },
+    "x-renku-constraints": {
+      "fields": {
+        "duration": {
+          "enum": {
+            "values": [
+              4,
+              6,
+              8
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "resolution": {
+          "enum": {
+            "values": [
+              "720p",
+              "1080p"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "16:9",
+              "9:16"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
         }
+      }
+    }
+  },
+  "output_schema": {
+    "type": "string",
+    "title": "Output",
+    "format": "uri"
+  },
+  "Status": {
+    "enum": [
+      "starting",
+      "processing",
+      "succeeded",
+      "canceled",
+      "failed"
+    ],
+    "type": "string",
+    "title": "Status",
+    "description": "An enumeration."
+  },
+  "duration": {
+    "enum": [
+      4,
+      6,
+      8
+    ],
+    "type": "integer",
+    "title": "duration",
+    "description": "An enumeration."
+  },
+  "resolution": {
+    "enum": [
+      "720p",
+      "1080p"
+    ],
+    "type": "string",
+    "title": "resolution",
+    "description": "An enumeration."
+  },
+  "WebhookEvent": {
+    "enum": [
+      "start",
+      "output",
+      "logs",
+      "completed"
+    ],
+    "type": "string",
+    "title": "WebhookEvent",
+    "description": "An enumeration."
+  },
+  "aspect_ratio": {
+    "enum": [
+      "16:9",
+      "9:16"
+    ],
+    "type": "string",
+    "title": "aspect_ratio",
+    "description": "An enumeration."
+  },
+  "ValidationError": {
+    "type": "object",
+    "title": "ValidationError",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "properties": {
+      "loc": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      }
+    }
+  },
+  "PredictionRequest": {
+    "type": "object",
+    "title": "PredictionRequest",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "context": {
+        "type": "object",
+        "title": "Context",
+        "nullable": true,
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "webhook": {
+        "type": "string",
+        "title": "Webhook",
+        "format": "uri",
+        "nullable": true,
+        "maxLength": 65536,
+        "minLength": 1
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "output_file_prefix": {
+        "type": "string",
+        "title": "Output File Prefix",
+        "nullable": true
+      },
+      "webhook_events_filter": {
+        "type": "array",
+        "items": {
+          "$ref": "#/WebhookEvent"
+        },
+        "default": [
+          "start",
+          "output",
+          "logs",
+          "completed"
+        ],
+        "nullable": true
+      }
+    }
+  },
+  "PredictionResponse": {
+    "type": "object",
+    "title": "PredictionResponse",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "logs": {
+        "type": "string",
+        "title": "Logs",
+        "default": ""
+      },
+      "error": {
+        "type": "string",
+        "title": "Error",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "output": {
+        "$ref": "#/Output"
+      },
+      "status": {
+        "$ref": "#/Status",
+        "nullable": true
+      },
+      "metrics": {
+        "type": "object",
+        "title": "Metrics",
+        "nullable": true,
+        "additionalProperties": true
+      },
+      "version": {
+        "type": "string",
+        "title": "Version",
+        "nullable": true
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "started_at": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "completed_at": {
+        "type": "string",
+        "title": "Completed At",
+        "format": "date-time",
+        "nullable": true
+      }
+    }
+  },
+  "HTTPValidationError": {
+    "type": "object",
+    "title": "HTTPValidationError",
+    "properties": {
+      "detail": {
+        "type": "array",
+        "items": {
+          "$ref": "#/ValidationError"
+        },
+        "title": "Detail"
       }
     }
   }

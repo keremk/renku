@@ -1,88 +1,322 @@
 {
-  "type": "object",
-  "title": "Input",
-  "required": [
-    "prompt"
-  ],
-  "properties": {
-    "seed": {
-      "type": "integer",
-      "title": "Seed",
-      "x-order": 5,
-      "nullable": true,
-      "description": "Random seed. Set for reproducible generation."
+  "input_schema": {
+    "type": "object",
+    "title": "Input",
+    "required": [
+      "prompt"
+    ],
+    "properties": {
+      "seed": {
+        "type": "integer",
+        "title": "Seed",
+        "x-order": 5,
+        "nullable": true,
+        "description": "Random seed. Set for reproducible generation."
+      },
+      "width": {
+        "type": "integer",
+        "title": "Width",
+        "maximum": 1440,
+        "minimum": 256,
+        "x-order": 2,
+        "nullable": true,
+        "description": "Width of the generated image. Only used when aspect_ratio=custom. Must be a multiple of 16."
+      },
+      "height": {
+        "type": "integer",
+        "title": "Height",
+        "maximum": 1440,
+        "minimum": 256,
+        "x-order": 3,
+        "nullable": true,
+        "description": "Height of the generated image. Only used when aspect_ratio=custom. Must be a multiple of 16."
+      },
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "x-order": 0,
+        "description": "Text prompt for image generation."
+      },
+      "lora_scale": {
+        "type": "number",
+        "title": "Lora Scale",
+        "default": 0.5,
+        "maximum": 3,
+        "minimum": -1,
+        "x-order": 8,
+        "description": "Determines how strongly the main LoRA should be applied. 0.5 usually works well for most LoRAs."
+      },
+      "aspect_ratio": {
+        "allOf": [
+          {
+            "$ref": "#/aspect_ratio"
+          }
+        ],
+        "default": "16:9",
+        "x-order": 1,
+        "description": "Aspect ratio for the generated image."
+      },
+      "hf_api_token": {
+        "type": "string",
+        "title": "Hf Api Token",
+        "format": "password",
+        "x-order": 9,
+        "writeOnly": true,
+        "description": "HuggingFace API token. If you're using a HuggingFace LoRAs that needs authentication, you'll need to provide an API token.",
+        "x-cog-secret": true
+      },
+      "lora_weights": {
+        "type": "string",
+        "title": "Lora Weights",
+        "x-order": 7,
+        "description": "Load LoRA weights. Supports HuggingFace URLs in the format huggingface.co/<owner>/<model-name>[/<lora-weights-file.safetensors>]. HuggingFace LoRAs may require an API token to access, which you can provide in the `hf_api_token` input."
+      },
+      "prompt_upsampling": {
+        "type": "boolean",
+        "title": "Prompt Upsampling",
+        "default": false,
+        "x-order": 4,
+        "description": "Upsample the prompt with an LLM."
+      },
+      "disable_safety_checker": {
+        "type": "boolean",
+        "title": "Disable Safety Checker",
+        "default": false,
+        "x-order": 6,
+        "description": "Disable safety checker for generated images."
+      }
     },
-    "width": {
-      "type": "integer",
-      "title": "Width",
-      "maximum": 1440,
-      "minimum": 256,
-      "x-order": 2,
-      "nullable": true,
-      "description": "Width of the generated image. Only used when aspect_ratio=custom. Must be a multiple of 16."
-    },
-    "height": {
-      "type": "integer",
-      "title": "Height",
-      "maximum": 1440,
-      "minimum": 256,
-      "x-order": 3,
-      "nullable": true,
-      "description": "Height of the generated image. Only used when aspect_ratio=custom. Must be a multiple of 16."
-    },
-    "prompt": {
-      "type": "string",
-      "title": "Prompt",
-      "x-order": 0,
-      "description": "Text prompt for image generation."
-    },
-    "lora_scale": {
-      "type": "number",
-      "title": "Lora Scale",
-      "default": 0.5,
-      "maximum": 3,
-      "minimum": -1,
-      "x-order": 8,
-      "description": "Determines how strongly the main LoRA should be applied. 0.5 usually works well for most LoRAs."
-    },
-    "aspect_ratio": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/aspect_ratio"
+    "x-renku-constraints": {
+      "fields": {
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "1:1",
+              "16:9",
+              "9:16",
+              "4:3",
+              "3:4",
+              "3:2",
+              "2:3",
+              "custom"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
         }
-      ],
-      "default": "16:9",
-      "x-order": 1,
-      "description": "Aspect ratio for the generated image."
-    },
-    "hf_api_token": {
-      "type": "string",
-      "title": "Hf Api Token",
-      "format": "password",
-      "x-order": 9,
-      "writeOnly": true,
-      "description": "HuggingFace API token. If you're using a HuggingFace LoRAs that needs authentication, you'll need to provide an API token.",
-      "x-cog-secret": true
-    },
-    "lora_weights": {
-      "type": "string",
-      "title": "Lora Weights",
-      "x-order": 7,
-      "description": "Load LoRA weights. Supports HuggingFace URLs in the format huggingface.co/<owner>/<model-name>[/<lora-weights-file.safetensors>]. HuggingFace LoRAs may require an API token to access, which you can provide in the `hf_api_token` input."
-    },
-    "prompt_upsampling": {
-      "type": "boolean",
-      "title": "Prompt Upsampling",
-      "default": false,
-      "x-order": 4,
-      "description": "Upsample the prompt with an LLM."
-    },
-    "disable_safety_checker": {
-      "type": "boolean",
-      "title": "Disable Safety Checker",
-      "default": false,
-      "x-order": 6,
-      "description": "Disable safety checker for generated images."
+      }
+    }
+  },
+  "output_schema": {
+    "type": "string",
+    "title": "Output",
+    "format": "uri"
+  },
+  "Status": {
+    "enum": [
+      "starting",
+      "processing",
+      "succeeded",
+      "canceled",
+      "failed"
+    ],
+    "type": "string",
+    "title": "Status",
+    "description": "An enumeration."
+  },
+  "WebhookEvent": {
+    "enum": [
+      "start",
+      "output",
+      "logs",
+      "completed"
+    ],
+    "type": "string",
+    "title": "WebhookEvent",
+    "description": "An enumeration."
+  },
+  "aspect_ratio": {
+    "enum": [
+      "1:1",
+      "16:9",
+      "9:16",
+      "4:3",
+      "3:4",
+      "3:2",
+      "2:3",
+      "custom"
+    ],
+    "type": "string",
+    "title": "aspect_ratio",
+    "description": "An enumeration."
+  },
+  "ValidationError": {
+    "type": "object",
+    "title": "ValidationError",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "properties": {
+      "ctx": {
+        "type": "object",
+        "title": "Context"
+      },
+      "loc": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      },
+      "input": {
+        "title": "Input"
+      }
+    }
+  },
+  "PredictionRequest": {
+    "type": "object",
+    "title": "PredictionRequest",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "context": {
+        "type": "object",
+        "title": "Context",
+        "nullable": true,
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "webhook": {
+        "type": "string",
+        "title": "Webhook",
+        "format": "uri",
+        "nullable": true,
+        "maxLength": 65536,
+        "minLength": 1
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "output_file_prefix": {
+        "type": "string",
+        "title": "Output File Prefix",
+        "nullable": true
+      },
+      "webhook_events_filter": {
+        "type": "array",
+        "items": {
+          "$ref": "#/WebhookEvent"
+        },
+        "default": [
+          "start",
+          "output",
+          "logs",
+          "completed"
+        ],
+        "nullable": true
+      }
+    }
+  },
+  "PredictionResponse": {
+    "type": "object",
+    "title": "PredictionResponse",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "logs": {
+        "type": "string",
+        "title": "Logs",
+        "default": ""
+      },
+      "error": {
+        "type": "string",
+        "title": "Error",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "output": {
+        "$ref": "#/Output"
+      },
+      "status": {
+        "$ref": "#/Status",
+        "nullable": true
+      },
+      "metrics": {
+        "type": "object",
+        "title": "Metrics",
+        "nullable": true,
+        "additionalProperties": true
+      },
+      "version": {
+        "type": "string",
+        "title": "Version",
+        "nullable": true
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "started_at": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "completed_at": {
+        "type": "string",
+        "title": "Completed At",
+        "format": "date-time",
+        "nullable": true
+      }
+    }
+  },
+  "HTTPValidationError": {
+    "type": "object",
+    "title": "HTTPValidationError",
+    "properties": {
+      "detail": {
+        "type": "array",
+        "items": {
+          "$ref": "#/ValidationError"
+        },
+        "title": "Detail"
+      }
     }
   }
 }

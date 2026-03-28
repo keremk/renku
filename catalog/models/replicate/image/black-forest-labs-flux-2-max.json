@@ -1,113 +1,365 @@
 {
-  "type": "object",
-  "title": "Input",
-  "required": [
-    "prompt"
-  ],
-  "properties": {
-    "seed": {
-      "type": "integer",
-      "title": "Seed",
-      "x-order": 7,
-      "description": "Random seed. Set for reproducible generation"
-    },
-    "width": {
-      "type": "integer",
-      "title": "Width",
-      "maximum": 2048,
-      "minimum": 256,
-      "x-order": 4,
-      "nullable": true,
-      "description": "Width of the generated image. Only used when aspect_ratio=custom. Must be a multiple of 32 (if it's not, it will be rounded to nearest multiple of 32)."
-    },
-    "height": {
-      "type": "integer",
-      "title": "Height",
-      "maximum": 2048,
-      "minimum": 256,
-      "x-order": 5,
-      "nullable": true,
-      "description": "Height of the generated image. Only used when aspect_ratio=custom. Must be a multiple of 32 (if it's not, it will be rounded to nearest multiple of 32)."
-    },
-    "prompt": {
-      "type": "string",
-      "title": "Prompt",
-      "x-order": 0,
-      "description": "Text prompt for image generation"
-    },
-    "resolution": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/resolution"
-        }
-      ],
-      "default": "1 MP",
-      "x-order": 3,
-      "description": "Resolution in megapixels. Up to 4 MP is possible, but 2 MP or below is recommended. The maximum image size is 2048x2048, which means that high-resolution images may not respect the resolution if aspect ratio is not 1:1.\n\nResolution is not used when aspect_ratio is 'custom'. When aspect_ratio is 'match_input_image', use 'match_input_image' to match the input image's resolution (clamped to 0.5-4 MP)."
-    },
-    "aspect_ratio": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/aspect_ratio"
-        }
-      ],
-      "default": "1:1",
-      "x-order": 2,
-      "description": "Aspect ratio for the generated image. Use 'match_input_image' to match the first input image's aspect ratio."
-    },
-    "input_images": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "format": "uri"
+  "input_schema": {
+    "type": "object",
+    "title": "Input",
+    "required": [
+      "prompt"
+    ],
+    "properties": {
+      "seed": {
+        "type": "integer",
+        "title": "Seed",
+        "x-order": 7,
+        "description": "Random seed. Set for reproducible generation"
       },
-      "title": "Input Images",
-      "default": [],
-      "x-order": 1,
-      "description": "List of input images for image-to-image generation. Maximum 8 images. Must be jpeg, png, gif, or webp."
+      "width": {
+        "type": "integer",
+        "title": "Width",
+        "maximum": 2048,
+        "minimum": 256,
+        "x-order": 4,
+        "nullable": true,
+        "description": "Width of the generated image. Only used when aspect_ratio=custom. Must be a multiple of 16 (if it's not, it will be rounded to nearest multiple of 16)."
+      },
+      "height": {
+        "type": "integer",
+        "title": "Height",
+        "maximum": 2048,
+        "minimum": 256,
+        "x-order": 5,
+        "nullable": true,
+        "description": "Height of the generated image. Only used when aspect_ratio=custom. Must be a multiple of 16 (if it's not, it will be rounded to nearest multiple of 16)."
+      },
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "x-order": 0,
+        "description": "Text prompt for image generation"
+      },
+      "resolution": {
+        "allOf": [
+          {
+            "$ref": "#/resolution"
+          }
+        ],
+        "default": "1 MP",
+        "x-order": 3,
+        "description": "Resolution in megapixels. Up to 4 MP is possible, but 2 MP or below is recommended. The maximum image size is 2048x2048, which means that high-resolution images may not respect the resolution if aspect ratio is not 1:1.\n\nResolution is not used when aspect_ratio is 'custom'. When aspect_ratio is 'match_input_image', use 'match_input_image' to match the input image's resolution (clamped to 0.5-4 MP)."
+      },
+      "aspect_ratio": {
+        "allOf": [
+          {
+            "$ref": "#/aspect_ratio"
+          }
+        ],
+        "default": "1:1",
+        "x-order": 2,
+        "description": "Aspect ratio for the generated image. Use 'match_input_image' to match the first input image's aspect ratio."
+      },
+      "input_images": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "title": "Input Images",
+        "default": [],
+        "x-order": 1,
+        "description": "List of input images for image-to-image generation. Maximum 8 images. Must be jpeg, png, gif, or webp."
+      },
+      "output_format": {
+        "allOf": [
+          {
+            "$ref": "#/output_format"
+          }
+        ],
+        "default": "webp",
+        "x-order": 8,
+        "description": "Format of the output images."
+      },
+      "output_quality": {
+        "type": "integer",
+        "title": "Output Quality",
+        "default": 80,
+        "maximum": 100,
+        "minimum": 0,
+        "x-order": 9,
+        "description": "Quality when saving the output images, from 0 to 100. 100 is best quality, 0 is lowest quality. Not relevant for .png outputs"
+      },
+      "safety_tolerance": {
+        "type": "integer",
+        "title": "Safety Tolerance",
+        "default": 2,
+        "maximum": 5,
+        "minimum": 1,
+        "x-order": 6,
+        "description": "Safety tolerance, 1 is most strict and 5 is most permissive"
+      }
     },
-    "output_format": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/output_format"
+    "x-renku-constraints": {
+      "fields": {
+        "resolution": {
+          "enum": {
+            "values": [
+              "match_input_image",
+              "0.5 MP",
+              "1 MP",
+              "2 MP",
+              "4 MP"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "match_input_image",
+              "custom",
+              "1:1",
+              "16:9",
+              "3:2",
+              "2:3",
+              "4:5",
+              "5:4",
+              "9:16",
+              "3:4",
+              "4:3"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
         }
-      ],
-      "default": "webp",
-      "x-order": 8,
-      "description": "Format of the output images."
-    },
-    "output_quality": {
-      "type": "integer",
-      "title": "Output Quality",
-      "default": 80,
-      "maximum": 100,
-      "minimum": 0,
-      "x-order": 9,
-      "description": "Quality when saving the output images, from 0 to 100. 100 is best quality, 0 is lowest quality. Not relevant for .png outputs"
-    },
-    "safety_tolerance": {
-      "type": "integer",
-      "title": "Safety Tolerance",
-      "default": 2,
-      "maximum": 5,
-      "minimum": 1,
-      "x-order": 6,
-      "description": "Safety tolerance, 1 is most strict and 5 is most permissive"
+      }
     }
   },
-  "x-renku-constraints": {
-    "fields": {
-      "resolution": {
-        "enum": {
-          "values": [
-            "4MP",
-            "2MP",
-            "2048x2048",
-            "1:1"
-          ],
-          "source": "inferred",
-          "confidence": "medium"
+  "output_schema": {
+    "type": "string",
+    "title": "Output",
+    "format": "uri"
+  },
+  "Status": {
+    "enum": [
+      "starting",
+      "processing",
+      "succeeded",
+      "canceled",
+      "failed"
+    ],
+    "type": "string",
+    "title": "Status",
+    "description": "An enumeration."
+  },
+  "resolution": {
+    "enum": [
+      "match_input_image",
+      "0.5 MP",
+      "1 MP",
+      "2 MP",
+      "4 MP"
+    ],
+    "type": "string",
+    "title": "resolution",
+    "description": "An enumeration."
+  },
+  "WebhookEvent": {
+    "enum": [
+      "start",
+      "output",
+      "logs",
+      "completed"
+    ],
+    "type": "string",
+    "title": "WebhookEvent",
+    "description": "An enumeration."
+  },
+  "aspect_ratio": {
+    "enum": [
+      "match_input_image",
+      "custom",
+      "1:1",
+      "16:9",
+      "3:2",
+      "2:3",
+      "4:5",
+      "5:4",
+      "9:16",
+      "3:4",
+      "4:3"
+    ],
+    "type": "string",
+    "title": "aspect_ratio",
+    "description": "An enumeration."
+  },
+  "output_format": {
+    "enum": [
+      "webp",
+      "jpg",
+      "png"
+    ],
+    "type": "string",
+    "title": "output_format",
+    "description": "An enumeration."
+  },
+  "ValidationError": {
+    "type": "object",
+    "title": "ValidationError",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "properties": {
+      "loc": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      }
+    }
+  },
+  "PredictionRequest": {
+    "type": "object",
+    "title": "PredictionRequest",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "context": {
+        "type": "object",
+        "title": "Context",
+        "nullable": true,
+        "additionalProperties": {
+          "type": "string"
         }
+      },
+      "webhook": {
+        "type": "string",
+        "title": "Webhook",
+        "format": "uri",
+        "nullable": true,
+        "maxLength": 65536,
+        "minLength": 1
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "output_file_prefix": {
+        "type": "string",
+        "title": "Output File Prefix",
+        "nullable": true
+      },
+      "webhook_events_filter": {
+        "type": "array",
+        "items": {
+          "$ref": "#/WebhookEvent"
+        },
+        "default": [
+          "start",
+          "output",
+          "logs",
+          "completed"
+        ],
+        "nullable": true
+      }
+    }
+  },
+  "PredictionResponse": {
+    "type": "object",
+    "title": "PredictionResponse",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "logs": {
+        "type": "string",
+        "title": "Logs",
+        "default": ""
+      },
+      "error": {
+        "type": "string",
+        "title": "Error",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "output": {
+        "$ref": "#/Output"
+      },
+      "status": {
+        "$ref": "#/Status",
+        "nullable": true
+      },
+      "metrics": {
+        "type": "object",
+        "title": "Metrics",
+        "nullable": true,
+        "additionalProperties": true
+      },
+      "version": {
+        "type": "string",
+        "title": "Version",
+        "nullable": true
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "started_at": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "completed_at": {
+        "type": "string",
+        "title": "Completed At",
+        "format": "date-time",
+        "nullable": true
+      }
+    }
+  },
+  "HTTPValidationError": {
+    "type": "object",
+    "title": "HTTPValidationError",
+    "properties": {
+      "detail": {
+        "type": "array",
+        "items": {
+          "$ref": "#/ValidationError"
+        },
+        "title": "Detail"
       }
     }
   }

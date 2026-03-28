@@ -1,100 +1,311 @@
 {
-  "type": "object",
-  "title": "Input",
-  "required": [
-    "prompt",
-    "image"
-  ],
-  "properties": {
-    "seed": {
-      "type": "integer",
-      "title": "Seed",
-      "x-order": 4,
-      "nullable": true,
-      "description": "Random seed. Set for reproducible generation."
-    },
-    "image": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "format": "uri"
+  "input_schema": {
+    "type": "object",
+    "title": "Input",
+    "required": [
+      "prompt",
+      "image"
+    ],
+    "properties": {
+      "seed": {
+        "type": "integer",
+        "title": "Seed",
+        "x-order": 4,
+        "nullable": true,
+        "description": "Random seed. Set for reproducible generation."
       },
-      "title": "Image",
-      "x-order": 1,
-      "description": "Images to use as reference. Must be jpeg, png, gif, or webp."
+      "image": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "title": "Image",
+        "x-order": 1,
+        "description": "Images to use as reference. Must be jpeg, png, gif, or webp."
+      },
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "x-order": 0,
+        "description": "Text instruction on how to edit the given image."
+      },
+      "go_fast": {
+        "type": "boolean",
+        "title": "Go Fast",
+        "default": true,
+        "x-order": 3,
+        "description": "Run faster predictions with additional optimizations."
+      },
+      "aspect_ratio": {
+        "allOf": [
+          {
+            "$ref": "#/aspect_ratio"
+          }
+        ],
+        "default": "match_input_image",
+        "x-order": 2,
+        "description": "Aspect ratio for the generated image."
+      },
+      "output_format": {
+        "allOf": [
+          {
+            "$ref": "#/output_format"
+          }
+        ],
+        "default": "webp",
+        "x-order": 5,
+        "description": "Format of the output images."
+      },
+      "output_quality": {
+        "type": "integer",
+        "title": "Output Quality",
+        "default": 95,
+        "maximum": 100,
+        "minimum": 0,
+        "x-order": 6,
+        "description": "Quality when saving the output images, from 0 to 100. 100 is best quality, 0 is lowest quality. Not relevant for .png outputs."
+      },
+      "disable_safety_checker": {
+        "type": "boolean",
+        "title": "Disable Safety Checker",
+        "default": false,
+        "x-order": 7,
+        "description": "Disable safety checker for generated images."
+      }
     },
-    "prompt": {
-      "type": "string",
-      "title": "Prompt",
-      "x-order": 0,
-      "description": "Text instruction on how to edit the given image."
-    },
-    "go_fast": {
-      "type": "boolean",
-      "title": "Go Fast",
-      "default": true,
-      "x-order": 3,
-      "description": "Run faster predictions with additional optimizations."
-    },
-    "aspect_ratio": {
-      "enum": [
-        "1:1",
-        "16:9",
-        "9:16",
-        "4:3",
-        "3:4",
-        "match_input_image"
-      ],
-      "type": "string",
-      "title": "aspect_ratio",
-      "description": "Aspect ratio for the generated image.",
-      "default": "match_input_image",
-      "x-order": 2
-    },
-    "output_format": {
-      "enum": [
-        "webp",
-        "jpg",
-        "png"
-      ],
-      "type": "string",
-      "title": "output_format",
-      "description": "Format of the output images.",
-      "default": "webp",
-      "x-order": 5
-    },
-    "output_quality": {
-      "type": "integer",
-      "title": "Output Quality",
-      "default": 95,
-      "maximum": 100,
-      "minimum": 0,
-      "x-order": 6,
-      "description": "Quality when saving the output images, from 0 to 100. 100 is best quality, 0 is lowest quality. Not relevant for .png outputs."
-    },
-    "disable_safety_checker": {
-      "type": "boolean",
-      "title": "Disable Safety Checker",
-      "default": false,
-      "x-order": 7,
-      "description": "Disable safety checker for generated images."
+    "x-renku-constraints": {
+      "fields": {
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "1:1",
+              "16:9",
+              "9:16",
+              "4:3",
+              "3:4",
+              "match_input_image"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        }
+      }
     }
   },
-  "x-renku-constraints": {
-    "fields": {
-      "aspect_ratio": {
-        "enum": {
-          "values": [
-            "1:1",
-            "16:9",
-            "9:16",
-            "4:3",
-            "3:4",
-            "match_input_image"
-          ],
-          "source": "explicit",
-          "confidence": "high"
+  "output_schema": {
+    "type": "array",
+    "items": {
+      "type": "string",
+      "format": "uri"
+    },
+    "title": "Output"
+  },
+  "Status": {
+    "enum": [
+      "starting",
+      "processing",
+      "succeeded",
+      "canceled",
+      "failed"
+    ],
+    "type": "string",
+    "title": "Status",
+    "description": "An enumeration."
+  },
+  "WebhookEvent": {
+    "enum": [
+      "start",
+      "output",
+      "logs",
+      "completed"
+    ],
+    "type": "string",
+    "title": "WebhookEvent",
+    "description": "An enumeration."
+  },
+  "aspect_ratio": {
+    "enum": [
+      "1:1",
+      "16:9",
+      "9:16",
+      "4:3",
+      "3:4",
+      "match_input_image"
+    ],
+    "type": "string",
+    "title": "aspect_ratio",
+    "description": "An enumeration."
+  },
+  "output_format": {
+    "enum": [
+      "webp",
+      "jpg",
+      "png"
+    ],
+    "type": "string",
+    "title": "output_format",
+    "description": "An enumeration."
+  },
+  "ValidationError": {
+    "type": "object",
+    "title": "ValidationError",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "properties": {
+      "loc": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      }
+    }
+  },
+  "PredictionRequest": {
+    "type": "object",
+    "title": "PredictionRequest",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "context": {
+        "type": "object",
+        "title": "Context",
+        "nullable": true,
+        "additionalProperties": {
+          "type": "string"
         }
+      },
+      "webhook": {
+        "type": "string",
+        "title": "Webhook",
+        "format": "uri",
+        "nullable": true,
+        "maxLength": 65536,
+        "minLength": 1
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "output_file_prefix": {
+        "type": "string",
+        "title": "Output File Prefix",
+        "nullable": true
+      },
+      "webhook_events_filter": {
+        "type": "array",
+        "items": {
+          "$ref": "#/WebhookEvent"
+        },
+        "default": [
+          "start",
+          "output",
+          "logs",
+          "completed"
+        ],
+        "nullable": true
+      }
+    }
+  },
+  "PredictionResponse": {
+    "type": "object",
+    "title": "PredictionResponse",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "logs": {
+        "type": "string",
+        "title": "Logs",
+        "default": ""
+      },
+      "error": {
+        "type": "string",
+        "title": "Error",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "output": {
+        "$ref": "#/Output"
+      },
+      "status": {
+        "$ref": "#/Status",
+        "nullable": true
+      },
+      "metrics": {
+        "type": "object",
+        "title": "Metrics",
+        "nullable": true,
+        "additionalProperties": true
+      },
+      "version": {
+        "type": "string",
+        "title": "Version",
+        "nullable": true
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "started_at": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "completed_at": {
+        "type": "string",
+        "title": "Completed At",
+        "format": "date-time",
+        "nullable": true
+      }
+    }
+  },
+  "HTTPValidationError": {
+    "type": "object",
+    "title": "HTTPValidationError",
+    "properties": {
+      "detail": {
+        "type": "array",
+        "items": {
+          "$ref": "#/ValidationError"
+        },
+        "title": "Detail"
       }
     }
   }

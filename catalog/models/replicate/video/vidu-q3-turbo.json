@@ -1,71 +1,313 @@
 {
-  "type": "object",
-  "title": "Input",
-  "required": [
-    "prompt"
-  ],
-  "properties": {
-    "seed": {
-      "type": "integer",
-      "title": "Seed",
-      "x-order": 7,
-      "description": "Random seed. Set for reproducible generation."
+  "input_schema": {
+    "type": "object",
+    "title": "Input",
+    "required": [
+      "prompt"
+    ],
+    "properties": {
+      "seed": {
+        "type": "integer",
+        "title": "Seed",
+        "x-order": 7,
+        "description": "Random seed. Set for reproducible generation."
+      },
+      "audio": {
+        "type": "boolean",
+        "title": "Audio",
+        "default": true,
+        "x-order": 6,
+        "description": "Whether to generate audio synchronized with the video (dialogue and sound effects)."
+      },
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "x-order": 0,
+        "description": "Text prompt for video generation. Maximum 5000 characters."
+      },
+      "duration": {
+        "type": "integer",
+        "title": "Duration",
+        "default": 5,
+        "maximum": 16,
+        "minimum": 1,
+        "x-order": 3,
+        "description": "Duration of the video in seconds."
+      },
+      "end_image": {
+        "type": "string",
+        "title": "End Image",
+        "format": "uri",
+        "x-order": 2,
+        "description": "End frame image for the video. Must be used together with start_image for start-end-to-video mode. The aspect ratios of start and end images must be similar (ratio between 0.8 and 1.25). Supported formats: png, jpeg, jpg, webp."
+      },
+      "resolution": {
+        "allOf": [
+          {
+            "$ref": "#/resolution"
+          }
+        ],
+        "default": "720p",
+        "x-order": 5,
+        "description": "Resolution of the output video."
+      },
+      "start_image": {
+        "type": "string",
+        "title": "Start Image",
+        "format": "uri",
+        "x-order": 1,
+        "description": "Start frame image for the video. When provided without an end_image, the model runs in image-to-video mode. Supported formats: png, jpeg, jpg, webp."
+      },
+      "aspect_ratio": {
+        "allOf": [
+          {
+            "$ref": "#/aspect_ratio"
+          }
+        ],
+        "default": "16:9",
+        "x-order": 4,
+        "description": "Aspect ratio of the output video. Only used in text-to-video mode (ignored when images are provided)."
+      }
     },
-    "audio": {
-      "type": "boolean",
-      "title": "Audio",
-      "default": true,
-      "x-order": 6,
-      "description": "Whether to generate audio synchronized with the video (dialogue and sound effects)."
-    },
-    "prompt": {
-      "type": "string",
-      "title": "Prompt",
-      "x-order": 0,
-      "description": "Text prompt for video generation. Maximum 5000 characters."
-    },
-    "duration": {
-      "type": "integer",
-      "title": "Duration",
-      "default": 5,
-      "maximum": 16,
-      "minimum": 1,
-      "x-order": 3,
-      "description": "Duration of the video in seconds."
-    },
-    "end_image": {
-      "type": "string",
-      "title": "End Image",
-      "format": "uri",
-      "x-order": 2,
-      "description": "End frame image for the video. Must be used together with start_image for start-end-to-video mode. The aspect ratios of start and end images must be similar (ratio between 0.8 and 1.25). Supported formats: png, jpeg, jpg, webp."
-    },
-    "resolution": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/resolution"
+    "x-renku-constraints": {
+      "fields": {
+        "resolution": {
+          "enum": {
+            "values": [
+              "540p",
+              "720p",
+              "1080p"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "16:9",
+              "9:16",
+              "3:4",
+              "4:3",
+              "1:1"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
         }
-      ],
-      "default": "720p",
-      "x-order": 5,
-      "description": "Resolution of the output video."
-    },
-    "start_image": {
-      "type": "string",
-      "title": "Start Image",
-      "format": "uri",
-      "x-order": 1,
-      "description": "Start frame image for the video. When provided without an end_image, the model runs in image-to-video mode. Supported formats: png, jpeg, jpg, webp."
-    },
-    "aspect_ratio": {
-      "allOf": [
-        {
-          "$ref": "#/components/schemas/aspect_ratio"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "string",
+    "title": "Output",
+    "format": "uri"
+  },
+  "Status": {
+    "enum": [
+      "starting",
+      "processing",
+      "succeeded",
+      "canceled",
+      "failed"
+    ],
+    "type": "string",
+    "title": "Status",
+    "description": "An enumeration."
+  },
+  "resolution": {
+    "enum": [
+      "540p",
+      "720p",
+      "1080p"
+    ],
+    "type": "string",
+    "title": "resolution",
+    "description": "An enumeration."
+  },
+  "WebhookEvent": {
+    "enum": [
+      "start",
+      "output",
+      "logs",
+      "completed"
+    ],
+    "type": "string",
+    "title": "WebhookEvent",
+    "description": "An enumeration."
+  },
+  "aspect_ratio": {
+    "enum": [
+      "16:9",
+      "9:16",
+      "3:4",
+      "4:3",
+      "1:1"
+    ],
+    "type": "string",
+    "title": "aspect_ratio",
+    "description": "An enumeration."
+  },
+  "ValidationError": {
+    "type": "object",
+    "title": "ValidationError",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "properties": {
+      "loc": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      }
+    }
+  },
+  "PredictionRequest": {
+    "type": "object",
+    "title": "PredictionRequest",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "context": {
+        "type": "object",
+        "title": "Context",
+        "nullable": true,
+        "additionalProperties": {
+          "type": "string"
         }
-      ],
-      "default": "16:9",
-      "x-order": 4,
-      "description": "Aspect ratio of the output video. Only used in text-to-video mode (ignored when images are provided)."
+      },
+      "webhook": {
+        "type": "string",
+        "title": "Webhook",
+        "format": "uri",
+        "nullable": true,
+        "maxLength": 65536,
+        "minLength": 1
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "output_file_prefix": {
+        "type": "string",
+        "title": "Output File Prefix",
+        "nullable": true
+      },
+      "webhook_events_filter": {
+        "type": "array",
+        "items": {
+          "$ref": "#/WebhookEvent"
+        },
+        "default": [
+          "start",
+          "output",
+          "logs",
+          "completed"
+        ],
+        "nullable": true
+      }
+    }
+  },
+  "PredictionResponse": {
+    "type": "object",
+    "title": "PredictionResponse",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "logs": {
+        "type": "string",
+        "title": "Logs",
+        "default": ""
+      },
+      "error": {
+        "type": "string",
+        "title": "Error",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "output": {
+        "$ref": "#/Output"
+      },
+      "status": {
+        "$ref": "#/Status",
+        "nullable": true
+      },
+      "metrics": {
+        "type": "object",
+        "title": "Metrics",
+        "nullable": true,
+        "additionalProperties": true
+      },
+      "version": {
+        "type": "string",
+        "title": "Version",
+        "nullable": true
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "started_at": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "completed_at": {
+        "type": "string",
+        "title": "Completed At",
+        "format": "date-time",
+        "nullable": true
+      }
+    }
+  },
+  "HTTPValidationError": {
+    "type": "object",
+    "title": "HTTPValidationError",
+    "properties": {
+      "detail": {
+        "type": "array",
+        "items": {
+          "$ref": "#/ValidationError"
+        },
+        "title": "Detail"
+      }
     }
   }
 }

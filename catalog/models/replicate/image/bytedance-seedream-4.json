@@ -1,148 +1,354 @@
 {
-  "type": "object",
-  "title": "Input",
-  "required": [
-    "prompt"
-  ],
-  "properties": {
-    "size": {
-      "enum": [
-        "1K",
-        "2K",
-        "4K",
-        "custom"
-      ],
-      "type": "string",
-      "title": "size",
-      "description": "Image resolution: 1K (1024px), 2K (2048px), 4K (4096px), or 'custom' for specific dimensions.",
-      "default": "2K",
-      "x-order": 2
-    },
-    "output_size": {
-      "enum": [
-        "1K",
-        "2K",
-        "4K",
-        "custom"
-      ],
-      "type": "string",
-      "title": "output_size",
-      "description": "Image resolution: 1K (1024px), 2K (2048px), 4K (4096px), or 'custom' for specific dimensions.",
-      "default": "2K",
-      "x-order": 2
-    },
-    "width": {
-      "type": "integer",
-      "title": "Width",
-      "default": 2048,
-      "maximum": 4096,
-      "minimum": 1024,
-      "x-order": 4,
-      "description": "Custom image width (only used when size='custom'). Range: 1024-4096 pixels."
-    },
-    "height": {
-      "type": "integer",
-      "title": "Height",
-      "default": 2048,
-      "maximum": 4096,
-      "minimum": 1024,
-      "x-order": 5,
-      "description": "Custom image height (only used when size='custom'). Range: 1024-4096 pixels."
-    },
-    "prompt": {
-      "type": "string",
-      "title": "Prompt",
-      "x-order": 0,
-      "description": "Text prompt for image generation"
-    },
-    "max_images": {
-      "type": "integer",
-      "title": "Max Images",
-      "default": 1,
-      "maximum": 15,
-      "minimum": 1,
-      "x-order": 7,
-      "description": "Maximum number of images to generate when sequential_image_generation='auto'. Range: 1-15. Total images (input + generated) cannot exceed 15."
-    },
-    "image_input": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "format": "uri"
-      },
-      "title": "Image Input",
-      "default": [],
-      "x-order": 1,
-      "description": "Input image(s) for image-to-image generation. List of 1-10 images for single or multi-reference generation."
-    },
-    "aspect_ratio": {
-      "enum": [
-        "match_input_image",
-        "1:1",
-        "4:3",
-        "3:4",
-        "16:9",
-        "9:16",
-        "3:2",
-        "2:3",
-        "21:9"
-      ],
-      "type": "string",
-      "title": "aspect_ratio",
-      "description": "Image aspect ratio. Only used when size is not 'custom'. Use 'match_input_image' to automatically match the input image's aspect ratio.",
-      "default": "match_input_image",
-      "x-order": 3
-    },
-    "enhance_prompt": {
-      "type": "boolean",
-      "title": "Enhance Prompt",
-      "default": true,
-      "x-order": 8,
-      "description": "Enable prompt enhancement for higher quality results, this will take longer to generate."
-    },
-    "sequential_image_generation": {
-      "enum": [
-        "disabled",
-        "auto"
-      ],
-      "type": "string",
-      "title": "sequential_image_generation",
-      "description": "Group image generation mode. 'disabled' generates a single image. 'auto' lets the model decide whether to generate multiple related images (e.g., story scenes, character variations).",
-      "default": "disabled",
-      "x-order": 6
-    }
+  "size": {
+    "enum": [
+      "1K",
+      "2K",
+      "4K",
+      "custom"
+    ],
+    "type": "string",
+    "title": "size",
+    "description": "An enumeration."
   },
-  "x-renku-constraints": {
-    "fields": {
+  "input_schema": {
+    "type": "object",
+    "title": "Input",
+    "required": [
+      "prompt"
+    ],
+    "properties": {
       "size": {
-        "enum": {
-          "values": [
-            "1K",
-            "2K",
-            "4K",
-            "custom"
-          ],
-          "source": "explicit",
-          "confidence": "high"
-        }
+        "allOf": [
+          {
+            "$ref": "#/size"
+          }
+        ],
+        "default": "2K",
+        "x-order": 2,
+        "description": "Image resolution: 1K (1024px), 2K (2048px), 4K (4096px), or 'custom' for specific dimensions."
+      },
+      "width": {
+        "type": "integer",
+        "title": "Width",
+        "default": 2048,
+        "maximum": 4096,
+        "minimum": 1024,
+        "x-order": 4,
+        "description": "Custom image width (only used when size='custom'). Range: 1024-4096 pixels."
+      },
+      "height": {
+        "type": "integer",
+        "title": "Height",
+        "default": 2048,
+        "maximum": 4096,
+        "minimum": 1024,
+        "x-order": 5,
+        "description": "Custom image height (only used when size='custom'). Range: 1024-4096 pixels."
+      },
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "x-order": 0,
+        "description": "Text prompt for image generation"
+      },
+      "max_images": {
+        "type": "integer",
+        "title": "Max Images",
+        "default": 1,
+        "maximum": 15,
+        "minimum": 1,
+        "x-order": 7,
+        "description": "Maximum number of images to generate when sequential_image_generation='auto'. Range: 1-15. Total images (input + generated) cannot exceed 15."
+      },
+      "image_input": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "title": "Image Input",
+        "default": [],
+        "x-order": 1,
+        "description": "Input image(s) for image-to-image generation. List of 1-10 images for single or multi-reference generation."
       },
       "aspect_ratio": {
-        "enum": {
-          "values": [
-            "match_input_image",
-            "1:1",
-            "4:3",
-            "3:4",
-            "16:9",
-            "9:16",
-            "3:2",
-            "2:3",
-            "21:9"
-          ],
-          "source": "explicit",
-          "confidence": "high"
+        "allOf": [
+          {
+            "$ref": "#/aspect_ratio"
+          }
+        ],
+        "default": "match_input_image",
+        "x-order": 3,
+        "description": "Image aspect ratio. Only used when size is not 'custom'. Use 'match_input_image' to automatically match the input image's aspect ratio."
+      },
+      "enhance_prompt": {
+        "type": "boolean",
+        "title": "Enhance Prompt",
+        "default": true,
+        "x-order": 8,
+        "description": "Enable prompt enhancement for higher quality results, this will take longer to generate."
+      },
+      "sequential_image_generation": {
+        "allOf": [
+          {
+            "$ref": "#/sequential_image_generation"
+          }
+        ],
+        "default": "disabled",
+        "x-order": 6,
+        "description": "Group image generation mode. 'disabled' generates a single image. 'auto' lets the model decide whether to generate multiple related images (e.g., story scenes, character variations)."
+      }
+    },
+    "x-renku-constraints": {
+      "fields": {
+        "size": {
+          "enum": {
+            "values": [
+              "1K",
+              "2K",
+              "4K",
+              "custom"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
+        },
+        "aspect_ratio": {
+          "enum": {
+            "values": [
+              "match_input_image",
+              "1:1",
+              "4:3",
+              "3:4",
+              "16:9",
+              "9:16",
+              "3:2",
+              "2:3",
+              "21:9"
+            ],
+            "source": "explicit",
+            "confidence": "high"
+          }
         }
       }
     }
+  },
+  "output_schema": {
+    "type": "array",
+    "items": {
+      "type": "string",
+      "format": "uri"
+    },
+    "title": "Output"
+  },
+  "Status": {
+    "enum": [
+      "starting",
+      "processing",
+      "succeeded",
+      "canceled",
+      "failed"
+    ],
+    "type": "string",
+    "title": "Status",
+    "description": "An enumeration."
+  },
+  "WebhookEvent": {
+    "enum": [
+      "start",
+      "output",
+      "logs",
+      "completed"
+    ],
+    "type": "string",
+    "title": "WebhookEvent",
+    "description": "An enumeration."
+  },
+  "aspect_ratio": {
+    "enum": [
+      "match_input_image",
+      "1:1",
+      "4:3",
+      "3:4",
+      "16:9",
+      "9:16",
+      "3:2",
+      "2:3",
+      "21:9"
+    ],
+    "type": "string",
+    "title": "aspect_ratio",
+    "description": "An enumeration."
+  },
+  "ValidationError": {
+    "type": "object",
+    "title": "ValidationError",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "properties": {
+      "loc": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      }
+    }
+  },
+  "PredictionRequest": {
+    "type": "object",
+    "title": "PredictionRequest",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "context": {
+        "type": "object",
+        "title": "Context",
+        "nullable": true,
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "webhook": {
+        "type": "string",
+        "title": "Webhook",
+        "format": "uri",
+        "nullable": true,
+        "maxLength": 65536,
+        "minLength": 1
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "output_file_prefix": {
+        "type": "string",
+        "title": "Output File Prefix",
+        "nullable": true
+      },
+      "webhook_events_filter": {
+        "type": "array",
+        "items": {
+          "$ref": "#/WebhookEvent"
+        },
+        "default": [
+          "start",
+          "output",
+          "logs",
+          "completed"
+        ],
+        "nullable": true
+      }
+    }
+  },
+  "PredictionResponse": {
+    "type": "object",
+    "title": "PredictionResponse",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "logs": {
+        "type": "string",
+        "title": "Logs",
+        "default": ""
+      },
+      "error": {
+        "type": "string",
+        "title": "Error",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "output": {
+        "$ref": "#/Output"
+      },
+      "status": {
+        "$ref": "#/Status",
+        "nullable": true
+      },
+      "metrics": {
+        "type": "object",
+        "title": "Metrics",
+        "nullable": true,
+        "additionalProperties": true
+      },
+      "version": {
+        "type": "string",
+        "title": "Version",
+        "nullable": true
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "started_at": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "completed_at": {
+        "type": "string",
+        "title": "Completed At",
+        "format": "date-time",
+        "nullable": true
+      }
+    }
+  },
+  "HTTPValidationError": {
+    "type": "object",
+    "title": "HTTPValidationError",
+    "properties": {
+      "detail": {
+        "type": "array",
+        "items": {
+          "$ref": "#/ValidationError"
+        },
+        "title": "Detail"
+      }
+    }
+  },
+  "sequential_image_generation": {
+    "enum": [
+      "disabled",
+      "auto"
+    ],
+    "type": "string",
+    "title": "sequential_image_generation",
+    "description": "An enumeration."
   }
 }
