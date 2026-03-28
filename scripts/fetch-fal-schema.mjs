@@ -239,7 +239,7 @@ export async function fetchAndTransformSchema(modelName, subProvider) {
     withUriFormat.input_schema &&
     typeof withUriFormat.input_schema === 'object'
   ) {
-    enrichSchemaWithRenkuConstraints(withUriFormat.input_schema);
+    enrichSchemaWithRenkuConstraints(withUriFormat.input_schema, withUriFormat);
   }
 
   return withUriFormat;

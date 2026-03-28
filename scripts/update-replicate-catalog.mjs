@@ -1,165 +1,362 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse as parseYaml } from 'yaml';
-import { fetchReplicateInputSchema, modelNameToFilename } from './fetch-replicate-schema.mjs';
+import {
+  fetchReplicateInputSchema,
+  modelNameToFilename,
+} from './fetch-replicate-schema.mjs';
 
 /**
- * Batch process all models in replicate.yaml and update missing schemas.
+ * Batch process models in replicate.yaml.
  *
- * Usage: node scripts/update-replicate-catalog.mjs <yaml-path> [--dry-run]
+ * Modes:
+ * - default (missing-only): fetch/write only missing or invalid local schema files.
+ * - --check-diff: fetch API schemas and report local-vs-api differences.
+ * - --update-diff: fetch API schemas and write only changed/missing/invalid files.
  *
- * Example: node scripts/update-replicate-catalog.mjs catalog/models/replicate/replicate.yaml
- *          node scripts/update-replicate-catalog.mjs catalog/models/replicate/replicate.yaml --dry-run
+ * Usage:
+ *   node scripts/update-replicate-catalog.mjs <yaml-path> [--dry-run]
+ *   node scripts/update-replicate-catalog.mjs <yaml-path> --check-diff [--model=<owner/model>] [--dry-run]
+ *   node scripts/update-replicate-catalog.mjs <yaml-path> --update-diff [--model=<owner/model>] [--dry-run]
  *
- * Requires REPLICATE_API_TOKEN environment variable (unless --dry-run with all schemas present).
+ * Requires REPLICATE_API_TOKEN whenever an API fetch is needed.
  */
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, '..');
+const FETCH_DELAY_MS = 500;
+const SUPPORTED_SCHEMA_TYPES = new Set(['audio', 'video', 'image', 'json']);
 
-/**
- * Check if a JSON file already has the flat Replicate schema format
- * (has "type" and "properties" at top level, not wrapped in input_schema/output_schema)
- */
-async function hasSchema(filePath) {
-  if (!existsSync(filePath)) {
+function sleep(ms) {
+  return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
+}
+
+function isObjectRecord(value) {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function canonicalizeJson(value) {
+  if (Array.isArray(value)) {
+    return value.map((entry) => canonicalizeJson(entry));
+  }
+  if (!isObjectRecord(value)) {
+    return value;
+  }
+
+  const result = {};
+  for (const key of Object.keys(value).sort()) {
+    result[key] = canonicalizeJson(value[key]);
+  }
+  return result;
+}
+
+function schemasEqual(left, right) {
+  return (
+    JSON.stringify(canonicalizeJson(left)) ===
+    JSON.stringify(canonicalizeJson(right))
+  );
+}
+
+function isValidSchemaFile(json) {
+  if (!isObjectRecord(json)) {
     return false;
+  }
+
+  if (isObjectRecord(json.input_schema)) {
+    return true;
+  }
+
+  // Legacy flat format support (for migration mode)
+  return isObjectRecord(json.properties) && typeof json.type === 'string';
+}
+
+async function readLocalSchemaState(filePath) {
+  let content;
+  try {
+    content = await readFile(filePath, 'utf-8');
+  } catch (error) {
+    const maybeNodeError = error;
+    if (maybeNodeError && maybeNodeError.code === 'ENOENT') {
+      return { state: 'missing' };
+    }
+    throw error;
   }
 
   try {
-    const content = await readFile(filePath, 'utf-8');
-    const json = JSON.parse(content);
-    return 'type' in json && 'properties' in json;
+    const parsed = JSON.parse(content);
+    if (!isValidSchemaFile(parsed)) {
+      return { state: 'invalid' };
+    }
+    return { state: 'ok', schema: parsed };
   } catch {
-    return false;
+    return { state: 'invalid' };
   }
 }
 
-/**
- * Sleep for the given number of milliseconds
- */
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function parseArgs() {
+  const args = process.argv.slice(2);
+  const dryRun = args.includes('--dry-run');
+  const checkDiff = args.includes('--check-diff');
+  const updateDiff = args.includes('--update-diff');
+  const modelArg = args.find((arg) => arg.startsWith('--model='));
+  const modelFilter = modelArg ? modelArg.slice('--model='.length) : undefined;
+  const positionalArgs = args.filter((arg) => !arg.startsWith('--'));
+
+  if (checkDiff && updateDiff) {
+    throw new Error('Use only one of --check-diff or --update-diff.');
+  }
+
+  if (positionalArgs.length < 1) {
+    throw new Error(
+      'Usage: node scripts/update-replicate-catalog.mjs <yaml-path> [--dry-run] [--check-diff|--update-diff] [--model=<owner/model>]'
+    );
+  }
+
+  const mode = checkDiff
+    ? 'check-diff'
+    : updateDiff
+      ? 'update-diff'
+      : 'missing-only';
+
+  return {
+    dryRun,
+    mode,
+    modelFilter,
+    yamlArg: positionalArgs[0],
+  };
 }
 
 async function main() {
-  const args = process.argv.slice(2);
-  const dryRun = args.includes('--dry-run');
-  const filteredArgs = args.filter((arg) => !arg.startsWith('--'));
-
-  if (filteredArgs.length < 1) {
-    console.error('Usage: node scripts/update-replicate-catalog.mjs <yaml-path> [--dry-run]');
-    console.error('Example: node scripts/update-replicate-catalog.mjs catalog/models/replicate/replicate.yaml');
-    console.error('         node scripts/update-replicate-catalog.mjs catalog/models/replicate/replicate.yaml --dry-run');
-    process.exit(1);
-  }
+  const { dryRun, mode, modelFilter, yamlArg } = parseArgs();
 
   if (dryRun) {
-    console.log('[update-replicate] DRY RUN MODE - no files will be modified\n');
+    console.log(
+      '[update-replicate] DRY RUN MODE - no files will be modified\n'
+    );
   }
 
-  const yamlPath = resolve(repoRoot, filteredArgs[0]);
-
-  if (!existsSync(yamlPath)) {
-    console.error(`[update-replicate] YAML file not found: ${yamlPath}`);
-    process.exit(1);
-  }
-
-  console.log(`[update-replicate] Loading catalog from ${yamlPath}`);
-
+  const yamlPath = resolve(repoRoot, yamlArg);
   const yamlContent = await readFile(yamlPath, 'utf-8');
   const catalog = parseYaml(yamlContent);
 
   if (!catalog?.models || !Array.isArray(catalog.models)) {
-    console.error('[update-replicate] No models array found in YAML file');
-    process.exit(1);
+    throw new Error('No models array found in YAML file');
+  }
+
+  const targetModels = catalog.models.filter((entry) => {
+    if (!entry?.name || !entry?.type) {
+      return false;
+    }
+    if (modelFilter && entry.name !== modelFilter) {
+      return false;
+    }
+    return true;
+  });
+
+  if (targetModels.length === 0) {
+    throw new Error(
+      modelFilter
+        ? `No models matched --model=${modelFilter}`
+        : 'No valid models found in catalog'
+    );
   }
 
   const catalogDir = dirname(yamlPath);
 
-  let converted = 0;
-  let skipped = 0;
-  let failed = 0;
-  let needsFetch = false;
+  const counters = {
+    upToDate: 0,
+    updated: 0,
+    wouldUpdate: 0,
+    skipped: 0,
+    missingLocal: 0,
+    invalidLocal: 0,
+    different: 0,
+    failed: 0,
+  };
 
-  // First pass: check if any models need fetching
-  for (const model of catalog.models) {
+  const localStateMap = new Map();
+  for (const model of targetModels) {
     const { name, type } = model;
-    if (!name || !type) continue;
-    const typeDir = resolve(catalogDir, type);
-    const filename = modelNameToFilename(name);
-    const outputPath = resolve(typeDir, filename);
-    if (!(await hasSchema(outputPath))) {
-      needsFetch = true;
-      break;
+    if (!SUPPORTED_SCHEMA_TYPES.has(type)) {
+      continue;
     }
+    const filePath = resolve(catalogDir, type, modelNameToFilename(name));
+    localStateMap.set(name, await readLocalSchemaState(filePath));
   }
 
-  // Validate token if we'll need to fetch
-  if (needsFetch && !dryRun && !process.env.REPLICATE_API_TOKEN) {
-    console.error('[update-replicate] REPLICATE_API_TOKEN is required to fetch missing schemas.');
-    console.error('Get your token at https://replicate.com/account/api-tokens');
-    process.exit(1);
+  const requiresFetch =
+    mode === 'check-diff' ||
+    mode === 'update-diff' ||
+    (!dryRun &&
+      mode === 'missing-only' &&
+      targetModels.some((model) => {
+        const state = localStateMap.get(model.name);
+        return state?.state === 'missing' || state?.state === 'invalid';
+      }));
+
+  if (requiresFetch && !process.env.REPLICATE_API_TOKEN) {
+    throw new Error(
+      'REPLICATE_API_TOKEN is required for this mode. Get your token at https://replicate.com/account/api-tokens'
+    );
   }
 
-  let isFirstFetch = true;
+  console.log(`[update-replicate] Loading catalog from ${yamlPath}`);
+  console.log(`[update-replicate] Mode: ${mode}`);
+  if (modelFilter) {
+    console.log(`[update-replicate] Model filter: ${modelFilter}`);
+  }
+  console.log('');
 
-  for (const model of catalog.models) {
+  let firstFetch = true;
+
+  for (const model of targetModels) {
     const { name, type } = model;
+    const schemaPath = resolve(catalogDir, type, modelNameToFilename(name));
 
-    if (!name || !type) {
-      console.warn(`[update-replicate] Skipping model with missing name or type: ${JSON.stringify(model)}`);
-      failed++;
+    if (!SUPPORTED_SCHEMA_TYPES.has(type)) {
+      console.error(
+        `[update-replicate] FAILED: ${name} uses unsupported schema type "${type}"`
+      );
+      counters.failed += 1;
       continue;
     }
 
-    // Determine output directory based on type
-    const typeDir = resolve(catalogDir, type);
-    const filename = modelNameToFilename(name);
-    const outputPath = resolve(typeDir, filename);
-
-    // Check if already has schema
-    if (await hasSchema(outputPath)) {
-      console.log(`[update-replicate] SKIP: ${name} (already has schema)`);
-      skipped++;
+    const localState = localStateMap.get(name);
+    if (!localState) {
+      console.error(
+        `[update-replicate] FAILED: could not determine local schema state for ${name}`
+      );
+      counters.failed += 1;
       continue;
     }
 
-    // Fetch schema
-    try {
+    if (mode === 'missing-only') {
+      if (localState.state === 'ok') {
+        console.log(`[update-replicate] SKIP: ${name} (already has schema)`);
+        counters.skipped += 1;
+        continue;
+      }
+
       if (dryRun) {
-        console.log(`[update-replicate] WOULD CONVERT: ${name} → ${outputPath}`);
-        converted++;
-      } else {
-        // Rate limit: 500ms between API calls
-        if (!isFirstFetch) {
-          await sleep(500);
-        }
-        isFirstFetch = false;
+        console.log(
+          `[update-replicate] WOULD FETCH: ${name} -> ${schemaPath} (${localState.state})`
+        );
+        counters.wouldUpdate += 1;
+        continue;
+      }
 
-        const schema = await fetchReplicateInputSchema(name);
-        await writeFile(outputPath, JSON.stringify(schema, null, 2) + '\n');
-        console.log(`[update-replicate] CONVERTED: ${name} → ${outputPath}`);
-        converted++;
+      try {
+        if (!firstFetch) {
+          await sleep(FETCH_DELAY_MS);
+        }
+        firstFetch = false;
+
+        const fetchedSchema = await fetchReplicateInputSchema(name);
+        await writeFile(
+          schemaPath,
+          JSON.stringify(fetchedSchema, null, 2) + '\n'
+        );
+        console.log(
+          `[update-replicate] UPDATED: ${name} -> ${schemaPath} (${localState.state})`
+        );
+        counters.updated += 1;
+      } catch (error) {
+        console.error(
+          `[update-replicate] FAILED: ${name} - ${error instanceof Error ? error.message : error}`
+        );
+        counters.failed += 1;
+      }
+
+      continue;
+    }
+
+    try {
+      if (!firstFetch) {
+        await sleep(FETCH_DELAY_MS);
+      }
+      firstFetch = false;
+
+      const fetchedSchema = await fetchReplicateInputSchema(name);
+
+      let driftState = 'up-to-date';
+      if (localState.state === 'missing') {
+        driftState = 'missing-local';
+      } else if (localState.state === 'invalid') {
+        driftState = 'invalid-local';
+      } else if (!schemasEqual(localState.schema, fetchedSchema)) {
+        driftState = 'different';
+      }
+
+      if (driftState === 'up-to-date') {
+        console.log(`[update-replicate] UP TO DATE: ${name}`);
+        counters.upToDate += 1;
+        continue;
+      }
+
+      if (driftState === 'missing-local') {
+        counters.missingLocal += 1;
+      } else if (driftState === 'invalid-local') {
+        counters.invalidLocal += 1;
+      } else if (driftState === 'different') {
+        counters.different += 1;
+      }
+
+      if (mode === 'check-diff') {
+        console.log(`[update-replicate] DIFF: ${name} (${driftState})`);
+        continue;
+      }
+
+      if (dryRun) {
+        console.log(`[update-replicate] WOULD UPDATE: ${name} (${driftState})`);
+        counters.wouldUpdate += 1;
+      } else {
+        await writeFile(
+          schemaPath,
+          JSON.stringify(fetchedSchema, null, 2) + '\n'
+        );
+        console.log(`[update-replicate] UPDATED: ${name} (${driftState})`);
+        counters.updated += 1;
       }
     } catch (error) {
-      console.error(`[update-replicate] FAILED: ${name} - ${error instanceof Error ? error.message : error}`);
-      failed++;
+      console.error(
+        `[update-replicate] FAILED: ${name} - ${error instanceof Error ? error.message : error}`
+      );
+      counters.failed += 1;
     }
   }
 
   console.log('');
   console.log('[update-replicate] Summary:');
-  console.log(`  Converted: ${converted}`);
-  console.log(`  Skipped:   ${skipped}`);
-  console.log(`  Failed:    ${failed}`);
-  console.log(`  Total:     ${catalog.models.length}`);
+  console.log(`  Up to date:   ${counters.upToDate}`);
+  console.log(`  Updated:      ${counters.updated}`);
+  console.log(`  Would update: ${counters.wouldUpdate}`);
+  console.log(`  Skipped:      ${counters.skipped}`);
+  console.log(`  Different:    ${counters.different}`);
+  console.log(`  Missing:      ${counters.missingLocal}`);
+  console.log(`  Invalid:      ${counters.invalidLocal}`);
+  console.log(`  Failed:       ${counters.failed}`);
+  console.log(`  Total:        ${targetModels.length}`);
+
+  const hasDrift =
+    counters.different > 0 ||
+    counters.missingLocal > 0 ||
+    counters.invalidLocal > 0;
+
+  if (counters.failed > 0) {
+    process.exit(1);
+  }
+
+  if (mode === 'check-diff' && hasDrift) {
+    process.exit(1);
+  }
 }
 
 main().catch((error) => {
-  console.error('[update-replicate] Error:', error instanceof Error ? error.message : error);
+  console.error(
+    '[update-replicate] Error:',
+    error instanceof Error ? error.message : error
+  );
   process.exit(1);
 });

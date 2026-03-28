@@ -12,6 +12,7 @@ Add a new Replicate model to the Renku pricing catalog.
 ## Step 1: Gather Information
 
 Ask the user for:
+
 - **Model name** (e.g., `openai/sora-2`) — always in `owner/model-name` format
 - **Model type**: `video`, `image`, or `audio`
 
@@ -52,23 +53,23 @@ Read `docs/cost-functions-reference.md` in this skill directory for the full ref
 
 Match the model's pricing to an existing cost function:
 
-| Pricing Pattern | Cost Function |
-|----------------|---------------|
-| Flat per run | `costByRun` |
-| Per second (simple) | `costByVideoDuration` |
-| Per second + audio toggle | `costByVideoDurationAndWithAudio` |
-| Per second + resolution tiers | `costByVideoDurationAndResolution` |
-| Per second + mode (standard/pro) | `costByVideoDurationAndMode` |
-| Per second + mode + audio toggle | `costByVideoDurationModeAndAudio` |
-| Per megapixel (video) | `costByVideoMegapixels` |
-| Per million tokens | `costByVideoPerMillionTokens` |
-| Per character | `costByCharacters` |
-| Per second (audio) | `costByAudioSeconds` |
-| Per megapixel (image) | `costByImageMegapixels` |
-| Size + quality grid | `costByImageSizeAndQuality` |
-| Resolution tiers (image) | `costByImageAndResolution` |
-| Dimension-based (image) | `costByResolution` |
-| Per token (text) | `costByInputTokens` |
+| Pricing Pattern                  | Cost Function                      |
+| -------------------------------- | ---------------------------------- |
+| Flat per run                     | `costByRun`                        |
+| Per second (simple)              | `costByVideoDuration`              |
+| Per second + audio toggle        | `costByVideoDurationAndWithAudio`  |
+| Per second + resolution tiers    | `costByVideoDurationAndResolution` |
+| Per second + mode (standard/pro) | `costByVideoDurationAndMode`       |
+| Per second + mode + audio toggle | `costByVideoDurationModeAndAudio`  |
+| Per megapixel (video)            | `costByVideoMegapixels`            |
+| Per million tokens               | `costByVideoPerMillionTokens`      |
+| Per character                    | `costByCharacters`                 |
+| Per second (audio)               | `costByAudioSeconds`               |
+| Per megapixel (image)            | `costByImageMegapixels`            |
+| Size + quality grid              | `costByImageSizeAndQuality`        |
+| Resolution tiers (image)         | `costByImageAndResolution`         |
+| Dimension-based (image)          | `costByResolution`                 |
+| Per token (text)                 | `costByInputTokens`                |
 
 If no existing function matches, implement a new one following the guide in `docs/cost-functions-reference.md` under "How to Add a New Cost Function".
 

@@ -9,7 +9,7 @@ import { enrichSchemaWithRenkuConstraints } from './schema-constraints.mjs';
  *
  * Usage:
  *   node scripts/fetch-replicate-schema.mjs <owner/model-name> <output-path>
- *   node scripts/fetch-replicate-schema.mjs <owner/model-name> --type=audio|video|image
+ *   node scripts/fetch-replicate-schema.mjs <owner/model-name> --type=audio|video|image|json
  *
  * Examples:
  *   node scripts/fetch-replicate-schema.mjs openai/sora-2 --type=video
@@ -42,9 +42,52 @@ export function modelNameToFilename(modelName) {
   return modelName.replace(/\//g, '-').replace(/\./g, '-') + '.json';
 }
 
+function isObjectRecord(value) {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function normalizeOpenApiComponentRefs(node) {
+  if (Array.isArray(node)) {
+    return node.map((value) => normalizeOpenApiComponentRefs(value));
+  }
+
+  if (!isObjectRecord(node)) {
+    return node;
+  }
+
+  const result = {};
+  for (const [key, value] of Object.entries(node)) {
+    if (key === '$ref' && typeof value === 'string') {
+      result[key] = value.replace('#/components/schemas/', '#/');
+      continue;
+    }
+    result[key] = normalizeOpenApiComponentRefs(value);
+  }
+  return result;
+}
+
+function buildReplicateSchemaFile(componentsSchemas) {
+  const schemaFile = {};
+
+  for (const [schemaName, schemaValue] of Object.entries(componentsSchemas)) {
+    if (schemaName === 'Input') {
+      schemaFile.input_schema = schemaValue;
+      continue;
+    }
+    if (schemaName === 'Output') {
+      schemaFile.output_schema = schemaValue;
+      continue;
+    }
+    schemaFile[schemaName] = schemaValue;
+  }
+
+  return normalizeOpenApiComponentRefs(schemaFile);
+}
+
 /**
  * Fetch input schema for a Replicate model.
- * Returns the flat input schema: { type, title, required, properties }
+ * Returns a full schema file:
+ * { input_schema, output_schema?, ...definitions }
  */
 export async function fetchReplicateInputSchema(modelName) {
   const token = process.env.REPLICATE_API_TOKEN;
@@ -73,17 +116,33 @@ export async function fetchReplicateInputSchema(modelName) {
 
   const model = await response.json();
 
-  const inputSchema =
-    model?.latest_version?.openapi_schema?.components?.schemas?.Input;
+  const componentsSchemas =
+    model?.latest_version?.openapi_schema?.components?.schemas;
+  if (!componentsSchemas || !isObjectRecord(componentsSchemas)) {
+    throw new Error(
+      `No components.schemas found for ${modelName}. ` +
+        'The model may not have a latest_version or openapi_schema.'
+    );
+  }
 
-  if (!inputSchema) {
+  if (!componentsSchemas.Input) {
     throw new Error(
       `No input schema found for ${modelName}. ` +
         'The model may not have a latest_version or openapi_schema.'
     );
   }
 
-  return enrichSchemaWithRenkuConstraints(inputSchema);
+  const schemaFile = buildReplicateSchemaFile(componentsSchemas);
+
+  if (!isObjectRecord(schemaFile.input_schema)) {
+    throw new Error(
+      `Input schema is malformed for ${modelName}. ` +
+        'Expected input_schema object in transformed schema file.'
+    );
+  }
+
+  enrichSchemaWithRenkuConstraints(schemaFile.input_schema, schemaFile);
+  return schemaFile;
 }
 
 async function main() {
@@ -101,7 +160,7 @@ async function main() {
       '  node scripts/fetch-replicate-schema.mjs <owner/model-name> <output-path>'
     );
     console.error(
-      '  node scripts/fetch-replicate-schema.mjs <owner/model-name> --type=audio|video|image'
+      '  node scripts/fetch-replicate-schema.mjs <owner/model-name> --type=audio|video|image|json'
     );
     console.error('');
     console.error('Examples:');
@@ -140,7 +199,7 @@ async function main() {
     outputPath = positionalArgs[1];
   } else {
     console.error(
-      '[fetch-replicate] Error: Either provide an output path or use --type=audio|video|image'
+      '[fetch-replicate] Error: Either provide an output path or use --type=audio|video|image|json'
     );
     process.exit(1);
   }

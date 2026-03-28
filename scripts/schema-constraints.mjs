@@ -23,9 +23,53 @@ function pushUnique(target, value) {
   }
 }
 
-function collectEnumLikeValues(node, output) {
+function decodeJsonPointerToken(token) {
+  return token.replace(/~1/g, '/').replace(/~0/g, '~');
+}
+
+function resolveLocalRef(ref, rootSchema) {
+  if (typeof ref !== 'string' || !ref.startsWith('#/')) {
+    return undefined;
+  }
+
+  if (!isObjectRecord(rootSchema)) {
+    return undefined;
+  }
+
+  const tokens = ref
+    .slice(2)
+    .split('/')
+    .map((token) => decodeJsonPointerToken(token));
+
+  let cursor = rootSchema;
+  for (const token of tokens) {
+    if (!isObjectRecord(cursor)) {
+      return undefined;
+    }
+    if (!(token in cursor)) {
+      return undefined;
+    }
+    cursor = cursor[token];
+  }
+
+  return cursor;
+}
+
+function collectEnumLikeValues(node, output, rootSchema, seenRefs = new Set()) {
   if (!isObjectRecord(node)) {
     return;
+  }
+
+  if (typeof node.$ref === 'string') {
+    const ref = node.$ref;
+    if (!seenRefs.has(ref)) {
+      const resolved = resolveLocalRef(ref, rootSchema);
+      if (resolved !== undefined) {
+        seenRefs.add(ref);
+        collectEnumLikeValues(resolved, output, rootSchema, seenRefs);
+        seenRefs.delete(ref);
+      }
+    }
   }
 
   if (Array.isArray(node.enum)) {
@@ -48,7 +92,7 @@ function collectEnumLikeValues(node, output) {
       continue;
     }
     for (const child of node[keyword]) {
-      collectEnumLikeValues(child, output);
+      collectEnumLikeValues(child, output, rootSchema, seenRefs);
     }
   }
 }
@@ -130,9 +174,9 @@ function inferValuesFromDescription(fieldName, description) {
   return [];
 }
 
-function buildFieldConstraint(fieldName, schemaNode) {
+function buildFieldConstraint(fieldName, schemaNode, rootSchema) {
   const explicitValues = [];
-  collectEnumLikeValues(schemaNode, explicitValues);
+  collectEnumLikeValues(schemaNode, explicitValues, rootSchema);
   if (explicitValues.length > 0) {
     return {
       enum: {
@@ -161,7 +205,10 @@ function buildFieldConstraint(fieldName, schemaNode) {
   return undefined;
 }
 
-export function enrichSchemaWithRenkuConstraints(inputSchema) {
+export function enrichSchemaWithRenkuConstraints(
+  inputSchema,
+  rootSchema = inputSchema
+) {
   if (!isObjectRecord(inputSchema)) {
     return inputSchema;
   }
@@ -179,7 +226,7 @@ export function enrichSchemaWithRenkuConstraints(inputSchema) {
     if (!TARGET_FIELD_NAMES.has(fieldName)) {
       continue;
     }
-    const constraint = buildFieldConstraint(fieldName, schemaNode);
+    const constraint = buildFieldConstraint(fieldName, schemaNode, rootSchema);
     if (constraint) {
       fields[fieldName] = constraint;
     }
