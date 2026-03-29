@@ -172,6 +172,71 @@ describe('transforms', () => {
       expect(result).toEqual({ field: 'size', value: '1K' });
     });
 
+    it('projects nearest megapixel bucket with suffix', () => {
+      const context = createContext({
+        Resolution: { width: 1920, height: 1080 },
+      });
+      const mapping: MappingFieldDefinition = {
+        field: 'resolution',
+        resolution: {
+          mode: 'megapixelsNearest',
+          megapixelCandidates: [0.5, 1, 2, 4],
+          megapixelSuffix: ' MP',
+        },
+      };
+
+      const result = applyMapping('Resolution', mapping, context);
+      expect(result).toEqual({ field: 'resolution', value: '2 MP' });
+    });
+
+    it('projects nearest megapixel bucket without suffix', () => {
+      const context = createContext({
+        Resolution: { width: 512, height: 512 },
+      });
+      const mapping: MappingFieldDefinition = {
+        field: 'megapixels',
+        resolution: {
+          mode: 'megapixelsNearest',
+          megapixelCandidates: [0.25, 0.5, 1, 2, 4],
+        },
+      };
+
+      const result = applyMapping('Resolution', mapping, context);
+      expect(result).toEqual({ field: 'megapixels', value: '0.25' });
+    });
+
+    it('projects multi-field object from one resolution input', () => {
+      const context = createContext({
+        Resolution: { width: 1920, height: 1080 },
+      });
+      const mapping: MappingFieldDefinition = {
+        expand: true,
+        resolution: {
+          mode: 'object',
+          fields: {
+            aspect_ratio: { mode: 'aspectRatio' },
+            resolution: {
+              mode: 'megapixelsNearest',
+              megapixelCandidates: [0.5, 1, 2, 4],
+              megapixelSuffix: ' MP',
+            },
+            width: { mode: 'width' },
+            height: { mode: 'height' },
+          },
+        },
+      };
+
+      const result = applyMapping('Resolution', mapping, context);
+      expect(result).toEqual({
+        expand: {
+          aspect_ratio: '16:9',
+          resolution: '2 MP',
+          width: 1920,
+          height: 1080,
+        },
+      });
+    });
+
     it('maps near ratios to a known aspect ratio', () => {
       const context = createContext({
         Resolution: { width: 1918, height: 1080 },
@@ -207,6 +272,34 @@ describe('transforms', () => {
 
       expect(() => applyMapping('Resolution', mapping, context)).toThrow(
         /requires an object with width and height/
+      );
+    });
+
+    it('throws when object mode has no fields', () => {
+      const context = createContext({
+        Resolution: { width: 1920, height: 1080 },
+      });
+      const mapping: MappingFieldDefinition = {
+        expand: true,
+        resolution: { mode: 'object' },
+      };
+
+      expect(() => applyMapping('Resolution', mapping, context)).toThrow(
+        /requires a non-empty fields map/
+      );
+    });
+
+    it('throws when megapixelsNearest has no candidates', () => {
+      const context = createContext({
+        Resolution: { width: 1920, height: 1080 },
+      });
+      const mapping: MappingFieldDefinition = {
+        field: 'resolution',
+        resolution: { mode: 'megapixelsNearest' },
+      };
+
+      expect(() => applyMapping('Resolution', mapping, context)).toThrow(
+        /requires megapixelCandidates/
       );
     });
   });

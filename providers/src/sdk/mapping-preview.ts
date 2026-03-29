@@ -188,6 +188,44 @@ export function evaluateResolutionMappingPreview(
       }
     }
 
+    if (resolutionConfig?.mode === 'object' && resolutionConfig.fields) {
+      const longEdge = Math.max(sourceValue.width, sourceValue.height);
+
+      for (const [field, fieldConfig] of Object.entries(
+        resolutionConfig.fields
+      )) {
+        if (
+          fieldConfig.mode === 'sizeTokenNearest' &&
+          !SIZE_TOKEN_EDGES.has(longEdge)
+        ) {
+          const preview = byField.get(field);
+          if (preview) {
+            preview.warnings.add(
+              `Converted to nearest supported size token from long edge ${longEdge}.`
+            );
+          }
+        }
+
+        if (
+          fieldConfig.mode === 'aspectRatio' ||
+          fieldConfig.mode === 'aspectRatioAndPreset'
+        ) {
+          const projection = projectAspectRatio(
+            sourceValue.width,
+            sourceValue.height
+          );
+          if (projection.outsideTolerance) {
+            const preview = byField.get(field);
+            if (preview) {
+              preview.warnings.add(
+                `Aspect ratio mapped to nearest supported value (${projection.label}) outside ${ASPECT_RATIO_MATCH_TOLERANCE_PERCENT}% tolerance.`
+              );
+            }
+          }
+        }
+      }
+    }
+
     if (resolutionConfig?.mode === 'aspectRatioAndSizeTokenObject') {
       const longEdge = Math.max(sourceValue.width, sourceValue.height);
       if (!SIZE_TOKEN_EDGES.has(longEdge)) {
@@ -470,6 +508,15 @@ function collectExpandMappedFields(
     return [resolution.aspectRatioField, resolution.sizeTokenField];
   }
 
+  if (resolution?.mode === 'object') {
+    if (!resolution.fields || Object.keys(resolution.fields).length === 0) {
+      throw new Error(
+        `Mapping contract for alias "${alias}" with resolution mode "object" requires a non-empty fields map.`
+      );
+    }
+    return Object.keys(resolution.fields);
+  }
+
   if (mapping.combine) {
     return collectExpandFieldsFromCombineTable(alias, mapping.combine.table);
   }
@@ -557,6 +604,13 @@ function collectExpectedFields(mapping?: MappingFieldDefinition): string[] {
       fields.add(mapping.resolution.sizeTokenField);
     }
   }
+  if (mapping.resolution?.mode === 'object' && mapping.resolution.fields) {
+    for (const key of Object.keys(mapping.resolution.fields)) {
+      if (isResolutionRelatedField(key)) {
+        fields.add(key);
+      }
+    }
+  }
   return Array.from(fields);
 }
 
@@ -593,6 +647,13 @@ function inferPrimaryField(
   ) {
     return mapping.resolution.aspectRatioField;
   }
+
+  if (mapping.resolution?.mode === 'object' && mapping.resolution.fields) {
+    const candidates = Object.keys(mapping.resolution.fields).filter((field) =>
+      isResolutionRelatedField(field)
+    );
+    return candidates[0];
+  }
   return undefined;
 }
 
@@ -622,6 +683,20 @@ function inferAspectRatioField(
     typeof mapping.resolution.aspectRatioField === 'string'
   ) {
     return mapping.resolution.aspectRatioField;
+  }
+
+  if (mapping.resolution?.mode === 'object' && mapping.resolution.fields) {
+    for (const [field, fieldConfig] of Object.entries(
+      mapping.resolution.fields
+    )) {
+      if (
+        (fieldConfig.mode === 'aspectRatio' ||
+          fieldConfig.mode === 'aspectRatioAndPreset') &&
+        isResolutionRelatedField(field)
+      ) {
+        return field;
+      }
+    }
   }
 
   return undefined;

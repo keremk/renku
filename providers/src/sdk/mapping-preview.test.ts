@@ -211,6 +211,57 @@ describe('evaluateResolutionMappingPreview', () => {
     ]);
   });
 
+  it('supports object resolution mode expansion from one Resolution input', () => {
+    const fields = evaluate({
+      mapping: {
+        Resolution: {
+          expand: true,
+          resolution: {
+            mode: 'object',
+            fields: {
+              aspect_ratio: { mode: 'aspectRatio' },
+              resolution: {
+                mode: 'megapixelsNearest',
+                megapixelCandidates: [0.5, 1, 2, 4],
+                megapixelSuffix: ' MP',
+              },
+              width: { mode: 'width' },
+              height: { mode: 'height' },
+            },
+          },
+        },
+      },
+      context: {
+        inputs: {
+          'Input:Resolution': { width: 1920, height: 1080 },
+        },
+        inputBindings: {
+          Resolution: 'Input:Resolution',
+        },
+      },
+      connectedAliases: new Set(['Resolution']),
+    });
+
+    expect(fields).toEqual([
+      expect.objectContaining({
+        field: 'aspect_ratio',
+        value: '16:9',
+      }),
+      expect.objectContaining({
+        field: 'height',
+        value: 1080,
+      }),
+      expect.objectContaining({
+        field: 'resolution',
+        value: '2 MP',
+      }),
+      expect.objectContaining({
+        field: 'width',
+        value: 1920,
+      }),
+    ]);
+  });
+
   it('surfaces transform errors as field errors', () => {
     const fields = evaluate({
       mapping: {
@@ -315,6 +366,34 @@ describe('evaluateResolutionMappingPreview', () => {
 });
 
 describe('deriveMappingContractFields', () => {
+  it('derives object resolution transform field metadata', () => {
+    const fields = deriveMappingContractFields({
+      Resolution: {
+        expand: true,
+        resolution: {
+          mode: 'object',
+          fields: {
+            aspect_ratio: { mode: 'aspectRatio' },
+            resolution: {
+              mode: 'megapixelsNearest',
+              megapixelCandidates: [0.5, 1, 2, 4],
+              megapixelSuffix: ' MP',
+            },
+            width: { mode: 'width' },
+            height: { mode: 'height' },
+          },
+        },
+      },
+    });
+
+    expect(fields).toEqual([
+      { field: 'aspect_ratio', sourceAliases: ['Resolution'] },
+      { field: 'height', sourceAliases: ['Resolution'] },
+      { field: 'resolution', sourceAliases: ['Resolution'] },
+      { field: 'width', sourceAliases: ['Resolution'] },
+    ]);
+  });
+
   it('derives expanded resolution object fields even when runtime preview may skip values', () => {
     const fields = deriveMappingContractFields({
       Resolution: {

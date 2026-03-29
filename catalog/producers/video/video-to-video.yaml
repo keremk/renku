@@ -97,9 +97,7 @@ mappings:
     ltx-2-19b/distilled/extend-video:
       Prompt: prompt
       SourceVideo: video_url
-      VideoSize:
-        input: Resolution
-        field: video_size
+      Resolution: video_size
       Duration:
         field: num_frames
         durationToFrames:
@@ -110,9 +108,7 @@ mappings:
     ltx-2-19b/distilled/video-to-video:
       Prompt: prompt
       SourceVideo: video_url
-      VideoSize:
-        input: Resolution
-        field: video_size
+      Resolution: video_size
       Duration:
         field: num_frames
         durationToFrames:

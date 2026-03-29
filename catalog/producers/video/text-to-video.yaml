@@ -225,9 +225,7 @@ mappings:
     # LTX-2-19b Distilled Text-to-Video
     ltx-2-19b/distilled/text-to-video:
       Prompt: prompt
-      VideoSize:
-        input: Resolution
-        field: video_size
+      Resolution: video_size
       Duration:
         field: num_frames
         durationToFrames:

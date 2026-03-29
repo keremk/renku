@@ -240,40 +240,55 @@ mappings:
     bytedance/seedream-4:
       Prompt: prompt
       Resolution:
-        field: aspect_ratio
+        expand: true
         resolution:
-          mode: aspectRatio
-      ModelSize:
-        input: Resolution
-        field: size
-        resolution:
-          mode: sizeTokenNearest
+          mode: object
+          fields:
+            aspect_ratio:
+              mode: aspectRatio
+            size:
+              mode: sizeTokenNearest
+              transform:
+                '1K': '1K'
+                '2K': '2K'
+                '3K': '4K'
+                '4K': '4K'
 
     # Bytedance Seedream 4.5
     bytedance/seedream-4.5:
       Prompt: prompt
       Resolution:
-        field: aspect_ratio
+        expand: true
         resolution:
-          mode: aspectRatio
-      ModelSize:
-        input: Resolution
-        field: size
-        resolution:
-          mode: sizeTokenNearest
+          mode: object
+          fields:
+            aspect_ratio:
+              mode: aspectRatio
+            size:
+              mode: sizeTokenNearest
+              transform:
+                '1K': '2K'
+                '2K': '2K'
+                '3K': '4K'
+                '4K': '4K'
 
     # Bytedance Seedream 5 Lite
     bytedance/seedream-5-lite:
       Prompt: prompt
       Resolution:
-        field: aspect_ratio
+        expand: true
         resolution:
-          mode: aspectRatio
-      ModelSize:
-        input: Resolution
-        field: size
-        resolution:
-          mode: sizeTokenNearest
+          mode: object
+          fields:
+            aspect_ratio:
+              mode: aspectRatio
+            size:
+              mode: sizeTokenNearest
+              transform:
+                '1K': '2K'
+                '2K': '2K'
+                '3K': '3K'
+                '4K': '3K'
 
     # Google Nano Banana
     google/nano-banana:
@@ -311,70 +326,53 @@ mappings:
     black-forest-labs/flux-2-pro:
       Prompt: prompt
       Resolution:
-        field: aspect_ratio
+        expand: true
         resolution:
-          mode: aspectRatio
-      ResolutionMegapixels:
-        input: Resolution
-        field: resolution
-        resolution:
-          mode: sizeTokenNearest
-        transform:
-          '1K': '1 MP'
-          '2K': '2 MP'
-          '3K': '4 MP'
-          '4K': '4 MP'
-      ResolutionWidth:
-        input: Resolution
-        field: width
-        resolution:
-          mode: width
-      ResolutionHeight:
-        input: Resolution
-        field: height
-        resolution:
-          mode: height
+          mode: object
+          fields:
+            aspect_ratio:
+              mode: aspectRatio
+            resolution:
+              mode: megapixelsNearest
+              megapixelCandidates: [0.5, 1, 2, 4]
+              megapixelSuffix: ' MP'
+            width:
+              mode: width
+            height:
+              mode: height
 
     # Flux 2 Max — same as Pro
     black-forest-labs/flux-2-max:
       Prompt: prompt
       Resolution:
-        field: aspect_ratio
+        expand: true
         resolution:
-          mode: aspectRatio
-      ResolutionMegapixels:
-        input: Resolution
-        field: resolution
-        resolution:
-          mode: sizeTokenNearest
-        transform:
-          '1K': '1 MP'
-          '2K': '2 MP'
-          '3K': '4 MP'
-          '4K': '4 MP'
-      ResolutionWidth:
-        input: Resolution
-        field: width
-        resolution:
-          mode: width
-      ResolutionHeight:
-        input: Resolution
-        field: height
-        resolution:
-          mode: height
+          mode: object
+          fields:
+            aspect_ratio:
+              mode: aspectRatio
+            resolution:
+              mode: megapixelsNearest
+              megapixelCandidates: [0.5, 1, 2, 4]
+              megapixelSuffix: ' MP'
+            width:
+              mode: width
+            height:
+              mode: height
 
     # Flux 2 Klein 9B — aspect_ratio + megapixels
     black-forest-labs/flux-2-klein-9b:
       Prompt: prompt
       Resolution:
-        field: aspect_ratio
+        expand: true
         resolution:
-          mode: aspectRatio
-      Megapixels:
-        input: Resolution
-        field: megapixels
-        resolution:
-          mode: sizeTokenNearest
+          mode: object
+          fields:
+            aspect_ratio:
+              mode: aspectRatio
+            megapixels:
+              mode: megapixelsNearest
+              megapixelCandidates: [0.25, 0.5, 1, 2, 4]
 
     # Recraft v4 — aspect_ratio + size
     recraft-ai/recraft-v4:
@@ -383,16 +381,6 @@ mappings:
         field: aspect_ratio
         resolution:
           mode: aspectRatio
-      PixelSize:
-        input: Resolution
-        field: size
-        resolution:
-          mode: sizeTokenNearest
-        transform:
-          '1K': '1024x1024'
-          '2K': '1024x1024'
-          '3K': '1024x1024'
-          '4K': '1024x1024'
 
     # XAI Grok Imagine Image — aspect_ratio only
     xai/grok-imagine-image:

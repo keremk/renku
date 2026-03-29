@@ -118,8 +118,7 @@ mappings:
         field: num_frames
         durationToFrames:
           fps: 25
-      VideoSize:
-        input: Resolution
+      Resolution:
         field: video_size
         resolution:
           mode: aspectRatioAndPreset
@@ -154,8 +153,7 @@ mappings:
         field: num_frames
         durationToFrames:
           fps: 25
-      VideoSize:
-        input: Resolution
+      Resolution:
         field: video_size
         resolution:
           mode: aspectRatioAndPreset

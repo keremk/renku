@@ -216,9 +216,7 @@ mappings:
     ltx-2-19b/distilled/image-to-video:
       Prompt: prompt
       StartImage: image_url
-      VideoSize:
-        input: Resolution
-        field: video_size
+      Resolution: video_size
       Duration:
         field: num_frames
         durationToFrames:

@@ -277,19 +277,19 @@ mappings:
       Prompt: prompt
       SourceImage: image
       Resolution:
-        field: aspect_ratio
+        expand: true
         resolution:
-          mode: aspectRatio
-      QualityMode:
-        input: Resolution
-        field: image_size
-        resolution:
-          mode: sizeTokenNearest
-        transform:
-          '1K': optimize_for_speed
-          '2K': optimize_for_quality
-          '3K': optimize_for_quality
-          '4K': optimize_for_quality
+          mode: object
+          fields:
+            aspect_ratio:
+              mode: aspectRatio
+            image_size:
+              mode: sizeTokenNearest
+              transform:
+                '1K': optimize_for_speed
+                '2K': optimize_for_quality
+                '3K': optimize_for_quality
+                '4K': optimize_for_quality
 
     prunaai/flux-kontext-fast:
       Prompt: prompt
@@ -307,19 +307,19 @@ mappings:
         field: image_input
         asArray: true
       Resolution:
-        field: aspect_ratio
+        expand: true
         resolution:
-          mode: aspectRatio
-      ModelSize:
-        input: Resolution
-        field: size
-        resolution:
-          mode: sizeTokenNearest
-        transform:
-          '1K': '2K'
-          '2K': '2K'
-          '3K': '3K'
-          '4K': '3K'
+          mode: object
+          fields:
+            aspect_ratio:
+              mode: aspectRatio
+            size:
+              mode: sizeTokenNearest
+              transform:
+                '1K': '2K'
+                '2K': '2K'
+                '3K': '3K'
+                '4K': '3K'
 
     google/nano-banana-2:
       Prompt: prompt

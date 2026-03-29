@@ -808,6 +808,27 @@ export interface DurationToFramesConfig {
   fps: number;
 }
 
+export type ResolutionProjectionMode =
+  | 'aspectRatio'
+  | 'preset'
+  | 'sizeToken'
+  | 'sizeTokenNearest'
+  | 'aspectRatioAndPreset'
+  | 'width'
+  | 'height'
+  | 'megapixelsNearest';
+
+export interface ResolutionObjectFieldConfig {
+  /** Projection mode for this output field */
+  mode: ResolutionProjectionMode;
+  /** Optional value lookup table applied after projection */
+  transform?: Record<string, unknown>;
+  /** Required when mode is megapixelsNearest */
+  megapixelCandidates?: number[];
+  /** Optional suffix appended when mode is megapixelsNearest */
+  megapixelSuffix?: string;
+}
+
 /**
  * Resolution transform configuration.
  *
@@ -821,27 +842,30 @@ export interface ResolutionTransformConfig {
    * - sizeToken: "1K"/"2K"/"3K"/"4K" (derived from long edge)
    * - sizeTokenNearest: nearest "1K"/"2K"/"3K"/"4K" (derived from long edge)
    * - aspectRatioAndPreset: "16:9+720p"
+   * - megapixelsNearest: nearest configured megapixel bucket
    * - aspectRatioAndPresetObject: { [aspectRatioField]: "16:9", [presetField]: "720p" }
    * - aspectRatioAndSizeTokenObject: { [aspectRatioField]: "16:9", [sizeTokenField]: "1K" }
+   * - object: derive multiple output fields from Resolution in one mapping
    * - width: numeric width
    * - height: numeric height
    */
   mode:
-    | 'aspectRatio'
-    | 'preset'
-    | 'sizeToken'
-    | 'sizeTokenNearest'
-    | 'aspectRatioAndPreset'
+    | ResolutionProjectionMode
     | 'aspectRatioAndPresetObject'
     | 'aspectRatioAndSizeTokenObject'
-    | 'width'
-    | 'height';
+    | 'object';
   /** Required when mode is aspectRatioAndPresetObject */
   aspectRatioField?: string;
   /** Required when mode is aspectRatioAndPresetObject */
   presetField?: string;
   /** Required when mode is aspectRatioAndSizeTokenObject */
   sizeTokenField?: string;
+  /** Required when mode is object */
+  fields?: Record<string, ResolutionObjectFieldConfig>;
+  /** Required when mode is megapixelsNearest */
+  megapixelCandidates?: number[];
+  /** Optional suffix appended when mode is megapixelsNearest */
+  megapixelSuffix?: string;
 }
 
 /**

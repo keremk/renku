@@ -177,6 +177,26 @@ describe('producer mapping contracts', () => {
         continue;
       }
 
+      const mappingAliasErrors = validateMappingAliasesDeclared(
+        producerCase.sdkMapping,
+        producerCase.inputsByAlias
+      );
+      if (mappingAliasErrors.length > 0) {
+        const message = mappingAliasErrors.join('; ');
+        failures.push(
+          `${casePrefix}\n  Mapping alias validation failed: ${message}`
+        );
+        await writeDebugSnapshot({
+          producerCase,
+          scenario: { name: 'mapping-alias-validation', overrides: {} },
+          stage: 'mapping-alias-validation',
+          inputSchemaPath: schemaContext.schemaPath,
+          inputSchema: schemaContext.inputSchema,
+          error: message,
+        });
+        continue;
+      }
+
       const mappingTransformErrors = validateMappingTransformCompatibility(
         producerCase.sdkMapping,
         schemaContext.inputSchema
@@ -418,6 +438,34 @@ describe('producer mapping contracts', () => {
     );
   });
 
+  it('fails when mapping aliases are not declared producer inputs', () => {
+    const mapping: Record<string, MappingFieldDefinition> = {
+      ResolutionMegapixels: {
+        input: 'Resolution',
+        field: 'resolution',
+        resolution: {
+          mode: 'megapixelsNearest',
+          megapixelCandidates: [0.5, 1, 2, 4],
+          megapixelSuffix: ' MP',
+        },
+      },
+    };
+
+    const errors = validateMappingAliasesDeclared(
+      mapping,
+      new Map([
+        [
+          'Resolution',
+          { name: 'Resolution', type: 'resolution', required: true },
+        ],
+      ])
+    );
+
+    expect(errors).toContain(
+      'mapping alias "ResolutionMegapixels" is not a declared producer input'
+    );
+  });
+
   it('covers Width/Height conditional branch when Width is provided', () => {
     const producerCase: ProducerModelCase = {
       producerPath: 'synthetic',
@@ -626,6 +674,17 @@ async function validateProducerCaseWithCurrentPipeline(
   if (mappingSourceErrors.length > 0) {
     failures.push(
       `${casePrefix}\n  Mapping source validation failed: ${mappingSourceErrors.join('; ')}`
+    );
+    return failures;
+  }
+
+  const mappingAliasErrors = validateMappingAliasesDeclared(
+    producerCase.sdkMapping,
+    producerCase.inputsByAlias
+  );
+  if (mappingAliasErrors.length > 0) {
+    failures.push(
+      `${casePrefix}\n  Mapping alias validation failed: ${mappingAliasErrors.join('; ')}`
     );
     return failures;
   }
@@ -1418,6 +1477,21 @@ function collectMappedTopLevelFields(
       }
     }
 
+    if (fieldDef.resolution?.mode === 'aspectRatioAndSizeTokenObject') {
+      if (fieldDef.resolution.aspectRatioField) {
+        fields.add(fieldDef.resolution.aspectRatioField.split('.')[0]!);
+      }
+      if (fieldDef.resolution.sizeTokenField) {
+        fields.add(fieldDef.resolution.sizeTokenField.split('.')[0]!);
+      }
+    }
+
+    if (fieldDef.resolution?.mode === 'object' && fieldDef.resolution.fields) {
+      for (const key of Object.keys(fieldDef.resolution.fields)) {
+        fields.add(key.split('.')[0]!);
+      }
+    }
+
     if (fieldDef.expand) {
       const candidateObjects: unknown[] = [];
       if (fieldDef.transform) {
@@ -1498,6 +1572,23 @@ function validateMappingSourcesDeclared(
     errors.push(
       `alias "${reference.alias}" references undeclared source input "${reference.source}"`
     );
+  }
+
+  return errors;
+}
+
+function validateMappingAliasesDeclared(
+  mapping: Record<string, MappingFieldDefinition>,
+  inputsByAlias: Map<string, ProducerInputDeclaration>
+): string[] {
+  const declared = new Set(inputsByAlias.keys());
+  const errors: string[] = [];
+
+  for (const alias of Object.keys(mapping)) {
+    if (declared.has(alias) || SYSTEM_INPUT_NAMES.has(alias)) {
+      continue;
+    }
+    errors.push(`mapping alias "${alias}" is not a declared producer input`);
   }
 
   return errors;
@@ -1616,9 +1707,13 @@ function validateMappingTransformCompatibility(
       const expectedValue =
         mode === 'width' || mode === 'height'
           ? 1920
-          : mode === 'aspectRatioAndPresetObject'
+          : mode === 'aspectRatioAndPresetObject' ||
+              mode === 'aspectRatioAndSizeTokenObject' ||
+              mode === 'object'
             ? null
-            : '16:9';
+            : mode === 'megapixelsNearest'
+              ? '1'
+              : '16:9';
 
       if (expectedValue !== null && targetSchema) {
         if (
@@ -1662,6 +1757,87 @@ function validateMappingTransformCompatibility(
             errors.push(
               `${label} resolution.presetField "${fieldDef.resolution.presetField}" is not string-compatible`
             );
+          }
+        }
+      }
+
+      if (mode === 'aspectRatioAndSizeTokenObject') {
+        if (fieldDef.resolution.aspectRatioField) {
+          const aspectSchema = getSchemaNodeAtPath(
+            inputSchema,
+            fieldDef.resolution.aspectRatioField
+          );
+          if (
+            aspectSchema &&
+            !schemaAcceptsType(aspectSchema, inputSchema, 'string')
+          ) {
+            errors.push(
+              `${label} resolution.aspectRatioField "${fieldDef.resolution.aspectRatioField}" is not string-compatible`
+            );
+          }
+        }
+
+        if (fieldDef.resolution.sizeTokenField) {
+          const sizeTokenSchema = getSchemaNodeAtPath(
+            inputSchema,
+            fieldDef.resolution.sizeTokenField
+          );
+          if (
+            sizeTokenSchema &&
+            !schemaAcceptsType(sizeTokenSchema, inputSchema, 'string')
+          ) {
+            errors.push(
+              `${label} resolution.sizeTokenField "${fieldDef.resolution.sizeTokenField}" is not string-compatible`
+            );
+          }
+        }
+      }
+
+      if (mode === 'object' && fieldDef.resolution.fields) {
+        for (const [expandedField, projection] of Object.entries(
+          fieldDef.resolution.fields
+        )) {
+          const expandedFieldSchema = getSchemaNodeAtPath(
+            inputSchema,
+            expandedField
+          );
+          if (!expandedFieldSchema) {
+            continue;
+          }
+
+          const expectsNumber =
+            projection.mode === 'width' || projection.mode === 'height';
+          if (expectsNumber) {
+            if (
+              !schemaAcceptsType(expandedFieldSchema, inputSchema, 'integer') &&
+              !schemaAcceptsType(expandedFieldSchema, inputSchema, 'number')
+            ) {
+              errors.push(
+                `${label} resolution.fields.${expandedField} mode "${projection.mode}" is not number-compatible`
+              );
+            }
+          } else if (
+            !schemaAcceptsType(expandedFieldSchema, inputSchema, 'string')
+          ) {
+            errors.push(
+              `${label} resolution.fields.${expandedField} mode "${projection.mode}" is not string-compatible`
+            );
+          }
+
+          if (projection.transform) {
+            for (const [key, value] of Object.entries(projection.transform)) {
+              if (
+                !isSchemaCompatibleValue(
+                  value,
+                  expandedFieldSchema,
+                  inputSchema
+                )
+              ) {
+                errors.push(
+                  `${label} resolution.fields.${expandedField} transform key "${key}" maps to incompatible value`
+                );
+              }
+            }
           }
         }
       }
@@ -1741,6 +1917,21 @@ function collectCoverageTargetPaths(
       }
       if (fieldDef.resolution.presetField) {
         targets.add(fieldDef.resolution.presetField);
+      }
+    }
+
+    if (fieldDef.resolution?.mode === 'aspectRatioAndSizeTokenObject') {
+      if (fieldDef.resolution.aspectRatioField) {
+        targets.add(fieldDef.resolution.aspectRatioField);
+      }
+      if (fieldDef.resolution.sizeTokenField) {
+        targets.add(fieldDef.resolution.sizeTokenField);
+      }
+    }
+
+    if (fieldDef.resolution?.mode === 'object' && fieldDef.resolution.fields) {
+      for (const key of Object.keys(fieldDef.resolution.fields)) {
+        targets.add(key);
       }
     }
   };
@@ -1859,6 +2050,21 @@ function collectMappingTargetPaths(
       }
       if (fieldDef.resolution.presetField) {
         paths.add(fieldDef.resolution.presetField);
+      }
+    }
+
+    if (fieldDef.resolution?.mode === 'aspectRatioAndSizeTokenObject') {
+      if (fieldDef.resolution.aspectRatioField) {
+        paths.add(fieldDef.resolution.aspectRatioField);
+      }
+      if (fieldDef.resolution.sizeTokenField) {
+        paths.add(fieldDef.resolution.sizeTokenField);
+      }
+    }
+
+    if (fieldDef.resolution?.mode === 'object' && fieldDef.resolution.fields) {
+      for (const key of Object.keys(fieldDef.resolution.fields)) {
+        paths.add(key);
       }
     }
 

@@ -28,6 +28,8 @@ import type {
   ProducerConfig,
   ProducerImportDefinition,
   ProducerMappings,
+  ResolutionObjectFieldConfig,
+  ResolutionProjectionMode,
   ResolutionTransformConfig,
 } from '../../types.js';
 import { parseDimensionSelector } from '../dimension-selectors.js';
@@ -1395,8 +1397,10 @@ function parseResolutionTransform(
     'sizeToken',
     'sizeTokenNearest',
     'aspectRatioAndPreset',
+    'megapixelsNearest',
     'aspectRatioAndPresetObject',
     'aspectRatioAndSizeTokenObject',
+    'object',
     'width',
     'height',
   ]);
@@ -1442,6 +1446,27 @@ function parseResolutionTransform(
     parsed.sizeTokenField = value.sizeTokenField;
   }
 
+  if (value.fields !== undefined) {
+    parsed.fields = parseResolutionObjectFields(value.fields, context);
+  }
+
+  if (value.megapixelCandidates !== undefined) {
+    parsed.megapixelCandidates = parseMegapixelCandidates(
+      value.megapixelCandidates,
+      context
+    );
+  }
+
+  if (value.megapixelSuffix !== undefined) {
+    if (typeof value.megapixelSuffix !== 'string') {
+      throw createParserError(
+        ParserErrorCode.INVALID_MAPPING_VALUE,
+        `Invalid resolution transform at "${context}": megapixelSuffix must be a string.`
+      );
+    }
+    parsed.megapixelSuffix = value.megapixelSuffix;
+  }
+
   if (parsed.mode === 'aspectRatioAndPresetObject') {
     if (!parsed.aspectRatioField || !parsed.presetField) {
       throw createParserError(
@@ -1460,7 +1485,195 @@ function parseResolutionTransform(
     }
   }
 
+  if (parsed.mode === 'megapixelsNearest') {
+    if (
+      !parsed.megapixelCandidates ||
+      parsed.megapixelCandidates.length === 0
+    ) {
+      throw createParserError(
+        ParserErrorCode.INVALID_MAPPING_VALUE,
+        `Invalid resolution transform at "${context}": megapixelsNearest requires megapixelCandidates.`
+      );
+    }
+  }
+
+  if (parsed.mode === 'object') {
+    if (!parsed.fields || Object.keys(parsed.fields).length === 0) {
+      throw createParserError(
+        ParserErrorCode.INVALID_MAPPING_VALUE,
+        `Invalid resolution transform at "${context}": object mode requires a non-empty fields map.`
+      );
+    }
+  }
+
+  if (parsed.mode !== 'object' && parsed.fields !== undefined) {
+    throw createParserError(
+      ParserErrorCode.INVALID_MAPPING_VALUE,
+      `Invalid resolution transform at "${context}": fields is only supported when mode is object.`
+    );
+  }
+
+  if (parsed.mode !== 'megapixelsNearest') {
+    if (parsed.megapixelCandidates !== undefined) {
+      throw createParserError(
+        ParserErrorCode.INVALID_MAPPING_VALUE,
+        `Invalid resolution transform at "${context}": megapixelCandidates is only supported when mode is megapixelsNearest.`
+      );
+    }
+    if (parsed.megapixelSuffix !== undefined) {
+      throw createParserError(
+        ParserErrorCode.INVALID_MAPPING_VALUE,
+        `Invalid resolution transform at "${context}": megapixelSuffix is only supported when mode is megapixelsNearest.`
+      );
+    }
+  }
+
   return parsed;
+}
+
+function parseResolutionObjectFields(
+  raw: unknown,
+  context: string
+): Record<string, ResolutionObjectFieldConfig> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw createParserError(
+      ParserErrorCode.INVALID_MAPPING_VALUE,
+      `Invalid resolution transform at "${context}": fields must be an object.`
+    );
+  }
+
+  const value = raw as Record<string, unknown>;
+  const result: Record<string, ResolutionObjectFieldConfig> = {};
+  const validModes = new Set<ResolutionProjectionMode>([
+    'aspectRatio',
+    'preset',
+    'sizeToken',
+    'sizeTokenNearest',
+    'aspectRatioAndPreset',
+    'width',
+    'height',
+    'megapixelsNearest',
+  ]);
+
+  for (const [field, fieldRaw] of Object.entries(value)) {
+    const fieldContext = `${context}.fields.${field}`;
+    let mode: ResolutionProjectionMode;
+    let transform: Record<string, unknown> | undefined;
+    let megapixelCandidates: number[] | undefined;
+    let megapixelSuffix: string | undefined;
+
+    if (typeof fieldRaw === 'string') {
+      mode = fieldRaw as ResolutionProjectionMode;
+    } else if (
+      fieldRaw &&
+      typeof fieldRaw === 'object' &&
+      !Array.isArray(fieldRaw)
+    ) {
+      const fieldObject = fieldRaw as Record<string, unknown>;
+      if (typeof fieldObject.mode !== 'string') {
+        throw createParserError(
+          ParserErrorCode.INVALID_MAPPING_VALUE,
+          `Invalid resolution object field at "${fieldContext}": missing string mode.`
+        );
+      }
+      mode = fieldObject.mode as ResolutionProjectionMode;
+
+      if (fieldObject.transform !== undefined) {
+        if (
+          typeof fieldObject.transform !== 'object' ||
+          fieldObject.transform === null ||
+          Array.isArray(fieldObject.transform)
+        ) {
+          throw createParserError(
+            ParserErrorCode.INVALID_MAPPING_TRANSFORM,
+            `Invalid resolution object field transform at "${fieldContext}": expected object.`
+          );
+        }
+        transform = fieldObject.transform as Record<string, unknown>;
+      }
+
+      if (fieldObject.megapixelCandidates !== undefined) {
+        megapixelCandidates = parseMegapixelCandidates(
+          fieldObject.megapixelCandidates,
+          fieldContext
+        );
+      }
+
+      if (fieldObject.megapixelSuffix !== undefined) {
+        if (typeof fieldObject.megapixelSuffix !== 'string') {
+          throw createParserError(
+            ParserErrorCode.INVALID_MAPPING_VALUE,
+            `Invalid resolution object field at "${fieldContext}": megapixelSuffix must be a string.`
+          );
+        }
+        megapixelSuffix = fieldObject.megapixelSuffix;
+      }
+    } else {
+      throw createParserError(
+        ParserErrorCode.INVALID_MAPPING_VALUE,
+        `Invalid resolution object field at "${fieldContext}": expected string mode or object.`
+      );
+    }
+
+    if (!validModes.has(mode)) {
+      throw createParserError(
+        ParserErrorCode.INVALID_MAPPING_VALUE,
+        `Invalid resolution object field mode "${mode}" at "${fieldContext}".`
+      );
+    }
+
+    if (mode === 'megapixelsNearest') {
+      if (!megapixelCandidates || megapixelCandidates.length === 0) {
+        throw createParserError(
+          ParserErrorCode.INVALID_MAPPING_VALUE,
+          `Invalid resolution object field at "${fieldContext}": megapixelsNearest requires megapixelCandidates.`
+        );
+      }
+    } else {
+      if (megapixelCandidates !== undefined) {
+        throw createParserError(
+          ParserErrorCode.INVALID_MAPPING_VALUE,
+          `Invalid resolution object field at "${fieldContext}": megapixelCandidates is only supported for mode megapixelsNearest.`
+        );
+      }
+      if (megapixelSuffix !== undefined) {
+        throw createParserError(
+          ParserErrorCode.INVALID_MAPPING_VALUE,
+          `Invalid resolution object field at "${fieldContext}": megapixelSuffix is only supported for mode megapixelsNearest.`
+        );
+      }
+    }
+
+    result[field] = {
+      mode,
+      transform,
+      megapixelCandidates,
+      megapixelSuffix,
+    };
+  }
+
+  return result;
+}
+
+function parseMegapixelCandidates(raw: unknown, context: string): number[] {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    throw createParserError(
+      ParserErrorCode.INVALID_MAPPING_VALUE,
+      `Invalid resolution transform at "${context}": megapixelCandidates must be a non-empty number array.`
+    );
+  }
+
+  const values = raw.map((candidate) => Number(candidate));
+  for (const candidate of values) {
+    if (!Number.isFinite(candidate) || candidate <= 0) {
+      throw createParserError(
+        ParserErrorCode.INVALID_MAPPING_VALUE,
+        `Invalid resolution transform at "${context}": megapixelCandidates must contain only positive numbers.`
+      );
+    }
+  }
+
+  return values;
 }
 
 /**

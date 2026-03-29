@@ -214,64 +214,54 @@ mappings:
       Prompt: prompt
       SourceImages: image_input
       Resolution:
-        field: aspect_ratio
+        expand: true
         resolution:
-          mode: aspectRatio
-      ModelSize:
-        input: Resolution
-        field: size
-        resolution:
-          mode: sizeTokenNearest
-        transform:
-          '1K': '2K'
-          '2K': '2K'
-          '3K': '3K'
-          '4K': '3K'
+          mode: object
+          fields:
+            aspect_ratio:
+              mode: aspectRatio
+            size:
+              mode: sizeTokenNearest
+              transform:
+                '1K': '2K'
+                '2K': '2K'
+                '3K': '3K'
+                '4K': '3K'
 
     bytedance/seedream-4.5:
       Prompt: prompt
       SourceImages: image_input
       Resolution:
-        field: aspect_ratio
+        expand: true
         resolution:
-          mode: aspectRatio
-      ModelSize:
-        input: Resolution
-        field: size
-        resolution:
-          mode: sizeTokenNearest
-        transform:
-          '1K': '2K'
-          '2K': '2K'
-          '3K': '4K'
-          '4K': '4K'
+          mode: object
+          fields:
+            aspect_ratio:
+              mode: aspectRatio
+            size:
+              mode: sizeTokenNearest
+              transform:
+                '1K': '2K'
+                '2K': '2K'
+                '3K': '4K'
+                '4K': '4K'
     bytedance/seedream-4:
       Prompt: prompt
       SourceImages: image_input
       Resolution:
-        field: aspect_ratio
+        expand: true
         resolution:
-          mode: aspectRatio
-      ModelSize:
-        input: Resolution
-        field: size
-        resolution:
-          mode: sizeTokenNearest
-        transform:
-          '1K': '1K'
-          '2K': '2K'
-          '3K': '4K'
-          '4K': '4K'
-      ResolutionWidth:
-        input: Resolution
-        field: width
-        resolution:
-          mode: width
-      ResolutionHeight:
-        input: Resolution
-        field: height
-        resolution:
-          mode: height
+          mode: object
+          fields:
+            aspect_ratio:
+              mode: aspectRatio
+            size:
+              mode: sizeTokenNearest
+              transform:
+                '1K': '1K'
+                '2K': '2K'
+                '3K': '4K'
+                '4K': '4K'
 
     google/nano-banana-pro:
       Prompt: prompt
@@ -313,85 +303,58 @@ mappings:
       Prompt: prompt
       SourceImages: input_images
       Resolution:
-        field: aspect_ratio
+        expand: true
         resolution:
-          mode: aspectRatio
-      ResolutionMegapixels:
-        input: Resolution
-        field: resolution
-        resolution:
-          mode: sizeTokenNearest
-        transform:
-          '1K': '1 MP'
-          '2K': '2 MP'
-          '3K': '4 MP'
-          '4K': '4 MP'
-      ResolutionWidth:
-        input: Resolution
-        field: width
-        resolution:
-          mode: width
-      ResolutionHeight:
-        input: Resolution
-        field: height
-        resolution:
-          mode: height
+          mode: object
+          fields:
+            aspect_ratio:
+              mode: aspectRatio
+            resolution:
+              mode: megapixelsNearest
+              megapixelCandidates: [0.5, 1, 2, 4]
+              megapixelSuffix: ' MP'
+            width:
+              mode: width
+            height:
+              mode: height
 
     black-forest-labs/flux-2-max:
       Prompt: prompt
       SourceImages: input_images
       Resolution:
-        field: aspect_ratio
+        expand: true
         resolution:
-          mode: aspectRatio
-      ResolutionMegapixels:
-        input: Resolution
-        field: resolution
-        resolution:
-          mode: sizeTokenNearest
-        transform:
-          '1K': '1 MP'
-          '2K': '2 MP'
-          '3K': '4 MP'
-          '4K': '4 MP'
-      ResolutionWidth:
-        input: Resolution
-        field: width
-        resolution:
-          mode: width
-      ResolutionHeight:
-        input: Resolution
-        field: height
-        resolution:
-          mode: height
+          mode: object
+          fields:
+            aspect_ratio:
+              mode: aspectRatio
+            resolution:
+              mode: megapixelsNearest
+              megapixelCandidates: [0.5, 1, 2, 4]
+              megapixelSuffix: ' MP'
+            width:
+              mode: width
+            height:
+              mode: height
 
     black-forest-labs/flux-2-flex:
       Prompt: prompt
       SourceImages: input_images
       Resolution:
-        field: aspect_ratio
+        expand: true
         resolution:
-          mode: aspectRatio
-      ResolutionMegapixels:
-        input: Resolution
-        field: resolution
-        resolution:
-          mode: sizeTokenNearest
-        transform:
-          '1K': '1 MP'
-          '2K': '2 MP'
-          '3K': '4 MP'
-          '4K': '4 MP'
-      ResolutionWidth:
-        input: Resolution
-        field: width
-        resolution:
-          mode: width
-      ResolutionHeight:
-        input: Resolution
-        field: height
-        resolution:
-          mode: height
+          mode: object
+          fields:
+            aspect_ratio:
+              mode: aspectRatio
+            resolution:
+              mode: megapixelsNearest
+              megapixelCandidates: [0.5, 1, 2, 4]
+              megapixelSuffix: ' MP'
+            width:
+              mode: width
+            height:
+              mode: height
 
     black-forest-labs/flux-kontext-pro:
       Prompt: prompt

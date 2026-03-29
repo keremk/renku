@@ -177,7 +177,7 @@ export function ConfigPropertiesEditor({
         })}
 
       {mappedFields.length > 0 && (
-        <section className='max-w-[56rem] space-y-3 rounded-xl border border-[color:var(--models-pane-mapped-border)] bg-[color:var(--models-pane-mapped-bg)] p-3'>
+        <section className='max-w-[43rem] space-y-3 rounded-xl border border-[color:var(--models-pane-mapped-border)] bg-[color:var(--models-pane-mapped-bg)] p-3'>
           <header className='px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground'>
             Connected Inputs
           </header>

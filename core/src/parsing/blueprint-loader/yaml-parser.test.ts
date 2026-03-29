@@ -175,6 +175,56 @@ models:
     });
   });
 
+  it('parses object resolution transforms with per-field projections', () => {
+    const mappings = parseMappingsSection({
+      replicate: {
+        'black-forest-labs/flux-2-pro': {
+          Resolution: {
+            expand: true,
+            resolution: {
+              mode: 'object',
+              fields: {
+                aspect_ratio: 'aspectRatio',
+                resolution: {
+                  mode: 'megapixelsNearest',
+                  megapixelCandidates: [0.5, 1, 2, 4],
+                  megapixelSuffix: ' MP',
+                },
+                width: 'width',
+                height: 'height',
+              },
+            },
+          },
+        },
+      },
+    });
+
+    expect(
+      mappings?.replicate?.['black-forest-labs/flux-2-pro']?.Resolution
+    ).toEqual({
+      expand: true,
+      resolution: {
+        mode: 'object',
+        fields: {
+          aspect_ratio: {
+            mode: 'aspectRatio',
+          },
+          resolution: {
+            mode: 'megapixelsNearest',
+            megapixelCandidates: [0.5, 1, 2, 4],
+            megapixelSuffix: ' MP',
+          },
+          width: {
+            mode: 'width',
+          },
+          height: {
+            mode: 'height',
+          },
+        },
+      },
+    });
+  });
+
   it('rejects invalid resolution transform modes', () => {
     expect(() =>
       parseMappingsSection({
@@ -218,6 +268,58 @@ models:
         },
       })
     ).toThrow(/requires aspectRatioField and sizeTokenField/);
+  });
+
+  it('rejects megapixelsNearest without candidates', () => {
+    expect(() =>
+      parseMappingsSection({
+        replicate: {
+          'black-forest-labs/flux-2-pro': {
+            Resolution: {
+              field: 'resolution',
+              resolution: { mode: 'megapixelsNearest' },
+            },
+          },
+        },
+      })
+    ).toThrow(/megapixelsNearest requires megapixelCandidates/);
+  });
+
+  it('rejects object resolution mode without fields', () => {
+    expect(() =>
+      parseMappingsSection({
+        replicate: {
+          'black-forest-labs/flux-2-pro': {
+            Resolution: {
+              expand: true,
+              resolution: { mode: 'object' },
+            },
+          },
+        },
+      })
+    ).toThrow(/object mode requires a non-empty fields map/);
+  });
+
+  it('rejects object field megapixelsNearest without candidates', () => {
+    expect(() =>
+      parseMappingsSection({
+        replicate: {
+          'black-forest-labs/flux-2-pro': {
+            Resolution: {
+              expand: true,
+              resolution: {
+                mode: 'object',
+                fields: {
+                  resolution: {
+                    mode: 'megapixelsNearest',
+                  },
+                },
+              },
+            },
+          },
+        },
+      })
+    ).toThrow(/megapixelsNearest requires megapixelCandidates/);
   });
 
   it('parses countInputOffset for array artefacts', async () => {

@@ -422,14 +422,99 @@ function applyResolutionTransform(
         resolution.height,
         inputAlias
       )}`;
+    case 'megapixelsNearest':
+      return toMegapixelsNearest(
+        resolution.width,
+        resolution.height,
+        config.megapixelCandidates,
+        inputAlias,
+        config.megapixelSuffix
+      );
     case 'aspectRatioAndPresetObject':
       return toAspectRatioAndPresetObject(resolution, config, inputAlias);
     case 'aspectRatioAndSizeTokenObject':
       return toAspectRatioAndSizeTokenObject(resolution, config, inputAlias);
+    case 'object':
+      return toResolutionObject(resolution, config, inputAlias);
     case 'width':
       return resolution.width;
     case 'height':
       return resolution.height;
+  }
+}
+
+function toResolutionObject(
+  resolution: { width: number; height: number },
+  config: NonNullable<MappingFieldDefinition['resolution']>,
+  inputAlias: string
+): Record<string, unknown> {
+  if (!config.fields || Object.keys(config.fields).length === 0) {
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      `Resolution transform mode "object" for "${inputAlias}" requires a non-empty fields map.`,
+      { kind: 'user_input', causedByUser: true }
+    );
+  }
+
+  const projected: Record<string, unknown> = {};
+
+  for (const [field, fieldConfig] of Object.entries(config.fields)) {
+    let value = projectObjectFieldResolutionValue(
+      resolution,
+      fieldConfig,
+      inputAlias,
+      field
+    );
+    if (fieldConfig.transform) {
+      value = applyValueTransform(value, fieldConfig.transform);
+    }
+    projected[field] = value;
+  }
+
+  return projected;
+}
+
+function projectObjectFieldResolutionValue(
+  resolution: { width: number; height: number },
+  fieldConfig: NonNullable<
+    NonNullable<MappingFieldDefinition['resolution']>['fields']
+  >[string],
+  inputAlias: string,
+  field: string
+): unknown {
+  switch (fieldConfig.mode) {
+    case 'aspectRatio':
+      return toAspectRatio(resolution.width, resolution.height);
+    case 'preset':
+      return toPreset(resolution.width, resolution.height, inputAlias);
+    case 'sizeToken':
+      return toSizeToken(resolution.width, resolution.height, inputAlias);
+    case 'sizeTokenNearest':
+      return toSizeTokenNearest(resolution.width, resolution.height);
+    case 'aspectRatioAndPreset':
+      return `${toAspectRatio(resolution.width, resolution.height)}+${toPreset(
+        resolution.width,
+        resolution.height,
+        inputAlias
+      )}`;
+    case 'width':
+      return resolution.width;
+    case 'height':
+      return resolution.height;
+    case 'megapixelsNearest':
+      return toMegapixelsNearest(
+        resolution.width,
+        resolution.height,
+        fieldConfig.megapixelCandidates,
+        `${inputAlias}.${field}`,
+        fieldConfig.megapixelSuffix
+      );
+    default:
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Resolution object field mode "${fieldConfig.mode}" for "${inputAlias}.${field}" is not supported.`,
+        { kind: 'user_input', causedByUser: true }
+      );
   }
 }
 
@@ -629,6 +714,60 @@ function toSizeTokenNearest(width: number, height: number): string {
   }
 
   return nearest.token;
+}
+
+function toMegapixelsNearest(
+  width: number,
+  height: number,
+  candidates: number[] | undefined,
+  inputAlias: string,
+  suffix?: string
+): string {
+  if (!Array.isArray(candidates) || candidates.length === 0) {
+    throw createProviderError(
+      SdkErrorCode.INVALID_CONFIG,
+      `Resolution transform mode "megapixelsNearest" for "${inputAlias}" requires megapixelCandidates.`,
+      { kind: 'user_input', causedByUser: true }
+    );
+  }
+
+  const normalizedCandidates = candidates.map((candidate) => Number(candidate));
+  for (const candidate of normalizedCandidates) {
+    if (!Number.isFinite(candidate) || candidate <= 0) {
+      throw createProviderError(
+        SdkErrorCode.INVALID_CONFIG,
+        `Resolution transform mode "megapixelsNearest" for "${inputAlias}" requires positive numeric megapixelCandidates.`,
+        { kind: 'user_input', causedByUser: true }
+      );
+    }
+  }
+
+  const megapixels = (width * height) / 1_000_000;
+  let nearest = normalizedCandidates[0]!;
+  let nearestDistance = Math.abs(megapixels - nearest);
+
+  for (const candidate of normalizedCandidates.slice(1)) {
+    const candidateDistance = Math.abs(megapixels - candidate);
+    if (candidateDistance < nearestDistance) {
+      nearest = candidate;
+      nearestDistance = candidateDistance;
+      continue;
+    }
+    if (candidateDistance === nearestDistance && candidate < nearest) {
+      nearest = candidate;
+    }
+  }
+
+  const formatted = formatMegapixelCandidate(nearest);
+  return suffix ? `${formatted}${suffix}` : formatted;
+}
+
+function formatMegapixelCandidate(value: number): string {
+  if (Number.isInteger(value)) {
+    return String(value);
+  }
+
+  return value.toString();
 }
 
 /**
