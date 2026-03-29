@@ -6,6 +6,10 @@ export * from './handler-factory.js';
 export * from './transforms.js';
 export * from './compatibility.js';
 export * from './mapping-preview.js';
+export {
+  resolveSchemaPointer,
+  resolveViewerSchemaNode,
+} from './unified/schema-file.js';
 
 // FFmpeg extraction exports
 export {

@@ -311,11 +311,19 @@ mappings:
     black-forest-labs/flux-2-pro:
       Prompt: prompt
       Resolution:
-        expand: true
+        field: aspect_ratio
         resolution:
-          mode: aspectRatioAndSizeTokenObject
-          aspectRatioField: aspect_ratio
-          sizeTokenField: resolution
+          mode: aspectRatio
+      ResolutionMegapixels:
+        input: Resolution
+        field: resolution
+        resolution:
+          mode: sizeTokenNearest
+        transform:
+          '1K': '1 MP'
+          '2K': '2 MP'
+          '3K': '4 MP'
+          '4K': '4 MP'
       ResolutionWidth:
         input: Resolution
         field: width
@@ -331,11 +339,19 @@ mappings:
     black-forest-labs/flux-2-max:
       Prompt: prompt
       Resolution:
-        expand: true
+        field: aspect_ratio
         resolution:
-          mode: aspectRatioAndSizeTokenObject
-          aspectRatioField: aspect_ratio
-          sizeTokenField: resolution
+          mode: aspectRatio
+      ResolutionMegapixels:
+        input: Resolution
+        field: resolution
+        resolution:
+          mode: sizeTokenNearest
+        transform:
+          '1K': '1 MP'
+          '2K': '2 MP'
+          '3K': '4 MP'
+          '4K': '4 MP'
       ResolutionWidth:
         input: Resolution
         field: width
@@ -374,9 +390,9 @@ mappings:
           mode: sizeTokenNearest
         transform:
           '1K': '1024x1024'
-          '2K': '2048x2048'
-          '3K': '3072x3072'
-          '4K': '4096x4096'
+          '2K': '1024x1024'
+          '3K': '1024x1024'
+          '4K': '1024x1024'
 
     # XAI Grok Imagine Image — aspect_ratio only
     xai/grok-imagine-image:

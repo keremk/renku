@@ -1,16 +1,15 @@
 import { useState, useCallback, useMemo } from 'react';
 import { EnableEditingBanner } from './shared';
 import { ProducerSection } from './models/producer-section';
-import { hasRegisteredEditor } from './models/config-editors';
-import { isComplexProperty } from './models/config-utils';
 import { formatProducerDisplayName } from '@/lib/panel-utils';
 import { cn } from '@/lib/utils';
 import type {
   ModelSelectionValue,
   ProducerModelInfo,
   ProducerConfigSchemas,
+  ProducerContractError,
   PromptData,
-  ConfigProperty,
+  ConfigFieldDescriptor,
   ProducerSdkPreviewEntry,
 } from '@/types/blueprint-graph';
 
@@ -38,16 +37,20 @@ interface ModelsPanelProps {
     producerId: string,
     prompts: PromptData
   ) => void | Promise<void>;
-  /** Config properties per producer */
-  configPropertiesByProducer?: Record<string, ConfigProperty[]>;
+  /** Config field descriptors per producer */
+  configFieldsByProducer?: Record<string, ConfigFieldDescriptor[]>;
   /** Config values per producer */
   configValuesByProducer?: Record<string, Record<string, unknown>>;
   /** Callback when config changes */
   onConfigChange?: (producerId: string, key: string, value: unknown) => void;
   /** Config schemas per producer (for nested model detection) */
   configSchemasByProducer?: Record<string, ProducerConfigSchemas>;
+  /** Producer-level config contract errors */
+  configErrorsByProducer?: Record<string, ProducerContractError>;
   /** SDK preview values per producer (resolution/aspect/size mappings) */
   sdkPreviewByProducer?: Record<string, ProducerSdkPreviewEntry>;
+  /** Producer-level preview contract/runtime errors */
+  sdkPreviewErrorsByProducer?: Record<string, ProducerContractError>;
 }
 
 export function ModelsPanel({
@@ -61,11 +64,13 @@ export function ModelsPanel({
   hideHeader: _hideHeader = false,
   promptDataByProducer = {},
   onPromptChange,
-  configPropertiesByProducer = {},
+  configFieldsByProducer = {},
   configValuesByProducer = {},
   onConfigChange,
   configSchemasByProducer = {},
+  configErrorsByProducer = {},
   sdkPreviewByProducer = {},
+  sdkPreviewErrorsByProducer = {},
 }: ModelsPanelProps) {
   const [isEnabling, setIsEnabling] = useState(false);
 
@@ -114,7 +119,7 @@ export function ModelsPanel({
   const producerIds = useMemo(() => {
     return Object.keys(producerModels).filter((producerId) => {
       const info = producerModels[producerId];
-      const configProps = configPropertiesByProducer[producerId] ?? [];
+      const configFields = configFieldsByProducer[producerId] ?? [];
 
       // Prompt producers always show (they have prompts)
       if (info.category === 'prompt') return true;
@@ -122,22 +127,7 @@ export function ModelsPanel({
       // Asset producers always show (they need the model selector dropdown)
       if (info.category === 'asset') return true;
 
-      // Check if producer has displayable config
-      const hasDisplayableConfig = configProps.some((prop) => {
-        // Primitive types are always displayable
-        if (!isComplexProperty(prop)) {
-          return true;
-        }
-        // Complex types are displayable if we have a registered editor
-        return hasRegisteredEditor(prop.key);
-      });
-
-      // Check if producer has ONLY unhandled complex properties (no displayable content)
-      const hasOnlyUnhandledComplex =
-        configProps.length > 0 && !hasDisplayableConfig;
-
-      // Hide producers that have ONLY unhandled complex properties
-      if (hasOnlyUnhandledComplex) return false;
+      const hasDisplayableConfig = configFields.length > 0;
 
       // Composition producers: show only if they have displayable config
       // (no model selection needed, so nothing to show if no config)
@@ -148,7 +138,7 @@ export function ModelsPanel({
       // Default: show if has displayable config
       return hasDisplayableConfig;
     });
-  }, [producerModels, configPropertiesByProducer]);
+  }, [producerModels, configFieldsByProducer]);
 
   const [manualActiveProducerId, setManualActiveProducerId] = useState<
     string | null
@@ -260,9 +250,7 @@ export function ModelsPanel({
                       ? (prompts) => onPromptChange(activeProducerId, prompts)
                       : undefined
                   }
-                  configProperties={
-                    configPropertiesByProducer[activeProducerId]
-                  }
+                  configFields={configFieldsByProducer[activeProducerId]}
                   configValues={configValuesByProducer[activeProducerId]}
                   onConfigChange={
                     onConfigChange
@@ -272,6 +260,10 @@ export function ModelsPanel({
                   }
                   nestedModelSchemas={
                     configSchemasByProducer[activeProducerId]?.nestedModels
+                  }
+                  producerError={
+                    configErrorsByProducer[activeProducerId] ??
+                    sdkPreviewErrorsByProducer[activeProducerId]
                   }
                   sdkPreview={sdkPreviewByProducer[activeProducerId]?.fields}
                   hideSectionContainer

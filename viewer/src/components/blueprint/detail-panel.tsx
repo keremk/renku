@@ -9,8 +9,9 @@ import type {
   InputTemplateData,
   ModelSelectionValue,
   ProducerModelInfo,
+  ProducerContractError,
   PromptData,
-  ConfigProperty,
+  ConfigFieldDescriptor,
   ProducerConfigSchemas,
   ProducerSdkPreviewEntry,
 } from '@/types/blueprint-graph';
@@ -49,14 +50,18 @@ interface DetailPanelProps {
   promptDataByProducer?: Record<string, PromptData>;
   /** Callback when prompts change */
   onPromptChange?: (producerId: string, prompts: PromptData) => Promise<void>;
-  /** Config properties per producer */
-  configPropertiesByProducer?: Record<string, ConfigProperty[]>;
+  /** Config field descriptors per producer */
+  configFieldsByProducer?: Record<string, ConfigFieldDescriptor[]>;
   /** Config values per producer */
   configValuesByProducer?: Record<string, Record<string, unknown>>;
   /** Config schemas per producer (for nested model detection) */
   configSchemasByProducer?: Record<string, ProducerConfigSchemas>;
+  /** Producer-level config contract errors */
+  configErrorsByProducer?: Record<string, ProducerContractError>;
   /** Resolution/aspect/size SDK preview values per producer */
   sdkPreviewByProducer?: Record<string, ProducerSdkPreviewEntry>;
+  /** Producer-level preview contract/runtime errors */
+  sdkPreviewErrorsByProducer?: Record<string, ProducerContractError>;
   /** Callback when config values change */
   onConfigChange?: (producerId: string, key: string, value: unknown) => void;
   /** Model selection editor (manages state and auto-save) */
@@ -98,10 +103,12 @@ export function DetailPanel({
   modelSelections = [],
   promptDataByProducer = {},
   onPromptChange,
-  configPropertiesByProducer = {},
+  configFieldsByProducer = {},
   configValuesByProducer = {},
   configSchemasByProducer = {},
+  configErrorsByProducer = {},
   sdkPreviewByProducer = {},
+  sdkPreviewErrorsByProducer = {},
   onConfigChange,
   modelEditor,
   hasTimeline = false,
@@ -219,10 +226,12 @@ export function DetailPanel({
             hideHeader={true}
             promptDataByProducer={promptDataByProducer}
             onPromptChange={onPromptChange}
-            configPropertiesByProducer={configPropertiesByProducer}
+            configFieldsByProducer={configFieldsByProducer}
             configValuesByProducer={configValuesByProducer}
             configSchemasByProducer={configSchemasByProducer}
+            configErrorsByProducer={configErrorsByProducer}
             sdkPreviewByProducer={sdkPreviewByProducer}
+            sdkPreviewErrorsByProducer={sdkPreviewErrorsByProducer}
             onConfigChange={onConfigChange}
           />
         )}

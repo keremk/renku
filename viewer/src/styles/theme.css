@@ -51,6 +51,10 @@
   /* Dialog anatomy */
   --dialog-footer-bg: hsl(48 40% 89% / 0.5);
 
+  /* Models pane mapped-input grouping */
+  --models-pane-mapped-bg: hsl(44 60% 84% / 0.38);
+  --models-pane-mapped-border: hsl(42 50% 58% / 0.45);
+
   /* Sidebar base (internal shadcn structure) */
   --sidebar: var(--sidebar-bg);
   --sidebar-foreground: hsl(32 60% 22%);
@@ -152,6 +156,10 @@
 
   /* Dialog anatomy */
   --dialog-footer-bg: hsl(0 0% 18% / 0.6);
+
+  /* Models pane mapped-input grouping */
+  --models-pane-mapped-bg: hsl(42 44% 38% / 0.18);
+  --models-pane-mapped-border: hsl(42 58% 52% / 0.45);
 
   /* Sidebar base (internal shadcn structure) */
   --sidebar: var(--sidebar-bg);

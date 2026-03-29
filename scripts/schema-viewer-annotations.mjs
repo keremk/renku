@@ -269,6 +269,13 @@ function hasEnum(node) {
   );
 }
 
+function getEnumStringValues(node) {
+  if (!hasEnum(node)) {
+    return [];
+  }
+  return node.enum.filter((value) => typeof value === 'string');
+}
+
 function isUriStringSchema(node) {
   return (
     isObjectRecord(node) && node.type === 'string' && node.format === 'uri'
@@ -379,6 +386,253 @@ function classifyUnionPresentation(variants) {
   }
 
   return undefined;
+}
+
+function hasNumericDimensionProperties(node) {
+  if (!isObjectRecord(node) || getNodeType(node) !== 'object') {
+    return false;
+  }
+
+  const properties = isObjectRecord(node.properties) ? node.properties : {};
+  const widthType = getNodeType(properties.width);
+  const heightType = getNodeType(properties.height);
+
+  return (
+    (widthType === 'integer' || widthType === 'number') &&
+    (heightType === 'integer' || heightType === 'number')
+  );
+}
+
+function annotationHasNumericDimensionControls(annotation) {
+  if (!isObjectRecord(annotation) || annotation.component !== 'object') {
+    return false;
+  }
+
+  if (!isObjectRecord(annotation.fields)) {
+    return false;
+  }
+
+  const widthAnnotation = annotation.fields.width;
+  const heightAnnotation = annotation.fields.height;
+
+  const widthComponent =
+    isObjectRecord(widthAnnotation) &&
+    typeof widthAnnotation.component === 'string'
+      ? widthAnnotation.component
+      : undefined;
+  const heightComponent =
+    isObjectRecord(heightAnnotation) &&
+    typeof heightAnnotation.component === 'string'
+      ? heightAnnotation.component
+      : undefined;
+
+  const widthNumeric =
+    widthComponent === 'integer' || widthComponent === 'number';
+  const heightNumeric =
+    heightComponent === 'integer' || heightComponent === 'number';
+
+  return widthNumeric && heightNumeric;
+}
+
+function validateUnionPresentationContract(args) {
+  const { unionVariants, annotation, pointer, errors } = args;
+
+  const hasEnumVariant = unionVariants.some((variant) =>
+    hasEnum(variant.resolvedNode)
+  );
+  const hasDimensionsVariant = unionVariants.some((variant) =>
+    hasNumericDimensionProperties(variant.resolvedNode)
+  );
+  const expectedPresentation =
+    hasEnumVariant && hasDimensionsVariant ? 'enum-or-dimensions' : undefined;
+
+  const actualPresentation =
+    typeof annotation.presentation === 'string'
+      ? annotation.presentation
+      : undefined;
+
+  if (expectedPresentation && actualPresentation !== expectedPresentation) {
+    errors.push(
+      `Union at "${pointer}" must declare presentation "${expectedPresentation}".`
+    );
+  }
+
+  if (!expectedPresentation && actualPresentation) {
+    errors.push(
+      `Union at "${pointer}" declares unsupported presentation "${actualPresentation}" for its schema variants.`
+    );
+    return;
+  }
+
+  if (actualPresentation !== 'enum-or-dimensions') {
+    return;
+  }
+
+  if (!Array.isArray(annotation.variants)) {
+    return;
+  }
+
+  if (!isObjectRecord(annotation.unionEditor)) {
+    errors.push(
+      `Union at "${pointer}" must declare x-renku-viewer.unionEditor for presentation "enum-or-dimensions".`
+    );
+    return;
+  }
+
+  if (annotation.unionEditor.type !== 'enum-dimensions') {
+    errors.push(
+      `Union at "${pointer}" must set x-renku-viewer.unionEditor.type to "enum-dimensions" for presentation "enum-or-dimensions".`
+    );
+    return;
+  }
+
+  if (
+    typeof annotation.unionEditor.enumVariantId !== 'string' ||
+    annotation.unionEditor.enumVariantId.length === 0
+  ) {
+    errors.push(
+      `Union at "${pointer}" is missing x-renku-viewer.unionEditor.enumVariantId.`
+    );
+    return;
+  }
+
+  if (
+    typeof annotation.unionEditor.customVariantId !== 'string' ||
+    annotation.unionEditor.customVariantId.length === 0
+  ) {
+    errors.push(
+      `Union at "${pointer}" is missing x-renku-viewer.unionEditor.customVariantId.`
+    );
+    return;
+  }
+
+  const enumVariantIndex = annotation.variants.findIndex(
+    (variant) =>
+      isObjectRecord(variant) &&
+      variant.id === annotation.unionEditor.enumVariantId
+  );
+  const customVariantIndex = annotation.variants.findIndex(
+    (variant) =>
+      isObjectRecord(variant) &&
+      variant.id === annotation.unionEditor.customVariantId
+  );
+
+  if (enumVariantIndex < 0) {
+    errors.push(
+      `Union at "${pointer}" references unknown enumVariantId "${annotation.unionEditor.enumVariantId}".`
+    );
+    return;
+  }
+
+  if (customVariantIndex < 0) {
+    errors.push(
+      `Union at "${pointer}" references unknown customVariantId "${annotation.unionEditor.customVariantId}".`
+    );
+    return;
+  }
+
+  let hasEnumAnnotation = false;
+  let hasDimensionsAnnotation = false;
+
+  unionVariants.forEach((variant, index) => {
+    const variantAnnotation = annotation.variants[index];
+    if (!isObjectRecord(variantAnnotation)) {
+      return;
+    }
+
+    if (hasEnum(variant.resolvedNode)) {
+      if (variantAnnotation.component !== 'string-enum') {
+        errors.push(
+          `Union variant ${index + 1} at "${pointer}" must use component "string-enum" for enum-backed options.`
+        );
+      } else {
+        hasEnumAnnotation = true;
+      }
+      return;
+    }
+
+    if (hasNumericDimensionProperties(variant.resolvedNode)) {
+      if (!annotationHasNumericDimensionControls(variantAnnotation)) {
+        errors.push(
+          `Union variant ${index + 1} at "${pointer}" must expose numeric width/height controls for custom dimensions.`
+        );
+      } else {
+        hasDimensionsAnnotation = true;
+      }
+    }
+  });
+
+  if (!hasEnumAnnotation) {
+    errors.push(
+      `Union at "${pointer}" is missing a string-enum variant required by presentation "enum-or-dimensions".`
+    );
+  }
+
+  if (!hasDimensionsAnnotation) {
+    errors.push(
+      `Union at "${pointer}" is missing a typed width/height custom variant required by presentation "enum-or-dimensions".`
+    );
+  }
+
+  if (!hasEnum(unionVariants[enumVariantIndex]?.resolvedNode)) {
+    errors.push(
+      `Union at "${pointer}" unionEditor.enumVariantId must reference a schema enum variant.`
+    );
+  }
+
+  if (
+    !hasNumericDimensionProperties(
+      unionVariants[customVariantIndex]?.resolvedNode
+    )
+  ) {
+    errors.push(
+      `Union at "${pointer}" unionEditor.customVariantId must reference a typed width/height object variant.`
+    );
+  }
+
+  const selection = annotation.unionEditor.customSelection;
+  if (!isObjectRecord(selection)) {
+    errors.push(
+      `Union at "${pointer}" must declare x-renku-viewer.unionEditor.customSelection.`
+    );
+    return;
+  }
+
+  if (selection.source === 'enum-value') {
+    if (typeof selection.value !== 'string' || selection.value.length === 0) {
+      errors.push(
+        `Union at "${pointer}" enum-value customSelection must provide a non-empty value.`
+      );
+      return;
+    }
+
+    const enumValues = getEnumStringValues(
+      unionVariants[enumVariantIndex]?.resolvedNode
+    );
+    if (!enumValues.includes(selection.value)) {
+      errors.push(
+        `Union at "${pointer}" customSelection enum token "${selection.value}" is missing from enum values.`
+      );
+    }
+    return;
+  }
+
+  if (selection.source === 'virtual-option') {
+    if (
+      'label' in selection &&
+      selection.label !== undefined &&
+      typeof selection.label !== 'string'
+    ) {
+      errors.push(
+        `Union at "${pointer}" virtual-option customSelection label must be a string when provided.`
+      );
+    }
+    return;
+  }
+
+  errors.push(
+    `Union at "${pointer}" has unsupported customSelection source "${selection.source}".`
+  );
 }
 
 function buildUnionVariantLabel(variant, index) {
@@ -584,6 +838,33 @@ function buildFieldAnnotation(args) {
       };
     });
 
+    if (presentation === 'enum-or-dimensions') {
+      const enumVariantIndex = unionVariants.findIndex((variant) =>
+        hasEnum(variant.resolvedNode)
+      );
+      const dimensionsVariantIndex = unionVariants.findIndex((variant) =>
+        hasNumericDimensionProperties(variant.resolvedNode)
+      );
+
+      if (enumVariantIndex >= 0 && dimensionsVariantIndex >= 0) {
+        const enumVariant = unionVariants[enumVariantIndex];
+        const enumValues = getEnumStringValues(enumVariant.resolvedNode);
+        const customSelection = enumValues.includes('custom')
+          ? { source: 'enum-value', value: 'custom' }
+          : {
+              source: 'virtual-option',
+              label: annotation.variants[dimensionsVariantIndex]?.label,
+            };
+
+        annotation.unionEditor = {
+          type: 'enum-dimensions',
+          enumVariantId: annotation.variants[enumVariantIndex]?.id,
+          customVariantId: annotation.variants[dimensionsVariantIndex]?.id,
+          customSelection,
+        };
+      }
+    }
+
     return stripEmptyKeys(annotation);
   }
 
@@ -753,6 +1034,10 @@ function mergeAnnotation(generated, existing) {
 
   if (typeof existing.presentation === 'string') {
     merged.presentation = existing.presentation;
+  }
+
+  if (isObjectRecord(existing.unionEditor)) {
+    merged.unionEditor = structuredClone(existing.unionEditor);
   }
 
   if (existing.visibility === 'hidden' || existing.visibility === 'visible') {
@@ -954,6 +1239,13 @@ function validateAnnotationAgainstSchema(args) {
     }
 
     if (annotation.component === 'union') {
+      validateUnionPresentationContract({
+        unionVariants,
+        annotation,
+        pointer,
+        errors,
+      });
+
       if (!Array.isArray(annotation.variants)) {
         errors.push(
           `Missing "variants" annotations for union at "${pointer}".`

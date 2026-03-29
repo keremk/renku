@@ -1,6 +1,9 @@
-import { useState, useEffect } from "react";
-import { fetchProducerConfigSchemas } from "@/data/blueprint-client";
-import type { ProducerConfigSchemas } from "@/types/blueprint-graph";
+import { useState, useEffect } from 'react';
+import { fetchProducerConfigSchemas } from '@/data/blueprint-client';
+import type {
+  ProducerConfigSchemas,
+  ProducerContractError,
+} from '@/types/blueprint-graph';
 
 export interface UseProducerConfigSchemasOptions {
   blueprintPath: string | null;
@@ -9,6 +12,7 @@ export interface UseProducerConfigSchemasOptions {
 
 export interface UseProducerConfigSchemasResult {
   configSchemas: Record<string, ProducerConfigSchemas>;
+  errorsByProducer: Record<string, ProducerContractError>;
   isLoading: boolean;
   /** Error message if schema fetch failed */
   error: string | null;
@@ -23,7 +27,12 @@ export function useProducerConfigSchemas(
 ): UseProducerConfigSchemasResult {
   const { blueprintPath, catalogRoot } = options;
 
-  const [configSchemas, setConfigSchemas] = useState<Record<string, ProducerConfigSchemas>>({});
+  const [configSchemas, setConfigSchemas] = useState<
+    Record<string, ProducerConfigSchemas>
+  >({});
+  const [errorsByProducer, setErrorsByProducer] = useState<
+    Record<string, ProducerContractError>
+  >({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,15 +45,21 @@ export function useProducerConfigSchemas(
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetchProducerConfigSchemas(blueprintPath, catalogRoot);
+        const response = await fetchProducerConfigSchemas(
+          blueprintPath,
+          catalogRoot
+        );
         if (!cancelled) {
           setConfigSchemas(response.producers);
+          setErrorsByProducer(response.errorsByProducer ?? {});
         }
       } catch (err) {
         if (!cancelled) {
-          const message = err instanceof Error ? err.message : "Unknown error";
-          console.error("Failed to fetch producer config schemas:", err);
+          const message = err instanceof Error ? err.message : 'Unknown error';
+          console.error('Failed to fetch producer config schemas:', err);
           setError(`Failed to load config schema: ${message}`);
+          setConfigSchemas({});
+          setErrorsByProducer({});
         }
       } finally {
         if (!cancelled) {
@@ -62,6 +77,7 @@ export function useProducerConfigSchemas(
 
   return {
     configSchemas,
+    errorsByProducer,
     isLoading,
     error,
   };

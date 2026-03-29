@@ -23,4 +23,4 @@ artifacts:
 mappings:
   renku:
     speech/transcription:
-      LanguageCode: language_code
+      LanguageCode: languageCode

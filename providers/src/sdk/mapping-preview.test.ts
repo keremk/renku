@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { MappingFieldDefinition } from '@gorenku/core';
 import {
+  deriveMappingContractFields,
   evaluateResolutionMappingPreview,
   type EvaluateResolutionMappingPreviewArgs,
 } from './mapping-preview.js';
@@ -310,5 +311,47 @@ describe('evaluateResolutionMappingPreview', () => {
     expect(fields[0]?.warnings.join(' ')).toContain(
       'Normalized by model constraints'
     );
+  });
+});
+
+describe('deriveMappingContractFields', () => {
+  it('derives expanded resolution object fields even when runtime preview may skip values', () => {
+    const fields = deriveMappingContractFields({
+      Resolution: {
+        expand: true,
+        resolution: {
+          mode: 'aspectRatioAndSizeTokenObject',
+          aspectRatioField: 'aspect_ratio',
+          sizeTokenField: 'resolution',
+        },
+      },
+    });
+
+    expect(fields).toEqual([
+      { field: 'aspect_ratio', sourceAliases: ['Resolution'] },
+      { field: 'resolution', sourceAliases: ['Resolution'] },
+    ]);
+  });
+
+  it('keeps declared schema field mappings for non-expand aliases', () => {
+    const fields = deriveMappingContractFields({
+      LanguageCode: {
+        field: 'languageCode',
+      },
+    });
+
+    expect(fields).toEqual([
+      { field: 'languageCode', sourceAliases: ['LanguageCode'] },
+    ]);
+  });
+
+  it('throws for expand mappings without explicit target field metadata', () => {
+    expect(() =>
+      deriveMappingContractFields({
+        Resolution: {
+          expand: true,
+        },
+      })
+    ).toThrowError('uses expand:true without a supported field declaration');
   });
 });

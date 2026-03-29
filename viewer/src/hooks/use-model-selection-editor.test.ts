@@ -171,6 +171,48 @@ describe('useModelSelectionEditor', () => {
       });
     });
 
+    it('supports nested dot-path config updates', () => {
+      const saved = [
+        makeSelection('producer1', 'renku', 'speech/transcription'),
+      ];
+      const onSave = vi.fn();
+
+      const { result } = renderHook(() =>
+        useModelSelectionEditor({ savedSelections: saved, onSave })
+      );
+
+      act(() => {
+        result.current.updateConfig('producer1', 'stt.diarize', true);
+      });
+
+      expect(result.current.currentSelections[0].config).toEqual({
+        stt: {
+          diarize: true,
+        },
+      });
+    });
+
+    it('clears nested overrides and prunes empty parent objects', () => {
+      const saved = [
+        makeSelection('producer1', 'renku', 'speech/transcription', {
+          stt: {
+            diarize: true,
+          },
+        }),
+      ];
+      const onSave = vi.fn();
+
+      const { result } = renderHook(() =>
+        useModelSelectionEditor({ savedSelections: saved, onSave })
+      );
+
+      act(() => {
+        result.current.updateConfig('producer1', 'stt.diarize', undefined);
+      });
+
+      expect(result.current.currentSelections[0].config).toBeUndefined();
+    });
+
     it('removes legacy timeline root keys when timeline config is updated', () => {
       const saved = [
         makeSelection('TimelineComposer', 'renku', 'timeline/ordered', {

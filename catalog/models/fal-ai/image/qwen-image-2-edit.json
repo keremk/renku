@@ -352,7 +352,16 @@
               "component": "nullable",
               "label": "None"
             }
-          ]
+          ],
+          "unionEditor": {
+            "type": "enum-dimensions",
+            "enumVariantId": "variant-2",
+            "customVariantId": "variant-1",
+            "customSelection": {
+              "source": "virtual-option",
+              "label": "Custom Size"
+            }
+          }
         },
         "output_format": {
           "pointer": "/input_schema/properties/output_format",

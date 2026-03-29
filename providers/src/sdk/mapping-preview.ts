@@ -23,6 +23,11 @@ export interface MappingPreviewField {
   enumOptions?: unknown[];
 }
 
+export interface MappingContractField {
+  field: string;
+  sourceAliases: string[];
+}
+
 export interface EvaluateResolutionMappingPreviewArgs {
   mapping: Record<string, MappingFieldDefinition>;
   context: TransformContext;
@@ -55,9 +60,7 @@ export function evaluateResolutionMappingPreview(
       ? parseInputSchema(args.inputSchema)
       : args.inputSchema;
 
-  const filteredMappingEntries = Object.entries(args.mapping).filter(
-    ([alias, mapping]) => isResolutionRelatedMapping(alias, mapping)
-  );
+  const filteredMappingEntries = Object.entries(args.mapping);
   const filteredMapping = Object.fromEntries(filteredMappingEntries);
 
   const buildResult = buildSdkPayload({
@@ -86,9 +89,6 @@ export function evaluateResolutionMappingPreview(
     if (entry.status === 'ok') {
       if (entry.values) {
         for (const [field, value] of Object.entries(entry.values)) {
-          if (!isResolutionRelatedField(field)) {
-            continue;
-          }
           upsertField(byField, field, {
             value,
             connected,
@@ -97,9 +97,6 @@ export function evaluateResolutionMappingPreview(
         }
       } else {
         for (const field of entry.fieldPaths) {
-          if (!isResolutionRelatedField(field)) {
-            continue;
-          }
           upsertField(byField, field, {
             value: entry.value,
             connected,
@@ -115,12 +112,12 @@ export function evaluateResolutionMappingPreview(
         entry.fieldPaths.length > 0
           ? entry.fieldPaths
           : collectExpectedFields(filteredMapping[entry.alias]);
-      const fallbackField =
-        inferPrimaryField(filteredMapping[entry.alias]) ?? entry.alias;
-      for (const field of fields.length > 0 ? fields : [fallbackField]) {
-        if (!isResolutionRelatedField(field)) {
-          continue;
-        }
+      if (fields.length === 0) {
+        throw new Error(
+          `Mapping preview error for alias "${entry.alias}" did not report any descriptor field paths.`
+        );
+      }
+      for (const field of fields) {
         const preview = upsertField(byField, field, {
           value: undefined,
           connected,
@@ -134,9 +131,6 @@ export function evaluateResolutionMappingPreview(
     }
 
     for (const field of entry.fieldPaths) {
-      if (!isResolutionRelatedField(field)) {
-        continue;
-      }
       upsertField(byField, field, {
         value: undefined,
         connected,
@@ -146,10 +140,6 @@ export function evaluateResolutionMappingPreview(
   }
 
   for (const issue of buildResult.compatibilityIssues) {
-    if (!isResolutionRelatedField(issue.field)) {
-      continue;
-    }
-
     const preview = upsertField(byField, issue.field, {
       value: getNestedValue(buildResult.payload, issue.field),
       connected: true,
@@ -297,6 +287,38 @@ export function evaluateResolutionMappingPreview(
     .sort((left, right) => left.field.localeCompare(right.field));
 }
 
+/**
+ * Derives static mapping contract fields from mapping definitions.
+ *
+ * This is intentionally independent of runtime input values so descriptor
+ * metadata stays stable even when a mapping preview row is skipped.
+ */
+export function deriveMappingContractFields(
+  mapping: Record<string, MappingFieldDefinition>
+): MappingContractField[] {
+  const byField = new Map<string, Set<string>>();
+
+  for (const [alias, fieldDef] of Object.entries(mapping)) {
+    const sourceAliases = collectRequiredAliases(alias, fieldDef);
+    const targetFields = collectMappedFields(alias, fieldDef);
+
+    for (const field of targetFields) {
+      const aliases = byField.get(field) ?? new Set<string>();
+      for (const sourceAlias of sourceAliases) {
+        aliases.add(sourceAlias);
+      }
+      byField.set(field, aliases);
+    }
+  }
+
+  return Array.from(byField.entries())
+    .map(([field, aliases]) => ({
+      field,
+      sourceAliases: Array.from(aliases),
+    }))
+    .sort((left, right) => left.field.localeCompare(right.field));
+}
+
 function upsertField(
   byField: Map<string, MutablePreviewField>,
   field: string,
@@ -394,19 +416,105 @@ function collectRequiredAliases(
   return [mapping.input ?? alias];
 }
 
+function collectMappedFields(
+  alias: string,
+  mapping: MappingFieldDefinition
+): string[] {
+  if (mapping.conditional) {
+    return collectMappedFields(alias, mapping.conditional.then);
+  }
+
+  if (mapping.expand) {
+    return collectExpandMappedFields(alias, mapping);
+  }
+
+  if (typeof mapping.field === 'string' && mapping.field.length > 0) {
+    return [mapping.field];
+  }
+
+  throw new Error(
+    `Mapping contract for alias "${alias}" is missing target field metadata.`
+  );
+}
+
+function collectExpandMappedFields(
+  alias: string,
+  mapping: MappingFieldDefinition
+): string[] {
+  const resolution = mapping.resolution;
+  if (resolution?.mode === 'aspectRatioAndPresetObject') {
+    if (
+      typeof resolution.aspectRatioField !== 'string' ||
+      resolution.aspectRatioField.length === 0 ||
+      typeof resolution.presetField !== 'string' ||
+      resolution.presetField.length === 0
+    ) {
+      throw new Error(
+        `Mapping contract for alias "${alias}" with resolution mode "aspectRatioAndPresetObject" requires aspectRatioField and presetField.`
+      );
+    }
+    return [resolution.aspectRatioField, resolution.presetField];
+  }
+
+  if (resolution?.mode === 'aspectRatioAndSizeTokenObject') {
+    if (
+      typeof resolution.aspectRatioField !== 'string' ||
+      resolution.aspectRatioField.length === 0 ||
+      typeof resolution.sizeTokenField !== 'string' ||
+      resolution.sizeTokenField.length === 0
+    ) {
+      throw new Error(
+        `Mapping contract for alias "${alias}" with resolution mode "aspectRatioAndSizeTokenObject" requires aspectRatioField and sizeTokenField.`
+      );
+    }
+    return [resolution.aspectRatioField, resolution.sizeTokenField];
+  }
+
+  if (mapping.combine) {
+    return collectExpandFieldsFromCombineTable(alias, mapping.combine.table);
+  }
+
+  throw new Error(
+    `Mapping contract for alias "${alias}" uses expand:true without a supported field declaration.`
+  );
+}
+
+function collectExpandFieldsFromCombineTable(
+  alias: string,
+  table: Record<string, unknown>
+): string[] {
+  const fieldKeys = new Set<string>();
+
+  for (const [tableKey, tableValue] of Object.entries(table)) {
+    if (
+      !tableValue ||
+      typeof tableValue !== 'object' ||
+      Array.isArray(tableValue)
+    ) {
+      throw new Error(
+        `Mapping contract for alias "${alias}" expects combine table entry "${tableKey}" to be an object when expand:true is set.`
+      );
+    }
+
+    for (const key of Object.keys(tableValue as Record<string, unknown>)) {
+      fieldKeys.add(key);
+    }
+  }
+
+  if (fieldKeys.size === 0) {
+    throw new Error(
+      `Mapping contract for alias "${alias}" has expand:true combine mapping with no object fields.`
+    );
+  }
+
+  return Array.from(fieldKeys);
+}
+
 function isAliasConnected(
   alias: string,
   connectedAliases: Set<string>
 ): boolean {
-  if (connectedAliases.has(alias)) {
-    return true;
-  }
-  const bracketIndex = alias.indexOf('[');
-  if (bracketIndex > 0) {
-    const baseAlias = alias.slice(0, bracketIndex);
-    return connectedAliases.has(baseAlias);
-  }
-  return false;
+  return connectedAliases.has(alias);
 }
 
 function collectExpectedFields(mapping?: MappingFieldDefinition): string[] {

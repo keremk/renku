@@ -4,6 +4,8 @@ import {
   extractInputSchemaString,
   extractOutputSchemaString,
   hasOutputSchema,
+  resolveSchemaPointer,
+  resolveViewerSchemaNode,
   resolveSchemaRefs,
 } from './schema-file.js';
 
@@ -81,9 +83,15 @@ describe('parseSchemaFile', () => {
       const content = JSON.stringify({
         input_schema: { type: 'object' },
         output_schema: { type: 'object' },
-        ImageSize: { type: 'object', properties: { width: { type: 'integer' } } },
+        ImageSize: {
+          type: 'object',
+          properties: { width: { type: 'integer' } },
+        },
         File: { type: 'object', properties: { url: { type: 'string' } } },
-        VideoFile: { type: 'object', properties: { url: { type: 'string' }, fps: { type: 'number' } } },
+        VideoFile: {
+          type: 'object',
+          properties: { url: { type: 'string' }, fps: { type: 'number' } },
+        },
       });
 
       const result = parseSchemaFile(content);
@@ -201,7 +209,10 @@ describe('parseSchemaFile', () => {
       expect(result.nestedModels).toHaveLength(2);
       expect(result.nestedModels[0].name).toBe('stt');
       expect(result.nestedModels[1].name).toBe('tts');
-      expect(result.nestedModels[1].allowedProviders).toEqual(['elevenlabs', 'openai']);
+      expect(result.nestedModels[1].allowedProviders).toEqual([
+        'elevenlabs',
+        'openai',
+      ]);
     });
 
     it('returns empty array when no nested models', () => {
@@ -259,15 +270,21 @@ describe('parseSchemaFile', () => {
 
   describe('error handling', () => {
     it('throws on invalid JSON', () => {
-      expect(() => parseSchemaFile('not valid json')).toThrow(/Invalid schema file JSON/);
+      expect(() => parseSchemaFile('not valid json')).toThrow(
+        /Invalid schema file JSON/
+      );
     });
 
     it('throws on non-object JSON', () => {
-      expect(() => parseSchemaFile('"just a string"')).toThrow(/Schema file must be a JSON object/);
+      expect(() => parseSchemaFile('"just a string"')).toThrow(
+        /Schema file must be a JSON object/
+      );
     });
 
     it('throws on null', () => {
-      expect(() => parseSchemaFile('null')).toThrow(/Schema file must be a JSON object/);
+      expect(() => parseSchemaFile('null')).toThrow(
+        /Schema file must be a JSON object/
+      );
     });
   });
 });
@@ -275,7 +292,10 @@ describe('parseSchemaFile', () => {
 describe('extractInputSchemaString', () => {
   it('extracts input schema from new format', () => {
     const content = JSON.stringify({
-      input_schema: { type: 'object', properties: { prompt: { type: 'string' } } },
+      input_schema: {
+        type: 'object',
+        properties: { prompt: { type: 'string' } },
+      },
       output_schema: { type: 'object' },
     });
 
@@ -306,7 +326,10 @@ describe('extractOutputSchemaString', () => {
   it('extracts output schema when present', () => {
     const content = JSON.stringify({
       input_schema: { type: 'object' },
-      output_schema: { type: 'object', properties: { url: { type: 'string' } } },
+      output_schema: {
+        type: 'object',
+        properties: { url: { type: 'string' } },
+      },
     });
 
     const result = extractOutputSchemaString(content);
@@ -418,7 +441,9 @@ describe('resolveSchemaRefs', () => {
     });
 
     // Check that $ref was rewritten
-    const imageSize = result.properties?.image_size as { anyOf: Array<{ $ref?: string }> };
+    const imageSize = result.properties?.image_size as {
+      anyOf: Array<{ $ref?: string }>;
+    };
     expect(imageSize.anyOf[0].$ref).toBe('#/$defs/ImageSize');
   });
 
@@ -516,5 +541,183 @@ describe('resolveSchemaRefs', () => {
     resolveSchemaRefs(schema, definitions);
 
     expect(JSON.stringify(schema)).toBe(originalSchema);
+  });
+});
+
+describe('resolveSchemaPointer', () => {
+  it('resolves pointers with array segments via Ajv', () => {
+    const schemaFile = parseSchemaFile(
+      JSON.stringify({
+        input_schema: {
+          type: 'object',
+          properties: {
+            guidance_scale: {
+              anyOf: [
+                { type: 'number', minimum: 1, maximum: 50 },
+                { type: 'null' },
+              ],
+            },
+          },
+        },
+      })
+    );
+
+    const numberBranch = resolveSchemaPointer(
+      schemaFile,
+      '/input_schema/properties/guidance_scale/anyOf/0'
+    );
+
+    expect(numberBranch).toBeDefined();
+    expect(numberBranch?.type).toBe('number');
+    expect(numberBranch?.minimum).toBe(1);
+    expect(numberBranch?.maximum).toBe(50);
+  });
+
+  it('resolves pointers that reference top-level definitions', () => {
+    const schemaFile = parseSchemaFile(
+      JSON.stringify({
+        input_schema: {
+          type: 'object',
+          properties: {
+            image_size: {
+              anyOf: [
+                { $ref: '#/ImageSize' },
+                { type: 'string', enum: ['square_hd'] },
+              ],
+            },
+          },
+        },
+        ImageSize: {
+          type: 'object',
+          properties: {
+            width: { type: 'integer' },
+            height: { type: 'integer' },
+          },
+          required: ['width', 'height'],
+        },
+      })
+    );
+
+    const unionObjectBranch = resolveSchemaPointer(
+      schemaFile,
+      '/input_schema/properties/image_size/anyOf/0'
+    );
+    expect(unionObjectBranch).toBeDefined();
+    expect(unionObjectBranch?.type).toBe('object');
+    expect(
+      (unionObjectBranch?.properties as { width?: { type?: string } })?.width
+        ?.type
+    ).toBe('integer');
+
+    const directDefinition = resolveSchemaPointer(schemaFile, '/ImageSize');
+    expect(directDefinition).toBeDefined();
+    expect(directDefinition?.type).toBe('object');
+  });
+
+  it('returns undefined for unknown pointers', () => {
+    const schemaFile = parseSchemaFile(
+      JSON.stringify({
+        input_schema: {
+          type: 'object',
+          properties: {
+            prompt: { type: 'string' },
+          },
+        },
+      })
+    );
+
+    expect(
+      resolveSchemaPointer(schemaFile, '/input_schema/properties/missing')
+    ).toBeUndefined();
+  });
+
+  it('supports legacy root pointers without /input_schema prefix', () => {
+    const schemaFile = parseSchemaFile(
+      JSON.stringify({
+        input_schema: {
+          type: 'object',
+          properties: {
+            timeline: {
+              type: 'object',
+            },
+          },
+        },
+      })
+    );
+
+    const resolved = resolveSchemaPointer(schemaFile, '/properties/timeline');
+    expect(resolved).toBeDefined();
+    expect(resolved?.type).toBe('object');
+  });
+
+  it('resolves pointer tails after refs in intermediate segments', () => {
+    const schemaFile = parseSchemaFile(
+      JSON.stringify({
+        input_schema: {
+          type: 'object',
+          properties: {
+            colors: {
+              type: 'array',
+              items: {
+                $ref: '#/RGBColor',
+              },
+            },
+          },
+        },
+        RGBColor: {
+          type: 'object',
+          properties: {
+            r: { type: 'integer', minimum: 0, maximum: 255 },
+            g: { type: 'integer', minimum: 0, maximum: 255 },
+            b: { type: 'integer', minimum: 0, maximum: 255 },
+          },
+        },
+      })
+    );
+
+    const resolved = resolveSchemaPointer(
+      schemaFile,
+      '/input_schema/properties/colors/items/properties/r'
+    );
+
+    expect(resolved).toBeDefined();
+    expect(resolved?.type).toBe('integer');
+    expect(resolved?.minimum).toBe(0);
+    expect(resolved?.maximum).toBe(255);
+  });
+});
+
+describe('resolveViewerSchemaNode', () => {
+  it('merges property defaults with schemaPointer enum/type metadata', () => {
+    const schemaFile = parseSchemaFile(
+      JSON.stringify({
+        input_schema: {
+          type: 'object',
+          properties: {
+            resolution: {
+              allOf: [{ $ref: '#/resolution' }],
+              default: '2K',
+              description: 'Resolution of the generated image',
+            },
+          },
+        },
+        resolution: {
+          type: 'string',
+          enum: ['1K', '2K', '4K'],
+          title: 'resolution',
+        },
+      })
+    );
+
+    const merged = resolveViewerSchemaNode(schemaFile, {
+      pointer: '/input_schema/properties/resolution',
+      schemaPointer: '/resolution',
+    });
+
+    expect(merged).toBeDefined();
+    expect(merged?.type).toBe('string');
+    expect(merged?.enum).toEqual(['1K', '2K', '4K']);
+    expect(merged?.default).toBe('2K');
+    expect(merged?.description).toBe('Resolution of the generated image');
   });
 });

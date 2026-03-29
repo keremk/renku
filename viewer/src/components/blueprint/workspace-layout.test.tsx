@@ -45,7 +45,7 @@ vi.mock('@/hooks', async () => {
     }),
     useProducerConfigSchemas: () => ({ configSchemas: {} }),
     useProducerConfigState: () => ({
-      configPropertiesByProducer: {},
+      configFieldsByProducer: {},
       configValuesByProducer: {},
     }),
     useProducerPrompts: () => ({

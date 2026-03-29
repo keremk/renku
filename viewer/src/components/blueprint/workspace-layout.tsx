@@ -118,10 +118,11 @@ function WorkspaceLayoutInner({
     catalogRoot,
   });
 
-  const { configSchemas } = useProducerConfigSchemas({
-    blueprintPath,
-    catalogRoot,
-  });
+  const { configSchemas, errorsByProducer: configErrorsByProducer } =
+    useProducerConfigSchemas({
+      blueprintPath,
+      catalogRoot,
+    });
 
   const {
     inputs: buildInputs,
@@ -340,7 +341,7 @@ function WorkspaceLayoutInner({
     });
 
   // Compute config properties and values using the dedicated hook
-  const { configPropertiesByProducer, configValuesByProducer } =
+  const { configFieldsByProducer, configValuesByProducer } =
     useProducerConfigState({
       configSchemas,
       currentSelections: modelEditor.currentSelections,
@@ -361,13 +362,14 @@ function WorkspaceLayoutInner({
     return values;
   }, [effectiveInputData]);
 
-  const { sdkPreviewByProducer } = useProducerSdkPreview({
-    blueprintPath,
-    catalogRoot,
-    inputs: previewInputs,
-    modelSelections: modelEditor.currentSelections,
-    enabled: modelEditor.currentSelections.length > 0,
-  });
+  const { sdkPreviewByProducer, errorsByProducer: sdkPreviewErrorsByProducer } =
+    useProducerSdkPreview({
+      blueprintPath,
+      catalogRoot,
+      inputs: previewInputs,
+      modelSelections: modelEditor.currentSelections,
+      enabled: modelEditor.currentSelections.length > 0,
+    });
 
   // Handle enabling editing for a build
   const handleEnableEditing = useCallback(async () => {
@@ -547,10 +549,12 @@ function WorkspaceLayoutInner({
                   modelSelections={modelEditor.currentSelections}
                   promptDataByProducer={promptDataByProducer}
                   onPromptChange={handleSavePrompt}
-                  configPropertiesByProducer={configPropertiesByProducer}
+                  configFieldsByProducer={configFieldsByProducer}
                   configValuesByProducer={configValuesByProducer}
                   configSchemasByProducer={configSchemas}
+                  configErrorsByProducer={configErrorsByProducer}
                   sdkPreviewByProducer={sdkPreviewByProducer}
+                  sdkPreviewErrorsByProducer={sdkPreviewErrorsByProducer}
                   onConfigChange={handleConfigChange}
                   modelEditor={modelEditor}
                   hasTimeline={hasTimeline}

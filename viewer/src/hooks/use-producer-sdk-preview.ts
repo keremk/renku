@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchProducerSdkPreview } from '@/data/blueprint-client';
-import type { ProducerSdkPreviewEntry } from '@/types/blueprint-graph';
+import type {
+  ProducerContractError,
+  ProducerSdkPreviewEntry,
+} from '@/types/blueprint-graph';
 
 export interface UseProducerSdkPreviewOptions {
   blueprintPath: string | null;
@@ -16,6 +19,7 @@ export interface UseProducerSdkPreviewOptions {
 
 export interface UseProducerSdkPreviewResult {
   sdkPreviewByProducer: Record<string, ProducerSdkPreviewEntry>;
+  errorsByProducer: Record<string, ProducerContractError>;
   isLoading: boolean;
   error: string | null;
 }
@@ -33,6 +37,9 @@ export function useProducerSdkPreview(
 
   const [sdkPreviewByProducer, setSdkPreviewByProducer] = useState<
     Record<string, ProducerSdkPreviewEntry>
+  >({});
+  const [errorsByProducer, setErrorsByProducer] = useState<
+    Record<string, ProducerContractError>
   >({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +69,7 @@ export function useProducerSdkPreview(
   useEffect(() => {
     if (!enabled || !blueprintPath || requestModels.length === 0) {
       setSdkPreviewByProducer({});
+      setErrorsByProducer({});
       setIsLoading(false);
       setError(null);
       return;
@@ -81,12 +89,14 @@ export function useProducerSdkPreview(
         });
         if (!cancelled) {
           setSdkPreviewByProducer(response.producers);
+          setErrorsByProducer(response.errorsByProducer ?? {});
         }
       } catch (err) {
         if (!cancelled) {
           const message = err instanceof Error ? err.message : String(err);
           setError(message);
           setSdkPreviewByProducer({});
+          setErrorsByProducer({});
         }
       } finally {
         if (!cancelled) {
@@ -104,6 +114,7 @@ export function useProducerSdkPreview(
 
   return {
     sdkPreviewByProducer,
+    errorsByProducer,
     isLoading,
     error,
   };

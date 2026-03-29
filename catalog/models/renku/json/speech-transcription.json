@@ -3,6 +3,10 @@
     "title": "TranscriptionConfig",
     "type": "object",
     "properties": {
+      "languageCode": {
+        "type": "string",
+        "description": "ISO 639-3 language code for transcription (e.g., eng, spa, fra)."
+      },
       "stt": {
         "type": "object",
         "description": "Speech-to-text model configuration",
@@ -16,15 +20,10 @@
             "description": "STT model (e.g., 'elevenlabs/speech-to-text')"
           }
         },
-        "required": [
-          "provider",
-          "model"
-        ]
+        "required": ["provider", "model"]
       }
     },
-    "required": [
-      "stt"
-    ]
+    "required": ["stt"]
   },
   "x-renku-nested-models": [
     {
@@ -34,12 +33,8 @@
       "providerField": "provider",
       "modelField": "model",
       "required": true,
-      "allowedTypes": [
-        "stt"
-      ],
-      "mappedFields": [
-        "language_code"
-      ]
+      "allowedTypes": ["stt"],
+      "mappedFields": ["audio_url", "language_code"]
     }
   ],
   "x-renku-viewer": {
@@ -48,18 +43,18 @@
       "pointer": "/input_schema",
       "component": "object",
       "label": "Input",
-      "order": [
-        "stt"
-      ],
+      "order": ["languageCode", "stt"],
       "fields": {
+        "languageCode": {
+          "pointer": "/input_schema/properties/languageCode",
+          "component": "string",
+          "label": "Language Code"
+        },
         "stt": {
           "pointer": "/input_schema/properties/stt",
           "component": "object",
           "label": "Stt",
-          "order": [
-            "provider",
-            "model"
-          ],
+          "order": ["provider", "model"],
           "fields": {
             "provider": {
               "pointer": "/input_schema/properties/stt/properties/provider",

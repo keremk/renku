@@ -16,3 +16,12 @@ export {
   getProducerMappings,
 } from './mapping-resolver.js';
 export type { ResolvedMappingContext } from './mapping-resolver.js';
+export {
+  collectProducerBindingEntries,
+  buildProducerBindingSummary,
+} from './producer-binding-summary.js';
+export type {
+  BindingSourceKind,
+  ProducerBindingEntry,
+  ProducerBindingSummary,
+} from './producer-binding-summary.js';

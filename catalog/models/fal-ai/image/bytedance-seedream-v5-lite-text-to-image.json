@@ -346,7 +346,16 @@
               "component": "string-enum",
               "label": "Preset"
             }
-          ]
+          ],
+          "unionEditor": {
+            "type": "enum-dimensions",
+            "enumVariantId": "variant-2",
+            "customVariantId": "variant-1",
+            "customSelection": {
+              "source": "virtual-option",
+              "label": "Custom Size"
+            }
+          }
         },
         "max_images": {
           "pointer": "/input_schema/properties/max_images",

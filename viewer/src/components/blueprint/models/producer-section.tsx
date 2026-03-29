@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { AlertCircle } from 'lucide-react';
 import {
   CollapsibleSection,
   MediaGrid,
@@ -7,16 +8,15 @@ import {
 } from '../shared';
 import { ModelSelector } from './model-selector';
 import { ConfigPropertiesEditor } from './config-properties-editor';
-import { hasRegisteredEditor } from './config-editors';
-import { isComplexProperty } from './config-utils';
 import { getSectionHighlightStyles } from '@/lib/panel-utils';
 import type {
   AvailableModelOption,
   ModelSelectionValue,
   ProducerCategory,
   PromptData,
-  ConfigProperty,
+  ConfigFieldDescriptor,
   NestedModelConfigSchema,
+  ProducerContractError,
   SdkPreviewField,
 } from '@/types/blueprint-graph';
 
@@ -43,14 +43,16 @@ interface ProducerSectionProps {
   promptData?: PromptData;
   /** Callback when prompts change */
   onPromptChange?: (prompts: PromptData) => void;
-  /** Config properties for asset producers */
-  configProperties?: ConfigProperty[];
+  /** Config field descriptors for asset producers */
+  configFields?: ConfigFieldDescriptor[];
   /** Current config values */
   configValues?: Record<string, unknown>;
   /** Callback when config changes */
   onConfigChange?: (key: string, value: unknown) => void;
   /** Error message if config schema failed to load */
   schemaError?: string | null;
+  /** Producer-level contract/runtime error */
+  producerError?: ProducerContractError | null;
   /** Nested model schemas (if this producer has nested model declarations) */
   nestedModelSchemas?: NestedModelConfigSchema[];
   /** SDK preview rows for mapped resolution/aspect/size fields */
@@ -80,10 +82,11 @@ export function ProducerSection({
   onModelChange,
   promptData,
   onPromptChange,
-  configProperties,
+  configFields,
   configValues = {},
   onConfigChange,
   schemaError,
+  producerError,
   nestedModelSchemas,
   sdkPreview,
   defaultOpen = false,
@@ -152,14 +155,12 @@ export function ProducerSection({
   // Build section title
   const sectionTitle = producerId;
 
-  // For composition producers, filter to only show properties with registered editors
-  // (e.g., subtitles) - don't show primitive config like width, height, fps, etc.
-  const compositionConfigProperties = useMemo(() => {
-    if (category !== 'composition' || !configProperties) return [];
-    return configProperties.filter(
-      (prop) => isComplexProperty(prop) && hasRegisteredEditor(prop.key)
-    );
-  }, [category, configProperties]);
+  const compositionConfigFields = useMemo(() => {
+    if (category !== 'composition' || !configFields) {
+      return [];
+    }
+    return configFields;
+  }, [category, configFields]);
 
   // Count items based on category
   const itemCount = useMemo(() => {
@@ -170,22 +171,22 @@ export function ProducerSection({
       return count;
     }
     if (category === 'composition') {
-      return compositionConfigProperties.length || undefined;
+      return compositionConfigFields.length || undefined;
     }
-    if (category === 'asset' && configProperties) {
-      return configProperties.length;
+    if (category === 'asset' && configFields) {
+      return configFields.length;
     }
     return undefined;
-  }, [category, promptData, configProperties, compositionConfigProperties]);
+  }, [category, promptData, configFields, compositionConfigFields]);
 
   // For composition producers with displayable config, show collapsible section
   // For composition producers without displayable config, show simple non-collapsible section
   if (category === 'composition') {
     // If there are displayable config properties, render with ConfigPropertiesEditor
-    if (compositionConfigProperties.length > 0) {
+    if (compositionConfigFields.length > 0) {
       const compositionContent = (
         <ConfigPropertiesEditor
-          properties={compositionConfigProperties}
+          fields={compositionConfigFields}
           values={configValues}
           isEditable={isEditable}
           onChange={(key, value) => onConfigChange?.(key, value)}
@@ -199,7 +200,7 @@ export function ProducerSection({
       return (
         <CollapsibleSection
           title={sectionTitle}
-          count={compositionConfigProperties.length}
+          count={compositionConfigFields.length}
           description={description}
           defaultOpen={defaultOpen}
           className={getSectionHighlightStyles(isSelected, 'primary')}
@@ -285,18 +286,46 @@ export function ProducerSection({
 
       {/* Asset producers: show config properties editor with model selection */}
       {category === 'asset' &&
-        (schemaError ? (
+        (producerError ? (
+          <div className='space-y-4'>
+            <PropertyRow name='Model' type='select' required>
+              <ModelSelector
+                producerId={producerId}
+                availableModels={availableModels}
+                currentSelection={currentSelection}
+                isEditable={isEditable}
+                onChange={onModelChange}
+              />
+            </PropertyRow>
+            <div
+              role='alert'
+              className='flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive'
+            >
+              <AlertCircle className='size-4 shrink-0 mt-0.5' />
+              <div>
+                <p className='font-medium'>Model configuration unavailable</p>
+                <p className='mt-1 text-xs text-destructive/90'>
+                  [{producerError.code}] {producerError.error}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : schemaError ? (
           <ConfigPropertiesEditor
-            properties={[]}
+            fields={[]}
             values={{}}
             isEditable={false}
             onChange={() => {}}
             schemaError={schemaError}
+            producerId={producerId}
+            availableModels={availableModels}
+            currentModelSelection={currentSelection}
+            onModelChange={onModelChange}
           />
         ) : (
           <div className='space-y-4'>
             <ConfigPropertiesEditor
-              properties={configProperties ?? []}
+              fields={configFields ?? []}
               values={configValues}
               isEditable={isEditable}
               onChange={(key, value) => onConfigChange?.(key, value)}

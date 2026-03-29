@@ -157,10 +157,70 @@ export interface SchemaProperty {
   enum?: unknown[];
   minimum?: number;
   maximum?: number;
+  format?: string;
   items?: SchemaProperty;
   properties?: Record<string, SchemaProperty>;
+  required?: string[];
+  oneOf?: SchemaProperty[];
+  anyOf?: SchemaProperty[];
+  allOf?: SchemaProperty[];
   /** JSON Schema $ref for referencing other schema definitions */
   $ref?: string;
+}
+
+export type ViewerComponent =
+  | 'string'
+  | 'file-uri'
+  | 'string-enum'
+  | 'number'
+  | 'integer'
+  | 'boolean'
+  | 'nullable'
+  | 'union'
+  | 'object'
+  | 'array-scalar'
+  | 'array-file-uri'
+  | 'array-object-cards'
+  | 'placeholder-to-be-annotated';
+
+export type MappingSource = 'none' | 'input' | 'artifact' | 'mixed';
+
+export type UnionEditorConfig = EnumDimensionsUnionEditorConfig;
+
+export interface EnumDimensionsUnionEditorConfig {
+  type: 'enum-dimensions';
+  enumVariantId: string;
+  customVariantId: string;
+  customSelection?:
+    | {
+        source: 'enum-value';
+        value: string;
+      }
+    | {
+        source: 'virtual-option';
+        label?: string;
+      };
+}
+
+export interface ConfigFieldDescriptor {
+  keyPath: string;
+  component: ViewerComponent;
+  label: string;
+  required: boolean;
+  description?: string;
+  presentation?: string;
+  unionEditor?: UnionEditorConfig;
+  schema?: SchemaProperty;
+  mappingSource: MappingSource;
+  mappedAliases: string[];
+  fields?: ConfigFieldDescriptor[];
+  item?: ConfigFieldDescriptor;
+  value?: ConfigFieldDescriptor;
+  variants?: ConfigFieldVariantDescriptor[];
+}
+
+export interface ConfigFieldVariantDescriptor extends ConfigFieldDescriptor {
+  id: string;
 }
 
 /**
@@ -181,6 +241,7 @@ export interface ConfigProperty {
 export interface ModelConfigSchema {
   provider: string;
   model: string;
+  fields: ConfigFieldDescriptor[];
   properties: ConfigProperty[];
 }
 
@@ -237,6 +298,12 @@ export interface NestedModelConfigSchema {
  */
 export interface ProducerConfigSchemasResponse {
   producers: Record<string, ProducerConfigSchemas>;
+  errorsByProducer?: Record<string, ProducerContractError>;
+}
+
+export interface ProducerContractError {
+  error: string;
+  code: string;
 }
 
 export type SdkPreviewStatus = 'ok' | 'warning' | 'error';
@@ -260,6 +327,7 @@ export interface ProducerSdkPreviewEntry {
 
 export interface ProducerSdkPreviewResponse {
   producers: Record<string, ProducerSdkPreviewEntry>;
+  errorsByProducer?: Record<string, ProducerContractError>;
 }
 
 // ============================================================================

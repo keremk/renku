@@ -1,13 +1,23 @@
 import path from 'node:path';
-import { loadYamlBlueprintTree, resolveMappingsForModel } from '@gorenku/core';
+import {
+  createRuntimeError,
+  RuntimeErrorCode,
+  isRenkuError,
+  loadYamlBlueprintTree,
+  resolveMappingsForModel,
+} from '@gorenku/core';
 import {
   evaluateResolutionMappingPreview,
   loadModelCatalog,
   loadModelSchemaFile,
-  lookupModel,
   type LoadedModelCatalog,
 } from '@gorenku/providers';
-import { convertTreeToGraph } from './graph-converter.js';
+import { buildProducerBindingSummary } from './mapping-binding-context.js';
+import {
+  assertPreviewSubsetOfDescriptors,
+  buildFieldDescriptors,
+  deriveFieldMappingMeta,
+} from './models-pane-contract.js';
 
 export interface ProducerSdkPreviewRequest {
   blueprintPath: string;
@@ -39,8 +49,14 @@ export interface ProducerSdkPreviewResult {
   fields: ProducerSdkPreviewField[];
 }
 
+export interface ProducerContractError {
+  error: string;
+  code: string;
+}
+
 export interface ProducerSdkPreviewResponse {
   producers: Record<string, ProducerSdkPreviewResult>;
+  errorsByProducer?: Record<string, ProducerContractError>;
 }
 
 export async function getProducerSdkPreview(
@@ -49,18 +65,6 @@ export async function getProducerSdkPreview(
   const { root } = await loadYamlBlueprintTree(request.blueprintPath, {
     catalogRoot: request.catalogRoot,
   });
-  const graph = convertTreeToGraph(root);
-  const producerNodes = new Map(
-    graph.nodes
-      .filter((node) => node.type === 'producer')
-      .map((node) => [
-        node.id.replace('Producer:', ''),
-        {
-          producerType: node.producerType,
-          inputBindings: node.inputBindings ?? [],
-        },
-      ])
-  );
 
   let catalog: LoadedModelCatalog | null = null;
   let catalogModelsDir: string | null = null;
@@ -70,224 +74,126 @@ export async function getProducerSdkPreview(
   }
 
   const producers: Record<string, ProducerSdkPreviewResult> = {};
+  const errorsByProducer: Record<string, ProducerContractError> = {};
 
   for (const selection of request.models) {
-    const producerNode = producerNodes.get(selection.producerId);
-    if (!producerNode) {
-      continue;
-    }
+    try {
+      const mapping = resolveMappingsForModel(root, {
+        producerId: selection.producerId,
+        provider: selection.provider,
+        model: selection.model,
+      });
+      if (!mapping) {
+        producers[selection.producerId] = {
+          producerId: selection.producerId,
+          fields: [],
+        };
+        continue;
+      }
 
-    if (
-      !isImageOrVideoSelection(selection, producerNode.producerType, catalog)
-    ) {
-      continue;
-    }
+      const bindingContext = buildProducerBindingSummary({
+        root,
+        producerId: selection.producerId,
+        inputs: request.inputs,
+      });
 
-    const mapping = resolveMappingsForModel(root, {
-      producerId: selection.producerId,
-      provider: selection.provider,
-      model: selection.model,
-    });
-    if (!mapping) {
+      const schemaFile = await loadSelectionSchemaFile({
+        selection,
+        catalog,
+        catalogModelsDir,
+      });
+      if (!schemaFile) {
+        throw createRuntimeError(
+          RuntimeErrorCode.MODELS_PANE_DESCRIPTOR_MISSING_FOR_MODEL,
+          `Missing schema descriptor for selected model ${selection.producerId} (${selection.provider}/${selection.model}).`
+        );
+      }
+
+      const fieldMapping = deriveFieldMappingMeta({
+        schemaFile,
+        mapping,
+        bindingSummary: bindingContext,
+        producerId: selection.producerId,
+        provider: selection.provider,
+        model: selection.model,
+      });
+
+      const descriptorFields = buildFieldDescriptors({
+        schemaFile,
+        fieldMapping,
+        producerId: selection.producerId,
+        provider: selection.provider,
+        model: selection.model,
+      });
+
+      const fields = evaluateResolutionMappingPreview({
+        mapping,
+        context: {
+          inputs: bindingContext.resolvedInputs,
+          inputBindings: bindingContext.mappingInputBindings,
+        },
+        connectedAliases: bindingContext.connectedAliases,
+        inputSchema: schemaFile.inputSchema as Record<string, unknown>,
+      });
+
+      const visibleFields = fields.filter((field) => {
+        const source = fieldMapping.get(field.field)?.source;
+        return source !== 'artifact';
+      });
+
+      assertPreviewSubsetOfDescriptors({
+        producerId: selection.producerId,
+        provider: selection.provider,
+        model: selection.model,
+        descriptorFields,
+        previewFields: visibleFields,
+      });
+
+      producers[selection.producerId] = {
+        producerId: selection.producerId,
+        fields: visibleFields,
+      };
+    } catch (error) {
+      const contractError = isRenkuError(error)
+        ? error
+        : createRuntimeError(
+            RuntimeErrorCode.MODELS_PANE_DESCRIPTOR_MISSING_FOR_MODEL,
+            error instanceof Error
+              ? error.message
+              : `Failed to compute models-pane runtime contract for producer ${selection.producerId}.`
+          );
+
+      errorsByProducer[selection.producerId] = {
+        error: contractError.message,
+        code: contractError.code,
+      };
+
       producers[selection.producerId] = {
         producerId: selection.producerId,
         fields: [],
       };
-      continue;
     }
-
-    const bindingContext = buildProducerBindingContext({
-      producerId: selection.producerId,
-      inputBindings: producerNode.inputBindings,
-      inputs: request.inputs,
-    });
-
-    const inputSchema = await loadSelectionInputSchema({
-      selection,
-      catalog,
-      catalogModelsDir,
-    });
-
-    const fields = evaluateResolutionMappingPreview({
-      mapping,
-      context: {
-        inputs: bindingContext.resolvedInputs,
-        inputBindings: bindingContext.mappingInputBindings,
-      },
-      connectedAliases: bindingContext.connectedAliases,
-      inputSchema,
-    });
-
-    producers[selection.producerId] = {
-      producerId: selection.producerId,
-      fields,
-    };
   }
 
-  return { producers };
+  return {
+    producers,
+    ...(Object.keys(errorsByProducer).length > 0 ? { errorsByProducer } : {}),
+  };
 }
 
-async function loadSelectionInputSchema(args: {
+async function loadSelectionSchemaFile(args: {
   selection: ProducerSdkPreviewSelection;
   catalog: LoadedModelCatalog | null;
   catalogModelsDir: string | null;
-}): Promise<Record<string, unknown> | undefined> {
+}) {
   if (!args.catalog || !args.catalogModelsDir) {
-    return undefined;
+    return null;
   }
 
-  const schemaFile = await loadModelSchemaFile(
+  return loadModelSchemaFile(
     args.catalogModelsDir,
     args.catalog,
     args.selection.provider,
     args.selection.model
   );
-  if (!schemaFile) {
-    return undefined;
-  }
-
-  return schemaFile.inputSchema as Record<string, unknown>;
-}
-
-function isImageOrVideoSelection(
-  selection: ProducerSdkPreviewSelection,
-  producerType: string | undefined,
-  catalog: LoadedModelCatalog | null
-): boolean {
-  if (catalog) {
-    const modelDef = lookupModel(catalog, selection.provider, selection.model);
-    const modelType = modelDef?.type;
-    if (modelType === 'image' || modelType === 'video') {
-      return true;
-    }
-  }
-
-  if (!producerType) {
-    return false;
-  }
-  return producerType.includes('image') || producerType.includes('video');
-}
-
-function buildProducerBindingContext(args: {
-  producerId: string;
-  inputBindings: Array<{ from: string; to: string; sourceType: string }>;
-  inputs: Record<string, unknown>;
-}): {
-  resolvedInputs: Record<string, unknown>;
-  mappingInputBindings: Record<string, string>;
-  connectedAliases: Set<string>;
-} {
-  const resolvedInputs: Record<string, unknown> = {};
-  const mappingInputBindings: Record<string, string> = {};
-  const connectedAliases = new Set<string>();
-  const seenPerAlias = new Map<string, number>();
-
-  for (const binding of args.inputBindings) {
-    const alias = extractTargetAlias(binding.to, args.producerId);
-    if (!alias) {
-      continue;
-    }
-
-    connectedAliases.add(alias);
-    const baseAlias = alias.replace(/\[\d+\]$/, '');
-    connectedAliases.add(baseAlias);
-
-    const sourceCanonicalId = buildSourceCanonicalId(
-      binding.from,
-      binding.sourceType
-    );
-    const normalizedAlias = normalizeAliasBinding(alias, seenPerAlias);
-    mappingInputBindings[normalizedAlias] = sourceCanonicalId;
-
-    const inputName = extractInputName(binding.from, binding.sourceType);
-    if (inputName === undefined) {
-      continue;
-    }
-
-    const value = resolveInputValue(args.inputs, inputName);
-    if (value === undefined) {
-      continue;
-    }
-    resolvedInputs[sourceCanonicalId] = value;
-  }
-
-  return {
-    resolvedInputs,
-    mappingInputBindings,
-    connectedAliases,
-  };
-}
-
-function normalizeAliasBinding(
-  alias: string,
-  seenPerAlias: Map<string, number>
-): string {
-  if (/\[\d+\]$/.test(alias)) {
-    return alias;
-  }
-
-  const seen = seenPerAlias.get(alias) ?? 0;
-  seenPerAlias.set(alias, seen + 1);
-  if (seen === 0) {
-    return alias;
-  }
-  return `${alias}[${seen}]`;
-}
-
-function extractTargetAlias(
-  targetRef: string,
-  producerId: string
-): string | null {
-  const escapedProducerId = producerId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const match = targetRef.match(
-    new RegExp(`^${escapedProducerId}(?:\\[[^\\]]+\\])*\\.(.+)$`)
-  );
-  if (!match || !match[1]) {
-    return null;
-  }
-  const [alias] = match[1].split('.');
-  return alias ?? null;
-}
-
-function buildSourceCanonicalId(sourceRef: string, sourceType: string): string {
-  if (sourceType === 'input') {
-    const inputName = extractInputName(sourceRef, sourceType);
-    if (!inputName) {
-      return `Input:${sourceRef}`;
-    }
-    return `Input:${inputName}`;
-  }
-
-  return `Artifact:${sourceRef}`;
-}
-
-function extractInputName(
-  reference: string,
-  sourceType: string
-): string | undefined {
-  if (sourceType !== 'input') {
-    return undefined;
-  }
-
-  if (reference.startsWith('Input.')) {
-    return reference.slice('Input.'.length);
-  }
-
-  return reference;
-}
-
-function resolveInputValue(
-  inputs: Record<string, unknown>,
-  inputName: string
-): unknown {
-  if (inputName in inputs) {
-    return inputs[inputName];
-  }
-
-  const canonical = `Input:${inputName}`;
-  if (canonical in inputs) {
-    return inputs[canonical];
-  }
-
-  return undefined;
 }

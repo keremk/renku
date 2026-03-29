@@ -614,7 +614,16 @@
               "component": "string-enum",
               "label": "Preset"
             }
-          ]
+          ],
+          "unionEditor": {
+            "type": "enum-dimensions",
+            "enumVariantId": "variant-2",
+            "customVariantId": "variant-1",
+            "customSelection": {
+              "source": "virtual-option",
+              "label": "Custom Size"
+            }
+          }
         },
         "guidance_scale": {
           "pointer": "/input_schema/properties/guidance_scale",

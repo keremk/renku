@@ -1,8 +1,27 @@
-export { createProviderRegistry, type CreateProviderRegistryOptions } from './registry.js';
+export {
+  createProviderRegistry,
+  type CreateProviderRegistryOptions,
+} from './registry.js';
 export { SchemaRegistry } from './schema-registry.js';
 export * from './sdk/index.js';
 export * from './producers/cost-functions.js';
-export { loadModelCatalog, lookupModel, loadModelInputSchema, loadModelSchemaFile, getAvailableModelsForNestedSlot, type LoadedModelCatalog, type ModelDefinition, type ModelType, type ProducerModelEntry, type SchemaFile, type NestedModelDeclaration } from './model-catalog.js';
+export {
+  loadModelCatalog,
+  lookupModel,
+  loadModelInputSchema,
+  loadModelSchemaFile,
+  getAvailableModelsForNestedSlot,
+  type LoadedModelCatalog,
+  type ModelDefinition,
+  type ModelType,
+  type ProducerModelEntry,
+  type SchemaFile,
+  type NestedModelDeclaration,
+  type ViewerAnnotation,
+  type ViewerAnnotationNode,
+  type ViewerAnnotationVariant,
+  type ViewerComponent,
+} from './model-catalog.js';
 export * from './produce/provider-produce.js';
 export type {
   ProviderRegistry,

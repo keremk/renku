@@ -2,12 +2,28 @@ import { readdir, readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { ModelPriceConfig } from './producers/cost-functions.js';
-import { parseSchemaFile, type SchemaFile, type NestedModelDeclaration } from './sdk/unified/schema-file.js';
+import {
+  parseSchemaFile,
+  type SchemaFile,
+  type NestedModelDeclaration,
+  type ViewerAnnotation,
+  type ViewerAnnotationNode,
+  type ViewerAnnotationVariant,
+  type ViewerComponent,
+} from './sdk/unified/schema-file.js';
 
 /**
  * Model output type - determines which handler factory and output mime type to use.
  */
-export type ModelType = 'image' | 'video' | 'audio' | 'llm' | 'text' | 'internal' | 'json' | 'stt';
+export type ModelType =
+  | 'image'
+  | 'video'
+  | 'audio'
+  | 'llm'
+  | 'text'
+  | 'internal'
+  | 'json'
+  | 'stt';
 
 /**
  * Model definition from YAML catalog.
@@ -113,7 +129,11 @@ export async function loadModelCatalog(
 
   for (const providerName of providerDirs) {
     // Look for {provider}/{provider}.yaml
-    const filePath = resolve(catalogModelsDir, providerName, `${providerName}.yaml`);
+    const filePath = resolve(
+      catalogModelsDir,
+      providerName,
+      `${providerName}.yaml`
+    );
 
     try {
       const contents = await readFile(filePath, 'utf8');
@@ -145,7 +165,9 @@ export async function loadModelCatalog(
       catalog.providers.set(providerName, modelMap);
     } catch (error) {
       // Skip providers that fail to load
-      console.warn(`Failed to load catalog for provider ${providerName}: ${error}`);
+      console.warn(
+        `Failed to load catalog for provider ${providerName}: ${error}`
+      );
     }
   }
 
@@ -197,7 +219,12 @@ export function resolveSchemaPath(
   }
   // Priority 2: Schema name (resolves to {type}/{schema}.json)
   if (modelDef.schema) {
-    return resolve(catalogModelsDir, provider, modelDef.type, `${modelDef.schema}.json`);
+    return resolve(
+      catalogModelsDir,
+      provider,
+      modelDef.type,
+      `${modelDef.schema}.json`
+    );
   }
   // Priority 3: Default convention {type}/{model-name-converted}.json
   const filename = `${modelNameToFilename(model)}.json`;
@@ -221,11 +248,20 @@ export async function loadModelInputSchema(
 
   // Skip LLM and internal types - they don't have input schemas in the catalog
   // Note: json type models (like transcription) DO need input schemas
-  if (modelDef.type === 'llm' || modelDef.type === 'internal' || modelDef.type === 'text') {
+  if (
+    modelDef.type === 'llm' ||
+    modelDef.type === 'internal' ||
+    modelDef.type === 'text'
+  ) {
     return null;
   }
 
-  const schemaPath = resolveSchemaPath(catalogModelsDir, provider, model, modelDef);
+  const schemaPath = resolveSchemaPath(
+    catalogModelsDir,
+    provider,
+    model,
+    modelDef
+  );
 
   try {
     return await readFile(schemaPath, 'utf8');
@@ -257,11 +293,20 @@ export async function loadModelSchemaFile(
 
   // Skip LLM and internal types - they don't have input schemas in the catalog
   // Note: json type models (like transcription) DO need input schemas
-  if (modelDef.type === 'llm' || modelDef.type === 'internal' || modelDef.type === 'text') {
+  if (
+    modelDef.type === 'llm' ||
+    modelDef.type === 'internal' ||
+    modelDef.type === 'text'
+  ) {
     return null;
   }
 
-  const schemaPath = resolveSchemaPath(catalogModelsDir, provider, model, modelDef);
+  const schemaPath = resolveSchemaPath(
+    catalogModelsDir,
+    provider,
+    model,
+    modelDef
+  );
 
   try {
     const content = await readFile(schemaPath, 'utf8');
@@ -284,7 +329,10 @@ export function getAvailableModelsForNestedSlot(
 
   for (const [provider, modelMap] of catalog.providers) {
     // Skip provider if not in allowedProviders
-    if (declaration.allowedProviders && declaration.allowedProviders.length > 0) {
+    if (
+      declaration.allowedProviders &&
+      declaration.allowedProviders.length > 0
+    ) {
       if (!declaration.allowedProviders.includes(provider)) {
         continue;
       }
@@ -306,4 +354,11 @@ export function getAvailableModelsForNestedSlot(
 }
 
 // Re-export types for convenience
-export type { SchemaFile, NestedModelDeclaration };
+export type {
+  SchemaFile,
+  NestedModelDeclaration,
+  ViewerAnnotation,
+  ViewerAnnotationNode,
+  ViewerAnnotationVariant,
+  ViewerComponent,
+};

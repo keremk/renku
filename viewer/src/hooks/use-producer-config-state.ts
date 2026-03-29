@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type {
-  ConfigProperty,
+  ConfigFieldDescriptor,
   ModelSelectionValue,
   NestedModelConfigSchema,
   ProducerConfigSchemas,
@@ -14,8 +14,8 @@ export interface UseProducerConfigStateOptions {
 }
 
 export interface UseProducerConfigStateResult {
-  /** Config properties for each producer based on current model selection */
-  configPropertiesByProducer: Record<string, ConfigProperty[]>;
+  /** Config field descriptors for each producer based on current model selection */
+  configFieldsByProducer: Record<string, ConfigFieldDescriptor[]>;
   /** Config values for each producer from current selections */
   configValuesByProducer: Record<string, Record<string, unknown>>;
   /** Get nested model schemas for a producer (if any) */
@@ -63,11 +63,11 @@ export function useProducerConfigState(
 ): UseProducerConfigStateResult {
   const { configSchemas, currentSelections } = options;
 
-  // Compute config properties for each producer based on current model selection
-  const configPropertiesByProducer = useMemo<
-    Record<string, ConfigProperty[]>
+  // Compute config field descriptors for each producer based on current model selection
+  const configFieldsByProducer = useMemo<
+    Record<string, ConfigFieldDescriptor[]>
   >(() => {
-    const result: Record<string, ConfigProperty[]> = {};
+    const result: Record<string, ConfigFieldDescriptor[]> = {};
 
     for (const [producerId, schemas] of Object.entries(configSchemas)) {
       // Find current model selection for this producer
@@ -81,11 +81,14 @@ export function useProducerConfigState(
       // Get top-level config properties from the selected model's schema
       const modelKey = `${selection.provider}/${selection.model}`;
       const modelSchema = schemas.modelSchemas[modelKey];
-      const topLevelProperties = modelSchema?.properties ?? [];
+      const topLevelFields = removeNestedSelectorControlledFields(
+        modelSchema?.fields ?? [],
+        schemas.nestedModels ?? []
+      );
 
       // If this producer has nested models, merge in nested model config properties
       if (schemas.nestedModels && schemas.nestedModels.length > 0) {
-        const mergedProperties = [...topLevelProperties];
+        const mergedFields = [...topLevelFields];
 
         for (const nestedModel of schemas.nestedModels) {
           // Get nested provider/model from selection config
@@ -106,23 +109,31 @@ export function useProducerConfigState(
               const nestedKey = `${nestedProvider}/${nestedModelName}`;
               const nestedSchema = nestedModel.modelSchemas[nestedKey];
 
-              if (nestedSchema?.properties) {
-                // Add nested properties with namespaced keys
-                for (const prop of nestedSchema.properties) {
-                  mergedProperties.push({
-                    ...prop,
-                    // Namespace the key under the configPath (e.g., "stt.diarize")
-                    key: `${nestedModel.declaration.configPath}.${prop.key}`,
-                  });
+              if (nestedSchema?.fields) {
+                const providerField = nestedModel.declaration.providerField;
+                const modelField = nestedModel.declaration.modelField;
+                for (const field of nestedSchema.fields) {
+                  if (
+                    field.keyPath === providerField ||
+                    field.keyPath === modelField
+                  ) {
+                    continue;
+                  }
+                  mergedFields.push(
+                    prefixFieldDescriptor(
+                      field,
+                      nestedModel.declaration.configPath
+                    )
+                  );
                 }
               }
             }
           }
         }
 
-        result[producerId] = mergedProperties;
+        result[producerId] = mergedFields;
       } else {
-        result[producerId] = topLevelProperties;
+        result[producerId] = topLevelFields;
       }
     }
 
@@ -140,54 +151,24 @@ export function useProducerConfigState(
         continue;
       }
 
-      // Flatten nested config for UI consumption
-      const flatConfig: Record<string, unknown> = {};
-
-      for (const [key, value] of Object.entries(selection.config)) {
-        if (
-          typeof value === 'object' &&
-          value !== null &&
-          !Array.isArray(value)
-        ) {
-          // Check if this is a nested model config (has provider/model)
-          const nested = value as Record<string, unknown>;
-          if (
-            typeof nested.provider === 'string' &&
-            typeof nested.model === 'string'
-          ) {
-            // This is a nested model config - flatten its properties
-            for (const [nestedKey, nestedValue] of Object.entries(nested)) {
-              // Skip provider/model - these are displayed separately in the nested model selector
-              if (nestedKey === 'provider' || nestedKey === 'model') {
-                continue;
-              }
-              flatConfig[`${key}.${nestedKey}`] = nestedValue;
-            }
-          } else {
-            // Regular nested object - keep as-is
-            flatConfig[key] = value;
-          }
-        } else {
-          flatConfig[key] = value;
-        }
-      }
+      const config: Record<string, unknown> = { ...selection.config };
 
       const producerSchemas = configSchemas[selection.producerId];
       const modelKey = `${selection.provider}/${selection.model}`;
       const modelSchema = producerSchemas?.modelSchemas[modelKey];
       const hasTimelineProperty =
-        modelSchema?.properties.some((prop) => prop.key === 'timeline') ??
+        modelSchema?.fields.some((field) => field.keyPath === 'timeline') ??
         false;
 
-      if (hasTimelineProperty && flatConfig.timeline === undefined) {
+      if (hasTimelineProperty && config.timeline === undefined) {
         const legacyTimeline = extractLegacyTimelineConfig(selection.config);
         if (legacyTimeline) {
-          flatConfig.timeline = legacyTimeline;
+          config.timeline = legacyTimeline;
         }
       }
 
-      if (Object.keys(flatConfig).length > 0) {
-        result[selection.producerId] = flatConfig;
+      if (Object.keys(config).length > 0) {
+        result[selection.producerId] = config;
       }
     }
 
@@ -203,8 +184,59 @@ export function useProducerConfigState(
   }, [configSchemas]);
 
   return {
-    configPropertiesByProducer,
+    configFieldsByProducer,
     configValuesByProducer,
     getNestedModelSchemas,
   };
+}
+
+function prefixFieldDescriptor(
+  field: ConfigFieldDescriptor,
+  prefix: string
+): ConfigFieldDescriptor {
+  const keyPath = `${prefix}.${field.keyPath}`;
+  return {
+    ...field,
+    keyPath,
+    fields: field.fields?.map((child) => prefixFieldDescriptor(child, prefix)),
+    item: field.item ? prefixFieldDescriptor(field.item, prefix) : undefined,
+    value: field.value ? prefixFieldDescriptor(field.value, prefix) : undefined,
+    variants: field.variants?.map((variant) => ({
+      ...prefixFieldDescriptor(variant, prefix),
+      id: variant.id,
+    })),
+  };
+}
+
+function removeNestedSelectorControlledFields(
+  fields: ConfigFieldDescriptor[],
+  nestedModels: NestedModelConfigSchema[]
+): ConfigFieldDescriptor[] {
+  const hidden = new Set<string>();
+  for (const nestedModel of nestedModels) {
+    const configPath = nestedModel.declaration.configPath;
+    hidden.add(`${configPath}.${nestedModel.declaration.providerField}`);
+    hidden.add(`${configPath}.${nestedModel.declaration.modelField}`);
+  }
+
+  const prune = (
+    field: ConfigFieldDescriptor
+  ): ConfigFieldDescriptor | null => {
+    if (hidden.has(field.keyPath)) {
+      return null;
+    }
+
+    const nextFields = field.fields
+      ?.map((child) => prune(child))
+      .filter((child): child is ConfigFieldDescriptor => child !== null);
+
+    return {
+      ...field,
+      fields: nextFields,
+    };
+  };
+
+  return fields
+    .map((field) => prune(field))
+    .filter((field): field is ConfigFieldDescriptor => field !== null);
 }

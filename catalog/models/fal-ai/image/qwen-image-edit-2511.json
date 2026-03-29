@@ -342,7 +342,16 @@
               "component": "string-enum",
               "label": "Preset"
             }
-          ]
+          ],
+          "unionEditor": {
+            "type": "enum-dimensions",
+            "enumVariantId": "variant-2",
+            "customVariantId": "variant-1",
+            "customSelection": {
+              "source": "virtual-option",
+              "label": "Custom Size"
+            }
+          }
         },
         "num_inference_steps": {
           "pointer": "/input_schema/properties/num_inference_steps",

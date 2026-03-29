@@ -3,8 +3,11 @@
  */
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { isRenkuError } from '@gorenku/core';
 import {
   parseJsonBody,
+  sendError,
+  sendJson,
   respondNotFound,
   respondBadRequest,
   respondMethodNotAllowed,
@@ -83,34 +86,42 @@ export async function handleBlueprintRequest(
     try {
       body = await parseJsonBody<ProducerSdkPreviewRequest>(req);
     } catch {
-      return respondBadRequest(res, 'Invalid JSON body');
+      sendError(res, 400, 'Invalid JSON body');
+      return true;
     }
 
     if (!body.blueprintPath) {
-      return respondBadRequest(res, 'Missing blueprintPath');
+      sendError(res, 400, 'Missing blueprintPath');
+      return true;
     }
     if (
       !body.inputs ||
       typeof body.inputs !== 'object' ||
       Array.isArray(body.inputs)
     ) {
-      return respondBadRequest(res, 'inputs must be an object');
+      sendError(res, 400, 'inputs must be an object');
+      return true;
     }
     if (!Array.isArray(body.models)) {
-      return respondBadRequest(res, 'models must be an array');
+      sendError(res, 400, 'models must be an array');
+      return true;
     }
 
     try {
       const preview = await getProducerSdkPreview(body);
-      res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify(preview));
+      sendJson(res, preview);
       return true;
     } catch (error) {
+      if (isRenkuError(error)) {
+        sendError(res, 400, error.message, error.code);
+        return true;
+      }
       const message =
         error instanceof Error
           ? error.message
           : 'Failed to resolve producer sdk preview';
-      return respondBadRequest(res, message);
+      sendError(res, 500, message);
+      return true;
     }
   }
 
@@ -324,22 +335,27 @@ export async function handleBlueprintRequest(
     case 'producer-config-schemas': {
       const blueprintPath = url.searchParams.get('path');
       if (!blueprintPath) {
-        return respondBadRequest(res, 'Missing path parameter');
+        sendError(res, 400, 'Missing path parameter');
+        return true;
       }
       try {
         const configSchemas = await getProducerConfigSchemas(
           blueprintPath,
           catalogRoot
         );
-        res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify(configSchemas));
+        sendJson(res, configSchemas);
         return true;
       } catch (error) {
+        if (isRenkuError(error)) {
+          sendError(res, 400, error.message, error.code);
+          return true;
+        }
         const message =
           error instanceof Error
             ? error.message
             : 'Failed to resolve producer config schemas';
-        return respondBadRequest(res, message);
+        sendError(res, 500, message);
+        return true;
       }
     }
 

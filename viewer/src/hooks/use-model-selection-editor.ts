@@ -136,22 +136,25 @@ export function useModelSelectionEditor({
 
         if (!existing) return prev;
 
-        const existingConfig = {
-          ...(existing.config ?? {}),
-        };
+        const existingConfig = { ...(existing.config ?? {}) };
 
-        if (key === 'timeline') {
+        const rootKey = key.split('.')[0] ?? key;
+        if (rootKey === 'timeline') {
           for (const legacyKey of LEGACY_TIMELINE_CONFIG_KEYS) {
             delete existingConfig[legacyKey];
           }
         }
 
+        if (value === undefined) {
+          unsetPath(existingConfig, key);
+        } else {
+          setPath(existingConfig, key, value);
+        }
+
         const updated: ModelSelectionValue = {
           ...existing,
-          config: {
-            ...existingConfig,
-            [key]: value,
-          },
+          config:
+            Object.keys(existingConfig).length > 0 ? existingConfig : undefined,
         };
 
         const next = new Map(prev);
@@ -252,6 +255,62 @@ export function useModelSelectionEditor({
     save,
     reset,
   };
+}
+
+function setPath(
+  target: Record<string, unknown>,
+  path: string,
+  value: unknown
+): void {
+  const parts = path.split('.');
+  const last = parts.pop();
+  if (!last) {
+    throw new Error(`Invalid config path: ${path}`);
+  }
+
+  let current: Record<string, unknown> = target;
+  for (const part of parts) {
+    const existing = current[part];
+    if (!existing || typeof existing !== 'object' || Array.isArray(existing)) {
+      current[part] = {};
+    }
+    current = current[part] as Record<string, unknown>;
+  }
+
+  current[last] = value;
+}
+
+function unsetPath(target: Record<string, unknown>, path: string): void {
+  const parts = path.split('.');
+  const last = parts.pop();
+  if (!last) {
+    throw new Error(`Invalid config path: ${path}`);
+  }
+
+  let current: Record<string, unknown> = target;
+  const stack: Array<{ parent: Record<string, unknown>; key: string }> = [];
+
+  for (const part of parts) {
+    const next = current[part];
+    if (!next || typeof next !== 'object' || Array.isArray(next)) {
+      return;
+    }
+    stack.push({ parent: current, key: part });
+    current = next as Record<string, unknown>;
+  }
+
+  delete current[last];
+
+  for (let index = stack.length - 1; index >= 0; index -= 1) {
+    const { parent, key } = stack[index];
+    const child = parent[key];
+    if (!child || typeof child !== 'object' || Array.isArray(child)) {
+      continue;
+    }
+    if (Object.keys(child as Record<string, unknown>).length === 0) {
+      delete parent[key];
+    }
+  }
 }
 
 /**

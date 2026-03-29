@@ -2,37 +2,56 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { ConfigPropertiesEditor } from './config-properties-editor';
-import type { ConfigProperty } from '@/types/blueprint-graph';
+import type { ConfigFieldDescriptor } from '@/types/blueprint-graph';
 
-function createMockProperty(
-  key: string,
-  overrides: Partial<ConfigProperty> = {}
-): ConfigProperty {
+const htmlElementPrototype = HTMLElement.prototype as HTMLElement & {
+  hasPointerCapture?: (pointerId: number) => boolean;
+  setPointerCapture?: (pointerId: number) => void;
+  releasePointerCapture?: (pointerId: number) => void;
+};
+
+if (typeof htmlElementPrototype.hasPointerCapture !== 'function') {
+  htmlElementPrototype.hasPointerCapture = () => false;
+}
+if (typeof htmlElementPrototype.setPointerCapture !== 'function') {
+  htmlElementPrototype.setPointerCapture = () => {};
+}
+if (typeof htmlElementPrototype.releasePointerCapture !== 'function') {
+  htmlElementPrototype.releasePointerCapture = () => {};
+}
+
+function createMockField(
+  keyPath: string,
+  overrides: Partial<ConfigFieldDescriptor> = {}
+): ConfigFieldDescriptor {
   return {
-    key,
+    keyPath,
+    component: 'string',
+    label: keyPath,
     required: false,
     schema: {
       type: 'string',
-      description: `Description for ${key}`,
     },
+    mappingSource: 'none',
+    mappedAliases: [],
     ...overrides,
   };
 }
 
 describe('ConfigPropertiesEditor', () => {
   describe('Rendering', () => {
-    it('renders required properties (marked with asterisk)', () => {
-      const properties = [
-        createMockProperty('model', { required: true }),
-        createMockProperty('temperature', { required: true }),
-        createMockProperty('optional_param', { required: false }),
+    it('renders required fields', () => {
+      const fields = [
+        createMockField('model', { required: true }),
+        createMockField('temperature', { required: true }),
+        createMockField('optional_param', { required: false }),
       ];
 
       render(
         <ConfigPropertiesEditor
-          properties={properties}
+          fields={fields}
           values={{}}
           isEditable={true}
           onChange={() => {}}
@@ -45,17 +64,17 @@ describe('ConfigPropertiesEditor', () => {
       expect(screen.getByText('optional_param')).toBeTruthy();
     });
 
-    it('renders all properties in a flat list (required first, then optional)', () => {
-      const properties = [
-        createMockProperty('required_param', { required: true }),
-        createMockProperty('opt1', { required: false }),
-        createMockProperty('opt2', { required: false }),
-        createMockProperty('opt3', { required: false }),
+    it('renders all provided fields', () => {
+      const fields = [
+        createMockField('required_param', { required: true }),
+        createMockField('opt1', { required: false }),
+        createMockField('opt2', { required: false }),
+        createMockField('opt3', { required: false }),
       ];
 
       render(
         <ConfigPropertiesEditor
-          properties={properties}
+          fields={fields}
           values={{}}
           isEditable={true}
           onChange={() => {}}
@@ -69,14 +88,19 @@ describe('ConfigPropertiesEditor', () => {
       expect(screen.getByText('opt3')).toBeTruthy();
     });
 
-    it('renders sdk preview rows before regular config properties', () => {
-      const properties = [
-        createMockProperty('optional_config', { required: false }),
+    it('uses sdk preview value and warning text for mapped fields', () => {
+      const fields = [
+        createMockField('aspect_ratio', {
+          required: false,
+          mappingSource: 'input',
+          mappedAliases: ['Resolution'],
+        }),
+        createMockField('optional_config', { required: false }),
       ];
 
-      const { container } = render(
+      render(
         <ConfigPropertiesEditor
-          properties={properties}
+          fields={fields}
           values={{}}
           isEditable={true}
           onChange={() => {}}
@@ -95,26 +119,23 @@ describe('ConfigPropertiesEditor', () => {
         />
       );
 
-      const labels = Array.from(
-        container.querySelectorAll('.font-medium.text-sm')
-      ).map((el) => el.textContent);
-      expect(labels[0]).toBe('aspect_ratio');
-      expect(labels[1]).toBe('optional_config');
+      expect(screen.getByText('aspect_ratio')).toBeTruthy();
+      expect(screen.getByDisplayValue('16:9')).toBeTruthy();
       expect(
-        screen.getByTitle('Converted to nearest supported size token.')
+        screen.getByText('Converted to nearest supported size token.')
       ).toBeTruthy();
     });
 
-    it('hides editable properties already shown in sdk preview rows', () => {
-      const properties = [
-        createMockProperty('aspect_ratio', { required: false }),
-        createMockProperty('resolution', { required: false }),
-        createMockProperty('camera_fixed', { required: false }),
+    it('keeps editable fields visible when sdk preview is present', () => {
+      const fields = [
+        createMockField('aspect_ratio', { required: false }),
+        createMockField('resolution', { required: false }),
+        createMockField('camera_fixed', { required: false }),
       ];
 
       render(
         <ConfigPropertiesEditor
-          properties={properties}
+          fields={fields}
           values={{}}
           isEditable={true}
           onChange={() => {}}
@@ -148,106 +169,10 @@ describe('ConfigPropertiesEditor', () => {
       expect(screen.getByText('camera_fixed')).toBeTruthy();
     });
 
-    it('renders dimension object preview as width x height', () => {
-      render(
-        <ConfigPropertiesEditor
-          properties={[]}
-          values={{}}
-          isEditable={true}
-          onChange={() => {}}
-          sdkPreview={[
-            {
-              field: 'image_size',
-              value: { width: 1280, height: 720 },
-              status: 'ok',
-              warnings: [],
-              errors: [],
-              connected: true,
-              sourceAliases: ['Resolution'],
-            },
-          ]}
-        />
-      );
-
-      expect(screen.getByText('1280 x 720')).toBeTruthy();
-      expect(screen.queryByText('{"width":1280,"height":720}')).toBeNull();
-    });
-
-    it('filters out object type properties', () => {
-      const properties = [
-        createMockProperty('simple_string', { schema: { type: 'string' } }),
-        createMockProperty('complex_object', {
-          schema: {
-            type: 'object',
-            properties: { nested: { type: 'string' } },
-          },
-        }),
-      ];
-
-      render(
-        <ConfigPropertiesEditor
-          properties={properties}
-          values={{}}
-          isEditable={true}
-          onChange={() => {}}
-        />
-      );
-
-      // simple_string should be rendered
-      expect(screen.getByText('simple_string')).toBeTruthy();
-      // complex_object should NOT be rendered
-      expect(screen.queryByText('complex_object')).toBeNull();
-    });
-
-    it('filters out array type properties', () => {
-      const properties = [
-        createMockProperty('simple_number', {
-          schema: { type: 'number' },
-        }),
-        createMockProperty('tags_array', {
-          schema: { type: 'array', items: { type: 'string' } },
-        }),
-      ];
-
-      render(
-        <ConfigPropertiesEditor
-          properties={properties}
-          values={{}}
-          isEditable={true}
-          onChange={() => {}}
-        />
-      );
-
-      expect(screen.getByText('simple_number')).toBeTruthy();
-      expect(screen.queryByText('tags_array')).toBeNull();
-    });
-
-    it('does not show info messages for complex properties (clean UI)', () => {
-      const properties = [
-        createMockProperty('visible', { schema: { type: 'string' } }),
-        createMockProperty('hidden1', { schema: { type: 'object' } }),
-        createMockProperty('hidden2', { schema: { type: 'array' } }),
-      ];
-
-      render(
-        <ConfigPropertiesEditor
-          properties={properties}
-          values={{}}
-          isEditable={true}
-          onChange={() => {}}
-        />
-      );
-
-      // Visible property should be shown
-      expect(screen.getByText('visible')).toBeTruthy();
-      // No info message about hidden properties (clean UI design)
-      expect(screen.queryByText(/complex propert/i)).toBeNull();
-    });
-
-    it('renders nothing when no properties available', () => {
+    it('renders nothing when no fields available', () => {
       const { container } = render(
         <ConfigPropertiesEditor
-          properties={[]}
+          fields={[]}
           values={{}}
           isEditable={true}
           onChange={() => {}}
@@ -258,23 +183,68 @@ describe('ConfigPropertiesEditor', () => {
       expect(container.firstChild).toBeNull();
     });
 
-    it('renders nothing when only complex properties exist', () => {
-      const properties = [
-        createMockProperty('obj', { schema: { type: 'object' } }),
-        createMockProperty('arr', { schema: { type: 'array' } }),
+    it('renders object children fields', () => {
+      const fields = [
+        createMockField('complex', {
+          component: 'object',
+          fields: [
+            createMockField('complex.child', {
+              label: 'child',
+            }),
+          ],
+        }),
       ];
 
-      const { container } = render(
+      render(
         <ConfigPropertiesEditor
-          properties={properties}
+          fields={fields}
           values={{}}
           isEditable={true}
           onChange={() => {}}
         />
       );
 
-      // Should render nothing (null) - no info messages
-      expect(container.firstChild).toBeNull();
+      expect(screen.getByText('child')).toBeTruthy();
+    });
+
+    it('lays out registered card editors in a horizontal wrap grid', () => {
+      const fields = [
+        createMockField('timeline', {
+          component: 'object',
+          fields: [
+            createMockField('timeline.tracks', {
+              component: 'array-scalar',
+              schema: { type: 'array', items: { type: 'string' } },
+            }),
+          ],
+          schema: { type: 'object' },
+        }),
+        createMockField('subtitles', {
+          component: 'object',
+          fields: [
+            createMockField('subtitles.fontSize', {
+              component: 'number',
+              schema: { type: 'number' },
+            }),
+          ],
+          schema: { type: 'object' },
+        }),
+      ];
+
+      render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{}}
+          isEditable={true}
+          onChange={() => {}}
+        />
+      );
+
+      const cardGrid = screen.getByTestId('config-card-field-grid');
+      expect(cardGrid).toBeTruthy();
+      expect(cardGrid.querySelectorAll(':scope > div')).toHaveLength(2);
+      const firstCardContainer = cardGrid.querySelector(':scope > div');
+      expect(firstCardContainer?.className).toContain('sm:w-[360px]');
     });
   });
 
@@ -282,7 +252,7 @@ describe('ConfigPropertiesEditor', () => {
     it('shows error message when schemaError provided', () => {
       render(
         <ConfigPropertiesEditor
-          properties={[]}
+          fields={[]}
           values={{}}
           isEditable={true}
           onChange={() => {}}
@@ -297,14 +267,11 @@ describe('ConfigPropertiesEditor', () => {
     });
 
     it('does not show properties when error state', () => {
-      const properties = [
-        createMockProperty('param1'),
-        createMockProperty('param2'),
-      ];
+      const fields = [createMockField('param1'), createMockField('param2')];
 
       render(
         <ConfigPropertiesEditor
-          properties={properties}
+          fields={fields}
           values={{}}
           isEditable={true}
           onChange={() => {}}
@@ -320,15 +287,16 @@ describe('ConfigPropertiesEditor', () => {
 
   describe('Property values', () => {
     it('passes correct values to property rows', () => {
-      const properties = [
-        createMockProperty('temperature', {
+      const fields = [
+        createMockField('temperature', {
+          component: 'number',
           schema: { type: 'number' },
         }),
       ];
 
       render(
         <ConfigPropertiesEditor
-          properties={properties}
+          fields={fields}
           values={{ temperature: 0.8 }}
           isEditable={true}
           onChange={() => {}}
@@ -341,15 +309,16 @@ describe('ConfigPropertiesEditor', () => {
 
     it('calls onChange with correct key when property value changes', () => {
       const onChange = vi.fn();
-      const properties = [
-        createMockProperty('temperature', {
+      const fields = [
+        createMockField('temperature', {
+          component: 'number',
           schema: { type: 'number' },
         }),
       ];
 
       render(
         <ConfigPropertiesEditor
-          properties={properties}
+          fields={fields}
           values={{ temperature: 0.5 }}
           isEditable={true}
           onChange={onChange}
@@ -364,17 +333,17 @@ describe('ConfigPropertiesEditor', () => {
   });
 
   describe('Sorting', () => {
-    it('sorts properties alphabetically (required first, then optional)', () => {
-      const properties = [
-        createMockProperty('zebra', { required: true }),
-        createMockProperty('apple', { required: true }),
-        createMockProperty('mango', { required: false }),
-        createMockProperty('banana', { required: false }),
+    it('renders fields in provided order', () => {
+      const fields = [
+        createMockField('zebra', { required: true }),
+        createMockField('apple', { required: true }),
+        createMockField('mango', { required: false }),
+        createMockField('banana', { required: false }),
       ];
 
       const { container } = render(
         <ConfigPropertiesEditor
-          properties={properties}
+          fields={fields}
           values={{}}
           isEditable={true}
           onChange={() => {}}
@@ -385,20 +354,187 @@ describe('ConfigPropertiesEditor', () => {
       const propertyNames = container.querySelectorAll('.font-medium.text-sm');
       const names = Array.from(propertyNames).map((el) => el.textContent);
 
-      // Required properties (apple, zebra - sorted) first, then optional (banana, mango - sorted)
-      expect(names).toEqual(['apple', 'zebra', 'banana', 'mango']);
+      expect(names).toEqual(['zebra', 'apple', 'mango', 'banana']);
+    });
+
+    it('renders mapped fields first while preserving schema order per group', () => {
+      const fields = [
+        createMockField('camera_fixed', { mappingSource: 'none' }),
+        createMockField('aspect_ratio', { mappingSource: 'input' }),
+        createMockField('image_size', { mappingSource: 'input' }),
+        createMockField('seed', { mappingSource: 'none' }),
+      ];
+
+      const { container } = render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{}}
+          isEditable={true}
+          onChange={() => {}}
+        />
+      );
+
+      const propertyNames = container.querySelectorAll('.font-medium.text-sm');
+      const names = Array.from(propertyNames).map((el) => el.textContent);
+
+      expect(names).toEqual([
+        'aspect_ratio',
+        'image_size',
+        'camera_fixed',
+        'seed',
+      ]);
+    });
+  });
+
+  describe('Union controls', () => {
+    const enumOrDimensionsField = createMockField('image_size', {
+      component: 'union',
+      presentation: 'enum-or-dimensions',
+      unionEditor: {
+        type: 'enum-dimensions',
+        enumVariantId: 'preset',
+        customVariantId: 'custom',
+        customSelection: {
+          source: 'enum-value',
+          value: 'custom',
+        },
+      },
+      variants: [
+        {
+          ...createMockField('image_size.custom', {
+            component: 'object',
+            label: 'Custom Size',
+            fields: [
+              createMockField('image_size.custom.width', {
+                component: 'integer',
+                schema: { type: 'integer', minimum: 1 },
+              }),
+              createMockField('image_size.custom.height', {
+                component: 'integer',
+                schema: { type: 'integer', minimum: 1 },
+              }),
+            ],
+          }),
+          id: 'custom',
+        },
+        {
+          ...createMockField('image_size.preset', {
+            component: 'string-enum',
+            label: 'Preset',
+            schema: {
+              type: 'string',
+              enum: ['landscape_16_9', 'match_input_image', 'custom'],
+            },
+          }),
+          id: 'preset',
+        },
+      ],
+      schema: {
+        anyOf: [{ type: 'object' }, { type: 'string' }],
+      },
+    });
+
+    it('shows enum token when using preset and custom label when using dimensions', () => {
+      const { rerender } = render(
+        <ConfigPropertiesEditor
+          fields={[enumOrDimensionsField]}
+          values={{ image_size: 'match_input_image' }}
+          isEditable={true}
+          onChange={() => {}}
+        />
+      );
+
+      expect(
+        screen.getByRole('combobox', { name: 'image_size option' }).textContent
+      ).toContain('match_input_image');
+
+      rerender(
+        <ConfigPropertiesEditor
+          fields={[enumOrDimensionsField]}
+          values={{ image_size: { width: 1280, height: 720 } }}
+          isEditable={true}
+          onChange={() => {}}
+        />
+      );
+
+      expect(
+        screen.getByRole('combobox', { name: 'image_size option' }).textContent
+      ).toContain('custom');
+    });
+
+    it('renders inline width/height controls only when custom dimensions are active', () => {
+      const { rerender } = render(
+        <ConfigPropertiesEditor
+          fields={[enumOrDimensionsField]}
+          values={{ image_size: 'custom' }}
+          isEditable={true}
+          onChange={() => {}}
+        />
+      );
+
+      expect(
+        screen.getByRole('spinbutton', { name: 'image_size width' })
+      ).toBeTruthy();
+      expect(
+        screen.getByRole('spinbutton', { name: 'image_size height' })
+      ).toBeTruthy();
+      expect(
+        screen.queryByRole('combobox', { name: 'Aspect ratio' })
+      ).toBeNull();
+
+      rerender(
+        <ConfigPropertiesEditor
+          fields={[enumOrDimensionsField]}
+          values={{ image_size: 'match_input_image' }}
+          isEditable={true}
+          onChange={() => {}}
+        />
+      );
+
+      expect(
+        screen.queryByRole('spinbutton', { name: 'image_size width' })
+      ).toBeNull();
+      expect(
+        screen.queryByRole('spinbutton', { name: 'image_size height' })
+      ).toBeNull();
+    });
+
+    it('edits custom dimensions through inline controls and emits width/height updates', () => {
+      const onChange = vi.fn();
+
+      render(
+        <ConfigPropertiesEditor
+          fields={[enumOrDimensionsField]}
+          values={{ image_size: { width: 1000, height: 777 } }}
+          isEditable={true}
+          onChange={onChange}
+        />
+      );
+
+      const widthInput = screen.getByRole('spinbutton', {
+        name: 'image_size width',
+      });
+      fireEvent.change(widthInput, { target: { value: '1500' } });
+
+      expect(onChange).toHaveBeenCalledWith(
+        'image_size',
+        expect.objectContaining({ width: 1500, height: 777 })
+      );
     });
   });
 
   describe('Model selection', () => {
     it('renders model selection row when model props provided', () => {
-      const properties = [
-        createMockProperty('temperature', { schema: { type: 'number' } }),
+      const fields = [
+        createMockField('temperature', {
+          component: 'number',
+          schema: { type: 'number' },
+        }),
       ];
 
       render(
         <ConfigPropertiesEditor
-          properties={properties}
+          fields={fields}
           values={{}}
           isEditable={true}
           onChange={() => {}}
@@ -416,13 +552,16 @@ describe('ConfigPropertiesEditor', () => {
     });
 
     it('does not render model selection when isComposition is true', () => {
-      const properties = [
-        createMockProperty('duration', { schema: { type: 'number' } }),
+      const fields = [
+        createMockField('duration', {
+          component: 'number',
+          schema: { type: 'number' },
+        }),
       ];
 
       render(
         <ConfigPropertiesEditor
-          properties={properties}
+          fields={fields}
           values={{}}
           isEditable={true}
           onChange={() => {}}
@@ -435,6 +574,177 @@ describe('ConfigPropertiesEditor', () => {
 
       // Model row should NOT be rendered for compositions
       expect(screen.queryByText('Model')).toBeNull();
+    });
+  });
+
+  describe('Annotation fields mode', () => {
+    it('prefers explicit override over mapped preview and schema default', () => {
+      const fields = [
+        createMockField('aspect_ratio', {
+          mappingSource: 'input',
+          mappedAliases: ['Resolution'],
+          schema: {
+            type: 'string',
+            default: '16:9',
+          },
+        }),
+      ];
+
+      render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{ aspect_ratio: '1:1' }}
+          isEditable={true}
+          onChange={() => {}}
+          sdkPreview={[
+            {
+              field: 'aspect_ratio',
+              value: '9:16',
+              status: 'ok',
+              warnings: [],
+              errors: [],
+              connected: true,
+              sourceAliases: ['Resolution'],
+            },
+          ]}
+        />
+      );
+
+      const input = screen.getByDisplayValue('1:1');
+      expect(input).toBeTruthy();
+    });
+
+    it('uses mapped preview value when there is no explicit override', () => {
+      const fields = [
+        createMockField('aspect_ratio', {
+          mappingSource: 'input',
+          mappedAliases: ['Resolution'],
+          schema: {
+            type: 'string',
+            default: '16:9',
+          },
+        }),
+      ];
+
+      render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{}}
+          isEditable={true}
+          onChange={() => {}}
+          sdkPreview={[
+            {
+              field: 'aspect_ratio',
+              value: '9:16',
+              status: 'ok',
+              warnings: [],
+              errors: [],
+              connected: true,
+              sourceAliases: ['Resolution'],
+            },
+          ]}
+        />
+      );
+
+      const input = screen.getByDisplayValue('9:16');
+      expect(input).toBeTruthy();
+    });
+
+    it('falls back to schema default when not mapped and not overridden', () => {
+      const fields = [
+        createMockField('preset', {
+          mappingSource: 'none',
+          schema: {
+            type: 'string',
+            default: 'medium',
+          },
+        }),
+      ];
+
+      render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{}}
+          isEditable={true}
+          onChange={() => {}}
+          sdkPreview={[]}
+        />
+      );
+
+      const input = screen.getByDisplayValue('medium');
+      expect(input).toBeTruthy();
+    });
+
+    it('groups mapped fields in a dedicated section and supports reset', () => {
+      const onChange = vi.fn();
+      const fields = [
+        createMockField('aspect_ratio', {
+          mappingSource: 'input',
+          mappedAliases: ['Resolution'],
+          schema: {
+            type: 'string',
+          },
+        }),
+      ];
+
+      render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{ aspect_ratio: '1:1' }}
+          isEditable={true}
+          onChange={onChange}
+          sdkPreview={[
+            {
+              field: 'aspect_ratio',
+              value: '9:16',
+              status: 'ok',
+              warnings: [],
+              errors: [],
+              connected: true,
+              sourceAliases: ['Resolution'],
+            },
+          ]}
+        />
+      );
+
+      expect(screen.getByText('Connected Inputs')).toBeTruthy();
+      expect(screen.queryByText('Mapped')).toBeNull();
+
+      const mappedSection = screen
+        .getByText('Connected Inputs')
+        .closest('section');
+      expect(mappedSection?.textContent).toContain('aspect_ratio');
+      expect(mappedSection?.className).toContain('max-w-[56rem]');
+
+      const reset = screen.getByRole('button', { name: 'Reset' });
+      fireEvent.click(reset);
+      expect(onChange).toHaveBeenCalledWith('aspect_ratio', undefined);
+    });
+
+    it('hides artifact-mapped fields in annotation mode', () => {
+      const fields = [
+        createMockField('prompt', {
+          mappingSource: 'artifact',
+          mappedAliases: ['Prompt'],
+        }),
+        createMockField('aspect_ratio', {
+          mappingSource: 'input',
+          mappedAliases: ['Resolution'],
+        }),
+      ];
+
+      render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{}}
+          isEditable={true}
+          onChange={() => {}}
+          sdkPreview={[]}
+        />
+      );
+
+      expect(screen.queryByText('prompt')).toBeNull();
+      expect(screen.getByText('aspect_ratio')).toBeTruthy();
     });
   });
 });
