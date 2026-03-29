@@ -368,5 +368,151 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "use_multiscale",
+        "acceleration",
+        "generate_audio",
+        "fps",
+        "camera_lora",
+        "video_size",
+        "enable_safety_checker",
+        "num_frames",
+        "camera_lora_scale",
+        "negative_prompt",
+        "video_write_mode",
+        "video_output_type",
+        "sync_mode",
+        "video_quality",
+        "enable_prompt_expansion",
+        "seed"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "use_multiscale": {
+          "pointer": "/input_schema/properties/use_multiscale",
+          "component": "boolean",
+          "label": "Use Multiscale"
+        },
+        "acceleration": {
+          "pointer": "/input_schema/properties/acceleration",
+          "component": "string-enum",
+          "label": "Acceleration"
+        },
+        "generate_audio": {
+          "pointer": "/input_schema/properties/generate_audio",
+          "component": "boolean",
+          "label": "Generate Audio"
+        },
+        "fps": {
+          "pointer": "/input_schema/properties/fps",
+          "component": "number",
+          "label": "Fps"
+        },
+        "camera_lora": {
+          "pointer": "/input_schema/properties/camera_lora",
+          "component": "string-enum",
+          "label": "Camera Lora"
+        },
+        "video_size": {
+          "pointer": "/input_schema/properties/video_size",
+          "component": "union",
+          "label": "Video Size",
+          "presentation": "enum-or-dimensions",
+          "variants": [
+            {
+              "id": "variant-1",
+              "pointer": "/input_schema/properties/video_size/anyOf/0",
+              "schemaPointer": "/ImageSize",
+              "component": "object",
+              "label": "Custom Size",
+              "order": [
+                "height",
+                "width"
+              ],
+              "fields": {
+                "height": {
+                  "pointer": "/ImageSize/properties/height",
+                  "component": "integer",
+                  "label": "Height"
+                },
+                "width": {
+                  "pointer": "/ImageSize/properties/width",
+                  "component": "integer",
+                  "label": "Width"
+                }
+              }
+            },
+            {
+              "id": "variant-2",
+              "pointer": "/input_schema/properties/video_size/anyOf/1",
+              "component": "string-enum",
+              "label": "Preset"
+            }
+          ]
+        },
+        "enable_safety_checker": {
+          "pointer": "/input_schema/properties/enable_safety_checker",
+          "component": "boolean",
+          "label": "Enable Safety Checker"
+        },
+        "num_frames": {
+          "pointer": "/input_schema/properties/num_frames",
+          "component": "integer",
+          "label": "Num Frames"
+        },
+        "camera_lora_scale": {
+          "pointer": "/input_schema/properties/camera_lora_scale",
+          "component": "number",
+          "label": "Camera Lora Scale"
+        },
+        "negative_prompt": {
+          "pointer": "/input_schema/properties/negative_prompt",
+          "component": "string",
+          "label": "Negative Prompt"
+        },
+        "video_write_mode": {
+          "pointer": "/input_schema/properties/video_write_mode",
+          "component": "string-enum",
+          "label": "Video Write Mode"
+        },
+        "video_output_type": {
+          "pointer": "/input_schema/properties/video_output_type",
+          "component": "string-enum",
+          "label": "Video Output Type"
+        },
+        "sync_mode": {
+          "pointer": "/input_schema/properties/sync_mode",
+          "component": "boolean",
+          "label": "Sync Mode"
+        },
+        "video_quality": {
+          "pointer": "/input_schema/properties/video_quality",
+          "component": "string-enum",
+          "label": "Video Quality"
+        },
+        "enable_prompt_expansion": {
+          "pointer": "/input_schema/properties/enable_prompt_expansion",
+          "component": "boolean",
+          "label": "Enable Prompt Expansion"
+        },
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        }
+      }
+    }
   }
 }

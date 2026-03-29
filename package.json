@@ -77,6 +77,8 @@
     "catalog:update-replicate": "node scripts/update-replicate-catalog.mjs catalog/models/replicate/replicate.yaml",
     "catalog:check-replicate-diff": "node scripts/update-replicate-catalog.mjs catalog/models/replicate/replicate.yaml --check-diff",
     "catalog:update-replicate-diff": "node scripts/update-replicate-catalog.mjs catalog/models/replicate/replicate.yaml --update-diff",
+    "catalog:annotate-viewer": "node scripts/annotate-viewer-schemas.mjs",
+    "catalog:validate-viewer": "node scripts/validate-viewer-schemas.mjs",
     "catalog:migrate-schema-constraints": "node scripts/migrate-schema-constraints.mjs",
     "bundle:catalog": "node scripts/prepare-catalog-bundle.mjs",
     "catalog:check": "node scripts/check-catalog-sync.mjs",

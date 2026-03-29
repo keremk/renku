@@ -28,15 +28,30 @@ This creates a JSON file in `catalog/models/replicate/<type>/`. If the schema al
 
 Requires `REPLICATE_API_TOKEN` environment variable.
 
-## Step 3: Analyze Schema
+## Step 3: Annotate Viewer Metadata (Required)
 
-Read the generated JSON schema file. It uses a flat format (`{type, title, required, properties}`) with `x-order` for field ordering. Identify cost-relevant input fields:
+Immediately annotate and validate viewer metadata after schema fetch:
+
+```bash
+node scripts/annotate-viewer-schemas.mjs --model=<owner/model-name>
+node scripts/validate-viewer-schemas.mjs --model=<owner/model-name>
+```
+
+Notes:
+
+- `x-renku-viewer` is the UI source of truth for component initialization.
+- If validation reports `placeholder-to-be-annotated` pointers, ask the user exactly which component should be used for each pointer and update annotations before continuing.
+- Do not leave unresolved placeholders for newly added models unless user explicitly agrees.
+
+## Step 4: Analyze Schema
+
+Read the generated JSON schema file and its `x-renku-viewer` annotations. Identify cost-relevant input fields:
 
 - **Video models**: Look for `duration`, `seconds`, `generate_audio`, `mode`, `resolution`, `aspect_ratio`
 - **Image models**: Look for `image_size`, `quality`, `num_images`, `resolution`, `width`, `height`
 - **Audio/TTS models**: Look for `text`, `duration`
 
-## Step 4: Look Up Pricing
+## Step 5: Look Up Pricing
 
 Browse the model's Replicate pricing section directly using the `#pricing` anchor:
 
@@ -47,7 +62,7 @@ Browse the model's Replicate pricing section directly using the `#pricing` ancho
 5. Take a screenshot to read the pricing cards
 6. Extract the pricing data (per-second, per-run, per-character, etc.) and criteria (mode, audio, resolution)
 
-## Step 5: Select or Implement Cost Function
+## Step 6: Select or Implement Cost Function
 
 Read `docs/cost-functions-reference.md` in this skill directory for the full reference.
 
@@ -73,7 +88,7 @@ Match the model's pricing to an existing cost function:
 
 If no existing function matches, implement a new one following the guide in `docs/cost-functions-reference.md` under "How to Add a New Cost Function".
 
-## Step 6: Build & Insert YAML Entry
+## Step 7: Build & Insert YAML Entry
 
 Read `docs/replicate-yaml-format-reference.md` for the full format reference and section map.
 
@@ -82,12 +97,13 @@ Read `docs/replicate-yaml-format-reference.md` for the full format reference and
 3. Build the YAML entry using the appropriate template
 4. Insert using the Edit tool
 
-## Step 7: Verify
+## Step 8: Verify
 
 Run the dry-run verifier:
 
 ```bash
 node scripts/update-replicate-catalog.mjs catalog/models/replicate/replicate.yaml --dry-run
+node scripts/validate-viewer-schemas.mjs --model=<owner/model-name>
 ```
 
 If you modified `cost-functions.ts`, also run:

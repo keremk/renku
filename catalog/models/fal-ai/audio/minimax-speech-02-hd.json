@@ -358,5 +358,139 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "text",
+        "language_boost",
+        "voice_setting",
+        "output_format",
+        "pronunciation_dict",
+        "audio_setting"
+      ],
+      "fields": {
+        "text": {
+          "pointer": "/input_schema/properties/text",
+          "component": "string",
+          "label": "Text"
+        },
+        "language_boost": {
+          "pointer": "/input_schema/properties/language_boost",
+          "component": "string-enum",
+          "label": "Language Boost"
+        },
+        "voice_setting": {
+          "pointer": "/input_schema/properties/voice_setting",
+          "schemaPointer": "/VoiceSetting",
+          "component": "object",
+          "label": "Voice Setting",
+          "order": [
+            "speed",
+            "vol",
+            "voice_id",
+            "pitch",
+            "english_normalization",
+            "emotion"
+          ],
+          "fields": {
+            "speed": {
+              "pointer": "/VoiceSetting/properties/speed",
+              "component": "number",
+              "label": "Speed"
+            },
+            "vol": {
+              "pointer": "/VoiceSetting/properties/vol",
+              "component": "number",
+              "label": "Vol"
+            },
+            "voice_id": {
+              "pointer": "/VoiceSetting/properties/voice_id",
+              "component": "string",
+              "label": "Voice Id"
+            },
+            "pitch": {
+              "pointer": "/VoiceSetting/properties/pitch",
+              "component": "integer",
+              "label": "Pitch"
+            },
+            "english_normalization": {
+              "pointer": "/VoiceSetting/properties/english_normalization",
+              "component": "boolean",
+              "label": "English Normalization"
+            },
+            "emotion": {
+              "pointer": "/VoiceSetting/properties/emotion",
+              "component": "string-enum",
+              "label": "Emotion"
+            }
+          }
+        },
+        "output_format": {
+          "pointer": "/input_schema/properties/output_format",
+          "component": "string-enum",
+          "label": "Output Format"
+        },
+        "pronunciation_dict": {
+          "pointer": "/input_schema/properties/pronunciation_dict",
+          "schemaPointer": "/PronunciationDict",
+          "component": "object",
+          "label": "Pronunciation Dict",
+          "order": [
+            "tone_list"
+          ],
+          "fields": {
+            "tone_list": {
+              "pointer": "/PronunciationDict/properties/tone_list",
+              "component": "array-scalar",
+              "label": "Tone List",
+              "item": {
+                "pointer": "/PronunciationDict/properties/tone_list/items",
+                "component": "string",
+                "label": "Item"
+              }
+            }
+          }
+        },
+        "audio_setting": {
+          "pointer": "/input_schema/properties/audio_setting",
+          "schemaPointer": "/AudioSetting",
+          "component": "object",
+          "label": "Audio Setting",
+          "order": [
+            "format",
+            "sample_rate",
+            "channel",
+            "bitrate"
+          ],
+          "fields": {
+            "format": {
+              "pointer": "/AudioSetting/properties/format",
+              "component": "string-enum",
+              "label": "Format"
+            },
+            "sample_rate": {
+              "pointer": "/AudioSetting/properties/sample_rate",
+              "component": "integer",
+              "label": "Sample Rate"
+            },
+            "channel": {
+              "pointer": "/AudioSetting/properties/channel",
+              "component": "integer",
+              "label": "Channel"
+            },
+            "bitrate": {
+              "pointer": "/AudioSetting/properties/bitrate",
+              "component": "integer",
+              "label": "Bitrate"
+            }
+          }
+        }
+      }
+    }
   }
 }

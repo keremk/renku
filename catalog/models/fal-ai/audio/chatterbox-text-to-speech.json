@@ -59,5 +59,53 @@
       "text"
     ]
   },
-  "output_schema": {}
+  "output_schema": {},
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "text",
+        "exaggeration",
+        "audio_url",
+        "temperature",
+        "seed",
+        "cfg"
+      ],
+      "fields": {
+        "text": {
+          "pointer": "/input_schema/properties/text",
+          "component": "string",
+          "label": "Text"
+        },
+        "exaggeration": {
+          "pointer": "/input_schema/properties/exaggeration",
+          "component": "number",
+          "label": "Exaggeration"
+        },
+        "audio_url": {
+          "pointer": "/input_schema/properties/audio_url",
+          "component": "file-uri",
+          "label": "Audio Url"
+        },
+        "temperature": {
+          "pointer": "/input_schema/properties/temperature",
+          "component": "number",
+          "label": "Temperature"
+        },
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        },
+        "cfg": {
+          "pointer": "/input_schema/properties/cfg",
+          "component": "number",
+          "label": "Cfg"
+        }
+      }
+    }
+  }
 }

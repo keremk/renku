@@ -261,5 +261,97 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "aspect_ratio",
+        "duration",
+        "generate_audio",
+        "multi_prompt",
+        "voice_ids",
+        "shot_type",
+        "negative_prompt",
+        "cfg_scale"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "component": "string-enum",
+          "label": "Duration"
+        },
+        "generate_audio": {
+          "pointer": "/input_schema/properties/generate_audio",
+          "component": "boolean",
+          "label": "Generate Audio"
+        },
+        "multi_prompt": {
+          "pointer": "/input_schema/properties/multi_prompt",
+          "component": "array-object-cards",
+          "label": "Multi Prompt",
+          "item": {
+            "pointer": "/input_schema/properties/multi_prompt/items",
+            "component": "object",
+            "label": "Item",
+            "order": [
+              "prompt",
+              "duration"
+            ],
+            "fields": {
+              "prompt": {
+                "pointer": "/input_schema/properties/multi_prompt/items/properties/prompt",
+                "component": "string",
+                "label": "Prompt"
+              },
+              "duration": {
+                "pointer": "/input_schema/properties/multi_prompt/items/properties/duration",
+                "component": "string-enum",
+                "label": "Duration"
+              }
+            }
+          }
+        },
+        "voice_ids": {
+          "pointer": "/input_schema/properties/voice_ids",
+          "component": "array-scalar",
+          "label": "Voice Ids",
+          "item": {
+            "pointer": "/input_schema/properties/voice_ids/items",
+            "component": "string",
+            "label": "Item"
+          }
+        },
+        "shot_type": {
+          "pointer": "/input_schema/properties/shot_type",
+          "component": "string-enum",
+          "label": "Shot Type"
+        },
+        "negative_prompt": {
+          "pointer": "/input_schema/properties/negative_prompt",
+          "component": "string",
+          "label": "Negative Prompt"
+        },
+        "cfg_scale": {
+          "pointer": "/input_schema/properties/cfg_scale",
+          "component": "number",
+          "label": "Cfg Scale"
+        }
+      }
+    }
   }
 }

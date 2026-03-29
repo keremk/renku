@@ -224,5 +224,36 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "video",
+        "target_fps",
+        "target_resolution"
+      ],
+      "fields": {
+        "video": {
+          "pointer": "/input_schema/properties/video",
+          "component": "file-uri",
+          "label": "Video"
+        },
+        "target_fps": {
+          "pointer": "/input_schema/properties/target_fps",
+          "component": "integer",
+          "label": "Target Fps"
+        },
+        "target_resolution": {
+          "pointer": "/input_schema/properties/target_resolution",
+          "schemaPointer": "/target_resolution",
+          "component": "string-enum",
+          "label": "Target Resolution"
+        }
+      }
+    }
   }
 }

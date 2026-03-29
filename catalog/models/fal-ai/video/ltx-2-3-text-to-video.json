@@ -265,5 +265,53 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "duration",
+        "aspect_ratio",
+        "generate_audio",
+        "resolution",
+        "fps"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "component": "integer",
+          "label": "Duration"
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "generate_audio": {
+          "pointer": "/input_schema/properties/generate_audio",
+          "component": "boolean",
+          "label": "Generate Audio"
+        },
+        "resolution": {
+          "pointer": "/input_schema/properties/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        },
+        "fps": {
+          "pointer": "/input_schema/properties/fps",
+          "component": "integer",
+          "label": "Fps"
+        }
+      }
+    }
   }
 }

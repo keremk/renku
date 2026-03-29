@@ -288,5 +288,55 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "duration",
+        "start_image",
+        "aspect_ratio",
+        "generate_audio",
+        "negative_prompt"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "schemaPointer": "/duration",
+          "component": "integer",
+          "label": "Duration"
+        },
+        "start_image": {
+          "pointer": "/input_schema/properties/start_image",
+          "component": "file-uri",
+          "label": "Start Image"
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "schemaPointer": "/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "generate_audio": {
+          "pointer": "/input_schema/properties/generate_audio",
+          "component": "boolean",
+          "label": "Generate Audio"
+        },
+        "negative_prompt": {
+          "pointer": "/input_schema/properties/negative_prompt",
+          "component": "string",
+          "label": "Negative Prompt"
+        }
+      }
+    }
   }
 }

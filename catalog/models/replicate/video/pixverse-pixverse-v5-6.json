@@ -347,5 +347,81 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "seed",
+        "image",
+        "prompt",
+        "quality",
+        "duration",
+        "aspect_ratio",
+        "thinking_type",
+        "negative_prompt",
+        "last_frame_image",
+        "generate_audio_switch"
+      ],
+      "fields": {
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        },
+        "image": {
+          "pointer": "/input_schema/properties/image",
+          "component": "file-uri",
+          "label": "Image"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "quality": {
+          "pointer": "/input_schema/properties/quality",
+          "schemaPointer": "/quality",
+          "component": "string-enum",
+          "label": "Quality"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "schemaPointer": "/duration",
+          "component": "integer",
+          "label": "Duration"
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "schemaPointer": "/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "thinking_type": {
+          "pointer": "/input_schema/properties/thinking_type",
+          "schemaPointer": "/thinking_type",
+          "component": "string-enum",
+          "label": "Thinking Type"
+        },
+        "negative_prompt": {
+          "pointer": "/input_schema/properties/negative_prompt",
+          "component": "string",
+          "label": "Negative Prompt"
+        },
+        "last_frame_image": {
+          "pointer": "/input_schema/properties/last_frame_image",
+          "component": "file-uri",
+          "label": "Last Frame Image"
+        },
+        "generate_audio_switch": {
+          "pointer": "/input_schema/properties/generate_audio_switch",
+          "component": "boolean",
+          "label": "Generate Audio Switch"
+        }
+      }
+    }
   }
 }

@@ -310,5 +310,99 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "aspect_ratio",
+        "video_urls",
+        "multi_shots",
+        "resolution",
+        "duration",
+        "enable_audio",
+        "enable_prompt_expansion",
+        "seed",
+        "image_urls",
+        "negative_prompt",
+        "enable_safety_checker"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "video_urls": {
+          "pointer": "/input_schema/properties/video_urls",
+          "component": "array-file-uri",
+          "label": "Video Urls",
+          "item": {
+            "pointer": "/input_schema/properties/video_urls/items",
+            "component": "file-uri",
+            "label": "Item"
+          }
+        },
+        "multi_shots": {
+          "pointer": "/input_schema/properties/multi_shots",
+          "component": "boolean",
+          "label": "Multi Shots"
+        },
+        "resolution": {
+          "pointer": "/input_schema/properties/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "component": "string-enum",
+          "label": "Duration"
+        },
+        "enable_audio": {
+          "pointer": "/input_schema/properties/enable_audio",
+          "component": "boolean",
+          "label": "Enable Audio"
+        },
+        "enable_prompt_expansion": {
+          "pointer": "/input_schema/properties/enable_prompt_expansion",
+          "component": "boolean",
+          "label": "Enable Prompt Expansion"
+        },
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        },
+        "image_urls": {
+          "pointer": "/input_schema/properties/image_urls",
+          "component": "array-file-uri",
+          "label": "Image Urls",
+          "item": {
+            "pointer": "/input_schema/properties/image_urls/items",
+            "component": "file-uri",
+            "label": "Item"
+          }
+        },
+        "negative_prompt": {
+          "pointer": "/input_schema/properties/negative_prompt",
+          "component": "string",
+          "label": "Negative Prompt"
+        },
+        "enable_safety_checker": {
+          "pointer": "/input_schema/properties/enable_safety_checker",
+          "component": "boolean",
+          "label": "Enable Safety Checker"
+        }
+      }
+    }
   }
 }

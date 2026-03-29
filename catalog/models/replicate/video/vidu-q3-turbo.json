@@ -309,5 +309,67 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "seed",
+        "audio",
+        "prompt",
+        "duration",
+        "end_image",
+        "resolution",
+        "start_image",
+        "aspect_ratio"
+      ],
+      "fields": {
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        },
+        "audio": {
+          "pointer": "/input_schema/properties/audio",
+          "component": "boolean",
+          "label": "Audio"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "component": "integer",
+          "label": "Duration"
+        },
+        "end_image": {
+          "pointer": "/input_schema/properties/end_image",
+          "component": "file-uri",
+          "label": "End Image"
+        },
+        "resolution": {
+          "pointer": "/input_schema/properties/resolution",
+          "schemaPointer": "/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        },
+        "start_image": {
+          "pointer": "/input_schema/properties/start_image",
+          "component": "file-uri",
+          "label": "Start Image"
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "schemaPointer": "/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        }
+      }
+    }
   }
 }

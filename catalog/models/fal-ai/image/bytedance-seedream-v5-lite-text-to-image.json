@@ -283,5 +283,102 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "num_images",
+        "image_size",
+        "max_images",
+        "enhance_prompt_mode",
+        "sync_mode",
+        "enable_safety_checker",
+        "seed"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "num_images": {
+          "pointer": "/input_schema/properties/num_images",
+          "component": "integer",
+          "label": "Num Images"
+        },
+        "image_size": {
+          "pointer": "/input_schema/properties/image_size",
+          "component": "union",
+          "label": "Image Size",
+          "presentation": "enum-or-dimensions",
+          "variants": [
+            {
+              "id": "variant-1",
+              "pointer": "/input_schema/properties/image_size/anyOf/0",
+              "schemaPointer": "/ImageSize",
+              "component": "object",
+              "label": "Custom Size",
+              "order": [
+                "height",
+                "width"
+              ],
+              "fields": {
+                "height": {
+                  "pointer": "/ImageSize/properties/height",
+                  "component": "integer",
+                  "label": "Height"
+                },
+                "width": {
+                  "pointer": "/ImageSize/properties/width",
+                  "component": "integer",
+                  "label": "Width"
+                }
+              }
+            },
+            {
+              "id": "variant-2",
+              "pointer": "/input_schema/properties/image_size/anyOf/1",
+              "component": "string-enum",
+              "label": "Preset"
+            }
+          ]
+        },
+        "max_images": {
+          "pointer": "/input_schema/properties/max_images",
+          "component": "integer",
+          "label": "Max Images"
+        },
+        "enhance_prompt_mode": {
+          "pointer": "/input_schema/properties/enhance_prompt_mode",
+          "component": "string-enum",
+          "label": "Enhance Prompt Mode"
+        },
+        "sync_mode": {
+          "pointer": "/input_schema/properties/sync_mode",
+          "component": "boolean",
+          "label": "Sync Mode"
+        },
+        "enable_safety_checker": {
+          "pointer": "/input_schema/properties/enable_safety_checker",
+          "component": "boolean",
+          "label": "Enable Safety Checker"
+        },
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "nullable",
+          "label": "Seed",
+          "value": {
+            "pointer": "/input_schema/properties/seed/anyOf/0",
+            "component": "integer",
+            "label": "Seed"
+          }
+        }
+      }
+    }
   }
 }

@@ -259,5 +259,71 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "resolution",
+        "duration",
+        "image_url",
+        "enable_safety_checker",
+        "seed",
+        "enable_prompt_expansion",
+        "negative_prompt",
+        "audio_url"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "resolution": {
+          "pointer": "/input_schema/properties/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "component": "string-enum",
+          "label": "Duration"
+        },
+        "image_url": {
+          "pointer": "/input_schema/properties/image_url",
+          "component": "file-uri",
+          "label": "Image Url"
+        },
+        "enable_safety_checker": {
+          "pointer": "/input_schema/properties/enable_safety_checker",
+          "component": "boolean",
+          "label": "Enable Safety Checker"
+        },
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        },
+        "enable_prompt_expansion": {
+          "pointer": "/input_schema/properties/enable_prompt_expansion",
+          "component": "boolean",
+          "label": "Enable Prompt Expansion"
+        },
+        "negative_prompt": {
+          "pointer": "/input_schema/properties/negative_prompt",
+          "component": "string",
+          "label": "Negative Prompt"
+        },
+        "audio_url": {
+          "pointer": "/input_schema/properties/audio_url",
+          "component": "file-uri",
+          "label": "Audio Url"
+        }
+      }
+    }
   }
 }

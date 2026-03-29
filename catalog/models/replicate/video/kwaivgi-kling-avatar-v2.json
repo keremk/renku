@@ -238,5 +238,42 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "mode",
+        "audio",
+        "image",
+        "prompt"
+      ],
+      "fields": {
+        "mode": {
+          "pointer": "/input_schema/properties/mode",
+          "schemaPointer": "/mode",
+          "component": "string-enum",
+          "label": "Mode"
+        },
+        "audio": {
+          "pointer": "/input_schema/properties/audio",
+          "component": "file-uri",
+          "label": "Audio"
+        },
+        "image": {
+          "pointer": "/input_schema/properties/image",
+          "component": "file-uri",
+          "label": "Image"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        }
+      }
+    }
   }
 }

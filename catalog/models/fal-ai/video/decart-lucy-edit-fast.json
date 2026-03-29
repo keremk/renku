@@ -125,5 +125,41 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "sync_mode",
+        "video_url",
+        "prompt",
+        "enhance_prompt"
+      ],
+      "fields": {
+        "sync_mode": {
+          "pointer": "/input_schema/properties/sync_mode",
+          "component": "boolean",
+          "label": "Sync Mode"
+        },
+        "video_url": {
+          "pointer": "/input_schema/properties/video_url",
+          "component": "file-uri",
+          "label": "Video Url"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "enhance_prompt": {
+          "pointer": "/input_schema/properties/enhance_prompt",
+          "component": "boolean",
+          "label": "Enhance Prompt"
+        }
+      }
+    }
   }
 }

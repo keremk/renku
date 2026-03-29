@@ -232,5 +232,82 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "input_fidelity",
+        "num_images",
+        "image_size",
+        "prompt",
+        "quality",
+        "output_format",
+        "background",
+        "mask_image_url",
+        "sync_mode",
+        "image_urls"
+      ],
+      "fields": {
+        "input_fidelity": {
+          "pointer": "/input_schema/properties/input_fidelity",
+          "component": "string-enum",
+          "label": "Input Fidelity"
+        },
+        "num_images": {
+          "pointer": "/input_schema/properties/num_images",
+          "component": "integer",
+          "label": "Num Images"
+        },
+        "image_size": {
+          "pointer": "/input_schema/properties/image_size",
+          "component": "string-enum",
+          "label": "Image Size"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "quality": {
+          "pointer": "/input_schema/properties/quality",
+          "component": "string-enum",
+          "label": "Quality"
+        },
+        "output_format": {
+          "pointer": "/input_schema/properties/output_format",
+          "component": "string-enum",
+          "label": "Output Format"
+        },
+        "background": {
+          "pointer": "/input_schema/properties/background",
+          "component": "string-enum",
+          "label": "Background"
+        },
+        "mask_image_url": {
+          "pointer": "/input_schema/properties/mask_image_url",
+          "component": "file-uri",
+          "label": "Mask Image Url"
+        },
+        "sync_mode": {
+          "pointer": "/input_schema/properties/sync_mode",
+          "component": "boolean",
+          "label": "Sync Mode"
+        },
+        "image_urls": {
+          "pointer": "/input_schema/properties/image_urls",
+          "component": "array-file-uri",
+          "label": "Image Urls",
+          "item": {
+            "pointer": "/input_schema/properties/image_urls/items",
+            "component": "file-uri",
+            "label": "Item"
+          }
+        }
+      }
+    }
   }
 }

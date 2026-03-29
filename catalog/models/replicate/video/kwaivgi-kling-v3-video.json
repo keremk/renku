@@ -303,5 +303,73 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "mode",
+        "prompt",
+        "duration",
+        "end_image",
+        "start_image",
+        "aspect_ratio",
+        "multi_prompt",
+        "generate_audio",
+        "negative_prompt"
+      ],
+      "fields": {
+        "mode": {
+          "pointer": "/input_schema/properties/mode",
+          "schemaPointer": "/mode",
+          "component": "string-enum",
+          "label": "Mode"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "component": "integer",
+          "label": "Duration"
+        },
+        "end_image": {
+          "pointer": "/input_schema/properties/end_image",
+          "component": "file-uri",
+          "label": "End Image"
+        },
+        "start_image": {
+          "pointer": "/input_schema/properties/start_image",
+          "component": "file-uri",
+          "label": "Start Image"
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "schemaPointer": "/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "multi_prompt": {
+          "pointer": "/input_schema/properties/multi_prompt",
+          "component": "string",
+          "label": "Multi Prompt"
+        },
+        "generate_audio": {
+          "pointer": "/input_schema/properties/generate_audio",
+          "component": "boolean",
+          "label": "Generate Audio"
+        },
+        "negative_prompt": {
+          "pointer": "/input_schema/properties/negative_prompt",
+          "component": "string",
+          "label": "Negative Prompt"
+        }
+      }
+    }
   }
 }

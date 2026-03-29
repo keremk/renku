@@ -417,5 +417,144 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "seed",
+        "image",
+        "prompt",
+        "go_fast",
+        "guidance",
+        "strength",
+        "image_size",
+        "lora_scale",
+        "aspect_ratio",
+        "lora_weights",
+        "output_format",
+        "enhance_prompt",
+        "output_quality",
+        "negative_prompt",
+        "extra_lora_scale",
+        "replicate_weights",
+        "extra_lora_weights",
+        "num_inference_steps",
+        "disable_safety_checker"
+      ],
+      "fields": {
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        },
+        "image": {
+          "pointer": "/input_schema/properties/image",
+          "component": "file-uri",
+          "label": "Image"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "go_fast": {
+          "pointer": "/input_schema/properties/go_fast",
+          "component": "boolean",
+          "label": "Go Fast"
+        },
+        "guidance": {
+          "pointer": "/input_schema/properties/guidance",
+          "component": "number",
+          "label": "Guidance"
+        },
+        "strength": {
+          "pointer": "/input_schema/properties/strength",
+          "component": "number",
+          "label": "Strength"
+        },
+        "image_size": {
+          "pointer": "/input_schema/properties/image_size",
+          "schemaPointer": "/image_size",
+          "component": "string-enum",
+          "label": "Image Size"
+        },
+        "lora_scale": {
+          "pointer": "/input_schema/properties/lora_scale",
+          "component": "number",
+          "label": "Lora Scale"
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "schemaPointer": "/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "lora_weights": {
+          "pointer": "/input_schema/properties/lora_weights",
+          "component": "string",
+          "label": "Lora Weights"
+        },
+        "output_format": {
+          "pointer": "/input_schema/properties/output_format",
+          "schemaPointer": "/output_format",
+          "component": "string-enum",
+          "label": "Output Format"
+        },
+        "enhance_prompt": {
+          "pointer": "/input_schema/properties/enhance_prompt",
+          "component": "boolean",
+          "label": "Enhance Prompt"
+        },
+        "output_quality": {
+          "pointer": "/input_schema/properties/output_quality",
+          "component": "integer",
+          "label": "Output Quality"
+        },
+        "negative_prompt": {
+          "pointer": "/input_schema/properties/negative_prompt",
+          "component": "string",
+          "label": "Negative Prompt"
+        },
+        "extra_lora_scale": {
+          "pointer": "/input_schema/properties/extra_lora_scale",
+          "component": "array-scalar",
+          "label": "Extra Lora Scale",
+          "item": {
+            "pointer": "/input_schema/properties/extra_lora_scale/items",
+            "component": "number",
+            "label": "Item"
+          }
+        },
+        "replicate_weights": {
+          "pointer": "/input_schema/properties/replicate_weights",
+          "component": "string",
+          "label": "Replicate Weights"
+        },
+        "extra_lora_weights": {
+          "pointer": "/input_schema/properties/extra_lora_weights",
+          "component": "array-scalar",
+          "label": "Extra Lora Weights",
+          "item": {
+            "pointer": "/input_schema/properties/extra_lora_weights/items",
+            "component": "string",
+            "label": "Item"
+          }
+        },
+        "num_inference_steps": {
+          "pointer": "/input_schema/properties/num_inference_steps",
+          "component": "integer",
+          "label": "Num Inference Steps"
+        },
+        "disable_safety_checker": {
+          "pointer": "/input_schema/properties/disable_safety_checker",
+          "component": "boolean",
+          "label": "Disable Safety Checker"
+        }
+      }
+    }
   }
 }

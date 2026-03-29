@@ -139,5 +139,53 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "H264_output",
+        "video_url",
+        "upscale_factor",
+        "target_fps",
+        "focus",
+        "sharpen"
+      ],
+      "fields": {
+        "H264_output": {
+          "pointer": "/input_schema/properties/H264_output",
+          "component": "boolean",
+          "label": "H264 Output"
+        },
+        "video_url": {
+          "pointer": "/input_schema/properties/video_url",
+          "component": "file-uri",
+          "label": "Video Url"
+        },
+        "upscale_factor": {
+          "pointer": "/input_schema/properties/upscale_factor",
+          "component": "number",
+          "label": "Upscale Factor"
+        },
+        "target_fps": {
+          "pointer": "/input_schema/properties/target_fps",
+          "component": "integer",
+          "label": "Target Fps"
+        },
+        "focus": {
+          "pointer": "/input_schema/properties/focus",
+          "component": "number",
+          "label": "Focus"
+        },
+        "sharpen": {
+          "pointer": "/input_schema/properties/sharpen",
+          "component": "number",
+          "label": "Sharpen"
+        }
+      }
+    }
   }
 }

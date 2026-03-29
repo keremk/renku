@@ -222,5 +222,56 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "guidance_scale",
+        "audio_url",
+        "image_url"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "nullable",
+          "label": "Prompt",
+          "value": {
+            "pointer": "/input_schema/properties/prompt/anyOf/0",
+            "component": "string",
+            "label": "Prompt"
+          }
+        },
+        "guidance_scale": {
+          "pointer": "/input_schema/properties/guidance_scale",
+          "component": "nullable",
+          "label": "Guidance Scale",
+          "value": {
+            "pointer": "/input_schema/properties/guidance_scale/anyOf/0",
+            "component": "number",
+            "label": "Guidance Scale"
+          }
+        },
+        "audio_url": {
+          "pointer": "/input_schema/properties/audio_url",
+          "component": "file-uri",
+          "label": "Audio Url"
+        },
+        "image_url": {
+          "pointer": "/input_schema/properties/image_url",
+          "component": "nullable",
+          "label": "Image Url",
+          "value": {
+            "pointer": "/input_schema/properties/image_url/anyOf/0",
+            "component": "string",
+            "label": "Image Url"
+          }
+        }
+      }
+    }
   }
 }

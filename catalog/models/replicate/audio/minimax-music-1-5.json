@@ -270,5 +270,50 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "lyrics",
+        "prompt",
+        "bitrate",
+        "sample_rate",
+        "audio_format"
+      ],
+      "fields": {
+        "lyrics": {
+          "pointer": "/input_schema/properties/lyrics",
+          "component": "string",
+          "label": "Lyrics"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "bitrate": {
+          "pointer": "/input_schema/properties/bitrate",
+          "schemaPointer": "/bitrate",
+          "component": "integer",
+          "label": "Bitrate"
+        },
+        "sample_rate": {
+          "pointer": "/input_schema/properties/sample_rate",
+          "schemaPointer": "/sample_rate",
+          "component": "integer",
+          "label": "Sample Rate"
+        },
+        "audio_format": {
+          "pointer": "/input_schema/properties/audio_format",
+          "schemaPointer": "/audio_format",
+          "component": "string-enum",
+          "label": "Audio Format"
+        }
+      }
+    }
   }
 }

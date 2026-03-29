@@ -279,5 +279,155 @@
       "duration_ms",
       "lines"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "composition_plan",
+        "music_length_ms",
+        "output_format",
+        "respect_sections_durations",
+        "force_instrumental"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "nullable",
+          "label": "Prompt",
+          "value": {
+            "pointer": "/input_schema/properties/prompt/anyOf/0",
+            "component": "string",
+            "label": "Prompt"
+          }
+        },
+        "composition_plan": {
+          "pointer": "/input_schema/properties/composition_plan",
+          "component": "nullable",
+          "label": "Composition Plan",
+          "value": {
+            "pointer": "/input_schema/properties/composition_plan/anyOf/0",
+            "schemaPointer": "/MusicCompositionPlan",
+            "component": "object",
+            "label": "Composition Plan",
+            "order": [
+              "negative_global_styles",
+              "sections",
+              "positive_global_styles"
+            ],
+            "fields": {
+              "negative_global_styles": {
+                "pointer": "/MusicCompositionPlan/properties/negative_global_styles",
+                "component": "array-scalar",
+                "label": "Negative Global Styles",
+                "item": {
+                  "pointer": "/MusicCompositionPlan/properties/negative_global_styles/items",
+                  "component": "string",
+                  "label": "Item"
+                }
+              },
+              "sections": {
+                "pointer": "/MusicCompositionPlan/properties/sections",
+                "component": "array-object-cards",
+                "label": "Sections",
+                "item": {
+                  "pointer": "/MusicCompositionPlan/properties/sections/items",
+                  "component": "object",
+                  "label": "Item",
+                  "order": [
+                    "positive_local_styles",
+                    "lines",
+                    "negative_local_styles",
+                    "duration_ms",
+                    "section_name"
+                  ],
+                  "fields": {
+                    "positive_local_styles": {
+                      "pointer": "/MusicCompositionPlan/properties/sections/items/properties/positive_local_styles",
+                      "component": "array-scalar",
+                      "label": "Positive Local Styles",
+                      "item": {
+                        "pointer": "/MusicCompositionPlan/properties/sections/items/properties/positive_local_styles/items",
+                        "component": "string",
+                        "label": "Item"
+                      }
+                    },
+                    "lines": {
+                      "pointer": "/MusicCompositionPlan/properties/sections/items/properties/lines",
+                      "component": "array-scalar",
+                      "label": "Lines",
+                      "item": {
+                        "pointer": "/MusicCompositionPlan/properties/sections/items/properties/lines/items",
+                        "component": "string",
+                        "label": "Item"
+                      }
+                    },
+                    "negative_local_styles": {
+                      "pointer": "/MusicCompositionPlan/properties/sections/items/properties/negative_local_styles",
+                      "component": "array-scalar",
+                      "label": "Negative Local Styles",
+                      "item": {
+                        "pointer": "/MusicCompositionPlan/properties/sections/items/properties/negative_local_styles/items",
+                        "component": "string",
+                        "label": "Item"
+                      }
+                    },
+                    "duration_ms": {
+                      "pointer": "/MusicCompositionPlan/properties/sections/items/properties/duration_ms",
+                      "component": "integer",
+                      "label": "Duration Ms"
+                    },
+                    "section_name": {
+                      "pointer": "/MusicCompositionPlan/properties/sections/items/properties/section_name",
+                      "component": "string",
+                      "label": "Section Name"
+                    }
+                  }
+                }
+              },
+              "positive_global_styles": {
+                "pointer": "/MusicCompositionPlan/properties/positive_global_styles",
+                "component": "array-scalar",
+                "label": "Positive Global Styles",
+                "item": {
+                  "pointer": "/MusicCompositionPlan/properties/positive_global_styles/items",
+                  "component": "string",
+                  "label": "Item"
+                }
+              }
+            }
+          }
+        },
+        "music_length_ms": {
+          "pointer": "/input_schema/properties/music_length_ms",
+          "component": "nullable",
+          "label": "Music Length Ms",
+          "value": {
+            "pointer": "/input_schema/properties/music_length_ms/anyOf/0",
+            "component": "integer",
+            "label": "Music Length Ms"
+          }
+        },
+        "output_format": {
+          "pointer": "/input_schema/properties/output_format",
+          "component": "string-enum",
+          "label": "Output Format"
+        },
+        "respect_sections_durations": {
+          "pointer": "/input_schema/properties/respect_sections_durations",
+          "component": "boolean",
+          "label": "Respect Sections Durations"
+        },
+        "force_instrumental": {
+          "pointer": "/input_schema/properties/force_instrumental",
+          "component": "boolean",
+          "label": "Force Instrumental"
+        }
+      }
+    }
   }
 }

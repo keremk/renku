@@ -265,5 +265,67 @@
     "type": "string",
     "title": "sequential_image_generation",
     "description": "An enumeration."
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "size",
+        "prompt",
+        "max_images",
+        "image_input",
+        "aspect_ratio",
+        "disable_safety_checker",
+        "sequential_image_generation"
+      ],
+      "fields": {
+        "size": {
+          "pointer": "/input_schema/properties/size",
+          "schemaPointer": "/size",
+          "component": "string-enum",
+          "label": "Size"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "max_images": {
+          "pointer": "/input_schema/properties/max_images",
+          "component": "integer",
+          "label": "Max Images"
+        },
+        "image_input": {
+          "pointer": "/input_schema/properties/image_input",
+          "component": "array-file-uri",
+          "label": "Image Input",
+          "item": {
+            "pointer": "/input_schema/properties/image_input/items",
+            "component": "file-uri",
+            "label": "Item"
+          }
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "schemaPointer": "/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "disable_safety_checker": {
+          "pointer": "/input_schema/properties/disable_safety_checker",
+          "component": "boolean",
+          "label": "Disable Safety Checker"
+        },
+        "sequential_image_generation": {
+          "pointer": "/input_schema/properties/sequential_image_generation",
+          "schemaPointer": "/sequential_image_generation",
+          "component": "string-enum",
+          "label": "Sequential Image Generation"
+        }
+      }
+    }
   }
 }

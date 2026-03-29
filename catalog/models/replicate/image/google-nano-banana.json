@@ -284,5 +284,48 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "image_input",
+        "aspect_ratio",
+        "output_format"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "image_input": {
+          "pointer": "/input_schema/properties/image_input",
+          "component": "array-file-uri",
+          "label": "Image Input",
+          "item": {
+            "pointer": "/input_schema/properties/image_input/items",
+            "component": "file-uri",
+            "label": "Item"
+          }
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "schemaPointer": "/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "output_format": {
+          "pointer": "/input_schema/properties/output_format",
+          "schemaPointer": "/output_format",
+          "component": "string-enum",
+          "label": "Output Format"
+        }
+      }
+    }
   }
 }

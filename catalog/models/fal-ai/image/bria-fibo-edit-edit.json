@@ -22,9 +22,7 @@
         "default": 30
       },
       "instruction": {
-        "examples": [
-          "change lighting to starlight nighttime"
-        ],
+        "examples": ["change lighting to starlight nighttime"],
         "description": "Instruction for image editing.",
         "anyOf": [
           {
@@ -111,11 +109,7 @@
     "title": "FiboEditInputModel"
   },
   "output_schema": {
-    "x-fal-order-properties": [
-      "image",
-      "images",
-      "structured_instruction"
-    ],
+    "x-fal-order-properties": ["image", "images", "structured_instruction"],
     "type": "object",
     "properties": {
       "images": {
@@ -146,10 +140,7 @@
       }
     },
     "title": "FiboEditOutputModel",
-    "required": [
-      "image",
-      "structured_instruction"
-    ]
+    "required": ["image", "structured_instruction"]
   },
   "StructuredInstruction": {
     "x-fal-order-properties": [
@@ -319,9 +310,7 @@
     "title": "Image",
     "properties": {
       "file_size": {
-        "examples": [
-          4404019
-        ],
+        "examples": [4404019],
         "description": "The size of the file in bytes.",
         "anyOf": [
           {
@@ -334,9 +323,7 @@
         "title": "File Size"
       },
       "height": {
-        "examples": [
-          1024
-        ],
+        "examples": [1024],
         "description": "The height of the image in pixels.",
         "anyOf": [
           {
@@ -349,9 +336,7 @@
         "title": "Height"
       },
       "file_name": {
-        "examples": [
-          "z9RV14K95DvU.png"
-        ],
+        "examples": ["z9RV14K95DvU.png"],
         "description": "The name of the file. It will be auto-generated if not provided.",
         "anyOf": [
           {
@@ -364,9 +349,7 @@
         "title": "File Name"
       },
       "content_type": {
-        "examples": [
-          "image/png"
-        ],
+        "examples": ["image/png"],
         "description": "The mime type of the file.",
         "anyOf": [
           {
@@ -385,9 +368,7 @@
         "format": "uri"
       },
       "width": {
-        "examples": [
-          1024
-        ],
+        "examples": [1024],
         "description": "The width of the image in pixels.",
         "anyOf": [
           {
@@ -400,9 +381,7 @@
         "title": "Width"
       }
     },
-    "required": [
-      "url"
-    ]
+    "required": ["url"]
   },
   "Aesthetics": {
     "x-fal-order-properties": [
@@ -646,9 +625,7 @@
       }
     },
     "title": "PromptObject",
-    "required": [
-      "relationship"
-    ]
+    "required": ["relationship"]
   },
   "PhotographicCharacteristics": {
     "x-fal-order-properties": [
@@ -711,11 +688,7 @@
     "title": "PhotographicCharacteristics"
   },
   "Lighting": {
-    "x-fal-order-properties": [
-      "conditions",
-      "direction",
-      "shadows"
-    ],
+    "x-fal-order-properties": ["conditions", "direction", "shadows"],
     "type": "object",
     "properties": {
       "shadows": {
@@ -756,5 +729,523 @@
       }
     },
     "title": "Lighting"
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "steps_num",
+        "instruction",
+        "image_url",
+        "sync_mode",
+        "guidance_scale",
+        "seed",
+        "mask_url",
+        "negative_prompt",
+        "structured_instruction"
+      ],
+      "fields": {
+        "steps_num": {
+          "pointer": "/input_schema/properties/steps_num",
+          "component": "integer",
+          "label": "Steps Num"
+        },
+        "instruction": {
+          "pointer": "/input_schema/properties/instruction",
+          "component": "nullable",
+          "label": "Instruction",
+          "value": {
+            "pointer": "/input_schema/properties/instruction/anyOf/0",
+            "component": "string",
+            "label": "Instruction"
+          }
+        },
+        "image_url": {
+          "pointer": "/input_schema/properties/image_url",
+          "component": "nullable",
+          "label": "Image Url",
+          "value": {
+            "pointer": "/input_schema/properties/image_url/anyOf/0",
+            "component": "string",
+            "label": "Image Url"
+          }
+        },
+        "sync_mode": {
+          "pointer": "/input_schema/properties/sync_mode",
+          "component": "boolean",
+          "label": "Sync Mode"
+        },
+        "guidance_scale": {
+          "pointer": "/input_schema/properties/guidance_scale",
+          "component": "union",
+          "label": "Guidance Scale",
+          "variants": [
+            {
+              "id": "variant-1",
+              "pointer": "/input_schema/properties/guidance_scale/anyOf/0",
+              "component": "number",
+              "label": "Number 1"
+            },
+            {
+              "id": "variant-2",
+              "pointer": "/input_schema/properties/guidance_scale/anyOf/1",
+              "component": "integer",
+              "label": "Number 2"
+            }
+          ]
+        },
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        },
+        "mask_url": {
+          "pointer": "/input_schema/properties/mask_url",
+          "component": "nullable",
+          "label": "Mask Url",
+          "value": {
+            "pointer": "/input_schema/properties/mask_url/anyOf/0",
+            "component": "string",
+            "label": "Mask Url"
+          }
+        },
+        "negative_prompt": {
+          "pointer": "/input_schema/properties/negative_prompt",
+          "component": "string",
+          "label": "Negative Prompt"
+        },
+        "structured_instruction": {
+          "pointer": "/input_schema/properties/structured_instruction",
+          "component": "nullable",
+          "visibility": "hidden",
+          "label": "Structured Instruction",
+          "value": {
+            "pointer": "/input_schema/properties/structured_instruction/anyOf/0",
+            "schemaPointer": "/StructuredInstruction",
+            "component": "object",
+            "label": "Structured Instruction",
+            "order": [
+              "background_setting",
+              "artistic_style",
+              "aesthetics",
+              "text_render",
+              "objects",
+              "style_medium",
+              "photographic_characteristics",
+              "context",
+              "lighting",
+              "short_description",
+              "edit_instruction"
+            ],
+            "fields": {
+              "background_setting": {
+                "pointer": "/StructuredInstruction/properties/background_setting",
+                "component": "nullable",
+                "label": "Background Setting",
+                "value": {
+                  "pointer": "/StructuredInstruction/properties/background_setting/anyOf/0",
+                  "component": "string",
+                  "label": "Background Setting"
+                }
+              },
+              "artistic_style": {
+                "pointer": "/StructuredInstruction/properties/artistic_style",
+                "component": "nullable",
+                "label": "Artistic Style",
+                "value": {
+                  "pointer": "/StructuredInstruction/properties/artistic_style/anyOf/0",
+                  "component": "string",
+                  "label": "Artistic Style"
+                }
+              },
+              "aesthetics": {
+                "pointer": "/StructuredInstruction/properties/aesthetics",
+                "component": "nullable",
+                "label": "Aesthetics",
+                "value": {
+                  "pointer": "/StructuredInstruction/properties/aesthetics/anyOf/0",
+                  "schemaPointer": "/Aesthetics",
+                  "component": "object",
+                  "label": "Aesthetics",
+                  "order": ["composition", "mood_atmosphere", "color_scheme"],
+                  "fields": {
+                    "composition": {
+                      "pointer": "/Aesthetics/properties/composition",
+                      "component": "nullable",
+                      "label": "Composition",
+                      "value": {
+                        "pointer": "/Aesthetics/properties/composition/anyOf/0",
+                        "component": "string",
+                        "label": "Composition"
+                      }
+                    },
+                    "mood_atmosphere": {
+                      "pointer": "/Aesthetics/properties/mood_atmosphere",
+                      "component": "nullable",
+                      "label": "Mood Atmosphere",
+                      "value": {
+                        "pointer": "/Aesthetics/properties/mood_atmosphere/anyOf/0",
+                        "component": "string",
+                        "label": "Mood Atmosphere"
+                      }
+                    },
+                    "color_scheme": {
+                      "pointer": "/Aesthetics/properties/color_scheme",
+                      "component": "nullable",
+                      "label": "Color Scheme",
+                      "value": {
+                        "pointer": "/Aesthetics/properties/color_scheme/anyOf/0",
+                        "component": "string",
+                        "label": "Color Scheme"
+                      }
+                    }
+                  }
+                }
+              },
+              "text_render": {
+                "pointer": "/StructuredInstruction/properties/text_render",
+                "component": "nullable",
+                "label": "Text Render",
+                "value": {
+                  "pointer": "/StructuredInstruction/properties/text_render/anyOf/0",
+                  "component": "array-object-cards",
+                  "label": "Text Render",
+                  "item": {
+                    "pointer": "/StructuredInstruction/properties/text_render/anyOf/0/items",
+                    "component": "placeholder-to-be-annotated",
+                    "label": "Item"
+                  }
+                }
+              },
+              "objects": {
+                "pointer": "/StructuredInstruction/properties/objects",
+                "component": "nullable",
+                "label": "Objects",
+                "value": {
+                  "pointer": "/StructuredInstruction/properties/objects/anyOf/0",
+                  "component": "array-object-cards",
+                  "label": "Objects",
+                  "item": {
+                    "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items",
+                    "component": "object",
+                    "label": "Item",
+                    "order": [
+                      "relative_size",
+                      "description",
+                      "skin_tone_and_texture",
+                      "appearance_details",
+                      "number_of_objects",
+                      "expression",
+                      "pose",
+                      "shape_and_color",
+                      "relationship",
+                      "texture",
+                      "gender",
+                      "clothing",
+                      "location",
+                      "orientation",
+                      "action"
+                    ],
+                    "fields": {
+                      "relative_size": {
+                        "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/relative_size",
+                        "component": "nullable",
+                        "label": "Relative Size",
+                        "value": {
+                          "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/relative_size/anyOf/0",
+                          "component": "string",
+                          "label": "Relative Size"
+                        }
+                      },
+                      "description": {
+                        "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/description",
+                        "component": "nullable",
+                        "label": "Description",
+                        "value": {
+                          "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/description/anyOf/0",
+                          "component": "string",
+                          "label": "Description"
+                        }
+                      },
+                      "skin_tone_and_texture": {
+                        "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/skin_tone_and_texture",
+                        "component": "nullable",
+                        "label": "Skin Tone And Texture",
+                        "value": {
+                          "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/skin_tone_and_texture/anyOf/0",
+                          "component": "string",
+                          "label": "Skin Tone And Texture"
+                        }
+                      },
+                      "appearance_details": {
+                        "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/appearance_details",
+                        "component": "nullable",
+                        "label": "Appearance Details",
+                        "value": {
+                          "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/appearance_details/anyOf/0",
+                          "component": "string",
+                          "label": "Appearance Details"
+                        }
+                      },
+                      "number_of_objects": {
+                        "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/number_of_objects",
+                        "component": "nullable",
+                        "label": "Number Of Objects",
+                        "value": {
+                          "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/number_of_objects/anyOf/0",
+                          "component": "integer",
+                          "label": "Number Of Objects"
+                        }
+                      },
+                      "expression": {
+                        "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/expression",
+                        "component": "nullable",
+                        "label": "Expression",
+                        "value": {
+                          "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/expression/anyOf/0",
+                          "component": "string",
+                          "label": "Expression"
+                        }
+                      },
+                      "pose": {
+                        "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/pose",
+                        "component": "nullable",
+                        "label": "Pose",
+                        "value": {
+                          "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/pose/anyOf/0",
+                          "component": "string",
+                          "label": "Pose"
+                        }
+                      },
+                      "shape_and_color": {
+                        "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/shape_and_color",
+                        "component": "nullable",
+                        "label": "Shape And Color",
+                        "value": {
+                          "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/shape_and_color/anyOf/0",
+                          "component": "string",
+                          "label": "Shape And Color"
+                        }
+                      },
+                      "relationship": {
+                        "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/relationship",
+                        "component": "string",
+                        "label": "Relationship"
+                      },
+                      "texture": {
+                        "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/texture",
+                        "component": "nullable",
+                        "label": "Texture",
+                        "value": {
+                          "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/texture/anyOf/0",
+                          "component": "string",
+                          "label": "Texture"
+                        }
+                      },
+                      "gender": {
+                        "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/gender",
+                        "component": "nullable",
+                        "label": "Gender",
+                        "value": {
+                          "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/gender/anyOf/0",
+                          "component": "string",
+                          "label": "Gender"
+                        }
+                      },
+                      "clothing": {
+                        "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/clothing",
+                        "component": "nullable",
+                        "label": "Clothing",
+                        "value": {
+                          "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/clothing/anyOf/0",
+                          "component": "string",
+                          "label": "Clothing"
+                        }
+                      },
+                      "location": {
+                        "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/location",
+                        "component": "nullable",
+                        "label": "Location",
+                        "value": {
+                          "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/location/anyOf/0",
+                          "component": "string",
+                          "label": "Location"
+                        }
+                      },
+                      "orientation": {
+                        "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/orientation",
+                        "component": "nullable",
+                        "label": "Orientation",
+                        "value": {
+                          "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/orientation/anyOf/0",
+                          "component": "string",
+                          "label": "Orientation"
+                        }
+                      },
+                      "action": {
+                        "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/action",
+                        "component": "nullable",
+                        "label": "Action",
+                        "value": {
+                          "pointer": "/StructuredInstruction/properties/objects/anyOf/0/items/properties/action/anyOf/0",
+                          "component": "string",
+                          "label": "Action"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "style_medium": {
+                "pointer": "/StructuredInstruction/properties/style_medium",
+                "component": "nullable",
+                "label": "Style Medium",
+                "value": {
+                  "pointer": "/StructuredInstruction/properties/style_medium/anyOf/0",
+                  "component": "string",
+                  "label": "Style Medium"
+                }
+              },
+              "photographic_characteristics": {
+                "pointer": "/StructuredInstruction/properties/photographic_characteristics",
+                "component": "nullable",
+                "label": "Photographic Characteristics",
+                "value": {
+                  "pointer": "/StructuredInstruction/properties/photographic_characteristics/anyOf/0",
+                  "schemaPointer": "/PhotographicCharacteristics",
+                  "component": "object",
+                  "label": "Photographic Characteristics",
+                  "order": [
+                    "focus",
+                    "lens_focal_length",
+                    "camera_angle",
+                    "depth_of_field"
+                  ],
+                  "fields": {
+                    "focus": {
+                      "pointer": "/PhotographicCharacteristics/properties/focus",
+                      "component": "nullable",
+                      "label": "Focus",
+                      "value": {
+                        "pointer": "/PhotographicCharacteristics/properties/focus/anyOf/0",
+                        "component": "string",
+                        "label": "Focus"
+                      }
+                    },
+                    "lens_focal_length": {
+                      "pointer": "/PhotographicCharacteristics/properties/lens_focal_length",
+                      "component": "nullable",
+                      "label": "Lens Focal Length",
+                      "value": {
+                        "pointer": "/PhotographicCharacteristics/properties/lens_focal_length/anyOf/0",
+                        "component": "string",
+                        "label": "Lens Focal Length"
+                      }
+                    },
+                    "camera_angle": {
+                      "pointer": "/PhotographicCharacteristics/properties/camera_angle",
+                      "component": "nullable",
+                      "label": "Camera Angle",
+                      "value": {
+                        "pointer": "/PhotographicCharacteristics/properties/camera_angle/anyOf/0",
+                        "component": "string",
+                        "label": "Camera Angle"
+                      }
+                    },
+                    "depth_of_field": {
+                      "pointer": "/PhotographicCharacteristics/properties/depth_of_field",
+                      "component": "nullable",
+                      "label": "Depth Of Field",
+                      "value": {
+                        "pointer": "/PhotographicCharacteristics/properties/depth_of_field/anyOf/0",
+                        "component": "string",
+                        "label": "Depth Of Field"
+                      }
+                    }
+                  }
+                }
+              },
+              "context": {
+                "pointer": "/StructuredInstruction/properties/context",
+                "component": "nullable",
+                "label": "Context",
+                "value": {
+                  "pointer": "/StructuredInstruction/properties/context/anyOf/0",
+                  "component": "string",
+                  "label": "Context"
+                }
+              },
+              "lighting": {
+                "pointer": "/StructuredInstruction/properties/lighting",
+                "component": "nullable",
+                "label": "Lighting",
+                "value": {
+                  "pointer": "/StructuredInstruction/properties/lighting/anyOf/0",
+                  "schemaPointer": "/Lighting",
+                  "component": "object",
+                  "label": "Lighting",
+                  "order": ["shadows", "conditions", "direction"],
+                  "fields": {
+                    "shadows": {
+                      "pointer": "/Lighting/properties/shadows",
+                      "component": "nullable",
+                      "label": "Shadows",
+                      "value": {
+                        "pointer": "/Lighting/properties/shadows/anyOf/0",
+                        "component": "string",
+                        "label": "Shadows"
+                      }
+                    },
+                    "conditions": {
+                      "pointer": "/Lighting/properties/conditions",
+                      "component": "nullable",
+                      "label": "Conditions",
+                      "value": {
+                        "pointer": "/Lighting/properties/conditions/anyOf/0",
+                        "component": "string",
+                        "label": "Conditions"
+                      }
+                    },
+                    "direction": {
+                      "pointer": "/Lighting/properties/direction",
+                      "component": "nullable",
+                      "label": "Direction",
+                      "value": {
+                        "pointer": "/Lighting/properties/direction/anyOf/0",
+                        "component": "string",
+                        "label": "Direction"
+                      }
+                    }
+                  }
+                }
+              },
+              "short_description": {
+                "pointer": "/StructuredInstruction/properties/short_description",
+                "component": "nullable",
+                "label": "Short Description",
+                "value": {
+                  "pointer": "/StructuredInstruction/properties/short_description/anyOf/0",
+                  "component": "string",
+                  "label": "Short Description"
+                }
+              },
+              "edit_instruction": {
+                "pointer": "/StructuredInstruction/properties/edit_instruction",
+                "component": "nullable",
+                "label": "Edit Instruction",
+                "value": {
+                  "pointer": "/StructuredInstruction/properties/edit_instruction/anyOf/0",
+                  "component": "string",
+                  "label": "Edit Instruction"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }

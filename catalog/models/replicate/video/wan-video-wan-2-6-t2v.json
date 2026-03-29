@@ -307,5 +307,67 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "seed",
+        "size",
+        "audio",
+        "prompt",
+        "duration",
+        "multi_shots",
+        "negative_prompt",
+        "enable_prompt_expansion"
+      ],
+      "fields": {
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        },
+        "size": {
+          "pointer": "/input_schema/properties/size",
+          "schemaPointer": "/size",
+          "component": "string-enum",
+          "label": "Size"
+        },
+        "audio": {
+          "pointer": "/input_schema/properties/audio",
+          "component": "file-uri",
+          "label": "Audio"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "schemaPointer": "/duration",
+          "component": "integer",
+          "label": "Duration"
+        },
+        "multi_shots": {
+          "pointer": "/input_schema/properties/multi_shots",
+          "component": "boolean",
+          "label": "Multi Shots"
+        },
+        "negative_prompt": {
+          "pointer": "/input_schema/properties/negative_prompt",
+          "component": "string",
+          "label": "Negative Prompt"
+        },
+        "enable_prompt_expansion": {
+          "pointer": "/input_schema/properties/enable_prompt_expansion",
+          "component": "boolean",
+          "label": "Enable Prompt Expansion"
+        }
+      }
+    }
   }
 }

@@ -192,5 +192,53 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "resolution",
+        "guidance_scale",
+        "audio_guidance_scale",
+        "audio_url",
+        "image_url"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "resolution": {
+          "pointer": "/input_schema/properties/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        },
+        "guidance_scale": {
+          "pointer": "/input_schema/properties/guidance_scale",
+          "component": "number",
+          "label": "Guidance Scale"
+        },
+        "audio_guidance_scale": {
+          "pointer": "/input_schema/properties/audio_guidance_scale",
+          "component": "number",
+          "label": "Audio Guidance Scale"
+        },
+        "audio_url": {
+          "pointer": "/input_schema/properties/audio_url",
+          "component": "file-uri",
+          "label": "Audio Url"
+        },
+        "image_url": {
+          "pointer": "/input_schema/properties/image_url",
+          "component": "file-uri",
+          "label": "Image Url"
+        }
+      }
+    }
   }
 }

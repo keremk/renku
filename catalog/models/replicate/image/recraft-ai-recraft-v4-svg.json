@@ -315,5 +315,37 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "size",
+        "prompt",
+        "aspect_ratio"
+      ],
+      "fields": {
+        "size": {
+          "pointer": "/input_schema/properties/size",
+          "schemaPointer": "/size",
+          "component": "string-enum",
+          "label": "Size"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "schemaPointer": "/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        }
+      }
+    }
   }
 }

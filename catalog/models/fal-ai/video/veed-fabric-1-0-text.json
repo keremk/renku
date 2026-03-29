@@ -156,5 +156,46 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "text",
+        "resolution",
+        "voice_description",
+        "image_url"
+      ],
+      "fields": {
+        "text": {
+          "pointer": "/input_schema/properties/text",
+          "component": "string",
+          "label": "Text"
+        },
+        "resolution": {
+          "pointer": "/input_schema/properties/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        },
+        "voice_description": {
+          "pointer": "/input_schema/properties/voice_description",
+          "component": "nullable",
+          "label": "Voice Description",
+          "value": {
+            "pointer": "/input_schema/properties/voice_description/anyOf/0",
+            "component": "string",
+            "label": "Voice Description"
+          }
+        },
+        "image_url": {
+          "pointer": "/input_schema/properties/image_url",
+          "component": "file-uri",
+          "label": "Image Url"
+        }
+      }
+    }
   }
 }

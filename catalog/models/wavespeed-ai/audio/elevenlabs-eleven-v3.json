@@ -20,7 +20,7 @@
     },
     "text": {
       "default": "Welcome to our advanced text-to-speech system! Experience high-quality voice synthesis with natural pronunciation and clear articulation.",
-      "description": "Text to convert to speech. Every character is 1 token. Maximum 10000 characters. Use \u003C#x#\u003E between words to control pause duration (0.01-99.99s).",
+      "description": "Text to convert to speech. Every character is 1 token. Maximum 10000 characters. Use <#x#> between words to control pause duration (0.01-99.99s).",
       "maxLength": 10000,
       "type": "string",
       "x-rows": 5,
@@ -61,7 +61,10 @@
       "x-ui-component": "command"
     }
   },
-  "required": ["text", "voice_id"],
+  "required": [
+    "text",
+    "voice_id"
+  ],
   "type": "object",
   "x-order-properties": [
     "text",
@@ -69,5 +72,47 @@
     "similarity",
     "stability",
     "use_speaker_boost"
-  ]
+  ],
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "similarity",
+        "stability",
+        "text",
+        "use_speaker_boost",
+        "voice_id"
+      ],
+      "fields": {
+        "similarity": {
+          "pointer": "/properties/similarity",
+          "component": "number",
+          "label": "Similarity"
+        },
+        "stability": {
+          "pointer": "/properties/stability",
+          "component": "number",
+          "label": "Stability"
+        },
+        "text": {
+          "pointer": "/properties/text",
+          "component": "string",
+          "label": "Text"
+        },
+        "use_speaker_boost": {
+          "pointer": "/properties/use_speaker_boost",
+          "component": "boolean",
+          "label": "Use Speaker Boost"
+        },
+        "voice_id": {
+          "pointer": "/properties/voice_id",
+          "component": "string",
+          "label": "Voice Id"
+        }
+      }
+    }
+  }
 }

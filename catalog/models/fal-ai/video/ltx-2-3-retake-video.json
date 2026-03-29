@@ -215,5 +215,47 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "duration",
+        "video_url",
+        "start_time",
+        "retake_mode"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "component": "number",
+          "label": "Duration"
+        },
+        "video_url": {
+          "pointer": "/input_schema/properties/video_url",
+          "component": "file-uri",
+          "label": "Video Url"
+        },
+        "start_time": {
+          "pointer": "/input_schema/properties/start_time",
+          "component": "number",
+          "label": "Start Time"
+        },
+        "retake_mode": {
+          "pointer": "/input_schema/properties/retake_mode",
+          "component": "string-enum",
+          "label": "Retake Mode"
+        }
+      }
+    }
   }
 }

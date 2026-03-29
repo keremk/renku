@@ -59,8 +59,8 @@
             "title": "Speed",
             "description": "Speech speed multiplier",
             "minimum": 0.25,
-            "maximum": 4.0,
-            "default": 1.0
+            "maximum": 4,
+            "default": 1
           },
           "use_speaker_boost": {
             "type": "boolean",
@@ -106,5 +106,81 @@
       "text"
     ]
   },
-  "output_schema": {}
+  "output_schema": {},
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "text",
+        "voice",
+        "voice_settings",
+        "output_format",
+        "language_code"
+      ],
+      "fields": {
+        "text": {
+          "pointer": "/input_schema/properties/text",
+          "component": "string",
+          "label": "Text"
+        },
+        "voice": {
+          "pointer": "/input_schema/properties/voice",
+          "component": "string",
+          "label": "Voice"
+        },
+        "voice_settings": {
+          "pointer": "/input_schema/properties/voice_settings",
+          "component": "object",
+          "label": "Voice Settings",
+          "order": [
+            "stability",
+            "similarity_boost",
+            "style",
+            "speed",
+            "use_speaker_boost"
+          ],
+          "fields": {
+            "stability": {
+              "pointer": "/input_schema/properties/voice_settings/properties/stability",
+              "component": "number",
+              "label": "Stability"
+            },
+            "similarity_boost": {
+              "pointer": "/input_schema/properties/voice_settings/properties/similarity_boost",
+              "component": "number",
+              "label": "Similarity Boost"
+            },
+            "style": {
+              "pointer": "/input_schema/properties/voice_settings/properties/style",
+              "component": "number",
+              "label": "Style"
+            },
+            "speed": {
+              "pointer": "/input_schema/properties/voice_settings/properties/speed",
+              "component": "number",
+              "label": "Speed"
+            },
+            "use_speaker_boost": {
+              "pointer": "/input_schema/properties/voice_settings/properties/use_speaker_boost",
+              "component": "boolean",
+              "label": "Use Speaker Boost"
+            }
+          }
+        },
+        "output_format": {
+          "pointer": "/input_schema/properties/output_format",
+          "component": "string-enum",
+          "label": "Output Format"
+        },
+        "language_code": {
+          "pointer": "/input_schema/properties/language_code",
+          "component": "string",
+          "label": "Language Code"
+        }
+      }
+    }
+  }
 }

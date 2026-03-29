@@ -230,5 +230,129 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "image_size",
+        "enable_safety_checker",
+        "colors",
+        "background_color"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "image_size": {
+          "pointer": "/input_schema/properties/image_size",
+          "component": "union",
+          "label": "Image Size",
+          "presentation": "enum-or-dimensions",
+          "variants": [
+            {
+              "id": "variant-1",
+              "pointer": "/input_schema/properties/image_size/anyOf/0",
+              "schemaPointer": "/ImageSize",
+              "component": "object",
+              "label": "Custom Size",
+              "order": [
+                "height",
+                "width"
+              ],
+              "fields": {
+                "height": {
+                  "pointer": "/ImageSize/properties/height",
+                  "component": "integer",
+                  "label": "Height"
+                },
+                "width": {
+                  "pointer": "/ImageSize/properties/width",
+                  "component": "integer",
+                  "label": "Width"
+                }
+              }
+            },
+            {
+              "id": "variant-2",
+              "pointer": "/input_schema/properties/image_size/anyOf/1",
+              "component": "string-enum",
+              "label": "Preset"
+            }
+          ]
+        },
+        "enable_safety_checker": {
+          "pointer": "/input_schema/properties/enable_safety_checker",
+          "component": "boolean",
+          "label": "Enable Safety Checker"
+        },
+        "colors": {
+          "pointer": "/input_schema/properties/colors",
+          "component": "array-object-cards",
+          "label": "Colors",
+          "item": {
+            "pointer": "/input_schema/properties/colors/items",
+            "component": "object",
+            "label": "Item",
+            "order": [
+              "r",
+              "b",
+              "g"
+            ],
+            "fields": {
+              "r": {
+                "pointer": "/input_schema/properties/colors/items/properties/r",
+                "component": "integer",
+                "label": "R"
+              },
+              "b": {
+                "pointer": "/input_schema/properties/colors/items/properties/b",
+                "component": "integer",
+                "label": "B"
+              },
+              "g": {
+                "pointer": "/input_schema/properties/colors/items/properties/g",
+                "component": "integer",
+                "label": "G"
+              }
+            }
+          }
+        },
+        "background_color": {
+          "pointer": "/input_schema/properties/background_color",
+          "schemaPointer": "/RGBColor",
+          "component": "object",
+          "label": "Background Color",
+          "order": [
+            "r",
+            "b",
+            "g"
+          ],
+          "fields": {
+            "r": {
+              "pointer": "/RGBColor/properties/r",
+              "component": "integer",
+              "label": "R"
+            },
+            "b": {
+              "pointer": "/RGBColor/properties/b",
+              "component": "integer",
+              "label": "B"
+            },
+            "g": {
+              "pointer": "/RGBColor/properties/g",
+              "component": "integer",
+              "label": "G"
+            }
+          }
+        }
+      }
+    }
   }
 }

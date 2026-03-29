@@ -491,5 +491,208 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "match_audio_length",
+        "prompt",
+        "acceleration",
+        "use_multiscale",
+        "fps",
+        "camera_lora",
+        "video_size",
+        "enable_safety_checker",
+        "camera_lora_scale",
+        "image_strength",
+        "preprocess_audio",
+        "negative_prompt",
+        "video_write_mode",
+        "video_output_type",
+        "end_image_url",
+        "num_frames",
+        "image_url",
+        "video_quality",
+        "sync_mode",
+        "enable_prompt_expansion",
+        "audio_strength",
+        "end_image_strength",
+        "audio_url",
+        "seed"
+      ],
+      "fields": {
+        "match_audio_length": {
+          "pointer": "/input_schema/properties/match_audio_length",
+          "component": "boolean",
+          "label": "Match Audio Length"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "acceleration": {
+          "pointer": "/input_schema/properties/acceleration",
+          "component": "string-enum",
+          "label": "Acceleration"
+        },
+        "use_multiscale": {
+          "pointer": "/input_schema/properties/use_multiscale",
+          "component": "boolean",
+          "label": "Use Multiscale"
+        },
+        "fps": {
+          "pointer": "/input_schema/properties/fps",
+          "component": "number",
+          "label": "Fps"
+        },
+        "camera_lora": {
+          "pointer": "/input_schema/properties/camera_lora",
+          "component": "string-enum",
+          "label": "Camera Lora"
+        },
+        "video_size": {
+          "pointer": "/input_schema/properties/video_size",
+          "component": "union",
+          "label": "Video Size",
+          "presentation": "enum-or-dimensions",
+          "variants": [
+            {
+              "id": "variant-1",
+              "pointer": "/input_schema/properties/video_size/anyOf/0",
+              "schemaPointer": "/ImageSize",
+              "component": "object",
+              "label": "Custom Size",
+              "order": [
+                "height",
+                "width"
+              ],
+              "fields": {
+                "height": {
+                  "pointer": "/ImageSize/properties/height",
+                  "component": "integer",
+                  "label": "Height"
+                },
+                "width": {
+                  "pointer": "/ImageSize/properties/width",
+                  "component": "integer",
+                  "label": "Width"
+                }
+              }
+            },
+            {
+              "id": "variant-2",
+              "pointer": "/input_schema/properties/video_size/anyOf/1",
+              "component": "string-enum",
+              "label": "Preset"
+            }
+          ]
+        },
+        "enable_safety_checker": {
+          "pointer": "/input_schema/properties/enable_safety_checker",
+          "component": "boolean",
+          "label": "Enable Safety Checker"
+        },
+        "camera_lora_scale": {
+          "pointer": "/input_schema/properties/camera_lora_scale",
+          "component": "number",
+          "label": "Camera Lora Scale"
+        },
+        "image_strength": {
+          "pointer": "/input_schema/properties/image_strength",
+          "component": "number",
+          "label": "Image Strength"
+        },
+        "preprocess_audio": {
+          "pointer": "/input_schema/properties/preprocess_audio",
+          "component": "boolean",
+          "label": "Preprocess Audio"
+        },
+        "negative_prompt": {
+          "pointer": "/input_schema/properties/negative_prompt",
+          "component": "string",
+          "label": "Negative Prompt"
+        },
+        "video_write_mode": {
+          "pointer": "/input_schema/properties/video_write_mode",
+          "component": "string-enum",
+          "label": "Video Write Mode"
+        },
+        "video_output_type": {
+          "pointer": "/input_schema/properties/video_output_type",
+          "component": "string-enum",
+          "label": "Video Output Type"
+        },
+        "end_image_url": {
+          "pointer": "/input_schema/properties/end_image_url",
+          "component": "nullable",
+          "label": "End Image Url",
+          "value": {
+            "pointer": "/input_schema/properties/end_image_url/anyOf/0",
+            "component": "string",
+            "label": "End Image Url"
+          }
+        },
+        "num_frames": {
+          "pointer": "/input_schema/properties/num_frames",
+          "component": "integer",
+          "label": "Num Frames"
+        },
+        "image_url": {
+          "pointer": "/input_schema/properties/image_url",
+          "component": "nullable",
+          "label": "Image Url",
+          "value": {
+            "pointer": "/input_schema/properties/image_url/anyOf/0",
+            "component": "string",
+            "label": "Image Url"
+          }
+        },
+        "video_quality": {
+          "pointer": "/input_schema/properties/video_quality",
+          "component": "string-enum",
+          "label": "Video Quality"
+        },
+        "sync_mode": {
+          "pointer": "/input_schema/properties/sync_mode",
+          "component": "boolean",
+          "label": "Sync Mode"
+        },
+        "enable_prompt_expansion": {
+          "pointer": "/input_schema/properties/enable_prompt_expansion",
+          "component": "boolean",
+          "label": "Enable Prompt Expansion"
+        },
+        "audio_strength": {
+          "pointer": "/input_schema/properties/audio_strength",
+          "component": "number",
+          "label": "Audio Strength"
+        },
+        "end_image_strength": {
+          "pointer": "/input_schema/properties/end_image_strength",
+          "component": "number",
+          "label": "End Image Strength"
+        },
+        "audio_url": {
+          "pointer": "/input_schema/properties/audio_url",
+          "component": "file-uri",
+          "label": "Audio Url"
+        },
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "nullable",
+          "label": "Seed",
+          "value": {
+            "pointer": "/input_schema/properties/seed/anyOf/0",
+            "component": "integer",
+            "label": "Seed"
+          }
+        }
+      }
+    }
   }
 }

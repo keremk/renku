@@ -318,5 +318,78 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "seed",
+        "width",
+        "height",
+        "prompt",
+        "lora_scale",
+        "aspect_ratio",
+        "hf_api_token",
+        "lora_weights",
+        "prompt_upsampling",
+        "disable_safety_checker"
+      ],
+      "fields": {
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        },
+        "width": {
+          "pointer": "/input_schema/properties/width",
+          "component": "integer",
+          "label": "Width"
+        },
+        "height": {
+          "pointer": "/input_schema/properties/height",
+          "component": "integer",
+          "label": "Height"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "lora_scale": {
+          "pointer": "/input_schema/properties/lora_scale",
+          "component": "number",
+          "label": "Lora Scale"
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "schemaPointer": "/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "hf_api_token": {
+          "pointer": "/input_schema/properties/hf_api_token",
+          "component": "string",
+          "label": "Hf Api Token"
+        },
+        "lora_weights": {
+          "pointer": "/input_schema/properties/lora_weights",
+          "component": "string",
+          "label": "Lora Weights"
+        },
+        "prompt_upsampling": {
+          "pointer": "/input_schema/properties/prompt_upsampling",
+          "component": "boolean",
+          "label": "Prompt Upsampling"
+        },
+        "disable_safety_checker": {
+          "pointer": "/input_schema/properties/disable_safety_checker",
+          "component": "boolean",
+          "label": "Disable Safety Checker"
+        }
+      }
+    }
   }
 }

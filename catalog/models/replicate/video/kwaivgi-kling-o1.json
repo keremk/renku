@@ -355,5 +355,86 @@
     "type": "string",
     "title": "video_reference_type",
     "description": "An enumeration."
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "mode",
+        "prompt",
+        "duration",
+        "end_image",
+        "start_image",
+        "aspect_ratio",
+        "reference_video",
+        "reference_images",
+        "keep_original_sound",
+        "video_reference_type"
+      ],
+      "fields": {
+        "mode": {
+          "pointer": "/input_schema/properties/mode",
+          "schemaPointer": "/mode",
+          "component": "string-enum",
+          "label": "Mode"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "schemaPointer": "/duration",
+          "component": "integer",
+          "label": "Duration"
+        },
+        "end_image": {
+          "pointer": "/input_schema/properties/end_image",
+          "component": "file-uri",
+          "label": "End Image"
+        },
+        "start_image": {
+          "pointer": "/input_schema/properties/start_image",
+          "component": "file-uri",
+          "label": "Start Image"
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "schemaPointer": "/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "reference_video": {
+          "pointer": "/input_schema/properties/reference_video",
+          "component": "file-uri",
+          "label": "Reference Video"
+        },
+        "reference_images": {
+          "pointer": "/input_schema/properties/reference_images",
+          "component": "array-file-uri",
+          "label": "Reference Images",
+          "item": {
+            "pointer": "/input_schema/properties/reference_images/items",
+            "component": "file-uri",
+            "label": "Item"
+          }
+        },
+        "keep_original_sound": {
+          "pointer": "/input_schema/properties/keep_original_sound",
+          "component": "boolean",
+          "label": "Keep Original Sound"
+        },
+        "video_reference_type": {
+          "pointer": "/input_schema/properties/video_reference_type",
+          "schemaPointer": "/video_reference_type",
+          "component": "string-enum",
+          "label": "Video Reference Type"
+        }
+      }
+    }
   }
 }

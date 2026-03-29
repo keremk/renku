@@ -318,5 +318,79 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "seed",
+        "audio",
+        "image",
+        "prompt",
+        "duration",
+        "resolution",
+        "multi_shots",
+        "audio_enabled",
+        "negative_prompt",
+        "enable_prompt_expansion"
+      ],
+      "fields": {
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        },
+        "audio": {
+          "pointer": "/input_schema/properties/audio",
+          "component": "file-uri",
+          "label": "Audio"
+        },
+        "image": {
+          "pointer": "/input_schema/properties/image",
+          "component": "file-uri",
+          "label": "Image"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "schemaPointer": "/duration",
+          "component": "integer",
+          "label": "Duration"
+        },
+        "resolution": {
+          "pointer": "/input_schema/properties/resolution",
+          "schemaPointer": "/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        },
+        "multi_shots": {
+          "pointer": "/input_schema/properties/multi_shots",
+          "component": "boolean",
+          "label": "Multi Shots"
+        },
+        "audio_enabled": {
+          "pointer": "/input_schema/properties/audio_enabled",
+          "component": "boolean",
+          "label": "Audio Enabled"
+        },
+        "negative_prompt": {
+          "pointer": "/input_schema/properties/negative_prompt",
+          "component": "string",
+          "label": "Negative Prompt"
+        },
+        "enable_prompt_expansion": {
+          "pointer": "/input_schema/properties/enable_prompt_expansion",
+          "component": "boolean",
+          "label": "Enable Prompt Expansion"
+        }
+      }
+    }
   }
 }

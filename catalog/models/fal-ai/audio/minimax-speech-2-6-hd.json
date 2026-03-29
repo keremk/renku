@@ -5,12 +5,12 @@
     "properties": {
       "prompt": {
         "examples": [
-          "Hello world! Welcome MiniMax's new text to speech model \u003C#0.1#\u003E Speech 2.6, now available on Fal!"
+          "Hello world! Welcome MiniMax's new text to speech model <#0.1#> Speech 2.6, now available on Fal!"
         ],
         "maxLength": 10000,
         "type": "string",
         "title": "Prompt",
-        "description": "Text to convert to speech. Paragraph breaks should be marked with newline characters. **NOTE**: You can customize speech pauses by adding markers in the form `\u003C#x#\u003E`, where `x` is the pause duration in seconds. Valid range: `[0.01, 99.99]`, up to two decimal places. Pause markers must be placed between speakable text segments and cannot be used consecutively.",
+        "description": "Text to convert to speech. Paragraph breaks should be marked with newline characters. **NOTE**: You can customize speech pauses by adding markers in the form `<#x#>`, where `x` is the pause duration in seconds. Valid range: `[0.01, 99.99]`, up to two decimal places. Pause markers must be placed between speakable text segments and cannot be used consecutively.",
         "minLength": 1
       },
       "language_boost": {
@@ -59,7 +59,10 @@
         "title": "Language Boost"
       },
       "output_format": {
-        "enum": ["url", "hex"],
+        "enum": [
+          "url",
+          "hex"
+        ],
         "description": "Format of the output content (non-streaming only)",
         "type": "string",
         "title": "Output Format",
@@ -118,7 +121,9 @@
       "prompt",
       "normalization_setting"
     ],
-    "required": ["prompt"]
+    "required": [
+      "prompt"
+    ]
   },
   "output_schema": {
     "title": "TextToSpeechHD26Output",
@@ -144,8 +149,14 @@
         ]
       }
     },
-    "x-fal-order-properties": ["audio", "duration_ms"],
-    "required": ["audio", "duration_ms"]
+    "x-fal-order-properties": [
+      "audio",
+      "duration_ms"
+    ],
+    "required": [
+      "audio",
+      "duration_ms"
+    ]
   },
   "PronunciationDict": {
     "title": "PronunciationDict",
@@ -160,7 +171,9 @@
         }
       }
     },
-    "x-fal-order-properties": ["tone_list"]
+    "x-fal-order-properties": [
+      "tone_list"
+    ]
   },
   "VoiceSetting": {
     "title": "VoiceSetting",
@@ -292,54 +305,84 @@
     "type": "object",
     "properties": {
       "format": {
-        "enum": ["mp3", "pcm", "flac"],
+        "enum": [
+          "mp3",
+          "pcm",
+          "flac"
+        ],
         "description": "Audio format",
         "type": "string",
         "title": "Format",
         "default": "mp3"
       },
       "sample_rate": {
-        "enum": [8000, 16000, 22050, 24000, 32000, 44100],
+        "enum": [
+          8000,
+          16000,
+          22050,
+          24000,
+          32000,
+          44100
+        ],
         "description": "Sample rate of generated audio",
         "type": "integer",
         "title": "Sample Rate",
         "default": 32000
       },
       "channel": {
-        "enum": [1, 2],
+        "enum": [
+          1,
+          2
+        ],
         "description": "Number of audio channels (1=mono, 2=stereo)",
         "type": "integer",
         "title": "Channel",
         "default": 1
       },
       "bitrate": {
-        "enum": [32000, 64000, 128000, 256000],
+        "enum": [
+          32000,
+          64000,
+          128000,
+          256000
+        ],
         "description": "Bitrate of generated audio",
         "type": "integer",
         "title": "Bitrate",
         "default": 128000
       }
     },
-    "x-fal-order-properties": ["sample_rate", "bitrate", "format", "channel"]
+    "x-fal-order-properties": [
+      "sample_rate",
+      "bitrate",
+      "format",
+      "channel"
+    ]
   },
   "File": {
     "title": "File",
     "type": "object",
     "properties": {
       "file_size": {
-        "examples": [4404019],
+        "examples": [
+          4404019
+        ],
         "description": "The size of the file in bytes.",
         "type": "integer",
         "title": "File Size"
       },
       "file_name": {
-        "examples": ["z9RV14K95DvU.png"],
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
         "description": "The name of the file. It will be auto-generated if not provided.",
         "type": "string",
         "title": "File Name"
       },
       "content_type": {
-        "examples": ["image/png"],
+        "examples": [
+          "image/png"
+        ],
         "description": "The mime type of the file.",
         "type": "string",
         "title": "Content Type"
@@ -364,6 +407,177 @@
       "file_size",
       "file_data"
     ],
-    "required": ["url"]
+    "required": [
+      "url"
+    ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "language_boost",
+        "output_format",
+        "pronunciation_dict",
+        "voice_setting",
+        "normalization_setting",
+        "audio_setting"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "language_boost": {
+          "pointer": "/input_schema/properties/language_boost",
+          "component": "string-enum",
+          "label": "Language Boost"
+        },
+        "output_format": {
+          "pointer": "/input_schema/properties/output_format",
+          "component": "string-enum",
+          "label": "Output Format"
+        },
+        "pronunciation_dict": {
+          "pointer": "/input_schema/properties/pronunciation_dict",
+          "schemaPointer": "/PronunciationDict",
+          "component": "object",
+          "label": "Pronunciation Dict",
+          "order": [
+            "tone_list"
+          ],
+          "fields": {
+            "tone_list": {
+              "pointer": "/PronunciationDict/properties/tone_list",
+              "component": "array-scalar",
+              "label": "Tone List",
+              "item": {
+                "pointer": "/PronunciationDict/properties/tone_list/items",
+                "component": "string",
+                "label": "Item"
+              }
+            }
+          }
+        },
+        "voice_setting": {
+          "pointer": "/input_schema/properties/voice_setting",
+          "schemaPointer": "/VoiceSetting",
+          "component": "object",
+          "label": "Voice Setting",
+          "order": [
+            "speed",
+            "vol",
+            "voice_id",
+            "pitch",
+            "english_normalization",
+            "emotion"
+          ],
+          "fields": {
+            "speed": {
+              "pointer": "/VoiceSetting/properties/speed",
+              "component": "number",
+              "label": "Speed"
+            },
+            "vol": {
+              "pointer": "/VoiceSetting/properties/vol",
+              "component": "number",
+              "label": "Vol"
+            },
+            "voice_id": {
+              "pointer": "/VoiceSetting/properties/voice_id",
+              "component": "string",
+              "label": "Voice Id"
+            },
+            "pitch": {
+              "pointer": "/VoiceSetting/properties/pitch",
+              "component": "integer",
+              "label": "Pitch"
+            },
+            "english_normalization": {
+              "pointer": "/VoiceSetting/properties/english_normalization",
+              "component": "boolean",
+              "label": "English Normalization"
+            },
+            "emotion": {
+              "pointer": "/VoiceSetting/properties/emotion",
+              "component": "string-enum",
+              "label": "Emotion"
+            }
+          }
+        },
+        "normalization_setting": {
+          "pointer": "/input_schema/properties/normalization_setting",
+          "schemaPointer": "/LoudnessNormalizationSetting",
+          "component": "object",
+          "label": "Normalization Setting",
+          "order": [
+            "enabled",
+            "target_loudness",
+            "target_range",
+            "target_peak"
+          ],
+          "fields": {
+            "enabled": {
+              "pointer": "/LoudnessNormalizationSetting/properties/enabled",
+              "component": "boolean",
+              "label": "Enabled"
+            },
+            "target_loudness": {
+              "pointer": "/LoudnessNormalizationSetting/properties/target_loudness",
+              "component": "number",
+              "label": "Target Loudness"
+            },
+            "target_range": {
+              "pointer": "/LoudnessNormalizationSetting/properties/target_range",
+              "component": "number",
+              "label": "Target Range"
+            },
+            "target_peak": {
+              "pointer": "/LoudnessNormalizationSetting/properties/target_peak",
+              "component": "number",
+              "label": "Target Peak"
+            }
+          }
+        },
+        "audio_setting": {
+          "pointer": "/input_schema/properties/audio_setting",
+          "schemaPointer": "/AudioSetting",
+          "component": "object",
+          "label": "Audio Setting",
+          "order": [
+            "format",
+            "sample_rate",
+            "channel",
+            "bitrate"
+          ],
+          "fields": {
+            "format": {
+              "pointer": "/AudioSetting/properties/format",
+              "component": "string-enum",
+              "label": "Format"
+            },
+            "sample_rate": {
+              "pointer": "/AudioSetting/properties/sample_rate",
+              "component": "integer",
+              "label": "Sample Rate"
+            },
+            "channel": {
+              "pointer": "/AudioSetting/properties/channel",
+              "component": "integer",
+              "label": "Channel"
+            },
+            "bitrate": {
+              "pointer": "/AudioSetting/properties/bitrate",
+              "component": "integer",
+              "label": "Bitrate"
+            }
+          }
+        }
+      }
+    }
   }
 }

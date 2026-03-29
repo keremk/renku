@@ -4,7 +4,11 @@ import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse as parseYaml } from 'yaml';
-import { fetchAndTransformSchema, modelNameToFilename } from './fetch-fal-schema.mjs';
+import {
+  fetchAndTransformSchema,
+  modelNameToFilename,
+} from './fetch-fal-schema.mjs';
+import { validateSchemaFileViewerAnnotations } from './schema-viewer-annotations.mjs';
 
 /**
  * Batch process all models in fal-ai.yaml and update missing schemas.
@@ -18,7 +22,7 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, '..');
 
 /**
- * Check if a JSON file already has both input_schema and output_schema
+ * Check if a JSON file already has both schemas and valid viewer annotations.
  */
 async function hasSchemas(filePath) {
   if (!existsSync(filePath)) {
@@ -28,7 +32,13 @@ async function hasSchemas(filePath) {
   try {
     const content = await readFile(filePath, 'utf-8');
     const json = JSON.parse(content);
-    return 'input_schema' in json && 'output_schema' in json;
+    const hasCoreSchemas = 'input_schema' in json && 'output_schema' in json;
+    if (!hasCoreSchemas) {
+      return false;
+    }
+
+    const validation = validateSchemaFileViewerAnnotations(json);
+    return validation.errors.length === 0;
   } catch {
     return false;
   }
@@ -40,9 +50,15 @@ async function main() {
   const filteredArgs = args.filter((arg) => !arg.startsWith('--'));
 
   if (filteredArgs.length < 1) {
-    console.error('Usage: node scripts/update-fal-catalog.mjs <yaml-path> [--dry-run]');
-    console.error('Example: node scripts/update-fal-catalog.mjs catalog/models/fal-ai/fal-ai.yaml');
-    console.error('         node scripts/update-fal-catalog.mjs catalog/models/fal-ai/fal-ai.yaml --dry-run');
+    console.error(
+      'Usage: node scripts/update-fal-catalog.mjs <yaml-path> [--dry-run]'
+    );
+    console.error(
+      'Example: node scripts/update-fal-catalog.mjs catalog/models/fal-ai/fal-ai.yaml'
+    );
+    console.error(
+      '         node scripts/update-fal-catalog.mjs catalog/models/fal-ai/fal-ai.yaml --dry-run'
+    );
     process.exit(1);
   }
 
@@ -77,7 +93,9 @@ async function main() {
     const { name, type, subProvider } = model;
 
     if (!name || !type) {
-      console.warn(`[update-fal] Skipping model with missing name or type: ${JSON.stringify(model)}`);
+      console.warn(
+        `[update-fal] Skipping model with missing name or type: ${JSON.stringify(model)}`
+      );
       failed++;
       continue;
     }
@@ -97,8 +115,12 @@ async function main() {
     // Fetch and transform schema
     try {
       if (dryRun) {
-        const subProviderInfo = subProvider ? ` [subProvider: ${subProvider}]` : '';
-        console.log(`[update-fal] WOULD CONVERT: ${name}${subProviderInfo} → ${outputPath}`);
+        const subProviderInfo = subProvider
+          ? ` [subProvider: ${subProvider}]`
+          : '';
+        console.log(
+          `[update-fal] WOULD CONVERT: ${name}${subProviderInfo} → ${outputPath}`
+        );
         converted++;
       } else {
         const schema = await fetchAndTransformSchema(name, subProvider);
@@ -107,7 +129,9 @@ async function main() {
         converted++;
       }
     } catch (error) {
-      console.error(`[update-fal] FAILED: ${name} - ${error instanceof Error ? error.message : error}`);
+      console.error(
+        `[update-fal] FAILED: ${name} - ${error instanceof Error ? error.message : error}`
+      );
       failed++;
     }
   }
@@ -121,6 +145,9 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error('[update-fal] Error:', error instanceof Error ? error.message : error);
+  console.error(
+    '[update-fal] Error:',
+    error instanceof Error ? error.message : error
+  );
   process.exit(1);
 });

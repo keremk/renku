@@ -115,5 +115,35 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "video_url",
+        "trim_first_second",
+        "image_url"
+      ],
+      "fields": {
+        "video_url": {
+          "pointer": "/input_schema/properties/video_url",
+          "component": "file-uri",
+          "label": "Video Url"
+        },
+        "trim_first_second": {
+          "pointer": "/input_schema/properties/trim_first_second",
+          "component": "boolean",
+          "label": "Trim First Second"
+        },
+        "image_url": {
+          "pointer": "/input_schema/properties/image_url",
+          "component": "file-uri",
+          "label": "Image Url"
+        }
+      }
+    }
   }
 }

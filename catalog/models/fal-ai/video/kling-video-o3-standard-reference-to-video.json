@@ -383,5 +383,135 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "duration",
+        "aspect_ratio",
+        "multi_prompt",
+        "generate_audio",
+        "shot_type",
+        "elements",
+        "end_image_url",
+        "image_urls",
+        "start_image_url"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "component": "string-enum",
+          "label": "Duration"
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "multi_prompt": {
+          "pointer": "/input_schema/properties/multi_prompt",
+          "component": "array-object-cards",
+          "label": "Multi Prompt",
+          "item": {
+            "pointer": "/input_schema/properties/multi_prompt/items",
+            "component": "object",
+            "label": "Item",
+            "order": [
+              "prompt",
+              "duration"
+            ],
+            "fields": {
+              "prompt": {
+                "pointer": "/input_schema/properties/multi_prompt/items/properties/prompt",
+                "component": "string",
+                "label": "Prompt"
+              },
+              "duration": {
+                "pointer": "/input_schema/properties/multi_prompt/items/properties/duration",
+                "component": "string-enum",
+                "label": "Duration"
+              }
+            }
+          }
+        },
+        "generate_audio": {
+          "pointer": "/input_schema/properties/generate_audio",
+          "component": "boolean",
+          "label": "Generate Audio"
+        },
+        "shot_type": {
+          "pointer": "/input_schema/properties/shot_type",
+          "component": "string-enum",
+          "label": "Shot Type"
+        },
+        "elements": {
+          "pointer": "/input_schema/properties/elements",
+          "component": "array-object-cards",
+          "label": "Elements",
+          "item": {
+            "pointer": "/input_schema/properties/elements/items",
+            "component": "object",
+            "label": "Item",
+            "order": [
+              "video_url",
+              "reference_image_urls",
+              "frontal_image_url"
+            ],
+            "fields": {
+              "video_url": {
+                "pointer": "/input_schema/properties/elements/items/properties/video_url",
+                "component": "file-uri",
+                "label": "Video Url"
+              },
+              "reference_image_urls": {
+                "pointer": "/input_schema/properties/elements/items/properties/reference_image_urls",
+                "component": "array-file-uri",
+                "label": "Reference Image Urls",
+                "item": {
+                  "pointer": "/input_schema/properties/elements/items/properties/reference_image_urls/items",
+                  "component": "file-uri",
+                  "label": "Item"
+                }
+              },
+              "frontal_image_url": {
+                "pointer": "/input_schema/properties/elements/items/properties/frontal_image_url",
+                "component": "file-uri",
+                "label": "Frontal Image Url"
+              }
+            }
+          }
+        },
+        "end_image_url": {
+          "pointer": "/input_schema/properties/end_image_url",
+          "component": "file-uri",
+          "label": "End Image Url"
+        },
+        "image_urls": {
+          "pointer": "/input_schema/properties/image_urls",
+          "component": "array-file-uri",
+          "label": "Image Urls",
+          "item": {
+            "pointer": "/input_schema/properties/image_urls/items",
+            "component": "file-uri",
+            "label": "Item"
+          }
+        },
+        "start_image_url": {
+          "pointer": "/input_schema/properties/start_image_url",
+          "component": "file-uri",
+          "label": "Start Image Url"
+        }
+      }
+    }
   }
 }

@@ -457,5 +457,121 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "fps",
+        "task",
+        "audio",
+        "image",
+        "video",
+        "prompt",
+        "duration",
+        "resolution",
+        "extend_mode",
+        "retake_mode",
+        "aspect_ratio",
+        "camera_motion",
+        "generate_audio",
+        "retake_duration",
+        "last_frame_image",
+        "retake_start_time"
+      ],
+      "fields": {
+        "fps": {
+          "pointer": "/input_schema/properties/fps",
+          "schemaPointer": "/fps",
+          "component": "integer",
+          "label": "Fps"
+        },
+        "task": {
+          "pointer": "/input_schema/properties/task",
+          "schemaPointer": "/task",
+          "component": "string-enum",
+          "label": "Task"
+        },
+        "audio": {
+          "pointer": "/input_schema/properties/audio",
+          "component": "file-uri",
+          "label": "Audio"
+        },
+        "image": {
+          "pointer": "/input_schema/properties/image",
+          "component": "file-uri",
+          "label": "Image"
+        },
+        "video": {
+          "pointer": "/input_schema/properties/video",
+          "component": "file-uri",
+          "label": "Video"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "schemaPointer": "/duration",
+          "component": "integer",
+          "label": "Duration"
+        },
+        "resolution": {
+          "pointer": "/input_schema/properties/resolution",
+          "schemaPointer": "/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        },
+        "extend_mode": {
+          "pointer": "/input_schema/properties/extend_mode",
+          "schemaPointer": "/extend_mode",
+          "component": "string-enum",
+          "label": "Extend Mode"
+        },
+        "retake_mode": {
+          "pointer": "/input_schema/properties/retake_mode",
+          "schemaPointer": "/retake_mode",
+          "component": "string-enum",
+          "label": "Retake Mode"
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "schemaPointer": "/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "camera_motion": {
+          "pointer": "/input_schema/properties/camera_motion",
+          "schemaPointer": "/camera_motion",
+          "component": "string-enum",
+          "label": "Camera Motion"
+        },
+        "generate_audio": {
+          "pointer": "/input_schema/properties/generate_audio",
+          "component": "boolean",
+          "label": "Generate Audio"
+        },
+        "retake_duration": {
+          "pointer": "/input_schema/properties/retake_duration",
+          "component": "number",
+          "label": "Retake Duration"
+        },
+        "last_frame_image": {
+          "pointer": "/input_schema/properties/last_frame_image",
+          "component": "file-uri",
+          "label": "Last Frame Image"
+        },
+        "retake_start_time": {
+          "pointer": "/input_schema/properties/retake_start_time",
+          "component": "number",
+          "label": "Retake Start Time"
+        }
+      }
+    }
   }
 }

@@ -142,5 +142,35 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "video_url",
+        "target_fps",
+        "target_resolution"
+      ],
+      "fields": {
+        "video_url": {
+          "pointer": "/input_schema/properties/video_url",
+          "component": "file-uri",
+          "label": "Video Url"
+        },
+        "target_fps": {
+          "pointer": "/input_schema/properties/target_fps",
+          "component": "string-enum",
+          "label": "Target Fps"
+        },
+        "target_resolution": {
+          "pointer": "/input_schema/properties/target_resolution",
+          "component": "string-enum",
+          "label": "Target Resolution"
+        }
+      }
+    }
   }
 }

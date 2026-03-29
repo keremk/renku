@@ -282,5 +282,72 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "seed",
+        "width",
+        "height",
+        "prompt",
+        "go_fast",
+        "output_format",
+        "guidance_scale",
+        "output_quality",
+        "num_inference_steps"
+      ],
+      "fields": {
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        },
+        "width": {
+          "pointer": "/input_schema/properties/width",
+          "component": "integer",
+          "label": "Width"
+        },
+        "height": {
+          "pointer": "/input_schema/properties/height",
+          "component": "integer",
+          "label": "Height"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "go_fast": {
+          "pointer": "/input_schema/properties/go_fast",
+          "component": "boolean",
+          "label": "Go Fast"
+        },
+        "output_format": {
+          "pointer": "/input_schema/properties/output_format",
+          "schemaPointer": "/output_format",
+          "component": "string-enum",
+          "label": "Output Format"
+        },
+        "guidance_scale": {
+          "pointer": "/input_schema/properties/guidance_scale",
+          "component": "number",
+          "label": "Guidance Scale"
+        },
+        "output_quality": {
+          "pointer": "/input_schema/properties/output_quality",
+          "component": "integer",
+          "label": "Output Quality"
+        },
+        "num_inference_steps": {
+          "pointer": "/input_schema/properties/num_inference_steps",
+          "component": "integer",
+          "label": "Num Inference Steps"
+        }
+      }
+    }
   }
 }

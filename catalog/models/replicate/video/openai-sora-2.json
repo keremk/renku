@@ -285,5 +285,49 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "seconds",
+        "aspect_ratio",
+        "openai_api_key",
+        "input_reference"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "seconds": {
+          "pointer": "/input_schema/properties/seconds",
+          "schemaPointer": "/seconds",
+          "component": "integer",
+          "label": "Seconds"
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "schemaPointer": "/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "openai_api_key": {
+          "pointer": "/input_schema/properties/openai_api_key",
+          "component": "string",
+          "label": "Openai Api Key"
+        },
+        "input_reference": {
+          "pointer": "/input_schema/properties/input_reference",
+          "component": "file-uri",
+          "label": "Input Reference"
+        }
+      }
+    }
   }
 }

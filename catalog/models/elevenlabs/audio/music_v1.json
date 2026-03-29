@@ -62,5 +62,41 @@
       "prompt"
     ]
   },
-  "output_schema": {}
+  "output_schema": {},
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "music_length_ms",
+        "output_format",
+        "force_instrumental"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "music_length_ms": {
+          "pointer": "/input_schema/properties/music_length_ms",
+          "component": "integer",
+          "label": "Music Length Ms"
+        },
+        "output_format": {
+          "pointer": "/input_schema/properties/output_format",
+          "component": "string-enum",
+          "label": "Output Format"
+        },
+        "force_instrumental": {
+          "pointer": "/input_schema/properties/force_instrumental",
+          "component": "boolean",
+          "label": "Force Instrumental"
+        }
+      }
+    }
+  }
 }

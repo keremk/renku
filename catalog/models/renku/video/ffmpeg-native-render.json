@@ -217,5 +217,196 @@
       "edgePaddingPercent": 8
     },
     "additionalProperties": false
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "rootFolder",
+        "width",
+        "height",
+        "fps",
+        "preset",
+        "crf",
+        "audioBitrate",
+        "ffmpegPath",
+        "subtitles",
+        "text"
+      ],
+      "fields": {
+        "rootFolder": {
+          "pointer": "/input_schema/properties/rootFolder",
+          "component": "string",
+          "label": "Root Folder",
+          "visibility": "hidden"
+        },
+        "width": {
+          "pointer": "/input_schema/properties/width",
+          "component": "integer",
+          "label": "Width",
+          "visibility": "hidden"
+        },
+        "height": {
+          "pointer": "/input_schema/properties/height",
+          "component": "integer",
+          "label": "Height",
+          "visibility": "hidden"
+        },
+        "fps": {
+          "pointer": "/input_schema/properties/fps",
+          "component": "number",
+          "label": "Fps",
+          "visibility": "hidden"
+        },
+        "preset": {
+          "pointer": "/input_schema/properties/preset",
+          "component": "string-enum",
+          "label": "Preset"
+        },
+        "crf": {
+          "pointer": "/input_schema/properties/crf",
+          "component": "integer",
+          "label": "Crf"
+        },
+        "audioBitrate": {
+          "pointer": "/input_schema/properties/audioBitrate",
+          "component": "string",
+          "label": "Audio Bitrate"
+        },
+        "ffmpegPath": {
+          "pointer": "/input_schema/properties/ffmpegPath",
+          "component": "string",
+          "label": "Ffmpeg Path",
+          "visibility": "hidden"
+        },
+        "subtitles": {
+          "pointer": "/input_schema/properties/subtitles",
+          "schemaPointer": "/SubtitleConfig",
+          "component": "object",
+          "label": "Subtitles",
+          "order": [
+            "font",
+            "fontSize",
+            "fontBaseColor",
+            "fontHighlightColor",
+            "backgroundColor",
+            "backgroundOpacity",
+            "position",
+            "edgePaddingPercent",
+            "maxWordsPerLine",
+            "highlightEffect"
+          ],
+          "fields": {
+            "font": {
+              "pointer": "/SubtitleConfig/properties/font",
+              "component": "string",
+              "label": "Font"
+            },
+            "fontSize": {
+              "pointer": "/SubtitleConfig/properties/fontSize",
+              "component": "integer",
+              "label": "Font Size"
+            },
+            "fontBaseColor": {
+              "pointer": "/SubtitleConfig/properties/fontBaseColor",
+              "component": "string",
+              "label": "Font Base Color"
+            },
+            "fontHighlightColor": {
+              "pointer": "/SubtitleConfig/properties/fontHighlightColor",
+              "component": "string",
+              "label": "Font Highlight Color"
+            },
+            "backgroundColor": {
+              "pointer": "/SubtitleConfig/properties/backgroundColor",
+              "component": "string",
+              "label": "Background Color"
+            },
+            "backgroundOpacity": {
+              "pointer": "/SubtitleConfig/properties/backgroundOpacity",
+              "component": "number",
+              "label": "Background Opacity"
+            },
+            "position": {
+              "pointer": "/SubtitleConfig/properties/position",
+              "schemaPointer": "/OverlayPosition",
+              "component": "string-enum",
+              "label": "Position"
+            },
+            "edgePaddingPercent": {
+              "pointer": "/SubtitleConfig/properties/edgePaddingPercent",
+              "component": "number",
+              "label": "Edge Padding Percent"
+            },
+            "maxWordsPerLine": {
+              "pointer": "/SubtitleConfig/properties/maxWordsPerLine",
+              "component": "integer",
+              "label": "Max Words Per Line"
+            },
+            "highlightEffect": {
+              "pointer": "/SubtitleConfig/properties/highlightEffect",
+              "component": "boolean",
+              "label": "Highlight Effect"
+            }
+          }
+        },
+        "text": {
+          "pointer": "/input_schema/properties/text",
+          "schemaPointer": "/TextConfig",
+          "component": "object",
+          "label": "Text",
+          "order": [
+            "font",
+            "fontSize",
+            "fontBaseColor",
+            "backgroundColor",
+            "backgroundOpacity",
+            "position",
+            "edgePaddingPercent"
+          ],
+          "fields": {
+            "font": {
+              "pointer": "/TextConfig/properties/font",
+              "component": "string",
+              "label": "Font"
+            },
+            "fontSize": {
+              "pointer": "/TextConfig/properties/fontSize",
+              "component": "integer",
+              "label": "Font Size"
+            },
+            "fontBaseColor": {
+              "pointer": "/TextConfig/properties/fontBaseColor",
+              "component": "string",
+              "label": "Font Base Color"
+            },
+            "backgroundColor": {
+              "pointer": "/TextConfig/properties/backgroundColor",
+              "component": "string",
+              "label": "Background Color"
+            },
+            "backgroundOpacity": {
+              "pointer": "/TextConfig/properties/backgroundOpacity",
+              "component": "number",
+              "label": "Background Opacity"
+            },
+            "position": {
+              "pointer": "/TextConfig/properties/position",
+              "schemaPointer": "/OverlayPosition",
+              "component": "string-enum",
+              "label": "Position"
+            },
+            "edgePaddingPercent": {
+              "pointer": "/TextConfig/properties/edgePaddingPercent",
+              "component": "number",
+              "label": "Edge Padding Percent"
+            }
+          }
+        }
+      }
+    }
   }
 }

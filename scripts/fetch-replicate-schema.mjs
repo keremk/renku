@@ -2,7 +2,7 @@
 import { writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { enrichSchemaWithRenkuConstraints } from './schema-constraints.mjs';
+import { applyViewerAnnotationsOrThrow } from './schema-viewer-annotations.mjs';
 
 /**
  * Fetch input schema from Replicate API for a single model.
@@ -141,7 +141,7 @@ export async function fetchReplicateInputSchema(modelName) {
     );
   }
 
-  enrichSchemaWithRenkuConstraints(schemaFile.input_schema, schemaFile);
+  applyViewerAnnotationsOrThrow(schemaFile);
   return schemaFile;
 }
 

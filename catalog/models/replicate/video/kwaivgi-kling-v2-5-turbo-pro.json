@@ -297,5 +297,61 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "image",
+        "prompt",
+        "duration",
+        "end_image",
+        "start_image",
+        "aspect_ratio",
+        "negative_prompt"
+      ],
+      "fields": {
+        "image": {
+          "pointer": "/input_schema/properties/image",
+          "component": "file-uri",
+          "label": "Image"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "schemaPointer": "/duration",
+          "component": "integer",
+          "label": "Duration"
+        },
+        "end_image": {
+          "pointer": "/input_schema/properties/end_image",
+          "component": "file-uri",
+          "label": "End Image"
+        },
+        "start_image": {
+          "pointer": "/input_schema/properties/start_image",
+          "component": "file-uri",
+          "label": "Start Image"
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "schemaPointer": "/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "negative_prompt": {
+          "pointer": "/input_schema/properties/negative_prompt",
+          "component": "string",
+          "label": "Negative Prompt"
+        }
+      }
+    }
   }
 }

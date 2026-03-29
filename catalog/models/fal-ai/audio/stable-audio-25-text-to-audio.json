@@ -140,5 +140,53 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "sync_mode",
+        "seconds_total",
+        "num_inference_steps",
+        "guidance_scale",
+        "seed"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "sync_mode": {
+          "pointer": "/input_schema/properties/sync_mode",
+          "component": "boolean",
+          "label": "Sync Mode"
+        },
+        "seconds_total": {
+          "pointer": "/input_schema/properties/seconds_total",
+          "component": "integer",
+          "label": "Seconds Total"
+        },
+        "num_inference_steps": {
+          "pointer": "/input_schema/properties/num_inference_steps",
+          "component": "integer",
+          "label": "Num Inference Steps"
+        },
+        "guidance_scale": {
+          "pointer": "/input_schema/properties/guidance_scale",
+          "component": "integer",
+          "label": "Guidance Scale"
+        },
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        }
+      }
+    }
   }
 }

@@ -2,7 +2,7 @@
 import { writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { enrichSchemaWithRenkuConstraints } from './schema-constraints.mjs';
+import { applyViewerAnnotationsOrThrow } from './schema-viewer-annotations.mjs';
 
 /**
  * Fetch and transform OpenAPI schema from fal.ai for a single model.
@@ -233,14 +233,7 @@ export async function fetchAndTransformSchema(modelName, subProvider) {
   // Add format: uri to URL fields
   const withUriFormat = addUriFormat(withFixedRefs);
 
-  if (
-    withUriFormat &&
-    typeof withUriFormat === 'object' &&
-    withUriFormat.input_schema &&
-    typeof withUriFormat.input_schema === 'object'
-  ) {
-    enrichSchemaWithRenkuConstraints(withUriFormat.input_schema, withUriFormat);
-  }
+  applyViewerAnnotationsOrThrow(withUriFormat);
 
   return withUriFormat;
 }

@@ -460,5 +460,187 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "aspect_ratio",
+        "duration",
+        "generate_audio",
+        "multi_prompt",
+        "elements",
+        "voice_ids",
+        "shot_type",
+        "start_image_url",
+        "end_image_url",
+        "negative_prompt",
+        "cfg_scale"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "nullable",
+          "label": "Prompt",
+          "value": {
+            "pointer": "/input_schema/properties/prompt/anyOf/0",
+            "component": "string",
+            "label": "Prompt"
+          }
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "component": "string-enum",
+          "label": "Duration"
+        },
+        "generate_audio": {
+          "pointer": "/input_schema/properties/generate_audio",
+          "component": "boolean",
+          "label": "Generate Audio"
+        },
+        "multi_prompt": {
+          "pointer": "/input_schema/properties/multi_prompt",
+          "component": "nullable",
+          "label": "Multi Prompt",
+          "value": {
+            "pointer": "/input_schema/properties/multi_prompt/anyOf/0",
+            "component": "array-object-cards",
+            "label": "Multi Prompt",
+            "item": {
+              "pointer": "/input_schema/properties/multi_prompt/anyOf/0/items",
+              "component": "object",
+              "label": "Item",
+              "order": [
+                "prompt",
+                "duration"
+              ],
+              "fields": {
+                "prompt": {
+                  "pointer": "/input_schema/properties/multi_prompt/anyOf/0/items/properties/prompt",
+                  "component": "string",
+                  "label": "Prompt"
+                },
+                "duration": {
+                  "pointer": "/input_schema/properties/multi_prompt/anyOf/0/items/properties/duration",
+                  "component": "string-enum",
+                  "label": "Duration"
+                }
+              }
+            }
+          }
+        },
+        "elements": {
+          "pointer": "/input_schema/properties/elements",
+          "component": "nullable",
+          "label": "Elements",
+          "value": {
+            "pointer": "/input_schema/properties/elements/anyOf/0",
+            "component": "array-object-cards",
+            "label": "Elements",
+            "item": {
+              "pointer": "/input_schema/properties/elements/anyOf/0/items",
+              "component": "object",
+              "label": "Item",
+              "order": [
+                "video_url",
+                "reference_image_urls",
+                "frontal_image_url"
+              ],
+              "fields": {
+                "video_url": {
+                  "pointer": "/input_schema/properties/elements/anyOf/0/items/properties/video_url",
+                  "component": "nullable",
+                  "label": "Video Url",
+                  "value": {
+                    "pointer": "/input_schema/properties/elements/anyOf/0/items/properties/video_url/anyOf/0",
+                    "component": "string",
+                    "label": "Video Url"
+                  }
+                },
+                "reference_image_urls": {
+                  "pointer": "/input_schema/properties/elements/anyOf/0/items/properties/reference_image_urls",
+                  "component": "nullable",
+                  "label": "Reference Image Urls",
+                  "value": {
+                    "pointer": "/input_schema/properties/elements/anyOf/0/items/properties/reference_image_urls/anyOf/0",
+                    "component": "array-scalar",
+                    "label": "Reference Image Urls",
+                    "item": {
+                      "pointer": "/input_schema/properties/elements/anyOf/0/items/properties/reference_image_urls/anyOf/0/items",
+                      "component": "string",
+                      "label": "Item"
+                    }
+                  }
+                },
+                "frontal_image_url": {
+                  "pointer": "/input_schema/properties/elements/anyOf/0/items/properties/frontal_image_url",
+                  "component": "nullable",
+                  "label": "Frontal Image Url",
+                  "value": {
+                    "pointer": "/input_schema/properties/elements/anyOf/0/items/properties/frontal_image_url/anyOf/0",
+                    "component": "string",
+                    "label": "Frontal Image Url"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "voice_ids": {
+          "pointer": "/input_schema/properties/voice_ids",
+          "component": "nullable",
+          "label": "Voice Ids",
+          "value": {
+            "pointer": "/input_schema/properties/voice_ids/anyOf/0",
+            "component": "array-scalar",
+            "label": "Voice Ids",
+            "item": {
+              "pointer": "/input_schema/properties/voice_ids/anyOf/0/items",
+              "component": "string",
+              "label": "Item"
+            }
+          }
+        },
+        "shot_type": {
+          "pointer": "/input_schema/properties/shot_type",
+          "component": "string",
+          "label": "Shot Type"
+        },
+        "start_image_url": {
+          "pointer": "/input_schema/properties/start_image_url",
+          "component": "file-uri",
+          "label": "Start Image Url"
+        },
+        "end_image_url": {
+          "pointer": "/input_schema/properties/end_image_url",
+          "component": "nullable",
+          "label": "End Image Url",
+          "value": {
+            "pointer": "/input_schema/properties/end_image_url/anyOf/0",
+            "component": "string",
+            "label": "End Image Url"
+          }
+        },
+        "negative_prompt": {
+          "pointer": "/input_schema/properties/negative_prompt",
+          "component": "string",
+          "label": "Negative Prompt"
+        },
+        "cfg_scale": {
+          "pointer": "/input_schema/properties/cfg_scale",
+          "component": "number",
+          "label": "Cfg Scale"
+        }
+      }
+    }
   }
 }

@@ -291,5 +291,87 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "resolution",
+        "enable_web_search",
+        "num_images",
+        "aspect_ratio",
+        "output_format",
+        "sync_mode",
+        "safety_tolerance",
+        "seed",
+        "limit_generations"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "resolution": {
+          "pointer": "/input_schema/properties/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        },
+        "enable_web_search": {
+          "pointer": "/input_schema/properties/enable_web_search",
+          "component": "boolean",
+          "label": "Enable Web Search"
+        },
+        "num_images": {
+          "pointer": "/input_schema/properties/num_images",
+          "component": "integer",
+          "label": "Num Images"
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "component": "nullable",
+          "label": "Aspect Ratio",
+          "value": {
+            "pointer": "/input_schema/properties/aspect_ratio/anyOf/0",
+            "component": "string-enum",
+            "label": "Aspect Ratio"
+          }
+        },
+        "output_format": {
+          "pointer": "/input_schema/properties/output_format",
+          "component": "string-enum",
+          "label": "Output Format"
+        },
+        "sync_mode": {
+          "pointer": "/input_schema/properties/sync_mode",
+          "component": "boolean",
+          "label": "Sync Mode"
+        },
+        "safety_tolerance": {
+          "pointer": "/input_schema/properties/safety_tolerance",
+          "component": "string-enum",
+          "label": "Safety Tolerance"
+        },
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "nullable",
+          "label": "Seed",
+          "value": {
+            "pointer": "/input_schema/properties/seed/anyOf/0",
+            "component": "integer",
+            "label": "Seed"
+          }
+        },
+        "limit_generations": {
+          "pointer": "/input_schema/properties/limit_generations",
+          "component": "boolean",
+          "label": "Limit Generations"
+        }
+      }
+    }
   }
 }

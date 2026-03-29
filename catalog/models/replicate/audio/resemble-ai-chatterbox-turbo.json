@@ -291,5 +291,66 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "seed",
+        "text",
+        "top_k",
+        "top_p",
+        "voice",
+        "temperature",
+        "reference_audio",
+        "repetition_penalty"
+      ],
+      "fields": {
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        },
+        "text": {
+          "pointer": "/input_schema/properties/text",
+          "component": "string",
+          "label": "Text"
+        },
+        "top_k": {
+          "pointer": "/input_schema/properties/top_k",
+          "component": "integer",
+          "label": "Top K"
+        },
+        "top_p": {
+          "pointer": "/input_schema/properties/top_p",
+          "component": "number",
+          "label": "Top P"
+        },
+        "voice": {
+          "pointer": "/input_schema/properties/voice",
+          "schemaPointer": "/voice",
+          "component": "string-enum",
+          "label": "Voice"
+        },
+        "temperature": {
+          "pointer": "/input_schema/properties/temperature",
+          "component": "number",
+          "label": "Temperature"
+        },
+        "reference_audio": {
+          "pointer": "/input_schema/properties/reference_audio",
+          "component": "file-uri",
+          "label": "Reference Audio"
+        },
+        "repetition_penalty": {
+          "pointer": "/input_schema/properties/repetition_penalty",
+          "component": "number",
+          "label": "Repetition Penalty"
+        }
+      }
+    }
   }
 }

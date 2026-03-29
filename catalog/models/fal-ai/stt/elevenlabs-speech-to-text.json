@@ -145,5 +145,46 @@
       "end",
       "type"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "language_code",
+        "audio_url",
+        "diarize",
+        "tag_audio_events"
+      ],
+      "fields": {
+        "language_code": {
+          "pointer": "/input_schema/properties/language_code",
+          "component": "nullable",
+          "label": "Language Code",
+          "value": {
+            "pointer": "/input_schema/properties/language_code/anyOf/0",
+            "component": "string",
+            "label": "Language Code"
+          }
+        },
+        "audio_url": {
+          "pointer": "/input_schema/properties/audio_url",
+          "component": "file-uri",
+          "label": "Audio Url"
+        },
+        "diarize": {
+          "pointer": "/input_schema/properties/diarize",
+          "component": "boolean",
+          "label": "Diarize"
+        },
+        "tag_audio_events": {
+          "pointer": "/input_schema/properties/tag_audio_events",
+          "component": "boolean",
+          "label": "Tag Audio Events"
+        }
+      }
+    }
   }
 }

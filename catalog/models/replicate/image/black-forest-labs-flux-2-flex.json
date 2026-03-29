@@ -387,5 +387,103 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "seed",
+        "steps",
+        "width",
+        "height",
+        "prompt",
+        "guidance",
+        "resolution",
+        "aspect_ratio",
+        "input_images",
+        "output_format",
+        "output_quality",
+        "safety_tolerance",
+        "prompt_upsampling"
+      ],
+      "fields": {
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        },
+        "steps": {
+          "pointer": "/input_schema/properties/steps",
+          "component": "integer",
+          "label": "Steps"
+        },
+        "width": {
+          "pointer": "/input_schema/properties/width",
+          "component": "integer",
+          "label": "Width"
+        },
+        "height": {
+          "pointer": "/input_schema/properties/height",
+          "component": "integer",
+          "label": "Height"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "guidance": {
+          "pointer": "/input_schema/properties/guidance",
+          "component": "number",
+          "label": "Guidance"
+        },
+        "resolution": {
+          "pointer": "/input_schema/properties/resolution",
+          "schemaPointer": "/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "schemaPointer": "/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "input_images": {
+          "pointer": "/input_schema/properties/input_images",
+          "component": "array-file-uri",
+          "label": "Input Images",
+          "item": {
+            "pointer": "/input_schema/properties/input_images/items",
+            "component": "file-uri",
+            "label": "Item"
+          }
+        },
+        "output_format": {
+          "pointer": "/input_schema/properties/output_format",
+          "schemaPointer": "/output_format",
+          "component": "string-enum",
+          "label": "Output Format"
+        },
+        "output_quality": {
+          "pointer": "/input_schema/properties/output_quality",
+          "component": "integer",
+          "label": "Output Quality"
+        },
+        "safety_tolerance": {
+          "pointer": "/input_schema/properties/safety_tolerance",
+          "component": "integer",
+          "label": "Safety Tolerance"
+        },
+        "prompt_upsampling": {
+          "pointer": "/input_schema/properties/prompt_upsampling",
+          "component": "boolean",
+          "label": "Prompt Upsampling"
+        }
+      }
+    }
   }
 }

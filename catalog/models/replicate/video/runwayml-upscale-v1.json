@@ -11,5 +11,23 @@
       "format": "uri",
       "description": "Video to upscale. Videos must be shorter than 40s, less than 4096px per side, and less than 16MB."
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "video"
+      ],
+      "fields": {
+        "video": {
+          "pointer": "/properties/video",
+          "component": "file-uri",
+          "label": "Video"
+        }
+      }
+    }
   }
 }

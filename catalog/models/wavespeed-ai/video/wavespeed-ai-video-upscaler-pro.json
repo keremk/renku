@@ -41,5 +41,29 @@
         }
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "target_resolution",
+        "video"
+      ],
+      "fields": {
+        "target_resolution": {
+          "pointer": "/properties/target_resolution",
+          "component": "string-enum",
+          "label": "Target Resolution"
+        },
+        "video": {
+          "pointer": "/properties/video",
+          "component": "file-uri",
+          "label": "Video"
+        }
+      }
+    }
   }
 }

@@ -7,5 +7,23 @@
       "description": "Timeline JSON manifest to render."
     }
   },
-  "additionalProperties": true
+  "additionalProperties": true,
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "timeline"
+      ],
+      "fields": {
+        "timeline": {
+          "pointer": "/properties/timeline",
+          "component": "string",
+          "label": "Timeline"
+        }
+      }
+    }
+  }
 }

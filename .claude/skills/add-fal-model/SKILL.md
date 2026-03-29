@@ -12,6 +12,7 @@ Add a new fal.ai model to the Renku pricing catalog.
 ## Step 1: Gather Information
 
 Ask the user for:
+
 - **Model name** (e.g., `kling-video/v3/pro/text-to-video`)
 - **Model type**: `video`, `image`, `audio`, `stt`, or `json`
 - **Sub-provider** (optional): e.g., `wan`, `xai` — only if the model is not native to fal.ai
@@ -26,16 +27,31 @@ node scripts/fetch-fal-schema.mjs <model-name> --type=<type> [--subprovider=<sub
 
 This creates a JSON file in `catalog/models/fal-ai/<type>/`. If the schema already exists, skip this step.
 
-## Step 3: Analyze Schema
+## Step 3: Annotate Viewer Metadata (Required)
 
-Read the generated JSON schema file. Identify cost-relevant input fields:
+Immediately annotate and validate viewer metadata after schema fetch:
+
+```bash
+node scripts/annotate-viewer-schemas.mjs --model=<model-name>
+node scripts/validate-viewer-schemas.mjs --model=<model-name>
+```
+
+Notes:
+
+- `x-renku-viewer` is the UI source of truth for component initialization.
+- If validation reports `placeholder-to-be-annotated` pointers, ask the user exactly which component should be used for each pointer and update annotations before continuing.
+- Do not leave unresolved placeholders for newly added models unless user explicitly agrees.
+
+## Step 4: Analyze Schema
+
+Read the generated JSON schema file and its `x-renku-viewer` annotations. Identify cost-relevant input fields:
 
 - **Video models**: Look for `duration`, `generate_audio`, `num_frames`, `video_size`, `resolution`, `aspect_ratio`
 - **Image models**: Look for `image_size`, `quality`, `num_images`, `resolution`, `width`, `height`
 - **Audio/TTS models**: Look for `text`, `duration`
 - **STT models**: Look for `duration`
 
-## Step 4: Look Up Pricing
+## Step 5: Look Up Pricing
 
 Browse the model's fal.ai page to find pricing:
 
@@ -45,31 +61,31 @@ Browse the model's fal.ai page to find pricing:
 4. Use `find` to search for "cost per second", "price", or "charged"
 5. Extract the pricing data (per-second, per-megapixel, per-run, etc.)
 
-## Step 5: Select or Implement Cost Function
+## Step 6: Select or Implement Cost Function
 
 Read `docs/cost-functions-reference.md` in this skill directory for the full reference.
 
 Match the model's pricing to an existing cost function:
 
-| Pricing Pattern | Cost Function |
-|----------------|---------------|
-| Flat per run | `costByRun` |
-| Per second (simple) | `costByVideoDuration` |
-| Per second + audio toggle | `costByVideoDurationAndWithAudio` |
+| Pricing Pattern               | Cost Function                      |
+| ----------------------------- | ---------------------------------- |
+| Flat per run                  | `costByRun`                        |
+| Per second (simple)           | `costByVideoDuration`              |
+| Per second + audio toggle     | `costByVideoDurationAndWithAudio`  |
 | Per second + resolution tiers | `costByVideoDurationAndResolution` |
-| Per megapixel (video) | `costByVideoMegapixels` |
-| Per million tokens | `costByVideoPerMillionTokens` |
-| Per character | `costByCharacters` |
-| Per second (audio) | `costByAudioSeconds` |
-| Per megapixel (image) | `costByImageMegapixels` |
-| Size + quality grid | `costByImageSizeAndQuality` |
-| Resolution tiers (image) | `costByImageAndResolution` |
-| Dimension-based (image) | `costByResolution` |
-| Per token (text) | `costByInputTokens` |
+| Per megapixel (video)         | `costByVideoMegapixels`            |
+| Per million tokens            | `costByVideoPerMillionTokens`      |
+| Per character                 | `costByCharacters`                 |
+| Per second (audio)            | `costByAudioSeconds`               |
+| Per megapixel (image)         | `costByImageMegapixels`            |
+| Size + quality grid           | `costByImageSizeAndQuality`        |
+| Resolution tiers (image)      | `costByImageAndResolution`         |
+| Dimension-based (image)       | `costByResolution`                 |
+| Per token (text)              | `costByInputTokens`                |
 
 If no existing function matches, implement a new one following the guide in `docs/cost-functions-reference.md` under "How to Add a New Cost Function".
 
-## Step 6: Build & Insert YAML Entry
+## Step 7: Build & Insert YAML Entry
 
 Read `docs/fal-yaml-format-reference.md` for the full format reference and section map.
 
@@ -78,12 +94,13 @@ Read `docs/fal-yaml-format-reference.md` for the full format reference and secti
 3. Build the YAML entry using the appropriate template
 4. Insert using the Edit tool
 
-## Step 7: Verify
+## Step 8: Verify
 
 Run the dry-run verifier:
 
 ```bash
 node scripts/update-fal-catalog.mjs catalog/models/fal-ai/fal-ai.yaml --dry-run
+node scripts/validate-viewer-schemas.mjs --model=<model-name>
 ```
 
 If you modified `cost-functions.ts`, also run:

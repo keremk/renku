@@ -279,5 +279,107 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "speaker_voice_embedding_file_url",
+        "top_p",
+        "repetition_penalty",
+        "top_k",
+        "subtalker_temperature",
+        "voice",
+        "reference_text",
+        "temperature",
+        "text",
+        "subtalker_top_k",
+        "language",
+        "max_new_tokens",
+        "subtalker_dosample",
+        "subtalker_top_p"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "speaker_voice_embedding_file_url": {
+          "pointer": "/input_schema/properties/speaker_voice_embedding_file_url",
+          "component": "file-uri",
+          "label": "Speaker Voice Embedding File Url"
+        },
+        "top_p": {
+          "pointer": "/input_schema/properties/top_p",
+          "component": "number",
+          "label": "Top P"
+        },
+        "repetition_penalty": {
+          "pointer": "/input_schema/properties/repetition_penalty",
+          "component": "number",
+          "label": "Repetition Penalty"
+        },
+        "top_k": {
+          "pointer": "/input_schema/properties/top_k",
+          "component": "integer",
+          "label": "Top K"
+        },
+        "subtalker_temperature": {
+          "pointer": "/input_schema/properties/subtalker_temperature",
+          "component": "number",
+          "label": "Subtalker Temperature"
+        },
+        "voice": {
+          "pointer": "/input_schema/properties/voice",
+          "component": "string-enum",
+          "label": "Voice"
+        },
+        "reference_text": {
+          "pointer": "/input_schema/properties/reference_text",
+          "component": "string",
+          "label": "Reference Text"
+        },
+        "temperature": {
+          "pointer": "/input_schema/properties/temperature",
+          "component": "number",
+          "label": "Temperature"
+        },
+        "text": {
+          "pointer": "/input_schema/properties/text",
+          "component": "string",
+          "label": "Text"
+        },
+        "subtalker_top_k": {
+          "pointer": "/input_schema/properties/subtalker_top_k",
+          "component": "integer",
+          "label": "Subtalker Top K"
+        },
+        "language": {
+          "pointer": "/input_schema/properties/language",
+          "component": "string-enum",
+          "label": "Language"
+        },
+        "max_new_tokens": {
+          "pointer": "/input_schema/properties/max_new_tokens",
+          "component": "integer",
+          "label": "Max New Tokens"
+        },
+        "subtalker_dosample": {
+          "pointer": "/input_schema/properties/subtalker_dosample",
+          "component": "boolean",
+          "label": "Subtalker Dosample"
+        },
+        "subtalker_top_p": {
+          "pointer": "/input_schema/properties/subtalker_top_p",
+          "component": "number",
+          "label": "Subtalker Top P"
+        }
+      }
+    }
   }
 }

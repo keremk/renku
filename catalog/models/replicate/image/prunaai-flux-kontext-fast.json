@@ -336,5 +336,80 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "seed",
+        "prompt",
+        "guidance",
+        "image_size",
+        "speed_mode",
+        "aspect_ratio",
+        "img_cond_path",
+        "output_format",
+        "output_quality",
+        "num_inference_steps"
+      ],
+      "fields": {
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "guidance": {
+          "pointer": "/input_schema/properties/guidance",
+          "component": "number",
+          "label": "Guidance"
+        },
+        "image_size": {
+          "pointer": "/input_schema/properties/image_size",
+          "component": "integer",
+          "label": "Image Size"
+        },
+        "speed_mode": {
+          "pointer": "/input_schema/properties/speed_mode",
+          "schemaPointer": "/speed_mode",
+          "component": "string-enum",
+          "label": "Speed Mode"
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "schemaPointer": "/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "img_cond_path": {
+          "pointer": "/input_schema/properties/img_cond_path",
+          "component": "file-uri",
+          "label": "Img Cond Path"
+        },
+        "output_format": {
+          "pointer": "/input_schema/properties/output_format",
+          "schemaPointer": "/output_format",
+          "component": "string-enum",
+          "label": "Output Format"
+        },
+        "output_quality": {
+          "pointer": "/input_schema/properties/output_quality",
+          "component": "integer",
+          "label": "Output Quality"
+        },
+        "num_inference_steps": {
+          "pointer": "/input_schema/properties/num_inference_steps",
+          "component": "integer",
+          "label": "Num Inference Steps"
+        }
+      }
+    }
   }
 }

@@ -212,5 +212,65 @@
     "required": [
       "url"
     ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "resolution",
+        "acceleration",
+        "text_input",
+        "image_url",
+        "voice",
+        "num_frames",
+        "seed"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "resolution": {
+          "pointer": "/input_schema/properties/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        },
+        "acceleration": {
+          "pointer": "/input_schema/properties/acceleration",
+          "component": "string-enum",
+          "label": "Acceleration"
+        },
+        "text_input": {
+          "pointer": "/input_schema/properties/text_input",
+          "component": "string",
+          "label": "Text Input"
+        },
+        "image_url": {
+          "pointer": "/input_schema/properties/image_url",
+          "component": "file-uri",
+          "label": "Image Url"
+        },
+        "voice": {
+          "pointer": "/input_schema/properties/voice",
+          "component": "string-enum",
+          "label": "Voice"
+        },
+        "num_frames": {
+          "pointer": "/input_schema/properties/num_frames",
+          "component": "integer",
+          "label": "Num Frames"
+        },
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        }
+      }
+    }
   }
 }

@@ -26,6 +26,44 @@
       "type": "string"
     }
   },
-  "required": ["prompt"],
-  "type": "object"
+  "required": [
+    "prompt"
+  ],
+  "type": "object",
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "enable_base64_output",
+        "enable_sync_mode",
+        "prompt",
+        "size"
+      ],
+      "fields": {
+        "enable_base64_output": {
+          "pointer": "/properties/enable_base64_output",
+          "component": "boolean",
+          "label": "Enable Base64 Output"
+        },
+        "enable_sync_mode": {
+          "pointer": "/properties/enable_sync_mode",
+          "component": "boolean",
+          "label": "Enable Sync Mode"
+        },
+        "prompt": {
+          "pointer": "/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "size": {
+          "pointer": "/properties/size",
+          "component": "string",
+          "label": "Size"
+        }
+      }
+    }
+  }
 }

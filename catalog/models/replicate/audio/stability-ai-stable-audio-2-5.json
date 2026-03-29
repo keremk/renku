@@ -232,5 +232,47 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "seed",
+        "steps",
+        "prompt",
+        "duration",
+        "cfg_scale"
+      ],
+      "fields": {
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        },
+        "steps": {
+          "pointer": "/input_schema/properties/steps",
+          "component": "integer",
+          "label": "Steps"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "component": "integer",
+          "label": "Duration"
+        },
+        "cfg_scale": {
+          "pointer": "/input_schema/properties/cfg_scale",
+          "component": "number",
+          "label": "Cfg Scale"
+        }
+      }
+    }
   }
 }

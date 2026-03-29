@@ -287,5 +287,61 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "go_fast",
+        "duration",
+        "resolution",
+        "last_frame_image",
+        "prompt_optimizer",
+        "first_frame_image"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "go_fast": {
+          "pointer": "/input_schema/properties/go_fast",
+          "component": "boolean",
+          "label": "Go Fast"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "schemaPointer": "/duration",
+          "component": "integer",
+          "label": "Duration"
+        },
+        "resolution": {
+          "pointer": "/input_schema/properties/resolution",
+          "schemaPointer": "/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        },
+        "last_frame_image": {
+          "pointer": "/input_schema/properties/last_frame_image",
+          "component": "file-uri",
+          "label": "Last Frame Image"
+        },
+        "prompt_optimizer": {
+          "pointer": "/input_schema/properties/prompt_optimizer",
+          "component": "boolean",
+          "label": "Prompt Optimizer"
+        },
+        "first_frame_image": {
+          "pointer": "/input_schema/properties/first_frame_image",
+          "component": "file-uri",
+          "label": "First Frame Image"
+        }
+      }
+    }
   }
 }

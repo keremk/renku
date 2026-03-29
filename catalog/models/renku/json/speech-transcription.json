@@ -16,10 +16,15 @@
             "description": "STT model (e.g., 'elevenlabs/speech-to-text')"
           }
         },
-        "required": ["provider", "model"]
+        "required": [
+          "provider",
+          "model"
+        ]
       }
     },
-    "required": ["stt"]
+    "required": [
+      "stt"
+    ]
   },
   "x-renku-nested-models": [
     {
@@ -29,8 +34,46 @@
       "providerField": "provider",
       "modelField": "model",
       "required": true,
-      "allowedTypes": ["stt"],
-      "mappedFields": ["language_code"]
+      "allowedTypes": [
+        "stt"
+      ],
+      "mappedFields": [
+        "language_code"
+      ]
     }
-  ]
+  ],
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "stt"
+      ],
+      "fields": {
+        "stt": {
+          "pointer": "/input_schema/properties/stt",
+          "component": "object",
+          "label": "Stt",
+          "order": [
+            "provider",
+            "model"
+          ],
+          "fields": {
+            "provider": {
+              "pointer": "/input_schema/properties/stt/properties/provider",
+              "component": "string",
+              "label": "Provider"
+            },
+            "model": {
+              "pointer": "/input_schema/properties/stt/properties/model",
+              "component": "string",
+              "label": "Model"
+            }
+          }
+        }
+      }
+    }
+  }
 }

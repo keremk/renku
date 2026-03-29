@@ -61,5 +61,53 @@
         }
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "audio",
+        "image",
+        "mask_image",
+        "prompt",
+        "resolution",
+        "seed"
+      ],
+      "fields": {
+        "audio": {
+          "pointer": "/properties/audio",
+          "component": "file-uri",
+          "label": "Audio"
+        },
+        "image": {
+          "pointer": "/properties/image",
+          "component": "file-uri",
+          "label": "Image"
+        },
+        "mask_image": {
+          "pointer": "/properties/mask_image",
+          "component": "file-uri",
+          "label": "Mask Image"
+        },
+        "prompt": {
+          "pointer": "/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "resolution": {
+          "pointer": "/properties/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        },
+        "seed": {
+          "pointer": "/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        }
+      }
+    }
   }
 }

@@ -7,6 +7,11 @@ import {
   fetchReplicateInputSchema,
   modelNameToFilename,
 } from './fetch-replicate-schema.mjs';
+import {
+  applyViewerAnnotationsOrThrow,
+  mergeExistingViewerAnnotations,
+  validateSchemaFileViewerAnnotations,
+} from './schema-viewer-annotations.mjs';
 
 /**
  * Batch process models in replicate.yaml.
@@ -89,6 +94,12 @@ async function readLocalSchemaState(filePath) {
     if (!isValidSchemaFile(parsed)) {
       return { state: 'invalid' };
     }
+
+    const validation = validateSchemaFileViewerAnnotations(parsed);
+    if (validation.errors.length > 0) {
+      return { state: 'invalid' };
+    }
+
     return { state: 'ok', schema: parsed };
   } catch {
     return { state: 'invalid' };
@@ -254,6 +265,10 @@ async function main() {
         firstFetch = false;
 
         const fetchedSchema = await fetchReplicateInputSchema(name);
+        if (localState.state === 'ok') {
+          mergeExistingViewerAnnotations(localState.schema, fetchedSchema);
+          applyViewerAnnotationsOrThrow(fetchedSchema);
+        }
         await writeFile(
           schemaPath,
           JSON.stringify(fetchedSchema, null, 2) + '\n'
@@ -279,6 +294,10 @@ async function main() {
       firstFetch = false;
 
       const fetchedSchema = await fetchReplicateInputSchema(name);
+      if (localState.state === 'ok') {
+        mergeExistingViewerAnnotations(localState.schema, fetchedSchema);
+      }
+      applyViewerAnnotationsOrThrow(fetchedSchema);
 
       let driftState = 'up-to-date';
       if (localState.state === 'missing') {

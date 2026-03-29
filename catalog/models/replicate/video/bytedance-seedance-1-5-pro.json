@@ -310,5 +310,73 @@
         "title": "Detail"
       }
     }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "fps",
+        "seed",
+        "image",
+        "prompt",
+        "duration",
+        "aspect_ratio",
+        "camera_fixed",
+        "generate_audio",
+        "last_frame_image"
+      ],
+      "fields": {
+        "fps": {
+          "pointer": "/input_schema/properties/fps",
+          "schemaPointer": "/fps",
+          "component": "integer",
+          "label": "Fps"
+        },
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "integer",
+          "label": "Seed"
+        },
+        "image": {
+          "pointer": "/input_schema/properties/image",
+          "component": "file-uri",
+          "label": "Image"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "component": "integer",
+          "label": "Duration"
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "schemaPointer": "/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "camera_fixed": {
+          "pointer": "/input_schema/properties/camera_fixed",
+          "component": "boolean",
+          "label": "Camera Fixed"
+        },
+        "generate_audio": {
+          "pointer": "/input_schema/properties/generate_audio",
+          "component": "boolean",
+          "label": "Generate Audio"
+        },
+        "last_frame_image": {
+          "pointer": "/input_schema/properties/last_frame_image",
+          "component": "file-uri",
+          "label": "Last Frame Image"
+        }
+      }
+    }
   }
 }

@@ -103,7 +103,9 @@
       "timestamps",
       "language_code"
     ],
-    "required": ["text"]
+    "required": [
+      "text"
+    ]
   },
   "output_schema": {
     "title": "TTSOutput",
@@ -132,8 +134,13 @@
         "description": "Timestamps for each word in the generated speech. Only returned if `timestamps` is set to True in the request."
       }
     },
-    "x-fal-order-properties": ["audio", "timestamps"],
-    "required": ["audio"]
+    "x-fal-order-properties": [
+      "audio",
+      "timestamps"
+    ],
+    "required": [
+      "audio"
+    ]
   },
   "File": {
     "title": "File",
@@ -150,7 +157,9 @@
         ],
         "title": "File Size",
         "description": "The size of the file in bytes.",
-        "examples": [4404019]
+        "examples": [
+          4404019
+        ]
       },
       "file_name": {
         "anyOf": [
@@ -163,7 +172,9 @@
         ],
         "title": "File Name",
         "description": "The name of the file. It will be auto-generated if not provided.",
-        "examples": ["z9RV14K95DvU.png"]
+        "examples": [
+          "z9RV14K95DvU.png"
+        ]
       },
       "content_type": {
         "anyOf": [
@@ -176,7 +187,9 @@
         ],
         "title": "Content Type",
         "description": "The mime type of the file.",
-        "examples": ["image/png"]
+        "examples": [
+          "image/png"
+        ]
       },
       "url": {
         "title": "Url",
@@ -185,7 +198,79 @@
         "description": "The URL where the file can be downloaded from."
       }
     },
-    "x-fal-order-properties": ["url", "content_type", "file_name", "file_size"],
-    "required": ["url"]
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size"
+    ],
+    "required": [
+      "url"
+    ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "stability",
+        "text",
+        "speed",
+        "style",
+        "timestamps",
+        "similarity_boost",
+        "voice",
+        "language_code"
+      ],
+      "fields": {
+        "stability": {
+          "pointer": "/input_schema/properties/stability",
+          "component": "number",
+          "label": "Stability"
+        },
+        "text": {
+          "pointer": "/input_schema/properties/text",
+          "component": "string",
+          "label": "Text"
+        },
+        "speed": {
+          "pointer": "/input_schema/properties/speed",
+          "component": "number",
+          "label": "Speed"
+        },
+        "style": {
+          "pointer": "/input_schema/properties/style",
+          "component": "number",
+          "label": "Style"
+        },
+        "timestamps": {
+          "pointer": "/input_schema/properties/timestamps",
+          "component": "boolean",
+          "label": "Timestamps"
+        },
+        "similarity_boost": {
+          "pointer": "/input_schema/properties/similarity_boost",
+          "component": "number",
+          "label": "Similarity Boost"
+        },
+        "voice": {
+          "pointer": "/input_schema/properties/voice",
+          "component": "string",
+          "label": "Voice"
+        },
+        "language_code": {
+          "pointer": "/input_schema/properties/language_code",
+          "component": "nullable",
+          "label": "Language Code",
+          "value": {
+            "pointer": "/input_schema/properties/language_code/anyOf/0",
+            "component": "string",
+            "label": "Language Code"
+          }
+        }
+      }
+    }
   }
 }
