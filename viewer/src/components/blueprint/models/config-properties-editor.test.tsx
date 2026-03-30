@@ -207,6 +207,147 @@ describe('ConfigPropertiesEditor', () => {
       expect(screen.getByText('child')).toBeTruthy();
     });
 
+    it('groups object children when object has multiple direct fields', () => {
+      const fields = [
+        createMockField('voice_setting', {
+          component: 'object',
+          label: 'Voice Setting',
+          schema: { type: 'object' },
+          fields: [
+            createMockField('voice_setting.speed', {
+              component: 'number',
+              label: 'Speed',
+              schema: { type: 'number' },
+            }),
+            createMockField('voice_setting.vol', {
+              component: 'number',
+              label: 'Vol',
+              schema: { type: 'number' },
+            }),
+          ],
+        }),
+      ];
+
+      const { container } = render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{}}
+          isEditable={true}
+          onChange={() => {}}
+        />
+      );
+
+      const objectSection = screen
+        .getByText('Voice Setting')
+        .closest('section');
+      expect(objectSection).toBeTruthy();
+      expect(objectSection?.className).toContain('models-pane-object-group-bg');
+      expect(objectSection?.className).toContain(
+        'models-pane-object-group-border'
+      );
+      expect(objectSection?.className).toContain('md:-ml-3');
+      expect(
+        container.querySelector('[class*="models-pane-object-group-border"]')
+      ).toBeTruthy();
+      expect(screen.getByText('Speed')).toBeTruthy();
+      expect(screen.getByText('Vol')).toBeTruthy();
+    });
+
+    it('flattens nested object descendants into a single group layer', () => {
+      const fields = [
+        createMockField('voice_setting', {
+          component: 'object',
+          label: 'Voice Setting',
+          schema: { type: 'object' },
+          fields: [
+            createMockField('voice_setting.voice_config', {
+              component: 'object',
+              label: 'Voice Config',
+              schema: { type: 'object' },
+              fields: [
+                createMockField('voice_setting.voice_config.speed', {
+                  component: 'number',
+                  label: 'Speed',
+                  schema: { type: 'number' },
+                }),
+                createMockField('voice_setting.voice_config.vol', {
+                  component: 'number',
+                  label: 'Vol',
+                  schema: { type: 'number' },
+                }),
+              ],
+            }),
+            createMockField('voice_setting.voice_id', {
+              component: 'string',
+              label: 'Voice Id',
+              schema: { type: 'string' },
+            }),
+          ],
+        }),
+      ];
+
+      render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{}}
+          isEditable={true}
+          onChange={() => {}}
+        />
+      );
+
+      expect(screen.getByText('Voice Setting')).toBeTruthy();
+      expect(screen.queryByText('Voice Config')).toBeNull();
+      expect(screen.getByText('Speed')).toBeTruthy();
+      expect(screen.getByText('Vol')).toBeTruthy();
+      expect(screen.getByText('Voice Id')).toBeTruthy();
+    });
+
+    it('renders object fields flat when object has a single direct field', () => {
+      const fields = [
+        createMockField('voice_setting', {
+          component: 'object',
+          label: 'Voice Setting',
+          schema: { type: 'object' },
+          fields: [
+            createMockField('voice_setting.voice_config', {
+              component: 'object',
+              label: 'Voice Config',
+              schema: { type: 'object' },
+              fields: [
+                createMockField('voice_setting.voice_config.speed', {
+                  component: 'number',
+                  label: 'Speed',
+                  schema: { type: 'number' },
+                }),
+                createMockField('voice_setting.voice_config.vol', {
+                  component: 'number',
+                  label: 'Vol',
+                  schema: { type: 'number' },
+                }),
+              ],
+            }),
+          ],
+        }),
+      ];
+
+      const { container } = render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{}}
+          isEditable={true}
+          onChange={() => {}}
+        />
+      );
+
+      expect(screen.queryByText('Voice Setting')).toBeNull();
+      expect(screen.queryByText('Voice Config')).toBeNull();
+      expect(screen.getByText('Speed')).toBeTruthy();
+      expect(screen.getByText('Vol')).toBeTruthy();
+      expect(
+        container.querySelector('[class*="models-pane-object-group-border"]')
+      ).toBeNull();
+    });
+
     it('renders a not-implemented notice for unknown custom renderers', () => {
       const fields = [
         createMockField('background_style', {

@@ -55,6 +55,10 @@
   --models-pane-mapped-bg: hsl(44 60% 84% / 0.38);
   --models-pane-mapped-border: hsl(42 50% 58% / 0.45);
 
+  /* Models pane object grouping */
+  --models-pane-object-group-bg: hsl(0 0% 74% / 0.16);
+  --models-pane-object-group-border: hsl(0 0% 60% / 0.36);
+
   /* Sidebar base (internal shadcn structure) */
   --sidebar: var(--sidebar-bg);
   --sidebar-foreground: hsl(32 60% 22%);
@@ -160,6 +164,10 @@
   /* Models pane mapped-input grouping */
   --models-pane-mapped-bg: hsl(42 44% 38% / 0.18);
   --models-pane-mapped-border: hsl(42 58% 52% / 0.45);
+
+  /* Models pane object grouping */
+  --models-pane-object-group-bg: hsl(0 0% 54% / 0.12);
+  --models-pane-object-group-border: hsl(0 0% 62% / 0.3);
 
   /* Sidebar base (internal shadcn structure) */
   --sidebar: var(--sidebar-bg);
