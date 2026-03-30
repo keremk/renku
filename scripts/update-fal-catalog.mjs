@@ -5,7 +5,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse as parseYaml } from 'yaml';
 import {
-  fetchAndTransformSchema,
+  fetchTransformAndAnnotateSchema,
   modelNameToFilename,
 } from './fetch-fal-schema.mjs';
 import { validateSchemaFileViewerAnnotations } from './schema-viewer-annotations.mjs';
@@ -123,7 +123,11 @@ async function main() {
         );
         converted++;
       } else {
-        const schema = await fetchAndTransformSchema(name, subProvider);
+        const schema = await fetchTransformAndAnnotateSchema({
+          modelName: name,
+          subProvider,
+          outputPath,
+        });
         await writeFile(outputPath, JSON.stringify(schema, null, 2) + '\n');
         console.log(`[update-fal] CONVERTED: ${name} → ${outputPath}`);
         converted++;

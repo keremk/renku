@@ -1014,6 +1014,13 @@ function mergeAnnotation(generated, existing) {
 
   const merged = structuredClone(generated);
 
+  if (
+    typeof existing.custom === 'string' &&
+    existing.custom.trim().length > 0
+  ) {
+    merged.custom = existing.custom;
+  }
+
   if (typeof existing.component === 'string') {
     merged.component = existing.component;
   }
@@ -1072,6 +1079,48 @@ function mergeAnnotation(generated, existing) {
   return stripEmptyKeys(merged);
 }
 
+function mergeCustomOnly(generated, existing) {
+  if (!isObjectRecord(generated) || !isObjectRecord(existing)) {
+    return generated;
+  }
+
+  const merged = structuredClone(generated);
+
+  if (
+    typeof existing.custom === 'string' &&
+    existing.custom.trim().length > 0
+  ) {
+    merged.custom = existing.custom;
+  }
+
+  if (isObjectRecord(merged.value) && isObjectRecord(existing.value)) {
+    merged.value = mergeCustomOnly(merged.value, existing.value);
+  }
+
+  if (Array.isArray(merged.variants) && Array.isArray(existing.variants)) {
+    merged.variants = merged.variants.map((variant, index) =>
+      mergeCustomOnly(variant, existing.variants[index] ?? {})
+    );
+  }
+
+  if (isObjectRecord(merged.item) && isObjectRecord(existing.item)) {
+    merged.item = mergeCustomOnly(merged.item, existing.item);
+  }
+
+  if (isObjectRecord(merged.fields) && isObjectRecord(existing.fields)) {
+    for (const key of Object.keys(merged.fields)) {
+      if (isObjectRecord(existing.fields[key])) {
+        merged.fields[key] = mergeCustomOnly(
+          merged.fields[key],
+          existing.fields[key]
+        );
+      }
+    }
+  }
+
+  return stripEmptyKeys(merged);
+}
+
 export function collectInputSchemaCoverage(schemaFile) {
   const inputRoot = getInputRoot(schemaFile);
   if (!inputRoot) {
@@ -1118,7 +1167,7 @@ export function annotateSchemaFileForViewer(schemaFile, options = {}) {
   const nextViewer = {
     version: 1,
     input: rewrite
-      ? generatedInput
+      ? mergeCustomOnly(generatedInput, existingViewer.input ?? {})
       : mergeAnnotation(generatedInput, existingViewer.input ?? {}),
   };
 
@@ -1178,6 +1227,17 @@ function validateAnnotationAgainstSchema(args) {
         `Missing label for property "${propertyName}" at "${pointer}".`
       );
     }
+  }
+
+  if (
+    'custom' in annotation &&
+    annotation.custom !== undefined &&
+    (typeof annotation.custom !== 'string' ||
+      annotation.custom.trim().length === 0)
+  ) {
+    errors.push(
+      `Invalid custom renderer at "${pointer}". Expected non-empty string when provided.`
+    );
   }
 
   if (annotation.component === 'placeholder-to-be-annotated') {

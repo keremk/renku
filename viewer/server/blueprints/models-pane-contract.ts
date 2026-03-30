@@ -48,6 +48,7 @@ interface ViewerAnnotationNode {
   pointer: string;
   schemaPointer?: string;
   component: ViewerComponent;
+  custom?: string;
   label?: string;
   visibility?: 'visible' | 'hidden';
   order?: string[];
@@ -91,6 +92,7 @@ export type MappingSource = 'none' | 'input' | 'artifact' | 'mixed';
 export interface ConfigFieldDescriptor {
   keyPath: string;
   component: ViewerComponent;
+  custom?: string;
   label: string;
   required: boolean;
   description?: string;
@@ -307,6 +309,7 @@ function buildNodeDescriptor(args: {
   const base: ConfigFieldDescriptor = {
     keyPath: args.keyPath,
     component: args.node.component,
+    custom: args.node.custom,
     label: args.node.label ?? args.keyPath,
     required: args.required,
     description: schema.description,

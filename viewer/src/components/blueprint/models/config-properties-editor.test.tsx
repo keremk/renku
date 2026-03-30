@@ -207,6 +207,175 @@ describe('ConfigPropertiesEditor', () => {
       expect(screen.getByText('child')).toBeTruthy();
     });
 
+    it('renders a not-implemented notice for unknown custom renderers', () => {
+      const fields = [
+        createMockField('background_style', {
+          component: 'string',
+          custom: 'foo-component',
+          label: 'Background Style',
+        }),
+        createMockField('temperature'),
+      ];
+
+      render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{}}
+          isEditable={true}
+          onChange={() => {}}
+        />
+      );
+
+      expect(
+        screen.getByText('Custom renderer "foo-component" is not implemented.')
+      ).toBeTruthy();
+      expect(
+        screen.getByText('No renderer implementation is registered yet.')
+      ).toBeTruthy();
+      expect(screen.getByText('temperature')).toBeTruthy();
+    });
+
+    it('renders a not-implemented notice for incompatible custom renderer usage', () => {
+      const fields = [
+        createMockField('background_style', {
+          component: 'string',
+          custom: 'color-picker',
+          label: 'Background Style',
+        }),
+      ];
+
+      render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{}}
+          isEditable={true}
+          onChange={() => {}}
+        />
+      );
+
+      expect(
+        screen.getByText('Custom renderer "color-picker" is not implemented.')
+      ).toBeTruthy();
+      expect(
+        screen.getByText('Expected object component, received "string".')
+      ).toBeTruthy();
+    });
+
+    it('renders rgb object fields as a color picker control', () => {
+      const fields = [
+        createMockField('background_color', {
+          component: 'object',
+          custom: 'color-picker',
+          label: 'Background Color',
+          schema: { type: 'object' },
+          fields: [
+            createMockField('background_color.r', {
+              component: 'integer',
+              label: 'R',
+              schema: { type: 'integer', minimum: 0, maximum: 255 },
+            }),
+            createMockField('background_color.g', {
+              component: 'integer',
+              label: 'G',
+              schema: { type: 'integer', minimum: 0, maximum: 255 },
+            }),
+            createMockField('background_color.b', {
+              component: 'integer',
+              label: 'B',
+              schema: { type: 'integer', minimum: 0, maximum: 255 },
+            }),
+          ],
+        }),
+      ];
+
+      render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{ background_color: { r: 255, g: 0, b: 128 } }}
+          isEditable={true}
+          onChange={() => {}}
+        />
+      );
+
+      expect(
+        screen.getByRole('button', {
+          name: 'Pick color for Background Color',
+        })
+      ).toBeTruthy();
+      expect(screen.getByText('#FF0080')).toBeTruthy();
+
+      expect(screen.queryByText('R')).toBeNull();
+      expect(screen.queryByText('G')).toBeNull();
+      expect(screen.queryByText('B')).toBeNull();
+    });
+
+    it('renders array-object-table custom editor and adds rows', () => {
+      const onChange = vi.fn();
+      const fields = [
+        createMockField('colors', {
+          component: 'array-object-cards',
+          custom: 'array-object-table',
+          label: 'Colors',
+          schema: { type: 'array', items: { type: 'object' } },
+          item: createMockField('colors.item', {
+            component: 'object',
+            custom: 'color-picker',
+            label: 'Color',
+            schema: { type: 'object' },
+            fields: [
+              createMockField('colors.item.r', {
+                component: 'integer',
+                label: 'R',
+                schema: {
+                  type: 'integer',
+                  minimum: 0,
+                  maximum: 255,
+                  default: 0,
+                },
+              }),
+              createMockField('colors.item.g', {
+                component: 'integer',
+                label: 'G',
+                schema: {
+                  type: 'integer',
+                  minimum: 0,
+                  maximum: 255,
+                  default: 0,
+                },
+              }),
+              createMockField('colors.item.b', {
+                component: 'integer',
+                label: 'B',
+                schema: {
+                  type: 'integer',
+                  minimum: 0,
+                  maximum: 255,
+                  default: 0,
+                },
+              }),
+            ],
+          }),
+        }),
+      ];
+
+      render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{ colors: [{ r: 255, g: 0, b: 128 }] }}
+          isEditable={true}
+          onChange={onChange}
+        />
+      );
+
+      const addRowButton = screen.getByRole('button', { name: 'Add Row' });
+      fireEvent.click(addRowButton);
+
+      expect(onChange).toHaveBeenCalledWith('colors', [
+        { r: 255, g: 0, b: 128 },
+        { r: 0, g: 0, b: 0 },
+      ]);
+    });
+
     it('lays out registered card editors in a horizontal wrap grid', () => {
       const fields = [
         createMockField('timeline', {
@@ -714,7 +883,7 @@ describe('ConfigPropertiesEditor', () => {
         .getByText('Connected Inputs')
         .closest('section');
       expect(mappedSection?.textContent).toContain('aspect_ratio');
-      expect(mappedSection?.className).toContain('max-w-[56rem]');
+      expect(mappedSection?.className).toContain('max-w-2xl');
 
       const reset = screen.getByRole('button', { name: 'Reset' });
       fireEvent.click(reset);

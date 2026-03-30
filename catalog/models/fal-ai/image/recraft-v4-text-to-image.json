@@ -19,9 +19,7 @@
         "title": "Prompt"
       },
       "image_size": {
-        "examples": [
-          "landscape_16_9"
-        ],
+        "examples": ["landscape_16_9"],
         "title": "Image Size",
         "anyOf": [
           {
@@ -67,9 +65,7 @@
       }
     },
     "title": "RecraftV4TextToImageInput",
-    "required": [
-      "prompt"
-    ],
+    "required": ["prompt"],
     "x-renku-constraints": {
       "fields": {
         "image_size": {
@@ -90,9 +86,7 @@
     }
   },
   "output_schema": {
-    "x-fal-order-properties": [
-      "images"
-    ],
+    "x-fal-order-properties": ["images"],
     "type": "object",
     "properties": {
       "images": {
@@ -114,15 +108,10 @@
       }
     },
     "title": "RecraftV4TextToImageOutput",
-    "required": [
-      "images"
-    ]
+    "required": ["images"]
   },
   "ImageSize": {
-    "x-fal-order-properties": [
-      "width",
-      "height"
-    ],
+    "x-fal-order-properties": ["width", "height"],
     "type": "object",
     "properties": {
       "height": {
@@ -145,11 +134,7 @@
     "title": "ImageSize"
   },
   "RGBColor": {
-    "x-fal-order-properties": [
-      "r",
-      "g",
-      "b"
-    ],
+    "x-fal-order-properties": ["r", "g", "b"],
     "type": "object",
     "properties": {
       "r": {
@@ -190,25 +175,19 @@
     "type": "object",
     "properties": {
       "file_size": {
-        "examples": [
-          4404019
-        ],
+        "examples": [4404019],
         "description": "The size of the file in bytes.",
         "type": "integer",
         "title": "File Size"
       },
       "file_name": {
-        "examples": [
-          "z9RV14K95DvU.png"
-        ],
+        "examples": ["z9RV14K95DvU.png"],
         "description": "The name of the file. It will be auto-generated if not provided.",
         "type": "string",
         "title": "File Name"
       },
       "content_type": {
-        "examples": [
-          "image/png"
-        ],
+        "examples": ["image/png"],
         "description": "The mime type of the file.",
         "type": "string",
         "title": "Content Type"
@@ -227,9 +206,7 @@
       }
     },
     "title": "File",
-    "required": [
-      "url"
-    ]
+    "required": ["url"]
   },
   "x-renku-viewer": {
     "version": 1,
@@ -262,10 +239,7 @@
               "schemaPointer": "/ImageSize",
               "component": "object",
               "label": "Custom Size",
-              "order": [
-                "height",
-                "width"
-              ],
+              "order": ["height", "width"],
               "fields": {
                 "height": {
                   "pointer": "/ImageSize/properties/height",
@@ -304,16 +278,14 @@
         "colors": {
           "pointer": "/input_schema/properties/colors",
           "component": "array-object-cards",
+          "custom": "array-object-table",
           "label": "Colors",
           "item": {
             "pointer": "/input_schema/properties/colors/items",
             "component": "object",
+            "custom": "color-picker",
             "label": "Item",
-            "order": [
-              "r",
-              "b",
-              "g"
-            ],
+            "order": ["r", "b", "g"],
             "fields": {
               "r": {
                 "pointer": "/input_schema/properties/colors/items/properties/r",
@@ -337,12 +309,9 @@
           "pointer": "/input_schema/properties/background_color",
           "schemaPointer": "/RGBColor",
           "component": "object",
+          "custom": "color-picker",
           "label": "Background Color",
-          "order": [
-            "r",
-            "b",
-            "g"
-          ],
+          "order": ["r", "b", "g"],
           "fields": {
             "r": {
               "pointer": "/RGBColor/properties/r",

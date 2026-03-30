@@ -1,8 +1,11 @@
 #!/usr/bin/env node
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { applyViewerAnnotationsOrThrow } from './schema-viewer-annotations.mjs';
+import {
+  applyViewerAnnotationsOrThrow,
+  mergeExistingViewerAnnotations,
+} from './schema-viewer-annotations.mjs';
 
 /**
  * Fetch input schema from Replicate API for a single model.
@@ -89,7 +92,7 @@ function buildReplicateSchemaFile(componentsSchemas) {
  * Returns a full schema file:
  * { input_schema, output_schema?, ...definitions }
  */
-export async function fetchReplicateInputSchema(modelName) {
+export async function fetchReplicateInputSchema(modelName, existingSchema) {
   const token = process.env.REPLICATE_API_TOKEN;
   if (!token) {
     throw new Error(
@@ -141,8 +144,48 @@ export async function fetchReplicateInputSchema(modelName) {
     );
   }
 
+  if (existingSchema) {
+    mergeExistingViewerAnnotations(existingSchema, schemaFile);
+  }
+
   applyViewerAnnotationsOrThrow(schemaFile);
   return schemaFile;
+}
+
+async function readExistingSchemaIfAny(schemaPath) {
+  let content;
+  try {
+    content = await readFile(schemaPath, 'utf8');
+  } catch (error) {
+    if (error && typeof error === 'object' && error.code === 'ENOENT') {
+      return undefined;
+    }
+
+    throw new Error(
+      `[fetch-replicate] Failed to read existing schema at ${schemaPath}: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch (error) {
+    throw new Error(
+      `[fetch-replicate] Existing schema at ${schemaPath} is not valid JSON: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error(
+      `[fetch-replicate] Existing schema at ${schemaPath} must be a top-level JSON object.`
+    );
+  }
+
+  return parsed;
 }
 
 async function main() {
@@ -204,7 +247,8 @@ async function main() {
     process.exit(1);
   }
 
-  const schema = await fetchReplicateInputSchema(modelName);
+  const existingSchema = await readExistingSchemaIfAny(outputPath);
+  const schema = await fetchReplicateInputSchema(modelName, existingSchema);
 
   await writeFile(outputPath, JSON.stringify(schema, null, 2) + '\n');
   console.log(`[fetch-replicate] Wrote schema to ${outputPath}`);

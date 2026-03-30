@@ -40,10 +40,11 @@ export function PropertyRow({
   return (
     <div
       className={cn(
-        'grid grid-cols-2 gap-4 p-4 rounded-xl border max-w-2xl shadow-lg transition-all',
+        'grid grid-cols-1 gap-3 rounded-xl border p-4 shadow-lg transition-all md:grid-cols-[18.5rem_minmax(0,1fr)] md:gap-5',
         isSelected
           ? 'border-primary bg-primary/10 ring-2 ring-primary/40 shadow-xl -translate-y-0.5'
           : 'bg-card border-border hover:border-primary/70 hover:shadow-xl hover:-translate-y-0.5',
+        'max-w-2xl',
         className
       )}
     >

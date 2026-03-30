@@ -205,6 +205,7 @@ export interface EnumDimensionsUnionEditorConfig {
 export interface ConfigFieldDescriptor {
   keyPath: string;
   component: ViewerComponent;
+  custom?: string;
   label: string;
   required: boolean;
   description?: string;

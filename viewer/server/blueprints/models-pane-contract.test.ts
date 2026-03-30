@@ -217,6 +217,21 @@ describe('models-pane-contract', () => {
     expect(heightField?.component).toBe('integer');
   });
 
+  it('propagates custom renderer overrides from viewer annotations', () => {
+    const schemaFile = createSchemaFileWithResolutionUnion();
+    schemaFile.viewer.input.fields.image_size.custom = 'color-picker';
+
+    const fields = buildFieldDescriptors({
+      schemaFile,
+      fieldMapping: new Map(),
+      producerId: 'ImageProducer',
+      provider: 'fal-ai',
+      model: 'example/model',
+    });
+
+    expect(fields[0]?.custom).toBe('color-picker');
+  });
+
   it('fails fast when enum-object unions omit presentation metadata', () => {
     const schemaFile = createSchemaFileWithResolutionUnion();
     (

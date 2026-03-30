@@ -1,8 +1,11 @@
 #!/usr/bin/env node
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { applyViewerAnnotationsOrThrow } from './schema-viewer-annotations.mjs';
+import {
+  applyViewerAnnotationsOrThrow,
+  mergeExistingViewerAnnotations,
+} from './schema-viewer-annotations.mjs';
 
 /**
  * Fetch and transform OpenAPI schema from fal.ai for a single model.
@@ -238,6 +241,67 @@ export async function fetchAndTransformSchema(modelName, subProvider) {
   return withUriFormat;
 }
 
+async function readExistingSchemaIfAny(schemaPath) {
+  let content;
+  try {
+    content = await readFile(schemaPath, 'utf8');
+  } catch (error) {
+    if (error && typeof error === 'object' && error.code === 'ENOENT') {
+      return undefined;
+    }
+
+    throw new Error(
+      `[fetch-fal] Failed to read existing schema at ${schemaPath}: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch (error) {
+    throw new Error(
+      `[fetch-fal] Existing schema at ${schemaPath} is not valid JSON: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error(
+      `[fetch-fal] Existing schema at ${schemaPath} must be a top-level JSON object.`
+    );
+  }
+
+  return parsed;
+}
+
+export function annotateFetchedSchemaWithExistingViewer(args) {
+  const { fetchedSchema, existingSchema } = args;
+  if (existingSchema) {
+    mergeExistingViewerAnnotations(existingSchema, fetchedSchema);
+    applyViewerAnnotationsOrThrow(fetchedSchema);
+  }
+
+  return fetchedSchema;
+}
+
+export async function fetchTransformAndAnnotateSchema(args) {
+  const fetchedSchema = await fetchAndTransformSchema(
+    args.modelName,
+    args.subProvider
+  );
+  const existingSchema = args.outputPath
+    ? await readExistingSchemaIfAny(args.outputPath)
+    : undefined;
+
+  return annotateFetchedSchemaWithExistingViewer({
+    fetchedSchema,
+    existingSchema,
+  });
+}
+
 async function main() {
   const args = process.argv.slice(2);
 
@@ -302,7 +366,11 @@ async function main() {
     process.exit(1);
   }
 
-  const schema = await fetchAndTransformSchema(normalizedName, subProvider);
+  const schema = await fetchTransformAndAnnotateSchema({
+    modelName: normalizedName,
+    subProvider,
+    outputPath,
+  });
 
   await writeFile(outputPath, JSON.stringify(schema, null, 2) + '\n');
   console.log(`[fetch-fal] Wrote schema to ${outputPath}`);

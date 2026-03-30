@@ -50,6 +50,7 @@ export interface ViewerAnnotationNode {
   pointer: string;
   schemaPointer?: string;
   component: ViewerComponent;
+  custom?: string;
   label?: string;
   visibility?: 'visible' | 'hidden';
   order?: string[];
