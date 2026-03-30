@@ -192,6 +192,80 @@ describe('useModelSelectionEditor', () => {
       });
     });
 
+    it('does not mutate saved selections for nested array config updates', () => {
+      const saved = [
+        makeSelection('producer1', 'fal-ai', 'audio/minimax', {
+          pronunciation_dict: {
+            tone_list: ['old'],
+          },
+        }),
+      ];
+      const onSave = vi.fn();
+
+      const { result } = renderHook(() =>
+        useModelSelectionEditor({ savedSelections: saved, onSave })
+      );
+
+      act(() => {
+        result.current.updateConfig(
+          'producer1',
+          'pronunciation_dict.tone_list',
+          ['new-value']
+        );
+      });
+
+      expect(result.current.currentSelections[0].config).toEqual({
+        pronunciation_dict: {
+          tone_list: ['new-value'],
+        },
+      });
+
+      expect(saved[0]?.config).toEqual({
+        pronunciation_dict: {
+          tone_list: ['old'],
+        },
+      });
+      expect(result.current.isDirty).toBe(true);
+    });
+
+    it('saves nested array updates when parent object already exists', async () => {
+      const saved = [
+        makeSelection('producer1', 'fal-ai', 'audio/minimax', {
+          pronunciation_dict: {
+            tone_list: ['old'],
+          },
+        }),
+      ];
+      const onSave = vi.fn().mockResolvedValue(undefined);
+
+      const { result } = renderHook(() =>
+        useModelSelectionEditor({ savedSelections: saved, onSave })
+      );
+
+      act(() => {
+        result.current.updateConfig(
+          'producer1',
+          'pronunciation_dict.tone_list',
+          ['persisted']
+        );
+      });
+
+      await act(async () => {
+        await result.current.save();
+      });
+
+      expect(onSave).toHaveBeenCalledWith([
+        expect.objectContaining({
+          producerId: 'producer1',
+          config: {
+            pronunciation_dict: {
+              tone_list: ['persisted'],
+            },
+          },
+        }),
+      ]);
+    });
+
     it('clears nested overrides and prunes empty parent objects', () => {
       const saved = [
         makeSelection('producer1', 'renku', 'speech/transcription', {

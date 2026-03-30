@@ -1,6 +1,13 @@
 import type { ReactNode } from 'react';
+import { Trash2 } from 'lucide-react';
 import type { ConfigFieldDescriptor } from '@/types/blueprint-graph';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { PropertyRow } from '../../shared';
 import { ColorPickerControl } from './color-picker';
 import { resolveObjectInitialValue } from './field-value-utils';
@@ -64,52 +71,66 @@ export function ArrayObjectTableEditor({
       required={field.required}
     >
       <div className='space-y-2'>
-        <div className='overflow-x-auto rounded-md border border-border/60'>
-          <table className='w-full text-xs'>
-            <thead className='bg-muted/40 text-muted-foreground'>
-              <tr>
-                {renderHeaders(field.item)}
-                <th className='px-3 py-2 text-left font-medium'>Actions</th>
-              </tr>
-            </thead>
-            <tbody className='divide-y divide-border/60'>
-              {rows.length === 0 ? (
+        <TooltipProvider>
+          <div className='overflow-x-auto rounded-md border border-border/60'>
+            <table className='w-full text-xs'>
+              <thead className='bg-muted/40 text-muted-foreground'>
                 <tr>
-                  <td
-                    colSpan={getColumnCount(field.item) + 1}
-                    className='px-3 py-3 text-muted-foreground'
-                  >
-                    No rows yet.
-                  </td>
+                  {renderHeaders(field.item)}
+                  <th className='w-10 px-1 py-2 text-center font-medium'>
+                    <span className='sr-only'>Actions</span>
+                  </th>
                 </tr>
-              ) : (
-                rows.map((row, index) => (
-                  <tr key={`row-${index}`}>
-                    {renderRowCells({
-                      itemField: field.item as ConfigFieldDescriptor,
-                      row,
-                      rowIndex: index,
-                      isEditable,
-                      onChange: (nextRow) => updateRow(index, nextRow),
-                    })}
-                    <td className='px-3 py-2 align-top'>
-                      <Button
-                        type='button'
-                        variant='ghost'
-                        size='sm'
-                        className='h-7 px-2 text-xs'
-                        disabled={!isEditable}
-                        onClick={() => removeRow(index)}
-                      >
-                        Remove
-                      </Button>
+              </thead>
+              <tbody className='divide-y divide-border/60'>
+                {rows.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={getColumnCount(field.item) + 1}
+                      className='px-3 py-3 text-muted-foreground'
+                    >
+                      No rows yet.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  rows.map((row, index) => (
+                    <tr key={`row-${index}`}>
+                      {renderRowCells({
+                        itemField: field.item as ConfigFieldDescriptor,
+                        row,
+                        rowIndex: index,
+                        isEditable,
+                        onChange: (nextRow) => updateRow(index, nextRow),
+                      })}
+                      <td className='w-10 px-1 py-2 align-top'>
+                        <div className='flex justify-center'>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type='button'
+                                variant='ghost'
+                                size='icon'
+                                className='size-7 text-muted-foreground hover:text-destructive'
+                                disabled={!isEditable}
+                                onClick={() => removeRow(index)}
+                                aria-label={`Remove row ${index + 1}`}
+                              >
+                                <Trash2 className='size-3.5' />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side='top' sideOffset={6}>
+                              remove
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </TooltipProvider>
 
         <div className='flex flex-wrap items-center gap-2'>
           <Button

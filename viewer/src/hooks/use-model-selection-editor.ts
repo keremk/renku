@@ -136,7 +136,7 @@ export function useModelSelectionEditor({
 
         if (!existing) return prev;
 
-        const existingConfig = { ...(existing.config ?? {}) };
+        const existingConfig = structuredClone(existing.config ?? {});
 
         const rootKey = key.split('.')[0] ?? key;
         if (rootKey === 'timeline') {

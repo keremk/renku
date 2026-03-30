@@ -367,6 +367,8 @@ describe('ConfigPropertiesEditor', () => {
         />
       );
 
+      expect(screen.getByRole('button', { name: 'Remove row 1' })).toBeTruthy();
+
       const addRowButton = screen.getByRole('button', { name: 'Add Row' });
       fireEvent.click(addRowButton);
 
@@ -498,6 +500,68 @@ describe('ConfigPropertiesEditor', () => {
       // Simulate changing the value
       input.focus();
       // fireEvent.change would trigger the onChange
+    });
+
+    it('renders array-scalar fields as table rows and updates string items', () => {
+      const onChange = vi.fn();
+      const fields = [
+        createMockField('tone_list', {
+          component: 'array-scalar',
+          label: 'Tone List',
+          schema: { type: 'array', items: { type: 'string' } },
+          item: createMockField('tone_list.item', {
+            component: 'string',
+            label: 'Item',
+            schema: { type: 'string' },
+          }),
+        }),
+      ];
+
+      render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{ tone_list: ['hello'] }}
+          isEditable={true}
+          onChange={onChange}
+        />
+      );
+
+      const rowInput = screen.getByDisplayValue('hello');
+      fireEvent.change(rowInput, { target: { value: 'updated' } });
+
+      expect(onChange).toHaveBeenCalledWith('tone_list', ['updated']);
+      expect(screen.getByRole('button', { name: 'Add Row' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Remove row 1' })).toBeTruthy();
+    });
+
+    it('preserves numeric types for array-scalar number rows', () => {
+      const onChange = vi.fn();
+      const fields = [
+        createMockField('extra_lora_scale', {
+          component: 'array-scalar',
+          label: 'Extra Lora Scale',
+          schema: { type: 'array', items: { type: 'number' } },
+          item: createMockField('extra_lora_scale.item', {
+            component: 'number',
+            label: 'Item',
+            schema: { type: 'number' },
+          }),
+        }),
+      ];
+
+      render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{ extra_lora_scale: [0.5] }}
+          isEditable={true}
+          onChange={onChange}
+        />
+      );
+
+      const rowInput = screen.getByRole('spinbutton');
+      fireEvent.change(rowInput, { target: { value: '0.8' } });
+
+      expect(onChange).toHaveBeenCalledWith('extra_lora_scale', [0.8]);
     });
   });
 
