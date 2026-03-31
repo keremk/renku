@@ -111,3 +111,47 @@ If you modified `cost-functions.ts`, also run:
 ```bash
 pnpm --filter @gorenku/providers check:all
 ```
+
+## Step 9: Add to Producer Files
+
+Map each new model to the correct producer YAML under `catalog/producers/`.
+
+### 9a: Determine Producer Mapping
+
+Read the relevant producer files and the model schemas, then build a proposed mapping table. Present it to the user in this format before making any changes:
+
+```
+| Model | Producer file | Reasoning |
+|---|---|---|
+| `owner/model-name` | `category/producer.yaml` | why this producer fits |
+```
+
+Also show the proposed field-level mappings for each model:
+- Which producer inputs map to which API fields
+- Any transformations needed (intToString, resolution mode, expand, etc.)
+
+Ask the user:
+> "Does this mapping look correct? Let me know if anything needs adjusting before I add it."
+
+Wait for confirmation before proceeding to 9c.
+
+### 9b: Producer Selection Reference
+
+| Model type / schema inputs | Producer file |
+|---|---|
+| `text` (TTS) | `audio/text-to-speech.yaml` |
+| `lyrics` + `prompt` (music) | `audio/text-to-music.yaml` |
+| `reference_images` array + `prompt` + `duration` | `video/ref-image-to-video.yaml` |
+| `video` + `prompt` + `duration` (extend) | `video/extend-video.yaml` |
+| `image` + `prompt` + `duration` (single image) | `video/image-to-video.yaml` |
+| `prompt` + `duration` only (text-to-video) | `video/text-to-video.yaml` |
+
+### 9c: Insert Mappings
+
+For each model, add an entry under `mappings.replicate:` in the correct producer YAML, following existing patterns in that file. Use the Edit tool to insert after the last existing `replicate:` entry. If no `replicate:` section exists yet, add one at the end of the file.
+
+Common transformation patterns:
+- **Plain integer duration**: `Duration: duration`
+- **Duration as string**: `Duration: { field: duration, intToString: true }`
+- **Aspect ratio only**: `Resolution: { field: aspect_ratio, resolution: { mode: aspectRatio } }`
+- **Aspect ratio + preset (two fields)**: `Resolution: { expand: true, resolution: { mode: aspectRatioAndPresetObject, aspectRatioField: aspect_ratio, presetField: resolution } }`

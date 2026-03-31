@@ -170,3 +170,15 @@ mappings:
         field: aspect_ratio
         resolution:
           mode: aspectRatio
+
+    # xAI Grok Imagine R2V
+    xai/grok-imagine-r2v:
+      Prompt: prompt
+      ReferenceImages: reference_images
+      Duration: duration
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution

@@ -1,0 +1,354 @@
+{
+  "input_schema": {
+    "type": "object",
+    "title": "Input",
+    "required": [
+      "text"
+    ],
+    "properties": {
+      "text": {
+        "type": "string",
+        "title": "Text",
+        "x-order": 0,
+        "description": "The text to convert to speech. Maximum 2,000 characters. Supports SSML break tags for pauses (e.g. `<break time=\"1s\" />`), emotion markups (e.g. `[happy]`, `[sad]`), and non-verbal vocalizations (e.g. `[laugh]`, `[sigh]`)."
+      },
+      "voice_id": {
+        "type": "string",
+        "title": "Voice Id",
+        "default": "Ashley",
+        "x-order": 1,
+        "description": "The voice to use. Use a preset voice name (e.g. 'Ashley', 'Dennis', 'Alex') or a custom cloned voice ID."
+      },
+      "sample_rate": {
+        "allOf": [
+          {
+            "$ref": "#/sample_rate"
+          }
+        ],
+        "default": 48000,
+        "x-order": 4,
+        "description": "Audio sample rate in Hz."
+      },
+      "temperature": {
+        "type": "number",
+        "title": "Temperature",
+        "default": 1,
+        "maximum": 2,
+        "minimum": 0,
+        "x-order": 2,
+        "description": "Controls randomness when generating audio. Higher values produce more expressive results, lower values are more deterministic."
+      },
+      "audio_format": {
+        "allOf": [
+          {
+            "$ref": "#/audio_format"
+          }
+        ],
+        "default": "mp3",
+        "x-order": 3,
+        "description": "Output audio format."
+      },
+      "speaking_rate": {
+        "type": "number",
+        "title": "Speaking Rate",
+        "default": 0,
+        "maximum": 1.5,
+        "minimum": 0,
+        "x-order": 5,
+        "description": "Speaking speed multiplier. Set to 0 for normal speed (1.0)."
+      },
+      "text_normalization": {
+        "allOf": [
+          {
+            "$ref": "#/text_normalization"
+          }
+        ],
+        "default": "auto",
+        "x-order": 6,
+        "description": "Controls whether numbers, dates, and abbreviations are expanded before synthesis. 'auto' lets the model decide, 'on' always normalizes, 'off' reads text as-is."
+      }
+    }
+  },
+  "output_schema": {
+    "type": "string",
+    "title": "Output",
+    "format": "uri"
+  },
+  "Status": {
+    "enum": [
+      "starting",
+      "processing",
+      "succeeded",
+      "canceled",
+      "failed"
+    ],
+    "type": "string",
+    "title": "Status",
+    "description": "An enumeration."
+  },
+  "sample_rate": {
+    "enum": [
+      8000,
+      16000,
+      22050,
+      24000,
+      32000,
+      44100,
+      48000
+    ],
+    "type": "integer",
+    "title": "sample_rate",
+    "description": "An enumeration."
+  },
+  "WebhookEvent": {
+    "enum": [
+      "start",
+      "output",
+      "logs",
+      "completed"
+    ],
+    "type": "string",
+    "title": "WebhookEvent",
+    "description": "An enumeration."
+  },
+  "audio_format": {
+    "enum": [
+      "mp3",
+      "wav",
+      "ogg_opus",
+      "flac"
+    ],
+    "type": "string",
+    "title": "audio_format",
+    "description": "An enumeration."
+  },
+  "ValidationError": {
+    "type": "object",
+    "title": "ValidationError",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "properties": {
+      "loc": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      }
+    }
+  },
+  "PredictionRequest": {
+    "type": "object",
+    "title": "PredictionRequest",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "context": {
+        "type": "object",
+        "title": "Context",
+        "nullable": true,
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "webhook": {
+        "type": "string",
+        "title": "Webhook",
+        "format": "uri",
+        "nullable": true,
+        "maxLength": 65536,
+        "minLength": 1
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "output_file_prefix": {
+        "type": "string",
+        "title": "Output File Prefix",
+        "nullable": true
+      },
+      "webhook_events_filter": {
+        "type": "array",
+        "items": {
+          "$ref": "#/WebhookEvent"
+        },
+        "default": [
+          "start",
+          "output",
+          "logs",
+          "completed"
+        ],
+        "nullable": true
+      }
+    }
+  },
+  "PredictionResponse": {
+    "type": "object",
+    "title": "PredictionResponse",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "logs": {
+        "type": "string",
+        "title": "Logs",
+        "default": ""
+      },
+      "error": {
+        "type": "string",
+        "title": "Error",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "output": {
+        "$ref": "#/Output"
+      },
+      "status": {
+        "$ref": "#/Status",
+        "nullable": true
+      },
+      "metrics": {
+        "type": "object",
+        "title": "Metrics",
+        "nullable": true,
+        "additionalProperties": true
+      },
+      "version": {
+        "type": "string",
+        "title": "Version",
+        "nullable": true
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "started_at": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "completed_at": {
+        "type": "string",
+        "title": "Completed At",
+        "format": "date-time",
+        "nullable": true
+      }
+    }
+  },
+  "text_normalization": {
+    "enum": [
+      "auto",
+      "on",
+      "off"
+    ],
+    "type": "string",
+    "title": "text_normalization",
+    "description": "An enumeration."
+  },
+  "HTTPValidationError": {
+    "type": "object",
+    "title": "HTTPValidationError",
+    "properties": {
+      "detail": {
+        "type": "array",
+        "items": {
+          "$ref": "#/ValidationError"
+        },
+        "title": "Detail"
+      }
+    }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "text",
+        "voice_id",
+        "sample_rate",
+        "temperature",
+        "audio_format",
+        "speaking_rate",
+        "text_normalization"
+      ],
+      "fields": {
+        "text": {
+          "pointer": "/input_schema/properties/text",
+          "component": "string",
+          "label": "Text"
+        },
+        "voice_id": {
+          "pointer": "/input_schema/properties/voice_id",
+          "component": "string",
+          "label": "Voice Id"
+        },
+        "sample_rate": {
+          "pointer": "/input_schema/properties/sample_rate",
+          "schemaPointer": "/sample_rate",
+          "component": "integer",
+          "label": "Sample Rate"
+        },
+        "temperature": {
+          "pointer": "/input_schema/properties/temperature",
+          "component": "number",
+          "label": "Temperature"
+        },
+        "audio_format": {
+          "pointer": "/input_schema/properties/audio_format",
+          "schemaPointer": "/audio_format",
+          "component": "string-enum",
+          "label": "Audio Format"
+        },
+        "speaking_rate": {
+          "pointer": "/input_schema/properties/speaking_rate",
+          "component": "number",
+          "label": "Speaking Rate"
+        },
+        "text_normalization": {
+          "pointer": "/input_schema/properties/text_normalization",
+          "schemaPointer": "/text_normalization",
+          "component": "string-enum",
+          "label": "Text Normalization"
+        }
+      }
+    }
+  }
+}

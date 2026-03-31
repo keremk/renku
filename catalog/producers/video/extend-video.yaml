@@ -104,3 +104,10 @@ mappings:
         durationToFrames:
           fps: 25
       GenerateAudio: generate_audio
+
+  replicate:
+    # xAI Grok Imagine Video Extension
+    xai/grok-imagine-video-extension:
+      Prompt: prompt
+      SourceVideo: video
+      Duration: duration

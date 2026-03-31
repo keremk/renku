@@ -216,6 +216,17 @@ models:
       price: 0.02
 
 # Audio Models (Speech)
+  - name: inworld/tts-1.5-max
+    type: audio
+    mime:
+      - audio/mp3
+      - audio/wav
+      - audio/ogg
+      - audio/flac
+    price:
+      function: costByCharacters
+      inputs: [text]
+      pricePerCharacter: 0.00001
   - name: minimax/speech-2.6-hd
     type: audio
     mime:
@@ -260,6 +271,28 @@ models:
       function: costByCharacters
       inputs: [text]
       pricePerCharacter: 0.00006
+  - name: minimax/speech-2.8-hd
+    type: audio
+    mime:
+      - audio/mp3
+      - audio/wav
+      - audio/flac
+      - audio/pcm
+    price:
+      function: costByInputTokens
+      inputs: [text]
+      pricePerToken: 0.0001
+  - name: minimax/speech-2.8-turbo
+    type: audio
+    mime:
+      - audio/mp3
+      - audio/wav
+      - audio/flac
+      - audio/pcm
+    price:
+      function: costByInputTokens
+      inputs: [text]
+      pricePerToken: 0.00006
   - name: resemble-ai/chatterbox-turbo
     type: audio
     mime:
@@ -288,6 +321,15 @@ models:
     price:
       function: costByRun
       price: 0.03
+  - name: minimax/music-2.5
+    type: audio
+    mime:
+      - audio/mp3
+      - audio/wav
+      - audio/pcm
+    price:
+      function: costByRun
+      price: 0.15
 
 # Video Models
   - name: bytedance/seedance-1-lite
@@ -506,6 +548,22 @@ models:
         - resolution: 1080p
           pricePerSecond: 0.15
   - name: xai/grok-imagine-video
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.05
+  - name: xai/grok-imagine-r2v
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.05
+  - name: xai/grok-imagine-video-extension
     type: video
     mime:
       - video/mp4

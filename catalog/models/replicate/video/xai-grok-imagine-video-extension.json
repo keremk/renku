@@ -1,0 +1,254 @@
+{
+  "input_schema": {
+    "type": "object",
+    "title": "Input",
+    "required": [
+      "prompt",
+      "video"
+    ],
+    "properties": {
+      "video": {
+        "type": "string",
+        "title": "Video",
+        "format": "uri",
+        "x-order": 1,
+        "description": "Source video to extend. Must be MP4 format (H.264, H.265, or AV1 codec), 2-15 seconds long. The extension is generated from the last frame of the input video."
+      },
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "x-order": 0,
+        "description": "Text description of what should happen next in the video"
+      },
+      "duration": {
+        "type": "integer",
+        "title": "Duration",
+        "default": 6,
+        "maximum": 10,
+        "minimum": 2,
+        "x-order": 2,
+        "description": "Length of the extension in seconds"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "string",
+    "title": "Output",
+    "format": "uri"
+  },
+  "Status": {
+    "enum": [
+      "starting",
+      "processing",
+      "succeeded",
+      "canceled",
+      "failed"
+    ],
+    "type": "string",
+    "title": "Status",
+    "description": "An enumeration."
+  },
+  "WebhookEvent": {
+    "enum": [
+      "start",
+      "output",
+      "logs",
+      "completed"
+    ],
+    "type": "string",
+    "title": "WebhookEvent",
+    "description": "An enumeration."
+  },
+  "ValidationError": {
+    "type": "object",
+    "title": "ValidationError",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "properties": {
+      "loc": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      }
+    }
+  },
+  "PredictionRequest": {
+    "type": "object",
+    "title": "PredictionRequest",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "context": {
+        "type": "object",
+        "title": "Context",
+        "nullable": true,
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "webhook": {
+        "type": "string",
+        "title": "Webhook",
+        "format": "uri",
+        "nullable": true,
+        "maxLength": 65536,
+        "minLength": 1
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "output_file_prefix": {
+        "type": "string",
+        "title": "Output File Prefix",
+        "nullable": true
+      },
+      "webhook_events_filter": {
+        "type": "array",
+        "items": {
+          "$ref": "#/WebhookEvent"
+        },
+        "default": [
+          "start",
+          "output",
+          "logs",
+          "completed"
+        ],
+        "nullable": true
+      }
+    }
+  },
+  "PredictionResponse": {
+    "type": "object",
+    "title": "PredictionResponse",
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "nullable": true
+      },
+      "logs": {
+        "type": "string",
+        "title": "Logs",
+        "default": ""
+      },
+      "error": {
+        "type": "string",
+        "title": "Error",
+        "nullable": true
+      },
+      "input": {
+        "$ref": "#/Input",
+        "nullable": true
+      },
+      "output": {
+        "$ref": "#/Output"
+      },
+      "status": {
+        "$ref": "#/Status",
+        "nullable": true
+      },
+      "metrics": {
+        "type": "object",
+        "title": "Metrics",
+        "nullable": true,
+        "additionalProperties": true
+      },
+      "version": {
+        "type": "string",
+        "title": "Version",
+        "nullable": true
+      },
+      "created_at": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "started_at": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time",
+        "nullable": true
+      },
+      "completed_at": {
+        "type": "string",
+        "title": "Completed At",
+        "format": "date-time",
+        "nullable": true
+      }
+    }
+  },
+  "HTTPValidationError": {
+    "type": "object",
+    "title": "HTTPValidationError",
+    "properties": {
+      "detail": {
+        "type": "array",
+        "items": {
+          "$ref": "#/ValidationError"
+        },
+        "title": "Detail"
+      }
+    }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "video",
+        "prompt",
+        "duration"
+      ],
+      "fields": {
+        "video": {
+          "pointer": "/input_schema/properties/video",
+          "component": "file-uri",
+          "label": "Video"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "component": "integer",
+          "label": "Duration"
+        }
+      }
+    }
+  }
+}

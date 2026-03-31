@@ -118,6 +118,23 @@ mappings:
       VoiceId: voice_id
       Emotion: emotion
 
+    # MiniMax Speech 2.8 HD
+    minimax/speech-2.8-hd:
+      Text: text
+      VoiceId: voice_id
+      Emotion: emotion
+
+    # MiniMax Speech 2.8 Turbo
+    minimax/speech-2.8-turbo:
+      Text: text
+      VoiceId: voice_id
+      Emotion: emotion
+
+    # Inworld TTS 1.5 Max
+    inworld/tts-1.5-max:
+      Text: text
+      VoiceId: voice_id
+
     # Resemble AI Chatterbox Turbo
     resemble-ai/chatterbox-turbo:
       Text: text
