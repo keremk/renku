@@ -220,6 +220,15 @@ describe('models-pane-contract', () => {
   it('propagates custom renderer overrides from viewer annotations', () => {
     const schemaFile = createSchemaFileWithResolutionUnion();
     schemaFile.viewer.input.fields.image_size.custom = 'color-picker';
+    schemaFile.viewer.input.fields.image_size.custom_config = {
+      allow_custom: true,
+      options: [
+        {
+          value: 'foo',
+          label: 'Foo',
+        },
+      ],
+    };
 
     const fields = buildFieldDescriptors({
       schemaFile,
@@ -230,6 +239,15 @@ describe('models-pane-contract', () => {
     });
 
     expect(fields[0]?.custom).toBe('color-picker');
+    expect(fields[0]?.customConfig).toEqual({
+      allow_custom: true,
+      options: [
+        {
+          value: 'foo',
+          label: 'Foo',
+        },
+      ],
+    });
   });
 
   it('fails fast when enum-object unions omit presentation metadata', () => {

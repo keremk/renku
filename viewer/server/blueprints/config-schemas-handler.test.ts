@@ -185,6 +185,54 @@ describe('getProducerConfigSchemas', () => {
     expect(languageField?.mappingSource).toBe('none');
   });
 
+  it('hydrates voice options from options_file for voice-id selectors', async () => {
+    const blueprintPath = path.join(
+      CATALOG_ROOT,
+      'blueprints',
+      'animated-edu-characters',
+      'animated-edu-characters.yaml'
+    );
+
+    const response = await getProducerConfigSchemas(
+      blueprintPath,
+      CATALOG_ROOT
+    );
+
+    const narrationProducer = response.producers.NarrationAudioProducer;
+    const elevenV3Schema =
+      narrationProducer?.modelSchemas['fal-ai/elevenlabs/tts/eleven-v3'];
+    expect(elevenV3Schema).toBeDefined();
+
+    const voiceField = findFieldByPath(
+      elevenV3Schema?.fields as Array<{
+        keyPath: string;
+        component: string;
+        mappingSource: string;
+        schema?: { minimum?: number; maximum?: number; default?: unknown };
+        fields?: unknown[];
+        value?: unknown;
+        item?: unknown;
+        variants?: unknown[];
+      }>,
+      'voice'
+    ) as { custom?: string; customConfig?: Record<string, unknown> } | null;
+
+    expect(voiceField?.custom).toBe('voice-id-selector');
+    expect(voiceField?.customConfig?.options_file).toBe(
+      'voices/elevenlabs-default-voices.json'
+    );
+
+    const optionsRich = voiceField?.customConfig?.options_rich;
+    expect(Array.isArray(optionsRich)).toBe(true);
+    expect((optionsRich as unknown[]).length).toBeGreaterThan(0);
+    expect((optionsRich as Array<Record<string, unknown>>)[0]).toEqual(
+      expect.objectContaining({
+        value: expect.any(String),
+        label: expect.any(String),
+      })
+    );
+  });
+
   it('resolves anyOf schema pointers for ltx guidance scale descriptors', async () => {
     const blueprintPath = path.join(
       CATALOG_ROOT,

@@ -450,6 +450,278 @@ describe('ConfigPropertiesEditor', () => {
       expect(screen.queryByText('B')).toBeNull();
     });
 
+    it('renders voice-id-selector with rich picker dialog and selects a voice', () => {
+      const onChange = vi.fn();
+      const fields = [
+        createMockField('voice', {
+          component: 'string',
+          custom: 'voice-id-selector',
+          label: 'Voice',
+          customConfig: {
+            allow_custom: true,
+            options_file: 'voices/elevenlabs-default-voices.json',
+            options_rich: [
+              {
+                value: 'hpp4J3VqNfWAUOO0d1Us',
+                label: 'Bella',
+                tagline: 'Professional, Bright, Warm',
+                description:
+                  'Warm and professional with polished narrative quality.',
+                preview_url: 'https://example.com/bella.mp3',
+              },
+              {
+                value: 'CwhRBWXzGAHq8TQ4Fs17',
+                label: 'Roger',
+                tagline: 'Laid-Back, Casual, Resonant',
+                description: 'Easy going and perfect for casual conversations.',
+              },
+            ],
+          },
+        }),
+      ];
+
+      render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{}}
+          isEditable={true}
+          onChange={onChange}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Pick voice' }));
+      const searchInput = screen.getByRole('textbox', {
+        name: 'Search voices',
+      });
+      fireEvent.change(searchInput, { target: { value: 'casual' } });
+
+      fireEvent.click(
+        screen.getByRole('button', {
+          name: /Roger - Laid-Back, Casual, Resonant/i,
+        })
+      );
+
+      expect(onChange).toHaveBeenCalledWith('voice', 'CwhRBWXzGAHq8TQ4Fs17');
+    });
+
+    it('clears rich voice search when dialog closes without selection', () => {
+      const fields = [
+        createMockField('voice', {
+          component: 'string',
+          custom: 'voice-id-selector',
+          label: 'Voice',
+          customConfig: {
+            allow_custom: true,
+            options_file: 'voices/elevenlabs-default-voices.json',
+            options_rich: [
+              {
+                value: 'hpp4J3VqNfWAUOO0d1Us',
+                label: 'Bella',
+                tagline: 'Professional, Bright, Warm',
+                description:
+                  'Warm and professional with polished narrative quality.',
+              },
+              {
+                value: 'CwhRBWXzGAHq8TQ4Fs17',
+                label: 'Roger',
+                tagline: 'Laid-Back, Casual, Resonant',
+                description: 'Easy going and perfect for casual conversations.',
+              },
+            ],
+          },
+        }),
+      ];
+
+      render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{}}
+          isEditable={true}
+          onChange={() => {}}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Pick voice' }));
+      const searchInput = screen.getByRole('textbox', {
+        name: 'Search voices',
+      });
+      fireEvent.change(searchInput, { target: { value: 'casual' } });
+      expect((searchInput as HTMLInputElement).value).toBe('casual');
+
+      expect(
+        screen.getByRole('button', {
+          name: /Roger - Laid-Back, Casual, Resonant/i,
+        })
+      ).toBeTruthy();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Pick voice' }));
+
+      const reopenedSearchInput = screen.getByRole('textbox', {
+        name: 'Search voices',
+      });
+      expect((reopenedSearchInput as HTMLInputElement).value).toBe('');
+
+      expect(
+        screen.getByRole('button', {
+          name: /Bella - Professional, Bright, Warm/i,
+        })
+      ).toBeTruthy();
+      expect(
+        screen.getByRole('button', {
+          name: /Roger - Laid-Back, Casual, Resonant/i,
+        })
+      ).toBeTruthy();
+    });
+
+    it('narrows rich voice search by word prefixes and avoids mid-word matches', () => {
+      const fields = [
+        createMockField('voice', {
+          component: 'string',
+          custom: 'voice-id-selector',
+          label: 'Voice',
+          customConfig: {
+            allow_custom: true,
+            options_file: 'voices/elevenlabs-default-voices.json',
+            options_rich: [
+              {
+                value: 'voice_silk',
+                label: 'Silk',
+                tagline: 'Smooth, Calm, Warm',
+                description: 'A balanced smooth narrator for gentle reads.',
+              },
+              {
+                value: 'voice_atlas',
+                label: 'Atlas',
+                tagline: 'Deep, Man, Narrator',
+                description: 'Strong lower register with direct delivery.',
+              },
+              {
+                value: 'voice_willow',
+                label: 'Willow',
+                tagline: 'Warm, Woman, Storyteller',
+                description: 'Friendly and expressive for story narration.',
+              },
+            ],
+          },
+        }),
+      ];
+
+      render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{}}
+          isEditable={true}
+          onChange={() => {}}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Pick voice' }));
+      const searchInput = screen.getByRole('textbox', {
+        name: 'Search voices',
+      });
+
+      fireEvent.change(searchInput, { target: { value: 'Smooth' } });
+      expect(
+        screen.getByRole('button', { name: /Silk - Smooth, Calm, Warm/i })
+      ).toBeTruthy();
+      expect(
+        screen.queryByRole('button', { name: /Atlas - Deep, Man, Narrator/i })
+      ).toBeNull();
+      expect(
+        screen.queryByRole('button', {
+          name: /Willow - Warm, Woman, Storyteller/i,
+        })
+      ).toBeNull();
+
+      fireEvent.change(searchInput, { target: { value: 'man' } });
+      expect(
+        screen.getByRole('button', { name: /Atlas - Deep, Man, Narrator/i })
+      ).toBeTruthy();
+      expect(
+        screen.queryByRole('button', {
+          name: /Willow - Warm, Woman, Storyteller/i,
+        })
+      ).toBeNull();
+      expect(
+        screen.queryByRole('button', { name: /Silk - Smooth, Calm, Warm/i })
+      ).toBeNull();
+    });
+
+    it('renders voice-id-selector with inline options and allows custom text edits', () => {
+      const onChange = vi.fn();
+      if (!HTMLElement.prototype.scrollIntoView) {
+        Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+          value: vi.fn(),
+          writable: true,
+          configurable: true,
+        });
+      }
+
+      const fields = [
+        createMockField('voice_id', {
+          component: 'string',
+          custom: 'voice-id-selector',
+          label: 'Voice Id',
+          customConfig: {
+            allow_custom: true,
+            options: [
+              { value: 'Wise_Woman', label: 'Wise Woman' },
+              { value: 'Friendly_Person', label: 'Friendly Person' },
+            ],
+          },
+        }),
+      ];
+
+      render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{ voice_id: 'Wise_Woman' }}
+          isEditable={true}
+          onChange={onChange}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('combobox'));
+      fireEvent.click(screen.getByRole('option', { name: 'Friendly Person' }));
+      expect(onChange).toHaveBeenCalledWith('voice_id', 'Friendly_Person');
+
+      fireEvent.change(screen.getByLabelText('voice_id voice id'), {
+        target: { value: 'my_custom_voice_123' },
+      });
+      expect(onChange).toHaveBeenCalledWith('voice_id', 'my_custom_voice_123');
+    });
+
+    it('shows not-implemented notice when voice-id-selector is missing customConfig', () => {
+      const fields = [
+        createMockField('voice_id', {
+          component: 'string',
+          custom: 'voice-id-selector',
+          label: 'Voice Id',
+        }),
+      ];
+
+      render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{}}
+          isEditable={true}
+          onChange={() => {}}
+        />
+      );
+
+      expect(
+        screen.getByText(
+          'Custom renderer "voice-id-selector" is not implemented.'
+        )
+      ).toBeTruthy();
+      expect(
+        screen.getByText(
+          'Field "voice_id" requires object customConfig for voice-id-selector.'
+        )
+      ).toBeTruthy();
+    });
+
     it('renders array-object-table custom editor and adds rows', () => {
       const onChange = vi.fn();
       const fields = [

@@ -46,11 +46,28 @@ export type ViewerComponent =
   | 'array-object-cards'
   | 'placeholder-to-be-annotated';
 
+export interface ViewerVoiceOption {
+  value: string;
+  label: string;
+  tagline?: string;
+  description?: string;
+  preview_url?: string;
+}
+
+export interface ViewerCustomConfig {
+  allow_custom?: boolean;
+  options?: ViewerVoiceOption[];
+  options_file?: string;
+  options_rich?: ViewerVoiceOption[];
+  [key: string]: unknown;
+}
+
 export interface ViewerAnnotationNode {
   pointer: string;
   schemaPointer?: string;
   component: ViewerComponent;
   custom?: string;
+  custom_config?: ViewerCustomConfig;
   label?: string;
   visibility?: 'visible' | 'hidden';
   order?: string[];

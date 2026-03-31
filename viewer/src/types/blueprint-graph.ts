@@ -202,10 +202,27 @@ export interface EnumDimensionsUnionEditorConfig {
       };
 }
 
+export interface VoiceOption {
+  value: string;
+  label: string;
+  tagline?: string;
+  description?: string;
+  preview_url?: string;
+}
+
+export interface VoiceIdCustomConfig {
+  allow_custom?: boolean;
+  options?: VoiceOption[];
+  options_file?: string;
+  options_rich?: VoiceOption[];
+  [key: string]: unknown;
+}
+
 export interface ConfigFieldDescriptor {
   keyPath: string;
   component: ViewerComponent;
   custom?: string;
+  customConfig?: VoiceIdCustomConfig;
   label: string;
   required: boolean;
   description?: string;

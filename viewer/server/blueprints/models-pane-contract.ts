@@ -49,6 +49,7 @@ interface ViewerAnnotationNode {
   schemaPointer?: string;
   component: ViewerComponent;
   custom?: string;
+  custom_config?: Record<string, unknown>;
   label?: string;
   visibility?: 'visible' | 'hidden';
   order?: string[];
@@ -93,6 +94,7 @@ export interface ConfigFieldDescriptor {
   keyPath: string;
   component: ViewerComponent;
   custom?: string;
+  customConfig?: Record<string, unknown>;
   label: string;
   required: boolean;
   description?: string;
@@ -310,6 +312,7 @@ function buildNodeDescriptor(args: {
     keyPath: args.keyPath,
     component: args.node.component,
     custom: args.node.custom,
+    customConfig: args.node.custom_config,
     label: args.node.label ?? args.keyPath,
     required: args.required,
     description: schema.description,

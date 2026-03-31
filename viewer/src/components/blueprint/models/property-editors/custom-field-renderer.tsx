@@ -1,5 +1,6 @@
 import { ArrayObjectTableEditor } from './array-object-table';
 import { ColorPickerEditor } from './color-picker';
+import { parseVoiceIdCustomConfig, VoiceIdEditor } from './voice-id-editor';
 import { PropertyRow } from '../../shared';
 import { ResetOverrideButton } from './reset-override-button';
 import { getLeafKey } from './path-utils';
@@ -20,6 +21,10 @@ const CUSTOM_RENDERER_REGISTRY: Record<string, CustomRendererDefinition> = {
   'array-object-table': {
     render: (props) => <ArrayObjectTableEditor {...props} />,
     validate: validateArrayObjectTableField,
+  },
+  'voice-id-selector': {
+    render: (props) => <VoiceIdEditor {...props} />,
+    validate: validateVoiceIdField,
   },
 };
 
@@ -160,6 +165,22 @@ function validateArrayObjectTableField(
     if (issue) {
       return `Invalid nested color-picker at "${candidate.keyPath}": ${issue}`;
     }
+  }
+
+  return undefined;
+}
+
+function validateVoiceIdField(
+  field: ConfigFieldDescriptor
+): string | undefined {
+  if (field.component !== 'string' && field.component !== 'string-enum') {
+    return `Expected string component, received "${field.component}".`;
+  }
+
+  try {
+    parseVoiceIdCustomConfig(field);
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
   }
 
   return undefined;
