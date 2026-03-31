@@ -112,6 +112,18 @@ mappings:
           mode: aspectRatio
       GenerateAudio: generate_audio
 
+    # xAI Grok Imagine Reference-to-Video
+    xai/grok-imagine-video/reference-to-video:
+      Prompt: prompt
+      ReferenceImages: reference_image_urls
+      Duration: duration
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
+
     # Wan 2.6 Reference-to-Video Flash
     wan/v2.6/reference-to-video/flash:
       Prompt: prompt

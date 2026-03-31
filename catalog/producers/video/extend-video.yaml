@@ -88,6 +88,12 @@ mappings:
       Duration: duration
       Mode: mode
 
+    # xAI Grok Imagine Extend-Video
+    xai/grok-imagine-video/extend-video:
+      Prompt: prompt
+      SourceVideo: video_url
+      Duration: duration
+
     # LTX-2-19b Distilled Extend-Video
     ltx-2-19b/distilled/extend-video:
       Prompt: prompt

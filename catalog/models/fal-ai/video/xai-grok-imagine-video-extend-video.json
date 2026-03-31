@@ -1,0 +1,232 @@
+{
+  "input_schema": {
+    "x-fal-order-properties": [
+      "prompt",
+      "video_url",
+      "duration"
+    ],
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "examples": [
+          "The camera slowly zooms out to reveal the city skyline at sunset"
+        ],
+        "maxLength": 4096,
+        "type": "string",
+        "description": "Text description of what should happen next in the video.",
+        "title": "Prompt"
+      },
+      "video_url": {
+        "examples": [
+          "https://v3b.fal.media/files/b/0a8b9112/V5Z_NIPE3ppMDWivNo6_q_video_019.mp4"
+        ],
+        "description": "URL of the source video to extend. Must be MP4 format (H.264, H.265, or AV1 codec), 2-15 seconds long.",
+        "type": "string",
+        "title": "Video URL",
+        "format": "uri"
+      },
+      "duration": {
+        "description": "Length of the extension in seconds.",
+        "type": "integer",
+        "minimum": 2,
+        "maximum": 10,
+        "title": "Duration",
+        "default": 6
+      }
+    },
+    "title": "XAIVideoExtensionInput",
+    "required": [
+      "prompt",
+      "video_url"
+    ]
+  },
+  "output_schema": {
+    "x-fal-order-properties": [
+      "video"
+    ],
+    "type": "object",
+    "properties": {
+      "video": {
+        "examples": [
+          {
+            "height": 720,
+            "duration": 16,
+            "url": "https://v3b.fal.media/files/b/0a8b9113/extended_video.mp4",
+            "fps": 24,
+            "width": 1280,
+            "file_name": "extended_video.mp4",
+            "num_frames": 384,
+            "content_type": "video/mp4"
+          }
+        ],
+        "description": "The extended video (original + extension stitched together).",
+        "$ref": "#/VideoFile"
+      }
+    },
+    "title": "XAIVideoExtensionOutput",
+    "required": [
+      "video"
+    ]
+  },
+  "VideoFile": {
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size",
+      "width",
+      "height",
+      "fps",
+      "duration",
+      "num_frames"
+    ],
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The size of the file in bytes.",
+        "examples": [
+          4404019
+        ],
+        "title": "File Size"
+      },
+      "duration": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The duration of the video",
+        "title": "Duration"
+      },
+      "height": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The height of the video",
+        "title": "Height"
+      },
+      "url": {
+        "description": "The URL where the file can be downloaded from.",
+        "type": "string",
+        "title": "Url",
+        "format": "uri"
+      },
+      "width": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The width of the video",
+        "title": "Width"
+      },
+      "fps": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The FPS of the video",
+        "title": "Fps"
+      },
+      "file_name": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name"
+      },
+      "num_frames": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The number of frames in the video",
+        "title": "Num Frames"
+      },
+      "content_type": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The mime type of the file.",
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type"
+      }
+    },
+    "title": "VideoFile",
+    "required": [
+      "url"
+    ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "prompt",
+        "video_url",
+        "duration"
+      ],
+      "fields": {
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "video_url": {
+          "pointer": "/input_schema/properties/video_url",
+          "component": "file-uri",
+          "label": "Video Url"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "component": "integer",
+          "label": "Duration"
+        }
+      }
+    }
+  }
+}

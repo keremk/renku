@@ -6,3 +6,5 @@ packages:
   - 'viewer'
   - 'web'
   - 'desktop'
+
+minimumReleaseAge: 10080

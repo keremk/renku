@@ -480,6 +480,23 @@ models:
       function: costByCharacters
       inputs: [text]
       pricePerCharacter: 0.00009
+  - name: inworld-tts
+    type: audio
+    mime:
+      - audio/mp3
+    price:
+      function: costByCharacters
+      inputs: [text]
+      pricePerCharacter: 0.00001
+  - name: xai/tts/v1
+    subProvider: xai
+    type: audio
+    mime:
+      - audio/mp3
+    price:
+      function: costByCharacters
+      inputs: [text]
+      pricePerCharacter: 0.0000042
   - name: maya/batch
     type: audio
     mime:
@@ -1231,6 +1248,28 @@ models:
       inputs: [duration]
       pricePerSecond: 0.05
   - name: xai/grok-imagine-video/edit-video
+    subProvider: xai
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDuration
+      inputs: [duration]
+      pricePerSecond: 0.06
+  - name: xai/grok-imagine-video/reference-to-video
+    subProvider: xai
+    type: video
+    mime:
+      - video/mp4
+    price:
+      function: costByVideoDurationAndResolution
+      inputs: [duration, resolution]
+      prices:
+        - resolution: 480p
+          pricePerSecond: 0.05
+        - resolution: 720p
+          pricePerSecond: 0.07
+  - name: xai/grok-imagine-video/extend-video
     subProvider: xai
     type: video
     mime:

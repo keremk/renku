@@ -1,0 +1,276 @@
+{
+  "input_schema": {
+    "x-fal-order-properties": [
+      "text",
+      "voice",
+      "sample_rate_hertz"
+    ],
+    "type": "object",
+    "properties": {
+      "text": {
+        "examples": [
+          "Hello! This is a demo of Inworld's TTS."
+        ],
+        "description": "The text to synthesize into speech.",
+        "type": "string",
+        "title": "Text"
+      },
+      "voice": {
+        "enum": [
+          "Loretta (en)",
+          "Darlene (en)",
+          "Marlene (en)",
+          "Hank (en)",
+          "Evelyn (en)",
+          "Celeste (en)",
+          "Pippa (en)",
+          "Tessa (en)",
+          "Liam (en)",
+          "Callum (en)",
+          "Hamish (en)",
+          "Abby (en)",
+          "Graham (en)",
+          "Rupert (en)",
+          "Mortimer (en)",
+          "Snik (en)",
+          "Anjali (en)",
+          "Saanvi (en)",
+          "Arjun (en)",
+          "Claire (en)",
+          "Oliver (en)",
+          "Simon (en)",
+          "Elliot (en)",
+          "James (en)",
+          "Serena (en)",
+          "Gareth (en)",
+          "Vinny (en)",
+          "Lauren (en)",
+          "Jessica (en)",
+          "Ethan (en)",
+          "Tyler (en)",
+          "Jason (en)",
+          "Chloe (en)",
+          "Veronica (en)",
+          "Victoria (en)",
+          "Miranda (en)",
+          "Sebastian (en)",
+          "Victor (en)",
+          "Malcolm (en)",
+          "Kayla (en)",
+          "Nate (en)",
+          "Jake (en)",
+          "Brian (en)",
+          "Amina (en)",
+          "Kelsey (en)",
+          "Derek (en)",
+          "Grant (en)",
+          "Evan (en)",
+          "Alex (en)",
+          "Ashley (en)",
+          "Craig (en)",
+          "Deborah (en)",
+          "Dennis (en)",
+          "Edward (en)",
+          "Elizabeth (en)",
+          "Hades (en)",
+          "Julia (en)",
+          "Pixie (en)",
+          "Mark (en)",
+          "Olivia (en)",
+          "Priya (en)",
+          "Ronald (en)",
+          "Sarah (en)",
+          "Shaun (en)",
+          "Theodore (en)",
+          "Timothy (en)",
+          "Wendy (en)",
+          "Dominus (en)",
+          "Hana (en)",
+          "Clive (en)",
+          "Carter (en)",
+          "Blake (en)",
+          "Luna (en)",
+          "Yichen (zh)",
+          "Xiaoyin (zh)",
+          "Xinyi (zh)",
+          "Jing (zh)",
+          "Erik (nl)",
+          "Katrien (nl)",
+          "Lennart (nl)",
+          "Lore (nl)",
+          "Alain (fr)",
+          "Hélène (fr)",
+          "Mathieu (fr)",
+          "Étienne (fr)",
+          "Johanna (de)",
+          "Josef (de)",
+          "Gianni (it)",
+          "Orietta (it)",
+          "Asuka (ja)",
+          "Satoshi (ja)",
+          "Hyunwoo (ko)",
+          "Minji (ko)",
+          "Seojun (ko)",
+          "Yoona (ko)",
+          "Szymon (pl)",
+          "Wojciech (pl)",
+          "Heitor (pt)",
+          "Maitê (pt)",
+          "Diego (es)",
+          "Lupita (es)",
+          "Miguel (es)",
+          "Rafael (es)",
+          "Svetlana (ru)",
+          "Elena (ru)",
+          "Dmitry (ru)",
+          "Nikolai (ru)",
+          "Riya (hi)",
+          "Manoj (hi)",
+          "Yael (he)",
+          "Oren (he)",
+          "Nour (ar)",
+          "Omar (ar)"
+        ],
+        "description": "The voice to use for synthesis.",
+        "type": "string",
+        "title": "Voice",
+        "default": "Craig (en)"
+      },
+      "sample_rate_hertz": {
+        "enum": [
+          8000,
+          16000,
+          24000,
+          32000,
+          40000,
+          48000
+        ],
+        "description": "The sample rate in Hz for the output audio.",
+        "type": "integer",
+        "title": "Sample Rate Hertz",
+        "default": 48000
+      }
+    },
+    "title": "InworldTTSInput",
+    "required": [
+      "text"
+    ]
+  },
+  "output_schema": {
+    "x-fal-order-properties": [
+      "audio"
+    ],
+    "type": "object",
+    "properties": {
+      "audio": {
+        "examples": [
+          {
+            "url": "https://v3b.fal.media/files/b/0a920730/38aud4s6sF7bOWFoQHaJk_tmpvv2htrpc.wav"
+          }
+        ],
+        "description": "Generated audio file.",
+        "$ref": "#/File"
+      }
+    },
+    "title": "Output",
+    "required": [
+      "audio"
+    ]
+  },
+  "File": {
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size"
+    ],
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The size of the file in bytes.",
+        "examples": [
+          4404019
+        ],
+        "title": "File Size"
+      },
+      "file_name": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "title": "File Name"
+      },
+      "content_type": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The mime type of the file.",
+        "examples": [
+          "image/png"
+        ],
+        "title": "Content Type"
+      },
+      "url": {
+        "description": "The URL where the file can be downloaded from.",
+        "type": "string",
+        "title": "Url",
+        "format": "uri"
+      }
+    },
+    "title": "File",
+    "required": [
+      "url"
+    ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "text",
+        "voice",
+        "sample_rate_hertz"
+      ],
+      "fields": {
+        "text": {
+          "pointer": "/input_schema/properties/text",
+          "component": "string",
+          "label": "Text"
+        },
+        "voice": {
+          "pointer": "/input_schema/properties/voice",
+          "component": "string-enum",
+          "label": "Voice"
+        },
+        "sample_rate_hertz": {
+          "pointer": "/input_schema/properties/sample_rate_hertz",
+          "component": "integer",
+          "label": "Sample Rate Hertz"
+        }
+      }
+    }
+  }
+}

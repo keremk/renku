@@ -82,6 +82,17 @@ mappings:
       Text: text
       ReferenceAudioUrl: audio_url
 
+    # Inworld TTS
+    inworld-tts:
+      Text: text
+      VoiceId: voice
+
+    # xAI TTS v1
+    xai/tts/v1:
+      Text: text
+      VoiceId: voice
+      LanguageCode: language
+
   replicate:
     # MiniMax Speech 02 HD
     minimax/speech-02-hd:

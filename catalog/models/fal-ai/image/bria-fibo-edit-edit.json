@@ -22,7 +22,9 @@
         "default": 30
       },
       "instruction": {
-        "examples": ["change lighting to starlight nighttime"],
+        "examples": [
+          "change lighting to starlight nighttime"
+        ],
         "description": "Instruction for image editing.",
         "anyOf": [
           {
@@ -109,7 +111,11 @@
     "title": "FiboEditInputModel"
   },
   "output_schema": {
-    "x-fal-order-properties": ["image", "images", "structured_instruction"],
+    "x-fal-order-properties": [
+      "image",
+      "images",
+      "structured_instruction"
+    ],
     "type": "object",
     "properties": {
       "images": {
@@ -140,7 +146,10 @@
       }
     },
     "title": "FiboEditOutputModel",
-    "required": ["image", "structured_instruction"]
+    "required": [
+      "image",
+      "structured_instruction"
+    ]
   },
   "StructuredInstruction": {
     "x-fal-order-properties": [
@@ -310,7 +319,9 @@
     "title": "Image",
     "properties": {
       "file_size": {
-        "examples": [4404019],
+        "examples": [
+          4404019
+        ],
         "description": "The size of the file in bytes.",
         "anyOf": [
           {
@@ -323,7 +334,9 @@
         "title": "File Size"
       },
       "height": {
-        "examples": [1024],
+        "examples": [
+          1024
+        ],
         "description": "The height of the image in pixels.",
         "anyOf": [
           {
@@ -336,7 +349,9 @@
         "title": "Height"
       },
       "file_name": {
-        "examples": ["z9RV14K95DvU.png"],
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
         "description": "The name of the file. It will be auto-generated if not provided.",
         "anyOf": [
           {
@@ -349,7 +364,9 @@
         "title": "File Name"
       },
       "content_type": {
-        "examples": ["image/png"],
+        "examples": [
+          "image/png"
+        ],
         "description": "The mime type of the file.",
         "anyOf": [
           {
@@ -368,7 +385,9 @@
         "format": "uri"
       },
       "width": {
-        "examples": [1024],
+        "examples": [
+          1024
+        ],
         "description": "The width of the image in pixels.",
         "anyOf": [
           {
@@ -381,7 +400,9 @@
         "title": "Width"
       }
     },
-    "required": ["url"]
+    "required": [
+      "url"
+    ]
   },
   "Aesthetics": {
     "x-fal-order-properties": [
@@ -625,7 +646,9 @@
       }
     },
     "title": "PromptObject",
-    "required": ["relationship"]
+    "required": [
+      "relationship"
+    ]
   },
   "PhotographicCharacteristics": {
     "x-fal-order-properties": [
@@ -688,7 +711,11 @@
     "title": "PhotographicCharacteristics"
   },
   "Lighting": {
-    "x-fal-order-properties": ["conditions", "direction", "shadows"],
+    "x-fal-order-properties": [
+      "conditions",
+      "direction",
+      "shadows"
+    ],
     "type": "object",
     "properties": {
       "shadows": {
@@ -820,7 +847,6 @@
         "structured_instruction": {
           "pointer": "/input_schema/properties/structured_instruction",
           "component": "nullable",
-          "visibility": "hidden",
           "label": "Structured Instruction",
           "value": {
             "pointer": "/input_schema/properties/structured_instruction/anyOf/0",
@@ -870,7 +896,11 @@
                   "schemaPointer": "/Aesthetics",
                   "component": "object",
                   "label": "Aesthetics",
-                  "order": ["composition", "mood_atmosphere", "color_scheme"],
+                  "order": [
+                    "composition",
+                    "mood_atmosphere",
+                    "color_scheme"
+                  ],
                   "fields": {
                     "composition": {
                       "pointer": "/Aesthetics/properties/composition",
@@ -1187,7 +1217,11 @@
                   "schemaPointer": "/Lighting",
                   "component": "object",
                   "label": "Lighting",
-                  "order": ["shadows", "conditions", "direction"],
+                  "order": [
+                    "shadows",
+                    "conditions",
+                    "direction"
+                  ],
                   "fields": {
                     "shadows": {
                       "pointer": "/Lighting/properties/shadows",
@@ -1243,7 +1277,8 @@
                 }
               }
             }
-          }
+          },
+          "visibility": "hidden"
         }
       }
     }

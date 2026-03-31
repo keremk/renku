@@ -1,0 +1,284 @@
+{
+  "input_schema": {
+    "title": "XAITTSInput",
+    "type": "object",
+    "properties": {
+      "text": {
+        "examples": [
+          "Hello! This is xAI text to speech, brought to you by Fal AI."
+        ],
+        "maxLength": 15000,
+        "minLength": 1,
+        "title": "Text",
+        "description": "The text to convert to speech. Maximum 15,000 characters. Supports speech tags for expressive delivery: inline tags like [laugh], [pause], [sigh] and wrapping tags like <whisper>text</whisper>, <slow>text</slow>.",
+        "type": "string"
+      },
+      "voice": {
+        "enum": [
+          "eve",
+          "ara",
+          "rex",
+          "sal",
+          "leo"
+        ],
+        "description": "Voice to use for synthesis. eve: energetic, upbeat. ara: warm, friendly. rex: confident, clear. sal: smooth, balanced. leo: authoritative, strong.",
+        "type": "string",
+        "title": "Voice",
+        "default": "eve"
+      },
+      "language": {
+        "enum": [
+          "auto",
+          "en",
+          "ar-EG",
+          "ar-SA",
+          "ar-AE",
+          "bn",
+          "zh",
+          "fr",
+          "de",
+          "hi",
+          "id",
+          "it",
+          "ja",
+          "ko",
+          "pt-BR",
+          "pt-PT",
+          "ru",
+          "es-MX",
+          "es-ES",
+          "tr",
+          "vi"
+        ],
+        "description": "BCP-47 language code or 'auto' for automatic detection. Supported: en, zh, fr, de, hi, id, it, ja, ko, pt-BR, pt-PT, ru, es-MX, es-ES, tr, vi, bn, ar-EG, ar-SA, ar-AE.",
+        "type": "string",
+        "title": "Language",
+        "default": "auto"
+      },
+      "output_format": {
+        "description": "Output format configuration. Defaults to MP3 at 24 kHz / 128 kbps.",
+        "$ref": "#/OutputFormat"
+      }
+    },
+    "x-fal-order-properties": [
+      "text",
+      "voice",
+      "language",
+      "output_format"
+    ],
+    "description": "Input for xAI text-to-speech generation.",
+    "required": [
+      "text"
+    ]
+  },
+  "output_schema": {
+    "title": "XAITTSOutput",
+    "type": "object",
+    "properties": {
+      "audio": {
+        "examples": [
+          {
+            "url": "https://v3b.fal.media/files/b/0a92750b/exZJCm6TDejS5xIulJs2r_xai_tts_output.mp3"
+          }
+        ],
+        "description": "The generated audio file.",
+        "$ref": "#/File"
+      }
+    },
+    "x-fal-order-properties": [
+      "audio"
+    ],
+    "description": "Output for xAI text-to-speech generation.",
+    "required": [
+      "audio"
+    ]
+  },
+  "OutputFormat": {
+    "description": "Output format configuration for the TTS API.",
+    "type": "object",
+    "properties": {
+      "codec": {
+        "enum": [
+          "mp3",
+          "wav",
+          "pcm",
+          "mulaw",
+          "alaw"
+        ],
+        "description": "Audio codec. Supported: mp3, wav, pcm, mulaw, alaw.",
+        "type": "string",
+        "title": "Codec",
+        "default": "mp3"
+      },
+      "sample_rate": {
+        "enum": [
+          8000,
+          16000,
+          22050,
+          24000,
+          44100,
+          48000
+        ],
+        "description": "Sample rate in Hz.",
+        "type": "integer",
+        "title": "Sample Rate",
+        "default": 24000
+      },
+      "bit_rate": {
+        "anyOf": [
+          {
+            "enum": [
+              32000,
+              64000,
+              96000,
+              128000,
+              192000
+            ],
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Bit rate in bps. Only applicable for MP3 codec. Defaults to 128000 for MP3.",
+        "title": "Bit Rate"
+      }
+    },
+    "title": "OutputFormat",
+    "x-fal-order-properties": [
+      "codec",
+      "sample_rate",
+      "bit_rate"
+    ]
+  },
+  "File": {
+    "title": "File",
+    "type": "object",
+    "properties": {
+      "file_size": {
+        "examples": [
+          4404019
+        ],
+        "description": "The size of the file in bytes.",
+        "title": "File Size",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "file_name": {
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "title": "File Name",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "content_type": {
+        "examples": [
+          "image/png"
+        ],
+        "description": "The mime type of the file.",
+        "title": "Content Type",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "url": {
+        "description": "The URL where the file can be downloaded from.",
+        "type": "string",
+        "title": "Url",
+        "format": "uri"
+      }
+    },
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size"
+    ],
+    "required": [
+      "url"
+    ]
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "text",
+        "voice",
+        "language",
+        "output_format"
+      ],
+      "fields": {
+        "text": {
+          "pointer": "/input_schema/properties/text",
+          "component": "string",
+          "label": "Text"
+        },
+        "voice": {
+          "pointer": "/input_schema/properties/voice",
+          "component": "string-enum",
+          "label": "Voice"
+        },
+        "language": {
+          "pointer": "/input_schema/properties/language",
+          "component": "string-enum",
+          "label": "Language"
+        },
+        "output_format": {
+          "pointer": "/input_schema/properties/output_format",
+          "schemaPointer": "/OutputFormat",
+          "component": "object",
+          "label": "Output Format",
+          "order": [
+            "codec",
+            "sample_rate",
+            "bit_rate"
+          ],
+          "fields": {
+            "codec": {
+              "pointer": "/OutputFormat/properties/codec",
+              "component": "string-enum",
+              "label": "Codec"
+            },
+            "sample_rate": {
+              "pointer": "/OutputFormat/properties/sample_rate",
+              "component": "integer",
+              "label": "Sample Rate"
+            },
+            "bit_rate": {
+              "pointer": "/OutputFormat/properties/bit_rate",
+              "component": "nullable",
+              "label": "Bit Rate",
+              "value": {
+                "pointer": "/OutputFormat/properties/bit_rate/anyOf/0",
+                "component": "integer",
+                "label": "Bit Rate"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

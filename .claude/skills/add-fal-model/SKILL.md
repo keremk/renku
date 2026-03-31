@@ -57,7 +57,9 @@ Browse the model's fal.ai page to find pricing:
 
 1. Get Chrome tab context with `tabs_context_mcp`
 2. Create a new tab with `tabs_create_mcp`
-3. Navigate to `https://fal.ai/models/fal-ai/<model-name>`
+3. Navigate to the correct URL based on whether the model has a sub-provider:
+   - **Native fal.ai model** (no sub-provider): `https://fal.ai/models/fal-ai/<model-name>`
+   - **Sub-provider model** (e.g., `subProvider: xai`, `subProvider: wan`): `https://fal.ai/models/<model-name>` (no `fal-ai/` prefix)
 4. Use `find` to search for "cost per second", "price", or "charged"
 5. Extract the pricing data (per-second, per-megapixel, per-run, etc.)
 
@@ -108,3 +110,49 @@ If you modified `cost-functions.ts`, also run:
 ```bash
 pnpm --filter @gorenku/providers check:all
 ```
+
+## Step 9: Add to Producer Files
+
+Map each new model to the correct producer YAML under `catalog/producers/`.
+
+### 9a: Determine Producer Mapping
+
+Read the relevant producer files and the model schemas, then build a proposed mapping table. Present it to the user in this format before making any changes:
+
+```
+| Model | Producer file | Reasoning |
+|---|---|---|
+| `model-name` | `category/producer.yaml` | why this producer fits |
+```
+
+Also show the proposed field-level mappings for each model:
+- Which producer inputs map to which API fields
+- Any transformations needed (intToString, resolution mode, asArray, etc.)
+
+Use `AskUserQuestion` to present this table and ask:
+> "Does this mapping look correct? Let me know if anything needs adjusting before I add it."
+
+Wait for confirmation before proceeding to 9b.
+
+### 9b: Producer Selection Reference
+
+| Model type / schema inputs | Producer file |
+|---|---|
+| `text` (TTS) | `audio/text-to-speech.yaml` |
+| `reference_image_urls` array + `prompt` + `duration` | `video/ref-image-to-video.yaml` |
+| `video_url` + `prompt` + `duration` (extend) | `video/extend-video.yaml` |
+| `image_url` + `prompt` + `duration` (single image) | `video/image-to-video.yaml` |
+| `prompt` + `duration` only (text-to-video) | `video/text-to-video.yaml` |
+| `prompt` + `duration` + video editing | `video/video-edit.yaml` |
+
+### 9c: Insert Mappings
+
+For each model, add an entry under `mappings.fal-ai:` in the correct producer YAML, following existing patterns in that file. Use the Edit tool to insert after the last existing `fal-ai:` entry.
+
+Common transformation patterns:
+- **Plain integer duration**: `Duration: duration`
+- **Duration as string**: `Duration: { field: duration, intToString: true }`
+- **Duration as seconds string**: `Duration: { field: duration, intToSecondsString: true }`
+- **Aspect ratio only**: `Resolution: { field: aspect_ratio, resolution: { mode: aspectRatio } }`
+- **Aspect ratio + preset**: `Resolution: { expand: true, resolution: { mode: aspectRatioAndPresetObject, aspectRatioField: aspect_ratio, presetField: resolution } }`
+- **Sub-provider models**: use the model name as-is (e.g., `xai/grok-imagine-video/extend-video:`)
