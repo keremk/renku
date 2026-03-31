@@ -1,0 +1,275 @@
+{
+  "input_schema": {
+    "x-fal-order-properties": [
+      "prompt",
+      "aspect_ratio",
+      "duration",
+      "negative_prompt",
+      "resolution",
+      "seed",
+      "auto_fix",
+      "safety_tolerance",
+      "image_url"
+    ],
+    "properties": {
+      "image_url": {
+        "description": "URL of the input image to animate. Should be 720p or higher resolution in 16:9 or 9:16 aspect ratio.",
+        "type": "string",
+        "title": "Image URL",
+        "examples": [
+          "https://storage.googleapis.com/falserverless/example_inputs/veo3-i2v-input.png"
+        ],
+        "format": "uri"
+      },
+      "seed": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Seed",
+        "description": "The seed for the random number generator."
+      },
+      "safety_tolerance": {
+        "enum": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6"
+        ],
+        "type": "string",
+        "default": "4",
+        "title": "Safety Tolerance",
+        "description": "The safety tolerance level for content moderation. 1 is the most strict (blocks most content), 6 is the least strict."
+      },
+      "resolution": {
+        "enum": [
+          "720p",
+          "1080p"
+        ],
+        "type": "string",
+        "default": "720p",
+        "title": "Resolution",
+        "description": "The resolution of the generated video."
+      },
+      "duration": {
+        "enum": [
+          "4s",
+          "6s",
+          "8s"
+        ],
+        "type": "string",
+        "default": "8s",
+        "title": "Duration",
+        "description": "The duration of the generated video."
+      },
+      "negative_prompt": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Negative Prompt",
+        "description": "A negative prompt to guide the video generation."
+      },
+      "aspect_ratio": {
+        "enum": [
+          "auto",
+          "16:9",
+          "9:16"
+        ],
+        "type": "string",
+        "default": "auto",
+        "title": "Aspect Ratio",
+        "description": "The aspect ratio of the generated video."
+      },
+      "auto_fix": {
+        "type": "boolean",
+        "default": false,
+        "title": "Auto Fix",
+        "description": "Whether to automatically attempt to fix prompts that fail content policy or other validation checks by rewriting them."
+      },
+      "prompt": {
+        "description": "The text prompt describing how the image should be animated",
+        "maxLength": 20000,
+        "type": "string",
+        "title": "Prompt",
+        "examples": [
+          "The subject turns to face the camera and smiles warmly."
+        ]
+      }
+    },
+    "required": [
+      "prompt",
+      "image_url"
+    ],
+    "type": "object",
+    "title": "Veo31LiteImageToVideoInput"
+  },
+  "output_schema": {
+    "x-fal-order-properties": [
+      "video"
+    ],
+    "properties": {
+      "video": {
+        "$ref": "#/File",
+        "description": "The generated video."
+      }
+    },
+    "required": [
+      "video"
+    ],
+    "type": "object",
+    "title": "Veo31LiteImageToVideoOutput"
+  },
+  "File": {
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size"
+    ],
+    "properties": {
+      "content_type": {
+        "description": "The mime type of the file.",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Content Type",
+        "examples": [
+          "image/png"
+        ]
+      },
+      "url": {
+        "type": "string",
+        "title": "Url",
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
+      },
+      "file_size": {
+        "description": "The size of the file in bytes.",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "File Size",
+        "examples": [
+          4404019
+        ]
+      },
+      "file_name": {
+        "description": "The name of the file. It will be auto-generated if not provided.",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "File Name",
+        "examples": [
+          "z9RV14K95DvU.png"
+        ]
+      }
+    },
+    "required": [
+      "url"
+    ],
+    "type": "object",
+    "title": "File"
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "image_url",
+        "seed",
+        "safety_tolerance",
+        "resolution",
+        "duration",
+        "negative_prompt",
+        "aspect_ratio",
+        "auto_fix",
+        "prompt"
+      ],
+      "fields": {
+        "image_url": {
+          "pointer": "/input_schema/properties/image_url",
+          "component": "file-uri",
+          "label": "Image Url"
+        },
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "nullable",
+          "label": "Seed",
+          "value": {
+            "pointer": "/input_schema/properties/seed/anyOf/0",
+            "component": "integer",
+            "label": "Seed"
+          }
+        },
+        "safety_tolerance": {
+          "pointer": "/input_schema/properties/safety_tolerance",
+          "component": "string-enum",
+          "label": "Safety Tolerance"
+        },
+        "resolution": {
+          "pointer": "/input_schema/properties/resolution",
+          "component": "string-enum",
+          "label": "Resolution"
+        },
+        "duration": {
+          "pointer": "/input_schema/properties/duration",
+          "component": "string-enum",
+          "label": "Duration"
+        },
+        "negative_prompt": {
+          "pointer": "/input_schema/properties/negative_prompt",
+          "component": "nullable",
+          "label": "Negative Prompt",
+          "value": {
+            "pointer": "/input_schema/properties/negative_prompt/anyOf/0",
+            "component": "string",
+            "label": "Negative Prompt"
+          }
+        },
+        "aspect_ratio": {
+          "pointer": "/input_schema/properties/aspect_ratio",
+          "component": "string-enum",
+          "label": "Aspect Ratio"
+        },
+        "auto_fix": {
+          "pointer": "/input_schema/properties/auto_fix",
+          "component": "boolean",
+          "label": "Auto Fix"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        }
+      }
+    }
+  }
+}

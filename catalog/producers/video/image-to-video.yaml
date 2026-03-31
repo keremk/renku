@@ -84,6 +84,20 @@ mappings:
           presetField: resolution
       GenerateAudio: generate_audio
 
+    # Veo 3.1 Lite Image-to-Video
+    veo3.1/lite/image-to-video:
+      Prompt: prompt
+      StartImage: image_url
+      Duration:
+        field: duration
+        intToSecondsString: true
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
+
     # Sora 2 Image-to-Video
     sora-2/image-to-video:
       Prompt: prompt

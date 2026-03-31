@@ -179,3 +179,13 @@ Common transformation patterns:
 - **Duration as string**: `Duration: { field: duration, intToString: true }`
 - **Aspect ratio only**: `Resolution: { field: aspect_ratio, resolution: { mode: aspectRatio } }`
 - **Aspect ratio + preset (two fields)**: `Resolution: { expand: true, resolution: { mode: aspectRatioAndPresetObject, aspectRatioField: aspect_ratio, presetField: resolution } }`
+
+### 9d: Validate Producer Mapping Contracts (Required)
+
+After adding or updating producer mappings, run the producer mapping contract suite from the repo root:
+
+```bash
+pnpm validate:producers
+```
+
+Do not finish until this command passes. If it fails, fix the producer mappings and re-run.

@@ -91,6 +91,19 @@ mappings:
           presetField: resolution
       GenerateAudio: generate_audio
 
+    # Veo 3.1 Lite
+    veo3.1/lite:
+      Prompt: prompt
+      Duration:
+        field: duration
+        intToSecondsString: true
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
+
     # Sora 2 Text-to-Video
     sora-2/text-to-video:
       Prompt: prompt

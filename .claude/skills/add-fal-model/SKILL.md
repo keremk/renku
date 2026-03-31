@@ -180,3 +180,13 @@ Common transformation patterns:
 - **Aspect ratio only**: `Resolution: { field: aspect_ratio, resolution: { mode: aspectRatio } }`
 - **Aspect ratio + preset**: `Resolution: { expand: true, resolution: { mode: aspectRatioAndPresetObject, aspectRatioField: aspect_ratio, presetField: resolution } }`
 - **Sub-provider models**: use the model name as-is (e.g., `xai/grok-imagine-video/extend-video:`)
+
+### 9d: Validate Producer Mapping Contracts (Required)
+
+After adding or updating producer mappings, run the producer mapping contract suite from the repo root:
+
+```bash
+pnpm validate:producers
+```
+
+Do not finish until this command passes. If it fails, fix the producer mappings and re-run.

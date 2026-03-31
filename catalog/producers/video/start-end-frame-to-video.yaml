@@ -83,6 +83,21 @@ mappings:
           presetField: resolution
       GenerateAudio: generate_audio
 
+    # Veo 3.1 Lite First-Last-Frame-to-Video
+    veo3.1/lite/first-last-frame-to-video:
+      Prompt: prompt
+      StartImage: first_frame_url
+      EndImage: last_frame_url
+      Duration:
+        field: duration
+        intToSecondsString: true
+      Resolution:
+        expand: true
+        resolution:
+          mode: aspectRatioAndPresetObject
+          aspectRatioField: aspect_ratio
+          presetField: resolution
+
     # ByteDance Seedance v1.5 Pro Image-to-Video (supports end_image_url)
     bytedance/seedance/v1.5/pro/image-to-video:
       Prompt: prompt
