@@ -56,6 +56,7 @@
         ],
         "title": "Voice",
         "type": "string",
+        "x-voice-id": true,
         "description": "The voice to be used for speech synthesis, will be ignored if a speaker embedding is provided. Check out the **[documentation](https://github.com/QwenLM/Qwen3-TTS/tree/main?tab=readme-ov-file#custom-voice-generate)** for each voice's details and which language they primarily support.",
         "enum": [
           "Vivian",
@@ -337,7 +338,49 @@
         "voice": {
           "pointer": "/input_schema/properties/voice",
           "component": "string-enum",
-          "label": "Voice"
+          "label": "Voice",
+          "custom": "voice-id-selector",
+          "custom_config": {
+            "allow_custom": true,
+            "options": [
+              {
+                "value": "Vivian",
+                "label": "Vivian"
+              },
+              {
+                "value": "Serena",
+                "label": "Serena"
+              },
+              {
+                "value": "Uncle_Fu",
+                "label": "Uncle Fu"
+              },
+              {
+                "value": "Dylan",
+                "label": "Dylan"
+              },
+              {
+                "value": "Eric",
+                "label": "Eric"
+              },
+              {
+                "value": "Ryan",
+                "label": "Ryan"
+              },
+              {
+                "value": "Aiden",
+                "label": "Aiden"
+              },
+              {
+                "value": "Ono_Anna",
+                "label": "Ono Anna"
+              },
+              {
+                "value": "Sohee",
+                "label": "Sohee"
+              }
+            ]
+          }
         },
         "reference_text": {
           "pointer": "/input_schema/properties/reference_text",

@@ -16,6 +16,8 @@
         "type": "string",
         "title": "Voice",
         "description": "Voice ID or preset name (e.g., 'Rachel', 'Aria', or a voice ID)",
+        "x-voice-id": true,
+        "x-voices-file": "voices/elevenlabs-default-voices.json",
         "default": "Rachel",
         "examples": [
           "Rachel",
@@ -129,7 +131,12 @@
         "voice": {
           "pointer": "/input_schema/properties/voice",
           "component": "string",
-          "label": "Voice"
+          "label": "Voice",
+          "custom": "voice-id-selector",
+          "custom_config": {
+            "allow_custom": true,
+            "options_file": "voices/elevenlabs-default-voices.json"
+          }
         },
         "voice_settings": {
           "pointer": "/input_schema/properties/voice_settings",

@@ -1,0 +1,688 @@
+[
+  {
+    "name": "Deep Storyteller",
+    "tagline": "Magnetic,Smooth,Sophisticated",
+    "voice_id": "English_Resonant_Man",
+    "description": "A rich, resonant male voice with a steady and grounded pacing. It carries a natural warmth and authority, making it highly engaging for long-form listening and immersive storytelling.",
+    "preview_url": "https://cdn.hailuoai.video/open-hailuo-video-web/public_assets/29748991-1b83-428a-9062-b9a967e9b68a.mp3"
+  },
+  {
+    "name": "Expressive Narrator",
+    "tagline": "Crisp,Resonant,Modulated",
+    "voice_id": "English_expressive_narrator",
+    "description": "Husky, gritty, and rough-edged with energetic, irregular articulation that sounds unruly and fearless. Great for RPG-style storytelling, adventure animation, and audio drama when you want bold confidence, mischief, and rebellious swagger.",
+    "preview_url": "https://filecdn.minimax.chat/public/cff00b95-e45b-42b7-9ee2-50bbb0532bcd.mp3"
+  },
+  {
+    "name": "Radiant Girl",
+    "tagline": "Bright,Energetic,Polished",
+    "voice_id": "English_radiant_girl",
+    "description": "Bright, energetic, and polished with an upbeat, naturally flowing tone that feels optimistic and sincere. Ideal for social vlogs, educational narration, and teen audiobooks when you want friendly spark and positive momentum.",
+    "preview_url": "https://filecdn.minimax.chat/public/43c3cda5-e0db-4796-bb70-ab72c58ac4e6.mp3"
+  },
+  {
+    "name": "Compelling Lady",
+    "tagline": "Bright,Crisp,Articulate",
+    "voice_id": "English_compelling_lady1",
+    "description": "Bright and clear with expressive, rhythmic intonation that feels like a natural storyteller. Great for fiction audiobooks, character narration, and kids' stories when you want curiosity, focus, and finely detailed delivery that keeps listeners hooked.",
+    "preview_url": "https://filecdn.minimax.chat/public/13f50227-ab44-4587-8ddc-32e79b048e03.mp3"
+  },
+  {
+    "name": "Aussie Bloke",
+    "tagline": "Raspy,Textured,Natural",
+    "voice_id": "English_Aussie_Bloke",
+    "description": "Husky, textured, and natural with an easy, flowing conversational feel. Perfect for podcast openings, beverage ads, and lifestyle vlogs when you want relaxed humor, friendliness, and everyday authenticity.",
+    "preview_url": "https://filecdn.minimax.chat/public/44263515-d3e7-4f4c-a135-69203566b8a7.mp3"
+  },
+  {
+    "name": "Captivating Female",
+    "tagline": "Bright,Crisp,Clear",
+    "voice_id": "English_captivating_female1",
+    "description": "Deep, husky, and resonant with deliberate, emphatic articulation that carries command and urgency. Great for high-stakes tactical storytelling, villain monologues, and history docs when you need authority with a cinematic edge.",
+    "preview_url": "https://filecdn.minimax.chat/public/079722fd-7937-4c4e-991b-c4c2241ca3fc.mp3"
+  },
+  {
+    "name": "Upbeat Woman",
+    "tagline": "Bright,Crisp,Polished",
+    "voice_id": "English_Upbeat_Woman",
+    "description": "Deep, warm, and slightly grainy with slow, deliberate pacing that feels intimate and heartfelt. Perfect for romance audiobooks, poetry readings, and emotional narration when you want longing, sincerity, and close-mic tenderness.",
+    "preview_url": "https://filecdn.minimax.chat/public/276e324d-da2e-47b3-a950-fba2419ca702.mp3"
+  },
+  {
+    "name": "Trustworthy Man",
+    "tagline": "Warm,Resonant,Earthy",
+    "voice_id": "English_Trustworth_Man",
+    "description": "Warm, resonant, and down-to-earth with an unhurried, natural pace that feels grounding. Great for financial services ads, brand manifestos, and wellness storytelling when you want thoughtful comfort, sincerity, and mentor-like steadiness.",
+    "preview_url": "https://filecdn.minimax.chat/public/ad0c2c4f-080b-42ab-bbe8-f1f205199c5d.mp3"
+  },
+  {
+    "name": "Calm Woman",
+    "tagline": "Smooth,Warm,Polished",
+    "voice_id": "English_CalmWoman",
+    "description": "Smooth, warm, and refined with clear delivery at a moderate pace, carrying calm confidence and reflective depth. Ideal for audiobooks, educational videos, and philosophical essays when you want an intelligent, literary narration style.",
+    "preview_url": "https://filecdn.minimax.chat/public/93077f50-4a6c-4195-8831-8d609affe7e2.mp3"
+  },
+  {
+    "name": "Upset Girl",
+    "tagline": "Soft,Breathy,Shaky",
+    "voice_id": "English_UpsetGirl",
+    "description": "Rounded, clear, and steady with a moderate, well-paced delivery—classic anchor-style presence. Ideal for news clips, documentary narration, and corporate briefings when you need objective authority and a trustworthy broadcast tone.",
+    "preview_url": "https://filecdn.minimax.chat/public/1977feae-c15d-4d21-8192-922b3a22c0d5.mp3"
+  },
+  {
+    "name": "Gentle-voiced Man",
+    "tagline": "Warm,Breathy,Soothing",
+    "voice_id": "English_Gentle-voiced_man",
+    "description": "Warm, gentle, and soothing with a slow, unhurried pace that feels reflective and comforting. Great for literary fiction audiobooks, relaxation apps, and emotional brand films when you want nostalgia, calm, and a cozy listening experience.",
+    "preview_url": "https://filecdn.minimax.chat/public/773715bc-fb9a-4032-94d4-2d58d7cce152.mp3"
+  },
+  {
+    "name": "Diligent Man",
+    "tagline": "Crisp,Balanced,Approachable",
+    "voice_id": "English_Diligent_Man",
+    "description": "Clear, balanced, and approachable with fluent, rhythmic pacing that sounds energetic and sincere. Great for market updates, explainer videos, and business presentations where you want a trustworthy, hardworking host tone.",
+    "preview_url": "https://filecdn.minimax.chat/public/138731f9-b186-44f0-be5b-31efad0a7c74.mp3"
+  },
+  {
+    "name": "Graceful Lady",
+    "tagline": "Velvety,Warm,Melodious",
+    "voice_id": "English_Graceful_Lady",
+    "description": "Velvety-warm and pleasant with smooth, composed delivery that feels serene and timeless. Ideal for luxury brand ads, classic literature audiobooks, and wellness apps when you want quiet wisdom and elegant guidance.",
+    "preview_url": "https://filecdn.minimax.chat/public/f7cef5ed-0783-40df-82b6-1b467cbd51ae.mp3"
+  },
+  {
+    "name": "Husky MetalHead",
+    "tagline": "Guttural,Rhythmic,Aggressive",
+    "voice_id": "English_Husky_MetalHead",
+    "description": "Throaty, rough, and booming with forceful, rhythmic articulation that carries threat and pain. Best for heavy metal vocals, horror voice work, and creature sound design when you need intense aggression and nightmare-level impact.",
+    "preview_url": "https://filecdn.minimax.chat/public/8528e25d-a0a8-4923-9797-2707168b6303.mp3"
+  },
+  {
+    "name": "Reserved Young Man",
+    "tagline": "Soft,Breathy,Youthful",
+    "voice_id": "English_ReservedYoungMan",
+    "description": "Soft, airy, and youthful with a thoughtful, friendly flow that feels polite, sincere, and a bit vulnerable. Great for anime dubbing, visual novels, and audio drama when you want shy warmth and romantic lead sensitivity.",
+    "preview_url": "https://filecdn.minimax.chat/public/9aede1a4-71b8-4e4f-b15e-3e714dfbb0bc.mp3"
+  },
+  {
+    "name": "Playful Girl",
+    "tagline": "High-Pitched,Bright,Airy",
+    "voice_id": "English_PlayfulGirl",
+    "description": "High, bright, and bouncy with fast, playful pacing and a lively animated feel. Great for visual novels, animation dubbing, and mobile interactive stories when you want energetic innocence and a spirited companion tone.",
+    "preview_url": "https://filecdn.minimax.chat/public/36d8f4d3-7db3-463c-89b9-302659059523.mp3"
+  },
+  {
+    "name": "Gentle Teacher",
+    "tagline": "Warm,Airy,Velvety",
+    "voice_id": "English_GentleTeacher",
+    "description": "Warm, airy, and velvety with precise, expressive articulation that feels patient and wise. Ideal for history docs, language-learning apps, and museum-style guides when you want a refined mentor tone that reassures while it teaches.",
+    "preview_url": "https://filecdn.minimax.chat/public/a395ff82-f811-4404-bc91-aaba9850f9f3.mp3"
+  },
+  {
+    "name": "Mature Partner",
+    "tagline": "Gravelly,Warm,Textured",
+    "voice_id": "English_MaturePartner",
+    "description": "Bright, powerful, and big-voiced with fast, rhythmic delivery that feels hype and urgent. Perfect for YouTube commentary, sports recaps, and short-form social content when you want excitement, momentum, and high-impact hosting energy.",
+    "preview_url": "https://filecdn.minimax.chat/public/33d05762-facc-4aef-9420-c969a6555789.mp3"
+  },
+  {
+    "name": "Friendly Guy",
+    "tagline": "Smooth,Warm,Polished",
+    "voice_id": "English_FriendlyPerson",
+    "description": "Deep, low, and husky with melodic, unhurried articulation—classic \"dramatic bass\" weight with a playful, teasing edge. Ideal for animated musicals, character songs, and audio drama when you need a commanding villain or a bold narrator presence.",
+    "preview_url": "https://filecdn.minimax.chat/public/6df8ac34-fac8-49db-8c90-04f94cf793df.mp3"
+  },
+  {
+    "name": "Bossy Lady",
+    "tagline": "Deep,Resonant,Smooth",
+    "voice_id": "English_MatureBoss",
+    "description": "Deep, bold, and smooth with a serious, steady delivery that feels cinematic and heavy. Great for dystopian openings, sci-fi audiobooks, and trailer-style narration when you want solemnity, tension, and a sense of looming despair.",
+    "preview_url": "https://filecdn.minimax.chat/public/326727df-250c-46d6-b672-ea523b8cff25.mp3"
+  },
+  {
+    "name": "Male Debater",
+    "tagline": "Gravelly,Raspy,Gritty",
+    "voice_id": "English_Debator",
+    "description": "Husky, gritty, and rough-edged with energetic, irregular articulation that sounds unruly and fearless. Great for RPG-style storytelling, adventure animation, and audio drama when you want bold confidence, mischief, and rebellious swagger.",
+    "preview_url": "https://filecdn.minimax.chat/public/d39ad502-1b25-4e28-aaea-df5f04023043.mp3"
+  },
+  {
+    "name": "Abbess",
+    "tagline": "Breathless,Gritty,Raw",
+    "voice_id": "English_Abbess",
+    "description": "Gritty, breathy, and raw with an urgent, unstable delivery that sounds relentless and battle-tested. Perfect for sci-fi survival stories, narrative podcasts, and action trailers when you want desperation, resolve, and high-stakes intensity.",
+    "preview_url": "https://filecdn.minimax.chat/public/92747d7e-7487-471f-8653-6e7dbf3117b6.mp3"
+  },
+  {
+    "name": "Lovely Girl",
+    "tagline": "Soft,Sweet,Airy",
+    "voice_id": "English_LovelyGirl",
+    "description": "Soft, sweet, and light with thoughtful, gentle articulation that feels youthful and charming. Great for behind-the-scenes interviews, animated features, and youth-focused ads when you want innocence, wonder, and a wholesome, engaging tone.",
+    "preview_url": "https://filecdn.minimax.chat/public/3587254e-c16e-4ca4-8799-a9539919fb6e.mp3"
+  },
+  {
+    "name": "Reliable Man",
+    "tagline": "Raspy,Hollow,Dry",
+    "voice_id": "English_Steadymentor",
+    "description": "Husky, hollow, and dry with dramatic, threatening articulation that feels unnervingly sinister. Perfect for boss-fight dialogue, fantasy animation, and dungeon-style cutscenes when you need chilling arrogance and undead-villain intensity.",
+    "preview_url": "https://filecdn.minimax.chat/public/ff437a61-bb85-4985-8b02-27b5eee37aff.mp3"
+  },
+  {
+    "name": "Deep-voiced Gentleman",
+    "tagline": "Deep,Resonant,Warm",
+    "voice_id": "English_Deep-VoicedGentleman",
+    "description": "Deep, warm, and strongly projected with clear, composed delivery that feels polished and authoritative. Ideal for history documentaries, classic audiobooks, and dramatic readings that need elegance, confidence, and a distinguished presence.",
+    "preview_url": "https://filecdn.minimax.chat/public/8c54a381-344f-403f-b74e-b2a31a59c7dc.mp3"
+  },
+  {
+    "name": "Determined Man",
+    "tagline": "Clear,Energetic,Youthful",
+    "voice_id": "English_DeterminedMan",
+    "description": "Bright, lyrical, and lively with light, rhythmic phrasing and playful dramatic intonation. Perfect for kids' audiobooks, animated narration, and fantasy promos when you want wonder, humor, and a storyteller's sparkle.",
+    "preview_url": "https://filecdn.minimax.chat/public/1b9eb538-691c-4b3b-a093-2a0ad57c4611.mp3"
+  },
+  {
+    "name": "Captivating Storyteller",
+    "tagline": "Deep,Gravelly,Resonant",
+    "voice_id": "English_CaptivatingStoryteller",
+    "description": "Deep, husky, and booming with a measured, rhythmic delivery that feels cinematic and awe-inspiring. Ideal for history docs, biography audiobooks, and museum-style exhibits when you want gravitas, immersion, and a commanding narrator presence.",
+    "preview_url": "https://filecdn.minimax.chat/public/6fa747d3-b0c1-49d7-9a80-fb549d38a06c.mp3"
+  },
+  {
+    "name": "Attractive Woman",
+    "tagline": "Soft,Breathy,Sweet",
+    "voice_id": "English_AttractiveGirl",
+    "description": "Soft, airy, and sweet with a natural flow and a slight hesitance that feels tender and real. Great for personal vlogs, casual recommendations, and light character dialogue when you want sincerity, vulnerability, and instant likeability.",
+    "preview_url": "https://filecdn.minimax.chat/public/4cfbfd88-dbd0-4cd5-bdaf-b822ac1fc4ea.mp3"
+  },
+  {
+    "name": "Decent Young Man",
+    "tagline": "Smooth,Velvety,Magnetic",
+    "voice_id": "English_DecentYoungMan",
+    "description": "Smooth, soft, and magnetic with an easy, flowing pace that reads effortlessly charming. Perfect for visual novels, character-driven drama, and interactive storytelling when you want witty confidence and a suave romantic lead.",
+    "preview_url": "https://filecdn.minimax.chat/public/eac29cdc-bec9-423f-89aa-c2b32a6bb690.mp3"
+  },
+  {
+    "name": "Sentimental Lady",
+    "tagline": "Polished,Lyrical,Breathy",
+    "voice_id": "English_SentimentalLady",
+    "description": "Elegant, lyrical, and soft with a clear, dramatic rhythm that feels regal and otherworldly. Perfect for fantasy interactive stories, animated films, and character-driven audiobooks when you want noble poise, curiosity, and a commanding matriarchal presence.",
+    "preview_url": "https://filecdn.minimax.chat/public/bc3d302e-0c54-457b-aa91-746324393b75.mp3"
+  },
+  {
+    "name": "Imposing Queen",
+    "tagline": "Steely,Polished,Regal",
+    "voice_id": "English_ImposingManner",
+    "description": "Bright, rounded, and clear with strong, well-timed pacing and confident, polished delivery. Ideal for explainers, product demos, and technical overviews when you need persuasive clarity and upbeat professionalism.",
+    "preview_url": "https://filecdn.minimax.chat/public/fb237421-d9bb-4618-b483-36acfa4f348e.mp3"
+  },
+  {
+    "name": "Teen Boy",
+    "tagline": "Nasal,Gritty,Youthful",
+    "voice_id": "English_SadTeen",
+    "description": "Nasal, husky, and youthful with quick, snappy pacing—perfect for a rebellious teen edge. Great for teen audio drama, animated series, and interactive companion dialogue when you want sarcasm, frustration, and anxious intensity.",
+    "preview_url": "https://filecdn.minimax.chat/public/2023783c-e3f5-4bb4-8bfe-e511cfa8a8be.mp3"
+  },
+  {
+    "name": "Thoughtful Man",
+    "tagline": "Clear,Smooth,Youthful",
+    "voice_id": "English_ThoughtfulMan",
+    "description": "Clear, smooth, and youthfully energetic with stable articulation and a serious, principled edge. Ideal for RPG dialogue, animation dubbing, and fantasy audio drama when you want sincerity, resolve, and a straight-shooting lead or apprentice voice.",
+    "preview_url": "https://filecdn.minimax.chat/public/2ef81000-26f4-4310-8fad-b30ca6e965f6.mp3"
+  },
+  {
+    "name": "Passionate Warrior",
+    "tagline": "Bright,Resonant,Energetic",
+    "voice_id": "English_PassionateWarrior",
+    "description": "Bright, booming, and high-energy with clear, forceful articulation that feels heroic. Ideal for RPG-style storytelling, action animation, and cinematic cutscenes when you want determination, courage, and a rallying lead presence.",
+    "preview_url": "https://filecdn.minimax.chat/public/ccb5d195-a501-49ea-a441-f18a98f539b0.mp3"
+  },
+  {
+    "name": "Decent Boy",
+    "tagline": "Husky,Youthful,Textured",
+    "voice_id": "English_DecentBoy",
+    "description": "Husky and youthful with a textured tone and quick, reactive conversational delivery that feels candid and lived-in. Works well for teen drama, fantasy audiobooks, and character dialogue—best for best-friend dynamics, rivals, or an underdog voice with real emotion.",
+    "preview_url": "https://filecdn.minimax.chat/public/d9c4edf8-8275-4052-9349-56ed353d1e50.mp3"
+  },
+  {
+    "name": "Wise Scholar",
+    "tagline": "Warm,Grainy,Weathered",
+    "voice_id": "English_WiseScholar",
+    "description": "Warm, slightly grainy, and weathered with calm, conversational delivery that feels personal and sincere. Great for oral histories, museum exhibits, and documentary interviews when you want lived-in authenticity and reflective nostalgia.",
+    "preview_url": "https://filecdn.minimax.chat/public/02b2eb28-9268-450e-b071-a47000b5be6e.mp3"
+  },
+  {
+    "name": "Soft-Spoken Girl",
+    "tagline": "Breathy,Airy,Whispery",
+    "voice_id": "English_Soft-spokenGirl",
+    "description": "Deep, warm, and slightly grainy with slow, deliberate pacing that feels intimate and heartfelt. Perfect for romance audiobooks, poetry readings, and emotional narration when you want longing, sincerity, and close-mic tenderness.",
+    "preview_url": "https://filecdn.minimax.chat/public/1f117e17-dfee-4d71-a103-0083c10d425c.mp3"
+  },
+  {
+    "name": "Serene Woman",
+    "tagline": "Soft,Airy,Smooth",
+    "voice_id": "English_SereneWoman",
+    "description": "Soft, airy, and fluid with delicate articulation that feels gentle and contemplative. Ideal for fantasy storytelling, narrative audiobooks, and animation dubbing when you want serene wonder and an ethereal, graceful presence.",
+    "preview_url": "https://filecdn.minimax.chat/public/bd00d743-a02f-4eed-8645-8a6d4e624436.mp3"
+  },
+  {
+    "name": "Cheerful Chloe",
+    "tagline": "Bright,Rapid,Casual",
+    "voice_id": "socialmedia_female_2_v1",
+    "description": "This Candid Reviewer profile features a bright, youthful, and clear texture and rapid and colloquial delivery. It conveys enthusiasm and honesty with a casual touch, evoking a relatable presence. Optimized for Social Media projects such as product reviews, lifestyle vlogs, and food commentary. Matches vlogger, peer recommender, or everyday consumer requiring an authentic performance.",
+    "preview_url": "https://filecdn.minimax.chat/public/014ad713-e76e-401c-99b6-38653171a646.mp3"
+  },
+  {
+    "name": "Confident Woman",
+    "tagline": "Bright,Smooth,Resonant",
+    "voice_id": "English_ConfidentWoman",
+    "description": "Soft, breathy, and sweet with a gentle, natural flow and a slight hint of hesitation that feels tender and real. Ideal for personal vlogs, casual recommendations, and light character dialogue where sincerity and vulnerability add instant charm.",
+    "preview_url": "https://filecdn.minimax.chat/public/54d82dac-3830-4839-90f6-e45d64a2ac4e.mp3"
+  },
+  {
+    "name": "Patient Man",
+    "tagline": "Deep,Grainy,Warm",
+    "voice_id": "English_PatientMan",
+    "description": "Deep, warm, and slightly grainy with slow, deliberate pacing that feels intimate and heartfelt. Perfect for romance audiobooks, poetry readings, and emotional narration when you want longing, sincerity, and close-mic tenderness.",
+    "preview_url": "https://filecdn.minimax.chat/public/1c402890-7274-4a3a-8cb9-25072df7d7ab.mp3"
+  },
+  {
+    "name": "Comedian",
+    "tagline": "Bright,Lyrical,Bouncy",
+    "voice_id": "English_Comedian",
+    "description": "Bright, lyrical, and lively with a light, rhythmic cadence and playful, dramatic intonation. Perfect for kids' audiobooks, animated narration, and fantasy promos when you want wonder, humor, and a storyteller's sparkle.",
+    "preview_url": "https://filecdn.minimax.chat/public/6c6df450-b1dc-406f-a80d-855372edbd4b.mp3"
+  },
+  {
+    "name": "Gorgeous Lady",
+    "tagline": "Silky,Bright,Polished",
+    "voice_id": "English_GorgeousLady",
+    "description": "Silky, bright, and elegant with smooth, unhurried pacing that feels high-end and poised. Great for fantasy and anime-style dubbing and audio drama when you want confident charm—perfect for a noble, a refined socialite, or a captivating femme-fatale edge.",
+    "preview_url": "https://filecdn.minimax.chat/public/d1905f05-71c1-41a8-9082-4c1811b748bc.mp3"
+  },
+  {
+    "name": "Bossy Leader",
+    "tagline": "Gravelly,Deep,Resonant",
+    "voice_id": "English_BossyLeader",
+    "description": "Low, husky, and highly resonant with forceful, authoritative diction and a hard-edged edge of control. Best for tactical shooting and strategy storytelling and villain monologues when you need urgency, dominance, and seasoned grit.",
+    "preview_url": "https://filecdn.minimax.chat/public/d3a1e319-d233-4b04-a811-b49597cb6267.mp3"
+  },
+  {
+    "name": "Lovely Lady",
+    "tagline": "Husky,Rich,Smooth",
+    "voice_id": "English_LovelyLady",
+    "description": "Throaty, rough, and booming with forceful, rhythmic articulation that carries threat and pain. Best for heavy metal vocals, horror voice work, and creature sound design when you need intense aggression and nightmare-level impact.",
+    "preview_url": "https://filecdn.minimax.chat/public/ede30a65-0a30-440d-ac96-61ab4c2ae3b6.mp3"
+  },
+  {
+    "name": "Strong-Willed Boy",
+    "tagline": "Raspy,Spirited,Youthful",
+    "voice_id": "English_Strong-WilledBoy",
+    "description": "Husky, high-energy, and youthfully resonant with crisp, forceful diction and kinetic momentum. Great for RPG-style storytelling, adventure animation, and trailer reads when you want passionate determination and a charismatic young-hero presence.",
+    "preview_url": "https://filecdn.minimax.chat/public/9cb25390-f45f-49f9-b3ae-27da7024fe5d.mp3"
+  },
+  {
+    "name": "Stressed Lady",
+    "tagline": "Breathless,Shaky,Strained",
+    "voice_id": "English_StressedLady",
+    "description": "Breathless, trembling, and tense with broken, hesitant phrasing that sounds exhausted and on the edge. Ideal for survival horror, dramatic audio drama, and psychological thrillers when you want anxiety, despair, and a fragile protagonist voice.",
+    "preview_url": "https://filecdn.minimax.chat/public/dcb5572d-c2be-4a41-8be3-f2688cec6255.mp3"
+  },
+  {
+    "name": "Assertive Queen",
+    "tagline": "Polished,Steely,Resonant",
+    "voice_id": "English_AssertiveQueen",
+    "description": "Bright, projected, and smooth with fast, clean pacing and an excited, welcoming tone. Ideal for lifestyle podcasts, celebrity interviews, and event promos where charm, friendliness, and momentum matter.",
+    "preview_url": "https://filecdn.minimax.chat/public/7dc81561-78f9-4883-9eb9-c0b574922665.mp3"
+  },
+  {
+    "name": "Female Narrator",
+    "tagline": "Raspy,Bright,Strained",
+    "voice_id": "English_AnimeCharacter",
+    "description": "Husky, bright, and taut with fast, explosive delivery that hits panic and determination in the same breath. Great for high-energy action dialogue and chase sequences in animation and interactive storytelling when you need adrenaline and urgency.",
+    "preview_url": "https://filecdn.minimax.chat/public/d8135d66-a3e0-43e1-a6a5-600b2134dca1.mp3"
+  },
+  {
+    "name": "Jovial Man",
+    "tagline": "Gravelly,Raspy,Warm",
+    "voice_id": "English_Jovialman",
+    "description": "Warm, gentle, and soothing with a slow, unhurried pace that feels reflective and calm. Ideal for literary fiction audiobooks, relaxation apps, and emotional brand films when you want nostalgia, quiet comfort, and a cozy listening mood.",
+    "preview_url": "https://filecdn.minimax.chat/public/d4ed5586-54c8-4e42-92be-1a6889566605.mp3"
+  },
+  {
+    "name": "Whimsical Girl",
+    "tagline": "Bright,Airy,Crystalline",
+    "voice_id": "English_WhimsicalGirl",
+    "description": "Bright, breezy, and crystal-clear with melodic, theatrical flow and a playful sparkle. Great for animation dubbing, fantasy interactive stories, and audio drama when you want wonder, mischief, and a light magical shimmer.",
+    "preview_url": "https://filecdn.minimax.chat/public/b982fdd0-5ef7-4ccd-a0d8-bb9112822aa3.mp3"
+  },
+  {
+    "name": "Charming Queen",
+    "tagline": "Bright,Agile,Resonant",
+    "voice_id": "English_CharmingQueen",
+    "description": "Bright, agile, and strongly projected with an energetic, crystal-clear delivery and a wide expressive range. Great for animation and interactive storytelling—from RPG-style dialogue to fantasy narration and dramatic scenes—when you want confident charisma and versatility.",
+    "preview_url": "https://filecdn.minimax.chat/public/c57e42b2-94b1-4d93-8896-e3ebc4de9895.mp3"
+  },
+  {
+    "name": "Kind-Hearted Girl",
+    "tagline": "Sweet,Warm,Airy",
+    "voice_id": "English_Kind-heartedGirl",
+    "description": "Warm, airy, and velvety with precise, expressive articulation that feels patient and wise. Great for history docs, language-learning apps, and museum-style guides when you want a refined, reassuring educator tone.",
+    "preview_url": "https://filecdn.minimax.chat/public/05f3cdd9-13fe-4012-8a3b-f2828e48f424.mp3"
+  },
+  {
+    "name": "Friendly Neighbor",
+    "tagline": "Bright,Airy,High-Pitched",
+    "voice_id": "English_FriendlyNeighbor",
+    "description": "Bright, breezy, and high with fast, energetic pacing and a lively, conversational tone. Great for animation dubbing and character-driven storytelling with snappy dialogue—perfect for a companion voice, a student, or a young professional with high energy.",
+    "preview_url": "https://filecdn.minimax.chat/public/2f9e9e00-8fe8-4401-bc8e-2df01f3e489b.mp3"
+  },
+  {
+    "name": "Sweet Girl",
+    "tagline": "Sweet,Bright,Youthful",
+    "voice_id": "English_Sweet_Female_4",
+    "description": "Sweet, bright, and full of youthful energy with clear, lively intonation that rises naturally. Great for language-learning apps, student testimonials, and culture-focused audiobooks when you want sincere nostalgia and an upbeat, engaging student voice.",
+    "preview_url": "https://filecdn.minimax.chat/public/1a9b04ae-80d9-43ab-8074-c92d87b63139.mp3"
+  },
+  {
+    "name": "Magnetic Man",
+    "tagline": "Deep,Warm,Smooth",
+    "voice_id": "English_Magnetic_Male_2",
+    "description": "Rich, warm, and smooth with unhurried yet expressive diction that draws you in, carrying drama and a hint of mystery. Ideal for audiobooks, literary narration, and character dialogue when you need an absorbing lead voice or a compelling narrator.",
+    "preview_url": "https://filecdn.minimax.chat/public/d027dd44-6f06-481f-b4de-3a7af06986de.mp3"
+  },
+  {
+    "name": "Lively Man",
+    "tagline": "Bright,Punchy,Resonant",
+    "voice_id": "English_Lively_Male_11",
+    "description": "Bright, powerful, and big-voiced with fast, rhythmic delivery that feels hype and urgent. Perfect for YouTube commentary, sports recaps, and short-form social content when you want excitement, momentum, and high-impact hosting energy.",
+    "preview_url": "https://filecdn.minimax.chat/public/932e6e27-9311-462f-b1c5-492e020bb1cd.mp3"
+  },
+  {
+    "name": "Steady Women",
+    "tagline": "Polished,Clear,Composed",
+    "voice_id": "English_Steady_Female_1",
+    "description": "Rounded, clear, and steady with a moderate, well-paced delivery—classic anchor-style presence. Ideal for news clips, documentary narration, and corporate briefings when you need objective authority and a trustworthy broadcast tone.",
+    "preview_url": "https://filecdn.minimax.chat/public/de8a1520-4a64-474c-82a6-8bed6bf19a16.mp3"
+  },
+  {
+    "name": "News Presenter",
+    "tagline": "Bright,Crisp,Resonant",
+    "voice_id": "English_Lively_Male_10",
+    "description": "Bright, clear, and strongly projected with punchy, rhythmic delivery that feels modern and energetic. Great for radio and broadcast ads, auto promos, and documentary narration when you need confident enthusiasm and a dynamic announcer presence.",
+    "preview_url": "https://filecdn.minimax.chat/public/d0409f45-0ba6-4d10-8626-fceffcf2fcc4.mp3"
+  },
+  {
+    "name": "Nature Show Host",
+    "tagline": "Smooth,Deep,Polished",
+    "voice_id": "English_Magnetic_Male_12",
+    "description": "Smooth, deep, and elegant with a composed, flowing pace and an information-forward delivery that reads confident and clear. Great for medical explainers, science documentaries, and health education modules when you want a trusted expert narrator.",
+    "preview_url": "https://filecdn.minimax.chat/public/e4151a9d-a0ed-49e8-b382-de08daf38b99.mp3"
+  },
+  {
+    "name": "Female Actor",
+    "tagline": "Clear,Warm,Polished",
+    "voice_id": "English_Steady_Female_5",
+    "description": "High-pitched, bright, and bouncy with fast, lively pacing that feels upbeat and playful. Great for visual novels, animation dubbing, and mobile interactive stories when you want energetic innocence and a spirited companion voice.",
+    "preview_url": "https://filecdn.minimax.chat/public/a91d7e05-5a83-430e-ae08-8f5526e5c1bb.mp3"
+  },
+  {
+    "name": "Insightful Speaker",
+    "tagline": "Informative",
+    "voice_id": "English_Insightful_Speaker",
+    "description": "Deep, smooth, and resonant with clear, unhurried delivery and an academic polish that feels authoritative and engaging. Great for philosophy video essays, history documentaries, and lecture-style education content that benefits from thoughtful gravitas.",
+    "preview_url": "https://filecdn.minimax.chat/public/b77785e2-bc81-4346-8199-85a6cef452f0.mp3"
+  },
+  {
+    "name": "Patient Man",
+    "tagline": "Warm,Soothing,Grounded",
+    "voice_id": "English_patient_man_v1",
+    "description": "Warm, steady, and soothing with careful, unhurried delivery that feels empathetic and reassuring. Great for guided meditation, self-help audiobooks, and educational explainers when you want comfort, patience, and healing support.",
+    "preview_url": "https://filecdn.minimax.chat/public/022d0a8e-ee9a-4ee3-b1f0-f007255297f6.mp3"
+  },
+  {
+    "name": "Persuasive Man",
+    "tagline": "Bright,Fast-Paced,Conversational",
+    "voice_id": "English_Persuasive_Man",
+    "description": "Clear, energetic, and strong with fast, inspiring delivery that feels modern and helpful. Ideal for software tutorials, YouTube walkthroughs, and marketing webinars when you want confident guidance and influencer-level momentum.",
+    "preview_url": "https://filecdn.minimax.chat/public/ceba70ae-5f0a-4bc7-9fcd-4f78c03e0727.mp3"
+  },
+  {
+    "name": "Intellect Woman",
+    "tagline": "Crisp,Polished,Articulate",
+    "voice_id": "English_intellect_female_1",
+    "description": "Deep, low, and husky with melodic, unhurried articulation—classic \"dramatic bass\" weight with a playful, teasing edge. Ideal for animated musicals, character songs, and audio drama when you need a commanding villain or a bold narrator presence.",
+    "preview_url": "https://filecdn.minimax.chat/public/5cab2d81-2d0c-485e-8adc-786a84057810.mp3"
+  },
+  {
+    "name": "Energetic man",
+    "tagline": "Bright,Resonant,Crisp",
+    "voice_id": "English_energetic_male_1",
+    "description": "Bright, projected, and crisp with a smooth, natural speaking style that feels genuinely excited and nostalgic. Great for podcast commentary, YouTube reviews, and social content when you want warmth, relatability, and an engaging fan-friendly vibe.",
+    "preview_url": "https://filecdn.minimax.chat/public/85237d38-3b9d-40bc-b11d-f650192632e4.mp3"
+  },
+  {
+    "name": "Witty woman",
+    "tagline": "Bright,Polished,Agile",
+    "voice_id": "English_witty_female_1",
+    "description": "Bright, elegant, and agile with a lively pace and natural flow that feels modern and reassuring. Great for health-tech promos, wellness events, and podcast ad reads when you want persuasive confidence with genuine empathy.",
+    "preview_url": "https://filecdn.minimax.chat/public/94bd93e2-13aa-4b11-9c35-9702d463785f.mp3"
+  },
+  {
+    "name": "Lucky Robot",
+    "tagline": "Deep,Steady,Robotic",
+    "voice_id": "English_Lucky_Robot",
+    "description": "Deep, metallic, and resonant with steady, machine-like articulation that feels controlled and authoritative. Ideal for sci-fi interactive storytelling, trailer reads, and tech demos when you want a cinematic AI presence—calm, commanding, and precise.",
+    "preview_url": "https://filecdn.minimax.chat/public/c07e2dbf-376d-414e-9f51-e4701284bd3f.mp3"
+  },
+  {
+    "name": "Cute Girl",
+    "tagline": "Boyish,Expressive,Passionate",
+    "voice_id": "English_Cute_Girl",
+    "description": "Youthful, upbeat, and highly expressive with passionate, conversational flow that feels hopeful and driven. A strong fit for trailers, narrative-driven interactive stories, and emotionally sincere ads—perfect when you need awe, resolve, and an inspiring lead voice.",
+    "preview_url": "https://filecdn.minimax.chat/public/36bdc78a-5c82-41ca-83c6-84455c55310f.mp3"
+  },
+  {
+    "name": "Sharp Commentator",
+    "tagline": "Resonant,Crisp,Commanding",
+    "voice_id": "English_Sharp_Commentator",
+    "description": "Resonant, clear, and persuasive with confident, rhythmic pacing that feels authoritative and engaging. Great for keynotes, leadership workshops, and social commentary when you want conviction, credibility, and a \"thought-leader\" presence.",
+    "preview_url": "https://filecdn.minimax.chat/public/83113d94-e704-483f-abc6-c8d88be0b321.mp3"
+  },
+  {
+    "name": "Honest Man",
+    "tagline": "Resonant,Earnest,Grounded",
+    "voice_id": "English_Honest_Man",
+    "description": "Resonant, sincere, and steady with clear, rhythmic delivery and a persuasive edge that feels urgent yet controlled. Great for keynotes, NGO messaging, and educational documentaries when you want inspiring conviction and leadership presence.",
+    "preview_url": "https://filecdn.minimax.chat/public/7101e28b-1889-4434-9730-dc3309c40823.mp3"
+  },
+  {
+    "name": "Angry Pirate",
+    "tagline": "Gravelly,Boisterous,Menacing",
+    "voice_id": "angry_pirate_1",
+    "description": "Husky, booming, and rugged, delivered with theatrical emphasis and big, confident punch. Great for adventure entertainment, animation, and theme-park style audio when you want swagger, intimidation, and larger-than-life presence.",
+    "preview_url": "https://filecdn.minimax.chat/public/94c8ef2c-3aa7-46e1-996b-cbe30b7b5982.mp3"
+  },
+  {
+    "name": "Friendly Giant",
+    "tagline": "Deep,Deliberate,Threatening",
+    "voice_id": "massive_kind_troll",
+    "description": "Featuring deep, raspy, and booming resonance with slow, measured delivery, this voice embodies the villain archetype. It carries a threatening undertone, exuding arrogance and malice, creating an ominous atmosphere. Perfect for video games, fantasy animation, and movie trailers, it's ideal for commanding villainous roles like warlords or monsters.",
+    "preview_url": "https://filecdn.minimax.chat/public/617cae56-9b0b-4882-8a30-cc48b4363a08.mp3"
+  },
+  {
+    "name": "Movie Narrator",
+    "tagline": "Deep,Steady,Reassuring",
+    "voice_id": "movie_trailer_deep",
+    "description": "Featuring deep, rich, warm resonance with steady, rhythmic speech, this voice embodies the professional narrator archetype. It conveys confidence and sincerity with subtle nuances, creating a refined atmosphere. Perfect for corporate presentations, documentaries, and audiobooks, it's ideal for elegant brand voices or instructional guide roles.",
+    "preview_url": "https://filecdn.minimax.chat/public/d936b3e0-07e6-4648-9952-0ce077bc17df.mp3"
+  },
+  {
+    "name": "Peaceful Lady",
+    "tagline": "Deep,Gravelly,Resonant",
+    "voice_id": "peace_and_ease",
+    "description": "This \"Storyteller\" profile has a warm, flowing, and light quality with smooth, reflective delivery. It conveys wonder and calm through a soothing tone, creating a dreamlike atmosphere. Ideal for audiobooks, nature documentaries, and meditation apps, it's perfect for roles like \"Narrator,\" \"Protagonist,\" or \"Guide.\"",
+    "preview_url": "https://filecdn.minimax.chat/public/c402254e-8767-4533-acf9-161a993a7289.mp3"
+  },
+  {
+    "name": "Wise Grandma",
+    "tagline": "Punchy,Fast-Paced,Upbeat",
+    "voice_id": "moss_audio_6dc281eb-713c-11f0-a447-9613c873494c",
+    "description": "Smooth, mature, and authoritative with calm, measured speech, this voice fits the wise mentor archetype. It conveys confidence and serenity, creating a reassuring and elegant vibe. Perfect for audiobooks, high-end documentaries, and corporate leadership training, it's ideal for calm guides or professional narrators.",
+    "preview_url": "https://filecdn.minimax.chat/public/28b9612e-bdbc-4bb2-9c47-a6446c9d0c0b.mp3"
+  },
+  {
+    "name": "EngagingGirl",
+    "tagline": "Bright,Upbeat,Inviting",
+    "voice_id": "moss_audio_c12a59b9-7115-11f0-a447-9613c873494c",
+    "description": "Bright, rich, and warm with a lively, conversational pace, this voice fits the friendly companion archetype. It conveys warmth and authenticity, creating a welcoming vibe. Ideal for social media promotions, lifestyle podcasts, and app tutorials, it's perfect for charismatic brand ambassadors, vloggers, or influencers.",
+    "preview_url": "https://filecdn.minimax.chat/public/04621adf-e613-48b5-8129-76986d71b257.mp3"
+  },
+  {
+    "name": "KnowledgePill",
+    "tagline": "Deep,Relaxed,Laid-Back",
+    "voice_id": "moss_audio_737a299c-734a-11f0-918f-4e0486034804",
+    "description": "Presenting a distinct \"everyman\" character, this voice blends deep, smooth, warm tones with casual, conversational speech. It conveys sincere, friendly emotion, creating an authentic atmosphere. Great for commercial settings ranging from urban lifestyle ads to social media promotions and radio commercials, this voice is perfect for roles like brand ambassadors, peer narrators, or podcast hosts.",
+    "preview_url": "https://filecdn.minimax.chat/public/75f9f923-d5b1-4636-a01c-67c62b4d9bf9.mp3"
+  },
+  {
+    "name": "Candid Girl",
+    "tagline": "Gravelly,Slow-Paced,Welcoming",
+    "voice_id": "moss_audio_19dbb103-7350-11f0-ad20-f2bc95e89150",
+    "description": "Warm, sophisticated, and articulate with polished, rhythmic speech, this voice fits the professional narrator archetype. It conveys elegance and confidence, creating a trustworthy and inviting vibe. Perfect for corporate training, luxury brand commercials, and high-end virtual assistants, it's ideal for refined guides or articulate narrators.",
+    "preview_url": "https://filecdn.minimax.chat/public/03adddd4-4965-4050-a97e-6dc26400fef9.mp3"
+  },
+  {
+    "name": "Aussie Buddy",
+    "tagline": "Raspy,Deliberate,Conversational",
+    "voice_id": "English_aussie_buddy_vv2",
+    "description": "This voice features a warm, laid-back timbre with a friendly Australian accent. Ideal for travel vlogs and casual brand messaging. Also well-suited for informal explainer videos, character voicing, and friendly customer service greetings.",
+    "preview_url": "https://file.cdn.minimax.io/public/5cfd7d44-2acd-49af-a623-f918544540c8.wav"
+  },
+  {
+    "name": "ChillBestie",
+    "tagline": "Soft,Slow,Gentle",
+    "voice_id": "moss_audio_ad5baf92-735f-11f0-8263-fe5a2fe98ec8",
+    "description": "With a soothing, gentle, and warm tone, this voice features a slow, deliberate pace. It conveys calmness and reassurance, creating an intimate atmosphere. Ideal for guided meditations, luxury brand ads, and emotional storytelling, this voice fits health coaches, experienced narrators, or empathetic companions needing a calming presence.",
+    "preview_url": "https://filecdn.minimax.chat/public/e4f9a24b-9d68-4d35-a248-893035752525.mp3"
+  },
+  {
+    "name": "Casual Narrator",
+    "tagline": "Polished,Measured,Engaging",
+    "voice_id": "English_causual_narrator_vv1",
+    "description": "This voice features a natural, easygoing, and relatable delivery that sounds like a friend talking. Ideal for slice-of-life storytelling and social media content. Also well-suited for audiobooks, internal corporate communications, and soft-sell advertisements.",
+    "preview_url": "https://file.cdn.minimax.io/public/3d6a9806-3059-4707-af06-30b220dacf08.wav"
+  },
+  {
+    "name": "BoringHusband",
+    "tagline": "Casual,Natural,Relaxed",
+    "voice_id": "moss_audio_cedfd4d2-736d-11f0-99be-fe40dd2a5fe8",
+    "description": "With a relaxed, warm, clear quality and a natural, conversational flow, this voice fits the friendly neighbor archetype. It conveys sincerity and approachability, creating a relatable atmosphere. Great for modern uses, including lifestyle ads, casual podcasts, and commentary videos, it's ideal for friendly narrators, millennial protagonists, or reliable customer support reps.",
+    "preview_url": "https://filecdn.minimax.chat/public/d52e6a4d-674e-4ba5-8377-275f61fb6113.mp3"
+  },
+  {
+    "name": "Energetic Caster",
+    "tagline": "Fluid,Engaging,Fast-Paced",
+    "voice_id": "English_energetic_caster_vv1",
+    "description": "This voice features a punchy, high-energy, and dynamic projection. Ideal for sports commentary, e-sports, and hype reels. Also well-suited for energetic commercials, gaming content, and radio promotions.",
+    "preview_url": "https://file.cdn.minimax.io/public/80043f41-3cac-49da-896d-cc9964e564d6.wav"
+  },
+  {
+    "name": "BubblyLexi",
+    "tagline": "Bright,Upbeat,Inviting",
+    "voice_id": "moss_audio_62ca20b0-7380-11f0-99be-fe40dd2a5fe8",
+    "description": "Centered around the modern host archetype, this voice has a bright, lively, and clear quality with a positive, confident rhythm. It conveys enthusiasm and optimism, creating an energetic atmosphere. Perfect for lifestyle ads, social media promos, and app tutorials, it's ideal for roles like brand ambassadors, podcast hosts, or digital guides.",
+    "preview_url": "https://filecdn.minimax.chat/public/bdcc1976-0525-4b48-b15c-fd75c1be4fea.mp3"
+  },
+  {
+    "name": "Energetic Reporter",
+    "tagline": "Clear,Crisp,Informative",
+    "voice_id": "English_energetic_reporter_vv1",
+    "description": "This voice features a sharp, fast-paced, and authoritative delivery typical of broadcast journalism. Ideal for news updates, weather reports, and market briefings. Also well-suited for documentary narration, urgent announcements, and press releases.",
+    "preview_url": "https://file.cdn.minimax.io/public/82dc8ab0-d52e-4b40-a5dc-040023644254.wav"
+  },
+  {
+    "name": "Relatable Riley",
+    "tagline": "Raspy,Breathy,Textured",
+    "voice_id": "conversational_female_1_v1",
+    "description": "Husky, breathy, and textured with fast, casual, spoken delivery that feels unfiltered and real. Perfect for story-time videos, personal podcasts, and lifestyle vlogs when you want honest intimacy, openness, and a \"best friend\" vibe.",
+    "preview_url": "https://filecdn.minimax.chat/public/53739e7d-f878-4071-a7ae-a7b513b85b64.mp3"
+  },
+  {
+    "name": "Friendly Paige",
+    "tagline": "Clear,Youthful,Confident",
+    "voice_id": "conversational_female_2_v1",
+    "description": "Clear, youthful, and confident with a quick, smooth pace and direct delivery that pulls you in. Great for social marketing, health apps, and personal-growth guides when you want urgency, sincerity, and friendly mentor energy.",
+    "preview_url": "https://filecdn.minimax.chat/public/1ac63145-0dbb-4bbd-aa4a-b1257038e913.mp3"
+  },
+  {
+    "name": "Exciting Actor",
+    "tagline": "Rapid,Energetic,Casual",
+    "voice_id": "English_exciting_actor_vv1",
+    "description": "This voice features an animated, dramatic, and highly expressive range. Ideal for character work, animation, and entertainment content. Also well-suited for video game voiceovers, dramatic advertisements, and theatrical readings.",
+    "preview_url": "https://file.cdn.minimax.io/public/ef2b1881-d850-4dd3-a9dc-df15218f9112.wav"
+  },
+  {
+    "name": "Upbeat Ashley",
+    "tagline": "Raspy,Gravelly,Shaky",
+    "voice_id": "socialmedia_female_1_v1",
+    "description": "This voice has a bright, lively, and casual quality, with fast-paced, conversational speech, perfectly fitting the typical social media influencer persona. It conveys excitement and warmth through a down-to-earth style, creating a trendy atmosphere. Ideal for digital content, including lifestyle vlogs, podcast intros, and promotional stories. Perfect for roles like hosts, best friends, or trendsetting influencers.",
+    "preview_url": "https://filecdn.minimax.chat/public/8a94de75-6ffa-4539-8f64-f533ea88d08b.mp3"
+  },
+  {
+    "name": "Bubbly Kid",
+    "tagline": "High-Pitched,Breathy,Nasal",
+    "voice_id": "BritishChild_female_1_v1",
+    "description": "High, airy, slightly nasal color with a hesitant-but-natural flow, giving a cute, endearing \"precocious\" vibe. Suits animated features, educational apps, and audiobooks where youthful curiosity and light comedy help.",
+    "preview_url": "https://filecdn.minimax.chat/public/f421a6dc-2d11-4062-ab13-f92ffa0bbd2a.mp3"
+  },
+  {
+    "name": "Instructive Professor",
+    "tagline": "Textured,Deliberate,Measured",
+    "voice_id": "English_instructive_professor_vv1",
+    "description": "This voice features a knowledgeable, articulate, and paced delivery with a reassuringly authoritative tone. Ideal for academic lectures and deep-dive educational videos. Also well-suited for corporate compliance training, museum audio guides, and technical explainers.",
+    "preview_url": "https://file.cdn.minimax.io/public/5fa1ef3f-2273-4f88-a8be-18d1498ffba2.wav"
+  },
+  {
+    "name": "Male Lecturer",
+    "tagline": "Resonant,Persuasive,Critical",
+    "voice_id": "English_male_lecturer_vv1",
+    "description": "This voice features a distinctive, highly modulated, and persuasive cadence with high engagement energy. Ideal for opinion pieces and political commentary. Also well-suited for debate-style formats, provocative video essays, and dynamic public speaking simulations.",
+    "preview_url": "https://file.cdn.minimax.io/public/1e9a5861-5cb3-4dad-83ca-f3f59c05205c.wav"
+  },
+  {
+    "name": "Movie Commentator",
+    "tagline": "Deep,Rough,Grave",
+    "voice_id": "English_movie_commentato_vv1",
+    "description": "This voice features a deep, textured, and serious resonance with a captivating gravity. Ideal for film reviews and serious trailer breakdowns. Also well-suited for dramatic retrospectives, video essays, and suspenseful narration.",
+    "preview_url": "https://file.cdn.minimax.io/public/1a400302-f2b0-4686-bef4-4018bcaeeca1.wav"
+  },
+  {
+    "name": "Resonant Storyteller",
+    "tagline": "Warm,Measured,Engaging",
+    "voice_id": "English_resonant_storyteller_vv2",
+    "description": "This voice features a smooth, classic British accent with a calm and literary pacing. Ideal for classic literature audiobooks and historical narration. Also well-suited for poetry readings, heritage site tours, and fantasy storytelling.",
+    "preview_url": "https://file.cdn.minimax.io/public/571f49d5-96f3-4feb-8cde-a2f27705cbf4.wav"
+  },
+  {
+    "name": "Analytical Scholar",
+    "tagline": "Crisp,Nasal,Intellectual",
+    "voice_id": "Enlish_analytical_scholar_vv1",
+    "description": "This voice features a precise, intellectual, and dry British delivery that conveys expertise and logic. Ideal for video essays and scientific analysis. Also well-suited for architectural reviews, legal summaries, and philosophical discussions.",
+    "preview_url": "https://file.cdn.minimax.io/public/915bec91-c7e2-4713-be32-a93f0afaa2f1.wav"
+  },
+  {
+    "name": "Confident Gamer",
+    "tagline": "Bright,Fast-Paced,Casual",
+    "voice_id": "Enlish_confident_streamer_vv1",
+    "description": "This voice features a youthful, upbeat, and casual Australian accent with a fast, engaging rhythm. Ideal for gaming content and social media vlogs. Also well-suited for youth-oriented advertisements, travel diaries, and unboxing videos.",
+    "preview_url": "https://file.cdn.minimax.io/public/9de3854a-d6ff-4302-b352-6d8dd4e8c791.wav"
+  },
+  {
+    "name": "Terror Story Narrator",
+    "tagline": "Terrified,Intense,Ominous",
+    "voice_id": "ttv-voice-2025062518302725-Nrot8sG4",
+    "description": "This voice features a terrified, breathless, and ominous delivery that conveys deep psychological horror. Ideal for Lovecraftian storytelling and horror game narration. Also well-suited for dramatic readings, suspenseful trailers, and intense roleplay scenarios.",
+    "preview_url": "https://file.cdn.minimax.io/public/d9c5f211-6a9a-4b2d-be99-8141f0c21bdb.wav"
+  }
+]

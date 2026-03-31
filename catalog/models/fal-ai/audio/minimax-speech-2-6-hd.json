@@ -218,6 +218,8 @@
         "description": "Predefined voice ID to use for synthesis",
         "type": "string",
         "title": "Voice Id",
+        "x-voice-id": true,
+        "x-voices-file": "voices/minimax-default-voices.json",
         "default": "Wise_Woman"
       },
       "pitch": {
@@ -490,7 +492,12 @@
             "voice_id": {
               "pointer": "/VoiceSetting/properties/voice_id",
               "component": "string",
-              "label": "Voice Id"
+              "label": "Voice Id",
+              "custom": "voice-id-selector",
+              "custom_config": {
+                "allow_custom": true,
+                "options_file": "voices/minimax-default-voices.json"
+              }
             },
             "pitch": {
               "pointer": "/VoiceSetting/properties/pitch",

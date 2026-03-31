@@ -276,6 +276,150 @@ function getEnumStringValues(node) {
   return node.enum.filter((value) => typeof value === 'string');
 }
 
+function getExampleStringValues(node) {
+  if (!isObjectRecord(node) || !Array.isArray(node.examples)) {
+    return [];
+  }
+
+  return node.examples.filter((value) => typeof value === 'string');
+}
+
+function getExtensionValue(node, key) {
+  if (!isObjectRecord(node)) {
+    return undefined;
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(node, key)) {
+    return undefined;
+  }
+
+  return node[key];
+}
+
+function readVoiceFieldHints(node, pointer) {
+  const voiceMarker = getExtensionValue(node, 'x-voice-id');
+  const voicesFile = getExtensionValue(node, 'x-voices-file');
+
+  if (voicesFile !== undefined && voiceMarker !== true) {
+    throw new Error(
+      `Schema node "${pointer}" declares x-voices-file without x-voice-id: true.`
+    );
+  }
+
+  if (voiceMarker !== undefined && voiceMarker !== true) {
+    throw new Error(
+      `Schema node "${pointer}" must set x-voice-id to boolean true when provided.`
+    );
+  }
+
+  if (voiceMarker !== true) {
+    return {
+      isVoiceId: false,
+      voicesFile: undefined,
+    };
+  }
+
+  if (voicesFile === undefined) {
+    return {
+      isVoiceId: true,
+      voicesFile: undefined,
+    };
+  }
+
+  if (typeof voicesFile !== 'string' || voicesFile.trim().length === 0) {
+    throw new Error(
+      `Schema node "${pointer}" has invalid x-voices-file. Expected non-empty string.`
+    );
+  }
+
+  return {
+    isVoiceId: true,
+    voicesFile,
+  };
+}
+
+function buildVoiceOptionLabel(value) {
+  const normalized = formatLabelFromPropertyName(value);
+  return normalized.length > 0 ? normalized : value;
+}
+
+function buildVoiceOptions(values) {
+  const seen = new Set();
+  const options = [];
+
+  for (const value of values) {
+    if (typeof value !== 'string' || value.length === 0 || seen.has(value)) {
+      continue;
+    }
+    seen.add(value);
+    options.push({
+      value,
+      label: buildVoiceOptionLabel(value),
+    });
+  }
+
+  return options;
+}
+
+function buildVoiceCustomConfig(args) {
+  const { node, pointer, voicesFile } = args;
+
+  if (typeof voicesFile === 'string') {
+    return {
+      allow_custom: true,
+      options_file: voicesFile,
+    };
+  }
+
+  const enumValues = getEnumStringValues(node);
+  if (enumValues.length > 0) {
+    const options = buildVoiceOptions(enumValues);
+    if (options.length === 0) {
+      throw new Error(
+        `Schema node "${pointer}" has enum values for x-voice-id but none can be used as string options.`
+      );
+    }
+
+    return {
+      allow_custom: true,
+      options,
+    };
+  }
+
+  const exampleValues = getExampleStringValues(node);
+  if (exampleValues.length > 0) {
+    const options = buildVoiceOptions(exampleValues);
+    if (options.length === 0) {
+      throw new Error(
+        `Schema node "${pointer}" has examples for x-voice-id but none can be used as string options.`
+      );
+    }
+
+    return {
+      allow_custom: true,
+      options,
+    };
+  }
+
+  return {
+    allow_custom: true,
+  };
+}
+
+function applyVoiceIdViewerAnnotation(args) {
+  const { annotation, node, pointer, voiceHints } = args;
+  if (!voiceHints.isVoiceId) {
+    return;
+  }
+
+  annotation.custom = 'voice-id-selector';
+  annotation.custom_config = buildVoiceCustomConfig({
+    node,
+    pointer,
+    voicesFile: voiceHints.voicesFile,
+  });
+}
+
 function isUriStringSchema(node) {
   return (
     isObjectRecord(node) && node.type === 'string' && node.format === 'uri'
@@ -869,6 +1013,14 @@ function buildFieldAnnotation(args) {
   }
 
   const type = getNodeType(effectiveNode);
+  const voiceHints = readVoiceFieldHints(effectiveNode, resolved.schemaPointer);
+
+  if (voiceHints.isVoiceId && type !== 'string') {
+    throw new Error(
+      `Schema node "${resolved.schemaPointer}" is marked with x-voice-id but has type "${type ?? 'unknown'}". Voice-id fields must be string.`
+    );
+  }
+
   if (type === 'string') {
     if (isUriStringSchema(effectiveNode)) {
       annotation.component = 'file-uri';
@@ -877,6 +1029,14 @@ function buildFieldAnnotation(args) {
     } else {
       annotation.component = 'string';
     }
+
+    applyVoiceIdViewerAnnotation({
+      annotation,
+      node: effectiveNode,
+      pointer: resolved.schemaPointer,
+      voiceHints,
+    });
+
     return stripEmptyKeys(annotation);
   }
 
@@ -1021,6 +1181,13 @@ function mergeAnnotation(generated, existing) {
     merged.custom = existing.custom;
   }
 
+  if (
+    isObjectRecord(existing.custom_config) &&
+    !isObjectRecord(merged.custom_config)
+  ) {
+    merged.custom_config = structuredClone(existing.custom_config);
+  }
+
   if (typeof existing.component === 'string') {
     merged.component = existing.component;
   }
@@ -1093,6 +1260,13 @@ function mergeCustomOnly(generated, existing) {
     merged.custom = existing.custom;
   }
 
+  if (
+    isObjectRecord(existing.custom_config) &&
+    !isObjectRecord(merged.custom_config)
+  ) {
+    merged.custom_config = structuredClone(existing.custom_config);
+  }
+
   if (isObjectRecord(merged.value) && isObjectRecord(existing.value)) {
     merged.value = mergeCustomOnly(merged.value, existing.value);
   }
@@ -1119,6 +1293,76 @@ function mergeCustomOnly(generated, existing) {
   }
 
   return stripEmptyKeys(merged);
+}
+
+function validateVoiceIdCustomConfig(annotation, pointer, errors) {
+  if (annotation.custom !== 'voice-id-selector') {
+    return;
+  }
+
+  if (!isObjectRecord(annotation.custom_config)) {
+    errors.push(
+      `Voice-id field at "${pointer}" must declare object x-renku-viewer.custom_config.`
+    );
+    return;
+  }
+
+  const config = annotation.custom_config;
+  if (config.allow_custom !== true) {
+    errors.push(
+      `Voice-id field at "${pointer}" must set custom_config.allow_custom to true.`
+    );
+  }
+
+  const hasOptions = Array.isArray(config.options);
+  const hasOptionsFile =
+    typeof config.options_file === 'string' &&
+    config.options_file.trim().length > 0;
+
+  if (hasOptions && hasOptionsFile) {
+    errors.push(
+      `Voice-id field at "${pointer}" must declare either custom_config.options or custom_config.options_file, not both.`
+    );
+    return;
+  }
+
+  if ('options_file' in config && !hasOptionsFile) {
+    errors.push(
+      `Voice-id field at "${pointer}" has invalid custom_config.options_file. Expected non-empty string.`
+    );
+  }
+
+  if (!hasOptions) {
+    return;
+  }
+
+  if (config.options.length === 0) {
+    errors.push(
+      `Voice-id field at "${pointer}" has empty custom_config.options. Provide at least one option.`
+    );
+    return;
+  }
+
+  for (const [index, option] of config.options.entries()) {
+    if (!isObjectRecord(option)) {
+      errors.push(
+        `Voice-id field at "${pointer}" has invalid custom_config.options[${index}]. Expected object.`
+      );
+      continue;
+    }
+
+    if (typeof option.value !== 'string' || option.value.length === 0) {
+      errors.push(
+        `Voice-id field at "${pointer}" has invalid custom_config.options[${index}].value. Expected non-empty string.`
+      );
+    }
+
+    if (typeof option.label !== 'string' || option.label.length === 0) {
+      errors.push(
+        `Voice-id field at "${pointer}" has invalid custom_config.options[${index}].label. Expected non-empty string.`
+      );
+    }
+  }
 }
 
 export function collectInputSchemaCoverage(schemaFile) {
@@ -1239,6 +1483,18 @@ function validateAnnotationAgainstSchema(args) {
       `Invalid custom renderer at "${pointer}". Expected non-empty string when provided.`
     );
   }
+
+  if (
+    'custom_config' in annotation &&
+    annotation.custom_config !== undefined &&
+    !isObjectRecord(annotation.custom_config)
+  ) {
+    errors.push(
+      `Invalid custom_config at "${pointer}". Expected object when provided.`
+    );
+  }
+
+  validateVoiceIdCustomConfig(annotation, pointer, errors);
 
   if (annotation.component === 'placeholder-to-be-annotated') {
     placeholderPointers.push(annotation.pointer ?? pointer);
@@ -1486,10 +1742,74 @@ export function validateSchemaFileViewerAnnotations(schemaFile) {
   };
 }
 
+function collectVoiceSchemaExtensions(node, pointer, output) {
+  if (Array.isArray(node)) {
+    node.forEach((entry, index) => {
+      collectVoiceSchemaExtensions(
+        entry,
+        joinPointer(pointer, String(index)),
+        output
+      );
+    });
+    return;
+  }
+
+  if (!isObjectRecord(node)) {
+    return;
+  }
+
+  if (pointer === '/x-renku-viewer' || pointer.startsWith('/x-renku-viewer/')) {
+    return;
+  }
+
+  const hasVoiceId = Object.prototype.hasOwnProperty.call(node, 'x-voice-id');
+  const hasVoicesFile = Object.prototype.hasOwnProperty.call(
+    node,
+    'x-voices-file'
+  );
+  if (hasVoiceId || hasVoicesFile) {
+    output.push({
+      pointer,
+      hasVoiceId,
+      hasVoicesFile,
+      voiceId: node['x-voice-id'],
+      voicesFile: node['x-voices-file'],
+    });
+  }
+
+  for (const [key, value] of Object.entries(node)) {
+    collectVoiceSchemaExtensions(value, joinPointer(pointer, key), output);
+  }
+}
+
+function mergeExistingVoiceSchemaExtensions(existingSchema, nextSchema) {
+  const entries = [];
+  collectVoiceSchemaExtensions(existingSchema, '', entries);
+
+  for (const entry of entries) {
+    const target = resolvePointer(nextSchema, entry.pointer);
+    if (!isObjectRecord(target)) {
+      throw new Error(
+        `Unable to preserve schema voice annotations at "${entry.pointer}" during schema refresh. Target pointer is missing.`
+      );
+    }
+
+    if (entry.hasVoiceId) {
+      target['x-voice-id'] = entry.voiceId;
+    }
+
+    if (entry.hasVoicesFile) {
+      target['x-voices-file'] = entry.voicesFile;
+    }
+  }
+}
+
 export function mergeExistingViewerAnnotations(existingSchema, nextSchema) {
   if (!isObjectRecord(existingSchema) || !isObjectRecord(nextSchema)) {
     return;
   }
+
+  mergeExistingVoiceSchemaExtensions(existingSchema, nextSchema);
 
   const existingViewer = existingSchema['x-renku-viewer'];
   if (!isObjectRecord(existingViewer)) {

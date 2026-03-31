@@ -24,6 +24,7 @@
         "description": "Voice to use for synthesis. eve: energetic, upbeat. ara: warm, friendly. rex: confident, clear. sal: smooth, balanced. leo: authoritative, strong.",
         "type": "string",
         "title": "Voice",
+        "x-voice-id": true,
         "default": "eve"
       },
       "language": {
@@ -238,7 +239,33 @@
         "voice": {
           "pointer": "/input_schema/properties/voice",
           "component": "string-enum",
-          "label": "Voice"
+          "label": "Voice",
+          "custom": "voice-id-selector",
+          "custom_config": {
+            "allow_custom": true,
+            "options": [
+              {
+                "value": "eve",
+                "label": "Eve"
+              },
+              {
+                "value": "ara",
+                "label": "Ara"
+              },
+              {
+                "value": "rex",
+                "label": "Rex"
+              },
+              {
+                "value": "sal",
+                "label": "Sal"
+              },
+              {
+                "value": "leo",
+                "label": "Leo"
+              }
+            ]
+          }
         },
         "language": {
           "pointer": "/input_schema/properties/language",

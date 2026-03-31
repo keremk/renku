@@ -497,14 +497,6 @@ models:
       function: costByCharacters
       inputs: [text]
       pricePerCharacter: 0.0000042
-  - name: maya/batch
-    type: audio
-    mime:
-      - audio/mp3
-    price:
-      function: costByAudioSeconds
-      inputs: [duration]
-      pricePerSecond: 0.002
   - name: elevenlabs/music
     type: audio
     mime:

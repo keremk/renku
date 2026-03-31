@@ -100,6 +100,7 @@
     ],
     "type": "string",
     "title": "voice",
+    "x-voice-id": true,
     "description": "An enumeration."
   },
   "output_schema": {
@@ -333,7 +334,93 @@
           "pointer": "/input_schema/properties/voice",
           "schemaPointer": "/voice",
           "component": "string-enum",
-          "label": "Voice"
+          "label": "Voice",
+          "custom": "voice-id-selector",
+          "custom_config": {
+            "allow_custom": true,
+            "options": [
+              {
+                "value": "Aaron",
+                "label": "Aaron"
+              },
+              {
+                "value": "Abigail",
+                "label": "Abigail"
+              },
+              {
+                "value": "Anaya",
+                "label": "Anaya"
+              },
+              {
+                "value": "Andy",
+                "label": "Andy"
+              },
+              {
+                "value": "Archer",
+                "label": "Archer"
+              },
+              {
+                "value": "Brian",
+                "label": "Brian"
+              },
+              {
+                "value": "Chloe",
+                "label": "Chloe"
+              },
+              {
+                "value": "Dylan",
+                "label": "Dylan"
+              },
+              {
+                "value": "Emmanuel",
+                "label": "Emmanuel"
+              },
+              {
+                "value": "Ethan",
+                "label": "Ethan"
+              },
+              {
+                "value": "Evelyn",
+                "label": "Evelyn"
+              },
+              {
+                "value": "Gavin",
+                "label": "Gavin"
+              },
+              {
+                "value": "Gordon",
+                "label": "Gordon"
+              },
+              {
+                "value": "Ivan",
+                "label": "Ivan"
+              },
+              {
+                "value": "Laura",
+                "label": "Laura"
+              },
+              {
+                "value": "Lucy",
+                "label": "Lucy"
+              },
+              {
+                "value": "Madison",
+                "label": "Madison"
+              },
+              {
+                "value": "Marisol",
+                "label": "Marisol"
+              },
+              {
+                "value": "Meera",
+                "label": "Meera"
+              },
+              {
+                "value": "Walter",
+                "label": "Walter"
+              }
+            ]
+          }
         },
         "temperature": {
           "pointer": "/input_schema/properties/temperature",

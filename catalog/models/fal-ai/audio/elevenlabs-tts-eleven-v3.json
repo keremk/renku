@@ -76,6 +76,8 @@
         ],
         "title": "Voice",
         "type": "string",
+        "x-voice-id": true,
+        "x-voices-file": "voices/elevenlabs-default-voices.json",
         "description": "The voice to use for speech generation",
         "default": "Rachel"
       },
@@ -258,7 +260,12 @@
         "voice": {
           "pointer": "/input_schema/properties/voice",
           "component": "string",
-          "label": "Voice"
+          "label": "Voice",
+          "custom": "voice-id-selector",
+          "custom_config": {
+            "allow_custom": true,
+            "options_file": "voices/elevenlabs-default-voices.json"
+          }
         },
         "language_code": {
           "pointer": "/input_schema/properties/language_code",

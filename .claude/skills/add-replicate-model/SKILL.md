@@ -43,6 +43,27 @@ Notes:
 - If validation reports `placeholder-to-be-annotated` pointers, ask the user exactly which component should be used for each pointer and update annotations before continuing.
 - Do not leave unresolved placeholders for newly added models unless user explicitly agrees.
 
+### Step 3a: Voice-ID Markers for Audio/TTS (Required when applicable)
+
+For audio narration/TTS schemas, propose voice field markers before moving on:
+
+- **Heuristic candidates to inspect** (proposal only): `voice`, `voice_id`, `voiceId`, and nested variants like `voice_setting.voice_id`
+- Ask the user to confirm exactly which schema pointer(s) should be marked
+- After confirmation, annotate the **source schema node** (or referenced definition node) with:
+  - `"x-voice-id": true`
+  - optionally `"x-voices-file": "voices/<file>.json"` when shared rich voice metadata exists
+
+Important rules:
+
+- Never place `x-voice-id` / `x-voices-file` under `x-renku-viewer`; they belong to the original schema node.
+- When `x-voices-file` is present, it is authoritative for voice options.
+- Re-run annotation + validation after applying these markers:
+
+```bash
+node scripts/annotate-viewer-schemas.mjs --model=<owner/model-name>
+node scripts/validate-viewer-schemas.mjs --model=<owner/model-name>
+```
+
 ## Step 4: Analyze Schema
 
 Read the generated JSON schema file and its `x-renku-viewer` annotations. Identify cost-relevant input fields:
@@ -127,30 +148,33 @@ Read the relevant producer files and the model schemas, then build a proposed ma
 ```
 
 Also show the proposed field-level mappings for each model:
+
 - Which producer inputs map to which API fields
 - Any transformations needed (intToString, resolution mode, expand, etc.)
 
 Ask the user:
+
 > "Does this mapping look correct? Let me know if anything needs adjusting before I add it."
 
 Wait for confirmation before proceeding to 9c.
 
 ### 9b: Producer Selection Reference
 
-| Model type / schema inputs | Producer file |
-|---|---|
-| `text` (TTS) | `audio/text-to-speech.yaml` |
-| `lyrics` + `prompt` (music) | `audio/text-to-music.yaml` |
+| Model type / schema inputs                       | Producer file                   |
+| ------------------------------------------------ | ------------------------------- |
+| `text` (TTS)                                     | `audio/text-to-speech.yaml`     |
+| `lyrics` + `prompt` (music)                      | `audio/text-to-music.yaml`      |
 | `reference_images` array + `prompt` + `duration` | `video/ref-image-to-video.yaml` |
-| `video` + `prompt` + `duration` (extend) | `video/extend-video.yaml` |
-| `image` + `prompt` + `duration` (single image) | `video/image-to-video.yaml` |
-| `prompt` + `duration` only (text-to-video) | `video/text-to-video.yaml` |
+| `video` + `prompt` + `duration` (extend)         | `video/extend-video.yaml`       |
+| `image` + `prompt` + `duration` (single image)   | `video/image-to-video.yaml`     |
+| `prompt` + `duration` only (text-to-video)       | `video/text-to-video.yaml`      |
 
 ### 9c: Insert Mappings
 
 For each model, add an entry under `mappings.replicate:` in the correct producer YAML, following existing patterns in that file. Use the Edit tool to insert after the last existing `replicate:` entry. If no `replicate:` section exists yet, add one at the end of the file.
 
 Common transformation patterns:
+
 - **Plain integer duration**: `Duration: duration`
 - **Duration as string**: `Duration: { field: duration, intToString: true }`
 - **Aspect ratio only**: `Resolution: { field: aspect_ratio, resolution: { mode: aspectRatio } }`

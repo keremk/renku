@@ -69,6 +69,8 @@
         "type": "string",
         "title": "Voice Id",
         "default": "Wise_Woman",
+        "x-voice-id": true,
+        "x-voices-file": "voices/minimax-default-voices.json",
         "description": "Voice to synthesize. Pick any MiniMax system voice or a voice_id returned by https://replicate.com/minimax/voice-cloning."
       },
       "sample_rate": {
@@ -479,7 +481,12 @@
         "voice_id": {
           "pointer": "/input_schema/properties/voice_id",
           "component": "string",
-          "label": "Voice Id"
+          "label": "Voice Id",
+          "custom": "voice-id-selector",
+          "custom_config": {
+            "allow_custom": true,
+            "options_file": "voices/minimax-default-voices.json"
+          }
         },
         "sample_rate": {
           "pointer": "/input_schema/properties/sample_rate",

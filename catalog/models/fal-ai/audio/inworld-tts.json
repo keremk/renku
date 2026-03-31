@@ -134,6 +134,7 @@
         "description": "The voice to use for synthesis.",
         "type": "string",
         "title": "Voice",
+        "x-voice-id": true,
         "default": "Craig (en)"
       },
       "sample_rate_hertz": {
@@ -263,7 +264,465 @@
         "voice": {
           "pointer": "/input_schema/properties/voice",
           "component": "string-enum",
-          "label": "Voice"
+          "label": "Voice",
+          "custom": "voice-id-selector",
+          "custom_config": {
+            "allow_custom": true,
+            "options": [
+              {
+                "value": "Loretta (en)",
+                "label": "Loretta (en)"
+              },
+              {
+                "value": "Darlene (en)",
+                "label": "Darlene (en)"
+              },
+              {
+                "value": "Marlene (en)",
+                "label": "Marlene (en)"
+              },
+              {
+                "value": "Hank (en)",
+                "label": "Hank (en)"
+              },
+              {
+                "value": "Evelyn (en)",
+                "label": "Evelyn (en)"
+              },
+              {
+                "value": "Celeste (en)",
+                "label": "Celeste (en)"
+              },
+              {
+                "value": "Pippa (en)",
+                "label": "Pippa (en)"
+              },
+              {
+                "value": "Tessa (en)",
+                "label": "Tessa (en)"
+              },
+              {
+                "value": "Liam (en)",
+                "label": "Liam (en)"
+              },
+              {
+                "value": "Callum (en)",
+                "label": "Callum (en)"
+              },
+              {
+                "value": "Hamish (en)",
+                "label": "Hamish (en)"
+              },
+              {
+                "value": "Abby (en)",
+                "label": "Abby (en)"
+              },
+              {
+                "value": "Graham (en)",
+                "label": "Graham (en)"
+              },
+              {
+                "value": "Rupert (en)",
+                "label": "Rupert (en)"
+              },
+              {
+                "value": "Mortimer (en)",
+                "label": "Mortimer (en)"
+              },
+              {
+                "value": "Snik (en)",
+                "label": "Snik (en)"
+              },
+              {
+                "value": "Anjali (en)",
+                "label": "Anjali (en)"
+              },
+              {
+                "value": "Saanvi (en)",
+                "label": "Saanvi (en)"
+              },
+              {
+                "value": "Arjun (en)",
+                "label": "Arjun (en)"
+              },
+              {
+                "value": "Claire (en)",
+                "label": "Claire (en)"
+              },
+              {
+                "value": "Oliver (en)",
+                "label": "Oliver (en)"
+              },
+              {
+                "value": "Simon (en)",
+                "label": "Simon (en)"
+              },
+              {
+                "value": "Elliot (en)",
+                "label": "Elliot (en)"
+              },
+              {
+                "value": "James (en)",
+                "label": "James (en)"
+              },
+              {
+                "value": "Serena (en)",
+                "label": "Serena (en)"
+              },
+              {
+                "value": "Gareth (en)",
+                "label": "Gareth (en)"
+              },
+              {
+                "value": "Vinny (en)",
+                "label": "Vinny (en)"
+              },
+              {
+                "value": "Lauren (en)",
+                "label": "Lauren (en)"
+              },
+              {
+                "value": "Jessica (en)",
+                "label": "Jessica (en)"
+              },
+              {
+                "value": "Ethan (en)",
+                "label": "Ethan (en)"
+              },
+              {
+                "value": "Tyler (en)",
+                "label": "Tyler (en)"
+              },
+              {
+                "value": "Jason (en)",
+                "label": "Jason (en)"
+              },
+              {
+                "value": "Chloe (en)",
+                "label": "Chloe (en)"
+              },
+              {
+                "value": "Veronica (en)",
+                "label": "Veronica (en)"
+              },
+              {
+                "value": "Victoria (en)",
+                "label": "Victoria (en)"
+              },
+              {
+                "value": "Miranda (en)",
+                "label": "Miranda (en)"
+              },
+              {
+                "value": "Sebastian (en)",
+                "label": "Sebastian (en)"
+              },
+              {
+                "value": "Victor (en)",
+                "label": "Victor (en)"
+              },
+              {
+                "value": "Malcolm (en)",
+                "label": "Malcolm (en)"
+              },
+              {
+                "value": "Kayla (en)",
+                "label": "Kayla (en)"
+              },
+              {
+                "value": "Nate (en)",
+                "label": "Nate (en)"
+              },
+              {
+                "value": "Jake (en)",
+                "label": "Jake (en)"
+              },
+              {
+                "value": "Brian (en)",
+                "label": "Brian (en)"
+              },
+              {
+                "value": "Amina (en)",
+                "label": "Amina (en)"
+              },
+              {
+                "value": "Kelsey (en)",
+                "label": "Kelsey (en)"
+              },
+              {
+                "value": "Derek (en)",
+                "label": "Derek (en)"
+              },
+              {
+                "value": "Grant (en)",
+                "label": "Grant (en)"
+              },
+              {
+                "value": "Evan (en)",
+                "label": "Evan (en)"
+              },
+              {
+                "value": "Alex (en)",
+                "label": "Alex (en)"
+              },
+              {
+                "value": "Ashley (en)",
+                "label": "Ashley (en)"
+              },
+              {
+                "value": "Craig (en)",
+                "label": "Craig (en)"
+              },
+              {
+                "value": "Deborah (en)",
+                "label": "Deborah (en)"
+              },
+              {
+                "value": "Dennis (en)",
+                "label": "Dennis (en)"
+              },
+              {
+                "value": "Edward (en)",
+                "label": "Edward (en)"
+              },
+              {
+                "value": "Elizabeth (en)",
+                "label": "Elizabeth (en)"
+              },
+              {
+                "value": "Hades (en)",
+                "label": "Hades (en)"
+              },
+              {
+                "value": "Julia (en)",
+                "label": "Julia (en)"
+              },
+              {
+                "value": "Pixie (en)",
+                "label": "Pixie (en)"
+              },
+              {
+                "value": "Mark (en)",
+                "label": "Mark (en)"
+              },
+              {
+                "value": "Olivia (en)",
+                "label": "Olivia (en)"
+              },
+              {
+                "value": "Priya (en)",
+                "label": "Priya (en)"
+              },
+              {
+                "value": "Ronald (en)",
+                "label": "Ronald (en)"
+              },
+              {
+                "value": "Sarah (en)",
+                "label": "Sarah (en)"
+              },
+              {
+                "value": "Shaun (en)",
+                "label": "Shaun (en)"
+              },
+              {
+                "value": "Theodore (en)",
+                "label": "Theodore (en)"
+              },
+              {
+                "value": "Timothy (en)",
+                "label": "Timothy (en)"
+              },
+              {
+                "value": "Wendy (en)",
+                "label": "Wendy (en)"
+              },
+              {
+                "value": "Dominus (en)",
+                "label": "Dominus (en)"
+              },
+              {
+                "value": "Hana (en)",
+                "label": "Hana (en)"
+              },
+              {
+                "value": "Clive (en)",
+                "label": "Clive (en)"
+              },
+              {
+                "value": "Carter (en)",
+                "label": "Carter (en)"
+              },
+              {
+                "value": "Blake (en)",
+                "label": "Blake (en)"
+              },
+              {
+                "value": "Luna (en)",
+                "label": "Luna (en)"
+              },
+              {
+                "value": "Yichen (zh)",
+                "label": "Yichen (zh)"
+              },
+              {
+                "value": "Xiaoyin (zh)",
+                "label": "Xiaoyin (zh)"
+              },
+              {
+                "value": "Xinyi (zh)",
+                "label": "Xinyi (zh)"
+              },
+              {
+                "value": "Jing (zh)",
+                "label": "Jing (zh)"
+              },
+              {
+                "value": "Erik (nl)",
+                "label": "Erik (nl)"
+              },
+              {
+                "value": "Katrien (nl)",
+                "label": "Katrien (nl)"
+              },
+              {
+                "value": "Lennart (nl)",
+                "label": "Lennart (nl)"
+              },
+              {
+                "value": "Lore (nl)",
+                "label": "Lore (nl)"
+              },
+              {
+                "value": "Alain (fr)",
+                "label": "Alain (fr)"
+              },
+              {
+                "value": "Hélène (fr)",
+                "label": "Hélène (fr)"
+              },
+              {
+                "value": "Mathieu (fr)",
+                "label": "Mathieu (fr)"
+              },
+              {
+                "value": "Étienne (fr)",
+                "label": "Étienne (fr)"
+              },
+              {
+                "value": "Johanna (de)",
+                "label": "Johanna (de)"
+              },
+              {
+                "value": "Josef (de)",
+                "label": "Josef (de)"
+              },
+              {
+                "value": "Gianni (it)",
+                "label": "Gianni (it)"
+              },
+              {
+                "value": "Orietta (it)",
+                "label": "Orietta (it)"
+              },
+              {
+                "value": "Asuka (ja)",
+                "label": "Asuka (ja)"
+              },
+              {
+                "value": "Satoshi (ja)",
+                "label": "Satoshi (ja)"
+              },
+              {
+                "value": "Hyunwoo (ko)",
+                "label": "Hyunwoo (ko)"
+              },
+              {
+                "value": "Minji (ko)",
+                "label": "Minji (ko)"
+              },
+              {
+                "value": "Seojun (ko)",
+                "label": "Seojun (ko)"
+              },
+              {
+                "value": "Yoona (ko)",
+                "label": "Yoona (ko)"
+              },
+              {
+                "value": "Szymon (pl)",
+                "label": "Szymon (pl)"
+              },
+              {
+                "value": "Wojciech (pl)",
+                "label": "Wojciech (pl)"
+              },
+              {
+                "value": "Heitor (pt)",
+                "label": "Heitor (pt)"
+              },
+              {
+                "value": "Maitê (pt)",
+                "label": "Maitê (pt)"
+              },
+              {
+                "value": "Diego (es)",
+                "label": "Diego (es)"
+              },
+              {
+                "value": "Lupita (es)",
+                "label": "Lupita (es)"
+              },
+              {
+                "value": "Miguel (es)",
+                "label": "Miguel (es)"
+              },
+              {
+                "value": "Rafael (es)",
+                "label": "Rafael (es)"
+              },
+              {
+                "value": "Svetlana (ru)",
+                "label": "Svetlana (ru)"
+              },
+              {
+                "value": "Elena (ru)",
+                "label": "Elena (ru)"
+              },
+              {
+                "value": "Dmitry (ru)",
+                "label": "Dmitry (ru)"
+              },
+              {
+                "value": "Nikolai (ru)",
+                "label": "Nikolai (ru)"
+              },
+              {
+                "value": "Riya (hi)",
+                "label": "Riya (hi)"
+              },
+              {
+                "value": "Manoj (hi)",
+                "label": "Manoj (hi)"
+              },
+              {
+                "value": "Yael (he)",
+                "label": "Yael (he)"
+              },
+              {
+                "value": "Oren (he)",
+                "label": "Oren (he)"
+              },
+              {
+                "value": "Nour (ar)",
+                "label": "Nour (ar)"
+              },
+              {
+                "value": "Omar (ar)",
+                "label": "Omar (ar)"
+              }
+            ]
+          }
         },
         "sample_rate_hertz": {
           "pointer": "/input_schema/properties/sample_rate_hertz",
