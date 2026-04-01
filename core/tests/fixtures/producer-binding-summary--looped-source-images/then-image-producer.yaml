@@ -1,0 +1,22 @@
+meta:
+  name: Fixture Then Image Producer
+  description: Composes an image from a prompt and source image array.
+  id: ThenImageProducer
+  kind: producer
+  version: 0.1.0
+
+inputs:
+  - name: Prompt
+    description: Prompt used to compose the output image.
+    type: string
+    required: true
+  - name: SourceImages
+    description: Source images used for composition.
+    type: array
+    itemType: image
+    required: true
+
+artifacts:
+  - name: ComposedImage
+    description: Composed output image.
+    type: image

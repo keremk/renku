@@ -1,0 +1,19 @@
+meta:
+  name: Fixture Ad Script Producer
+  description: Produces an ad script artifact used for binding tests.
+  id: AdScriptProducer
+  kind: producer
+  version: 0.1.0
+  outputSchema: ./ad-script-output.json
+
+inputs:
+  - name: ProductDescription
+    description: Product description required to generate the ad script.
+    type: string
+    required: true
+
+artifacts:
+  - name: AdScript
+    description: Structured ad script output.
+    type: json
+    arrays: []

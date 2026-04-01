@@ -1,12 +1,27 @@
-import path from 'node:path';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { loadYamlBlueprintTree } from '../parsing/blueprint-loader/yaml-parser.js';
+import { RuntimeErrorCode } from '../errors/index.js';
+import { hydrateOutputSchemasFromProducerMetadata } from '../orchestration/output-schema-hydration.js';
 import type { BlueprintTreeNode } from '../types.js';
-import { CATALOG_ROOT } from '../../tests/catalog-paths.js';
+import { TEST_FIXTURES_ROOT } from '../../tests/catalog-paths.js';
+import { buildBlueprintGraph } from './canonical-graph.js';
 import {
   buildProducerBindingSummary,
   collectProducerBindingEntries,
 } from './producer-binding-summary.js';
+
+const ARTIFACT_JSON_PATH_FIXTURE_BLUEPRINT = resolve(
+  TEST_FIXTURES_ROOT,
+  'producer-binding-summary--artifact-json-path-binding',
+  'producer-binding-summary--artifact-json-path-binding.yaml'
+);
+
+const LOOPED_SOURCE_IMAGES_FIXTURE_BLUEPRINT = resolve(
+  TEST_FIXTURES_ROOT,
+  'producer-binding-summary--looped-source-images',
+  'producer-binding-summary--looped-source-images.yaml'
+);
 
 function makeTreeNode(
   namespacePath: string[],
@@ -91,26 +106,28 @@ function createFixtureTree(): BlueprintTreeNode {
   ]);
 }
 
-function createSelectorFixtureTree(): BlueprintTreeNode {
-  const rootDoc = {
-    meta: { id: 'root', name: 'Root' },
-    inputs: [
-      { name: 'Gallery', type: 'array', itemType: 'image', required: true },
-      { name: 'SettingImage', type: 'image', required: true },
-    ],
-    producers: [],
-    producerImports: [
-      { name: 'ImageProducer', producer: 'image/image-compose' },
-    ],
-    artefacts: [],
-    edges: [
-      { from: 'Gallery[character]', to: 'ImageProducer.SourceImages[0]' },
-      { from: 'Gallery[character+1]', to: 'ImageProducer.SourceImages[1]' },
-      { from: 'SettingImage', to: 'ImageProducer.BackgroundImage' },
-    ],
-  };
+function collectMissingEdgeEndpointNodeIds(root: BlueprintTreeNode): {
+  missingSourceNodeIds: string[];
+  missingTargetNodeIds: string[];
+} {
+  const graph = buildBlueprintGraph(root);
+  const nodeIds = new Set(graph.nodes.map((node) => node.id));
+  const missingSourceNodeIds = new Set<string>();
+  const missingTargetNodeIds = new Set<string>();
 
-  return makeTreeNode([], rootDoc as Record<string, unknown>);
+  for (const edge of graph.edges) {
+    if (!nodeIds.has(edge.from.nodeId)) {
+      missingSourceNodeIds.add(edge.from.nodeId);
+    }
+    if (!nodeIds.has(edge.to.nodeId)) {
+      missingTargetNodeIds.add(edge.to.nodeId);
+    }
+  }
+
+  return {
+    missingSourceNodeIds: Array.from(missingSourceNodeIds).sort(),
+    missingTargetNodeIds: Array.from(missingTargetNodeIds).sort(),
+  };
 }
 
 describe('producer-binding-summary', () => {
@@ -135,6 +152,7 @@ describe('producer-binding-summary', () => {
         Resolution: { width: 1280, height: 720 },
         Prompt: 'Plain input prompt',
       },
+      mode: 'static',
     });
 
     expect(summary.mappingInputBindings.Resolution).toBe('Input:Resolution');
@@ -168,6 +186,7 @@ describe('producer-binding-summary', () => {
       root,
       producerId: 'VideoProducer',
       inputs: {},
+      mode: 'static',
     });
 
     expect(summary.mappingInputBindings.ReferenceImages).toBe(
@@ -182,47 +201,92 @@ describe('producer-binding-summary', () => {
     expect(summary.connectedAliases.has('ReferenceImages')).toBe(true);
   });
 
-  it('resolves real blueprint bindings for producer artifacts', async () => {
-    const blueprintPath = path.join(
-      CATALOG_ROOT,
-      'blueprints',
-      'ads',
-      'ad-video.yaml'
+  it('fails fast when JSON-path source graph nodes are unresolved', async () => {
+    const { root } = await loadYamlBlueprintTree(
+      ARTIFACT_JSON_PATH_FIXTURE_BLUEPRINT
     );
-    const { root } = await loadYamlBlueprintTree(blueprintPath, {
-      catalogRoot: CATALOG_ROOT,
-    });
+
+    expect(() =>
+      buildProducerBindingSummary({
+        root,
+        producerId: 'CharacterImageProducer',
+        mode: 'static',
+      })
+    ).toThrowError(
+      /Missing source graph node "AdScriptProducer.AdScript.CharacterImagePrompt"/
+    );
+  });
+
+  it('resolves fixture producer bindings after output-schema hydration', async () => {
+    const { root } = await loadYamlBlueprintTree(
+      ARTIFACT_JSON_PATH_FIXTURE_BLUEPRINT
+    );
+    await hydrateOutputSchemasFromProducerMetadata(root);
 
     const summary = buildProducerBindingSummary({
       root,
       producerId: 'CharacterImageProducer',
-      inputs: {
-        Resolution: { width: 1280, height: 720 },
-      },
+      mode: 'static',
     });
 
+    const endpointCheck = collectMissingEdgeEndpointNodeIds(root);
+    expect(endpointCheck.missingSourceNodeIds).toEqual([]);
     expect(summary.mappingInputBindings.Resolution).toBe('Input:Resolution');
     expect(summary.mappingInputBindings.Prompt).toBe(
       'Artifact:AdScriptProducer.AdScript.CharacterImagePrompt'
     );
   });
 
-  it('resolves symbolic indexed input selectors for preview bindings', () => {
-    const root = createSelectorFixtureTree();
+  it('uses canonical runtime bindings for looped collection aliases', async () => {
+    const { root } = await loadYamlBlueprintTree(
+      LOOPED_SOURCE_IMAGES_FIXTURE_BLUEPRINT
+    );
 
     const summary = buildProducerBindingSummary({
       root,
-      producerId: 'ImageProducer',
+      producerId: 'ThenImageProducer',
       inputs: {
-        Gallery: ['image-0', 'image-1', 'image-2'],
-        SettingImage: 'setting-image',
+        NumOfCharacters: 1,
+        Prompt: 'compose then image',
+        CelebrityThenImages: ['file:./input-files/then-0.jpg'],
+        SettingImage: 'file:./input-files/setting.jpg',
       },
+      mode: 'runtime',
     });
 
-    expect(summary.resolvedInputs['Input:Gallery[character]']).toBe('image-0');
-    expect(summary.resolvedInputs['Input:Gallery[character+1]']).toBe(
-      'image-1'
+    expect(summary.mappingInputBindings.SourceImages).toBe(
+      'Input:ThenImageProducer.SourceImages[0]'
     );
-    expect(summary.resolvedInputs['Input:SettingImage']).toBe('setting-image');
+    expect(summary.mappingInputBindings['SourceImages[0]']).toBe(
+      'Input:CelebrityThenImages[0]'
+    );
+    expect(summary.mappingInputBindings['SourceImages[1]']).toBe(
+      'Input:SettingImage'
+    );
+
+    expect(summary.resolvedInputs['Input:CelebrityThenImages[0]']).toBe(
+      'file:./input-files/then-0.jpg'
+    );
+    expect(summary.resolvedInputs['Input:SettingImage']).toBe(
+      'file:./input-files/setting.jpg'
+    );
+  });
+
+  it('throws explicit errors when metadata output schema path is missing', async () => {
+    const { root } = await loadYamlBlueprintTree(
+      ARTIFACT_JSON_PATH_FIXTURE_BLUEPRINT
+    );
+    const producerNode = root.children.get('AdScriptProducer');
+    if (!producerNode) {
+      throw new Error('Fixture should include AdScriptProducer child node.');
+    }
+
+    producerNode.document.meta.outputSchema = './missing-schema.json';
+
+    await expect(
+      hydrateOutputSchemasFromProducerMetadata(root)
+    ).rejects.toMatchObject({
+      code: RuntimeErrorCode.MISSING_OUTPUT_SCHEMA,
+    });
   });
 });

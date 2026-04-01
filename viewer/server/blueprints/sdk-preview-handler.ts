@@ -2,6 +2,7 @@ import path from 'node:path';
 import {
   createRuntimeError,
   RuntimeErrorCode,
+  hydrateOutputSchemasFromProducerMetadata,
   isRenkuError,
   loadYamlBlueprintTree,
   resolveMappingsForModel,
@@ -59,12 +60,20 @@ export interface ProducerSdkPreviewResponse {
   errorsByProducer?: Record<string, ProducerContractError>;
 }
 
+const NON_BLOCKING_PREVIEW_BINDING_ERROR_CODES = new Set<string>([
+  RuntimeErrorCode.MISSING_REQUIRED_INPUT,
+  RuntimeErrorCode.MISSING_INPUT_SOURCE,
+  RuntimeErrorCode.MISSING_DIMENSION_SIZE,
+  RuntimeErrorCode.INVALID_INPUT_VALUE,
+]);
+
 export async function getProducerSdkPreview(
   request: ProducerSdkPreviewRequest
 ): Promise<ProducerSdkPreviewResponse> {
   const { root } = await loadYamlBlueprintTree(request.blueprintPath, {
     catalogRoot: request.catalogRoot,
   });
+  await hydrateOutputSchemasFromProducerMetadata(root);
 
   let catalog: LoadedModelCatalog | null = null;
   let catalogModelsDir: string | null = null;
@@ -91,11 +100,31 @@ export async function getProducerSdkPreview(
         continue;
       }
 
-      const bindingContext = buildProducerBindingSummary({
-        root,
-        producerId: selection.producerId,
-        inputs: request.inputs,
-      });
+      const previewWarningsByProducer = new Set<string>();
+      let bindingContext: ReturnType<typeof buildProducerBindingSummary>;
+      try {
+        bindingContext = buildProducerBindingSummary({
+          root,
+          producerId: selection.producerId,
+          inputs: request.inputs,
+          mode: 'runtime',
+        });
+      } catch (error) {
+        if (
+          isRenkuError(error) &&
+          NON_BLOCKING_PREVIEW_BINDING_ERROR_CODES.has(error.code)
+        ) {
+          previewWarningsByProducer.add(error.message);
+          bindingContext = buildProducerBindingSummary({
+            root,
+            producerId: selection.producerId,
+            inputs: request.inputs,
+            mode: 'static',
+          });
+        } else {
+          throw error;
+        }
+      }
 
       const schemaFile = await loadSelectionSchemaFile({
         selection,
@@ -140,6 +169,20 @@ export async function getProducerSdkPreview(
         const source = fieldMapping.get(field.field)?.source;
         return source !== 'artifact';
       });
+
+      if (previewWarningsByProducer.size > 0) {
+        const warnings = Array.from(previewWarningsByProducer);
+        for (const field of visibleFields) {
+          const mergedWarnings = new Set([
+            ...field.warnings,
+            ...warnings,
+            ...field.errors,
+          ]);
+          field.warnings = Array.from(mergedWarnings);
+          field.errors = [];
+          field.status = field.warnings.length > 0 ? 'warning' : 'ok';
+        }
+      }
 
       assertPreviewSubsetOfDescriptors({
         producerId: selection.producerId,

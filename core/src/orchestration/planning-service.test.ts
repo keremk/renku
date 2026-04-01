@@ -221,7 +221,7 @@ describe('applyOutputSchemasToBlueprintTree', () => {
     expect(tree.document.artefacts[0].schema).toBeUndefined();
   });
 
-  it('handles empty arrays property', () => {
+  it('applies schema when arrays metadata is explicitly empty', () => {
     const tree = makeTreeNode(
       makeBlueprintDocument(
         'TestBlueprint',
@@ -253,8 +253,8 @@ describe('applyOutputSchemasToBlueprintTree', () => {
 
     applyOutputSchemasToBlueprintTree(tree, providerOptions);
 
-    // Schema should NOT be applied (empty arrays)
-    expect(tree.document.artefacts[0].schema).toBeUndefined();
+    // Empty arrays metadata is valid and should still hydrate scalar JSON fields.
+    expect(tree.document.artefacts[0].schema).toBeDefined();
   });
 
   it('handles provider options without outputSchema', () => {

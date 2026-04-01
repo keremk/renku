@@ -11,6 +11,15 @@ export * from './hashing.js';
 export * from './planning/planner.js';
 export * from './planning/explanation.js';
 export * from './orchestration/planning-service.js';
+export {
+  hydrateOutputSchemasFromProducerMetadata,
+  loadOutputSchemasFromProducerMetadata,
+  applyOutputSchemasFromProviderOptionsToBlueprintTree,
+  buildOutputSchemaMapFromProviderOptions,
+  parseJsonSchemaDefinition,
+  type OutputSchemaByProducerAlias,
+  type OutputSchemaProviderOption,
+} from './orchestration/output-schema-hydration.js';
 export * from './orchestration/producer-options.js';
 export * from './orchestration/load-inputs.js';
 export * from './orchestration/config-utils.js';

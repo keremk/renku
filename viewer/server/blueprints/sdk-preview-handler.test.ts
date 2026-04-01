@@ -71,4 +71,36 @@ describe('getProducerSdkPreview', () => {
       )
     ).toBe(true);
   });
+
+  it('keeps preview non-blocking when runtime inputs are incomplete', async () => {
+    const blueprintPath = path.join(
+      CATALOG_ROOT,
+      'blueprints',
+      'animated-edu-characters',
+      'animated-edu-characters.yaml'
+    );
+
+    const response = await getProducerSdkPreview({
+      blueprintPath,
+      catalogRoot: CATALOG_ROOT,
+      inputs: {},
+      models: [
+        {
+          producerId: 'CharacterImageProducer',
+          provider: 'fal-ai',
+          model: 'flux-2',
+        },
+      ],
+    });
+
+    expect(Object.keys(response.errorsByProducer ?? {})).toHaveLength(0);
+    const preview = response.producers.CharacterImageProducer;
+    expect((preview?.fields.length ?? 0) > 0).toBe(true);
+    expect(preview?.fields.every((field) => field.status !== 'error')).toBe(
+      true
+    );
+    expect(
+      preview?.fields.some((field) => field.status === 'warning')
+    ).toBe(true);
+  });
 });

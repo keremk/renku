@@ -1,0 +1,25 @@
+meta:
+  name: Fixture Character Image Producer
+  description: Produces an image from prompt and resolution.
+  id: CharacterImageProducer
+  kind: producer
+  version: 0.1.0
+
+inputs:
+  - name: Prompt
+    description: Prompt describing the character image.
+    type: string
+    required: true
+  - name: Resolution
+    description: Target image resolution.
+    type: resolution
+    required: true
+  - name: Style
+    description: Required style hint for generation.
+    type: string
+    required: true
+
+artifacts:
+  - name: GeneratedImage
+    description: Generated character image.
+    type: image

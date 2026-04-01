@@ -1,0 +1,52 @@
+meta:
+  name: Producer Binding Summary Looped Source Images Fixture
+  description: Verifies indexed source image bindings in looped producer inputs.
+  id: ProducerBindingSummaryLoopedSourceImagesFixture
+  kind: blueprint
+  version: 0.1.0
+
+inputs:
+  - name: NumOfCharacters
+    description: Number of loop iterations.
+    type: int
+    required: true
+  - name: Prompt
+    description: Prompt used for each image composition.
+    type: string
+    required: true
+  - name: CelebrityThenImages
+    description: Then images aligned by character index.
+    type: array
+    itemType: image
+    required: true
+  - name: SettingImage
+    description: Shared setting image for all iterations.
+    type: image
+    required: true
+
+artifacts:
+  - name: ConsistentThenImages
+    description: Composed images for each character.
+    type: array
+    itemType: image
+    countInput: NumOfCharacters
+
+loops:
+  - name: character
+    description: Iterates over each character.
+    countInput: NumOfCharacters
+
+producers:
+  - name: ThenImageProducer
+    path: ./then-image-producer.yaml
+    loop: character
+
+connections:
+  - from: Prompt
+    to: ThenImageProducer[character].Prompt
+  - from: CelebrityThenImages[character]
+    to: ThenImageProducer[character].SourceImages[0]
+  - from: SettingImage
+    to: ThenImageProducer[character].SourceImages[1]
+  - from: ThenImageProducer[character].ComposedImage
+    to: ConsistentThenImages[character]

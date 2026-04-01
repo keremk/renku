@@ -1,5 +1,4 @@
 import { buildBlueprintGraph } from '../resolution/canonical-graph.js';
-import { decomposeJsonSchema } from '../resolution/schema-decomposition.js';
 import { expandBlueprintGraph } from '../resolution/canonical-expander.js';
 import {
   buildInputSourceMapFromCanonical,
@@ -16,7 +15,6 @@ import {
   isCanonicalArtifactId,
   isCanonicalInputId,
   isCanonicalProducerId,
-  formatProducerAlias,
 } from '../parsing/canonical-ids.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import type { EventLog } from '../event-log.js';
@@ -27,6 +25,9 @@ import { planStore, type StorageContext } from '../storage.js';
 import type { Clock } from '../types.js';
 import { convertBlobInputToBlobRef } from '../input-blob-storage.js';
 import { formatBlobFileName } from '../blob-utils.js';
+import {
+  applyOutputSchemasFromProviderOptionsToBlueprintTree,
+} from './output-schema-hydration.js';
 import type {
   ArtefactEvent,
   ArtefactEventOutput,
@@ -37,7 +38,6 @@ import type {
   ExecutionPlan,
   InputEvent,
   InputEventSource,
-  JsonSchemaDefinition,
   MappingFieldDefinition,
   Manifest,
   ProducerCatalog,
@@ -142,7 +142,7 @@ export function createPlanningService(
 
       // Apply output schemas from provider options to JSON artifacts.
       // This enables virtual artifact decomposition for producers with outputSchema in producer metadata.
-      applyOutputSchemasToBlueprintTree(
+      applyOutputSchemasFromProviderOptionsToBlueprintTree(
         args.blueprintTree,
         args.providerOptions
       );
@@ -440,75 +440,7 @@ export function applyOutputSchemasToBlueprintTree(
   tree: BlueprintTreeNode,
   providerOptions: Map<string, ProviderOptionEntry>
 ): void {
-  applyOutputSchemasToNode(tree, providerOptions);
-  for (const child of tree.children.values()) {
-    applyOutputSchemasToBlueprintTree(child, providerOptions);
-  }
-}
-
-function applyOutputSchemasToNode(
-  node: BlueprintTreeNode,
-  providerOptions: Map<string, ProviderOptionEntry>
-): void {
-  for (const producer of node.document.producers) {
-    const producerAlias = formatProducerAlias(
-      node.namespacePath,
-      producer.name
-    );
-    const options = providerOptions.get(producerAlias);
-    if (!options?.outputSchema) {
-      continue;
-    }
-
-    // Parse the output schema JSON
-    const parsedSchema = parseJsonSchemaDefinition(options.outputSchema);
-
-    // Apply to JSON artifacts with arrays that don't already have a schema
-    // and add edges from producer to decomposed virtual artifacts
-    node.document.artefacts = node.document.artefacts.map((art) => {
-      if (
-        art.type === 'json' &&
-        art.arrays &&
-        art.arrays.length > 0 &&
-        !art.schema
-      ) {
-        // Decompose the schema and add edges for each virtual artifact
-        const decomposed = decomposeJsonSchema(
-          parsedSchema,
-          art.name,
-          art.arrays
-        );
-        for (const field of decomposed) {
-          // Add edge for all decomposed virtual artifacts (both scalar and array items)
-          const edgeExists = node.document.edges.some(
-            (e) => e.from === producer.name && e.to === field.path
-          );
-          if (!edgeExists) {
-            node.document.edges.push({ from: producer.name, to: field.path });
-          }
-        }
-        return { ...art, schema: parsedSchema };
-      }
-      return art;
-    });
-  }
-}
-
-function parseJsonSchemaDefinition(schemaJson: string): JsonSchemaDefinition {
-  try {
-    const parsed = JSON.parse(schemaJson);
-    const name = typeof parsed.name === 'string' ? parsed.name : 'Schema';
-    const strict =
-      typeof parsed.strict === 'boolean' ? parsed.strict : undefined;
-    const schema = parsed.schema ?? parsed;
-    return { name, strict, schema };
-  } catch {
-    throw createRuntimeError(
-      RuntimeErrorCode.INVALID_OUTPUT_SCHEMA_JSON,
-      `Invalid schema JSON: ${schemaJson.slice(0, 100)}... ` +
-        `Please provide valid JSON schema.`
-    );
-  }
+  applyOutputSchemasFromProviderOptionsToBlueprintTree(tree, providerOptions);
 }
 
 /**

@@ -1,0 +1,12 @@
+{
+  "name": "AdScriptSchema",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "CharacterImagePrompt": {
+        "type": "string"
+      }
+    },
+    "required": ["CharacterImagePrompt"]
+  }
+}

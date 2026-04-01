@@ -1,0 +1,37 @@
+meta:
+  name: Producer Binding Summary Artifact JSON Path Fixture
+  description: Verifies artifact JSON path wiring to another producer input.
+  id: ProducerBindingSummaryArtifactJsonPathFixture
+  kind: blueprint
+  version: 0.1.0
+
+inputs:
+  - name: ProductDescription
+    description: Product description required by the script producer.
+    type: string
+    required: true
+  - name: Resolution
+    description: Target output resolution.
+    type: resolution
+    required: true
+
+artifacts:
+  - name: CharacterImage
+    description: Generated character image output.
+    type: image
+
+producers:
+  - name: AdScriptProducer
+    path: ./ad-script-producer.yaml
+  - name: CharacterImageProducer
+    path: ./character-image-producer.yaml
+
+connections:
+  - from: ProductDescription
+    to: AdScriptProducer.ProductDescription
+  - from: AdScriptProducer.AdScript.CharacterImagePrompt
+    to: CharacterImageProducer.Prompt
+  - from: Resolution
+    to: CharacterImageProducer.Resolution
+  - from: CharacterImageProducer.GeneratedImage
+    to: CharacterImage

@@ -22,6 +22,7 @@ export {
 } from './producer-binding-summary.js';
 export type {
   BindingSourceKind,
+  ProducerBindingSummaryMode,
   ProducerBindingEntry,
   ProducerBindingSummary,
 } from './producer-binding-summary.js';

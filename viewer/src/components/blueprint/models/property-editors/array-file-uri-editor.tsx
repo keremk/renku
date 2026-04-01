@@ -78,11 +78,17 @@ export function ArrayFileUriEditor({
 
   const updateRow = useCallback(
     (index: number, nextValue: unknown) => {
+      if (typeof nextValue !== 'string') {
+        throw new Error(
+          `Array file-uri row "${field.keyPath}[${index}]" requires a string file reference.`
+        );
+      }
+
       const nextRows = [...rows];
       nextRows[index] = nextValue;
       updateRows(nextRows);
     },
-    [rows, updateRows]
+    [field.keyPath, rows, updateRows]
   );
 
   const removeRow = useCallback(

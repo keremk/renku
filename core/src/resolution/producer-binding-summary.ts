@@ -1,7 +1,17 @@
 import type { BlueprintTreeNode } from '../types.js';
-import { isSystemInputName } from '../execution/system-inputs.js';
-import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
+import {
+  formatCanonicalArtifactId,
+  formatCanonicalInputId,
+} from '../parsing/canonical-ids.js';
 import { parseDimensionSelector } from '../parsing/dimension-selectors.js';
+import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
+import type { BlueprintGraphNode } from './canonical-graph.js';
+import { buildBlueprintGraph } from './canonical-graph.js';
+import { expandBlueprintGraph } from './canonical-expander.js';
+import {
+  buildInputSourceMapFromCanonical,
+  normalizeInputValues,
+} from './input-sources.js';
 
 export type BindingSourceKind = 'input' | 'artifact';
 
@@ -20,80 +30,51 @@ export interface ProducerBindingSummary {
   aliasSources: Map<string, Set<BindingSourceKind>>;
 }
 
-type ResolvedEndpointType = 'input' | 'producer' | 'output';
-
-interface ResolvedEndpoint {
-  type: ResolvedEndpointType;
-  producer?: string;
-}
+export type ProducerBindingSummaryMode = 'static' | 'runtime';
 
 export function collectProducerBindingEntries(
   root: BlueprintTreeNode,
   producerId: string
 ): ProducerBindingEntry[] {
+  const graph = buildBlueprintGraph(root);
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+
   const entries: ProducerBindingEntry[] = [];
 
-  const visitNode = (node: BlueprintTreeNode): void => {
-    const inputNames = new Set(node.document.inputs.map((input) => input.name));
-    const producerNames = new Set([
-      ...node.document.producerImports.map(
-        (producerImport) => producerImport.name
+  for (const edge of graph.edges) {
+    const targetNode = nodesById.get(edge.to.nodeId);
+    if (!targetNode || targetNode.type !== 'InputSource') {
+      continue;
+    }
+
+    const targetProducerId = targetNode.namespacePath.join('.');
+    if (targetProducerId !== producerId) {
+      continue;
+    }
+
+    const sourceNode = nodesById.get(edge.from.nodeId);
+    if (!sourceNode) {
+      throw createRuntimeError(
+        RuntimeErrorCode.INVALID_INPUT_BINDING,
+        `Missing source graph node "${edge.from.nodeId}" while collecting producer binding entries for "${producerId}".`
+      );
+    }
+
+    const source = resolveSourceBinding(sourceNode, producerId);
+    const targetAlias = parseTargetAlias(targetNode.name, producerId);
+
+    entries.push({
+      aliasBase: targetAlias.baseAlias,
+      explicitNumericAlias: targetAlias.explicitNumericAlias,
+      targetCanonicalId: formatCanonicalInputId(
+        targetNode.namespacePath,
+        targetNode.name
       ),
-      ...node.document.producers.map((producer) => producer.name),
-    ]);
-    const artifactNames = new Set(
-      node.document.artefacts.map((artifact) => artifact.name)
-    );
+      sourceCanonicalId: source.canonicalId,
+      sourceKind: source.kind,
+    });
+  }
 
-    for (const edge of node.document.edges) {
-      const source = resolveEndpointReference(
-        edge.from,
-        inputNames,
-        producerNames,
-        artifactNames,
-        'source',
-        producerId
-      );
-      const target = resolveEndpointReference(
-        edge.to,
-        inputNames,
-        producerNames,
-        artifactNames,
-        'target',
-        producerId
-      );
-
-      if (target.type !== 'producer' || !target.producer) {
-        continue;
-      }
-
-      const targetAlias = parseTargetAlias(edge.to, producerId);
-      if (!targetAlias) {
-        continue;
-      }
-
-      const sourceKind: BindingSourceKind =
-        source.type === 'input' ? 'input' : 'artifact';
-      const sourceCanonicalId =
-        sourceKind === 'input'
-          ? formatInputCanonicalId(edge.from)
-          : formatArtifactCanonicalId(edge.from);
-
-      entries.push({
-        aliasBase: targetAlias.baseAlias,
-        explicitNumericAlias: targetAlias.explicitNumericAlias,
-        targetCanonicalId: targetAlias.targetCanonicalId,
-        sourceCanonicalId,
-        sourceKind,
-      });
-    }
-
-    for (const child of node.children.values()) {
-      visitNode(child);
-    }
-  };
-
-  visitNode(root);
   return entries;
 }
 
@@ -101,10 +82,116 @@ export function buildProducerBindingSummary(args: {
   root: BlueprintTreeNode;
   producerId: string;
   inputs?: Record<string, unknown>;
+  mode?: ProducerBindingSummaryMode;
 }): ProducerBindingSummary {
   const entries = collectProducerBindingEntries(args.root, args.producerId);
+  const staticBindings = buildStaticBindingState(entries);
+  const mode = args.mode ?? (args.inputs ? 'runtime' : 'static');
 
-  const resolvedInputs: Record<string, unknown> = {};
+  if (mode === 'static') {
+    const resolvedInputs = args.inputs
+      ? resolveStaticInputs(args.inputs, entries)
+      : {};
+    return {
+      resolvedInputs,
+      mappingInputBindings: staticBindings.mappingInputBindings,
+      connectedAliases: staticBindings.connectedAliases,
+      aliasSources: staticBindings.aliasSources,
+    };
+  }
+
+  if (!args.inputs) {
+    throw createRuntimeError(
+      RuntimeErrorCode.MISSING_REQUIRED_INPUT,
+      `Runtime binding summary requires input values for producer "${args.producerId}".`
+    );
+  }
+
+  const runtimeBindings = buildRuntimeBindings({
+    root: args.root,
+    producerId: args.producerId,
+    inputs: args.inputs,
+  });
+
+  const connectedAliases = new Set(Object.keys(runtimeBindings));
+  const aliasSources = buildRuntimeAliasSources({
+    producerId: args.producerId,
+    runtimeBindings,
+    staticAliasSources: staticBindings.aliasSources,
+    connectedAliases,
+  });
+  const resolvedInputs = resolveRuntimeInputs(args.inputs, runtimeBindings);
+
+  return {
+    resolvedInputs,
+    mappingInputBindings: runtimeBindings,
+    connectedAliases,
+    aliasSources,
+  };
+}
+
+function resolveSourceBinding(
+  sourceNode: BlueprintGraphNode,
+  producerId: string
+): { kind: BindingSourceKind; canonicalId: string } {
+  if (sourceNode.type === 'InputSource') {
+    return {
+      kind: 'input',
+      canonicalId: formatCanonicalInputId(
+        sourceNode.namespacePath,
+        sourceNode.name
+      ),
+    };
+  }
+
+  if (sourceNode.type === 'Artifact') {
+    return {
+      kind: 'artifact',
+      canonicalId: formatCanonicalArtifactId(
+        sourceNode.namespacePath,
+        sourceNode.name
+      ),
+    };
+  }
+
+  throw createRuntimeError(
+    RuntimeErrorCode.INVALID_INPUT_BINDING,
+    `Unsupported source node type "${sourceNode.type}" while collecting producer binding entries for "${producerId}".`
+  );
+}
+
+function parseTargetAlias(
+  aliasSegment: string,
+  producerId: string
+): { baseAlias: string; explicitNumericAlias?: string } {
+  const baseAlias = stripAllSelectors(aliasSegment);
+  if (!baseAlias) {
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_INPUT_BINDING,
+      `Invalid producer binding target alias "${aliasSegment}" for ${producerId}.`
+    );
+  }
+
+  const selectorSuffix = aliasSegment.match(/(\[[^\]]+])+$|$/)?.[0] ?? '';
+  if (!selectorSuffix || !/^(\[\d+])+$/.test(selectorSuffix)) {
+    return { baseAlias };
+  }
+
+  return {
+    baseAlias,
+    explicitNumericAlias: `${baseAlias}${selectorSuffix}`,
+  };
+}
+
+function stripAllSelectors(value: string): string {
+  return value.replace(/(\[[^\]]+])+$/, '');
+}
+
+function buildStaticBindingState(entries: ProducerBindingEntry[]): {
+  mappingInputBindings: Record<string, string>;
+  connectedAliases: Set<string>;
+  aliasSources: Map<string, Set<BindingSourceKind>>;
+} {
   const mappingInputBindings: Record<string, string> = {};
   const connectedAliases = new Set<string>();
   const aliasSources = new Map<string, Set<BindingSourceKind>>();
@@ -129,144 +216,13 @@ export function buildProducerBindingSummary(args: {
         entry.sourceKind
       );
     }
-
-    if (entry.sourceKind !== 'input' || !args.inputs) {
-      continue;
-    }
-
-    const value = resolveInputValue(args.inputs, entry.sourceCanonicalId);
-    if (value === undefined) {
-      continue;
-    }
-
-    resolvedInputs[entry.sourceCanonicalId] = value;
   }
 
   return {
-    resolvedInputs,
     mappingInputBindings,
     connectedAliases,
     aliasSources,
   };
-}
-
-function resolveEndpointReference(
-  reference: string,
-  inputNames: Set<string>,
-  producerNames: Set<string>,
-  artifactNames: Set<string>,
-  endpointRole: 'source' | 'target',
-  producerId: string
-): ResolvedEndpoint {
-  const parts = reference.split('.');
-
-  if (parts.length === 1) {
-    const rawName = parts[0] ?? '';
-    const normalizedName = stripAllSelectors(rawName);
-
-    if (inputNames.has(normalizedName) || isSystemInputName(normalizedName)) {
-      return { type: 'input' };
-    }
-
-    if (producerNames.has(normalizedName)) {
-      return { type: 'producer', producer: rawName };
-    }
-
-    if (artifactNames.has(normalizedName)) {
-      return { type: 'output' };
-    }
-
-    throw createRuntimeError(
-      RuntimeErrorCode.INVALID_REFERENCE,
-      `Unable to resolve ${endpointRole} endpoint "${reference}" while collecting producer bindings for "${producerId}".`
-    );
-  }
-
-  const first = parts[0] ?? '';
-  if (first === 'Input') {
-    return { type: 'input' };
-  }
-  if (first === 'Output' || first === 'Artifact') {
-    return { type: 'output' };
-  }
-
-  const normalizedFirst = stripAllSelectors(first);
-  if (producerNames.has(normalizedFirst)) {
-    return { type: 'producer', producer: first };
-  }
-
-  if (inputNames.has(normalizedFirst) || isSystemInputName(normalizedFirst)) {
-    return { type: 'input' };
-  }
-
-  if (artifactNames.has(normalizedFirst)) {
-    return { type: 'output' };
-  }
-
-  throw createRuntimeError(
-    RuntimeErrorCode.INVALID_REFERENCE,
-    `Unable to resolve ${endpointRole} endpoint "${reference}" while collecting producer bindings for "${producerId}".`
-  );
-}
-
-function parseTargetAlias(
-  targetRef: string,
-  producerId: string
-): {
-  baseAlias: string;
-  explicitNumericAlias?: string;
-  targetCanonicalId?: string;
-} | null {
-  const parts = targetRef.split('.');
-  if (parts.length < 2) {
-    return null;
-  }
-
-  const producerSegment = parts[0] ?? '';
-  const producerBase = stripAllSelectors(producerSegment);
-  if (producerBase !== producerId) {
-    return null;
-  }
-
-  const aliasSegment = parts[1] ?? '';
-  const baseAlias = stripAllSelectors(aliasSegment);
-  if (!baseAlias) {
-    throw createRuntimeError(
-      RuntimeErrorCode.INVALID_INPUT_BINDING,
-      `Invalid producer binding target for ${producerId}: ${targetRef}`
-    );
-  }
-
-  const selectorSuffix = aliasSegment.match(/(\[[^\]]+])+$/)?.[0];
-  if (!selectorSuffix) {
-    return {
-      baseAlias,
-      targetCanonicalId: formatInputCanonicalId(
-        `${producerBase}.${aliasSegment}`
-      ),
-    };
-  }
-
-  if (!/^(\[\d+])+$/.test(selectorSuffix)) {
-    return {
-      baseAlias,
-      targetCanonicalId: formatInputCanonicalId(
-        `${producerBase}.${aliasSegment}`
-      ),
-    };
-  }
-
-  return {
-    baseAlias,
-    explicitNumericAlias: `${baseAlias}${selectorSuffix}`,
-    targetCanonicalId: formatInputCanonicalId(
-      `${producerBase}.${aliasSegment}`
-    ),
-  };
-}
-
-function stripAllSelectors(value: string): string {
-  return value.replace(/(\[[^\]]+])+$/, '');
 }
 
 function nextMappedAlias(
@@ -292,6 +248,203 @@ function upsertAliasSource(
     return;
   }
   aliasSources.set(alias, new Set([sourceKind]));
+}
+
+function buildRuntimeBindings(args: {
+  root: BlueprintTreeNode;
+  producerId: string;
+  inputs: Record<string, unknown>;
+}): Record<string, string> {
+  const graph = buildBlueprintGraph(args.root);
+  const inputSources = buildInputSourceMapFromCanonical(graph);
+  const canonicalizedInputs = canonicalizeInputKeys(args.inputs);
+  const normalizedInputs = normalizeInputValues(
+    canonicalizedInputs,
+    inputSources
+  );
+  const canonical = expandBlueprintGraph(graph, normalizedInputs, inputSources);
+
+  const producerInstances = canonical.nodes
+    .filter(
+      (node) =>
+        node.type === 'Producer' && node.producerAlias === args.producerId
+    )
+    .sort((left, right) => compareProducerInstanceOrder(left.id, right.id));
+
+  const firstInstance = producerInstances[0];
+  if (!firstInstance) {
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_INPUT_BINDING,
+      `Runtime binding summary could not find canonical producer instance for "${args.producerId}".`
+    );
+  }
+
+  return canonical.inputBindings[firstInstance.id] ?? {};
+}
+
+function canonicalizeInputKeys(
+  inputs: Record<string, unknown>
+): Record<string, unknown> {
+  const canonicalized: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(inputs)) {
+    canonicalized[key] = value;
+
+    if (
+      !key.startsWith('Input:') &&
+      !key.startsWith('Artifact:') &&
+      !key.startsWith('Producer:')
+    ) {
+      const canonicalKey = `Input:${key}`;
+      if (!(canonicalKey in canonicalized)) {
+        canonicalized[canonicalKey] = value;
+      }
+    }
+  }
+
+  return canonicalized;
+}
+
+function compareProducerInstanceOrder(leftId: string, rightId: string): number {
+  const leftIndices = extractTrailingIndices(leftId);
+  const rightIndices = extractTrailingIndices(rightId);
+  const max = Math.max(leftIndices.length, rightIndices.length);
+
+  for (let index = 0; index < max; index += 1) {
+    const leftValue = leftIndices[index] ?? -1;
+    const rightValue = rightIndices[index] ?? -1;
+    if (leftValue !== rightValue) {
+      return leftValue - rightValue;
+    }
+  }
+
+  return leftId.localeCompare(rightId);
+}
+
+function extractTrailingIndices(id: string): number[] {
+  const matches = id.match(/\[(\d+)]/g);
+  if (!matches) {
+    return [];
+  }
+
+  return matches.map((match) => parseInt(match.slice(1, -1), 10));
+}
+
+function buildRuntimeAliasSources(args: {
+  producerId: string;
+  runtimeBindings: Record<string, string>;
+  staticAliasSources: Map<string, Set<BindingSourceKind>>;
+  connectedAliases: Set<string>;
+}): Map<string, Set<BindingSourceKind>> {
+  const aliasSources = new Map<string, Set<BindingSourceKind>>();
+
+  for (const alias of args.connectedAliases) {
+    const staticSources = args.staticAliasSources.get(alias);
+    if (staticSources) {
+      aliasSources.set(alias, new Set(staticSources));
+      continue;
+    }
+
+    const inferredKind = inferBindingSourceKind(
+      args.runtimeBindings[alias],
+      args.producerId
+    );
+    if (inferredKind) {
+      aliasSources.set(alias, new Set([inferredKind]));
+    }
+  }
+
+  for (const alias of args.connectedAliases) {
+    if (alias.includes('[')) {
+      continue;
+    }
+
+    const existing = aliasSources.get(alias) ?? new Set<BindingSourceKind>();
+    for (const candidateAlias of args.connectedAliases) {
+      if (!candidateAlias.startsWith(`${alias}[`)) {
+        continue;
+      }
+
+      const candidateSources = aliasSources.get(candidateAlias);
+      if (!candidateSources) {
+        continue;
+      }
+
+      for (const sourceKind of candidateSources) {
+        existing.add(sourceKind);
+      }
+    }
+
+    if (existing.size > 0) {
+      aliasSources.set(alias, existing);
+    }
+  }
+
+  return aliasSources;
+}
+
+function inferBindingSourceKind(
+  canonicalId: string | undefined,
+  producerId: string
+): BindingSourceKind | null {
+  if (!canonicalId) {
+    return null;
+  }
+
+  if (canonicalId.startsWith('Artifact:')) {
+    return 'artifact';
+  }
+
+  if (canonicalId.startsWith('Input:')) {
+    if (canonicalId.startsWith(`Input:${producerId}.`)) {
+      return null;
+    }
+    return 'input';
+  }
+
+  return null;
+}
+
+function resolveRuntimeInputs(
+  inputs: Record<string, unknown>,
+  runtimeBindings: Record<string, string>
+): Record<string, unknown> {
+  const resolvedInputs: Record<string, unknown> = {};
+
+  const canonicalInputIds = new Set(
+    Object.values(runtimeBindings).filter((canonicalId) =>
+      canonicalId.startsWith('Input:')
+    )
+  );
+
+  for (const canonicalId of canonicalInputIds) {
+    const value = resolveInputValue(inputs, canonicalId);
+    if (value !== undefined) {
+      resolvedInputs[canonicalId] = value;
+    }
+  }
+
+  return resolvedInputs;
+}
+
+function resolveStaticInputs(
+  inputs: Record<string, unknown>,
+  entries: ProducerBindingEntry[]
+): Record<string, unknown> {
+  const resolvedInputs: Record<string, unknown> = {};
+
+  for (const entry of entries) {
+    if (entry.sourceKind !== 'input') {
+      continue;
+    }
+
+    const value = resolveInputValue(inputs, entry.sourceCanonicalId);
+    if (value !== undefined) {
+      resolvedInputs[entry.sourceCanonicalId] = value;
+    }
+  }
+
+  return resolvedInputs;
 }
 
 function resolveInputValue(
@@ -380,21 +533,4 @@ function parseIndexedInputAccess(
   }
 
   return { baseId, selectors };
-}
-
-function formatInputCanonicalId(sourceRef: string): string {
-  if (sourceRef.startsWith('Input:')) {
-    return sourceRef;
-  }
-  const normalized = sourceRef.replace(/^Input\./, '');
-  return `Input:${normalized}`;
-}
-
-function formatArtifactCanonicalId(sourceRef: string): string {
-  if (sourceRef.startsWith('Artifact:')) {
-    return sourceRef;
-  }
-
-  const normalized = sourceRef.replace(/^Output\./, '');
-  return `Artifact:${normalized}`;
 }

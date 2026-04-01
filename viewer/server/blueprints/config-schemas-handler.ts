@@ -9,6 +9,7 @@ import {
   createRuntimeError,
   RuntimeErrorCode,
   getProducerMappings,
+  hydrateOutputSchemasFromProducerMetadata,
   isRenkuError,
   loadYamlBlueprintTree,
   resolveMappingsForModel,
@@ -397,6 +398,7 @@ async function buildProducerModelSchemas(args: {
   const bindingSummary = buildProducerBindingSummary({
     root: args.root,
     producerId: args.producerId,
+    mode: 'static',
   });
 
   const modelSchemas: Record<string, ModelConfigSchema> = {};
@@ -484,6 +486,7 @@ export async function getProducerConfigSchemas(
   catalogRoot?: string
 ): Promise<ProducerConfigSchemasResponse> {
   const { root } = await loadYamlBlueprintTree(blueprintPath, { catalogRoot });
+  await hydrateOutputSchemasFromProducerMetadata(root);
   const producers: Record<string, ProducerConfigSchemas> = {};
   const errorsByProducer: Record<string, ProducerContractError> = {};
 
