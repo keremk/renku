@@ -1,0 +1,348 @@
+{
+  "input_schema": {
+    "required": [
+      "prompt",
+      "image_urls"
+    ],
+    "type": "object",
+    "title": "Wan27ImageEditInput",
+    "properties": {
+      "num_images": {
+        "minimum": 1,
+        "default": 1,
+        "maximum": 4,
+        "type": "integer",
+        "title": "Num Images",
+        "description": "Number of images to generate (1-4)."
+      },
+      "prompt": {
+        "maxLength": 2000,
+        "type": "string",
+        "examples": [
+          "Turn image 1 into a watercolor painting."
+        ],
+        "minLength": 1,
+        "title": "Prompt",
+        "description": "Text prompt describing the desired image edit. Supports Chinese and English."
+      },
+      "enable_safety_checker": {
+        "default": true,
+        "type": "boolean",
+        "title": "Enable Safety Checker",
+        "description": "Enable content moderation for input and output."
+      },
+      "enable_prompt_expansion": {
+        "default": true,
+        "type": "boolean",
+        "title": "Enable Prompt Expansion",
+        "description": "Enable DashScope prompt expansion. Supported only for image edit mode."
+      },
+      "image_urls": {
+        "type": "array",
+        "examples": [
+          [
+            "https://storage.googleapis.com/falserverless/model_tests/wan/dragon-warrior.jpg"
+          ]
+        ],
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "title": "Image Urls",
+        "description": "Reference images for editing (1-4 images required). Order matters: reference them as image 1, image 2, image 3, image 4 in the prompt."
+      },
+      "seed": {
+        "title": "Seed",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Random seed for reproducibility (0-2147483647)."
+      },
+      "image_size": {
+        "default": "square_hd",
+        "title": "Image Size",
+        "anyOf": [
+          {
+            "$ref": "#/ImageSize"
+          },
+          {
+            "type": "string",
+            "enum": [
+              "square_hd",
+              "square",
+              "portrait_4_3",
+              "portrait_16_9",
+              "landscape_4_3",
+              "landscape_16_9"
+            ]
+          }
+        ],
+        "description": "Output image size. Uses fal image size presets or explicit dimensions and is converted to DashScope size format."
+      },
+      "negative_prompt": {
+        "default": "",
+        "title": "Negative Prompt",
+        "anyOf": [
+          {
+            "maxLength": 500,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Content to avoid in the generated image. Max 500 characters."
+      }
+    },
+    "x-fal-order-properties": [
+      "prompt",
+      "image_urls",
+      "negative_prompt",
+      "image_size",
+      "num_images",
+      "enable_prompt_expansion",
+      "seed",
+      "enable_safety_checker"
+    ]
+  },
+  "output_schema": {
+    "required": [
+      "images",
+      "seed"
+    ],
+    "type": "object",
+    "title": "Wan27ImageEditOutput",
+    "properties": {
+      "images": {
+        "type": "array",
+        "title": "Images",
+        "items": {
+          "$ref": "#/File"
+        },
+        "description": "Generated images."
+      },
+      "seed": {
+        "type": "integer",
+        "title": "Seed",
+        "description": "The seed used for generation."
+      }
+    },
+    "x-fal-order-properties": [
+      "images",
+      "seed"
+    ]
+  },
+  "ImageSize": {
+    "type": "object",
+    "title": "ImageSize",
+    "x-fal-order-properties": [
+      "width",
+      "height"
+    ],
+    "properties": {
+      "width": {
+        "type": "integer",
+        "title": "Width",
+        "default": 512,
+        "maximum": 14142,
+        "exclusiveMinimum": 0,
+        "description": "The width of the generated image."
+      },
+      "height": {
+        "type": "integer",
+        "title": "Height",
+        "default": 512,
+        "maximum": 14142,
+        "exclusiveMinimum": 0,
+        "description": "The height of the generated image."
+      }
+    }
+  },
+  "File": {
+    "required": [
+      "url"
+    ],
+    "type": "object",
+    "title": "File",
+    "x-fal-order-properties": [
+      "url",
+      "content_type",
+      "file_name",
+      "file_size"
+    ],
+    "properties": {
+      "file_size": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "File Size",
+        "examples": [
+          4404019
+        ],
+        "description": "The size of the file in bytes."
+      },
+      "url": {
+        "type": "string",
+        "title": "Url",
+        "description": "The URL where the file can be downloaded from.",
+        "format": "uri"
+      },
+      "file_name": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "File Name",
+        "examples": [
+          "z9RV14K95DvU.png"
+        ],
+        "description": "The name of the file. It will be auto-generated if not provided."
+      },
+      "content_type": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Content Type",
+        "examples": [
+          "image/png"
+        ],
+        "description": "The mime type of the file."
+      }
+    }
+  },
+  "x-renku-viewer": {
+    "version": 1,
+    "input": {
+      "pointer": "/input_schema",
+      "component": "object",
+      "label": "Input",
+      "order": [
+        "num_images",
+        "prompt",
+        "enable_safety_checker",
+        "enable_prompt_expansion",
+        "image_urls",
+        "seed",
+        "image_size",
+        "negative_prompt"
+      ],
+      "fields": {
+        "num_images": {
+          "pointer": "/input_schema/properties/num_images",
+          "component": "integer",
+          "label": "Num Images"
+        },
+        "prompt": {
+          "pointer": "/input_schema/properties/prompt",
+          "component": "string",
+          "label": "Prompt"
+        },
+        "enable_safety_checker": {
+          "pointer": "/input_schema/properties/enable_safety_checker",
+          "component": "boolean",
+          "label": "Enable Safety Checker"
+        },
+        "enable_prompt_expansion": {
+          "pointer": "/input_schema/properties/enable_prompt_expansion",
+          "component": "boolean",
+          "label": "Enable Prompt Expansion"
+        },
+        "image_urls": {
+          "pointer": "/input_schema/properties/image_urls",
+          "component": "array-file-uri",
+          "label": "Image Urls",
+          "item": {
+            "pointer": "/input_schema/properties/image_urls/items",
+            "component": "file-uri",
+            "label": "Item"
+          }
+        },
+        "seed": {
+          "pointer": "/input_schema/properties/seed",
+          "component": "nullable",
+          "label": "Seed",
+          "value": {
+            "pointer": "/input_schema/properties/seed/anyOf/0",
+            "component": "integer",
+            "label": "Seed"
+          }
+        },
+        "image_size": {
+          "pointer": "/input_schema/properties/image_size",
+          "component": "union",
+          "label": "Image Size",
+          "presentation": "enum-or-dimensions",
+          "variants": [
+            {
+              "id": "variant-1",
+              "pointer": "/input_schema/properties/image_size/anyOf/0",
+              "schemaPointer": "/ImageSize",
+              "component": "object",
+              "label": "Custom Size",
+              "order": [
+                "width",
+                "height"
+              ],
+              "fields": {
+                "width": {
+                  "pointer": "/ImageSize/properties/width",
+                  "component": "integer",
+                  "label": "Width"
+                },
+                "height": {
+                  "pointer": "/ImageSize/properties/height",
+                  "component": "integer",
+                  "label": "Height"
+                }
+              }
+            },
+            {
+              "id": "variant-2",
+              "pointer": "/input_schema/properties/image_size/anyOf/1",
+              "component": "string-enum",
+              "label": "Preset"
+            }
+          ],
+          "unionEditor": {
+            "type": "enum-dimensions",
+            "enumVariantId": "variant-2",
+            "customVariantId": "variant-1",
+            "customSelection": {
+              "source": "virtual-option",
+              "label": "Custom Size"
+            }
+          }
+        },
+        "negative_prompt": {
+          "pointer": "/input_schema/properties/negative_prompt",
+          "component": "nullable",
+          "label": "Negative Prompt",
+          "value": {
+            "pointer": "/input_schema/properties/negative_prompt/anyOf/0",
+            "component": "string",
+            "label": "Negative Prompt"
+          }
+        }
+      }
+    }
+  }
+}

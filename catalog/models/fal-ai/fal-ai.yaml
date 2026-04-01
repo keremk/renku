@@ -178,6 +178,34 @@ models:
     price:
       function: costByRun
       price: 0.03
+  - name: wan/v2.7/text-to-image
+    type: image
+    mime:
+      - image/png
+    price:
+      function: costByRun
+      price: 0.03
+  - name: wan/v2.7/edit
+    type: image
+    mime:
+      - image/png
+    price:
+      function: costByRun
+      price: 0.03
+  - name: wan/v2.7/pro/text-to-image
+    type: image
+    mime:
+      - image/png
+    price:
+      function: costByRun
+      price: 0.075
+  - name: wan/v2.7/pro/edit
+    type: image
+    mime:
+      - image/png
+    price:
+      function: costByRun
+      price: 0.075
   - name: qwen-image-edit-2511
     type: image
     mime:

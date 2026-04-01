@@ -134,6 +134,32 @@ mappings:
           '3:4': portrait_4_3
           '1:1': square_hd
 
+    wan/v2.7/text-to-image:
+      Prompt: prompt
+      Resolution:
+        field: image_size
+        resolution:
+          mode: aspectRatio
+        transform:
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
+
+    wan/v2.7/pro/text-to-image:
+      Prompt: prompt
+      Resolution:
+        field: image_size
+        resolution:
+          mode: aspectRatio
+        transform:
+          '16:9': landscape_16_9
+          '9:16': portrait_16_9
+          '4:3': landscape_4_3
+          '3:4': portrait_4_3
+          '1:1': square_hd
+
     hunyuan-image/v3/instruct/text-to-image:
       Prompt: prompt
       Resolution:
