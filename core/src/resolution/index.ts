@@ -19,10 +19,13 @@ export type { ResolvedMappingContext } from './mapping-resolver.js';
 export {
   collectProducerBindingEntries,
   buildProducerBindingSummary,
+  buildProducerRuntimeBindingSnapshot,
 } from './producer-binding-summary.js';
 export type {
   BindingSourceKind,
   ProducerBindingSummaryMode,
   ProducerBindingEntry,
   ProducerBindingSummary,
+  ProducerRuntimeBindingInstance,
+  ProducerRuntimeBindingSnapshot,
 } from './producer-binding-summary.js';

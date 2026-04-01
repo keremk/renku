@@ -8,12 +8,17 @@ import {
   resolveMappingsForModel,
 } from '@gorenku/core';
 import {
+  deriveMappingContractFields,
   evaluateResolutionMappingPreview,
   loadModelCatalog,
   loadModelSchemaFile,
+  type MappingPreviewField,
   type LoadedModelCatalog,
 } from '@gorenku/providers';
-import { buildProducerBindingSummary } from './mapping-binding-context.js';
+import {
+  buildProducerBindingSummary,
+  buildProducerRuntimeBindingSnapshot,
+} from './mapping-binding-context.js';
 import {
   assertPreviewSubsetOfDescriptors,
   buildFieldDescriptors,
@@ -43,6 +48,22 @@ export interface ProducerSdkPreviewField {
   sourceAliases: string[];
   schemaType?: string;
   enumOptions?: unknown[];
+  connectionBehavior?: 'invariant' | 'variant' | 'conditional';
+  overridePolicy?: 'editable' | 'read_only_dynamic';
+  instances?: ProducerSdkPreviewFieldInstance[];
+}
+
+export interface ProducerSdkPreviewFieldInstance {
+  instanceId: string;
+  instanceOrder: number;
+  indices: Record<string, number>;
+  value: unknown;
+  status: 'ok' | 'warning' | 'error';
+  warnings: string[];
+  errors: string[];
+  connected: boolean;
+  sourceAliases: string[];
+  sourceBindings: Record<string, string>;
 }
 
 export interface ProducerSdkPreviewResult {
@@ -102,7 +123,15 @@ export async function getProducerSdkPreview(
 
       const previewWarningsByProducer = new Set<string>();
       let bindingContext: ReturnType<typeof buildProducerBindingSummary>;
+      let runtimeSnapshot:
+        | ReturnType<typeof buildProducerRuntimeBindingSnapshot>
+        | null = null;
       try {
+        runtimeSnapshot = buildProducerRuntimeBindingSnapshot({
+          root,
+          producerId: selection.producerId,
+          inputs: request.inputs,
+        });
         bindingContext = buildProducerBindingSummary({
           root,
           producerId: selection.producerId,
@@ -115,6 +144,7 @@ export async function getProducerSdkPreview(
           NON_BLOCKING_PREVIEW_BINDING_ERROR_CODES.has(error.code)
         ) {
           previewWarningsByProducer.add(error.message);
+          runtimeSnapshot = null;
           bindingContext = buildProducerBindingSummary({
             root,
             producerId: selection.producerId,
@@ -155,24 +185,71 @@ export async function getProducerSdkPreview(
         model: selection.model,
       });
 
-      const fields = evaluateResolutionMappingPreview({
+      const baseFields = evaluateResolutionMappingPreview({
         mapping,
         context: {
-          inputs: bindingContext.resolvedInputs,
+          inputs:
+            runtimeSnapshot?.resolvedInputs ?? bindingContext.resolvedInputs,
           inputBindings: bindingContext.mappingInputBindings,
         },
         connectedAliases: bindingContext.connectedAliases,
         inputSchema: schemaFile.inputSchema as Record<string, unknown>,
       });
 
-      const visibleFields = fields.filter((field) => {
+      const runtimeInstanceFields = runtimeSnapshot
+        ? runtimeSnapshot.instances.map((instance, instanceOrder) => ({
+            instanceId: instance.instanceId,
+            instanceOrder,
+            indices: instance.indices,
+            sourceBindings: instance.inputBindings,
+            fields: evaluateResolutionMappingPreview({
+              mapping,
+              context: {
+                inputs: runtimeSnapshot.resolvedInputs,
+                inputBindings: instance.inputBindings,
+              },
+              connectedAliases: new Set(Object.keys(instance.inputBindings)),
+              inputSchema: schemaFile.inputSchema as Record<string, unknown>,
+            }),
+          }))
+        : [];
+
+      const visibleFields = baseFields.filter((field) => {
         const source = fieldMapping.get(field.field)?.source;
         return source !== 'artifact';
       });
 
+      const visibilityFilter = (field: { field: string }) =>
+        fieldMapping.get(field.field)?.source !== 'artifact';
+      const visibleRuntimeInstanceFields = runtimeInstanceFields.map(
+        (instance) => ({
+          ...instance,
+          fields: instance.fields.filter(visibilityFilter),
+        })
+      );
+
+      const contractFields = deriveMappingContractFields(mapping);
+      const connectedInputBehaviorByField = deriveConnectedInputBehaviorByField({
+        contractFields,
+        fieldMapping,
+        runtimeSnapshot,
+      });
+
+      const fieldInstancePreviewByField = buildFieldInstancePreviewByField({
+        contractFields,
+        runtimeSnapshot,
+        runtimeInstanceFields: visibleRuntimeInstanceFields,
+      });
+
+      const augmentedVisibleFields = augmentFieldsWithConnectionMetadata({
+        visibleFields,
+        connectedInputBehaviorByField,
+        fieldInstancePreviewByField,
+      });
+
       if (previewWarningsByProducer.size > 0) {
         const warnings = Array.from(previewWarningsByProducer);
-        for (const field of visibleFields) {
+        for (const field of augmentedVisibleFields) {
           const mergedWarnings = new Set([
             ...field.warnings,
             ...warnings,
@@ -189,12 +266,12 @@ export async function getProducerSdkPreview(
         provider: selection.provider,
         model: selection.model,
         descriptorFields,
-        previewFields: visibleFields,
+        previewFields: augmentedVisibleFields,
       });
 
       producers[selection.producerId] = {
         producerId: selection.producerId,
-        fields: visibleFields,
+        fields: augmentedVisibleFields,
       };
     } catch (error) {
       const contractError = isRenkuError(error)
@@ -222,6 +299,227 @@ export async function getProducerSdkPreview(
     producers,
     ...(Object.keys(errorsByProducer).length > 0 ? { errorsByProducer } : {}),
   };
+}
+
+interface ConnectedInputFieldBehavior {
+  connectionBehavior: 'invariant' | 'variant' | 'conditional';
+  overridePolicy: 'editable' | 'read_only_dynamic';
+  connected: boolean;
+}
+
+function deriveConnectedInputBehaviorByField(args: {
+  contractFields: ReturnType<typeof deriveMappingContractFields>;
+  fieldMapping: Map<string, unknown>;
+  runtimeSnapshot: ReturnType<typeof buildProducerRuntimeBindingSnapshot> | null;
+}): Map<string, ConnectedInputFieldBehavior> {
+  const byField = new Map<string, ConnectedInputFieldBehavior>();
+  if (!args.runtimeSnapshot) {
+    return byField;
+  }
+
+  for (const contractField of args.contractFields) {
+    const source = readFieldMappingSource(args.fieldMapping, contractField.field);
+    if (source !== 'input') {
+      continue;
+    }
+
+    const aliases = [...contractField.sourceAliases].sort();
+    if (aliases.length === 0) {
+      continue;
+    }
+
+    const connectionByInstance = args.runtimeSnapshot.instances.map((instance) =>
+      aliases.every((alias) => instance.inputBindings[alias] !== undefined)
+    );
+    const connected = connectionByInstance.some((isConnected) => isConnected);
+    const hasMissingAlias = connectionByInstance.some(
+      (isConnected) => !isConnected
+    );
+
+    const signatures = args.runtimeSnapshot.instances.map((instance) =>
+      buildAliasBindingSignature(instance.inputBindings, aliases)
+    );
+    const uniqueSignatures = new Set(signatures);
+
+    const connectionBehavior = hasMissingAlias
+      ? 'conditional'
+      : uniqueSignatures.size > 1
+        ? 'variant'
+        : 'invariant';
+    const overridePolicy =
+      connectionBehavior === 'invariant' ? 'editable' : 'read_only_dynamic';
+
+    byField.set(contractField.field, {
+      connectionBehavior,
+      overridePolicy,
+      connected,
+    });
+  }
+
+  return byField;
+}
+
+function buildAliasBindingSignature(
+  inputBindings: Record<string, string>,
+  aliases: string[]
+): string {
+  const pairs: string[] = [];
+  for (const alias of aliases) {
+    const binding = inputBindings[alias];
+    if (!binding) {
+      pairs.push(`${alias}=<missing>`);
+      continue;
+    }
+    pairs.push(`${alias}=${binding}`);
+  }
+  return pairs.join('|');
+}
+
+function readFieldMappingSource(
+  fieldMapping: Map<string, unknown>,
+  field: string
+): 'none' | 'input' | 'artifact' | 'mixed' | null {
+  const value = fieldMapping.get(field) as { source?: unknown } | undefined;
+  const source = value?.source;
+  if (
+    source === 'none' ||
+    source === 'input' ||
+    source === 'artifact' ||
+    source === 'mixed'
+  ) {
+    return source;
+  }
+  return null;
+}
+
+function buildFieldInstancePreviewByField(args: {
+  contractFields: ReturnType<typeof deriveMappingContractFields>;
+  runtimeSnapshot: ReturnType<typeof buildProducerRuntimeBindingSnapshot> | null;
+  runtimeInstanceFields: Array<{
+    instanceId: string;
+    instanceOrder: number;
+    indices: Record<string, number>;
+    sourceBindings: Record<string, string>;
+    fields: MappingPreviewField[];
+  }>;
+}): Map<string, ProducerSdkPreviewFieldInstance[]> {
+  const byField = new Map<string, ProducerSdkPreviewFieldInstance[]>();
+  if (!args.runtimeSnapshot) {
+    return byField;
+  }
+
+  const aliasesByField = new Map<string, string[]>();
+  for (const contractField of args.contractFields) {
+    aliasesByField.set(contractField.field, contractField.sourceAliases);
+  }
+
+  for (const runtimeInstance of args.runtimeInstanceFields) {
+    const previewByField = new Map(
+      runtimeInstance.fields.map((field) => [field.field, field])
+    );
+
+    for (const [field, aliases] of aliasesByField.entries()) {
+      const preview = previewByField.get(field);
+      const sourceBindings = pickSourceBindings(
+        runtimeInstance.sourceBindings,
+        aliases
+      );
+      const connected = aliases.every(
+        (alias) => runtimeInstance.sourceBindings[alias] !== undefined
+      );
+
+      const warnings = preview
+        ? [...preview.warnings]
+        : connected
+          ? []
+          : ['Not mapped for this instance.'];
+      const errors = preview ? [...preview.errors] : [];
+
+      const instancePreview: ProducerSdkPreviewFieldInstance = {
+        instanceId: runtimeInstance.instanceId,
+        instanceOrder: runtimeInstance.instanceOrder,
+        indices: runtimeInstance.indices,
+        value: preview?.value,
+        status: preview?.status ?? (connected ? 'ok' : 'warning'),
+        warnings,
+        errors,
+        connected: preview?.connected ?? connected,
+        sourceAliases: preview?.sourceAliases ?? aliases,
+        sourceBindings,
+      };
+
+      const existing = byField.get(field) ?? [];
+      existing.push(instancePreview);
+      byField.set(field, existing);
+    }
+  }
+
+  return byField;
+}
+
+function pickSourceBindings(
+  inputBindings: Record<string, string>,
+  aliases: string[]
+): Record<string, string> {
+  const bindings: Record<string, string> = {};
+  for (const alias of aliases) {
+    const binding = inputBindings[alias];
+    if (binding !== undefined) {
+      bindings[alias] = binding;
+    }
+  }
+  return bindings;
+}
+
+function augmentFieldsWithConnectionMetadata(args: {
+  visibleFields: MappingPreviewField[];
+  connectedInputBehaviorByField: Map<string, ConnectedInputFieldBehavior>;
+  fieldInstancePreviewByField: Map<string, ProducerSdkPreviewFieldInstance[]>;
+}): ProducerSdkPreviewField[] {
+  const byField = new Map<string, ProducerSdkPreviewField>();
+
+  for (const field of args.visibleFields) {
+    const behavior = args.connectedInputBehaviorByField.get(field.field);
+    const instances = args.fieldInstancePreviewByField.get(field.field);
+    byField.set(field.field, {
+      ...field,
+      ...(behavior
+        ? {
+            connectionBehavior: behavior.connectionBehavior,
+            overridePolicy: behavior.overridePolicy,
+            connected: behavior.connected,
+          }
+        : {}),
+      ...(instances ? { instances } : {}),
+    });
+  }
+
+  for (const [field, behavior] of args.connectedInputBehaviorByField.entries()) {
+    if (byField.has(field)) {
+      continue;
+    }
+
+    const instances = args.fieldInstancePreviewByField.get(field) ?? [];
+    const firstInstance = instances[0];
+    byField.set(field, {
+      field,
+      value: firstInstance?.value,
+      status: firstInstance?.status ?? 'warning',
+      warnings: firstInstance?.warnings ?? [
+        'No preview value is available for this field.',
+      ],
+      errors: firstInstance?.errors ?? [],
+      connected: behavior.connected,
+      sourceAliases: firstInstance?.sourceAliases ?? [],
+      connectionBehavior: behavior.connectionBehavior,
+      overridePolicy: behavior.overridePolicy,
+      instances,
+    });
+  }
+
+  return Array.from(byField.values()).sort((left, right) =>
+    left.field.localeCompare(right.field)
+  );
 }
 
 async function loadSelectionSchemaFile(args: {

@@ -326,6 +326,19 @@ export interface ProducerContractError {
 
 export type SdkPreviewStatus = 'ok' | 'warning' | 'error';
 
+export interface SdkPreviewFieldInstance {
+  instanceId: string;
+  instanceOrder: number;
+  indices: Record<string, number>;
+  value: unknown;
+  status: SdkPreviewStatus;
+  warnings: string[];
+  errors: string[];
+  connected: boolean;
+  sourceAliases: string[];
+  sourceBindings: Record<string, string>;
+}
+
 export interface SdkPreviewField {
   field: string;
   value: unknown;
@@ -336,6 +349,9 @@ export interface SdkPreviewField {
   sourceAliases: string[];
   schemaType?: string;
   enumOptions?: unknown[];
+  connectionBehavior?: 'invariant' | 'variant' | 'conditional';
+  overridePolicy?: 'editable' | 'read_only_dynamic';
+  instances?: SdkPreviewFieldInstance[];
 }
 
 export interface ProducerSdkPreviewEntry {

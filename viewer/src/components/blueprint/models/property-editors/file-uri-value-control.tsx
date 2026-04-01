@@ -75,6 +75,7 @@ export interface FileUriValueControlProps {
   field: ConfigFieldDescriptor;
   value: unknown;
   isEditable: boolean;
+  showActionControls?: boolean;
   onChange: (value: unknown) => void;
   onRemove: () => void;
   removeLabel?: string;
@@ -84,6 +85,7 @@ export function FileUriValueControl({
   field,
   value,
   isEditable,
+  showActionControls = true,
   onChange,
   onRemove,
   removeLabel = 'Remove file',
@@ -175,42 +177,46 @@ export function FileUriValueControl({
           )}
         </div>
 
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type='button'
-                variant='ghost'
-                size='icon'
-                className='size-7 shrink-0 text-muted-foreground hover:text-foreground'
-                disabled={!isEditable}
-                onClick={() => setIsDialogOpen(true)}
-                aria-label={hasValue ? 'Change file' : 'Upload file'}
-              >
-                {hasValue ? (
-                  <Pencil className='size-3.5' />
-                ) : (
-                  <Upload className='size-3.5' />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side='top' sideOffset={6}>
-              {hasValue ? 'change file' : 'upload file'}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        {showActionControls && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type='button'
+                  variant='ghost'
+                  size='icon'
+                  className='size-7 shrink-0 text-muted-foreground hover:text-foreground'
+                  disabled={!isEditable}
+                  onClick={() => setIsDialogOpen(true)}
+                  aria-label={hasValue ? 'Change file' : 'Upload file'}
+                >
+                  {hasValue ? (
+                    <Pencil className='size-3.5' />
+                  ) : (
+                    <Upload className='size-3.5' />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side='top' sideOffset={6}>
+                {hasValue ? 'change file' : 'upload file'}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
 
-      <FileUploadDialog
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        mediaType={uploadMediaType}
-        multiple={false}
-        onConfirm={handleUpload}
-        onRemoveExisting={hasValue ? onRemove : undefined}
-        removeButtonLabel={removeLabel}
-        removeButtonDisabled={!isEditable}
-      />
+      {showActionControls && (
+        <FileUploadDialog
+          open={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+          mediaType={uploadMediaType}
+          multiple={false}
+          onConfirm={handleUpload}
+          onRemoveExisting={hasValue ? onRemove : undefined}
+          removeButtonLabel={removeLabel}
+          removeButtonDisabled={!isEditable}
+        />
+      )}
     </>
   );
 }

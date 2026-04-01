@@ -31,6 +31,7 @@ interface UnionEditorProps {
   description?: string;
   effectiveValue: unknown;
   isEditable: boolean;
+  readOnlyMode?: 'none' | 'dynamic-connected';
   canResetMappedOverride: boolean;
   onChange: (value: unknown) => void;
   onReset: () => void;
@@ -42,6 +43,7 @@ export function UnionEditor({
   description,
   effectiveValue,
   isEditable,
+  readOnlyMode = 'none',
   canResetMappedOverride,
   onChange,
   onReset,
@@ -133,6 +135,7 @@ export function UnionEditor({
                 field={variantField}
                 value={getObjectVariantFieldValue(effectiveValue, variantField)}
                 isEditable={isEditable}
+                readOnlyMode={readOnlyMode}
                 onChange={(value) =>
                   onChange(
                     buildNextObjectVariantValue(
@@ -150,6 +153,7 @@ export function UnionEditor({
             field={activeVariant}
             value={effectiveValue}
             isEditable={isEditable}
+            readOnlyMode={readOnlyMode}
             onChange={onChange}
           />
         )}
@@ -240,7 +244,7 @@ function EnumOrDimensionsEditor({
           >
             <SelectTrigger
               aria-label={`${field.label} option`}
-              className='h-7 w-[180px] text-xs'
+              className='h-7 w-[120px] text-xs'
             >
               <SelectValue placeholder='Select...' />
             </SelectTrigger>

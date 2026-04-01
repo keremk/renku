@@ -1296,6 +1296,172 @@ describe('ConfigPropertiesEditor', () => {
       expect(input).toBeTruthy();
     });
 
+    it('renders connected variant array-file-uri fields as paged read-only values with no action controls', () => {
+      const fields = [
+        createMockField('image_urls', {
+          component: 'array-file-uri',
+          mappingSource: 'input',
+          mappedAliases: ['SourceImages'],
+          schema: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+          item: createMockField('image_urls.item', {
+            component: 'file-uri',
+            label: 'Value',
+            schema: { type: 'string' },
+          }),
+        }),
+      ];
+
+      render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{}}
+          isEditable={true}
+          onChange={() => {}}
+          sdkPreview={[
+            {
+              field: 'image_urls',
+              value: ['file:./images/then-1.jpg', 'file:./images/setting.jpg'],
+              status: 'ok',
+              warnings: [],
+              errors: [],
+              connected: true,
+              sourceAliases: ['SourceImages'],
+              connectionBehavior: 'variant',
+              overridePolicy: 'read_only_dynamic',
+              instances: [
+                {
+                  instanceId: 'Producer:ThenImageProducer[0]',
+                  instanceOrder: 0,
+                  indices: { character: 0 },
+                  value: ['file:./images/then-1.jpg', 'file:./images/setting.jpg'],
+                  status: 'ok',
+                  warnings: [],
+                  errors: [],
+                  connected: true,
+                  sourceAliases: ['SourceImages'],
+                  sourceBindings: {
+                    SourceImages: 'Input:CelebrityThenImages[0]',
+                  },
+                },
+                {
+                  instanceId: 'Producer:ThenImageProducer[1]',
+                  instanceOrder: 1,
+                  indices: { character: 1 },
+                  value: ['file:./images/then-2.jpg', 'file:./images/setting.jpg'],
+                  status: 'ok',
+                  warnings: [],
+                  errors: [],
+                  connected: true,
+                  sourceAliases: ['SourceImages'],
+                  sourceBindings: {
+                    SourceImages: 'Input:CelebrityThenImages[1]',
+                  },
+                },
+              ],
+            },
+          ]}
+        />
+      );
+
+      expect(screen.getByText('then-1.jpg')).toBeTruthy();
+      expect(
+        screen.getByRole('button', {
+          name: 'Previous image_urls instance',
+        })
+      ).toBeTruthy();
+      expect(
+        screen.getByRole('button', { name: 'Next image_urls instance' })
+      ).toBeTruthy();
+
+      expect(screen.queryByRole('button', { name: 'Add row' })).toBeNull();
+      expect(screen.queryByRole('button', { name: /Remove row/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Reset' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Change file' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Upload file' })).toBeNull();
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Next image_urls instance' })
+      );
+      expect(screen.getByText('then-2.jpg')).toBeTruthy();
+    });
+
+    it('keeps connected invariant fields editable without instance pager', () => {
+      const fields = [
+        createMockField('image_size', {
+          component: 'string',
+          mappingSource: 'input',
+          mappedAliases: ['Resolution'],
+          schema: {
+            type: 'string',
+          },
+        }),
+      ];
+
+      render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{ image_size: '1536x1024' }}
+          isEditable={true}
+          onChange={() => {}}
+          sdkPreview={[
+            {
+              field: 'image_size',
+              value: '1280x720',
+              status: 'ok',
+              warnings: [],
+              errors: [],
+              connected: true,
+              sourceAliases: ['Resolution'],
+              connectionBehavior: 'invariant',
+              overridePolicy: 'editable',
+              instances: [
+                {
+                  instanceId: 'Producer:ThenImageProducer[0]',
+                  instanceOrder: 0,
+                  indices: { character: 0 },
+                  value: '1280x720',
+                  status: 'ok',
+                  warnings: [],
+                  errors: [],
+                  connected: true,
+                  sourceAliases: ['Resolution'],
+                  sourceBindings: { Resolution: 'Input:Resolution' },
+                },
+                {
+                  instanceId: 'Producer:ThenImageProducer[1]',
+                  instanceOrder: 1,
+                  indices: { character: 1 },
+                  value: '1280x720',
+                  status: 'ok',
+                  warnings: [],
+                  errors: [],
+                  connected: true,
+                  sourceAliases: ['Resolution'],
+                  sourceBindings: { Resolution: 'Input:Resolution' },
+                },
+              ],
+            },
+          ]}
+        />
+      );
+
+      const input = screen.getByDisplayValue('1536x1024');
+      expect(input).toBeTruthy();
+      expect((input as HTMLInputElement).disabled).toBe(false);
+      expect(screen.getByRole('button', { name: 'Reset' })).toBeTruthy();
+      expect(
+        screen.queryByRole('button', {
+          name: 'Previous image_size instance',
+        })
+      ).toBeNull();
+      expect(
+        screen.queryByRole('button', { name: 'Next image_size instance' })
+      ).toBeNull();
+    });
+
     it('falls back to schema default when not mapped and not overridden', () => {
       const fields = [
         createMockField('preset', {

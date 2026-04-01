@@ -103,4 +103,70 @@ describe('getProducerSdkPreview', () => {
       preview?.fields.some((field) => field.status === 'warning')
     ).toBe(true);
   });
+
+  it('marks connected variant fields as read-only dynamic and provides per-instance previews', async () => {
+    const blueprintPath = path.join(
+      CATALOG_ROOT,
+      'blueprints',
+      'celebrity-then-now',
+      'celebrity-then-now.yaml'
+    );
+
+    const response = await getProducerSdkPreview({
+      blueprintPath,
+      catalogRoot: CATALOG_ROOT,
+      inputs: {
+        CelebrityThenImages: ['file:./images/then-1.jpg', 'file:./images/then-2.jpg'],
+        CelebrityNowImages: ['file:./images/now-1.jpg', 'file:./images/now-2.jpg'],
+        SettingImage: 'file:./images/setting.jpg',
+        Theme: 'Theme',
+        EnvironmentDescription: 'Environment',
+        VisualStyle: 'Visual style',
+        NumOfCharacters: 2,
+        MeetingDuration: 10,
+        TransitionDuration: 5,
+        Resolution: { width: 1280, height: 720 },
+        Duration: 25,
+      },
+      models: [
+        {
+          producerId: 'ThenImageProducer',
+          provider: 'fal-ai',
+          model: 'qwen-image-edit-2511',
+        },
+      ],
+    });
+
+    expect(Object.keys(response.errorsByProducer ?? {})).toHaveLength(0);
+
+    const imagePreview = response.producers.ThenImageProducer;
+    const imageUrlsField = imagePreview?.fields.find(
+      (field) => field.field === 'image_urls'
+    );
+    expect(imageUrlsField).toBeDefined();
+    expect(imageUrlsField?.connectionBehavior).toBe('variant');
+    expect(imageUrlsField?.overridePolicy).toBe('read_only_dynamic');
+    expect(imageUrlsField?.instances).toHaveLength(2);
+
+    const firstInstanceValue = imageUrlsField?.instances?.[0]?.value as
+      | unknown[]
+      | undefined;
+    const secondInstanceValue = imageUrlsField?.instances?.[1]?.value as
+      | unknown[]
+      | undefined;
+    expect(Array.isArray(firstInstanceValue)).toBe(true);
+    expect(Array.isArray(secondInstanceValue)).toBe(true);
+    expect(firstInstanceValue?.[0]).toBe('file:./images/then-1.jpg');
+    expect(secondInstanceValue?.[0]).toBe('file:./images/then-2.jpg');
+    expect(firstInstanceValue?.[1]).toBe('file:./images/setting.jpg');
+    expect(secondInstanceValue?.[1]).toBe('file:./images/setting.jpg');
+
+    const imageSizeField = imagePreview?.fields.find(
+      (field) => field.field === 'image_size'
+    );
+    expect(imageSizeField).toBeDefined();
+    expect(imageSizeField?.connectionBehavior).toBe('invariant');
+    expect(imageSizeField?.overridePolicy).toBe('editable');
+    expect(imageSizeField?.instances).toHaveLength(2);
+  });
 });

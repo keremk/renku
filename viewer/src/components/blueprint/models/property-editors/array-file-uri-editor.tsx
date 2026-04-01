@@ -22,6 +22,7 @@ export function ArrayFileUriEditor({
   field,
   value,
   isEditable,
+  readOnlyMode = 'none',
   onChange,
 }: ScalarEditorProps) {
   if (field.component !== 'array-file-uri') {
@@ -37,6 +38,7 @@ export function ArrayFileUriEditor({
   }
 
   const itemField = field.item;
+  const showActionControls = readOnlyMode !== 'dynamic-connected';
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
@@ -137,16 +139,21 @@ export function ArrayFileUriEditor({
                     ? itemField.label
                     : 'Value'}
                 </th>
-                <th className='w-11 px-1 py-2 text-center font-medium'>
-                  <span className='sr-only'>Actions</span>
-                </th>
+                {showActionControls && (
+                  <th className='w-11 px-1 py-2 text-center font-medium'>
+                    <span className='sr-only'>Actions</span>
+                  </th>
+                )}
               </tr>
             </thead>
 
             <tbody className='divide-y divide-border/60'>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={2} className='px-3 py-3 text-muted-foreground'>
+                  <td
+                    colSpan={showActionControls ? 2 : 1}
+                    className='px-3 py-3 text-muted-foreground'
+                  >
                     No rows yet.
                   </td>
                 </tr>
@@ -158,34 +165,37 @@ export function ArrayFileUriEditor({
                         field={itemField}
                         value={row}
                         isEditable={isEditable}
+                        showActionControls={showActionControls}
                         onChange={(nextValue) => updateRow(index, nextValue)}
                         onRemove={() => removeRow(index)}
                         removeLabel={`Remove row ${index + 1}`}
                       />
                     </td>
 
-                    <td className='w-11 px-1 py-2 align-middle'>
-                      <div className='flex h-full items-center justify-center'>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              type='button'
-                              variant='ghost'
-                              size='icon'
-                              className='size-7 text-muted-foreground hover:text-destructive'
-                              disabled={!isEditable}
-                              onClick={() => removeRow(index)}
-                              aria-label={`Remove row ${index + 1}`}
-                            >
-                              <Trash2 className='size-3.5' />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent side='top' sideOffset={6}>
-                            remove
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </td>
+                    {showActionControls && (
+                      <td className='w-11 px-1 py-2 align-middle'>
+                        <div className='flex h-full items-center justify-center'>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type='button'
+                                variant='ghost'
+                                size='icon'
+                                className='size-7 text-muted-foreground hover:text-destructive'
+                                disabled={!isEditable}
+                                onClick={() => removeRow(index)}
+                                aria-label={`Remove row ${index + 1}`}
+                              >
+                                <Trash2 className='size-3.5' />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side='top' sideOffset={6}>
+                              remove
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}
@@ -193,33 +203,37 @@ export function ArrayFileUriEditor({
           </table>
         </div>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type='button'
-              variant='outline'
-              size='icon'
-              className='size-7'
-              disabled={!isEditable}
-              onClick={() => setIsAddDialogOpen(true)}
-              aria-label='Add row'
-            >
-              <Plus className='size-3.5' />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side='top' sideOffset={6}>
-            add row
-          </TooltipContent>
-        </Tooltip>
+        {showActionControls && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type='button'
+                variant='outline'
+                size='icon'
+                className='size-7'
+                disabled={!isEditable}
+                onClick={() => setIsAddDialogOpen(true)}
+                aria-label='Add row'
+              >
+                <Plus className='size-3.5' />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side='top' sideOffset={6}>
+              add row
+            </TooltipContent>
+          </Tooltip>
+        )}
       </TooltipProvider>
 
-      <FileUploadDialog
-        open={isAddDialogOpen}
-        onOpenChange={setIsAddDialogOpen}
-        mediaType={uploadMediaType}
-        multiple={false}
-        onConfirm={handleAddRowUpload}
-      />
+      {showActionControls && (
+        <FileUploadDialog
+          open={isAddDialogOpen}
+          onOpenChange={setIsAddDialogOpen}
+          mediaType={uploadMediaType}
+          multiple={false}
+          onConfirm={handleAddRowUpload}
+        />
+      )}
     </div>
   );
 }

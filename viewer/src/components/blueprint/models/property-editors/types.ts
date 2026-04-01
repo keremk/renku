@@ -23,6 +23,7 @@ export interface ScalarEditorProps {
   field: ConfigFieldDescriptor;
   value: unknown;
   isEditable: boolean;
+  readOnlyMode?: 'none' | 'dynamic-connected';
   onChange: (value: unknown) => void;
 }
 

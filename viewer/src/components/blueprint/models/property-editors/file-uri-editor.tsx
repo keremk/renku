@@ -5,6 +5,7 @@ export function FileUriEditor({
   field,
   value,
   isEditable,
+  readOnlyMode = 'none',
   onChange,
 }: ScalarEditorProps) {
   if (field.component !== 'file-uri') {
@@ -18,6 +19,7 @@ export function FileUriEditor({
       field={field}
       value={value}
       isEditable={isEditable}
+      showActionControls={readOnlyMode !== 'dynamic-connected'}
       onChange={onChange}
       onRemove={() => onChange(undefined)}
       removeLabel='Remove file'

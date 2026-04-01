@@ -32,6 +32,17 @@ export interface ProducerBindingSummary {
 
 export type ProducerBindingSummaryMode = 'static' | 'runtime';
 
+export interface ProducerRuntimeBindingInstance {
+  instanceId: string;
+  indices: Record<string, number>;
+  inputBindings: Record<string, string>;
+}
+
+export interface ProducerRuntimeBindingSnapshot {
+  instances: ProducerRuntimeBindingInstance[];
+  resolvedInputs: Record<string, unknown>;
+}
+
 export function collectProducerBindingEntries(
   root: BlueprintTreeNode,
   producerId: string
@@ -107,26 +118,81 @@ export function buildProducerBindingSummary(args: {
     );
   }
 
-  const runtimeBindings = buildRuntimeBindings({
+  const runtimeSnapshot = buildProducerRuntimeBindingSnapshot({
     root: args.root,
     producerId: args.producerId,
     inputs: args.inputs,
   });
+  const firstInstance = runtimeSnapshot.instances[0];
+  if (!firstInstance) {
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_INPUT_BINDING,
+      `Runtime binding summary could not find canonical producer instance for "${args.producerId}".`
+    );
+  }
 
-  const connectedAliases = new Set(Object.keys(runtimeBindings));
+  const runtimeBindings = firstInstance.inputBindings;
+
+  const connectedAliases = new Set<string>();
+  for (const instance of runtimeSnapshot.instances) {
+    for (const alias of Object.keys(instance.inputBindings)) {
+      connectedAliases.add(alias);
+    }
+  }
   const aliasSources = buildRuntimeAliasSources({
     producerId: args.producerId,
     runtimeBindings,
     staticAliasSources: staticBindings.aliasSources,
     connectedAliases,
   });
-  const resolvedInputs = resolveRuntimeInputs(args.inputs, runtimeBindings);
 
   return {
-    resolvedInputs,
+    resolvedInputs: runtimeSnapshot.resolvedInputs,
     mappingInputBindings: runtimeBindings,
     connectedAliases,
     aliasSources,
+  };
+}
+
+export function buildProducerRuntimeBindingSnapshot(args: {
+  root: BlueprintTreeNode;
+  producerId: string;
+  inputs: Record<string, unknown>;
+}): ProducerRuntimeBindingSnapshot {
+  const graph = buildBlueprintGraph(args.root);
+  const inputSources = buildInputSourceMapFromCanonical(graph);
+  const canonicalizedInputs = canonicalizeInputKeys(args.inputs);
+  const normalizedInputs = normalizeInputValues(
+    canonicalizedInputs,
+    inputSources
+  );
+  const canonical = expandBlueprintGraph(graph, normalizedInputs, inputSources);
+
+  const producerInstances = canonical.nodes
+    .filter(
+      (node) =>
+        node.type === 'Producer' && node.producerAlias === args.producerId
+    )
+    .sort((left, right) => compareProducerInstanceOrder(left.id, right.id));
+
+  if (producerInstances.length === 0) {
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_INPUT_BINDING,
+      `Runtime binding summary could not find canonical producer instance for "${args.producerId}".`
+    );
+  }
+
+  const instances = producerInstances.map((producerInstance) => ({
+    instanceId: producerInstance.id,
+    indices: producerInstance.indices,
+    inputBindings: canonical.inputBindings[producerInstance.id] ?? {},
+  }));
+
+  const resolvedInputs = resolveRuntimeInputsFromInstances(args.inputs, instances);
+
+  return {
+    instances,
+    resolvedInputs,
   };
 }
 
@@ -248,38 +314,6 @@ function upsertAliasSource(
     return;
   }
   aliasSources.set(alias, new Set([sourceKind]));
-}
-
-function buildRuntimeBindings(args: {
-  root: BlueprintTreeNode;
-  producerId: string;
-  inputs: Record<string, unknown>;
-}): Record<string, string> {
-  const graph = buildBlueprintGraph(args.root);
-  const inputSources = buildInputSourceMapFromCanonical(graph);
-  const canonicalizedInputs = canonicalizeInputKeys(args.inputs);
-  const normalizedInputs = normalizeInputValues(
-    canonicalizedInputs,
-    inputSources
-  );
-  const canonical = expandBlueprintGraph(graph, normalizedInputs, inputSources);
-
-  const producerInstances = canonical.nodes
-    .filter(
-      (node) =>
-        node.type === 'Producer' && node.producerAlias === args.producerId
-    )
-    .sort((left, right) => compareProducerInstanceOrder(left.id, right.id));
-
-  const firstInstance = producerInstances[0];
-  if (!firstInstance) {
-    throw createRuntimeError(
-      RuntimeErrorCode.INVALID_INPUT_BINDING,
-      `Runtime binding summary could not find canonical producer instance for "${args.producerId}".`
-    );
-  }
-
-  return canonical.inputBindings[firstInstance.id] ?? {};
 }
 
 function canonicalizeInputKeys(
@@ -405,17 +439,20 @@ function inferBindingSourceKind(
   return null;
 }
 
-function resolveRuntimeInputs(
+function resolveRuntimeInputsFromInstances(
   inputs: Record<string, unknown>,
-  runtimeBindings: Record<string, string>
+  instances: ProducerRuntimeBindingInstance[]
 ): Record<string, unknown> {
   const resolvedInputs: Record<string, unknown> = {};
 
-  const canonicalInputIds = new Set(
-    Object.values(runtimeBindings).filter((canonicalId) =>
-      canonicalId.startsWith('Input:')
-    )
-  );
+  const canonicalInputIds = new Set<string>();
+  for (const instance of instances) {
+    for (const canonicalId of Object.values(instance.inputBindings)) {
+      if (canonicalId.startsWith('Input:')) {
+        canonicalInputIds.add(canonicalId);
+      }
+    }
+  }
 
   for (const canonicalId of canonicalInputIds) {
     const value = resolveInputValue(inputs, canonicalId);

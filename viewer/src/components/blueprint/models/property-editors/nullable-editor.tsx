@@ -12,6 +12,7 @@ interface NullableEditorProps {
   description?: string;
   effectiveValue: unknown;
   isEditable: boolean;
+  readOnlyMode?: 'none' | 'dynamic-connected';
   canResetMappedOverride: boolean;
   onChange: (value: unknown) => void;
   onReset: () => void;
@@ -24,6 +25,7 @@ export function NullableEditor({
   description,
   effectiveValue,
   isEditable,
+  readOnlyMode = 'none',
   canResetMappedOverride,
   onChange,
   onReset,
@@ -54,6 +56,7 @@ export function NullableEditor({
               field={valueField}
               value={effectiveValue}
               isEditable={isEditable}
+              readOnlyMode={readOnlyMode}
               onChange={onChange}
             />
           </div>

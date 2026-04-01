@@ -8,6 +8,7 @@ import { TEST_FIXTURES_ROOT } from '../../tests/catalog-paths.js';
 import { buildBlueprintGraph } from './canonical-graph.js';
 import {
   buildProducerBindingSummary,
+  buildProducerRuntimeBindingSnapshot,
   collectProducerBindingEntries,
 } from './producer-binding-summary.js';
 
@@ -269,6 +270,40 @@ describe('producer-binding-summary', () => {
     );
     expect(summary.resolvedInputs['Input:SettingImage']).toBe(
       'file:./input-files/setting.jpg'
+    );
+  });
+
+  it('captures per-instance runtime bindings for looped producers', async () => {
+    const { root } = await loadYamlBlueprintTree(
+      LOOPED_SOURCE_IMAGES_FIXTURE_BLUEPRINT
+    );
+
+    const runtimeSnapshot = buildProducerRuntimeBindingSnapshot({
+      root,
+      producerId: 'ThenImageProducer',
+      inputs: {
+        NumOfCharacters: 2,
+        Prompt: 'compose then image',
+        CelebrityThenImages: [
+          'file:./input-files/then-0.jpg',
+          'file:./input-files/then-1.jpg',
+        ],
+        SettingImage: 'file:./input-files/setting.jpg',
+      },
+    });
+
+    expect(runtimeSnapshot.instances).toHaveLength(2);
+    expect(
+      runtimeSnapshot.instances[0]?.inputBindings['SourceImages[0]']
+    ).toBe('Input:CelebrityThenImages[0]');
+    expect(
+      runtimeSnapshot.instances[1]?.inputBindings['SourceImages[0]']
+    ).toBe('Input:CelebrityThenImages[1]');
+    expect(runtimeSnapshot.resolvedInputs['Input:CelebrityThenImages[0]']).toBe(
+      'file:./input-files/then-0.jpg'
+    );
+    expect(runtimeSnapshot.resolvedInputs['Input:CelebrityThenImages[1]']).toBe(
+      'file:./input-files/then-1.jpg'
     );
   });
 
