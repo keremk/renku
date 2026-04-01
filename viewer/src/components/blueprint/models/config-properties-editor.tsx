@@ -5,6 +5,7 @@ import { ModelSelector } from './model-selector';
 import { NestedModelSelector } from './nested-model-selector';
 import { getNestedModelSelection } from './stt-helpers';
 import { FieldCollection } from './property-editors';
+import { FileUriUploadContextProvider } from './property-editors/file-uri-upload-context';
 import type {
   AvailableModelOption,
   ConfigFieldDescriptor,
@@ -31,6 +32,8 @@ interface ConfigPropertiesEditorProps {
     model: string
   ) => void;
   sdkPreview?: SdkPreviewField[];
+  blueprintFolder?: string | null;
+  movieId?: string | null;
 }
 
 export function ConfigPropertiesEditor({
@@ -47,6 +50,8 @@ export function ConfigPropertiesEditor({
   nestedModelSchemas,
   onNestedModelChange,
   sdkPreview = [],
+  blueprintFolder = null,
+  movieId = null,
 }: ConfigPropertiesEditorProps) {
   const effectiveFields = useMemo(() => fields ?? [], [fields]);
   const renderableFields = useMemo(
@@ -148,30 +153,35 @@ export function ConfigPropertiesEditor({
           );
         })}
 
-      {mappedFields.length > 0 && (
-        <section className='w-full max-w-2xl rounded-xl border border-[color:var(--models-pane-mapped-border)] bg-[color:var(--models-pane-mapped-bg)] px-3 py-3 md:-ml-3 md:max-w-[43.5rem]'>
-          <header className='px-1 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground'>
-            Connected Inputs
-          </header>
+      <FileUriUploadContextProvider
+        blueprintFolder={blueprintFolder}
+        movieId={movieId}
+      >
+        {mappedFields.length > 0 && (
+          <section className='w-full max-w-2xl rounded-xl border border-[color:var(--models-pane-mapped-border)] bg-[color:var(--models-pane-mapped-bg)] px-3 py-3 md:-ml-3 md:max-w-[43.5rem]'>
+            <header className='px-1 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground'>
+              Connected Inputs
+            </header>
+            <FieldCollection
+              fields={mappedFields}
+              values={values}
+              isEditable={isEditable}
+              onChange={onChange}
+              sdkPreviewByField={sdkPreviewByField}
+            />
+          </section>
+        )}
+
+        {unmappedFields.length > 0 && (
           <FieldCollection
-            fields={mappedFields}
+            fields={unmappedFields}
             values={values}
             isEditable={isEditable}
             onChange={onChange}
             sdkPreviewByField={sdkPreviewByField}
           />
-        </section>
-      )}
-
-      {unmappedFields.length > 0 && (
-        <FieldCollection
-          fields={unmappedFields}
-          values={values}
-          isEditable={isEditable}
-          onChange={onChange}
-          sdkPreviewByField={sdkPreviewByField}
-        />
-      )}
+        )}
+      </FileUriUploadContextProvider>
     </div>
   );
 }

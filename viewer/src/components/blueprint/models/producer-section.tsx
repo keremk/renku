@@ -61,6 +61,10 @@ interface ProducerSectionProps {
   defaultOpen?: boolean;
   /** Render content without collapsible wrapper */
   hideSectionContainer?: boolean;
+  /** Blueprint folder for file uploads */
+  blueprintFolder?: string | null;
+  /** Build movie ID for file uploads */
+  movieId?: string | null;
 }
 
 /**
@@ -91,6 +95,8 @@ export function ProducerSection({
   sdkPreview,
   defaultOpen = false,
   hideSectionContainer = false,
+  blueprintFolder = null,
+  movieId = null,
 }: ProducerSectionProps) {
   // Handle saving system prompt
   const handleSaveSystemPrompt = useCallback(
@@ -190,6 +196,8 @@ export function ProducerSection({
           values={configValues}
           isEditable={isEditable}
           onChange={(key, value) => onConfigChange?.(key, value)}
+          blueprintFolder={blueprintFolder}
+          movieId={movieId}
         />
       );
 
@@ -321,6 +329,8 @@ export function ProducerSection({
             availableModels={availableModels}
             currentModelSelection={currentSelection}
             onModelChange={onModelChange}
+            blueprintFolder={blueprintFolder}
+            movieId={movieId}
           />
         ) : (
           <div className='space-y-4'>
@@ -336,6 +346,8 @@ export function ProducerSection({
               nestedModelSchemas={nestedModelSchemas}
               onNestedModelChange={handleNestedModelChange}
               sdkPreview={sdkPreview}
+              blueprintFolder={blueprintFolder}
+              movieId={movieId}
             />
           </div>
         ))}

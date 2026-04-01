@@ -1,22 +1,26 @@
-import { Input } from '@/components/ui/input';
-import { ReadOnlyValue } from './read-only-value';
+import { FileUriValueControl } from './file-uri-value-control';
 import type { ScalarEditorProps } from './types';
 
 export function FileUriEditor({
+  field,
   value,
   isEditable,
   onChange,
 }: ScalarEditorProps) {
-  if (!isEditable) {
-    return <ReadOnlyValue value={value} />;
+  if (field.component !== 'file-uri') {
+    throw new Error(
+      `FileUriEditor requires file-uri component for field "${field.keyPath}", received "${field.component}".`
+    );
   }
 
   return (
-    <Input
-      type='text'
-      value={typeof value === 'string' ? value : ''}
-      onChange={(event) => onChange(event.target.value || undefined)}
-      className='h-7 text-xs'
+    <FileUriValueControl
+      field={field}
+      value={value}
+      isEditable={isEditable}
+      onChange={onChange}
+      onRemove={() => onChange(undefined)}
+      removeLabel='Remove file'
     />
   );
 }

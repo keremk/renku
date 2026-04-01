@@ -233,6 +233,8 @@ export function DetailPanel({
             sdkPreviewByProducer={sdkPreviewByProducer}
             sdkPreviewErrorsByProducer={sdkPreviewErrorsByProducer}
             onConfigChange={onConfigChange}
+            blueprintFolder={blueprintFolder}
+            movieId={movieId}
           />
         )}
         {activeTab === 'outputs' && (

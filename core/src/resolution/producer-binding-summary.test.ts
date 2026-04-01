@@ -91,6 +91,28 @@ function createFixtureTree(): BlueprintTreeNode {
   ]);
 }
 
+function createSelectorFixtureTree(): BlueprintTreeNode {
+  const rootDoc = {
+    meta: { id: 'root', name: 'Root' },
+    inputs: [
+      { name: 'Gallery', type: 'array', itemType: 'image', required: true },
+      { name: 'SettingImage', type: 'image', required: true },
+    ],
+    producers: [],
+    producerImports: [
+      { name: 'ImageProducer', producer: 'image/image-compose' },
+    ],
+    artefacts: [],
+    edges: [
+      { from: 'Gallery[character]', to: 'ImageProducer.SourceImages[0]' },
+      { from: 'Gallery[character+1]', to: 'ImageProducer.SourceImages[1]' },
+      { from: 'SettingImage', to: 'ImageProducer.BackgroundImage' },
+    ],
+  };
+
+  return makeTreeNode([], rootDoc as Record<string, unknown>);
+}
+
 describe('producer-binding-summary', () => {
   it('extracts producer aliases from edge target references', () => {
     const root = createFixtureTree();
@@ -149,6 +171,9 @@ describe('producer-binding-summary', () => {
     });
 
     expect(summary.mappingInputBindings.ReferenceImages).toBe(
+      'Input:VideoProducer.ReferenceImages[0]'
+    );
+    expect(summary.mappingInputBindings['ReferenceImages[0]']).toBe(
       'Artifact:StoryProducer.Script'
     );
     expect(summary.mappingInputBindings['ReferenceImages[1]']).toBe(
@@ -180,5 +205,24 @@ describe('producer-binding-summary', () => {
     expect(summary.mappingInputBindings.Prompt).toBe(
       'Artifact:AdScriptProducer.AdScript.CharacterImagePrompt'
     );
+  });
+
+  it('resolves symbolic indexed input selectors for preview bindings', () => {
+    const root = createSelectorFixtureTree();
+
+    const summary = buildProducerBindingSummary({
+      root,
+      producerId: 'ImageProducer',
+      inputs: {
+        Gallery: ['image-0', 'image-1', 'image-2'],
+        SettingImage: 'setting-image',
+      },
+    });
+
+    expect(summary.resolvedInputs['Input:Gallery[character]']).toBe('image-0');
+    expect(summary.resolvedInputs['Input:Gallery[character+1]']).toBe(
+      'image-1'
+    );
+    expect(summary.resolvedInputs['Input:SettingImage']).toBe('setting-image');
   });
 });

@@ -51,6 +51,10 @@ interface ModelsPanelProps {
   sdkPreviewByProducer?: Record<string, ProducerSdkPreviewEntry>;
   /** Producer-level preview contract/runtime errors */
   sdkPreviewErrorsByProducer?: Record<string, ProducerContractError>;
+  /** Blueprint folder for file uploads */
+  blueprintFolder?: string | null;
+  /** Build movie ID for file uploads */
+  movieId?: string | null;
 }
 
 export function ModelsPanel({
@@ -71,6 +75,8 @@ export function ModelsPanel({
   configErrorsByProducer = {},
   sdkPreviewByProducer = {},
   sdkPreviewErrorsByProducer = {},
+  blueprintFolder = null,
+  movieId = null,
 }: ModelsPanelProps) {
   const [isEnabling, setIsEnabling] = useState(false);
 
@@ -267,6 +273,8 @@ export function ModelsPanel({
                   }
                   sdkPreview={sdkPreviewByProducer[activeProducerId]?.fields}
                   hideSectionContainer
+                  blueprintFolder={blueprintFolder}
+                  movieId={movieId}
                 />
               </div>
             </>

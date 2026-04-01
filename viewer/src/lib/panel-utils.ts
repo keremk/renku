@@ -138,7 +138,7 @@ export function validateUploadContext(
 export async function uploadAndValidate(
   context: UploadContext,
   files: File[],
-  mediaType: MediaInputType
+  mediaType?: MediaInputType
 ): Promise<UploadFilesResponse> {
   validateUploadContext(context);
 

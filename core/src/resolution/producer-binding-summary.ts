@@ -1,12 +1,14 @@
 import type { BlueprintTreeNode } from '../types.js';
 import { isSystemInputName } from '../execution/system-inputs.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
+import { parseDimensionSelector } from '../parsing/dimension-selectors.js';
 
 export type BindingSourceKind = 'input' | 'artifact';
 
 export interface ProducerBindingEntry {
   aliasBase: string;
   explicitNumericAlias?: string;
+  targetCanonicalId?: string;
   sourceCanonicalId: string;
   sourceKind: BindingSourceKind;
 }
@@ -80,6 +82,7 @@ export function collectProducerBindingEntries(
       entries.push({
         aliasBase: targetAlias.baseAlias,
         explicitNumericAlias: targetAlias.explicitNumericAlias,
+        targetCanonicalId: targetAlias.targetCanonicalId,
         sourceCanonicalId,
         sourceKind,
       });
@@ -109,7 +112,10 @@ export function buildProducerBindingSummary(args: {
 
   for (const entry of entries) {
     const mappedAlias = nextMappedAlias(entry.aliasBase, seenPerBaseAlias);
-    mappingInputBindings[mappedAlias] = entry.sourceCanonicalId;
+    mappingInputBindings[mappedAlias] =
+      entry.explicitNumericAlias && entry.targetCanonicalId
+        ? entry.targetCanonicalId
+        : entry.sourceCanonicalId;
     connectedAliases.add(mappedAlias);
     upsertAliasSource(aliasSources, mappedAlias, entry.sourceKind);
 
@@ -206,7 +212,11 @@ function resolveEndpointReference(
 function parseTargetAlias(
   targetRef: string,
   producerId: string
-): { baseAlias: string; explicitNumericAlias?: string } | null {
+): {
+  baseAlias: string;
+  explicitNumericAlias?: string;
+  targetCanonicalId?: string;
+} | null {
   const parts = targetRef.split('.');
   if (parts.length < 2) {
     return null;
@@ -229,16 +239,29 @@ function parseTargetAlias(
 
   const selectorSuffix = aliasSegment.match(/(\[[^\]]+])+$/)?.[0];
   if (!selectorSuffix) {
-    return { baseAlias };
+    return {
+      baseAlias,
+      targetCanonicalId: formatInputCanonicalId(
+        `${producerBase}.${aliasSegment}`
+      ),
+    };
   }
 
   if (!/^(\[\d+])+$/.test(selectorSuffix)) {
-    return { baseAlias };
+    return {
+      baseAlias,
+      targetCanonicalId: formatInputCanonicalId(
+        `${producerBase}.${aliasSegment}`
+      ),
+    };
   }
 
   return {
     baseAlias,
     explicitNumericAlias: `${baseAlias}${selectorSuffix}`,
+    targetCanonicalId: formatInputCanonicalId(
+      `${producerBase}.${aliasSegment}`
+    ),
   };
 }
 
@@ -287,7 +310,76 @@ function resolveInputValue(
     return inputs[inputName];
   }
 
+  const indexedValue = resolveIndexedInputValue(inputs, sourceCanonicalId);
+  if (indexedValue !== undefined) {
+    return indexedValue;
+  }
+
+  if (inputName !== sourceCanonicalId) {
+    return resolveIndexedInputValue(inputs, inputName);
+  }
+
   return undefined;
+}
+
+function resolveIndexedInputValue(
+  inputs: Record<string, unknown>,
+  reference: string
+): unknown {
+  const indexedAccess = parseIndexedInputAccess(reference);
+  if (!indexedAccess) {
+    return undefined;
+  }
+
+  const baseValue = inputs[indexedAccess.baseId];
+  if (baseValue === undefined) {
+    return undefined;
+  }
+
+  let currentValue: unknown = baseValue;
+  for (const rawSelector of indexedAccess.selectors) {
+    if (!Array.isArray(currentValue)) {
+      return undefined;
+    }
+
+    const index = resolvePreviewSelectorIndex(rawSelector);
+    if (index < 0 || index >= currentValue.length) {
+      return undefined;
+    }
+
+    currentValue = currentValue[index];
+  }
+
+  return currentValue;
+}
+
+function resolvePreviewSelectorIndex(rawSelector: string): number {
+  const selector = parseDimensionSelector(rawSelector);
+  if (selector.kind === 'const') {
+    return selector.value;
+  }
+
+  return selector.offset;
+}
+
+function parseIndexedInputAccess(
+  reference: string
+): { baseId: string; selectors: string[] } | undefined {
+  const selectors: string[] = [];
+  let baseId = reference;
+
+  let match = baseId.match(/^(.*)\[([^\]]+)]$/);
+  while (match) {
+    selectors.unshift(match[2]!.trim());
+    baseId = match[1]!;
+    match = baseId.match(/^(.*)\[([^\]]+)]$/);
+  }
+
+  if (selectors.length === 0 || baseId === reference) {
+    return undefined;
+  }
+
+  return { baseId, selectors };
 }
 
 function formatInputCanonicalId(sourceRef: string): string {
