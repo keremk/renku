@@ -3,7 +3,7 @@
  * Used across Inputs panel (media inputs) and Outputs panel (media artifacts).
  */
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -55,14 +55,14 @@ export function MediaExpandDialog({
   isPromptLoading = false,
   promptError,
 }: MediaExpandDialogProps) {
-  const [imageAspectRatio, setImageAspectRatio] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (mediaType !== 'image' || !open) {
-      return;
-    }
-    setImageAspectRatio(null);
-  }, [mediaType, open, url]);
+  const [loadedImage, setLoadedImage] = useState<{
+    url: string;
+    aspectRatio: number;
+  } | null>(null);
+  const imageAspectRatio =
+    mediaType === 'image' && open && loadedImage?.url === url
+      ? loadedImage.aspectRatio
+      : null;
 
   const mediaContainerClassName =
     mediaType === 'audio'
@@ -96,7 +96,10 @@ export function MediaExpandDialog({
               onLoad={(event) => {
                 const { naturalWidth, naturalHeight } = event.currentTarget;
                 if (naturalWidth > 0 && naturalHeight > 0) {
-                  setImageAspectRatio(naturalWidth / naturalHeight);
+                  setLoadedImage({
+                    url,
+                    aspectRatio: naturalWidth / naturalHeight,
+                  });
                 }
               }}
               className='w-full h-full object-contain rounded-lg'

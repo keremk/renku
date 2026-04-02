@@ -24,14 +24,6 @@ inputs:
     description: Video resolution as width/height pixel dimensions.
     type: resolution
     required: true
-  - name: VoiceId
-    description: Voice identifier for narration.
-    type: string
-    required: true
-  - name: Emotion
-    description: Emotional tone for narration (happy, sad, neutral, etc.).
-    type: string
-    required: false
 
 artifacts:
   - name: SegmentVideo
@@ -128,10 +120,6 @@ connections:
   # Wire narration to AudioProducer
   - from: ScenarioPromptProducer.NarrationScript[segment]
     to: AudioProducer[segment].Text
-  - from: VoiceId
-    to: AudioProducer[segment].VoiceId
-  - from: Emotion
-    to: AudioProducer[segment].Emotion
   - from: AudioProducer[segment].GeneratedAudio
     to: SegmentAudio[segment]
 

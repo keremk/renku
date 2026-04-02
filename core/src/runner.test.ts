@@ -587,7 +587,7 @@ describe('createRunner', () => {
         inputConditions: {
           'Artifact:AudioProducer.GeneratedAudio[0]': {
             condition: {
-              when: 'AdScriptProducer.AdScript.Scenes[clip].HasNarration',
+              when: 'Artifact:AdScriptProducer.AdScript.Scenes[clip].HasNarration',
               is: true,
             },
             indices: { clip: 0 },
@@ -667,14 +667,14 @@ describe('createRunner', () => {
         inputConditions: {
           'Artifact:AudioProducer.GeneratedAudio[0]': {
             condition: {
-              when: 'SomeProducer.Output.HasAudio',
+              when: 'Artifact:SomeProducer.Output.HasAudio',
               is: true,
             },
             indices: { clip: 0 },
           },
           'Artifact:AudioProducer.GeneratedAudio[1]': {
             condition: {
-              when: 'SomeProducer.Output.HasAudio',
+              when: 'Artifact:SomeProducer.Output.HasAudio',
               is: true,
             },
             indices: { clip: 1 },
@@ -824,21 +824,21 @@ describe('createRunner', () => {
         inputConditions: {
           'Artifact:CharacterImageProducer.GeneratedImage[0]': {
             condition: {
-              when: 'StoryProducer.Storyboard.Scenes[scene].CharacterPresent[character]',
+              when: 'Artifact:StoryProducer.Storyboard.Scenes[scene].CharacterPresent[character]',
               is: true,
             },
             indices: { scene: 0, character: 0 },
           },
           'Artifact:CharacterImageProducer.GeneratedImage[1]': {
             condition: {
-              when: 'StoryProducer.Storyboard.Scenes[scene].CharacterPresent[character]',
+              when: 'Artifact:StoryProducer.Storyboard.Scenes[scene].CharacterPresent[character]',
               is: true,
             },
             indices: { scene: 0, character: 1 },
           },
           'Artifact:CharacterImageProducer.GeneratedImage[2]': {
             condition: {
-              when: 'StoryProducer.Storyboard.Scenes[scene].CharacterPresent[character]',
+              when: 'Artifact:StoryProducer.Storyboard.Scenes[scene].CharacterPresent[character]',
               is: true,
             },
             indices: { scene: 0, character: 2 },

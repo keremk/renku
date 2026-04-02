@@ -1,5 +1,6 @@
 import { copyFile, lstat, mkdir, rm, symlink } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+import type { Console } from 'node:console';
 import { formatBlobFileName, inferBlobExtension } from './blob-utils.js';
 import {
   isCanonicalArtifactId,

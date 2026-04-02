@@ -199,7 +199,10 @@ function parseConditionPath(whenPath: string): {
   fieldPath: string[];
   dimensions: string[];
 } {
-  const segments = splitPathWithBrackets(whenPath);
+  const normalizedPath = whenPath.startsWith('Artifact:')
+    ? whenPath.slice('Artifact:'.length)
+    : whenPath;
+  const segments = splitPathWithBrackets(normalizedPath);
   const dimensions: string[] = [];
 
   // Extract dimension symbols from bracket segments

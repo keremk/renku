@@ -11,55 +11,55 @@ function createContext(artifacts: Record<string, unknown>): ConditionEvaluationC
   return { resolvedArtifacts: artifacts };
 }
 
-// Note: Condition paths use the format: <Producer>.<ArtifactName>.<FieldPath>
-// The first two segments form the artifact ID, everything after is the field path
+// Note: Runtime condition paths must be canonical Artifact IDs:
+// Artifact:<Producer>.<ArtifactName>.<FieldPath>
 
 describe('evaluateCondition', () => {
   describe('is operator', () => {
     it('satisfies when string values are equal', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Output.value', is: 'testvalue' };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Output.value', is: 'testvalue' };
       const context = createContext({ 'Artifact:Producer.Output': { value: 'testvalue' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('satisfies when number values are equal', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Stats.Count', is: 42 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Stats.Count', is: 42 };
       const context = createContext({ 'Artifact:Producer.Stats': { Count: 42 } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('satisfies when boolean values are equal', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Config.Enabled', is: true };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Config.Enabled', is: true };
       const context = createContext({ 'Artifact:Producer.Config': { Enabled: true } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('satisfies when object values are deeply equal', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Result.Data', is: { a: 1, b: 2 } };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Result.Data', is: { a: 1, b: 2 } };
       const context = createContext({ 'Artifact:Producer.Result': { Data: { a: 1, b: 2 } } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('satisfies when array values are deeply equal', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Result.Items', is: [1, 2, 3] };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Result.Items', is: [1, 2, 3] };
       const context = createContext({ 'Artifact:Producer.Result': { Items: [1, 2, 3] } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('satisfies when both values are null', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Result.Value', is: null };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Result.Value', is: null };
       const context = createContext({ 'Artifact:Producer.Result': { Value: null } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('fails when values differ', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Output.value', is: 'expected' };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Output.value', is: 'expected' };
       const context = createContext({ 'Artifact:Producer.Output': { value: 'actual' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
@@ -68,7 +68,7 @@ describe('evaluateCondition', () => {
 
     it('fails when types differ and cannot be coerced', () => {
       // String "5" comparing against number 5 - coercion works here
-      const condition: EdgeConditionClause = { when: 'Producer.Result.Value', is: 5 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Result.Value', is: 5 };
       const context = createContext({ 'Artifact:Producer.Result': { Value: '5' } });
       const result = evaluateCondition(condition, {}, context);
       // With coercion, "5" becomes 5 and matches
@@ -76,7 +76,7 @@ describe('evaluateCondition', () => {
     });
 
     it('fails when string cannot be coerced to expected number', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Result.Value', is: 5 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Result.Value', is: 5 };
       const context = createContext({ 'Artifact:Producer.Result': { Value: 'not-a-number' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
@@ -88,7 +88,7 @@ describe('evaluateCondition', () => {
     // are correctly coerced to match the expected type from YAML conditions
 
     it('coerces string "true" to boolean true', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Config.HasFeature', is: true };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Config.HasFeature', is: true };
       // Blob content stored as text/plain contains the string "true"
       const context = createContext({ 'Artifact:Producer.Config': { HasFeature: 'true' } });
       const result = evaluateCondition(condition, {}, context);
@@ -96,7 +96,7 @@ describe('evaluateCondition', () => {
     });
 
     it('coerces string "false" to boolean false', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Config.IsDisabled', is: false };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Config.IsDisabled', is: false };
       // Blob content stored as text/plain contains the string "false"
       const context = createContext({ 'Artifact:Producer.Config': { IsDisabled: 'false' } });
       const result = evaluateCondition(condition, {}, context);
@@ -104,42 +104,42 @@ describe('evaluateCondition', () => {
     });
 
     it('correctly fails when string "true" compared to is: false', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Config.HasFeature', is: false };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Config.HasFeature', is: false };
       const context = createContext({ 'Artifact:Producer.Config': { HasFeature: 'true' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
     });
 
     it('correctly fails when string "false" compared to is: true', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Config.HasFeature', is: true };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Config.HasFeature', is: true };
       const context = createContext({ 'Artifact:Producer.Config': { HasFeature: 'false' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
     });
 
     it('coerces numeric string to number', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Stats.Count', is: 42 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Stats.Count', is: 42 };
       const context = createContext({ 'Artifact:Producer.Stats': { Count: '42' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('coerces numeric string for greaterThan', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Stats.Count', greaterThan: 10 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Stats.Count', greaterThan: 10 };
       const context = createContext({ 'Artifact:Producer.Stats': { Count: '42' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('coerces numeric string for lessThan', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Stats.Count', lessThan: 50 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Stats.Count', lessThan: 50 };
       const context = createContext({ 'Artifact:Producer.Stats': { Count: '42' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('does not coerce non-matching strings', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Config.HasFeature', is: true };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Config.HasFeature', is: true };
       // String "yes" should not be coerced to true
       const context = createContext({ 'Artifact:Producer.Config': { HasFeature: 'yes' } });
       const result = evaluateCondition(condition, {}, context);
@@ -147,7 +147,7 @@ describe('evaluateCondition', () => {
     });
 
     it('does not coerce when value is already correct type', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Config.HasFeature', is: true };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Config.HasFeature', is: true };
       // Already a boolean, no coercion needed
       const context = createContext({ 'Artifact:Producer.Config': { HasFeature: true } });
       const result = evaluateCondition(condition, {}, context);
@@ -157,14 +157,14 @@ describe('evaluateCondition', () => {
 
   describe('isNot operator', () => {
     it('satisfies when values differ', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Type', isNot: 'video' };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Type', isNot: 'video' };
       const context = createContext({ 'Artifact:Producer.Data': { Type: 'audio' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('fails when values are equal', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Type', isNot: 'video' };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Type', isNot: 'video' };
       const context = createContext({ 'Artifact:Producer.Data': { Type: 'video' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
@@ -172,7 +172,7 @@ describe('evaluateCondition', () => {
     });
 
     it('satisfies when types differ', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Value', isNot: '5' };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Value', isNot: '5' };
       const context = createContext({ 'Artifact:Producer.Data': { Value: 5 } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
@@ -181,14 +181,14 @@ describe('evaluateCondition', () => {
 
   describe('contains operator', () => {
     it('satisfies when string contains substring', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Text', contains: 'hello' };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Text', contains: 'hello' };
       const context = createContext({ 'Artifact:Producer.Data': { Text: 'say hello world' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('fails when string does not contain substring', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Text', contains: 'goodbye' };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Text', contains: 'goodbye' };
       const context = createContext({ 'Artifact:Producer.Data': { Text: 'say hello world' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
@@ -196,35 +196,35 @@ describe('evaluateCondition', () => {
     });
 
     it('satisfies when array contains primitive element', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Tags', contains: 'important' };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Tags', contains: 'important' };
       const context = createContext({ 'Artifact:Producer.Data': { Tags: ['urgent', 'important', 'new'] } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('satisfies when array contains object element (deep equality)', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Items', contains: { id: 2 } };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Items', contains: { id: 2 } };
       const context = createContext({ 'Artifact:Producer.Data': { Items: [{ id: 1 }, { id: 2 }, { id: 3 }] } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('fails when array does not contain element', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Tags', contains: 'missing' };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Tags', contains: 'missing' };
       const context = createContext({ 'Artifact:Producer.Data': { Tags: ['a', 'b', 'c'] } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
     });
 
     it('handles empty string contains check', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Text', contains: '' };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Text', contains: '' };
       const context = createContext({ 'Artifact:Producer.Data': { Text: 'anything' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('handles empty array contains check', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Items', contains: 'x' };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Items', contains: 'x' };
       const context = createContext({ 'Artifact:Producer.Data': { Items: [] } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
@@ -233,14 +233,14 @@ describe('evaluateCondition', () => {
 
   describe('greaterThan operator', () => {
     it('satisfies when value is greater', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Count', greaterThan: 5 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Count', greaterThan: 5 };
       const context = createContext({ 'Artifact:Producer.Data': { Count: 10 } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('fails when value is equal', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Count', greaterThan: 5 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Count', greaterThan: 5 };
       const context = createContext({ 'Artifact:Producer.Data': { Count: 5 } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
@@ -248,28 +248,28 @@ describe('evaluateCondition', () => {
     });
 
     it('fails when value is less', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Count', greaterThan: 5 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Count', greaterThan: 5 };
       const context = createContext({ 'Artifact:Producer.Data': { Count: 3 } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
     });
 
     it('works with float values', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Score', greaterThan: 3.14 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Score', greaterThan: 3.14 };
       const context = createContext({ 'Artifact:Producer.Data': { Score: 3.15 } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('works with negative numbers', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Offset', greaterThan: -10 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Offset', greaterThan: -10 };
       const context = createContext({ 'Artifact:Producer.Data': { Offset: -5 } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('fails when value is not a number', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Value', greaterThan: 5 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Value', greaterThan: 5 };
       const context = createContext({ 'Artifact:Producer.Data': { Value: 'ten' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
@@ -279,14 +279,14 @@ describe('evaluateCondition', () => {
 
   describe('lessThan operator', () => {
     it('satisfies when value is less', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Count', lessThan: 10 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Count', lessThan: 10 };
       const context = createContext({ 'Artifact:Producer.Data': { Count: 5 } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('fails when value is equal', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Count', lessThan: 5 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Count', lessThan: 5 };
       const context = createContext({ 'Artifact:Producer.Data': { Count: 5 } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
@@ -294,14 +294,14 @@ describe('evaluateCondition', () => {
     });
 
     it('fails when value is greater', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Count', lessThan: 5 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Count', lessThan: 5 };
       const context = createContext({ 'Artifact:Producer.Data': { Count: 10 } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
     });
 
     it('fails when value is not a number', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Value', lessThan: 5 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Value', lessThan: 5 };
       const context = createContext({ 'Artifact:Producer.Data': { Value: null } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
@@ -311,21 +311,21 @@ describe('evaluateCondition', () => {
 
   describe('greaterOrEqual operator', () => {
     it('satisfies when value is greater', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Count', greaterOrEqual: 5 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Count', greaterOrEqual: 5 };
       const context = createContext({ 'Artifact:Producer.Data': { Count: 10 } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('satisfies when value is equal', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Count', greaterOrEqual: 5 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Count', greaterOrEqual: 5 };
       const context = createContext({ 'Artifact:Producer.Data': { Count: 5 } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('fails when value is less', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Count', greaterOrEqual: 5 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Count', greaterOrEqual: 5 };
       const context = createContext({ 'Artifact:Producer.Data': { Count: 3 } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
@@ -333,7 +333,7 @@ describe('evaluateCondition', () => {
     });
 
     it('fails when value is not a number', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Value', greaterOrEqual: 5 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Value', greaterOrEqual: 5 };
       const context = createContext({ 'Artifact:Producer.Data': { Value: undefined } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
@@ -343,21 +343,21 @@ describe('evaluateCondition', () => {
 
   describe('lessOrEqual operator', () => {
     it('satisfies when value is less', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Count', lessOrEqual: 10 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Count', lessOrEqual: 10 };
       const context = createContext({ 'Artifact:Producer.Data': { Count: 5 } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('satisfies when value is equal', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Count', lessOrEqual: 5 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Count', lessOrEqual: 5 };
       const context = createContext({ 'Artifact:Producer.Data': { Count: 5 } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('fails when value is greater', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Count', lessOrEqual: 5 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Count', lessOrEqual: 5 };
       const context = createContext({ 'Artifact:Producer.Data': { Count: 10 } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
@@ -365,7 +365,7 @@ describe('evaluateCondition', () => {
     });
 
     it('fails when value is not a number', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Value', lessOrEqual: 5 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Value', lessOrEqual: 5 };
       const context = createContext({ 'Artifact:Producer.Data': { Value: [] } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
@@ -375,35 +375,35 @@ describe('evaluateCondition', () => {
 
   describe('exists operator', () => {
     it('satisfies when value exists and exists: true', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Field', exists: true };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Field', exists: true };
       const context = createContext({ 'Artifact:Producer.Data': { Field: 'value' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('satisfies when value is 0 and exists: true', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Field', exists: true };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Field', exists: true };
       const context = createContext({ 'Artifact:Producer.Data': { Field: 0 } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('satisfies when value is empty string and exists: true', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Field', exists: true };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Field', exists: true };
       const context = createContext({ 'Artifact:Producer.Data': { Field: '' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('satisfies when value is false and exists: true', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Field', exists: true };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Field', exists: true };
       const context = createContext({ 'Artifact:Producer.Data': { Field: false } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('fails when value is null and exists: true', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Field', exists: true };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Field', exists: true };
       const context = createContext({ 'Artifact:Producer.Data': { Field: null } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
@@ -411,35 +411,35 @@ describe('evaluateCondition', () => {
     });
 
     it('fails when value is undefined and exists: true', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Field', exists: true };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Field', exists: true };
       const context = createContext({ 'Artifact:Producer.Data': { Field: undefined } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
     });
 
     it('fails when field is missing and exists: true', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Missing', exists: true };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Missing', exists: true };
       const context = createContext({ 'Artifact:Producer.Data': { Other: 'value' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
     });
 
     it('satisfies when value is undefined and exists: false', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Field', exists: false };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Field', exists: false };
       const context = createContext({ 'Artifact:Producer.Data': { Field: undefined } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('satisfies when value is null and exists: false', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Field', exists: false };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Field', exists: false };
       const context = createContext({ 'Artifact:Producer.Data': { Field: null } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('fails when value exists and exists: false', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Field', exists: false };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Field', exists: false };
       const context = createContext({ 'Artifact:Producer.Data': { Field: 'value' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
@@ -449,14 +449,14 @@ describe('evaluateCondition', () => {
 
   describe('matches operator', () => {
     it('satisfies when value matches regex pattern', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Email', matches: '^[a-z]+@[a-z]+\\.[a-z]+$' };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Email', matches: '^[a-z]+@[a-z]+\\.[a-z]+$' };
       const context = createContext({ 'Artifact:Producer.Data': { Email: 'test@example.com' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('fails when value does not match regex pattern', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Email', matches: '^[a-z]+@[a-z]+\\.[a-z]+$' };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Email', matches: '^[a-z]+@[a-z]+\\.[a-z]+$' };
       const context = createContext({ 'Artifact:Producer.Data': { Email: 'invalid-email' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
@@ -464,13 +464,13 @@ describe('evaluateCondition', () => {
     });
 
     it('throws when regex is invalid', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Value', matches: '[invalid(' };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Value', matches: '[invalid(' };
       const context = createContext({ 'Artifact:Producer.Data': { Value: 'test' } });
       expect(() => evaluateCondition(condition, {}, context)).toThrow('Invalid regex pattern');
     });
 
     it('fails when value is not a string', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Value', matches: '.*' };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Value', matches: '.*' };
       const context = createContext({ 'Artifact:Producer.Data': { Value: 123 } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
@@ -478,7 +478,7 @@ describe('evaluateCondition', () => {
     });
 
     it('handles special regex characters', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Path', matches: '^\\/api\\/v[0-9]+$' };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Path', matches: '^\\/api\\/v[0-9]+$' };
       const context = createContext({ 'Artifact:Producer.Data': { Path: '/api/v1' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
@@ -487,7 +487,7 @@ describe('evaluateCondition', () => {
 
   describe('path resolution with dimensions', () => {
     it('resolves path with single dimension', () => {
-      const condition: EdgeConditionClause = { when: 'Script.Output.Segments[segment].Type', is: 'video' };
+      const condition: EdgeConditionClause = { when: 'Artifact:Script.Output.Segments[segment].Type', is: 'video' };
       const context = createContext({
         'Artifact:Script.Output': { Segments: [{}, {}, { Type: 'video' }] },
       });
@@ -496,7 +496,7 @@ describe('evaluateCondition', () => {
     });
 
     it('resolves path with multiple dimensions', () => {
-      const condition: EdgeConditionClause = { when: 'Script.Output.Segments[segment].Images[image].Alt', is: 'desc' };
+      const condition: EdgeConditionClause = { when: 'Artifact:Script.Output.Segments[segment].Images[image].Alt', is: 'desc' };
       const context = createContext({
         'Artifact:Script.Output': {
           Segments: [
@@ -510,7 +510,7 @@ describe('evaluateCondition', () => {
     });
 
     it('resolves path with qualified dimension symbols', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Output.Items[item].Value', is: 42 };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Output.Items[item].Value', is: 42 };
       const context = createContext({
         'Artifact:Producer.Output': { Items: [{ Value: 42 }] },
       });
@@ -519,7 +519,7 @@ describe('evaluateCondition', () => {
     });
 
     it('returns not satisfied when artifact not found', () => {
-      const condition: EdgeConditionClause = { when: 'Missing.Path', is: 'value' };
+      const condition: EdgeConditionClause = { when: 'Artifact:Missing.Path', is: 'value' };
       const context = createContext({});
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(false);
@@ -529,14 +529,14 @@ describe('evaluateCondition', () => {
 
   describe('nested field access', () => {
     it('accesses single level field', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Data.Field', is: 'value' };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Data.Field', is: 'value' };
       const context = createContext({ 'Artifact:Producer.Data': { Field: 'value' } });
       const result = evaluateCondition(condition, {}, context);
       expect(result.satisfied).toBe(true);
     });
 
     it('accesses deeply nested field', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Output.A.B.C.D', is: 'deep' };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Output.A.B.C.D', is: 'deep' };
       const context = createContext({
         'Artifact:Producer.Output': { A: { B: { C: { D: 'deep' } } } },
       });
@@ -545,7 +545,7 @@ describe('evaluateCondition', () => {
     });
 
     it('returns undefined for missing nested field', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Output.A.B.Missing', exists: true };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Output.A.B.Missing', exists: true };
       const context = createContext({
         'Artifact:Producer.Output': { A: { B: { C: 'value' } } },
       });
@@ -554,7 +554,7 @@ describe('evaluateCondition', () => {
     });
 
     it('handles null in path gracefully', () => {
-      const condition: EdgeConditionClause = { when: 'Producer.Output.A.B.C', exists: true };
+      const condition: EdgeConditionClause = { when: 'Artifact:Producer.Output.A.B.C', exists: true };
       const context = createContext({
         'Artifact:Producer.Output': { A: { B: null } },
       });
@@ -568,8 +568,8 @@ describe('evaluateCondition', () => {
       it('satisfies when all conditions pass', () => {
         const condition: EdgeConditionGroup = {
           all: [
-            { when: 'Producer.Data.Type', is: 'image' },
-            { when: 'Producer.Data.Count', greaterThan: 0 },
+            { when: 'Artifact:Producer.Data.Type', is: 'image' },
+            { when: 'Artifact:Producer.Data.Count', greaterThan: 0 },
           ],
         };
         const context = createContext({
@@ -582,8 +582,8 @@ describe('evaluateCondition', () => {
       it('fails when first condition fails', () => {
         const condition: EdgeConditionGroup = {
           all: [
-            { when: 'Producer.Data.Type', is: 'video' },
-            { when: 'Producer.Data.Count', greaterThan: 0 },
+            { when: 'Artifact:Producer.Data.Type', is: 'video' },
+            { when: 'Artifact:Producer.Data.Count', greaterThan: 0 },
           ],
         };
         const context = createContext({
@@ -596,8 +596,8 @@ describe('evaluateCondition', () => {
       it('fails when last condition fails', () => {
         const condition: EdgeConditionGroup = {
           all: [
-            { when: 'Producer.Data.Type', is: 'image' },
-            { when: 'Producer.Data.Count', greaterThan: 10 },
+            { when: 'Artifact:Producer.Data.Type', is: 'image' },
+            { when: 'Artifact:Producer.Data.Count', greaterThan: 10 },
           ],
         };
         const context = createContext({
@@ -619,8 +619,8 @@ describe('evaluateCondition', () => {
       it('satisfies when first condition passes', () => {
         const condition: EdgeConditionGroup = {
           any: [
-            { when: 'Producer.Data.Type', is: 'image' },
-            { when: 'Producer.Data.Type', is: 'video' },
+            { when: 'Artifact:Producer.Data.Type', is: 'image' },
+            { when: 'Artifact:Producer.Data.Type', is: 'video' },
           ],
         };
         const context = createContext({
@@ -633,8 +633,8 @@ describe('evaluateCondition', () => {
       it('satisfies when last condition passes', () => {
         const condition: EdgeConditionGroup = {
           any: [
-            { when: 'Producer.Data.Type', is: 'audio' },
-            { when: 'Producer.Data.Type', is: 'image' },
+            { when: 'Artifact:Producer.Data.Type', is: 'audio' },
+            { when: 'Artifact:Producer.Data.Type', is: 'image' },
           ],
         };
         const context = createContext({
@@ -647,8 +647,8 @@ describe('evaluateCondition', () => {
       it('fails when no conditions pass', () => {
         const condition: EdgeConditionGroup = {
           any: [
-            { when: 'Producer.Data.Type', is: 'audio' },
-            { when: 'Producer.Data.Type', is: 'video' },
+            { when: 'Artifact:Producer.Data.Type', is: 'audio' },
+            { when: 'Artifact:Producer.Data.Type', is: 'video' },
           ],
         };
         const context = createContext({
@@ -670,10 +670,10 @@ describe('evaluateCondition', () => {
     describe('mixed all and any', () => {
       it('satisfies when both all and any conditions pass', () => {
         const condition: EdgeConditionGroup = {
-          all: [{ when: 'Producer.Data.Enabled', is: true }],
+          all: [{ when: 'Artifact:Producer.Data.Enabled', is: true }],
           any: [
-            { when: 'Producer.Data.Type', is: 'image' },
-            { when: 'Producer.Data.Type', is: 'video' },
+            { when: 'Artifact:Producer.Data.Type', is: 'image' },
+            { when: 'Artifact:Producer.Data.Type', is: 'video' },
           ],
         };
         const context = createContext({
@@ -685,8 +685,8 @@ describe('evaluateCondition', () => {
 
       it('fails when all fails even if any passes', () => {
         const condition: EdgeConditionGroup = {
-          all: [{ when: 'Producer.Data.Enabled', is: true }],
-          any: [{ when: 'Producer.Data.Type', is: 'image' }],
+          all: [{ when: 'Artifact:Producer.Data.Enabled', is: true }],
+          any: [{ when: 'Artifact:Producer.Data.Type', is: 'image' }],
         };
         const context = createContext({
           'Artifact:Producer.Data': { Enabled: false, Type: 'image' },
@@ -700,8 +700,8 @@ describe('evaluateCondition', () => {
   describe('array of conditions (implicit AND)', () => {
     it('satisfies when all conditions in array pass', () => {
       const conditions: EdgeConditionClause[] = [
-        { when: 'Producer.Data.Type', is: 'image' },
-        { when: 'Producer.Data.Count', greaterThan: 0 },
+        { when: 'Artifact:Producer.Data.Type', is: 'image' },
+        { when: 'Artifact:Producer.Data.Count', greaterThan: 0 },
       ];
       const context = createContext({
         'Artifact:Producer.Data': { Type: 'image', Count: 5 },
@@ -712,8 +712,8 @@ describe('evaluateCondition', () => {
 
     it('fails when any condition in array fails', () => {
       const conditions: EdgeConditionClause[] = [
-        { when: 'Producer.Data.Type', is: 'image' },
-        { when: 'Producer.Data.Count', greaterThan: 10 },
+        { when: 'Artifact:Producer.Data.Type', is: 'image' },
+        { when: 'Artifact:Producer.Data.Count', greaterThan: 10 },
       ];
       const context = createContext({
         'Artifact:Producer.Data': { Type: 'image', Count: 5 },
@@ -733,7 +733,7 @@ describe('evaluateCondition', () => {
   describe('multiple operators on single clause', () => {
     it('satisfies when all operators pass (range check)', () => {
       const condition: EdgeConditionClause = {
-        when: 'Producer.Data.Value',
+        when: 'Artifact:Producer.Data.Value',
         greaterThan: 0,
         lessThan: 100,
       };
@@ -746,7 +746,7 @@ describe('evaluateCondition', () => {
 
     it('fails when one operator fails', () => {
       const condition: EdgeConditionClause = {
-        when: 'Producer.Data.Value',
+        when: 'Artifact:Producer.Data.Value',
         greaterThan: 0,
         lessThan: 100,
       };
@@ -760,7 +760,7 @@ describe('evaluateCondition', () => {
 
     it('satisfies with greaterOrEqual and lessOrEqual (inclusive range)', () => {
       const condition: EdgeConditionClause = {
-        when: 'Producer.Data.Value',
+        when: 'Artifact:Producer.Data.Value',
         greaterOrEqual: 0,
         lessOrEqual: 100,
       };
@@ -779,7 +779,7 @@ describe('decomposed artifacts', () => {
   // "Artifact:Producer.Output" with nested { Field: [{ SubField: value }] }
 
   it('finds value from decomposed artifact (full path as artifact ID)', () => {
-    const condition: EdgeConditionClause = { when: 'Producer.Output.HasFeature', is: true };
+    const condition: EdgeConditionClause = { when: 'Artifact:Producer.Output.HasFeature', is: true };
     // Decomposed: the full path is the artifact ID, value is directly stored (as string from blob)
     const context = createContext({
       'Artifact:Producer.Output.HasFeature': 'true', // blob content is string "true"
@@ -789,7 +789,7 @@ describe('decomposed artifacts', () => {
   });
 
   it('finds value from decomposed artifact with array index', () => {
-    const condition: EdgeConditionClause = { when: 'Producer.Output.Characters[char].HasTransition', is: true };
+    const condition: EdgeConditionClause = { when: 'Artifact:Producer.Output.Characters[char].HasTransition', is: true };
     // Decomposed: includes array index in artifact ID
     const context = createContext({
       'Artifact:Producer.Output.Characters[1].HasTransition': 'true',
@@ -799,7 +799,7 @@ describe('decomposed artifacts', () => {
   });
 
   it('correctly evaluates false boolean in decomposed artifact', () => {
-    const condition: EdgeConditionClause = { when: 'Producer.Output.Characters[char].HasTransition', is: true };
+    const condition: EdgeConditionClause = { when: 'Artifact:Producer.Output.Characters[char].HasTransition', is: true };
     const context = createContext({
       'Artifact:Producer.Output.Characters[0].HasTransition': 'false',
     });
@@ -808,7 +808,7 @@ describe('decomposed artifacts', () => {
   });
 
   it('prefers decomposed artifact over nested artifact when both exist', () => {
-    const condition: EdgeConditionClause = { when: 'Producer.Output.Field', is: 'decomposed' };
+    const condition: EdgeConditionClause = { when: 'Artifact:Producer.Output.Field', is: 'decomposed' };
     const context = createContext({
       // Both exist - decomposed should win
       'Artifact:Producer.Output.Field': 'decomposed',
@@ -819,7 +819,7 @@ describe('decomposed artifacts', () => {
   });
 
   it('falls back to nested artifact when decomposed not found', () => {
-    const condition: EdgeConditionClause = { when: 'Producer.Output.Field', is: 'nested' };
+    const condition: EdgeConditionClause = { when: 'Artifact:Producer.Output.Field', is: 'nested' };
     const context = createContext({
       // Only nested exists
       'Artifact:Producer.Output': { Field: 'nested' },
@@ -830,7 +830,7 @@ describe('decomposed artifacts', () => {
 
   it('handles deeply nested decomposed artifact path', () => {
     const condition: EdgeConditionClause = {
-      when: 'Script.Output.Segments[seg].Parts[part].Type',
+      when: 'Artifact:Script.Output.Segments[seg].Parts[part].Type',
       is: 'video',
     };
     const context = createContext({
@@ -841,7 +841,7 @@ describe('decomposed artifacts', () => {
   });
 
   it('handles enum values in decomposed artifacts', () => {
-    const condition: EdgeConditionClause = { when: 'Producer.Output.NarrationType', is: 'Voiceover' };
+    const condition: EdgeConditionClause = { when: 'Artifact:Producer.Output.NarrationType', is: 'Voiceover' };
     const context = createContext({
       'Artifact:Producer.Output.NarrationType': 'Voiceover',
     });
@@ -850,7 +850,7 @@ describe('decomposed artifacts', () => {
   });
 
   it('handles numeric values in decomposed artifacts with coercion', () => {
-    const condition: EdgeConditionClause = { when: 'Producer.Stats.Count', greaterThan: 10 };
+    const condition: EdgeConditionClause = { when: 'Artifact:Producer.Stats.Count', greaterThan: 10 };
     const context = createContext({
       'Artifact:Producer.Stats.Count': '42', // stored as string in blob
     });
@@ -875,7 +875,7 @@ describe('evaluateInputConditions', () => {
   it('evaluates single input condition', () => {
     const inputConditions: Record<string, InputConditionInfo> = {
       'Artifact:Script.Segments[0]': {
-        condition: { when: 'Producer.Data.Type', is: 'image' },
+        condition: { when: 'Artifact:Producer.Data.Type', is: 'image' },
         indices: {},
       },
     };
@@ -890,11 +890,11 @@ describe('evaluateInputConditions', () => {
   it('evaluates multiple input conditions with mixed results', () => {
     const inputConditions: Record<string, InputConditionInfo> = {
       input1: {
-        condition: { when: 'Producer.Data.Type', is: 'image' },
+        condition: { when: 'Artifact:Producer.Data.Type', is: 'image' },
         indices: {},
       },
       input2: {
-        condition: { when: 'Producer.Data.Type', is: 'video' },
+        condition: { when: 'Artifact:Producer.Data.Type', is: 'video' },
         indices: {},
       },
     };
@@ -910,7 +910,7 @@ describe('evaluateInputConditions', () => {
   it('passes indices to condition evaluation', () => {
     const inputConditions: Record<string, InputConditionInfo> = {
       'Artifact:Items[0]': {
-        condition: { when: 'Script.Segments.Items[idx].Type', is: 'audio' },
+        condition: { when: 'Artifact:Script.Segments.Items[idx].Type', is: 'audio' },
         indices: { idx: 2 },
       },
     };
@@ -924,7 +924,7 @@ describe('evaluateInputConditions', () => {
   it('handles missing artifact gracefully', () => {
     const inputConditions: Record<string, InputConditionInfo> = {
       input1: {
-        condition: { when: 'Missing.Field', is: 'value' },
+        condition: { when: 'Artifact:Missing.Field', is: 'value' },
         indices: {},
       },
     };
@@ -941,7 +941,7 @@ describe('evaluateInputConditions', () => {
     const inputConditions: Record<string, InputConditionInfo> = {
       'Artifact:ThenImageProducer.TransformedImage[2]': {
         condition: {
-          when: 'DirectorProducer.Script.Characters[character].HasTransition',
+          when: 'Artifact:DirectorProducer.Script.Characters[character].HasTransition',
           is: true,
         },
         // Indices are merged as { ...fromNode.indices, ...toNode.indices }
@@ -968,7 +968,7 @@ describe('evaluateInputConditions', () => {
     const inputConditions: Record<string, InputConditionInfo> = {
       input1: {
         condition: {
-          when: 'Producer.Data.Items[idx].Enabled',
+          when: 'Artifact:Producer.Data.Items[idx].Enabled',
           is: true,
         },
         indices: {

@@ -10,6 +10,24 @@ import type { ArtifactInfo, BuildManifestResponse } from './types.js';
 
 const TIMELINE_ARTEFACT_ID = 'Artifact:TimelineComposer.Timeline';
 
+function stripCanonicalInputPrefix(inputId: string): string {
+  if (!inputId.startsWith('Input:')) {
+    throw new Error(
+      `Manifest input key must be canonical (Input:...), received "${inputId}".`
+    );
+  }
+  return inputId.slice('Input:'.length);
+}
+
+function stripCanonicalArtifactPrefix(artifactId: string): string {
+  if (!artifactId.startsWith('Artifact:')) {
+    throw new Error(
+      `Manifest artifact key must be canonical (Artifact:...), received "${artifactId}".`
+    );
+  }
+  return artifactId.slice('Artifact:'.length);
+}
+
 /**
  * ArtefactEvent structure for reading from event log.
  */
@@ -185,8 +203,7 @@ export async function getBuildManifest(
     const parsedInputs: Record<string, unknown> = {};
     if (manifest?.inputs) {
       for (const [key, entry] of Object.entries(manifest.inputs)) {
-        // Remove "Input:" prefix if present
-        const cleanName = key.startsWith('Input:') ? key.slice(6) : key;
+        const cleanName = stripCanonicalInputPrefix(key);
         // Extract value from payloadDigest
         if (entry && typeof entry === 'object' && 'payloadDigest' in entry) {
           let value = entry.payloadDigest;
@@ -218,7 +235,7 @@ export async function getBuildManifest(
         manifestArtifactIds.add(key);
 
         // Extract name from artifact ID (e.g., "Artifact:Producer.Output" -> "Producer.Output")
-        const cleanName = key.startsWith('Artifact:') ? key.slice(9) : key;
+        const cleanName = stripCanonicalArtifactPrefix(key);
 
         // Check event log for latest state (may have edits)
         const latestEvent = latestEvents.get(key);
@@ -261,9 +278,7 @@ export async function getBuildManifest(
         continue;
       }
 
-      const cleanName = artifactId.startsWith('Artifact:')
-        ? artifactId.slice(9)
-        : artifactId;
+      const cleanName = stripCanonicalArtifactPrefix(artifactId);
 
       // For succeeded artifacts, we need blob info
       if (event.status === 'succeeded' && !event.output?.blob?.hash) {

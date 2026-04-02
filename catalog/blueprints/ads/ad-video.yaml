@@ -10,15 +10,15 @@ meta:
 inputs:
   - name: ProductDescription
     description: Description of the product being advertised.
-    type: string
+    type: text
     required: true
   - name: CharacterDescription
     description: Description of the character using the product.
-    type: string
+    type: text
     required: true
   - name: AdConcept
     description: The overall concept or theme of the advertisement.
-    type: string
+    type: text
     required: true
   - name: Audience
     description: Target audience for the ad.
@@ -32,14 +32,6 @@ inputs:
     description: Resolution for generated media as width/height pixel dimensions.
     type: resolution
     required: true
-  - name: VoiceId
-    description: Voice identifier for narration.
-    type: string
-    required: true
-  - name: Emotion
-    description: Emotional tone for narration.
-    type: string
-    required: false
   - name: MusicalStyle
     description: Style for background music.
     type: string
@@ -160,12 +152,6 @@ connections:
   # === AudioProducer inputs (looped, conditional) ===
   - from: AdScriptProducer.AdScript.Scenes[clip].NarrationScript
     to: AudioProducer[clip].Text
-    if: hasNarration
-  - from: VoiceId
-    to: AudioProducer[clip].VoiceId
-    if: hasNarration
-  - from: Emotion
-    to: AudioProducer[clip].Emotion
     if: hasNarration
 
   # === AudioProducer outputs ===

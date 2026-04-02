@@ -145,6 +145,9 @@ function makeRequest(
     context: {
       extras: {
         resolvedInputs,
+        jobContext: {
+          producerAlias: 'TimelineComposer',
+        },
       },
       providerConfig: {
         config: {

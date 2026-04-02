@@ -116,8 +116,12 @@ export function detectRequiredExtractions(produces: string[]): RequiredExtractio
  * Example: "Artifact:FirstFrame[0]" -> "FirstFrame"
  */
 function extractArtifactBaseName(artifactId: string): string {
-  // Remove "Artifact:" prefix if present
-  const withoutPrefix = artifactId.startsWith('Artifact:') ? artifactId.slice('Artifact:'.length) : artifactId;
+  if (!artifactId.startsWith('Artifact:')) {
+    throw new Error(
+      `Expected canonical Artifact ID (Artifact:...), received "${artifactId}".`
+    );
+  }
+  const withoutPrefix = artifactId.slice('Artifact:'.length);
 
   // Remove any bracket indices
   const withoutBrackets = withoutPrefix.replace(/\[[^\]]+\]/g, '');

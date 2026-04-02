@@ -653,7 +653,7 @@ describe('createProducerGraph', () => {
             from: 'Input:ImageProducer.Prompt',
             to: 'Producer:ImageProducer',
             conditions: {
-              when: 'ScriptProducer.Output.Items[0].Enabled',
+              when: 'Artifact:ScriptProducer.Output.Items[0].Enabled',
               is: true,
             },
             indices: {},
@@ -728,7 +728,7 @@ describe('createProducerGraph', () => {
             from: 'Input:ImageProducer.Prompt',
             to: 'Producer:ImageProducer',
             conditions: {
-              when: 'ScriptProducer.Output.Items[item].Enabled',
+              when: 'Artifact:ScriptProducer.Output.Items[item].Enabled',
               is: true,
             },
             indices: {},

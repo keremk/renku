@@ -152,7 +152,7 @@ describe('buildArtefactsFromUrls', () => {
     });
   });
 
-  it('uses default artefact ID when not provided', async () => {
+  it('rejects non-canonical artefact IDs', async () => {
     const testData = new Uint8Array([1, 2, 3]);
     (global.fetch as any).mockResolvedValue({
       ok: true,
@@ -160,14 +160,16 @@ describe('buildArtefactsFromUrls', () => {
       arrayBuffer: async () => testData.buffer,
     });
 
-    const result = await buildArtefactsFromUrls({
-      produces: [''],
-      urls: ['https://example.com/img.jpg'],
-      mimeType: 'image/jpeg',
-    });
-
-    expect(result).toHaveLength(1);
-    expect(result[0]?.artefactId).toBe('Artifact:Output#0');
+    await expect(
+      buildArtefactsFromUrls({
+        produces: [''],
+        urls: ['https://example.com/img.jpg'],
+        mimeType: 'image/jpeg',
+      }),
+    ).rejects.toThrow(
+      /buildArtefactsFromUrls: expected canonical Artifact ID at produces\[0\]/
+    );
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it('handles empty produces and urls arrays', async () => {

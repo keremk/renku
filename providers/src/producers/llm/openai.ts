@@ -171,7 +171,21 @@ function buildPromptVariablePayload(
   const inputBindings = extractInputBindings(request);
   const payload: Record<string, unknown> = {};
   for (const variable of variables) {
-    const canonicalId = inputBindings?.[variable] ?? variable;
+    const canonicalId = inputBindings?.[variable];
+    if (!canonicalId) {
+      throw createProviderError(
+        SdkErrorCode.MISSING_REQUIRED_INPUT,
+        `[providers.openai.prompts] Missing input binding for variable "${variable}". Expected canonical binding metadata in job context.`,
+        { kind: 'user_input', causedByUser: true },
+      );
+    }
+    if (!isCanonicalId(canonicalId)) {
+      throw createProviderError(
+        SdkErrorCode.MISSING_REQUIRED_INPUT,
+        `[providers.openai.prompts] Input binding for variable "${variable}" must be canonical. Received "${canonicalId}".`,
+        { kind: 'user_input', causedByUser: true },
+      );
+    }
     const value = runtime.inputs.getByNodeId(canonicalId);
     if (value === undefined) {
       throw createProviderError(

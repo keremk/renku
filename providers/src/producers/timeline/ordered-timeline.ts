@@ -198,7 +198,8 @@ const SIMULATED_OUTPUT_PREFIX = 'simulated-output:';
 function canonicalizeClips(
   config: TimelineProducerConfig,
   availableInputs: string[],
-  allowedKinds: Set<ClipKind>
+  allowedKinds: Set<ClipKind>,
+  producerAlias: string
 ): TimelineClipConfig[] {
   const filtered = config.clips.filter((clip) => allowedKinds.has(clip.kind));
   if (filtered.length === 0) {
@@ -208,7 +209,8 @@ function canonicalizeClips(
     ...clip,
     inputs: canonicalizeAuthoredInputId(
       parseInputReference(clip.inputs),
-      availableInputs
+      availableInputs,
+      producerAlias
     ),
   }));
 }
@@ -497,14 +499,30 @@ export function createTimelineProducerHandler(): HandlerFactory {
       const canonicalInputs = request.inputs.filter((input) =>
         isCanonicalInputId(input)
       );
-      const clips = canonicalizeClips(config, canonicalInputs, allowedKinds);
-      if (clips.length === 0) {
+      const activeClipCount = config.clips.filter((clip) =>
+        allowedKinds.has(clip.kind)
+      ).length;
+      if (activeClipCount === 0) {
         throw createProviderError(
           SdkErrorCode.INVALID_CONFIG,
           'TimelineProducer config must define at least one clip.',
           { kind: 'user_input', causedByUser: true }
         );
       }
+      const producerAlias = readProducerAlias(request);
+      if (!producerAlias) {
+        throw createProviderError(
+          SdkErrorCode.INVALID_CONFIG,
+          'TimelineProducer missing producerAlias in job context. Canonical clip input resolution requires producer alias metadata.',
+          { kind: 'user_input', causedByUser: true }
+        );
+      }
+      const clips = canonicalizeClips(
+        config,
+        canonicalInputs,
+        allowedKinds,
+        producerAlias
+      );
 
       const resolvedInputs = runtime.inputs.all();
       const assetDurationCache = new Map<string, number>();

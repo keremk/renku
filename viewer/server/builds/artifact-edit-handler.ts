@@ -208,9 +208,12 @@ async function readLatestSucceededArtifactEvents(
 }
 
 function extractArtifactBaseName(artifactId: string): string {
-  const withoutPrefix = artifactId.startsWith('Artifact:')
-    ? artifactId.slice('Artifact:'.length)
-    : artifactId;
+  if (!artifactId.startsWith('Artifact:')) {
+    throw new Error(
+      `Expected canonical Artifact ID (Artifact:...), received "${artifactId}".`
+    );
+  }
+  const withoutPrefix = artifactId.slice('Artifact:'.length);
   const withoutBrackets = withoutPrefix.replace(/\[[^\]]+\]/g, '');
   const segments = withoutBrackets.split('.');
   return segments[segments.length - 1] ?? withoutBrackets;

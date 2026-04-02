@@ -45,24 +45,16 @@ export async function resolveArtifactsFromEventLog(args: {
     }
   }
 
-  const resolvedById = new Map<string, unknown>();
-  const resolvedByKind = new Map<string, unknown>();
+  const resolvedByCanonicalId = new Map<string, unknown>();
 
   for (const [artifactId, event] of latestEvents) {
-    const kind = extractArtifactKind(artifactId);
-
     if (event.output.blob) {
       const decoded = await readBlob(args.storage, args.movieId, event.output.blob);
-      resolvedByKind.set(kind, decoded);
-      resolvedById.set(artifactId, decoded);
-      resolvedById.set(formatResolvedKey(artifactId), decoded);
+      resolvedByCanonicalId.set(artifactId, decoded);
     }
   }
 
-  return Object.fromEntries([
-    ...resolvedByKind.entries(),
-    ...resolvedById.entries(),
-  ]);
+  return Object.fromEntries(resolvedByCanonicalId.entries());
 }
 
 /**
@@ -79,8 +71,13 @@ export async function resolveArtifactsFromEventLog(args: {
  * extractArtifactKind('Input:Topic') // 'Topic'
  */
 export function extractArtifactKind(artifactId: string): string {
-  // Remove prefix (Artifact: or Input:)
-  const withoutPrefix = artifactId.replace(/^(Artifact|Input):/, '');
+  if (!artifactId.startsWith('Artifact:')) {
+    throw createRuntimeError(
+      RuntimeErrorCode.ARTIFACT_RESOLUTION_FAILED,
+      `Expected canonical Artifact ID (Artifact:...), received "${artifactId}".`,
+    );
+  }
+  const withoutPrefix = artifactId.slice('Artifact:'.length);
 
   // Remove dimensions like [segment=0][image=0]
   const kind = withoutPrefix.replace(/\[.*?\]/g, '');
@@ -138,10 +135,6 @@ function decodePayload(payload: Uint8Array, mimeType?: string): unknown {
   }
   // Return proper Buffer for binary types to ensure compatibility with streams
   return Buffer.from(payload);
-}
-
-function formatResolvedKey(artifactId: string): string {
-  return artifactId.replace(/^Artifact:/, '');
 }
 
 /**

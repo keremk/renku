@@ -127,8 +127,12 @@ export function detectPanelExtractions(produces: string[]): RequiredPanelExtract
  * Example: "Artifact:TextToImageProducer.PanelImages[0]" -> "PanelImages[0]"
  */
 function extractArtifactBaseName(artifactId: string): string {
-  // Remove "Artifact:" prefix if present
-  const withoutPrefix = artifactId.startsWith('Artifact:') ? artifactId.slice('Artifact:'.length) : artifactId;
+  if (!artifactId.startsWith('Artifact:')) {
+    throw new Error(
+      `Expected canonical Artifact ID (Artifact:...), received "${artifactId}".`
+    );
+  }
+  const withoutPrefix = artifactId.slice('Artifact:'.length);
 
   // Get the last segment after dots (but keep brackets)
   const segments = withoutPrefix.split('.');

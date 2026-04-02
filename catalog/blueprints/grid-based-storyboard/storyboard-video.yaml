@@ -9,11 +9,11 @@ meta:
 inputs:
   - name: InquiryPrompt
     description: Main topic or scenario description for the video (e.g., music video concept, story idea).
-    type: string
+    type: text
     required: true
   - name: CharacterDefinitions
     description: Detailed descriptions of characters/subjects that appear in the video.
-    type: string
+    type: text
     required: true
   - name: Styling
     description: Visual/artistic style (e.g., 2000s music video aesthetic, cinematic, anime).

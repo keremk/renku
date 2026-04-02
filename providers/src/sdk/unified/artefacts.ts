@@ -37,6 +37,16 @@ export interface BuildJsonArtefactsOptions {
   mimeType: string;
 }
 
+function assertCanonicalProduces(produces: string[], operation: string): void {
+  produces.forEach((artifactId, index) => {
+    if (!isCanonicalArtifactId(artifactId)) {
+      throw new Error(
+        `${operation}: expected canonical Artifact ID at produces[${index}] (Artifact:...), received "${artifactId}".`
+      );
+    }
+  });
+}
+
 /**
  * Creates ProducedArtefact objects from a JSON response.
  * Used for models that return structured data (like STT) rather than media URLs.
@@ -45,6 +55,7 @@ export interface BuildJsonArtefactsOptions {
  */
 export function buildArtefactsFromJson(options: BuildJsonArtefactsOptions): ProducedArtefact[] {
   const { produces, jsonOutput, mimeType } = options;
+  assertCanonicalProduces(produces, 'buildArtefactsFromJson');
 
   // Serialize the JSON output
   const jsonData = JSON.stringify(jsonOutput, null, 2);
@@ -52,8 +63,8 @@ export function buildArtefactsFromJson(options: BuildJsonArtefactsOptions): Prod
 
   // For JSON outputs, all produces share the same data
   // (typically there's only one artifact for JSON responses)
-  return produces.map((providedId, index) => {
-    const artefactId = providedId && providedId.length > 0 ? providedId : `Artifact:Output#${index}`;
+  return produces.map((providedId) => {
+    const artefactId = providedId;
 
     return {
       artefactId,
@@ -122,6 +133,7 @@ function resolveDurationForMock(resolvedInputs: Record<string, unknown> | undefi
  */
 export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Promise<ProducedArtefact[]> {
   const { produces, urls, mimeType, mode, resolvedInputs } = options;
+  assertCanonicalProduces(produces, 'buildArtefactsFromUrls');
   const artefacts: ProducedArtefact[] = [];
   const useMockDownloads = mode === 'simulated';
 
@@ -156,7 +168,7 @@ export async function buildArtefactsFromUrls(options: BuildArtefactsOptions): Pr
 
   for (let index = 0; index < primaryProduces.length; index += 1) {
     const providedId = primaryProduces[index];
-    const artefactId = providedId && providedId.length > 0 ? providedId : `Artifact:Output#${index}`;
+    const artefactId = providedId;
     const url = urls[index];
 
     if (!url) {

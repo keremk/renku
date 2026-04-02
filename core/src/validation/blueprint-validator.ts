@@ -611,20 +611,30 @@ function validateConditionDef(
 
   // Check 'when' path
   if (typeof cond.when === 'string') {
-    const { baseName } = parseReference(cond.when);
-    if (!isLocalReference(cond.when) && !producerNames.has(baseName)) {
-      issues.push(
-        createError(
-          ValidationErrorCode.CONDITION_PATH_INVALID,
-          `Condition "${name}" references unknown producer "${baseName}" in when: "${cond.when}"`,
-          {
-            filePath: node.sourcePath,
-            namespacePath: node.namespacePath,
-            context: `condition "${name}"`,
-          },
-          `Check that "${baseName}" is listed in producers[]`
-        )
-      );
+    const when = cond.when.trim();
+
+    // Input conditions do not reference producer artifact paths.
+    if (when.startsWith('Input:')) {
+      // no-op
+    } else {
+      const normalizedWhen = when.startsWith('Artifact:')
+        ? when.slice('Artifact:'.length)
+        : when;
+      const { baseName } = parseReference(normalizedWhen);
+      if (!isLocalReference(normalizedWhen) && !producerNames.has(baseName)) {
+        issues.push(
+          createError(
+            ValidationErrorCode.CONDITION_PATH_INVALID,
+            `Condition "${name}" references unknown producer "${baseName}" in when: "${cond.when}"`,
+            {
+              filePath: node.sourcePath,
+              namespacePath: node.namespacePath,
+              context: `condition "${name}"`,
+            },
+            `Check that "${baseName}" is listed in producers[]`
+          )
+        );
+      }
     }
   }
 

@@ -390,9 +390,13 @@ function extractWhenPaths(condition: EdgeConditionDefinition): string[] {
  * - Keeps explicit numeric indices (e.g. [0]) exact
  */
 function whenPathToPattern(whenPath: string): RegExp | null {
-  const normalizedPath = whenPath.startsWith('Artifact:')
-    ? whenPath.slice('Artifact:'.length)
-    : whenPath;
+  if (!isCanonicalArtifactId(whenPath)) {
+    throw createRuntimeError(
+      RuntimeErrorCode.GRAPH_EXPANSION_ERROR,
+      `Edge condition path must be canonical Artifact ID (Artifact:...), received "${whenPath}".`
+    );
+  }
+  const normalizedPath = whenPath.slice('Artifact:'.length);
   if (!normalizedPath) {
     return null;
   }

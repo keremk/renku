@@ -6,7 +6,15 @@ import {
   deriveFieldMappingMeta,
 } from './models-pane-contract.js';
 
-function createSchemaFileWithResolutionUnion(): any {
+type ContractSchemaFile = Parameters<
+  typeof buildFieldDescriptors
+>[0]['schemaFile'];
+
+function asContractSchemaFile(value: unknown): ContractSchemaFile {
+  return value as ContractSchemaFile;
+}
+
+function createSchemaFileWithResolutionUnion() {
   return {
     definitions: {
       ImageSizeEnum: {
@@ -99,7 +107,7 @@ function createSchemaFileWithResolutionUnion(): any {
   };
 }
 
-function createSchemaFileWithNullableNumber(): any {
+function createSchemaFileWithNullableNumber() {
   return {
     inputSchema: {
       type: 'object',
@@ -142,7 +150,7 @@ function createSchemaFileWithNullableNumber(): any {
   };
 }
 
-function createSchemaFileWithPointerAndSchemaPointerMerge(): any {
+function createSchemaFileWithPointerAndSchemaPointerMerge() {
   return {
     inputSchema: {
       type: 'object',
@@ -184,7 +192,7 @@ describe('models-pane-contract', () => {
     const schemaFile = createSchemaFileWithResolutionUnion();
 
     const fields = buildFieldDescriptors({
-      schemaFile,
+      schemaFile: asContractSchemaFile(schemaFile),
       fieldMapping: new Map(),
       producerId: 'ImageProducer',
       provider: 'fal-ai',
@@ -219,8 +227,12 @@ describe('models-pane-contract', () => {
 
   it('propagates custom renderer overrides from viewer annotations', () => {
     const schemaFile = createSchemaFileWithResolutionUnion();
-    schemaFile.viewer.input.fields.image_size.custom = 'color-picker';
-    schemaFile.viewer.input.fields.image_size.custom_config = {
+    const imageSizeField = schemaFile.viewer.input.fields.image_size as {
+      custom?: string;
+      custom_config?: unknown;
+    };
+    imageSizeField.custom = 'color-picker';
+    imageSizeField.custom_config = {
       allow_custom: true,
       options: [
         {
@@ -231,7 +243,7 @@ describe('models-pane-contract', () => {
     };
 
     const fields = buildFieldDescriptors({
-      schemaFile,
+      schemaFile: asContractSchemaFile(schemaFile),
       fieldMapping: new Map(),
       producerId: 'ImageProducer',
       provider: 'fal-ai',
@@ -258,7 +270,7 @@ describe('models-pane-contract', () => {
 
     expect(() =>
       buildFieldDescriptors({
-        schemaFile,
+        schemaFile: asContractSchemaFile(schemaFile),
         fieldMapping: new Map(),
         producerId: 'ImageProducer',
         provider: 'fal-ai',
@@ -271,11 +283,13 @@ describe('models-pane-contract', () => {
 
   it('fails fast when enum-or-dimensions unions omit explicit unionEditor metadata', () => {
     const schemaFile = createSchemaFileWithResolutionUnion();
-    schemaFile.viewer.input.fields.image_size.unionEditor = undefined;
+    (
+      schemaFile.viewer.input.fields.image_size as { unionEditor?: unknown }
+    ).unionEditor = undefined;
 
     expect(() =>
       buildFieldDescriptors({
-        schemaFile,
+        schemaFile: asContractSchemaFile(schemaFile),
         fieldMapping: new Map(),
         producerId: 'ImageProducer',
         provider: 'fal-ai',
@@ -287,7 +301,7 @@ describe('models-pane-contract', () => {
   it('rejects preview fields outside descriptor contract', () => {
     const schemaFile = createSchemaFileWithResolutionUnion();
     const fields = buildFieldDescriptors({
-      schemaFile,
+      schemaFile: asContractSchemaFile(schemaFile),
       fieldMapping: new Map(),
       producerId: 'ImageProducer',
       provider: 'fal-ai',
@@ -313,7 +327,7 @@ describe('models-pane-contract', () => {
     const schemaFile = createSchemaFileWithNullableNumber();
 
     const fields = buildFieldDescriptors({
-      schemaFile,
+      schemaFile: asContractSchemaFile(schemaFile),
       fieldMapping: new Map(),
       producerId: 'LipsyncVideoProducer',
       provider: 'fal-ai',
@@ -331,7 +345,7 @@ describe('models-pane-contract', () => {
     const schemaFile = createSchemaFileWithPointerAndSchemaPointerMerge();
 
     const fields = buildFieldDescriptors({
-      schemaFile,
+      schemaFile: asContractSchemaFile(schemaFile),
       fieldMapping: new Map(),
       producerId: 'StartImageProducer',
       provider: 'replicate',
@@ -345,7 +359,7 @@ describe('models-pane-contract', () => {
   });
 
   it('treats disconnected aliases with no metadata as unmapped instead of failing', () => {
-    const schemaFile: any = {
+    const schemaFile = {
       inputSchema: {
         type: 'object',
         properties: {
@@ -373,7 +387,7 @@ describe('models-pane-contract', () => {
     };
 
     const fieldMapping = deriveFieldMappingMeta({
-      schemaFile,
+      schemaFile: asContractSchemaFile(schemaFile),
       mapping: {
         LanguageCode: {
           field: 'language_code',
@@ -397,7 +411,7 @@ describe('models-pane-contract', () => {
   });
 
   it('fails when connected aliases are missing binding metadata', () => {
-    const schemaFile: any = {
+    const schemaFile = {
       inputSchema: {
         type: 'object',
         properties: {
@@ -426,7 +440,7 @@ describe('models-pane-contract', () => {
 
     expect(() =>
       deriveFieldMappingMeta({
-        schemaFile,
+        schemaFile: asContractSchemaFile(schemaFile),
         mapping: {
           LanguageCode: {
             field: 'language_code',
@@ -450,7 +464,7 @@ describe('models-pane-contract', () => {
   });
 
   it('derives mapping metadata from expand resolution contracts without runtime preview values', () => {
-    const schemaFile: any = {
+    const schemaFile = {
       inputSchema: {
         type: 'object',
         properties: {
@@ -482,7 +496,7 @@ describe('models-pane-contract', () => {
     };
 
     const fieldMapping = deriveFieldMappingMeta({
-      schemaFile,
+      schemaFile: asContractSchemaFile(schemaFile),
       mapping: {
         Resolution: {
           expand: true,

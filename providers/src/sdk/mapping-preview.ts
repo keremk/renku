@@ -392,37 +392,6 @@ function upsertField(
   return next;
 }
 
-function isResolutionRelatedMapping(
-  alias: string,
-  mapping: MappingFieldDefinition
-): boolean {
-  if (isResolutionKeyword(alias)) {
-    return true;
-  }
-
-  if (mapping.input && isResolutionKeyword(mapping.input)) {
-    return true;
-  }
-
-  if (mapping.field && isResolutionRelatedField(mapping.field)) {
-    return true;
-  }
-
-  if (mapping.resolution) {
-    return true;
-  }
-
-  if (mapping.combine?.inputs.some((name) => isResolutionKeyword(name))) {
-    return true;
-  }
-
-  if (mapping.conditional) {
-    return isResolutionRelatedMapping(alias, mapping.conditional.then);
-  }
-
-  return false;
-}
-
 function isResolutionRelatedField(field: string): boolean {
   return isResolutionKeyword(field);
 }

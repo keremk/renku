@@ -2,7 +2,6 @@ inputs:
   EducationalTopic: 'the vital organs of the human body'
   TargetAudience: 'children ages 6-10'
   AnimationStyle: 'Pixar-style 3D animated, cute, colorful, expressive eyes, friendly face'
-  VoiceId: 'iUqOXhMfiOIbBejNtfLR'
   Resolution:
     width: 720
     height: 1280

@@ -1,6 +1,7 @@
 import { ArrayObjectTableEditor } from './array-object-table';
 import { ColorPickerEditor } from './color-picker';
-import { parseVoiceIdCustomConfig, VoiceIdEditor } from './voice-id-editor';
+import { VoiceIdEditor } from './voice-id-editor';
+import { parseVoiceIdCustomConfig } from './voice-id-config';
 import { PropertyRow } from '../../shared';
 import { ResetOverrideButton } from './reset-override-button';
 import { getLeafKey } from './path-utils';

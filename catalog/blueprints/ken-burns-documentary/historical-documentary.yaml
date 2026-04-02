@@ -28,14 +28,6 @@ inputs:
     description: Target audience (e.g., adults, students, history enthusiasts).
     type: string
     required: false
-  - name: VoiceId
-    description: Voice identifier for narration audio generation.
-    type: string
-    required: true
-  - name: Emotion
-    description: Emotional tone for the narrator (e.g., neutral, somber, authoritative).
-    type: string
-    required: false
   - name: Language
     description: Narration language (e.g., en, es, fr).
     type: string
@@ -126,10 +118,6 @@ connections:
   # --- Audio narration ---
   - from: HistoricalScriptProducer.VideoScript.Segments[segment].NarrationScript
     to: AudioProducer[segment].Text
-  - from: VoiceId
-    to: AudioProducer[segment].VoiceId
-  - from: Emotion
-    to: AudioProducer[segment].Emotion
   - from: AudioProducer[segment].GeneratedAudio
     to: SegmentAudio[segment]
   - from: AudioProducer[segment].GeneratedAudio

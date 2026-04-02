@@ -32,6 +32,10 @@ import type {
   ResolutionProjectionMode,
   ResolutionTransformConfig,
 } from '../../types.js';
+import {
+  isCanonicalArtifactId,
+  isCanonicalInputId,
+} from '../canonical-ids.js';
 import { parseDimensionSelector } from '../dimension-selectors.js';
 import { deriveDimensionName } from '../../resolution/schema-decomposition.js';
 
@@ -715,10 +719,14 @@ function parseConditionClause(
     );
   }
 
-  // Validate dimensions in the 'when' path
-  validateDimensions(when, allowedDimensions, 'when' as 'from');
+  const trimmedWhenPath = when.trim();
 
-  const clause: EdgeConditionClause = { when: when.trim() };
+  // Validate dimensions in the 'when' path
+  validateDimensions(trimmedWhenPath, allowedDimensions, 'when' as 'from');
+
+  const normalizedWhenPath = canonicalizeConditionWhenPath(trimmedWhenPath);
+
+  const clause: EdgeConditionClause = { when: normalizedWhenPath };
 
   // Parse operators
   if ('is' in obj) {
@@ -805,6 +813,14 @@ function parseConditionClause(
   }
 
   return clause;
+}
+
+function canonicalizeConditionWhenPath(whenPath: string): string {
+  const trimmed = whenPath.trim();
+  if (isCanonicalArtifactId(trimmed) || isCanonicalInputId(trimmed)) {
+    return trimmed;
+  }
+  return `Artifact:${trimmed}`;
 }
 
 /**

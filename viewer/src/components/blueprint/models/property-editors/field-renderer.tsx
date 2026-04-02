@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { SdkPreviewFieldInstance } from '@/types/blueprint-graph';
@@ -24,21 +24,23 @@ export function ConfigFieldRenderer({
   onChange,
   sdkPreviewByField,
 }: ConfigFieldRendererProps) {
-  if (field.mappingSource === 'artifact' || field.mappingSource === 'mixed') {
-    return null;
-  }
-
-  const preview = sdkPreviewByField.get(field.keyPath);
+  const isArtifactMapped =
+    field.mappingSource === 'artifact' || field.mappingSource === 'mixed';
+  const preview = isArtifactMapped
+    ? undefined
+    : sdkPreviewByField.get(field.keyPath);
   const isDynamicReadOnly =
+    !isArtifactMapped &&
     field.mappingSource === 'input' &&
     preview?.connected === true &&
     preview.overridePolicy === 'read_only_dynamic';
   const previewInstances = isDynamicReadOnly ? preview.instances ?? [] : [];
 
   const [activeInstanceIndex, setActiveInstanceIndex] = useState(0);
-  useEffect(() => {
-    setActiveInstanceIndex(0);
-  }, [field.keyPath, previewInstances.length]);
+
+  if (isArtifactMapped) {
+    return null;
+  }
 
   const boundedInstanceIndex =
     previewInstances.length > 0

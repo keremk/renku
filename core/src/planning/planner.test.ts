@@ -146,7 +146,7 @@ function buildConditionArtifactGraph(): ProducerGraph {
         inputConditions: {
           'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
             condition: {
-              when: 'DirectorProducer.Script.Characters[0].HasTransition',
+              when: 'Artifact:DirectorProducer.Script.Characters[0].HasTransition',
               is: true,
             },
             indices: {},

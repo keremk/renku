@@ -1,7 +1,8 @@
-import type {
-  MappingFieldDefinition,
-  MappingCondition,
-  CombineTransform,
+import {
+  isCanonicalId,
+  type MappingFieldDefinition,
+  type MappingCondition,
+  type CombineTransform,
 } from '@gorenku/core';
 import { createProviderError, SdkErrorCode } from './errors.js';
 
@@ -114,6 +115,7 @@ export function applyMapping(
   let value: unknown;
 
   if (canonicalId) {
+    assertCanonicalBindingId(sourceAlias, canonicalId);
     // Direct lookup succeeded - check if we have a resolved value
     value = resolveInputValue(canonicalId, context.inputs);
   }
@@ -251,6 +253,9 @@ function evaluateCondition(
   context: TransformContext
 ): boolean {
   const canonicalId = context.inputBindings[condition.input];
+  if (canonicalId) {
+    assertCanonicalBindingId(condition.input, canonicalId);
+  }
   const value = canonicalId
     ? resolveInputValue(canonicalId, context.inputs)
     : undefined;
@@ -293,6 +298,9 @@ function applyCombineTransform(
 
   for (const inputName of combine.inputs) {
     const canonicalId = context.inputBindings[inputName];
+    if (canonicalId) {
+      assertCanonicalBindingId(inputName, canonicalId);
+    }
     const value = canonicalId
       ? resolveInputValue(canonicalId, context.inputs)
       : undefined;
@@ -782,9 +790,9 @@ function formatMegapixelCandidate(value: number): string {
  * @returns Array of element bindings sorted by index
  *
  * @example
- * // Given bindings: { "Foo[0]": "artifact1", "Foo[1]": "artifact2", "Bar": "artifact3" }
+ * // Given bindings: { "Foo[0]": "Artifact:Media.Image[0]", "Foo[1]": "Artifact:Media.Image[1]", "Bar": "Artifact:Media.Audio[0]" }
  * collectElementBindings("Foo", bindings)
- * // Returns: [{ index: 0, canonicalId: "artifact1" }, { index: 1, canonicalId: "artifact2" }]
+ * // Returns: [{ index: 0, canonicalId: "Artifact:Media.Image[0]" }, { index: 1, canonicalId: "Artifact:Media.Image[1]" }]
  */
 export function collectElementBindings(
   baseAlias: string,
@@ -798,12 +806,24 @@ export function collectElementBindings(
   for (const [key, canonicalId] of Object.entries(inputBindings)) {
     const match = key.match(pattern);
     if (match) {
+      assertCanonicalBindingId(key, canonicalId);
       elements.push({ index: parseInt(match[1]!, 10), canonicalId });
     }
   }
 
   // Sort by index to ensure correct array order
   return elements.sort((a, b) => a.index - b.index);
+}
+
+function assertCanonicalBindingId(alias: string, canonicalId: string): void {
+  if (isCanonicalId(canonicalId)) {
+    return;
+  }
+  throw createProviderError(
+    SdkErrorCode.INVALID_CONFIG,
+    `Input binding for alias "${alias}" must be canonical. Received "${canonicalId}".`,
+    { kind: 'user_input', causedByUser: true }
+  );
 }
 
 interface IndexedInputAccess {

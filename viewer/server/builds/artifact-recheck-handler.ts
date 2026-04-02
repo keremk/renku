@@ -169,9 +169,12 @@ function buildArtifactInfo(
   artifactId: string,
   event: ArtefactEvent
 ): ArtifactInfo {
-  const cleanName = artifactId.startsWith('Artifact:')
-    ? artifactId.slice(9)
-    : artifactId;
+  if (!artifactId.startsWith('Artifact:')) {
+    throw new Error(
+      `Expected canonical Artifact ID (Artifact:...), received "${artifactId}".`
+    );
+  }
+  const cleanName = artifactId.slice('Artifact:'.length);
 
   return {
     id: artifactId,

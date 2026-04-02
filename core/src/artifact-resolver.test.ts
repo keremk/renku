@@ -15,8 +15,10 @@ describe('extractArtifactKind', () => {
     expect(extractArtifactKind('Artifact:NarrationScript')).toBe('NarrationScript');
   });
 
-  it('extracts kind from input ID', () => {
-    expect(extractArtifactKind('Input:Topic')).toBe('Topic');
+  it('throws for non-canonical artifact IDs', () => {
+    expect(() => extractArtifactKind('Input:Topic')).toThrow(
+      /Expected canonical Artifact ID/
+    );
   });
 
   it('handles multiple dimension formats', () => {
@@ -70,8 +72,6 @@ describe('resolveArtifactsFromEventLog', () => {
     });
 
     expect(result).toEqual({
-      SegmentImage: blobData,
-      'SegmentImage[segment=0]': blobData,
       'Artifact:SegmentImage[segment=0]': blobData,
     });
   });
@@ -107,7 +107,6 @@ describe('resolveArtifactsFromEventLog', () => {
     });
 
     expect(result).toEqual({
-      NarrationScript: scriptText,
       'Artifact:NarrationScript': scriptText,
     });
   });
@@ -161,10 +160,7 @@ describe('resolveArtifactsFromEventLog', () => {
     });
 
     expect(result).toEqual({
-      SegmentAudio: blobData,
-      'SegmentAudio[segment=0]': blobData,
       'Artifact:SegmentAudio[segment=0]': blobData,
-      MovieTitle: titleText,
       'Artifact:MovieTitle': titleText,
     });
   });
@@ -213,8 +209,6 @@ describe('resolveArtifactsFromEventLog', () => {
 
     // Should use the newer blob
     expect(result).toEqual({
-      SegmentImage: newBlobData,
-      'SegmentImage[segment=0]': newBlobData,
       'Artifact:SegmentImage[segment=0]': newBlobData,
     });
   });
@@ -293,8 +287,6 @@ describe('resolveArtifactsFromEventLog', () => {
 
     // Should only contain requested artifact
     expect(result).toEqual({
-      SegmentImage: 'image-url',
-      'SegmentImage[segment=0]': 'image-url',
       'Artifact:SegmentImage[segment=0]': 'image-url',
     });
     expect(result.SegmentAudio).toBeUndefined();

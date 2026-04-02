@@ -11,9 +11,6 @@ inputs:
     width: 720
     height: 1280
 
-  # Voice settings for narration
-  VoiceId: 'iUqOXhMfiOIbBejNtfLR'
-
   # Duration and structure
   # 40 seconds total, 4 segments of 10 seconds each
   # Each segment has 2-3 cut-scenes via [cut] markers in video prompts

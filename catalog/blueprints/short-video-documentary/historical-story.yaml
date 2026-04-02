@@ -23,10 +23,6 @@ inputs:
     description: Tone for the narrator (e.g., authoritative, storytelling, dramatic)
     type: string
     required: true
-  - name: VoiceId
-    description: Voice identifier for narration
-    type: string
-    required: true
   - name: Resolution
     description: Video resolution as width/height pixel dimensions
     type: resolution
@@ -141,8 +137,6 @@ connections:
   # ============================================
   - from: HistoryScriptwriter.NarrationScripts[segment]
     to: NarrationProducer[segment].Text
-  - from: VoiceId
-    to: NarrationProducer[segment].VoiceId
   - from: NarrationProducer[segment].GeneratedAudio
     to: SegmentAudios[segment]
 

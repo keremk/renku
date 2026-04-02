@@ -19,10 +19,6 @@ inputs:
     description: Animation style description (e.g., "Pixar-style 3D animated, cute, colorful").
     type: text
     required: true
-  - name: VoiceId
-    description: Voice identifier for text-to-speech narration.
-    type: string
-    required: true
   - name: Resolution
     description: Video resolution in pixel dimensions.
     type: resolution
@@ -122,8 +118,6 @@ connections:
   # ============================================================
   - from: EduScriptProducer.VideoScript.Characters[segment].NarrationScript
     to: NarrationAudioProducer[segment].Text
-  - from: VoiceId
-    to: NarrationAudioProducer[segment].VoiceId
   - from: NarrationAudioProducer[segment].GeneratedAudio
     to: NarrationAudio[segment]
 

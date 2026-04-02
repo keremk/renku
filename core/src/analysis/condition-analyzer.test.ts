@@ -49,6 +49,25 @@ describe('analyzeConditions', () => {
       expect(field.dimensions).toEqual(['segment']);
     });
 
+    it('normalizes canonical Artifact: condition paths', () => {
+      const blueprint = createMinimalBlueprint({
+        conditions: {
+          isImageNarration: {
+            when: 'Artifact:DocProducer.VideoScript.Segments[segment].NarrationType',
+            is: 'ImageNarration',
+          },
+        },
+      });
+
+      const result = analyzeConditions(blueprint);
+      const field = result.conditionFields[0]!;
+
+      expect(field.artifactPath).toBe('DocProducer.VideoScript');
+      expect(field.artifactId).toBe(
+        'Artifact:DocProducer.VideoScript.Segments[segment].NarrationType'
+      );
+    });
+
     it('extracts fields from isNot condition', () => {
       const blueprint = createMinimalBlueprint({
         conditions: {

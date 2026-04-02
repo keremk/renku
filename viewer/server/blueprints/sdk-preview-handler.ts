@@ -1,6 +1,5 @@
 import path from 'node:path';
 import {
-  type CanonicalInputEntry,
   createInputIdResolver,
   createRuntimeError,
   RuntimeErrorCode,
@@ -315,11 +314,7 @@ function canonicalizePreviewInputs(args: {
   root: Parameters<typeof createInputIdResolver>[0];
   inputs: Record<string, unknown>;
 }): Record<string, unknown> {
-  const baseResolver = createInputIdResolver(args.root);
-  const resolver = createInputIdResolver(
-    args.root,
-    buildUnqualifiedInputAliases(baseResolver.entries)
-  );
+  const resolver = createInputIdResolver(args.root);
   const canonicalInputs: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(args.inputs)) {
@@ -334,42 +329,6 @@ function canonicalizePreviewInputs(args: {
   }
 
   return canonicalInputs;
-}
-
-function buildUnqualifiedInputAliases(
-  entries: CanonicalInputEntry[]
-): CanonicalInputEntry[] {
-  const rootLevelNames = new Set(
-    entries
-      .filter((entry) => entry.namespacePath.length === 0)
-      .map((entry) => entry.name)
-  );
-
-  const byName = new Map<string, CanonicalInputEntry[]>();
-  for (const entry of entries) {
-    if (entry.namespacePath.length === 0) {
-      continue;
-    }
-    const existing = byName.get(entry.name) ?? [];
-    existing.push(entry);
-    byName.set(entry.name, existing);
-  }
-
-  const aliases: CanonicalInputEntry[] = [];
-  for (const [name, candidates] of byName.entries()) {
-    if (rootLevelNames.has(name) || candidates.length !== 1) {
-      continue;
-    }
-    const target = candidates[0]!;
-    aliases.push({
-      canonicalId: target.canonicalId,
-      name,
-      namespacePath: [],
-      definition: target.definition,
-    });
-  }
-
-  return aliases;
 }
 
 function collectInstanceConnectedAliases(args: {

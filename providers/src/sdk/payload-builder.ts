@@ -1,6 +1,7 @@
-import type {
-  BlueprintProducerSdkMappingField,
-  MappingFieldDefinition,
+import {
+  isCanonicalId,
+  type BlueprintProducerSdkMappingField,
+  type MappingFieldDefinition,
 } from '@gorenku/core';
 import {
   applyMapping,
@@ -101,8 +102,54 @@ export function buildSdkPayload(
         const hasSchemaDefault = schemaDefaults.has(fieldName);
 
         if (isRequiredBySchema && !hasSchemaDefault) {
-          const canonicalId = args.inputBindings[alias] ?? alias;
-          const message = `Missing required input "${canonicalId}" for field "${fieldName}" (requested "${alias}"). No schema default available.`;
+          const canonicalId = args.inputBindings[sourceAlias];
+          if (!canonicalId) {
+            const message = `Missing input binding metadata for required alias "${sourceAlias}" while building field "${fieldName}".`;
+            if (!args.continueOnError) {
+              throw createProviderError(
+                SdkErrorCode.MISSING_REQUIRED_INPUT,
+                message,
+                {
+                  kind: 'user_input',
+                  causedByUser: true,
+                }
+              );
+            }
+
+            fieldResults.push({
+              alias,
+              sourceAlias,
+              status: 'error',
+              fieldPaths: fieldName ? [fieldName] : [],
+              error: message,
+            });
+            continue;
+          }
+
+          if (!isCanonicalId(canonicalId)) {
+            const message = `Input binding for alias "${sourceAlias}" must be canonical. Received "${canonicalId}".`;
+            if (!args.continueOnError) {
+              throw createProviderError(
+                SdkErrorCode.INVALID_CONFIG,
+                message,
+                {
+                  kind: 'user_input',
+                  causedByUser: true,
+                }
+              );
+            }
+
+            fieldResults.push({
+              alias,
+              sourceAlias,
+              status: 'error',
+              fieldPaths: fieldName ? [fieldName] : [],
+              error: message,
+            });
+            continue;
+          }
+
+          const message = `Missing required input "${canonicalId}" for field "${fieldName}" (requested "${sourceAlias}"). No schema default available.`;
           if (!args.continueOnError) {
             throw createProviderError(
               SdkErrorCode.MISSING_REQUIRED_INPUT,

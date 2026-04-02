@@ -13,6 +13,7 @@ import type {
 } from './types.js';
 
 const TIMELINE_ARTEFACT_ID = 'Artifact:TimelineComposer.Timeline';
+const STT_DELEGATE_ARTEFACT_ID = 'Artifact:TranscriptionProducer.SttTranscription';
 
 /**
  * Nested model config structure for STT backend.
@@ -177,6 +178,22 @@ export function createTranscriptionHandler(): HandlerFactory {
         notify('progress', `Calling speech-to-text API (${config.stt.provider}/${config.stt.model})...`);
 
         const { provider: _sttProvider, model: _sttModel, ...sttConfigProps } = config.stt;
+        const sttResolvedInputs: Record<string, unknown> = {
+          'Input:audio_url': {
+            data: concatenatedAudio,
+            mimeType: 'audio/wav',
+          },
+          'Input:language_code': languageCode,
+        };
+        const sttInputBindings: Record<string, string> = {
+          audio_url: 'Input:audio_url',
+          language_code: 'Input:language_code',
+        };
+        for (const [key, value] of Object.entries(sttConfigProps)) {
+          const canonicalId = `Input:${key}`;
+          sttResolvedInputs[canonicalId] = value;
+          sttInputBindings[key] = canonicalId;
+        }
 
         const sttJobContext: ProviderJobContext = {
           jobId: `${request.jobId}-stt`,
@@ -186,18 +203,11 @@ export function createTranscriptionHandler(): HandlerFactory {
           layerIndex: request.layerIndex,
           attempt: request.attempt,
           inputs: [],
-          produces: ['stt-transcription'],
+          produces: [STT_DELEGATE_ARTEFACT_ID],
           context: {
             providerConfig: {},
             extras: {
-              resolvedInputs: {
-                audio_url: {
-                  data: concatenatedAudio,
-                  mimeType: 'audio/wav',
-                },
-                language_code: languageCode,
-                ...sttConfigProps,
-              },
+              resolvedInputs: sttResolvedInputs,
               jobContext: {
                 sdkMapping: {
                   audio_url: { field: 'audio_url' },
@@ -206,13 +216,7 @@ export function createTranscriptionHandler(): HandlerFactory {
                     Object.keys(sttConfigProps).map(key => [key, { field: key }])
                   ),
                 },
-                inputBindings: {
-                  audio_url: 'audio_url',
-                  language_code: 'language_code',
-                  ...Object.fromEntries(
-                    Object.keys(sttConfigProps).map(key => [key, key])
-                  ),
-                },
+                inputBindings: sttInputBindings,
               },
               ...(sttSchema && { schema: { raw: sttSchema } }),
             },

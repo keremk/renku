@@ -9,8 +9,6 @@ inputs:
   Resolution:
     width: 1280
     height: 720
-  VoiceId: 'Wise_Woman'
-  Emotion: 'neutral'
   MusicalStyle: 'Modern ambient electronic with subtle beats, inspiring and uplifting mood'
 
 models:

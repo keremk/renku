@@ -85,6 +85,40 @@ function createJobContext(
   const overrideResolvedInputs =
     (overrideExtras.resolvedInputs as Record<string, unknown> | undefined) ??
     {};
+  const mergedResolvedInputs = {
+    ...baseResolvedInputs,
+    ...overrideResolvedInputs,
+  };
+
+  const baseJobContext =
+    (baseExtras.jobContext as Record<string, unknown> | undefined) ?? {};
+  const overrideJobContext =
+    (overrideExtras.jobContext as Record<string, unknown> | undefined) ?? {};
+  const mergedJobContext = {
+    ...baseJobContext,
+    ...overrideJobContext,
+  };
+  const existingInputBindings = (mergedJobContext.inputBindings ??
+    {}) as Record<string, string>;
+  const inferredInputBindings: Record<string, string> = {};
+  const normalizedResolvedInputs: Record<string, unknown> = {
+    ...mergedResolvedInputs,
+  };
+
+  for (const [key, value] of Object.entries(mergedResolvedInputs)) {
+    if (key.startsWith('Input:')) {
+      const alias = key.slice('Input:'.length).split('.').at(-1);
+      if (alias && alias.length > 0) {
+        inferredInputBindings[alias] = key;
+      }
+      continue;
+    }
+    const canonicalKey = `Input:${key}`;
+    if (!(canonicalKey in normalizedResolvedInputs)) {
+      normalizedResolvedInputs[canonicalKey] = value;
+    }
+    inferredInputBindings[key] = canonicalKey;
+  }
 
   return {
     ...baseContext,
@@ -105,9 +139,13 @@ function createJobContext(
       extras: {
         ...baseExtras,
         ...overrideExtras,
-        resolvedInputs: {
-          ...baseResolvedInputs,
-          ...overrideResolvedInputs,
+        resolvedInputs: normalizedResolvedInputs,
+        jobContext: {
+          ...mergedJobContext,
+          inputBindings: {
+            ...inferredInputBindings,
+            ...existingInputBindings,
+          },
         },
       },
     },

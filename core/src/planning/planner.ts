@@ -695,14 +695,20 @@ function resolveConditionArtifactId(
   whenPath: string,
   indices: Record<string, number>
 ): string | undefined {
-  if (!whenPath || whenPath.startsWith('Input:')) {
+  if (!whenPath) {
     return undefined;
   }
+  if (whenPath.startsWith('Input:')) {
+    return undefined;
+  }
+  if (!isCanonicalArtifactId(whenPath)) {
+    throw createRuntimeError(
+      RuntimeErrorCode.MISSING_CANONICAL_CONDITION_ARTIFACT,
+      `Condition path must be canonical Artifact ID (Artifact:...), received "${whenPath}".`
+    );
+  }
 
-  const pathWithoutPrefix = whenPath.startsWith('Artifact:')
-    ? whenPath.slice('Artifact:'.length)
-    : whenPath;
-  let resolvedPath = pathWithoutPrefix;
+  let resolvedPath = whenPath.slice('Artifact:'.length);
   const indexEntries = Object.entries(indices).reverse();
   for (const [symbol, index] of indexEntries) {
     const label = extractDimensionLabel(symbol);

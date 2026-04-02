@@ -498,6 +498,7 @@ describe('condition parsing', () => {
       const conditions = conditionalEdge?.conditions as EdgeConditionClause;
       expect(conditions).toHaveProperty('when');
       expect(conditions).toHaveProperty('is');
+      expect(conditions.when.startsWith('Artifact:')).toBe(true);
       expect(conditions.when).toContain('NarrationType');
     });
   });
@@ -613,6 +614,7 @@ describe('condition parsing', () => {
       const isImageNarration = conditions[
         'isImageNarration'
       ] as EdgeConditionClause;
+      expect(isImageNarration.when.startsWith('Artifact:')).toBe(true);
       expect(isImageNarration.when).toContain('NarrationType');
       expect(isImageNarration.is).toBe('ImageNarration');
     });

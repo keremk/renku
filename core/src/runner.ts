@@ -770,22 +770,7 @@ function readResolvedValue(
   canonicalId: string,
   resolved: Record<string, unknown>
 ): unknown {
-  if (canonicalId in resolved) {
-    return resolved[canonicalId];
-  }
-  const withoutPrefix = trimIdPrefix(canonicalId);
-  if (withoutPrefix in resolved) {
-    return resolved[withoutPrefix];
-  }
-  const withoutDimensions = withoutPrefix.replace(/\[.*?\]/g, '');
-  if (withoutDimensions in resolved) {
-    return resolved[withoutDimensions];
-  }
-  return undefined;
-}
-
-function trimIdPrefix(id: string): string {
-  return id.replace(/^(Artifact|Input):/, '');
+  return resolved[canonicalId];
 }
 
 interface FanInResolvedValue {
@@ -1104,10 +1089,21 @@ function extractConditionArtifactIdsFromClause(
     return [];
   }
 
+  if (whenPath.startsWith('Input:')) {
+    return [];
+  }
+  if (!isCanonicalArtifactId(whenPath)) {
+    throw createRuntimeError(
+      RuntimeErrorCode.CONDITION_EVALUATION_ERROR,
+      `Condition path must be canonical Artifact ID (Artifact:...), received "${whenPath}".`
+    );
+  }
+
   const ids: string[] = [];
+  const normalizedPath = whenPath.slice('Artifact:'.length);
 
   // Split by '.' and take first two segments for base artifact ID
-  const segments = whenPath.split('.');
+  const segments = normalizedPath.split('.');
   if (segments.length < 2) {
     return [];
   }
@@ -1118,7 +1114,7 @@ function extractConditionArtifactIdsFromClause(
 
   // For decomposed artifacts, substitute indices and build full path
   if (segments.length > 2) {
-    let fullPath = whenPath;
+    let fullPath = normalizedPath;
 
     // Replace dimension placeholders with indices
     // Iterate in reverse order so that target node indices (added last in merge) win

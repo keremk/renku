@@ -12,7 +12,10 @@ import type {
   ConditionOperator,
   InputConditionInfo,
 } from './types.js';
-import { formatCanonicalArtifactId } from './parsing/canonical-ids.js';
+import {
+  formatCanonicalArtifactId,
+  isCanonicalArtifactId,
+} from './parsing/canonical-ids.js';
 import { createRuntimeError, RuntimeErrorCode } from './errors/index.js';
 
 /**
@@ -249,12 +252,19 @@ function resolveConditionPath(
   whenPath: string,
   indices: Record<string, number>,
 ): { artifactId: string; fieldPath: string[]; decomposedArtifactId?: string } {
+  if (!isCanonicalArtifactId(whenPath)) {
+    throw createRuntimeError(
+      RuntimeErrorCode.CONDITION_EVALUATION_ERROR,
+      `Condition path must be a canonical artifact ID (Artifact:...), received "${whenPath}".`,
+    );
+  }
+
   // Replace dimension placeholders with indices
   // Iterate in reverse order so that target node indices (added last in merge) win
   // when the same dimension label appears in both source and target nodes.
   // This ensures condition evaluation uses the current producer's index, not the
   // upstream source's index.
-  let resolvedPath = whenPath;
+  let resolvedPath = whenPath.slice('Artifact:'.length);
   const indexEntries = Object.entries(indices).reverse();
   for (const [symbol, index] of indexEntries) {
     // Extract the dimension label from the full symbol

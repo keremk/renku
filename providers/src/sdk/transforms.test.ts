@@ -985,33 +985,33 @@ describe('transforms', () => {
   describe('collectElementBindings', () => {
     it('finds matching element bindings', () => {
       const bindings = {
-        'Foo[0]': 'artifact1',
-        'Foo[1]': 'artifact2',
-        'FooBar[0]': 'artifact3', // Should NOT match "Foo"
-        Bar: 'artifact4',
+        'Foo[0]': 'Artifact:Producer.Foo[0]',
+        'Foo[1]': 'Artifact:Producer.Foo[1]',
+        'FooBar[0]': 'Artifact:Producer.FooBar[0]', // Should NOT match "Foo"
+        Bar: 'Artifact:Producer.Bar[0]',
       };
 
       const result = collectElementBindings('Foo', bindings);
 
       expect(result).toEqual([
-        { index: 0, canonicalId: 'artifact1' },
-        { index: 1, canonicalId: 'artifact2' },
+        { index: 0, canonicalId: 'Artifact:Producer.Foo[0]' },
+        { index: 1, canonicalId: 'Artifact:Producer.Foo[1]' },
       ]);
     });
 
     it('sorts by index', () => {
       const bindings = {
-        'Items[2]': 'artifact3',
-        'Items[0]': 'artifact1',
-        'Items[1]': 'artifact2',
+        'Items[2]': 'Artifact:Producer.Items[2]',
+        'Items[0]': 'Artifact:Producer.Items[0]',
+        'Items[1]': 'Artifact:Producer.Items[1]',
       };
 
       const result = collectElementBindings('Items', bindings);
 
       expect(result).toEqual([
-        { index: 0, canonicalId: 'artifact1' },
-        { index: 1, canonicalId: 'artifact2' },
-        { index: 2, canonicalId: 'artifact3' },
+        { index: 0, canonicalId: 'Artifact:Producer.Items[0]' },
+        { index: 1, canonicalId: 'Artifact:Producer.Items[1]' },
+        { index: 2, canonicalId: 'Artifact:Producer.Items[2]' },
       ]);
     });
 
@@ -1026,19 +1026,29 @@ describe('transforms', () => {
       expect(result).toEqual([]);
     });
 
+    it('throws when a matched element binding is non-canonical', () => {
+      const bindings = {
+        'Foo[0]': 'artifact1',
+      };
+
+      expect(() => collectElementBindings('Foo', bindings)).toThrow(
+        /must be canonical/
+      );
+    });
+
     it('handles multi-digit indices', () => {
       const bindings = {
-        'Foo[10]': 'artifact10',
-        'Foo[100]': 'artifact100',
-        'Foo[1]': 'artifact1',
+        'Foo[10]': 'Artifact:Producer.Foo[10]',
+        'Foo[100]': 'Artifact:Producer.Foo[100]',
+        'Foo[1]': 'Artifact:Producer.Foo[1]',
       };
 
       const result = collectElementBindings('Foo', bindings);
 
       expect(result).toEqual([
-        { index: 1, canonicalId: 'artifact1' },
-        { index: 10, canonicalId: 'artifact10' },
-        { index: 100, canonicalId: 'artifact100' },
+        { index: 1, canonicalId: 'Artifact:Producer.Foo[1]' },
+        { index: 10, canonicalId: 'Artifact:Producer.Foo[10]' },
+        { index: 100, canonicalId: 'Artifact:Producer.Foo[100]' },
       ]);
     });
   });
