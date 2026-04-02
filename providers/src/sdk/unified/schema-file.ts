@@ -124,7 +124,13 @@ export interface SchemaFile {
 type SchemaPointerCacheKey = string;
 type SchemaPointerSubschemaCacheKey = string;
 
-const schemaPointerAjv = new Ajv({ allErrors: true, strict: false });
+const schemaPointerAjv = new Ajv({
+  allErrors: true,
+  strict: false,
+  // Pointer resolution must tolerate vendor schemas that violate JSON Schema
+  // meta-rules (for example, empty anyOf arrays) but are still traversable.
+  validateSchema: false,
+});
 addFormats(schemaPointerAjv);
 const schemaPointerCache = new Map<SchemaPointerCacheKey, string>();
 const schemaPointerSubschemaCache = new Map<
@@ -142,6 +148,63 @@ function computeSchemaPointerCacheKey(
   return createHash('sha256').update(payload).digest('hex');
 }
 
+function computeSchemaPointerCacheKeyFromRegisteredRoot(
+  rootSchema: unknown
+): SchemaPointerCacheKey | undefined {
+  if (!rootSchema || typeof rootSchema !== 'object' || Array.isArray(rootSchema)) {
+    return undefined;
+  }
+
+  const record = rootSchema as Record<string, unknown>;
+  const inputSchema = record.input_schema;
+  if (!inputSchema || typeof inputSchema !== 'object' || Array.isArray(inputSchema)) {
+    return undefined;
+  }
+
+  const defs = record.$defs;
+  const definitions =
+    defs && typeof defs === 'object' && !Array.isArray(defs)
+      ? (defs as Record<string, unknown>)
+      : {};
+
+  const payload = JSON.stringify({
+    inputSchema,
+    definitions,
+  });
+  return createHash('sha256').update(payload).digest('hex');
+}
+
+function registerCachedSchemaPointerIdIfAlreadyPresent(
+  schemaId: string,
+  expectedCacheKey: SchemaPointerCacheKey
+): boolean {
+  const existing = schemaPointerAjv.getSchema(schemaId)?.schema;
+  if (!existing) {
+    return false;
+  }
+
+  const existingCacheKey =
+    computeSchemaPointerCacheKeyFromRegisteredRoot(existing);
+  if (!existingCacheKey) {
+    throw new Error(
+      `Schema pointer resolver collision: existing schema "${schemaId}" is missing input_schema/$defs metadata.`
+    );
+  }
+  if (existingCacheKey !== expectedCacheKey) {
+    throw new Error(
+      `Schema pointer resolver collision: existing schema "${schemaId}" does not match expected payload hash "${expectedCacheKey}".`
+    );
+  }
+
+  schemaPointerCache.set(expectedCacheKey, schemaId);
+  return true;
+}
+
+function isDuplicateSchemaRegistrationError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes('already exists');
+}
+
 function ensureSchemaPointerResolverSchema(schemaFile: SchemaFile): string {
   const cacheKey = computeSchemaPointerCacheKey(schemaFile);
   const cached = schemaPointerCache.get(cacheKey);
@@ -150,6 +213,10 @@ function ensureSchemaPointerResolverSchema(schemaFile: SchemaFile): string {
   }
 
   const schemaId = `renku://providers/schema-pointer/${cacheKey}`;
+  if (registerCachedSchemaPointerIdIfAlreadyPresent(schemaId, cacheKey)) {
+    return schemaId;
+  }
+
   const inputSchemaRecord =
     schemaFile.inputSchema &&
     typeof schemaFile.inputSchema === 'object' &&
@@ -158,8 +225,8 @@ function ensureSchemaPointerResolverSchema(schemaFile: SchemaFile): string {
       : {};
 
   const rootSchema: Record<string, unknown> = {
-    $id: schemaId,
     ...inputSchemaRecord,
+    $id: schemaId,
     input_schema: schemaFile.inputSchema,
     ...schemaFile.definitions,
     $defs: schemaFile.definitions,
@@ -168,6 +235,12 @@ function ensureSchemaPointerResolverSchema(schemaFile: SchemaFile): string {
   try {
     schemaPointerAjv.addSchema(rootSchema, schemaId);
   } catch (error) {
+    if (
+      isDuplicateSchemaRegistrationError(error) &&
+      registerCachedSchemaPointerIdIfAlreadyPresent(schemaId, cacheKey)
+    ) {
+      return schemaId;
+    }
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to register schema pointer resolver: ${message}`);
   }

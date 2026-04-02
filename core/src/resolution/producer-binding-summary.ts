@@ -133,12 +133,11 @@ export function buildProducerBindingSummary(args: {
 
   const runtimeBindings = firstInstance.inputBindings;
 
-  const connectedAliases = new Set<string>();
-  for (const instance of runtimeSnapshot.instances) {
-    for (const alias of Object.keys(instance.inputBindings)) {
-      connectedAliases.add(alias);
-    }
-  }
+  const connectedAliases = collectRuntimeConnectedAliases({
+    producerId: args.producerId,
+    runtimeInstances: runtimeSnapshot.instances,
+    staticConnectedAliases: staticBindings.connectedAliases,
+  });
   const aliasSources = buildRuntimeAliasSources({
     producerId: args.producerId,
     runtimeBindings,
@@ -415,6 +414,33 @@ function buildRuntimeAliasSources(args: {
   }
 
   return aliasSources;
+}
+
+export function collectRuntimeConnectedAliases(args: {
+  producerId: string;
+  runtimeInstances: ProducerRuntimeBindingInstance[];
+  staticConnectedAliases: Set<string>;
+}): Set<string> {
+  const connectedAliases = new Set<string>();
+
+  for (const instance of args.runtimeInstances) {
+    for (const [alias, canonicalId] of Object.entries(instance.inputBindings)) {
+      // Preserve aliases that are explicitly connected in blueprint graph metadata.
+      if (args.staticConnectedAliases.has(alias)) {
+        connectedAliases.add(alias);
+        continue;
+      }
+
+      // Runtime expander can emit producer-local fallbacks such as
+      // Input:<ProducerAlias>.<Alias> for unmapped model params. These are not
+      // external bindings and must not be treated as connected aliases.
+      if (inferBindingSourceKind(canonicalId, args.producerId)) {
+        connectedAliases.add(alias);
+      }
+    }
+  }
+
+  return connectedAliases;
 }
 
 function inferBindingSourceKind(

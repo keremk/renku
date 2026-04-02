@@ -631,6 +631,33 @@ describe('resolveSchemaPointer', () => {
     ).toBeUndefined();
   });
 
+  it('resolves pointers for schemas that violate JSON Schema meta validation', () => {
+    const schemaFile = parseSchemaFile(
+      JSON.stringify({
+        input_schema: {
+          type: 'object',
+          properties: {
+            reference_images: {
+              type: 'array',
+              items: {
+                anyOf: [],
+              },
+            },
+          },
+        },
+      })
+    );
+
+    const resolved = resolveSchemaPointer(
+      schemaFile,
+      '/input_schema/properties/reference_images/items'
+    );
+
+    expect(resolved).toBeDefined();
+    expect(Array.isArray((resolved as { anyOf?: unknown[] }).anyOf)).toBe(true);
+    expect((resolved as { anyOf?: unknown[] }).anyOf).toHaveLength(0);
+  });
+
   it('supports legacy root pointers without /input_schema prefix', () => {
     const schemaFile = parseSchemaFile(
       JSON.stringify({
@@ -648,6 +675,48 @@ describe('resolveSchemaPointer', () => {
     const resolved = resolveSchemaPointer(schemaFile, '/properties/timeline');
     expect(resolved).toBeDefined();
     expect(resolved?.type).toBe('object');
+  });
+
+  it('keeps resolver registration isolated from input_schema $id declarations', () => {
+    const firstSchema = parseSchemaFile(
+      JSON.stringify({
+        input_schema: {
+          $id: 'https://example.com/shared-input-id',
+          type: 'object',
+          properties: {
+            prompt: { type: 'string' },
+          },
+        },
+      })
+    );
+
+    const secondSchema = parseSchemaFile(
+      JSON.stringify({
+        input_schema: {
+          $id: 'https://example.com/shared-input-id',
+          type: 'object',
+          properties: {
+            image_urls: {
+              type: 'array',
+              items: { type: 'string', format: 'uri' },
+            },
+          },
+        },
+      })
+    );
+
+    const firstResolved = resolveSchemaPointer(
+      firstSchema,
+      '/input_schema/properties/prompt'
+    );
+    const secondResolved = resolveSchemaPointer(
+      secondSchema,
+      '/input_schema/properties/image_urls/items'
+    );
+
+    expect(firstResolved?.type).toBe('string');
+    expect(secondResolved?.type).toBe('string');
+    expect(secondResolved?.format).toBe('uri');
   });
 
   it('resolves pointer tails after refs in intermediate segments', () => {

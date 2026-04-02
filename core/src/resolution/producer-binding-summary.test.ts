@@ -8,6 +8,7 @@ import { TEST_FIXTURES_ROOT } from '../../tests/catalog-paths.js';
 import { buildBlueprintGraph } from './canonical-graph.js';
 import {
   buildProducerBindingSummary,
+  collectRuntimeConnectedAliases,
   buildProducerRuntimeBindingSnapshot,
   collectProducerBindingEntries,
 } from './producer-binding-summary.js';
@@ -305,6 +306,32 @@ describe('producer-binding-summary', () => {
     expect(runtimeSnapshot.resolvedInputs['Input:CelebrityThenImages[1]']).toBe(
       'file:./input-files/then-1.jpg'
     );
+  });
+
+  it('filters producer-local fallback aliases from runtime connected metadata', () => {
+    const connectedAliases = collectRuntimeConnectedAliases({
+      producerId: 'VideoProducer',
+      staticConnectedAliases: new Set(['Prompt', 'Resolution']),
+      runtimeInstances: [
+        {
+          instanceId: 'Producer:VideoProducer[0]',
+          indices: { clip: 0 },
+          inputBindings: {
+            Prompt: 'Input:Prompt',
+            Resolution: 'Input:Resolution',
+            GenerateAudio: 'Input:VideoProducer.GenerateAudio',
+            ReferenceImages: 'Artifact:CharacterImageProducer.GeneratedImage',
+          },
+        },
+      ],
+    });
+
+    expect(Array.from(connectedAliases).sort()).toEqual([
+      'Prompt',
+      'ReferenceImages',
+      'Resolution',
+    ]);
+    expect(connectedAliases.has('GenerateAudio')).toBe(false);
   });
 
   it('throws explicit errors when metadata output schema path is missing', async () => {
