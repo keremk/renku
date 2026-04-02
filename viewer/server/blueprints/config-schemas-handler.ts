@@ -57,6 +57,7 @@ export interface ProducerConfigSchemas {
   category: ProducerCategory;
   modelSchemas: Record<string, ModelConfigSchema>;
   nestedModels?: NestedModelConfigSchema[];
+  errorsByModel?: Record<string, ProducerContractError>;
 }
 
 export interface ProducerContractError {
@@ -402,73 +403,89 @@ async function buildProducerModelSchemas(args: {
   });
 
   const modelSchemas: Record<string, ModelConfigSchema> = {};
+  const errorsByModel: Record<string, ProducerContractError> = {};
   let nestedModels: NestedModelConfigSchema[] | undefined;
 
   for (const [provider, modelMappings] of Object.entries(mappings)) {
     for (const model of Object.keys(modelMappings)) {
-      const schemaFile = await loadModelSchemaFile(
-        args.catalogModelsDir,
-        args.catalog,
-        provider,
-        model
-      );
-      if (!schemaFile) {
-        continue;
-      }
-
-      const modelMapping = resolveMappingsForModel(args.root, {
-        producerId: args.producerId,
-        provider,
-        model,
-      });
-      if (!modelMapping) {
-        throw createRuntimeError(
-          RuntimeErrorCode.MODELS_PANE_DESCRIPTOR_MISSING_FOR_MODEL,
-          `Missing mapping resolution for ${args.producerId} (${provider}/${model}) while building config schema descriptors.`
-        );
-      }
-
-      const fieldMapping = deriveFieldMappingMeta({
-        schemaFile,
-        mapping: modelMapping,
-        bindingSummary,
-        producerId: args.producerId,
-        provider,
-        model,
-      });
-
-      const fields = buildFieldDescriptors({
-        schemaFile,
-        fieldMapping,
-        producerId: args.producerId,
-        provider,
-        model,
-      });
-
-      await hydrateVoicePickerConfigs({
-        fields,
-        voiceOptionsLoader: args.voiceOptionsLoader,
-        producerId: args.producerId,
-        provider,
-        model,
-      });
-
       const key = `${provider}/${model}`;
-      modelSchemas[key] = {
-        provider,
-        model,
-        fields,
-        properties: flattenProperties(fields),
-      };
+      try {
+        const schemaFile = await loadModelSchemaFile(
+          args.catalogModelsDir,
+          args.catalog,
+          provider,
+          model
+        );
+        if (!schemaFile) {
+          continue;
+        }
 
-      if (schemaFile.nestedModels && schemaFile.nestedModels.length > 0) {
-        nestedModels = await processNestedModels({
+        const modelMapping = resolveMappingsForModel(args.root, {
           producerId: args.producerId,
-          nestedModelDeclarations: schemaFile.nestedModels,
-          catalog: args.catalog,
-          catalogModelsDir: args.catalogModelsDir,
-          voiceOptionsLoader: args.voiceOptionsLoader,
+          provider,
+          model,
         });
+        if (!modelMapping) {
+          throw createRuntimeError(
+            RuntimeErrorCode.MODELS_PANE_DESCRIPTOR_MISSING_FOR_MODEL,
+            `Missing mapping resolution for ${args.producerId} (${provider}/${model}) while building config schema descriptors.`
+          );
+        }
+
+        const fieldMapping = deriveFieldMappingMeta({
+          schemaFile,
+          mapping: modelMapping,
+          bindingSummary,
+          producerId: args.producerId,
+          provider,
+          model,
+        });
+
+        const fields = buildFieldDescriptors({
+          schemaFile,
+          fieldMapping,
+          producerId: args.producerId,
+          provider,
+          model,
+        });
+
+        await hydrateVoicePickerConfigs({
+          fields,
+          voiceOptionsLoader: args.voiceOptionsLoader,
+          producerId: args.producerId,
+          provider,
+          model,
+        });
+
+        modelSchemas[key] = {
+          provider,
+          model,
+          fields,
+          properties: flattenProperties(fields),
+        };
+
+        if (schemaFile.nestedModels && schemaFile.nestedModels.length > 0) {
+          nestedModels = await processNestedModels({
+            producerId: args.producerId,
+            nestedModelDeclarations: schemaFile.nestedModels,
+            catalog: args.catalog,
+            catalogModelsDir: args.catalogModelsDir,
+            voiceOptionsLoader: args.voiceOptionsLoader,
+          });
+        }
+      } catch (error) {
+        const contractError = isRenkuError(error)
+          ? error
+          : createRuntimeError(
+              RuntimeErrorCode.MODELS_PANE_DESCRIPTOR_MISSING_FOR_MODEL,
+              error instanceof Error
+                ? error.message
+                : `Failed to build models-pane descriptor contract for ${args.producerId} (${provider}/${model}).`
+            );
+        errorsByModel[key] = {
+          error: contractError.message,
+          code: contractError.code,
+        };
       }
     }
   }
@@ -478,6 +495,7 @@ async function buildProducerModelSchemas(args: {
     category: args.category,
     modelSchemas,
     nestedModels,
+    ...(Object.keys(errorsByModel).length > 0 ? { errorsByModel } : {}),
   };
 }
 

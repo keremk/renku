@@ -127,9 +127,6 @@ type SchemaPointerSubschemaCacheKey = string;
 const schemaPointerAjv = new Ajv({
   allErrors: true,
   strict: false,
-  // Pointer resolution must tolerate vendor schemas that violate JSON Schema
-  // meta-rules (for example, empty anyOf arrays) but are still traversable.
-  validateSchema: false,
 });
 addFormats(schemaPointerAjv);
 const schemaPointerCache = new Map<SchemaPointerCacheKey, string>();

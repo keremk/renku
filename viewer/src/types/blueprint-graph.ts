@@ -273,6 +273,8 @@ export interface ProducerConfigSchemas {
   modelSchemas: Record<string, ModelConfigSchema>;
   /** Nested model schemas (if the producer's schema declares nested models) */
   nestedModels?: NestedModelConfigSchema[];
+  /** Non-fatal per-model errors while building config descriptors */
+  errorsByModel?: Record<string, ProducerContractError>;
 }
 
 /**

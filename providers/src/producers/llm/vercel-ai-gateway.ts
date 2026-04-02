@@ -1,4 +1,4 @@
-import type { ArtefactEventStatus } from '@gorenku/core';
+import { isCanonicalId, type ArtefactEventStatus } from '@gorenku/core';
 import { createProviderError, SdkErrorCode } from '../../sdk/errors.js';
 import type { HandlerFactory, ProviderJobContext } from '../../types.js';
 import { createProducerHandlerFactory } from '../../sdk/handler-factory.js';
@@ -250,7 +250,14 @@ function formatFanInPromptValue(value: FanInValue, runtime: ProducerRuntime): st
       if (typeof memberId !== 'string' || memberId.length === 0) {
         continue;
       }
-      const resolved = runtime.inputs.getByNodeId(memberId) ?? runtime.inputs.get(memberId);
+      if (!isCanonicalId(memberId)) {
+        throw createProviderError(
+          SdkErrorCode.MISSING_FANIN_DATA,
+          `[providers.vercel-gateway.prompts] Fan-in member "${memberId}" is not a canonical node ID.`,
+          { kind: 'user_input' },
+        );
+      }
+      const resolved = runtime.inputs.getByNodeId(memberId);
       if (typeof resolved !== 'string' || resolved.trim().length === 0) {
         throw createProviderError(
           SdkErrorCode.MISSING_FANIN_DATA,

@@ -631,7 +631,7 @@ describe('resolveSchemaPointer', () => {
     ).toBeUndefined();
   });
 
-  it('resolves pointers for schemas that violate JSON Schema meta validation', () => {
+  it('fails fast when schema violates JSON Schema meta validation', () => {
     const schemaFile = parseSchemaFile(
       JSON.stringify({
         input_schema: {
@@ -648,14 +648,9 @@ describe('resolveSchemaPointer', () => {
       })
     );
 
-    const resolved = resolveSchemaPointer(
-      schemaFile,
-      '/input_schema/properties/reference_images/items'
-    );
-
-    expect(resolved).toBeDefined();
-    expect(Array.isArray((resolved as { anyOf?: unknown[] }).anyOf)).toBe(true);
-    expect((resolved as { anyOf?: unknown[] }).anyOf).toHaveLength(0);
+    expect(() =>
+      resolveSchemaPointer(schemaFile, '/input_schema/properties/reference_images/items')
+    ).toThrow(/Failed to register schema pointer resolver/);
   });
 
   it('supports legacy root pointers without /input_schema prefix', () => {

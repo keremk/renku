@@ -2,6 +2,7 @@ import type { BlueprintTreeNode } from '../types.js';
 import {
   formatCanonicalArtifactId,
   formatCanonicalInputId,
+  isCanonicalId,
 } from '../parsing/canonical-ids.js';
 import { parseDimensionSelector } from '../parsing/dimension-selectors.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
@@ -95,6 +96,9 @@ export function buildProducerBindingSummary(args: {
   inputs?: Record<string, unknown>;
   mode?: ProducerBindingSummaryMode;
 }): ProducerBindingSummary {
+  if (args.inputs) {
+    assertCanonicalInputMap(args.inputs, args.producerId);
+  }
   const entries = collectProducerBindingEntries(args.root, args.producerId);
   const staticBindings = buildStaticBindingState(entries);
   const mode = args.mode ?? (args.inputs ? 'runtime' : 'static');
@@ -158,13 +162,10 @@ export function buildProducerRuntimeBindingSnapshot(args: {
   producerId: string;
   inputs: Record<string, unknown>;
 }): ProducerRuntimeBindingSnapshot {
+  assertCanonicalInputMap(args.inputs, args.producerId);
   const graph = buildBlueprintGraph(args.root);
   const inputSources = buildInputSourceMapFromCanonical(graph);
-  const canonicalizedInputs = canonicalizeInputKeys(args.inputs);
-  const normalizedInputs = normalizeInputValues(
-    canonicalizedInputs,
-    inputSources
-  );
+  const normalizedInputs = normalizeInputValues(args.inputs, inputSources);
   const canonical = expandBlueprintGraph(graph, normalizedInputs, inputSources);
 
   const producerInstances = canonical.nodes
@@ -315,27 +316,22 @@ function upsertAliasSource(
   aliasSources.set(alias, new Set([sourceKind]));
 }
 
-function canonicalizeInputKeys(
-  inputs: Record<string, unknown>
-): Record<string, unknown> {
-  const canonicalized: Record<string, unknown> = {};
-
-  for (const [key, value] of Object.entries(inputs)) {
-    canonicalized[key] = value;
-
-    if (
-      !key.startsWith('Input:') &&
-      !key.startsWith('Artifact:') &&
-      !key.startsWith('Producer:')
-    ) {
-      const canonicalKey = `Input:${key}`;
-      if (!(canonicalKey in canonicalized)) {
-        canonicalized[canonicalKey] = value;
-      }
-    }
+function assertCanonicalInputMap(
+  inputs: Record<string, unknown>,
+  producerId: string
+): void {
+  const nonCanonicalKeys = Object.keys(inputs).filter(
+    (key) => !isCanonicalId(key)
+  );
+  if (nonCanonicalKeys.length === 0) {
+    return;
   }
 
-  return canonicalized;
+  const listed = nonCanonicalKeys.sort().join(', ');
+  throw createRuntimeError(
+    RuntimeErrorCode.INVALID_INPUT_BINDING,
+    `Runtime input map for "${producerId}" must use canonical IDs only. Non-canonical keys: ${listed}.`
+  );
 }
 
 function compareProducerInstanceOrder(leftId: string, rightId: string): number {
@@ -518,24 +514,8 @@ function resolveInputValue(
     return inputs[sourceCanonicalId];
   }
 
-  const inputName = sourceCanonicalId.startsWith('Input:')
-    ? sourceCanonicalId.slice('Input:'.length)
-    : sourceCanonicalId;
-
-  if (inputName in inputs) {
-    return inputs[inputName];
-  }
-
   const indexedValue = resolveIndexedInputValue(inputs, sourceCanonicalId);
-  if (indexedValue !== undefined) {
-    return indexedValue;
-  }
-
-  if (inputName !== sourceCanonicalId) {
-    return resolveIndexedInputValue(inputs, inputName);
-  }
-
-  return undefined;
+  return indexedValue;
 }
 
 function resolveIndexedInputValue(

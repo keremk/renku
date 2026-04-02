@@ -7,9 +7,8 @@ import {
   fetchReplicateInputSchema,
   modelNameToFilename,
 } from './fetch-replicate-schema.mjs';
+import { normalizeSchemaFileForCatalog } from './schema-file-validation.mjs';
 import {
-  applyViewerAnnotationsOrThrow,
-  mergeExistingViewerAnnotations,
   validateSchemaFileViewerAnnotations,
 } from './schema-viewer-annotations.mjs';
 
@@ -100,7 +99,13 @@ async function readLocalSchemaState(filePath) {
       return { state: 'invalid' };
     }
 
-    return { state: 'ok', schema: parsed };
+    const { schemaFile: normalizedSchema, repairsApplied } =
+      normalizeSchemaFileForCatalog(parsed, `Local schema ${filePath}`);
+    if (repairsApplied > 0) {
+      return { state: 'invalid' };
+    }
+
+    return { state: 'ok', schema: normalizedSchema };
   } catch {
     return { state: 'invalid' };
   }
@@ -264,11 +269,10 @@ async function main() {
         }
         firstFetch = false;
 
-        const fetchedSchema = await fetchReplicateInputSchema(name);
-        if (localState.state === 'ok') {
-          mergeExistingViewerAnnotations(localState.schema, fetchedSchema);
-          applyViewerAnnotationsOrThrow(fetchedSchema);
-        }
+        const fetchedSchema = await fetchReplicateInputSchema(
+          name,
+          localState.state === 'ok' ? localState.schema : undefined
+        );
         await writeFile(
           schemaPath,
           JSON.stringify(fetchedSchema, null, 2) + '\n'
@@ -293,11 +297,10 @@ async function main() {
       }
       firstFetch = false;
 
-      const fetchedSchema = await fetchReplicateInputSchema(name);
-      if (localState.state === 'ok') {
-        mergeExistingViewerAnnotations(localState.schema, fetchedSchema);
-      }
-      applyViewerAnnotationsOrThrow(fetchedSchema);
+      const fetchedSchema = await fetchReplicateInputSchema(
+        name,
+        localState.state === 'ok' ? localState.schema : undefined
+      );
 
       let driftState = 'up-to-date';
       if (localState.state === 'missing') {

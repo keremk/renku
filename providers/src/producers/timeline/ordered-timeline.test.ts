@@ -98,6 +98,7 @@ function makeRequest(
     'Input:TimelineComposer.Duration': 20,
     'TimelineComposer.Duration': 20,
     Duration: 20,
+    'Input:MovieTitle': 'Comet Tales',
     MovieTitle: 'Comet Tales',
   };
 

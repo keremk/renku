@@ -1,5 +1,7 @@
 import path from 'node:path';
 import {
+  type CanonicalInputEntry,
+  createInputIdResolver,
   createRuntimeError,
   RuntimeErrorCode,
   hydrateOutputSchemasFromProducerMetadata,
@@ -95,6 +97,10 @@ export async function getProducerSdkPreview(
     catalogRoot: request.catalogRoot,
   });
   await hydrateOutputSchemasFromProducerMetadata(root);
+  const canonicalInputs = canonicalizePreviewInputs({
+    root,
+    inputs: request.inputs,
+  });
 
   let catalog: LoadedModelCatalog | null = null;
   let catalogModelsDir: string | null = null;
@@ -130,12 +136,12 @@ export async function getProducerSdkPreview(
         runtimeSnapshot = buildProducerRuntimeBindingSnapshot({
           root,
           producerId: selection.producerId,
-          inputs: request.inputs,
+          inputs: canonicalInputs,
         });
         bindingContext = buildProducerBindingSummary({
           root,
           producerId: selection.producerId,
-          inputs: request.inputs,
+          inputs: canonicalInputs,
           mode: 'runtime',
         });
       } catch (error) {
@@ -148,7 +154,7 @@ export async function getProducerSdkPreview(
           bindingContext = buildProducerBindingSummary({
             root,
             producerId: selection.producerId,
-            inputs: request.inputs,
+            inputs: canonicalInputs,
             mode: 'static',
           });
         } else {
@@ -208,7 +214,11 @@ export async function getProducerSdkPreview(
                 inputs: runtimeSnapshot.resolvedInputs,
                 inputBindings: instance.inputBindings,
               },
-              connectedAliases: new Set(Object.keys(instance.inputBindings)),
+              connectedAliases: collectInstanceConnectedAliases({
+                producerId: selection.producerId,
+                staticConnectedAliases: bindingContext.connectedAliases,
+                inputBindings: instance.inputBindings,
+              }),
               inputSchema: schemaFile.inputSchema as Record<string, unknown>,
             }),
           }))
@@ -299,6 +309,96 @@ export async function getProducerSdkPreview(
     producers,
     ...(Object.keys(errorsByProducer).length > 0 ? { errorsByProducer } : {}),
   };
+}
+
+function canonicalizePreviewInputs(args: {
+  root: Parameters<typeof createInputIdResolver>[0];
+  inputs: Record<string, unknown>;
+}): Record<string, unknown> {
+  const baseResolver = createInputIdResolver(args.root);
+  const resolver = createInputIdResolver(
+    args.root,
+    buildUnqualifiedInputAliases(baseResolver.entries)
+  );
+  const canonicalInputs: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(args.inputs)) {
+    const canonicalKey = resolver.toCanonical(key);
+    if (canonicalKey in canonicalInputs) {
+      throw createRuntimeError(
+        RuntimeErrorCode.INVALID_INPUT_BINDING,
+        `Duplicate canonical input key "${canonicalKey}" while canonicalizing SDK preview inputs.`
+      );
+    }
+    canonicalInputs[canonicalKey] = value;
+  }
+
+  return canonicalInputs;
+}
+
+function buildUnqualifiedInputAliases(
+  entries: CanonicalInputEntry[]
+): CanonicalInputEntry[] {
+  const rootLevelNames = new Set(
+    entries
+      .filter((entry) => entry.namespacePath.length === 0)
+      .map((entry) => entry.name)
+  );
+
+  const byName = new Map<string, CanonicalInputEntry[]>();
+  for (const entry of entries) {
+    if (entry.namespacePath.length === 0) {
+      continue;
+    }
+    const existing = byName.get(entry.name) ?? [];
+    existing.push(entry);
+    byName.set(entry.name, existing);
+  }
+
+  const aliases: CanonicalInputEntry[] = [];
+  for (const [name, candidates] of byName.entries()) {
+    if (rootLevelNames.has(name) || candidates.length !== 1) {
+      continue;
+    }
+    const target = candidates[0]!;
+    aliases.push({
+      canonicalId: target.canonicalId,
+      name,
+      namespacePath: [],
+      definition: target.definition,
+    });
+  }
+
+  return aliases;
+}
+
+function collectInstanceConnectedAliases(args: {
+  producerId: string;
+  staticConnectedAliases: Set<string>;
+  inputBindings: Record<string, string>;
+}): Set<string> {
+  const connectedAliases = new Set<string>();
+
+  for (const [alias, canonicalId] of Object.entries(args.inputBindings)) {
+    if (args.staticConnectedAliases.has(alias)) {
+      connectedAliases.add(alias);
+      continue;
+    }
+
+    if (canonicalId.startsWith('Artifact:')) {
+      connectedAliases.add(alias);
+      continue;
+    }
+
+    if (
+      canonicalId.startsWith('Input:') &&
+      !canonicalId.startsWith(`Input:${args.producerId}.`)
+    ) {
+      connectedAliases.add(alias);
+    }
+  }
+
+  return connectedAliases;
 }
 
 interface ConnectedInputFieldBehavior {

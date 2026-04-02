@@ -6,6 +6,7 @@ import {
   applyViewerAnnotationsOrThrow,
   mergeExistingViewerAnnotations,
 } from './schema-viewer-annotations.mjs';
+import { normalizeSchemaFileForCatalog } from './schema-file-validation.mjs';
 
 /**
  * Fetch input schema from Replicate API for a single model.
@@ -149,7 +150,18 @@ export async function fetchReplicateInputSchema(modelName, existingSchema) {
   }
 
   applyViewerAnnotationsOrThrow(schemaFile);
-  return schemaFile;
+  const { schemaFile: normalizedSchema, repairsApplied } =
+    normalizeSchemaFileForCatalog(
+      schemaFile,
+      `Replicate schema for ${modelName}`
+    );
+  if (repairsApplied > 0) {
+    console.log(
+      `[fetch-replicate] Applied ${repairsApplied} known schema repair(s) for ${modelName}.`
+    );
+  }
+
+  return normalizedSchema;
 }
 
 async function readExistingSchemaIfAny(schemaPath) {

@@ -306,10 +306,7 @@ async function buildMasterTrackContext(args: {
   const resolvedInputs = inputs.all();
   const preferredSegmentDuration =
     primaryClip.kind === 'Video'
-      ? readOptionalPositiveNumber(resolvedInputs, [
-          'Input:SegmentDuration',
-          'SegmentDuration',
-        ])
+      ? readOptionalPositiveNumber(resolvedInputs, ['Input:SegmentDuration'])
       : undefined;
 
   for (let groupIndex = 0; groupIndex < groupCount; groupIndex++) {
@@ -449,7 +446,6 @@ async function determineDurationForSegment(args: {
   // Fallback: use SegmentDuration input
   const segmentDuration = readOptionalPositiveNumber(resolvedInputs, [
     'Input:SegmentDuration',
-    'SegmentDuration',
   ]);
   if (segmentDuration !== undefined) {
     return segmentDuration;
@@ -556,10 +552,10 @@ export function createTimelineProducerHandler(): HandlerFactory {
 
       const timeline: TimelineDocument = {
         id: `timeline-${request.revision}`,
-        movieId: readOptionalString(resolvedInputs, ['MovieId', 'movieId']),
+        movieId: readOptionalString(resolvedInputs, ['Input:MovieId']),
         movieTitle: readOptionalString(resolvedInputs, [
-          'MovieTitle',
-          'ScriptGenerator.MovieTitle',
+          'Input:MovieTitle',
+          'Input:ScriptGenerator.MovieTitle',
         ]),
         duration: masterContext.totalDuration,
         assetFolder: buildAssetFolder(runtime.inputs),
@@ -827,9 +823,7 @@ function mergeConfig(
 function buildAssetFolder(
   inputs: ResolvedInputsAccessor
 ): TimelineDocument['assetFolder'] {
-  const storageRoot =
-    inputs.getByNodeId<string>('Input:StorageRoot') ??
-    inputs.get<string>('StorageRoot');
+  const storageRoot = inputs.getByNodeId<string>('Input:StorageRoot');
   if (
     !storageRoot ||
     typeof storageRoot !== 'string' ||
@@ -841,12 +835,8 @@ function buildAssetFolder(
       { kind: 'user_input', causedByUser: true }
     );
   }
-  const basePath =
-    inputs.getByNodeId<string>('Input:StorageBasePath') ??
-    inputs.get<string>('StorageBasePath');
-  const movieId =
-    inputs.getByNodeId<string>('Input:MovieId') ??
-    inputs.get<string>('MovieId');
+  const basePath = inputs.getByNodeId<string>('Input:StorageBasePath');
+  const movieId = inputs.getByNodeId<string>('Input:MovieId');
   const segments = [storageRoot, basePath, movieId].filter(
     (segment) => typeof segment === 'string' && segment.trim().length > 0
   ) as string[];
@@ -1677,9 +1667,7 @@ function normalizeFanIn(value: FanInValue): FanInValue {
 function readTimelineDuration(inputs: Record<string, unknown>): number {
   const candidates = [
     'Input:TimelineComposer.Duration',
-    'TimelineComposer.Duration',
     'Input:Duration',
-    'Duration',
   ];
   for (const key of candidates) {
     const value = inputs[key];
@@ -1816,33 +1804,23 @@ function maybeResolveSyntheticDuration(args: {
   if (args.assetId.includes('MusicGenerator.Music')) {
     const timelineDuration = readOptionalPositiveNumber(resolvedInputs, [
       'Input:TimelineComposer.Duration',
-      'TimelineComposer.Duration',
       'Input:Duration',
-      'Duration',
     ]);
     if (timelineDuration !== undefined) {
       return timelineDuration;
     }
   }
 
-  const segmentDuration = readOptionalPositiveNumber(resolvedInputs, [
-    'Input:SegmentDuration',
-    'SegmentDuration',
-  ]);
+  const segmentDuration = readOptionalPositiveNumber(resolvedInputs, ['Input:SegmentDuration']);
   if (segmentDuration !== undefined) {
     return segmentDuration;
   }
 
   const totalDuration = readOptionalPositiveNumber(resolvedInputs, [
     'Input:TimelineComposer.Duration',
-    'TimelineComposer.Duration',
     'Input:Duration',
-    'Duration',
   ]);
-  const numSegments = readOptionalPositiveNumber(resolvedInputs, [
-    'Input:NumOfSegments',
-    'NumOfSegments',
-  ]);
+  const numSegments = readOptionalPositiveNumber(resolvedInputs, ['Input:NumOfSegments']);
 
   if (
     totalDuration !== undefined &&

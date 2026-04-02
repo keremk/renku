@@ -20,9 +20,10 @@ describe('getProducerSdkPreview', () => {
       blueprintPath,
       catalogRoot: CATALOG_ROOT,
       inputs: {
-        Resolution: { width: 1280, height: 720 },
-        VoiceId: 'voice_123',
-        LanguageCode: 'eng',
+        'Input:Resolution': { width: 1280, height: 720 },
+        'Input:VoiceId': 'voice_123',
+        'Input:NarrationAudioProducer.LanguageCode': 'eng',
+        'Input:TranscriptionProducer.LanguageCode': 'eng',
       },
       models: [
         {
@@ -116,17 +117,22 @@ describe('getProducerSdkPreview', () => {
       blueprintPath,
       catalogRoot: CATALOG_ROOT,
       inputs: {
-        CelebrityThenImages: ['file:./images/then-1.jpg', 'file:./images/then-2.jpg'],
-        CelebrityNowImages: ['file:./images/now-1.jpg', 'file:./images/now-2.jpg'],
-        SettingImage: 'file:./images/setting.jpg',
-        Theme: 'Theme',
-        EnvironmentDescription: 'Environment',
-        VisualStyle: 'Visual style',
-        NumOfCharacters: 2,
-        MeetingDuration: 10,
-        TransitionDuration: 5,
-        Resolution: { width: 1280, height: 720 },
-        Duration: 25,
+        'Input:CelebrityThenImages': [
+          'file:./images/then-1.jpg',
+          'file:./images/then-2.jpg',
+        ],
+        'Input:CelebrityNowImages': [
+          'file:./images/now-1.jpg',
+          'file:./images/now-2.jpg',
+        ],
+        'Input:SettingImage': 'file:./images/setting.jpg',
+        'Input:Theme': 'Theme',
+        'Input:EnvironmentDescription': 'Environment',
+        'Input:VisualStyle': 'Visual style',
+        'Input:NumOfCharacters': 2,
+        'Input:MeetingDuration': 10,
+        'Input:TransitionDuration': 5,
+        'Input:Resolution': { width: 1280, height: 720 },
       },
       models: [
         {

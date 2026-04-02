@@ -151,8 +151,8 @@ describe('producer-binding-summary', () => {
       root,
       producerId: 'VideoProducer',
       inputs: {
-        Resolution: { width: 1280, height: 720 },
-        Prompt: 'Plain input prompt',
+        'Input:Resolution': { width: 1280, height: 720 },
+        'Input:Prompt': 'Plain input prompt',
       },
       mode: 'static',
     });
@@ -248,10 +248,10 @@ describe('producer-binding-summary', () => {
       root,
       producerId: 'ThenImageProducer',
       inputs: {
-        NumOfCharacters: 1,
-        Prompt: 'compose then image',
-        CelebrityThenImages: ['file:./input-files/then-0.jpg'],
-        SettingImage: 'file:./input-files/setting.jpg',
+        'Input:NumOfCharacters': 1,
+        'Input:Prompt': 'compose then image',
+        'Input:CelebrityThenImages': ['file:./input-files/then-0.jpg'],
+        'Input:SettingImage': 'file:./input-files/setting.jpg',
       },
       mode: 'runtime',
     });
@@ -283,13 +283,13 @@ describe('producer-binding-summary', () => {
       root,
       producerId: 'ThenImageProducer',
       inputs: {
-        NumOfCharacters: 2,
-        Prompt: 'compose then image',
-        CelebrityThenImages: [
+        'Input:NumOfCharacters': 2,
+        'Input:Prompt': 'compose then image',
+        'Input:CelebrityThenImages': [
           'file:./input-files/then-0.jpg',
           'file:./input-files/then-1.jpg',
         ],
-        SettingImage: 'file:./input-files/setting.jpg',
+        'Input:SettingImage': 'file:./input-files/setting.jpg',
       },
     });
 
@@ -306,6 +306,20 @@ describe('producer-binding-summary', () => {
     expect(runtimeSnapshot.resolvedInputs['Input:CelebrityThenImages[1]']).toBe(
       'file:./input-files/then-1.jpg'
     );
+  });
+
+  it('fails fast when runtime inputs use non-canonical keys', () => {
+    const root = createFixtureTree();
+
+    expect(() =>
+      buildProducerRuntimeBindingSnapshot({
+        root,
+        producerId: 'VideoProducer',
+        inputs: {
+          Prompt: 'non-canonical key',
+        },
+      })
+    ).toThrow(/must use canonical IDs only/);
   });
 
   it('filters producer-local fallback aliases from runtime connected metadata', () => {

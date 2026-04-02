@@ -20,6 +20,7 @@
     "type-check": "tsc --noEmit",
     "test": "vitest --config vitest.config.ts",
     "validate:producers": "vitest run --config vitest.config.ts tests/schemas/producer-mappings-contract.test.ts",
+    "validate:schemas": "vitest run --config vitest.config.ts tests/schemas/validate-schemas.test.ts --pool=threads",
     "test:typecheck": "tsc --project tsconfig.vitest.json --noEmit",
     "check:all": "pnpm type-check && pnpm lint && pnpm test:typecheck",
     "test:ui": "vitest --config vitest.config.ts --ui",

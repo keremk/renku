@@ -87,7 +87,6 @@
         "type": "array",
         "items": {
           "type": "string",
-          "anyOf": [],
           "format": "uri"
         },
         "title": "Reference Images",
