@@ -14,6 +14,7 @@ import {
   type OpenAiResponseFormat,
   type GenerationResult,
 } from '../../sdk/openai/index.js';
+import { applyRuntimeLlmInvocationSettings } from './invocation-settings.js';
 
 export function createOpenAiLlmHandler(): HandlerFactory {
   return (init) => {
@@ -54,7 +55,8 @@ export function createOpenAiLlmHandler(): HandlerFactory {
         try {
 
         // 1. Parse config
-        const config = runtime.config.parse<OpenAiLlmConfig>(parseOpenAiConfig);
+        const parsedConfig = runtime.config.parse<OpenAiLlmConfig>(parseOpenAiConfig);
+        const config = applyRuntimeLlmInvocationSettings(parsedConfig, request);
 
         // 2. Auto-derive responseFormat from outputSchema (always)
         const outputSchema = getOutputSchemaFromRequest(request);

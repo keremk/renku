@@ -28,6 +28,7 @@ export async function runReplicateWithRetries(args: RunArgs): Promise<unknown> {
   let attempt = 0;
   let lastError: unknown;
   let sawThrottle = false;
+  let sawServerError = false;
   while (attempt < maxAttempts) {
     attempt += 1;
     try {
@@ -35,19 +36,28 @@ export async function runReplicateWithRetries(args: RunArgs): Promise<unknown> {
     } catch (error: unknown) {
       lastError = error;
       const status = parseStatus(error);
-      const retryAfterSec = parseRetryAfterSeconds(error);
-      const retryMs = retryAfterSec !== undefined ? (retryAfterSec + 1) * 1000 : defaultRetryMs;
+      const retryAfterMs = parseRetryAfterMs(error);
+      const retryMs = computeRetryDelayMs({
+        attempt,
+        status,
+        retryAfterMs,
+        defaultRetryMs,
+      });
 
-      const isThrottled = status === 429 || /429|Too Many Requests/i.test(String(error ?? ''));
-      const shouldRetry = isThrottled && attempt < maxAttempts;
-      if (!isThrottled) {
+      const isRetryableStatus = isRetryableReplicateStatus(status);
+      const shouldRetry = isRetryableStatus && attempt < maxAttempts;
+      if (!isRetryableStatus) {
         if (error instanceof Error) {
           throw error;
         }
         throw new Error(String((error as any)?.message ?? error ?? 'Replicate prediction failed.'));
       }
       if (shouldRetry) {
-        sawThrottle = true;
+        if (status === 429) {
+          sawThrottle = true;
+        } else if (status !== undefined && status >= 500 && status <= 599) {
+          sawServerError = true;
+        }
         logger?.info?.(`Replicate provider will retry after ${retryMs}ms for the job ${jobId}. Attempt #${attempt}`);
         logger?.debug?.('providers.replicate.retry', {
           producer: jobId,
@@ -81,6 +91,12 @@ export async function runReplicateWithRetries(args: RunArgs): Promise<unknown> {
   if (sawThrottle) {
     throw createProviderRateLimitError(message, lastError);
   }
+  if (sawServerError) {
+    throw createProviderTransientError(
+      'Replicate returned transient 5xx errors and retries were exhausted.',
+      lastError
+    );
+  }
   if (lastError instanceof Error) {
     throw lastError;
   }
@@ -90,6 +106,13 @@ export async function runReplicateWithRetries(args: RunArgs): Promise<unknown> {
 function createProviderRateLimitError(message: string, raw: unknown): Error {
   const err = new Error(message);
   (err as any).status = 429;
+  (err as any).raw = raw;
+  return err;
+}
+
+function createProviderTransientError(message: string, raw: unknown): Error {
+  const err = new Error(message);
+  (err as any).status = 503;
   (err as any).raw = raw;
   return err;
 }
@@ -114,21 +137,59 @@ function parseStatus(error: unknown): number | undefined {
   return undefined;
 }
 
-function parseRetryAfterSeconds(error: unknown): number | undefined {
+function parseRetryAfterMs(error: unknown): number | undefined {
   const bodyVal = (error as any)?.body?.retry_after;
   if (typeof bodyVal === 'number') {
-    return bodyVal;
+    return (bodyVal + 1) * 1000;
+  }
+  const headerVal =
+    (error as any)?.headers?.['retry-after'] ??
+    (error as any)?.response?.headers?.['retry-after'];
+  if (typeof headerVal === 'number' && Number.isFinite(headerVal)) {
+    return (headerVal + 1) * 1000;
+  }
+  if (typeof headerVal === 'string') {
+    const seconds = Number.parseInt(headerVal, 10);
+    if (Number.isFinite(seconds)) {
+      return (seconds + 1) * 1000;
+    }
   }
   const message = (error as any)?.message ?? '';
   let match = /retry[_-]after['"]?\s*[:=]\s*(\d+)/i.exec(String(message));
   if (match) {
-    return Number(match[1]);
+    return (Number(match[1]) + 1) * 1000;
   }
   match = /resets in ~(\d+)s/i.exec(String(message));
   if (match) {
-    return Number(match[1]);
+    return (Number(match[1]) + 1) * 1000;
   }
   return undefined;
+}
+
+function isRetryableReplicateStatus(status: number | undefined): boolean {
+  if (status === 429) {
+    return true;
+  }
+  if (status === undefined) {
+    return false;
+  }
+  return status >= 500 && status <= 599;
+}
+
+function computeRetryDelayMs(options: {
+  attempt: number;
+  status: number | undefined;
+  retryAfterMs: number | undefined;
+  defaultRetryMs: number;
+}): number {
+  if (options.retryAfterMs !== undefined) {
+    return options.retryAfterMs;
+  }
+  if (options.status === 429) {
+    return options.defaultRetryMs;
+  }
+  // 5xx: exponential backoff capped at 30s.
+  return Math.min(options.defaultRetryMs * 2 ** (options.attempt - 1), 30_000);
 }
 
 /**
@@ -154,6 +215,7 @@ export function createReplicateRetryWrapper(options: ReplicateRetryOptions): {
       let attempt = 0;
       let lastError: unknown;
       let sawThrottle = false;
+      let sawServerError = false;
 
       while (attempt < maxAttempts) {
         attempt += 1;
@@ -162,13 +224,18 @@ export function createReplicateRetryWrapper(options: ReplicateRetryOptions): {
         } catch (error: unknown) {
           lastError = error;
           const status = parseStatus(error);
-          const retryAfterSec = parseRetryAfterSeconds(error);
-          const retryMs = retryAfterSec !== undefined ? (retryAfterSec + 1) * 1000 : defaultRetryMs;
+          const retryAfterMs = parseRetryAfterMs(error);
+          const retryMs = computeRetryDelayMs({
+            attempt,
+            status,
+            retryAfterMs,
+            defaultRetryMs,
+          });
 
-          const isThrottled = status === 429 || /429|Too Many Requests/i.test(String(error ?? ''));
-          const shouldRetry = isThrottled && attempt < maxAttempts;
+          const isRetryableStatus = isRetryableReplicateStatus(status);
+          const shouldRetry = isRetryableStatus && attempt < maxAttempts;
 
-          if (!isThrottled) {
+          if (!isRetryableStatus) {
             if (error instanceof Error) {
               throw error;
             }
@@ -176,7 +243,11 @@ export function createReplicateRetryWrapper(options: ReplicateRetryOptions): {
           }
 
           if (shouldRetry) {
-            sawThrottle = true;
+            if (status === 429) {
+              sawThrottle = true;
+            } else if (status !== undefined && status >= 500 && status <= 599) {
+              sawServerError = true;
+            }
             logger?.info?.(
               `Replicate provider will retry after ${retryMs}ms for the job ${jobId}. Attempt #${attempt}`,
             );
@@ -213,6 +284,12 @@ export function createReplicateRetryWrapper(options: ReplicateRetryOptions): {
         'Replicate rate limit hit (429); retries exhausted. Lower concurrency, wait, or add credit.';
       if (sawThrottle) {
         throw createProviderRateLimitError(message, lastError);
+      }
+      if (sawServerError) {
+        throw createProviderTransientError(
+          'Replicate returned transient 5xx errors and retries were exhausted.',
+          lastError
+        );
       }
       if (lastError instanceof Error) {
         throw lastError;

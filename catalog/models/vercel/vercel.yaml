@@ -36,7 +36,35 @@ models:
       - application/json
     price: 0
 
-  - name: minimax/minimax-m2.1
+  - name: google/gemini-3.1-pro-preview
+    type: text
+    mime:
+      - text/plain
+      - application/json
+    price: 0
+  
+  - name: google/gemini-3.1-flash-lite-preview
+    type: text
+    mime:
+      - text/plain
+      - application/json
+    price: 0
+
+  - name: minimax/minimax-m2.5
+    type: text
+    mime:
+      - text/plain
+      - application/json
+    price: 0
+
+  - name: minimax/minimax-m2.7
+    type: text
+    mime:
+      - text/plain
+      - application/json
+    price: 0
+
+  - name: minimax/minimax-m2.7-highspeed
     type: text
     mime:
       - text/plain
@@ -50,7 +78,7 @@ models:
       - application/json
     price: 0
 
-  - name: moonshotai/kimi-k2-thinking
+  - name: moonshotai/kimi-k2.5
     type: text
     mime:
       - text/plain

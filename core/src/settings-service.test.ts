@@ -9,10 +9,13 @@ import {
   type CliConfig,
 } from './workspace.js';
 import {
+  getDefaultConfigSettingsPath,
   mapProviderTokenPayloadToApiKeyValues,
   persistProviderTokenPayload,
+  readLlmInvocationSettings,
   readSettingsApiTokens,
   readSettingsSnapshot,
+  updateLlmInvocationSettings,
   updateWorkspaceConcurrency,
   updateWorkspaceStorageRoot,
 } from './settings-service.js';
@@ -81,6 +84,7 @@ describe('settings-service', () => {
   it('reads settings snapshot and clips hand-edited concurrency to max', async () => {
     const configPath = join(tempDir, 'cli-config.json');
     const envFilePath = join(tempDir, '.env');
+    const configSettingsPath = join(tempDir, 'config-setting.json');
     const storageRoot = join(tempDir, 'workspace');
     await mkdir(storageRoot, { recursive: true });
 
@@ -107,11 +111,19 @@ describe('settings-service', () => {
       envFilePath
     );
 
-    const snapshot = await readSettingsSnapshot({ configPath, envFilePath });
+    const snapshot = await readSettingsSnapshot({
+      configPath,
+      envFilePath,
+      configSettingsPath,
+    });
     expect(snapshot.storageRoot).toBe(storageRoot);
     expect(snapshot.artifacts).toEqual({ enabled: false, mode: 'symlink' });
     expect(snapshot.concurrency).toBe(10);
     expect(snapshot.apiTokens.openai).toBe('openai-token');
+    expect(snapshot.llmInvocation).toEqual({
+      requestTimeoutMs: 360000,
+      maxRetries: 2,
+    });
   });
 
   it('updates workspace concurrency and persists clipped value', async () => {
@@ -130,6 +142,71 @@ describe('settings-service', () => {
     expect(concurrency).toBe(10);
     const updated = await readCliConfig(configPath);
     expect(updated?.concurrency).toBe(10);
+  });
+
+  it('reads and updates llm invocation settings in config-setting.json', async () => {
+    const configSettingsPath = join(tempDir, 'config-setting.json');
+
+    const initial = await readLlmInvocationSettings(configSettingsPath);
+    expect(initial).toEqual({
+      requestTimeoutMs: 360000,
+      maxRetries: 2,
+    });
+
+    const saved = await updateLlmInvocationSettings({
+      requestTimeoutMs: 300000,
+      maxRetries: 1,
+      configSettingsPath,
+    });
+
+    expect(saved).toEqual({
+      requestTimeoutMs: 300000,
+      maxRetries: 1,
+    });
+
+    const reloaded = await readLlmInvocationSettings(configSettingsPath);
+    expect(reloaded).toEqual({
+      requestTimeoutMs: 300000,
+      maxRetries: 1,
+    });
+
+    const raw = JSON.parse(await readFile(configSettingsPath, 'utf8')) as {
+      llmInvocation: { requestTimeoutMs: number; maxRetries: number };
+    };
+    expect(raw.llmInvocation).toEqual({
+      requestTimeoutMs: 300000,
+      maxRetries: 1,
+    });
+  });
+
+  it('defaults missing llm invocation fields while preserving explicit null', async () => {
+    const configSettingsPath = join(tempDir, 'config-setting.json');
+    await writeFile(
+      configSettingsPath,
+      JSON.stringify(
+        {
+          llmInvocation: {
+            maxRetries: null,
+          },
+        },
+        null,
+        2
+      ),
+      'utf8'
+    );
+
+    const settings = await readLlmInvocationSettings(configSettingsPath);
+    expect(settings).toEqual({
+      requestTimeoutMs: 360000,
+      maxRetries: null,
+    });
+  });
+
+  it('returns the global default config-setting.json path', () => {
+    const targetPath = getDefaultConfigSettingsPath();
+    expect(targetPath).toContain('.config');
+    expect(targetPath).toContain('renku');
+    expect(targetPath).toContain('config-setting.json');
   });
 
   it('resolves catalog source from current config when catalogPath is omitted', async () => {

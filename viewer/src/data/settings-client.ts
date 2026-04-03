@@ -12,6 +12,12 @@ export interface ViewerSettingsSnapshot {
   apiTokens: SettingsApiTokens;
   artifacts: ViewerArtifactsSettings;
   concurrency: number;
+  llmInvocation: ViewerLlmInvocationSettings;
+}
+
+export interface ViewerLlmInvocationSettings {
+  requestTimeoutMs: number | null;
+  maxRetries: number | null;
 }
 
 export type ArtifactMaterializationMode = 'copy' | 'symlink';
@@ -41,6 +47,11 @@ export interface UpdateArtifactsSettingsResponse {
 export interface UpdateConcurrencySettingsResponse {
   ok: true;
   concurrency: number;
+}
+
+export interface UpdateLlmInvocationSettingsResponse {
+  ok: true;
+  llmInvocation: ViewerLlmInvocationSettings;
 }
 
 interface SettingsErrorPayload {
@@ -161,4 +172,20 @@ export async function updateViewerConcurrency(options: {
     throw await createRequestError(response);
   }
   return response.json() as Promise<UpdateConcurrencySettingsResponse>;
+}
+
+export async function updateViewerLlmInvocation(options: {
+  requestTimeoutMs: number | null;
+  maxRetries: number | null;
+}): Promise<UpdateLlmInvocationSettingsResponse> {
+  const response = await fetch('/viewer-api/settings/llm-invocation', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(options),
+  });
+
+  if (!response.ok) {
+    throw await createRequestError(response);
+  }
+  return response.json() as Promise<UpdateLlmInvocationSettingsResponse>;
 }

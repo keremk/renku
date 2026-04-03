@@ -198,6 +198,73 @@ describe('createUnifiedHandler', () => {
     expect(normalizeOutputSpy).toHaveBeenCalled();
   });
 
+  it('passes runtime timeout and retry settings to provider retry wrapper', async () => {
+    const createRetryWrapperSpy = vi.fn().mockImplementation(() => ({
+      execute: async <T>(fn: () => Promise<T>) => fn(),
+    }));
+    const adapter: ProviderAdapter = {
+      name: 'retry-provider',
+      secretKey: 'RETRY_KEY',
+      async createClient(): Promise<ProviderClient> {
+        return { configured: true };
+      },
+      formatModelIdentifier: (m) => `retry/${m}`,
+      async invoke(): Promise<unknown> {
+        return {};
+      },
+      normalizeOutput: () => ['https://mock.example.com/output.png'],
+      createRetryWrapper: createRetryWrapperSpy,
+    };
+
+    const factory = createUnifiedHandler({
+      adapter,
+      outputMimeType: 'image/png',
+    });
+    const handler = factory(createMockInitContext({ mode: 'live' }));
+
+    await handler.invoke(
+      createMockRequest({
+        context: {
+          providerConfig: {},
+          extras: {
+            resolvedInputs: {
+              'Input:Prompt': 'test prompt',
+            },
+            jobContext: {
+              inputBindings: {
+                Prompt: 'Input:Prompt',
+              },
+              sdkMapping: {
+                Prompt: { field: 'prompt', required: true },
+              },
+            },
+            plannerContext: { index: { segment: 0 } },
+            schema: {
+              input: JSON.stringify({
+                type: 'object',
+                properties: {
+                  prompt: { type: 'string' },
+                },
+                required: ['prompt'],
+              }),
+            },
+            runtimeLlmInvocationSettings: {
+              requestTimeoutMs: 4000,
+              maxRetries: 2,
+            },
+          },
+        },
+      })
+    );
+
+    expect(createRetryWrapperSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        maxAttempts: 3,
+        requestTimeoutMs: 4000,
+      })
+    );
+  });
+
   it('handler invoke generates output from schema in simulated mode', async () => {
     const createClientSpy = vi.fn().mockResolvedValue({ configured: true });
     const invokeSpy = vi.fn().mockResolvedValue({});

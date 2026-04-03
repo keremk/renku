@@ -10,6 +10,7 @@ import {
   updateViewerApiTokens,
   updateViewerArtifactsSettings,
   updateViewerConcurrency,
+  updateViewerLlmInvocationSettings,
   updateViewerStorageRoot,
 } from './service.js';
 import type {
@@ -33,6 +34,11 @@ interface UpdateArtifactsBody {
 
 interface UpdateConcurrencyBody {
   concurrency?: number;
+}
+
+interface UpdateLlmInvocationBody {
+  requestTimeoutMs?: number | null;
+  maxRetries?: number | null;
 }
 
 async function handleReadSettings(
@@ -223,6 +229,63 @@ async function handleUpdateConcurrency(
   }
 }
 
+async function handleUpdateLlmInvocation(
+  req: IncomingMessage,
+  res: ServerResponse
+): Promise<boolean> {
+  let body: UpdateLlmInvocationBody;
+  try {
+    body = await parseJsonBody<UpdateLlmInvocationBody>(req);
+  } catch {
+    sendError(res, 400, 'Invalid JSON body');
+    return true;
+  }
+
+  if (body.requestTimeoutMs === undefined) {
+    sendError(res, 400, 'requestTimeoutMs is required (integer or null)');
+    return true;
+  }
+
+  if (body.maxRetries === undefined) {
+    sendError(res, 400, 'maxRetries is required (integer or null)');
+    return true;
+  }
+
+  if (
+    body.requestTimeoutMs !== null &&
+    (!Number.isInteger(body.requestTimeoutMs) || body.requestTimeoutMs <= 0)
+  ) {
+    sendError(res, 400, 'requestTimeoutMs must be a positive integer or null');
+    return true;
+  }
+
+  if (
+    body.maxRetries !== null &&
+    (!Number.isInteger(body.maxRetries) || body.maxRetries < 0)
+  ) {
+    sendError(res, 400, 'maxRetries must be a non-negative integer or null');
+    return true;
+  }
+
+  try {
+    const llmInvocation = await updateViewerLlmInvocationSettings({
+      requestTimeoutMs: body.requestTimeoutMs,
+      maxRetries: body.maxRetries,
+    });
+    sendJson(res, { ok: true, llmInvocation });
+    return true;
+  } catch (error) {
+    sendError(
+      res,
+      500,
+      error instanceof Error
+        ? error.message
+        : 'Failed to update LLM invocation settings'
+    );
+    return true;
+  }
+}
+
 export async function handleSettingsEndpoint(
   req: IncomingMessage,
   res: ServerResponse,
@@ -263,6 +326,13 @@ export async function handleSettingsEndpoint(
         return respondMethodNotAllowed(res);
       }
       return handleUpdateConcurrency(req, res);
+    }
+
+    case 'llm-invocation': {
+      if (req.method !== 'POST') {
+        return respondMethodNotAllowed(res);
+      }
+      return handleUpdateLlmInvocation(req, res);
     }
 
     default:

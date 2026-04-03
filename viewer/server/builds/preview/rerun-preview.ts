@@ -36,6 +36,7 @@ import {
   resolveMovieInputsPath,
   resolveStorageBasePathForBlueprint,
   sliceExecutionPlanThroughLayer,
+  readLlmInvocationSettings,
   type Manifest,
   type PendingArtefactDraft,
   type ProducerOptionsMap,
@@ -131,7 +132,9 @@ export async function generateRerunPreview(
       resolvedInputsWithSystem,
       preResolved,
       logger,
-      notifications
+      notifications,
+      undefined,
+      await readLlmInvocationSettings()
     );
 
     const run = await executePlanWithConcurrency(

@@ -159,11 +159,19 @@ export function createUnifiedHandler(
           });
         } else {
           // LIVE MODE: Call the actual provider API
+          const runtimeInvocationSettings =
+            readRuntimeInvocationSettings(request);
+          const maxAttemptsFromSettings =
+            runtimeInvocationSettings?.maxRetries !== undefined
+              ? runtimeInvocationSettings.maxRetries + 1
+              : undefined;
           const retryWrapper = adapter.createRetryWrapper?.({
             logger,
             jobId: request.jobId,
             model: request.model,
             plannerContext,
+            maxAttempts: maxAttemptsFromSettings,
+            requestTimeoutMs: runtimeInvocationSettings?.requestTimeoutMs,
           });
 
           try {
@@ -419,4 +427,70 @@ function readSchemaFile(request: ProviderJobContext): SchemaFile | undefined {
   }
 
   return undefined;
+}
+
+interface RuntimeInvocationSettings {
+  requestTimeoutMs?: number;
+  maxRetries?: number;
+}
+
+function readRuntimeInvocationSettings(
+  request: ProviderJobContext
+): RuntimeInvocationSettings | undefined {
+  const extras = request.context.extras;
+  if (!isRecord(extras)) {
+    return undefined;
+  }
+
+  const rawSettings = extras.runtimeLlmInvocationSettings;
+  if (rawSettings === undefined) {
+    return undefined;
+  }
+  if (!isRecord(rawSettings)) {
+    throw new Error(
+      'runtimeLlmInvocationSettings must be an object when provided in job context extras.'
+    );
+  }
+
+  const requestTimeoutMs = readOptionalInteger(
+    rawSettings.requestTimeoutMs,
+    'runtimeLlmInvocationSettings.requestTimeoutMs',
+    1
+  );
+  const maxRetries = readOptionalInteger(
+    rawSettings.maxRetries,
+    'runtimeLlmInvocationSettings.maxRetries',
+    0
+  );
+
+  const normalized: RuntimeInvocationSettings = {};
+  if (requestTimeoutMs !== undefined) {
+    normalized.requestTimeoutMs = requestTimeoutMs;
+  }
+  if (maxRetries !== undefined) {
+    normalized.maxRetries = maxRetries;
+  }
+
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
+
+function readOptionalInteger(
+  value: unknown,
+  label: string,
+  minValue: number
+): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Number.isInteger(value)) {
+    throw new Error(`${label} must be an integer when provided.`);
+  }
+  if ((value as number) < minValue) {
+    throw new Error(`${label} must be greater than or equal to ${minValue}.`);
+  }
+  return value as number;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }

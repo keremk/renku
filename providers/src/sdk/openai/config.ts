@@ -15,6 +15,7 @@ export const COMMON_CALL_SETTINGS = new Set([
   'frequencyPenalty',
   'stopSequences',
   'seed',
+  'maxRetries',
 ]);
 
 /**
@@ -26,6 +27,7 @@ export const PRODUCER_CONFIG_KEYS = new Set([
   'userPrompt',
   'variables',
   'responseFormat',
+  'requestTimeoutMs',
   'textFormat',
   'jsonSchema',
   'system_prompt',
@@ -57,9 +59,13 @@ export interface OpenAiLlmConfig {
   frequencyPenalty?: number;
   stopSequences?: string[];
   seed?: number;
+  maxRetries?: number;
 
   // Legacy OpenAI-specific (backward compat)
   reasoning?: 'minimal' | 'low' | 'medium' | 'high';
+
+  // Producer-only execution settings (injected from runtime config settings)
+  requestTimeoutMs?: number;
 
   // Provider-specific options (any remaining keys, passed through)
   [key: string]: unknown;
@@ -99,6 +105,16 @@ export function parseOpenAiConfig(raw: unknown): OpenAiLlmConfig {
   }
 
   const normalized = normalizeOpenAiConfig(raw as Record<string, unknown>);
+  if (normalized.maxRetries !== undefined) {
+    throw new Error(
+      'maxRetries is not supported in producer config. Configure llmInvocation.maxRetries in ~/.config/renku/config-setting.json.'
+    );
+  }
+  if (normalized.requestTimeoutMs !== undefined) {
+    throw new Error(
+      'requestTimeoutMs is not supported in producer config. Configure llmInvocation.requestTimeoutMs in ~/.config/renku/config-setting.json.'
+    );
+  }
   const systemPrompt = readString(normalized.systemPrompt, 'systemPrompt');
   const userPrompt = readOptionalString(normalized.userPrompt);
   const variables = readOptionalStringArray(normalized.variables);

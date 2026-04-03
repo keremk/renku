@@ -66,6 +66,8 @@ export interface RetryWrapperOptions {
   jobId: string;
   model: string;
   plannerContext: Record<string, unknown>;
+  maxAttempts?: number;
+  requestTimeoutMs?: number;
 }
 
 /**

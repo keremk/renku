@@ -815,7 +815,7 @@ describe('createOpenAiLlmHandler', () => {
     ).rejects.toThrowError(/OPENAI_API_KEY/);
   });
 
-  it('passes call settings (temperature, maxOutputTokens, penalties) to AI SDK', async () => {
+  it('passes call settings (temperature, maxOutputTokens, penalties, retries) to AI SDK', async () => {
     mocks.generateText.mockResolvedValueOnce({
       text: 'Response',
       usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
@@ -837,6 +837,12 @@ describe('createOpenAiLlmHandler', () => {
           presencePenalty: 0.5,
           frequencyPenalty: 0.3,
         },
+        extras: {
+          resolvedInputs: {},
+          runtimeLlmInvocationSettings: {
+            maxRetries: 0,
+          },
+        },
       },
     });
 
@@ -851,6 +857,93 @@ describe('createOpenAiLlmHandler', () => {
     expect(args.maxOutputTokens).toBe(1000);
     expect(args.presencePenalty).toBe(0.5);
     expect(args.frequencyPenalty).toBe(0.3);
+    expect(args.maxRetries).toBe(0);
+  });
+
+  it('passes request abort signal to AI SDK calls', async () => {
+    mocks.generateText.mockResolvedValueOnce({
+      text: 'Response',
+      usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+      warnings: [],
+      response: { id: 'resp', model: 'gpt-5', createdAt: '' },
+    });
+
+    const handler = buildHandler();
+    await handler.warmStart?.({ logger: undefined });
+
+    const abortController = new AbortController();
+    const request = createJobContext({
+      signal: abortController.signal,
+      produces: ['Artifact:Output'],
+      context: {
+        providerConfig: {
+          systemPrompt: 'Test prompt',
+          responseFormat: { type: 'text' },
+        },
+      },
+    });
+
+    await handler.invoke(request);
+
+    expect(mocks.generateText).toHaveBeenCalledTimes(1);
+    const args = mocks.generateText.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(args.abortSignal).toBe(abortController.signal);
+  });
+
+  it('aborts hanging SDK calls when requestTimeoutMs is configured', async () => {
+    mocks.generateText.mockImplementationOnce(
+      (args: { abortSignal?: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          if (!args.abortSignal) {
+            reject(new Error('Expected abortSignal to be passed to AI SDK.'));
+            return;
+          }
+
+          const timeout = setTimeout(() => {
+            reject(
+              new Error('Abort signal was not triggered by requestTimeoutMs.')
+            );
+          }, 200);
+
+          args.abortSignal.addEventListener(
+            'abort',
+            () => {
+              clearTimeout(timeout);
+              reject(
+                args.abortSignal?.reason ??
+                  new Error('Request aborted without a reason.')
+              );
+            },
+            { once: true }
+          );
+        })
+    );
+
+    const handler = buildHandler();
+    await handler.warmStart?.({ logger: undefined });
+
+    const request = createJobContext({
+      produces: ['Artifact:Output'],
+      context: {
+        providerConfig: {
+          systemPrompt: 'Test prompt',
+          responseFormat: { type: 'text' },
+        },
+        extras: {
+          resolvedInputs: {},
+          runtimeLlmInvocationSettings: {
+            requestTimeoutMs: 25,
+          },
+        },
+      },
+    });
+
+    await expect(handler.invoke(request)).rejects.toThrow(
+      /timed out after 25ms/i
+    );
   });
 
   it('passes reasoning effort to provider options for reasoning models', async () => {

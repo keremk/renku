@@ -27,6 +27,7 @@ const {
   updateViewerApiTokensMock,
   updateViewerArtifactsSettingsMock,
   updateViewerConcurrencyMock,
+  updateViewerLlmInvocationMock,
   browseFolderMock,
   getBrowseFolderSupportMock,
 } = vi.hoisted(() => ({
@@ -35,6 +36,7 @@ const {
   updateViewerApiTokensMock: vi.fn(),
   updateViewerArtifactsSettingsMock: vi.fn(),
   updateViewerConcurrencyMock: vi.fn(),
+  updateViewerLlmInvocationMock: vi.fn(),
   browseFolderMock: vi.fn(),
   getBrowseFolderSupportMock: vi.fn(),
 }));
@@ -55,6 +57,7 @@ vi.mock('@/data/settings-client', () => ({
   updateViewerApiTokens: updateViewerApiTokensMock,
   updateViewerArtifactsSettings: updateViewerArtifactsSettingsMock,
   updateViewerConcurrency: updateViewerConcurrencyMock,
+  updateViewerLlmInvocation: updateViewerLlmInvocationMock,
 }));
 
 vi.mock('@/data/onboarding-client', () => ({
@@ -83,6 +86,10 @@ const SETTINGS_SNAPSHOT = {
     mode: 'copy' as const,
   },
   concurrency: 1,
+  llmInvocation: {
+    requestTimeoutMs: null,
+    maxRetries: null,
+  },
 };
 
 const originalResizeObserver = globalThis.ResizeObserver;
@@ -129,6 +136,13 @@ describe('SettingsPage storage location controls', () => {
     updateViewerConcurrencyMock.mockResolvedValue({
       ok: true,
       concurrency: 1,
+    });
+    updateViewerLlmInvocationMock.mockResolvedValue({
+      ok: true,
+      llmInvocation: {
+        requestTimeoutMs: null,
+        maxRetries: null,
+      },
     });
     browseFolderMock.mockResolvedValue({ path: null });
     getBrowseFolderSupportMock.mockResolvedValue({ supported: true });

@@ -8,6 +8,7 @@ export {
 export {
   callVercelGateway,
   sanitizeResponseMetadata,
+  sanitizeProviderMetadata,
   type VercelGatewayGenerationOptions,
   type VercelGatewayGenerationResult,
 } from './generation.js';

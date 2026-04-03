@@ -2,13 +2,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   persistProviderTokenPayloadMock,
+  readLlmInvocationSettingsMock,
   readSettingsSnapshotMock,
+  updateLlmInvocationSettingsMock,
   updateWorkspaceArtifactsSettingsMock,
   updateWorkspaceConcurrencyMock,
   updateWorkspaceStorageRootMock,
 } = vi.hoisted(() => ({
   persistProviderTokenPayloadMock: vi.fn(),
+  readLlmInvocationSettingsMock: vi.fn(),
   readSettingsSnapshotMock: vi.fn(),
+  updateLlmInvocationSettingsMock: vi.fn(),
   updateWorkspaceArtifactsSettingsMock: vi.fn(),
   updateWorkspaceConcurrencyMock: vi.fn(),
   updateWorkspaceStorageRootMock: vi.fn(),
@@ -16,7 +20,9 @@ const {
 
 vi.mock('@gorenku/core', () => ({
   persistProviderTokenPayload: persistProviderTokenPayloadMock,
+  readLlmInvocationSettings: readLlmInvocationSettingsMock,
   readSettingsSnapshot: readSettingsSnapshotMock,
+  updateLlmInvocationSettings: updateLlmInvocationSettingsMock,
   updateWorkspaceArtifactsSettings: updateWorkspaceArtifactsSettingsMock,
   updateWorkspaceConcurrency: updateWorkspaceConcurrencyMock,
   updateWorkspaceStorageRoot: updateWorkspaceStorageRootMock,

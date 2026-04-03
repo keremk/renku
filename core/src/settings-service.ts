@@ -1,4 +1,6 @@
 import path from 'node:path';
+import os from 'node:os';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import {
   getCliArtifactsConfig,
   normalizeCliArtifactsConfig,
@@ -42,6 +44,20 @@ export interface SettingsSnapshot {
   apiTokens: SettingsApiTokens;
   artifacts: CliArtifactsConfig;
   concurrency: number;
+  llmInvocation: LlmInvocationSettings;
+}
+
+export interface LlmInvocationSettings {
+  requestTimeoutMs: number | null;
+  maxRetries: number | null;
+}
+
+interface ConfigSettingsFile {
+  llmInvocation?: {
+    requestTimeoutMs?: number | null;
+    maxRetries?: number | null;
+  };
+  [key: string]: unknown;
 }
 
 export interface UpdateWorkspaceStorageRootOptions {
@@ -69,7 +85,22 @@ export interface UpdateWorkspaceConcurrencyOptions {
   configPath?: string;
 }
 
+export interface UpdateLlmInvocationSettingsOptions {
+  requestTimeoutMs: number | null;
+  maxRetries: number | null;
+  configSettingsPath?: string;
+}
+
+const DEFAULT_LLM_INVOCATION_SETTINGS: LlmInvocationSettings = {
+  requestTimeoutMs: 6 * 60 * 1000,
+  maxRetries: 2,
+};
+
 const workspaceService = createWorkspaceService();
+
+export function getDefaultConfigSettingsPath(): string {
+  return path.resolve(os.homedir(), '.config', 'renku', 'config-setting.json');
+}
 
 export function mapProviderTokenPayloadToApiKeyValues(
   payload: ProviderTokenPayload
@@ -107,6 +138,7 @@ export async function readSettingsApiTokens(
 export async function readSettingsSnapshot(options?: {
   configPath?: string;
   envFilePath?: string;
+  configSettingsPath?: string;
 }): Promise<SettingsSnapshot> {
   const cliConfig = await readCliConfig(options?.configPath);
   if (!cliConfig) {
@@ -121,6 +153,7 @@ export async function readSettingsSnapshot(options?: {
     apiTokens,
     artifacts: getCliArtifactsConfig(cliConfig),
     concurrency: normalizeCliConcurrency(cliConfig.concurrency),
+    llmInvocation: await readLlmInvocationSettings(options?.configSettingsPath),
   };
 }
 
@@ -210,6 +243,126 @@ export async function updateWorkspaceConcurrency(
   const concurrency = normalizeCliConcurrency(options.concurrency);
   await writeCliConfig({ ...cliConfig, concurrency }, options.configPath);
   return concurrency;
+}
+
+export async function readLlmInvocationSettings(
+  configSettingsPath?: string
+): Promise<LlmInvocationSettings> {
+  const settings = await readConfigSettingsFile(configSettingsPath);
+  return normalizeLlmInvocationSettings(settings.llmInvocation);
+}
+
+export async function updateLlmInvocationSettings(
+  options: UpdateLlmInvocationSettingsOptions
+): Promise<LlmInvocationSettings> {
+  const targetPath = path.resolve(
+    options.configSettingsPath ?? getDefaultConfigSettingsPath()
+  );
+  const existing = await readConfigSettingsFile(targetPath);
+  const normalized = normalizeLlmInvocationSettings({
+    requestTimeoutMs: options.requestTimeoutMs,
+    maxRetries: options.maxRetries,
+  });
+
+  const next: ConfigSettingsFile = {
+    ...existing,
+    llmInvocation: {
+      requestTimeoutMs: normalized.requestTimeoutMs,
+      maxRetries: normalized.maxRetries,
+    },
+  };
+
+  await mkdir(path.dirname(targetPath), { recursive: true });
+  await writeFile(targetPath, JSON.stringify(next, null, 2), 'utf8');
+  return normalized;
+}
+
+async function readConfigSettingsFile(
+  configSettingsPath?: string
+): Promise<ConfigSettingsFile> {
+  const targetPath = path.resolve(
+    configSettingsPath ?? getDefaultConfigSettingsPath()
+  );
+
+  try {
+    const contents = await readFile(targetPath, 'utf8');
+    const parsed = JSON.parse(contents) as unknown;
+    if (!isRecord(parsed)) {
+      throw new Error(
+        `Config settings file at "${targetPath}" must be a JSON object.`
+      );
+    }
+    return parsed as ConfigSettingsFile;
+  } catch (error) {
+    if (isErrnoException(error) && error.code === 'ENOENT') {
+      return {};
+    }
+    throw new Error(
+      `Failed to read config settings from "${targetPath}": ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+}
+
+function normalizeLlmInvocationSettings(
+  value: unknown
+): LlmInvocationSettings {
+  if (value === undefined) {
+    return { ...DEFAULT_LLM_INVOCATION_SETTINGS };
+  }
+  if (!isRecord(value)) {
+    throw new Error('llmInvocation config must be an object when provided.');
+  }
+  const requestTimeoutMs =
+    value.requestTimeoutMs === undefined
+      ? DEFAULT_LLM_INVOCATION_SETTINGS.requestTimeoutMs
+      : normalizeNullableInteger(value.requestTimeoutMs, {
+          field: 'llmInvocation.requestTimeoutMs',
+          min: 1,
+        });
+  const maxRetries =
+    value.maxRetries === undefined
+      ? DEFAULT_LLM_INVOCATION_SETTINGS.maxRetries
+      : normalizeNullableInteger(value.maxRetries, {
+          field: 'llmInvocation.maxRetries',
+          min: 0,
+        });
+
+  return {
+    requestTimeoutMs,
+    maxRetries,
+  };
+}
+
+function normalizeNullableInteger(
+  value: unknown,
+  options: { field: string; min: number }
+): number | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (!Number.isInteger(value)) {
+    throw new Error(`${options.field} must be an integer or null.`);
+  }
+  if ((value as number) < options.min) {
+    throw new Error(`${options.field} must be >= ${options.min} or null.`);
+  }
+
+  return value as number;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+interface ErrorWithCode extends Error {
+  code?: string;
+}
+
+function isErrnoException(error: unknown): error is ErrorWithCode {
+  return error instanceof Error;
 }
 
 function getStorageFolderName(storageRoot: string): string {

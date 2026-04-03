@@ -54,6 +54,7 @@ export async function callOpenAi(options: GenerationOptions): Promise<Generation
     maxOutputTokens: config.maxOutputTokens,
     presencePenalty: config.presencePenalty,
     frequencyPenalty: config.frequencyPenalty,
+    maxRetries: config.maxRetries,
   };
 
   // Build provider-specific options
@@ -83,6 +84,7 @@ export async function callOpenAi(options: GenerationOptions): Promise<Generation
       baseCallOptions,
       mode,
       request,
+      requestTimeoutMs: config.requestTimeoutMs,
       conditionHints,
     });
   } else {
@@ -93,6 +95,7 @@ export async function callOpenAi(options: GenerationOptions): Promise<Generation
       baseCallOptions,
       mode,
       request,
+      requestTimeoutMs: config.requestTimeoutMs,
     });
   }
 }
@@ -105,11 +108,22 @@ interface StructuredOutputOptions {
   baseCallOptions: CallSettings & { providerOptions?: Record<string, Record<string, JSONValue>> };
   mode?: ProviderMode;
   request?: ProviderJobContext;
+  requestTimeoutMs?: number;
   conditionHints?: ConditionHints;
 }
 
 async function generateStructuredOutput(options: StructuredOutputOptions): Promise<GenerationResult> {
-  const { model, prompt, system, responseFormat, baseCallOptions, mode, request, conditionHints } = options;
+  const {
+    model,
+    prompt,
+    system,
+    responseFormat,
+    baseCallOptions,
+    mode,
+    request,
+    requestTimeoutMs,
+    conditionHints,
+  } = options;
 
   if (!responseFormat.schema) {
     throw new Error('Schema is required for json_schema response format.');
@@ -136,24 +150,35 @@ async function generateStructuredOutput(options: StructuredOutputOptions): Promi
   }
 
   // Use generateText with Output.object() instead of deprecated generateObject
-  const generation = await generateText({
-    ...baseCallOptions,
-    model,
-    prompt,
-    system,
-    output: Output.object({
-      schema,
-      name: responseFormat.name,
-      description: responseFormat.description,
-    }),
-  });
+  const { abortSignal, cleanup } = createAbortSignal(
+    request?.signal,
+    requestTimeoutMs
+  );
+  try {
+    const generation = await generateText({
+      ...baseCallOptions,
+      model,
+      prompt,
+      system,
+      abortSignal,
+      output: Output.object({
+        schema,
+        name: responseFormat.name,
+        description: responseFormat.description,
+      }),
+    });
 
-  return {
-    data: generation.output as JsonObject,
-    usage: generation.usage as Record<string, unknown> | undefined,
-    warnings: generation.warnings,
-    response: generation.response as Record<string, unknown> | undefined,
-  };
+    return {
+      data: generation.output as JsonObject,
+      usage: generation.usage as Record<string, unknown> | undefined,
+      warnings: generation.warnings,
+      response: generation.response as Record<string, unknown> | undefined,
+    };
+  } catch (error) {
+    throw mapTimeoutError(error, abortSignal, requestTimeoutMs);
+  } finally {
+    cleanup();
+  }
 }
 
 interface PlainTextOptions {
@@ -163,10 +188,11 @@ interface PlainTextOptions {
   baseCallOptions: CallSettings & { providerOptions?: Record<string, Record<string, JSONValue>> };
   mode?: ProviderMode;
   request?: ProviderJobContext;
+  requestTimeoutMs?: number;
 }
 
 async function generatePlainText(options: PlainTextOptions): Promise<GenerationResult> {
-  const { model, prompt, system, baseCallOptions, mode, request } = options;
+  const { model, prompt, system, baseCallOptions, mode, request, requestTimeoutMs } = options;
 
   // In simulated mode, return mock data instead of calling the AI SDK
   // All validation and setup has already run identically to live mode
@@ -174,19 +200,30 @@ async function generatePlainText(options: PlainTextOptions): Promise<GenerationR
     return simulateOpenAiGeneration({ request, config: { responseFormat: { type: 'text' } } as OpenAiLlmConfig });
   }
 
-  const generation = await generateText({
-    ...baseCallOptions,
-    model,
-    prompt,
-    system,
-  });
+  const { abortSignal, cleanup } = createAbortSignal(
+    request?.signal,
+    requestTimeoutMs
+  );
+  try {
+    const generation = await generateText({
+      ...baseCallOptions,
+      model,
+      prompt,
+      system,
+      abortSignal,
+    });
 
-  return {
-    data: generation.text,
-    usage: generation.usage as Record<string, unknown> | undefined,
-    warnings: generation.warnings,
-    response: generation.response as Record<string, unknown> | undefined,
-  };
+    return {
+      data: generation.text,
+      usage: generation.usage as Record<string, unknown> | undefined,
+      warnings: generation.warnings,
+      response: generation.response as Record<string, unknown> | undefined,
+    };
+  } catch (error) {
+    throw mapTimeoutError(error, abortSignal, requestTimeoutMs);
+  } finally {
+    cleanup();
+  }
 }
 
 /**
@@ -202,4 +239,62 @@ export function sanitizeResponseMetadata(metadata: unknown): Record<string, unkn
     model: response.model,
     createdAt: response.createdAt ?? response.created_at,
   };
+}
+
+function createAbortSignal(
+  sourceSignal: AbortSignal | undefined,
+  timeoutMs: number | undefined,
+): { abortSignal?: AbortSignal; cleanup: () => void } {
+  if (timeoutMs === undefined) {
+    return {
+      abortSignal: sourceSignal,
+      cleanup: () => undefined,
+    };
+  }
+
+  const controller = new AbortController();
+  const onSourceAbort = () => {
+    controller.abort(sourceSignal?.reason);
+  };
+
+  if (sourceSignal?.aborted) {
+    controller.abort(sourceSignal.reason);
+  } else if (sourceSignal) {
+    sourceSignal.addEventListener('abort', onSourceAbort, { once: true });
+  }
+
+  const timeoutHandle = setTimeout(() => {
+    controller.abort(new Error(`Provider request timed out after ${timeoutMs}ms.`));
+  }, timeoutMs);
+
+  return {
+    abortSignal: controller.signal,
+    cleanup: () => {
+      clearTimeout(timeoutHandle);
+      if (sourceSignal && !sourceSignal.aborted) {
+        sourceSignal.removeEventListener('abort', onSourceAbort);
+      }
+    },
+  };
+}
+
+function mapTimeoutError(
+  error: unknown,
+  abortSignal: AbortSignal | undefined,
+  timeoutMs: number | undefined,
+): unknown {
+  if (timeoutMs === undefined || !abortSignal?.aborted) {
+    return error;
+  }
+
+  const reason = abortSignal.reason;
+  if (reason instanceof Error && isTimeoutMessage(reason.message)) {
+    return new Error(reason.message);
+  }
+
+  return error;
+}
+
+function isTimeoutMessage(message: string): boolean {
+  return /^Provider request timed out after \d+ms\.$/.test(message);
 }

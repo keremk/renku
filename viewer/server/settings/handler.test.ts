@@ -11,12 +11,14 @@ const {
   updateViewerApiTokensMock,
   updateViewerArtifactsSettingsMock,
   updateViewerConcurrencyMock,
+  updateViewerLlmInvocationSettingsMock,
 } = vi.hoisted(() => ({
   readViewerSettingsSnapshotMock: vi.fn(),
   updateViewerStorageRootMock: vi.fn(),
   updateViewerApiTokensMock: vi.fn(),
   updateViewerArtifactsSettingsMock: vi.fn(),
   updateViewerConcurrencyMock: vi.fn(),
+  updateViewerLlmInvocationSettingsMock: vi.fn(),
 }));
 
 vi.mock('./service.js', () => ({
@@ -25,6 +27,7 @@ vi.mock('./service.js', () => ({
   updateViewerApiTokens: updateViewerApiTokensMock,
   updateViewerArtifactsSettings: updateViewerArtifactsSettingsMock,
   updateViewerConcurrency: updateViewerConcurrencyMock,
+  updateViewerLlmInvocationSettings: updateViewerLlmInvocationSettingsMock,
 }));
 
 import { handleSettingsEndpoint } from './handler.js';
@@ -54,6 +57,10 @@ describe('handleSettingsEndpoint', () => {
         mode: 'copy',
       },
       concurrency: 1,
+      llmInvocation: {
+        requestTimeoutMs: null,
+        maxRetries: null,
+      },
     });
 
     const req = createRequest('GET');
@@ -79,6 +86,10 @@ describe('handleSettingsEndpoint', () => {
         mode: 'copy',
       },
       concurrency: 1,
+      llmInvocation: {
+        requestTimeoutMs: null,
+        maxRetries: null,
+      },
     });
   });
 
@@ -362,6 +373,43 @@ describe('handleSettingsEndpoint', () => {
     expect(updateViewerConcurrencyMock).not.toHaveBeenCalled();
     expect(JSON.parse(res.body)).toEqual({
       error: 'concurrency must be an integer',
+    });
+  });
+
+  it('updates llm invocation settings', async () => {
+    updateViewerLlmInvocationSettingsMock.mockResolvedValue({
+      requestTimeoutMs: 300000,
+      maxRetries: 1,
+    });
+
+    const req = createMockRequest(
+      {
+        requestTimeoutMs: 300000,
+        maxRetries: 1,
+      },
+      'POST'
+    );
+    const res = createMockResponse();
+
+    const handled = await handleSettingsEndpoint(
+      req,
+      res,
+      'llm-invocation',
+      '/catalog'
+    );
+
+    expect(handled).toBe(true);
+    expect(res.statusCode).toBe(200);
+    expect(updateViewerLlmInvocationSettingsMock).toHaveBeenCalledWith({
+      requestTimeoutMs: 300000,
+      maxRetries: 1,
+    });
+    expect(JSON.parse(res.body)).toEqual({
+      ok: true,
+      llmInvocation: {
+        requestTimeoutMs: 300000,
+        maxRetries: 1,
+      },
     });
   });
 });

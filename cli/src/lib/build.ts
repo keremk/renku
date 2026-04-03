@@ -7,6 +7,7 @@ import {
 	resolveBlobRefsToInputs,
 	injectAllSystemInputs,
 	executePlanWithConcurrency,
+	readLlmInvocationSettings,
 	type ExecutionPlan,
 	type Manifest,
 	type RunResult,
@@ -142,7 +143,8 @@ export async function executeBuild(
 		preResolved,
 		logger,
 		notifications,
-		options.conditionHints
+		options.conditionHints,
+		await readLlmInvocationSettings()
 	);
 
 	const run = await executePlanWithConcurrency(

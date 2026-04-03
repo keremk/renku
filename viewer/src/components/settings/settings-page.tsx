@@ -33,6 +33,7 @@ import {
   updateViewerApiTokens,
   updateViewerArtifactsSettings,
   updateViewerConcurrency,
+  updateViewerLlmInvocation,
   updateViewerStorageRoot,
   type ViewerArtifactsSettings,
   type SettingsApiTokens,
@@ -165,6 +166,15 @@ export function SettingsPage() {
   const [concurrencyError, setConcurrencyError] = useState<string | null>(null);
   const concurrencySaveRequestRef = useRef(0);
   const savedConcurrencyRef = useRef(CONCURRENCY_MIN);
+  const [llmRequestTimeoutDraft, setLlmRequestTimeoutDraft] = useState('');
+  const [llmMaxRetriesDraft, setLlmMaxRetriesDraft] = useState('');
+  const [isSavingLlmInvocation, setIsSavingLlmInvocation] = useState(false);
+  const [llmInvocationFeedback, setLlmInvocationFeedback] = useState<
+    string | null
+  >(null);
+  const [llmInvocationError, setLlmInvocationError] = useState<string | null>(
+    null
+  );
 
   const loadSettings = useCallback(async () => {
     setIsLoading(true);
@@ -177,6 +187,16 @@ export function SettingsPage() {
       setArtifactsDraft(snapshot.artifacts);
       setConcurrencyDraft(snapshot.concurrency);
       savedConcurrencyRef.current = snapshot.concurrency;
+      setLlmRequestTimeoutDraft(
+        snapshot.llmInvocation.requestTimeoutMs === null
+          ? ''
+          : String(timeoutMsToSeconds(snapshot.llmInvocation.requestTimeoutMs))
+      );
+      setLlmMaxRetriesDraft(
+        snapshot.llmInvocation.maxRetries === null
+          ? ''
+          : String(snapshot.llmInvocation.maxRetries)
+      );
     } catch (error) {
       setLoadError(
         error instanceof Error ? error.message : 'Failed to load settings'
@@ -217,6 +237,20 @@ export function SettingsPage() {
       window.clearTimeout(timeout);
     };
   }, [concurrencyFeedback]);
+
+  useEffect(() => {
+    if (!llmInvocationFeedback) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setLlmInvocationFeedback(null);
+    }, 1600);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [llmInvocationFeedback]);
 
   useEffect(() => {
     let disposed = false;
@@ -335,6 +369,26 @@ export function SettingsPage() {
     const nextRoot = dialogStorageRoot.trim();
     return nextRoot !== '' && nextRoot !== settings.storageRoot;
   }, [dialogStorageRoot, settings]);
+
+  const hasLlmInvocationChanges = useMemo(() => {
+    if (!settings) {
+      return false;
+    }
+
+    const currentTimeout =
+      settings.llmInvocation.requestTimeoutMs === null
+        ? ''
+        : String(timeoutMsToSeconds(settings.llmInvocation.requestTimeoutMs));
+    const currentRetries =
+      settings.llmInvocation.maxRetries === null
+        ? ''
+        : String(settings.llmInvocation.maxRetries);
+
+    return (
+      llmRequestTimeoutDraft.trim() !== currentTimeout ||
+      llmMaxRetriesDraft.trim() !== currentRetries
+    );
+  }, [settings, llmRequestTimeoutDraft, llmMaxRetriesDraft]);
 
   async function handleBrowseDialogStorageRoot(): Promise<void> {
     setIsBrowsingDialogStorageRoot(true);
@@ -470,6 +524,64 @@ export function SettingsPage() {
       );
     } finally {
       setIsSavingArtifacts(false);
+    }
+  }
+
+  async function handleSaveLlmInvocation(): Promise<void> {
+    setIsSavingLlmInvocation(true);
+    setLlmInvocationError(null);
+    setLlmInvocationFeedback(null);
+
+    try {
+      const requestTimeoutSeconds = parseNullableInteger(
+        llmRequestTimeoutDraft,
+        'Request timeout (seconds)',
+        1
+      );
+      const requestTimeoutMs =
+        requestTimeoutSeconds === null
+          ? null
+          : requestTimeoutSeconds * 1000;
+      const maxRetries = parseNullableInteger(
+        llmMaxRetriesDraft,
+        'Max retries',
+        0
+      );
+
+      const response = await updateViewerLlmInvocation({
+        requestTimeoutMs,
+        maxRetries,
+      });
+
+      setSettings((current) =>
+        current
+          ? {
+              ...current,
+              llmInvocation: response.llmInvocation,
+            }
+          : current
+      );
+      setLlmRequestTimeoutDraft(
+        response.llmInvocation.requestTimeoutMs === null
+          ? ''
+          : String(timeoutMsToSeconds(response.llmInvocation.requestTimeoutMs))
+      );
+      setLlmMaxRetriesDraft(
+        response.llmInvocation.maxRetries === null
+          ? ''
+          : String(response.llmInvocation.maxRetries)
+      );
+      setLlmInvocationFeedback(
+        'Saved to ~/.config/renku/config-setting.json.'
+      );
+    } catch (error) {
+      setLlmInvocationError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to save LLM invocation settings'
+      );
+    } finally {
+      setIsSavingLlmInvocation(false);
     }
   }
 
@@ -647,6 +759,77 @@ export function SettingsPage() {
                           </p>
                         </div>
                       </PropertyRow>
+
+                      <PropertyRow
+                        name='LLM retries & timeout'
+                        description='Global settings for prompt providers. Timeout is configured in seconds. Retries apply only to transient throttle/server failures (429/5xx).'
+                        className={SETTINGS_PROPERTY_ROW_CLASS}
+                      >
+                        <div className='space-y-2'>
+                          <div className={SETTINGS_CONTROL_ROW_CLASS}>
+                            <div className='flex items-center gap-2'>
+                              <span className='text-xs text-muted-foreground w-[110px]'>
+                                Timeout (sec)
+                              </span>
+                              <Input
+                                type='number'
+                                inputMode='numeric'
+                                min={1}
+                                step={1}
+                                value={llmRequestTimeoutDraft}
+                                onChange={(event) => {
+                                  setLlmInvocationError(null);
+                                  setLlmInvocationFeedback(null);
+                                  setLlmRequestTimeoutDraft(event.target.value);
+                                }}
+                                placeholder='360'
+                                className={cn(
+                                  SETTINGS_INPUT_CLASS,
+                                  'w-[160px]'
+                                )}
+                              />
+                            </div>
+                            <div className='flex items-center gap-2'>
+                              <span className='text-xs text-muted-foreground w-[110px]'>
+                                Max retries
+                              </span>
+                              <Input
+                                type='number'
+                                inputMode='numeric'
+                                min={0}
+                                step={1}
+                                value={llmMaxRetriesDraft}
+                                onChange={(event) => {
+                                  setLlmInvocationError(null);
+                                  setLlmInvocationFeedback(null);
+                                  setLlmMaxRetriesDraft(event.target.value);
+                                }}
+                                placeholder='2'
+                                className={cn(
+                                  SETTINGS_INPUT_CLASS,
+                                  'w-[160px]'
+                                )}
+                              />
+                            </div>
+                          </div>
+                          <div className={SETTINGS_CONTROL_ROW_CLASS}>
+                            <Button
+                              className='h-8'
+                              onClick={() => void handleSaveLlmInvocation()}
+                              disabled={
+                                isSavingLlmInvocation || !hasLlmInvocationChanges
+                              }
+                            >
+                              {isSavingLlmInvocation ? 'Saving...' : 'Save'}
+                            </Button>
+                            {llmInvocationFeedback && (
+                              <span className={SETTINGS_STATUS_SUCCESS_CLASS}>
+                                {llmInvocationFeedback}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </PropertyRow>
                     </div>
 
                     {storageFeedback && (
@@ -664,6 +847,12 @@ export function SettingsPage() {
                     {concurrencyError && (
                       <p className='text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-lg p-3'>
                         {concurrencyError}
+                      </p>
+                    )}
+
+                    {llmInvocationError && (
+                      <p className='text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-lg p-3'>
+                        {llmInvocationError}
                       </p>
                     )}
                   </div>
@@ -881,6 +1070,35 @@ export function SettingsPage() {
       </Dialog>
     </div>
   );
+}
+
+function parseNullableInteger(
+  source: string,
+  label: string,
+  minValue: number
+): number | null {
+  const trimmed = source.trim();
+  if (trimmed === '') {
+    return null;
+  }
+
+  const parsed = Number(trimmed);
+  if (!Number.isInteger(parsed)) {
+    throw new Error(`${label} must be an integer.`);
+  }
+  if (parsed < minValue) {
+    throw new Error(`${label} must be greater than or equal to ${minValue}.`);
+  }
+  return parsed;
+}
+
+function timeoutMsToSeconds(timeoutMs: number): number {
+  if (timeoutMs % 1000 !== 0) {
+    throw new Error(
+      `requestTimeoutMs must be stored in whole seconds (ms multiple of 1000). Received ${timeoutMs}.`
+    );
+  }
+  return timeoutMs / 1000;
 }
 
 function buildStorageSuccessMessage(mode: StorageRootUpdateMode): string {

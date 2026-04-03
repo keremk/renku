@@ -1,10 +1,13 @@
 import {
   persistProviderTokenPayload,
+  readLlmInvocationSettings,
   readSettingsSnapshot,
+  updateLlmInvocationSettings,
   updateWorkspaceArtifactsSettings,
   updateWorkspaceConcurrency,
   updateWorkspaceStorageRoot,
   type CliArtifactsConfig,
+  type LlmInvocationSettings,
   type ProviderTokenPayload,
   type SettingsSnapshot,
   type UpdateWorkspaceStorageRootResult,
@@ -36,6 +39,13 @@ export interface UpdateViewerArtifactsSettingsOptions {
 
 export interface UpdateViewerConcurrencyOptions {
   concurrency: number;
+}
+
+export type ViewerLlmInvocationSettings = LlmInvocationSettings;
+
+export interface UpdateViewerLlmInvocationSettingsOptions {
+  requestTimeoutMs: number | null;
+  maxRetries: number | null;
 }
 
 export async function readViewerSettingsSnapshot(): Promise<ViewerSettingsSnapshot> {
@@ -80,5 +90,18 @@ export async function updateViewerConcurrency(
 ): Promise<number> {
   return updateWorkspaceConcurrency({
     concurrency: options.concurrency,
+  });
+}
+
+export async function readViewerLlmInvocationSettings(): Promise<ViewerLlmInvocationSettings> {
+  return readLlmInvocationSettings();
+}
+
+export async function updateViewerLlmInvocationSettings(
+  options: UpdateViewerLlmInvocationSettingsOptions
+): Promise<ViewerLlmInvocationSettings> {
+  return updateLlmInvocationSettings({
+    requestTimeoutMs: options.requestTimeoutMs,
+    maxRetries: options.maxRetries,
   });
 }

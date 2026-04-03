@@ -20,6 +20,7 @@ import {
   isRenkuError,
   createLogger,
   createNotificationBus,
+  readLlmInvocationSettings,
   type ExecutionPlan,
   type Manifest,
   type RunConfig,
@@ -281,7 +282,9 @@ async function executeJobAsync(
       resolvedInputsWithSystem,
       preResolved,
       logger,
-      notifications
+      notifications,
+      undefined,
+      await readLlmInvocationSettings()
     );
 
     const concurrency = normalizeConcurrency(

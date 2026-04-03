@@ -79,7 +79,7 @@ describe('runReplicateWithRetries', () => {
   });
 
   it('does not retry non-429 errors', async () => {
-    const run = vi.fn().mockRejectedValue({ status: 500, message: 'server error' });
+    const run = vi.fn().mockRejectedValue({ status: 400, message: 'bad request' });
     await expect(
       runReplicateWithRetries({
         replicate: { run },
@@ -90,7 +90,76 @@ describe('runReplicateWithRetries', () => {
         model: 'owner/model',
         plannerContext: {},
       }),
-    ).rejects.toThrow(/server error/);
+    ).rejects.toThrow(/bad request/);
     expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries transient 5xx failures and succeeds', async () => {
+    vi.useFakeTimers();
+    const run = vi
+      .fn()
+      .mockRejectedValueOnce({ status: 503, message: 'service unavailable' })
+      .mockResolvedValueOnce('ok');
+
+    try {
+      const promise = runReplicateWithRetries({
+        replicate: { run },
+        modelIdentifier: 'owner/model',
+        input: {},
+        logger: { info: vi.fn(), debug: vi.fn() } as any,
+        jobId: 'job-4',
+        model: 'owner/model',
+        plannerContext: {},
+        maxAttempts: 2,
+        defaultRetryMs: 10,
+      });
+
+      await vi.runAllTimersAsync();
+      const result = await promise;
+
+      expect(result).toBe('ok');
+      expect(run).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('uses Retry-After header when present', async () => {
+    vi.useFakeTimers();
+    const run = vi
+      .fn()
+      .mockRejectedValueOnce({
+        status: 429,
+        headers: { 'retry-after': '2' },
+        message: 'Too Many Requests',
+      })
+      .mockResolvedValueOnce('ok');
+    const logger = { info: vi.fn(), debug: vi.fn() } as any;
+
+    try {
+      const promise = runReplicateWithRetries({
+        replicate: { run },
+        modelIdentifier: 'owner/model',
+        input: {},
+        logger,
+        jobId: 'job-5',
+        model: 'owner/model',
+        plannerContext: {},
+        maxAttempts: 2,
+        defaultRetryMs: 10,
+      });
+
+      await vi.runAllTimersAsync();
+      const result = await promise;
+
+      expect(result).toBe('ok');
+      expect(run).toHaveBeenCalledTimes(2);
+      const retryLog = logger.debug.mock.calls.find(
+        ([event]: [string]) => event === 'providers.replicate.retry'
+      );
+      expect(retryLog?.[1].retryAfterMs).toBe(3000);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

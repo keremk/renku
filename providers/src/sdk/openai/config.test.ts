@@ -25,4 +25,22 @@ describe('parseOpenAiConfig', () => {
     expect(normalized.properties?.title).toBeDefined();
     expect(normalized.additionalProperties).toBe(false);
   });
+
+  it('fails when maxRetries or requestTimeoutMs are configured in producer config', () => {
+    expect(() =>
+      parseOpenAiConfig({
+        systemPrompt: 'test system',
+        responseFormat: { type: 'text' },
+        maxRetries: 0,
+      })
+    ).toThrow(/config-setting\.json/i);
+
+    expect(() =>
+      parseOpenAiConfig({
+        systemPrompt: 'test system',
+        responseFormat: { type: 'text' },
+        requestTimeoutMs: 120000,
+      })
+    ).toThrow(/config-setting\.json/i);
+  });
 });

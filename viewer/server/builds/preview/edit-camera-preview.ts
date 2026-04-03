@@ -5,6 +5,7 @@ import {
   buildProducerOptionsFromBlueprint,
   createLogger,
   createNotificationBus,
+  readLlmInvocationSettings,
   loadYamlBlueprintTree,
   type BlobInput,
   type ExecutionPlan,
@@ -120,7 +121,9 @@ export async function generateEditOrCameraPreview(
       resolvedInputs,
       preResolved,
       logger,
-      notifications
+      notifications,
+      undefined,
+      await readLlmInvocationSettings()
     );
 
     const produceResult = await produce({

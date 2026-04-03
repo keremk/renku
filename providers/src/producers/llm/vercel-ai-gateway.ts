@@ -10,11 +10,13 @@ import {
   callVercelGateway,
   buildArtefactsFromResponse,
   sanitizeResponseMetadata,
+  sanitizeProviderMetadata,
   type OpenAiLlmConfig,
   type OpenAiResponseFormat,
   type VercelGatewayGenerationResult,
 } from '../../sdk/vercel-gateway/index.js';
 import { extractConditionHints } from './openai.js';
+import { applyRuntimeLlmInvocationSettings } from './invocation-settings.js';
 
 /**
  * Creates a handler factory for the Vercel AI Gateway producer.
@@ -57,7 +59,8 @@ export function createVercelAiGatewayHandler(): HandlerFactory {
         });
         try {
           // 1. Parse config
-          const config = runtime.config.parse<OpenAiLlmConfig>(parseOpenAiConfig);
+          const parsedConfig = runtime.config.parse<OpenAiLlmConfig>(parseOpenAiConfig);
+          const config = applyRuntimeLlmInvocationSettings(parsedConfig, request);
 
           // 2. Auto-derive responseFormat from outputSchema (always)
           const outputSchema = getOutputSchemaFromRequest(request);
@@ -106,15 +109,24 @@ export function createVercelAiGatewayHandler(): HandlerFactory {
           const conditionHints = extractConditionHints(request);
 
           // 7. Call provider via Vercel AI Gateway
-          const generation: VercelGatewayGenerationResult = await callVercelGateway({
-            model,
-            prompts,
-            responseFormat,
-            config,
-            mode: init.mode,
-            request,
-            conditionHints,
-          });
+          let generation: VercelGatewayGenerationResult;
+          try {
+            generation = await callVercelGateway({
+              model,
+              prompts,
+              responseFormat,
+              config,
+              mode: init.mode,
+              request,
+              conditionHints,
+            });
+          } catch (error) {
+            throw normalizeGatewayInvocationError(
+              error,
+              request.model,
+              responseFormat.type,
+            );
+          }
 
           // 8. Build artifacts using implicit mapping
           const artefacts = buildArtefactsFromResponse(generation.data, request.produces, {
@@ -136,6 +148,8 @@ export function createVercelAiGatewayHandler(): HandlerFactory {
             provider: 'vercel',
             model: request.model,
             response: sanitizeResponseMetadata(generation.response),
+            providerMetadata: sanitizeProviderMetadata(generation.providerMetadata),
+            gatewayRoutingAttempts: extractGatewayRoutingAttempts(generation.providerMetadata),
             usage: generation.usage,
             warnings: generation.warnings,
             textLength,
@@ -336,4 +350,104 @@ function buildResponseFormatFromSchema(schemaString: string): OpenAiResponseForm
     name: typeof schema.title === 'string' ? schema.title : 'output',
     description: typeof schema.description === 'string' ? schema.description : undefined,
   };
+}
+
+function normalizeGatewayInvocationError(
+  error: unknown,
+  model: string,
+  responseFormatType: OpenAiResponseFormat['type'],
+): unknown {
+  if (!isRecord(error)) {
+    return error;
+  }
+
+  if (readString(error, 'name') !== 'GatewayResponseError') {
+    return error;
+  }
+
+  const message = readString(error, 'message');
+  if (!message?.includes('Invalid error response format')) {
+    return error;
+  }
+
+  const statusCode = readNumber(error, 'statusCode');
+  const rawResponse = stringifyUnknown(error.response);
+  const details: string[] = [
+    `Vercel AI Gateway returned a non-JSON error payload while calling model "${model}".`,
+    statusCode !== undefined ? `Status code: ${statusCode}.` : undefined,
+    rawResponse ? `Gateway response: ${rawResponse}.` : undefined,
+    `Requested response format: ${responseFormatType}.`,
+    'This usually means the upstream provider timed out or rejected the request format.',
+  ].filter((entry): entry is string => typeof entry === 'string');
+
+  return createProviderError(
+    SdkErrorCode.PROVIDER_PREDICTION_FAILED,
+    details.join(' '),
+    {
+      kind: 'unknown',
+      retryable: false,
+      metadata: {
+        provider: 'vercel',
+        model,
+        reason: 'gateway_invalid_error_payload',
+        statusCode,
+        responseFormat: responseFormatType,
+        gatewayResponse: rawResponse,
+      },
+      raw: error,
+    },
+  );
+}
+
+function stringifyUnknown(value: unknown): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value === 'string') {
+    return truncateText(value, 400);
+  }
+  try {
+    return truncateText(JSON.stringify(value), 400);
+  } catch {
+    return truncateText(String(value), 400);
+  }
+}
+
+function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) {
+    return text;
+  }
+  return `${text.slice(0, maxLength)}...`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function readString(source: Record<string, unknown>, key: string): string | undefined {
+  const value = source[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+function readNumber(source: Record<string, unknown>, key: string): number | undefined {
+  const value = source[key];
+  return typeof value === 'number' ? value : undefined;
+}
+
+function extractGatewayRoutingAttempts(
+  providerMetadata: Record<string, unknown> | undefined,
+): unknown[] | undefined {
+  if (!providerMetadata) {
+    return undefined;
+  }
+  const gateway = providerMetadata.gateway;
+  if (!gateway || typeof gateway !== 'object' || Array.isArray(gateway)) {
+    return undefined;
+  }
+  const routing = (gateway as Record<string, unknown>).routing;
+  if (!routing || typeof routing !== 'object' || Array.isArray(routing)) {
+    return undefined;
+  }
+  const attempts = (routing as Record<string, unknown>).attempts;
+  return Array.isArray(attempts) ? attempts : undefined;
 }

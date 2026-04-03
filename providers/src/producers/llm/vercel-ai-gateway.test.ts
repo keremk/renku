@@ -484,7 +484,7 @@ describe('createVercelAiGatewayHandler', () => {
     expect(title?.blob?.data).toContain('Simulated MovieTitle');
   });
 
-  it('passes call settings (temperature, maxOutputTokens, penalties) to AI SDK', async () => {
+  it('passes call settings (temperature, maxOutputTokens, penalties, retries) to AI SDK', async () => {
     mocks.generateText.mockResolvedValueOnce({
       text: 'Response',
       usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
@@ -506,6 +506,12 @@ describe('createVercelAiGatewayHandler', () => {
           presencePenalty: 0.5,
           frequencyPenalty: 0.3,
         },
+        extras: {
+          resolvedInputs: {},
+          runtimeLlmInvocationSettings: {
+            maxRetries: 0,
+          },
+        },
       },
     });
 
@@ -520,6 +526,160 @@ describe('createVercelAiGatewayHandler', () => {
     expect(args.maxOutputTokens).toBe(1000);
     expect(args.presencePenalty).toBe(0.5);
     expect(args.frequencyPenalty).toBe(0.3);
+    expect(args.maxRetries).toBe(0);
+  });
+
+  it('does not inject provider options when provider-specific settings are not configured', async () => {
+    mocks.generateText.mockResolvedValueOnce({
+      text: 'Response',
+      usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+      warnings: [],
+      response: { id: 'resp-no-route', model: 'claude-sonnet-4', createdAt: '' },
+    });
+
+    const handler = buildHandler();
+    await handler.warmStart?.({ logger: undefined });
+
+    const request = createJobContext({
+      produces: ['Artifact:Output'],
+      context: {
+        providerConfig: {
+          systemPrompt: 'Test prompt',
+          responseFormat: { type: 'text' },
+        },
+      },
+    });
+
+    await handler.invoke(request);
+
+    expect(mocks.generateText).toHaveBeenCalledTimes(1);
+    const args = mocks.generateText.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(args.providerOptions).toBeUndefined();
+  });
+
+  it('passes provider-specific settings to model provider options', async () => {
+    mocks.generateText.mockResolvedValueOnce({
+      text: 'Response',
+      usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+      warnings: [],
+      response: { id: 'resp-provider-options', model: 'claude-sonnet-4', createdAt: '' },
+    });
+
+    const handler = buildHandler();
+    await handler.warmStart?.({ logger: undefined });
+
+    const request = createJobContext({
+      produces: ['Artifact:Output'],
+      context: {
+        providerConfig: {
+          systemPrompt: 'Test prompt',
+          responseFormat: { type: 'text' },
+          includeReasoning: true,
+        },
+      },
+    });
+
+    await handler.invoke(request);
+
+    expect(mocks.generateText).toHaveBeenCalledTimes(1);
+    const args = mocks.generateText.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(args.providerOptions).toEqual({
+      anthropic: {
+        includeReasoning: true,
+      },
+    });
+  });
+
+  it('passes request abort signal to AI SDK calls', async () => {
+    mocks.generateText.mockResolvedValueOnce({
+      text: 'Response',
+      usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+      warnings: [],
+      response: { id: 'resp', model: 'claude-sonnet-4', createdAt: '' },
+    });
+
+    const handler = buildHandler();
+    await handler.warmStart?.({ logger: undefined });
+
+    const abortController = new AbortController();
+    const request = createJobContext({
+      signal: abortController.signal,
+      produces: ['Artifact:Output'],
+      context: {
+        providerConfig: {
+          systemPrompt: 'Test prompt',
+          responseFormat: { type: 'text' },
+        },
+      },
+    });
+
+    await handler.invoke(request);
+
+    expect(mocks.generateText).toHaveBeenCalledTimes(1);
+    const args = mocks.generateText.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(args.abortSignal).toBe(abortController.signal);
+  });
+
+  it('aborts hanging SDK calls when requestTimeoutMs is configured', async () => {
+    mocks.generateText.mockImplementationOnce(
+      (args: { abortSignal?: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          if (!args.abortSignal) {
+            reject(new Error('Expected abortSignal to be passed to AI SDK.'));
+            return;
+          }
+
+          const timeout = setTimeout(() => {
+            reject(
+              new Error('Abort signal was not triggered by requestTimeoutMs.')
+            );
+          }, 200);
+
+          args.abortSignal.addEventListener(
+            'abort',
+            () => {
+              clearTimeout(timeout);
+              reject(
+                args.abortSignal?.reason ??
+                  new Error('Request aborted without a reason.')
+              );
+            },
+            { once: true }
+          );
+        })
+    );
+
+    const handler = buildHandler();
+    await handler.warmStart?.({ logger: undefined });
+
+    const request = createJobContext({
+      produces: ['Artifact:Output'],
+      context: {
+        providerConfig: {
+          systemPrompt: 'Test prompt',
+          responseFormat: { type: 'text' },
+        },
+        extras: {
+          resolvedInputs: {},
+          runtimeLlmInvocationSettings: {
+            requestTimeoutMs: 25,
+          },
+        },
+      },
+    });
+
+    await expect(handler.invoke(request)).rejects.toThrow(
+      /timed out after 25ms/i
+    );
   });
 
   it('marks artefacts as failed when field is missing from JSON response', async () => {
@@ -615,6 +775,113 @@ describe('createVercelAiGatewayHandler', () => {
     await expect(handler.invoke(request)).rejects.toThrow('Network error');
   });
 
+  it('normalizes malformed gateway error payload failures with actionable context', async () => {
+    const gatewayError = Object.assign(
+      new Error('Invalid error response format: Gateway request failed'),
+      {
+        name: 'GatewayResponseError',
+        statusCode: 504,
+        response: 'Gateway request failed',
+      }
+    );
+    mocks.generateText.mockRejectedValueOnce(gatewayError);
+
+    const handler = buildHandler();
+    await handler.warmStart?.({ logger: undefined });
+
+    const request = createJobContext({
+      produces: ['Artifact:Output'],
+      context: {
+        providerConfig: {
+          systemPrompt: 'Test',
+          responseFormat: { type: 'text' },
+        },
+      },
+    });
+
+    const invocation = handler.invoke(request);
+    await expect(invocation).rejects.toThrow(/non-JSON error payload/i);
+    await expect(invocation).rejects.toThrow(
+      /upstream provider timed out|request format/i
+    );
+  });
+
+  it('falls back to JSON text + local schema validation when native structured output fails', async () => {
+    const gatewayError = Object.assign(
+      new Error('Invalid error response format: Gateway request failed'),
+      {
+        name: 'GatewayResponseError',
+        statusCode: 500,
+        response: {},
+      }
+    );
+    mocks.generateText.mockRejectedValueOnce(gatewayError);
+    mocks.generateText.mockResolvedValueOnce({
+      text: '{"Title":"Recovered from fallback"}',
+      usage: { inputTokens: 40, outputTokens: 20, totalTokens: 60 },
+      warnings: [],
+      response: {
+        id: 'resp-fallback',
+        model: 'anthropic/claude-sonnet-4.5',
+        createdAt: '2025-01-01T00:00:00Z',
+      },
+      providerMetadata: {
+        gateway: {
+          routing: {
+            attempts: [
+              {
+                provider: 'anthropic',
+                model: 'anthropic/claude-sonnet-4.5',
+                timeout: false,
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    const handler = buildHandler();
+    await handler.warmStart?.({ logger: undefined });
+
+    const request = createJobContext({
+      model: 'anthropic/claude-sonnet-4.5',
+      produces: ['Artifact:Title'],
+      context: {
+        providerConfig: {
+          systemPrompt: 'Generate title',
+        },
+        extras: {
+          resolvedInputs: {},
+          schema: {
+            output: JSON.stringify({
+              title: 'Output',
+              type: 'object',
+              properties: { Title: { type: 'string' } },
+              required: ['Title'],
+              additionalProperties: false,
+            }),
+          },
+        },
+      },
+    });
+
+    const result = await handler.invoke(request);
+    expect(result.status).toBe('succeeded');
+    expect(result.artefacts[0]?.status).toBe('succeeded');
+    expect(result.artefacts[0]?.blob?.data).toBe('Recovered from fallback');
+    expect(mocks.generateText).toHaveBeenCalledTimes(2);
+    expect(result.diagnostics?.warnings).toContain(
+      'Structured output fallback used (JSON text + local schema validation).'
+    );
+    expect(result.diagnostics?.gatewayRoutingAttempts).toEqual([
+      {
+        provider: 'anthropic',
+        model: 'anthropic/claude-sonnet-4.5',
+        timeout: false,
+      },
+    ]);
+  });
+
   it('includes usage and response metadata in diagnostics', async () => {
     mocks.generateText.mockResolvedValueOnce({
       output: { Title: 'Test' },
@@ -624,6 +891,15 @@ describe('createVercelAiGatewayHandler', () => {
         id: 'resp-123',
         model: 'claude-sonnet-4',
         createdAt: '2025-01-01T00:00:00Z',
+      },
+      providerMetadata: {
+        gateway: {
+          routing: {
+            attempts: [
+              { provider: 'anthropic', model: 'anthropic/claude-sonnet-4.5' },
+            ],
+          },
+        },
       },
     });
 
@@ -666,6 +942,24 @@ describe('createVercelAiGatewayHandler', () => {
       'Some warning about token usage',
     ]);
     expect(result.diagnostics?.response).toMatchObject({ id: 'resp-123' });
+    expect(result.diagnostics?.providerMetadata).toEqual({
+      gateway: {
+        routing: {
+          attempts: [
+            {
+              provider: 'anthropic',
+              model: 'anthropic/claude-sonnet-4.5',
+            },
+          ],
+        },
+      },
+    });
+    expect(result.diagnostics?.gatewayRoutingAttempts).toEqual([
+      {
+        provider: 'anthropic',
+        model: 'anthropic/claude-sonnet-4.5',
+      },
+    ]);
     expect(result.diagnostics?.provider).toBe('vercel');
   });
 

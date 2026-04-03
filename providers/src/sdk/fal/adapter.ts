@@ -126,9 +126,9 @@ export const falAdapter: ProviderAdapter = {
   },
 
   createRetryWrapper(options: RetryWrapperOptions): RetryWrapper {
-    const { logger, jobId, model } = options;
+    const { logger, jobId, model, requestTimeoutMs } = options;
     const pollInterval = getPollIntervalForModel(model);
-    const timeout = getTimeoutForModel(model);
+    const timeout = requestTimeoutMs ?? getTimeoutForModel(model);
 
     return {
       async execute<T>(fn: () => Promise<T>): Promise<T> {

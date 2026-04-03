@@ -10,6 +10,7 @@ import {
   type BlobInput,
   type Logger,
   type NotificationBus,
+  type LlmInvocationSettings,
 } from '@gorenku/core';
 import type { ProducerOptionsMap, LoadedProducerOption } from '@gorenku/core';
 import type {
@@ -47,7 +48,8 @@ export function createProviderProduce(
   preResolved: ResolvedProviderHandler[] = [],
   logger: Logger = globalThis.console,
   notifications?: NotificationBus,
-  conditionHints?: ConditionHints
+  conditionHints?: ConditionHints,
+  llmInvocationSettings?: LlmInvocationSettings
 ): ProduceFn {
   const handlerCache = new Map<string, ProducerHandler>();
 
@@ -93,11 +95,15 @@ export function createProviderProduce(
     }
 
     const prepared = prepareJobContext(request.job, resolvedInputs);
+    const runtimeLlmInvocationSettings =
+      normalizeRuntimeLlmInvocationSettings(llmInvocationSettings);
+
     const context = buildProviderContext(
       providerOption,
       prepared.context,
       prepared.resolvedInputs,
-      conditionHints
+      conditionHints,
+      runtimeLlmInvocationSettings
     );
     const log = formatResolvedInputs(prepared.resolvedInputs);
     logger.debug?.('provider.invoke.inputs', {
@@ -112,19 +118,54 @@ export function createProviderProduce(
     );
 
     const produces = request.job.produces.map((id) => `   • ${id}`).join('\n');
+    const attemptSummary = formatAttemptSummary(request.attempt);
+    const executionControlsSummary = formatExecutionControlsSummary(
+      runtimeLlmInvocationSettings
+    );
+    const executionContextSummary = [attemptSummary, executionControlsSummary]
+      .filter((segment) => segment.length > 0)
+      .join(', ');
+    const executionControlsSuffix =
+      executionContextSummary.length > 0
+        ? `\n  Controls: ${executionContextSummary}`
+        : '';
     logger.info?.(
-      `- ${providerOption.provider}/${providerOption.model} is starting. It will produce:\n${produces}`
+      `- ${providerOption.provider}/${providerOption.model} is starting. It will produce:\n${produces}${executionControlsSuffix}`
     );
     logger.debug?.(
       `provider.invoke.start ${providerOption.provider}/${providerOption.model} [${providerOption.environment}] -> ${request.job.produces.join(', ')}`
     );
     notifications?.publish({
       type: 'progress',
-      message: `Invoking ${providerOption.provider}/${providerOption.model} for ${producerName}.`,
+      message:
+        `Invoking ${providerOption.provider}/${providerOption.model} for ${producerName}.` +
+        (executionContextSummary.length > 0
+          ? ` Controls: ${executionContextSummary}.`
+          : ''),
       timestamp: new Date().toISOString(),
     });
 
-    let response;
+    let response: Awaited<ReturnType<ProducerHandler['invoke']>>;
+    const heartbeatStartedAt = Date.now();
+    const heartbeatIntervalMs = 15000;
+    const heartbeat = setInterval(() => {
+      const elapsedSeconds = Math.floor((Date.now() - heartbeatStartedAt) / 1000);
+      logger.info?.(
+        `[provider-execution] ${providerOption.provider}/${providerOption.model} is still running for "${producerName}" (${elapsedSeconds}s elapsed)` +
+          (executionContextSummary.length > 0
+            ? ` [controls: ${executionContextSummary}]`
+            : '')
+      );
+      notifications?.publish({
+        type: 'progress',
+        message:
+          `Still waiting on ${providerOption.provider}/${providerOption.model} for ${producerName} (${elapsedSeconds}s).` +
+          (executionContextSummary.length > 0
+            ? ` Controls: ${executionContextSummary}.`
+            : ''),
+        timestamp: new Date().toISOString(),
+      });
+    }, heartbeatIntervalMs);
     try {
       response = await handler.invoke({
         jobId: request.job.jobId,
@@ -141,18 +182,45 @@ export function createProviderProduce(
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
+      const timeoutMsFromError = extractTimeoutMsFromError(error);
+      if (timeoutMsFromError !== undefined) {
+        const timeoutSummary = formatTimeoutSummary(
+          request.attempt,
+          timeoutMsFromError,
+          runtimeLlmInvocationSettings
+        );
+        logger.warn?.(
+          `[provider-execution] ${providerOption.provider}/${providerOption.model} hit configured request timeout for "${producerName}" (${timeoutSummary})`
+        );
+        notifications?.publish({
+          type: 'warning',
+          message:
+            `Configured request timeout reached for ${providerOption.provider}/${providerOption.model} on ${producerName} (${timeoutSummary}).`,
+          timestamp: new Date().toISOString(),
+        });
+      }
       logger.error?.('provider.invoke.failed', {
         provider: providerOption.provider,
         model: providerOption.model,
         environment: providerOption.environment,
         error: errorMessage,
+        attempt: request.attempt,
+        requestTimeoutMs: runtimeLlmInvocationSettings?.requestTimeoutMs,
+        maxRetries: runtimeLlmInvocationSettings?.maxRetries,
+        timeoutMsFromError,
       });
       notifications?.publish({
         type: 'error',
-        message: `Provider ${providerOption.provider}/${providerOption.model} failed for ${producerName}: ${errorMessage}`,
+        message:
+          `Provider ${providerOption.provider}/${providerOption.model} failed for ${producerName}: ${errorMessage}` +
+          (executionContextSummary.length > 0
+            ? ` Controls: ${executionContextSummary}.`
+            : ''),
         timestamp: new Date().toISOString(),
       });
       throw error;
+    } finally {
+      clearInterval(heartbeat);
     }
 
     logger.info?.(
@@ -163,7 +231,11 @@ export function createProviderProduce(
     );
     notifications?.publish({
       type: 'success',
-      message: `Finished ${providerOption.provider}/${providerOption.model} for ${producerName}.`,
+      message:
+        `Finished ${providerOption.provider}/${providerOption.model} for ${producerName}.` +
+        (executionContextSummary.length > 0
+          ? ` Controls: ${executionContextSummary}.`
+          : ''),
       timestamp: new Date().toISOString(),
     });
 
@@ -280,12 +352,18 @@ export function buildProviderContext(
   option: LoadedProducerOption,
   jobContext: ProducerJobContext | undefined,
   resolvedInputs: Record<string, unknown>,
-  conditionHints?: ConditionHints
+  conditionHints?: ConditionHints,
+  runtimeLlmInvocationSettings?: RuntimeLlmInvocationSettings
 ): ProviderContextPayload {
   const baseConfig = normalizeProviderConfig(option);
   const rawAttachments =
     option.attachments.length > 0 ? option.attachments : undefined;
-  const extras = buildContextExtras(jobContext, resolvedInputs, conditionHints);
+  const extras = buildContextExtras(
+    jobContext,
+    resolvedInputs,
+    conditionHints,
+    runtimeLlmInvocationSettings
+  );
 
   return {
     providerConfig: baseConfig,
@@ -308,7 +386,8 @@ function normalizeProviderConfig(option: LoadedProducerOption): unknown {
 function buildContextExtras(
   jobContext: ProducerJobContext | undefined,
   resolvedInputs: Record<string, unknown>,
-  conditionHints?: ConditionHints
+  conditionHints?: ConditionHints,
+  runtimeLlmInvocationSettings?: RuntimeLlmInvocationSettings
 ): Record<string, unknown> {
   const plannerContext = jobContext
     ? {
@@ -336,6 +415,9 @@ function buildContextExtras(
   // Add condition hints for dry-run simulation
   if (conditionHints) {
     extras.conditionHints = conditionHints;
+  }
+  if (runtimeLlmInvocationSettings) {
+    extras.runtimeLlmInvocationSettings = runtimeLlmInvocationSettings;
   }
   return extras;
 }
@@ -431,4 +513,124 @@ function validateResolvedInputs(
       `[provider.invoke.inputs] ${producerName} missing resolved input(s): ${missing.join(', ')}.`
     );
   }
+}
+
+interface RuntimeLlmInvocationSettings {
+  requestTimeoutMs?: number;
+  maxRetries?: number;
+}
+
+function normalizeRuntimeLlmInvocationSettings(
+  settings: LlmInvocationSettings | undefined
+): RuntimeLlmInvocationSettings | undefined {
+  if (!settings) {
+    return undefined;
+  }
+
+  const normalized: RuntimeLlmInvocationSettings = {};
+  if (settings.requestTimeoutMs !== null) {
+    normalized.requestTimeoutMs = settings.requestTimeoutMs;
+  }
+  if (settings.maxRetries !== null) {
+    normalized.maxRetries = settings.maxRetries;
+  }
+
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
+
+function formatExecutionControlsSummary(
+  settings: RuntimeLlmInvocationSettings | undefined
+): string {
+  if (!settings) {
+    return '';
+  }
+
+  const segments: string[] = [];
+  if (settings.requestTimeoutMs !== undefined) {
+    segments.push(`timeout=${formatTimeoutDuration(settings.requestTimeoutMs)}`);
+  }
+  if (settings.maxRetries !== undefined) {
+    segments.push(`maxRetries=${settings.maxRetries}`);
+  }
+  return segments.join(', ');
+}
+
+function formatAttemptSummary(attempt: number): string {
+  return `attempt=${attempt}`;
+}
+
+function formatTimeoutSummary(
+  attempt: number,
+  timeoutMs: number,
+  settings: RuntimeLlmInvocationSettings | undefined
+): string {
+  const segments = [
+    `attempt=${attempt}`,
+    `timeout=${formatTimeoutDuration(timeoutMs)}`,
+  ];
+  if (settings?.maxRetries !== undefined) {
+    segments.push(`maxRetries=${settings.maxRetries}`);
+  }
+  return segments.join(', ');
+}
+
+function formatTimeoutDuration(timeoutMs: number): string {
+  if (timeoutMs % 1000 === 0) {
+    return `${timeoutMs / 1000}s`;
+  }
+  return `${timeoutMs}ms`;
+}
+
+function extractTimeoutMsFromError(error: unknown): number | undefined {
+  const queue: unknown[] = [error];
+  const visited = new Set<unknown>();
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (current === undefined || current === null || visited.has(current)) {
+      continue;
+    }
+    visited.add(current);
+
+    if (current instanceof Error) {
+      const timeoutMs = parseTimeoutMs(current.message);
+      if (timeoutMs !== undefined) {
+        return timeoutMs;
+      }
+      const cause = (current as Error & { cause?: unknown }).cause;
+      if (cause !== undefined) {
+        queue.push(cause);
+      }
+      continue;
+    }
+
+    if (isRecord(current)) {
+      const message =
+        typeof current.message === 'string' ? current.message : undefined;
+      const timeoutMs = message ? parseTimeoutMs(message) : undefined;
+      if (timeoutMs !== undefined) {
+        return timeoutMs;
+      }
+      const cause = current.cause;
+      if (cause !== undefined) {
+        queue.push(cause);
+      }
+      const raw = current.raw;
+      if (raw !== undefined) {
+        queue.push(raw);
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function parseTimeoutMs(message: string): number | undefined {
+  const match = message.match(/Provider request timed out after (\d+)ms\./);
+  if (!match?.[1]) {
+    return undefined;
+  }
+
+  const parsed = Number.parseInt(match[1], 10);
+  return Number.isInteger(parsed) ? parsed : undefined;
 }
