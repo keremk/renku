@@ -791,6 +791,41 @@ describe('ConfigPropertiesEditor', () => {
       ]);
     });
 
+    it('renders nullable array-object-cards fields without crashing', () => {
+      const fields = [
+        createMockField('multi_prompt', {
+          component: 'nullable',
+          label: 'Multi Prompt',
+          value: createMockField('multi_prompt', {
+            component: 'array-object-cards',
+            label: 'Multi Prompt',
+            schema: { type: 'array', items: { type: 'object' } },
+            item: createMockField('multi_prompt.item', {
+              component: 'object',
+              label: 'Item',
+              schema: { type: 'object' },
+            }),
+          }),
+        }),
+      ];
+
+      render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{ multi_prompt: [{ prompt: 'shot one', duration: '5' }] }}
+          isEditable={true}
+          onChange={() => {}}
+        />
+      );
+
+      expect(
+        screen.getByText('Array object card editing is not available yet.')
+      ).toBeTruthy();
+      expect(
+        screen.getByText('[{"prompt":"shot one","duration":"5"}]')
+      ).toBeTruthy();
+    });
+
     it('lays out registered card editors in a horizontal wrap grid', () => {
       const fields = [
         createMockField('timeline', {

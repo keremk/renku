@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { ConfigFieldDescriptor } from '@/types/blueprint-graph';
 import { Switch } from '@/components/ui/switch';
 import { PropertyRow } from '../../shared';
+import { ReadOnlyValue } from './read-only-value';
 import { ResetOverrideButton } from './reset-override-button';
 import { ScalarControl } from './scalar-control';
 
@@ -52,13 +53,13 @@ export function NullableEditor({
 
         {!isNull && (
           <div className='min-w-48 flex-1'>
-            <ScalarControl
-              field={valueField}
-              value={effectiveValue}
-              isEditable={isEditable}
-              readOnlyMode={readOnlyMode}
-              onChange={onChange}
-            />
+            {renderNullableValueControl({
+              valueField,
+              value: effectiveValue,
+              isEditable,
+              readOnlyMode,
+              onChange,
+            })}
           </div>
         )}
 
@@ -70,4 +71,63 @@ export function NullableEditor({
       </div>
     </PropertyRow>
   );
+}
+
+function renderNullableValueControl(args: {
+  valueField: ConfigFieldDescriptor;
+  value: unknown;
+  isEditable: boolean;
+  readOnlyMode: 'none' | 'dynamic-connected';
+  onChange: (value: unknown) => void;
+}) {
+  switch (args.valueField.component) {
+    case 'string':
+    case 'file-uri':
+    case 'string-enum':
+    case 'number':
+    case 'integer':
+    case 'boolean':
+    case 'array-scalar':
+    case 'array-file-uri':
+      return (
+        <ScalarControl
+          field={args.valueField}
+          value={args.value}
+          isEditable={args.isEditable}
+          readOnlyMode={args.readOnlyMode}
+          onChange={args.onChange}
+        />
+      );
+
+    case 'array-object-cards':
+      return (
+        <div className='space-y-2'>
+          <span className='text-xs text-muted-foreground'>
+            Array object card editing is not available yet.
+          </span>
+          <ReadOnlyValue value={args.value} />
+        </div>
+      );
+
+    case 'object':
+    case 'nullable':
+    case 'union':
+    case 'placeholder-to-be-annotated':
+      return (
+        <div className='space-y-2'>
+          <span className='text-xs text-muted-foreground'>
+            "{args.valueField.component}" nullable values are read-only in this
+            viewer.
+          </span>
+          <ReadOnlyValue value={args.value} />
+        </div>
+      );
+
+    default:
+      return assertNever(args.valueField.component);
+  }
+}
+
+function assertNever(component: never): never {
+  throw new Error(`Unhandled nullable value component "${component}".`);
 }
