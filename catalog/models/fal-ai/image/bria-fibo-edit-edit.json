@@ -43,7 +43,8 @@
         "description": "Reference image (file or URL).",
         "anyOf": [
           {
-            "type": "string"
+            "type": "string",
+            "format": "uri"
           },
           {
             "type": "null"
@@ -81,7 +82,8 @@
       "mask_url": {
         "anyOf": [
           {
-            "type": "string"
+            "type": "string",
+            "format": "uri"
           },
           {
             "type": "null"
@@ -796,7 +798,7 @@
           "label": "Image Url",
           "value": {
             "pointer": "/input_schema/properties/image_url/anyOf/0",
-            "component": "string",
+            "component": "file-uri",
             "label": "Image Url"
           }
         },
@@ -835,7 +837,7 @@
           "label": "Mask Url",
           "value": {
             "pointer": "/input_schema/properties/mask_url/anyOf/0",
-            "component": "string",
+            "component": "file-uri",
             "label": "Mask Url"
           }
         },
@@ -1277,8 +1279,7 @@
                 }
               }
             }
-          },
-          "visibility": "hidden"
+          }
         }
       }
     }

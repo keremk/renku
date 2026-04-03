@@ -85,7 +85,8 @@
       "end_image_url": {
         "anyOf": [
           {
-            "type": "string"
+            "type": "string",
+            "format": "uri"
           },
           {
             "type": "null"
@@ -350,7 +351,7 @@
           "label": "End Image Url",
           "value": {
             "pointer": "/input_schema/properties/end_image_url/anyOf/0",
-            "component": "string",
+            "component": "file-uri",
             "label": "End Image Url"
           }
         }

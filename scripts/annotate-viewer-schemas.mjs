@@ -8,6 +8,7 @@ import {
   listCatalogModelSchemaPaths,
   validateSchemaFileViewerAnnotations,
 } from './schema-viewer-annotations.mjs';
+import { normalizeSchemaUriFormats } from './schema-uri-format.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, '..');
@@ -16,6 +17,7 @@ function parseArgs() {
   const args = process.argv.slice(2);
   const dryRun = args.includes('--dry-run');
   const rewrite = args.includes('--rewrite');
+  const normalizeUriFormats = args.includes('--normalize-uri-formats');
   const modelArg = args.find((arg) => arg.startsWith('--model='));
   const modelFilter = modelArg ? modelArg.slice('--model='.length) : undefined;
   const catalogArg = args.find((arg) => arg.startsWith('--catalog-root='));
@@ -26,13 +28,15 @@ function parseArgs() {
   return {
     dryRun,
     rewrite,
+    normalizeUriFormats,
     modelFilter,
     catalogRoot: resolve(repoRoot, catalogRoot),
   };
 }
 
 async function main() {
-  const { dryRun, rewrite, modelFilter, catalogRoot } = parseArgs();
+  const { dryRun, rewrite, normalizeUriFormats, modelFilter, catalogRoot } =
+    parseArgs();
   const allPaths = await listCatalogModelSchemaPaths(catalogRoot);
   const targetPaths = filterSchemaPathsByModel(allPaths, modelFilter);
 
@@ -53,7 +57,12 @@ async function main() {
   for (const schemaPath of targetPaths) {
     try {
       const raw = await readFile(schemaPath, 'utf8');
-      const schemaFile = JSON.parse(raw);
+      const originalSchemaFile = JSON.parse(raw);
+      let schemaFile = originalSchemaFile;
+
+      if (normalizeUriFormats) {
+        schemaFile = normalizeSchemaUriFormats(schemaFile);
+      }
 
       const annotation = annotateSchemaFileForViewer(schemaFile, { rewrite });
       if (annotation.errors.length > 0) {
@@ -80,7 +89,12 @@ async function main() {
         }
       }
 
-      if (annotation.changed) {
+      const schemaChangedByNormalization =
+        normalizeUriFormats &&
+        JSON.stringify(schemaFile) !== JSON.stringify(originalSchemaFile);
+      const fileChanged = annotation.changed || schemaChangedByNormalization;
+
+      if (fileChanged) {
         changedFiles += 1;
         if (!dryRun) {
           await writeFile(

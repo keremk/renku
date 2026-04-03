@@ -249,7 +249,10 @@ describe('getProducerConfigSchemas', () => {
     const lipsyncProducer = response.producers.LipsyncVideoProducer;
     const ltxSchema =
       lipsyncProducer?.modelSchemas['fal-ai/ltx-2.3/audio-to-video'];
+    const ltx19Schema =
+      lipsyncProducer?.modelSchemas['fal-ai/ltx-2-19b/audio-to-video'];
     expect(ltxSchema).toBeDefined();
+    expect(ltx19Schema).toBeDefined();
 
     const guidanceField = findFieldByPath(
       ltxSchema?.fields as Array<{
@@ -277,6 +280,104 @@ describe('getProducerConfigSchemas', () => {
     expect(guidanceValue?.component).toBe('number');
     expect(guidanceValue?.schema?.minimum).toBe(1);
     expect(guidanceValue?.schema?.maximum).toBe(50);
+
+    const ltxEndImageUrlField = findFieldByPath(
+      ltx19Schema?.fields as Array<{
+        keyPath: string;
+        component: string;
+        mappingSource: string;
+        schema?: { minimum?: number; maximum?: number; default?: unknown };
+        fields?: unknown[];
+        value?: unknown;
+        item?: unknown;
+        variants?: unknown[];
+      }>,
+      'end_image_url'
+    );
+
+    expect(ltxEndImageUrlField).toBeDefined();
+    expect(ltxEndImageUrlField?.component).toBe('nullable');
+    expect(
+      (
+        ltxEndImageUrlField?.value as
+          | {
+              component: string;
+            }
+          | undefined
+      )?.component
+    ).toBe('file-uri');
+
+  });
+
+  it('marks nullable URL descriptors as URI controls for Kling image-to-video schemas', async () => {
+    const blueprintPath = path.join(
+      CATALOG_ROOT,
+      'blueprints',
+      'short-video-documentary',
+      'historical-story.yaml'
+    );
+
+    const response = await getProducerConfigSchemas(
+      blueprintPath,
+      CATALOG_ROOT
+    );
+
+    const videoProducer = response.producers.VideoProducer;
+    const klingSchema =
+      videoProducer?.modelSchemas['fal-ai/kling-video/v3/pro/image-to-video'];
+    expect(klingSchema).toBeDefined();
+
+    const endImageUrlField = findFieldByPath(
+      klingSchema?.fields as Array<{
+        keyPath: string;
+        component: string;
+        mappingSource: string;
+        schema?: { minimum?: number; maximum?: number; default?: unknown };
+        fields?: unknown[];
+        value?: unknown;
+        item?: unknown;
+        variants?: unknown[];
+      }>,
+      'end_image_url'
+    );
+
+    expect(endImageUrlField).toBeDefined();
+    expect(endImageUrlField?.component).toBe('nullable');
+    expect(
+      (
+        endImageUrlField?.value as
+          | {
+              component: string;
+            }
+          | undefined
+      )?.component
+    ).toBe('file-uri');
+
+    const referenceImageUrlsField = findFieldByPath(
+      klingSchema?.fields as Array<{
+        keyPath: string;
+        component: string;
+        mappingSource: string;
+        schema?: { minimum?: number; maximum?: number; default?: unknown };
+        fields?: unknown[];
+        value?: unknown;
+        item?: unknown;
+        variants?: unknown[];
+      }>,
+      'elements.reference_image_urls'
+    );
+
+    expect(referenceImageUrlsField).toBeDefined();
+    expect(referenceImageUrlsField?.component).toBe('nullable');
+    expect(
+      (
+        referenceImageUrlsField?.value as
+          | {
+              component: string;
+            }
+          | undefined
+      )?.component
+    ).toBe('array-file-uri');
   });
 
   it('keeps expanded resolution mappings marked as connected input fields', async () => {

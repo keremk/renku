@@ -163,7 +163,8 @@
             "ui": {
               "field": "image"
             },
-            "limit_description": "Max file size: 10.0MB, Min width: 300px, Min height: 300px, Min aspect ratio: 0.40, Max aspect ratio: 2.50, Timeout: 20.0s"
+            "limit_description": "Max file size: 10.0MB, Min width: 300px, Min height: 300px, Min aspect ratio: 0.40, Max aspect ratio: 2.50, Timeout: 20.0s",
+            "format": "uri"
           },
           {
             "type": "null"
@@ -327,7 +328,8 @@
             "ui": {
               "field": "video"
             },
-            "limit_description": "Max file size: 200.0MB, Min width: 720px, Min height: 720px, Max width: 2160px, Max height: 2160px, Min duration: 3.0s, Max duration: 10.05s, Min FPS: 24.0, Max FPS: 60.0, Timeout: 30.0s"
+            "limit_description": "Max file size: 200.0MB, Min width: 720px, Min height: 720px, Max width: 2160px, Max height: 2160px, Min duration: 3.0s, Max duration: 10.05s, Min FPS: 24.0, Max FPS: 60.0, Timeout: 30.0s",
+            "format": "uri"
           },
           {
             "type": "null"
@@ -354,7 +356,8 @@
               "ui": {
                 "field": "image"
               },
-              "limit_description": "Max file size: 10.0MB, Min width: 300px, Min height: 300px, Min aspect ratio: 0.40, Max aspect ratio: 2.50, Timeout: 20.0s"
+              "limit_description": "Max file size: 10.0MB, Min width: 300px, Min height: 300px, Min aspect ratio: 0.40, Max aspect ratio: 2.50, Timeout: 20.0s",
+              "format": "uri"
             }
           },
           {
@@ -379,7 +382,8 @@
             "ui": {
               "field": "image"
             },
-            "limit_description": "Max file size: 10.0MB, Min width: 300px, Min height: 300px, Min aspect ratio: 0.40, Max aspect ratio: 2.50, Timeout: 20.0s"
+            "limit_description": "Max file size: 10.0MB, Min width: 300px, Min height: 300px, Min aspect ratio: 0.40, Max aspect ratio: 2.50, Timeout: 20.0s",
+            "format": "uri"
           },
           {
             "type": "null"
@@ -562,7 +566,7 @@
                   "label": "Video Url",
                   "value": {
                     "pointer": "/input_schema/properties/elements/anyOf/0/items/properties/video_url/anyOf/0",
-                    "component": "string",
+                    "component": "file-uri",
                     "label": "Video Url"
                   }
                 },
@@ -572,11 +576,11 @@
                   "label": "Reference Image Urls",
                   "value": {
                     "pointer": "/input_schema/properties/elements/anyOf/0/items/properties/reference_image_urls/anyOf/0",
-                    "component": "array-scalar",
+                    "component": "array-file-uri",
                     "label": "Reference Image Urls",
                     "item": {
                       "pointer": "/input_schema/properties/elements/anyOf/0/items/properties/reference_image_urls/anyOf/0/items",
-                      "component": "string",
+                      "component": "file-uri",
                       "label": "Item"
                     }
                   }
@@ -587,7 +591,7 @@
                   "label": "Frontal Image Url",
                   "value": {
                     "pointer": "/input_schema/properties/elements/anyOf/0/items/properties/frontal_image_url/anyOf/0",
-                    "component": "string",
+                    "component": "file-uri",
                     "label": "Frontal Image Url"
                   }
                 }
@@ -626,7 +630,7 @@
           "label": "End Image Url",
           "value": {
             "pointer": "/input_schema/properties/end_image_url/anyOf/0",
-            "component": "string",
+            "component": "file-uri",
             "label": "End Image Url"
           }
         },

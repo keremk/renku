@@ -56,7 +56,8 @@
         "description": "URL of an image to use as the first frame of the video. If not provided, prompt is required.",
         "anyOf": [
           {
-            "type": "string"
+            "type": "string",
+            "format": "uri"
           },
           {
             "type": "null"
@@ -267,7 +268,7 @@
           "label": "Image Url",
           "value": {
             "pointer": "/input_schema/properties/image_url/anyOf/0",
-            "component": "string",
+            "component": "file-uri",
             "label": "Image Url"
           }
         }

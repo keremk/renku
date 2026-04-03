@@ -6,6 +6,7 @@ import {
   applyViewerAnnotationsOrThrow,
   mergeExistingViewerAnnotations,
 } from './schema-viewer-annotations.mjs';
+import { normalizeSchemaUriFormats } from './schema-uri-format.mjs';
 
 /**
  * Fetch and transform OpenAPI schema from fal.ai for a single model.
@@ -64,58 +65,6 @@ function fixRefs(obj) {
       result[key] = fixRefs(value);
     }
   }
-  return result;
-}
-
-/**
- * Recursively add "format": "uri" to string properties whose name contains "url" (case-insensitive)
- */
-function addUriFormat(obj, propertyName = null) {
-  if (obj === null || typeof obj !== 'object') {
-    return obj;
-  }
-
-  if (Array.isArray(obj)) {
-    return obj.map((item) => addUriFormat(item, null));
-  }
-
-  const result = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (key === 'properties' && typeof value === 'object' && value !== null) {
-      // Process properties object - each key is a property name
-      const processedProps = {};
-      for (const [propName, propValue] of Object.entries(value)) {
-        processedProps[propName] = addUriFormat(propValue, propName);
-      }
-      result[key] = processedProps;
-    } else {
-      result[key] = addUriFormat(value, null);
-    }
-  }
-
-  // If this object represents a property and its name contains "url", add format: uri
-  if (
-    propertyName &&
-    propertyName.toLowerCase().includes('url') &&
-    result.type === 'string' &&
-    !result.format
-  ) {
-    result.format = 'uri';
-  }
-
-  // Handle arrays of strings (e.g., image_urls: { type: "array", items: { type: "string" } })
-  if (
-    propertyName &&
-    propertyName.toLowerCase().includes('url') &&
-    result.type === 'array' &&
-    result.items &&
-    typeof result.items === 'object' &&
-    result.items.type === 'string' &&
-    !result.items.format
-  ) {
-    result.items.format = 'uri';
-  }
-
   return result;
 }
 
@@ -233,8 +182,8 @@ export async function fetchAndTransformSchema(modelName, subProvider) {
   // Fix $ref paths
   const withFixedRefs = fixRefs(result);
 
-  // Add format: uri to URL fields
-  const withUriFormat = addUriFormat(withFixedRefs);
+  // Add format: uri to URL-like fields (including nullable/union branches)
+  const withUriFormat = normalizeSchemaUriFormats(withFixedRefs);
 
   applyViewerAnnotationsOrThrow(withUriFormat);
 

@@ -426,6 +426,100 @@ function isUriStringSchema(node) {
   );
 }
 
+function hasUriFormat(node) {
+  return isObjectRecord(node) && node.format === 'uri';
+}
+
+function isArrayOfUriStrings(args) {
+  const { root, node, pointer } = args;
+
+  if (!isObjectRecord(node) || getNodeType(node) !== 'array') {
+    return false;
+  }
+
+  if (!isObjectRecord(node.items)) {
+    return false;
+  }
+
+  const itemPointer = joinPointer(pointer, 'items');
+  const resolvedItem = resolveSchemaNode(root, node.items, itemPointer);
+  const itemNode = resolvedItem.node;
+
+  if (!isObjectRecord(itemNode)) {
+    return false;
+  }
+
+  if (isUriStringSchema(itemNode)) {
+    return true;
+  }
+
+  const itemUnionVariants = getUnionVariants(
+    itemNode,
+    root,
+    resolvedItem.schemaPointer
+  );
+  if (!itemUnionVariants || !isNullableUnion(itemUnionVariants)) {
+    return false;
+  }
+
+  const nonNullItemVariant = getNonNullVariant(itemUnionVariants);
+  return Boolean(
+    nonNullItemVariant &&
+      isObjectRecord(nonNullItemVariant.resolvedNode) &&
+      isUriStringSchema(nonNullItemVariant.resolvedNode)
+  );
+}
+
+function coerceNullableUriValueComponent(args) {
+  const {
+    root,
+    parentNode,
+    parentPointer,
+    nonNullVariantNode,
+    nonNullVariantPointer,
+    nullableValueAnnotation,
+  } = args;
+
+  if (!isObjectRecord(nullableValueAnnotation)) {
+    return;
+  }
+
+  if (
+    nullableValueAnnotation.component === 'string' &&
+    (isUriStringSchema(nonNullVariantNode) || hasUriFormat(parentNode))
+  ) {
+    nullableValueAnnotation.component = 'file-uri';
+    return;
+  }
+
+  if (nullableValueAnnotation.component !== 'array-scalar') {
+    return;
+  }
+
+  const variantIsArrayOfUriStrings = isArrayOfUriStrings({
+    root,
+    node: nonNullVariantNode,
+    pointer: nonNullVariantPointer,
+  });
+  const parentIsArrayOfUriStrings = isArrayOfUriStrings({
+    root,
+    node: parentNode,
+    pointer: parentPointer,
+  });
+
+  if (!variantIsArrayOfUriStrings && !parentIsArrayOfUriStrings) {
+    return;
+  }
+
+  nullableValueAnnotation.component = 'array-file-uri';
+  if (
+    isObjectRecord(nullableValueAnnotation.item) &&
+    nullableValueAnnotation.item.component === 'string'
+  ) {
+    nullableValueAnnotation.item.component = 'file-uri';
+  }
+}
+
 function getUnionVariants(node, root, pointer) {
   if (!isObjectRecord(node)) {
     return null;
@@ -953,6 +1047,14 @@ function buildFieldAnnotation(args) {
         pointer: nonNullVariant.pointer,
         forcedLabel: annotation.label,
         visitedRefs,
+      });
+      coerceNullableUriValueComponent({
+        root,
+        parentNode: effectiveNode,
+        parentPointer: resolved.schemaPointer,
+        nonNullVariantNode: nonNullVariant.resolvedNode,
+        nonNullVariantPointer: nonNullVariant.schemaPointer,
+        nullableValueAnnotation: annotation.value,
       });
     }
     return stripEmptyKeys(annotation);

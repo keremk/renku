@@ -791,6 +791,51 @@ describe('ConfigPropertiesEditor', () => {
       ]);
     });
 
+    it('renders nullable array-file-uri fields using array-file-uri controls', () => {
+      const fields = [
+        createMockField('reference_image_urls', {
+          component: 'nullable',
+          label: 'Reference Image Urls',
+          value: createMockField('reference_image_urls', {
+            component: 'array-file-uri',
+            label: 'Reference Image Urls',
+            schema: {
+              type: 'array',
+              items: {
+                type: 'string',
+                format: 'uri',
+              },
+            },
+            item: createMockField('reference_image_urls.item', {
+              component: 'file-uri',
+              label: 'Item',
+              schema: {
+                type: 'string',
+                format: 'uri',
+              },
+            }),
+          }),
+        }),
+      ];
+
+      render(
+        <ConfigPropertiesEditor
+          fields={fields}
+          values={{
+            reference_image_urls: ['file:./images/reference-a.jpg'],
+          }}
+          isEditable={true}
+          onChange={() => {}}
+          blueprintFolder='/tmp/blueprint'
+          movieId='movie-test'
+        />
+      );
+
+      expect(screen.getByRole('button', { name: 'Add row' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Remove row 1' })).toBeTruthy();
+      expect(screen.getByText('reference-a.jpg')).toBeTruthy();
+    });
+
     it('renders nullable array-object-cards fields without crashing', () => {
       const fields = [
         createMockField('multi_prompt', {
