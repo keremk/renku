@@ -79,6 +79,7 @@ const cli = meow(
   $ renku generate --movie-id=abc123 --from=1
   $ renku generate --last --artifact-id=Artifact:AudioProducer.GeneratedAudio[0] --inputs=./inputs.yaml
   $ renku generate --last --aid=Artifact:AudioProducer.GeneratedAudio[0] --aid=Artifact:AudioProducer.GeneratedAudio[2] --inputs=./inputs.yaml
+  $ renku generate --last --pid=Producer:AudioProducer:1 --inputs=./inputs.yaml
   $ renku generate --last --pin=Artifact:ScriptProducer.NarrationScript[0] --inputs=./inputs.yaml
   $ renku generate --last --inputs=./inputs.yaml --explain  # Show why each job is scheduled
   $ renku explain --last                     # Explain the last saved plan
@@ -114,6 +115,8 @@ const cli = meow(
 			artifactId: { type: 'string', isMultiple: true },
 			artifact: { type: 'string', isMultiple: true },
 			aid: { type: 'string', isMultiple: true },
+			producerId: { type: 'string', isMultiple: true },
+			pid: { type: 'string', isMultiple: true },
 			pin: { type: 'string', isMultiple: true },
 			all: { type: 'boolean' },
 			costsOnly: { type: 'boolean' },
@@ -161,6 +164,8 @@ async function main(): Promise<void> {
 		artifactId?: string[];
 		artifact?: string[];
 		aid?: string[];
+		producerId?: string[];
+		pid?: string[];
 		pin?: string[];
 		all?: boolean;
 		costsOnly?: boolean;
@@ -267,6 +272,10 @@ async function main(): Promise<void> {
 				...(flags.artifact ?? []),
 				...(flags.aid ?? []),
 			];
+			const producerIdFlags = [
+				...(flags.producerId ?? []),
+				...(flags.pid ?? []),
+			];
 			const pinFlags = [...(flags.pin ?? [])];
 
 			if (positionalInquiry !== undefined) {
@@ -354,9 +363,12 @@ async function main(): Promise<void> {
 					costsOnly: Boolean(flags.costsOnly),
 					explain: Boolean(flags.explain),
 					concurrency: flags.concurrency,
-					upToLayer,
+					upToLayer:
+						producerIdFlags.length > 0 ? undefined : upToLayer,
 					reRunFrom,
 					artifactIds: artifactIdFlags.length > 0 ? artifactIdFlags : undefined,
+					producerIds:
+						producerIdFlags.length > 0 ? producerIdFlags : undefined,
 					pinIds: pinFlags.length > 0 ? pinFlags : undefined,
 					dryRunProfilePath: dryRunProfileFlag,
 					logLevel,

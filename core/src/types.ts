@@ -571,6 +571,62 @@ export interface ArtifactRegenerationConfig {
 }
 
 /**
+ * Producer override mode.
+ *
+ * - inherit: start from normal dirty/surgical scheduling and apply producer directives.
+ * - selected-only: only producer directives (and explicit force targets) are considered.
+ */
+export type ProducerOverrideMode = 'inherit' | 'selected-only';
+
+/**
+ * Per-producer scheduling directive.
+ */
+export interface ProducerOverrideDirective {
+  /** Canonical producer family ID (e.g., "Producer:AudioProducer") */
+  producerId: string;
+  /** When false, disable this producer family for the run. */
+  enabled?: boolean;
+  /**
+   * Optional first-dimension cap.
+   * Example: count=1 keeps first-dimension index 0 and includes all deeper indices below it.
+   */
+  count?: number;
+}
+
+/**
+ * Producer-level scheduling overrides passed into planning.
+ */
+export interface ProducerOverrides {
+  mode?: ProducerOverrideMode;
+  directives: ProducerOverrideDirective[];
+}
+
+/**
+ * Per-producer scheduling summary returned from planning.
+ * Used by CLI/viewer to display effective scheduling and warnings.
+ */
+export interface ProducerSchedulingSummary {
+  /** Canonical producer family ID (e.g., "Producer:AudioProducer") */
+  producerId: string;
+  /** Max selectable first-dimension count for this producer family. */
+  maxSelectableCount: number;
+  /** Effective selected first-dimension count after overrides are applied. */
+  selectedCount: number;
+  /** Scheduled first-dimension count after full planning. */
+  scheduledCount: number;
+  /** Number of scheduled jobs for this producer family. */
+  scheduledJobCount: number;
+  /** Whether this producer family has any scheduled jobs in the current plan. */
+  scheduled: boolean;
+  /** Producer families this family depends on (artifact dependencies). */
+  upstreamProducerIds: string[];
+  /** Warnings relevant to producer-level overrides for this family. */
+  warnings: string[];
+  /** Echo of the applied directive, if one exists. */
+  appliedOverride?: ProducerOverrideDirective;
+}
+
+/**
  * Scope mode for surgical regeneration planning.
  *
  * - lineage-plus-dirty: include target lineage and any other jobs that are currently dirty/missing.

@@ -1,0 +1,538 @@
+import {
+  isCanonicalArtifactId,
+  isCanonicalProducerId,
+} from '../parsing/canonical-ids.js';
+import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
+import type {
+  ProducerGraph,
+  ProducerOverrideDirective,
+  ProducerOverrideMode,
+  ProducerOverrides,
+  ProducerSchedulingSummary,
+} from '../types.js';
+
+const DEFAULT_PRODUCER_OVERRIDE_MODE: ProducerOverrideMode = 'inherit';
+const UPSTREAM_WARNING_MESSAGE =
+  'Upstream dependencies may limit this override if required artifacts are unavailable.';
+
+interface ProducerFamily {
+  producerId: string;
+  jobIds: string[];
+  maxSelectableCount: number;
+  firstDimensionValues: number[];
+  jobFirstIndex: Map<string, number>;
+  upstreamProducerIds: string[];
+}
+
+export interface NormalizedProducerOverrideDirective {
+  producerId: string;
+  enabled: boolean;
+  count: number;
+  maxSelectableCount: number;
+  selectedFirstDimensions: number[];
+  selectedJobIds: string[];
+  hasExplicitEnabled: boolean;
+  hasExplicitCount: boolean;
+}
+
+export interface NormalizedProducerOverrides {
+  mode: ProducerOverrideMode;
+  directives: NormalizedProducerOverrideDirective[];
+  selectedProducerJobIds: string[];
+  blockedProducerJobIds: string[];
+  forcedArtifactIds: string[];
+  families: ProducerFamily[];
+  hasOverrides: boolean;
+}
+
+export function parseProducerDirectiveToken(
+  token: string
+): ProducerOverrideDirective {
+  const value = token.trim();
+  const match = value.match(/^(Producer:[^:\s]+?)(?::(-?\d+))?$/);
+  if (!match) {
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_PRODUCER_OVERRIDE_FORMAT,
+      `Invalid --producer-id/--pid value "${token}". Expected Producer:Alias[:count].`,
+      {
+        context: `producerOverride=${token}`,
+        suggestion:
+          'Use canonical producer IDs, for example Producer:AudioProducer or Producer:AudioProducer:1.',
+      }
+    );
+  }
+
+  const producerId = match[1]!;
+  if (!isCanonicalProducerId(producerId) || producerId.includes('[')) {
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_PRODUCER_OVERRIDE_FORMAT,
+      `Invalid --producer-id/--pid producer ID "${producerId}". Expected canonical Producer:Alias without index selectors.`,
+      {
+        context: `producerId=${producerId}`,
+        suggestion:
+          'Use canonical producer IDs, for example Producer:AudioProducer.',
+      }
+    );
+  }
+
+  const countText = match[2];
+  if (countText === undefined) {
+    return {
+      producerId,
+      enabled: true,
+    };
+  }
+
+  const count = Number.parseInt(countText, 10);
+  if (!Number.isInteger(count) || count < 1) {
+    throw createRuntimeError(
+      RuntimeErrorCode.PRODUCER_OVERRIDE_INVALID_COUNT,
+      `Invalid --producer-id/--pid count "${countText}" for ${producerId}. Count must be an integer >= 1.`,
+      {
+        context: `producerId=${producerId}`,
+        suggestion:
+          'Use a positive integer count. For example: --pid Producer:AudioProducer:1',
+      }
+    );
+  }
+
+  return {
+    producerId,
+    enabled: true,
+    count,
+  };
+}
+
+export function normalizeProducerOverrides(args: {
+  producerGraph: ProducerGraph;
+  overrides?: ProducerOverrides;
+}): NormalizedProducerOverrides {
+  const families = buildProducerFamilies(args.producerGraph);
+  const familyById = new Map(families.map((family) => [family.producerId, family]));
+
+  const mode = args.overrides?.mode ?? DEFAULT_PRODUCER_OVERRIDE_MODE;
+  if (mode !== 'inherit' && mode !== 'selected-only') {
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_PRODUCER_OVERRIDE_FORMAT,
+      `Unsupported producer override mode "${String(args.overrides?.mode)}".`,
+      {
+        suggestion: 'Use mode "inherit" or "selected-only".',
+      }
+    );
+  }
+
+  const directivesInput = args.overrides?.directives ?? [];
+  if (mode === 'selected-only' && directivesInput.length === 0) {
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_PRODUCER_OVERRIDE_FORMAT,
+      'selected-only producer override mode requires at least one producer directive.',
+      {
+        suggestion:
+          'Provide at least one producer override, for example Producer:AudioProducer.',
+      }
+    );
+  }
+
+  const seenProducerIds = new Set<string>();
+  const directives: NormalizedProducerOverrideDirective[] = [];
+
+  for (const directive of directivesInput) {
+    if (!isCanonicalProducerId(directive.producerId)) {
+      throw createRuntimeError(
+        RuntimeErrorCode.INVALID_PRODUCER_OVERRIDE_FORMAT,
+        `Invalid producer override ID "${directive.producerId}". Expected canonical Producer:... ID.`,
+        {
+          context: `producerId=${directive.producerId}`,
+          suggestion:
+            'Use canonical producer IDs, for example Producer:AudioProducer.',
+        }
+      );
+    }
+
+    if (directive.producerId.includes('[')) {
+      throw createRuntimeError(
+        RuntimeErrorCode.INVALID_PRODUCER_OVERRIDE_FORMAT,
+        `Producer override ID "${directive.producerId}" must target a producer family, not an indexed job ID.`,
+        {
+          context: `producerId=${directive.producerId}`,
+          suggestion:
+            'Use canonical producer family IDs, for example Producer:AudioProducer.',
+        }
+      );
+    }
+
+    if (seenProducerIds.has(directive.producerId)) {
+      throw createRuntimeError(
+        RuntimeErrorCode.DUPLICATE_PRODUCER_OVERRIDE,
+        `Duplicate producer override directive for "${directive.producerId}".`,
+        {
+          context: `producerId=${directive.producerId}`,
+          suggestion:
+            'Specify each producer override only once per plan request.',
+        }
+      );
+    }
+    seenProducerIds.add(directive.producerId);
+
+    const family = familyById.get(directive.producerId);
+    if (!family) {
+      throw createRuntimeError(
+        RuntimeErrorCode.UNKNOWN_PRODUCER_OVERRIDE_TARGET,
+        `Producer override target "${directive.producerId}" was not found in the current producer graph.`,
+        {
+          context: `producerId=${directive.producerId}`,
+          suggestion:
+            'Check the canonical producer ID against the current blueprint graph.',
+        }
+      );
+    }
+
+    const hasExplicitEnabled = directive.enabled !== undefined;
+    const hasExplicitCount = directive.count !== undefined;
+    const enabled = directive.enabled ?? true;
+
+    if (!enabled && hasExplicitCount) {
+      throw createRuntimeError(
+        RuntimeErrorCode.PRODUCER_OVERRIDE_INVALID_COUNT,
+        `Producer override for "${directive.producerId}" cannot set count when enabled is false.`,
+        {
+          context: `producerId=${directive.producerId}`,
+          suggestion:
+            'Remove the count or set enabled=true for this producer override.',
+        }
+      );
+    }
+
+    const requestedCount = hasExplicitCount ? directive.count : undefined;
+    if (requestedCount !== undefined && !Number.isInteger(requestedCount)) {
+      throw createRuntimeError(
+        RuntimeErrorCode.PRODUCER_OVERRIDE_INVALID_COUNT,
+        `Producer override count for "${directive.producerId}" must be an integer.`,
+        {
+          context: `producerId=${directive.producerId}`,
+          suggestion:
+            `Use an integer count between 1 and ${family.maxSelectableCount}.`,
+        }
+      );
+    }
+
+    const effectiveCount = enabled
+      ? requestedCount ?? family.maxSelectableCount
+      : 0;
+
+    if (effectiveCount < 0 || effectiveCount > family.maxSelectableCount) {
+      throw createRuntimeError(
+        RuntimeErrorCode.PRODUCER_OVERRIDE_INVALID_COUNT,
+        `Producer override count for "${directive.producerId}" must be between 1 and ${family.maxSelectableCount}.`,
+        {
+          context: `producerId=${directive.producerId}`,
+          suggestion:
+            `Use a count between 1 and ${family.maxSelectableCount}, or omit the count to use full planned cardinality.`,
+        }
+      );
+    }
+
+    if (enabled && effectiveCount < 1) {
+      throw createRuntimeError(
+        RuntimeErrorCode.PRODUCER_OVERRIDE_INVALID_COUNT,
+        `Producer override count for "${directive.producerId}" must be >= 1 when enabled.`,
+        {
+          context: `producerId=${directive.producerId}`,
+          suggestion:
+            `Use a count between 1 and ${family.maxSelectableCount}, or set enabled=false to disable the producer.`,
+        }
+      );
+    }
+
+    const selectedFirstDimensions = enabled
+      ? family.firstDimensionValues.slice(0, effectiveCount)
+      : [];
+    const selectedDimensionSet = new Set(selectedFirstDimensions);
+    const selectedJobIds = enabled
+      ? family.jobIds.filter((jobId) =>
+          selectedDimensionSet.has(family.jobFirstIndex.get(jobId) ?? 0)
+        )
+      : [];
+
+    directives.push({
+      producerId: directive.producerId,
+      enabled,
+      count: effectiveCount,
+      maxSelectableCount: family.maxSelectableCount,
+      selectedFirstDimensions,
+      selectedJobIds,
+      hasExplicitEnabled,
+      hasExplicitCount,
+    });
+  }
+
+  const selectedProducerJobIdsSet = new Set<string>();
+  const blockedProducerJobIdsSet = new Set<string>();
+
+  for (const directive of directives) {
+    const family = familyById.get(directive.producerId);
+    if (!family) {
+      continue;
+    }
+
+    const selectedJobSet = new Set(directive.selectedJobIds);
+    if (directive.enabled) {
+      for (const jobId of directive.selectedJobIds) {
+        selectedProducerJobIdsSet.add(jobId);
+      }
+      if (directive.count < family.maxSelectableCount) {
+        for (const jobId of family.jobIds) {
+          if (!selectedJobSet.has(jobId)) {
+            blockedProducerJobIdsSet.add(jobId);
+          }
+        }
+      }
+      continue;
+    }
+
+    for (const jobId of family.jobIds) {
+      blockedProducerJobIdsSet.add(jobId);
+    }
+  }
+
+  const jobById = new Map(
+    args.producerGraph.nodes.map((node) => [node.jobId, node])
+  );
+  const forcedArtifactIdSet = new Set<string>();
+  for (const jobId of selectedProducerJobIdsSet) {
+    const node = jobById.get(jobId);
+    if (!node) {
+      continue;
+    }
+    for (const artifactId of node.produces) {
+      if (isCanonicalArtifactId(artifactId)) {
+        forcedArtifactIdSet.add(artifactId);
+      }
+    }
+  }
+
+  return {
+    mode,
+    directives,
+    selectedProducerJobIds: Array.from(selectedProducerJobIdsSet),
+    blockedProducerJobIds: Array.from(blockedProducerJobIdsSet),
+    forcedArtifactIds: Array.from(forcedArtifactIdSet),
+    families,
+    hasOverrides: directives.length > 0,
+  };
+}
+
+export function buildProducerSchedulingSummary(args: {
+  normalizedOverrides: NormalizedProducerOverrides;
+  scheduledJobIds: Set<string>;
+}): ProducerSchedulingSummary[] {
+  const overrideByProducer = new Map(
+    args.normalizedOverrides.directives.map((directive) => [
+      directive.producerId,
+      directive,
+    ])
+  );
+
+  return args.normalizedOverrides.families
+    .map((family) => {
+      const directive = overrideByProducer.get(family.producerId);
+      const selectedCount = resolveSelectedCount(
+        args.normalizedOverrides.mode,
+        family,
+        directive
+      );
+
+      const scheduledFamilyJobs = family.jobIds.filter((jobId) =>
+        args.scheduledJobIds.has(jobId)
+      );
+      const scheduledCount = uniqueCount(
+        scheduledFamilyJobs.map((jobId) => family.jobFirstIndex.get(jobId) ?? 0)
+      );
+
+      const hasOverrideContext =
+        args.normalizedOverrides.mode === 'selected-only' || directive !== undefined;
+      const warnings: string[] =
+        hasOverrideContext && family.upstreamProducerIds.length > 0
+          ? [UPSTREAM_WARNING_MESSAGE]
+          : [];
+
+      const appliedOverride: ProducerOverrideDirective | undefined = directive
+        ? {
+            producerId: directive.producerId,
+            ...(directive.hasExplicitEnabled ? { enabled: directive.enabled } : {}),
+            ...(directive.hasExplicitCount ? { count: directive.count } : {}),
+          }
+        : undefined;
+
+      return {
+        producerId: family.producerId,
+        maxSelectableCount: family.maxSelectableCount,
+        selectedCount,
+        scheduledCount,
+        scheduledJobCount: scheduledFamilyJobs.length,
+        scheduled: scheduledFamilyJobs.length > 0,
+        upstreamProducerIds: family.upstreamProducerIds,
+        warnings,
+        ...(appliedOverride ? { appliedOverride } : {}),
+      };
+    })
+    .sort((a, b) => a.producerId.localeCompare(b.producerId));
+}
+
+export function deriveProducerFamilyId(jobId: string): string {
+  if (!isCanonicalProducerId(jobId)) {
+    throw createRuntimeError(
+      RuntimeErrorCode.INVALID_PRODUCER_OVERRIDE_FORMAT,
+      `Expected canonical producer job ID (Producer:...), received "${jobId}".`,
+      {
+        context: `jobId=${jobId}`,
+      }
+    );
+  }
+
+  const body = jobId.slice('Producer:'.length);
+  return `Producer:${body.replace(/\[\d+\]/g, '')}`;
+}
+
+function resolveSelectedCount(
+  mode: ProducerOverrideMode,
+  family: ProducerFamily,
+  directive: NormalizedProducerOverrideDirective | undefined
+): number {
+  if (directive) {
+    return directive.selectedFirstDimensions.length;
+  }
+  if (mode === 'selected-only') {
+    return 0;
+  }
+  return family.maxSelectableCount;
+}
+
+function uniqueCount(values: number[]): number {
+  return new Set(values).size;
+}
+
+function buildProducerFamilies(producerGraph: ProducerGraph): ProducerFamily[] {
+  const familyBuilders = new Map<
+    string,
+    {
+      jobIds: string[];
+      firstDimensionValues: Set<number>;
+      jobFirstIndex: Map<string, number>;
+      upstreamProducerIds: Set<string>;
+    }
+  >();
+
+  const artifactProducer = new Map<string, string>();
+  for (const node of producerGraph.nodes) {
+    for (const artifactId of node.produces) {
+      if (isCanonicalArtifactId(artifactId)) {
+        artifactProducer.set(artifactId, node.jobId);
+      }
+    }
+  }
+
+  const nodeById = new Map(producerGraph.nodes.map((node) => [node.jobId, node]));
+
+  for (const node of producerGraph.nodes) {
+    const producerId = deriveProducerFamilyId(node.jobId);
+    const firstIndex = extractFirstIndex(node.jobId);
+
+    let builder = familyBuilders.get(producerId);
+    if (!builder) {
+      builder = {
+        jobIds: [],
+        firstDimensionValues: new Set<number>(),
+        jobFirstIndex: new Map<string, number>(),
+        upstreamProducerIds: new Set<string>(),
+      };
+      familyBuilders.set(producerId, builder);
+    }
+
+    builder.jobIds.push(node.jobId);
+    builder.firstDimensionValues.add(firstIndex);
+    builder.jobFirstIndex.set(node.jobId, firstIndex);
+
+    const upstreamArtifactInputs = collectArtifactInputs(node);
+    for (const artifactId of upstreamArtifactInputs) {
+      const upstreamJobId = artifactProducer.get(artifactId);
+      if (!upstreamJobId) {
+        continue;
+      }
+      const upstreamProducerId = deriveProducerFamilyId(upstreamJobId);
+      if (upstreamProducerId !== producerId) {
+        builder.upstreamProducerIds.add(upstreamProducerId);
+      }
+    }
+  }
+
+  const families: ProducerFamily[] = [];
+  for (const [producerId, builder] of familyBuilders) {
+    const jobIds = builder.jobIds
+      .filter((jobId) => nodeById.has(jobId))
+      .sort(compareProducerJobIds);
+    const firstDimensionValues = Array.from(builder.firstDimensionValues).sort(
+      (a, b) => a - b
+    );
+    const maxSelectableCount = Math.max(1, firstDimensionValues.length);
+
+    families.push({
+      producerId,
+      jobIds,
+      maxSelectableCount,
+      firstDimensionValues,
+      jobFirstIndex: builder.jobFirstIndex,
+      upstreamProducerIds: Array.from(builder.upstreamProducerIds).sort(),
+    });
+  }
+
+  return families.sort((a, b) => a.producerId.localeCompare(b.producerId));
+}
+
+function collectArtifactInputs(node: ProducerGraph['nodes'][number]): string[] {
+  const artifactInputs = new Set<string>();
+  for (const inputId of node.inputs) {
+    if (isCanonicalArtifactId(inputId)) {
+      artifactInputs.add(inputId);
+    }
+  }
+
+  const fanIn = node.context?.fanIn;
+  if (fanIn) {
+    for (const spec of Object.values(fanIn)) {
+      for (const member of spec.members) {
+        if (isCanonicalArtifactId(member.id)) {
+          artifactInputs.add(member.id);
+        }
+      }
+    }
+  }
+
+  return Array.from(artifactInputs);
+}
+
+function compareProducerJobIds(a: string, b: string): number {
+  const indicesA = extractAllIndices(a);
+  const indicesB = extractAllIndices(b);
+  const maxLength = Math.max(indicesA.length, indicesB.length);
+
+  for (let index = 0; index < maxLength; index += 1) {
+    const valueA = indicesA[index] ?? -1;
+    const valueB = indicesB[index] ?? -1;
+    if (valueA !== valueB) {
+      return valueA - valueB;
+    }
+  }
+
+  return a.localeCompare(b);
+}
+
+function extractFirstIndex(jobId: string): number {
+  const indices = extractAllIndices(jobId);
+  return indices[0] ?? 0;
+}
+
+function extractAllIndices(jobId: string): number[] {
+  const matches = Array.from(jobId.matchAll(/\[(\d+)\]/g));
+  return matches.map((match) => Number.parseInt(match[1]!, 10));
+}

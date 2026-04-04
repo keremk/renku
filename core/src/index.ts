@@ -24,6 +24,7 @@ export * from './orchestration/producer-options.js';
 export * from './orchestration/load-inputs.js';
 export * from './orchestration/config-utils.js';
 export * from './orchestration/plan-helpers.js';
+export * from './orchestration/producer-overrides.js';
 export * from './orchestration/surgical-regeneration.js';
 export * from './orchestration/movie-run-state.js';
 export * from './orchestration/prompt-file.js';

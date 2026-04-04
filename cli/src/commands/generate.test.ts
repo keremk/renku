@@ -677,6 +677,73 @@ describe('runGenerate (new runs)', () => {
 		).rejects.toThrow(/Expected canonical Artifact:\.\.\./);
 	});
 
+	it('fails when producer overrides are combined with --from', async () => {
+		const root = await createTempRoot();
+		const cliConfigPath = join(root, 'cli-config.json');
+		process.env.RENKU_CLI_CONFIG = cliConfigPath;
+
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
+
+		const inputsPath = await createInputsFile({
+			root,
+			prompt: 'Producer override + from',
+			models: AUDIO_ONLY_MODELS,
+			includeDefaults: false,
+			overrides: AUDIO_ONLY_OVERRIDES,
+		});
+
+		await expect(
+			runGenerate({
+				...LOG_DEFAULTS,
+				inputsPath,
+				blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
+				dryRun: true,
+				reRunFrom: 1,
+				producerIds: ['Producer:AudioProducer:1'],
+				storageOverride: { root, basePath: 'builds' },
+			})
+		).rejects.toMatchObject({
+			code: RuntimeErrorCode.PRODUCER_OVERRIDE_WITH_RERUN_FROM,
+		});
+	});
+
+	it('fails on invalid producer override count from CLI', async () => {
+		const root = await createTempRoot();
+		const cliConfigPath = join(root, 'cli-config.json');
+		process.env.RENKU_CLI_CONFIG = cliConfigPath;
+
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
+
+		const inputsPath = await createInputsFile({
+			root,
+			prompt: 'Producer override invalid count',
+			models: AUDIO_ONLY_MODELS,
+			includeDefaults: false,
+			overrides: AUDIO_ONLY_OVERRIDES,
+		});
+
+		await expect(
+			runGenerate({
+				...LOG_DEFAULTS,
+				inputsPath,
+				blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
+				dryRun: true,
+				producerIds: ['Producer:AudioProducer:0'],
+				storageOverride: { root, basePath: 'builds' },
+			})
+		).rejects.toMatchObject({
+			code: RuntimeErrorCode.PRODUCER_OVERRIDE_INVALID_COUNT,
+		});
+	});
+
 	it('applies producer pin via shared core logic during rerun-from planning', async () => {
 		const root = await createTempRoot();
 		const cliConfigPath = join(root, 'cli-config.json');
@@ -723,7 +790,51 @@ describe('runGenerate (new runs)', () => {
 		expect(jobIds.length).toBeGreaterThanOrEqual(3);
 	});
 
-	it('fails when pin and surgical target conflict', async () => {
+	it('ignores --up when producer overrides are provided', async () => {
+		const root = await createTempRoot();
+		const cliConfigPath = join(root, 'cli-config.json');
+		process.env.RENKU_CLI_CONFIG = cliConfigPath;
+
+		await runInit({
+			rootFolder: root,
+			configPath: cliConfigPath,
+			catalogSourceRoot: CLI_FIXTURES_CATALOG,
+		});
+
+		const inputsPath = await createInputsFile({
+			root,
+			prompt: 'Producer override + up',
+			models: AUDIO_ONLY_MODELS,
+			includeDefaults: false,
+			overrides: AUDIO_ONLY_OVERRIDES,
+		});
+		await runGenerate({
+			...LOG_DEFAULTS,
+			inputsPath,
+			nonInteractive: true,
+			blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
+			storageOverride: { root, basePath: 'builds' },
+		});
+
+		const result = await runGenerate({
+			...LOG_DEFAULTS,
+			inputsPath,
+			useLast: true,
+			dryRun: true,
+			upToLayer: 0,
+			producerIds: ['Producer:AudioProducer:1'],
+			storageOverride: { root, basePath: 'builds' },
+		});
+
+		const plan = JSON.parse(await readFile(result.planPath, 'utf8')) as {
+			layers: Array<Array<{ jobId: string }>>;
+		};
+		const jobIds = plan.layers.flat().map((job) => job.jobId);
+		expect(jobIds).toContain('Producer:AudioProducer[0]');
+		expect(jobIds).not.toContain('Producer:ScriptProducer');
+	});
+
+	it('prioritizes surgical targets when pinned artifact overlaps', async () => {
 		const root = await createTempRoot();
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
@@ -749,18 +860,20 @@ describe('runGenerate (new runs)', () => {
 			storageOverride: { root, basePath: 'builds' },
 		});
 
-		await expect(
-			runGenerate({
-				...LOG_DEFAULTS,
-				inputsPath,
-				useLast: true,
-				dryRun: true,
-				artifactIds: ['Artifact:ScriptProducer.NarrationScript[0]'],
-				pinIds: ['Artifact:ScriptProducer.NarrationScript[0]'],
-				storageOverride: { root, basePath: 'builds' },
-			})
-		).rejects.toMatchObject({
-			code: RuntimeErrorCode.PIN_CONFLICT_WITH_SURGICAL_TARGET,
+		const result = await runGenerate({
+			...LOG_DEFAULTS,
+			inputsPath,
+			useLast: true,
+			dryRun: true,
+			artifactIds: ['Artifact:ScriptProducer.NarrationScript[0]'],
+			pinIds: ['Artifact:ScriptProducer.NarrationScript[0]'],
+			storageOverride: { root, basePath: 'builds' },
 		});
+
+		const plan = JSON.parse(await readFile(result.planPath, 'utf8')) as {
+			layers: Array<Array<{ jobId: string }>>;
+		};
+		const jobIds = plan.layers.flat().map((job) => job.jobId);
+		expect(jobIds).toContain('Producer:ScriptProducer');
 	});
 });

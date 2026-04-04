@@ -16,8 +16,12 @@ import {
 import crypto from 'node:crypto';
 import { resolve } from 'node:path';
 import {
+	createRuntimeError,
 	getCliArtifactsConfig,
 	isCanonicalArtifactId,
+	parseProducerDirectiveToken,
+	RuntimeErrorCode,
+	type ProducerOverrides,
 	type BlueprintDryRunValidationResult,
 	type LogLevel,
 } from '@gorenku/core';
@@ -58,6 +62,8 @@ export interface GenerateOptions {
 	storageOverride?: { root: string; basePath: string };
 	/** Target artifact IDs for surgical regeneration (canonical format, e.g., "Artifact:AudioProducer.GeneratedAudio[0]") */
 	artifactIds?: string[];
+	/** Producer-level surgical targets (canonical format, e.g., "Producer:AudioProducer:1") */
+	producerIds?: string[];
 	/** Pin IDs (canonical Artifact:... or Producer:...). */
 	pinIds?: string[];
 	/** Optional path to a dry-run profile file. */
@@ -150,8 +156,21 @@ export async function runGenerate(
 
 	// Artifact targets must be canonical IDs.
 	const targetArtifactIds = normalizeTargetArtifactIds(options.artifactIds);
+	const producerOverrides = normalizeProducerOverridesFromCli(
+		options.producerIds
+	);
+	if (producerOverrides && options.reRunFrom !== undefined) {
+		throw createRuntimeError(
+			RuntimeErrorCode.PRODUCER_OVERRIDE_WITH_RERUN_FROM,
+			'--producer-id/--pid cannot be used together with --re-run-from/--from.',
+			{
+				suggestion:
+					'Remove --re-run-from/--from when using producer-level surgical generation.',
+			}
+		);
+	}
 
-	const upToLayer = options.upToLayer;
+	const upToLayer = producerOverrides ? undefined : options.upToLayer;
 	const artifactsConfig = getCliArtifactsConfig(activeConfig);
 
 	if (options.movieId || usingLast) {
@@ -204,6 +223,7 @@ export async function runGenerate(
 			upToLayer,
 			reRunFrom: options.reRunFrom,
 			targetArtifactIds,
+			producerOverrides,
 			pinnedIds: options.pinIds,
 			dryRunProfilePath: options.dryRunProfilePath,
 			logger,
@@ -283,6 +303,7 @@ export async function runGenerate(
 		explain: options.explain,
 		concurrency,
 		upToLayer,
+		producerOverrides,
 		pinnedIds: options.pinIds,
 		dryRunProfilePath: options.dryRunProfilePath,
 		logger,
@@ -366,6 +387,21 @@ function normalizeTargetArtifactIds(
 	}
 
 	return targetArtifactIds;
+}
+
+function normalizeProducerOverridesFromCli(
+	rawProducerDirectives: string[] | undefined
+): ProducerOverrides | undefined {
+	if (!rawProducerDirectives || rawProducerDirectives.length === 0) {
+		return undefined;
+	}
+
+	return {
+		mode: 'selected-only',
+		directives: rawProducerDirectives.map((value) =>
+			parseProducerDirectiveToken(value)
+		),
+	};
 }
 
 interface ArtifactInfo {

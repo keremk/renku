@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useEffect, useState } from 'react';
+import { useCallback, useMemo, useEffect, useState, useRef } from 'react';
 import {
   ReactFlow,
   Background,
@@ -29,6 +29,7 @@ import {
   defaultBlueprintLayoutConfig,
   layoutBlueprintGraph,
 } from '@/lib/blueprint-layout';
+import { useExecution } from '@/contexts/execution-context';
 import type {
   BlueprintGraphData,
   ProducerBinding,
@@ -53,6 +54,8 @@ function FitBoundsAnchor() {
 
 interface BlueprintViewerProps {
   graphData: BlueprintGraphData;
+  blueprintName: string;
+  movieId?: string | null;
   selectedUpToLayer?: number | null;
   onLayerSelect?: (layerIndex: number) => void;
   onNodeSelect?: (nodeId: string | null) => void;
@@ -299,11 +302,21 @@ function parseProducerNodeData(node: Node): ProducerDetails {
 
 export function BlueprintViewer({
   graphData,
+  blueprintName,
+  movieId,
   selectedUpToLayer,
   onLayerSelect,
   onNodeSelect,
   producerStatuses,
 }: BlueprintViewerProps) {
+  const {
+    getProducerOverride,
+    getProducerSchedulingSummary,
+    requestProducerScheduling,
+    setProducerOverrideEnabled,
+    setProducerOverrideCount,
+    resetProducerOverride,
+  } = useExecution();
   const isDark = useDarkMode();
   const { nodes: initialNodes, edges: initialEdges } = useMemo(
     () => layoutBlueprintGraph(graphData, undefined, producerStatuses),
@@ -316,6 +329,7 @@ export function BlueprintViewer({
     null
   );
   const [showConnectionArrows, setShowConnectionArrows] = useState(false);
+  const schedulingRequestKeysRef = useRef<Set<string>>(new Set());
 
   const layerGuides = useMemo(
     () => buildLayerGuides(graphData, nodes, selectedUpToLayer ?? null),
@@ -372,6 +386,38 @@ export function BlueprintViewer({
   useEffect(() => {
     setEdges(initialEdges);
   }, [initialEdges, setEdges]);
+
+  useEffect(() => {
+    if (!dialogProducer) {
+      return;
+    }
+    const scheduling = getProducerSchedulingSummary(dialogProducer.nodeId);
+    if (scheduling) {
+      return;
+    }
+    const requestKey = [
+      dialogProducer.nodeId,
+      blueprintName,
+      movieId ?? '',
+      selectedUpToLayer ?? '',
+    ].join('|');
+    if (schedulingRequestKeysRef.current.has(requestKey)) {
+      return;
+    }
+    schedulingRequestKeysRef.current.add(requestKey);
+    void requestProducerScheduling(
+      blueprintName,
+      movieId ?? undefined,
+      selectedUpToLayer ?? undefined
+    );
+  }, [
+    blueprintName,
+    dialogProducer,
+    getProducerSchedulingSummary,
+    movieId,
+    requestProducerScheduling,
+    selectedUpToLayer,
+  ]);
 
   const handleNodesChange: OnNodesChange = useCallback(
     (changes) => {
@@ -532,6 +578,19 @@ export function BlueprintViewer({
       <ProducerDetailsDialog
         open={dialogProducer !== null}
         producer={dialogProducer}
+        override={
+          dialogProducer
+            ? getProducerOverride(dialogProducer.nodeId)
+            : undefined
+        }
+        scheduling={
+          dialogProducer
+            ? getProducerSchedulingSummary(dialogProducer.nodeId)
+            : undefined
+        }
+        onSetOverrideEnabled={setProducerOverrideEnabled}
+        onSetOverrideCount={setProducerOverrideCount}
+        onResetOverride={resetProducerOverride}
         onOpenChange={handleDialogOpenChange}
       />
     </div>

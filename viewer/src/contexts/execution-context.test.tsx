@@ -174,6 +174,7 @@ describe('ExecutionContext', () => {
         movieId: null,
         selectedForRegeneration: new Set(),
         pinnedArtifacts: new Set(),
+        producerOverrides: {},
         showCompletionDialog: false,
       });
     });
@@ -345,15 +346,16 @@ describe('ExecutionContext', () => {
         await result.current.requestPlan('test-blueprint', 'movie-123');
       });
 
-      expect(mockCreatePlan).toHaveBeenCalledWith({
-        blueprint: 'test-blueprint',
-        movieId: 'movie-123',
-        artifactIds: expect.arrayContaining([
-          'Artifact:Producer.Output[0]',
-          'Artifact:Producer.Output[1]',
-        ]),
-        upToLayer: undefined,
-      });
+      expect(mockCreatePlan).toHaveBeenCalledWith(
+        expect.objectContaining({
+          blueprint: 'test-blueprint',
+          movieId: 'movie-123',
+          artifactIds: expect.arrayContaining([
+            'Artifact:Producer.Output[0]',
+            'Artifact:Producer.Output[1]',
+          ]),
+        })
+      );
     });
 
     it('does not include artifactIds when none selected', async () => {
@@ -367,12 +369,51 @@ describe('ExecutionContext', () => {
         await result.current.requestPlan('test-blueprint', 'movie-123', 2);
       });
 
-      expect(mockCreatePlan).toHaveBeenCalledWith({
-        blueprint: 'test-blueprint',
-        movieId: 'movie-123',
-        artifactIds: undefined,
-        upToLayer: 2,
+      expect(mockCreatePlan).toHaveBeenCalledWith(
+        expect.objectContaining({
+          blueprint: 'test-blueprint',
+          movieId: 'movie-123',
+          upToLayer: 2,
+        })
+      );
+      expect(mockCreatePlan.mock.calls[0]?.[0]).not.toHaveProperty('artifactIds');
+    });
+
+    it('includes producer overrides when override drafts are present', async () => {
+      mockCreatePlan.mockResolvedValue(createMockPlanResponse());
+
+      const { result } = renderHook(() => useExecution(), {
+        wrapper: createWrapper(),
       });
+
+      act(() => {
+        result.current.setProducerOverrideEnabled(
+          'Producer:AudioProducer',
+          true
+        );
+        result.current.setProducerOverrideCount('Producer:AudioProducer', 1);
+      });
+
+      await act(async () => {
+        await result.current.requestPlan('test-blueprint', 'movie-123');
+      });
+
+      expect(mockCreatePlan).toHaveBeenCalledWith(
+        expect.objectContaining({
+          blueprint: 'test-blueprint',
+          movieId: 'movie-123',
+          producerOverrides: {
+            mode: 'inherit',
+            directives: [
+              {
+                producerId: 'Producer:AudioProducer',
+                enabled: true,
+                count: 1,
+              },
+            ],
+          },
+        })
+      );
     });
 
     it('handles undefined movieId', async () => {
@@ -386,11 +427,86 @@ describe('ExecutionContext', () => {
         await result.current.requestPlan('test-blueprint');
       });
 
-      expect(mockCreatePlan).toHaveBeenCalledWith({
-        blueprint: 'test-blueprint',
-        movieId: undefined,
-        artifactIds: undefined,
-        upToLayer: undefined,
+      expect(mockCreatePlan).toHaveBeenCalledWith(
+        expect.objectContaining({
+          blueprint: 'test-blueprint',
+          movieId: undefined,
+        })
+      );
+      expect(mockCreatePlan.mock.calls[0]?.[0]).not.toHaveProperty('artifactIds');
+      expect(mockCreatePlan.mock.calls[0]?.[0]).not.toHaveProperty('upToLayer');
+    });
+
+    it('exposes producer scheduling summary from the latest plan', async () => {
+      mockCreatePlan.mockResolvedValue(
+        createMockPlanResponse({
+          producerScheduling: [
+            {
+              producerId: 'Producer:AudioProducer',
+              maxSelectableCount: 3,
+              selectedCount: 1,
+              scheduledCount: 1,
+              scheduledJobCount: 1,
+              scheduled: true,
+              upstreamProducerIds: ['Producer:ScriptProducer'],
+              warnings: ['Upstream dependencies may limit this override.'],
+            },
+          ],
+        })
+      );
+
+      const { result } = renderHook(() => useExecution(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.requestPlan('test-blueprint');
+      });
+
+      expect(
+        result.current.getProducerSchedulingSummary('Producer:AudioProducer')
+      ).toMatchObject({
+        producerId: 'Producer:AudioProducer',
+        selectedCount: 1,
+        scheduled: true,
+      });
+      expect(
+        result.current.getProducerSchedulingSummary('Producer:Missing')
+      ).toBeUndefined();
+    });
+
+    it('refreshes producer scheduling silently without changing execution status', async () => {
+      mockCreatePlan.mockResolvedValue(
+        createMockPlanResponse({
+          producerScheduling: [
+            {
+              producerId: 'Producer:ImageProducer',
+              maxSelectableCount: 2,
+              selectedCount: 2,
+              scheduledCount: 2,
+              scheduledJobCount: 2,
+              scheduled: true,
+              upstreamProducerIds: [],
+              warnings: [],
+            },
+          ],
+        })
+      );
+
+      const { result } = renderHook(() => useExecution(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.requestProducerScheduling('test-blueprint', 'movie-123');
+      });
+
+      expect(result.current.state.status).toBe('idle');
+      expect(
+        result.current.getProducerSchedulingSummary('Producer:ImageProducer')
+      ).toMatchObject({
+        maxSelectableCount: 2,
+        scheduled: true,
       });
     });
   });

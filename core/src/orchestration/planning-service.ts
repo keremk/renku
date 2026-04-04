@@ -9,8 +9,12 @@ import {
   createPlanAdapter,
   type PlanAdapterOptions,
 } from '../planning/adapter.js';
-import { collectRequiredConditionArtifactIds } from '../planning/planner.js';
+import {
+  collectRequiredConditionArtifactIds,
+  computeMultipleArtifactRegenerationJobs,
+} from '../planning/planner.js';
 import type { PlanExplanation } from '../planning/explanation.js';
+import { evaluateInputConditions } from '../condition-evaluator.js';
 import {
   isCanonicalArtifactId,
   isCanonicalInputId,
@@ -28,6 +32,11 @@ import { formatBlobFileName } from '../blob-utils.js';
 import {
   applyOutputSchemasFromProviderOptionsToBlueprintTree,
 } from './output-schema-hydration.js';
+import {
+  buildProducerSchedulingSummary,
+  deriveProducerFamilyId,
+  normalizeProducerOverrides,
+} from './producer-overrides.js';
 import type {
   ArtefactEvent,
   ArtefactEventOutput,
@@ -41,7 +50,11 @@ import type {
   MappingFieldDefinition,
   Manifest,
   ProducerCatalog,
+  ProducerGraph,
+  ProducerOverrides,
+  ProducerSchedulingSummary,
   RevisionId,
+  InputConditionInfo,
   SurgicalRegenerationScope,
 } from '../types.js';
 
@@ -91,6 +104,8 @@ export interface GeneratePlanArgs {
   pinnedArtifactIds?: string[];
   /** Producer IDs that are pinned (legacy/compat). */
   pinnedProducerIds?: string[];
+  /** Producer-level scheduling overrides. */
+  producerOverrides?: ProducerOverrides;
 }
 
 export interface GeneratePlanResult {
@@ -103,6 +118,8 @@ export interface GeneratePlanResult {
   resolvedInputs: Record<string, unknown>;
   /** Explanation of why jobs were scheduled (only if collectExplanation was true) */
   explanation?: PlanExplanation;
+  /** Effective producer-level scheduling metadata for UI/CLI displays. */
+  producerScheduling?: ProducerSchedulingSummary[];
 }
 
 export interface PlanningServiceOptions extends PlanAdapterOptions {
@@ -194,6 +211,52 @@ export function createPlanningService(
         args.providerOptions
       );
 
+      const normalizedProducerOverrides = normalizeProducerOverrides({
+        producerGraph,
+        overrides: args.producerOverrides,
+      });
+      if (
+        normalizedProducerOverrides.mode === 'selected-only' &&
+        args.reRunFrom !== undefined
+      ) {
+        throw createRuntimeError(
+          RuntimeErrorCode.PRODUCER_OVERRIDE_WITH_RERUN_FROM,
+          'Producer selection mode is incompatible with --re-run-from/--from.',
+          {
+            suggestion:
+              'Remove --re-run-from/--from when using producer selection overrides.',
+          }
+        );
+      }
+
+      const latestArtefactSnapshot = await readLatestArtefactSnapshot(
+        args.eventLog,
+        args.movieId
+      );
+
+      // Resolve artifact regeneration configs if targetArtifactIds is provided
+      let artifactRegenerations: ArtifactRegenerationConfig[] | undefined;
+      if (args.targetArtifactIds && args.targetArtifactIds.length > 0) {
+        artifactRegenerations = resolveArtifactsToJobs(
+          args.targetArtifactIds,
+          manifest,
+          producerGraph,
+          latestArtefactSnapshot.latestById
+        );
+      }
+
+      const artifactForceTargetJobIds = artifactRegenerations?.length
+        ? Array.from(
+            computeMultipleArtifactRegenerationJobs(
+              artifactRegenerations.map((item) => item.sourceJobId),
+              producerGraph
+            )
+          )
+        : [];
+
+      const forceTargetJobIdSet = new Set<string>(artifactForceTargetJobIds);
+      const forceTargetArtifactIds = new Set<string>(args.targetArtifactIds ?? []);
+
       const resolvedPinnedArtifactIds = await resolveAndValidatePinIds({
         movieId: args.movieId,
         pinIds: args.pinIds,
@@ -202,23 +265,9 @@ export function createPlanningService(
         manifest,
         eventLog: args.eventLog,
         producerGraph,
-        targetArtifactIds: args.targetArtifactIds,
+        forceTargetArtifactIds: Array.from(forceTargetArtifactIds),
+        latestSnapshot: latestArtefactSnapshot,
       });
-
-      // Resolve artifact regeneration configs if targetArtifactIds is provided
-      let artifactRegenerations: ArtifactRegenerationConfig[] | undefined;
-      if (args.targetArtifactIds && args.targetArtifactIds.length > 0) {
-        const latestArtefactSnapshot = await readLatestArtefactSnapshot(
-          args.eventLog,
-          args.movieId
-        );
-        artifactRegenerations = resolveArtifactsToJobs(
-          args.targetArtifactIds,
-          manifest,
-          producerGraph,
-          latestArtefactSnapshot.latestById
-        );
-      }
 
       const requiredConditionArtifactIds =
         collectRequiredConditionArtifactIds(producerGraph);
@@ -249,6 +298,36 @@ export function createPlanningService(
           resolvedPinnedArtifactIds.length > 0
             ? resolvedPinnedArtifactIds
             : undefined,
+        forceTargetJobIds:
+          forceTargetJobIdSet.size > 0
+            ? Array.from(forceTargetJobIdSet)
+            : undefined,
+        producerOverrideMode: normalizedProducerOverrides.mode,
+        selectedProducerJobIds:
+          normalizedProducerOverrides.selectedProducerJobIds.length > 0
+            ? normalizedProducerOverrides.selectedProducerJobIds
+            : undefined,
+        blockedProducerJobIds:
+          normalizedProducerOverrides.blockedProducerJobIds.length > 0
+            ? normalizedProducerOverrides.blockedProducerJobIds
+            : undefined,
+      });
+
+      const scheduledJobIds = new Set(plan.layers.flat().map((job) => job.jobId));
+      if (normalizedProducerOverrides.hasOverrides) {
+        validateProducerOverrideDependencies({
+          movieId: args.movieId,
+          producerGraph,
+          scheduledJobIds,
+          manifest,
+          latestSuccessfulArtifactIds: latestArtefactSnapshot.latestSuccessfulIds,
+          resolvedConditionArtifacts,
+        });
+      }
+
+      const producerScheduling = buildProducerSchedulingSummary({
+        normalizedOverrides: normalizedProducerOverrides,
+        scheduledJobIds,
       });
 
       await planStore.save(plan, {
@@ -277,6 +356,7 @@ export function createPlanningService(
         inputEvents,
         resolvedInputs,
         explanation,
+        producerScheduling,
       };
     },
   };
@@ -482,7 +562,12 @@ interface ResolveAndValidatePinIdsArgs {
   manifest: Manifest;
   eventLog: EventLog;
   producerGraph: { nodes: Array<{ jobId: string; produces: string[] }> };
-  targetArtifactIds?: string[];
+  forceTargetArtifactIds?: string[];
+  latestSnapshot?: {
+    latestById: Map<string, ArtefactEvent>;
+    latestSuccessfulIds: Set<string>;
+    latestFailedIds: Set<string>;
+  };
 }
 
 async function resolveAndValidatePinIds(
@@ -563,10 +648,9 @@ async function resolveAndValidatePinIds(
 
   const resolvedPinnedArtifactIds = [...artifactPins];
 
-  const snapshot = await readLatestArtefactSnapshot(
-    args.eventLog,
-    args.movieId
-  );
+  const snapshot =
+    args.latestSnapshot ??
+    (await readLatestArtefactSnapshot(args.eventLog, args.movieId));
   const hasSucceededManifestArtifacts = Object.values(
     args.manifest.artefacts
   ).some((entry) => entry.status === 'succeeded');
@@ -584,11 +668,6 @@ async function resolveAndValidatePinIds(
     );
   }
 
-  assertNoPinSurgicalConflict(
-    resolvedPinnedArtifactIds,
-    args.targetArtifactIds
-  );
-
   await validatePinnedTargetsReusable(
     args.movieId,
     resolvedPinnedArtifactIds,
@@ -596,34 +675,9 @@ async function resolveAndValidatePinIds(
     snapshot
   );
 
-  return resolvedPinnedArtifactIds;
-}
-
-function assertNoPinSurgicalConflict(
-  pinnedArtifactIds: string[],
-  targetArtifactIds: string[] | undefined
-): void {
-  if (
-    !targetArtifactIds ||
-    targetArtifactIds.length === 0 ||
-    pinnedArtifactIds.length === 0
-  ) {
-    return;
-  }
-  const pinned = new Set(pinnedArtifactIds);
-  const conflicts = targetArtifactIds.filter((id) => pinned.has(id));
-  if (conflicts.length === 0) {
-    return;
-  }
-
-  throw createRuntimeError(
-    RuntimeErrorCode.PIN_CONFLICT_WITH_SURGICAL_TARGET,
-    `Pinning conflicts with surgical regeneration for artifact(s): ${conflicts.join(', ')}`,
-    {
-      context: `conflicts=${conflicts.join(',')}`,
-      suggestion:
-        'Remove the conflicting artifact from --pin or --artifact-id/--aid.',
-    }
+  const forceTargets = new Set(args.forceTargetArtifactIds ?? []);
+  return resolvedPinnedArtifactIds.filter((artifactId) =>
+    !forceTargets.has(artifactId)
   );
 }
 
@@ -663,6 +717,126 @@ async function validatePinnedTargetsReusable(
       }
     );
   }
+}
+
+function validateProducerOverrideDependencies(args: {
+  movieId: string;
+  producerGraph: ProducerGraph;
+  scheduledJobIds: Set<string>;
+  manifest: Manifest;
+  latestSuccessfulArtifactIds: Set<string>;
+  resolvedConditionArtifacts?: Record<string, unknown>;
+}): void {
+  if (args.scheduledJobIds.size === 0) {
+    return;
+  }
+
+  const nodeById = new Map(
+    args.producerGraph.nodes.map((node) => [node.jobId, node])
+  );
+  const producedByScheduled = new Set<string>();
+  for (const jobId of args.scheduledJobIds) {
+    const node = nodeById.get(jobId);
+    if (!node) {
+      continue;
+    }
+    for (const artifactId of node.produces) {
+      if (isCanonicalArtifactId(artifactId)) {
+        producedByScheduled.add(artifactId);
+      }
+    }
+  }
+
+  const reusableArtifacts = new Set<string>(args.latestSuccessfulArtifactIds);
+  for (const [artifactId, entry] of Object.entries(args.manifest.artefacts)) {
+    if (entry.status === 'succeeded') {
+      reusableArtifacts.add(artifactId);
+    }
+  }
+
+  const missingDependencies = new Set<string>();
+  for (const jobId of args.scheduledJobIds) {
+    const node = nodeById.get(jobId);
+    if (!node) {
+      continue;
+    }
+
+    const conditionResults = evaluateInputConditions(
+      node.context?.inputConditions,
+      {
+        resolvedArtifacts: args.resolvedConditionArtifacts ?? {},
+      }
+    );
+
+    const artifactInputs = new Set<string>();
+    for (const inputId of node.inputs) {
+      if (isCanonicalArtifactId(inputId)) {
+        artifactInputs.add(inputId);
+      }
+    }
+    const fanIn = node.context?.fanIn;
+    if (fanIn) {
+      for (const spec of Object.values(fanIn)) {
+        for (const member of spec.members) {
+          if (isCanonicalArtifactId(member.id)) {
+            artifactInputs.add(member.id);
+          }
+        }
+      }
+    }
+
+    for (const artifactId of artifactInputs) {
+      if (
+        !isScheduledArtifactInputActive(
+          artifactId,
+          node.context?.inputConditions,
+          conditionResults
+        )
+      ) {
+        continue;
+      }
+      if (producedByScheduled.has(artifactId)) {
+        continue;
+      }
+      if (reusableArtifacts.has(artifactId)) {
+        continue;
+      }
+      missingDependencies.add(`${deriveProducerFamilyId(jobId)} requires ${artifactId}`);
+    }
+  }
+
+  if (missingDependencies.size > 0) {
+    throw createRuntimeError(
+      RuntimeErrorCode.PRODUCER_OVERRIDE_DEPENDENCY_MISSING,
+      `Producer overrides leave required upstream artifacts unavailable: ${Array.from(missingDependencies).join('; ')}`,
+      {
+        context: `movieId=${args.movieId}`,
+        suggestion:
+          'Adjust producer selection/count overrides so required upstream artifacts are scheduled or already reusable.',
+      }
+    );
+  }
+}
+
+function isScheduledArtifactInputActive(
+  artifactId: string,
+  inputConditions: Record<string, InputConditionInfo> | undefined,
+  conditionResults: Map<string, { satisfied: boolean; reason?: string }>
+): boolean {
+  if (!inputConditions || !(artifactId in inputConditions)) {
+    return true;
+  }
+  const result = conditionResults.get(artifactId);
+  if (!result) {
+    return true;
+  }
+  if (result.satisfied) {
+    return true;
+  }
+  return (
+    typeof result.reason === 'string' &&
+    result.reason.includes('Artifact not found')
+  );
 }
 
 async function readLatestArtefactSnapshot(

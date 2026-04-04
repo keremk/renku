@@ -81,6 +81,8 @@ export interface ExecuteOptions {
 
 	/** Target artifact IDs for surgical regeneration (canonical format, e.g., "Artifact:AudioProducer.GeneratedAudio[0]") */
 	targetArtifactIds?: string[];
+	/** Producer-level surgical overrides. */
+	producerOverrides?: import('@gorenku/core').ProducerOverrides;
 	/** Pin IDs (canonical Artifact:... or Producer:...). */
 	pinnedIds?: string[];
 
@@ -197,6 +199,7 @@ export async function runExecute(
 		reRunFrom: options.reRunFrom,
 		upToLayer,
 		targetArtifactIds: options.targetArtifactIds,
+		producerOverrides: options.producerOverrides,
 		pinnedIds: options.pinnedIds,
 		collectExplanation: options.explain,
 	});

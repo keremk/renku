@@ -21,7 +21,6 @@ describe('getProducerSdkPreview', () => {
       catalogRoot: CATALOG_ROOT,
       inputs: {
         'Input:Resolution': { width: 1280, height: 720 },
-        'Input:VoiceId': 'voice_123',
         'Input:NarrationAudioProducer.LanguageCode': 'eng',
         'Input:TranscriptionProducer.LanguageCode': 'eng',
       },

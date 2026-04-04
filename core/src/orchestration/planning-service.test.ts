@@ -450,6 +450,16 @@ describe('createPlanningService', () => {
       providerModel: 'gpt-4o',
       rateKey: 'openai-gpt4o',
     },
+    UpstreamProducer: {
+      provider: 'openai',
+      providerModel: 'gpt-4o',
+      rateKey: 'openai-gpt4o',
+    },
+    DownstreamProducer: {
+      provider: 'openai',
+      providerModel: 'gpt-4o',
+      rateKey: 'openai-gpt4o',
+    },
   };
 
   function createDefaultOptions(
@@ -471,6 +481,25 @@ describe('createPlanningService', () => {
       [
         { from: 'Prompt', to: 'TestProducer' },
         { from: 'TestProducer', to: 'Output' },
+      ]
+    );
+    return makeTreeNode(doc, []);
+  }
+
+  function createDependencyBlueprint(): BlueprintTreeNode {
+    const doc = makeBlueprintDocument(
+      'DependencyBlueprint',
+      [{ name: 'Prompt', type: 'string', required: true }],
+      [
+        { name: 'Intermediate', type: 'string' },
+        { name: 'FinalOutput', type: 'string' },
+      ],
+      [{ name: 'UpstreamProducer' }, { name: 'DownstreamProducer' }],
+      [
+        { from: 'Prompt', to: 'UpstreamProducer' },
+        { from: 'UpstreamProducer', to: 'Intermediate' },
+        { from: 'Intermediate', to: 'DownstreamProducer' },
+        { from: 'DownstreamProducer', to: 'FinalOutput' },
       ]
     );
     return makeTreeNode(doc, []);
@@ -837,7 +866,7 @@ describe('createPlanningService', () => {
       });
     });
 
-    it('fails when pin conflicts with surgical regeneration target', async () => {
+    it('allows pin overlap with surgical target by prioritizing the target', async () => {
       const service = createPlanningService();
       const manifestService = createManifestService(storage);
       const eventLog = createEventLog(storage);
@@ -854,22 +883,24 @@ describe('createPlanningService', () => {
         createdAt: new Date().toISOString(),
       });
 
-      await expect(
-        service.generatePlan({
-          movieId,
-          blueprintTree: createSimpleBlueprint(),
-          inputValues: { 'Input:Prompt': 'Hello world' },
-          providerCatalog: defaultCatalog,
-          providerOptions: createDefaultOptions(['TestProducer']),
-          storage,
-          manifestService,
-          eventLog,
-          pinIds: ['Artifact:Output'],
-          targetArtifactIds: ['Artifact:Output'],
-        })
-      ).rejects.toMatchObject({
-        code: RuntimeErrorCode.PIN_CONFLICT_WITH_SURGICAL_TARGET,
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: { 'Input:Prompt': 'Hello world' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+        pinIds: ['Artifact:Output'],
+        targetArtifactIds: ['Artifact:Output'],
+        collectExplanation: true,
       });
+
+      expect(result.explanation?.pinnedArtifactIds).toBeUndefined();
+      expect(result.plan.layers.flat().map((job) => job.jobId)).toContain(
+        'Producer:TestProducer'
+      );
     });
 
     it('resolves producer pin to artifact pins through shared core logic', async () => {
@@ -905,6 +936,98 @@ describe('createPlanningService', () => {
       expect(result.explanation?.pinnedArtifactIds).toEqual([
         'Artifact:Output',
       ]);
+    });
+
+    it('keeps pin active when producer override targets the same producer', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      await eventLog.appendArtefact(movieId, {
+        artefactId: 'Artifact:Output',
+        revision: 'rev-0001',
+        inputsHash: 'inputs-hash',
+        output: {
+          blob: { hash: 'blob-hash', size: 10, mimeType: 'text/plain' },
+        },
+        status: 'succeeded',
+        producedBy: 'Producer:TestProducer',
+        createdAt: new Date().toISOString(),
+      });
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: { 'Input:Prompt': 'Hello world' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+        pinIds: ['Artifact:Output'],
+        producerOverrides: {
+          mode: 'inherit',
+          directives: [{ producerId: 'Producer:TestProducer' }],
+        },
+        collectExplanation: true,
+      });
+
+      expect(result.explanation?.pinnedArtifactIds).toEqual(['Artifact:Output']);
+      expect(result.plan.layers.flat().map((job) => job.jobId)).toEqual([]);
+    });
+
+    it('fails when selected-only producer overrides are combined with re-run-from', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      await expect(
+        service.generatePlan({
+          movieId,
+          blueprintTree: createSimpleBlueprint(),
+          inputValues: { 'Input:Prompt': 'Hello world' },
+          providerCatalog: defaultCatalog,
+          providerOptions: createDefaultOptions(['TestProducer']),
+          storage,
+          manifestService,
+          eventLog,
+          reRunFrom: 0,
+          producerOverrides: {
+            mode: 'selected-only',
+            directives: [{ producerId: 'Producer:TestProducer' }],
+          },
+        })
+      ).rejects.toMatchObject({
+        code: RuntimeErrorCode.PRODUCER_OVERRIDE_WITH_RERUN_FROM,
+      });
+    });
+
+    it('fails when producer overrides leave required upstream artifacts unavailable', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      await expect(
+        service.generatePlan({
+          movieId,
+          blueprintTree: createDependencyBlueprint(),
+          inputValues: { 'Input:Prompt': 'Hello world' },
+          providerCatalog: defaultCatalog,
+          providerOptions: createDefaultOptions([
+            'UpstreamProducer',
+            'DownstreamProducer',
+          ]),
+          storage,
+          manifestService,
+          eventLog,
+          producerOverrides: {
+            mode: 'selected-only',
+            directives: [{ producerId: 'Producer:DownstreamProducer' }],
+          },
+        })
+      ).rejects.toMatchObject({
+        code: RuntimeErrorCode.PRODUCER_OVERRIDE_DEPENDENCY_MISSING,
+      });
     });
   });
 

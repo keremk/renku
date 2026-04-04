@@ -68,6 +68,8 @@ export interface GeneratePlanOptions {
 	upToLayer?: number;
 	/** Target artifact IDs for surgical regeneration (canonical format, e.g., ["Artifact:AudioProducer.GeneratedAudio[0]"]) */
 	targetArtifactIds?: string[];
+	/** Producer-level surgical overrides. */
+	producerOverrides?: import('@gorenku/core').ProducerOverrides;
 	/** Pin IDs (canonical Artifact:... or Producer:...). */
 	pinnedIds?: string[];
 	/** If true, collect explanation data for why jobs are scheduled */
@@ -100,6 +102,8 @@ export interface GeneratePlanResult {
 	persist: () => Promise<void>;
 	/** Surgical regeneration info when targetArtifactIds is provided. */
 	surgicalInfo?: SurgicalInfo[];
+	/** Effective producer-level scheduling metadata. */
+	producerScheduling?: import('@gorenku/core').ProducerSchedulingSummary[];
 	/** Plan explanation (only if collectExplanation was true) */
 	explanation?: PlanExplanation;
 	/** Condition analysis for dry-run simulation */
@@ -276,6 +280,7 @@ export async function generatePlan(
 		reRunFrom: options.reRunFrom,
 		upToLayer: options.upToLayer,
 		targetArtifactIds: options.targetArtifactIds,
+		producerOverrides: options.producerOverrides,
 		pinIds: options.pinnedIds,
 		collectExplanation: options.collectExplanation,
 	});
@@ -319,6 +324,7 @@ export async function generatePlan(
 		modelCatalog,
 		catalogModelsDir: catalogModelsDir ?? undefined,
 		surgicalInfo,
+		producerScheduling: planResult.producerScheduling,
 		explanation: planResult.explanation,
 		conditionAnalysis: conditionAnalysisResult,
 		conditionHints,

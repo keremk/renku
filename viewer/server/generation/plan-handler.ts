@@ -122,6 +122,7 @@ export async function handlePlanRequest(
       targetArtifactIds: body.artifactIds,
       upToLayer: body.upToLayer,
       pinIds: body.pinnedArtifactIds,
+      producerOverrides: body.producerOverrides,
     });
 
     // Cache the plan
@@ -138,6 +139,7 @@ export async function handlePlanRequest(
       costSummary: planResult.costSummary,
       catalogModelsDir: planResult.catalogModelsDir,
       surgicalInfo: planResult.surgicalInfo,
+      producerScheduling: planResult.producerScheduling,
       persist: planResult.persist,
     });
 
@@ -149,6 +151,7 @@ export async function handlePlanRequest(
       pinIds: body.pinnedArtifactIds,
       reRunFrom: body.reRunFrom,
       upToLayer: body.upToLayer,
+      producerPidValues: deriveCliProducerIdFlags(body.producerOverrides),
     });
     sendJson(res, response);
     return true;
@@ -183,6 +186,8 @@ interface GeneratePlanOptions {
   upToLayer?: number;
   /** Pin IDs (canonical Artifact:... or Producer:...). */
   pinIds?: string[];
+  /** Producer-level surgical overrides. */
+  producerOverrides?: PlanRequest['producerOverrides'];
 }
 
 /**
@@ -198,6 +203,7 @@ interface GeneratePlanResult {
   costSummary: PlanCostSummary;
   catalogModelsDir?: string;
   surgicalInfo?: SurgicalInfo[];
+  producerScheduling?: import('@gorenku/core').ProducerSchedulingSummary[];
   persist: () => Promise<void>;
 }
 
@@ -220,6 +226,7 @@ async function generatePlan(
     targetArtifactIds,
     upToLayer,
     pinIds,
+    producerOverrides,
   } = options;
   const storageRoot = cliConfig.storage.root;
   const movieDir = resolve(buildsFolder, movieId);
@@ -330,6 +337,7 @@ async function generatePlan(
     targetArtifactIds,
     upToLayer,
     pinIds,
+    producerOverrides,
   });
 
   // Load pricing catalog and estimate costs
@@ -357,6 +365,7 @@ async function generatePlan(
     costSummary,
     catalogModelsDir: catalogModelsDir ?? undefined,
     surgicalInfo,
+    producerScheduling: planResult.producerScheduling,
     persist: async () => {
       // Create LOCAL storage and write everything
       const localStorageContext = createStorageContext({
@@ -402,6 +411,7 @@ interface CliCommandOptions {
   pinIds?: string[];
   reRunFrom?: number;
   upToLayer?: number;
+  producerPidValues?: string[];
 }
 
 /**
@@ -439,13 +449,23 @@ function buildCliCommand(movieId: string, options: CliCommandOptions): string {
     }
   }
 
+  // Producer IDs (repeatable --pid)
+  if (options.producerPidValues && options.producerPidValues.length > 0) {
+    for (const producerPidValue of options.producerPidValues) {
+      parts.push(`--pid=${shellQuote(producerPidValue)}`);
+    }
+  }
+
   // Re-run from layer
   if (options.reRunFrom !== undefined) {
     parts.push(`--from=${options.reRunFrom}`);
   }
 
   // Up to layer
-  if (options.upToLayer !== undefined) {
+  if (
+    options.upToLayer !== undefined &&
+    (!options.producerPidValues || options.producerPidValues.length === 0)
+  ) {
     parts.push(`--up=${options.upToLayer}`);
   }
 
@@ -453,6 +473,24 @@ function buildCliCommand(movieId: string, options: CliCommandOptions): string {
   parts.push('--explain');
 
   return parts.join(' ');
+}
+
+function deriveCliProducerIdFlags(
+  producerOverrides: PlanRequest['producerOverrides'] | undefined
+): string[] | undefined {
+  if (!producerOverrides) {
+    return undefined;
+  }
+
+  const pidValues = producerOverrides.directives
+    .filter((directive) => directive.enabled !== false)
+    .map((directive) =>
+      directive.count !== undefined
+        ? `${directive.producerId}:${directive.count}`
+        : directive.producerId
+    );
+
+  return pidValues.length > 0 ? pidValues : undefined;
 }
 
 /**
@@ -562,6 +600,7 @@ export function buildPlanResponse(
     costSummary,
     layerBreakdown,
     surgicalInfo: cachedPlan.surgicalInfo,
+    producerScheduling: cachedPlan.producerScheduling,
     cliCommand,
   };
 }

@@ -603,6 +603,7 @@ function WorkspaceLayoutInner({
                 isExecuting={isExecuting}
                 hasLogs={hasExecutionLogs}
                 graphData={graphData}
+                blueprintName={blueprintName}
                 selectedUpToLayer={state.layerRange.upToLayer}
                 onLayerSelect={handleLayerSelect}
                 onNodeSelect={handleNodeSelect}

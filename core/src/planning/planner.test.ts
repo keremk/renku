@@ -3836,5 +3836,117 @@ describe('planner', () => {
       // TimelineAssembler should be downstream of surgical target
       expect(allJobIds).toContain('Producer:TimelineAssembler');
     });
+
+    it('pinned artifacts still exclude producer-override-selected jobs', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        'rev-0001'
+      );
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+      const manifest = createSucceededManifest(baseline, {
+        artefacts: {
+          'Artifact:NarrationScript[0]': {
+            hash: 'h0',
+            producedBy: 'Producer:ScriptProducer',
+          },
+          'Artifact:NarrationScript[1]': {
+            hash: 'h1',
+            producedBy: 'Producer:ScriptProducer',
+          },
+          'Artifact:SegmentAudio[0]': {
+            hash: 'h2',
+            producedBy: 'Producer:AudioProducer[0]',
+          },
+        },
+      });
+
+      const { plan } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: [],
+        producerOverrideMode: 'inherit',
+        selectedProducerJobIds: [
+          'Producer:AudioProducer[0]',
+          'Producer:AudioProducer[1]',
+        ],
+        pinnedArtifactIds: ['Artifact:SegmentAudio[0]'],
+      });
+
+      const allJobIds = plan.layers.flat().map((j) => j.jobId);
+      expect(allJobIds).not.toContain('Producer:AudioProducer[0]');
+      expect(allJobIds).toContain('Producer:AudioProducer[1]');
+    });
+
+    it('inherit producer overrides do not force reruns for reusable artifacts', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        'rev-0001'
+      );
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+      const manifest = createSucceededManifest(baseline);
+
+      const { plan } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: [],
+        producerOverrideMode: 'inherit',
+        selectedProducerJobIds: ['Producer:AudioProducer[0]'],
+      });
+
+      expect(plan.layers.flat()).toEqual([]);
+    });
+
+    it('selected-only producer overrides still force selected reruns', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        'rev-0001'
+      );
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+      const manifest = createSucceededManifest(baseline);
+
+      const { plan } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: [],
+        producerOverrideMode: 'selected-only',
+        selectedProducerJobIds: ['Producer:AudioProducer[0]'],
+      });
+
+      const allJobIds = plan.layers.flat().map((j) => j.jobId);
+      expect(allJobIds).toContain('Producer:AudioProducer[0]');
+    });
   });
 });

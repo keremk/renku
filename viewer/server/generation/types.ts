@@ -3,8 +3,14 @@
  * These expose the same capabilities as the CLI `generate` command.
  */
 
-import type { ExecutionPlan, Manifest, SurgicalInfo } from '@gorenku/core';
-export type { SurgicalInfo } from '@gorenku/core';
+import type {
+  ExecutionPlan,
+  Manifest,
+  ProducerOverrides,
+  ProducerSchedulingSummary,
+  SurgicalInfo,
+} from '@gorenku/core';
+export type { ProducerSchedulingSummary, SurgicalInfo } from '@gorenku/core';
 import type { PlanCostSummary, ProducerCostData } from '@gorenku/providers';
 
 // =============================================================================
@@ -30,6 +36,8 @@ export interface PlanRequest {
   upToLayer?: number;
   /** Pin IDs (canonical Artifact:... or Producer:...). Jobs whose produced artifacts are ALL pinned are excluded from the plan. */
   pinnedArtifactIds?: string[];
+  /** Producer-level surgical overrides. */
+  producerOverrides?: ProducerOverrides;
 }
 
 /**
@@ -95,6 +103,8 @@ export interface PlanResponse {
   layerBreakdown: LayerInfo[];
   /** Surgical regeneration info if artifactIds was provided */
   surgicalInfo?: SurgicalInfo[];
+  /** Effective producer scheduling metadata for UI controls. */
+  producerScheduling?: ProducerSchedulingSummary[];
   /** Equivalent CLI command for debugging/copy-paste */
   cliCommand?: string;
 }
@@ -363,6 +373,7 @@ export interface CachedPlan {
   costSummary: PlanCostSummary;
   catalogModelsDir?: string;
   surgicalInfo?: SurgicalInfo[];
+  producerScheduling?: ProducerSchedulingSummary[];
   /** When this plan was created */
   createdAt: Date;
   /** Async persist function from planner */

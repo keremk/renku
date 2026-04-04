@@ -22,6 +22,7 @@ interface BottomTabbedPanelProps {
   hasLogs: boolean;
   // Blueprint panel props
   graphData: BlueprintGraphData;
+  blueprintName: string;
   selectedUpToLayer: number | null;
   onLayerSelect?: (layerIndex: number) => void;
   onNodeSelect: (nodeId: string | null) => void;
@@ -123,6 +124,7 @@ export function BottomTabbedPanel({
   isExecuting,
   hasLogs,
   graphData,
+  blueprintName,
   selectedUpToLayer,
   onLayerSelect,
   onNodeSelect,
@@ -158,6 +160,8 @@ export function BottomTabbedPanel({
           <ReactFlowProvider>
             <BlueprintViewer
               graphData={graphData}
+              blueprintName={blueprintName}
+              movieId={movieId}
               selectedUpToLayer={selectedUpToLayer}
               onLayerSelect={onLayerSelect}
               onNodeSelect={onNodeSelect}

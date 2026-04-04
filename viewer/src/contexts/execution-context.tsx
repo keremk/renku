@@ -28,6 +28,7 @@ import type {
   PlanDisplayInfo,
   ProducerCostEntry,
   LayerDisplayInfo,
+  ProducerSchedulingSummary,
   PlanResponse,
   SSEEvent,
   ExecutionLogEntry,
@@ -61,6 +62,11 @@ interface ExecutionState {
   selectedForRegeneration: Set<string>;
   /** Set of artifact IDs that are pinned (kept from regeneration) */
   pinnedArtifacts: Set<string>;
+  /** Producer-level scheduling overrides keyed by canonical producer ID. */
+  producerOverrides: Record<
+    string,
+    { enabled?: boolean; count?: number }
+  >;
   /** Whether the completion dialog should be shown */
   showCompletionDialog: boolean;
 }
@@ -79,6 +85,7 @@ type ExecutionAction =
       upToLayer: number | null;
     }
   | { type: 'PLAN_READY'; planInfo: PlanDisplayInfo }
+  | { type: 'SYNC_PLAN_INFO'; planInfo: PlanDisplayInfo }
   | { type: 'PLAN_FAILED'; error: string }
   | { type: 'START_EXECUTION'; jobId: string }
   | { type: 'UPDATE_PROGRESS'; progress: ExecutionProgress }
@@ -101,6 +108,14 @@ type ExecutionAction =
   | { type: 'PIN_PRODUCER_ARTIFACTS'; artifactIds: string[] }
   | { type: 'UNPIN_PRODUCER_ARTIFACTS'; artifactIds: string[] }
   | { type: 'CLEAR_PINNED_SELECTION' }
+  | { type: 'SET_PRODUCER_OVERRIDE_ENABLED'; producerId: string; enabled: boolean }
+  | {
+      type: 'SET_PRODUCER_OVERRIDE_COUNT';
+      producerId: string;
+      count: number | null;
+    }
+  | { type: 'RESET_PRODUCER_OVERRIDE'; producerId: string }
+  | { type: 'CLEAR_PRODUCER_OVERRIDES' }
   | { type: 'DISMISS_COMPLETION'; clearSelections: boolean };
 
 // =============================================================================
@@ -123,6 +138,7 @@ const initialState: ExecutionState = {
   movieId: null,
   selectedForRegeneration: new Set(),
   pinnedArtifacts: new Set(),
+  producerOverrides: {},
   showCompletionDialog: false,
 };
 
@@ -173,6 +189,13 @@ function executionReducer(
         status: 'confirming',
         planInfo: action.planInfo,
         // Use blueprintLayers for dropdown (total blueprint layers, not filtered plan layers)
+        totalLayers: action.planInfo.blueprintLayers,
+      };
+
+    case 'SYNC_PLAN_INFO':
+      return {
+        ...state,
+        planInfo: action.planInfo,
         totalLayers: action.planInfo.blueprintLayers,
       };
 
@@ -250,6 +273,7 @@ function executionReducer(
         bottomPanelVisible: state.bottomPanelVisible,
         selectedForRegeneration: state.selectedForRegeneration,
         pinnedArtifacts: state.pinnedArtifacts,
+        producerOverrides: state.producerOverrides,
       };
 
     case 'INIT_FROM_MANIFEST': {
@@ -372,6 +396,59 @@ function executionReducer(
     case 'CLEAR_PINNED_SELECTION':
       return { ...state, pinnedArtifacts: new Set() };
 
+    case 'SET_PRODUCER_OVERRIDE_ENABLED': {
+      const existing = state.producerOverrides[action.producerId] ?? {};
+      return {
+        ...state,
+        producerOverrides: {
+          ...state.producerOverrides,
+          [action.producerId]: {
+            ...existing,
+            enabled: action.enabled,
+          },
+        },
+      };
+    }
+
+    case 'SET_PRODUCER_OVERRIDE_COUNT': {
+      const existing = state.producerOverrides[action.producerId] ?? {};
+      const nextOverride =
+        action.count === null
+          ? { ...existing, count: undefined }
+          : { ...existing, count: action.count };
+      if (
+        nextOverride.enabled === undefined &&
+        nextOverride.count === undefined
+      ) {
+        const { [action.producerId]: _unused, ...rest } = state.producerOverrides;
+        return {
+          ...state,
+          producerOverrides: rest,
+        };
+      }
+      return {
+        ...state,
+        producerOverrides: {
+          ...state.producerOverrides,
+          [action.producerId]: nextOverride,
+        },
+      };
+    }
+
+    case 'RESET_PRODUCER_OVERRIDE': {
+      const { [action.producerId]: _unused, ...rest } = state.producerOverrides;
+      return {
+        ...state,
+        producerOverrides: rest,
+      };
+    }
+
+    case 'CLEAR_PRODUCER_OVERRIDES':
+      return {
+        ...state,
+        producerOverrides: {},
+      };
+
     case 'DISMISS_COMPLETION':
       return {
         ...state,
@@ -382,6 +459,9 @@ function executionReducer(
         pinnedArtifacts: action.clearSelections
           ? new Set()
           : state.pinnedArtifacts,
+        producerOverrides: action.clearSelections
+          ? {}
+          : state.producerOverrides,
       };
 
     default:
@@ -533,6 +613,7 @@ function planResponseToDisplayInfo(response: PlanResponse): PlanDisplayInfo {
     costByProducer,
     layerBreakdown,
     surgicalInfo,
+    producerScheduling: response.producerScheduling,
     cliCommand: response.cliCommand,
   };
 }
@@ -547,6 +628,12 @@ interface ExecutionContextValue {
   setTotalLayers: (totalLayers: number) => void;
   /** Request a new plan. If upToLayer is provided, plan will only include jobs up to that layer. */
   requestPlan: (
+    blueprintName: string,
+    movieId?: string,
+    upToLayer?: number
+  ) => Promise<void>;
+  /** Refresh producer scheduling metadata without opening the run confirmation dialog. */
+  requestProducerScheduling: (
     blueprintName: string,
     movieId?: string,
     upToLayer?: number
@@ -585,6 +672,23 @@ interface ExecutionContextValue {
   isArtifactPinned: (artifactId: string) => boolean;
   /** Get all pinned artifact IDs */
   getPinnedArtifacts: () => string[];
+  /** Set producer override enabled state (true/false). */
+  setProducerOverrideEnabled: (producerId: string, enabled: boolean) => void;
+  /** Set producer override first-dimension count. Use null to clear count override. */
+  setProducerOverrideCount: (
+    producerId: string,
+    count: number | null
+  ) => void;
+  /** Reset producer override to plan defaults. */
+  resetProducerOverride: (producerId: string) => void;
+  /** Get current producer override draft for a producer. */
+  getProducerOverride: (
+    producerId: string
+  ) => { enabled?: boolean; count?: number } | undefined;
+  /** Get latest producer scheduling metadata for a producer from plan response. */
+  getProducerSchedulingSummary: (
+    producerId: string
+  ) => ProducerSchedulingSummary | undefined;
 }
 
 // =============================================================================
@@ -649,19 +753,16 @@ export function ExecutionProvider({
       });
 
       try {
-        // Get selected artifacts for surgical regeneration
-        const selectedArtifacts = Array.from(state.selectedForRegeneration);
-        const pinnedArtifacts = Array.from(state.pinnedArtifacts);
-
-        const response = await createPlan({
-          blueprint: blueprintName,
-          movieId: movieId ?? undefined,
-          artifactIds:
-            selectedArtifacts.length > 0 ? selectedArtifacts : undefined,
-          upToLayer: upToLayer,
-          pinnedArtifactIds:
-            pinnedArtifacts.length > 0 ? pinnedArtifacts : undefined,
-        });
+        const response = await createPlan(
+          buildPlanRequest({
+            blueprintName,
+            movieId,
+            upToLayer,
+            selectedForRegeneration: state.selectedForRegeneration,
+            pinnedArtifacts: state.pinnedArtifacts,
+            producerOverrides: state.producerOverrides,
+          })
+        );
 
         const planInfo = planResponseToDisplayInfo(response);
         dispatch({ type: 'PLAN_READY', planInfo });
@@ -671,7 +772,38 @@ export function ExecutionProvider({
         dispatch({ type: 'PLAN_FAILED', error: message });
       }
     },
-    [state.selectedForRegeneration, state.pinnedArtifacts]
+    [
+      state.selectedForRegeneration,
+      state.pinnedArtifacts,
+      state.producerOverrides,
+    ]
+  );
+
+  const requestProducerScheduling = useCallback(
+    async (blueprintName: string, movieId?: string, upToLayer?: number) => {
+      try {
+        const response = await createPlan(
+          buildPlanRequest({
+            blueprintName,
+            movieId,
+            upToLayer,
+            selectedForRegeneration: state.selectedForRegeneration,
+            pinnedArtifacts: state.pinnedArtifacts,
+            producerOverrides: state.producerOverrides,
+          })
+        );
+
+        const planInfo = planResponseToDisplayInfo(response);
+        dispatch({ type: 'SYNC_PLAN_INFO', planInfo });
+      } catch (error) {
+        console.error('Failed to refresh producer scheduling:', error);
+      }
+    },
+    [
+      state.selectedForRegeneration,
+      state.pinnedArtifacts,
+      state.producerOverrides,
+    ]
   );
 
   const confirmExecution = useCallback(
@@ -856,11 +988,46 @@ export function ExecutionProvider({
     return Array.from(state.pinnedArtifacts);
   }, [state.pinnedArtifacts]);
 
+  const setProducerOverrideEnabled = useCallback(
+    (producerId: string, enabled: boolean) => {
+      dispatch({ type: 'SET_PRODUCER_OVERRIDE_ENABLED', producerId, enabled });
+    },
+    []
+  );
+
+  const setProducerOverrideCount = useCallback(
+    (producerId: string, count: number | null) => {
+      dispatch({ type: 'SET_PRODUCER_OVERRIDE_COUNT', producerId, count });
+    },
+    []
+  );
+
+  const resetProducerOverride = useCallback((producerId: string) => {
+    dispatch({ type: 'RESET_PRODUCER_OVERRIDE', producerId });
+  }, []);
+
+  const getProducerOverride = useCallback(
+    (producerId: string) => {
+      return state.producerOverrides[producerId];
+    },
+    [state.producerOverrides]
+  );
+
+  const getProducerSchedulingSummary = useCallback(
+    (producerId: string) => {
+      return state.planInfo?.producerScheduling?.find(
+        (item) => item.producerId === producerId
+      );
+    },
+    [state.planInfo?.producerScheduling]
+  );
+
   const value: ExecutionContextValue = {
     state,
     setLayerRange,
     setTotalLayers,
     requestPlan,
+    requestProducerScheduling,
     confirmExecution,
     cancelExecution,
     dismissDialog,
@@ -882,6 +1049,11 @@ export function ExecutionProvider({
     clearPinnedSelection,
     isArtifactPinned,
     getPinnedArtifacts,
+    setProducerOverrideEnabled,
+    setProducerOverrideCount,
+    resetProducerOverride,
+    getProducerOverride,
+    getProducerSchedulingSummary,
   };
 
   return (
@@ -889,6 +1061,58 @@ export function ExecutionProvider({
       {children}
     </ExecutionContext.Provider>
   );
+}
+
+function buildPlanRequest(args: {
+  blueprintName: string;
+  movieId?: string;
+  upToLayer?: number;
+  selectedForRegeneration: Set<string>;
+  pinnedArtifacts: Set<string>;
+  producerOverrides: Record<string, { enabled?: boolean; count?: number }>;
+}): {
+  blueprint: string;
+  movieId?: string;
+  artifactIds?: string[];
+  upToLayer?: number;
+  pinnedArtifactIds?: string[];
+  producerOverrides?: {
+    mode: 'inherit';
+    directives: Array<{ producerId: string; enabled?: boolean; count?: number }>;
+  };
+} {
+  const selectedArtifacts = Array.from(args.selectedForRegeneration);
+  const pinnedArtifacts = Array.from(args.pinnedArtifacts);
+  const producerOverrideDirectives = Object.entries(args.producerOverrides)
+    .map(([producerId, override]) => ({
+      producerId,
+      ...(override.enabled !== undefined ? { enabled: override.enabled } : {}),
+      ...(override.count !== undefined ? { count: override.count } : {}),
+    }))
+    .filter(
+      (directive) =>
+        directive.enabled !== undefined || directive.count !== undefined
+    );
+
+  return {
+    blueprint: args.blueprintName,
+    movieId: args.movieId ?? undefined,
+    ...(selectedArtifacts.length > 0
+      ? { artifactIds: selectedArtifacts }
+      : {}),
+    ...(args.upToLayer !== undefined ? { upToLayer: args.upToLayer } : {}),
+    ...(pinnedArtifacts.length > 0
+      ? { pinnedArtifactIds: pinnedArtifacts }
+      : {}),
+    ...(producerOverrideDirectives.length > 0
+      ? {
+          producerOverrides: {
+            mode: 'inherit' as const,
+            directives: producerOverrideDirectives,
+          },
+        }
+      : {}),
+  };
 }
 
 // =============================================================================

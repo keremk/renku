@@ -6,9 +6,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowRight, Layers, MapPin } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { AlertTriangle, ArrowRight, Layers, MapPin, RotateCcw } from "lucide-react";
 import type { ProducerBinding } from "@/types/blueprint-graph";
-import type { ProducerStatus } from "@/types/generation";
+import type { ProducerSchedulingSummary, ProducerStatus } from "@/types/generation";
 
 interface ProducerDetails {
   nodeId: string;
@@ -24,6 +25,14 @@ interface ProducerDetails {
 interface ProducerDetailsDialogProps {
   open: boolean;
   producer: ProducerDetails | null;
+  override?: {
+    enabled?: boolean;
+    count?: number;
+  };
+  scheduling?: ProducerSchedulingSummary;
+  onSetOverrideEnabled?: (producerId: string, enabled: boolean) => void;
+  onSetOverrideCount?: (producerId: string, count: number | null) => void;
+  onResetOverride?: (producerId: string) => void;
   onOpenChange: (open: boolean) => void;
 }
 
@@ -314,13 +323,141 @@ function ConnectionsPanel({
   );
 }
 
+function SchedulingOverridesSection({
+  producer,
+  override,
+  scheduling,
+  onSetOverrideEnabled,
+  onSetOverrideCount,
+  onResetOverride,
+}: {
+  producer: ProducerDetails;
+  override?: {
+    enabled?: boolean;
+    count?: number;
+  };
+  scheduling?: ProducerSchedulingSummary;
+  onSetOverrideEnabled?: (producerId: string, enabled: boolean) => void;
+  onSetOverrideCount?: (producerId: string, count: number | null) => void;
+  onResetOverride?: (producerId: string) => void;
+}) {
+  const hasOverride = override !== undefined;
+  const effectiveEnabled = override?.enabled ?? true;
+  const maxSelectableCount = scheduling?.maxSelectableCount;
+  const effectiveCount =
+    override?.count ??
+    scheduling?.selectedCount ??
+    (maxSelectableCount !== undefined ? maxSelectableCount : undefined);
+
+  const warningText = scheduling?.warnings[0];
+
+  return (
+    <section className="rounded-lg bg-card p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Scheduling Overrides</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Control whether this producer runs and cap first-dimension generation count.
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={!hasOverride}
+          onClick={() => onResetOverride?.(producer.nodeId)}
+          className="inline-flex items-center gap-1 rounded-md border border-border/50 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-item-hover-bg hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <RotateCcw className="h-3 w-3" />
+          Reset
+        </button>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between rounded-md bg-muted px-2.5 py-2">
+        <div>
+          <p className="text-xs font-medium text-foreground">Schedule Producer</p>
+          <p className="text-[11px] text-muted-foreground">
+            {override?.enabled === undefined ? "Inheriting plan defaults" : "Override applied"}
+          </p>
+        </div>
+        <Switch
+          aria-label={`Schedule ${producer.label}`}
+          checked={effectiveEnabled}
+          onCheckedChange={(checked) =>
+            onSetOverrideEnabled?.(producer.nodeId, checked)
+          }
+        />
+      </div>
+
+      <div className="mt-3 rounded-md bg-muted px-2.5 py-2">
+        <label className="text-xs font-medium text-foreground" htmlFor={`producer-count-${producer.nodeId}`}>
+          Artifact Count
+        </label>
+        {maxSelectableCount !== undefined ? (
+          <div className="mt-1 flex items-center gap-2">
+            <input
+              id={`producer-count-${producer.nodeId}`}
+              type="number"
+              min={1}
+              max={maxSelectableCount}
+              disabled={!effectiveEnabled}
+              value={effectiveCount ?? ""}
+              onChange={(event) => {
+                const value = event.target.value.trim();
+                if (value.length === 0) {
+                  onSetOverrideCount?.(producer.nodeId, null);
+                  return;
+                }
+                const parsed = Number.parseInt(value, 10);
+                if (!Number.isInteger(parsed)) {
+                  return;
+                }
+                if (parsed < 1 || parsed > maxSelectableCount) {
+                  return;
+                }
+                onSetOverrideCount?.(producer.nodeId, parsed);
+              }}
+              className="w-20 rounded border border-border/50 bg-background px-2 py-1 text-xs text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+            />
+            <span className="text-[11px] text-muted-foreground">
+              1 to {maxSelectableCount}
+            </span>
+          </div>
+        ) : (
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Calculating available count...
+          </p>
+        )}
+      </div>
+
+      {warningText && (
+        <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-500/35 bg-amber-500/10 px-2.5 py-2 text-[11px] text-amber-700 dark:text-amber-300">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{warningText}</span>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ProducerDetailsDialogBody({
   open,
   producer,
+  override,
+  scheduling,
+  onSetOverrideEnabled,
+  onSetOverrideCount,
+  onResetOverride,
   onOpenChange,
 }: {
   open: boolean;
   producer: ProducerDetails;
+  override?: {
+    enabled?: boolean;
+    count?: number;
+  };
+  scheduling?: ProducerSchedulingSummary;
+  onSetOverrideEnabled?: (producerId: string, enabled: boolean) => void;
+  onSetOverrideCount?: (producerId: string, count: number | null) => void;
+  onResetOverride?: (producerId: string) => void;
   onOpenChange: (open: boolean) => void;
 }) {
   const [activeTab, setActiveTab] = useState<DialogTab>("overview");
@@ -412,6 +549,14 @@ function ProducerDetailsDialogBody({
                   <span className="font-medium text-foreground/90">Outputs</span> for connection details.
                 </p>
               </div>
+              <SchedulingOverridesSection
+                producer={producer}
+                override={override}
+                scheduling={scheduling}
+                onSetOverrideEnabled={onSetOverrideEnabled}
+                onSetOverrideCount={onSetOverrideCount}
+                onResetOverride={onResetOverride}
+              />
             </div>
           )}
 
@@ -442,7 +587,16 @@ function ProducerDetailsDialogBody({
   );
 }
 
-export function ProducerDetailsDialog({ open, producer, onOpenChange }: ProducerDetailsDialogProps) {
+export function ProducerDetailsDialog({
+  open,
+  producer,
+  override,
+  scheduling,
+  onSetOverrideEnabled,
+  onSetOverrideCount,
+  onResetOverride,
+  onOpenChange,
+}: ProducerDetailsDialogProps) {
   if (!producer) {
     return null;
   }
@@ -452,6 +606,11 @@ export function ProducerDetailsDialog({ open, producer, onOpenChange }: Producer
       key={producer.nodeId}
       open={open}
       producer={producer}
+      override={override}
+      scheduling={scheduling}
+      onSetOverrideEnabled={onSetOverrideEnabled}
+      onSetOverrideCount={onSetOverrideCount}
+      onResetOverride={onResetOverride}
       onOpenChange={onOpenChange}
     />
   );

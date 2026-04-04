@@ -2,7 +2,10 @@
  * Client-side types for generation functionality.
  */
 
-import type { SurgicalInfo } from '../../server/generation/types';
+import type {
+  ProducerSchedulingSummary,
+  SurgicalInfo,
+} from '../../server/generation/types';
 
 // =============================================================================
 // Producer Status Types
@@ -131,6 +134,8 @@ export interface PlanDisplayInfo {
   layerBreakdown: LayerDisplayInfo[];
   /** Surgical regeneration info if present */
   surgicalInfo?: SurgicalInfo[];
+  /** Producer-level scheduling metadata from planning. */
+  producerScheduling?: ProducerSchedulingSummary[];
   /** Equivalent CLI command for debugging/copy-paste */
   cliCommand?: string;
 }
@@ -166,6 +171,7 @@ export interface LayerJobDisplayInfo {
 // =============================================================================
 
 export type {
+  ProducerSchedulingSummary,
   PlanRequest,
   PlanResponse,
   ExecuteRequest,

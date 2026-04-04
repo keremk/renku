@@ -21,6 +21,7 @@ import {
   type Manifest,
   type ArtefactEvent,
   type ProducerGraph,
+  type ProducerOverrideMode,
   type ResolvedEdgeCondition,
   type ResolvedEdgeConditionGroup,
   type RevisionId,
@@ -59,6 +60,14 @@ interface ComputePlanArgs {
   collectExplanation?: boolean;
   /** Artifact IDs that are pinned (kept). Jobs whose produced artifacts are ALL pinned are excluded from the plan. */
   pinnedArtifactIds?: string[];
+  /** Force-target job IDs from artifact surgical targeting (aid) that must not be removed by pinning. */
+  forceTargetJobIds?: string[];
+  /** Producer override mode. */
+  producerOverrideMode?: ProducerOverrideMode;
+  /** Job IDs selected by producer directives. */
+  selectedProducerJobIds?: string[];
+  /** Job IDs blocked by producer directives (disabled or capped out). */
+  blockedProducerJobIds?: string[];
 }
 
 export interface ComputePlanResult {
@@ -244,11 +253,27 @@ export function createPlanner(options: PlannerOptions = {}) {
         });
       }
 
+      const forceTargetJobIds = new Set(args.forceTargetJobIds ?? []);
+      for (const jobId of forceTargetJobIds) {
+        jobsToInclude.add(jobId);
+      }
+
+      applyProducerOverrideJobs({
+        jobsToInclude,
+        forceTargetJobIds,
+        producerOverrideMode: args.producerOverrideMode,
+        selectedProducerJobIds: args.selectedProducerJobIds,
+        blockedProducerJobIds: args.blockedProducerJobIds,
+      });
+
       // Filter out fully pinned jobs (all their produced artifacts are pinned and reusable)
       const pinnedExcludedJobIds = new Set<string>();
       if (args.pinnedArtifactIds && args.pinnedArtifactIds.length > 0) {
         const pinnedSet = new Set(args.pinnedArtifactIds);
         for (const [jobId, info] of metadata) {
+          if (forceTargetJobIds.has(jobId)) {
+            continue;
+          }
           const producedArtifacts = info.node.produces.filter((id) =>
             isCanonicalArtifactId(id)
           );
@@ -845,6 +870,45 @@ export function computeMultipleArtifactRegenerationJobs(
     }
   }
   return allJobs;
+}
+
+function applyProducerOverrideJobs(args: {
+  jobsToInclude: Set<string>;
+  forceTargetJobIds: Set<string>;
+  producerOverrideMode: ProducerOverrideMode | undefined;
+  selectedProducerJobIds: string[] | undefined;
+  blockedProducerJobIds: string[] | undefined;
+}): void {
+  const selectedProducerJobIds = new Set(args.selectedProducerJobIds ?? []);
+  const blockedProducerJobIds = new Set(args.blockedProducerJobIds ?? []);
+
+  // In selected-only mode (CLI pid), selected producers are explicitly scheduled.
+  // In inherit mode (viewer overrides), dirty/missing detection drives scheduling;
+  // overrides only cap/disable producer families.
+  if (args.producerOverrideMode === 'selected-only') {
+    for (const jobId of selectedProducerJobIds) {
+      args.jobsToInclude.add(jobId);
+    }
+  }
+
+  if (args.producerOverrideMode === 'selected-only') {
+    const selectedOrForced = new Set<string>([
+      ...selectedProducerJobIds,
+      ...args.forceTargetJobIds,
+    ]);
+    for (const jobId of [...args.jobsToInclude]) {
+      if (!selectedOrForced.has(jobId)) {
+        args.jobsToInclude.delete(jobId);
+      }
+    }
+  }
+
+  for (const jobId of blockedProducerJobIds) {
+    if (args.forceTargetJobIds.has(jobId)) {
+      continue;
+    }
+    args.jobsToInclude.delete(jobId);
+  }
 }
 
 interface BuildExecutionLayersResult {
