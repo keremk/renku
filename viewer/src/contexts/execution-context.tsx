@@ -398,14 +398,14 @@ function executionReducer(
 
     case 'SET_PRODUCER_OVERRIDE_ENABLED': {
       const existing = state.producerOverrides[action.producerId] ?? {};
+      const nextOverride = action.enabled
+        ? { ...existing, enabled: true }
+        : { ...existing, enabled: false, count: undefined };
       return {
         ...state,
         producerOverrides: {
           ...state.producerOverrides,
-          [action.producerId]: {
-            ...existing,
-            enabled: action.enabled,
-          },
+          [action.producerId]: nextOverride,
         },
       };
     }
@@ -420,7 +420,8 @@ function executionReducer(
         nextOverride.enabled === undefined &&
         nextOverride.count === undefined
       ) {
-        const { [action.producerId]: _unused, ...rest } = state.producerOverrides;
+        const rest = { ...state.producerOverrides };
+        delete rest[action.producerId];
         return {
           ...state,
           producerOverrides: rest,
@@ -436,7 +437,8 @@ function executionReducer(
     }
 
     case 'RESET_PRODUCER_OVERRIDE': {
-      const { [action.producerId]: _unused, ...rest } = state.producerOverrides;
+      const rest = { ...state.producerOverrides };
+      delete rest[action.producerId];
       return {
         ...state,
         producerOverrides: rest,

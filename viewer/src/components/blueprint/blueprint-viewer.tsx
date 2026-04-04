@@ -405,11 +405,17 @@ export function BlueprintViewer({
       return;
     }
     schedulingRequestKeysRef.current.add(requestKey);
-    void requestProducerScheduling(
-      blueprintName,
-      movieId ?? undefined,
-      selectedUpToLayer ?? undefined
-    );
+    void (async () => {
+      try {
+        await requestProducerScheduling(
+          blueprintName,
+          movieId ?? undefined,
+          selectedUpToLayer ?? undefined
+        );
+      } finally {
+        schedulingRequestKeysRef.current.delete(requestKey);
+      }
+    })();
   }, [
     blueprintName,
     dialogProducer,

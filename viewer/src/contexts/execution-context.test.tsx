@@ -416,6 +416,51 @@ describe('ExecutionContext', () => {
       );
     });
 
+    it('clears count when producer override is disabled', async () => {
+      mockCreatePlan.mockResolvedValue(createMockPlanResponse());
+
+      const { result } = renderHook(() => useExecution(), {
+        wrapper: createWrapper(),
+      });
+
+      act(() => {
+        result.current.setProducerOverrideEnabled(
+          'Producer:AudioProducer',
+          true
+        );
+        result.current.setProducerOverrideCount('Producer:AudioProducer', 1);
+        result.current.setProducerOverrideEnabled(
+          'Producer:AudioProducer',
+          false
+        );
+      });
+
+      await act(async () => {
+        await result.current.requestPlan('test-blueprint', 'movie-123');
+      });
+
+      expect(mockCreatePlan).toHaveBeenCalledWith(
+        expect.objectContaining({
+          blueprint: 'test-blueprint',
+          movieId: 'movie-123',
+          producerOverrides: {
+            mode: 'inherit',
+            directives: [
+              {
+                producerId: 'Producer:AudioProducer',
+                enabled: false,
+              },
+            ],
+          },
+        })
+      );
+
+      const latestRequest = mockCreatePlan.mock.calls.at(-1)?.[0];
+      expect(
+        latestRequest?.producerOverrides?.directives?.[0]
+      ).not.toHaveProperty('count');
+    });
+
     it('handles undefined movieId', async () => {
       mockCreatePlan.mockResolvedValue(createMockPlanResponse());
 
