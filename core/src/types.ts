@@ -571,14 +571,6 @@ export interface ArtifactRegenerationConfig {
 }
 
 /**
- * Producer override mode.
- *
- * - inherit: start from normal dirty/surgical scheduling and apply producer directives.
- * - selected-only: only producer directives (and explicit force targets) are considered.
- */
-export type ProducerOverrideMode = 'inherit' | 'selected-only';
-
-/**
  * Per-producer scheduling directive.
  */
 export interface ProducerOverrideDirective {
@@ -595,9 +587,9 @@ export interface ProducerOverrideDirective {
 
 /**
  * Producer-level scheduling overrides passed into planning.
+ * Directives represent the active producer scope (for example CLI --pid).
  */
 export interface ProducerOverrides {
-  mode?: ProducerOverrideMode;
   directives: ProducerOverrideDirective[];
 }
 
@@ -626,6 +618,11 @@ export interface ProducerSchedulingSummary {
   appliedOverride?: ProducerOverrideDirective;
 }
 
+export interface PlanningWarning {
+  code: 'PIN_REGEN_CONFLICT' | 'REGEN_SCOPE_EXCLUDED';
+  message: string;
+}
+
 /**
  * Scope mode for surgical regeneration planning.
  *
@@ -643,8 +640,11 @@ export interface RunConfig {
   upToLayer?: number;
   /** Re-run from this layer index onwards (0-indexed) */
   reRunFrom?: number;
-  /** Target artifact IDs for surgical regeneration (canonical format) */
-  targetArtifactIds?: string[];
+  /**
+   * Explicit regeneration targets (canonical format).
+   * Can include Artifact:... and Producer:... IDs.
+   */
+  regenerateIds?: string[];
   /** Whether this was a dry-run execution */
   dryRun?: boolean;
   /** Number of concurrent jobs used */

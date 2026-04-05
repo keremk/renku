@@ -154,7 +154,9 @@ This auto-detects your blueprint, starts a local server if needed, and opens you
   - `--dry-run` - Validate without making API calls
   - `--concurrency=<n>` - Number of parallel jobs (default: 1)
   - `--up-to-layer=<n>` - Stop after specified layer
-  - `--re-run-from=<n>` / `--from=<n>` - Re-run from specified layer (skips earlier layers)
+  - `--regen=<canonical-id>` - Explicitly regenerate specific targets (`Artifact:...` or `Producer:...`, requires `--last` or `--movie-id`)
+  - `--pid=<Producer:Alias[:count]>` - Scope planning to producer families (includes required upstream dependencies)
+  - `--pin=<canonical-id>` - Keep known-good outputs (`Artifact:...` or `Producer:...`, requires `--last` or `--movie-id`)
 
 ### Viewing Content
 

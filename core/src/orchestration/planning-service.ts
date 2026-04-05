@@ -26,6 +26,7 @@ import { hashPayload } from '../hashing.js';
 import { ManifestNotFoundError, type ManifestService } from '../manifest.js';
 import { nextRevisionId } from '../revisions.js';
 import { planStore, type StorageContext } from '../storage.js';
+import { computeTopologyLayers } from '../topology/index.js';
 import type { Clock } from '../types.js';
 import { convertBlobInputToBlobRef } from '../input-blob-storage.js';
 import { formatBlobFileName } from '../blob-utils.js';
@@ -53,6 +54,7 @@ import type {
   ProducerGraph,
   ProducerOverrides,
   ProducerSchedulingSummary,
+  PlanningWarning,
   RevisionId,
   InputConditionInfo,
   SurgicalRegenerationScope,
@@ -88,10 +90,11 @@ export interface GeneratePlanArgs {
   eventLog: EventLog;
   pendingArtefacts?: PendingArtefactDraft[];
   inputSource?: InputEventSource;
-  /** Force re-run from this layer index onwards (0-indexed). Jobs at this layer and above will be included in the plan. */
-  reRunFrom?: number;
-  /** Target artifact IDs for surgical regeneration. When provided, only these artifacts and their downstream dependencies will be regenerated. */
-  targetArtifactIds?: string[];
+  /**
+   * Explicit regeneration targets.
+   * Supports canonical Artifact:... and Producer:... IDs.
+   */
+  regenerateIds?: string[];
   /** Scope mode for surgical regeneration targeting. Defaults to lineage-plus-dirty. */
   surgicalRegenerationScope?: SurgicalRegenerationScope;
   /** Limit plan to layers 0 through upToLayer (0-indexed). Jobs in later layers are excluded from the plan. */
@@ -120,6 +123,8 @@ export interface GeneratePlanResult {
   explanation?: PlanExplanation;
   /** Effective producer-level scheduling metadata for UI/CLI displays. */
   producerScheduling?: ProducerSchedulingSummary[];
+  /** Non-fatal warnings about override interactions. */
+  warnings?: PlanningWarning[];
 }
 
 export interface PlanningServiceOptions extends PlanAdapterOptions {
@@ -215,49 +220,149 @@ export function createPlanningService(
         producerGraph,
         overrides: args.producerOverrides,
       });
-      if (
-        normalizedProducerOverrides.mode === 'selected-only' &&
-        args.reRunFrom !== undefined
-      ) {
-        throw createRuntimeError(
-          RuntimeErrorCode.PRODUCER_OVERRIDE_WITH_RERUN_FROM,
-          'Producer selection mode is incompatible with --re-run-from/--from.',
-          {
-            suggestion:
-              'Remove --re-run-from/--from when using producer selection overrides.',
-          }
-        );
-      }
 
       const latestArtefactSnapshot = await readLatestArtefactSnapshot(
         args.eventLog,
         args.movieId
       );
 
-      // Resolve artifact regeneration configs if targetArtifactIds is provided
+      const planningWarnings: PlanningWarning[] = [];
+      const regenerationIds = args.regenerateIds ?? [];
+
+      // Resolve explicit regeneration targets.
       let artifactRegenerations: ArtifactRegenerationConfig[] | undefined;
-      if (args.targetArtifactIds && args.targetArtifactIds.length > 0) {
+      const targetedArtifactIds: string[] = [];
+      const targetedProducerIds: string[] = [];
+      for (const id of regenerationIds) {
+        if (isCanonicalArtifactId(id)) {
+          targetedArtifactIds.push(id);
+          continue;
+        }
+        if (isCanonicalProducerId(id)) {
+          targetedProducerIds.push(id);
+          continue;
+        }
+        throw createRuntimeError(
+          RuntimeErrorCode.INVALID_PIN_ID,
+          `Invalid regenerate target "${id}". Expected canonical Artifact:... or Producer:... ID.`,
+          {
+            context: `regenerateId=${id}`,
+            suggestion:
+              'Use canonical IDs, for example Artifact:AudioProducer.GeneratedAudio[0] or Producer:AudioProducer.',
+          }
+        );
+      }
+
+      if (targetedArtifactIds.length > 0) {
         artifactRegenerations = resolveArtifactsToJobs(
-          args.targetArtifactIds,
+          targetedArtifactIds,
           manifest,
           producerGraph,
           latestArtefactSnapshot.latestById
         );
       }
 
-      const artifactForceTargetJobIds = artifactRegenerations?.length
+      const artifactSourceJobIds = artifactRegenerations?.map(
+        (item) => item.sourceJobId
+      ) ?? [];
+      const producerSourceJobIds =
+        targetedProducerIds.length > 0
+          ? resolveProducerIdsToJobs(targetedProducerIds, producerGraph)
+          : [];
+      const forceSourceJobIds = Array.from(
+        new Set([...artifactSourceJobIds, ...producerSourceJobIds])
+      );
+
+      const artifactForceTargetJobIds = forceSourceJobIds.length > 0
         ? Array.from(
             computeMultipleArtifactRegenerationJobs(
-              artifactRegenerations.map((item) => item.sourceJobId),
+              forceSourceJobIds,
               producerGraph
             )
           )
         : [];
 
       const forceTargetJobIdSet = new Set<string>(artifactForceTargetJobIds);
-      const forceTargetArtifactIds = new Set<string>(args.targetArtifactIds ?? []);
 
-      const resolvedPinnedArtifactIds = await resolveAndValidatePinIds({
+      if (normalizedProducerOverrides.allowedProducerJobIds.length > 0) {
+        const allowedScope = new Set(normalizedProducerOverrides.allowedProducerJobIds);
+        const droppedScopeJobs: string[] = [];
+        for (const jobId of Array.from(forceTargetJobIdSet)) {
+          if (!allowedScope.has(jobId)) {
+            forceTargetJobIdSet.delete(jobId);
+            droppedScopeJobs.push(jobId);
+          }
+        }
+        if (droppedScopeJobs.length > 0) {
+          planningWarnings.push({
+            code: 'REGEN_SCOPE_EXCLUDED',
+            message:
+              `Some regenerate targets were excluded by producer scope: ${droppedScopeJobs.join(', ')}`,
+          });
+        }
+      }
+
+      if (normalizedProducerOverrides.blockedProducerJobIds.length > 0) {
+        const blockedJobs = new Set(normalizedProducerOverrides.blockedProducerJobIds);
+        const droppedBlockedJobs: string[] = [];
+        for (const jobId of Array.from(forceTargetJobIdSet)) {
+          if (blockedJobs.has(jobId)) {
+            forceTargetJobIdSet.delete(jobId);
+            droppedBlockedJobs.push(jobId);
+          }
+        }
+        if (droppedBlockedJobs.length > 0) {
+          planningWarnings.push({
+            code: 'REGEN_SCOPE_EXCLUDED',
+            message:
+              `Some regenerate targets were excluded by producer count/disable directives: ${droppedBlockedJobs.join(', ')}`,
+          });
+        }
+      }
+
+      const effectiveUpToLayer =
+        normalizedProducerOverrides.hasOverrides ? undefined : args.upToLayer;
+      if (effectiveUpToLayer !== undefined && forceTargetJobIdSet.size > 0) {
+        const layerByJobId = buildJobLayerMap(producerGraph);
+        const droppedLayerJobs: string[] = [];
+        for (const jobId of Array.from(forceTargetJobIdSet)) {
+          const layer = layerByJobId.get(jobId);
+          if (layer !== undefined && layer > effectiveUpToLayer) {
+            forceTargetJobIdSet.delete(jobId);
+            droppedLayerJobs.push(jobId);
+          }
+        }
+        if (droppedLayerJobs.length > 0) {
+          planningWarnings.push({
+            code: 'REGEN_SCOPE_EXCLUDED',
+            message:
+              `Some regenerate targets were excluded by --up scope: ${droppedLayerJobs.join(', ')}`,
+          });
+        }
+      }
+
+      const forceTargetArtifactIds = new Set<string>();
+      if (targetedArtifactIds.length > 0) {
+        for (const artifactId of targetedArtifactIds) {
+          forceTargetArtifactIds.add(artifactId);
+        }
+      }
+      const nodeById = new Map(
+        producerGraph.nodes.map((node) => [node.jobId, node])
+      );
+      for (const jobId of forceTargetJobIdSet) {
+        const node = nodeById.get(jobId);
+        if (!node) {
+          continue;
+        }
+        for (const artifactId of node.produces) {
+          if (isCanonicalArtifactId(artifactId)) {
+            forceTargetArtifactIds.add(artifactId);
+          }
+        }
+      }
+
+      const pinResolution = await resolveAndValidatePinIds({
         movieId: args.movieId,
         pinIds: args.pinIds,
         pinnedArtifactIds: args.pinnedArtifactIds,
@@ -268,6 +373,10 @@ export function createPlanningService(
         forceTargetArtifactIds: Array.from(forceTargetArtifactIds),
         latestSnapshot: latestArtefactSnapshot,
       });
+      if (pinResolution.warnings.length > 0) {
+        planningWarnings.push(...pinResolution.warnings);
+      }
+      const resolvedPinnedArtifactIds = pinResolution.pinnedArtifactIds;
 
       const requiredConditionArtifactIds =
         collectRequiredConditionArtifactIds(producerGraph);
@@ -289,10 +398,9 @@ export function createPlanningService(
         targetRevision,
         pendingEdits: inputEvents,
         resolvedConditionArtifacts,
-        reRunFrom: args.reRunFrom,
         artifactRegenerations,
         surgicalRegenerationScope: args.surgicalRegenerationScope,
-        upToLayer: args.upToLayer,
+        upToLayer: effectiveUpToLayer,
         collectExplanation: args.collectExplanation,
         pinnedArtifactIds:
           resolvedPinnedArtifactIds.length > 0
@@ -302,10 +410,9 @@ export function createPlanningService(
           forceTargetJobIdSet.size > 0
             ? Array.from(forceTargetJobIdSet)
             : undefined,
-        producerOverrideMode: normalizedProducerOverrides.mode,
-        selectedProducerJobIds:
-          normalizedProducerOverrides.selectedProducerJobIds.length > 0
-            ? normalizedProducerOverrides.selectedProducerJobIds
+        allowedProducerJobIds:
+          normalizedProducerOverrides.allowedProducerJobIds.length > 0
+            ? normalizedProducerOverrides.allowedProducerJobIds
             : undefined,
         blockedProducerJobIds:
           normalizedProducerOverrides.blockedProducerJobIds.length > 0
@@ -357,6 +464,7 @@ export function createPlanningService(
         resolvedInputs,
         explanation,
         producerScheduling,
+        warnings: planningWarnings.length > 0 ? planningWarnings : undefined,
       };
     },
   };
@@ -570,9 +678,14 @@ interface ResolveAndValidatePinIdsArgs {
   };
 }
 
+interface PinResolutionResult {
+  pinnedArtifactIds: string[];
+  warnings: PlanningWarning[];
+}
+
 async function resolveAndValidatePinIds(
   args: ResolveAndValidatePinIdsArgs
-): Promise<string[]> {
+): Promise<PinResolutionResult> {
   const requestedPinIds = [
     ...(args.pinIds ?? []),
     ...(args.pinnedArtifactIds ?? []),
@@ -580,7 +693,10 @@ async function resolveAndValidatePinIds(
   ];
 
   if (requestedPinIds.length === 0) {
-    return [];
+    return {
+      pinnedArtifactIds: [],
+      warnings: [],
+    };
   }
 
   const artifactPins = new Set<string>();
@@ -676,9 +792,26 @@ async function resolveAndValidatePinIds(
   );
 
   const forceTargets = new Set(args.forceTargetArtifactIds ?? []);
-  return resolvedPinnedArtifactIds.filter((artifactId) =>
-    !forceTargets.has(artifactId)
+  const overlappingPins = resolvedPinnedArtifactIds.filter((artifactId) =>
+    forceTargets.has(artifactId)
   );
+  const pinnedArtifactIds = resolvedPinnedArtifactIds.filter(
+    (artifactId) => !forceTargets.has(artifactId)
+  );
+
+  const warnings: PlanningWarning[] = [];
+  if (overlappingPins.length > 0) {
+    warnings.push({
+      code: 'PIN_REGEN_CONFLICT',
+      message:
+        `Regenerate targets override pinned artifacts for this plan: ${overlappingPins.join(', ')}`,
+    });
+  }
+
+  return {
+    pinnedArtifactIds,
+    warnings,
+  };
 }
 
 async function validatePinnedTargetsReusable(
@@ -869,6 +1002,62 @@ async function readLatestArtefactSnapshot(
     latestSuccessfulIds,
     latestFailedIds,
   };
+}
+
+function buildJobLayerMap(producerGraph: ProducerGraph): Map<string, number> {
+  const nodes = producerGraph.nodes.map((node) => ({ id: node.jobId }));
+  const edges = producerGraph.edges.map((edge) => ({
+    from: edge.from,
+    to: edge.to,
+  }));
+  const { layerAssignments } = computeTopologyLayers(nodes, edges);
+  return layerAssignments;
+}
+
+function resolveProducerIdsToJobs(
+  producerIds: string[],
+  producerGraph: ProducerGraph
+): string[] {
+  const jobIds: string[] = [];
+  const graphJobIds = producerGraph.nodes.map((node) => node.jobId);
+  const seenFamilies = new Set<string>();
+
+  for (const producerId of producerIds) {
+    if (!isCanonicalProducerId(producerId) || producerId.includes('[')) {
+      throw createRuntimeError(
+        RuntimeErrorCode.INVALID_PRODUCER_OVERRIDE_FORMAT,
+        `Invalid producer regenerate target "${producerId}". Expected canonical Producer:Alias.`,
+        {
+          context: `producerId=${producerId}`,
+          suggestion:
+            'Use canonical producer IDs, for example Producer:AudioProducer.',
+        }
+      );
+    }
+
+    if (seenFamilies.has(producerId)) {
+      continue;
+    }
+    seenFamilies.add(producerId);
+
+    const familyJobIds = graphJobIds.filter(
+      (jobId) => deriveProducerFamilyId(jobId) === producerId
+    );
+    if (familyJobIds.length === 0) {
+      throw createRuntimeError(
+        RuntimeErrorCode.UNKNOWN_PRODUCER_OVERRIDE_TARGET,
+        `Producer regenerate target "${producerId}" was not found in the current producer graph.`,
+        {
+          context: `producerId=${producerId}`,
+          suggestion:
+            'Check the canonical producer ID against the current blueprint graph.',
+        }
+      );
+    }
+    jobIds.push(...familyJobIds);
+  }
+
+  return jobIds;
 }
 
 /**

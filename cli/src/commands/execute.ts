@@ -24,16 +24,9 @@ import {
 	runBlueprintDryRunValidation,
 	type BlueprintValidationScenarioFile,
 	type BlueprintDryRunValidationResult,
-	createRuntimeError,
 	createStorageContext,
 	createMovieMetadataService,
-	RuntimeErrorCode,
-	validateStageRange,
-	deriveStageStatuses,
 	type Logger,
-	type ExecutionPlan,
-	type Manifest,
-	type StageStatus,
 } from '@gorenku/core';
 
 /**
@@ -75,12 +68,8 @@ export interface ExecuteOptions {
 
 	/** Limit execution to specific layer */
 	upToLayer?: number;
-
-	/** Re-run from specific layer (skips earlier layers) */
-	reRunFrom?: number;
-
-	/** Target artifact IDs for surgical regeneration (canonical format, e.g., "Artifact:AudioProducer.GeneratedAudio[0]") */
-	targetArtifactIds?: string[];
+	/** Explicit regeneration targets (canonical Artifact:/Producer: IDs). */
+	regenerateIds?: string[];
 	/** Producer-level surgical overrides. */
 	producerOverrides?: import('@gorenku/core').ProducerOverrides;
 	/** Pin IDs (canonical Artifact:... or Producer:...). */
@@ -196,23 +185,12 @@ export async function runExecute(
 		usingBlueprint: blueprintPath,
 		pendingArtefacts: options.pendingArtefacts,
 		logger,
-		reRunFrom: options.reRunFrom,
 		upToLayer,
-		targetArtifactIds: options.targetArtifactIds,
+		regenerateIds: options.regenerateIds,
 		producerOverrides: options.producerOverrides,
 		pinnedIds: options.pinnedIds,
 		collectExplanation: options.explain,
 	});
-
-	// Validate reRunFrom against previous stage statuses
-	if (options.reRunFrom !== undefined && options.reRunFrom > 0) {
-		validateReRunFromStage(
-			options.reRunFrom,
-			planResult.plan,
-			planResult.manifest,
-			isNew
-		);
-	}
 
 	if (options.dryRun) {
 		logger.debug?.('execute.dryrun.plan.debug', {
@@ -298,7 +276,7 @@ export async function runExecute(
 				planResult,
 				concurrency,
 				upToLayer,
-				targetArtifactIds: options.targetArtifactIds,
+				regenerateIds: options.regenerateIds,
 				dryRunProfilePath: options.dryRunProfilePath,
 				logger,
 			})
@@ -316,8 +294,7 @@ export async function runExecute(
 					logger,
 					concurrency,
 					upToLayer,
-					reRunFrom: options.reRunFrom,
-					targetArtifactIds: options.targetArtifactIds,
+					regenerateIds: options.regenerateIds,
 					dryRun: false,
 				}),
 				dryRunValidation: undefined,
@@ -344,7 +321,7 @@ async function executeDryRunWithValidation(args: {
 	planResult: Awaited<ReturnType<typeof generatePlan>>;
 	concurrency: number;
 	upToLayer?: number;
-	targetArtifactIds?: string[];
+	regenerateIds?: string[];
 	dryRunProfilePath?: string;
 	logger: Logger;
 }): Promise<{
@@ -419,8 +396,7 @@ async function executeDryRunWithValidation(args: {
 				logger: args.logger,
 				concurrency: args.concurrency,
 				upToLayer: args.upToLayer,
-				reRunFrom: undefined,
-				targetArtifactIds: args.targetArtifactIds,
+				regenerateIds: args.regenerateIds,
 				dryRun: true,
 				conditionHints:
 					caseDefinition.conditionHints ?? args.planResult.conditionHints,
@@ -474,8 +450,7 @@ async function executeDryRunWithValidation(args: {
 			logger: args.logger,
 			concurrency: args.concurrency,
 			upToLayer: args.upToLayer,
-			reRunFrom: undefined,
-			targetArtifactIds: args.targetArtifactIds,
+			regenerateIds: args.regenerateIds,
 			dryRun: true,
 			conditionHints:
 				baselineCase.conditionHints ?? args.planResult.conditionHints,
@@ -768,76 +743,4 @@ async function handleCancellation(args: {
  */
 export function formatMovieId(publicId: string): string {
 	return publicId.startsWith('movie-') ? publicId : `movie-${publicId}`;
-}
-
-/**
- * Validate that reRunFrom is allowed based on previous stage statuses.
- * Throws an error if the previous stage didn't succeed.
- */
-function validateReRunFromStage(
-	reRunFrom: number,
-	plan: ExecutionPlan,
-	manifest: Manifest,
-	isNew: boolean
-): void {
-	const totalLayers = plan.layers.length;
-
-	// For new movies (no manifest), only starting from 0 is valid
-	if (isNew || Object.keys(manifest.artefacts).length === 0) {
-		throw createRuntimeError(
-			RuntimeErrorCode.STAGE_START_REQUIRES_PREDECESSOR,
-			`Cannot re-run from layer ${reRunFrom}: this is a clean run with no previous execution history.`,
-			{
-				suggestion:
-					'Remove --re-run-from to start from the beginning, or use an existing movie with --movie-id.',
-			}
-		);
-	}
-
-	// Build producers by layer from the plan
-	const producersByLayer = plan.layers.map((layer) =>
-		layer.map((job) => job.producer)
-	);
-
-	// Build artifact statuses from manifest
-	// Artifact ID format: "Artifact:ProducerName.OutputName[index]"
-	const artifactStatuses = new Map<string, 'succeeded' | 'failed'>();
-
-	for (const [artifactId, entry] of Object.entries(manifest.artefacts)) {
-		const match = artifactId.match(/^Artifact:([^.]+)\./);
-		if (match) {
-			const producer = match[1];
-			const status = entry.status === 'succeeded' ? 'succeeded' : 'failed';
-
-			// Keep worst status for producer (failed > succeeded)
-			const existing = artifactStatuses.get(producer);
-			if (!existing || status === 'failed') {
-				artifactStatuses.set(producer, status);
-			}
-		}
-	}
-
-	// Derive stage statuses
-	const stageStatuses: StageStatus[] = deriveStageStatuses(
-		producersByLayer,
-		artifactStatuses
-	);
-
-	// Validate the range
-	const validationResult = validateStageRange(
-		{ startStage: reRunFrom, endStage: totalLayers - 1 },
-		{ totalStages: totalLayers, stageStatuses }
-	);
-
-	if (!validationResult.valid) {
-		const issue = validationResult.issues[0];
-		throw createRuntimeError(
-			RuntimeErrorCode.STAGE_START_REQUIRES_PREDECESSOR,
-			`Cannot re-run from layer ${reRunFrom}: ${issue?.message ?? 'previous stage did not succeed'}`,
-			{
-				suggestion:
-					'Run from an earlier layer or re-run the failed stage first.',
-			}
-		);
-	}
 }

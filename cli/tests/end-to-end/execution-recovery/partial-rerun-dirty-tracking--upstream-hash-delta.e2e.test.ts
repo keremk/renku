@@ -27,7 +27,7 @@ import {
 } from '../../test-catalog-paths.js';
 
 /**
- * E2E tests for dirty tracking after partial re-runs (upToLayer / reRunFrom).
+ * E2E tests for dirty tracking after partial re-runs (upToLayer with explicit regeneration).
  *
  * Uses the image-narration-timeline blueprint fixture:
  *   Layer 0: ScriptProducer (LLM)
@@ -191,11 +191,11 @@ describe('end-to-end: partial re-run dirty tracking', () => {
 		}
 
 		// ============================================================
-		// PHASE 2: Re-run with reRunFrom=0 — only layer 0 executes
+		// PHASE 2: Regenerate from ScriptProducer scope, then execute only layer 0
 		// ============================================================
 		const { logger: logger2 } = createLoggerRecorder();
 
-		// Generate plan with reRunFrom=0 (forces all jobs to be included)
+		// Generate plan scoped from ScriptProducer (includes its downstream chain).
 		const planResult2 = await generatePlan({
 			cliConfig,
 			movieId: storageMovieId,
@@ -203,14 +203,13 @@ describe('end-to-end: partial re-run dirty tracking', () => {
 			inputsPath,
 			usingBlueprint: blueprintPath,
 			logger: logger2,
-			reRunFrom: 0,
+			regenerateIds: ['Producer:ScriptProducer'],
 			collectExplanation: true,
 		});
 		await planResult2.persist();
 
 		// Truncate the plan to layer 0 only — simulates --up-to-layer 0
-		// The plan has all layers because reRunFrom=0 marks everything dirty,
-		// but we only want to execute layer 0.
+		// The generated plan includes downstream jobs too, but we only execute layer 0.
 		const truncatedPlan = {
 			...planResult2.plan,
 			layers: [planResult2.plan.layers[0] ?? []],

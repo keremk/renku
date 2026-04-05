@@ -62,12 +62,10 @@ export interface GeneratePlanOptions {
 	pendingArtefacts?: PendingArtefactDraft[];
 	logger?: Logger;
 	notifications?: import('@gorenku/core').NotificationBus;
-	/** Force re-run from this layer index onwards (0-indexed). Jobs at this layer and above will be included in the plan. */
-	reRunFrom?: number;
 	/** Limit plan to layers 0 through upToLayer (0-indexed). */
 	upToLayer?: number;
-	/** Target artifact IDs for surgical regeneration (canonical format, e.g., ["Artifact:AudioProducer.GeneratedAudio[0]"]) */
-	targetArtifactIds?: string[];
+	/** Explicit regeneration targets (canonical Artifact:/Producer: IDs). */
+	regenerateIds?: string[];
 	/** Producer-level surgical overrides. */
 	producerOverrides?: import('@gorenku/core').ProducerOverrides;
 	/** Pin IDs (canonical Artifact:... or Producer:...). */
@@ -100,7 +98,7 @@ export interface GeneratePlanResult {
 	catalogModelsDir?: string;
 	/** Persist the plan to local storage. Call after confirmation. */
 	persist: () => Promise<void>;
-	/** Surgical regeneration info when targetArtifactIds is provided. */
+	/** Surgical regeneration info when artifact regeneration targets are provided. */
 	surgicalInfo?: SurgicalInfo[];
 	/** Effective producer-level scheduling metadata. */
 	producerScheduling?: import('@gorenku/core').ProducerSchedulingSummary[];
@@ -210,7 +208,7 @@ export async function generatePlan(
 			'Input YAML path is required.',
 			{
 				suggestion:
-					'Provide --inputs=/path/to/inputs.yaml. Inputs are needed for model selections, even when using --re-run-from.',
+					'Provide --inputs=/path/to/inputs.yaml. Inputs are needed for model selections.',
 			}
 		);
 	}
@@ -277,9 +275,8 @@ export async function generatePlan(
 		eventLog,
 		pendingArtefacts:
 			allPendingArtefacts.length > 0 ? allPendingArtefacts : undefined,
-		reRunFrom: options.reRunFrom,
 		upToLayer: options.upToLayer,
-		targetArtifactIds: options.targetArtifactIds,
+		regenerateIds: options.regenerateIds,
 		producerOverrides: options.producerOverrides,
 		pinIds: options.pinnedIds,
 		collectExplanation: options.collectExplanation,
@@ -305,9 +302,11 @@ export async function generatePlan(
 		planResult.resolvedInputs
 	);
 
-	// Derive surgical info if targetArtifactIds was provided
-	const surgicalInfo = options.targetArtifactIds?.length
-		? deriveSurgicalInfoArray(options.targetArtifactIds, planResult.manifest)
+	// Derive surgical info for artifact regeneration targets.
+	const artifactRegenerateIds =
+		options.regenerateIds?.filter((id) => id.startsWith('Artifact:')) ?? [];
+	const surgicalInfo = artifactRegenerateIds.length > 0
+		? deriveSurgicalInfoArray(artifactRegenerateIds, planResult.manifest)
 		: undefined;
 
 	return {

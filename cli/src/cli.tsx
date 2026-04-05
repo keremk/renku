@@ -75,10 +75,8 @@ const cli = meow(
 	`\nUsage\n  $ renku <command> [options]\n\nCommands\n  install             Guided setup (alias for init)\n  init                Initialize a new Renku workspace (requires --root)\n  update              Update the catalog in the active workspace\n  use                 Switch to an existing workspace (requires --root)\n  generate            Create or continue a movie generation\n  new:blueprint       Create a new blueprint folder with scaffold files\n  create:input-template  Create an inputs YAML template for a blueprint\n  export              Export a movie to MP4/MP3 (--exporter=remotion|ffmpeg)\n  export:davinci      Export timeline to OTIO format for DaVinci Resolve\n  explain             Explain why jobs were scheduled in a saved plan
   clean               Remove dry-run builds (--all to include completed builds)
   list                List builds in current project (shows dry-run vs completed)\n  viewer [path]       Open the blueprint viewer (auto-detects blueprint in cwd)\n  launch              Open Renku home with onboarding if needed\n  viewer:stop         Stop the background viewer server\n  producers:list      List all available models for producers in a blueprint\n  blueprints:validate <path>  Validate a blueprint YAML file\n  blueprints:dry-run-profile <path>  Generate a dry-run profile file\n  mcp                 Run the Renku MCP server over stdio\n\nExamples\n  $ renku init --root=~/media/renku\n  $ renku update                             # Update catalog in active workspace\n  $ renku use --root=~/media/other-workspace # Switch to another workspace\n  $ renku new:blueprint history-video      # Create a new blueprint folder\n  $ renku new:blueprint my-video --using=ken-burns  # Copy from catalog blueprint\n  $ renku create:input-template --blueprint=documentary-talking-head.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml\n  $ renku generate --inputs=~/movies/my-inputs.yaml --blueprint=audio-only.yaml --concurrency=3\n  $ renku generate --last --up-to-layer=1
-  $ renku generate --last --re-run-from=2
-  $ renku generate --movie-id=abc123 --from=1
-  $ renku generate --last --artifact-id=Artifact:AudioProducer.GeneratedAudio[0] --inputs=./inputs.yaml
-  $ renku generate --last --aid=Artifact:AudioProducer.GeneratedAudio[0] --aid=Artifact:AudioProducer.GeneratedAudio[2] --inputs=./inputs.yaml
+  $ renku generate --last --regen=Artifact:AudioProducer.GeneratedAudio[0] --inputs=./inputs.yaml
+  $ renku generate --last --regen=Producer:AudioProducer --inputs=./inputs.yaml
   $ renku generate --last --pid=Producer:AudioProducer:1 --inputs=./inputs.yaml
   $ renku generate --last --pin=Artifact:ScriptProducer.NarrationScript[0] --inputs=./inputs.yaml
   $ renku generate --last --inputs=./inputs.yaml --explain  # Show why each job is scheduled
@@ -110,11 +108,7 @@ const cli = meow(
 			logLevel: { type: 'string' },
 			upToLayer: { type: 'number' },
 			up: { type: 'number' },
-			reRunFrom: { type: 'number' },
-			from: { type: 'number' },
-			artifactId: { type: 'string', isMultiple: true },
-			artifact: { type: 'string', isMultiple: true },
-			aid: { type: 'string', isMultiple: true },
+			regen: { type: 'string', isMultiple: true },
 			producerId: { type: 'string', isMultiple: true },
 			pid: { type: 'string', isMultiple: true },
 			pin: { type: 'string', isMultiple: true },
@@ -159,11 +153,7 @@ async function main(): Promise<void> {
 		logLevel?: string;
 		upToLayer?: number;
 		up?: number;
-		reRunFrom?: number;
-		from?: number;
-		artifactId?: string[];
-		artifact?: string[];
-		aid?: string[];
+		regen?: string[];
 		producerId?: string[];
 		pid?: string[];
 		pin?: string[];
@@ -265,13 +255,7 @@ async function main(): Promise<void> {
 			const inputsFlag = flags.inputs ?? flags.in;
 			const dryRunProfileFlag = flags.dryRunProfile ?? flags.profile;
 			const upToLayer = flags.upToLayer ?? flags.up;
-			const reRunFrom = flags.reRunFrom ?? flags.from;
-			// Combine all artifact ID sources into a single array
-			const artifactIdFlags = [
-				...(flags.artifactId ?? []),
-				...(flags.artifact ?? []),
-				...(flags.aid ?? []),
-			];
+			const regenerateFlags = [...(flags.regen ?? [])];
 			const producerIdFlags = [
 				...(flags.producerId ?? []),
 				...(flags.pid ?? []),
@@ -293,34 +277,6 @@ async function main(): Promise<void> {
 			}
 
 			const targetingExisting = Boolean(flags.last || movieIdFlag);
-
-			if (reRunFrom !== undefined && !targetingExisting) {
-				logger.error(
-					'Error: --re-run-from/--from requires --last or --movie-id/--id.'
-				);
-				process.exitCode = 1;
-				return;
-			}
-
-			if (reRunFrom !== undefined && reRunFrom < 0) {
-				logger.error(
-					'Error: --re-run-from/--from must be a non-negative integer.'
-				);
-				process.exitCode = 1;
-				return;
-			}
-
-			if (
-				reRunFrom !== undefined &&
-				upToLayer !== undefined &&
-				reRunFrom > upToLayer
-			) {
-				logger.error(
-					'Error: --re-run-from/--from cannot be greater than --up-to-layer/--up.'
-				);
-				process.exitCode = 1;
-				return;
-			}
 
 			const resolvedInputsPath = inputsFlag;
 
@@ -365,8 +321,8 @@ async function main(): Promise<void> {
 					concurrency: flags.concurrency,
 					upToLayer:
 						producerIdFlags.length > 0 ? undefined : upToLayer,
-					reRunFrom,
-					artifactIds: artifactIdFlags.length > 0 ? artifactIdFlags : undefined,
+					regenerateIds:
+						regenerateFlags.length > 0 ? regenerateFlags : undefined,
 					producerIds:
 						producerIdFlags.length > 0 ? producerIdFlags : undefined,
 					pinIds: pinFlags.length > 0 ? pinFlags : undefined,

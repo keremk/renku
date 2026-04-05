@@ -3888,7 +3888,7 @@ describe('planner', () => {
       expect(allJobIds).toContain('Producer:AudioProducer[1]');
     });
 
-    it('inherit producer overrides do not force reruns for reusable artifacts', async () => {
+    it('producer override scope does not force reruns for reusable artifacts', async () => {
       const ctx = memoryContext();
       await initializeMovieStorage(ctx, 'demo');
       const eventLog = createEventLog(ctx);
@@ -3911,14 +3911,16 @@ describe('planner', () => {
         blueprint: graph,
         targetRevision: 'rev-0002',
         pendingEdits: [],
-        producerOverrideMode: 'inherit',
-        selectedProducerJobIds: ['Producer:AudioProducer[0]'],
+        allowedProducerJobIds: [
+          'Producer:ScriptProducer',
+          'Producer:AudioProducer[0]',
+        ],
       });
 
       expect(plan.layers.flat()).toEqual([]);
     });
 
-    it('selected-only producer overrides still force selected reruns', async () => {
+    it('producer override scope alone does not force selected reruns', async () => {
       const ctx = memoryContext();
       await initializeMovieStorage(ctx, 'demo');
       const eventLog = createEventLog(ctx);
@@ -3941,12 +3943,15 @@ describe('planner', () => {
         blueprint: graph,
         targetRevision: 'rev-0002',
         pendingEdits: [],
-        producerOverrideMode: 'selected-only',
-        selectedProducerJobIds: ['Producer:AudioProducer[0]'],
+        allowedProducerJobIds: [
+          'Producer:ScriptProducer',
+          'Producer:AudioProducer[0]',
+        ],
+        blockedProducerJobIds: ['Producer:AudioProducer[1]'],
       });
 
       const allJobIds = plan.layers.flat().map((j) => j.jobId);
-      expect(allJobIds).toContain('Producer:AudioProducer[0]');
+      expect(allJobIds).toEqual([]);
     });
   });
 });

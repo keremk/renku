@@ -19,6 +19,7 @@ import {
 	createRuntimeError,
 	getCliArtifactsConfig,
 	isCanonicalArtifactId,
+	isCanonicalProducerId,
 	parseProducerDirectiveToken,
 	RuntimeErrorCode,
 	type ProducerOverrides,
@@ -56,12 +57,11 @@ export interface GenerateOptions {
 	explain?: boolean;
 	concurrency?: number;
 	upToLayer?: number;
-	reRunFrom?: number;
 	logLevel: LogLevel;
 	/** Override storage root (used in tests). If not provided, uses cwd. */
 	storageOverride?: { root: string; basePath: string };
-	/** Target artifact IDs for surgical regeneration (canonical format, e.g., "Artifact:AudioProducer.GeneratedAudio[0]") */
-	artifactIds?: string[];
+	/** Explicit regeneration targets (canonical Artifact:... or Producer:... IDs). */
+	regenerateIds?: string[];
 	/** Producer-level surgical targets (canonical format, e.g., "Producer:AudioProducer:1") */
 	producerIds?: string[];
 	/** Pin IDs (canonical Artifact:... or Producer:...). */
@@ -123,20 +123,14 @@ export async function runGenerate(
 		);
 	}
 
-	// Validate --artifact-id/--aid requirements
+	// Validate --regen requirements
 	const targetingExisting = Boolean(usingLast || options.movieId);
-	if (options.artifactIds && options.artifactIds.length > 0) {
+	if (options.regenerateIds && options.regenerateIds.length > 0) {
 		if (!targetingExisting) {
 			throw new Error(
-				'--artifact-id/--aid requires --last or --movie-id/--id to target an existing movie.'
+				'--regen requires --last or --movie-id/--id to target an existing movie.'
 			);
 		}
-		if (options.reRunFrom !== undefined) {
-			throw new Error(
-				'--artifact-id/--aid and --re-run-from/--from are mutually exclusive.'
-			);
-		}
-		// Note: --up-to-layer IS allowed with --artifact-id/--aid to limit downstream regeneration
 	}
 
 	// Input validation - always required (contains model selections)
@@ -149,26 +143,16 @@ export async function runGenerate(
 			'Input YAML path is required.',
 			{
 				suggestion:
-					'Provide --inputs=/path/to/inputs.yaml. Inputs are needed for model selections, even when using --re-run-from.',
+					'Provide --inputs=/path/to/inputs.yaml. Inputs are needed for model selections.',
 			}
 		);
 	}
 
-	// Artifact targets must be canonical IDs.
-	const targetArtifactIds = normalizeTargetArtifactIds(options.artifactIds);
+	// Regeneration targets must be canonical Artifact:/Producer: IDs.
+	const regenerateIds = normalizeRegenerateIds(options.regenerateIds);
 	const producerOverrides = normalizeProducerOverridesFromCli(
 		options.producerIds
 	);
-	if (producerOverrides && options.reRunFrom !== undefined) {
-		throw createRuntimeError(
-			RuntimeErrorCode.PRODUCER_OVERRIDE_WITH_RERUN_FROM,
-			'--producer-id/--pid cannot be used together with --re-run-from/--from.',
-			{
-				suggestion:
-					'Remove --re-run-from/--from when using producer-level surgical generation.',
-			}
-		);
-	}
 
 	const upToLayer = producerOverrides ? undefined : options.upToLayer;
 	const artifactsConfig = getCliArtifactsConfig(activeConfig);
@@ -221,8 +205,7 @@ export async function runGenerate(
 			explain: options.explain,
 			concurrency,
 			upToLayer,
-			reRunFrom: options.reRunFrom,
-			targetArtifactIds,
+			regenerateIds,
 			producerOverrides,
 			pinnedIds: options.pinIds,
 			dryRunProfilePath: options.dryRunProfilePath,
@@ -304,6 +287,7 @@ export async function runGenerate(
 		concurrency,
 		upToLayer,
 		producerOverrides,
+		regenerateIds,
 		pinnedIds: options.pinIds,
 		dryRunProfilePath: options.dryRunProfilePath,
 		logger,
@@ -362,31 +346,31 @@ function generateMovieId(): string {
 	return crypto.randomUUID().slice(0, 8);
 }
 
-function normalizeTargetArtifactIds(
-	artifactIds: string[] | undefined
+function normalizeRegenerateIds(
+	regenerateIds: string[] | undefined
 ): string[] | undefined {
-	if (!artifactIds || artifactIds.length === 0) {
+	if (!regenerateIds || regenerateIds.length === 0) {
 		return undefined;
 	}
 
-	const targetArtifactIds: string[] = [];
-	for (const rawId of artifactIds) {
+	const normalizedRegenerateIds: string[] = [];
+	for (const rawId of regenerateIds) {
 		const id = rawId.trim();
 		if (id.length === 0) {
 			throw new Error(
-				'Invalid --artifact-id/--aid value: expected a non-empty canonical Artifact:... ID.'
+				'Invalid --regen value: expected a non-empty canonical Artifact:... or Producer:... ID.'
 			);
 		}
-		if (isCanonicalArtifactId(id)) {
-			targetArtifactIds.push(id);
+		if (isCanonicalArtifactId(id) || isCanonicalProducerId(id)) {
+			normalizedRegenerateIds.push(id);
 			continue;
 		}
 		throw new Error(
-			`Invalid --artifact-id/--aid value "${rawId}". Expected canonical Artifact:... ID, for example Artifact:AudioProducer.GeneratedAudio[0].`
+			`Invalid --regen value "${rawId}". Expected canonical Artifact:... or Producer:... ID.`
 		);
 	}
 
-	return targetArtifactIds;
+	return normalizedRegenerateIds;
 }
 
 function normalizeProducerOverridesFromCli(
@@ -397,7 +381,6 @@ function normalizeProducerOverridesFromCli(
 	}
 
 	return {
-		mode: 'selected-only',
 		directives: rawProducerDirectives.map((value) =>
 			parseProducerDirectiveToken(value)
 		),

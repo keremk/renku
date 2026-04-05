@@ -759,7 +759,7 @@ describe('createPlanningService', () => {
         storage,
         manifestService,
         eventLog,
-        targetArtifactIds: ['Artifact:Output'],
+        regenerateIds: ['Artifact:Output'],
       });
 
       const plannedJobIds = result.plan.layers.flat().map((job) => job.jobId);
@@ -893,7 +893,7 @@ describe('createPlanningService', () => {
         manifestService,
         eventLog,
         pinIds: ['Artifact:Output'],
-        targetArtifactIds: ['Artifact:Output'],
+        regenerateIds: ['Artifact:Output'],
         collectExplanation: true,
       });
 
@@ -966,7 +966,6 @@ describe('createPlanningService', () => {
         eventLog,
         pinIds: ['Artifact:Output'],
         producerOverrides: {
-          mode: 'inherit',
           directives: [{ producerId: 'Producer:TestProducer' }],
         },
         collectExplanation: true,
@@ -976,58 +975,59 @@ describe('createPlanningService', () => {
       expect(result.plan.layers.flat().map((job) => job.jobId)).toEqual([]);
     });
 
-    it('fails when selected-only producer overrides are combined with re-run-from', async () => {
+    it('allows producer overrides with layer filters without requiring mode flags', async () => {
       const service = createPlanningService();
       const manifestService = createManifestService(storage);
       const eventLog = createEventLog(storage);
 
-      await expect(
-        service.generatePlan({
-          movieId,
-          blueprintTree: createSimpleBlueprint(),
-          inputValues: { 'Input:Prompt': 'Hello world' },
-          providerCatalog: defaultCatalog,
-          providerOptions: createDefaultOptions(['TestProducer']),
-          storage,
-          manifestService,
-          eventLog,
-          reRunFrom: 0,
-          producerOverrides: {
-            mode: 'selected-only',
-            directives: [{ producerId: 'Producer:TestProducer' }],
-          },
-        })
-      ).rejects.toMatchObject({
-        code: RuntimeErrorCode.PRODUCER_OVERRIDE_WITH_RERUN_FROM,
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createSimpleBlueprint(),
+        inputValues: { 'Input:Prompt': 'Hello world' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+        reRunFrom: 0,
+        producerOverrides: {
+          directives: [{ producerId: 'Producer:TestProducer' }],
+        },
       });
+
+      expect(result.plan.layers.flat().map((job) => job.jobId)).toContain(
+        'Producer:TestProducer'
+      );
     });
 
-    it('fails when producer overrides leave required upstream artifacts unavailable', async () => {
+    it('includes required upstream jobs when a downstream producer is targeted', async () => {
       const service = createPlanningService();
       const manifestService = createManifestService(storage);
       const eventLog = createEventLog(storage);
 
-      await expect(
-        service.generatePlan({
-          movieId,
-          blueprintTree: createDependencyBlueprint(),
-          inputValues: { 'Input:Prompt': 'Hello world' },
-          providerCatalog: defaultCatalog,
-          providerOptions: createDefaultOptions([
-            'UpstreamProducer',
-            'DownstreamProducer',
-          ]),
-          storage,
-          manifestService,
-          eventLog,
-          producerOverrides: {
-            mode: 'selected-only',
-            directives: [{ producerId: 'Producer:DownstreamProducer' }],
-          },
-        })
-      ).rejects.toMatchObject({
-        code: RuntimeErrorCode.PRODUCER_OVERRIDE_DEPENDENCY_MISSING,
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createDependencyBlueprint(),
+        inputValues: { 'Input:Prompt': 'Hello world' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions([
+          'UpstreamProducer',
+          'DownstreamProducer',
+        ]),
+        storage,
+        manifestService,
+        eventLog,
+        producerOverrides: {
+          directives: [{ producerId: 'Producer:DownstreamProducer' }],
+        },
       });
+
+      expect(result.plan.layers.flat().map((job) => job.jobId)).toEqual(
+        expect.arrayContaining([
+          'Producer:UpstreamProducer',
+          'Producer:DownstreamProducer',
+        ])
+      );
     });
   });
 

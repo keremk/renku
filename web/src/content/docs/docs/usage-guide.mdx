@@ -348,66 +348,48 @@ After reviewing, continue generation:
 renku generate --movie-id=movie-a1b2c3d4 --inputs=./inputs.yaml --up-to-layer=2
 ```
 
-### Re-Run From a Specific Layer
+### Targeted Regeneration
 
-If you need to regenerate content from a specific layer onwards (e.g., after changing model settings or fixing an issue), use `--re-run-from`:
+When you need precise control, use `--regen` to explicitly target artifacts or producer families.
 
-```bash
-# Re-run from layer 2 (skips layers 0-1, uses existing artifacts)
-renku generate --last --inputs=./inputs.yaml --from=2
-```
+`--regen` requires canonical IDs:
 
-This is useful when:
-
-- You want to try a different video model without regenerating scripts
-- A later layer failed and you want to retry from that point
-- You've manually edited artifacts at a specific layer
-
-The `--from` flag:
-
-- Takes a 0-indexed layer number
-- Skips all layers before the specified layer (uses existing artifacts)
-- Forces all jobs at the specified layer and above to re-run
-- Requires `--inputs` to be specified (for model selections)
-
-You can combine `--from` with `--up-to-layer` to re-run a specific range:
-
-```bash
-# Re-run only layers 2 and 3
-renku generate --last --inputs=./inputs.yaml --from=2 --up-to-layer=3
-```
-
-### Surgical Artifact Regeneration
-
-When you need to regenerate just one or a few specific artifacts without affecting siblings, use `--artifact-id` or the shorter `--aid` alias.
-
-`--artifact-id` / `--aid` requires canonical artifact IDs (`Artifact:...`).
+- `Artifact:...` targets one concrete artifact lineage
+- `Producer:...` targets one producer family lineage
 
 ```bash
 # Regenerate only segment 2's audio (not segments 0, 1, 3, 4)
-renku generate --last --artifact-id="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+renku generate --last --regen="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
 
-# Regenerate multiple specific segments using --aid alias
-renku generate --last --aid="Artifact:AudioProducer.GeneratedAudio[0]" --aid="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+# Regenerate multiple specific segments
+renku generate --last --regen="Artifact:AudioProducer.GeneratedAudio[0]" --regen="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+
+# Regenerate all selected jobs in a producer family and required dependencies
+renku generate --last --regen="Producer:AudioProducer" --inputs=./inputs.yaml
 ```
 
-This is different from `--from` which regenerates **all** jobs at a layer. With `--artifact-id` / `--aid`:
+With `--regen`:
 
 - Only the specified artifact(s) and their downstream dependencies are regenerated
 - Sibling artifacts in the same layer are untouched
 - Can be specified multiple times to target multiple artifacts
-- IDs must be canonical (`Artifact:...`) or the command fails fast
+- IDs must be canonical (`Artifact:...` or `Producer:...`) or the command fails fast
 - You can combine with `--up-to-layer` to limit how far downstream propagation goes
 
-**When to use each:**
+### Producer Scope Overrides (`--pid`)
 
-| Scenario                                           | Use                                   |
-| -------------------------------------------------- | ------------------------------------- |
-| One segment sounds wrong, others are fine          | `--artifact-id` or `--aid`            |
-| Multiple specific segments need work               | `--aid=Artifact:X --aid=Artifact:Y`   |
-| Changed model settings, need to redo a layer       | `--from`                              |
-| Generated up to layer 1, now want to fix one image | `--artifact-id` + `--up-to-layer`     |
-| Need to retry all video generation                 | `--from=N` where N is the video layer |
+Use `--pid` when you want to scope planning by producer family and optional first-dimension count.
+
+```bash
+# Keep only first segment for AudioProducer family
+renku generate --last --pid="Producer:AudioProducer:1" --inputs=./inputs.yaml
+```
+
+Important details:
+
+- Format is `Producer:Alias` or `Producer:Alias:<count>`
+- Scope always includes required upstream dependencies automatically
+- When `--pid` is present, producer scope drives planning (layer cap via `--up-to-layer` is ignored)
 
 ### Pinning Existing Outputs
 
@@ -423,7 +405,7 @@ Pin IDs are canonical IDs and can be either:
 renku generate --last --inputs=./inputs.yaml --pin="Artifact:ScriptProducer.NarrationScript[0]"
 
 # Pin all reusable outputs from a producer
-renku generate --last --inputs=./inputs.yaml --pin="Producer:ScriptProducer" --from=1
+renku generate --last --inputs=./inputs.yaml --pin="Producer:ScriptProducer"
 
 # Mix artifact and producer pins (repeat --pin)
 renku generate --movie-id=movie-a1b2c3d4 --inputs=./inputs.yaml \
@@ -435,7 +417,7 @@ Pinning rules:
 
 - Pinning is for existing movies (`--last` or `--movie-id`), not brand new runs
 - Pin IDs must be canonical (`Artifact:...` or `Producer:...`)
-- You cannot pin an artifact and target that same artifact with `--artifact-id`/`--aid` in the same command
+- If the same artifact is both pinned and explicitly regenerated, regenerate wins for that artifact
 - Pinned outputs must already exist as reusable successful outputs
 
 **Finding artifact IDs:**
@@ -445,12 +427,12 @@ Pinning rules:
 cat builds/movie-{id}/manifests/rev-XXXX.json | jq '.artefacts | keys'
 ```
 
-The keys in `.artefacts` are canonical artifact IDs. Use those values directly with `--artifact-id`, `--aid`, and `--pin`.
+The keys in `.artefacts` are canonical artifact IDs. Use those values directly with `--regen` and `--pin`.
 
 **Note:** Quote the artifact ID when using zsh to prevent bracket expansion:
 
 ```bash
-renku generate --last --aid="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+renku generate --last --regen="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
 ```
 
 ### Cost-Saving Strategies
@@ -459,8 +441,8 @@ renku generate --last --aid="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=
 2. **Use layer limits** - Generate expensive content only when you're happy with cheaper precursors
 3. **Iterate on prompts** - Edit video prompts before generating videos
 4. **Leverage caching** - Re-running generation only rebuilds changed artifacts
-5. **Use `--from` for retries** - If a later layer fails, use `--from=N` to retry from that layer without regenerating earlier content
-6. **Use `--aid` for surgical fixes** - If specific segments need work, regenerate just those artifacts instead of the whole layer (e.g., `--aid=Artifact:AudioProducer.GeneratedAudio[0] --aid=Artifact:AudioProducer.GeneratedAudio[2]`)
+5. **Use `--regen` for surgical fixes** - If specific segments need work, regenerate just those artifacts instead of broad reruns (e.g., `--regen=Artifact:AudioProducer.GeneratedAudio[0] --regen=Artifact:AudioProducer.GeneratedAudio[2]`)
+6. **Use `--pid` for producer-level scope** - Limit specific producer families while preserving dependency correctness
 7. **Use `--pin` to preserve good outputs** - Keep known-good artifacts/producers and only regenerate what still needs work
 
 ## Viewing Content

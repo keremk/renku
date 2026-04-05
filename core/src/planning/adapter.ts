@@ -8,7 +8,6 @@ import type {
   InputEvent,
   Manifest,
   ProducerGraph,
-  ProducerOverrideMode,
   RevisionId,
   SurgicalRegenerationScope,
 } from '../types.js';
@@ -37,10 +36,8 @@ export interface PlanAdapterArgs {
   pinnedArtifactIds?: string[];
   /** Force-target job IDs from artifact surgical targeting (aid) that must win over pin filtering. */
   forceTargetJobIds?: string[];
-  /** Producer override mode. */
-  producerOverrideMode?: ProducerOverrideMode;
-  /** Job IDs selected by producer directives. */
-  selectedProducerJobIds?: string[];
+  /** Job IDs allowed by producer scope (selected producers + required upstream dependencies). */
+  allowedProducerJobIds?: string[];
   /** Job IDs blocked by producer directives (disabled or capped out). */
   blockedProducerJobIds?: string[];
 }

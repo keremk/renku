@@ -21,7 +21,6 @@ import {
   type Manifest,
   type ArtefactEvent,
   type ProducerGraph,
-  type ProducerOverrideMode,
   type ResolvedEdgeCondition,
   type ResolvedEdgeConditionGroup,
   type RevisionId,
@@ -62,10 +61,8 @@ interface ComputePlanArgs {
   pinnedArtifactIds?: string[];
   /** Force-target job IDs from artifact surgical targeting (aid) that must not be removed by pinning. */
   forceTargetJobIds?: string[];
-  /** Producer override mode. */
-  producerOverrideMode?: ProducerOverrideMode;
-  /** Job IDs selected by producer directives. */
-  selectedProducerJobIds?: string[];
+  /** Job IDs allowed by producer scope (selected producers + required upstream dependencies). */
+  allowedProducerJobIds?: string[];
   /** Job IDs blocked by producer directives (disabled or capped out). */
   blockedProducerJobIds?: string[];
 }
@@ -205,7 +202,7 @@ export function createPlanner(options: PlannerOptions = {}) {
           movieId: args.movieId,
           surgicalRegenerationScope,
           sourceJobIds,
-          targetArtifactIds: args.artifactRegenerations.map(
+          regenerateArtifactIds: args.artifactRegenerations.map(
             (r) => r.targetArtifactId
           ),
           surgicalJobs: Array.from(surgicalJobs),
@@ -261,8 +258,7 @@ export function createPlanner(options: PlannerOptions = {}) {
       applyProducerOverrideJobs({
         jobsToInclude,
         forceTargetJobIds,
-        producerOverrideMode: args.producerOverrideMode,
-        selectedProducerJobIds: args.selectedProducerJobIds,
+        allowedProducerJobIds: args.allowedProducerJobIds,
         blockedProducerJobIds: args.blockedProducerJobIds,
       });
 
@@ -875,29 +871,19 @@ export function computeMultipleArtifactRegenerationJobs(
 function applyProducerOverrideJobs(args: {
   jobsToInclude: Set<string>;
   forceTargetJobIds: Set<string>;
-  producerOverrideMode: ProducerOverrideMode | undefined;
-  selectedProducerJobIds: string[] | undefined;
+  allowedProducerJobIds: string[] | undefined;
   blockedProducerJobIds: string[] | undefined;
 }): void {
-  const selectedProducerJobIds = new Set(args.selectedProducerJobIds ?? []);
+  const allowedProducerJobIds = new Set(args.allowedProducerJobIds ?? []);
   const blockedProducerJobIds = new Set(args.blockedProducerJobIds ?? []);
 
-  // In selected-only mode (CLI pid), selected producers are explicitly scheduled.
-  // In inherit mode (viewer overrides), dirty/missing detection drives scheduling;
-  // overrides only cap/disable producer families.
-  if (args.producerOverrideMode === 'selected-only') {
-    for (const jobId of selectedProducerJobIds) {
-      args.jobsToInclude.add(jobId);
-    }
-  }
-
-  if (args.producerOverrideMode === 'selected-only') {
-    const selectedOrForced = new Set<string>([
-      ...selectedProducerJobIds,
+  if (allowedProducerJobIds.size > 0) {
+    const allowedOrForced = new Set<string>([
+      ...allowedProducerJobIds,
       ...args.forceTargetJobIds,
     ]);
     for (const jobId of [...args.jobsToInclude]) {
-      if (!selectedOrForced.has(jobId)) {
+      if (!allowedOrForced.has(jobId)) {
         args.jobsToInclude.delete(jobId);
       }
     }

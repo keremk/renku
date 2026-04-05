@@ -41,10 +41,8 @@ export interface ExecuteBuildOptions {
 	concurrency?: number;
 	/** Layer to stop at (only used when dryRun=false). */
 	upToLayer?: number;
-	/** Re-run from specific layer (skips earlier layers). */
-	reRunFrom?: number;
-	/** Target artifact IDs for surgical regeneration (canonical format). */
-	targetArtifactIds?: string[];
+	/** Explicit regeneration targets (canonical Artifact:/Producer: IDs). */
+	regenerateIds?: string[];
 	/** Enable dry-run mode: simulated providers, no S3 uploads. */
 	dryRun?: boolean;
 	/** Condition hints for dry-run simulation (controls value alternation). */
@@ -162,7 +160,6 @@ export async function executeBuild(
 		{
 			concurrency,
 			upToLayer: options.upToLayer,
-			reRunFrom: options.reRunFrom,
 			onProgress: (event) => {
 				// Log progress events with chalk formatting
 				if (event.type === 'layer-empty') {
@@ -188,11 +185,8 @@ export async function executeBuild(
 	if (options.upToLayer !== undefined) {
 		runConfig.upToLayer = options.upToLayer;
 	}
-	if (options.reRunFrom !== undefined) {
-		runConfig.reRunFrom = options.reRunFrom;
-	}
-	if (options.targetArtifactIds && options.targetArtifactIds.length > 0) {
-		runConfig.targetArtifactIds = options.targetArtifactIds;
+	if (options.regenerateIds && options.regenerateIds.length > 0) {
+		runConfig.regenerateIds = options.regenerateIds;
 	}
 	if (dryRun) {
 		runConfig.dryRun = true;

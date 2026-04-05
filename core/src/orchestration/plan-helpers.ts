@@ -201,17 +201,17 @@ export interface SurgicalInfo {
  * Derive surgical regeneration info from the manifest for multiple artifacts.
  */
 export function deriveSurgicalInfoArray(
-  targetArtifactIds: string[],
+  regenerateArtifactIds: string[],
   manifest: Manifest,
 ): SurgicalInfo[] | undefined {
   const results: SurgicalInfo[] = [];
-  for (const targetArtifactId of targetArtifactIds) {
-    const entry = manifest.artefacts[targetArtifactId];
+  for (const artifactId of regenerateArtifactIds) {
+    const entry = manifest.artefacts[artifactId];
     if (!entry) {
       continue;
     }
     results.push({
-      targetArtifactId,
+      targetArtifactId: artifactId,
       sourceJobId: entry.producedBy,
     });
   }

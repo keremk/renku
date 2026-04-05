@@ -6,12 +6,9 @@ import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import type {
   ProducerGraph,
   ProducerOverrideDirective,
-  ProducerOverrideMode,
   ProducerOverrides,
   ProducerSchedulingSummary,
 } from '../types.js';
-
-const DEFAULT_PRODUCER_OVERRIDE_MODE: ProducerOverrideMode = 'inherit';
 const UPSTREAM_WARNING_MESSAGE =
   'Upstream dependencies may limit this override if required artifacts are unavailable.';
 
@@ -36,11 +33,10 @@ export interface NormalizedProducerOverrideDirective {
 }
 
 export interface NormalizedProducerOverrides {
-  mode: ProducerOverrideMode;
   directives: NormalizedProducerOverrideDirective[];
   selectedProducerJobIds: string[];
+  allowedProducerJobIds: string[];
   blockedProducerJobIds: string[];
-  forcedArtifactIds: string[];
   families: ProducerFamily[];
   hasOverrides: boolean;
 }
@@ -109,29 +105,7 @@ export function normalizeProducerOverrides(args: {
 }): NormalizedProducerOverrides {
   const families = buildProducerFamilies(args.producerGraph);
   const familyById = new Map(families.map((family) => [family.producerId, family]));
-
-  const mode = args.overrides?.mode ?? DEFAULT_PRODUCER_OVERRIDE_MODE;
-  if (mode !== 'inherit' && mode !== 'selected-only') {
-    throw createRuntimeError(
-      RuntimeErrorCode.INVALID_PRODUCER_OVERRIDE_FORMAT,
-      `Unsupported producer override mode "${String(args.overrides?.mode)}".`,
-      {
-        suggestion: 'Use mode "inherit" or "selected-only".',
-      }
-    );
-  }
-
   const directivesInput = args.overrides?.directives ?? [];
-  if (mode === 'selected-only' && directivesInput.length === 0) {
-    throw createRuntimeError(
-      RuntimeErrorCode.INVALID_PRODUCER_OVERRIDE_FORMAT,
-      'selected-only producer override mode requires at least one producer directive.',
-      {
-        suggestion:
-          'Provide at least one producer override, for example Producer:AudioProducer.',
-      }
-    );
-  }
 
   const seenProducerIds = new Set<string>();
   const directives: NormalizedProducerOverrideDirective[] = [];
@@ -295,30 +269,21 @@ export function normalizeProducerOverrides(args: {
     }
   }
 
-  const jobById = new Map(
-    args.producerGraph.nodes.map((node) => [node.jobId, node])
-  );
-  const forcedArtifactIdSet = new Set<string>();
-  for (const jobId of selectedProducerJobIdsSet) {
-    const node = jobById.get(jobId);
-    if (!node) {
-      continue;
-    }
-    for (const artifactId of node.produces) {
-      if (isCanonicalArtifactId(artifactId)) {
-        forcedArtifactIdSet.add(artifactId);
-      }
-    }
-  }
+  const hasOverrides = directives.length > 0;
+  const allowedProducerJobIdsSet = hasOverrides
+    ? computeScopeWithUpstreamClosure(
+        args.producerGraph,
+        selectedProducerJobIdsSet
+      )
+    : new Set<string>();
 
   return {
-    mode,
     directives,
     selectedProducerJobIds: Array.from(selectedProducerJobIdsSet),
+    allowedProducerJobIds: Array.from(allowedProducerJobIdsSet),
     blockedProducerJobIds: Array.from(blockedProducerJobIdsSet),
-    forcedArtifactIds: Array.from(forcedArtifactIdSet),
     families,
-    hasOverrides: directives.length > 0,
+    hasOverrides,
   };
 }
 
@@ -337,7 +302,7 @@ export function buildProducerSchedulingSummary(args: {
     .map((family) => {
       const directive = overrideByProducer.get(family.producerId);
       const selectedCount = resolveSelectedCount(
-        args.normalizedOverrides.mode,
+        args.normalizedOverrides.hasOverrides,
         family,
         directive
       );
@@ -350,7 +315,7 @@ export function buildProducerSchedulingSummary(args: {
       );
 
       const hasOverrideContext =
-        args.normalizedOverrides.mode === 'selected-only' || directive !== undefined;
+        args.normalizedOverrides.hasOverrides || directive !== undefined;
       const warnings: string[] =
         hasOverrideContext && family.upstreamProducerIds.length > 0
           ? [UPSTREAM_WARNING_MESSAGE]
@@ -395,17 +360,48 @@ export function deriveProducerFamilyId(jobId: string): string {
 }
 
 function resolveSelectedCount(
-  mode: ProducerOverrideMode,
+  hasOverrides: boolean,
   family: ProducerFamily,
   directive: NormalizedProducerOverrideDirective | undefined
 ): number {
   if (directive) {
     return directive.selectedFirstDimensions.length;
   }
-  if (mode === 'selected-only') {
+  if (hasOverrides) {
     return 0;
   }
   return family.maxSelectableCount;
+}
+
+function computeScopeWithUpstreamClosure(
+  producerGraph: ProducerGraph,
+  selectedJobIds: Set<string>
+): Set<string> {
+  const allowed = new Set<string>();
+  const upstreamByJob = new Map<string, string[]>();
+
+  for (const edge of producerGraph.edges) {
+    const upstream = upstreamByJob.get(edge.to) ?? [];
+    upstream.push(edge.from);
+    upstreamByJob.set(edge.to, upstream);
+  }
+
+  const queue = Array.from(selectedJobIds);
+  while (queue.length > 0) {
+    const jobId = queue.shift()!;
+    if (allowed.has(jobId)) {
+      continue;
+    }
+    allowed.add(jobId);
+    const upstream = upstreamByJob.get(jobId) ?? [];
+    for (const dependencyJobId of upstream) {
+      if (!allowed.has(dependencyJobId)) {
+        queue.push(dependencyJobId);
+      }
+    }
+  }
+
+  return allowed;
 }
 
 function uniqueCount(values: number[]): number {

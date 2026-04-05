@@ -671,13 +671,15 @@ describe('runGenerate (new runs)', () => {
 				inputsPath,
 				movieId: first.storageMovieId,
 				dryRun: true,
-				artifactIds: ['ScriptProducer.NarrationScript[0]'],
+				regenerateIds: ['ScriptProducer.NarrationScript[0]'],
 				storageOverride: { root, basePath: 'builds' },
 			})
-		).rejects.toThrow(/Expected canonical Artifact:\.\.\./);
+		).rejects.toThrow(
+			/Expected canonical Artifact:\.\.\. or Producer:\.\.\./
+		);
 	});
 
-	it('fails when producer overrides are combined with --from', async () => {
+	it('accepts producer overrides without legacy --from coupling', async () => {
 		const root = await createTempRoot();
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
@@ -696,19 +698,21 @@ describe('runGenerate (new runs)', () => {
 			overrides: AUDIO_ONLY_OVERRIDES,
 		});
 
-		await expect(
-			runGenerate({
-				...LOG_DEFAULTS,
-				inputsPath,
-				blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
-				dryRun: true,
-				reRunFrom: 1,
-				producerIds: ['Producer:AudioProducer:1'],
-				storageOverride: { root, basePath: 'builds' },
-			})
-		).rejects.toMatchObject({
-			code: RuntimeErrorCode.PRODUCER_OVERRIDE_WITH_RERUN_FROM,
+		const result = await runGenerate({
+			...LOG_DEFAULTS,
+			inputsPath,
+			blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
+			dryRun: true,
+			producerIds: ['Producer:AudioProducer:1'],
+			storageOverride: { root, basePath: 'builds' },
 		});
+
+		const plan = JSON.parse(await readFile(result.planPath, 'utf8')) as {
+			layers: Array<Array<{ jobId: string }>>;
+		};
+		expect(plan.layers.flat().map((job) => job.jobId)).toEqual(
+			expect.arrayContaining(['Producer:AudioProducer[0]'])
+		);
 	});
 
 	it('fails on invalid producer override count from CLI', async () => {
@@ -744,7 +748,7 @@ describe('runGenerate (new runs)', () => {
 		});
 	});
 
-	it('applies producer pin via shared core logic during rerun-from planning', async () => {
+	it('applies producer pin via shared core logic during targeted regeneration', async () => {
 		const root = await createTempRoot();
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
@@ -775,7 +779,7 @@ describe('runGenerate (new runs)', () => {
 			inputsPath,
 			useLast: true,
 			dryRun: true,
-			reRunFrom: 0,
+			regenerateIds: ['Producer:AudioProducer'],
 			pinIds: ['Producer:ScriptProducer'],
 			storageOverride: { root, basePath: 'builds' },
 		});
@@ -787,10 +791,10 @@ describe('runGenerate (new runs)', () => {
 		expect(jobIds).not.toContain('Producer:ScriptProducer');
 		expect(jobIds).toContain('Producer:AudioProducer[0]');
 		expect(jobIds).toContain('Producer:AudioProducer[1]');
-		expect(jobIds.length).toBeGreaterThanOrEqual(3);
+		expect(jobIds.length).toBeGreaterThanOrEqual(2);
 	});
 
-	it('ignores --up when producer overrides are provided', async () => {
+	it('ignores --up when producer overrides are provided while still including upstream dependencies', async () => {
 		const root = await createTempRoot();
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
@@ -816,9 +820,17 @@ describe('runGenerate (new runs)', () => {
 			storageOverride: { root, basePath: 'builds' },
 		});
 
+		const updatedInputsPath = await createInputsFile({
+			root,
+			prompt: 'Producer override + up (changed)',
+			models: AUDIO_ONLY_MODELS,
+			includeDefaults: false,
+			overrides: AUDIO_ONLY_OVERRIDES,
+		});
+
 		const result = await runGenerate({
 			...LOG_DEFAULTS,
-			inputsPath,
+			inputsPath: updatedInputsPath,
 			useLast: true,
 			dryRun: true,
 			upToLayer: 0,
@@ -831,7 +843,7 @@ describe('runGenerate (new runs)', () => {
 		};
 		const jobIds = plan.layers.flat().map((job) => job.jobId);
 		expect(jobIds).toContain('Producer:AudioProducer[0]');
-		expect(jobIds).not.toContain('Producer:ScriptProducer');
+		expect(jobIds).toContain('Producer:ScriptProducer');
 	});
 
 	it('prioritizes surgical targets when pinned artifact overlaps', async () => {
@@ -865,7 +877,7 @@ describe('runGenerate (new runs)', () => {
 			inputsPath,
 			useLast: true,
 			dryRun: true,
-			artifactIds: ['Artifact:ScriptProducer.NarrationScript[0]'],
+			regenerateIds: ['Artifact:ScriptProducer.NarrationScript[0]'],
 			pinIds: ['Artifact:ScriptProducer.NarrationScript[0]'],
 			storageOverride: { root, basePath: 'builds' },
 		});

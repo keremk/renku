@@ -143,7 +143,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
       storageMovieId,
       isNew: false,
       inputsPath,
-      targetArtifactIds: [targetArtifactId!],
+      regenerateIds: [targetArtifactId!],
       dryRun: true,
       nonInteractive: true,
       logger,
@@ -183,22 +183,24 @@ describe('end-to-end: surgical artifact regeneration', () => {
     expect(surgicalJobs.length).toBe(1);
   });
 
-  it('fails when artifact-id is used without targeting existing movie', async () => {
+  it('fails when --regen is used without targeting existing movie', async () => {
     const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'pipeline-orchestration', 'audio-narration-loop', 'audio-narration-loop.yaml');
     const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'audio-narration-loop--default.inputs.yaml');
 
-    // Try to use artifact-id for a new movie (no --last or --movie-id)
+    // Try to use --regen for a new movie (no --last or --movie-id)
     await expect(
       runGenerate({
-        artifactIds: ['AudioProducer.GeneratedAudio[0]'],
+        regenerateIds: ['Artifact:AudioProducer.GeneratedAudio[0]'],
         inputsPath,
         blueprint: blueprintPath,
         logLevel: 'info',
+        dryRun: true,
+        nonInteractive: true,
       })
     ).rejects.toThrow(/requires --last or --movie-id/);
   });
 
-  it('fails when artifact-id is used with re-run-from', async () => {
+  it('fails when regenerate IDs are not canonical', async () => {
     const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'pipeline-orchestration', 'audio-narration-loop', 'audio-narration-loop.yaml');
     const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'audio-narration-loop--default.inputs.yaml');
     const { logger } = createLoggerRecorder();
@@ -262,19 +264,20 @@ describe('end-to-end: surgical artifact regeneration', () => {
       clock: { now: () => new Date().toISOString() },
     });
 
-    // Try to use artifact-id with re-run-from (should fail)
+    // Try to use a non-canonical regenerate id (should fail fast)
     await expect(
       runGenerate({
         movieId,
-        artifactIds: ['AudioProducer.GeneratedAudio[0]'],
-        reRunFrom: 0,
+        regenerateIds: ['AudioProducer.GeneratedAudio[0]'],
         inputsPath,
         logLevel: 'info',
+        dryRun: true,
+        nonInteractive: true,
       })
-    ).rejects.toThrow(/mutually exclusive/);
+    ).rejects.toThrow(/Expected canonical Artifact:\.\.\. or Producer:\.\.\./);
   });
 
-  it('allows artifact-id with up-to-layer to limit downstream regeneration', async () => {
+  it('allows --regen with --up-to-layer to limit downstream regeneration', async () => {
     const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'pipeline-orchestration', 'audio-narration-loop', 'audio-narration-loop.yaml');
     const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'audio-narration-loop--default.inputs.yaml');
     const { logger } = createLoggerRecorder();
@@ -351,7 +354,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
       storageMovieId,
       isNew: false,
       inputsPath,
-      targetArtifactIds: [targetArtifactId!],
+      regenerateIds: [targetArtifactId!],
       upToLayer: 0, // Limit to layer 0 only
       dryRun: true,
       nonInteractive: true,
@@ -371,7 +374,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
     // The plan includes all surgical jobs (ScriptProducer + downstream AudioProducers)
     // but upToLayer limits execution. With dry-run, all jobs are "executed" (simulated),
     // so we verify the plan contains the full surgical set
-    // The key is that --up-to-layer with --artifact-id works without error
+    // The key is that --up-to-layer with --regen works without error
     expect(surgicalJobs.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -445,7 +448,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
         storageMovieId,
         isNew: false,
         inputsPath,
-        targetArtifactIds: ['Artifact:NonExistent.FakeArtifact[0]'],
+        regenerateIds: ['Artifact:NonExistent.FakeArtifact[0]'],
         dryRun: true,
         nonInteractive: true,
         logger,
@@ -453,7 +456,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
     ).rejects.toThrow(/not found in manifest|ARTIFACT_NOT_IN_MANIFEST/);
   });
 
-  it('regenerates multiple artifacts using multiple --aid flags', async () => {
+  it('regenerates multiple artifacts using multiple --regen flags', async () => {
     const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'pipeline-orchestration', 'audio-narration-loop', 'audio-narration-loop.yaml');
     const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'audio-narration-loop--default.inputs.yaml');
     const { logger } = createLoggerRecorder();
@@ -562,7 +565,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
       storageMovieId,
       isNew: false,
       inputsPath,
-      targetArtifactIds: [targetArtifact0!, targetArtifact2!],
+      regenerateIds: [targetArtifact0!, targetArtifact2!],
       dryRun: true,
       nonInteractive: true,
       logger,
@@ -681,7 +684,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
         storageMovieId,
         isNew: false,
         inputsPath,
-        targetArtifactIds: [validArtifact!, 'Artifact:NonExistent.FakeArtifact[0]'],
+        regenerateIds: [validArtifact!, 'Artifact:NonExistent.FakeArtifact[0]'],
         dryRun: true,
         nonInteractive: true,
         logger,

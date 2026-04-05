@@ -391,17 +391,16 @@ describe('buildPlanResponse', () => {
       const response = buildPlanResponse(cachedPlan, plan, {
         blueprintPath: '/tmp/blueprint.yaml',
         inputsPath: '/tmp/inputs.yaml',
-        artifactIds: ['Artifact:AudioProducer.GeneratedAudio[0]'],
+        regenerateIds: ['Artifact:AudioProducer.GeneratedAudio[0]'],
         pinIds: [
           'Artifact:ScriptProducer.NarrationScript[0]',
           'Producer:ImageProducer',
         ],
-        reRunFrom: 1,
         upToLayer: 3,
       });
 
       expect(response.cliCommand).toContain(
-        "--aid='Artifact:AudioProducer.GeneratedAudio[0]'"
+        "--regen='Artifact:AudioProducer.GeneratedAudio[0]'"
       );
       expect(response.cliCommand).toContain(
         "--pin='Artifact:ScriptProducer.NarrationScript[0]'"
@@ -424,5 +423,6 @@ describe('buildPlanResponse', () => {
       expect(response.cliCommand).toContain("--pid='Producer:ScriptProducer'");
       expect(response.cliCommand).not.toContain('--up=1');
     });
+
   });
 });

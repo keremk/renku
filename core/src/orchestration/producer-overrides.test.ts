@@ -106,7 +106,6 @@ describe('normalizeProducerOverrides', () => {
     const normalized = normalizeProducerOverrides({
       producerGraph: buildGraph(),
       overrides: {
-        mode: 'inherit',
         directives: [{ producerId: 'Producer:AudioProducer', count: 1 }],
       },
     });
@@ -117,7 +116,12 @@ describe('normalizeProducerOverrides', () => {
     expect(normalized.blockedProducerJobIds).toEqual([
       'Producer:AudioProducer[1]',
     ]);
-    expect(normalized.forcedArtifactIds).toEqual(['Artifact:Audio[0]']);
+    expect(normalized.allowedProducerJobIds).toEqual(
+      expect.arrayContaining([
+        'Producer:ScriptProducer',
+        'Producer:AudioProducer[0]',
+      ])
+    );
     expect(normalized.directives[0]).toMatchObject({
       producerId: 'Producer:AudioProducer',
       count: 1,
@@ -130,7 +134,6 @@ describe('normalizeProducerOverrides', () => {
       normalizeProducerOverrides({
         producerGraph: buildGraph(),
         overrides: {
-          mode: 'inherit',
           directives: [{ producerId: 'Producer:MissingProducer' }],
         },
       })
@@ -146,7 +149,6 @@ describe('normalizeProducerOverrides', () => {
       normalizeProducerOverrides({
         producerGraph: buildGraph(),
         overrides: {
-          mode: 'inherit',
           directives: [
             { producerId: 'Producer:AudioProducer', count: 1 },
             { producerId: 'Producer:AudioProducer' },
@@ -166,7 +168,6 @@ describe('buildProducerSchedulingSummary', () => {
     const normalized = normalizeProducerOverrides({
       producerGraph: buildGraph(),
       overrides: {
-        mode: 'inherit',
         directives: [{ producerId: 'Producer:AudioProducer', count: 1 }],
       },
     });

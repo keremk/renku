@@ -356,7 +356,7 @@ async function prepareRerunSurgicalPreviewContext(
     eventLog,
     pendingArtefacts:
       pendingArtefacts.length > 0 ? pendingArtefacts : undefined,
-    targetArtifactIds: [body.artifactId],
+    regenerateIds: [body.artifactId],
     surgicalRegenerationScope: 'lineage-strict',
   });
 

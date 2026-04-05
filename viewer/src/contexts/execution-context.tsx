@@ -1075,11 +1075,10 @@ function buildPlanRequest(args: {
 }): {
   blueprint: string;
   movieId?: string;
-  artifactIds?: string[];
+  regenerateIds?: string[];
   upToLayer?: number;
   pinnedArtifactIds?: string[];
   producerOverrides?: {
-    mode: 'inherit';
     directives: Array<{ producerId: string; enabled?: boolean; count?: number }>;
   };
 } {
@@ -1100,7 +1099,7 @@ function buildPlanRequest(args: {
     blueprint: args.blueprintName,
     movieId: args.movieId ?? undefined,
     ...(selectedArtifacts.length > 0
-      ? { artifactIds: selectedArtifacts }
+      ? { regenerateIds: selectedArtifacts }
       : {}),
     ...(args.upToLayer !== undefined ? { upToLayer: args.upToLayer } : {}),
     ...(pinnedArtifacts.length > 0
@@ -1109,7 +1108,6 @@ function buildPlanRequest(args: {
     ...(producerOverrideDirectives.length > 0
       ? {
           producerOverrides: {
-            mode: 'inherit' as const,
             directives: producerOverrideDirectives,
           },
         }

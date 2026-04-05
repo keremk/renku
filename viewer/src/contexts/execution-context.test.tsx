@@ -350,7 +350,7 @@ describe('ExecutionContext', () => {
         expect.objectContaining({
           blueprint: 'test-blueprint',
           movieId: 'movie-123',
-          artifactIds: expect.arrayContaining([
+          regenerateIds: expect.arrayContaining([
             'Artifact:Producer.Output[0]',
             'Artifact:Producer.Output[1]',
           ]),
@@ -358,7 +358,7 @@ describe('ExecutionContext', () => {
       );
     });
 
-    it('does not include artifactIds when none selected', async () => {
+    it('does not include regenerateIds when none selected', async () => {
       mockCreatePlan.mockResolvedValue(createMockPlanResponse());
 
       const { result } = renderHook(() => useExecution(), {
@@ -376,7 +376,9 @@ describe('ExecutionContext', () => {
           upToLayer: 2,
         })
       );
-      expect(mockCreatePlan.mock.calls[0]?.[0]).not.toHaveProperty('artifactIds');
+      expect(mockCreatePlan.mock.calls[0]?.[0]).not.toHaveProperty(
+        'regenerateIds'
+      );
     });
 
     it('includes producer overrides when override drafts are present', async () => {
@@ -403,7 +405,6 @@ describe('ExecutionContext', () => {
           blueprint: 'test-blueprint',
           movieId: 'movie-123',
           producerOverrides: {
-            mode: 'inherit',
             directives: [
               {
                 producerId: 'Producer:AudioProducer',
@@ -444,7 +445,6 @@ describe('ExecutionContext', () => {
           blueprint: 'test-blueprint',
           movieId: 'movie-123',
           producerOverrides: {
-            mode: 'inherit',
             directives: [
               {
                 producerId: 'Producer:AudioProducer',
@@ -478,7 +478,9 @@ describe('ExecutionContext', () => {
           movieId: undefined,
         })
       );
-      expect(mockCreatePlan.mock.calls[0]?.[0]).not.toHaveProperty('artifactIds');
+      expect(mockCreatePlan.mock.calls[0]?.[0]).not.toHaveProperty(
+        'regenerateIds'
+      );
       expect(mockCreatePlan.mock.calls[0]?.[0]).not.toHaveProperty('upToLayer');
     });
 

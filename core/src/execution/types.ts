@@ -46,7 +46,7 @@ export interface PreparePlanOptions {
   inputsPath: string;
   catalogRoot?: string;
   isNew: boolean;
-  targetArtifactIds?: string[];
+  regenerateIds?: string[];
   reRunFrom?: number;
 }
 
@@ -64,7 +64,7 @@ export interface ExecutePlanOptions {
   concurrency?: number;
   upToLayer?: number;
   reRunFrom?: number;
-  targetArtifactIds?: string[];
+  regenerateIds?: string[];
   dryRun?: boolean;
   /** AbortSignal for cancellation support */
   signal?: AbortSignal;

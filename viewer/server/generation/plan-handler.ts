@@ -118,8 +118,7 @@ export async function handlePlanRequest(
       inputsPath,
       buildsFolder: paths.buildsFolder,
       basePath,
-      reRunFrom: body.reRunFrom,
-      targetArtifactIds: body.artifactIds,
+      regenerateIds: body.regenerateIds,
       upToLayer: body.upToLayer,
       pinIds: body.pinnedArtifactIds,
       producerOverrides: body.producerOverrides,
@@ -144,15 +143,21 @@ export async function handlePlanRequest(
     });
 
     // Build response
-    const response = buildPlanResponse(cachedPlan, planResult.plan, {
-      blueprintPath: planResult.blueprintPath,
-      inputsPath,
-      artifactIds: body.artifactIds,
-      pinIds: body.pinnedArtifactIds,
-      reRunFrom: body.reRunFrom,
-      upToLayer: body.upToLayer,
-      producerPidValues: deriveCliProducerIdFlags(body.producerOverrides),
-    });
+    const producerPidValues = deriveCliProducerIdFlags(body.producerOverrides);
+    const response = buildPlanResponse(
+      cachedPlan,
+      planResult.plan,
+      producerPidValues === null
+        ? undefined
+        : {
+            blueprintPath: planResult.blueprintPath,
+            inputsPath,
+            regenerateIds: body.regenerateIds,
+            pinIds: body.pinnedArtifactIds,
+            upToLayer: body.upToLayer,
+            producerPidValues,
+          }
+    );
     sendJson(res, response);
     return true;
   } catch (error) {
@@ -180,8 +185,7 @@ interface GeneratePlanOptions {
   buildsFolder: string;
   /** Relative basePath from storage root (e.g., "animated-edu-characters/builds") */
   basePath: string;
-  reRunFrom?: number;
-  targetArtifactIds?: string[];
+  regenerateIds?: string[];
   /** Limit plan to layers 0 through upToLayer (0-indexed). */
   upToLayer?: number;
   /** Pin IDs (canonical Artifact:... or Producer:...). */
@@ -222,8 +226,7 @@ async function generatePlan(
     inputsPath,
     buildsFolder,
     basePath,
-    reRunFrom,
-    targetArtifactIds,
+    regenerateIds,
     upToLayer,
     pinIds,
     producerOverrides,
@@ -333,8 +336,7 @@ async function generatePlan(
     eventLog,
     pendingArtefacts:
       allPendingArtefacts.length > 0 ? allPendingArtefacts : undefined,
-    reRunFrom,
-    targetArtifactIds,
+    regenerateIds,
     upToLayer,
     pinIds,
     producerOverrides,
@@ -350,9 +352,11 @@ async function generatePlan(
     planResult.resolvedInputs
   );
 
-  // Derive surgical info if targetArtifactIds was provided
-  const surgicalInfo = targetArtifactIds?.length
-    ? deriveSurgicalInfoArray(targetArtifactIds, planResult.manifest)
+  // Derive surgical info for explicitly targeted artifact regeneration.
+  const artifactRegenerateIds =
+    regenerateIds?.filter((id) => id.startsWith('Artifact:')) ?? [];
+  const surgicalInfo = artifactRegenerateIds.length
+    ? deriveSurgicalInfoArray(artifactRegenerateIds, planResult.manifest)
     : undefined;
 
   return {
@@ -407,9 +411,8 @@ async function generatePlan(
 interface CliCommandOptions {
   blueprintPath: string;
   inputsPath?: string;
-  artifactIds?: string[];
+  regenerateIds?: string[];
   pinIds?: string[];
-  reRunFrom?: number;
   upToLayer?: number;
   producerPidValues?: string[];
 }
@@ -435,10 +438,10 @@ function buildCliCommand(movieId: string, options: CliCommandOptions): string {
     parts.push(`--inputs=${shellQuote(options.inputsPath)}`);
   }
 
-  // Artifact IDs for surgical regeneration
-  if (options.artifactIds && options.artifactIds.length > 0) {
-    for (const artifactId of options.artifactIds) {
-      parts.push(`--aid=${shellQuote(artifactId)}`);
+  // Regeneration target IDs (artifact or producer)
+  if (options.regenerateIds && options.regenerateIds.length > 0) {
+    for (const regenerateId of options.regenerateIds) {
+      parts.push(`--regen=${shellQuote(regenerateId)}`);
     }
   }
 
@@ -454,11 +457,6 @@ function buildCliCommand(movieId: string, options: CliCommandOptions): string {
     for (const producerPidValue of options.producerPidValues) {
       parts.push(`--pid=${shellQuote(producerPidValue)}`);
     }
-  }
-
-  // Re-run from layer
-  if (options.reRunFrom !== undefined) {
-    parts.push(`--from=${options.reRunFrom}`);
   }
 
   // Up to layer
@@ -477,9 +475,15 @@ function buildCliCommand(movieId: string, options: CliCommandOptions): string {
 
 function deriveCliProducerIdFlags(
   producerOverrides: PlanRequest['producerOverrides'] | undefined
-): string[] | undefined {
+): string[] | undefined | null {
   if (!producerOverrides) {
     return undefined;
+  }
+
+  // CLI --pid cannot express explicit producer disable directives.
+  // Return null so callers can avoid generating a non-equivalent command.
+  if (producerOverrides.directives.some((directive) => directive.enabled === false)) {
+    return null;
   }
 
   const pidValues = producerOverrides.directives

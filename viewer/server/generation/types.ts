@@ -28,10 +28,8 @@ export interface PlanRequest {
   inputs?: string;
   /** For regeneration: existing movie ID */
   movieId?: string;
-  /** Layer to restart from (0-indexed) */
-  reRunFrom?: number;
-  /** Surgical regeneration targets (canonical format, e.g., ["Artifact:AudioProducer.GeneratedAudio[0]"]) */
-  artifactIds?: string[];
+  /** Regeneration targets (canonical IDs, e.g., Artifact:... or Producer:...) */
+  regenerateIds?: string[];
   /** Limit plan to layers 0 through upToLayer (0-indexed). Jobs in later layers are excluded. */
   upToLayer?: number;
   /** Pin IDs (canonical Artifact:... or Producer:...). Jobs whose produced artifacts are ALL pinned are excluded from the plan. */
@@ -101,7 +99,7 @@ export interface PlanResponse {
   costSummary: SerializablePlanCostSummary;
   /** Layer breakdown for display */
   layerBreakdown: LayerInfo[];
-  /** Surgical regeneration info if artifactIds was provided */
+  /** Surgical regeneration info if regenerateIds included artifact IDs. */
   surgicalInfo?: SurgicalInfo[];
   /** Effective producer scheduling metadata for UI controls. */
   producerScheduling?: ProducerSchedulingSummary[];

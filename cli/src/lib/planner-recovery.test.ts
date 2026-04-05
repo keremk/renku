@@ -199,7 +199,7 @@ describe('generatePlan recovery prepass', () => {
 		expect(jobIds).toContain('Producer:AudioProducer[0]');
 	});
 
-	it('keeps dirty + aid + pin precedence intact', async () => {
+	it('keeps dirty + regenerate + pin precedence intact', async () => {
 		const seed = await createSeedMovie('Precedence baseline');
 		const updatedInputsPath = await createInputsFile({
 			root: seed.root,
@@ -210,16 +210,16 @@ describe('generatePlan recovery prepass', () => {
 			overrides: AUDIO_ONLY_OVERRIDES,
 		});
 
-		const planResult = await generatePlan({
-			cliConfig: seed.cliConfig,
-			movieId: seed.storageMovieId,
-			isNew: false,
-			inputsPath: updatedInputsPath,
-			usingBlueprint: AUDIO_ONLY_BLUEPRINT_PATH,
-			targetArtifactIds: ['Artifact:AudioProducer.GeneratedAudio[0]'],
-			pinnedIds: ['Artifact:AudioProducer.GeneratedAudio[1]'],
-			collectExplanation: true,
-		});
+			const planResult = await generatePlan({
+				cliConfig: seed.cliConfig,
+				movieId: seed.storageMovieId,
+				isNew: false,
+				inputsPath: updatedInputsPath,
+				usingBlueprint: AUDIO_ONLY_BLUEPRINT_PATH,
+				regenerateIds: ['Artifact:AudioProducer.GeneratedAudio[0]'],
+				pinnedIds: ['Artifact:AudioProducer.GeneratedAudio[1]'],
+				collectExplanation: true,
+			});
 
 		const jobIds = planResult.plan.layers.flat().map((job) => job.jobId);
 		expect(jobIds).toContain('Producer:ScriptProducer');

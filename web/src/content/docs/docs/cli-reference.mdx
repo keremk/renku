@@ -190,8 +190,7 @@ renku generate \
   [--dry-run] \
   [--dry-run-profile=<path> | --profile=<path>] \
   [--non-interactive] \
-  [--up-to-layer=<n>] \
-  [--re-run-from=<n>]
+  [--up-to-layer=<n>]
 ```
 
 **Usage (continue existing):**
@@ -204,8 +203,10 @@ renku generate --last --inputs=<path> [options]
 **Usage (surgical regeneration):**
 
 ```bash
-renku generate --last --artifact-id="Artifact:AudioProducer.GeneratedAudio[0]" --inputs=<path> [--up-to-layer=<n>]
-renku generate --last --aid="Artifact:AudioProducer.GeneratedAudio[0]" --aid="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=<path> [--up-to-layer=<n>]
+renku generate --last --regen="Artifact:AudioProducer.GeneratedAudio[0]" --inputs=<path> [--up-to-layer=<n>]
+renku generate --last --regen="Producer:AudioProducer" --inputs=<path>
+renku generate --last --regen="Artifact:AudioProducer.GeneratedAudio[0]" --regen="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=<path> [--up-to-layer=<n>]
+renku generate --last --pid="Producer:AudioProducer:1" --inputs=<path>
 renku generate --last --pin="Artifact:ScriptProducer.NarrationScript[0]" --pin="Producer:ImageProducer" --inputs=<path> [options]
 ```
 
@@ -222,8 +223,8 @@ renku generate --last --pin="Artifact:ScriptProducer.NarrationScript[0]" --pin="
 | `--non-interactive`                    | Skip confirmation prompts                                                                                                                                                      |
 | `--explain`                            | Print plan explanation and cost summary, then exit without execution                                                                                                           |
 | `--up-to-layer`, `--up`                | Stop after specified layer (live runs only)                                                                                                                                    |
-| `--re-run-from`, `--from`              | Re-run from specified layer (0-indexed), skipping earlier layers                                                                                                               |
-| `--artifact-id`, `--artifact`, `--aid` | Regenerate specific artifact(s) and their downstream dependencies (requires `--last` or `--movie-id`). Requires canonical `Artifact:...` IDs. Can be specified multiple times. |
+| `--regen`                              | Explicit regeneration targets. Accepts canonical `Artifact:...` and `Producer:...` IDs. Repeatable. Requires `--last` or `--movie-id`.                                       |
+| `--pid`, `--producer-id`               | Producer scheduling scope. Format: `Producer:Alias` or `Producer:Alias:<count>`. Repeatable. Includes required upstream dependencies.                                         |
 | `--pin`                                | Keep existing outputs from regeneration. Accepts canonical `Artifact:...` or `Producer:...` IDs. Repeatable. Requires `--last` or `--movie-id`.                                |
 
 **Behavior:**
@@ -239,8 +240,11 @@ For continuing movies:
 
 1. Runs a pre-plan recovery pass for recoverable failed artifacts (currently fal-ai) using stored provider request IDs
 2. Loads existing manifest
-3. Detects changed inputs and artifacts (dirty tracking)
-4. Applies planning precedence: `dirty detection + explicit regenerate (--artifact-id/--aid) - explicit pin (--pin)`
+3. Computes the baseline plan from graph dependency analysis + dirty detection
+4. Applies explicit overrides in this order:
+   - Add explicit regenerate targets from `--regen`
+   - Apply pin exclusions from `--pin` (except direct `pin` vs `regen` conflicts, where regenerate wins)
+   - Apply layer limit from `--up-to-layer` (ignored when `--pid` scope is present)
 5. Regenerates affected artifacts and updates the artifacts view
 6. With `--explain`, includes a recovery summary section (checked, recovered, pending, failed attempts)
 
@@ -268,37 +272,35 @@ renku generate --inputs=./inputs.yaml --blueprint=./blueprint.yaml --dry-run --p
 # Generate up to layer 1 only
 renku generate --inputs=./inputs.yaml --blueprint=./blueprint.yaml --up-to-layer=1
 
-# Re-run from layer 2 (skips layers 0-1, uses existing artifacts)
-renku generate --last --inputs=./inputs.yaml --from=2
+# Regenerate one artifact and its downstream dependencies
+renku generate --last --regen="Artifact:AudioProducer.GeneratedAudio[0]" --inputs=./inputs.yaml
 
-# Re-run from layer 3 with layer limit
-renku generate --movie-id=movie-a1b2c3d4 --inputs=./inputs.yaml --from=3 --up-to-layer=4
+# Regenerate using producer-level target (producer + downstream)
+renku generate --last --regen="Producer:AudioProducer" --inputs=./inputs.yaml
 
-# Surgical regeneration: regenerate only one artifact and its downstream dependencies
-renku generate --last --artifact-id="Artifact:AudioProducer.GeneratedAudio[0]" --inputs=./inputs.yaml
-
-# Surgical regeneration with layer limit
-renku generate --last --artifact-id="Artifact:ImageProducer.GeneratedImage[2]" --inputs=./inputs.yaml --up-to-layer=1
-
-# Multiple artifact regeneration using --aid alias
-renku generate --last --aid="Artifact:AudioProducer.GeneratedAudio[0]" --aid="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+# Multiple regenerate targets
+renku generate --last --regen="Artifact:AudioProducer.GeneratedAudio[0]" --regen="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
 
 # Multiple artifacts with layer limit
-renku generate --last --aid="Artifact:ImageProducer.GeneratedImage[1]" --aid="Artifact:ImageProducer.GeneratedImage[3]" --inputs=./inputs.yaml --up-to-layer=2
+renku generate --last --regen="Artifact:ImageProducer.GeneratedImage[1]" --regen="Artifact:ImageProducer.GeneratedImage[3]" --inputs=./inputs.yaml --up-to-layer=2
+
+# Scope to a producer family (first segment only)
+renku generate --last --pid="Producer:AudioProducer:1" --inputs=./inputs.yaml
 
 # Pin one artifact (keep from regeneration)
 renku generate --last --inputs=./inputs.yaml --pin="Artifact:ScriptProducer.NarrationScript[0]"
 
 # Pin all outputs of a producer
-renku generate --last --inputs=./inputs.yaml --pin="Producer:ScriptProducer" --from=1
+renku generate --last --inputs=./inputs.yaml --pin="Producer:ScriptProducer"
 
 # Multiple pins
 renku generate --movie-id=movie-a1b2c3d4 --inputs=./inputs.yaml --pin="Artifact:AudioProducer.GeneratedAudio[0]" --pin="Producer:ImageProducer"
 ```
 
 **Note:** When using IDs with brackets in zsh, quote the ID to prevent bracket expansion.  
-**Note:** Non-canonical `--artifact-id/--aid` values are rejected; use canonical `Artifact:...` IDs.  
-**Note:** Pins are applied last; a pinned job/artifact is excluded even if dirty or explicitly targeted.
+**Note:** Non-canonical `--regen` values are rejected; use canonical `Artifact:...` or `Producer:...` IDs.  
+**Note:** `--pid` and `--up-to-layer` are not combined; when `--pid` is present, producer scope drives planning.  
+**Note:** If the same artifact is both pinned and explicitly regenerated in one command, regenerate wins for that artifact.
 
 ---
 
