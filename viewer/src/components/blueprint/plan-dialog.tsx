@@ -5,7 +5,7 @@
  */
 
 import { useMemo, useState, useCallback } from "react";
-import { CheckCircle2, AlertCircle, Layers, Briefcase, DollarSign, X, Copy, Check, Pin } from "lucide-react";
+import { CheckCircle2, AlertCircle, Layers, Briefcase, DollarSign, X, Copy, Check, Pin, AlertTriangle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -271,6 +271,22 @@ function PlanContent({
             <Pin className="inline size-3.5 mr-1" />
             {pinnedCount} artifact{pinnedCount !== 1 ? 's' : ''} pinned — will be kept from prior run
           </p>
+        </div>
+      )}
+
+      {planInfo.warnings && planInfo.warnings.length > 0 && (
+        <div className="mx-6 mb-2 rounded-lg border border-amber-500/30 bg-amber-500/8 p-3">
+          <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+            <AlertTriangle className="size-3.5" />
+            Planning Warnings
+          </div>
+          <ul className="space-y-1">
+            {planInfo.warnings.map((warning) => (
+              <li key={`${warning.code}:${warning.targetId}`} className="text-xs text-amber-700/90 dark:text-amber-300/90">
+                {warning.message}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

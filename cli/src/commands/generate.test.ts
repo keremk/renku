@@ -715,7 +715,7 @@ describe('runGenerate (new runs)', () => {
 		);
 	});
 
-	it('fails on invalid producer override count from CLI', async () => {
+	it('supports disabling a producer family with --pid ...:0', async () => {
 		const root = await createTempRoot();
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
@@ -734,18 +734,22 @@ describe('runGenerate (new runs)', () => {
 			overrides: AUDIO_ONLY_OVERRIDES,
 		});
 
-		await expect(
-			runGenerate({
-				...LOG_DEFAULTS,
-				inputsPath,
-				blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
-				dryRun: true,
-				producerIds: ['Producer:AudioProducer:0'],
-				storageOverride: { root, basePath: 'builds' },
-			})
-		).rejects.toMatchObject({
-			code: RuntimeErrorCode.PRODUCER_OVERRIDE_INVALID_COUNT,
+		const result = await runGenerate({
+			...LOG_DEFAULTS,
+			inputsPath,
+			blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
+			dryRun: true,
+			producerIds: ['Producer:AudioProducer:0'],
+			storageOverride: { root, basePath: 'builds' },
 		});
+
+		const plan = JSON.parse(await readFile(result.planPath, 'utf8')) as {
+			layers: Array<Array<{ jobId: string }>>;
+		};
+		const jobIds = plan.layers.flat().map((job) => job.jobId);
+		expect(jobIds.some((jobId) => jobId.startsWith('Producer:AudioProducer'))).toBe(
+			false
+		);
 	});
 
 	it('applies producer pin via shared core logic during targeted regeneration', async () => {
@@ -794,7 +798,7 @@ describe('runGenerate (new runs)', () => {
 		expect(jobIds.length).toBeGreaterThanOrEqual(2);
 	});
 
-	it('ignores --up when producer overrides are provided while still including upstream dependencies', async () => {
+	it('honors --up even when producer directives are provided', async () => {
 		const root = await createTempRoot();
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
@@ -842,11 +846,11 @@ describe('runGenerate (new runs)', () => {
 			layers: Array<Array<{ jobId: string }>>;
 		};
 		const jobIds = plan.layers.flat().map((job) => job.jobId);
-		expect(jobIds).toContain('Producer:AudioProducer[0]');
 		expect(jobIds).toContain('Producer:ScriptProducer');
+		expect(jobIds).not.toContain('Producer:AudioProducer[0]');
 	});
 
-	it('prioritizes surgical targets when pinned artifact overlaps', async () => {
+	it('fails when the same canonical target is both pinned and regenerated', async () => {
 		const root = await createTempRoot();
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
@@ -872,20 +876,18 @@ describe('runGenerate (new runs)', () => {
 			storageOverride: { root, basePath: 'builds' },
 		});
 
-		const result = await runGenerate({
-			...LOG_DEFAULTS,
-			inputsPath,
-			useLast: true,
-			dryRun: true,
-			regenerateIds: ['Artifact:ScriptProducer.NarrationScript[0]'],
-			pinIds: ['Artifact:ScriptProducer.NarrationScript[0]'],
-			storageOverride: { root, basePath: 'builds' },
+		await expect(
+			runGenerate({
+				...LOG_DEFAULTS,
+				inputsPath,
+				useLast: true,
+				dryRun: true,
+				regenerateIds: ['Artifact:ScriptProducer.NarrationScript[0]'],
+				pinIds: ['Artifact:ScriptProducer.NarrationScript[0]'],
+				storageOverride: { root, basePath: 'builds' },
+			})
+		).rejects.toMatchObject({
+			code: RuntimeErrorCode.PLANNING_CONFLICT_REGEN_PIN,
 		});
-
-		const plan = JSON.parse(await readFile(result.planPath, 'utf8')) as {
-			layers: Array<Array<{ jobId: string }>>;
-		};
-		const jobIds = plan.layers.flat().map((job) => job.jobId);
-		expect(jobIds).toContain('Producer:ScriptProducer');
 	});
 });

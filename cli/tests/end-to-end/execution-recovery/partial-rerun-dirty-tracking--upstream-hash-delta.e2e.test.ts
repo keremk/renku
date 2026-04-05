@@ -203,7 +203,11 @@ describe('end-to-end: partial re-run dirty tracking', () => {
 			inputsPath,
 			usingBlueprint: blueprintPath,
 			logger: logger2,
-			regenerateIds: ['Producer:ScriptProducer'],
+			planningControls: {
+				surgical: {
+					regenerateIds: ['Producer:ScriptProducer'],
+				},
+			},
 			collectExplanation: true,
 		});
 		await planResult2.persist();

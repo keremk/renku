@@ -36,8 +36,6 @@ export interface PlanAdapterArgs {
   pinnedArtifactIds?: string[];
   /** Force-target job IDs from artifact surgical targeting (aid) that must win over pin filtering. */
   forceTargetJobIds?: string[];
-  /** Job IDs allowed by producer scope (selected producers + required upstream dependencies). */
-  allowedProducerJobIds?: string[];
   /** Job IDs blocked by producer directives (disabled or capped out). */
   blockedProducerJobIds?: string[];
 }

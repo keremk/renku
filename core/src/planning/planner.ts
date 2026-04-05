@@ -61,8 +61,6 @@ interface ComputePlanArgs {
   pinnedArtifactIds?: string[];
   /** Force-target job IDs from artifact surgical targeting (aid) that must not be removed by pinning. */
   forceTargetJobIds?: string[];
-  /** Job IDs allowed by producer scope (selected producers + required upstream dependencies). */
-  allowedProducerJobIds?: string[];
   /** Job IDs blocked by producer directives (disabled or capped out). */
   blockedProducerJobIds?: string[];
 }
@@ -258,7 +256,6 @@ export function createPlanner(options: PlannerOptions = {}) {
       applyProducerOverrideJobs({
         jobsToInclude,
         forceTargetJobIds,
-        allowedProducerJobIds: args.allowedProducerJobIds,
         blockedProducerJobIds: args.blockedProducerJobIds,
       });
 
@@ -871,23 +868,9 @@ export function computeMultipleArtifactRegenerationJobs(
 function applyProducerOverrideJobs(args: {
   jobsToInclude: Set<string>;
   forceTargetJobIds: Set<string>;
-  allowedProducerJobIds: string[] | undefined;
   blockedProducerJobIds: string[] | undefined;
 }): void {
-  const allowedProducerJobIds = new Set(args.allowedProducerJobIds ?? []);
   const blockedProducerJobIds = new Set(args.blockedProducerJobIds ?? []);
-
-  if (allowedProducerJobIds.size > 0) {
-    const allowedOrForced = new Set<string>([
-      ...allowedProducerJobIds,
-      ...args.forceTargetJobIds,
-    ]);
-    for (const jobId of [...args.jobsToInclude]) {
-      if (!allowedOrForced.has(jobId)) {
-        args.jobsToInclude.delete(jobId);
-      }
-    }
-  }
 
   for (const jobId of blockedProducerJobIds) {
     if (args.forceTargetJobIds.has(jobId)) {

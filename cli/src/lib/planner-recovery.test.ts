@@ -216,8 +216,12 @@ describe('generatePlan recovery prepass', () => {
 				isNew: false,
 				inputsPath: updatedInputsPath,
 				usingBlueprint: AUDIO_ONLY_BLUEPRINT_PATH,
-				regenerateIds: ['Artifact:AudioProducer.GeneratedAudio[0]'],
-				pinnedIds: ['Artifact:AudioProducer.GeneratedAudio[1]'],
+				planningControls: {
+					surgical: {
+						regenerateIds: ['Artifact:AudioProducer.GeneratedAudio[0]'],
+						pinIds: ['Artifact:AudioProducer.GeneratedAudio[1]'],
+					},
+				},
 				collectExplanation: true,
 			});
 

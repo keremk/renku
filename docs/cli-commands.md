@@ -241,8 +241,8 @@ renku generate --inputs=<path> --blueprint=<path> [--dry-run] [--dry-run-profile
 **Usage (continue an existing movie):**
 
 ```bash
-renku generate --movie-id=<movie-id> --inputs=<path> [--dry-run] [--dry-run-profile=<path>|--profile=<path>] [--non-interactive] [--up-to-layer=<n>] [--regen=<canonical-id>] [--pid=<Producer:Alias[:count]>] [--pin=<canonical-id>]
-renku generate --last --inputs=<path> [--dry-run] [--dry-run-profile=<path>|--profile=<path>] [--non-interactive] [--up-to-layer=<n>] [--regen=<canonical-id>] [--pid=<Producer:Alias[:count]>] [--pin=<canonical-id>]
+renku generate --movie-id=<movie-id> --inputs=<path> [--dry-run] [--dry-run-profile=<path>|--profile=<path>] [--non-interactive] [--up-to-layer=<n>] [--regen=<canonical-id>] [--pid=<Producer:Alias:count>] [--pin=<canonical-id>]
+renku generate --last --inputs=<path> [--dry-run] [--dry-run-profile=<path>|--profile=<path>] [--non-interactive] [--up-to-layer=<n>] [--regen=<canonical-id>] [--pid=<Producer:Alias:count>] [--pin=<canonical-id>]
 ```
 
 **Usage (surgical regeneration of specific artifacts):**
@@ -269,9 +269,9 @@ renku generate --movie-id=<movie-id> --inputs=<path> --pin=<canonical-id> [--pin
 - `--dry-run`: Execute a mocked run without calling providers
 - `--dry-run-profile` / `--profile`: Path to a dry-run profile file (requires `--dry-run`)
 - `--non-interactive`: Skip confirmation prompt
-- `--up-to-layer` / `--up`: Stop execution after the specified layer (live runs only)
+- `--up-to-layer` / `--up`: Limit planning/execution to layers `0..n` (works for live and dry-run)
 - `--regen`: Explicit regeneration targets. Accepts canonical `Artifact:...` and `Producer:...` IDs. Repeatable. Requires `--last` or `--movie-id`.
-- `--pid` / `--producer-id`: Producer scope directives. Format: `Producer:Alias` or `Producer:Alias:<count>`. Repeatable.
+- `--pid` / `--producer-id`: Producer scope directives. Format: `Producer:Alias:<count>` (count required). Repeatable.
 - `--pin`: Keep existing outputs from regeneration. Accepts canonical `Artifact:...` or `Producer:...` IDs. Repeatable. Requires `--last` or `--movie-id`.
 
 **Behavior:**
@@ -279,7 +279,7 @@ renku generate --movie-id=<movie-id> --inputs=<path> --pin=<canonical-id> [--pin
 1. New runs: validate inputs/blueprint, generate a new movie id, create `builds/movie-{id}/`, and execute the workflow.
 2. Continuing runs: before planning, the CLI runs an automatic recovery prepass for recoverable failed artifacts (currently fal-ai) using stored `providerRequestId` diagnostics. If the provider reports completion, the artifact is recovered and saved as succeeded before planning.
 3. Continuing runs then load the existing manifest, apply any artifact edits, regenerate the plan, and execute with the stored blueprint (or an explicit override).
-4. Planning precedence is always baseline dirty planning, then explicit overrides: add `--regen` targets, apply `--pin` exclusions (except direct pin-vs-regen conflicts where regenerate wins), then apply layer cap (`--up-to-layer`, ignored when `--pid` is present).
+4. Planning controls are resolved together in core: `--up-to-layer` and `--pid` are both honored, out-of-scope controls are ignored with warnings, and direct `--regen` + `--pin` overlap on the same target is a hard error.
 5. Artifacts view under `artifacts/<id>` stays in sync after successful runs.
 6. The CLI records the latest movie id so `--last` can target it explicitly; if missing, the command fails with an error.
 
@@ -313,7 +313,7 @@ renku generate --last --regen="Artifact:AudioProducer.GeneratedAudio[0]" --regen
 # Multiple artifacts with layer limit
 renku generate --last --regen="Artifact:ImageProducer.GeneratedImage[1]" --regen="Artifact:ImageProducer.GeneratedImage[3]" --inputs=./inputs.yaml --up-to-layer=2
 
-# Producer scope with optional count cap
+# Producer scope with explicit count cap
 renku generate --last --pid="Producer:AudioProducer:1" --inputs=./inputs.yaml
 
 # Pin one artifact
@@ -1116,7 +1116,7 @@ renku generate --last --regen="Producer:AudioProducer" --inputs=./inputs.yaml
 
 ### Producer Scope with `--pid`
 
-Use `--pid` when you want to scope planning by producer family and optional count:
+Use `--pid` when you want to scope planning by producer family and explicit count:
 
 ```bash
 # Include only first segment for AudioProducer family
@@ -1125,9 +1125,10 @@ renku generate --last --pid="Producer:AudioProducer:1" --inputs=./inputs.yaml
 
 `--pid` rules:
 
-- Format is `Producer:Alias` or `Producer:Alias:<count>`
+- Format is `Producer:Alias:<count>` (count is required)
 - Scope includes required upstream dependencies automatically
-- When `--pid` is present, `--up-to-layer` is ignored (producer scope drives planning)
+- `--up-to-layer` remains active when `--pid` is present (both constraints apply)
+- Directives outside the active layer scope are ignored with warnings
 - Can be combined with `--regen` and `--pin`
 
 **Finding artifact IDs:** Browse the manifest or artifacts folder to find the artifact ID you want to regenerate:
@@ -1151,7 +1152,7 @@ The keys under `.artefacts` are canonical IDs. Use those values directly with `-
 | Scope        | Explicit artifact/producer lineages             | Producer-family scheduling scope                  |
 | Sibling jobs | Excluded unless downstream from explicit target | Included based on selected producer family/count  |
 | Upstream     | Included automatically when required            | Included automatically when required              |
-| Layer cap    | Works with `--up-to-layer`                      | `--up-to-layer` is ignored when `--pid` is set    |
+| Layer cap    | Works with `--up-to-layer`                      | Works with `--up-to-layer` (both apply together)  |
 | Use case     | Surgical fixes                                  | Coarse producer-level plan shaping                |
 
 **Example: Regenerating one segment**
@@ -1196,9 +1197,9 @@ Pinning rules:
 
 - Requires `--last` or `--movie-id` (pinning on brand new runs fails)
 - Pin IDs must be canonical (`Artifact:...` or `Producer:...`)
-- If a target appears in both `--pin` and `--regen`, regenerate wins for that target
+- If a target appears in both `--pin` and `--regen`, the command fails with a conflict error
 - Pinned outputs must already exist as reusable successful outputs
-- Pins are applied after dirty planning; however, if an artifact is explicitly targeted via `--regen`, that explicit regeneration wins over `--pin` for that artifact
+- Pins or regenerate targets that fall outside active scope are ignored with planning warnings
 
 ### Dry Run Mode
 

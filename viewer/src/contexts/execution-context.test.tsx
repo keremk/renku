@@ -350,10 +350,14 @@ describe('ExecutionContext', () => {
         expect.objectContaining({
           blueprint: 'test-blueprint',
           movieId: 'movie-123',
-          regenerateIds: expect.arrayContaining([
-            'Artifact:Producer.Output[0]',
-            'Artifact:Producer.Output[1]',
-          ]),
+          planningControls: expect.objectContaining({
+            surgical: expect.objectContaining({
+              regenerateIds: expect.arrayContaining([
+                'Artifact:Producer.Output[0]',
+                'Artifact:Producer.Output[1]',
+              ]),
+            }),
+          }),
         })
       );
     });
@@ -373,12 +377,17 @@ describe('ExecutionContext', () => {
         expect.objectContaining({
           blueprint: 'test-blueprint',
           movieId: 'movie-123',
-          upToLayer: 2,
+          planningControls: expect.objectContaining({
+            scope: expect.objectContaining({
+              upToLayer: 2,
+            }),
+          }),
         })
       );
-      expect(mockCreatePlan.mock.calls[0]?.[0]).not.toHaveProperty(
-        'regenerateIds'
-      );
+      expect(
+        mockCreatePlan.mock.calls[0]?.[0]?.planningControls?.surgical
+          ?.regenerateIds
+      ).toBeUndefined();
     });
 
     it('includes producer overrides when override drafts are present', async () => {
@@ -404,14 +413,15 @@ describe('ExecutionContext', () => {
         expect.objectContaining({
           blueprint: 'test-blueprint',
           movieId: 'movie-123',
-          producerOverrides: {
-            directives: [
-              {
-                producerId: 'Producer:AudioProducer',
-                enabled: true,
-                count: 1,
-              },
-            ],
+          planningControls: {
+            scope: {
+              producerDirectives: [
+                {
+                  producerId: 'Producer:AudioProducer',
+                  count: 1,
+                },
+              ],
+            },
           },
         })
       );
@@ -444,21 +454,25 @@ describe('ExecutionContext', () => {
         expect.objectContaining({
           blueprint: 'test-blueprint',
           movieId: 'movie-123',
-          producerOverrides: {
-            directives: [
-              {
-                producerId: 'Producer:AudioProducer',
-                enabled: false,
-              },
-            ],
+          planningControls: {
+            scope: {
+              producerDirectives: [
+                {
+                  producerId: 'Producer:AudioProducer',
+                  count: 0,
+                },
+              ],
+            },
           },
         })
       );
 
       const latestRequest = mockCreatePlan.mock.calls.at(-1)?.[0];
       expect(
-        latestRequest?.producerOverrides?.directives?.[0]
-      ).not.toHaveProperty('count');
+        latestRequest?.planningControls?.scope?.producerDirectives?.[0]
+      ).toMatchObject({
+        count: 0,
+      });
     });
 
     it('handles undefined movieId', async () => {
@@ -479,9 +493,11 @@ describe('ExecutionContext', () => {
         })
       );
       expect(mockCreatePlan.mock.calls[0]?.[0]).not.toHaveProperty(
-        'regenerateIds'
+        'planningControls.surgical.regenerateIds'
       );
-      expect(mockCreatePlan.mock.calls[0]?.[0]).not.toHaveProperty('upToLayer');
+      expect(
+        mockCreatePlan.mock.calls[0]?.[0]?.planningControls?.scope
+      ).toBeUndefined();
     });
 
     it('exposes producer scheduling summary from the latest plan', async () => {
@@ -490,11 +506,11 @@ describe('ExecutionContext', () => {
           producerScheduling: [
             {
               producerId: 'Producer:AudioProducer',
+              mode: 'capped',
               maxSelectableCount: 3,
-              selectedCount: 1,
+              effectiveCountLimit: 1,
               scheduledCount: 1,
               scheduledJobCount: 1,
-              scheduled: true,
               upstreamProducerIds: ['Producer:ScriptProducer'],
               warnings: ['Upstream dependencies may limit this override.'],
             },
@@ -514,8 +530,8 @@ describe('ExecutionContext', () => {
         result.current.getProducerSchedulingSummary('Producer:AudioProducer')
       ).toMatchObject({
         producerId: 'Producer:AudioProducer',
-        selectedCount: 1,
-        scheduled: true,
+        effectiveCountLimit: 1,
+        scheduledCount: 1,
       });
       expect(
         result.current.getProducerSchedulingSummary('Producer:Missing')
@@ -528,11 +544,11 @@ describe('ExecutionContext', () => {
           producerScheduling: [
             {
               producerId: 'Producer:ImageProducer',
+              mode: 'inherit',
               maxSelectableCount: 2,
-              selectedCount: 2,
+              effectiveCountLimit: null,
               scheduledCount: 2,
               scheduledJobCount: 2,
-              scheduled: true,
               upstreamProducerIds: [],
               warnings: [],
             },
@@ -553,7 +569,7 @@ describe('ExecutionContext', () => {
         result.current.getProducerSchedulingSummary('Producer:ImageProducer')
       ).toMatchObject({
         maxSelectableCount: 2,
-        scheduled: true,
+        scheduledCount: 2,
       });
     });
   });

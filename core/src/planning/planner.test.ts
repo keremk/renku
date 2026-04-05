@@ -3875,11 +3875,6 @@ describe('planner', () => {
         blueprint: graph,
         targetRevision: 'rev-0002',
         pendingEdits: [],
-        producerOverrideMode: 'inherit',
-        selectedProducerJobIds: [
-          'Producer:AudioProducer[0]',
-          'Producer:AudioProducer[1]',
-        ],
         pinnedArtifactIds: ['Artifact:SegmentAudio[0]'],
       });
 
@@ -3911,10 +3906,6 @@ describe('planner', () => {
         blueprint: graph,
         targetRevision: 'rev-0002',
         pendingEdits: [],
-        allowedProducerJobIds: [
-          'Producer:ScriptProducer',
-          'Producer:AudioProducer[0]',
-        ],
       });
 
       expect(plan.layers.flat()).toEqual([]);
@@ -3943,10 +3934,6 @@ describe('planner', () => {
         blueprint: graph,
         targetRevision: 'rev-0002',
         pendingEdits: [],
-        allowedProducerJobIds: [
-          'Producer:ScriptProducer',
-          'Producer:AudioProducer[0]',
-        ],
         blockedProducerJobIds: ['Producer:AudioProducer[1]'],
       });
 

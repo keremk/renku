@@ -344,10 +344,12 @@ function SchedulingOverridesSection({
   const hasOverride = override !== undefined;
   const effectiveEnabled = override?.enabled ?? true;
   const maxSelectableCount = scheduling?.maxSelectableCount;
+  const inheritedCountLimit =
+    scheduling?.effectiveCountLimit === null
+      ? maxSelectableCount
+      : scheduling?.effectiveCountLimit;
   const effectiveCount =
-    override?.count ??
-    scheduling?.selectedCount ??
-    (maxSelectableCount !== undefined ? maxSelectableCount : undefined);
+    override?.count ?? inheritedCountLimit ?? maxSelectableCount;
 
   const warningText = scheduling?.warnings[0];
 

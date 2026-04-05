@@ -408,7 +408,7 @@ describe('buildPlanResponse', () => {
       expect(response.cliCommand).toContain("--pin='Producer:ImageProducer'");
     });
 
-    it('includes producer pid flags and suppresses --up when producer ids are present', () => {
+    it('includes producer pid flags and keeps --up when producer ids are present', () => {
       const layers: JobDescriptor[][] = [[createMockJob('job-0', 'Producer0')]];
       const { cachedPlan, plan } = createMockCachedPlan(layers);
 
@@ -416,12 +416,12 @@ describe('buildPlanResponse', () => {
         blueprintPath: '/tmp/blueprint.yaml',
         inputsPath: '/tmp/inputs.yaml',
         upToLayer: 1,
-        producerPidValues: ['Producer:AudioProducer:1', 'Producer:ScriptProducer'],
+        producerPidValues: ['Producer:AudioProducer:1', 'Producer:ScriptProducer:0'],
       });
 
       expect(response.cliCommand).toContain("--pid='Producer:AudioProducer:1'");
-      expect(response.cliCommand).toContain("--pid='Producer:ScriptProducer'");
-      expect(response.cliCommand).not.toContain('--up=1');
+      expect(response.cliCommand).toContain("--pid='Producer:ScriptProducer:0'");
+      expect(response.cliCommand).toContain('--up=1');
     });
 
   });

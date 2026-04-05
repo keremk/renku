@@ -22,7 +22,7 @@ import {
 	isCanonicalProducerId,
 	parseProducerDirectiveToken,
 	RuntimeErrorCode,
-	type ProducerOverrides,
+	type PlanningUserControls,
 	type BlueprintDryRunValidationResult,
 	type LogLevel,
 } from '@gorenku/core';
@@ -150,11 +150,15 @@ export async function runGenerate(
 
 	// Regeneration targets must be canonical Artifact:/Producer: IDs.
 	const regenerateIds = normalizeRegenerateIds(options.regenerateIds);
-	const producerOverrides = normalizeProducerOverridesFromCli(
+	const producerDirectives = normalizeProducerDirectivesFromCli(
 		options.producerIds
 	);
-
-	const upToLayer = producerOverrides ? undefined : options.upToLayer;
+	const planningControls = buildPlanningUserControls({
+		upToLayer: options.upToLayer,
+		regenerateIds,
+		pinIds: options.pinIds,
+		producerDirectives,
+	});
 	const artifactsConfig = getCliArtifactsConfig(activeConfig);
 
 	if (options.movieId || usingLast) {
@@ -204,10 +208,7 @@ export async function runGenerate(
 			costsOnly: options.costsOnly,
 			explain: options.explain,
 			concurrency,
-			upToLayer,
-			regenerateIds,
-			producerOverrides,
-			pinnedIds: options.pinIds,
+			planningControls,
 			dryRunProfilePath: options.dryRunProfilePath,
 			logger,
 			cliConfig: activeConfig,
@@ -285,10 +286,7 @@ export async function runGenerate(
 		costsOnly: options.costsOnly,
 		explain: options.explain,
 		concurrency,
-		upToLayer,
-		producerOverrides,
-		regenerateIds,
-		pinnedIds: options.pinIds,
+		planningControls,
 		dryRunProfilePath: options.dryRunProfilePath,
 		logger,
 		cliConfig: activeConfig,
@@ -373,17 +371,46 @@ function normalizeRegenerateIds(
 	return normalizedRegenerateIds;
 }
 
-function normalizeProducerOverridesFromCli(
+function normalizeProducerDirectivesFromCli(
 	rawProducerDirectives: string[] | undefined
-): ProducerOverrides | undefined {
+): Array<{ producerId: string; count: number }> | undefined {
 	if (!rawProducerDirectives || rawProducerDirectives.length === 0) {
 		return undefined;
 	}
 
+	return rawProducerDirectives.map((value) =>
+		parseProducerDirectiveToken(value)
+	);
+}
+
+function buildPlanningUserControls(args: {
+	upToLayer?: number;
+	regenerateIds?: string[];
+	pinIds?: string[];
+	producerDirectives?: Array<{ producerId: string; count: number }>;
+}): PlanningUserControls | undefined {
+	const scope: PlanningUserControls['scope'] = {
+		...(args.upToLayer !== undefined ? { upToLayer: args.upToLayer } : {}),
+		...(args.producerDirectives && args.producerDirectives.length > 0
+			? { producerDirectives: args.producerDirectives }
+			: {}),
+	};
+	const surgical: PlanningUserControls['surgical'] = {
+		...(args.regenerateIds && args.regenerateIds.length > 0
+			? { regenerateIds: args.regenerateIds }
+			: {}),
+		...(args.pinIds && args.pinIds.length > 0 ? { pinIds: args.pinIds } : {}),
+	};
+
+	const hasScope = Object.keys(scope).length > 0;
+	const hasSurgical = Object.keys(surgical).length > 0;
+	if (!hasScope && !hasSurgical) {
+		return undefined;
+	}
+
 	return {
-		directives: rawProducerDirectives.map((value) =>
-			parseProducerDirectiveToken(value)
-		),
+		...(hasScope ? { scope } : {}),
+		...(hasSurgical ? { surgical } : {}),
 	};
 }
 

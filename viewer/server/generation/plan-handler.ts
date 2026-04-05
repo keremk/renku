@@ -118,10 +118,7 @@ export async function handlePlanRequest(
       inputsPath,
       buildsFolder: paths.buildsFolder,
       basePath,
-      regenerateIds: body.regenerateIds,
-      upToLayer: body.upToLayer,
-      pinIds: body.pinnedArtifactIds,
-      producerOverrides: body.producerOverrides,
+      planningControls: body.planningControls,
     });
 
     // Cache the plan
@@ -139,24 +136,25 @@ export async function handlePlanRequest(
       catalogModelsDir: planResult.catalogModelsDir,
       surgicalInfo: planResult.surgicalInfo,
       producerScheduling: planResult.producerScheduling,
+      warnings: planResult.warnings,
       persist: planResult.persist,
     });
 
     // Build response
-    const producerPidValues = deriveCliProducerIdFlags(body.producerOverrides);
+    const producerPidValues = deriveCliProducerIdFlags(
+      body.planningControls?.scope?.producerDirectives
+    );
     const response = buildPlanResponse(
       cachedPlan,
       planResult.plan,
-      producerPidValues === null
-        ? undefined
-        : {
-            blueprintPath: planResult.blueprintPath,
-            inputsPath,
-            regenerateIds: body.regenerateIds,
-            pinIds: body.pinnedArtifactIds,
-            upToLayer: body.upToLayer,
-            producerPidValues,
-          }
+      {
+        blueprintPath: planResult.blueprintPath,
+        inputsPath,
+        regenerateIds: body.planningControls?.surgical?.regenerateIds,
+        pinIds: body.planningControls?.surgical?.pinIds,
+        upToLayer: body.planningControls?.scope?.upToLayer,
+        producerPidValues,
+      }
     );
     sendJson(res, response);
     return true;
@@ -185,13 +183,7 @@ interface GeneratePlanOptions {
   buildsFolder: string;
   /** Relative basePath from storage root (e.g., "animated-edu-characters/builds") */
   basePath: string;
-  regenerateIds?: string[];
-  /** Limit plan to layers 0 through upToLayer (0-indexed). */
-  upToLayer?: number;
-  /** Pin IDs (canonical Artifact:... or Producer:...). */
-  pinIds?: string[];
-  /** Producer-level surgical overrides. */
-  producerOverrides?: PlanRequest['producerOverrides'];
+  planningControls?: PlanRequest['planningControls'];
 }
 
 /**
@@ -208,6 +200,7 @@ interface GeneratePlanResult {
   catalogModelsDir?: string;
   surgicalInfo?: SurgicalInfo[];
   producerScheduling?: import('@gorenku/core').ProducerSchedulingSummary[];
+  warnings?: import('@gorenku/core').PlanningWarning[];
   persist: () => Promise<void>;
 }
 
@@ -226,10 +219,7 @@ async function generatePlan(
     inputsPath,
     buildsFolder,
     basePath,
-    regenerateIds,
-    upToLayer,
-    pinIds,
-    producerOverrides,
+    planningControls,
   } = options;
   const storageRoot = cliConfig.storage.root;
   const movieDir = resolve(buildsFolder, movieId);
@@ -336,10 +326,7 @@ async function generatePlan(
     eventLog,
     pendingArtefacts:
       allPendingArtefacts.length > 0 ? allPendingArtefacts : undefined,
-    regenerateIds,
-    upToLayer,
-    pinIds,
-    producerOverrides,
+    userControls: planningControls,
   });
 
   // Load pricing catalog and estimate costs
@@ -354,7 +341,9 @@ async function generatePlan(
 
   // Derive surgical info for explicitly targeted artifact regeneration.
   const artifactRegenerateIds =
-    regenerateIds?.filter((id) => id.startsWith('Artifact:')) ?? [];
+    planningControls?.surgical?.regenerateIds?.filter((id) =>
+      id.startsWith('Artifact:')
+    ) ?? [];
   const surgicalInfo = artifactRegenerateIds.length
     ? deriveSurgicalInfoArray(artifactRegenerateIds, planResult.manifest)
     : undefined;
@@ -370,6 +359,7 @@ async function generatePlan(
     catalogModelsDir: catalogModelsDir ?? undefined,
     surgicalInfo,
     producerScheduling: planResult.producerScheduling,
+    warnings: planResult.warnings,
     persist: async () => {
       // Create LOCAL storage and write everything
       const localStorageContext = createStorageContext({
@@ -460,10 +450,7 @@ function buildCliCommand(movieId: string, options: CliCommandOptions): string {
   }
 
   // Up to layer
-  if (
-    options.upToLayer !== undefined &&
-    (!options.producerPidValues || options.producerPidValues.length === 0)
-  ) {
+  if (options.upToLayer !== undefined) {
     parts.push(`--up=${options.upToLayer}`);
   }
 
@@ -474,25 +461,15 @@ function buildCliCommand(movieId: string, options: CliCommandOptions): string {
 }
 
 function deriveCliProducerIdFlags(
-  producerOverrides: PlanRequest['producerOverrides'] | undefined
-): string[] | undefined | null {
-  if (!producerOverrides) {
+  producerDirectives: Array<{ producerId: string; count: number }> | undefined
+): string[] | undefined {
+  if (!producerDirectives || producerDirectives.length === 0) {
     return undefined;
   }
 
-  // CLI --pid cannot express explicit producer disable directives.
-  // Return null so callers can avoid generating a non-equivalent command.
-  if (producerOverrides.directives.some((directive) => directive.enabled === false)) {
-    return null;
-  }
-
-  const pidValues = producerOverrides.directives
-    .filter((directive) => directive.enabled !== false)
-    .map((directive) =>
-      directive.count !== undefined
-        ? `${directive.producerId}:${directive.count}`
-        : directive.producerId
-    );
+  const pidValues = producerDirectives.map(
+    (directive) => `${directive.producerId}:${directive.count}`
+  );
 
   return pidValues.length > 0 ? pidValues : undefined;
 }
@@ -605,6 +582,7 @@ export function buildPlanResponse(
     layerBreakdown,
     surgicalInfo: cachedPlan.surgicalInfo,
     producerScheduling: cachedPlan.producerScheduling,
+    warnings: cachedPlan.warnings,
     cliCommand,
   };
 }

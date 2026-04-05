@@ -759,7 +759,11 @@ describe('createPlanningService', () => {
         storage,
         manifestService,
         eventLog,
-        regenerateIds: ['Artifact:Output'],
+        userControls: {
+          surgical: {
+            regenerateIds: ['Artifact:Output'],
+          },
+        },
       });
 
       const plannedJobIds = result.plan.layers.flat().map((job) => job.jobId);
@@ -781,7 +785,11 @@ describe('createPlanningService', () => {
           storage,
           manifestService,
           eventLog,
-          pinIds: ['Artifact:Output'],
+          userControls: {
+            surgical: {
+              pinIds: ['Artifact:Output'],
+            },
+          },
         })
       ).rejects.toMatchObject({
         code: RuntimeErrorCode.PIN_REQUIRES_EXISTING_MOVIE,
@@ -803,7 +811,11 @@ describe('createPlanningService', () => {
           storage,
           manifestService,
           eventLog,
-          pinIds: ['NotCanonical'],
+          userControls: {
+            surgical: {
+              pinIds: ['NotCanonical'],
+            },
+          },
         })
       ).rejects.toMatchObject({
         code: RuntimeErrorCode.INVALID_PIN_ID,
@@ -825,7 +837,11 @@ describe('createPlanningService', () => {
           storage,
           manifestService,
           eventLog,
-          pinIds: ['Producer:DoesNotExist'],
+          userControls: {
+            surgical: {
+              pinIds: ['Producer:DoesNotExist'],
+            },
+          },
         })
       ).rejects.toMatchObject({
         code: RuntimeErrorCode.PIN_PRODUCER_NOT_FOUND,
@@ -859,14 +875,18 @@ describe('createPlanningService', () => {
           storage,
           manifestService,
           eventLog,
-          pinIds: ['Artifact:Output'],
+          userControls: {
+            surgical: {
+              pinIds: ['Artifact:Output'],
+            },
+          },
         })
       ).rejects.toMatchObject({
         code: RuntimeErrorCode.PIN_TARGET_NOT_REUSABLE,
       });
     });
 
-    it('allows pin overlap with surgical target by prioritizing the target', async () => {
+    it('fails when the same canonical target is both pinned and regenerated', async () => {
       const service = createPlanningService();
       const manifestService = createManifestService(storage);
       const eventLog = createEventLog(storage);
@@ -883,24 +903,27 @@ describe('createPlanningService', () => {
         createdAt: new Date().toISOString(),
       });
 
-      const result = await service.generatePlan({
-        movieId,
-        blueprintTree: createSimpleBlueprint(),
-        inputValues: { 'Input:Prompt': 'Hello world' },
-        providerCatalog: defaultCatalog,
-        providerOptions: createDefaultOptions(['TestProducer']),
-        storage,
-        manifestService,
-        eventLog,
-        pinIds: ['Artifact:Output'],
-        regenerateIds: ['Artifact:Output'],
-        collectExplanation: true,
+      await expect(
+        service.generatePlan({
+          movieId,
+          blueprintTree: createSimpleBlueprint(),
+          inputValues: { 'Input:Prompt': 'Hello world' },
+          providerCatalog: defaultCatalog,
+          providerOptions: createDefaultOptions(['TestProducer']),
+          storage,
+          manifestService,
+          eventLog,
+          userControls: {
+            surgical: {
+              pinIds: ['Artifact:Output'],
+              regenerateIds: ['Artifact:Output'],
+            },
+          },
+          collectExplanation: true,
+        })
+      ).rejects.toMatchObject({
+        code: RuntimeErrorCode.PLANNING_CONFLICT_REGEN_PIN,
       });
-
-      expect(result.explanation?.pinnedArtifactIds).toBeUndefined();
-      expect(result.plan.layers.flat().map((job) => job.jobId)).toContain(
-        'Producer:TestProducer'
-      );
     });
 
     it('resolves producer pin to artifact pins through shared core logic', async () => {
@@ -929,7 +952,11 @@ describe('createPlanningService', () => {
         storage,
         manifestService,
         eventLog,
-        pinIds: ['Producer:TestProducer'],
+        userControls: {
+          surgical: {
+            pinIds: ['Producer:TestProducer'],
+          },
+        },
         collectExplanation: true,
       });
 
@@ -964,9 +991,13 @@ describe('createPlanningService', () => {
         storage,
         manifestService,
         eventLog,
-        pinIds: ['Artifact:Output'],
-        producerOverrides: {
-          directives: [{ producerId: 'Producer:TestProducer' }],
+        userControls: {
+          scope: {
+            producerDirectives: [{ producerId: 'Producer:TestProducer', count: 1 }],
+          },
+          surgical: {
+            pinIds: ['Artifact:Output'],
+          },
         },
         collectExplanation: true,
       });
@@ -989,9 +1020,11 @@ describe('createPlanningService', () => {
         storage,
         manifestService,
         eventLog,
-        reRunFrom: 0,
-        producerOverrides: {
-          directives: [{ producerId: 'Producer:TestProducer' }],
+        userControls: {
+          scope: {
+            producerDirectives: [{ producerId: 'Producer:TestProducer', count: 1 }],
+            upToLayer: 0,
+          },
         },
       });
 
@@ -1017,8 +1050,12 @@ describe('createPlanningService', () => {
         storage,
         manifestService,
         eventLog,
-        producerOverrides: {
-          directives: [{ producerId: 'Producer:DownstreamProducer' }],
+        userControls: {
+          scope: {
+            producerDirectives: [
+              { producerId: 'Producer:DownstreamProducer', count: 1 },
+            ],
+          },
         },
       });
 

@@ -143,7 +143,11 @@ describe('end-to-end: surgical artifact regeneration', () => {
       storageMovieId,
       isNew: false,
       inputsPath,
-      regenerateIds: [targetArtifactId!],
+      planningControls: {
+        surgical: {
+          regenerateIds: [targetArtifactId!],
+        },
+      },
       dryRun: true,
       nonInteractive: true,
       logger,
@@ -354,8 +358,12 @@ describe('end-to-end: surgical artifact regeneration', () => {
       storageMovieId,
       isNew: false,
       inputsPath,
-      regenerateIds: [targetArtifactId!],
-      upToLayer: 0, // Limit to layer 0 only
+      planningControls: {
+        scope: { upToLayer: 0 }, // Limit to layer 0 only
+        surgical: {
+          regenerateIds: [targetArtifactId!],
+        },
+      },
       dryRun: true,
       nonInteractive: true,
       logger,
@@ -448,7 +456,11 @@ describe('end-to-end: surgical artifact regeneration', () => {
         storageMovieId,
         isNew: false,
         inputsPath,
-        regenerateIds: ['Artifact:NonExistent.FakeArtifact[0]'],
+        planningControls: {
+          surgical: {
+            regenerateIds: ['Artifact:NonExistent.FakeArtifact[0]'],
+          },
+        },
         dryRun: true,
         nonInteractive: true,
         logger,
@@ -565,7 +577,11 @@ describe('end-to-end: surgical artifact regeneration', () => {
       storageMovieId,
       isNew: false,
       inputsPath,
-      regenerateIds: [targetArtifact0!, targetArtifact2!],
+      planningControls: {
+        surgical: {
+          regenerateIds: [targetArtifact0!, targetArtifact2!],
+        },
+      },
       dryRun: true,
       nonInteractive: true,
       logger,
@@ -684,7 +700,14 @@ describe('end-to-end: surgical artifact regeneration', () => {
         storageMovieId,
         isNew: false,
         inputsPath,
-        regenerateIds: [validArtifact!, 'Artifact:NonExistent.FakeArtifact[0]'],
+        planningControls: {
+          surgical: {
+            regenerateIds: [
+              validArtifact!,
+              'Artifact:NonExistent.FakeArtifact[0]',
+            ],
+          },
+        },
         dryRun: true,
         nonInteractive: true,
         logger,

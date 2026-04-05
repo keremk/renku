@@ -9,16 +9,12 @@ import {
   createPlanAdapter,
   type PlanAdapterOptions,
 } from '../planning/adapter.js';
-import {
-  collectRequiredConditionArtifactIds,
-  computeMultipleArtifactRegenerationJobs,
-} from '../planning/planner.js';
+import { collectRequiredConditionArtifactIds } from '../planning/planner.js';
 import type { PlanExplanation } from '../planning/explanation.js';
 import { evaluateInputConditions } from '../condition-evaluator.js';
 import {
   isCanonicalArtifactId,
   isCanonicalInputId,
-  isCanonicalProducerId,
 } from '../parsing/canonical-ids.js';
 import { createRuntimeError, RuntimeErrorCode } from '../errors/index.js';
 import type { EventLog } from '../event-log.js';
@@ -26,23 +22,21 @@ import { hashPayload } from '../hashing.js';
 import { ManifestNotFoundError, type ManifestService } from '../manifest.js';
 import { nextRevisionId } from '../revisions.js';
 import { planStore, type StorageContext } from '../storage.js';
-import { computeTopologyLayers } from '../topology/index.js';
 import type { Clock } from '../types.js';
 import { convertBlobInputToBlobRef } from '../input-blob-storage.js';
 import { formatBlobFileName } from '../blob-utils.js';
 import {
   applyOutputSchemasFromProviderOptionsToBlueprintTree,
 } from './output-schema-hydration.js';
+import { deriveProducerFamilyId } from './producer-overrides.js';
 import {
-  buildProducerSchedulingSummary,
-  deriveProducerFamilyId,
-  normalizeProducerOverrides,
-} from './producer-overrides.js';
+  buildResolvedProducerSummaries,
+  resolvePlanningControls,
+} from './planning-controls.js';
 import type {
   ArtefactEvent,
   ArtefactEventOutput,
   ArtefactEventStatus,
-  ArtifactRegenerationConfig,
   BlueprintTreeNode,
   BlueprintProducerOutputDefinition,
   ExecutionPlan,
@@ -52,8 +46,8 @@ import type {
   Manifest,
   ProducerCatalog,
   ProducerGraph,
-  ProducerOverrides,
-  ProducerSchedulingSummary,
+  PlanningUserControls,
+  ProducerRunSummary,
   PlanningWarning,
   RevisionId,
   InputConditionInfo,
@@ -90,25 +84,12 @@ export interface GeneratePlanArgs {
   eventLog: EventLog;
   pendingArtefacts?: PendingArtefactDraft[];
   inputSource?: InputEventSource;
-  /**
-   * Explicit regeneration targets.
-   * Supports canonical Artifact:... and Producer:... IDs.
-   */
-  regenerateIds?: string[];
+  /** Canonical planning controls from client adapters (CLI/viewer). */
+  userControls?: PlanningUserControls;
   /** Scope mode for surgical regeneration targeting. Defaults to lineage-plus-dirty. */
   surgicalRegenerationScope?: SurgicalRegenerationScope;
-  /** Limit plan to layers 0 through upToLayer (0-indexed). Jobs in later layers are excluded from the plan. */
-  upToLayer?: number;
   /** If true, collect explanation data for why jobs are scheduled */
   collectExplanation?: boolean;
-  /** Canonical pin IDs (`Artifact:...` or `Producer:...`) from wrappers. */
-  pinIds?: string[];
-  /** Artifact IDs that are pinned (kept). Jobs whose produced artifacts are ALL pinned are excluded from the plan. */
-  pinnedArtifactIds?: string[];
-  /** Producer IDs that are pinned (legacy/compat). */
-  pinnedProducerIds?: string[];
-  /** Producer-level scheduling overrides. */
-  producerOverrides?: ProducerOverrides;
 }
 
 export interface GeneratePlanResult {
@@ -122,8 +103,8 @@ export interface GeneratePlanResult {
   /** Explanation of why jobs were scheduled (only if collectExplanation was true) */
   explanation?: PlanExplanation;
   /** Effective producer-level scheduling metadata for UI/CLI displays. */
-  producerScheduling?: ProducerSchedulingSummary[];
-  /** Non-fatal warnings about override interactions. */
+  producerScheduling?: ProducerRunSummary[];
+  /** Non-fatal planning warnings for ignored out-of-scope controls. */
   warnings?: PlanningWarning[];
 }
 
@@ -216,167 +197,18 @@ export function createPlanningService(
         args.providerOptions
       );
 
-      const normalizedProducerOverrides = normalizeProducerOverrides({
-        producerGraph,
-        overrides: args.producerOverrides,
-      });
-
       const latestArtefactSnapshot = await readLatestArtefactSnapshot(
         args.eventLog,
         args.movieId
       );
 
-      const planningWarnings: PlanningWarning[] = [];
-      const regenerationIds = args.regenerateIds ?? [];
-
-      // Resolve explicit regeneration targets.
-      let artifactRegenerations: ArtifactRegenerationConfig[] | undefined;
-      const targetedArtifactIds: string[] = [];
-      const targetedProducerIds: string[] = [];
-      for (const id of regenerationIds) {
-        if (isCanonicalArtifactId(id)) {
-          targetedArtifactIds.push(id);
-          continue;
-        }
-        if (isCanonicalProducerId(id)) {
-          targetedProducerIds.push(id);
-          continue;
-        }
-        throw createRuntimeError(
-          RuntimeErrorCode.INVALID_PIN_ID,
-          `Invalid regenerate target "${id}". Expected canonical Artifact:... or Producer:... ID.`,
-          {
-            context: `regenerateId=${id}`,
-            suggestion:
-              'Use canonical IDs, for example Artifact:AudioProducer.GeneratedAudio[0] or Producer:AudioProducer.',
-          }
-        );
-      }
-
-      if (targetedArtifactIds.length > 0) {
-        artifactRegenerations = resolveArtifactsToJobs(
-          targetedArtifactIds,
-          manifest,
-          producerGraph,
-          latestArtefactSnapshot.latestById
-        );
-      }
-
-      const artifactSourceJobIds = artifactRegenerations?.map(
-        (item) => item.sourceJobId
-      ) ?? [];
-      const producerSourceJobIds =
-        targetedProducerIds.length > 0
-          ? resolveProducerIdsToJobs(targetedProducerIds, producerGraph)
-          : [];
-      const forceSourceJobIds = Array.from(
-        new Set([...artifactSourceJobIds, ...producerSourceJobIds])
-      );
-
-      const artifactForceTargetJobIds = forceSourceJobIds.length > 0
-        ? Array.from(
-            computeMultipleArtifactRegenerationJobs(
-              forceSourceJobIds,
-              producerGraph
-            )
-          )
-        : [];
-
-      const forceTargetJobIdSet = new Set<string>(artifactForceTargetJobIds);
-
-      if (normalizedProducerOverrides.allowedProducerJobIds.length > 0) {
-        const allowedScope = new Set(normalizedProducerOverrides.allowedProducerJobIds);
-        const droppedScopeJobs: string[] = [];
-        for (const jobId of Array.from(forceTargetJobIdSet)) {
-          if (!allowedScope.has(jobId)) {
-            forceTargetJobIdSet.delete(jobId);
-            droppedScopeJobs.push(jobId);
-          }
-        }
-        if (droppedScopeJobs.length > 0) {
-          planningWarnings.push({
-            code: 'REGEN_SCOPE_EXCLUDED',
-            message:
-              `Some regenerate targets were excluded by producer scope: ${droppedScopeJobs.join(', ')}`,
-          });
-        }
-      }
-
-      if (normalizedProducerOverrides.blockedProducerJobIds.length > 0) {
-        const blockedJobs = new Set(normalizedProducerOverrides.blockedProducerJobIds);
-        const droppedBlockedJobs: string[] = [];
-        for (const jobId of Array.from(forceTargetJobIdSet)) {
-          if (blockedJobs.has(jobId)) {
-            forceTargetJobIdSet.delete(jobId);
-            droppedBlockedJobs.push(jobId);
-          }
-        }
-        if (droppedBlockedJobs.length > 0) {
-          planningWarnings.push({
-            code: 'REGEN_SCOPE_EXCLUDED',
-            message:
-              `Some regenerate targets were excluded by producer count/disable directives: ${droppedBlockedJobs.join(', ')}`,
-          });
-        }
-      }
-
-      const effectiveUpToLayer =
-        normalizedProducerOverrides.hasOverrides ? undefined : args.upToLayer;
-      if (effectiveUpToLayer !== undefined && forceTargetJobIdSet.size > 0) {
-        const layerByJobId = buildJobLayerMap(producerGraph);
-        const droppedLayerJobs: string[] = [];
-        for (const jobId of Array.from(forceTargetJobIdSet)) {
-          const layer = layerByJobId.get(jobId);
-          if (layer !== undefined && layer > effectiveUpToLayer) {
-            forceTargetJobIdSet.delete(jobId);
-            droppedLayerJobs.push(jobId);
-          }
-        }
-        if (droppedLayerJobs.length > 0) {
-          planningWarnings.push({
-            code: 'REGEN_SCOPE_EXCLUDED',
-            message:
-              `Some regenerate targets were excluded by --up scope: ${droppedLayerJobs.join(', ')}`,
-          });
-        }
-      }
-
-      const forceTargetArtifactIds = new Set<string>();
-      if (targetedArtifactIds.length > 0) {
-        for (const artifactId of targetedArtifactIds) {
-          forceTargetArtifactIds.add(artifactId);
-        }
-      }
-      const nodeById = new Map(
-        producerGraph.nodes.map((node) => [node.jobId, node])
-      );
-      for (const jobId of forceTargetJobIdSet) {
-        const node = nodeById.get(jobId);
-        if (!node) {
-          continue;
-        }
-        for (const artifactId of node.produces) {
-          if (isCanonicalArtifactId(artifactId)) {
-            forceTargetArtifactIds.add(artifactId);
-          }
-        }
-      }
-
-      const pinResolution = await resolveAndValidatePinIds({
-        movieId: args.movieId,
-        pinIds: args.pinIds,
-        pinnedArtifactIds: args.pinnedArtifactIds,
-        pinnedProducerIds: args.pinnedProducerIds,
-        manifest,
-        eventLog: args.eventLog,
+      const resolvedControls = resolvePlanningControls({
         producerGraph,
-        forceTargetArtifactIds: Array.from(forceTargetArtifactIds),
+        baselineInputs: {},
+        userControls: args.userControls,
         latestSnapshot: latestArtefactSnapshot,
+        manifest,
       });
-      if (pinResolution.warnings.length > 0) {
-        planningWarnings.push(...pinResolution.warnings);
-      }
-      const resolvedPinnedArtifactIds = pinResolution.pinnedArtifactIds;
 
       const requiredConditionArtifactIds =
         collectRequiredConditionArtifactIds(producerGraph);
@@ -398,30 +230,26 @@ export function createPlanningService(
         targetRevision,
         pendingEdits: inputEvents,
         resolvedConditionArtifacts,
-        artifactRegenerations,
+        artifactRegenerations: resolvedControls.artifactRegenerations,
         surgicalRegenerationScope: args.surgicalRegenerationScope,
-        upToLayer: effectiveUpToLayer,
+        upToLayer: resolvedControls.effectiveUpToLayer,
         collectExplanation: args.collectExplanation,
         pinnedArtifactIds:
-          resolvedPinnedArtifactIds.length > 0
-            ? resolvedPinnedArtifactIds
+          resolvedControls.pinnedArtifactIds.length > 0
+            ? resolvedControls.pinnedArtifactIds
             : undefined,
         forceTargetJobIds:
-          forceTargetJobIdSet.size > 0
-            ? Array.from(forceTargetJobIdSet)
-            : undefined,
-        allowedProducerJobIds:
-          normalizedProducerOverrides.allowedProducerJobIds.length > 0
-            ? normalizedProducerOverrides.allowedProducerJobIds
+          resolvedControls.forcedJobIds.length > 0
+            ? resolvedControls.forcedJobIds
             : undefined,
         blockedProducerJobIds:
-          normalizedProducerOverrides.blockedProducerJobIds.length > 0
-            ? normalizedProducerOverrides.blockedProducerJobIds
+          resolvedControls.blockedProducerJobIds.length > 0
+            ? resolvedControls.blockedProducerJobIds
             : undefined,
       });
 
       const scheduledJobIds = new Set(plan.layers.flat().map((job) => job.jobId));
-      if (normalizedProducerOverrides.hasOverrides) {
+      if (resolvedControls.normalizedOverrides.directives.length > 0) {
         validateProducerOverrideDependencies({
           movieId: args.movieId,
           producerGraph,
@@ -432,8 +260,8 @@ export function createPlanningService(
         });
       }
 
-      const producerScheduling = buildProducerSchedulingSummary({
-        normalizedOverrides: normalizedProducerOverrides,
+      const producerScheduling = buildResolvedProducerSummaries({
+        normalizedOverrides: resolvedControls.normalizedOverrides,
         scheduledJobIds,
       });
 
@@ -464,7 +292,10 @@ export function createPlanningService(
         resolvedInputs,
         explanation,
         producerScheduling,
-        warnings: planningWarnings.length > 0 ? planningWarnings : undefined,
+        warnings:
+          resolvedControls.warnings.length > 0
+            ? resolvedControls.warnings
+            : undefined,
       };
     },
   };
@@ -662,196 +493,6 @@ export function injectDerivedInputs(
   return result;
 }
 
-interface ResolveAndValidatePinIdsArgs {
-  movieId: string;
-  pinIds?: string[];
-  pinnedArtifactIds?: string[];
-  pinnedProducerIds?: string[];
-  manifest: Manifest;
-  eventLog: EventLog;
-  producerGraph: { nodes: Array<{ jobId: string; produces: string[] }> };
-  forceTargetArtifactIds?: string[];
-  latestSnapshot?: {
-    latestById: Map<string, ArtefactEvent>;
-    latestSuccessfulIds: Set<string>;
-    latestFailedIds: Set<string>;
-  };
-}
-
-interface PinResolutionResult {
-  pinnedArtifactIds: string[];
-  warnings: PlanningWarning[];
-}
-
-async function resolveAndValidatePinIds(
-  args: ResolveAndValidatePinIdsArgs
-): Promise<PinResolutionResult> {
-  const requestedPinIds = [
-    ...(args.pinIds ?? []),
-    ...(args.pinnedArtifactIds ?? []),
-    ...(args.pinnedProducerIds ?? []),
-  ];
-
-  if (requestedPinIds.length === 0) {
-    return {
-      pinnedArtifactIds: [],
-      warnings: [],
-    };
-  }
-
-  const artifactPins = new Set<string>();
-  const producerPins = new Set<string>();
-
-  for (const id of requestedPinIds) {
-    if (isCanonicalArtifactId(id)) {
-      artifactPins.add(id);
-      continue;
-    }
-    if (isCanonicalProducerId(id)) {
-      producerPins.add(id);
-      continue;
-    }
-    throw createRuntimeError(
-      RuntimeErrorCode.INVALID_PIN_ID,
-      `Invalid pin ID "${id}". Expected canonical Artifact:... or Producer:...`,
-      {
-        context: `pinId=${id}`,
-        suggestion:
-          'Use canonical IDs, for example Artifact:ScriptProducer.NarrationScript[0] or Producer:ScriptProducer.',
-      }
-    );
-  }
-
-  const producerNodeMap = new Map<
-    string,
-    { jobId: string; produces: string[] }
-  >();
-  for (const node of args.producerGraph.nodes) {
-    producerNodeMap.set(node.jobId, node);
-  }
-
-  for (const producerId of producerPins) {
-    const node = producerNodeMap.get(producerId);
-    if (!node) {
-      throw createRuntimeError(
-        RuntimeErrorCode.PIN_PRODUCER_NOT_FOUND,
-        `Pinned producer "${producerId}" was not found in the current producer graph.`,
-        {
-          context: `producerId=${producerId}`,
-          suggestion:
-            'Check the producer canonical ID against the current blueprint graph.',
-        }
-      );
-    }
-    const producedArtifacts = node.produces.filter((id) =>
-      isCanonicalArtifactId(id)
-    );
-    if (producedArtifacts.length === 0) {
-      throw createRuntimeError(
-        RuntimeErrorCode.PIN_TARGET_NOT_REUSABLE,
-        `Pinned producer "${producerId}" does not produce reusable canonical artifacts.`,
-        {
-          context: `producerId=${producerId}`,
-          suggestion:
-            'Pin canonical artifact IDs produced by this run, or pin a producer that emits canonical artifacts.',
-        }
-      );
-    }
-    for (const artifactId of producedArtifacts) {
-      artifactPins.add(artifactId);
-    }
-  }
-
-  const resolvedPinnedArtifactIds = [...artifactPins];
-
-  const snapshot =
-    args.latestSnapshot ??
-    (await readLatestArtefactSnapshot(args.eventLog, args.movieId));
-  const hasSucceededManifestArtifacts = Object.values(
-    args.manifest.artefacts
-  ).some((entry) => entry.status === 'succeeded');
-  const hasPriorReusableArtifacts =
-    hasSucceededManifestArtifacts || snapshot.latestSuccessfulIds.size > 0;
-  if (!hasPriorReusableArtifacts) {
-    throw createRuntimeError(
-      RuntimeErrorCode.PIN_REQUIRES_EXISTING_MOVIE,
-      'Pinning requires an existing movie with reusable outputs. Use --last or --movie-id/--id after a successful run.',
-      {
-        context: `movieId=${args.movieId}`,
-        suggestion:
-          'Run the first generation without --pin, then pin artifacts/producers on subsequent runs.',
-      }
-    );
-  }
-
-  await validatePinnedTargetsReusable(
-    args.movieId,
-    resolvedPinnedArtifactIds,
-    args.manifest,
-    snapshot
-  );
-
-  const forceTargets = new Set(args.forceTargetArtifactIds ?? []);
-  const overlappingPins = resolvedPinnedArtifactIds.filter((artifactId) =>
-    forceTargets.has(artifactId)
-  );
-  const pinnedArtifactIds = resolvedPinnedArtifactIds.filter(
-    (artifactId) => !forceTargets.has(artifactId)
-  );
-
-  const warnings: PlanningWarning[] = [];
-  if (overlappingPins.length > 0) {
-    warnings.push({
-      code: 'PIN_REGEN_CONFLICT',
-      message:
-        `Regenerate targets override pinned artifacts for this plan: ${overlappingPins.join(', ')}`,
-    });
-  }
-
-  return {
-    pinnedArtifactIds,
-    warnings,
-  };
-}
-
-async function validatePinnedTargetsReusable(
-  movieId: string,
-  pinnedArtifactIds: string[],
-  manifest: Manifest,
-  snapshot: { latestSuccessfulIds: Set<string>; latestFailedIds: Set<string> }
-): Promise<void> {
-  if (pinnedArtifactIds.length === 0) {
-    return;
-  }
-  const invalid: string[] = [];
-
-  for (const artifactId of pinnedArtifactIds) {
-    if (snapshot.latestFailedIds.has(artifactId)) {
-      invalid.push(`${artifactId} (latest attempt failed)`);
-      continue;
-    }
-    if (snapshot.latestSuccessfulIds.has(artifactId)) {
-      continue;
-    }
-    const manifestEntry = manifest.artefacts[artifactId];
-    if (manifestEntry?.status === 'succeeded') {
-      continue;
-    }
-    invalid.push(`${artifactId} (no reusable successful artifact found)`);
-  }
-
-  if (invalid.length > 0) {
-    throw createRuntimeError(
-      RuntimeErrorCode.PIN_TARGET_NOT_REUSABLE,
-      `Pinned artifact(s) are not reusable: ${invalid.join('; ')}`,
-      {
-        context: `movieId=${movieId}`,
-        suggestion: 'Unpin these IDs or regenerate them before pinning.',
-      }
-    );
-  }
-}
-
 function validateProducerOverrideDependencies(args: {
   movieId: string;
   producerGraph: ProducerGraph;
@@ -1001,135 +642,6 @@ async function readLatestArtefactSnapshot(
     latestById,
     latestSuccessfulIds,
     latestFailedIds,
-  };
-}
-
-function buildJobLayerMap(producerGraph: ProducerGraph): Map<string, number> {
-  const nodes = producerGraph.nodes.map((node) => ({ id: node.jobId }));
-  const edges = producerGraph.edges.map((edge) => ({
-    from: edge.from,
-    to: edge.to,
-  }));
-  const { layerAssignments } = computeTopologyLayers(nodes, edges);
-  return layerAssignments;
-}
-
-function resolveProducerIdsToJobs(
-  producerIds: string[],
-  producerGraph: ProducerGraph
-): string[] {
-  const jobIds: string[] = [];
-  const graphJobIds = producerGraph.nodes.map((node) => node.jobId);
-  const seenFamilies = new Set<string>();
-
-  for (const producerId of producerIds) {
-    if (!isCanonicalProducerId(producerId) || producerId.includes('[')) {
-      throw createRuntimeError(
-        RuntimeErrorCode.INVALID_PRODUCER_OVERRIDE_FORMAT,
-        `Invalid producer regenerate target "${producerId}". Expected canonical Producer:Alias.`,
-        {
-          context: `producerId=${producerId}`,
-          suggestion:
-            'Use canonical producer IDs, for example Producer:AudioProducer.',
-        }
-      );
-    }
-
-    if (seenFamilies.has(producerId)) {
-      continue;
-    }
-    seenFamilies.add(producerId);
-
-    const familyJobIds = graphJobIds.filter(
-      (jobId) => deriveProducerFamilyId(jobId) === producerId
-    );
-    if (familyJobIds.length === 0) {
-      throw createRuntimeError(
-        RuntimeErrorCode.UNKNOWN_PRODUCER_OVERRIDE_TARGET,
-        `Producer regenerate target "${producerId}" was not found in the current producer graph.`,
-        {
-          context: `producerId=${producerId}`,
-          suggestion:
-            'Check the canonical producer ID against the current blueprint graph.',
-        }
-      );
-    }
-    jobIds.push(...familyJobIds);
-  }
-
-  return jobIds;
-}
-
-/**
- * Resolve multiple artifact IDs to their producing jobs.
- * Used for surgical regeneration of multiple artifacts.
- *
- * @param artifactIds - Array of canonical artifact IDs (e.g., ["Artifact:AudioProducer.GeneratedAudio[0]"])
- * @param manifest - The current manifest containing artifact entries
- * @param latestById - Latest artifact events keyed by artifact ID (fallback when manifest is stale)
- * @param producerGraph - The producer graph with all job nodes
- * @returns Array of ArtifactRegenerationConfig with target artifacts and source jobs
- * @throws ARTIFACT_NOT_IN_MANIFEST if any artifact not found in manifest or event log
- * @throws ARTIFACT_JOB_NOT_FOUND if any producing job not found in graph
- */
-export function resolveArtifactsToJobs(
-  artifactIds: string[],
-  manifest: Manifest,
-  producerGraph: { nodes: Array<{ jobId: string }> },
-  latestById?: Map<string, ArtefactEvent>
-): ArtifactRegenerationConfig[] {
-  return artifactIds.map((id) =>
-    resolveArtifactToJob(id, manifest, producerGraph, latestById)
-  );
-}
-
-/**
- * Resolve an artifact ID to the job that produces it.
- * Used for surgical artifact regeneration.
- *
- * @param artifactId - The canonical artifact ID (e.g., "Artifact:AudioProducer.GeneratedAudio[0]")
- * @param manifest - The current manifest containing artifact entries
- * @param latestById - Latest artifact events keyed by artifact ID (fallback when manifest is stale)
- * @param producerGraph - The producer graph with all job nodes
- * @returns ArtifactRegenerationConfig with target artifact and source job
- * @throws ARTIFACT_NOT_IN_MANIFEST if artifact not found in manifest or event log
- * @throws ARTIFACT_JOB_NOT_FOUND if producing job not found in graph
- */
-export function resolveArtifactToJob(
-  artifactId: string,
-  manifest: Manifest,
-  producerGraph: { nodes: Array<{ jobId: string }> },
-  latestById?: Map<string, ArtefactEvent>
-): ArtifactRegenerationConfig {
-  const entry = manifest.artefacts[artifactId];
-  const latestEvent = latestById?.get(artifactId);
-  const sourceJobId = entry?.producedBy ?? latestEvent?.producedBy;
-
-  if (!sourceJobId) {
-    throw createRuntimeError(
-      RuntimeErrorCode.ARTIFACT_NOT_IN_MANIFEST,
-      `Artifact "${artifactId}" not found in manifest or event log. ` +
-        `The artifact may not have been generated yet, or the ID may be incorrect.`,
-      { context: `artifactId=${artifactId}` }
-    );
-  }
-
-  // Verify the job exists in the producer graph
-  const jobExists = producerGraph.nodes.some(
-    (node) => node.jobId === sourceJobId
-  );
-  if (!jobExists) {
-    throw createRuntimeError(
-      RuntimeErrorCode.ARTIFACT_JOB_NOT_FOUND,
-      `Job "${sourceJobId}" that produced artifact "${artifactId}" not found in producer graph. ` +
-        `The blueprint structure may have changed since the artifact was generated.`,
-      { context: `artifactId=${artifactId}, sourceJobId=${sourceJobId}` }
-    );
-  }
-
-  return {
-    targetArtifactId: artifactId,
-    sourceJobId,
   };
 }
 

@@ -319,8 +319,7 @@ async function main(): Promise<void> {
 					costsOnly: Boolean(flags.costsOnly),
 					explain: Boolean(flags.explain),
 					concurrency: flags.concurrency,
-					upToLayer:
-						producerIdFlags.length > 0 ? undefined : upToLayer,
+					upToLayer,
 					regenerateIds:
 						regenerateFlags.length > 0 ? regenerateFlags : undefined,
 					producerIds:

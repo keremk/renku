@@ -77,7 +77,6 @@ describe('parseProducerDirectiveToken', () => {
     const parsed = parseProducerDirectiveToken('Producer:AudioProducer:2');
     expect(parsed).toEqual({
       producerId: 'Producer:AudioProducer',
-      enabled: true,
       count: 2,
     } satisfies ProducerOverrideDirective);
   });
@@ -90,14 +89,22 @@ describe('parseProducerDirectiveToken', () => {
     );
   });
 
-  it('fails when count is less than one', () => {
+  it('fails when count is missing', () => {
     expect(() =>
-      parseProducerDirectiveToken('Producer:AudioProducer:0')
+      parseProducerDirectiveToken('Producer:AudioProducer')
     ).toThrowError(
       expect.objectContaining({
-        code: RuntimeErrorCode.PRODUCER_OVERRIDE_INVALID_COUNT,
+        code: RuntimeErrorCode.INVALID_PRODUCER_OVERRIDE_FORMAT,
       })
     );
+  });
+
+  it('accepts zero count as disable directive', () => {
+    const parsed = parseProducerDirectiveToken('Producer:AudioProducer:0');
+    expect(parsed).toEqual({
+      producerId: 'Producer:AudioProducer',
+      count: 0,
+    } satisfies ProducerOverrideDirective);
   });
 });
 
@@ -110,18 +117,12 @@ describe('normalizeProducerOverrides', () => {
       },
     });
 
-    expect(normalized.selectedProducerJobIds).toEqual([
-      'Producer:AudioProducer[0]',
-    ]);
     expect(normalized.blockedProducerJobIds).toEqual([
       'Producer:AudioProducer[1]',
     ]);
-    expect(normalized.allowedProducerJobIds).toEqual(
-      expect.arrayContaining([
-        'Producer:ScriptProducer',
-        'Producer:AudioProducer[0]',
-      ])
-    );
+    expect(normalized.cappedProducerJobIds).toEqual([
+      'Producer:AudioProducer[1]',
+    ]);
     expect(normalized.directives[0]).toMatchObject({
       producerId: 'Producer:AudioProducer',
       count: 1,
@@ -151,7 +152,7 @@ describe('normalizeProducerOverrides', () => {
         overrides: {
           directives: [
             { producerId: 'Producer:AudioProducer', count: 1 },
-            { producerId: 'Producer:AudioProducer' },
+            { producerId: 'Producer:AudioProducer', count: 2 },
           ],
         },
       })
@@ -164,7 +165,7 @@ describe('normalizeProducerOverrides', () => {
 });
 
 describe('buildProducerSchedulingSummary', () => {
-  it('reports selected and scheduled counts per producer family', () => {
+  it('reports effective mode and scheduled counts per producer family', () => {
     const normalized = normalizeProducerOverrides({
       producerGraph: buildGraph(),
       overrides: {
@@ -185,11 +186,12 @@ describe('buildProducerSchedulingSummary', () => {
 
     expect(audio).toMatchObject({
       producerId: 'Producer:AudioProducer',
+      mode: 'capped',
       maxSelectableCount: 2,
-      selectedCount: 1,
+      effectiveCountLimit: 1,
       scheduledCount: 1,
-      scheduled: true,
-      warnings: expect.arrayContaining([expect.any(String)]),
+      scheduledJobCount: 1,
+      warnings: [],
     });
   });
 });

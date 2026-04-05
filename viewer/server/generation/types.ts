@@ -6,11 +6,16 @@
 import type {
   ExecutionPlan,
   Manifest,
-  ProducerOverrides,
+  PlanningUserControls,
+  PlanningWarning,
   ProducerSchedulingSummary,
   SurgicalInfo,
 } from '@gorenku/core';
-export type { ProducerSchedulingSummary, SurgicalInfo } from '@gorenku/core';
+export type {
+  ProducerSchedulingSummary,
+  SurgicalInfo,
+  PlanningWarning,
+} from '@gorenku/core';
 import type { PlanCostSummary, ProducerCostData } from '@gorenku/providers';
 
 // =============================================================================
@@ -28,14 +33,8 @@ export interface PlanRequest {
   inputs?: string;
   /** For regeneration: existing movie ID */
   movieId?: string;
-  /** Regeneration targets (canonical IDs, e.g., Artifact:... or Producer:...) */
-  regenerateIds?: string[];
-  /** Limit plan to layers 0 through upToLayer (0-indexed). Jobs in later layers are excluded. */
-  upToLayer?: number;
-  /** Pin IDs (canonical Artifact:... or Producer:...). Jobs whose produced artifacts are ALL pinned are excluded from the plan. */
-  pinnedArtifactIds?: string[];
-  /** Producer-level surgical overrides. */
-  producerOverrides?: ProducerOverrides;
+  /** Canonical planning controls payload from the viewer UI. */
+  planningControls?: PlanningUserControls;
 }
 
 /**
@@ -103,6 +102,8 @@ export interface PlanResponse {
   surgicalInfo?: SurgicalInfo[];
   /** Effective producer scheduling metadata for UI controls. */
   producerScheduling?: ProducerSchedulingSummary[];
+  /** Non-fatal warnings for ignored out-of-scope controls. */
+  warnings?: PlanningWarning[];
   /** Equivalent CLI command for debugging/copy-paste */
   cliCommand?: string;
 }
@@ -372,6 +373,7 @@ export interface CachedPlan {
   catalogModelsDir?: string;
   surgicalInfo?: SurgicalInfo[];
   producerScheduling?: ProducerSchedulingSummary[];
+  warnings?: PlanningWarning[];
   /** When this plan was created */
   createdAt: Date;
   /** Async persist function from planner */

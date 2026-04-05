@@ -155,8 +155,10 @@ This auto-detects your blueprint, starts a local server if needed, and opens you
   - `--concurrency=<n>` - Number of parallel jobs (default: 1)
   - `--up-to-layer=<n>` - Stop after specified layer
   - `--regen=<canonical-id>` - Explicitly regenerate specific targets (`Artifact:...` or `Producer:...`, requires `--last` or `--movie-id`)
-  - `--pid=<Producer:Alias[:count]>` - Scope planning to producer families (includes required upstream dependencies)
+  - `--pid=<Producer:Alias:count>` - Add a producer directive with explicit count (`0` disables, `>=1` caps first-dimension scheduling)
   - `--pin=<canonical-id>` - Keep known-good outputs (`Artifact:...` or `Producer:...`, requires `--last` or `--movie-id`)
+  - `--pid` and `--up-to-layer` can be combined (both constraints apply)
+  - Overlapping `--pin` and `--regen` on the same target fails fast with a conflict error
 
 ### Viewing Content
 

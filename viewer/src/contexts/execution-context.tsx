@@ -616,6 +616,7 @@ function planResponseToDisplayInfo(response: PlanResponse): PlanDisplayInfo {
     layerBreakdown,
     surgicalInfo,
     producerScheduling: response.producerScheduling,
+    warnings: response.warnings,
     cliCommand: response.cliCommand,
   };
 }
@@ -1075,40 +1076,67 @@ function buildPlanRequest(args: {
 }): {
   blueprint: string;
   movieId?: string;
-  regenerateIds?: string[];
-  upToLayer?: number;
-  pinnedArtifactIds?: string[];
-  producerOverrides?: {
-    directives: Array<{ producerId: string; enabled?: boolean; count?: number }>;
+  planningControls?: {
+    scope?: {
+      upToLayer?: number;
+      producerDirectives?: Array<{ producerId: string; count: number }>;
+    };
+    surgical?: {
+      regenerateIds?: string[];
+      pinIds?: string[];
+    };
   };
 } {
   const selectedArtifacts = Array.from(args.selectedForRegeneration);
   const pinnedArtifacts = Array.from(args.pinnedArtifacts);
   const producerOverrideDirectives = Object.entries(args.producerOverrides)
-    .map(([producerId, override]) => ({
-      producerId,
-      ...(override.enabled !== undefined ? { enabled: override.enabled } : {}),
-      ...(override.count !== undefined ? { count: override.count } : {}),
-    }))
+    .map(([producerId, override]) => {
+      if (override.enabled === false) {
+        return { producerId, count: 0 };
+      }
+      if (override.count !== undefined) {
+        return { producerId, count: override.count };
+      }
+      return null;
+    })
     .filter(
-      (directive) =>
-        directive.enabled !== undefined || directive.count !== undefined
+      (directive): directive is { producerId: string; count: number } =>
+        directive !== null
     );
+
+  const scope: {
+    upToLayer?: number;
+    producerDirectives?: Array<{ producerId: string; count: number }>;
+  } = {
+    ...(args.upToLayer !== undefined ? { upToLayer: args.upToLayer } : {}),
+    ...(producerOverrideDirectives.length > 0
+      ? {
+          producerDirectives: producerOverrideDirectives,
+        }
+      : {}),
+  };
+
+  const surgical: {
+    regenerateIds?: string[];
+    pinIds?: string[];
+  } = {
+    ...(selectedArtifacts.length > 0
+      ? { regenerateIds: selectedArtifacts }
+      : {}),
+    ...(pinnedArtifacts.length > 0 ? { pinIds: pinnedArtifacts } : {}),
+  };
+
+  const hasScopeControls = Object.keys(scope).length > 0;
+  const hasSurgicalControls = Object.keys(surgical).length > 0;
 
   return {
     blueprint: args.blueprintName,
     movieId: args.movieId ?? undefined,
-    ...(selectedArtifacts.length > 0
-      ? { regenerateIds: selectedArtifacts }
-      : {}),
-    ...(args.upToLayer !== undefined ? { upToLayer: args.upToLayer } : {}),
-    ...(pinnedArtifacts.length > 0
-      ? { pinnedArtifactIds: pinnedArtifacts }
-      : {}),
-    ...(producerOverrideDirectives.length > 0
+    ...(hasScopeControls || hasSurgicalControls
       ? {
-          producerOverrides: {
-            directives: producerOverrideDirectives,
+          planningControls: {
+            ...(hasScopeControls ? { scope } : {}),
+            ...(hasSurgicalControls ? { surgical } : {}),
           },
         }
       : {}),

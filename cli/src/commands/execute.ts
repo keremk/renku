@@ -66,14 +66,8 @@ export interface ExecuteOptions {
 	/** Number of concurrent jobs */
 	concurrency?: number;
 
-	/** Limit execution to specific layer */
-	upToLayer?: number;
-	/** Explicit regeneration targets (canonical Artifact:/Producer: IDs). */
-	regenerateIds?: string[];
-	/** Producer-level surgical overrides. */
-	producerOverrides?: import('@gorenku/core').ProducerOverrides;
-	/** Pin IDs (canonical Artifact:... or Producer:...). */
-	pinnedIds?: string[];
+	/** Canonical planning controls from the CLI adapter. */
+	planningControls?: import('@gorenku/core').PlanningUserControls;
 
 	/** Optional dry-run profile path (alias: --profile). */
 	dryRunProfilePath?: string;
@@ -161,7 +155,9 @@ export async function runExecute(
 	const storageRoot = cliConfig.storage.root;
 	const basePath = cliConfig.storage.basePath;
 	const movieDir = resolve(storageRoot, basePath, storageMovieId);
-	const upToLayer = options.upToLayer;
+	const planningControls = options.planningControls;
+	const upToLayer = planningControls?.scope?.upToLayer;
+	const regenerateIds = planningControls?.surgical?.regenerateIds;
 
 	// Resolve inputs path - always required (contains model selections)
 	const inputsPath = resolveInputsPath(options.inputsPath);
@@ -185,12 +181,15 @@ export async function runExecute(
 		usingBlueprint: blueprintPath,
 		pendingArtefacts: options.pendingArtefacts,
 		logger,
-		upToLayer,
-		regenerateIds: options.regenerateIds,
-		producerOverrides: options.producerOverrides,
-		pinnedIds: options.pinnedIds,
+		planningControls,
 		collectExplanation: options.explain,
 	});
+
+	if (planResult.warnings && planResult.warnings.length > 0) {
+		for (const warning of planResult.warnings) {
+			logger.warn?.(`Planning warning: ${warning.message}`);
+		}
+	}
 
 	if (options.dryRun) {
 		logger.debug?.('execute.dryrun.plan.debug', {
@@ -276,7 +275,7 @@ export async function runExecute(
 				planResult,
 				concurrency,
 				upToLayer,
-				regenerateIds: options.regenerateIds,
+				regenerateIds,
 				dryRunProfilePath: options.dryRunProfilePath,
 				logger,
 			})
@@ -294,7 +293,7 @@ export async function runExecute(
 					logger,
 					concurrency,
 					upToLayer,
-					regenerateIds: options.regenerateIds,
+					regenerateIds,
 					dryRun: false,
 				}),
 				dryRunValidation: undefined,

@@ -573,54 +573,102 @@ export interface ArtifactRegenerationConfig {
 /**
  * Per-producer scheduling directive.
  */
-export interface ProducerOverrideDirective {
+export interface ProducerDirective {
   /** Canonical producer family ID (e.g., "Producer:AudioProducer") */
   producerId: string;
-  /** When false, disable this producer family for the run. */
-  enabled?: boolean;
   /**
-   * Optional first-dimension cap.
-   * Example: count=1 keeps first-dimension index 0 and includes all deeper indices below it.
+   * First-dimension count limit.
+   * - 0 disables the producer family.
+   * - >= 1 caps first-dimension selection to that count.
    */
-  count?: number;
+  count: number;
 }
 
 /**
- * Producer-level scheduling overrides passed into planning.
- * Directives represent the active producer scope (for example CLI --pid).
+ * Scope controls for planning.
+ */
+export interface PlanningScopeControls {
+  /** Limit plan to layers 0 through upToLayer (0-indexed). */
+  upToLayer?: number;
+  /** Per-producer directives. Unmentioned producers inherit baseline behavior. */
+  producerDirectives?: ProducerDirective[];
+}
+
+/**
+ * Surgical controls for planning.
+ */
+export interface PlanningSurgicalControls {
+  /** Explicit regeneration targets (canonical Artifact:... or Producer:... IDs). */
+  regenerateIds?: string[];
+  /** Canonical pin IDs (Artifact:... or Producer:...). */
+  pinIds?: string[];
+}
+
+/**
+ * Canonical user controls input for planning.
+ */
+export interface PlanningUserControls {
+  scope?: PlanningScopeControls;
+  surgical?: PlanningSurgicalControls;
+}
+
+/**
+ * Backwards-compatible name for producer directives.
  */
 export interface ProducerOverrides {
-  directives: ProducerOverrideDirective[];
+  directives: ProducerDirective[];
 }
 
 /**
  * Per-producer scheduling summary returned from planning.
- * Used by CLI/viewer to display effective scheduling and warnings.
  */
-export interface ProducerSchedulingSummary {
+export interface ProducerRunSummary {
   /** Canonical producer family ID (e.g., "Producer:AudioProducer") */
   producerId: string;
+  /** Effective mode after applying directives. */
+  mode: 'inherit' | 'capped' | 'disabled';
   /** Max selectable first-dimension count for this producer family. */
   maxSelectableCount: number;
-  /** Effective selected first-dimension count after overrides are applied. */
-  selectedCount: number;
+  /**
+   * Effective directive count.
+   * null = inherited (no directive), 0 = disabled, >=1 = explicit cap.
+   */
+  effectiveCountLimit: number | null;
   /** Scheduled first-dimension count after full planning. */
   scheduledCount: number;
   /** Number of scheduled jobs for this producer family. */
   scheduledJobCount: number;
-  /** Whether this producer family has any scheduled jobs in the current plan. */
-  scheduled: boolean;
   /** Producer families this family depends on (artifact dependencies). */
   upstreamProducerIds: string[];
-  /** Warnings relevant to producer-level overrides for this family. */
+  /** Warnings relevant to producer scheduling for this family. */
   warnings: string[];
   /** Echo of the applied directive, if one exists. */
-  appliedOverride?: ProducerOverrideDirective;
+  appliedDirective?: {
+    count: number;
+  };
 }
 
+export type ProducerSchedulingSummary = ProducerRunSummary;
+export type ProducerOverrideDirective = ProducerDirective;
+
 export interface PlanningWarning {
-  code: 'PIN_REGEN_CONFLICT' | 'REGEN_SCOPE_EXCLUDED';
+  code:
+    | 'CONTROL_REGEN_OUT_OF_SCOPE'
+    | 'CONTROL_PIN_OUT_OF_SCOPE'
+    | 'CONTROL_DIRECTIVE_OUT_OF_SCOPE';
   message: string;
+  control: 'regen' | 'pin' | 'directive';
+  targetId: string;
+}
+
+export interface ResolvedPlanningControls {
+  effectiveUpToLayer?: number;
+  blockedProducerJobIds: string[];
+  cappedProducerJobIds: string[];
+  forcedJobIds: string[];
+  pinnedArtifactIds: string[];
+  producerSummaries: ProducerRunSummary[];
+  warnings: PlanningWarning[];
 }
 
 /**

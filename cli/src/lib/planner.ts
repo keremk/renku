@@ -62,14 +62,8 @@ export interface GeneratePlanOptions {
 	pendingArtefacts?: PendingArtefactDraft[];
 	logger?: Logger;
 	notifications?: import('@gorenku/core').NotificationBus;
-	/** Limit plan to layers 0 through upToLayer (0-indexed). */
-	upToLayer?: number;
-	/** Explicit regeneration targets (canonical Artifact:/Producer: IDs). */
-	regenerateIds?: string[];
-	/** Producer-level surgical overrides. */
-	producerOverrides?: import('@gorenku/core').ProducerOverrides;
-	/** Pin IDs (canonical Artifact:... or Producer:...). */
-	pinnedIds?: string[];
+	/** Canonical planning controls from the CLI adapter. */
+	planningControls?: import('@gorenku/core').PlanningUserControls;
 	/** If true, collect explanation data for why jobs are scheduled */
 	collectExplanation?: boolean;
 	/** Optional recovery dependency overrides (primarily for tests). */
@@ -102,6 +96,8 @@ export interface GeneratePlanResult {
 	surgicalInfo?: SurgicalInfo[];
 	/** Effective producer-level scheduling metadata. */
 	producerScheduling?: import('@gorenku/core').ProducerSchedulingSummary[];
+	/** Non-fatal warnings for ignored out-of-scope controls. */
+	warnings?: import('@gorenku/core').PlanningWarning[];
 	/** Plan explanation (only if collectExplanation was true) */
 	explanation?: PlanExplanation;
 	/** Condition analysis for dry-run simulation */
@@ -261,6 +257,7 @@ export async function generatePlan(
 		{ catalogModelsDir, modelCatalog },
 		loadModelInputSchema as Parameters<typeof buildProviderMetadata>[2]
 	);
+	const planningControls = options.planningControls;
 	const planResult = await createPlanningService({
 		logger,
 		notifications,
@@ -275,10 +272,7 @@ export async function generatePlan(
 		eventLog,
 		pendingArtefacts:
 			allPendingArtefacts.length > 0 ? allPendingArtefacts : undefined,
-		upToLayer: options.upToLayer,
-		regenerateIds: options.regenerateIds,
-		producerOverrides: options.producerOverrides,
-		pinIds: options.pinnedIds,
+		userControls: planningControls,
 		collectExplanation: options.collectExplanation,
 	});
 	logger.debug('[planner] resolved inputs', {
@@ -304,7 +298,9 @@ export async function generatePlan(
 
 	// Derive surgical info for artifact regeneration targets.
 	const artifactRegenerateIds =
-		options.regenerateIds?.filter((id) => id.startsWith('Artifact:')) ?? [];
+		planningControls?.surgical?.regenerateIds?.filter((id) =>
+			id.startsWith('Artifact:')
+		) ?? [];
 	const surgicalInfo = artifactRegenerateIds.length > 0
 		? deriveSurgicalInfoArray(artifactRegenerateIds, planResult.manifest)
 		: undefined;
@@ -324,6 +320,7 @@ export async function generatePlan(
 		catalogModelsDir: catalogModelsDir ?? undefined,
 		surgicalInfo,
 		producerScheduling: planResult.producerScheduling,
+		warnings: planResult.warnings,
 		explanation: planResult.explanation,
 		conditionAnalysis: conditionAnalysisResult,
 		conditionHints,

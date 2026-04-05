@@ -3,6 +3,7 @@
  */
 
 import type {
+  PlanningWarning,
   ProducerSchedulingSummary,
   SurgicalInfo,
 } from '../../server/generation/types';
@@ -136,6 +137,8 @@ export interface PlanDisplayInfo {
   surgicalInfo?: SurgicalInfo[];
   /** Producer-level scheduling metadata from planning. */
   producerScheduling?: ProducerSchedulingSummary[];
+  /** Non-fatal warnings for ignored out-of-scope controls. */
+  warnings?: PlanningWarning[];
   /** Equivalent CLI command for debugging/copy-paste */
   cliCommand?: string;
 }
@@ -181,6 +184,7 @@ export type {
   LayerInfo,
   LayerJobInfo,
   SurgicalInfo,
+  PlanningWarning,
   SSEEvent,
   JobStartEvent,
   JobProgressEvent,

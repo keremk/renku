@@ -18,7 +18,7 @@ describe('end-to-end: cli planner forwards up-to-layer', () => {
     restoreEnv();
   });
 
-  it('limits generated plan to layer 0 when reRunFrom=0 and upToLayer=0', async () => {
+  it('limits generated plan to layer 0 when upToLayer=0', async () => {
     const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'conditional-logic', 'conditional-narration-routing', 'conditional-narration-routing.yaml');
     const inputsPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'conditional-logic', 'conditional-narration-routing', 'input-template.yaml');
     const { logger, errors } = createLoggerRecorder();
@@ -38,8 +38,11 @@ describe('end-to-end: cli planner forwards up-to-layer', () => {
       inputsPath,
       usingBlueprint: blueprintPath,
       logger,
-      reRunFrom: 0,
-      upToLayer: 0,
+      planningControls: {
+        scope: {
+          upToLayer: 0,
+        },
+      },
     });
 
     await planResult.persist();

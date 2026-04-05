@@ -356,7 +356,11 @@ async function prepareRerunSurgicalPreviewContext(
     eventLog,
     pendingArtefacts:
       pendingArtefacts.length > 0 ? pendingArtefacts : undefined,
-    regenerateIds: [body.artifactId],
+    userControls: {
+      surgical: {
+        regenerateIds: [body.artifactId],
+      },
+    },
     surgicalRegenerationScope: 'lineage-strict',
   });
 

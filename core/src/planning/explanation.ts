@@ -18,7 +18,11 @@ export interface JobDirtyReason {
     | 'touchesDirtyInput' // Job depends on dirty inputs
     | 'touchesDirtyArtefact' // Job depends on dirty upstream artifacts
     | 'inputsHashChanged' // Stored inputsHash differs from recomputed content hash
-    | 'propagated'; // Marked dirty because an upstream job is dirty
+    | 'propagated' // Marked dirty because an upstream job is dirty
+    | 'forcedByReRunFrom' // Included by reRunFrom layer scope
+    | 'forcedBySurgicalTarget' // Included as a direct surgical target source job
+    | 'forcedBySurgicalDependency' // Included as downstream dependency of surgical target
+    | 'forcedByUserControl'; // Included by explicit user planning controls
   /** Missing artifact IDs if reason is 'producesMissing' */
   missingArtifacts?: string[];
   /** Failed artifact IDs if reason is 'latestAttemptFailed' */

@@ -378,7 +378,7 @@ With `--regen`:
 
 ### Producer Scope Overrides (`--pid`)
 
-Use `--pid` when you want to scope planning by producer family and optional first-dimension count.
+Use `--pid` when you want to scope planning by producer family with an explicit first-dimension count.
 
 ```bash
 # Keep only first segment for AudioProducer family
@@ -387,9 +387,10 @@ renku generate --last --pid="Producer:AudioProducer:1" --inputs=./inputs.yaml
 
 Important details:
 
-- Format is `Producer:Alias` or `Producer:Alias:<count>`
+- Format is `Producer:Alias:<count>` (count is required)
 - Scope always includes required upstream dependencies automatically
-- When `--pid` is present, producer scope drives planning (layer cap via `--up-to-layer` is ignored)
+- `--up-to-layer` remains active when `--pid` is present (both constraints apply)
+- Directives outside active layer scope are ignored with planning warnings
 
 ### Pinning Existing Outputs
 
@@ -417,7 +418,7 @@ Pinning rules:
 
 - Pinning is for existing movies (`--last` or `--movie-id`), not brand new runs
 - Pin IDs must be canonical (`Artifact:...` or `Producer:...`)
-- If the same artifact is both pinned and explicitly regenerated, regenerate wins for that artifact
+- If the same target appears in both `--pin` and `--regen`, the command fails with a conflict error
 - Pinned outputs must already exist as reusable successful outputs
 
 **Finding artifact IDs:**
