@@ -7,13 +7,18 @@ import {
   mergeExistingViewerAnnotations,
 } from './schema-viewer-annotations.mjs';
 import { normalizeSchemaUriFormats } from './schema-uri-format.mjs';
+import { normalizeSchemaFileForCatalog } from './schema-file-validation.mjs';
+import {
+  applySchemaOverrides,
+  loadSchemaOverrideManifest,
+} from './schema-overrides.mjs';
 
 /**
  * Fetch and transform OpenAPI schema from fal.ai for a single model.
  *
  * Usage:
  *   node scripts/fetch-fal-schema.mjs <model-name> <output-path>
- *   node scripts/fetch-fal-schema.mjs <model-name> --type=audio|video|image [--subprovider=<name>]
+ *   node scripts/fetch-fal-schema.mjs <model-name> --type=audio|video|image|json|stt [--subprovider=<name>]
  *
  * Examples:
  *   node scripts/fetch-fal-schema.mjs minimax/speech-02-hd --type=audio
@@ -25,6 +30,13 @@ const FAL_OPENAPI_BASE = 'https://fal.ai/api/openapi/queue/openapi.json';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, '..');
+const FAL_SCHEMA_OVERRIDES_PATH = resolve(
+  repoRoot,
+  'catalog',
+  'models',
+  'fal-ai',
+  'schema-overrides.yaml'
+);
 
 /**
  * Convert model name to filename (kebab-case with .json extension)
@@ -226,6 +238,23 @@ async function readExistingSchemaIfAny(schemaPath) {
   return parsed;
 }
 
+function inferSchemaTypeFromOutputPath(outputPath) {
+  if (!outputPath) {
+    return undefined;
+  }
+
+  const normalized = outputPath.replace(/\\/g, '/');
+  const marker = '/catalog/models/fal-ai/';
+  const markerIndex = normalized.lastIndexOf(marker);
+  if (markerIndex === -1) {
+    return undefined;
+  }
+
+  const remainder = normalized.slice(markerIndex + marker.length);
+  const [type] = remainder.split('/');
+  return type || undefined;
+}
+
 export function annotateFetchedSchemaWithExistingViewer(args) {
   const { fetchedSchema, existingSchema } = args;
   if (existingSchema) {
@@ -241,14 +270,44 @@ export async function fetchTransformAndAnnotateSchema(args) {
     args.modelName,
     args.subProvider
   );
+  const schemaType = args.schemaType ?? inferSchemaTypeFromOutputPath(args.outputPath);
+  if (schemaType) {
+    const overrides = await loadSchemaOverrideManifest(FAL_SCHEMA_OVERRIDES_PATH);
+    const { applied } = applySchemaOverrides({
+      targetSchema: fetchedSchema,
+      manifest: overrides,
+      modelName: args.modelName,
+      schemaType,
+      manifestPath: FAL_SCHEMA_OVERRIDES_PATH,
+    });
+    if (applied > 0) {
+      console.log(
+        `[fetch-fal] Applied ${applied} schema override patch(es) for ${args.modelName} (${schemaType}).`
+      );
+    }
+    applyViewerAnnotationsOrThrow(fetchedSchema);
+  }
+
   const existingSchema = args.outputPath
     ? await readExistingSchemaIfAny(args.outputPath)
     : undefined;
 
-  return annotateFetchedSchemaWithExistingViewer({
+  const mergedSchema = annotateFetchedSchemaWithExistingViewer({
     fetchedSchema,
     existingSchema,
   });
+  const { schemaFile: normalizedSchema, repairsApplied } =
+    normalizeSchemaFileForCatalog(
+      mergedSchema,
+      `Fal schema for ${args.modelName}`
+    );
+  if (repairsApplied > 0) {
+    console.log(
+      `[fetch-fal] Applied ${repairsApplied} known schema repair(s) for ${args.modelName}.`
+    );
+  }
+
+  return normalizedSchema;
 }
 
 async function main() {
@@ -269,7 +328,7 @@ async function main() {
       '  node scripts/fetch-fal-schema.mjs <model-name> <output-path>'
     );
     console.error(
-      '  node scripts/fetch-fal-schema.mjs <model-name> --type=audio|video|image [--subprovider=<name>]'
+      '  node scripts/fetch-fal-schema.mjs <model-name> --type=audio|video|image|json|stt [--subprovider=<name>]'
     );
     console.error('');
     console.error('Examples:');
@@ -291,9 +350,9 @@ async function main() {
   // Determine output path
   let outputPath;
   if (type) {
-    if (!['audio', 'video', 'image', 'json'].includes(type)) {
+    if (!['audio', 'video', 'image', 'json', 'stt'].includes(type)) {
       console.error(
-        `[fetch-fal] Invalid type: ${type}. Must be one of: audio, video, image, json`
+        `[fetch-fal] Invalid type: ${type}. Must be one of: audio, video, image, json, stt`
       );
       process.exit(1);
     }
@@ -310,7 +369,7 @@ async function main() {
     outputPath = positionalArgs[1];
   } else {
     console.error(
-      '[fetch-fal] Error: Either provide an output path or use --type=audio|video|image'
+      '[fetch-fal] Error: Either provide an output path or use --type=audio|video|image|json|stt'
     );
     process.exit(1);
   }
@@ -319,6 +378,7 @@ async function main() {
     modelName: normalizedName,
     subProvider,
     outputPath,
+    schemaType: type,
   });
 
   await writeFile(outputPath, JSON.stringify(schema, null, 2) + '\n');

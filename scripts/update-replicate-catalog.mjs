@@ -271,7 +271,11 @@ async function main() {
 
         const fetchedSchema = await fetchReplicateInputSchema(
           name,
-          localState.state === 'ok' ? localState.schema : undefined
+          localState.state === 'ok' ? localState.schema : undefined,
+          {
+            schemaType: type,
+            outputPath: schemaPath,
+          }
         );
         await writeFile(
           schemaPath,
@@ -299,7 +303,11 @@ async function main() {
 
       const fetchedSchema = await fetchReplicateInputSchema(
         name,
-        localState.state === 'ok' ? localState.schema : undefined
+        localState.state === 'ok' ? localState.schema : undefined,
+        {
+          schemaType: type,
+          outputPath: schemaPath,
+        }
       );
 
       let driftState = 'up-to-date';

@@ -74,6 +74,8 @@
     "release:web": "pnpm deploy:web",
     "catalog:fetch-fal": "node scripts/fetch-fal-schema.mjs",
     "catalog:update-fal": "node scripts/update-fal-catalog.mjs catalog/models/fal-ai/fal-ai.yaml",
+    "catalog:check-fal-diff": "node scripts/update-fal-catalog.mjs catalog/models/fal-ai/fal-ai.yaml --check-diff",
+    "catalog:update-fal-diff": "node scripts/update-fal-catalog.mjs catalog/models/fal-ai/fal-ai.yaml --update-diff",
     "catalog:fetch-replicate": "node scripts/fetch-replicate-schema.mjs",
     "catalog:update-replicate": "node scripts/update-replicate-catalog.mjs catalog/models/replicate/replicate.yaml",
     "catalog:check-replicate-diff": "node scripts/update-replicate-catalog.mjs catalog/models/replicate/replicate.yaml --check-diff",

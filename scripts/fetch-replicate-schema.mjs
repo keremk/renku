@@ -7,6 +7,10 @@ import {
   mergeExistingViewerAnnotations,
 } from './schema-viewer-annotations.mjs';
 import { normalizeSchemaFileForCatalog } from './schema-file-validation.mjs';
+import {
+  applySchemaOverrides,
+  loadSchemaOverrideManifest,
+} from './schema-overrides.mjs';
 
 /**
  * Fetch input schema from Replicate API for a single model.
@@ -27,6 +31,13 @@ const REPLICATE_API_BASE = 'https://api.replicate.com/v1/models';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, '..');
+const REPLICATE_SCHEMA_OVERRIDES_PATH = resolve(
+  repoRoot,
+  'catalog',
+  'models',
+  'replicate',
+  'schema-overrides.yaml'
+);
 
 // Load .env from repo root (Node 21.7+)
 try {
@@ -88,12 +99,33 @@ function buildReplicateSchemaFile(componentsSchemas) {
   return normalizeOpenApiComponentRefs(schemaFile);
 }
 
+function inferSchemaTypeFromOutputPath(outputPath) {
+  if (!outputPath) {
+    return undefined;
+  }
+
+  const normalized = outputPath.replace(/\\/g, '/');
+  const marker = '/catalog/models/replicate/';
+  const markerIndex = normalized.lastIndexOf(marker);
+  if (markerIndex === -1) {
+    return undefined;
+  }
+
+  const remainder = normalized.slice(markerIndex + marker.length);
+  const [type] = remainder.split('/');
+  return type || undefined;
+}
+
 /**
  * Fetch input schema for a Replicate model.
  * Returns a full schema file:
  * { input_schema, output_schema?, ...definitions }
  */
-export async function fetchReplicateInputSchema(modelName, existingSchema) {
+export async function fetchReplicateInputSchema(
+  modelName,
+  existingSchema,
+  options = {}
+) {
   const token = process.env.REPLICATE_API_TOKEN;
   if (!token) {
     throw new Error(
@@ -143,6 +175,26 @@ export async function fetchReplicateInputSchema(modelName, existingSchema) {
       `Input schema is malformed for ${modelName}. ` +
         'Expected input_schema object in transformed schema file.'
     );
+  }
+
+  const schemaType =
+    options.schemaType ?? inferSchemaTypeFromOutputPath(options.outputPath);
+  if (schemaType) {
+    const overrides = await loadSchemaOverrideManifest(
+      REPLICATE_SCHEMA_OVERRIDES_PATH
+    );
+    const { applied } = applySchemaOverrides({
+      targetSchema: schemaFile,
+      manifest: overrides,
+      modelName,
+      schemaType,
+      manifestPath: REPLICATE_SCHEMA_OVERRIDES_PATH,
+    });
+    if (applied > 0) {
+      console.log(
+        `[fetch-replicate] Applied ${applied} schema override patch(es) for ${modelName} (${schemaType}).`
+      );
+    }
   }
 
   if (existingSchema) {
@@ -260,7 +312,10 @@ async function main() {
   }
 
   const existingSchema = await readExistingSchemaIfAny(outputPath);
-  const schema = await fetchReplicateInputSchema(modelName, existingSchema);
+  const schema = await fetchReplicateInputSchema(modelName, existingSchema, {
+    schemaType: type,
+    outputPath,
+  });
 
   await writeFile(outputPath, JSON.stringify(schema, null, 2) + '\n');
   console.log(`[fetch-replicate] Wrote schema to ${outputPath}`);

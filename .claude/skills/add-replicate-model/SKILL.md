@@ -28,6 +28,30 @@ This creates a JSON file in `catalog/models/replicate/<type>/`. If the schema al
 
 Requires `REPLICATE_API_TOKEN` environment variable.
 
+### Step 2a: Durable Fix Policy (Required)
+
+Treat generated schema JSON files as refresh artifacts, not manual source of truth.
+
+- Do not rely on hand-editing `catalog/models/replicate/**/*.json` for long-term fixes.
+- Persist all manual corrections in:
+  - `catalog/models/replicate/schema-overrides.yaml`
+- The refresh scripts re-apply these patches after every upstream fetch.
+
+When you identify a provider/schema mismatch (for example, field constraint corrections), add a patch entry in `schema-overrides.yaml` for that model and type.
+
+Example:
+
+```yaml
+version: 1
+models:
+  - name: bytedance/seedream-4.5
+    type: image
+    patches:
+      - op: add
+        path: /input_schema/properties/image_size/default
+        value: "1024x1024"
+```
+
 ## Step 3: Annotate Viewer Metadata (Required)
 
 Immediately annotate and validate viewer metadata after schema fetch:
@@ -124,7 +148,17 @@ Run the dry-run verifier:
 
 ```bash
 node scripts/update-replicate-catalog.mjs catalog/models/replicate/replicate.yaml --dry-run
+node scripts/update-replicate-catalog.mjs catalog/models/replicate/replicate.yaml --check-diff
 node scripts/validate-viewer-schemas.mjs --model=<owner/model-name>
+```
+
+If a model fails due to override patch drift:
+
+- update `catalog/models/replicate/schema-overrides.yaml` for that model, then
+- re-run only the model:
+
+```bash
+node scripts/update-replicate-catalog.mjs catalog/models/replicate/replicate.yaml --update-diff --model=<owner/model-name>
 ```
 
 If you modified `cost-functions.ts`, also run:

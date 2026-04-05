@@ -1,0 +1,27 @@
+version: 1
+models:
+  - name: qwen-image-2/pro/edit
+    type: image
+    patches:
+      - op: add
+        path: /input_schema/properties/image_urls/minItems
+        value: 1
+      - op: add
+        path: /input_schema/properties/image_urls/maxItems
+        value: 3
+      - op: replace
+        path: /input_schema/properties/image_urls/description
+        value: "Reference images for editing (1-3 images required). Order matters: reference as 'image 1', 'image 2', 'image 3' in prompt. Resolution: 384-5000px each dimension. Max size: 10MB each. Formats: JPEG, JPG, PNG (no alpha), WEBP."
+
+  - name: qwen-image-2/edit
+    type: image
+    patches:
+      - op: add
+        path: /input_schema/properties/image_urls/minItems
+        value: 1
+      - op: add
+        path: /input_schema/properties/image_urls/maxItems
+        value: 3
+      - op: replace
+        path: /input_schema/properties/image_urls/description
+        value: "Reference images for editing (1-3 images required). Order matters: reference as 'image 1', 'image 2', 'image 3' in prompt. Resolution: 384-5000px each dimension. Max size: 10MB each. Formats: JPEG, JPG, PNG (no alpha), WEBP."

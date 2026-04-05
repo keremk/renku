@@ -84,9 +84,11 @@
             "https://v3b.fal.media/files/b/0a90b2a1/i89tMXz0SmiwL0ZvbnUvS_image_00240.png"
           ]
         ],
-        "description": "Reference images for editing (1-6 images required). Order matters: reference as 'image 1', 'image 2', 'image 3' in prompt. Resolution: 384-5000px each dimension. Max size: 10MB each. Formats: JPEG, JPG, PNG (no alpha), WEBP.",
+        "description": "Reference images for editing (1-3 images required). Order matters: reference as 'image 1', 'image 2', 'image 3' in prompt. Resolution: 384-5000px each dimension. Max size: 10MB each. Formats: JPEG, JPG, PNG (no alpha), WEBP.",
         "type": "array",
         "title": "Image Urls",
+        "minItems": 1,
+        "maxItems": 3,
         "items": {
           "_fal_ui_field": "image",
           "type": "string",
