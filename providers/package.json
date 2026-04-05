@@ -18,7 +18,7 @@
     "dev": "tsc --watch",
     "lint": "eslint src tests",
     "type-check": "tsc --noEmit",
-    "test": "vitest --config vitest.config.ts",
+    "test": "vitest run --config vitest.config.ts",
     "validate:producers": "vitest run --config vitest.config.ts tests/schemas/producer-mappings-contract.test.ts",
     "validate:schemas": "vitest run --config vitest.config.ts tests/schemas/validate-schemas.test.ts --pool=threads",
     "test:typecheck": "tsc --project tsconfig.vitest.json --noEmit",

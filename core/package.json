@@ -32,7 +32,7 @@
     "dev": "tsc --watch",
     "lint": "eslint src",
     "type-check": "tsc --noEmit",
-    "test": "vitest",
+    "test": "vitest run",
     "test:typecheck": "tsc --project tsconfig.vitest.json --noEmit",
     "check:all": "pnpm type-check && pnpm lint && pnpm test:typecheck",
     "test:ui": "vitest --ui",
