@@ -47,8 +47,6 @@ interface ComputePlanArgs {
   pendingEdits?: InputEvent[];
   /** Resolved condition artifacts used to determine conditional job activity. */
   resolvedConditionArtifacts?: Record<string, unknown>;
-  /** Force re-run from this layer index onwards (0-indexed). Jobs at this layer and above are marked dirty. */
-  reRunFrom?: number;
   /** Surgical artifact regeneration - regenerate only the target artifacts and downstream dependencies. */
   artifactRegenerations?: ArtifactRegenerationConfig[];
   /** Scope mode for surgical artifact regeneration when artifactRegenerations is set. */
@@ -141,9 +139,11 @@ export function createPlanner(options: PlannerOptions = {}) {
 
       // Determine which jobs to include in the plan
       let jobsToInclude: Set<string>;
-      let jobReasons: JobDirtyReason[] = [];
-      let initialDirtyJobs: string[] = [];
-      let propagatedJobs: string[] = [];
+      let initialDirtySet = new Set<string>();
+      let propagatedDirtySet = new Set<string>();
+      const reasonByJobId = new Map<string, JobDirtyReason>();
+      let surgicalSourceJobIds = new Set<string>();
+      let surgicalJobs = new Set<string>();
 
       if (args.artifactRegenerations && args.artifactRegenerations.length > 0) {
         const surgicalRegenerationScope = normalizeSurgicalRegenerationScope(
@@ -154,7 +154,8 @@ export function createPlanner(options: PlannerOptions = {}) {
         const sourceJobIds = args.artifactRegenerations.map(
           (r) => r.sourceJobId
         );
-        const surgicalJobs = computeMultipleArtifactRegenerationJobs(
+        surgicalSourceJobIds = new Set(sourceJobIds);
+        surgicalJobs = computeMultipleArtifactRegenerationJobs(
           sourceJobIds,
           blueprint
         );
@@ -189,11 +190,13 @@ export function createPlanner(options: PlannerOptions = {}) {
             : new Set([...surgicalJobs, ...propagatedDirty]);
 
         if (collectExplanation) {
-          jobReasons = [...initialReasons, ...propagatedReasons];
-          initialDirtyJobs = Array.from(initialDirty);
-          propagatedJobs = Array.from(propagatedDirty).filter(
-            (j) => !initialDirty.has(j)
+          initialDirtySet = new Set(initialDirty);
+          propagatedDirtySet = new Set(
+            Array.from(propagatedDirty).filter((j) => !initialDirty.has(j))
           );
+          for (const reason of [...initialReasons, ...propagatedReasons]) {
+            reasonByJobId.set(reason.jobId, reason);
+          }
         }
 
         logger.debug?.('planner.surgical.jobs', {
@@ -231,11 +234,13 @@ export function createPlanner(options: PlannerOptions = {}) {
         jobsToInclude = allDirty;
 
         if (collectExplanation) {
-          jobReasons = [...initialReasons, ...propagatedReasons];
-          initialDirtyJobs = Array.from(initialDirty);
-          propagatedJobs = Array.from(allDirty).filter(
-            (j) => !initialDirty.has(j)
+          initialDirtySet = new Set(initialDirty);
+          propagatedDirtySet = new Set(
+            Array.from(allDirty).filter((j) => !initialDirty.has(j))
           );
+          for (const reason of [...initialReasons, ...propagatedReasons]) {
+            reasonByJobId.set(reason.jobId, reason);
+          }
         }
 
         logger.debug?.('planner.propagatedDirty', {
@@ -259,8 +264,19 @@ export function createPlanner(options: PlannerOptions = {}) {
         blockedProducerJobIds: args.blockedProducerJobIds,
       });
 
+      if ((args.blockedProducerJobIds?.length ?? 0) > 0) {
+        pruneUnrunnableJobsWithMissingArtifactInputs({
+          jobsToInclude,
+          protectedJobIds: forceTargetJobIds,
+          metadata,
+          manifest,
+          latestArtefacts,
+          latestFailedArtefacts: artefactSnapshot.latestFailedIds,
+          resolvedConditionArtifacts: args.resolvedConditionArtifacts,
+        });
+      }
+
       // Filter out fully pinned jobs (all their produced artifacts are pinned and reusable)
-      const pinnedExcludedJobIds = new Set<string>();
       if (args.pinnedArtifactIds && args.pinnedArtifactIds.length > 0) {
         const pinnedSet = new Set(args.pinnedArtifactIds);
         for (const [jobId, info] of metadata) {
@@ -287,7 +303,6 @@ export function createPlanner(options: PlannerOptions = {}) {
           );
           if (allReusable) {
             jobsToInclude.delete(jobId);
-            pinnedExcludedJobIds.add(jobId);
           }
         }
       }
@@ -296,28 +311,28 @@ export function createPlanner(options: PlannerOptions = {}) {
         jobsToInclude,
         metadata,
         blueprint,
-        args.reRunFrom,
-        args.artifactRegenerations,
-        args.upToLayer,
-        pinnedExcludedJobIds
+        args.upToLayer
       );
       validateConditionArtifactsCanBeRegenerated(
         args.movieId,
         missingConditionArtifacts,
         metadata,
-        layers,
-        args.reRunFrom
+        layers
+      );
+      const scheduledJobCount = layers.reduce(
+        (count, layer) => count + layer.length,
+        0
       );
 
       logger.debug?.('planner.plan.generated', {
         movieId: args.movieId,
         layers: layers.length,
-        jobs: jobsToInclude.size,
+        jobs: scheduledJobCount,
         blueprintLayerCount,
       });
       notifications?.publish({
         type: 'progress',
-        message: `Plan ready: ${jobsToInclude.size} job${jobsToInclude.size === 1 ? '' : 's'} across ${layers.length} layer${layers.length === 1 ? '' : 's'}.`,
+        message: `Plan ready: ${scheduledJobCount} job${scheduledJobCount === 1 ? '' : 's'} across ${layers.length} layer${layers.length === 1 ? '' : 's'}.`,
         timestamp: nowIso(clock),
       });
 
@@ -332,6 +347,21 @@ export function createPlanner(options: PlannerOptions = {}) {
       // Build explanation if requested
       let explanation: PlanExplanation | undefined;
       if (collectExplanation) {
+        const scheduledJobs = plan.layers.flat();
+        const initialDirtyJobs = scheduledJobs
+          .map((job) => job.jobId)
+          .filter((jobId) => initialDirtySet.has(jobId));
+        const propagatedJobs = scheduledJobs
+          .map((job) => job.jobId)
+          .filter((jobId) => propagatedDirtySet.has(jobId));
+        const jobReasons = buildScheduledJobReasons({
+          scheduledJobs,
+          reasonByJobId,
+          forceTargetJobIds,
+          surgicalSourceJobIds,
+          surgicalJobs,
+        });
+
         explanation = {
           movieId: args.movieId,
           revision: args.targetRevision,
@@ -350,6 +380,61 @@ export function createPlanner(options: PlannerOptions = {}) {
       return { plan, explanation };
     },
   };
+}
+
+function buildScheduledJobReasons(args: {
+  scheduledJobs: Array<{ jobId: string; producer: string }>;
+  reasonByJobId: Map<string, JobDirtyReason>;
+  forceTargetJobIds: Set<string>;
+  surgicalSourceJobIds: Set<string>;
+  surgicalJobs: Set<string>;
+}): JobDirtyReason[] {
+  const reasons: JobDirtyReason[] = [];
+  for (const job of args.scheduledJobs) {
+    const reason = args.reasonByJobId.get(job.jobId);
+    if (reason) {
+      reasons.push(reason);
+      continue;
+    }
+
+    if (args.surgicalSourceJobIds.has(job.jobId)) {
+      reasons.push({
+        jobId: job.jobId,
+        producer: job.producer,
+        reason: 'forcedBySurgicalTarget',
+      });
+      continue;
+    }
+
+    if (args.surgicalJobs.has(job.jobId)) {
+      reasons.push({
+        jobId: job.jobId,
+        producer: job.producer,
+        reason: 'forcedBySurgicalDependency',
+      });
+      continue;
+    }
+
+    if (args.forceTargetJobIds.has(job.jobId)) {
+      reasons.push({
+        jobId: job.jobId,
+        producer: job.producer,
+        reason: 'forcedByUserControl',
+      });
+      continue;
+    }
+
+    throw createRuntimeError(
+      RuntimeErrorCode.GRAPH_BUILD_ERROR,
+      `Missing explanation reason for scheduled job "${job.jobId}".`,
+      {
+        suggestion:
+          'Update planning explanation mapping so every scheduled job has a reason.',
+      }
+    );
+  }
+
+  return reasons;
 }
 
 function buildGraphMetadata(
@@ -583,8 +668,7 @@ function validateConditionArtifactsCanBeRegenerated(
   movieId: string,
   missingConditionArtifacts: string[],
   metadata: Map<string, GraphMetadata>,
-  layers: ExecutionPlan['layers'],
-  reRunFrom: number | undefined
+  layers: ExecutionPlan['layers']
 ): void {
   if (missingConditionArtifacts.length === 0) {
     return;
@@ -619,15 +703,6 @@ function validateConditionArtifactsCanBeRegenerated(
       unresolved.push(
         `${artifactId} (producer ${producerJobId} not scheduled)`
       );
-      continue;
-    }
-
-    const isSkippedByReRunFrom =
-      reRunFrom !== undefined && layerIndex < reRunFrom;
-    if (isSkippedByReRunFrom) {
-      unresolved.push(
-        `${artifactId} (producer ${producerJobId} is at layer ${layerIndex}, but reRunFrom=${reRunFrom})`
-      );
     }
   }
 
@@ -638,7 +713,7 @@ function validateConditionArtifactsCanBeRegenerated(
       {
         context: movieId,
         suggestion:
-          'Re-run with layer settings that include the producer generating these artifacts (for example, reRunFrom=0 and a sufficient upToLayer).',
+          'Re-run planning with scope settings that include the producer generating these artifacts (for example, increase --up).',
       }
     );
   }
@@ -880,6 +955,190 @@ function applyProducerOverrideJobs(args: {
   }
 }
 
+function pruneUnrunnableJobsWithMissingArtifactInputs(args: {
+  jobsToInclude: Set<string>;
+  protectedJobIds: Set<string>;
+  metadata: Map<string, GraphMetadata>;
+  manifest: Manifest;
+  latestArtefacts: ArtefactMap;
+  latestFailedArtefacts: Set<string>;
+  resolvedConditionArtifacts: Record<string, unknown> | undefined;
+}): void {
+  if (args.jobsToInclude.size === 0) {
+    return;
+  }
+
+  const reusableArtifacts = buildReusableArtifactSet(
+    args.manifest,
+    args.latestArtefacts,
+    args.latestFailedArtefacts
+  );
+  const conditionResultsByJobId = buildConditionResultsByJobId(
+    args.metadata,
+    args.resolvedConditionArtifacts
+  );
+
+  while (true) {
+    const producedByIncluded = collectProducedArtifactIds(
+      args.jobsToInclude,
+      args.metadata
+    );
+    let removedAny = false;
+
+    for (const jobId of Array.from(args.jobsToInclude)) {
+      if (args.protectedJobIds.has(jobId)) {
+        continue;
+      }
+
+      const info = args.metadata.get(jobId);
+      if (!info) {
+        continue;
+      }
+
+      const artifactInputs = collectActiveArtifactInputsForNode(
+        info.node,
+        conditionResultsByJobId.get(jobId)
+      );
+      const hasMissingRequiredInput = Array.from(artifactInputs).some(
+        (artifactId) =>
+          !producedByIncluded.has(artifactId) && !reusableArtifacts.has(artifactId)
+      );
+
+      if (!hasMissingRequiredInput) {
+        continue;
+      }
+
+      args.jobsToInclude.delete(jobId);
+      removedAny = true;
+    }
+
+    if (!removedAny) {
+      break;
+    }
+  }
+}
+
+function buildReusableArtifactSet(
+  manifest: Manifest,
+  latestArtefacts: ArtefactMap,
+  latestFailedArtefacts: Set<string>
+): Set<string> {
+  const reusable = new Set<string>();
+
+  for (const artifactId of latestArtefacts.keys()) {
+    if (!latestFailedArtefacts.has(artifactId)) {
+      reusable.add(artifactId);
+    }
+  }
+
+  for (const [artifactId, entry] of Object.entries(manifest.artefacts)) {
+    if (entry.status !== 'succeeded') {
+      continue;
+    }
+    if (latestFailedArtefacts.has(artifactId)) {
+      continue;
+    }
+    reusable.add(artifactId);
+  }
+
+  return reusable;
+}
+
+function buildConditionResultsByJobId(
+  metadata: Map<string, GraphMetadata>,
+  resolvedConditionArtifacts: Record<string, unknown> | undefined
+): Map<string, Map<string, { satisfied: boolean; reason?: string }>> {
+  const resultsByJobId = new Map<
+    string,
+    Map<string, { satisfied: boolean; reason?: string }>
+  >();
+  for (const [jobId, info] of metadata) {
+    const inputConditions = info.node.context?.inputConditions;
+    if (!inputConditions) {
+      continue;
+    }
+    resultsByJobId.set(
+      jobId,
+      evaluateInputConditions(inputConditions, {
+        resolvedArtifacts: resolvedConditionArtifacts ?? {},
+      })
+    );
+  }
+  return resultsByJobId;
+}
+
+function collectActiveArtifactInputsForNode(
+  node: ProducerGraph['nodes'][number],
+  conditionResults: Map<string, { satisfied: boolean; reason?: string }> | undefined
+): Set<string> {
+  const artifactInputs = new Set<string>();
+  const conditionalInputIds = new Set(
+    Object.keys(node.context?.inputConditions ?? {})
+  );
+
+  const isInputActive = (inputId: string): boolean => {
+    if (!conditionalInputIds.has(inputId)) {
+      return true;
+    }
+    const result = conditionResults?.get(inputId);
+    if (!result) {
+      return true;
+    }
+    if (result.satisfied) {
+      return true;
+    }
+    return isConditionEvaluationUnknown(result.reason);
+  };
+
+  for (const inputId of node.inputs) {
+    if (!isCanonicalArtifactId(inputId)) {
+      continue;
+    }
+    if (!isInputActive(inputId)) {
+      continue;
+    }
+    artifactInputs.add(inputId);
+  }
+
+  const fanIn = node.context?.fanIn;
+  if (!fanIn) {
+    return artifactInputs;
+  }
+
+  for (const spec of Object.values(fanIn)) {
+    for (const member of spec.members) {
+      if (!isCanonicalArtifactId(member.id)) {
+        continue;
+      }
+      if (!isInputActive(member.id)) {
+        continue;
+      }
+      artifactInputs.add(member.id);
+    }
+  }
+
+  return artifactInputs;
+}
+
+function collectProducedArtifactIds(
+  jobsToInclude: Set<string>,
+  metadata: Map<string, GraphMetadata>
+): Set<string> {
+  const produced = new Set<string>();
+  for (const jobId of jobsToInclude) {
+    const info = metadata.get(jobId);
+    if (!info) {
+      continue;
+    }
+    for (const artifactId of info.node.produces) {
+      if (isCanonicalArtifactId(artifactId)) {
+        produced.add(artifactId);
+      }
+    }
+  }
+  return produced;
+}
+
 interface BuildExecutionLayersResult {
   layers: ExecutionPlan['layers'];
   blueprintLayerCount: number;
@@ -905,10 +1164,7 @@ function buildExecutionLayers(
   dirtyJobs: Set<string>,
   metadata: Map<string, GraphMetadata>,
   blueprint: ProducerGraph,
-  reRunFrom?: number,
-  artifactRegenerations?: ArtifactRegenerationConfig[],
-  upToLayer?: number,
-  excludedJobIds?: Set<string>
+  upToLayer?: number
 ): BuildExecutionLayersResult {
   // Use shared topology service to compute stable layer indices for all producer jobs
   const nodes = Array.from(metadata.keys()).map((id) => ({ id }));
@@ -935,23 +1191,7 @@ function buildExecutionLayers(
     () => []
   );
 
-  // Combine dirty jobs with jobs forced by reRunFrom
-  // Note: reRunFrom is NOT applied for surgical regeneration - it would defeat the purpose
   const jobsToInclude = new Set(dirtyJobs);
-  const inSurgicalMode =
-    artifactRegenerations && artifactRegenerations.length > 0;
-  if (reRunFrom !== undefined && !inSurgicalMode) {
-    // Force all jobs at layer >= reRunFrom to be included (normal mode only)
-    for (const [jobId] of metadata) {
-      if (excludedJobIds?.has(jobId)) {
-        continue;
-      }
-      const level = levelMap.get(jobId);
-      if (level !== undefined && level >= reRunFrom) {
-        jobsToInclude.add(jobId);
-      }
-    }
-  }
 
   // Filter by upToLayer: exclude jobs at layers beyond upToLayer
   if (upToLayer !== undefined) {

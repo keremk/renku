@@ -413,12 +413,39 @@ export function displayPlanExplanation(
 						);
 					}
 					break;
+				case 'inputsHashChanged':
+					if (jobReason.staleArtifacts && jobReason.staleArtifacts.length > 0) {
+						const staleList = jobReason.staleArtifacts.slice(0, 3).join(', ');
+						const more =
+							jobReason.staleArtifacts.length > 3
+								? ` (+${jobReason.staleArtifacts.length - 3} more)`
+								: '';
+						logger.info(
+							`    ${chalk.dim('Stale artifact inputsHash:')} ${staleList}${more}`
+						);
+					}
+					break;
 				case 'propagated':
 					if (jobReason.propagatedFrom) {
 						logger.info(
 							`    ${chalk.dim('Propagated from:')} ${chalk.blue(jobReason.propagatedFrom)}`
 						);
 					}
+					break;
+				case 'forcedBySurgicalTarget':
+					logger.info(
+						`    ${chalk.dim('Scheduled as direct surgical source target')}`
+					);
+					break;
+				case 'forcedBySurgicalDependency':
+					logger.info(
+						`    ${chalk.dim('Scheduled as downstream dependency of surgical target')}`
+					);
+					break;
+				case 'forcedByUserControl':
+					logger.info(
+						`    ${chalk.dim('Scheduled by explicit user planning control')}`
+					);
 					break;
 			}
 			logger.info('');
@@ -531,8 +558,16 @@ function formatReasonLabel(reason: string): string {
 			return chalk.red('LATEST ATTEMPT FAILED');
 		case 'touchesDirtyArtefact':
 			return chalk.magenta('TOUCHES DIRTY ARTIFACTS');
+		case 'inputsHashChanged':
+			return chalk.magenta('INPUTS HASH CHANGED');
 		case 'propagated':
 			return chalk.blue('PROPAGATED FROM UPSTREAM');
+		case 'forcedBySurgicalTarget':
+			return chalk.cyan('FORCED BY SURGICAL TARGET');
+		case 'forcedBySurgicalDependency':
+			return chalk.cyan('FORCED BY SURGICAL DEPENDENCY');
+		case 'forcedByUserControl':
+			return chalk.cyan('FORCED BY USER CONTROL');
 		default:
 			return reason;
 	}

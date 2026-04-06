@@ -72,7 +72,6 @@ export interface ExecutionProgress {
 export type ExecutionLogType =
   | 'layer-start'
   | 'layer-complete'
-  | 'layer-skipped'
   | 'job-start'
   | 'job-progress'
   | 'job-complete'
@@ -190,7 +189,6 @@ export type {
   JobProgressEvent,
   JobCompleteEvent,
   LayerStartEvent,
-  LayerSkippedEvent,
   LayerCompleteEvent,
   ExecutionCompleteEvent,
   ExecutionCancelledEvent,

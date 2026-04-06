@@ -686,8 +686,6 @@ export type SurgicalRegenerationScope = 'lineage-plus-dirty' | 'lineage-strict';
 export interface RunConfig {
   /** Limit execution to layers 0 through this index (inclusive) */
   upToLayer?: number;
-  /** Re-run from this layer index onwards (0-indexed) */
-  reRunFrom?: number;
   /**
    * Explicit regeneration targets (canonical format).
    * Can include Artifact:... and Producer:... IDs.

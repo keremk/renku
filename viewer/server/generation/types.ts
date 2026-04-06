@@ -46,8 +46,6 @@ export interface ExecuteRequest {
   planId: string;
   /** Concurrency level (default: from CLI config or 1) */
   concurrency?: number;
-  /** Skip layers before this index (0-indexed) - use existing artifacts */
-  reRunFrom?: number;
   /** Stop at layer N */
   upToLayer?: number;
   /** Enable dry-run mode: simulated providers, no actual API calls */
@@ -302,15 +300,6 @@ export interface LayerCompleteEvent extends SSEEventBase {
 }
 
 /**
- * Layer skipped event (when using reRunFrom).
- */
-export interface LayerSkippedEvent extends SSEEventBase {
-  type: 'layer-skipped';
-  layerIndex: number;
-  reason: string;
-}
-
-/**
  * Execution complete event.
  */
 export interface ExecutionCompleteEvent extends SSEEventBase {
@@ -342,7 +331,6 @@ export interface ErrorEvent extends SSEEventBase {
 export type SSEEvent =
   | PlanReadyEvent
   | LayerStartEvent
-  | LayerSkippedEvent
   | JobStartEvent
   | JobProgressEvent
   | JobCompleteEvent

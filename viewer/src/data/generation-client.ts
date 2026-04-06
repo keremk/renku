@@ -88,7 +88,6 @@ const SSE_EVENT_TYPES = [
   'status',
   'plan-ready',
   'layer-start',
-  'layer-skipped',
   'layer-complete',
   'job-start',
   'job-progress',

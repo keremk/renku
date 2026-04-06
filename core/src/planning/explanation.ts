@@ -3,7 +3,7 @@
  */
 
 /**
- * Reason why a specific job was marked as dirty.
+ * Reason why a specific job was scheduled in the final plan.
  */
 export interface JobDirtyReason {
   /** The job ID (e.g., "Producer:LipsyncVideoProducer[0]") */
@@ -19,7 +19,6 @@ export interface JobDirtyReason {
     | 'touchesDirtyArtefact' // Job depends on dirty upstream artifacts
     | 'inputsHashChanged' // Stored inputsHash differs from recomputed content hash
     | 'propagated' // Marked dirty because an upstream job is dirty
-    | 'forcedByReRunFrom' // Included by reRunFrom layer scope
     | 'forcedBySurgicalTarget' // Included as a direct surgical target source job
     | 'forcedBySurgicalDependency' // Included as downstream dependency of surgical target
     | 'forcedByUserControl'; // Included by explicit user planning controls
@@ -49,11 +48,11 @@ export interface PlanExplanation {
   dirtyInputs: string[];
   /** All artifacts that were detected as dirty */
   dirtyArtefacts: string[];
-  /** Reasons why each job in the plan is dirty */
+  /** Reasons why each scheduled job appears in the final plan */
   jobReasons: JobDirtyReason[];
-  /** Job IDs that were initially dirty (before propagation) */
+  /** Scheduled job IDs that were initially dirty (before propagation) */
   initialDirtyJobs: string[];
-  /** Job IDs that were marked dirty due to propagation */
+  /** Scheduled job IDs that were marked dirty due to propagation */
   propagatedJobs: string[];
   /** Target artifact IDs if surgical regeneration mode */
   surgicalTargets?: string[];

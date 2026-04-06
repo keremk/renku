@@ -20,7 +20,6 @@ import type {
  * It supports:
  * - Concurrency limiting via p-limit
  * - Layer limiting (upToLayer)
- * - Re-running from a specific layer (reRunFrom)
  * - Cancellation via AbortSignal
  * - Progress reporting via callbacks
  *
@@ -34,12 +33,11 @@ export async function executePlanWithConcurrency(
   context: PlanExecutionContext,
   options: ExecutePlanWithConcurrencyOptions
 ): Promise<RunResult> {
-  validateOptions(options, plan);
+  validateOptions(options);
 
   const {
     concurrency,
     upToLayer: layerLimit,
-    reRunFrom,
     signal,
     onProgress,
   } = options;
@@ -58,41 +56,6 @@ export async function executePlanWithConcurrency(
       movieId: context.movieId,
       revision: plan.revision,
       upToLayer: layerLimit,
-    });
-    onProgress?.({
-      type: 'plan-ready',
-      timestamp: clock.now(),
-      message,
-      totalLayers: plan.layers.length,
-    });
-  }
-
-  // Log reRunFrom info
-  if (reRunFrom !== undefined && reRunFrom > 0) {
-    const jobsFromLayer = plan.layers
-      .slice(reRunFrom)
-      .reduce((sum, layer) => sum + layer.length, 0);
-    const layersWithJobs = plan.layers
-      .slice(reRunFrom)
-      .map((layer, i) => ({ index: reRunFrom + i, count: layer.length }))
-      .filter((l) => l.count > 0);
-
-    let message = `Re-running from layer ${reRunFrom}. Layers 0-${reRunFrom - 1} will use existing artifacts.`;
-    if (jobsFromLayer === 0) {
-      message += ` Note: No jobs found at layer ${reRunFrom} or above. The plan may be empty.`;
-    } else if (
-      layersWithJobs.length > 0 &&
-      layersWithJobs[0]?.index !== reRunFrom
-    ) {
-      const firstLayerWithJobs = layersWithJobs[0]?.index;
-      message += ` Note: Layer ${reRunFrom} is empty. First layer with jobs is layer ${firstLayerWithJobs}.`;
-    }
-
-    logger.info?.(message);
-    logger.debug?.('runner.layer.reRunFrom', {
-      movieId: context.movieId,
-      revision: plan.revision,
-      reRunFrom,
     });
     onProgress?.({
       type: 'plan-ready',
@@ -133,39 +96,6 @@ export async function executePlanWithConcurrency(
         totalLayers: plan.layers.length,
         message,
       });
-      continue;
-    }
-
-    // Skip layers before reRunFrom - use existing artifacts
-    if (reRunFrom !== undefined && layerIndex < reRunFrom) {
-      const message = `Layer ${layerIndex} skipped (re-running from layer ${reRunFrom})`;
-      logger.info?.(message);
-      logger.debug?.('runner.layer.skipped', {
-        movieId: context.movieId,
-        revision: plan.revision,
-        layerIndex,
-        reason: 'reRunFrom',
-      });
-      onProgress?.({
-        type: 'layer-skipped',
-        timestamp: clock.now(),
-        layerIndex,
-        totalLayers: plan.layers.length,
-        message,
-      });
-
-      const skippedResults: JobResult[] = layer.map((job) => ({
-        jobId: job.jobId,
-        producer: job.producer,
-        status: 'skipped' as const,
-        artefacts: [],
-        diagnostics: { reason: 'reRunFrom' },
-        layerIndex,
-        attempt: 0,
-        startedAt: clock.now(),
-        completedAt: clock.now(),
-      }));
-      jobs.push(...skippedResults);
       continue;
     }
 
@@ -297,11 +227,8 @@ export async function executePlanWithConcurrency(
   };
 }
 
-function validateOptions(
-  options: ExecutePlanWithConcurrencyOptions,
-  plan: ExecutionPlan
-): void {
-  const { concurrency, upToLayer: layerLimit, reRunFrom } = options;
+function validateOptions(options: ExecutePlanWithConcurrencyOptions): void {
+  const { concurrency, upToLayer: layerLimit } = options;
 
   if (
     !Number.isInteger(concurrency) ||
@@ -325,42 +252,6 @@ function validateOptions(
       RuntimeErrorCode.INVALID_UPTO_LAYER_VALUE,
       'upToLayer must be a non-negative integer.',
       { suggestion: 'Provide a layer index starting from 0.' }
-    );
-  }
-
-  if (
-    reRunFrom !== undefined &&
-    (!Number.isInteger(reRunFrom) || reRunFrom < 0)
-  ) {
-    throw createRuntimeError(
-      RuntimeErrorCode.INVALID_RERUN_FROM_VALUE,
-      `reRunFrom must be a non-negative integer, got ${reRunFrom}.`,
-      { suggestion: 'Provide a layer index starting from 0.' }
-    );
-  }
-
-  if (
-    reRunFrom !== undefined &&
-    layerLimit !== undefined &&
-    reRunFrom > layerLimit
-  ) {
-    throw createRuntimeError(
-      RuntimeErrorCode.RERUN_FROM_GREATER_THAN_UPTO,
-      `reRunFrom (${reRunFrom}) cannot be greater than upToLayer (${layerLimit}).`,
-      {
-        suggestion:
-          'Use --re-run-from with a value less than or equal to --up-to-layer.',
-      }
-    );
-  }
-
-  if (reRunFrom !== undefined && reRunFrom >= plan.layers.length) {
-    throw createRuntimeError(
-      RuntimeErrorCode.RERUN_FROM_EXCEEDS_LAYERS,
-      `reRunFrom (${reRunFrom}) exceeds total layers (${plan.layers.length}). Valid range is 0-${plan.layers.length - 1}.`,
-      {
-        suggestion: `Use a layer index between 0 and ${plan.layers.length - 1}.`,
-      }
     );
   }
 }

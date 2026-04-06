@@ -19,8 +19,6 @@ function getLogEntryClass(entry: ExecutionLogEntry): string {
     case 'layer-start':
     case 'layer-complete':
       return 'text-blue-400';
-    case 'layer-skipped':
-      return 'text-amber-400';
     case 'job-start':
       return 'text-muted-foreground';
     case 'job-complete':

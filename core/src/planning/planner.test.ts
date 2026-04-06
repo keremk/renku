@@ -14,7 +14,6 @@ import {
 } from '../hashing.js';
 import { nextRevisionId } from '../revisions.js';
 import { computeTopologyLayers } from '../topology/index.js';
-import { RuntimeErrorCode } from '../errors/index.js';
 import type {
   InputEvent,
   Manifest,
@@ -435,49 +434,6 @@ describe('planner', () => {
     expect(jobs).toContain('Producer:DirectorProducer');
   });
 
-  it('fails fast when canonical condition artifacts are missing and producer layer is skipped by reRunFrom', async () => {
-    const ctx = memoryContext();
-    await initializeMovieStorage(ctx, 'demo');
-    const eventLog = createEventLog(ctx);
-    const graph = buildConditionArtifactGraph();
-    const planner = createPlanner();
-
-    const baseline = createInputEvents(
-      { 'Input:Prompt': 'Keep transitions correct' },
-      'rev-0001'
-    );
-    for (const event of baseline) {
-      await eventLog.appendInput('demo', event);
-    }
-
-    const manifest = createSucceededManifest(baseline, {
-      artefacts: {
-        'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
-          hash: 'meeting-hash',
-          producedBy: 'Producer:DirectorProducer',
-        },
-        'Artifact:TransitionVideoProducer.GeneratedVideo[0]': {
-          hash: 'transition-hash',
-          producedBy: 'Producer:TransitionVideoProducer[0]',
-        },
-      },
-    });
-
-    await expect(
-      planner.computePlan({
-        movieId: 'demo',
-        manifest,
-        eventLog,
-        blueprint: graph,
-        targetRevision: 'rev-0002',
-        pendingEdits: [],
-        reRunFrom: 1,
-      })
-    ).rejects.toMatchObject({
-      code: RuntimeErrorCode.MISSING_CANONICAL_CONDITION_ARTIFACT,
-    });
-  });
-
   it('does not mark jobs dirty when canonical condition artifacts are present', async () => {
     const ctx = memoryContext();
     await initializeMovieStorage(ctx, 'demo');
@@ -674,66 +630,6 @@ describe('planner', () => {
     });
 
     expect(plan.layers.flat()).toHaveLength(0);
-  });
-
-  it('allows reRunFrom above the condition producer when canonical condition artifact exists in event log', async () => {
-    const ctx = memoryContext();
-    await initializeMovieStorage(ctx, 'demo');
-    const eventLog = createEventLog(ctx);
-    const graph = buildConditionArtifactGraph();
-    const planner = createPlanner();
-
-    const baseline = createInputEvents(
-      { 'Input:Prompt': 'Keep transitions correct' },
-      'rev-0001'
-    );
-    for (const event of baseline) {
-      await eventLog.appendInput('demo', event);
-    }
-
-    const manifest = createSucceededManifest(baseline, {
-      artefacts: {
-        'Artifact:DirectorProducer.Script.Characters[0].MeetingVideoPrompt': {
-          hash: 'meeting-hash',
-          producedBy: 'Producer:DirectorProducer',
-        },
-        'Artifact:TransitionVideoProducer.GeneratedVideo[0]': {
-          hash: 'transition-hash',
-          producedBy: 'Producer:TransitionVideoProducer[0]',
-        },
-      },
-    });
-
-    await eventLog.appendArtefact('demo', {
-      artefactId:
-        'Artifact:DirectorProducer.Script.Characters[0].HasTransition',
-      revision: 'rev-fix',
-      inputsHash: 'condition-hash',
-      output: {
-        blob: {
-          hash: 'has-transition-hash',
-          size: 4,
-          mimeType: 'text/plain',
-        },
-      },
-      status: 'succeeded',
-      producedBy: 'Producer:DirectorProducer',
-      createdAt: new Date().toISOString(),
-    });
-
-    const { plan } = await planner.computePlan({
-      movieId: 'demo',
-      manifest,
-      eventLog,
-      blueprint: graph,
-      targetRevision: 'rev-0002',
-      pendingEdits: [],
-      reRunFrom: 1,
-    });
-
-    const jobs = plan.layers.flat().map((job) => job.jobId);
-    expect(jobs).toContain('Producer:TransitionVideoProducer[0]');
-    expect(jobs).not.toContain('Producer:DirectorProducer');
   });
 
   it('propagates dirtiness downstream when inputs change', async () => {
@@ -1281,202 +1177,6 @@ describe('planner', () => {
     ).rejects.toThrow(/cycle/i);
   });
 
-  describe('reRunFrom', () => {
-    it('forces jobs at reRunFrom layer and above into plan even when artifacts exist', async () => {
-      const ctx = memoryContext();
-      await initializeMovieStorage(ctx, 'demo');
-      const eventLog = createEventLog(ctx);
-      const graph = buildProducerGraph();
-      const planner = createPlanner();
-
-      // Set up baseline with all artifacts existing (nothing dirty)
-      const baseRevision = 'rev-0001';
-      const baseline = createInputEvents(
-        { 'Input:InquiryPrompt': 'Tell me a story' },
-        baseRevision
-      );
-      for (const event of baseline) {
-        await eventLog.appendInput('demo', event);
-      }
-
-      const artefactCreatedAt = new Date().toISOString();
-      const manifest: Manifest = {
-        revision: baseRevision,
-        baseRevision: null,
-        createdAt: artefactCreatedAt,
-        inputs: Object.fromEntries(
-          baseline.map((event) => [
-            event.id,
-            {
-              hash: event.hash,
-              payloadDigest: hashPayload(event.payload).canonical,
-              createdAt: event.createdAt,
-            },
-          ])
-        ),
-        artefacts: {
-          'Artifact:NarrationScript[0]': {
-            hash: 'hash-script-0',
-            producedBy: 'Producer:ScriptProducer',
-            status: 'succeeded',
-            createdAt: artefactCreatedAt,
-          },
-          'Artifact:NarrationScript[1]': {
-            hash: 'hash-script-1',
-            producedBy: 'Producer:ScriptProducer',
-            status: 'succeeded',
-            createdAt: artefactCreatedAt,
-          },
-          'Artifact:SegmentAudio[0]': {
-            hash: 'hash-audio-0',
-            producedBy: 'Producer:AudioProducer[0]',
-            status: 'succeeded',
-            createdAt: artefactCreatedAt,
-          },
-          'Artifact:SegmentAudio[1]': {
-            hash: 'hash-audio-1',
-            producedBy: 'Producer:AudioProducer[1]',
-            status: 'succeeded',
-            createdAt: artefactCreatedAt,
-          },
-          'Artifact:FinalVideo': {
-            hash: 'hash-final-video',
-            producedBy: 'Producer:TimelineAssembler',
-            status: 'succeeded',
-            createdAt: artefactCreatedAt,
-          },
-        },
-        timeline: {},
-      };
-
-      // Without reRunFrom, plan should be empty (nothing dirty)
-      const { plan: planWithoutRerun } = await planner.computePlan({
-        movieId: 'demo',
-        manifest,
-        eventLog,
-        blueprint: graph,
-        targetRevision: 'rev-0002',
-        pendingEdits: [],
-      });
-      expect(planWithoutRerun.layers.flat()).toHaveLength(0);
-
-      // With reRunFrom=1, should include AudioProducer jobs (layer 1) and TimelineAssembler (layer 2)
-      const { plan: planWithRerun } = await planner.computePlan({
-        movieId: 'demo',
-        manifest,
-        eventLog,
-        blueprint: graph,
-        targetRevision: 'rev-0003',
-        pendingEdits: [],
-        reRunFrom: 1,
-      });
-
-      const jobsInPlan = planWithRerun.layers.flat();
-      // Layer 0 is ScriptProducer - should NOT be included
-      expect(
-        jobsInPlan.some((job) => job.jobId === 'Producer:ScriptProducer')
-      ).toBe(false);
-      // Layer 1 is AudioProducer[0] and AudioProducer[1] - SHOULD be included
-      expect(
-        jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[0]')
-      ).toBe(true);
-      expect(
-        jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[1]')
-      ).toBe(true);
-      // Layer 2 is TimelineAssembler - SHOULD be included
-      expect(
-        jobsInPlan.some((job) => job.jobId === 'Producer:TimelineAssembler')
-      ).toBe(true);
-
-      // Verify layer structure
-      expect(planWithRerun.layers[0]).toHaveLength(0); // Layer 0 empty
-      expect(planWithRerun.layers[1]).toHaveLength(2); // Layer 1 has 2 audio jobs
-      expect(planWithRerun.layers[2]).toHaveLength(1); // Layer 2 has timeline assembler
-    });
-
-    it('reRunFrom=0 includes all jobs', async () => {
-      const ctx = memoryContext();
-      await initializeMovieStorage(ctx, 'demo');
-      const eventLog = createEventLog(ctx);
-      const graph = buildProducerGraph();
-      const planner = createPlanner();
-
-      const baseRevision = 'rev-0001';
-      const baseline = createInputEvents(
-        { 'Input:InquiryPrompt': 'Tell me a story' },
-        baseRevision
-      );
-      for (const event of baseline) {
-        await eventLog.appendInput('demo', event);
-      }
-
-      const manifest = createSucceededManifest(baseline, {
-        revision: baseRevision,
-      });
-
-      const { plan } = await planner.computePlan({
-        movieId: 'demo',
-        manifest,
-        eventLog,
-        blueprint: graph,
-        targetRevision: 'rev-0002',
-        pendingEdits: [],
-        reRunFrom: 0,
-      });
-
-      const jobsInPlan = plan.layers.flat();
-      expect(jobsInPlan).toHaveLength(4); // All 4 jobs
-      expect(
-        jobsInPlan.some((job) => job.jobId === 'Producer:ScriptProducer')
-      ).toBe(true);
-      expect(
-        jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[0]')
-      ).toBe(true);
-      expect(
-        jobsInPlan.some((job) => job.jobId === 'Producer:AudioProducer[1]')
-      ).toBe(true);
-      expect(
-        jobsInPlan.some((job) => job.jobId === 'Producer:TimelineAssembler')
-      ).toBe(true);
-    });
-
-    it('reRunFrom at last layer includes only that layer', async () => {
-      const ctx = memoryContext();
-      await initializeMovieStorage(ctx, 'demo');
-      const eventLog = createEventLog(ctx);
-      const graph = buildProducerGraph();
-      const planner = createPlanner();
-
-      const baseRevision = 'rev-0001';
-      const baseline = createInputEvents(
-        { 'Input:InquiryPrompt': 'Tell me a story' },
-        baseRevision
-      );
-      for (const event of baseline) {
-        await eventLog.appendInput('demo', event);
-      }
-
-      const manifest = createSucceededManifest(baseline, {
-        revision: baseRevision,
-      });
-
-      // Layer 2 is the last layer (TimelineAssembler)
-      const { plan } = await planner.computePlan({
-        movieId: 'demo',
-        manifest,
-        eventLog,
-        blueprint: graph,
-        targetRevision: 'rev-0002',
-        pendingEdits: [],
-        reRunFrom: 2,
-      });
-
-      const jobsInPlan = plan.layers.flat();
-      expect(jobsInPlan).toHaveLength(1);
-      expect(jobsInPlan[0]?.jobId).toBe('Producer:TimelineAssembler');
-    });
-  });
-
   describe('computeArtifactRegenerationJobs', () => {
     it('includes only source job when it has no downstream dependencies', () => {
       const graph: ProducerGraph = {
@@ -1524,7 +1224,7 @@ describe('planner', () => {
       expect(jobs.has('Producer:ScriptProducer')).toBe(false);
     });
 
-    it('excludes sibling jobs at same layer (key differentiation from --from)', () => {
+    it('excludes sibling jobs at the same layer when traversing downstream dependencies', () => {
       const graph = buildProducerGraph();
 
       // Target ScriptProducer - should include all downstream but nothing upstream
@@ -1833,50 +1533,6 @@ describe('planner', () => {
       expect(jobsInPlan.length).toBe(3);
     });
 
-    it('surgical regeneration ignores reRunFrom parameter', async () => {
-      const ctx = memoryContext();
-      await initializeMovieStorage(ctx, 'demo');
-      const eventLog = createEventLog(ctx);
-      const graph = buildProducerGraph();
-      const planner = createPlanner();
-
-      const baseRevision = 'rev-0001';
-      const baseline = createInputEvents(
-        { 'Input:InquiryPrompt': 'Tell me a story' },
-        baseRevision
-      );
-      for (const event of baseline) {
-        await eventLog.appendInput('demo', event);
-      }
-
-      const manifest = createSucceededManifest(baseline, {
-        revision: baseRevision,
-      });
-
-      // Surgical regeneration of TimelineAssembler with reRunFrom=0 (should be ignored)
-      const { plan } = await planner.computePlan({
-        movieId: 'demo',
-        manifest,
-        eventLog,
-        blueprint: graph,
-        targetRevision: 'rev-0002',
-        pendingEdits: [],
-        reRunFrom: 0, // This would normally include ALL jobs
-        artifactRegenerations: [
-          {
-            targetArtifactId: 'Artifact:FinalVideo',
-            sourceJobId: 'Producer:TimelineAssembler',
-          },
-        ],
-      });
-
-      const jobsInPlan = plan.layers.flat();
-
-      // Should only include TimelineAssembler (no downstream)
-      expect(jobsInPlan.length).toBe(1);
-      expect(jobsInPlan[0]?.jobId).toBe('Producer:TimelineAssembler');
-    });
-
     it('surgical mode also includes jobs with missing artifacts', async () => {
       const ctx = memoryContext();
       await initializeMovieStorage(ctx, 'demo');
@@ -2076,16 +1732,19 @@ describe('planner', () => {
       const manifest = createSucceededManifest(baseline, {
         revision: baseRevision,
       });
+      const edits = createInputEvents(
+        { 'Input:InquiryPrompt': 'A new story' },
+        'rev-0002'
+      );
 
-      // reRunFrom=0 would normally include all jobs, but upToLayer=1 should exclude layer 2
+      // upToLayer=1 should exclude layer 2 jobs
       const { plan } = await planner.computePlan({
         movieId: 'demo',
         manifest,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
-        pendingEdits: [],
-        reRunFrom: 0,
+        pendingEdits: edits,
         upToLayer: 1, // Only layers 0 and 1
       });
 
@@ -2129,6 +1788,10 @@ describe('planner', () => {
       const manifest = createSucceededManifest(baseline, {
         revision: baseRevision,
       });
+      const edits = createInputEvents(
+        { 'Input:InquiryPrompt': 'A new story' },
+        'rev-0002'
+      );
 
       const { plan } = await planner.computePlan({
         movieId: 'demo',
@@ -2136,8 +1799,7 @@ describe('planner', () => {
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
-        pendingEdits: [],
-        reRunFrom: 0,
+        pendingEdits: edits,
         upToLayer: 0, // Only layer 0
       });
 
@@ -2226,6 +1888,10 @@ describe('planner', () => {
       const manifest = createSucceededManifest(baseline, {
         revision: baseRevision,
       });
+      const edits = createInputEvents(
+        { 'Input:InquiryPrompt': 'A new story' },
+        'rev-0002'
+      );
 
       // upToLayer=10 is beyond max layer (2), so all jobs should be included
       const { plan } = await planner.computePlan({
@@ -2234,8 +1900,7 @@ describe('planner', () => {
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
-        pendingEdits: [],
-        reRunFrom: 0,
+        pendingEdits: edits,
         upToLayer: 10,
       });
 
@@ -2535,16 +2200,19 @@ describe('planner', () => {
       const manifest = createSucceededManifest(baseline, {
         revision: baseRevision,
       });
+      const edits = createInputEvents(
+        { 'Input:InquiryPrompt': 'A new story' },
+        'rev-0002'
+      );
 
-      // reRunFrom=0 forces all jobs, but upToLayer=0 limits to only layer 0
+      // upToLayer=0 limits this plan to only layer 0
       const { plan } = await planner.computePlan({
         movieId: 'demo',
         manifest,
         eventLog,
         blueprint: graph,
         targetRevision: 'rev-0002',
-        pendingEdits: [],
-        reRunFrom: 0,
+        pendingEdits: edits,
         upToLayer: 0,
       });
 
@@ -2573,7 +2241,7 @@ describe('planner', () => {
 
       const manifest = createSucceededManifest(baseline);
 
-      // Nothing dirty, no reRunFrom, no surgical -> empty plan
+      // Nothing dirty and no surgical controls -> empty plan
       const { plan } = await planner.computePlan({
         movieId: 'demo',
         manifest,
@@ -3252,6 +2920,144 @@ describe('planner', () => {
       expect(bReason?.staleArtifacts).toContain('Artifact:B');
     });
 
+    it('filters explanation job reasons to final scheduled jobs after upToLayer', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        'rev-0001'
+      );
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+      const manifest = createSucceededManifest(baseline);
+
+      const edits = createInputEvents(
+        { 'Input:InquiryPrompt': 'A different story' },
+        'rev-0002'
+      );
+
+      const { plan, explanation } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: edits,
+        upToLayer: 0,
+        collectExplanation: true,
+      });
+
+      const scheduledJobIds = plan.layers.flat().map((job) => job.jobId);
+      expect(scheduledJobIds).toEqual(['Producer:ScriptProducer']);
+      expect(explanation?.jobReasons.map((reason) => reason.jobId)).toEqual(
+        scheduledJobIds
+      );
+      expect(explanation?.initialDirtyJobs).toEqual(['Producer:ScriptProducer']);
+      expect(explanation?.propagatedJobs).toEqual([]);
+    });
+
+    it('records forced surgical reasons for final scheduled jobs', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        'rev-0001'
+      );
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+
+      const manifest = createSucceededManifest(baseline, {
+        revision: 'rev-0001',
+      });
+
+      const { plan, explanation } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: [],
+        artifactRegenerations: [
+          {
+            targetArtifactId: 'Artifact:SegmentAudio[0]',
+            sourceJobId: 'Producer:AudioProducer[0]',
+          },
+        ],
+        collectExplanation: true,
+      });
+
+      const scheduledJobIds = plan.layers.flat().map((job) => job.jobId);
+      expect(scheduledJobIds).toEqual([
+        'Producer:AudioProducer[0]',
+        'Producer:TimelineAssembler',
+      ]);
+
+      const reasonsByJobId = new Map(
+        explanation?.jobReasons.map((reason) => [reason.jobId, reason.reason])
+      );
+      expect(reasonsByJobId.get('Producer:AudioProducer[0]')).toBe(
+        'forcedBySurgicalTarget'
+      );
+      expect(reasonsByJobId.get('Producer:TimelineAssembler')).toBe(
+        'forcedBySurgicalDependency'
+      );
+      expect(explanation?.initialDirtyJobs).toEqual([]);
+      expect(explanation?.propagatedJobs).toEqual([]);
+    });
+
+    it('records forced user-control reasons for explicit job targeting', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        'rev-0001'
+      );
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+
+      const manifest = createSucceededManifest(baseline, {
+        revision: 'rev-0001',
+      });
+
+      const { plan, explanation } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: [],
+        forceTargetJobIds: ['Producer:AudioProducer[1]'],
+        collectExplanation: true,
+      });
+
+      const scheduledJobIds = plan.layers.flat().map((job) => job.jobId);
+      expect(scheduledJobIds).toEqual(['Producer:AudioProducer[1]']);
+      expect(explanation?.jobReasons).toEqual([
+        {
+          jobId: 'Producer:AudioProducer[1]',
+          producer: 'AudioProducer',
+          reason: 'forcedByUserControl',
+        },
+      ]);
+      expect(explanation?.initialDirtyJobs).toEqual([]);
+      expect(explanation?.propagatedJobs).toEqual([]);
+    });
+
     it('detects dirty with mixed Input and Artifact inputs', async () => {
       const ctx = memoryContext();
       await initializeMovieStorage(ctx, 'demo');
@@ -3470,43 +3276,6 @@ describe('planner', () => {
       // ScriptProducer should be excluded
       const allJobIds = plan.layers.flat().map((j) => j.jobId);
       expect(allJobIds).not.toContain('Producer:ScriptProducer');
-    });
-
-    it('keeps fully pinned job excluded when reRunFrom would otherwise force all layers', async () => {
-      const ctx = memoryContext();
-      await initializeMovieStorage(ctx, 'demo');
-      const eventLog = createEventLog(ctx);
-      const graph = buildProducerGraph();
-      const planner = createPlanner();
-
-      const baseline = createInputEvents(
-        { 'Input:InquiryPrompt': 'Tell me a story' },
-        'rev-0001'
-      );
-      for (const event of baseline) {
-        await eventLog.appendInput('demo', event);
-      }
-      const manifest = createSucceededManifest(baseline);
-
-      const { plan } = await planner.computePlan({
-        movieId: 'demo',
-        manifest,
-        eventLog,
-        blueprint: graph,
-        targetRevision: 'rev-0002',
-        pendingEdits: [],
-        reRunFrom: 0,
-        pinnedArtifactIds: [
-          'Artifact:NarrationScript[0]',
-          'Artifact:NarrationScript[1]',
-        ],
-      });
-
-      const allJobIds = plan.layers.flat().map((j) => j.jobId);
-      expect(allJobIds).not.toContain('Producer:ScriptProducer');
-      expect(allJobIds).toContain('Producer:AudioProducer[0]');
-      expect(allJobIds).toContain('Producer:AudioProducer[1]');
-      expect(allJobIds).toContain('Producer:TimelineAssembler');
     });
 
     it('does not exclude pinned job when pinned output is missing and cannot be reused', async () => {
@@ -3939,6 +3708,102 @@ describe('planner', () => {
 
       const allJobIds = plan.layers.flat().map((j) => j.jobId);
       expect(allJobIds).toEqual([]);
+    });
+
+    it('removes downstream dirty jobs when blocked upstream artifacts are missing', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        'rev-0001'
+      );
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+
+      const manifest = createSucceededManifest(baseline, {
+        artefacts: {
+          'Artifact:NarrationScript[0]': {
+            hash: 'h0',
+            producedBy: 'Producer:ScriptProducer',
+          },
+          'Artifact:NarrationScript[1]': {
+            hash: 'h1',
+            producedBy: 'Producer:ScriptProducer',
+          },
+          'Artifact:SegmentAudio[0]': {
+            hash: 'h2',
+            producedBy: 'Producer:AudioProducer[0]',
+          },
+        },
+      });
+
+      const { plan } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: [],
+        blockedProducerJobIds: ['Producer:AudioProducer[1]'],
+      });
+
+      const allJobIds = plan.layers.flat().map((j) => j.jobId);
+      expect(allJobIds).toEqual([]);
+    });
+
+    it('keeps downstream jobs when blocked upstream artifacts are already reusable', async () => {
+      const ctx = memoryContext();
+      await initializeMovieStorage(ctx, 'demo');
+      const eventLog = createEventLog(ctx);
+      const graph = buildProducerGraph();
+      const planner = createPlanner();
+
+      const baseline = createInputEvents(
+        { 'Input:InquiryPrompt': 'Tell me a story' },
+        'rev-0001'
+      );
+      for (const event of baseline) {
+        await eventLog.appendInput('demo', event);
+      }
+
+      const manifest = createSucceededManifest(baseline, {
+        artefacts: {
+          'Artifact:NarrationScript[0]': {
+            hash: 'h0',
+            producedBy: 'Producer:ScriptProducer',
+          },
+          'Artifact:NarrationScript[1]': {
+            hash: 'h1',
+            producedBy: 'Producer:ScriptProducer',
+          },
+          'Artifact:SegmentAudio[0]': {
+            hash: 'h2',
+            producedBy: 'Producer:AudioProducer[0]',
+          },
+          'Artifact:SegmentAudio[1]': {
+            hash: 'h3',
+            producedBy: 'Producer:AudioProducer[1]',
+          },
+        },
+      });
+
+      const { plan } = await planner.computePlan({
+        movieId: 'demo',
+        manifest,
+        eventLog,
+        blueprint: graph,
+        targetRevision: 'rev-0002',
+        pendingEdits: [],
+        blockedProducerJobIds: ['Producer:AudioProducer[1]'],
+      });
+
+      const allJobIds = plan.layers.flat().map((j) => j.jobId);
+      expect(allJobIds).toEqual(['Producer:TimelineAssembler']);
     });
   });
 });

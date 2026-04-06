@@ -72,6 +72,21 @@ interface ProducerNodeData {
   outputBindings: ProducerBinding[];
 }
 
+function deriveProducerFamilyIdFromCanonicalJobId(jobId: string): string {
+  if (!jobId.startsWith('Producer:')) {
+    throw new Error(
+      `Expected canonical producer job ID (Producer:...), received "${jobId}".`
+    );
+  }
+
+  const body = jobId.slice('Producer:'.length);
+  if (body.length === 0) {
+    throw new Error(`Expected canonical producer job ID, received "${jobId}".`);
+  }
+
+  return `Producer:${body.replace(/\[\d+\]/g, '')}`;
+}
+
 const validProducerStatuses: ProducerStatus[] = [
   'success',
   'error',
@@ -287,9 +302,10 @@ function parseProducerNodeData(node: Node): ProducerDetails {
   ) {
     throw new Error(`Producer node ${node.id} has an invalid status`);
   }
+  const producerFamilyId = deriveProducerFamilyIdFromCanonicalJobId(node.id);
 
   return {
-    nodeId: node.id,
+    nodeId: producerFamilyId,
     label: data.label,
     loop: data.loop,
     producerType: data.producerType,
@@ -328,8 +344,22 @@ export function BlueprintViewer({
   const [dialogProducer, setDialogProducer] = useState<ProducerDetails | null>(
     null
   );
+  const [schedulingUiByProducerId, setSchedulingUiByProducerId] = useState<
+    Record<string, { loading: boolean; error: string | null }>
+  >({});
   const [showConnectionArrows, setShowConnectionArrows] = useState(false);
   const schedulingRequestKeysRef = useRef<Set<string>>(new Set());
+  const dialogProducerId = dialogProducer ? dialogProducer.nodeId : null;
+  const dialogScheduling = dialogProducerId
+    ? getProducerSchedulingSummary(dialogProducerId)
+    : undefined;
+  const dialogSchedulingUi = dialogProducerId
+    ? schedulingUiByProducerId[dialogProducerId]
+    : undefined;
+  const dialogSchedulingLoading = dialogProducerId
+    ? dialogSchedulingUi?.loading ?? dialogScheduling === undefined
+    : false;
+  const dialogSchedulingError = dialogSchedulingUi?.error ?? null;
 
   const layerGuides = useMemo(
     () => buildLayerGuides(graphData, nodes, selectedUpToLayer ?? null),
@@ -388,15 +418,19 @@ export function BlueprintViewer({
   }, [initialEdges, setEdges]);
 
   useEffect(() => {
-    if (!dialogProducer) {
+    if (!dialogProducer || !dialogProducerId) {
       return;
     }
-    const scheduling = getProducerSchedulingSummary(dialogProducer.nodeId);
+    const scheduling = getProducerSchedulingSummary(dialogProducerId);
     if (scheduling) {
+      setSchedulingUiByProducerId((prev) => ({
+        ...prev,
+        [dialogProducerId]: { loading: false, error: null },
+      }));
       return;
     }
     const requestKey = [
-      dialogProducer.nodeId,
+      dialogProducerId,
       blueprintName,
       movieId ?? '',
       selectedUpToLayer ?? '',
@@ -405,20 +439,35 @@ export function BlueprintViewer({
       return;
     }
     schedulingRequestKeysRef.current.add(requestKey);
+    setSchedulingUiByProducerId((prev) => ({
+      ...prev,
+      [dialogProducerId]: { loading: true, error: null },
+    }));
     void (async () => {
+      let refreshError: string | null = null;
       try {
         await requestProducerScheduling(
           blueprintName,
           movieId ?? undefined,
           selectedUpToLayer ?? undefined
         );
+      } catch (error) {
+        refreshError =
+          error instanceof Error
+            ? error.message
+            : 'Failed to refresh producer scheduling.';
       } finally {
         schedulingRequestKeysRef.current.delete(requestKey);
+        setSchedulingUiByProducerId((prev) => ({
+          ...prev,
+          [dialogProducerId]: { loading: false, error: refreshError },
+        }));
       }
     })();
   }, [
     blueprintName,
     dialogProducer,
+    dialogProducerId,
     getProducerSchedulingSummary,
     movieId,
     requestProducerScheduling,
@@ -584,16 +633,15 @@ export function BlueprintViewer({
       <ProducerDetailsDialog
         open={dialogProducer !== null}
         producer={dialogProducer}
+        producerId={dialogProducerId ?? undefined}
         override={
-          dialogProducer
-            ? getProducerOverride(dialogProducer.nodeId)
+          dialogProducerId
+            ? getProducerOverride(dialogProducerId)
             : undefined
         }
-        scheduling={
-          dialogProducer
-            ? getProducerSchedulingSummary(dialogProducer.nodeId)
-            : undefined
-        }
+        scheduling={dialogScheduling}
+        schedulingLoading={dialogSchedulingLoading}
+        schedulingError={dialogSchedulingError}
         onSetOverrideEnabled={setProducerOverrideEnabled}
         onSetOverrideCount={setProducerOverrideCount}
         onResetOverride={resetProducerOverride}

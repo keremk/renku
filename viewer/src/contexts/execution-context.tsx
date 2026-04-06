@@ -800,6 +800,7 @@ export function ExecutionProvider({
         dispatch({ type: 'SYNC_PLAN_INFO', planInfo });
       } catch (error) {
         console.error('Failed to refresh producer scheduling:', error);
+        throw error;
       }
     },
     [
@@ -1199,16 +1200,6 @@ function handleSSEEvent(
           progress: 0,
         },
       });
-      break;
-    }
-
-    case 'layer-skipped': {
-      const logEntry = createLogEntry(
-        'layer-skipped',
-        `Layer ${event.layerIndex} skipped (using existing artifacts)`,
-        { layerIndex: event.layerIndex, status: 'skipped' }
-      );
-      dispatch({ type: 'ADD_LOG_ENTRY', entry: logEntry });
       break;
     }
 

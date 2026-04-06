@@ -30,6 +30,62 @@ function formatCurrencyOrNA(value: number, hasCostData: boolean): string {
   return formatCurrency(value);
 }
 
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\"'\"'`)}'`;
+}
+
+function buildFallbackCliCommand(args: {
+  blueprintName: string | null;
+  movieId: string | null;
+  upToLayer: number | null;
+  selectedForRegeneration: Set<string>;
+  pinnedArtifacts: Set<string>;
+  producerOverrides: Record<string, { enabled?: boolean; count?: number }>;
+}): string | undefined {
+  if (!args.blueprintName) {
+    return undefined;
+  }
+
+  const parts: string[] = ['renku generate'];
+  if (args.movieId) {
+    parts.push(`--movie-id=${shellQuote(args.movieId)}`);
+  }
+  parts.push(`--blueprint=${shellQuote(args.blueprintName)}`);
+
+  const regenerateIds = Array.from(args.selectedForRegeneration).sort();
+  for (const regenerateId of regenerateIds) {
+    parts.push(`--regen=${shellQuote(regenerateId)}`);
+  }
+
+  const pinIds = Array.from(args.pinnedArtifacts).sort();
+  for (const pinId of pinIds) {
+    parts.push(`--pin=${shellQuote(pinId)}`);
+  }
+
+  const producerPidValues = Object.entries(args.producerOverrides)
+    .map(([producerId, override]) => {
+      if (override.enabled === false) {
+        return `${producerId}:0`;
+      }
+      if (override.count !== undefined) {
+        return `${producerId}:${override.count}`;
+      }
+      return null;
+    })
+    .filter((value): value is string => value !== null)
+    .sort();
+  for (const producerPidValue of producerPidValues) {
+    parts.push(`--pid=${shellQuote(producerPidValue)}`);
+  }
+
+  if (args.upToLayer !== null) {
+    parts.push(`--up=${args.upToLayer}`);
+  }
+
+  parts.push('--explain');
+  return parts.join(' ');
+}
+
 /**
  * Sort cost by producer entries by layer (producers in earlier layers first).
  */
@@ -117,43 +173,6 @@ function NoopContent({ onClose }: { onClose: () => void }) {
 }
 
 /**
- * Error dialog content.
- */
-function ErrorContent({ error, onClose }: { error: string; onClose: () => void }) {
-  return (
-    <div className="flex flex-col items-center py-8 px-6">
-      {/* Error icon */}
-      <div className="relative mb-6">
-        <div className="absolute inset-0 rounded-full bg-linear-to-br from-red-500/20 to-red-600/10 blur-xl" />
-        <div className="relative w-16 h-16 rounded-full bg-linear-to-br from-red-500/20 to-red-600/10 flex items-center justify-center ring-1 ring-red-500/20">
-          <AlertCircle className="w-8 h-8 text-red-500" />
-        </div>
-      </div>
-
-      {/* Title */}
-      <h2 className="text-xl font-semibold text-foreground mb-2">
-        Planning Failed
-      </h2>
-
-      {/* Error message */}
-      <div className="w-full max-w-sm bg-red-500/5 border border-red-500/20 rounded-lg p-4 mb-6">
-        <p className="text-sm text-red-400 text-center">
-          {error}
-        </p>
-      </div>
-
-      {/* Close button */}
-      <button
-        onClick={onClose}
-        className="w-full max-w-[200px] py-2.5 px-6 text-sm font-medium rounded-lg bg-muted hover:bg-muted/80 active:scale-[0.98] transition-all duration-150"
-      >
-        Close
-      </button>
-    </div>
-  );
-}
-
-/**
  * Copy CLI command button with feedback.
  */
 function CopyCliCommandButton({ cliCommand }: { cliCommand: string }) {
@@ -199,6 +218,8 @@ function PlanContent({
   showCostRange,
   isSurgicalMode,
   isReplanning,
+  errorMessage,
+  cliCommand,
   pinnedCount,
   onCancel,
   onExecute,
@@ -208,6 +229,8 @@ function PlanContent({
   showCostRange: boolean;
   isSurgicalMode: boolean;
   isReplanning: boolean;
+  errorMessage?: string;
+  cliCommand?: string;
   pinnedCount: number;
   onCancel: () => void;
   onExecute: () => void;
@@ -263,6 +286,18 @@ function PlanContent({
           />
         </div>
       </div>
+
+      {errorMessage && (
+        <div className="mx-6 mb-2 rounded-lg border border-red-500/30 bg-red-500/8 p-3">
+          <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-red-700 dark:text-red-300">
+            <AlertCircle className="size-3.5" />
+            Planning Error
+          </div>
+          <p className="text-xs text-red-700/90 dark:text-red-300/90">
+            {errorMessage}
+          </p>
+        </div>
+      )}
 
       {/* Pinned artifacts info */}
       {pinnedCount > 0 && (
@@ -343,8 +378,8 @@ function PlanContent({
       <div className="px-6 py-4 border-t border-border/30 bg-muted/20 flex justify-between items-center">
         {/* CLI command copy button */}
         <div className="flex items-center">
-          {planInfo.cliCommand && (
-            <CopyCliCommandButton cliCommand={planInfo.cliCommand} />
+          {cliCommand && (
+            <CopyCliCommandButton cliCommand={cliCommand} />
           )}
         </div>
         {/* Action buttons */}
@@ -357,12 +392,51 @@ function PlanContent({
           </button>
           <button
             onClick={onExecute}
-            disabled={isReplanning}
+            disabled={isReplanning || Boolean(errorMessage)}
             className="py-2 px-5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-all duration-150 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
           >
             {isReplanning ? 'Updating...' : 'Execute'}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function PlanningFailureContent({
+  error,
+  cliCommand,
+  onClose,
+}: {
+  error: string;
+  cliCommand?: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="flex flex-col py-6 px-6">
+      <h2 className="text-lg font-semibold text-foreground mb-1">
+        Plan Could Not Be Prepared
+      </h2>
+      <p className="text-sm text-muted-foreground mb-4">
+        The planner returned an error. You can copy the CLI command below to inspect or reproduce it from terminal.
+      </p>
+
+      <div className="rounded-lg border border-red-500/30 bg-red-500/8 p-3 mb-4">
+        <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-red-700 dark:text-red-300">
+          <AlertCircle className="size-3.5" />
+          Planning Error
+        </div>
+        <p className="text-xs text-red-700/90 dark:text-red-300/90">{error}</p>
+      </div>
+
+      <div className="flex justify-between items-center">
+        <div>{cliCommand && <CopyCliCommandButton cliCommand={cliCommand} />}</div>
+        <button
+          onClick={onClose}
+          className="py-2 px-4 text-sm font-medium rounded-lg bg-transparent hover:bg-muted border border-border/50 text-foreground/80 hover:text-foreground transition-all duration-150"
+        >
+          Close
+        </button>
       </div>
     </div>
   );
@@ -381,11 +455,33 @@ export function PlanDialog() {
 
   const isReplanning = status === 'planning' && planInfo !== null;
   const isOpen = status === 'confirming' || (status === 'failed' && error !== null) || isReplanning;
+  const inlineError = status === 'failed' ? (error ?? undefined) : undefined;
 
   const sortedCostByProducer = useMemo(() => {
     if (!planInfo) return [];
     return sortCostByLayer(planInfo);
   }, [planInfo]);
+
+  const fallbackCliCommand = useMemo(
+    () =>
+      buildFallbackCliCommand({
+        blueprintName: state.blueprintName,
+        movieId: state.movieId,
+        upToLayer: state.layerRange.upToLayer,
+        selectedForRegeneration: state.selectedForRegeneration,
+        pinnedArtifacts: state.pinnedArtifacts,
+        producerOverrides: state.producerOverrides,
+      }),
+    [
+      state.blueprintName,
+      state.movieId,
+      state.layerRange.upToLayer,
+      state.selectedForRegeneration,
+      state.pinnedArtifacts,
+      state.producerOverrides,
+    ]
+  );
+  const cliCommand = planInfo?.cliCommand ?? fallbackCliCommand;
 
   if (!isOpen) return null;
 
@@ -415,9 +511,13 @@ export function PlanDialog() {
         </button>
 
         {/* Content */}
-        {status === 'failed' && error ? (
-          <ErrorContent error={error} onClose={dismissDialog} />
-        ) : isNoop ? (
+        {status === 'failed' && error && !planInfo ? (
+          <PlanningFailureContent
+            error={error}
+            cliCommand={cliCommand}
+            onClose={dismissDialog}
+          />
+        ) : isNoop && !inlineError ? (
           <NoopContent onClose={dismissDialog} />
         ) : planInfo ? (
           <PlanContent
@@ -426,6 +526,8 @@ export function PlanDialog() {
             showCostRange={showCostRange ?? false}
             isSurgicalMode={isSurgicalMode ?? false}
             isReplanning={isReplanning}
+            errorMessage={inlineError}
+            cliCommand={cliCommand}
             pinnedCount={pinnedCount}
             onCancel={dismissDialog}
             onExecute={handleExecute}

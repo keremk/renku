@@ -47,7 +47,6 @@ export interface PreparePlanOptions {
   catalogRoot?: string;
   isNew: boolean;
   regenerateIds?: string[];
-  reRunFrom?: number;
 }
 
 /**
@@ -63,7 +62,6 @@ export interface ExecutePlanOptions {
   resolvedInputs: Record<string, unknown>;
   concurrency?: number;
   upToLayer?: number;
-  reRunFrom?: number;
   regenerateIds?: string[];
   dryRun?: boolean;
   /** AbortSignal for cancellation support */
@@ -101,7 +99,6 @@ export type ProgressEventType =
   | 'plan-ready'
   | 'layer-start'
   | 'layer-empty'
-  | 'layer-skipped'
   | 'job-start'
   | 'job-complete'
   | 'layer-complete'
@@ -136,7 +133,6 @@ export type ProgressHandler = (event: ProgressEvent) => void;
 export interface ExecutePlanWithConcurrencyOptions {
   concurrency: number;
   upToLayer?: number;
-  reRunFrom?: number;
   signal?: AbortSignal;
   onProgress?: ProgressHandler;
 }

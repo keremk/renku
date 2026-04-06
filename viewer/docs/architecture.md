@@ -53,7 +53,7 @@ The API is served by a custom Vite middleware defined in `server/viewer-api.ts`.
 
 ### SSE Real-Time Updates
 
-During execution, the `ExecutionContext` subscribes to SSE events. Named events include: `status`, `plan-ready`, `layer-start`, `layer-skipped`, `layer-complete`, `job-start`, `job-progress`, `job-complete`, `execution-complete`, `execution-cancelled`, `error`. When artifacts are produced, a debounced callback triggers a manifest refetch.
+During execution, the `ExecutionContext` subscribes to SSE events. Named events include: `status`, `plan-ready`, `layer-start`, `layer-complete`, `job-start`, `job-progress`, `job-complete`, `execution-complete`, `execution-cancelled`, `error`. When artifacts are produced, a debounced callback triggers a manifest refetch.
 
 ## State Management
 

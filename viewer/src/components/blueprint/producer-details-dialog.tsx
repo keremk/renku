@@ -25,11 +25,14 @@ interface ProducerDetails {
 interface ProducerDetailsDialogProps {
   open: boolean;
   producer: ProducerDetails | null;
+  producerId?: string;
   override?: {
     enabled?: boolean;
     count?: number;
   };
   scheduling?: ProducerSchedulingSummary;
+  schedulingLoading?: boolean;
+  schedulingError?: string | null;
   onSetOverrideEnabled?: (producerId: string, enabled: boolean) => void;
   onSetOverrideCount?: (producerId: string, count: number | null) => void;
   onResetOverride?: (producerId: string) => void;
@@ -325,18 +328,24 @@ function ConnectionsPanel({
 
 function SchedulingOverridesSection({
   producer,
+  producerId,
   override,
   scheduling,
+  schedulingLoading,
+  schedulingError,
   onSetOverrideEnabled,
   onSetOverrideCount,
   onResetOverride,
 }: {
   producer: ProducerDetails;
+  producerId: string;
   override?: {
     enabled?: boolean;
     count?: number;
   };
   scheduling?: ProducerSchedulingSummary;
+  schedulingLoading?: boolean;
+  schedulingError?: string | null;
   onSetOverrideEnabled?: (producerId: string, enabled: boolean) => void;
   onSetOverrideCount?: (producerId: string, count: number | null) => void;
   onResetOverride?: (producerId: string) => void;
@@ -365,7 +374,7 @@ function SchedulingOverridesSection({
         <button
           type="button"
           disabled={!hasOverride}
-          onClick={() => onResetOverride?.(producer.nodeId)}
+          onClick={() => onResetOverride?.(producerId)}
           className="inline-flex items-center gap-1 rounded-md border border-border/50 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-item-hover-bg hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
         >
           <RotateCcw className="h-3 w-3" />
@@ -384,19 +393,19 @@ function SchedulingOverridesSection({
           aria-label={`Schedule ${producer.label}`}
           checked={effectiveEnabled}
           onCheckedChange={(checked) =>
-            onSetOverrideEnabled?.(producer.nodeId, checked)
+            onSetOverrideEnabled?.(producerId, checked)
           }
         />
       </div>
 
       <div className="mt-3 rounded-md bg-muted px-2.5 py-2">
-        <label className="text-xs font-medium text-foreground" htmlFor={`producer-count-${producer.nodeId}`}>
+        <label className="text-xs font-medium text-foreground" htmlFor={`producer-count-${producerId}`}>
           Artifact Count
         </label>
         {maxSelectableCount !== undefined ? (
           <div className="mt-1 flex items-center gap-2">
             <input
-              id={`producer-count-${producer.nodeId}`}
+              id={`producer-count-${producerId}`}
               type="number"
               min={1}
               max={maxSelectableCount}
@@ -405,7 +414,7 @@ function SchedulingOverridesSection({
               onChange={(event) => {
                 const value = event.target.value.trim();
                 if (value.length === 0) {
-                  onSetOverrideCount?.(producer.nodeId, null);
+                  onSetOverrideCount?.(producerId, null);
                   return;
                 }
                 const parsed = Number.parseInt(value, 10);
@@ -415,7 +424,7 @@ function SchedulingOverridesSection({
                 if (parsed < 1 || parsed > maxSelectableCount) {
                   return;
                 }
-                onSetOverrideCount?.(producer.nodeId, parsed);
+                onSetOverrideCount?.(producerId, parsed);
               }}
               className="w-20 rounded border border-border/50 bg-background px-2 py-1 text-xs text-foreground disabled:cursor-not-allowed disabled:opacity-60"
             />
@@ -423,9 +432,17 @@ function SchedulingOverridesSection({
               1 to {maxSelectableCount}
             </span>
           </div>
-        ) : (
+        ) : schedulingError ? (
+          <p className="mt-1 text-[11px] text-red-600 dark:text-red-300">
+            Failed to load available count: {schedulingError}
+          </p>
+        ) : schedulingLoading ? (
           <p className="mt-1 text-[11px] text-muted-foreground">
             Calculating available count...
+          </p>
+        ) : (
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Available count is not ready. Open Run to refresh plan scheduling.
           </p>
         )}
       </div>
@@ -443,8 +460,11 @@ function SchedulingOverridesSection({
 function ProducerDetailsDialogBody({
   open,
   producer,
+  producerId,
   override,
   scheduling,
+  schedulingLoading,
+  schedulingError,
   onSetOverrideEnabled,
   onSetOverrideCount,
   onResetOverride,
@@ -452,11 +472,14 @@ function ProducerDetailsDialogBody({
 }: {
   open: boolean;
   producer: ProducerDetails;
+  producerId: string;
   override?: {
     enabled?: boolean;
     count?: number;
   };
   scheduling?: ProducerSchedulingSummary;
+  schedulingLoading?: boolean;
+  schedulingError?: string | null;
   onSetOverrideEnabled?: (producerId: string, enabled: boolean) => void;
   onSetOverrideCount?: (producerId: string, count: number | null) => void;
   onResetOverride?: (producerId: string) => void;
@@ -553,8 +576,11 @@ function ProducerDetailsDialogBody({
               </div>
               <SchedulingOverridesSection
                 producer={producer}
+                producerId={producerId}
                 override={override}
                 scheduling={scheduling}
+                schedulingLoading={schedulingLoading}
+                schedulingError={schedulingError}
                 onSetOverrideEnabled={onSetOverrideEnabled}
                 onSetOverrideCount={onSetOverrideCount}
                 onResetOverride={onResetOverride}
@@ -592,8 +618,11 @@ function ProducerDetailsDialogBody({
 export function ProducerDetailsDialog({
   open,
   producer,
+  producerId,
   override,
   scheduling,
+  schedulingLoading,
+  schedulingError,
   onSetOverrideEnabled,
   onSetOverrideCount,
   onResetOverride,
@@ -608,8 +637,11 @@ export function ProducerDetailsDialog({
       key={producer.nodeId}
       open={open}
       producer={producer}
+      producerId={producerId ?? producer.nodeId}
       override={override}
       scheduling={scheduling}
+      schedulingLoading={schedulingLoading}
+      schedulingError={schedulingError}
       onSetOverrideEnabled={onSetOverrideEnabled}
       onSetOverrideCount={onSetOverrideCount}
       onResetOverride={onResetOverride}

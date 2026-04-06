@@ -929,20 +929,6 @@ describe('ExecutionContext', () => {
       );
     });
 
-    it('handles layer-skipped event', async () => {
-      const result = await setupExecutingState();
-
-      act(() => {
-        sseCallback({ type: 'layer-skipped', layerIndex: 0 });
-      });
-
-      expect(result.current.state.executionLogs).toHaveLength(1);
-      expect(result.current.state.executionLogs[0].type).toBe('layer-skipped');
-      expect(result.current.state.executionLogs[0].message).toContain(
-        'skipped'
-      );
-    });
-
     it('handles job-start event', async () => {
       const result = await setupExecutingState();
 

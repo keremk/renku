@@ -22,8 +22,6 @@ export interface PlanAdapterArgs {
   pendingEdits?: InputEvent[];
   /** Resolved condition artifacts used to determine conditional job activity. */
   resolvedConditionArtifacts?: Record<string, unknown>;
-  /** Force re-run from this layer index onwards (0-indexed). Jobs at this layer and above will be included in the plan. */
-  reRunFrom?: number;
   /** Surgical artifact regeneration configs - regenerate only the target artifacts and downstream dependencies. */
   artifactRegenerations?: ArtifactRegenerationConfig[];
   /** Scope for surgical artifact regeneration when artifactRegenerations is set. */

@@ -164,8 +164,6 @@ export async function executeBuild(
 				// Log progress events with chalk formatting
 				if (event.type === 'layer-empty') {
 					logger.info?.(`${chalk.dim(`--- ${event.message} ---`)}\n`);
-				} else if (event.type === 'layer-skipped') {
-					logger.info?.(`${chalk.yellow(`--- ${event.message} ---`)}\n`);
 				} else if (event.type === 'layer-start') {
 					logger.info?.(`${chalk.blue(`--- ${event.message} ---`)}\n`);
 				} else if (event.type === 'layer-complete') {
