@@ -67,6 +67,8 @@ export interface ComputePlanResult {
   plan: ExecutionPlan;
   /** Explanation of why jobs were scheduled (only if collectExplanation was true) */
   explanation?: PlanExplanation;
+  /** Jobs removed by producer-override prune due to missing required artifact inputs. */
+  prunedUnrunnableJobs?: PrunedUnrunnableJob[];
 }
 
 interface GraphMetadata {
@@ -92,6 +94,12 @@ type ArtefactMap = Map<string, ArtefactEvent>;
 interface ArtefactSnapshot {
   latestSuccessful: ArtefactMap;
   latestFailedIds: Set<string>;
+}
+
+export interface PrunedUnrunnableJob {
+  jobId: string;
+  producer: string;
+  missingArtifactInputs: string[];
 }
 
 export function createPlanner(options: PlannerOptions = {}) {
@@ -264,8 +272,9 @@ export function createPlanner(options: PlannerOptions = {}) {
         blockedProducerJobIds: args.blockedProducerJobIds,
       });
 
+      let prunedUnrunnableJobs: PrunedUnrunnableJob[] = [];
       if ((args.blockedProducerJobIds?.length ?? 0) > 0) {
-        pruneUnrunnableJobsWithMissingArtifactInputs({
+        prunedUnrunnableJobs = pruneUnrunnableJobsWithMissingArtifactInputs({
           jobsToInclude,
           protectedJobIds: forceTargetJobIds,
           metadata,
@@ -377,7 +386,12 @@ export function createPlanner(options: PlannerOptions = {}) {
         };
       }
 
-      return { plan, explanation };
+      return {
+        plan,
+        explanation,
+        prunedUnrunnableJobs:
+          prunedUnrunnableJobs.length > 0 ? prunedUnrunnableJobs : undefined,
+      };
     },
   };
 }
@@ -963,9 +977,9 @@ function pruneUnrunnableJobsWithMissingArtifactInputs(args: {
   latestArtefacts: ArtefactMap;
   latestFailedArtefacts: Set<string>;
   resolvedConditionArtifacts: Record<string, unknown> | undefined;
-}): void {
+}): PrunedUnrunnableJob[] {
   if (args.jobsToInclude.size === 0) {
-    return;
+    return [];
   }
 
   const reusableArtifacts = buildReusableArtifactSet(
@@ -977,6 +991,7 @@ function pruneUnrunnableJobsWithMissingArtifactInputs(args: {
     args.metadata,
     args.resolvedConditionArtifacts
   );
+  const missingInputsByPrunedJob = new Map<string, Set<string>>();
 
   while (true) {
     const producedByIncluded = collectProducedArtifactIds(
@@ -999,16 +1014,22 @@ function pruneUnrunnableJobsWithMissingArtifactInputs(args: {
         info.node,
         conditionResultsByJobId.get(jobId)
       );
-      const hasMissingRequiredInput = Array.from(artifactInputs).some(
+      const missingRequiredInputs = Array.from(artifactInputs).filter(
         (artifactId) =>
-          !producedByIncluded.has(artifactId) && !reusableArtifacts.has(artifactId)
+          !producedByIncluded.has(artifactId) &&
+          !reusableArtifacts.has(artifactId)
       );
 
-      if (!hasMissingRequiredInput) {
+      if (missingRequiredInputs.length === 0) {
         continue;
       }
 
       args.jobsToInclude.delete(jobId);
+      const existing = missingInputsByPrunedJob.get(jobId) ?? new Set<string>();
+      for (const artifactId of missingRequiredInputs) {
+        existing.add(artifactId);
+      }
+      missingInputsByPrunedJob.set(jobId, existing);
       removedAny = true;
     }
 
@@ -1016,6 +1037,27 @@ function pruneUnrunnableJobsWithMissingArtifactInputs(args: {
       break;
     }
   }
+
+  return Array.from(missingInputsByPrunedJob.entries())
+    .map(([jobId, missingInputs]) => {
+      const metadata = args.metadata.get(jobId);
+      if (!metadata) {
+        throw createRuntimeError(
+          RuntimeErrorCode.GRAPH_BUILD_ERROR,
+          `Pruned job "${jobId}" is missing graph metadata.`,
+          {
+            suggestion:
+              'Rebuild producer graph metadata before pruning unrunnable jobs.',
+          }
+        );
+      }
+      return {
+        jobId,
+        producer: metadata.node.producer,
+        missingArtifactInputs: Array.from(missingInputs).sort(),
+      } satisfies PrunedUnrunnableJob;
+    })
+    .sort((a, b) => a.jobId.localeCompare(b.jobId));
 }
 
 function buildReusableArtifactSet(

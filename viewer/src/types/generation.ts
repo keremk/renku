@@ -174,6 +174,8 @@ export interface LayerJobDisplayInfo {
 
 export type {
   ProducerSchedulingSummary,
+  ProducerSchedulingRequest,
+  ProducerSchedulingResponse,
   PlanRequest,
   PlanResponse,
   ExecuteRequest,

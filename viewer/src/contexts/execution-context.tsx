@@ -15,6 +15,7 @@ import {
 } from 'react';
 import {
   createPlan,
+  getProducerScheduling,
   executePlan,
   cancelJob,
   subscribeToJobStream,
@@ -29,6 +30,7 @@ import type {
   ProducerCostEntry,
   LayerDisplayInfo,
   ProducerSchedulingSummary,
+  ProducerSchedulingResponse,
   PlanResponse,
   SSEEvent,
   ExecutionLogEntry,
@@ -85,7 +87,6 @@ type ExecutionAction =
       upToLayer: number | null;
     }
   | { type: 'PLAN_READY'; planInfo: PlanDisplayInfo }
-  | { type: 'SYNC_PLAN_INFO'; planInfo: PlanDisplayInfo }
   | { type: 'PLAN_FAILED'; error: string }
   | { type: 'START_EXECUTION'; jobId: string }
   | { type: 'UPDATE_PROGRESS'; progress: ExecutionProgress }
@@ -189,13 +190,6 @@ function executionReducer(
         status: 'confirming',
         planInfo: action.planInfo,
         // Use blueprintLayers for dropdown (total blueprint layers, not filtered plan layers)
-        totalLayers: action.planInfo.blueprintLayers,
-      };
-
-    case 'SYNC_PLAN_INFO':
-      return {
-        ...state,
-        planInfo: action.planInfo,
         totalLayers: action.planInfo.blueprintLayers,
       };
 
@@ -638,9 +632,11 @@ interface ExecutionContextValue {
   /** Refresh producer scheduling metadata without opening the run confirmation dialog. */
   requestProducerScheduling: (
     blueprintName: string,
+    producerId: string,
+    producerLayer: number,
     movieId?: string,
     upToLayer?: number
-  ) => Promise<void>;
+  ) => Promise<ProducerSchedulingResponse>;
   confirmExecution: (dryRun?: boolean) => Promise<void>;
   cancelExecution: () => Promise<void>;
   dismissDialog: () => void;
@@ -783,21 +779,28 @@ export function ExecutionProvider({
   );
 
   const requestProducerScheduling = useCallback(
-    async (blueprintName: string, movieId?: string, upToLayer?: number) => {
+    async (
+      blueprintName: string,
+      producerId: string,
+      producerLayer: number,
+      movieId?: string,
+      upToLayer?: number
+    ) => {
       try {
-        const response = await createPlan(
-          buildPlanRequest({
+        const response = await getProducerScheduling({
+          ...buildPlanRequest({
             blueprintName,
             movieId,
             upToLayer,
             selectedForRegeneration: state.selectedForRegeneration,
             pinnedArtifacts: state.pinnedArtifacts,
             producerOverrides: state.producerOverrides,
-          })
-        );
+          }),
+          producerId,
+          producerLayer,
+        });
 
-        const planInfo = planResponseToDisplayInfo(response);
-        dispatch({ type: 'SYNC_PLAN_INFO', planInfo });
+        return response;
       } catch (error) {
         console.error('Failed to refresh producer scheduling:', error);
         throw error;

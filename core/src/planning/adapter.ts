@@ -42,6 +42,8 @@ export interface PlanAdapterResult {
   plan: ExecutionPlan;
   /** Explanation of why jobs were scheduled (only if collectExplanation was true) */
   explanation?: PlanExplanation;
+  /** Jobs removed by producer-override prune due to missing required artifact inputs. */
+  prunedUnrunnableJobs?: ComputePlanResult['prunedUnrunnableJobs'];
 }
 
 export type PlanAdapter = {

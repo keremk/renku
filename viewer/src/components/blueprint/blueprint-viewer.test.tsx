@@ -132,7 +132,10 @@ const graphData: BlueprintGraphData = {
   edges: [],
   inputs: [],
   outputs: [],
-  layerCount: 0,
+  layerAssignments: {
+    'Producer:AudioProducer[0]': 0,
+  },
+  layerCount: 1,
 };
 
 describe('BlueprintViewer', () => {
@@ -140,7 +143,23 @@ describe('BlueprintViewer', () => {
     vi.clearAllMocks();
     executionMock.getProducerOverride.mockReturnValue(undefined);
     executionMock.getProducerSchedulingSummary.mockReturnValue(undefined);
-    executionMock.requestProducerScheduling.mockResolvedValue(undefined);
+    executionMock.requestProducerScheduling.mockResolvedValue({
+      producerId: 'Producer:AudioProducer',
+      probeUpToLayer: 0,
+      producerScheduling: {
+        producerId: 'Producer:AudioProducer',
+        mode: 'inherit',
+        maxSelectableCount: 3,
+        effectiveCountLimit: null,
+        scheduledCount: 3,
+        scheduledJobCount: 3,
+        upstreamProducerIds: [],
+        warnings: [],
+      },
+      compatibility: {
+        ok: true,
+      },
+    });
   });
 
   it('retries producer scheduling refresh when reopening the same producer dialog', async () => {

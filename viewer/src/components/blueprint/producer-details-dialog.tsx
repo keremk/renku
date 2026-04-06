@@ -403,39 +403,43 @@ function SchedulingOverridesSection({
           Artifact Count
         </label>
         {maxSelectableCount !== undefined ? (
-          <div className="mt-1 flex items-center gap-2">
-            <input
-              id={`producer-count-${producerId}`}
-              type="number"
-              min={1}
-              max={maxSelectableCount}
-              disabled={!effectiveEnabled}
-              value={effectiveCount ?? ""}
-              onChange={(event) => {
-                const value = event.target.value.trim();
-                if (value.length === 0) {
-                  onSetOverrideCount?.(producerId, null);
-                  return;
-                }
-                const parsed = Number.parseInt(value, 10);
-                if (!Number.isInteger(parsed)) {
-                  return;
-                }
-                if (parsed < 1 || parsed > maxSelectableCount) {
-                  return;
-                }
-                onSetOverrideCount?.(producerId, parsed);
-              }}
-              className="w-20 rounded border border-border/50 bg-background px-2 py-1 text-xs text-foreground disabled:cursor-not-allowed disabled:opacity-60"
-            />
-            <span className="text-[11px] text-muted-foreground">
-              1 to {maxSelectableCount}
-            </span>
-          </div>
-        ) : schedulingError ? (
-          <p className="mt-1 text-[11px] text-red-600 dark:text-red-300">
-            Failed to load available count: {schedulingError}
-          </p>
+          <>
+            <div className="mt-1 flex items-center gap-2">
+              <input
+                id={`producer-count-${producerId}`}
+                type="number"
+                min={1}
+                max={maxSelectableCount}
+                disabled={!effectiveEnabled}
+                value={effectiveCount ?? ""}
+                onChange={(event) => {
+                  const value = event.target.value.trim();
+                  if (value.length === 0) {
+                    onSetOverrideCount?.(producerId, null);
+                    return;
+                  }
+                  const parsed = Number.parseInt(value, 10);
+                  if (!Number.isInteger(parsed)) {
+                    return;
+                  }
+                  if (parsed < 1 || parsed > maxSelectableCount) {
+                    return;
+                  }
+                  onSetOverrideCount?.(producerId, parsed);
+                }}
+                className="w-20 rounded border border-border/50 bg-background px-2 py-1 text-xs text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+              />
+              <span className="text-[11px] text-muted-foreground">
+                1 to {maxSelectableCount}
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Current plan constraint:{' '}
+              {scheduling?.effectiveCountLimit === null
+                ? 'No cap'
+                : scheduling?.effectiveCountLimit}
+            </p>
+          </>
         ) : schedulingLoading ? (
           <p className="mt-1 text-[11px] text-muted-foreground">
             Calculating available count...
@@ -446,6 +450,12 @@ function SchedulingOverridesSection({
           </p>
         )}
       </div>
+
+      {schedulingError && (
+        <div className="mt-3 rounded-md border border-red-500/30 bg-red-500/8 px-2.5 py-2 text-[11px] text-red-700 dark:text-red-300">
+          {schedulingError}
+        </div>
+      )}
 
       {warningText && (
         <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-500/35 bg-amber-500/10 px-2.5 py-2 text-[11px] text-amber-700 dark:text-amber-300">

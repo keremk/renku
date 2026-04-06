@@ -38,6 +38,18 @@ export interface PlanRequest {
 }
 
 /**
+ * Request for POST /viewer-api/generate/producer-scheduling
+ * Computes scheduling metadata for a single canonical producer.
+ * Uses the canonical planner path and scopes planning to the producer layer.
+ */
+export interface ProducerSchedulingRequest extends PlanRequest {
+  /** Canonical producer family ID (e.g., "Producer:StoryboardImageProducer"). */
+  producerId: string;
+  /** 0-based layer index that contains this producer in the blueprint graph. */
+  producerLayer: number;
+}
+
+/**
  * Request for POST /viewer-api/generate/execute
  * Executes a prepared plan. Returns immediately with job ID.
  */
@@ -104,6 +116,26 @@ export interface PlanResponse {
   warnings?: PlanningWarning[];
   /** Equivalent CLI command for debugging/copy-paste */
   cliCommand?: string;
+}
+
+/**
+ * Response from POST /viewer-api/generate/producer-scheduling
+ */
+export interface ProducerSchedulingResponse {
+  producerId: string;
+  /** Layer used for metadata probing (always the producer's own layer). */
+  probeUpToLayer: number;
+  producerScheduling: ProducerSchedulingSummary;
+  /** Full-run compatibility verdict for the current planning controls. */
+  compatibility: ProducerSchedulingCompatibility;
+}
+
+export interface ProducerSchedulingCompatibility {
+  ok: boolean;
+  error?: {
+    code?: string;
+    message: string;
+  };
 }
 
 /**

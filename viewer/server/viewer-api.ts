@@ -11,6 +11,7 @@ import { respondNotFound, respondMethodNotAllowed } from './http-utils.js';
 import { handleBlueprintRequest } from './blueprints/index.js';
 import {
   handlePlanRequest,
+  handleProducerSchedulingRequest,
   handleExecuteRequest,
   handleJobsListRequest,
   handleJobStatusRequest,
@@ -148,6 +149,7 @@ function handleHealthCheck(req: IncomingMessage, res: ServerResponse): boolean {
  *
  * Routes:
  *   POST /viewer-api/generate/plan
+ *   POST /viewer-api/generate/producer-scheduling
  *   POST /viewer-api/generate/execute
  *   GET  /viewer-api/generate/jobs
  *   GET  /viewer-api/generate/jobs/:jobId
@@ -168,6 +170,14 @@ async function handleGenerateRequest(
         return true;
       }
       return handlePlanRequest(req, res);
+    }
+
+    case 'producer-scheduling': {
+      if (req.method !== 'POST') {
+        sendMethodNotAllowed(res);
+        return true;
+      }
+      return handleProducerSchedulingRequest(req, res);
     }
 
     case 'execute': {

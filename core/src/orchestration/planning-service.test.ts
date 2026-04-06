@@ -1066,6 +1066,110 @@ describe('createPlanningService', () => {
         ])
       );
     });
+
+    it('fails with R137 when producer overrides remove required upstream artifacts in full scope', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      await expect(
+        service.generatePlan({
+          movieId,
+          blueprintTree: createDependencyBlueprint(),
+          inputValues: { 'Input:Prompt': 'Hello world' },
+          providerCatalog: defaultCatalog,
+          providerOptions: createDefaultOptions([
+            'UpstreamProducer',
+            'DownstreamProducer',
+          ]),
+          storage,
+          manifestService,
+          eventLog,
+          userControls: {
+            scope: {
+              producerDirectives: [
+                { producerId: 'Producer:UpstreamProducer', count: 0 },
+              ],
+            },
+          },
+        })
+      ).rejects.toMatchObject({
+        code: RuntimeErrorCode.PRODUCER_OVERRIDE_DEPENDENCY_MISSING,
+      });
+    });
+
+    it('does not fail with R137 when blocked dependencies are outside upToLayer scope', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createDependencyBlueprint(),
+        inputValues: { 'Input:Prompt': 'Hello world' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions([
+          'UpstreamProducer',
+          'DownstreamProducer',
+        ]),
+        storage,
+        manifestService,
+        eventLog,
+        userControls: {
+          scope: {
+            upToLayer: 0,
+            producerDirectives: [
+              { producerId: 'Producer:UpstreamProducer', count: 0 },
+            ],
+          },
+        },
+      });
+
+      expect(result.plan.layers.flat()).toEqual([]);
+    });
+
+    it('does not fail with R137 when required upstream artifacts are already reusable', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      await eventLog.appendArtefact(movieId, {
+        artefactId: 'Artifact:Intermediate',
+        revision: 'rev-0001',
+        inputsHash: 'inputs-hash',
+        output: {
+          blob: { hash: 'blob-hash', size: 10, mimeType: 'text/plain' },
+        },
+        status: 'succeeded',
+        producedBy: 'Producer:UpstreamProducer',
+        createdAt: new Date().toISOString(),
+      });
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createDependencyBlueprint(),
+        inputValues: { 'Input:Prompt': 'Hello world' },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions([
+          'UpstreamProducer',
+          'DownstreamProducer',
+        ]),
+        storage,
+        manifestService,
+        eventLog,
+        userControls: {
+          scope: {
+            producerDirectives: [
+              { producerId: 'Producer:UpstreamProducer', count: 0 },
+            ],
+          },
+        },
+      });
+
+      expect(result.plan.layers.flat().map((job) => job.jobId)).toEqual([
+        'Producer:DownstreamProducer',
+      ]);
+    });
   });
 
   describe('input event creation', () => {

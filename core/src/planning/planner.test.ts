@@ -3742,7 +3742,7 @@ describe('planner', () => {
         },
       });
 
-      const { plan } = await planner.computePlan({
+      const { plan, prunedUnrunnableJobs } = await planner.computePlan({
         movieId: 'demo',
         manifest,
         eventLog,
@@ -3754,6 +3754,14 @@ describe('planner', () => {
 
       const allJobIds = plan.layers.flat().map((j) => j.jobId);
       expect(allJobIds).toEqual([]);
+      expect(prunedUnrunnableJobs).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            jobId: 'Producer:TimelineAssembler',
+            missingArtifactInputs: ['Artifact:SegmentAudio[1]'],
+          }),
+        ])
+      );
     });
 
     it('keeps downstream jobs when blocked upstream artifacts are already reusable', async () => {
@@ -3792,7 +3800,7 @@ describe('planner', () => {
         },
       });
 
-      const { plan } = await planner.computePlan({
+      const { plan, prunedUnrunnableJobs } = await planner.computePlan({
         movieId: 'demo',
         manifest,
         eventLog,
@@ -3804,6 +3812,7 @@ describe('planner', () => {
 
       const allJobIds = plan.layers.flat().map((j) => j.jobId);
       expect(allJobIds).toEqual(['Producer:TimelineAssembler']);
+      expect(prunedUnrunnableJobs).toBeUndefined();
     });
   });
 });

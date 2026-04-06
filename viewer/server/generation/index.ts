@@ -46,7 +46,10 @@ export {
 } from './http-utils.js';
 
 // Handlers
-export { handlePlanRequest } from './plan-handler.js';
+export {
+  handlePlanRequest,
+  handleProducerSchedulingRequest,
+} from './plan-handler.js';
 export { handleExecuteRequest } from './execute-handler.js';
 export { handleJobsListRequest, handleJobStatusRequest } from './status-handler.js';
 export { handleStreamRequest } from './stream-handler.js';

@@ -9,7 +9,10 @@ import {
   createPlanAdapter,
   type PlanAdapterOptions,
 } from '../planning/adapter.js';
-import { collectRequiredConditionArtifactIds } from '../planning/planner.js';
+import {
+  collectRequiredConditionArtifactIds,
+  type PrunedUnrunnableJob,
+} from '../planning/planner.js';
 import type { PlanExplanation } from '../planning/explanation.js';
 import { evaluateInputConditions } from '../condition-evaluator.js';
 import {
@@ -22,6 +25,7 @@ import { hashPayload } from '../hashing.js';
 import { ManifestNotFoundError, type ManifestService } from '../manifest.js';
 import { nextRevisionId } from '../revisions.js';
 import { planStore, type StorageContext } from '../storage.js';
+import { computeTopologyLayers } from '../topology/index.js';
 import type { Clock } from '../types.js';
 import { convertBlobInputToBlobRef } from '../input-blob-storage.js';
 import { formatBlobFileName } from '../blob-utils.js';
@@ -222,7 +226,7 @@ export function createPlanningService(
             })
           : undefined;
 
-      const { plan, explanation } = await adapter.compute({
+      const { plan, explanation, prunedUnrunnableJobs } = await adapter.compute({
         movieId: args.movieId,
         manifest,
         eventLog: args.eventLog,
@@ -257,6 +261,8 @@ export function createPlanningService(
           manifest,
           latestSuccessfulArtifactIds: latestArtefactSnapshot.latestSuccessfulIds,
           resolvedConditionArtifacts,
+          prunedUnrunnableJobs,
+          upToLayer: resolvedControls.effectiveUpToLayer,
         });
       }
 
@@ -500,14 +506,32 @@ function validateProducerOverrideDependencies(args: {
   manifest: Manifest;
   latestSuccessfulArtifactIds: Set<string>;
   resolvedConditionArtifacts?: Record<string, unknown>;
+  prunedUnrunnableJobs?: PrunedUnrunnableJob[];
+  upToLayer?: number;
 }): void {
-  if (args.scheduledJobIds.size === 0) {
+  if (
+    args.scheduledJobIds.size === 0 &&
+    (args.prunedUnrunnableJobs?.length ?? 0) === 0
+  ) {
     return;
   }
 
   const nodeById = new Map(
     args.producerGraph.nodes.map((node) => [node.jobId, node])
   );
+
+  const layerByJobId =
+    args.upToLayer === undefined
+      ? undefined
+      : buildJobLayerMap(args.producerGraph);
+  const isJobInScope = (jobId: string): boolean => {
+    if (args.upToLayer === undefined) {
+      return true;
+    }
+    const layer = layerByJobId?.get(jobId);
+    return layer === undefined || layer <= args.upToLayer;
+  };
+
   const producedByScheduled = new Set<string>();
   for (const jobId of args.scheduledJobIds) {
     const node = nodeById.get(jobId);
@@ -530,6 +554,9 @@ function validateProducerOverrideDependencies(args: {
 
   const missingDependencies = new Set<string>();
   for (const jobId of args.scheduledJobIds) {
+    if (!isJobInScope(jobId)) {
+      continue;
+    }
     const node = nodeById.get(jobId);
     if (!node) {
       continue;
@@ -579,6 +606,23 @@ function validateProducerOverrideDependencies(args: {
     }
   }
 
+  for (const prunedJob of args.prunedUnrunnableJobs ?? []) {
+    if (!isJobInScope(prunedJob.jobId)) {
+      continue;
+    }
+    for (const artifactId of prunedJob.missingArtifactInputs) {
+      if (producedByScheduled.has(artifactId)) {
+        continue;
+      }
+      if (reusableArtifacts.has(artifactId)) {
+        continue;
+      }
+      missingDependencies.add(
+        `${deriveProducerFamilyId(prunedJob.jobId)} requires ${artifactId}`
+      );
+    }
+  }
+
   if (missingDependencies.size > 0) {
     throw createRuntimeError(
       RuntimeErrorCode.PRODUCER_OVERRIDE_DEPENDENCY_MISSING,
@@ -590,6 +634,16 @@ function validateProducerOverrideDependencies(args: {
       }
     );
   }
+}
+
+function buildJobLayerMap(producerGraph: ProducerGraph): Map<string, number> {
+  const nodes = producerGraph.nodes.map((node) => ({ id: node.jobId }));
+  const edges = producerGraph.edges.map((edge) => ({
+    from: edge.from,
+    to: edge.to,
+  }));
+  const { layerAssignments } = computeTopologyLayers(nodes, edges);
+  return layerAssignments;
 }
 
 function isScheduledArtifactInputActive(

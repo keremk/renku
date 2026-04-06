@@ -20,6 +20,7 @@ import {
   isRenkuError,
   createValidationError,
   ValidationErrorCode,
+  isCanonicalProducerId,
   copyManifestToMemory,
   copyEventsToMemory,
   copyBlobsFromMemoryToLocal,
@@ -42,6 +43,9 @@ import {
 import type {
   PlanRequest,
   PlanResponse,
+  ProducerSchedulingCompatibility,
+  ProducerSchedulingRequest,
+  ProducerSchedulingResponse,
   LayerInfo,
   SurgicalInfo,
   CachedPlan,
@@ -63,6 +67,169 @@ import { getJobManager } from './job-manager.js';
 import { parseJsonBody, sendJson, sendError } from './http-utils.js';
 import { recoverFailedArtifactsBeforePlanning } from './recovery-prepass.js';
 
+interface ResolvedPlanRequestContext {
+  cliConfig: CliConfig;
+  paths: Awaited<ReturnType<typeof resolveBlueprintPaths>>;
+  basePath: string;
+  movieId: string;
+  isNew: boolean;
+  inputsPath: string;
+}
+
+async function resolvePlanRequestContext(args: {
+  blueprint: string;
+  inputs?: string;
+  movieId?: string;
+}): Promise<ResolvedPlanRequestContext> {
+  const cliConfig = await requireCliConfig();
+  const paths = await resolveBlueprintPaths(
+    args.blueprint,
+    args.inputs,
+    cliConfig
+  );
+  const basePath = relative(cliConfig.storage.root, paths.buildsFolder);
+  const isNew = !args.movieId;
+  const movieId = args.movieId
+    ? normalizeMovieId(args.movieId)
+    : generateMovieId();
+
+  let inputsPath = paths.inputsPath;
+  if (args.movieId && !args.inputs) {
+    const buildInputsPath = await resolveBuildInputsPath(
+      paths.blueprintFolder,
+      movieId
+    );
+    if (buildInputsPath) {
+      inputsPath = buildInputsPath;
+    }
+  }
+
+  return {
+    cliConfig,
+    paths,
+    basePath,
+    movieId,
+    isNew,
+    inputsPath,
+  };
+}
+
+/**
+ * Handles POST /viewer-api/generate/producer-scheduling
+ */
+export async function handleProducerSchedulingRequest(
+  req: IncomingMessage,
+  res: ServerResponse
+): Promise<boolean> {
+  try {
+    const body = await parseJsonBody<ProducerSchedulingRequest>(req);
+    if (!body.blueprint) {
+      sendError(res, 400, 'Missing required field: blueprint');
+      return true;
+    }
+    if (!body.producerId) {
+      sendError(res, 400, 'Missing required field: producerId');
+      return true;
+    }
+    if (!isCanonicalProducerId(body.producerId)) {
+      sendError(
+        res,
+        400,
+        `Invalid producerId "${body.producerId}". Expected canonical Producer:... ID.`
+      );
+      return true;
+    }
+    if (!Number.isInteger(body.producerLayer) || body.producerLayer < 0) {
+      sendError(
+        res,
+        400,
+        `Invalid producerLayer "${String(body.producerLayer)}". Expected a non-negative integer layer index.`
+      );
+      return true;
+    }
+
+    const context = await resolvePlanRequestContext({
+      blueprint: body.blueprint,
+      inputs: body.inputs,
+      movieId: body.movieId,
+    });
+
+    const planningControls = {
+      ...(body.planningControls ?? {}),
+      scope: {
+        ...(body.planningControls?.scope ?? {}),
+        upToLayer: body.producerLayer,
+      },
+    };
+
+    const planResult = await generatePlan({
+      cliConfig: context.cliConfig,
+      movieId: context.movieId,
+      isNew: context.isNew,
+      blueprintPath: context.paths.blueprintPath,
+      inputsPath: context.inputsPath,
+      buildsFolder: context.paths.buildsFolder,
+      basePath: context.basePath,
+      planningControls,
+    });
+
+    const producerScheduling = planResult.producerScheduling?.find(
+      (item) => item.producerId === body.producerId
+    );
+
+    if (!producerScheduling) {
+      throw createValidationError(
+        ValidationErrorCode.BLUEPRINT_VALIDATION_FAILED,
+        `Producer scheduling not found for ${body.producerId} at layer ${body.producerLayer}.`
+      );
+    }
+
+    let compatibility: ProducerSchedulingCompatibility = { ok: true };
+    try {
+      await generatePlan({
+        cliConfig: context.cliConfig,
+        movieId: context.movieId,
+        isNew: context.isNew,
+        blueprintPath: context.paths.blueprintPath,
+        inputsPath: context.inputsPath,
+        buildsFolder: context.paths.buildsFolder,
+        basePath: context.basePath,
+        planningControls: body.planningControls,
+      });
+    } catch (error) {
+      if (!isRenkuError(error)) {
+        throw error;
+      }
+      compatibility = {
+        ok: false,
+        error: {
+          code: error.code,
+          message: error.message,
+        },
+      };
+    }
+
+    const response: ProducerSchedulingResponse = {
+      producerId: body.producerId,
+      probeUpToLayer: body.producerLayer,
+      producerScheduling,
+      compatibility,
+    };
+
+    sendJson(res, response);
+    return true;
+  } catch (error) {
+    if (isRenkuError(error)) {
+      sendError(res, 400, error.message, error.code);
+    } else if (error instanceof Error) {
+      sendError(res, 500, error.message);
+    } else {
+      sendError(res, 500, 'Unknown error occurred');
+    }
+    return true;
+  }
+}
+
 /**
  * Handles POST /viewer-api/generate/plan
  */
@@ -71,67 +238,39 @@ export async function handlePlanRequest(
   res: ServerResponse
 ): Promise<boolean> {
   try {
-    // Parse request body
     const body = await parseJsonBody<PlanRequest>(req);
     if (!body.blueprint) {
       sendError(res, 400, 'Missing required field: blueprint');
       return true;
     }
 
-    // Load CLI config
-    const cliConfig = await requireCliConfig();
+    const context = await resolvePlanRequestContext({
+      blueprint: body.blueprint,
+      inputs: body.inputs,
+      movieId: body.movieId,
+    });
 
-    // Resolve blueprint and inputs paths
-    const paths = await resolveBlueprintPaths(
-      body.blueprint,
-      body.inputs,
-      cliConfig
-    );
-
-    // Compute basePath relative to storage root (e.g., "animated-edu-characters/builds")
-    const basePath = relative(cliConfig.storage.root, paths.buildsFolder);
-
-    // Determine movie ID (new or existing)
-    const isNew = !body.movieId;
-    const movieId = body.movieId
-      ? normalizeMovieId(body.movieId)
-      : generateMovieId();
-
-    // Check for build-specific inputs.yaml if movieId is provided and no explicit inputs override
-    let inputsPath = paths.inputsPath;
-    if (body.movieId && !body.inputs) {
-      const buildInputsPath = await resolveBuildInputsPath(
-        paths.blueprintFolder,
-        movieId
-      );
-      if (buildInputsPath) {
-        inputsPath = buildInputsPath;
-      }
-    }
-
-    // Generate plan
     const planResult = await generatePlan({
-      cliConfig,
-      movieId,
-      isNew,
-      blueprintPath: paths.blueprintPath,
-      inputsPath,
-      buildsFolder: paths.buildsFolder,
-      basePath,
+      cliConfig: context.cliConfig,
+      movieId: context.movieId,
+      isNew: context.isNew,
+      blueprintPath: context.paths.blueprintPath,
+      inputsPath: context.inputsPath,
+      buildsFolder: context.paths.buildsFolder,
+      basePath: context.basePath,
       planningControls: body.planningControls,
     });
 
-    // Cache the plan
     const jobManager = getJobManager();
     const cachedPlan = jobManager.cachePlan({
-      movieId,
+      movieId: context.movieId,
       plan: planResult.plan,
       manifest: planResult.manifest,
       manifestHash: planResult.manifestHash,
       resolvedInputs: planResult.resolvedInputs,
       providerOptions: planResult.providerOptions as Map<string, unknown>,
       blueprintPath: planResult.blueprintPath,
-      basePath,
+      basePath: context.basePath,
       costSummary: planResult.costSummary,
       catalogModelsDir: planResult.catalogModelsDir,
       surgicalInfo: planResult.surgicalInfo,
@@ -149,7 +288,7 @@ export async function handlePlanRequest(
       planResult.plan,
       {
         blueprintPath: planResult.blueprintPath,
-        inputsPath,
+        inputsPath: context.inputsPath,
         regenerateIds: body.planningControls?.surgical?.regenerateIds,
         pinIds: body.planningControls?.surgical?.pinIds,
         upToLayer: body.planningControls?.scope?.upToLayer,

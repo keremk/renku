@@ -34,7 +34,11 @@ import type {
   BlueprintGraphData,
   ProducerBinding,
 } from '@/types/blueprint-graph';
-import type { ProducerStatusMap, ProducerStatus } from '@/types/generation';
+import type {
+  ProducerStatusMap,
+  ProducerStatus,
+  ProducerSchedulingSummary,
+} from '@/types/generation';
 import { useDarkMode } from '@/hooks/use-dark-mode';
 
 const nodeTypes: NodeTypes = {
@@ -85,6 +89,43 @@ function deriveProducerFamilyIdFromCanonicalJobId(jobId: string): string {
   }
 
   return `Producer:${body.replace(/\[\d+\]/g, '')}`;
+}
+
+function deriveProducerLayerIndexFromGraph(
+  graphData: BlueprintGraphData,
+  producerId: string
+): number {
+  if (!graphData.layerAssignments) {
+    throw new Error(
+      'Missing layer assignments in blueprint graph; cannot resolve producer scheduling layer.'
+    );
+  }
+
+  let resolvedLayer: number | null = null;
+  for (const [jobId, layerIndex] of Object.entries(graphData.layerAssignments)) {
+    if (deriveProducerFamilyIdFromCanonicalJobId(jobId) !== producerId) {
+      continue;
+    }
+
+    if (resolvedLayer === null) {
+      resolvedLayer = layerIndex;
+      continue;
+    }
+
+    if (resolvedLayer !== layerIndex) {
+      throw new Error(
+        `Producer ${producerId} resolves to multiple layers (${resolvedLayer}, ${layerIndex}).`
+      );
+    }
+  }
+
+  if (resolvedLayer === null) {
+    throw new Error(
+      `Could not resolve layer for canonical producer ${producerId} from blueprint graph assignments.`
+    );
+  }
+
+  return resolvedLayer;
 }
 
 const validProducerStatuses: ProducerStatus[] = [
@@ -344,6 +385,8 @@ export function BlueprintViewer({
   const [dialogProducer, setDialogProducer] = useState<ProducerDetails | null>(
     null
   );
+  const [refreshedSchedulingByProducerId, setRefreshedSchedulingByProducerId] =
+    useState<Record<string, ProducerSchedulingSummary>>({});
   const [schedulingUiByProducerId, setSchedulingUiByProducerId] = useState<
     Record<string, { loading: boolean; error: string | null }>
   >({});
@@ -351,7 +394,8 @@ export function BlueprintViewer({
   const schedulingRequestKeysRef = useRef<Set<string>>(new Set());
   const dialogProducerId = dialogProducer ? dialogProducer.nodeId : null;
   const dialogScheduling = dialogProducerId
-    ? getProducerSchedulingSummary(dialogProducerId)
+    ? refreshedSchedulingByProducerId[dialogProducerId] ??
+      getProducerSchedulingSummary(dialogProducerId)
     : undefined;
   const dialogSchedulingUi = dialogProducerId
     ? schedulingUiByProducerId[dialogProducerId]
@@ -418,19 +462,37 @@ export function BlueprintViewer({
   }, [initialEdges, setEdges]);
 
   useEffect(() => {
+    schedulingRequestKeysRef.current.clear();
+    setRefreshedSchedulingByProducerId({});
+    setSchedulingUiByProducerId({});
+  }, [blueprintName, movieId, selectedUpToLayer]);
+
+  useEffect(() => {
     if (!dialogProducer || !dialogProducerId) {
       return;
     }
-    const scheduling = getProducerSchedulingSummary(dialogProducerId);
-    if (scheduling) {
+
+    let dialogProducerLayer: number;
+    try {
+      dialogProducerLayer = deriveProducerLayerIndexFromGraph(
+        graphData,
+        dialogProducerId
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to resolve producer layer for scheduling.';
       setSchedulingUiByProducerId((prev) => ({
         ...prev,
-        [dialogProducerId]: { loading: false, error: null },
+        [dialogProducerId]: { loading: false, error: message },
       }));
       return;
     }
+
     const requestKey = [
       dialogProducerId,
+      dialogProducerLayer,
       blueprintName,
       movieId ?? '',
       selectedUpToLayer ?? '',
@@ -446,11 +508,27 @@ export function BlueprintViewer({
     void (async () => {
       let refreshError: string | null = null;
       try {
-        await requestProducerScheduling(
+        const schedulingResponse = await requestProducerScheduling(
           blueprintName,
+          dialogProducerId,
+          dialogProducerLayer,
           movieId ?? undefined,
           selectedUpToLayer ?? undefined
         );
+        setRefreshedSchedulingByProducerId((prev) => ({
+          ...prev,
+          [dialogProducerId]: schedulingResponse.producerScheduling,
+        }));
+        if (!schedulingResponse.compatibility.ok) {
+          const compatibilityError = schedulingResponse.compatibility.error;
+          if (compatibilityError) {
+            refreshError = compatibilityError.code
+              ? `${compatibilityError.code}: ${compatibilityError.message}`
+              : compatibilityError.message;
+          } else {
+            refreshError = 'Producer override is not compatible with this run scope.';
+          }
+        }
       } catch (error) {
         refreshError =
           error instanceof Error
@@ -466,9 +544,9 @@ export function BlueprintViewer({
     })();
   }, [
     blueprintName,
+    graphData,
     dialogProducer,
     dialogProducerId,
-    getProducerSchedulingSummary,
     movieId,
     requestProducerScheduling,
     selectedUpToLayer,

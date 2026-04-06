@@ -5,6 +5,7 @@ import { createMockResponse } from './generation/test-utils.js';
 const {
   handleBlueprintRequestMock,
   handlePlanRequestMock,
+  handleProducerSchedulingRequestMock,
   handleExecuteRequestMock,
   handleJobsListRequestMock,
   handleJobStatusRequestMock,
@@ -16,6 +17,7 @@ const {
 } = vi.hoisted(() => ({
   handleBlueprintRequestMock: vi.fn(),
   handlePlanRequestMock: vi.fn(),
+  handleProducerSchedulingRequestMock: vi.fn(),
   handleExecuteRequestMock: vi.fn(),
   handleJobsListRequestMock: vi.fn(),
   handleJobStatusRequestMock: vi.fn(),
@@ -32,6 +34,7 @@ vi.mock('./blueprints/index.js', () => ({
 
 vi.mock('./generation/index.js', () => ({
   handlePlanRequest: handlePlanRequestMock,
+  handleProducerSchedulingRequest: handleProducerSchedulingRequestMock,
   handleExecuteRequest: handleExecuteRequestMock,
   handleJobsListRequest: handleJobsListRequestMock,
   handleJobStatusRequest: handleJobStatusRequestMock,
@@ -112,6 +115,22 @@ describe('createViewerApiHandler', () => {
     expect(consoleSpy).toHaveBeenCalledWith('[viewer-api]', expect.any(Error));
 
     consoleSpy.mockRestore();
+  });
+
+  it('routes producer scheduling requests to the dedicated handler', async () => {
+    handleProducerSchedulingRequestMock.mockResolvedValueOnce(true);
+
+    const handler = createViewerApiHandler();
+    const req = createMockApiRequest(
+      '/viewer-api/generate/producer-scheduling',
+      'POST'
+    );
+    const res = createMockResponse();
+
+    const handled = await handler(req, res);
+
+    expect(handled).toBe(true);
+    expect(handleProducerSchedulingRequestMock).toHaveBeenCalledWith(req, res);
   });
 
   it('passes configured catalog path to settings requests', async () => {

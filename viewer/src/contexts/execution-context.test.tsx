@@ -126,6 +126,7 @@ function createMockPlanResponse(
 
 vi.mock('@/data/generation-client', () => ({
   createPlan: vi.fn(),
+  getProducerScheduling: vi.fn(),
   executePlan: vi.fn(),
   cancelJob: vi.fn(),
   subscribeToJobStream: vi.fn(),
@@ -133,12 +134,14 @@ vi.mock('@/data/generation-client', () => ({
 
 import {
   createPlan,
+  getProducerScheduling,
   executePlan,
   cancelJob,
   subscribeToJobStream,
 } from '@/data/generation-client';
 
 const mockCreatePlan = vi.mocked(createPlan);
+const mockGetProducerScheduling = vi.mocked(getProducerScheduling);
 const mockExecutePlan = vi.mocked(executePlan);
 const mockCancelJob = vi.mocked(cancelJob);
 const mockSubscribeToJobStream = vi.mocked(subscribeToJobStream);
@@ -539,38 +542,56 @@ describe('ExecutionContext', () => {
     });
 
     it('refreshes producer scheduling silently without changing execution status', async () => {
-      mockCreatePlan.mockResolvedValue(
-        createMockPlanResponse({
-          producerScheduling: [
-            {
-              producerId: 'Producer:ImageProducer',
-              mode: 'inherit',
-              maxSelectableCount: 2,
-              effectiveCountLimit: null,
-              scheduledCount: 2,
-              scheduledJobCount: 2,
-              upstreamProducerIds: [],
-              warnings: [],
-            },
-          ],
-        })
-      );
+      mockGetProducerScheduling.mockResolvedValue({
+        producerId: 'Producer:ImageProducer',
+        probeUpToLayer: 2,
+        producerScheduling: {
+          producerId: 'Producer:ImageProducer',
+          mode: 'inherit',
+          maxSelectableCount: 2,
+          effectiveCountLimit: null,
+          scheduledCount: 2,
+          scheduledJobCount: 2,
+          upstreamProducerIds: [],
+          warnings: [],
+        },
+        compatibility: {
+          ok: true,
+        },
+      });
 
       const { result } = renderHook(() => useExecution(), {
         wrapper: createWrapper(),
       });
 
+      let scheduling:
+        | Awaited<ReturnType<typeof result.current.requestProducerScheduling>>
+        | undefined;
       await act(async () => {
-        await result.current.requestProducerScheduling('test-blueprint', 'movie-123');
+        scheduling = await result.current.requestProducerScheduling(
+          'test-blueprint',
+          'Producer:ImageProducer',
+          2,
+          'movie-123'
+        );
       });
 
       expect(result.current.state.status).toBe('idle');
-      expect(
-        result.current.getProducerSchedulingSummary('Producer:ImageProducer')
-      ).toMatchObject({
-        maxSelectableCount: 2,
-        scheduledCount: 2,
+      expect(scheduling).toMatchObject({
+        producerScheduling: {
+          maxSelectableCount: 2,
+          scheduledCount: 2,
+        },
+        compatibility: { ok: true },
       });
+      expect(mockGetProducerScheduling).toHaveBeenCalledWith(
+        expect.objectContaining({
+          blueprint: 'test-blueprint',
+          movieId: 'movie-123',
+          producerId: 'Producer:ImageProducer',
+          producerLayer: 2,
+        })
+      );
     });
   });
 

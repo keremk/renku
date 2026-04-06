@@ -5,6 +5,8 @@
 import type {
   PlanRequest,
   PlanResponse,
+  ProducerSchedulingRequest,
+  ProducerSchedulingResponse,
   ExecuteRequest,
   ExecuteResponse,
   JobStatusResponse,
@@ -46,6 +48,18 @@ async function postJson<TRequest, TResponse>(
  */
 export function createPlan(params: PlanRequest): Promise<PlanResponse> {
   return postJson<PlanRequest, PlanResponse>(`${API_BASE}/plan`, params);
+}
+
+/**
+ * Compute scheduling metadata for a specific producer.
+ */
+export function getProducerScheduling(
+  params: ProducerSchedulingRequest
+): Promise<ProducerSchedulingResponse> {
+  return postJson<ProducerSchedulingRequest, ProducerSchedulingResponse>(
+    `${API_BASE}/producer-scheduling`,
+    params
+  );
 }
 
 /**
