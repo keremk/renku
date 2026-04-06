@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { useExecution } from "@/contexts/execution-context";
 import type { PlanDisplayInfo } from "@/types/generation";
+import { formatViewerMessage } from "@/utils/format-viewer-message";
 
 /**
  * Format currency value for display.
@@ -31,7 +32,7 @@ function formatCurrencyOrNA(value: number, hasCostData: boolean): string {
 }
 
 function shellQuote(value: string): string {
-  return `'${value.replace(/'/g, `'\"'\"'`)}'`;
+  return `'${value.replace(/'/g, `'"'"'`)}'`;
 }
 
 function buildFallbackCliCommand(args: {
@@ -235,6 +236,8 @@ function PlanContent({
   onCancel: () => void;
   onExecute: () => void;
 }) {
+  const formattedInlineError = errorMessage ? formatViewerMessage(errorMessage) : null;
+
   return (
     <div className="relative">
       {/* Re-planning overlay */}
@@ -287,14 +290,14 @@ function PlanContent({
         </div>
       </div>
 
-      {errorMessage && (
+      {formattedInlineError && (
         <div className="mx-6 mb-2 rounded-lg border border-red-500/30 bg-red-500/8 p-3">
           <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-red-700 dark:text-red-300">
             <AlertCircle className="size-3.5" />
             Planning Error
           </div>
           <p className="text-xs text-red-700/90 dark:text-red-300/90">
-            {errorMessage}
+            {formattedInlineError}
           </p>
         </div>
       )}
@@ -318,7 +321,7 @@ function PlanContent({
           <ul className="space-y-1">
             {planInfo.warnings.map((warning) => (
               <li key={`${warning.code}:${warning.targetId}`} className="text-xs text-amber-700/90 dark:text-amber-300/90">
-                {warning.message}
+                {formatViewerMessage(warning)}
               </li>
             ))}
           </ul>
@@ -412,6 +415,8 @@ function PlanningFailureContent({
   cliCommand?: string;
   onClose: () => void;
 }) {
+  const formattedError = formatViewerMessage(error);
+
   return (
     <div className="flex flex-col py-6 px-6">
       <h2 className="text-lg font-semibold text-foreground mb-1">
@@ -426,7 +431,7 @@ function PlanningFailureContent({
           <AlertCircle className="size-3.5" />
           Planning Error
         </div>
-        <p className="text-xs text-red-700/90 dark:text-red-300/90">{error}</p>
+        <p className="text-xs text-red-700/90 dark:text-red-300/90">{formattedError}</p>
       </div>
 
       <div className="flex justify-between items-center">
