@@ -135,7 +135,7 @@ describe('normalizeProducerOverrides', () => {
       normalizeProducerOverrides({
         producerGraph: buildGraph(),
         overrides: {
-          directives: [{ producerId: 'Producer:MissingProducer' }],
+          directives: [{ producerId: 'Producer:MissingProducer', count: 1 }],
         },
       })
     ).toThrowError(

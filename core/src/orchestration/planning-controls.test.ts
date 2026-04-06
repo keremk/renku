@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { RuntimeErrorCode } from '../errors/index.js';
 import type {
+  ArtefactEvent,
   Manifest,
   ProducerGraph,
   ProducerGraphNode,
@@ -9,6 +10,7 @@ import {
   buildResolvedProducerSummaries,
   resolvePlanningControls,
 } from './planning-controls.js';
+import type { LatestArtifactSnapshot } from './planning-controls.js';
 
 function makeNode(args: {
   jobId: string;
@@ -113,14 +115,14 @@ function buildManifest(): Manifest {
   };
 }
 
-function buildLatestSnapshot() {
+function buildLatestSnapshot(): LatestArtifactSnapshot {
   const manifest = buildManifest();
-  const latestById = new Map(
+  const latestById = new Map<string, ArtefactEvent>(
     Object.entries(manifest.artefacts).map(([artifactId, entry]) => [
       artifactId,
       {
         artefactId: artifactId,
-        revision: 'rev-0001',
+        revision: manifest.revision,
         inputsHash: 'inputs-hash',
         output: {},
         status: entry.status,
