@@ -1,7 +1,7 @@
 {
   "name": "renku-desktop",
   "private": true,
-  "version": "0.1.26",
+  "version": "0.1.27",
   "license": "SEE LICENSE IN LICENSE",
   "description": "Renku desktop application",
   "type": "module",
