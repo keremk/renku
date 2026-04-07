@@ -266,7 +266,7 @@ describe('runGenerate (new runs)', () => {
 			includeDefaults: false,
 			overrides: AUDIO_ONLY_OVERRIDES,
 		});
-		await runGenerate({
+		const first = await runGenerate({
 			...LOG_DEFAULTS,
 			inputsPath,
 			nonInteractive: true,
@@ -354,7 +354,7 @@ describe('runGenerate (new runs)', () => {
 
 		const second = await runGenerate({
 			...LOG_DEFAULTS,
-			useLast: true,
+			movieId: first.storageMovieId,
 			inputsPath: baselineInputsPath,
 			nonInteractive: true,
 			blueprint: IMAGE_AUDIO_BLUEPRINT_PATH,
@@ -421,7 +421,7 @@ describe('runGenerate (new runs)', () => {
 		}
 	});
 
-	it('reuses the last movie when requested', async () => {
+	it('does not persist legacy last-movie fields in CLI config', async () => {
 		const root = await createTempRoot();
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
@@ -448,12 +448,18 @@ describe('runGenerate (new runs)', () => {
 		});
 
 		const cliConfig = await readCliConfig(cliConfigPath);
-		expect(cliConfig?.lastMovieId).toBe(formatMovieId(first.movieId));
+		expect(cliConfig).not.toBeNull();
+		expect(
+			Object.prototype.hasOwnProperty.call(cliConfig ?? {}, 'lastMovieId')
+		).toBe(false);
+		expect(
+			Object.prototype.hasOwnProperty.call(cliConfig ?? {}, 'lastGeneratedAt')
+		).toBe(false);
 
 		const second = await runGenerate({
 			...LOG_DEFAULTS,
 			inputsPath,
-			useLast: true,
+			movieId: first.storageMovieId,
 			dryRun: true,
 			storageOverride: { root, basePath: 'builds' },
 		});
@@ -462,7 +468,7 @@ describe('runGenerate (new runs)', () => {
 		expect(second.build?.jobCount ?? 0).toBeGreaterThanOrEqual(0);
 	});
 
-	it('fails when --last is used without a prior generation', async () => {
+	it('fails when --regen is used for a new movie without --movie-id', async () => {
 		const root = await createTempRoot();
 		const cliConfigPath = join(root, 'cli-config.json');
 		process.env.RENKU_CLI_CONFIG = cliConfigPath;
@@ -485,47 +491,11 @@ describe('runGenerate (new runs)', () => {
 			runGenerate({
 				...LOG_DEFAULTS,
 				inputsPath,
-				useLast: true,
+				blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
+				regenerateIds: ['Artifact:AudioProducer.GeneratedAudio[0]'],
 				storageOverride: { root, basePath: 'builds' },
 			})
-		).rejects.toThrow(/No previous movie found/i);
-	});
-
-	it('fails when both last and movieId are provided', async () => {
-		const root = await createTempRoot();
-		const cliConfigPath = join(root, 'cli-config.json');
-		process.env.RENKU_CLI_CONFIG = cliConfigPath;
-
-		await runInit({
-			rootFolder: root,
-			configPath: cliConfigPath,
-			catalogSourceRoot: CLI_FIXTURES_CATALOG,
-		});
-
-		const inputsPath = await createInputsFile({
-			root,
-			prompt: 'Conflicting flags',
-			models: AUDIO_ONLY_MODELS,
-			includeDefaults: false,
-			overrides: AUDIO_ONLY_OVERRIDES,
-		});
-		const first = await runGenerate({
-			...LOG_DEFAULTS,
-			inputsPath,
-			nonInteractive: true,
-			blueprint: AUDIO_ONLY_BLUEPRINT_PATH,
-			storageOverride: { root, basePath: 'builds' },
-		});
-
-		await expect(
-			runGenerate({
-				...LOG_DEFAULTS,
-				movieId: first.storageMovieId,
-				useLast: true,
-				dryRun: true,
-				storageOverride: { root, basePath: 'builds' },
-			})
-		).rejects.toThrow(/either --last or --movie-id/i);
+		).rejects.toThrow(/requires --movie-id\/--id/i);
 	});
 
 	it('continues an existing movie when movie-id is provided explicitly', async () => {
@@ -617,7 +587,7 @@ describe('runGenerate (new runs)', () => {
 			includeDefaults: false,
 			overrides: AUDIO_ONLY_OVERRIDES,
 		});
-		await runGenerate({
+		const first = await runGenerate({
 			...LOG_DEFAULTS,
 			inputsPath,
 			nonInteractive: true,
@@ -629,7 +599,7 @@ describe('runGenerate (new runs)', () => {
 			runGenerate({
 				...LOG_DEFAULTS,
 				inputsPath,
-				useLast: true,
+				movieId: first.storageMovieId,
 				dryRun: true,
 				pinIds: ['ScriptProducer'],
 				storageOverride: { root, basePath: 'builds' },
@@ -770,7 +740,7 @@ describe('runGenerate (new runs)', () => {
 			includeDefaults: false,
 			overrides: AUDIO_ONLY_OVERRIDES,
 		});
-		await runGenerate({
+		const first = await runGenerate({
 			...LOG_DEFAULTS,
 			inputsPath,
 			nonInteractive: true,
@@ -781,7 +751,7 @@ describe('runGenerate (new runs)', () => {
 		const result = await runGenerate({
 			...LOG_DEFAULTS,
 			inputsPath,
-			useLast: true,
+			movieId: first.storageMovieId,
 			dryRun: true,
 			regenerateIds: ['Producer:AudioProducer'],
 			pinIds: ['Producer:ScriptProducer'],
@@ -816,7 +786,7 @@ describe('runGenerate (new runs)', () => {
 			includeDefaults: false,
 			overrides: AUDIO_ONLY_OVERRIDES,
 		});
-		await runGenerate({
+		const first = await runGenerate({
 			...LOG_DEFAULTS,
 			inputsPath,
 			nonInteractive: true,
@@ -835,7 +805,7 @@ describe('runGenerate (new runs)', () => {
 		const result = await runGenerate({
 			...LOG_DEFAULTS,
 			inputsPath: updatedInputsPath,
-			useLast: true,
+			movieId: first.storageMovieId,
 			dryRun: true,
 			upToLayer: 0,
 			producerIds: ['Producer:AudioProducer:1'],
@@ -868,7 +838,7 @@ describe('runGenerate (new runs)', () => {
 			includeDefaults: false,
 			overrides: AUDIO_ONLY_OVERRIDES,
 		});
-		await runGenerate({
+		const first = await runGenerate({
 			...LOG_DEFAULTS,
 			inputsPath,
 			nonInteractive: true,
@@ -880,7 +850,7 @@ describe('runGenerate (new runs)', () => {
 			runGenerate({
 				...LOG_DEFAULTS,
 				inputsPath,
-				useLast: true,
+				movieId: first.storageMovieId,
 				dryRun: true,
 				regenerateIds: ['Artifact:ScriptProducer.NarrationScript[0]'],
 				pinIds: ['Artifact:ScriptProducer.NarrationScript[0]'],

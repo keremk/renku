@@ -12,6 +12,8 @@ import { loadBlueprintBundle } from '../lib/blueprint-loader/index.js';
 import {
 	createStorageContext,
 	createMovieMetadataService,
+	createRuntimeError,
+	RuntimeErrorCode,
 } from '@gorenku/core';
 import {
 	createProviderRegistry,
@@ -53,7 +55,6 @@ interface TextConfig {
 
 export interface ExportOptions {
 	movieId?: string;
-	useLast?: boolean;
 	width?: number;
 	height?: number;
 	fps?: number;
@@ -722,17 +723,21 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
 	const configPath = getDefaultCliConfigPath();
 	const globalConfig = await readCliConfig(configPath);
 	if (!globalConfig) {
-		throw new Error('Renku CLI is not initialized. Run "renku init" first.');
+		throw createRuntimeError(
+			RuntimeErrorCode.CLI_CONFIG_MISSING,
+			'Renku CLI is not initialized. Run "renku init" first.',
+			{
+				suggestion: 'Initialize your workspace with: renku init --root=<path>',
+			}
+		);
 	}
 
 	// Use project-local storage (cwd)
 	const projectStorage = getProjectLocalStorage();
 	const effectiveConfig = { ...globalConfig, storage: projectStorage };
 
-	const storageMovieId = await resolveTargetMovieId({
+	const storageMovieId = resolveTargetMovieId({
 		explicitMovieId: options.movieId,
-		useLast: Boolean(options.useLast),
-		cliConfig: effectiveConfig,
 	});
 
 	// Load movie metadata to get the blueprint path
@@ -744,7 +749,14 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
 	const metadataService = createMovieMetadataService(storageContext);
 	const metadata = await metadataService.read(storageMovieId);
 	if (!metadata?.blueprintPath) {
-		throw new Error(`Unable to find movie metadata for ${storageMovieId}.`);
+		throw createRuntimeError(
+			RuntimeErrorCode.MOVIE_NOT_FOUND,
+			`Unable to find movie metadata for ${storageMovieId}.`,
+			{
+				suggestion:
+					'Make sure the movie ID exists and has been generated at least once.',
+			}
+		);
 	}
 
 	// Load and validate the blueprint has a TimelineComposer
@@ -871,7 +883,10 @@ export async function runExport(options: ExportOptions): Promise<ExportResult> {
 	});
 
 	if (response.status === 'failed') {
-		throw new Error('Export failed: ' + JSON.stringify(response.diagnostics));
+		throw createRuntimeError(
+			RuntimeErrorCode.INVALID_INPUT_VALUE,
+			'Export failed: ' + JSON.stringify(response.diagnostics)
+		);
 	}
 
 	// Create symlink in the artifacts/ folder
@@ -910,15 +925,28 @@ async function validateBlueprintHasTimelineComposer(
 		bundle = await loadBlueprintBundle(blueprintPath, { catalogRoot });
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		throw new Error(`Blueprint not found: ${blueprintPath}. ${message}`);
+		throw createRuntimeError(
+			RuntimeErrorCode.CATALOG_BLUEPRINT_NOT_FOUND,
+			`Blueprint not found: ${blueprintPath}. ${message}`,
+			{
+				cause: error,
+				suggestion:
+					'Verify the blueprint path and ensure the file exists in the workspace catalog or filesystem.',
+			}
+		);
 	}
 
 	const hasTimelineComposer = bundle.root.document.producerImports.some(
 		(producer) => producer.name === 'TimelineComposer'
 	);
 	if (!hasTimelineComposer) {
-		throw new Error(
-			'A TimelineComposer producer is required in the blueprint to export video.'
+		throw createRuntimeError(
+			RuntimeErrorCode.MISSING_REQUIRED_INPUT,
+			'A TimelineComposer producer is required in the blueprint to export video.',
+			{
+				suggestion:
+					'Add TimelineComposer to the blueprint producers before exporting.',
+			}
 		);
 	}
 }
@@ -928,8 +956,13 @@ function validateTimelineArtifactExists(manifest: {
 }): void {
 	const hasTimeline = TIMELINE_ARTEFACT_ID in manifest.artefacts;
 	if (!hasTimeline) {
-		throw new Error(
-			'No timeline found. Please run the generation first to create a timeline.'
+		throw createRuntimeError(
+			RuntimeErrorCode.ARTIFACT_NOT_IN_MANIFEST,
+			'No timeline found. Please run the generation first to create a timeline.',
+			{
+				suggestion:
+					'Run generation for this movie until TimelineComposer succeeds, then export again.',
+			}
 		);
 	}
 }

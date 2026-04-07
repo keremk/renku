@@ -8,6 +8,8 @@ import {
   createManifestService,
   createEventLog,
   planStore,
+  createRuntimeError,
+  RuntimeErrorCode,
   type ExecutionPlan,
   type PlanExplanation,
   type Logger,
@@ -18,8 +20,6 @@ import {
 export interface ExplainOptions {
   /** Explicit movie ID to explain */
   movieId?: string;
-  /** Use the last movie ID from config */
-  useLast?: boolean;
   /** Optional: specific revision to explain (defaults to latest) */
   revision?: string;
   /** Logger instance */
@@ -42,7 +42,13 @@ export async function runExplain(options: ExplainOptions): Promise<ExplainResult
   const globalConfig = await readCliConfig(configPath);
 
   if (!globalConfig) {
-    throw new Error('Renku CLI is not initialized. Run "renku init" first.');
+    throw createRuntimeError(
+      RuntimeErrorCode.CLI_CONFIG_MISSING,
+      'Renku CLI is not initialized. Run "renku init" first.',
+      {
+        suggestion: 'Initialize your workspace with: renku init --root=<path>',
+      }
+    );
   }
 
   // Use project-local storage (cwd) while preserving catalog from global config
@@ -52,10 +58,8 @@ export async function runExplain(options: ExplainOptions): Promise<ExplainResult
     storage: projectStorage,
   };
 
-  const storageMovieId = await resolveTargetMovieId({
+  const storageMovieId = resolveTargetMovieId({
     explicitMovieId: options.movieId,
-    useLast: options.useLast ?? false,
-    cliConfig: activeConfig,
   });
 
   const storageRoot = activeConfig.storage.root;
@@ -75,8 +79,15 @@ export async function runExplain(options: ExplainOptions): Promise<ExplainResult
   try {
     const { manifest: loadedManifest } = await manifestService.loadCurrent(storageMovieId);
     manifest = loadedManifest;
-  } catch {
-    throw new Error(`No manifest found for movie "${storageMovieId}". The movie may not have completed a run.`);
+  } catch (error) {
+    throw createRuntimeError(
+      RuntimeErrorCode.MANIFEST_NOT_FOUND,
+      `No manifest found for movie "${storageMovieId}". The movie may not have completed a run.`,
+      {
+        cause: error,
+        suggestion: 'Run generation for this movie before using explain.',
+      }
+    );
   }
 
   // Determine the revision to explain
@@ -85,7 +96,13 @@ export async function runExplain(options: ExplainOptions): Promise<ExplainResult
     // Find the latest plan file
     const latestRevision = await findLatestPlanRevision(movieDir);
     if (!latestRevision) {
-      throw new Error(`No plan files found for movie "${storageMovieId}".`);
+      throw createRuntimeError(
+        RuntimeErrorCode.PLAN_NOT_FOUND,
+        `No plan files found for movie "${storageMovieId}".`,
+        {
+          suggestion: 'Run generation for this movie first so a plan revision exists.',
+        }
+      );
     }
     revision = latestRevision;
   }
@@ -93,7 +110,13 @@ export async function runExplain(options: ExplainOptions): Promise<ExplainResult
   // Load the plan
   const plan = await planStore.load(storageMovieId, revision, storageContext);
   if (!plan) {
-    throw new Error(`Plan revision "${revision}" not found for movie "${storageMovieId}".`);
+    throw createRuntimeError(
+      RuntimeErrorCode.PLAN_NOT_FOUND,
+      `Plan revision "${revision}" not found for movie "${storageMovieId}".`,
+      {
+        suggestion: 'List available revisions and retry with an existing --revision value.',
+      }
+    );
   }
 
   // Load event log for dirty detection

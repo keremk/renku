@@ -35,24 +35,6 @@ export function getProjectLocalStorage(): { root: string; basePath: string } {
 	};
 }
 
-export async function persistLastMovieId(
-	movieId: string,
-	configPath?: string
-): Promise<CliConfig> {
-	const targetPath = resolve(configPath ?? coreGetDefaultCliConfigPath());
-	const existing = await coreReadCliConfig(targetPath);
-	if (!existing) {
-		throw new Error('Renku CLI is not initialized. Run "renku init" first.');
-	}
-	const updated: CliConfig = {
-		...existing,
-		lastMovieId: movieId,
-		lastGeneratedAt: new Date().toISOString(),
-	};
-	await coreWriteCliConfig(updated, targetPath);
-	return updated;
-}
-
 export function getDefaultEnvFilePath(): string {
 	return resolve(os.homedir(), '.config', 'renku', 'env.sh');
 }

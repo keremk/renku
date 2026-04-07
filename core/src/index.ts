@@ -5,6 +5,7 @@ export * from './schema/index.js';
 export * from './storage.js';
 export * from './cloud-storage.js';
 export * from './movie-metadata.js';
+export * from './blueprint-build.js';
 export * from './event-log.js';
 export * from './manifest.js';
 export * from './hashing.js';

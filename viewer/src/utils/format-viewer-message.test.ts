@@ -34,12 +34,10 @@ describe('formatViewerMessage', () => {
 
   it('rewrites CLI-specific flags to viewer terms', () => {
     const formatted = formatViewerMessage(
-      'Pinning requires an existing movie with reusable outputs. Use --last or --movie-id/--id after a successful run.'
+      'Pinning requires an existing movie with reusable outputs. Use --movie-id/--id after a successful run.'
     );
 
-    expect(formatted).toContain('latest run');
     expect(formatted).toContain('selected movie');
-    expect(formatted).not.toContain('--last');
     expect(formatted).not.toContain('--movie-id');
   });
 

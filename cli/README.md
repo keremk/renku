@@ -154,9 +154,9 @@ This auto-detects your blueprint, starts a local server if needed, and opens you
   - `--dry-run` - Validate without making API calls
   - `--concurrency=<n>` - Number of parallel jobs (default: 1)
   - `--up-to-layer=<n>` - Stop after specified layer
-  - `--regen=<canonical-id>` - Explicitly regenerate specific targets (`Artifact:...` or `Producer:...`, requires `--last` or `--movie-id`)
+  - `--regen=<canonical-id>` - Explicitly regenerate specific targets (`Artifact:...` or `Producer:...`, requires `--movie-id/--id`)
   - `--pid=<Producer:Alias:count>` - Add a producer directive with explicit count (`0` disables, `>=1` caps first-dimension scheduling)
-  - `--pin=<canonical-id>` - Keep known-good outputs (`Artifact:...` or `Producer:...`, requires `--last` or `--movie-id`)
+  - `--pin=<canonical-id>` - Keep known-good outputs (`Artifact:...` or `Producer:...`, requires `--movie-id/--id`)
   - `--pid` and `--up-to-layer` can be combined (both constraints apply)
   - Overlapping `--pin` and `--regen` on the same target fails fast with a conflict error
 
@@ -178,12 +178,12 @@ This auto-detects your blueprint, starts a local server if needed, and opens you
 - `renku list` - List builds in current project (shows dry-run vs completed)
 - `renku clean` - Remove build artifacts (dry-runs only by default, `--all` for everything)
 - `renku export` - Export movie to MP4/MP3 format
-  - `--movie-id=<id>` / `--last` - Movie to export
+  - `--movie-id=<id>` / `--id=<id>` - Movie to export
   - `--inputs=<file>` - Export config YAML file (for advanced settings)
   - `--exporter=<type>` - Exporter backend: `remotion` or `ffmpeg`
   - `--width`, `--height`, `--fps` - Video dimensions and frame rate
 - `renku export:davinci` - Export timeline to OTIO format for DaVinci Resolve
-  - `--movie-id=<id>` / `--last` - Movie to export
+  - `--movie-id=<id>` / `--id=<id>` - Movie to export
   - `--fps=<n>` - Frame rate (default: 30)
 
 For complete command documentation, see the [CLI Reference](https://gorenku.com/docs/cli-reference).

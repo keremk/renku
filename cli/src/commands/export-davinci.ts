@@ -28,7 +28,6 @@ const TIMELINE_ARTEFACT_ID = 'Artifact:TimelineComposer.Timeline';
 
 export interface ExportDavinciOptions {
   movieId?: string;
-  useLast?: boolean;
   fps?: number;
 }
 
@@ -61,8 +60,11 @@ export async function runExportDavinci(options: ExportDavinciOptions): Promise<E
   const globalConfig = await readCliConfig(configPath);
   if (!globalConfig) {
     throw createRuntimeError(
-      RuntimeErrorCode.VIEWER_CONFIG_MISSING,
+      RuntimeErrorCode.CLI_CONFIG_MISSING,
       'Renku CLI is not initialized. Run "renku init" first.',
+      {
+        suggestion: 'Initialize your workspace with: renku init --root=<path>',
+      }
     );
   }
 
@@ -71,10 +73,8 @@ export async function runExportDavinci(options: ExportDavinciOptions): Promise<E
   const effectiveConfig = { ...globalConfig, storage: projectStorage };
 
   // Resolve movie ID
-  const storageMovieId = await resolveTargetMovieId({
+  const storageMovieId = resolveTargetMovieId({
     explicitMovieId: options.movieId,
-    useLast: Boolean(options.useLast),
-    cliConfig: effectiveConfig,
   });
 
   // Load manifest

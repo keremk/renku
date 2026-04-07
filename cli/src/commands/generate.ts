@@ -1,7 +1,6 @@
 import {
 	getDefaultCliConfigPath,
 	getProjectLocalStorage,
-	persistLastMovieId,
 	readCliConfig,
 	type CliConfig,
 } from '../lib/cli-config.js';
@@ -47,7 +46,6 @@ function createEffectiveConfig(
 
 export interface GenerateOptions {
 	movieId?: string;
-	useLast?: boolean;
 	inputsPath?: string;
 	blueprint?: string;
 	dryRun?: boolean;
@@ -97,7 +95,13 @@ export async function runGenerate(
 	const configPath = getDefaultCliConfigPath();
 	const globalConfig = await readCliConfig(configPath);
 	if (!globalConfig) {
-		throw new Error('Renku CLI is not initialized. Run "renku init" first.');
+		throw createRuntimeError(
+			RuntimeErrorCode.CLI_CONFIG_MISSING,
+			'Renku CLI is not initialized. Run "renku init" first.',
+			{
+				suggestion: 'Initialize your workspace with: renku init --root=<path>',
+			}
+		);
 	}
 
 	const { concurrency, cliConfig: resolvedCliConfig } =
@@ -112,32 +116,34 @@ export async function runGenerate(
 		options.storageOverride
 	);
 
-	const usingLast = Boolean(options.useLast);
-	if (usingLast && options.movieId) {
-		throw new Error('Use either --last or --movie-id/--id, not both.');
-	}
-
 	if (options.dryRunProfilePath && !options.dryRun) {
-		throw new Error(
-			'--dry-run-profile/--profile requires --dry-run. Remove the profile flag or run in dry-run mode.'
+		throw createRuntimeError(
+			RuntimeErrorCode.INVALID_INPUT_VALUE,
+			'--dry-run-profile/--profile requires --dry-run. Remove the profile flag or run in dry-run mode.',
+			{
+				suggestion:
+					'Either remove --dry-run-profile/--profile, or add --dry-run to this command.',
+			}
 		);
 	}
 
 	// Validate --regen requirements
-	const targetingExisting = Boolean(usingLast || options.movieId);
+	const targetingExisting = Boolean(options.movieId);
 	if (options.regenerateIds && options.regenerateIds.length > 0) {
 		if (!targetingExisting) {
-			throw new Error(
-				'--regen requires --last or --movie-id/--id to target an existing movie.'
+			throw createRuntimeError(
+				RuntimeErrorCode.MISSING_REQUIRED_INPUT,
+				'--regen requires --movie-id/--id to target an existing movie.',
+				{
+					suggestion:
+						'Provide --movie-id/--id to run regeneration against an existing build.',
+				}
 			);
 		}
 	}
 
 	// Input validation - always required (contains model selections)
 	if (!options.inputsPath) {
-		const { createRuntimeError, RuntimeErrorCode } = await import(
-			'@gorenku/core'
-		);
 		throw createRuntimeError(
 			RuntimeErrorCode.MISSING_REQUIRED_INPUT,
 			'Input YAML path is required.',
@@ -161,11 +167,9 @@ export async function runGenerate(
 	});
 	const artifactsConfig = getCliArtifactsConfig(activeConfig);
 
-	if (options.movieId || usingLast) {
-		const storageMovieId = await resolveTargetMovieId({
+	if (options.movieId) {
+		const storageMovieId = resolveTargetMovieId({
 			explicitMovieId: options.movieId,
-			useLast: usingLast,
-			cliConfig: activeConfig,
 		});
 		const logFilePath = resolve(
 			activeConfig.storage.root,
@@ -183,8 +187,14 @@ export async function runGenerate(
 			storageMovieId
 		).catch((error) => {
 			const message = error instanceof Error ? error.message : String(error);
-			throw new Error(
-				`Unable to load manifest for ${storageMovieId}. ${message}`
+			throw createRuntimeError(
+				RuntimeErrorCode.MANIFEST_NOT_FOUND,
+				`Unable to load manifest for ${storageMovieId}. ${message}`,
+				{
+					cause: error,
+					suggestion:
+						'Run an initial generation for this movie first, then retry this command.',
+				}
 			);
 		});
 
@@ -230,10 +240,6 @@ export async function runGenerate(
 			finalOutputPath = findFinalOutput(artifacts.artefacts);
 		}
 
-		if (editResult.build) {
-			await persistLastMovieId(storageMovieId, configPath);
-		}
-
 		return {
 			movieId: normalizePublicId(storageMovieId),
 			storageMovieId,
@@ -253,8 +259,13 @@ export async function runGenerate(
 
 	// Blueprint validation - required for new movies only
 	if (!options.blueprint) {
-		throw new Error(
-			'Blueprint path is required for a new generation. Provide --blueprint=/path/to/blueprint.yaml'
+		throw createRuntimeError(
+			RuntimeErrorCode.MISSING_REQUIRED_INPUT,
+			'Blueprint path is required for a new generation. Provide --blueprint=/path/to/blueprint.yaml',
+			{
+				suggestion:
+					'Provide --blueprint/--bp with a valid blueprint path for new movie generation.',
+			}
 		);
 	}
 
@@ -271,9 +282,6 @@ export async function runGenerate(
 		level: options.logLevel,
 		logFilePath,
 	});
-	// Persist lastMovieId immediately so --last works even if build fails
-	// This allows users to retry failed builds with --last or --movie-id
-	await persistLastMovieId(storageMovieId, configPath);
 
 	const queryResult = await runExecute({
 		storageMovieId,
@@ -355,7 +363,8 @@ function normalizeRegenerateIds(
 	for (const rawId of regenerateIds) {
 		const id = rawId.trim();
 		if (id.length === 0) {
-			throw new Error(
+			throw createRuntimeError(
+				RuntimeErrorCode.INVALID_INPUT_VALUE,
 				'Invalid --regen value: expected a non-empty canonical Artifact:... or Producer:... ID.'
 			);
 		}
@@ -363,8 +372,13 @@ function normalizeRegenerateIds(
 			normalizedRegenerateIds.push(id);
 			continue;
 		}
-		throw new Error(
-			`Invalid --regen value "${rawId}". Expected canonical Artifact:... or Producer:... ID.`
+		throw createRuntimeError(
+			RuntimeErrorCode.INVALID_INPUT_VALUE,
+			`Invalid --regen value "${rawId}". Expected canonical Artifact:... or Producer:... ID.`,
+			{
+				suggestion:
+					'Use canonical IDs like Artifact:AudioProducer.GeneratedAudio[0] or Producer:AudioProducer.',
+			}
 		);
 	}
 

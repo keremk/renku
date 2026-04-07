@@ -235,8 +235,8 @@ Resume or regenerate an existing movie:
 # By movie ID
 renku generate --movie-id=movie-a1b2c3d4 --inputs=./inputs.yaml
 
-# The most recent movie
-renku generate --last --inputs=./inputs.yaml
+# Another existing movie
+renku generate --movie-id=movie-q123456 --inputs=./inputs.yaml
 ```
 
 **Note:** The `--inputs` flag is always required, even when continuing an existing movie. This ensures model selections are available for any jobs that need to run.
@@ -359,13 +359,13 @@ When you need precise control, use `--regen` to explicitly target artifacts or p
 
 ```bash
 # Regenerate only segment 2's audio (not segments 0, 1, 3, 4)
-renku generate --last --regen="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+renku generate --movie-id=<id> --regen="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
 
 # Regenerate multiple specific segments
-renku generate --last --regen="Artifact:AudioProducer.GeneratedAudio[0]" --regen="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+renku generate --movie-id=<id> --regen="Artifact:AudioProducer.GeneratedAudio[0]" --regen="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
 
 # Regenerate all selected jobs in a producer family and required dependencies
-renku generate --last --regen="Producer:AudioProducer" --inputs=./inputs.yaml
+renku generate --movie-id=<id> --regen="Producer:AudioProducer" --inputs=./inputs.yaml
 ```
 
 With `--regen`:
@@ -382,7 +382,7 @@ Use `--pid` when you want to scope planning by producer family with an explicit 
 
 ```bash
 # Keep only first segment for AudioProducer family
-renku generate --last --pid="Producer:AudioProducer:1" --inputs=./inputs.yaml
+renku generate --movie-id=<id> --pid="Producer:AudioProducer:1" --inputs=./inputs.yaml
 ```
 
 Important details:
@@ -403,10 +403,10 @@ Pin IDs are canonical IDs and can be either:
 
 ```bash
 # Pin one artifact
-renku generate --last --inputs=./inputs.yaml --pin="Artifact:ScriptProducer.NarrationScript[0]"
+renku generate --movie-id=<id> --inputs=./inputs.yaml --pin="Artifact:ScriptProducer.NarrationScript[0]"
 
 # Pin all reusable outputs from a producer
-renku generate --last --inputs=./inputs.yaml --pin="Producer:ScriptProducer"
+renku generate --movie-id=<id> --inputs=./inputs.yaml --pin="Producer:ScriptProducer"
 
 # Mix artifact and producer pins (repeat --pin)
 renku generate --movie-id=movie-a1b2c3d4 --inputs=./inputs.yaml \
@@ -416,7 +416,7 @@ renku generate --movie-id=movie-a1b2c3d4 --inputs=./inputs.yaml \
 
 Pinning rules:
 
-- Pinning is for existing movies (`--last` or `--movie-id`), not brand new runs
+- Pinning is for existing movies (`--movie-id`/`--id`), not brand new runs
 - Pin IDs must be canonical (`Artifact:...` or `Producer:...`)
 - If the same target appears in both `--pin` and `--regen`, the command fails with a conflict error
 - Pinned outputs must already exist as reusable successful outputs
@@ -433,7 +433,7 @@ The keys in `.artefacts` are canonical artifact IDs. Use those values directly w
 **Note:** Quote the artifact ID when using zsh to prevent bracket expansion:
 
 ```bash
-renku generate --last --regen="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+renku generate --movie-id=<id> --regen="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
 ```
 
 ### Cost-Saving Strategies
@@ -481,7 +481,7 @@ renku export --movie-id=movie-a1b2c3d4
 With custom settings:
 
 ```bash
-renku export --last \
+renku export --movie-id=<id> \
   --width=1920 \
   --height=1080 \
   --fps=30
@@ -500,10 +500,10 @@ Use the `--exporter` flag to choose:
 
 ```bash
 # Use FFmpeg (faster, no Docker required)
-renku export --last --exporter=ffmpeg
+renku export --movie-id=<id> --exporter=ffmpeg
 
 # Use Remotion (default, requires Docker)
-renku export --last --exporter=remotion
+renku export --movie-id=<id> --exporter=remotion
 ```
 
 **FFmpeg exporter advantages:**
@@ -523,7 +523,7 @@ renku export --last --exporter=remotion
 For fine-grained control over export settings, use a YAML config file:
 
 ```bash
-renku export --last --inputs=./export-config.yaml
+renku export --movie-id=<id> --inputs=./export-config.yaml
 ```
 
 Example config file with all available options:

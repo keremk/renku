@@ -242,21 +242,20 @@ renku generate --inputs=<path> --blueprint=<path> [--dry-run] [--dry-run-profile
 
 ```bash
 renku generate --movie-id=<movie-id> --inputs=<path> [--dry-run] [--dry-run-profile=<path>|--profile=<path>] [--non-interactive] [--up-to-layer=<n>] [--regen=<canonical-id>] [--pid=<Producer:Alias:count>] [--pin=<canonical-id>]
-renku generate --last --inputs=<path> [--dry-run] [--dry-run-profile=<path>|--profile=<path>] [--non-interactive] [--up-to-layer=<n>] [--regen=<canonical-id>] [--pid=<Producer:Alias:count>] [--pin=<canonical-id>]
 ```
 
 **Usage (surgical regeneration of specific artifacts):**
 
 ```bash
-renku generate --last --regen="Artifact:AudioProducer.GeneratedAudio[0]" --inputs=<path> [--up-to-layer=<n>]
+renku generate --movie-id=<id> --regen="Artifact:AudioProducer.GeneratedAudio[0]" --inputs=<path> [--up-to-layer=<n>]
 renku generate --movie-id=<movie-id> --regen="Artifact:AudioProducer.GeneratedAudio[0]" --regen="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=<path> [--up-to-layer=<n>]
-renku generate --last --regen="Producer:AudioProducer" --inputs=<path>
+renku generate --movie-id=<id> --regen="Producer:AudioProducer" --inputs=<path>
 ```
 
 **Usage (pin existing outputs during regeneration):**
 
 ```bash
-renku generate --last --inputs=<path> --pin=<canonical-id> [--pin=<canonical-id>] [--regen=<canonical-id>] [--up-to-layer=<n>]
+renku generate --movie-id=<id> --inputs=<path> --pin=<canonical-id> [--pin=<canonical-id>] [--regen=<canonical-id>] [--up-to-layer=<n>]
 renku generate --movie-id=<movie-id> --inputs=<path> --pin=<canonical-id> [--pin=<canonical-id>] [--regen=<canonical-id>] [--up-to-layer=<n>]
 ```
 
@@ -264,15 +263,14 @@ renku generate --movie-id=<movie-id> --inputs=<path> --pin=<canonical-id> [--pin
 
 - `--inputs` / `--in` (required): Path to inputs YAML file (contains model selections)
 - `--blueprint` / `--bp` (required for new runs): Path to blueprint YAML file
-- `--movie-id` / `--id` (mutually exclusive with `--last`): Continue a specific movie
-- `--last` (mutually exclusive with `--movie-id`): Continue the most recent movie (fails if none recorded)
+- `--movie-id` / `--id`: Continue a specific movie
 - `--dry-run`: Execute a mocked run without calling providers
 - `--dry-run-profile` / `--profile`: Path to a dry-run profile file (requires `--dry-run`)
 - `--non-interactive`: Skip confirmation prompt
 - `--up-to-layer` / `--up`: Limit planning/execution to layers `0..n` (works for live and dry-run)
-- `--regen`: Explicit regeneration targets. Accepts canonical `Artifact:...` and `Producer:...` IDs. Repeatable. Requires `--last` or `--movie-id`.
+- `--regen`: Explicit regeneration targets. Accepts canonical `Artifact:...` and `Producer:...` IDs. Repeatable. Requires `--movie-id`/`--id`.
 - `--pid` / `--producer-id`: Producer scope directives. Format: `Producer:Alias:<count>` (count required). Repeatable.
-- `--pin`: Keep existing outputs from regeneration. Accepts canonical `Artifact:...` or `Producer:...` IDs. Repeatable. Requires `--last` or `--movie-id`.
+- `--pin`: Keep existing outputs from regeneration. Accepts canonical `Artifact:...` or `Producer:...` IDs. Repeatable. Requires `--movie-id`/`--id`.
 
 **Behavior:**
 
@@ -281,7 +279,7 @@ renku generate --movie-id=<movie-id> --inputs=<path> --pin=<canonical-id> [--pin
 3. Continuing runs then load the existing manifest, apply any artifact edits, regenerate the plan, and execute with the stored blueprint (or an explicit override).
 4. Planning controls are resolved together in core: `--up-to-layer` and `--pid` are both honored, out-of-scope controls are ignored with warnings, and direct `--regen` + `--pin` overlap on the same target is a hard error.
 5. Artifacts view under `artifacts/<id>` stays in sync after successful runs.
-6. The CLI records the latest movie id so `--last` can target it explicitly; if missing, the command fails with an error.
+6. Continuing a run requires an explicit `--movie-id`/`--id`.
 
 **Examples:**
 
@@ -292,35 +290,35 @@ renku generate --inputs=~/inputs.yaml --blueprint=~/.renku/blueprints/audio-only
 # Continue a specific movie
 renku generate --movie-id=movie-q123456 --inputs=./inputs.yaml --up-to-layer=1
 
-# Continue the most recent movie
-renku generate --last --inputs=./inputs.yaml --dry-run
+# Continue an existing movie (dry-run)
+renku generate --movie-id=movie-q123456 --inputs=./inputs.yaml --dry-run
 
 # Generate a reusable dry-run profile
 renku blueprints:dry-run-profile ./blueprint.yaml
 
 # Dry-run with a profile file
-renku generate --last --inputs=./inputs.yaml --dry-run --profile=./blueprint.dry-run-profile.yaml
+renku generate --movie-id=<id> --inputs=./inputs.yaml --dry-run --profile=./blueprint.dry-run-profile.yaml
 
 # Regenerate one artifact and downstream dependencies
-renku generate --last --regen="Artifact:AudioProducer.GeneratedAudio[0]" --inputs=./inputs.yaml
+renku generate --movie-id=<id> --regen="Artifact:AudioProducer.GeneratedAudio[0]" --inputs=./inputs.yaml
 
 # Surgical regeneration with layer limit
 renku generate --movie-id=movie-q123456 --regen="Artifact:ImageProducer.GeneratedImage[2]" --inputs=./inputs.yaml --up-to-layer=1
 
 # Multiple regenerate targets
-renku generate --last --regen="Artifact:AudioProducer.GeneratedAudio[0]" --regen="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+renku generate --movie-id=<id> --regen="Artifact:AudioProducer.GeneratedAudio[0]" --regen="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
 
 # Multiple artifacts with layer limit
-renku generate --last --regen="Artifact:ImageProducer.GeneratedImage[1]" --regen="Artifact:ImageProducer.GeneratedImage[3]" --inputs=./inputs.yaml --up-to-layer=2
+renku generate --movie-id=<id> --regen="Artifact:ImageProducer.GeneratedImage[1]" --regen="Artifact:ImageProducer.GeneratedImage[3]" --inputs=./inputs.yaml --up-to-layer=2
 
 # Producer scope with explicit count cap
-renku generate --last --pid="Producer:AudioProducer:1" --inputs=./inputs.yaml
+renku generate --movie-id=<id> --pid="Producer:AudioProducer:1" --inputs=./inputs.yaml
 
 # Pin one artifact
-renku generate --last --inputs=./inputs.yaml --pin="Artifact:ScriptProducer.NarrationScript[0]"
+renku generate --movie-id=<id> --inputs=./inputs.yaml --pin="Artifact:ScriptProducer.NarrationScript[0]"
 
 # Pin all reusable outputs of a producer
-renku generate --last --inputs=./inputs.yaml --pin="Producer:ScriptProducer"
+renku generate --movie-id=<id> --inputs=./inputs.yaml --pin="Producer:ScriptProducer"
 
 # Pin multiple IDs
 renku generate --movie-id=movie-q123456 --inputs=./inputs.yaml --pin="Artifact:AudioProducer.GeneratedAudio[0]" --pin="Producer:ImageProducer"
@@ -407,14 +405,12 @@ Export a previously generated movie to MP4/MP3 format.
 
 ```bash
 renku export --movie-id=<movie-id> [options]
-renku export --last [options]
-renku export --last --inputs=<config.yaml>
+renku export --movie-id=<id> --inputs=<config.yaml>
 ```
 
 **CLI Options:**
 
-- `--movie-id` / `--id` (mutually exclusive with `--last`): Export a specific movie by ID
-- `--last` (mutually exclusive with `--movie-id`): Export the most recently generated movie
+- `--movie-id` / `--id`: Export a specific movie by ID
 - `--inputs` / `--in` (optional): Path to export config YAML file (for advanced settings)
 - `--exporter` (optional): Exporter backend - `remotion` (default) or `ffmpeg`
 - `--width` (optional): Video width in pixels (default: 1920)
@@ -489,17 +485,17 @@ subtitles:
 # Export with defaults (1920x1080 @ 30fps, remotion exporter)
 renku export --movie-id=movie-q123456
 
-# Export the most recent movie
-renku export --last
+# Export a specific movie
+renku export --movie-id=movie-q123456
 
 # Export with custom resolution
-renku export --last --width=3840 --height=2160 --fps=24
+renku export --movie-id=<id> --width=3840 --height=2160 --fps=24
 
 # Use FFmpeg exporter (faster, no Docker required)
-renku export --last --exporter=ffmpeg
+renku export --movie-id=<id> --exporter=ffmpeg
 
 # Use config file for advanced settings (subtitles, encoding)
-renku export --last --inputs=./export-config.yaml
+renku export --movie-id=<id> --inputs=./export-config.yaml
 ```
 
 **Output:**
@@ -522,7 +518,6 @@ Export a generated movie timeline to OpenTimelineIO (OTIO) format for import int
 
 ```bash
 renku export:davinci --movie-id=<id> [options]
-renku export:davinci --last [options]
 ```
 
 **Options:**
@@ -530,7 +525,6 @@ renku export:davinci --last [options]
 | Option               | Default | Description                    |
 | -------------------- | ------- | ------------------------------ |
 | `--movie-id`, `--id` | -       | Movie ID to export             |
-| `--last`             | -       | Export the most recent movie   |
 | `--fps`              | 30      | Frames per second for timeline |
 
 **Requirements:**
@@ -546,14 +540,14 @@ renku export:davinci --last [options]
 **Examples:**
 
 ```bash
-# Export most recent movie
-renku export:davinci --last
+# Export a specific movie
+renku export:davinci --movie-id=movie-a1b2c3d4
 
 # Export specific movie
 renku export:davinci --movie-id=movie-a1b2c3d4
 
 # Export with custom frame rate
-renku export:davinci --last --fps=24
+renku export:davinci --movie-id=<id> --fps=24
 ```
 
 **Importing into DaVinci Resolve:**
@@ -1098,19 +1092,19 @@ When you need to regenerate only specific parts of the graph, use `--regen` with
 
 ```bash
 # Regenerate one concrete artifact lineage
-renku generate --last --regen="Artifact:AudioProducer.GeneratedAudio[0]" --inputs=./inputs.yaml
+renku generate --movie-id=<id> --regen="Artifact:AudioProducer.GeneratedAudio[0]" --inputs=./inputs.yaml
 
 # Regenerate multiple artifact lineages
-renku generate --last --regen="Artifact:AudioProducer.GeneratedAudio[0]" --regen="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+renku generate --movie-id=<id> --regen="Artifact:AudioProducer.GeneratedAudio[0]" --regen="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
 
 # Regenerate an entire producer family lineage
-renku generate --last --regen="Producer:AudioProducer" --inputs=./inputs.yaml
+renku generate --movie-id=<id> --regen="Producer:AudioProducer" --inputs=./inputs.yaml
 ```
 
 `--regen` rules:
 
 - Accepts canonical `Artifact:...` and `Producer:...` IDs
-- Requires `--last` or `--movie-id` (existing movie context)
+- Requires `--movie-id`/`--id` (existing movie context)
 - Is repeatable (multiple `--regen` values are unioned)
 - Can be combined with `--up-to-layer` to cap downstream propagation
 
@@ -1120,7 +1114,7 @@ Use `--pid` when you want to scope planning by producer family and explicit coun
 
 ```bash
 # Include only first segment for AudioProducer family
-renku generate --last --pid="Producer:AudioProducer:1" --inputs=./inputs.yaml
+renku generate --movie-id=<id> --pid="Producer:AudioProducer:1" --inputs=./inputs.yaml
 ```
 
 `--pid` rules:
@@ -1161,7 +1155,7 @@ If you have 5 audio segments and segment 2 sounds off:
 
 ```bash
 # This regenerates ONLY AudioProducer[2] and anything downstream of it
-renku generate --last --regen="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+renku generate --movie-id=<id> --regen="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
 ```
 
 **Example: Regenerating multiple segments**
@@ -1170,7 +1164,7 @@ If segments 0 and 2 need work but segment 1 is fine:
 
 ```bash
 # This regenerates Audio[0], Audio[2], and their downstream dependencies
-renku generate --last --regen="Artifact:AudioProducer.GeneratedAudio[0]" --regen="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
+renku generate --movie-id=<id> --regen="Artifact:AudioProducer.GeneratedAudio[0]" --regen="Artifact:AudioProducer.GeneratedAudio[2]" --inputs=./inputs.yaml
 ```
 
 ### Pinning Existing Outputs
@@ -1184,10 +1178,10 @@ Pin IDs must be canonical and can be either:
 
 ```bash
 # Pin one artifact
-renku generate --last --inputs=./inputs.yaml --pin="Artifact:ScriptProducer.NarrationScript[0]"
+renku generate --movie-id=<id> --inputs=./inputs.yaml --pin="Artifact:ScriptProducer.NarrationScript[0]"
 
 # Pin a producer's outputs
-renku generate --last --inputs=./inputs.yaml --pin="Producer:ScriptProducer"
+renku generate --movie-id=<id> --inputs=./inputs.yaml --pin="Producer:ScriptProducer"
 
 # Repeat --pin to combine producer and artifact pins
 renku generate --movie-id=movie-q123456 --inputs=./inputs.yaml --pin="Artifact:AudioProducer.GeneratedAudio[0]" --pin="Producer:ImageProducer"
@@ -1195,7 +1189,7 @@ renku generate --movie-id=movie-q123456 --inputs=./inputs.yaml --pin="Artifact:A
 
 Pinning rules:
 
-- Requires `--last` or `--movie-id` (pinning on brand new runs fails)
+- Requires `--movie-id`/`--id` (pinning on brand new runs fails)
 - Pin IDs must be canonical (`Artifact:...` or `Producer:...`)
 - If a target appears in both `--pin` and `--regen`, the command fails with a conflict error
 - Pinned outputs must already exist as reusable successful outputs

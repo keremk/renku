@@ -456,7 +456,7 @@ function resolvePinnedArtifactIds(args: {
   if (!hasPriorReusableArtifacts) {
     throw createRuntimeError(
       RuntimeErrorCode.PIN_REQUIRES_EXISTING_MOVIE,
-      'Pinning requires an existing movie with reusable outputs. Use --last or --movie-id/--id after a successful run.',
+      'Pinning requires an existing movie with reusable outputs. Use --movie-id/--id after a successful run.',
       {
         suggestion:
           'Run the first generation without pin controls, then pin artifacts/producers on subsequent runs.',

@@ -174,7 +174,7 @@ export async function executeBuild(
 	);
 
 	// Always save the manifest after execution completes, even if some jobs failed.
-	// This enables retry functionality via --movie-id or --last.
+	// This enables retry functionality via --movie-id/--id.
 	// The manifest will contain all successfully produced artifacts up to the point of failure.
 	const manifest = await run.buildManifest();
 

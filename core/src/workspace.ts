@@ -44,8 +44,6 @@ export interface CliConfig {
     root: string;
   };
   concurrency?: number;
-  lastMovieId?: string;
-  lastGeneratedAt?: string;
   viewer?: {
     port?: number;
     host?: string;
@@ -130,8 +128,6 @@ export async function readCliConfig(
       artifacts: normalizeCliArtifactsConfig(parsed.artifacts),
       catalog: parsed.catalog,
       concurrency: normalizeCliConcurrency(parsed.concurrency),
-      lastMovieId: parsed.lastMovieId,
-      lastGeneratedAt: parsed.lastGeneratedAt,
       viewer: parsed.viewer,
     };
   } catch {

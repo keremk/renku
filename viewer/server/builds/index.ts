@@ -23,7 +23,7 @@ export type {
 export { type MovieMetadata } from '@gorenku/core';
 
 // Handlers
-export { generateMovieId, createBuild } from './create-handler.js';
+export { createBuild } from './create-handler.js';
 export { getBuildInputs, saveBuildInputs } from './inputs-handler.js';
 export { updateBuildMetadata } from './metadata-handler.js';
 export { enableBuildEditing } from './enable-editing-handler.js';

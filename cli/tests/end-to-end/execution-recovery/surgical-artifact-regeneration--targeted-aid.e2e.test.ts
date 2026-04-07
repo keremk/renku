@@ -191,7 +191,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
     const blueprintPath = resolve(CLI_FIXTURES_BLUEPRINTS, 'pipeline-orchestration', 'audio-narration-loop', 'audio-narration-loop.yaml');
     const inputsPath = resolve(CLI_FIXTURES_INPUTS, 'audio-narration-loop--default.inputs.yaml');
 
-    // Try to use --regen for a new movie (no --last or --movie-id)
+    // Try to use --regen for a new movie (no --movie-id)
     await expect(
       runGenerate({
         regenerateIds: ['Artifact:AudioProducer.GeneratedAudio[0]'],
@@ -201,7 +201,7 @@ describe('end-to-end: surgical artifact regeneration', () => {
         dryRun: true,
         nonInteractive: true,
       })
-    ).rejects.toThrow(/requires --last or --movie-id/);
+    ).rejects.toThrow(/requires --movie-id\/--id/);
   });
 
   it('fails when regenerate IDs are not canonical', async () => {

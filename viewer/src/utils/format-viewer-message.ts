@@ -52,7 +52,6 @@ function rewriteCliTerms(message: string): string {
     .replace(/--movie-id\/--id/g, 'selected movie')
     .replace(/--movie-id/g, 'selected movie')
     .replace(/--id/g, 'selected movie')
-    .replace(/--last/g, 'latest run')
     .replace(/\b--up=(\d+)\b/g, (_match, layerRaw: string) => {
       return `layer limit (up to layer ${layerRaw})`;
     });

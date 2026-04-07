@@ -135,7 +135,7 @@ export async function runExecute(
 
 	if (options.cliConfig) {
 		// Config was provided by caller (e.g., generate.ts), which already resolved concurrency
-		// Don't call resolveAndPersistConcurrency again to avoid overwriting lastMovieId
+		// Don't call resolveAndPersistConcurrency again to avoid rewriting config unexpectedly
 		cliConfig = options.cliConfig;
 		concurrency = options.concurrency ?? cliConfig.concurrency ?? 1;
 	} else {
