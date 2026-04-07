@@ -474,4 +474,41 @@ describe('convertTreeToGraph', () => {
       source: 'synthetic',
     });
   });
+
+  it('injects NumOfSegments when referenced only through loop cardinality', () => {
+    const root = {
+      document: {
+        meta: { id: 'id', name: 'test' },
+        inputs: [{ name: 'Prompt', type: 'string', required: true }],
+        producerImports: [
+          { name: 'ImageGen', producer: 'asset/text-to-image', loop: 'scene' },
+        ],
+        artefacts: [
+          {
+            name: 'SceneImages',
+            type: 'array',
+            itemType: 'image',
+            countInput: 'NumOfSegments',
+          },
+        ],
+        loops: [{ name: 'scene', countInput: 'NumOfSegments' }],
+        edges: [
+          { from: 'Prompt', to: 'ImageGen[scene].Prompt' },
+          { from: 'ImageGen[scene].Output', to: 'SceneImages[scene]' },
+        ],
+      },
+    } as unknown as import('@gorenku/core').BlueprintTreeNode;
+
+    const graph = convertTreeToGraph(root);
+    const numOfSegments = graph.inputs.find(
+      (input) => input.name === 'NumOfSegments'
+    );
+
+    expect(numOfSegments).toBeDefined();
+    expect(numOfSegments?.system).toEqual({
+      kind: 'user',
+      userSupplied: true,
+      source: 'synthetic',
+    });
+  });
 });

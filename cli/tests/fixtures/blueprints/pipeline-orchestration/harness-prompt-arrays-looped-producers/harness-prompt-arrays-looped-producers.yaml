@@ -1,0 +1,116 @@
+meta:
+  name: Harness Prompt Arrays Looped Producers
+  description: Dry-run fixture for harness-provided per-loop prompt arrays wired directly into downstream producers.
+  id: HarnessPromptArraysLoopedProducers
+  version: 0.1.0
+
+inputs:
+  - name: NumOfCharacters
+    description: Number of characters to generate.
+    type: int
+    required: true
+  - name: StyleReferenceImages
+    description: Style reference images broadcast to each character image generation job.
+    type: array
+    itemType: image
+    required: true
+  - name: CharacterImagePrompt
+    description: Harness-provided prompt per character.
+    type: array
+    itemType: text
+    countInput: NumOfCharacters
+    required: true
+  - name: StoryboardImagePrompt
+    description: Harness-provided prompt per scene storyboard image.
+    type: array
+    itemType: text
+    countInput: NumOfSegments
+    required: true
+  - name: SceneVideoPrompt
+    description: Harness-provided prompt per scene video.
+    type: array
+    itemType: text
+    countInput: NumOfSegments
+    required: true
+  - name: Resolution
+    description: Target output resolution.
+    type: resolution
+    required: true
+
+artifacts:
+  - name: CharacterImages
+    description: Character image per character index.
+    type: array
+    itemType: image
+    countInput: NumOfCharacters
+  - name: StoryboardImages
+    description: Storyboard image per scene index.
+    type: array
+    itemType: image
+    countInput: NumOfSegments
+  - name: SceneVideos
+    description: Scene video per scene index.
+    type: array
+    itemType: video
+    countInput: NumOfSegments
+  - name: Timeline
+    description: Ordered timeline manifest.
+    type: json
+
+loops:
+  - name: character
+    description: Iterates over character prompt/input arrays.
+    countInput: NumOfCharacters
+  - name: scene
+    description: Iterates over storyboard/video prompt arrays.
+    countInput: NumOfSegments
+
+producers:
+  - name: CharacterImageProducer
+    producer: image/image-compose
+    loop: character
+  - name: StoryboardImageProducer
+    producer: image/image-compose
+    loop: scene
+  - name: SceneVideoProducer
+    producer: video/image-to-video
+    loop: scene
+  - name: TimelineComposer
+    producer: composition/timeline-composer
+
+connections:
+  - from: StyleReferenceImages
+    to: CharacterImageProducer[character].SourceImages
+  - from: CharacterImagePrompt[character]
+    to: CharacterImageProducer[character].Prompt
+  - from: Resolution
+    to: CharacterImageProducer[character].Resolution
+  - from: CharacterImageProducer[character].ComposedImage
+    to: CharacterImages[character]
+
+  - from: CharacterImageProducer[character].ComposedImage
+    to: StoryboardImageProducer[scene].SourceImages[character]
+  - from: StoryboardImagePrompt[scene]
+    to: StoryboardImageProducer[scene].Prompt
+  - from: Resolution
+    to: StoryboardImageProducer[scene].Resolution
+  - from: StoryboardImageProducer[scene].ComposedImage
+    to: StoryboardImages[scene]
+
+  - from: StoryboardImageProducer[scene].ComposedImage
+    to: SceneVideoProducer[scene].StartImage
+  - from: SceneVideoPrompt[scene]
+    to: SceneVideoProducer[scene].Prompt
+  - from: Resolution
+    to: SceneVideoProducer[scene].Resolution
+  - from: SegmentDuration
+    to: SceneVideoProducer[scene].Duration
+  - from: SceneVideoProducer[scene].GeneratedVideo
+    to: SceneVideos[scene]
+  - from: SceneVideoProducer[scene].GeneratedVideo
+    to: TimelineComposer.VideoSegments
+
+  - from: Duration
+    to: TimelineComposer.Duration
+  - from: TimelineComposer.Timeline
+    to: Timeline

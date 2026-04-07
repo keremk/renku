@@ -3,6 +3,7 @@ import type {
   BlueprintArtefactDefinition,
   BlueprintDocument,
   BlueprintInputDefinition,
+  BlueprintLoopDefinition,
   BlueprintTreeNode,
   ProducerCatalog,
   ProducerConfig,
@@ -404,7 +405,8 @@ function makeBlueprintDocument(
   inputs: BlueprintInputDefinition[],
   artefacts: BlueprintArtefactDefinition[],
   producers: ProducerConfig[],
-  edges: { from: string; to: string }[]
+  edges: { from: string; to: string }[],
+  loops?: BlueprintLoopDefinition[]
 ): BlueprintDocument {
   return {
     meta: { id, name: id },
@@ -413,6 +415,7 @@ function makeBlueprintDocument(
     producers,
     producerImports: [],
     edges,
+    loops,
   };
 }
 
@@ -505,6 +508,36 @@ describe('createPlanningService', () => {
     return makeTreeNode(doc, []);
   }
 
+  function createLoopCountSystemInputBlueprint(): BlueprintTreeNode {
+    const doc = makeBlueprintDocument(
+      'LoopCountSystemInputBlueprint',
+      [{ name: 'Prompt', type: 'string', required: true }],
+      [{ name: 'Output', type: 'array', countInput: 'NumOfSegments' }],
+      [{ name: 'TestProducer' }],
+      [
+        { from: 'Prompt', to: 'TestProducer[scene]' },
+        { from: 'TestProducer[scene]', to: 'Output[scene]' },
+      ],
+      [{ name: 'scene', countInput: 'NumOfSegments' }]
+    );
+    return makeTreeNode(doc, []);
+  }
+
+  function createDerivedLoopCountBlueprint(): BlueprintTreeNode {
+    const doc = makeBlueprintDocument(
+      'DerivedLoopCountBlueprint',
+      [{ name: 'Prompt', type: 'string', required: true }],
+      [{ name: 'Output', type: 'array', countInput: 'SegmentDuration' }],
+      [{ name: 'TestProducer' }],
+      [
+        { from: 'Prompt', to: 'TestProducer[scene]' },
+        { from: 'TestProducer[scene]', to: 'Output[scene]' },
+      ],
+      [{ name: 'scene', countInput: 'SegmentDuration' }]
+    );
+    return makeTreeNode(doc, []);
+  }
+
   describe('generatePlan', () => {
     it('generates a plan for first run (new manifest)', async () => {
       const service = createPlanningService();
@@ -530,6 +563,52 @@ describe('createPlanningService', () => {
       expect(result.inputEvents).toHaveLength(1);
       expect(result.inputEvents[0]?.id).toBe('Input:Prompt');
       expect(result.inputEvents[0]?.payload).toBe('Hello world');
+    });
+
+    it('supports NumOfSegments used only in countInput declarations', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createLoopCountSystemInputBlueprint(),
+        inputValues: {
+          'Input:Prompt': 'Hello world',
+          'Input:NumOfSegments': 4,
+        },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+      });
+
+      expect(result.plan.layers.flat()).toHaveLength(4);
+    });
+
+    it('uses derived SegmentDuration during graph expansion when countInput depends on it', async () => {
+      const service = createPlanningService();
+      const manifestService = createManifestService(storage);
+      const eventLog = createEventLog(storage);
+
+      const result = await service.generatePlan({
+        movieId,
+        blueprintTree: createDerivedLoopCountBlueprint(),
+        inputValues: {
+          'Input:Prompt': 'Hello world',
+          'Input:Duration': 40,
+          'Input:NumOfSegments': 4,
+        },
+        providerCatalog: defaultCatalog,
+        providerOptions: createDefaultOptions(['TestProducer']),
+        storage,
+        manifestService,
+        eventLog,
+      });
+
+      // SegmentDuration is derived as 10, so the loop expands to 10 instances.
+      expect(result.plan.layers.flat()).toHaveLength(10);
     });
 
     it('generates a plan with subsequent revision', async () => {

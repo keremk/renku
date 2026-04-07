@@ -106,8 +106,9 @@ interface NamespaceDimensionEntry extends DimensionSymbol {
 type LocalNodeDims = Map<string, DimensionSymbol[]>;
 
 export function buildBlueprintGraph(root: BlueprintTreeNode): BlueprintGraph {
-  // Inject synthetic input declarations for system inputs referenced in edges
-  injectSystemInputsFromEdges(root);
+  // Inject synthetic input declarations for root-level system inputs referenced
+  // by edges and cardinality metadata (loops/countInput).
+  injectSystemInputsFromRootReferences(root);
 
   const namespaceDims = new Map<string, DimensionSymbol[]>();
   namespaceDims.set('', []);
@@ -1134,22 +1135,14 @@ function collectLoopDefinitions(
 
 /**
  * Injects synthetic input declarations for system inputs that are referenced
- * in edges but not explicitly declared in the blueprint.
+ * in root-level graph wiring but not explicitly declared in the blueprint.
  *
- * This allows blueprints to use system inputs like SegmentDuration without
+ * This allows blueprints to use system inputs like NumOfSegments and
+ * SegmentDuration in edge sources and countInput declarations without
  * having to declare them in the inputs section.
  */
-function injectSystemInputsFromEdges(root: BlueprintTreeNode): void {
-  // Collect all system input references from edges in the root blueprint
-  const referencedSystemInputs = new Set<string>();
-
-  for (const edge of root.document.edges) {
-    // Check the 'from' field for system input references
-    const fromName = extractSimpleInputName(edge.from);
-    if (fromName && SYSTEM_INPUT_NAMES.has(fromName)) {
-      referencedSystemInputs.add(fromName);
-    }
-  }
+function injectSystemInputsFromRootReferences(root: BlueprintTreeNode): void {
+  const referencedSystemInputs = collectReferencedRootSystemInputs(root);
 
   // Get existing input names
   const existingInputNames = new Set(
@@ -1168,6 +1161,43 @@ function injectSystemInputsFromEdges(root: BlueprintTreeNode): void {
       root.document.inputs.push(syntheticInput);
     }
   }
+}
+
+function collectReferencedRootSystemInputs(root: BlueprintTreeNode): Set<string> {
+  const referenced = new Set<string>();
+
+  // Edge-driven references (e.g., from: SegmentDuration)
+  for (const edge of root.document.edges) {
+    const fromName = extractSimpleInputName(edge.from);
+    if (fromName && SYSTEM_INPUT_NAMES.has(fromName)) {
+      referenced.add(fromName);
+    }
+  }
+
+  // Loop cardinality references (e.g., loops[].countInput: NumOfSegments)
+  for (const loop of root.document.loops ?? []) {
+    addSystemInputReference(loop.countInput, referenced);
+  }
+
+  // Artifact cardinality references (including JSON array metadata)
+  for (const artefact of root.document.artefacts) {
+    addSystemInputReference(artefact.countInput, referenced);
+    for (const arrayMapping of artefact.arrays ?? []) {
+      addSystemInputReference(arrayMapping.countInput, referenced);
+    }
+  }
+
+  return referenced;
+}
+
+function addSystemInputReference(
+  candidate: string | undefined,
+  collector: Set<string>
+): void {
+  if (!candidate || !SYSTEM_INPUT_NAMES.has(candidate)) {
+    return;
+  }
+  collector.add(candidate);
 }
 
 /**

@@ -434,6 +434,23 @@ function collectReferencedSystemInputs(
     }
   }
 
+  for (const loop of root.document.loops ?? []) {
+    const loopCountInput = parseReferenceName(loop.countInput);
+    if (loopCountInput && isSystemInputName(loopCountInput)) {
+      referenced.add(loopCountInput);
+    }
+  }
+
+  for (const artefact of root.document.artefacts) {
+    if (!artefact.countInput) {
+      continue;
+    }
+    const artefactCountInput = parseReferenceName(artefact.countInput);
+    if (artefactCountInput && isSystemInputName(artefactCountInput)) {
+      referenced.add(artefactCountInput);
+    }
+  }
+
   return Array.from(referenced).sort((a, b) => a.localeCompare(b));
 }
 

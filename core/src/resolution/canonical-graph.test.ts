@@ -825,6 +825,43 @@ describe('edge cases', () => {
     ]);
   });
 
+  it('injects system inputs referenced by root countInput declarations', () => {
+    const rootDoc = makeBlueprintDocument(
+      'Root',
+      [],
+      [
+        {
+          name: 'SceneVideos',
+          type: 'array',
+          countInput: 'NumOfSegments',
+        },
+        {
+          name: 'Storyboard',
+          type: 'json',
+          arrays: [{ path: 'Frames', countInput: 'SegmentDuration' }],
+        },
+      ],
+      [],
+      [],
+      [{ name: 'scene', countInput: 'NumOfSegments' }]
+    );
+
+    const tree = makeTreeNode(rootDoc, []);
+    const graph = buildBlueprintGraph(tree);
+
+    const numOfSegmentsNode = graph.nodes.find(
+      (n) => n.type === 'InputSource' && n.name === 'NumOfSegments'
+    );
+    const segmentDurationNode = graph.nodes.find(
+      (n) => n.type === 'InputSource' && n.name === 'SegmentDuration'
+    );
+
+    expect(numOfSegmentsNode).toBeDefined();
+    expect(segmentDurationNode).toBeDefined();
+    expect(numOfSegmentsNode?.input?.required).toBe(false);
+    expect(segmentDurationNode?.input?.required).toBe(false);
+  });
+
   it('injects synthetic input declarations for system inputs referenced in edges', () => {
     // Test scenario: Blueprint references SegmentDuration without declaring it
     // The graph builder should inject a synthetic input declaration

@@ -192,7 +192,7 @@ export function createPlanningService(
 
       const canonicalBlueprint = expandBlueprintGraph(
         blueprintGraph,
-        normalizedInputs,
+        inputsWithDerived,
         inputSources
       );
       const producerGraph = createProducerGraph(

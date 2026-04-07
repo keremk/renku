@@ -81,4 +81,42 @@ describe('input source mapping', () => {
 
     expect(() => buildInputSourceMapFromCanonical(graph)).toThrow(/multiple upstream inputs/i);
   });
+
+  it('includes root system inputs referenced only by countInput', () => {
+    const rootDoc: BlueprintDocument = {
+      meta: { id: 'Root', name: 'Root' },
+      inputs: [],
+      artefacts: [
+        { name: 'SceneVideos', type: 'array', countInput: 'NumOfSegments' },
+      ],
+      producers: [],
+      producerImports: [],
+      loops: [{ name: 'scene', countInput: 'NumOfSegments' }],
+      edges: [],
+    };
+
+    const tree: BlueprintTreeNode = {
+      id: 'Root',
+      namespacePath: [],
+      document: rootDoc,
+      children: new Map(),
+      sourcePath: '/test/mock-blueprint.yaml',
+    };
+
+    const graph = buildBlueprintGraph(tree);
+    const sources = buildInputSourceMapFromCanonical(graph);
+    expect(sources.get('Input:NumOfSegments')).toBe('Input:NumOfSegments');
+
+    const normalized = normalizeInputValues(
+      {
+        'Input:NumOfSegments': 3,
+      },
+      sources
+    );
+    const expanded = expandBlueprintGraph(graph, normalized, sources);
+    const sceneVideoNodes = expanded.nodes.filter((node) =>
+      node.id.startsWith('Artifact:SceneVideos[')
+    );
+    expect(sceneVideoNodes).toHaveLength(3);
+  });
 });

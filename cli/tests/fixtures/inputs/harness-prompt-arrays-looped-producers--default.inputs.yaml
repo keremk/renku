@@ -1,0 +1,43 @@
+inputs:
+  NumOfCharacters: 2
+  NumOfSegments: 3
+  Duration: 15
+  SegmentDuration: 5
+  StyleReferenceImages:
+    - 'file:../../../../tests/shared-fixtures/media/grid-image-fixture.jpeg'
+    - 'file:../../../../tests/shared-fixtures/media/grid-image-fixture.jpeg'
+  CharacterImagePrompt:
+    - 'Character 1 portrait in bright cartoon style, centered, clean silhouette'
+    - 'Character 2 portrait in bright cartoon style, centered, clean silhouette'
+  StoryboardImagePrompt:
+    - 'Scene 1: both characters in a colorful park, medium-wide composition'
+    - 'Scene 2: both characters near a river bridge, dynamic perspective'
+    - 'Scene 3: both characters at sunset in a city square, warm tones'
+  SceneVideoPrompt:
+    - 'Scene 1 motion: gentle camera dolly in and subtle character gestures'
+    - 'Scene 2 motion: lateral camera pan with light environmental movement'
+    - 'Scene 3 motion: slow crane up and natural character interaction'
+  Resolution:
+    width: 1280
+    height: 720
+
+models:
+  - model: bytedance/seedream-4
+    provider: replicate
+    producerId: CharacterImageProducer
+  - model: bytedance/seedream-4
+    provider: replicate
+    producerId: StoryboardImageProducer
+  - model: bytedance/seedance-1-pro-fast
+    provider: replicate
+    producerId: SceneVideoProducer
+  - model: timeline/ordered
+    provider: renku
+    producerId: TimelineComposer
+    config:
+      timeline:
+        tracks: ['Video']
+        masterTracks: ['Video']
+        numTracks: 1
+        videoClip:
+          artifact: VideoSegments
